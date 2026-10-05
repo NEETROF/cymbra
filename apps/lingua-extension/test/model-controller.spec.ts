@@ -29,8 +29,8 @@ const CATALOGUE: ModelCatalogue = {
 
 /** What en-fr costs, from the catalogue: its files as served, and decompressed. */
 const COST = { download: 1000, stored: 1350 };
-/** What English and Spanish together cost: en-fr once, and es-en. */
-const BOTH = { download: 2000, stored: 2700 };
+/** What English and Spanish together cost: en-fr once, and es-en; Spanish's route pivots through English. */
+const BOTH = { download: 2000, stored: 2700, pivot: true };
 
 function memoryArea(seed: Record<string, unknown> = {}): SettingArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };

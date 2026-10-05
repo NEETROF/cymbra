@@ -39,9 +39,48 @@
           }
         }
       }
+    },
+    "es-en/base-memory/2.0": {
+      "from": "es",
+      "to": "en",
+      "licence": "MPL-2.0",
+      "mirror": "https://github.com/NEETROF/cymbra/releases/download/lingua-model-es-en-base-memory-2.0/",
+      "files": {
+        "model": {
+          "path": "es-en/base-memory/2.0/4aed7734152ae0045d1a69ae49c86cfda18f53c61f90e95e1d1de1c7c7c3b033/model.bin.gz",
+          "size": 23288494,
+          "unpacked": 31561787,
+          "sha256": "4aed7734152ae0045d1a69ae49c86cfda18f53c61f90e95e1d1de1c7c7c3b033",
+          "source": {
+            "path": "models/es-en/retrain_hr_HbNjJ60BTwmVTbhfFxuduA/exported/model.esen.intgemm.alphas.bin.gz",
+            "sha256": "54247f1e057180bca1d404dfd5c12836f65bc96cef7af98e59e55acb8bd093b1"
+          }
+        },
+        "lex": {
+          "path": "es-en/base-memory/2.0/e2610211d3b9577d012638fe7e7e74ed7b4b708ce96b9e792e67c282a6492daa/lex.bin.gz",
+          "size": 2543246,
+          "unpacked": 4636248,
+          "sha256": "e2610211d3b9577d012638fe7e7e74ed7b4b708ce96b9e792e67c282a6492daa",
+          "source": {
+            "path": "models/es-en/retrain_hr_HbNjJ60BTwmVTbhfFxuduA/exported/lex.50.50.esen.s2t.bin.gz",
+            "sha256": "3d7856bfa3b12804bdc80f12fd828fd9062c462113ab73fbf87c5c3b68420813"
+          }
+        },
+        "vocab": {
+          "path": "es-en/base-memory/2.0/5ae254fa9b15aa182e70fd2a6186b1333c63a29a48043a9224c6aa4fcac058ad/vocab.spm.gz",
+          "size": 409312,
+          "unpacked": 816054,
+          "sha256": "5ae254fa9b15aa182e70fd2a6186b1333c63a29a48043a9224c6aa4fcac058ad",
+          "source": {
+            "path": "models/es-en/retrain_hr_HbNjJ60BTwmVTbhfFxuduA/exported/vocab.esen.spm.gz",
+            "sha256": "1658b529b8858cf2e1e8cef2c4e2d69654d77b5f714ac52205864b336dfeb3ee"
+          }
+        }
+      }
     }
   },
   "routes": {
-    "en": ["en-fr/base-memory/2.0"]
+    "en": ["en-fr/base-memory/2.0"],
+    "es": ["es-en/base-memory/2.0", "en-fr/base-memory/2.0"]
   }
 }

@@ -27,6 +27,7 @@ const PINNED = {
 };
 
 const EN_FR = "en-fr/base-memory/2.0";
+const ES_EN = "es-en/base-memory/2.0";
 
 describe("the committed catalogue", () => {
   it("routes English through the en→fr base-memory model the engine was measured on", () => {
@@ -54,8 +55,20 @@ describe("the committed catalogue", () => {
     }
   });
 
+  it("routes Spanish through English: es-en, then en-fr (add-lingua-spanish-translation-pivot D1)", () => {
+    const route = routeOf(parseCatalogue(committed), "es");
+    expect(route.map((m) => [m.version, m.from, m.to])).toEqual([
+      [ES_EN, "es", "en"],
+      [EN_FR, "en", "fr"],
+    ]);
+    // Pinned as Mozilla's registry lists it: the decompressed model's sha256 is its uncompressedHash.
+    expect(route[0].files.model.sha256).toBe("4aed7734152ae0045d1a69ae49c86cfda18f53c61f90e95e1d1de1c7c7c3b033");
+    expect(totalSize(route[0])).toBe(26_241_052);
+    expect(totalSize(route[0]) + totalSize(route[1])).toBe(51_993_524);
+  });
+
   it("has no route for a language nothing translates yet", () => {
-    expect(routeOf(parseCatalogue(committed), "es")).toEqual([]);
+    expect(routeOf(parseCatalogue(committed), "de")).toEqual([]);
   });
 });
 
@@ -131,7 +144,7 @@ describe("loading the package's catalogue", () => {
     const fetchFn = vi.fn(async () => new Response(JSON.stringify(committed)));
     const c = await loadBundledCatalogue(fetchFn as unknown as typeof fetch);
     expect(fetchFn).toHaveBeenCalledWith(MANIFEST_PATH);
-    expect(Object.keys(c.models)).toEqual([EN_FR]);
+    expect(Object.keys(c.models)).toEqual([EN_FR, ES_EN]);
   });
 
   it("fails on a missing file rather than guess", async () => {
@@ -155,8 +168,13 @@ describe("the models a device needs (generalise-lingua-translation-model-state D
   });
 
   it("needs nothing for a language without a route", () => {
-    expect(modelsFor(parseCatalogue(committed), ["es"])).toEqual([]);
-    expect(modelsFor(parseCatalogue(committed), ["en", "es"]).map((m) => m.version)).toEqual([EN_FR]);
+    expect(modelsFor(parseCatalogue(committed), ["de"])).toEqual([]);
+    expect(modelsFor(parseCatalogue(committed), ["en", "de"]).map((m) => m.version)).toEqual([EN_FR]);
+  });
+
+  it("needs both models of the committed Spanish route, en-fr once", () => {
+    expect(modelsFor(parseCatalogue(committed), ["en", "es"]).map((m) => m.version)).toEqual([EN_FR, ES_EN]);
+    expect(modelsFor(parseCatalogue(committed), ["es"]).map((m) => m.version)).toEqual([ES_EN, EN_FR]);
   });
 
   it("finds models by id, leaving out an id the catalogue does not list", () => {

@@ -29,6 +29,15 @@ describe("model messages", () => {
 
   it("keeps the cost the catalogue gives, and drops one it cannot read", () => {
     const off = { offered: true, host: "none", state: { phase: "absent" } };
+    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, pivot: true } }).cost).toEqual({
+      download: 1,
+      stored: 2,
+      pivot: true,
+    });
+    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, pivot: "yes" } }).cost).toEqual({
+      download: 1,
+      stored: 2,
+    });
     expect(asModelStatus({ ...off, cost: { download: 25_752_472, stored: 36_749_127 } })).toEqual({
       ...off,
       cost: { download: 25_752_472, stored: 36_749_127 },

@@ -22,6 +22,8 @@ export interface ModelCost {
   download: number;
   /** Kept on the device: its files decompressed. */
   stored: number;
+  /** A needed route goes through another language, so two models translate at once (add-lingua-spanish-translation-pivot D4). */
+  pivot?: boolean;
 }
 
 export interface ModelStatus {
@@ -45,7 +47,8 @@ const positive = (n: unknown): n is number => typeof n === "number" && Number.is
 /** A cost, or none when either size is missing or not a size. */
 function asCost(raw: unknown): ModelCost | undefined {
   const c = raw as Partial<ModelCost> | null | undefined;
-  return c && positive(c.download) && positive(c.stored) ? { download: c.download, stored: c.stored } : undefined;
+  if (!c || !positive(c.download) || !positive(c.stored)) return undefined;
+  return { download: c.download, stored: c.stored, ...(c.pivot === true ? { pivot: true } : {}) };
 }
 
 /** A reply, read defensively: anything unreadable means the setting is not offered here. */
