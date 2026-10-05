@@ -250,27 +250,42 @@ describe("barChartElement", () => {
 });
 
 describe("markedWords", () => {
-  const op = (lemma: string, status: string, updated_at: number) => ({ lemma, status, updated_at });
+  const op = (lemma: string, status: string, updated_at: number, language = "en") => ({
+    language,
+    lemma,
+    status,
+    updated_at,
+  });
 
   it("keeps only known/ignored, newest decision first (ties alphabetical)", () => {
-    const words = markedWords([
-      op("run", "learning", 500), // dropped — learning lives in the deck
-      op("seldom", "ignored", 300),
-      op("city", "known", 300), // same ts as seldom → alphabetical: city before seldom
-      op("holocene", "ignored", 900),
-      op("abyss", "cleared", 950), // dropped — a withdrawn decision, already put back
-    ]);
+    const words = markedWords(
+      [
+        op("run", "learning", 500), // dropped — learning lives in the deck
+        op("seldom", "ignored", 300),
+        op("city", "known", 300), // same ts as seldom → alphabetical: city before seldom
+        op("holocene", "ignored", 900),
+        op("abyss", "cleared", 950), // dropped — a withdrawn decision, already put back
+      ],
+      "en",
+    );
     expect(words.map((w) => `${w.lemma}:${w.status}`)).toEqual(["holocene:ignored", "city:known", "seldom:ignored"]);
   });
 
   it("returns an empty list when nothing is explicitly marked", () => {
-    expect(markedWords([op("run", "learning", 1)])).toEqual([]);
-    expect(markedWords([])).toEqual([]);
+    expect(markedWords([op("run", "learning", 1)], "en")).toEqual([]);
+    expect(markedWords([], "en")).toEqual([]);
+  });
+
+  it("keeps the statistics' language only: the export holds every language's", () => {
+    const ops = [op("year", "known", 3), op("año", "known", 2, "es"), op("vez", "ignored", 1, "es")];
+    expect(markedWords(ops, "es").map((w) => w.lemma)).toEqual(["año", "vez"]);
+    expect(markedWords(ops, "en").map((w) => w.lemma)).toEqual(["year"]);
   });
 });
 
 describe("groupMarkedWords", () => {
-  const op = (lemma: string, status: string, provenance: string, updated_at: number) => ({
+  const op = (lemma: string, status: string, provenance: string, updated_at: number, language = "en") => ({
+    language,
     lemma,
     status,
     provenance,
@@ -279,15 +294,19 @@ describe("groupMarkedWords", () => {
   const lemmas = (words: { lemma: string }[]) => words.map((w) => w.lemma);
 
   it("splits the reader's decisions from reading and review confirmations, newest first", () => {
-    const groups = groupMarkedWords([
-      op("seldom", "ignored", "manual", 100),
-      op("city", "known", "manual", 300),
-      op("run", "known", "exposure", 200),
-      op("cat", "known", "exposure", 400),
-      op("nuance", "known", "srs", 500),
-      op("quixotic", "learning", "manual", 900), // in the deck, not a marked word
-      op("abyss", "cleared", "manual", 950), // already put back
-    ]);
+    const groups = groupMarkedWords(
+      [
+        op("seldom", "ignored", "manual", 100),
+        op("city", "known", "manual", 300),
+        op("run", "known", "exposure", 200),
+        op("cat", "known", "exposure", 400),
+        op("nuance", "known", "srs", 500),
+        op("quixotic", "learning", "manual", 900), // in the deck, not a marked word
+        op("abyss", "cleared", "manual", 950), // already put back
+        op("vez", "known", "manual", 960, "es"), // another language's
+      ],
+      "en",
+    );
     expect(lemmas(groups.decision)).toEqual(["city", "seldom"]);
     expect(lemmas(groups.reading)).toEqual(["cat", "run"]);
     expect(lemmas(groups.review)).toEqual(["nuance"]);
@@ -295,11 +314,14 @@ describe("groupMarkedWords", () => {
   });
 
   it("keeps imported and unlabelled knowns, and every ignored word, with the decisions", () => {
-    const groups = groupMarkedWords([
-      op("holocene", "known", "import", 3),
-      { lemma: "era", status: "known", updated_at: 2 },
-      op("zyzzyva", "ignored", "exposure", 1),
-    ]);
+    const groups = groupMarkedWords(
+      [
+        op("holocene", "known", "import", 3),
+        { language: "en", lemma: "era", status: "known", updated_at: 2 },
+        op("zyzzyva", "ignored", "exposure", 1),
+      ],
+      "en",
+    );
     expect(lemmas(groups.decision)).toEqual(["holocene", "era", "zyzzyva"]);
     expect(groups.reading).toEqual([]);
     expect(groups.review).toEqual([]);
