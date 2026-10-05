@@ -40,5 +40,5 @@
 
 ## 7. Owner
 
-- [ ] 7.1 `lingua-model-deploy` is dispatched before the release: host assembled with es-en, mirror release created, deployed, `check_model_host` passes (design D6).
-- [ ] 7.2 Dogfood Spanish translation on Chrome, Firefox for desktop, Safari on macOS, and Safari on the iPhone and the iPad. Watch for memory on iOS.
+- [x] 7.1 `lingua-model-deploy` is dispatched before the release: host assembled with es-en, mirror release created, deployed, `check_model_host` passes (design D6). Done on 2026-10-05, run #3: mirrored and deployed. Its check ran 20 s after the deployment and met 404s; by hand, minutes later, it passed. #712 now gives the check five minutes.
+- [x] 7.2 Dogfood Spanish translation on Chrome, Firefox for desktop, Safari on macOS, and Safari on the iPhone and the iPad. Watch for memory on iOS. Done on 2026-10-05, marks shown since `release-lingua-spanish-translation`, on Chrome, Firefox and Safari on macOS, Firefox for Android on a Boox, and Safari on the iPhone; the iPad was not connected.
