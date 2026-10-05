@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: The answer is the reader's sentence with their selection marked
-A translation SHALL answer with the whole sentence the selection sits in, and SHALL mark, within that translated sentence, the span corresponding to what the reader selected, in a language whose marks have been measured: English. In another language, the selection SHALL be sent untagged, in a single request, and the answer SHALL be the translated sentence without a mark. Spanish is such a language until its marks are measured (`release-lingua-spanish-translation`).
+A translation SHALL answer with the whole sentence the selection sits in, and SHALL mark, within that translated sentence, the span corresponding to what the reader selected, in a language whose marks have been measured: English, and Spanish, whose marks through English `release-lingua-spanish-translation` measured on the programme's first tier. In a language whose marks are not measured, the selection SHALL be sent untagged, in a single request, and the answer SHALL be the translated sentence without a mark.
 The selection SHALL be translated in its sentence rather than on its own, so that its form
 carries the grammar the context imposes. The marked span SHALL be identifiable in the answer
 without the caller re-reading the source text.
@@ -20,6 +20,10 @@ without the caller re-reading the source text.
 
 #### Scenario: A Spanish sentence
 - **WHEN** a reader selects a word in a Spanish sentence
+- **THEN** the answer is the whole sentence in French, through English, the selection marked
+
+#### Scenario: A language whose marks are not measured
+- **WHEN** a translation is asked in a language whose marks were not measured
 - **THEN** the answer is the whole sentence in French without a mark, from a single request to the engine
 
 ## ADDED Requirements
