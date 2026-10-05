@@ -1,0 +1,2019 @@
+{
+  "source": {
+    "en": {
+      "repo": "UD_English-PUD",
+      "commit": "f16eba4ae7f3d161870ed320676c5088b8fa476c",
+      "file": "en_pud-ud-test.conllu",
+      "sha256": "c80584f2bc2b31d5bada78a1136f9feec7ac49e5e18898db02dea434b5b8f0aa"
+    },
+    "es": {
+      "repo": "UD_Spanish-PUD",
+      "commit": "818a82b8628c9cbec78750c7e83ccba34b9ce22b",
+      "file": "es_pud-ud-test.conllu",
+      "sha256": "48a7b5c7f409100b24eba90c7397e01f6fecaaf3207315a9a1bda029f77e98d3"
+    }
+  },
+  "rule": "every tenth PUD sentence; NOUN, VERB, NOUN, ADJ in turn; not the first word, letters only (3+), not in a multiword token; else the first NOUN/VERB/ADJ; else the next sentence (both languages)",
+  "items": [
+    {
+      "k": 0,
+      "id": "n01001011",
+      "lang": "en",
+      "token": 7,
+      "word": "transition",
+      "upos": "NOUN",
+      "start": 27,
+      "end": 37
+    },
+    {
+      "k": 0,
+      "id": "n01001011",
+      "lang": "es",
+      "token": 4,
+      "word": "precedentes",
+      "upos": "NOUN",
+      "start": 15,
+      "end": 26
+    },
+    {
+      "k": 1,
+      "id": "n01004009",
+      "lang": "en",
+      "token": 3,
+      "word": "teaching",
+      "upos": "VERB",
+      "start": 12,
+      "end": 20
+    },
+    {
+      "k": 1,
+      "id": "n01004009",
+      "lang": "es",
+      "token": 7,
+      "word": "enseñar",
+      "upos": "VERB",
+      "start": 25,
+      "end": 32
+    },
+    {
+      "k": 2,
+      "id": "n01010042",
+      "lang": "en",
+      "token": 4,
+      "word": "time",
+      "upos": "NOUN",
+      "start": 12,
+      "end": 16
+    },
+    {
+      "k": 2,
+      "id": "n01010042",
+      "lang": "es",
+      "token": 2,
+      "word": "señor",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 8
+    },
+    {
+      "k": 3,
+      "id": "n01016014",
+      "lang": "en",
+      "token": 3,
+      "word": "Korean",
+      "upos": "ADJ",
+      "start": 10,
+      "end": 16
+    },
+    {
+      "k": 3,
+      "id": "n01016014",
+      "lang": "es",
+      "token": 3,
+      "word": "surcoreana",
+      "upos": "ADJ",
+      "start": 11,
+      "end": 21
+    },
+    {
+      "k": 4,
+      "id": "n01019005",
+      "lang": "en",
+      "token": 3,
+      "word": "security",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 17
+    },
+    {
+      "k": 4,
+      "id": "n01019005",
+      "lang": "es",
+      "token": 2,
+      "word": "embargo",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 11
+    },
+    {
+      "k": 5,
+      "id": "n01022016",
+      "lang": "en",
+      "token": 4,
+      "word": "area",
+      "upos": "NOUN",
+      "start": 20,
+      "end": 24
+    },
+    {
+      "k": 5,
+      "id": "n01022016",
+      "lang": "es",
+      "token": 6,
+      "word": "aumentaron",
+      "upos": "VERB",
+      "start": 30,
+      "end": 40
+    },
+    {
+      "k": 6,
+      "id": "n01025045",
+      "lang": "en",
+      "token": 2,
+      "word": "history",
+      "upos": "NOUN",
+      "start": 11,
+      "end": 18
+    },
+    {
+      "k": 6,
+      "id": "n01025045",
+      "lang": "es",
+      "token": 7,
+      "word": "largo",
+      "upos": "NOUN",
+      "start": 23,
+      "end": 28
+    },
+    {
+      "k": 7,
+      "id": "n01029011",
+      "lang": "en",
+      "token": 11,
+      "word": "far",
+      "upos": "ADJ",
+      "start": 59,
+      "end": 62
+    },
+    {
+      "k": 7,
+      "id": "n01029011",
+      "lang": "es",
+      "token": 11,
+      "word": "Extremo",
+      "upos": "ADJ",
+      "start": 46,
+      "end": 53
+    },
+    {
+      "k": 8,
+      "id": "n01033021",
+      "lang": "en",
+      "token": 9,
+      "word": "pattern",
+      "upos": "NOUN",
+      "start": 39,
+      "end": 46
+    },
+    {
+      "k": 8,
+      "id": "n01033021",
+      "lang": "es",
+      "token": 2,
+      "word": "embargo",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 11
+    },
+    {
+      "k": 9,
+      "id": "n01036020",
+      "lang": "en",
+      "token": 4,
+      "word": "like",
+      "upos": "VERB",
+      "start": 10,
+      "end": 14
+    },
+    {
+      "k": 9,
+      "id": "n01036020",
+      "lang": "es",
+      "token": 3,
+      "word": "gustaría",
+      "upos": "VERB",
+      "start": 11,
+      "end": 19
+    },
+    {
+      "k": 10,
+      "id": "n01041018",
+      "lang": "en",
+      "token": 2,
+      "word": "Physicians",
+      "upos": "NOUN",
+      "start": 1,
+      "end": 11
+    },
+    {
+      "k": 10,
+      "id": "n01041018",
+      "lang": "es",
+      "token": 2,
+      "word": "médicos",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 11
+    },
+    {
+      "k": 11,
+      "id": "n01045035",
+      "lang": "en",
+      "token": 2,
+      "word": "judge",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 9
+    },
+    {
+      "k": 11,
+      "id": "n01045035",
+      "lang": "es",
+      "token": 2,
+      "word": "juez",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 7
+    },
+    {
+      "k": 12,
+      "id": "n01050014",
+      "lang": "en",
+      "token": 7,
+      "word": "hemoglobin",
+      "upos": "NOUN",
+      "start": 29,
+      "end": 39
+    },
+    {
+      "k": 12,
+      "id": "n01050014",
+      "lang": "es",
+      "token": 4,
+      "word": "niveles",
+      "upos": "NOUN",
+      "start": 15,
+      "end": 22
+    },
+    {
+      "k": 13,
+      "id": "n01054011",
+      "lang": "en",
+      "token": 9,
+      "word": "released",
+      "upos": "VERB",
+      "start": 42,
+      "end": 50
+    },
+    {
+      "k": 13,
+      "id": "n01054011",
+      "lang": "es",
+      "token": 4,
+      "word": "publicaron",
+      "upos": "VERB",
+      "start": 13,
+      "end": 23
+    },
+    {
+      "k": 14,
+      "id": "n01059008",
+      "lang": "en",
+      "token": 2,
+      "word": "discordance",
+      "upos": "NOUN",
+      "start": 5,
+      "end": 16
+    },
+    {
+      "k": 14,
+      "id": "n01059008",
+      "lang": "es",
+      "token": 2,
+      "word": "discordancia",
+      "upos": "NOUN",
+      "start": 5,
+      "end": 17
+    },
+    {
+      "k": 15,
+      "id": "n01063011",
+      "lang": "en",
+      "token": 5,
+      "word": "clinical",
+      "upos": "ADJ",
+      "start": 26,
+      "end": 34
+    },
+    {
+      "k": 15,
+      "id": "n01063011",
+      "lang": "es",
+      "token": 8,
+      "word": "indiferentes",
+      "upos": "ADJ",
+      "start": 43,
+      "end": 55
+    },
+    {
+      "k": 16,
+      "id": "n01066093",
+      "lang": "en",
+      "token": 3,
+      "word": "neglect",
+      "upos": "NOUN",
+      "start": 10,
+      "end": 17
+    },
+    {
+      "k": 16,
+      "id": "n01066093",
+      "lang": "es",
+      "token": 3,
+      "word": "descuido",
+      "upos": "NOUN",
+      "start": 12,
+      "end": 20
+    },
+    {
+      "k": 17,
+      "id": "n01070017",
+      "lang": "en",
+      "token": 2,
+      "word": "suggested",
+      "upos": "VERB",
+      "start": 5,
+      "end": 14
+    },
+    {
+      "k": 17,
+      "id": "n01070017",
+      "lang": "es",
+      "token": 2,
+      "word": "sugirió",
+      "upos": "VERB",
+      "start": 5,
+      "end": 12
+    },
+    {
+      "k": 18,
+      "id": "n01074020",
+      "lang": "en",
+      "token": 6,
+      "word": "edge",
+      "upos": "NOUN",
+      "start": 21,
+      "end": 25
+    },
+    {
+      "k": 18,
+      "id": "n01074020",
+      "lang": "es",
+      "token": 9,
+      "word": "manos",
+      "upos": "NOUN",
+      "start": 36,
+      "end": 41
+    },
+    {
+      "k": 19,
+      "id": "n01078025",
+      "lang": "en",
+      "token": 8,
+      "word": "modern",
+      "upos": "ADJ",
+      "start": 32,
+      "end": 38
+    },
+    {
+      "k": 19,
+      "id": "n01078025",
+      "lang": "es",
+      "token": 7,
+      "word": "actual",
+      "upos": "ADJ",
+      "start": 35,
+      "end": 41
+    },
+    {
+      "k": 20,
+      "id": "n01084008",
+      "lang": "en",
+      "token": 4,
+      "word": "couple",
+      "upos": "NOUN",
+      "start": 17,
+      "end": 23
+    },
+    {
+      "k": 20,
+      "id": "n01084008",
+      "lang": "es",
+      "token": 2,
+      "word": "teoría",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 9
+    },
+    {
+      "k": 21,
+      "id": "n01087005",
+      "lang": "en",
+      "token": 5,
+      "word": "say",
+      "upos": "VERB",
+      "start": 13,
+      "end": 16
+    },
+    {
+      "k": 21,
+      "id": "n01087005",
+      "lang": "es",
+      "token": 3,
+      "word": "decir",
+      "upos": "VERB",
+      "start": 9,
+      "end": 14
+    },
+    {
+      "k": 22,
+      "id": "n01091013",
+      "lang": "en",
+      "token": 15,
+      "word": "shooting",
+      "upos": "NOUN",
+      "start": 60,
+      "end": 68
+    },
+    {
+      "k": 22,
+      "id": "n01091013",
+      "lang": "es",
+      "token": 3,
+      "word": "mejor",
+      "upos": "NOUN",
+      "start": 6,
+      "end": 11
+    },
+    {
+      "k": 23,
+      "id": "n01094014",
+      "lang": "en",
+      "token": 4,
+      "word": "marketplaces",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 25
+    },
+    {
+      "k": 23,
+      "id": "n01094014",
+      "lang": "es",
+      "token": 4,
+      "word": "mercados",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 21
+    },
+    {
+      "k": 24,
+      "id": "n01097098",
+      "lang": "en",
+      "token": 3,
+      "word": "stop",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 12
+    },
+    {
+      "k": 24,
+      "id": "n01097098",
+      "lang": "es",
+      "token": 3,
+      "word": "parada",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 19
+    },
+    {
+      "k": 25,
+      "id": "n01102006",
+      "lang": "en",
+      "token": 2,
+      "word": "told",
+      "upos": "VERB",
+      "start": 3,
+      "end": 7
+    },
+    {
+      "k": 25,
+      "id": "n01102006",
+      "lang": "es",
+      "token": 10,
+      "word": "declaró",
+      "upos": "VERB",
+      "start": 36,
+      "end": 43
+    },
+    {
+      "k": 26,
+      "id": "n01107006",
+      "lang": "en",
+      "token": 9,
+      "word": "compensation",
+      "upos": "NOUN",
+      "start": 33,
+      "end": 45
+    },
+    {
+      "k": 26,
+      "id": "n01107006",
+      "lang": "es",
+      "token": 10,
+      "word": "demandas",
+      "upos": "NOUN",
+      "start": 49,
+      "end": 57
+    },
+    {
+      "k": 27,
+      "id": "n01110008",
+      "lang": "en",
+      "token": 5,
+      "word": "Premium",
+      "upos": "ADJ",
+      "start": 13,
+      "end": 20
+    },
+    {
+      "k": 27,
+      "id": "n01110008",
+      "lang": "es",
+      "token": 11,
+      "word": "diferentes",
+      "upos": "ADJ",
+      "start": 53,
+      "end": 63
+    },
+    {
+      "k": 28,
+      "id": "n01114025",
+      "lang": "en",
+      "token": 4,
+      "word": "adults",
+      "upos": "NOUN",
+      "start": 11,
+      "end": 17
+    },
+    {
+      "k": 28,
+      "id": "n01114025",
+      "lang": "es",
+      "token": 5,
+      "word": "adultos",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 25
+    },
+    {
+      "k": 29,
+      "id": "n01118003",
+      "lang": "en",
+      "token": 3,
+      "word": "mic",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 12
+    },
+    {
+      "k": 29,
+      "id": "n01118003",
+      "lang": "es",
+      "token": 2,
+      "word": "caer",
+      "upos": "VERB",
+      "start": 6,
+      "end": 10
+    },
+    {
+      "k": 30,
+      "id": "n01121032",
+      "lang": "en",
+      "token": 3,
+      "word": "died",
+      "upos": "VERB",
+      "start": 14,
+      "end": 18
+    },
+    {
+      "k": 30,
+      "id": "n01121032",
+      "lang": "es",
+      "token": 7,
+      "word": "hecho",
+      "upos": "NOUN",
+      "start": 33,
+      "end": 38
+    },
+    {
+      "k": 31,
+      "id": "n01127089",
+      "lang": "en",
+      "token": 4,
+      "word": "know",
+      "upos": "VERB",
+      "start": 8,
+      "end": 12
+    },
+    {
+      "k": 31,
+      "id": "n01127089",
+      "lang": "es",
+      "token": 6,
+      "word": "elegí",
+      "upos": "VERB",
+      "start": 17,
+      "end": 22
+    },
+    {
+      "k": 32,
+      "id": "n01130003",
+      "lang": "en",
+      "token": 4,
+      "word": "ground",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 24
+    },
+    {
+      "k": 32,
+      "id": "n01130003",
+      "lang": "es",
+      "token": 4,
+      "word": "Norte",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 18
+    },
+    {
+      "k": 33,
+      "id": "n01134015",
+      "lang": "en",
+      "token": 3,
+      "word": "credited",
+      "upos": "VERB",
+      "start": 6,
+      "end": 14
+    },
+    {
+      "k": 33,
+      "id": "n01134015",
+      "lang": "es",
+      "token": 3,
+      "word": "atribuye",
+      "upos": "VERB",
+      "start": 6,
+      "end": 14
+    },
+    {
+      "k": 34,
+      "id": "n01138026",
+      "lang": "en",
+      "token": 2,
+      "word": "episodes",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 12
+    },
+    {
+      "k": 34,
+      "id": "n01138026",
+      "lang": "es",
+      "token": 4,
+      "word": "episodios",
+      "upos": "NOUN",
+      "start": 16,
+      "end": 25
+    },
+    {
+      "k": 35,
+      "id": "n01142008",
+      "lang": "en",
+      "token": 19,
+      "word": "incredible",
+      "upos": "ADJ",
+      "start": 71,
+      "end": 81
+    },
+    {
+      "k": 35,
+      "id": "n01142008",
+      "lang": "es",
+      "token": 18,
+      "word": "increíble",
+      "upos": "ADJ",
+      "start": 72,
+      "end": 81
+    },
+    {
+      "k": 36,
+      "id": "n01145028",
+      "lang": "en",
+      "token": 5,
+      "word": "volunteers",
+      "upos": "NOUN",
+      "start": 16,
+      "end": 26
+    },
+    {
+      "k": 36,
+      "id": "n01145028",
+      "lang": "es",
+      "token": 3,
+      "word": "voluntarios",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 20
+    },
+    {
+      "k": 37,
+      "id": "n01149027",
+      "lang": "en",
+      "token": 5,
+      "word": "see",
+      "upos": "VERB",
+      "start": 19,
+      "end": 22
+    },
+    {
+      "k": 37,
+      "id": "n01149027",
+      "lang": "es",
+      "token": 7,
+      "word": "utilizando",
+      "upos": "VERB",
+      "start": 35,
+      "end": 45
+    },
+    {
+      "k": 38,
+      "id": "w01003056",
+      "lang": "en",
+      "token": 2,
+      "word": "islands",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 15
+    },
+    {
+      "k": 38,
+      "id": "w01003056",
+      "lang": "es",
+      "token": 2,
+      "word": "islas",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 9
+    },
+    {
+      "k": 39,
+      "id": "w01007004",
+      "lang": "en",
+      "token": 15,
+      "word": "limited",
+      "upos": "ADJ",
+      "start": 69,
+      "end": 76
+    },
+    {
+      "k": 39,
+      "id": "w01007004",
+      "lang": "es",
+      "token": 8,
+      "word": "franco",
+      "upos": "ADJ",
+      "start": 29,
+      "end": 35
+    },
+    {
+      "k": 40,
+      "id": "w01010046",
+      "lang": "en",
+      "token": 8,
+      "word": "state",
+      "upos": "NOUN",
+      "start": 27,
+      "end": 32
+    },
+    {
+      "k": 40,
+      "id": "w01010046",
+      "lang": "es",
+      "token": 3,
+      "word": "año",
+      "upos": "NOUN",
+      "start": 6,
+      "end": 9
+    },
+    {
+      "k": 41,
+      "id": "w01016070",
+      "lang": "en",
+      "token": 3,
+      "word": "example",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 16
+    },
+    {
+      "k": 41,
+      "id": "w01016070",
+      "lang": "es",
+      "token": 3,
+      "word": "ejemplo",
+      "upos": "NOUN",
+      "start": 12,
+      "end": 19
+    },
+    {
+      "k": 42,
+      "id": "w01020018",
+      "lang": "en",
+      "token": 5,
+      "word": "climate",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 25
+    },
+    {
+      "k": 42,
+      "id": "w01020018",
+      "lang": "es",
+      "token": 4,
+      "word": "clima",
+      "upos": "NOUN",
+      "start": 10,
+      "end": 15
+    },
+    {
+      "k": 43,
+      "id": "w01025085",
+      "lang": "en",
+      "token": 10,
+      "word": "important",
+      "upos": "ADJ",
+      "start": 44,
+      "end": 53
+    },
+    {
+      "k": 43,
+      "id": "w01025085",
+      "lang": "es",
+      "token": 10,
+      "word": "importantes",
+      "upos": "ADJ",
+      "start": 39,
+      "end": 50
+    },
+    {
+      "k": 44,
+      "id": "w01028069",
+      "lang": "en",
+      "token": 2,
+      "word": "reaction",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 17
+    },
+    {
+      "k": 44,
+      "id": "w01028069",
+      "lang": "es",
+      "token": 2,
+      "word": "reacción",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 11
+    },
+    {
+      "k": 45,
+      "id": "w01031015",
+      "lang": "en",
+      "token": 3,
+      "word": "tends",
+      "upos": "VERB",
+      "start": 11,
+      "end": 16
+    },
+    {
+      "k": 45,
+      "id": "w01031015",
+      "lang": "es",
+      "token": 3,
+      "word": "tiende",
+      "upos": "VERB",
+      "start": 11,
+      "end": 17
+    },
+    {
+      "k": 46,
+      "id": "w01035081",
+      "lang": "en",
+      "token": 2,
+      "word": "land",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 17
+    },
+    {
+      "k": 46,
+      "id": "w01035081",
+      "lang": "es",
+      "token": 2,
+      "word": "tierra",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 9
+    },
+    {
+      "k": 47,
+      "id": "w01038044",
+      "lang": "en",
+      "token": 2,
+      "word": "indigenous",
+      "upos": "ADJ",
+      "start": 9,
+      "end": 19
+    },
+    {
+      "k": 47,
+      "id": "w01038044",
+      "lang": "es",
+      "token": 3,
+      "word": "indígenas",
+      "upos": "ADJ",
+      "start": 18,
+      "end": 27
+    },
+    {
+      "k": 48,
+      "id": "w01042055",
+      "lang": "en",
+      "token": 7,
+      "word": "city",
+      "upos": "NOUN",
+      "start": 31,
+      "end": 35
+    },
+    {
+      "k": 48,
+      "id": "w01042055",
+      "lang": "es",
+      "token": 2,
+      "word": "tormentas",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 13
+    },
+    {
+      "k": 49,
+      "id": "w01046056",
+      "lang": "en",
+      "token": 5,
+      "word": "government",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 28
+    },
+    {
+      "k": 49,
+      "id": "w01046056",
+      "lang": "es",
+      "token": 2,
+      "word": "gobierno",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 11
+    },
+    {
+      "k": 50,
+      "id": "w01050067",
+      "lang": "en",
+      "token": 3,
+      "word": "fall",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 13
+    },
+    {
+      "k": 50,
+      "id": "w01050067",
+      "lang": "es",
+      "token": 3,
+      "word": "caída",
+      "upos": "NOUN",
+      "start": 7,
+      "end": 12
+    },
+    {
+      "k": 51,
+      "id": "w01053015",
+      "lang": "en",
+      "token": 2,
+      "word": "exact",
+      "upos": "ADJ",
+      "start": 4,
+      "end": 9
+    },
+    {
+      "k": 51,
+      "id": "w01053015",
+      "lang": "es",
+      "token": 3,
+      "word": "exacto",
+      "upos": "ADJ",
+      "start": 7,
+      "end": 13
+    },
+    {
+      "k": 52,
+      "id": "w01058009",
+      "lang": "en",
+      "token": 10,
+      "word": "battle",
+      "upos": "NOUN",
+      "start": 52,
+      "end": 58
+    },
+    {
+      "k": 52,
+      "id": "w01058009",
+      "lang": "es",
+      "token": 3,
+      "word": "maneras",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 16
+    },
+    {
+      "k": 53,
+      "id": "w01063048",
+      "lang": "en",
+      "token": 3,
+      "word": "represented",
+      "upos": "VERB",
+      "start": 9,
+      "end": 20
+    },
+    {
+      "k": 53,
+      "id": "w01063048",
+      "lang": "es",
+      "token": 3,
+      "word": "representaban",
+      "upos": "VERB",
+      "start": 11,
+      "end": 24
+    },
+    {
+      "k": 54,
+      "id": "w01066040",
+      "lang": "en",
+      "token": 2,
+      "word": "New",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 11
+    },
+    {
+      "k": 54,
+      "id": "w01066040",
+      "lang": "es",
+      "token": 2,
+      "word": "Año",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 6
+    },
+    {
+      "k": 55,
+      "id": "w01070031",
+      "lang": "en",
+      "token": 4,
+      "word": "astronomical",
+      "upos": "ADJ",
+      "start": 13,
+      "end": 25
+    },
+    {
+      "k": 55,
+      "id": "w01070031",
+      "lang": "es",
+      "token": 3,
+      "word": "astronómico",
+      "upos": "ADJ",
+      "start": 16,
+      "end": 27
+    },
+    {
+      "k": 56,
+      "id": "w01072079",
+      "lang": "en",
+      "token": 4,
+      "word": "century",
+      "upos": "NOUN",
+      "start": 11,
+      "end": 18
+    },
+    {
+      "k": 56,
+      "id": "w01072079",
+      "lang": "es",
+      "token": 3,
+      "word": "siglo",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 14
+    },
+    {
+      "k": 57,
+      "id": "w01075039",
+      "lang": "en",
+      "token": 9,
+      "word": "make",
+      "upos": "VERB",
+      "start": 38,
+      "end": 42
+    },
+    {
+      "k": 57,
+      "id": "w01075039",
+      "lang": "es",
+      "token": 10,
+      "word": "hicieron",
+      "upos": "VERB",
+      "start": 43,
+      "end": 51
+    },
+    {
+      "k": 58,
+      "id": "w01080129",
+      "lang": "en",
+      "token": 7,
+      "word": "enemies",
+      "upos": "NOUN",
+      "start": 41,
+      "end": 48
+    },
+    {
+      "k": 58,
+      "id": "w01080129",
+      "lang": "es",
+      "token": 6,
+      "word": "contra",
+      "upos": "NOUN",
+      "start": 24,
+      "end": 30
+    },
+    {
+      "k": 59,
+      "id": "w01085004",
+      "lang": "en",
+      "token": 2,
+      "word": "Army",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 8
+    },
+    {
+      "k": 59,
+      "id": "w01085004",
+      "lang": "es",
+      "token": 2,
+      "word": "ejército",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 11
+    },
+    {
+      "k": 60,
+      "id": "w01089040",
+      "lang": "en",
+      "token": 3,
+      "word": "time",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 12
+    },
+    {
+      "k": 60,
+      "id": "w01089040",
+      "lang": "es",
+      "token": 3,
+      "word": "época",
+      "upos": "NOUN",
+      "start": 7,
+      "end": 12
+    },
+    {
+      "k": 61,
+      "id": "w01095090",
+      "lang": "en",
+      "token": 11,
+      "word": "considered",
+      "upos": "VERB",
+      "start": 42,
+      "end": 52
+    },
+    {
+      "k": 61,
+      "id": "w01095090",
+      "lang": "es",
+      "token": 14,
+      "word": "usar",
+      "upos": "VERB",
+      "start": 78,
+      "end": 82
+    },
+    {
+      "k": 62,
+      "id": "w01099012",
+      "lang": "en",
+      "token": 4,
+      "word": "origin",
+      "upos": "NOUN",
+      "start": 20,
+      "end": 26
+    },
+    {
+      "k": 62,
+      "id": "w01099012",
+      "lang": "es",
+      "token": 2,
+      "word": "explicaciones",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 17
+    },
+    {
+      "k": 63,
+      "id": "w01102020",
+      "lang": "en",
+      "token": 8,
+      "word": "officer",
+      "upos": "NOUN",
+      "start": 33,
+      "end": 40
+    },
+    {
+      "k": 63,
+      "id": "w01102020",
+      "lang": "es",
+      "token": 9,
+      "word": "oficial",
+      "upos": "NOUN",
+      "start": 41,
+      "end": 48
+    },
+    {
+      "k": 64,
+      "id": "w01106073",
+      "lang": "en",
+      "token": 3,
+      "word": "altitude",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 17
+    },
+    {
+      "k": 64,
+      "id": "w01106073",
+      "lang": "es",
+      "token": 3,
+      "word": "altitud",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 15
+    },
+    {
+      "k": 65,
+      "id": "w01111089",
+      "lang": "en",
+      "token": 2,
+      "word": "met",
+      "upos": "VERB",
+      "start": 9,
+      "end": 12
+    },
+    {
+      "k": 65,
+      "id": "w01111089",
+      "lang": "es",
+      "token": 2,
+      "word": "conoció",
+      "upos": "VERB",
+      "start": 9,
+      "end": 16
+    },
+    {
+      "k": 66,
+      "id": "w01115023",
+      "lang": "en",
+      "token": 5,
+      "word": "University",
+      "upos": "NOUN",
+      "start": 23,
+      "end": 33
+    },
+    {
+      "k": 66,
+      "id": "w01115023",
+      "lang": "es",
+      "token": 6,
+      "word": "Universidad",
+      "upos": "NOUN",
+      "start": 26,
+      "end": 37
+    },
+    {
+      "k": 67,
+      "id": "w01119059",
+      "lang": "en",
+      "token": 5,
+      "word": "similar",
+      "upos": "ADJ",
+      "start": 24,
+      "end": 31
+    },
+    {
+      "k": 67,
+      "id": "w01119059",
+      "lang": "es",
+      "token": 5,
+      "word": "mismo",
+      "upos": "ADJ",
+      "start": 28,
+      "end": 33
+    },
+    {
+      "k": 68,
+      "id": "w01125036",
+      "lang": "en",
+      "token": 7,
+      "word": "hours",
+      "upos": "NOUN",
+      "start": 35,
+      "end": 40
+    },
+    {
+      "k": 68,
+      "id": "w01125036",
+      "lang": "es",
+      "token": 7,
+      "word": "horas",
+      "upos": "NOUN",
+      "start": 40,
+      "end": 45
+    },
+    {
+      "k": 69,
+      "id": "w01130099",
+      "lang": "en",
+      "token": 2,
+      "word": "released",
+      "upos": "VERB",
+      "start": 9,
+      "end": 17
+    },
+    {
+      "k": 69,
+      "id": "w01130099",
+      "lang": "es",
+      "token": 2,
+      "word": "lanzó",
+      "upos": "VERB",
+      "start": 9,
+      "end": 14
+    },
+    {
+      "k": 70,
+      "id": "w01133014",
+      "lang": "en",
+      "token": 5,
+      "word": "plotter",
+      "upos": "NOUN",
+      "start": 21,
+      "end": 28
+    },
+    {
+      "k": 70,
+      "id": "w01133014",
+      "lang": "es",
+      "token": 4,
+      "word": "edición",
+      "upos": "NOUN",
+      "start": 16,
+      "end": 23
+    },
+    {
+      "k": 71,
+      "id": "w01136029",
+      "lang": "en",
+      "token": 9,
+      "word": "stereotypical",
+      "upos": "ADJ",
+      "start": 49,
+      "end": 62
+    },
+    {
+      "k": 71,
+      "id": "w01136029",
+      "lang": "es",
+      "token": 10,
+      "word": "estereotípica",
+      "upos": "ADJ",
+      "start": 64,
+      "end": 77
+    },
+    {
+      "k": 72,
+      "id": "w01140032",
+      "lang": "en",
+      "token": 5,
+      "word": "method",
+      "upos": "NOUN",
+      "start": 27,
+      "end": 33
+    },
+    {
+      "k": 72,
+      "id": "w01140032",
+      "lang": "es",
+      "token": 4,
+      "word": "método",
+      "upos": "NOUN",
+      "start": 19,
+      "end": 25
+    },
+    {
+      "k": 73,
+      "id": "w01143037",
+      "lang": "en",
+      "token": 20,
+      "word": "played",
+      "upos": "VERB",
+      "start": 91,
+      "end": 97
+    },
+    {
+      "k": 73,
+      "id": "w01143037",
+      "lang": "es",
+      "token": 5,
+      "word": "haciendo",
+      "upos": "VERB",
+      "start": 30,
+      "end": 38
+    },
+    {
+      "k": 74,
+      "id": "w01147122",
+      "lang": "en",
+      "token": 10,
+      "word": "information",
+      "upos": "NOUN",
+      "start": 45,
+      "end": 56
+    },
+    {
+      "k": 74,
+      "id": "w01147122",
+      "lang": "es",
+      "token": 2,
+      "word": "agosto",
+      "upos": "NOUN",
+      "start": 6,
+      "end": 12
+    },
+    {
+      "k": 75,
+      "id": "n02002007",
+      "lang": "en",
+      "token": 4,
+      "word": "able",
+      "upos": "ADJ",
+      "start": 18,
+      "end": 22
+    },
+    {
+      "k": 75,
+      "id": "n02002007",
+      "lang": "es",
+      "token": 4,
+      "word": "capaces",
+      "upos": "ADJ",
+      "start": 21,
+      "end": 28
+    },
+    {
+      "k": 76,
+      "id": "n02027007",
+      "lang": "en",
+      "token": 8,
+      "word": "agents",
+      "upos": "NOUN",
+      "start": 44,
+      "end": 50
+    },
+    {
+      "k": 76,
+      "id": "n02027007",
+      "lang": "es",
+      "token": 7,
+      "word": "número",
+      "upos": "NOUN",
+      "start": 26,
+      "end": 32
+    },
+    {
+      "k": 77,
+      "id": "n02038007",
+      "lang": "en",
+      "token": 3,
+      "word": "gropes",
+      "upos": "VERB",
+      "start": 17,
+      "end": 23
+    },
+    {
+      "k": 77,
+      "id": "n02038007",
+      "lang": "es",
+      "token": 3,
+      "word": "avanza",
+      "upos": "VERB",
+      "start": 17,
+      "end": 23
+    },
+    {
+      "k": 78,
+      "id": "n02048002",
+      "lang": "en",
+      "token": 6,
+      "word": "alarm",
+      "upos": "NOUN",
+      "start": 23,
+      "end": 28
+    },
+    {
+      "k": 78,
+      "id": "n02048002",
+      "lang": "es",
+      "token": 5,
+      "word": "despertador",
+      "upos": "NOUN",
+      "start": 16,
+      "end": 27
+    },
+    {
+      "k": 79,
+      "id": "n02073024",
+      "lang": "en",
+      "token": 3,
+      "word": "time",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 12
+    },
+    {
+      "k": 79,
+      "id": "n02073024",
+      "lang": "es",
+      "token": 17,
+      "word": "enemigas",
+      "upos": "ADJ",
+      "start": 79,
+      "end": 87
+    },
+    {
+      "k": 80,
+      "id": "n03001007",
+      "lang": "en",
+      "token": 12,
+      "word": "letter",
+      "upos": "NOUN",
+      "start": 48,
+      "end": 54
+    },
+    {
+      "k": 80,
+      "id": "n03001007",
+      "lang": "es",
+      "token": 2,
+      "word": "diferencia",
+      "upos": "NOUN",
+      "start": 2,
+      "end": 12
+    },
+    {
+      "k": 81,
+      "id": "n03005025",
+      "lang": "en",
+      "token": 10,
+      "word": "accused",
+      "upos": "VERB",
+      "start": 48,
+      "end": 55
+    },
+    {
+      "k": 81,
+      "id": "n03005025",
+      "lang": "es",
+      "token": 10,
+      "word": "acusó",
+      "upos": "VERB",
+      "start": 48,
+      "end": 53
+    },
+    {
+      "k": 82,
+      "id": "n03008011",
+      "lang": "en",
+      "token": 6,
+      "word": "way",
+      "upos": "NOUN",
+      "start": 15,
+      "end": 18
+    },
+    {
+      "k": 82,
+      "id": "n03008011",
+      "lang": "es",
+      "token": 6,
+      "word": "últimas",
+      "upos": "NOUN",
+      "start": 17,
+      "end": 24
+    },
+    {
+      "k": 83,
+      "id": "n04003043",
+      "lang": "en",
+      "token": 2,
+      "word": "hit",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 7
+    },
+    {
+      "k": 83,
+      "id": "n04003043",
+      "lang": "es",
+      "token": 3,
+      "word": "musical",
+      "upos": "ADJ",
+      "start": 9,
+      "end": 16
+    },
+    {
+      "k": 84,
+      "id": "n04007018",
+      "lang": "en",
+      "token": 9,
+      "word": "note",
+      "upos": "NOUN",
+      "start": 35,
+      "end": 39
+    },
+    {
+      "k": 84,
+      "id": "n04007018",
+      "lang": "es",
+      "token": 10,
+      "word": "nota",
+      "upos": "NOUN",
+      "start": 36,
+      "end": 40
+    },
+    {
+      "k": 85,
+      "id": "n05001005",
+      "lang": "en",
+      "token": 12,
+      "word": "represents",
+      "upos": "VERB",
+      "start": 62,
+      "end": 72
+    },
+    {
+      "k": 85,
+      "id": "n05001005",
+      "lang": "es",
+      "token": 12,
+      "word": "representa",
+      "upos": "VERB",
+      "start": 61,
+      "end": 71
+    },
+    {
+      "k": 86,
+      "id": "n05003022",
+      "lang": "en",
+      "token": 7,
+      "word": "one",
+      "upos": "NOUN",
+      "start": 26,
+      "end": 29
+    },
+    {
+      "k": 86,
+      "id": "n05003022",
+      "lang": "es",
+      "token": 6,
+      "word": "único",
+      "upos": "NOUN",
+      "start": 20,
+      "end": 25
+    },
+    {
+      "k": 87,
+      "id": "n05008012",
+      "lang": "en",
+      "token": 9,
+      "word": "worried",
+      "upos": "ADJ",
+      "start": 30,
+      "end": 37
+    },
+    {
+      "k": 87,
+      "id": "n05008012",
+      "lang": "es",
+      "token": 8,
+      "word": "preocupado",
+      "upos": "ADJ",
+      "start": 27,
+      "end": 37
+    },
+    {
+      "k": 88,
+      "id": "w02003037",
+      "lang": "en",
+      "token": 6,
+      "word": "cloister",
+      "upos": "NOUN",
+      "start": 20,
+      "end": 28
+    },
+    {
+      "k": 88,
+      "id": "w02003037",
+      "lang": "es",
+      "token": 6,
+      "word": "monasterio",
+      "upos": "NOUN",
+      "start": 20,
+      "end": 30
+    },
+    {
+      "k": 89,
+      "id": "w02006081",
+      "lang": "en",
+      "token": 13,
+      "word": "win",
+      "upos": "VERB",
+      "start": 62,
+      "end": 65
+    },
+    {
+      "k": 89,
+      "id": "w02006081",
+      "lang": "es",
+      "token": 10,
+      "word": "consiguió",
+      "upos": "VERB",
+      "start": 62,
+      "end": 71
+    },
+    {
+      "k": 90,
+      "id": "w02009002",
+      "lang": "en",
+      "token": 2,
+      "word": "severity",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 12
+    },
+    {
+      "k": 90,
+      "id": "w02009002",
+      "lang": "es",
+      "token": 2,
+      "word": "gravedad",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 11
+    },
+    {
+      "k": 91,
+      "id": "w02014013",
+      "lang": "en",
+      "token": 4,
+      "word": "last",
+      "upos": "ADJ",
+      "start": 11,
+      "end": 15
+    },
+    {
+      "k": 91,
+      "id": "w02014013",
+      "lang": "es",
+      "token": 4,
+      "word": "últimos",
+      "upos": "ADJ",
+      "start": 11,
+      "end": 18
+    },
+    {
+      "k": 92,
+      "id": "w02017061",
+      "lang": "en",
+      "token": 2,
+      "word": "traces",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 10
+    },
+    {
+      "k": 92,
+      "id": "w02017061",
+      "lang": "es",
+      "token": 2,
+      "word": "restos",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 10
+    },
+    {
+      "k": 93,
+      "id": "w03003039",
+      "lang": "en",
+      "token": 13,
+      "word": "captained",
+      "upos": "VERB",
+      "start": 65,
+      "end": 74
+    },
+    {
+      "k": 93,
+      "id": "w03003039",
+      "lang": "es",
+      "token": 16,
+      "word": "capitaneado",
+      "upos": "VERB",
+      "start": 79,
+      "end": 90
+    },
+    {
+      "k": 94,
+      "id": "w03007039",
+      "lang": "en",
+      "token": 7,
+      "word": "outposts",
+      "upos": "NOUN",
+      "start": 47,
+      "end": 55
+    },
+    {
+      "k": 94,
+      "id": "w03007039",
+      "lang": "es",
+      "token": 2,
+      "word": "comercio",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 11
+    },
+    {
+      "k": 95,
+      "id": "w04001027",
+      "lang": "en",
+      "token": 3,
+      "word": "lower",
+      "upos": "ADJ",
+      "start": 7,
+      "end": 12
+    },
+    {
+      "k": 95,
+      "id": "w04001027",
+      "lang": "es",
+      "token": 4,
+      "word": "baja",
+      "upos": "ADJ",
+      "start": 12,
+      "end": 16
+    },
+    {
+      "k": 96,
+      "id": "w04004051",
+      "lang": "en",
+      "token": 16,
+      "word": "parts",
+      "upos": "NOUN",
+      "start": 92,
+      "end": 97
+    },
+    {
+      "k": 96,
+      "id": "w04004051",
+      "lang": "es",
+      "token": 6,
+      "word": "región",
+      "upos": "NOUN",
+      "start": 28,
+      "end": 34
+    },
+    {
+      "k": 97,
+      "id": "w04010027",
+      "lang": "en",
+      "token": 12,
+      "word": "met",
+      "upos": "VERB",
+      "start": 70,
+      "end": 73
+    },
+    {
+      "k": 97,
+      "id": "w04010027",
+      "lang": "es",
+      "token": 13,
+      "word": "conocieron",
+      "upos": "VERB",
+      "start": 75,
+      "end": 85
+    },
+    {
+      "k": 98,
+      "id": "w05003012",
+      "lang": "en",
+      "token": 4,
+      "word": "breakdown",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 22
+    },
+    {
+      "k": 98,
+      "id": "w05003012",
+      "lang": "es",
+      "token": 3,
+      "word": "ruptura",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 15
+    },
+    {
+      "k": 99,
+      "id": "w05006058",
+      "lang": "en",
+      "token": 3,
+      "word": "other",
+      "upos": "ADJ",
+      "start": 7,
+      "end": 12
+    },
+    {
+      "k": 99,
+      "id": "w05006058",
+      "lang": "es",
+      "token": 3,
+      "word": "externa",
+      "upos": "ADJ",
+      "start": 12,
+      "end": 19
+    }
+  ]
+}
