@@ -26,9 +26,26 @@ describe("relayTranslation", () => {
     expect(languages).toEqual(["en", "en"]);
   });
 
+  it("marks a Spanish selection, its marks measured (release-lingua-spanish-translation)", async () => {
+    const { access, seen, languages } = engine((markup) => ({
+      ok: true,
+      html: markup === "casa" ? "maison" : "Ma grand-mère vivait dans une petite <b>maison</b> près de la mer.",
+    }));
+    const result = await relayTranslation(access, {
+      sentence: "Mi abuela vivía en una casa pequeña cerca del mar.",
+      selection: { start: 23, end: 27 },
+      language: "es",
+    });
+    expect(seen).toEqual(["Mi abuela vivía en una <b>casa</b> pequeña cerca del mar.", "casa"]);
+    expect(languages).toEqual(["es", "es"]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: fr, marks } = result.translation;
+    expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
+  });
+
   it("translates a sentence in an unmeasured language untagged, once, without a mark (D3)", async () => {
-    // add-lingua-spanish-translation-pivot: Spanish goes through English, two alignments chained,
-    // so its selection is not marked until its marks are measured.
+    // add-lingua-spanish-translation-pivot: a language whose marks are not measured is translated
+    // without one. No shipped language is in that case today; a German route would be.
     const { access, seen, languages } = engine(() => ({
       ok: true,
       html: "Elle a abandonné après la &lt;troisième&gt; tentative.",
@@ -36,11 +53,11 @@ describe("relayTranslation", () => {
     const result = await relayTranslation(access, {
       sentence: "Se rindió tras el <tercer> intento.",
       selection: { start: 3, end: 10 },
-      language: "es",
+      language: "de",
     });
 
     expect(seen).toEqual(["Se rindió tras el &lt;tercer&gt; intento."]); // escaped, and no tag
-    expect(languages).toEqual(["es"]);
+    expect(languages).toEqual(["de"]);
     expect(result).toEqual({
       kind: "translated",
       translation: { sentence: "Elle a abandonné après la <troisième> tentative.", marks: [] },
@@ -50,7 +67,7 @@ describe("relayTranslation", () => {
   it("answers an unmeasured language's failure as unavailable", async () => {
     const { access } = engine(() => ({ ok: false, reason: "the model is not on this device" }));
     const log = vi.fn();
-    const result = await relayTranslation(access, { sentence, selection, language: "es" }, log);
+    const result = await relayTranslation(access, { sentence, selection, language: "de" }, log);
     expect(result.kind).not.toBe("translated");
     expect(log).toHaveBeenCalledWith("no translation:", "the model is not on this device");
 
@@ -59,7 +76,7 @@ describe("relayTranslation", () => {
         throw new Error("the worker died");
       },
     };
-    expect((await relayTranslation(throwing, { sentence, selection, language: "es" }, log)).kind).not.toBe(
+    expect((await relayTranslation(throwing, { sentence, selection, language: "de" }, log)).kind).not.toBe(
       "translated",
     );
     expect(log).toHaveBeenCalledWith("translation failed:", expect.any(Error));
