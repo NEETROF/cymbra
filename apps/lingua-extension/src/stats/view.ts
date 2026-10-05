@@ -183,6 +183,10 @@ function languagePicker(
   return picker;
 }
 
+/** The language each root shows: the hosts mount the view afresh after every change (a reading
+ *  gesture, a sync pull), and that remount keeps the reader's choice. */
+const shownLanguage = new WeakMap<HTMLElement, StudiedLanguage>();
+
 /** Render the whole stats view (ladder + seed control + daily cards) into `root`. */
 export async function mountStats(
   root: HTMLElement,
@@ -192,10 +196,12 @@ export async function mountStats(
 ): Promise<void> {
   let range: Range = 30;
   root.classList.add("stats");
-  // One of the reader's languages, the first by default; with several, a selector picks another
-  // and mounts the page afresh (add-lingua-language-stats-review D4).
+  // One of the reader's languages: the one chosen, else the one this root showed, else the first;
+  // with several, a selector picks another and mounts the page afresh (add-lingua-language-stats-review D4).
   const languages = await acceptedLanguages(port);
-  const language = chosen && languages.includes(chosen) ? chosen : languages[0];
+  const wanted = chosen ?? shownLanguage.get(root);
+  const language = wanted && languages.includes(wanted) ? wanted : languages[0];
+  shownLanguage.set(root, language);
   const lang = port.for(language);
   const picker =
     languages.length > 1
