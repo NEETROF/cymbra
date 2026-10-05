@@ -32,7 +32,7 @@ Each store keeps its single listing (programme decision D10). English comes firs
 is the default studied language. The listing language stays French: the interface is French, and the
 product teaches English and Spanish to French speakers.
 
-### D2 — The extension listing (draft)
+### D2 — The extension listing (settled by the owner, 2026-10-05)
 
 **Description, French:**
 
@@ -70,6 +70,9 @@ product teaches English and Spanish to French speakers.
 - « For Spanish, the French dictionary is a little less complete than for English: our figures are
   published at cymbra.app/lingua. »
 
+**Availability:** the closing line names the Safari app among the live channels, in French and
+English: the owner reported it live on iOS and macOS while this change was implemented.
+
 **Single purpose:** « helping a reader understand and learn English or Spanish vocabulary in what
 they are already reading ». The rest of the answer is unchanged.
 
@@ -93,7 +96,7 @@ The new labels are quoted from the source, like the others:
 - « Langue » is the settings tab (`settings-view.ts`);
 - « Espagnol » is the box under « Langues étudiées » (`language-labels.ts`).
 
-### D3 — The App Store listing (draft)
+### D3 — The App Store listing (settled by the owner, 2026-10-05)
 
 | Field | Limit | Draft |
 |---|---|---|
