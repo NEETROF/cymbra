@@ -431,12 +431,13 @@ describe("stats and the studied language", () => {
 
 describe("stats for a reader of several languages", () => {
   /** A reader of English then Spanish, both pairs shipped, whose Spanish ladder is younger. */
-  async function bilingual(): Promise<FakePort> {
+  async function bilingual(over: Partial<FakePort> = {}): Promise<FakePort> {
     packs.shipped = ["en-fr", "es-fr"];
     const port = levelledPort({
       levelLadder: async function (this: { language: StudiedLanguage }) {
         return ladder(this.language === "es" ? 10 : 80);
       },
+      ...over,
     });
     await port.setStudiedLanguages(["en", "es"]);
     return port;
@@ -490,6 +491,46 @@ describe("stats for a reader of several languages", () => {
 
     expect(total("Révisions")).toBe("3");
     expect(firstBand()).not.toBe(english); // the Spanish ladder
+  });
+
+  it("keeps the chosen language when the host mounts the view again", async () => {
+    // The drawer and the side panel mount the page afresh after a reading gesture or a sync pull,
+    // naming no language: the page stays on the reader's choice.
+    const port = await bilingual();
+    const area = await twoLanguagesToday();
+    await mountStats(root, port, area);
+    language("Espagnol").click();
+    await vi.waitFor(() => expect(total("Mots lus")).toBe("9"));
+
+    await mountStats(root, port, area);
+
+    expect(chosen()).toBe("Espagnol");
+    expect(total("Mots lus")).toBe("9");
+  });
+
+  it("lists the chosen language's marked words, and puts one back in that language", async () => {
+    let ops: StatusOp[] = [
+      op("year", "known", "manual", 300),
+      { ...op("año", "known", "manual", 200), language: "es" },
+    ];
+    const cleared: [StudiedLanguage, string][] = [];
+    const port = await bilingual({
+      exportStatusOps: async () => ops,
+      setStatusAt: async function (this: { language: StudiedLanguage }, lemma: string) {
+        cleared.push([this.language, lemma]);
+        ops = ops.filter((o) => o.lemma !== lemma);
+      },
+    });
+    const words = (): string[] => [...root.querySelectorAll(".marked-word")].map((w) => w.textContent ?? "");
+    await mountStats(root, port, fakeArea());
+    expect(words()).toEqual(["year"]);
+
+    language("Espagnol").click();
+    await vi.waitFor(() => expect(words()).toEqual(["año"]));
+    pick<HTMLButtonElement>(".marked-undo").click();
+    await settle();
+
+    expect(cleared).toEqual([["es", "año"]]);
   });
 
   it("asks every device's figures in the chosen language", async () => {

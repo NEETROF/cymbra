@@ -4,7 +4,7 @@
 // date window, plus totals; and derives the CEFR ladder's estimated position. No DOM,
 // no Chrome: the screen renders this, and it is unit-tested directly.
 
-import type { CefrLevel, LevelRow } from "../analyzer/types.ts";
+import type { CefrLevel, LevelRow, StudiedLanguage } from "../analyzer/types.ts";
 
 /** The share of a level that must be known for it to count as "cleared". */
 export const LEVEL_MASTERY = 0.9;
@@ -138,18 +138,19 @@ function markedOrigin(status: "known" | "ignored", provenance: string | undefine
 }
 
 /**
- * The explicitly known/ignored words from an `exportStatusOps` list, newest decision
- * first (ties alphabetical). Drives the "Mots marqués" management list, where each can be
- * put back "à apprendre". `exportStatusOps` returns explicit statuses plus withdrawn ones
- * (`cleared`, dropped here), never presumed-known. Clearing one withdraws the decision in
- * the engine, which resurfaces the word even below the declared level and stops reading
- * from re-confirming it.
+ * The explicitly known/ignored words of `language` from an `exportStatusOps` list, newest
+ * decision first (ties alphabetical). Drives the "Mots marqués" management list, where each can
+ * be put back "à apprendre". `exportStatusOps` returns every language's explicit statuses plus
+ * withdrawn ones (`cleared`, dropped here), never presumed-known; the list keeps the statistics'
+ * language, the one a word is put back in. Clearing one withdraws the decision in the engine,
+ * which resurfaces the word even below the declared level and stops reading from re-confirming it.
  */
 export function markedWords(
-  ops: { lemma: string; status: string; provenance?: string; updated_at: number }[],
+  ops: { language: string; lemma: string; status: string; provenance?: string; updated_at: number }[],
+  language: StudiedLanguage,
 ): MarkedWord[] {
   return ops
-    .filter((o) => o.status === "known" || o.status === "ignored")
+    .filter((o) => o.language === language && (o.status === "known" || o.status === "ignored"))
     .map((o) => {
       const status = o.status as "known" | "ignored";
       return { lemma: o.lemma, status, origin: markedOrigin(status, o.provenance), updated_at: o.updated_at };
@@ -163,9 +164,10 @@ export function markedWords(
  * automatic confirmations (which grow with reading) sit apart.
  */
 export function groupMarkedWords(
-  ops: { lemma: string; status: string; provenance?: string; updated_at: number }[],
+  ops: { language: string; lemma: string; status: string; provenance?: string; updated_at: number }[],
+  language: StudiedLanguage,
 ): MarkedGroups {
   const groups: MarkedGroups = { decision: [], reading: [], review: [] };
-  for (const word of markedWords(ops)) groups[word.origin].push(word);
+  for (const word of markedWords(ops, language)) groups[word.origin].push(word);
   return groups;
 }

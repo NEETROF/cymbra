@@ -43,6 +43,7 @@ interface WasmEngine {
   gloss(lemma: string, language?: string | null): string | undefined;
   phraseGloss(text: string, language?: string | null): string;
   wordGrammar(written: string, lemma: string, language?: string | null): string;
+  frequencyRank(lemma: string, language?: string | null): number | undefined;
   trackedCount(): number;
   addCard(
     lemma: string,
@@ -349,7 +350,10 @@ class WasmLanguagePort implements LanguagePort {
   }
 
   async wordGrammar(written: string, lemma: string): Promise<WordGrammar> {
-    return JSON.parse((await this.engine()).wordGrammar(written, lemma, this.language)) as WordGrammar;
+    const engine = await this.engine();
+    const grammar = JSON.parse(engine.wordGrammar(written, lemma, this.language)) as WordGrammar;
+    // The rank comes with the grammar (add-lingua-card-frequency D3): one answer, under one bound.
+    return { ...grammar, rank: engine.frequencyRank(lemma, this.language) ?? null };
   }
 
   async addCard(card: NewCard): Promise<void> {

@@ -49,6 +49,10 @@ fn english_pack() -> Vec<u8> {
 /// A small es→fr pack: the testdata's sources and notice, so the licence checks pass,
 /// with Spanish forms, ranks and glosses, and no CEFR levels.
 fn spanish_pack() -> Vec<u8> {
+    lingua_pack::build_pack(&spanish_inputs()).unwrap_or_else(|e| panic!("build the es pack: {e}"))
+}
+
+fn spanish_inputs() -> lingua_pack::PackInputs {
     let mut inputs = testdata();
     inputs.meta.studied = "es".into();
     inputs.meta.analyzer_version = StudiedLanguage::Spanish.analyzer_version().into();
@@ -72,7 +76,7 @@ fn spanish_pack() -> Vec<u8> {
     inputs.readings = Vec::new();
     inputs.senses = Vec::new();
     inputs.notice = format!("{}\nSpanish test pack.", inputs.notice);
-    lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the es pack: {e}"))
+    inputs
 }
 
 fn english_engine() -> LinguaEngine {
@@ -87,6 +91,51 @@ fn two_language_engine() -> LinguaEngine {
 
 fn es() -> Option<String> {
     Some("es".to_owned())
+}
+
+/// A pack whose levels are estimated from frequency borrows English's typical
+/// vocabularies for its ladder, and says so; English's own ladder answers as before
+/// (`fix-lingua-spanish-ladder-estimates`).
+#[test]
+fn an_estimated_ladder_borrows_english_typical_vocabularies() {
+    use lingua_core::knowledge::level::CefrLevel;
+
+    let mut inputs = spanish_inputs();
+    inputs.levels = vec![
+        ("haber".into(), CefrLevel::A1),
+        ("trabajar".into(), CefrLevel::A2),
+        ("equipo".into(), CefrLevel::B1),
+    ];
+    inputs.meta.levels_estimated = true;
+    let mut engine = english_engine();
+    engine
+        .add_pack(&lingua_pack::build_pack(&inputs).unwrap())
+        .unwrap();
+    let rows = |language: Option<String>| -> Vec<serde_json::Value> {
+        serde_json::from_str(&engine.level_ladder(language).unwrap()).unwrap()
+    };
+
+    let english = rows(None);
+    let spanish = rows(es());
+    assert!(english.iter().all(|row| row.get("typicalFrom").is_none()));
+    for (row, english_row) in spanish.iter().zip(&english) {
+        assert_eq!(row["typicalFrom"], "en");
+        assert_eq!(row["typicalVocabulary"], english_row["typicalVocabulary"]);
+    }
+    // Its own levels' counts stay its own.
+    assert_eq!(spanish[0]["total"], 1);
+}
+
+/// A dictionary form's frequency rank comes from its language's own pack
+/// (`add-lingua-card-frequency`); a lemma the pack does not rank has none.
+#[test]
+fn a_rank_comes_from_the_language_s_own_pack() {
+    let engine = two_language_engine();
+    assert_eq!(engine.frequency_rank("haber", es()).unwrap(), Some(20));
+    assert_eq!(engine.frequency_rank("equipo", es()).unwrap(), Some(900));
+    assert_eq!(engine.frequency_rank("run", None).unwrap(), Some(500));
+    assert_eq!(engine.frequency_rank("haber", None).unwrap(), None);
+    assert_eq!(engine.frequency_rank("run", es()).unwrap(), None);
 }
 
 #[test]
