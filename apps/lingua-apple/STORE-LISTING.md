@@ -19,62 +19,73 @@ platforms in an App Store description invites scrutiny it does not have to invit
 | Field | Limit | Value |
 |---|---|---|
 | Name | 30 | `Cymbra Lingua` (13) |
-| Subtitle | 30 | `Vocabulaire anglais en lisant` (29) |
-| Promotional text | 170 | 140 characters, below |
-| Description | 4000 | 2486 characters, below |
-| Keywords | 100 | 83 characters, below |
+| Subtitle | 30 | `Anglais et espagnol en lisant` (29) |
+| Promotional text | 170 | 154 characters, below |
+| Description | 4000 | 2940 characters, below |
+| Keywords | 100 | 92 characters, below |
 | Support URL | — | `https://cymbra.app/support/` |
 | Marketing URL | — | `https://cymbra.app/lingua/` |
 | Privacy policy | — | `https://cymbra.app/confidentialite/` |
 | Category | — | Education (secondary: Reference) |
 | Age rating | — | 4+ |
 
-## Promotional text (140 / 170)
+## Promotional text (154 / 170)
 
 Editable without a review, unlike everything else here.
 
-> Les mots d'anglais que vous ne connaissez pas encore, surlignés sur la page que vous lisez. L'analyse tourne sur votre appareil, hors ligne.
+> Les mots d'anglais ou d'espagnol que vous ne connaissez pas encore, surlignés sur la page que vous lisez. L'analyse tourne sur votre appareil, hors ligne.
 
-## Keywords (83 / 100)
+## Keywords (92 / 100)
 
 Comma-separated, no spaces — a space costs a character and buys nothing. The app name and the
 category are already indexed, so neither appears here.
 
 ```
-anglais,vocabulaire,lecture,traduction,extension,apprendre,mots,révision,CECRL,deck
+anglais,espagnol,vocabulaire,lecture,traduction,extension,apprendre,mots,révision,CECRL,deck
 ```
 
-## Description (2486 / 4000)
+## Description (2940 / 4000)
 
 ```
-Cymbra Lingua est une extension Safari qui surligne, sur la page que vous lisez, les mots d'anglais que vous ne connaissez pas encore — sans rien changer à la mise en page. Une pastille vous dit quelle part du texte vous est familière, calculée sur ce que vous avez réellement marqué, pas sur une estimation.
+Cymbra Lingua est une extension Safari qui surligne, sur la page que vous lisez, les mots d'anglais ou d'espagnol que vous ne connaissez pas encore — sans rien changer à la mise en page. Une pastille vous dit quelle part du texte vous est familière, calculée sur ce que vous avez réellement marqué, pas sur une estimation.
 
 APRÈS L'INSTALLATION
 Cette app installe l'extension ; il reste à l'activer.
 1. Ouvrez Réglages > Apps > Safari > Extensions (sur Mac : Safari > Réglages > Extensions).
 2. Activez Cymbra Lingua, puis autorisez-la sur les sites que vous lisez.
-3. Dans Safari, ouvrez l'extension depuis le menu de la barre d'adresse et choisissez votre niveau d'anglais — sans lui, l'extension considère que vous ne connaissez aucun mot.
+3. Dans Safari, ouvrez l'extension depuis le menu de la barre d'adresse et choisissez votre niveau — sans lui, l'extension considère que vous ne connaissez aucun mot. Pour l'espagnol, cochez-le dans Réglages › Langue, puis choisissez votre niveau d'espagnol.
 Rechargez les onglets déjà ouverts pour qu'ils soient surlignés.
 
 LIRE
-Touchez un mot surligné : sa traduction, sa forme du dictionnaire et sa rareté en anglais courant. Puis décidez — « Je connais », « + Deck » pour le réviser plus tard, ou « Ignorer ». Sélectionnez plusieurs mots pour capturer une expression entière avec la phrase d'où elle vient.
+Touchez un mot surligné : sa traduction, sa forme du dictionnaire et sa rareté dans l'usage courant. En espagnol, la carte nomme aussi le temps et le genre, comme on les apprend en classe. Puis décidez — « Je connais », « + Deck » pour le réviser plus tard, ou « Ignorer ». Sélectionnez plusieurs mots pour capturer une expression entière avec la phrase d'où elle vient.
 
 RÉVISER
-Les cartes que vous créez se révisent dans un panneau, à côté de votre lecture, avec une répétition espacée qui décide toute seule du bon moment. Un écran de statistiques estime votre vocabulaire niveau par niveau, du A1 au C2, à partir des mots que vous avez marqués.
+Les cartes que vous créez se révisent dans un panneau, à côté de votre lecture, avec une répétition espacée qui décide toute seule du bon moment. Un écran de statistiques estime votre vocabulaire niveau par niveau, du A1 au C2, à partir des mots que vous avez marqués — pour l'espagnol, des niveaux estimés d'après la fréquence des mots.
 
 LIRE VOS LIVRES
 Importez vos livres EPUB sans DRM dans la bibliothèque de l'extension et lisez-les hors ligne, avec le même surlignage. Ils restent sur votre appareil.
 
 TRADUCTION ÉTENDUE (FACULTATIVE)
-Votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de Firefox Translations, inclus dans l'app. L'activer télécharge une fois le modèle de traduction (25,8 Mo) depuis Cymbra ; le texte des pages ne quitte toujours pas votre appareil. La désactiver supprime le modèle.
+Votre sélection en anglais est traduite dans sa phrase, sur votre appareil, par le moteur de Firefox Translations, inclus dans l'app. L'activer télécharge une fois le modèle de traduction (25,8 Mo) depuis Cymbra ; le texte des pages ne quitte toujours pas votre appareil. La désactiver supprime le modèle. Pour l'espagnol, elle arrivera plus tard.
 
 VOTRE LECTURE RESTE À VOUS
-Le dictionnaire et les moteurs d'analyse et de traduction sont dans l'app. Aucune page que vous lisez n'est envoyée nulle part, et tout fonctionne hors ligne. Sans compte ni traduction étendue, l'extension ne fait aucune requête réseau.
+Les dictionnaires et les moteurs d'analyse et de traduction sont dans l'app. Aucune page que vous lisez n'est envoyée nulle part, et tout fonctionne hors ligne. Sans compte ni traduction étendue, l'extension ne fait aucune requête réseau.
 
 UN COMPTE, SI VOUS EN VOULEZ UN
 Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mots et vos cartes sur vos autres appareils. C'est la seule chose qui quitte votre machine, et vous pouvez effacer ces données depuis les réglages sans supprimer votre compte.
 
-L'interface est en français : Cymbra Lingua enseigne l'anglais à des francophones.
+Pour l'espagnol, le dictionnaire français est un peu moins complet que pour l'anglais : nos chiffres sont sur cymbra.app/lingua.
+
+L'interface est en français : Cymbra Lingua enseigne l'anglais et l'espagnol à des francophones.
+```
+
+## What's New — the release that ships Spanish
+
+The Spanish paragraph (add-lingua-spanish-listings). The rest of the notes is written with the
+release, like every « What's New ».
+
+```
+Espagnol : lisez aussi l'espagnol. Cochez-le dans Réglages › Langue : mots surlignés, carte avec le temps et le genre, niveaux estimés, et une voix d'Espagne pour la lecture à voix haute.
 ```
 
 ## What's New — 1.4.0 (830 / 4000)
