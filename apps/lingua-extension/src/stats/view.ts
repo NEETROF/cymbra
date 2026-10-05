@@ -301,7 +301,9 @@ export async function mountStats(
   // decisions stay open and short; the automatic confirmations (reading, review), which
   // grow with use, sit folded behind a count and only build their rows when opened.
   // Re-rendered after an undo, keeping each section's open state; the ladder counts
-  // change too. Built with DOM APIs so a lemma is never interpolated into HTML.
+  // change too. Built with DOM APIs so a lemma is never interpolated into HTML. The selected
+  // language's words only (add-lingua-language-stats-review): the export holds every language's,
+  // and a word is put back in the selected one.
   const markedOpen = Object.fromEntries(MARKED_SECTIONS.map((s) => [s.origin, s.open])) as Record<
     MarkedOrigin,
     boolean
@@ -370,7 +372,7 @@ export async function mountStats(
   };
 
   const renderMarked = async (): Promise<void> => {
-    const groups = groupMarkedWords(await port.exportStatusOps());
+    const groups = groupMarkedWords(await port.exportStatusOps(), language);
     const slot = pick(".marked-slot");
     slot.replaceChildren();
     const wrap = document.createElement("div");
