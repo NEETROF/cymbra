@@ -70,6 +70,9 @@ product teaches English and Spanish to French speakers.
 - « For Spanish, the French dictionary is a little less complete than for English: our figures are
   published at cymbra.app/lingua. »
 
+**Availability:** the closing line names the Safari app among the live channels, in French and
+English: the owner reported it live on iOS and macOS while this change was implemented.
+
 **Single purpose:** « helping a reader understand and learn English or Spanish vocabulary in what
 they are already reading ». The rest of the answer is unchanged.
 

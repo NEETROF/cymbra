@@ -82,7 +82,7 @@ Créez un compte Cymbra si — et seulement si — vous voulez retrouver vos mot
 vos autres appareils. C'est la seule chose qui quitte votre machine, et vous pouvez effacer ces
 données depuis les Réglages sans supprimer votre compte.
 
-Cymbra Lingua est disponible sur Chrome et sur Firefox pour ordinateur ; l'app Safari (iPhone, iPad, Mac) arrive bientôt.
+Cymbra Lingua est disponible sur Chrome, sur Firefox pour ordinateur et dans l'app Safari (iPhone, iPad, Mac).
 
 **EN**
 
@@ -123,7 +123,7 @@ Create a Cymbra account if — and only if — you want your words and cards on 
 devices. That is the only thing that leaves your machine, and you can erase it from Settings
 without deleting your account.
 
-Cymbra Lingua is available on Chrome and on Firefox for desktop; the Safari app (iPhone, iPad, Mac) is coming soon.
+Cymbra Lingua is available on Chrome, on Firefox for desktop and as a Safari app (iPhone, iPad, Mac).
 
 ---
 
