@@ -47,6 +47,35 @@ export function markSelection(sentence: string, selection: Span | null): string 
   );
 }
 
+/**
+ * Footnote calls as Wikipedia leaves them in the text — « felinos.[7][8][9] ». They are no part of
+ * the sentence, and the engine mangles them (« chats. 7][8][9] »).
+ */
+const FOOTNOTE = /\[\d{1,3}\]/g;
+
+/**
+ * The sentence without its footnote calls, the selection moved with the text it covers. A call
+ * inside the selection is the reader's to keep.
+ */
+export function withoutFootnotes(
+  sentence: string,
+  selection: Span | null,
+): { sentence: string; selection: Span | null } {
+  let text = "";
+  let last = 0;
+  let before = 0; // characters removed ahead of the selection
+  for (const match of sentence.matchAll(FOOTNOTE)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (selection && start < selection.end && end > selection.start) continue;
+    text += sentence.slice(last, start);
+    last = end;
+    if (selection && end <= selection.start) before += end - start;
+  }
+  text += sentence.slice(last);
+  return { sentence: text, selection: selection && { start: selection.start - before, end: selection.end - before } };
+}
+
 /** The selected text, clamped exactly as `markSelection` clamps it; null when it covers nothing. */
 export function selectedText(sentence: string, selection: Span | null): string | null {
   const span = clamp(sentence, selection);

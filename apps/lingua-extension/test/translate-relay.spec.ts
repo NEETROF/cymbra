@@ -98,6 +98,40 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["a abandonné"]);
   });
 
+  it("sends the sentence without its footnote calls, the selection moved with its text", async () => {
+    const { access, seen } = engine((markup) => ({ ok: true, html: markup }));
+    const text = "Rusia contaba[7][8] con 23 millones de gatos.[9]";
+    const start = text.indexOf("millones");
+    await relayTranslation(access, { sentence: text, selection: { start, end: start + 8 }, language: "es" });
+    expect(seen).toEqual(["Rusia contaba con 23 <b>millones</b> de gatos.", "millones"]);
+  });
+
+  it("never turns page text into markup, there and back (the card then renders text nodes only)", async () => {
+    // An engine that echoes what it is given: the page's tags come back as the text they were.
+    const echo = engine((markup) => ({ ok: true, html: markup }));
+    const page = 'Usa <img src=x onerror="alert(1)"> y <script>alert(2)</script> aquí.';
+    const start = page.indexOf("aquí");
+    const result = await relayTranslation(echo.access, {
+      sentence: page,
+      selection: { start, end: start + 4 },
+      language: "es",
+    });
+    expect(echo.seen[0]).not.toMatch(/<img|<script/); // escaped before the engine
+    if (result.kind !== "translated") throw new Error("not translated");
+    expect(result.translation.sentence).toBe(page); // back as plain text, the tags as characters
+    expect(result.translation.marks.map((m) => page.slice(m.start, m.end))).toEqual(["aquí"]);
+
+    // An engine that answered raw tags of its own: none survives as markup, only our mark is read.
+    const raw = engine(() => ({ ok: true, html: 'Utilisez <img src=x onerror="alert(1)"><b>ici</b>.' }));
+    const read = await relayTranslation(raw.access, {
+      sentence: page,
+      selection: { start, end: start + 4 },
+      language: "en",
+    });
+    if (read.kind !== "translated") throw new Error("not translated");
+    expect(read.translation.sentence).toBe("Utilisez ici.");
+  });
+
   it("escapes page text before it reaches the engine", async () => {
     const { access, seen } = engine(() => ({ ok: true, html: "x" }));
     await relayTranslation(access, { sentence: "a <b> b", selection: { start: 0, end: 1 }, language: "en" });

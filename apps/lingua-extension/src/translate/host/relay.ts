@@ -8,7 +8,7 @@
 // stands, exactly as it would without it. A language whose marks are not measured costs one: the
 // sentence untagged, answered without a mark (add-lingua-spanish-translation-pivot D3).
 
-import { escapeText, MARKED_LANGUAGES, markSelection, readMarked, selectedText } from "../markup.ts";
+import { escapeText, MARKED_LANGUAGES, markSelection, readMarked, selectedText, withoutFootnotes } from "../markup.ts";
 import { type TranslationRequest, type TranslationResult, UNAVAILABLE } from "../port.ts";
 import { reconcileMarks } from "../reconcile.ts";
 import type { EngineAccess, EngineReply } from "./engine.ts";
@@ -19,9 +19,11 @@ const LOG: RelayLog = (message, detail) => console.warn(`[Cymbra Lingua] ${messa
 
 export async function relayTranslation(
   engine: Pick<EngineAccess, "translate">,
-  request: TranslationRequest,
+  asked: TranslationRequest,
   log: RelayLog = LOG,
 ): Promise<TranslationResult> {
+  // The footnote calls go before anything reaches the engine; the selection moves with its text.
+  const request = { ...asked, ...withoutFootnotes(asked.sentence, asked.selection) };
   if (!request.sentence.trim()) return UNAVAILABLE;
   if (!MARKED_LANGUAGES.includes(request.language)) return relayUnmarked(engine, request, log);
   try {
