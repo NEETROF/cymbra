@@ -74,6 +74,16 @@ jobs:
           command: pages deploy ${{ runner.temp }}/models --project-name=${{ vars.CF_PAGES_MODELS_PROJECT }} --branch=main
 
       # What a reader's extension will meet, checked from outside — the same check the release
-      # runs before submitting a package.
+      # runs before submitting a package. A new deployment takes a moment to reach the custom
+      # domain: run #3 checked 20 s after « Deployment complete » and found the new es-en files
+      # 404 there, served minutes later. So the check is given five minutes before it fails; a 404
+      # is never cached (Pages answers it `no-store`), so nothing outlives the wait.
       - name: Check what the host serves
-        run: node apps/lingua-extension/tool/check_model_host.mjs
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if node apps/lingua-extension/tool/check_model_host.mjs; then exit 0; fi
+            echo "::notice::the host does not serve every file yet (attempt $attempt of 10); checking again in 30 s"
+            sleep 30
+          done
+          echo "::error::the host still does not serve every file five minutes after the deployment"
+          exit 1
