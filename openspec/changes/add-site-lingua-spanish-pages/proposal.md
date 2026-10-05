@@ -22,6 +22,8 @@ This is change 30, R4 in `docs/lingua/spanish-programme.md`.
   - the level card: Spanish levels are estimated from word frequency, for want of a free CEFR list;
   - the language card: the choice of languages, and « Plusieurs langues à la fois : gratuit pour
     l'instant. ».
+- **The Safari app is live.** Its store button links to the App Store record (6813053825), and the
+  hero no longer says Safari is coming soon (the app shipped on iOS and macOS meanwhile).
 - **A coverage section, figures side by side.** For each language, the share of the 5,000, 10,000
   and 20,000 commonest words that have a French gloss in the shipped dictionary:
   - the same measure for both languages;
@@ -29,7 +31,7 @@ This is change 30, R4 in `docs/lingua/spanish-programme.md`.
   - stating that a gloss is never a machine translation;
   - stating which languages extended translation serves: English today, Spanish later.
 - **The figures follow the tables.**
-  - `scripts/lingua-data/coverage.py` measures every pair and writes
+  - `scripts/lingua-data/gloss_coverage.py` measures every pair and writes
     `apps/site/src/data/lingua-coverage.json`, which the pages read;
   - a check fails when the committed figures no longer match the tables, so the monthly table
     update cannot leave them stale.
@@ -56,7 +58,7 @@ None.
 - **Code:**
   - `apps/site/src/pages/lingua.astro`, `en/lingua.astro`;
   - `apps/site/src/data/lingua-coverage.json`, new;
-  - `scripts/lingua-data/coverage.py` and its test.
+  - `scripts/lingua-data/gloss_coverage.py` and its test.
 - **CI:** the coverage check runs where the tables are already checked (the lingua-data unit tests
   in `lingua-extension-check`). `site-check` builds the pages.
 - **Release:** nothing deploys on merge. The owner dispatches `site-deploy` with the release.
