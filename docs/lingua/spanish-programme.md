@@ -35,7 +35,7 @@ than English (≈435,000 readings, 75 tags, gender on 99.5 % of nouns).
 | D5 | **es-ES voice by default**, no accent setting. | The voice code needs a `PREFERRED_REGIONS.es`; today es-ES comes first by ordering luck. |
 | D6 | **The agent plugin is in scope, last**, and the first thing cut. | `add-lingua-agent-languages`. |
 | D7 | **YouTube captions out of scope**: an amendment to `add-lingua-youtube-captions` only. | 0/38 tasks built for English. |
-| D8 | **Mixed review queue** ordered by due date, with a language filter. | Not one session per language. |
+| D8 | **Mixed review queue** ordered by due date, with a language filter. | Not one session per language. **Superseded on 2026-10-05:** the owner judged that a review never mixes languages (`refine-lingua-review-language`). A review is in one language: the page's or the book's, else the last chosen, else the first. |
 | D9 | **The language choice is not synced.** It lives in state and backup, and is offered on a new device. | A synced profile can be added later, additively. |
 | D10 | **One store listing per store**, reworded. The final wording is the owner's. | `add-lingua-spanish-listings`. |
 
@@ -144,7 +144,7 @@ min–max.
 | R5 | 27 | `release-lingua-spanish-translation` (D2): marking corpus committed in Spanish **and** English; Spanish joins `MARKED_LANGUAGES` if its marks pass D2 (translation is on everywhere since change 26) | 3.5–6.5 | Done (proposal [#710](https://github.com/NEETROF/cymbra/pull/710)); 100 parallel PUD selections per language, marked as the extension marks them by the real engine: Spanish 89 of 90 shown marks right (98.9 %), 10 % withheld — D2's first tier, so Spanish selections are marked; English 96 of 97 (99.0 %), 3 % withheld. Judgments in `apps/lingua-extension/tool/marks/`; a gloss-located mark, tried beside, would recover 7 of Spanish's 10 withheld marks |
 | R6 agent and parity | 31 | `add-lingua-agent-languages` (D6) | 5–8 | Not started |
 | R6 | 32 | Amend `add-lingua-youtube-captions` (D7) | 0.5–1 | Done: the open change reads English captions only, whatever languages the reader studies; a scenario for a reader of Spanish on a Spanish video |
-| R6 | 33 | `refine-lingua-language-wording`: the only change allowed to modify the 12 requirements open changes held, after those archive | 1.5–3 | Not started |
+| R6 | 33 | `refine-lingua-language-wording`: the only change allowed to modify the 12 requirements open changes held, after those archive; it also reconciles « One review queue across languages » with `refine-lingua-review-language` (no mixed queue, no « all of them ») | 1.5–3 | Not started |
 
 The numbers are the study's: change 26 merges after 28–30, but keeps the number it was given.
 
