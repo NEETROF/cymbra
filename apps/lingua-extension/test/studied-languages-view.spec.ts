@@ -78,4 +78,9 @@ describe("« Langues étudiées »", () => {
     const s = await mount(["en"], ["en-fr"]);
     expect(s.block.hidden).toBe(true);
   });
+
+  it("says that several languages at once are free for now", async () => {
+    const s = await mount(["en"]);
+    expect(s.block.textContent).toContain("Plusieurs langues à la fois : gratuit pour l'instant.");
+  });
 });

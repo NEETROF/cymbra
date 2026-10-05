@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
+import { shippedPairs } from "./tool/packs.mjs";
 
 export default defineConfig({
   // Mirror the build-time defines so any module referencing them resolves under test.
@@ -10,7 +11,8 @@ export default defineConfig({
     __STATIC_READER__: "false",
     __NATIVE_PROVIDERS__: "false",
     __SECTIONS_FROM_WORKER__: "false",
-    __LINGUA_PACKS__: JSON.stringify("en-fr"),
+    // The shipped pairs, read from packs.json as the build reads them.
+    __LINGUA_PACKS__: JSON.stringify(shippedPairs().join(",")),
     __TRANSLATION_HOST__: JSON.stringify("none"),
     __GRPC_WEB_URL__: JSON.stringify("http://localhost:50051"),
     __GOOGLE_CLIENT_ID__: JSON.stringify(""),
