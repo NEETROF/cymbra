@@ -32,7 +32,7 @@ The site deploys by hand: `site-deploy` runs on a dispatch only.
 
 ## Decisions
 
-### D1 — The pages (draft, French then English)
+### D1 — The pages (settled by the owner, 2026-10-05; French then English)
 
 | Element | French | English |
 |---|---|---|
@@ -41,6 +41,10 @@ The site deploys by hand: `site-deploy` runs on a dispatch only.
 | 👆 card | adds « En espagnol, la carte nomme aussi le temps et le genre. » | adds "In Spanish, the card also names the tense and the gender." |
 | 📈 card | « Une estimation de votre vocabulaire, adossée à l'échelle A1→C2 plutôt qu'à un badge maison. Pour l'espagnol, les niveaux sont estimés d'après la fréquence des mots, faute de liste CECR libre de droits. » | "An estimate of your vocabulary, anchored to A1→C2 rather than to a homemade badge. For Spanish, the levels are estimated from word frequency, as no CEFR list can be shipped freely." |
 | 🧭 card | title « Anglais et espagnol → français », text « Choisissez vos langues dans les Réglages : chaque page est lue dans la sienne. Plusieurs langues à la fois : gratuit pour l'instant. » | title "English and Spanish → French", text "Choose your languages in Settings: each page is read in its own. Several languages at once: free for now." |
+
+The hero's availability line names Safari among the live channels, and the Safari store button
+links to the app's App Store record (`apps/site/src/lib/stores.ts`, `LINGUA_APP_STORE`): the owner
+reported the app live on iOS and macOS while this change was implemented.
 
 The « gratuit pour l'instant » line is the owner's decision, shown in the extension's language
 choice too. The site already carries a « bêta » badge; App Store rules do not apply to it.
@@ -80,7 +84,7 @@ not dictionaries.
 
 ### D3 — The figures follow the tables
 
-`scripts/lingua-data/coverage.py` is stdlib-only and works on the Python that runs the lingua-data
+`scripts/lingua-data/gloss_coverage.py` is stdlib-only and works on the Python that runs the lingua-data
 tests.
 - It measures every pair `apps/lingua-extension/packs.json` ships.
 - `--write` writes `apps/site/src/data/lingua-coverage.json`: per pair, the three shares to one
@@ -89,7 +93,7 @@ tests.
 
 The pages import the JSON and round it in their locale: « 95 % » in French, "95%" in English.
 
-`test_coverage.py` runs in the lingua-data unit tests of `lingua-extension-check`, which already
+`test_gloss_coverage.py` runs in the lingua-data unit tests of `lingua-extension-check`, which already
 run on every change to the tables. It covers two things:
 - the measure, on a small fixture;
 - the committed JSON against the committed tables.

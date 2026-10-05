@@ -139,7 +139,9 @@ jobs:
           # The English invariance baseline follows the dictionary (docs/lingua/spanish-programme.md):
           # re-blessed here, so the pull request shows what the update changes in English output.
           LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline
-          git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline
+          # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
+          python scripts/lingua-data/gloss_coverage.py --write
+          git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline apps/site/src/data/lingua-coverage.json
           message="chore(lingua): $PAIR dictionary tables $SNAPSHOT"
           [ "$MODE" = reduce ] && message="chore(lingua): reduce the $PAIR dictionary tables again ($SNAPSHOT)"
           git commit -q -m "$message"

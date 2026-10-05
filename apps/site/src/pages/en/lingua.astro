@@ -4,11 +4,19 @@ import Community from '../../components/Community.astro';
 import StoreButtons from '../../components/StoreButtons.astro';
 import { linguaStores } from '../../lib/stores';
 import { config } from '../../lib/config';
+import coverage from '../../data/lingua-coverage.json';
+
+// The coverage section (add-site-lingua-spanish-pages D2): each shipped pair's glossed share of
+// its commonest lemmas, written by scripts/lingua-data/gloss_coverage.py.
+const languages: Record<string, string> = { 'en-fr': 'English', 'es-fr': 'Spanish' };
+const pairs = Object.keys(coverage.glossed) as (keyof typeof coverage.glossed)[];
+const count = new Intl.NumberFormat('en-US');
+const percent = new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 0 });
 ---
 
 <Base
   title="Cymbra Lingua — grow your vocabulary while you read the web"
-  description="A browser extension that highlights, on the page you are reading, the English words you do not know yet. Offline analysis, no account required."
+  description="A browser extension that highlights, on the page you are reading, the English or Spanish words you do not know yet. Offline analysis, no account required."
   lang="en"
   frHref="/lingua"
   enHref="/en/lingua"
@@ -17,14 +25,14 @@ import { config } from '../../lib/config';
     <p class="kicker">Cymbra Lingua · <span class="badge">beta</span></p>
     <h1>Your vocabulary, <span class="gradient">where you already read</span></h1>
     <p class="tagline">
-      A browser extension that highlights the English words you do not know yet,
-      right on the page. No app to open, no revision session to schedule: you read,
+      A browser extension that highlights the English or Spanish words you do not know
+      yet, right on the page. No app to open, no revision session to schedule: you read,
       you learn.
     </p>
     <StoreButtons links={linguaStores('en')} />
     <p class="muted small hero-note">
-      Available on Chrome, Edge and other Chromium browsers, and on Firefox (desktop).
-      Safari (iPhone, iPad, Mac) is coming soon. Made for French speakers learning English:
+      Available on Chrome, Edge and other Chromium browsers, on Firefox (desktop) and on Safari
+      (iPhone, iPad, Mac). Made for French speakers learning English or Spanish:
       the interface and the translations are in French.
       {config.discordUrl && (
         <>
@@ -45,7 +53,7 @@ import { config } from '../../lib/config';
     </div>
     <div class="card">
       <h3>👆 One click to understand</h3>
-      <p>Click a highlighted word: its dictionary form, its French translation, its frequency in plain language, and three buttons to mark it known, add it to your deck, or ignore it — « Je connais », « + Deck », « Ignorer ».</p>
+      <p>Click a highlighted word: its dictionary form, its French translation, its frequency in plain language, and three buttons to mark it known, add it to your deck, or ignore it — « Je connais », « + Deck », « Ignorer ». In Spanish, the card also names the tense and the gender.</p>
     </div>
     <div class="card">
       <h3>🗂️ Deck and review</h3>
@@ -57,16 +65,38 @@ import { config } from '../../lib/config';
     </div>
     <div class="card">
       <h3>📈 Your level, on the CEFR scale</h3>
-      <p>An estimate of your English vocabulary, anchored to A1→C2 rather than to a homemade badge.</p>
+      <p>An estimate of your vocabulary, anchored to A1→C2 rather than to a homemade badge. For Spanish, the levels are estimated from word frequency, as no CEFR list can be shipped freely.</p>
     </div>
     <div class="card">
       <h3>🪪 Optional account</h3>
       <p>Signed out, everything stays local. Signed in to Cymbra ID, your deck and word statuses follow you across devices.</p>
     </div>
     <div class="card">
-      <h3>🧭 English → French</h3>
-      <p>The first language pair. More will follow.</p>
+      <h3>🧭 English and Spanish → French</h3>
+      <p>Choose your languages in Settings: each page is read in its own. Several languages at once: free for now.</p>
     </div>
+  </section>
+
+  <section id="couverture" class="container prose coverage">
+    <h2>What the dictionary covers</h2>
+    <p>
+      The share of the commonest words that have a French gloss, measured the same way for each
+      language, in the dictionaries the extension ships.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Commonest words</th>{pairs.map((pair) => <th>{languages[pair] ?? pair}</th>)}</tr>
+      </thead>
+      <tbody>
+        {coverage.tops.map((top, i) => (
+          <tr><td>{count.format(top)}</td>{pairs.map((pair) => <td>{percent.format(coverage.glossed[pair][i] / 100)}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
+    <p class="muted small">
+      Glosses come from Wiktionary and from translations written by people, never from machine
+      translation. Extended translation, optional, serves English today; Spanish will follow.
+    </p>
   </section>
 
   <Community lang="en" />
