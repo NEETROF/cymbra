@@ -48,7 +48,11 @@ export function mountStudiedLanguages(
   note.className = "set-note";
   note.textContent =
     "Chaque page est lue dans celle de tes langues qu'elle contient. La première cochée sert aux réglages et aux statistiques par défaut.";
-  block.append(row, note);
+  // The owner's word to readers (enable-lingua-spanish D6): « pour l'instant », never « bêta ».
+  const offer = doc.createElement("div");
+  offer.className = "set-note";
+  offer.textContent = "Plusieurs langues à la fois : gratuit pour l'instant.";
+  block.append(row, note, offer);
 
   let studied: StudiedLanguage[] = [];
 
