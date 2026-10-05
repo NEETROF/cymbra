@@ -47,7 +47,7 @@ reader's surfaces make, on any target.
 - **THEN** it is answered without waiting for that translation to finish
 
 ### Requirement: The answer is the reader's sentence with their selection marked
-A translation SHALL answer with the whole sentence the selection sits in, and SHALL mark, within that translated sentence, the span corresponding to what the reader selected.
+A translation SHALL answer with the whole sentence the selection sits in, and SHALL mark, within that translated sentence, the span corresponding to what the reader selected, in a language whose marks have been measured: English, and Spanish, whose marks through English `release-lingua-spanish-translation` measured on the programme's first tier. In a language whose marks are not measured, the selection SHALL be sent untagged, in a single request, and the answer SHALL be the translated sentence without a mark.
 The selection SHALL be translated in its sentence rather than on its own, so that its form
 carries the grammar the context imposes. The marked span SHALL be identifiable in the answer
 without the caller re-reading the source text.
@@ -63,6 +63,14 @@ without the caller re-reading the source text.
 #### Scenario: The whole sentence is available too
 - **WHEN** a translation is returned
 - **THEN** the caller can show the translated sentence as well as the marked span
+
+#### Scenario: A Spanish sentence
+- **WHEN** a reader selects a word in a Spanish sentence
+- **THEN** the answer is the whole sentence in French, through English, the selection marked
+
+#### Scenario: A language whose marks are not measured
+- **WHEN** a translation is asked in a language whose marks were not measured
+- **THEN** the answer is the whole sentence in French without a mark, from a single request to the engine
 
 ### Requirement: The mark is checked against the selection translated alone
 Where the selection is marked SHALL be checked against a translation of the selection on its own, which SHALL only ever move, split or trim the marks and SHALL never be shown to the reader.
@@ -253,4 +261,23 @@ A language whose translation goes through another language SHALL have its select
 #### Scenario: Spanish on the first tier
 - **WHEN** Spanish's measured marks reach 90 % correct with at most 25 % withheld
 - **THEN** its selection is marked in the translated sentence, as English's is
+
+### Requirement: Spanish is translated through English
+The catalogue SHALL carry Mozilla's es-en model, pinned like every model, and Spanish's route SHALL be es-en then en-fr. The engine SHALL load the models of a two-model route once, and SHALL translate a sentence through both in one request. For a reader whose accepted languages include Spanish, the setting SHALL state the download of both models.
+
+#### Scenario: A reader of Spanish turns the setting on
+- **WHEN** a reader who accepts Spanish opens « Traduction étendue » before ticking it
+- **THEN** it says it downloads 52,0 Mo once, and ticking it stores both models
+
+#### Scenario: A reader of English alone
+- **WHEN** a reader who accepts English alone opens « Traduction étendue »
+- **THEN** it says it downloads 25,8 Mo once, as before
+
+#### Scenario: A Spanish selection
+- **WHEN** a reader with both models selects a phrase on a Spanish page
+- **THEN** the French sentence comes back from es-en then en-fr, in one request to the engine
+
+#### Scenario: The host misses the es-en model
+- **WHEN** the model host does not serve a file of the es-en model
+- **THEN** the check run before a submission fails, naming that file
 
