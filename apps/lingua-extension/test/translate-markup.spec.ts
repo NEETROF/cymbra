@@ -1,5 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { escapeText, markSelection, readMarked, selectedText } from "@/translate/markup.ts";
+import { escapeText, markSelection, readMarked, selectedText, withoutFootnotes } from "@/translate/markup.ts";
+
+describe("withoutFootnotes", () => {
+  const sentence = "Rusia contaba con 23 millones[7][8] de gatos en 2021.[9]";
+
+  it("drops the calls, moving the selection with the text it covers", () => {
+    // « de gatos » sits after two calls: it moves left by their length.
+    const selection = { start: sentence.indexOf("de gatos"), end: sentence.indexOf("de gatos") + 8 };
+    const out = withoutFootnotes(sentence, selection);
+    expect(out.sentence).toBe("Rusia contaba con 23 millones de gatos en 2021.");
+    expect(out.sentence.slice(out.selection!.start, out.selection!.end)).toBe("de gatos");
+  });
+
+  it("leaves a selection ahead of the calls where it was", () => {
+    const out = withoutFootnotes(sentence, { start: 0, end: 5 });
+    expect(out.selection).toEqual({ start: 0, end: 5 });
+  });
+
+  it("keeps a call the reader selected", () => {
+    const start = sentence.indexOf("millones");
+    const out = withoutFootnotes(sentence, { start, end: start + "millones[7]".length });
+    expect(out.sentence).toBe("Rusia contaba con 23 millones[7] de gatos en 2021.");
+    expect(out.sentence.slice(out.selection!.start, out.selection!.end)).toBe("millones[7]");
+  });
+
+  it("takes no selection, and leaves bracketed words alone", () => {
+    expect(withoutFootnotes(sentence, null)).toEqual({
+      sentence: "Rusia contaba con 23 millones de gatos en 2021.",
+      selection: null,
+    });
+    expect(withoutFootnotes("Ver [nota] y [1234].", null).sentence).toBe("Ver [nota] y [1234].");
+  });
+});
 
 describe("escapeText", () => {
   it("leaves ordinary text alone", () => {

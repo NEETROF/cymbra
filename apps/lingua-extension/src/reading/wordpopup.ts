@@ -147,7 +147,8 @@ function listensFor(content: WordPopupContent): Listen[] {
   if (!selection) return [];
   const headword = content.headword.trim();
   const listens: Listen[] = [];
-  if (content.expression) {
+  // Several words are a selection, whether or not the pack knows the expression (« animal doméstico »).
+  if (content.expression || /\s/u.test(selection)) {
     listens.push({ key: "selection", text: selection, label: "▶ Sélection", aria: "Écouter la sélection" });
   } else if (seenDiffers(content) && headword) {
     listens.push(

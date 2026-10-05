@@ -639,6 +639,21 @@ describe("read-aloud on the card", () => {
     expect(fake.spoken.map((u) => u.text)).toEqual(["ship on Friday"]);
   });
 
+  it("labels the words of an expression the pack knows a selection, too", () => {
+    // « animal doméstico » has a gloss of its own, so the card is not an unknown expression's.
+    const { card } = speaking();
+    card.show(
+      content({
+        headword: "animal doméstico",
+        surface: "animal doméstico",
+        gloss: "Animal domestique",
+        sentence: "El gato es el animal doméstico más popular.",
+      }),
+      () => {},
+    );
+    expect(labels(card)).toEqual(["▶ Sélection", "▶ Phrase"]);
+  });
+
   it("speaks the whole sentence the selection was taken from", () => {
     const { fake, card } = speaking();
     card.show(content(), () => {});
