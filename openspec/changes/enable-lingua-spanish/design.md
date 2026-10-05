@@ -90,6 +90,16 @@ The owner runs the pass on their devices, with Claude where a session can drive 
 The first packages carrying Spanish go to the stores' beta channels before any public release. The
 owner decides each submission, and this pull request submits nothing.
 
+### D6 — The language choice says several languages are free for now
+
+The owner decided that a reader may study several languages at once, free for now, and that the
+choice says so. « Langues étudiées » carries the line « Plusieurs langues à la fois : gratuit pour
+l'instant. » under its boxes, wherever it shows: Réglages in every host, and onboarding, both from
+`mountStudiedLanguages`.
+
+The line says « pour l'instant », not « bêta »: the Safari app is distributed through the App Store,
+whose review guideline 2.2 keeps betas off it.
+
 ## Risks / Trade-offs
 
 - **Package size** +2.19 MB per package → within the stores' limits. A reader of English alone never

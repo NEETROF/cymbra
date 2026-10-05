@@ -30,8 +30,9 @@ This is change 28, R4 in `docs/lingua/spanish-programme.md`: Spanish reading, pu
   the owner on 2026-10-05: « Lisez l'anglais et l'espagnol sur le web : mots inconnus surlignés,
   pourcentage honnête. Hors ligne et privé. »
 - **What readers see** (built in R3, shown once two pairs ship): « Langues étudiées » in Réglages
-  and in onboarding. Once a reader accepts Spanish, they also get a level per language, the
-  statistics' language selector and the review's language filter.
+  and in onboarding, with the line « Plusieurs langues à la fois : gratuit pour l'instant. ». Once a
+  reader accepts Spanish, they also get a level per language, the statistics' language selector and
+  the review's language filter.
 - **A dogfood pass on five targets** before merge: Chrome and Firefox on macOS, Firefox for
   Android, Safari on macOS and on iOS.
 - **A beta ring first.** The owner gives the go-ahead before the merge and before each store

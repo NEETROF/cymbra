@@ -3,6 +3,7 @@
 - [ ] 1.1 `packs.json` lists `en-fr` then `es-fr`, and `check_variants`'s `SHIPPED_PAIRS` follows (design D1).
 - [ ] 1.2 `scripts/lingua-data/testdata/es-fr/`, the tiny fixture `yarn gen:pack` builds (design D2).
 - [ ] 1.3 The manifest summary names both languages within 112 characters, in the wording the owner settles (design D3).
+- [ ] 1.4 « Langues étudiées » says « Plusieurs langues à la fois : gratuit pour l'instant. », in Réglages and at onboarding (design D6).
 
 ## 2. Checks
 
