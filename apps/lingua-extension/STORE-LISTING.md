@@ -70,10 +70,10 @@ page que vous lisez n'est envoyée nulle part, et l'extension fonctionne hors li
 compte ni traduction étendue, elle ne fait aucune requête réseau.
 
 **Traduction étendue** (facultative, désactivée par défaut, sur Chrome, Firefox pour ordinateur
-et Safari) : votre sélection en anglais est traduite dans sa phrase, sur votre appareil, par le
-moteur de Firefox Translations. L'activer télécharge une fois le modèle de traduction (25,8 Mo) depuis
-Cymbra ; le texte des pages ne quitte toujours pas votre appareil. La désactiver supprime le
-modèle. Pour l'espagnol, la traduction étendue arrivera plus tard.
+et Safari) : votre sélection est traduite dans sa phrase, sur votre appareil, par le moteur de
+Firefox Translations ; l'espagnol passe par l'anglais. L'activer télécharge une fois les modèles de
+traduction depuis Cymbra (25,8 Mo pour l'anglais, 52,0 Mo avec l'espagnol) ; le texte des pages ne
+quitte toujours pas votre appareil. La désactiver supprime les modèles.
 
 Pour l'espagnol, le dictionnaire français est un peu moins complet que pour l'anglais : nos
 chiffres sont publiés sur cymbra.app/lingua.
@@ -110,11 +110,10 @@ is ever sent anywhere, and the extension works offline. With no account and no e
 translation, it makes no network request at all.
 
 **Extended translation** (optional, off by default, on Chrome, Firefox for desktop,
-and Safari): your English selection is translated in its sentence, on your device, by the Firefox
-Translations engine.
-Turning it on downloads the translation model (25.8 MB) from Cymbra once; the text of the pages
-you read still never leaves your device. Turning it off deletes the model. For Spanish, extended
-translation comes later.
+and Safari): your selection is translated in its sentence, on your device, by the Firefox
+Translations engine; Spanish goes through English. Turning it on downloads the translation models
+from Cymbra once (25.8 MB for English, 52.0 MB with Spanish); the text of the pages you read still
+never leaves your device. Turning it off deletes the models.
 
 For Spanish, the French dictionary is a little less complete than for English: our figures are
 published at cymbra.app/lingua.
@@ -238,7 +237,8 @@ book renderer (foliate-js, vendored under `vendor/`). No script and no WebAssemb
 runtime; the content security policy is `script-src 'self' 'wasm-unsafe-eval'`. A book's own
 scripts never run: its pages are rendered under that same policy (`test/reader-csp.spec.ts`).
 
-The one file downloaded at runtime is **data**: the translation model's weights, fetched from
+The only files downloaded at runtime are **data**: the translation models' weights (en-fr, and es-en
+for a reader of Spanish), fetched from
 `https://models.cymbra.app` only after the reader turns on « Traduction étendue », and used only
 once its sha256 matches the hash the package carries (`model-manifest.json`,
 `src/translate/host/model-download.ts`). Nothing in it is executed.
@@ -254,7 +254,7 @@ account, and the reader's own vocabulary state (word statuses, cards, review his
 `https://api.cymbra.app` so their devices agree. Reading activity, page content and browsing
 history are **not** collected — the analysis never leaves the browser. Nor are the books a
 reader imports, their text or where the reader is in them: they stay on the device. Turning on
-« Traduction étendue » downloads a model from Cymbra; that request carries nothing of the
+« Traduction étendue » downloads models from Cymbra; those requests carry nothing of the
 reader's (no cookie, no identifier, no page text) and is not tied to an account.
 
 Tick the three certifications: the data is not sold to third parties, it is not used or

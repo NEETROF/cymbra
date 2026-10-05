@@ -22,8 +22,11 @@ export interface EngineAccess {
 /** The worker's answer to `load` when the model is not on the device: off, or never finished. */
 export const NO_MODEL = "the model is not on this device";
 
-/** The worker's answer to `load` for a route through another language, until the pivot change. */
-export const NO_PIVOT = "a route through another language is not supported yet";
+/**
+ * The worker's answer to `load` for a route of more than two models: the engine pivots through one
+ * language at most (add-lingua-spanish-translation-pivot D2), and no catalogue route chains more.
+ */
+export const LONG_ROUTE = "a route of more than two models is not supported";
 
 /** The engine worker's protocol. Requests carry an id so replies can arrive in any order. */
 export type WorkerRequest =

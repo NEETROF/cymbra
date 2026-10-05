@@ -75,6 +75,11 @@ interface Needs {
   needed: ModelManifest[];
 }
 
+/** Whether a route the reader's languages need goes through another language (add-lingua-spanish-translation-pivot D4). */
+function pivots({ catalogue, languages }: Needs): boolean {
+  return languages.some((language) => routeOf(catalogue, language).length > 1);
+}
+
 const LOG = (message: string, detail?: unknown): void => console.warn(`[Cymbra Lingua] ${message}`, detail ?? "");
 
 const sum = (models: ModelManifest[], size: (m: ModelManifest) => number): number =>
@@ -282,7 +287,11 @@ export class ModelController {
     const offered = needs ? needs.needed.length > 0 : true;
     const cost: ModelCost | undefined =
       needs && needs.needed.length > 0
-        ? { download: sum(needs.needed, totalSize), stored: sum(needs.needed, unpackedSize) }
+        ? {
+            download: sum(needs.needed, totalSize),
+            stored: sum(needs.needed, unpackedSize),
+            ...(pivots(needs) ? { pivot: true } : {}),
+          }
         : undefined;
     return { offered, host, state, ...(cost ? { cost } : {}) };
   }

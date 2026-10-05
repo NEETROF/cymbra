@@ -15,9 +15,11 @@
 // pins — so only verified bytes ever reach the engine. Without them it does not start, and every
 // surface answers as it does without it. The languages it translates between are the model's
 // (generalise-lingua-translation-catalogue D3), and a sentence goes through the route of the
-// language it is asked in, each model built once (generalise-lingua-translation-model-state D5).
+// language it is asked in, each model built once (generalise-lingua-translation-model-state D5). A
+// route of two models — Spanish, through English — translates through both in one request
+// (add-lingua-spanish-translation-pivot D2).
 
-import { NO_MODEL, NO_PIVOT, type WorkerRequest, type WorkerResponse } from "./engine.ts";
+import { LONG_ROUTE, NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
 import { modelDb } from "./model-db.ts";
 import { loadBundledCatalogue, type ModelManifest, routeOf } from "./model-manifest.ts";
 
@@ -36,6 +38,7 @@ interface BergamotModule {
   ) => unknown;
   BlockingService: new (config: { cacheSize: number }) => {
     translate(model: unknown, messages: unknown, options: unknown): VectorResponse;
+    translateViaPivoting(first: unknown, second: unknown, messages: unknown, options: unknown): VectorResponse;
   };
   VectorString: new () => Deletable & { push_back(text: string): void };
   VectorResponseOptions: new () => Deletable & {
@@ -152,13 +155,13 @@ async function instance(): Promise<Engine> {
 
 /**
  * Load `language`'s route: each of its models built once. The models first — without them, nothing
- * of the engine is worth loading. A route through another language waits for the pivot change.
+ * of the engine is worth loading. A route chains two models at most.
  */
 async function load(language: string): Promise<void> {
   if (routes.has(language)) return;
   const route = routeOf(await loadBundledCatalogue(), language);
   if (route.length === 0) throw new Error(NO_MODEL);
-  if (route.length > 1) throw new Error(NO_PIVOT);
+  if (route.length > 2) throw new Error(LONG_ROUTE);
   for (const manifest of route) {
     if (models.has(manifest.version)) continue;
     const stored = await storedFiles(manifest);
@@ -189,14 +192,17 @@ function translate(markup: string, language: string): string {
   const route = routes.get(language);
   if (!engine || !route) throw new Error("the engine is not loaded");
   const { bergamot, service } = engine;
-  const model = models.get(route[0]!);
+  const [first, second] = route.map((version) => models.get(version));
   const messages = new bergamot.VectorString();
   const options = new bergamot.VectorResponseOptions();
   messages.push_back(markup);
   // html: the engine repositions our tag onto the target span it corresponds to.
   options.push_back({ qualityScores: false, alignment: true, html: true });
   try {
-    const responses = service.translate(model, messages, options);
+    // Through the pivot, the engine carries the alignment from the first model to the second.
+    const responses = second
+      ? service.translateViaPivoting(first, second, messages, options)
+      : service.translate(first, messages, options);
     try {
       return responses.get(0).getTranslatedText();
     } finally {

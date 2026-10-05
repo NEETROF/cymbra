@@ -7,6 +7,13 @@
 // The consequence is that page text becomes markup input. Everything taken from the page is
 // escaped before the tag is placed, so the only tag the engine ever sees is ours.
 
+/**
+ * The languages whose selection is marked: those whose marks were measured. Spanish goes through
+ * English, two alignments chained, and is translated without a mark until its marks pass the
+ * programme's threshold (add-lingua-spanish-translation-pivot D3, release-lingua-spanish-translation).
+ */
+export const MARKED_LANGUAGES: readonly string[] = ["en"];
+
 /** The tag that marks the selection. Page text is escaped, so no other tag reaches the engine. */
 const OPEN = "<b>";
 const CLOSE = "</b>";

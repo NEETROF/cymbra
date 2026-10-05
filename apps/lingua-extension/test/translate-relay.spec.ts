@@ -22,8 +22,47 @@ const selection = { start: 4, end: 11 }; // "gave up"
 describe("relayTranslation", () => {
   it("asks both translations in the request's language (generalise-lingua-translation-model-state D5)", async () => {
     const { access, languages } = engine(() => ({ ok: true, html: "x" }));
-    await relayTranslation(access, { sentence, selection, language: "es" });
-    expect(languages).toEqual(["es", "es"]);
+    await relayTranslation(access, { sentence, selection, language: "en" });
+    expect(languages).toEqual(["en", "en"]);
+  });
+
+  it("translates a sentence in an unmeasured language untagged, once, without a mark (D3)", async () => {
+    // add-lingua-spanish-translation-pivot: Spanish goes through English, two alignments chained,
+    // so its selection is not marked until its marks are measured.
+    const { access, seen, languages } = engine(() => ({
+      ok: true,
+      html: "Elle a abandonné après la &lt;troisième&gt; tentative.",
+    }));
+    const result = await relayTranslation(access, {
+      sentence: "Se rindió tras el <tercer> intento.",
+      selection: { start: 3, end: 10 },
+      language: "es",
+    });
+
+    expect(seen).toEqual(["Se rindió tras el &lt;tercer&gt; intento."]); // escaped, and no tag
+    expect(languages).toEqual(["es"]);
+    expect(result).toEqual({
+      kind: "translated",
+      translation: { sentence: "Elle a abandonné après la <troisième> tentative.", marks: [] },
+    });
+  });
+
+  it("answers an unmeasured language's failure as unavailable", async () => {
+    const { access } = engine(() => ({ ok: false, reason: "the model is not on this device" }));
+    const log = vi.fn();
+    const result = await relayTranslation(access, { sentence, selection, language: "es" }, log);
+    expect(result.kind).not.toBe("translated");
+    expect(log).toHaveBeenCalledWith("no translation:", "the model is not on this device");
+
+    const throwing: Pick<EngineAccess, "translate"> = {
+      translate: async () => {
+        throw new Error("the worker died");
+      },
+    };
+    expect((await relayTranslation(throwing, { sentence, selection, language: "es" }, log)).kind).not.toBe(
+      "translated",
+    );
+    expect(log).toHaveBeenCalledWith("translation failed:", expect.any(Error));
   });
 
   it("marks the selection in its sentence and reads the translation back", async () => {

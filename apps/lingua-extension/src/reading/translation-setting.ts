@@ -68,9 +68,12 @@ export function megabytes(bytes: number): string {
  */
 export function costText(cost?: ModelCost): string {
   const download = cost ? megabytes(cost.download) : "le modèle";
+  // One model works in about 200 MB; through the pivot two do, the study's 322 MiB
+  // (add-lingua-spanish-translation-pivot D4).
+  const memory = cost?.pivot ? "environ 340 Mo" : "environ 200 Mo";
   return (
     `Traduit tes phrases sur cet appareil, sans rien envoyer. Télécharge ${download} une fois, puis utilise ` +
-    "environ 200 Mo de mémoire pendant la traduction. Réglage propre à cet appareil."
+    `${memory} de mémoire pendant la traduction. Réglage propre à cet appareil.`
   );
 }
 

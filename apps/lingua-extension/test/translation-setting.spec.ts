@@ -238,7 +238,12 @@ describe("helpers", () => {
 
   it("states the cost from the catalogue's sizes, or none without them", () => {
     expect(costText(COST)).toContain("Télécharge 25,8 Mo une fois");
+    expect(costText(COST)).toContain("environ 200 Mo de mémoire");
     expect(costText()).toContain("Télécharge le modèle une fois");
+    // A reader of Spanish: both models of its route, and the pivot's memory (add-lingua-spanish-translation-pivot D4).
+    const spanish = { download: 51_993_524, stored: 74_762_516, pivot: true };
+    expect(costText(spanish)).toContain("Télécharge 52,0 Mo une fois");
+    expect(costText(spanish)).toContain("environ 340 Mo de mémoire");
     expect(stateText({ phase: "failed", reason: "storage" }, COST)).toContain("(36,7 Mo)");
     expect(stateText({ phase: "failed", reason: "storage" })).toBe(
       "Pas assez de place sur cet appareil pour le modèle.",
