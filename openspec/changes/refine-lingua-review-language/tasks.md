@@ -12,7 +12,8 @@
 - [ ] 2.1 `src/review/review-page.ts`: no « Toutes ». The language resolves from the host's page language, else the last chosen (`cymbra-lingua-review-language`), else the first accepted (design D1, D2). A segment chosen is remembered (design D3). The summary counts that language's cards and due cards. Specs:
   - beside a Spanish page, the Spanish cards and counts;
   - away from a page, the last chosen;
-  - choosing English switches and remembers it;
+  - choosing English switches and remembers it, and the choice holds beside the same page;
+  - a page in another language brings its own back; a session under way keeps its language;
   - English alone shows no segment, with the counts as before.
 
 ## 3. The hosts

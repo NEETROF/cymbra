@@ -36,14 +36,21 @@
 The filter's segments are the accepted languages only, still hidden with one. `only()` always
 names one language: the session, the due count and the deck count ask for it alone.
 
+A session over in one language gives way to a new start when the language changes. The widget would
+otherwise keep saying that nothing is left to review, of a language no longer shown.
+
 ### D2 — Which language: the page's, else the last chosen, else the first
 
-`mountReview` takes an optional `pageLanguage(): Promise<string | null>` from its host. On each
-refresh it resolves, in order:
+`mountReview` takes an optional `pageLanguage(): Promise<string | null>` from its host, and asks it
+on each refresh. When the answer differs from the page language it last followed (the first
+refresh, or a page in another language), it resolves, in order:
 1. the page's language, when it is one of the accepted languages;
 2. the last language chosen, `cymbra-lingua-review-language` in the preferences area
    (`chrome.storage.local`), when it is accepted;
 3. the first accepted language.
+
+Otherwise the review keeps its language, so a choice holds (D3). A session under way keeps its
+language whatever the page says. A language that leaves the accepted ones is resolved again.
 
 The page's language from each host:
 - **The in-page drawer:** the reading session gives `() => this.language`. On a book this is the
@@ -55,8 +62,10 @@ The page's language from each host:
 ### D3 — The choice is remembered
 
 Clicking a segment selects that language and writes it as the last chosen.
-- The page's language still wins at the next opening beside a page. The last choice serves away
-  from one.
+- It holds while the page's language does not change: switching views, closing and reopening the
+  drawer beside the same page, a sync pull. A page in another language brings the review to that
+  one.
+- The last choice serves away from a page.
 - It is a device preference, like the HUD toggle: never synced, never in the backup.
 
 ### D4 — The counts by language
@@ -81,9 +90,12 @@ So nothing a reader of English alone sees changes, and the English baseline does
 
 ## Risks / Trade-offs
 
-- **The side panel on the book reader.** The reader is an extension page; a tab message does not
-  reach it, so the panel opens on the last choice. The drawer, used by the reader on Firefox and
-  Safari, does know the book's language.
+- **The side panel beside the book reader.** The panel asks the active tab with the popup's
+  message, which the book reader answers (`session.ts`). Where nothing answers, the panel opens on
+  the last choice.
+- **A choice and the next page.** With Chrome's side panel left open, a choice of English made
+  beside a Spanish page holds on the next Spanish page, as the page's language has not changed. The
+  drawer belongs to one page, so the next page's drawer opens in Spanish.
 - **A requirement held elsewhere.** « One review queue across languages » still says the review
   page offers all languages. It is reconciled after `add-lingua-language-stats-review` archives, by
   `refine-lingua-language-wording` (change 33).
