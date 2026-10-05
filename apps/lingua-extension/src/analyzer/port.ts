@@ -182,8 +182,9 @@ export interface LinguaPort {
   detectLanguage(blocks: string[], candidates: StudiedLanguage[], hint: string | null): Promise<StudiedLanguage>;
   /** How many forms are explicitly marked (any status). */
   trackedCount(): Promise<number>;
-  /** Total cards in the deck. */
-  deckCount(): Promise<number>;
+  /** Cards in the deck, in `languages`, or in every language when absent or empty
+   *  (refine-lingua-review-language D4). */
+  deckCount(languages?: StudiedLanguage[]): Promise<number>;
   /** Cards due at `now` (epoch seconds), in `languages`, or in every language when absent or empty
    *  (add-lingua-language-stats-review). */
   dueCount(now: number, languages?: StudiedLanguage[]): Promise<number>;

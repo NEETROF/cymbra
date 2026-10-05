@@ -123,6 +123,16 @@ impl Deck {
         self.cards.values().all(BTreeMap::is_empty)
     }
 
+    /// The number of cards in `languages` — every language when it is empty
+    /// (refine-lingua-review-language D4).
+    pub fn count_for(&self, languages: &[StudiedLanguage]) -> usize {
+        self.cards
+            .iter()
+            .filter(|(lang, _)| languages.is_empty() || languages.contains(lang))
+            .map(|(_, per_lang)| per_lang.len())
+            .sum()
+    }
+
     /// The `(language, lemma)` keys of every card due at `now`, in
     /// deterministic order (language then lemma).
     pub fn due_keys(&self, now: i64) -> Vec<(StudiedLanguage, String)> {
@@ -372,6 +382,10 @@ mod tests {
         assert_eq!(deck.due_count_for(100, &[ES]), 2);
         assert_eq!(deck.due_count_for(100, &[]), 4);
         assert_eq!(deck.due_count(100), 4);
+        // The deck's size by language (refine-lingua-review-language D4).
+        assert_eq!(deck.count_for(&[ES]), 2);
+        assert_eq!(deck.count_for(&[EN]), 2);
+        assert_eq!(deck.count_for(&[]), deck.len());
 
         // One language keeps the deck's order (by lemma), as the review always had.
         let english = ReviewSession::start_for(&deck, 100, &[EN]);

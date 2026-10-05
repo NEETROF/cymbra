@@ -77,6 +77,13 @@ export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
 export const REMOTE_VOICES_KEY = "cymbra-lingua-remote-voices";
 
 /**
+ * The last language the reader chose in the review (refine-lingua-review-language D3): the one it
+ * opens in away from a page in a studied language. Per device, never synchronised, never in the
+ * backup.
+ */
+export const REVIEW_LANGUAGE_KEY = "cymbra-lingua-review-language";
+
+/**
  * How the book reader lays a book out: `paginated` (the default — pages turned by tap, suited
  * to e-ink) or `scrolled` (one continuous column, for a laptop). A preference, set in the
  * Réglages view every host renders; the reader page follows its `storage.onChanged`.
@@ -288,6 +295,17 @@ export async function loadHudHidden(area: AsyncStorageArea): Promise<boolean> {
 /** Set the HUD-hidden flag. */
 export async function saveHudHidden(area: AsyncStorageArea, hidden: boolean): Promise<void> {
   await area.set({ [HUD_HIDDEN_KEY]: hidden });
+}
+
+/** The last language chosen in the review, or null when none was (or what is kept is not one). */
+export async function loadReviewLanguage(area: AsyncStorageArea): Promise<string | null> {
+  const value = (await area.get(REVIEW_LANGUAGE_KEY))[REVIEW_LANGUAGE_KEY];
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/** Keep `language` as the last one chosen in the review. */
+export async function saveReviewLanguage(area: AsyncStorageArea, language: StudiedLanguage): Promise<void> {
+  await area.set({ [REVIEW_LANGUAGE_KEY]: language });
 }
 
 /**

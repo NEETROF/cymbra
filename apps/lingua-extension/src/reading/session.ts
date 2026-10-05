@@ -151,6 +151,7 @@ export interface SessionStats {
   levelsEstimated: boolean;
   needsLevel: boolean;
   trackedCount: number;
+  /** The cards, and those due, in the document's language (refine-lingua-review-language D4). */
   deckCount: number;
   dueCount: number;
   /** The language this document is read in, and the reader's accepted ones (add-lingua-language-choice). */
@@ -326,6 +327,8 @@ export class ReadingSession {
       onChange: () => this.persist(),
       speaker: this.speaker,
       followLook: true,
+      // The document's language: on a book, the book's (refine-lingua-review-language D2).
+      pageLanguage: async () => this.language,
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),
@@ -911,8 +914,9 @@ export class ReadingSession {
       language: this.language,
       languages: [...this.languages],
       trackedCount: await this.port.trackedCount(),
-      deckCount: await this.port.deckCount(),
-      dueCount: await this.port.dueCount(now),
+      // In the document's language, as the review opens beside it (refine-lingua-review-language D4).
+      deckCount: await this.port.deckCount([this.language]),
+      dueCount: await this.port.dueCount(now, [this.language]),
     };
   }
 }

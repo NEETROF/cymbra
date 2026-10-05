@@ -355,6 +355,11 @@ fn spec_scenario_a_review_across_languages_or_within_one() {
     assert_eq!(engine.due_count(10.0, Some(vec!["es".to_owned()])), 1);
     // A tag the core does not know filters nothing.
     assert_eq!(engine.due_count(10.0, Some(vec!["pt".to_owned()])), 2);
+    // The deck's size by language, read the same way (refine-lingua-review-language D4).
+    assert_eq!(engine.deck_count(None), 2);
+    assert_eq!(engine.deck_count(Some(vec!["es".to_owned()])), 1);
+    assert_eq!(engine.deck_count(Some(vec!["en".to_owned()])), 1);
+    assert_eq!(engine.deck_count(Some(vec!["pt".to_owned()])), 2);
 
     assert_eq!(engine.start_review(10.0, Some(vec!["es".to_owned()])), 1);
     assert_eq!(engine.review_current_language().as_deref(), Some("es"));

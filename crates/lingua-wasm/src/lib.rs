@@ -871,10 +871,11 @@ impl LinguaEngine {
         ))
     }
 
-    /// Total number of cards in the deck.
+    /// Number of cards in the deck, in `languages` (ISO 639-1 tags) or in every language when
+    /// absent or naming none the core knows (refine-lingua-review-language D4).
     #[wasm_bindgen(js_name = deckCount)]
-    pub fn deck_count(&self) -> usize {
-        self.state.deck.len()
+    pub fn deck_count(&self, languages: Option<Vec<String>>) -> usize {
+        self.state.deck.count_for(&known_languages(languages))
     }
 
     /// Number of cards due at `now` (Unix-epoch seconds), in `languages` (ISO 639-1 tags) or in

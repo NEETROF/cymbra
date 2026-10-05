@@ -132,7 +132,7 @@ describe.each([
     const { port, calls } = await spanishThenEnglish();
     const container = document.createElement("div");
     document.body.append(container);
-    mountReview(container, port, fakeArea(), { now: () => 0 });
+    mountReview(container, port, fakeArea(), { now: () => 0, prefs: fakeArea() });
     await settle();
     expect(new Set(calls.languages)).toEqual(new Set([reads]));
   });

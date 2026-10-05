@@ -13,9 +13,12 @@ import {
   loadEnabled,
   loadHudHidden,
   loadReaderDisplay,
+  loadReviewLanguage,
   READER_DISPLAY_KEY,
+  REVIEW_LANGUAGE_KEY,
   readerDisplayOf,
   saveReaderDisplay,
+  saveReviewLanguage,
   loadStored,
   loadAndroidVoices,
   loadRemoteVoices,
@@ -191,6 +194,23 @@ describe("the HUD-hidden flag", () => {
     const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "BACKUP" } });
     await saveHudHidden(area, true);
     expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "BACKUP" });
+  });
+});
+
+describe("the last language chosen in the review (refine-lingua-review-language D3)", () => {
+  it("is none until one is chosen, then the one chosen last", async () => {
+    const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "BACKUP" } });
+    expect(await loadReviewLanguage(area)).toBeNull();
+    await saveReviewLanguage(area, "es");
+    await saveReviewLanguage(area, "en");
+    expect(area.store[REVIEW_LANGUAGE_KEY]).toBe("en");
+    expect(await loadReviewLanguage(area)).toBe("en");
+    expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "BACKUP" }); // a preference, not the reader's data
+  });
+
+  it("reads anything but a language as none", async () => {
+    expect(await loadReviewLanguage(fakeArea({ [REVIEW_LANGUAGE_KEY]: "" }))).toBeNull();
+    expect(await loadReviewLanguage(fakeArea({ [REVIEW_LANGUAGE_KEY]: 3 }))).toBeNull();
   });
 });
 

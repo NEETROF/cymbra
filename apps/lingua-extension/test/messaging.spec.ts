@@ -45,12 +45,16 @@ describe("MessagingLinguaPort", () => {
     await port.dueCount(42);
     await port.startReview(42, ["es"]);
     await port.startReview(42);
+    await port.deckCount(["es"]);
+    await port.deckCount();
 
     expect(send.mock.calls).toEqual([
       ["dueCount", [42, ["es"]]],
       ["dueCount", [42]],
       ["startReview", [42, ["es"]]],
       ["startReview", [42]],
+      ["deckCount", [["es"]]],
+      ["deckCount", []],
     ]);
   });
 

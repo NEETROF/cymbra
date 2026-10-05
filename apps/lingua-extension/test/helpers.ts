@@ -100,7 +100,8 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     trackedCount: async () => calls.setStatus.length + calls.addCard.length,
     addCard: async (c) => void calls.addCard.push(c),
     retireCard: async () => {},
-    deckCount: async () => calls.addCard.length,
+    // The deck's cards in those languages (refine-lingua-review-language D4), and every card added since.
+    deckCount: async (languages) => deck.filter(within(languages)).length + calls.addCard.length,
     dueCount: async (_now, languages) => {
       calls.reviewLanguages.push(languages);
       return queue.slice(pos).filter(within(languages)).length;

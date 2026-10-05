@@ -135,6 +135,10 @@ describe("WasmAnalyzerPort language views", () => {
         received.push(["dueCount", args]);
         return 2;
       }
+      deckCount(...args: unknown[]): number {
+        received.push(["deckCount", args]);
+        return 3;
+      }
       startReview(...args: unknown[]): number {
         received.push(["startReview", args]);
         return 2;
@@ -213,12 +217,16 @@ describe("WasmAnalyzerPort language views", () => {
     await port.dueCount(100);
     await port.startReview(100, ["es"]);
     await port.startReview(100);
+    expect(await port.deckCount(["es"])).toBe(3);
+    await port.deckCount();
 
     expect(glue.received).toEqual([
       ["dueCount", [100, ["es"]]],
       ["dueCount", [100, null]],
       ["startReview", [100, ["es"]]],
       ["startReview", [100, null]],
+      ["deckCount", [["es"]]],
+      ["deckCount", [null]],
     ]);
   });
 

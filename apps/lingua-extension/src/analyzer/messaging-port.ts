@@ -58,8 +58,8 @@ export class MessagingLinguaPort implements LinguaPort {
   trackedCount(): Promise<number> {
     return this.rpc("trackedCount");
   }
-  deckCount(): Promise<number> {
-    return this.rpc("deckCount");
+  deckCount(languages?: StudiedLanguage[]): Promise<number> {
+    return this.rpc("deckCount", languages ? [languages] : []);
   }
   dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {
     return this.rpc("dueCount", languages ? [now, languages] : [now]);

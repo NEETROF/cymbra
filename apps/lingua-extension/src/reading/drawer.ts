@@ -32,6 +32,9 @@ export interface DrawerOptions {
   speaker?: Speaker;
   /** Follow the reader's colours and text size (surface-look); off: the drawer as designed. */
   followLook?: boolean;
+  /** The language of the page or book the drawer opens on, where Révision opens
+   *  (refine-lingua-review-language D2). */
+  pageLanguage?: () => Promise<string | null>;
 }
 
 export class Drawer {
@@ -139,7 +142,11 @@ export class Drawer {
     this.settingsBody.hidden = view !== "settings";
     for (const [v, b] of this.tabs) b.classList.toggle("active", v === view);
     if (view === "review") {
-      this.reviewPage ??= mountReview(this.reviewBody, this.opts.port, this.opts.store, { now: this.opts.now });
+      this.reviewPage ??= mountReview(this.reviewBody, this.opts.port, this.opts.store, {
+        now: this.opts.now,
+        prefs: this.opts.area,
+        pageLanguage: this.opts.pageLanguage,
+      });
       await this.reviewPage.refresh();
     } else if (view === "stats") {
       await mountStats(this.statsBody, this.opts.port, this.opts.store);

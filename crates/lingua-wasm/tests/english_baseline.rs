@@ -378,7 +378,7 @@ fn render(language: Option<&str>) -> String {
         shown(reader.declared_level(lang()).unwrap()),
     );
     g.probe("tracked-count", reader.tracked_count());
-    g.probe("deck-count", reader.deck_count());
+    g.probe("deck-count", reader.deck_count(None));
     g.probe(
         "due-count in 7 days",
         reader.due_count(now + 7.0 * DAY_SECS, None),
