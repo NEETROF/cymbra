@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.4.0...lingua-apple-v1.5.0) (2026-10-06)
+
+
+### Features
+
+* **lingua:** Spanish is translated through English ([#709](https://github.com/NEETROF/cymbra/issues/709)) ([c03e5dc](https://github.com/NEETROF/cymbra/commit/c03e5dca1c8f5e618f87ff79b91a56d5e14faa1b))
+
 ## [1.4.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.3.0...lingua-apple-v1.4.0) (2026-10-04)
 
 

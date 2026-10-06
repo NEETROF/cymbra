@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0](https://github.com/NEETROF/cymbra/compare/site-v0.12.0...site-v0.13.0) (2026-10-06)
+
+
+### Features
+
+* **lingua:** Spanish is translated through English ([#709](https://github.com/NEETROF/cymbra/issues/709)) ([c03e5dc](https://github.com/NEETROF/cymbra/commit/c03e5dca1c8f5e618f87ff79b91a56d5e14faa1b))
+* **site:** the Lingua page names Spanish and publishes its dictionaries' coverage ([#706](https://github.com/NEETROF/cymbra/issues/706)) ([518f8b5](https://github.com/NEETROF/cymbra/commit/518f8b548a1c4854392528fdc313dd554def3df4))
+
 ## [0.12.0](https://github.com/NEETROF/cymbra/compare/site-v0.11.0...site-v0.12.0) (2026-10-03)
 
 

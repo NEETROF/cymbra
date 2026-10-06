@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.7.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.6.0...lingua-extension-v1.7.0) (2026-10-06)
+
+
+### Features
+
+* **lingua:** a review is in the language being read ([#716](https://github.com/NEETROF/cymbra/issues/716)) ([988cea3](https://github.com/NEETROF/cymbra/commit/988cea38927a89d1ab64208af5d9b5613869867e))
+* **lingua:** ship Spanish reading beside English ([#702](https://github.com/NEETROF/cymbra/issues/702)) ([ce07a77](https://github.com/NEETROF/cymbra/commit/ce07a773b614edb46e5443e192497e7624fc97c4))
+* **lingua:** Spanish is translated through English ([#709](https://github.com/NEETROF/cymbra/issues/709)) ([c03e5dc](https://github.com/NEETROF/cymbra/commit/c03e5dca1c8f5e618f87ff79b91a56d5e14faa1b))
+* **lingua:** Spanish selections are marked, their marks measured ([#711](https://github.com/NEETROF/cymbra/issues/711)) ([0040ebe](https://github.com/NEETROF/cymbra/commit/0040ebec0084b0f60ccc79bcfec58f14dfed8624))
+* **lingua:** the card reads the dictionary form too ([#680](https://github.com/NEETROF/cymbra/issues/680)) ([5e4e291](https://github.com/NEETROF/cymbra/commit/5e4e291a758d1b5aea0b022e1f67570a045c6943))
+* **lingua:** the card says how common its word really is ([#681](https://github.com/NEETROF/cymbra/issues/681)) ([f15b5b0](https://github.com/NEETROF/cymbra/commit/f15b5b0683d2c0f4b27189c8c0dccd96e2086248))
+
+
+### Bug Fixes
+
+* **lingua:** a press-and-hold drag no longer pans a book on Firefox for Android ([#695](https://github.com/NEETROF/cymbra/issues/695)) ([5152207](https://github.com/NEETROF/cymbra/commit/5152207e684b9da32259c9a29889bc05291b580a))
+* **lingua:** a translation drops footnote calls, and several words are a selection ([#713](https://github.com/NEETROF/cymbra/issues/713)) ([d62432d](https://github.com/NEETROF/cymbra/commit/d62432d74d21e80df695c69c59c42d79f3a6b528))
+* **lingua:** an estimated ladder shows English's typical vocabularies ([#698](https://github.com/NEETROF/cymbra/issues/698)) ([0c0fac2](https://github.com/NEETROF/cymbra/commit/0c0fac20da9bc887518c8a192c2e58cb422a0517))
+* **lingua:** the review follows the page beside it ([#717](https://github.com/NEETROF/cymbra/issues/717)) ([b49077d](https://github.com/NEETROF/cymbra/commit/b49077d676bafbe8c13c73ac681142d280515382))
+* **lingua:** the statistics stay in the chosen language ([#700](https://github.com/NEETROF/cymbra/issues/700)) ([a126c1f](https://github.com/NEETROF/cymbra/commit/a126c1f415c56553ab1007e0c666742fda2e713f))
+
 ## [1.6.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.5.0...lingua-extension-v1.6.0) (2026-10-04)
 
 
