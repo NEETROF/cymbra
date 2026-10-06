@@ -10,14 +10,20 @@ See proposal.md for the why. What exists:
   the translated sentence as plain text, plus `marks`, the spans where the selection landed
   (usually one, several when the engine split it, none when it dropped the tag). The engine
   runs off every painting thread and is reached through `createTranslatorPort`, which only
-  the reading session creates.
+  the reading session creates. A Spanish sentence is translated through English
+  (`add-lingua-spanish-translation-pivot`); English and Spanish are marked
+  (`MARKED_LANGUAGES`, `release-lingua-spanish-translation`), and a language outside that
+  list gets its translation with no mark. Footnote calls such as `[7]` are dropped before the
+  engine sees the sentence (`withoutFootnotes`), so the translation has none even where the
+  card's sentence keeps them.
 - **Capture.** A press on « + Deck » arrives as a `Gesture` (`src/reading/wordpopup.ts`)
   carrying the lemma, the form seen, the sentence and the gloss the card showed;
   `ReadingSession.onGesture` (`src/reading/session.ts`) calls `addCard`.
 - **The card** (`crates/lingua-core/src/decks/card.rs`): lemma, form, provenance (sentence,
   source, time), gloss, a reserved media slot, the FSRS state, `updated_at`. Backups carry a
-  schema version that belongs to the file (`decks/backup.rs`, version 2); unknown fields are
-  ignored on read.
+  schema version that belongs to the file (`decks/backup.rs`): a backup is written in the
+  oldest version that holds it — 1 while the profile is the default and every record is
+  English, 2 otherwise. Unknown fields are ignored on read.
 - **Sync.** `CardOp` (`backend/lingua/proto/deck.proto`, fields 1–11) carries a whole card;
   the server upserts it under last-write-wins (`pg_deck.rs`: `updated_at`, then `device_id`)
   and the client applies pulled cards the same way (`Deck::apply_card_lww`). One precedent
@@ -28,11 +34,12 @@ See proposal.md for the why. What exists:
 
 **Goals:**
 - Keep what the word card already computed; spend nothing more at capture or at review.
-- Old devices, old backups and the agent plugin keep working, and never erase a translation.
+- Old devices and old backups keep working, and never erase a translation.
 
 **Non-Goals:**
-- Translating a sentence at review time, or for cards captured without a translation,
-  seeded from a level, or created by the agent plugin: a later change.
+- Translating a sentence at review time, for cards captured without a translation or
+  seeded from a level: a later change.
+- The agent plugin (`apps/lingua-agent`): it keeps its own store and does not sync.
 - Editing or deleting a kept translation.
 - Showing translations anywhere but the review card.
 
@@ -55,9 +62,10 @@ result the card already had or is about to have.
 `SentenceTranslation { text: String, marks: Vec<Span> }`. Spans count UTF-16 code units of
 `text`, the unit the extension indexes strings in; the core stores them without reading
 them. The field is `#[serde(default, skip_serializing_if = "Option::is_none")]`: a backup
-without a translation is byte-for-byte today's, and the schema version stays at 2. A build
-that predates the field reads a newer backup and drops the translations only — refusing
-the whole file, as a version bump would make it, is worse for that reader.
+without a translation is byte-for-byte today's, and a translation never changes the version
+a backup is written in (1 for an English reader with the default profile, 2 otherwise). A
+build that predates the field reads a newer backup and drops the translations only —
+refusing the whole file, as a version bump would make it, is worse for that reader.
 
 Marks are checked where they are used: a span outside the text, or reversed, is ignored and
 the sentence is shown unmarked.
@@ -75,11 +83,11 @@ repeated TextSpan sentence_translation_marks = 13;
 ```
 
 Both are additive: `buf breaking` (rule set `FILE`) passes, and clients built before them
-ignore them. Last-write-wins replaces a whole card, so a newer op from such a client — or
-from the agent plugin — would carry an empty translation and erase a kept one. The rule is
-therefore the page address's, on both ends: the server keeps the stored translation and
-marks when the incoming text is empty, and `apply_card_lww` keeps the local ones when the
-pulled text is empty. The cost is that sync cannot clear a translation, which nothing does.
+ignore them. Last-write-wins replaces a whole card, so a newer op from such a client would
+carry an empty translation and erase a kept one. The rule is therefore the page address's,
+on both ends: the server keeps the stored translation and marks when the incoming text is
+empty, and `apply_card_lww` keeps the local ones when the pulled text is empty. The cost is
+that sync cannot clear a translation, which nothing does.
 
 ### D4 — The server stores two columns
 
