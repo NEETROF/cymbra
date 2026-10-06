@@ -31,7 +31,7 @@
 
 ## 5. Dogfood (owner)
 
-- [ ] 5.1 On a browser with both languages: the review beside a Spanish page opens in Spanish, away from a page in the last chosen, and the popup's count follows the page.
+- [x] 5.1 On a browser with both languages: the review beside a Spanish page opens in Spanish, away from a page in the last chosen, and the popup's count follows the page.
 
 ## 6. Dogfood findings (Chrome, 2026-10-06)
 
