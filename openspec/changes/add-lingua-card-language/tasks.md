@@ -24,5 +24,5 @@
 
 ## 5. Release (owner)
 
-- [ ] 5.1 [manual] Rehearse the migration on a copy of production; replay a sync from the published extension (1.4.0) and the Apple app against the rehearsed server: English cards unchanged, no request refused
-- [ ] 5.2 [manual] Backend release and production deployment; verify from outside that `GetDataState` answers `card_language: true` and that a pull without `languages` returns the same cards as before. Only then may `add-lingua-language-sync-client` be built for a store
+- [x] 5.1 [manual] Rehearse the migration on a copy of production; replay a sync from the published extension (1.4.0) and the Apple app against the rehearsed server: English cards unchanged, no request refused
+- [x] 5.2 [manual] Backend release and production deployment; verify from outside that `GetDataState` answers `card_language: true` and that a pull without `languages` returns the same cards as before. Only then may `add-lingua-language-sync-client` be built for a store
