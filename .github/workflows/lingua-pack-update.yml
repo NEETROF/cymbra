@@ -136,9 +136,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
-          # The English invariance baseline follows the dictionary (docs/lingua/spanish-programme.md):
-          # re-blessed here, so the pull request shows what the update changes in English output.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline
+          # The invariance baselines follow the dictionary (docs/lingua/spanish-programme.md,
+          # docs/lingua/language-matrix-programme.md): re-blessed here, so the pull request shows
+          # what the update changes in English and Spanish output. Both, whatever the pair: the
+          # Spanish ladder borrows English's figures from the en-fr pack.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
           git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline apps/site/src/data/lingua-coverage.json
