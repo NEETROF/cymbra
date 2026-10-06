@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { LanguagePort, LinguaPort, NewCard, Rating, ReviewCard } from "@/analyzer/port.ts";
+import type {
+  LanguagePort,
+  LinguaPort,
+  NewCard,
+  Rating,
+  ReviewCard,
+  ReviewOptions,
+  ReviewSummary,
+} from "@/analyzer/port.ts";
 import type { PageAnalysis, StudiedLanguage } from "@/analyzer/types.ts";
 import {
   DEFAULT_SPEECH_SETTINGS,
@@ -17,6 +25,8 @@ export interface FakeCard {
   surface: string;
   sentence: string;
   gloss: string | null;
+  /** Where the word was met: a site address, or a book and its chapter. */
+  source?: string;
   /** The card's language, said by the review when set (add-lingua-language-stats-review). */
   language?: StudiedLanguage;
 }
@@ -39,12 +49,20 @@ export interface FakeCalls {
   grades: Rating[];
   reveals: number;
   markKnown: number;
+  /** « Ne plus me le montrer » answers (refine-lingua-review-session). */
+  ignored: number;
   restored: string[];
   /** The languages each due count and each review start were asked for (none: every language). */
   reviewLanguages: (StudiedLanguage[] | undefined)[];
+  /** The options each review start was given. */
+  reviewOptions: (ReviewOptions | undefined)[];
 }
 
-/** A fake LinguaPort: records calls and simulates a review queue over `deck`. */
+/**
+ * A fake LinguaPort: records calls and simulates a review queue over `deck`, as the core walks it
+ * (refine-lingua-review-session): at most `limit` cards, a missed card back three cards later until
+ * recalled or asked three times, only a card's first answer graded, and a summary.
+ */
 export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: FakeCalls } {
   const calls: FakeCalls = {
     languages: [],
@@ -55,12 +73,20 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     grades: [],
     reveals: 0,
     markKnown: 0,
+    ignored: 0,
     restored: [],
     reviewLanguages: [],
+    reviewOptions: [],
   };
   let queue: FakeCard[] = [];
   let pos = 0;
   let revealed = false;
+  let asked = new Map<FakeCard, { times: number; missed: boolean }>();
+  let summary: ReviewSummary | null = null;
+  const advance = () => {
+    pos++;
+    revealed = false;
+  };
   let backup = "{}";
   let studied: StudiedLanguage[] = ["en"];
   // A card without a language is English, as every card was before the reader studied several.
@@ -106,11 +132,16 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
       calls.reviewLanguages.push(languages);
       return queue.slice(pos).filter(within(languages)).length;
     },
-    startReview: async (_now, languages) => {
+    startReview: async (_now, languages, options) => {
       calls.reviewLanguages.push(languages);
-      queue = deck.filter(within(languages));
+      calls.reviewOptions.push(options);
+      // What a previous session answered is no longer due.
+      const answered = new Set(asked.keys());
+      queue = deck.filter(within(languages)).filter((c) => !answered.has(c));
+      if (options?.limit !== undefined) queue = queue.slice(0, options.limit);
       pos = 0;
       revealed = false;
+      summary = { reviewed: 0, recovered: 0, holding: 0, known: 0, hidden: 0 };
       return queue.length;
     },
     reviewCurrent: async (): Promise<ReviewCard | null> => {
@@ -122,15 +153,35 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
       calls.reveals++;
     },
     reviewGrade: async (r) => {
+      const card = queue[pos];
+      if (!card) return false;
       calls.grades.push(r);
-      pos++;
-      revealed = false;
+      const missed = r === "again";
+      const state = asked.get(card) ?? { times: 0, missed: false };
+      state.times++;
+      const first = state.times === 1;
+      if (first) state.missed = missed;
+      else if (!missed && state.missed && summary) summary.recovered++;
+      asked.set(card, state);
+      if (first && summary) summary.reviewed++;
+      if (missed && state.times < 3) queue.splice(Math.min(pos + 4, queue.length), 0, card);
+      advance();
+      return first;
     },
+    // A card marked known or hidden is retired: no later session takes it.
     reviewMarkKnown: async () => {
       calls.markKnown++;
-      pos++;
-      revealed = false;
+      if (summary) summary.known++;
+      if (queue[pos]) asked.set(queue[pos], { times: 1, missed: false });
+      advance();
     },
+    reviewIgnore: async () => {
+      calls.ignored++;
+      if (summary) summary.hidden++;
+      if (queue[pos]) asked.set(queue[pos], { times: 1, missed: false });
+      advance();
+    },
+    reviewSummary: async () => (summary ? { ...summary } : null),
     backup: async () => backup,
     restore: async (j) => {
       backup = j;
@@ -140,6 +191,8 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
       queue = [];
       pos = 0;
       studied = ["en"];
+      asked = new Map();
+      summary = null;
     },
     resetStatuses: async () => {
       queue = [];

@@ -16,15 +16,15 @@ Review SHALL be reachable without leaving the browser: the due-card count SHALL 
 - **THEN** its front shows the word alone, and its gloss appears only after « Afficher la réponse »
 
 ### Requirement: One review queue across languages, with a language filter
-A review session SHALL take the due cards of every studied language in one queue, ordered as *A session is short and starts with the most fragile cards* orders it, whatever their language. When the reader studies several languages, the review page SHALL offer to review all of them or a single one, and its count of due cards SHALL follow the choice.
+A review session SHALL take the due cards of the one studied language the review is in, as *A review is in the language being read* chooses it, ordered as *A session is short and starts with the most fragile cards* orders them. When the reader studies several languages, the review page SHALL offer each of them, one at a time, and its counts SHALL follow the choice.
 
-#### Scenario: A mixed queue
-- **WHEN** a reader of two languages starts a review with cards due in both
-- **THEN** the cards come in one queue, the most fragile first, whatever their language
+#### Scenario: A reader of two languages
+- **WHEN** a reader of English and Spanish starts a review in Spanish with cards due in both languages
+- **THEN** the session holds only Spanish cards, the most fragile first
 
 #### Scenario: One language chosen
-- **WHEN** the same reader chooses one of the two languages in the review page
-- **THEN** the count and the session hold only that language's cards
+- **WHEN** the same reader chooses English in the review page
+- **THEN** the counts and the next session hold only English cards, ordered the same way
 
 #### Scenario: A reader of one language
 - **WHEN** a reader studies one language
@@ -48,7 +48,7 @@ A review session SHALL hold at most 10 cards and SHALL start with the due cards 
 - **THEN** the session holds three reviewed cards, one new card, three reviewed cards, one new card, then two reviewed cards
 
 ### Requirement: New words enter review at a daily pace
-The review SHALL bring at most a daily allowance of never-reviewed cards into review per local day — 10 by default, 5 or 20 when the reader chooses so in Réglages (« Nouveaux mots par jour ») — and SHALL leave the others due for the following days. A never-reviewed card SHALL count against the day on which it is first answered. Capturing a word SHALL stay unlimited and SHALL NOT be affected by the allowance.
+The review SHALL bring at most a daily allowance of never-reviewed cards of each studied language into review per local day — 10 by default, 5 or 20 when the reader chooses so in Réglages (« Nouveaux mots par jour ») — and SHALL leave the others due for the following days. A never-reviewed card SHALL count against its own language's allowance, on the day on which it is first answered. Capturing a word SHALL stay unlimited and SHALL NOT be affected by the allowance.
 
 #### Scenario: A heavy reading day
 - **WHEN** a reader captures 40 words in one day and reviews several times that day
@@ -61,6 +61,10 @@ The review SHALL bring at most a daily allowance of never-reviewed cards into re
 #### Scenario: A larger allowance
 - **WHEN** the reader sets « Nouveaux mots par jour » to 20
 - **THEN** up to 20 never-reviewed cards enter review per day
+
+#### Scenario: Two languages
+- **WHEN** a reader of English and Spanish lets 10 new English words into review in the morning, then reviews in Spanish that evening
+- **THEN** up to 10 new Spanish words still enter review that day
 
 ### Requirement: A missed card comes back in the same session
 A card answered « Pas su » SHALL come back in the same session after three other cards, or at the end when fewer remain, until it is answered « Su » or has been asked three times in that session. Only a card's first answer in a session SHALL update its FSRS state and count as a review; a later answer in the same session SHALL only keep the card in the session or take it out.

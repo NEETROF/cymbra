@@ -6,6 +6,8 @@ import type {
   NewCard,
   Rating,
   ReviewCard,
+  ReviewOptions,
+  ReviewSummary,
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
@@ -64,7 +66,9 @@ export class MessagingLinguaPort implements LinguaPort {
   dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {
     return this.rpc("dueCount", languages ? [now, languages] : [now]);
   }
-  startReview(now: number, languages?: StudiedLanguage[]): Promise<number> {
+  startReview(now: number, languages?: StudiedLanguage[], options?: ReviewOptions): Promise<number> {
+    // Undefined becomes null on the wire; the engine reads a null as "every language".
+    if (options) return this.rpc("startReview", [now, languages ?? null, options]);
     return this.rpc("startReview", languages ? [now, languages] : [now]);
   }
   reviewCurrent(): Promise<ReviewCard | null> {
@@ -73,11 +77,17 @@ export class MessagingLinguaPort implements LinguaPort {
   reviewReveal(): Promise<void> {
     return this.rpc("reviewReveal");
   }
-  reviewGrade(rating: Rating, now: number): Promise<void> {
+  reviewGrade(rating: Rating, now: number): Promise<boolean> {
     return this.rpc("reviewGrade", [rating, now]);
   }
   reviewMarkKnown(now: number): Promise<void> {
     return this.rpc("reviewMarkKnown", [now]);
+  }
+  reviewIgnore(now: number): Promise<void> {
+    return this.rpc("reviewIgnore", [now]);
+  }
+  reviewSummary(): Promise<ReviewSummary | null> {
+    return this.rpc("reviewSummary");
   }
   backup(): Promise<string> {
     return this.rpc("backup");

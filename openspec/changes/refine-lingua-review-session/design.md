@@ -21,6 +21,11 @@ See proposal.md for the why. The pieces this change reshapes:
   sources. Its two hosts, the drawer and the side panel, already call `followSurfaceLook`:
   the theme (dark, light, or the e-ink theme of `add-lingua-colour-settings`) and the
   reader's text scale reach the review with no work here.
+- **The review language** (`refine-lingua-review-language`, archived on 2026-10-06): a
+  session and its counts hold one studied language — the page's or the book's, else the
+  last chosen, else the first — and the filter offers no « Toutes ». `mountReview` follows
+  the page through its host's `pageLanguage` and `pageChanged`. The core still accepts
+  several languages in one session; nothing asks for that any more.
 - **The port** crosses contexts method by method: `analyzer/port.ts` (interface),
   `analyzer/engine.ts` (WASM adapter), `analyzer/messaging-port.ts` (the Firefox and Safari
   proxy to the background's engine), and the test fake in `test/helpers.ts`.
@@ -80,12 +85,24 @@ no counter to keep in step, and a card introduced on another device counts once 
 synced. The extension passes `day_start` as the reader's local midnight in epoch seconds;
 the daily statistics keep their UTC days, unchanged.
 
-The allowance is a reader preference under its own `chrome.storage.local` key (steps 5, 10,
-20; absent means 10), in a « Révision » block of the « Langue » tab. Like the bar and
-highlight toggles, it is a comfort setting: never in the engine backup, never synced.
+Each studied language has its own allowance: a card counts against its own language's, and a
+session over several languages takes what is left of each one's. A session holds one language
+since `refine-lingua-review-language`, so one allowance shared by every language would be
+spent by the first language reviewed in a day, and the other language's session would then
+bring no new word, with nothing to say why. Each language has its own, as each deck has its
+own limit of new cards in Anki. A reader of two languages may thus take up to twice the
+setting in a day; the 5 step is there for them, and Réglages says the number counts per
+language. Decided by the product owner on 2026-10-06.
 
-*Alternative.* A per-day counter in the store: a second source of truth that a restore or a
-sync would contradict.
+The allowance is a reader preference under its own `chrome.storage.local` key (steps 5, 10,
+20; absent means 10), in a « Rythme de révision » block of the « Langue » tab — not
+« Révision », which `test/lint-settings-hosts.spec.ts` would read as a copy of the drawer's
+tab. Like the bar and highlight toggles, it is a comfort setting: never in the engine
+backup, never synced.
+
+*Alternatives.* A per-day counter in the store: a second source of truth that a restore or a
+sync would contradict. One allowance shared by every language: what the setting means would
+depend on which language the reader reviews first.
 
 ### D3 — A missed card's return is a learning step, not a review
 
@@ -140,7 +157,9 @@ review stylesheet has no transition.
 The same widget lives in a 380 px side panel, in a drawer up to 92 % of the viewport, and
 across a phone's width; a drawer on a tablet can be narrow on a wide screen. The review root
 is therefore a CSS container, and the layout keys on its size: below ~600 px wide, the
-answers form a bar at the bottom, padded by `env(safe-area-inset-bottom)`; when the
+answers form a bar at the bottom, padded by `env(safe-area-inset-bottom)` — the card
+fills the height below the page's header (an estimate, `100dvh - 180px`), so a short card still
+puts them under the thumb and a long one keeps them in view (`position: sticky`); when the
 viewport is landscape with little height, they become bands along both edges, the card
 between them; from ~600 px, the card is a centred column of reading width with the answers
 under it. Container queries are supported by every target (Chromium 105, Firefox 110,
@@ -154,8 +173,10 @@ starts, so a drawer over a web page never takes the page's keys.
 
 The session counts as it goes: cards graded, cards recovered (D3), cards whose new due date
 is at least 30 days away, cards marked known, cards hidden. `reviewSummary` returns them;
-the end view shows them and offers « Encore 10 » only when `dueCount` (same language filter)
-is above zero. Closing stays each host's own control.
+the end view shows them and offers « Encore 10 » only when another session would hold cards.
+A due count would not tell: new words past today's allowance are due and still wait. So the
+end prepares the next session, in the same language, and measures it; « Encore 10 » starts it
+again. Closing stays each host's own control.
 
 ### D9 — Backup, restore and sources become two Données blocks
 
@@ -165,6 +186,11 @@ builder, they reach the popup, the side panel, the drawer and the Safari app tog
 `test/lint-settings-hosts.spec.ts` keeps any other page from holding a copy. A restore made
 in the page that is showing a review ends that session, since the engine drops its session
 on restore.
+
+The toolbar popup is the exception for the restore: Firefox closes a popup the moment a file
+picker opens, so the change event never arrives. `mountSettings` takes `canPickFiles`; the popup
+passes `false` and offers the download only, with a pointer to the panel. Found while
+implementing; the spec says so.
 
 ### D10 — The engine contract grows, additively
 
@@ -178,6 +204,30 @@ Each is carried through the four places every port method lives: the WASM bindin
 `engine.ts` adapter, the `messaging-port.ts` proxy with the background's dispatch, and the
 test fake.
 
+### D11 — The card can be heard, as the word card can
+
+Found in the Chrome dogfood (2026-10-06): the reader wants to hear the card, before the reveal
+and after it.
+
+- **One speaker, on the card's language.** `mountReview` owns a speaker (`createSpeaker`) whose
+  language is the shown card's, with the voices, the reader's voice choice and the opt-ins of
+  `add-lingua-read-aloud` (`storedVoicePreference` on the preferences area). A host's own speaker
+  follows the page's language, which a review in another language would contradict.
+- **The front.** Under the sentence, « ▶ Mot » — « ▶ Expression » for several words — reads the
+  word as the front shows it (marked in the sentence, else the word above it), and « ▶ Phrase »
+  the sentence. The row is the same before and after the reveal, so revealing still repaints
+  the answer space only.
+- **The answer.** Once revealed, the dictionary form's button sits in the answer space, under
+  the gloss, when the sentence shows another form: hearing it before would give part of the
+  answer away. The gloss is not read: the voices speak the studied language.
+- **State.** The rows repaint from the speaker's state (a voice list announced late, an
+  utterance ending) through one subscription per render, which the next render drops; a text
+  the next card does not show is stopped. No new key: Space and the arrows already answer, and
+  a focused listen button keeps its own Space and Enter.
+
+*Alternative.* Reading the word or the sentence by itself when a card comes up: a sound nobody
+asked for, in a library or beside someone asleep.
+
 ## Risks / Trade-offs
 
 - [The session opens on the hardest cards and feels like failure] → new words interleaved,
@@ -187,6 +237,8 @@ test fake.
   recall rate against the 90 % target.
 - [New words pile up behind the allowance for a heavy reader] → the 20 step; the pile shows
   in the due count and in Stats.
+- [A reader of two languages takes in up to twice the setting's new words a day, and reviews
+  them later] → the allowance is per language by decision; the 5 step halves it.
 - [`env(safe-area-inset-bottom)` is zero inside a drawer over a page without
   `viewport-fit=cover`, so the bar may meet the iPhone home indicator] → a minimum bottom
   padding, checked on an iPhone in the dogfood pass.

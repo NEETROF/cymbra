@@ -6,7 +6,7 @@ import {
   previewSentence,
   windowsVoiceLanguage,
 } from "../analyzer/language-labels.ts";
-import { acceptedLanguages, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
+import { acceptedLanguages, readingLanguage, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
@@ -15,9 +15,13 @@ import { hasShortcutEditor } from "../state/platform.ts";
 import {
   type AsyncStorageArea,
   loadHudHidden,
+  loadNewWordsPerDay,
   loadReaderFlow,
+  NEW_WORDS_PER_DAY_STEPS,
+  type NewWordsPerDay,
   saveAndroidVoices,
   saveHudHidden,
+  saveNewWordsPerDay,
   saveRemoteVoices,
   saveReaderFlow,
   saveVoice,
@@ -74,6 +78,11 @@ export interface SettingsOptions {
   onHandedOff?: () => void;
   /** The pairs the package ships: the bundle's, unless a spec offers others. */
   pairs?: readonly string[];
+  /**
+   * Whether a file picker can open here. Firefox closes the toolbar popup the moment one opens,
+   * so the popup offers the backup's download and points to the panel for a restore.
+   */
+  canPickFiles?: boolean;
 }
 
 /** The key the settings preview speaks under — not a card's, so no card silences it. */
@@ -488,14 +497,112 @@ export function mountSettings(
     void doReset("full");
   });
 
+  // — Rythme de révision — the daily allowance of new words (refine-lingua-review-session D2).
+  const paceBlock = settingBlock("Rythme de révision");
+  const paceGroup = el("div", "set-segmented");
+  paceGroup.setAttribute("role", "group");
+  paceGroup.setAttribute("aria-label", "Nouveaux mots par jour");
+  const paceButtons = NEW_WORDS_PER_DAY_STEPS.map((step) => {
+    const b = el("button", "set-segment", String(step));
+    b.type = "button";
+    b.addEventListener("click", () => void choosePace(step));
+    return { step, b };
+  });
+  paceGroup.append(...paceButtons.map(({ b }) => b));
+  const paceRow = el("div", "set-display-row");
+  paceRow.append(el("span", undefined, "Nouveaux mots par jour"), paceGroup);
+  paceBlock.append(
+    paceRow,
+    el(
+      "div",
+      "set-note",
+      "Pour chaque langue étudiée. Les mots ajoutés au-delà attendent les jours suivants. Une séance compte dix cartes au plus.",
+    ),
+  );
+  const showPace = (perDay: NewWordsPerDay): void => {
+    for (const { step, b } of paceButtons) b.setAttribute("aria-pressed", String(step === perDay));
+  };
+  async function choosePace(step: NewWordsPerDay): Promise<void> {
+    await saveNewWordsPerDay(area, step);
+    showPace(step);
+  }
+
+  // — Fichier de sauvegarde — the whole state as a file, and back (refine-lingua-review-session D9).
+  const fileBlock = settingBlock("Fichier de sauvegarde");
+  fileBlock.append(
+    el(
+      "div",
+      "set-note",
+      "Une copie complète de tes données Lingua : deck, statuts et niveau. Restaurer remplace l'état actuel.",
+    ),
+  );
+  const fileRow = el("div", "set-file-row");
+  const backupBtn = el("button", "set-reset", "Sauvegarder");
+  backupBtn.type = "button";
+  backupBtn.addEventListener("click", async () => download("cymbra-lingua-backup.json", await port.backup()));
+  fileRow.append(backupBtn);
+  const fileMsg = el("div", "set-note");
+  if (opts.canPickFiles ?? true) {
+    const restoreBtn = el("button", "set-reset", "Restaurer");
+    restoreBtn.type = "button";
+    const fileInput = el("input");
+    fileInput.type = "file";
+    fileInput.accept = "application/json";
+    fileInput.hidden = true;
+    restoreBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files?.[0];
+      if (file) void restoreFrom(file);
+    });
+    fileRow.append(restoreBtn, fileInput);
+    fileBlock.append(fileRow, fileMsg);
+  } else {
+    fileBlock.append(
+      fileRow,
+      el("div", "set-note", "Pour restaurer un fichier, ouvre Réglages depuis le panneau Lingua."),
+    );
+  }
+
+  /** Replace the state with a backup file's, save it for every surface, and start the views over. */
+  async function restoreFrom(file: File): Promise<void> {
+    try {
+      await port.restore(await file.text());
+    } catch {
+      fileMsg.textContent = "Fichier de sauvegarde non reconnu.";
+      return;
+    }
+    await opts.persist();
+    await opts.onReset?.();
+    await refresh();
+    fileMsg.textContent = "Sauvegarde restaurée.";
+  }
+
+  // — Sources et confidentialité — the reading language's pack (add-lingua-studied-language-profile).
+  const sourcesBlock = settingBlock("Sources et confidentialité");
+  const licences = el("div", "set-note");
+  const notice = el("pre", "set-notice");
+  const noticeDetails = el("details", "set-notice-details");
+  noticeDetails.append(el("summary", undefined, "Mentions complètes"), notice);
+  sourcesBlock.append(
+    el("div", "set-note set-privacy", "Rien ne quitte votre appareil : l'analyse et les traductions sont locales."),
+    licences,
+    noticeDetails,
+  );
+  async function refreshSources(): Promise<void> {
+    const pack = port.for(await readingLanguage(port, pairs));
+    const names = await pack.licences();
+    licences.textContent = names.length ? `Sources : ${names.join(" · ")}` : "";
+    notice.textContent = await pack.notice();
+  }
+
   // — The sub-tabs: the studied language, how things look, Lingua on the pages and books read,
   // the reader's data. The blocks keep their titles; a hidden block (no voice, signed out) leaves
   // its tab with the others, never empty: each tab has one block that always shows.
   const tabs = mountTabs(container, [
-    { id: "language", label: "Langue", blocks: [languagesBlock, levelBlocks, translationBlock, voiceBlock] },
+    { id: "language", label: "Langue", blocks: [languagesBlock, levelBlocks, translationBlock, voiceBlock, paceBlock] },
     { id: "look", label: "Apparence", blocks: [displayBlock, coloursBlock] },
     { id: "pages", label: "Pages & livres", blocks: [barBlock, booksBlock, scBlock] },
-    { id: "data", label: "Données", blocks: [accountBlock, syncBlock, resetBlock] },
+    { id: "data", label: "Données", blocks: [accountBlock, syncBlock, fileBlock, sourcesBlock, resetBlock] },
   ]);
 
   // — Live wiring —
@@ -633,8 +740,9 @@ export function mountSettings(
     toggle.checked = !(await loadHudHidden(area));
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
+    showPace(await loadNewWordsPerDay(area));
     await Promise.all([bookDisplay.refresh(), colours.refresh()]);
-    await Promise.all([refreshSync(), account.refresh(), translation?.refresh()]);
+    await Promise.all([refreshSync(), account.refresh(), translation?.refresh(), refreshSources()]);
   }
 
   void refresh();
@@ -710,4 +818,14 @@ function mountTabs(container: HTMLElement, specs: TabSpec[]): { show: (tab: Sett
 
   select(0);
   return { show: (tab) => select(specs.findIndex((s) => s.id === tab)) };
+}
+
+/** Hand `text` to the browser as a JSON file named `name`. */
+function download(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

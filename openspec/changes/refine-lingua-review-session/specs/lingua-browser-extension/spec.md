@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Two review surfaces
-The extension SHALL offer review in the **browser's native panel** where one exists (Side Panel on Chromium, sidebar on Firefox — the page is pushed, the panel survives navigation) and in a collapsible **injected panel** (shadow DOM) for micro-reviews. On Safari, which has no panel API, the injected panel SHALL carry in-browser review on its own. Every surface SHALL operate on the same local state. Lossless backup/restore (defined by `lingua-decks-review`) SHALL be reachable from Réglages › Données in every surface that shows Réglages — the side panel, the injected panel and the toolbar popup — and SHALL NOT be part of the review page.
+The extension SHALL offer review in the **browser's native panel** where one exists (Side Panel on Chromium, sidebar on Firefox — the page is pushed, the panel survives navigation) and in a collapsible **injected panel** (shadow DOM) for micro-reviews. On Safari, which has no panel API, the injected panel SHALL carry in-browser review on its own. Every surface SHALL operate on the same local state. Lossless backup/restore (defined by `lingua-decks-review`) SHALL be reachable from Réglages › Données in the side panel and the injected panel, and SHALL NOT be part of the review page. The toolbar popup's Réglages SHALL offer the backup and point to the panel for a restore, since Firefox closes a popup when a file picker opens.
 
 #### Scenario: Side panel during navigation
 - **WHEN** the user opens the side panel and then navigates to another page
@@ -10,6 +10,10 @@ The extension SHALL offer review in the **browser's native panel** where one exi
 #### Scenario: Backup from the side panel
 - **WHEN** the user opens Réglages › Données in the side panel and triggers a backup
 - **THEN** a versioned backup file is downloaded containing the complete state (cards field by field, statuses, calibration, FSRS parameters), and re-importing it restores the state identically
+
+#### Scenario: The toolbar popup
+- **WHEN** the user opens Réglages › Données in the toolbar popup
+- **THEN** it offers « Sauvegarder », and instead of « Restaurer » it says to open Réglages from the panel
 
 #### Scenario: The review page
 - **WHEN** the user opens the review page in any surface
@@ -43,3 +47,26 @@ The review card SHALL keep the sentence as its main element, set in a reading ty
 #### Scenario: Keys on the page being read
 - **WHEN** the injected panel is open over a web page but the focus is on the page
 - **THEN** the arrow keys and Space act on the page, not on the review
+
+### Requirement: The review card can be heard
+The review card SHALL offer to hear its word, as its front shows it, and its sentence, before the answer is revealed and after it, with the voices and under the rules of the word card's read-aloud; once revealed, it SHALL also offer to hear the dictionary form when the sentence shows another form. Without a voice the word card could use, the review card SHALL offer nothing to hear. Hearing SHALL change nothing on the card but the button that reads, and another card SHALL stop what is being read.
+
+#### Scenario: Before the reveal
+- **WHEN** a card shows « They seldom ship. » with its answer hidden
+- **THEN** « ▶ Mot » reads `seldom` and « ▶ Phrase » reads the sentence, in the card's language, and the answer stays hidden
+
+#### Scenario: After the reveal
+- **WHEN** the card of `grinning`, whose dictionary form is `grin`, is revealed
+- **THEN** « ▶ Mot » and « ▶ Phrase » are still there, and « ▶ grin » reads the dictionary form beside the answer
+
+#### Scenario: An expression
+- **WHEN** a card holds several words
+- **THEN** « ▶ Expression » reads them as one
+
+#### Scenario: Another card
+- **WHEN** the reader answers while a text of the card is being read
+- **THEN** the reading stops
+
+#### Scenario: No voice
+- **WHEN** no voice of the card's language may speak on the device
+- **THEN** the card offers nothing to hear

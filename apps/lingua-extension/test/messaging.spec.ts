@@ -45,6 +45,7 @@ describe("MessagingLinguaPort", () => {
     await port.dueCount(42);
     await port.startReview(42, ["es"]);
     await port.startReview(42);
+    await port.startReview(42, undefined, { limit: 10, newPerDay: 10, dayStart: 0 });
     await port.deckCount(["es"]);
     await port.deckCount();
 
@@ -53,8 +54,28 @@ describe("MessagingLinguaPort", () => {
       ["dueCount", [42]],
       ["startReview", [42, ["es"]]],
       ["startReview", [42]],
+      ["startReview", [42, null, { limit: 10, newPerDay: 10, dayStart: 0 }]],
       ["deckCount", [["es"]]],
       ["deckCount", []],
+    ]);
+  });
+
+  it("round-trips the session's answer, hiding and summary (refine-lingua-review-session)", async () => {
+    const summary = { reviewed: 2, recovered: 1, holding: 0, known: 0, hidden: 1 };
+    const send = vi.fn(async (method: string) => {
+      if (method === "reviewGrade") return false;
+      if (method === "reviewSummary") return summary;
+      return undefined;
+    });
+    const port = new MessagingLinguaPort(send);
+
+    expect(await port.reviewGrade("good", 42)).toBe(false);
+    await port.reviewIgnore(42);
+    expect(await port.reviewSummary()).toEqual(summary);
+    expect(send.mock.calls).toEqual([
+      ["reviewGrade", ["good", 42]],
+      ["reviewIgnore", [42]],
+      ["reviewSummary", []],
     ]);
   });
 

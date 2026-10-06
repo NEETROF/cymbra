@@ -380,6 +380,33 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   };
 }
 
+/**
+ * How many never-reviewed words may enter review each day (refine-lingua-review-session D2). A
+ * comfort preference like the reader flow: under its own key, never in the engine backup, never
+ * synced. Absent — or any value off the steps — reads as the default.
+ */
+export const NEW_WORDS_PER_DAY_KEY = "cymbra-lingua-new-words-per-day";
+
+/** The steps « Nouveaux mots par jour » offers. */
+export const NEW_WORDS_PER_DAY_STEPS = [5, 10, 20] as const;
+
+export type NewWordsPerDay = (typeof NEW_WORDS_PER_DAY_STEPS)[number];
+
+export const DEFAULT_NEW_WORDS_PER_DAY: NewWordsPerDay = 10;
+
+/** A stored value read as a daily allowance: one of the steps, else the default. */
+export function newWordsPerDayOf(value: unknown): NewWordsPerDay {
+  return NEW_WORDS_PER_DAY_STEPS.find((step) => step === value) ?? DEFAULT_NEW_WORDS_PER_DAY;
+}
+
+export async function loadNewWordsPerDay(area: AsyncStorageArea): Promise<NewWordsPerDay> {
+  return newWordsPerDayOf((await area.get(NEW_WORDS_PER_DAY_KEY))[NEW_WORDS_PER_DAY_KEY]);
+}
+
+export async function saveNewWordsPerDay(area: AsyncStorageArea, perDay: NewWordsPerDay): Promise<void> {
+  await area.set({ [NEW_WORDS_PER_DAY_KEY]: perDay });
+}
+
 /** A stored value read as a reader flow; anything but `scrolled` is the paginated default. */
 export function readerFlowOf(value: unknown): ReaderFlow {
   return value === "scrolled" ? "scrolled" : "paginated";

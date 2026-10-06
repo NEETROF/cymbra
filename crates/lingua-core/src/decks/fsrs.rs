@@ -200,6 +200,18 @@ impl ReviewState {
         }
     }
 
+    /// The predicted recall at `now` (0..=1) of a reviewed card, or `None` for a
+    /// never-reviewed one, which has no memory to decay (refine-lingua-review-session D1:
+    /// a session starts with the lowest).
+    pub fn retrievability_at(&self, params: &FsrsParams, now: i64) -> Option<f64> {
+        let memory = self.memory?;
+        let elapsed = self
+            .last_review
+            .map(|t| ((now - t).max(0)) as f64 / SECONDS_PER_DAY)
+            .unwrap_or(0.0);
+        Some(params.retrievability(elapsed, memory.stability))
+    }
+
     /// Retires the card from review: it keeps its memory and history but is
     /// never due again (used by "I know this"). The lemma's `known` status
     /// lives in the knowledge model, not here.
@@ -270,6 +282,23 @@ mod tests {
             "retrievability must fall as time passes ({early} !> {late})"
         );
         assert!((0.0..=1.0).contains(&late));
+    }
+
+    #[test]
+    fn retrievability_at_is_none_for_a_new_card_and_decays_after_a_review() {
+        let p = FsrsParams::default();
+        let mut state = ReviewState::new();
+        assert_eq!(state.retrievability_at(&p, 0), None);
+        state.grade(&p, Rating::Good, 0);
+        let fresh = state.retrievability_at(&p, 0).expect("reviewed");
+        let later = state.retrievability_at(&p, 10 * DAY).expect("reviewed");
+        assert!(
+            (fresh - 1.0).abs() < 1e-9,
+            "recall is certain right after a review"
+        );
+        assert!(later < fresh, "recall decays ({later} !< {fresh})");
+        // A clock before the review counts as no time elapsed.
+        assert_eq!(state.retrievability_at(&p, -DAY), Some(fresh));
     }
 
     #[test]

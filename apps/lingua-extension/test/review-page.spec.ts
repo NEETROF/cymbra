@@ -2,12 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LinguaPort } from "@/analyzer/port.ts";
 import { mountReview } from "@/review/review-page.ts";
 import { loadDailyStats, utcDay } from "@/state/dailystats.ts";
-import { type AsyncStorageArea, REVIEW_LANGUAGE_KEY, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
+import { localDayStart } from "@/review/session.ts";
+import {
+  type AsyncStorageArea,
+  NEW_WORDS_PER_DAY_KEY,
+  REVIEW_LANGUAGE_KEY,
+  ROOT_KEY,
+  STORAGE_VERSION,
+} from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
-import { type FakeCard, makeFakePort, type FakePort } from "./helpers.ts";
+import type { SpeechEngine, VoiceInfo } from "@/reading/speech.ts";
+import { type FakeCard, makeFakePort, makeFakeSpeech } from "./helpers.ts";
 
-// The Révision page as a WHOLE: the summary, the FSRS widget, backup/restore, the pack's
-// credits, and the reaction to a state written by another surface. The render itself is
+// The Révision page as a WHOLE: the summary, the FSRS widget and the reaction to a state written
+// by another surface (backup, restore and the pack's credits live in Réglages › Données). The render itself is
 // pinned in view.spec.ts and the session in session.spec.ts — what is pinned here is the
 // mounting: what the page asks the port, what it saves, and when it rebuilds itself.
 
@@ -60,29 +68,9 @@ function announce(keys: string[]): void {
   for (const listener of listeners) listener({ [STORE_CHANGED_KEY]: { newValue: { rev, keys } } }, "local");
 }
 
-const blobs: Blob[] = [];
-const downloads: string[] = [];
-let revoked = 0;
-
-// jsdom's Blob predates `Blob.text()`, which the page uses to read the chosen file (and
-// which the download assertion reads back). FileReader IS implemented, so stand it in.
-if (typeof Blob.prototype.text !== "function") {
-  Blob.prototype.text = function (this: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error ?? new Error("cannot read the file"));
-      reader.readAsText(this);
-    });
-  };
-}
-
 beforeEach(() => {
   packs.shipped = ["en-fr"];
   listeners.length = 0;
-  blobs.length = 0;
-  downloads.length = 0;
-  revoked = 0;
   document.body.replaceChildren();
   vi.spyOn(Date, "now").mockReturnValue(NOW_MS);
   vi.stubGlobal("chrome", {
@@ -91,16 +79,6 @@ beforeEach(() => {
         addListener: (fn: ChangeListener) => void listeners.push(fn),
       },
     },
-  });
-  // jsdom implements neither blob URLs nor a navigating anchor, and the download is the
-  // only thing the page does that leaves the DOM: stand in for both and record the call.
-  URL.createObjectURL = (blob) => {
-    blobs.push(blob as Blob);
-    return "blob:lingua";
-  };
-  URL.revokeObjectURL = () => void (revoked += 1);
-  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
-    downloads.push(this.download);
   });
 });
 
@@ -113,8 +91,10 @@ afterEach(() => {
 interface Host {
   /** What the host says the page beside the review is read in (refine-lingua-review-language D2). */
   pageLanguage?: () => Promise<string | null>;
-  /** The preferences area, where the last language chosen in the review is kept (D3). */
+  /** The preferences area: the last language chosen in the review (D3), the daily allowance. */
   prefs?: Area;
+  /** What reads the card aloud (refine-lingua-review-session D11); none under jsdom by default. */
+  speech?: SpeechEngine | null;
 }
 
 function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
@@ -125,13 +105,13 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     now: () => NOW_SECONDS,
     prefs,
     pageLanguage: host.pageLanguage,
+    speech: host.speech,
   });
   return { page, container, area, prefs };
 }
 
 /**
- * Let the page's floating promises settle (every handler is fire-and-forget). Several
- * rounds, because reading the chosen file goes through FileReader's own task.
+ * Let the page's floating promises settle (every handler is fire-and-forget), over several rounds.
  */
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -144,19 +124,6 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 }
 
 const text = (container: HTMLElement, selector: string): string => container.querySelector(selector)?.textContent ?? "";
-
-const filePicker = (container: HTMLElement): HTMLInputElement => {
-  const input = container.querySelector<HTMLInputElement>('input[type="file"]');
-  if (!input) throw new Error("no file input");
-  return input;
-};
-
-/** Hand the hidden picker a file, as the browser does once the reader has chosen one. */
-function choose(input: HTMLInputElement, contents: string): void {
-  const file = new File([contents], "cymbra-lingua-backup.json", { type: "application/json" });
-  Object.defineProperty(input, "files", { value: [file], configurable: true });
-  input.dispatchEvent(new Event("change"));
-}
 
 describe("Révision — the page", () => {
   it("shows the deck and what is due, asked on the injected clock", async () => {
@@ -186,7 +153,8 @@ describe("Révision — the page", () => {
     button(m.container, "Réviser").click();
     await settle();
 
-    expect(text(m.container, ".review-headword")).toBe("seldom");
+    expect(text(m.container, ".review-sentence")).toBe("They seldom ship.");
+    expect(text(m.container, ".review-word")).toBe("seldom");
     expect(text(m.container, ".remaining")).toBe("2 carte(s) à revoir");
     expect(m.container.textContent).not.toContain("rarement"); // the answer is still hidden
     expect(m.page.reviewing()).toBe(true);
@@ -202,7 +170,7 @@ describe("Révision — the page", () => {
     await settle();
 
     expect(text(m.container, ".review-gloss")).toBe("rarement");
-    expect(text(m.container, ".review-sentence")).toBe("« They seldom ship. »");
+    expect(text(m.container, ".review-sentence")).toBe("They seldom ship.");
   });
 
   it("grades a card, saves the state and counts the review for the day", async () => {
@@ -214,7 +182,7 @@ describe("Révision — the page", () => {
     button(m.container, "Afficher la réponse").click();
     await settle();
 
-    button(m.container, "Correct").click();
+    button(m.container, "Su").click();
     await settle();
 
     expect(calls.grades).toEqual(["good"]);
@@ -223,7 +191,7 @@ describe("Révision — the page", () => {
     expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
       en: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 },
     });
-    expect(text(m.container, ".review-headword")).toBe("dwell"); // moved on to the next card
+    expect(text(m.container, ".review-word")).toBe("dwells"); // moved on to the next card
   });
 
   it("marks a card known, counting a word learned rather than a review", async () => {
@@ -235,7 +203,7 @@ describe("Révision — the page", () => {
     button(m.container, "Afficher la réponse").click();
     await settle();
 
-    button(m.container, "Je connais ✓").click();
+    button(m.container, "Je connais").click();
     await settle();
 
     expect(calls.markKnown).toBe(1);
@@ -268,109 +236,103 @@ describe("Révision — the page", () => {
 
     button(m.container, "Afficher la réponse").click();
     await settle();
-    button(m.container, "Correct").click();
+    button(m.container, "Su").click();
     await settle();
 
     expect(m.page.reviewing()).toBe(false);
   });
 
-  it("hands the whole state over as a JSON file named for the app", async () => {
+  it("scenario: the review page holds the count and the card, not backup, restore or sources", async () => {
     const m = mount(makeFakePort(DECK).port);
     await m.page.refresh();
-    vi.useFakeTimers(); // the page releases the blob URL on a timer a second later
-
-    button(m.container, "Sauvegarder").click();
-    await vi.runAllTimersAsync();
-    vi.useRealTimers();
-
-    expect(downloads).toEqual(["cymbra-lingua-backup.json"]);
-    expect(blobs).toHaveLength(1);
-    expect(blobs[0].type).toBe("application/json");
-    expect(await blobs[0].text()).toBe("{}"); // the engine's own backup, byte for byte
-    expect(revoked).toBe(1);
-  });
-
-  it("asks for a file through the hidden picker", async () => {
-    const m = mount(makeFakePort(DECK).port);
-    await m.page.refresh();
-    const input = filePicker(m.container);
-    const clicked = vi.spyOn(input, "click").mockImplementation(() => {});
-
-    button(m.container, "Restaurer").click();
-
-    expect(clicked).toHaveBeenCalledOnce();
-    expect(input.hidden).toBe(true);
-    expect(input.accept).toBe("application/json");
-  });
-
-  it("does nothing when the reader closes the picker without choosing", async () => {
-    const { port, calls } = makeFakePort(DECK);
-    const m = mount(port);
-    await m.page.refresh();
-
-    filePicker(m.container).dispatchEvent(new Event("change"));
     await settle();
 
-    expect(calls.restored).toEqual([]);
-    expect(text(m.container, ".msg")).toBe("");
+    expect(m.container.querySelector('input[type="file"]')).toBeNull();
+    expect(m.container.querySelector("details")).toBeNull();
+    expect(m.container.textContent).not.toMatch(/Sauvegarder|Restaurer|Sources/);
   });
 
-  it("restores a chosen backup, saves it and starts the page over from it", async () => {
-    // The restored engine is a different deck, so the controller is rebuilt: any session
-    // under way is dropped and the page goes back to its start button.
+  it("starts a session of ten with the reader's daily allowance of new words", async () => {
+    const { port, calls } = makeFakePort(DECK);
+    const prefs = fakeArea();
+    await prefs.set({ [NEW_WORDS_PER_DAY_KEY]: 20 });
+    const m = mount(port, fakeArea(), { prefs });
+    await m.page.refresh();
+
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(calls.reviewOptions[0]).toEqual({ limit: 10, newPerDay: 20, dayStart: localDayStart(NOW_SECONDS) });
+  });
+
+  it("puts the focus in the card when a session starts, so the keys answer it", async () => {
+    const m = mount(makeFakePort(DECK).port);
+    await m.page.refresh();
+
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(document.activeElement).toBe(m.container.querySelector(".review"));
+  });
+
+  it("hides a word, saves the state and moves on, counting nothing", async () => {
     const { port, calls } = makeFakePort(DECK);
     const m = mount(port);
     await m.page.refresh();
     button(m.container, "Réviser").click();
     await settle();
 
-    choose(filePicker(m.container), '{"v":2,"deck":[]}');
+    button(m.container, "Ne plus me le montrer").click();
     await settle();
 
-    expect(calls.restored).toEqual(['{"v":2,"deck":[]}']);
-    expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: '{"v":2,"deck":[]}' });
-    expect(text(m.container, ".msg")).toBe("Sauvegarde restaurée.");
-    expect(m.page.reviewing()).toBe(false);
-    expect(button(m.container, "Réviser")).toBeTruthy();
+    expect(calls.ignored).toBe(1);
+    expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
+    expect(await loadDailyStats(m.area)).toEqual({});
+    expect(text(m.container, ".review-word")).toBe("dwells");
   });
 
-  it("keeps the page as it was when the file is not a backup", async () => {
-    const { port } = makeFakePort(DECK);
-    const m = mount({
-      ...port,
-      restore: async () => {
-        throw new Error("unknown version");
-      },
-    });
+  it("ends a session on what it did, and offers ten more while cards remain", async () => {
+    const twelve: FakeCard[] = Array.from({ length: 12 }, (_, i) => ({
+      headword: `w${i}`,
+      surface: `w${i}`,
+      sentence: "",
+      gloss: null,
+    }));
+    const m = mount(makeFakePort(twelve).port);
     await m.page.refresh();
-
-    choose(filePicker(m.container), "not json at all");
+    button(m.container, "Réviser").click();
     await settle();
 
-    expect(text(m.container, ".msg")).toBe("Fichier de sauvegarde non reconnu.");
-    expect(m.area.raw[ROOT_KEY]).toBeUndefined(); // nothing was written over the state
+    for (let i = 0; i < 10; i++) {
+      button(m.container, "Afficher la réponse").click();
+      await settle();
+      button(m.container, "Su").click();
+      await settle();
+    }
+
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(text(m.container, ".review-done-stats")).toContain("10 mots revus");
+    button(m.container, "Encore 10").click();
+    await settle();
+    expect(text(m.container, ".remaining")).toBe("2 carte(s) à revoir");
   });
 
-  it("credits the pack's sources and shows its notice", async () => {
+  it("ends its session when a restore beside it dropped the engine's session", async () => {
+    // Réglages › Données restores through the same engine: the session the page was walking is gone.
     const { port, calls } = makeFakePort(DECK);
     const m = mount(port);
-
-    await settle(); // the credits are loaded on mount, not on refresh
-
-    expect(m.container.querySelector("details")?.textContent).toContain("Sources : L1");
-    expect(text(m.container, ".notice")).toBe("NOTICE");
-    expect(text(m.container, ".privacy")).toContain("Rien ne quitte votre appareil");
-    expect(new Set(calls.languages)).toEqual(new Set(["en"])); // the English pack's credits
-  });
-
-  it("leaves the credit line out for a pack that names no source", async () => {
-    const { port } = makeFakePort(DECK);
-    const withoutSources: FakePort = { ...port, licences: async () => [] };
-    const m = mount(withoutSources);
-
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
     await settle();
 
-    expect(m.container.querySelector("details")?.textContent).not.toContain("Sources :");
+    await port.reset();
+    await m.area.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: '{"restored":true}' } });
+    announce([ROOT_KEY]);
+    await settle();
+
+    expect(m.page.reviewing()).toBe(false);
+    expect(button(m.container, "Réviser")).toBeTruthy();
+    expect(calls.restored).toEqual([]); // the engine already holds the restored state
   });
 
   it("takes on a state another surface wrote", async () => {
@@ -404,7 +366,7 @@ describe("Révision — the page", () => {
     await settle();
     button(m.container, "Afficher la réponse").click();
     await settle();
-    button(m.container, "Correct").click();
+    button(m.container, "Su").click();
     await settle(); // this grade is what wrote the state the store is about to announce
 
     announce([ROOT_KEY]);
@@ -425,7 +387,7 @@ describe("Révision — the page", () => {
     await settle();
 
     expect(calls.restored).toEqual([]);
-    expect(text(m.container, ".review-headword")).toBe("seldom"); // the card is still there
+    expect(text(m.container, ".review-word")).toBe("seldom"); // the card is still there
   });
 });
 
@@ -487,7 +449,7 @@ describe("Révision — a reader of several languages", () => {
     await settle();
 
     expect(calls.reviewLanguages).toEqual([["es"], ["es"]]);
-    expect(text(m.container, ".review-headword")).toBe("faro");
+    expect(text(m.container, ".review-word")).toBe("faro");
     expect(text(m.container, ".remaining")).toBe("1 carte(s) à revoir");
     expect(m.prefs.raw[REVIEW_LANGUAGE_KEY]).toBeUndefined(); // the page chose, not the reader
   });
@@ -570,7 +532,7 @@ describe("Révision — a reader of several languages", () => {
     await m.page.refresh();
 
     expect(chosen(m.container)).toBe("Espagnol");
-    expect(text(m.container, ".review-headword")).toBe("faro");
+    expect(text(m.container, ".review-word")).toBe("faro");
     expect(calls.reviewLanguages).toEqual([["es"], ["es"], ["es"]]); // first count, the session, the count again
     expect(m.prefs.raw[REVIEW_LANGUAGE_KEY]).toBeUndefined();
   });
@@ -585,10 +547,12 @@ describe("Révision — a reader of several languages", () => {
     expect(text(m.container, ".review-language")).toBe("Espagnol");
     button(m.container, "Afficher la réponse").click();
     await settle();
-    button(m.container, "Correct").click();
+    button(m.container, "Su").click();
     await settle();
 
-    expect(m.container.textContent).toContain("Rien à réviser pour l'instant."); // the Spanish session is over
+    // The Spanish session is over, with nothing more due in Spanish: no « Encore 10 ».
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(m.container.textContent).not.toContain("Encore 10");
     button(m.container, "Anglais").click(); // another language offers a start of its own
     await settle();
     button(m.container, "Réviser").click();
@@ -596,13 +560,32 @@ describe("Révision — a reader of several languages", () => {
     expect(text(m.container, ".review-language")).toBe("Anglais");
     button(m.container, "Afficher la réponse").click();
     await settle();
-    button(m.container, "Je connais ✓").click();
+    button(m.container, "Je connais").click();
     await settle();
 
     expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
       es: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 },
       en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 },
     });
+  });
+
+  it("reads a card aloud in the card's own language (refine-lingua-review-session D11)", async () => {
+    const voice = (name: string, lang: string): VoiceInfo => ({
+      name,
+      lang,
+      localService: true,
+      default: false,
+      voiceURI: name,
+    });
+    const speech = makeFakeSpeech([voice("Samantha", "en-US"), voice("Mónica", "es-ES")]);
+    const { port } = await bilingual();
+    const m = mount(port, fakeArea(), { pageLanguage: async () => "es", speech: speech.engine });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+
+    button(m.container, "▶ Mot").click();
+    expect(speech.spoken.map((u) => [u.text, u.voice.lang])).toEqual([["faro", "es-ES"]]);
   });
 
   it("goes back to a language the reader studies when the chosen one leaves their languages", async () => {

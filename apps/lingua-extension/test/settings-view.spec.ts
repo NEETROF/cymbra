@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountSettings, type SyncControls } from "@/reading/settings-view.ts";
 import type { LinguaPort } from "@/analyzer/port.ts";
-import { ANDROID_VOICES_KEY, type AsyncStorageArea, REMOTE_VOICES_KEY, VOICE_KEY } from "@/state/storage.ts";
+import {
+  ANDROID_VOICES_KEY,
+  type AsyncStorageArea,
+  NEW_WORDS_PER_DAY_KEY,
+  REMOTE_VOICES_KEY,
+  VOICE_KEY,
+} from "@/state/storage.ts";
 import { createSpeaker, type SpeechSettings, type VoiceInfo } from "@/reading/speech.ts";
 import type { SyncReply } from "@/sync/messages.ts";
 import { makeFakePort, makeFakeSpeech, voiceFixture, type FakePort } from "./helpers.ts";
@@ -731,10 +737,10 @@ describe("Réglages — sub-tabs", () => {
     expect(tabs(container).map((t) => t.textContent)).toEqual(["Langue", "Apparence", "Pages & livres", "Données"]);
     const panels = [...container.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
     expect(panels.map(titles)).toEqual([
-      ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute"],
+      ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute", "Rythme de révision"],
       ["Affichage", "Couleurs"],
       ["Barre sur la page", "Livres", "Raccourcis & gestes"],
-      ["Compte", "Synchronisation", "Réinitialisation"],
+      ["Compte", "Synchronisation", "Fichier de sauvegarde", "Sources et confidentialité", "Réinitialisation"],
     ]);
     // The book's size and theme come with Affichage, under Apparence; its page turn joins the
     // continuous flow in Livres, under Pages & livres.
@@ -757,12 +763,14 @@ describe("Réglages — sub-tabs", () => {
     const { container } = mount();
     await settle();
     expect(shown(container).map(titles)).toEqual([
-      ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute"],
+      ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute", "Rythme de révision"],
     ]);
     expect(tabs(container).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false", "false", "false"]);
 
     tabs(container)[3].click();
-    expect(shown(container).map(titles)).toEqual([["Compte", "Synchronisation", "Réinitialisation"]]);
+    expect(shown(container).map(titles)).toEqual([
+      ["Compte", "Synchronisation", "Fichier de sauvegarde", "Sources et confidentialité", "Réinitialisation"],
+    ]);
     expect(tabs(container)[3].classList.contains("active")).toBe(true);
     expect(tabs(container)[0].classList.contains("active")).toBe(false);
     // One tab stop: the selected tab; the arrows reach the others.
@@ -833,5 +841,167 @@ describe("Réglages — sub-tabs", () => {
     const ids = [...document.querySelectorAll("[id]")].map((n) => n.id);
     expect(ids.length).toBe(2 * 2 * tabs(container).length);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("Réglages — the review's blocks (refine-lingua-review-session)", () => {
+  // jsdom implements neither blob URLs, nor a navigating anchor, nor `Blob.text()`: stand in
+  // for the three and record the download.
+  const blobs: Blob[] = [];
+  const downloads: string[] = [];
+  beforeEach(() => {
+    blobs.length = 0;
+    downloads.length = 0;
+    URL.createObjectURL = (blob) => {
+      blobs.push(blob as Blob);
+      return "blob:lingua";
+    };
+    URL.revokeObjectURL = () => {};
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      downloads.push(this.download);
+    });
+    if (typeof Blob.prototype.text !== "function") {
+      Blob.prototype.text = function (this: Blob): Promise<string> {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error ?? new Error("cannot read the file"));
+          reader.readAsText(this);
+        });
+      };
+    }
+  });
+
+  function mountData(port: LinguaPort, canPickFiles?: boolean) {
+    const container = document.createElement("div");
+    document.body.replaceChildren(container);
+    const prefs = fakeArea();
+    const persist = vi.fn(async () => {});
+    const onReset = vi.fn(async () => {});
+    mountSettings(container, port, prefs, {
+      persist,
+      onReset,
+      store: fakeArea(),
+      sync: {
+        available: async () => false,
+        syncNow: async () => ({ ok: true }),
+        lastSync: async () => null,
+        now: () => NOW,
+        watch: () => {},
+      },
+      canPickFiles,
+    });
+    const block = (title: string): HTMLElement => {
+      const found = [...container.querySelectorAll<HTMLElement>(".set-block")].find(
+        (b) => b.querySelector(".set-label")?.textContent === title,
+      );
+      if (!found) throw new Error(`no block ${title}`);
+      return found;
+    };
+    const button = (within: HTMLElement, label: string): HTMLButtonElement => {
+      const found = [...within.querySelectorAll("button")].find((b) => b.textContent === label);
+      if (!found) throw new Error(`no button ${label}`);
+      return found;
+    };
+    return { container, prefs, persist, onReset, block, button };
+  }
+
+  /** Several rounds: reading a chosen file goes through FileReader's own task. */
+  const settleFile = async (): Promise<void> => {
+    for (let i = 0; i < 3; i++) await settle();
+  };
+
+  function choose(input: HTMLInputElement, contents: string): void {
+    const file = new File([contents], "cymbra-lingua-backup.json", { type: "application/json" });
+    Object.defineProperty(input, "files", { value: [file], configurable: true });
+    input.dispatchEvent(new Event("change"));
+  }
+
+  it("offers 5, 10 or 20 new words a day, 10 until the reader picks, and keeps the pick", async () => {
+    const m = mountData(makeFakePort().port);
+    await settle();
+    const pace = m.block("Rythme de révision");
+    const pressed = () => [...pace.querySelectorAll('button[aria-pressed="true"]')].map((b) => b.textContent);
+    expect([...pace.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["5", "10", "20"]);
+    expect(pressed()).toEqual(["10"]);
+    m.button(pace, "20").click();
+    await settle();
+    expect(m.prefs.store[NEW_WORDS_PER_DAY_KEY]).toBe(20);
+    expect(pressed()).toEqual(["20"]);
+  });
+
+  it("scenario: backup from the panel downloads the engine's whole state as a JSON file", async () => {
+    const m = mountData(makeFakePort().port);
+    await settle();
+    m.button(m.block("Fichier de sauvegarde"), "Sauvegarder").click();
+    await settle();
+    expect(downloads).toEqual(["cymbra-lingua-backup.json"]);
+    expect(blobs[0].type).toBe("application/json");
+    expect(await blobs[0].text()).toBe("{}"); // the engine's own backup, byte for byte
+  });
+
+  it("restores a chosen file, saves it for every surface and starts the views over", async () => {
+    const { port, calls } = makeFakePort();
+    const m = mountData(port);
+    await settle();
+    const file = m.block("Fichier de sauvegarde");
+    const input = file.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const picked = vi.spyOn(input, "click").mockImplementation(() => {});
+    m.button(file, "Restaurer").click();
+    expect(picked).toHaveBeenCalledOnce();
+    expect(input.hidden).toBe(true);
+    expect(input.accept).toBe("application/json");
+
+    choose(input, '{"v":2,"deck":[]}');
+    await settleFile();
+
+    expect(calls.restored).toEqual(['{"v":2,"deck":[]}']);
+    expect(m.persist).toHaveBeenCalledOnce();
+    expect(m.onReset).toHaveBeenCalledOnce();
+    expect(file.textContent).toContain("Sauvegarde restaurée.");
+  });
+
+  it("writes nothing over the state when the file is not a backup", async () => {
+    const { port } = makeFakePort();
+    const m = mountData({
+      ...port,
+      restore: async () => {
+        throw new Error("unknown version");
+      },
+    } as FakePort);
+    await settle();
+    const file = m.block("Fichier de sauvegarde");
+    choose(file.querySelector<HTMLInputElement>('input[type="file"]')!, "not json at all");
+    await settleFile();
+    expect(file.textContent).toContain("Fichier de sauvegarde non reconnu.");
+    expect(m.persist).not.toHaveBeenCalled();
+  });
+
+  it("in the toolbar popup, keeps the download and points to the panel for a restore", async () => {
+    const m = mountData(makeFakePort().port, false);
+    await settle();
+    const file = m.block("Fichier de sauvegarde");
+    expect(m.button(file, "Sauvegarder")).toBeTruthy();
+    expect(file.querySelector('input[type="file"]')).toBeNull();
+    expect([...file.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Sauvegarder"]);
+    expect(file.textContent).toContain("ouvre Réglages depuis le panneau Lingua");
+  });
+
+  it("credits the reading language's pack and shows its notice", async () => {
+    const { port, calls } = makeFakePort();
+    const m = mountData(port);
+    await settle();
+    const sources = m.block("Sources et confidentialité");
+    expect(sources.textContent).toContain("Sources : L1");
+    expect(sources.querySelector(".set-notice")?.textContent).toBe("NOTICE");
+    expect(sources.textContent).toContain("Rien ne quitte votre appareil");
+    expect(calls.languages).toContain("en");
+  });
+
+  it("leaves the credit line out for a pack that names no source", async () => {
+    const { port } = makeFakePort();
+    const m = mountData({ ...port, licences: async () => [] } as FakePort);
+    await settle();
+    expect(m.block("Sources et confidentialité").textContent).not.toContain("Sources :");
   });
 });

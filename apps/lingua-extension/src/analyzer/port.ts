@@ -53,6 +53,31 @@ export interface ReviewCard {
   language?: StudiedLanguage;
 }
 
+/** How a review session starts (refine-lingua-review-session D1, D2). Absent fields take every
+ *  due card, with no allowance. */
+export interface ReviewOptions {
+  /** At most this many distinct cards. */
+  limit?: number;
+  /** The day's allowance of never-reviewed cards; needs `dayStart`. */
+  newPerDay?: number;
+  /** The reader's local midnight, epoch seconds: where "today" starts for the allowance. */
+  dayStart?: number;
+}
+
+/** What a session did, for its end (refine-lingua-review-session D8). */
+export interface ReviewSummary {
+  /** Cards whose first answer in the session updated their FSRS state. */
+  reviewed: number;
+  /** Cards missed, then recalled later in the same session. */
+  recovered: number;
+  /** Cards now scheduled at least 30 days away. */
+  holding: number;
+  /** Cards marked known. */
+  known: number;
+  /** Cards hidden from review (« Ne plus me le montrer »). */
+  hidden: number;
+}
+
 /** The context captured when a form is added to the deck. */
 export interface NewCard {
   lemma: string;
@@ -188,17 +213,24 @@ export interface LinguaPort {
   /** Cards due at `now` (epoch seconds), in `languages`, or in every language when absent or empty
    *  (add-lingua-language-stats-review). */
   dueCount(now: number, languages?: StudiedLanguage[]): Promise<number>;
-  /** Start a review session over everything due at `now`, in `languages` or in all of them, the
-   *  cards of several languages in due order; returns the count. */
-  startReview(now: number, languages?: StudiedLanguage[]): Promise<number>;
+  /** Start a review session over the cards due at `now`, in `languages` or in all of them, the
+   *  lowest predicted recall first, within `options` (refine-lingua-review-session D1, D2);
+   *  returns the count. */
+  startReview(now: number, languages?: StudiedLanguage[], options?: ReviewOptions): Promise<number>;
   /** The current card, or null when the session is finished / not started. */
   reviewCurrent(): Promise<ReviewCard | null>;
   /** Reveal the current card's answer. */
   reviewReveal(): Promise<void>;
-  /** Grade the current card and advance. */
-  reviewGrade(rating: Rating, now: number): Promise<void>;
+  /** Answer the current card and advance; resolves whether the answer updated its FSRS state —
+   *  only a card's first answer in a session does (refine-lingua-review-session D3). */
+  reviewGrade(rating: Rating, now: number): Promise<boolean>;
   /** Mark the current card known (retire it) and advance. */
   reviewMarkKnown(now: number): Promise<void>;
+  /** Hide the current card's word from review — « Ne plus me le montrer »: ignored, card retired,
+   *  not deleted — and advance (refine-lingua-review-session D5). */
+  reviewIgnore(now: number): Promise<void>;
+  /** What the current session has done, or null when none was started. */
+  reviewSummary(): Promise<ReviewSummary | null>;
   /** The whole state as a lossless, versioned backup string. */
   backup(): Promise<string>;
   /** Replace the whole state from a backup string (throws on an unknown version). */

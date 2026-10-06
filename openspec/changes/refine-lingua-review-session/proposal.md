@@ -18,9 +18,9 @@ short, honest about what the reader recalled, and look like the page it came fro
 - **Short sessions, most fragile first.** A session holds at most 10 cards, ordered by
   predicted recall, lowest first, with new cards interleaved; « Encore 10 » starts another
   one over what is still due. This replaces "a single language keeps its usual order".
-- **New words enter review at a daily pace.** At most 10 never-reviewed cards a day by
-  default, a reader setting offering 5, 10 or 20. Capturing a word is unchanged and
-  unlimited; the cards beyond the day's allowance wait.
+- **New words enter review at a daily pace.** At most 10 never-reviewed cards a day in
+  each studied language by default, a reader setting offering 5, 10 or 20. Capturing a word
+  is unchanged and unlimited; the cards beyond the day's allowance wait.
 - **A missed card comes back in the same session**, three cards later, until it is
   recalled once or has been asked three times. Only the session's first answer updates
   the card's FSRS state.
@@ -32,11 +32,14 @@ short, honest about what the reader recalled, and look like the page it came fro
   The answer appears in a space reserved from the start, so revealing it repaints one zone.
   The layout follows the screen: answers at the bottom on a phone held upright, on the
   sides when it is held sideways, a centred column on a tablet or a wide panel.
+- **The card can be heard**, before the reveal and after it: its word and its sentence, and
+  once revealed its dictionary form, with the word card's voices and rules. Found while
+  dogfooding in Chrome.
 - **A session ends by saying what it did**: cards reviewed, missed words recovered, cards
   now held for more than a month; it offers to continue only when cards remain due.
 - **Backup, restore and the pack's sources move to Réglages › Données**, rendered by the
-  one settings builder in every host. The review page keeps the language filter, the due
-  count and the card.
+  one settings builder in every host; the toolbar popup offers the backup and points to the
+  panel for a restore. The review page keeps the language filter, the due count and the card.
 - Unchanged: the FSRS formulas and parameters, the card schema, the backup format, the
   sync protocol, and the absence of any network call.
 
@@ -52,14 +55,16 @@ _None._
   - *Review present right next to the reading* — the sentence shows on the front; the
     gloss stays hidden until the reveal.
   - *One review queue across languages, with a language filter* (added by
-    `add-lingua-language-stats-review`, not yet archived) — every queue, single-language
-    included, is ordered by predicted recall.
+    `add-lingua-language-stats-review`, not yet archived) — a session, in the one language
+    the review is in since `refine-lingua-review-language`, is ordered by predicted recall;
+    the text no longer offers every language at once. Its title is left to
+    `refine-lingua-language-wording`, which reconciles that requirement.
   - Added: short sessions, a daily pace for new words, a missed card coming back in the
     session, two answers, hiding a word from review, and the end-of-session summary.
 - `lingua-browser-extension`:
   - *Two review surfaces* — backup and restore are reached from Réglages › Données in
     every host that shows Réglages, the side panel included.
-  - Added: the review card fits the screen it is on.
+  - Added: the review card fits the screen it is on; the review card can be heard.
 
 This change archives after `add-lingua-language-stats-review` (`archiveAfter` in
 `.openspec.yaml`): one of its deltas modifies a requirement that change introduces.

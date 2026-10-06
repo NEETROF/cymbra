@@ -464,3 +464,29 @@ kbd {
 .set-account-row {
   color: var(--cymbra-lingua-text);
 }
+
+/* — Données: the backup file and the pack's sources (refine-lingua-review-session D9) — */
+.set-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.set-privacy {
+  color: var(--cymbra-lingua-ok);
+}
+
+.set-notice-details summary {
+  cursor: pointer;
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.set-notice {
+  white-space: pre-wrap;
+  font-family: var(--cymbra-lingua-mono, monospace);
+  font-size: calc(11px * var(--cymbra-lingua-ui-scale, 1));
+  color: var(--cymbra-lingua-muted);
+  margin: 8px 0 0;
+}

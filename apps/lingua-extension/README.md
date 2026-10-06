@@ -222,13 +222,25 @@ extension never janks a page. This can't run in CI; do it against a real pack.
 Reading builds the deck; review runs it, on the same local state:
 
 - A native **side panel** (`sidepanel.html`, `Alt+Shift+S`, the page is pushed and the
-  panel survives navigation): deck summary, an FSRS review session (answer hidden until
-  revealed, `À revoir`/`Difficile`/`Correct`/`Facile`, `Je connais`), lossless
-  **backup** (download) / **restore** (re-import), and a Sources & confidentialité
-  section (the pack's NOTICE + "nothing leaves the device").
+  panel survives navigation): the deck summary and an FSRS review session.
 - An injected **drawer** (`Alt+Shift+D`, closed shadow DOM) for micro-reviews without
   leaving the page — the same `ReviewController` + `renderReview` as the side panel, two
   hosts over one logic. On Firefox and Safari it is the review surface.
+
+A session (`refine-lingua-review-session`) holds at most 10 cards, the lowest predicted
+recall first, with never-reviewed words entering at a daily pace in each studied language
+(« Nouveaux mots par jour » in Réglages › Langue: 5, 10 or 20). The front of a card is the sentence the word was met in,
+the word marked; the gloss stays hidden until « Afficher la réponse ». Two answers: « Pas su »
+(FSRS `again`) and « Su » (`good`) — a missed card comes back three cards later, up to three
+times, and only its first answer counts. « Je connais » retires the card as known, « Ne plus
+me le montrer » as ignored. The end says what the session did and offers « Encore 10 » while
+another session would hold cards. Keys: Space reveals, ← and → answer. The card can be heard
+before and after the reveal (« ▶ Mot » or « ▶ Expression », « ▶ Phrase », then the dictionary
+form), with the word card's voices, in the card's language.
+
+Lossless **backup** (download) / **restore** (re-import) and the pack's sources live in
+Réglages › Données, in every host; the toolbar popup offers the download and points to the
+panel for a restore, since Firefox closes a popup when a file picker opens.
 
 State authority: the WASM engine holds lingua-core's whole `LinguaState` (knowledge +
 deck + FSRS); it is persisted as its lossless backup string in `chrome.storage.local`,
