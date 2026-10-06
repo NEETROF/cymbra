@@ -1,4 +1,5 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
+import { acceptedLanguages } from "./analyzer/pairs.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { type AccountHostDeps, handleAccountMessage } from "./account/host.ts";
 import { userServicePort } from "./account/profile.ts";
@@ -27,7 +28,7 @@ import { type DownloadEvent, DownloadHost, type DownloadWorkerLike } from "./tra
 import type { EngineAccess } from "./translate/host/engine.ts";
 import { ModelController, type ModelHostAccess } from "./translate/host/model-controller.ts";
 import { modelDb } from "./translate/host/model-db.ts";
-import { loadBundledManifest } from "./translate/host/model-manifest.ts";
+import { loadBundledCatalogue } from "./translate/host/model-manifest.ts";
 import { isOffscreenEvent, OffscreenEngine } from "./translate/host/offscreen-engine.ts";
 import { KEEPALIVE_PING } from "./translate/keepalive.ts";
 import { isModelMessage } from "./translate/model-messages.ts";
@@ -35,7 +36,8 @@ import { UNAVAILABLE } from "./translate/port.ts";
 import { relayTranslation, relayWarm } from "./translate/host/relay.ts";
 import { isTranslateMessage, isWarmMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
-import { type AsyncStorageArea, hydrateEngine, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
+import { studiedLanguagesOf } from "./state/profile.ts";
+import { type AsyncStorageArea, hydrateEngine, loadStored, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
 import {
   dropRetiredKeys,
   idbArea,
@@ -287,7 +289,7 @@ if (__TRANSLATION_HOST__ !== "none") {
     const offscreen = new OffscreenEngine(chrome.offscreen, (message) => chrome.runtime.sendMessage(message));
     engine = offscreen;
     host = {
-      startDownload: () => offscreen.startDownload(),
+      startDownload: (models) => offscreen.startDownload(models),
       cancelDownload: () => offscreen.cancelDownload(),
       downloading: () => offscreen.downloading(),
       shutDown: () => offscreen.close(),
@@ -306,9 +308,9 @@ if (__TRANSLATION_HOST__ !== "none") {
     const downloads = new DownloadHost(() => spawn("model-worker.js") as DownloadWorkerLike, report);
     engine = channel;
     host = {
-      startDownload: async () => {
+      startDownload: async (models) => {
         void navigator.storage?.persist?.().catch(() => {});
-        downloads.start();
+        downloads.start(models);
       },
       cancelDownload: async () => downloads.cancel(),
       downloading: async () => downloads.running(),
@@ -320,18 +322,28 @@ if (__TRANSLATION_HOST__ !== "none") {
     area: settingsArea,
     host,
     db: modelDb(),
-    manifest: () => loadBundledManifest((input, init) => fetch(chrome.runtime.getURL(String(input)), init)),
+    catalogue: () => loadBundledCatalogue((input, init) => fetch(chrome.runtime.getURL(String(input)), init)),
+    // The reader's languages from the stored profile, without an engine: a service worker woken
+    // for a translation must not load the reading engine and its pack (model-state D2).
+    languages: async () => {
+      const stored = await loadStored(ownedStore);
+      // No backup yet: none studied, which acceptedLanguages reads as the default pair's language.
+      const studied = stored.kind === "v2" ? studiedLanguagesOf(stored.backup) : [];
+      return acceptedLanguages({ studiedLanguages: async () => studied });
+    },
   });
   controller = model;
   // What was recorded before this background started may no longer be true: a download that
-  // died with the previous event page, a model the browser removed while nobody looked.
-  void model.status();
+  // died with the previous event page. The rest — a model the browser removed, the reader's
+  // languages — is reconciled when a settings view asks, or when a translation finds nothing.
+  void model.recover();
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isTranslateMessage(message)) return undefined;
     void (async () => {
-      // Off, or no model: the engine is never started — not even to find the model missing.
-      if (!(await model.ready())) return UNAVAILABLE;
+      // Off, or the language's models not all here: the engine is never started — not even to find
+      // a model missing.
+      if (!(await model.ready(message.request.language))) return UNAVAILABLE;
       const result = await relayTranslation(engine, message.request);
       // No answer from a model said to be ready: see whether it still is, so the next card
       // stops announcing a translation that cannot come.
@@ -346,8 +358,9 @@ if (__TRANSLATION_HOST__ !== "none") {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isWarmMessage(message)) return undefined;
     void relayWarm(
-      () => model.ready(),
+      (language) => model.ready(language),
       engine,
+      message.language,
       () => void model.status(),
     ).then(sendResponse);
     return true; // async response
@@ -530,13 +543,13 @@ if (__TRANSLATION_HOST__ !== "none") {
     switch (msg?.type) {
       case "stats:get": {
         // Consolidated stats for the stats screen (summed across the account's devices).
-        const range = message as { fromDay?: number; toDay?: number };
+        const range = message as { fromDay?: number; toDay?: number; language?: string };
         if (!session.state().signedIn) {
           sendResponse({ ok: false });
           return false;
         }
         api()
-          .stats.getStats({ fromDay: range.fromDay ?? 0, toDay: range.toDay ?? 0, language: "" })
+          .stats.getStats({ fromDay: range.fromDay ?? 0, toDay: range.toDay ?? 0, language: range.language ?? "" })
           .then(
             (res) =>
               sendResponse({

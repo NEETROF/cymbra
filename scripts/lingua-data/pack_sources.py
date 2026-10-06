@@ -16,8 +16,9 @@
 - `sources`: each raw source, pinned — CEFR-J and Octanove at a commit of their own repository
   and by sha256; ESDB (the inflections) built at a commit of en-wl/wordlist, by the sha256 of its
   exported `scowl.txt`; kaikki (regenerated upstream every day) as our own snapshot, a
-  zstd-compressed GitHub Release asset, checked by the sha256 of its decompressed bytes; wordfreq
-  by version (it is its own snapshot; requirements-reduce.txt pins it by hash).
+  zstd-compressed GitHub Release asset, checked by the sha256 of its decompressed bytes; the files
+  a pair derives from kaikki's dumps of whole Wiktionary editions, kept the same way beside it;
+  wordfreq by version (it is its own snapshot; requirements-reduce.txt pins it by hash).
 
 Stdlib only: the build mode reads this record too, and needs no Python package.
 
@@ -27,12 +28,14 @@ Stdlib only: the build mode reads this record too, and needs no Python package.
     pack_sources.py check-pack    --pin P --pack F                 # a pack, against the record
     pack_sources.py check-reducer --pin P --reducer R              # the rules, against the record
     pack_sources.py get           --pin P KEY                      # e.g. snapshot, pack.sha256
+    pack_sources.py assets        --pin P                          # the snapshot's release assets
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime
+import gzip
 import hashlib
 import json
 import subprocess
@@ -42,7 +45,7 @@ from pathlib import Path
 
 REPOSITORY = "NEETROF/cymbra"
 
-# The sources of the en-fr pair, at the commits read on 2026-09-25/26. The URLs name a commit,
+# The sources each pair reads at a commit — en-fr's read on 2026-09-25/26. The URLs name a commit,
 # never a branch: the AGID URL the pipeline once used named `master`, a branch en-wl/wordlist no
 # longer has, and worked through a leftover redirect. At a commit, a URL means the same bytes for
 # as long as the repository exists.
@@ -58,7 +61,21 @@ PINNED = {
             "url": "https://raw.githubusercontent.com/openlanguageprofiles/olp-en-cefrj/"
             "d4e45b75b38f27b30dfc5c44d8c571aec7e7092f/octanove-vocabulary-profile-c1c2-1.0.csv",
         },
-    }
+    },
+    # UD Spanish-GSD, read for its counts of each form under each lemma (add-lingua-spanish-forms-
+    # tables D2), at the commit read on 2026-10-03.
+    "es-fr": {
+        "gsd-train": {
+            "file": "es_gsd-ud-train.conllu",
+            "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Spanish-GSD/"
+            "267f3530d4f122ee85d1891800211a06dfb79347/es_gsd-ud-train.conllu",
+        },
+        "gsd-dev": {
+            "file": "es_gsd-ud-dev.conllu",
+            "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_Spanish-GSD/"
+            "267f3530d4f122ee85d1891800211a06dfb79347/es_gsd-ud-dev.conllu",
+        },
+    },
 }
 # ESDB, the English Speller Database (switch-lingua-inflections-to-esdb): not a file but a database
 # its repository builds; `scowl.txt` is its export. Built at the commit of `rel-2026.02.25`, with
@@ -75,7 +92,38 @@ KAIKKI = {
     "en-fr": {
         "file": "kaikki-Anglais.jsonl",
         "url": "https://kaikki.org/frwiktionary/Anglais/kaikki.org-dictionary-Anglais.jsonl",
-    }
+    },
+    # The English Wiktionary's Spanish section: its inflections are tagged, the French one's are not
+    # (add-lingua-spanish-forms-tables).
+    "es-fr": {
+        "file": "kaikki-Spanish.jsonl",
+        "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
+    },
+}
+# kaikki's dumps of whole Wiktionary editions, for what a pair reads beyond its extract
+# (add-lingua-spanish-gloss-tables). kaikki is retiring its per-language files; an edition's dump
+# stays. A dump is never kept whole: each file a pair derives from it is, as a zstd-compressed asset
+# of the snapshot's release beside the extract, checked by the sha256 of its decompressed bytes.
+# A file is `("entries", lang)`, the entries of one language as the dump writes them, or
+# `("translations", lang, into)`, the entries of `lang` that list translations into `into`, cut down
+# to those (`derive`).
+DUMPS = {
+    "es-fr": {
+        # The French Wiktionary: its Spanish entries gloss the words and expressions; its French
+        # entries' translation tables, read backwards, gloss what those leave out.
+        "kaikki-fr": {
+            "url": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+            "files": {
+                "kaikki-fr-Espagnol.jsonl": ("entries", "es"),
+                "kaikki-fr-traductions.jsonl": ("translations", "fr", "es"),
+            },
+        },
+        # The Spanish Wiktionary: the French translations its Spanish entries list.
+        "kaikki-es": {
+            "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+            "files": {"kaikki-es-traductions.jsonl": ("translations", "es", "fr")},
+        },
+    },
 }
 WORDFREQ = "3.1.1"
 PYTHON = (3, 12)
@@ -147,6 +195,48 @@ def download(url: str, dest: Path, *, compressed: bool = False) -> dict[str, str
     return headers
 
 
+def derive(dump: Path, files: dict, work: Path) -> None:
+    """The files a pair takes from an edition's dump (`DUMPS`), in one pass, in the dump's order.
+
+    An `entries` file holds each line as the dump writes it, so the shared rules read it as they
+    read a per-language extract. A `translations` file holds, per entry, its word, its part of
+    speech and its translations into one language (the word, and the sense when the table names
+    one), as sorted JSON: the rest of the entry is not read, and would weigh down the release.
+    """
+    # A line cannot belong to a file unless it names the languages that file reads, as the dump
+    # writes them; most of a dump's millions of lines are then never parsed.
+    marks = {
+        name: [f'"lang_code": "{code}"' for code in (lang, *into)] for name, (_, lang, *into) in files.items()
+    }
+    outs = {name: open(work / name, "w", encoding="utf-8") for name in files}
+    try:
+        with gzip.open(dump, "rt", encoding="utf-8") as f:
+            for line in f:
+                if not any(all(mark in line for mark in need) for need in marks.values()):
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                for name, (kind, lang, *into) in files.items():
+                    if entry.get("lang_code") != lang:
+                        continue
+                    if kind == "entries":
+                        outs[name].write(line if line.endswith("\n") else line + "\n")
+                        continue
+                    found = [
+                        {"word": t["word"], **({"sense": t["sense"]} if t.get("sense") else {})}
+                        for t in entry.get("translations") or ()
+                        if t.get("lang_code") == into[0] and t.get("word")
+                    ]
+                    if found:
+                        cut = {"word": entry.get("word"), "pos": entry.get("pos"), "translations": found}
+                        outs[name].write(json.dumps(cut, ensure_ascii=False, sort_keys=True) + "\n")
+    finally:
+        for out in outs.values():
+            out.close()
+
+
 def build_esdb(spec: dict, work: Path) -> Path:
     """Export ESDB's `scowl.txt` from its repository at the pinned commit, into `work`."""
     repo = work / "esdb-wordlist"
@@ -201,7 +291,7 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb) -> 
         got = sha256(build({**esdb, **sources["esdb"]}, work))
         if got != sources["esdb"]["sha256"]:
             raise PinError(f"esdb: scowl.txt has sha256 {got}, pin.json records {sources['esdb']['sha256']}")
-    read = (*PINNED.get(pair, {}), *(("esdb",) if esdb else ()), "kaikki", "wordfreq")
+    read = (*PINNED.get(pair, {}), *(("esdb",) if esdb else ()), "kaikki", *DUMPS.get(pair, {}), "wordfreq")
     for retired in [name for name in sources if name not in read]:
         del sources[retired]
         print(f"note: {retired} is no longer read; removed from pin.json", file=sys.stderr)
@@ -221,6 +311,16 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb) -> 
     got = sha256(raw)
     if got != kaikki["sha256"]:
         raise PinError(f"kaikki: the snapshot decompresses to sha256 {got}, pin.json records {kaikki['sha256']}")
+    for name in DUMPS.get(pair, {}):
+        dumped = get(record, f"sources.{name}")
+        for file, spec in get(record, f"sources.{name}.files").items():
+            raw = work / file
+            packed = raw.with_name(spec["asset"])
+            fetch(release_url(dumped["release"], spec["asset"]), packed)
+            subprocess.run(["zstd", "-q", "-d", "-f", str(packed), "-o", str(raw)], check=True)
+            got = sha256(raw)
+            if got != spec["sha256"]:
+                raise PinError(f"{name}: {file} decompresses to sha256 {got}, pin.json records {spec['sha256']}")
     installed = wordfreq_version()
     if installed != get(record, "sources.wordfreq.version"):
         raise PinError(f"wordfreq {installed} is installed, pin.json records {get(record, 'sources.wordfreq.version')}")
@@ -231,7 +331,7 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=bu
 
     CEFR-J, Octanove and ESDB stay at their pinned commits — a newer commit is a deliberate edit
     of PINNED or ESDB. kaikki is read live, recorded by the sha256 of its bytes, and compressed beside
-    them for the release that keeps it.
+    them for the release that keeps it; so is each file derived from a dump (`DUMPS`).
     """
     record = load(pin)
     pair = pair_of(pin)
@@ -261,6 +361,27 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=bu
         "last_modified": headers.get("last-modified", ""),
         "url": KAIKKI[pair]["url"],
     }
+    for name, spec in DUMPS.get(pair, {}).items():
+        # The dump itself is never kept: only what the pair derives from it.
+        dump = work / f"{name}.dump.jsonl.gz"
+        headers = fetch(spec["url"], dump) or {}
+        derive(dump, spec["files"], work)
+        dump.unlink()
+        files = {}
+        for file in spec["files"]:
+            raw = work / file
+            asset = file + ".zst"
+            subprocess.run(
+                ["zstd", "-q", f"-{ZSTD_LEVEL}", "-T0", "-f", str(raw), "-o", str(raw.with_name(asset))], check=True
+            )
+            files[file] = {"asset": asset, "sha256": sha256(raw), "size": raw.stat().st_size}
+        sources[name] = {
+            "release": release_tag(pair, snapshot),
+            "url": spec["url"],
+            "fetched": (today or datetime.date.today()).isoformat(),
+            "last_modified": headers.get("last-modified", ""),
+            "files": files,
+        }
     sources["wordfreq"] = {"version": wordfreq_version()}
     if sources["wordfreq"]["version"] != WORDFREQ:
         raise PinError(f"wordfreq {sources['wordfreq']['version']} is installed; the pipeline pins {WORDFREQ}")
@@ -295,6 +416,17 @@ def record_build(pin: Path, pack: Path, reducer: Path) -> None:
     save(pin, {k: record[k] for k in ("snapshot", "pack", "reducer", "sources") if k in record})
 
 
+def assets(record: dict) -> list[str]:
+    """The files the snapshot's release holds: the extract's, then each derived file's, in the
+    record's order."""
+    sources = get(record, "sources")
+    out = [get(record, "sources.kaikki.asset")]
+    for spec in sources.values():
+        if isinstance(spec, dict):
+            out.extend(file["asset"] for file in (spec.get("files") or {}).values())
+    return out
+
+
 def check_pack(pin: Path, pack: Path) -> None:
     want = get(load(pin), "pack.sha256")
     got = sha256(pack)
@@ -321,7 +453,7 @@ def check_reducer(pin: Path, reducer: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get"):
+    for name in ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get", "assets"):
         p = sub.add_parser(name)
         p.add_argument("--pin", type=Path, required=name != "rules")
         if name in ("fetch-pinned", "fetch-live"):
@@ -352,6 +484,8 @@ def main(argv: list[str] | None = None) -> int:
             print(rules_sha256(a.reducer))
         elif a.cmd == "get":
             print(get(load(a.pin), a.key))
+        elif a.cmd == "assets":
+            print("\n".join(assets(load(a.pin))))
     except (PinError, subprocess.CalledProcessError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

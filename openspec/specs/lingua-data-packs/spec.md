@@ -367,3 +367,155 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 - **WHEN** the en-fr pack is built from its tables after this change
 - **THEN** it is byte-for-byte the pack built before, and only its path inside the package differs
 
+### Requirement: The Spanish pack's forms and frequencies
+The es-fr pack's forms SHALL come from the English Wiktionary's Spanish section as kaikki extracts it, from its tagged inflections and its form-of links, without the forms that combine a verb with clitic pronouns, which the analyser's enclitic rule resolves; such a form SHALL never be ranked as a lemma of its own, and a string that is also a plain form of another word SHALL keep that word. Each form SHALL map to one lemma, chosen by a reviewed override list, then by its counts in UD Spanish-GSD, then by the form's own entry, then by the lemma's frequency. The pack SHALL keep the 60,000 commonest Spanish lemmas by wordfreq and their forms attested in wordfreq. Its tables SHALL be committed and pinned like every pair's, and SHALL build in the extension's checks.
+
+#### Scenario: A homograph by evidence
+- **WHEN** the tables are reduced and `fue` is a form of both *ser* and *ir*
+- **THEN** `fue` maps to *ser*, the lemma GSD counts it under
+
+#### Scenario: A combined form is left to the analyser
+- **WHEN** the tables are reduced
+- **THEN** `dámelo` is not in the forms table, and the analyser still lemmatises it as *dar* through its enclitic rule
+
+#### Scenario: A plural that is also a combined form
+- **WHEN** the tables are reduced and `principales` is both *principar* with the pronoun `les` and the plural of *principal*
+- **THEN** `principales` maps to *principal*, and is not a lemma of its own
+
+#### Scenario: The pack builds where en-fr's does
+- **WHEN** a pull request runs the extension's checks
+- **THEN** the es-fr pack is built from the committed tables and checked against its pinned sha256
+
+### Requirement: Spanish forms are measured on a held-out treebank
+The pipeline SHALL measure the es-fr pack with the real analyser on UD Spanish-PUD, a treebank the reduction never reads. The measurement SHALL count punctuation, numbers, symbols and proper nouns out, and SHALL fail when fewer than 98.5 % of the tokens resolve in the lexicon, fewer than 93.5 % of the content words (nouns, verbs, adjectives, adverbs) take PUD's lemma, or fewer than 97 % of the auxiliaries do.
+
+#### Scenario: The committed tables pass the gates
+- **WHEN** the harness runs over UD Spanish-PUD with the pack built from the committed tables
+- **THEN** it reports at least 98.5 % of tokens resolved, 93.5 % of content lemmas and 97 % of auxiliaries, and succeeds
+
+### Requirement: The Spanish pack's word grammar
+The es-fr pack SHALL carry the grammar of the forms its forms table holds, read from kaikki's tags as Universal Dependencies tags: a verb form's mood, tense, person and number, or its infinitive, gerund or agreed participle; a noun's gender on its own form and on its plural; an adjective's, determiner's or pronoun's agreement. A reading of another dictionary form the pack keeps SHALL be marked so that the card names it. A form that combines a verb with clitic pronouns SHALL carry no reading.
+
+#### Scenario: A verb form says what it is
+- **WHEN** the card asks the grammar of `hablábamos` as *hablar*
+- **THEN** it answers the indicative imperfect, first person plural (`VERB|Mood=Ind|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin`)
+
+#### Scenario: A noun says its gender
+- **WHEN** the card asks the grammar of `casas` as *casa*
+- **THEN** it answers a feminine plural noun (`NOUN|Gender=Fem|Number=Plur`)
+
+#### Scenario: A homograph names its other dictionary form
+- **WHEN** the card asks the grammar of `vino` as the noun *vino*
+- **THEN** it also names *venir*, whose preterite third person singular `vino` is
+
+### Requirement: The Spanish pack's French glosses
+The es-fr pack SHALL gloss its lemmas and expressions in French from the French Wiktionary's Spanish entries, through the rules every pair shares. Where those say nothing, it SHALL fall back, in order, on the French translations the Spanish Wiktionary lists for the Spanish entry, then on the French entries whose translation tables list it. A gloss SHALL never be English or machine-translated, and a proper noun's translation SHALL gloss nothing. Curated locutions, whose glosses a person writes, SHALL win over every source. The share of the commonest lemmas glossed SHALL be published with the tables.
+
+#### Scenario: The French Wiktionary glosses a word
+- **WHEN** the tables are reduced and the French Wiktionary has a Spanish entry for `casa`
+- **THEN** `casa` is glossed from that entry (« Maison »), with its senses grouped by part of speech
+
+#### Scenario: A translation fills a gap
+- **WHEN** the tables are reduced and the French Wiktionary has no Spanish entry for `sector`, while the Spanish Wiktionary lists *secteur* among its French translations
+- **THEN** `sector` is glossed « Secteur », as a noun
+
+#### Scenario: A proper noun's translation glosses nothing
+- **WHEN** a French entry for a place name lists its Spanish name as a translation
+- **THEN** that Spanish name takes no gloss from it
+
+### Requirement: Sources derived from whole Wiktionary dumps are pinned
+A pair MAY read kaikki's dump of a whole Wiktionary edition. The pipeline SHALL never keep such a dump whole: it SHALL keep each file the pair derives from it (a language's entries, or the translations its entries list into another language) as an asset of the snapshot's release, recorded in `pin.json` by the sha256 of its decompressed bytes, and SHALL refuse a fetched file whose bytes differ.
+
+#### Scenario: An update keeps the derived files
+- **WHEN** `lingua-pack-update` reads today's sources for es-fr
+- **THEN** the files derived from the French and Spanish Wiktionaries' dumps are recorded in `pin.json` and published with the snapshot's release, and the dumps are not kept
+
+#### Scenario: A re-reduction refuses other bytes
+- **WHEN** `build.sh --reduce es-fr` fetches a derived file whose decompressed sha256 differs from `pin.json`
+- **THEN** it fails, naming the source and the file
+
+### Requirement: The Spanish pack's estimated levels
+The es-fr pack SHALL carry a level table derived from word frequency: in rank order, the commonest lemmas whose French gloss is not only a proper noun's SHALL take the sizes of English's CEFR levels — 1,020 at A1, 1,158 at A2, 2,015 at B1, 2,347 at B2, 886 at C1 and 876 at C2. A lemma without such a gloss SHALL take no level.
+
+#### Scenario: The commonest words are A1
+- **WHEN** the tables are reduced
+- **THEN** `de` and `que` are A1, and `madrid`, glossed only as a place, has no level
+
+#### Scenario: Six levels of English's sizes
+- **WHEN** the tables are reduced
+- **THEN** the level table holds 8,302 lemmas, as many at each level as English's
+
+### Requirement: A pack says when its levels are estimated
+A pack's metadata SHALL say when its level table is estimated rather than taken from a CEFR list. A pack whose metadata says nothing SHALL read as not estimated, and saying nothing SHALL leave the pack's bytes as they were.
+
+#### Scenario: The Spanish pack's levels are estimated
+- **WHEN** the es-fr pack is loaded
+- **THEN** the engine reports its levels as estimated
+
+#### Scenario: The English pack is unchanged
+- **WHEN** the en-fr pack is built from its committed tables
+- **THEN** its bytes match its pin, and the engine reports its levels as not estimated
+
+### Requirement: The Spanish pack's sense runs carry a noun's gender
+The es-fr pack's sense runs SHALL carry, for a noun's senses, the gender the noun's readings give it, so that the card's heading names it. A noun of both genders SHALL keep a run without a gender.
+
+#### Scenario: A feminine noun
+- **WHEN** the tables are reduced
+- **THEN** the noun run of `casa` reads `NOUN|Gender=Fem`, and the card headed `casa` shows its gloss under « nom féminin »
+
+#### Scenario: A noun of both genders
+- **WHEN** the tables are reduced and `estudiante` is masculine or feminine by the person
+- **THEN** its noun run carries no gender
+
+### Requirement: A letter's name gives no reading of its plural
+The es-fr pack SHALL read no form as an inflection of a letter's name. A noun that only names a letter SHALL keep the reading of its own form, and a noun that is also another word SHALL keep that word's inflections.
+
+#### Scenario: The card of a form that is also a letter's plural
+- **WHEN** the reader opens the card of `Es`, the present of *ser*
+- **THEN** it names no other dictionary form: `es` is not read as the plural of the letter E
+
+#### Scenario: A noun that is also another word
+- **WHEN** the tables are reduced and `be` names the letter B and a sheep's bleat
+- **THEN** `bes` stays the bleat's plural
+
+### Requirement: A Spanish apocope reads as its full word
+The es-fr pack SHALL read an adjective's or a determiner's apocope as a form of its full word, and SHALL NOT read the full word as a form of its apocope: `buen` and `bueno` are forms of *bueno*, `gran` of *grande*, `algún` of *alguno*. An adverb or a numeral that the dictionary calls apocopic SHALL stay a word of its own.
+
+#### Scenario: The commonest adjective
+- **WHEN** the reader opens the card of `bueno`, or of `buen` in `buen hombre`
+- **THEN** the card is keyed by *bueno* and shows its French gloss « Bon »
+
+#### Scenario: A full word the dictionary lists under its apocope
+- **WHEN** the reader opens the card of `malo`
+- **THEN** the card is keyed by *malo* and shows « Mauvais, méchant », not the noun *mal*
+
+#### Scenario: An adverb of its own
+- **WHEN** the reader opens the card of `muy`
+- **THEN** the card is keyed by *muy* and shows « Très », not *mucho*
+
+### Requirement: A Spanish form reads as the common word before a proper name
+When a form of the es-fr pack is both a proper name and a form of another word, the pack SHALL read it as the commoner of the two by frequency, the form's own frequency standing for the name: the treebank's counts SHALL NOT give the form to a name on their own.
+
+#### Scenario: A verb form spelled like a surname
+- **WHEN** the reader opens the card of `miró`, which the treebank only meets as the surname Miró
+- **THEN** the card is keyed by *mirar*, as its preterite
+
+#### Scenario: A plural spelled like a given name
+- **WHEN** the reader opens the card of `dolores`
+- **THEN** the card is keyed by *dolor*
+
+#### Scenario: A country commoner than its adjective
+- **WHEN** the reader opens the card of `Argentina`
+- **THEN** the card is keyed by *argentina*, the country, not by the adjective *argentino*
+
+### Requirement: A letter is no French gloss of a Spanish word
+The es-fr pack's French glosses SHALL leave out the senses that name a letter of the alphabet, and the entries that describe a letter.
+
+#### Scenario: The commonest preposition
+- **WHEN** the reader opens the card of `a`
+- **THEN** its gloss opens on « À », with no sense naming the letter A
+
+#### Scenario: A gloss that only mentions the word « lettre »
+- **WHEN** the reader opens the card of `carta de amor`
+- **THEN** it is glossed « Lettre d'amour »
+

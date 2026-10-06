@@ -37,6 +37,27 @@ describe("MessagingLinguaPort", () => {
     expect(send).toHaveBeenCalledWith("reviewGrade", ["good", 42]);
   });
 
+  it("forwards the review's languages only when some are chosen", async () => {
+    const send = vi.fn(async () => 0);
+    const port = new MessagingLinguaPort(send);
+
+    await port.dueCount(42, ["es"]);
+    await port.dueCount(42);
+    await port.startReview(42, ["es"]);
+    await port.startReview(42);
+    await port.deckCount(["es"]);
+    await port.deckCount();
+
+    expect(send.mock.calls).toEqual([
+      ["dueCount", [42, ["es"]]],
+      ["dueCount", [42]],
+      ["startReview", [42, ["es"]]],
+      ["startReview", [42]],
+      ["deckCount", [["es"]]],
+      ["deckCount", []],
+    ]);
+  });
+
   it("forwards a selection to the engine's phrase gloss", async () => {
     const answer = {
       tokens: [{ surface: "gave", lemma: "give", class: "Known", gloss: "donner", function_word: false }],
@@ -194,6 +215,13 @@ describe("rpc host", () => {
       ok: true,
       result: ["es", "en"],
     });
+    expect(await handleRpc(engine, async () => {}, req("detectLanguage", [["Hola"], ["es", "en"], null]))).toEqual({
+      ok: true,
+      result: "es",
+    });
+    const detect = vi.fn(async () => "es");
+    await new MessagingLinguaPort(detect).detectLanguage(["Hola"], ["es", "en"], "es");
+    expect(detect).toHaveBeenCalledWith("detectLanguage", [["Hola"], ["es", "en"], "es"]);
   });
 
   it("captures a thrown error as a failed result", async () => {

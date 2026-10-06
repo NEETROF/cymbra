@@ -2,28 +2,92 @@ import { describe, expect, it, vi } from "vitest";
 import type { EngineAccess, EngineReply } from "@/translate/host/engine.ts";
 import { relayTranslation, relayWarm } from "@/translate/host/relay.ts";
 
-/** An engine that records the markup it is handed and answers what the test says. */
+/** An engine that records the markup it is handed, and in which language, and answers what the test says. */
 function engine(answer: (markup: string) => EngineReply | Promise<EngineReply>) {
   const seen: string[] = [];
+  const languages: string[] = [];
   const access: Pick<EngineAccess, "translate"> = {
-    translate: async (markup) => {
+    translate: async (markup, language) => {
       seen.push(markup);
+      languages.push(language);
       return answer(markup);
     },
   };
-  return { access, seen };
+  return { access, seen, languages };
 }
 
 const sentence = "She gave up after the third attempt.";
 const selection = { start: 4, end: 11 }; // "gave up"
 
 describe("relayTranslation", () => {
+  it("asks both translations in the request's language (generalise-lingua-translation-model-state D5)", async () => {
+    const { access, languages } = engine(() => ({ ok: true, html: "x" }));
+    await relayTranslation(access, { sentence, selection, language: "en" });
+    expect(languages).toEqual(["en", "en"]);
+  });
+
+  it("marks a Spanish selection, its marks measured (release-lingua-spanish-translation)", async () => {
+    const { access, seen, languages } = engine((markup) => ({
+      ok: true,
+      html: markup === "casa" ? "maison" : "Ma grand-mère vivait dans une petite <b>maison</b> près de la mer.",
+    }));
+    const result = await relayTranslation(access, {
+      sentence: "Mi abuela vivía en una casa pequeña cerca del mar.",
+      selection: { start: 23, end: 27 },
+      language: "es",
+    });
+    expect(seen).toEqual(["Mi abuela vivía en una <b>casa</b> pequeña cerca del mar.", "casa"]);
+    expect(languages).toEqual(["es", "es"]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: fr, marks } = result.translation;
+    expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
+  });
+
+  it("translates a sentence in an unmeasured language untagged, once, without a mark (D3)", async () => {
+    // add-lingua-spanish-translation-pivot: a language whose marks are not measured is translated
+    // without one. No shipped language is in that case today; a German route would be.
+    const { access, seen, languages } = engine(() => ({
+      ok: true,
+      html: "Elle a abandonné après la &lt;troisième&gt; tentative.",
+    }));
+    const result = await relayTranslation(access, {
+      sentence: "Se rindió tras el <tercer> intento.",
+      selection: { start: 3, end: 10 },
+      language: "de",
+    });
+
+    expect(seen).toEqual(["Se rindió tras el &lt;tercer&gt; intento."]); // escaped, and no tag
+    expect(languages).toEqual(["de"]);
+    expect(result).toEqual({
+      kind: "translated",
+      translation: { sentence: "Elle a abandonné après la <troisième> tentative.", marks: [] },
+    });
+  });
+
+  it("answers an unmeasured language's failure as unavailable", async () => {
+    const { access } = engine(() => ({ ok: false, reason: "the model is not on this device" }));
+    const log = vi.fn();
+    const result = await relayTranslation(access, { sentence, selection, language: "de" }, log);
+    expect(result.kind).not.toBe("translated");
+    expect(log).toHaveBeenCalledWith("no translation:", "the model is not on this device");
+
+    const throwing: Pick<EngineAccess, "translate"> = {
+      translate: async () => {
+        throw new Error("the worker died");
+      },
+    };
+    expect((await relayTranslation(throwing, { sentence, selection, language: "de" }, log)).kind).not.toBe(
+      "translated",
+    );
+    expect(log).toHaveBeenCalledWith("translation failed:", expect.any(Error));
+  });
+
   it("marks the selection in its sentence and reads the translation back", async () => {
     const { access, seen } = engine((markup) => ({
       ok: true,
       html: markup === "gave up" ? "A abandonné" : "Elle <b>a abandonné</b> après la troisième tentative.",
     }));
-    const result = await relayTranslation(access, { sentence, selection });
+    const result = await relayTranslation(access, { sentence, selection, language: "en" });
 
     // The sentence with the selection tagged, then the selection alone — to check the tag.
     expect(seen).toEqual(["She <b>gave up</b> after the third attempt.", "gave up"]);
@@ -34,21 +98,55 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["a abandonné"]);
   });
 
+  it("sends the sentence without its footnote calls, the selection moved with its text", async () => {
+    const { access, seen } = engine((markup) => ({ ok: true, html: markup }));
+    const text = "Rusia contaba[7][8] con 23 millones de gatos.[9]";
+    const start = text.indexOf("millones");
+    await relayTranslation(access, { sentence: text, selection: { start, end: start + 8 }, language: "es" });
+    expect(seen).toEqual(["Rusia contaba con 23 <b>millones</b> de gatos.", "millones"]);
+  });
+
+  it("never turns page text into markup, there and back (the card then renders text nodes only)", async () => {
+    // An engine that echoes what it is given: the page's tags come back as the text they were.
+    const echo = engine((markup) => ({ ok: true, html: markup }));
+    const page = 'Usa <img src=x onerror="alert(1)"> y <script>alert(2)</script> aquí.';
+    const start = page.indexOf("aquí");
+    const result = await relayTranslation(echo.access, {
+      sentence: page,
+      selection: { start, end: start + 4 },
+      language: "es",
+    });
+    expect(echo.seen[0]).not.toMatch(/<img|<script/); // escaped before the engine
+    if (result.kind !== "translated") throw new Error("not translated");
+    expect(result.translation.sentence).toBe(page); // back as plain text, the tags as characters
+    expect(result.translation.marks.map((m) => page.slice(m.start, m.end))).toEqual(["aquí"]);
+
+    // An engine that answered raw tags of its own: none survives as markup, only our mark is read.
+    const raw = engine(() => ({ ok: true, html: 'Utilisez <img src=x onerror="alert(1)"><b>ici</b>.' }));
+    const read = await relayTranslation(raw.access, {
+      sentence: page,
+      selection: { start, end: start + 4 },
+      language: "en",
+    });
+    if (read.kind !== "translated") throw new Error("not translated");
+    expect(read.translation.sentence).toBe("Utilisez ici.");
+  });
+
   it("escapes page text before it reaches the engine", async () => {
     const { access, seen } = engine(() => ({ ok: true, html: "x" }));
-    await relayTranslation(access, { sentence: "a <b> b", selection: { start: 0, end: 1 } });
+    await relayTranslation(access, { sentence: "a <b> b", selection: { start: 0, end: 1 }, language: "en" });
     expect(seen).toEqual(["<b>a</b> &lt;b&gt; b", "a"]);
   });
 
   it("escapes the selection it sends alone, too", async () => {
     const { access, seen } = engine(() => ({ ok: true, html: "x" }));
-    await relayTranslation(access, { sentence: "a <b> b", selection: { start: 2, end: 5 } });
+    await relayTranslation(access, { sentence: "a <b> b", selection: { start: 2, end: 5 }, language: "en" });
     expect(seen).toEqual(["a <b>&lt;b&gt;</b> b", "&lt;b&gt;"]);
   });
 
   it("translates the sentence unmarked when the selection's place is unknown", async () => {
     const { access, seen } = engine(() => ({ ok: true, html: "Elle a abandonné." }));
-    const result = await relayTranslation(access, { sentence: "She gave up.", selection: null });
+    const result = await relayTranslation(access, { sentence: "She gave up.", selection: null, language: "en" });
     expect(seen).toEqual(["She gave up."]);
     expect(result).toEqual({ kind: "translated", translation: { sentence: "Elle a abandonné.", marks: [] } });
   });
@@ -60,7 +158,7 @@ describe("relayTranslation", () => {
 
     const marked = async (alone: (markup: string) => EngineReply | Promise<EngineReply>) => {
       const { access } = engine((markup) => (markup === "seldom" ? alone(markup) : { ok: true, html: tagged }));
-      const result = await relayTranslation(access, { sentence: friday, selection: seldom });
+      const result = await relayTranslation(access, { sentence: friday, selection: seldom, language: "en" });
       if (result.kind !== "translated") throw new Error("expected a translation");
       const { sentence: fr, marks } = result.translation;
       return marks.map((m) => fr.slice(m.start, m.end));
@@ -83,20 +181,24 @@ describe("relayTranslation", () => {
   it("answers unavailable, and logs why, when the engine gives nothing", async () => {
     const log = vi.fn();
     const { access } = engine(() => ({ ok: false, reason: "the engine did not start" }));
-    await expect(relayTranslation(access, { sentence, selection }, log)).resolves.toEqual({ kind: "unavailable" });
+    await expect(relayTranslation(access, { sentence, selection, language: "en" }, log)).resolves.toEqual({
+      kind: "unavailable",
+    });
     expect(log).toHaveBeenCalledWith("no translation:", "the engine did not start");
   });
 
   it("answers unavailable when reaching the engine throws", async () => {
     const log = vi.fn();
     const access: Pick<EngineAccess, "translate"> = { translate: () => Promise.reject(new Error("gone")) };
-    await expect(relayTranslation(access, { sentence, selection }, log)).resolves.toEqual({ kind: "unavailable" });
+    await expect(relayTranslation(access, { sentence, selection, language: "en" }, log)).resolves.toEqual({
+      kind: "unavailable",
+    });
     expect(log).toHaveBeenCalledOnce();
   });
 
   it("does not wake the engine for an empty sentence", async () => {
     const { access, seen } = engine(() => ({ ok: true, html: "x" }));
-    await expect(relayTranslation(access, { sentence: "   ", selection: null })).resolves.toEqual({
+    await expect(relayTranslation(access, { sentence: "   ", selection: null, language: "en" })).resolves.toEqual({
       kind: "unavailable",
     });
     expect(seen).toEqual([]);
@@ -114,29 +216,38 @@ describe("relayWarm (add-lingua-translation-android D2, D3)", () => {
   it("loads nothing when no model is ready — not even to find the model missing", async () => {
     const engine = warmEngine(true);
     const onFailed = vi.fn();
-    await expect(relayWarm(async () => false, engine, onFailed)).resolves.toBe(false);
+    await expect(relayWarm(async () => false, engine, "en", onFailed)).resolves.toBe(false);
     expect(engine.warm).not.toHaveBeenCalled();
     expect(onFailed).not.toHaveBeenCalled();
   });
 
   it("warms the engine when the model is ready", async () => {
     const engine = warmEngine(true);
-    await expect(relayWarm(async () => true, engine)).resolves.toBe(true);
+    await expect(relayWarm(async () => true, engine, "en")).resolves.toBe(true);
     expect(engine.warm).toHaveBeenCalledOnce();
+  });
+
+  it("asks whether the warm's language is ready, and warms that language's route", async () => {
+    const engine = warmEngine(true);
+    const ready = vi.fn(async (language: string) => language === "en");
+    await expect(relayWarm(ready, engine, "es")).resolves.toBe(false);
+    expect(engine.warm).not.toHaveBeenCalled();
+    await expect(relayWarm(ready, engine, "en")).resolves.toBe(true);
+    expect(engine.warm).toHaveBeenCalledWith("en");
   });
 
   it("reports a ready model the engine could not load, and a warm that threw", async () => {
     const onFailed = vi.fn();
     const log = vi.fn();
-    await expect(relayWarm(async () => true, warmEngine(false), onFailed, log)).resolves.toBe(false);
-    await expect(relayWarm(async () => true, warmEngine(new Error("gone")), onFailed, log)).resolves.toBe(false);
+    await expect(relayWarm(async () => true, warmEngine(false), "en", onFailed, log)).resolves.toBe(false);
+    await expect(relayWarm(async () => true, warmEngine(new Error("gone")), "en", onFailed, log)).resolves.toBe(false);
     expect(onFailed).toHaveBeenCalledTimes(2);
     expect(log).toHaveBeenCalledOnce();
   });
 
   it("an unreadable setting counts as not ready", async () => {
     const engine = warmEngine(true);
-    await expect(relayWarm(async () => Promise.reject(new Error("storage")), engine)).resolves.toBe(false);
+    await expect(relayWarm(async () => Promise.reject(new Error("storage")), engine, "en")).resolves.toBe(false);
     expect(engine.warm).not.toHaveBeenCalled();
   });
 });

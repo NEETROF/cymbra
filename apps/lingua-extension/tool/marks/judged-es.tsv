@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	precedentes	NOUN	de précédent	correct		précédent	correct	
+1	n01004009	enseñar	VERB	d'enseigner	correct		enseigner	correct	
+2	n01010042	señor	NOUN	M	correct			withheld	no gloss word in the sentence
+3	n01016014	surcoreana	ADJ	sud-coréenne	correct		sud	wrong	« sud » alone, half of « sud-coréenne »
+4	n01019005	embargo	NOUN	Cependant	correct	« sin embargo » → « Cependant », the expression's rendering		withheld	no gloss word in the sentence
+5	n01022016	aumentaron	VERB	ont augmenté	correct		augmenté	correct	
+6	n01025045	largo	NOUN	tout | long	correct	« a lo largo de » → « tout au long de », split	long	correct	
+7	n01029011	Extremo	ADJ		withheld	no mark	Extrême	correct	
+8	n01033021	embargo	NOUN	Cependant	correct	« sin embargo » → « Cependant »		withheld	no gloss word in the sentence
+9	n01036020	gustaría	VERB	aimerait	correct			withheld	no gloss word in the sentence
+10	n01041018	médicos	NOUN	médecins	correct		médecins	correct	
+11	n01045035	juez	NOUN	juge	correct		juge	correct	
+12	n01050014	niveles	NOUN	niveaux	correct		niveaux	correct	
+13	n01054011	publicaron	VERB	publiées	correct		publiées	correct	
+14	n01059008	discordancia	NOUN	inadéquation	correct			withheld	no gloss word in the sentence
+15	n01063011	indiferentes	ADJ	indifféronteurs	correct	the rendering is garbled (« indifféronteurs »); the mark is on it	indifféronteurs	correct	
+16	n01066093	descuido	NOUN	négligence	correct		négligence	correct	
+17	n01070017	sugirió	VERB	a suggéré	correct		suggéré	correct	
+18	n01074020	manos	NOUN	des mains	correct		mains	correct	
+19	n01078025	actual	ADJ	actuelle	correct		actuelle	correct	
+20	n01084008	teoría	NOUN	théorie	correct		théorie	correct	
+21	n01087005	decir	VERB	de dire	correct		dire	correct	
+22	n01091013	mejor	NOUN	mieux	correct		mieux	correct	
+23	n01094014	mercados	NOUN	des marchés	correct		marchés	correct	
+24	n01097098	parada	NOUN	arrêt	correct		arrêt	correct	
+25	n01102006	declaró	VERB	il a déclaré:	correct	the mark carries « il », the subject the rendering adds, and the colon	déclaré	correct	
+26	n01107006	demandas	NOUN	demandes	correct		demandes	correct	
+27	n01110008	diferentes	ADJ	différentes	correct		différentes	correct	
+28	n01114025	adultos	NOUN	adultes	correct		adultes	correct	
+29	n01118003	caer	VERB		withheld	no mark (« Dejar caer el micrófono » → « Lâche le micro »)		withheld	no gloss word in the sentence
+30	n01121032	hecho	NOUN		withheld	no mark (« de hecho » not rendered)		withheld	no gloss word in the sentence
+31	n01127089	elegí	VERB	choisie	correct		choisie	correct	
+32	n01130003	Norte	NOUN	Nord	correct		Nord	correct	
+33	n01134015	atribuye	VERB	crédité	correct			withheld	no gloss word in the sentence
+34	n01138026	episodios	NOUN	épisodes	correct		épisodes	correct	
+35	n01142008	increíble	ADJ	incroyable	correct		incroyable	correct	
+36	n01145028	voluntarios	NOUN		withheld	no mark	volontaires	correct	
+37	n01149027	utilizando	VERB	utiliser	correct		utiliser	correct	
+38	w01003056	islas	NOUN	îles	correct		îles	correct	
+39	w01007004	franco	ADJ		withheld	no mark	franco	correct	
+40	w01010046	año	NOUN	l'an	correct			withheld	no gloss word in the sentence
+41	w01016070	ejemplo	NOUN		withheld	no mark	exemple	correct	
+42	w01020018	clima	NOUN	climat	correct		climat	correct	
+43	w01025085	importantes	ADJ	importantes	correct		importantes	correct	
+44	w01028069	reacción	NOUN	réaction	correct		réaction	correct	
+45	w01031015	tiende	VERB	a tendance	correct			withheld	no gloss word in the sentence
+46	w01035081	tierra	NOUN	terres	correct		terres	correct	
+47	w01038044	indígenas	ADJ	autochtones	correct			withheld	no gloss word in the sentence
+48	w01042055	tormentas	NOUN	Les orages	correct			withheld	no gloss word in the sentence
+49	w01046056	gobierno	NOUN	gouvernement	correct		gouvernement	correct	
+50	w01050067	caída	NOUN	chute	correct		chute	correct	
+51	w01053015	exacto	ADJ	exacte	correct		exacte	correct	
+52	w01058009	maneras	NOUN	Quoi | soit	correct	« De todas maneras » → « Quoi qu'il en soit », split		withheld	no gloss word in the sentence
+53	w01063048	representaban	VERB	représentaient	correct		représentaient	correct	
+54	w01066040	Año	NOUN	An	correct			withheld	no gloss word in the sentence
+55	w01070031	astronómico	ADJ	astronomique	correct		astronomique	correct	
+56	w01072079	siglo	NOUN	siècle	correct		siècle	correct	
+57	w01075039	hicieron	VERB	ont fait	correct			withheld	no gloss word in the sentence
+58	w01080129	contra	NOUN	contre	correct		contre	correct	
+59	w01085004	ejército	NOUN	L'armée	correct		armée	correct	
+60	w01089040	época	NOUN	époque	correct		époque	correct	
+61	w01095090	usar	VERB	d'utiliser	correct		utiliser	correct	
+62	w01099012	explicaciones	NOUN	Les explications	correct		explications	correct	
+63	w01102020	oficial	NOUN		withheld	no mark	officier	correct	
+64	w01106073	altitud	NOUN	altitude	correct		altitude	correct	
+65	w01111089	conoció	VERB	a rencontré	correct		rencontré	correct	
+66	w01115023	Universidad	NOUN	l'Université	correct		Université	correct	
+67	w01119059	mismo	ADJ	même	correct		même	correct	
+68	w01125036	horas	NOUN	des heures	correct		heures	correct	
+69	w01130099	lanzó	VERB	a sorti	correct			withheld	no gloss word in the sentence
+70	w01133014	edición	NOUN	l'édition	correct		édition	correct	
+71	w01136029	estereotípica	ADJ		withheld	no mark		withheld	no gloss word in the sentence
+72	w01140032	método	NOUN	méthode	correct		méthode	correct	
+73	w01143037	haciendo	VERB	jouant	correct			withheld	no gloss word in the sentence
+74	w01147122	agosto	NOUN	août	correct		août	correct	
+75	n02002007	capaces	ADJ	pu	correct			withheld	no gloss word in the sentence
+76	n02027007	número	NOUN	nombre	correct		nombre	correct	
+77	n02038007	avanza	VERB	va	correct	a garbled translation; the mark is on « va », the verb's rendering		withheld	no gloss word in the sentence
+78	n02048002	despertador	NOUN		withheld	no mark	réveil	correct	
+79	n02073024	enemigas	ADJ	deux	wrong	marks « deux » instead of « ennemies »	ennemies	correct	
+80	n03001007	diferencia	NOUN	Contrairement	correct	« A diferencia de » → « Contrairement »		withheld	no gloss word in the sentence
+81	n03005025	acusó	VERB	a accusé	correct		accusé	correct	
+82	n03008011	últimas	NOUN	derniers",	correct	the mark carries the closing quote and comma	derniers	correct	
+83	n04003043	musical	ADJ	musical	correct		musical	correct	
+84	n04007018	nota	NOUN	note	correct		note	correct	
+85	n05001005	representa	VERB	représente	correct		représente	correct	
+86	n05003022	único	NOUN	seul	correct		seul	correct	
+87	n05008012	preocupado	ADJ	préoccupé	correct		préoccupé	correct	
+88	w02003037	monasterio	NOUN	monastère	correct		monastère	correct	
+89	w02006081	consiguió	VERB		withheld	no mark	réussi	correct	
+90	w02009002	gravedad	NOUN	gravité	correct		gravité	correct	
+91	w02014013	últimos	ADJ	dernières	correct		dernières	correct	
+92	w02017061	restos	NOUN	restes	correct		restes	correct	
+93	w03003039	capitaneado	VERB	dirigé	correct			withheld	no gloss word in the sentence
+94	w03007039	comercio	NOUN	commerce	correct		commerce	correct	
+95	w04001027	baja	ADJ	inférieure	correct		des	wrong	« des », not the rendering « inférieure »
+96	w04004051	región	NOUN	région	correct		région	correct	
+97	w04010027	conocieron	VERB	se sont rencontrés	correct		rencontrés	correct	
+98	w05003012	ruptura	NOUN	rupture	correct		rupture	correct	
+99	w05006058	externa	ADJ	extérieure	correct		extérieure	correct	

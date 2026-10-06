@@ -11,13 +11,17 @@
 // configuration, the model bytes handed over as `wasmBinary` — rather than rediscovering them.
 //
 // The engine is part of the package; the model is not (add-lingua-translation-delivery D1). It is
-// read from the `lingua-model` database the download filled, by the sha256 the package's manifest
+// read from the `lingua-model` database the download filled, by the sha256 the package's catalogue
 // pins — so only verified bytes ever reach the engine. Without them it does not start, and every
-// surface answers as it does without it.
+// surface answers as it does without it. The languages it translates between are the model's
+// (generalise-lingua-translation-catalogue D3), and a sentence goes through the route of the
+// language it is asked in, each model built once (generalise-lingua-translation-model-state D5). A
+// route of two models — Spanish, through English — translates through both in one request
+// (add-lingua-spanish-translation-pivot D2).
 
-import { NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
+import { LONG_ROUTE, NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
 import { modelDb } from "./model-db.ts";
-import { loadBundledManifest } from "./model-manifest.ts";
+import { loadBundledCatalogue, type ModelManifest, routeOf } from "./model-manifest.ts";
 
 /** What the glue exposes, as much of it as this worker calls. */
 interface BergamotModule {
@@ -34,6 +38,7 @@ interface BergamotModule {
   ) => unknown;
   BlockingService: new (config: { cacheSize: number }) => {
     translate(model: unknown, messages: unknown, options: unknown): VectorResponse;
+    translateViaPivoting(first: unknown, second: unknown, messages: unknown, options: unknown): VectorResponse;
   };
   VectorString: new () => Deletable & { push_back(text: string): void };
   VectorResponseOptions: new () => Deletable & {
@@ -84,11 +89,14 @@ const MARIAN_CONFIG: Readonly<Record<string, string>> = {
 
 interface Engine {
   bergamot: BergamotModule;
-  model: unknown;
   service: InstanceType<BergamotModule["BlockingService"]>;
 }
 
 let engine: Engine | null = null;
+/** The translation models built in the engine, by catalogue id. */
+const models = new Map<string, unknown>();
+/** Each language's route, once loaded: the ids of its models, in order. */
+const routes = new Map<string, string[]>();
 
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
@@ -114,24 +122,22 @@ function aligned(bergamot: BergamotModule, data: Uint8Array, alignment: number):
   return memory;
 }
 
-/** The model's three files, as the download stored them — or null when any is missing. */
-async function storedModel(): Promise<{ model: Uint8Array; lex: Uint8Array; vocab: Uint8Array } | null> {
-  const { files } = await loadBundledManifest();
+/** A model's three files, as the download stored them — or null when any is missing. */
+async function storedFiles(
+  manifest: ModelManifest,
+): Promise<{ model: Uint8Array; lex: Uint8Array; vocab: Uint8Array } | null> {
   const db = modelDb();
   const [model, lex, vocab] = await Promise.all([
-    db.get(files.model.sha256),
-    db.get(files.lex.sha256),
-    db.get(files.vocab.sha256),
+    db.get(manifest.files.model.sha256),
+    db.get(manifest.files.lex.sha256),
+    db.get(manifest.files.vocab.sha256),
   ]);
   return model && lex && vocab ? { model, lex, vocab } : null;
 }
 
-async function load(): Promise<void> {
-  if (engine) return;
-  // The model first: without it, nothing of the engine is worth loading.
-  const stored = await storedModel();
-  if (!stored) throw new Error(NO_MODEL);
-  const { model, lex, vocab } = stored;
+/** The engine itself, instantiated once: the glue and the wasm, from the package. */
+async function instance(): Promise<Engine> {
+  if (engine) return engine;
   importScripts(FILES.glue);
   const wasm = await bytes(FILES.wasm);
   const bergamot = await new Promise<BergamotModule>((resolve, reject) => {
@@ -143,33 +149,60 @@ async function load(): Promise<void> {
       wasmBinary: wasm,
     });
   });
-  const vocabs = new bergamot.AlignedMemoryList();
-  vocabs.push_back(aligned(bergamot, vocab, ALIGNMENT.vocab));
-  engine = {
-    bergamot,
-    model: new bergamot.TranslationModel(
-      "en",
-      "fr",
-      textConfig(MARIAN_CONFIG),
-      aligned(bergamot, model, ALIGNMENT.model),
-      aligned(bergamot, lex, ALIGNMENT.lex),
-      vocabs,
-      null,
-    ),
-    service: new bergamot.BlockingService({ cacheSize: 0 }),
-  };
+  engine = { bergamot, service: new bergamot.BlockingService({ cacheSize: 0 }) };
+  return engine;
 }
 
-function translate(markup: string): string {
-  if (!engine) throw new Error("the engine is not loaded");
-  const { bergamot, model, service } = engine;
+/**
+ * Load `language`'s route: each of its models built once. The models first — without them, nothing
+ * of the engine is worth loading. A route chains two models at most.
+ */
+async function load(language: string): Promise<void> {
+  if (routes.has(language)) return;
+  const route = routeOf(await loadBundledCatalogue(), language);
+  if (route.length === 0) throw new Error(NO_MODEL);
+  if (route.length > 2) throw new Error(LONG_ROUTE);
+  for (const manifest of route) {
+    if (models.has(manifest.version)) continue;
+    const stored = await storedFiles(manifest);
+    if (!stored) throw new Error(NO_MODEL);
+    const { bergamot } = await instance();
+    const vocabs = new bergamot.AlignedMemoryList();
+    vocabs.push_back(aligned(bergamot, stored.vocab, ALIGNMENT.vocab));
+    models.set(
+      manifest.version,
+      new bergamot.TranslationModel(
+        manifest.from,
+        manifest.to,
+        textConfig(MARIAN_CONFIG),
+        aligned(bergamot, stored.model, ALIGNMENT.model),
+        aligned(bergamot, stored.lex, ALIGNMENT.lex),
+        vocabs,
+        null,
+      ),
+    );
+  }
+  routes.set(
+    language,
+    route.map((manifest) => manifest.version),
+  );
+}
+
+function translate(markup: string, language: string): string {
+  const route = routes.get(language);
+  if (!engine || !route) throw new Error("the engine is not loaded");
+  const { bergamot, service } = engine;
+  const [first, second] = route.map((version) => models.get(version));
   const messages = new bergamot.VectorString();
   const options = new bergamot.VectorResponseOptions();
   messages.push_back(markup);
   // html: the engine repositions our tag onto the target span it corresponds to.
   options.push_back({ qualityScores: false, alignment: true, html: true });
   try {
-    const responses = service.translate(model, messages, options);
+    // Through the pivot, the engine carries the alignment from the first model to the second.
+    const responses = second
+      ? service.translateViaPivoting(first, second, messages, options)
+      : service.translate(first, messages, options);
     try {
       return responses.get(0).getTranslatedText();
     } finally {
@@ -186,10 +219,11 @@ scope.onmessage = (event) => {
   void (async () => {
     try {
       if (request.op === "load") {
-        await load();
+        await load(request.language);
         scope.postMessage({ id: request.id, ok: true });
       } else {
-        scope.postMessage({ id: request.id, ok: true, html: translate(request.markup) });
+        await load(request.language);
+        scope.postMessage({ id: request.id, ok: true, html: translate(request.markup, request.language) });
       }
     } catch (e: unknown) {
       scope.postMessage({ id: request.id, ok: false, error: e instanceof Error ? e.message : String(e) });

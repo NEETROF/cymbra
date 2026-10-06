@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { StudiedLanguage } from "@/analyzer/types.ts";
 import { mountSettings } from "@/reading/settings-view.ts";
-import { ReadingSession } from "@/reading/session.ts";
+import { declareBookLanguage } from "@/reader/app.ts";
+import type { BlockReading } from "@/reading/scan.ts";
+import { languageHint, primaryLanguage, type ReadingHost, ReadingSession } from "@/reading/session.ts";
+import type { Gesture } from "@/reading/wordpopup.ts";
 import { mountReview } from "@/review/review-page.ts";
 import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
@@ -18,6 +22,8 @@ vi.mock("@/analyzer/pairs.ts", async (importOriginal) => {
     ...actual,
     readingLanguage: (port: Parameters<typeof actual.readingLanguage>[0]) =>
       actual.readingLanguage(port, packs.shipped),
+    acceptedLanguages: (port: Parameters<typeof actual.acceptedLanguages>[0]) =>
+      actual.acceptedLanguages(port, packs.shipped),
   };
 });
 
@@ -79,9 +85,9 @@ afterEach(() => {
 });
 
 describe.each([
-  { shipped: ["en-fr"], reads: "en" },
-  { shipped: ["en-fr", "es-fr"], reads: "es" },
-])("a reader of Spanish then English, with $shipped shipped", ({ shipped, reads }) => {
+  { shipped: ["en-fr"], reads: "en", accepts: ["en"] },
+  { shipped: ["en-fr", "es-fr"], reads: "es", accepts: ["es", "en"] },
+])("a reader of Spanish then English, with $shipped shipped", ({ shipped, reads, accepts }) => {
   beforeEach(() => {
     packs.shipped = shipped;
   });
@@ -111,7 +117,8 @@ describe.each([
       },
     });
     await vi.waitFor(() => expect(calls.languages.length).toBeGreaterThan(0));
-    expect(new Set(calls.languages)).toEqual(new Set([reads]));
+    // A level block per accepted language (add-lingua-language-choice D3).
+    await vi.waitFor(() => expect(new Set(calls.languages)).toEqual(new Set(accepts)));
   });
 
   it("counts its statistics", async () => {
@@ -125,7 +132,7 @@ describe.each([
     const { port, calls } = await spanishThenEnglish();
     const container = document.createElement("div");
     document.body.append(container);
-    mountReview(container, port, fakeArea(), { now: () => 0 });
+    mountReview(container, port, fakeArea(), { now: () => 0, prefs: fakeArea() });
     await settle();
     expect(new Set(calls.languages)).toEqual(new Set([reads]));
   });
@@ -175,5 +182,199 @@ describe("with en-fr and es-fr shipped", () => {
 
     expect(await port.studiedLanguages()).toEqual(["en"]);
     expect(new Set(calls.languages)).toEqual(new Set(["en"]));
+  });
+});
+
+describe("each document in its own language (add-lingua-language-routing)", () => {
+  class FakeHighlight extends Set<Range> {}
+
+  /** A book section: a document of its own, which declares `lang`, or nothing. */
+  function section(html: string, lang: string | null): ReadingHost {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const doc = frame.contentDocument!;
+    const win = frame.contentWindow! as Window & typeof globalThis;
+    if (lang !== null) doc.documentElement.setAttribute("lang", lang);
+    doc.body.innerHTML = html;
+    Object.assign(win, { CSS: { highlights: new Map() }, Highlight: FakeHighlight });
+    return {
+      doc,
+      win,
+      paintWhole: true,
+      toSurface: (box) => ({ left: box.left, top: box.top, bottom: box.bottom }),
+      source: () => "A book",
+      exposureSource: () => "reading:book",
+    };
+  }
+
+  const css = { tokens: "", popup: "", drawer: "", hud: "" };
+  const PAGE = "<p>El faro se alza sobre las rocas desde hace más de un siglo, frente al mar.</p>";
+
+  beforeEach(() => {
+    vi.stubGlobal("CSS", { highlights: new Map() });
+    vi.stubGlobal("Highlight", FakeHighlight);
+  });
+
+  it("reads a document in the language the engine finds in it, its declared language as hint", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port, calls } = await spanishThenEnglish();
+    const analysed: StudiedLanguage[] = [];
+    port.analyse = async function (this: { language: StudiedLanguage }) {
+      analysed.push(this.language);
+      return { analyzer_version: "1", analysable: false, tokens: [], counted: 0, known: 0, percent: null };
+    };
+    port.detectLanguage = async (_blocks, candidates, hint) => {
+      calls.detections.push({ candidates: [...candidates], hint });
+      return "en";
+    };
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section(PAGE, "es-ES"));
+
+    expect(calls.detections.at(-1)).toEqual({ candidates: ["es", "en"], hint: "es" });
+    expect(analysed.at(-1)).toBe("en");
+    session.detach();
+  });
+
+  it("asks for no detection with one accepted language", async () => {
+    packs.shipped = ["en-fr"];
+    const { port, calls } = await spanishThenEnglish();
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section(PAGE, "es"));
+    expect(calls.detections).toEqual([]);
+    expect(new Set(calls.languages)).toEqual(new Set(["en"]));
+    session.detach();
+  });
+
+  /** The daily counts the session wrote through the store, the latest last. */
+  function dailyWrites(): Record<string, Record<string, unknown>>[] {
+    const send = chrome.runtime.sendMessage as unknown as {
+      mock: { calls: [{ type?: string; items?: Record<string, unknown> }][] };
+    };
+    return send.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message.type === "store:set" && message.items?.["cymbra-lingua-daily-v3"])
+      .map((message) => message.items!["cymbra-lingua-daily-v3"] as Record<string, Record<string, unknown>>);
+  }
+
+  /** The private seams the browser drives: a gesture from the word card, a block read on screen. */
+  type Driven = { onGesture(g: Gesture): Promise<void>; onExposed(r: BlockReading): void; repaint(): Promise<void> };
+
+  it("counts a word learned on a Spanish page in Spanish", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port } = await spanishThenEnglish(); // the fake finds the first candidate: Spanish
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section(PAGE, "es"));
+
+    const gesture: Gesture = {
+      lemma: "faro",
+      surface: "faro",
+      sentence: "El faro se alza.",
+      status: "known",
+      expression: false,
+      gloss: "phare",
+    };
+    await (session as unknown as Driven).onGesture(gesture);
+
+    await vi.waitFor(() => expect(dailyWrites()).toHaveLength(1));
+    expect(Object.values(dailyWrites()[0])).toEqual([
+      { es: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 } },
+    ]);
+    session.detach();
+  });
+
+  it("counts what was read in the language it was read in, when the document changes language", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port } = await spanishThenEnglish();
+    let found: StudiedLanguage = "en";
+    port.detectLanguage = async () => found;
+    const exposed: StudiedLanguage[] = [];
+    port.recordExposures = async function (this: { language: StudiedLanguage }) {
+      exposed.push(this.language);
+    };
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section(PAGE, "es"));
+    const driven = session as unknown as Driven;
+
+    driven.onExposed({ lemmas: ["lighthouse"], read: 5, unknown: 1 }); // read while it was English
+    found = "es"; // the page turned Spanish before the throttled flush
+    await driven.repaint();
+
+    await vi.waitFor(() => expect(dailyWrites()).toHaveLength(1));
+    expect(Object.values(dailyWrites()[0])).toEqual([
+      { en: { exposures: 5, unknownSeen: 1, wordsLearned: 0, reviews: 0 } },
+    ]);
+    await vi.waitFor(() => expect(exposed).toEqual(["en"]));
+    session.detach();
+  });
+
+  it("reads the declared language as its primary subtag", () => {
+    const doc = document.implementation.createHTMLDocument("");
+    expect(languageHint(doc)).toBeNull();
+    doc.documentElement.setAttribute("lang", " ES-mx ");
+    expect(languageHint(doc)).toBe("es");
+    doc.documentElement.setAttribute("lang", "en_GB");
+    expect(languageHint(doc)).toBe("en");
+  });
+
+  it("reduces a tag to its primary subtag, the three-letter codes of the shipped languages included", () => {
+    expect(primaryLanguage("es-419")).toBe("es");
+    expect(primaryLanguage(" ES_mx ")).toBe("es");
+    expect(primaryLanguage("spa")).toBe("es");
+    expect(primaryLanguage("eng")).toBe("en");
+    expect(primaryLanguage("fra")).toBe("fra"); // the engine ignores a hint that is not a candidate
+    expect(primaryLanguage("")).toBeNull();
+    expect(primaryLanguage(null)).toBeNull();
+  });
+
+  it("reads what an XHTML section declares: xml:lang, on the root or the body", () => {
+    const xhtml = (attributes: string, body = "") =>
+      new DOMParser().parseFromString(
+        `<html xmlns="http://www.w3.org/1999/xhtml" ${attributes}><head><title>s</title></head><body ${body}><p>Hola</p></body></html>`,
+        "application/xhtml+xml",
+      );
+    expect(languageHint(xhtml('xml:lang="es"'))).toBe("es");
+    expect(languageHint(xhtml('lang="en" xml:lang="es"'))).toBe("en"); // lang first, as HTML reads it
+    expect(languageHint(xhtml("", 'xml:lang="es-ES"'))).toBe("es");
+    expect(languageHint(xhtml(""))).toBeNull();
+  });
+
+  it("reads a declaration on the body of an HTML document", () => {
+    const doc = document.implementation.createHTMLDocument("");
+    doc.body.setAttribute("lang", "es");
+    expect(languageHint(doc)).toBe("es");
+  });
+
+  it("hints a section that declares nothing with its book's language (add-lingua-reader-language)", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port, calls } = makeFakePort();
+    await port.setStudiedLanguages(["en", "es"]);
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    const silent = section("<p>Capítulo uno</p>", null);
+
+    declareBookLanguage(silent.doc, "es-ES");
+    await session.attach(silent);
+
+    expect(calls.detections.at(-1)).toEqual({ candidates: ["en", "es"], hint: "es" });
+    session.detach();
+  });
+
+  it("keeps a section's own language over its book's", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const { port, calls } = makeFakePort();
+    await port.setStudiedLanguages(["en", "es"]);
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    const preface = section("<p>A preface in English.</p>", "en");
+
+    declareBookLanguage(preface.doc, "es");
+    await session.attach(preface);
+
+    expect(calls.detections.at(-1)).toEqual({ candidates: ["en", "es"], hint: "en" });
+    session.detach();
   });
 });

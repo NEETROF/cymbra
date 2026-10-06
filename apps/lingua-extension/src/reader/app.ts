@@ -1,7 +1,15 @@
+import { languageName } from "../analyzer/language-labels.ts";
+import type { StudiedLanguage } from "../analyzer/types.ts";
 import { type BookDisplayView, mountBookDisplay } from "../reading/book-display-view.ts";
 import { applyColourSheet } from "../reading/highlight.ts";
 import type { HudActions, HudState } from "../reading/hud.ts";
-import type { Box, ReadingHost, ReadingIndicator } from "../reading/session.ts";
+import {
+  type Box,
+  languageHint,
+  primaryLanguage,
+  type ReadingHost,
+  type ReadingIndicator,
+} from "../reading/session.ts";
 import {
   type AsyncStorageArea,
   DEFAULT_READER_DISPLAY,
@@ -34,6 +42,11 @@ export interface ReaderSession {
 
 export interface ReaderDeps {
   library: Library;
+  /**
+   * The reader's languages, in their order (`acceptedLanguages`): the library's sections
+   * (group-lingua-library-by-language). Read each time the shelf is drawn; none: one section.
+   */
+  languages?: () => Promise<readonly StudiedLanguage[]>;
   /** A fresh renderer for each book opened. */
   createRenderer: () => BookRenderer;
   /** Ask the browser to keep the library (once), and say what it answered. */
@@ -104,6 +117,38 @@ export function bookSource(title: string, section: string | null): string {
   return section ? `${title} · ${section}` : title;
 }
 
+/**
+ * A section that declares no language takes the book's (add-lingua-reader-language D2): a package's
+ * `dc:language` is the language of its content, for the reading session's hint as for the browser's
+ * hyphenation and screen readers. A section's own declaration is kept.
+ */
+export function declareBookLanguage(doc: Document, language: string | null): void {
+  const declared = language?.trim();
+  if (declared && !languageHint(doc)) doc.documentElement.setAttribute("lang", declared);
+}
+
+/** A section of the library: a language the reader studies, or null for « Autres langues ». */
+export interface ShelfSection {
+  language: StudiedLanguage | null;
+  books: BookRecord[];
+}
+
+/**
+ * The library's books by language (group-lingua-library-by-language D2, D4): one section per
+ * language of `languages` holding a book, in that order, then the books in any other language or
+ * declaring none. A book's language is its package's, reduced as a section's declaration is; each
+ * section keeps the library's order.
+ */
+export function shelfSections(books: readonly BookRecord[], languages: readonly StudiedLanguage[]): ShelfSection[] {
+  const studied = languages.map((language): ShelfSection => ({ language, books: [] }));
+  const other: ShelfSection = { language: null, books: [] };
+  for (const book of books) {
+    const language = primaryLanguage(book.language);
+    (studied.find((section) => section.language === language) ?? other).books.push(book);
+  }
+  return [...studied, other].filter((section) => section.books.length > 0);
+}
+
 /** A box of a section's viewport, moved into the reader page's: the section's frame is where it sits. */
 export function frameOffset(doc: Document): (box: Box) => Box {
   return (box) => {
@@ -118,7 +163,7 @@ export class ReaderApp {
   private readonly notice = el("p", "lib-notice");
   private readonly status = el("div", "lib-status");
   private readonly empty = el("p", "lib-empty", COPY.empty);
-  private readonly shelf = el("ul", "lib-books");
+  private readonly shelf = el("div", "lib-shelf");
   private readonly fileInput = el("input");
 
   private readonly readingView = el("section", "reading-view");
@@ -254,9 +299,34 @@ export class ReaderApp {
   private async renderShelf(): Promise<void> {
     for (const url of this.covers) this.revoke(url);
     this.covers = [];
-    const books = await this.deps.library.list();
+    const [books, languages] = await Promise.all([this.deps.library.list(), this.languages()]);
     this.empty.hidden = books.length > 0;
-    this.shelf.replaceChildren(...books.map((b) => this.card(b)));
+    const sections = shelfSections(books, languages);
+    // One section separates nothing: the single grid of before, with no heading (design D3).
+    this.shelf.replaceChildren(...(sections.length > 1 ? sections.map((s) => this.group(s)) : [this.grid(books)]));
+  }
+
+  /** The reader's languages; none when they cannot be read, so the library still shows its books. */
+  private async languages(): Promise<readonly StudiedLanguage[]> {
+    try {
+      return (await this.deps.languages?.()) ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** A section of the library: its language's name, then its books (design D6). */
+  private group(section: ShelfSection): HTMLElement {
+    const group = el("section", "lib-group");
+    const title = section.language ? languageName(section.language) : COPY.otherLanguages;
+    group.append(el("h2", "lib-group-title", title), this.grid(section.books));
+    return group;
+  }
+
+  private grid(books: readonly BookRecord[]): HTMLUListElement {
+    const list = el("ul", "lib-books");
+    list.append(...books.map((b) => this.card(b)));
+    return list;
   }
 
   private card(book: BookRecord): HTMLLIElement {
@@ -405,6 +475,7 @@ export class ReaderApp {
     if (!book || !this.session) return;
     this.hideUntilPainted();
     doc.addEventListener("keydown", (e) => this.onKey(e));
+    declareBookLanguage(doc, book.language);
     await this.session.attach({
       doc,
       win: (doc.defaultView ?? window) as Window & typeof globalThis,
@@ -412,6 +483,7 @@ export class ReaderApp {
       toSurface: frameOffset(doc),
       source: () => bookSource(book.title, this.section),
       exposureSource: () => BOOK_EXPOSURE_SOURCE,
+      declaredLanguage: book.language,
     });
   }
 

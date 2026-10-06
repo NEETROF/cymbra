@@ -29,7 +29,7 @@
 //! equal `analyzer_version` and pack (the parity contract). Build with
 //! `wasm-pack build --target web`.
 
-use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::analysis::language::{StudiedLanguage, detect_document_language};
 use lingua_core::decks::backup::LinguaState;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
 use lingua_core::decks::fsrs::{Rating, ReviewState};
@@ -71,6 +71,15 @@ fn resolve<'a>(
     packs
         .resolve(language)
         .map_err(|e| JsError::new(&e.to_string()))
+}
+
+/// The languages a list of ISO 639-1 tags names, unknown tags dropped; absent is none, which the
+/// review bindings read as every language.
+fn known_languages(tags: Option<Vec<String>>) -> Vec<StudiedLanguage> {
+    tags.unwrap_or_default()
+        .iter()
+        .filter_map(|tag| StudiedLanguage::from_tag(tag))
+        .collect()
 }
 
 /// Drop the counters that can no longer confirm anything in `language`, then bound what
@@ -161,6 +170,31 @@ impl LinguaEngine {
             .profile
             .set_studied_languages(languages)
             .map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// The language of a document among `candidates` (ISO 639-1 tags, the reader's order), with
+    /// the document's declared language as `hint` (add-lingua-language-routing D2). Loads and
+    /// needs no pack. Errors on an empty list or an unknown candidate; an unknown hint is
+    /// ignored, since a page may declare any language.
+    #[wasm_bindgen(js_name = detectLanguage)]
+    pub fn detect_language(
+        &self,
+        blocks: Vec<String>,
+        candidates: Vec<String>,
+        hint: Option<String>,
+    ) -> Result<String, JsError> {
+        let candidates = candidates
+            .iter()
+            .map(|tag| {
+                StudiedLanguage::from_tag(tag)
+                    .ok_or_else(|| JsError::new(&format!("unknown studied language \"{tag}\"")))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let hint = hint.as_deref().and_then(StudiedLanguage::from_tag);
+        let blocks: Vec<&str> = blocks.iter().map(String::as_str).collect();
+        detect_document_language(&blocks, &candidates, hint)
+            .map(|language| language.tag().to_owned())
+            .ok_or_else(|| JsError::new("no candidate language"))
     }
 
     // --- Knowledge + analysis (the reading surface; signatures unchanged) ---
@@ -290,22 +324,47 @@ impl LinguaEngine {
         Ok(pack.has_levels())
     }
 
+    /// Whether that level table is estimated from word frequency rather than
+    /// taken from a CEFR list (add-lingua-spanish-levels): the extension then
+    /// labels every level it shows as estimated.
+    #[wasm_bindgen(js_name = levelsEstimated)]
+    pub fn levels_estimated(&self, language: Option<String>) -> Result<bool, JsError> {
+        let (_, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(pack.levels_estimated())
+    }
+
     /// The CEFR progression ladder as JSON — an array of
     /// `{level, confirmed, presumed, toLearn, total, typicalVocabulary}`, one row per
     /// level A1..C2, folded over the pack's lemmas at each level; `typicalVocabulary` is
     /// the vocabulary size of a reader at the level (see `level_vocabulary`;
-    /// 0 at A1, which presumes nothing). `[]` when the pack carries no CEFR data.
+    /// 0 at A1, which presumes nothing). A pack whose levels are estimated borrows
+    /// English's, and its rows then say `typicalFrom: "en"`. `[]` when the pack carries
+    /// no CEFR data.
     #[wasm_bindgen(js_name = levelLadder)]
     pub fn level_ladder(&self, language: Option<String>) -> Result<String, JsError> {
         let (language, pack) = resolve(&self.packs, language.as_deref())?;
         if !pack.has_levels() {
             return Ok("[]".to_owned());
         }
+        // A pack whose levels are estimated from frequency (add-lingua-spanish-levels) cannot say
+        // what a reader of a level knows: its levels are frequency bands, so the figure would only
+        // restate the band below. It borrows English's, whose CEFR lists gave its levels their sizes
+        // (fix-lingua-spanish-ladder-estimates), and says so.
+        let borrowed = pack
+            .levels_estimated()
+            .then(|| {
+                self.packs
+                    .resolve(Some(StudiedLanguage::English.tag()))
+                    .ok()
+            })
+            .flatten()
+            .filter(|(_, english)| english.has_levels() && !english.levels_estimated());
+        let (source, source_pack) = borrowed.unwrap_or((language, pack));
         let compute = || {
-            let words = pack.dictionary_words();
-            CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), pack))
+            let words = source_pack.dictionary_words();
+            CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), source_pack))
         };
-        let typical: [usize; 6] = match self.level_vocabularies.get(&language) {
+        let typical: [usize; 6] = match self.level_vocabularies.get(&source) {
             Some(cell) => *cell.get_or_init(compute),
             None => compute(),
         };
@@ -318,14 +377,19 @@ impl LinguaEngine {
                     self.state
                         .knowledge
                         .band_stats(language, lemmas.iter().map(|(l, _)| *l), pack);
-                serde_json::json!({
+                let mut row = serde_json::json!({
                     "level": level.label(),
                     "confirmed": stats.confirmed,
                     "presumed": stats.presumed,
                     "toLearn": stats.to_learn,
                     "total": stats.total(),
                     "typicalVocabulary": typical,
-                })
+                });
+                // Only when borrowed, so a pack with CEFR lists answers exactly as before.
+                if borrowed.is_some() {
+                    row["typicalFrom"] = serde_json::Value::from(source.tag());
+                }
+                row
             })
             .collect();
         Ok(serde_json::to_string(&rows).unwrap_or_else(|_| "[]".to_owned()))
@@ -689,6 +753,20 @@ impl LinguaEngine {
         Ok(word_grammar_json(written, lemma, language, pack))
     }
 
+    /// A dictionary form's frequency rank in the pack of `language`, 1 for the
+    /// commonest, or none when the pack does not rank it
+    /// (`add-lingua-card-frequency`): what the word card says of how common the
+    /// word is. Pure pack data, asked with the word's grammar.
+    #[wasm_bindgen(js_name = frequencyRank)]
+    pub fn frequency_rank(
+        &self,
+        lemma: &str,
+        language: Option<String>,
+    ) -> Result<Option<u32>, JsError> {
+        let (_, pack) = resolve(&self.packs, language.as_deref())?;
+        Ok(pack.rank(lemma))
+    }
+
     /// Number of forms the reader has explicitly marked (any status).
     #[wasm_bindgen(js_name = trackedCount)]
     pub fn tracked_count(&self) -> usize {
@@ -793,25 +871,32 @@ impl LinguaEngine {
         ))
     }
 
-    /// Total number of cards in the deck.
+    /// Number of cards in the deck, in `languages` (ISO 639-1 tags) or in every language when
+    /// absent or naming none the core knows (refine-lingua-review-language D4).
     #[wasm_bindgen(js_name = deckCount)]
-    pub fn deck_count(&self) -> usize {
-        self.state.deck.len()
+    pub fn deck_count(&self, languages: Option<Vec<String>>) -> usize {
+        self.state.deck.count_for(&known_languages(languages))
     }
 
-    /// Number of cards due at `now` (Unix-epoch seconds).
+    /// Number of cards due at `now` (Unix-epoch seconds), in `languages` (ISO 639-1 tags) or in
+    /// every language when absent or naming none the core knows
+    /// (add-lingua-language-stats-review D1).
     #[wasm_bindgen(js_name = dueCount)]
-    pub fn due_count(&self, now: f64) -> usize {
-        self.state.deck.due_count(now as i64)
+    pub fn due_count(&self, now: f64, languages: Option<Vec<String>>) -> usize {
+        self.state
+            .deck
+            .due_count_for(now as i64, &known_languages(languages))
     }
 
     // --- Review session ---
 
-    /// Starts a review session over everything due at `now`; returns how many
-    /// cards it will walk.
+    /// Starts a review session over everything due at `now`, in `languages` (ISO 639-1 tags)
+    /// or in every language when absent; returns how many cards it will walk. A queue that
+    /// mixes languages is ordered by due date (add-lingua-language-stats-review D1).
     #[wasm_bindgen(js_name = startReview)]
-    pub fn start_review(&mut self, now: f64) -> usize {
-        let session = ReviewSession::start(&self.state.deck, now as i64);
+    pub fn start_review(&mut self, now: f64, languages: Option<Vec<String>>) -> usize {
+        let session =
+            ReviewSession::start_for(&self.state.deck, now as i64, &known_languages(languages));
         let remaining = session.remaining();
         self.session = Some(session);
         remaining
@@ -839,6 +924,18 @@ impl LinguaEngine {
             "remaining": session.remaining(),
         });
         Some(view.to_string())
+    }
+
+    /// The studied language (ISO 639-1) of the card `reviewCurrent` shows, or `null` when it
+    /// shows none (add-lingua-language-stats-review D1). A call of its own, so the card's view
+    /// stays as the English baseline pins it.
+    #[wasm_bindgen(js_name = reviewCurrentLanguage)]
+    pub fn review_current_language(&self) -> Option<String> {
+        let session = self.session.as_ref()?;
+        session.current(&self.state.deck)?;
+        session
+            .current_key()
+            .map(|(language, _)| language.tag().to_owned())
     }
 
     /// Reveals the current card's answer.

@@ -100,6 +100,14 @@ describe("WasmAnalyzerPort language views", () => {
         received.push(["gloss", args]);
         return "ville";
       }
+      wordGrammar(...args: unknown[]): string {
+        received.push(["wordGrammar", args]);
+        return '{"gloss":"être","senses":[],"readings":[],"others":[],"pieces":[]}';
+      }
+      frequencyRank(...args: unknown[]): number | undefined {
+        received.push(["frequencyRank", args]);
+        return args[0] === "ser" ? 22 : undefined;
+      }
       exportStatusOps(...args: unknown[]): string {
         received.push(["exportStatusOps", args]);
         return "[]";
@@ -118,6 +126,28 @@ describe("WasmAnalyzerPort language views", () => {
       }
       setStudiedLanguages(...args: unknown[]): void {
         received.push(["setStudiedLanguages", args]);
+      }
+      detectLanguage(...args: unknown[]): string {
+        received.push(["detectLanguage", args]);
+        return "es";
+      }
+      dueCount(...args: unknown[]): number {
+        received.push(["dueCount", args]);
+        return 2;
+      }
+      deckCount(...args: unknown[]): number {
+        received.push(["deckCount", args]);
+        return 3;
+      }
+      startReview(...args: unknown[]): number {
+        received.push(["startReview", args]);
+        return 2;
+      }
+      reviewCurrent(): string {
+        return '{"headword":"faro","surface":"faro","sentence":"El faro.","gloss":"phare","revealed":false,"remaining":2}';
+      }
+      reviewCurrentLanguage(): string {
+        return "es";
       }
     }
     const mod = { default: async () => {}, LinguaEngine } as unknown as WasmModule;
@@ -142,6 +172,23 @@ describe("WasmAnalyzerPort language views", () => {
     ]);
   });
 
+  it("answers a word's grammar with its frequency rank, null when unranked (add-lingua-card-frequency)", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+
+    expect(await port.for("es").wordGrammar("Es", "ser")).toEqual({
+      gloss: "être",
+      senses: [],
+      readings: [],
+      others: [],
+      pieces: [],
+      rank: 22,
+    });
+    expect((await port.for("es").wordGrammar("Madrid", "madrid")).rank).toBeNull();
+    expect(glue.received).toContainEqual(["wordGrammar", ["Es", "ser", "es"]]);
+    expect(glue.received).toContainEqual(["frequencyRank", ["ser", "es"]]);
+  });
+
   it("forwards the reader's studied languages as whole-reader calls, loading no pack", async () => {
     const glue = recordingGlue();
     const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
@@ -153,6 +200,48 @@ describe("WasmAnalyzerPort language views", () => {
       ["studiedLanguages", []],
       ["setStudiedLanguages", [["es", "en"]]],
     ]);
+  });
+
+  it("asks a document's language as a whole-reader call, loading no pack", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+    expect(await port.detectLanguage(["El faro"], ["en", "es"], "es")).toBe("es");
+    expect(glue.received).toEqual([["detectLanguage", [["El faro"], ["en", "es"], "es"]]]);
+  });
+
+  it("reviews in some languages or in all, as whole-reader calls loading no pack", async () => {
+    const glue = recordingGlue();
+    const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);
+
+    expect(await port.dueCount(100, ["es"])).toBe(2);
+    await port.dueCount(100);
+    await port.startReview(100, ["es"]);
+    await port.startReview(100);
+    expect(await port.deckCount(["es"])).toBe(3);
+    await port.deckCount();
+
+    expect(glue.received).toEqual([
+      ["dueCount", [100, ["es"]]],
+      ["dueCount", [100, null]],
+      ["startReview", [100, ["es"]]],
+      ["startReview", [100, null]],
+      ["deckCount", [["es"]]],
+      ["deckCount", [null]],
+    ]);
+  });
+
+  it("gives the card being reviewed its language, beside the view the baseline pins", async () => {
+    const port = new WasmAnalyzerPort(recordingGlue().load, ["en-fr", "es-fr"]);
+
+    expect(await port.reviewCurrent()).toEqual({
+      headword: "faro",
+      surface: "faro",
+      sentence: "El faro.",
+      gloss: "phare",
+      revealed: false,
+      remaining: 2,
+      language: "es",
+    });
   });
 
   it("binds the view to the language it was asked", () => {

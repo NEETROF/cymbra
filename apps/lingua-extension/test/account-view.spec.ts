@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountViewState } from "@/account/flow.ts";
-import { type AccountActions, renderAccount } from "@/account/view.ts";
+import { type AccountActions, linkedOn, renderAccount } from "@/account/view.ts";
 
 let root: HTMLElement;
 let actions: { [K in keyof AccountActions]: ReturnType<typeof vi.fn> };
@@ -24,6 +24,18 @@ beforeEach(() => {
     askErase: vi.fn(),
     cancelErase: vi.fn(),
     eraseLinguaData: vi.fn(),
+    openConnected: vi.fn(),
+    leaveConnected: vi.fn(),
+    retryIdentities: vi.fn(),
+    link: vi.fn(),
+    askRemove: vi.fn(),
+    cancelRemove: vi.fn(),
+    remove: vi.fn(),
+    showPasswordForm: vi.fn(),
+    cancelPassword: vi.fn(),
+    restartPassword: vi.fn(),
+    setPassword: vi.fn(),
+    confirmPassword: vi.fn(),
   };
 });
 
@@ -40,6 +52,11 @@ const state = (over: Partial<AccountViewState> = {}): AccountViewState => ({
   handleStatus: "empty",
   confirmingErase: false,
   deleteAccountUrl: "https://cymbra.app/suppression-compte/",
+  identities: null,
+  linkable: { google: false, apple: false },
+  removing: null,
+  passwordStep: "closed",
+  passwordEmail: "",
   ...over,
 });
 
@@ -227,5 +244,95 @@ describe("renderAccount", () => {
       render({ view: "signin" });
       expect(root.querySelector("#data")).toBeNull();
     });
+  });
+});
+
+describe("renderAccount — Comptes connectés (add-lingua-connected-accounts)", () => {
+  const GOOGLE = { provider: "google", subject: "g-1", linkedAt: 1_790_000_000 };
+  const LOCAL = { provider: "local", subject: "ada@example.com", linkedAt: 1_791_000_000 };
+  const labels = (): string[] => [...root.querySelectorAll("button")].map((b) => b.textContent ?? "");
+
+  it("links to them from the signed-in view", () => {
+    render({ view: "signedin", handle: "ada" });
+    button("Comptes connectés").click();
+    expect(actions.openConnected).toHaveBeenCalled();
+  });
+
+  it("dates a link in French", () => {
+    expect(linkedOn(1_790_000_000)).toMatch(/^Lié le \d{1,2} \S+ 2026$/);
+  });
+
+  it("lists each method, the address of the email one, and when", () => {
+    render({ view: "connected", identities: [GOOGLE, LOCAL] });
+    const rows = [...root.querySelectorAll<HTMLElement>(".account-identity")];
+    expect(rows.map((r) => r.dataset.provider)).toEqual(["google", "local"]);
+    expect(rows[0].textContent).toContain("Google");
+    expect(rows[1].textContent).toContain("Email et mot de passe");
+    expect(rows[1].textContent).toContain("ada@example.com");
+    expect(rows[0].textContent).toContain("Lié le");
+    expect(root.querySelector("h2")?.textContent).toBe("Comptes connectés");
+  });
+
+  it("offers only the providers the browser can link and the account lacks", () => {
+    render({ view: "connected", identities: [GOOGLE], linkable: { google: true, apple: true } });
+    expect(labels()).toContain("Lier Apple");
+    expect(labels()).not.toContain("Lier Google");
+    button("Lier Apple").click();
+    expect(actions.link).toHaveBeenCalledWith("apple");
+    render({ view: "connected", identities: [GOOGLE], linkable: { google: false, apple: false } });
+    expect(labels().some((l) => l.startsWith("Lier"))).toBe(false);
+  });
+
+  it("never offers to remove the only method, and says why", () => {
+    render({ view: "connected", identities: [GOOGLE] });
+    expect(labels()).not.toContain("Retirer");
+    expect(root.textContent).toContain("Tu ne peux pas retirer ta seule méthode de connexion.");
+  });
+
+  it("removes after a confirmation", () => {
+    render({ view: "connected", identities: [GOOGLE, LOCAL] });
+    root.querySelectorAll<HTMLButtonElement>(".account-identity button")[0].click();
+    expect(actions.askRemove).toHaveBeenCalledWith(GOOGLE);
+    render({ view: "connected", identities: [GOOGLE, LOCAL], removing: GOOGLE });
+    expect(root.textContent).toContain("Retirer Google de ton compte ?");
+    button("Annuler").click();
+    expect(actions.cancelRemove).toHaveBeenCalled();
+    button("Retirer").click();
+    expect(actions.remove).toHaveBeenCalled();
+  });
+
+  it("offers a password only without one, then its form and its code step", () => {
+    render({ view: "connected", identities: [GOOGLE, LOCAL] });
+    expect(labels()).not.toContain("Définir un mot de passe");
+    render({ view: "connected", identities: [GOOGLE] });
+    button("Définir un mot de passe").click();
+    expect(actions.showPasswordForm).toHaveBeenCalled();
+
+    render({ view: "connected", identities: [GOOGLE], passwordStep: "form", passwordEmail: "ada@example.com" });
+    expect(input("email").value).toBe("ada@example.com");
+    input("password").value = "a secret passphrase";
+    button("Définir le mot de passe").click();
+    expect(actions.setPassword).toHaveBeenCalledWith("ada@example.com", "a secret passphrase");
+    button("Annuler").click();
+    expect(actions.cancelPassword).toHaveBeenCalled();
+
+    render({ view: "connected", identities: [GOOGLE], passwordStep: "code", passwordEmail: "ada@example.com" });
+    expect(root.textContent).toContain("ada@example.com");
+    input("code").value = "123456";
+    button("Valider").click();
+    expect(actions.confirmPassword).toHaveBeenCalledWith("123456");
+    button("Recommencer").click();
+    expect(actions.restartPassword).toHaveBeenCalled();
+  });
+
+  it("offers to try again when the list could not be read, and to go back", () => {
+    render({ view: "connected", identities: null, error: "Impossible de joindre Cymbra." });
+    expect(root.textContent).toContain("Impossible de joindre Cymbra.");
+    button("Réessayer").click();
+    expect(actions.retryIdentities).toHaveBeenCalled();
+    button("Retour").click();
+    expect(actions.leaveConnected).toHaveBeenCalled();
+    render({ view: "connected", identities: null, busy: true });
+    expect(labels()).not.toContain("Réessayer");
   });
 });

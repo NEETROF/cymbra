@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { guardSelectionTouches, nearRects, SELECTION_REACH_PX } from "@/reader/touch-guard.ts";
+import {
+  guardSelectionTouches,
+  HOLD_MS,
+  nearRects,
+  SELECTION_REACH_PX,
+  STILL_PX,
+  SWIPE_PX,
+} from "@/reader/touch-guard.ts";
 
 // On Safari a selection's handle drag reaches the page as touch events, and foliate-js pans
 // the page on every move it sees: the guard keeps the moves of a touch working the selection
@@ -16,9 +23,10 @@ let win: Window & typeof globalThis;
 /** What foliate-js's own listener on the document receives, after the guard's. */
 let seen: string[];
 
-/** A touch event as the section sees it, with `fingers` down at (x, y). */
-function touch(type: string, x: number, y: number, fingers = 1): Event {
+/** A touch event as the section sees it, with `fingers` down at (x, y), at `t` ms. */
+function touch(type: string, x: number, y: number, fingers = 1, t = 0): Event {
   const e = new win.Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(e, "timeStamp", { value: t });
   const point = { clientX: x, clientY: y };
   Object.defineProperty(e, "touches", { value: type === "touchend" ? [] : Array(fingers).fill(point) });
   Object.defineProperty(e, "changedTouches", { value: [point] });
@@ -92,6 +100,23 @@ describe("guardSelectionTouches", () => {
     expect(seen).toEqual(["touchstart", "touchmove", "touchend", "touchstart", "touchmove"]);
   });
 
+  it("takes over a press-and-hold with no selection to show for it (Firefox for Android)", () => {
+    p().dispatchEvent(touch("touchstart", 130, 210, 1, 0));
+    p().dispatchEvent(touch("touchmove", 131, 210, 1, HOLD_MS + 50));
+    p().dispatchEvent(touch("touchmove", 260, 210, 1, HOLD_MS + 100));
+    p().dispatchEvent(touch("touchend", 260, 210, 1, HOLD_MS + 150));
+    expect(seen).toEqual(["touchstart", "touchend"]);
+  });
+
+  it("keeps a still finger's drift from the pan, then lets a swipe's moves through", () => {
+    p().dispatchEvent(touch("touchstart", 400, 500, 1, 0));
+    p().dispatchEvent(touch("touchmove", 400 - STILL_PX + 2, 500, 1, 40));
+    p().dispatchEvent(touch("touchmove", 380, 500, 1, 80));
+    p().dispatchEvent(touch("touchmove", 300, 500, 1, HOLD_MS + 100));
+    p().dispatchEvent(touch("touchend", 300, 500, 1, HOLD_MS + 120));
+    expect(seen).toEqual(["touchstart", "touchmove", "touchmove", "touchend"]);
+  });
+
   it("leaves a two-finger gesture alone, and forgets a touch once it is cancelled", () => {
     selectWord();
     p().dispatchEvent(touch("touchstart", 130, 210, 2));
@@ -99,5 +124,69 @@ describe("guardSelectionTouches", () => {
     p().dispatchEvent(touch("touchcancel", 150, 210));
     p().dispatchEvent(touch("touchmove", 150, 210));
     expect(seen).toEqual(["touchstart", "touchmove", "touchmove"]);
+  });
+});
+
+describe("the instant turn (add-lingua-page-slide)", () => {
+  /** A second section, guarded in the instant turn, and the turns it asks for. */
+  function instantSection(instant = true) {
+    const own = document.createElement("iframe");
+    document.body.append(own);
+    const sdoc = own.contentDocument!;
+    sdoc.body.innerHTML = `<p>They seldom ship on Friday.</p>`;
+    const turns: boolean[] = [];
+    const reached: string[] = [];
+    guardSelectionTouches(sdoc, { instant: () => instant, turn: (forward) => turns.push(forward) });
+    for (const type of ["touchstart", "touchmove", "touchend"]) sdoc.addEventListener(type, () => reached.push(type));
+    const fire = (type: string, x: number, y: number, t = 0): void => {
+      const e = new (own.contentWindow as Window & typeof globalThis).Event(type, { bubbles: true, cancelable: true });
+      const point = { clientX: x, clientY: y };
+      Object.defineProperty(e, "timeStamp", { value: t });
+      Object.defineProperty(e, "touches", { value: type === "touchend" ? [] : [point] });
+      Object.defineProperty(e, "changedTouches", { value: [point] });
+      sdoc.querySelector("p")!.dispatchEvent(e);
+    };
+    return { turns, reached, fire };
+  }
+
+  it("follows no finger, and turns forward in one jump at the end of a swipe to the left", () => {
+    const { turns, reached, fire } = instantSection();
+    fire("touchstart", 400, 500);
+    fire("touchmove", 380, 500, 40);
+    fire("touchmove", 400 - SWIPE_PX - 20, 505, 80);
+    fire("touchend", 400 - SWIPE_PX - 20, 505, 100);
+    expect(turns).toEqual([true]);
+    // foliate saw the touch start only: it panned nothing, so it has nothing to settle.
+    expect(reached).toEqual(["touchstart"]);
+  });
+
+  it("turns back at the end of a swipe to the right", () => {
+    const { turns, fire } = instantSection();
+    fire("touchstart", 100, 500);
+    fire("touchmove", 100 + SWIPE_PX + 10, 500, 60);
+    fire("touchend", 100 + SWIPE_PX + 10, 500, 80);
+    expect(turns).toEqual([false]);
+  });
+
+  it("does not turn for a short move, an upward stroke, or a press-and-hold", () => {
+    const { turns, reached, fire } = instantSection();
+    fire("touchstart", 400, 500);
+    fire("touchend", 400 - SWIPE_PX + 5, 500, 60);
+    fire("touchstart", 400, 500);
+    fire("touchend", 400 - SWIPE_PX - 5, 500 - SWIPE_PX - 30, 60);
+    fire("touchstart", 400, 500);
+    fire("touchmove", 300, 500, HOLD_MS + 50);
+    fire("touchend", 300, 500, HOLD_MS + 80);
+    expect(turns).toEqual([]);
+    expect(reached.filter((t) => t === "touchmove")).toEqual([]);
+  });
+
+  it("leaves the moves to foliate when the turn slides", () => {
+    const { turns, reached, fire } = instantSection(false);
+    fire("touchstart", 400, 500);
+    fire("touchmove", 300, 500, 40);
+    fire("touchend", 300, 500, 60);
+    expect(turns).toEqual([]);
+    expect(reached).toEqual(["touchstart", "touchmove", "touchend"]);
   });
 });

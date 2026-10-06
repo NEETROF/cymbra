@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StatusOp } from "@/analyzer/port.ts";
-import type { CefrLevel, LevelRow, SeedOrder } from "@/analyzer/types.ts";
+import type { CefrLevel, LevelRow, SeedOrder, StudiedLanguage } from "@/analyzer/types.ts";
 import { utcDay } from "@/state/dailystats.ts";
 import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
 import { mountStats } from "@/stats/view.ts";
@@ -11,9 +11,20 @@ import { makeFakePort, type FakePort } from "./helpers.ts";
 // pinned here is what the view asks the port and the background, what it writes back,
 // and what it rebuilds after each action.
 
+// The bundle's pairs are a build-time constant: the pairs the view consults are set per test.
+const packs = vi.hoisted(() => ({ shipped: ["en-fr"] }));
+vi.mock("@/analyzer/pairs.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/analyzer/pairs.ts")>();
+  return {
+    ...actual,
+    acceptedLanguages: (port: Parameters<typeof actual.acceptedLanguages>[0]) =>
+      actual.acceptedLanguages(port, packs.shipped),
+  };
+});
+
 const NOW_MS = Date.UTC(2026, 8, 17, 12, 0, 0);
 const DAY = utcDay(NOW_MS);
-const DAILY_KEY = "cymbra-lingua-daily-v2";
+const DAILY_KEY = "cymbra-lingua-daily-v3";
 
 /** A count as the view prints it (French grouping), so the assertions are locale-proof. */
 const fr = (n: number): string => n.toLocaleString("fr-FR");
@@ -88,6 +99,7 @@ const SIGNED_OUT = (): null => null;
 let root: HTMLElement;
 
 beforeEach(() => {
+  packs.shipped = ["en-fr"];
   document.body.replaceChildren();
   root = document.createElement("div");
   document.body.append(root);
@@ -127,7 +139,7 @@ const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve,
 describe("Statistiques — the view", () => {
   it("renders the ladder, the vocabulary estimate and one card per metric", async () => {
     const area = fakeArea();
-    await area.set({ [DAILY_KEY]: { [DAY]: { exposures: 4, wordsLearned: 2, reviews: 1 } } });
+    await area.set({ [DAILY_KEY]: { [DAY]: { en: { exposures: 4, wordsLearned: 2, reviews: 1 } } } });
 
     await mountStats(root, levelledPort({ declaredLevel: async () => "A2" }), area);
 
@@ -150,6 +162,22 @@ describe("Statistiques — the view", () => {
     expect(pick(".ladder-slot").textContent).toContain("Niveaux CEFR indisponibles");
     expect(has("#seed-go")).toBe(false);
     expect(root.querySelectorAll(".card")).toHaveLength(3); // the counters stand on their own
+  });
+
+  it("says the levels are estimated, on the ladder and by the seeding control, when the pack does", async () => {
+    await mountStats(root, levelledPort({ levelsEstimated: async () => true }), fakeArea());
+
+    expect(pick(".ladder-estimate").textContent).toContain("Niveaux estimés d'après la fréquence des mots");
+    expect(pick(".ladder-cols .ladder-cum").textContent).toBe("courants");
+    expect(pick(".seed-estimate").textContent).toContain("Niveaux estimés d'après la fréquence des mots");
+  });
+
+  it("says nothing of an estimate when the levels come from a CEFR list", async () => {
+    await mountStats(root, levelledPort(), fakeArea());
+
+    expect(has(".ladder-estimate")).toBe(false);
+    expect(has(".seed-estimate")).toBe(false);
+    expect(pick(".ladder-cols .ladder-cum").textContent).toBe("enseignés");
   });
 
   it("starts the seeding control on the level the reader declared", async () => {
@@ -330,8 +358,8 @@ describe("Statistiques — the view", () => {
     const area = fakeArea();
     await area.set({
       [DAILY_KEY]: {
-        [DAY]: { exposures: 4, wordsLearned: 0, reviews: 0 },
-        [DAY - 10]: { exposures: 6, wordsLearned: 0, reviews: 0 }, // inside 30 j, outside 7 j
+        [DAY]: { en: { exposures: 4, wordsLearned: 0, reviews: 0 } },
+        [DAY - 10]: { en: { exposures: 6, wordsLearned: 0, reviews: 0 } }, // inside 30 j, outside 7 j
       },
     });
     await mountStats(root, levelledPort(), area);
@@ -352,18 +380,18 @@ describe("Statistiques — the view", () => {
       return { ok: true, rows: [{ day: DAY, exposures: 12, wordsLearned: 3, reviews: 4 }] };
     });
     const area = fakeArea();
-    await area.set({ [DAILY_KEY]: { [DAY]: { exposures: 4, wordsLearned: 2, reviews: 1 } } });
+    await area.set({ [DAILY_KEY]: { [DAY]: { en: { exposures: 4, wordsLearned: 2, reviews: 1 } } } });
 
     await mountStats(root, levelledPort(), area);
 
     expect(pick(".scope").textContent).toBe("Tous tes appareils");
     expect(total("Mots lus")).toBe("12"); // the server's figure, not this device's
-    expect(sent[1]).toEqual({ type: "stats:get", fromDay: DAY - 29, toDay: DAY });
+    expect(sent[1]).toEqual({ type: "stats:get", fromDay: DAY - 29, toDay: DAY, language: "en" });
   });
 
   it("falls back on this device when the consolidated counters do not come", async () => {
     const area = fakeArea();
-    await area.set({ [DAILY_KEY]: { [DAY]: { exposures: 4, wordsLearned: 0, reviews: 0 } } });
+    await area.set({ [DAILY_KEY]: { [DAY]: { en: { exposures: 4, wordsLearned: 0, reviews: 0 } } } });
     stubRuntime((message) =>
       (message as { type: string }).type === "account:state" ? { state: { signedIn: true } } : { ok: false },
     );
@@ -383,7 +411,7 @@ describe("Statistiques — the view", () => {
       },
     });
     const area = fakeArea();
-    await area.set({ [DAILY_KEY]: { [DAY]: { exposures: 7, wordsLearned: 0, reviews: 0 } } });
+    await area.set({ [DAILY_KEY]: { [DAY]: { en: { exposures: 7, wordsLearned: 0, reviews: 0 } } } });
 
     await mountStats(root, levelledPort(), area);
 
@@ -398,5 +426,129 @@ describe("stats and the studied language", () => {
     await mountStats(document.createElement("div"), port, fakeArea());
     expect(calls.languages.length).toBeGreaterThan(0);
     expect(new Set(calls.languages)).toEqual(new Set(["en"]));
+  });
+});
+
+describe("stats for a reader of several languages", () => {
+  /** A reader of English then Spanish, both pairs shipped, whose Spanish ladder is younger. */
+  async function bilingual(over: Partial<FakePort> = {}): Promise<FakePort> {
+    packs.shipped = ["en-fr", "es-fr"];
+    const port = levelledPort({
+      levelLadder: async function (this: { language: StudiedLanguage }) {
+        return ladder(this.language === "es" ? 10 : 80);
+      },
+      ...over,
+    });
+    await port.setStudiedLanguages(["en", "es"]);
+    return port;
+  }
+
+  const languages = (): string[] =>
+    [...root.querySelectorAll(".stats-languages button")].map((b) => b.textContent ?? "");
+  const chosen = (): string => root.querySelector(".stats-languages button.active")?.textContent ?? "";
+
+  function language(name: string): HTMLButtonElement {
+    const found = [...root.querySelectorAll<HTMLButtonElement>(".stats-languages button")].find(
+      (b) => b.textContent === name,
+    );
+    if (!found) throw new Error(`no language "${name}"`);
+    return found;
+  }
+
+  const firstBand = (): string => pick(".ladder-row:not(.ladder-cols) .ladder-frac").textContent ?? "";
+
+  async function twoLanguagesToday(): Promise<Area> {
+    const area = fakeArea();
+    await area.set({
+      [DAILY_KEY]: {
+        [DAY]: {
+          en: { exposures: 4, unknownSeen: 1, wordsLearned: 2, reviews: 1 },
+          es: { exposures: 9, unknownSeen: 5, wordsLearned: 0, reviews: 3 },
+        },
+      },
+    });
+    return area;
+  }
+
+  it("offers no choice to a reader of one language", async () => {
+    await mountStats(root, levelledPort(), fakeArea());
+    expect(has(".stats-languages")).toBe(false);
+  });
+
+  it("shows the first language's figures, then the Spanish ones once Spanish is chosen", async () => {
+    await mountStats(root, await bilingual(), await twoLanguagesToday());
+
+    expect(languages()).toEqual(["Anglais", "Espagnol"]);
+    expect(chosen()).toBe("Anglais");
+    expect(total("Mots lus")).toBe("4");
+    const english = firstBand();
+
+    language("Espagnol").click();
+    // A language looks like a range but is not one: the click leaves the range alone.
+    expect(rangeButton("30 j").classList.contains("active")).toBe(true);
+    await vi.waitFor(() => expect(chosen()).toBe("Espagnol"));
+    await vi.waitFor(() => expect(total("Mots lus")).toBe("9"));
+
+    expect(total("Révisions")).toBe("3");
+    expect(firstBand()).not.toBe(english); // the Spanish ladder
+  });
+
+  it("keeps the chosen language when the host mounts the view again", async () => {
+    // The drawer and the side panel mount the page afresh after a reading gesture or a sync pull,
+    // naming no language: the page stays on the reader's choice.
+    const port = await bilingual();
+    const area = await twoLanguagesToday();
+    await mountStats(root, port, area);
+    language("Espagnol").click();
+    await vi.waitFor(() => expect(total("Mots lus")).toBe("9"));
+
+    await mountStats(root, port, area);
+
+    expect(chosen()).toBe("Espagnol");
+    expect(total("Mots lus")).toBe("9");
+  });
+
+  it("lists the chosen language's marked words, and puts one back in that language", async () => {
+    let ops: StatusOp[] = [
+      op("year", "known", "manual", 300),
+      { ...op("año", "known", "manual", 200), language: "es" },
+    ];
+    const cleared: [StudiedLanguage, string][] = [];
+    const port = await bilingual({
+      exportStatusOps: async () => ops,
+      setStatusAt: async function (this: { language: StudiedLanguage }, lemma: string) {
+        cleared.push([this.language, lemma]);
+        ops = ops.filter((o) => o.lemma !== lemma);
+      },
+    });
+    const words = (): string[] => [...root.querySelectorAll(".marked-word")].map((w) => w.textContent ?? "");
+    await mountStats(root, port, fakeArea());
+    expect(words()).toEqual(["year"]);
+
+    language("Espagnol").click();
+    await vi.waitFor(() => expect(words()).toEqual(["año"]));
+    pick<HTMLButtonElement>(".marked-undo").click();
+    await settle();
+
+    expect(cleared).toEqual([["es", "año"]]);
+  });
+
+  it("asks every device's figures in the chosen language", async () => {
+    const sent = stubRuntime((message) =>
+      (message as { type: string }).type === "account:state" ? { state: { signedIn: true } } : { ok: true, rows: [] },
+    );
+    await mountStats(root, await bilingual(), fakeArea());
+
+    language("Espagnol").click();
+    await vi.waitFor(() => expect(chosen()).toBe("Espagnol"));
+
+    await vi.waitFor(() =>
+      expect(sent.filter((m) => (m as { type: string }).type === "stats:get").at(-1)).toEqual({
+        type: "stats:get",
+        fromDay: DAY - 29,
+        toDay: DAY,
+        language: "es",
+      }),
+    );
   });
 });

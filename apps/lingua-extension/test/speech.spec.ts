@@ -122,6 +122,33 @@ describe("the automatic choice, on the captured lists", () => {
   });
 });
 
+describe("a Spanish voice from Spain by default (add-lingua-spanish-read-aloud)", () => {
+  const monica = voice({ name: "Mónica", lang: "es-ES" });
+  const paulina = voice({ name: "Paulina", lang: "es-MX" });
+
+  it("puts a voice of Spain before a Mexican one of the same quality", () => {
+    expect(rankVoices([paulina, monica], "es")).toEqual([monica, paulina]);
+    expect(pickVoice([paulina, monica], "es", null)).toBe(monica);
+  });
+
+  it("keeps a voice the reader downloaded for its quality first", () => {
+    const enhanced = voice({ name: "Paulina (Enhanced)", lang: "es-MX" });
+    expect(pickVoice([monica, enhanced], "es", null)).toBe(enhanced);
+  });
+
+  it("reads Firefox for Android's three-letter regions", () => {
+    const android = (name: string, lang: string): VoiceInfo =>
+      voice({ name, lang, localService: false, voiceURI: `moz-tts:android:${lang.replace(/-/g, "_")}` });
+    const mexico = android("espagnol (MEX,DEFAULT)", "spa-MEX-default");
+    const spain = android("espagnol (ESP,DEFAULT)", "spa-ESP-default");
+    expect(pickVoice([mexico, spain], "es", null, true)).toBe(spain);
+  });
+
+  it("leaves English's choice as it was", () => {
+    expect(rankVoices([daniel, samantha], "en")).toEqual([samantha, daniel]);
+  });
+});
+
 describe("the reader's choice", () => {
   it("speaks with the chosen voice while it is listed and eligible", () => {
     const voices = voiceFixture("chrome-macos");
@@ -363,7 +390,7 @@ describe("the speaker", () => {
   });
 
   it("follows the stored preference, and its changes from another context", async () => {
-    const fake = makeFakeSpeech([samantha, daniel], { voice: "Daniel" });
+    const fake = makeFakeSpeech([samantha, daniel], { voices: { en: "Daniel" } });
     const s = createSpeaker(fake.engine, "en", fake.preference);
     await settle();
     expect(s.preferred()).toBe("Daniel");
@@ -372,7 +399,7 @@ describe("the speaker", () => {
     expect(s.automatic()).toBe(samantha); // the automatic choice ignores the preference
     const listener = vi.fn();
     s.subscribe(listener);
-    fake.prefer({ voice: null });
+    fake.prefer({ voices: {} });
     expect(listener).toHaveBeenCalled();
     s.speak("selection", "seldom");
     expect(fake.spoken[1].voice).toBe(samantha);
@@ -485,5 +512,36 @@ describe("the browser's synthesiser behind the seam", () => {
     const engine = browserSpeechEngine(f.synth)!;
     expect(() => engine.onVoicesChanged(() => {})).not.toThrow();
     expect((f.raw as Record<string, unknown>).onvoiceschanged).toBeUndefined();
+  });
+});
+
+describe("a voice per studied language (add-lingua-language-choice D4)", () => {
+  it("reads each language with the voice chosen for it", async () => {
+    const english: VoiceInfo = {
+      name: "Daniel",
+      lang: "en-GB",
+      localService: true,
+      default: false,
+      voiceURI: "Daniel",
+    };
+    const spanish: VoiceInfo = {
+      name: "Mónica",
+      lang: "es-ES",
+      localService: true,
+      default: false,
+      voiceURI: "Mónica",
+    };
+    const other: VoiceInfo = { name: "Jorge", lang: "es-ES", localService: true, default: true, voiceURI: "Jorge" };
+    const fake = makeFakeSpeech([english, other, spanish], { voices: { en: "Daniel", es: "Mónica" } });
+    let language = "es";
+    const s = createSpeaker(fake.engine, () => language, fake.preference);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(s.preferred()).toBe("Mónica");
+    s.speak("selection", "faro");
+    expect(fake.spoken[0].voice).toBe(spanish);
+    language = "en";
+    expect(s.preferred()).toBe("Daniel");
+    s.speak("selection", "harbour");
+    expect(fake.spoken[1].voice).toBe(english);
   });
 });

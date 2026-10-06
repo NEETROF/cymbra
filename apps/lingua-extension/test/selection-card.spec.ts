@@ -35,7 +35,8 @@ import type { WordPopupContent } from "@/reading/wordpopup.ts";
 // or rejects when it decides the engine answers.
 
 const RECT = { left: 10, top: 20, bottom: 40 };
-const CALIBRATION = 3000;
+/** The rank the fake engine gives a word unless a test says otherwise (add-lingua-card-frequency). */
+const RANK = 3000;
 
 const tok = (over: Partial<PhraseToken> & Pick<PhraseToken, "surface" | "lemma" | "class">): PhraseToken => ({
   gloss: null,
@@ -102,6 +103,7 @@ const grammarOf = (over: Partial<WordGrammar> = {}): WordGrammar => ({
   readings: [],
   others: [],
   pieces: [],
+  rank: RANK,
   ...over,
 });
 
@@ -175,7 +177,7 @@ function harness(opts: { grammar?: "auto" | "manual" } = {}) {
   const ports = fakePorts(opts);
   const view = fakeSurface();
   const clock = fakeClock();
-  const cards = new SelectionCards(ports.ports, view.surface, { calibration: () => CALIBRATION, clock: clock.clock });
+  const cards = new SelectionCards(ports.ports, view.surface, { clock: clock.clock });
   return { cards, ...ports, ...view, ...clock };
 }
 
@@ -201,7 +203,7 @@ describe("a selected word resolves to its dictionary form", () => {
       headword: "endeavor",
       surface: "endeavors",
       gloss: "effort",
-      rarity: rarityText("Unknown", CALIBRATION),
+      rarity: rarityText("Unknown", RANK),
       sentence: "They endeavors on Friday.",
       status: null,
       rect: RECT,
@@ -232,7 +234,7 @@ describe("a selected word resolves to its dictionary form", () => {
       headword: "well-known",
       surface: "well-known",
       gloss: "bien connu",
-      rarity: rarityText("Unknown", CALIBRATION),
+      rarity: rarityText("Unknown", RANK),
       sentence: "They well-known on Friday.",
       status: null, // new to the reader: "Je connais" is offered
       rect: RECT,
@@ -374,7 +376,7 @@ describe("word-by-word gloss is a labelled last resort", () => {
       headword: "error-prone",
       surface: "error-prone",
       gloss: null,
-      rarity: rarityText("Unknown", CALIBRATION),
+      rarity: rarityText("Unknown", RANK),
       sentence: "They error-prone on Friday.",
       status: null,
       rect: RECT,
@@ -469,7 +471,7 @@ describe("a known word shows its gloss", () => {
       headword: "city",
       surface: "cities",
       gloss: "ville",
-      rarity: rarityText("Known", CALIBRATION),
+      rarity: rarityText("Known", RANK),
       sentence: "They cities on Friday.",
       status: "known",
       rect: RECT,
@@ -497,7 +499,7 @@ describe("a known word shows its gloss", () => {
       headword: "seldom",
       surface: "Seldom",
       gloss: "rarement",
-      rarity: rarityText("Learning", CALIBRATION),
+      rarity: rarityText("Learning", RANK),
       sentence: "They Seldom on Friday.",
       status: "learning",
       rect: RECT,
@@ -642,7 +644,8 @@ describe("a card that waits for the engine", () => {
       headword: "city",
       surface: "cities",
       gloss: null,
-      rarity: rarityText("Known", CALIBRATION),
+      // No answer, no frequency line (add-lingua-card-frequency D4).
+      rarity: "",
       sentence: "They cities on Friday.",
       status: "known",
       rect: RECT,
@@ -777,7 +780,8 @@ describe("a word card asks its word's grammar (add-lingua-word-grammar)", () => 
       headword: "go",
       surface: "went",
       gloss: "Aller",
-      rarity: rarityText("Unknown", CALIBRATION),
+      // Past the bound, no rank: no frequency line rather than a guess (add-lingua-card-frequency D4).
+      rarity: "",
       sentence: "They went on Friday.",
       status: null,
       rect: RECT,
@@ -785,6 +789,37 @@ describe("a word card asks its word's grammar (add-lingua-word-grammar)", () => 
     h.wordGrammar[0]!.resolve(says);
     await settle();
     expect(h.shows).toHaveLength(1);
+  });
+
+  it("says how common the word is from the rank its grammar brings (add-lingua-card-frequency)", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(pageToken({ surface: "Es", lemma: "ser", class: "Unknown", gloss: "être" })));
+    h.wordGrammar[0]!.resolve(grammarOf({ rank: 22 }));
+    await settle();
+    expect(h.last().rarity).toBe("Très courant — parmi les 100 mots les plus fréquents.");
+
+    // A word the pack does not rank: beyond every band.
+    h.cards.openForToken(hitOf(pageToken({ surface: "Madrid", lemma: "madrid", class: "Unknown", gloss: "Madrid" })));
+    h.wordGrammar[1]!.resolve(grammarOf({ rank: null }));
+    await settle();
+    expect(h.last().rarity).toBe("Rare — au-delà des 20\u202f000 mots les plus fréquents.");
+  });
+
+  it("a known word's card, pending, has no frequency line until its answer", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(pageToken({ surface: "cities", lemma: "city", class: "Known" })));
+    expect(h.last()).toMatchObject({ pending: true, rarity: "" });
+    h.wordGrammar[0]!.resolve(grammarOf({ gloss: "ville", rank: 450 }));
+    await settle();
+    expect(h.last().rarity).toBe("Courant — parmi les 1\u202f000 mots les plus fréquents.");
+  });
+
+  it("a word in the deck says so, whatever its rank", async () => {
+    const h = harness({ grammar: "manual" });
+    h.cards.openForToken(hitOf(pageToken({ surface: "went", lemma: "go", class: "Learning", gloss: "Aller" })));
+    h.wordGrammar[0]!.resolve(grammarOf({ rank: 40 }));
+    await settle();
+    expect(h.last().rarity).toBe("Dans ton deck — en cours d'apprentissage.");
   });
 
   it("an engine that fails costs the grammar, never the card", async () => {
@@ -1314,15 +1349,15 @@ describe("SelectionCards with the translation engine", () => {
     translation: { sentence: "Elle a abandonné après la troisième tentative.", marks: [{ start: 5, end: 16 }] },
   };
 
-  function setup() {
+  function setup(language?: string) {
     const { ports, phraseGloss, gloss } = fakePorts();
     const view = fakeSurface();
     const { clock, elapseOnly, armed } = fakeClock();
     const { translator, asked } = fakeTranslator();
     const cards = new SelectionCards(ports, view.surface, {
-      calibration: () => CALIBRATION,
       clock,
       translator: () => translator,
+      ...(language ? { language: () => language } : {}),
     });
     return { cards, phraseGloss, gloss, view, asked, elapseOnly, armed };
   }
@@ -1335,7 +1370,14 @@ describe("SelectionCards with the translation engine", () => {
     const { cards, asked } = setup();
     cards.openForSelection(sel, null);
     await flush();
-    expect(asked.map((a) => a.request)).toEqual([{ sentence, selection: { start: 4, end: 11 } }]);
+    expect(asked.map((a) => a.request)).toEqual([{ sentence, selection: { start: 4, end: 11 }, language: "en" }]);
+  });
+
+  it("asks in the document's language (generalise-lingua-translation-model-state D5)", async () => {
+    const { cards, asked } = setup("es");
+    cards.openForSelection(sel, null);
+    await flush();
+    expect(asked.map((a) => a.request.language)).toEqual(["es"]);
   });
 
   it("shows the translation instead of word-by-word rows", async () => {
@@ -1515,7 +1557,7 @@ describe("SelectionCards with the translation engine", () => {
       phraseGloss[0]!.resolve(unglossed);
       await flush();
       // Never the word alone: its sentence, with its place in it.
-      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span }]);
+      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span, language: "en" }]);
       expect(view.last()).toMatchObject({ headword: "disambiguation", gloss: null, translating: true });
 
       asked[0]!.resolve(answer);
@@ -1543,7 +1585,7 @@ describe("SelectionCards with the translation engine", () => {
       const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
       cards.openForToken({ token, rect: RECT, sentence: wiki, selection: span });
       await flush();
-      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span }]);
+      expect(asked.map((a) => a.request)).toEqual([{ sentence: wiki, selection: span, language: "en" }]);
       expect(view.last()).toMatchObject({ gloss: null, translating: true });
     });
 
@@ -1571,7 +1613,9 @@ describe("SelectionCards with the translation engine", () => {
       cards.openForToken({ token, rect: RECT, sentence: "A wiki page.", selection: { start: 2, end: 6 } });
       expect(asked).toEqual([]); // the pack first: its answer, with no gloss, has not landed yet
       await flush();
-      expect(asked.map((a) => a.request)).toEqual([{ sentence: "A wiki page.", selection: { start: 2, end: 6 } }]);
+      expect(asked.map((a) => a.request)).toEqual([
+        { sentence: "A wiki page.", selection: { start: 2, end: 6 }, language: "en" },
+      ]);
       expect(view.last()).toMatchObject({ status: "known", translating: true });
     });
 
@@ -1613,7 +1657,6 @@ describe("SelectionCards with the translation engine", () => {
     const { translator, asked } = fakeTranslator();
     let ready = false;
     const cards = new SelectionCards(ports, view.surface, {
-      calibration: () => CALIBRATION,
       clock,
       translator: () => (ready ? translator : null),
     });
@@ -1647,7 +1690,7 @@ describe("SelectionCards without a model ready", () => {
   it("answers a word the pack cannot gloss exactly as before — no line saying a translation is coming", async () => {
     const { ports } = fakePorts();
     const view = fakeSurface();
-    const cards = new SelectionCards(ports, view.surface, { calibration: () => CALIBRATION, translator: () => null });
+    const cards = new SelectionCards(ports, view.surface, { translator: () => null });
     const token = pageToken({ surface: "disambiguation", lemma: "disambiguation", class: "Unknown", gloss: null });
     cards.openForToken({ token, rect: RECT, sentence: "The disambiguation page.", selection: { start: 4, end: 18 } });
     await settle();
@@ -1662,7 +1705,6 @@ describe("SelectionCards without a model ready", () => {
     const view = fakeSurface();
     const { clock, armed } = fakeClock();
     const cards = new SelectionCards(ports, view.surface, {
-      calibration: () => CALIBRATION,
       clock,
       translator: () => null,
     });
@@ -1673,5 +1715,25 @@ describe("SelectionCards without a model ready", () => {
     for (let i = 0; i < 10; i++) await Promise.resolve();
     expect(view.last().translation).toBeUndefined();
     expect(view.last().rows).toEqual([{ form: "give", gloss: "Donner" }]);
+  });
+});
+
+describe("a word card names the forms of its document's language (add-lingua-spanish-word-card)", () => {
+  it("carries a Spanish document's language, and says nothing for an English one", async () => {
+    const ports = fakePorts();
+    const view = fakeSurface();
+    const clock = fakeClock();
+    const cards = new SelectionCards(ports.ports, view.surface, {
+      clock: clock.clock,
+      language: () => "es",
+    });
+    cards.openForToken(hitOf(pageToken({ surface: "hablaba", lemma: "hablar", class: "Unknown", gloss: "Parler" })));
+    await settle();
+    expect(view.shows.every((shown) => shown.language === "es")).toBe(true);
+
+    const english = harness();
+    english.cards.openForToken(hitOf(pageToken({ surface: "went", lemma: "go", class: "Unknown", gloss: "Aller" })));
+    await settle();
+    expect(english.shows.some((shown) => "language" in shown)).toBe(false);
   });
 });

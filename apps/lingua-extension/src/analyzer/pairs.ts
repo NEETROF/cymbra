@@ -44,3 +44,16 @@ export async function readingLanguage(
   const shipped = (await port.studiedLanguages()).find((language) => pairFor(language, pairs) !== null);
   return shipped ?? (studiedOf(pairs[0]) as StudiedLanguage);
 }
+
+/**
+ * The languages a device accepts from the sync (add-lingua-language-sync-client): the reader's
+ * studied languages that a shipped pair studies, in the reader's order, or the default pair's
+ * alone when none is. `readingLanguage` is its first.
+ */
+export async function acceptedLanguages(
+  port: Pick<LinguaPort, "studiedLanguages">,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): Promise<StudiedLanguage[]> {
+  const shipped = (await port.studiedLanguages()).filter((language) => pairFor(language, pairs) !== null);
+  return shipped.length > 0 ? shipped : [studiedOf(pairs[0]) as StudiedLanguage];
+}

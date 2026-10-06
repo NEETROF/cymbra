@@ -15,8 +15,14 @@ import type { TranslationRequest, TranslationResult, TranslatorPort } from "./po
 /** How many answers a page keeps: the most recent, a reading session's worth of re-selections. */
 export const ANSWER_MEMORY_SIZE = 32;
 
+/** A sentence, a span and the language it was read in: the same text in another language is another question. */
 function keyOf(request: TranslationRequest): string {
-  return JSON.stringify([request.sentence, request.selection?.start ?? null, request.selection?.end ?? null]);
+  return JSON.stringify([
+    request.language,
+    request.sentence,
+    request.selection?.start ?? null,
+    request.selection?.end ?? null,
+  ]);
 }
 
 /** `port`, answering a request it has already answered — or is answering — without asking again. */
@@ -51,6 +57,6 @@ export function rememberAnswers(port: TranslatorPort, size: number = ANSWER_MEMO
       asking.set(key, asked);
       return asked;
     },
-    warm: () => port.warm?.(),
+    warm: (language) => port.warm?.(language),
   };
 }

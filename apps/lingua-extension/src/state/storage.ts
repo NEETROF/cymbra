@@ -77,6 +77,13 @@ export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
 export const REMOTE_VOICES_KEY = "cymbra-lingua-remote-voices";
 
 /**
+ * The last language the reader chose in the review (refine-lingua-review-language D3): the one it
+ * opens in away from a page in a studied language. Per device, never synchronised, never in the
+ * backup.
+ */
+export const REVIEW_LANGUAGE_KEY = "cymbra-lingua-review-language";
+
+/**
  * How the book reader lays a book out: `paginated` (the default — pages turned by tap, suited
  * to e-ink) or `scrolled` (one continuous column, for a laptop). A preference, set in the
  * Réglages view every host renders; the reader page follows its `storage.onChanged`.
@@ -91,10 +98,17 @@ export const READER_DISPLAY_KEY = "cymbra-lingua-reader-display";
 /** Paper (the book's own colours, on a light page) or dark (light text on the night page). */
 export type ReaderTheme = "paper" | "dark";
 
+/**
+ * How a page turns: `instant` (the default — one jump, which an e-ink screen shows once) or
+ * `slide` (the page slides aside, and follows the finger on a swipe).
+ */
+export type ReaderTurn = "instant" | "slide";
+
 export interface ReaderDisplay {
   /** The text size, in percent of the book's own. */
   textScale: number;
   theme: ReaderTheme;
+  turn: ReaderTurn;
 }
 
 /** The text sizes offered, in percent: small steps, none so large a line holds three words. */
@@ -102,7 +116,7 @@ export const TEXT_SCALE_MIN = 80;
 export const TEXT_SCALE_MAX = 200;
 export const TEXT_SCALE_STEP = 10;
 
-export const DEFAULT_READER_DISPLAY: ReaderDisplay = { textScale: 100, theme: "paper" };
+export const DEFAULT_READER_DISPLAY: ReaderDisplay = { textScale: 100, theme: "paper", turn: "instant" };
 
 /** How unknown and learning words are marked, and the reader's page colours (add-lingua-colour-settings). */
 export const COLOURS_KEY = "cymbra-lingua-colours";
@@ -283,16 +297,46 @@ export async function saveHudHidden(area: AsyncStorageArea, hidden: boolean): Pr
   await area.set({ [HUD_HIDDEN_KEY]: hidden });
 }
 
-/** The chosen voice's `voiceURI`, or null for the automatic choice. */
-export async function loadVoice(area: AsyncStorageArea): Promise<string | null> {
-  const got = await area.get(VOICE_KEY);
-  const uri = got[VOICE_KEY];
-  return typeof uri === "string" && uri !== "" ? uri : null;
+/** The last language chosen in the review, or null when none was (or what is kept is not one). */
+export async function loadReviewLanguage(area: AsyncStorageArea): Promise<string | null> {
+  const value = (await area.get(REVIEW_LANGUAGE_KEY))[REVIEW_LANGUAGE_KEY];
+  return typeof value === "string" && value !== "" ? value : null;
 }
 
-/** Keep a voice, or null to go back to the automatic choice. */
-export async function saveVoice(area: AsyncStorageArea, voiceURI: string | null): Promise<void> {
-  await area.set({ [VOICE_KEY]: voiceURI });
+/** Keep `language` as the last one chosen in the review. */
+export async function saveReviewLanguage(area: AsyncStorageArea, language: StudiedLanguage): Promise<void> {
+  await area.set({ [REVIEW_LANGUAGE_KEY]: language });
+}
+
+/**
+ * The voice chosen for each studied language, by `voiceURI` (add-lingua-language-choice D4). A
+ * language without one gets the automatic choice. A single `voiceURI` kept before voices were per
+ * language is the English one.
+ */
+export type VoiceChoices = Readonly<Record<string, string>>;
+
+/** A stored value read as voice choices: the old single string is English's. */
+export function voiceChoicesOf(value: unknown): VoiceChoices {
+  if (typeof value === "string") return value === "" ? {} : { en: value };
+  if (value === null || typeof value !== "object") return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1] !== "",
+    ),
+  );
+}
+
+/** The chosen voices, per studied language. */
+export async function loadVoices(area: AsyncStorageArea): Promise<VoiceChoices> {
+  return voiceChoicesOf((await area.get(VOICE_KEY))[VOICE_KEY]);
+}
+
+/** Keep a voice for `language`, or null to go back to the automatic choice there. */
+export async function saveVoice(area: AsyncStorageArea, language: string, voiceURI: string | null): Promise<void> {
+  const next: Record<string, string> = { ...(await loadVoices(area)) };
+  if (voiceURI) next[language] = voiceURI;
+  else delete next[language];
+  await area.set({ [VOICE_KEY]: next });
 }
 
 /** Whether Android's own voices may speak; absent means not allowed. */
@@ -320,7 +364,7 @@ export async function saveRemoteVoices(area: AsyncStorageArea, allowed: boolean)
 /** The read-aloud settings in `area`, followed in every context through `storage.onChanged`. */
 export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   const load = async (): Promise<SpeechSettings> => ({
-    voice: await loadVoice(area),
+    voices: await loadVoices(area),
     androidVoices: await loadAndroidVoices(area),
     remoteVoices: await loadRemoteVoices(area),
   });
@@ -350,7 +394,7 @@ export async function saveReaderFlow(area: AsyncStorageArea, flow: ReaderFlow): 
   await area.set({ [READER_FLOW_KEY]: flow });
 }
 
-/** A stored display, made safe: a size on the offered steps, a theme the reader knows. */
+/** A stored display, made safe: a size on the offered steps, a theme and a turn the reader knows. */
 export function readerDisplayOf(value: unknown): ReaderDisplay {
   const v = (value ?? {}) as Partial<ReaderDisplay>;
   const raw = typeof v.textScale === "number" && Number.isFinite(v.textScale) ? v.textScale : 100;
@@ -358,6 +402,7 @@ export function readerDisplayOf(value: unknown): ReaderDisplay {
   return {
     textScale: Math.min(TEXT_SCALE_MAX, Math.max(TEXT_SCALE_MIN, stepped)),
     theme: v.theme === "dark" ? "dark" : "paper",
+    turn: v.turn === "slide" ? "slide" : "instant",
   };
 }
 

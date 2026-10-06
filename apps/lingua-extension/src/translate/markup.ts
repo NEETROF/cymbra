@@ -7,6 +7,14 @@
 // The consequence is that page text becomes markup input. Everything taken from the page is
 // escaped before the tag is placed, so the only tag the engine ever sees is ours.
 
+/**
+ * The languages whose selection is marked: those whose marks were measured on the committed corpus
+ * and reached the programme's first tier (release-lingua-spanish-translation, tool/marks/README.md).
+ * Spanish goes through English, two alignments chained: 89 of its 90 shown marks were right, 10 %
+ * withheld. A language outside the list is translated without a mark (add-lingua-spanish-translation-pivot D3).
+ */
+export const MARKED_LANGUAGES: readonly string[] = ["en", "es"];
+
 /** The tag that marks the selection. Page text is escaped, so no other tag reaches the engine. */
 const OPEN = "<b>";
 const CLOSE = "</b>";
@@ -37,6 +45,35 @@ export function markSelection(sentence: string, selection: Span | null): string 
     CLOSE +
     escapeText(sentence.slice(span.end))
   );
+}
+
+/**
+ * Footnote calls as Wikipedia leaves them in the text — « felinos.[7][8][9] ». They are no part of
+ * the sentence, and the engine mangles them (« chats. 7][8][9] »).
+ */
+const FOOTNOTE = /\[\d{1,3}\]/g;
+
+/**
+ * The sentence without its footnote calls, the selection moved with the text it covers. A call
+ * inside the selection is the reader's to keep.
+ */
+export function withoutFootnotes(
+  sentence: string,
+  selection: Span | null,
+): { sentence: string; selection: Span | null } {
+  let text = "";
+  let last = 0;
+  let before = 0; // characters removed ahead of the selection
+  for (const match of sentence.matchAll(FOOTNOTE)) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (selection && start < selection.end && end > selection.start) continue;
+    text += sentence.slice(last, start);
+    last = end;
+    if (selection && end <= selection.start) before += end - start;
+  }
+  text += sentence.slice(last);
+  return { sentence: text, selection: selection && { start: selection.start - before, end: selection.end - before } };
 }
 
 /** The selected text, clamped exactly as `markSelection` clamps it; null when it covers nothing. */

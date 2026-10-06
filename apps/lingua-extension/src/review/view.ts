@@ -1,3 +1,4 @@
+import { languageName } from "../analyzer/language-labels.ts";
 import type { Rating } from "../analyzer/port.ts";
 import type { ReviewView } from "./session.ts";
 
@@ -19,8 +20,16 @@ const GRADES: { rating: Rating; label: string }[] = [
   { rating: "easy", label: "Facile" },
 ];
 
-/** Render `view` into `root`, replacing its contents. */
-export function renderReview(root: HTMLElement, view: ReviewView, actions: ReviewActions): void {
+/**
+ * Render `view` into `root`, replacing its contents. `showLanguage`: the reader studies several
+ * languages, so each card says its own.
+ */
+export function renderReview(
+  root: HTMLElement,
+  view: ReviewView,
+  actions: ReviewActions,
+  opts: { showLanguage?: boolean } = {},
+): void {
   root.replaceChildren();
 
   if (view.phase === "idle") {
@@ -34,7 +43,10 @@ export function renderReview(root: HTMLElement, view: ReviewView, actions: Revie
   }
 
   const card = view.card;
-  root.append(note(`${card.remaining} carte(s) à revoir`, "remaining"), headword(card.headword));
+  root.append(note(`${card.remaining} carte(s) à revoir`, "remaining"));
+  // The card's language, when the reader studies several (add-lingua-language-stats-review D2).
+  if (opts.showLanguage && card.language) root.append(note(languageName(card.language), "review-language"));
+  root.append(headword(card.headword));
 
   if (!card.revealed) {
     root.append(button("Afficher la réponse", () => actions.reveal(), true));

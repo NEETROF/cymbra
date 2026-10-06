@@ -17,6 +17,8 @@ export interface FakeCard {
   surface: string;
   sentence: string;
   gloss: string | null;
+  /** The card's language, said by the review when set (add-lingua-language-stats-review). */
+  language?: StudiedLanguage;
 }
 
 /**
@@ -29,6 +31,8 @@ export type FakePort = LinguaPort & LanguagePort;
 export interface FakeCalls {
   /** The studied languages `for` was asked, in order (generalise-lingua-extension-port). */
   languages: StudiedLanguage[];
+  /** Every document-language question: its candidates and hint (add-lingua-language-routing). */
+  detections: { candidates: StudiedLanguage[]; hint: string | null }[];
   setCalibration: number[];
   setStatus: [string, string | null][];
   addCard: NewCard[];
@@ -36,12 +40,15 @@ export interface FakeCalls {
   reveals: number;
   markKnown: number;
   restored: string[];
+  /** The languages each due count and each review start were asked for (none: every language). */
+  reviewLanguages: (StudiedLanguage[] | undefined)[];
 }
 
 /** A fake LinguaPort: records calls and simulates a review queue over `deck`. */
 export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: FakeCalls } {
   const calls: FakeCalls = {
     languages: [],
+    detections: [],
     setCalibration: [],
     setStatus: [],
     addCard: [],
@@ -49,12 +56,16 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     reveals: 0,
     markKnown: 0,
     restored: [],
+    reviewLanguages: [],
   };
   let queue: FakeCard[] = [];
   let pos = 0;
   let revealed = false;
   let backup = "{}";
   let studied: StudiedLanguage[] = ["en"];
+  // A card without a language is English, as every card was before the reader studied several.
+  const within = (languages: StudiedLanguage[] | undefined) => (card: FakeCard) =>
+    !languages?.length || languages.includes(card.language ?? "en");
 
   const port: FakePort = {
     language: "en",
@@ -66,6 +77,11 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     studiedLanguages: async () => [...studied],
     setStudiedLanguages: async (languages) => {
       studied = [...languages];
+    },
+    // The first candidate, like a document with nothing to detect and no hint.
+    detectLanguage: async (_blocks, candidates, hint) => {
+      calls.detections.push({ candidates: [...candidates], hint });
+      return candidates[0];
     },
     analyse: async (): Promise<PageAnalysis> => ({
       analyzer_version: "1.0.0",
@@ -84,10 +100,15 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     trackedCount: async () => calls.setStatus.length + calls.addCard.length,
     addCard: async (c) => void calls.addCard.push(c),
     retireCard: async () => {},
-    deckCount: async () => calls.addCard.length,
-    dueCount: async () => queue.length - pos,
-    startReview: async () => {
-      queue = [...deck];
+    // The deck's cards in those languages (refine-lingua-review-language D4), and every card added since.
+    deckCount: async (languages) => deck.filter(within(languages)).length + calls.addCard.length,
+    dueCount: async (_now, languages) => {
+      calls.reviewLanguages.push(languages);
+      return queue.slice(pos).filter(within(languages)).length;
+    },
+    startReview: async (_now, languages) => {
+      calls.reviewLanguages.push(languages);
+      queue = deck.filter(within(languages));
       pos = 0;
       revealed = false;
       return queue.length;
@@ -137,6 +158,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     exportDeclaredLevels: async () => [],
     applyDeclaredLevelChanges: async () => 0,
     hasLevels: async () => false,
+    levelsEstimated: async () => false,
     levelLadder: async () => [],
     vocabularyEstimate: async () => ({ estimated: 0, confirmed: 0, universe: 0, basis: "marked" }),
     recordExposures: async () => {},

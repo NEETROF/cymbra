@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.23.0...back-office-v0.24.0) (2026-10-04)
+
+
+### Features
+
+* **back-office:** name the studied languages on the Lingua screen ([#673](https://github.com/NEETROF/cymbra/issues/673)) ([a3c2bfe](https://github.com/NEETROF/cymbra/commit/a3c2bfefaeadc9af70abe688cc435ab36cd263d4))
+
 ## [0.23.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.22.0...back-office-v0.23.0) (2026-10-03)
 
 

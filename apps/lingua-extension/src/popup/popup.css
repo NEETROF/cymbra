@@ -43,12 +43,35 @@ body {
 /* On a touch-primary device the popup is either a sheet or page of imposed width (Safari on
    iPhone, Firefox for Android) or a popover sized from its content (Safari on iPad). `auto`
    fills the imposed width instead of a narrow desktop column; the minimum keeps the iPad
-   popover from shrinking to its narrowest content, and still fits a 375 px phone. */
+   popover from shrinking to its narrowest content. On a phone it is held to the sheet's
+   width, which `vw` is there, so a larger text size still fits a 375 px phone. */
 @media (pointer: coarse) {
   body {
     box-sizing: border-box;
     width: auto;
     min-width: min(calc(360px * var(--cymbra-lingua-ui-scale, 1)), 100vw);
+  }
+}
+
+/* A tablet. Inside the iPad popover `vw` is the popover's own width — itself sized from the
+   content — so the phone's clamp above cancels the minimum and the popover shrinks to its
+   narrowest word: the screen, not the viewport, says there is room. */
+@media (pointer: coarse) and (min-device-width: 700px) {
+  body {
+    min-width: calc(360px * var(--cymbra-lingua-ui-scale, 1));
+  }
+
+  /* Safari's iPad popover stops growing at about 520 pt and cuts what is below, as macOS did
+     (see the desktop rule above): capped under it, the popup scrolls itself instead. Safari
+     only (popup.ts sets the attribute) — Firefox for Android shows the popup as a page. */
+  html[data-popover] {
+    overflow: hidden;
+  }
+
+  html[data-popover] body {
+    max-height: 500px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
@@ -292,53 +315,20 @@ button.primary:hover {
   filter: brightness(1.08);
 }
 
-/* Account & sync section (add-lingua-connected-clients §1). */
+/* The account line (add-lingua-connected-clients §1); signing in is in Réglages › Données. */
 .account {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--cymbra-lingua-border);
 }
 
-/* Signed in: the account row, the handle call to action and sign-out stack with one gap,
-   and the library and stats buttons below keep the same breathing room (`[hidden]` still
-   wins). */
-#acct-in {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-#acct-in button.primary {
-  margin-bottom: 0;
+#account-in {
+  margin-bottom: 4px;
 }
 
 #open-library,
 #open-stats {
   margin-top: 8px;
-}
-
-.acct-local {
-  margin: 8px 0;
-}
-
-.acct-local summary {
-  cursor: pointer;
-  color: var(--cymbra-lingua-muted);
-  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
-  margin-bottom: 6px;
-}
-
-.acct-local input {
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 6px;
-  padding: 7px 9px;
-  border-radius: 8px;
-  border: 1px solid var(--cymbra-lingua-border-2);
-  background: var(--cymbra-lingua-panel);
-  color: var(--cymbra-lingua-text);
-  font-family: inherit;
-  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }
 
 /* A session the server refused: said before anything else, in both surfaces. */
@@ -351,10 +341,4 @@ button.primary:hover {
   color: var(--cymbra-lingua-warn);
   font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.4;
-}
-
-.acct-error {
-  margin-top: 6px;
-  color: var(--cymbra-lingua-danger);
-  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
 }

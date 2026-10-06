@@ -1,7 +1,8 @@
 name: lingua-pack-update
 
-# Proposes new tables for one of Cymbra Lingua's data packs — the `pair` input, en→fr by default and
-# for the monthly run (pin-lingua-pack-sources D6, D7; the pair since generalise-lingua-pack-reducer).
+# Proposes new tables for one of Cymbra Lingua's data packs — the `pair` input, en→fr by default; the
+# monthly run checks every pair (pin-lingua-pack-sources D6, D7; the pair since
+# generalise-lingua-pack-reducer, es→fr since add-lingua-spanish-forms-tables).
 #
 # Releases never read upstream: they build the pack from the tables committed under
 # scripts/lingua-data/tables/<pair>/ and check it against pin.json. This workflow is the only place
@@ -31,7 +32,7 @@ on:
       pair:
         description: "The language pair whose tables to propose (a folder of scripts/lingua-data/tables)."
         type: choice
-        options: [en-fr]
+        options: [en-fr, es-fr]
         default: en-fr
   schedule:
     - cron: "17 5 3 * *" # the 3rd of every month, 05:17 UTC — dry run
@@ -40,15 +41,20 @@ permissions:
   contents: write # push the branch lingua-pack/<snapshot>, publish the kaikki snapshot release
 
 concurrency:
-  group: lingua-pack-update-${{ inputs.pair || 'en-fr' }}
+  group: lingua-pack-update-${{ inputs.pair || 'monthly' }}
   cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # A dispatch proposes the pair it names; the monthly dry run checks every pair with tables.
+        pair: ${{ github.event_name == 'schedule' && fromJSON('["en-fr", "es-fr"]') || fromJSON(format('["{0}"]', inputs.pair)) }}
     env:
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
-      PAIR: ${{ inputs.pair || 'en-fr' }}
+      PAIR: ${{ matrix.pair }}
       # A monthly run fails when a table loses more than this share of its rows (D7). A starting
       # value, to set from the first runs.
       MAX_LOSS: "0.2"
@@ -96,21 +102,25 @@ jobs:
           set -euo pipefail
           pin="scripts/lingua-data/tables/$PAIR/pin.json"
           tag=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.release)
-          asset=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.asset)
-          sha=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.sha256)
+          url=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.url)
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "::error::$tag already exists; a snapshot is never replaced. Dispatch again tomorrow."
             exit 1
           fi
+          # The extract, then each file the pair derives from a whole Wiktionary dump (pack_sources.py DUMPS).
+          files=()
+          while IFS= read -r asset; do
+            files+=("scripts/lingua-data/work/$PAIR/$asset")
+          done < <(python scripts/lingua-data/pack_sources.py assets --pin "$pin")
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          The kaikki.org extract of the French Wiktionary read for Cymbra Lingua's $PAIR data pack, as it
-          was on $SNAPSHOT — one of the pack's raw sources, kept because upstream regenerates it every
-          day. zstd-compressed; decompressed, its sha256 is \`$sha\`
-          (\`scripts/lingua-data/tables/$PAIR/pin.json\`).
+          The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the
+          extract ($url), and the files derived from whole Wiktionary dumps, if the pair reads any.
+          They are the pack's raw sources, kept because upstream regenerates them every day. Each is
+          zstd-compressed; decompressed, its sha256 is in \`scripts/lingua-data/tables/$PAIR/pin.json\`.
 
-          Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://fr.wiktionary.org.
+          Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://www.wiktionary.org.
           EOF
-          gh release create "$tag" "scripts/lingua-data/work/$PAIR/$asset" --target "$GITHUB_SHA" \
+          gh release create "$tag" "${files[@]}" --target "$GITHUB_SHA" \
             --title "Lingua pack sources $PAIR $SNAPSHOT" --notes-file "$RUNNER_TEMP/notes.md" --latest=false
 
       - name: Push the tables to a branch
@@ -129,7 +139,9 @@ jobs:
           # The English invariance baseline follows the dictionary (docs/lingua/spanish-programme.md):
           # re-blessed here, so the pull request shows what the update changes in English output.
           LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline
-          git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline
+          # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
+          python scripts/lingua-data/gloss_coverage.py --write
+          git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline apps/site/src/data/lingua-coverage.json
           message="chore(lingua): $PAIR dictionary tables $SNAPSHOT"
           [ "$MODE" = reduce ] && message="chore(lingua): reduce the $PAIR dictionary tables again ($SNAPSHOT)"
           git commit -q -m "$message"

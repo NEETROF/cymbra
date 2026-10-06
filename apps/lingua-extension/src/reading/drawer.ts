@@ -32,6 +32,9 @@ export interface DrawerOptions {
   speaker?: Speaker;
   /** Follow the reader's colours and text size (surface-look); off: the drawer as designed. */
   followLook?: boolean;
+  /** The language of the page or book the drawer opens on, where Révision opens
+   *  (refine-lingua-review-language D2). */
+  pageLanguage?: () => Promise<string | null>;
 }
 
 export class Drawer {
@@ -84,7 +87,7 @@ export class Drawer {
 
     this.lost = document.createElement("div");
     this.lost.className = "drawer-lost";
-    this.lost.textContent = "Session expirée — reconnecte-toi depuis le menu de l'extension pour synchroniser.";
+    this.lost.textContent = "Session expirée — reconnecte-toi dans Réglages › Données pour synchroniser.";
     this.lost.hidden = true;
 
     this.reviewBody = document.createElement("div");
@@ -111,7 +114,14 @@ export class Drawer {
     this.open = true;
     this.panel.hidden = false;
     void requestSync("surface");
+    this.reviewPage?.pageChanged(); // an opening: Révision opens in the page's language (D3)
     await this.switchTo(view);
+  }
+
+  /** The document's language changed under the drawer: Révision follows it, now if it is shown. */
+  async pageChanged(): Promise<void> {
+    this.reviewPage?.pageChanged();
+    if (this.open && this.current === "review") await this.switchTo("review");
   }
 
   /** Show (or hide) the banner for a session the server refused. */
@@ -139,7 +149,11 @@ export class Drawer {
     this.settingsBody.hidden = view !== "settings";
     for (const [v, b] of this.tabs) b.classList.toggle("active", v === view);
     if (view === "review") {
-      this.reviewPage ??= mountReview(this.reviewBody, this.opts.port, this.opts.store, { now: this.opts.now });
+      this.reviewPage ??= mountReview(this.reviewBody, this.opts.port, this.opts.store, {
+        now: this.opts.now,
+        prefs: this.opts.area,
+        pageLanguage: this.opts.pageLanguage,
+      });
       await this.reviewPage.refresh();
     } else if (view === "stats") {
       await mountStats(this.statsBody, this.opts.port, this.opts.store);

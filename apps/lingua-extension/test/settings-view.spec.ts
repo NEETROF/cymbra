@@ -530,18 +530,18 @@ describe("Réglages — Lecture à voix haute", () => {
     s.select.value = "Moira";
     s.select.dispatchEvent(new Event("change"));
     await settle();
-    expect(s.area.store[VOICE_KEY]).toBe("Moira");
+    expect(s.area.store[VOICE_KEY]).toEqual({ en: "Moira" }); // for the language the speaker reads
     s.select.value = "";
     s.select.dispatchEvent(new Event("change"));
     await settle();
-    expect(s.area.store[VOICE_KEY]).toBeNull();
+    expect(s.area.store[VOICE_KEY]).toEqual({});
   });
 
   it("shows the stored choice, and the automatic one when that voice is gone", async () => {
-    const kept = mountVoices(voiceFixture("chrome-macos"), { voice: "Moira" });
+    const kept = mountVoices(voiceFixture("chrome-macos"), { voices: { en: "Moira" } });
     await settle();
     expect(kept.select.value).toBe("Moira");
-    const gone = mountVoices(voiceFixture("chrome-macos"), { voice: "Ava (Premium)" });
+    const gone = mountVoices(voiceFixture("chrome-macos"), { voices: { en: "Ava (Premium)" } });
     await settle();
     expect(gone.select.value).toBe("");
   });
@@ -637,5 +637,201 @@ describe("Réglages — Affichage", () => {
     expect(titled("Livres")?.textContent).not.toContain("Taille du texte");
     // Right before the colours, which it works with.
     expect(blocks.indexOf(display!)).toBe(blocks.indexOf(titled("Couleurs")!) - 1);
+  });
+});
+
+describe("Réglages — the reader's languages (add-lingua-language-choice)", () => {
+  async function mountWith(
+    studied: ("en" | "es")[],
+    pairs: string[],
+    estimated: (language: string) => boolean = () => false,
+  ) {
+    const { port, calls } = makeFakePort();
+    await port.setStudiedLanguages(studied);
+    port.hasLevels = async () => true;
+    port.levelsEstimated = async function (this: { language: string }) {
+      return estimated(this.language);
+    };
+    const container = document.createElement("div");
+    document.body.replaceChildren(container);
+    mountSettings(container, port, fakeArea(), {
+      persist: async () => {},
+      store: fakeArea(),
+      pairs,
+      sync: {
+        available: async () => false,
+        syncNow: async () => ({ ok: true }),
+        lastSync: async () => null,
+        now: () => NOW,
+        watch: () => {},
+      },
+    });
+    await vi.waitFor(() => expect(container.querySelectorAll(".set-levels .set-block").length).toBeGreaterThan(0));
+    await settle();
+    const titles = [...container.querySelectorAll<HTMLElement>(".set-block > .set-label")].map((l) => l.textContent);
+    const block = (title: string) =>
+      [...container.querySelectorAll<HTMLElement>(".set-block")].find(
+        (b) => b.querySelector(".set-label")?.textContent === title,
+      );
+    return { container, titles, block, port, calls };
+  }
+
+  it("offers the languages and a level block for each, with two shipped", async () => {
+    const s = await mountWith(["en", "es"], ["en-fr", "es-fr"]);
+    expect(s.block("Langues étudiées")?.hidden).toBe(false);
+    expect(s.titles).toContain("Niveau d'anglais");
+    expect(s.titles).toContain("Niveau d'espagnol");
+    // Each level, like the choice of languages, sits under the Langue tab.
+    for (const title of ["Langues étudiées", "Niveau d'anglais", "Niveau d'espagnol"]) {
+      expect(s.block(title)?.closest<HTMLElement>('[role="tabpanel"]')?.dataset.tab).toBe("language");
+    }
+    // A level chosen in the Spanish block is Spanish.
+    const spanish = s.block("Niveau d'espagnol")!;
+    const declared: [string, string | null][] = [];
+    s.port.setDeclaredLevelAt = async function (this: { language: string }, level) {
+      declared.push([this.language, level]);
+    };
+    spanish.querySelector<HTMLButtonElement>('button[data-lvl="A2"]')!.click();
+    await settle();
+    expect(declared).toEqual([["es", "A2"]]);
+  });
+
+  it("titles estimated levels as such and says why, for that language only (add-lingua-spanish-levels)", async () => {
+    const s = await mountWith(["en", "es"], ["en-fr", "es-fr"], (language) => language === "es");
+    const spanish = s.block("Niveau d'espagnol estimé")!;
+    const note = spanish.querySelector<HTMLElement>(".set-estimate")!;
+    expect(note.hidden).toBe(false);
+    expect(note.textContent).toBe(
+      "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'espagnol.",
+    );
+    const english = s.block("Niveau d'anglais")!;
+    expect(english.querySelector<HTMLElement>(".set-estimate")!.hidden).toBe(true);
+  });
+
+  it("shows one block, « Niveau d'anglais », and no choice, with en-fr alone", async () => {
+    const s = await mountWith(["en"], ["en-fr"]);
+    expect(s.block("Langues étudiées")?.hidden).toBe(true);
+    expect(s.titles.filter((t) => t?.startsWith("Niveau"))).toEqual(["Niveau d'anglais"]);
+  });
+});
+
+describe("Réglages — sub-tabs", () => {
+  const titles = (panel: Element): string[] =>
+    [...panel.querySelectorAll(".set-block > .set-label")].map((l) => l.textContent ?? "");
+  const tabs = (container: HTMLElement): HTMLButtonElement[] => [
+    ...container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+  ];
+  const shown = (container: HTMLElement): HTMLElement[] => [
+    ...container.querySelectorAll<HTMLElement>('[role="tabpanel"]:not([hidden])'),
+  ];
+
+  it("groups the blocks by specialisation, each tab over its own panel", async () => {
+    const { container } = mount();
+    await settle();
+    expect(tabs(container).map((t) => t.textContent)).toEqual(["Langue", "Apparence", "Pages & livres", "Données"]);
+    const panels = [...container.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
+    expect(panels.map(titles)).toEqual([
+      ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute"],
+      ["Affichage", "Couleurs"],
+      ["Barre sur la page", "Livres", "Raccourcis & gestes"],
+      ["Compte", "Synchronisation", "Réinitialisation"],
+    ]);
+    // The book's size and theme come with Affichage, under Apparence; its page turn joins the
+    // continuous flow in Livres, under Pages & livres.
+    expect(panels[1].textContent).toContain("Taille du texte");
+    expect(panels[1].textContent).toContain("Thème");
+    expect(panels[1].textContent).not.toContain("Tourne des pages");
+    const books = [...panels[2].querySelectorAll<HTMLElement>(".set-block")].find(
+      (b) => b.querySelector(".set-label")?.textContent === "Livres",
+    )!;
+    expect(books.textContent).toMatch(/Défilement continu.*Tourne des pages.*Directe.*Glissée/);
+    // Every block lives in a tab: none is left loose above the tabs.
+    expect(container.querySelectorAll(":scope > .set-block")).toHaveLength(0);
+    for (const [i, tab] of tabs(container).entries()) {
+      expect(tab.getAttribute("aria-controls")).toBe(panels[i].id);
+      expect(panels[i].getAttribute("aria-labelledby")).toBe(tab.id);
+    }
+  });
+
+  it("opens on Langue, and a click shows that tab's panel alone", async () => {
+    const { container } = mount();
+    await settle();
+    expect(shown(container).map(titles)).toEqual([
+      ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute"],
+    ]);
+    expect(tabs(container).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false", "false", "false"]);
+
+    tabs(container)[3].click();
+    expect(shown(container).map(titles)).toEqual([["Compte", "Synchronisation", "Réinitialisation"]]);
+    expect(tabs(container)[3].classList.contains("active")).toBe(true);
+    expect(tabs(container)[0].classList.contains("active")).toBe(false);
+    // One tab stop: the selected tab; the arrows reach the others.
+    expect(tabs(container).map((t) => t.tabIndex)).toEqual([-1, -1, -1, 0]);
+  });
+
+  it("keeps the chosen tab across a refresh", async () => {
+    const { container, view } = mount();
+    await settle();
+    tabs(container)[1].click();
+    await view.refresh();
+    expect(shown(container).map(titles)).toEqual([["Affichage", "Couleurs"]]);
+  });
+
+  it("moves between tabs with the arrows, Home and End", async () => {
+    const { container } = mount();
+    await settle();
+    const press = (key: string): void => {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      (document.activeElement ?? tabs(container)[0]).dispatchEvent(event);
+    };
+    const selected = (): string | undefined =>
+      tabs(container).find((t) => t.ariaSelected === "true")?.textContent ?? undefined;
+    tabs(container)[0].focus();
+    press("ArrowLeft");
+    expect(selected()).toBe("Données");
+    expect(document.activeElement).toBe(tabs(container)[3]);
+    press("ArrowRight");
+    expect(selected()).toBe("Langue");
+    press("End");
+    expect(selected()).toBe("Données");
+    press("Home");
+    expect(selected()).toBe("Langue");
+    press("ArrowRight");
+    expect(selected()).toBe("Apparence");
+    press("Enter"); // not a tab key: nothing moves
+    expect(selected()).toBe("Apparence");
+  });
+
+  it("brings a tab forward on request (the popup's level links)", async () => {
+    const { container, view } = mount();
+    await settle();
+    tabs(container)[2].click();
+    view.show("language");
+    expect(shown(container).map(titles)[0]).toContain("Niveau d'anglais");
+    view.show("data");
+    expect(shown(container).map(titles)[0]).toContain("Réinitialisation");
+  });
+
+  it("gives two views in one document distinct tab ids", async () => {
+    const { container } = mount();
+    const second = document.createElement("div");
+    document.body.append(second);
+    mountSettings(second, makeFakePort().port, fakeArea(), {
+      persist: async () => {},
+      store: fakeArea(),
+      sync: {
+        available: async () => false,
+        syncNow: async () => ({ ok: true }),
+        lastSync: async () => null,
+        now: () => NOW,
+        watch: () => {},
+      },
+      openPage: () => {},
+    });
+    await settle();
+    expect(tabs(second)).toHaveLength(4);
+    const ids = [...document.querySelectorAll("[id]")].map((n) => n.id);
+    expect(ids.length).toBe(2 * 2 * tabs(container).length);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

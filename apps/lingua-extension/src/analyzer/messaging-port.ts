@@ -52,17 +52,20 @@ export class MessagingLinguaPort implements LinguaPort {
   setStudiedLanguages(languages: StudiedLanguage[]): Promise<void> {
     return this.rpc("setStudiedLanguages", [languages]);
   }
+  detectLanguage(blocks: string[], candidates: StudiedLanguage[], hint: string | null): Promise<StudiedLanguage> {
+    return this.rpc("detectLanguage", [blocks, candidates, hint]);
+  }
   trackedCount(): Promise<number> {
     return this.rpc("trackedCount");
   }
-  deckCount(): Promise<number> {
-    return this.rpc("deckCount");
+  deckCount(languages?: StudiedLanguage[]): Promise<number> {
+    return this.rpc("deckCount", languages ? [languages] : []);
   }
-  dueCount(now: number): Promise<number> {
-    return this.rpc("dueCount", [now]);
+  dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {
+    return this.rpc("dueCount", languages ? [now, languages] : [now]);
   }
-  startReview(now: number): Promise<number> {
-    return this.rpc("startReview", [now]);
+  startReview(now: number, languages?: StudiedLanguage[]): Promise<number> {
+    return this.rpc("startReview", languages ? [now, languages] : [now]);
   }
   reviewCurrent(): Promise<ReviewCard | null> {
     return this.rpc("reviewCurrent");
@@ -167,6 +170,9 @@ class MessagingLanguagePort implements LanguagePort {
   }
   hasLevels(): Promise<boolean> {
     return this.rpc("hasLevels");
+  }
+  levelsEstimated(): Promise<boolean> {
+    return this.rpc("levelsEstimated");
   }
   levelLadder(): Promise<LevelRow[]> {
     return this.rpc("levelLadder");

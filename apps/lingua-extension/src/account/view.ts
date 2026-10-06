@@ -1,6 +1,7 @@
 import type { Provider } from "../state/oidc.ts";
-import type { AccountView, AccountViewState } from "./flow.ts";
+import { type AccountView, type AccountViewState, providerName } from "./flow.ts";
 import { HANDLE_MAX_LENGTH, type HandleStatus } from "./handle.ts";
+import type { LinkedIdentity } from "./messages.ts";
 
 // DOM for the account page (add-lingua-account-parity). Pure rendering from the
 // controller's state into a host element, wired to actions — unit-tested with jsdom like
@@ -23,6 +24,19 @@ export interface AccountActions {
   askErase(): void;
   cancelErase(): void;
   eraseLinguaData(): void;
+  // Comptes connectés (add-lingua-connected-accounts)
+  openConnected(): void;
+  leaveConnected(): void;
+  retryIdentities(): void;
+  link(provider: Provider): void;
+  askRemove(identity: LinkedIdentity): void;
+  cancelRemove(): void;
+  remove(): void;
+  showPasswordForm(): void;
+  cancelPassword(): void;
+  restartPassword(): void;
+  setPassword(email: string, password: string): void;
+  confirmPassword(code: string): void;
 }
 
 const HANDLE_HELP: Record<HandleStatus, string> = {
@@ -167,6 +181,114 @@ function dataSection(s: AccountViewState, a: AccountActions): HTMLElement {
   return section;
 }
 
+/** « Lié le 4 octobre 2026 », from Unix seconds. */
+export function linkedOn(linkedAt: number): string {
+  const date = new Date(linkedAt * 1000).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  return `Lié le ${date}`;
+}
+
+/** One linked method: its name, its address for email and password, when, and « Retirer ». */
+function identityRow(s: AccountViewState, a: AccountActions, i: LinkedIdentity, only: boolean): HTMLElement {
+  const row = h("li", "account-identity");
+  row.dataset.provider = i.provider;
+  const name = h("div", "account-identity-name", providerName(i.provider));
+  row.append(name);
+  if (i.provider === "local") row.append(h("div", "account-identity-detail", i.subject));
+  row.append(h("div", "account-identity-detail", linkedOn(i.linkedAt)));
+  const confirming = s.removing?.provider === i.provider && s.removing.subject === i.subject;
+  if (confirming) {
+    const ask = h("p", "account-warning", `Retirer ${providerName(i.provider)} de ton compte ?`);
+    ask.setAttribute("role", "alert");
+    row.append(
+      ask,
+      button("account-danger", "Retirer", s.busy, () => a.remove()),
+      button("account-secondary", "Annuler", s.busy, () => a.cancelRemove()),
+    );
+  } else if (only) {
+    row.append(h("p", "account-footnote", "Tu ne peux pas retirer ta seule méthode de connexion."));
+  } else {
+    row.append(button("account-secondary", "Retirer", s.busy, () => a.askRemove(i)));
+  }
+  return row;
+}
+
+/** « Définir un mot de passe »: the offer, its form, or its code step (design D4). */
+function passwordSection(s: AccountViewState, a: AccountActions): HTMLElement {
+  const section = h("section", "account-password");
+  switch (s.passwordStep) {
+    case "closed":
+      section.append(button("account-secondary", "Définir un mot de passe", s.busy, () => a.showPasswordForm()));
+      break;
+    case "form": {
+      section.append(
+        h("h3", "account-subtitle", "Définir un mot de passe"),
+        h(
+          "p",
+          "account-lead",
+          "Ajoute un email et un mot de passe pour aussi te connecter par email — sur un navigateur sans " +
+            "Google ni Apple, par exemple. Nous t'enverrons un code pour vérifier l'adresse.",
+        ),
+      );
+      const email = field("email", "Email", "email", "username", s.passwordEmail);
+      const password = field("password", "Mot de passe", "password", "new-password");
+      section.append(
+        form([email, password], "Définir le mot de passe", s.busy, () =>
+          a.setPassword(email.input.value, password.input.value),
+        ),
+        links([["Annuler", () => a.cancelPassword()]]),
+      );
+      break;
+    }
+    case "code": {
+      section.append(h("h3", "account-subtitle", "Vérifie ton adresse email"));
+      const to = h("p", "account-lead", "Saisis le code envoyé à ");
+      to.append(h("b", undefined, s.passwordEmail));
+      section.append(to);
+      const code = field("code", "Code de vérification", "text", "one-time-code");
+      code.input.inputMode = "numeric";
+      section.append(
+        form([code], "Valider", s.busy, () => a.confirmPassword(code.input.value)),
+        links([
+          ["Recommencer", () => a.restartPassword()],
+          ["Annuler", () => a.cancelPassword()],
+        ]),
+      );
+      break;
+    }
+  }
+  return section;
+}
+
+/** Comptes connectés (add-lingua-connected-accounts): the methods, and what can be added. */
+function connectedCard(card: HTMLElement, s: AccountViewState, a: AccountActions): void {
+  card.append(
+    h("p", "account-lead", "Les méthodes de connexion liées à ton compte Cymbra — les mêmes que dans Cymbra Music."),
+  );
+  if (s.identities == null) {
+    if (!s.busy) card.append(button("account-secondary", "Réessayer", false, () => a.retryIdentities()));
+    card.append(links([["Retour", () => a.leaveConnected()]]));
+    return;
+  }
+  const list = h("ul", "account-identities");
+  for (const i of s.identities) list.append(identityRow(s, a, i, s.identities.length === 1));
+  card.append(list);
+  const has = (provider: string): boolean => s.identities?.some((i) => i.provider === provider) ?? false;
+  const offers: [Provider, string][] = [];
+  if (s.linkable.google && !has("google")) offers.push(["google", "Lier Google"]);
+  if (s.linkable.apple && !has("apple")) offers.push(["apple", "Lier Apple"]);
+  for (const [provider, label] of offers) {
+    const b = button("account-provider", label, s.busy, () => a.link(provider));
+    b.dataset.provider = provider;
+    card.append(b);
+  }
+  if (!has("local")) card.append(passwordSection(s, a));
+  card.append(links([["Retour", () => a.leaveConnected()]]));
+}
+
 export function renderAccount(root: HTMLElement, s: AccountViewState, a: AccountActions): void {
   const card = h("section", "account-card");
   const title = (text: string): void => {
@@ -291,7 +413,16 @@ export function renderAccount(root: HTMLElement, s: AccountViewState, a: Account
       out.type = "button";
       out.disabled = s.busy;
       out.addEventListener("click", () => a.signOut());
-      card.append(out, dataSection(s, a));
+      card.append(
+        button("account-secondary", "Comptes connectés", s.busy, () => a.openConnected()),
+        out,
+        dataSection(s, a),
+      );
+      break;
+    }
+    case "connected": {
+      title("Comptes connectés");
+      connectedCard(card, s, a);
       break;
     }
   }

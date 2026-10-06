@@ -36,7 +36,9 @@ kind of fact that should be on the record before the platform moves again.
 - **A degraded fallback**: when the track cannot be read, the mode reads the caption segments the
   player writes into the page, and the popup says the video is in degraded mode.
 - **Not in scope**: mobile (see Impact), Shorts, live streams, embedded players, transcribing audio
-  ourselves, other video sites.
+  ourselves, other video sites, and captions in a language other than English: Spanish, which
+  Lingua now studies too, is left out by the Spanish programme's decision D7
+  (`docs/lingua/spanish-programme.md`).
 
 ## Capabilities
 

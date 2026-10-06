@@ -123,6 +123,16 @@ impl Deck {
         self.cards.values().all(BTreeMap::is_empty)
     }
 
+    /// The number of cards in `languages` — every language when it is empty
+    /// (refine-lingua-review-language D4).
+    pub fn count_for(&self, languages: &[StudiedLanguage]) -> usize {
+        self.cards
+            .iter()
+            .filter(|(lang, _)| languages.is_empty() || languages.contains(lang))
+            .map(|(_, per_lang)| per_lang.len())
+            .sum()
+    }
+
     /// The `(language, lemma)` keys of every card due at `now`, in
     /// deterministic order (language then lemma).
     pub fn due_keys(&self, now: i64) -> Vec<(StudiedLanguage, String)> {
@@ -139,9 +149,16 @@ impl Deck {
 
     /// The number of cards due at `now`.
     pub fn due_count(&self, now: i64) -> usize {
+        self.due_count_for(now, &[])
+    }
+
+    /// The number of cards due at `now` in `languages` — every language when it is empty
+    /// (add-lingua-language-stats-review D1).
+    pub fn due_count_for(&self, now: i64, languages: &[StudiedLanguage]) -> usize {
         self.cards
-            .values()
-            .flat_map(BTreeMap::values)
+            .iter()
+            .filter(|(lang, _)| languages.is_empty() || languages.contains(lang))
+            .flat_map(|(_, per_lang)| per_lang.values())
             .filter(|card| card.review.is_due(now))
             .count()
     }
@@ -207,8 +224,32 @@ pub struct ReviewSession {
 impl ReviewSession {
     /// Starts a session over everything due at `now`.
     pub fn start(deck: &Deck, now: i64) -> Self {
+        Self::start_for(deck, now, &[])
+    }
+
+    /// Starts a session over everything due at `now` in `languages`, every language when it is
+    /// empty (add-lingua-language-stats-review D1). A queue that mixes languages is ordered by due
+    /// date (D8 of the Spanish programme), new cards first, then by language and lemma; a single
+    /// language keeps the deck's order, so its review does not move.
+    pub fn start_for(deck: &Deck, now: i64, languages: &[StudiedLanguage]) -> Self {
+        let mut queue: Vec<(StudiedLanguage, String)> = deck
+            .due_keys(now)
+            .into_iter()
+            .filter(|(lang, _)| languages.is_empty() || languages.contains(lang))
+            .collect();
+        let mixed = queue
+            .first()
+            .is_some_and(|(first, _)| queue.iter().any(|(lang, _)| lang != first));
+        if mixed {
+            let due = |key: &(StudiedLanguage, String)| {
+                deck.get(key.0, &key.1)
+                    .and_then(|card| card.review.due)
+                    .unwrap_or(i64::MIN)
+            };
+            queue.sort_by(|a, b| due(a).cmp(&due(b)).then_with(|| a.cmp(b)));
+        }
         Self {
-            queue: deck.due_keys(now),
+            queue,
             position: 0,
             revealed: false,
         }
@@ -304,6 +345,52 @@ mod tests {
             deck.upsert(EN, card(l));
         }
         deck
+    }
+
+    #[test]
+    fn a_mixed_queue_is_ordered_by_due_date_and_can_be_filtered() {
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        let mut deck = Deck::new();
+        let due_at = |lemma: &str, due: Option<i64>| {
+            let mut c = card(lemma);
+            c.review.due = due;
+            c
+        };
+        deck.upsert(EN, due_at("zeal", Some(10)));
+        deck.upsert(EN, due_at("anchor", Some(30)));
+        deck.upsert(ES, due_at("faro", Some(20)));
+        deck.upsert(ES, due_at("mar", None)); // new: due now, first
+
+        let all = ReviewSession::start(&deck, 100);
+        let order: Vec<_> = all
+            .queue
+            .iter()
+            .map(|(l, w)| (l.tag(), w.as_str()))
+            .collect();
+        assert_eq!(
+            order,
+            vec![
+                ("es", "mar"),
+                ("en", "zeal"),
+                ("es", "faro"),
+                ("en", "anchor")
+            ]
+        );
+
+        let spanish = ReviewSession::start_for(&deck, 100, &[ES]);
+        assert_eq!(spanish.remaining(), 2);
+        assert_eq!(deck.due_count_for(100, &[ES]), 2);
+        assert_eq!(deck.due_count_for(100, &[]), 4);
+        assert_eq!(deck.due_count(100), 4);
+        // The deck's size by language (refine-lingua-review-language D4).
+        assert_eq!(deck.count_for(&[ES]), 2);
+        assert_eq!(deck.count_for(&[EN]), 2);
+        assert_eq!(deck.count_for(&[]), deck.len());
+
+        // One language keeps the deck's order (by lemma), as the review always had.
+        let english = ReviewSession::start_for(&deck, 100, &[EN]);
+        let order: Vec<_> = english.queue.iter().map(|(_, w)| w.as_str()).collect();
+        assert_eq!(order, vec!["anchor", "zeal"]);
     }
 
     #[test]

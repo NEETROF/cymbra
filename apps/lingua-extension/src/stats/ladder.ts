@@ -1,4 +1,6 @@
-import type { CefrLevel, LevelRow, VocabularyEstimate } from "../analyzer/types.ts";
+import { borrowedTypicalNote, estimatedLevelsNote, myLevelTitle } from "../analyzer/language-labels.ts";
+import { DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
+import type { CefrLevel, LevelRow, StudiedLanguage, VocabularyEstimate } from "../analyzer/types.ts";
 import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
 
 // The CEFR progression ladder's markup, shared by every stats host through mountStats.
@@ -69,8 +71,17 @@ export function vocabularyView(est: VocabularyEstimate, hasLevels: boolean): HTM
  * presumed), the words taught up to that level (running total of the teaching lists),
  * and the vocabulary a reader at that level typically has — the figure comparable
  * with the usual "about 16,000 words at C2" estimates, which the teaching lists are not.
+ *
+ * Levels estimated from word frequency (`estimated`, add-lingua-spanish-levels) say so: the
+ * title and a note name them estimated, and no teaching list stands behind the running
+ * total, so its column reads « courants », the commonest words up to the level.
  */
-export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLElement {
+export function ladderView(
+  rows: LevelRow[],
+  declared: CefrLevel | null,
+  language: StudiedLanguage = DEFAULT_LANGUAGE,
+  estimated = false,
+): HTMLElement {
   const pos = estimatedPosition(rows);
   const cumulative = cumulativeTotals(rows);
 
@@ -81,7 +92,7 @@ export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLEl
   head.className = "ladder-head";
   const headLabel = document.createElement("span");
   headLabel.className = "mlabel";
-  headLabel.textContent = "Mon niveau d'anglais";
+  headLabel.textContent = myLevelTitle(language, estimated);
   head.append(headLabel);
   if (pos) {
     const posSpan = document.createElement("span");
@@ -93,6 +104,12 @@ export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLEl
     head.append(posSpan);
   }
   ladder.append(head);
+  if (estimated) {
+    const why = document.createElement("div");
+    why.className = "note ladder-estimate";
+    why.textContent = estimatedLevelsNote(language);
+    ladder.append(why);
+  }
 
   const cols = document.createElement("div");
   cols.className = "ladder-row ladder-cols";
@@ -105,7 +122,7 @@ export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLEl
   colsFrac.textContent = "ce niveau";
   const colsCum = document.createElement("span");
   colsCum.className = "ladder-cum";
-  colsCum.textContent = "enseignés";
+  colsCum.textContent = estimated ? "courants" : "enseignés";
   const colsEst = document.createElement("span");
   colsEst.className = "ladder-est";
   colsEst.textContent = "estimés";
@@ -165,9 +182,14 @@ export function ladderView(rows: LevelRow[], declared: CefrLevel | null): HTMLEl
   const scope = document.createElement("div");
   scope.className = "note ladder-scope";
   scope.textContent =
-    "«\u202Fenseignés\u202F»\u00A0: les mots de base introduits jusqu'à ce niveau par les listes d'enseignement. " +
+    (estimated
+      ? "«\u202Fcourants\u202F»\u00A0: les mots les plus fréquents jusqu'à ce niveau. "
+      : "«\u202Fenseignés\u202F»\u00A0: les mots de base introduits jusqu'à ce niveau par les listes d'enseignement. ") +
     "«\u202Festimés\u202F»\u00A0: le vocabulaire qu'a en général un lecteur de ce niveau, " +
-    "extrapolé des mots des niveaux inférieurs sur tout le dictionnaire.";
+    // A pack whose levels are estimated has no lists to extrapolate: it shows English's figures.
+    (rows[0]?.typicalFrom
+      ? borrowedTypicalNote(language, rows[0].typicalFrom)
+      : "extrapolé des mots des niveaux inférieurs sur tout le dictionnaire.");
   ladder.append(scope);
 
   return ladder;

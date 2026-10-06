@@ -49,6 +49,8 @@ export interface ReviewCard {
   gloss: string | null;
   revealed: boolean;
   remaining: number;
+  /** The card's studied language (add-lingua-language-stats-review); absent from an older engine. */
+  language?: StudiedLanguage;
 }
 
 /** The context captured when a form is added to the deck. */
@@ -144,6 +146,11 @@ export interface LanguagePort extends AnalyzerPort {
   declaredLevel(): Promise<CefrLevel | null>;
   /** Whether the loaded pack carries CEFR data (else the ladder/feeding fall back to frequency). */
   hasLevels(): Promise<boolean>;
+  /**
+   * Whether those levels are estimated from word frequency rather than taken from a CEFR list
+   * (add-lingua-spanish-levels): every surface then labels the levels it shows as estimated.
+   */
+  levelsEstimated(): Promise<boolean>;
   /** The CEFR ladder A1→C2: confirmed / presumed / to-learn per level. Empty without CEFR data. */
   levelLadder(): Promise<LevelRow[]>;
   /** The estimated vocabulary size: each frequency band's known share, extrapolated over the pack's dictionary words. */
@@ -170,14 +177,20 @@ export interface LinguaPort {
   studiedLanguages(): Promise<StudiedLanguage[]>;
   /** Set the reader's studied languages, the primary first; throws on an empty list or a duplicate. */
   setStudiedLanguages(languages: StudiedLanguage[]): Promise<void>;
+  /** A document's language among `candidates` (the reader's order), `hint` its declared language
+   *  (add-lingua-language-routing). Loads no pack. */
+  detectLanguage(blocks: string[], candidates: StudiedLanguage[], hint: string | null): Promise<StudiedLanguage>;
   /** How many forms are explicitly marked (any status). */
   trackedCount(): Promise<number>;
-  /** Total cards in the deck. */
-  deckCount(): Promise<number>;
-  /** Cards due at `now` (epoch seconds). */
-  dueCount(now: number): Promise<number>;
-  /** Start a review session over everything due at `now`; returns the count. */
-  startReview(now: number): Promise<number>;
+  /** Cards in the deck, in `languages`, or in every language when absent or empty
+   *  (refine-lingua-review-language D4). */
+  deckCount(languages?: StudiedLanguage[]): Promise<number>;
+  /** Cards due at `now` (epoch seconds), in `languages`, or in every language when absent or empty
+   *  (add-lingua-language-stats-review). */
+  dueCount(now: number, languages?: StudiedLanguage[]): Promise<number>;
+  /** Start a review session over everything due at `now`, in `languages` or in all of them, the
+   *  cards of several languages in due order; returns the count. */
+  startReview(now: number, languages?: StudiedLanguage[]): Promise<number>;
   /** The current card, or null when the session is finished / not started. */
   reviewCurrent(): Promise<ReviewCard | null>;
   /** Reveal the current card's answer. */

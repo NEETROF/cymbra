@@ -63,13 +63,13 @@
           <div class="row sub"><span>dont mots différents</span><b id="distinct">0</b></div>
         </div>
 
-        <div id="note" class="note" hidden>Pas de texte anglais détecté sur cette page.</div>
+        <div id="note" class="note" hidden></div>
 
         <div class="row"><span>Mots suivis</span><b id="tracked">0</b></div>
 
-        <button id="level-cta" class="primary" hidden>Choisis ton niveau d'anglais</button>
+        <button id="level-cta" class="primary" hidden>Choisis ton niveau</button>
         <div id="level-indicator" class="level-indicator" hidden>
-          <span>Niveau d'anglais : <b id="level-current">—</b></span>
+          <span><span id="level-label">Niveau</span> : <b id="level-current">—</b></span>
           <button id="level-edit" class="linklike">Modifier</button>
         </div>
 
@@ -77,29 +77,12 @@
         <button class="primary" id="review">Réviser (<span id="due">0</span>)</button>
       </div>
 
+      <!-- Signing in lives in Réglages › Données (mountSettings), the same in every surface: this links there. -->
       <div id="account" class="account">
-        <div id="acct-out" hidden>
-          <div class="note">Connecte-toi pour synchroniser ton deck et tes mots entre appareils.</div>
-          <button class="primary" id="signin-google" hidden>Continuer avec Google</button>
-          <button class="primary" id="signin-apple" hidden>Continuer avec Apple</button>
-          <details class="acct-local">
-            <summary>Email et mot de passe</summary>
-            <input type="email" id="acct-email" placeholder="Email" autocomplete="username" />
-            <input type="password" id="acct-password" placeholder="Mot de passe" autocomplete="current-password" />
-            <button class="reset" id="signin-local">Se connecter</button>
-            <button class="linklike" id="acct-forgot" type="button">Mot de passe oublié ?</button>
-          </details>
-          <button class="linklike" id="acct-signup" type="button">Créer un compte</button>
-          <div id="acct-error" class="acct-error" hidden></div>
-        </div>
-        <div id="acct-in" hidden>
-          <div class="row"><span>Compte</span><b id="acct-handle">Synchronisation activée</b></div>
-          <div id="acct-handle-cta" hidden>
-            <div class="note">Choisis ton pseudo pour garder ce compte.</div>
-            <button class="primary" id="acct-handle-open" type="button">Choisir mon pseudo</button>
-          </div>
-          <button class="linklike" id="acct-data" type="button">Gérer mes données</button>
-          <button class="reset" id="signout">Se déconnecter</button>
+        <button class="primary" id="account-signin" type="button" hidden>Se connecter pour synchroniser</button>
+        <div id="account-in" hidden>
+          <div class="row"><span>Connecté</span><b id="account-who"></b></div>
+          <button class="linklike" id="account-manage" type="button">Compte et synchronisation</button>
         </div>
       </div>
 

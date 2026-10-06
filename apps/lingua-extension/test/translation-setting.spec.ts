@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { mountSettings } from "@/reading/settings-view.ts";
 import {
   COPY,
+  costText,
   megabytes,
   mountTranslationSetting,
   runtimeTranslationControls,
@@ -20,8 +21,10 @@ const flush = async () => {
   for (let i = 0; i < 10; i++) await Promise.resolve();
 };
 
-const OFF: ModelStatus = { offered: true, host: "none", state: { phase: "absent" } };
-const on = (state: ModelState): ModelStatus => ({ offered: true, host: "local", state });
+/** What the en-fr model costs, as the background reads it from the catalogue. */
+const COST = { download: 25_752_472, stored: 36_749_127 };
+const OFF: ModelStatus = { offered: true, host: "none", state: { phase: "absent" }, cost: COST };
+const on = (state: ModelState): ModelStatus => ({ offered: true, host: "local", state, cost: COST });
 
 function controls(initial: ModelStatus, next: Partial<Record<string, ModelStatus>> = {}) {
   let push: ((s: TranslationSetting) => void) | null = null;
@@ -76,6 +79,33 @@ describe("the Traduction étendue setting", () => {
     expect(v.bar.hidden).toBe(true);
   });
 
+  it("states its cost without a size when the background could not read the catalogue", async () => {
+    const v = await mount({ offered: true, host: "none", state: { phase: "absent" } });
+    expect(v.text()).toContain("Télécharge le modèle une fois");
+    expect(v.text()).not.toContain("Mo une fois");
+  });
+
+  it("missing: says a language needs a model, its size, and offers to download it (model-state D3)", async () => {
+    const v = await mount(
+      on({ phase: "missing", models: ["en-fr/base-memory/2.0"], languages: ["en"], total: 26_200_000 }),
+      {
+        resume: on({ phase: "downloading", received: 0, total: 26_200_000 }),
+      },
+    );
+    expect(v.box.checked).toBe(true);
+    expect(v.line.textContent).toBe("Il manque un modèle pour une de tes langues. 26,2 Mo à télécharger.");
+    expect(v.action.hidden).toBe(false);
+    expect(v.action.textContent).toBe(COPY.download);
+    v.action.click();
+    await flush();
+    expect(v.c.command).toHaveBeenCalledWith("resume");
+  });
+
+  it("sizes a storage failure from the catalogue", async () => {
+    const v = await mount(on({ phase: "failed", reason: "storage" }));
+    expect(v.line.textContent).toBe("Pas assez de place sur cet appareil pour le modèle (36,7 Mo).");
+  });
+
   it("ticking it asks the background to turn it on", async () => {
     const v = await mount(OFF, { enable: on({ phase: "downloading", received: 0, total: 25_752_472 }) });
     v.box.checked = true;
@@ -105,13 +135,13 @@ describe("the Traduction étendue setting", () => {
     const v = await mount(on({ phase: "downloading", received: 0, total: 1_000_000 }));
     v.push({ host: "local", state: { phase: "downloading", received: 500_000, total: 1_000_000 } });
     expect(v.bar.value).toBe(500_000);
-    v.push({ host: "local", state: { phase: "ready" } });
+    v.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] } });
     expect(v.line.textContent).toBe(COPY.ready);
     expect(v.bar.hidden).toBe(true);
   });
 
   it("ready: says so, with nothing to press but the checkbox", async () => {
-    const v = await mount(on({ phase: "ready" }));
+    const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] }));
     expect(v.line.textContent).toBe(COPY.ready);
     expect(v.action.hidden).toBe(true);
   });
@@ -153,7 +183,9 @@ describe("the Traduction étendue setting", () => {
   });
 
   it("unticking it turns it off, whatever state it was in", async () => {
-    const v = await mount(on({ phase: "ready" }), { disable: OFF });
+    const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] }), {
+      disable: OFF,
+    });
     v.box.checked = false;
     v.box.dispatchEvent(new Event("change"));
     await flush();
@@ -176,7 +208,7 @@ describe("the Traduction étendue setting", () => {
     const fake = controls(OFF);
     const block = document.createElement("div");
     mountTranslationSetting(block, fake.c);
-    fake.push({ host: "local", state: { phase: "ready" } });
+    fake.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] } });
     expect(block.hidden).toBe(true);
   });
 
@@ -187,12 +219,12 @@ describe("the Traduction étendue setting", () => {
       expect(v.whens[0]!()).toBe(true);
       v.block.hidden = true; // the drawer switched to another view, say
       expect(v.whens[0]!()).toBe(false);
-      v.push({ host: "local", state: { phase: "ready" } });
+      v.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] } });
       expect(v.stops[0]).toHaveBeenCalledOnce();
     });
 
     it("pings for nothing else", async () => {
-      const v = await mount(on({ phase: "ready" }));
+      const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] }));
       expect(v.c.keepAwake).not.toHaveBeenCalled();
     });
   });
@@ -202,6 +234,20 @@ describe("helpers", () => {
   it("writes sizes as the reader reads them", () => {
     expect(megabytes(25_752_472)).toBe("25,8 Mo");
     expect(megabytes(0)).toBe("0,0 Mo");
+  });
+
+  it("states the cost from the catalogue's sizes, or none without them", () => {
+    expect(costText(COST)).toContain("Télécharge 25,8 Mo une fois");
+    expect(costText(COST)).toContain("environ 200 Mo de mémoire");
+    expect(costText()).toContain("Télécharge le modèle une fois");
+    // A reader of Spanish: both models of its route, and the pivot's memory (add-lingua-spanish-translation-pivot D4).
+    const spanish = { download: 51_993_524, stored: 74_762_516, pivot: true };
+    expect(costText(spanish)).toContain("Télécharge 52,0 Mo une fois");
+    expect(costText(spanish)).toContain("environ 340 Mo de mémoire");
+    expect(stateText({ phase: "failed", reason: "storage" }, COST)).toContain("(36,7 Mo)");
+    expect(stateText({ phase: "failed", reason: "storage" })).toBe(
+      "Pas assez de place sur cet appareil pour le modèle.",
+    );
   });
 
   it("says nothing about an absent model, and leaves out an unknown total", () => {

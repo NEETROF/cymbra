@@ -235,3 +235,48 @@
   outline: 2px solid var(--cymbra-lingua-accent);
   outline-offset: 2px;
 }
+
+/* Comptes connectés (add-lingua-connected-accounts): one row per linked method. */
+.account-identities {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.account-identity {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--cymbra-lingua-border);
+}
+
+.account-identity:first-child {
+  border-top: 1px solid var(--cymbra-lingua-border);
+}
+
+.account-identity-name {
+  font-weight: 600;
+  color: var(--cymbra-lingua-text);
+}
+
+.account-identity-detail {
+  margin-top: 2px;
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
+  overflow-wrap: anywhere;
+}
+
+.account-identity .account-secondary,
+.account-identity .account-danger {
+  margin-top: 10px;
+}
+
+.account-identity .account-footnote {
+  margin: 6px 0 0;
+}
+
+.account-identity .account-warning {
+  margin-top: 10px;
+}
+
+.account-password {
+  margin-top: 8px;
+}

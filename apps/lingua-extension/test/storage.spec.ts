@@ -13,13 +13,16 @@ import {
   loadEnabled,
   loadHudHidden,
   loadReaderDisplay,
+  loadReviewLanguage,
   READER_DISPLAY_KEY,
+  REVIEW_LANGUAGE_KEY,
   readerDisplayOf,
   saveReaderDisplay,
+  saveReviewLanguage,
   loadStored,
   loadAndroidVoices,
   loadRemoteVoices,
-  loadVoice,
+  loadVoices,
   loadHudPosition,
   parseHudPosition,
   ROOT_KEY,
@@ -194,6 +197,23 @@ describe("the HUD-hidden flag", () => {
   });
 });
 
+describe("the last language chosen in the review (refine-lingua-review-language D3)", () => {
+  it("is none until one is chosen, then the one chosen last", async () => {
+    const area = fakeArea({ [ROOT_KEY]: { v: STORAGE_VERSION, backup: "BACKUP" } });
+    expect(await loadReviewLanguage(area)).toBeNull();
+    await saveReviewLanguage(area, "es");
+    await saveReviewLanguage(area, "en");
+    expect(area.store[REVIEW_LANGUAGE_KEY]).toBe("en");
+    expect(await loadReviewLanguage(area)).toBe("en");
+    expect(area.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "BACKUP" }); // a preference, not the reader's data
+  });
+
+  it("reads anything but a language as none", async () => {
+    expect(await loadReviewLanguage(fakeArea({ [REVIEW_LANGUAGE_KEY]: "" }))).toBeNull();
+    expect(await loadReviewLanguage(fakeArea({ [REVIEW_LANGUAGE_KEY]: 3 }))).toBeNull();
+  });
+});
+
 describe("the read-aloud voice preference", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -201,14 +221,24 @@ describe("the read-aloud voice preference", () => {
 
   it("is the automatic choice until a voice is kept, and again once it is cleared", async () => {
     const area = fakeArea();
-    expect(await loadVoice(area)).toBeNull();
-    await saveVoice(area, "Moira");
-    expect(area.store[VOICE_KEY]).toBe("Moira");
-    expect(await loadVoice(area)).toBe("Moira");
-    await saveVoice(area, null);
-    expect(await loadVoice(area)).toBeNull();
-    expect(await loadVoice(fakeArea({ [VOICE_KEY]: "" }))).toBeNull();
-    expect(await loadVoice(fakeArea({ [VOICE_KEY]: 42 }))).toBeNull();
+    expect(await loadVoices(area)).toEqual({});
+    await saveVoice(area, "en", "Moira");
+    expect(area.store[VOICE_KEY]).toEqual({ en: "Moira" });
+    expect(await loadVoices(area)).toEqual({ en: "Moira" });
+    await saveVoice(area, "en", null);
+    expect(await loadVoices(area)).toEqual({});
+    expect(await loadVoices(fakeArea({ [VOICE_KEY]: "" }))).toEqual({});
+    expect(await loadVoices(fakeArea({ [VOICE_KEY]: 42 }))).toEqual({});
+  });
+
+  it("keeps a voice per language, the single voice of an older build as the English one", async () => {
+    const area = fakeArea({ [VOICE_KEY]: "Daniel" });
+    expect(await loadVoices(area)).toEqual({ en: "Daniel" });
+    await saveVoice(area, "es", "Mónica");
+    expect(area.store[VOICE_KEY]).toEqual({ en: "Daniel", es: "Mónica" });
+    await saveVoice(area, "en", null);
+    expect(await loadVoices(area)).toEqual({ es: "Mónica" });
+    expect(await loadVoices(fakeArea({ [VOICE_KEY]: { en: "", es: 3, fr: "Thomas" } }))).toEqual({ fr: "Thomas" });
   });
 
   it("keeps Android's voices refused until they are allowed", async () => {
@@ -235,7 +265,7 @@ describe("the read-aloud voice preference", () => {
     const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
     const area = fakeArea({ [VOICE_KEY]: "Daniel" });
     const pref = storedVoicePreference(area);
-    expect(await pref.load()).toEqual({ voice: "Daniel", androidVoices: false, remoteVoices: false });
+    expect(await pref.load()).toEqual({ voices: { en: "Daniel" }, androidVoices: false, remoteVoices: false });
     const seen: unknown[] = [];
     pref.watch((settings) => seen.push(settings));
     area.store[VOICE_KEY] = "Moira";
@@ -251,9 +281,9 @@ describe("the read-aloud voice preference", () => {
     listener!({ [HUD_HIDDEN_KEY]: { newValue: true } }, "local");
     await settle();
     expect(seen).toEqual([
-      { voice: "Moira", androidVoices: false, remoteVoices: false },
-      { voice: "Moira", androidVoices: true, remoteVoices: false },
-      { voice: "Moira", androidVoices: true, remoteVoices: true },
+      { voices: { en: "Moira" }, androidVoices: false, remoteVoices: false },
+      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: false },
+      { voices: { en: "Moira" }, androidVoices: true, remoteVoices: true },
     ]);
   });
 });
@@ -262,22 +292,35 @@ describe("the read-aloud voice preference", () => {
 // it knows — whatever the store holds.
 describe("the reader's display", () => {
   it("defaults to the book's own size on paper", async () => {
-    expect(await loadReaderDisplay(fakeArea())).toEqual({ textScale: 100, theme: "paper" });
+    expect(await loadReaderDisplay(fakeArea())).toEqual({ textScale: 100, theme: "paper", turn: "instant" });
   });
 
   it("keeps a size on the offered steps, within bounds, and a known page", () => {
-    expect(readerDisplayOf({ textScale: 134, theme: "dark" })).toEqual({ textScale: 130, theme: "dark" });
-    expect(readerDisplayOf({ textScale: 20, theme: "sepia" })).toEqual({ textScale: 80, theme: "paper" });
-    expect(readerDisplayOf({ textScale: 900 })).toEqual({ textScale: 200, theme: "paper" });
-    expect(readerDisplayOf({ textScale: Number.NaN })).toEqual({ textScale: 100, theme: "paper" });
-    expect(readerDisplayOf("garbage")).toEqual({ textScale: 100, theme: "paper" });
+    expect(readerDisplayOf({ textScale: 134, theme: "dark", turn: "instant" })).toEqual({
+      textScale: 130,
+      theme: "dark",
+      turn: "instant",
+    });
+    expect(readerDisplayOf({ textScale: 20, theme: "sepia" })).toEqual({
+      textScale: 80,
+      theme: "paper",
+      turn: "instant",
+    });
+    expect(readerDisplayOf({ textScale: 900 })).toEqual({ textScale: 200, theme: "paper", turn: "instant" });
+    expect(readerDisplayOf({ textScale: Number.NaN })).toEqual({ textScale: 100, theme: "paper", turn: "instant" });
+    expect(readerDisplayOf("garbage")).toEqual({ textScale: 100, theme: "paper", turn: "instant" });
+  });
+
+  it("keeps a sliding turn, and reads anything else as the instant one", () => {
+    expect(readerDisplayOf({ turn: "slide" }).turn).toBe("slide");
+    expect(readerDisplayOf({ turn: "curl" }).turn).toBe("instant");
   });
 
   it("stores what it is given, made safe", async () => {
     const area = fakeArea();
-    await saveReaderDisplay(area, { textScale: 215, theme: "dark" });
-    expect(area.store[READER_DISPLAY_KEY]).toEqual({ textScale: 200, theme: "dark" });
-    expect(await loadReaderDisplay(area)).toEqual({ textScale: 200, theme: "dark" });
+    await saveReaderDisplay(area, { textScale: 215, theme: "dark", turn: "instant" });
+    expect(area.store[READER_DISPLAY_KEY]).toEqual({ textScale: 200, theme: "dark", turn: "instant" });
+    expect(await loadReaderDisplay(area)).toEqual({ textScale: 200, theme: "dark", turn: "instant" });
   });
 });
 

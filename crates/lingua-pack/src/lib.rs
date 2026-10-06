@@ -23,6 +23,7 @@
 //! output lives in `lingua-core` and stays WASM-clean.
 
 pub mod licence;
+pub mod measure;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -700,6 +701,7 @@ mod tests {
                 native: "fr".into(),
                 pack_version: "2026.09.1".into(),
                 analyzer_version: ANALYZER_VERSION.into(),
+                levels_estimated: false,
                 licences: vec![
                     "AGID".into(),
                     "wordfreq CC BY-SA".into(),

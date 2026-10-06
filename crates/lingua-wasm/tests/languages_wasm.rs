@@ -38,6 +38,11 @@ fn spec_scenario_a_language_without_a_pack_is_refused() {
     );
     assert!(
         engine
+            .frequency_rank("haber", Some("es".to_owned()))
+            .is_err()
+    );
+    assert!(
+        engine
             .analyse(vec!["Olá".to_owned()], Some("pt".to_owned()))
             .is_err()
     );
@@ -65,6 +70,21 @@ fn spec_scenario_an_invalid_choice_of_studied_languages_is_refused() {
         engine.studied_languages(),
         r#"["es","en"]"#,
         "a refused choice leaves the current one"
+    );
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_a_detection_needs_known_candidates() {
+    let engine = LinguaEngine::new(PACK).unwrap();
+    assert!(
+        engine
+            .detect_language(vec!["Hola".to_owned()], vec![], None)
+            .is_err()
+    );
+    assert!(
+        engine
+            .detect_language(vec!["Olá".to_owned()], vec!["pt".to_owned()], None)
+            .is_err()
     );
 }
 

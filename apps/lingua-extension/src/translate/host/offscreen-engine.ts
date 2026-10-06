@@ -18,8 +18,10 @@ export const OFFSCREEN_JUSTIFICATION =
   "Runs the translation engine, and downloads its model, off every thread that paints.";
 
 export type OffscreenRequest =
-  | { type: typeof OFFSCREEN_TYPE; op: "translate"; markup: string }
-  | { type: typeof OFFSCREEN_TYPE; op: "warm" | "download" | "cancel" | "downloading" };
+  | { type: typeof OFFSCREEN_TYPE; op: "translate"; markup: string; language: string }
+  | { type: typeof OFFSCREEN_TYPE; op: "warm"; language: string }
+  | { type: typeof OFFSCREEN_TYPE; op: "download"; models: string[] }
+  | { type: typeof OFFSCREEN_TYPE; op: "cancel" | "downloading" };
 
 export type OffscreenEvent =
   { type: typeof OFFSCREEN_EVENT; event: DownloadEvent } | { type: typeof OFFSCREEN_EVENT; idle: true };
@@ -27,9 +29,18 @@ export type OffscreenEvent =
 const OPS = ["translate", "warm", "download", "cancel", "downloading"];
 
 export function isOffscreenRequest(message: unknown): message is OffscreenRequest {
-  const m = message as { type?: unknown; op?: unknown; markup?: unknown } | null;
+  const m = message as { type?: unknown; op?: unknown; markup?: unknown; language?: unknown; models?: unknown } | null;
   if (m?.type !== OFFSCREEN_TYPE || !OPS.includes(m.op as string)) return false;
-  return m.op !== "translate" || typeof m.markup === "string";
+  switch (m.op) {
+    case "translate":
+      return typeof m.markup === "string" && typeof m.language === "string";
+    case "warm":
+      return typeof m.language === "string";
+    case "download":
+      return Array.isArray(m.models) && m.models.every((id) => typeof id === "string");
+    default:
+      return true;
+  }
 }
 
 export function isOffscreenEvent(message: unknown): message is OffscreenEvent {
@@ -54,14 +65,14 @@ export class OffscreenEngine implements EngineAccess {
     private readonly send: OffscreenSend,
   ) {}
 
-  async translate(markup: string): Promise<EngineReply> {
+  async translate(markup: string, language: string): Promise<EngineReply> {
     try {
       await this.ensure();
     } catch {
       return { ok: false, reason: "the offscreen document could not be created" };
     }
     try {
-      const reply = await this.send({ type: OFFSCREEN_TYPE, op: "translate", markup });
+      const reply = await this.send({ type: OFFSCREEN_TYPE, op: "translate", markup, language });
       return isEngineReply(reply) ? reply : { ok: false, reason: "the offscreen document gave no answer" };
     } catch {
       // The document went away (Chrome may close it). Forget it, so the next request makes one.
@@ -70,25 +81,25 @@ export class OffscreenEngine implements EngineAccess {
     }
   }
 
-  /** Load the engine in the document, creating it when needed; translate nothing. */
-  async warm(): Promise<boolean> {
+  /** Load the engine and `language`'s route in the document, creating it when needed; translate nothing. */
+  async warm(language: string): Promise<boolean> {
     try {
       await this.ensure();
     } catch {
       return false;
     }
     try {
-      return (await this.send({ type: OFFSCREEN_TYPE, op: "warm" })) === true;
+      return (await this.send({ type: OFFSCREEN_TYPE, op: "warm", language })) === true;
     } catch {
       this.ready = null; // gone: the next request makes another
       return false;
     }
   }
 
-  /** Start the model download in the document; it reports back with OFFSCREEN_EVENT. */
-  async startDownload(): Promise<void> {
+  /** Start downloading `models` (catalogue ids) in the document; it reports back with OFFSCREEN_EVENT. */
+  async startDownload(models: string[]): Promise<void> {
     await this.ensure();
-    await this.send({ type: OFFSCREEN_TYPE, op: "download" });
+    await this.send({ type: OFFSCREEN_TYPE, op: "download", models });
   }
 
   /** Stop a download in progress. With no document there is none to stop. */
@@ -136,8 +147,12 @@ export class OffscreenEngine implements EngineAccess {
 
 /** What the document owns: the engine's channel and the download's host. */
 export interface OffscreenParts {
-  channel: { translate(markup: string): Promise<EngineReply>; warm(): Promise<boolean>; running(): boolean };
-  downloads: { start(): void; cancel(): void; running(): boolean };
+  channel: {
+    translate(markup: string, language: string): Promise<EngineReply>;
+    warm(language: string): Promise<boolean>;
+    running(): boolean;
+  };
+  downloads: { start(models: string[]): void; cancel(): void; running(): boolean };
   /** Ask the browser to keep the model's storage: only a document can (navigator.storage.persist). */
   persist?: () => void;
 }
@@ -153,14 +168,14 @@ export function serveOffscreen(
 ): boolean {
   switch (message.op) {
     case "translate":
-      void parts.channel.translate(message.markup).then(sendResponse);
+      void parts.channel.translate(message.markup, message.language).then(sendResponse);
       return true;
     case "warm":
-      void parts.channel.warm().then(sendResponse);
+      void parts.channel.warm(message.language).then(sendResponse);
       return true;
     case "download":
       parts.persist?.();
-      parts.downloads.start();
+      parts.downloads.start(message.models);
       sendResponse(true);
       return false;
     case "cancel":

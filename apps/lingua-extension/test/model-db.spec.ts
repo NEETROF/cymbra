@@ -1,7 +1,10 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { IDBFactory } from "fake-indexeddb";
 import { describe, expect, it } from "vitest";
 import { MODEL_DB, modelDb } from "@/translate/host/model-db.ts";
-import type { ModelManifest } from "@/translate/host/model-manifest.ts";
+import { type ModelManifest, parseCatalogue, routeOf } from "@/translate/host/model-manifest.ts";
 
 // The `lingua-model` database (add-lingua-translation-delivery D5): decompressed bytes keyed by
 // their sha256, a `complete` record per model version, and a whole-database deletion.
@@ -10,10 +13,12 @@ const sha = (c: string) => c.repeat(64);
 const manifest: ModelManifest = {
   version: "en-fr/base-memory/2.0",
   base: "https://models.example/",
+  from: "en",
+  to: "fr",
   files: {
-    model: { path: "m.gz", size: 3, sha256: sha("a") },
-    lex: { path: "l.gz", size: 2, sha256: sha("b") },
-    vocab: { path: "v.gz", size: 1, sha256: sha("c") },
+    model: { path: "m.gz", size: 3, unpacked: 3, sha256: sha("a") },
+    lex: { path: "l.gz", size: 2, unpacked: 2, sha256: sha("b") },
+    vocab: { path: "v.gz", size: 1, unpacked: 1, sha256: sha("c") },
   },
 };
 
@@ -47,6 +52,37 @@ describe("modelDb", () => {
     expect(await db.complete(manifest)).toBe(true);
   });
 
+  it("keeps a model stored before the catalogue complete, as the release before it recorded it", async () => {
+    // generalise-lingua-translation-catalogue: the record a device holds names the model's version,
+    // which is the catalogue's id for it — nothing is downloaded again after the update.
+    const factory = new IDBFactory();
+    const committed = JSON.parse(
+      readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "model-manifest.json"), "utf8"),
+    );
+    const [model] = routeOf(parseCatalogue(committed), "en");
+    const shas = [model.files.model.sha256, model.files.lex.sha256, model.files.vocab.sha256];
+    await new Promise<void>((resolve, reject) => {
+      const req = factory.open(MODEL_DB, 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore("files");
+        req.result.createObjectStore("meta");
+      };
+      req.onsuccess = () => {
+        const tx = req.result.transaction(["files", "meta"], "readwrite");
+        for (const sha256 of shas) tx.objectStore("files").put(new Uint8Array([1]), sha256);
+        tx.objectStore("meta").put({ version: "en-fr/base-memory/2.0", files: shas }, "complete");
+        tx.oncomplete = () => {
+          req.result.close();
+          resolve();
+        };
+        tx.onerror = () => reject(tx.error);
+      };
+      req.onerror = () => reject(req.error);
+    });
+
+    expect(await modelDb(factory).complete(model)).toBe(true);
+  });
+
   it("is not complete for another model version", async () => {
     const db = await filled(new IDBFactory());
     expect(await db.complete({ ...manifest, version: "en-fr/base-memory/3.0" })).toBe(false);
@@ -69,6 +105,46 @@ describe("modelDb", () => {
       };
     });
     expect(await modelDb(factory).complete(manifest)).toBe(false);
+  });
+
+  it("records each model apart (generalise-lingua-translation-model-state D1)", async () => {
+    const factory = new IDBFactory();
+    const db = await filled(factory);
+    const other: ModelManifest = { ...manifest, version: "es-en/base-memory/2.0", from: "es", to: "en" };
+    expect(await db.complete(other)).toBe(false); // its files are here, its record is not
+    await db.markComplete(other);
+    expect(await db.complete(other)).toBe(true);
+    expect(await db.complete(manifest)).toBe(true);
+  });
+
+  it("prunes the models no route needs, keeping the files a kept model names", async () => {
+    const factory = new IDBFactory();
+    const db = await filled(factory);
+    // es-en shares en-fr's vocab, and has a model and a shortlist of its own.
+    await db.put(sha("d"), new Uint8Array([7]));
+    await db.put(sha("e"), new Uint8Array([8]));
+    const other: ModelManifest = {
+      ...manifest,
+      version: "es-en/base-memory/2.0",
+      files: {
+        model: { ...manifest.files.model, sha256: sha("d") },
+        lex: { ...manifest.files.lex, sha256: sha("e") },
+        vocab: manifest.files.vocab,
+      },
+    };
+    await db.markComplete(other);
+
+    await db.prune([manifest]);
+
+    expect(await db.complete(manifest)).toBe(true);
+    expect(await db.complete(other)).toBe(false);
+    expect(await db.has(sha("d"))).toBe(false);
+    expect(await db.has(sha("e"))).toBe(false);
+    expect(await db.has(sha("c"))).toBe(true); // the shared vocab stays
+
+    await db.prune([]);
+    expect(await db.complete(manifest)).toBe(false);
+    expect(await db.has(sha("a"))).toBe(false);
   });
 
   it("deletes the whole database — turning the setting off leaves nothing behind", async () => {

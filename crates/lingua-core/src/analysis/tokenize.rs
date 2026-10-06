@@ -18,10 +18,12 @@
 //! absorbs surface quirks: `n't` contractions expand to their two words
 //! (`don't` → `do` + `not`), edge apostrophes are stripped, and
 //! single-letter tokens only survive when the lexicon knows them ("I", "a").
-//! Adding a studied language later means adding a pre-pass, not touching the
-//! tokeniser.
+//! The Spanish pre-pass reads its text in NFC and splits `al`/`del` into
+//! `a`/`de` + `el` (add-lingua-spanish-analysis D1). Adding a studied language
+//! means adding a pre-pass, not touching the tokeniser.
 
 use serde::Serialize;
+use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
 use super::language::StudiedLanguage;
@@ -62,19 +64,16 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// they are not vocabulary. Apostrophe variants (`’`) are normalised to `'`
 /// before the pre-pass so typographic text behaves like plain text.
 ///
-/// Each language has its own pre-pass. English expands `n't`; Spanish, until
-/// its own pre-pass lands (add-lingua-spanish-analysis), gets the rules that
-/// are not English — segmentation, hyphenated compounds, the digit drop, the
-/// edge-apostrophe trim and the single-letter rule — and no contraction split.
+/// Each language has its own pre-pass. English expands `n't`; Spanish reads
+/// its tokens in NFC and splits `al`/`del` (add-lingua-spanish-analysis D1).
+/// Both share the rules that belong to no language: segmentation, hyphenated
+/// compounds, the digit drop, the edge-apostrophe trim and the single-letter
+/// rule.
 pub fn tokenize(
     text: &str,
     language: StudiedLanguage,
     lexicon: &(impl Lexicon + ?Sized),
 ) -> Vec<Token> {
-    let contractions = match language {
-        StudiedLanguage::English => true,
-        StudiedLanguage::Spanish => false,
-    };
     let words: Vec<(usize, &str)> = text.unicode_word_indices().collect();
     let mut tokens = Vec::new();
     let mut i = 0;
@@ -101,11 +100,11 @@ pub fn tokenize(
                 &words[i..j],
                 start,
                 end,
-                contractions,
+                language,
                 lexicon,
             );
         } else {
-            push_word(&mut tokens, first, start, end, contractions, lexicon);
+            push_word(&mut tokens, first, start, end, language, lexicon);
         }
         i = j;
     }
@@ -113,14 +112,15 @@ pub fn tokenize(
 }
 
 /// Emits an ordinary single-word token, applying the pre-pass: apostrophe
-/// normalisation/trimming, `n't` expansion when `contractions` (English), the
-/// digit drop and the single-letter-needs-the-lexicon rule.
+/// normalisation/trimming, NFC (Spanish), the language's contraction split
+/// (English `n't`, Spanish `al`/`del`), the digit drop and the
+/// single-letter-needs-the-lexicon rule.
 fn push_word(
     tokens: &mut Vec<Token>,
     word: &str,
     start: usize,
     end: usize,
-    contractions: bool,
+    language: StudiedLanguage,
     lexicon: &(impl Lexicon + ?Sized),
 ) {
     let normalized = word.replace('\u{2019}', "'");
@@ -128,8 +128,10 @@ fn push_word(
     if trimmed.is_empty() || trimmed.chars().any(|c| c.is_ascii_digit()) {
         return;
     }
+    let composed = nfc_for(trimmed, language);
+    let trimmed = composed.as_str();
     let lower = trimmed.to_lowercase();
-    if let Some((base, second)) = split_contraction(&lower).filter(|_| contractions) {
+    if let Some((base, second)) = split_contraction(&lower, language) {
         // Preserve the original casing on the base's first letter so the
         // proper-noun heuristic still sees "Don't" as sentence-cased.
         let base_cased = match trimmed.chars().next() {
@@ -166,6 +168,16 @@ fn push_word(
     });
 }
 
+/// The word in NFC for Spanish, so a decomposed accent reads as the pack's
+/// precomposed one; any other language's text as it came — English output must
+/// not move (add-lingua-spanish-analysis D1).
+fn nfc_for(word: &str, language: StudiedLanguage) -> String {
+    match language {
+        StudiedLanguage::English => word.to_owned(),
+        StudiedLanguage::Spanish => word.nfc().collect(),
+    }
+}
+
 /// Emits one token spanning a whole hyphenated compound, recording its pieces'
 /// surfaces. Contractions and the single-letter rule do not apply inside a
 /// compound — it stands or falls as a unit (so `x-ray`, `e-mail` survive).
@@ -181,7 +193,7 @@ fn push_compound(
     pieces: &[(usize, &str)],
     start: usize,
     end: usize,
-    contractions: bool,
+    language: StudiedLanguage,
     lexicon: &(impl Lexicon + ?Sized),
 ) {
     if whole.chars().any(|c| c.is_ascii_digit()) {
@@ -191,22 +203,35 @@ fn push_compound(
                 word,
                 *p_start,
                 p_start + word.len(),
-                contractions,
+                language,
                 lexicon,
             );
         }
         return;
     }
     tokens.push(Token {
-        text: whole.to_owned(),
+        text: nfc_for(whole, language),
         start,
         end,
-        parts: pieces.iter().map(|(_, w)| (*w).to_owned()).collect(),
+        parts: pieces.iter().map(|(_, w)| nfc_for(w, language)).collect(),
     });
 }
 
+/// The language's contraction split, if `lower` is one: English `n't`, Spanish
+/// `al`/`del` (add-lingua-spanish-analysis D1).
+fn split_contraction(lower: &str, language: StudiedLanguage) -> Option<(&str, &'static str)> {
+    match language {
+        StudiedLanguage::English => split_english_contraction(lower),
+        StudiedLanguage::Spanish => match lower {
+            "al" => Some(("a", "el")),
+            "del" => Some(("de", "el")),
+            _ => None,
+        },
+    }
+}
+
 /// `don't` → (`do`, `not`) — irregular table first, then the regular rule.
-fn split_contraction(lower: &str) -> Option<(&str, &'static str)> {
+fn split_english_contraction(lower: &str) -> Option<(&str, &'static str)> {
     for (contraction, base) in IRREGULAR_CONTRACTIONS {
         if lower == *contraction {
             return Some((base, "not"));
@@ -265,6 +290,62 @@ mod tests {
         assert_eq!(
             texts(&tokenize(text, StudiedLanguage::Spanish, &lex)),
             texts(&tokenize(text, StudiedLanguage::English, &lex))
+        );
+    }
+
+    #[test]
+    fn spec_scenario_two_spanish_contractions() {
+        let lex = lexicon();
+        let tokens = tokenize(
+            "Vengo del mercado al centro.",
+            StudiedLanguage::Spanish,
+            &lex,
+        );
+        assert_eq!(
+            texts(&tokens),
+            ["Vengo", "de", "el", "mercado", "a", "el", "centro"]
+        );
+        // The two halves share the source span, as `don't` does.
+        assert_eq!((tokens[1].start, tokens[1].end), (6, 9));
+        assert_eq!((tokens[2].start, tokens[2].end), (6, 9));
+        assert_eq!((tokens[4].start, tokens[4].end), (18, 20));
+    }
+
+    #[test]
+    fn spec_scenario_a_capitalised_spanish_contraction() {
+        let lex = lexicon();
+        let tokens = tokenize("Del mar. AL fin.", StudiedLanguage::Spanish, &lex);
+        assert_eq!(texts(&tokens), ["De", "el", "mar", "A", "el", "fin"]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 3));
+        assert_eq!((tokens[1].start, tokens[1].end), (0, 3));
+    }
+
+    #[test]
+    fn spanish_contractions_are_not_split_inside_a_compound_nor_in_english() {
+        let lex = lexicon();
+        assert_eq!(
+            texts(&tokenize("al-andalus", StudiedLanguage::Spanish, &lex)),
+            ["al-andalus"]
+        );
+        assert_eq!(
+            texts(&tokenize("al del", StudiedLanguage::English, &lex)),
+            ["al", "del"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_decomposed_accent_is_read_composed() {
+        let lex = lexicon();
+        // `está` written as `esta` + U+0301 COMBINING ACUTE ACCENT.
+        let text = "Esta\u{0301} aquí.";
+        let tokens = tokenize(text, StudiedLanguage::Spanish, &lex);
+        assert_eq!(texts(&tokens), ["Está", "aquí"]);
+        // The span still points into the source text, combining mark included.
+        assert_eq!(&text[tokens[0].start..tokens[0].end], "Esta\u{0301}");
+        // English text is never normalised: its output must not move.
+        assert_eq!(
+            texts(&tokenize(text, StudiedLanguage::English, &lex)),
+            ["Esta\u{0301}", "aquí"]
         );
     }
 

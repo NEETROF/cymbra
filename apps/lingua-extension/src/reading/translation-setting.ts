@@ -1,6 +1,6 @@
 import { keepEngineWarm } from "../translate/keepalive.ts";
 import { isElement } from "./blocks.ts";
-import { askModel, type ModelCommand, type ModelStatus } from "../translate/model-messages.ts";
+import { askModel, type ModelCommand, type ModelCost, type ModelStatus } from "../translate/model-messages.ts";
 import {
   loadTranslationSetting,
   MODEL_STATE_KEY,
@@ -45,50 +45,69 @@ export function runtimeTranslationControls(): TranslationControls {
 
 export const COPY = {
   toggle: "Traduction étendue",
-  cost:
-    "Traduit tes phrases sur cet appareil, sans rien envoyer. Télécharge 25,8 Mo une fois, puis utilise " +
-    "environ 200 Mo de mémoire pendant la traduction. Réglage propre à cet appareil.",
   attribution: "Modèle de traduction : Firefox Translations (Mozilla), licence MPL 2.0.",
   ready: "Prête : tes sélections sont traduites sur cet appareil.",
   interrupted: "Téléchargement interrompu.",
   removed: "Le navigateur a supprimé le modèle de cet appareil. Il faut le télécharger à nouveau.",
+  missing: "Il manque un modèle pour une de tes langues.",
   cancel: "Annuler",
+  download: "Télécharger",
   retry: "Réessayer",
   resume: "Reprendre",
   again: "Télécharger à nouveau",
 } as const;
-
-const FAILURE: Record<ModelFailure, string> = {
-  network: "Le téléchargement a échoué : pas de connexion. Réessaie une fois en ligne.",
-  unavailable: "Le téléchargement a échoué : le serveur ne répond pas. Réessaie plus tard.",
-  "not-the-model": "Le téléchargement a échoué : le fichier reçu n'est pas le bon modèle. Réessaie plus tard.",
-  storage: "Pas assez de place sur cet appareil pour le modèle (37 Mo).",
-  unknown: "Le téléchargement a échoué. Réessaie plus tard.",
-};
 
 /** Bytes as the reader reads sizes: decimal megabytes, one decimal, French style. */
 export function megabytes(bytes: number): string {
   return `${(bytes / 1_000_000).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mo`;
 }
 
+/**
+ * What the setting costs, before it is ticked: the sizes come from the package's catalogue
+ * (generalise-lingua-translation-catalogue D4), and without them the sentence names none.
+ */
+export function costText(cost?: ModelCost): string {
+  const download = cost ? megabytes(cost.download) : "le modèle";
+  // One model works in about 200 MB; through the pivot two do, the study's 322 MiB
+  // (add-lingua-spanish-translation-pivot D4).
+  const memory = cost?.pivot ? "environ 340 Mo" : "environ 200 Mo";
+  return (
+    `Traduit tes phrases sur cet appareil, sans rien envoyer. Télécharge ${download} une fois, puis utilise ` +
+    `${memory} de mémoire pendant la traduction. Réglage propre à cet appareil.`
+  );
+}
+
+const FAILURE: Record<ModelFailure, (cost?: ModelCost) => string> = {
+  network: () => "Le téléchargement a échoué : pas de connexion. Réessaie une fois en ligne.",
+  unavailable: () => "Le téléchargement a échoué : le serveur ne répond pas. Réessaie plus tard.",
+  "not-the-model": () => "Le téléchargement a échoué : le fichier reçu n'est pas le bon modèle. Réessaie plus tard.",
+  storage: (cost) =>
+    cost
+      ? `Pas assez de place sur cet appareil pour le modèle (${megabytes(cost.stored)}).`
+      : "Pas assez de place sur cet appareil pour le modèle.",
+  unknown: () => "Le téléchargement a échoué. Réessaie plus tard.",
+};
+
 /** "12,3 Mo sur 25,8 Mo" — or nothing to add when the total is unknown. */
 function progressText(received: number, total: number): string {
   return total > 0 ? ` ${megabytes(received)} sur ${megabytes(total)}` : "";
 }
 
-/** The line under the checkbox, for a state. */
-export function stateText(state: ModelState): string {
+/** The line under the checkbox, for a state; `cost` sizes a storage failure. */
+export function stateText(state: ModelState, cost?: ModelCost): string {
   switch (state.phase) {
     case "downloading":
       return `Téléchargement du modèle…${progressText(state.received, state.total)}`;
     case "ready":
       return COPY.ready;
     case "failed":
-      return FAILURE[state.reason];
+      return FAILURE[state.reason](cost);
     case "interrupted":
       return `${COPY.interrupted}${progressText(state.received, state.total)}`;
     case "removed":
       return COPY.removed;
+    case "missing":
+      return state.total > 0 ? `${COPY.missing} ${megabytes(state.total)} à télécharger.` : COPY.missing;
     default:
       return "";
   }
@@ -134,14 +153,14 @@ export function mountTranslationSetting(block: HTMLElement, controls: Translatio
   const box = el(doc, "input");
   box.type = "checkbox";
   row.append(box, el(doc, "span", undefined, COPY.toggle));
-  const cost = el(doc, "div", "set-note", COPY.cost);
+  const costNote = el(doc, "div", "set-note", costText());
   const attribution = el(doc, "div", "set-note", COPY.attribution);
   const line = el(doc, "div", "set-note");
   line.setAttribute("role", "status");
   const bar = el(doc, "progress", "set-progress");
   const action = el(doc, "button", "set-reset");
   action.type = "button";
-  block.append(row, cost, attribution, bar, line, action);
+  block.append(row, costNote, attribution, bar, line, action);
 
   let status: ModelStatus | null = null;
   let stopPinging: (() => void) | null = null;
@@ -153,6 +172,8 @@ export function mountTranslationSetting(block: HTMLElement, controls: Translatio
     failed: { label: COPY.retry, op: "resume" },
     interrupted: { label: COPY.resume, op: "resume" },
     removed: { label: COPY.again, op: "resume" },
+    // A language the reader added needs a model: asked for, never fetched unasked (model-state D3).
+    missing: { label: COPY.download, op: "resume" },
   };
 
   function render(): void {
@@ -163,6 +184,7 @@ export function mountTranslationSetting(block: HTMLElement, controls: Translatio
     }
     block.hidden = false;
     const { host, state } = status;
+    costNote.textContent = costText(status.cost);
     box.checked = host === "local";
     box.disabled = busy;
     const downloading = host === "local" && state.phase === "downloading";
@@ -173,7 +195,7 @@ export function mountTranslationSetting(block: HTMLElement, controls: Translatio
     } else {
       bar.removeAttribute("value"); // indeterminate
     }
-    line.textContent = host === "local" ? stateText(state) : "";
+    line.textContent = host === "local" ? stateText(state, status.cost) : "";
     line.hidden = !line.textContent;
     const offer = host === "local" ? ACTIONS[state.phase] : undefined;
     action.hidden = !offer;

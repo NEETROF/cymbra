@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  LINGUA_APP_STORE,
   LINGUA_CHROME_WEB_STORE,
   LINGUA_FIREFOX_ADDONS,
   linguaStores,
@@ -24,12 +25,10 @@ describe("store links", () => {
     for (const l of dead) expect(l.href).toBe("#");
   });
 
-  it("points Lingua at its published listings and keeps Safari pending", () => {
+  it("points Lingua at its three published listings, Safari's App Store record among them", () => {
     const links = linguaStores("fr");
-    expect(links.filter((l) => l.live).map((l) => l.href)).toEqual([
-      LINGUA_CHROME_WEB_STORE,
-      LINGUA_FIREFOX_ADDONS,
-    ]);
-    expect(links.find((l) => !l.live)?.label).toContain("Safari");
+    expect(links.every((l) => l.live)).toBe(true);
+    expect(links.map((l) => l.href)).toEqual([LINGUA_CHROME_WEB_STORE, LINGUA_FIREFOX_ADDONS, LINGUA_APP_STORE]);
+    expect(links[2].label).toContain("Safari");
   });
 });

@@ -127,6 +127,11 @@ export interface WordGrammar {
   others: OtherReading[];
   /** The pieces the pre-pass split the written word into (`don't` → `do`, `not`); empty otherwise. */
   pieces: string[];
+  /**
+   * The dictionary form's frequency rank in the pack, 1 for the commonest, or null when the pack does
+   * not rank it (add-lingua-card-frequency). The extension's port adds it: the core's JSON has none.
+   */
+  rank?: number | null;
 }
 
 /** The user's status for a dictionary form. Mirrors the WASM `setStatus` vocabulary. */
@@ -163,6 +168,11 @@ export interface LevelRow {
    * declared it. A property of the pack, not the reader; 0 at A1, which presumes nothing.
    */
   typicalVocabulary: number;
+  /**
+   * The language whose pack gave `typicalVocabulary`, when not this one's: a pack whose levels are
+   * estimated from frequency borrows English's (fix-lingua-spanish-ladder-estimates).
+   */
+  typicalFrom?: StudiedLanguage;
 }
 
 /** The reader's estimated vocabulary size, from `vocabularyEstimate()`. */

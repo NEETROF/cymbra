@@ -163,6 +163,12 @@
   gap: 4px;
 }
 
+/* The language selector, for a reader of several languages: above everything it chooses for. */
+.stats .stats-languages {
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
 .stats .ranges button {
   cursor: pointer;
   padding: 6px 12px;

@@ -47,7 +47,7 @@ reader's surfaces make, on any target.
 - **THEN** it is answered without waiting for that translation to finish
 
 ### Requirement: The answer is the reader's sentence with their selection marked
-A translation SHALL answer with the whole sentence the selection sits in, and SHALL mark, within that translated sentence, the span corresponding to what the reader selected.
+A translation SHALL answer with the whole sentence the selection sits in, and SHALL mark, within that translated sentence, the span corresponding to what the reader selected, in a language whose marks have been measured: English, and Spanish, whose marks through English `release-lingua-spanish-translation` measured on the programme's first tier. In a language whose marks are not measured, the selection SHALL be sent untagged, in a single request, and the answer SHALL be the translated sentence without a mark.
 The selection SHALL be translated in its sentence rather than on its own, so that its form
 carries the grammar the context imposes. The marked span SHALL be identifiable in the answer
 without the caller re-reading the source text.
@@ -63,6 +63,14 @@ without the caller re-reading the source text.
 #### Scenario: The whole sentence is available too
 - **WHEN** a translation is returned
 - **THEN** the caller can show the translated sentence as well as the marked span
+
+#### Scenario: A Spanish sentence
+- **WHEN** a reader selects a word in a Spanish sentence
+- **THEN** the answer is the whole sentence in French, through English, the selection marked
+
+#### Scenario: A language whose marks are not measured
+- **WHEN** a translation is asked in a language whose marks were not measured
+- **THEN** the answer is the whole sentence in French without a mark, from a single request to the engine
 
 ### Requirement: The mark is checked against the selection translated alone
 Where the selection is marked SHALL be checked against a translation of the selection on its own, which SHALL only ever move, split or trim the marks and SHALL never be shown to the reader.
@@ -182,4 +190,94 @@ SHALL be translated: a single word keeps its dictionary card.
 #### Scenario: A single word
 - **WHEN** the reader selects a single word
 - **THEN** the engine is not asked, and the card is the word's dictionary card
+
+### Requirement: Translation models are listed in one catalogue, with a route per studied language
+The package SHALL carry one catalogue of the translation models it may download, each file pinned by its address, its size as served, its decompressed size and the sha256 of its decompressed bytes, and SHALL give for each studied language the route of models that translates it into French, in order. A route SHALL name only models of the catalogue, SHALL start from its language, SHALL chain each model's target to the next model's source, and SHALL end in French; a catalogue that breaks any of these SHALL be refused, and nothing SHALL be fetched from it. The assembly of the model host, its mirror releases and the check run before a package is submitted SHALL cover every model of the catalogue.
+
+#### Scenario: Every reader today
+- **WHEN** the package is built
+- **THEN** its catalogue holds the en-fr model, the English route is that model alone, and the setting downloads, stores and loads it as before
+
+#### Scenario: A route that does not reach French
+- **WHEN** a catalogue's route for a language ends in English
+- **THEN** the catalogue is refused, and no model is fetched
+
+#### Scenario: A model stored before the catalogue
+- **WHEN** the extension updates on a device that holds the en-fr model
+- **THEN** the model is still complete, and nothing is downloaded again
+
+#### Scenario: The host misses a model
+- **WHEN** the model host does not serve a file of one of the catalogue's models
+- **THEN** the check run before a submission fails, naming that model's file
+
+### Requirement: The setting's cost comes from the catalogue
+The setting SHALL state the download it costs and the room the model takes on the device as the sums, over the files of the models it downloads, of their sizes as served and of their decompressed sizes, read from the catalogue. Without those sums, the setting SHALL state its cost without a size.
+
+#### Scenario: Every reader today
+- **WHEN** a reader opens « Traduction étendue » before ticking it
+- **THEN** it says it downloads 25,8 Mo once, and a storage failure says the model takes 36,7 Mo
+
+### Requirement: The models follow the reader's languages
+While extended translation is on, the device SHALL keep the models that the routes of the reader's accepted languages need, and no other. Turning the setting on SHALL download every needed model. A model that the accepted languages no longer need SHALL be deleted, and a model several routes share SHALL be kept while any of them needs it. A needed model that was never downloaded SHALL NOT be fetched until the reader asks, and the setting SHALL say what it costs. A model stored before this requirement SHALL stay complete.
+
+#### Scenario: Every reader today
+- **WHEN** a reader of English alone ticks « Traduction étendue »
+- **THEN** the en-fr model is downloaded, as before, and nothing else
+
+#### Scenario: A language added while the setting is on
+- **WHEN** a reader with the setting on and the en-fr model ready adds a language whose route needs a model not on the device
+- **THEN** nothing is downloaded, and the setting offers to download the missing model with its size
+
+#### Scenario: A language removed
+- **WHEN** a reader of English and Spanish removes Spanish
+- **THEN** the models only Spanish needed are deleted, and en-fr stays
+
+#### Scenario: A model stored before the update
+- **WHEN** the extension updates on a device that holds the en-fr model
+- **THEN** it is still complete, and English is still translated
+
+### Requirement: A translation is asked in its document's language
+A translation request SHALL name the language of the document the sentence was read in. The background SHALL answer it only when every model of that language's route is on the device, and SHALL otherwise answer as without a model. The engine SHALL translate the sentence through that language's route.
+
+#### Scenario: An English page
+- **WHEN** a reader with the en-fr model ready selects a phrase on an English page
+- **THEN** the request names English, and the translation comes from the en-fr model
+
+#### Scenario: A language whose models are not all there
+- **WHEN** a reader selects a phrase on a page in a language whose route has a model that is not on the device
+- **THEN** the card answers as it does without a model
+
+### Requirement: A language's marks are measured before they are shown
+A language whose translation goes through another language SHALL have its selection marked only once its marks, measured on the committed corpus of selections with the extension's own marking, reach the programme's first tier: at least 90 % of the shown marks correct, and at most 25 % of the selections without a mark. The corpus, the rule that chose its selections, the harness and every judgment SHALL be committed, so that the measurement can be run again and checked.
+
+#### Scenario: Measuring again
+- **WHEN** the harness runs on the committed corpus with the catalogue's models
+- **THEN** it produces each selection's translated sentence and mark, as the extension would, and the judged results give each language's share of correct and withheld marks
+
+#### Scenario: Spanish below the first tier
+- **WHEN** Spanish's measured marks fall short of 90 % correct or exceed 25 % withheld
+- **THEN** its sentences stay translated without a mark
+
+#### Scenario: Spanish on the first tier
+- **WHEN** Spanish's measured marks reach 90 % correct with at most 25 % withheld
+- **THEN** its selection is marked in the translated sentence, as English's is
+
+### Requirement: Spanish is translated through English
+The catalogue SHALL carry Mozilla's es-en model, pinned like every model, and Spanish's route SHALL be es-en then en-fr. The engine SHALL load the models of a two-model route once, and SHALL translate a sentence through both in one request. For a reader whose accepted languages include Spanish, the setting SHALL state the download of both models.
+
+#### Scenario: A reader of Spanish turns the setting on
+- **WHEN** a reader who accepts Spanish opens « Traduction étendue » before ticking it
+- **THEN** it says it downloads 52,0 Mo once, and ticking it stores both models
+
+#### Scenario: A reader of English alone
+- **WHEN** a reader who accepts English alone opens « Traduction étendue »
+- **THEN** it says it downloads 25,8 Mo once, as before
+
+#### Scenario: A Spanish selection
+- **WHEN** a reader with both models selects a phrase on a Spanish page
+- **THEN** the French sentence comes back from es-en then en-fr, in one request to the engine
+
+#### Scenario: The host misses the es-en model
+- **WHEN** the model host does not serve a file of the es-en model
+- **THEN** the check run before a submission fails, naming that file
 

@@ -1,5 +1,5 @@
 import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
-import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
+import { acceptedLanguages, DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
 import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
 import { type Block, isElement, mergeBlocks } from "./blocks.ts";
@@ -96,6 +96,9 @@ export interface ReadingHost {
   source(): string;
   /** The tag reading exposures are recorded under. */
   exposureSource(): string;
+  /** The language the whole document declares, a book's from its metadata: Révision opens beside
+   *  it in that language, whatever one section reads as (refine-lingua-review-language D2). */
+  declaredLanguage?: string | null;
 }
 
 /** The web page the content script runs in. */
@@ -147,10 +150,18 @@ export interface SessionStats {
   calibration: number;
   declaredLevel: CefrLevel | null;
   hasLevels: boolean;
+  /** Levels estimated from word frequency, labelled as such (add-lingua-spanish-levels). */
+  levelsEstimated: boolean;
   needsLevel: boolean;
   trackedCount: number;
+  /** Where Révision opens beside this document, null without one (refine-lingua-review-language D2). */
+  reviewLanguage: StudiedLanguage | null;
+  /** The cards, and those due, in that language (D4). */
   deckCount: number;
   dueCount: number;
+  /** The language this document is read in, and the reader's accepted ones (add-lingua-language-choice). */
+  language: StudiedLanguage;
+  languages: StudiedLanguage[];
 }
 
 /** The reader's data (backup, statistics), owned by the background (design D1/D2). */
@@ -163,6 +174,28 @@ const storageArea: AsyncStorageArea = {
 };
 
 const nowSeconds = (): number => Math.floor(Date.now() / 1000);
+
+/** The three-letter codes (ISO 639-2) some packages declare for the shipped languages. */
+const THREE_LETTER: Record<string, string> = { eng: "en", spa: "es" };
+
+/** A language tag as its primary subtag (`es-ES` → `es`, `spa` → `es`), or null when empty. */
+export function primaryLanguage(tag: string | null | undefined): string | null {
+  const primary = (tag ?? "").trim().toLowerCase().split(/[-_]/)[0];
+  return primary ? (THREE_LETTER[primary] ?? primary) : null;
+}
+
+/**
+ * A document's declared language, or null: `lang`, then `xml:lang` (what XHTML, a book section,
+ * declares), on the root element and then on the body (add-lingua-reader-language D1).
+ */
+export function languageHint(doc: Document): string | null {
+  for (const element of [doc.documentElement, doc.body]) {
+    const declared = element?.getAttribute("lang") || element?.getAttribute("xml:lang");
+    const primary = primaryLanguage(declared);
+    if (primary) return primary;
+  }
+  return null;
+}
 
 /** Coerce an untrusted message payload to a drawer view (defaults to review). */
 function drawerView(v: unknown): DrawerView {
@@ -220,6 +253,13 @@ export class ReadingSession {
    * context's.
    */
   private language: StudiedLanguage = DEFAULT_LANGUAGE;
+  /**
+   * The reader's accepted languages (add-lingua-language-routing): with several, each document is
+   * read in the one the engine finds in it; `language` is then that document's.
+   */
+  private languages: StudiedLanguage[] = [DEFAULT_LANGUAGE];
+  /** The language Révision was last told to open in beside this document (`besideLanguage`). */
+  private besideAnnounced: StudiedLanguage | null | undefined;
   /** Reads a card's selection and sentence aloud, with a voice on this device only. */
   private readonly speaker: Speaker = createSpeaker(
     browserSpeechEngine(),
@@ -279,7 +319,11 @@ export class ReadingSession {
       { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
       // None unless the reader turned « Traduction étendue » on and its model is on the device;
       // then the messaging port, which sends the request off this thread.
-      { calibration: () => this.calibration, translator: this.translator },
+      {
+        // In the document's language: its route, and nothing while its models are missing.
+        translator: () => this.translator(this.language),
+        language: () => this.language,
+      },
     );
     this.drawer = new Drawer({
       css: opts.css.drawer,
@@ -290,6 +334,7 @@ export class ReadingSession {
       onChange: () => this.persist(),
       speaker: this.speaker,
       followLook: true,
+      pageLanguage: async () => this.besideLanguage(),
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),
@@ -322,7 +367,7 @@ export class ReadingSession {
   /** Restore the engine, wire the surfaces, then read `host` (none: the reader's library). */
   async start(host: ReadingHost | null): Promise<void> {
     await hydrateEngine(this.port, store);
-    this.language = await readingLanguage(this.port);
+    await this.readLanguages();
     this.calibration = await this.lang.calibration();
     this.hudHidden = await loadHudHidden(storageArea);
     this.indicator.setPosition?.(await loadHudPosition(storageArea));
@@ -474,7 +519,7 @@ export class ReadingSession {
       onCapture: (kind, cap) => this.onCapture(kind, cap),
       // A card is coming: the engine loads while the handles move, not after (android D2). Only
       // with a translator — no model ready, nothing is sent.
-      onBegin: () => this.translator()?.warm?.(),
+      onBegin: () => this.translator(this.language)?.warm?.(this.language),
       win,
       // Only where the card is shown in the callout's place: the reader switched on, the page
       // analysed. Anywhere else the platform's selection is left exactly as it is.
@@ -582,6 +627,12 @@ export class ReadingSession {
     void requestSync("surface");
   }
 
+  /** The reader's accepted languages, and the first as the language until a document says otherwise. */
+  private async readLanguages(): Promise<void> {
+    this.languages = await acceptedLanguages(this.port);
+    this.language = this.languages[0];
+  }
+
   /** Whether the reader still has to choose a level (« Débutant » counts as a choice). */
   private async refreshNeedsLevel(): Promise<void> {
     this.needsLevel = await needsLevelChoice(this.port, this.language);
@@ -620,7 +671,18 @@ export class ReadingSession {
       this.opts.onPainted?.();
       return;
     }
-    const analysis = await this.lang.analyse(blocks.map((b) => b.text));
+    const texts = blocks.map((b) => b.text);
+    // With several accepted languages, read the document in the one the engine finds in it
+    // (add-lingua-language-routing D3): its analysis and every question about it follow.
+    if (this.languages.length > 1) {
+      const language = await this.port.detectLanguage(texts, this.languages, languageHint(host.doc));
+      if (this.host !== host) return;
+      // What was read so far was read in the document's former language: count it there
+      // (add-lingua-language-stats-review D3).
+      if (language !== this.language && this.hasPendingExposure()) void this.flushExposure();
+      this.language = language;
+    }
+    const analysis = await this.lang.analyse(texts);
     // Another document replaced this one while the engine answered: its figures are stale.
     if (this.host !== host) return;
     this.resolved = resolveTokens(blocks, analysis);
@@ -640,9 +702,32 @@ export class ReadingSession {
     this.opts.onPainted?.();
   }
 
+  /**
+   * The language Révision opens in beside this document (refine-lingua-review-language D2): a
+   * book's own, as the library shelves it, when the reader studies it — its cover has no text and
+   * its front matter may be in English — else the language the document is read in. Null without
+   * a document.
+   */
+  private besideLanguage(): StudiedLanguage | null {
+    if (!this.host) return null;
+    const declared = primaryLanguage(this.host.declaredLanguage);
+    return this.languages.find((language) => language === declared) ?? this.language;
+  }
+
   private pushBadge(): void {
+    // Révision follows the document beside it: another language, another book's (D3).
+    const beside = this.besideLanguage();
+    if (beside !== this.besideAnnounced) {
+      this.besideAnnounced = beside;
+      void this.drawer.pageChanged();
+    }
     try {
-      chrome.runtime.sendMessage({ type: "stats", pct: this.stats.analysable ? this.stats.percent : null });
+      // That language rides along: Chrome's side panel follows the active tab's.
+      chrome.runtime.sendMessage({
+        type: "stats",
+        pct: this.stats.analysable ? this.stats.percent : null,
+        language: beside,
+      });
     } catch {
       // The service worker may be asleep; the badge refreshes on the next pass.
     }
@@ -778,7 +863,7 @@ export class ReadingSession {
     } else {
       // Stamp the change so it orders correctly in cross-device sync (LWW).
       await this.lang.setStatusAt(key, g.status, Date.now());
-      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()));
+      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()), this.language);
       // Promoting a word that was in the deck (learning) to known/ignored must retire its
       // card so it stops coming due — a word you now treat as known/ignored shouldn't keep
       // being reviewed. No-op when there is no card. (Clearing → "à apprendre" keeps it.)
@@ -793,7 +878,7 @@ export class ReadingSession {
   private async onExternalChange(backup: string): Promise<void> {
     if (backup === this.lastBackup) return; // our own write echoed back — nothing to do
     await this.port.restore(backup);
-    this.language = await readingLanguage(this.port); // the profile came with the backup
+    await this.readLanguages(); // the profile came with the backup
     this.calibration = await this.lang.calibration();
     await this.refreshNeedsLevel(); // a level picked in another tab or the popup
     await this.repaint();
@@ -822,8 +907,9 @@ export class ReadingSession {
     const lemmas = [...this.pendingExposure];
     this.pendingExposure.clear();
     const now = Date.now();
-    await this.lang.recordExposures(lemmas, this.host?.exposureSource() ?? "reading:", now);
-    const promoted = await this.lang.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
+    const lang = this.lang; // the language they were read in, whatever the document turns to meanwhile
+    await lang.recordExposures(lemmas, this.host?.exposureSource() ?? "reading:", now);
+    const promoted = await lang.promoteByExposure(EXPOSURE_PROMOTE_DAYS, now);
     await this.persist();
     if (promoted > 0) await this.repaint(); // words became known → refresh highlights
   }
@@ -835,13 +921,15 @@ export class ReadingSession {
   /** Add the words read / new words seen since the last flush to today's stats. */
   private flushReading(): void {
     if (this.pendingRead === 0) return;
-    void recordReading(store, utcDay(Date.now()), this.pendingRead, this.pendingUnknown);
+    void recordReading(store, utcDay(Date.now()), this.pendingRead, this.pendingUnknown, this.language);
     this.pendingRead = 0;
     this.pendingUnknown = 0;
   }
 
   private async statsMessage(): Promise<SessionStats> {
     const now = nowSeconds();
+    const beside = this.besideLanguage();
+    const counted = beside ?? this.language;
     return {
       surface: this.opts.surface ?? "page",
       analysable: this.stats.analysable,
@@ -852,10 +940,15 @@ export class ReadingSession {
       calibration: this.calibration,
       declaredLevel: await this.lang.declaredLevel(),
       hasLevels: await this.lang.hasLevels(),
+      levelsEstimated: await this.lang.levelsEstimated(),
       needsLevel: await needsLevelChoice(this.port, this.language),
+      language: this.language,
+      languages: [...this.languages],
       trackedCount: await this.port.trackedCount(),
-      deckCount: await this.port.deckCount(),
-      dueCount: await this.port.dueCount(now),
+      reviewLanguage: beside,
+      // Where the review opens beside it (refine-lingua-review-language D4).
+      deckCount: await this.port.deckCount([counted]),
+      dueCount: await this.port.dueCount(now, [counted]),
     };
   }
 }

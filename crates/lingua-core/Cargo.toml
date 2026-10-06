@@ -22,6 +22,9 @@ description = "Cymbra Lingua core: deterministic text analysis (tokenisation, le
 
 [dependencies]
 unicode-segmentation = { workspace = true }
+# NFC for Spanish text, so a decomposed accent meets the pack's precomposed one
+# (add-lingua-spanish-analysis D1); pure Rust, WASM-clean.
+unicode-normalization = { workspace = true }
 fst = { workspace = true }
 whichlang = { workspace = true }
 serde = { workspace = true }

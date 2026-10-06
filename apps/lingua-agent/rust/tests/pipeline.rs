@@ -12,31 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! The ingest → statusline → /vocab pipeline over the committed fixture pack and
-//! synthetic Claude Code transcripts.
+//! The ingest → statusline → /vocab pipeline over the committed fixture packs (English, and
+//! Spanish for add-lingua-agent-languages) and synthetic Claude Code transcripts.
 
 use std::io::Write;
 
-use lingua_agent::engine::{load_pack, pack_path};
+use lingua_agent::engine::{Library, pack_path, prose_lines};
 use lingua_agent::ingest::{ingest_texts, run_ingest};
 use lingua_agent::source::{ClaudeCodeSource, extract_assistant_texts};
 use lingua_agent::statusline::statusline_text;
 use lingua_agent::store::Store;
-use lingua_agent::vocab::{add_to_deck, vocab_words};
+use lingua_agent::vocab::{VocabWord, add_to_deck, listing, vocab_words};
+use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::packs::Pack;
 
+const EN: StudiedLanguage = StudiedLanguage::English;
+const ES: StudiedLanguage = StudiedLanguage::Spanish;
+
 const PACK_BYTES: &[u8] = include_bytes!("fixtures/pack.lingua");
+/// Built by `scripts/lingua-data/build.sh --testdata es-fr`.
+const ES_PACK_BYTES: &[u8] = include_bytes!("fixtures/es-fr.lingua");
 
 /// English text over the fixture vocabulary (run/city known below 3000; seldom/conundrum unknown).
 const REPLY: &str = "The runner runs through the city every morning and they seldom face a strange conundrum in the code.";
+
+/// Spanish over the fixture vocabulary (casa known below 400; hablar and vino unknown), with a
+/// block of code that must not vote.
+const SPANISH: &str = "Hablaba de la casa y el vino. Hablo de la casa, es el vino de la casa.\n```\nlet city = run(city);\n```";
 
 fn pack() -> Pack {
     Pack::load(PACK_BYTES).expect("fixture pack loads")
 }
 
+fn english() -> Library {
+    Library::from_packs([pack()])
+}
+
+/// English and Spanish followed.
+fn both() -> Library {
+    Library::from_packs([
+        Pack::load(ES_PACK_BYTES).expect("Spanish fixture loads"),
+        pack(),
+    ])
+}
+
 fn calibrated_store() -> Store {
     let store = Store::open_in_memory().unwrap();
-    store.set_calibration(3000).unwrap();
+    store.set_calibration(EN, 3000).unwrap();
+    store.set_calibration(ES, 400).unwrap();
     store
 }
 
@@ -62,14 +85,21 @@ fn extract_assistant_texts_handles_claude_code_shapes() {
 #[test]
 fn ingest_counts_lemmas_but_no_transcript_content() {
     let store = calibrated_store();
-    let counted = ingest_texts(&store, &pack(), &[REPLY.to_string()], "claude-code", 1000).unwrap();
+    let counted = ingest_texts(
+        &store,
+        &mut english(),
+        &[REPLY.to_string()],
+        "claude-code",
+        1000,
+    )
+    .unwrap();
     assert!(counted > 0);
     // Exposures recorded for the fixture vocabulary.
-    assert!(store.exposure("run").unwrap() >= 1);
-    assert!(store.exposure("city").unwrap() >= 1);
-    assert!(store.exposure("seldom").unwrap() >= 1);
+    assert!(store.exposure(EN, "run").unwrap() >= 1);
+    assert!(store.exposure(EN, "city").unwrap() >= 1);
+    assert!(store.exposure(EN, "seldom").unwrap() >= 1);
     // The store holds only lemmas — never a sentence from the transcript.
-    assert_eq!(store.deck_len().unwrap(), 0);
+    assert_eq!(store.deck_len(EN).unwrap(), 0);
 }
 
 #[test]
@@ -83,15 +113,16 @@ fn run_ingest_is_idempotent_on_the_transcript_offset() {
     std::fs::write(&path, &line).unwrap();
 
     let store = calibrated_store();
+    let mut library = english();
     let source = ClaudeCodeSource { path: path.clone() };
-    let first = run_ingest(&store, &pack(), &source, "t1", 1000).unwrap();
+    let first = run_ingest(&store, &mut library, &source, "t1", 1000).unwrap();
     assert!(first > 0);
-    let before = store.exposure("seldom").unwrap();
+    let before = store.exposure(EN, "seldom").unwrap();
 
     // Re-running over the same (unchanged) transcript ingests nothing new.
-    let second = run_ingest(&store, &pack(), &source, "t1", 2000).unwrap();
+    let second = run_ingest(&store, &mut library, &source, "t1", 2000).unwrap();
     assert_eq!(second, 0);
-    assert_eq!(store.exposure("seldom").unwrap(), before);
+    assert_eq!(store.exposure(EN, "seldom").unwrap(), before);
 
     // Appending a new turn ingests only the new turn.
     let mut f = std::fs::OpenOptions::new()
@@ -99,9 +130,9 @@ fn run_ingest_is_idempotent_on_the_transcript_offset() {
         .open(&path)
         .unwrap();
     f.write_all(line.as_bytes()).unwrap();
-    let third = run_ingest(&store, &pack(), &source, "t1", 3000).unwrap();
+    let third = run_ingest(&store, &mut library, &source, "t1", 3000).unwrap();
     assert!(third > 0);
-    assert_eq!(store.exposure("seldom").unwrap(), before + 1);
+    assert_eq!(store.exposure(EN, "seldom").unwrap(), before + 1);
 
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -110,8 +141,12 @@ fn run_ingest_is_idempotent_on_the_transcript_offset() {
 fn statusline_reports_percentage_and_new_words() {
     let store = calibrated_store();
     let ks = store.knowledge_state().unwrap();
-    let line = statusline_text(&pack(), &ks, REPLY).expect("analysable");
+    let line = statusline_text(&mut english(), &ks, REPLY).expect("analysable");
     assert!(line.starts_with("📖 "));
+    assert!(
+        !line.starts_with("📖 EN"),
+        "one language names none: {line}"
+    );
     assert!(line.contains("%"));
     assert!(line.contains("nouveau"), "line was: {line}");
 }
@@ -120,14 +155,15 @@ fn statusline_reports_percentage_and_new_words() {
 fn statusline_is_mute_on_non_analysable_input() {
     let store = calibrated_store();
     let ks = store.knowledge_state().unwrap();
-    assert!(statusline_text(&pack(), &ks, "hi").is_none());
+    assert!(statusline_text(&mut english(), &ks, "hi").is_none());
+    assert!(statusline_text(&mut Library::from_packs([]), &ks, REPLY).is_none());
 }
 
 #[test]
 fn vocab_lists_unknown_words_and_add_creates_cards_with_the_sentence() {
     let store = calibrated_store();
     let ks = store.knowledge_state().unwrap();
-    let words = vocab_words(&pack(), &ks, &[REPLY.to_string()], 3000);
+    let words = vocab_words(&mut english(), &ks, &[REPLY.to_string()], |_| 3000);
     let lemmas: Vec<&str> = words.iter().map(|w| w.lemma.as_str()).collect();
     assert!(lemmas.contains(&"seldom"));
     assert!(lemmas.contains(&"conundrum"));
@@ -136,11 +172,25 @@ fn vocab_lists_unknown_words_and_add_creates_cards_with_the_sentence() {
     assert_eq!(seldom.gloss.as_deref(), Some("rarement"));
     assert!(seldom.sentence.contains("seldom"));
 
-    let added = add_to_deck(&store, &words, &["seldom".into(), "conundrum".into()], 500).unwrap();
-    assert_eq!(added, 2);
-    let card = store.card("seldom").unwrap().unwrap();
+    assert!(seldom.rarity.contains("3000"));
+    // One language: no heading.
+    let text = listing(&words, false);
+    assert!(text.contains("• seldom — rarement"));
+    assert!(!text.contains("Anglais"));
+
+    let added = add_to_deck(
+        &store,
+        &words,
+        &["seldom".into(), "conundrum".into()],
+        None,
+        500,
+    )
+    .unwrap();
+    assert_eq!(added.added, 2);
+    assert!(added.ambiguous.is_empty());
+    let card = store.card(EN, "seldom").unwrap().unwrap();
     assert!(card.provenance.sentence.contains("seldom"));
-    assert_eq!(store.deck_len().unwrap(), 2);
+    assert_eq!(store.deck_len(EN).unwrap(), 2);
 }
 
 #[test]
@@ -164,16 +214,145 @@ fn engine_path_resolution_honours_env_and_defaults() {
     assert_eq!(lingua_home(), dir);
     assert_eq!(pack_path(), dir.join("pack.lingua"));
 
-    // LINGUA_PACK overrides everything, and load_pack reads it.
+    // The packs installed are the languages followed (add-lingua-agent-languages D1): every
+    // `*.lingua` file of the data directory, a file that is not a pack skipped.
+    assert!(Library::installed().is_empty());
+    std::fs::write(dir.join("pack.lingua"), PACK_BYTES).unwrap();
+    std::fs::write(dir.join("es-fr.lingua"), ES_PACK_BYTES).unwrap();
+    std::fs::write(dir.join("broken.lingua"), b"not a pack").unwrap();
+    std::fs::write(dir.join("notes.txt"), PACK_BYTES).unwrap();
+    let mut library = Library::installed();
+    assert_eq!(library.languages(), vec![EN, ES]);
+    assert!(library.several());
+    assert_eq!(library.pack(ES).map(|p| p.studied()), Some(ES));
+
+    // LINGUA_PACK overrides everything: that pack alone is followed.
     let pack = dir.join("custom.lingua");
     std::fs::write(&pack, PACK_BYTES).unwrap();
     unsafe { std::env::set_var("LINGUA_PACK", &pack) };
     assert_eq!(pack_path(), pack);
-    assert!(load_pack().is_some());
+    let mut library = Library::installed();
+    assert_eq!(library.languages(), vec![EN]);
+    assert!(library.pack(EN).is_some());
+    assert!(library.pack(ES).is_none());
 
     unsafe {
         std::env::remove_var("LINGUA_HOME");
         std::env::remove_var("LINGUA_PACK");
     }
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn a_spanish_reply_is_counted_in_spanish_and_its_code_does_not_vote() {
+    let store = calibrated_store();
+    let mut library = both();
+    assert_eq!(library.language_of(SPANISH), Some(ES));
+    ingest_texts(
+        &store,
+        &mut library,
+        &[SPANISH.to_string()],
+        "claude-code",
+        1000,
+    )
+    .unwrap();
+    assert!(store.exposure(ES, "hablar").unwrap() >= 2);
+    assert!(store.exposure(ES, "casa").unwrap() >= 1);
+    assert_eq!(store.exposure(EN, "city").unwrap(), 0); // no English counter moves
+    assert_eq!(store.exposure(EN, "run").unwrap(), 0);
+}
+
+#[test]
+fn an_english_reply_stays_english_with_two_languages_followed() {
+    let store = calibrated_store();
+    ingest_texts(
+        &store,
+        &mut both(),
+        &[REPLY.to_string()],
+        "claude-code",
+        1000,
+    )
+    .unwrap();
+    assert!(store.exposure(EN, "seldom").unwrap() >= 1);
+    assert_eq!(store.exposure(ES, "seldom").unwrap(), 0);
+}
+
+#[test]
+fn fenced_code_is_left_out_of_the_vote() {
+    assert_eq!(
+        prose_lines("Una frase.\n```rust\nlet x = 1;\n```\n\nOtra frase."),
+        vec!["Una frase.", "Otra frase."]
+    );
+}
+
+#[test]
+fn the_statusline_names_the_language_with_two_followed() {
+    let store = calibrated_store();
+    let ks = store.knowledge_state().unwrap();
+    let mut library = both();
+    let spanish = statusline_text(&mut library, &ks, SPANISH).expect("analysable");
+    assert!(spanish.starts_with("📖 ES "), "{spanish}");
+    let english = statusline_text(&mut library, &ks, REPLY).expect("analysable");
+    assert!(english.starts_with("📖 EN "), "{english}");
+}
+
+#[test]
+fn vocab_lists_each_word_under_its_language() {
+    let store = calibrated_store();
+    let ks = store.knowledge_state().unwrap();
+    let words = vocab_words(
+        &mut both(),
+        &ks,
+        &[SPANISH.to_string(), REPLY.to_string()],
+        |language| store.calibration(language).unwrap(),
+    );
+    let of = |language| -> Vec<&str> {
+        words
+            .iter()
+            .filter(|w| w.language == language)
+            .map(|w| w.lemma.as_str())
+            .collect()
+    };
+    assert!(of(EN).contains(&"seldom"));
+    assert!(of(ES).contains(&"hablar"));
+    assert!(of(ES).contains(&"vino"));
+    assert!(!of(ES).contains(&"casa")); // known below Spanish's 400
+    let hablar = words.iter().find(|w| w.lemma == "hablar").unwrap();
+    assert_eq!(hablar.gloss.as_deref(), Some("Parler"));
+    assert!(hablar.rarity.contains("400"));
+    // English first, as the plugin follows them, each under its heading.
+    let text = listing(&words, true);
+    let (en, es) = (
+        text.find("Anglais :").unwrap(),
+        text.find("Espagnol :").unwrap(),
+    );
+    assert!(en < es, "{text}");
+    assert!(text.contains("--language en|es"));
+}
+
+#[test]
+fn a_word_listed_in_two_languages_needs_one() {
+    let store = calibrated_store();
+    let word = |language| VocabWord {
+        language,
+        lemma: "no".into(),
+        gloss: None,
+        rarity: String::new(),
+        sentence: "No.".into(),
+    };
+    let available = [word(EN), word(ES)];
+    let added = add_to_deck(&store, &available, &["No".into()], None, 0).unwrap();
+    assert_eq!((added.added, added.ambiguous), (0, vec!["no".to_string()]));
+    let added = add_to_deck(&store, &available, &["no".into()], Some(ES), 0).unwrap();
+    assert_eq!(added.added, 1);
+    assert!(store.card(ES, "no").unwrap().is_some());
+    assert!(store.card(EN, "no").unwrap().is_none());
+}
+
+#[test]
+fn no_vocabulary_says_so() {
+    assert_eq!(
+        listing(&[], true),
+        "Aucun mot inconnu dans cette session.\n"
+    );
 }

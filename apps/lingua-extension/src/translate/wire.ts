@@ -16,8 +16,8 @@ export type TranslateReply = TranslationResult;
 export function isTranslateMessage(message: unknown): message is TranslateMessage {
   const m = message as Partial<TranslateMessage> | null;
   if (m?.type !== TRANSLATE_TYPE || !m.request || typeof m.request !== "object") return false;
-  const { sentence, selection } = m.request as Partial<TranslationRequest>;
-  if (typeof sentence !== "string") return false;
+  const { sentence, selection, language } = m.request as Partial<TranslationRequest>;
+  if (typeof sentence !== "string" || typeof language !== "string" || !language) return false;
   if (selection === null) return true;
   return (
     !!selection && typeof selection === "object" && Number.isInteger(selection.start) && Number.isInteger(selection.end)
@@ -27,14 +27,17 @@ export function isTranslateMessage(message: unknown): message is TranslateMessag
 /**
  * Load the engine now, translate nothing (add-lingua-translation-android D2, D3): a selection has
  * begun, or a page that was translating is back. Its own type, like the keep-warm ping's — the
- * background answers it only when a model is ready, and loading is all it does.
+ * background answers it only when the language's models are ready, and loading is all it does.
  */
 export const WARM_TYPE = "lingua-translate-warm";
 
 export interface WarmMessage {
   type: typeof WARM_TYPE;
+  /** The language whose route to load (generalise-lingua-translation-model-state D5). */
+  language: string;
 }
 
 export function isWarmMessage(message: unknown): message is WarmMessage {
-  return (message as Partial<WarmMessage> | null)?.type === WARM_TYPE;
+  const m = message as Partial<WarmMessage> | null;
+  return m?.type === WARM_TYPE && typeof m.language === "string" && m.language.length > 0;
 }

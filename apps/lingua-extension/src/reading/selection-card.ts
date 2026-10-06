@@ -72,14 +72,23 @@ export function statusOfClass(cls: TokenClass): LemmaStatus | null {
   }
 }
 
-export function rarityText(cls: TokenClass, calibration: number): string {
+/** « 1 000 », as French writes a number (a narrow no-break space between the groups). */
+const count = (n: number): string => n.toLocaleString("fr-FR");
+
+/**
+ * How common a word is, in plain language (add-lingua-card-frequency D1, D4): the band of its
+ * dictionary form's rank in the pack, whatever the reader's level — a word they are learning says so
+ * instead. `null`: the pack does not rank it, so it lies beyond every band. No rank yet (a pending
+ * card, or none in time): no line, rather than a guess.
+ */
+export function rarityText(cls: TokenClass, rank: number | null | undefined): string {
   if (cls === "Learning") return "Dans ton deck — en cours d'apprentissage.";
-  // A declared CEFR level pins the calibration to 0 on purpose (`setLevel` in Réglages): the level
-  // becomes the only source of presumed-known. Rendering that 0 told every such reader they
-  // knew "tes 0 mots les plus courants" — and declaring a level is the normal path, not an
-  // edge case, so this was the first sentence most readers ever saw in a word popup.
-  if (calibration <= 0) return "Peu fréquent — au-delà de ton niveau.";
-  return `Peu fréquent — au-delà de tes ${calibration.toLocaleString("fr-FR")} mots les plus courants.`;
+  if (rank === undefined) return "";
+  if (rank === null || rank > 20_000) return `Rare — au-delà des ${count(20_000)} mots les plus fréquents.`;
+  if (rank > 5_000) return `Peu fréquent — au-delà des ${count(5_000)} mots les plus fréquents.`;
+  if (rank > 1_000) return `Assez courant — parmi les ${count(5_000)} mots les plus fréquents.`;
+  if (rank > 100) return `Courant — parmi les ${count(1_000)} mots les plus fréquents.`;
+  return `Très courant — parmi les ${count(100)} mots les plus fréquents.`;
 }
 
 /** The engine calls a card may need. */
@@ -286,13 +295,18 @@ export class SelectionCards {
     private readonly ports: SelectionCardPorts,
     private readonly surface: CardSurface,
     private readonly opts: {
-      calibration: () => number;
       clock?: Clock;
       /**
-       * The translation engine as it is right now — asked per card, since the reader can turn it
-       * on or off, and its model can arrive or go, while the page is open. Null: no engine.
+       * The translation engine as it is right now for the document's language — asked per card,
+       * since the reader can turn it on or off, and its models can arrive or go, while the page is
+       * open. Null: no engine.
        */
       translator?: () => TranslatorPort | null;
+      /**
+       * The studied language the document is read in: what a translation is asked in
+       * (generalise-lingua-translation-model-state D5). English when not given.
+       */
+      language?: () => string;
     },
   ) {
     this.clock = opts.clock ?? DEFAULT_CLOCK;
@@ -320,14 +334,20 @@ export class SelectionCards {
       headword: token.lemma,
       surface: token.surface,
       gloss: null,
-      rarity: rarityText(token.class, this.opts.calibration()),
+      // No rank yet: it comes with the grammar (add-lingua-card-frequency D3).
+      rarity: rarityText(token.class, undefined),
       sentence: hit.sentence,
       status: statusOfClass(token.class),
       rect: hit.rect,
+      ...this.languageOfCard(),
       ...(written !== token.surface ? { written } : {}),
     };
     const inSentence = (card: WordPopupContent, cls: TokenClass) =>
-      this.wordEngine(card, cls, { sentence: hit.sentence, selection: hit.selection ?? null });
+      this.wordEngine(card, cls, {
+        sentence: hit.sentence,
+        selection: hit.selection ?? null,
+        language: this.language(),
+      });
     if (needsPhraseGloss(token)) {
       this.request(
         { ...base, pending: true },
@@ -345,6 +365,7 @@ export class SelectionCards {
                 {
                   ...base,
                   gloss: first.gloss,
+                  rarity: rarityText(first.class, reply.grammar?.rank),
                   rows: first.parts?.length ? rowsFor([first], reply.answer.expressions) : [],
                   ...grammarOf(reply.grammar),
                 },
@@ -358,10 +379,19 @@ export class SelectionCards {
       this.request(
         { ...base, pending: true },
         () => this.ports.wordGrammar(written, token.lemma),
-        (answer) => inSentence({ ...base, gloss: answer?.gloss ?? null, ...grammarOf(answer) }, token.class),
+        (answer) =>
+          inSentence(
+            {
+              ...base,
+              gloss: answer?.gloss ?? null,
+              rarity: rarityText(token.class, answer?.rank),
+              ...grammarOf(answer),
+            },
+            token.class,
+          ),
       );
     } else {
-      this.completeWithGrammar({ ...base, gloss: token.gloss }, written, token.lemma, (card) =>
+      this.completeWithGrammar({ ...base, gloss: token.gloss }, written, token.lemma, token.class, (card) =>
         inSentence(card, token.class),
       );
     }
@@ -376,12 +406,13 @@ export class SelectionCards {
     card: WordPopupContent,
     written: string,
     lemma: string,
+    cls: TokenClass,
     finish: (card: WordPopupContent) => PendingCard,
   ): void {
     const asked = this.surface.generation();
     void this.grammarBounded(written, lemma).then((grammar) => {
       if (this.surface.generation() !== asked) return;
-      this.show(finish({ ...card, ...grammarOf(grammar) }));
+      this.show(finish({ ...card, rarity: rarityText(cls, grammar?.rank), ...grammarOf(grammar) }));
     });
   }
 
@@ -435,7 +466,11 @@ export class SelectionCards {
     // pack knows. The pack's answer is shown as soon as it lands, saying a translation is on its
     // way, and the translation replaces it when it arrives.
     const later = translator
-      ? this.translateBounded(translator, { sentence: sel.sentence, selection: sel.selection ?? null })
+      ? this.translateBounded(translator, {
+          sentence: sel.sentence,
+          selection: sel.selection ?? null,
+          language: this.language(),
+        })
       : null;
     this.request(
       { ...base, pending: true, translating: !!later },
@@ -459,6 +494,20 @@ export class SelectionCards {
 
   private translator(): TranslatorPort | null {
     return this.opts.translator?.() ?? null;
+  }
+
+  /** The language a translation is asked in: the document's. */
+  private language(): string {
+    return this.opts.language?.() ?? "en";
+  }
+
+  /**
+   * The language a card names its forms in (add-lingua-spanish-word-card): said only when it is
+   * not English, so an English card's content is what it always was.
+   */
+  private languageOfCard(): Pick<WordPopupContent, "language"> {
+    const language = this.language();
+    return language === "en" ? {} : { language };
   }
 
   /** The engine's answer for this request, or null — never later than TRANSLATION_WAIT_MS. */
@@ -512,16 +561,17 @@ export class SelectionCards {
             headword: t.lemma,
             surface: t.surface,
             gloss: t.gloss,
-            rarity: rarityText(t.class, this.opts.calibration()),
+            rarity: rarityText(t.class, reply.grammar?.rank),
             sentence: sel.sentence,
             status: statusOfClass(t.class),
             rect: sel.rect,
+            ...this.languageOfCard(),
             rows: t.parts?.length ? rowsFor([t], answer.expressions) : undefined,
             ...(written !== t.surface ? { written } : {}),
             ...grammarOf(reply.grammar),
           },
           t.class,
-          { sentence: sel.sentence, selection: sel.selection ?? null },
+          { sentence: sel.sentence, selection: sel.selection ?? null, language: this.language() },
         );
       },
     );

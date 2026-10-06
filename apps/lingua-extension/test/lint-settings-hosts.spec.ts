@@ -35,7 +35,8 @@ const rel = (path: string): string => path.slice(root.length + 1);
 
 describe("one Réglages, rendered by every surface", () => {
   it("reads the block titles off the builder", () => {
-    expect(titles).toEqual(expect.arrayContaining(["Niveau d'anglais", "Lecture à voix haute", "Réinitialisation"]));
+    // The level blocks are titled per language (language-labels), the others by hand.
+    expect(titles).toEqual(expect.arrayContaining(["Langues étudiées", "Lecture à voix haute", "Réinitialisation"]));
   });
 
   for (const host of HOSTS) {

@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	transition	NOUN	transition	correct		transition	correct	
+1	n01004009	teaching	VERB	d'enseigner	correct		enseigner	correct	
+2	n01010042	time	NOUN	temps	correct		temps	correct	
+3	n01016014	Korean	ADJ	sud-coréenne	correct	« South Korean » → « sud-coréenne », one word	coréenne	correct	
+4	n01019005	security	NOUN	en sécurité	correct		sécurité	correct	
+5	n01022016	area	NOUN	domaine	correct		domaine	correct	
+6	n01025045	history	NOUN	de l'histoire	correct		histoire	correct	
+7	n01029011	far	ADJ	l'extrême	correct			withheld	no gloss word in the sentence
+8	n01033021	pattern	NOUN	modèle	correct		modèle	correct	
+9	n01036020	like	VERB	aimerait	correct		aimerait	correct	
+10	n01041018	Physicians	NOUN	médecins	correct		médecins	correct	
+11	n01045035	judge	NOUN	juge	correct		juge	correct	
+12	n01050014	hemoglobin	NOUN	d'hémoglobine	correct		hémoglobine	correct	
+13	n01054011	released	VERB	diffusées	correct			withheld	no gloss word in the sentence
+14	n01059008	discordance	NOUN	discordance	correct			withheld	no gloss word in the sentence
+15	n01063011	clinical	ADJ	cliniques	correct		cliniques	correct	
+16	n01066093	neglect	NOUN	La négligence	correct		négligence	correct	
+17	n01070017	suggested	VERB	a suggéré	correct		suggéré	correct	
+18	n01074020	edge	NOUN	bord	correct		bord	correct	
+19	n01078025	modern	ADJ	moderne	correct		moderne	correct	
+20	n01084008	couple	NOUN	couple	correct		couple	correct	
+21	n01087005	say	VERB	dire	correct		dire	correct	
+22	n01091013	shooting	NOUN	de tir	correct		tir	correct	
+23	n01094014	marketplaces	NOUN	des marchés	correct		marchés	correct	
+24	n01097098	stop	NOUN	arrêt	correct		arrêt	correct	
+25	n01102006	told	VERB	a déclaré	correct		déclaré	correct	
+26	n01107006	compensation	NOUN	d'indemnisation	correct		indemnisation	correct	
+27	n01110008	Premium	ADJ	premium	correct			withheld	no gloss word in the sentence
+28	n01114025	adults	NOUN	adultes	correct		adultes	correct	
+29	n01118003	mic	NOUN	micro	correct		micro	correct	
+30	n01121032	died	VERB	est mort	correct			withheld	no gloss word in the sentence
+31	n01127089	know	VERB	sais	correct			withheld	no gloss word in the sentence
+32	n01130003	ground	NOUN		withheld	no mark (« ground zero » → « zéro »)		withheld	no gloss word in the sentence
+33	n01134015	credited	VERB	crédité	correct		crédité	correct	
+34	n01138026	episodes	NOUN	épisodes	correct		épisodes	correct	
+35	n01142008	incredible	ADJ	incroyable",	correct		incroyable	correct	
+36	n01145028	volunteers	NOUN	volontaires	correct		volontaires	correct	
+37	n01149027	see	VERB	vu	correct			withheld	no gloss word in the sentence
+38	w01003056	islands	NOUN	Les îles	correct		îles	correct	
+39	w01007004	limited	ADJ	limitée	correct		limitée	correct	
+40	w01010046	state	NOUN	l'état	correct		état	correct	
+41	w01016070	example	NOUN	exemple	correct		exemple	correct	
+42	w01020018	climate	NOUN	climat	correct		climat	correct	
+43	w01025085	important	ADJ	d'importantes	correct		importantes	correct	
+44	w01028069	reaction	NOUN	réaction	correct		réaction	correct	
+45	w01031015	tends	VERB	a tendance	correct		tendance	correct	
+46	w01035081	land	NOUN	terres	correct		terres	correct	
+47	w01038044	indigenous	ADJ	autochtones	correct		autochtones	correct	
+48	w01042055	city	NOUN	ville	correct		ville	correct	
+49	w01046056	government	NOUN	gouvernement	correct		gouvernement	correct	
+50	w01050067	fall	NOUN	chute	correct		chute	correct	
+51	w01053015	exact	ADJ	exacte	correct		exacte	correct	
+52	w01058009	battle	NOUN	combat	correct		combat	correct	
+53	w01063048	represented	VERB	représentaient	correct		représentaient	correct	
+54	w01066040	New	NOUN	Nouvel	correct		Nouvel	correct	
+55	w01070031	astronomical	ADJ	astronomique	correct		astronomique	correct	
+56	w01072079	century	NOUN	siècle	correct		siècle	correct	
+57	w01075039	make	VERB	qui	wrong	marks « qui » instead of « constituent »		withheld	no gloss word in the sentence
+58	w01080129	enemies	NOUN	ennemis	correct		ennemis	correct	
+59	w01085004	Army	NOUN	L'armée	correct		armée	correct	
+60	w01089040	time	NOUN	époque	correct			withheld	no gloss word in the sentence
+61	w01095090	considered	VERB	jugé	correct			withheld	no gloss word in the sentence
+62	w01099012	origin	NOUN	l'origine	correct		origine	correct	
+63	w01102020	officer	NOUN		withheld	no mark	officier	correct	
+64	w01106073	altitude	NOUN	altitude	correct		altitude	correct	
+65	w01111089	met	VERB	a rencontré	correct		rencontré	correct	
+66	w01115023	University	NOUN	l'Université	correct		Université	correct	
+67	w01119059	similar	ADJ	similaire	correct			withheld	no gloss word in the sentence
+68	w01125036	hours	NOUN	des heures	correct		heures	correct	
+69	w01130099	released	VERB	a sorti	correct		sorti	correct	
+70	w01133014	plotter	NOUN	que traceur	correct	« en tant que traceur »: the mark carries « que »		withheld	no gloss word in the sentence
+71	w01136029	stereotypical	ADJ	stéréotypée	correct		stéréotypée	correct	
+72	w01140032	method	NOUN	méthode	correct		méthode	correct	
+73	w01143037	played	VERB	joué	correct		joué	wrong	the first « joué » (the co-starring), not « joué par »
+74	w01147122	information	NOUN	d'informations	correct		informations	correct	
+75	n02002007	able	ADJ	pu	correct			withheld	no gloss word in the sentence
+76	n02027007	agents	NOUN	agents	correct		agents	correct	
+77	n02038007	gropes	VERB	tâtonne	correct		tâtonne	correct	
+78	n02048002	alarm	NOUN	réveil	correct		réveil	correct	
+79	n02073024	time	NOUN	le moment	correct	« for the time being » → « pour le moment »		withheld	no gloss word in the sentence
+80	n03001007	letter	NOUN	lettre	correct		lettre	correct	
+81	n03005025	accused	VERB	a accusé	correct		accusé	correct	
+82	n03008011	way	NOUN	route	correct	« on its way out » → « en route pour sortir »	route	correct	
+83	n04003043	hit	NOUN	à succès	correct		succès	correct	
+84	n04007018	note	NOUN	note	correct		note	correct	
+85	n05001005	represents	VERB	représente	correct		représente	correct	
+86	n05003022	one	NOUN		withheld	no mark (« the only one » → « le seul »)		withheld	no gloss word in the sentence
+87	n05008012	worried	ADJ	inquiet	correct		inquiet	correct	
+88	w02003037	cloister	NOUN	cloître	correct		cloître	correct	
+89	w02006081	win	VERB	remporter	correct			withheld	no gloss word in the sentence
+90	w02009002	severity	NOUN	gravité	correct			withheld	no gloss word in the sentence
+91	w02014013	last	ADJ	derniers	correct		derniers	correct	
+92	w02017061	traces	NOUN	traces	correct		traces	correct	
+93	w03003039	captained	VERB	commandé	correct			withheld	no gloss word in the sentence
+94	w03007039	outposts	NOUN	avant-postes	correct		avant	wrong	« avant » alone, half of « avant-postes »
+95	w04001027	lower	ADJ	inférieure	correct			withheld	no gloss word in the sentence
+96	w04004051	parts	NOUN	parties	correct		deuxième	wrong	« deuxième », another word
+97	w04010027	met	VERB	rencontrés	correct		rencontrés	correct	
+98	w05003012	breakdown	NOUN	rupture	correct			withheld	no gloss word in the sentence
+99	w05006058	other	ADJ	D'autre	correct	« On the other hand » → « D'autre part »	autre	correct	

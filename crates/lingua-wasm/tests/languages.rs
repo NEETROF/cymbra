@@ -49,6 +49,10 @@ fn english_pack() -> Vec<u8> {
 /// A small es→fr pack: the testdata's sources and notice, so the licence checks pass,
 /// with Spanish forms, ranks and glosses, and no CEFR levels.
 fn spanish_pack() -> Vec<u8> {
+    lingua_pack::build_pack(&spanish_inputs()).unwrap_or_else(|e| panic!("build the es pack: {e}"))
+}
+
+fn spanish_inputs() -> lingua_pack::PackInputs {
     let mut inputs = testdata();
     inputs.meta.studied = "es".into();
     inputs.meta.analyzer_version = StudiedLanguage::Spanish.analyzer_version().into();
@@ -72,7 +76,7 @@ fn spanish_pack() -> Vec<u8> {
     inputs.readings = Vec::new();
     inputs.senses = Vec::new();
     inputs.notice = format!("{}\nSpanish test pack.", inputs.notice);
-    lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the es pack: {e}"))
+    inputs
 }
 
 fn english_engine() -> LinguaEngine {
@@ -89,6 +93,51 @@ fn es() -> Option<String> {
     Some("es".to_owned())
 }
 
+/// A pack whose levels are estimated from frequency borrows English's typical
+/// vocabularies for its ladder, and says so; English's own ladder answers as before
+/// (`fix-lingua-spanish-ladder-estimates`).
+#[test]
+fn an_estimated_ladder_borrows_english_typical_vocabularies() {
+    use lingua_core::knowledge::level::CefrLevel;
+
+    let mut inputs = spanish_inputs();
+    inputs.levels = vec![
+        ("haber".into(), CefrLevel::A1),
+        ("trabajar".into(), CefrLevel::A2),
+        ("equipo".into(), CefrLevel::B1),
+    ];
+    inputs.meta.levels_estimated = true;
+    let mut engine = english_engine();
+    engine
+        .add_pack(&lingua_pack::build_pack(&inputs).unwrap())
+        .unwrap();
+    let rows = |language: Option<String>| -> Vec<serde_json::Value> {
+        serde_json::from_str(&engine.level_ladder(language).unwrap()).unwrap()
+    };
+
+    let english = rows(None);
+    let spanish = rows(es());
+    assert!(english.iter().all(|row| row.get("typicalFrom").is_none()));
+    for (row, english_row) in spanish.iter().zip(&english) {
+        assert_eq!(row["typicalFrom"], "en");
+        assert_eq!(row["typicalVocabulary"], english_row["typicalVocabulary"]);
+    }
+    // Its own levels' counts stay its own.
+    assert_eq!(spanish[0]["total"], 1);
+}
+
+/// A dictionary form's frequency rank comes from its language's own pack
+/// (`add-lingua-card-frequency`); a lemma the pack does not rank has none.
+#[test]
+fn a_rank_comes_from_the_language_s_own_pack() {
+    let engine = two_language_engine();
+    assert_eq!(engine.frequency_rank("haber", es()).unwrap(), Some(20));
+    assert_eq!(engine.frequency_rank("equipo", es()).unwrap(), Some(900));
+    assert_eq!(engine.frequency_rank("run", None).unwrap(), Some(500));
+    assert_eq!(engine.frequency_rank("haber", None).unwrap(), None);
+    assert_eq!(engine.frequency_rank("run", es()).unwrap(), None);
+}
+
 #[test]
 fn spec_scenario_a_second_language_is_served_by_its_own_pack() {
     let mut engine = english_engine();
@@ -98,7 +147,7 @@ fn spec_scenario_a_second_language_is_served_by_its_own_pack() {
 
     let spanish = engine.analyse(vec![SPANISH.to_owned()], es()).unwrap();
     assert!(
-        spanish.contains(r#""analyzer_version":"0.1.0""#),
+        spanish.contains(r#""analyzer_version":"1.2.0""#),
         "{spanish}"
     );
     assert!(
@@ -248,6 +297,81 @@ fn pack_bound_answers_follow_the_language() {
     assert_eq!(engine.promote_by_exposure(2, T_MS, es()).unwrap(), 0);
     let grammar = engine.word_grammar("has", "haber", es()).unwrap();
     assert!(grammar.contains("Avoir (auxiliaire)"), "{grammar}");
+}
+
+#[test]
+fn spec_scenario_a_document_is_read_in_its_own_language() {
+    let engine = english_engine(); // a choice needs no pack: English alone is held
+    let spanish = vec![
+        "Los equipos nunca entregan el viernes por la noche, es una regla antigua.".to_owned(),
+        "El faro se alza sobre las rocas desde hace más de un siglo.".to_owned(),
+    ];
+    let both = vec!["en".to_owned(), "es".to_owned()];
+    assert_eq!(
+        engine
+            .detect_language(spanish.clone(), both.clone(), None)
+            .unwrap(),
+        "es"
+    );
+    // Nothing to detect: the declared language, then the first candidate.
+    let menu = vec!["Menu".to_owned(), "OK".to_owned()];
+    assert_eq!(
+        engine
+            .detect_language(menu.clone(), both.clone(), Some("es-ES".to_owned()))
+            .unwrap(),
+        "en"
+    );
+    assert_eq!(
+        engine
+            .detect_language(menu.clone(), both.clone(), Some("es".to_owned()))
+            .unwrap(),
+        "es"
+    );
+    assert_eq!(
+        engine
+            .detect_language(menu, both, Some("fr".to_owned()))
+            .unwrap(),
+        "en"
+    );
+    // One candidate is chosen without detection.
+    assert_eq!(
+        engine
+            .detect_language(spanish, vec!["en".to_owned()], None)
+            .unwrap(),
+        "en"
+    );
+}
+
+#[test]
+fn spec_scenario_a_review_across_languages_or_within_one() {
+    let mut engine = two_language_engine();
+    engine
+        .add_card("city", "city", "The city sleeps.", "", None, 1.0, None)
+        .unwrap();
+    engine
+        .add_card("faro", "faro", "El faro brilla.", "", None, 1.0, es())
+        .unwrap();
+    assert_eq!(engine.due_count(10.0, None), 2);
+    assert_eq!(engine.due_count(10.0, Some(vec!["es".to_owned()])), 1);
+    // A tag the core does not know filters nothing.
+    assert_eq!(engine.due_count(10.0, Some(vec!["pt".to_owned()])), 2);
+    // The deck's size by language, read the same way (refine-lingua-review-language D4).
+    assert_eq!(engine.deck_count(None), 2);
+    assert_eq!(engine.deck_count(Some(vec!["es".to_owned()])), 1);
+    assert_eq!(engine.deck_count(Some(vec!["en".to_owned()])), 1);
+    assert_eq!(engine.deck_count(Some(vec!["pt".to_owned()])), 2);
+
+    assert_eq!(engine.start_review(10.0, Some(vec!["es".to_owned()])), 1);
+    assert_eq!(engine.review_current_language().as_deref(), Some("es"));
+    assert_eq!(engine.start_review(10.0, None), 2);
+    assert!(engine.review_current_language().is_some());
+    engine.review_mark_known(10.0);
+    engine.review_mark_known(10.0);
+    assert_eq!(
+        engine.review_current_language(),
+        None,
+        "no card shown, no language"
+    );
 }
 
 #[test]

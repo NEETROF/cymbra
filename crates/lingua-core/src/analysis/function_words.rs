@@ -178,18 +178,143 @@ const ENGLISH: &[&[&str]] = &[
     NEGATION,
 ];
 
+/// Spanish articles and other determiners: possessives, demonstratives, quantifiers.
+/// Inflected forms too, which a pack may keep as their own lemmas (design D5).
+const ES_DETERMINERS: &[&str] = &[
+    "alguna",
+    "algunas",
+    "alguno",
+    "algunos",
+    "algún",
+    "ambas",
+    "ambos",
+    "aquel",
+    "aquella",
+    "aquellas",
+    "aquellos",
+    "cada",
+    "cualquier",
+    "cualquiera",
+    "demasiada",
+    "demasiadas",
+    "demasiado",
+    "demasiados",
+    "el",
+    "esa",
+    "esas",
+    "ese",
+    "esos",
+    "esta",
+    "estas",
+    "este",
+    "estos",
+    "la",
+    "las",
+    "lo",
+    "los",
+    "mi",
+    "mis",
+    "misma",
+    "mismas",
+    "mismo",
+    "mismos",
+    "mucha",
+    "muchas",
+    "mucho",
+    "muchos",
+    "ninguna",
+    "ningunas",
+    "ninguno",
+    "ningunos",
+    "ningún",
+    "nuestra",
+    "nuestras",
+    "nuestro",
+    "nuestros",
+    "otra",
+    "otras",
+    "otro",
+    "otros",
+    "poca",
+    "pocas",
+    "poco",
+    "pocos",
+    "su",
+    "sus",
+    "tanta",
+    "tantas",
+    "tanto",
+    "tantos",
+    "toda",
+    "todas",
+    "todo",
+    "todos",
+    "tu",
+    "tus",
+    "un",
+    "una",
+    "unas",
+    "unos",
+    "varias",
+    "varios",
+    "vuestra",
+    "vuestras",
+    "vuestro",
+    "vuestros",
+];
+
+/// Spanish personal, clitic, prepositional, possessive, relative, interrogative and
+/// indefinite pronouns.
+const ES_PRONOUNS: &[&str] = &[
+    "algo", "alguien", "aquello", "conmigo", "consigo", "contigo", "cual", "cuales", "cuya",
+    "cuyas", "cuyo", "cuyos", "cuál", "cuáles", "cuánta", "cuántas", "cuánto", "cuántos", "ella",
+    "ellas", "ello", "ellos", "eso", "esto", "la", "las", "le", "les", "lo", "los", "me", "mí",
+    "mía", "mías", "mío", "míos", "nada", "nadie", "nos", "nosotras", "nosotros", "os", "que",
+    "quien", "quienes", "quién", "quiénes", "qué", "se", "suya", "suyas", "suyo", "suyos", "sí",
+    "te", "ti", "tuya", "tuyas", "tuyo", "tuyos", "tú", "usted", "ustedes", "vos", "vosotras",
+    "vosotros", "yo", "él",
+];
+
+/// Spanish prepositions.
+const ES_PREPOSITIONS: &[&str] = &[
+    "a", "ante", "bajo", "con", "contra", "de", "desde", "durante", "en", "entre", "excepto",
+    "hacia", "hasta", "mediante", "para", "por", "salvo", "según", "sin", "sobre", "tras",
+];
+
+/// Spanish coordinating and subordinating conjunctions.
+const ES_CONJUNCTIONS: &[&str] = &[
+    "aunque", "como", "cuando", "donde", "e", "mientras", "ni", "o", "pero", "porque", "pues",
+    "que", "si", "sino", "u", "y",
+];
+
+/// Spanish auxiliaries and modals, as the forms tables lemmatise their forms.
+const ES_AUXILIARIES_AND_MODALS: &[&str] = &["deber", "estar", "haber", "poder", "ser", "soler"];
+
+/// Spanish negation. `nunca` is left out, as English's `never` is: an adverb with
+/// content of its own.
+const ES_NEGATION: &[&str] = &["no"];
+
+/// The six Spanish tables (add-lingua-spanish-analysis D5).
+const SPANISH: &[&[&str]] = &[
+    ES_DETERMINERS,
+    ES_PRONOUNS,
+    ES_PREPOSITIONS,
+    ES_CONJUNCTIONS,
+    ES_AUXILIARIES_AND_MODALS,
+    ES_NEGATION,
+];
+
 /// Whether a dictionary form is a closed-class word of the studied language:
 /// an article or other determiner, a pronoun, a preposition or particle, a
 /// conjunction, an auxiliary or modal, or a negation. `lemma` is what the
 /// lemmatisation cascade produced (lowercase), never a surface form.
 ///
-/// Spanish has no tables yet (they come with its lemma conventions,
-/// add-lingua-spanish-analysis): until then no Spanish word is left out of a
-/// word-by-word gloss, and none is judged by an English table.
+/// Each language is judged by its own tables only: `de` is not an English
+/// function word, nor `the` a Spanish one.
 pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
     let tables: &[&[&str]] = match studied {
         StudiedLanguage::English => ENGLISH,
-        StudiedLanguage::Spanish => &[],
+        StudiedLanguage::Spanish => SPANISH,
     };
     tables
         .iter()
@@ -209,19 +334,59 @@ mod tests {
     }
 
     #[test]
-    fn spanish_has_no_function_words_until_its_tables_land() {
-        for lemma in ["de", "la", "el", "y", "que", "the", "of"] {
+    fn each_language_is_judged_by_its_own_tables() {
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        for lemma in ["de", "la", "el", "y", "que", "haber", "no"] {
             assert!(
-                !is_function_word(lemma, StudiedLanguage::Spanish),
-                "{lemma:?}"
+                is_function_word(lemma, ES),
+                "{lemma:?} is a Spanish function word"
+            );
+            assert!(!is_function_word(lemma, EN) || lemma == "no", "{lemma:?}");
+        }
+        for lemma in ["the", "of", "casa", "padre", "nunca", "decir"] {
+            assert!(
+                !is_function_word(lemma, ES),
+                "{lemma:?} is not a Spanish function word"
             );
         }
         all_function_words(&["the", "of"]);
     }
 
     #[test]
+    fn spec_scenario_a_spanish_phrase() {
+        // "la casa de mi padre", lemmatised: the closed classes are flagged, the nouns are not.
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        let flagged: Vec<bool> = ["la", "casa", "de", "mi", "padre"]
+            .iter()
+            .map(|lemma| is_function_word(lemma, ES))
+            .collect();
+        assert_eq!(flagged, [true, false, true, true, false]);
+    }
+
+    #[test]
+    fn spanish_classes_hold_what_they_name() {
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        for (table, sample) in [
+            (ES_DETERMINERS, &["el", "una", "mis", "esta", "todos"][..]),
+            (ES_PRONOUNS, &["yo", "nos", "les", "quién", "nadie"][..]),
+            (ES_PREPOSITIONS, &["a", "de", "según", "tras"][..]),
+            (ES_CONJUNCTIONS, &["y", "pero", "aunque", "u"][..]),
+            (
+                ES_AUXILIARIES_AND_MODALS,
+                &["haber", "ser", "estar", "poder"][..],
+            ),
+            (ES_NEGATION, &["no"][..]),
+        ] {
+            for word in sample {
+                assert!(table.binary_search(word).is_ok(), "{word:?}");
+                assert!(is_function_word(word, ES), "{word:?}");
+            }
+        }
+    }
+
+    #[test]
     fn every_table_is_sorted_and_free_of_duplicates() {
-        for table in ENGLISH {
+        for table in ENGLISH.iter().chain(SPANISH) {
             for pair in table.windows(2) {
                 assert!(
                     pair[0] < pair[1],

@@ -43,6 +43,7 @@ interface WasmEngine {
   gloss(lemma: string, language?: string | null): string | undefined;
   phraseGloss(text: string, language?: string | null): string;
   wordGrammar(written: string, lemma: string, language?: string | null): string;
+  frequencyRank(lemma: string, language?: string | null): number | undefined;
   trackedCount(): number;
   addCard(
     lemma: string,
@@ -54,10 +55,11 @@ interface WasmEngine {
     language?: string | null,
   ): void;
   retireCard(lemma: string, now: number, language?: string | null): void;
-  deckCount(): number;
-  dueCount(now: number): number;
-  startReview(now: number): number;
+  deckCount(languages?: string[] | null): number;
+  dueCount(now: number, languages?: string[] | null): number;
+  startReview(now: number, languages?: string[] | null): number;
   reviewCurrent(): string | undefined;
+  reviewCurrentLanguage(): string | undefined;
   reviewReveal(): void;
   reviewGrade(rating: string, now: number): void;
   reviewMarkKnown(now: number): void;
@@ -78,6 +80,7 @@ interface WasmEngine {
   exportDeclaredLevels(): string;
   applyDeclaredLevelChanges(json: string): number;
   hasLevels(language?: string | null): boolean;
+  levelsEstimated(language?: string | null): boolean;
   levelLadder(language?: string | null): string;
   vocabularyEstimate(language?: string | null): string;
   recordExposures(lemmas: string[], source: string, atMs: number, language?: string | null): void;
@@ -87,6 +90,7 @@ interface WasmEngine {
   languages(): string;
   studiedLanguages(): string;
   setStudiedLanguages(tags: string[]): void;
+  detectLanguage(blocks: string[], candidates: string[], hint?: string | null): string;
   free(): void;
 }
 
@@ -229,25 +233,33 @@ export class WasmAnalyzerPort implements LinguaPort {
     (await this.engine()).setStudiedLanguages(languages);
   }
 
+  async detectLanguage(blocks: string[], candidates: StudiedLanguage[], hint: string | null): Promise<StudiedLanguage> {
+    return (await this.engine()).detectLanguage(blocks, candidates, hint) as StudiedLanguage;
+  }
+
   async trackedCount(): Promise<number> {
     return (await this.engine()).trackedCount();
   }
 
-  async deckCount(): Promise<number> {
-    return (await this.engine()).deckCount();
+  async deckCount(languages?: StudiedLanguage[]): Promise<number> {
+    return (await this.engine()).deckCount(languages ?? null);
   }
 
-  async dueCount(now: number): Promise<number> {
-    return (await this.engine()).dueCount(now);
+  async dueCount(now: number, languages?: StudiedLanguage[]): Promise<number> {
+    return (await this.engine()).dueCount(now, languages ?? null);
   }
 
-  async startReview(now: number): Promise<number> {
-    return (await this.engine()).startReview(now);
+  async startReview(now: number, languages?: StudiedLanguage[]): Promise<number> {
+    return (await this.engine()).startReview(now, languages ?? null);
   }
 
   async reviewCurrent(): Promise<ReviewCard | null> {
-    const json = (await this.engine()).reviewCurrent();
-    return json ? (JSON.parse(json) as ReviewCard) : null;
+    const engine = await this.engine();
+    const json = engine.reviewCurrent();
+    if (!json) return null;
+    // The card's view stays as the English baseline pins it; its language is a call of its own.
+    const language = engine.reviewCurrentLanguage() as StudiedLanguage | undefined;
+    return { ...(JSON.parse(json) as ReviewCard), ...(language ? { language } : {}) };
   }
 
   async reviewReveal(): Promise<void> {
@@ -338,7 +350,10 @@ class WasmLanguagePort implements LanguagePort {
   }
 
   async wordGrammar(written: string, lemma: string): Promise<WordGrammar> {
-    return JSON.parse((await this.engine()).wordGrammar(written, lemma, this.language)) as WordGrammar;
+    const engine = await this.engine();
+    const grammar = JSON.parse(engine.wordGrammar(written, lemma, this.language)) as WordGrammar;
+    // The rank comes with the grammar (add-lingua-card-frequency D3): one answer, under one bound.
+    return { ...grammar, rank: engine.frequencyRank(lemma, this.language) ?? null };
   }
 
   async addCard(card: NewCard): Promise<void> {
@@ -383,6 +398,10 @@ class WasmLanguagePort implements LanguagePort {
 
   async hasLevels(): Promise<boolean> {
     return (await this.engine()).hasLevels(this.language);
+  }
+
+  async levelsEstimated(): Promise<boolean> {
+    return (await this.engine()).levelsEstimated(this.language);
   }
 
   async levelLadder(): Promise<LevelRow[]> {

@@ -43,19 +43,21 @@ function setup() {
   return { host, workers, events, ended, log };
 }
 
+const EN_FR = "en-fr/base-memory/2.0";
+
 describe("DownloadHost", () => {
   it("starts one worker and tells it to download", () => {
     const { host, workers } = setup();
-    host.start();
-    host.start(); // already running: nothing more
+    host.start([EN_FR]);
+    host.start([EN_FR]); // already running: nothing more
     expect(workers).toHaveLength(1);
-    expect(workers[0]!.sent).toEqual([{ op: "download" }]);
+    expect(workers[0]!.sent).toEqual([{ op: "download", models: [EN_FR] }]);
     expect(host.running()).toBe(true);
   });
 
   it("relays progress, then completion — and puts the worker down", () => {
     const { host, workers, events, ended } = setup();
-    host.start();
+    host.start([EN_FR]);
     workers[0]!.say({ kind: "progress", received: 5, total: 10 });
     workers[0]!.say({ kind: "done" });
     expect(events).toEqual([{ kind: "progress", received: 5, total: 10 }, { kind: "done" }]);
@@ -66,7 +68,7 @@ describe("DownloadHost", () => {
 
   it("reports a failure by its reason alone, and logs the detail", () => {
     const { host, workers, events, log } = setup();
-    host.start();
+    host.start([EN_FR]);
     workers[0]!.say({ kind: "failed", reason: "not-the-model", detail: "lex: sha256 differs" });
     expect(events).toEqual([{ kind: "failed", reason: "not-the-model" }]);
     expect(log).toHaveBeenCalledWith(expect.stringContaining("not-the-model"), "lex: sha256 differs");
@@ -74,7 +76,7 @@ describe("DownloadHost", () => {
 
   it("reports nothing for a download it was told to cancel", () => {
     const { host, workers, events, ended } = setup();
-    host.start();
+    host.start([EN_FR]);
     host.cancel();
     expect(workers[0]!.terminated).toBe(true);
     workers[0]!.say({ kind: "done" }); // a message already on its way
@@ -86,7 +88,7 @@ describe("DownloadHost", () => {
 
   it("reports a worker that says it was cancelled as nothing at all", () => {
     const { host, workers, events } = setup();
-    host.start();
+    host.start([EN_FR]);
     workers[0]!.say({ kind: "failed", reason: "cancelled", detail: "cancelled" });
     expect(events).toEqual([]);
     expect(host.running()).toBe(false);
@@ -94,7 +96,7 @@ describe("DownloadHost", () => {
 
   it("reports a crashed worker as a failure", () => {
     const { host, workers, events, ended } = setup();
-    host.start();
+    host.start([EN_FR]);
     workers[0]!.onerror?.(new Event("error"));
     expect(events).toEqual([{ kind: "failed", reason: "unknown" }]);
     expect(ended).toHaveBeenCalledOnce();
@@ -111,16 +113,16 @@ describe("DownloadHost", () => {
       (e) => events.push(e),
       { log: vi.fn() },
     );
-    host.start();
+    host.start([EN_FR]);
     expect(events).toEqual([{ kind: "failed", reason: "unknown" }]);
     expect(host.running()).toBe(false);
   });
 
   it("starts a fresh worker for the next download", () => {
     const { host, workers } = setup();
-    host.start();
+    host.start([EN_FR]);
     workers[0]!.say({ kind: "failed", reason: "network", detail: "offline" });
-    host.start();
+    host.start([EN_FR]);
     expect(workers).toHaveLength(2);
   });
 });

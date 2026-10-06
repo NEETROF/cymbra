@@ -87,6 +87,11 @@ export interface WordPopupContent {
   grammar?: WordGrammar | null;
   /** The word as it stands on the page (`don't` for its `do`); defaults to `surface`. */
   written?: string;
+  /**
+   * The studied language of the document the word was met in, whose forms the grammar lines name
+   * (add-lingua-spanish-word-card); a card without one names English forms, as every card did.
+   */
+  language?: string;
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
@@ -115,21 +120,49 @@ const STOP_LABEL = "Arrêter la lecture";
 
 /** One listen button: what it speaks, under which key, and how it is labelled. */
 interface Listen {
-  key: "selection" | "sentence";
+  key: "selection" | "headword" | "sentence";
   text: string;
   label: string;
   aria: string;
 }
 
-/** The texts a card offers to hear: the selection as seen, and its sentence unless it is the selection. */
+/** The keys the card speaks under: what closing it or opening another word silences. */
+const CARD_KEYS: ReadonlySet<string> = new Set<Listen["key"]>(["selection", "headword", "sentence"]);
+
+/**
+ * Whether the card shows a form seen apart from its dictionary form, case aside: it then says
+ * « forme vue » and offers to hear both forms (add-lingua-dictionary-form-voice D1).
+ */
+function seenDiffers(content: WordPopupContent): boolean {
+  return !!content.surface && content.surface.toLowerCase() !== content.headword.toLowerCase();
+}
+
+/**
+ * The texts a card offers to hear: the selection as seen — with the dictionary form beside it when
+ * the card shows another form seen, each button saying what it reads (D2) — then its sentence unless
+ * it is the selection.
+ */
 function listensFor(content: WordPopupContent): Listen[] {
   const selection = (content.surface || content.headword).trim();
   if (!selection) return [];
-  const listens: Listen[] = [
-    content.expression
-      ? { key: "selection", text: selection, label: "▶ Sélection", aria: "Écouter la sélection" }
-      : { key: "selection", text: selection, label: "▶ Mot", aria: "Écouter le mot" },
-  ];
+  const headword = content.headword.trim();
+  const listens: Listen[] = [];
+  // Several words are a selection, whether or not the pack knows the expression (« animal doméstico »).
+  if (content.expression || /\s/u.test(selection)) {
+    listens.push({ key: "selection", text: selection, label: "▶ Sélection", aria: "Écouter la sélection" });
+  } else if (seenDiffers(content) && headword) {
+    listens.push(
+      { key: "selection", text: selection, label: `▶ ${selection}`, aria: `Écouter la forme vue « ${selection} »` },
+      {
+        key: "headword",
+        text: headword,
+        label: `▶ ${headword}`,
+        aria: `Écouter la forme du dictionnaire « ${headword} »`,
+      },
+    );
+  } else {
+    listens.push({ key: "selection", text: selection, label: "▶ Mot", aria: "Écouter le mot" });
+  }
   const sentence = content.sentence.trim();
   if (sentence && !sameSpokenText(sentence, selection)) {
     listens.push({ key: "sentence", text: sentence, label: "▶ Phrase", aria: "Écouter la phrase" });
@@ -224,7 +257,7 @@ export function createCard(speaker?: Speaker): CardView {
   /** Whether the speaker is reading one of this card's texts (a settings preview is not). */
   function cardSpeaking(): Speaking | null {
     const playing = speaker?.speaking() ?? null;
-    return playing && (playing.key === "selection" || playing.key === "sentence") ? playing : null;
+    return playing && CARD_KEYS.has(playing.key) ? playing : null;
   }
 
   speaker?.subscribe(() => {
@@ -270,7 +303,13 @@ export function createCard(speaker?: Speaker): CardView {
     grammarEl.replaceChildren();
     const lines =
       content.grammar && !content.pending && !content.expression
-        ? grammarLines(content.grammar, content.headword, content.surface, content.written ?? content.surface)
+        ? grammarLines(
+            content.grammar,
+            content.headword,
+            content.surface,
+            content.written ?? content.surface,
+            content.language === "es" ? "es" : "en",
+          )
         : [];
     grammarEl.hidden = lines.length === 0;
     for (const line of lines) {
@@ -461,11 +500,13 @@ export function createCard(speaker?: Speaker): CardView {
       current = content;
       headwordEl.textContent = content.headword;
 
-      const differs = !!content.surface && content.surface.toLowerCase() !== content.headword.toLowerCase();
+      const differs = seenDiffers(content);
       seenEl.textContent = differs ? `forme vue : « ${content.surface} »` : "";
       seenEl.hidden = !differs;
 
       rarityEl.textContent = content.rarity;
+      // No rank yet, no line (add-lingua-card-frequency D4).
+      rarityEl.hidden = !content.rarity;
 
       renderListen();
       renderGrammar(content);

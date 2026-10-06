@@ -1,12 +1,13 @@
 // The model download's own thread (add-lingua-translation-delivery D4): spawned by the engine's
-// host when a download starts, terminated when it ends or is cancelled. It reads the package's
-// manifest, fetches what the device lacks and stores it verified. The logic is model-download.ts;
-// this only wires it to the browser.
+// host when a download starts, terminated when it ends or is cancelled. It reads the models it is
+// told from the package's catalogue (generalise-lingua-translation-model-state D4), fetches what the
+// device lacks and stores it verified. The logic is model-download.ts; this only wires it to the
+// browser.
 
 import type { ModelWorkerEvent, ModelWorkerRequest } from "./downloads.ts";
 import { modelDb } from "./model-db.ts";
-import { downloadModel, sha256Hex } from "./model-download.ts";
-import { loadBundledManifest } from "./model-manifest.ts";
+import { downloadModels, sha256Hex } from "./model-download.ts";
+import { loadBundledCatalogue, modelsById } from "./model-manifest.ts";
 
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<ModelWorkerRequest>) => void) | null;
@@ -15,10 +16,11 @@ const scope = self as unknown as {
 
 scope.onmessage = (event) => {
   if (event.data?.op !== "download") return;
+  const ids = Array.isArray(event.data.models) ? event.data.models : [];
   void (async () => {
     try {
-      const manifest = await loadBundledManifest();
-      const outcome = await downloadModel(manifest, {
+      const models = modelsById(await loadBundledCatalogue(), ids);
+      const outcome = await downloadModels(models, {
         fetch: (input, init) => fetch(input, init),
         db: modelDb(),
         digest: sha256Hex,

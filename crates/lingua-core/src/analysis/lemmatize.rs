@@ -148,9 +148,10 @@ const IRREGULARS: &[(&str, &str)] = &[
 /// lowercase.
 ///
 /// English runs its cascade: irregulars, the pack's forms, morphy-style
-/// rules, the regular-plural fallback. Spanish, until its own cascade lands
-/// (add-lingua-spanish-analysis), is the pack's forms and nothing else — never
-/// an English table or rule, which would read `has` (of *haber*) as `have`.
+/// rules, the regular-plural fallback. Spanish runs its own
+/// (add-lingua-spanish-analysis, [`super::spanish`]): the pack's forms, old
+/// spellings, enclitics, its plural fallback — never an English table or
+/// rule, which would read `has` (of *haber*) as `have`.
 pub fn lemmatize(
     form: &str,
     studied: StudiedLanguage,
@@ -158,16 +159,7 @@ pub fn lemmatize(
 ) -> String {
     match studied {
         StudiedLanguage::English => lemmatize_english(form, lexicon),
-        StudiedLanguage::Spanish => lemmatize_baseline(form, lexicon),
-    }
-}
-
-/// The pack's forms, else the lowercased form itself.
-fn lemmatize_baseline(form: &str, lexicon: &(impl Lexicon + ?Sized)) -> String {
-    let lower = form.replace('\u{2019}', "'").to_lowercase();
-    match lexicon.lemma_of(&lower) {
-        Some(lemma) => lemma.to_owned(),
-        None => lower,
+        StudiedLanguage::Spanish => super::spanish::lemmatize(form, lexicon),
     }
 }
 
@@ -335,8 +327,8 @@ mod tests {
     #[test]
     fn spec_scenario_a_spanish_word_that_looks_english_keeps_its_own_lemma() {
         // English's cascade would read `has` as `have` and `ate` as `eat` (its
-        // irregulars), and `mes` as `me` (its plural rule). Spanish's baseline
-        // takes the pack's forms and nothing else.
+        // irregulars), and `mes` as `me` (its plural rule). Spanish's cascade
+        // never runs an English table or rule.
         let (bytes, pool) =
             build_lexicon_blobs(&[], &["have", "be", "eat", "much", "me"]).expect("build");
         let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
@@ -344,16 +336,21 @@ mod tests {
             assert_eq!(lemmatize(form, StudiedLanguage::Spanish, &lex), form);
         }
         assert_eq!(lemmatize("has", StudiedLanguage::English, &lex), "have");
+        // With a pack that lists it, `has` is a form of *haber*.
+        let (bytes, pool) = build_lexicon_blobs(&[("has", "haber")], &["haber"]).expect("build");
+        let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
+        assert_eq!(lemmatize("has", StudiedLanguage::Spanish, &lex), "haber");
     }
 
     #[test]
-    fn spanish_takes_the_lemma_its_pack_lists_and_no_plural_rule() {
+    fn spanish_takes_the_lemma_its_pack_lists_before_any_rule() {
         let (bytes, pool) =
             build_lexicon_blobs(&[("has", "haber"), ("comió", "comer")], &["haber", "comer"])
                 .expect("build");
         let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
         assert_eq!(lemmatize("Has", StudiedLanguage::Spanish, &lex), "haber");
         assert_eq!(lemmatize("comió", StudiedLanguage::Spanish, &lex), "comer");
-        assert_eq!(lemmatize("Casas", StudiedLanguage::Spanish, &lex), "casas");
+        // An unlisted plural reaches its singular (add-lingua-spanish-analysis D4).
+        assert_eq!(lemmatize("Casas", StudiedLanguage::Spanish, &lex), "casa");
     }
 }

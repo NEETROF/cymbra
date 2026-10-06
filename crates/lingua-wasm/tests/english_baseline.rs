@@ -365,7 +365,7 @@ fn render(language: Option<&str>) -> String {
         .retire_card("backlog", T_SECS + 300.0, lang())
         .unwrap();
     let now = T_SECS + DAY_SECS;
-    g.probe("start-review", reader.start_review(now));
+    g.probe("start-review", reader.start_review(now, None));
     g.probe("review-current first", shown(reader.review_current()));
     reader.review_reveal();
     reader.review_grade("good", now);
@@ -378,10 +378,10 @@ fn render(language: Option<&str>) -> String {
         shown(reader.declared_level(lang()).unwrap()),
     );
     g.probe("tracked-count", reader.tracked_count());
-    g.probe("deck-count", reader.deck_count());
+    g.probe("deck-count", reader.deck_count(None));
     g.probe(
         "due-count in 7 days",
-        reader.due_count(now + 7.0 * DAY_SECS),
+        reader.due_count(now + 7.0 * DAY_SECS, None),
     );
     for (name, blocks) in pages
         .iter()
@@ -491,4 +491,13 @@ fn the_corpus_reads_as_expected() {
         READER_PAGES.iter().all(|p| names.contains(p)),
         "every reader page exists"
     );
+}
+
+/// English's levels come from CEFR-J and Octanove, never from frequency
+/// (add-lingua-spanish-levels): the real pack does not call them estimated.
+#[test]
+fn english_levels_are_not_estimated() {
+    let engine = engine(&real_pack());
+    assert!(engine.has_levels(None).expect("levels"));
+    assert!(!engine.levels_estimated(None).expect("estimated"));
 }

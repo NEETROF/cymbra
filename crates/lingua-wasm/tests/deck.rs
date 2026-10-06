@@ -41,10 +41,10 @@ fn add_card_marks_learning_and_grows_the_deck() {
         None,
     )
     .unwrap();
-    assert_eq!(e.deck_count(), 1);
+    assert_eq!(e.deck_count(None), 1);
     assert_eq!(e.tracked_count(), 1);
     // A fresh card is due now.
-    assert_eq!(e.due_count(200.0), 1);
+    assert_eq!(e.due_count(200.0, None), 1);
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn review_session_walks_due_cards() {
         .unwrap();
     e.add_card("conundrum", "conundrum", "s2", "https://x", None, 0.0, None)
         .unwrap();
-    assert_eq!(e.start_review(10.0), 2);
+    assert_eq!(e.start_review(10.0, None), 2);
     assert!(e.review_current().is_some());
     assert_eq!(e.review_remaining(), 2);
     e.review_reveal();
@@ -78,7 +78,7 @@ fn review_card_shows_where_the_word_was_met() {
         None,
     )
     .unwrap();
-    e.start_review(10.0);
+    e.start_review(10.0, None);
     let view: serde_json::Value = match e.review_current().map(|j| serde_json::from_str(&j)) {
         Some(Ok(v)) => v,
         _ => panic!("a card is under review"),
@@ -95,11 +95,11 @@ fn mark_known_retires_the_card() {
     let mut e = engine();
     e.add_card("seldom", "seldom", "s", "https://x", None, 0.0, None)
         .unwrap();
-    e.start_review(10.0);
+    e.start_review(10.0, None);
     e.review_mark_known(10.0);
     // The card is kept but never comes due again.
-    assert_eq!(e.deck_count(), 1);
-    assert_eq!(e.due_count(f64::from(i32::MAX)), 0);
+    assert_eq!(e.deck_count(None), 1);
+    assert_eq!(e.due_count(f64::from(i32::MAX), None), 0);
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn backup_restores_losslessly_into_a_fresh_engine() {
         Err(_) => panic!("restore accepts our own backup"),
     }
     assert_eq!(restored.calibration(None).unwrap(), 2_500);
-    assert_eq!(restored.deck_count(), 1);
+    assert_eq!(restored.deck_count(None), 1);
     // The backup is itself a fixpoint.
     assert_eq!(restored.backup(), backup);
 }
@@ -141,7 +141,7 @@ fn reset_clears_the_whole_state() {
     e.add_card("seldom", "seldom", "s", "https://x", None, 0.0, None)
         .unwrap();
     e.reset();
-    assert_eq!(e.deck_count(), 0);
+    assert_eq!(e.deck_count(None), 0);
     assert_eq!(e.tracked_count(), 0);
     assert_eq!(e.calibration(None).unwrap(), 0);
 }
@@ -229,7 +229,7 @@ fn a_word_marked_known_elsewhere_retires_its_card_here() {
         None,
     )
     .unwrap();
-    assert_eq!(e.due_count(2_000.0), 1);
+    assert_eq!(e.due_count(2_000.0, None), 1);
 
     let pulled = r#"[{"language":"en","lemma":"seldom","status":"known","updated_at":1800000}]"#;
     match e.apply_status_changes(pulled) {
@@ -237,8 +237,8 @@ fn a_word_marked_known_elsewhere_retires_its_card_here() {
         Err(_) => panic!("pulled status applies"),
     }
 
-    assert_eq!(e.deck_count(), 1); // the card is kept…
-    assert_eq!(e.due_count(f64::from(i32::MAX)), 0); // …and never comes due again
+    assert_eq!(e.deck_count(None), 1); // the card is kept…
+    assert_eq!(e.due_count(f64::from(i32::MAX), None), 0); // …and never comes due again
     let card: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
     assert!(card[0]["client_ts"].as_i64().unwrap() >= 1_800_000); // the retirement syncs back
 }
@@ -258,7 +258,7 @@ fn retiring_on_a_pulled_known_never_dates_the_card_backwards() {
         None,
     )
     .unwrap();
-    e.start_review(9_000.0);
+    e.start_review(9_000.0, None);
     e.review_reveal();
     e.review_grade("good", 9_000.0);
     let before: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
@@ -272,7 +272,7 @@ fn retiring_on_a_pulled_known_never_dates_the_card_backwards() {
 
     let after: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
     assert_eq!(after[0]["client_ts"], 9_000_000); // the card keeps its own, later date
-    assert_eq!(e.due_count(f64::from(i32::MAX)), 0); // and it is retired all the same
+    assert_eq!(e.due_count(f64::from(i32::MAX), None), 0); // and it is retired all the same
 }
 
 #[test]

@@ -545,7 +545,7 @@ The extension's engine SHALL start with the default pair's pack only, and SHALL 
 - **THEN** no pack beyond those already loaded is fetched
 
 ### Requirement: Each surface reads in the reader's language
-Every surface of the extension SHALL ask the engine in its reading language: the first of the reader's studied languages that a shipped pair studies, or the default pair's language when none is. A surface SHALL read its reading language when it starts, and again after another context changes the stored backup. A store migrated from the reading-only format SHALL be migrated in English.
+Every surface of the extension SHALL ask the engine in its reading language: the first of the reader's studied languages that a shipped pair studies, or the default pair's language when none is. A reading session SHALL instead ask about each document it reads in that document's language (see "Each document is read in its own language"). A surface SHALL read its reading language when it starts, and again after another context changes the stored backup. A store migrated from the reading-only format SHALL be migrated in English.
 
 #### Scenario: Every reader today
 - **WHEN** a reader who studies English alone opens a page, the side panel, the statistics or the settings
@@ -556,10 +556,183 @@ Every surface of the extension SHALL ask the engine in its reading language: the
 - **THEN** every surface reads in English, and the backup keeps the studied languages as they were
 
 #### Scenario: The studied languages changed in another context
-- **WHEN** the package ships en-fr and es-fr, a page is open in English, and another context stores a backup whose studied languages start with Spanish
-- **THEN** the page's next requests name Spanish
+- **WHEN** the package ships en-fr and es-fr, the side panel is open, and another context stores a backup whose studied languages start with Spanish
+- **THEN** the side panel's next requests name Spanish
 
 #### Scenario: A reading-only store
 - **WHEN** a store in the reading-only format is migrated
 - **THEN** its statuses and cards are recorded under English
+
+### Requirement: The reader chooses the languages they study
+The settings SHALL offer the reader the languages the package ships, each ticked when the reader studies it. Ticking SHALL add a language after the others and unticking SHALL remove it, and the last language SHALL NOT be removable. The choice SHALL be saved in the reader's profile, and every surface SHALL follow it. The choice SHALL be hidden when the package ships a single language. When the package ships several, onboarding SHALL offer the same choice before the level.
+
+#### Scenario: Adding Spanish
+- **WHEN** the package ships en-fr and es-fr, and a reader who studies English ticks Spanish
+- **THEN** the profile holds English then Spanish, and the settings show a level block for each
+
+#### Scenario: The last language
+- **WHEN** a reader studies a single language
+- **THEN** its box cannot be unticked
+
+#### Scenario: Every reader today
+- **WHEN** the package ships en-fr alone
+- **THEN** no choice of languages is shown, in the settings or at onboarding
+
+### Requirement: A level per studied language
+The settings SHALL show a level block for each language the reader accepts, titled with that language, each with its own chips, hint and calibration. Whether the reader still has to choose a level SHALL depend on the decisions made in that language only.
+
+#### Scenario: A Spanish level does not answer for English
+- **WHEN** a reader who studies English and Spanish has chosen a Spanish level and no English one
+- **THEN** the English block still asks for a level
+
+#### Scenario: Every reader today
+- **WHEN** a reader studies English alone
+- **THEN** a single block, « Niveau d'anglais », behaves as before
+
+### Requirement: A voice per studied language
+The voice the reader chooses SHALL be kept for the language it reads, and SHALL NOT be used for another language. The settings' voice block SHALL edit the voice of the language its speaker reads. A voice kept before this requirement SHALL be kept as the English voice.
+
+#### Scenario: Two languages, two voices
+- **WHEN** the reader chooses a voice while reading Spanish, and another while reading English
+- **THEN** Spanish is read with the first and English with the second
+
+#### Scenario: A voice chosen before
+- **WHEN** the extension updates on a device whose reader had chosen a voice
+- **THEN** English is still read with it
+
+### Requirement: Languages are named in one place
+Every label that names a studied language SHALL come from one module, so that it names the language it speaks of, and no surface SHALL hard-code a language's name.
+
+#### Scenario: A Spanish page without enough text
+- **WHEN** the popup reports a page without enough text in the reader's language, and the page is read in Spanish
+- **THEN** it says no Spanish text was detected
+
+#### Scenario: Checked by lint
+- **WHEN** a source file or page outside the labels module names « anglais »
+- **THEN** the lint spec fails
+
+### Requirement: Each document is read in its own language
+When the reader accepts several languages, the reading session SHALL choose each document's language among them, with the document's declared language as a hint, and SHALL ask every language-bound question about that document in it: its analysis, glosses, cards, statuses and exposures. With one accepted language, it SHALL read every document in that language without asking for a detection.
+
+#### Scenario: A Spanish page
+- **WHEN** a reader who accepts English and Spanish opens a page in Spanish
+- **THEN** the page is analysed and highlighted in Spanish, and a word marked there is recorded in Spanish
+
+#### Scenario: An English page for the same reader
+- **WHEN** the same reader opens a page in English
+- **THEN** the page is read in English
+
+#### Scenario: Every reader today
+- **WHEN** a reader who accepts English alone opens any page
+- **THEN** no detection is asked for, and every request names English, as before
+
+### Requirement: Estimated levels are labelled as such
+Wherever the extension shows or asks a level of a language whose pack's levels are estimated, it SHALL say so. The level titles SHALL read « estimé ». Réglages, the statistics and onboarding SHALL say that the levels are estimated from word frequency. The ladder SHALL NOT call its words taught. A language whose levels come from a CEFR list SHALL read as before.
+
+#### Scenario: Réglages for Spanish
+- **WHEN** the reader opens Réglages with Spanish accepted
+- **THEN** the Spanish level block is titled « Niveau d'espagnol estimé » and says that the levels are estimated from word frequency
+
+#### Scenario: The ladder for Spanish
+- **WHEN** the statistics open for Spanish
+- **THEN** the ladder is titled « Mon niveau d'espagnol estimé », and its column of words up to each level reads « courants », not « enseignés »
+
+#### Scenario: Onboarding for Spanish
+- **WHEN** the reader chooses B1 for Spanish during onboarding
+- **THEN** the confirmation reads « Niveau enregistré : B1 (estimé). »
+
+#### Scenario: English reads as before
+- **WHEN** the reader opens Réglages or the statistics for English
+- **THEN** they read « Niveau d'anglais » and « Mon niveau d'anglais », with no estimate note, and the ladder keeps « enseignés »
+
+### Requirement: A Spanish voice from Spain by default
+For Spanish, the automatic voice choice SHALL prefer a voice of Spain to the voices of other regions within the same quality, on every browser, Firefox for Android's three-letter regions included. The extension SHALL offer no accent setting: the reader SHALL choose another voice in Réglages.
+
+#### Scenario: A voice of Spain listed after a Mexican one
+- **WHEN** the browser lists a Mexican Spanish voice before a voice of Spain, both of the same quality
+- **THEN** the automatic choice for Spanish is the voice of Spain
+
+#### Scenario: Firefox for Android
+- **WHEN** Firefox for Android lists `spa-MEX` before `spa-ESP`
+- **THEN** the automatic choice for Spanish is the `spa-ESP` voice
+
+#### Scenario: A voice the reader downloaded
+- **WHEN** the only enhanced Spanish voice is Mexican, and the voice of Spain is an ordinary one
+- **THEN** the automatic choice is the enhanced Mexican voice
+
+### Requirement: A Spanish card names its forms as French schools do
+A card SHALL name the forms of the language the word was met in. A Spanish form SHALL be named in French school terms — présent and imparfait de l'indicatif, passé simple, futur, conditionnel, présent, imparfait and futur du subjonctif, impératif, infinitif, gérondif, participe passé with its agreement — with its person and number, a form of several persons in one tense naming them once. A noun's, adjective's, determiner's or pronoun's form SHALL name its gender and number. A reading that merely says what the card's dictionary form is SHALL give no line. French articles and elision SHALL apply, before accented vowels too. A card of an English word SHALL read as before.
+
+#### Scenario: A form of two persons
+- **WHEN** the reader opens the card of `hablaba`, a Spanish word
+- **THEN** the card headed `hablar` says it is the 1re et 3e personnes du singulier de l'imparfait de l'indicatif of `hablar`
+
+#### Scenario: A subjunctive and an imperative
+- **WHEN** the reader opens the card of `hable`
+- **THEN** the card says, in one statement, that it is the 1re et 3e personnes du singulier du présent du subjonctif and the 3e personne du singulier de l'impératif of `hablar`
+
+#### Scenario: An adjective's agreement
+- **WHEN** the reader opens the card of `rápidas`
+- **THEN** the card headed `rápido` says it is its féminin pluriel
+
+#### Scenario: The dictionary form itself
+- **WHEN** the reader opens the card of `hablar`, or of `casa`
+- **THEN** the card says nothing about the form being the infinitive, or the singular
+
+#### Scenario: Elision before an accented vowel
+- **WHEN** a line names a form of the Spanish pronoun `él`
+- **THEN** it reads « d'él », not « de él »
+
+#### Scenario: English reads as before
+- **WHEN** the reader opens the card of `went`
+- **THEN** the card says that `went` is the prétérit of `go`, as before
+
+### Requirement: The card reads a word's dictionary form when it differs from the form seen
+When a word card shows a form seen that differs from its dictionary form, letter case aside, it SHALL offer two listen buttons for the word, each labelled with the text it reads: first the form as it appears on the page, then the dictionary form. Otherwise it SHALL offer one listen button for the word, as before. A selection of several words SHALL keep its one selection button. The dictionary form's button SHALL stop, switch and fall silent as the card's other listen buttons do.
+
+#### Scenario: A form of another word
+- **WHEN** the reader opens the card of `Es`, whose dictionary form is `ser`
+- **THEN** the card offers « ▶ Es », which speaks `Es`, then « ▶ ser », which speaks `ser`, then the sentence button
+
+#### Scenario: A word that is its own dictionary form
+- **WHEN** the reader opens the card of `casa`, or of `Casa` at the start of a sentence
+- **THEN** the card offers one « ▶ Mot » button and the sentence button, as before
+
+#### Scenario: Several words
+- **WHEN** the reader selects several words
+- **THEN** the card offers « ▶ Sélection » and the sentence button, as before
+
+#### Scenario: Switching to the dictionary form
+- **WHEN** « ▶ Es » is speaking and the reader presses « ▶ ser »
+- **THEN** `Es` stops and `ser` is spoken
+
+### Requirement: The word card says how common its word is
+The word card SHALL say how common its dictionary form is, from the pack's frequency rank, in one of five plain-language bands: among the 100, the 1,000 or the 5,000 most frequent words, beyond the 5,000, or beyond the 20,000, which includes a word the pack does not rank. The line SHALL NOT depend on the level or the calibration the reader chose. A word in the reader's deck SHALL keep saying it is being learnt, and an expression SHALL keep its own line. The rank SHALL arrive with the word's grammar, under the same bound. A card that has not received it SHALL show no frequency line.
+
+#### Scenario: A common word for a beginner
+- **WHEN** a reader at « Débutant » opens the card of `Es`, whose dictionary form *ser* ranks among the 100 commonest Spanish words
+- **THEN** the card says « Très courant — parmi les 100 mots les plus fréquents. »
+
+#### Scenario: A word the pack does not rank
+- **WHEN** the reader opens the card of a word whose dictionary form the pack does not rank
+- **THEN** the card says « Rare — au-delà des 20 000 mots les plus fréquents. »
+
+#### Scenario: A word in the deck
+- **WHEN** the reader opens the card of a word they are learning
+- **THEN** the card says « Dans ton deck — en cours d'apprentissage. », whatever its rank
+
+#### Scenario: No answer in time
+- **WHEN** the card completes because the bound passed without the engine's answer
+- **THEN** it shows no frequency line
+
+### Requirement: An estimated ladder shows English's typical vocabularies
+When the ladder shows a language whose pack's levels are estimated, each level's typical vocabulary SHALL be the one English's CEFR lists give that level, whenever the English pack is loaded, and the ladder SHALL say that the figures are English's. A ladder of CEFR-list levels SHALL show its own figures, as before.
+
+#### Scenario: The Spanish ladder
+- **WHEN** the statistics open for Spanish, the English pack being loaded
+- **THEN** each level's « estimés » equals English's at that level, and the legend says they are taken from English
+
+#### Scenario: The English ladder
+- **WHEN** the statistics open for English
+- **THEN** the ladder shows the figures its own lists give, with its legend as before
 

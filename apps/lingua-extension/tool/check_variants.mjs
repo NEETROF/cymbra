@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { engineProblems } from "./engine_pin.mjs";
+import { modelsOf, readCatalogue, ROLES } from "./model-catalogue.mjs";
 import { packFile, shippedPairs } from "./packs.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -125,7 +126,7 @@ for (const target of ["chromium", "firefox", "safari"]) {
 // (add-lingua-translation-safari) — together with the manifest of the model it may download. No
 // package carries a model file, and nothing in any package fetches code: only data is downloaded.
 const has = (target, file) => existsSync(join(root, `dist-${target}`, file));
-const committedModel = JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8"));
+const committedCatalogue = readCatalogue();
 
 /** Every file under dist-<target>, relative. */
 function filesOf(target) {
@@ -180,22 +181,41 @@ for (const target of ["chromium", "firefox", "safari"]) {
     expect(false, `${target}: packaged engine — ${problem}`);
   }
 
-  // The bundled manifest is the committed one, at the production host, and names only data.
-  const model = JSON.parse(read(target, "model-manifest.json"));
+  // The bundled catalogue is the committed one — every model and every route — at the production
+  // host, and names only data (generalise-lingua-translation-catalogue D5).
+  const catalogue = JSON.parse(read(target, "model-manifest.json"));
   expect(
-    model.base === committedModel.base,
-    `${target}: the model is fetched from ${model.base}, not ${committedModel.base} — a development build (LINGUA_MODEL_BASE_URL)`,
+    catalogue.base === committedCatalogue.base,
+    `${target}: the models are fetched from ${catalogue.base}, not ${committedCatalogue.base} — a development build (LINGUA_MODEL_BASE_URL)`,
   );
-  expect(model.version === committedModel.version, `${target}: model-manifest.json is not the committed model`);
-  for (const [role, file] of Object.entries(committedModel.files)) {
-    const got = model.files?.[role];
-    expect(
-      got?.path === file.path && got.sha256 === file.sha256 && got.size === file.size,
-      `${target}: model-manifest.json's ${role} differs from the committed one`,
-    );
-    expect(/\.gz$/.test(file.path) && /^[0-9a-f]{64}$/.test(file.sha256), `${target}: ${role} must be pinned data`);
+  expect(
+    JSON.stringify(Object.keys(catalogue.models ?? {})) === JSON.stringify(Object.keys(committedCatalogue.models)),
+    `${target}: model-manifest.json does not list the committed models`,
+  );
+  for (const { id, from, to, files } of modelsOf(committedCatalogue)) {
+    const got = catalogue.models?.[id];
+    expect(got?.from === from && got.to === to, `${target}: ${id} does not translate ${from} into ${to}`);
+    for (const role of ROLES) {
+      const file = files[role];
+      const bundled = got?.files?.[role];
+      expect(
+        bundled?.path === file.path &&
+          bundled.sha256 === file.sha256 &&
+          bundled.size === file.size &&
+          bundled.unpacked === file.unpacked,
+        `${target}: model-manifest.json's ${id} ${role} differs from the committed one`,
+      );
+      expect(
+        /\.gz$/.test(file.path) && /^[0-9a-f]{64}$/.test(file.sha256),
+        `${target}: ${id} ${role} must be pinned data`,
+      );
+    }
   }
-  expect(/^https:\/\//.test(model.base), `${target}: the model must be fetched over https`);
+  expect(
+    JSON.stringify(catalogue.routes) === JSON.stringify(committedCatalogue.routes),
+    `${target}: model-manifest.json's routes differ from the committed ones`,
+  );
+  expect(/^https:\/\//.test(catalogue.base), `${target}: the models must be fetched over https`);
 
   // The background relays; which host it relays to is the variant's.
   const bg = read(target, "background.js");
@@ -254,14 +274,14 @@ for (const target of ["chromium", "firefox", "safari"]) {
 }
 
 // The packs a package ships (generalise-lingua-pack-build): exactly the pairs packs.json lists,
-// each exposed to the contexts that fetch it — and English only until enable-lingua-spanish
-// widens SHIPPED_PAIRS. The list and this constant agree on purpose: shipping another language
-// takes two edits in one pull request, one of them in this gate.
-const SHIPPED_PAIRS = ["en-fr"];
+// each exposed to the contexts that fetch it — English, the default, then Spanish since
+// enable-lingua-spanish. The list and this constant agree on purpose: shipping another language,
+// or dropping one, takes two edits in one pull request, one of them in this gate.
+const SHIPPED_PAIRS = ["en-fr", "es-fr"];
 const pairs = shippedPairs();
 expect(
   JSON.stringify(pairs) === JSON.stringify(SHIPPED_PAIRS),
-  `packs.json lists ${JSON.stringify(pairs)}; until enable-lingua-spanish a package ships ${JSON.stringify(SHIPPED_PAIRS)} only`,
+  `packs.json lists ${JSON.stringify(pairs)}; a package ships ${JSON.stringify(SHIPPED_PAIRS)}`,
 );
 for (const target of ["chromium", "firefox", "safari"]) {
   const packed = filesOf(target)

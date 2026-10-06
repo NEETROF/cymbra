@@ -14,15 +14,21 @@
 
 use lingua_agent::mcp::{dispatch_tool, handle_request};
 use lingua_agent::store::Store;
+use lingua_core::analysis::language::StudiedLanguage;
 use serde_json::{Value, json};
 
 const DAY: i64 = 86_400;
+/// One language followed: the tools need no `language`.
+const EN: &[StudiedLanguage] = &[StudiedLanguage::English];
+/// Two followed: the tools ask which (add-lingua-agent-languages D6).
+const BOTH: &[StudiedLanguage] = &[StudiedLanguage::English, StudiedLanguage::Spanish];
 
 #[test]
 fn add_words_then_list_and_due_reflect_them() {
     let store = Store::open_in_memory().unwrap();
     let added = dispatch_tool(
         &store,
+        EN,
         "add_words",
         &json!({ "words": ["Seldom", " conundrum ", ""] }),
         0,
@@ -30,11 +36,11 @@ fn add_words_then_list_and_due_reflect_them() {
     .unwrap();
     assert_eq!(added["added"], 2); // empty entry skipped; lemmas normalised
 
-    let decks = dispatch_tool(&store, "list_decks", &json!({}), 0).unwrap();
+    let decks = dispatch_tool(&store, EN, "list_decks", &json!({}), 0).unwrap();
     assert_eq!(decks["cards"], 2);
     assert_eq!(decks["due"], 2);
 
-    let due = dispatch_tool(&store, "due_cards", &json!({}), 0).unwrap();
+    let due = dispatch_tool(&store, EN, "due_cards", &json!({}), 0).unwrap();
     let words: Vec<&str> = due["due"]
         .as_array()
         .unwrap()
@@ -48,15 +54,16 @@ fn add_words_then_list_and_due_reflect_them() {
 #[test]
 fn answer_card_grade_reschedules_it_out() {
     let store = Store::open_in_memory().unwrap();
-    dispatch_tool(&store, "add_words", &json!({ "words": ["seldom"] }), 0).unwrap();
+    dispatch_tool(&store, EN, "add_words", &json!({ "words": ["seldom"] }), 0).unwrap();
     assert_eq!(
-        dispatch_tool(&store, "list_decks", &json!({}), 0).unwrap()["due"],
+        dispatch_tool(&store, EN, "list_decks", &json!({}), 0).unwrap()["due"],
         1
     );
 
     // A "good" grade schedules the card into the future — not due now, due later.
     let res = dispatch_tool(
         &store,
+        EN,
         "answer_card",
         &json!({ "word": "seldom", "rating": "good" }),
         0,
@@ -64,11 +71,11 @@ fn answer_card_grade_reschedules_it_out() {
     .unwrap();
     assert!(res["due_in_days"].as_i64().unwrap() >= 0);
     assert_eq!(
-        dispatch_tool(&store, "list_decks", &json!({}), 0).unwrap()["due"],
+        dispatch_tool(&store, EN, "list_decks", &json!({}), 0).unwrap()["due"],
         0
     );
     assert_eq!(
-        dispatch_tool(&store, "list_decks", &json!({}), 100 * DAY).unwrap()["due"],
+        dispatch_tool(&store, EN, "list_decks", &json!({}), 100 * DAY).unwrap()["due"],
         1
     );
 }
@@ -76,10 +83,20 @@ fn answer_card_grade_reschedules_it_out() {
 #[test]
 fn invalid_inputs_are_rejected() {
     let store = Store::open_in_memory().unwrap();
-    assert!(dispatch_tool(&store, "add_words", &json!({ "words": "not-an-array" }), 0).is_err());
     assert!(
         dispatch_tool(
             &store,
+            EN,
+            "add_words",
+            &json!({ "words": "not-an-array" }),
+            0
+        )
+        .is_err()
+    );
+    assert!(
+        dispatch_tool(
+            &store,
+            EN,
             "answer_card",
             &json!({ "word": "x", "rating": "meh" }),
             0
@@ -89,13 +106,14 @@ fn invalid_inputs_are_rejected() {
     assert!(
         dispatch_tool(
             &store,
+            EN,
             "answer_card",
             &json!({ "word": "absent", "rating": "good" }),
             0
         )
         .is_err()
     );
-    assert!(dispatch_tool(&store, "nonsense", &json!({}), 0).is_err());
+    assert!(dispatch_tool(&store, EN, "nonsense", &json!({}), 0).is_err());
 }
 
 #[test]
@@ -104,6 +122,7 @@ fn jsonrpc_handshake_and_tool_call() {
 
     let init = handle_request(
         &store,
+        EN,
         &json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize" }),
         0,
     )
@@ -113,6 +132,7 @@ fn jsonrpc_handshake_and_tool_call() {
 
     let list = handle_request(
         &store,
+        EN,
         &json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }),
         0,
     )
@@ -130,6 +150,7 @@ fn jsonrpc_handshake_and_tool_call() {
 
     let call = handle_request(
         &store,
+        EN,
         &json!({ "jsonrpc": "2.0", "id": 3, "method": "tools/call",
                  "params": { "name": "add_words", "arguments": { "words": ["seldom"] } } }),
         0,
@@ -142,9 +163,105 @@ fn jsonrpc_handshake_and_tool_call() {
     assert!(
         handle_request(
             &store,
+            EN,
             &json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }),
             0
         )
         .is_none()
     );
+}
+
+#[test]
+fn with_two_languages_a_tool_asks_which_and_keeps_to_one() {
+    let store = Store::open_in_memory().unwrap();
+    let refused = dispatch_tool(&store, BOTH, "due_cards", &json!({}), 0).unwrap_err();
+    assert!(refused.contains("en, es"), "{refused}");
+    assert!(dispatch_tool(&store, BOTH, "add_words", &json!({ "words": ["casa"] }), 0).is_err());
+
+    dispatch_tool(
+        &store,
+        BOTH,
+        "add_words",
+        &json!({ "words": ["casa", "vino"], "language": "es" }),
+        0,
+    )
+    .unwrap();
+    dispatch_tool(
+        &store,
+        BOTH,
+        "add_words",
+        &json!({ "words": ["seldom"], "language": "en" }),
+        0,
+    )
+    .unwrap();
+    let due = dispatch_tool(&store, BOTH, "due_cards", &json!({ "language": "es" }), 0).unwrap();
+    let words: Vec<&str> = due["due"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["word"].as_str().unwrap())
+        .collect();
+    assert_eq!(words, vec!["casa", "vino"]); // the Spanish cards only
+    assert_eq!(due["language"], "es");
+
+    let graded = dispatch_tool(
+        &store,
+        BOTH,
+        "answer_card",
+        &json!({ "word": "casa", "rating": "good", "language": "es" }),
+        0,
+    );
+    assert!(graded.is_ok());
+    assert!(
+        dispatch_tool(
+            &store,
+            BOTH,
+            "answer_card",
+            &json!({ "word": "casa", "rating": "good", "language": "en" }),
+            0
+        )
+        .is_err()
+    );
+
+    let decks = dispatch_tool(&store, BOTH, "list_decks", &json!({}), 0).unwrap();
+    assert_eq!(decks["cards"], 3);
+    assert_eq!(
+        decks["languages"][0],
+        json!({ "language": "en", "cards": 1, "due": 1 })
+    );
+    assert_eq!(
+        decks["languages"][1],
+        json!({ "language": "es", "cards": 2, "due": 1 })
+    );
+    let spanish =
+        dispatch_tool(&store, BOTH, "list_decks", &json!({ "language": "es" }), 0).unwrap();
+    assert_eq!(spanish["cards"], 2);
+}
+
+#[test]
+fn a_language_not_followed_is_refused() {
+    let store = Store::open_in_memory().unwrap();
+    let refused =
+        dispatch_tool(&store, EN, "due_cards", &json!({ "language": "es" }), 0).unwrap_err();
+    assert!(refused.contains("not followed"), "{refused}");
+    assert!(dispatch_tool(&store, BOTH, "list_decks", &json!({ "language": "fr" }), 0).is_err());
+}
+
+#[test]
+fn every_tool_says_it_takes_a_language() {
+    let store = Store::open_in_memory().unwrap();
+    let list = handle_request(
+        &store,
+        BOTH,
+        &json!({ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }),
+        0,
+    )
+    .unwrap();
+    for tool in list["result"]["tools"].as_array().unwrap() {
+        assert!(
+            tool["inputSchema"]["properties"]["language"].is_object(),
+            "{}",
+            tool["name"]
+        );
+    }
 }

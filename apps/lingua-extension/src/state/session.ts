@@ -125,8 +125,7 @@ export class Session {
   async signInWithProvider(provider: Provider): Promise<ProviderOutcome> {
     let idToken: string | null;
     try {
-      const getIdToken = provider === "apple" ? this.deps.getAppleIdToken : this.deps.getGoogleIdToken;
-      idToken = await getIdToken();
+      idToken = await this.idToken(provider);
     } catch (e) {
       throw await this.providerFailure(provider, e);
     }
@@ -145,6 +144,37 @@ export class Session {
     } catch (e) {
       throw await this.providerFailure(provider, e);
     }
+  }
+
+  /**
+   * Link a provider to the signed-in account (add-lingua-connected-accounts D2): the same flow
+   * as signing in with it, then LinkIdentity on the bearer — never SignInOidc, so the session
+   * stays the one it is. A closed window is a cancel; nothing is persisted (the account page,
+   * a tab, hears the reply itself).
+   */
+  async linkProvider(provider: Provider): Promise<"linked" | "cancelled"> {
+    const idToken = await categorized(() => this.idToken(provider));
+    if (idToken == null) return "cancelled";
+    await categorized(() => this.deps.auth().linkIdentity({ idToken }));
+    return "linked";
+  }
+
+  /** Remove a linked method; the server refuses the last one (failedPrecondition). */
+  async unlink(provider: string, subject: string): Promise<void> {
+    await categorized(() => this.deps.auth().unlinkIdentity({ provider, subject }));
+  }
+
+  /**
+   * Add an email + password to the signed-in account. The server parks it and emails a code;
+   * `verifyEmail` with that code binds it. The password goes to the server only.
+   */
+  async setPassword(email: string, password: string, locale: string): Promise<void> {
+    await categorized(() => this.deps.auth().setLocalCredential({ email, password, locale }));
+  }
+
+  /** The provider's id_token from its browser flow; null when the reader closed it. */
+  private idToken(provider: Provider): Promise<string | null> {
+    return (provider === "apple" ? this.deps.getAppleIdToken : this.deps.getGoogleIdToken)();
   }
 
   /** Categorize a provider failure and persist it for a popup that may have been torn down. */

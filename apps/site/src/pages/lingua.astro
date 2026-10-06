@@ -4,11 +4,19 @@ import Community from '../components/Community.astro';
 import StoreButtons from '../components/StoreButtons.astro';
 import { linguaStores } from '../lib/stores';
 import { config } from '../lib/config';
+import coverage from '../data/lingua-coverage.json';
+
+// The coverage section (add-site-lingua-spanish-pages D2): each shipped pair's glossed share of
+// its commonest lemmas, written by scripts/lingua-data/gloss_coverage.py.
+const languages: Record<string, string> = { 'en-fr': 'Anglais', 'es-fr': 'Espagnol' };
+const pairs = Object.keys(coverage.glossed) as (keyof typeof coverage.glossed)[];
+const count = new Intl.NumberFormat('fr-FR');
+const percent = new Intl.NumberFormat('fr-FR', { style: 'percent', maximumFractionDigits: 0 });
 ---
 
 <Base
   title="Cymbra Lingua — enrichissez votre vocabulaire en lisant le web"
-  description="Une extension navigateur qui surligne, sur la page que vous lisez, les mots d'anglais que vous ne connaissez pas encore. Analyse hors-ligne, aucun compte requis."
+  description="Une extension navigateur qui surligne, sur la page que vous lisez, les mots d'anglais ou d'espagnol que vous ne connaissez pas encore. Analyse hors-ligne, aucun compte requis."
   lang="fr"
   frHref="/lingua"
   enHref="/en/lingua"
@@ -17,14 +25,14 @@ import { config } from '../lib/config';
     <p class="kicker">Cymbra Lingua · <span class="badge">bêta</span></p>
     <h1>Votre vocabulaire, <span class="gradient">là où vous lisez déjà</span></h1>
     <p class="tagline">
-      Une extension navigateur qui surligne les mots d'anglais que vous ne connaissez
-      pas encore, directement sur la page. Pas d'appli à ouvrir, pas de session de
+      Une extension navigateur qui surligne les mots d'anglais ou d'espagnol que vous ne
+      connaissez pas encore, directement sur la page. Pas d'appli à ouvrir, pas de session de
       révision à caler : vous lisez, vous apprenez.
     </p>
     <StoreButtons links={linguaStores('fr')} />
     <p class="muted small hero-note">
-      Disponible sur Chrome, Edge et les navigateurs Chromium, et sur Firefox (ordinateur).
-      Safari (iPhone, iPad, Mac) arrive bientôt.
+      Disponible sur Chrome, Edge et les navigateurs Chromium, sur Firefox (ordinateur) et sur
+      Safari (iPhone, iPad, Mac).
       {config.discordUrl && (
         <>
           {' '}<a href={config.discordUrl} rel="noopener">Rejoignez la communauté</a> pour en parler.
@@ -44,7 +52,7 @@ import { config } from '../lib/config';
     </div>
     <div class="card">
       <h3>👆 Un clic pour comprendre</h3>
-      <p>Cliquez un mot surligné : sa forme du dictionnaire, sa traduction, sa fréquence en français clair, et trois boutons — « Je connais », « + Deck », « Ignorer ».</p>
+      <p>Cliquez un mot surligné : sa forme du dictionnaire, sa traduction, sa fréquence en français clair, et trois boutons — « Je connais », « + Deck », « Ignorer ». En espagnol, la carte nomme aussi le temps et le genre.</p>
     </div>
     <div class="card">
       <h3>🗂️ Deck et révisions</h3>
@@ -56,16 +64,39 @@ import { config } from '../lib/config';
     </div>
     <div class="card">
       <h3>📈 Votre niveau, en CEFR</h3>
-      <p>Une estimation de votre vocabulaire d'anglais, adossée à l'échelle A1→C2 plutôt qu'à un badge maison.</p>
+      <p>Une estimation de votre vocabulaire, adossée à l'échelle A1→C2 plutôt qu'à un badge maison. Pour l'espagnol, les niveaux sont estimés d'après la fréquence des mots, faute de liste CECR libre de droits.</p>
     </div>
     <div class="card">
       <h3>🪪 Compte optionnel</h3>
       <p>Sans compte, tout reste local. Connecté à Cymbra ID, votre deck et vos statuts suivent d'un appareil à l'autre.</p>
     </div>
     <div class="card">
-      <h3>🧭 Anglais → français</h3>
-      <p>La première paire de langues. D'autres suivront.</p>
+      <h3>🧭 Anglais et espagnol → français</h3>
+      <p>Choisissez vos langues dans les Réglages : chaque page est lue dans la sienne. Plusieurs langues à la fois : gratuit pour l'instant.</p>
     </div>
+  </section>
+
+  <section id="couverture" class="container prose coverage">
+    <h2>Ce que couvre le dictionnaire</h2>
+    <p>
+      La part des mots les plus courants qui ont une définition en français, mesurée de la même
+      façon pour chaque langue, sur les dictionnaires livrés avec l'extension.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Mots les plus courants</th>{pairs.map((pair) => <th>{languages[pair] ?? pair}</th>)}</tr>
+      </thead>
+      <tbody>
+        {coverage.tops.map((top, i) => (
+          <tr><td>{count.format(top)}</td>{pairs.map((pair) => <td>{percent.format(coverage.glossed[pair][i] / 100)}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
+    <p class="muted small">
+      Les définitions viennent du Wiktionnaire et de traductions écrites par des personnes, jamais
+      d'une traduction automatique. La traduction étendue, facultative, traduit l'anglais et
+      l'espagnol (en passant par l'anglais).
+    </p>
   </section>
 
   <Community lang="fr" />

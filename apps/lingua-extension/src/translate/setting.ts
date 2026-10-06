@@ -22,19 +22,25 @@ export type ModelFailure = "network" | "unavailable" | "not-the-model" | "storag
 const FAILURES: readonly ModelFailure[] = ["network", "unavailable", "not-the-model", "storage", "unknown"];
 
 /**
- * Where the model stands on this device.
+ * Where the models the reader's languages need stand on this device
+ * (generalise-lingua-translation-model-state D3).
  * - absent: nothing asked (the setting is off).
- * - downloading: in progress, `received` of `total` bytes.
- * - ready: every file on the device and verified.
+ * - downloading: in progress, `received` of `total` bytes over every needed model.
+ * - ready: every needed model on the device and verified; `models` names them, and `languages`
+ *   the reader's languages whose whole route they make.
+ * - missing: the setting is on and a needed model was never downloaded — a language the reader
+ *   added; `total` bytes would fetch it, and `models` and `languages` name what is already complete
+ *   and translatable. Nothing is fetched until the reader asks.
  * - failed: the download stopped for `reason`; the setting offers to try again.
  * - interrupted: its host was torn down mid-way; the setting offers to resume.
- * - removed: the setting is on and the browser has since removed the model; nothing is
+ * - removed: the setting is on and the browser has since removed a model; nothing is
  *   fetched again until the reader asks.
  */
 export type ModelState =
   | { phase: "absent" }
   | { phase: "downloading"; received: number; total: number }
-  | { phase: "ready" }
+  | { phase: "ready"; models: string[]; languages: string[] }
+  | { phase: "missing"; models: string[]; languages: string[]; total: number }
   | { phase: "failed"; reason: ModelFailure }
   | { phase: "interrupted"; received: number; total: number }
   | { phase: "removed" };
@@ -48,16 +54,36 @@ export function parseHost(raw: unknown): TranslationHost {
 
 const bytes = (n: unknown): number => (typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : 0);
 
+/**
+ * The languages a stored `ready` stood for before they were recorded: the release before
+ * generalise-lingua-translation-model-state wrote `ready` only once the English model was complete.
+ */
+const READY_BEFORE_LANGUAGES = ["en"];
+
+/** Model ids or languages, as stored; a state written before they were named names none. */
+const names = (raw: unknown): string[] =>
+  Array.isArray(raw) ? raw.filter((name): name is string => typeof name === "string") : [];
+
 /** A stored state, or `absent` when there is none or it cannot be read. */
 export function parseModelState(raw: unknown): ModelState {
-  const s = raw as { phase?: unknown; received?: unknown; total?: unknown; reason?: unknown } | null | undefined;
+  const s = raw as
+    | { phase?: unknown; received?: unknown; total?: unknown; reason?: unknown; models?: unknown; languages?: unknown }
+    | null
+    | undefined;
   switch (s?.phase) {
     case "downloading":
     case "interrupted":
       return { phase: s.phase, received: bytes(s.received), total: bytes(s.total) };
     case "ready":
+      return {
+        phase: "ready",
+        models: names(s.models),
+        languages: s.languages === undefined ? [...READY_BEFORE_LANGUAGES] : names(s.languages),
+      };
+    case "missing":
+      return { phase: "missing", models: names(s.models), languages: names(s.languages), total: bytes(s.total) };
     case "removed":
-      return { phase: s.phase };
+      return { phase: "removed" };
     case "failed":
       return {
         phase: "failed",
@@ -68,9 +94,13 @@ export function parseModelState(raw: unknown): ModelState {
   }
 }
 
-/** Whether a translation can be asked: the reader chose the device, and its model is there. */
-export function modelReady(host: TranslationHost, state: ModelState): boolean {
-  return host === "local" && state.phase === "ready";
+/**
+ * Whether a sentence in `language` can be asked: the reader chose the device, and every model of the
+ * language's route is on it, as the background recorded (generalise-lingua-translation-model-state D5).
+ */
+export function languageReady(host: TranslationHost, state: ModelState, language: string): boolean {
+  if (host !== "local") return false;
+  return (state.phase === "ready" || state.phase === "missing") && state.languages.includes(language);
 }
 
 /** The slice of chrome.storage.local this needs. */

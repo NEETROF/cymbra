@@ -5,22 +5,32 @@
 /** A reply from the engine: its markup answer, or why there is none (for the log, not the reader). */
 export type EngineReply = { ok: true; html: string } | { ok: false; reason: string };
 
-/** Where the engine is, as the background sees it: something that turns markup into markup. */
+/**
+ * Where the engine is, as the background sees it: something that turns markup in a studied language
+ * into French markup, through that language's route (generalise-lingua-translation-model-state D5).
+ */
 export interface EngineAccess {
-  translate(markup: string): Promise<EngineReply>;
+  translate(markup: string, language: string): Promise<EngineReply>;
   /**
-   * Load the engine without translating, because a translation is coming — a selection has begun,
-   * a page that was translating is back (add-lingua-translation-android D2, D3). It arms the idle
-   * release as a translation does. True once the engine is loaded.
+   * Load the engine and `language`'s route without translating, because a translation is coming — a
+   * selection has begun, a page that was translating is back (add-lingua-translation-android D2, D3).
+   * It arms the idle release as a translation does. True once the route is loaded.
    */
-  warm(): Promise<boolean>;
+  warm(language: string): Promise<boolean>;
 }
 
 /** The worker's answer to `load` when the model is not on the device: off, or never finished. */
 export const NO_MODEL = "the model is not on this device";
 
+/**
+ * The worker's answer to `load` for a route of more than two models: the engine pivots through one
+ * language at most (add-lingua-spanish-translation-pivot D2), and no catalogue route chains more.
+ */
+export const LONG_ROUTE = "a route of more than two models is not supported";
+
 /** The engine worker's protocol. Requests carry an id so replies can arrive in any order. */
-export type WorkerRequest = { id: number; op: "load" } | { id: number; op: "translate"; markup: string };
+export type WorkerRequest =
+  { id: number; op: "load"; language: string } | { id: number; op: "translate"; markup: string; language: string };
 export type WorkerResponse = { id: number; ok: true; html?: string } | { id: number; ok: false; error: string };
 
 export function isEngineReply(value: unknown): value is EngineReply {

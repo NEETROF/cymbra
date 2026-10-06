@@ -6,8 +6,8 @@
 
 import type { DownloadFailure } from "./model-download.ts";
 
-/** What the download worker is told, and what it says back. */
-export type ModelWorkerRequest = { op: "download" };
+/** What the download worker is told — which models, by catalogue id — and what it says back. */
+export type ModelWorkerRequest = { op: "download"; models: string[] };
 export type ModelWorkerEvent =
   | { kind: "progress"; received: number; total: number }
   | { kind: "done" }
@@ -43,8 +43,8 @@ export class DownloadHost {
     return this.worker !== null;
   }
 
-  /** Start a download unless one is running. Whatever happens next is reported. */
-  start(): void {
+  /** Start downloading `models` (catalogue ids) unless a download is running. Whatever happens next is reported. */
+  start(models: string[]): void {
     if (this.worker) return;
     let worker: DownloadWorkerLike;
     try {
@@ -72,7 +72,7 @@ export class DownloadHost {
       this.fail("unknown", e);
       this.opts.onEnded?.();
     };
-    worker.postMessage({ op: "download" });
+    worker.postMessage({ op: "download", models });
   }
 
   /** Stop the download in progress, if any. Nothing verified is lost; nothing is reported. */

@@ -12,10 +12,11 @@ describe("model messages", () => {
   });
 
   it("reads a reply defensively: anything unreadable offers nothing", () => {
+    // A `ready` written before the models were named stood for English (model-state D3).
     expect(asModelStatus({ offered: true, host: "local", state: { phase: "ready" } })).toEqual({
       offered: true,
       host: "local",
-      state: { phase: "ready" },
+      state: { phase: "ready", models: [], languages: ["en"] },
     });
     expect(asModelStatus({ offered: true, host: "remote", state: { phase: "nope" } })).toEqual({
       offered: true,
@@ -24,6 +25,26 @@ describe("model messages", () => {
     });
     expect(asModelStatus(undefined)).toEqual(NOT_OFFERED);
     expect(asModelStatus({ host: "local" })).toEqual(NOT_OFFERED);
+  });
+
+  it("keeps the cost the catalogue gives, and drops one it cannot read", () => {
+    const off = { offered: true, host: "none", state: { phase: "absent" } };
+    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, pivot: true } }).cost).toEqual({
+      download: 1,
+      stored: 2,
+      pivot: true,
+    });
+    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, pivot: "yes" } }).cost).toEqual({
+      download: 1,
+      stored: 2,
+    });
+    expect(asModelStatus({ ...off, cost: { download: 25_752_472, stored: 36_749_127 } })).toEqual({
+      ...off,
+      cost: { download: 25_752_472, stored: 36_749_127 },
+    });
+    for (const cost of [null, { download: 1 }, { download: "25", stored: 3 }, { download: 0, stored: 3 }]) {
+      expect(asModelStatus({ ...off, cost })).toEqual(off);
+    }
   });
 
   it("asks the background, and treats a background that cannot answer as offering nothing", async () => {

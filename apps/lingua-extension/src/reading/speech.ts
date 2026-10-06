@@ -42,15 +42,15 @@ export interface SpeechEngine<V extends VoiceInfo = VoiceInfo> {
 
 /** The reader's read-aloud settings, kept on the device. */
 export interface SpeechSettings {
-  /** The chosen voice's `voiceURI`, or null for the automatic choice. */
-  readonly voice: string | null;
+  /** The voice chosen for each studied language, by `voiceURI`; absent: the automatic choice. */
+  readonly voices: Readonly<Record<string, string>>;
   /** Whether Android's own voices may speak, though the browser cannot say they stay on the device. */
   readonly androidVoices: boolean;
   /** Whether remote voices may stand in where no voice of the studied language is on the device. */
   readonly remoteVoices: boolean;
 }
 
-export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voice: null, androidVoices: false, remoteVoices: false };
+export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voices: {}, androidVoices: false, remoteVoices: false };
 
 /** Where those settings are kept, and how a change made in another context reaches this one. */
 export interface VoicePreference {
@@ -143,8 +143,12 @@ const ENHANCED = /com\.apple\.voice\.(premium|enhanced)\.|\((premium|enhanced)\)
 /** Apple's qualities, worst first, as its identifiers name them. */
 const QUALITIES = ["super-compact", "compact", "enhanced", "premium"];
 const QUALITY = /com\.apple\.voice\.(super-compact|compact|enhanced|premium)\./;
-/** Within a tier, the regions tried first, per studied language. */
-const PREFERRED_REGIONS: Record<string, readonly string[]> = { en: ["us", "gb"] };
+/**
+ * Within a tier, the regions tried first, per studied language: for Spanish, a voice of Spain
+ * (the programme's decision D5, add-lingua-spanish-read-aloud), the other accents after it in the
+ * browser's order.
+ */
+const PREFERRED_REGIONS: Record<string, readonly string[]> = { en: ["us", "gb"], es: ["es"] };
 /** Android's engine as Firefox for Android exposes it: one voice per locale, place unknown. */
 const ANDROID_VOICE = /^moz-tts:android:/;
 /** Firefox for Android writes ISO 639-2 languages and ISO 3166 alpha-3 regions (`eng-GBR`). */
@@ -174,6 +178,12 @@ const THREE_LETTER_REGIONS: Record<string, string> = {
   zaf: "za",
   can: "ca",
   nzl: "nz",
+  esp: "es",
+  mex: "mx",
+  arg: "ar",
+  col: "co",
+  chl: "cl",
+  per: "pe",
 };
 
 function subtags(lang: string): string[] {
@@ -380,7 +390,7 @@ export function createSpeaker<V extends VoiceInfo>(
 
   const usable = (): V[] => usableVoices(voices, langOf(), settings.androidVoices, settings.remoteVoices);
   const chosen = (): V | null =>
-    pickVoice(voices, langOf(), settings.voice, settings.androidVoices, settings.remoteVoices);
+    pickVoice(voices, langOf(), settings.voices[langOf()] ?? null, settings.androidVoices, settings.remoteVoices);
 
   return {
     get lang() {
@@ -390,7 +400,7 @@ export function createSpeaker<V extends VoiceInfo>(
     eligible: usable,
     listsVoices: () => voices.length > 0,
     automatic: () => pickVoice(voices, langOf(), null, settings.androidVoices, settings.remoteVoices),
-    preferred: () => settings.voice,
+    preferred: () => settings.voices[langOf()] ?? null,
     androidVoices: () => settings.androidVoices,
     offersAndroidVoices: () => voices.some((v) => isAndroidVoice(v) && isEligible(v, langOf(), true)),
     remoteVoices: () => settings.remoteVoices,

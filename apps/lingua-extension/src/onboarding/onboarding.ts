@@ -1,7 +1,8 @@
 import type { AccountReply } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import { readingLanguage } from "../analyzer/pairs.ts";
-import type { CefrLevel } from "../analyzer/types.ts";
+import { acceptedLanguages } from "../analyzer/pairs.ts";
+import { mountStudiedLanguages } from "../reading/studied-languages-view.ts";
+import { levelRow } from "./level-row.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
 import { messagedArea } from "../state/store.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
@@ -11,7 +12,8 @@ followSurfaceLook(document.documentElement);
 
 // First-run welcome tab, opened on install (Chromium/Firefox; a best-effort bonus —
 // the popup's level call-to-action is the portable equivalent). It hydrates its own
-// engine from the shared backup and lets the reader pick their CEFR level right away.
+// engine from the shared backup and lets the reader pick their languages, when the package
+// ships several, and a CEFR level for each right away.
 // If the pack carries no CEFR data the level step is hidden. Excluded from coverage
 // (DOM wiring; the engine/model are tested elsewhere).
 
@@ -55,33 +57,26 @@ async function main(): Promise<void> {
   void showAccountOffer();
   const port = createLinguaPort();
   await hydrateEngine(port, store);
-  // The reader's language (add-lingua-studied-language-profile); the level is chosen for it.
-  const lang = port.for(await readingLanguage(port));
+  const persist = async (): Promise<void> => saveBackup(store, await port.backup());
 
-  if (!(await lang.hasLevels())) return; // no CEFR data → welcome text only
+  // The languages first, when the package ships several (add-lingua-language-choice D5); then a
+  // level for each language the reader accepts.
+  const studied = mountStudiedLanguages($("languages-section"), port, async () => {
+    await persist();
+    await renderLevels();
+  });
+  await studied.refresh();
+  await renderLevels();
 
-  $("level-section").hidden = false;
-  const current = await lang.declaredLevel();
-  const chips = Array.from(document.querySelectorAll<HTMLButtonElement>("#level-chips .lvl"));
-  const mark = (level: CefrLevel | null): void => {
-    for (const c of chips) c.classList.toggle("active", (c.dataset.lvl ?? "") === (level ?? ""));
-  };
-  mark(current);
-
-  for (const chip of chips) {
-    chip.addEventListener("click", async () => {
-      const level = (chip.dataset.lvl as CefrLevel) || null;
-      await lang.setDeclaredLevelAt(level, Date.now()); // stamp for cross-device LWW
-      // With a declared level, presumption comes only from it (option B).
-      await lang.setCalibration(0);
-      await saveBackup(store, await port.backup());
-      mark(level);
-      const confirm = $("level-confirm");
-      confirm.hidden = false;
-      confirm.textContent = level
-        ? `Niveau enregistré : ${level}. Tu peux fermer cet onglet et commencer à lire.`
-        : "C'est noté — on part de zéro. Tu peux fermer cet onglet et commencer à lire.";
-    });
+  async function renderLevels(): Promise<void> {
+    const rows = $("level-rows");
+    rows.replaceChildren();
+    for (const language of await acceptedLanguages(port)) {
+      const view = port.for(language);
+      if (!(await view.hasLevels())) continue; // no CEFR data for this language
+      rows.append(levelRow(language, view, await view.declaredLevel(), await view.levelsEstimated(), persist));
+    }
+    $("level-section").hidden = rows.childElementCount === 0;
   }
 }
 
