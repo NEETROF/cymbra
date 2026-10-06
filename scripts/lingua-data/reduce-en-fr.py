@@ -614,6 +614,15 @@ _read_entries = functools.partial(common._read_entries, studied=EN)
 reduce_gloss = functools.partial(common.reduce_gloss, studied=EN)
 reduce_expressions = functools.partial(common.reduce_expressions, studied=EN)
 
+# Expressions the French Wiktionary does not gloss, each with its French gloss, written and reviewed
+# by a person: expression -> gloss. It wins over the source, as es-fr's LOCUTIONS. The card shows it
+# above the machine translation of the sentence, which can get an expression wrong (« four-poster
+# bed » came back « lit à quatre affiches »). A gloss here is never generated. Editing it is a rule
+# change: the tables are reduced again.
+LOCUTIONS = {
+    "four-poster bed": "Lit à baldaquin",
+}
+
 
 def grammar_rows(readings, forms, lemmas, meanings, targets, cefr):
     """The lines of `grammar.tsv`: (form, lemma, tag, "other"|"-"), sorted.
@@ -750,6 +759,7 @@ def main():
         kaikki, lemmas, a.max_word_gloss_len, per_sense=a.max_word_sense_len, max_senses=a.max_word_senses, runs=runs
     )
     expressions = reduce_expressions(kaikki, a.max_gloss_len)
+    expressions.update(LOCUTIONS)
     forms = resolve_forms(pairs, ranks, targets, set(glosses))
     levels = reduce_levels(cefr, lemmas)
 
