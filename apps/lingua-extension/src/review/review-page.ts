@@ -29,6 +29,11 @@ export interface ReviewPage {
   refresh: () => Promise<void>;
   /** Whether a review session is under way (a restore would end it). */
   reviewing: () => boolean;
+  /**
+   * The review opens anew beside a page, or the page or book beside it changed: the next refresh
+   * opens in that page's language, whatever was chosen beside the last one (D3).
+   */
+  pageChanged: () => void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] {
@@ -129,8 +134,8 @@ export function mountReview(
   }
 
   /**
-   * Follow the page the review is shown beside: a page language it has not followed yet wins, while
-   * a language chosen beside the same one stands (D2, D3). A session under way keeps its queue.
+   * Follow the page the review is shown beside: a page it has not followed yet wins, while a
+   * language chosen beside the same one stands (D2, D3). A session under way keeps its queue.
    */
   async function followPage(): Promise<void> {
     if (controller.view().phase === "reviewing") return;
@@ -245,6 +250,9 @@ export function mountReview(
       render(controller.view());
     },
     reviewing: () => controller.view().phase === "reviewing",
+    pageChanged: () => {
+      followed = undefined;
+    },
   };
 }
 

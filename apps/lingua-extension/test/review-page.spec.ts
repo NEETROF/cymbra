@@ -538,6 +538,24 @@ describe("Révision — a reader of several languages", () => {
     expect(chosen(m.container)).toBe("Anglais");
   });
 
+  it("opens in the page's language again when it is opened anew or the page changes", async () => {
+    // A choice holds between two showings beside one page; an opening, or another page or book of
+    // the same language, brings the page's language back (refine-lingua-review-language D3).
+    const { port } = await bilingual();
+    const m = mount(port, fakeArea(), { pageLanguage: async () => "es" });
+    await m.page.refresh();
+    button(m.container, "Anglais").click();
+    await settle();
+    await m.page.refresh();
+    expect(chosen(m.container)).toBe("Anglais");
+
+    m.page.pageChanged();
+    await m.page.refresh();
+
+    expect(chosen(m.container)).toBe("Espagnol");
+    expect(m.prefs.raw[REVIEW_LANGUAGE_KEY]).toBe("en"); // still the last chosen, away from a page
+  });
+
   it("keeps a session under way in its language, whatever the reader or the page asks", async () => {
     const { port, calls } = await bilingual();
     let page: string | null = "es";

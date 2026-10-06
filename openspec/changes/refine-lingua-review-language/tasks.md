@@ -13,6 +13,7 @@
   - beside a Spanish page, the Spanish cards and counts;
   - away from a page, the last chosen;
   - choosing English switches and remembers it, and the choice holds beside the same page;
+  - an opening, or another page or book, brings the page's language back;
   - a page in another language brings its own back; a session under way keeps its language;
   - English alone shows no segment, with the counts as before.
 
@@ -31,3 +32,9 @@
 ## 5. Dogfood (owner)
 
 - [ ] 5.1 On a browser with both languages: the review beside a Spanish page opens in Spanish, away from a page in the last chosen, and the popup's count follows the page.
+
+## 6. Dogfood findings (Chrome, 2026-10-06)
+
+- [x] 6.1 The page's language comes back when the review opens again or the page or book beside it changes, instead of a choice made beside another page (design D3). Specs: `pageChanged()` brings the page's language back over a choice; the drawer follows its document's new language.
+- [x] 6.2 Chrome's side panel follows the window's active tab while it is open: tab activated, page loaded, the session's language announced with its figures (design D3).
+- [x] 6.3 Beside a book, the book's own language, from its metadata, wins over what a section reads as: a cover has no text, a Project Gutenberg front matter is English (design D2). Specs: a cover, then an English licence, in a book declared Spanish.
