@@ -50,4 +50,4 @@
 
 ## 7. Dogfood (owner)
 
-- [ ] 7.1 With `es-fr.lingua` beside `pack.lingua`: a reply in Spanish shows « 📖 ES » in the statusline, `/vocab` lists its words under « Espagnol », and the agent reviews Spanish cards through the MCP tools.
+- [x] 7.1 With `es-fr.lingua` beside `pack.lingua`: a reply in Spanish shows « 📖 ES » in the statusline, `/vocab` lists its words under « Espagnol », and the agent reviews Spanish cards through the MCP tools.
