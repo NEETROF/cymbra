@@ -13,24 +13,26 @@
 // limitations under the License.
 
 //! The coverage statusline: for the last assistant reply, the known-word percentage and
-//! the number of new (unknown) words. Silent degradation — `None` renders nothing.
+//! the number of new (unknown) words, in the language the reply is read in — named first
+//! when the plugin follows several (add-lingua-agent-languages D4). Silent degradation —
+//! `None` renders nothing.
 
 use std::collections::BTreeSet;
 
 use lingua_core::analysis::percent::TokenClass;
 use lingua_core::knowledge::state::KnowledgeState;
-use lingua_core::packs::Pack;
 
-use crate::engine::analyse;
+use crate::engine::{Library, read_reply};
 
 /// The statusline text for one reply, or `None` when it cannot be analysed (mute).
-/// French UI copy: `📖 96 % · 3 nouveaux`.
+/// French UI copy: `📖 96 % · 3 nouveaux`, or `📖 ES 91 % · 5 nouveaux` with several languages.
 pub fn statusline_text(
-    pack: &Pack,
+    library: &mut Library,
     knowledge: &KnowledgeState,
     last_reply: &str,
 ) -> Option<String> {
-    let analysis = analyse(pack, knowledge, last_reply);
+    let several = library.several();
+    let (language, analysis) = read_reply(library, knowledge, last_reply)?;
     if !analysis.analysable {
         return None;
     }
@@ -43,5 +45,10 @@ pub fn statusline_text(
         .collect();
     let n = new_words.len();
     let noun = if n == 1 { "nouveau" } else { "nouveaux" };
-    Some(format!("📖 {pct} % · {n} {noun}"))
+    let tag = if several {
+        format!("{} ", language.tag().to_uppercase())
+    } else {
+        String::new()
+    };
+    Some(format!("📖 {tag}{pct} % · {n} {noun}"))
 }

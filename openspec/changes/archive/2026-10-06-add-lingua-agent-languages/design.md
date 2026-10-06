@@ -103,7 +103,8 @@
 - **A language not followed** is refused.
 - **A review never mixes languages:** `due_cards` lists one language's cards, as the extension's
   review does (`refine-lingua-review-language`).
-- The server reads the languages followed when it starts (D1, no pack loaded).
+- The server reads the languages followed when it starts (D1, no pack loaded). With no pack
+  installed it keeps serving the deck as English, as it always did.
 
 ### D7 — English alone
 

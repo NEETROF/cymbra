@@ -18,20 +18,75 @@
 //! per-transcript ingest offsets — **never any transcript content**, only the
 //! sentences the user explicitly captures onto a card. The schema mirrors
 //! `lingua-core`'s types (cards are its `Card` serialised) so a future merge with the
-//! other surfaces is mechanical. English-only for the MVP, so no language column.
+//! other surfaces is mechanical. Schema 2 keys everything by language
+//! (add-lingua-agent-languages D3); a schema-1 store is migrated, every row English.
 
 use std::path::Path;
 
+use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::decks::card::Card;
 use lingua_core::knowledge::state::KnowledgeState;
 use lingua_core::knowledge::status::{KnownSource, Status};
 use rusqlite::{Connection, OptionalExtension, params};
 
 /// Current schema version; bump with a migration when the shape changes.
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 /// Default calibration ("I know the 3000 most common words").
 pub const DEFAULT_CALIBRATION: u32 = 3000;
+
+/// Why the store would not open.
+#[derive(Debug)]
+pub enum StoreError {
+    /// SQLite refused.
+    Sqlite(rusqlite::Error),
+    /// The store was written by a later version of the plugin: it is left untouched.
+    Newer(i64),
+}
+
+impl std::fmt::Display for StoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StoreError::Sqlite(e) => write!(f, "{e}"),
+            StoreError::Newer(v) => write!(f, "store schema {v} is newer than this plugin's"),
+        }
+    }
+}
+
+impl std::error::Error for StoreError {}
+
+impl From<rusqlite::Error> for StoreError {
+    fn from(e: rusqlite::Error) -> Self {
+        StoreError::Sqlite(e)
+    }
+}
+
+/// The tables of schema 2.
+const TABLES: &str = "
+    CREATE TABLE IF NOT EXISTS exposures (
+      language TEXT NOT NULL, lemma TEXT NOT NULL, occurrences INTEGER NOT NULL,
+      last_source TEXT NOT NULL, last_seen INTEGER NOT NULL, PRIMARY KEY (language, lemma));
+    CREATE TABLE IF NOT EXISTS statuses (
+      language TEXT NOT NULL, lemma TEXT NOT NULL, status TEXT NOT NULL,
+      PRIMARY KEY (language, lemma));
+    CREATE TABLE IF NOT EXISTS cards (
+      language TEXT NOT NULL, lemma TEXT NOT NULL, json TEXT NOT NULL,
+      PRIMARY KEY (language, lemma));
+    CREATE TABLE IF NOT EXISTS ingest (transcript TEXT PRIMARY KEY, offset INTEGER NOT NULL);";
+
+/// Schema 1 to 2: every row was English, the only language the plugin stored.
+const FROM_V1: &str = "
+    ALTER TABLE exposures RENAME TO exposures_v1;
+    ALTER TABLE statuses RENAME TO statuses_v1;
+    ALTER TABLE cards RENAME TO cards_v1;";
+const COPY_V1: &str = "
+    INSERT INTO exposures SELECT 'en', lemma, occurrences, last_source, last_seen FROM exposures_v1;
+    INSERT INTO statuses SELECT 'en', lemma, status FROM statuses_v1;
+    INSERT INTO cards SELECT 'en', lemma, json FROM cards_v1;
+    DROP TABLE exposures_v1;
+    DROP TABLE statuses_v1;
+    DROP TABLE cards_v1;
+    UPDATE meta SET k = 'calibration:en' WHERE k = 'calibration';";
 
 /// The local SQLite store.
 pub struct Store {
@@ -40,7 +95,7 @@ pub struct Store {
 
 impl Store {
     /// Opens (creating if needed) the store at `path` and migrates the schema.
-    pub fn open(path: &Path) -> rusqlite::Result<Store> {
+    pub fn open(path: &Path) -> Result<Store, StoreError> {
         let store = Store {
             conn: Connection::open(path)?,
         };
@@ -49,7 +104,7 @@ impl Store {
     }
 
     /// An in-memory store (tests).
-    pub fn open_in_memory() -> rusqlite::Result<Store> {
+    pub fn open_in_memory() -> Result<Store, StoreError> {
         let store = Store {
             conn: Connection::open_in_memory()?,
         };
@@ -57,21 +112,53 @@ impl Store {
         Ok(store)
     }
 
-    fn migrate(&self) -> rusqlite::Result<()> {
+    fn migrate(&self) -> Result<(), StoreError> {
         self.conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
-             CREATE TABLE IF NOT EXISTS exposures (
-               lemma TEXT PRIMARY KEY, occurrences INTEGER NOT NULL,
-               last_source TEXT NOT NULL, last_seen INTEGER NOT NULL);
-             CREATE TABLE IF NOT EXISTS statuses (lemma TEXT PRIMARY KEY, status TEXT NOT NULL);
-             CREATE TABLE IF NOT EXISTS cards (lemma TEXT PRIMARY KEY, json TEXT NOT NULL);
-             CREATE TABLE IF NOT EXISTS ingest (transcript TEXT PRIMARY KEY, offset INTEGER NOT NULL);",
+            "CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);",
         )?;
-        self.conn.execute(
-            "INSERT OR IGNORE INTO meta (k, v) VALUES ('schema_version', ?1)",
+        let version = self
+            .meta("schema_version")?
+            .and_then(|v| v.parse::<i64>().ok());
+        match version {
+            Some(SCHEMA_VERSION) => {}
+            Some(v) if v > SCHEMA_VERSION => return Err(StoreError::Newer(v)),
+            // A store with tables but no version is an early schema-1 one.
+            _ if self.has_table("exposures")? => self.migrate_v1()?,
+            _ => {
+                let tx = self.conn.unchecked_transaction()?;
+                tx.execute_batch(TABLES)?;
+                tx.execute(
+                    "INSERT OR REPLACE INTO meta (k, v) VALUES ('schema_version', ?1)",
+                    params![SCHEMA_VERSION.to_string()],
+                )?;
+                tx.commit()?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Schema 1 to 2 in one transaction (design D3): a failure leaves the store as it was.
+    fn migrate_v1(&self) -> rusqlite::Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute_batch(FROM_V1)?;
+        tx.execute_batch(TABLES)?;
+        tx.execute_batch(COPY_V1)?;
+        tx.execute(
+            "INSERT OR REPLACE INTO meta (k, v) VALUES ('schema_version', ?1)",
             params![SCHEMA_VERSION.to_string()],
         )?;
-        Ok(())
+        tx.commit()
+    }
+
+    fn has_table(&self, name: &str) -> rusqlite::Result<bool> {
+        self.conn
+            .query_row(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1",
+                params![name],
+                |_| Ok(()),
+            )
+            .optional()
+            .map(|found| found.is_some())
     }
 
     /// The stored schema version.
@@ -98,36 +185,39 @@ impl Store {
 
     // --- Exposure counters ---
 
-    /// Increments a lemma's exposure by `count`, stamping the source and time.
+    /// Increments a lemma's exposure in `language` by `count`, stamping the source and time.
     pub fn record_exposure(
         &self,
+        language: StudiedLanguage,
         lemma: &str,
         count: u32,
         source: &str,
         timestamp: i64,
     ) -> rusqlite::Result<()> {
         self.conn.execute(
-            "INSERT INTO exposures (lemma, occurrences, last_source, last_seen) VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT(lemma) DO UPDATE SET occurrences = occurrences + excluded.occurrences,
+            "INSERT INTO exposures (language, lemma, occurrences, last_source, last_seen)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(language, lemma) DO UPDATE SET
+               occurrences = occurrences + excluded.occurrences,
                last_source = excluded.last_source, last_seen = excluded.last_seen",
-            params![lemma, count, source, timestamp],
+            params![language.tag(), lemma, count, source, timestamp],
         )?;
         Ok(())
     }
 
-    /// A lemma's total occurrences (0 if never seen).
-    pub fn exposure(&self, lemma: &str) -> rusqlite::Result<u32> {
+    /// A lemma's total occurrences in `language` (0 if never seen).
+    pub fn exposure(&self, language: StudiedLanguage, lemma: &str) -> rusqlite::Result<u32> {
         self.conn
             .query_row(
-                "SELECT occurrences FROM exposures WHERE lemma = ?1",
-                params![lemma],
+                "SELECT occurrences FROM exposures WHERE language = ?1 AND lemma = ?2",
+                params![language.tag(), lemma],
                 |r| r.get(0),
             )
             .optional()
             .map(|o| o.unwrap_or(0))
     }
 
-    /// How many distinct lemmas have ever been seen.
+    /// How many distinct lemmas have ever been seen, every language together.
     pub fn tracked_lemmas(&self) -> rusqlite::Result<usize> {
         self.conn
             .query_row("SELECT COUNT(*) FROM exposures", [], |r| r.get::<_, i64>(0))
@@ -136,73 +226,92 @@ impl Store {
 
     // --- Statuses + calibration ---
 
-    pub fn set_status(&self, lemma: &str, status: Status) -> rusqlite::Result<()> {
+    pub fn set_status(
+        &self,
+        language: StudiedLanguage,
+        lemma: &str,
+        status: Status,
+    ) -> rusqlite::Result<()> {
         self.conn.execute(
-            "INSERT OR REPLACE INTO statuses (lemma, status) VALUES (?1, ?2)",
-            params![lemma, status_str(status)],
+            "INSERT OR REPLACE INTO statuses (language, lemma, status) VALUES (?1, ?2, ?3)",
+            params![language.tag(), lemma, status_str(status)],
         )?;
         Ok(())
     }
 
-    pub fn calibration(&self) -> rusqlite::Result<u32> {
+    /// The calibration of `language` (a schema-1 store's was English's).
+    pub fn calibration(&self, language: StudiedLanguage) -> rusqlite::Result<u32> {
         Ok(self
-            .meta("calibration")?
+            .meta(&calibration_key(language))?
             .and_then(|s| s.parse().ok())
             .unwrap_or(DEFAULT_CALIBRATION))
     }
 
-    pub fn set_calibration(&self, threshold: u32) -> rusqlite::Result<()> {
-        self.set_meta("calibration", &threshold.to_string())
+    pub fn set_calibration(
+        &self,
+        language: StudiedLanguage,
+        threshold: u32,
+    ) -> rusqlite::Result<()> {
+        self.set_meta(&calibration_key(language), &threshold.to_string())
     }
 
-    /// Builds a `lingua-core` knowledge state (calibration + statuses) for analysis.
+    /// Builds a `lingua-core` knowledge state (every language's calibration and statuses).
     pub fn knowledge_state(&self) -> rusqlite::Result<KnowledgeState> {
         let mut state = KnowledgeState::new();
-        state.set_calibration(
-            lingua_core::analysis::language::StudiedLanguage::English,
-            self.calibration()?,
-        );
-        let mut stmt = self.conn.prepare("SELECT lemma, status FROM statuses")?;
-        let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+        for language in StudiedLanguage::ALL {
+            state.set_calibration(language, self.calibration(language)?);
+        }
+        let mut stmt = self
+            .conn
+            .prepare("SELECT language, lemma, status FROM statuses")?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
+        })?;
         for row in rows {
-            let (lemma, status) = row?;
-            if let Some(s) = status_from_str(&status) {
-                state.set_status(
-                    lingua_core::analysis::language::StudiedLanguage::English,
-                    &lemma,
-                    s,
-                );
+            let (language, lemma, status) = row?;
+            if let (Some(language), Some(status)) = (
+                StudiedLanguage::from_tag(&language),
+                status_from_str(&status),
+            ) {
+                state.set_status(language, &lemma, status);
             }
         }
         Ok(state)
     }
 
-    // --- Deck cards (lingua-core Card serialised) ---
+    // --- Deck cards (lingua-core Card serialised), one deck per language ---
 
-    pub fn upsert_card(&self, card: &Card) -> rusqlite::Result<()> {
+    pub fn upsert_card(&self, language: StudiedLanguage, card: &Card) -> rusqlite::Result<()> {
         let json = serde_json::to_string(card).expect("Card serialises");
         self.conn.execute(
-            "INSERT OR REPLACE INTO cards (lemma, json) VALUES (?1, ?2)",
-            params![card.lemma, json],
+            "INSERT OR REPLACE INTO cards (language, lemma, json) VALUES (?1, ?2, ?3)",
+            params![language.tag(), card.lemma, json],
         )?;
         Ok(())
     }
 
-    pub fn card(&self, lemma: &str) -> rusqlite::Result<Option<Card>> {
+    pub fn card(&self, language: StudiedLanguage, lemma: &str) -> rusqlite::Result<Option<Card>> {
         let json: Option<String> = self
             .conn
             .query_row(
-                "SELECT json FROM cards WHERE lemma = ?1",
-                params![lemma],
+                "SELECT json FROM cards WHERE language = ?1 AND lemma = ?2",
+                params![language.tag(), lemma],
                 |r| r.get(0),
             )
             .optional()?;
         Ok(json.and_then(|j| serde_json::from_str(&j).ok()))
     }
 
-    pub fn all_cards(&self) -> rusqlite::Result<Vec<Card>> {
-        let mut stmt = self.conn.prepare("SELECT json FROM cards ORDER BY lemma")?;
-        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+    /// The cards of `language`, in lemma order.
+    pub fn all_cards(&self, language: StudiedLanguage) -> rusqlite::Result<Vec<Card>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT json FROM cards WHERE language = ?1 ORDER BY lemma")?;
+        let rows = stmt.query_map(params![language.tag()], |r| r.get::<_, String>(0))?;
         let mut cards = Vec::new();
         for row in rows {
             if let Ok(card) = serde_json::from_str(&row?) {
@@ -212,16 +321,20 @@ impl Store {
         Ok(cards)
     }
 
-    pub fn deck_len(&self) -> rusqlite::Result<usize> {
+    pub fn deck_len(&self, language: StudiedLanguage) -> rusqlite::Result<usize> {
         self.conn
-            .query_row("SELECT COUNT(*) FROM cards", [], |r| r.get::<_, i64>(0))
+            .query_row(
+                "SELECT COUNT(*) FROM cards WHERE language = ?1",
+                params![language.tag()],
+                |r| r.get::<_, i64>(0),
+            )
             .map(|n| n as usize)
     }
 
-    /// Cards due at `now` (Unix-epoch seconds), in deterministic lemma order.
-    pub fn due_cards(&self, now: i64) -> rusqlite::Result<Vec<Card>> {
+    /// The cards of `language` due at `now` (Unix-epoch seconds), in deterministic lemma order.
+    pub fn due_cards(&self, language: StudiedLanguage, now: i64) -> rusqlite::Result<Vec<Card>> {
         Ok(self
-            .all_cards()?
+            .all_cards(language)?
             .into_iter()
             .filter(|c| c.review.is_due(now))
             .collect())
@@ -247,6 +360,11 @@ impl Store {
         )?;
         Ok(())
     }
+}
+
+/// The meta key of a language's calibration.
+fn calibration_key(language: StudiedLanguage) -> String {
+    format!("calibration:{}", language.tag())
 }
 
 fn status_str(status: Status) -> &'static str {
