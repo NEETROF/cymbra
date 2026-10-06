@@ -177,7 +177,7 @@ describe("a session attached to a book section", () => {
     expect(unknown[0].startContainer.ownerDocument).toBe(host.doc);
     expect(pageRegistry.size).toBe(0);
     expect(ind.states.at(-1)).toMatchObject({ analysable: true, percent: 80 });
-    expect(sent).toContainEqual({ type: "stats", pct: 80 });
+    expect(sent).toContainEqual({ type: "stats", pct: 80, language: "en" });
   });
 
   it("detaches from one section before reading the next", async () => {
@@ -484,6 +484,22 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
 
     expect(answer).toMatchObject({ language: "es", deckCount: 7, dueCount: 2 });
     expect(counted).toEqual({ deck: [["es"]], due: [["es"]] });
+  });
+
+  it("announces the document's language with its figures, for Chrome's side panel (D3)", async () => {
+    await spanishBook();
+    expect(sent).toContainEqual({ type: "stats", pct: 80, language: "es" });
+  });
+
+  it("brings the open drawer's review to the document's new language (D3)", async () => {
+    const { s, port, counted } = await spanishBook();
+    runtimeListeners[0]({ type: "openDrawer", view: "review" }, {}, () => {});
+    await vi.waitFor(() => expect(counted.deck).toEqual([["es"]]));
+
+    port.detectLanguage = async () => "en"; // the next section is read in English
+    await s.attach(section("<p>It was a dark night.</p>").host);
+
+    await vi.waitFor(() => expect(counted.deck.at(-1)).toEqual(["en"]));
   });
 
   it("opens the drawer's review in the document's language (D2)", async () => {

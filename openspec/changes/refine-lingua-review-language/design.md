@@ -42,8 +42,8 @@ otherwise keep saying that nothing is left to review, of a language no longer sh
 ### D2 — Which language: the page's, else the last chosen, else the first
 
 `mountReview` takes an optional `pageLanguage(): Promise<string | null>` from its host, and asks it
-on each refresh. When the answer differs from the page language it last followed (the first
-refresh, or a page in another language), it resolves, in order:
+on each refresh. When the answer differs from the page language it last followed, or the host said
+the page changed (D3), it resolves, in order:
 1. the page's language, when it is one of the accepted languages;
 2. the last language chosen, `cymbra-lingua-review-language` in the preferences area
    (`chrome.storage.local`), when it is accepted;
@@ -56,15 +56,21 @@ The page's language from each host:
 - **The in-page drawer:** the reading session gives `() => this.language`. On a book this is the
   book's language, as the reader runs the same session.
 - **Chrome's side panel:** sends `getStats` to the active tab, the message the popup sends, and
-  reads `language` from the answer. No answer (no reading session there, an extension page) leaves
-  it null.
+  reads `language` from the answer. No answer (no reading session there) leaves it null.
 
 ### D3 — The choice is remembered
 
 Clicking a segment selects that language and writes it as the last chosen.
-- It holds while the page's language does not change: switching views, closing and reopening the
-  drawer beside the same page, a sync pull. A page in another language brings the review to that
-  one.
+- It holds while the review stays beside one page: switching views, a sync pull.
+- The page's language comes back when the review opens again or the page beside it changes.
+  `ReviewPage.pageChanged()` forgets the page followed, so the next refresh resolves anew (D2).
+  The hosts call it:
+  - **the in-page drawer:** at each opening, and when the reading session finds its document in
+    another language (another book, or a page whose language is found after the drawer opened);
+  - **Chrome's side panel:** when « Réviser » is asked from the popup or the HUD, when the window's
+    active tab changes or finishes loading, and when the active tab's reading session announces
+    another language with its figures (the `stats` message, which now carries `language`). It
+    refreshes Révision at once when it is shown.
 - The last choice serves away from a page.
 - It is a device preference, like the HUD toggle: never synced, never in the backup.
 
@@ -93,9 +99,9 @@ So nothing a reader of English alone sees changes, and the English baseline does
 - **The side panel beside the book reader.** The panel asks the active tab with the popup's
   message, which the book reader answers (`session.ts`). Where nothing answers, the panel opens on
   the last choice.
-- **A choice and the next page.** With Chrome's side panel left open, a choice of English made
-  beside a Spanish page holds on the next Spanish page, as the page's language has not changed. The
-  drawer belongs to one page, so the next page's drawer opens in Spanish.
+- **Two books in one language.** Opening another book of the same language while the drawer or
+  the panel shows Révision may say nothing the hosts hear: a choice made beside the first book holds
+  until the review opens again.
 - **A requirement held elsewhere.** « One review queue across languages » still says the review
   page offers all languages. It is reconciled after `add-lingua-language-stats-review` archives, by
   `refine-lingua-language-wording` (change 33).

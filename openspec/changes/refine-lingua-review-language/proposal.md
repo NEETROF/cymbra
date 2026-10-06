@@ -25,7 +25,8 @@ should open in the language being read, and its counts should follow. Today:
   - Chrome's side panel: it asks the active tab's reading session, as the popup already does;
   - the popup's « Réviser (N) »: the page's language too.
 - **A choice is remembered.** Choosing a language in the review keeps it as the last one, on the
-  device, beside the other preferences. It holds while the page's language does not change.
+  device, beside the other preferences. It holds until the review opens again or the page beside it
+  changes; an open review follows the page or book beside it.
 - **The counts follow the language.** « N carte(s) · M à revoir » counts that language's cards. The
   engine's deck count takes the same language filter its due count takes.
 - **Decision D8 is superseded.** The programme notes the owner's decision.

@@ -674,7 +674,10 @@ export class ReadingSession {
       // What was read so far was read in the document's former language: count it there
       // (add-lingua-language-stats-review D3).
       if (language !== this.language && this.hasPendingExposure()) void this.flushExposure();
+      const changed = language !== this.language;
       this.language = language;
+      // Révision follows the document beside it (refine-lingua-review-language D3).
+      if (changed) void this.drawer.pageChanged();
     }
     const analysis = await this.lang.analyse(texts);
     // Another document replaced this one while the engine answered: its figures are stale.
@@ -698,7 +701,12 @@ export class ReadingSession {
 
   private pushBadge(): void {
     try {
-      chrome.runtime.sendMessage({ type: "stats", pct: this.stats.analysable ? this.stats.percent : null });
+      // The document's language rides along: Chrome's side panel follows the active tab's.
+      chrome.runtime.sendMessage({
+        type: "stats",
+        pct: this.stats.analysable ? this.stats.percent : null,
+        language: this.language,
+      });
     } catch {
       // The service worker may be asleep; the badge refreshes on the next pass.
     }
