@@ -28,7 +28,7 @@
 
 ## 5. Réglages
 
-- [x] 5.1 `reading/settings-view.ts`: a « Révision » block with « Nouveaux mots par jour » (5 / 10 / 20) in the « Langue » tab; « Fichier de sauvegarde » (Sauvegarder, Restaurer) and « Sources et confidentialité » in the « Données » tab. Verify with `test/settings-view.spec.ts` (the setting writes its key; backup downloads a versioned file; restore re-imports it; the sources show the pack's licences) and `test/lint-settings-hosts.spec.ts` passing with every host.
+- [x] 5.1 `reading/settings-view.ts`: a « Rythme de révision » block with « Nouveaux mots par jour » (5 / 10 / 20) in the « Langue » tab; « Fichier de sauvegarde » (Sauvegarder, Restaurer) and « Sources et confidentialité » in the « Données » tab. Verify with `test/settings-view.spec.ts` (the setting writes its key; backup downloads a versioned file; restore re-imports it; the sources show the pack's licences) and `test/lint-settings-hosts.spec.ts` passing with every host.
 
 ## 6. Integration and dogfood
 

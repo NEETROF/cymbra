@@ -52,8 +52,10 @@ _None._
   - *Review present right next to the reading* — the sentence shows on the front; the
     gloss stays hidden until the reveal.
   - *One review queue across languages, with a language filter* (added by
-    `add-lingua-language-stats-review`, not yet archived) — every queue, single-language
-    included, is ordered by predicted recall.
+    `add-lingua-language-stats-review`, not yet archived) — a session, in the one language
+    the review is in since `refine-lingua-review-language`, is ordered by predicted recall;
+    the text no longer offers every language at once. Its title is left to
+    `refine-lingua-language-wording`, which reconciles that requirement.
   - Added: short sessions, a daily pace for new words, a missed card coming back in the
     session, two answers, hiding a word from review, and the end-of-session summary.
 - `lingua-browser-extension`:

@@ -21,6 +21,11 @@ See proposal.md for the why. The pieces this change reshapes:
   sources. Its two hosts, the drawer and the side panel, already call `followSurfaceLook`:
   the theme (dark, light, or the e-ink theme of `add-lingua-colour-settings`) and the
   reader's text scale reach the review with no work here.
+- **The review language** (`refine-lingua-review-language`, archived on 2026-10-06): a
+  session and its counts hold one studied language — the page's or the book's, else the
+  last chosen, else the first — and the filter offers no « Toutes ». `mountReview` follows
+  the page through its host's `pageLanguage` and `pageChanged`. The core still accepts
+  several languages in one session; nothing asks for that any more.
 - **The port** crosses contexts method by method: `analyzer/port.ts` (interface),
   `analyzer/engine.ts` (WASM adapter), `analyzer/messaging-port.ts` (the Firefox and Safari
   proxy to the background's engine), and the test fake in `test/helpers.ts`.
@@ -81,8 +86,10 @@ synced. The extension passes `day_start` as the reader's local midnight in epoch
 the daily statistics keep their UTC days, unchanged.
 
 The allowance is a reader preference under its own `chrome.storage.local` key (steps 5, 10,
-20; absent means 10), in a « Révision » block of the « Langue » tab. Like the bar and
-highlight toggles, it is a comfort setting: never in the engine backup, never synced.
+20; absent means 10), in a « Rythme de révision » block of the « Langue » tab — not
+« Révision », which `test/lint-settings-hosts.spec.ts` would read as a copy of the drawer's
+tab. Like the bar and highlight toggles, it is a comfort setting: never in the engine
+backup, never synced.
 
 *Alternative.* A per-day counter in the store: a second source of truth that a restore or a
 sync would contradict.
@@ -156,8 +163,10 @@ starts, so a drawer over a web page never takes the page's keys.
 
 The session counts as it goes: cards graded, cards recovered (D3), cards whose new due date
 is at least 30 days away, cards marked known, cards hidden. `reviewSummary` returns them;
-the end view shows them and offers « Encore 10 » only when `dueCount` (same language filter)
-is above zero. Closing stays each host's own control.
+the end view shows them and offers « Encore 10 » only when another session would hold cards.
+A due count would not tell: new words past today's allowance are due and still wait. So the
+end prepares the next session, in the same language, and measures it; « Encore 10 » starts it
+again. Closing stays each host's own control.
 
 ### D9 — Backup, restore and sources become two Données blocks
 

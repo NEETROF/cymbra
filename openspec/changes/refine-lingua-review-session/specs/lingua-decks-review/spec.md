@@ -16,15 +16,15 @@ Review SHALL be reachable without leaving the browser: the due-card count SHALL 
 - **THEN** its front shows the word alone, and its gloss appears only after « Afficher la réponse »
 
 ### Requirement: One review queue across languages, with a language filter
-A review session SHALL take the due cards of every studied language in one queue, ordered as *A session is short and starts with the most fragile cards* orders it, whatever their language. When the reader studies several languages, the review page SHALL offer to review all of them or a single one, and its count of due cards SHALL follow the choice.
+A review session SHALL take the due cards of the one studied language the review is in, as *A review is in the language being read* chooses it, ordered as *A session is short and starts with the most fragile cards* orders them. When the reader studies several languages, the review page SHALL offer each of them, one at a time, and its counts SHALL follow the choice.
 
-#### Scenario: A mixed queue
-- **WHEN** a reader of two languages starts a review with cards due in both
-- **THEN** the cards come in one queue, the most fragile first, whatever their language
+#### Scenario: A reader of two languages
+- **WHEN** a reader of English and Spanish starts a review in Spanish with cards due in both languages
+- **THEN** the session holds only Spanish cards, the most fragile first
 
 #### Scenario: One language chosen
-- **WHEN** the same reader chooses one of the two languages in the review page
-- **THEN** the count and the session hold only that language's cards
+- **WHEN** the same reader chooses English in the review page
+- **THEN** the counts and the next session hold only English cards, ordered the same way
 
 #### Scenario: A reader of one language
 - **WHEN** a reader studies one language
