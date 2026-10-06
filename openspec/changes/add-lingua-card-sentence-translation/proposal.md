@@ -55,8 +55,8 @@ This change archives after `refine-lingua-review-session` (`archiveAfter` in
 - **Public site — content only.** `apps/site`: the Lingua annex of the privacy policy, in
   French and English. No new page, no new capability.
 - Cymbra ID, Music, Live and the back office are untouched. Nothing new is consumed from
-  `id-*` or `platform-*`. The agent plugin (`apps/lingua-agent`) keeps its own store; a
-  card it may push without the field never erases a kept translation.
+  `id-*` or `platform-*`. The agent plugin (`apps/lingua-agent`) keeps its own store and
+  does not sync: it is untouched.
 
 **Code.**
 - `crates/lingua-core/src/decks/card.rs` (the field), `decks/review.rs` (`apply_card_lww`

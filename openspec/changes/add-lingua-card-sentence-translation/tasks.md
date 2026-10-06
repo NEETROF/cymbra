@@ -4,7 +4,7 @@
 
 - [ ] 1.1 `lingua-core` (`decks/card.rs`): `SentenceTranslation { text, marks }` and `Card::sentence_translation`, optional, skipped when absent (design D2). Verify with unit tests: a card without a translation serialises exactly as before; a card with one round-trips; a backup written before the field restores with none.
 - [ ] 1.2 `decks/review.rs`: `apply_card_lww` keeps the local translation and marks when the pulled text is empty (D3). Verify with unit tests for « A device that predates the translation »: a newer pulled card without a translation keeps the local one; a newer pulled card with one replaces it.
-- [ ] 1.3 `decks/backup.rs`: the schema version stays 2 with translated cards. Verify with the « Backup round trip » scenario as a unit test (translated and untranslated cards), then `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings`.
+- [ ] 1.3 `decks/backup.rs`: translated cards never change the version a backup is written in (1 for an English reader with the default profile, 2 otherwise). Verify with the « Backup round trip » scenario as a unit test (translated and untranslated cards, in an English-only state and in one holding another language), then `cargo fmt --all --check` and `cargo clippy --workspace --all-targets -- -D warnings`.
 
 ## 2. The WASM engine
 
