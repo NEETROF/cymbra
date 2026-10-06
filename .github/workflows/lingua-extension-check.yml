@@ -89,13 +89,14 @@ jobs:
             python3 ../../scripts/lingua-data/pack_sources.py check-reducer \
               --pin "$tables/pin.json" --reducer "../../scripts/lingua-data/reduce-$pair.py"
           done
-      # The English invariance baseline of the Spanish programme (docs/lingua/spanish-programme.md,
-      # S0): what the engine gives the extension over a fixed corpus, with the real en-fr pack.
-      # A pull request that moves it re-blesses it (LINGUA_BLESS=1) and says why: a dictionary
-      # update, or an analyser change that bumps the English analyser version. Here too, not only
-      # in `rust`, because a tables-only pull request (lingua-pack-update) does not start `rust`.
-      - name: English invariance baseline
-        run: cargo test -q -p lingua-wasm --test english_baseline
+      # The invariance baselines: what the engine gives the extension over a fixed corpus, with
+      # the real packs — en-fr (the Spanish programme's S0, docs/lingua/spanish-programme.md) and
+      # es-fr (docs/lingua/language-matrix-programme.md, change 3). A pull request that moves one
+      # re-blesses it (LINGUA_BLESS=1) and says why: a dictionary update, or an analyser change
+      # that bumps that language's analyser version. Here too, not only in `rust`, because a
+      # tables-only pull request (lingua-pack-update) does not start `rust`.
+      - name: Invariance baselines (en-fr, es-fr)
+        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline
       # Both the wasm glue (statically imported by the service worker) and the gRPC-web
       # protobuf stubs (imported by the sync transport) are gitignored and generated, so
       # typecheck needs them present — produce both before lint/typecheck, not only at
