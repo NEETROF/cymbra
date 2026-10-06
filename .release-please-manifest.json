@@ -2,7 +2,7 @@
   "apps/music": "1.36.0",
   "backend": "0.36.0",
   "apps/back-office": "0.24.0",
-  "apps/site": "0.12.0",
-  "apps/lingua-extension": "1.6.0",
-  "apps/lingua-apple": "1.4.0"
+  "apps/site": "0.13.0",
+  "apps/lingua-extension": "1.7.0",
+  "apps/lingua-apple": "1.5.0"
 }
