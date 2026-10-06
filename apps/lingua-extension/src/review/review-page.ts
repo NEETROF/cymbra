@@ -2,6 +2,7 @@ import { acceptedLanguages } from "../analyzer/pairs.ts";
 import { languageName } from "../analyzer/language-labels.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
+import { browserSpeechEngine, createSpeaker, type SpeechEngine } from "../reading/speech.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import {
   type AsyncStorageArea,
@@ -9,6 +10,7 @@ import {
   loadReviewLanguage,
   saveBackup,
   saveReviewLanguage,
+  storedVoicePreference,
 } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
 import { ReviewController } from "./session.ts";
@@ -25,10 +27,12 @@ export interface ReviewPageOptions {
   /** Epoch-seconds clock (Date.now()/1000 in production). */
   now: () => number;
   /** Preferences (chrome.storage.local): the last language chosen in the review
-   *  (refine-lingua-review-language D3) and the daily allowance of new words. */
+   *  (refine-lingua-review-language D3), the daily allowance of new words, and the voices. */
   prefs: AsyncStorageArea;
   /** The language of the page or book the review is shown beside, or null away from one (D2). */
   pageLanguage?: () => Promise<string | null>;
+  /** What reads the card aloud: the browser's synthesiser unless given (a test's, or none). */
+  speech?: SpeechEngine | null;
 }
 
 export interface ReviewPage {
@@ -78,8 +82,18 @@ export function mountReview(
   const only = (): StudiedLanguage[] | undefined => (language ? [language] : undefined);
   const accepted = (candidate: string | null | undefined): StudiedLanguage | null =>
     languages.find((l) => l === candidate) ?? null;
-  const render = (view: ReturnType<ReviewController["view"]>): void =>
-    renderReview(review, view, actions, { showLanguage: languages.length > 1 });
+  // Reads the card aloud in the card's own language, with the voice chosen for it in Réglages
+  // (refine-lingua-review-session D11).
+  let spoken: string = "en";
+  const speaker = createSpeaker(
+    opts.speech === undefined ? browserSpeechEngine() : opts.speech,
+    () => spoken,
+    storedVoicePreference(opts.prefs),
+  );
+  const render = (view: ReturnType<ReviewController["view"]>): void => {
+    spoken = view.card?.language ?? language ?? spoken;
+    renderReview(review, view, actions, { showLanguage: languages.length > 1, speaker });
+  };
 
   container.append(filterRow, summary, review);
 

@@ -47,3 +47,26 @@ The review card SHALL keep the sentence as its main element, set in a reading ty
 #### Scenario: Keys on the page being read
 - **WHEN** the injected panel is open over a web page but the focus is on the page
 - **THEN** the arrow keys and Space act on the page, not on the review
+
+### Requirement: The review card can be heard
+The review card SHALL offer to hear its word, as its front shows it, and its sentence, before the answer is revealed and after it, with the voices and under the rules of the word card's read-aloud; once revealed, it SHALL also offer to hear the dictionary form when the sentence shows another form. Without a voice the word card could use, the review card SHALL offer nothing to hear. Hearing SHALL change nothing on the card but the button that reads, and another card SHALL stop what is being read.
+
+#### Scenario: Before the reveal
+- **WHEN** a card shows « They seldom ship. » with its answer hidden
+- **THEN** « ▶ Mot » reads `seldom` and « ▶ Phrase » reads the sentence, in the card's language, and the answer stays hidden
+
+#### Scenario: After the reveal
+- **WHEN** the card of `grinning`, whose dictionary form is `grin`, is revealed
+- **THEN** « ▶ Mot » and « ▶ Phrase » are still there, and « ▶ grin » reads the dictionary form beside the answer
+
+#### Scenario: An expression
+- **WHEN** a card holds several words
+- **THEN** « ▶ Expression » reads them as one
+
+#### Scenario: Another card
+- **WHEN** the reader answers while a text of the card is being read
+- **THEN** the reading stops
+
+#### Scenario: No voice
+- **WHEN** no voice of the card's language may speak on the device
+- **THEN** the card offers nothing to hear

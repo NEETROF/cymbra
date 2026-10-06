@@ -11,7 +11,8 @@ import {
   STORAGE_VERSION,
 } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
-import { type FakeCard, makeFakePort } from "./helpers.ts";
+import type { SpeechEngine, VoiceInfo } from "@/reading/speech.ts";
+import { type FakeCard, makeFakePort, makeFakeSpeech } from "./helpers.ts";
 
 // The Révision page as a WHOLE: the summary, the FSRS widget and the reaction to a state written
 // by another surface (backup, restore and the pack's credits live in Réglages › Données). The render itself is
@@ -92,6 +93,8 @@ interface Host {
   pageLanguage?: () => Promise<string | null>;
   /** The preferences area: the last language chosen in the review (D3), the daily allowance. */
   prefs?: Area;
+  /** What reads the card aloud (refine-lingua-review-session D11); none under jsdom by default. */
+  speech?: SpeechEngine | null;
 }
 
 function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
@@ -102,6 +105,7 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     now: () => NOW_SECONDS,
     prefs,
     pageLanguage: host.pageLanguage,
+    speech: host.speech,
   });
   return { page, container, area, prefs };
 }
@@ -563,6 +567,25 @@ describe("Révision — a reader of several languages", () => {
       es: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 },
       en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 },
     });
+  });
+
+  it("reads a card aloud in the card's own language (refine-lingua-review-session D11)", async () => {
+    const voice = (name: string, lang: string): VoiceInfo => ({
+      name,
+      lang,
+      localService: true,
+      default: false,
+      voiceURI: name,
+    });
+    const speech = makeFakeSpeech([voice("Samantha", "en-US"), voice("Mónica", "es-ES")]);
+    const { port } = await bilingual();
+    const m = mount(port, fakeArea(), { pageLanguage: async () => "es", speech: speech.engine });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+
+    button(m.container, "▶ Mot").click();
+    expect(speech.spoken.map((u) => [u.text, u.voice.lang])).toEqual([["faro", "es-ES"]]);
   });
 
   it("goes back to a language the reader studies when the chosen one leaves their languages", async () => {

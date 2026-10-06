@@ -25,6 +25,7 @@
 - [x] 4.5 `styles/review.css` (D6, D7): the review root as a container; bottom bar below ~600 px with `env(safe-area-inset-bottom)` and a minimum padding; side bands when landscape with little height; a centred column from ~600 px; font sizes as `calc(<px> * var(--cymbra-lingua-ui-scale, 1))`; colours from `tokens.css` only; no transition. Verify with `yarn lint` (tokens and scale lints) and `yarn build`, then a look in the side panel and the drawer at three widths.
 - [x] 4.6 `review/review-page.ts`: drop backup, restore and the sources; keep the language filter, the due count and the card; a restore made in this page ends its session. Verify with `test/review-page.spec.ts`: « The review page » scenario, and a restore during a session showing the idle state.
 - [x] 4.7 Update the « Review (side panel + drawer) » section of `apps/lingua-extension/README.md` (two answers, the hide link, sessions of 10, the daily allowance, backup now in Réglages › Données). Verify by reading the section against the specs.
+- [x] 4.8 Read-aloud on the review card (D11, found in the Chrome dogfood): `review-page.ts` owns a speaker on the shown card's language; `view.ts` puts « ▶ Mot » (« ▶ Expression ») and « ▶ Phrase » under the sentence before and after the reveal, the dictionary form's button in the answer once revealed, and stops a text the next card does not show; an expression without a gloss says « Pas de traduction pour cette expression. ». Verify with view specs for the five scenarios of « The review card can be heard » and a page spec reading a Spanish card with a Spanish voice.
 
 ## 5. Réglages
 
@@ -34,4 +35,4 @@
 
 - [x] 6.1 Gates: in `apps/lingua-extension`, `yarn typecheck && yarn lint && yarn test && yarn format:check && yarn build` for every target, then grep `dist-*/` for the new widget; at the root, `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`. Verify all pass.
 - [ ] 6.2 Dogfood on the e-ink reader (Firefox for Android, e-ink colours): a session of 10 opened from a book, a missed word coming back, « Ne plus me le montrer », the end view; revealing repaints only the answer space. Verify by noting the result in the pull request.
-- [ ] 6.3 Dogfood on an iPhone (Safari) upright and sideways, and in the Chrome side panel with the keyboard. Verify by noting the result in the pull request, including the bottom bar against the home indicator.
+- [ ] 6.3 Dogfood on an iPhone (Safari) upright and sideways, and in the Chrome side panel with the keyboard. Verify by noting the result in the pull request, including the bottom bar against the home indicator and the card read aloud before and after the reveal.

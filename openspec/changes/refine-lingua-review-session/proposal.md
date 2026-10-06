@@ -32,6 +32,9 @@ short, honest about what the reader recalled, and look like the page it came fro
   The answer appears in a space reserved from the start, so revealing it repaints one zone.
   The layout follows the screen: answers at the bottom on a phone held upright, on the
   sides when it is held sideways, a centred column on a tablet or a wide panel.
+- **The card can be heard**, before the reveal and after it: its word and its sentence, and
+  once revealed its dictionary form, with the word card's voices and rules. Found while
+  dogfooding in Chrome.
 - **A session ends by saying what it did**: cards reviewed, missed words recovered, cards
   now held for more than a month; it offers to continue only when cards remain due.
 - **Backup, restore and the pack's sources move to Réglages › Données**, rendered by the
@@ -61,7 +64,7 @@ _None._
 - `lingua-browser-extension`:
   - *Two review surfaces* — backup and restore are reached from Réglages › Données in
     every host that shows Réglages, the side panel included.
-  - Added: the review card fits the screen it is on.
+  - Added: the review card fits the screen it is on; the review card can be heard.
 
 This change archives after `add-lingua-language-stats-review` (`archiveAfter` in
 `.openspec.yaml`): one of its deltas modifies a requirement that change introduces.

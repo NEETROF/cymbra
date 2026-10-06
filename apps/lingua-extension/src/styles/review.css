@@ -63,6 +63,43 @@
   text-underline-offset: 3px;
 }
 
+/* Read-aloud (D11): pills under the sentence, the same before and after the reveal, and the
+   dictionary form's in the answer. Lighter than the answers: hearing is no decision. */
+.review-listen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.review-listen[hidden] {
+  display: none;
+}
+
+.review-answer .review-listen {
+  margin-top: 8px;
+}
+
+.review-listen-btn {
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: transparent;
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-listen-btn:hover {
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+}
+
+.review-listen-btn.speaking {
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent);
+}
+
 /* Reserved before the reveal, so revealing the answer moves nothing else. */
 .review-answer {
   min-height: calc(84px * var(--cymbra-lingua-ui-scale, 1));

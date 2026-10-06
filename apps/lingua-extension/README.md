@@ -234,7 +234,9 @@ the word marked; the gloss stays hidden until « Afficher la réponse ». Two an
 (FSRS `again`) and « Su » (`good`) — a missed card comes back three cards later, up to three
 times, and only its first answer counts. « Je connais » retires the card as known, « Ne plus
 me le montrer » as ignored. The end says what the session did and offers « Encore 10 » while
-another session would hold cards. Keys: Space reveals, ← and → answer.
+another session would hold cards. Keys: Space reveals, ← and → answer. The card can be heard
+before and after the reveal (« ▶ Mot » or « ▶ Expression », « ▶ Phrase », then the dictionary
+form), with the word card's voices, in the card's language.
 
 Lossless **backup** (download) / **restore** (re-import) and the pack's sources live in
 Réglages › Données, in every host; the toolbar popup offers the download and points to the

@@ -204,6 +204,30 @@ Each is carried through the four places every port method lives: the WASM bindin
 `engine.ts` adapter, the `messaging-port.ts` proxy with the background's dispatch, and the
 test fake.
 
+### D11 — The card can be heard, as the word card can
+
+Found in the Chrome dogfood (2026-10-06): the reader wants to hear the card, before the reveal
+and after it.
+
+- **One speaker, on the card's language.** `mountReview` owns a speaker (`createSpeaker`) whose
+  language is the shown card's, with the voices, the reader's voice choice and the opt-ins of
+  `add-lingua-read-aloud` (`storedVoicePreference` on the preferences area). A host's own speaker
+  follows the page's language, which a review in another language would contradict.
+- **The front.** Under the sentence, « ▶ Mot » — « ▶ Expression » for several words — reads the
+  word as the front shows it (marked in the sentence, else the word above it), and « ▶ Phrase »
+  the sentence. The row is the same before and after the reveal, so revealing still repaints
+  the answer space only.
+- **The answer.** Once revealed, the dictionary form's button sits in the answer space, under
+  the gloss, when the sentence shows another form: hearing it before would give part of the
+  answer away. The gloss is not read: the voices speak the studied language.
+- **State.** The rows repaint from the speaker's state (a voice list announced late, an
+  utterance ending) through one subscription per render, which the next render drops; a text
+  the next card does not show is stopped. No new key: Space and the arrows already answer, and
+  a focused listen button keeps its own Space and Enter.
+
+*Alternative.* Reading the word or the sentence by itself when a card comes up: a sound nobody
+asked for, in a library or beside someone asleep.
+
 ## Risks / Trade-offs
 
 - [The session opens on the hardest cards and feels like failure] → new words interleaved,

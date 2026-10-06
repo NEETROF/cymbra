@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
 import type { ReviewView } from "@/review/session.ts";
 import { markWord, type ReviewActions, renderReview, sourceLabel } from "@/review/view.ts";
+import { makeFakeSpeech } from "./helpers.ts";
 
 let root: HTMLElement;
 let actions: ReviewActions;
@@ -126,9 +128,15 @@ describe("renderReview — the card (refine-lingua-review-session)", () => {
     expect(root.querySelector("mark")).toBeNull();
   });
 
-  it("says so when a card has no gloss", () => {
+  it("says so when a card has no gloss, an expression as an expression", () => {
     renderReview(root, reviewing({ gloss: null, revealed: true }), actions);
-    expect(root.querySelector(".review-no-gloss")).not.toBeNull();
+    expect(root.querySelector(".review-no-gloss")?.textContent).toBe("Pas de traduction pour ce mot.");
+    renderReview(
+      root,
+      reviewing({ headword: "such as those made", surface: "such as those made", gloss: null, revealed: true }),
+      actions,
+    );
+    expect(root.querySelector(".review-no-gloss")?.textContent).toBe("Pas de traduction pour cette expression.");
   });
 
   it("scenario: remembered and forgotten — two answers on a revealed card, left « Pas su », right « Su »", () => {
@@ -228,6 +236,115 @@ describe("renderReview — keys (refine-lingua-review-session D7)", () => {
     root.focus();
     renderReview(root, reviewing({ revealed: true }), actions);
     expect(document.activeElement).toBe(root);
+  });
+});
+
+describe("renderReview — read aloud (refine-lingua-review-session D11)", () => {
+  const samantha: VoiceInfo = {
+    name: "Samantha",
+    lang: "en-US",
+    localService: true,
+    default: false,
+    voiceURI: "Samantha",
+  };
+
+  function speaking(voices: VoiceInfo[] = [samantha]) {
+    const fake = makeFakeSpeech(voices);
+    return { fake, speaker: createSpeaker(fake.engine, "en", fake.preference) };
+  }
+
+  const labels = (scope: Element | null): string[] =>
+    [...(scope?.querySelectorAll(".review-listen button") ?? [])].map((b) => b.textContent ?? "");
+  const front = (): Element | null => root.querySelector(".review-main > .review-listen");
+  const inAnswer = (): Element | null => root.querySelector(".review-answer");
+
+  it("offers to hear the word and its sentence before the reveal, and the same after it", () => {
+    const { speaker } = speaking();
+    renderReview(root, reviewing(), actions, { speaker });
+    expect(labels(front())).toEqual(["▶ Mot", "▶ Phrase"]);
+    expect(labels(inAnswer())).toEqual([]);
+
+    renderReview(root, reviewing({ revealed: true }), actions, { speaker });
+    expect(labels(front())).toEqual(["▶ Mot", "▶ Phrase"]);
+  });
+
+  it("reads the word as the front shows it, and the sentence", () => {
+    const { fake, speaker } = speaking();
+    renderReview(root, reviewing({ surface: "Seldom", sentence: "Seldom do they ship." }), actions, { speaker });
+    button("▶ Mot").click();
+    expect(fake.spoken.map((u) => u.text)).toEqual(["Seldom"]);
+    button("▶ Phrase").click();
+    expect(fake.spoken.map((u) => u.text)).toEqual(["Seldom", "Seldom do they ship."]);
+  });
+
+  it("hears an expression as one, the one shown above a sentence that does not hold it", () => {
+    const { fake, speaker } = speaking();
+    const view = reviewing({
+      headword: "such as those made",
+      surface: "such as those made",
+      sentence: "Its claws are adapted to killing prey such as mice.",
+      gloss: null,
+    });
+    renderReview(root, view, actions, { speaker });
+    expect(labels(front())).toEqual(["▶ Expression", "▶ Phrase"]);
+    button("▶ Expression").click();
+    expect(fake.spoken[0]?.text).toBe("such as those made");
+  });
+
+  it("once revealed, offers the dictionary form in the answer when the sentence shows another one", () => {
+    const { fake, speaker } = speaking();
+    const grinning = { headword: "grin", surface: "grinning", sentence: "He couldn't stop grinning." };
+    renderReview(root, reviewing(grinning), actions, { speaker });
+    expect(labels(inAnswer())).toEqual([]); // the dictionary form is part of the answer
+    renderReview(root, reviewing({ ...grinning, revealed: true }), actions, { speaker });
+    expect(labels(inAnswer())).toEqual(["▶ grin"]);
+    button("▶ grin").click();
+    expect(fake.spoken[0]?.text).toBe("grin");
+  });
+
+  it("turns the button being read into « ■ Arrêter », which stops it", () => {
+    const { fake, speaker } = speaking();
+    renderReview(root, reviewing(), actions, { speaker });
+    button("▶ Phrase").click();
+    expect(labels(front())).toEqual(["▶ Mot", "■ Arrêter"]);
+    button("■ Arrêter").click();
+    expect(speaker.speaking()).toBeNull();
+    expect(fake.cancels()).toBeGreaterThan(0);
+    expect(labels(front())).toEqual(["▶ Mot", "▶ Phrase"]);
+  });
+
+  it("keeps reading through the reveal, and stops when another card comes", () => {
+    const { speaker } = speaking();
+    renderReview(root, reviewing(), actions, { speaker });
+    button("▶ Phrase").click();
+    renderReview(root, reviewing({ revealed: true }), actions, { speaker });
+    expect(speaker.speaking()?.text).toBe("They seldom ship.");
+
+    renderReview(root, reviewing({ headword: "dwell", surface: "dwells", sentence: "It dwells here." }), actions, {
+      speaker,
+    });
+    expect(speaker.speaking()).toBeNull();
+  });
+
+  it("offers nothing to hear without a speaker or without a voice, and adds it when voices come late", () => {
+    renderReview(root, reviewing(), actions);
+    expect(root.querySelector(".review-listen")).toBeNull();
+
+    const { fake, speaker } = speaking([]);
+    renderReview(root, reviewing(), actions, { speaker });
+    expect((front() as HTMLElement).hidden).toBe(true);
+    fake.list([samantha]);
+    expect((front() as HTMLElement).hidden).toBe(false);
+    expect(labels(front())).toEqual(["▶ Mot", "▶ Phrase"]);
+  });
+
+  it("leaves the speaker alone once the card it painted is gone", () => {
+    const { fake, speaker } = speaking([]);
+    renderReview(root, reviewing(), actions, { speaker });
+    const stale = front() as HTMLElement;
+    renderReview(root, done(null), actions, { speaker });
+    fake.list([samantha]);
+    expect(stale.hidden).toBe(true); // the old row was unsubscribed, not repainted
   });
 });
 
