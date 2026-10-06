@@ -15,23 +15,25 @@
 //! `/vocab`: list a session's unknown words (dictionary form, gloss, rarity) with the
 //! example sentence they were seen in, and add a selection to the deck. The source
 //! sentence is captured onto a card **only** when the user adds the word (explicit
-//! consent) — never persisted at listing time.
+//! consent) — never persisted at listing time. Each word belongs to the language of the
+//! reply it was met in, and goes to that language's deck (add-lingua-agent-languages D5).
 
 use std::collections::BTreeMap;
 
+use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::percent::TokenClass;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
-use lingua_core::engine::analyse_page;
 use lingua_core::knowledge::state::KnowledgeState;
 use lingua_core::knowledge::status::Status;
-use lingua_core::packs::Pack;
 
-use crate::engine::EN;
+use crate::engine::{Library, analyse, blocks};
 use crate::store::Store;
 
 /// One unknown word offered by `/vocab`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VocabWord {
+    /// The language of the reply it was met in.
+    pub language: StudiedLanguage,
     /// The dictionary form (never labelled "lemma" in output).
     pub lemma: String,
     /// The native-language gloss, if the pack has one.
@@ -42,32 +44,47 @@ pub struct VocabWord {
     pub sentence: String,
 }
 
-/// The distinct unknown words across `texts`, first occurrence wins, in lemma order.
+/// The distinct unknown words across `texts`, first occurrence wins, by language in the
+/// order the plugin follows them, then by dictionary form. `calibration` gives each
+/// language's, for the rarity note.
 pub fn vocab_words(
-    pack: &Pack,
+    library: &mut Library,
     knowledge: &KnowledgeState,
     texts: &[String],
-    calibration: u32,
+    calibration: impl Fn(StudiedLanguage) -> u32,
 ) -> Vec<VocabWord> {
-    let mut found: BTreeMap<String, VocabWord> = BTreeMap::new();
+    let order = library.languages();
+    let mut found: BTreeMap<(usize, String), VocabWord> = BTreeMap::new();
     for text in texts {
-        let blocks: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
-        let analysis = analyse_page(&blocks, EN, pack, knowledge);
-        for token in &analysis.tokens {
-            if token.class != TokenClass::Unknown || found.contains_key(&token.lemma) {
+        let Some(language) = library.language_of(text) else {
+            continue;
+        };
+        let Some(pack) = library.pack(language) else {
+            continue;
+        };
+        let rank = order
+            .iter()
+            .position(|l| *l == language)
+            .unwrap_or(usize::MAX);
+        let lines = blocks(text);
+        for token in &analyse(pack, knowledge, text).tokens {
+            let key = (rank, token.lemma.clone());
+            if token.class != TokenClass::Unknown || found.contains_key(&key) {
                 continue;
             }
-            let sentence = blocks
+            let sentence = lines
                 .get(token.block)
                 .map(|b| b.trim().to_owned())
                 .unwrap_or_default();
+            let threshold = calibration(language);
             found.insert(
-                token.lemma.clone(),
+                key,
                 VocabWord {
+                    language,
                     lemma: token.lemma.clone(),
                     gloss: pack.gloss(&token.lemma).map(str::to_owned),
                     rarity: format!(
-                        "peu fréquent — au-delà de tes {calibration} mots les plus courants"
+                        "peu fréquent — au-delà de tes {threshold} mots les plus courants"
                     ),
                     sentence,
                 },
@@ -77,21 +94,74 @@ pub fn vocab_words(
     found.into_values().collect()
 }
 
-/// Add the chosen words to the deck (status learning + a card carrying the sentence).
-/// Only the words present in `available` are added; returns how many were created.
+/// The language's name in the plugin's French copy.
+pub fn language_name(language: StudiedLanguage) -> &'static str {
+    match language {
+        StudiedLanguage::English => "Anglais",
+        StudiedLanguage::Spanish => "Espagnol",
+    }
+}
+
+/// The `/vocab` listing: one line per word, under a heading per language when the plugin
+/// follows several (French UI copy).
+pub fn listing(words: &[VocabWord], several: bool) -> String {
+    if words.is_empty() {
+        return "Aucun mot inconnu dans cette session.\n".to_owned();
+    }
+    let mut out = String::from("Mots inconnus de la session :\n");
+    let mut heading: Option<StudiedLanguage> = None;
+    for w in words {
+        if several && heading != Some(w.language) {
+            heading = Some(w.language);
+            out.push_str(&format!("{} :\n", language_name(w.language)));
+        }
+        let gloss = w.gloss.as_deref().unwrap_or("—");
+        out.push_str(&format!("  • {} — {} ({})\n", w.lemma, gloss, w.rarity));
+    }
+    out.push_str("Ajoute-les avec : lingua vocab --transcript <path> --add mot1,mot2");
+    if several {
+        out.push_str(" [--language en|es]");
+    }
+    out.push('\n');
+    out
+}
+
+/// What adding a selection did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Added {
+    /// How many cards were created.
+    pub added: usize,
+    /// The words listed under several languages, left out for want of a language.
+    pub ambiguous: Vec<String>,
+}
+
+/// Add the chosen words to the deck (status learning + a card carrying the sentence), each
+/// in the language it was listed under. A word listed under several needs `language`.
+/// Only the words present in `available` are added.
 pub fn add_to_deck(
     store: &Store,
     available: &[VocabWord],
     chosen: &[String],
+    language: Option<StudiedLanguage>,
     timestamp: i64,
-) -> rusqlite::Result<usize> {
+) -> rusqlite::Result<Added> {
     let mut added = 0;
+    let mut ambiguous = Vec::new();
     for word in chosen {
         let key = word.to_lowercase();
-        let Some(vocab) = available.iter().find(|w| w.lemma == key) else {
-            continue;
+        let matching: Vec<&VocabWord> = available
+            .iter()
+            .filter(|w| w.lemma == key && language.is_none_or(|l| w.language == l))
+            .collect();
+        let vocab = match matching.as_slice() {
+            [] => continue,
+            [vocab] => *vocab,
+            _ => {
+                ambiguous.push(key);
+                continue;
+            }
         };
-        store.set_status(&vocab.lemma, Status::Learning)?;
+        store.set_status(vocab.language, &vocab.lemma, Status::Learning)?;
         let card = Card::new(
             &vocab.lemma,
             &vocab.lemma,
@@ -104,8 +174,8 @@ pub fn add_to_deck(
             },
             vocab.gloss.clone(),
         );
-        store.upsert_card(&card)?;
+        store.upsert_card(vocab.language, &card)?;
         added += 1;
     }
-    Ok(added)
+    Ok(Added { added, ambiguous })
 }

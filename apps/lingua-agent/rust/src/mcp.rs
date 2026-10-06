@@ -16,10 +16,13 @@
 //! `due_cards`, `answer_card`), over JSON-RPC on stdio. Review on the plugin side is a
 //! conversational quiz — `due_cards` → the agent asks → `answer_card` grades. Inputs are
 //! validated (lemmas normalised, sizes bounded). The request dispatch is pure over the
-//! store (unit-tested); the stdin/stdout loop is the thin transport.
+//! store (unit-tested); the stdin/stdout loop is the thin transport. Every tool works on
+//! one language's deck, named by `language` when the plugin follows several
+//! (add-lingua-agent-languages D6): a review never mixes languages.
 
 use std::io::{BufRead, Write};
 
+use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
 use lingua_core::decks::fsrs::{FsrsParams, Rating};
 use lingua_core::knowledge::status::Status;
@@ -34,28 +37,78 @@ const PROTOCOL_VERSION: &str = "2024-11-05";
 
 /// The tool catalogue advertised by `tools/list`.
 fn tools() -> Value {
+    let language = json!({ "type": "string", "description": "The deck's language as an ISO 639-1 tag (en, es). Required when several languages are followed." });
     json!([
-        { "name": "list_decks", "description": "Summarise the local deck (card count and how many are due now).",
-          "inputSchema": { "type": "object", "properties": {} } },
-        { "name": "add_words", "description": "Add dictionary forms to the deck as learning cards.",
-          "inputSchema": { "type": "object", "properties": { "words": { "type": "array", "items": { "type": "string" } } }, "required": ["words"] } },
-        { "name": "due_cards", "description": "List the cards due for review now (dictionary form, gloss, sentence).",
-          "inputSchema": { "type": "object", "properties": {} } },
+        { "name": "list_decks", "description": "Summarise the local decks (card count and how many are due now), per language.",
+          "inputSchema": { "type": "object", "properties": { "language": language } } },
+        { "name": "add_words", "description": "Add dictionary forms to a language's deck as learning cards.",
+          "inputSchema": { "type": "object", "properties": { "words": { "type": "array", "items": { "type": "string" } }, "language": language }, "required": ["words"] } },
+        { "name": "due_cards", "description": "List one language's cards due for review now (dictionary form, gloss, sentence).",
+          "inputSchema": { "type": "object", "properties": { "language": language } } },
         { "name": "answer_card", "description": "Grade a due card (again/hard/good/easy), updating its FSRS schedule.",
-          "inputSchema": { "type": "object", "properties": { "word": { "type": "string" }, "rating": { "type": "string", "enum": ["again", "hard", "good", "easy"] } }, "required": ["word", "rating"] } }
+          "inputSchema": { "type": "object", "properties": { "word": { "type": "string" }, "rating": { "type": "string", "enum": ["again", "hard", "good", "easy"] }, "language": language }, "required": ["word", "rating"] } }
     ])
 }
 
-/// Dispatch a `tools/call` against the store. Returns the tool's structured result, or
-/// an `Err(message)` for invalid input. Pure over the store (unit-tested).
-pub fn dispatch_tool(store: &Store, name: &str, args: &Value, now: i64) -> Result<Value, String> {
+/// The tags of `languages`, for a message.
+fn tags(languages: &[StudiedLanguage]) -> String {
+    languages
+        .iter()
+        .map(|l| l.tag())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// The language a call is about (design D6): the one it names, which must be followed; else
+/// the only one followed. With several followed, a call naming none is refused, naming them.
+fn language_of(args: &Value, followed: &[StudiedLanguage]) -> Result<StudiedLanguage, String> {
+    match args.get("language").and_then(Value::as_str) {
+        Some(tag) => StudiedLanguage::from_tag(tag.trim())
+            .filter(|language| followed.contains(language))
+            .ok_or_else(|| {
+                format!(
+                    "language \"{tag}\" is not followed (followed: {})",
+                    tags(followed)
+                )
+            }),
+        None => match followed {
+            [only] => Ok(*only),
+            _ => Err(format!(
+                "several languages are followed ({}): pass `language`",
+                tags(followed)
+            )),
+        },
+    }
+}
+
+/// Dispatch a `tools/call` against the store, `followed` being the languages the plugin
+/// follows. Returns the tool's structured result, or an `Err(message)` for invalid input.
+/// Pure over the store (unit-tested).
+pub fn dispatch_tool(
+    store: &Store,
+    followed: &[StudiedLanguage],
+    name: &str,
+    args: &Value,
+    now: i64,
+) -> Result<Value, String> {
     match name {
         "list_decks" => {
-            let cards = store.deck_len().map_err(db)?;
-            let due = store.due_cards(now).map_err(db)?.len();
-            Ok(json!({ "cards": cards, "due": due }))
+            let languages = match args.get("language") {
+                Some(_) => vec![language_of(args, followed)?],
+                None => followed.to_vec(),
+            };
+            let (mut cards, mut due, mut each) = (0, 0, Vec::new());
+            for language in languages {
+                let n = store.deck_len(language).map_err(db)?;
+                let d = store.due_cards(language, now).map_err(db)?.len();
+                cards += n;
+                due += d;
+                each.push(json!({ "language": language.tag(), "cards": n, "due": d }));
+            }
+            Ok(json!({ "cards": cards, "due": due, "languages": each }))
         }
         "add_words" => {
+            let language = language_of(args, followed)?;
             let words = args
                 .get("words")
                 .and_then(Value::as_array)
@@ -70,7 +123,9 @@ pub fn dispatch_tool(store: &Store, name: &str, args: &Value, now: i64) -> Resul
                 if lemma.is_empty() {
                     continue;
                 }
-                store.set_status(&lemma, Status::Learning).map_err(db)?;
+                store
+                    .set_status(language, &lemma, Status::Learning)
+                    .map_err(db)?;
                 let card = Card::new(
                     &lemma,
                     &lemma,
@@ -83,21 +138,23 @@ pub fn dispatch_tool(store: &Store, name: &str, args: &Value, now: i64) -> Resul
                     },
                     None,
                 );
-                store.upsert_card(&card).map_err(db)?;
+                store.upsert_card(language, &card).map_err(db)?;
                 added += 1;
             }
             Ok(json!({ "added": added }))
         }
         "due_cards" => {
+            let language = language_of(args, followed)?;
             let due: Vec<Value> = store
-                .due_cards(now)
+                .due_cards(language, now)
                 .map_err(db)?
                 .iter()
                 .map(|c| json!({ "word": c.lemma, "gloss": c.gloss, "sentence": c.provenance.sentence }))
                 .collect();
-            Ok(json!({ "due": due }))
+            Ok(json!({ "language": language.tag(), "due": due }))
         }
         "answer_card" => {
+            let language = language_of(args, followed)?;
             let word = args
                 .get("word")
                 .and_then(Value::as_str)
@@ -110,11 +167,11 @@ pub fn dispatch_tool(store: &Store, name: &str, args: &Value, now: i64) -> Resul
                 .ok_or("`rating` is required")?;
             let rating = parse_rating(rating).ok_or("`rating` must be again/hard/good/easy")?;
             let mut card = store
-                .card(&word)
+                .card(language, &word)
                 .map_err(db)?
                 .ok_or_else(|| format!("no card for \"{word}\""))?;
             card.review.grade(&FsrsParams::default(), rating, now);
-            store.upsert_card(&card).map_err(db)?;
+            store.upsert_card(language, &card).map_err(db)?;
             Ok(json!({ "word": word, "due_in_days": days_until(card.review.due, now) }))
         }
         other => Err(format!("unknown tool: {other}")),
@@ -122,7 +179,12 @@ pub fn dispatch_tool(store: &Store, name: &str, args: &Value, now: i64) -> Resul
 }
 
 /// Handle one JSON-RPC request; `None` for a notification (no response expected).
-pub fn handle_request(store: &Store, req: &Value, now: i64) -> Option<Value> {
+pub fn handle_request(
+    store: &Store,
+    followed: &[StudiedLanguage],
+    req: &Value,
+    now: i64,
+) -> Option<Value> {
     let id = req.get("id").cloned();
     let method = req.get("method").and_then(Value::as_str).unwrap_or("");
     match method {
@@ -139,7 +201,7 @@ pub fn handle_request(store: &Store, req: &Value, now: i64) -> Option<Value> {
             let params = req.get("params").cloned().unwrap_or(Value::Null);
             let name = params.get("name").and_then(Value::as_str).unwrap_or("");
             let args = params.get("arguments").cloned().unwrap_or(json!({}));
-            match dispatch_tool(store, name, &args, now) {
+            match dispatch_tool(store, followed, name, &args, now) {
                 Ok(value) => Some(result(id, tool_content(&value))),
                 Err(message) => Some(error(id, message)),
             }
@@ -151,7 +213,11 @@ pub fn handle_request(store: &Store, req: &Value, now: i64) -> Option<Value> {
 }
 
 /// Serve MCP over stdin/stdout (newline-delimited JSON-RPC). Thin transport.
-pub fn serve(store: &Store, now_fn: impl Fn() -> i64) -> std::io::Result<()> {
+pub fn serve(
+    store: &Store,
+    followed: &[StudiedLanguage],
+    now_fn: impl Fn() -> i64,
+) -> std::io::Result<()> {
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
     for line in stdin.lock().lines() {
@@ -162,7 +228,7 @@ pub fn serve(store: &Store, now_fn: impl Fn() -> i64) -> std::io::Result<()> {
         let Ok(req) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
-        if let Some(response) = handle_request(store, &req, now_fn()) {
+        if let Some(response) = handle_request(store, followed, &req, now_fn()) {
             writeln!(stdout, "{response}")?;
             stdout.flush()?;
         }
