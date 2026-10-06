@@ -228,8 +228,8 @@ Reading builds the deck; review runs it, on the same local state:
   hosts over one logic. On Firefox and Safari it is the review surface.
 
 A session (`refine-lingua-review-session`) holds at most 10 cards, the lowest predicted
-recall first, with never-reviewed words entering at a daily pace (« Nouveaux mots par jour »
-in Réglages › Langue: 5, 10 or 20). The front of a card is the sentence the word was met in,
+recall first, with never-reviewed words entering at a daily pace in each studied language
+(« Nouveaux mots par jour » in Réglages › Langue: 5, 10 or 20). The front of a card is the sentence the word was met in,
 the word marked; the gloss stays hidden until « Afficher la réponse ». Two answers: « Pas su »
 (FSRS `again`) and « Su » (`good`) — a missed card comes back three cards later, up to three
 times, and only its first answer counts. « Je connais » retires the card as known, « Ne plus

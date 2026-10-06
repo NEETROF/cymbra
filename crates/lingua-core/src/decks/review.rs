@@ -165,14 +165,15 @@ impl Deck {
             .count()
     }
 
-    /// The cards first answered at or after `day_start` (Unix-epoch seconds), in every
-    /// language: those with one review, made today (refine-lingua-review-session D2). A
-    /// session grades a card once, so a card first answered today still has one review at
-    /// the end of the day, and one first answered earlier has at least two by the time it
-    /// is answered again.
-    pub fn introduced_since(&self, day_start: i64) -> usize {
+    /// The cards of `language` first answered at or after `day_start` (Unix-epoch seconds):
+    /// those with one review, made today (refine-lingua-review-session D2). Each language has
+    /// its own allowance, so each counts its own. A session grades a card once, so a card
+    /// first answered today still has one review at the end of the day, and one first
+    /// answered earlier has at least two by the time it is answered again.
+    pub fn introduced_since(&self, language: StudiedLanguage, day_start: i64) -> usize {
         self.cards
-            .values()
+            .get(&language)
+            .into_iter()
             .flat_map(BTreeMap::values)
             .filter(|card| {
                 card.review.reps == 1 && card.review.last_review.is_some_and(|t| t >= day_start)
@@ -242,10 +243,11 @@ const MAX_ASKS: u8 = 3;
 /// for more than a month (D8).
 const HOLDING_SECONDS: i64 = 30 * 86_400;
 
-/// The day's allowance of never-reviewed cards (refine-lingua-review-session D2).
+/// The day's allowance of never-reviewed cards, in each studied language
+/// (refine-lingua-review-session D2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NewCardAllowance {
-    /// At most this many never-reviewed cards are first answered per day.
+    /// At most this many never-reviewed cards of each language are first answered per day.
     pub per_day: usize,
     /// The reader's local midnight, Unix-epoch seconds: where "today" starts.
     pub day_start: i64,
@@ -284,6 +286,33 @@ struct Asked {
     missed: bool,
 }
 
+/// The never-reviewed keys, in the order given, that the day's allowance lets into a session:
+/// for each language, `per_day` less its cards already introduced today (D2). A session holds
+/// one language, so an allowance shared by every language would let the first one reviewed in a
+/// day spend it all. Without an allowance, every key.
+fn within_allowance(
+    deck: &Deck,
+    fresh: impl Iterator<Item = (StudiedLanguage, String)>,
+    allowance: Option<NewCardAllowance>,
+) -> Vec<(StudiedLanguage, String)> {
+    let Some(allowance) = allowance else {
+        return fresh.collect();
+    };
+    let mut left: BTreeMap<StudiedLanguage, usize> = BTreeMap::new();
+    fresh
+        .filter(|(language, _)| {
+            let left = left.entry(*language).or_insert_with(|| {
+                allowance
+                    .per_day
+                    .saturating_sub(deck.introduced_since(*language, allowance.day_start))
+            });
+            let admitted = *left > 0;
+            *left = left.saturating_sub(1);
+            admitted
+        })
+        .collect()
+}
+
 /// A review session over the cards that were due when it started. Owns its
 /// queue of keys, so it does not borrow the deck between steps; each action
 /// takes the deck (and, for "I know this", the knowledge state) by reference.
@@ -318,9 +347,10 @@ impl ReviewSession {
     /// Starts a session over the cards due at `now` in `languages` (every language when it is
     /// empty), whatever their language, ordered for review (refine-lingua-review-session D1):
     /// reviewed cards by predicted recall, lowest first, then by due date, language and lemma;
-    /// never-reviewed cards in capture order, oldest first, within the day's allowance. While
-    /// reviewed cards remain, a never-reviewed card takes every fourth place; when either kind
-    /// runs out, the other fills the session, up to `options.limit` cards.
+    /// never-reviewed cards in capture order, oldest first, within their language's allowance
+    /// for the day. While reviewed cards remain, a never-reviewed card takes every fourth
+    /// place; when either kind runs out, the other fills the session, up to `options.limit`
+    /// cards.
     pub fn start_with(
         deck: &Deck,
         params: &FsrsParams,
@@ -347,12 +377,14 @@ impl ReviewSession {
         reviewed.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
         fresh.sort_by_key(|(captured_at, _)| *captured_at);
 
-        let allowance = options.new_cards.map_or(usize::MAX, |a| {
-            a.per_day.saturating_sub(deck.introduced_since(a.day_start))
-        });
+        let fresh = within_allowance(
+            deck,
+            fresh.into_iter().map(|(_, key)| key),
+            options.new_cards,
+        );
         let limit = options.limit.unwrap_or(usize::MAX);
         let mut reviewed = reviewed.into_iter().map(|(_, _, key)| key);
-        let mut fresh = fresh.into_iter().map(|(_, key)| key).take(allowance);
+        let mut fresh = fresh.into_iter();
         let mut queue = Vec::new();
         while queue.len() < limit {
             let new_card_turn = (queue.len() + 1) % NEW_CARD_EVERY == 0;
@@ -679,7 +711,7 @@ mod tests {
         while session.current_key().is_some() {
             session.grade(&mut deck, &params, Rating::Good, now);
         }
-        assert_eq!(deck.introduced_since(day_start), 10);
+        assert_eq!(deck.introduced_since(EN, day_start), 10);
 
         // Later the same day: the allowance is spent, the other 30 wait.
         let again =
@@ -693,6 +725,48 @@ mod tests {
             ReviewSession::start_with(&deck, &params, tomorrow + 60, &[], limited(10, tomorrow));
         let expected: Vec<String> = (10..20).map(|i| format!("c{i:02}")).collect();
         assert_eq!(order(&next), expected);
+    }
+
+    #[test]
+    fn spec_two_languages_each_have_their_daily_allowance() {
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        let params = FsrsParams::default();
+        let day_start = 100 * DAY;
+        let mut deck = Deck::new();
+        for i in 0..12 {
+            deck.upsert(EN, captured(&format!("e{i:02}"), day_start + i));
+            deck.upsert(ES, captured(&format!("s{i:02}"), day_start + i));
+        }
+        let now = day_start + 3_600;
+        let mut morning =
+            ReviewSession::start_with(&deck, &params, now, &[EN], limited(10, day_start));
+        while morning.current_key().is_some() {
+            morning.grade(&mut deck, &params, Rating::Good, now);
+        }
+        assert_eq!(deck.introduced_since(EN, day_start), 10);
+        assert_eq!(deck.introduced_since(ES, day_start), 0);
+
+        // The English words spent English's allowance, not Spanish's.
+        let later = now + 60;
+        let spanish =
+            ReviewSession::start_with(&deck, &params, later, &[ES], limited(10, day_start));
+        let expected: Vec<String> = (0..10).map(|i| format!("s{i:02}")).collect();
+        assert_eq!(order(&spanish), expected);
+        let english =
+            ReviewSession::start_with(&deck, &params, later, &[EN], limited(10, day_start));
+        assert_eq!(english.remaining(), 0);
+
+        // A session over both languages takes what is left of each one's allowance.
+        let eleven = SessionOptions {
+            limit: None,
+            new_cards: Some(NewCardAllowance {
+                per_day: 11,
+                day_start,
+            }),
+        };
+        let both = ReviewSession::start_with(&deck, &params, later, &[], eleven);
+        let in_language = |language| both.queue.iter().filter(|(l, _)| *l == language).count();
+        assert_eq!((in_language(EN), in_language(ES)), (1, 11));
     }
 
     #[test]

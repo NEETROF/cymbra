@@ -48,7 +48,7 @@ A review session SHALL hold at most 10 cards and SHALL start with the due cards 
 - **THEN** the session holds three reviewed cards, one new card, three reviewed cards, one new card, then two reviewed cards
 
 ### Requirement: New words enter review at a daily pace
-The review SHALL bring at most a daily allowance of never-reviewed cards into review per local day — 10 by default, 5 or 20 when the reader chooses so in Réglages (« Nouveaux mots par jour ») — and SHALL leave the others due for the following days. A never-reviewed card SHALL count against the day on which it is first answered. Capturing a word SHALL stay unlimited and SHALL NOT be affected by the allowance.
+The review SHALL bring at most a daily allowance of never-reviewed cards of each studied language into review per local day — 10 by default, 5 or 20 when the reader chooses so in Réglages (« Nouveaux mots par jour ») — and SHALL leave the others due for the following days. A never-reviewed card SHALL count against its own language's allowance, on the day on which it is first answered. Capturing a word SHALL stay unlimited and SHALL NOT be affected by the allowance.
 
 #### Scenario: A heavy reading day
 - **WHEN** a reader captures 40 words in one day and reviews several times that day
@@ -61,6 +61,10 @@ The review SHALL bring at most a daily allowance of never-reviewed cards into re
 #### Scenario: A larger allowance
 - **WHEN** the reader sets « Nouveaux mots par jour » to 20
 - **THEN** up to 20 never-reviewed cards enter review per day
+
+#### Scenario: Two languages
+- **WHEN** a reader of English and Spanish lets 10 new English words into review in the morning, then reviews in Spanish that evening
+- **THEN** up to 10 new Spanish words still enter review that day
 
 ### Requirement: A missed card comes back in the same session
 A card answered « Pas su » SHALL come back in the same session after three other cards, or at the end when fewer remain, until it is answered « Su » or has been asked three times in that session. Only a card's first answer in a session SHALL update its FSRS state and count as a review; a later answer in the same session SHALL only keep the card in the session or take it out.

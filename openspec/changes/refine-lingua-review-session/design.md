@@ -85,14 +85,24 @@ no counter to keep in step, and a card introduced on another device counts once 
 synced. The extension passes `day_start` as the reader's local midnight in epoch seconds;
 the daily statistics keep their UTC days, unchanged.
 
+Each studied language has its own allowance: a card counts against its own language's, and a
+session over several languages takes what is left of each one's. A session holds one language
+since `refine-lingua-review-language`, so one allowance shared by every language would be
+spent by the first language reviewed in a day, and the other language's session would then
+bring no new word, with nothing to say why. Each language has its own, as each deck has its
+own limit of new cards in Anki. A reader of two languages may thus take up to twice the
+setting in a day; the 5 step is there for them, and Réglages says the number counts per
+language. Decided by the product owner on 2026-10-06.
+
 The allowance is a reader preference under its own `chrome.storage.local` key (steps 5, 10,
 20; absent means 10), in a « Rythme de révision » block of the « Langue » tab — not
 « Révision », which `test/lint-settings-hosts.spec.ts` would read as a copy of the drawer's
 tab. Like the bar and highlight toggles, it is a comfort setting: never in the engine
 backup, never synced.
 
-*Alternative.* A per-day counter in the store: a second source of truth that a restore or a
-sync would contradict.
+*Alternatives.* A per-day counter in the store: a second source of truth that a restore or a
+sync would contradict. One allowance shared by every language: what the setting means would
+depend on which language the reader reviews first.
 
 ### D3 — A missed card's return is a learning step, not a review
 
@@ -203,6 +213,8 @@ test fake.
   recall rate against the 90 % target.
 - [New words pile up behind the allowance for a heavy reader] → the 20 step; the pile shows
   in the due count and in Stats.
+- [A reader of two languages takes in up to twice the setting's new words a day, and reviews
+  them later] → the allowance is per language by decision; the 5 step halves it.
 - [`env(safe-area-inset-bottom)` is zero inside a drawer over a page without
   `viewport-fit=cover`, so the bar may meet the iPhone home indicator] → a minimum bottom
   padding, checked on an iPhone in the dogfood pass.

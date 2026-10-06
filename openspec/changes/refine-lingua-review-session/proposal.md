@@ -18,9 +18,9 @@ short, honest about what the reader recalled, and look like the page it came fro
 - **Short sessions, most fragile first.** A session holds at most 10 cards, ordered by
   predicted recall, lowest first, with new cards interleaved; « Encore 10 » starts another
   one over what is still due. This replaces "a single language keeps its usual order".
-- **New words enter review at a daily pace.** At most 10 never-reviewed cards a day by
-  default, a reader setting offering 5, 10 or 20. Capturing a word is unchanged and
-  unlimited; the cards beyond the day's allowance wait.
+- **New words enter review at a daily pace.** At most 10 never-reviewed cards a day in
+  each studied language by default, a reader setting offering 5, 10 or 20. Capturing a word
+  is unchanged and unlimited; the cards beyond the day's allowance wait.
 - **A missed card comes back in the same session**, three cards later, until it is
   recalled once or has been asked three times. Only the session's first answer updates
   the card's FSRS state.

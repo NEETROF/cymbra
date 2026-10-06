@@ -516,7 +516,7 @@ export function mountSettings(
     el(
       "div",
       "set-note",
-      "Les mots ajoutés au-delà attendent les jours suivants. Une séance compte dix cartes au plus.",
+      "Pour chaque langue étudiée. Les mots ajoutés au-delà attendent les jours suivants. Une séance compte dix cartes au plus.",
     ),
   );
   const showPace = (perDay: NewWordsPerDay): void => {
