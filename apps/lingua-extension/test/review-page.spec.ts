@@ -546,7 +546,9 @@ describe("Révision — a reader of several languages", () => {
     button(m.container, "Su").click();
     await settle();
 
-    expect(m.container.textContent).toContain("Rien à réviser pour l'instant."); // the Spanish session is over
+    // The Spanish session is over, with nothing more due in Spanish: no « Encore 10 ».
+    expect(text(m.container, ".review-done-title")).toBe("Séance terminée");
+    expect(m.container.textContent).not.toContain("Encore 10");
     button(m.container, "Anglais").click(); // another language offers a start of its own
     await settle();
     button(m.container, "Réviser").click();

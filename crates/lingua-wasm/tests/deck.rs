@@ -107,7 +107,7 @@ fn review_ignore_hides_the_word_and_the_summary_says_so() {
     assert!(e.review_grade("good", 10.0));
     assert!(e.review_current().is_none());
     // The hidden card is kept and never due again: far ahead, only `ship` is.
-    assert_eq!(e.deck_count(), 2);
+    assert_eq!(e.deck_count(None), 2);
     assert_eq!(e.due_count(f64::from(i32::MAX), None), 1);
     let summary: serde_json::Value = match e.review_summary().map(|j| serde_json::from_str(&j)) {
         Some(Ok(v)) => v,
