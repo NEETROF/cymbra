@@ -45,6 +45,8 @@ name: lingua-extension-release
 #   CWS_EXTENSION_ID       Chrome Web Store item id; it is in the store URL. The listing must
 #                          already exist — this lane uploads a new version of an item, it
 #                          does not create one.
+#   CWS_PUBLISHER_ID       the publisher that owns the item: Chrome Web Store developer
+#                          dashboard, Publisher > Settings. API V2 names items under it.
 #   LINGUA_GOOGLE_CLIENT_ID / LINGUA_APPLE_CLIENT_ID
 #                          the OAuth client ids inlined into the package (see the build step).
 #
@@ -117,6 +119,7 @@ jobs:
         env:
           STORES: ${{ inputs.stores || 'both' }}
           CWS_EXTENSION_ID: ${{ vars.CWS_EXTENSION_ID }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
@@ -129,7 +132,7 @@ jobs:
             for name in "$@"; do [ -n "${!name:-}" ] || out="$out $name"; done
             printf '%s' "$out"
           }
-          cws_missing=$(missing_for CWS_EXTENSION_ID CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN)
+          cws_missing=$(missing_for CWS_EXTENSION_ID CWS_PUBLISHER_ID CWS_CLIENT_ID CWS_CLIENT_SECRET CWS_REFRESH_TOKEN)
           amo_missing=$(missing_for AMO_JWT_ISSUER AMO_JWT_SECRET)
 
           # Two different reasons not to submit, and the summary must not confuse them:
@@ -375,11 +378,16 @@ jobs:
         working-directory: .
         env:
           ITEM_ID: ${{ vars.CWS_EXTENSION_ID }}
+          PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
           CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
         run: |
           set -euo pipefail
+          # API V2: Google stops serving V1.1 (www.googleapis.com/…/chromewebstore/v1.1)
+          # on 2026-10-15. V2 names the item under its publisher, and the token is the same
+          # (scope https://www.googleapis.com/auth/chromewebstore).
+          # https://developer.chrome.com/docs/webstore/using-api
           token=$(curl -sS -X POST https://oauth2.googleapis.com/token \
             -d "client_id=$CLIENT_ID" -d "client_secret=$CLIENT_SECRET" \
             -d "refresh_token=$REFRESH_TOKEN" -d grant_type=refresh_token | jq -r '.access_token // empty')
@@ -387,22 +395,44 @@ jobs:
             echo "::error::the Chrome Web Store refused the refresh token (CWS_CLIENT_ID / CWS_CLIENT_SECRET / CWS_REFRESH_TOKEN)."
             exit 1
           fi
-          upload=$(curl -sS -X PUT -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" \
+          item="https://chromewebstore.googleapis.com/v2/publishers/$PUBLISHER_ID/items/$ITEM_ID"
+          # The store answers with JSON, or with an HTML page for a malformed request: print
+          # whatever came back, and read fields without letting a non-JSON body end the step
+          # before the error line says what was refused.
+          show() { echo "$1" | jq . 2>/dev/null || echo "$1"; }
+          field() { echo "$1" | jq -r "$2 // empty" 2>/dev/null || true; }
+
+          upload=$(curl -sS -X POST -H "Authorization: Bearer $token" \
             -T "cymbra-lingua-chromium-$VERSION.zip" \
-            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$ITEM_ID")
-          echo "$upload" | jq .
-          if [ "$(echo "$upload" | jq -r '.uploadState // empty')" != "SUCCESS" ]; then
-            echo "::error::the Chrome Web Store rejected the upload (see the response above)."
+            "https://chromewebstore.googleapis.com/upload/v2/publishers/$PUBLISHER_ID/items/$ITEM_ID:upload")
+          show "$upload"
+          state=$(field "$upload" .uploadState)
+          # V2 may process a package asynchronously: the upload answers IN_PROGRESS, and
+          # fetchStatus reports the outcome as lastAsyncUploadState. Five minutes, then the
+          # step fails rather than publishing a version whose upload it never saw succeed.
+          for _ in $(seq 1 30); do
+            [ "$state" = IN_PROGRESS ] || break
+            sleep 10
+            state=$(field "$(curl -sS -H "Authorization: Bearer $token" "$item:fetchStatus")" .lastAsyncUploadState)
+            echo "upload state: ${state:-unknown}"
+          done
+          if [ "$state" != SUCCEEDED ]; then
+            echo "::error::the Chrome Web Store rejected the upload (state: ${state:-none}; see the response above)."
             exit 1
           fi
-          publish=$(curl -sS -X POST -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" \
-            -H "Content-Length: 0" \
-            "https://www.googleapis.com/chromewebstore/v1.1/items/$ITEM_ID/publish")
-          echo "$publish" | jq .
-          if ! echo "$publish" | jq -e '.status | index("OK")' >/dev/null; then
-            echo "::error::the Chrome Web Store refused to publish (see the response above)."
-            exit 1
-          fi
+
+          # An empty body publishes with the item's existing visibility, after review — what
+          # V1.1's publish did.
+          publish=$(curl -sS -X POST -H "Authorization: Bearer $token" \
+            -H "Content-Type: application/json" -d '{}' "$item:publish")
+          show "$publish"
+          case "$(field "$publish" .state)" in
+            PENDING_REVIEW | STAGED | PUBLISHED | PUBLISHED_TO_TESTERS) ;;
+            *)
+              echo "::error::the Chrome Web Store refused to publish (see the response above)."
+              exit 1
+              ;;
+          esac
 
       # --approval-timeout 0 is the design decision, not impatience: this lane's contract
       # ends at the store accepting the version, and a listed review takes days.
