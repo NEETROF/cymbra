@@ -16,20 +16,21 @@
 //! **no transcript content is persisted** — only lemmas, counts and timestamps. Proper
 //! nouns out of the lexicon are not counted (they are not vocabulary). Idempotence is
 //! keyed on the transcript byte offset, so a re-run of the `Stop` hook over a growing
-//! transcript only ingests the new turns.
+//! transcript only ingests the new turns. Each reply is counted in the language it is
+//! read in (add-lingua-agent-languages D2).
 
 use lingua_core::analysis::percent::TokenClass;
-use lingua_core::packs::Pack;
 
-use crate::engine::analyse;
+use crate::engine::{Library, read_reply};
 use crate::source::SessionSource;
 use crate::store::Store;
 
-/// Records exposures for every countable lemma in `texts`. Returns the number of
-/// occurrences counted. Pure over the store (unit-tested with an in-memory store).
+/// Records exposures for every countable lemma in `texts`, each reply in its language.
+/// Returns the number of occurrences counted. Pure over the store (unit-tested with an
+/// in-memory store).
 pub fn ingest_texts(
     store: &Store,
-    pack: &Pack,
+    library: &mut Library,
     texts: &[String],
     source: &str,
     timestamp: i64,
@@ -37,12 +38,14 @@ pub fn ingest_texts(
     let knowledge = store.knowledge_state()?;
     let mut counted = 0;
     for text in texts {
-        let analysis = analyse(pack, &knowledge, text);
+        let Some((language, analysis)) = read_reply(library, &knowledge, text) else {
+            continue;
+        };
         for token in &analysis.tokens {
             if token.class == TokenClass::ProperNounOutOfLexicon {
                 continue;
             }
-            store.record_exposure(&token.lemma, 1, source, timestamp)?;
+            store.record_exposure(language, &token.lemma, 1, source, timestamp)?;
             counted += 1;
         }
     }
@@ -53,14 +56,14 @@ pub fn ingest_texts(
 /// the number of occurrences counted this run (0 when there is nothing new).
 pub fn run_ingest(
     store: &Store,
-    pack: &Pack,
+    library: &mut Library,
     source: &dyn SessionSource,
     transcript_id: &str,
     timestamp: i64,
 ) -> std::io::Result<usize> {
     let offset = store.ingest_offset(transcript_id).unwrap_or(0);
     let (new_offset, texts) = source.extract(offset)?;
-    let counted = ingest_texts(store, pack, &texts, transcript_id, timestamp).unwrap_or(0);
+    let counted = ingest_texts(store, library, &texts, transcript_id, timestamp).unwrap_or(0);
     let _ = store.set_ingest_offset(transcript_id, new_offset);
     Ok(counted)
 }

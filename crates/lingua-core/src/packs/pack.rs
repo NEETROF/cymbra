@@ -22,7 +22,7 @@ use crate::analysis::lexicon::{FstLexicon, Lexicon, LexiconError};
 use crate::knowledge::level::{CefrLevel, CefrLevels};
 use crate::knowledge::state::FrequencyRanks;
 
-use super::format::{FormatError, read_container};
+use super::format::{FormatError, Section, read_container};
 use super::grammar::{
     IndexedBlob, ParadigmEntry, Tag, decode_paradigm, decode_runs, decode_tag_pool,
 };
@@ -151,16 +151,7 @@ impl Pack {
     /// or one built for another analyser generation of that language, so no
     /// partial analysis is ever produced.
     pub fn load(bytes: &[u8]) -> Result<Self, PackError> {
-        let (meta_json, sections) = read_container(bytes).map_err(PackError::Format)?;
-        let meta: PackMeta = serde_json::from_slice(&meta_json).map_err(PackError::BadMeta)?;
-        let studied = StudiedLanguage::from_tag(&meta.studied)
-            .ok_or_else(|| PackError::UnknownLanguage(meta.studied.clone()))?;
-        if !analyzer_compatible(studied, &meta.analyzer_version) {
-            return Err(PackError::IncompatibleAnalyzer {
-                pack: meta.analyzer_version.clone(),
-                core: studied.analyzer_version().to_owned(),
-            });
-        }
+        let (meta, studied, sections) = read_meta(bytes)?;
 
         let take = |name: &'static str| -> Result<&[u8], PackError> {
             sections
@@ -218,6 +209,15 @@ impl Pack {
             grammar,
             notice,
         })
+    }
+
+    /// The language a pack's bytes are for, read from its metadata alone
+    /// (add-lingua-agent-languages D1): refused for the reasons `load` refuses
+    /// it — the envelope, the metadata, a language this core cannot analyse,
+    /// another analyser generation — without building the lexicon or reading a
+    /// section, so a surface holding several packs loads only the one it needs.
+    pub fn studied_in(bytes: &[u8]) -> Result<StudiedLanguage, PackError> {
+        read_meta(bytes).map(|(_, studied, _)| studied)
     }
 
     /// The pack's metadata.
@@ -516,6 +516,22 @@ fn zstd_decode(zst: &[u8]) -> Result<Vec<u8>, PackError> {
         .read_to_end(&mut out)
         .map_err(|_| PackError::Decompress)?;
     Ok(out)
+}
+
+/// A pack's metadata and studied language, checked as `load` checks them, with
+/// its sections still unread.
+fn read_meta(bytes: &[u8]) -> Result<(PackMeta, StudiedLanguage, Vec<Section>), PackError> {
+    let (meta_json, sections) = read_container(bytes).map_err(PackError::Format)?;
+    let meta: PackMeta = serde_json::from_slice(&meta_json).map_err(PackError::BadMeta)?;
+    let studied = StudiedLanguage::from_tag(&meta.studied)
+        .ok_or_else(|| PackError::UnknownLanguage(meta.studied.clone()))?;
+    if !analyzer_compatible(studied, &meta.analyzer_version) {
+        return Err(PackError::IncompatibleAnalyzer {
+            pack: meta.analyzer_version.clone(),
+            core: studied.analyzer_version().to_owned(),
+        });
+    }
+    Ok((meta, studied, sections))
 }
 
 #[cfg(test)]
@@ -977,6 +993,39 @@ pub(crate) mod tests {
         assert!(matches!(
             Pack::load(&sample_pack_with(&[(section::SENSES_ZST, b"not zstd")])),
             Err(PackError::Decompress)
+        ));
+    }
+
+    #[test]
+    fn a_packs_language_reads_from_its_metadata_alone() {
+        // add-lingua-agent-languages D1: the language, without loading the pack.
+        assert_eq!(
+            Pack::studied_in(&sample_pack_bytes_for("en", ANALYZER_VERSION)).unwrap(),
+            StudiedLanguage::English
+        );
+        assert_eq!(
+            Pack::studied_in(&sample_pack_bytes_for("es", SPANISH_ANALYZER_VERSION)).unwrap(),
+            StudiedLanguage::Spanish
+        );
+        // Nothing past the metadata is read: a pack missing its sections still says its language.
+        let bare = write_container(&meta_json(ANALYZER_VERSION), &[(section::NOTICE, b"x")]);
+        assert_eq!(Pack::studied_in(&bare).unwrap(), StudiedLanguage::English);
+        assert!(Pack::load(&bare).is_err());
+    }
+
+    #[test]
+    fn a_packs_language_is_refused_as_load_refuses_it() {
+        assert!(matches!(
+            Pack::studied_in(&sample_pack_bytes_for("pt", ANALYZER_VERSION)),
+            Err(PackError::UnknownLanguage(tag)) if tag == "pt"
+        ));
+        assert!(matches!(
+            Pack::studied_in(&sample_pack_bytes_for("es", "0.1.0")),
+            Err(PackError::IncompatibleAnalyzer { .. })
+        ));
+        assert!(matches!(
+            Pack::studied_in(b"not a pack"),
+            Err(PackError::Format(_))
         ));
     }
 

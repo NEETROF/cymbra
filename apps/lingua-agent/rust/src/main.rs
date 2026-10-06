@@ -14,19 +14,21 @@
 
 //! The `lingua` binary: `ingest`, `statusline`, `vocab` and `mcp` subcommands, dispatched
 //! for the Claude Code plugin. Thin glue over the library; hooks and the statusline
-//! degrade silently so a failure never disrupts the agent.
+//! degrade silently so a failure never disrupts the agent. The languages followed are the
+//! packs installed (add-lingua-agent-languages D1).
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use lingua_agent::engine::{lingua_home, load_pack};
+use lingua_agent::engine::{Library, lingua_home};
 use lingua_agent::ingest::run_ingest;
 use lingua_agent::mcp;
 use lingua_agent::source::{ClaudeCodeSource, SessionSource};
 use lingua_agent::statusline::statusline_text;
 use lingua_agent::store::Store;
-use lingua_agent::vocab::{add_to_deck, vocab_words};
+use lingua_agent::vocab::{add_to_deck, listing, vocab_words};
+use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::knowledge::state::KnowledgeState;
 
 fn now() -> i64 {
@@ -75,7 +77,7 @@ fn main() -> ExitCode {
         "mcp" => cmd_mcp(),
         _ => {
             eprintln!(
-                "usage: lingua <ingest|statusline|vocab|mcp> [--transcript <path>] [--add w1,w2]"
+                "usage: lingua <ingest|statusline|vocab|mcp> [--transcript <path>] [--add w1,w2] [--language <tag>]"
             );
             ExitCode::FAILURE
         }
@@ -84,24 +86,29 @@ fn main() -> ExitCode {
 
 /// Stop hook: ingest new turns. Silent on any failure (never disrupt the agent).
 fn cmd_ingest(args: &[String]) -> ExitCode {
-    let (Some(transcript), Some(store), Some(pack)) =
-        (resolve_transcript(args), open_store(), load_pack())
-    else {
+    let mut library = Library::installed();
+    if library.is_empty() {
+        return ExitCode::SUCCESS;
+    }
+    let (Some(transcript), Some(store)) = (resolve_transcript(args), open_store()) else {
         return ExitCode::SUCCESS;
     };
     let source = ClaudeCodeSource {
         path: PathBuf::from(&transcript),
     };
-    let _ = run_ingest(&store, &pack, &source, &transcript, now());
+    let _ = run_ingest(&store, &mut library, &source, &transcript, now());
     ExitCode::SUCCESS
 }
 
 /// Statusline: the last reply's coverage. Prints nothing on any failure (mute).
 fn cmd_statusline(args: &[String]) -> ExitCode {
     let render = || -> Option<String> {
+        let mut library = Library::installed();
+        if library.is_empty() {
+            return None;
+        }
         let transcript = resolve_transcript(args)?;
         let store = open_store()?;
-        let pack = load_pack()?;
         let (_, texts) = ClaudeCodeSource {
             path: PathBuf::from(transcript),
         }
@@ -109,7 +116,7 @@ fn cmd_statusline(args: &[String]) -> ExitCode {
         .ok()?;
         let last = texts.last()?;
         let knowledge = store.knowledge_state().ok()?;
-        statusline_text(&pack, &knowledge, last)
+        statusline_text(&mut library, &knowledge, last)
     };
     if let Some(line) = render() {
         println!("{line}");
@@ -123,9 +130,20 @@ fn cmd_vocab(args: &[String]) -> ExitCode {
         eprintln!("vocab: --transcript <path> required");
         return ExitCode::FAILURE;
     };
-    let (Some(store), Some(pack)) = (open_store(), load_pack()) else {
+    let mut library = Library::installed();
+    let Some(store) = open_store().filter(|_| !library.is_empty()) else {
         println!("Pack de langue introuvable — installe-le dans ~/.lingua/pack.lingua.");
         return ExitCode::SUCCESS;
+    };
+    let language = match flag(args, "--language") {
+        Some(tag) => match StudiedLanguage::from_tag(tag.trim()) {
+            Some(language) => Some(language),
+            None => {
+                eprintln!("vocab: --language {tag} is not a language the plugin knows");
+                return ExitCode::FAILURE;
+            }
+        },
+        None => None,
     };
     let Ok((_, texts)) = (ClaudeCodeSource {
         path: PathBuf::from(&transcript),
@@ -136,12 +154,9 @@ fn cmd_vocab(args: &[String]) -> ExitCode {
     let knowledge = store
         .knowledge_state()
         .unwrap_or_else(|_| KnowledgeState::new());
-    let words = vocab_words(
-        &pack,
-        &knowledge,
-        &texts,
-        store.calibration().unwrap_or(3000),
-    );
+    let words = vocab_words(&mut library, &knowledge, &texts, |language| {
+        store.calibration(language).unwrap_or(3000)
+    });
 
     if let Some(add) = flag(args, "--add") {
         let chosen: Vec<String> = add
@@ -149,21 +164,20 @@ fn cmd_vocab(args: &[String]) -> ExitCode {
             .map(|s| s.trim().to_lowercase())
             .filter(|s| !s.is_empty())
             .collect();
-        let n = add_to_deck(&store, &words, &chosen, now()).unwrap_or(0);
-        println!("Ajouté {n} mot(s) au deck.");
+        let Ok(added) = add_to_deck(&store, &words, &chosen, language, now()) else {
+            return ExitCode::SUCCESS;
+        };
+        println!("Ajouté {} mot(s) au deck.", added.added);
+        if !added.ambiguous.is_empty() {
+            println!(
+                "Listé(s) dans plusieurs langues, non ajouté(s) : {} — précise --language.",
+                added.ambiguous.join(", ")
+            );
+        }
         return ExitCode::SUCCESS;
     }
 
-    if words.is_empty() {
-        println!("Aucun mot inconnu dans cette session.");
-    } else {
-        println!("Mots inconnus de la session :");
-        for w in &words {
-            let gloss = w.gloss.as_deref().unwrap_or("—");
-            println!("  • {} — {} ({})", w.lemma, gloss, w.rarity);
-        }
-        println!("Ajoute-les avec : lingua vocab --transcript <path> --add mot1,mot2");
-    }
+    print!("{}", listing(&words, library.several()));
     ExitCode::SUCCESS
 }
 
@@ -172,7 +186,14 @@ fn cmd_mcp() -> ExitCode {
     let Some(store) = open_store() else {
         return ExitCode::FAILURE;
     };
-    match mcp::serve(&store, now) {
+    // With no pack installed the deck is still served, as English, as it always was.
+    let library = Library::installed();
+    let followed = if library.is_empty() {
+        vec![StudiedLanguage::English]
+    } else {
+        library.languages()
+    };
+    match mcp::serve(&store, &followed, now) {
         Ok(()) => ExitCode::SUCCESS,
         Err(_) => ExitCode::FAILURE,
     }
