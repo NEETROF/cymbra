@@ -114,7 +114,14 @@ export class Drawer {
     this.open = true;
     this.panel.hidden = false;
     void requestSync("surface");
+    this.reviewPage?.pageChanged(); // an opening: Révision opens in the page's language (D3)
     await this.switchTo(view);
+  }
+
+  /** The document's language changed under the drawer: Révision follows it, now if it is shown. */
+  async pageChanged(): Promise<void> {
+    this.reviewPage?.pageChanged();
+    if (this.open && this.current === "review") await this.switchTo("review");
   }
 
   /** Show (or hide) the banner for a session the server refused. */
