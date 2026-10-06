@@ -53,8 +53,12 @@ Otherwise the review keeps its language, so a choice holds (D3). A session under
 language whatever the page says. A language that leaves the accepted ones is resolved again.
 
 The page's language from each host:
-- **The in-page drawer:** the reading session gives `() => this.language`. On a book this is the
-  book's language, as the reader runs the same session.
+- **The in-page drawer:** the reading session gives the language of its document.
+- **Beside a book**, that is the book's own language, from its metadata as the library shelves
+  it, when the reader studies it: whatever one section reads as. A cover has no text to read, and
+  a Project Gutenberg book's front matter is English. The book reader passes it as
+  `ReadingHost.declaredLanguage`; `getStats` answers it as `reviewLanguage` and counts there, and
+  the `stats` message carries it.
 - **Chrome's side panel:** sends `getStats` to the active tab, the message the popup sends, and
   reads `language` from the answer. No answer (no reading session there) leaves it null.
 

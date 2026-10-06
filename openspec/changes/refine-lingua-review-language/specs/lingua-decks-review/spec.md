@@ -7,6 +7,10 @@ A review session and its counts SHALL cover one studied language at a time, neve
 - **WHEN** a reader of English and Spanish opens the review beside a page in Spanish
 - **THEN** the review and its counts hold the Spanish cards only, and no choice of all languages is offered
 
+#### Scenario: A book that opens on its cover
+- **WHEN** the reader opens a Spanish book on its cover, or on front matter in English, beside the review
+- **THEN** the review is in Spanish
+
 #### Scenario: Away from a page
 - **WHEN** the review opens beside no page in a studied language, and the reader last chose English in the review
 - **THEN** it opens in English

@@ -37,3 +37,4 @@
 
 - [x] 6.1 The page's language comes back when the review opens again or the page or book beside it changes, instead of a choice made beside another page (design D3). Specs: `pageChanged()` brings the page's language back over a choice; the drawer follows its document's new language.
 - [x] 6.2 Chrome's side panel follows the window's active tab while it is open: tab activated, page loaded, the session's language announced with its figures (design D3).
+- [x] 6.3 Beside a book, the book's own language, from its metadata, wins over what a section reads as: a cover has no text, a Project Gutenberg front matter is English (design D2). Specs: a cover, then an English licence, in a book declared Spanish.

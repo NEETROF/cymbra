@@ -482,7 +482,7 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
     runtimeListeners[0]({ type: "getStats" }, {}, (r) => (answer = r));
     await vi.waitFor(() => expect(answer).not.toBe("none"));
 
-    expect(answer).toMatchObject({ language: "es", deckCount: 7, dueCount: 2 });
+    expect(answer).toMatchObject({ language: "es", reviewLanguage: "es", deckCount: 7, dueCount: 2 });
     expect(counted).toEqual({ deck: [["es"]], due: [["es"]] });
   });
 
@@ -500,6 +500,36 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
     await s.attach(section("<p>It was a dark night.</p>").host);
 
     await vi.waitFor(() => expect(counted.deck.at(-1)).toEqual(["en"]));
+  });
+
+  /** The figures broadcast since `from` (the side panel's cue); other tests' sessions may add theirs. */
+  const statsSince = (from: number) => (sent.slice(from) as { type?: string }[]).filter((m) => m?.type === "stats");
+
+  it("opens Révision beside a book in the book's own language, whatever its page reads as (D2)", async () => {
+    // A Spanish book from Project Gutenberg opens on its cover, then on an English licence.
+    const { s, port, counted } = await spanishBook();
+    port.detectLanguage = async () => "en";
+    let from = sent.length;
+    await s.attach({ ...section("<p><img alt=''></p>").host, declaredLanguage: "es-ES" });
+    expect(statsSince(from)).toContainEqual({ type: "stats", pct: null, language: "es" });
+
+    from = sent.length;
+    await s.attach({ ...section("<p>The Project Gutenberg eBook of a dark night.</p>").host, declaredLanguage: "es" });
+    expect(statsSince(from)).toContainEqual({ type: "stats", pct: 80, language: "es" });
+    let answer: unknown = "none";
+    runtimeListeners[0]({ type: "getStats" }, {}, (r) => (answer = r));
+    await vi.waitFor(() => expect(answer).not.toBe("none"));
+    expect(answer).toMatchObject({ language: "en", reviewLanguage: "es" }); // read in English, reviewed in Spanish
+    expect(counted.deck.at(-1)).toEqual(["es"]);
+  });
+
+  it("says where Révision opens only beside a document", async () => {
+    const { s } = await spanishBook();
+    s.detach(); // back to the library
+    let answer: unknown = "none";
+    runtimeListeners[0]({ type: "getStats" }, {}, (r) => (answer = r));
+    await vi.waitFor(() => expect(answer).not.toBe("none"));
+    expect(answer).toMatchObject({ reviewLanguage: null });
   });
 
   it("opens the drawer's review in the document's language (D2)", async () => {

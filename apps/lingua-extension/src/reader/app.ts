@@ -483,6 +483,7 @@ export class ReaderApp {
       toSurface: frameOffset(doc),
       source: () => bookSource(book.title, this.section),
       exposureSource: () => BOOK_EXPOSURE_SOURCE,
+      declaredLanguage: book.language,
     });
   }
 

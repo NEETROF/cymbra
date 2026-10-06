@@ -96,6 +96,9 @@ export interface ReadingHost {
   source(): string;
   /** The tag reading exposures are recorded under. */
   exposureSource(): string;
+  /** The language the whole document declares, a book's from its metadata: Révision opens beside
+   *  it in that language, whatever one section reads as (refine-lingua-review-language D2). */
+  declaredLanguage?: string | null;
 }
 
 /** The web page the content script runs in. */
@@ -151,7 +154,9 @@ export interface SessionStats {
   levelsEstimated: boolean;
   needsLevel: boolean;
   trackedCount: number;
-  /** The cards, and those due, in the document's language (refine-lingua-review-language D4). */
+  /** Where Révision opens beside this document, null without one (refine-lingua-review-language D2). */
+  reviewLanguage: StudiedLanguage | null;
+  /** The cards, and those due, in that language (D4). */
   deckCount: number;
   dueCount: number;
   /** The language this document is read in, and the reader's accepted ones (add-lingua-language-choice). */
@@ -253,6 +258,8 @@ export class ReadingSession {
    * read in the one the engine finds in it; `language` is then that document's.
    */
   private languages: StudiedLanguage[] = [DEFAULT_LANGUAGE];
+  /** The language Révision was last told to open in beside this document (`besideLanguage`). */
+  private besideAnnounced: StudiedLanguage | null | undefined;
   /** Reads a card's selection and sentence aloud, with a voice on this device only. */
   private readonly speaker: Speaker = createSpeaker(
     browserSpeechEngine(),
@@ -327,8 +334,7 @@ export class ReadingSession {
       onChange: () => this.persist(),
       speaker: this.speaker,
       followLook: true,
-      // The document's language: on a book, the book's (refine-lingua-review-language D2).
-      pageLanguage: async () => this.language,
+      pageLanguage: async () => this.besideLanguage(),
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),
@@ -674,10 +680,7 @@ export class ReadingSession {
       // What was read so far was read in the document's former language: count it there
       // (add-lingua-language-stats-review D3).
       if (language !== this.language && this.hasPendingExposure()) void this.flushExposure();
-      const changed = language !== this.language;
       this.language = language;
-      // Révision follows the document beside it (refine-lingua-review-language D3).
-      if (changed) void this.drawer.pageChanged();
     }
     const analysis = await this.lang.analyse(texts);
     // Another document replaced this one while the engine answered: its figures are stale.
@@ -699,13 +702,31 @@ export class ReadingSession {
     this.opts.onPainted?.();
   }
 
+  /**
+   * The language Révision opens in beside this document (refine-lingua-review-language D2): a
+   * book's own, as the library shelves it, when the reader studies it — its cover has no text and
+   * its front matter may be in English — else the language the document is read in. Null without
+   * a document.
+   */
+  private besideLanguage(): StudiedLanguage | null {
+    if (!this.host) return null;
+    const declared = primaryLanguage(this.host.declaredLanguage);
+    return this.languages.find((language) => language === declared) ?? this.language;
+  }
+
   private pushBadge(): void {
+    // Révision follows the document beside it: another language, another book's (D3).
+    const beside = this.besideLanguage();
+    if (beside !== this.besideAnnounced) {
+      this.besideAnnounced = beside;
+      void this.drawer.pageChanged();
+    }
     try {
-      // The document's language rides along: Chrome's side panel follows the active tab's.
+      // That language rides along: Chrome's side panel follows the active tab's.
       chrome.runtime.sendMessage({
         type: "stats",
         pct: this.stats.analysable ? this.stats.percent : null,
-        language: this.language,
+        language: beside,
       });
     } catch {
       // The service worker may be asleep; the badge refreshes on the next pass.
@@ -907,6 +928,8 @@ export class ReadingSession {
 
   private async statsMessage(): Promise<SessionStats> {
     const now = nowSeconds();
+    const beside = this.besideLanguage();
+    const counted = beside ?? this.language;
     return {
       surface: this.opts.surface ?? "page",
       analysable: this.stats.analysable,
@@ -922,9 +945,10 @@ export class ReadingSession {
       language: this.language,
       languages: [...this.languages],
       trackedCount: await this.port.trackedCount(),
-      // In the document's language, as the review opens beside it (refine-lingua-review-language D4).
-      deckCount: await this.port.deckCount([this.language]),
-      dueCount: await this.port.dueCount(now, [this.language]),
+      reviewLanguage: beside,
+      // Where the review opens beside it (refine-lingua-review-language D4).
+      deckCount: await this.port.deckCount([counted]),
+      dueCount: await this.port.dueCount(now, [counted]),
     };
   }
 }
