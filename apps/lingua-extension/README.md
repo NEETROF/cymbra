@@ -405,11 +405,12 @@ request as the behaviour they describe.
 What a tag run needs (it stops and names whatever is missing). Repository **variables**, for
 the public values, as `PUBLIC_GOOGLE_CLIENT_ID` already is:
 
-| Variable                  | What it is                                                                                                                    |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `CWS_EXTENSION_ID`        | the Chrome Web Store item id, `lodgdmkjlbpieomelpdkfaifdbipfncd` — it is in the store URL, and the listing must already exist |
-| `LINGUA_GOOGLE_CLIENT_ID` | the web OAuth client carrying the extension's redirect URI                                                                    |
-| `LINGUA_APPLE_CLIENT_ID`  | the Apple Services ID, the same one the site uses (`com.cymbra.bo.web`)                                                       |
+| Variable                  | What it is                                                                                                                       |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `CWS_EXTENSION_ID`        | the Chrome Web Store item id, `lodgdmkjlbpieomelpdkfaifdbipfncd` — it is in the store URL, and the listing must already exist    |
+| `CWS_PUBLISHER_ID`        | the publisher that owns the item, under Publisher > Settings in the developer dashboard; the store's API V2 names items under it |
+| `LINGUA_GOOGLE_CLIENT_ID` | the web OAuth client carrying the extension's redirect URI                                                                       |
+| `LINGUA_APPLE_CLIENT_ID`  | the Apple Services ID, the same one the site uses (`com.cymbra.bo.web`)                                                          |
 
 Repository **secrets**, for the credentials:
 
