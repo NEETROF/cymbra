@@ -380,6 +380,13 @@ class ReduceExpressions(TempDir):
             {"starting point": "Point de départ, origine, commencement,"},
         )
 
+    def test_the_curated_locutions_are_written_by_a_person_each_with_its_gloss(self):
+        self.assertEqual(red.LOCUTIONS["four-poster bed"], "Lit à baldaquin")
+        for expression, gloss in red.LOCUTIONS.items():
+            self.assertIn(" ", expression)
+            self.assertLessEqual(len(gloss), 80, expression)
+            self.assertTrue(gloss and gloss[0].isupper(), expression)
+
 
 class FormOfGlosses(unittest.TestCase):
     def test_pointers_are_form_of(self):
