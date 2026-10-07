@@ -19,7 +19,7 @@
 // generalise-lingua-translation-routes-by-pair D2). A route of two models — es-fr, through
 // English — translates through both in one request (add-lingua-spanish-translation-pivot D2).
 
-import { LONG_ROUTE, NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
+import { isTrap, LONG_ROUTE, NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
 import { modelDb } from "./model-db.ts";
 import { loadBundledCatalogue, type ModelManifest, routeOf } from "./model-manifest.ts";
 
@@ -101,6 +101,7 @@ const routes = new Map<string, string[]>();
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
   postMessage(message: WorkerResponse): void;
+  close(): void;
 };
 
 function textConfig(config: Readonly<Record<string, string>>): string {
@@ -144,6 +145,8 @@ async function instance(): Promise<Engine> {
     const instance: BergamotModule = loadBergamot({
       INITIAL_MEMORY,
       print: () => {},
+      // For the initialisation only: an abort during a translation throws after this callback,
+      // and the catch below reads the throw (D1).
       onAbort: (what: unknown) => reject(new Error(`the engine aborted: ${String(what)}`)),
       onRuntimeInitialized: () => resolve(instance),
       wasmBinary: wasm,
@@ -226,7 +229,19 @@ scope.onmessage = (event) => {
         scope.postMessage({ id: request.id, ok: true, html: translate(request.markup, request.pair) });
       }
     } catch (e: unknown) {
-      scope.postMessage({ id: request.id, ok: false, error: e instanceof Error ? e.message : String(e) });
+      const error = e instanceof Error ? e.message : String(e);
+      if (!isTrap(e)) {
+        scope.postMessage({ id: request.id, ok: false, error });
+        return;
+      }
+      // The engine trapped (harden-lingua-translation-engine D1): its linear memory is not to be
+      // trusted for a next request, so this instance answers nothing more. Reported once, under
+      // the request it trapped — an abort raised mid-translation calls `onAbort` (a no-op once the
+      // init has resolved) and then throws, and that throw is what lands here — and the worker
+      // closes itself, so that it cannot be asked by mistake. Its owner starts a fresh one and
+      // asks again (channel.ts).
+      scope.postMessage({ id: request.id, ok: false, error, trap: true });
+      scope.close();
     }
   })();
 };
