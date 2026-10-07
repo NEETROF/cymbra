@@ -3,7 +3,7 @@
 // make_source_archive.sh. The first pair gives the default studied language: the engine's first
 // pack. A pair being built is not a pair being shipped (Spanish tables exist long before Spanish
 // ships), so the list is its own file rather than the folders of scripts/lingua-data/tables/.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +16,9 @@ export function shippedPairs(appDir = APP_DIR) {
     throw new Error(`packs.json: "pairs" must list "<studied>-<native>" pairs, got ${JSON.stringify(pairs)}`);
   }
   if (new Set(pairs).size !== pairs.length) throw new Error(`packs.json: a pair is listed twice in ${pairs}`);
+  // A reader never studies their native language (generalise-lingua-native-language D8).
+  const same = pairs.find((pair) => studiedOf(pair) === nativeOf(pair));
+  if (same) throw new Error(`packs.json: ${same} would be glossed in the language it studies`);
   return pairs;
 }
 
@@ -27,6 +30,11 @@ export function packFile(pair) {
 /** The studied side of a pair: "en-fr" → "en". */
 export function studiedOf(pair) {
   return pair.split("-")[0];
+}
+
+/** The native side of a pair, the language its glosses are written in: "en-fr" → "fr". */
+export function nativeOf(pair) {
+  return pair.split("-")[1];
 }
 
 /**
@@ -44,14 +52,91 @@ export function coreAnalyzerVersion(language, modRs) {
   return modRs.match(new RegExp(`\\b${name}:\\s*&str\\s*=\\s*"([^"]+)"`))?.[1] ?? null;
 }
 
-/** A pack's studied language and analyser version, scanned from its container's ASCII metadata. */
+/** The container's magic (crates/lingua-core/src/packs/format.rs). */
+const MAGIC = "LINGUAPK";
+/** Where the metadata's length sits: after the magic and the u16 format version. */
+const META_LENGTH_AT = 10;
+/** Where the metadata's JSON starts: after its u32 length. */
+const META_AT = 14;
+
+/**
+ * A pack's studied language, native language and analyser version, read exactly from its
+ * container: the JSON at offset 14, whose length is the little-endian u32 at offset 10
+ * (generalise-lingua-native-language D8). Each is null when the bytes are not a container whose
+ * metadata reads.
+ */
 export function packMeta(bytes) {
-  // latin1 keeps the binary intact while the ASCII meta JSON stays matchable.
-  const text = Buffer.from(bytes).toString("latin1");
-  return {
-    studied: text.match(/"studied"\s*:\s*"([^"]+)"/)?.[1] ?? null,
-    analyzerVersion: text.match(/"analyzer_version"\s*:\s*"([^"]+)"/)?.[1] ?? null,
-  };
+  const none = { studied: null, native: null, analyzerVersion: null };
+  const buf = Buffer.from(bytes);
+  if (buf.length < META_AT || buf.toString("latin1", 0, MAGIC.length) !== MAGIC) return none;
+  const end = META_AT + buf.readUInt32LE(META_LENGTH_AT);
+  if (end > buf.length) return none;
+  let meta;
+  try {
+    meta = JSON.parse(buf.toString("utf8", META_AT, end));
+  } catch {
+    return none;
+  }
+  const text = (value) => (typeof value === "string" ? value : null);
+  return { studied: text(meta?.studied), native: text(meta?.native), analyzerVersion: text(meta?.analyzer_version) };
+}
+
+/**
+ * Guard: every listed pack is its pair's, and shares its language's analyzer version with the
+ * engine. The engine refuses a mismatched pack at RUNTIME ("pack built for analyzer X but this core
+ * is Y"), which reads as "the extension is broken" during dogfooding. A bump of a language's
+ * analyser version in lingua-core leaves the gitignored real pack (gen:pack:real) stale, so the
+ * build fails early with an actionable message instead. lingua-core's constants are the source of
+ * truth; each pack's container metadata is read for its studied language, its native language and
+ * its analyser version, and a pack whose metadata does not read is refused. The check reads the
+ * built pack rather than the tables, because the pack is what ships. CI runs gen:pack (testdata, current versions) before build, so it always matches.
+ */
+export function assertPacksMatchEngine({
+  appDir = APP_DIR,
+  pairs = shippedPairs(appDir),
+  modRs = readFileSync(join(appDir, "../../crates/lingua-core/src/analysis/mod.rs"), "utf8"),
+} = {}) {
+  for (const pair of pairs) {
+    const file = packFile(pair);
+    const path = join(appDir, file);
+    if (!existsSync(path)) {
+      throw new Error(
+        `${file} is missing — run \`yarn gen:pack\` (testdata) or \`yarn gen:pack:real\` (the committed tables) before building.`,
+      );
+    }
+    const language = studiedOf(pair);
+    const { studied, native, analyzerVersion } = packMeta(readFileSync(path));
+    // Every pack lingua-core accepts names all three (PackMeta): one that does not — not a
+    // container, a truncated one, metadata that does not parse — would only be refused at runtime.
+    if (!studied || !native || !analyzerVersion) {
+      throw new Error(
+        `${file} has no metadata this build can read (its studied language, native language and analyser version): rebuild it with \`yarn gen:pack:real\` (the committed tables) or \`yarn gen:pack\` (testdata).`,
+      );
+    }
+    if (studied !== language) {
+      throw new Error(`${file} studies "${studied}", not "${language}": rebuild it with \`yarn gen:pack:real\`.`);
+    }
+    // A pack glossed in another language than its pair's would be served to readers of the wrong
+    // native language (generalise-lingua-native-language D8).
+    if (native !== nativeOf(pair)) {
+      throw new Error(
+        `${file} is glossed in "${native}", not "${nativeOf(pair)}": rebuild it with \`yarn gen:pack:real\` (the committed tables) or \`yarn gen:pack\` (testdata).`,
+      );
+    }
+    const core = coreAnalyzerVersion(language, modRs);
+    if (!core) {
+      throw new Error(
+        `lingua-core has no analyser version for "${language}" (${pair}): tool/packs.mjs names one per language.`,
+      );
+    }
+    if (analyzerVersion !== core) {
+      throw new Error(
+        `Analyzer version mismatch: ${file} is ${analyzerVersion} but lingua-core's ${language} analyser is ${core}. ` +
+          "The engine refuses a mismatched pack at runtime. Rebuild it: " +
+          "`yarn gen:pack:real` (the committed tables) or `yarn gen:pack` (testdata).",
+      );
+    }
+  }
 }
 
 // For the shell scripts: `node tool/packs.mjs pairs` prints one shipped pair per line.

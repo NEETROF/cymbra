@@ -172,7 +172,9 @@ export class SyncEngine {
   private async wipeLocal(): Promise<void> {
     const { port, storage } = this.deps;
     await port.reset();
-    // The reset returned the profile to its default: calibrate the language it reads in.
+    // The reset returned the profile to the engine's native language, studying its first pack's
+    // language alone — the default profile, for a reader of French (generalise-lingua-native-language
+    // D5): calibrate the language it reads in.
     const lang = port.for(await readingLanguage(port));
     await lang.setCalibration((await lang.hasLevels()) ? 0 : DEFAULT_CALIBRATION);
     await saveBackup(storage, await port.backup());

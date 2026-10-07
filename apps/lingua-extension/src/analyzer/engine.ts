@@ -9,11 +9,12 @@ import type {
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
-import { packPath, pairFor, SHIPPED_PAIRS } from "./pairs.ts";
+import { DEFAULT_NATIVE, defaultPair, packPath, pairFor, pairsOf, SHIPPED_PAIRS } from "./pairs.ts";
 import type {
   CefrLevel,
   LemmaStatus,
   LevelRow,
+  NativeLanguage,
   PageAnalysis,
   PhraseGloss,
   SeedOrder,
@@ -88,8 +89,11 @@ interface WasmEngine {
   seedLevel(level: string, count: number, order: string, at: number, language?: string | null): number;
   addPack(packBytes: Uint8Array): string;
   languages(): string;
+  nativeLanguage(): string;
+  profileNativeLanguage(): string;
   studiedLanguages(): string;
   setStudiedLanguages(tags: string[]): void;
+  setProfile(native: string, languages: string[]): void;
   detectLanguage(blocks: string[], candidates: string[], hint?: string | null): string;
   free(): void;
 }
@@ -101,6 +105,9 @@ export interface WasmModule {
 
 /** How the wasm-pack glue module is obtained. */
 export type GlueLoader = () => Promise<WasmModule>;
+
+/** The reader's native language, as their stored profile names it (`storedNativeLanguage`). */
+export type NativeResolver = () => Promise<NativeLanguage>;
 
 /** Paths of the vendored wasm output within the built extension (the packs': pairs.ts). */
 const GLUE_PATH = "wasm/lingua_wasm.js";
@@ -148,40 +155,78 @@ async function fetchPack(pair: string): Promise<Uint8Array> {
 
 export class WasmAnalyzerPort implements LinguaPort {
   private enginePromise: Promise<WasmEngine> | null = null;
+  private nativePromise: Promise<NativeLanguage> | null = null;
   /** The packs added after the default's, one load per language (package-lingua-packs-per-pair). */
   private readonly added = new Map<string, Promise<void>>();
 
-  /** `pairs`: the pairs whose packs this engine may load, the default language's first. */
+  /**
+   * `pairs`: the pairs listed, the default language's first. `resolveNative`: the reader's native
+   * language, asked once, before the first pack is fetched; the engine loads only the pairs glossed
+   * in it, starting with the first of them (generalise-lingua-native-language D7).
+   */
   constructor(
     private readonly loadGlue: GlueLoader = dynamicGlue,
     private readonly pairs: readonly string[] = SHIPPED_PAIRS,
+    private readonly resolveNative: NativeResolver = async () => DEFAULT_NATIVE,
   ) {}
 
-  /** Instantiated once per tab, on the first call, with the default pair's pack. */
-  private engine(): Promise<WasmEngine> {
-    return (this.enginePromise ??= this.build());
+  /**
+   * The native language this engine is built for, asked of the resolver once. One no listed pair is
+   * glossed in is refused here, before anything is fetched. A resolver that failed — the store did
+   * not answer — is asked again by the next call, whichever call it is, rather than remembered: the
+   * build waits for the native language before it is cached (`engine`).
+   */
+  private native(): Promise<NativeLanguage> {
+    if (!this.nativePromise) {
+      const resolved = this.resolveNative();
+      const attempt = resolved.then((native) => {
+        if (defaultPair(native, this.pairs) === null) {
+          throw new Error(`no shipped pair is glossed in "${native}" (shipped pairs: ${this.pairs.join(", ")})`);
+        }
+        return native;
+      });
+      resolved.catch(() => {
+        if (this.nativePromise === attempt) this.nativePromise = null;
+      });
+      this.nativePromise = attempt;
+    }
+    return this.nativePromise;
   }
 
-  private async build(): Promise<WasmEngine> {
+  /**
+   * Instantiated once per tab, on the first call, with the native language's default pair's pack.
+   * The native language is known before the build is cached, so a store that failed to answer never
+   * leaves a failed build behind for every later call (generalise-lingua-native-language D7).
+   */
+  private async engine(): Promise<WasmEngine> {
+    const native = await this.native();
+    return (this.enginePromise ??= this.build(native));
+  }
+
+  private async build(native: NativeLanguage): Promise<WasmEngine> {
+    const pair = defaultPair(native, this.pairs) as string;
     const mod = await this.loadGlue();
     await initialise(mod);
-    const packBytes = await fetchPack(this.pairs[0]);
+    const packBytes = await fetchPack(pair);
     // Throws if the pack is malformed or built for an incompatible analyzer_version.
     return new mod.LinguaEngine(packBytes);
   }
 
   /**
-   * The engine once it holds `language`'s pack. The default pair's built it; another listed
-   * pair's is added the first time its language is asked for. A language no listed pair
-   * studies is refused here, before the engine sees anything.
+   * The engine once it holds `language`'s pack. The native language's default pair's built it;
+   * another of its pairs' is added the first time its language is asked for. A language no pair of
+   * the native language studies is refused here, before the engine sees anything.
    */
   private async engineFor(language: string): Promise<WasmEngine> {
-    const pair = pairFor(language, this.pairs);
+    const native = await this.native();
+    const pair = pairFor(language, native, this.pairs);
     if (pair === null) {
-      throw new Error(`no shipped pack studies "${language}" (shipped pairs: ${this.pairs.join(", ")})`);
+      throw new Error(
+        `no shipped pack studies "${language}" (shipped pairs: ${pairsOf(native, this.pairs).join(", ")})`,
+      );
     }
     const engine = await this.engine();
-    if (pair !== this.pairs[0]) await this.addPack(engine, language, pair);
+    if (pair !== defaultPair(native, this.pairs)) await this.addPack(engine, language, pair);
     return engine;
   }
 
@@ -209,8 +254,9 @@ export class WasmAnalyzerPort implements LinguaPort {
    * no listed pair studies loads nothing, and its records stay skipped.
    */
   private async engineHolding(records: ReadonlyArray<{ language: string }>): Promise<WasmEngine> {
+    const native = await this.native();
     const languages = new Set(records.map((record) => record.language));
-    const listed = [...languages].filter((language) => pairFor(language, this.pairs) !== null);
+    const listed = [...languages].filter((language) => pairFor(language, native, this.pairs) !== null);
     await Promise.all(listed.map((language) => this.engineFor(language)));
     return this.engine();
   }
@@ -223,6 +269,10 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   async languages(): Promise<StudiedLanguage[]> {
     return JSON.parse((await this.engine()).languages()) as StudiedLanguage[];
+  }
+
+  nativeLanguage(): Promise<NativeLanguage> {
+    return this.native();
   }
 
   async studiedLanguages(): Promise<StudiedLanguage[]> {

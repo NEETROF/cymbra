@@ -440,6 +440,26 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
     expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
   });
 
+  it("keeps calibrating English after an erasure for a reader of French who studied Spanish first", async () => {
+    // The engine's full reset returns its reader to its native language, studying its first pack's
+    // language alone: for an engine started on en-fr, English (generalise-lingua-native-language D5).
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: BigInt(MARK) });
+    const { port, calls, asked } = syncPort(localOps);
+    await port.setStudiedLanguages(["es", "en"]);
+    const reset = port.reset;
+    port.reset = async () => {
+      await reset();
+      await port.setStudiedLanguages(["en"]);
+    };
+    const storage = fakeArea({ ...v2("OLD"), "cymbra-lingua-status-cursor": 42 });
+    const engine = new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" });
+    await engine.sync();
+    expect(calls.resets).toBe(1);
+    expect(await port.nativeLanguage()).toBe("fr");
+    expect(asked[0]).toBe("en"); // the wipe recalibrates English, not the Spanish studied before
+  });
+
   it("adopts the mark without wiping on a device that never synced", async () => {
     const f = fakeClients();
     f.getDataState.mockResolvedValue({ erasedAt: BigInt(MARK) });

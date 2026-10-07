@@ -20,6 +20,7 @@ use std::io::Read;
 use crate::analysis::language::StudiedLanguage;
 use crate::analysis::lexicon::{FstLexicon, Lexicon, LexiconError};
 use crate::knowledge::level::{CefrLevel, CefrLevels};
+use crate::knowledge::profile::{LanguagePair, NativeLanguage};
 use crate::knowledge::state::FrequencyRanks;
 
 use super::format::{FormatError, Section, read_container};
@@ -77,6 +78,11 @@ pub enum PackError {
     IncompatibleAnalyzer { pack: String, core: String },
     /// The pack studies a language this core has no analyser for.
     UnknownLanguage(String),
+    /// The pack is glossed in a native language this core does not know
+    /// (generalise-lingua-native-language D1).
+    UnknownNative(String),
+    /// The pack is glossed in the language it studies.
+    NativeStudied(StudiedLanguage),
     /// A required section is missing.
     MissingSection(&'static str),
     /// The FST / lemma pool could not be loaded.
@@ -100,6 +106,15 @@ impl std::fmt::Display for PackError {
                 f,
                 "pack studies {tag:?}, a language this core cannot analyse; refusing to load"
             ),
+            PackError::UnknownNative(tag) => write!(
+                f,
+                "pack is glossed in {tag:?}, a native language this core does not know; refusing to load"
+            ),
+            PackError::NativeStudied(language) => write!(
+                f,
+                "pack studies {:?} and is glossed in it too; refusing to load",
+                language.tag()
+            ),
             PackError::MissingSection(s) => write!(f, "pack is missing the {s:?} section"),
             PackError::Lexicon(e) => write!(f, "pack lexicon: {e}"),
             PackError::Malformed(s) => write!(f, "pack section {s:?} is malformed"),
@@ -113,9 +128,10 @@ impl std::error::Error for PackError {}
 /// A loaded language-pair data pack.
 pub struct Pack {
     meta: PackMeta,
-    /// The language the pack is for, from `meta.studied`: its analyser is the
-    /// one every analysis of this pack runs.
-    studied: StudiedLanguage,
+    /// The pair the pack serves, from `meta.studied` and `meta.native`: the
+    /// studied language's analyser is the one every analysis of this pack
+    /// runs, and its glosses are written in the native language.
+    pair: LanguagePair,
     lexicon: FstLexicon<Vec<u8>>,
     /// Rank per lemma id (0 = unranked).
     freq: Vec<u32>,
@@ -148,10 +164,11 @@ struct Grammar {
 impl Pack {
     /// Loads a pack from container bytes (an `include_bytes!`-compatible
     /// slice), refusing one whose studied language this core cannot analyse,
-    /// or one built for another analyser generation of that language, so no
-    /// partial analysis is ever produced.
+    /// one built for another analyser generation of that language, or one
+    /// glossed in a native language this core does not know or in the language
+    /// it studies, so no partial analysis is ever produced.
     pub fn load(bytes: &[u8]) -> Result<Self, PackError> {
-        let (meta, studied, sections) = read_meta(bytes)?;
+        let (meta, pair, sections) = read_meta(bytes)?;
 
         let take = |name: &'static str| -> Result<&[u8], PackError> {
             sections
@@ -199,7 +216,7 @@ impl Pack {
 
         Ok(Self {
             meta,
-            studied,
+            pair,
             lexicon,
             freq,
             levels,
@@ -217,7 +234,14 @@ impl Pack {
     /// another analyser generation — without building the lexicon or reading a
     /// section, so a surface holding several packs loads only the one it needs.
     pub fn studied_in(bytes: &[u8]) -> Result<StudiedLanguage, PackError> {
-        read_meta(bytes).map(|(_, studied, _)| studied)
+        read_meta(bytes).map(|(_, pair, _)| pair.studied)
+    }
+
+    /// The pair a pack's bytes serve, read from its metadata alone, as
+    /// [`Pack::studied_in`] reads its language and refused for the same reasons
+    /// `load` refuses it (generalise-lingua-native-language D1).
+    pub fn pair_in(bytes: &[u8]) -> Result<LanguagePair, PackError> {
+        read_meta(bytes).map(|(_, pair, _)| pair)
     }
 
     /// The pack's metadata.
@@ -227,7 +251,18 @@ impl Pack {
 
     /// The language the pack is for (`meta.studied`, checked at load).
     pub fn studied(&self) -> StudiedLanguage {
-        self.studied
+        self.pair.studied
+    }
+
+    /// The language the pack's glosses are written in (`meta.native`, checked
+    /// at load).
+    pub fn native(&self) -> NativeLanguage {
+        self.pair.native
+    }
+
+    /// The pair the pack serves: its studied and its native language.
+    pub fn pair(&self) -> LanguagePair {
+        self.pair
     }
 
     /// The form→lemma lexicon (feeds the lemmatisation cascade).
@@ -520,7 +555,7 @@ fn zstd_decode(zst: &[u8]) -> Result<Vec<u8>, PackError> {
 
 /// A pack's metadata and studied language, checked as `load` checks them, with
 /// its sections still unread.
-fn read_meta(bytes: &[u8]) -> Result<(PackMeta, StudiedLanguage, Vec<Section>), PackError> {
+fn read_meta(bytes: &[u8]) -> Result<(PackMeta, LanguagePair, Vec<Section>), PackError> {
     let (meta_json, sections) = read_container(bytes).map_err(PackError::Format)?;
     let meta: PackMeta = serde_json::from_slice(&meta_json).map_err(PackError::BadMeta)?;
     let studied = StudiedLanguage::from_tag(&meta.studied)
@@ -531,7 +566,14 @@ fn read_meta(bytes: &[u8]) -> Result<(PackMeta, StudiedLanguage, Vec<Section>), 
             core: studied.analyzer_version().to_owned(),
         });
     }
-    Ok((meta, studied, sections))
+    // After the studied language and the analyser, so their errors keep their precedence
+    // (generalise-lingua-native-language D1).
+    let native = NativeLanguage::from_tag(&meta.native)
+        .ok_or_else(|| PackError::UnknownNative(meta.native.clone()))?;
+    if native.studied() == Some(studied) {
+        return Err(PackError::NativeStudied(studied));
+    }
+    Ok((meta, LanguagePair { studied, native }, sections))
 }
 
 #[cfg(test)]
@@ -586,9 +628,13 @@ pub(crate) mod tests {
     }
 
     fn meta_json_for(studied: &str, analyzer: &str) -> Vec<u8> {
+        meta_json_with(studied, "fr", analyzer)
+    }
+
+    fn meta_json_with(studied: &str, native: &str, analyzer: &str) -> Vec<u8> {
         serde_json::to_vec(&PackMeta {
             studied: studied.into(),
-            native: "fr".into(),
+            native: native.into(),
             pack_version: "2026.09.1".into(),
             analyzer_version: analyzer.into(),
             levels_estimated: false,
@@ -601,13 +647,18 @@ pub(crate) mod tests {
         .unwrap()
     }
 
-    // Assembles a small but complete en->fr pack for the current analyzer.
+    // Assembles a small but complete en-fr pack for the current analyzer.
     fn sample_pack_bytes(analyzer: &str) -> Vec<u8> {
         sample_pack_bytes_for("en", analyzer)
     }
 
     // The same pack, for another studied language.
     pub(crate) fn sample_pack_bytes_for(studied: &str, analyzer: &str) -> Vec<u8> {
+        sample_pack_bytes_with(studied, "fr", analyzer)
+    }
+
+    // The same pack, for another pair.
+    pub(crate) fn sample_pack_bytes_with(studied: &str, native: &str, analyzer: &str) -> Vec<u8> {
         let (forms, pool) = build_lexicon_blobs(
             &[("running", "run"), ("ran", "run"), ("cities", "city")],
             &["run", "city", "seldom"],
@@ -628,7 +679,7 @@ pub(crate) mod tests {
             (lex.id_of("city").unwrap() as u32, "ville"),
         ]);
         write_container(
-            &meta_json_for(studied, analyzer),
+            &meta_json_with(studied, native, analyzer),
             &[
                 (section::FORMS, &forms),
                 (section::LEMMAS, pool.as_bytes()),
@@ -647,6 +698,104 @@ pub(crate) mod tests {
         let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
         assert_eq!(pack.studied(), StudiedLanguage::English);
         assert_eq!(pack.meta().analyzer_version, "1.1.0");
+    }
+
+    #[test]
+    fn spec_scenario_the_en_fr_pack_names_french() {
+        let bytes = sample_pack_bytes(ANALYZER_VERSION);
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(pack.native(), NativeLanguage::French);
+        assert_eq!(pack.pair().key(), "en-fr");
+        assert_eq!(
+            pack.pair(),
+            LanguagePair {
+                studied: StudiedLanguage::English,
+                native: NativeLanguage::French
+            }
+        );
+        // Its metadata alone says the same.
+        assert_eq!(Pack::pair_in(&bytes).unwrap(), pack.pair());
+        // Another pair is data, not code.
+        let es_en = Pack::load(&sample_pack_bytes_with(
+            "es",
+            "en",
+            SPANISH_ANALYZER_VERSION,
+        ))
+        .expect("an es-en pack loads");
+        assert_eq!(es_en.native(), NativeLanguage::English);
+        assert_eq!(es_en.pair().key(), "es-en");
+    }
+
+    #[test]
+    fn spec_scenario_a_native_language_the_core_does_not_know() {
+        for bytes in [
+            sample_pack_bytes_with("en", "de", ANALYZER_VERSION),
+            sample_pack_bytes_with("en", "FR", ANALYZER_VERSION),
+        ] {
+            match Pack::load(&bytes) {
+                Err(err @ PackError::UnknownNative(_)) => {
+                    assert!(err.to_string().contains("refusing to load"), "{err}");
+                }
+                Err(other) => panic!("expected UnknownNative, got {other}"),
+                Ok(_) => panic!("a pack glossed in an unknown language loaded"),
+            }
+            assert!(matches!(
+                Pack::pair_in(&bytes),
+                Err(PackError::UnknownNative(_))
+            ));
+        }
+        let Err(err) = Pack::load(&sample_pack_bytes_with("en", "de", ANALYZER_VERSION)) else {
+            panic!("refused");
+        };
+        assert!(matches!(&err, PackError::UnknownNative(tag) if tag == "de"));
+        assert!(err.to_string().contains("\"de\""), "{err}");
+    }
+
+    #[test]
+    fn spec_scenario_a_pack_glossed_in_the_language_it_studies() {
+        for (studied, analyzer, language) in [
+            ("en", ANALYZER_VERSION, StudiedLanguage::English),
+            ("es", SPANISH_ANALYZER_VERSION, StudiedLanguage::Spanish),
+        ] {
+            let bytes = sample_pack_bytes_with(studied, studied, analyzer);
+            match Pack::load(&bytes) {
+                Err(err @ PackError::NativeStudied(_)) => {
+                    assert!(matches!(err, PackError::NativeStudied(l) if l == language));
+                    assert!(err.to_string().contains(&format!("{studied:?}")), "{err}");
+                }
+                Err(other) => panic!("expected NativeStudied, got {other}"),
+                Ok(_) => panic!("a pack glossed in the language it studies loaded"),
+            }
+            assert!(matches!(
+                Pack::pair_in(&bytes),
+                Err(PackError::NativeStudied(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn the_studied_language_and_the_analyser_are_checked_before_the_native_language() {
+        // An unknown studied language wins over an unknown native language.
+        assert!(matches!(
+            Pack::load(&sample_pack_bytes_with("pt", "de", ANALYZER_VERSION)),
+            Err(PackError::UnknownLanguage(tag)) if tag == "pt"
+        ));
+        // Another analyser generation wins over a native language equal to the studied one.
+        assert!(matches!(
+            Pack::load(&sample_pack_bytes_with(
+                "en",
+                "en",
+                "0.0.0-from-another-era"
+            )),
+            Err(PackError::IncompatibleAnalyzer { .. })
+        ));
+        assert!(matches!(
+            Pack::pair_in(&sample_pack_bytes_with("es", "de", "0.1.0")),
+            Err(PackError::IncompatibleAnalyzer { .. })
+        ));
+        // Metadata that does not parse is still refused as such.
+        let bad = write_container(b"{not json", &[(section::NOTICE, b"x")]);
+        assert!(matches!(Pack::pair_in(&bad), Err(PackError::BadMeta(_))));
     }
 
     #[test]
@@ -682,7 +831,7 @@ pub(crate) mod tests {
     #[test]
     fn spec_loading_the_en_fr_pack_exposes_lemmas_ranks_and_glosses() {
         let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
-        assert_eq!(pack.meta().pair_key(), "en->fr");
+        assert_eq!(pack.meta().pair_key(), "en-fr");
         // Lemmatisation via the pack's lexicon.
         assert_eq!(pack.lexicon().lemma_of("running"), Some("run"));
         // Frequency ranks keyed by lemma.
@@ -1007,9 +1156,22 @@ pub(crate) mod tests {
             Pack::studied_in(&sample_pack_bytes_for("es", SPANISH_ANALYZER_VERSION)).unwrap(),
             StudiedLanguage::Spanish
         );
-        // Nothing past the metadata is read: a pack missing its sections still says its language.
+        // Nothing past the metadata is read: a pack missing its sections still says its language,
+        // and its pair.
         let bare = write_container(&meta_json(ANALYZER_VERSION), &[(section::NOTICE, b"x")]);
         assert_eq!(Pack::studied_in(&bare).unwrap(), StudiedLanguage::English);
+        assert_eq!(Pack::pair_in(&bare).unwrap().key(), "en-fr");
+        let bare_es_en = write_container(
+            &meta_json_with("es", "en", SPANISH_ANALYZER_VERSION),
+            &[(section::NOTICE, b"x")],
+        );
+        assert_eq!(
+            Pack::pair_in(&bare_es_en).unwrap(),
+            LanguagePair {
+                studied: StudiedLanguage::Spanish,
+                native: NativeLanguage::English
+            }
+        );
         assert!(Pack::load(&bare).is_err());
     }
 

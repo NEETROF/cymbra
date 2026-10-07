@@ -52,7 +52,7 @@ fn pipeline_output_round_trips_through_the_reader() {
     let bytes = build_pack(&inputs).expect("build");
 
     let pack = Pack::load(&bytes).expect("load");
-    assert_eq!(pack.meta().pair_key(), "en->fr");
+    assert_eq!(pack.meta().pair_key(), "en-fr");
     assert_eq!(pack.lexicon().lemma_of("running"), Some("run"));
     assert_eq!(pack.rank("run"), Some(500));
     assert_eq!(pack.gloss("conundrum"), Some("casse-tête"));

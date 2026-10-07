@@ -15,15 +15,20 @@
 //! The analysis brain, compiled natively — the same `lingua-core` (same analyser versions) as
 //! the extension. Finds the packs installed, which are the languages the plugin follows, reads
 //! each reply in its own language and analyses it into classified tokens
-//! (add-lingua-agent-languages D1, D2). Paths resolve under `~/.lingua/` (overridable by env for
-//! tests).
+//! (add-lingua-agent-languages D1, D2). The plugin follows one native language, `pack.lingua`'s
+//! (generalise-lingua-native-language D9). Paths resolve under `~/.lingua/` (overridable by env
+//! for tests).
 
 use std::path::PathBuf;
 
 use lingua_core::analysis::language::{StudiedLanguage, detect_document_language};
 use lingua_core::engine::{PageAnalysis, analyse_page};
+use lingua_core::knowledge::profile::{LanguagePair, NativeLanguage};
 use lingua_core::knowledge::state::KnowledgeState;
 use lingua_core::packs::Pack;
+
+/// The file name of the English pack, whose native language the plugin follows.
+const ANCHOR: &str = "pack.lingua";
 
 /// The plugin's data directory: `$LINGUA_HOME`, else `$HOME/.lingua`.
 pub fn lingua_home() -> PathBuf {
@@ -51,10 +56,24 @@ struct Entry {
     pack: Option<Option<Pack>>,
 }
 
+/// A pack installed but not followed, because it is glossed in another native language than the
+/// plugin's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Skipped {
+    /// The file.
+    pub file: PathBuf,
+    /// The native language it is glossed in.
+    pub native: NativeLanguage,
+}
+
 /// The packs installed, and the languages they make the plugin follow (design D1). A pack is
 /// loaded only when a reply in its language needs it.
 pub struct Library {
     entries: Vec<Entry>,
+    /// The native language every pack followed is glossed in; `None` with no pack.
+    native: Option<NativeLanguage>,
+    /// The packs installed but glossed in another native language.
+    skipped: Vec<Skipped>,
 }
 
 impl Library {
@@ -72,33 +91,57 @@ impl Library {
         Library::from_files(files)
     }
 
-    /// The packs among `files`, by the language each says it is for: a file that is not a pack
-    /// this core reads is skipped, and the first pack of a language wins.
+    /// The packs among `files`, by the pair each says it serves (design D1). A file that is not a
+    /// pack this core reads is skipped, and the first pack of a language wins. The plugin follows
+    /// one native language (generalise-lingua-native-language D9): `pack.lingua`'s when it reads,
+    /// otherwise the first readable file's, in the order given; a pack glossed in another is
+    /// skipped and kept in [`Library::skipped`].
     pub fn from_files(files: impl IntoIterator<Item = PathBuf>) -> Library {
+        let readable: Vec<(PathBuf, LanguagePair)> = files
+            .into_iter()
+            .filter_map(|file| {
+                let pair = std::fs::read(&file)
+                    .ok()
+                    .and_then(|bytes| Pack::pair_in(&bytes).ok())?;
+                Some((file, pair))
+            })
+            .collect();
+        // Any `xx-en` or `xx-es` name sorts before `pack.lingua`: anchored on file-name order,
+        // one stray file would evict the French packs.
+        let native = readable
+            .iter()
+            .find(|(file, _)| file.file_name().is_some_and(|name| name == ANCHOR))
+            .or(readable.first())
+            .map(|(_, pair)| pair.native);
         let mut entries: Vec<Entry> = Vec::new();
-        for file in files {
-            let Some(language) = std::fs::read(&file)
-                .ok()
-                .and_then(|bytes| Pack::studied_in(&bytes).ok())
-            else {
-                continue;
-            };
-            if entries.iter().all(|entry| entry.language != language) {
+        let mut skipped = Vec::new();
+        for (file, pair) in readable {
+            if Some(pair.native) != native {
+                skipped.push(Skipped {
+                    file,
+                    native: pair.native,
+                });
+            } else if entries.iter().all(|entry| entry.language != pair.studied) {
                 entries.push(Entry {
-                    language,
+                    language: pair.studied,
                     file: Some(file),
                     pack: None,
                 });
             }
         }
-        Library::sorted(entries)
+        Library::sorted(entries, native, skipped)
     }
 
-    /// Packs already loaded, each serving its own language.
+    /// Packs already loaded, each serving its own language, glossed in the first pack's native
+    /// language: a pack glossed in another is left out.
     pub fn from_packs(packs: impl IntoIterator<Item = Pack>) -> Library {
         let mut entries: Vec<Entry> = Vec::new();
+        let mut native = None;
         for pack in packs {
             let language = pack.studied();
+            if *native.get_or_insert(pack.native()) != pack.native() {
+                continue;
+            }
             if entries.iter().all(|entry| entry.language != language) {
                 entries.push(Entry {
                     language,
@@ -107,14 +150,32 @@ impl Library {
                 });
             }
         }
-        Library::sorted(entries)
+        Library::sorted(entries, native, Vec::new())
     }
 
     /// The languages in tag order: the vote's ties go to the earlier, English, as every reply
     /// went before.
-    fn sorted(mut entries: Vec<Entry>) -> Library {
+    fn sorted(
+        mut entries: Vec<Entry>,
+        native: Option<NativeLanguage>,
+        skipped: Vec<Skipped>,
+    ) -> Library {
         entries.sort_by(|a, b| a.language.tag().cmp(b.language.tag()));
-        Library { entries }
+        Library {
+            entries,
+            native,
+            skipped,
+        }
+    }
+
+    /// The native language the packs followed are glossed in; `None` with no pack installed.
+    pub fn native(&self) -> Option<NativeLanguage> {
+        self.native
+    }
+
+    /// The packs installed but not followed, glossed in another native language, in file order.
+    pub fn skipped(&self) -> &[Skipped] {
+        &self.skipped
     }
 
     /// The languages followed, in tag order.

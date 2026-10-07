@@ -27,7 +27,7 @@ use lingua_agent::mcp;
 use lingua_agent::source::{ClaudeCodeSource, SessionSource};
 use lingua_agent::statusline::statusline_text;
 use lingua_agent::store::Store;
-use lingua_agent::vocab::{add_to_deck, listing, vocab_words};
+use lingua_agent::vocab::{add_to_deck, listing, skipped_notice, vocab_words};
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::knowledge::state::KnowledgeState;
 
@@ -178,6 +178,7 @@ fn cmd_vocab(args: &[String]) -> ExitCode {
     }
 
     print!("{}", listing(&words, library.several()));
+    print!("{}", skipped_notice(library.skipped(), library.native()));
     ExitCode::SUCCESS
 }
 

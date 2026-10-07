@@ -13,6 +13,7 @@ import type {
   CefrLevel,
   LemmaStatus,
   LevelRow,
+  NativeLanguage,
   PageAnalysis,
   PhraseGloss,
   SeedOrder,
@@ -45,6 +46,9 @@ export class MessagingLinguaPort implements LinguaPort {
   }
   languages(): Promise<StudiedLanguage[]> {
     return this.rpc("languages");
+  }
+  nativeLanguage(): Promise<NativeLanguage> {
+    return this.rpc("nativeLanguage");
   }
   studiedLanguages(): Promise<StudiedLanguage[]> {
     return this.rpc("studiedLanguages");

@@ -24,7 +24,9 @@
 //! 639-1); without one it answers in the language of the first pack loaded, and a
 //! language the engine holds no pack for is refused (generalise-lingua-wasm-engine).
 //! The bindings about the whole reader — backup, restore, resets, counts, the review
-//! session, sync exports and applies — cover every language. No logic lives here:
+//! session, sync exports and applies — cover every language. An engine serves one native
+//! language, its first pack's, and refuses a pack glossed in another
+//! (generalise-lingua-native-language). No logic lives here:
 //! the analysis output stays byte-for-byte identical to the native build at an
 //! equal `analyzer_version` and pack (the parity contract). Build with
 //! `wasm-pack build --target web`.
@@ -36,9 +38,10 @@ use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
 use lingua_core::engine::{analyse_page_json, gloss_phrase_json, word_grammar_json};
 use lingua_core::knowledge::level::CefrLevel;
+use lingua_core::knowledge::profile::{NativeLanguage, Profile};
 use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
 use lingua_core::knowledge::status::{KnownSource, Status};
-use lingua_core::knowledge::vocabulary::level_vocabulary;
+use lingua_core::knowledge::vocabulary::{ENGLISH_TYPICAL_VOCABULARY, level_vocabulary};
 use lingua_core::packs::{Pack, PackSet};
 use wasm_bindgen::prelude::*;
 
@@ -73,6 +76,28 @@ fn resolve<'a>(
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// The studied languages a list of ISO 639-1 tags names, or the error naming the first tag the
+/// core cannot analyse.
+fn studied_languages(tags: &[String]) -> Result<Vec<StudiedLanguage>, JsError> {
+    tags.iter()
+        .map(|tag| {
+            StudiedLanguage::from_tag(tag)
+                .ok_or_else(|| JsError::new(&format!("unknown studied language \"{tag}\"")))
+        })
+        .collect()
+}
+
+/// An empty state whose profile follows the packs (generalise-lingua-native-language D5): the
+/// set's native language, studying its default language — the first pack's. For an engine
+/// started on en-fr, every engine today, that is the default profile, so the backup stays at
+/// version 1.
+fn fresh_state(packs: &PackSet) -> LinguaState {
+    LinguaState {
+        profile: Profile::studying(packs.native(), packs.default_language()),
+        ..LinguaState::default()
+    }
+}
+
 /// The languages a list of ISO 639-1 tags names, unknown tags dropped; absent is none, which the
 /// review bindings read as every language.
 fn known_languages(tags: Option<Vec<String>>) -> Vec<StudiedLanguage> {
@@ -97,23 +122,26 @@ fn prune_exposures(state: &mut LinguaState, language: StudiedLanguage, pack: &Pa
 #[wasm_bindgen]
 impl LinguaEngine {
     /// Loads the engine from pack bytes (the embedded `pack.lingua`); that pack's
-    /// language becomes the default. Errors if the pack is malformed or built for an
-    /// incompatible analyser.
+    /// language becomes the default, and its native language the engine's. The reader's
+    /// profile starts there: that native language, studying that language alone. Errors if
+    /// the pack is malformed or built for an incompatible analyser.
     #[wasm_bindgen(constructor)]
     pub fn new(pack_bytes: &[u8]) -> Result<LinguaEngine, JsError> {
         let pack = Pack::load(pack_bytes).map_err(|e| JsError::new(&e.to_string()))?;
         let default = pack.studied();
+        let packs = PackSet::new(pack);
         Ok(LinguaEngine {
-            packs: PackSet::new(pack),
-            state: LinguaState::default(),
+            state: fresh_state(&packs),
+            packs,
             session: None,
             level_vocabularies: std::iter::once((default, std::cell::OnceCell::new())).collect(),
         })
     }
 
     /// Loads another studied language's pack, returning its ISO 639-1 tag. Errors if
-    /// the pack is malformed, built for an incompatible analyser, or for a language the
-    /// engine already holds a pack for.
+    /// the pack is malformed, built for an incompatible analyser, glossed in another native
+    /// language than the engine's, or for a language the engine already holds a pack for;
+    /// the packs held stay as they were.
     #[wasm_bindgen(js_name = addPack)]
     pub fn add_pack(&mut self, pack_bytes: &[u8]) -> Result<String, JsError> {
         let pack = Pack::load(pack_bytes).map_err(|e| JsError::new(&e.to_string()))?;
@@ -155,20 +183,51 @@ impl LinguaEngine {
     }
 
     /// Sets the reader's studied languages from ISO 639-1 tags, the primary first.
-    /// Errors on an unknown tag, an empty list or a language named twice, leaving
-    /// the current ones in place.
+    /// Errors on an unknown tag, an empty list, a language named twice or the reader's
+    /// native language, leaving the current ones in place.
     #[wasm_bindgen(js_name = setStudiedLanguages)]
     pub fn set_studied_languages(&mut self, tags: Vec<String>) -> Result<(), JsError> {
-        let languages = tags
-            .iter()
-            .map(|tag| {
-                StudiedLanguage::from_tag(tag)
-                    .ok_or_else(|| JsError::new(&format!("unknown studied language \"{tag}\"")))
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let languages = studied_languages(&tags)?;
         self.state
             .profile
             .set_studied_languages(languages)
+            .map_err(|e| JsError::new(&e.to_string()))
+    }
+
+    /// The native language the engine serves, as an ISO 639-1 tag: its first pack's, which
+    /// every pack it holds is glossed in (generalise-lingua-native-language D3).
+    #[wasm_bindgen(js_name = nativeLanguage)]
+    pub fn native_language(&self) -> String {
+        self.packs.native().tag().to_owned()
+    }
+
+    /// The native language of the reader's profile, as an ISO 639-1 tag. It is the engine's,
+    /// unless a restore brought a backup of another native language, which this shows.
+    #[wasm_bindgen(js_name = profileNativeLanguage)]
+    pub fn profile_native_language(&self) -> String {
+        self.state.profile.native_language.tag().to_owned()
+    }
+
+    /// Sets the reader's native language and studied languages together, from ISO 639-1 tags
+    /// (generalise-lingua-native-language D4). Errors on an unknown tag, on a native language
+    /// no pack the engine holds is glossed in, and on a choice of studied languages
+    /// `setStudiedLanguages` refuses or that holds the new native language, leaving the
+    /// profile as it was.
+    #[wasm_bindgen(js_name = setProfile)]
+    pub fn set_profile(&mut self, native: &str, languages: Vec<String>) -> Result<(), JsError> {
+        let native = NativeLanguage::from_tag(native)
+            .ok_or_else(|| JsError::new(&format!("unknown native language \"{native}\"")))?;
+        if native != self.packs.native() {
+            return Err(JsError::new(&format!(
+                "no pack the engine holds is glossed in \"{}\" (they are glossed in \"{}\")",
+                native.tag(),
+                self.packs.native().tag()
+            )));
+        }
+        let languages = studied_languages(&languages)?;
+        self.state
+            .profile
+            .set(native, languages)
             .map_err(|e| JsError::new(&e.to_string()))
     }
 
@@ -183,13 +242,7 @@ impl LinguaEngine {
         candidates: Vec<String>,
         hint: Option<String>,
     ) -> Result<String, JsError> {
-        let candidates = candidates
-            .iter()
-            .map(|tag| {
-                StudiedLanguage::from_tag(tag)
-                    .ok_or_else(|| JsError::new(&format!("unknown studied language \"{tag}\"")))
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let candidates = studied_languages(&candidates)?;
         let hint = hint.as_deref().and_then(StudiedLanguage::from_tag);
         let blocks: Vec<&str> = blocks.iter().map(String::as_str).collect();
         detect_document_language(&blocks, &candidates, hint)
@@ -337,9 +390,10 @@ impl LinguaEngine {
     /// `{level, confirmed, presumed, toLearn, total, typicalVocabulary}`, one row per
     /// level A1..C2, folded over the pack's lemmas at each level; `typicalVocabulary` is
     /// the vocabulary size of a reader at the level (see `level_vocabulary`;
-    /// 0 at A1, which presumes nothing). A pack whose levels are estimated borrows
-    /// English's, and its rows then say `typicalFrom: "en"`. `[]` when the pack carries
-    /// no CEFR data.
+    /// 0 at A1, which presumes nothing). A pack of another language than English whose
+    /// levels are estimated borrows English's, frozen in the core
+    /// (`ENGLISH_TYPICAL_VOCABULARY`, generalise-lingua-native-language D6), and its rows
+    /// then say `typicalFrom: "en"`. `[]` when the pack carries no CEFR data.
     #[wasm_bindgen(js_name = levelLadder)]
     pub fn level_ladder(&self, language: Option<String>) -> Result<String, JsError> {
         let (language, pack) = resolve(&self.packs, language.as_deref())?;
@@ -349,24 +403,20 @@ impl LinguaEngine {
         // A pack whose levels are estimated from frequency (add-lingua-spanish-levels) cannot say
         // what a reader of a level knows: its levels are frequency bands, so the figure would only
         // restate the band below. It borrows English's, whose CEFR lists gave its levels their sizes
-        // (fix-lingua-spanish-ladder-estimates), and says so.
-        let borrowed = pack
-            .levels_estimated()
-            .then(|| {
-                self.packs
-                    .resolve(Some(StudiedLanguage::English.tag()))
-                    .ok()
-            })
-            .flatten()
-            .filter(|(_, english)| english.has_levels() && !english.levels_estimated());
-        let (source, source_pack) = borrowed.unwrap_or((language, pack));
-        let compute = || {
-            let words = source_pack.dictionary_words();
-            CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), source_pack))
-        };
-        let typical: [usize; 6] = match self.level_vocabularies.get(&source) {
-            Some(cell) => *cell.get_or_init(compute),
-            None => compute(),
+        // (fix-lingua-spanish-ladder-estimates), and says so. They are the core's frozen figures,
+        // whatever packs the engine holds (generalise-lingua-native-language D6).
+        let borrowed = pack.levels_estimated() && language != StudiedLanguage::English;
+        let typical: [usize; 6] = if borrowed {
+            ENGLISH_TYPICAL_VOCABULARY
+        } else {
+            let compute = || {
+                let words = pack.dictionary_words();
+                CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), pack))
+            };
+            match self.level_vocabularies.get(&language) {
+                Some(cell) => *cell.get_or_init(compute),
+                None => compute(),
+            }
         };
         let rows: Vec<serde_json::Value> = CefrLevel::ALL
             .iter()
@@ -386,8 +436,8 @@ impl LinguaEngine {
                     "typicalVocabulary": typical,
                 });
                 // Only when borrowed, so a pack with CEFR lists answers exactly as before.
-                if borrowed.is_some() {
-                    row["typicalFrom"] = serde_json::Value::from(source.tag());
+                if borrowed {
+                    row["typicalFrom"] = serde_json::Value::from(StudiedLanguage::English.tag());
                 }
                 row
             })
@@ -1007,10 +1057,12 @@ impl LinguaEngine {
     }
 
     /// Resets the whole state to empty defaults (a full reset) — statuses,
-    /// exposure counters, and the whole deck (review cards + FSRS). The caller
-    /// re-applies its default calibration afterwards.
+    /// exposure counters, and the whole deck (review cards + FSRS). The profile follows
+    /// the packs, as a new engine's does: the engine's native language, studying its first
+    /// pack's language alone (generalise-lingua-native-language D5). The caller re-applies
+    /// its default calibration afterwards.
     pub fn reset(&mut self) {
-        self.state = LinguaState::default();
+        self.state = fresh_state(&self.packs);
         self.session = None;
     }
 

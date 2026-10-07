@@ -25,6 +25,9 @@
 use std::path::PathBuf;
 
 use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::knowledge::level::CefrLevel;
+use lingua_core::knowledge::vocabulary::{ENGLISH_TYPICAL_VOCABULARY, level_vocabulary};
+use lingua_core::packs::{Pack, PackMeta, read_container, write_container};
 use lingua_wasm::LinguaEngine;
 
 /// 2026-09-21T13:46:40Z: deck bindings take epoch seconds, status and level bindings
@@ -79,6 +82,23 @@ fn spanish_inputs() -> lingua_pack::PackInputs {
     inputs
 }
 
+/// `pack` with its metadata rewritten to name `native` as the language of its glosses.
+fn glossed_in(pack: &[u8], native: &str) -> Vec<u8> {
+    let (meta, sections) = read_container(pack).unwrap_or_else(|e| panic!("a container: {e}"));
+    let mut meta: PackMeta = serde_json::from_slice(&meta).unwrap();
+    meta.native = native.into();
+    let sections: Vec<(&str, &[u8])> = sections
+        .iter()
+        .map(|s| (s.name.as_str(), s.data.as_slice()))
+        .collect();
+    write_container(&serde_json::to_vec(&meta).unwrap(), &sections)
+}
+
+/// The small Spanish pack, glossed in English.
+fn spanish_for_english_pack() -> Vec<u8> {
+    glossed_in(&spanish_pack(), "en")
+}
+
 fn english_engine() -> LinguaEngine {
     LinguaEngine::new(&english_pack()).unwrap()
 }
@@ -93,13 +113,13 @@ fn es() -> Option<String> {
     Some("es".to_owned())
 }
 
-/// A pack whose levels are estimated from frequency borrows English's typical
-/// vocabularies for its ladder, and says so; English's own ladder answers as before
-/// (`fix-lingua-spanish-ladder-estimates`).
-#[test]
-fn an_estimated_ladder_borrows_english_typical_vocabularies() {
-    use lingua_core::knowledge::level::CefrLevel;
+/// The ladder's rows of `engine` in `language`.
+fn ladder(engine: &LinguaEngine, language: Option<String>) -> Vec<serde_json::Value> {
+    serde_json::from_str(&engine.level_ladder(language).unwrap()).unwrap()
+}
 
+/// The small Spanish pack with estimated levels.
+fn estimated_spanish_pack() -> Vec<u8> {
     let mut inputs = spanish_inputs();
     inputs.levels = vec![
         ("haber".into(), CefrLevel::A1),
@@ -107,23 +127,138 @@ fn an_estimated_ladder_borrows_english_typical_vocabularies() {
         ("equipo".into(), CefrLevel::B1),
     ];
     inputs.meta.levels_estimated = true;
-    let mut engine = english_engine();
-    engine
-        .add_pack(&lingua_pack::build_pack(&inputs).unwrap())
-        .unwrap();
-    let rows = |language: Option<String>| -> Vec<serde_json::Value> {
-        serde_json::from_str(&engine.level_ladder(language).unwrap()).unwrap()
-    };
+    lingua_pack::build_pack(&inputs).unwrap()
+}
 
-    let english = rows(None);
-    let spanish = rows(es());
-    assert!(english.iter().all(|row| row.get("typicalFrom").is_none()));
-    for (row, english_row) in spanish.iter().zip(&english) {
+/// A pack whose levels are estimated from frequency borrows English's typical
+/// vocabularies for its ladder, as the core freezes them, and says so; English's own ladder
+/// computes its own figures (`fix-lingua-spanish-ladder-estimates`,
+/// `generalise-lingua-native-language` D6).
+#[test]
+fn an_estimated_ladder_borrows_english_typical_vocabularies() {
+    let mut engine = english_engine();
+    engine.add_pack(&estimated_spanish_pack()).unwrap();
+
+    let spanish = ladder(&engine, es());
+    assert_eq!(spanish.len(), ENGLISH_TYPICAL_VOCABULARY.len());
+    for (row, typical) in spanish.iter().zip(ENGLISH_TYPICAL_VOCABULARY) {
         assert_eq!(row["typicalFrom"], "en");
-        assert_eq!(row["typicalVocabulary"], english_row["typicalVocabulary"]);
+        assert_eq!(row["typicalVocabulary"], typical);
     }
     // Its own levels' counts stay its own.
     assert_eq!(spanish[0]["total"], 1);
+
+    // English's rows are the testdata pack's own figures, never the frozen ones.
+    let pack = Pack::load(&english_pack()).unwrap();
+    let words = pack.dictionary_words();
+    let own = CefrLevel::ALL.map(|level| level_vocabulary(level, words.iter().copied(), &pack));
+    assert_ne!(own, ENGLISH_TYPICAL_VOCABULARY);
+    let english = ladder(&engine, None);
+    assert!(english.iter().all(|row| row.get("typicalFrom").is_none()));
+    for (row, typical) in english.iter().zip(own) {
+        assert_eq!(row["typicalVocabulary"], typical);
+    }
+}
+
+/// An engine that holds no English pack — an English reader's — shows the same figures.
+#[test]
+fn spec_scenario_an_estimated_ladder_without_an_english_pack() {
+    let engine = LinguaEngine::new(&estimated_spanish_pack()).unwrap();
+    assert_eq!(engine.languages(), r#"["es"]"#);
+    let alone = ladder(&engine, None);
+    let mut beside = english_engine();
+    beside.add_pack(&estimated_spanish_pack()).unwrap();
+    assert_eq!(alone, ladder(&beside, es()));
+    for (row, typical) in alone.iter().zip(ENGLISH_TYPICAL_VOCABULARY) {
+        assert_eq!(row["typicalFrom"], "en");
+        assert_eq!(row["typicalVocabulary"], typical);
+    }
+
+    let english_reader = LinguaEngine::new(&glossed_in(&estimated_spanish_pack(), "en")).unwrap();
+    assert_eq!(ladder(&english_reader, None), alone);
+}
+
+/// Every engine today: built on en-fr, Spanish added, French for the engine and the reader
+/// (`generalise-lingua-native-language`).
+#[test]
+fn spec_scenario_every_engine_today_serves_french() {
+    let engine = two_language_engine();
+    assert_eq!(engine.languages(), r#"["en","es"]"#);
+    assert_eq!(engine.native_language(), "fr");
+    assert_eq!(engine.profile_native_language(), "fr");
+    assert_eq!(engine.studied_languages(), r#"["en"]"#);
+    assert!(engine.backup().starts_with("{\n  \"schema_version\": 1,"));
+}
+
+#[test]
+fn a_profile_set_whole_round_trips_through_the_backup() {
+    let mut engine = english_engine();
+    engine
+        .set_profile("fr", vec!["es".to_owned(), "en".to_owned()])
+        .unwrap();
+    assert_eq!(engine.studied_languages(), r#"["es","en"]"#);
+    let backup = engine.backup();
+    assert!(backup.starts_with("{\n  \"schema_version\": 2,"));
+    assert!(
+        backup.contains("\"native_language\": \"French\""),
+        "{backup}"
+    );
+
+    let mut restored = english_engine();
+    restored.restore(&backup).unwrap();
+    assert_eq!(restored.studied_languages(), r#"["es","en"]"#);
+    assert_eq!(restored.profile_native_language(), "fr");
+
+    // Back to the default: the backup is version 1 again.
+    restored.set_profile("fr", vec!["en".to_owned()]).unwrap();
+    assert!(restored.backup().starts_with("{\n  \"schema_version\": 1,"));
+}
+
+/// An engine whose first pack studies Spanish glossed in English serves English, and a full
+/// reset keeps its reader there, studying Spanish alone (`generalise-lingua-native-language` D5).
+#[test]
+fn spec_scenario_a_full_reset_on_an_engine_glossed_in_english() {
+    let mut engine = LinguaEngine::new(&spanish_for_english_pack()).unwrap();
+    assert_eq!(engine.native_language(), "en");
+    assert_eq!(engine.profile_native_language(), "en");
+    assert_eq!(engine.studied_languages(), r#"["es"]"#);
+    let backup = engine.backup();
+    assert!(backup.starts_with("{\n  \"schema_version\": 2,"));
+    assert!(
+        backup.contains("\"native_language\": \"English\""),
+        "{backup}"
+    );
+
+    engine.set_status_at("haber", "known", T_MS, None).unwrap();
+    engine.set_calibration(1_000, None).unwrap();
+    engine.reset_statuses();
+    assert_eq!(engine.profile_native_language(), "en");
+    engine.reset();
+    assert_eq!(engine.native_language(), "en");
+    assert_eq!(engine.profile_native_language(), "en");
+    assert_eq!(engine.studied_languages(), r#"["es"]"#);
+    assert_eq!(engine.export_status_ops(), "[]");
+    assert_eq!(
+        engine.backup(),
+        backup,
+        "a reset gives the new engine's state"
+    );
+}
+
+/// A restore keeps a backup of another native language whole (design D4): the engine still
+/// serves its own, and the reader's shows the mismatch.
+#[test]
+fn a_backup_of_another_native_language_is_restored_whole() {
+    let english_reader = LinguaEngine::new(&spanish_for_english_pack()).unwrap();
+    let mut engine = english_engine();
+    engine.restore(&english_reader.backup()).unwrap();
+    assert_eq!(engine.native_language(), "fr");
+    assert_eq!(engine.profile_native_language(), "en");
+    assert_eq!(engine.studied_languages(), r#"["es"]"#);
+    // A full reset gives the engine's own again.
+    engine.reset();
+    assert_eq!(engine.profile_native_language(), "fr");
+    assert_eq!(engine.studied_languages(), r#"["en"]"#);
 }
 
 /// A dictionary form's frequency rank comes from its language's own pack

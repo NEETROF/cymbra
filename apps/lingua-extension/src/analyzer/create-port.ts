@@ -1,5 +1,8 @@
+import { storedNativeLanguage } from "../state/storage.ts";
+import { messagedArea } from "../state/store.ts";
 import { WasmAnalyzerPort } from "./engine.ts";
 import { MessagingLinguaPort } from "./messaging-port.ts";
+import { SHIPPED_PAIRS } from "./pairs.ts";
 import type { LinguaPort } from "./port.ts";
 
 // Pick the AnalyzerPort implementation for the build target (esbuild defines
@@ -8,7 +11,15 @@ import type { LinguaPort } from "./port.ts";
 // messaging. On Chromium the engine runs in the content script — except that a strict
 // *page* CSP (e.g. GitHub) also blocks WASM codegen in the isolated world; see
 // `resolveContentPort`. The reading and review code depend only on the LinguaPort seam,
-// so nothing else changes between variants.
+// so nothing else changes between variants. An in-page engine loads only the pairs of the reader's
+// native language, read from their stored backup before its first pack
+// (generalise-lingua-native-language D7); the event page's engine reads it the same way.
+
+/** An in-page engine for the reader's native language, as the store the background owns says it. */
+function inPagePort(): WasmAnalyzerPort {
+  const store = messagedArea();
+  return new WasmAnalyzerPort(undefined, SHIPPED_PAIRS, () => storedNativeLanguage(store));
+}
 
 /**
  * The port for an **extension page** (popup, side panel): those run under the
@@ -16,7 +27,7 @@ import type { LinguaPort } from "./port.ts";
  * on Chromium; Firefox and Safari still forward to the event-page engine.
  */
 export function createLinguaPort(): LinguaPort {
-  return __ENGINE_IN_EVENT_PAGE__ ? new MessagingLinguaPort() : new WasmAnalyzerPort();
+  return __ENGINE_IN_EVENT_PAGE__ ? new MessagingLinguaPort() : inPagePort();
 }
 
 /**
@@ -30,7 +41,7 @@ export function createLinguaPort(): LinguaPort {
  */
 export async function resolveContentPort(): Promise<LinguaPort> {
   if (__ENGINE_IN_EVENT_PAGE__) return new MessagingLinguaPort();
-  const inContent = new WasmAnalyzerPort();
+  const inContent = inPagePort();
   try {
     await inContent.languages();
     return inContent;

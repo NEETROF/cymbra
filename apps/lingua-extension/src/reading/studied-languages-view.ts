@@ -1,5 +1,5 @@
 import { languageName } from "../analyzer/language-labels.ts";
-import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
+import { DEFAULT_NATIVE, pairsOf, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
 
@@ -8,6 +8,9 @@ import type { StudiedLanguage } from "../analyzer/types.ts";
 // language cannot be removed. The choice is the reader's profile, in their backup: `persist` saves it,
 // and every context restores it and follows. A profile language the package does not ship is not
 // listed, and is kept. With one shipped language there is nothing to choose: the block hides.
+// The languages offered are those of the pairs glossed in the reader's native language
+// (generalise-lingua-native-language D7): French until the port says otherwise, so a reader of
+// French sees the boxes from the start, as before.
 
 export interface StudiedLanguagesView {
   /** Show the stored choice (it may have changed in another context). */
@@ -22,28 +25,39 @@ export function shippedLanguages(pairs: readonly string[] = SHIPPED_PAIRS): Stud
 /** Render the boxes into `block`, a settings block; `persist` saves the backup after a change. */
 export function mountStudiedLanguages(
   block: HTMLElement,
-  port: Pick<LinguaPort, "studiedLanguages" | "setStudiedLanguages">,
+  port: Pick<LinguaPort, "studiedLanguages" | "setStudiedLanguages" | "nativeLanguage">,
   persist: () => Promise<void>,
   pairs: readonly string[] = SHIPPED_PAIRS,
 ): StudiedLanguagesView {
   const doc = block.ownerDocument;
-  const offered = shippedLanguages(pairs);
-  block.hidden = offered.length < 2;
   const row = doc.createElement("div");
   row.className = "set-languages";
-  const boxes = offered.map((language) => {
-    const label = doc.createElement("label");
-    label.className = "set-toggle";
-    const box = doc.createElement("input");
-    box.type = "checkbox";
-    box.dataset.language = language;
-    const name = doc.createElement("span");
-    name.textContent = languageName(language);
-    label.append(box, name);
-    row.append(label);
-    box.addEventListener("change", () => void choose(language, box.checked));
-    return { language, box };
-  });
+  let shownFor: string | null = null;
+  let offered: StudiedLanguage[] = [];
+  let boxes: { language: StudiedLanguage; box: HTMLInputElement }[] = [];
+
+  /** A box per studied language of `native`'s pairs; the block hides when there is one. */
+  function offerFor(native: string): void {
+    if (native === shownFor) return;
+    shownFor = native;
+    offered = shippedLanguages(pairsOf(native, pairs));
+    block.hidden = offered.length < 2;
+    const labels = offered.map((language) => {
+      const label = doc.createElement("label");
+      label.className = "set-toggle";
+      const box = doc.createElement("input");
+      box.type = "checkbox";
+      box.dataset.language = language;
+      const name = doc.createElement("span");
+      name.textContent = languageName(language);
+      label.append(box, name);
+      box.addEventListener("change", () => void choose(language, box.checked));
+      return { language, box, label };
+    });
+    boxes = labels.map(({ language, box }) => ({ language, box }));
+    row.replaceChildren(...labels.map(({ label }) => label));
+  }
+  offerFor(DEFAULT_NATIVE);
   const note = doc.createElement("div");
   note.className = "set-note";
   note.textContent =
@@ -78,6 +92,7 @@ export function mountStudiedLanguages(
   }
 
   async function refresh(): Promise<void> {
+    offerFor(await port.nativeLanguage());
     if (block.hidden) return;
     studied = await port.studiedLanguages();
     render();

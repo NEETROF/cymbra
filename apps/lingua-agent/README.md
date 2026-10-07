@@ -39,6 +39,12 @@ other setting. Each reply is read in the language the engine finds in it, fenced
 of that vote, and counted in that language. `$LINGUA_PACK`, when set, names the only pack
 followed. Without a pack the plugin degrades silently (a mute statusline, ingestion skipped).
 
+The plugin follows one native language — the language the glosses are written in
+(`generalise-lingua-native-language`): `pack.lingua`'s, or the first readable pack's when there is
+no readable `pack.lingua`. A pack glossed in another language (`es-en.lingua` beside the French
+packs) is skipped, as a pack that does not load is; `lingua vocab` names it after its listing, while
+the hook and the statusline stay silent.
+
 To get the packs, build the extension's real ones (`yarn gen:pack:real` in
 `apps/lingua-extension`, then copy `assets/packs/en-fr.lingua` to `~/.lingua/pack.lingua` and
 `assets/packs/es-fr.lingua` beside it), or a tiny test pack with

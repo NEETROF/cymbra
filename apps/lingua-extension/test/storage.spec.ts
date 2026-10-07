@@ -34,6 +34,7 @@ import {
   saveHudPosition,
   saveVoice,
   STORAGE_VERSION,
+  storedNativeLanguage,
   storedVoicePreference,
   type V1State,
   VOICE_KEY,
@@ -88,6 +89,28 @@ describe("loadStored / saveBackup", () => {
 
   it("reports empty for an empty store", async () => {
     expect((await loadStored(fakeArea())).kind).toBe("empty");
+  });
+});
+
+describe("the stored native language (generalise-lingua-native-language D7)", () => {
+  const profile = (native: string) =>
+    JSON.stringify({ schema_version: 2, profile: { native_language: native, studied_languages: ["Spanish"] } });
+
+  it("is French with no backup yet, or a reading-only store, which predate the profile", async () => {
+    expect(await storedNativeLanguage(fakeArea())).toBe("fr");
+    expect(await storedNativeLanguage(fakeArea({ [ROOT_KEY]: { statuses: {}, cards: {}, calibration: 3000 } }))).toBe(
+      "fr",
+    );
+  });
+
+  it("is the backup's, among the listed pairs", async () => {
+    const area = fakeArea();
+    await saveBackup(area, profile("English"));
+    expect(await storedNativeLanguage(area, ["en-fr", "es-en"])).toBe("en");
+    // No listed pair is glossed in it: French, as every reader today.
+    expect(await storedNativeLanguage(area)).toBe("fr");
+    await saveBackup(area, profile("French"));
+    expect(await storedNativeLanguage(area, ["en-fr", "es-en"])).toBe("fr");
   });
 });
 

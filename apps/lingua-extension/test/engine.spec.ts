@@ -455,6 +455,125 @@ describe("WasmAnalyzerPort packs", () => {
     ]);
   });
 
+  describe("for the reader's native language (generalise-lingua-native-language D7)", () => {
+    const ES_EN = "ext://assets/packs/es-en.lingua";
+    const MIXED = ["en-fr", "es-fr", "es-en"];
+
+    it("loads a French reader's pairs alone, never es-en, asking the native language once", async () => {
+      const glue = packGlue();
+      const resolve = vi.fn(async () => "fr" as const);
+      const port = new WasmAnalyzerPort(glue.load, MIXED, resolve);
+
+      await port.for("en").analyse(["The lighthouse"]);
+      await port.for("es").analyse(["El faro"]);
+      await port.for("es").analyse(["La ciudad"]);
+
+      expect(packs()).toEqual([EN_FR, ES_FR]);
+      expect(packs()).not.toContain(ES_EN);
+      expect(await port.nativeLanguage()).toBe("fr");
+      expect(resolve).toHaveBeenCalledOnce();
+    });
+
+    it("starts an English reader on es-en, and refuses English before the engine", async () => {
+      const glue = packGlue();
+      const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "en");
+
+      await port.for("es").analyse(["El faro"]);
+      await expect(port.for("en").analyse(["The lighthouse"])).rejects.toThrow(
+        'no shipped pack studies "en" (shipped pairs: es-en)',
+      );
+
+      expect(packs()).toEqual([ES_EN]);
+      expect(glue.calls).toEqual([["analyse", ["es"]]]);
+    });
+
+    it("answers the native language without fetching a pack", async () => {
+      const glue = packGlue();
+      const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "en");
+
+      expect(await port.nativeLanguage()).toBe("en");
+      expect(fetched).toEqual([]);
+      // The default resolver: every reader today.
+      expect(await new WasmAnalyzerPort(glue.load, MIXED).nativeLanguage()).toBe("fr");
+      expect(fetched).toEqual([]);
+    });
+
+    it("fails before any fetch for a native language no listed pair is glossed in", async () => {
+      const glue = packGlue();
+      const load = vi.fn(glue.load);
+      const port = new WasmAnalyzerPort(load, ["en-fr", "es-fr"], async () => "es");
+
+      await expect(port.for("en").analyse(["The lighthouse"])).rejects.toThrow(
+        'no shipped pair is glossed in "es" (shipped pairs: en-fr, es-fr)',
+      );
+      await expect(port.languages()).rejects.toThrow(/glossed in "es"/);
+      await expect(port.nativeLanguage()).rejects.toThrow(/glossed in "es"/);
+
+      expect(fetched).toEqual([]);
+      expect(load).not.toHaveBeenCalled();
+    });
+
+    it("keeps a French reader's refusal word for word", async () => {
+      const glue = packGlue();
+      const port = new WasmAnalyzerPort(glue.load, ["en-fr"], async () => "fr");
+
+      await expect(port.for("es").analyse(["El faro"])).rejects.toThrow(
+        'no shipped pack studies "es" (shipped pairs: en-fr)',
+      );
+      expect(fetched).toEqual([]);
+    });
+
+    it("asks again after the store failed to answer", async () => {
+      const glue = packGlue();
+      const resolve = vi
+        .fn<() => Promise<"fr">>()
+        .mockRejectedValueOnce(new Error("store unavailable"))
+        .mockResolvedValue("fr");
+      const port = new WasmAnalyzerPort(glue.load, MIXED, resolve);
+
+      await expect(port.for("en").analyse(["The lighthouse"])).rejects.toThrow("store unavailable");
+      await port.for("en").analyse(["The lighthouse"]);
+
+      expect(resolve).toHaveBeenCalledTimes(2);
+      expect(packs()).toEqual([EN_FR]);
+    });
+
+    // The content script's probe and hydration reach the engine through a whole-reader call first:
+    // a store that failed to answer it must not leave every later call failing with it.
+    it.each([
+      ["languages", (port: WasmAnalyzerPort) => port.languages()],
+      ["backup", (port: WasmAnalyzerPort) => port.backup()],
+      ["restore", (port: WasmAnalyzerPort) => port.restore("{}")],
+    ])("asks again after the store failed to answer a first %s call", async (_name, first) => {
+      const glue = packGlue();
+      const load = vi.fn(glue.load);
+      const resolve = vi
+        .fn<() => Promise<"fr">>()
+        .mockRejectedValueOnce(new Error("store unavailable"))
+        .mockResolvedValue("fr");
+      const port = new WasmAnalyzerPort(load, MIXED, resolve);
+
+      await expect(first(port)).rejects.toThrow("store unavailable");
+      expect(load).not.toHaveBeenCalled();
+      expect(await port.languages()).toEqual(["en"]);
+      await port.for("es").analyse(["El faro"]);
+
+      expect(resolve).toHaveBeenCalledTimes(2);
+      expect(load).toHaveBeenCalledOnce();
+      expect(packs()).toEqual([EN_FR, ES_FR]);
+    });
+
+    it("loads a French reader's records' packs alone", async () => {
+      const glue = packGlue();
+      const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-en"], async () => "fr");
+
+      await port.applyStatusChanges([statusChange("es")]);
+
+      expect(packs()).toEqual([EN_FR]);
+      expect(glue.calls).toEqual([["applyStatusChanges", [["en"]]]]);
+    });
+  });
+
   it("loads no pack for a call about the whole reader", async () => {
     const glue = packGlue();
     const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"]);

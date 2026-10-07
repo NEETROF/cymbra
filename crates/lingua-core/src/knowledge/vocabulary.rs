@@ -38,6 +38,18 @@ pub const BAND: u32 = 1_000;
 /// proportion (see [`KnowledgeState::vocabulary_estimate`]).
 pub const MIN_EVIDENCE: usize = 25;
 
+/// The vocabulary typical of an English reader at each CEFR level, A1 to C2: what
+/// [`level_vocabulary`] gives over English's CEFR lists. A pack whose levels are estimated
+/// from frequency cannot say what a reader of a level knows, so its ladder shows these
+/// figures, said to be English's (fix-lingua-spanish-ladder-estimates).
+///
+/// Frozen, so a Spanish ladder shows the same figures whatever packs the engine holds — a
+/// reader whose native language is English never holds the en-fr pack — and whatever the
+/// next English dictionary update does (generalise-lingua-native-language D6). Provenance:
+/// `level_vocabulary` over the en-fr pack `2026.09.26+627146e`, frozen on 2026-10-07.
+/// English's own ladder keeps computing its figures from its pack.
+pub const ENGLISH_TYPICAL_VOCABULARY: [usize; 6] = [0, 1_292, 3_359, 7_988, 16_326, 20_556];
+
 /// What an estimate rests on, so a surface can say so truthfully.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -214,6 +226,17 @@ mod tests {
     use crate::knowledge::status::KnownSource;
 
     const EN: StudiedLanguage = StudiedLanguage::English;
+
+    #[test]
+    fn english_typical_vocabularies_are_frozen() {
+        // Pinned on purpose, and never tied to the live en-fr figures: an English dictionary
+        // update must not move another language's ladder (generalise-lingua-native-language D6).
+        assert_eq!(
+            ENGLISH_TYPICAL_VOCABULARY,
+            [0, 1_292, 3_359, 7_988, 16_326, 20_556]
+        );
+        assert_eq!(ENGLISH_TYPICAL_VOCABULARY.len(), CefrLevel::ALL.len());
+    }
 
     fn word(rank: u32) -> &'static str {
         Box::leak(format!("w{rank}").into_boxed_str())

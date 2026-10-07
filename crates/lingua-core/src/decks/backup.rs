@@ -166,7 +166,8 @@ mod tests {
     use crate::decks::card::{Card, EncounterSource, Provenance};
     use crate::decks::fsrs::Rating;
     use crate::decks::review::ReviewSession;
-    use crate::knowledge::profile::Profile;
+    use crate::knowledge::level::CefrLevel;
+    use crate::knowledge::profile::{NativeLanguage, Profile};
     use crate::knowledge::status::{KnownSource, Status};
 
     const EN: StudiedLanguage = StudiedLanguage::English;
@@ -352,6 +353,110 @@ mod tests {
             json["profile"]["studied_languages"],
             serde_json::json!(["Spanish", "English"])
         );
+    }
+
+    #[test]
+    fn the_native_language_is_written_where_the_extension_reads_it_without_an_engine() {
+        // apps/lingua-extension/src/state/profile.ts reads `profile.native_language`, under the
+        // enum's names, straight from the stored backup (generalise-lingua-native-language D7):
+        // renaming a variant would silently give every such reader French.
+        let mut state = LinguaState::default();
+        state
+            .profile
+            .set(NativeLanguage::English, vec![ES])
+            .expect("Spanish for an English reader");
+        let json: serde_json::Value = serde_json::from_str(&state.to_backup()).expect("json");
+        assert_eq!(json["profile"]["native_language"], "English");
+        assert_eq!(
+            NativeLanguage::ALL.map(|native| serde_json::to_value(native).expect("a name")),
+            ["French", "English", "Spanish"].map(serde_json::Value::from)
+        );
+    }
+
+    #[test]
+    fn another_native_language_is_written_as_version_2_and_restored() {
+        let mut state = LinguaState::default();
+        state.knowledge.set_status(ES, "faro", Status::Learning);
+        state
+            .profile
+            .set(NativeLanguage::English, vec![ES])
+            .expect("Spanish for an English reader");
+        assert_eq!(state.backup_version(), 2);
+        let backup = state.to_backup();
+        assert!(backup.starts_with("{\n  \"schema_version\": 2,"));
+        assert!(
+            backup.contains("\"native_language\": \"English\""),
+            "{backup}"
+        );
+        let restored = LinguaState::from_backup(&backup).expect("restore");
+        assert_eq!(
+            restored.profile,
+            Profile::studying(NativeLanguage::English, ES)
+        );
+        assert_eq!(restored, state, "a version 2 round trip is lossless");
+    }
+
+    #[test]
+    fn spec_scenario_knowledge_does_not_follow_the_native_language() {
+        // lingua-knowledge-model: a reader's native language changes from French to English,
+        // and their statuses, declared levels and cards in Spanish are kept as they were.
+        let mut state = LinguaState::default();
+        state
+            .profile
+            .set(NativeLanguage::French, vec![ES])
+            .expect("Spanish for a French reader");
+        state.knowledge.set_status(ES, "faro", Status::Learning);
+        state.knowledge.set_declared_level(ES, CefrLevel::B1);
+        state.deck.upsert(
+            ES,
+            Card::new(
+                "faro",
+                "faros",
+                Provenance {
+                    sentence: "Los faros brillan.".to_owned(),
+                    source: EncounterSource::Web {
+                        url: "https://example.es".to_owned(),
+                    },
+                    captured_at: 1,
+                },
+                Some("phare".to_owned()),
+            ),
+        );
+        let (knowledge, deck) = (state.knowledge.clone(), state.deck.clone());
+
+        state
+            .profile
+            .set(NativeLanguage::English, vec![ES])
+            .expect("Spanish for an English reader");
+
+        assert_eq!(state.knowledge, knowledge, "statuses and declared levels");
+        assert_eq!(state.deck, deck, "cards");
+        assert_eq!(
+            state.knowledge.explicit_status(ES, "faro"),
+            Some(Status::Learning)
+        );
+        assert_eq!(state.knowledge.declared_level(ES), Some(CefrLevel::B1));
+        assert!(state.deck.get(ES, "faro").is_some());
+        // And so after the backup that carries the new native language.
+        let restored = LinguaState::from_backup(&state.to_backup()).expect("restore");
+        assert_eq!(restored.profile.native_language, NativeLanguage::English);
+        assert_eq!(restored.knowledge, knowledge);
+        assert_eq!(restored.deck, deck);
+    }
+
+    #[test]
+    fn a_version_2_backup_of_the_previous_build_restores_with_french_native() {
+        // The previous build wrote every profile with French native, whatever it studied.
+        let mut previous: serde_json::Value =
+            serde_json::from_str(&LinguaState::default().to_backup()).expect("json");
+        previous["schema_version"] = 2.into();
+        previous["profile"] = serde_json::json!({
+            "native_language": "French",
+            "studied_languages": ["Spanish", "English"]
+        });
+        let restored = LinguaState::from_backup(&previous.to_string()).expect("restore");
+        assert_eq!(restored.profile.native_language, NativeLanguage::French);
+        assert_eq!(restored.profile.studied_languages, vec![ES, EN]);
     }
 
     #[test]
