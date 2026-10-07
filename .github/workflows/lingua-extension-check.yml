@@ -97,6 +97,13 @@ jobs:
       # tables-only pull request (lingua-pack-update) does not start `rust`.
       - name: Invariance baselines (en-fr, es-fr)
         run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline
+      # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):
+      # every committed pair pins its studied language's tag pool, two pairs of one studied
+      # language agree on it, on their studied tables and on their dictionary words, and a pack
+      # glossed in another native language answers every baseline probe alike, glosses aside.
+      # Here for the same reason.
+      - name: Cross-native invariance
+        run: cargo test -q -p lingua-pack --test committed_tables && cargo test -q -p lingua-wasm --test cross_native
       # Both the wasm glue (statically imported by the service worker) and the gRPC-web
       # protobuf stubs (imported by the sync transport) are gitignored and generated, so
       # typecheck needs them present — produce both before lint/typecheck, not only at

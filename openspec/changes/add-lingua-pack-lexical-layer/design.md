@@ -78,7 +78,11 @@ behaviour change on the shipped packs.
 A studied language's dictionary words are the lemmas its reference pack glosses: en-fr for
 English, es-fr for Spanish, and for a later language its first pack. A non-reference pair's
 `lexical.tsv` copies its reference's gloss lemma column, and a test over the committed tables holds
-the copy to its source (« two packs of one language disagree »).
+the copy to its source (« two packs of one language disagree »). The same test holds the pair's
+studied tables — `forms.tsv`, `freq.tsv`, `level.tsv`, `grammar.tsv` — byte-equal to the
+reference's, and its `tags.tsv` to the reference's pin: with the dictionary words, they decide the
+lemma ids and how a form's readings are stored, so a pair that copied the wrong snapshot fails
+there, naming both pairs and the table.
 
 Stage 1 ships no `lexical.tsv` at all: no non-reference pair exists yet. Lemmas a new native
 glosses and the reference does not are not dictionary words. For es-en, that is `augusto` among
@@ -117,8 +121,14 @@ when they re-reduce a pair, so no rule digest moves.
 
 For every noun sense run, the builder looks up the readings of the run's lemma read as itself:
 - if they give exactly one gender, it writes `NOUN|Gender=X`;
-- if they give both or none, it keeps a bare `NOUN`;
-- if a run already carries a gender its readings contradict, it refuses the build, naming the noun.
+- if a run already carries a gender those readings contradict, it refuses the build, naming the
+  noun;
+- if they give both genders, it writes a bare `NOUN`, whatever gender the run names;
+- if they give none, it keeps the run as the sense table writes it: bare from a reference pair's
+  reducer, which writes no gender without a gendered reading. A gendered run is kept too, because
+  the archived scenario *A Romance pack fits the vocabulary* reads `leche`'s feminine from its run
+  alone, with no reading of `leche`. Only a sense table that genders a noun its readings do not
+  gender can then make the card's gender depend on the native side, and no reducer writes one.
 
 Measured: es-fr's 13,435 runs are reproduced exactly (byte-neutral), and en-fr has no gendered
 readings. An es-en reducer then gets the gender without repeating `noun_class_runs`, which change 6
@@ -143,10 +153,12 @@ The baselines' own goldens are not touched.
 
 ## Risks / Trade-offs
 
-- **[A reference pair's gloss update must regenerate every other native's `lexical.tsv`.]** → The
-  committed-tables test fails on a mismatch, naming both pairs. The `lingua-pack-update` run that
-  updates en-fr or es-fr regenerates the copies (change 7 moves the file to `tables/<studied>/`,
-  ending the copies).
+- **[A reference pair's update must be copied to every other native's tables]** — its gloss lemma
+  column to their `lexical.tsv`, its studied tables to theirs. → Nothing copies them automatically:
+  the committed-tables test fails the update's pull request on a mismatch, naming both pairs, and a
+  person copies the files in that pull request. The risk is latent: no non-reference pair exists in
+  stage 1, and change 7 (stage 1) moves the studied tables and `lexical.tsv` to
+  `tables/<studied>/` before change 21 adds the first one, ending the copies.
 - **[`tags.tsv` is lost when a pair is re-reduced.]** → `build.sh` and `pack_sources.py` treat it as
   a kept input. A test fails if a committed pair lacks it.
 - **[An older core reads a new pack's dictionary words from its glosses.]** → Only the agent plugin

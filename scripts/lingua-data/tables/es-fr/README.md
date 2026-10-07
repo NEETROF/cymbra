@@ -16,6 +16,7 @@ pack yet: that is `enable-lingua-spanish`.
 | `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and `gloss.tsv` (no source of its own) |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata: Spanish, the Spanish analyser's version, and `pack_version` (the snapshot, and the rules that reduced it) | — |
+| `tags.tsv` | Spanish's pinned tag pool, which every pack studying Spanish lays its pool out from; written by no reducer, kept when the tables are reduced again (`../../SOURCES.md`, *What a pack studies, whatever it glosses*) | this pack's own pool, committed by hand |
 | `pin.json` | the raw sources these tables came from, and the pack they build | — |
 
 ## What is in them
@@ -117,7 +118,9 @@ carry their licences:
 
 ## Changing them
 
-Never by hand.
+Never by hand — except `tags.tsv`, which no reducer writes. It is Spanish's pinned tag pool: every
+pack studying Spanish stores its readings against it, so editing it changes how each of them stores
+them. Its pull request says so, and every pair studying Spanish carries the same file.
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `pair=es-fr` and `mode=update`.
   It works as for en-fr:

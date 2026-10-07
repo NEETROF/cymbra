@@ -29,6 +29,10 @@ Stdlib only: the build mode reads this record too, and needs no Python package.
     pack_sources.py check-reducer --pin P --reducer R              # the rules, against the record
     pack_sources.py get           --pin P KEY                      # e.g. snapshot, pack.sha256
     pack_sources.py assets        --pin P                          # the snapshot's release assets
+    pack_sources.py keep          --from D --to T                  # the kept inputs of D, into T
+
+Beside the tables a reducer writes, a pair's folder holds inputs no reducer writes, which reducing
+the pair again must keep (`KEPT_INPUTS`, add-lingua-pack-lexical-layer).
 """
 
 from __future__ import annotations
@@ -38,6 +42,7 @@ import datetime
 import gzip
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -125,6 +130,12 @@ DUMPS = {
         },
     },
 }
+# The inputs of a pair's tables that no reducer writes, so that no rule digest moves with them
+# (add-lingua-pack-lexical-layer D1, D4): the studied language's pinned tag pool, which every
+# committed pair carries, and the dictionary words of a pair glossed in another native language
+# than its studied language's reference pair. Reducing a pair again keeps them as they are.
+KEPT_INPUTS = ("tags.tsv", "lexical.tsv")
+PINNED_POOL = KEPT_INPUTS[0]
 WORDFREQ = "3.1.1"
 PYTHON = (3, 12)
 ZSTD_LEVEL = 19
@@ -409,7 +420,25 @@ def rules_sha256(reducer: Path) -> str:
     return digest.hexdigest()
 
 
+def keep(committed: Path, tables: Path) -> list[str]:
+    """Copy the kept inputs `committed` holds into `tables`, a folder the pair's tables are reduced
+    into anew (a dry run's scratch copy); answers the names copied."""
+    kept = []
+    tables.mkdir(parents=True, exist_ok=True)
+    for name in KEPT_INPUTS:
+        source = committed / name
+        if source.is_file() and source.resolve() != (tables / name).resolve():
+            shutil.copyfile(source, tables / name)
+            kept.append(name)
+    return kept
+
+
 def record_build(pin: Path, pack: Path, reducer: Path) -> None:
+    if not (pin.parent / PINNED_POOL).is_file():
+        raise PinError(
+            f"{pin.parent / PINNED_POOL} is missing: the studied language's pinned tag pool is an input no "
+            "reducer writes, which the tables must keep (scripts/lingua-data/SOURCES.md)"
+        )
     record = load(pin)
     record["pack"] = {"sha256": sha256(pack), "size": pack.stat().st_size}
     record["reducer"] = {"sha256": rules_sha256(reducer), "files": [p.name for p in rule_files(reducer)]}
@@ -453,8 +482,12 @@ def check_reducer(pin: Path, reducer: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get", "assets"):
+    for name in ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get", "assets", "keep"):
         p = sub.add_parser(name)
+        if name == "keep":
+            p.add_argument("--from", dest="source", type=Path, required=True)
+            p.add_argument("--to", dest="dest", type=Path, required=True)
+            continue
         p.add_argument("--pin", type=Path, required=name != "rules")
         if name in ("fetch-pinned", "fetch-live"):
             p.add_argument("--work", type=Path, required=True)
@@ -486,6 +519,9 @@ def main(argv: list[str] | None = None) -> int:
             print(get(load(a.pin), a.key))
         elif a.cmd == "assets":
             print("\n".join(assets(load(a.pin))))
+        elif a.cmd == "keep":
+            for name in keep(a.source, a.dest):
+                print(f"kept {name}")
     except (PinError, subprocess.CalledProcessError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

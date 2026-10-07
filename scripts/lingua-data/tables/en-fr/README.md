@@ -15,6 +15,7 @@ request whose diff shows it (pin-lingua-pack-sources).
 | `senses.tsv` | lemma → part of speech of each run of its gloss's senses | kaikki.org extract of the French Wiktionary (CC BY-SA 4.0 + GFDL) |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata; `pack_version` is the snapshot | — |
+| `tags.tsv` | English's pinned tag pool, which every pack studying English lays its pool out from; written by no reducer, kept when the tables are reduced again (`../../SOURCES.md`, *What a pack studies, whatever it glosses*) | this pack's own pool, committed by hand |
 | `pin.json` | the raw sources these tables came from, and the pack they build | — |
 
 ## Licences
@@ -27,7 +28,9 @@ its permissive licence. `NOTICE` gives the full attribution. See `../../SOURCES.
 
 ## Changing them
 
-Never by hand.
+Never by hand — except `tags.tsv`, which no reducer writes. It is English's pinned tag pool: every
+pack studying English stores its readings against it, so editing it changes how each of them stores
+them. Its pull request says so, and every pair studying English carries the same file.
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `mode=update`. It reads today's
   sources, keeps kaikki's bytes as the release `lingua-pack-sources-en-fr-<snapshot>`, reduces,

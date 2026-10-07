@@ -142,7 +142,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 0 | 2 | Submit to the Chrome Web Store through API V2 (V1.1 stops on 2026-10-15) | 1–2 | Done ([#728](https://github.com/NEETROF/cymbra/pull/728)); the owner sets `CWS_PUBLISHER_ID` before the next store dispatch |
 | 0 | 3 | `add-lingua-spanish-baseline`: an es-fr invariance golden beside S0 | 1–2 | Done: `crates/lingua-wasm/tests/spanish_baseline.rs`, 133 probes over a 13-page Spanish corpus with es-fr beside en-fr; one harness (`tests/support`) for both baselines, the English golden unchanged |
 | 1 Native-language platform (silent release) | 4 | `generalise-lingua-native-language` | 6–10 | Done (proposal [#732](https://github.com/NEETROF/cymbra/pull/732)) |
-| 1 | 5 | `add-lingua-pack-lexical-layer` | 4–7 | Not started |
+| 1 | 5 | `add-lingua-pack-lexical-layer` | 4–7 | Done (proposal [#735](https://github.com/NEETROF/cymbra/pull/735)) |
 | 1 | 6 | `generalise-lingua-gloss-reducer`: the fr, en and es Wiktionary editions' rules at once | 4–7 | Not started |
 | 1 | 7 | `split-lingua-pack-tables-by-language` (M24) | 4–7 | Not started |
 | 1 | 8 | `generalise-lingua-translation-routes-by-pair` | 5–8.5 | Not started |

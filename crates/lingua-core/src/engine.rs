@@ -172,9 +172,12 @@ pub fn analyse_page_json(
 
 /// The forms a Spanish document writes as names (add-lingua-spanish-names D1):
 /// never in lowercase in the document, capitalised at least once in
-/// mid-sentence, and with a dictionary form the pack does not gloss. `Nela`,
-/// `Augusto` and `Eugenia` are words of the lexicon, which the out-of-lexicon
-/// rule leaves alone; a name the pack glosses (`Dios`) stays a word to learn.
+/// mid-sentence, and with a dictionary form that is not one of the pack's
+/// dictionary words ([`Pack::is_dictionary_word`], add-lingua-pack-lexical-layer
+/// D2), so what is set aside does not depend on the pack's glosses. `Nela`,
+/// `Augusto` and `Eugenia` are lemmas of the lexicon, which the out-of-lexicon
+/// rule leaves alone; a name that is a dictionary word (`Dios`) stays a word to
+/// learn.
 fn document_names(tokens: &[AnalysedToken], blocks: &[&str], pack: &Pack) -> HashSet<String> {
     let mut lowercase = HashSet::new();
     let mut capitalised: HashMap<String, &str> = HashMap::new();
@@ -191,7 +194,7 @@ fn document_names(tokens: &[AnalysedToken], blocks: &[&str], pack: &Pack) -> Has
     }
     capitalised
         .into_iter()
-        .filter(|(form, lemma)| !lowercase.contains(form) && pack.gloss(lemma).is_none())
+        .filter(|(form, lemma)| !lowercase.contains(form) && !pack.is_dictionary_word(lemma))
         .map(|(form, _)| form)
         .collect()
 }
@@ -641,6 +644,20 @@ mod tests {
         glosses: &[(&str, &str)],
         expressions: &[(&str, &str)],
     ) -> Pack {
+        build_pack_with_lexical(studied, forms, lemmas, ranks, glosses, expressions, None)
+    }
+
+    /// [`build_pack_for`] plus, when `lexical` is given, a lexical table naming those
+    /// dictionary words (add-lingua-pack-lexical-layer D1).
+    fn build_pack_with_lexical(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        expressions: &[(&str, &str)],
+        lexical: Option<&[&str]>,
+    ) -> Pack {
         let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
         let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
         let mut freq = vec![0u32; lex.lemma_count()];
@@ -687,7 +704,100 @@ mod tests {
             sections.push((section::EXPR, &expr_keys));
             sections.push((section::EXPR_ZST, &expr_glosses));
         }
+        let mut bits = vec![0u8; lex.lemma_count().div_ceil(8)];
+        for lemma in lexical.unwrap_or_default() {
+            let id = lex.id_of(lemma).expect("dictionary word listed") as usize;
+            bits[id / 8] |= 1 << (id % 8);
+        }
+        if lexical.is_some() {
+            sections.push((section::LEXICAL, &bits));
+        }
         Pack::load(&write_container(&meta, &sections)).expect("load")
+    }
+
+    /// The classes of every token written `surface` on a Spanish page.
+    fn spanish_classes(pack: &Pack, blocks: &[&str], surface: &str) -> Vec<TokenClass> {
+        analyse_page(blocks, ES, pack, &KnowledgeState::new())
+            .tokens
+            .into_iter()
+            .filter(|token| token.surface == surface)
+            .map(|token| token.class)
+            .collect()
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_documents_names_are_the_packs_non_dictionary_words() {
+        // add-lingua-pack-lexical-layer D2: the names rule reads dictionary words, not glosses.
+        let blocks = [
+            "Augusto miró a Eugenia y rezó a Dios en la casa.",
+            "Todos los nobles de la corte miraban la escena con mucha atención.",
+        ];
+        let forms = [("miró", "mirar"), ("rezó", "rezar"), ("miraban", "mirar")];
+        let lemmas = [
+            "augusto",
+            "eugenia",
+            "dios",
+            "mirar",
+            "rezar",
+            "a",
+            "y",
+            "en",
+            "la",
+            "casa",
+            "todo",
+            "el",
+            "noble",
+            "de",
+            "corte",
+            "escena",
+            "con",
+            "mucho",
+            "atención",
+        ];
+        let glosses = [("dios", "Dieu"), ("casa", "Maison")];
+        let pack = |lexical: Option<&[&str]>| {
+            build_pack_with_lexical(ES, &forms, &lemmas, &[], &glosses, &[], lexical)
+        };
+        const NAME: TokenClass = TokenClass::ProperNounOutOfLexicon;
+        const WORD: TokenClass = TokenClass::Unknown;
+
+        // Without a table, the glossed lemmas are the dictionary words: today's rule.
+        let today = pack(None);
+        assert_eq!(spanish_classes(&today, &blocks, "Augusto"), [WORD]);
+        assert_eq!(spanish_classes(&today, &blocks, "Eugenia"), [NAME]);
+        assert_eq!(spanish_classes(&today, &blocks, "Dios"), [WORD]);
+
+        // With one, the table decides: `eugenia`, a dictionary word without a gloss, stays a
+        // word, and `dios`, glossed but not named, is set aside.
+        let table = pack(Some(&["casa", "eugenia"]));
+        assert_eq!(spanish_classes(&table, &blocks, "Eugenia"), [WORD]);
+        assert_eq!(spanish_classes(&table, &blocks, "Dios"), [NAME]);
+        // The block-initial `Augusto` is never capitalised in mid-sentence: no evidence.
+        assert_eq!(spanish_classes(&table, &blocks, "Augusto"), [WORD]);
+        // Glosses are untouched: `Dios` keeps none on the page only because names show none.
+        assert_eq!(table.gloss("dios"), Some("Dieu"));
+        // English's analysis has no names rule, table or not.
+        let english = build_pack_with_lexical(
+            EN,
+            &[],
+            &["augusto", "met", "the", "man"],
+            &[],
+            &[],
+            &[],
+            Some(&[]),
+        );
+        let page = analyse_page(
+            &["The man met Augusto, and the man met Augusto."],
+            EN,
+            &english,
+            &KnowledgeState::new(),
+        );
+        assert!(
+            page.tokens
+                .iter()
+                .filter(|t| t.surface == "Augusto")
+                .all(|t| t.class == WORD)
+        );
     }
 
     #[test]
