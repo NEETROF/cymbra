@@ -52,6 +52,7 @@ import {
   migrateStore,
   openStore,
   ownerArea,
+  rememberInterfaceLanguage,
   STORE_CHANGED_KEY,
   type StoreChange,
   type StoreReply,
@@ -231,6 +232,9 @@ const storeArea: Promise<AsyncStorageArea> = (async () => {
   await dropRetiredKeys(area, settingsArea).catch((e: unknown) => {
     console.warn("[Cymbra Lingua] could not drop the retired keys:", e);
   });
+  // The interface language follows the stored profile from this first read on; every later
+  // write of the backup mirrors it (ownedStore below).
+  await rememberInterfaceLanguage(area, settingsArea).catch(() => {});
   void navigator.storage?.persist?.().catch(() => {});
   return area;
 })();
@@ -242,6 +246,7 @@ const ownedStore: AsyncStorageArea = ownerArea(
     set: async (items) => (await storeArea).set(items),
   },
   announceStoreChange,
+  settingsArea,
 );
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

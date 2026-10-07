@@ -1,6 +1,9 @@
+import { DEFAULT_NATIVE, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
+import { INTERFACE_LANGUAGE_KEY, type InterfaceLanguage } from "../i18n/language.ts";
 import { isStorageFull } from "./auth-errors.ts";
 import { DAILY_KEY, DAY_ONLY_DAILY_KEY, PER_LANGUAGE_DAILY_KEY, RETIRED_DAILY_KEY } from "./dailystats.ts";
-import { type AsyncStorageArea, loadStored, ROOT_KEY } from "./storage.ts";
+import { nativeLanguageOf } from "./profile.ts";
+import { type AsyncStorageArea, classifyStored, loadStored, ROOT_KEY } from "./storage.ts";
 
 // Where the reader's own data lives (change: move-lingua-store-to-indexeddb). The engine
 // backup, the daily statistics and the sync cursors grow with the reader, and
@@ -117,15 +120,53 @@ export function idbArea(db: IDBDatabase): AsyncStorageArea {
 }
 
 /**
+ * The interface language a stored root value gives (add-lingua-interface-language D3): the
+ * backup's profile's native language — French without a backup, as `nativeLanguageOf` reads it.
+ */
+export function interfaceLanguageOfStored(raw: unknown, pairs: readonly string[] = SHIPPED_PAIRS): InterfaceLanguage {
+  const stored = classifyStored(raw);
+  return stored.kind === "v2" ? nativeLanguageOf(stored.backup, pairs) : DEFAULT_NATIVE;
+}
+
+/**
+ * Write the interface language from what the store holds now — the background's first read of
+ * the profile, so a device updated with a profile already stored reads its language before any
+ * backup is written again.
+ */
+export async function rememberInterfaceLanguage(
+  area: AsyncStorageArea,
+  preferences: AsyncStorageArea,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): Promise<void> {
+  const got = await area.get(ROOT_KEY);
+  await preferences.set({ [INTERFACE_LANGUAGE_KEY]: interfaceLanguageOfStored(got[ROOT_KEY], pairs) });
+}
+
+/**
  * The owner's handle on its own store: every write says which keys changed. Both things
  * that follow a mutation hang off this — telling the surfaces, and scheduling the sync —
  * so neither can be forgotten when the store moves again.
+ *
+ * A write of the backup also mirrors its profile's native language into `preferences`
+ * (chrome.storage.local) under the interface language's key: a profile change, a restore from
+ * a file, a full reset and the first hydration all come through here, so the key cannot go
+ * stale behind the profile. A mirror that cannot be written (the area full) costs the backup
+ * nothing: the key keeps its previous value, absent meaning French.
  */
-export function ownerArea(area: AsyncStorageArea, announce: (keys: string[]) => void): AsyncStorageArea {
+export function ownerArea(
+  area: AsyncStorageArea,
+  announce: (keys: string[]) => void,
+  preferences?: AsyncStorageArea,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): AsyncStorageArea {
   return {
     get: (keys) => area.get(keys),
     set: async (items) => {
       await area.set(items);
+      if (preferences && ROOT_KEY in items) {
+        const language = interfaceLanguageOfStored(items[ROOT_KEY], pairs);
+        await preferences.set({ [INTERFACE_LANGUAGE_KEY]: language }).catch(() => {});
+      }
       announce(Object.keys(items));
     },
   };

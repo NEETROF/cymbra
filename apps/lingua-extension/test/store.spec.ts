@@ -1,7 +1,9 @@
 import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { INTERFACE_LANGUAGE_KEY, interfaceLanguage } from "@/i18n/language.ts";
 import {
   idbArea,
+  interfaceLanguageOfStored,
   isStoreMessage,
   messagedArea,
   MIGRATED_KEY,
@@ -9,10 +11,11 @@ import {
   openStore,
   ownerArea,
   dropRetiredKeys,
+  rememberInterfaceLanguage,
   STORE_KEYS,
   type StoreReply,
 } from "@/state/store.ts";
-import { type AsyncStorageArea, ROOT_KEY } from "@/state/storage.ts";
+import { type AsyncStorageArea, ROOT_KEY, saveBackup } from "@/state/storage.ts";
 
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -301,5 +304,74 @@ describe("the retired keys", () => {
 
   it("is never a key the store claims to own", () => {
     expect(STORE_KEYS).not.toContain("cymbra-lingua-daily");
+  });
+});
+
+describe("the interface language follows the stored profile", () => {
+  // A package glossed for a reader of Spanish, so that the profile's choice can be read (M22).
+  const PAIRS = ["en-fr", "es-fr", "en-es"];
+  const spanish = JSON.stringify({ profile: { native_language: "Spanish", studied_languages: ["English"] } });
+  const noNative = JSON.stringify({ profile: { studied_languages: ["English"] } });
+
+  it("The key follows the profile: a backup the owner writes mirrors its native language", async () => {
+    const preferences = fakeArea();
+    const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } });
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
+    // A surface opened afterwards reads it from its preferences, with no engine.
+    expect(await interfaceLanguage(preferences)).toBe("es");
+  });
+
+  it("A restore from a file: the backup saved through the owner writes the key", async () => {
+    const preferences = fakeArea({ [INTERFACE_LANGUAGE_KEY]: "fr" });
+    const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
+    await saveBackup(owner, spanish);
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
+  });
+
+  it("Every installed reader: a profile naming no native language reads French", async () => {
+    const preferences = fakeArea();
+    const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: noNative } });
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("fr");
+    expect(interfaceLanguageOfStored(undefined)).toBe("fr");
+    expect(interfaceLanguageOfStored({ statuses: {} })).toBe("fr"); // a v1 store predates the profile
+  });
+
+  it("a language no shipped pair is glossed in reads French, as the native language does", () => {
+    expect(interfaceLanguageOfStored({ v: 2, backup: spanish }, ["en-fr", "es-fr"])).toBe("fr");
+    expect(interfaceLanguageOfStored({ v: 2, backup: spanish }, PAIRS)).toBe("es");
+  });
+
+  it("the first read remembers the language a stored profile already names", async () => {
+    const preferences = fakeArea();
+    await rememberInterfaceLanguage(fakeArea({ [ROOT_KEY]: { v: 2, backup: spanish } }), preferences, PAIRS);
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
+    await rememberInterfaceLanguage(fakeArea(), preferences, PAIRS);
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("fr");
+  });
+
+  it("writes nothing for a key that is not the backup, and announces as before", async () => {
+    const preferences = fakeArea();
+    const announced: string[][] = [];
+    const owner = ownerArea(fakeArea(), (keys) => announced.push(keys), preferences, PAIRS);
+    await owner.set({ "cymbra-lingua-device": "dev-1" });
+    expect(preferences.store).toEqual({});
+    expect(announced).toEqual([["cymbra-lingua-device"]]);
+  });
+
+  it("a mirror that cannot be written costs the backup nothing", async () => {
+    const store = fakeArea();
+    const full: AsyncStorageArea = {
+      get: async () => ({}),
+      set: async () => {
+        throw new Error("QUOTA_BYTES exceeded");
+      },
+    };
+    const announced: string[][] = [];
+    const owner = ownerArea(store, (keys) => announced.push(keys), full, PAIRS);
+    await expect(owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } })).resolves.toBeUndefined();
+    expect(store.store[ROOT_KEY]).toEqual({ v: 2, backup: spanish });
+    expect(announced).toEqual([[ROOT_KEY]]);
   });
 });
