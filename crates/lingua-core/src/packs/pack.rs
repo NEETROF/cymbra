@@ -63,6 +63,13 @@ pub mod section {
     /// zstd-compressed gloss runs, keyed by lemma id: the tag of each run of
     /// consecutive senses of the lemma's gloss, in gloss order.
     pub const SENSES_ZST: &str = "senses.zst";
+    /// The pack's dictionary words, when they are not the lemmas it glosses
+    /// (add-lingua-pack-lexical-layer D1): one bit per lemma id, least
+    /// significant bit first, `ceil(lemma count / 8)` bytes. Optional and
+    /// additive, like [`LEVELS`]: a pack without it reads its glossed lemmas as
+    /// its dictionary words, and a core that predates it ignores it and does
+    /// the same.
+    pub const LEXICAL: &str = "lexical";
     /// The attribution NOTICE (UTF-8).
     pub const NOTICE: &str = "notice";
 }
@@ -140,6 +147,9 @@ pub struct Pack {
     levels: Vec<u8>,
     /// Gloss per lemma id, for the lemmas that carry one.
     glosses: BTreeMap<u64, String>,
+    /// The lexical table: one bit per lemma id, set for a dictionary word.
+    /// `None` when the pack carries none, and its glossed lemmas stand in.
+    lexical: Option<Vec<u8>>,
     /// Expression key → expression id. `None` when the pack carries no
     /// expression table.
     expressions: Option<fst::Map<Vec<u8>>>,
@@ -192,6 +202,10 @@ impl Pack {
             Some(s) => parse_glosses(&s.data, section::GLOSS_ZST)?,
             None => BTreeMap::new(),
         };
+        let lexical = match sections.iter().find(|s| s.name == section::LEXICAL) {
+            Some(s) => Some(parse_lexical(&s.data, lexicon.lemma_count())?),
+            None => None,
+        };
         // The expression table is two sections that travel together, both
         // optional: a pair whose sources hold no expression ships neither, and
         // a core that predates them ignores them. Each is parsed where it is
@@ -221,6 +235,7 @@ impl Pack {
             freq,
             levels,
             glosses,
+            lexical,
             expressions,
             expression_glosses,
             grammar,
@@ -419,21 +434,44 @@ impl Pack {
         self.has_levels() && self.meta.levels_estimated
     }
 
-    /// The pack's dictionary words with their frequency rank: the ranked lemmas that
-    /// carry a gloss or a CEFR level, in ascending lemma-id order. A ranked token with
-    /// neither is mostly a name or noise ("london", "www"), which a vocabulary size does
-    /// not count. Feeds the estimated vocabulary size.
+    /// The pack's ranked dictionary words with their frequency rank: the ranked lemmas
+    /// that are dictionary words of the pack ([`Pack::is_dictionary_word`]) or carry a
+    /// CEFR level, in ascending lemma-id order. A ranked token that is neither is mostly
+    /// a name or noise ("london", "www"), which a vocabulary size does not count. Feeds
+    /// the estimated vocabulary size and a CEFR list's typical vocabularies, so neither
+    /// depends on the native language the pack is glossed in.
     pub fn dictionary_words(&self) -> Vec<(&str, u32)> {
         (0..self.lexicon.lemma_count() as u64)
             .filter_map(|id| {
                 let rank = *self.freq.get(id as usize)?;
                 let leveled = self.levels.get(id as usize).is_some_and(|&code| code != 0);
-                if rank == 0 || !(leveled || self.glosses.contains_key(&id)) {
+                if rank == 0 || !(leveled || self.is_dictionary_id(id)) {
                     return None;
                 }
                 Some((self.lexicon.lemma_at(id)?, rank))
             })
             .collect()
+    }
+
+    /// Whether `lemma` is one of the pack's dictionary words — a word of its studied
+    /// language rather than a name or noise (add-lingua-pack-lexical-layer D2). The
+    /// lexical table says so when the pack carries one; a pack without one reads its
+    /// glossed lemmas as its dictionary words, which is exactly
+    /// `self.gloss(lemma).is_some()`. A lemma the lexicon does not hold is none.
+    pub fn is_dictionary_word(&self, lemma: &str) -> bool {
+        self.lexicon
+            .id_of(lemma)
+            .is_some_and(|id| self.is_dictionary_id(id))
+    }
+
+    /// [`Pack::is_dictionary_word`], by lemma id.
+    fn is_dictionary_id(&self, id: u64) -> bool {
+        match &self.lexical {
+            Some(bits) => bits
+                .get((id / 8) as usize)
+                .is_some_and(|byte| byte & (1 << (id % 8)) != 0),
+            None => self.glosses.contains_key(&id),
+        }
     }
 }
 
@@ -479,6 +517,16 @@ fn parse_freq(bytes: &[u8], lemma_count: usize) -> Result<Vec<u32>, PackError> {
 fn parse_levels(bytes: &[u8], lemma_count: usize) -> Result<Vec<u8>, PackError> {
     if bytes.len() != lemma_count {
         return Err(PackError::Malformed(section::LEVELS));
+    }
+    Ok(bytes.to_vec())
+}
+
+/// One bit per lemma id, least significant bit first (add-lingua-pack-lexical-layer D1).
+/// The section length must be exactly `ceil(lemma_count / 8)`, like [`parse_levels`], so a
+/// table built for another lemma pool is refused rather than misread.
+fn parse_lexical(bytes: &[u8], lemma_count: usize) -> Result<Vec<u8>, PackError> {
+    if bytes.len() != lemma_count.div_ceil(8) {
+        return Err(PackError::Malformed(section::LEXICAL));
     }
     Ok(bytes.to_vec())
 }
@@ -862,8 +910,10 @@ pub(crate) mod tests {
         assert_eq!(pack.level("run"), None);
     }
 
-    #[test]
-    fn dictionary_words_are_the_ranked_lemmas_with_a_gloss_or_a_level() {
+    /// A pack of four lemmas: `run` (rank 500, glossed), `nuance` (rank 4,000, B2), `www`
+    /// (rank 900, neither glossed nor levelled) and `seldom` (C1, unranked). `lexical`, when
+    /// given, is the lexical table's bits, set for the lemmas it names; `None` writes no table.
+    fn dictionary_pack(lexical: Option<&[&str]>) -> Vec<u8> {
         use crate::knowledge::level::CefrLevel;
         let (forms, pool) =
             build_lexicon_blobs(&[], &["nuance", "run", "seldom", "www"]).expect("lexicon");
@@ -879,22 +929,99 @@ pub(crate) mod tests {
         levels[id("seldom")] = CefrLevel::C1.to_code();
         let freq_bytes: Vec<u8> = freq.iter().flat_map(|r| r.to_le_bytes()).collect();
         let gloss = build_gloss_zst(&[(id("run") as u32, "courir")]);
-        let bytes = write_container(
-            &meta_json(ANALYZER_VERSION),
-            &[
-                (section::FORMS, &forms),
-                (section::LEMMAS, pool.as_bytes()),
-                (section::FREQ, &freq_bytes),
-                (section::LEVELS, &levels),
-                (section::GLOSS_ZST, &gloss),
-                (section::NOTICE, b"AGID. wordfreq. kaikki."),
-            ],
-        );
-        let pack = Pack::load(&bytes).expect("load");
+        let mut bits = vec![0u8; lex.lemma_count().div_ceil(8)];
+        for lemma in lexical.unwrap_or_default() {
+            bits[id(lemma) / 8] |= 1 << (id(lemma) % 8);
+        }
+        let mut sections: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, pool.as_bytes()),
+            (section::FREQ, &freq_bytes),
+            (section::LEVELS, &levels),
+            (section::GLOSS_ZST, &gloss),
+            (section::NOTICE, b"AGID. wordfreq. kaikki."),
+        ];
+        if lexical.is_some() {
+            sections.push((section::LEXICAL, &bits));
+        }
+        write_container(&meta_json(ANALYZER_VERSION), &sections)
+    }
+
+    #[test]
+    fn dictionary_words_are_the_ranked_lemmas_with_a_gloss_or_a_level() {
+        let pack = Pack::load(&dictionary_pack(None)).expect("load");
         assert_eq!(
             pack.dictionary_words(),
             vec![("nuance", 4_000), ("run", 500)]
         );
+    }
+
+    #[test]
+    fn without_a_lexical_table_the_dictionary_words_are_the_glossed_lemmas() {
+        // add-lingua-pack-lexical-layer D2: today's rule, exactly.
+        let pack = Pack::load(&dictionary_pack(None)).expect("load");
+        for lemma in ["nuance", "run", "seldom", "www", "absent"] {
+            assert_eq!(
+                pack.is_dictionary_word(lemma),
+                pack.gloss(lemma).is_some(),
+                "{lemma}"
+            );
+        }
+        assert!(pack.is_dictionary_word("run"));
+    }
+
+    #[test]
+    fn spec_scenario_a_lexical_table_decides_the_dictionary_words() {
+        // The table names `www` and not `run`: the bit decides, not the gloss.
+        let pack = Pack::load(&dictionary_pack(Some(&["www"]))).expect("load");
+        // A glossed lemma whose bit is off is not a dictionary word; its gloss stays.
+        assert!(!pack.is_dictionary_word("run"));
+        assert_eq!(pack.gloss("run"), Some("courir"));
+        // An unglossed ranked lemma whose bit is on is one.
+        assert!(pack.is_dictionary_word("www"));
+        assert_eq!(pack.gloss("www"), None);
+        // A levelled lemma still counts in a vocabulary size, bit or no bit.
+        assert!(!pack.is_dictionary_word("nuance"));
+        assert_eq!(
+            pack.dictionary_words(),
+            vec![("nuance", 4_000), ("www", 900)]
+        );
+        // A lemma the lexicon does not hold is no dictionary word.
+        assert!(!pack.is_dictionary_word("absent"));
+        // A table that names every glossed lemma says what the glosses say.
+        let same = Pack::load(&dictionary_pack(Some(&["run"]))).expect("load");
+        assert_eq!(
+            same.dictionary_words(),
+            Pack::load(&dictionary_pack(None))
+                .unwrap()
+                .dictionary_words()
+        );
+    }
+
+    #[test]
+    fn a_lexical_table_of_the_wrong_length_is_refused() {
+        let (meta, sections) = read_container(&dictionary_pack(Some(&["run"]))).unwrap();
+        for length in [0usize, 2] {
+            let bad = vec![0xffu8; length];
+            let rewritten: Vec<(&str, &[u8])> = sections
+                .iter()
+                .map(|s| {
+                    let data: &[u8] = if s.name == section::LEXICAL {
+                        &bad
+                    } else {
+                        &s.data
+                    };
+                    (s.name.as_str(), data)
+                })
+                .collect();
+            assert!(
+                matches!(
+                    Pack::load(&write_container(&meta, &rewritten)),
+                    Err(PackError::Malformed(section::LEXICAL))
+                ),
+                "{length} bytes"
+            );
+        }
     }
 
     #[test]

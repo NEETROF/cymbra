@@ -169,6 +169,35 @@ take their list's level, and 82.6 % are within one level of it. The scale is mon
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
 D1 is not needed. The pack is 2,190,188 B, with the grammar, the glosses and the levels.
 
+## What a pack studies, whatever it glosses
+
+Two packs of one studied language must analyse it alike whatever native language they are glossed
+in (add-lingua-pack-lexical-layer). Two inputs beside a pair's tables serve that, and **no reducer
+writes them**, so no rule digest moves with them: `build.sh` never overwrites them when it reduces a
+pair again (`--reduce`, `--update`; they are not in its `TABLE_FILES`), a dry run copies them into
+its scratch folder (`pack_sources.py keep`, `KEPT_INPUTS`), and `pack_sources.py record-build`
+refuses tables without `tags.tsv`.
+
+| File | What it holds | Who writes it |
+|---|---|---|
+| `tags.tsv` *(every pair)* | The studied language's **pinned tag pool**: one canonical Universal Dependencies tag per line, each once. The builder lays the pack's pool out as the pin in its own order, then the readings' tags the pin lacks, then the tags only senses carry, each part sorted, so a form's readings index the same tags whatever parts of speech a native language's senses use (en-es's senses use `NUM`, en-fr's none). en-fr's and es-fr's are the pools their packs already carried (27 and 106 tags), so both keep their bytes; a later pair of the same studied language copies its reference's. A pack built without one (the `testdata/` fixtures, the tests' packs) keeps a single sorted pool. | A person. The checks fail when a committed pair lacks it, or when two pairs of one studied language pin different pools (`lingua_pack::tables`). |
+| `lexical.tsv` *(optional)* | The pack's **dictionary words**, one lemma per line, byte-sorted: the lemmas its studied language's reference pack glosses — en-fr for English, es-fr for Spanish, and for a language studied later the first pack built for it. They are what the vocabulary estimate and a CEFR list's typical vocabularies count, and what the Spanish names rule keeps as words. The builder writes them as a `lexical` section, one bit per lemma id, only when they differ from the lemmas the pack glosses; it then refuses, by name, a dictionary word or a glossed lemma that is neither the lemma of a form nor a ranked lemma, so no native language's glosses add a lemma. A pack without the section — or read by a core that predates it — reads its glossed lemmas as its dictionary words. en-fr and es-fr, the references, carry none. | A person, copying the reference's `gloss.tsv` lemma column (until `split-lingua-pack-tables-by-language` moves it beside the studied tables). The checks fail when two pairs of one studied language hold different dictionary words. |
+
+**A noun's gender comes from its readings.** The builder gives a noun's sense runs the gender its
+dictionary form, read as itself in `grammar.tsv`, has when that is a single one, and refuses a run
+naming the other. A noun read with both genders (`estudiante`) gets a bare run, whatever its sense
+table says; a noun read with no gender keeps its runs as the sense table writes them. es-fr's 13,435
+noun runs, which its reducer genders the same way, are reproduced exactly, so a pack glossed in
+another language shows the same « nom féminin » with no gender in its own sense tables.
+
+**Two pairs of one studied language share its studied tables.** `forms.tsv`, `freq.tsv`, `level.tsv`
+and `grammar.tsv` belong to the studied language: a later pair copies its reference's byte for byte
+(until `split-lingua-pack-tables-by-language` keeps them once per studied language), and the checks
+fail, naming both pairs and the table, when two pairs of one studied language hold different ones
+(`lingua_pack::tables::STUDIED_TABLES`). With the pinned pool and the dictionary words, they decide
+the lemma ids and how a form's readings are stored. Nothing copies them automatically: an update of
+the reference is copied to its siblings in the same pull request.
+
 ## Allowed vs denied licences
 
 - **Allowed** (commercial use OK): permissive (ESDB/SCOWL and WordNet), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).

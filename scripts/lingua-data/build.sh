@@ -25,6 +25,10 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${LINGUA_PYTHON:-python3}"
+# The tables a reducer writes. A pair's folder also holds inputs no reducer writes — its studied
+# language's pinned tag pool, `tags.tsv`, and a pair's `lexical.tsv` (pack_sources.py KEPT_INPUTS,
+# add-lingua-pack-lexical-layer) — which copy_tables never touches, so reducing a pair again keeps
+# them; a dry run copies them into its scratch folder.
 TABLE_FILES=(forms.tsv freq.tsv gloss.tsv level.tsv mwe.tsv grammar.tsv senses.tsv NOTICE manifest.json)
 
 sha256_of() {
@@ -120,6 +124,7 @@ case "$mode" in
       tables="${LINGUA_DRY_TABLES:-$here/work/dry/$pair}"
       rm -rf "$tables" && mkdir -p "$tables"
       [[ -f "$pin" ]] && cp "$pin" "$tables/pin.json"
+      "$PYTHON" "$here/pack_sources.py" keep --from "$here/tables/$pair" --to "$tables"
       pin="$tables/pin.json"
     fi
     rm -rf "$work" && mkdir -p "$work"

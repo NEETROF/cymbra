@@ -46,7 +46,8 @@ and Spanish's pinned pools SHALL be the pools the en-fr and es-fr packs carry, s
 bytes, and every pair built from committed tables SHALL be built with its studied language's pinned
 pool. A pack built without one, such as a test pack, SHALL keep a single sorted pool, as before. The
 checks SHALL fail when two packs of one studied language, built from committed tables, store a form's
-readings differently.
+readings differently: when their pinned pools, their dictionary words or their studied tables — forms,
+frequencies, levels and readings — differ.
 
 #### Scenario: The shipped packs keep their pools
 - **WHEN** the en-fr and es-fr packs are built from their committed tables after this change
@@ -64,9 +65,16 @@ readings differently.
 - **WHEN** a test pack studying Spanish gives `me` a reading whose tag Spanish's pinned pool does not hold
 - **THEN** it builds, and the core reads that reading back
 
+#### Scenario: Two packs of one language store readings differently
+- **WHEN** the committed tables of a second pair studying Spanish hold a `grammar.tsv`, `forms.tsv`, `freq.tsv` or `level.tsv` other than es-fr's
+- **THEN** the checks fail, naming both pairs and the table
+
 ### Requirement: A noun's gender comes from its readings
 The builder SHALL give a noun's sense runs the gender its dictionary form is read with, when the readings of that form as itself give exactly one, whatever native language the gloss is written in, and SHALL refuse, naming the word, a noun run whose gender those readings contradict.
-A noun those readings give both genders, or none, SHALL keep a run without a gender.
+A noun those readings give both genders SHALL keep a run without a gender, whatever gender its sense
+table names. A noun they give no gender SHALL keep its runs as its sense table writes them: the
+reference pairs' reducers write no gender for it, and the archived scenario *A Romance pack fits the
+vocabulary* reads `leche`'s feminine from its run alone.
 
 #### Scenario: The es-fr pack does not change
 - **WHEN** the es-fr pack is built from its committed tables after this change
@@ -77,8 +85,12 @@ A noun those readings give both genders, or none, SHALL keep a run without a gen
 - **THEN** the noun run of `casa` reads `NOUN|Gender=Fem`, as es-fr's does
 
 #### Scenario: A noun of both genders
-- **WHEN** such a pack is built and `estudiante` is read as masculine and as feminine
+- **WHEN** such a pack is built and `estudiante` is read as masculine and as feminine, whatever gender its sense table names
 - **THEN** its noun run carries no gender
+
+#### Scenario: A noun read with no gender
+- **WHEN** a test pack studying Spanish tags `leche`'s run `NOUN|Gender=Fem` and no reading of `leche` gives it a gender
+- **THEN** the run keeps `NOUN|Gender=Fem`, and a bare run stays bare
 
 #### Scenario: A run its readings contradict
 - **WHEN** a pair's sense table tags a noun's run `NOUN|Gender=Masc` and the noun's readings give it only the feminine

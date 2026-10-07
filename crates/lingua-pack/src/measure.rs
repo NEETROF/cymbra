@@ -173,6 +173,8 @@ mod tests {
             expressions: vec![],
             readings: vec![],
             senses: vec![],
+            lexical: None,
+            tag_pool: None,
         };
         Pack::load(&build_pack(&inputs).expect("build")).expect("load")
     }

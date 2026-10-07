@@ -15,12 +15,17 @@
 //! Invariance baselines: what the engine gives the extension over a fixed corpus, with a real
 //! pack built from the committed tables, frozen in `tests/baseline/<pair>.golden`.
 //!
-//! One scenario per shipped pair (`english_baseline.rs`, `spanish_baseline.rs`), one harness:
-//! the probes and the reader's history are the same for every pair, only the words differ.
+//! One scenario per shipped pair (`english.rs`, `spanish.rs` here, frozen by `english_baseline.rs`
+//! and `spanish_baseline.rs`), one harness: the probes and the reader's history are the same for
+//! every pair, only the words differ. `cross_native.rs` answers the same scenarios through a pack
+//! glossed in another native language.
 //! A golden is re-blessed with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test <test>`, and the
 //! pull request says why (docs/lingua/language-matrix-programme.md: en-fr and es-fr do not move).
 
 #![allow(dead_code)]
+
+pub mod english;
+pub mod spanish;
 
 use std::fmt::Write as _;
 use std::path::PathBuf;
@@ -80,7 +85,8 @@ impl Scenario {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     }
 
-    fn tables_dir(pair: &str) -> PathBuf {
+    /// A pair's committed tables, `scripts/lingua-data/tables/<pair>`.
+    pub fn tables_dir(pair: &str) -> PathBuf {
         Self::crate_dir()
             .join("../../scripts/lingua-data/tables")
             .join(pair)
@@ -178,8 +184,13 @@ impl Scenario {
 
     /// The golden text: every probe, in order, with the binding's output exactly as returned.
     pub fn render(&self, language: Option<&str>) -> String {
+        self.render_with(self.packs(), language)
+    }
+
+    /// [`Scenario::render`] through the packs given, the pair's last: every probe of the
+    /// scenario, answered by an engine holding them (the cross-native invariance test).
+    pub fn render_with(&self, packs: Vec<(&str, Vec<u8>)>, language: Option<&str>) -> String {
         let lang = || language.map(str::to_owned);
-        let packs = self.packs();
         let pages = self.pages();
         let mut g = Golden::default();
         g.probe(

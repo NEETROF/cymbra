@@ -22,8 +22,11 @@
 //! metadata and NOTICE, and enforces the licence denylist and the size budget. Native-only — the reader that consumes the
 //! output lives in `lingua-core` and stays WASM-clean.
 
+mod lexical;
 pub mod licence;
 pub mod measure;
+pub mod tables;
+mod tags;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -85,6 +88,17 @@ pub struct PackInputs {
     pub notice: String,
     /// The sources actually used, for the licence guard.
     pub sources: Vec<licence::Source>,
+    /// The pack's dictionary words (`lexical.tsv`, one lemma per line), when they are not
+    /// the lemmas it glosses: a pack glossed in another native language than its studied
+    /// language's reference pack names that pack's glossed lemmas
+    /// (add-lingua-pack-lexical-layer D1, D3). `None` reads the glossed lemmas as the
+    /// dictionary words, and so does a list that names exactly them: no lexical table is
+    /// written either way.
+    pub lexical: Option<Vec<String>>,
+    /// The studied language's pinned tag pool (`tags.tsv`, one Universal Dependencies tag
+    /// per line, in its own order): the pool's first tags, so a form's readings are stored
+    /// alike whatever tags the senses carry (D4). `None` keeps a single sorted pool.
+    pub tag_pool: Option<Vec<String>>,
 }
 
 /// A gloss's runs, as `senses.tsv` states them: the dictionary form, then
@@ -117,6 +131,10 @@ pub enum BuildError {
     Fst(String),
     /// A grammar table is outside the vocabulary or disagrees with the glosses.
     Grammar(String),
+    /// The pack writes a lexical table, and a dictionary word or a glossed lemma is
+    /// neither the lemma of a form nor a ranked lemma: no native language's glosses may
+    /// add a lemma to the studied language's lexicon (add-lingua-pack-lexical-layer D3).
+    Lexical(String),
     /// The pack studies a language the core has no analyser for: no core
     /// could load it (`Pack::load` refuses it too).
     UnknownLanguage(String),
@@ -153,6 +171,7 @@ impl std::fmt::Display for BuildError {
             }
             BuildError::Fst(e) => write!(f, "could not build the forms FST: {e}"),
             BuildError::Grammar(e) => write!(f, "grammar tables: {e}"),
+            BuildError::Lexical(e) => write!(f, "lexical table: {e}"),
             BuildError::UnknownLanguage(tag) => write!(
                 f,
                 "the pack studies {tag:?}, a language the core cannot analyse"
@@ -179,8 +198,8 @@ impl std::fmt::Display for BuildError {
 impl std::error::Error for BuildError {}
 
 /// Loads a pack's inputs from a directory holding `manifest.json`,
-/// `forms.tsv`, `freq.tsv`, `gloss.tsv` and `NOTICE`. Shared by the CLI and
-/// the pipeline test.
+/// `forms.tsv`, `freq.tsv`, `gloss.tsv` and `NOTICE`, and the optional tables
+/// beside them. Shared by the CLI and the pipeline test.
 pub fn inputs_from_dir(dir: &Path) -> std::io::Result<PackInputs> {
     let read = |name: &str| std::fs::read_to_string(dir.join(name));
     let manifest: Manifest = serde_json::from_str(&read("manifest.json")?)
@@ -199,7 +218,29 @@ pub fn inputs_from_dir(dir: &Path) -> std::io::Result<PackInputs> {
         senses: read_senses(dir)?,
         notice: read("NOTICE")?,
         sources: manifest.sources,
+        lexical: read_lines(dir, LEXICAL_TABLE)?,
+        tag_pool: read_lines(dir, TAG_POOL_TABLE)?,
     })
+}
+
+/// The file naming a pack's dictionary words, when they are not its glossed lemmas
+/// (add-lingua-pack-lexical-layer D1). No reducer writes it.
+pub const LEXICAL_TABLE: &str = "lexical.tsv";
+
+/// The file pinning a studied language's tag pool (add-lingua-pack-lexical-layer D4). No
+/// reducer writes it.
+pub const TAG_POOL_TABLE: &str = "tags.tsv";
+
+/// Reads an optional one-column table: its non-empty lines, trimmed, in file order, or
+/// `None` when the pair has no such file.
+fn read_lines(dir: &Path, name: &str) -> std::io::Result<Option<Vec<String>>> {
+    Ok(read_optional(dir, name)?.map(|text| {
+        text.lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .map(str::to_owned)
+            .collect()
+    }))
 }
 
 /// Reads the optional `level.tsv` (`lemma<TAB>A1..C2`). A pair without CEFR data
@@ -379,6 +420,9 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     entries.sort_unstable_by_key(|(id, _)| *id);
     let gloss_zst = compress_glosses(&entries);
 
+    // The pack's dictionary words, when they are not its glossed lemmas (D1, D3).
+    let lexical_bytes = lexical::lexical_table(inputs, &lex, &entries)?.unwrap_or_default();
+
     // CEFR level code per lemma id (0 = no level). Emitted as an optional
     // section ONLY when the pair has CEFR data, so a level-less pack stays
     // byte-for-byte identical to before this feature.
@@ -452,6 +496,9 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     if !levels_bytes.is_empty() {
         sections.push((section::LEVELS, levels_bytes.as_slice()));
     }
+    if !lexical_bytes.is_empty() {
+        sections.push((section::LEXICAL, lexical_bytes.as_slice()));
+    }
     if !expr_fst.is_empty() {
         sections.push((section::EXPR, expr_fst.as_slice()));
         sections.push((section::EXPR_ZST, expr_zst.as_slice()));
@@ -501,7 +548,8 @@ struct GrammarSections {
 /// believable reading of another dictionary form is also filed, as such,
 /// under the one the core's own cascade reads the form as — which is what the
 /// card will be keyed by. Readings whose dictionary form the lexicon does not
-/// hold are dropped. Each run must cover exactly its word's gloss.
+/// hold are dropped. Each run must cover exactly its word's gloss, and a noun's
+/// runs carry the gender its readings give it ([`tags::noun_runs`]).
 fn grammar_sections(
     inputs: &PackInputs,
     studied: StudiedLanguage,
@@ -512,22 +560,23 @@ fn grammar_sections(
     }
     let fail = |what: String| BuildError::Grammar(what);
 
-    // The tag pool: every tag, canonical and strictly parsed, sorted.
     let canonical = |text: &str| -> Result<String, BuildError> {
         Tag::parse_strict(text)
             .map(|tag| tag.to_ud())
             .map_err(|e| fail(format!("tag {text:?}: {e}")))
     };
-    let mut pool = BTreeSet::new();
+    let senses = tags::noun_runs(inputs)?;
+    let mut reading_tags = BTreeSet::new();
     for reading in &inputs.readings {
-        pool.insert(canonical(&reading.tag)?);
+        reading_tags.insert(canonical(&reading.tag)?);
     }
-    for (_, runs) in &inputs.senses {
+    let mut sense_tags = BTreeSet::new();
+    for (_, runs) in &senses {
         for (tag, _) in runs {
-            pool.insert(canonical(tag)?);
+            sense_tags.insert(tag.clone());
         }
     }
-    let pool: Vec<String> = pool.into_iter().collect();
+    let pool = tags::tag_pool(inputs.tag_pool.as_deref(), reading_tags, sense_tags)?;
     if pool.len() > u16::MAX as usize {
         return Err(fail(format!(
             "{} distinct tags, over {}",
@@ -535,9 +584,14 @@ fn grammar_sections(
             u16::MAX
         )));
     }
+    let index: BTreeMap<&str, u16> = pool
+        .iter()
+        .enumerate()
+        .map(|(id, tag)| (tag.as_str(), id as u16))
+        .collect();
     let tag_id = |text: &str| -> Result<u16, BuildError> {
         let ud = canonical(text)?;
-        Ok(pool.binary_search(&ud).expect("pooled above") as u16)
+        Ok(*index.get(ud.as_str()).expect("pooled above"))
     };
     let lemma_id = |lemma: &str| -> Option<u32> {
         if !lex.contains_lemma(lemma) {
@@ -605,8 +659,8 @@ fn grammar_sections(
         .map(|(l, g)| (l.as_str(), g.as_str()))
         .collect();
     let mut runs_by_id: BTreeMap<u32, Vec<u8>> = BTreeMap::new();
-    for (lemma, runs) in &inputs.senses {
-        let Some(gloss) = glosses.get(lemma.as_str()) else {
+    for &(lemma, ref runs) in &senses {
+        let Some(gloss) = glosses.get(lemma) else {
             return Err(fail(format!("runs for {lemma:?}, which has no gloss")));
         };
         let senses = gloss.split("; ").count();
@@ -744,6 +798,8 @@ mod tests {
             senses: vec![],
             notice: "AGID (permissive), wordfreq (CC BY-SA), kaikki (CC BY-SA).".into(),
             sources: sources(),
+            lexical: None,
+            tag_pool: None,
         }
     }
 
@@ -1318,6 +1374,424 @@ mod tests {
             }
             Err(other) => panic!("expected OverBudget, got {other:?}"),
             Ok(pack) => panic!("expected OverBudget, got a {}-byte pack", pack.len()),
+        }
+    }
+
+    // — the lexical table, the pinned pool, a noun's gender (add-lingua-pack-lexical-layer) —
+
+    /// A built pack's section, by name.
+    fn section_of(bytes: &[u8], name: &str) -> Option<Vec<u8>> {
+        let (_, sections) = lingua_core::packs::format::read_container(bytes).expect("decode");
+        sections
+            .into_iter()
+            .find(|s| s.name == name)
+            .map(|s| s.data)
+    }
+
+    fn owned(lemmas: &[&str]) -> Option<Vec<String>> {
+        Some(lemmas.iter().map(|l| (*l).to_owned()).collect())
+    }
+
+    #[test]
+    fn spec_scenario_a_lexical_table_that_says_what_the_glosses_say() {
+        let without = build_pack(&inputs()).unwrap();
+        // The lemmas the pack glosses, in any order: no table, the same bytes.
+        for lexical in [&["city", "run"][..], &["run", "city", "run"]] {
+            let mut inp = inputs();
+            inp.lexical = owned(lexical);
+            assert_eq!(build_pack(&inp).unwrap(), without, "{lexical:?}");
+        }
+        assert!(section_of(&without, section::LEXICAL).is_none());
+    }
+
+    #[test]
+    fn a_lexical_table_that_differs_is_written_and_read_back() {
+        let mut inp = inputs();
+        // `city` is glossed but no dictionary word; `seldom`, ranked and unglossed, is one.
+        inp.ranks.push(("seldom".into(), 5_100));
+        inp.lexical = owned(&["run", "seldom"]);
+        let bytes = build_pack(&inp).expect("build");
+        assert_eq!(bytes, build_pack(&inp).unwrap(), "deterministic");
+        let pack = Pack::load(&bytes).expect("load");
+        // city, run, seldom: ids 0, 1, 2; one byte, bits 1 and 2.
+        assert_eq!(section_of(&bytes, section::LEXICAL), Some(vec![0b110]));
+        assert!(pack.is_dictionary_word("run"));
+        assert!(pack.is_dictionary_word("seldom"));
+        assert!(!pack.is_dictionary_word("city"));
+        assert_eq!(pack.gloss("city"), Some("ville"));
+        assert_eq!(
+            pack.dictionary_words(),
+            vec![("run", 500), ("seldom", 5_100)]
+        );
+        // The studied sections do not move with it.
+        let plain = {
+            let mut inp = inputs();
+            inp.ranks.push(("seldom".into(), 5_100));
+            build_pack(&inp).unwrap()
+        };
+        for name in [section::FORMS, section::LEMMAS, section::FREQ] {
+            assert_eq!(section_of(&bytes, name), section_of(&plain, name), "{name}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_an_older_core() {
+        // A pack carrying a lexical table: `city` is glossed and no dictionary word, `seldom`
+        // is a dictionary word with no gloss.
+        let mut inp = inputs();
+        inp.ranks.push(("seldom".into(), 5_100));
+        let plain = build_pack(&inp).unwrap();
+        inp.lexical = owned(&["run", "seldom"]);
+        let bytes = build_pack(&inp).unwrap();
+        // A core built before this change reads the container whatever its sections are named,
+        // and looks up by name only the sections it knows, never `lexical`: what it reads is
+        // the container without that section — byte for byte the pack built without a
+        // lexical.tsv.
+        let (meta, sections) =
+            lingua_core::packs::format::read_container(&bytes).expect("the container reads");
+        assert!(sections.iter().any(|s| s.name == section::LEXICAL));
+        let known: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::LEXICAL)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        let read_by_an_older_core = write_container(&meta, &known);
+        assert_eq!(read_by_an_older_core, plain);
+        // The pack loads, and that core reads its glossed lemmas as its dictionary words.
+        let pack = Pack::load(&read_by_an_older_core).expect("the pack loads");
+        for lemma in ["city", "run", "seldom", "gun"] {
+            assert_eq!(
+                pack.is_dictionary_word(lemma),
+                pack.gloss(lemma).is_some(),
+                "{lemma}"
+            );
+        }
+        assert_eq!(pack.dictionary_words(), vec![("city", 1_200), ("run", 500)]);
+    }
+
+    #[test]
+    fn spec_scenario_a_gloss_outside_the_lexicon() {
+        // `leaf` is glossed, and no form maps to it and no rank lists it.
+        let mut inp = inputs();
+        inp.glosses.push(("leaf".into(), "Feuille".into()));
+        inp.lexical = owned(&["run"]);
+        match build_pack(&inp) {
+            Err(e @ BuildError::Lexical(_)) => {
+                assert!(e.to_string().contains("\"leaf\""), "{e}");
+                assert!(e.to_string().contains("lexical table"), "{e}");
+            }
+            other => panic!("expected a lexical error, got {other:?}"),
+        }
+        // A dictionary word outside the lexicon is refused by name too.
+        let mut inp = inputs();
+        inp.lexical = owned(&["run", "gun"]);
+        match build_pack(&inp) {
+            Err(BuildError::Lexical(msg)) => assert!(msg.contains("\"gun\""), "{msg}"),
+            other => panic!("expected a lexical error, got {other:?}"),
+        }
+        // Without a table, the outlier stays legal (the testdata fixture has three, on
+        // purpose); a table that says what the glosses say is no table, and refuses nothing.
+        let mut inp = inputs();
+        inp.glosses.push(("leaf".into(), "Feuille".into()));
+        let without = build_pack(&inp).expect("an outlier builds without a table");
+        inp.lexical = owned(&["city", "leaf", "run"]);
+        assert_eq!(build_pack(&inp).unwrap(), without);
+    }
+
+    #[test]
+    fn inputs_from_dir_reads_the_lexical_table_and_the_pinned_pool() {
+        let dir = std::env::temp_dir().join(format!("lingua-lexical-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let manifest = serde_json::json!({
+            "meta": {"studied": "en", "native": "fr", "pack_version": "t",
+                     "analyzer_version": ANALYZER_VERSION, "licences": []},
+            "sources": []
+        });
+        std::fs::write(dir.join("manifest.json"), manifest.to_string()).unwrap();
+        for (name, text) in [
+            ("forms.tsv", "ran\trun\n"),
+            ("freq.tsv", "run\t1\n"),
+            ("gloss.tsv", "run\tCourir\n"),
+            ("NOTICE", "notice"),
+        ] {
+            std::fs::write(dir.join(name), text).unwrap();
+        }
+        let inp = inputs_from_dir(&dir).expect("read");
+        assert_eq!((inp.lexical, inp.tag_pool), (None, None));
+        std::fs::write(dir.join(LEXICAL_TABLE), "run\n\n  walk \n").unwrap();
+        std::fs::write(dir.join(TAG_POOL_TABLE), "VERB\nNOUN|Number=Plur\n").unwrap();
+        let inp = inputs_from_dir(&dir).expect("read");
+        assert_eq!(inp.lexical, owned(&["run", "walk"]));
+        assert_eq!(inp.tag_pool, owned(&["VERB", "NOUN|Number=Plur"]));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The pool a built pack carries, one tag per line.
+    fn pool_of(bytes: &[u8]) -> Vec<String> {
+        let tags = section_of(bytes, section::TAGS).expect("a tag pool");
+        String::from_utf8(tags)
+            .unwrap()
+            .split('\n')
+            .map(str::to_owned)
+            .collect()
+    }
+
+    #[test]
+    fn spec_scenario_a_sense_part_of_speech_the_first_pack_never_used() {
+        let reference = build_pack(&inputs_with_grammar()).unwrap();
+        let pin = pool_of(&reference);
+        // `city`'s gloss gains a run tagged NUM, which no reading uses and the pin lacks.
+        let numbered = || {
+            let mut inp = inputs_with_grammar();
+            inp.senses.push(("city".into(), vec![("NUM".into(), 1)]));
+            inp
+        };
+        let mut pinned = numbered();
+        pinned.tag_pool = Some(pin.clone());
+        let bytes = build_pack(&pinned).expect("build");
+        // Its readings are stored as the reference's, and the pool only grows at its end.
+        assert_eq!(
+            section_of(&bytes, section::PARADIGMS_ZST),
+            section_of(&reference, section::PARADIGMS_ZST)
+        );
+        let pool = pool_of(&bytes);
+        assert_eq!(pool[..pin.len()], pin[..]);
+        assert_eq!(pool[pin.len()..], ["NUM"]);
+        let pack = Pack::load(&bytes).expect("load");
+        let runs: Vec<String> = pack
+            .sense_runs("city")
+            .into_iter()
+            .map(|(t, _)| t.unwrap().to_ud())
+            .collect();
+        assert_eq!(runs, ["NUM"]);
+        assert_eq!(ud(&pack.readings("run", "ran")), [PAST]);
+        // Without the pin, the single sorted pool moves every reading filed after NUM.
+        let unpinned = build_pack(&numbered()).unwrap();
+        assert_ne!(
+            section_of(&unpinned, section::PARADIGMS_ZST),
+            section_of(&reference, section::PARADIGMS_ZST)
+        );
+        // The pin that is the pool builds the bytes the pack had without it.
+        let mut same = inputs_with_grammar();
+        same.tag_pool = Some(pin);
+        assert_eq!(build_pack(&same).unwrap(), reference);
+    }
+
+    #[test]
+    fn spec_scenario_fewer_sense_tags_leave_the_readings_alone() {
+        let reference = build_pack(&inputs_with_grammar()).unwrap();
+        let mut fewer = inputs_with_grammar();
+        // No run tagged VERB any more: `run`'s gloss has none, `leave`'s keeps its noun run.
+        fewer.senses = vec![("leave".into(), vec![("NOUN".into(), 2)])];
+        fewer.tag_pool = Some(pool_of(&reference));
+        let bytes = build_pack(&fewer).expect("build");
+        assert_eq!(
+            section_of(&bytes, section::PARADIGMS_ZST),
+            section_of(&reference, section::PARADIGMS_ZST)
+        );
+        assert_eq!(pool_of(&bytes), pool_of(&reference));
+    }
+
+    #[test]
+    fn a_pinned_pool_comes_first_then_reading_tags_then_sense_only_tags() {
+        let mut inp = inputs_with_grammar();
+        inp.senses.push(("city".into(), vec![("NUM".into(), 1)]));
+        inp.tag_pool = Some(vec!["VERB|VerbForm=Ger".into(), "X".into()]);
+        let bytes = build_pack(&inp).expect("build");
+        assert_eq!(
+            pool_of(&bytes),
+            [
+                "VERB|VerbForm=Ger",
+                "X",
+                // The readings' other tags, sorted.
+                "NOUN|Number=Plur",
+                THIRD_SINGULAR,
+                PAST,
+                // Then the tags only senses carry, sorted.
+                "NOUN",
+                "NUM",
+                "VERB",
+            ]
+        );
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(ud(&pack.readings("run", "running")), ["VERB|VerbForm=Ger"]);
+        assert_eq!(ud(&pack.readings("leave", "leaves")), [THIRD_SINGULAR]);
+    }
+
+    #[test]
+    fn a_pinned_pool_is_canonical_and_lists_each_tag_once() {
+        for (pin, named) in [
+            (vec!["VERB|VerbForm=Ger|Mood=Ind"], "VerbForm=Ger|Mood=Ind"),
+            (vec!["VERB", "VERB"], "twice"),
+            (vec!["NOM"], "NOM"),
+        ] {
+            let mut inp = inputs_with_grammar();
+            inp.tag_pool = Some(pin.iter().map(|t| (*t).to_owned()).collect());
+            match build_pack(&inp) {
+                Err(e @ BuildError::Grammar(_)) => {
+                    assert!(e.to_string().contains(named), "{e}");
+                    assert!(e.to_string().contains("pinned tag"), "{e}");
+                }
+                other => panic!("expected a grammar error for {pin:?}, got {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_reading_outside_the_pinned_pool() {
+        // Spanish's pinned pool, as committed beside the es-fr tables: it lacks the clitic's
+        // dative tag.
+        const CLITIC: &str = "PRON|Case=Dat|Number=Sing|Person=1|PronType=Prs";
+        let es_fr =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/lingua-data/tables/es-fr");
+        let pin = read_lines(&es_fr, TAG_POOL_TABLE)
+            .expect("read")
+            .expect("es-fr pins Spanish's tag pool");
+        assert!(!pin.iter().any(|tag| tag == CLITIC), "{CLITIC} is pinned");
+        // The archived Romance pack, built with that pin.
+        let mut inp = inputs();
+        inp.meta.studied = "es".into();
+        inp.meta.analyzer_version = StudiedLanguage::Spanish.analyzer_version().into();
+        inp.form_lemma = vec![("dijéramos".into(), "decir".into())];
+        inp.ranks = vec![
+            ("decir".into(), 50),
+            ("yo".into(), 10),
+            ("leche".into(), 900),
+        ];
+        inp.glosses = vec![("leche".into(), "Lait".into())];
+        inp.readings = vec![
+            reading(
+                "dijéramos",
+                "decir",
+                "VERB|Mood=Sub|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin",
+                true,
+            ),
+            reading(
+                "me",
+                "yo",
+                "PRON|Case=Dat|Number=Sing|Person=1|PronType=Prs",
+                true,
+            ),
+        ];
+        inp.senses = vec![("leche".into(), vec![("NOUN".into(), 1)])];
+        inp.tag_pool = Some(pin.clone());
+        let bytes = build_pack(&inp).expect("build");
+        // The pin first, then the one reading tag it lacks.
+        let pool = pool_of(&bytes);
+        assert_eq!(pool[..pin.len()], pin[..]);
+        assert_eq!(pool[pin.len()..], [CLITIC]);
+        // The core reads that reading back, and the pinned one beside it.
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(ud(&pack.readings("yo", "me")), [CLITIC]);
+        assert_eq!(
+            ud(&pack.readings("decir", "dijéramos")),
+            ["VERB|Mood=Sub|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin"]
+        );
+    }
+
+    /// A Spanish pack: `casa` and `estudiante`, each read as itself, glossed with one noun
+    /// run each, as `runs` tags them.
+    fn spanish_nouns(casa: &str, estudiante: &str) -> PackInputs {
+        let mut inp = inputs();
+        inp.meta.studied = "es".into();
+        inp.meta.native = "en".into();
+        inp.meta.analyzer_version = StudiedLanguage::Spanish.analyzer_version().into();
+        inp.form_lemma = vec![("casas".into(), "casa".into())];
+        inp.ranks = vec![("casa".into(), 300), ("estudiante".into(), 900)];
+        inp.glosses = vec![
+            ("casa".into(), "House".into()),
+            ("estudiante".into(), "Student".into()),
+        ];
+        inp.readings = vec![
+            reading("casa", "casa", "NOUN|Gender=Fem|Number=Sing", false),
+            reading("casas", "casa", "NOUN|Gender=Fem|Number=Plur", false),
+            reading(
+                "estudiante",
+                "estudiante",
+                "NOUN|Gender=Fem|Number=Sing",
+                false,
+            ),
+            reading(
+                "estudiante",
+                "estudiante",
+                "NOUN|Gender=Masc|Number=Sing",
+                false,
+            ),
+        ];
+        inp.senses = vec![
+            ("casa".into(), vec![(casa.into(), 1)]),
+            ("estudiante".into(), vec![(estudiante.into(), 1)]),
+        ];
+        inp
+    }
+
+    fn runs_of(pack: &Pack, lemma: &str) -> Vec<String> {
+        pack.sense_runs(lemma)
+            .into_iter()
+            .map(|(t, _)| t.unwrap().to_ud())
+            .collect()
+    }
+
+    #[test]
+    fn spec_scenario_a_bare_noun_run_gains_the_gender_its_readings_give() {
+        let bytes = build_pack(&spanish_nouns("NOUN", "NOUN")).expect("build");
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(runs_of(&pack, "casa"), ["NOUN|Gender=Fem"]);
+        // The same pack whatever the glosses said of the gender they agree with.
+        assert_eq!(
+            build_pack(&spanish_nouns("NOUN|Gender=Fem", "NOUN")).unwrap(),
+            bytes
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_noun_of_both_genders_keeps_a_bare_run() {
+        let bare = build_pack(&spanish_nouns("NOUN", "NOUN")).unwrap();
+        assert_eq!(runs_of(&Pack::load(&bare).unwrap(), "estudiante"), ["NOUN"]);
+        // Whatever gender the sense table names, readings of both genders leave the run
+        // bare: the pack is the one built from bare runs, whatever the glosses said.
+        for named in ["NOUN|Gender=Masc", "NOUN|Gender=Fem"] {
+            let bytes = build_pack(&spanish_nouns("NOUN", named)).expect(named);
+            assert_eq!(
+                runs_of(&Pack::load(&bytes).unwrap(), "estudiante"),
+                ["NOUN"],
+                "{named}"
+            );
+            assert_eq!(bytes, bare, "{named}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_noun_read_with_no_gender() {
+        // `leche`, ranked and glossed, with no reading at all: its run is neither given a
+        // gender nor stripped of one.
+        let leche = |run: &str| {
+            let mut inp = spanish_nouns("NOUN", "NOUN");
+            inp.ranks.push(("leche".into(), 1_500));
+            inp.glosses.push(("leche".into(), "Milk".into()));
+            inp.senses.push(("leche".into(), vec![(run.into(), 1)]));
+            let pack = Pack::load(&build_pack(&inp).expect(run)).unwrap();
+            runs_of(&pack, "leche")
+        };
+        assert_eq!(leche("NOUN|Gender=Fem"), ["NOUN|Gender=Fem"]);
+        assert_eq!(leche("NOUN"), ["NOUN"]);
+        // A noun with no gendered reading, an English one, keeps its run as it is.
+        let pack = Pack::load(&build_pack(&inputs_with_grammar()).unwrap()).unwrap();
+        assert_eq!(runs_of(&pack, "leave"), ["VERB", "NOUN"]);
+    }
+
+    #[test]
+    fn spec_scenario_a_run_its_readings_contradict() {
+        match build_pack(&spanish_nouns("NOUN|Gender=Masc", "NOUN")) {
+            Err(e @ BuildError::Grammar(_)) => {
+                let msg = e.to_string();
+                assert!(msg.contains("\"casa\""), "{msg}");
+                assert!(
+                    msg.contains("Gender=Masc") && msg.contains("Gender=Fem"),
+                    "{msg}"
+                );
+            }
+            other => panic!("expected a grammar error, got {other:?}"),
         }
     }
 }

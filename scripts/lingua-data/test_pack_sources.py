@@ -9,8 +9,10 @@
 Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
+import contextlib
 import datetime
 import gzip
+import io
 import json
 import re
 import shutil
@@ -262,6 +264,7 @@ class Record(unittest.TestCase):
         self.root = Path(self._tmp.name)
         self.pin = self.root / "en-fr" / "pin.json"
         ps.save(self.pin, {"snapshot": "2026.09.26", "sources": {"wordfreq": {"version": "3.1.1"}}})
+        (self.pin.parent / "tags.tsv").write_text("NOUN\nVERB\n")
         self.pack = self.root / "pack.lingua"
         self.pack.write_bytes(b"LINGUA pack")
         self.reducer = self.root / "reduce-en-fr.py"
@@ -322,6 +325,45 @@ class Record(unittest.TestCase):
             text=True,
         ).stdout.strip()
         self.assertEqual(got, ps.sha256(self.pack))
+
+    def test_a_build_is_recorded_only_beside_the_pinned_tag_pool(self):
+        # add-lingua-pack-lexical-layer D4: tags.tsv is an input no reducer writes; tables reduced
+        # again without it would build a pack whose readings another pair stores differently.
+        (self.pin.parent / "tags.tsv").unlink()
+        with self.assertRaisesRegex(ps.PinError, "tags.tsv"):
+            ps.record_build(self.pin, self.pack, self.reducer)
+        self.assertNotIn("pack", ps.load(self.pin))
+
+    def test_keep_copies_the_inputs_no_reducer_writes(self):
+        committed = self.pin.parent
+        (committed / "lexical.tsv").write_text("casa\n")
+        (committed / "gloss.tsv").write_text("casa\tMaison\n")
+        scratch = self.root / "dry" / "en-fr"
+        self.assertEqual(ps.keep(committed, scratch), ["tags.tsv", "lexical.tsv"])
+        self.assertEqual((scratch / "tags.tsv").read_text(), "NOUN\nVERB\n")
+        self.assertEqual((scratch / "lexical.tsv").read_text(), "casa\n")
+        self.assertFalse((scratch / "gloss.tsv").exists(), "a reducer's table is not kept")
+        # Into the folder itself, nothing is copied.
+        self.assertEqual(ps.keep(committed, committed), [])
+        # A pair without a lexical table keeps its pool alone.
+        (committed / "lexical.tsv").unlink()
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ps.main(["keep", "--from", str(committed), "--to", str(self.root / "other")]), 0)
+        self.assertEqual(out.getvalue(), "kept tags.tsv\n")
+        self.assertEqual(sorted(p.name for p in (self.root / "other").iterdir()), ["tags.tsv"])
+
+    def test_build_sh_never_overwrites_a_kept_input(self):
+        # copy_tables touches the tables a reducer writes alone, so reducing a pair again keeps
+        # tags.tsv and lexical.tsv; a dry run copies them into its scratch folder.
+        script = (HERE / "build.sh").read_text()
+        written = re.search(r"^TABLE_FILES=\((.*?)\)$", script, re.M).group(1).split()
+        self.assertTrue(written)
+        self.assertFalse(set(written) & set(ps.KEPT_INPUTS))
+        self.assertIn('pack_sources.py" keep --from', script)
+
+    def test_every_committed_pair_keeps_its_pinned_tag_pool(self):
+        for pin in sorted((HERE / "tables").glob("*/pin.json")):
+            self.assertTrue((pin.parent / ps.PINNED_POOL).is_file(), pin.parent.name)
 
     def test_the_committed_record_is_complete(self):
         pin = HERE / "tables" / "en-fr" / "pin.json"
