@@ -78,9 +78,17 @@ it); English and Spanish forms receive `Intl.NumberFormat`'s number.
 holding `fr`, `en` or `es`; `interfaceLanguage(area)` reads it, absent or unknown meaning `fr`
 for a device that predates the key (M22: existing installs stay French; change 20 presets a new
 install from the browser's language and writes the key). The store's owner — the background,
-which alone writes the backup (`state/store.ts`) — writes the key from the backup's profile
-whenever it writes the backup: a profile change, a restore from a file, a full reset and the
-first hydration all go through that one write, so the key cannot go stale behind the profile.
+which alone writes the backup (`state/store.ts`) — alone writes the key, at two moments: at its
+start, when the key is absent, from the stored backup (a device updated with a profile already
+stored; a key already held is kept, with no read of the backup, since the background wakes often
+and every surface's first read waits behind it); and after each write of the backup — a profile
+change, a restore from a file, a full reset and the first hydration all go through that one
+write — off the write path, once for a burst of writes, and only when the language differs from
+the one last written, so the key cannot go stale behind the profile and a word's status change,
+which rewrites the backup, costs no write of it. The key holds the native language as the
+extension serves it — `nativeLanguageOf(backup, pairs)`'s gate, the one the reading engine
+applies: French when no listed pair is glossed in the profile's language (M22), so the interface
+speaks the language the glosses are written in.
 The key mirrors the profile (M2: one choice) and a later override (M2's reservation) is a
 different key, with no migration. The preferences every surface reads from `chrome.storage.local`
 before it renders its copy (`loadEnabled`, the colours, the HUD state) are the model: a surface
@@ -149,5 +157,5 @@ and Spanish quote their own catalogue's.
 
 ## Migration Plan
 
-One release, silent. The key is written at the background's first read of the profile; a device
-that never writes it reads `fr`.
+One release, silent. The key is written at the background's first start after the update, from
+the stored profile, when the device holds none; a device that never writes it reads `fr`.

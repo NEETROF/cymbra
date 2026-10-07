@@ -9,7 +9,15 @@ missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts
 runtime: no empty entry, every slot taken, nothing left in French outside the texts that are the same
 in every language. `test/lint-copy.spec.ts` refuses a French literal in `src/` outside this
 directory, except in the files its baseline names — the surfaces still holding their copy, which the
-changes moving them (`add-lingua-popup-language` and the following) take off the list.
+changes moving them take off the list: `localise-lingua-reading-surfaces` (14),
+`localise-lingua-settings` (15), `localise-lingua-review-stats` (16),
+`localise-lingua-account-onboarding` (17).
+
+One copy site the lint cannot see: `src/reading/speech.ts`'s `voiceLabel` names a voice's region
+through `new Intl.DisplayNames(["fr"], { type: "region" })` and writes `${voice.name} — ${place}` —
+no French literal, French output. Change 15 moves it, with a `regionName(language, code)` helper and
+a `settings.voiceLabel` slot message; until then a voice is named in French in every interface
+language.
 
 The interface language is the reader's native language (`language.ts`: `interfaceLanguage(area)`,
 `fr` when the key is absent); `index.ts` holds the helpers — `plural`, `formatNumber`,
@@ -73,10 +81,14 @@ peninsular, but Spain's conventions where one must be picked (« Ajustes », « 
 by « dispositivo »). The reader is addressed without a gender: « Has iniciado sesión », never
 « conectado/a ». Guillemets « » with no inner space; ¿ ¡ open every question and exclamation; no space
 before a colon; the French's « — » between two clauses becomes a colon or a full stop, as Spanish
-writes it. Numbers as the RAE writes them (`formatNumber("es", n)`): no grouping below ten thousand
-(« 5000 »), then groups of three parted by a narrow no-break space (« 20 000 »); a comma before the
-decimals (« 25,8 »); a percentage with a narrow no-break space before the sign (« 96 % »). Dates
-through `es-ES` (`4/10/2026`, `4 de octubre de 2026`). Ordinals with the period: 1.ª, 2.ª, 3.ª.
+writes it — but a page or window title keeps its dash (« Cuenta — Cymbra Lingua », « Cymbra Lingua —
+repaso »), since it parts two names, not two clauses. Numbers as the RAE writes them
+(`formatNumber("es", n)`): no grouping below ten thousand (« 5000 »), then groups of three parted by a
+narrow no-break space (« 20 000 »); a comma before the decimals (« 25,8 »). The helper writes that
+grouping itself, so a caller's `useGrouping` is overridden in Spanish: the RAE's rule is the only
+grouping Spanish gets. A percentage takes a narrow no-break space before the sign (« 96 % », U+202F) —
+the project's convention, where `Intl` would put a no-break space (U+00A0). Dates through `es-ES`
+(`4/10/2026`, `4 de octubre de 2026`). Ordinals with the period: 1.ª, 2.ª, 3.ª.
 
 Terms: Ajustes (Réglages), mazo (deck), tarjeta (card), repaso / repasar, palabras conocidas /
 desconocidas, palabras en aprendizaje (« mots en cours »), resaltado (surlignage), nivel, MCER

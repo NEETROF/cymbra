@@ -1,15 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: The interface language is the reader's native language, under its own key
-The interface language SHALL be the reader's native language — `fr`, `en` or `es` — and SHALL be stored on the device under its own key, which the store's owner SHALL write from the profile's native language whenever it writes the backup; a device that predates the key, whose key is absent or unknown, SHALL read `fr`. Every surface SHALL be able to read the interface language before it renders its copy, without an engine.
+The interface language SHALL be the reader's native language — `fr`, `en` or `es` — and SHALL be stored on the device under its own key, which the store's owner alone SHALL write — at its start when the key is absent, and after a write of the backup — from the native language as the extension serves it: the profile's, or French when no listed pair is glossed in it; a device that predates the key, whose key is absent or unknown, SHALL read `fr`. Every surface SHALL be able to read the interface language before it renders its copy, without an engine.
 
 #### Scenario: Every installed reader
 - **WHEN** a reader whose profile names no native language opens any surface
 - **THEN** the surface reads `fr`, and the French interface is shown
 
 #### Scenario: The key follows the profile
-- **WHEN** the background reads or sets a profile whose native language is Spanish
-- **THEN** the key holds `es`, and a surface opened afterwards reads `es`
+- **WHEN** the background reads or sets a profile whose native language is Spanish, with a pair glossed in Spanish listed
+- **THEN** the key holds `es` once the owner has reacted to the write, and a surface opened afterwards reads `es`
 
 #### Scenario: A surface before any engine
 - **WHEN** the popup or the account page opens
@@ -17,7 +17,7 @@ The interface language SHALL be the reader's native language — `fr`, `en` or `
 
 #### Scenario: A restore from a file
 - **WHEN** a backup whose profile names Spanish is restored from a file
-- **THEN** the key holds `es` once the backup is written
+- **THEN** the key holds `es` once the backup is written and the owner has reacted to it
 
 ### Requirement: The interface's copy is kept in one typed catalogue per language
 The interface's copy SHALL be kept in one catalogue per language, one module per surface, the French module the source and the English and Spanish modules typed after it, so that a key missing in a language does not compile; a surface moved to the catalogue SHALL read every text it shows from it; a sentence built from parts SHALL be one message taking its parts, and a count SHALL take plural forms chosen by `Intl.PluralRules` for the interface language. A French string literal outside the catalogue SHALL fail a lint, except in a file the lint's baseline names; the baseline SHALL fail when it names a file holding no literal. No English or Spanish entry SHALL be empty or equal to its French one unless the text is the same in every language.
