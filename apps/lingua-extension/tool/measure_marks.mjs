@@ -20,6 +20,7 @@ import { gunzipSync } from "node:zlib";
 import { escapeText, markSelection, readMarked, selectedText } from "../src/translate/markup.ts";
 import { reconcileMarks } from "../src/translate/reconcile.ts";
 import { parseConllu, pudText } from "./marks/pud.mjs";
+import { studiedOf } from "./packs.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const APP = join(here, "..");
@@ -137,6 +138,9 @@ function table(folder, name) {
   }
   return rows;
 }
+// The experiment's stop words, and the `french` key of a result line, are French-native: every pair
+// measured so far is glossed in French. measure-lingua-translation-matrix-marks (change 26) generalises
+// them with the first pair of another native language, es-en.
 const STOP = new Set(
   "le la les un une des de du d l et ou en au aux à a pour par sur dans avec sans qui que se sa son ses leur leurs ce cet cette ces ne pas plus est être avoir être faire".split(
     " ",
@@ -183,8 +187,8 @@ async function main() {
       `--pair <pair> is required: one of the catalogue's routes, ${Object.keys(catalogue.routes).join(" or ")}`,
     );
   }
-  // The studied language, from the pair's name: the corpus and the PUD text are its.
-  const studied = pair.slice(0, pair.indexOf("-"));
+  // The studied language, from the pair's name as the build reads it: the corpus and the PUD text are its.
+  const studied = studiedOf(pair);
   const translate = await engine(arg("--models"), route);
   const sentences = new Map(parseConllu(await pudText(studied)).map((s) => [s.id, s.text]));
   // The forms are the studied language's, kept once in tables/<studied>/

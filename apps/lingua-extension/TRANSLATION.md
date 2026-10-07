@@ -52,7 +52,9 @@ taken again.
 A page asks in the document's language and never names a pair: the background forms the pair from
 that language and the reader's native language, read from their stored profile, gates on it — the
 device records which pairs are ready — and asks the engine for that pair's route. A pair the
-catalogue lists no route for is unavailable, and the engine is not started for it. Marks are
+catalogue lists no route for is unavailable, and the engine is not started for it. A route is
+reached only once a pack glossed in that native language ships, since a reader is served the pairs
+of their native language alone: changes 21, 22 and 25 ship each pack with its route. Marks are
 measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`): es-fr's measurement says nothing of
 es-en's.
 
