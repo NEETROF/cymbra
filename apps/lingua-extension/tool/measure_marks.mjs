@@ -9,123 +9,22 @@
 // Usage: node --experimental-strip-types tool/measure_marks.mjs --pair <pair> [--models <assembled-site-dir>]
 //   The pair is one the catalogue routes (en-fr, es-fr); the corpus is its studied language's. The
 //   models come from that directory (tool/assemble_model_site.mjs) or, without it, from the
-//   catalogue's host; every file is checked against the catalogue's sha256 before use.
+//   catalogue's host; every file is checked against the catalogue's sha256 before use. The engine
+//   itself is loaded by tool/marks/engine.mjs, shared with the soak (tool/soak_engine.mjs).
 
-import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import vm from "node:vm";
-import { gunzipSync } from "node:zlib";
 import { escapeText, markSelection, readMarked, selectedText } from "../src/translate/markup.ts";
 import { reconcileMarks } from "../src/translate/reconcile.ts";
+import { catalogue, engine } from "./marks/engine.mjs";
 import { parseConllu, pudText } from "./marks/pud.mjs";
 import { studiedOf } from "./packs.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const APP = join(here, "..");
 const TABLES = join(APP, "../../scripts/lingua-data/tables");
-const catalogue = JSON.parse(readFileSync(join(APP, "model-manifest.json"), "utf8"));
 const corpus = JSON.parse(readFileSync(join(here, "marks/corpus.json"), "utf8"));
-
-// engine-worker.ts's own constants, key for key.
-const MARIAN_CONFIG = {
-  "beam-size": "1",
-  normalize: "1.0",
-  "word-penalty": "0",
-  "max-length-break": "128",
-  "mini-batch-words": "1024",
-  workspace: "128",
-  "max-length-factor": "2.0",
-  "skip-cost": "true",
-  "cpu-threads": "0",
-  quiet: "true",
-  "quiet-translation": "true",
-  "gemm-precision": "int8shiftAlphaAll",
-  alignment: "soft",
-};
-const ALIGNMENT = { model: 256, lex: 64, vocab: 64 };
-const INITIAL_MEMORY = 234_291_200;
-
-function textConfig(config) {
-  const indent = "            ";
-  let out = "\n";
-  for (const [key, value] of Object.entries(config)) out += `${indent}${key}: ${value}\n`;
-  return out + indent;
-}
-
-const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
-
-async function modelFile(file, modelsDir) {
-  const raw = modelsDir
-    ? readFileSync(join(modelsDir, file.path))
-    : Buffer.from(await (await fetch(new URL(file.path, catalogue.base))).arrayBuffer());
-  const bytes = gunzipSync(raw);
-  if (sha256(bytes) !== file.sha256) throw new Error(`${file.path}: not the pinned bytes`);
-  return bytes;
-}
-
-/** The engine with `route`'s models built, as engine-worker.ts builds them: one markup string in, its translation out. */
-async function engine(modelsDir, route) {
-  globalThis.self = globalThis;
-  vm.runInThisContext(
-    readFileSync(join(APP, "engine/bergamot-translator.js"), "utf8") + "\n;globalThis.__loadBergamot = loadBergamot;",
-  );
-  const wasmBinary = readFileSync(join(APP, "engine/bergamot-translator.wasm"));
-  const bergamot = await new Promise((resolve, reject) => {
-    const instance = globalThis.__loadBergamot({
-      INITIAL_MEMORY,
-      print: () => {},
-      onAbort: (what) => reject(new Error(`the engine aborted: ${String(what)}`)),
-      onRuntimeInitialized: () => resolve(instance),
-      wasmBinary,
-    });
-  });
-  const aligned = (data, alignment) => {
-    const memory = new bergamot.AlignedMemory(data.byteLength, alignment);
-    memory.getByteArrayView().set(data);
-    return memory;
-  };
-  const build = async (id) => {
-    const manifest = catalogue.models[id];
-    const [model, lex, vocab] = await Promise.all(
-      ["model", "lex", "vocab"].map((role) => modelFile(manifest.files[role], modelsDir)),
-    );
-    const vocabs = new bergamot.AlignedMemoryList();
-    vocabs.push_back(aligned(vocab, ALIGNMENT.vocab));
-    return new bergamot.TranslationModel(
-      manifest.from,
-      manifest.to,
-      textConfig(MARIAN_CONFIG),
-      aligned(model, ALIGNMENT.model),
-      aligned(lex, ALIGNMENT.lex),
-      vocabs,
-      null,
-    );
-  };
-  const service = new bergamot.BlockingService({ cacheSize: 0 });
-  const [first, second] = await Promise.all(route.map(build));
-  /** One markup string through the pair's route, as engine-worker.ts translates it. */
-  return (markup) => {
-    const messages = new bergamot.VectorString();
-    const options = new bergamot.VectorResponseOptions();
-    messages.push_back(markup);
-    options.push_back({ qualityScores: false, alignment: true, html: true });
-    try {
-      const responses = second
-        ? service.translateViaPivoting(first, second, messages, options)
-        : service.translate(first, messages, options);
-      try {
-        return responses.get(0).getTranslatedText();
-      } finally {
-        responses.delete();
-      }
-    } finally {
-      messages.delete();
-      options.delete();
-    }
-  };
-}
 
 // D5 — the experiment: the pack's own gloss of the selected word, found in the translated sentence.
 
