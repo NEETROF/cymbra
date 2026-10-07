@@ -58,10 +58,13 @@ programme settled.
 
 The page keeps asking in the document's language (*A translation is asked in its document's
 language*): `TranslationRequest.language` and `WarmMessage.language` are unchanged. The
-background forms `pair = `${language}-${native}``, with the native language read from the stored
-profile exactly as `ModelController`'s `languages()` reads it today (`nativeLanguageOf`, or
-`DEFAULT_NATIVE` without a backup), then asks `model.ready(pair)`, `relayTranslation(engine,
-request, pair)` and `relayWarm(…, pair)`. From there inward everything carries the pair:
+background forms the pair with `pairOf(language, native)`, a function of `relay.ts` (measured,
+tested), with the native language read from the stored profile exactly as `ModelController`'s
+`languages()` reads it today (`nativeLanguageOf`, or `DEFAULT_NATIVE` without a backup), then asks
+`model.ready(pair)`, `relayTranslation(engine, request, pair)` and `relayWarm(…, pair)`.
+`background.ts` itself is excluded from the coverage gate, so the forming and the two answers
+(*The same page for another native language*, *A pair without a route*) are tested through
+`pairOf` and the relay, with the background as thin glue. From there inward everything carries the pair:
 `EngineAccess.translate(markup, pair)` and `warm(pair)`; the offscreen `translate` and `warm`
 requests; `WorkerRequest` `load` and `translate`; the channel's `loads`; the worker's `routes`.
 
@@ -111,8 +114,9 @@ pair's name, and the gloss tables from `tables/<studied>/` and `tables/<pair>/`.
 judgments are filed by pair: `results-en.jsonl` → `results-en-fr.jsonl`, `judged-en.tsv` →
 `judged-en-fr.tsv`, and the Spanish ones likewise (`git mv`, bytes unchanged). `corpus.json` and
 `select_corpus.mjs` stay keyed by studied language: a selection is of the text it was made in, and
-es-en will be measured on the same Spanish selections as es-fr (change 26). The harness README says
-which file is which.
+es-en will be measured on the same Spanish selections as es-fr (change 26). The harness's
+stop-word list and its `french` result key are French-native today; change 26 generalises them
+with the first pair of another native. The harness README says which file is which.
 
 ### D7 — The page's memory and keep-warm stay keyed by the document's language
 
@@ -127,9 +131,11 @@ page is open, decides what the page does then.
 - **A stored state misread as the wrong pairs** → `parseModelState` tests cover `languages` from
   the two previous shapes, with and without `models`; the mapping uses `DEFAULT_NATIVE`, which is
   the native of every pair shipped so far.
-- **A route key the parser accepts that a pack never has** (`en-fr-x`) → the key is split on its
-  first `-`, as `pairs.ts` splits a pack's name; a key with no `-` or an empty side is refused,
-  and the catalogue with it (nothing is fetched).
+- **A route key the parser accepts that a pack never has** → the key is split on its first `-`
+  into a studied and a native language; `pairs.ts` reads a pack's name with `split("-")`, which
+  agrees on every real pair; a key with no `-` or an empty side (`en`, `en-`) is refused, and so
+  is a key whose native side is no language the catalogue's models reach (`en-fr-x` ends in
+  `fr-x`, which no model translates into), and the catalogue with it (nothing is fetched).
 - **The three hosts drift** → the host-independence lint (`lint-translation-platform.spec.ts`)
   and the offscreen and channel tests carry the pair; `check_variants` still requires the bundled
   routes to equal the committed ones.

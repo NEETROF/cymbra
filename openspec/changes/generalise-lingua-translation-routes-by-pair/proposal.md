@@ -69,6 +69,10 @@ None.
   - ADDED *A translation goes through the reader's pair*: the background forms the pair; the page
     asks in the document's language; a pair without a route is unavailable without the engine
     starting.
+  - MODIFIED *A translation is asked in its document's language*, *The answer is the reader's
+    sentence with their selection marked* and *Spanish is translated through English*: the
+    sentences that said "that language's route", "English, and Spanish" and "Spanish's route" now
+    say the reader's pair, en-fr and es-fr; every scenario kept.
 
 No requirement this change modifies is held by an open change (`add-lingua-translation-delivery`,
 `-android` and `-safari` hold the setting's, the download's and the loading's requirements, none of

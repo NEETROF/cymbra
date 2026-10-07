@@ -19,11 +19,11 @@ The background SHALL form the pair of a translation from the language the page a
 - **THEN** the background asks for en-fr's route, and the sentence is translated as before
 
 #### Scenario: The same page for another native language
-- **WHEN** a reader whose native language is Spanish selects words on an English page, and the catalogue lists en-es
+- **WHEN** a reader whose native language is Spanish selects words on an English page, and en-es ships with its route
 - **THEN** the background asks for en-es's route, and nothing of en-fr is loaded
 
 #### Scenario: A pair without a route
-- **WHEN** a reader whose native language is Spanish selects words on an English page, and the catalogue lists no en-es
+- **WHEN** a reader whose native language is Spanish selects words on an English page, and no en-es ships
 - **THEN** the answer is unavailable, and the engine is not started
 
 #### Scenario: A state recorded before pairs
@@ -79,7 +79,7 @@ While extended translation is on, the device SHALL keep the models that the rout
 - **THEN** the models only es-fr needed are deleted, and en-fr stays
 
 #### Scenario: The native language changes
-- **WHEN** a reader of English whose native language was French now has Spanish as their native language, and the catalogue lists en-es
+- **WHEN** a reader of English whose native language was French now has Spanish as their native language, and en-es ships with its route
 - **THEN** the models en-es's route needs are the needed ones, the ones only en-fr needed are deleted, and nothing is fetched until the reader asks
 
 #### Scenario: A model stored before the update
@@ -108,3 +108,59 @@ A pair SHALL have its selection marked only once its marks, measured on the comm
 #### Scenario: A pair measured in another native language
 - **WHEN** es-en is listed in the catalogue and its marks are not yet measured
 - **THEN** es-en is translated without a mark, although es-fr's marks are measured
+
+### Requirement: A translation is asked in its document's language
+A translation request SHALL name the language of the document the sentence was read in. The background SHALL form the reader's pair from that language and the reader's native language, SHALL answer the request only when every model of that pair's route is on the device, and SHALL otherwise answer as without a model. The engine SHALL translate the sentence through that pair's route.
+
+#### Scenario: An English page
+- **WHEN** a reader of French with the en-fr model ready selects a phrase on an English page
+- **THEN** the request names English, and the translation comes through en-fr's route
+
+#### Scenario: A language whose models are not all there
+- **WHEN** a reader selects a phrase on a page in a language whose pair's route has a model that is not on the device
+- **THEN** the card answers as it does without a model
+
+### Requirement: The answer is the reader's sentence with their selection marked
+A translation SHALL answer with the whole sentence the selection sits in, and SHALL mark, within that translated sentence, the span corresponding to what the reader selected, for a pair whose marks have been measured: en-fr, and es-fr, whose marks through English `release-lingua-spanish-translation` measured on the programme's first tier. For a pair whose marks are not measured, the selection SHALL be sent untagged, in a single request, and the answer SHALL be the translated sentence without a mark.
+The selection SHALL be translated in its sentence rather than on its own, so that its form
+carries the grammar the context imposes. The marked span SHALL be identifiable in the answer
+without the caller re-reading the source text.
+
+#### Scenario: A fragment carries the sentence's grammar
+- **WHEN** the reader selects a verb phrase inside a sentence whose subject and tense determine its form
+- **THEN** the marked span holds that form, not the form the fragment would take alone
+
+#### Scenario: A fragment whose translation is shorter than itself
+- **WHEN** the reader selects several words that correspond to a single word in the target language
+- **THEN** the marked span covers that single word
+
+#### Scenario: The whole sentence is available too
+- **WHEN** a translation is returned
+- **THEN** the caller can show the translated sentence as well as the marked span
+
+#### Scenario: A Spanish sentence
+- **WHEN** a reader of French selects a word in a Spanish sentence
+- **THEN** the answer is the whole sentence in French, through English, the selection marked
+
+#### Scenario: A language whose marks are not measured
+- **WHEN** a translation is asked for a pair whose marks were not measured
+- **THEN** the answer is the whole sentence in the reader's native language without a mark, from a single request to the engine
+
+### Requirement: Spanish is translated through English
+The catalogue SHALL carry Mozilla's es-en model, pinned like every model, and es-fr's route SHALL be es-en then en-fr. The engine SHALL load the models of a two-model route once, and SHALL translate a sentence through both in one request. For a reader of French whose accepted languages include Spanish, the setting SHALL state the download of both models.
+
+#### Scenario: A reader of Spanish turns the setting on
+- **WHEN** a reader of French who accepts Spanish opens « Traduction étendue » before ticking it
+- **THEN** it says it downloads 52,0 Mo once, and ticking it stores both models
+
+#### Scenario: A reader of English alone
+- **WHEN** a reader of French who accepts English alone opens « Traduction étendue »
+- **THEN** it says it downloads 25,8 Mo once, as before
+
+#### Scenario: A Spanish selection
+- **WHEN** a reader of French with both models selects a phrase on a Spanish page
+- **THEN** the French sentence comes back from es-en then en-fr, in one request to the engine
+
+#### Scenario: The host misses the es-en model
+- **WHEN** the model host does not serve a file of the es-en model
+- **THEN** the check run before a submission fails, naming that file
