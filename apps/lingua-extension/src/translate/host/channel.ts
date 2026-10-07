@@ -20,6 +20,12 @@
 // trapped is asked again the same way, each once — a marked selection's two requests (relay.ts)
 // both get their answer from the fresh instance. An ordinary refusal — no model, a route too long,
 // not loaded — is passed on as it always was, and the worker is kept.
+//
+// One refusal the channel acts on, with the worker kept: `reload`. The worker holds two models at
+// most and deletes the least recently used for a third (D3), so a route the channel loaded may be
+// gone when a translation comes through it; the worker says so with `reload`, and the channel
+// forgets the pair, loads the route again — under the start bound, since a pivot's rebuild on a
+// tablet can pass the translate bound — and asks once more. Once, and not counted as a trap's replay.
 
 import type { EngineAccess, EngineReply, WorkerRequest, WorkerResponse } from "./engine.ts";
 import { ENGINE_IDLE_MS } from "../port.ts";
@@ -68,7 +74,11 @@ const TRAPPED = Symbol("trapped");
 
 export class EngineChannel implements EngineAccess {
   private worker: WorkerLike | null = null;
-  /** Each pair's route, loading or loaded in the worker (model-state D5, routes-by-pair D2). */
+  /**
+   * Each pair's route, loading or loaded in the worker (model-state D5, routes-by-pair D2) — as
+   * far as the channel knows: the worker may delete one for another pair's route (D3), and says
+   * so with `reload` when a translation comes through it.
+   */
   private readonly loads = new Map<string, Promise<Loaded>>();
   private seq = 0;
   private readonly waiting = new Map<number, Waiter>();
@@ -136,12 +146,25 @@ export class EngineChannel implements EngineAccess {
     return { ok: false, reason: TRAPPED_TWICE };
   }
 
-  /** The route loaded, the markup sent, the reply read — or TRAPPED, when the worker trapped under either. */
+  /**
+   * The route loaded, the markup sent, the reply read — or TRAPPED, when the worker trapped under
+   * either. A route the worker deleted since it was loaded here (`reload`) is loaded again, under
+   * the start bound, and the markup sent once more — once, with the worker kept.
+   */
   private async attempt(markup: string, pair: string): Promise<EngineReply | typeof TRAPPED> {
     const started = await this.start(pair);
     if (started === "trapped") return TRAPPED;
     if (started !== "loaded") return { ok: false, reason: "the engine did not start" };
-    const reply = await this.call({ op: "translate", markup, pair }, TRANSLATE_TIMEOUT_MS);
+    const loading = this.loads.get(pair);
+    let reply = await this.call({ op: "translate", markup, pair }, TRANSLATE_TIMEOUT_MS);
+    if (reply && !reply.ok && reply.reload) {
+      // Forgotten unless a request forgot it first: two in flight through the pair share the one load again.
+      if (this.loads.get(pair) === loading) this.loads.delete(pair);
+      const again = await this.start(pair);
+      if (again === "trapped") return TRAPPED;
+      if (again !== "loaded") return { ok: false, reason: "the engine did not start" };
+      reply = await this.call({ op: "translate", markup, pair }, TRANSLATE_TIMEOUT_MS);
+    }
     if (!reply) {
       // A synchronous wasm call cannot be interrupted: a worker past its bound is stuck in one,
       // and everything sent after would queue behind it. Put it down; the next request starts

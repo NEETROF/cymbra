@@ -7,7 +7,14 @@ import {
   TRAPPED_TWICE,
   type WorkerLike,
 } from "@/translate/host/channel.ts";
-import { isTrap, LONG_ROUTE, NO_MODEL, type WorkerRequest, type WorkerResponse } from "@/translate/host/engine.ts";
+import {
+  isTrap,
+  LONG_ROUTE,
+  NO_MODEL,
+  NOT_LOADED,
+  type WorkerRequest,
+  type WorkerResponse,
+} from "@/translate/host/engine.ts";
 import { ENGINE_IDLE_MS } from "@/translate/port.ts";
 
 /** A worker that records what it is sent and answers only when the test says so. */
@@ -24,12 +31,16 @@ class FakeWorker implements WorkerLike {
     this.terminated = true;
   }
   /** Answer the n-th request it was sent. */
-  reply(n: number, body: { ok: true; html?: string } | { ok: false; error: string; trap?: true }): void {
+  reply(n: number, body: { ok: true; html?: string } | { ok: false; error: string; trap?: true; reload?: true }): void {
     this.onmessage?.({ data: { id: this.sent[n]!.id, ...body } as WorkerResponse });
   }
   /** The engine trapped under the n-th request, as engine-worker.ts reports it before closing itself (D1). */
   trap(n: number): void {
     this.reply(n, { ok: false, error: "Aborted(memory access out of bounds)", trap: true });
+  }
+  /** The worker no longer holds the n-th request's route — deleted for another pair's (D3) — as engine-worker.ts refuses it. */
+  notLoaded(n: number): void {
+    this.reply(n, { ok: false, error: NOT_LOADED, reload: true });
   }
   crash(): void {
     this.onerror?.(new Event("error"));
@@ -455,12 +466,35 @@ describe("isTrap — a trap told from a refusal (harden-lingua-translation-engin
     expect(isTrap(new WebAssembly.RuntimeError("Aborted(OOM)"))).toBe(true);
   });
 
-  it("is none of the engine's refusals", () => {
-    for (const refusal of [NO_MODEL, LONG_ROUTE, "the engine is not loaded", "engine/model.bin: 404", "aborted"]) {
+  it("is a C++ exception the glue rethrows as the bare pointer it is: nothing unwound the wasm stack", () => {
+    expect(isTrap(5_247_104)).toBe(true);
+    expect(isTrap(0)).toBe(true);
+  });
+
+  it("is the wasm stack blown: V8's and JavaScriptCore's RangeError, SpiderMonkey's InternalError", () => {
+    expect(isTrap(new RangeError("Maximum call stack size exceeded"))).toBe(true);
+    expect(isTrap(new RangeError("Maximum call stack size exceeded."))).toBe(true);
+    const firefox = new Error("too much recursion");
+    firefox.name = "InternalError";
+    expect(isTrap(firefox)).toBe(true);
+  });
+
+  it("is none of the engine's refusals, nor a RangeError over a length", () => {
+    for (const refusal of [
+      NO_MODEL,
+      LONG_ROUTE,
+      NOT_LOADED,
+      "the engine is not loaded",
+      "engine/model.bin: 404",
+      "aborted",
+    ]) {
       expect(isTrap(new Error(refusal))).toBe(false);
     }
+    expect(isTrap(new RangeError("Invalid array length"))).toBe(false);
+    expect(isTrap(new RangeError("Invalid typed array length: 234291200"))).toBe(false);
     expect(isTrap("Aborted(a string, not an error)")).toBe(false);
     expect(isTrap(undefined)).toBe(false);
+    expect(isTrap(null)).toBe(false);
   });
 });
 
@@ -521,6 +555,7 @@ describe("EngineChannel — the engine survives a trap (harden-lingua-translatio
     expect(h.workers[1]!.terminated).toBe(true);
     expect(h.workers).toHaveLength(2); // asked twice, never a third time
     expect(h.channel.running()).toBe(false);
+    expect(h.pending()).toBe(0); // nothing armed on a worker put down — no bound, no countdown
 
     expect(h.log.mock.calls).toEqual([
       ["trapped, asked again:", { pair: "en-fr", markup: 20 }],
@@ -648,6 +683,31 @@ describe("EngineChannel — the engine survives a trap (harden-lingua-translatio
     await expect(fragment).resolves.toMatchObject({ ok: true });
   });
 
+  it("a trap with the idle countdown armed: the countdown goes with the worker put down, and nothing stale fires on the fresh one", async () => {
+    const onIdle = vi.fn();
+    const h = setup(onIdle);
+    const [first] = await inFlight(h, "en-fr", "x");
+    h.workers[0]!.reply(1, { ok: true, html: "y" });
+    await first;
+    expect(h.pending()).toBe(1); // the countdown from that answer
+
+    const again = h.channel.translate("again", "en-fr");
+    await flush();
+    h.workers[0]!.trap(2);
+    await flush();
+    expect(h.workers).toHaveLength(2);
+    expect(h.pending()).toBe(1); // the fresh worker's load bound — the old countdown went with the old worker
+    h.elapse(ENGINE_IDLE_MS); // were it still armed, it would put the fresh worker down mid-replay
+    expect(h.workers[1]!.terminated).toBe(false);
+    expect(onIdle).not.toHaveBeenCalled();
+
+    h.workers[1]!.reply(0, { ok: true });
+    await flush();
+    h.workers[1]!.reply(1, { ok: true, html: "encore" });
+    await expect(again).resolves.toEqual({ ok: true, html: "encore" });
+    expect(h.pending()).toBe(1); // one countdown, on the fresh worker
+  });
+
   it("a trap restarts the idle countdown from the answer the fresh worker gave", async () => {
     const h = setup();
     const [answer] = await inFlight(h, "en-fr", "x");
@@ -660,5 +720,128 @@ describe("EngineChannel — the engine survives a trap (harden-lingua-translatio
     expect(h.pending()).toBe(1); // one countdown, on the fresh worker
     h.elapse(ENGINE_IDLE_MS);
     expect(h.workers[1]!.terminated).toBe(true);
+  });
+});
+
+describe("EngineChannel — a route the worker deleted is loaded again (harden-lingua-translation-engine D3)", () => {
+  /** en-fr loaded and one translation answered: the channel believes en-fr is in the worker. */
+  async function loadedEnglish(h: ReturnType<typeof setup>) {
+    const answer = h.channel.translate("one", "en-fr");
+    await flush();
+    h.workers[0]!.reply(0, { ok: true });
+    await flush();
+    h.workers[0]!.reply(1, { ok: true, html: "un" });
+    await answer;
+  }
+
+  it("a translate refused with reload: the pair is forgotten, loaded again, and the markup sent once more — the worker kept", async () => {
+    const h = setup();
+    await loadedEnglish(h);
+    const answer = h.channel.translate("<b>gave up</b>", "en-fr");
+    await flush();
+    expect(h.workers[0]!.sent.at(-1)).toMatchObject({ op: "translate", markup: "<b>gave up</b>" }); // no load: en-fr is believed held
+    h.workers[0]!.notLoaded(2); // deleted since, for another pair's route
+    await flush();
+    expect(h.workers).toHaveLength(1);
+    expect(h.workers[0]!.terminated).toBe(false);
+    expect(h.workers[0]!.sent.at(-1)).toEqual({ id: 4, op: "load", pair: "en-fr" });
+    h.workers[0]!.reply(3, { ok: true });
+    await flush();
+    expect(h.workers[0]!.sent.at(-1)).toMatchObject({ op: "translate", markup: "<b>gave up</b>", pair: "en-fr" });
+    h.workers[0]!.reply(4, { ok: true, html: "<b>a abandonné</b>" });
+    await expect(answer).resolves.toEqual({ ok: true, html: "<b>a abandonné</b>" });
+    expect(h.log).not.toHaveBeenCalled(); // not a trap's replay
+  });
+
+  it("the load again runs under the start bound, not the translate bound: a pivot's rebuild on a tablet can pass ten seconds", async () => {
+    const h = setup();
+    await loadedEnglish(h);
+    const answer = h.channel.translate("x", "en-fr");
+    await flush();
+    h.workers[0]!.notLoaded(2);
+    await flush();
+    expect(h.workers[0]!.sent.at(-1)).toMatchObject({ op: "load" });
+    h.elapse(TRANSLATE_TIMEOUT_MS); // ten seconds into the rebuild: nothing gives up
+    expect(h.workers[0]!.terminated).toBe(false);
+    h.workers[0]!.reply(3, { ok: true });
+    await flush();
+    h.workers[0]!.reply(4, { ok: true, html: "y" });
+    await expect(answer).resolves.toEqual({ ok: true, html: "y" });
+  });
+
+  it("a load again that never answers ends at the start bound, as a first load does", async () => {
+    const h = setup();
+    await loadedEnglish(h);
+    const answer = h.channel.translate("x", "en-fr");
+    await flush();
+    h.workers[0]!.notLoaded(2);
+    await flush();
+    h.elapse(START_TIMEOUT_MS);
+    await expect(answer).resolves.toEqual({ ok: false, reason: "the engine did not start" });
+    expect(h.workers[0]!.terminated).toBe(true); // no route left loaded
+    expect(h.pending()).toBe(0);
+  });
+
+  it("refused with reload a second time, the refusal is passed on: asked once more, never a third time", async () => {
+    const h = setup();
+    await loadedEnglish(h);
+    const answer = h.channel.translate("x", "en-fr");
+    await flush();
+    h.workers[0]!.notLoaded(2);
+    await flush();
+    h.workers[0]!.reply(3, { ok: true });
+    await flush();
+    h.workers[0]!.notLoaded(4);
+    await expect(answer).resolves.toEqual({ ok: false, reason: NOT_LOADED });
+    expect(h.workers[0]!.sent.map((r) => r.op)).toEqual(["load", "translate", "translate", "load", "translate"]);
+    expect(h.workers[0]!.terminated).toBe(false);
+    expect(h.log).not.toHaveBeenCalled();
+  });
+
+  it("two translations through the pair refused with reload share the one load again", async () => {
+    const h = setup();
+    await loadedEnglish(h);
+    const a = h.channel.translate("a", "en-fr");
+    const b = h.channel.translate("b", "en-fr");
+    await flush();
+    h.workers[0]!.notLoaded(2);
+    h.workers[0]!.notLoaded(3);
+    await flush();
+    expect(h.workers[0]!.sent.filter((r) => r.op === "load")).toHaveLength(2); // the first, and one again
+    h.workers[0]!.reply(4, { ok: true });
+    await flush();
+    expect(h.workers[0]!.sent.slice(5).map((r) => r.op)).toEqual(["translate", "translate"]);
+    h.workers[0]!.reply(5, { ok: true, html: "A" });
+    h.workers[0]!.reply(6, { ok: true, html: "B" });
+    await expect(a).resolves.toEqual({ ok: true, html: "A" });
+    await expect(b).resolves.toEqual({ ok: true, html: "B" });
+  });
+
+  it("a trap under the load again is the request's one replay, on a fresh worker", async () => {
+    const h = setup();
+    await loadedEnglish(h);
+    const answer = h.channel.translate("x", "en-fr");
+    await flush();
+    h.workers[0]!.notLoaded(2);
+    await flush();
+    h.workers[0]!.trap(3); // the load again
+    await flush();
+    expect(h.workers).toHaveLength(2);
+    expect(h.workers[1]!.sent).toEqual([{ id: 5, op: "load", pair: "en-fr" }]);
+    h.workers[1]!.reply(0, { ok: true });
+    await flush();
+    h.workers[1]!.reply(1, { ok: true, html: "y" });
+    await expect(answer).resolves.toEqual({ ok: true, html: "y" });
+    expect(h.log).toHaveBeenCalledExactlyOnceWith("trapped, asked again:", { pair: "en-fr", markup: 1 });
+  });
+
+  it("a worker built before the flag refuses without it, and the refusal is passed on as it always was", async () => {
+    const h = setup();
+    await loadedEnglish(h);
+    const answer = h.channel.translate("x", "en-fr");
+    await flush();
+    h.workers[0]!.reply(2, { ok: false, error: NOT_LOADED }); // no `reload`
+    await expect(answer).resolves.toEqual({ ok: false, reason: NOT_LOADED });
+    expect(h.workers[0]!.sent).toHaveLength(3); // nothing loaded again
   });
 });

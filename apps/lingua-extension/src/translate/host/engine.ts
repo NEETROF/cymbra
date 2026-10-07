@@ -29,26 +29,44 @@ export const NO_MODEL = "the model is not on this device";
  */
 export const LONG_ROUTE = "a route of more than two models is not supported";
 
+/**
+ * The worker's answer to `translate` for a route it does not hold: deleted since its owner loaded
+ * it, for another pair's route (harden-lingua-translation-engine D3). Sent with `reload`, so that
+ * the owner loads the route again, under the start bound, and asks once more.
+ */
+export const NOT_LOADED = "the route is not loaded";
+
 /** The engine worker's protocol. Requests carry an id so replies can arrive in any order, and the pair whose route they go through. */
 export type WorkerRequest =
   { id: number; op: "load"; pair: string } | { id: number; op: "translate"; markup: string; pair: string };
 /**
  * A refusal flagged `trap` is not one the engine gave: the engine trapped under the request
  * (harden-lingua-translation-engine D1), the worker has closed itself, and its owner starts a fresh
- * one. A worker built before the flag existed never sends it, and reads as a refusal.
+ * one. A refusal flagged `reload` is the one refusal the owner acts on with the worker kept: the
+ * route is loaded again and the request asked once more (D3). A worker built before either flag
+ * existed never sends it, and reads as a refusal.
  */
 export type WorkerResponse =
-  { id: number; ok: true; html?: string } | { id: number; ok: false; error: string; trap?: true };
+  { id: number; ok: true; html?: string } | { id: number; ok: false; error: string; trap?: true; reload?: true };
 
 /**
- * Whether `error` is a WebAssembly trap rather than a refusal the engine made on purpose (D1): the
- * runtime's own error — "memory access out of bounds" — or the glue's `abort()`, which throws one
- * whose message starts with `Aborted(`. A trapped instance's memory is not to be trusted again.
- * `NO_MODEL`, `LONG_ROUTE`, "the engine is not loaded", a missing file: none of these is one.
+ * Whether `error` is a WebAssembly trap rather than a refusal the engine made on purpose (D1) — an
+ * error after which the instance's linear memory is not to be trusted: the runtime's own error
+ * ("memory access out of bounds"); the glue's `abort()`, which throws one whose message starts
+ * with `Aborted(`; a C++ exception the glue rethrows as the bare pointer it is (`throw ptr`, a
+ * number — nothing unwound the wasm stack); and the wasm stack blown, a `RangeError` in V8 and
+ * JavaScriptCore ("Maximum call stack size exceeded"), an `InternalError` in SpiderMonkey ("too
+ * much recursion"). `NO_MODEL`, `LONG_ROUTE`, `NOT_LOADED`, a missing file, a `RangeError` over
+ * an array's length: none of these is one.
  */
 export function isTrap(error: unknown): boolean {
+  if (typeof error === "number") return true;
   if (typeof WebAssembly !== "undefined" && error instanceof WebAssembly.RuntimeError) return true;
-  return error instanceof Error && error.message.startsWith("Aborted(");
+  if (!(error instanceof Error)) return false;
+  if (error.message.startsWith("Aborted(")) return true;
+  if (error.name === "RangeError") return /call stack/i.test(error.message);
+  if (error.name === "InternalError") return /recursion|stack/i.test(error.message);
+  return false;
 }
 
 export function isEngineReply(value: unknown): value is EngineReply {
