@@ -27,14 +27,19 @@ export function packFile(pair) {
   return `assets/packs/${pair}.lingua`;
 }
 
+// A pair's name splits at its first `-`, as src/analyzer/pairs.ts splits it: test/pairs.spec.ts
+// holds the two readings equal.
+
 /** The studied side of a pair: "en-fr" → "en". */
 export function studiedOf(pair) {
-  return pair.split("-")[0];
+  const dash = pair.indexOf("-");
+  return dash < 0 ? pair : pair.slice(0, dash);
 }
 
-/** The native side of a pair, the language its glosses are written in: "en-fr" → "fr". */
+/** The native side of a pair, the language its glosses are written in: "en-fr" → "fr"; "" without one. */
 export function nativeOf(pair) {
-  return pair.split("-")[1];
+  const dash = pair.indexOf("-");
+  return dash < 0 ? "" : pair.slice(dash + 1);
 }
 
 /**

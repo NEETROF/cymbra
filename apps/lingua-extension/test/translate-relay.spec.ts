@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { pairOf } from "@/analyzer/pairs.ts";
 import type { EngineAccess, EngineReply } from "@/translate/host/engine.ts";
-import { pairOf, relayTranslation, relayWarm } from "@/translate/host/relay.ts";
+import { type AnswerDeps, answerTranslation, answerWarm, relayTranslation, relayWarm } from "@/translate/host/relay.ts";
 import { MARKED_PAIRS } from "@/translate/markup.ts";
 
 /** An engine that records the markup it is handed, and through which pair, and answers what the test says. */
@@ -19,14 +20,6 @@ function engine(answer: (markup: string) => EngineReply | Promise<EngineReply>) 
 
 const sentence = "She gave up after the third attempt.";
 const selection = { start: 4, end: 11 }; // "gave up"
-
-describe("the pair of a translation (generalise-lingua-translation-routes-by-pair D2)", () => {
-  it("is formed from the document's language the page asked in and the reader's native language", () => {
-    expect(pairOf("en", "fr")).toBe("en-fr");
-    expect(pairOf("es", "fr")).toBe("es-fr");
-    expect(pairOf("en", "es")).toBe("en-es");
-  });
-});
 
 describe("relayTranslation", () => {
   it("asks both translations through the pair it is given (model-state D5, routes-by-pair D2)", async () => {
@@ -339,5 +332,110 @@ describe("relayWarm (add-lingua-translation-android D2, D3)", () => {
     const engine = warmEngine(true);
     await expect(relayWarm(async () => Promise.reject(new Error("storage")), engine, "en-fr")).resolves.toBe(false);
     expect(engine.warm).not.toHaveBeenCalled();
+  });
+});
+
+// The background's answer to a page, with the background as glue (routes-by-pair D2): the pair is
+// formed from the document's language the page asked in and the reader's native language, gated on
+// what the device recorded, then relayed. The wire messages name a language, never a pair.
+describe("answerTranslation — a page's request, answered", () => {
+  /** The glue's dependencies: an engine answering `html`, a native language, and the pairs recorded ready. */
+  function glue(native: string, recorded: string[], html = "x") {
+    const translate = vi.fn<EngineAccess["translate"]>(async () => ({ ok: true, html }));
+    const warm = vi.fn<EngineAccess["warm"]>(async () => true);
+    const deps: AnswerDeps = {
+      engine: { translate, warm },
+      native: async () => native,
+      ready: vi.fn(async (pair: string) => recorded.includes(pair)),
+      onNotReady: vi.fn(),
+      log: vi.fn(),
+    };
+    return { deps, translate, warm };
+  }
+  const request = { sentence, selection, language: "en" }; // the page asks in the document's language
+
+  it("Every reader today: a reader of French on an English page — the background asks for en-fr's route, and the sentence is translated as before", async () => {
+    const { deps, translate } = glue("fr", ["en-fr"]);
+    translate.mockImplementation(async (markup) => ({
+      ok: true,
+      html: markup === "gave up" ? "A abandonné" : "Elle <b>a abandonné</b> après la troisième tentative.",
+    }));
+    const result = await answerTranslation(deps, request);
+    expect(deps.ready).toHaveBeenCalledWith("en-fr");
+    expect(translate.mock.calls.map(([, pair]) => pair)).toEqual(["en-fr", "en-fr"]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: fr, marks } = result.translation;
+    expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["a abandonné"]);
+    expect(deps.onNotReady).not.toHaveBeenCalled();
+  });
+
+  it("The same page for another native language: the same request from a reader of Spanish goes through en-es, and nothing of en-fr is asked", async () => {
+    const { deps, translate } = glue("es", ["en-es"], "Se rindió tras el tercer intento."); // en-es ships, with its route
+    const result = await answerTranslation(deps, request);
+    expect(deps.ready).toHaveBeenCalledWith("en-es");
+    expect(deps.ready).not.toHaveBeenCalledWith("en-fr");
+    expect(translate.mock.calls.map(([, pair]) => pair)).toEqual(["en-es"]); // unmeasured: once, untagged
+    expect(result).toEqual({
+      kind: "translated",
+      translation: { sentence: "Se rindió tras el tercer intento.", marks: [] },
+    });
+  });
+
+  it("A pair without a route: a reader of Spanish on an English page with no en-es — unavailable, and the engine is not started", async () => {
+    // The device records only the pairs whose whole route is on it (D3); a pair the catalogue has no
+    // route for is never among them, so the answer comes before the engine's host is reached.
+    const { deps, translate } = glue("es", ["en-fr"]);
+    await expect(answerTranslation(deps, request)).resolves.toEqual({ kind: "unavailable" });
+    expect(deps.ready).toHaveBeenCalledWith("en-es");
+    expect(translate).not.toHaveBeenCalled();
+    // The page's gate let the request through: what is recorded is reconciled, so it follows.
+    expect(deps.onNotReady).toHaveBeenCalledOnce();
+  });
+
+  it("has a route said to be ready that gave no answer reconciled, so the next card stops announcing it", async () => {
+    const { deps, translate } = glue("fr", ["en-fr"]);
+    translate.mockResolvedValue({ ok: false, reason: "the model is not on this device" });
+    await expect(answerTranslation(deps, request)).resolves.toEqual({ kind: "unavailable" });
+    expect(deps.onNotReady).toHaveBeenCalledOnce();
+  });
+
+  it("answers as without a model when the profile or the setting cannot be read, and asks the engine nothing", async () => {
+    const unreadable = glue("fr", ["en-fr"]);
+    unreadable.deps.native = () => Promise.reject(new Error("store closed"));
+    await expect(answerTranslation(unreadable.deps, request)).resolves.toEqual({ kind: "unavailable" });
+    expect(unreadable.translate).not.toHaveBeenCalled();
+    expect(unreadable.deps.log).toHaveBeenCalledOnce();
+    const failing = glue("fr", ["en-fr"]);
+    failing.deps.ready = () => Promise.reject(new Error("storage"));
+    await expect(answerTranslation(failing.deps, request)).resolves.toEqual({ kind: "unavailable" });
+    expect(failing.translate).not.toHaveBeenCalled();
+  });
+
+  describe("answerWarm — a page's warm, through the same pair", () => {
+    it("warms the pair of the document's language and the reader's native language", async () => {
+      const { deps, warm } = glue("fr", ["en-fr", "es-fr"]);
+      await expect(answerWarm(deps, "es")).resolves.toBe(true);
+      expect(deps.ready).toHaveBeenCalledWith("es-fr");
+      expect(warm).toHaveBeenCalledWith("es-fr");
+    });
+
+    it("A pair without a route: loads nothing for a reader of Spanish on an English page with no en-es", async () => {
+      const { deps, warm } = glue("es", ["en-fr"]);
+      await expect(answerWarm(deps, "en")).resolves.toBe(false);
+      expect(deps.ready).toHaveBeenCalledWith("en-es");
+      expect(warm).not.toHaveBeenCalled();
+      expect(deps.onNotReady).not.toHaveBeenCalled(); // a warm is a hint: nothing to reconcile
+    });
+
+    it("reports a ready route the engine could not load, and loads nothing when the profile cannot be read", async () => {
+      const cold = glue("fr", ["en-fr"]);
+      cold.warm.mockResolvedValue(false);
+      await expect(answerWarm(cold.deps, "en")).resolves.toBe(false);
+      expect(cold.deps.onNotReady).toHaveBeenCalledOnce();
+      const unreadable = glue("fr", ["en-fr"]);
+      unreadable.deps.native = () => Promise.reject(new Error("store closed"));
+      await expect(answerWarm(unreadable.deps, "en")).resolves.toBe(false);
+      expect(unreadable.warm).not.toHaveBeenCalled();
+    });
   });
 });

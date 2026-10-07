@@ -7,7 +7,7 @@
 // background writes them (translate/host/model-controller.ts). Surfaces may import this module:
 // it holds no engine and constructs nothing.
 
-import { DEFAULT_NATIVE, studiedOf } from "../analyzer/pairs.ts";
+import { DEFAULT_NATIVE, pairOf, studiedOf } from "../analyzer/pairs.ts";
 
 /**
  * Where the engine runs. Stored as a HOST, shown as one checkbox: add-lingua-remote-translation
@@ -75,7 +75,7 @@ const names = (raw: unknown): string[] =>
  */
 function storedPairs(s: { pairs?: unknown; languages?: unknown }, before: string[]): string[] {
   if (s.pairs !== undefined) return names(s.pairs);
-  if (s.languages !== undefined) return names(s.languages).map((language) => `${language}-${DEFAULT_NATIVE}`);
+  if (s.languages !== undefined) return names(s.languages).map((language) => pairOf(language, DEFAULT_NATIVE));
   return before;
 }
 

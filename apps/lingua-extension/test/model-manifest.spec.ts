@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+import { nativeOf, studiedOf } from "@/analyzer/pairs.ts";
 import {
   fileUrl,
   loadBundledCatalogue,
@@ -149,6 +150,16 @@ describe("parseCatalogue", () => {
 
   it("splits a key on its first `-`, as a pack's name is: `en-fr-x` is the pair en / fr-x, which no route ends in", () => {
     expect(() => parseCatalogue(withRoutes({ "en-fr-x": [EN_FR] }))).toThrow(/ends in fr, not fr-x/);
+    // The same reading as analyzer/pairs.ts's: a model into `fr-x` would make the route whole.
+    expect(nativeOf("en-fr-x")).toBe("fr-x");
+    expect(studiedOf("en-fr-x")).toBe("en");
+    const base = withRoutes({ "en-fr-x": ["en-frx/base-memory/2.0"] });
+    const models: ModelCatalogue["models"] = base.models;
+    const raw = {
+      ...base,
+      models: { ...models, "en-frx/base-memory/2.0": { ...models[EN_FR]!, from: "en", to: "fr-x" } },
+    };
+    expect(routeOf(parseCatalogue(raw), "en-fr-x").map((m) => m.to)).toEqual(["fr-x"]);
   });
 
   it("accepts a route through English, in order", () => {

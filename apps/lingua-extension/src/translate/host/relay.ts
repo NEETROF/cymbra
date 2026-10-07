@@ -3,8 +3,9 @@
 // own, so the background keeps answering everything else while the engine translates.
 //
 // A translation goes through a pair: the document's language the page asked in, and the reader's
-// native language, which the background reads from their stored profile and joins here
-// (generalise-lingua-translation-routes-by-pair D2). A page never names a pair.
+// native language, which the background reads from their stored profile and `answerTranslation`
+// joins (generalise-lingua-translation-routes-by-pair D2). A page never names a pair. The background
+// itself is glue, outside the coverage gate: what it does with a request is here, and tested.
 //
 // A selection costs two requests: the sentence with the selection tagged, which is what the
 // reader sees, and the selection on its own, which only checks where the tag landed
@@ -12,6 +13,7 @@
 // stands, exactly as it would without it. A pair whose marks are not measured costs one: the
 // sentence untagged, answered without a mark (add-lingua-spanish-translation-pivot D3, routes-by-pair D4).
 
+import { pairOf } from "../../analyzer/pairs.ts";
 import { escapeText, MARKED_PAIRS, markSelection, readMarked, selectedText, withoutFootnotes } from "../markup.ts";
 import { type TranslationRequest, type TranslationResult, UNAVAILABLE } from "../port.ts";
 import { reconcileMarks } from "../reconcile.ts";
@@ -21,13 +23,55 @@ export type RelayLog = (message: string, detail?: unknown) => void;
 
 const LOG: RelayLog = (message, detail) => console.warn(`[Cymbra Lingua] ${message}`, detail ?? "");
 
+/** What answering a page takes of the background: the engine, the reader's profile, and what the device recorded. */
+export interface AnswerDeps {
+  engine: Pick<EngineAccess, "translate" | "warm">;
+  /** The reader's native language, from their stored profile: the half of the pair a page does not send. */
+  native: () => Promise<string>;
+  /** Whether every model of `pair`'s route is on the device, as recorded (model-controller.ts `ready`). */
+  ready: (pair: string) => Promise<boolean>;
+  /**
+   * A pair asked for that is not recorded ready, or a route said to be ready that gave no answer:
+   * what is recorded may no longer hold, so the background reconciles it (`model.status()`), and the
+   * page's gate follows through storage.
+   */
+  onNotReady: () => void;
+  log?: RelayLog;
+}
+
 /**
- * The pair a translation goes through: the document's language the page asked in, and the reader's
- * native language (generalise-lingua-translation-routes-by-pair D2). The key a catalogue route and a
- * recorded state are looked up by.
+ * A page's request, answered: the pair is formed from the document's language the page asked in
+ * and the reader's native language (routes-by-pair D2); unless that pair is recorded ready the
+ * answer is unavailable and the engine is never started for it — not even to find a model missing;
+ * otherwise the request is relayed through the pair's route. Never throws: a setting that cannot
+ * be read answers as without a model.
  */
-export function pairOf(language: string, native: string): string {
-  return `${language}-${native}`;
+export async function answerTranslation(deps: AnswerDeps, request: TranslationRequest): Promise<TranslationResult> {
+  let pair: string;
+  try {
+    pair = pairOf(request.language, await deps.native());
+    if (!(await deps.ready(pair))) {
+      deps.onNotReady();
+      return UNAVAILABLE;
+    }
+  } catch (e: unknown) {
+    (deps.log ?? LOG)("the translation setting could not be read:", e);
+    return UNAVAILABLE;
+  }
+  const result = await relayTranslation(deps.engine, request, pair, deps.log);
+  if (result.kind === "unavailable") deps.onNotReady();
+  return result;
+}
+
+/** A page's warm for the document's `language`: its pair formed as for a translation, then `relayWarm`. */
+export async function answerWarm(deps: AnswerDeps, language: string): Promise<boolean> {
+  let pair: string;
+  try {
+    pair = pairOf(language, await deps.native());
+  } catch {
+    return false;
+  }
+  return relayWarm(deps.ready, deps.engine, pair, deps.onNotReady, deps.log);
 }
 
 /** Relay `asked`, a request in its document's language, through `pair`'s route. */

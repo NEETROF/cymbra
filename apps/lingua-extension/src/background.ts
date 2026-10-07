@@ -1,5 +1,5 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
-import { acceptedLanguages, DEFAULT_NATIVE, pairFor, SHIPPED_PAIRS } from "./analyzer/pairs.ts";
+import { acceptedLanguages, DEFAULT_NATIVE, readerPairs, SHIPPED_PAIRS } from "./analyzer/pairs.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { type AccountHostDeps, handleAccountMessage } from "./account/host.ts";
 import { userServicePort } from "./account/profile.ts";
@@ -33,7 +33,7 @@ import { isOffscreenEvent, OffscreenEngine } from "./translate/host/offscreen-en
 import { KEEPALIVE_PING } from "./translate/keepalive.ts";
 import { isModelMessage } from "./translate/model-messages.ts";
 import { UNAVAILABLE } from "./translate/port.ts";
-import { pairOf, relayTranslation, relayWarm } from "./translate/host/relay.ts";
+import { type AnswerDeps, answerTranslation, answerWarm } from "./translate/host/relay.ts";
 import { isTranslateMessage, isWarmMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
 import { nativeLanguageOf, studiedLanguagesOf } from "./state/profile.ts";
@@ -55,6 +55,7 @@ import {
   STORE_CHANGED_KEY,
   type StoreChange,
   type StoreReply,
+  watchStore,
 } from "./state/store.ts";
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
@@ -345,10 +346,7 @@ if (__TRANSLATION_HOST__ !== "none") {
         studiedLanguages: async () => studied,
         nativeLanguage: async () => native,
       });
-      return accepted.flatMap((language) => {
-        const pair = pairFor(language, native);
-        return pair ? [pair] : [];
-      });
+      return readerPairs(accepted, native);
     },
   });
   controller = model;
@@ -358,45 +356,48 @@ if (__TRANSLATION_HOST__ !== "none") {
   void model.recover();
 
   // The reader's native language from the stored profile, without an engine (model-state D2): the
-  // half of a translation's pair the page does not send (routes-by-pair D2). No backup yet: the
-  // default, as `pairs` reads it.
-  const nativeLanguage = async (): Promise<string> => {
-    const stored = await loadStored(ownedStore);
-    return stored.kind === "v2" ? nativeLanguageOf(stored.backup) : DEFAULT_NATIVE;
+  // half of a translation's pair the page does not send (routes-by-pair D2), read as the reading
+  // engines read it — the default without a backup. Read once and kept for this background's
+  // lifetime rather than on every translation and warm, since the backup is the reader's whole
+  // data; forgotten when the store says the backup changed — `watchStore`, the channel every
+  // surface follows the owner's writes by: a sync that pulled a profile, a Réglages that wrote one —
+  // so the next request reads it again. A read that failed is not kept.
+  let nativePromise: Promise<string> | null = null;
+  const nativeLanguage = (): Promise<string> => {
+    if (!nativePromise) {
+      const read: Promise<string> = storedNativeLanguage(ownedStore);
+      nativePromise = read;
+      read.catch(() => {
+        if (nativePromise === read) nativePromise = null;
+      });
+    }
+    return nativePromise;
   };
+  watchStore((keys) => {
+    if (keys.includes(ROOT_KEY)) nativePromise = null;
+  });
 
+  // What answering a page takes (relay.ts): the pair is formed there, from the document's language
+  // the page asked in and the native language above; a pair not recorded ready, or a route that gave
+  // no answer, has the recorded state reconciled, so the next card stops announcing a translation
+  // that cannot come.
+  const answers: AnswerDeps = {
+    engine,
+    native: nativeLanguage,
+    ready: (pair) => model.ready(pair),
+    onNotReady: () => void model.status(),
+  };
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isTranslateMessage(message)) return undefined;
-    void (async () => {
-      // The page asked in the document's language; the pair is formed here (routes-by-pair D2).
-      // Off, or the pair's models not all here: the engine is never started — not even to find
-      // a model missing.
-      const pair = pairOf(message.request.language, await nativeLanguage());
-      if (!(await model.ready(pair))) return UNAVAILABLE;
-      const result = await relayTranslation(engine, message.request, pair);
-      // No answer from a model said to be ready: see whether it still is, so the next card
-      // stops announcing a translation that cannot come.
-      if (result.kind === "unavailable") void model.status();
-      return result;
-    })().then(sendResponse, () => sendResponse(UNAVAILABLE));
+    void answerTranslation(answers, message.request).then(sendResponse, () => sendResponse(UNAVAILABLE));
     return true; // async response
   });
   // A selection has begun, or a page that was translating is back (add-lingua-translation-android
   // D2, D3): load the engine before the translation is asked. Only with a model ready; a warm is
-  // "asked" for the idle release, and translates nothing. The page asks in the document's language;
-  // the pair is formed here, as for a translation.
+  // "asked" for the idle release, and translates nothing.
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isWarmMessage(message)) return undefined;
-    void nativeLanguage()
-      .then((native) =>
-        relayWarm(
-          (pair) => model.ready(pair),
-          engine,
-          pairOf(message.language, native),
-          () => void model.status(),
-        ),
-      )
-      .then(sendResponse, () => sendResponse(false));
+    void answerWarm(answers, message.language).then(sendResponse, () => sendResponse(false));
     return true; // async response
   });
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
