@@ -46,7 +46,7 @@
 
 - [x] 7.1 Publish the Lingua annex (fr + en) on the site before the first release that can download
   - Published 2026-09-26 by `site-deploy` (fr + en, « Traduction étendue » / « Extended translation »).
-- [ ] 7.2 Update the Chrome Web Store and AMO listings (and `STORE-LISTING.md`)
+- [x] 7.2 Update the Chrome Web Store and AMO listings (and `STORE-LISTING.md`)
   - `STORE-LISTING.md` updated (description fr + en, `offscreen` justification, remote code, data usage); the two dashboards are pasted by hand.
 - [ ] 7.3 Update from the published version on Chromium and Firefox: extension stays enabled with the `offscreen` permission added; setting off; no request made
 - [x] 7.4 Manual pass Chrome + Firefox desktop: tick, download, cancel, retry after a cut network, translate a phrase and an unknown single word, idle release after ten minutes, untick deletes the model, offline translation after download
