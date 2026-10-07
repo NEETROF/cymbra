@@ -2,8 +2,8 @@
 
 ## 1. Sources and the pipeline (scripts/lingua-data)
 
-- [ ] 1.1 `pack_sources.py`: `KAIKKI["es-en"]` (es-fr's extract), `DUMPS["es-en"]` (`kaikki-es-traductions-en.jsonl`, `("translations", "es", "en")`); `fetch_live` of a reader pair reuses the reference's pinned extract when it is the live one; the update publishes a pair's own assets only (each record's release); `record-build` writes the `studied` record; `check-reducer` compares it; `pack_report` names the table (D2, D3). `test_pack_sources.py`: *A shared extract*, *The studied side moves*, *A rules-only change of the reference*.
-- [ ] 1.2 `build.sh`: `max_lemmas` 60,000 for a Spanish pair; the reduce job's asset cache `work/cache/<sha256>` (`.github/workflows/lingua-extension-check.yml`); `lingua-pack-update.yml`: `es-en` in the dispatch options and the monthly matrix, the publish step per record (D2).
+- [ ] 1.1 `pack_sources.py`: `KAIKKI["es-en"]` (es-fr's extract), `DUMPS["es-en"]` (`kaikki-es-traductions-en.jsonl`, `("translations", "es", "en")`); `fetch_live` of a reader pair reuses the extract its reference fetched in the same run (the asset cache) and records the reference's release, its own otherwise; the update publishes a pair's own assets only (each record's release); `record-build` writes the `studied` record; `check-reducer` compares it; `pack_report` names the table (D2, D3). `test_pack_sources.py`: *A shared extract*, *The studied side moves*, *A rules-only change of the reference*.
+- [ ] 1.2 `build.sh`: `max_lemmas` 60,000 for a Spanish pair; the reduce job's asset cache `work/cache/<sha256>` (`.github/workflows/lingua-extension-check.yml`); `lingua-pack-update.yml`: `es-en` in the dispatch options and the monthly matrix; the publish step tags `release_tag(pair, snapshot)` — never `sources.kaikki.release`, which for a reader pair may be its reference's — and uploads only the assets of records whose `release` is that tag (`assets --pin` filtered by release) (D2); the reduce job's 45-minute timeout measured with the extract's fetch.
 - [ ] 1.3 `gloss_coverage.py --pair` and `--floor`; the reduce job runs it for es-en (D6; *Coverage*).
 
 ## 2. The reducer and the tables
@@ -19,7 +19,7 @@
 ## 4. Gates and docs
 
 - [ ] 4.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-core -p lingua-pack -p lingua-wasm`; the Python tests; `yarn gen:pack` and `yarn gen:pack:real` in `apps/lingua-extension` (two packs, unchanged); actionlint; the `reduce` job green on the pull request; the pack under 5 MiB.
-- [ ] 4.2 `SOURCES.md`, `tables/es-en/README.md`, `tables/es-fr/README.md` (its reader named), `REVIEWERS.md`; `openspec validate add-lingua-pack-es-en --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-pack-es-en` exits 0; change 21 is marked done in `docs/lingua/language-matrix-programme.md`.
+- [ ] 4.2 `SOURCES.md`, `tables/es-en/README.md`, `tables/es-fr/README.md` (its reader named), `REVIEWERS.md`; `openspec validate add-lingua-pack-es-en --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-pack-es-en` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived); change 21 is marked done in `docs/lingua/language-matrix-programme.md`.
 
 ## 5. Owner
 

@@ -40,11 +40,12 @@ of the top-10,000 es-en lemmas), each shown on a sample of the top 10,000.
   own file, `reduce_common.py` and `reduce_edition_en.py`: es-fr's reducer and the French edition
   are not loaded, so nothing of es-fr moves and the rule that a reducer loads code by import
   statements alone stands.
-- **Shared sources, one release per pair**: es-en's pin points at es-fr's release asset for the
-  English extract (a pin may name another pair's release; the live fetch reuses the reference's
-  pinned extract instead of downloading it again) and at its own release for its derived file;
-  the update publishes a pair's own assets only; the reduce job keeps fetched assets in a cache
-  across pairs, so the extract is fetched once per job.
+- **Shared sources, one release per pair**: es-en's pin names es-fr's release for the English
+  extract when es-fr's update brought es-en along (the extract then is the one just fetched), and
+  its own when es-en is updated alone; a pin may name another pair's release, and the live fetch
+  never downloads an extract a same-day reference already fetched; the update publishes a pair's
+  own assets only, under `release_tag(pair, snapshot)`; the reduce job keeps fetched assets in a
+  cache across pairs, so the extract is fetched once per job.
 - **A reader pair's pin records the studied tables it read**: the sha256 of each of the six
   studied tables, written by `record-build`, checked by `check-reducer` and named by
   `pack_report` — the "pair left behind" that the pack's sha256 already catches, now named by

@@ -23,8 +23,8 @@ The pin of a pair that is not its studied language's reference SHALL record the 
 - **THEN** the checks fail, naming es-en and `es/level.tsv`
 
 #### Scenario: A shared extract
-- **WHEN** es-en is updated while es-fr's pinned extract is the one kaikki serves
-- **THEN** the update downloads no extract, publishes es-en's derived file alone, and es-en's pin names es-fr's release for the extract
+- **WHEN** es-fr's update brings es-en along
+- **THEN** es-en's update downloads no extract, publishes es-en's derived file alone, and es-en's pin names es-fr's release for the extract
 
 #### Scenario: The credits
 - **WHEN** es-en's pack is built
