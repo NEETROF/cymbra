@@ -18,7 +18,7 @@
 ## 4. Gates and docs
 
 - [ ] 4.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-pack -p lingua-wasm`; the Python tests; `yarn gen:pack` and `yarn gen:pack:real` unchanged; actionlint; the `reduce` job green on the pull request; the pack under 5 MiB.
-- [ ] 4.2 `SOURCES.md` (the extract and change 38), `tables/en-es/README.md` (the share), `tables/en-fr/README.md` (its reader named); `openspec validate add-lingua-pack-en-es --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-pack-en-es` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived) or waits for change 21; change 22 is marked done in `docs/lingua/language-matrix-programme.md`.
+- [ ] 4.2 `SOURCES.md` (the extract and change 38), `tables/en-es/README.md` (the share), `tables/en-fr/README.md` (its reader named); `openspec validate add-lingua-pack-en-es --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-pack-en-es` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived); change 22 is marked done in `docs/lingua/language-matrix-programme.md`.
 
 ## 5. Owner
 

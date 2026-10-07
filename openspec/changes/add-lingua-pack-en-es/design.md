@@ -35,7 +35,8 @@ not shipped and the floor). What en-es needs on top:
 ### D1 — `reduce-en-es.py`: the native side alone, three sources, the Spanish edition
 
 As change 21's D1: `tables/en/forms.tsv` and `freq.tsv` read as committed, `EDITION =
-spanish.ES`, `native_tables(entries, direct, inverted)`: entries = the Spanish Wiktionary's
+spanish.ES`, `common.native_tables(entries, ranks, studied=EN, edition=EDITION, fallbacks=[(direct,
+list), (inverted, by_spanish_frequency(…))])`: entries = the Spanish Wiktionary's
 English section; direct = the English Wiktionary's Spanish translations, in the table's order;
 inverted = the Spanish Wiktionary's English translations read backwards, ordered by Spanish
 frequency, as es-fr orders its inverted table by French frequency. `max_lemmas` 40,000, as en-fr.
