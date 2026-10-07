@@ -167,6 +167,7 @@ const SAME_EVERYWHERE = new Set([
   "✕",
   "ⓘ",
   "Aa",
+  "Stats",
   "A−",
   "A+",
   "Alt",
@@ -185,7 +186,7 @@ const SAME_EVERYWHERE = new Set([
 
 /** Texts a language happens to share with the French, and no other. */
 const SAME_AS_FRENCH: Record<"en" | "es", Set<string>> = {
-  en: new Set(["Email", "Stats", "Option", "Double", "+ Deck", "interjection"]),
+  en: new Set(["Email", "Option", "Double", "+ Deck", "interjection"]),
   es: new Set(["la"]),
 };
 
@@ -196,24 +197,58 @@ const SAME_SHAPE_AS_FRENCH: Record<"en" | "es", Set<string>> = {
   es: new Set(["de α"]),
 };
 
-const ARGS = ["α", "β", "γ", "δ"];
+/**
+ * What a slot message is called with: one sentinel per part, a letter no draft writes, and a
+ * different alphabet at each depth of nesting, so that a message returned by a message — an inner
+ * form that dropped its own part — is caught even though its text carries the outer one.
+ */
+const SENTINELS: readonly (readonly string[])[] = [[..."αβγδ"], [..."εζηθ"], [..."ικλμ"]];
 
-/** Every text a value can produce, slot messages called with `ARGS`, plural forms with "7". */
-function texts(value: unknown, path: string): { path: string; text: string; slots: number }[] {
-  if (typeof value === "string") return [{ path, text: value, slots: 0 }];
+type Message = (...args: string[]) => unknown;
+
+interface Text {
+  path: string;
+  text: string;
+  /** The sentinels given on the way to this text: each must appear in it. */
+  given: string[];
+}
+
+/** The parts each French message takes, by path — what a draft at the same path is called with. */
+type Slots = ReadonlyMap<string, number>;
+
+function slotsOf(value: unknown, path: string, into = new Map<string, number>(), depth = 0): Slots {
   if (typeof value === "function") {
-    const out = (value as (...args: string[]) => unknown)(...ARGS.slice(0, Math.max(1, value.length)));
-    return texts(out, `${path}()`).map((t) => ({ ...t, slots: Math.max(1, value.length) }));
+    into.set(path, value.length);
+    slotsOf((value as Message)(...(SENTINELS[depth] ?? [])), `${path}()`, into, depth + 1);
+  } else if (value && typeof value === "object") {
+    for (const [key, v] of Object.entries(value as Catalogue)) slotsOf(v, `${path}.${key}`, into, depth);
+  }
+  return into;
+}
+
+/**
+ * Every text a value can produce. A message is called with as many sentinels as the French message
+ * at its path takes — its own count would let a draft that dropped a part pass — and its texts must
+ * contain each one. A `many` form the French lacks takes what the French `other` takes.
+ */
+function texts(value: unknown, path: string, slots: Slots, depth = 0, given: string[] = []): Text[] {
+  if (typeof value === "string") return [{ path, text: value, given }];
+  if (typeof value === "function") {
+    const count = Math.max(1, slots.get(path) ?? slots.get(path.replace(/\.many$/, ".other")) ?? value.length);
+    const alphabet = SENTINELS[depth] ?? [];
+    if (count > alphabet.length) throw new Error(`${path}: more parts, or deeper, than the sentinels cover`);
+    const args = alphabet.slice(0, count);
+    return texts((value as Message)(...args), `${path}()`, slots, depth + 1, [...given, ...args]);
   }
   if (value && typeof value === "object") {
-    return Object.entries(value as Catalogue).flatMap(([key, v]) => texts(v, `${path}.${key}`));
+    return Object.entries(value as Catalogue).flatMap(([key, v]) => texts(v, `${path}.${key}`, slots, depth, given));
   }
   throw new Error(`${path}: a catalogue value is a string, a function or an object of them`);
 }
 
 /** The key set of a value, nested; a plural form's `many` is optional. */
 function shape(value: unknown): unknown {
-  if (typeof value === "function") return shape((value as (...args: string[]) => unknown)(...ARGS));
+  if (typeof value === "function") return shape((value as Message)(...SENTINELS[0]));
   if (value && typeof value === "object") {
     const entries = Object.entries(value as Catalogue).filter(([key]) => key !== "many");
     return Object.fromEntries(entries.map(([key, v]) => [key, shape(v)]));
@@ -243,14 +278,15 @@ describe("the drafts are whole", () => {
 
       for (const language of ["en", "es"] as const) {
         it(`The drafts are whole: ${language} is full, takes every slot, and is not the French`, () => {
-          const draft = texts(catalogue(language, surface), surface);
-          const source = new Map(texts(fr, surface).map((t) => [t.path, t]));
-          for (const { path, text, slots } of draft) {
+          const slots = slotsOf(fr, surface);
+          const draft = texts(catalogue(language, surface), surface, slots);
+          const source = new Map(texts(fr, surface, slots).map((t) => [t.path, t]));
+          for (const { path, text, given } of draft) {
             // The `many` a translation adds answers the French `other` (the French has no `many`).
             const original = source.get(path) ?? source.get(path.replace(/\.many\(\)$/, ".other()"));
             expect(original, `${language}: ${path} has no French source`).toBeDefined();
             expect(text.trim(), `${language}: ${path} is empty`).not.toBe("");
-            for (const arg of ARGS.slice(0, slots)) {
+            for (const arg of given) {
               expect(text, `${language}: ${path} drops the slot ${arg}`).toContain(arg);
             }
             if (text !== original!.text) continue;
@@ -269,9 +305,11 @@ describe("the drafts are whole", () => {
   it("the lists of texts that are the same everywhere name only texts that are", () => {
     const equal = { en: new Set<string>(), es: new Set<string>() };
     for (const surface of SURFACES) {
-      const source = new Map(texts(catalogue("fr", surface), surface).map((t) => [t.path, t.text]));
+      const fr = catalogue("fr", surface);
+      const slots = slotsOf(fr, surface);
+      const source = new Map(texts(fr, surface, slots).map((t) => [t.path, t.text]));
       for (const language of ["en", "es"] as const) {
-        for (const { path, text } of texts(catalogue(language, surface), surface)) {
+        for (const { path, text } of texts(catalogue(language, surface), surface, slots)) {
           if (source.get(path) === text) equal[language].add(text);
         }
       }
@@ -294,6 +332,24 @@ describe("the drafts are whole", () => {
     expect(esReview.start).not.toBe("Réviser");
     expect(enReview.start).toBe("Review");
     expect(esReview.start).toBe("Repasar");
+  });
+
+  it("calls a draft with the French message's parts, so a parameter it dropped is seen", () => {
+    // `(a) => a` compiles where the French takes two parts; called with its own count it would pass.
+    const slots = slotsOf({ pair: (a: string, b: string) => `${a} et ${b}` }, "x");
+    const [pair] = texts({ pair: (a: string) => a }, "x", slots);
+    expect(pair.given).toEqual(["α", "β"]);
+    expect(pair.text).not.toContain("β");
+  });
+
+  it("gives an inner message its own sentinels, so a part it dropped is seen behind the outer one", () => {
+    const french = { nested: (a: string) => ({ inner: (b: string) => `${a} puis ${b}` }) };
+    const slots = slotsOf(french, "x");
+    const [inner] = texts({ nested: (a: string) => ({ inner: () => a }) }, "x", slots);
+    expect(inner.path).toBe("x.nested().inner()");
+    expect(inner.given).toEqual(["α", "ε"]);
+    expect(inner.text).toBe("α"); // the outer sentinel alone: one shared sentinel would not see it
+    expect(texts(french, "x", slots)[0].text).toBe("α puis ε");
   });
 
   it("A key missing in Spanish does not compile", () => {

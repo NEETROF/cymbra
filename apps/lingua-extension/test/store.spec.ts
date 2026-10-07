@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { INTERFACE_LANGUAGE_KEY, interfaceLanguage } from "@/i18n/language.ts";
 import {
   idbArea,
-  interfaceLanguageOfStored,
   isStoreMessage,
   messagedArea,
   MIGRATED_KEY,
@@ -15,7 +14,7 @@ import {
   STORE_KEYS,
   type StoreReply,
 } from "@/state/store.ts";
-import { type AsyncStorageArea, ROOT_KEY, saveBackup } from "@/state/storage.ts";
+import { type AsyncStorageArea, nativeLanguageOfStored, ROOT_KEY, saveBackup } from "@/state/storage.ts";
 
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -308,15 +307,23 @@ describe("the retired keys", () => {
 });
 
 describe("the interface language follows the stored profile", () => {
-  // A package glossed for a reader of Spanish, so that the profile's choice can be read (M22).
-  const PAIRS = ["en-fr", "es-fr", "en-es"];
+  // A package glossed for readers of Spanish and of English, so that a profile's choice can be
+  // read (M22: a language no listed pair is glossed in reads French).
+  const PAIRS = ["en-fr", "es-fr", "en-es", "es-en"];
   const spanish = JSON.stringify({ profile: { native_language: "Spanish", studied_languages: ["English"] } });
+  const english = JSON.stringify({ profile: { native_language: "English", studied_languages: ["Spanish"] } });
   const noNative = JSON.stringify({ profile: { studied_languages: ["English"] } });
+
+  /** What the owner says when it cannot keep the key: a test listens, the extension logs. */
+  function quietWarnings() {
+    return vi.spyOn(console, "warn").mockImplementation(() => {});
+  }
 
   it("The key follows the profile: a backup the owner writes mirrors its native language", async () => {
     const preferences = fakeArea();
     const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
     await owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } });
+    await owner.mirrored();
     expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
     // A surface opened afterwards reads it from its preferences, with no engine.
     expect(await interfaceLanguage(preferences)).toBe("es");
@@ -326,6 +333,7 @@ describe("the interface language follows the stored profile", () => {
     const preferences = fakeArea({ [INTERFACE_LANGUAGE_KEY]: "fr" });
     const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
     await saveBackup(owner, spanish);
+    await owner.mirrored();
     expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
   });
 
@@ -333,22 +341,102 @@ describe("the interface language follows the stored profile", () => {
     const preferences = fakeArea();
     const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
     await owner.set({ [ROOT_KEY]: { v: 2, backup: noNative } });
+    await owner.mirrored();
     expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("fr");
-    expect(interfaceLanguageOfStored(undefined)).toBe("fr");
-    expect(interfaceLanguageOfStored({ statuses: {} })).toBe("fr"); // a v1 store predates the profile
+    expect(nativeLanguageOfStored(undefined)).toBe("fr");
+    expect(nativeLanguageOfStored({ statuses: {} })).toBe("fr"); // a v1 store predates the profile
   });
 
   it("a language no shipped pair is glossed in reads French, as the native language does", () => {
-    expect(interfaceLanguageOfStored({ v: 2, backup: spanish }, ["en-fr", "es-fr"])).toBe("fr");
-    expect(interfaceLanguageOfStored({ v: 2, backup: spanish }, PAIRS)).toBe("es");
+    expect(nativeLanguageOfStored({ v: 2, backup: spanish }, ["en-fr", "es-fr"])).toBe("fr");
+    expect(nativeLanguageOfStored({ v: 2, backup: spanish }, PAIRS)).toBe("es");
   });
 
-  it("the first read remembers the language a stored profile already names", async () => {
+  it("the owner's forget of the backup mirrors French, like a device with none", async () => {
+    const preferences = fakeArea({ [INTERFACE_LANGUAGE_KEY]: "es" });
+    const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
+    await owner.set({ [ROOT_KEY]: null });
+    await owner.mirrored();
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("fr");
+  });
+
+  it("a backup that does not parse mirrors French, and says so", async () => {
+    const warn = quietWarnings();
+    const preferences = fakeArea({ [INTERFACE_LANGUAGE_KEY]: "es" });
+    const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: "{not json" } });
+    await owner.mirrored();
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("fr");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("[Cymbra Lingua]"), expect.any(SyntaxError));
+    warn.mockRestore();
+  });
+
+  it("never delays a write's announcement by the mirror", async () => {
+    // The backup is written at every status change: the surfaces hear of it as soon as it
+    // has landed, whatever the mirror then does.
+    let release!: () => void;
+    const preferences: AsyncStorageArea = {
+      get: async () => ({}),
+      set: () => new Promise<void>((resolve) => (release = resolve)),
+    };
+    const announced: string[][] = [];
+    const owner = ownerArea(fakeArea(), (keys) => announced.push(keys), preferences, PAIRS);
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } });
+    expect(announced).toEqual([[ROOT_KEY]]);
+    await new Promise((resolve) => setTimeout(resolve, 0)); // the mirror is now waiting on the write
+    release();
+    await owner.mirrored();
+  });
+
+  it("writes the key once for a burst of backups naming the same language", async () => {
+    const preferences = fakeArea();
+    const writes = vi.spyOn(preferences, "set");
+    const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
+    // Three status changes in a row, then a restart of the chain with a profile that did move.
+    await Promise.all([
+      owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } }),
+      owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } }),
+      owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } }),
+    ]);
+    await owner.mirrored();
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } });
+    await owner.mirrored();
+    expect(writes).toHaveBeenCalledTimes(1);
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: english } });
+    await owner.mirrored();
+    expect(writes).toHaveBeenCalledTimes(2);
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("en");
+  });
+
+  it("mirrors the last of a burst, whichever language the earlier ones named", async () => {
+    const preferences = fakeArea();
+    const owner = ownerArea(fakeArea(), () => {}, preferences, PAIRS);
+    await Promise.all([
+      owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } }),
+      owner.set({ [ROOT_KEY]: { v: 2, backup: english } }),
+    ]);
+    await owner.mirrored();
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("en");
+  });
+
+  it("the first start keeps a key the device already holds, without reading the backup", async () => {
+    const preferences = fakeArea({ [INTERFACE_LANGUAGE_KEY]: "es" });
+    const store = fakeArea({ [ROOT_KEY]: { v: 2, backup: noNative } });
+    const reads = vi.spyOn(store, "get");
+    await rememberInterfaceLanguage(store, preferences, PAIRS);
+    expect(reads).not.toHaveBeenCalled();
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
+  });
+
+  it("the first start computes an absent or unknown key from the stored profile", async () => {
+    // A device updated with a profile already stored: the one case the migration needs.
     const preferences = fakeArea();
     await rememberInterfaceLanguage(fakeArea({ [ROOT_KEY]: { v: 2, backup: spanish } }), preferences, PAIRS);
     expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
-    await rememberInterfaceLanguage(fakeArea(), preferences, PAIRS);
-    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("fr");
+    const unknown = fakeArea({ [INTERFACE_LANGUAGE_KEY]: "de" });
+    await rememberInterfaceLanguage(fakeArea(), unknown, PAIRS);
+    expect(unknown.store[INTERFACE_LANGUAGE_KEY]).toBe("fr");
   });
 
   it("writes nothing for a key that is not the backup, and announces as before", async () => {
@@ -356,22 +444,34 @@ describe("the interface language follows the stored profile", () => {
     const announced: string[][] = [];
     const owner = ownerArea(fakeArea(), (keys) => announced.push(keys), preferences, PAIRS);
     await owner.set({ "cymbra-lingua-device": "dev-1" });
+    await owner.mirrored();
     expect(preferences.store).toEqual({});
     expect(announced).toEqual([["cymbra-lingua-device"]]);
   });
 
-  it("a mirror that cannot be written costs the backup nothing", async () => {
+  it("a mirror that cannot be written costs the backup nothing, is said, and is tried again", async () => {
+    const warn = quietWarnings();
     const store = fakeArea();
-    const full: AsyncStorageArea = {
-      get: async () => ({}),
-      set: async () => {
-        throw new Error("QUOTA_BYTES exceeded");
-      },
+    let full = true;
+    const preferences = fakeArea();
+    const underlying = preferences.set.bind(preferences);
+    preferences.set = async (items) => {
+      if (full) throw new Error("QUOTA_BYTES exceeded");
+      await underlying(items);
     };
     const announced: string[][] = [];
-    const owner = ownerArea(store, (keys) => announced.push(keys), full, PAIRS);
+    const owner = ownerArea(store, (keys) => announced.push(keys), preferences, PAIRS);
     await expect(owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } })).resolves.toBeUndefined();
     expect(store.store[ROOT_KEY]).toEqual({ v: 2, backup: spanish });
     expect(announced).toEqual([[ROOT_KEY]]);
+    await owner.mirrored();
+    expect(preferences.store).toEqual({});
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("[Cymbra Lingua]"), expect.any(Error));
+    // The area has room again: the next write of the same language still finds the key missing.
+    full = false;
+    await owner.set({ [ROOT_KEY]: { v: 2, backup: spanish } });
+    await owner.mirrored();
+    expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
+    warn.mockRestore();
   });
 });

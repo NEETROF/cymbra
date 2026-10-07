@@ -1,13 +1,20 @@
+import type { NativeLanguage } from "../analyzer/types.ts";
+
 // The interface's language (add-lingua-interface-language D3): the reader's native language,
 // under a key of its own in chrome.storage.local, so that every surface — the popup before it has
 // an engine, the account page that never has one — reads it with its other preferences, before
-// it renders its copy. The store's owner writes it from the backup's profile whenever it writes
-// the backup (state/store.ts), so the key mirrors the profile and cannot go stale behind it. A
-// device that predates the key reads French (M22); a later override (M2's reservation) would be
-// a different key, with no migration.
+// it renders its copy. The store's owner writes it from the backup's profile: at its start when
+// the key is absent, and after each write of the backup (state/store.ts), so the key follows the
+// profile and cannot go stale behind it. A device that predates the key reads French (M22); a
+// later override (M2's reservation) would be a different key, with no migration.
 
-/** The languages the interface speaks. */
-export type InterfaceLanguage = "fr" | "en" | "es";
+/**
+ * The languages the interface speaks: the native languages the engine glosses in, one set by
+ * decision — the interface language is the native language (M2), so a language the engine can
+ * gloss in is one the interface speaks, and no other. The day an override parts them (M2's
+ * reservation), this is where they part.
+ */
+export type InterfaceLanguage = NativeLanguage;
 
 export const INTERFACE_LANGUAGES: readonly InterfaceLanguage[] = ["fr", "en", "es"];
 

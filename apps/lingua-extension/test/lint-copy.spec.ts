@@ -1,15 +1,16 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { afterAll, describe, expect, it } from "vitest";
 
 // The interface's copy lives in the catalogue, src/i18n (add-lingua-interface-language D5): a
 // French string literal anywhere else in src/ fails, unless its file is on the BASELINE — the
-// surfaces still holding their copy, which the changes moving them (add-lingua-popup-language and
-// the following) take off the list. The baseline is checked the other way too: a file on it that
-// holds no French literal fails, so it cannot go stale.
+// surfaces still holding their copy, which the changes moving them take off the list:
+// localise-lingua-reading-surfaces (14), localise-lingua-settings (15), localise-lingua-review-stats
+// (16), localise-lingua-account-onboarding (17). The baseline is checked the other way too: a file
+// on it that holds no French literal fails, so it cannot go stale.
 //
 // What counts is read from the TypeScript syntax tree — string and template literals only, so a
 // comment or a regular expression in French is not a hit — and from the HTML pages' text nodes and
@@ -20,6 +21,11 @@ import { afterAll, describe, expect, it } from "vitest";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(root, "src");
+
+/** A file's path as the baseline writes it: relative, with `/` whatever the platform's separator. */
+function baselinePath(treeRoot: string, path: string): string {
+  return relative(treeRoot, path).split(sep).join("/");
+}
 
 /** The files that hold French literals today, until the change moving each surface removes it. */
 export const BASELINE = [
@@ -186,7 +192,7 @@ export function check(treeRoot: string, baseline: readonly string[]): string[] {
   const src = join(treeRoot, "src");
   const seen = new Set<string>();
   for (const path of sources(src)) {
-    const rel = relative(treeRoot, path);
+    const rel = baselinePath(treeRoot, path);
     seen.add(rel);
     const hits = frenchLiterals(path);
     if (baseline.includes(rel)) {
@@ -246,7 +252,7 @@ describe("no French literal outside the catalogue", () => {
   });
 
   for (const path of files) {
-    const rel = relative(root, path);
+    const rel = baselinePath(root, path);
     if (BASELINE.includes(rel)) {
       it(`${rel} still holds French literals (or leaves the baseline)`, () => {
         expect(frenchLiterals(path).length, `${rel}: holds none — remove it from the baseline`).toBeGreaterThan(0);
@@ -260,7 +266,9 @@ describe("no French literal outside the catalogue", () => {
   }
 
   it("names no file that no longer exists", () => {
-    expect(check(root, BASELINE).filter((f) => f.includes("no such file"))).toEqual([]);
+    // From the walk above, not a second one: a baseline entry must be a file the walk reaches.
+    const walked = new Set(files.map((path) => baselinePath(root, path)));
+    expect(BASELINE.filter((rel) => !walked.has(rel))).toEqual([]);
   });
 });
 

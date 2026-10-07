@@ -273,16 +273,26 @@ export async function loadStored(area: AsyncStorageArea): Promise<Stored> {
 }
 
 /**
- * The reader's native language, as their stored backup names it (`nativeLanguageOf`): French with
- * no backup yet, or a reading-only (v1) store, which predates the profile. Read before an engine
- * loads its first pack, which must be glossed in it (generalise-lingua-native-language D7).
+ * The reader's native language, as a raw root value names it (`nativeLanguageOf` on a v2 backup):
+ * French with no backup yet, or a reading-only (v1) store, which predates the profile. The one
+ * reading of it, whether the value was just read (`storedNativeLanguage`) or is about to be written
+ * (the owner's mirror of the interface language, state/store.ts).
+ */
+export function nativeLanguageOfStored(raw: unknown, pairs: readonly string[] = SHIPPED_PAIRS): NativeLanguage {
+  const stored = classifyStored(raw);
+  return stored.kind === "v2" ? nativeLanguageOf(stored.backup, pairs) : DEFAULT_NATIVE;
+}
+
+/**
+ * The reader's native language, as their stored backup names it. Read before an engine loads its
+ * first pack, which must be glossed in it (generalise-lingua-native-language D7).
  */
 export async function storedNativeLanguage(
   area: AsyncStorageArea,
   pairs: readonly string[] = SHIPPED_PAIRS,
 ): Promise<NativeLanguage> {
-  const stored = await loadStored(area);
-  return stored.kind === "v2" ? nativeLanguageOf(stored.backup, pairs) : DEFAULT_NATIVE;
+  const got = await area.get(ROOT_KEY);
+  return nativeLanguageOfStored(got[ROOT_KEY], pairs);
 }
 
 /** Persist a backup string under the root key. */

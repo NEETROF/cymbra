@@ -142,8 +142,7 @@ export function plural(
   forms: PluralForms,
   formatted: string = language === "fr" ? String(n) : formatNumber(language, n),
 ): string {
-  const number = formatted;
   const category = rulesOf(language).select(n);
   const form = category === "one" ? forms.one : category === "many" ? (forms.many ?? forms.other) : forms.other;
-  return form(number);
+  return form(formatted);
 }
