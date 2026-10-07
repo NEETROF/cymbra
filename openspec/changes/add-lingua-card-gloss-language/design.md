@@ -41,10 +41,13 @@ is the pack's or none.
 
 `#[serde(default = "french", skip_serializing_if = "is_french")]`. Every backup written today
 is byte for byte the same, as the profile's `skip_serializing_if` keeps an English backup
-unchanged; the schema version stays 2, since the field is read by its default and ignored by a
-build that predates it (`Card` does not deny unknown fields). `Card::new` and `Card::seeded`
-take the gloss language beside the gloss; their callers are the engine's `add_card`,
-`seed_level` and `apply_card_ops`, and the agent.
+unchanged; the newest schema version stays 2, since the field is read by its default and
+ignored by a build that predates it (`Card` does not deny unknown fields). A card labelled other
+than `fr` counts as another language in the records for `backup_version()`, so a backup holding
+one is written with version 2 and a version 1 file never carries the key — version 1 keeps the
+exact content it had before, as its requirement says. `Card::new` and `Card::seeded` take the
+gloss language beside the gloss; their callers are the engine's `add_card`, `seed_level` and
+`apply_card_ops`, `Deck::seed_lemmas`, and the agent.
 
 Alternative: `Option<String>`, `None` meaning French. A `None` that means something is what
 `gloss: None` already is (no gloss); a language is always known.
@@ -61,13 +64,16 @@ line.
 
 ### D3 — Review substitutes in the view model, by key
 
-In `review_current`, when `card.gloss_language` differs from the engine's native language:
-- a word (no space) → `Pack::gloss(lemma)` of the pack held for the card's studied language;
+In `review_current`, when `card.gloss_language` differs from the engine's native language, with
+the pack held for the card's studied language (`packs.get(language)`; none held → the card's
+text):
+- a word (no space) → `Pack::gloss(lemma)`;
 - an expression (a lemma with spaces) → `Pack::expression(lemma)`;
 - when either answers a gloss, `gloss` is that; otherwise `gloss` is the card's own text.
 
-The JSON keys are unchanged, so the English baseline pins the same bytes for every French card,
-and no surface changes: `review/view.ts` shows `card.gloss` as it does. The card itself is not
+The substitution adds or renames no key, so the English baseline pins the same bytes for every
+French card, and no surface changes: `review/view.ts` shows `card.gloss` as it does (another
+change may add a key of its own, as `add-lingua-card-sentence-translation` plans). The card itself is not
 rewritten: its label and text stay, and a later pull may replace them under last-write-wins.
 
 Alternative: a second call (`reviewCurrentGloss`), as `reviewCurrentLanguage` was added. That

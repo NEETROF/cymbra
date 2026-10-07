@@ -3,7 +3,7 @@
 ## 1. The card (crates/lingua-core)
 
 - [ ] 1.1 `decks/card.rs`: `gloss_language: String`, default `fr`, out of the backup when `fr`; `Card::new` and `Card::seeded` take it (D1). Tests: a French card serialises without the field; an `en` card with it; a card without the field reads `fr`.
-- [ ] 1.2 `decks/backup.rs` tests: *Every card today* (a version 1 and a version 2 backup unchanged byte for byte), *A card created on an engine glossed in English* (version 2, the field present, read back).
+- [ ] 1.2 `decks/backup.rs`: `backup_version()` answers 2 when a card is labelled other than `fr`; tests: *Every card today* (a version 1 and a version 2 backup unchanged byte for byte), *A card created on an engine glossed in English* (version 2, the field present, read back; a default-profile English deck with one `en`-labelled card is written with version 2).
 
 ## 2. The engine (crates/lingua-wasm)
 
