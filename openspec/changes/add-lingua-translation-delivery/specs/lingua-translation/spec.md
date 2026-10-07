@@ -120,7 +120,7 @@ single word the pack glosses keeps its dictionary card.
 - **WHEN** the translated sentence contains characters that would read as markup
 - **THEN** the card shows them as text, and no element is created from them
 
-#### Scenario: A single word the pack glosses
+#### Scenario: A single word
 - **WHEN** the reader selects a single word the pack has a gloss for
 - **THEN** the engine is not asked, and the card is the word's dictionary card
 

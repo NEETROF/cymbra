@@ -23,4 +23,4 @@
 
 ## 3. Release (owner)
 
-- [ ] 3.1 The listings are pasted into the Chrome Web Store, addons.mozilla.org and App Store Connect dashboards with the release that ships Spanish, when change 30's pages are deployed.
+- [x] 3.1 The listings are pasted into the Chrome Web Store, addons.mozilla.org and App Store Connect dashboards with the release that ships Spanish, when change 30's pages are deployed.
