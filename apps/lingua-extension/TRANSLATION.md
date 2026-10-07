@@ -159,16 +159,28 @@ one at a time, so two cannot decide against a bound the other is about to move. 
 alternates three languages pays the third route's load each time it comes back (≈ 200 ms on a Mac,
 3–4 s on the measured tablet); the bound is the measured problem, not the load. Measured: one model
 is 195.4 MiB in the worker, es-fr's two 321.8 MiB — and, before the bound, the models of a language
-the reader had left made 463 MiB.
+the reader had left made 463 MiB. What the worker holds is the union of its routes, after every
+load and every failed one: a route dropped with a deleted model takes its other model with it.
+
+A deletion does not lower what the worker holds in the operating system's eyes — a wasm instance's
+linear memory never shrinks — the bound caps growth, with the freed blocks reused by the next model
+built. With today's catalogue of two models (en-fr, es-en) no route makes a third, so the deletion
+never runs in production: it is for the matrix's models, from change 25 on. A translation goes to
+the engine at once over a route the worker holds; over one it deleted since the channel loaded it,
+the worker answers `reload`, and the channel loads the route again — under the start bound — and
+asks once more.
 
 ### Soaking a route by hand
 
 `tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N] [--isolate]` runs the real engine
 through a pair's route over the committed corpus of its studied language, in Node, and reports the
-inputs that trapped by their corpus id, the count translated, the time per sentence and the memory
-high-water mark; without `--isolate` the run stops at the first trap, since the instance is
-poisoned from then on. It is how a model is tried before it ships — en-es before change 35 — and
-it never runs in CI: the programme's M25 recommends a manual tool. `tool/marks/README.md` says how.
+inputs that trapped by their corpus id, the count translated, the time per sentence and the
+process's memory high-water mark; without `--isolate` the run stops at the first trap, since the
+instance is poisoned from then on. It is how a model is tried before it ships — en-es before
+change 35, once change 25 pins its route in the catalogue — and it never runs in CI: the
+programme's M25 recommends a manual tool. The memory figure is Node's RSS, not the worker's (the
+≈ 322 MiB of es-fr above was measured in the browser), and the soak says nothing of the two-model
+bound: a run loads one route and deletes nothing. `tool/marks/README.md` says how.
 
 Measured on a Galaxy Tab S6 Lite (Firefox for Android, 4 GB): a cold start costs 4.1–4.7 s there
 (0.2–0.3 s on a Mac), a warm translation 0.4–1 s, and the loaded engine about 180 MB.
