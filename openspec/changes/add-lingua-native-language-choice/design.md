@@ -17,7 +17,7 @@ See proposal.md (Why). What exists:
 | `src/onboarding/onboarding.ts`, `src/popup/popup.ts` | the languages section, level rows, account offer; the popup's first-run level call to action in `#controls`, shown when a content script answers; the Safari popover |
 | `src/reading/settings-view.ts` | tabs « Langue », « Apparence », « Pages & livres », « Données »; the block titles, in the catalogue after change 15 |
 | `src/sync/sync.ts` `widen` | clears the cursors when the accepted languages grow; cards are keyed by studied language and lemma |
-| Change 13 | the interface-language key, written by the store's owner on every backup write; a surface reads it before it renders its copy |
+| Change 13 | the interface-language key, written by the store's owner at start when absent and after a backup change (debounced, off the write path); a surface reads it before it renders its copy |
 
 ## Goals / Non-Goals
 
@@ -53,8 +53,10 @@ runtime message `lingua-native-language` `{native}`:
 1. refuse when `pairsOf(native)` is empty;
 2. compute the studied languages: the current ones without `native` and without those no shipped
    pair glosses in `native`, or `defaultPair(native)`'s studied language when nothing is left;
-3. `reprofileBackup` the stored backup, save it — the store's owner writes the
-   interface-language key with it (change 13 D3) — and announce the store change;
+3. `reprofileBackup` the stored backup, save it, write the interface-language key from the new
+   profile itself — the store owner's mirror (change 13 D3) runs in its debounced reaction, and a
+   page reloading on the announcement must read the new key — and announce the store change
+   with its reason;
 4. drop its two engines: the rpc port's and the sync port's memoised engines and the `hydrated`
    memo are cleared (the ports are `const`; their engines rebuild for the new native on their
    next use, resolving the native from the backup as today, through D3's restore).
@@ -85,8 +87,8 @@ selected, the consequence for the studied languages stated before confirming, a 
 - in the onboarding, before the languages section: on a new install the preset is applied before
   anything paints — `navigator.language`'s primary subtag when it is one of `shippedNatives()`,
   English when that ships, French otherwise; the background writes the preset through
-  `lingua-native-language` (the backup `hydrateEngine` wrote, or a fresh one) and the onboarding
-  paints in it; the reader confirms or changes it in the same step (M3);
+  `lingua-native-language` (the backup `hydrateEngine` wrote, or the rpc port's engine's fresh
+  `backup()`, reprofiled) and the onboarding paints in it; the reader confirms or changes it in the same step (M3);
 - in the popup's first run, as a call to action of its own above `#controls` (which shows only
   once a content script answers), when `cymbra-lingua-native-chosen` is unset. New install and
   update are told apart by `onInstalled`'s `reason`, which fires on every browser: on `update`
@@ -113,13 +115,12 @@ on the same-in-every-language list.
 
 ## Risks / Trade-offs
 
-- **An engine rebuilt under a page being read** → the content script restores on
-  `onExternalChange` as it does for a synced backup today; the HUD and the card re-read the key
-  and re-label.
+- **An engine rebuilt under a page being read** → the content script tears its session down and
+  builds a new one on the announced change (D3), as a synced backup restores today.
 - **A reader who studies only the language they choose as native** → the studied list is set to
   the native's first shipped pair's studied language, and said so in the choice.
-- **Safari never opening the onboarding** → the popup's first-run call to action, for a store
-  without a backup.
+- **Safari never opening the onboarding** → the popup's first-run call to action, while the
+  marker is unset.
 - **A device whose browser is German** → the preset is English when English ships, French
   otherwise; the reader changes it in the same step.
 - **A backup restored from a file naming another native** → `restore` rebuilds (D3), as a sync
@@ -128,4 +129,4 @@ on the same-in-every-language list.
 ## Migration Plan
 
 One release, silent: the choice is hidden until change 21 ships a second native. An install
-updating to this build has a backup and is never asked; a new install is preset.
+updating to this build is marked as chosen by the update and never asked; a new install is preset.
