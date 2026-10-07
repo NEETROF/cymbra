@@ -3,11 +3,10 @@
 ## Context
 
 See proposal.md (Why), and change 13's design: the catalogue's shape (D1: one module per surface
-and language, every French literal extracted — its list names `popup`, `hud`, `card`,
-`selection` and `reader`; the drawer's and the side panel's literals are extracted with their
-nearest surface, and this change gives them modules of their own, `drawer` and `sidepanel`), slot
-messages and plurals (D2), the interface-language key (D3), the formats (D4: `formatNumber`,
-`formatDate`; `formatPercent` is this change's, below), the lint and its baseline (D5). The reading surfaces today (the inventory of 2026-10-07):
+and language, every French literal extracted — the `popup`, `hud`, `drawer`, `card`, `selection`,
+`sidepanel` and `reader` modules exist after it; its implementation gave the drawer and the side
+panel modules of their own), slot messages and plurals (D2), the interface-language key (D3), the
+formats (D4: `formatNumber`, `formatPercent`, `formatDate`), the lint and its baseline (D5). The reading surfaces today (the inventory of 2026-10-07):
 
 | Surface | Files | Copy |
 |---|---|---|
@@ -72,14 +71,13 @@ words' inside a line.
 
 ### D4 — Formats
 
-`rarityText`'s `toLocaleString("fr-FR")` goes through change 13's `formatNumber`; the reader's
-`${n} %` and the popup's and the HUD's `${pct}%` go through `formatPercent(language, n, form)`,
-added to `index.ts` by this change: in French the form the surface writes today (`"45%"` for the
-popup and the HUD, `"45 %"` for the reader — the form is a parameter), in English "45%", in
-Spanish « 45 % » with a narrow no-break space (RAE). This change also makes `formatNumber`
-follow the RAE for Spanish — no grouping below 10 000, then groups of three separated by a narrow
-no-break space (« 20 000 ») — where change 13's design said `Intl`'s « 20.000 »; its tests say so.
-The French output is the same bytes.
+`rarityText`'s `toLocaleString("fr-FR")` goes through change 13's `formatNumber` (French as
+today; Spanish per the RAE, « 20 000 » — change 13's implementation chose the RAE over `Intl`'s
+« 20.000 », and its tests pin it); the reader's `${n} %` and the popup's and the HUD's `${pct}%`
+go through change 13's `formatPercent(language, n, form)`: in French the form the surface writes
+today (`"tight"`, "45%", for the popup and the HUD; `"spaced"`, "45 %", for the reader), in
+English "45%", in Spanish « 45 % » with a narrow no-break space. The French output is the same
+bytes.
 
 ### D5 — Tests
 

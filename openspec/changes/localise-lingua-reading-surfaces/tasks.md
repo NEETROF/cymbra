@@ -2,7 +2,7 @@
 
 ## 1. The catalogue modules (apps/lingua-extension/src/i18n)
 
-- [ ] 1.1 Change 13's `{fr,en,es}/{popup,hud,card,selection,reader}.ts` completed where a literal was missed (none re-extracted); `{fr,en,es}/{drawer,sidepanel}.ts` split out of their nearest surface's module; the slot messages for « Réviser (n) », « Niveau : » and `knownOnPage`; `index.ts` gains `fillPage(document, copy)`, `formatPercent(language, n, form)` and the RAE grouping of `formatNumber` for Spanish, with tests; the `data-copy-pending` rule (D1, D2, D4).
+- [ ] 1.1 Change 13's `{fr,en,es}/{popup,hud,drawer,card,selection,sidepanel,reader}.ts` completed where a literal was missed (none re-extracted); the slot messages for « Réviser (n) », « Niveau : » and `knownOnPage`; `index.ts` gains `fillPage(document, copy)`, with tests; the `data-copy-pending` rule (D1, D2, D4).
 
 ## 2. The surfaces (apps/lingua-extension)
 

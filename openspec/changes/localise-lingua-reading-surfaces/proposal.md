@@ -11,9 +11,8 @@ panel's page, and the EPUB reader with its library. Their copy — ≈ 150 uniqu
 `sidepanel.html`, `reader/{app,copy,library}.ts` and `reader.html` — is still literals beside the
 catalogue's entries for them.
 
-Each surface starts reading its copy from change 13's `src/i18n/<language>/<surface>.ts` (the
-drawer's and the side panel's split into modules of their own here), picked by the interface
-language read before the surface is built and handed to it with the copy; the static French
+Each surface starts reading its copy from change 13's `src/i18n/<language>/<surface>.ts`, picked
+by the interface language read before the surface is built and handed to it with the copy; the static French
 of its HTML page is filled from the catalogue before the page shows and the page's `lang`
 follows; each file comes off the lint's baseline. For a reader of French nothing moves: the
 catalogue's French is the literals byte for byte, and a test asserts it for every surface — the
@@ -40,7 +39,6 @@ none today.
 - **The content script reads the key before it builds the session**, which hands each surface
   its copy and the interface language at construction; what an open surface does when the key
   changes is change 20's (it rebuilds the session and reloads the pages).
-- **`formatPercent` and the RAE grouping for Spanish** are added to the catalogue's helpers here.
 
 ## Capabilities
 
