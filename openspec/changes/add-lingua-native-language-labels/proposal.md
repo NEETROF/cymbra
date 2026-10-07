@@ -22,19 +22,20 @@ language, so that a name is never written where it is shown.
 
 ## What Changes
 
-- **`src/i18n/<language>/languages.ts`** (change 13's module, completed): the words of each
-  studied language's name in that interface language — one shape, typed after the French (name,
-  of, the, masculine, feminine, the Windows voice name in the interface's language, the preview
-  sentence in the studied language), each language filling the fields with the forms its grammar
-  uses — and the twelve messages taking the studied language. The French entry is today's
-  `WORDS` and functions, byte for byte.
+- **`src/i18n/<language>/languages.ts`** (change 13's module, kept in its shape): the words of
+  each studied language's name in that interface language (`english`, `spanish`: `LanguageWords`
+  — name, of, the, masculine, feminine, the Windows voice name in the interface's language, the
+  preview sentence in the studied language), each language filling the fields with the forms its
+  grammar uses, and the messages as functions of those words, as change 13 wrote them. The
+  French entries are today's `WORDS` and sentences, byte for byte; `language-labels.ts` maps a
+  studied language to its words in the interface language's module before calling them.
 - **The level acronym** is an entry: « CEFR » in French, "CEFR" in English, « MCER » in Spanish.
 - **`language-labels.ts`** stays the module the surfaces call, and takes the interface language
   as its first parameter — the surfaces pass the one they read with their preferences — and
   delegates to the catalogue; it holds no literal.
 - **The lint** forbids « anglais », « espagnol », « français », "English", "Spanish", "French",
   « inglés », « español », « francés » and their inflections in string literals outside
-  `src/i18n/`, read from the syntax tree as change 13's lint does, with its baseline for the files
+  `src/i18n/*/languages.ts`, read from the syntax tree as change 13's lint does, with its baseline for the files
   that still hold them, and the engine's enum names as a named exception.
 
 ## Capabilities

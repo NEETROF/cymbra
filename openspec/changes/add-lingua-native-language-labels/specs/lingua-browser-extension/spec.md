@@ -9,11 +9,11 @@ Every name of a language the interface shows, and every sentence built around on
 
 #### Scenario: An English-native reader
 - **WHEN** the interface language is English and the reader's Spanish level is estimated
-- **THEN** the level's title reads "Estimated Spanish level", the note names the CEFR, and the Windows voice is named "English (United States)"
+- **THEN** the level's title says, in English, that the Spanish level is estimated, the note names the CEFR, and the Windows voice is named in English with its region
 
 #### Scenario: A Spanish-native reader
 - **WHEN** the interface language is Spanish and a page holds no English text
-- **THEN** the popup says « No se detectó texto en inglés en esta página », and a level's note names the MCER
+- **THEN** the popup says, in Spanish, that no English text was detected on this page, naming English from the Spanish module, and a level's note names the MCER
 
 #### Scenario: Checked by lint
 - **WHEN** a module outside the catalogue writes "Spanish" or « español » as a name

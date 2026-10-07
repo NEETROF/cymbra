@@ -13,8 +13,9 @@ ladder; no test imports the module, its messages are asserted through `settings-
 and `stats.spec.ts`. `test/lint-language-labels.spec.ts` forbids « anglais(e|es) » outside the
 module, one regex per line, in `.ts` and `.html`. The other « CEFR » is `stats/view.ts:275`
 (change 16's file). `settings-view.ts:89` wraps `windowsVoice` in a French Windows menu path.
-Change 13 creates `src/i18n/{fr,en,es}/languages.ts` typed `typeof fr.languages`, and its lint
-reads string literals from the syntax tree. The engine's enum names (`French`, `English`,
+Change 13 creates `src/i18n/{fr,en,es}/languages.ts`, en and es typed `typeof fr` (`import type
+{ languages as fr } from "../fr/languages.ts"`), and its lint reads string literals from the
+syntax tree. The engine's enum names (`French`, `English`,
 `Spanish`) are data in `state/profile.ts`; `translate/host/model-manifest.ts`'s "not French" message is gone since change 8.
 
 ## Goals / Non-Goals
@@ -33,20 +34,28 @@ reads string literals from the syntax tree. The engine's enum names (`French`, `
 
 ### D1 — One `languages.ts` per interface language, one shape, typed after the French
 
-Change 13's `fr/languages.ts` holds today's `WORDS` and the twelve messages. `en/languages.ts` and
-`es/languages.ts` are `typeof fr.languages` (change 13 D1): the same `LanguageWords` fields,
-each filled with the form that language's grammar uses — English `of: "of English"`, `the:
-"English"`, `masculine`/`feminine: "English"` (no gender); Spanish `of: "de inglés"`, `the:
-"el inglés"`, `masculine: "inglés"`, `feminine: "inglesa"` — and the twelve messages written in
-that language's own words: `levelTitle(language, "es", true)` is « Niveau d'espagnol estimé », "Estimated
-Spanish level", « Nivel de español estimado ». `windowsVoice` is per interface language too:
+Change 13's `fr/languages.ts` holds the words of each studied language (`english`, `spanish`:
+`LanguageWords`) and the messages as functions of those words — `levelTitle(of)`/
+`levelTitleEstimated(of)`, `myLevelTitle(of)`/`myLevelTitleEstimated(of)`, `estimatedLevelsNote(the)`,
+`borrowedTypicalNote(from, the)`, `levelNameEstimated(level)`, `chooseLevelPrompt(of)`,
+`noTextDetected(masculine)`, `noTextInYourLanguages`, `noVoiceInstalled(feminine)`,
+`levelQuestion(of)`; `languageName`, `windowsVoiceLanguage` and `previewSentence` are field
+reads, `levelName` has no language. This change keeps that shape and adds `levelScale`;
+`language-labels.ts` maps a studied language to its words in the interface language's module
+before calling them. `en/languages.ts` and `es/languages.ts` are `typeof fr`: the same
+`LanguageWords` fields, each filled with the form that language's grammar uses (English has no
+gender; Spanish `of: "de inglés"`, `the: "el inglés"`, `masculine: "inglés"`, `feminine:
+"inglesa"`) and the messages in that language's own words: `levelTitle(language, "es", true)`
+is « Niveau d'espagnol estimé » and, in change 13's drafts, the English and Spanish sentences the
+owner reviews (M9). `windowsVoice` is per interface language too:
 the menu path the message quotes is the interface's (« Anglais (États-Unis) », "English (United
 States)", « Inglés (Estados Unidos) ») — Windows lists its voices in its own display language,
 which may differ; the message says what the reader looks for, as today.
-The `levelScale` entry is « CEFR » / "CEFR" / « MCER » (M19; change 16 wrote the acronym inside
-the statistics' note that spells it, which now reads this entry) — "CEFR" equal in French and
-English, on change 13's same-in-every-language list, as are the `preview` sentences (in the
-studied language, identical in the three modules).
+The `levelScale` entry is « CEFR » / "CEFR" / « MCER » (M19; change 13's `stats.noLevels` spells
+the acronym in its text, and now reads this entry) — "CEFR" equal in French and English, on
+`SAME_AS_FRENCH.en` (change 13's list of texts one language shares with the French alone), not
+the same-everywhere list, which « MCER » would fail; the `preview` sentences (in the studied
+language, identical in the three modules) are on the same-everywhere list.
 
 ### D2 — The module takes the interface language
 
@@ -62,13 +71,14 @@ French silently.
 
 ### D3 — The level scale
 
-`estimatedLevelsNote` and the statistics' « CEFR » (`stats/view.ts`, moved by change 16 into the
-catalogue) read `levelScale`; a Spanish interface says « MCER ».
+`estimatedLevelsNote` and the statistics' note (change 13's `stats.noLevels`, in change 16's
+file) read `levelScale`; a Spanish interface says « MCER ».
 
 ### D4 — The lint names every language in every interface language
 
 `lint-language-labels` reads string and template literals from the syntax tree (change 13's
-mechanism) in `.ts` outside `src/i18n/*/languages.ts`, and the HTML pages' text, and forbids — as whole words,
+mechanism) in `.ts` outside `src/i18n/*/languages.ts` — the other catalogue modules included: a
+language's name belongs to the languages' module alone — and the HTML pages' text, and forbids — as whole words,
 case-insensitively — « anglais », « espagnol », « français », "English", "Spanish", "French",
 « inglés », « español », « francés » and their inflections, with change 13's baseline for the
 files not yet moved. Named exceptions, data not copy: the engine's enum names in
