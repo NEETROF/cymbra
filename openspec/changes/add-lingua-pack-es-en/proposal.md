@@ -43,7 +43,7 @@ of the top-10,000 es-en lemmas), each shown on a sample of the top 10,000.
 - **Shared sources, one release per pair**: es-en's pin names es-fr's release for the English
   extract when es-fr's update brought es-en along (the extract then is the one just fetched), and
   its own when es-en is updated alone; a pin may name another pair's release, and the live fetch
-  never downloads an extract a same-day reference already fetched; the update publishes a pair's
+  never downloads an extract its reference fetched in the same run; the update publishes a pair's
   own assets only, under `release_tag(pair, snapshot)`; the reduce job keeps fetched assets in a
   cache across pairs, so the extract is fetched once per job.
 - **A reader pair's pin records the studied tables it read**: the sha256 of each of the six

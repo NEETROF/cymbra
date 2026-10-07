@@ -113,7 +113,7 @@ es-fr's, replacing the synthetic `SPANISH_IN_ENGLISH`.
 ## Risks / Trade-offs
 
 - **The English extract is 1.05 GB** → fetched once per job (the cache) and never twice at an
-  update (a same-day reference's fetch reused); the reduce job's 45-minute timeout is measured
+  update (the reference's fetch in the same run reused); the reduce job's 45-minute timeout is measured
   against it on the pull request.
 - **A gloss in a third language** (M5) → the direct table is the Spanish Wiktionary's English
   translations only; `test_reduce_editions` asserts the pairing.
