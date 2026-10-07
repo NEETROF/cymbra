@@ -30,9 +30,9 @@ the catalogue in three languages, which the lint forces once `review/view.ts` is
   today's bytes) and take change 13's `formatNumber` in English and Spanish; English and Spanish
   counts take `one`/`other` forms through change 13's `plural`.
 - **The ladder's escapes** (` `, « … ») are the French entries' bytes.
-- **The French byte for byte**: the `review-page`, `stats` and `stats-view` spec files pass
-  unchanged (the ladder's notes are pinned by `stats-view`; the review's view is rendered by
-  `review-page`'s); each surface gains one test in English.
+- **The French byte for byte**: the `review-page`, `view`, `stats` and `stats-view` spec files
+  pass unchanged (`view.spec.ts` renders the review's view; the ladder's notes are pinned by
+  `stats-view`); each surface gains one test in English.
 - **The baseline** loses these files.
 
 ## Capabilities
@@ -57,6 +57,6 @@ umbrella rule.
 - **Order.** After change 13 and after change 14 (`fillPage`, the drawer's language); #696 and
   this change rebase on whichever merges first; independent of 15, 17.
 - **Not here.** The languages' names in the review's filter and the statistics (19's seam); the
-  level scale's acronym as an entry of its own, `levelScale` (19 — this change writes « CEFR » /
-  "CEFR" / « MCER » inside the one statistics note that spells it, per M19, and 19 makes that note
-  read `levelScale`).
+  level scale's acronym as an entry of its own, `levelScale` (19 — change 13's `stats.noLevels`
+  already spells « CEFR » / "CEFR" / « MCER », per M19; this change keeps it, and 19 makes that
+  note read `levelScale`).
