@@ -2,9 +2,9 @@
 // package states them: model-manifest.json, bundled by build.mjs. Since
 // generalise-lingua-translation-catalogue it is a catalogue: the models, each file with its address,
 // its size as served, its size once decompressed and the sha256 of its DECOMPRESSED bytes; and for
-// each studied language the route of models that translates it into French. Because the package
-// carries it, the reviewed package decides what is accepted; the host only serves bytes, and cannot
-// substitute a model.
+// each pair the route of models that translates its studied language into its native language
+// (generalise-lingua-translation-routes-by-pair D1). Because the package carries it, the reviewed
+// package decides what is accepted; the host only serves bytes, and cannot substitute a model.
 
 export const MODEL_ROLES = ["model", "lex", "vocab"] as const;
 export type ModelRole = (typeof MODEL_ROLES)[number];
@@ -31,7 +31,7 @@ export interface ModelCatalogue {
   base: string;
   /** By id: the version a device records once the model is stored (`en-fr/base-memory/2.0`). */
   models: Record<string, CatalogueModel>;
-  /** For each studied language, the ids of the models that translate it into French, in order. */
+  /** For each pair (`en-fr`), the ids of the models that translate its studied language into its native one, in order. */
   routes: Record<string, string[]>;
 }
 
@@ -46,9 +46,6 @@ export interface ModelManifest {
 
 /** Where the package keeps it, relative to the extension's root. */
 export const MANIFEST_PATH = "model-manifest.json";
-
-/** The language every route ends in: the reader's. */
-export const TARGET_LANGUAGE = "fr";
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -68,9 +65,20 @@ function parseFiles(id: string, raw: unknown): Record<ModelRole, ModelFile> {
 }
 
 /**
+ * A route's key as its two languages — split on its first `-`, as analyzer/pairs.ts splits a pack's
+ * name — or null when it is no pair: no `-`, or an empty side.
+ */
+function splitPair(key: string): { studied: string; native: string } | null {
+  const dash = key.indexOf("-");
+  if (dash < 1 || dash === key.length - 1) return null;
+  return { studied: key.slice(0, dash), native: key.slice(dash + 1) };
+}
+
+/**
  * The catalogue, or an error naming what is wrong with it: a broken one must fetch nothing
- * (generalise-lingua-translation-catalogue D2). Each route names known models, starts from its
- * language, chains each model's target to the next one's source, and ends in French.
+ * (generalise-lingua-translation-catalogue D2). Each route is keyed `<studied>-<native>`, names
+ * known models, starts from the studied language, chains each model's target to the next one's
+ * source, and ends in the native language (generalise-lingua-translation-routes-by-pair D1).
  */
 export function parseCatalogue(raw: unknown): ModelCatalogue {
   const c = raw as Partial<ModelCatalogue> | null;
@@ -86,31 +94,34 @@ export function parseCatalogue(raw: unknown): ModelCatalogue {
     models[id] = { from: m.from, to: m.to, files: parseFiles(id, m.files) };
   }
   const routes: Record<string, string[]> = {};
-  for (const [language, route] of Object.entries(c.routes as Record<string, unknown>)) {
+  for (const [pair, route] of Object.entries(c.routes as Record<string, unknown>)) {
+    const languages = splitPair(pair);
+    if (!languages) throw new Error(`model-manifest.json: the route key ${pair} is no pair (<studied>-<native>)`);
     if (!Array.isArray(route) || route.length === 0) {
-      throw new Error(`model-manifest.json: the ${language} route names no model`);
+      throw new Error(`model-manifest.json: the ${pair} route names no model`);
     }
-    let at = language;
+    let at = languages.studied;
     for (const id of route) {
       const model = models[id as string];
-      if (!model)
-        throw new Error(`model-manifest.json: the ${language} route names ${String(id)}, not in the catalogue`);
+      if (!model) throw new Error(`model-manifest.json: the ${pair} route names ${String(id)}, not in the catalogue`);
       if (model.from !== at) {
         throw new Error(
-          `model-manifest.json: the ${language} route reaches ${id}, which translates from ${model.from}, with ${at}`,
+          `model-manifest.json: the ${pair} route reaches ${id}, which translates from ${model.from}, with ${at}`,
         );
       }
       at = model.to;
     }
-    if (at !== TARGET_LANGUAGE) throw new Error(`model-manifest.json: the ${language} route ends in ${at}, not French`);
-    routes[language] = route as string[];
+    if (at !== languages.native) {
+      throw new Error(`model-manifest.json: the ${pair} route ends in ${at}, not ${languages.native}`);
+    }
+    routes[pair] = route as string[];
   }
   return { base: c.base, models, routes };
 }
 
-/** The models that translate `language` into French, in order; none when the catalogue has no route. */
-export function routeOf(catalogue: ModelCatalogue, language: string): ModelManifest[] {
-  return modelsById(catalogue, catalogue.routes[language] ?? []);
+/** The models of `pair`'s route, in order; none when the catalogue lists no route for it. */
+export function routeOf(catalogue: ModelCatalogue, pair: string): ModelManifest[] {
+  return modelsById(catalogue, catalogue.routes[pair] ?? []);
 }
 
 export function fileUrl(manifest: ModelManifest, file: ModelFile): string {
@@ -135,13 +146,14 @@ export async function loadBundledCatalogue(fetchFn: typeof fetch = fetch): Promi
 }
 
 /**
- * The models a device needs for `languages`: the union of their routes, in their order, each once
- * (generalise-lingua-translation-model-state D2). A language without a route needs nothing.
+ * The models a device needs for `pairs`: the union of their routes, in their order, each once
+ * (generalise-lingua-translation-model-state D2, routes-by-pair D5). A pair without a route needs
+ * nothing.
  */
-export function modelsFor(catalogue: ModelCatalogue, languages: readonly string[]): ModelManifest[] {
+export function modelsFor(catalogue: ModelCatalogue, pairs: readonly string[]): ModelManifest[] {
   const needed = new Map<string, ModelManifest>();
-  for (const language of languages) {
-    for (const model of routeOf(catalogue, language)) if (!needed.has(model.version)) needed.set(model.version, model);
+  for (const pair of pairs) {
+    for (const model of routeOf(catalogue, pair)) if (!needed.has(model.version)) needed.set(model.version, model);
   }
   return [...needed.values()];
 }

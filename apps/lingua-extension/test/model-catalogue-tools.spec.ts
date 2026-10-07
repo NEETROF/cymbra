@@ -24,7 +24,7 @@ function withSpanish() {
         mirror: "https://github.com/NEETROF/cymbra/releases/download/lingua-model-es-en-base-memory-2.0/",
       },
     },
-    routes: { ...c.routes, es: ["es-en/base-memory/2.0", EN_FR] },
+    routes: { ...c.routes, "es-fr": ["es-en/base-memory/2.0", EN_FR] },
   };
 }
 
@@ -39,7 +39,8 @@ describe("the catalogue as the tools read it", () => {
   it("bundles what the runtime needs, every model and route, and no deployment detail", () => {
     const bundled = bundledCatalogue(withSpanish());
     expect(Object.keys(bundled).sort()).toEqual(["base", "models", "routes"]);
-    expect(bundled.routes).toEqual({ en: [EN_FR], es: ["es-en/base-memory/2.0", EN_FR] });
+    // The routes go through as JSON, keyed by pair (routes-by-pair D1): check_variants compares them so.
+    expect(bundled.routes).toEqual({ "en-fr": [EN_FR], "es-fr": ["es-en/base-memory/2.0", EN_FR] });
     for (const model of Object.values(bundled.models)) {
       expect(Object.keys(model).sort()).toEqual(["files", "from", "licence", "to"]);
       expect(Object.keys(model.files)).toEqual([...ROLES]);
@@ -48,7 +49,7 @@ describe("the catalogue as the tools read it", () => {
       }
     }
     // What the package carries is what the runtime accepts.
-    expect(routeOf(parseCatalogue(bundled), "es").map((m) => m.version)).toEqual(["es-en/base-memory/2.0", EN_FR]);
+    expect(routeOf(parseCatalogue(bundled), "es-fr").map((m) => m.version)).toEqual(["es-en/base-memory/2.0", EN_FR]);
   });
 
   it("points a development build at another host", () => {
