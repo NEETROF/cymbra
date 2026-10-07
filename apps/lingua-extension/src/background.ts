@@ -1,5 +1,5 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
-import { acceptedLanguages, DEFAULT_NATIVE, SHIPPED_PAIRS } from "./analyzer/pairs.ts";
+import { acceptedLanguages, DEFAULT_NATIVE, pairFor, SHIPPED_PAIRS } from "./analyzer/pairs.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { type AccountHostDeps, handleAccountMessage } from "./account/host.ts";
 import { userServicePort } from "./account/profile.ts";
@@ -332,26 +332,34 @@ if (__TRANSLATION_HOST__ !== "none") {
     host,
     db: modelDb(),
     catalogue: () => loadBundledCatalogue((input, init) => fetch(chrome.runtime.getURL(String(input)), init)),
-    // The reader's languages from the stored profile, without an engine: a service worker woken
-    // for a translation must not load the reading engine and its pack (model-state D2).
-    languages: async () => {
+    // The reader's pairs from the stored profile, without an engine: a service worker woken for a
+    // translation must not load the reading engine and its pack (model-state D2). Each accepted
+    // language, through the shipped pair of the native language that studies it (routes-by-pair D5).
+    pairs: async () => {
       const stored = await loadStored(ownedStore);
       // No backup yet: none studied, which acceptedLanguages reads as the default pair's language,
       // for a reader of French.
       const studied = stored.kind === "v2" ? studiedLanguagesOf(stored.backup) : [];
       const native = stored.kind === "v2" ? nativeLanguageOf(stored.backup) : DEFAULT_NATIVE;
-      return acceptedLanguages({ studiedLanguages: async () => studied, nativeLanguage: async () => native });
+      const accepted = await acceptedLanguages({
+        studiedLanguages: async () => studied,
+        nativeLanguage: async () => native,
+      });
+      return accepted.flatMap((language) => {
+        const pair = pairFor(language, native);
+        return pair ? [pair] : [];
+      });
     },
   });
   controller = model;
   // What was recorded before this background started may no longer be true: a download that
   // died with the previous event page. The rest — a model the browser removed, the reader's
-  // languages — is reconciled when a settings view asks, or when a translation finds nothing.
+  // pairs — is reconciled when a settings view asks, or when a translation finds nothing.
   void model.recover();
 
   // The reader's native language from the stored profile, without an engine (model-state D2): the
   // half of a translation's pair the page does not send (routes-by-pair D2). No backup yet: the
-  // default, as `languages` reads it.
+  // default, as `pairs` reads it.
   const nativeLanguage = async (): Promise<string> => {
     const stored = await loadStored(ownedStore);
     return stored.kind === "v2" ? nativeLanguageOf(stored.backup) : DEFAULT_NATIVE;

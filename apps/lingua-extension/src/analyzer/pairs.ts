@@ -18,8 +18,8 @@ export const SHIPPED_PAIRS: readonly string[] = __LINGUA_PACKS__.split(",");
 /** The native language of a reader whose profile names none: every installed reader's (M22). */
 export const DEFAULT_NATIVE: NativeLanguage = "fr";
 
-/** The studied side of a pair: "en-fr" → "en". */
-function studiedOf(pair: string): string {
+/** The studied side of a pair: "en-fr" → "en". The side a page's gate reads (translate/setting.ts). */
+export function studiedOf(pair: string): string {
   return pair.split("-")[0];
 }
 

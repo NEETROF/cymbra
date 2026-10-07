@@ -2,8 +2,10 @@
 // The only writer of the setting and of where its models stand: surfaces ask (model-messages.ts)
 // and follow the two storage keys (setting.ts).
 //
-// - The models are those the reader's languages need: the union of their routes in the package's
-//   catalogue (generalise-lingua-translation-model-state D2). A shared model is one model.
+// - The models are those the reader's pairs need — the shipped pairs of their native language that
+//   study each of their accepted languages — the union of their routes in the package's catalogue
+//   (generalise-lingua-translation-model-state D2, generalise-lingua-translation-routes-by-pair D5).
+//   A shared model is one model.
 // - Turning it on writes the choice, then starts downloading every needed model in the engine's
 //   host. Nothing loads the engine: the first translation asked does (D6).
 // - Turning it off — cancelling included — writes the choice first, so a late report from the host
@@ -13,9 +15,9 @@
 //   a download its host dropped is "interrupted", a model the browser removed is "removed", a model a
 //   language the reader added needs is "missing", and all of them wait for the reader to ask (A model
 //   the browser removed is not fetched again unasked).
-// - Reconciling follows the reader's languages: a model no language needs any more is deleted
-//   (model-state D3).
-// - It is offered wherever it runs and one of the reader's languages has a route: the controller
+// - Reconciling follows the reader's pairs: a model no pair needs any more is deleted (model-state
+//   D3). The native language changing changes the pairs, and the models with them (routes-by-pair D5).
+// - It is offered wherever it runs and one of the reader's pairs has a route: the controller
 //   exists only in a variant that carries the engine, Firefox for Android included
 //   (add-lingua-translation-android D1).
 //
@@ -25,11 +27,15 @@
 import type { ModelCommand, ModelCost, ModelStatus } from "../model-messages.ts";
 import {
   ABSENT,
-  languageReady,
   loadTranslationSetting,
+  MODEL_STATE_KEY,
   type ModelState,
+  pairReady,
+  parseHost,
+  parseModelState,
   saveTranslationSetting,
   type SettingArea,
+  TRANSLATION_HOST_KEY,
   type TranslationHost,
 } from "../setting.ts";
 import type { DownloadEvent } from "./downloads.ts";
@@ -63,21 +69,24 @@ export interface ModelControllerDeps {
   db: Pick<ModelDb, "complete" | "erase" | "prune">;
   /** The package's catalogue of models. */
   catalogue: () => Promise<ModelCatalogue>;
-  /** The reader's accepted languages, from their profile. */
-  languages: () => Promise<string[]>;
+  /**
+   * The reader's pairs, from their profile: the shipped pairs of their native language that study
+   * each of their accepted languages (routes-by-pair D5).
+   */
+  pairs: () => Promise<string[]>;
   log?: (message: string, detail?: unknown) => void;
 }
 
-/** What the reader's languages need: the catalogue, the languages, and the union of their routes. */
+/** What the reader's pairs need: the catalogue, the pairs, and the union of their routes. */
 interface Needs {
   catalogue: ModelCatalogue;
-  languages: string[];
+  pairs: string[];
   needed: ModelManifest[];
 }
 
-/** Whether a route the reader's languages need goes through another language (add-lingua-spanish-translation-pivot D4). */
-function pivots({ catalogue, languages }: Needs): boolean {
-  return languages.some((language) => routeOf(catalogue, language).length > 1);
+/** Whether a route the reader's pairs need goes through another language (add-lingua-spanish-translation-pivot D4). */
+function pivots({ catalogue, pairs }: Needs): boolean {
+  return pairs.some((pair) => routeOf(catalogue, pair).length > 1);
 }
 
 const LOG = (message: string, detail?: unknown): void => console.warn(`[Cymbra Lingua] ${message}`, detail ?? "");
@@ -125,12 +134,12 @@ export class ModelController {
   }
 
   /**
-   * Whether a sentence in `language` can be asked right now, from what is recorded — the database is
-   * not read (model-state D5).
+   * Whether a translation through `pair` can be asked right now, from what is recorded — the database
+   * is not read (model-state D5, routes-by-pair D3).
    */
-  async ready(language: string): Promise<boolean> {
+  async ready(pair: string): Promise<boolean> {
     const { host, state } = await loadTranslationSetting(this.deps.area);
-    return languageReady(host, state, language);
+    return pairReady(host, state, pair);
   }
 
   enable(): Promise<ModelStatus> {
@@ -196,14 +205,20 @@ export class ModelController {
   }
 
   private async reconcile(): Promise<ModelStatus> {
-    const { host, state } = await loadTranslationSetting(this.deps.area);
+    const got = await this.deps.area.get([TRANSLATION_HOST_KEY, MODEL_STATE_KEY]);
+    const host = parseHost(got[TRANSLATION_HOST_KEY]);
+    const state = parseModelState(got[MODEL_STATE_KEY]);
     const needs = await this.needs();
     if (host === "none") {
       if (state.phase !== "absent") await saveTranslationSetting(this.deps.area, { state: ABSENT });
       return this.answer(host, ABSENT, needs);
     }
     const next = await this.observed(state, needs);
-    if (JSON.stringify(next) !== JSON.stringify(state)) await saveTranslationSetting(this.deps.area, { state: next });
+    // Written when it differs from what is STORED, not from what was read: a state an earlier release
+    // wrote with languages reads as the same pairs, and is rewritten with them (routes-by-pair D3).
+    if (JSON.stringify(next) !== JSON.stringify(got[MODEL_STATE_KEY])) {
+      await saveTranslationSetting(this.deps.area, { state: next });
+    }
     return this.answer(host, next, needs);
   }
 
@@ -229,20 +244,21 @@ export class ModelController {
   /**
    * Where the needed models stand once nothing is downloading: every one complete is `ready`; one
    * the state had recorded complete and is gone is `removed`; one never downloaded is `missing`.
-   * Models no language needs any more are deleted (model-state D3).
+   * Models no pair needs any more are deleted (model-state D3). The state is written with pairs: one
+   * read from a release that named languages is rewritten here (routes-by-pair D3).
    */
   private async settled(recorded: ModelState, needs: Needs | null): Promise<ModelState> {
     if (!needs) return recorded; // the catalogue cannot be read: change nothing, delete nothing
-    const { catalogue, languages, needed } = needs;
+    const { catalogue, pairs, needed } = needs;
     const complete: string[] = [];
     for (const model of needed) if (await this.stored(model)) complete.push(model.version);
-    await this.quietly("delete the models no language needs", () => this.deps.db.prune(needed));
-    const translatable = languages.filter((language) => {
-      const route = routeOf(catalogue, language);
+    await this.quietly("delete the models no pair needs", () => this.deps.db.prune(needed));
+    const translatable = pairs.filter((pair) => {
+      const route = routeOf(catalogue, pair);
       return route.length > 0 && route.every((model) => complete.includes(model.version));
     });
     const missing = needed.filter((model) => !complete.includes(model.version));
-    if (missing.length === 0) return { phase: "ready", models: complete, languages: translatable };
+    if (missing.length === 0) return { phase: "ready", models: complete, pairs: translatable };
     // A `ready` written before the models were named stood for every model it needed then.
     const had =
       recorded.phase === "ready" && recorded.models.length === 0
@@ -251,7 +267,7 @@ export class ModelController {
           ? recorded.models
           : [];
     if (missing.some((model) => had.includes(model.version))) return { phase: "removed" };
-    return { phase: "missing", models: complete, languages: translatable, total: sum(missing, totalSize) };
+    return { phase: "missing", models: complete, pairs: translatable, total: sum(missing, totalSize) };
   }
 
   private async stored(model: ModelManifest): Promise<boolean> {
@@ -263,13 +279,13 @@ export class ModelController {
     }
   }
 
-  /** The catalogue, the reader's languages and the models they need; null when either cannot be read. */
+  /** The catalogue, the reader's pairs and the models they need; null when either cannot be read. */
   private async needs(): Promise<Needs | null> {
     try {
-      const [catalogue, languages] = await Promise.all([this.deps.catalogue(), this.deps.languages()]);
-      return { catalogue, languages, needed: modelsFor(catalogue, languages) };
+      const [catalogue, pairs] = await Promise.all([this.deps.catalogue(), this.deps.pairs()]);
+      return { catalogue, pairs, needed: modelsFor(catalogue, pairs) };
     } catch (e) {
-      (this.deps.log ?? LOG)("could not read what the reader's languages need:", e);
+      (this.deps.log ?? LOG)("could not read what the reader's pairs need:", e);
       return null;
     }
   }
@@ -281,7 +297,7 @@ export class ModelController {
 
   /**
    * The whole status: the setting, what the needed models cost (catalogue D4), and whether it is
-   * offered at all — not while none of the reader's languages has a route (model-state D3).
+   * offered at all — not while none of the reader's pairs has a route (model-state D3).
    */
   private answer(host: TranslationHost, state: ModelState, needs: Needs | null): ModelStatus {
     const offered = needs ? needs.needed.length > 0 : true;

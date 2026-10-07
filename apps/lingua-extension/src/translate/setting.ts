@@ -7,6 +7,8 @@
 // background writes them (translate/host/model-controller.ts). Surfaces may import this module:
 // it holds no engine and constructs nothing.
 
+import { DEFAULT_NATIVE, studiedOf } from "../analyzer/pairs.ts";
+
 /**
  * Where the engine runs. Stored as a HOST, shown as one checkbox: add-lingua-remote-translation
  * widens this union with its third place, and no stored value has to migrate.
@@ -22,14 +24,14 @@ export type ModelFailure = "network" | "unavailable" | "not-the-model" | "storag
 const FAILURES: readonly ModelFailure[] = ["network", "unavailable", "not-the-model", "storage", "unknown"];
 
 /**
- * Where the models the reader's languages need stand on this device
- * (generalise-lingua-translation-model-state D3).
+ * Where the models the reader's pairs need stand on this device
+ * (generalise-lingua-translation-model-state D3, generalise-lingua-translation-routes-by-pair D3).
  * - absent: nothing asked (the setting is off).
  * - downloading: in progress, `received` of `total` bytes over every needed model.
- * - ready: every needed model on the device and verified; `models` names them, and `languages`
- *   the reader's languages whose whole route they make.
+ * - ready: every needed model on the device and verified; `models` names them, and `pairs` the
+ *   reader's pairs whose whole route they make.
  * - missing: the setting is on and a needed model was never downloaded — a language the reader
- *   added; `total` bytes would fetch it, and `models` and `languages` name what is already complete
+ *   added; `total` bytes would fetch it, and `models` and `pairs` name what is already complete
  *   and translatable. Nothing is fetched until the reader asks.
  * - failed: the download stopped for `reason`; the setting offers to try again.
  * - interrupted: its host was torn down mid-way; the setting offers to resume.
@@ -39,8 +41,8 @@ const FAILURES: readonly ModelFailure[] = ["network", "unavailable", "not-the-mo
 export type ModelState =
   | { phase: "absent" }
   | { phase: "downloading"; received: number; total: number }
-  | { phase: "ready"; models: string[]; languages: string[] }
-  | { phase: "missing"; models: string[]; languages: string[]; total: number }
+  | { phase: "ready"; models: string[]; pairs: string[] }
+  | { phase: "missing"; models: string[]; pairs: string[]; total: number }
   | { phase: "failed"; reason: ModelFailure }
   | { phase: "interrupted"; received: number; total: number }
   | { phase: "removed" };
@@ -55,19 +57,40 @@ export function parseHost(raw: unknown): TranslationHost {
 const bytes = (n: unknown): number => (typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : 0);
 
 /**
- * The languages a stored `ready` stood for before they were recorded: the release before
- * generalise-lingua-translation-model-state wrote `ready` only once the English model was complete.
+ * The pairs a stored `ready` stood for before anything was recorded with it: the release before
+ * generalise-lingua-translation-model-state wrote `ready` only once the English model — en-fr's
+ * one model — was complete.
  */
-const READY_BEFORE_LANGUAGES = ["en"];
+const READY_BEFORE_PAIRS = ["en-fr"];
 
-/** Model ids or languages, as stored; a state written before they were named names none. */
+/** Model ids or pairs, as stored; a state written before they were named names none. */
 const names = (raw: unknown): string[] =>
   Array.isArray(raw) ? raw.filter((name): name is string => typeof name === "string") : [];
+
+/**
+ * The pairs a stored state names. `pairs` since generalise-lingua-translation-routes-by-pair; before
+ * it, `languages`, each read as the pair of the default native language, because every pair shipped
+ * so far is glossed in French (M22, routes-by-pair D3). Neither: `before`. The next reconciliation
+ * rewrites the state with pairs.
+ */
+function storedPairs(s: { pairs?: unknown; languages?: unknown }, before: string[]): string[] {
+  if (s.pairs !== undefined) return names(s.pairs);
+  if (s.languages !== undefined) return names(s.languages).map((language) => `${language}-${DEFAULT_NATIVE}`);
+  return before;
+}
 
 /** A stored state, or `absent` when there is none or it cannot be read. */
 export function parseModelState(raw: unknown): ModelState {
   const s = raw as
-    | { phase?: unknown; received?: unknown; total?: unknown; reason?: unknown; models?: unknown; languages?: unknown }
+    | {
+        phase?: unknown;
+        received?: unknown;
+        total?: unknown;
+        reason?: unknown;
+        models?: unknown;
+        pairs?: unknown;
+        languages?: unknown;
+      }
     | null
     | undefined;
   switch (s?.phase) {
@@ -75,13 +98,9 @@ export function parseModelState(raw: unknown): ModelState {
     case "interrupted":
       return { phase: s.phase, received: bytes(s.received), total: bytes(s.total) };
     case "ready":
-      return {
-        phase: "ready",
-        models: names(s.models),
-        languages: s.languages === undefined ? [...READY_BEFORE_LANGUAGES] : names(s.languages),
-      };
+      return { phase: "ready", models: names(s.models), pairs: storedPairs(s, [...READY_BEFORE_PAIRS]) };
     case "missing":
-      return { phase: "missing", models: names(s.models), languages: names(s.languages), total: bytes(s.total) };
+      return { phase: "missing", models: names(s.models), pairs: storedPairs(s, []), total: bytes(s.total) };
     case "removed":
       return { phase: "removed" };
     case "failed":
@@ -94,13 +113,27 @@ export function parseModelState(raw: unknown): ModelState {
   }
 }
 
+/** On, and with a state that names what is translatable. */
+function recorded(host: TranslationHost, state: ModelState): state is ModelState & { pairs: string[] } {
+  return host === "local" && (state.phase === "ready" || state.phase === "missing");
+}
+
 /**
- * Whether a sentence in `language` can be asked: the reader chose the device, and every model of the
- * language's route is on it, as the background recorded (generalise-lingua-translation-model-state D5).
+ * Whether a translation through `pair` can be asked: the reader chose the device, and every model of
+ * the pair's route is on it, as the background recorded (generalise-lingua-translation-model-state
+ * D5). The background's gate, on the exact pair (generalise-lingua-translation-routes-by-pair D3).
+ */
+export function pairReady(host: TranslationHost, state: ModelState, pair: string): boolean {
+  return recorded(host, state) && state.pairs.includes(pair);
+}
+
+/**
+ * Whether a sentence in `language` can be asked from a page, which asks in the document's language
+ * and never names a pair: true when a ready pair studies it (routes-by-pair D3). The device holds one
+ * native language, so this gate and `pairReady` agree.
  */
 export function languageReady(host: TranslationHost, state: ModelState, language: string): boolean {
-  if (host !== "local") return false;
-  return (state.phase === "ready" || state.phase === "missing") && state.languages.includes(language);
+  return recorded(host, state) && state.pairs.some((pair) => studiedOf(pair) === language);
 }
 
 /** The slice of chrome.storage.local this needs. */

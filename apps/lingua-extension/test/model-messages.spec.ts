@@ -16,7 +16,7 @@ describe("model messages", () => {
     expect(asModelStatus({ offered: true, host: "local", state: { phase: "ready" } })).toEqual({
       offered: true,
       host: "local",
-      state: { phase: "ready", models: [], languages: ["en"] },
+      state: { phase: "ready", models: [], pairs: ["en-fr"] },
     });
     expect(asModelStatus({ offered: true, host: "remote", state: { phase: "nope" } })).toEqual({
       offered: true,

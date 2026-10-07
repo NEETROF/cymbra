@@ -87,7 +87,7 @@ describe("the Traduction étendue setting", () => {
 
   it("missing: says a language needs a model, its size, and offers to download it (model-state D3)", async () => {
     const v = await mount(
-      on({ phase: "missing", models: ["en-fr/base-memory/2.0"], languages: ["en"], total: 26_200_000 }),
+      on({ phase: "missing", models: ["en-fr/base-memory/2.0"], pairs: ["en-fr"], total: 26_200_000 }),
       {
         resume: on({ phase: "downloading", received: 0, total: 26_200_000 }),
       },
@@ -135,13 +135,13 @@ describe("the Traduction étendue setting", () => {
     const v = await mount(on({ phase: "downloading", received: 0, total: 1_000_000 }));
     v.push({ host: "local", state: { phase: "downloading", received: 500_000, total: 1_000_000 } });
     expect(v.bar.value).toBe(500_000);
-    v.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] } });
+    v.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], pairs: ["en-fr"] } });
     expect(v.line.textContent).toBe(COPY.ready);
     expect(v.bar.hidden).toBe(true);
   });
 
   it("ready: says so, with nothing to press but the checkbox", async () => {
-    const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] }));
+    const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], pairs: ["en-fr"] }));
     expect(v.line.textContent).toBe(COPY.ready);
     expect(v.action.hidden).toBe(true);
   });
@@ -183,7 +183,7 @@ describe("the Traduction étendue setting", () => {
   });
 
   it("unticking it turns it off, whatever state it was in", async () => {
-    const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] }), {
+    const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], pairs: ["en-fr"] }), {
       disable: OFF,
     });
     v.box.checked = false;
@@ -208,7 +208,7 @@ describe("the Traduction étendue setting", () => {
     const fake = controls(OFF);
     const block = document.createElement("div");
     mountTranslationSetting(block, fake.c);
-    fake.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] } });
+    fake.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], pairs: ["en-fr"] } });
     expect(block.hidden).toBe(true);
   });
 
@@ -219,12 +219,12 @@ describe("the Traduction étendue setting", () => {
       expect(v.whens[0]!()).toBe(true);
       v.block.hidden = true; // the drawer switched to another view, say
       expect(v.whens[0]!()).toBe(false);
-      v.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] } });
+      v.push({ host: "local", state: { phase: "ready", models: ["en-fr/base-memory/2.0"], pairs: ["en-fr"] } });
       expect(v.stops[0]).toHaveBeenCalledOnce();
     });
 
     it("pings for nothing else", async () => {
-      const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], languages: ["en"] }));
+      const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], pairs: ["en-fr"] }));
       expect(v.c.keepAwake).not.toHaveBeenCalled();
     });
   });
