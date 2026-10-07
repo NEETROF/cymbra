@@ -22,6 +22,7 @@ per **pair**:
 | `../measure_marks.mjs` | The harness: the pinned engine and the catalogue's models, each selection of a pair's studied language marked exactly as `relay.ts` marks it, through that pair's route   |
 | `results-<pair>.jsonl` | Per selection: the translated sentence with its marks bracketed, the fragment's own translation, and the experiment's mark — `results-en-fr.jsonl`, `results-es-fr.jsonl` |
 | `judged-<pair>.tsv`    | Every mark judged correct, wrong or withheld, with a reason for each wrong one — `judged-en-fr.tsv`, `judged-es-fr.tsv`                                                   |
+| `tier.mjs`             | D2's first tier and the count of a judged file, as read above; `test/translate-marks.spec.ts` holds `MARKED_PAIRS` to it                                                  |
 
 ## Running it again
 

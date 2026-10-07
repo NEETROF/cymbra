@@ -4,46 +4,25 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { studiedOf } from "@/analyzer/pairs.ts";
 import { MARKED_PAIRS } from "@/translate/markup.ts";
+import { firstTier, judgedCounts } from "../tool/marks/tier.mjs";
 
 // The marks measurement as committed (release-lingua-spanish-translation D2, tool/marks/README.md):
 // a pair is listed in MARKED_PAIRS only once its judged marks reach the programme's first tier —
 // at least 90 % of the shown marks correct, at most 25 % of the selections withheld. Measured and
 // filed per pair since generalise-lingua-translation-routes-by-pair D6; the corpus stays per
 // studied language. This holds the list to the files, so a pair is never marked on another's
-// measurement.
+// measurement; the tier is tool/marks/tier.mjs's, the rule the README states, not one of this
+// test's own. The two checks named "structural" read the harness and the files' names, not a
+// behaviour.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const marks = join(root, "tool", "marks");
 
-interface Judged {
-  correct: number;
-  shown: number;
-  withheld: number;
-  total: number;
-}
-
-/** The engine's marks of `judged-<pair>.tsv`, counted as the README reads D2. */
-function judged(pair: string): Judged {
-  const [header, ...rows] = readFileSync(join(marks, `judged-${pair}.tsv`), "utf8")
-    .trim()
-    .split("\n");
-  const engine = header!.split("\t").indexOf("engine");
-  const verdicts = rows.map((row) => row.split("\t")[engine]);
-  const withheld = verdicts.filter((v) => v === "withheld").length;
-  return {
-    correct: verdicts.filter((v) => v === "correct").length,
-    shown: verdicts.length - withheld,
-    withheld,
-    total: verdicts.length,
-  };
-}
-
-/** D2's first tier: correct is the share of the shown marks, withheld the share of all selections. */
-const firstTier = ({ correct, shown, withheld, total }: Judged): boolean =>
-  correct / shown >= 0.9 && withheld / total <= 0.25;
+/** The engine's marks of `judged-<pair>.tsv`, counted. */
+const judged = (pair: string) => judgedCounts(readFileSync(join(marks, `judged-${pair}.tsv`), "utf8"));
 
 describe("A pair's marks are measured before they are shown", () => {
-  it("Measuring again: the harness measures a pair, on the corpus of its studied language, and files results and judgments by pair", () => {
+  it("structural: Measuring again — the harness measures a pair, on the corpus of its studied language, and files results and judgments by pair", () => {
     const harness = readFileSync(join(root, "tool", "measure_marks.mjs"), "utf8");
     expect(harness).toContain("--pair");
     expect(harness).toContain("catalogue.routes[pair]");
@@ -75,12 +54,21 @@ describe("A pair's marks are measured before they are shown", () => {
     expect(MARKED_PAIRS).toContain("es-fr");
   });
 
-  it("Spanish below the first tier: short of 90 % correct or past 25 % withheld, a pair is not listed and stays unmarked", () => {
-    // The rule D2 fixed before the run, on the measurements that would have failed it.
+  it("Spanish below the first tier: short of 90 % correct or past 25 % withheld, a pair is not on the tier the list requires", () => {
+    // The rule D2 fixed before the run (tool/marks/tier.mjs), on measurements that would have failed it.
     expect(firstTier({ correct: 80, shown: 90, withheld: 10, total: 100 })).toBe(false);
     expect(firstTier({ correct: 74, shown: 74, withheld: 26, total: 100 })).toBe(false);
     expect(firstTier({ correct: 81, shown: 90, withheld: 10, total: 100 })).toBe(true);
-    // A pair with no judged file is not listed: its selection is translated without a mark (relay.ts).
+    // Counted as the README reads D2: withheld over all selections, correct over the marks shown.
+    expect(judgedCounts("k\tengine\n1\tcorrect\n2\twithheld\n3\twrong\n4\tcorrect\n")).toEqual({
+      correct: 2,
+      shown: 3,
+      withheld: 1,
+      total: 4,
+    });
+  });
+
+  it("structural: a pair with no judged file is not listed — its selection is translated without a mark (relay.ts)", () => {
     for (const pair of ["es-en", "en-es"]) {
       expect(existsSync(join(marks, `judged-${pair}.tsv`))).toBe(false);
       expect(MARKED_PAIRS).not.toContain(pair);
