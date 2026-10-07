@@ -3,8 +3,9 @@
 The pipeline turns upstream datasets into one versioned `pack.lingua` per language pair, in two
 stages (pin-lingua-pack-sources):
 
-1. **Reduce** (`reduce-<pair>.py`, with the rules every `<studied>->FR` pair shares in
-   `reduce_common.py`): the raw sources become the tables of `tables/<pair>/`, which
+1. **Reduce** (`reduce-<pair>.py`, with the rules every pair shares in `reduce_common.py` and the
+   rules of the Wiktionary edition its glosses come from in `reduce_edition_<native>.py`; see
+   *The Wiktionary editions' rules*): the raw sources become the tables of `tables/<pair>/`, which
    are **committed** with `pin.json` — the record of each raw source (at a commit and by sha256,
    or as our own snapshot for kaikki, which upstream regenerates daily) and of the pack they
    build. Only `build.sh --update` (today's sources), `--reduce` (the pinned sources, after a
@@ -198,6 +199,59 @@ fail, naming both pairs and the table, when two pairs of one studied language ho
 the lemma ids and how a form's readings are stored. Nothing copies them automatically: an update of
 the reference is copied to its siblings in the same pull request.
 
+## The Wiktionary editions' rules
+
+A pack's glosses are in the reader's native language, **written by a person**: never in the studied
+language, never in a third language, never machine-translated, and never pivoted through a third
+language. A word a person wrote into a Wiktionary translation table qualifies when the table pairs
+the studied and the native language directly — the native words a studied entry lists, or the
+native entry whose table lists the studied word (`pack_sources.py DUMPS`: every translation file a
+pair derives pairs its two languages). Where no such source glosses a lemma, it has no gloss.
+
+The glosses come from the Wiktionary written in the native language, and each edition writes its
+own notes around them. Its cleaning rules are an `Edition` (`reduce_common.py`), one module per
+edition (generalise-lingua-gloss-reducer):
+
+| Module | Edition | Read by | What it knows |
+|---|---|---|---|
+| `reduce_edition_fr.py` | French (frwiktionary) | en-fr, es-fr | Today's rules, unchanged: the form-of wordings (« Pluriel de », « Forme de », also read for en-fr's own forms), « Présent », « Graphie » for expressions, the pointers and placeholders (« → voir », « Définition manquante ou à compléter »), a coordinator left hanging (« ou », « et »), a letter's name; a gloss of translation-table words opens on a capital |
+| `reduce_edition_en.py` | English (enwiktionary) | es-en (change 21) | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Long parentheses (M20) are kept until es-en's review settles them (`long_parenthesis`, 0) |
+| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es (change 22) | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name |
+
+Each module's docstring holds the census its rules come from, measured on the data es-fr pins. The
+French-native pairs' reducers bind the French edition; `reduce_common.py` imports no edition, so a
+shared function is always told which edition it cleans.
+
+**The digest covers what a reducer loads.** A pair's rules (`pin.json` `reducer.files`) are its
+reducer and every `reduce_*.py` module importing it loads, read from `sys.modules`
+(`pack_sources.py rule_files`): en-fr's and es-fr's are `reduce-<pair>.py`, `reduce_common.py` and
+`reduce_edition_fr.py`. Editing the English or Spanish edition re-pins no pair glossed in French;
+editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
+reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a
+reducer would make later than at import time, and any module loaded other than by an import
+statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.
+
+**Translation tables wherever the edition writes them.** `derive` reads an entry's table for the
+whole entry and each of its senses' (`translations_of`), with the sense a table names. The French and
+Spanish Wiktionaries write one table per entry, so es-fr's derived files are unchanged; the English
+one writes them under its senses (68,579 English entries list Spanish translations under a sense,
+5,080 for the whole entry).
+
+**The committed tables are what the rules make of the pinned sources.** The `reduce` job of
+`lingua-extension-check` reduces every pair again from its pinned sources, with the pinned
+interpreter and dependencies, whenever `scripts/lingua-data` or the job changes, and fails on any byte of the
+tables, `manifest.json` or `pin.json` that differs — a table or a digest written by hand cannot
+pass. To change the rules without moving a table, dispatch `lingua-pack-update` with `mode=reduce`,
+`pair=all` and `expect=identical`: one branch with every pair's tables, the baselines re-blessed
+once, and a failure naming the pair and the file when a table, `tags.tsv`, `lexical.tsv` or NOTICE
+moves, when `manifest.json` moves beyond `pack_version` or `pin.json` beyond the pack's sha256 and
+the rules' record (`pack_report.py --identical`), when the site's coverage figures move, or when a
+baseline moves beyond the lines naming the packs.
+
+Measured when the editions came in: en-fr and es-fr reduced again from their pinned sources gave
+their seven tables, `tags.tsv` and NOTICE byte for byte; only `pack_version` (`2026.09.26+55f480b`,
+`2026.10.03+0d876dc`) and the pins moved.
+
 ## Allowed vs denied licences
 
 - **Allowed** (commercial use OK): permissive (ESDB/SCOWL and WordNet), CC BY, CC BY-SA (the derived tables are published, satisfying share-alike).
@@ -209,6 +263,6 @@ The denylist is code, not just prose: `lingua_pack::licence::is_denied` fails th
 
 - **Raw sources are never committed.** They download into `scripts/lingua-data/work/` (git-ignored), dated.
 - **The pack is never committed.** CI rebuilds it and caches it; the reproducibility test (`crates/lingua-pack/tests/pipeline_testdata.rs`) proves two builds over the same tables are byte-identical.
-- **Adding a pair is a reducer, not a format change**: the container and the builder are pair-keyed, and what a `<studied>->FR` pair does with the French Wiktionary and with its forms is shared (`reduce_common.py`, driven by a `Studied` — the language's word pattern, form-of target wording, coordinators and wordfreq code). A new pair writes `reduce-<pair>.py` for its own inflection and level sources and registers its sources in `pack_sources.py`; the analyser must also know the language (lingua-core). Candidate sources for the Romance pairs: Morphalou (fr, LGPL-LR), morph-it! (it, CC BY-SA 2.0/LGPL), MorphoBr (pt, Apache-2.0), kaikki/frwiktionary glosses.
+- **Adding a pair is a reducer, not a format change**: the container and the builder are pair-keyed, and what a pair does with a Wiktionary's glosses and with its forms is shared (`reduce_common.py`, driven by a `Studied` — the language's word pattern, form-of target wording, coordinators and wordfreq code — and by the `Edition` of the Wiktionary its glosses come from, `reduce_edition_<native>.py`). A new pair writes `reduce-<pair>.py` for its own inflection and level sources and registers its sources in `pack_sources.py`; the analyser must also know the language (lingua-core). Candidate sources for the Romance pairs: Morphalou (fr, LGPL-LR), morph-it! (it, CC BY-SA 2.0/LGPL), MorphoBr (pt, Apache-2.0), kaikki/frwiktionary glosses.
 
 `testdata/en-fr/` holds a tiny hand-made fixture (a few lines, not real source data) so the pipeline and its reproducibility test run in CI without any download.

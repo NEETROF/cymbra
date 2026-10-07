@@ -12,7 +12,8 @@
   when the tables come from an update, and names it with the reducer's rules when they come from a
   re-reduction of the same sources (`2026.09.26+1dff19c`).
 - `pack`: sha256 and size of the pack the tables build — every lane must obtain exactly that.
-- `reducer`: sha256 of the `reduce-<pair>.py` the tables were reduced with.
+- `reducer`: the files the tables were reduced by — the pair's `reduce-<pair>.py` and the shared
+  `reduce_*.py` modules importing it loads (`rule_files`) — and one sha256 over all of them.
 - `sources`: each raw source, pinned — CEFR-J and Octanove at a commit of their own repository
   and by sha256; ESDB (the inflections) built at a commit of en-wl/wordlist, by the sha256 of its
   exported `scowl.txt`; kaikki (regenerated upstream every day) as our own snapshot, a
@@ -206,13 +207,26 @@ def download(url: str, dest: Path, *, compressed: bool = False) -> dict[str, str
     return headers
 
 
+def translations_of(entry: dict):
+    """An entry's translations wherever its edition writes them (generalise-lingua-gloss-reducer D3):
+    the table of the whole entry, then each sense's, in source order. The French and Spanish
+    Wiktionaries write one table per entry; the English one writes them under its senses — 68,579
+    of its English entries list Spanish translations under a sense, against 5,080 for the whole
+    entry."""
+    yield from entry.get("translations") or ()
+    for sense in entry.get("senses") or ():
+        if isinstance(sense, dict):
+            yield from sense.get("translations") or ()
+
+
 def derive(dump: Path, files: dict, work: Path) -> None:
     """The files a pair takes from an edition's dump (`DUMPS`), in one pass, in the dump's order.
 
     An `entries` file holds each line as the dump writes it, so the shared rules read it as they
     read a per-language extract. A `translations` file holds, per entry, its word, its part of
     speech and its translations into one language (the word, and the sense when the table names
-    one), as sorted JSON: the rest of the entry is not read, and would weigh down the release.
+    one), wherever the entry lists them (`translations_of`), as sorted JSON: the rest of the entry
+    is not read, and would weigh down the release.
     """
     # A line cannot belong to a file unless it names the languages that file reads, as the dump
     # writes them; most of a dump's millions of lines are then never parsed.
@@ -237,7 +251,7 @@ def derive(dump: Path, files: dict, work: Path) -> None:
                         continue
                     found = [
                         {"word": t["word"], **({"sense": t["sense"]} if t.get("sense") else {})}
-                        for t in entry.get("translations") or ()
+                        for t in translations_of(entry)
                         if t.get("lang_code") == into[0] and t.get("word")
                     ]
                     if found:
@@ -404,20 +418,61 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=bu
 # — what the tables build —
 
 
+# What importing a reducer loads, run in an interpreter of its own: the caller's imports never
+# count, and the reducer's import touches nothing of the caller's. No bytecode is written, and the
+# working directory is not on the path: a module is found beside the reducer, wherever it runs from.
+_LOADED_RULES = r"""
+import importlib.util, json, sys
+from pathlib import Path
+
+reducer = Path(sys.argv[1]).resolve()
+sys.path[:] = [str(reducer.parent), *(p for p in sys.path if p)]
+spec = importlib.util.spec_from_file_location("_lingua_reducer", reducer)
+spec.loader.exec_module(importlib.util.module_from_spec(spec))
+loaded = set()
+for name, module in list(sys.modules.items()):
+    path = getattr(module, "__file__", None)
+    if name.startswith("reduce_") and path and Path(path).resolve().parent == reducer.parent:
+        loaded.add(Path(path).name)
+print(json.dumps(sorted(loaded)))
+"""
+
+
+def loaded_rules(reducer: Path) -> list[str]:
+    """The shared rule modules importing `reducer` loads — the `reduce_*.py` beside it that are in
+    `sys.modules` once it is imported — by file name, sorted."""
+    done = subprocess.run(
+        [sys.executable, "-B", "-c", _LOADED_RULES, str(reducer)], capture_output=True, text=True, check=False
+    )
+    if done.returncode != 0:
+        lines = done.stderr.strip().splitlines()
+        raise PinError(f"importing {reducer.name} failed: {lines[-1] if lines else done.returncode}")
+    return json.loads(done.stdout)
+
+
 def rule_files(reducer: Path) -> list[Path]:
-    """The files a pair's tables are reduced by: its own `reduce-<pair>.py` and every shared
-    `reduce_*.py` beside it (generalise-lingua-pack-reducer). Shared rules are named with an
-    underscore, a pair's with a hyphen, so a new pair never enters another pair's rule set."""
-    return [reducer, *sorted(p for p in reducer.parent.glob("reduce_*.py") if p != reducer)]
+    """The files a pair's tables are reduced by (generalise-lingua-gloss-reducer D2): its own
+    `reduce-<pair>.py` and every shared `reduce_*.py` module importing it loads — the rules every
+    pair shares and the rules of the Wiktionary edition its glosses come from. A rule module the
+    reducer loads never escapes the digest, and the rules of an edition it does not read are not
+    part of it: tuning the English Wiktionary's rules never asks a pair glossed in French to reduce
+    again. Shared rules are named with an underscore, a pair's with a hyphen, so a pair's reducer
+    never enters another pair's rule set."""
+    return [reducer, *(reducer.parent / name for name in loaded_rules(reducer))]
+
+
+def files_sha256(files: list[Path]) -> str:
+    """One digest over rule files: every file's name and sha256, in order."""
+    digest = hashlib.sha256()
+    for path in files:
+        digest.update(f"{path.name}\0{sha256(path)}\n".encode())
+    return digest.hexdigest()
 
 
 def rules_sha256(reducer: Path) -> str:
-    """One digest for a pair's reduction rules: every rule file's name and sha256, in order. A
-    change to a shared module moves every pair's digest, so each is asked to reduce again."""
-    digest = hashlib.sha256()
-    for path in rule_files(reducer):
-        digest.update(f"{path.name}\0{sha256(path)}\n".encode())
-    return digest.hexdigest()
+    """One digest for a pair's reduction rules (`rule_files`). A change to a shared module moves the
+    digest of every pair that loads it, so each is asked to reduce again."""
+    return files_sha256(rule_files(reducer))
 
 
 def keep(committed: Path, tables: Path) -> list[str]:
@@ -441,7 +496,8 @@ def record_build(pin: Path, pack: Path, reducer: Path) -> None:
         )
     record = load(pin)
     record["pack"] = {"sha256": sha256(pack), "size": pack.stat().st_size}
-    record["reducer"] = {"sha256": rules_sha256(reducer), "files": [p.name for p in rule_files(reducer)]}
+    files = rule_files(reducer)
+    record["reducer"] = {"sha256": files_sha256(files), "files": [p.name for p in files]}
     save(pin, {k: record[k] for k in ("snapshot", "pack", "reducer", "sources") if k in record})
 
 
@@ -467,10 +523,21 @@ def check_pack(pin: Path, pack: Path) -> None:
 
 
 def check_reducer(pin: Path, reducer: Path) -> None:
-    want = get(load(pin), "reducer.sha256")
-    got = rules_sha256(reducer)
+    record = load(pin)
+    want = get(record, "reducer.sha256")
+    files = rule_files(reducer)
+    named = set(record["reducer"].get("files") or ())
+    unnamed = [p.name for p in files if p.name not in named]
+    if unnamed:
+        raise PinError(
+            f"{reducer.name} loads {', '.join(unnamed)}, which the rules recorded in pin.json (reducer.files) "
+            "do not name: the committed tables were reduced without it. Reduce them again from the pinned "
+            f"sources: scripts/lingua-data/build.sh --reduce {pair_of(pin)} <out> (or dispatch "
+            "lingua-pack-update with mode=reduce)."
+        )
+    got = files_sha256(files)
     if got != want:
-        names = ", ".join(p.name for p in rule_files(reducer))
+        names = ", ".join(p.name for p in files)
         raise PinError(
             f"The reduction rules ({names}) changed since the committed tables were reduced "
             f"(sha256 {got}, pin.json has {want}). "

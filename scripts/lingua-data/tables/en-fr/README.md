@@ -36,11 +36,19 @@ them. Its pull request says so, and every pair studying English carries the same
   sources, keeps kaikki's bytes as the release `lingua-pack-sources-en-fr-<snapshot>`, reduces,
   pushes the branch `lingua-pack/en-fr/<snapshot>`, and writes a report of what changes. Open the pull
   request from the link in its summary; releases keep these tables until it is merged.
-- **After editing the reduction rules** — `reduce-en-fr.py`, or `reduce_common.py`, which every
-  pair shares (`pin.json` lists both under `reducer.files`): the check lane fails until the tables are reduced again
-  from the pinned sources — `scripts/lingua-data/build.sh --reduce en-fr <out>` (Python 3.12,
-  `requirements-reduce.txt`), or `lingua-pack-update` with `mode=reduce`. The diff is then the
-  rules' effect alone.
+- **After editing the reduction rules** — `reduce-en-fr.py`; `reduce_common.py`, which every pair
+  shares; or `reduce_edition_fr.py`, the French Wiktionary's rules, which every pair glossed in French
+  loads (`pin.json` lists the three under `reducer.files`, the modules the reducer loads,
+  `../../SOURCES.md`, *The Wiktionary editions' rules*): the check lane fails until the tables are
+  reduced again from the pinned sources — `scripts/lingua-data/build.sh --reduce en-fr <out>`
+  (Python 3.12, `requirements-reduce.txt`), or `lingua-pack-update` with `mode=reduce`. The diff is
+  then the rules' effect alone. The English and Spanish Wiktionaries' rules (`reduce_edition_en.py`,
+  `reduce_edition_es.py`) are not en-fr's: editing them asks nothing of these tables.
+- **A change of rules meant to move no table** — dispatch `lingua-pack-update` with `mode=reduce`,
+  `pair=all` and `expect=identical`: it fails, naming the pair and the file, on any byte beyond
+  `pack_version` and the pins. The `reduce` job of `lingua-extension-check` reduces every pair again
+  on each pull request that touches `scripts/lingua-data`, and fails when the result is not the
+  committed tables.
 - **After a builder or dependency change** that changes the pack's bytes: update `pack.sha256` and
   `pack.size` in `pin.json` in the same pull request.
 

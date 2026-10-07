@@ -52,7 +52,10 @@ Measured in a scratch copy:
 - `capitalised`;
 - `long_parenthesis`, 0 until M20 is settled.
 
-Every function that cleans or classifies a gloss takes an edition, and defaults to the French one.
+Every function that cleans or classifies a gloss takes an edition, as a required keyword: the
+shared module has no default to fall back on, since it imports no edition module (D2). The
+French-native reducers bind the French edition (`functools.partial` and thin aliases), so their
+names, their tests and their behaviour stay as they were.
 
 The French instance holds today's regexes by identity, so en-fr and es-fr reduce exactly as
 before. That includes the studied-side signals of en-fr, which read the same form-of test.
@@ -62,7 +65,7 @@ The English and Spanish instances come from the census of their kaikki data:
 | Edition | Pointers recognised | Cleaning | Casing |
 |---|---|---|---|
 | English | `form-of` / `alt-of` tags and fields; untagged « (alternative \| obsolete \| …) (form \| spelling) of », « (plural \| inflection \| …) of », « synonym of », « only used in », « see » | no placeholder (none in 875,591 senses) | lower case, as written |
-| Spanish | « Forma (del \| de la \| flexiva \| verbal \| …) … de », « grafía », « variante », tense and person names followed by « de » or « del » (the « de » is required, so « Femenino. » stays a meaning) | sense-link subscripts after a lower-case letter (case-sensitive, so « C₄H₁₀ » keeps its digits); « Véase también » | — |
+| Spanish | « Forma (del \| de la \| flexiva \| verbal \| …) … de », « grafía », « variante », tense and person names followed by « de » or « del » (the « de » is required, so « Femenino. » stays a meaning) | sense-link subscripts, taken out whole — one, a range (« Madrid₁₋₂ ») or two (« bottom₉ o ₁₀ ») — after a lower-case letter, the word's period or a stray space; never after a capital (case-sensitive, so « C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's own senses, and the sense would not read without it); « Véase también » | — |
 
 Native-side helpers that only es-fr had move into the shared module, generalised over studied
 language and edition: translation fallbacks, letter removal, casing, frequency order. es-fr keeps
@@ -103,9 +106,10 @@ nothing. A pinned re-reduction never calls `derive()`, so unit tests cover it.
 - `pin.json` differs anywhere but `pack.sha256` and `reducer.{sha256,files}`.
 
 **The `reduce` job in `lingua-extension-check`.** It runs on `ubuntu-24.04` with Python 3.12 and
-the hashed requirements, and is filtered on `scripts/lingua-data/**`.
+the hashed requirements, and is filtered on `scripts/lingua-data/**` and on its own workflow file,
+so a pull request that edits the job runs it.
 - It re-reduces every `tables/*/` pair from its pinned sources with `build.sh --reduce`.
-- It runs `git diff --exit-code -- scripts/lingua-data/tables`.
+- It fails when `git status` shows any file under `scripts/lingua-data/tables` changed or added.
 
 Linux reproducibility has only been measured on macOS so far. This pull request is the first Linux
 run, and the design says so.
@@ -143,7 +147,9 @@ version it was frozen from, which stays true).
   read for real.
 - **[The CI job depends on upstream hosts]** (release assets, pinned raw URLs). → `curl --retry`,
   pinned sha256 on every fetch. A flake is re-run; it never passes silently.
-- **[A rule module escapes the digest.]** → The `sys.modules` test.
+- **[A rule module escapes the digest.]** → The `sys.modules` test, a test that every `reduce_*`
+  import in a pair's rules names one of its rule files, and a test that no reducer or rule module
+  loads code other than by an import statement (`importlib`, `__import__`, `exec`).
 
 ## Migration Plan
 

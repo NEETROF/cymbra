@@ -7,6 +7,7 @@
 """Tests for the update report (pin-lingua-pack-sources D6, D7) on small fixtures."""
 
 import io
+import json
 import sys
 import tempfile
 import unittest
@@ -101,6 +102,112 @@ class Report(unittest.TestCase):
         code, report = self.run_report(new, "--pack", str(pack))
         self.assertEqual(code, 1)
         self.assertIn("over its budget", report)
+
+
+class Identical(unittest.TestCase):
+    """--identical (generalise-lingua-gloss-reducer D4): a pair reduced again expecting no change."""
+
+    MANIFEST = {"meta": {"studied": "es", "native": "fr", "pack_version": "2026.10.03+be9a267", "analyzer_version": "1.2.0"}}
+    PIN = {
+        "snapshot": "2026.10.03",
+        "pack": {"sha256": "2c23f1f1", "size": 2190188},
+        "reducer": {"sha256": "be9a267e", "files": ["reduce-es-fr.py", "reduce_common.py"]},
+        "sources": {"kaikki": {"sha256": "a2cc93ae"}, "wordfreq": {"version": "3.1.1"}},
+    }
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.old = self.pair(self.root / "committed")
+        self.new = self.pair(self.root / "tables" / "es-fr")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def pair(self, root: Path) -> Path:
+        tables(
+            root,
+            gloss_tsv="casa\tMaison\n",
+            freq_tsv="casa\t1\n",
+            tags_tsv="NOUN\n",
+            lexical_tsv="casa\n",
+            NOTICE="kaikki.org, CC BY-SA 4.0\n",
+        )
+        (root / "manifest.json").write_text(json.dumps(self.MANIFEST, indent=2) + "\n", encoding="utf-8")
+        (root / "pin.json").write_text(json.dumps(self.PIN, indent=2) + "\n", encoding="utf-8")
+        return root
+
+    def edit(self, name: str, change) -> None:
+        path = self.new / name
+        if name.endswith(".json"):
+            record = json.loads(path.read_text(encoding="utf-8"))
+            change(record)
+            path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        else:
+            path.write_text(change(path.read_text(encoding="utf-8")), encoding="utf-8")
+
+    def run_report(self, *args: str) -> tuple[int, str]:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = pr.main([str(self.old), str(self.new), "--identical", *args])
+        return code, out.getvalue()
+
+    def test_the_pack_version_and_the_record_of_the_pack_and_rules_may_move(self):
+        self.edit("manifest.json", lambda m: m["meta"].update(pack_version="2026.10.03+0123abc"))
+        self.edit("pin.json", lambda r: r["pack"].update(sha256="99999999"))
+        self.edit("pin.json", lambda r: r["reducer"].update(sha256="0123abcd", files=[*r["reducer"]["files"], "reduce_edition_fr.py"]))
+        code, report = self.run_report()
+        self.assertEqual(code, 0, report)
+        self.assertIn("Reduced again expecting no change", report)
+
+    def test_one_byte_of_a_table_fails_naming_the_pair_and_the_file(self):
+        self.edit("gloss.tsv", lambda t: t.replace("Maison", "Maison."))
+        code, report = self.run_report()
+        self.assertEqual(code, 1)
+        self.assertIn("- es-fr: gloss.tsv differs", report)
+        # Without --identical, a changed gloss is news, not a failure.
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(pr.main([str(self.old), str(self.new)]), 0)
+
+    def test_the_kept_inputs_and_notice_may_not_move(self):
+        for name in ("tags.tsv", "lexical.tsv", "NOTICE"):
+            with self.subTest(name):
+                before = (self.new / name).read_text(encoding="utf-8")
+                self.edit(name, lambda t: t + "x\n")
+                code, report = self.run_report()
+                self.assertEqual(code, 1)
+                self.assertIn(f"- es-fr: {name} differs", report)
+                (self.new / name).write_text(before, encoding="utf-8")
+
+    def test_a_table_that_appears_or_goes_is_a_difference(self):
+        (self.new / "lexical.tsv").unlink()
+        (self.new / "mwe.tsv").write_text("hay que\tIl faut\n", encoding="utf-8")
+        code, report = self.run_report()
+        self.assertEqual(code, 1)
+        self.assertIn("- es-fr: lexical.tsv differs", report)
+        self.assertIn("- es-fr: mwe.tsv differs", report)
+
+    def test_the_manifest_moves_in_its_pack_version_only(self):
+        self.edit("manifest.json", lambda m: m["meta"].update(pack_version="2026.10.03+0123abc", analyzer_version="1.3.0"))
+        code, report = self.run_report()
+        self.assertEqual(code, 1)
+        self.assertIn("- es-fr: manifest.json differs at meta.analyzer_version", report)
+
+    def test_the_pin_moves_in_the_pack_s_sha256_and_the_rules_only(self):
+        self.edit("pin.json", lambda r: (r["pack"].update(size=2190189), r["sources"]["kaikki"].update(sha256="ffffffff")))
+        code, report = self.run_report()
+        self.assertEqual(code, 1)
+        self.assertIn("- es-fr: pin.json differs at pack.size, sources.kaikki.sha256", report)
+        self.edit("pin.json", lambda r: r.update(pack={"sha256": "2c23f1f1", "size": 2190188}, snapshot="2026.10.07"))
+        code, report = self.run_report()
+        self.assertIn("- es-fr: pin.json differs at snapshot, sources.kaikki.sha256", report)
+
+    def test_the_pair_is_named_on_demand(self):
+        self.edit("gloss.tsv", lambda t: t + "perro\tChien\n")
+        code, report = self.run_report("--pair", "en-fr")
+        self.assertEqual(code, 1)
+        self.assertIn("- en-fr: gloss.tsv differs", report)
 
 
 if __name__ == "__main__":
