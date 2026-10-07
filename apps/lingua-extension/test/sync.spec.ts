@@ -147,7 +147,9 @@ describe("SyncEngine", () => {
           source_sentence: "s",
           source: "https://x",
           gloss: "rarement",
-          gloss_language: "fr",
+          // The engine labels a gloss in another language (add-lingua-card-gloss-language);
+          // the label is not sent until the wire carries it (add-lingua-native-language-sync-client).
+          gloss_language: "en",
           fsrs_state: "{}",
           deleted: false,
           client_ts: 1800,
@@ -161,6 +163,9 @@ describe("SyncEngine", () => {
 
     const res = await engine.sync();
     expect(res).toEqual({ pushedStatuses: 1, pushedCards: 1, pulled: 0 });
+    const [pushed] = f.pushCards.mock.calls[0] as unknown as [{ cards: Record<string, unknown>[] }];
+    expect(pushed.cards[0]).not.toHaveProperty("glossLanguage");
+    expect(pushed.cards[0]).not.toHaveProperty("gloss_language");
     expect(f.pushOps).toHaveBeenCalledWith({
       ops: [
         { language: "en", lemma: "run", status: "known", provenance: "manual", clientTs: 1700n, deviceId: "dev-1" },
@@ -378,7 +383,6 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
           source_sentence: "s",
           source: "https://page.example",
           gloss: "",
-          gloss_language: "fr",
           fsrs_state: "{}",
           deleted: false,
           client_ts: 5,
@@ -405,7 +409,6 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
           source_sentence: "They seldom spoke of it.",
           source: "The Hound of the Baskervilles · I: Mr. Sherlock Holmes",
           gloss: "",
-          gloss_language: "fr",
           fsrs_state: "{}",
           deleted: false,
           client_ts: 5,
@@ -557,7 +560,6 @@ describe("SyncEngine and the reader's languages (add-lingua-language-sync-client
     source_sentence: "s",
     source: "",
     gloss: "",
-    gloss_language: "fr",
     fsrs_state: "{}",
     deleted: false,
     client_ts: 1,
