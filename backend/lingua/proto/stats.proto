@@ -37,6 +37,11 @@ message DailyStat {
   // Its PRESENCE marks a client that counts reading this way: a stat pushed without it
   // (an extension that predates the change) is acknowledged and not stored.
   optional uint32 unknown_seen = 7;
+  // The device's native language that day (add-lingua-native-language-server). Empty
+  // means "fr": clients that predate the field never set it. A value of the row, not of
+  // its key: the last upsert of a day sets it, as it sets the counts. Normalised on
+  // receipt like `language`.
+  string native_language = 8;
 }
 
 message UpsertDailyStatsRequest {

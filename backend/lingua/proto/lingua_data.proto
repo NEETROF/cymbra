@@ -34,4 +34,9 @@ message GetDataStateResponse {
   // A client holding non-English cards pushes them only when this is true; a server that
   // predates the field answers false (proto3 default) and receives English cards only.
   bool card_language = 2;
+  // Whether this server stores the language of a card's gloss and the native language
+  // of a daily statistic (add-lingua-native-language-server). A client holding a
+  // non-French gloss pushes it only when this is true; a server that predates the field
+  // answers false (proto3 default) and reads every gloss as French.
+  bool native_language = 3;
 }

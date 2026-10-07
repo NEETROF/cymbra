@@ -42,6 +42,12 @@ message CardOp {
   // that predate the field never set it and keep being understood. Normalised on
   // receipt (trimmed, lowercased, primary subtag).
   string language = 11;
+  // The language of the card's gloss (add-lingua-native-language-server). Empty means
+  // "fr": every pack ever shipped is glossed in French, and clients that predate the
+  // field never set it. Normalised on receipt like `language`; returned as stored. Not
+  // part of the key: two devices of one account write one card row, and the label
+  // travels with the gloss that wins.
+  string gloss_language = 12;
 }
 
 message PushCardsRequest {
