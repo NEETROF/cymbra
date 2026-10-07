@@ -336,3 +336,84 @@ fn restoring_a_bloated_backup_prunes_it() {
         e.backup().len()
     );
 }
+
+#[test]
+fn spec_scenario_a_card_applied_from_a_card_operation() {
+    // lingua-decks-review (add-lingua-card-gloss-language D2): an op labelled `en` applies as
+    // `en`, one with no label — or an empty one, the wire's default — as `fr`. The export emits
+    // the `en` label and leaves `fr` out, as the backup does (the baselines pin the export of
+    // French cards), which the apply reads back as `fr`.
+    let mut e = engine();
+    let op = |lemma: &str, gloss_language: Option<&str>| {
+        let mut op = serde_json::json!({
+            "language": "en",
+            "lemma": lemma,
+            "surface_form": lemma,
+            "source_sentence": "s",
+            "source": "",
+            "gloss": "rarement",
+            "fsrs_state": "{}",
+            "deleted": false,
+            "client_ts": 1_000,
+            "device_id": "",
+        });
+        if let Some(language) = gloss_language {
+            op["gloss_language"] = language.into();
+        }
+        op
+    };
+    let pulled = serde_json::Value::Array(vec![
+        op("seldom", Some("en")),
+        op("conundrum", None),
+        op("backlog", Some("")),
+    ])
+    .to_string();
+    match e.apply_card_ops(&pulled) {
+        Ok(changed) => assert_eq!(changed, 3),
+        Err(_) => panic!("pulled cards apply"),
+    }
+
+    let exported = e.export_card_ops();
+    let ops: Vec<serde_json::Value> = serde_json::from_str(&exported).unwrap();
+    let label = |lemma: &str| {
+        ops.iter()
+            .find(|op| op["lemma"] == lemma)
+            .expect(lemma)
+            .get("gloss_language")
+            .cloned()
+    };
+    assert_eq!(label("seldom"), Some("en".into()));
+    assert_eq!(label("conundrum"), None);
+    assert_eq!(label("backlog"), None);
+    let backup = e.backup();
+    assert_eq!(backup.matches("\"gloss_language\": \"en\"").count(), 1);
+    assert_eq!(backup.matches("gloss_language").count(), 1, "{backup}");
+
+    // Pulled as exported, every label holds.
+    let mut again = engine();
+    match again.apply_card_ops(&exported) {
+        Ok(changed) => assert_eq!(changed, 3),
+        Err(_) => panic!("exported cards apply"),
+    }
+    assert_eq!(again.export_card_ops(), exported);
+}
+
+#[test]
+fn a_card_created_on_the_engine_is_labelled_with_its_native_language() {
+    // The fixture pack is glossed in French: the label is `fr`, and left out of the export.
+    let mut e = engine();
+    assert_eq!(e.native_language(), "fr");
+    e.add_card(
+        "seldom",
+        "seldom",
+        "They seldom ship.",
+        "",
+        Some("rarement".into()),
+        100.0,
+        None,
+    )
+    .unwrap();
+    let ops: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
+    assert!(ops[0].get("gloss_language").is_none());
+    assert!(!e.backup().contains("gloss_language"));
+}
