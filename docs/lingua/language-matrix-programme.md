@@ -149,7 +149,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 1 | 9 | `harden-lingua-translation-engine` | 2–3.5 | Done (proposal [#747](https://github.com/NEETROF/cymbra/pull/747)); a trap costs one respawn, two models at most; M25's recommendation carried, the owner settles it |
 | 1 | 10 | `add-lingua-native-language-server` (M4, M14), server first | 4–6.5 | Done (proposal [#748](https://github.com/NEETROF/cymbra/pull/748)); the owner deploys it and checks it from outside before change 12 |
 | 1 | 11 | `add-lingua-card-gloss-language` | 3–5.5 | Done (proposal [#750](https://github.com/NEETROF/cymbra/pull/750)); the label on the device, review shows the current pack's gloss |
-| 1 | 12 | `add-lingua-native-language-sync-client` | 3.5–6 | Not started |
+| 1 | 12 | `add-lingua-native-language-sync-client` | 3.5–6 | Done (proposal [#751](https://github.com/NEETROF/cymbra/pull/751)); sends the labels to a server that stores them, holds them otherwise |
 | 1 | 13 | `add-lingua-interface-language`: the catalogue, no visible change | 5–8 | Not started |
 | 1 | 14 | `localise-lingua-reading-surfaces` | 3.5–6 | Not started |
 | 1 | 15 | `localise-lingua-settings` | 4–7 | Not started |
