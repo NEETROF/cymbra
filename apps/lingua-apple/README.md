@@ -129,8 +129,8 @@ used for tracking.
 | Contact Info → Email Address | the Cymbra account's e-mail (sign-up, verification) | yes | App Functionality |
 | Identifiers → User ID | the Cymbra account and its handle | yes | App Functionality, Analytics |
 | Identifiers → Device ID | the random installation id used by sync | yes | App Functionality |
-| User Content → Other User Content | word statuses, level, deck (word, sentence, gloss, review state) | yes | App Functionality |
-| Usage Data → Product Interaction | daily counts (words learned, reviews, words met) | yes | App Functionality, Analytics (aggregated back-office figures) |
+| User Content → Other User Content | word statuses, level, deck (word, sentence, gloss and the language of that gloss, review state) | yes | App Functionality |
+| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), with the native language of the day | yes | App Functionality, Analytics (aggregated back-office figures) |
 
 Not collected: browsing history, search history, location, contacts, purchases, diagnostics,
 financial or health data. Privacy policy: `https://cymbra.app/confidentialite/`
