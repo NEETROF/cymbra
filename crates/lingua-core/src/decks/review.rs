@@ -50,6 +50,13 @@ impl Deck {
         self.cards.keys().copied().collect()
     }
 
+    /// Every card with its language, borrowed, in (language, lemma) order.
+    pub fn iter(&self) -> impl Iterator<Item = (StudiedLanguage, &Card)> {
+        self.cards
+            .iter()
+            .flat_map(|(&lang, per_lang)| per_lang.values().map(move |card| (lang, card)))
+    }
+
     /// Inserts or replaces the card for a lemma.
     pub fn upsert(&mut self, lang: StudiedLanguage, card: Card) {
         self.cards

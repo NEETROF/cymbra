@@ -93,14 +93,19 @@ pub struct Card {
     pub encountered_form: String,
     /// Where and when it was met, with the context sentence.
     pub provenance: Provenance,
-    /// The gloss in the user's native language, if available at creation.
+    /// The gloss, written in `gloss_language`, if available at creation.
     pub gloss: Option<String>,
     /// The language the gloss is written in, as an ISO 639-1 tag: the native language of the
     /// engine the card was created on (add-lingua-card-gloss-language D1). `fr` for every card
     /// created before the label existed, and left out of the backup when `fr`, so a French
     /// reader's backup keeps its bytes and a build released before the label reads one that
-    /// carries it (`Card` does not deny unknown fields).
-    #[serde(default = "french", skip_serializing_if = "is_french")]
+    /// carries it (`Card` does not deny unknown fields). Read through
+    /// [`gloss_language_or_french`]: a blank label in a backup is `fr`.
+    #[serde(
+        default = "french",
+        deserialize_with = "read_gloss_language",
+        skip_serializing_if = "is_french"
+    )]
     pub gloss_language: String,
     /// Optional attached media (reserved; unpopulated in this change).
     pub media: Option<Media>,
@@ -125,6 +130,25 @@ fn french() -> String {
 
 fn is_french(language: &str) -> bool {
     language == FRENCH
+}
+
+/// The gloss language a label names: trimmed and lowercased, so `" EN "` is `en`; blank is
+/// [`FRENCH`], the default a label left out means. Any other tag is kept as it is, known to
+/// this build or not: the label says what the gloss is, it does not choose a pack.
+pub fn gloss_language_or_french(label: &str) -> String {
+    let label = label.trim();
+    if label.is_empty() {
+        french()
+    } else {
+        label.to_lowercase()
+    }
+}
+
+fn read_gloss_language<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<String, D::Error> {
+    let label = String::deserialize(deserializer)?;
+    Ok(gloss_language_or_french(&label))
 }
 
 impl Card {
@@ -305,5 +329,45 @@ mod tests {
         assert_eq!(back.gloss.as_deref(), Some("courir"));
         json["unknown_to_this_build"] = "ignored".into();
         assert!(serde_json::from_value::<Card>(json).is_ok());
+    }
+
+    #[test]
+    fn a_label_is_trimmed_and_lowercased_and_a_blank_one_is_french() {
+        assert_eq!(gloss_language_or_french("en"), "en");
+        assert_eq!(gloss_language_or_french(" EN "), "en");
+        assert_eq!(gloss_language_or_french(" fr "), "fr");
+        assert_eq!(gloss_language_or_french(""), "fr");
+        assert_eq!(gloss_language_or_french("  "), "fr");
+        // A tag this build does not know is kept as it is.
+        assert_eq!(gloss_language_or_french("tlh"), "tlh");
+    }
+
+    #[test]
+    fn a_card_with_a_blank_gloss_language_reads_french() {
+        // No build writes a blank label, but a backup carrying one reads as `fr`, as one
+        // without the field does — and is written again without it.
+        let json = serde_json::to_value(Card::new(
+            "run",
+            "running",
+            web_provenance("They keep running.", "https://x"),
+            Some("courir".to_owned()),
+            "en",
+        ))
+        .expect("serialise");
+        for blank in ["", "  "] {
+            let mut json = json.clone();
+            json["gloss_language"] = blank.into();
+            let back: Card = serde_json::from_value(json).expect("deserialise");
+            assert_eq!(back.gloss_language, "fr", "{blank:?}");
+            assert!(
+                !serde_json::to_string(&back)
+                    .unwrap()
+                    .contains("gloss_language")
+            );
+        }
+        let mut json = json;
+        json["gloss_language"] = " EN ".into();
+        let back: Card = serde_json::from_value(json).expect("deserialise");
+        assert_eq!(back.gloss_language, "en");
     }
 }

@@ -24,10 +24,10 @@
 //!
 //! The file carries a schema version, which belongs to the file rather than to
 //! the state (add-lingua-studied-language-profile). Version 1 is a state with the
-//! default profile and English records only, written exactly as builds wrote it
-//! before the profile was stored; version 2 is any other state. A backup is
-//! written in the oldest version that holds it, so a build released before
-//! version 2 keeps reading an English reader's backup.
+//! default profile and English records only, their glosses French, written
+//! exactly as builds wrote it before the profile was stored; version 2 is any
+//! other state. A backup is written in the oldest version that holds it, so a
+//! build released before version 2 keeps reading an English reader's backup.
 
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +36,7 @@ use crate::knowledge::exposure::ExposureCounters;
 use crate::knowledge::profile::Profile;
 use crate::knowledge::state::KnowledgeState;
 
+use super::card::FRENCH;
 use super::fsrs::FsrsParams;
 use super::review::Deck;
 
@@ -130,8 +131,11 @@ impl LinguaState {
     }
 
     /// The schema version a backup of this state is written in: 1 while the
-    /// profile is the default and every record is English, 2 otherwise. A
-    /// build released before version 2 cannot read another language.
+    /// profile is the default, every record is English and every gloss is
+    /// French, 2 otherwise. A build released before version 2 cannot read
+    /// another language; a gloss in another language is one more record of it
+    /// (add-lingua-card-gloss-language D1), so a version 1 file never carries a
+    /// gloss language.
     pub fn backup_version(&self) -> u32 {
         let english_only = self.profile.is_default()
             && self
@@ -140,7 +144,11 @@ impl LinguaState {
                 .into_iter()
                 .chain(self.exposure.languages())
                 .chain(self.deck.languages())
-                .all(|language| language == StudiedLanguage::English);
+                .all(|language| language == StudiedLanguage::English)
+            && self
+                .deck
+                .iter()
+                .all(|(_, card)| card.gloss_language == FRENCH);
         if english_only { 1 } else { 2 }
     }
 
@@ -599,5 +607,78 @@ mod tests {
             ("en", Some("lighthouse"))
         );
         assert_eq!(restored, state, "a version 2 round trip is lossless");
+    }
+
+    #[test]
+    fn a_gloss_in_another_language_is_written_in_version_2() {
+        // An English reader with the default profile, whose one non-default record is a card
+        // glossed in English: another language in the records, so version 2 — a version 1
+        // file never carries a gloss language. `tests/backup_format.rs` pins that the
+        // version 1 English backup is unchanged.
+        let mut state = populated_state();
+        assert_eq!(state.backup_version(), 1);
+        let mut harbour = Card::new(
+            "harbour",
+            "harbours",
+            Provenance {
+                sentence: "Ships rest in the harbours.".to_owned(),
+                source: EncounterSource::Web {
+                    url: "https://example.com/sea".to_owned(),
+                },
+                captured_at: 1_700_000_004,
+            },
+            Some("port".to_owned()),
+            "fr",
+        );
+        state.deck.upsert(EN, harbour.clone());
+        assert_eq!(
+            state.backup_version(),
+            1,
+            "a French gloss on an English card"
+        );
+        harbour.gloss_language = "en".to_owned();
+        state.deck.upsert(EN, harbour);
+        assert!(state.profile.is_default());
+        assert_eq!(state.backup_version(), 2);
+        let backup = state.to_backup();
+        assert!(backup.starts_with("{\n  \"schema_version\": 2,"));
+        assert_eq!(backup.matches("gloss_language").count(), 1, "{backup}");
+        let restored = LinguaState::from_backup(&backup).expect("restore");
+        assert_eq!(
+            restored
+                .deck
+                .get(EN, "harbour")
+                .expect("harbour")
+                .gloss_language,
+            "en"
+        );
+        assert_eq!(restored.backup_version(), 2);
+    }
+
+    #[test]
+    fn a_backup_carrying_a_blank_gloss_language_restores_french() {
+        // Nothing writes a blank label; a file carrying one restores every card as `fr`, and
+        // is written again as the previous build wrote it.
+        let written = populated_state().to_backup();
+        let mut file: serde_json::Value = serde_json::from_str(&written).expect("a backup");
+        let cards = file["deck"]["cards"]["English"]
+            .as_object_mut()
+            .expect("the English cards");
+        cards.get_mut("card00").expect("card00")["gloss_language"] = "".into();
+        cards.get_mut("card01").expect("card01")["gloss_language"] = "  ".into();
+        let restored = LinguaState::from_backup(&file.to_string()).expect("restore");
+        for lemma in ["card00", "card01"] {
+            assert_eq!(
+                restored.deck.get(EN, lemma).expect(lemma).gloss_language,
+                "fr"
+            );
+        }
+        assert_eq!(restored.backup_version(), 1);
+        assert!(!restored.to_backup().contains("gloss_language"));
+        assert_eq!(
+            restored,
+            LinguaState::from_backup(&written).expect("restore"),
+            "as the file without the blanks"
+        );
     }
 }
