@@ -25,9 +25,12 @@ the release that sends it (M14), which is change 12, not this one.
 
 - **Additive `.proto` only**, in `cymbra.lingua.v1`:
   - `CardOp.gloss_language = 12`, a string; empty means `fr`.
+  - `PullCardsRequest.any_gloss_language = 3`, a bool: this client reads a card's gloss language
+    and accepts every one. Unset, the pull returns cards glossed in French only: a client that
+    predates labels never holds a gloss it would write back unlabelled.
   - `DailyStat.native_language = 8`, a string; empty means `fr`.
-  - `GetDataStateResponse.native_language = 3`, a bool: this server stores both. A server that
-    predates the field answers `false` (proto3 default), as `card_language` does.
+  - `GetDataStateResponse.language_labels = 3`, a bool: this server stores both labels. A server
+    that predates the field answers `false` (proto3 default), as `card_language` does.
 - **Migration 0006**, idempotent, rewriting no row: `cards.gloss_language TEXT NOT NULL DEFAULT
   'fr'`, `daily_stats.native_language TEXT NOT NULL DEFAULT 'fr'`. The keys do not change: a card
   is still (reader, studied language, client id) — `client_id` is the lemma, so two devices of
@@ -35,7 +38,13 @@ the release that sends it (M14), which is change 12, not this one.
   write that wins. A day's statistic is still (reader, day, studied language, device); the native
   language is a value of the row, the device's for that day.
 - **Normalised on receipt**, with the one normaliser the server has, given its default: the
-  studied language reads an empty value as `en`, a gloss or native language as `fr`.
+  studied language reads an empty value as `en`, a gloss or native language as `fr`. The
+  requirement that says every language value reads `en` when empty is modified to say so.
+- **A client that predates labels pulls French-glossed cards only.** Installed clients push their
+  whole deck at every sync, with no gloss language, and a pull filters by studied language alone;
+  without a filter, an old device that pulled a card glossed in English would write it back
+  relabelled `fr` the next time it graded it. The pull withholds such cards from a client that does
+  not say it reads labels, as it withholds non-English cards from one that names no language.
 - **Returned as stored**: a pulled card carries its gloss language. The consolidated statistics
   read (`GetStats`, the reader's own screen) is unchanged.
 - **Back office and worker: nothing to change.** The usage breakdown by pair is the optional
@@ -51,15 +60,15 @@ None.
 
 ### Modified Capabilities
 
-No requirement is modified. `lingua-sync` and `lingua-stats` are held by no open change, and
-this change adds to them only:
+`lingua-sync` and `lingua-stats` are held by no open change:
 
 - `lingua-sync`: ADDED *A card carries the language of its gloss* (wire field, default `fr`,
-  stored and returned), *The server states that it stores the language of glosses and of
-  statistics* (the capability flag).
+  stored and returned; withheld from a client that predates labels), *The server states that it
+  stores the language of glosses and of statistics* (the capability flag); MODIFIED *Language
+  values are normalised on receipt* — one sentence: the studied language reads `en` when empty, a
+  gloss or native language `fr`; both scenarios kept.
 - `lingua-stats`: ADDED *A daily statistic carries the native language of its device* (wire
-  field, default `fr`, a value of the row), *A gloss or native language is normalised on
-  receipt, French when empty*.
+  field, default `fr`, a value of the row).
 
 *The backup records the reader's language profile* (`lingua-decks-review`) says the profile is
 never sent; a day's native language is a value the client will send with its statistics
@@ -76,13 +85,16 @@ release, which collects nothing new from any client.
   migrator wiring in `backend/server`, the purge job in `backend/worker`. Cymbra ID, Music,
   Live, the back office and the site are untouched; the extension's and the back office's
   generated stubs follow at their next build, with nothing to commit.
-- **Contract.** `cymbra.lingua.v1` gains three fields; the `proto` workflow reports no break.
-  Installed clients send no gloss or native language (read as `fr`) and ignore the flag.
+- **Contract.** `cymbra.lingua.v1` gains four fields; the `proto` workflow reports no break.
+  Installed clients send no gloss or native language (read as `fr`), ignore the flag, and pull
+  French-glossed cards only, which is every card they have ever pulled.
 - **Deployment order.** This backend release is deployed to production, and checked from
   outside, **before** any client able to create a non-French gloss or to send a native
-  language is built for a store (changes 11, 12). Rollback is a revert: the columns and the
-  flag are additive; a rolled-back server answers `native_language: false`, and a client that
-  checked it withholds its non-French cards.
+  language is built for a store (changes 11, 12). Rollback is a revert while no label other than
+  `fr` is stored, which is the case until change 12 ships: the columns and the flag are
+  additive, and a rolled-back server answers `language_labels: false`. After change 12 ships, a
+  rolled-back server would write a gloss without its label; the runbook step for that case is in
+  the design's migration plan.
 - **Data.** The migration is rehearsed on a copy of production before the release; it adds two
   defaulted columns and rewrites no row.
 - **Not here.** Review showing the current pack's gloss when the card's is in another language
