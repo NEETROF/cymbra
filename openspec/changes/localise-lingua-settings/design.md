@@ -6,18 +6,20 @@ See proposal.md (Why) and change 13's design. Réglages today:
 
 | Module | Copy |
 |---|---|
-| `reading/settings-view.ts` | the twelve `settingBlock("…")` titles (« Langues étudiées », `levelTitle(language)`, « Barre sur la page », « Lecture à voix haute », « Livres », « Affichage », « Couleurs », « Traduction », « Raccourcis & gestes », « Compte », « Synchronisation », « Réinitialisation »), the four tabs (« Langue », « Apparence », « Pages & livres », « Données »), the reset confirmations, the voice help, the shortcut lines (`kbd()` + « — panneau latéral »), « Je connais les **3000** mots les plus courants » |
-| `reading/colour-settings-view.ts` | the presets (« E-ink contrasté »…), `${name} : couleur du fond`, « Un mot <span>, un mot <span> et un mot connu. » |
+| `reading/settings-view.ts` | the twelve block titles — eleven `settingBlock("…")` literals and `levelTitle(language)` (« Langues étudiées », « Barre sur la page », « Lecture à voix haute », « Livres », « Affichage », « Couleurs », « Traduction », « Raccourcis & gestes », « Compte », « Synchronisation », « Réinitialisation »), the four tabs (« Langue », « Apparence », « Pages & livres », « Données »), the reset confirmations, the voice help, the shortcut lines (`kbd()` + « — panneau latéral »), « Je connais les **3000** mots les plus courants » |
+| `reading/colour-settings-view.ts` | the presets (« E-ink contrasté »…), `${name} : couleur du fond`, « Un mot <span>, un mot <span> et un mot connu. » (two swatches) |
 | `reading/book-display-view.ts` | « Papier », « Réduire le texte »… |
 | `reading/studied-languages-view.ts` | two texts |
 | `reading/translation-setting.ts` | `COPY`, `megabytes` (« 25,8 Mo »), `costText`, `FAILURE`, `stateText` |
 | `reading/account-setting.ts` | `ACCOUNT_COPY` |
 | `sync/status.ts` | `lastSyncLabel` (« il y a 3 min. », `toLocaleDateString("fr-FR")`), `syncErrorCopy` |
-| `test/lint-settings-hosts.spec.ts` | reads `/settingBlock\("([^"]+)"\)/` out of `settings-view.ts`; no other `.ts` may hold a title as a literal, no other `.html` as text |
-| `#696` | adds « Rythme de révision », « Nouveaux mots par jour », « Fichier de sauvegarde », « Sources et confidentialité » and the « Langue » / « Données » tab contents |
+| `test/lint-settings-hosts.spec.ts` | reads `/settingBlock\("([^"]+)"\)/` out of `settings-view.ts` (eleven titles); no other `.ts` may hold a title as a literal, no other `.html` as text |
+| `#696` | adds « Rythme de révision », « Nouveaux mots par jour », « Fichier de sauvegarde », « Sources et confidentialité » and the « Langue » / « Données » tab contents; not on main when this is written |
 
 The hosts (`popup.ts`, `sidepanel.ts`, `drawer.ts`) call `mountSettings(container, port, area,
-opts)`; each reads `chrome.storage.local` before mounting.
+opts)`; the popup and the side panel read `chrome.storage.local` before mounting; the drawer is
+built by the reading session in the content script and reads nothing — change 14 hands it the
+interface language the content script read.
 
 ## Goals / Non-Goals
 
@@ -31,43 +33,53 @@ opts)`; each reads `chrome.storage.local` before mounting.
 
 ## Decisions
 
-### D1 — `mountSettings` takes the copy; the hosts pass it
+### D1 — `mountSettings` takes the interface language; the hosts pass it
 
-`mountSettings(container, port, area, opts)` gains `opts.language`, the interface language the
-host read with its preferences; the view picks `settingsCopy[language]` and hands each block's
-module its own (`colours`, `display`, `translation`, `account-setting`, `sync`). The blocks keep
-their signatures otherwise.
+`mountSettings(container, port, area, opts)` gains `opts.interfaceLanguage` — absent means
+French, so every existing spec mounts as before; the popup and the side panel pass the language
+they read with their preferences, the drawer the one the session handed it (change 14); the view
+picks the `settings` module of that language and hands each block's module its own (`colours`,
+`display`, `translation`, `account-setting`, `sync`), and the language with it where a block
+formats (D4). The blocks keep their signatures otherwise.
 
 ### D2 — Titles in the catalogue; the hosts' lint reads them there
 
-`settingBlock(copy.titles.languages)` and so on. `lint-settings-hosts` reads the titles from
-`src/i18n/fr/settings.ts` (the `titles` object, by a regex on its source as today, or by
-importing it) and keeps its two checks: every host calls `mountSettings`, and no other `.ts` or
-`.html` holds a title as a literal. The catalogue's three languages are the one place.
+`settingBlock(copy.titles.languages)` and so on. `lint-settings-hosts` imports `settings.titles`
+from `src/i18n/fr/settings.ts` (the eleven literal titles; the level's stays a function of the
+studied language, change 19's to name) and keeps its two checks: every host calls `mountSettings`,
+and no `.ts` other than `src/i18n/fr/settings.ts`, and no `.html`, holds a French title as a
+literal — the English and Spanish modules hold their own titles, which the check does not match.
+The catalogue's three languages are the one place.
 
 ### D3 — Fragments as slot messages
 
 « Je connais les **3000** mots les plus courants » is `copy.knowCommonest(n)` returning
 segments `[text, {strong: "3000"}, text]` the view renders; the shortcut lines take the key
-and the label; the colour explanation takes its three swatches as slots; `costText` and
+and the label; the colour explanation takes its two swatches as slots; `costText` and
 `stateText` are catalogue functions of the cost and the state, French byte for byte.
 
 ### D4 — Formats
 
-`megabytes` keeps « 25,8 Mo » in French and formats with the locale in English and Spanish;
-`lastSyncLabel` keeps « il y a 3 min. » and `toLocaleDateString("fr-FR")` for French, the
-locale's for the others (change 13 D4).
+`megabytes` keeps « 25,8 Mo » in French and formats with change 13's `formatNumber` in English
+and Spanish ("25.8 MB", « 25,8 MB »); `lastSyncLabel` keeps « il y a 3 min. » and
+`toLocaleDateString("fr-FR")` for French, and takes change 13's `plural` for its minutes, hours
+and days and `formatDate` for the others (change 13 D4).
 
-### D5 — #696 first
+### D5 — #696 and this change: the second one rebases
 
-Its strings are in `settings-view.ts` by the time this change extracts, so the French catalogue
-holds them; if #696 were still open, this change would be rebased after it, as the programme
-rules.
+#696 is open when this change is written, and the two touch `settings-view.ts`. If #696 merges
+first, this change extracts its strings with the rest. If this change merges first, #696 rebases
+onto the catalogue: `settings-view.ts` is then off the baseline, so the lint refuses its new
+literals until they are entries in three languages — the owner translates them with the rest of
+#696, and the hosts' lint sees its new block titles the same way. Neither order needs a word of
+this change to move.
 
 ## Risks / Trade-offs
 
 - **A title duplicated by a host** → the hosts' lint, now reading the catalogue.
-- **A French byte in Réglages** → the six spec files, unchanged.
+- **A French byte in Réglages** → the seven spec files, unchanged.
+- **A Spanish Réglages that still names a language in French** → expected until change 19; the
+  Spanish scenario excepts it.
 
 ## Migration Plan
 
