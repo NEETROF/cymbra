@@ -58,3 +58,51 @@ impl LinguaDataService for DataGrpc {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::MockDataRepo;
+    use cymbra_platform::AuthIdentity;
+    use prost::Message;
+
+    fn as_reader<T>(body: T) -> Request<T> {
+        let mut req = Request::new(body);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: "u1".into(),
+            ..AuthIdentity::default()
+        });
+        req
+    }
+
+    // --- The server states that it stores the language of glosses and of statistics
+    // (add-lingua-native-language-server) ---
+
+    #[tokio::test]
+    async fn a_client_checks_before_pushing() {
+        let mut repo = MockDataRepo::new();
+        repo.expect_erased_at().returning(|_| Ok(0));
+        let grpc = DataGrpc::new(Arc::new(DataModule::new(Arc::new(repo))));
+        let state = grpc
+            .get_data_state(as_reader(GetDataStateRequest {}))
+            .await
+            .unwrap()
+            .into_inner();
+        assert!(state.native_language, "this server stores both labels");
+        assert!(state.card_language);
+    }
+
+    #[test]
+    fn a_server_that_predates_the_flag() {
+        // Such a server's answer carries no field 3; a client decodes proto3's default.
+        let before_the_field = GetDataStateResponse {
+            erased_at: 5,
+            card_language: true,
+            ..Default::default()
+        }
+        .encode_to_vec();
+        let decoded = GetDataStateResponse::decode(before_the_field.as_slice()).unwrap();
+        assert!(!decoded.native_language);
+        assert!(!GetDataStateResponse::default().native_language);
+    }
+}

@@ -7,7 +7,9 @@
 //! A card keyed by its studied language, against live Postgres (change:
 //! add-lingua-card-language). `PgDeckRepo` is the one place the composite key, the
 //! `DEFAULT 'en'` and the `language = ANY(...)` filter exist, and migration 0005's
-//! primary-key swap only fails for real against a real server.
+//! primary-key swap only fails for real against a real server. Since
+//! add-lingua-native-language-server a card also carries the language of its gloss
+//! (migration 0006, `DEFAULT 'fr'`), a value of the row the winning write sets.
 //!
 //! Run: `CYMBRA_LINGUA_DATABASE_URL=… cargo test -p cymbra-lingua --test pg_deck_it -- --ignored`
 
@@ -153,5 +155,85 @@ async fn the_same_client_id_in_two_languages_is_two_rows_with_independent_lww() 
     assert!(both.windows(2).all(|w| w[0].sequence < w[1].sequence));
     let spanish = both.iter().find(|c| c.language == "es").unwrap();
     assert_eq!(spanish.gloss, "ils sont");
+    wipe(&pool, user).await;
+}
+
+#[tokio::test]
+#[ignore = "needs CYMBRA_LINGUA_DATABASE_URL"]
+async fn every_stored_gloss_today() {
+    // What every row written before 0006 looks like: no gloss language named. The
+    // migrator (run by `pool()`) applied 0006 over 0005 and labelled it `fr`.
+    let pool = pool().await;
+    let user = uuid::Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO lingua.cards (user_id, client_id, lemma, gloss, updated_at, seq) \
+         VALUES ($1, 'seldom', 'seldom', 'rarement', 1, nextval('lingua.change_seq'))",
+    )
+    .bind(user)
+    .execute(&pool)
+    .await
+    .expect("seed legacy card");
+    let repo = PgDeckRepo::new(pool.clone());
+    let cards = repo
+        .changes_since(&user.to_string(), 0, &["en".to_string()])
+        .await
+        .expect("pull");
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0].gloss, "rarement");
+    assert_eq!(cards[0].gloss_language, "fr");
+    // Running the migrator again is a no-op (ADD COLUMN IF NOT EXISTS).
+    cymbra_lingua::MIGRATOR
+        .run(&pool)
+        .await
+        .expect("migrate twice");
+    wipe(&pool, user).await;
+}
+
+#[tokio::test]
+#[ignore = "needs CYMBRA_LINGUA_DATABASE_URL"]
+async fn the_gloss_language_travels_with_the_write_that_wins() {
+    let pool = pool().await;
+    let user = uuid::Uuid::new_v4();
+    let u = user.to_string();
+    let repo = PgDeckRepo::new(pool.clone());
+    let labelled = |gloss: &str, label: &str, ts: i64, device: &str| Card {
+        gloss_language: label.into(),
+        device_id: device.into(),
+        ..card("en", "seldom", gloss, ts)
+    };
+    // A labelled row round-trips.
+    assert!(
+        repo.apply_card(&u, &labelled("raramente", "es", 100, "ipad"))
+            .await
+            .unwrap()
+    );
+    let stored = repo
+        .changes_since(&u, 0, &["en".to_string()])
+        .await
+        .unwrap();
+    assert_eq!(stored.len(), 1);
+    assert_eq!(stored[0].gloss_language, "es");
+    // The French-native device writes last: one row, its gloss, its label...
+    assert!(
+        repo.apply_card(&u, &labelled("rarement", "fr", 200, "mac"))
+            .await
+            .unwrap()
+    );
+    // ...and a stale Spanish write afterwards loses, label included.
+    assert!(
+        !repo
+            .apply_card(&u, &labelled("raramente", "es", 150, "ipad"))
+            .await
+            .unwrap()
+    );
+    let stored = repo
+        .changes_since(&u, 0, &["en".to_string()])
+        .await
+        .unwrap();
+    assert_eq!(stored.len(), 1);
+    assert_eq!(
+        (stored[0].gloss.as_str(), stored[0].gloss_language.as_str()),
+        ("rarement", "fr")
+    );
     wipe(&pool, user).await;
 }

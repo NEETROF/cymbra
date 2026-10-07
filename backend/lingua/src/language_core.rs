@@ -99,6 +99,37 @@ mod tests {
     }
 
     #[test]
+    fn a_gloss_or_native_language_reads_as_french_when_empty() {
+        assert_eq!(normalise_or("", DEFAULT_NATIVE_LANGUAGE), "fr");
+        assert_eq!(normalise_or("   ", DEFAULT_NATIVE_LANGUAGE), "fr");
+        assert_eq!(normalise_or("-MX", DEFAULT_NATIVE_LANGUAGE), "fr");
+        // The studied language keeps its own default.
+        assert_eq!(normalise(""), "en");
+        assert_eq!(normalise_or("", DEFAULT_LANGUAGE), "en");
+    }
+
+    #[test]
+    fn a_regional_native_language_folds_onto_its_primary_subtag() {
+        assert_eq!(normalise_or("es-MX", DEFAULT_NATIVE_LANGUAGE), "es");
+        assert_eq!(normalise_or("EN", DEFAULT_NATIVE_LANGUAGE), "en");
+        assert_eq!(normalise_or(" Pt_BR ", DEFAULT_NATIVE_LANGUAGE), "pt");
+        // The same rule as the studied language's, whatever the default.
+        assert_eq!(
+            normalise_or("es-ES", DEFAULT_NATIVE_LANGUAGE),
+            normalise("es-ES")
+        );
+    }
+
+    #[test]
+    fn a_native_language_never_seen_is_kept_and_an_over_long_one_capped() {
+        assert_eq!(normalise_or("tlh", DEFAULT_NATIVE_LANGUAGE), "tlh");
+        assert_eq!(
+            normalise_or("abcdefghijklmnop", DEFAULT_NATIVE_LANGUAGE),
+            "abcdefgh"
+        );
+    }
+
+    #[test]
     fn an_empty_accepted_set_means_english_only() {
         assert_eq!(accepted_languages(&[]), vec!["en"]);
         assert_eq!(accepted_languages(&[String::new(), " ".into()]), vec!["en"]);

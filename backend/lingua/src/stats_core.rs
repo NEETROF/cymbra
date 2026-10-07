@@ -118,6 +118,22 @@ mod tests {
     }
 
     #[test]
+    fn the_native_language_is_not_a_dimension_of_the_consolidated_read() {
+        // Two devices of different native languages, one day of English reading: one
+        // consolidated row (add-lingua-native-language-server, D5).
+        let rows = vec![
+            stat(20_000, "mac", 20),
+            DailyStat {
+                native_language: "es".into(),
+                ..stat(20_000, "ipad", 10)
+            },
+        ];
+        let out = consolidate(&rows);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].reviews_done, 30);
+    }
+
+    #[test]
     fn empty_input_is_empty() {
         assert!(consolidate(&[]).is_empty());
     }

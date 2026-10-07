@@ -79,6 +79,7 @@ impl StatsModule {
 mod tests {
     use super::*;
     use crate::data::MockErasureMarks;
+    use crate::language_core::{DEFAULT_NATIVE_LANGUAGE, normalise_or};
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -213,6 +214,117 @@ mod tests {
         let out = module.get_stats("u1", 19_990, 20_010, None).await.unwrap();
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].day, 20_000);
+    }
+
+    // --- A daily statistic carries the native language of its device
+    // (add-lingua-native-language-server) ---
+
+    /// A statistic as the gRPC edge builds it from the wire value of `native_language`
+    /// (`stats_grpc::from_proto`): the one normaliser, French when the client sent none.
+    fn native(wire_native_language: &str, day: i32, device: &str, reviews: u32) -> DailyStat {
+        DailyStat {
+            native_language: normalise_or(wire_native_language, DEFAULT_NATIVE_LANGUAGE),
+            ..stat(day, device, reviews)
+        }
+    }
+
+    /// The stored per-device rows of one day, as the back office would read them.
+    async fn rows(module: &StatsModule, day: i32) -> Vec<DailyStat> {
+        module.repo.range("u1", day, day, None).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn an_installed_client_that_sends_no_native_language() {
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
+        module
+            .upsert_stats("u1", vec![native("", 20_000, "mac", 3)])
+            .await
+            .unwrap();
+        let rows = rows(&module, 20_000).await;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].native_language, "fr");
+    }
+
+    #[tokio::test]
+    async fn a_spanish_speaking_readers_day() {
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
+        module
+            .upsert_stats("u1", vec![native("es", 20_000, "ipad", 3)])
+            .await
+            .unwrap();
+        let rows = rows(&module, 20_000).await;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            (
+                rows[0].day,
+                rows[0].language.as_str(),
+                rows[0].device_id.as_str()
+            ),
+            (20_000, "en", "ipad")
+        );
+        assert_eq!(rows[0].native_language, "es");
+    }
+
+    #[tokio::test]
+    async fn the_native_language_changes_during_a_day() {
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
+        module
+            .upsert_stats("u1", vec![native("fr", 20_000, "mac", 5)])
+            .await
+            .unwrap();
+        module
+            .upsert_stats("u1", vec![native("es", 20_000, "mac", 9)])
+            .await
+            .unwrap();
+        let rows = rows(&module, 20_000).await;
+        assert_eq!(rows.len(), 1, "a value of the row, not of its key");
+        assert_eq!(rows[0].native_language, "es");
+        assert_eq!(rows[0].reviews_done, 9);
+        let out = module.get_stats("u1", 20_000, 20_000, None).await.unwrap();
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].reviews_done, 9, "the day is counted once");
+    }
+
+    #[tokio::test]
+    async fn the_readers_own_statistics() {
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
+        module
+            .upsert_stats(
+                "u1",
+                vec![
+                    native("fr", 20_000, "mac", 20),
+                    native("es", 20_000, "ipad", 10),
+                ],
+            )
+            .await
+            .unwrap();
+        let out = module
+            .get_stats("u1", 20_000, 20_000, Some("en"))
+            .await
+            .unwrap();
+        // Summed per (day, studied language) over the devices, as before — and the
+        // literal names every field a consolidated row has: no native language.
+        assert_eq!(
+            out,
+            vec![ConsolidatedStat {
+                day: 20_000,
+                language: "en".into(),
+                exposures: 0,
+                words_learned: 0,
+                reviews_done: 30,
+            }]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_regional_code() {
+        // `es-MX` on a statistic is stored as `es` (the card half is in `deck`).
+        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
+        module
+            .upsert_stats("u1", vec![native("es-MX", 20_000, "ipad", 1)])
+            .await
+            .unwrap();
+        assert_eq!(rows(&module, 20_000).await[0].native_language, "es");
     }
 
     #[tokio::test]

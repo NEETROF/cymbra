@@ -393,6 +393,52 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
 }
 
 #[tokio::test]
+async fn a_card_glossed_in_english_converges_across_two_devices_with_its_label() {
+    const USER: &str = "user-2";
+    let deck = DeckModule::new(Arc::new(FakeDeck::default()), Arc::new(Marks::default()));
+
+    // An English-native iPad creates a Spanish card with an English gloss...
+    let created = Card {
+        language: "es".into(),
+        client_id: "hijo".into(),
+        lemma: "hijo".into(),
+        gloss: "son".into(),
+        gloss_language: "en".into(),
+        updated_at: 100,
+        device_id: "ipad".into(),
+        ..Card::default()
+    };
+    deck.push_cards(USER, vec![created], 1_000).await.unwrap();
+
+    // ...and the French-native Mac pulls it with its label, rather than assuming French.
+    let es = ["es".to_string()];
+    let (mac_cards, cursor) = deck.pull_cards(USER, 0, &es).await.unwrap();
+    assert_eq!(mac_cards.len(), 1);
+    assert_eq!(
+        (
+            mac_cards[0].gloss.as_str(),
+            mac_cards[0].gloss_language.as_str()
+        ),
+        ("son", "en")
+    );
+
+    // The Mac reviews it and pushes the card back as it received it, label included.
+    let reviewed = Card {
+        fsrs_state: "{\"reps\":1}".into(),
+        updated_at: 300,
+        device_id: "mac".into(),
+        ..mac_cards[0].clone()
+    };
+    deck.push_cards(USER, vec![reviewed], 1_000).await.unwrap();
+
+    // The iPad pulls the edit: the label survived the round trip through the other device.
+    let (ipad_cards, _) = deck.pull_cards(USER, cursor, &es).await.unwrap();
+    assert_eq!(ipad_cards.len(), 1);
+    assert_eq!(ipad_cards[0].fsrs_state, "{\"reps\":1}");
+    assert_eq!(ipad_cards[0].gloss_language, "en");
+}
+
+#[tokio::test]
 async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
     const ERASED: &str = "reader";
     const OTHER: &str = "someone-else";

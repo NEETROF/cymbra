@@ -116,6 +116,7 @@ mod tests {
     use super::*;
     use crate::data::MockErasureMarks;
     use crate::known_words_core::wins;
+    use crate::language_core::{DEFAULT_NATIVE_LANGUAGE, normalise_or};
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -383,6 +384,115 @@ mod tests {
         // Re-pulling from the start with both is a no-op for what it already holds.
         let (all, _) = module.pull_cards("u1", 0, &both).await.unwrap();
         assert_eq!(all.len(), 2);
+    }
+
+    // --- A card carries the language of its gloss (add-lingua-native-language-server) ---
+
+    /// A card as the gRPC edge builds it from the wire value of `gloss_language`
+    /// (`deck_grpc::from_proto`): the one normaliser, French when the client sent none.
+    fn glossed(id: &str, gloss: &str, wire_gloss_language: &str, ts: i64, device: &str) -> Card {
+        Card {
+            gloss: gloss.into(),
+            gloss_language: normalise_or(wire_gloss_language, DEFAULT_NATIVE_LANGUAGE),
+            ..card(id, "They seldom ship.", ts, device)
+        }
+    }
+
+    #[tokio::test]
+    async fn an_installed_client_that_sends_no_gloss_language() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        module
+            .push_cards("u1", vec![glossed("c1", "rarement", "", 100, "mac")], 1_000)
+            .await
+            .unwrap();
+        let (cards, _) = module.pull_cards("u1", 0, &[]).await.unwrap();
+        assert_eq!(cards.len(), 1);
+        assert_eq!(cards[0].gloss, "rarement");
+        assert_eq!(cards[0].gloss_language, "fr");
+    }
+
+    #[tokio::test]
+    async fn a_card_glossed_in_english() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        module
+            .push_cards(
+                "u1",
+                vec![glossed("c1", "rarely", "en", 100, "ipad")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        // Every device that pulls it receives the label, whatever its own native language.
+        for _device in ["mac", "iphone"] {
+            let (cards, _) = module.pull_cards("u1", 0, &[]).await.unwrap();
+            assert_eq!(cards.len(), 1);
+            assert_eq!(cards[0].gloss, "rarely");
+            assert_eq!(cards[0].gloss_language, "en");
+        }
+    }
+
+    #[tokio::test]
+    async fn two_devices_of_different_native_languages() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        // The Spanish-native device writes first, the French-native one last.
+        module
+            .push_cards(
+                "u1",
+                vec![glossed("c1", "raramente", "es", 100, "ipad")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        module
+            .push_cards(
+                "u1",
+                vec![glossed("c1", "rarement", "fr", 200, "mac")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        for _device in ["ipad", "mac"] {
+            let (cards, _) = module.pull_cards("u1", 0, &[]).await.unwrap();
+            assert_eq!(cards.len(), 1, "the key did not change: one row");
+            assert_eq!(cards[0].gloss, "rarement");
+            assert_eq!(cards[0].gloss_language, "fr");
+        }
+        // A stale Spanish write afterwards changes neither the gloss nor its label.
+        let (applied, _) = module
+            .push_cards(
+                "u1",
+                vec![glossed("c1", "raramente", "es", 150, "ipad")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        assert_eq!(applied, 0);
+        let (cards, _) = module.pull_cards("u1", 0, &[]).await.unwrap();
+        assert_eq!(cards[0].gloss_language, "fr");
+    }
+
+    #[tokio::test]
+    async fn a_regional_code_on_a_card() {
+        // `EN` is stored as `en`, and comes back so: the round trip of a labelled card.
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        module
+            .push_cards("u1", vec![glossed("c1", "rarely", "EN", 100, "mac")], 1_000)
+            .await
+            .unwrap();
+        let (cards, _) = module.pull_cards("u1", 0, &[]).await.unwrap();
+        assert_eq!(cards[0].gloss_language, "en");
+    }
+
+    #[tokio::test]
+    async fn a_language_the_server_has_never_seen() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        let (applied, _) = module
+            .push_cards("u1", vec![glossed("c1", "…", "tlh", 100, "mac")], 1_000)
+            .await
+            .unwrap();
+        assert_eq!(applied, 1, "nothing is refused");
+        let (cards, _) = module.pull_cards("u1", 0, &[]).await.unwrap();
+        assert_eq!(cards[0].gloss_language, "tlh");
     }
 
     #[tokio::test]
