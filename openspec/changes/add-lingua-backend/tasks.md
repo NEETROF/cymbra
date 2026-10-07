@@ -3,7 +3,7 @@
 ## 1. Audience and configuration
 
 - [x] 1.1 Add `lingua` to `CYMBRA_ALLOWED_AUDIENCES` in `backend/.env.example` and `backend/deploy/.env.prod.example` (+ comment); integration test: `SignInLocal`/`Refresh` with the `lingua` audience accepted, an audience absent from the config refused
-- [ ] 1.2 Create the extension's Google OAuth client (Web type, redirect `https://<ext-id>.chromiumapp.org/`) and add it to the `CYMBRA_GOOGLE_AUDIENCE` CSV (env example + doc) — precedent: the desktop client
+- [x] 1.2 Create the extension's Google OAuth client (Web type, redirect `https://<ext-id>.chromiumapp.org/`) and add it to the `CYMBRA_GOOGLE_AUDIENCE` CSV (env example + doc) — precedent: the desktop client
 - [x] 1.3 Introduce `CYMBRA_ALLOWED_WEB_ORIGINS` (server config, CSV, empty by default) and serve the union `back_office_origins ∪ allowed_web_origins` in tonic's gRPC-web CORS layer (`backend/server/src/main.rs`); tests: an origin from the new list admitted, an unknown origin refused, `CYMBRA_BACK_OFFICE_ORIGINS` not widened
 - [x] 1.4 Confirm on the evidence that `SCOPES`/`APP_SCOPES` (`backend/platform/src/lib.rs`) reference `lingua` nowhere after this change (no scope added — a review, not code)
 
