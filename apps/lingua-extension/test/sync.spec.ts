@@ -76,6 +76,8 @@ interface WireChange {
 }
 interface WireCard {
   clientId: string;
+  language?: string;
+  glossLanguage?: string;
   lemma: string;
   surfaceForm: string;
   sourceSentence: string;
@@ -146,10 +148,7 @@ describe("SyncEngine", () => {
           surface_form: "seldom",
           source_sentence: "s",
           source: "https://x",
-          gloss: "rarement",
-          // The engine labels a gloss in another language (add-lingua-card-gloss-language);
-          // the label is not sent until the wire carries it (add-lingua-native-language-sync-client).
-          gloss_language: "en",
+          gloss: "rarement", // a French gloss: the engine leaves its label out (add-lingua-card-gloss-language)
           fsrs_state: "{}",
           deleted: false,
           client_ts: 1800,
@@ -163,9 +162,6 @@ describe("SyncEngine", () => {
 
     const res = await engine.sync();
     expect(res).toEqual({ pushedStatuses: 1, pushedCards: 1, pulled: 0 });
-    const [pushed] = f.pushCards.mock.calls[0] as unknown as [{ cards: Record<string, unknown>[] }];
-    expect(pushed.cards[0]).not.toHaveProperty("glossLanguage");
-    expect(pushed.cards[0]).not.toHaveProperty("gloss_language");
     expect(f.pushOps).toHaveBeenCalledWith({
       ops: [
         { language: "en", lemma: "run", status: "known", provenance: "manual", clientTs: 1700n, deviceId: "dev-1" },
@@ -180,6 +176,7 @@ describe("SyncEngine", () => {
           surfaceForm: "seldom",
           sourceSentence: "s",
           gloss: "rarement",
+          glossLanguage: "", // an absent label goes as empty, which the server reads as French
           fsrsState: "{}",
           deleted: false,
           clientTs: 1800n,
@@ -188,7 +185,7 @@ describe("SyncEngine", () => {
       ],
     });
     expect(f.pullChanges).toHaveBeenCalledWith({ cursor: 0n });
-    expect(f.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["en"] });
+    expect(f.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["en"], anyGlossLanguage: true });
     expect(storage.store["cymbra-lingua-status-cursor"]).toBe(7);
     expect(storage.store["cymbra-lingua-card-cursor"]).toBe(9);
   });
@@ -243,6 +240,7 @@ describe("SyncEngine", () => {
           unknownSeen: 4,
           wordsLearned: 3,
           reviewsDone: 5,
+          nativeLanguage: "fr",
         },
         {
           day: 20000,
@@ -252,6 +250,7 @@ describe("SyncEngine", () => {
           unknownSeen: 9,
           wordsLearned: 1,
           reviewsDone: 0,
+          nativeLanguage: "fr",
         },
       ],
     });
@@ -280,6 +279,7 @@ describe("SyncEngine", () => {
           unknownSeen: 4,
           wordsLearned: 3,
           reviewsDone: 5,
+          nativeLanguage: "fr",
         },
         {
           day: 20001,
@@ -289,6 +289,7 @@ describe("SyncEngine", () => {
           unknownSeen: 0,
           wordsLearned: 1,
           reviewsDone: 0,
+          nativeLanguage: "fr",
         },
       ],
     });
@@ -521,6 +522,7 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
     expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "MERGED-BACKUP" }); // the emptied engine, saved
     expect(storage.store["cymbra-lingua-daily-v2"]).toEqual({});
     expect(storage.store["cymbra-lingua-daily-v3"]).toEqual({});
+    expect(storage.store["cymbra-lingua-daily-v4"]).toEqual({});
     expect(storage.store["cymbra-lingua-status-cursor"]).toBe(0);
     expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
   });
@@ -594,7 +596,7 @@ describe("SyncEngine and the reader's languages (add-lingua-language-sync-client
 
     await engine.sync();
 
-    expect(f.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["es", "en"] });
+    expect(f.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["es", "en"], anyGlossLanguage: true });
     expect(calls.appliedCards[0].map((op) => [op.language, op.client_id])).toEqual([
       ["es", "son"],
       ["en", "son"],
@@ -652,7 +654,13 @@ describe("SyncEngine and the reader's languages (add-lingua-language-sync-client
   });
 
   it("pulls again from the start when a language is added, and only then", async () => {
-    const cursors = { "cymbra-lingua-status-cursor": 42, "cymbra-lingua-card-cursor": 7 };
+    // A device that has already pulled as a client that reads gloss languages: only the languages
+    // decide here (the first pull of this build is its own scenario below).
+    const cursors = {
+      "cymbra-lingua-status-cursor": 42,
+      "cymbra-lingua-card-cursor": 7,
+      "cymbra-lingua-sync-labels": true,
+    };
 
     // Updating the extension: no stored languages, English alone — nothing is pulled again.
     const updating = fakeClients();
@@ -664,7 +672,7 @@ describe("SyncEngine and the reader's languages (add-lingua-language-sync-client
       deviceId: "d",
     }).sync();
     expect(updating.pullChanges).toHaveBeenCalledWith({ cursor: 42n });
-    expect(updating.pullCards).toHaveBeenCalledWith({ cursor: 7n, languages: ["en"] });
+    expect(updating.pullCards).toHaveBeenCalledWith({ cursor: 7n, languages: ["en"], anyGlossLanguage: true });
     expect(keep.store["cymbra-lingua-sync-languages"]).toEqual(["en"]);
 
     // Adding Spanish: both cursors back to 0.
@@ -678,7 +686,7 @@ describe("SyncEngine and the reader's languages (add-lingua-language-sync-client
       acceptedLanguages: englishAndSpanish,
     }).sync();
     expect(widening.pullChanges).toHaveBeenCalledWith({ cursor: 0n });
-    expect(widening.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["es", "en"] });
+    expect(widening.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["es", "en"], anyGlossLanguage: true });
     expect(widen.store["cymbra-lingua-sync-languages"]).toEqual(["es", "en"]);
 
     // Narrowing back to English: the cursors are kept.
@@ -707,5 +715,229 @@ describe("SyncEngine and the reader's languages (add-lingua-language-sync-client
       }).sync(),
     ).rejects.toThrow("offline");
     expect(storage.store["cymbra-lingua-sync-languages"]).toEqual(["en"]);
+  });
+});
+
+describe("SyncEngine and the language of a gloss (add-lingua-native-language-sync-client)", () => {
+  /** An English card; the engine labels its gloss only when it is not French. */
+  const card = (lemma: string, gloss: string, glossLanguage?: string): CardOp => ({
+    client_id: lemma,
+    language: "en",
+    lemma,
+    surface_form: lemma,
+    source_sentence: "s",
+    source: "",
+    gloss,
+    ...(glossLanguage ? { gloss_language: glossLanguage } : {}),
+    fsrs_state: "{}",
+    deleted: false,
+    client_ts: 1,
+    device_id: "",
+  });
+  /** A server that stores the language of a gloss and of a day (add-lingua-native-language-server). */
+  const labelling = () => {
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: 0n, cardLanguage: true, languageLabels: true } as never);
+    return f;
+  };
+  const pushed = (f: ReturnType<typeof fakeClients>, call = 0) =>
+    (
+      f.pushCards.mock.calls[call] as unknown as [{ cards: { clientId: string; glossLanguage: string }[] }]
+    )[0].cards.map((c) => [c.clientId, c.glossLanguage]);
+  /** A card glossed in French and one glossed in English. */
+  const deck = [card("seldom", "rarement"), card("harbour", "a port", "en")];
+
+  it("a server that stores the labels: both cards are pushed, each with its gloss language", async () => {
+    const f = labelling();
+    const { port } = syncPort({ cardOps: deck });
+    const res = await new SyncEngine({
+      port,
+      storage: fakeArea(v2("B")),
+      clients: () => f.clients,
+      deviceId: "d",
+    }).sync();
+
+    expect(pushed(f)).toEqual([
+      ["seldom", ""],
+      ["harbour", "en"],
+    ]);
+    expect(res?.pushedCards).toBe(2);
+  });
+
+  it("a server that predates the labels: the French-glossed card alone is pushed, the English one at a later sync against a server that stores the labels", async () => {
+    const older = fakeClients(); // its data state does not say it stores the labels
+    const { port } = syncPort({ cardOps: deck });
+    const storage = fakeArea(v2("B"));
+    const held = await new SyncEngine({ port, storage, clients: () => older.clients, deviceId: "d" }).sync();
+    expect(pushed(older)).toEqual([["seldom", ""]]);
+    expect(held?.pushedCards).toBe(1);
+
+    // The push is the whole deck each time: the card held stays local and goes with the next one.
+    const newer = labelling();
+    const later = await new SyncEngine({ port, storage, clients: () => newer.clients, deviceId: "d" }).sync();
+    expect(pushed(newer)).toEqual([
+      ["seldom", ""],
+      ["harbour", "en"],
+    ]);
+    expect(later?.pushedCards).toBe(2);
+  });
+
+  it("a card pulled with its label is applied with it, and the pull says this build reads every label", async () => {
+    const f = labelling();
+    f.pullCards.mockResolvedValueOnce({
+      cards: [
+        { ...wire("harbour"), gloss: "a port", glossLanguage: "en" },
+        { ...wire("seldom"), gloss: "rarement", glossLanguage: "" }, // as stored: the engine reads empty as French
+      ],
+      cursor: 2n,
+    });
+    const { port, calls } = syncPort({ onApplyCards: (ops) => ops.length });
+    await new SyncEngine({ port, storage: fakeArea(v2("B")), clients: () => f.clients, deviceId: "d" }).sync();
+
+    expect(f.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["en"], anyGlossLanguage: true });
+    expect(calls.appliedCards[0].map((op) => [op.client_id, op.gloss, op.gloss_language])).toEqual([
+      ["harbour", "a port", "en"],
+      ["seldom", "rarement", ""],
+    ]);
+  });
+
+  it("the first pull of this build pulls the cards from the start once, then from its cursor", async () => {
+    // A device updated to this build: cursors past the cards the server withheld from it, no marker yet.
+    const storage = fakeArea({
+      ...v2("B"),
+      "cymbra-lingua-status-cursor": 42,
+      "cymbra-lingua-card-cursor": 7,
+      "cymbra-lingua-sync-languages": ["en"],
+    });
+    const first = labelling();
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => first.clients, deviceId: "d" }).sync();
+    expect(first.pullChanges).toHaveBeenCalledWith({ cursor: 42n }); // the statuses were never withheld
+    expect(first.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["en"], anyGlossLanguage: true });
+    expect(storage.store["cymbra-lingua-sync-labels"]).toBe(true);
+
+    const second = labelling();
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => second.clients, deviceId: "d" }).sync();
+    expect(second.pullCards).toHaveBeenCalledWith({ cursor: 9n, languages: ["en"], anyGlossLanguage: true });
+  });
+
+  it("marks the first pull only once the sync has succeeded", async () => {
+    const f = labelling();
+    f.pullCards.mockRejectedValueOnce(new Error("offline"));
+    const storage = fakeArea({ ...v2("B"), "cymbra-lingua-card-cursor": 7 });
+    await expect(
+      new SyncEngine({ port: syncPort({}).port, storage, clients: () => f.clients, deviceId: "d" }).sync(),
+    ).rejects.toThrow("offline");
+    expect(storage.store["cymbra-lingua-sync-labels"]).toBeUndefined();
+    expect(storage.store["cymbra-lingua-card-cursor"]).toBe(0); // the next sync pulls from the start again
+  });
+
+  it("a French card is pushed to a server that predates the labels, as before", async () => {
+    const older = fakeClients();
+    const { port } = syncPort({ cardOps: [card("seldom", "rarement"), card("dwell", "demeurer", "fr")] });
+    const res = await new SyncEngine({
+      port,
+      storage: fakeArea(v2("B")),
+      clients: () => older.clients,
+      deviceId: "d",
+    }).sync();
+
+    expect(pushed(older)).toEqual([
+      ["seldom", ""],
+      ["dwell", "fr"],
+    ]);
+    expect(res?.pushedCards).toBe(2);
+  });
+
+  function wire(clientId: string) {
+    return {
+      clientId,
+      language: "en",
+      lemma: clientId,
+      surfaceForm: clientId,
+      sourceSentence: "s",
+      source: "",
+      gloss: "",
+      glossLanguage: "",
+      fsrsState: "{}",
+      deleted: false,
+      clientTs: 5n,
+      deviceId: "other",
+    };
+  }
+});
+
+describe("SyncEngine and the native language of a day (add-lingua-native-language-sync-client)", () => {
+  const TODAY = 20_650;
+  const COUNTS = { exposures: 12, unknownSeen: 4, wordsLearned: 3, reviews: 5 };
+  /** Today's English statistic, counted under `native`, in the shape this build writes. */
+  const today = (native: string) => ({ "cymbra-lingua-daily-v4": { [TODAY]: { en: { ...COUNTS, native } } } });
+  const labelling = () => {
+    const f = fakeClients();
+    f.getDataState.mockResolvedValue({ erasedAt: 0n, cardLanguage: true, languageLabels: true } as never);
+    return f;
+  };
+  const sent = (f: ReturnType<typeof fakeClients>, call = 0) =>
+    (f.upsertDailyStats.mock.calls[call] as unknown as [{ stats: Record<string, unknown>[] }])[0].stats;
+  const row = (nativeLanguage: string, day = TODAY, language = "en") => ({
+    day,
+    language,
+    deviceId: "d",
+    exposures: COUNTS.exposures,
+    unknownSeen: COUNTS.unknownSeen,
+    wordsLearned: COUNTS.wordsLearned,
+    reviewsDone: COUNTS.reviews,
+    nativeLanguage,
+  });
+
+  it("a French-native device: today's English statistic carries fr, and the row is as before", async () => {
+    const older = fakeClients(); // whatever the server stores, a French day goes
+    const storage = fakeArea({ ...v2("B"), ...today("fr") });
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => older.clients, deviceId: "d" }).sync();
+    expect(sent(older)).toEqual([row("fr")]);
+  });
+
+  it("a Spanish-native device: today's English statistic carries es, to a server that stores the labels", async () => {
+    const f = labelling();
+    const storage = fakeArea({ ...v2("B"), ...today("es") });
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => f.clients, deviceId: "d" }).sync();
+    expect(sent(f)).toEqual([row("es")]);
+  });
+
+  it("a server that predates the labels: a Spanish-native day is held, and sent at a later sync against a server that stores them", async () => {
+    const storage = fakeArea({
+      ...v2("B"),
+      "cymbra-lingua-daily-v4": {
+        [TODAY - 1]: { en: { ...COUNTS, native: "fr" } }, // counted before the native language changed
+        [TODAY]: { en: { ...COUNTS, native: "es" } },
+      },
+    });
+    const older = fakeClients();
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => older.clients, deviceId: "d" }).sync();
+    expect(sent(older)).toEqual([row("fr", TODAY - 1)]);
+
+    const newer = labelling();
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => newer.clients, deviceId: "d" }).sync();
+    expect(sent(newer)).toEqual([row("fr", TODAY - 1), row("es")]);
+  });
+
+  it("holds nothing but the day: a Spanish-native device with no French day sends no statistic to an older server", async () => {
+    const older = fakeClients();
+    const storage = fakeArea({ ...v2("B"), ...today("es") });
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => older.clients, deviceId: "d" }).sync();
+    expect(older.upsertDailyStats).not.toHaveBeenCalled();
+  });
+
+  it("statistics written before the label, per studied language (v3), are sent once as French, their counts unchanged", async () => {
+    const older = fakeClients();
+    const storage = fakeArea({ ...v2("B"), "cymbra-lingua-daily-v3": { [TODAY]: { en: COUNTS, es: COUNTS } } });
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => older.clients, deviceId: "d" }).sync();
+    expect(sent(older)).toEqual([row("fr"), row("fr", TODAY, "es")]);
+  });
+
+  it("statistics written before the label, per day only (v2 alone), are sent as English and French", async () => {
+    const older = fakeClients();
+    const storage = fakeArea({ ...v2("B"), "cymbra-lingua-daily-v2": { [TODAY]: COUNTS } });
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => older.clients, deviceId: "d" }).sync();
+    expect(sent(older)).toEqual([row("fr")]);
   });
 });

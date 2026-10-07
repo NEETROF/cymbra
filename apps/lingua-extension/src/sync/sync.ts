@@ -36,6 +36,14 @@ const ERASED_AT_KEY = "cymbra-lingua-erased-at";
  * English alone, what every device accepted before cards carried a language.
  */
 const SYNC_LANGUAGES_KEY = "cymbra-lingua-sync-languages";
+/**
+ * Set once this device has pulled as a client that reads gloss languages
+ * (add-lingua-native-language-sync-client D2). Absent: the server withheld non-French cards from
+ * it, and its card cursor passed them.
+ */
+const SYNC_LABELS_KEY = "cymbra-lingua-sync-labels";
+/** The gloss language every card carried before it was labelled, and of every day counted before it was. */
+const FRENCH = "fr";
 /** Max ops per request (bounded batches; the server resumes by outbox offset). */
 const BATCH = 500;
 
@@ -70,6 +78,12 @@ export class SyncEngine {
   private erasedAt = 0;
   /** Whether the server keys cards by language, as of the current sync's data state (design D3). */
   private cardLanguage = false;
+  /**
+   * Whether the server stores the language of a gloss and of a day's statistics, as of the current
+   * sync's data state (add-lingua-native-language-sync-client D1). A field the server does not know,
+   * or a rolled-back server, reads as false.
+   */
+  private languageLabels = false;
 
   constructor(private readonly deps: SyncDeps) {}
 
@@ -87,6 +101,7 @@ export class SyncEngine {
     // The reader's languages came with the backup: what this device accepts, and whether that grew.
     const languages = await (this.deps.acceptedLanguages?.() ?? acceptedLanguages(this.deps.port));
     await this.widen(languages);
+    await this.readLabels();
 
     const pushedStatuses = await this.pushStatuses();
     await this.pushDeclaredLevels();
@@ -117,8 +132,19 @@ export class SyncEngine {
     // (and re-applied idempotently) next time — never dropped.
     await this.saveCursor(STATUS_CURSOR_KEY, statuses.cursor);
     await this.saveCursor(CARD_CURSOR_KEY, cards.cursor);
-    await this.deps.storage.set({ [SYNC_LANGUAGES_KEY]: languages });
+    await this.deps.storage.set({ [SYNC_LANGUAGES_KEY]: languages, [SYNC_LABELS_KEY]: true });
     return { pushedStatuses, pushedCards, pulled };
+  }
+
+  /**
+   * The first pull of a build that reads gloss languages pulls the cards again from the start
+   * (add-lingua-native-language-sync-client D2): the server withheld the non-French cards from this
+   * device before and kept no memory of them, and its cursor passed them — as widening does for a
+   * language added. The statuses were never withheld, so their cursor stands.
+   */
+  private async readLabels(): Promise<void> {
+    const marked = (await this.deps.storage.get(SYNC_LABELS_KEY))[SYNC_LABELS_KEY];
+    if (marked !== true) await this.saveCursor(CARD_CURSOR_KEY, 0);
   }
 
   /**
@@ -152,6 +178,7 @@ export class SyncEngine {
   private async checkErasure(): Promise<void> {
     const res = await this.deps.clients().data.getDataState({});
     this.cardLanguage = res.cardLanguage === true;
+    this.languageLabels = res.languageLabels === true;
     const mark = Number(res.erasedAt);
     const recorded = (await this.deps.storage.get(ERASED_AT_KEY))[ERASED_AT_KEY];
     const known = typeof recorded === "number" ? recorded : (await this.hasSynced()) ? 0 : mark;
@@ -226,9 +253,14 @@ export class SyncEngine {
 
   private async pushCards(): Promise<number> {
     // A card in another language waits for a server that keys cards by language (design D3):
-    // an older one would store it as English, under the key of the English card.
+    // an older one would store it as English, under the key of the English card. A card glossed
+    // in another language waits for a server that stores the gloss language
+    // (add-lingua-native-language-sync-client D2): an older one would label it French for ever.
+    // The push is the whole deck each time, so a held card goes at a later sync.
     const ops = (await this.deps.port.exportCardOps()).filter(
-      (c) => this.cardLanguage || (c.language || "en") === "en",
+      (c) =>
+        (this.cardLanguage || (c.language || "en") === "en") &&
+        (this.languageLabels || (c.gloss_language || FRENCH) === FRENCH),
     );
     for (const batch of chunk(ops, BATCH)) {
       await this.deps.clients().deck.pushCards({
@@ -240,6 +272,8 @@ export class SyncEngine {
           sourceSentence: c.source_sentence,
           // No `source`: the page a card was captured from stays on the device.
           gloss: c.gloss,
+          // The engine leaves the label out for a French gloss; the server reads empty as French.
+          glossLanguage: c.gloss_language ?? "",
           fsrsState: c.fsrs_state,
           deleted: c.deleted,
           clientTs: BigInt(this.afterMark(c.client_ts)),
@@ -250,20 +284,28 @@ export class SyncEngine {
     return ops.length;
   }
 
-  /** Idempotent upsert of the local daily aggregates (replace-by-key server-side), one per day and language. */
+  /**
+   * Idempotent upsert of the local daily aggregates (replace-by-key server-side), one per day and
+   * language, each with the native language it was counted under. A day counted under another
+   * native language than French waits for a server that stores the label
+   * (add-lingua-native-language-sync-client D3): an older one would file it as French for ever.
+   */
   private async pushStats(): Promise<void> {
     const daily = await loadDailyStats(this.deps.storage);
     const stats = Object.entries(daily).flatMap(([day, byLanguage]) =>
-      Object.entries(byLanguage).map(([language, s]) => ({
-        day: Number(day),
-        language,
-        deviceId: this.deps.deviceId,
-        exposures: s.exposures,
-        // Always set (0 included): its presence is what the server stores a stat on.
-        unknownSeen: s.unknownSeen ?? 0,
-        wordsLearned: s.wordsLearned,
-        reviewsDone: s.reviews,
-      })),
+      Object.entries(byLanguage)
+        .filter(([, s]) => this.languageLabels || s.native === FRENCH)
+        .map(([language, s]) => ({
+          day: Number(day),
+          language,
+          deviceId: this.deps.deviceId,
+          exposures: s.exposures,
+          // Always set (0 included): its presence is what the server stores a stat on.
+          unknownSeen: s.unknownSeen ?? 0,
+          wordsLearned: s.wordsLearned,
+          reviewsDone: s.reviews,
+          nativeLanguage: s.native,
+        })),
     );
     if (stats.length > 0) await this.deps.clients().stats.upsertDailyStats({ stats });
   }
@@ -307,8 +349,10 @@ export class SyncEngine {
   /** Fetch card ops after the stored cursor (no apply, no cursor write). */
   private async fetchCards(languages: StudiedLanguage[]): Promise<{ ops: CardOp[]; cursor: number }> {
     const cursor = await this.loadCursor(CARD_CURSOR_KEY);
-    // The server returns the cards of these languages only (add-lingua-card-language).
-    const res = await this.deps.clients().deck.pullCards({ cursor: BigInt(cursor), languages });
+    // The server returns the cards of these languages only (add-lingua-card-language), whatever
+    // their gloss language: this build reads every label, and review shows a gloss the reader can
+    // read (add-lingua-card-gloss-language).
+    const res = await this.deps.clients().deck.pullCards({ cursor: BigInt(cursor), languages, anyGlossLanguage: true });
     return {
       ops: res.cards.map((c) => ({
         client_id: c.clientId,
@@ -318,6 +362,7 @@ export class SyncEngine {
         source_sentence: c.sourceSentence,
         source: "", // never on the wire; the local card keeps its own
         gloss: c.gloss,
+        gloss_language: c.glossLanguage, // as stored; the engine reads an empty label as French
         fsrs_state: c.fsrsState,
         deleted: c.deleted,
         client_ts: Number(c.clientTs),
