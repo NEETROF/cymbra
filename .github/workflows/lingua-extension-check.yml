@@ -212,7 +212,14 @@ jobs:
           set -euo pipefail
           # Each studied language's reference pair first: it writes tables/<studied>/, which the
           # language's other pairs build on (split-lingua-pack-tables-by-language).
-          for pair in $(python scripts/lingua-data/pack_sources.py pairs --tables scripts/lingua-data/tables); do
+          # Listed by a plain assignment, which `set -e` stops on: a failing `$(…)` in a `for` list
+          # would run the loop zero times and leave this step green, having reduced nothing.
+          pairs="$(python scripts/lingua-data/pack_sources.py pairs --tables scripts/lingua-data/tables)"
+          if [ -z "$pairs" ]; then
+            echo "::error::No pair to reduce under scripts/lingua-data/tables."
+            exit 1
+          fi
+          for pair in $pairs; do
             scripts/lingua-data/build.sh --reduce "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
             # The raw sources weigh about 1.5 GB per pair; the next pair needs the room.
             rm -rf "scripts/lingua-data/work/$pair"

@@ -13,8 +13,10 @@ import ast
 import contextlib
 import datetime
 import gzip
+import hashlib
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -475,6 +477,56 @@ class Record(unittest.TestCase):
         self.assertIn("de-fr studies de", done.stderr)
         self.assertIn("tables/de/", done.stderr)
 
+    def test_build_sh_names_a_pair_left_behind_by_its_studied_tables(self):
+        # spec: *A pair left behind* and *A rule of the reference's own edition* — a change under
+        # tables/es/ (a level, or a lemma es-fr comes to gloss) that does not record a second
+        # Spanish pair's new pack fails that pair's build, naming it and its pin. The builder is
+        # doubled: its pack is the tables it reads (that the real one's bytes move with them is
+        # tests/committed_tables.rs's, *A pair left behind*).
+        scratch = self.root / "data"
+        es, es_en = scratch / "tables" / "es", scratch / "tables" / "es-en"
+        es.mkdir(parents=True)
+        es_en.mkdir()
+        shutil.copy(HERE / "build.sh", scratch / "build.sh")
+        (es / "studied.json").write_text('{"reference": "es-fr"}\n')
+        (es / "level.tsv").write_text("casa\tA1\n")
+        (es / "lexical.tsv").write_text("casa\n")
+        (es_en / "gloss.tsv").write_text("casa\tHouse\n")
+        bin_ = self.root / "bin"
+        bin_.mkdir()
+        (bin_ / "cargo").write_text(
+            "#!/usr/bin/env bash\n"
+            "# lingua-pack-build, doubled: `run … -- --studied S P OUT` packs what it reads.\n"
+            'while [ "$1" != --studied ]; do shift; done\n'
+            'cat "$2/level.tsv" "$2/lexical.tsv" "$3/gloss.tsv" > "$4"\n'
+        )
+        (bin_ / "cargo").chmod(0o755)
+        packed = b"casa\tA1\ncasa\ncasa\tHouse\n"
+        ps.save(es_en / "pin.json", {"pack": {"sha256": hashlib.sha256(packed).hexdigest()}})
+
+        def build():
+            return subprocess.run(
+                ["bash", str(scratch / "build.sh"), "es-en", str(self.root / "es-en.lingua")],
+                capture_output=True,
+                text=True,
+                check=False,
+                env={**os.environ, "PATH": f"{bin_}{os.pathsep}{os.environ['PATH']}"},
+            )
+
+        done = build()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual((self.root / "es-en.lingua").read_bytes(), packed)
+        for table, text in (("level.tsv", "casa\tA2\n"), ("lexical.tsv", "augusto\ncasa\n")):
+            before = (es / table).read_text()
+            (es / table).write_text(text)
+            done = build()
+            self.assertEqual(done.returncode, 1, f"{table}: {done.stderr}")
+            self.assertIn("error: es-en:", done.stderr)
+            self.assertIn("(tables/es-en/pin.json)", done.stderr)
+            self.assertIn("tables/es/", done.stderr)
+            (es / table).write_text(before)
+        self.assertEqual(build().returncode, 0, "recorded against the committed tables again")
+
     def test_get_reads_a_dotted_key(self):
         self.assertEqual(ps.get(ps.load(self.pin), "sources.wordfreq.version"), "3.1.1")
         with self.assertRaises(ps.PinError):
@@ -716,6 +768,16 @@ class Split(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()) as err:
             self.assertEqual(ps.main(["pairs", "--tables", str(self.tables)]), 1)
         self.assertIn("work/studied.json", err.getvalue())
+
+    def test_tables_holding_no_pair_fail(self):
+        # A loop over no pair would reduce nothing and pass.
+        (self.tables / "es").mkdir(parents=True)
+        (self.tables / "es" / "studied.json").write_text('{"reference": "es-fr"}\n')
+        with self.assertRaisesRegex(ps.PinError, "holds no pair"):
+            ps.pairs(self.tables)
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(ps.main(["pairs", "--tables", str(self.tables)]), 1)
+        self.assertIn("holds no pair", err.getvalue())
 
     def test_a_moved_file_names_the_pair_whose_reduction_writes_it(self):
         # spec: *A studied table edited by hand* — the reduce job names en-fr and en/forms.tsv.

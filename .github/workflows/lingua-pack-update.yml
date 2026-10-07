@@ -116,12 +116,20 @@ jobs:
           # folder along, reduced again from their own pinned sources after it
           # (split-lingua-pack-tables-by-language).
           tables=scripts/lingua-data/tables
+          # Listed by a plain assignment, which `set -e` stops on: a failing process substitution
+          # feeding the array would leave it empty and this step green, having reduced nothing.
           if [ "$PAIR" = all ]; then
-            mapfile -t pairs < <(python scripts/lingua-data/pack_sources.py pairs --tables "$tables")
+            list="$(python scripts/lingua-data/pack_sources.py pairs --tables "$tables")"
           elif [ "$MODE" = dry ]; then
-            pairs=("$PAIR") # the monthly matrix checks every pair on its own
+            list="$PAIR" # the monthly matrix checks every pair on its own
           else
-            mapfile -t pairs < <(python scripts/lingua-data/pack_sources.py pairs --tables "$tables" --after "$PAIR")
+            list="$(python scripts/lingua-data/pack_sources.py pairs --tables "$tables" --after "$PAIR")"
+          fi
+          pairs=()
+          while IFS= read -r pair; do [ -z "$pair" ] || pairs+=("$pair"); done <<<"$list"
+          if [ "${#pairs[@]}" -eq 0 ]; then
+            echo "::error::No pair to reduce under $tables."
+            exit 1
           fi
           echo "PAIRS=${pairs[*]}" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/committed"
@@ -133,9 +141,10 @@ jobs:
             # The pairs a named reference brings along: their pinned sources, reduced again.
             [ "$PAIR" != all ] && [ "$pair" != "$PAIR" ] && mode=reduce
             LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
-            # A re-reduction keeps nothing of its raw sources (an update publishes them below); the
-            # next pair needs the room.
-            if [ "$MODE" = reduce ]; then rm -rf "scripts/lingua-data/work/$pair"; fi
+            # A re-reduction keeps nothing of its raw sources (an update publishes the named pair's
+            # below); the next pair needs the room. Each pair by its own mode: the pairs an update
+            # brings along are re-reductions too.
+            if [ "$mode" = reduce ]; then rm -rf "scripts/lingua-data/work/$pair"; fi
           done
 
       - name: Report against the committed tables

@@ -58,6 +58,23 @@ fn shipped(pair: &str) -> &'static [u8] {
     })
 }
 
+fn sha256_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+/// A scratch copy of a committed studied folder, to change one of its tables.
+fn studied_copy(scratch: &Path, language: &str) -> PathBuf {
+    let (from, to) = (tables().join(language), scratch.join(language));
+    std::fs::create_dir_all(&to).unwrap();
+    for name in files(&from) {
+        std::fs::copy(from.join(&name), to.join(&name)).unwrap();
+    }
+    to
+}
+
 fn sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     let (_, sections) = read_container(bytes).expect("a pack");
     sections.into_iter().map(|s| (s.name, s.data)).collect()
@@ -110,11 +127,11 @@ fn spec_scenario_the_shipped_packs_keep_their_bytes() {
             &std::fs::read_to_string(tables().join(pair).join("pin.json")).unwrap(),
         )
         .unwrap();
-        let sha256: String = Sha256::digest(bytes)
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
-        assert_eq!(pin["pack"]["sha256"], sha256.as_str(), "{pair}: pin.json");
+        assert_eq!(
+            pin["pack"]["sha256"],
+            sha256_hex(bytes).as_str(),
+            "{pair}: pin.json"
+        );
         assert_eq!(pin["pack"]["size"], bytes.len(), "{pair}: pin.json");
         // A reference's dictionary words are its glossed lemmas: no lexical section.
         assert!(
@@ -201,4 +218,74 @@ fn spec_scenario_a_pair_glossed_in_another_native_language_copies_nothing() {
             .iter()
             .all(|lemma| es_en_pack.is_dictionary_word(lemma))
     );
+}
+
+#[test]
+fn spec_scenario_a_pair_left_behind() {
+    // A second pair studying Spanish, its pack recorded from the committed tables/es. A change
+    // there — one level, or a lemma es-fr comes to gloss (*A rule of the reference's own
+    // edition*) — moves that pair's pack, so its pin no longer records what its tables build and
+    // build.sh fails naming it until it is recorded again (test_pack_sources.py,
+    // test_build_sh_names_a_pair_left_behind_by_its_studied_tables).
+    let scratch = std::env::temp_dir().join(format!("lingua-left-behind-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    // es-fr's glosses, read as another native language's: its dictionary words are its own
+    // glossed lemmas, so it carries no lexical section until tables/es names others.
+    let es_en = scratch.join("es-en");
+    std::fs::create_dir_all(&es_en).unwrap();
+    let es_fr = tables().join("es-fr");
+    for name in ["gloss.tsv", "senses.tsv", "mwe.tsv", "NOTICE"] {
+        std::fs::copy(es_fr.join(name), es_en.join(name)).unwrap();
+    }
+    let mut manifest: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(es_fr.join("manifest.json")).unwrap())
+            .unwrap();
+    manifest["meta"]["native"] = "en".into();
+    std::fs::write(es_en.join("manifest.json"), manifest.to_string()).unwrap();
+    let build = |studied: &Path| {
+        build_pack(&inputs_from_dirs(studied, &es_en).expect("read es-en")).expect("build es-en")
+    };
+    let recorded = build(&tables().join("es"));
+    assert!(section_of(&sections(&recorded), section::LEXICAL).is_none());
+
+    // One level: `a`, A1 → A2.
+    let es = studied_copy(&scratch, "es");
+    let level = std::fs::read_to_string(es.join("level.tsv")).unwrap();
+    assert!(level.starts_with("a\tA1\n"), "es/level.tsv opens on `a`");
+    std::fs::write(
+        es.join("level.tsv"),
+        level.replacen("a\tA1\n", "a\tA2\n", 1),
+    )
+    .unwrap();
+    let moved = build(&es);
+    assert_ne!(
+        sha256_hex(&moved),
+        sha256_hex(&recorded),
+        "es-en: es/level.tsv changed, and its pack did not"
+    );
+    assert_ne!(
+        section_of(&sections(&moved), section::LEVELS),
+        section_of(&sections(&recorded), section::LEVELS),
+        "es-en: its levels are read from tables/es"
+    );
+    std::fs::write(es.join("level.tsv"), &level).unwrap();
+
+    // es-fr comes to gloss `augusto`: Spanish's dictionary words gain it, and so does es-en.
+    let lexical = std::fs::read_to_string(es.join("lexical.tsv")).unwrap();
+    let mut words: Vec<&str> = lexical.lines().chain(["augusto"]).collect();
+    words.sort_unstable();
+    std::fs::write(
+        es.join("lexical.tsv"),
+        words.iter().map(|w| format!("{w}\n")).collect::<String>(),
+    )
+    .unwrap();
+    let gained = build(&es);
+    std::fs::remove_dir_all(&scratch).unwrap();
+    assert_ne!(
+        sha256_hex(&gained),
+        sha256_hex(&recorded),
+        "es-en: es/lexical.tsv gained a lemma, and its pack did not move"
+    );
+    assert!(Pack::load(&gained).unwrap().is_dictionary_word("augusto"));
+    assert!(!Pack::load(&recorded).unwrap().is_dictionary_word("augusto"));
 }

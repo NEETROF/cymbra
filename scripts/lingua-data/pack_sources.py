@@ -232,8 +232,11 @@ def folders(tables: Path) -> list[Path]:
 def pairs(tables: Path, after: str | None = None) -> list[str]:
     """The pairs of `tables`, each studied language's reference first, then its other pairs, by
     name; with `after`, that pair, then — when it is its language's reference — the pairs that read
-    its studied folder, which must be reduced again after it."""
+    its studied folder, which must be reduced again after it. No pair at all fails: a loop over
+    none would reduce nothing and pass."""
     names = [folder.name for folder in folders(tables) if is_pair(folder)]
+    if not names:
+        raise PinError(f"{tables} holds no pair (a folder named <studied>-<native>)")
     refs = {lang: reference_of(tables / lang) for lang in {studied_of(n) for n in names}}
     ordered = sorted(names, key=lambda n: (refs[studied_of(n)] != n, n))
     if after is None:
