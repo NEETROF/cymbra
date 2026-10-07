@@ -15,8 +15,7 @@ module, one regex per line, in `.ts` and `.html`. The other « CEFR » is `stats
 (change 16's file). `settings-view.ts:89` wraps `windowsVoice` in a French Windows menu path.
 Change 13 creates `src/i18n/{fr,en,es}/languages.ts` typed `typeof fr.languages`, and its lint
 reads string literals from the syntax tree. The engine's enum names (`French`, `English`,
-`Spanish`) are data in `state/profile.ts`; `translate/host/model-manifest.ts` has an error message
-saying "not French" (change 8 removes it).
+`Spanish`) are data in `state/profile.ts`; `translate/host/model-manifest.ts`'s "not French" message is gone since change 8.
 
 ## Goals / Non-Goals
 
@@ -39,12 +38,14 @@ Change 13's `fr/languages.ts` holds today's `WORDS` and the twelve messages. `en
 each filled with the form that language's grammar uses — English `of: "of English"`, `the:
 "English"`, `masculine`/`feminine: "English"` (no gender); Spanish `of: "de inglés"`, `the:
 "el inglés"`, `masculine: "inglés"`, `feminine: "inglesa"` — and the twelve messages written in
-that language's own words: `levelTitle("es", true)` is « Niveau d'espagnol estimé », "Estimated
+that language's own words: `levelTitle(language, "es", true)` is « Niveau d'espagnol estimé », "Estimated
 Spanish level", « Nivel de español estimado ». `windowsVoice` is per interface language too:
-Windows lists its voices in the display language, and the menu path the message quotes is the
-interface's (« Anglais (États-Unis) », "English (United States)", « Inglés (Estados Unidos) »).
+the menu path the message quotes is the interface's (« Anglais (États-Unis) », "English (United
+States)", « Inglés (Estados Unidos) ») — Windows lists its voices in its own display language,
+which may differ; the message says what the reader looks for, as today.
 The `levelScale` entry is « CEFR » / "CEFR" / « MCER » (M19) — "CEFR" equal in French and
-English, on change 13's same-in-every-language list.
+English, on change 13's same-in-every-language list, as are the `preview` sentences (in the
+studied language, identical in the three modules).
 
 ### D2 — The module takes the interface language
 
@@ -52,8 +53,8 @@ English, on change 13's same-in-every-language list.
 parameter: the interface language (`levelTitle(language, lang, estimated)`), and delegates to
 the catalogue's module for it; the surfaces pass the language they read with their preferences
 (changes 14–17 give each surface its `copy`; the language is beside it). The module is
-synchronous, as its callers are; nothing is cached. It stays off the lint's baseline from this
-change on: it holds no literal.
+synchronous, as its callers are; nothing is cached. It comes off the lint's baseline with this
+change: it holds no literal.
 
 Alternative: a module-level setter filled by each entry. A surface that forgot it would read
 French silently.
@@ -66,7 +67,7 @@ catalogue) read `levelScale`; a Spanish interface says « MCER ».
 ### D4 — The lint names every language in every interface language
 
 `lint-language-labels` reads string and template literals from the syntax tree (change 13's
-mechanism) in `.ts` outside `src/i18n/`, and the HTML pages' text, and forbids — as whole words,
+mechanism) in `.ts` outside `src/i18n/*/languages.ts`, and the HTML pages' text, and forbids — as whole words,
 case-insensitively — « anglais », « espagnol », « français », "English", "Spanish", "French",
 « inglés », « español », « francés » and their inflections, with change 13's baseline for the
 files not yet moved. Named exceptions, data not copy: the engine's enum names in
@@ -74,8 +75,10 @@ files not yet moved. Named exceptions, data not copy: the engine's enum names in
 
 ## Risks / Trade-offs
 
-- **A French message moves** → `settings-view.spec.ts` and `stats.spec.ts` assert them; a test on
-  the module itself is added for every message in every interface language.
+- **A French message moves** → `settings-view.spec.ts`, `stats.spec.ts`, `stats-view.spec.ts`,
+  `review-page.spec.ts`, `reader-app.spec.ts`, `onboarding-level-row.spec.ts` and
+  `studied-languages-view.spec.ts` assert them; a test on the module itself is added for every
+  message in every interface language.
 - **A caller that forgets the language** → the parameter is required; the compiler.
 - **An English word that is also a name** ("English" in a comment) → the lint reads literals.
 

@@ -18,3 +18,16 @@ Every name of a language the interface shows, and every sentence built around on
 #### Scenario: Checked by lint
 - **WHEN** a module outside the catalogue writes "Spanish" or « español » as a name
 - **THEN** the lint fails, naming the file and the line
+
+## MODIFIED Requirements
+
+### Requirement: Languages are named in one place
+Every name of a studied language the interface shows — in a title, a notice, a prompt, a voice's name — SHALL come from one module per interface language, `src/i18n/<language>/languages.ts`, in that language's own grammar, and no surface SHALL hard-code a language's name. A lint SHALL check that no name of a language, in any interface language, is written in a string literal outside those modules, with the catalogue's baseline for the files not yet moved.
+
+#### Scenario: A Spanish page without enough text
+- **WHEN** a page in Spanish holds too little text for the engine
+- **THEN** the popup says no Spanish text was detected on this page, in the interface language, naming Spanish from the languages' module
+
+#### Scenario: Checked by lint
+- **WHEN** a module outside `src/i18n/*/languages.ts` writes « anglais », "Spanish" or « español » as a name
+- **THEN** the lint fails, naming the file and the line

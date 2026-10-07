@@ -45,8 +45,10 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-browser-extension`: ADDED *Languages are named in the interface language*. *Languages
-  are named in one place* (held by no open change) stands: the one place is now the catalogue.
+- `lingua-browser-extension`: ADDED *Languages are named in the interface language*; MODIFIED
+  *Languages are named in one place* (held by no open change): the one place is one module per
+  interface language, `src/i18n/<language>/languages.ts`, and the lint admits those alone; both
+  scenarios kept.
 
 ## Impact
 
@@ -54,9 +56,9 @@ None.
   `src/i18n/{fr,en,es}/languages.ts`, `test/lint-language-labels.spec.ts`, the tests that assert
   the messages. The back office names languages in its own catalogue already. ID, Music, Live and
   the site are untouched.
-- **No byte moves.** Every French message is the same; the surfaces call the same functions.
-- **Order.** After change 13.
-- **Order.** After change 13; after 14–17, which hand each surface the interface language this
-  module now takes.
+- **No byte moves.** Every French message is the same; the surfaces call the same functions with
+  the language they read.
+- **Order.** After change 13 (archived after it); after 14–17, which hand each surface the
+  interface language this module now takes.
 - **Not here.** The names of the native languages offered to the reader (« Français », « English »,
   « Español » in their own language, as a choice lists them) are change 20's, with the choice.
