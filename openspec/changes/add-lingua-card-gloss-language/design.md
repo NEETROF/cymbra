@@ -42,9 +42,9 @@ is the pack's or none.
 `#[serde(default = "french", skip_serializing_if = "is_french")]`. Every backup written today
 is byte for byte the same, as the profile's `skip_serializing_if` keeps an English backup
 unchanged; the schema version stays 2, since the field is read by its default and ignored by a
-build that predates it (`Card` does not deny unknown fields). `Card::new` takes the gloss
-language beside the gloss; its callers are the engine's `add_card`, `apply_card_ops`, the v1
-migration and the agent.
+build that predates it (`Card` does not deny unknown fields). `Card::new` and `Card::seeded`
+take the gloss language beside the gloss; their callers are the engine's `add_card`,
+`seed_level` and `apply_card_ops`, and the agent.
 
 Alternative: `Option<String>`, `None` meaning French. A `None` that means something is what
 `gloss: None` already is (no gloss); a language is always known.
@@ -52,9 +52,12 @@ Alternative: `Option<String>`, `None` meaning French. A `None` that means someth
 ### D2 — Created with the engine's native language
 
 `add_card` labels the card with `nativeLanguage()`: the gloss it was handed is the pack's, or
-the one the surface showed, both in the engine's native. The agent labels with its followed
-pack's native language. `apply_card_ops` reads `gloss_language`, empty meaning `fr` (the wire
-default, change 10 D1), and `export_card_ops` emits it.
+the one the surface showed, both in the engine's native; so does a card seeded from the pack
+(`seed_level`). The agent labels with its followed pack's native language. `apply_card_ops`
+reads `gloss_language`, absent or empty meaning `fr` (the wire default, change 10 D1), and
+`export_card_ops` emits it when it is not `fr`: the goldens pin the exported operations of a
+French-glossed deck byte for byte, and a reader of French gains nothing from a `fr` on every
+line.
 
 ### D3 — Review substitutes in the view model, by key
 

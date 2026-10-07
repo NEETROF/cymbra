@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: A card says the language of its gloss
-A card SHALL carry the language its gloss is written in, `fr` by default; a card created on an engine SHALL take the engine's native language; the local export of card operations SHALL emit it and the apply SHALL read it, an empty value meaning `fr`. The backup SHALL leave the label out when it is `fr`, so that a backup written before this requirement, and every backup whose glosses are French, keep their bytes; the backup schema version SHALL NOT change for it, and a build released before this requirement SHALL read a backup that carries it.
+A card SHALL carry the language its gloss is written in, `fr` by default; a card created on an engine — added from a page, or seeded from the pack — SHALL take the engine's native language; the local export of card operations SHALL emit it when it is not `fr`, and the apply SHALL read it, an absent or empty value meaning `fr`, so that the exported operations of a French-glossed deck keep their bytes. The backup SHALL leave the label out when it is `fr`, so that a backup written before this requirement, and every backup whose glosses are French, keep their bytes; the backup schema version SHALL NOT change for it, and a build released before this requirement SHALL read a backup that carries it.
 
 #### Scenario: Every card today
 - **WHEN** a reader of French with 20 French-glossed cards is backed up
@@ -13,7 +13,7 @@ A card SHALL carry the language its gloss is written in, `fr` by default; a card
 
 #### Scenario: A card applied from a card operation
 - **WHEN** a card operation with the gloss language `en` is applied, and another with none
-- **THEN** the first card is labelled `en` and the second `fr`, and the export emits both labels
+- **THEN** the first card is labelled `en` and the second `fr`, and the export emits `en` on the first and no label on the second
 
 ### Requirement: Review shows a gloss the reader can read
 When the gloss of the card under review is in a language other than the engine's native language, review SHALL show the current pack's gloss for the card's lemma — a word's gloss, or an expression's from the pack's expression table — and SHALL show the card's own text when the pack has none. A card whose gloss is in the engine's native language SHALL be shown as before. The card's stored gloss and label SHALL NOT be rewritten by review, and the view's keys SHALL NOT change.

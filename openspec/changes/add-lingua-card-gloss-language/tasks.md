@@ -2,12 +2,12 @@
 
 ## 1. The card (crates/lingua-core)
 
-- [ ] 1.1 `decks/card.rs`: `gloss_language: String`, default `fr`, out of the backup when `fr`; `Card::new` takes it (D1). Tests: a French card serialises without the field; an `en` card with it; a card without the field reads `fr`.
+- [ ] 1.1 `decks/card.rs`: `gloss_language: String`, default `fr`, out of the backup when `fr`; `Card::new` and `Card::seeded` take it (D1). Tests: a French card serialises without the field; an `en` card with it; a card without the field reads `fr`.
 - [ ] 1.2 `decks/backup.rs` tests: *Every card today* (a version 1 and a version 2 backup unchanged byte for byte), *A card created on an engine glossed in English* (version 2, the field present, read back).
 
 ## 2. The engine (crates/lingua-wasm)
 
-- [ ] 2.1 `add_card` labels with `nativeLanguage()`; `export_card_ops` emits `gloss_language`; `apply_card_ops` reads it, empty meaning `fr` (D2). Tests: *A card applied from a card operation*.
+- [ ] 2.1 `add_card` and `seed_level` label with the engine's native language; `export_card_ops` emits `gloss_language` when it is not `fr`; `apply_card_ops` reads it, absent or empty meaning `fr` (D2). Tests: *A card applied from a card operation*; the goldens' export probe unchanged.
 - [ ] 2.2 `review_current` substitutes the current pack's gloss by key — word or expression — when the card's label is not the engine's native, and keeps the card's text when the pack has none (D3, D4). Tests beside `tests/cross_native.rs`, on the pack glossed in another native: *A word glossed in another native language*, *An expression glossed in another native language*, *A gloss the pack has not*; `english_baseline` and `spanish_baseline` pass without `LINGUA_BLESS` (*The English baseline*).
 
 ## 3. The surfaces and the agent
