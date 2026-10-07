@@ -50,7 +50,9 @@ export function mountReview(
   opts: ReviewPageOptions,
 ): ReviewPage {
   container.replaceChildren();
-  let controller = new ReviewController(port, opts.now, dailyRecorder(area));
+  // Every grade and mark-known is counted under the engine's native language (add-lingua-native-language-sync-client D3).
+  const recorder = dailyRecorder(area, port);
+  let controller = new ReviewController(port, opts.now, recorder);
   let lastBackup: string | null = null;
 
   const summary = el("div", "summary");
@@ -121,7 +123,7 @@ export function mountReview(
   /** Put the review in `next`: a session over in another language gives way to a new start. */
   function switchTo(next: StudiedLanguage): void {
     if (next !== language && controller.view().phase === "done") {
-      controller = new ReviewController(port, opts.now, dailyRecorder(area));
+      controller = new ReviewController(port, opts.now, recorder);
     }
     language = next;
   }
@@ -200,7 +202,7 @@ export function mountReview(
     try {
       await port.restore(await file.text());
       await persist();
-      controller = new ReviewController(port, opts.now, dailyRecorder(area));
+      controller = new ReviewController(port, opts.now, recorder);
       await readLanguages(); // the file's profile may hold other languages
       await refreshSummary();
       render(controller.view());
@@ -233,7 +235,7 @@ export function mountReview(
     if (backup === lastBackup) return;
     if (controller.view().phase === "reviewing") return;
     void port.restore(backup).then(async () => {
-      controller = new ReviewController(port, opts.now, dailyRecorder(area));
+      controller = new ReviewController(port, opts.now, recorder);
       void loadAttributions();
       // The profile came with the state: a language may have joined or left the filter.
       await readLanguages();

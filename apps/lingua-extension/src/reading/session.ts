@@ -1,7 +1,7 @@
 import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
 import { acceptedLanguages, DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
-import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
+import type { CefrLevel, NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
 import { type Block, isElement, mergeBlocks } from "./blocks.ts";
 import { Drawer, type DrawerView } from "./drawer.ts";
 import { colourCss } from "./colours.ts";
@@ -258,6 +258,11 @@ export class ReadingSession {
    * read in the one the engine finds in it; `language` is then that document's.
    */
   private languages: StudiedLanguage[] = [DEFAULT_LANGUAGE];
+  /**
+   * The engine's native language, read with the profile: what every day counted here is labelled
+   * with (add-lingua-native-language-sync-client D3). One per engine; French until it is read.
+   */
+  private native: NativeLanguage = "fr";
   /** The language Révision was last told to open in beside this document (`besideLanguage`). */
   private besideAnnounced: StudiedLanguage | null | undefined;
   /** Reads a card's selection and sentence aloud, with a voice on this device only. */
@@ -627,10 +632,14 @@ export class ReadingSession {
     void requestSync("surface");
   }
 
-  /** The reader's accepted languages, and the first as the language until a document says otherwise. */
+  /**
+   * The reader's accepted languages, and the first as the language until a document says otherwise;
+   * the engine's native language with them (the profile came as one).
+   */
   private async readLanguages(): Promise<void> {
     this.languages = await acceptedLanguages(this.port);
     this.language = this.languages[0];
+    this.native = await this.port.nativeLanguage();
   }
 
   /** Whether the reader still has to choose a level (« Débutant » counts as a choice). */
@@ -863,7 +872,7 @@ export class ReadingSession {
     } else {
       // Stamp the change so it orders correctly in cross-device sync (LWW).
       await this.lang.setStatusAt(key, g.status, Date.now());
-      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()), this.language);
+      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()), this.language, this.native);
       // Promoting a word that was in the deck (learning) to known/ignored must retire its
       // card so it stops coming due — a word you now treat as known/ignored shouldn't keep
       // being reviewed. No-op when there is no card. (Clearing → "à apprendre" keeps it.)
@@ -921,7 +930,7 @@ export class ReadingSession {
   /** Add the words read / new words seen since the last flush to today's stats. */
   private flushReading(): void {
     if (this.pendingRead === 0) return;
-    void recordReading(store, utcDay(Date.now()), this.pendingRead, this.pendingUnknown, this.language);
+    void recordReading(store, utcDay(Date.now()), this.pendingRead, this.pendingUnknown, this.language, this.native);
     this.pendingRead = 0;
     this.pendingUnknown = 0;
   }

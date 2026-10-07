@@ -21,7 +21,9 @@ export class ReviewController {
   /**
    * `now` supplies epoch-seconds (Date.now()/1000 in production). `record` is an
    * optional daily-stats hook (add-lingua-connected-clients §3): "review" on each grade,
-   * "learned" on mark-known. Both surfaces inject a storage-backed recorder; tests omit it.
+   * "learned" on mark-known, each in the card's language; the recorder counts it under the
+   * engine's native language (add-lingua-native-language-sync-client D3). Both surfaces inject a
+   * storage-backed recorder built on the port; tests omit it.
    */
   constructor(
     private readonly port: LinguaPort,

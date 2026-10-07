@@ -182,8 +182,8 @@ texte. Dès qu'une voix anglaise est installée sur l'appareil, elle est utilis�
 | Donnée | Origine | Finalité |
 |---|---|---|
 | Statut de chaque mot (connu, en apprentissage, ignoré) et niveau d'anglais déclaré | vous | retrouver votre progression sur vos appareils |
-| Deck de révision : le mot, la phrase où vous l'avez trouvé, sa traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
-| Statistiques par jour (mots appris, révisions, nombre de mots lus et, parmi eux, de mots nouveaux) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service et, sans nom ni nombre de personnes, publiés sur les canaux de la communauté Cymbra (voir §2) |
+| Deck de révision : le mot, la phrase où vous l'avez trouvé, sa traduction, la langue de cette traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
+| Statistiques par jour (mots appris, révisions, nombre de mots lus et, parmi eux, de mots nouveaux), avec votre langue maternelle (celle des traductions) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service et, sans nom ni nombre de personnes, publiés sur les canaux de la communauté Cymbra (voir §2) |
 | Identifiant d'installation aléatoire | généré par l'extension | départager deux appareils lors de la synchronisation |
 
 - **Base légale** : exécution du contrat (fourniture de la synchronisation) ; intérêt

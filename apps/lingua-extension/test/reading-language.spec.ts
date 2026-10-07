@@ -254,8 +254,8 @@ describe("each document in its own language (add-lingua-language-routing)", () =
     };
     return send.mock.calls
       .map(([message]) => message)
-      .filter((message) => message.type === "store:set" && message.items?.["cymbra-lingua-daily-v3"])
-      .map((message) => message.items!["cymbra-lingua-daily-v3"] as Record<string, Record<string, unknown>>);
+      .filter((message) => message.type === "store:set" && message.items?.["cymbra-lingua-daily-v4"])
+      .map((message) => message.items!["cymbra-lingua-daily-v4"] as Record<string, Record<string, unknown>>);
   }
 
   /** The private seams the browser drives: a gesture from the word card, a block read on screen. */
@@ -280,7 +280,32 @@ describe("each document in its own language (add-lingua-language-routing)", () =
 
     await vi.waitFor(() => expect(dailyWrites()).toHaveLength(1));
     expect(Object.values(dailyWrites()[0])).toEqual([
-      { es: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 } },
+      { es: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0, native: "fr" } },
+    ]);
+    session.detach();
+  });
+
+  it("counts a day under the engine's native language, a Spanish-native reader of English included", async () => {
+    // French is also the default: a day labelled by habit would pass every French-native test.
+    packs.shipped = ["en-es"];
+    const { port } = makeFakePort();
+    port.nativeLanguage = async () => "es";
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section("<p>The lighthouse stands on the rocks.</p>", "en"));
+
+    await (session as unknown as Driven).onGesture({
+      lemma: "lighthouse",
+      surface: "lighthouse",
+      sentence: "The lighthouse stands on the rocks.",
+      status: "known",
+      expression: false,
+      gloss: "faro",
+    });
+
+    await vi.waitFor(() => expect(dailyWrites()).toHaveLength(1));
+    expect(Object.values(dailyWrites()[0])).toEqual([
+      { en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0, native: "es" } },
     ]);
     session.detach();
   });
@@ -305,7 +330,7 @@ describe("each document in its own language (add-lingua-language-routing)", () =
 
     await vi.waitFor(() => expect(dailyWrites()).toHaveLength(1));
     expect(Object.values(dailyWrites()[0])).toEqual([
-      { en: { exposures: 5, unknownSeen: 1, wordsLearned: 0, reviews: 0 } },
+      { en: { exposures: 5, unknownSeen: 1, wordsLearned: 0, reviews: 0, native: "fr" } },
     ]);
     await vi.waitFor(() => expect(exposed).toEqual(["en"]));
     session.detach();

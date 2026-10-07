@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { NativeLanguage } from "@/analyzer/types.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
 import {
   clearDailyStats,
@@ -8,6 +9,7 @@ import {
   DAY_ONLY_DAILY_KEY,
   dailyRecorder,
   loadDailyStats,
+  PER_LANGUAGE_DAILY_KEY,
   recordReading,
   recordReview,
   recordWordLearned,
@@ -15,10 +17,14 @@ import {
   utcDay,
 } from "@/state/dailystats.ts";
 
-function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
+/** A store that counts its writes, so a fire-and-forget recorder can be waited for by what it wrote. */
+type Area = AsyncStorageArea & { store: Record<string, unknown>; writes: number };
+
+function fakeArea(seed: Record<string, unknown> = {}): Area {
   const store: Record<string, unknown> = { ...seed };
-  return {
+  const area: Area = {
     store,
+    writes: 0,
     async get(keys) {
       const list = keys == null ? Object.keys(store) : Array.isArray(keys) ? keys : [keys];
       const out: Record<string, unknown> = {};
@@ -27,9 +33,14 @@ function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { stor
     },
     async set(items) {
       Object.assign(store, items);
+      area.writes += 1;
     },
   };
+  return area;
 }
+
+/** An engine of one native language, all a recorder asks of it. */
+const nativeOf = (native: NativeLanguage) => ({ nativeLanguage: async () => native });
 
 describe("utcDay", () => {
   it("is the number of whole UTC days since the epoch", () => {
@@ -42,51 +53,73 @@ describe("utcDay", () => {
 describe("daily counters", () => {
   it("accumulate per day and per field, defaulting missing fields to zero", async () => {
     const area = fakeArea();
-    await recordReading(area, 10, 4, 1);
-    await recordReading(area, 10, 6, 2);
-    await recordWordLearned(area, 10);
-    await recordReview(area, 10);
-    await recordReview(area, 11); // a different day is separate
+    await recordReading(area, 10, 4, 1, "en", "fr");
+    await recordReading(area, 10, 6, 2, "en", "fr");
+    await recordWordLearned(area, 10, "en", "fr");
+    await recordReview(area, 10, "en", "fr");
+    await recordReview(area, 11, "en", "fr"); // a different day is separate
 
     const stats = await loadDailyStats(area);
-    expect(stats[10]).toEqual({ en: { exposures: 10, unknownSeen: 3, wordsLearned: 1, reviews: 1 } });
-    expect(stats[11]).toEqual({ en: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 } });
+    expect(stats[10]).toEqual({ en: { exposures: 10, unknownSeen: 3, wordsLearned: 1, reviews: 1, native: "fr" } });
+    expect(stats[11]).toEqual({ en: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1, native: "fr" } });
   });
 
   it("keep each studied language apart on the same day", async () => {
     const area = fakeArea();
-    await recordReading(area, 10, 4, 1, "en");
-    await recordReading(area, 10, 9, 5, "es");
-    await recordWordLearned(area, 10, "es");
-    await recordReview(area, 10, "en");
+    await recordReading(area, 10, 4, 1, "en", "fr");
+    await recordReading(area, 10, 9, 5, "es", "fr");
+    await recordWordLearned(area, 10, "es", "fr");
+    await recordReview(area, 10, "en", "fr");
 
     expect((await loadDailyStats(area))[10]).toEqual({
-      en: { exposures: 4, unknownSeen: 1, wordsLearned: 0, reviews: 1 },
-      es: { exposures: 9, unknownSeen: 5, wordsLearned: 1, reviews: 0 },
+      en: { exposures: 4, unknownSeen: 1, wordsLearned: 0, reviews: 1, native: "fr" },
+      es: { exposures: 9, unknownSeen: 5, wordsLearned: 1, reviews: 0, native: "fr" },
+    });
+  });
+
+  it("label each day with the native language it was counted under", async () => {
+    const area = fakeArea();
+    await recordReading(area, 10, 4, 1, "en", "es");
+    await recordReview(area, 11, "en", "en");
+
+    const stats = await loadDailyStats(area);
+    expect(stats[10].en.native).toBe("es");
+    expect(stats[11].en.native).toBe("en");
+  });
+
+  it("keep the last native language a day was counted under, with every count", async () => {
+    const area = fakeArea();
+    await recordReading(area, 10, 4, 1, "en", "fr");
+    await recordReview(area, 10, "en", "fr");
+    await recordReview(area, 10, "en", "es"); // the device's native language changed during the day
+
+    expect((await loadDailyStats(area))[10]).toEqual({
+      en: { exposures: 4, unknownSeen: 1, wordsLearned: 0, reviews: 2, native: "es" },
     });
   });
 
   it("ignores a reading with nothing read", async () => {
     const area = fakeArea();
-    await recordReading(area, 5, 0, 0);
-    await recordReading(area, 5, -3, 1);
+    await recordReading(area, 5, 0, 0, "en", "fr");
+    await recordReading(area, 5, -3, 1, "en", "fr");
     expect(await loadDailyStats(area)).toEqual({});
   });
 
-  it("keeps its counts under the v3 key, never the retired whole-document one", async () => {
+  it("keeps its counts under the v4 key, never the retired whole-document one", async () => {
     const area = fakeArea({ [RETIRED_DAILY_KEY]: { 5: { exposures: 90_000, wordsLearned: 0, reviews: 0 } } });
     expect(await loadDailyStats(area)).toEqual({});
-    await recordReading(area, 5, 12, 2);
+    await recordReading(area, 5, 12, 2, "en", "fr");
     expect(area.store[DAILY_KEY]).toEqual({
-      5: { en: { exposures: 12, unknownSeen: 2, wordsLearned: 0, reviews: 0 } },
+      5: { en: { exposures: 12, unknownSeen: 2, wordsLearned: 0, reviews: 0, native: "fr" } },
     });
+    expect(area.store[PER_LANGUAGE_DAILY_KEY]).toBeUndefined();
   });
 
   it("reads a day stored without new words seen as zero new words", async () => {
     const area = fakeArea({ [DAY_ONLY_DAILY_KEY]: { 5: { exposures: 3, wordsLearned: 0, reviews: 0 } } });
-    await recordReview(area, 5);
+    await recordReview(area, 5, "en", "fr");
     expect((await loadDailyStats(area))[5]).toEqual({
-      en: { exposures: 3, unknownSeen: 0, wordsLearned: 0, reviews: 1 },
+      en: { exposures: 3, unknownSeen: 0, wordsLearned: 0, reviews: 1, native: "fr" },
     });
   });
 
@@ -95,34 +128,107 @@ describe("daily counters", () => {
   });
 });
 
+describe("statistics written before the label (add-lingua-native-language-sync-client)", () => {
+  // Every device was French-native before a day carried its native language: v3's days are French.
+  const PER_LANGUAGE = {
+    5: {
+      en: { exposures: 12, unknownSeen: 2, wordsLearned: 1, reviews: 3 },
+      es: { exposures: 7, unknownSeen: 1, wordsLearned: 0, reviews: 0 },
+    },
+    6: { en: { exposures: 4, unknownSeen: 0, wordsLearned: 0, reviews: 0 } },
+  };
+
+  it("are read once as French-native, their counts unchanged", async () => {
+    const area = fakeArea({ [PER_LANGUAGE_DAILY_KEY]: PER_LANGUAGE });
+
+    expect(await loadDailyStats(area)).toEqual({
+      5: { en: { ...PER_LANGUAGE[5].en, native: "fr" }, es: { ...PER_LANGUAGE[5].es, native: "fr" } },
+      6: { en: { ...PER_LANGUAGE[6].en, native: "fr" } },
+    });
+  });
+
+  it("are carried over by the first write, which adds to them and leaves v3 where it was", async () => {
+    const area = fakeArea({ [PER_LANGUAGE_DAILY_KEY]: PER_LANGUAGE });
+
+    await recordReview(area, 5, "es", "fr");
+
+    expect(area.store[DAILY_KEY]).toEqual({
+      5: { en: { ...PER_LANGUAGE[5].en, native: "fr" }, es: { ...PER_LANGUAGE[5].es, reviews: 1, native: "fr" } },
+      6: { en: { ...PER_LANGUAGE[6].en, native: "fr" } },
+    });
+    // A downgraded build reads v3: it is not rewritten, not dropped.
+    expect(area.store[PER_LANGUAGE_DAILY_KEY]).toEqual(PER_LANGUAGE);
+    // From then on v4 is the truth: nothing is counted twice.
+    await recordReview(area, 6, "en", "fr");
+    expect((await loadDailyStats(area))[6]).toEqual({ en: { ...PER_LANGUAGE[6].en, reviews: 1, native: "fr" } });
+  });
+
+  it("are not read once v4 exists, even empty", async () => {
+    const area = fakeArea({ [PER_LANGUAGE_DAILY_KEY]: PER_LANGUAGE, [DAILY_KEY]: {} });
+
+    expect(await loadDailyStats(area)).toEqual({});
+  });
+
+  it("take v3 over the day-only counts when both are left", async () => {
+    const area = fakeArea({
+      [PER_LANGUAGE_DAILY_KEY]: { 6: PER_LANGUAGE[6] },
+      [DAY_ONLY_DAILY_KEY]: { 5: { exposures: 99, unknownSeen: 0, wordsLearned: 0, reviews: 0 } },
+    });
+
+    expect(await loadDailyStats(area)).toEqual({ 6: { en: { ...PER_LANGUAGE[6].en, native: "fr" } } });
+  });
+
+  it("skip a day that is not a record, and still read, carry over and add to the others", async () => {
+    // One broken day (a null left by a bad write) must not throw under every record and every push.
+    const area = fakeArea({ [PER_LANGUAGE_DAILY_KEY]: { ...PER_LANGUAGE, 7: null } });
+
+    expect(await loadDailyStats(area)).toEqual({
+      5: { en: { ...PER_LANGUAGE[5].en, native: "fr" }, es: { ...PER_LANGUAGE[5].es, native: "fr" } },
+      6: { en: { ...PER_LANGUAGE[6].en, native: "fr" } },
+    });
+    await recordReview(area, 6, "en", "fr");
+    const stats = await loadDailyStats(area);
+    expect(stats[6]).toEqual({ en: { ...PER_LANGUAGE[6].en, reviews: 1, native: "fr" } });
+    expect(stats[7]).toBeUndefined();
+  });
+});
+
 describe("the counts kept per day only", () => {
-  // Every reader read English before the counts were kept per language: v2's days are English.
+  // Every reader read English, glossed in French, before the counts were kept per language: v2's
+  // days are English studied, French native.
   const DAY_ONLY = {
     5: { exposures: 12, unknownSeen: 2, wordsLearned: 1, reviews: 3 },
     6: { exposures: 4, unknownSeen: 0, wordsLearned: 0, reviews: 0 },
   };
 
-  it("are read as English until the first per-language write", async () => {
+  it("are read as English and French until the first labelled write", async () => {
     const area = fakeArea({ [DAY_ONLY_DAILY_KEY]: DAY_ONLY });
 
-    expect(await loadDailyStats(area)).toEqual({ 5: { en: DAY_ONLY[5] }, 6: { en: DAY_ONLY[6] } });
+    expect(await loadDailyStats(area)).toEqual({
+      5: { en: { ...DAY_ONLY[5], native: "fr" } },
+      6: { en: { ...DAY_ONLY[6], native: "fr" } },
+    });
   });
 
   it("are carried over by the first write, which adds to them", async () => {
     const area = fakeArea({ [DAY_ONLY_DAILY_KEY]: DAY_ONLY });
 
-    await recordReview(area, 5, "es");
+    await recordReview(area, 5, "es", "fr");
 
     expect(area.store[DAILY_KEY]).toEqual({
-      5: { en: DAY_ONLY[5], es: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 } },
-      6: { en: DAY_ONLY[6] },
+      5: {
+        en: { ...DAY_ONLY[5], native: "fr" },
+        es: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1, native: "fr" },
+      },
+      6: { en: { ...DAY_ONLY[6], native: "fr" } },
     });
-    // From then on v3 is the truth: nothing is counted twice.
-    await recordReview(area, 6);
-    expect((await loadDailyStats(area))[6]).toEqual({ en: { ...DAY_ONLY[6], reviews: 1 } });
+    expect(area.store[DAY_ONLY_DAILY_KEY]).toEqual(DAY_ONLY); // kept, as before
+    // From then on v4 is the truth: nothing is counted twice.
+    await recordReview(area, 6, "en", "fr");
+    expect((await loadDailyStats(area))[6]).toEqual({ en: { ...DAY_ONLY[6], reviews: 1, native: "fr" } });
   });
 
-  it("are not read once v3 exists, even empty", async () => {
+  it("are not read once v4 exists, even empty", async () => {
     const area = fakeArea({ [DAY_ONLY_DAILY_KEY]: DAY_ONLY, [DAILY_KEY]: {} });
 
     expect(await loadDailyStats(area)).toEqual({});
@@ -130,14 +236,14 @@ describe("the counts kept per day only", () => {
 });
 
 describe("countsOf", () => {
-  it("picks one language's days, missing fields as zero", () => {
+  it("picks one language's days, missing fields as zero, without the native language", () => {
     // English on day 5 was stored before new words were counted.
     const stats = {
       5: {
-        en: { exposures: 3, wordsLearned: 0, reviews: 0 },
-        es: { exposures: 8, unknownSeen: 1, wordsLearned: 2, reviews: 0 },
+        en: { exposures: 3, wordsLearned: 0, reviews: 0, native: "fr" },
+        es: { exposures: 8, unknownSeen: 1, wordsLearned: 2, reviews: 0, native: "es" },
       },
-      6: { en: { exposures: 1, unknownSeen: 0, wordsLearned: 0, reviews: 4 } },
+      6: { en: { exposures: 1, unknownSeen: 0, wordsLearned: 0, reviews: 4, native: "fr" } },
     } as unknown as DailyStats;
 
     expect(countsOf(stats, "es")).toEqual({ 5: { exposures: 8, unknownSeen: 1, wordsLearned: 2, reviews: 0 } });
@@ -150,14 +256,15 @@ describe("countsOf", () => {
 });
 
 describe("dailyRecorder", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
-  /** The recorder is fire-and-forget, so let its write finish before reading it back.
-   *  One event at a time: two overlapping bumps may lose an increment, which the module
-   *  accepts on purpose — these are approximate activity counts, not state. */
-  const settle = async () => {
-    for (let i = 0; i < 5; i++) await Promise.resolve();
-  };
+  /** The recorder is fire-and-forget: wait for its write to land before reading it back or recording
+   *  the next event. One event at a time: two overlapping bumps may lose an increment, which the
+   *  module accepts on purpose — these are approximate activity counts, not state. */
+  const written = (area: Area, times: number) => vi.waitFor(() => expect(area.writes).toBe(times));
 
   it("counts a grade as a review and a mark-known as a word learned, on today's UTC day", async () => {
     vi.useFakeTimers();
@@ -165,16 +272,16 @@ describe("dailyRecorder", () => {
     const day = utcDay(Date.parse("2026-03-04T12:00:00Z"));
 
     const area = fakeArea();
-    const record = dailyRecorder(area);
+    const record = dailyRecorder(area, nativeOf("fr"));
     record("review");
-    await settle();
+    await written(area, 1);
     record("learned");
-    await settle();
+    await written(area, 2);
     record("review");
-    await settle();
+    await written(area, 3);
 
     expect(await loadDailyStats(area)).toEqual({
-      [day]: { en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 2 } },
+      [day]: { en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 2, native: "fr" } },
     });
   });
 
@@ -184,27 +291,58 @@ describe("dailyRecorder", () => {
     const day = utcDay(Date.parse("2026-03-04T12:00:00Z"));
 
     const area = fakeArea();
-    const record = dailyRecorder(area);
+    const record = dailyRecorder(area, nativeOf("fr"));
     record("review", "es");
-    await settle();
+    await written(area, 1);
     record("learned", "es");
-    await settle();
+    await written(area, 2);
 
     expect(await loadDailyStats(area)).toEqual({
-      [day]: { es: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 1 } },
+      [day]: { es: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 1, native: "fr" } },
     });
+  });
+
+  it("counts an event under the engine's native language", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-04T12:00:00Z"));
+    const day = utcDay(Date.parse("2026-03-04T12:00:00Z"));
+
+    const area = fakeArea();
+    const record = dailyRecorder(area, nativeOf("es"));
+    record("review");
+    await written(area, 1);
+
+    expect((await loadDailyStats(area))[day].en.native).toBe("es");
+  });
+
+  it("records nothing, and says so, when the engine cannot say its native language", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const area = fakeArea();
+    const record = dailyRecorder(area, {
+      nativeLanguage: async () => {
+        throw new Error("engine gone");
+      },
+    });
+    record("review");
+
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith("[Cymbra Lingua] daily stat not recorded:", expect.any(Error)),
+    );
+    // Never French by guess: a day labelled wrong would be pushed wrong.
+    expect(area.writes).toBe(0);
+    expect(await loadDailyStats(area)).toEqual({});
   });
 
   it("files each event under the day it happened, across a UTC midnight", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-03-04T23:59:00Z"));
     const area = fakeArea();
-    const record = dailyRecorder(area);
+    const record = dailyRecorder(area, nativeOf("fr"));
     record("review");
-    await settle();
+    await written(area, 1);
     vi.setSystemTime(new Date("2026-03-05T00:01:00Z"));
     record("review");
-    await settle();
+    await written(area, 2);
 
     const stats = await loadDailyStats(area);
     expect(Object.keys(stats)).toHaveLength(2);
@@ -214,18 +352,20 @@ describe("dailyRecorder", () => {
 describe("clearDailyStats", () => {
   it("drops every local count, as a Lingua-only erasure must", async () => {
     const area = fakeArea();
-    await recordReading(area, 5, 3, 1);
-    await recordReview(area, 6, "es");
+    await recordReading(area, 5, 3, 1, "en", "fr");
+    await recordReview(area, 6, "es", "es");
     await clearDailyStats(area);
     expect(await loadDailyStats(area)).toEqual({});
   });
 
-  it("drops the counts kept per day only too, so they never come back as English", async () => {
+  it("drops the counts kept under every earlier shape too, so they never come back as French", async () => {
     const area = fakeArea({
       [DAY_ONLY_DAILY_KEY]: { 5: { exposures: 3, unknownSeen: 0, wordsLearned: 0, reviews: 0 } },
+      [PER_LANGUAGE_DAILY_KEY]: { 6: { en: { exposures: 3, unknownSeen: 0, wordsLearned: 0, reviews: 0 } } },
     });
     await clearDailyStats(area);
     expect(area.store[DAY_ONLY_DAILY_KEY]).toEqual({});
+    expect(area.store[PER_LANGUAGE_DAILY_KEY]).toEqual({});
     expect(area.store[DAILY_KEY]).toEqual({});
     expect(await loadDailyStats(area)).toEqual({});
   });
