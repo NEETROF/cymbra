@@ -22,21 +22,20 @@ language, so that a name is never written where it is shown.
 
 ## What Changes
 
-- **`src/i18n/<language>/languages.ts`**: the words of each studied language's name in that
-  interface language — the name, the forms its grammar needs (French: of/the/masculine/feminine;
-  Spanish: name, de-form, masculine/feminine; English: name, adjective) — and the twelve messages
-  as slot messages taking the studied language. The French entry is today's `WORDS` and
-  functions, byte for byte. The voice names Windows lists (« Anglais (États-Unis) ») are the
-  platform's and stay keyed by studied language; the preview sentences are in the studied
-  language and do not change.
+- **`src/i18n/<language>/languages.ts`** (change 13's module, completed): the words of each
+  studied language's name in that interface language — one shape, typed after the French (name,
+  of, the, masculine, feminine, the Windows voice name in the interface's language, the preview
+  sentence in the studied language), each language filling the fields with the forms its grammar
+  uses — and the twelve messages taking the studied language. The French entry is today's
+  `WORDS` and functions, byte for byte.
 - **The level acronym** is an entry: « CEFR » in French, "CEFR" in English, « MCER » in Spanish.
-- **`language-labels.ts`** becomes the seam the surfaces call, reading the interface language and
-  returning the catalogue's messages — until change 14–17 move each surface to the catalogue
-  directly, at which point it is removed.
+- **`language-labels.ts`** stays the module the surfaces call, and takes the interface language
+  as its first parameter — the surfaces pass the one they read with their preferences — and
+  delegates to the catalogue; it holds no literal.
 - **The lint** forbids « anglais », « espagnol », « français », "English", "Spanish", "French",
-  « inglés », « español », « francés » and their inflections outside `src/i18n/`, in every `.ts`
-  and `.html` of `src/`, with the baseline mechanism of change 13 for the files that still hold
-  them.
+  « inglés », « español », « francés » and their inflections in string literals outside
+  `src/i18n/`, read from the syntax tree as change 13's lint does, with its baseline for the files
+  that still hold them, and the engine's enum names as a named exception.
 
 ## Capabilities
 
@@ -57,5 +56,7 @@ None.
   the site are untouched.
 - **No byte moves.** Every French message is the same; the surfaces call the same functions.
 - **Order.** After change 13.
+- **Order.** After change 13; after 14–17, which hand each surface the interface language this
+  module now takes.
 - **Not here.** The names of the native languages offered to the reader (« Français », « English »,
   « Español » in their own language, as a choice lists them) are change 20's, with the choice.
