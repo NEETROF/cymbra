@@ -24,7 +24,7 @@ When the engine traps — a WebAssembly trap or the glue's abort, raised while a
 - **THEN** the answer is passed on, the worker is kept, and nothing is asked again
 
 ### Requirement: The engine holds at most two models
-The engine's worker SHALL hold at most two translation models. Before a route is loaded whose models would make a third, the worker SHALL delete the models no loaded route needs, least recently used first, until the models held and the route's make two at most, and SHALL drop the routes that used them. A route whose models are held SHALL cost nothing. The decision SHALL be a pure function, tested apart from the engine.
+The engine's worker SHALL hold at most two translation models. Before a route is loaded whose models would make a third, the worker SHALL delete, among the models that route does not need, the least recently used first — a load and a translation both counting as uses — until the models held and the route's make two at most, and SHALL drop the routes that used a deleted model. A route whose models are held SHALL cost nothing. The worker SHALL run one load at a time. The decision SHALL be a pure function, tested apart from the engine.
 
 #### Scenario: A reader of French with English and Spanish
 - **WHEN** a reader whose native language is French translates on an English page, then on a Spanish page
@@ -32,14 +32,18 @@ The engine's worker SHALL hold at most two translation models. Before a route is
 
 #### Scenario: A third model
 - **WHEN** the worker holds two models and a route is loaded that needs a model it does not hold
-- **THEN** the model no loaded route needs, or the least recently used, is deleted before the new one is built, and the worker holds two
+- **THEN** the least recently used model the route does not need is deleted before the new one is built, its route is dropped, and the worker holds two
+
+#### Scenario: Two loads at once
+- **WHEN** two routes are asked for while neither is loaded
+- **THEN** the second load waits for the first, and the worker never holds more than two models nor a route over a deleted model
 
 #### Scenario: Back to a deleted model's language
 - **WHEN** the reader returns to a page whose route's model was deleted
 - **THEN** the route is loaded again, and the sentence is translated
 
 ### Requirement: A route can be soaked by hand
-A tool SHALL run the real engine through a pair's route over the committed corpus of the pair's studied language, outside CI, and SHALL report the inputs that trapped by their corpus id, the count translated, the time per sentence and the memory high-water mark; it SHALL be able to run each input apart, so that a trap does not end the run. The real engine SHALL NOT run in CI.
+A tool SHALL run the real engine through a pair's route over the committed corpus of the pair's studied language, outside CI, and SHALL report the inputs that trapped by their corpus id, the count translated, the time per sentence and the memory high-water mark; a trap SHALL end the run after being reported, unless the tool is asked to run each input apart, in which case the run goes on. The real engine SHALL NOT run in CI, as the programme recommends for M25.
 
 #### Scenario: en-es before it ships
 - **WHEN** the en-es model is pinned in the catalogue and the tool runs for en-es over the English corpus

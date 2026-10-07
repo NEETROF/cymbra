@@ -9,7 +9,8 @@ WebAssembly trap — "memory access out of bounds" — in the pinned engine. The
 model built after it: the worker stays alive, and so do its models, and every translation after it
 fails until the worker is put down. Today the worker's catch turns every error into a reply the
 channel passes on without a reset (`channel.ts`, "passes on what the engine said when it could
-not translate"), so the engine stays dead for up to ten minutes, the idle release. The study
+not translate"), so the engine stays dead until ten minutes after the reader's last request, the idle release,
+which every request re-arms. The study
 measured the fix: put the worker down and ask once more.
 
 The study measured a second thing. The worker never deletes a model: a reader who moves between
@@ -21,8 +22,8 @@ Both are needed before en-es ships (changes 22, 25, 35) and are harmless for a r
 en-fr and es-fr do not trap on the measured corpus, and a French reader of English and Spanish
 holds two models, en-fr shared.
 
-Decision M25 is settled here: the real engine does not run in CI; a per-route soak is a manual
-tool, beside the marks harness.
+This change carries the programme's recommendation for M25, which the owner settles: the real
+engine does not run in CI; a per-route soak is a manual tool, beside the marks harness.
 
 ## What Changes
 
@@ -35,14 +36,16 @@ tool, beside the marks harness.
   twice is unavailable. The requests in flight on the worker that trapped are asked again on the
   fresh one too, once. An ordinary refusal is passed on as today, with no reset.
 - **The engine holds at most two models.** Loading a route whose models would make a third
-  deletes first the models no loaded route needs, least recently used first; the decision is a
-  pure module, tested on its own, and the worker applies it. A French reader of English and
-  Spanish keeps en-fr and es-en, and nothing is deleted.
-- **A soak, by hand** (M25): `tool/soak_engine.mjs --pair <pair>` runs the real engine through a
-  pair's route over the committed corpus of its studied language, in Node, and reports the inputs
-  that trap and the memory high-water mark. It is how en-es is tried before change 35.
+  first deletes the models that route does not need, least recently used first, and drops the
+  routes that used them; the decision is a pure module, tested on its own, and the worker applies
+  it, one load at a time. A French reader of English and Spanish keeps en-fr and es-en, and
+  nothing is deleted.
+- **A soak, by hand** (M25's recommendation): `tool/soak_engine.mjs --pair <pair>` runs the real
+  engine through a pair's route over the committed corpus of its studied language, in Node, and
+  reports the inputs that trap and the memory high-water mark; with `--isolate`, each input in a
+  child process, so a trap does not end the run. It is how en-es is tried before change 35.
 - **Docs follow**: `TRANSLATION.md` says what a trap does and what the engine holds; the
-  programme marks M25 settled.
+  programme records M25's recommendation as carried by this change.
 
 ## Capabilities
 

@@ -46,8 +46,9 @@ linear memory is not to be trusted for a next request, and a worker that closes 
 asked by mistake. Every other error — `NO_MODEL`, `LONG_ROUTE`, "the engine is not loaded", a
 missing file — stays an ordinary refusal, reported as today.
 
-`onAbort` is wired to the same reporting for the whole life of the instance, not only its
-initialisation: an abort raised during a translation is a trap too.
+`onAbort` stays wired as it is, for the initialisation: an abort raised during a translation
+throws a `RuntimeError` whose message starts with `Aborted(` right after the callback, and the
+catch reports that throw as the trap — once, with the request's id.
 
 Alternative: catch nothing new and rely on the translate bound. A trap answers at once, so the
 bound never fires; the worker stays poisoned until idle.
@@ -56,11 +57,14 @@ bound never fires; the worker stays poisoned until idle.
 
 On a reply flagged `trap`, the channel resets — terminates the worker, clears `loads` — and
 replays the request: a fresh worker, `load` for the pair, then the request again. A request is
-replayed once; a second trap answers `{ok: false, reason: "the engine trapped twice"}`, logged with
-the pair and the markup's length (never its text). The requests in flight on the worker that
-trapped are not failed as a crash is: each is replayed once on the fresh worker as well, so a
-marked selection's two requests (relay.ts) both get their answer from the fresh instance. A
-`warm` that traps while loading is replayed the same way.
+replayed once; a second trap answers `{ok: false, reason: "the engine trapped twice"}`. The
+requests in flight on the worker that trapped are not failed as a crash is: each is replayed
+once on the fresh worker as well, so a marked selection's two requests (relay.ts) both get their
+answer from the fresh instance. A `warm` that traps while loading is replayed the same way.
+
+The channel takes an optional `log` (as `relayTranslation` does) and writes "trapped, asked
+again" or "trapped twice", with the pair and the markup's length, never its text (D5). The relay
+is unchanged: a replay that succeeds is an ordinary answer to it.
 
 The existing behaviour for an ordinary refusal is kept, and so is its test ("passes on what the
 engine said when it could not translate").
@@ -68,14 +72,25 @@ engine said when it could not translate").
 Alternative: replay in `relay.ts`. The relay does not know what a trap is, and the two hosts
 would each need it; the channel is the one place both own.
 
-### D3 — Residency: at most two models, least recently used first
+### D3 — Residency: at most two models, least recently used first, one load at a time
 
-A pure module, `src/translate/host/model-residency.ts`, keeps the loaded routes in use order and
-answers, for a route about to be loaded, which model ids to delete: those the route does not need,
-least recently used first, until the models held plus the route's make two at most. A route
-whose models are already held costs nothing. A route of two models evicts everything else. The
-worker applies the answer before building: it deletes each evicted `TranslationModel` and the
-aligned memory it was built from, and drops the routes that used it.
+A pure module, `src/translate/host/model-residency.ts`, keeps the loaded routes in the order
+they were last used — a load and a translation are both uses — and answers, for a route about
+to be loaded, which model ids to delete: among the models the route does not need, the least
+recently used first, until the models held plus the route's make two at most; the routes that
+used an evicted model are dropped with it. A route whose models are already held costs nothing.
+A route of two models evicts everything else. The worker applies the answer before building: it
+deletes each evicted `TranslationModel` and the aligned memory it was built from (the handles are
+kept beside the model for that), and drops the routes.
+
+The worker runs loads one at a time: a load waits for the previous one to finish before it asks
+the residency module, so two loads cannot each decide against a bound the other is about to
+move, and no route is registered over a model the other load deleted. A translation waits for
+the load of its route, as it does today.
+
+This is the Architecture's "evicts models no current pair needs", with the current pair being
+the route about to be loaded and the bound being how it is counted: a model is deleted only when
+keeping it would hold three.
 
 Why two: a route chains two models at most (`LONG_ROUTE`), so two is the bound one pair needs,
 and it is what a reader of French with English and Spanish holds (en-fr, es-en). A larger bound
@@ -88,22 +103,23 @@ languages — is a bound, not a prune.
 
 ### D4 — The soak is a tool, not a test (M25)
 
-`tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N]` loads the pinned engine and the
-pair's route in Node as `measure_marks.mjs` does (the loader is shared), runs every selection's
-sentence of the committed corpus of the pair's studied language, tagged as the extension tags it,
-and reports: the count translated, each input that trapped (its corpus id, never its text in the
-summary line), the wall time per sentence, and `process.memoryUsage().rss` at its highest. A
-trap in Node is fatal to the process, as it is to the worker: the tool runs each sentence in a
-child process when `--isolate` is given, so a trapping input does not end the run. Its README is
-`tool/marks/README.md`'s neighbour.
+`tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N] [--isolate]` loads the pinned
+engine and the pair's route in Node through a loader shared with `measure_marks.mjs` (its private
+`engine()` moves to `tool/marks/engine.mjs`), runs every selection's sentence of the committed
+corpus of the pair's studied language, tagged as the extension tags it, and reports: the count
+translated, each input that trapped (its corpus id, never its text in the summary line), the wall
+time per sentence, and `process.memoryUsage().rss` at its highest. In Node a trap throws a
+`RuntimeError` the tool catches; the instance is poisoned from then on, so without `--isolate`
+the run stops at the first trap and says so; with `--isolate`, each sentence runs in a child
+process and the run goes on to the end. Its README is `tool/marks/README.md`'s neighbour.
 
 Not in CI: a run costs ≈ 100 MB of models and about a minute; the programme's M25 says a manual
 tool.
 
 ### D5 — The log says what happened, and no more
 
-A trap and a replay are logged through the relay's log (`console.warn`, as every other refusal):
-the pair, "trapped, asked again" or "trapped twice", and the markup's length. The sentence is not
+A trap and a replay are logged by the channel (`console.warn`, as the relay logs a refusal): the
+pair, "trapped, asked again" or "trapped twice", and the markup's length. The sentence is not
 logged.
 
 ## Risks / Trade-offs
@@ -112,6 +128,7 @@ logged.
   second trap is final.
 - **Two requests replayed on one fresh worker, both trapping** → each is final after its own
   replay; the worker is put down once per trap, never left poisoned.
+- **Two loads deciding at once** → loads are serialised in the worker (D3).
 - **Eviction thrash for a reader who alternates three languages** → the bound is two models; a
   third language's route costs its load (≈ 200 ms on a Mac, 3–4 s on the measured tablet) each
   time it comes back. Accepted: the study found no reader with three studied languages, and the
