@@ -1,0 +1,36 @@
+import type { card as fr } from "../fr/card.ts";
+
+// The word card's copy in English — a draft after the French (src/i18n/README.md).
+
+export const card: typeof fr = {
+  rowsLabel: "Word by word — not a translation of the expression.",
+  translationLabel: "In your sentence — machine translation",
+  waiting: "Looking in the pack…",
+  translating: "Translating…",
+  noGloss: "No translation in the pack.",
+  noGlossExpression: "No translation in the pack for this expression.",
+  previousPageIcon: "‹",
+  previousPage: "Previous senses",
+  nextPageIcon: "›",
+  nextPage: "Next senses",
+  stop: "■ Stop",
+  stopLabel: "Stop reading",
+  listenSelection: "▶ Selection",
+  listenSelectionLabel: "Listen to the selection",
+  listenForm: (form) => `▶ ${form}`,
+  listenSeenFormLabel: (form) => `Listen to the form seen “${form}”`,
+  listenDictionaryFormLabel: (form) => `Listen to the dictionary form “${form}”`,
+  listenWord: "▶ Word",
+  listenWordLabel: "Listen to the word",
+  listenSentence: "▶ Sentence",
+  listenSentenceLabel: "Listen to the sentence",
+  senseSeparator: "; ",
+  row: (form, gloss) => `${form} → ${gloss}`,
+  seenForm: (form) => `form seen: “${form}”`,
+  known: "I know it",
+  addToDeck: "+ Deck",
+  ignore: "Ignore",
+  relearn: "Learn again",
+  closeIcon: "✕",
+  close: "Close",
+};
