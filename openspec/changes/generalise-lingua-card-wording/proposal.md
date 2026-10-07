@@ -19,8 +19,8 @@ This change separates what the card knows from how it says it: a description of 
 that names no language, and a renderer per interface language — French first, byte for byte
 the current wording, pinned by the same 108 assertions; then English and Spanish, drafted here
 (M9, M10) and shown to no one until the interface speaks their language (change 20 and
-stage 2). Tense names are the one thing a renderer keys by pair: the same `Tense=Past` is
-« prétérit » for en-fr and "preterite" for es-en.
+stage 2). What depends on the studied language — tense names first: the same `Tense=Past` is « prétérit »
+for en-fr and "preterite" for es-en — is keyed by it in each renderer.
 
 The studied words of a line also get their `lang`: the card sets none today, so a screen reader
 reads a Spanish word with the French voice (the hosts' `lang` is change 14's).
@@ -76,9 +76,10 @@ None.
 - **No byte moves.** The 108 French assertions pass unchanged; the WASM goldens pin the engine's
   JSON, which does not change; no reader sees English or Spanish wording before the interface
   speaks it.
-- **Order.** After change 13 (the catalogue's shape and the interface-language key);
-  `refine-lingua-review-session` (#696) merges before, as the programme says, or this change's
-  files do not overlap it (it touches review, Réglages and the popup, not the card).
+- **Order.** After change 13 (the catalogue's shape and the interface-language key) and change 14
+  (the session hands the card the interface language); `refine-lingua-review-session` (#696)
+  merges before, as the programme says, or this change's files do not overlap it (it touches
+  review, Réglages and the popup, not the card).
 - **Not here.** The card's other copy — « Mot à mot », « ▶ Mot », the rarity bands, the actions —
   is change 14's; the names of languages are change 19's; the lemma-alternatives question (M8)
   is `add-lingua-lemma-alternatives`, optional.

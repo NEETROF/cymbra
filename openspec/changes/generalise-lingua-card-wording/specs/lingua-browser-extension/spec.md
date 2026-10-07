@@ -26,28 +26,28 @@ The word card SHALL describe a form in terms that name no language — the readi
 ## MODIFIED Requirements
 
 ### Requirement: A Spanish card names its forms as French schools do
-A Spanish form SHALL be named as the interface language's grammar names it: in French, in French school terms — présent and imparfait de l'indicatif, passé simple, futur, conditionnel, présent, imparfait and futur du subjonctif, impératif, infinitif, gérondif, participe passé with its agreement — with French articles and elision; in Spanish, in RAE/ASALE terms; in English, in the English Wiktionary's form-of wording. A card of an English word SHALL read as before.
+A card SHALL name the forms of the language the word was met in, as the interface language's grammar names them. A Spanish form SHALL be named, in French, in French school terms — présent and imparfait de l'indicatif, passé simple, futur, conditionnel, présent, imparfait and futur du subjonctif, impératif, infinitif, gérondif, participe passé with its agreement — with its person and number, a form of several persons in one tense naming them once; in Spanish, in RAE/ASALE terms; in English, in the English Wiktionary's form-of wording. A noun's, adjective's, determiner's or pronoun's form SHALL name its gender and number. A reading that merely says what the card's dictionary form is SHALL give no line. French articles and elision SHALL apply in French, before accented vowels too. A card of an English word SHALL read as before.
 
 #### Scenario: A form of two persons
-- **WHEN** the card opens on a Spanish form that is both the first and the third person of one tense and number
-- **THEN** the line names both persons once, in the interface language's grammar — in French « 1re et 3e personnes du singulier … »
+- **WHEN** the card opens on « hablaba »
+- **THEN** in French the line reads « 1re et 3e personnes du singulier de l'imparfait de l'indicatif de hablar », and in English and Spanish the two persons are named once in that language's grammar
 
 #### Scenario: A subjunctive and an imperative
 - **WHEN** the card opens on « hable »
-- **THEN** the line names the subjunctive readings and the imperative one, in the interface language's order
+- **THEN** in French the line names the subjunctive readings before the imperative one, and each renderer follows its pinned order
 
 #### Scenario: An adjective's agreement
 - **WHEN** the card opens on « rápidas »
-- **THEN** the line names the feminine plural of « rápido », in the interface language's words
+- **THEN** in French the line reads « féminin pluriel de rápido », and the English and Spanish lines name the feminine plural in their words
 
 #### Scenario: The dictionary form itself
-- **WHEN** the card opens on « hablar »
-- **THEN** no line describes the form
+- **WHEN** the card opens on « casa », a noun in its dictionary form
+- **THEN** no line describes the form, in any language
 
 #### Scenario: Elision before an accented vowel
-- **WHEN** a French line names a form « d'él »
-- **THEN** the elision applies as before; the English and Spanish lines use their own grammar
+- **WHEN** a French line names a form of « él »
+- **THEN** it reads « d'él », with the elision; the English and Spanish lines use their own grammar
 
 #### Scenario: English reads as before
-- **WHEN** a reader of French opens the card on an English form
-- **THEN** the lines read as before this requirement
+- **WHEN** a reader of French opens the card on « went »
+- **THEN** the line reads « prétérit de go », as before this requirement
