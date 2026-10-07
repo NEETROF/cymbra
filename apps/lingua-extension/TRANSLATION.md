@@ -133,6 +133,55 @@ A page keeps the translations it has received (`answer-memory.ts`, 32 of them, n
 same sentence with the same selection is not asked twice — not while the handles come back to it,
 and not while the first request is still being answered.
 
+### When the engine traps
+
+The engine can trap under an input — a WebAssembly "memory access out of bounds", measured through
+the en-es model (harden-lingua-translation-engine) — and a trapped instance poisons every model
+built after it. The worker tells a trap (`WebAssembly.RuntimeError`, or the glue's abort, whose
+message starts with `Aborted(`) from an ordinary refusal — no model, a route too long, not loaded
+— reports it as one, and closes itself. Its owner puts it down, starts a fresh worker, loads the
+route again and asks the request once more. Once: a request that traps the fresh worker too is
+unavailable, and the card behaves as without an engine. Everything in flight on the worker that
+trapped — a marked selection's two requests, a load for another pair, a warm — is asked again the
+same way, each once. The console says what happened with the pair and the markup's length, never
+the text. An ordinary refusal is passed on as it always was, and the worker is kept. The reader
+pays one respawn, not ten minutes.
+
+### What the engine holds
+
+Two models at most, what one route needs: a route chains two models (es-fr goes through English),
+and a French reader of English and Spanish holds en-fr and es-en, en-fr shared. Before a route is
+loaded whose models would make a third, the worker deletes — with the memory it was built from —
+the least recently used model the route does not need (a load and a translation both count as
+uses), and drops every route that went through it; a route whose models are held costs nothing.
+The decision is `model-residency.ts`, pure and tested apart from the engine; the worker runs loads
+one at a time, so two cannot decide against a bound the other is about to move. A reader who
+alternates three languages pays the third route's load each time it comes back (≈ 200 ms on a Mac,
+3–4 s on the measured tablet); the bound is the measured problem, not the load. Measured: one model
+is 195.4 MiB in the worker, es-fr's two 321.8 MiB — and, before the bound, the models of a language
+the reader had left made 463 MiB. What the worker holds is the union of its routes, after every
+load and every failed one: a route dropped with a deleted model takes its other model with it.
+
+A deletion does not lower what the worker holds in the operating system's eyes — a wasm instance's
+linear memory never shrinks — the bound caps growth, with the freed blocks reused by the next model
+built. With today's catalogue of two models (en-fr, es-en) no route makes a third, so the deletion
+never runs in production: it is for the matrix's models, from change 25 on. A translation goes to
+the engine at once over a route the worker holds; over one it deleted since the channel loaded it,
+the worker answers `reload`, and the channel loads the route again — under the start bound — and
+asks once more.
+
+### Soaking a route by hand
+
+`tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N] [--isolate]` runs the real engine
+through a pair's route over the committed corpus of its studied language, in Node, and reports the
+inputs that trapped by their corpus id, the count translated, the time per sentence and the
+process's memory high-water mark; without `--isolate` the run stops at the first trap, since the
+instance is poisoned from then on. It is how a model is tried before it ships — en-es before
+change 35, once change 25 pins its route in the catalogue — and it never runs in CI: the
+programme's M25 recommends a manual tool. The memory figure is Node's RSS, not the worker's (the
+≈ 322 MiB of es-fr above was measured in the browser), and the soak says nothing of the two-model
+bound: a run loads one route and deletes nothing. `tool/marks/README.md` says how.
+
 Measured on a Galaxy Tab S6 Lite (Firefox for Android, 4 GB): a cold start costs 4.1–4.7 s there
 (0.2–0.3 s on a Mac), a warm translation 0.4–1 s, and the loaded engine about 180 MB.
 

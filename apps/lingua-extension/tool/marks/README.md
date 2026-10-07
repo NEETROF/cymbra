@@ -19,7 +19,9 @@ per **pair**:
 | `select_corpus.mjs`    | The selection rule: every tenth PUD sentence, the same in both languages, one word each (noun, verb, noun, adjective in turn)                                             |
 | `pud.mjs`              | PUD English and Spanish, fetched at pinned commits and checked by sha256 (CC BY-SA, never committed)                                                                      |
 | `corpus.json`          | The 200 selections, 100 per studied language (`lang`): sentence id, token, word, offsets                                                                                  |
+| `engine.mjs`           | The pinned engine in Node with a route's models built as `engine-worker.ts` builds them: one markup string in, its translation out — shared by the harness and the soak   |
 | `../measure_marks.mjs` | The harness: the pinned engine and the catalogue's models, each selection of a pair's studied language marked exactly as `relay.ts` marks it, through that pair's route   |
+| `../soak_engine.mjs`   | The soak (harden-lingua-translation-engine D4): a pair's route over the same corpus, reporting what trapped, the time per sentence and the memory high-water mark         |
 | `results-<pair>.jsonl` | Per selection: the translated sentence with its marks bracketed, the fragment's own translation, and the experiment's mark — `results-en-fr.jsonl`, `results-es-fr.jsonl` |
 | `judged-<pair>.tsv`    | Every mark judged correct, wrong or withheld, with a reason for each wrong one — `judged-en-fr.tsv`, `judged-es-fr.tsv`                                                   |
 | `tier.mjs`             | D2's first tier and the count of a judged file, as read above; `test/translate-marks.spec.ts` holds `MARKED_PAIRS` to it                                                  |
@@ -34,6 +36,43 @@ node --experimental-strip-types tool/measure_marks.mjs --pair en-fr --models /tm
 node --experimental-strip-types tool/measure_marks.mjs --pair es-fr --models /tmp/models      # writes results-es-fr.jsonl
 node tool/marks/select_corpus.mjs                                                             # only to rebuild corpus.json; deterministic
 ```
+
+## Soaking a route
+
+Beside the measurement, by hand and never in CI (the programme's M25): the real engine through a
+pair's route over the same corpus, to find the inputs that trap it — measured through the en-es
+model in the study (2026-10-06), a trap poisons the instance for every model built after it — and
+what a run costs in time and memory. It is how en-es is tried before it ships (change 35), once
+change 25 pins the en-es route in the catalogue: until then `--pair en-es` is refused, as is any
+pair the catalogue does not route.
+
+```bash
+node --experimental-strip-types tool/soak_engine.mjs --pair en-fr --models /tmp/models            # ~15 s
+node --experimental-strip-types tool/soak_engine.mjs --pair es-fr --models /tmp/models            # two models, through English
+node --experimental-strip-types tool/soak_engine.mjs --pair es-fr --models /tmp/models --limit 10 # the first ten selections
+node --experimental-strip-types tool/soak_engine.mjs --pair en-es --models /tmp/models --isolate  # each sentence in a child process (change 25 first)
+```
+
+Each selection goes through the engine as `relay.ts` sends it: the sentence with the selection
+tagged — timed, since it is what the card waits for — then the fragment alone. The report says how
+many were translated, which trapped (by corpus id, never by text), the median, mean and maximum
+time per sentence, and the process's resident high-water mark (`process.resourceUsage().maxRSS`).
+In Node a trap throws a `WebAssembly.RuntimeError` the tool catches, but the instance is poisoned
+from then on, so without `--isolate` the run **stops at the first trap and says so**; with it, each
+sentence runs in a child process of its own and the run goes on to the end — slower, since each
+child loads the engine and the route again. A child that ends without its report (a trap while the
+route is built, a crash, a signal) counts as trapped for its id; one past 120 s is counted apart,
+as timed out. The exit status is 1 when anything trapped or timed out.
+
+What the memory figure is, and is not. It is Node's RSS — the parent's, or the highest child's
+under `--isolate`. The ≈ 322 MiB of es-fr's two models (≈ 195 MiB for one) was measured in the
+browser's worker, and Node's figure is not like for like: read it for a run's order of magnitude
+and for growth across the corpus, not against the worker's. The soak does not check the two-model
+bound of `engine-worker.ts` either: a run loads one route and deletes nothing — and a deletion
+would not show in RSS anyway, since a wasm instance's linear memory never shrinks; the bound caps
+growth, with the freed blocks reused by the next model built. With today's catalogue of two models
+(en-fr, es-en) no route makes a third, so the eviction never runs in production: it is for the
+matrix's models, from change 25 on.
 
 ## Judging
 

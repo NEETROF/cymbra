@@ -18,24 +18,39 @@
 // it is asked for, each model built once (generalise-lingua-translation-model-state D5,
 // generalise-lingua-translation-routes-by-pair D2). A route of two models — es-fr, through
 // English — translates through both in one request (add-lingua-spanish-translation-pivot D2).
+//
+// It holds two models at most, what one route needs (harden-lingua-translation-engine D3): before
+// a route is built whose models would make a third, the least recently used model it does not
+// need is deleted, with its memory, and every route that went through it is dropped — and so is
+// the model a dropped route leaves with no route. What `models` holds is the union of the routes,
+// after every load and after every failed one. The decision is model-residency.ts's, pure, told
+// what is actually held; loads run one at a time, so no two decide against a bound the other is
+// about to move.
+//
+// A translation over a route it holds is answered at once, without the load chain: a translation
+// waits for the load of its route only (D3), and nothing yields between the test and the engine's
+// call. One over a route it does not hold — deleted since its owner loaded it, for another pair's
+// route — is refused with `reload`: the owner loads the route again, under the start bound, and
+// asks once more. After a trap the worker reports it once, answers nothing more and closes (D1).
 
-import { LONG_ROUTE, NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
+import { isTrap, LONG_ROUTE, NO_MODEL, NOT_LOADED, type WorkerRequest, type WorkerResponse } from "./engine.ts";
 import { modelDb } from "./model-db.ts";
 import { loadBundledCatalogue, type ModelManifest, routeOf } from "./model-manifest.ts";
+import { loaded, modelsOf, NONE, orphans, type Residency, toLoad, used } from "./model-residency.ts";
 
-/** What the glue exposes, as much of it as this worker calls. */
+/** What the glue exposes, as much of it as this worker calls. Every handle is Embind's: `delete()` frees what it holds. */
 interface BergamotModule {
-  AlignedMemory: new (size: number, alignment: number) => { getByteArrayView(): Uint8Array };
-  AlignedMemoryList: new () => { push_back(memory: unknown): void };
+  AlignedMemory: new (size: number, alignment: number) => AlignedMemory;
+  AlignedMemoryList: new () => Deletable & { push_back(memory: AlignedMemory): void };
   TranslationModel: new (
     from: string,
     to: string,
     config: string,
-    model: unknown,
-    shortlist: unknown,
+    model: AlignedMemory,
+    shortlist: AlignedMemory,
     vocabs: unknown,
     qualityModel: null,
-  ) => unknown;
+  ) => Deletable;
   BlockingService: new (config: { cacheSize: number }) => {
     translate(model: unknown, messages: unknown, options: unknown): VectorResponse;
     translateViaPivoting(first: unknown, second: unknown, messages: unknown, options: unknown): VectorResponse;
@@ -47,6 +62,9 @@ interface BergamotModule {
 }
 interface Deletable {
   delete(): void;
+}
+interface AlignedMemory extends Deletable {
+  getByteArrayView(): Uint8Array;
 }
 interface VectorResponse extends Deletable {
   get(i: number): { getTranslatedText(): string };
@@ -92,15 +110,33 @@ interface Engine {
   service: InstanceType<BergamotModule["BlockingService"]>;
 }
 
+/** A model built in the engine, with the aligned memory it was built from: deleted together when it is evicted (D3). */
+interface HeldModel {
+  model: Deletable;
+  memory: Deletable[];
+}
+
+/** A model's three files, as the download stored them. */
+interface StoredFiles {
+  model: Uint8Array;
+  lex: Uint8Array;
+  vocab: Uint8Array;
+}
+
 let engine: Engine | null = null;
-/** The translation models built in the engine, by catalogue id. */
-const models = new Map<string, unknown>();
-/** Each pair's route, once loaded: the ids of its models, in order. */
-const routes = new Map<string, string[]>();
+/** The translation models built in the engine, by catalogue id: the union of `residency`'s routes. */
+const models = new Map<string, HeldModel>();
+/** The routes loaded, least recently used first — each pair's models, in order (model-residency.ts). */
+let residency: Residency = NONE;
+/** The load running, if any: the next waits for it (D3). */
+let loads: Promise<unknown> = Promise.resolve();
+/** Set once the engine trapped: this instance reports nothing more and answers no request (D1). */
+let closed = false;
 
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<WorkerRequest>) => void) | null;
   postMessage(message: WorkerResponse): void;
+  close(): void;
 };
 
 function textConfig(config: Readonly<Record<string, string>>): string {
@@ -116,16 +152,14 @@ async function bytes(path: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
 
-function aligned(bergamot: BergamotModule, data: Uint8Array, alignment: number): unknown {
+function aligned(bergamot: BergamotModule, data: Uint8Array, alignment: number): AlignedMemory {
   const memory = new bergamot.AlignedMemory(data.byteLength, alignment);
   memory.getByteArrayView().set(data);
   return memory;
 }
 
 /** A model's three files, as the download stored them — or null when any is missing. */
-async function storedFiles(
-  manifest: ModelManifest,
-): Promise<{ model: Uint8Array; lex: Uint8Array; vocab: Uint8Array } | null> {
+async function storedFiles(manifest: ModelManifest): Promise<StoredFiles | null> {
   const db = modelDb();
   const [model, lex, vocab] = await Promise.all([
     db.get(manifest.files.model.sha256),
@@ -144,6 +178,8 @@ async function instance(): Promise<Engine> {
     const instance: BergamotModule = loadBergamot({
       INITIAL_MEMORY,
       print: () => {},
+      // For the initialisation only: an abort during a translation throws after this callback,
+      // and the catch below reads the throw (D1).
       onAbort: (what: unknown) => reject(new Error(`the engine aborted: ${String(what)}`)),
       onRuntimeInitialized: () => resolve(instance),
       wasmBinary: wasm,
@@ -154,79 +190,195 @@ async function instance(): Promise<Engine> {
 }
 
 /**
- * Load `pair`'s route: each of its models built once. The models first — without them, nothing
- * of the engine is worth loading. A route chains two models at most.
+ * Load `pair`'s route, after whatever load is running (D3). A load queued behind a trap is not
+ * run: the instance is poisoned, and its owner is asking a fresh one.
  */
-async function load(pair: string): Promise<void> {
-  if (routes.has(pair)) return;
+function load(pair: string): Promise<void> {
+  const run = loads.then(() => {
+    if (closed) throw new Error("the worker has closed");
+    return loadNow(pair);
+  });
+  loads = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Load `pair`'s route: each of its models built once. The models' files first — without them,
+ * nothing is evicted and nothing of the engine is worth loading. Then what the route costs: the
+ * models to delete so that it fits the bound, deleted with their memory before anything is built,
+ * and their routes dropped. A route chains two models at most. A route already loaded is a use.
+ */
+async function loadNow(pair: string): Promise<void> {
+  if (modelsOf(residency, pair).length > 0) {
+    residency = used(residency, pair);
+    return;
+  }
   const route = routeOf(await loadBundledCatalogue(), pair);
   if (route.length === 0) throw new Error(NO_MODEL);
   if (route.length > 2) throw new Error(LONG_ROUTE);
-  for (const manifest of route) {
-    if (models.has(manifest.version)) continue;
-    const stored = await storedFiles(manifest);
-    if (!stored) throw new Error(NO_MODEL);
-    const { bergamot } = await instance();
+  const missing = route.filter((manifest) => !models.has(manifest.version));
+  const files = await Promise.all(
+    missing.map(async (manifest) => {
+      const stored = await storedFiles(manifest);
+      if (!stored) throw new Error(NO_MODEL);
+      return { manifest, stored };
+    }),
+  );
+  const { bergamot } = await instance();
+  // Nothing below yields: the decision, the deletions and the builds run to the end before the
+  // next message is read, so a translation finds the routes as they were or as they are, never
+  // in between. Decided on what is actually held: a model no route goes through is deleted
+  // whatever left it there.
+  const ids = route.map((manifest) => manifest.version);
+  const decision = toLoad(residency, { pair, models: ids }, { held: models.keys() });
+  for (const id of decision.evict) evict(id);
+  residency = decision.residency;
+  try {
+    for (const { manifest, stored } of files) models.set(manifest.version, build(bergamot, manifest, stored));
+  } catch (e: unknown) {
+    // A model of the route that could not be built — a trap takes the worker down anyway — is not
+    // kept half-loaded, and neither is a model its dropped routes left for a route that never came:
+    // what `models` holds stays the union of the routes loaded.
+    if (!isTrap(e)) prune();
+    throw e;
+  }
+  residency = loaded(residency, { pair, models: ids });
+}
+
+/**
+ * One model built from its three files, with the aligned memory it was built from. A constructor
+ * that throws leaves no memory behind — unless it trapped: nothing more is asked of a poisoned
+ * instance, where a second error would replace the trap's report (D1).
+ */
+function build(bergamot: BergamotModule, manifest: ModelManifest, stored: StoredFiles): HeldModel {
+  const memory: Deletable[] = [];
+  try {
     const vocabs = new bergamot.AlignedMemoryList();
-    vocabs.push_back(aligned(bergamot, stored.vocab, ALIGNMENT.vocab));
-    models.set(
-      manifest.version,
-      new bergamot.TranslationModel(
+    memory.push(vocabs);
+    const vocab = aligned(bergamot, stored.vocab, ALIGNMENT.vocab);
+    memory.push(vocab);
+    vocabs.push_back(vocab);
+    const model = aligned(bergamot, stored.model, ALIGNMENT.model);
+    memory.push(model);
+    const lex = aligned(bergamot, stored.lex, ALIGNMENT.lex);
+    memory.push(lex);
+    return {
+      model: new bergamot.TranslationModel(
         manifest.from,
         manifest.to,
         textConfig(MARIAN_CONFIG),
-        aligned(bergamot, stored.model, ALIGNMENT.model),
-        aligned(bergamot, stored.lex, ALIGNMENT.lex),
+        model,
+        lex,
         vocabs,
         null,
       ),
-    );
+      memory: [model, lex, vocab, vocabs],
+    };
+  } catch (e: unknown) {
+    if (!isTrap(e)) for (const handle of memory.reverse()) handle.delete();
+    throw e;
   }
-  routes.set(
-    pair,
-    route.map((manifest) => manifest.version),
-  );
+}
+
+/** Delete a model and the memory it was built from (D3): the handles are kept beside it for that. */
+function evict(id: string): void {
+  const held = models.get(id);
+  if (!held) return;
+  models.delete(id);
+  held.model.delete();
+  for (const memory of held.memory) memory.delete();
+}
+
+/** Delete every model no route goes through (D3): after a build that failed, `models` is again the union of the routes. */
+function prune(): void {
+  for (const id of orphans(models.keys(), residency)) evict(id);
+}
+
+/** Whether `pair`'s route is held, so that a translation can go to the engine now. */
+function isLoaded(pair: string): boolean {
+  return engine !== null && modelsOf(residency, pair).length > 0;
 }
 
 function translate(markup: string, pair: string): string {
-  const route = routes.get(pair);
-  if (!engine || !route) throw new Error("the engine is not loaded");
+  const route = modelsOf(residency, pair);
+  if (!engine || route.length === 0) throw new Error(NOT_LOADED);
+  residency = used(residency, pair); // a translation is a use (D3)
   const { bergamot, service } = engine;
-  const [first, second] = route.map((version) => models.get(version));
-  const messages = new bergamot.VectorString();
-  const options = new bergamot.VectorResponseOptions();
-  messages.push_back(markup);
-  // html: the engine repositions our tag onto the target span it corresponds to.
-  options.push_back({ qualityScores: false, alignment: true, html: true });
+  const [first, second] = route.map((version) => models.get(version)?.model);
+  const handles: Deletable[] = [];
+  let poisoned = false;
   try {
+    const messages = new bergamot.VectorString();
+    handles.push(messages);
+    const options = new bergamot.VectorResponseOptions();
+    handles.push(options);
+    messages.push_back(markup);
+    // html: the engine repositions our tag onto the target span it corresponds to.
+    options.push_back({ qualityScores: false, alignment: true, html: true });
     // Through the pivot, the engine carries the alignment from the first model to the second.
     const responses = second
       ? service.translateViaPivoting(first, second, messages, options)
       : service.translate(first, messages, options);
-    try {
-      return responses.get(0).getTranslatedText();
-    } finally {
-      responses.delete();
-    }
+    handles.push(responses);
+    return responses.get(0).getTranslatedText();
+  } catch (e: unknown) {
+    poisoned = isTrap(e);
+    throw e;
   } finally {
-    messages.delete();
-    options.delete();
+    // Freed on the way out — unless the engine trapped: nothing more is asked of a poisoned
+    // instance, where a second error would replace the trap's report (D1).
+    if (!poisoned) for (const handle of handles.reverse()) handle.delete();
   }
 }
 
+/** What a request ends with when it throws: an ordinary refusal — or the trap, reported once, after which this instance is closed (D1). */
+function report(id: number, e: unknown): void {
+  if (closed) return;
+  const error =
+    e instanceof Error
+      ? e.message
+      : typeof e === "number"
+        ? `a C++ exception the glue did not unwind (${e})`
+        : String(e);
+  if (!isTrap(e)) {
+    scope.postMessage({ id, ok: false, error });
+    return;
+  }
+  // The engine trapped (harden-lingua-translation-engine D1): its linear memory is not to be
+  // trusted for a next request, so this instance answers nothing more. Reported once, under the
+  // request it trapped — an abort raised mid-translation calls `onAbort` (a no-op once the init
+  // has resolved) and then throws, and that throw is what lands here — and the worker closes
+  // itself, so that it cannot be asked by mistake. Its owner starts a fresh one and asks again
+  // (channel.ts).
+  closed = true;
+  scope.postMessage({ id, ok: false, error, trap: true });
+  scope.close();
+}
+
 scope.onmessage = (event) => {
+  if (closed) return; // closed after a trap: its owner is asking a fresh worker, never this one
   const request = event.data;
-  void (async () => {
-    try {
-      if (request.op === "load") {
-        await load(request.pair);
-        scope.postMessage({ id: request.id, ok: true });
-      } else {
-        await load(request.pair);
-        scope.postMessage({ id: request.id, ok: true, html: translate(request.markup, request.pair) });
-      }
-    } catch (e: unknown) {
-      scope.postMessage({ id: request.id, ok: false, error: e instanceof Error ? e.message : String(e) });
-    }
-  })();
+  if (request.op === "load") {
+    void load(request.pair).then(
+      () => {
+        if (!closed) scope.postMessage({ id: request.id, ok: true });
+      },
+      (e: unknown) => report(request.id, e),
+    );
+    return;
+  }
+  // A route held answers now, without the load chain: a translation waits for the load of its
+  // route only (D3), and nothing yields between this test and the engine's call, so the route
+  // cannot go in between. A route not held — deleted since its owner loaded it, for another
+  // pair's route — is refused with `reload`: the owner loads it again, under the start bound, and
+  // asks once more.
+  if (!isLoaded(request.pair)) {
+    scope.postMessage({ id: request.id, ok: false, error: NOT_LOADED, reload: true });
+    return;
+  }
+  try {
+    scope.postMessage({ id: request.id, ok: true, html: translate(request.markup, request.pair) });
+  } catch (e: unknown) {
+    report(request.id, e);
+  }
 };
