@@ -29,7 +29,8 @@ risk 5 names.
   whole-edition dump); direct = the English Wiktionary's Spanish translations (a derived file,
   `("translations", "en", "es")`, from the English Wiktionary's English extract); inverted = the
   Spanish Wiktionary's English translations read backwards (`kaikki-es-traductions-en.jsonl`,
-  change 21's derived file) — M5 admits both directions, as es-fr uses them. No pivot, no
+  change 21's derivation run on en-es's own snapshot of the dump, in the same pass as its
+  entries) — M5 admits both directions, as es-fr uses them. No pivot, no
   machine translation.
 - **The English extract as a dump source**: `kaikki.org/dictionary/English/kaikki.org-dictionary-
   English.jsonl`, served uncompressed; `derive` reads a plain or a gzipped file; fetched at an
