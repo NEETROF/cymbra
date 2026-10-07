@@ -44,26 +44,36 @@ formats (D4). The blocks keep their signatures otherwise.
 
 ### D2 — Titles in the catalogue; the hosts' lint reads them there
 
-`settingBlock(copy.titles.languages)` and so on. `lint-settings-hosts` imports `settings.titles`
-from `src/i18n/fr/settings.ts` (the eleven literal titles; the level's stays a function of the
-studied language, change 19's to name) and keeps its two checks: every host calls `mountSettings`,
-and no `.ts` other than `src/i18n/fr/settings.ts`, and no `.html`, holds a French title as a
-literal — the English and Spanish modules hold their own titles, which the check does not match.
-The catalogue's three languages are the one place.
+`settingBlock(copy.studiedLanguages)` and so on — the eleven flat keys of change 13's module
+(`studiedLanguages`, `barOnPage`, `readAloud`, `books`, `display`, `colours`, `translation`,
+`shortcuts`, `account`, `sync`, `reset`; the level's title stays a function of the studied
+language, change 19's to name). `lint-settings-hosts` imports those eleven entries from
+`src/i18n/fr/settings.ts` (a `TITLE_KEYS` list in the spec names them) instead of matching
+`settingBlock("…")` in `settings-view.ts`, keeps change 13's exclusion of `src/i18n/` as a whole,
+and keeps its two checks: every host calls `mountSettings`, and no other `.ts` or `.html` holds a
+title as a literal. The catalogue's three languages are the one place.
 
 ### D3 — Fragments as slot messages
 
-« Je connais les **3000** mots les plus courants » is `copy.knowCommonest(n)` returning
-segments `[text, {strong: "3000"}, text]` the view renders; the shortcut lines take the key
-and the label; the colour explanation takes its two swatches as slots; `costText` and
-`stateText` are catalogue functions of the cost and the state, French byte for byte.
+« Je connais les **3000** mots les plus courants » is change 13's `copy.knowCommonest(n)`: the
+view passes a sentinel, splits the result around it and renders the count in `<b>` (the
+catalogue holds the sentence, not the markup — change 13's README); the shortcut lines take the
+key and the label; the colour explanation takes its two swatches as slots the same way; `costText`
+and `stateText` are catalogue functions of the cost and the state, French byte for byte.
 
 ### D4 — Formats
 
-`megabytes` keeps « 25,8 Mo » in French and formats with change 13's `formatNumber` in English
-and Spanish ("25.8 MB", « 25,8 MB »); `lastSyncLabel` keeps « il y a 3 min. » and
-`toLocaleDateString("fr-FR")` for French, and takes change 13's `plural` for its minutes, hours
-and days and `formatDate` for the others (change 13 D4).
+The surface formats the amount of megabytes with `formatNumber(language, mb, {minimumFractionDigits:
+1, maximumFractionDigits: 1})` in every language (French through `fr-FR`, today's bytes) and
+change 13's `translation.megabytes` adds the unit ("25.8 MB", « 25,8 MB »); `lastSyncLabel`
+keeps « il y a 3 min. » and `toLocaleDateString("fr-FR")` for French, reads change 13's
+`sync.syncedMinutesAgo`/`syncedHoursAgo` (plain functions of the raw count, as change 13 wrote
+them in the three languages — abbreviated, no plural form) and `formatDate` for the date past a
+day (change 13 D4). `reading/speech.ts`'s `voiceLabel` — `new Intl.DisplayNames(["fr"], {type:
+"region"})` and `${voice.name} — ${place}` — is a copy site the lint cannot see (no French
+literal): this change adds `regionName(language, code)` to change 13's `index.ts` (the
+language's `Intl.DisplayNames`) and a `settings.voiceLabel(name, place)` slot message in the
+three languages, and `speech.ts` takes the interface language; French output unchanged.
 
 ### D5 — #696 and this change: the second one rebases
 

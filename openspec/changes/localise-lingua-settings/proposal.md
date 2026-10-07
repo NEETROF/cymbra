@@ -29,8 +29,10 @@ which the lint forces once `settings-view.ts` is off the baseline.
   instead of reading `settings-view.ts`.
 - **The messages built from fragments** (« Je connais les **3000** mots les plus courants », the
   shortcut lines, the colour explanation, `costText`, `stateText`) become slot messages the view
-  renders; the sync's « il y a 3 min. » takes change 13's plural forms, and the French dates keep
-  their strings.
+  renders; the sync's « il y a 3 min. » reads change 13's `syncedMinutesAgo`/`syncedHoursAgo` as
+  written, and the French dates keep their strings.
+- **The voices' labels** (`reading/speech.ts`, a French `Intl.DisplayNames` the lint cannot see)
+  go through a `regionName(language, code)` helper and a `settings.voiceLabel` slot message.
 - **The French byte for byte**: the `settings-view`, `colour-settings-view`, `book-display-view`,
   `translation-setting`, `account-setting`, `sync-messages` and `studied-languages-view` spec
   files pass unchanged — they mount without a language, and no language means French.
