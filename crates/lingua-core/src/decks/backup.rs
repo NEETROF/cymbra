@@ -208,6 +208,7 @@ mod tests {
                     captured_at: 1_700_000_000 + i,
                 },
                 (i % 2 == 0).then(|| format!("gloss {i}")),
+                "fr",
             );
             state.deck.upsert(EN, card);
         }
@@ -420,6 +421,7 @@ mod tests {
                     captured_at: 1,
                 },
                 Some("phare".to_owned()),
+                "fr",
             ),
         );
         let (knowledge, deck) = (state.knowledge.clone(), state.deck.clone());
@@ -490,6 +492,7 @@ mod tests {
                     captured_at: 1,
                 },
                 None,
+                "fr",
             )
         };
         let mut deck = LinguaState::default();
@@ -522,5 +525,79 @@ mod tests {
                 .studied_languages,
             vec![ES]
         );
+    }
+
+    /// A Spanish card, its gloss written in `gloss_language`.
+    fn faro(gloss: Option<&str>, gloss_language: &str) -> Card {
+        Card::new(
+            "faro",
+            "faros",
+            Provenance {
+                sentence: "Los faros brillan.".to_owned(),
+                source: EncounterSource::Web {
+                    url: "https://example.es".to_owned(),
+                },
+                captured_at: 1,
+            },
+            gloss.map(str::to_owned),
+            gloss_language,
+        )
+    }
+
+    #[test]
+    fn spec_scenario_every_card_today() {
+        // lingua-decks-review: a reader of French with 20 French-glossed cards is backed up. The
+        // backup is byte for byte what the previous build wrote — no card carries a label — and
+        // every card restores with the gloss language `fr`; a version 1 backup (English cards)
+        // and a version 2 one (a Spanish card, glossed in French) alike. `tests/backup_format.rs`
+        // pins the version 1 bytes themselves.
+        let state = populated_state();
+        assert_eq!((state.deck.len(), state.backup_version()), (20, 1));
+        let backup = state.to_backup();
+        assert!(!backup.contains("gloss_language"), "{backup}");
+        let restored = LinguaState::from_backup(&backup).expect("restore");
+        for i in 0..20 {
+            let card = restored
+                .deck
+                .get(EN, &format!("card{i:02}"))
+                .expect("a card");
+            assert_eq!(card.gloss_language, "fr");
+        }
+        // Written again, still without a label (the fixpoint itself is
+        // spec_backup_round_trip_is_lossless: a graded card's first write may move an f64 by 1 ULP).
+        assert!(!restored.to_backup().contains("gloss_language"));
+
+        let mut spanish = LinguaState::default();
+        spanish.deck.upsert(ES, faro(Some("phare"), "fr"));
+        assert_eq!(spanish.backup_version(), 2);
+        let backup = spanish.to_backup();
+        assert!(backup.starts_with("{\n  \"schema_version\": 2,"));
+        assert!(!backup.contains("gloss_language"), "{backup}");
+        let restored = LinguaState::from_backup(&backup).expect("restore");
+        assert_eq!(
+            restored.deck.get(ES, "faro").expect("faro").gloss_language,
+            "fr"
+        );
+        assert_eq!(restored, spanish);
+    }
+
+    #[test]
+    fn spec_scenario_a_card_created_on_an_engine_glossed_in_english() {
+        // lingua-decks-review: the card's gloss language is `en`, the backup carries it — at
+        // version 2, under the schema version the previous build reads, to which the label is
+        // one more field a card does not deny — and it reads back.
+        let mut state = LinguaState::default();
+        state.deck.upsert(ES, faro(Some("lighthouse"), "en"));
+        assert_eq!(state.backup_version(), 2);
+        assert_eq!(BACKUP_SCHEMA_VERSION, 2, "the label bumps no schema");
+        let backup = state.to_backup();
+        assert!(backup.contains("\"gloss_language\": \"en\""), "{backup}");
+        let restored = LinguaState::from_backup(&backup).expect("restore");
+        let faro = restored.deck.get(ES, "faro").expect("faro");
+        assert_eq!(
+            (faro.gloss_language.as_str(), faro.gloss.as_deref()),
+            ("en", Some("lighthouse"))
+        );
+        assert_eq!(restored, state, "a version 2 round trip is lossless");
     }
 }

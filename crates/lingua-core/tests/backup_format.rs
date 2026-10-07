@@ -58,6 +58,7 @@ fn english_state() -> LinguaState {
                 captured_at: 1_700_000_004,
             },
             Some("port".to_owned()),
+            "fr",
         ),
     );
     state

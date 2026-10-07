@@ -95,6 +95,13 @@ pub struct Card {
     pub provenance: Provenance,
     /// The gloss in the user's native language, if available at creation.
     pub gloss: Option<String>,
+    /// The language the gloss is written in, as an ISO 639-1 tag: the native language of the
+    /// engine the card was created on (add-lingua-card-gloss-language D1). `fr` for every card
+    /// created before the label existed, and left out of the backup when `fr`, so a French
+    /// reader's backup keeps its bytes and a build released before the label reads one that
+    /// carries it (`Card` does not deny unknown fields).
+    #[serde(default = "french", skip_serializing_if = "is_french")]
+    pub gloss_language: String,
     /// Optional attached media (reserved; unpopulated in this change).
     pub media: Option<Media>,
     /// The FSRS review state (never reviewed until first graded).
@@ -109,13 +116,26 @@ pub struct Card {
     pub updated_at: i64,
 }
 
+/// The gloss language of every card created before the label existed.
+pub const FRENCH: &str = "fr";
+
+fn french() -> String {
+    FRENCH.to_owned()
+}
+
+fn is_french(language: &str) -> bool {
+    language == FRENCH
+}
+
 impl Card {
-    /// Creates a fresh, never-reviewed card.
+    /// Creates a fresh, never-reviewed card, its gloss written in `gloss_language` (an ISO
+    /// 639-1 tag): the native language of the engine creating it.
     pub fn new(
         lemma: &str,
         encountered_form: &str,
         provenance: Provenance,
         gloss: Option<String>,
+        gloss_language: &str,
     ) -> Self {
         let updated_at = provenance.captured_at;
         Self {
@@ -123,6 +143,7 @@ impl Card {
             encountered_form: encountered_form.to_owned(),
             provenance,
             gloss,
+            gloss_language: gloss_language.to_owned(),
             media: None,
             review: ReviewState::new(),
             updated_at,
@@ -133,8 +154,8 @@ impl Card {
     /// not from a real reading encounter. There is no originating sentence, so
     /// it is empty, and the source is [`EncounterSource::Import`] rather than a
     /// fabricated URL or agent session. The encountered form is the lemma
-    /// itself.
-    pub fn seeded(lemma: &str, gloss: Option<String>, at: i64) -> Self {
+    /// itself. The gloss is the pack's, written in `gloss_language`.
+    pub fn seeded(lemma: &str, gloss: Option<String>, gloss_language: &str, at: i64) -> Self {
         Card::new(
             lemma,
             lemma,
@@ -144,6 +165,7 @@ impl Card {
                 captured_at: at,
             },
             gloss,
+            gloss_language,
         )
     }
 
@@ -174,8 +196,10 @@ mod tests {
             "conundrum",
             web_provenance("The real conundrum is trust.", "https://example.com/a"),
             Some("casse-tête".to_owned()),
+            "fr",
         );
         assert_eq!(card.lemma, "conundrum");
+        assert_eq!(card.gloss_language, "fr");
         assert_eq!(card.provenance.sentence, "The real conundrum is trust.");
         assert!(
             matches!(&card.provenance.source, EncounterSource::Web { url } if url == "https://example.com/a")
@@ -194,6 +218,7 @@ mod tests {
                 "https://example.com/b",
             ),
             None,
+            "fr",
         );
         assert!(card.is_expression());
         assert_eq!(
@@ -204,9 +229,10 @@ mod tests {
 
     #[test]
     fn seeded_card_uses_import_and_has_no_sentence() {
-        let card = Card::seeded("nuance", Some("nuance".to_owned()), 1_700_000_000);
+        let card = Card::seeded("nuance", Some("nuance".to_owned()), "fr", 1_700_000_000);
         assert_eq!(card.lemma, "nuance");
         assert_eq!(card.encountered_form, "nuance");
+        assert_eq!(card.gloss_language, "fr");
         assert_eq!(card.provenance.source, EncounterSource::Import);
         assert!(card.provenance.sentence.is_empty());
         assert_eq!(card.provenance.captured_at, 1_700_000_000);
@@ -220,9 +246,64 @@ mod tests {
             "running",
             web_provenance("They keep running.", "https://x"),
             None,
+            "fr",
         );
         let json = serde_json::to_string(&card).expect("serialise");
         let back: Card = serde_json::from_str(&json).expect("deserialise");
         assert_eq!(card, back);
+    }
+
+    #[test]
+    fn a_french_card_serialises_without_its_gloss_language() {
+        // Every card created before the label existed is French-glossed: its bytes do not move.
+        let card = Card::new(
+            "harbour",
+            "harbours",
+            web_provenance("Ships rest in the harbours.", "https://x"),
+            Some("port".to_owned()),
+            "fr",
+        );
+        let json = serde_json::to_string(&card).expect("serialise");
+        assert!(!json.contains("gloss_language"), "{json}");
+        let back: Card = serde_json::from_str(&json).expect("deserialise");
+        assert_eq!(back.gloss_language, "fr");
+        assert_eq!(card, back);
+    }
+
+    #[test]
+    fn an_english_glossed_card_serialises_with_its_gloss_language() {
+        let card = Card::new(
+            "faro",
+            "faros",
+            web_provenance("Los faros brillan.", "https://x"),
+            Some("lighthouse".to_owned()),
+            "en",
+        );
+        let json: serde_json::Value = serde_json::to_value(&card).expect("serialise");
+        assert_eq!(json["gloss_language"], "en");
+        let back: Card = serde_json::from_value(json).expect("deserialise");
+        assert_eq!(back.gloss_language, "en");
+        assert_eq!(card, back);
+    }
+
+    #[test]
+    fn a_card_without_a_gloss_language_reads_french() {
+        // What every build before the label wrote; and a build released before it reads a card
+        // that carries the label as it reads any unknown field — by ignoring it.
+        let mut json = serde_json::to_value(Card::new(
+            "run",
+            "running",
+            web_provenance("They keep running.", "https://x"),
+            Some("courir".to_owned()),
+            "en",
+        ))
+        .expect("serialise");
+        let written = json.as_object_mut().expect("an object");
+        assert!(written.remove("gloss_language").is_some());
+        let back: Card = serde_json::from_value(json.clone()).expect("deserialise");
+        assert_eq!(back.gloss_language, "fr");
+        assert_eq!(back.gloss.as_deref(), Some("courir"));
+        json["unknown_to_this_build"] = "ignored".into();
+        assert!(serde_json::from_value::<Card>(json).is_ok());
     }
 }
