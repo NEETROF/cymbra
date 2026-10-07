@@ -144,13 +144,35 @@ fn studied_side(name: &str, body: &str) -> Option<String> {
     })
 }
 
+/// The exported card operations say the language of their glosses before it is stripped: the
+/// reference's, French, carry no label; the other pack's every one carry its native's
+/// (add-lingua-card-gloss-language D2) — so a label astray elsewhere is not hidden by the
+/// strip.
+fn assert_card_ops_labelled(reference: &str, other: &str, native: &str) {
+    let ops = |body: &str| -> Vec<serde_json::Value> {
+        serde_json::from_str(body).expect("an array of card operations")
+    };
+    let (a, b) = (ops(reference), ops(other));
+    assert!(!a.is_empty() && a.len() == b.len(), "the same cards");
+    for op in &a {
+        assert!(
+            op.get("gloss_language").is_none(),
+            "a French gloss carries no label: {op}"
+        );
+    }
+    for op in &b {
+        assert_eq!(op["gloss_language"], native, "{op}");
+    }
+}
+
 /// Every probe of `scenario`, through `reference` and through `other`: alike once the native
-/// side is removed.
+/// side is removed. `native` is the other pack's native language, which labels its cards.
 fn assert_probes_alike(
     scenario: &Scenario,
     language: Option<&str>,
     reference: &[u8],
     other: &[u8],
+    native: &str,
 ) {
     let render = |pack: &[u8]| {
         // The scenario's pair labels the pack line, which is not compared.
@@ -164,6 +186,9 @@ fn assert_probes_alike(
     );
     let mut compared = 0;
     for ((name, x), (_, y)) in a.iter().zip(&b) {
+        if name == "export-card-ops" {
+            assert_card_ops_labelled(x, y, native);
+        }
         let (Some(x), Some(y)) = (studied_side(name, x), studied_side(name, y)) else {
             continue;
         };
@@ -219,7 +244,13 @@ fn spec_scenario_english_through_another_native_language() {
     let en_es = Pack::load(&other).unwrap();
     assert_eq!(en_es.pair().key(), "en-es", "glossed in Spanish");
     assert_studied_sections_alike("en-fr", &reference, &other);
-    assert_probes_alike(&ENGLISH, None, &reference, &other);
+    assert_probes_alike(
+        &ENGLISH,
+        None,
+        &reference,
+        &other,
+        ENGLISH_IN_SPANISH.native,
+    );
 
     // *A vocabulary size counts dictionary words*: the universe and B1's typical vocabulary.
     let (universe, typical) = sizes(&reference, "en");
@@ -248,7 +279,13 @@ fn spec_scenario_spanish_through_another_native_language() {
         build_pack(&other_inputs).expect("es-en"),
     );
     assert_studied_sections_alike("es-fr", &reference, &other);
-    assert_probes_alike(&SPANISH, Some("es"), &reference, &other);
+    assert_probes_alike(
+        &SPANISH,
+        Some("es"),
+        &reference,
+        &other,
+        SPANISH_IN_ENGLISH.native,
+    );
 
     let (es_fr, es_en) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
     assert_eq!(es_en.pair().key(), "es-en");

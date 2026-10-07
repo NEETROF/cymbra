@@ -34,6 +34,7 @@ use lingua_wasm::LinguaEngine;
 use support::Scenario;
 use support::english::ENGLISH;
 use support::other_native::SPANISH_IN_ENGLISH;
+use support::spanish::SPANISH;
 
 /// 2026-09-21T13:46:40Z, in epoch seconds: the deck bindings' unit.
 const T: f64 = 1_790_000_000.0;
@@ -132,6 +133,68 @@ fn spec_scenario_a_card_created_on_an_engine_glossed_in_english() {
         ("house".to_owned(), "en".to_owned())
     );
     assert_eq!(restored.backup(), backup, "the backup is a fixpoint");
+}
+
+#[test]
+fn a_card_seeded_from_the_pack_is_labelled_with_the_engines_native_language() {
+    // The other way a card is created on an engine: seeded from the pack's level lists, with
+    // the pack's gloss — in the engine's native language, which labels every seeded card.
+    let (_, es_en) = packs();
+    let mut engine = Scenario::engine(&[("es-en", es_en)]);
+    assert_eq!(engine.native_language(), "en");
+    let seeded = engine
+        .seed_level("A1", 5, "common", T, Some("es".to_owned()))
+        .unwrap();
+    assert_eq!(seeded, 5);
+    let ops = ops(&engine);
+    let ops = ops.as_array().expect("an array of card operations");
+    assert_eq!(ops.len(), 5);
+    for op in ops {
+        assert_eq!(op["gloss_language"], "en", "{}", op["lemma"]);
+    }
+    assert_eq!(
+        engine
+            .backup()
+            .matches("\"gloss_language\": \"en\"")
+            .count(),
+        5
+    );
+}
+
+#[test]
+fn review_reads_the_pack_of_the_cards_language_not_the_first_one_held() {
+    // A French-native engine holding en-fr first and es-fr beside it, as the extension does,
+    // reviews a Spanish card glossed in English: the gloss is es-fr's for the lemma, not
+    // en-fr's, which does not gloss the Spanish word that way.
+    let (es_fr, es_en) = packs();
+    let es_fr_gloss = Pack::load(&es_fr)
+        .unwrap()
+        .gloss("casa")
+        .expect("es-fr glosses casa")
+        .to_owned();
+    let en_fr_gloss = Pack::load(&Scenario::real_pack("en-fr"))
+        .unwrap()
+        .gloss("casa")
+        .map(str::to_owned);
+    assert_ne!(en_fr_gloss.as_ref(), Some(&es_fr_gloss));
+
+    let mut engine = SPANISH.loaded();
+    assert_eq!(engine.native_language(), "fr");
+    match engine.apply_card_ops(&glossed_in_english(&es_en, "casa", "house").export_card_ops()) {
+        Ok(changed) => assert_eq!(changed, 1),
+        Err(_) => panic!("the pulled card applies"),
+    }
+    assert_eq!(engine.start_review(T + DAY, None), 1);
+    assert_eq!(engine.review_current_language().as_deref(), Some("es"));
+    assert_eq!(
+        view(&engine)["gloss"],
+        es_fr_gloss,
+        "es-fr's gloss, not en-fr's"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("house".to_owned(), "en".to_owned())
+    );
 }
 
 #[test]

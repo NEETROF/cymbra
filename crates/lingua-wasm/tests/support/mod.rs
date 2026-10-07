@@ -103,7 +103,7 @@ impl Scenario {
 
     /// The pack the extension ships, built from the committed tables (the build is
     /// deterministic; `lingua-extension-check` holds the tables to `pin.json`).
-    fn real_pack(pair: &str) -> Vec<u8> {
+    pub fn real_pack(pair: &str) -> Vec<u8> {
         let inputs = lingua_pack::inputs_from_tables(&Self::tables_root(), pair)
             .unwrap_or_else(|e| panic!("read the committed {pair} tables: {e}"));
         lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the {pair} pack: {e}"))
