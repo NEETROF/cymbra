@@ -2,12 +2,12 @@
 
 ## 1. The catalogue modules (apps/lingua-extension/src/i18n)
 
-- [ ] 1.1 `{fr,en,es}/{review,stats}.ts`: the French byte for byte (#696's strings included, the ladder's escapes), the plural forms, the English and Spanish drafts per `README.md` (D1–D3).
+- [ ] 1.1 `{fr,en,es}/{review,stats}.ts`: the French byte for byte (#696's strings when it is on main, the ladder's escapes, the scale's note with « CEFR » / "CEFR" / « MCER »), the plural forms, the English and Spanish drafts per `README.md` (D1–D3, D5).
 
 ## 2. The surfaces (apps/lingua-extension)
 
-- [ ] 2.1 `review/view.ts`, `review/review-page.ts`: copy from the catalogue through `opts.language`; the hosts pass it (D1, D2). Tests: `review-page` and `view` specs unchanged; *An English-native reader's review*.
-- [ ] 2.2 `stats/view.ts`, `stats/ladder.ts`, `stats/stats.html`: copy from the catalogue, `cardsAdded` as plural forms, the ladder's numbers per language, the page filled at mount with `lang` (D1–D3). Tests: `stats`, `stats-view`, `ladder` specs unchanged; *A Spanish-native reader's statistics*.
+- [ ] 2.1 `review/view.ts`, `review/review-page.ts`: copy from the catalogue through `opts.interfaceLanguage` (absent = French); the side panel passes what it read, the drawer what the session handed it (D1, D2). Tests: `review-page` spec unchanged; *An English-native reader's review*.
+- [ ] 2.2 `stats/view.ts`, `stats/ladder.ts`, `stats/stats.ts`, `stats/stats.html`: `mountStats`' fifth parameter, copy from the catalogue, `cardsAdded` as plural forms, the ladder's numbers per language (French unchanged), `stats.ts` reading the key and filling the page with change 14's `fillPage` and `lang` (D1–D3, D5). Tests: `stats` and `stats-view` specs unchanged; *A Spanish-native reader's statistics*.
 
 ## 3. The lint and the gates
 

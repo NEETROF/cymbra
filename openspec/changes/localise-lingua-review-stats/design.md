@@ -6,15 +6,18 @@ See proposal.md (Why) and change 13's design. Today:
 
 | Module | Copy |
 |---|---|
-| `review/view.ts` | « Réviser », « Rien à réviser pour l'instant. », « ${n} carte(s) à revoir », « Afficher la réponse », the grades (`GRADES`), « Je connais ✓ », the source label |
+| `review/view.ts` | « Réviser », « Rien à réviser pour l'instant. », « ${n} carte(s) à revoir », « Afficher la réponse », the grades (`GRADES`, which #696 replaces by its answers), « Je connais ✓ », the source label |
 | `review/review-page.ts` | « Sources & confidentialité », « Sauvegarde restaurée. », `deck + " carte(s) · " + due + " à revoir"`, « Sources : ${…} », the language filter's names (change 19's seam) |
-| `stats/view.ts` | « Mots lus », « Mots appris », « Révisions », « Aucun mot marqué « connu » ou « ignoré »… », « ${added} carte${added > 1 ? "s" : ""} ajoutée${…} au deck (niveau ${level}). », « Aucune carte ajoutée — … », `${r} j` |
-| `stats/ladder.ts` | « Vocabulaire connu », the notes with ` ` before « : » and « ≈ », `toLocaleString("fr-FR")`, `sur les ${fmt(n)} mots du dictionnaire`, `(dont ${fmt} confirmés)` |
+| `stats/view.ts` | « Mots lus », « Mots appris », « Révisions », « Aucun mot marqué « connu » ou « ignoré »… », « ${added} carte${added > 1 ? "s" : ""} ajoutée${…} au deck (niveau ${level}). », « Aucune carte ajoutée — … », « Niveaux CEFR indisponibles pour cette langue (pack sans données CEFR). », `${r} j` |
+| `stats/ladder.ts` | « Vocabulaire connu », the notes with ` ` before « : » and « ≈ », `fmt(n)` = `toLocaleString("fr-FR")` (« 12 345 », a narrow no-break space), `sur les ${fmt(n)} mots du dictionnaire`, `(dont ${fmt} confirmés)` |
 | `stats/stats.html` | two text nodes |
-| `#696` | « Pas su », « Su », « Encore 10 », « Ne plus me le montrer », « Remettre à apprendre », the session's end message, « Rythme de révision » |
+| `#696` | « Pas su », « Su », « Encore 10 », « Ne plus me le montrer », « Remettre à apprendre », the session's end message, « Rythme de révision », a second hand-rolled plural; not on main when this is written |
 
-Hosts: the side panel and the drawer mount review; the statistics page and the side panel mount
-statistics; each reads `chrome.storage.local` before.
+Hosts: the side panel and the drawer mount review; the statistics page (`stats/stats.ts`), the
+side panel and the drawer mount statistics. The side panel reads `chrome.storage.local` before it
+mounts; the drawer is built by the reading session and is handed the interface language by it
+(change 14); `stats.ts` reads no storage today — it hydrates an engine and mounts — so it gains a
+read of the key, and fills its page with change 14's `fillPage`.
 
 ## Goals / Non-Goals
 
@@ -27,33 +30,45 @@ statistics; each reads `chrome.storage.local` before.
 
 ## Decisions
 
-### D1 — `mountReview` and `mountStats` take the copy
+### D1 — `mountReview` and `mountStats` take the interface language
 
-`mountReview(container, port, area, opts)` and `mountStats(…)` gain `opts.language`; the view
-functions (`renderReview(root, view, actions, copy)`, the ladder's) take the copy. The controllers
+`mountReview(container, port, area, opts)` gains `opts.interfaceLanguage`; `mountStats(root,
+port, area, chosen?)` has no options object and gains a fifth parameter, `interfaceLanguage?`,
+after the studied language, which its own call from the language picker passes on. Absent means
+French, so every existing spec mounts as before. The view functions (`renderReview(root, view,
+actions, copy)`, the ladder's) take the copy, and the language where they format. The controllers
 are untouched.
 
 ### D2 — Plurals
 
-`copy.remaining(n)`: French forms all « ${n} carte(s) à revoir » with the raw count; English
-`{one: "1 card to review", other: "${n} cards to review"}`; Spanish likewise. `copy.cardsAdded(n,
-level)` replaces the hand-rolled `carte${added > 1 ? "s" : ""}`, with the zero case a message of
-its own, as today. The ladder's `fmt(n)` is French's `toLocaleString("fr-FR")` kept, and the
-locale's for English and Spanish.
+`copy.remaining(n)`: French « ${n} carte(s) à revoir » with the raw count, as today; English
+`{one: "1 card to review", other: "${n} cards to review"}`; Spanish likewise, through change 13's
+`plural`. `copy.cardsAdded(n, level)` replaces the hand-rolled `carte${added > 1 ? "s" : ""}`
+(and #696's second one, when #696 is on main), with the zero case a message of its own, as today.
+The ladder's `fmt(n)` stays `toLocaleString("fr-FR")` for French — « 12 345 », today's bytes —
+and is change 13's `formatNumber` for English ("12,345") and Spanish (« 12 345 », RAE).
 
 ### D3 — The ladder's bytes
 
 The French entries carry the ` ` escapes and « ≈ » as the source does; the one-off
 comparison of change 13 shows them equal.
 
-### D4 — #696 first
+### D4 — #696 and this change: the second one rebases
 
-As change 15's D5.
+As change 15's D5: #696's copy goes into the catalogue either way, extracted here if #696 is on
+main first, or by #696 rebased onto the catalogue, which the lint forces.
+
+### D5 — The statistics note that spells the scale
+
+« Niveaux CEFR indisponibles pour cette langue (pack sans données CEFR). » is a `stats` entry;
+its English spells "CEFR" and its Spanish « MCER » (M19). Change 19 then makes it read the
+`levelScale` entry of its languages' module; here the acronym is in the text.
 
 ## Risks / Trade-offs
 
 - **A French byte in the ladder's notes** → the `ladder` and `stats-view` specs pin them.
-- **A grade label pinned by #696's tests** → extracted after #696, pinned by its tests.
+- **A grade label pinned by #696's tests** → whichever merges second rebases; the catalogue's
+  French is #696's bytes, pinned by its tests.
 
 ## Migration Plan
 
