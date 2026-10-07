@@ -83,7 +83,7 @@ The lint's baseline, down to the account's and the onboarding's files and two ot
   browser sends the interface language, not `de`.
 - **An English-browser reader's e-mails move to French** → the owner's acknowledgement, or the
   second alternative of D2 (task 3.3).
-- **A French byte in the account flows** → the four account spec files, unchanged.
+- **A French byte in the account flows** → the five account spec files, unchanged.
 
 ## Migration Plan
 
