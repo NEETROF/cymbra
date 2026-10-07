@@ -221,7 +221,7 @@ describe("Révision — the page", () => {
     // A grade changes the engine, so the whole state is written back for every surface.
     expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
     expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
-      en: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 },
+      en: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1, native: "fr" },
     });
     expect(text(m.container, ".review-headword")).toBe("dwell"); // moved on to the next card
   });
@@ -241,7 +241,7 @@ describe("Révision — the page", () => {
     expect(calls.markKnown).toBe(1);
     expect(m.area.raw[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: "{}" });
     expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
-      en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 },
+      en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0, native: "fr" },
     });
   });
 
@@ -600,8 +600,8 @@ describe("Révision — a reader of several languages", () => {
     await settle();
 
     expect((await loadDailyStats(m.area))[utcDay(NOW_MS)]).toEqual({
-      es: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1 },
-      en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0 },
+      es: { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 1, native: "fr" },
+      en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0, native: "fr" },
     });
   });
 

@@ -1,5 +1,5 @@
 import { isStorageFull } from "./auth-errors.ts";
-import { DAILY_KEY, DAY_ONLY_DAILY_KEY, RETIRED_DAILY_KEY } from "./dailystats.ts";
+import { DAILY_KEY, DAY_ONLY_DAILY_KEY, PER_LANGUAGE_DAILY_KEY, RETIRED_DAILY_KEY } from "./dailystats.ts";
 import { type AsyncStorageArea, loadStored, ROOT_KEY } from "./storage.ts";
 
 // Where the reader's own data lives (change: move-lingua-store-to-indexeddb). The engine
@@ -22,6 +22,9 @@ const OBJECT_STORE = "state";
 export const STORE_KEYS = [
   ROOT_KEY,
   DAILY_KEY,
+  // Read until the first labelled write carries its counts over, and kept for a downgraded build
+  // (add-lingua-native-language-sync-client D3) — never retired, as the day-only counts are not.
+  PER_LANGUAGE_DAILY_KEY,
   // Read until the first per-language write carries its counts over (add-lingua-language-stats-review D3).
   DAY_ONLY_DAILY_KEY,
   "cymbra-lingua-device",
