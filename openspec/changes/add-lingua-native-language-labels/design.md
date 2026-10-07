@@ -43,7 +43,8 @@ Spanish level", « Nivel de español estimado ». `windowsVoice` is per interfac
 the menu path the message quotes is the interface's (« Anglais (États-Unis) », "English (United
 States)", « Inglés (Estados Unidos) ») — Windows lists its voices in its own display language,
 which may differ; the message says what the reader looks for, as today.
-The `levelScale` entry is « CEFR » / "CEFR" / « MCER » (M19) — "CEFR" equal in French and
+The `levelScale` entry is « CEFR » / "CEFR" / « MCER » (M19; change 16 wrote the acronym inside
+the statistics' note that spells it, which now reads this entry) — "CEFR" equal in French and
 English, on change 13's same-in-every-language list, as are the `preview` sentences (in the
 studied language, identical in the three modules).
 
