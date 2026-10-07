@@ -40,41 +40,53 @@ See proposal.md (Why). Measured on main (the inventory, 2026-10-07):
 
 ### D1 — One module per surface and language, the French the source, typed `typeof fr`
 
-`src/i18n/fr/<surface>.ts` exports `const popup = { … } as const` (and so on per surface);
-`src/i18n/en/<surface>.ts` exports `const popup: typeof fr.popup = { … }`; likewise `es`. A key
-missing in English or Spanish does not compile, as on the site. `src/i18n/index.ts` exports
-`copyFor(surface, language)` and the `Surface` and `InterfaceLanguage` types. Keys are named by
+`src/i18n/fr/<surface>.ts` exports `export const popup = { … }` (no `as const`: the values must
+be typed `string`, or the English text would have to equal the French literal); `src/i18n/en/
+<surface>.ts` exports `export const popup: typeof fr.popup = { … }`; likewise `es`. A key missing
+in English or Spanish does not compile, as on the site (`const en: typeof fr`). Plural forms are
+objects `{one, many?, other}` and slot messages are functions, both typed by the French module.
+`src/i18n/index.ts` exports the helpers (`plural`, `formatNumber`, `formatDate`) and the types;
+it maps no surface, so importing it costs no copy. A surface imports `../i18n/{fr,en,es}/
+<surface>.ts` itself (changes 14–17) and picks by the interface language. Keys are named by
 meaning (`review.revealAnswer`, not `afficherLaReponse`), in English, so a French text can change
 without renaming a key.
 
 Why per surface: each entry bundles what it imports and nothing is split, so the popup carries
-the popup's three languages (≈ 3 KB) and not the reader's; the reader (550 KB today) grows by
-its own copy in three languages, ≈ 10 KB.
+the copy of the popup and of what it hosts (Réglages' blocks), and not the reader's; the reader
+(550 KB today) grows by its own copy in three languages, ≈ 10 KB.
 
-Alternative: one file per language. Every entry would carry every surface three times; the
-popup would grow by the whole catalogue.
+Alternative: one file per language, or a map of every surface. Every entry would carry every
+surface three times; the popup would grow by the whole catalogue.
 
 ### D2 — Slot messages and plurals
 
 A sentence built from fragments becomes one function of its parts: `settings.knowCommonest(n)`
 → « Je connais les ${n} mots les plus courants » with the bold part marked by a slot the surface
 renders (`{n}` wrapped as the surface decides), so that English can put the number elsewhere. A
-count goes through `plural(language, n, forms)`, where `forms` names `Intl.PluralRules`'
-categories (`one`, `other`, and `many` where a language has it); the helper picks the category
-for the language and formats the number with the language's locale. In French every category of
-a message carries the same string, the current one — « ${n} carte(s) à revoir » — so no French
-byte moves and `many` (French's category for exact millions) needs no form of its own.
+count goes through `plural(language, n, forms)`, where `forms` is `{one, many?, other}` —
+`Intl.PluralRules`' categories for these three languages: French and Spanish have `many` (for
+exact millions, in current CLDR), English has not; a missing `many` falls back to `other`. Each
+form is a function of the formatted number. In French every form of a message carries the same
+string, the current one — « ${n} carte(s) à revoir » — and the number is the raw count the surface
+writes today (no grouping: `Intl` would write « 1 234 » with a no-break space, and M23 forbids
+it); English and Spanish forms receive `Intl.NumberFormat`'s number.
 
 ### D3 — The interface language is the native language, under its own key
 
-`INTERFACE_LANGUAGE_KEY = "cymbra-lingua-interface-language"` in `chrome.storage.local`, holding
-`fr`, `en` or `es`; `interfaceLanguage(area)` reads it, absent or unknown meaning `fr` (M22:
-existing installs stay French). The background writes it whenever the profile's native language
-is read or set (`storedNativeLanguage`, the rpc engine's `setProfile`), so the key mirrors the
-profile (M2: one choice) and a later override (M2's reservation) is a different key, with no
-migration. The preferences every surface reads from `chrome.storage.local` before its first paint
-(`loadEnabled`, the colours, the HUD state) are the model: a surface awaits `interfaceLanguage`
-with them.
+`INTERFACE_LANGUAGE_KEY = "cymbra-lingua-interface-language"` (in `src/i18n/language.ts`, with
+`InterfaceLanguage` and `setDocumentLanguage(document, language)`) in `chrome.storage.local`,
+holding `fr`, `en` or `es`; `interfaceLanguage(area)` reads it, absent or unknown meaning `fr`
+for a device that predates the key (M22: existing installs stay French; change 20 presets a new
+install from the browser's language and writes the key). The store's owner — the background,
+which alone writes the backup (`state/store.ts`) — writes the key from the backup's profile
+whenever it writes the backup: a profile change, a restore from a file, a full reset and the
+first hydration all go through that one write, so the key cannot go stale behind the profile.
+The key mirrors the profile (M2: one choice) and a later override (M2's reservation) is a
+different key, with no migration. The preferences every surface reads from `chrome.storage.local`
+before it renders its copy (`loadEnabled`, the colours, the HUD state) are the model: a surface
+awaits `interfaceLanguage` with them, and sets `document.documentElement.lang`. The static French
+of the HTML pages paints before any script; it moves to the surfaces' modules with changes
+14–17, which is when those pages stop saying `lang="fr"`.
 
 Why a key of its own and not the backup: the backup lives in the background's IndexedDB and is
 read through a message round-trip; the popup paints before it has an engine, and the account page
@@ -82,21 +94,26 @@ never has one.
 
 ### D4 — Formats follow the interface language; French keeps its strings
 
-`formatNumber(language, n)` and `formatDate(language, d)` use `fr-FR`, `en-US`, `es-ES`. The
-French strings that `Intl` would change — « 25,8 Mo » with a no-break space, « il y a 3 min. »
-with its full stop — stay as they are, written in the catalogue; English and Spanish use `Intl`.
-Percentages keep each surface's current form in French.
+`formatNumber(language, n)` and `formatDate(language, d)` use `fr-FR`, `en-US`, `es-ES` for
+English and Spanish. The French strings that `Intl` would change — « 25,8 Mo » with its plain
+space where `Intl` would put a no-break one, « il y a 3 min. » with its full stop, a raw count —
+stay as the surfaces write them today, in the catalogue. Percentages keep each surface's current
+form in French.
 
 ### D5 — The lint, with a baseline that cannot go stale
 
-`test/lint-copy.spec.ts` walks `src/**/*.ts` and the HTML pages (not `src/i18n/`, `gen/`, `pkg/`)
-and fails on a French literal — a string holding an accented letter, « », ’ or one of the
-inventory's unaccented words (« Annuler », « Fermer », « Réglages »…) — unless the file is on the
-baseline, a list in the test of the files that hold literals today. The baseline is checked the
+`test/lint-copy.spec.ts` reads each `src/**/*.ts` (not `src/i18n/`, `gen/`, `pkg/`) with the
+TypeScript compiler's parser (`typescript` is a dev dependency) and visits string and template
+literals only — comments and regular-expression literals do not count, which is why `selection.ts`,
+`reconcile.ts`, `speech.ts` and the French in `port.ts`'s and `sidepanel.ts`'s comments are not
+hits — and the HTML pages' text nodes and attributes; a literal is French when it holds an
+accented letter, « », ’ or one of the inventory's unaccented French words as a whole word
+(« Annuler », « Fermer », « Réglages », « Mots inconnus »…). The file fails unless it is on the
+baseline, a list in the test of the files that hold literals today; the baseline is checked the
 other way too: a file on it that holds no literal fails, so each of changes 14–17 removes its
-files. Data that is not copy (a gloss in a test, a Wiktionary note) lives in tests or data, not in
-`src/`, so the rule has no exception list beyond the baseline. `lint-language-labels` admits
-`src/i18n/`.
+files. ASCII French with none of the listed words is beyond the lint — the baseline, shrinking
+by whole files whose literals were moved by reading, is the real guard. `lint-language-labels`
+admits `src/i18n/`.
 
 ### D6 — Parity and honesty tests
 
