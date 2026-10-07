@@ -2,7 +2,7 @@
 
 ## 1. A trap, told from a refusal (apps/lingua-extension)
 
-- [x] 1.1 `src/translate/host/engine.ts`: `WorkerResponse` gains `trap?: true`; a pure `isTrap(error)` (a `WebAssembly.RuntimeError`, or a message starting with `Aborted(`) in a host-testable module, with tests (D1).
+- [x] 1.1 `src/translate/host/engine.ts`: `WorkerResponse` gains `trap?: true`; a pure `isTrap(error)` (a `WebAssembly.RuntimeError`, a message starting with `Aborted(`, a C++ exception rethrown as a bare number, a blown wasm stack) in a host-testable module, with tests (D1).
 - [x] 1.2 `engine-worker.ts`: the catch reports a trap with the flag, once, with the request's id, and closes the worker; `onAbort` stays as it is (D1).
 
 ## 2. The respawn (apps/lingua-extension)
@@ -13,12 +13,12 @@
 ## 3. Residency (apps/lingua-extension)
 
 - [x] 3.1 `src/translate/host/model-residency.ts`: loaded routes in use order, a load and a translation both uses; for a route to load, the model ids to delete among those it does not need, least recently used first, to a bound of two, and the routes dropped with them (D3). `test/model-residency.spec.ts`: each scenario of *The engine holds at most two models* (*Two loads at once* as a sequence of two decisions), the shared-model case, a route of two models, a route already held.
-- [x] 3.2 `engine-worker.ts` keeps each model's aligned-memory handles, runs loads one at a time, applies the decision before building, deletes the evicted `TranslationModel`s and their memory, drops their routes, and records a translation as a use (D3).
+- [x] 3.2 `engine-worker.ts` keeps each model's aligned-memory handles, runs loads one at a time, applies the decision before building — told the models it actually holds, a dropped route's other model deleted with it, a failed build pruned to the routes' union — deletes the evicted `TranslationModel`s and their memory, drops their routes, records a translation as a use, answers a translation over a held route without the load chain and refuses one over a deleted route with `reload`, which `channel.ts` answers by loading the route again under the start bound and asking once more (D3).
 
 ## 4. The soak tool (apps/lingua-extension)
 
 - [x] 4.1 `tool/marks/engine.mjs`: the engine loader moved out of `measure_marks.mjs` (which keeps its results byte for byte); `tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N] [--isolate]`: the report (count, trapped ids, time per sentence, RSS high-water mark), the run stopping at the first trap unless `--isolate` (D4). `tool/marks/README.md` documents it.
-- [ ] 4.2 Run by hand for en-fr and es-fr on the committed corpus; record the figures in the pull request (no trap; RSS with two models).
+- [ ] 4.2 Run by hand for en-fr and es-fr on the committed corpus; record the figures in the pull request (no trap; Node's maxRSS with two models — not the worker's figure, and nothing of the bound).
 
 ## 5. Docs, gates and spec
 
