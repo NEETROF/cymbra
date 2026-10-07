@@ -171,12 +171,15 @@ pub struct Added {
 
 /// Add the chosen words to the deck (status learning + a card carrying the sentence), each
 /// in the language it was listed under. A word listed under several needs `language`.
-/// Only the words present in `available` are added.
+/// Only the words present in `available` are added. Each card's gloss is the pack's, labelled
+/// with `native`, the language the packs followed are glossed in
+/// (add-lingua-card-gloss-language D2).
 pub fn add_to_deck(
     store: &Store,
     available: &[VocabWord],
     chosen: &[String],
     language: Option<StudiedLanguage>,
+    native: NativeLanguage,
     timestamp: i64,
 ) -> rusqlite::Result<Added> {
     let mut added = 0;
@@ -207,6 +210,7 @@ pub fn add_to_deck(
                 captured_at: timestamp,
             },
             vocab.gloss.clone(),
+            native.tag(),
         );
         store.upsert_card(vocab.language, &card)?;
         added += 1;

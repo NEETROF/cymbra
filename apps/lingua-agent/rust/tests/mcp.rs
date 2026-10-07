@@ -12,16 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use lingua_agent::mcp::{dispatch_tool, handle_request};
+use lingua_agent::mcp::{Followed, dispatch_tool, handle_request};
 use lingua_agent::store::Store;
 use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::knowledge::profile::NativeLanguage;
 use serde_json::{Value, json};
 
 const DAY: i64 = 86_400;
-/// One language followed: the tools need no `language`.
-const EN: &[StudiedLanguage] = &[StudiedLanguage::English];
+/// One language followed, glossed in French: the tools need no `language`.
+const EN: &Followed = &Followed {
+    languages: &[StudiedLanguage::English],
+    native: NativeLanguage::French,
+};
 /// Two followed: the tools ask which (add-lingua-agent-languages D6).
-const BOTH: &[StudiedLanguage] = &[StudiedLanguage::English, StudiedLanguage::Spanish];
+const BOTH: &Followed = &Followed {
+    languages: &[StudiedLanguage::English, StudiedLanguage::Spanish],
+    native: NativeLanguage::French,
+};
 
 #[test]
 fn add_words_then_list_and_due_reflect_them() {
@@ -264,4 +271,40 @@ fn every_tool_says_it_takes_a_language() {
             tool["name"]
         );
     }
+}
+
+#[test]
+fn spec_scenario_a_card_created_on_an_engine_glossed_in_english() {
+    // lingua-decks-review (add-lingua-card-gloss-language D2): the agent labels a card with the
+    // native language the packs it follows are glossed in.
+    const GLOSSED_IN_ENGLISH: &Followed = &Followed {
+        languages: &[StudiedLanguage::English],
+        native: NativeLanguage::English,
+    };
+    let store = Store::open_in_memory().unwrap();
+    dispatch_tool(
+        &store,
+        GLOSSED_IN_ENGLISH,
+        "add_words",
+        &json!({ "words": ["seldom"] }),
+        0,
+    )
+    .unwrap();
+    dispatch_tool(
+        &store,
+        EN,
+        "add_words",
+        &json!({ "words": ["conundrum"] }),
+        0,
+    )
+    .unwrap();
+    let label = |word: &str| {
+        store
+            .card(StudiedLanguage::English, word)
+            .unwrap()
+            .unwrap()
+            .gloss_language
+    };
+    assert_eq!(label("seldom"), "en");
+    assert_eq!(label("conundrum"), "fr");
 }

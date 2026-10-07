@@ -103,6 +103,12 @@ export interface CardOp {
   source_sentence: string;
   source: string;
   gloss: string;
+  /**
+   * The language the gloss is written in, as an ISO 639-1 tag (add-lingua-card-gloss-language D2):
+   * emitted by `exportCardOps` when it is not `fr`, and read by `applyCardOps` — absent or empty
+   * means `fr`. The sync client sends it from `add-lingua-native-language-sync-client`.
+   */
+  gloss_language?: string;
   fsrs_state: string; // opaque JSON
   deleted: boolean;
   client_ts: number; // epoch millis

@@ -25,6 +25,7 @@ use std::io::{BufRead, Write};
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
 use lingua_core::decks::fsrs::{FsrsParams, Rating};
+use lingua_core::knowledge::profile::NativeLanguage;
 use lingua_core::knowledge::status::Status;
 use serde_json::{Value, json};
 
@@ -34,6 +35,17 @@ use crate::store::Store;
 const MAX_ADD_WORDS: usize = 100;
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
+
+/// What the plugin follows: the studied languages its packs serve, in tag order, and the one
+/// native language they are all glossed in (generalise-lingua-native-language D9), which labels
+/// the gloss of every card the tools create (add-lingua-card-gloss-language D2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Followed<'a> {
+    /// The languages followed.
+    pub languages: &'a [StudiedLanguage],
+    /// The native language their packs are glossed in.
+    pub native: NativeLanguage,
+}
 
 /// The tool catalogue advertised by `tools/list`.
 fn tools() -> Value {
@@ -81,12 +93,12 @@ fn language_of(args: &Value, followed: &[StudiedLanguage]) -> Result<StudiedLang
     }
 }
 
-/// Dispatch a `tools/call` against the store, `followed` being the languages the plugin
-/// follows. Returns the tool's structured result, or an `Err(message)` for invalid input.
+/// Dispatch a `tools/call` against the store, `followed` being what the plugin follows.
+/// Returns the tool's structured result, or an `Err(message)` for invalid input.
 /// Pure over the store (unit-tested).
 pub fn dispatch_tool(
     store: &Store,
-    followed: &[StudiedLanguage],
+    followed: &Followed,
     name: &str,
     args: &Value,
     now: i64,
@@ -94,8 +106,8 @@ pub fn dispatch_tool(
     match name {
         "list_decks" => {
             let languages = match args.get("language") {
-                Some(_) => vec![language_of(args, followed)?],
-                None => followed.to_vec(),
+                Some(_) => vec![language_of(args, followed.languages)?],
+                None => followed.languages.to_vec(),
             };
             let (mut cards, mut due, mut each) = (0, 0, Vec::new());
             for language in languages {
@@ -108,7 +120,7 @@ pub fn dispatch_tool(
             Ok(json!({ "cards": cards, "due": due, "languages": each }))
         }
         "add_words" => {
-            let language = language_of(args, followed)?;
+            let language = language_of(args, followed.languages)?;
             let words = args
                 .get("words")
                 .and_then(Value::as_array)
@@ -137,6 +149,7 @@ pub fn dispatch_tool(
                         captured_at: now,
                     },
                     None,
+                    followed.native.tag(),
                 );
                 store.upsert_card(language, &card).map_err(db)?;
                 added += 1;
@@ -144,7 +157,7 @@ pub fn dispatch_tool(
             Ok(json!({ "added": added }))
         }
         "due_cards" => {
-            let language = language_of(args, followed)?;
+            let language = language_of(args, followed.languages)?;
             let due: Vec<Value> = store
                 .due_cards(language, now)
                 .map_err(db)?
@@ -154,7 +167,7 @@ pub fn dispatch_tool(
             Ok(json!({ "language": language.tag(), "due": due }))
         }
         "answer_card" => {
-            let language = language_of(args, followed)?;
+            let language = language_of(args, followed.languages)?;
             let word = args
                 .get("word")
                 .and_then(Value::as_str)
@@ -179,12 +192,7 @@ pub fn dispatch_tool(
 }
 
 /// Handle one JSON-RPC request; `None` for a notification (no response expected).
-pub fn handle_request(
-    store: &Store,
-    followed: &[StudiedLanguage],
-    req: &Value,
-    now: i64,
-) -> Option<Value> {
+pub fn handle_request(store: &Store, followed: &Followed, req: &Value, now: i64) -> Option<Value> {
     let id = req.get("id").cloned();
     let method = req.get("method").and_then(Value::as_str).unwrap_or("");
     match method {
@@ -213,11 +221,7 @@ pub fn handle_request(
 }
 
 /// Serve MCP over stdin/stdout (newline-delimited JSON-RPC). Thin transport.
-pub fn serve(
-    store: &Store,
-    followed: &[StudiedLanguage],
-    now_fn: impl Fn() -> i64,
-) -> std::io::Result<()> {
+pub fn serve(store: &Store, followed: &Followed, now_fn: impl Fn() -> i64) -> std::io::Result<()> {
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
     for line in stdin.lock().lines() {

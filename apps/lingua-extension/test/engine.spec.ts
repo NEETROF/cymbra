@@ -420,6 +420,7 @@ describe("WasmAnalyzerPort packs", () => {
     source_sentence: "El faro.",
     source: "",
     gloss: "phare",
+    gloss_language: "fr",
     fsrs_state: "{}",
     deleted: false,
     client_ts: 1,

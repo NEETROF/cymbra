@@ -215,6 +215,7 @@ fn vocab_lists_unknown_words_and_add_creates_cards_with_the_sentence() {
         &words,
         &["seldom".into(), "conundrum".into()],
         None,
+        NativeLanguage::French,
         500,
     )
     .unwrap();
@@ -489,9 +490,25 @@ fn a_word_listed_in_two_languages_needs_one() {
         sentence: "No.".into(),
     };
     let available = [word(EN), word(ES)];
-    let added = add_to_deck(&store, &available, &["No".into()], None, 0).unwrap();
+    let added = add_to_deck(
+        &store,
+        &available,
+        &["No".into()],
+        None,
+        NativeLanguage::French,
+        0,
+    )
+    .unwrap();
     assert_eq!((added.added, added.ambiguous), (0, vec!["no".to_string()]));
-    let added = add_to_deck(&store, &available, &["no".into()], Some(ES), 0).unwrap();
+    let added = add_to_deck(
+        &store,
+        &available,
+        &["no".into()],
+        Some(ES),
+        NativeLanguage::French,
+        0,
+    )
+    .unwrap();
     assert_eq!(added.added, 1);
     assert!(store.card(ES, "no").unwrap().is_some());
     assert!(store.card(EN, "no").unwrap().is_none());
@@ -502,5 +519,50 @@ fn no_vocabulary_says_so() {
     assert_eq!(
         listing(&[], true),
         "Aucun mot inconnu dans cette session.\n"
+    );
+}
+
+#[test]
+fn spec_scenario_a_card_created_on_an_engine_glossed_in_english() {
+    // lingua-decks-review (add-lingua-card-gloss-language D2): `/vocab --add` labels the card
+    // with the native language the packs followed are glossed in; its gloss is the pack's.
+    let store = calibrated_store();
+    let word = |language, lemma: &str, gloss: &str| VocabWord {
+        language,
+        lemma: lemma.into(),
+        gloss: Some(gloss.into()),
+        rarity: String::new(),
+        sentence: format!("{lemma}."),
+    };
+    let available = [word(ES, "faro", "lighthouse")];
+    let added = add_to_deck(
+        &store,
+        &available,
+        &["faro".into()],
+        None,
+        NativeLanguage::English,
+        0,
+    )
+    .unwrap();
+    assert_eq!(added.added, 1);
+    let faro = store.card(ES, "faro").unwrap().unwrap();
+    assert_eq!(
+        (faro.gloss_language.as_str(), faro.gloss.as_deref()),
+        ("en", Some("lighthouse"))
+    );
+
+    let available = [word(EN, "harbour", "port")];
+    add_to_deck(
+        &store,
+        &available,
+        &["harbour".into()],
+        None,
+        NativeLanguage::French,
+        0,
+    )
+    .unwrap();
+    assert_eq!(
+        store.card(EN, "harbour").unwrap().unwrap().gloss_language,
+        "fr"
     );
 }
