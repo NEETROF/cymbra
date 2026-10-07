@@ -399,6 +399,58 @@ fn spec_scenario_a_card_applied_from_a_card_operation() {
 }
 
 #[test]
+fn an_applied_label_is_trimmed_and_lowercased_and_a_blank_or_odd_one_is_french() {
+    // The label says what the gloss is: `EN` is `en`, ` fr ` is `fr` (left out of the export),
+    // a tag this engine knows no pack for is kept as it is, and a value that is not a string
+    // is read as none — `fr`.
+    let mut e = engine();
+    let op = |lemma: &str, gloss_language: serde_json::Value| {
+        serde_json::json!({
+            "language": "en",
+            "lemma": lemma,
+            "surface_form": lemma,
+            "source_sentence": "s",
+            "source": "",
+            "gloss": "g",
+            "fsrs_state": "{}",
+            "deleted": false,
+            "client_ts": 1_000,
+            "device_id": "",
+            "gloss_language": gloss_language,
+        })
+    };
+    let pulled = serde_json::Value::Array(vec![
+        op("seldom", "EN".into()),
+        op("conundrum", " fr ".into()),
+        op("backlog", "tlh".into()),
+        op("harbour", 7.into()),
+        op("keeper", serde_json::Value::Null),
+    ])
+    .to_string();
+    match e.apply_card_ops(&pulled) {
+        Ok(changed) => assert_eq!(changed, 5),
+        Err(_) => panic!("pulled cards apply"),
+    }
+    let ops: Vec<serde_json::Value> = serde_json::from_str(&e.export_card_ops()).unwrap();
+    let label = |lemma: &str| {
+        ops.iter()
+            .find(|op| op["lemma"] == lemma)
+            .expect(lemma)
+            .get("gloss_language")
+            .cloned()
+    };
+    assert_eq!(label("seldom"), Some("en".into()));
+    assert_eq!(label("conundrum"), None);
+    assert_eq!(label("backlog"), Some("tlh".into()));
+    assert_eq!(label("harbour"), None);
+    assert_eq!(label("keeper"), None);
+    let backup = e.backup();
+    assert_eq!(backup.matches("\"gloss_language\": \"en\"").count(), 1);
+    assert_eq!(backup.matches("\"gloss_language\": \"tlh\"").count(), 1);
+    assert_eq!(backup.matches("gloss_language").count(), 2, "{backup}");
+}
+
+#[test]
 fn a_card_created_on_the_engine_is_labelled_with_its_native_language() {
     // The fixture pack is glossed in French: the label is `fr`, and left out of the export.
     let mut e = engine();

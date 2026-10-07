@@ -33,7 +33,9 @@
 
 use lingua_core::analysis::language::{StudiedLanguage, detect_document_language};
 use lingua_core::decks::backup::LinguaState;
-use lingua_core::decks::card::{Card, EncounterSource, FRENCH, Provenance};
+use lingua_core::decks::card::{
+    Card, EncounterSource, FRENCH, Provenance, gloss_language_or_french,
+};
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
 use lingua_core::engine::{analyse_page_json, gloss_phrase_json, word_grammar_json};
@@ -744,13 +746,13 @@ impl LinguaEngine {
                 .and_then(|v| v.as_str())
                 .filter(|s| !s.is_empty())
                 .map(str::to_owned);
-            // The language the gloss is written in; empty or absent means `fr`, the wire's
-            // default (add-lingua-card-gloss-language D2).
-            let gloss_language = op
-                .get("gloss_language")
-                .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
-                .unwrap_or(FRENCH);
+            // The language the gloss is written in, trimmed and lowercased; absent, blank or
+            // not a string means `fr`, the wire's default (add-lingua-card-gloss-language D2).
+            let gloss_language = gloss_language_or_french(
+                op.get("gloss_language")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(""),
+            );
             let review: ReviewState =
                 serde_json::from_str(&str_field("fsrs_state")).unwrap_or_default();
             let mut card = Card::new(
@@ -764,7 +766,7 @@ impl LinguaEngine {
                     captured_at: updated_at,
                 },
                 gloss,
-                gloss_language,
+                &gloss_language,
             );
             card.review = review;
             card.updated_at = updated_at;
