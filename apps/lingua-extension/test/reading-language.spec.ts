@@ -285,6 +285,31 @@ describe("each document in its own language (add-lingua-language-routing)", () =
     session.detach();
   });
 
+  it("counts a day under the engine's native language, a Spanish-native reader of English included", async () => {
+    // French is also the default: a day labelled by habit would pass every French-native test.
+    packs.shipped = ["en-es"];
+    const { port } = makeFakePort();
+    port.nativeLanguage = async () => "es";
+    const session = new ReadingSession(port, { css, surface: "book" });
+    await session.start(null);
+    await session.attach(section("<p>The lighthouse stands on the rocks.</p>", "en"));
+
+    await (session as unknown as Driven).onGesture({
+      lemma: "lighthouse",
+      surface: "lighthouse",
+      sentence: "The lighthouse stands on the rocks.",
+      status: "known",
+      expression: false,
+      gloss: "faro",
+    });
+
+    await vi.waitFor(() => expect(dailyWrites()).toHaveLength(1));
+    expect(Object.values(dailyWrites()[0])).toEqual([
+      { en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 0, native: "es" } },
+    ]);
+    session.detach();
+  });
+
   it("counts what was read in the language it was read in, when the document changes language", async () => {
     packs.shipped = ["en-fr", "es-fr"];
     const { port } = await spanishThenEnglish();

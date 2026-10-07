@@ -4,7 +4,7 @@ import type { DeckService } from "../gen/deck_pb.ts";
 import type { KnownWordsService } from "../gen/known_words_pb.ts";
 import type { LinguaDataService } from "../gen/lingua_data_pb.ts";
 import type { StatsService } from "../gen/stats_pb.ts";
-import { clearDailyStats, loadDailyStats } from "../state/dailystats.ts";
+import { clearDailyStats, FRENCH, loadDailyStats } from "../state/dailystats.ts";
 import { type AsyncStorageArea, DEFAULT_CALIBRATION, loadStored, saveBackup } from "../state/storage.ts";
 import { acceptedLanguages, readingLanguage } from "../analyzer/pairs.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
@@ -42,8 +42,6 @@ const SYNC_LANGUAGES_KEY = "cymbra-lingua-sync-languages";
  * it, and its card cursor passed them.
  */
 const SYNC_LABELS_KEY = "cymbra-lingua-sync-labels";
-/** The gloss language every card carried before it was labelled, and of every day counted before it was. */
-const FRENCH = "fr";
 /** Max ops per request (bounded batches; the server resumes by outbox offset). */
 const BATCH = 500;
 
@@ -84,6 +82,13 @@ export class SyncEngine {
    * or a rolled-back server, reads as false.
    */
   private languageLabels = false;
+  /**
+   * The cards this sync held back from a server that stores no label (add-lingua-native-language-sync-client
+   * D2). Such a server echoes a card it holds with no label, which the engine reads as French, and dated no
+   * earlier than the device's copy: applied, the echo would relabel the device's card, and the next push
+   * would relabel the server's. A label from a server that does not store labels is not information.
+   */
+  private held = new Set<string>();
 
   constructor(private readonly deps: SyncDeps) {}
 
@@ -111,9 +116,11 @@ export class SyncEngine {
     // Fetch pulls WITHOUT applying, so apply + persist happen together at the end.
     const statuses = await this.fetchStatuses(languages);
     const cards = await this.fetchCards(languages);
+    // The echo of a card held this sync says nothing this device does not know better (see `held`).
+    const cardOps = cards.ops.filter((op) => !this.held.has(op.client_id));
 
     let pulled = 0;
-    if (statuses.changes.length > 0 || statuses.declaredLevels.length > 0 || cards.ops.length > 0) {
+    if (statuses.changes.length > 0 || statuses.declaredLevels.length > 0 || cardOps.length > 0) {
       // Re-hydrate from the LATEST backup before applying + persisting, so a local
       // mutation made in another context during the (slow) push/pull round-trip is not
       // clobbered by writing back the stale start-of-sync snapshot. Applies are
@@ -123,7 +130,7 @@ export class SyncEngine {
       if (statuses.changes.length > 0) pulled += await this.deps.port.applyStatusChanges(statuses.changes);
       if (statuses.declaredLevels.length > 0)
         pulled += await this.deps.port.applyDeclaredLevelChanges(statuses.declaredLevels);
-      if (cards.ops.length > 0) pulled += await this.deps.port.applyCardOps(cards.ops);
+      if (cardOps.length > 0) pulled += await this.deps.port.applyCardOps(cardOps);
       if (pulled > 0) await saveBackup(this.deps.storage, await this.deps.port.backup());
     }
 
@@ -256,12 +263,12 @@ export class SyncEngine {
     // an older one would store it as English, under the key of the English card. A card glossed
     // in another language waits for a server that stores the gloss language
     // (add-lingua-native-language-sync-client D2): an older one would label it French for ever.
-    // The push is the whole deck each time, so a held card goes at a later sync.
-    const ops = (await this.deps.port.exportCardOps()).filter(
-      (c) =>
-        (this.cardLanguage || (c.language || "en") === "en") &&
-        (this.languageLabels || (c.gloss_language || FRENCH) === FRENCH),
-    );
+    // The push is the whole deck each time, so a held card goes at a later sync. The cards held for
+    // their label are remembered: the pull drops their echo (see `held`).
+    const labelled = (c: CardOp): boolean => this.languageLabels || (c.gloss_language || FRENCH) === FRENCH;
+    const all = await this.deps.port.exportCardOps();
+    this.held = new Set(all.filter((c) => !labelled(c)).map((c) => c.client_id));
+    const ops = all.filter((c) => (this.cardLanguage || (c.language || "en") === "en") && labelled(c));
     for (const batch of chunk(ops, BATCH)) {
       await this.deps.clients().deck.pushCards({
         cards: batch.map((c) => ({
@@ -294,7 +301,8 @@ export class SyncEngine {
     const daily = await loadDailyStats(this.deps.storage);
     const stats = Object.entries(daily).flatMap(([day, byLanguage]) =>
       Object.entries(byLanguage)
-        .filter(([, s]) => this.languageLabels || s.native === FRENCH)
+        // A record with no native language is read as French, as the records written before the label are.
+        .filter(([, s]) => this.languageLabels || (s.native ?? FRENCH) === FRENCH)
         .map(([language, s]) => ({
           day: Number(day),
           language,
@@ -304,7 +312,7 @@ export class SyncEngine {
           unknownSeen: s.unknownSeen ?? 0,
           wordsLearned: s.wordsLearned,
           reviewsDone: s.reviews,
-          nativeLanguage: s.native,
+          nativeLanguage: s.native ?? FRENCH,
         })),
     );
     if (stats.length > 0) await this.deps.clients().stats.upsertDailyStats({ stats });

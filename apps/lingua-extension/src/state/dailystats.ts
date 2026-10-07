@@ -60,8 +60,11 @@ export interface DailyStat extends DailyCounts {
 
 const ZERO: DailyCounts = { exposures: 0, unknownSeen: 0, wordsLearned: 0, reviews: 0 };
 
-/** The native language of every device before a day carried one (M22). */
-const FRENCH: NativeLanguage = "fr";
+/**
+ * The native language of every device before a day carried one (M22), and the gloss language of every
+ * card before it was labelled: what the sync reads an absent label as, on a day or on a card.
+ */
+export const FRENCH: NativeLanguage = "fr";
 
 /** UTC day number → studied language → record (the day number is the DailyStat.day wire key). */
 export type DailyStats = Record<number, Record<string, DailyStat>>;
@@ -78,15 +81,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/** The records written before the native language was kept, every one of them French-native. */
-function frenchNative(perLanguage: Record<string, Record<string, DailyCounts>>): DailyStats {
+/**
+ * The records written before the native language was kept, every one of them French-native. A day that
+ * is not a record (a `null` left by a bad write) is skipped rather than thrown on: this runs under every
+ * record and every push, and one broken day must not stop them all.
+ */
+function frenchNative(perLanguage: Record<string, unknown>): DailyStats {
   return Object.fromEntries(
-    Object.entries(perLanguage).map(([day, byLanguage]) => [
-      day,
-      Object.fromEntries(
-        Object.entries(byLanguage).map(([language, counts]) => [language, { ...counts, native: FRENCH }]),
-      ),
-    ]),
+    Object.entries(perLanguage)
+      .filter((entry): entry is [string, Record<string, DailyCounts>] => isRecord(entry[1]))
+      .map(([day, byLanguage]) => [
+        day,
+        Object.fromEntries(
+          Object.entries(byLanguage).map(([language, counts]) => [language, { ...counts, native: FRENCH }]),
+        ),
+      ]),
   ) as DailyStats;
 }
 
@@ -99,7 +108,7 @@ export async function loadDailyStats(area: AsyncStorageArea): Promise<DailyStats
   const labelled = got[DAILY_KEY];
   if (isRecord(labelled)) return labelled as DailyStats;
   const perLanguage = got[PER_LANGUAGE_DAILY_KEY];
-  if (isRecord(perLanguage)) return frenchNative(perLanguage as Record<string, Record<string, DailyCounts>>);
+  if (isRecord(perLanguage)) return frenchNative(perLanguage);
   const dayOnly = got[DAY_ONLY_DAILY_KEY];
   if (!isRecord(dayOnly)) return {};
   return frenchNative(
@@ -178,7 +187,9 @@ export function recordReview(
 
 /**
  * A recorder for the ReviewController: "review" on a grade, "learned" on mark-known, each counted
- * under the native language of `engine` — one per engine, read when the event is recorded.
+ * under the native language of `engine` — one per engine, fixed for the port's life, which the port
+ * resolves asynchronously: the write follows that hop. A day is never labelled by guess: when the port
+ * cannot answer, the event is logged and not recorded, rather than filed as French.
  */
 export function dailyRecorder(
   area: AsyncStorageArea,
@@ -190,6 +201,7 @@ export function dailyRecorder(
       .nativeLanguage()
       .then((native) =>
         event === "review" ? recordReview(area, day, language, native) : recordWordLearned(area, day, language, native),
-      );
+      )
+      .catch((e: unknown) => console.warn("[Cymbra Lingua] daily stat not recorded:", e));
   };
 }

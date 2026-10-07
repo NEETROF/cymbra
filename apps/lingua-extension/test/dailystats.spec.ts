@@ -17,10 +17,14 @@ import {
   utcDay,
 } from "@/state/dailystats.ts";
 
-function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
+/** A store that counts its writes, so a fire-and-forget recorder can be waited for by what it wrote. */
+type Area = AsyncStorageArea & { store: Record<string, unknown>; writes: number };
+
+function fakeArea(seed: Record<string, unknown> = {}): Area {
   const store: Record<string, unknown> = { ...seed };
-  return {
+  const area: Area = {
     store,
+    writes: 0,
     async get(keys) {
       const list = keys == null ? Object.keys(store) : Array.isArray(keys) ? keys : [keys];
       const out: Record<string, unknown> = {};
@@ -29,8 +33,10 @@ function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { stor
     },
     async set(items) {
       Object.assign(store, items);
+      area.writes += 1;
     },
   };
+  return area;
 }
 
 /** An engine of one native language, all a recorder asks of it. */
@@ -171,6 +177,20 @@ describe("statistics written before the label (add-lingua-native-language-sync-c
 
     expect(await loadDailyStats(area)).toEqual({ 6: { en: { ...PER_LANGUAGE[6].en, native: "fr" } } });
   });
+
+  it("skip a day that is not a record, and still read, carry over and add to the others", async () => {
+    // One broken day (a null left by a bad write) must not throw under every record and every push.
+    const area = fakeArea({ [PER_LANGUAGE_DAILY_KEY]: { ...PER_LANGUAGE, 7: null } });
+
+    expect(await loadDailyStats(area)).toEqual({
+      5: { en: { ...PER_LANGUAGE[5].en, native: "fr" }, es: { ...PER_LANGUAGE[5].es, native: "fr" } },
+      6: { en: { ...PER_LANGUAGE[6].en, native: "fr" } },
+    });
+    await recordReview(area, 6, "en", "fr");
+    const stats = await loadDailyStats(area);
+    expect(stats[6]).toEqual({ en: { ...PER_LANGUAGE[6].en, reviews: 1, native: "fr" } });
+    expect(stats[7]).toBeUndefined();
+  });
 });
 
 describe("the counts kept per day only", () => {
@@ -236,14 +256,15 @@ describe("countsOf", () => {
 });
 
 describe("dailyRecorder", () => {
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
-  /** The recorder is fire-and-forget, so let its write finish before reading it back.
-   *  One event at a time: two overlapping bumps may lose an increment, which the module
-   *  accepts on purpose — these are approximate activity counts, not state. */
-  const settle = async () => {
-    for (let i = 0; i < 8; i++) await Promise.resolve();
-  };
+  /** The recorder is fire-and-forget: wait for its write to land before reading it back or recording
+   *  the next event. One event at a time: two overlapping bumps may lose an increment, which the
+   *  module accepts on purpose — these are approximate activity counts, not state. */
+  const written = (area: Area, times: number) => vi.waitFor(() => expect(area.writes).toBe(times));
 
   it("counts a grade as a review and a mark-known as a word learned, on today's UTC day", async () => {
     vi.useFakeTimers();
@@ -253,11 +274,11 @@ describe("dailyRecorder", () => {
     const area = fakeArea();
     const record = dailyRecorder(area, nativeOf("fr"));
     record("review");
-    await settle();
+    await written(area, 1);
     record("learned");
-    await settle();
+    await written(area, 2);
     record("review");
-    await settle();
+    await written(area, 3);
 
     expect(await loadDailyStats(area)).toEqual({
       [day]: { en: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 2, native: "fr" } },
@@ -272,9 +293,9 @@ describe("dailyRecorder", () => {
     const area = fakeArea();
     const record = dailyRecorder(area, nativeOf("fr"));
     record("review", "es");
-    await settle();
+    await written(area, 1);
     record("learned", "es");
-    await settle();
+    await written(area, 2);
 
     expect(await loadDailyStats(area)).toEqual({
       [day]: { es: { exposures: 0, unknownSeen: 0, wordsLearned: 1, reviews: 1, native: "fr" } },
@@ -289,9 +310,27 @@ describe("dailyRecorder", () => {
     const area = fakeArea();
     const record = dailyRecorder(area, nativeOf("es"));
     record("review");
-    await settle();
+    await written(area, 1);
 
     expect((await loadDailyStats(area))[day].en.native).toBe("es");
+  });
+
+  it("records nothing, and says so, when the engine cannot say its native language", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const area = fakeArea();
+    const record = dailyRecorder(area, {
+      nativeLanguage: async () => {
+        throw new Error("engine gone");
+      },
+    });
+    record("review");
+
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith("[Cymbra Lingua] daily stat not recorded:", expect.any(Error)),
+    );
+    // Never French by guess: a day labelled wrong would be pushed wrong.
+    expect(area.writes).toBe(0);
+    expect(await loadDailyStats(area)).toEqual({});
   });
 
   it("files each event under the day it happened, across a UTC midnight", async () => {
@@ -300,10 +339,10 @@ describe("dailyRecorder", () => {
     const area = fakeArea();
     const record = dailyRecorder(area, nativeOf("fr"));
     record("review");
-    await settle();
+    await written(area, 1);
     vi.setSystemTime(new Date("2026-03-05T00:01:00Z"));
     record("review");
-    await settle();
+    await written(area, 2);
 
     const stats = await loadDailyStats(area);
     expect(Object.keys(stats)).toHaveLength(2);

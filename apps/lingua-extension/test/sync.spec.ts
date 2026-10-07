@@ -831,6 +831,51 @@ describe("SyncEngine and the language of a gloss (add-lingua-native-language-syn
     expect(storage.store["cymbra-lingua-card-cursor"]).toBe(0); // the next sync pulls from the start again
   });
 
+  it("the first pull of this build pulls the cards from the start against an older server too, and marks it", async () => {
+    // The marker says this BUILD has pulled as a client that reads labels, whatever the server stores:
+    // the card cursor is reset once, not once per server met.
+    const storage = fakeArea({
+      ...v2("B"),
+      "cymbra-lingua-status-cursor": 42,
+      "cymbra-lingua-card-cursor": 7,
+      "cymbra-lingua-sync-languages": ["en"],
+    });
+    const older = fakeClients(); // its data state does not say it stores the labels
+    await new SyncEngine({ port: syncPort({}).port, storage, clients: () => older.clients, deviceId: "d" }).sync();
+    expect(older.pullChanges).toHaveBeenCalledWith({ cursor: 42n }); // the statuses were never withheld
+    expect(older.pullCards).toHaveBeenCalledWith({ cursor: 0n, languages: ["en"], anyGlossLanguage: true });
+    expect(storage.store["cymbra-lingua-sync-labels"]).toBe(true);
+  });
+
+  it("a server rolled back to one that stores no label echoes a held card without one: the echo is not applied, a French card's is", async () => {
+    const { port, calls } = syncPort({ cardOps: deck, onApplyCards: (ops) => ops.length });
+    const storage = fakeArea(v2("B"));
+    const newer = labelling();
+    await new SyncEngine({ port, storage, clients: () => newer.clients, deviceId: "d" }).sync();
+    expect(pushed(newer)).toEqual([
+      ["seldom", ""],
+      ["harbour", "en"],
+    ]);
+
+    // Rolled back, the server keeps the English-glossed card with no label and echoes it as such — French
+    // to the engine — dated no earlier than the device's copy, which last-writer-wins would apply.
+    const older = fakeClients();
+    older.pullCards.mockResolvedValueOnce({
+      cards: [
+        { ...wire("harbour"), gloss: "a port", glossLanguage: "", clientTs: 1n, deviceId: "d" },
+        { ...wire("seldom"), gloss: "rarement", glossLanguage: "", clientTs: 1n, deviceId: "d" },
+      ],
+      cursor: 2n,
+    });
+    await new SyncEngine({ port, storage, clients: () => older.clients, deviceId: "d" }).sync();
+
+    expect(pushed(older)).toEqual([["seldom", ""]]); // the English-glossed card is held, as before
+    // Its echo is dropped — a label from a server that stores none is not information — and the French
+    // card's is applied; the cursor passes both, nothing is re-pulled.
+    expect(calls.appliedCards.at(-1)?.map((op) => [op.client_id, op.gloss_language])).toEqual([["seldom", ""]]);
+    expect(storage.store["cymbra-lingua-card-cursor"]).toBe(2);
+  });
+
   it("a French card is pushed to a server that predates the labels, as before", async () => {
     const older = fakeClients();
     const { port } = syncPort({ cardOps: [card("seldom", "rarement"), card("dwell", "demeurer", "fr")] });
