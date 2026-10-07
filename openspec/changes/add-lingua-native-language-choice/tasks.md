@@ -5,13 +5,13 @@
 - [ ] 1.1 `crates/lingua-wasm`: `reprofileBackup(backup, native, studied)`, pure, validating as `Profile::set` does, schema version 2 (D2); tests: a backup reprofiled restores on an engine of the new native; a refused choice returns an error.
 - [ ] 1.2 `src/analyzer/pairs.ts` `shippedNatives()` (D1); tests: one native today, two with a test pair list.
 - [ ] 1.3 `src/analyzer/engine.ts` `WasmAnalyzerPort.restore` rebuilds the engine when the backup's native differs from the engine's (D3); test: a restore under another native rebuilds and keeps the state.
-- [ ] 1.4 `src/background.ts` serves `lingua-native-language`: refusal, the studied-languages rule (a pure function, tested), `reprofileBackup`, the backup saved (the key written by the store's owner), the store change announced, its two engines and the `hydrated` memo dropped (D2).
+- [ ] 1.4 `src/background.ts` serves `lingua-native-language`: refusal, the studied-languages rule (a pure function, tested), `reprofileBackup`, the backup saved (the key written by the store's owner), the store change announced with its reason, the two ports' memoised engines and the `hydrated` memo cleared (D2); `onInstalled` sets `cymbra-lingua-native-chosen` on `update` (D4).
 
 ## 2. The choice (apps/lingua-extension)
 
 - [ ] 2.1 `src/reading/native-language-view.ts`: the natives of `shippedNatives()` in their own names, the current one selected, the consequence stated, hidden under two, the message sent and the host's port rebuilt (D4); its copy in the catalogue (D6). Tests: *Every reader today*, *A native language that was the only studied one*, *A native language with no pair*.
 - [ ] 2.2 Réglages « Langue »: the block above « Langues étudiées », its title from the catalogue; the onboarding's first question with the preset applied before painting on a new install; the popup's first-run call to action when the marker is unset and the store holds no backup (D4). Tests: *A new install when two native languages ship*, *A browser in another language*, *An installed extension is not asked*, *Safari without the onboarding*.
-- [ ] 2.3 The surfaces that hydrate once (popup, onboarding) rebuild their port and re-read the key on the announced store change; the content script re-reads the key and re-labels (D3).
+- [ ] 2.3 On a native change: every extension page reloads itself on the announced change, and `content.ts` tears the `ReadingSession` down and builds a new one, reading the key first (D3). Tests: the content script's rebuild on a fake store change; a page's reload hook.
 
 ## 3. What follows (apps/lingua-extension)
 
