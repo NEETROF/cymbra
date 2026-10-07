@@ -64,7 +64,7 @@ recommendation and are settled before the stage named.
 | M22 | **Existing installs stay French without being asked**; the choice is in Réglages. | Settled |
 | M23 | **The French interface is extracted byte for byte.** A typography pass, if any, is separate. | Settled |
 | M24 | **The studied side of the tables is kept once per studied language** (`tables/<studied>/`), the native side per pair (`tables/<pair>/`). | Settled |
-| M25 | The real translation engine does not run in CI; per-route soak tests are a manual tool. | Open, before stage 2 |
+| M25 | The real translation engine does not run in CI; per-route soak tests are a manual tool. | Open, before stage 2 — recommendation carried by change 9 |
 
 ## Architecture
 
@@ -146,7 +146,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 1 | 6 | `generalise-lingua-gloss-reducer`: the fr, en and es Wiktionary editions' rules at once | 4–7 | Done (proposal [#737](https://github.com/NEETROF/cymbra/pull/737)); en-fr and es-fr re-pinned, tables byte-identical |
 | 1 | 7 | `split-lingua-pack-tables-by-language` (M24) | 4–7 | Done (proposal [#739](https://github.com/NEETROF/cymbra/pull/739)); tables/en and tables/es, nothing moved |
 | 1 | 8 | `generalise-lingua-translation-routes-by-pair` | 5–8.5 | Done (proposal [#746](https://github.com/NEETROF/cymbra/pull/746)); routes keyed by pair, nothing moved |
-| 1 | 9 | `harden-lingua-translation-engine` | 2–3.5 | Not started |
+| 1 | 9 | `harden-lingua-translation-engine` | 2–3.5 | Done (proposal [#747](https://github.com/NEETROF/cymbra/pull/747)); a trap costs one respawn, two models at most; M25's recommendation carried, the owner settles it |
 | 1 | 10 | `add-lingua-native-language-server` (M4, M14), server first | 4–6.5 | Done (proposal [#748](https://github.com/NEETROF/cymbra/pull/748)); the owner deploys it and checks it from outside before change 12 |
 | 1 | 11 | `add-lingua-card-gloss-language` | 3–5.5 | Done (proposal [#750](https://github.com/NEETROF/cymbra/pull/750)); the label on the device, review shows the current pack's gloss |
 | 1 | 12 | `add-lingua-native-language-sync-client` | 3.5–6 | Not started |
