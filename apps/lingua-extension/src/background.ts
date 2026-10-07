@@ -33,7 +33,7 @@ import { isOffscreenEvent, OffscreenEngine } from "./translate/host/offscreen-en
 import { KEEPALIVE_PING } from "./translate/keepalive.ts";
 import { isModelMessage } from "./translate/model-messages.ts";
 import { UNAVAILABLE } from "./translate/port.ts";
-import { relayTranslation, relayWarm } from "./translate/host/relay.ts";
+import { pairOf, relayTranslation, relayWarm } from "./translate/host/relay.ts";
 import { isTranslateMessage, isWarmMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
 import { nativeLanguageOf, studiedLanguagesOf } from "./state/profile.ts";
@@ -349,31 +349,46 @@ if (__TRANSLATION_HOST__ !== "none") {
   // languages — is reconciled when a settings view asks, or when a translation finds nothing.
   void model.recover();
 
+  // The reader's native language from the stored profile, without an engine (model-state D2): the
+  // half of a translation's pair the page does not send (routes-by-pair D2). No backup yet: the
+  // default, as `languages` reads it.
+  const nativeLanguage = async (): Promise<string> => {
+    const stored = await loadStored(ownedStore);
+    return stored.kind === "v2" ? nativeLanguageOf(stored.backup) : DEFAULT_NATIVE;
+  };
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isTranslateMessage(message)) return undefined;
     void (async () => {
-      // Off, or the language's models not all here: the engine is never started — not even to find
+      // The page asked in the document's language; the pair is formed here (routes-by-pair D2).
+      // Off, or the pair's models not all here: the engine is never started — not even to find
       // a model missing.
-      if (!(await model.ready(message.request.language))) return UNAVAILABLE;
-      const result = await relayTranslation(engine, message.request);
+      const pair = pairOf(message.request.language, await nativeLanguage());
+      if (!(await model.ready(pair))) return UNAVAILABLE;
+      const result = await relayTranslation(engine, message.request, pair);
       // No answer from a model said to be ready: see whether it still is, so the next card
       // stops announcing a translation that cannot come.
       if (result.kind === "unavailable") void model.status();
       return result;
-    })().then(sendResponse);
+    })().then(sendResponse, () => sendResponse(UNAVAILABLE));
     return true; // async response
   });
   // A selection has begun, or a page that was translating is back (add-lingua-translation-android
   // D2, D3): load the engine before the translation is asked. Only with a model ready; a warm is
-  // "asked" for the idle release, and translates nothing.
+  // "asked" for the idle release, and translates nothing. The page asks in the document's language;
+  // the pair is formed here, as for a translation.
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isWarmMessage(message)) return undefined;
-    void relayWarm(
-      (language) => model.ready(language),
-      engine,
-      message.language,
-      () => void model.status(),
-    ).then(sendResponse);
+    void nativeLanguage()
+      .then((native) =>
+        relayWarm(
+          (pair) => model.ready(pair),
+          engine,
+          pairOf(message.language, native),
+          () => void model.status(),
+        ),
+      )
+      .then(sendResponse, () => sendResponse(false));
     return true; // async response
   });
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

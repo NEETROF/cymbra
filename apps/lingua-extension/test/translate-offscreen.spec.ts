@@ -40,7 +40,10 @@ describe("OffscreenEngine", () => {
     const send = answering();
     const engine = new OffscreenEngine(offscreen, send);
 
-    await expect(engine.translate("<b>gave up</b>", "en")).resolves.toEqual({ ok: true, html: "<b>a abandonné</b>" });
+    await expect(engine.translate("<b>gave up</b>", "en-fr")).resolves.toEqual({
+      ok: true,
+      html: "<b>a abandonné</b>",
+    });
     expect(created).toEqual([
       {
         url: "offscreen.html",
@@ -52,14 +55,14 @@ describe("OffscreenEngine", () => {
       type: OFFSCREEN_TYPE,
       op: "translate",
       markup: "<b>gave up</b>",
-      language: "en",
+      pair: "en-fr",
     });
   });
 
   it("creates one document however many requests arrive while it is being made", async () => {
     const { offscreen, created } = api();
     const engine = new OffscreenEngine(offscreen, answering());
-    await Promise.all([engine.translate("a", "en"), engine.translate("b", "en"), engine.startDownload([EN_FR])]);
+    await Promise.all([engine.translate("a", "en-fr"), engine.translate("b", "en-fr"), engine.startDownload([EN_FR])]);
     expect(created).toHaveLength(1);
   });
 
@@ -68,7 +71,7 @@ describe("OffscreenEngine", () => {
     const { offscreen, created, setExists } = api();
     setExists(true);
     const engine = new OffscreenEngine(offscreen, answering());
-    await engine.translate("a", "en");
+    await engine.translate("a", "en-fr");
     expect(created).toEqual([]);
   });
 
@@ -81,24 +84,24 @@ describe("OffscreenEngine", () => {
     });
     const engine = new OffscreenEngine(offscreen, answering());
 
-    await expect(engine.translate("a", "en")).resolves.toMatchObject({ ok: false });
+    await expect(engine.translate("a", "en-fr")).resolves.toMatchObject({ ok: false });
     fail = false;
-    await expect(engine.translate("a", "en")).resolves.toEqual({ ok: true, html: "<b>a abandonné</b>" });
+    await expect(engine.translate("a", "en-fr")).resolves.toEqual({ ok: true, html: "<b>a abandonné</b>" });
   });
 
   it("forgets a document that went away, so the next request makes another", async () => {
     const { offscreen, created, setExists } = api();
     const send = vi.fn().mockResolvedValueOnce({ ok: true, html: "un" });
     const engine = new OffscreenEngine(offscreen, send);
-    await engine.translate("a", "en");
+    await engine.translate("a", "en-fr");
 
     // Chrome closed it: no listener answers any more.
     setExists(false);
     send.mockRejectedValueOnce(new Error("Receiving end does not exist."));
-    await expect(engine.translate("b", "en")).resolves.toMatchObject({ ok: false });
+    await expect(engine.translate("b", "en-fr")).resolves.toMatchObject({ ok: false });
 
     send.mockResolvedValueOnce({ ok: true, html: "trois" });
-    await expect(engine.translate("c", "en")).resolves.toEqual({ ok: true, html: "trois" });
+    await expect(engine.translate("c", "en-fr")).resolves.toEqual({ ok: true, html: "trois" });
     expect(created).toHaveLength(2);
   });
 
@@ -108,7 +111,7 @@ describe("OffscreenEngine", () => {
       offscreen,
       vi.fn(async () => undefined),
     );
-    await expect(engine.translate("a", "en")).resolves.toMatchObject({ ok: false });
+    await expect(engine.translate("a", "en-fr")).resolves.toMatchObject({ ok: false });
   });
 
   describe("warm (add-lingua-translation-android D2, D3)", () => {
@@ -116,9 +119,9 @@ describe("OffscreenEngine", () => {
       const { offscreen, created } = api();
       const send = vi.fn(async () => true);
       const engine = new OffscreenEngine(offscreen, send);
-      await expect(engine.warm("en")).resolves.toBe(true);
+      await expect(engine.warm("en-fr")).resolves.toBe(true);
       expect(created).toHaveLength(1);
-      expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, op: "warm", language: "en" });
+      expect(send).toHaveBeenCalledWith({ type: OFFSCREEN_TYPE, op: "warm", pair: "en-fr" });
       expect(send).toHaveBeenCalledOnce();
     });
 
@@ -128,17 +131,17 @@ describe("OffscreenEngine", () => {
         new OffscreenEngine(
           offscreen,
           vi.fn(async () => true),
-        ).warm("en"),
+        ).warm("en-fr"),
       ).resolves.toBe(false);
       expect(created).toHaveLength(0);
 
       const second = api();
       const send = vi.fn<() => Promise<unknown>>(async () => Promise.reject(new Error("Receiving end does not exist")));
       const engine = new OffscreenEngine(second.offscreen, send);
-      await expect(engine.warm("en")).resolves.toBe(false);
+      await expect(engine.warm("en-fr")).resolves.toBe(false);
       second.setExists(false);
       send.mockResolvedValueOnce(true);
-      await expect(engine.warm("en")).resolves.toBe(true);
+      await expect(engine.warm("en-fr")).resolves.toBe(true);
       expect(second.created).toHaveLength(2);
     });
 
@@ -148,7 +151,7 @@ describe("OffscreenEngine", () => {
         new OffscreenEngine(
           offscreen,
           vi.fn(async () => ({ ok: true })),
-        ).warm("en"),
+        ).warm("en-fr"),
       ).resolves.toBe(false);
     });
   });
@@ -192,12 +195,12 @@ describe("OffscreenEngine", () => {
   it("closes the document to give the engine's memory back, and makes a new one next time", async () => {
     const { offscreen, created, closed } = api();
     const engine = new OffscreenEngine(offscreen, answering());
-    await engine.translate("a", "en");
+    await engine.translate("a", "en-fr");
     await engine.close();
     expect(closed()).toBe(1);
     await engine.close(); // nothing left to close
     expect(closed()).toBe(1);
-    await engine.translate("b", "en");
+    await engine.translate("b", "en-fr");
     expect(created).toHaveLength(2);
   });
 });
@@ -227,22 +230,22 @@ describe("serveOffscreen — the document's side", () => {
   it("relays a translation to the engine's channel and answers later", async () => {
     const { p } = parts();
     const sendResponse = vi.fn();
-    expect(
-      serveOffscreen({ type: OFFSCREEN_TYPE, op: "translate", markup: "x", language: "en" }, p, sendResponse),
-    ).toBe(true);
+    expect(serveOffscreen({ type: OFFSCREEN_TYPE, op: "translate", markup: "x", pair: "en-fr" }, p, sendResponse)).toBe(
+      true,
+    );
     await Promise.resolve();
     await Promise.resolve();
-    expect(p.channel.translate).toHaveBeenCalledWith("x", "en");
+    expect(p.channel.translate).toHaveBeenCalledWith("x", "en-fr");
     expect(sendResponse).toHaveBeenCalledWith({ ok: true, html: "<b>x</b>" });
   });
 
   it("warms the engine's channel and answers once it has loaded", async () => {
     const { p, state } = parts();
     const sendResponse = vi.fn();
-    expect(serveOffscreen({ type: OFFSCREEN_TYPE, op: "warm", language: "en" }, p, sendResponse)).toBe(true);
+    expect(serveOffscreen({ type: OFFSCREEN_TYPE, op: "warm", pair: "en-fr" }, p, sendResponse)).toBe(true);
     await Promise.resolve();
     await Promise.resolve();
-    expect(p.channel.warm).toHaveBeenCalledWith("en");
+    expect(p.channel.warm).toHaveBeenCalledWith("en-fr");
     expect(p.channel.translate).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith(true);
     expect(state.engine).toBe(true);
@@ -275,13 +278,16 @@ describe("serveOffscreen — the document's side", () => {
 
 describe("offscreen messages", () => {
   it("recognises the document's own requests only", () => {
-    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate", markup: "x", language: "en" })).toBe(true);
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate", markup: "x", pair: "en-fr" })).toBe(true);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "download", models: [EN_FR] })).toBe(true);
-    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "warm", language: "en" })).toBe(true);
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "warm", pair: "en-fr" })).toBe(true);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate" })).toBe(false);
-    // The language and the models are part of the request (generalise-lingua-translation-model-state).
+    // The pair and the models are part of the request (generalise-lingua-translation-model-state, routes-by-pair D2).
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate", markup: "x" })).toBe(false);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "warm" })).toBe(false);
+    // The document's language alone is not a request: the pair is formed before the document.
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "warm", language: "en" })).toBe(false);
+    expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "translate", markup: "x", language: "en" })).toBe(false);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "download" })).toBe(false);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "download", models: [1] })).toBe(false);
     expect(isOffscreenRequest({ type: OFFSCREEN_TYPE, op: "explode" })).toBe(false);
