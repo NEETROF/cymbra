@@ -30,7 +30,7 @@
 
 ## 4. Gates and docs
 
-- [ ] 4.1 Gates:
+- [x] 4.1 Gates:
   - `build.sh --reduce en-fr` and `es-fr` from the pinned sources reproduce every committed byte in the new layout;
   - `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-core -p lingua-pack -p lingua-wasm -p lingua-agent`;
   - the Python tests;
