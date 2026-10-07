@@ -11,13 +11,13 @@ formats (D4: `formatNumber`, `formatPercent`, `formatDate`), the lint and its ba
 | Surface | Files | Copy |
 |---|---|---|
 | Popup | `popup/popup.ts` (8 literals), `popup.html` (26 text nodes, aria/title « Réglages », « Retour »; sections hidden by `hidden` attributes and revealed by `render()`; aria « Réglages », « Surlignage activé », « Bibliothèque (livres EPUB) », « Statistiques d'apprentissage » paint before any script; Safari sizes its popover from the content) | status, level call to action (`chooseLevelPrompt`, change 19's module), counts (`${pct}%`), account line, « Réviser (n) » and « Niveau : » assembled in the HTML |
-| HUD | `reading/hud.ts` (6) | aria « Mots connus sur la page — ouvrir les actions », « Réviser », « Choisis ton niveau », `${pct}%` |
+| HUD | `reading/hud.ts` (6) | aria « Mots connus sur la page — ouvrir les actions », « Réviser », « Choisis ton niveau », aria « Réglages » and « Réduire », `${pct}%` |
 | Drawer | `reading/drawer.ts` (5) | « Révision », « Fermer », the session-expired line |
 | Word card | `reading/wordpopup.ts` (18 + 3 templates; the page labels at :115-117) | « Mot à mot — … », waiting, no gloss, page labels, « forme vue : « … » », the listen labels and their aria, actions, « Fermer » |
 | Selection card | `reading/selection-card.ts` (3 + 5) | kind labels, the rarity bands with `toLocaleString("fr-FR")` |
 | Side panel | `sidepanel.html` (4) | tab names |
 | Reader | `reader/copy.ts` (28 + 4, already an object), `app.ts`, `library.ts` (« Livre sans titre », saved into the book record at import: stored data, written once in the interface language of the import, not display-time copy), `reader.html` (title) | library, import, remove confirmation, page titles, `${n} %` |
-| The content script | `content.ts` → `new ReadingSession(…)` whose constructor builds the HUD, the drawer, the word card and the selection cards with their labels; `start()` reads the preferences afterwards |
+| The content script and the reader | `content.ts` and `reader/reader.ts` (the book's session, `surface: "book"`) → `new ReadingSession(…)` whose constructor builds the HUD, the drawer, the word card and the selection cards with their labels; `start()` reads the preferences afterwards |
 | Tests | `wordpopup`, `selection-card`, `rarity-text`, `hud`, `reader-app` specs assert French; no spec renders the popup, the drawer or the side panel (`popup.ts`, `sidepanel.ts`, `drawer.ts` are excluded from coverage), and none asserts the HTML pages' text |
 
 ## Goals / Non-Goals
@@ -44,11 +44,14 @@ The content script reads the interface language with its first storage read, bef
 HUD, the drawer, the word card and the selection card; the session passes each its module and the
 language at construction, so the labels set in the constructors are the catalogue's from the
 first paint, and the surfaces that need the language itself (the grammar renderer of change 18,
-the languages' names of change 19) have it. The popup, the side panel and the reader
-read the key with their first storage read, before they build anything that shows copy. A
-literal becomes `copy.key`; a fragment sentence becomes a slot message rendered by the surface
-(`copy.knownOnPage(n)` returns segments the surface wraps); a count a plural form; the languages'
-names come from change 19's module, called with the language. Re-labelling an open surface when
+the languages' names of change 19) have it. `reader/reader.ts` builds the book's session the same way and hands it the same. The popup,
+the side panel and the reader read the key with their first storage read, before they build
+anything that shows copy. Every constructor and function that gains the copy or the language
+takes it as an optional trailing parameter or option, absent meaning French, so the existing
+specs mount as before. A literal becomes `copy.key`; « Réviser (n) » and « Niveau : … » are
+change 13's slot messages `popup.review(due)` and `popup.levelLine(title, level)`, rendered into
+the nodes; a count a plural form; the languages' names come from change 19's module, called with
+the language. Re-labelling an open surface when
 the key changes is change 20's: it rebuilds the session and reloads the pages.
 
 ### D2 — The pages' static text is filled at mount, and nothing shows before
@@ -84,10 +87,12 @@ bytes.
 The spec files that render the word card, the selection card, the HUD and the reader with the
 French copy pass unchanged: that is the byte-for-byte check for those files. No spec asserts the
 popup's, the drawer's or the side panel's text (`surface-look.spec.ts` builds a drawer and asserts
-no text): this change adds one for each (`popup.spec.ts`,
-`drawer.spec.ts`, `sidepanel.spec.ts`), rendering the surface in jsdom with the French catalogue
-and asserting the text the HTML pages and the modules held before (the assertions are the
-inventory's literals), and the pages' text through `fillPage`. Each surface gains one test in
+no text): this change adds one for each: `popup.spec.ts` and
+`sidepanel.spec.ts` load the page's HTML skeleton in jsdom, call `fillPage` with the French
+catalogue and assert that every `data-copy` node and attribute holds the text the page held and
+that `data-copy-pending` is gone (`popup.ts` and `sidepanel.ts` are entry scripts with no exported
+render; their own literals are guarded by their exit from the lint's baseline); `drawer.spec.ts`
+builds a `Drawer` and asserts its tabs, its close label and the session-expired line. Each surface gains one test in
 English asserting three texts and the `lang` attributes. `lint-copy`'s baseline loses the files.
 
 ## Risks / Trade-offs
@@ -97,8 +102,8 @@ English asserting three texts and the `lang` attributes. `lint-copy`'s baseline 
   five targets in the pull request.
 - **The Safari popover sized before the fill** → the fill is synchronous after the first read;
   checked by eye.
-- **The popup's « Réviser (n) » and « Niveau : » assembled in the HTML** → slot messages rendered
-  into the nodes.
+- **The popup's « Réviser (n) » and « Niveau : » assembled in the HTML** → change 13's
+  `popup.review(due)` and `popup.levelLine(title, level)` rendered into the nodes.
 
 ## Migration Plan
 

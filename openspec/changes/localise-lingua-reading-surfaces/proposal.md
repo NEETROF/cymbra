@@ -30,8 +30,11 @@ none today.
 - **The selection card** (`selection-card.ts`): the kind labels and the rarity bands, their numbers
   through the catalogue's formatting.
 - **The side panel's page** (`sidepanel.html`): the tab names.
-- **The reader** (`reader/copy.ts`, `app.ts`, `library.ts`, `reader.html`): the library's and the
-  reader's copy, already an object, becomes the catalogue's module.
+- **The reader** (`reader/copy.ts`, `app.ts`, `library.ts`, `reader.html`): `copy.ts` keeps
+  exporting `COPY` in today's shape (`importFailed.{protected, storage, …}` included), built from
+  the catalogue's `reader` module for the interface language, so `reader-app.spec.ts` passes
+  unchanged; `library.ts` and `reader.html` read the module; `reader/reader.ts` builds the book's
+  `ReadingSession` as `content.ts` does, and hands it the language and the copy the same way.
 - **`lang`** on each page and injected host, from the interface language (the studied words
   inside a grammar line are change 18's).
 - **The baseline** loses these files; the numbers and percentages in these files go through the

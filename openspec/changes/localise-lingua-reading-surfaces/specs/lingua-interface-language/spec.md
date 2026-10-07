@@ -16,8 +16,8 @@ The popup and its page, the HUD, the injected drawer, the word card, the selecti
 - **THEN** nothing of the page shows before the catalogue fills it, and the page's `lang` is the interface language once filled
 
 #### Scenario: A surface without a spec today
-- **WHEN** the popup, the drawer or the side panel is rendered with the French catalogue in a test
-- **THEN** the text it shows is the text the HTML page or the module held before this change
+- **WHEN** the popup's page, the side panel's page or the drawer is rendered with the French catalogue in a test
+- **THEN** the text it shows is the text the page or the module held before this change
 
 #### Scenario: Off the baseline
 - **WHEN** the lint runs after this change
