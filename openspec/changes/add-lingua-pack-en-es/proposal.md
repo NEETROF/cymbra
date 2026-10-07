@@ -6,41 +6,46 @@ Change 22 of the [language matrix programme](../../../docs/lingua/language-matri
 the second of stage 2, decision M1: en-es is the second new audience, Spanish speakers studying
 English. Its studied side exists (`tables/en/`, English's reference en-fr); its glosses do not:
 no shipped pack is glossed in Spanish, and the Spanish Wiktionary's English section is small —
-22,965 entries, 35,163 senses, 9.8 % pointers (the census of change 6, whose `reduce_edition_es.
-py` already holds its rules). The study measured 93.4 / 85.2 / 71.9 % of the commonest 5,000 /
-10,000 / 20,000 English lemmas glossed when the English Wiktionary's own translation tables —
-the Spanish translations its English entries list, written by people (M5) — fill the gaps: a
-source no pair has used, which needs the English Wiktionary's English entries, a 2 GB extract no
-pipeline step has fetched (risk 6: the per-language extracts are deprecated but served; the raw
-dump is the fallback).
+22,965 entries, 35,163 senses, 9.8 % pointers (the census of change 6, whose
+`reduce_edition_es.py` already holds its rules). The study measured 93.4 / 85.2 / 71.9 % of the
+commonest 5,000 / 10,000 / 20,000 English lemmas glossed when the English Wiktionary's own
+translation tables — the Spanish translations its English entries list, written by people (M5)
+— fill the gaps: a source no pair has read, which needs the English Wiktionary's English entries,
+an extract no step has fetched (risk 6).
 
-Change 21 settled the shape of a reader pair: the native side committed, the studied side loaded
-from the reference's reducer by import, the pin recording what was read, the digest covering the
-reference's rules, the credits naming both sides. This change reuses it and adds what en-es needs
-alone: the Spanish edition bound to an English studied side, two new derived files, and a gloss
-coverage published with the pair when it ships (change 35), with its floor fixed before the
-measurement is committed (M6's precedent for a thin pair).
+Change 21 settled the shape of a reader pair: the native side alone, from the committed studied
+tables and the pair's own sources, a digest of its own, a pin recording the studied tables it
+read, sources shared by release. This change reuses it and adds what en-es needs alone: the
+Spanish edition bound to an English studied side, three tables of glosses (entries, direct and
+inverted — es-fr's own shape), two derived files from large dumps, the English extract read as
+served, and a coverage floor the owner sets on the pull request, since en-es is the thin pair
+risk 5 names.
 
 ## What Changes
 
-- **`tables/en-es/`**: the native side only; `tables/en/` is read, not written.
-- **`reduce-en-es.py`**: en-fr's English studied side loaded by import; the native side bound to
-  the Spanish edition (`reduce_edition_es.ES`): the Spanish Wiktionary's English section as
-  entries — a new derived file, `("entries", "en")`, from es-fr's `kaikki-es` whole-edition dump —
-  with the English Wiktionary's Spanish translations as the direct fallback — a new derived file,
-  `("translations", "en", "es")`, from the English Wiktionary's English extract (`kaikki.org/
-  dictionary/English`), derived once in `fetch_live` and published as a release asset, so a pinned
-  reduction fetches ≈ 10 MB, not 2 GB. No inverted table, no pivot, no machine translation.
-- **The pin, digest and credits** as change 21 settled them; `max_lemmas` 40,000 as en-fr.
-- **The pipeline knows it**: `KAIKKI`/`DUMPS` entries (a new dump source, the English extract, with
-  its licence line), the dispatch options and monthly matrix, the reduce job (after en-fr),
-  `pack_report`, `testdata/en-es/`.
-- **Measured and shown**: gloss coverage (`--pair en-es`, not published until the pair ships), the
-  share of glosses that are translation-table words rather than definitions, a sample of 100
-  glosses from the top 10,000 for the owner (M9), the pack's size.
-- **A floor for a thin pair** (M6's rule, applied to en-es as it will be to fr-es): the three
-  coverage figures the pair must reach to ship, fixed in this change's spec at the study's
-  measurement less two points, so that a regression in the sources is caught before change 35.
+- **`tables/en-es/`**: the native side only; `tables/en/` is read as committed.
+- **`reduce-en-es.py`**: the native side alone, `EDITION = spanish.ES`: entries = the Spanish
+  Wiktionary's English section (a derived file, `("entries", "en")`, from es-fr's `kaikki-es`
+  whole-edition dump); direct = the English Wiktionary's Spanish translations (a derived file,
+  `("translations", "en", "es")`, from the English Wiktionary's English extract); inverted = the
+  Spanish Wiktionary's English translations read backwards (`kaikki-es-traductions-en.jsonl`,
+  change 21's derived file) — M5 admits both directions, as es-fr uses them. No pivot, no
+  machine translation.
+- **The English extract as a dump source**: `kaikki.org/dictionary/English/kaikki.org-dictionary-
+  English.jsonl`, served uncompressed; `derive` reads a plain or a gzipped file; fetched at an
+  update only, derived in one pass, kept nowhere; its derived files published with the snapshot.
+  The programme's risk 6 names the raw English dump; this change reads the extract and says why,
+  and change 38 switches the address.
+- **The pin and the credits** as change 21 settled them, the English studied side's sources
+  credited as en-fr's notice credits them (ESDB with its WordNet notice, the French Wiktionary's
+  form links, CEFR-J, Octanove, wordfreq); `max_lemmas` 40,000 as en-fr.
+- **The pipeline knows it**: a pair whose sources are dumps alone (no studied-side extract), the
+  dispatch options and monthly matrix, the reduce job (after en-fr), `pack_report`,
+  `testdata/en-es/`.
+- **Measured and shown**: gloss coverage against a floor the owner sets on the pull request
+  (proposed at the study's figures less two points: 91.4 / 83.2 / 69.9 %), the share of glosses
+  that came from a translation table rather than an entry among the glossed lemmas of the top
+  10,000, a sample of 100 glosses, the pack's size.
 
 ## Capabilities
 
@@ -51,19 +56,19 @@ None.
 ### Modified Capabilities
 
 - `lingua-data-packs`: ADDED *English is glossed in Spanish from the Spanish Wiktionary's English
-  section and the English Wiktionary's translation tables*, *A source derived from a large dump
-  is fetched as its derived files*. The requirements of change 21 (*A pair of a studied language's
-  second native language*, *A non-reference pair's pin records what it read*) apply as written;
-  this change is archived after it.
+  section and the English Wiktionary's translation tables*; MODIFIED *Sources derived from whole
+  Wiktionary dumps are pinned* — one sentence: a language's extract is read the same way, plain
+  or gzipped; both scenarios kept. Held by no open change. The requirements of change 21 (*A pair
+  of a studied language's second native language*, *A reader pair's pin records the studied
+  tables it read*) apply as written; this change is archived after it.
 
 ## Impact
 
 - **Products.** Cymbra Lingua only: `scripts/lingua-data` (the reducer, `pack_sources.py`, the
-  tables, SOURCES.md, the READMEs), `.github/workflows/lingua-pack-update.yml`, `testdata`. ID,
-  Music, Live, the back office and the site are untouched.
+  tables, `testdata/en-es/`, SOURCES.md, the READMEs), `.github/workflows/lingua-pack-update.yml`.
+  ID, Music, Live, the back office and the site are untouched.
 - **No byte moves**: en-fr's, es-fr's and es-en's tables, pins, packs and goldens are untouched;
   `packs.json` is unchanged; the site's figures are unchanged until the pair ships.
-- **The reduce job** grows by one pair reduced after en-fr (the derived files are small; the
-  English extract is fetched only by `fetch_live`, at an update).
+- **The reduce job** grows by one pair reduced after en-fr, from small derived assets.
 - **Not here.** Shipping en-es (change 35, after change 9); the Spanish card wording (24); the
-  en-es model (25) and marks (26); the Spanish interface (13–20).
+  en-es model (25) and marks (26); the Spanish interface (13–20); the raw dumps (38).

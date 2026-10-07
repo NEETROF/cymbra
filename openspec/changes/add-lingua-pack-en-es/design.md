@@ -2,82 +2,99 @@
 
 ## Context
 
-See proposal.md (Why), and change 21's design (D1 the reducer by import, D2 the sources, D3 the
-pin and `pack_version`, D4 the credits, D5 the owner's settings, D6 not shipped). What en-es
-needs on top:
+See proposal.md (Why), and change 21's design (D1 the native side alone, D2 shared sources and
+one release per pair, D3 the pin's studied record, D4 the credits, D5 the owner's settings, D6
+not shipped and the floor). What en-es needs on top:
 
 | What | Where |
 |---|---|
-| The Spanish edition's rules | `reduce_edition_es.py` (`ES`: form-of pointers after « de/del », notes and sense-link subscripts, letters; `capitalised` true; `long_parenthesis` 0), tested on recorded senses; `AGlossIsWrittenInTheReadersLanguage` already derives `("translations", "en", "es")` from a made-up English entry and glosses "house" as « Casa, vivienda » |
-| The Spanish Wiktionary's English section | es-fr's `kaikki-es` source: the whole-edition dump `eswiktionary/raw-wiktextract-data.jsonl.gz` (98 MB), from which `kaikki-es-traductions.jsonl` (es→fr) is derived; its English entries were censused and never kept; there is no per-language eswiktionary URL |
-| The English Wiktionary's translation tables | the English entries' tables (68,579 entries with sense-level Spanish translations); no step fetches the English Wiktionary's English extract (`kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl`, ≈ 2 GB; the raw dump is larger); `translations_of` reads entry- and sense-level tables; `derive` makes one gzip pass |
-| `DUMPS` | per pair; a derived file is a release asset (`lingua-pack-sources-<pair>-<snapshot>`), published by `update`; `fetch_pinned` downloads assets, never a dump |
-| The reduce job | 45 minutes, ≈ 1.5 GB per pair; en-fr 10 s, es-fr 31 s |
-| The English studied side | `tables/en/` (reference en-fr); `reduce-en-fr.py` holds it and binds `french.FR` |
-| Coverage | `gloss_coverage.py` top 5k/10k/20k of `tables/en/freq.tsv` in the pair's `gloss.tsv`; published for `packs.json`'s pairs only |
-| M6 | fr-es ships with its coverage published, a floor fixed before the committed measurement |
+| The Spanish edition's rules | `reduce_edition_es.py` (`ES`: form-of pointers after « de/del », notes and sense-link subscripts, letters; `capitalised` true; `long_parenthesis` 0), tested on recorded senses; `AGlossIsWrittenInTheReadersLanguage` derives `("translations", "en", "es")` from a made-up English entry and glosses "house" as « Casa, vivienda » |
+| The Spanish Wiktionary's English section | es-fr's `kaikki-es` source: the whole-edition dump `eswiktionary/raw-wiktextract-data.jsonl.gz`, from which `kaikki-es-traductions.jsonl` (es→fr) is derived, and change 21 derives `kaikki-es-traductions-en.jsonl` (es→en); its English entries were censused and never kept; no per-language eswiktionary address exists |
+| The English Wiktionary's translation tables | the English entries' tables (68,579 entries with sense-level Spanish translations); no step fetches the English Wiktionary's English extract (`kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl`, served uncompressed; the repository records no size for it, nor for the raw dump); `translations_of` reads entry- and sense-level tables; `derive` opens a dump with `gzip.open` |
+| `DUMPS` | per pair; a derived file is a release asset; `fetch_live` downloads each dump as `<name>.dump.jsonl.gz`; the dump record holds release, url, fetched, last_modified and files; `fetch_pinned`/`fetch_live` require `KAIKKI[pair]` today |
+| `native_tables` | entries, then direct and inverted tables, locutions winning; es-fr reads both directions |
+| The English studied side | `tables/en/` (reference en-fr); its sources are en-fr's: the French Wiktionary's form links, ESDB (SCOWL, with its WordNet notice), CEFR-J and Octanove, wordfreq |
+| Coverage | `gloss_coverage.py` top 5k/10k/20k of `tables/en/freq.tsv` in the pair's `gloss.tsv`; `--pair` and `--floor` from change 21; the reducer prints `native_tables`' primary count to stderr |
+| Risks | 5: a thin pair reads as a lesser product (en-es, fr-es), mitigated by published like-for-like coverage and a floor; 6: kaikki removes its per-language files, mitigated by "en-es deriving from the raw English dump", a snapshot, and change 38 |
 
 ## Goals / Non-Goals
 
 **Goals:**
 - A committed, pinned, reproducible en-es, whose pinned reduction fetches small derived files.
-- Glosses written by people, in Spanish: the Spanish Wiktionary's definitions first, the English
-  Wiktionary's translation-table words second (M5).
-- A floor the pair must reach to ship, fixed before the measurement.
+- Glosses written by people, in Spanish: the Spanish Wiktionary's definitions first, the
+  translation tables' words second, in both directions (M5).
+- A floor the owner sets, before the measurement is committed.
 
 **Non-Goals:**
 - Shipping (35), the card wording (24), the model (25), the marks (26).
-- Change 38's move to raw dumps for every pair: this change fetches one more extract the way the
-  others are fetched, and leaves the migration to 38.
+- Change 38's move to raw dumps for every pair: this change reads one extract and leaves the
+  move to 38 with a one-line change of address.
 
 ## Decisions
 
-### D1 — `reduce-en-es.py`: en-fr's studied side by import, the Spanish edition bound
+### D1 — `reduce-en-es.py`: the native side alone, three sources, the Spanish edition
 
-As change 21's D1: `reduce-en-fr.py` loaded by `importlib` for the English studied side (its
-output left in `work`), `EDITION = spanish.ES`, `native_tables(entries, direct)`: entries = the
-Spanish Wiktionary's English section, direct = the English Wiktionary's Spanish translations,
-ordered as the table lists them; no inverted table. `max_lemmas` 40,000, as en-fr.
+As change 21's D1: `tables/en/forms.tsv` and `freq.tsv` read as committed, `EDITION =
+spanish.ES`, `native_tables(entries, direct, inverted)`: entries = the Spanish Wiktionary's
+English section; direct = the English Wiktionary's Spanish translations, in the table's order;
+inverted = the Spanish Wiktionary's English translations read backwards, ordered by Spanish
+frequency, as es-fr orders its inverted table by French frequency. `max_lemmas` 40,000, as en-fr.
+The digest is `reduce-en-es.py`, `reduce_common.py` and `reduce_edition_es.py`.
 
-### D2 — Two derived files, one new dump source
+### D2 — Two derived files, one new dump source, the extract read as served
 
 `DUMPS["en-es"]`:
-- `kaikki-es-English.jsonl`, `("entries", "en")` from es-fr's `kaikki-es` dump (the same URL, the
-  same snapshot when both pairs are updated together, derived in the same pass as es-fr's and
-  es-en's files);
+- `kaikki-es-English.jsonl`, `("entries", "en")` from es-fr's `kaikki-es` dump (the same address;
+  en-es's update downloads the dump and derives its file; the Spanish Wiktionary's dump is 98 MB
+  by the study's measure — recorded at the first update);
 - `kaikki-en-traductions-es.jsonl`, `("translations", "en", "es")` from a new dump source,
-  `kaikki-en`: the English Wiktionary's English extract (`kaikki.org/dictionary/English/kaikki.
-  org-dictionary-English.jsonl`), fetched by `fetch_live` only, derived in one pass, never kept.
-Both are release assets of `lingua-pack-sources-en-es-<snapshot>`; a pinned reduction fetches
-them and en-fr's assets, not the extract. `pin.json` records the extract's URL, size, sha256 and
-`last_modified` as the other dumps' are recorded. If kaikki stops serving the per-language
-extract, the raw dump is the source — change 38's work, which this pin makes a one-line change.
+  `kaikki-en`: the English Wiktionary's English extract, served uncompressed — `fetch_live` saves
+  a dump as it is served and `derive` reads a plain or a gzipped file, told apart by the gzip
+  magic. Fetched by `fetch_live` only, derived in one pass, never kept.
+Both are release assets of `lingua-pack-sources-en-es-<snapshot>`; the inverted table is change
+21's asset, named by its release in en-es's pin (change 21 D2). A pinned reduction fetches the
+three derived files and nothing larger. The dump records are written as every dump's is
+(release, address, fetched, last_modified, files).
 
-### D3 — A floor, fixed now
+Why the extract and not the raw dump risk 6 names: the raw English dump is several times the
+extract and holds every language's entries; `derive` reads both, so the address is the only
+difference, and the extract keeps the update within the job's reach today. If kaikki stops
+serving the extract, change 38 switches the address to the raw dump; this change says so in
+`SOURCES.md`.
 
-The spec fixes the floor at the study's figures less two points: 91.4 / 83.2 / 69.9 %. A
-committed measurement under it fails `gloss_coverage.py --pair en-es --floor`, which the reduce
-job runs; change 35 publishes the measured figures with the pair. The share of glosses that are
-translation-table words (rather than the Spanish Wiktionary's definitions) is measured and shown
-beside, as risk 5 asks.
+### D3 — A floor the owner sets
 
-### D4 — The owner's review
+Risk 5 names en-es; M6's rule for fr-es — a floor, and what happens below it, fixed before the
+committed measurement — is applied here, and the owner sets the value on this change's pull
+request, where the study's figures less two points (91.4 / 83.2 / 69.9 %) are proposed. The floor
+is enforced by `gloss_coverage.py --pair en-es --floor` in the reduce job and in the `check` job's
+Python tests; a committed measurement under it fails. Change 35 publishes the measured figures
+with the pair.
+
+### D4 — The translation-table share
+
+Among the glossed lemmas of the top 10,000, the share whose gloss came from a translation table
+(direct or inverted) rather than from an entry. `native_tables` already counts the primary
+source; the reducer records the source per lemma while reducing and prints the share to stderr,
+and `pack_report` prints it beside the coverage; it is shown in the pull request and in the
+tables' README, not stored in the pack.
+
+### D5 — The owner's review
 
 A sample of 100 glosses from the top 10,000 — the definitions and the translation-table words
-marked as such — in the pull request (M9); the Spanish edition's settings stay as change 6 set
-them unless the sample says otherwise.
+marked as such — in the pull request; the Spanish edition's settings stay as change 6 set them
+unless the sample says otherwise.
 
 ## Risks / Trade-offs
 
-- **The English extract is ≈ 2 GB** → fetched by `fetch_live` at an update only; the reduce job
-  fetches the derived files (≈ 10 MB).
-- **A thin pair that reads as a lesser product** (risk 5) → the floor (D3), the share of
-  translation-table glosses shown, and change 35's published figures.
-- **kaikki's per-language extracts removed** (risk 6) → the pin names the URL; change 38 moves
-  every pair to the raw dumps.
-- **A gloss in a third language** → the direct table is en→es only.
+- **The English extract's size is unknown to the repository** → measured and recorded at the
+  first update; `fetch_live` runs at an update, not in the reduce job.
+- **A thin pair that reads as a lesser product** (risk 5) → the floor (D3), the share (D4), and
+  change 35's published figures.
+- **kaikki's per-language extracts removed** (risk 6) → the address in the pin; change 38.
+- **A gloss in a third language** → the tables are en→es and es→en only.
 
 ## Migration Plan
 
-No release: tables and tooling only. The first `lingua-pack-update` dispatch for en-es publishes
-its derived files' release.
+No release: tables and tooling only. en-es's first `lingua-pack-update` dispatch runs on the
+pull request branch and publishes its derived files' release; the pinned reduction follows.

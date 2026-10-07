@@ -1,35 +1,37 @@
 ## ADDED Requirements
 
 ### Requirement: English is glossed in Spanish from the Spanish Wiktionary's English section and the English Wiktionary's translation tables
-en-es's glosses SHALL be reduced from the Spanish Wiktionary's English section with the Spanish edition's rules, with the English Wiktionary's Spanish translation tables as the direct fallback — words people wrote, in Spanish — and no inverted table, no pivot and no machine translation; the pair SHALL read the English studied tables through en-fr's reducer as a reader pair does. The measured coverage of the 5,000, 10,000 and 20,000 commonest English lemmas SHALL be at least 91.4, 83.2 and 69.9 %, checked by the reduce job, and the share of glosses that are translation-table words SHALL be measured and shown beside it.
+en-es's glosses SHALL be reduced from the Spanish Wiktionary's English section with the Spanish edition's rules, with the English Wiktionary's Spanish translation tables as the direct fallback and the Spanish Wiktionary's English translation tables read backwards as the inverted one — words people wrote, in Spanish — and no pivot and no machine translation; the pair SHALL read the committed English studied tables as a reader pair does. The measured coverage of the 5,000, 10,000 and 20,000 commonest English lemmas SHALL be at least the floor the owner sets before the measurement is committed, checked by the reduce job, and the share of glossed lemmas among the 10,000 commonest whose gloss came from a translation table SHALL be measured and shown.
 
 #### Scenario: A definition first
 - **WHEN** an English lemma has an entry in the Spanish Wiktionary
 - **THEN** its gloss is that entry's definition, reduced by the Spanish edition's rules
 
-#### Scenario: A translation-table gloss
+#### Scenario: A direct-table gloss
 - **WHEN** an English lemma has no Spanish Wiktionary entry and its English Wiktionary entry lists Spanish translations
-- **THEN** its gloss is those translations, at most three, capitalised as the edition does
+- **THEN** its gloss is those translations, at most three per part of speech, as the Spanish edition's rules write them
+
+#### Scenario: An inverted-table gloss
+- **WHEN** an English lemma has neither, and Spanish Wiktionary entries list it as their English translation
+- **THEN** its gloss is those Spanish lemmas, ordered by Spanish frequency
 
 #### Scenario: The floor
-- **WHEN** a committed en-es measures under 91.4, 83.2 or 69.9 %
+- **WHEN** a committed en-es measures under the floor the owner set
 - **THEN** the reduce job fails, naming the figure
 
-#### Scenario: Not shipped
-- **WHEN** this change is merged
-- **THEN** `packs.json`, the package and the site's figures are unchanged
+## MODIFIED Requirements
 
-### Requirement: A source derived from a large dump is fetched as its derived files
-A pair whose source is a dump or an extract too large for the reduce job SHALL record it in its pin with its address, size, sha256 and modification date, SHALL derive from it, at an update, only the files the reducer reads, SHALL publish those files as the snapshot's release assets, and SHALL fetch those files alone when reduced from its pinned sources.
+### Requirement: Sources derived from whole Wiktionary dumps are pinned
+A pair MAY read kaikki's dump of a whole Wiktionary edition, or kaikki's extract of one language's entries, served gzipped or plain. The pipeline SHALL never keep such a dump or extract whole: it SHALL keep each file the pair derives from it (a language's entries, or the translations its entries list into another language) as an asset of the snapshot's release, recorded in `pin.json` by the sha256 of its decompressed bytes, and SHALL refuse a fetched file whose bytes differ.
 
-#### Scenario: An update
-- **WHEN** `lingua-pack-update` runs for en-es in update mode
-- **THEN** it fetches the English Wiktionary's English extract once, derives the Spanish translation tables from it, publishes them with the snapshot, and keeps the extract nowhere
+#### Scenario: An update keeps the derived files
+- **WHEN** `lingua-pack-update` reads today's sources for es-fr
+- **THEN** the files derived from the French and Spanish Wiktionaries' dumps are recorded in `pin.json` and published with the snapshot's release, and the dumps are not kept
 
-#### Scenario: A pinned reduction
-- **WHEN** the reduce job reduces en-es from its pinned sources
-- **THEN** it fetches the derived files and en-fr's assets, never the extract, and reproduces every committed byte
+#### Scenario: A re-reduction refuses other bytes
+- **WHEN** `build.sh --reduce es-fr` fetches a derived file whose decompressed sha256 differs from `pin.json`
+- **THEN** it fails, naming the source and the file
 
-#### Scenario: The extract moves
-- **WHEN** the extract's modification date or sha256 differs from the pin's at an update
-- **THEN** the update records the new values, and the reduce job keeps reproducing the pinned bytes from the published assets
+#### Scenario: An extract served plain
+- **WHEN** `lingua-pack-update` reads the English Wiktionary's English extract for en-es
+- **THEN** the Spanish translation tables are derived from it in one pass, published with the snapshot, and the extract is not kept
