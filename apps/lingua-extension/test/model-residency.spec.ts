@@ -6,6 +6,7 @@ import {
   MODEL_BOUND,
   modelsOf,
   NONE,
+  orphans,
   type Residency,
   toLoad,
   used,
@@ -154,5 +155,132 @@ describe("The engine holds at most two models (harden-lingua-translation-engine 
     used(r, "en-fr");
     loaded(r, ROUTE["fr-en"]!);
     expect(JSON.stringify(r)).toBe(before);
+  });
+});
+
+describe("The worker's bookkeeping follows the decision: what it holds is the union of its routes", () => {
+  /**
+   * engine-worker.ts's steps, over a set of model ids standing for the engine's models: decide on
+   * what is held, delete, build, record — and, when a build fails, delete what no route goes through.
+   */
+  function worker() {
+    const models = new Set<string>();
+    let residency: Residency = NONE;
+    const union = () => [...new Set(residency.flatMap((r) => r.models))].sort();
+    return {
+      models,
+      residency: () => residency,
+      /** What the worker holds is its routes' union, and never more than the bound. */
+      invariant() {
+        expect([...models].sort()).toEqual(union());
+        expect(models.size).toBeLessThanOrEqual(MODEL_BOUND);
+      },
+      load(route: LoadedRoute) {
+        if (modelsOf(residency, route.pair).length > 0) {
+          residency = used(residency, route.pair);
+          return { evict: [], drop: [] };
+        }
+        const decision = toLoad(residency, route, { held: models });
+        for (const id of decision.evict) models.delete(id);
+        residency = decision.residency;
+        for (const id of route.models) models.add(id);
+        residency = loaded(residency, route);
+        return decision;
+      },
+      /** The decision applied, `built` built, then the build failed: as the worker, delete what no route goes through. */
+      failToLoad(route: LoadedRoute, built: string[]) {
+        const decision = toLoad(residency, route, { held: models });
+        for (const id of decision.evict) models.delete(id);
+        residency = decision.residency;
+        for (const id of built) models.add(id);
+        for (const id of orphans(models, residency)) models.delete(id);
+        return decision;
+      },
+    };
+  }
+
+  it("es-fr, then fr-en, then es-en: the model es-fr leaves behind is deleted with its route, and the worker holds two", () => {
+    const w = worker();
+    w.load(ROUTE["es-fr"]!);
+    expect([...w.models]).toEqual([ES_EN, EN_FR]);
+    const french = w.load(ROUTE["fr-en"]!);
+    // es-en goes by the bound and drops es-fr; en-fr, es-fr's other model, is left with no route and goes with it.
+    expect(french.evict).toEqual([ES_EN, EN_FR]);
+    expect(french.drop).toEqual(["es-fr"]);
+    expect([...w.models]).toEqual([FR_EN]);
+    w.invariant();
+    const spanish = w.load(ROUTE["es-en"]!);
+    expect(spanish.evict).toEqual([]);
+    expect([...w.models]).toEqual([FR_EN, ES_EN]); // two — not en-fr, fr-en and es-en
+    w.invariant();
+  });
+
+  it("es-fr, then en-es, then es-en: the same, through the other native's route", () => {
+    const w = worker();
+    w.load(ROUTE["es-fr"]!);
+    const first = w.load(ROUTE["en-es"]!);
+    expect(first.evict).toEqual([ES_EN, EN_FR]);
+    expect(first.drop).toEqual(["es-fr"]);
+    expect([...w.models]).toEqual([EN_ES]);
+    w.load(ROUTE["es-en"]!);
+    expect([...w.models]).toEqual([EN_ES, ES_EN]);
+    w.invariant();
+  });
+
+  it("every walk of four loads over the matrix's six routes keeps the worker at two models, the union of its routes", () => {
+    const routes = Object.values(ROUTE);
+    for (const a of routes) {
+      for (const b of routes) {
+        for (const c of routes) {
+          for (const d of routes) {
+            const w = worker();
+            for (const route of [a, b, c, d]) {
+              w.load(route);
+              w.invariant();
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("a model held outside every route is deleted first, whatever the bound, and before a route is dropped for it", () => {
+    const r = load(NONE, ROUTE["en-fr"]!).residency;
+    const decision = toLoad(r, ROUTE["fr-en"]!, { held: [EN_FR, ES_EN] }); // es-en held by no route
+    expect(decision.evict).toEqual([ES_EN]);
+    expect(decision.drop).toEqual([]); // en-fr fits beside fr-en once the orphan is gone
+    expect(pairs(decision.residency)).toEqual(["en-fr"]);
+  });
+
+  it("a route over a model the worker does not hold is dropped: a route over a deleted model is no route", () => {
+    const r = load(load(NONE, ROUTE["en-fr"]!).residency, ROUTE["es-en"]!).residency;
+    const decision = toLoad(r, ROUTE["fr-en"]!, { held: [ES_EN] });
+    expect(decision.drop).toEqual(["en-fr"]);
+    expect(decision.evict).toEqual([]);
+    expect(pairs(decision.residency)).toEqual(["es-en"]);
+  });
+
+  it("orphans: the models held that no route goes through", () => {
+    const r = load(NONE, ROUTE["es-fr"]!).residency;
+    expect(orphans([ES_EN, EN_FR, FR_EN], r)).toEqual([FR_EN]);
+    expect(orphans([ES_EN], NONE)).toEqual([ES_EN]);
+    expect(orphans([], r)).toEqual([]);
+  });
+
+  it("a build that fails after the decision leaves the worker holding its routes' models and no more", () => {
+    const w = worker();
+    // The first model of es-fr built, the second not: the first is deleted with the failure.
+    expect(w.failToLoad(ROUTE["es-fr"]!, [ES_EN]).evict).toEqual([]);
+    expect([...w.models]).toEqual([]);
+    w.invariant();
+    // es-fr held; a route over es-en and a model that cannot be built: en-fr goes by the bound and
+    // es-fr with it, es-en stays for the route — which fails. Kept, es-en would be held for nothing.
+    w.load(ROUTE["es-fr"]!);
+    const decision = w.failToLoad({ pair: "es-it", models: [ES_EN, "en-it/base-memory/2.0"] }, []);
+    expect(decision.evict).toEqual([EN_FR]);
+    expect(decision.drop).toEqual(["es-fr"]);
+    expect(w.residency()).toEqual([]);
+    expect([...w.models]).toEqual([]);
+    w.invariant();
   });
 });

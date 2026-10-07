@@ -10,6 +10,12 @@
 // least recently used model the new route does not need goes first — a load and a translation
 // both count as uses, and in a pivot the second model is used after the first — and every route
 // that went through it is dropped with it: a route over a deleted model is no route.
+//
+// The invariant the decision keeps is that what the worker holds is the union of its routes. A
+// route dropped with a deleted model leaves its other model with no route; that model is deleted
+// too, unless the new route needs it — kept, it would be held and counted by nothing, and a third
+// would fit beside it. The count is taken from the models the worker says it holds, not from the
+// routes, so a model held outside every route is found and deleted whatever left it there.
 
 /** The most models the worker holds: what one pair's route needs. */
 export const MODEL_BOUND = 2;
@@ -23,12 +29,23 @@ export interface LoadedRoute {
 /** The loaded routes, least recently used first. */
 export type Residency = readonly LoadedRoute[];
 
-/** What loading a route costs: the models to delete, least recently used first, and the routes dropped with them. */
+/**
+ * What loading a route costs: the models to delete — those in no route first, then the least
+ * recently used the route does not need, then those its dropped routes leave with none — and the
+ * routes dropped with them.
+ */
 export interface LoadDecision {
   evict: string[];
   drop: string[];
   /** The residency once they are gone — the route itself is not in it until `loaded`. */
   residency: Residency;
+}
+
+/** What the worker is told before it builds: the models it holds, and the bound. */
+export interface LoadOptions {
+  /** The model ids the worker actually holds; the routes' own when not given. */
+  held?: Iterable<string>;
+  bound?: number;
 }
 
 /** Nothing loaded. */
@@ -51,7 +68,7 @@ export function modelsOf(residency: Residency, pair: string): readonly string[] 
   return residency.find((r) => r.pair === pair)?.models ?? [];
 }
 
-/** Every model held, least recently used first: a model's last use is its most recent route's, the pivot's second model after its first. */
+/** Every model a route goes through, least recently used first: a model's last use is its most recent route's, the pivot's second model after its first. */
 export function heldModels(residency: Residency): string[] {
   const recent: string[] = [];
   for (let i = residency.length - 1; i >= 0; i--) {
@@ -64,28 +81,39 @@ export function heldModels(residency: Residency): string[] {
   return recent.reverse();
 }
 
+/** Among `held`, the models no route of `residency` goes through: held for nothing, whatever left them there. */
+export function orphans(held: Iterable<string>, residency: Residency): string[] {
+  const inRoutes = new Set(residency.flatMap((r) => r.models));
+  return [...held].filter((id) => !inRoutes.has(id));
+}
+
 /**
- * What loading `route` costs, before anything is built: among the models it does not need, the
- * least recently used first, until the models held and the route's make `bound` at most. A route
- * whose models are all held costs nothing; a route of two models evicts everything else. The
- * routes that went through an evicted model are dropped with it.
+ * What loading `route` costs, before anything is built: first every model held that no route
+ * goes through, whatever the bound; then, among the models the route does not need, the least
+ * recently used first, until the models held and the route's make `bound` at most; then the
+ * models the dropped routes leave with no route. A route whose models are all held costs nothing;
+ * a route of two models evicts everything else. The routes that went through an evicted model are
+ * dropped with it, and so is a route over a model the worker does not hold.
  */
-export function toLoad(residency: Residency, route: LoadedRoute, bound: number = MODEL_BOUND): LoadDecision {
+export function toLoad(residency: Residency, route: LoadedRoute, opts: LoadOptions = {}): LoadDecision {
+  const bound = opts.bound ?? MODEL_BOUND;
   const needed = new Set(route.models);
-  const held = heldModels(residency);
-  const candidates = held.filter((id) => !needed.has(id));
-  const evict: string[] = [];
-  let count = new Set([...held, ...needed]).size;
-  for (const id of candidates) {
+  const held = new Set(opts.held ?? heldModels(residency));
+  const evict = orphans(held, residency).filter((id) => !needed.has(id));
+  let count = new Set([...held, ...needed]).size - evict.length;
+  for (const id of heldModels(residency)) {
     if (count <= bound) break;
+    if (needed.has(id) || !held.has(id)) continue;
     evict.push(id);
     count--;
   }
   const gone = new Set(evict);
-  const dropped = residency.filter((r) => r.models.some((id) => gone.has(id)));
-  return {
-    evict,
-    drop: dropped.map((r) => r.pair),
-    residency: residency.filter((r) => !dropped.includes(r)),
-  };
+  const dropped = residency.filter((r) => r.models.some((id) => gone.has(id) || !held.has(id)));
+  const remaining = residency.filter((r) => !dropped.includes(r));
+  for (const id of orphans(held, remaining)) {
+    if (gone.has(id) || needed.has(id)) continue;
+    evict.push(id);
+    gone.add(id);
+  }
+  return { evict, drop: dropped.map((r) => r.pair), residency: remaining };
 }
