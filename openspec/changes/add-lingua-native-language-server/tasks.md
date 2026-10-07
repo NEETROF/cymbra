@@ -19,8 +19,9 @@
 
 ## 4. Gates and docs
 
-- [ ] 4.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p cymbra-lingua`, `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`; `backend-it` green on the pull request; `python3 scripts/check_ci_units.py --list` unchanged (no new unit).
-- [ ] 4.2 `openspec validate add-lingua-native-language-server --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-native-language-server` exits 0; change 10 is marked done in `docs/lingua/language-matrix-programme.md`.
+- [ ] 4.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p cymbra-lingua`, `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`; `python3 scripts/check_ci_units.py --list` unchanged (no new unit); `deck_grpc.rs` and `stats_grpc.rs` carry a test module each on the edge's defaults (an empty label reads `fr`, `EN` reads `en`, the label is returned).
+- [ ] 4.2 On the pull request: `backend-it` green (the `#[ignore]` Postgres tests), `proto` reports no break.
+- [ ] 4.3 `openspec validate add-lingua-native-language-server --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-native-language-server` exits 0; change 10 is marked done in `docs/lingua/language-matrix-programme.md`.
 
 ## 5. Release (owner)
 

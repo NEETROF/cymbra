@@ -134,8 +134,13 @@ them.
   plain revert.
 - **A proto break** → three added fields, no renumbering; the `proto` workflow runs `buf
   breaking` against the target branch.
-- **A migration that locks** → two `ADD COLUMN … DEFAULT` on Postgres 11+, no rewrite; rehearsed
-  on a copy of production (task 5.1).
+- **A migration that locks** → two `ADD COLUMN … DEFAULT` on Postgres 11+, no rewrite, one short
+  access-exclusive lock on each table; the previous container is stopped before the new one
+  boots, so only the worker's jobs could hold a lock; rehearsed on a copy of production (task 5.1).
+- **A test that proves less than its name** → the Postgres tests run on a fresh database, so a
+  row "written before 0006" is a row written by SQL that names no label after it; the behaviour
+  of rows that existed before the migration is Postgres's catalogue default, rehearsed in 5.1 and
+  stated as such in the tests.
 - **A name the privacy allow-list refuses** → `gloss_language` and `native_language` contain
   none of its substrings; the test runs in CI.
 
@@ -151,7 +156,11 @@ them.
 5. Only then may `add-lingua-card-gloss-language` and `add-lingua-native-language-sync-client`
    be built for a store.
 
-Rollback: revert and redeploy; the columns stay, unread, and the flag answers `false`. Until
+Rollback: the previous image refuses to boot while the ledger holds a migration it does not
+know (`sqlx::migrate!` validates the applied versions and stops the whole server on a missing
+one — true of every migration before this one, and stated here because this design claimed a
+plain revert). The runbook is: `DELETE FROM lingua._sqlx_migrations WHERE version = 6`, then
+redeploy the previous image; the columns stay, unread, and the flag answers `false`. Until
 change 12 ships, that is all. After it, a rolled-back server writes glosses without their label:
 on rolling forward again, `UPDATE lingua.cards SET gloss_language = 'fr' WHERE updated_at >=
 <rollback>` restores the invariant — every unlabelled write during the rollback came from a

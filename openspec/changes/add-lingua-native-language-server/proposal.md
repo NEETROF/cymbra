@@ -90,9 +90,11 @@ release, which collects nothing new from any client.
   French-glossed cards only, which is every card they have ever pulled.
 - **Deployment order.** This backend release is deployed to production, and checked from
   outside, **before** any client able to create a non-French gloss or to send a native
-  language is built for a store (changes 11, 12). Rollback is a revert while no label other than
-  `fr` is stored, which is the case until change 12 ships: the columns and the flag are
-  additive, and a rolled-back server answers `language_labels: false`. After change 12 ships, a
+  language is built for a store (changes 11, 12). Rollback is a revert of the image after the ledger row of
+  migration 0006 is deleted (the previous image refuses an applied migration it does not know —
+  as for every migration before), while no label other than `fr` is stored, which is the case
+  until change 12 ships: the columns and the flag are additive, and a rolled-back server answers
+  `language_labels: false`. After change 12 ships, a
   rolled-back server would write a gloss without its label; the runbook step for that case is in
   the design's migration plan.
 - **Data.** The migration is rehearsed on a copy of production before the release; it adds two
