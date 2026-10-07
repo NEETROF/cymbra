@@ -18,7 +18,7 @@ export const card: typeof fr = {
   listenSelection: "▶ Selection",
   listenSelectionLabel: "Listen to the selection",
   listenForm: (form) => `▶ ${form}`,
-  listenSeenFormLabel: (form) => `Listen to the form seen “${form}”`,
+  listenSeenFormLabel: (form) => `Listen to the seen form “${form}”`,
   listenDictionaryFormLabel: (form) => `Listen to the dictionary form “${form}”`,
   listenWord: "▶ Word",
   listenWordLabel: "Listen to the word",

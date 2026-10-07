@@ -5,7 +5,7 @@ import type { stats as fr } from "../fr/stats.ts";
 // (`formatNumber`, the RAE's grouping).
 
 export const stats: typeof fr = {
-  pageTitle: "Estadísticas: Cymbra Lingua",
+  pageTitle: "Estadísticas — Cymbra Lingua",
   heading: "Estadísticas de aprendizaje",
   wordsRead: "Palabras leídas",
   wordsLearned: "Palabras aprendidas",
@@ -73,7 +73,7 @@ export const stats: typeof fr = {
   fraction: (known, total) => `${known} / ${total}`,
   approx: (n) => `≈\u00A0${n}`,
   noFigure: "–",
-  legend: "Confirmadas (leídas / aprendidas), presupuestas (por debajo de tu nivel), por aprender.",
+  legend: "Confirmadas (leídas / aprendidas), supuestas (por debajo de tu nivel), por aprender.",
   scopeCommon: "«corrientes»: las palabras más frecuentes hasta este nivel. ",
   scopeTaught: "«enseñadas»: las palabras básicas introducidas hasta este nivel por las listas de enseñanza. ",
   scopeTypical: (origin) => `«estimadas»: el vocabulario que suele tener un lector de este nivel, ${origin}`,

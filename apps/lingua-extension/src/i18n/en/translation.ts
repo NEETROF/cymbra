@@ -21,7 +21,7 @@ export const translation: typeof fr = {
   memorySingle: "about 200 MB",
   cost: (download, memory) =>
     `Translates your sentences on this device, sending nothing. Downloads ${download} once, then uses ` +
-    `${memory} of memory while translating. A setting of this device only.`,
+    `${memory} of memory while translating. This setting applies to this device only.`,
   failedNetwork: "The download failed: no connection. Try again once online.",
   failedUnavailable: "The download failed: the server isn't answering. Try again later.",
   failedNotTheModel: "The download failed: the file received isn't the right model. Try again later.",

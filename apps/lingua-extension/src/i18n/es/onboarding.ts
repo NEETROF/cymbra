@@ -3,7 +3,7 @@ import type { onboarding as fr } from "../fr/onboarding.ts";
 // The onboarding page's copy in Spanish — a draft after the French (src/i18n/README.md).
 
 export const onboarding: typeof fr = {
-  pageTitle: "Bienvenida: Cymbra Lingua",
+  pageTitle: "Bienvenida — Cymbra Lingua",
   heading: "Te damos la bienvenida a Cymbra Lingua",
   lead: "Resalta las palabras que aún no conoces mientras lees y repásalas en el momento oportuno, sin salir de tu página.",
   whichLanguages: "¿Qué idiomas aprendes?",

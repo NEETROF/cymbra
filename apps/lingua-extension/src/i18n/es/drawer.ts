@@ -4,7 +4,7 @@ import type { drawer as fr } from "../fr/drawer.ts";
 
 export const drawer: typeof fr = {
   review: "Repaso",
-  stats: "Estadísticas",
+  stats: "Stats",
   settings: "Ajustes",
   closeIcon: "×",
   close: "Cerrar",

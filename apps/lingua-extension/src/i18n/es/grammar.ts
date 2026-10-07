@@ -57,6 +57,7 @@ export const grammar: typeof fr = {
   articleMasculine: "el",
   articleFeminine: "la",
   articleElided: "el",
+  // Feminine: its one use is before « personas » (`persons`), where the French « les » has no gender.
   articlePlural: "las",
   genderNumber: (gender, number) => `${gender} ${number}`,
   posGender: (pos, gender) => `${pos} ${gender}`,

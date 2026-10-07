@@ -16,7 +16,7 @@ export const accountSetting: typeof fr = {
   handleOpen: "Elegir mi nombre de usuario",
   connected: "Cuentas vinculadas",
   providerHint:
-    "¿Cuenta creada con Google o Apple? Aquí, inicia sesión por correo una vez definida una contraseña en «Cuentas vinculadas», desde un navegador que ofrezca Google o Apple, o en Cymbra Music. Crear una cuenta con la misma dirección haría una segunda.",
+    "¿Cuenta creada con Google o Apple? Aquí, inicia sesión por correo una vez definida una contraseña en «Cuentas vinculadas», desde un navegador que ofrezca Google o Apple, o en Cymbra Music. Crear una cuenta con la misma dirección crearía una segunda.",
   signOut: "Cerrar sesión",
   email: "Correo electrónico",
   password: "Contraseña",

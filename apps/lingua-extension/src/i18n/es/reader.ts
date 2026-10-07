@@ -3,7 +3,7 @@ import type { reader as fr } from "../fr/reader.ts";
 // The book reader's copy in Spanish — a draft after the French (src/i18n/README.md).
 
 export const reader: typeof fr = {
-  pageTitle: "Biblioteca: Cymbra Lingua",
+  pageTitle: "Biblioteca — Cymbra Lingua",
   title: "Biblioteca",
   importButton: "Importar un libro (EPUB)",
   empty:
@@ -20,7 +20,7 @@ export const reader: typeof fr = {
     "Tu navegador no se ha comprometido a conservar tus libros: si le falta espacio, podría borrarlos. Siempre podrás volver a importarlos.",
   open: (title) => `Abrir «${title}»`,
   remove: "Eliminar",
-  removeConfirm: (title) => `¿Eliminar «${title}»? Las tarjetas que sacaste de él se quedan en tu mazo.`,
+  removeConfirm: (title) => `¿Eliminar «${title}»? Las tarjetas que has sacado de él se quedan en tu mazo.`,
   removeYes: "Sí, eliminar",
   cancel: "Cancelar",
   missing: "Este libro ya no está en tu biblioteca.",

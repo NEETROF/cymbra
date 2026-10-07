@@ -74,13 +74,13 @@ export const settings: typeof fr = {
   automatic: "Automática",
   otherVoices: "Otras voces",
   syncing: "Sincronizando…",
-  restarting: "Recuperando desde el servidor…",
-  restarted: "Recuperado desde el servidor.",
+  restarting: "Empezando de nuevo desde el servidor…",
+  restarted: "Datos recuperados del servidor.",
   partialResetDone: "Estados y calibración restablecidos.",
   dataErased: "Datos borrados.",
   tabs: "Ajustes",
 
   studiedNote:
-    "Cada página se lee en el idioma tuyo que contiene. El primero marcado es el predeterminado para los ajustes y las estadísticas.",
+    "Cada página se lee en aquel de tus idiomas que contenga. El primero marcado es el predeterminado para los ajustes y las estadísticas.",
   severalLanguagesOffer: "Varios idiomas a la vez: gratis por ahora.",
 };

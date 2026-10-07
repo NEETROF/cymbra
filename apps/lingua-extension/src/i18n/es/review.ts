@@ -19,7 +19,7 @@ export const review: typeof fr = {
   sentence: (sentence) => `«${sentence}»`,
   markKnown: "La conozco ✓",
   language: "Idioma",
-  backup: "Guardar copia",
+  backup: "Copia de seguridad",
   restore: "Restaurar",
   sourcesAndPrivacy: "Fuentes y privacidad",
   privacy: "Nada sale de tu dispositivo: el análisis y las traducciones son locales.",
@@ -35,7 +35,7 @@ export const review: typeof fr = {
   },
   summarySeparator: " · ",
   restored: "Copia restaurada.",
-  notABackup: "Archivo de copia no reconocido.",
+  notABackup: "Archivo de copia de seguridad no reconocido.",
   sources: (names) => `Fuentes: ${names}`,
   sourceSeparator: " · ",
 };

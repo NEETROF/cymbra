@@ -5,7 +5,7 @@ import type { sync as fr } from "../fr/sync.ts";
 export const sync: typeof fr = {
   notSynced: "Not synced on this device yet.",
   syncedJustNow: "Synced just now.",
-  syncedMinutesAgo: (n) => `Synced ${n} min. ago.`,
+  syncedMinutesAgo: (n) => `Synced ${n} min ago.`,
   syncedHoursAgo: (n) => `Synced ${n} h ago.`,
   lastSyncOn: (date) => `Last synced on ${date}.`,
   storageFull: "The extension's storage is full on this device — reset your local data in Settings.",

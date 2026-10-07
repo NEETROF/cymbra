@@ -11,7 +11,7 @@ export const accountSetting: typeof fr = {
   forgot: "Forgot your password?",
   signUp: "Create an account",
   signedIn: "Signed in",
-  handleMissing: "Username to choose",
+  handleMissing: "Choose a username",
   handleCta: "Choose your username to keep this account.",
   handleOpen: "Choose my username",
   connected: "Connected accounts",

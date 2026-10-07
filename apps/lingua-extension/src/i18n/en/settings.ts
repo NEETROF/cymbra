@@ -65,7 +65,7 @@ export const settings: typeof fr = {
   restartFromServer: "Start over from the server",
   eraseNote: "To erase everywhere, for good, use “Erase my Lingua data” in your account.",
   manageData: "Manage my data",
-  fullResetWarning: "Erase statuses, review deck and progress? This is final, outside sync.",
+  fullResetWarning: "Erase statuses, review deck and progress? Permanent unless synced.",
   tabLanguage: "Language",
   tabLook: "Appearance",
   tabPages: "Pages & books",

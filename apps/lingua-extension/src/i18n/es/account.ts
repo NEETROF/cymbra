@@ -3,7 +3,7 @@ import type { account as fr } from "../fr/account.ts";
 // The account page's copy in Spanish — a draft after the French (src/i18n/README.md).
 
 export const account: typeof fr = {
-  pageTitle: "Cuenta: Cymbra Lingua",
+  pageTitle: "Cuenta — Cymbra Lingua",
   heading: "Cymbra Lingua",
   pageFootnote:
     "Tu cuenta de Cymbra es la misma que en Cymbra Music. Sin cuenta, la extensión funciona por completo en este dispositivo.",
@@ -36,7 +36,7 @@ export const account: typeof fr = {
   addressTakenOrHasPassword: "Esta dirección ya la usa una cuenta de Cymbra, o tu cuenta ya tiene una contraseña.",
   addressJustTaken: "Esta dirección acaba de ser ocupada por otra cuenta. Vuelve a empezar con otra.",
 
-  erased: "Tus datos de Lingua están borrados. Tus otros dispositivos los borrarán en su próxima sincronización.",
+  erased: "Tus datos de Lingua se han borrado. Tus otros dispositivos los borrarán en su próxima sincronización.",
   providerGoogle: "Google",
   providerApple: "Apple",
   providerLocal: "Correo y contraseña",
@@ -55,8 +55,8 @@ export const account: typeof fr = {
   handleSaved: (handle) => `Anotado: tu nombre de usuario es @${handle}.`,
   signedOut: "Has cerrado sesión. Inicia sesión con otra cuenta o crea una.",
 
-  handleEmpty: (max) => `De 1 a ${max} letras o cifras.`,
-  handleInvalid: (max) => `De 1 a ${max} letras o cifras únicamente (sin espacios ni símbolos).`,
+  handleEmpty: (max) => `De 1 a ${max} letras o números.`,
+  handleInvalid: (max) => `De 1 a ${max} letras o números únicamente (sin espacios ni símbolos).`,
   handleChecking: "Comprobando…",
   handleAvailable: "¡Disponible!",
   handleTaken: "Este nombre de usuario está ocupado: prueba otro.",

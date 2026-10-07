@@ -6,7 +6,7 @@ export const hud: typeof fr = {
   noPercent: "—",
   pillLabel: "Palabras conocidas en la página: abrir las acciones",
   review: "Repasar",
-  stats: "Estadísticas",
+  stats: "Stats",
   gearIcon: "⚙",
   settings: "Ajustes",
   collapseIcon: "⌄",
