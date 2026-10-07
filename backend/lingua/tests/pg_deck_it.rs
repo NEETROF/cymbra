@@ -9,7 +9,11 @@
 //! `DEFAULT 'en'` and the `language = ANY(...)` filter exist, and migration 0005's
 //! primary-key swap only fails for real against a real server. Since
 //! add-lingua-native-language-server a card also carries the language of its gloss
-//! (migration 0006, `DEFAULT 'fr'`), a value of the row the winning write sets.
+//! (migration 0006, `DEFAULT 'fr'`), a value of the row the winning write sets, and a
+//! pull that does not say it reads labels is filtered to French-glossed cards in SQL.
+//! This database is fresh (CI boots one): every row here is written after 0006, so a
+//! row "written before it" is one written by SQL that names no label, and what that
+//! proves is the column's default, not a rewrite — see `every_stored_gloss_today`.
 //!
 //! Run: `CYMBRA_LINGUA_DATABASE_URL=… cargo test -p cymbra-lingua --test pg_deck_it -- --ignored`
 
@@ -161,8 +165,11 @@ async fn the_same_client_id_in_two_languages_is_two_rows_with_independent_lww() 
 #[tokio::test]
 #[ignore = "needs CYMBRA_LINGUA_DATABASE_URL"]
 async fn every_stored_gloss_today() {
-    // What every row written before 0006 looks like: no gloss language named. The
-    // migrator (run by `pool()`) applied 0006 over 0005 and labelled it `fr`.
+    // `pool()` ran 0006 before any row existed, so this row is written AFTER the
+    // migration, by SQL that names no gloss language — as every client's write did
+    // before the field. What it proves is the column's default: the value a row that
+    // predates 0006 also reads, by Postgres's catalogue default, without a rewrite. That
+    // a real pre-0006 row reads so is rehearsed on a copy of production (task 5.1).
     let pool = pool().await;
     let user = uuid::Uuid::new_v4();
     sqlx::query(
@@ -181,11 +188,6 @@ async fn every_stored_gloss_today() {
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].gloss, "rarement");
     assert_eq!(cards[0].gloss_language, "fr");
-    // Running the migrator again is a no-op (ADD COLUMN IF NOT EXISTS).
-    cymbra_lingua::MIGRATOR
-        .run(&pool)
-        .await
-        .expect("migrate twice");
     wipe(&pool, user).await;
 }
 
