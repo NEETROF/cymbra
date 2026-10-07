@@ -6,7 +6,7 @@
 
 ## 2. Storage (backend/lingua)
 
-- [ ] 2.1 Migration `0006_lingua_native_language.sql`: `ADD COLUMN IF NOT EXISTS gloss_language TEXT NOT NULL DEFAULT 'fr'` on `lingua.cards`, `native_language` on `lingua.daily_stats`; a header naming this change (D2).
+- [x] 2.1 Migration `0006_lingua_native_language.sql`: `ADD COLUMN IF NOT EXISTS gloss_language TEXT NOT NULL DEFAULT 'fr'` on `lingua.cards`, `native_language` on `lingua.daily_stats`; a header naming this change (D2).
 - [ ] 2.2 `language_core.rs`: `normalise_or(raw, default)`, `gloss_language(raw)` and `native_language(raw)`; `normalise` delegates with `en`; tests named after *A regional code on a label* and *A label the server has never seen*, plus the empty value and an over-long code (D3).
 - [ ] 2.3 `deck.rs` `Card.gloss_language`, `deck_grpc.rs` from/to proto through the named readers, `pg_deck.rs` insert, conflict update and select; `stats_core.rs` `DailyStat.native_language`, `stats_grpc.rs` from proto through the named reader, `pg_stats.rs` upsert and select; `ConsolidatedStat` unchanged (D5). `data_grpc.rs` answers `language_labels: true` (D4).
 - [ ] 2.4 The pull filter: `DeckRepo::changes_since` and `DeckModule::pull_cards` take `any_gloss_language`; `pg_deck.rs` withholds the cards glossed other than `fr` when it is unset, the cursor being the highest sequence returned (D7).
