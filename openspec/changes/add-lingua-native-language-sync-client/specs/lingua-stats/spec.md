@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: A device's daily statistics carry its native language
-A device SHALL keep, for each day and studied language, the native language under which the day was counted, the last one when it changed, and SHALL send it with the statistic. It SHALL send a statistic whose native language is not French only to a server whose data state says it stores the labels, and SHALL hold it otherwise. Statistics written before this requirement SHALL be read once as French.
+A device SHALL keep, for each day and studied language, the native language under which the day was counted, the last one when it changed, and SHALL send it with the statistic. It SHALL send a statistic whose native language is not French only to a server whose data state says it stores the labels, and SHALL hold it otherwise. Statistics written before this requirement SHALL be read once as French — and those written before they carried a studied language as English and French — and SHALL stay stored, so that an older build reads them.
 
 #### Scenario: A French-native device
 - **WHEN** a device whose native language is French syncs today's English statistic

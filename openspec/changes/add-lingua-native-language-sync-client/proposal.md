@@ -31,17 +31,24 @@ change and one built with it write the same rows.
 ## What Changes
 
 - **The data state read** at the start of a sync records whether the server stores the labels
-  (`native_language`, change 10), beside `card_language`.
-- **Cards.** The push sends `gloss_language` with every card, and pushes a card whose gloss is not
-  French only when the server stores labels; the pull reads `gloss_language` into the applied
-  operation (change 11 applies it).
+  (`language_labels`, change 10), beside `card_language`.
+- **Cards.** The push sends `gloss_language` with every card — the engine leaves it out for a
+  French gloss (change 11), which the server reads as `fr` — and pushes a card whose label is
+  other than `fr` only when the server stores labels; the pull says the client reads labels
+  (`any_gloss_language`, change 10 D7) and reads `gloss_language` into the applied operation
+  (change 11 applies it); the first pull that says so pulls again from the start, since the
+  server withheld non-French cards from this device before and kept no memory of them, as
+  widening the languages does.
 - **Daily statistics, v4.** The device's daily statistics are keyed by day and studied language
-  and carry the native language of the day; v3 is read once as French. The push sends
-  `native_language`, and sends a statistic whose native language is not French only when the
-  server stores labels. The recorders take the native language from the engine's.
+  and carry the native language of the day; v3 is read once as French (and v2 as English and
+  French, as v3 reads it today); v3 stays stored, as v2 does, so a downgraded build still reads
+  it. The push sends `native_language`, and sends a statistic whose native language is not French
+  only when the server stores labels. The recorders take the native language from the engine's.
 - **Disclosures.** The privacy annex (fr, en) says a card's gloss is synced with its language and a
   day's statistics with the reader's native language; the App Store answers recorded with the
-  Apple app say the same. *The backup records the reader's language profile* is reworded: the
+  Apple app (the README's « What it is in Lingua » column; the form itself has no per-type
+  description) say the same. The Spanish annex is written with the Spanish site (changes 29, 31),
+  which carries these two rows. *The backup records the reader's language profile* is reworded: the
   profile is never sent as such; the native language travels as the label of a day's statistics,
   and the language of a gloss as the card's.
 
@@ -77,3 +84,6 @@ None.
   pins no sync message.
 - **Not here.** The Spanish privacy policy (changes 29, 31); the back office's breakdown by pair
   (optional `add-admin-lingua-pair-usage`); the native language's choice (change 20).
+- **Coordination.** The open `add-lingua-card-sentence-translation` (#694) edits the same « Deck de
+  révision » row of the annex and the `CardOp` mapping in `sync.ts`; whichever lands second
+  rebases its two hunks.

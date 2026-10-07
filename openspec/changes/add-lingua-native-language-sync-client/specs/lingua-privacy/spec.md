@@ -9,4 +9,4 @@ Before the release that sends them, the Lingua annex of the published privacy po
 
 #### Scenario: The App Store answers
 - **WHEN** the App Store Connect privacy form for Cymbra Lingua is filled from the recorded answers
-- **THEN** it declares the same categories and linkage as before, their descriptions naming the gloss language and the native language
+- **THEN** it declares the same categories and linkage as before, and the recorded answers' « What it is in Lingua » column names the gloss language and the native language
