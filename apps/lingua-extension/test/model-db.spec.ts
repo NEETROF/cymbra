@@ -52,14 +52,14 @@ describe("modelDb", () => {
     expect(await db.complete(manifest)).toBe(true);
   });
 
-  it("keeps a model stored before the catalogue complete, as the release before it recorded it", async () => {
+  it("A model stored before the catalogue: it is still complete, and nothing is downloaded again", async () => {
     // generalise-lingua-translation-catalogue: the record a device holds names the model's version,
     // which is the catalogue's id for it — nothing is downloaded again after the update.
     const factory = new IDBFactory();
     const committed = JSON.parse(
       readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "model-manifest.json"), "utf8"),
     );
-    const [model] = routeOf(parseCatalogue(committed), "en");
+    const [model] = routeOf(parseCatalogue(committed), "en-fr");
     const shas = [model.files.model.sha256, model.files.lex.sha256, model.files.vocab.sha256];
     await new Promise<void>((resolve, reject) => {
       const req = factory.open(MODEL_DB, 1);

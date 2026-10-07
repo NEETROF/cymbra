@@ -80,7 +80,7 @@
     }
   },
   "routes": {
-    "en": ["en-fr/base-memory/2.0"],
-    "es": ["es-en/base-memory/2.0", "en-fr/base-memory/2.0"]
+    "en-fr": ["en-fr/base-memory/2.0"],
+    "es-fr": ["es-en/base-memory/2.0", "en-fr/base-memory/2.0"]
   }
 }

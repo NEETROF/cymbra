@@ -17,9 +17,10 @@ export const OFFSCREEN_URL = "offscreen.html";
 export const OFFSCREEN_JUSTIFICATION =
   "Runs the translation engine, and downloads its model, off every thread that paints.";
 
+/** A translation and a warm carry the pair they go through (generalise-lingua-translation-routes-by-pair D2). */
 export type OffscreenRequest =
-  | { type: typeof OFFSCREEN_TYPE; op: "translate"; markup: string; language: string }
-  | { type: typeof OFFSCREEN_TYPE; op: "warm"; language: string }
+  | { type: typeof OFFSCREEN_TYPE; op: "translate"; markup: string; pair: string }
+  | { type: typeof OFFSCREEN_TYPE; op: "warm"; pair: string }
   | { type: typeof OFFSCREEN_TYPE; op: "download"; models: string[] }
   | { type: typeof OFFSCREEN_TYPE; op: "cancel" | "downloading" };
 
@@ -29,13 +30,13 @@ export type OffscreenEvent =
 const OPS = ["translate", "warm", "download", "cancel", "downloading"];
 
 export function isOffscreenRequest(message: unknown): message is OffscreenRequest {
-  const m = message as { type?: unknown; op?: unknown; markup?: unknown; language?: unknown; models?: unknown } | null;
+  const m = message as { type?: unknown; op?: unknown; markup?: unknown; pair?: unknown; models?: unknown } | null;
   if (m?.type !== OFFSCREEN_TYPE || !OPS.includes(m.op as string)) return false;
   switch (m.op) {
     case "translate":
-      return typeof m.markup === "string" && typeof m.language === "string";
+      return typeof m.markup === "string" && typeof m.pair === "string";
     case "warm":
-      return typeof m.language === "string";
+      return typeof m.pair === "string";
     case "download":
       return Array.isArray(m.models) && m.models.every((id) => typeof id === "string");
     default:
@@ -65,14 +66,14 @@ export class OffscreenEngine implements EngineAccess {
     private readonly send: OffscreenSend,
   ) {}
 
-  async translate(markup: string, language: string): Promise<EngineReply> {
+  async translate(markup: string, pair: string): Promise<EngineReply> {
     try {
       await this.ensure();
     } catch {
       return { ok: false, reason: "the offscreen document could not be created" };
     }
     try {
-      const reply = await this.send({ type: OFFSCREEN_TYPE, op: "translate", markup, language });
+      const reply = await this.send({ type: OFFSCREEN_TYPE, op: "translate", markup, pair });
       return isEngineReply(reply) ? reply : { ok: false, reason: "the offscreen document gave no answer" };
     } catch {
       // The document went away (Chrome may close it). Forget it, so the next request makes one.
@@ -81,15 +82,15 @@ export class OffscreenEngine implements EngineAccess {
     }
   }
 
-  /** Load the engine and `language`'s route in the document, creating it when needed; translate nothing. */
-  async warm(language: string): Promise<boolean> {
+  /** Load the engine and `pair`'s route in the document, creating it when needed; translate nothing. */
+  async warm(pair: string): Promise<boolean> {
     try {
       await this.ensure();
     } catch {
       return false;
     }
     try {
-      return (await this.send({ type: OFFSCREEN_TYPE, op: "warm", language })) === true;
+      return (await this.send({ type: OFFSCREEN_TYPE, op: "warm", pair })) === true;
     } catch {
       this.ready = null; // gone: the next request makes another
       return false;
@@ -148,8 +149,8 @@ export class OffscreenEngine implements EngineAccess {
 /** What the document owns: the engine's channel and the download's host. */
 export interface OffscreenParts {
   channel: {
-    translate(markup: string, language: string): Promise<EngineReply>;
-    warm(language: string): Promise<boolean>;
+    translate(markup: string, pair: string): Promise<EngineReply>;
+    warm(pair: string): Promise<boolean>;
     running(): boolean;
   };
   downloads: { start(models: string[]): void; cancel(): void; running(): boolean };
@@ -168,10 +169,10 @@ export function serveOffscreen(
 ): boolean {
   switch (message.op) {
     case "translate":
-      void parts.channel.translate(message.markup, message.language).then(sendResponse);
+      void parts.channel.translate(message.markup, message.pair).then(sendResponse);
       return true;
     case "warm":
-      void parts.channel.warm(message.language).then(sendResponse);
+      void parts.channel.warm(message.pair).then(sendResponse);
       return true;
     case "download":
       parts.persist?.();

@@ -11,6 +11,11 @@ import type { NativeLanguage, StudiedLanguage } from "./types.ts";
 // D7): a pair is chosen by its studied and its native language, never by its studied language
 // alone, and a pair glossed in another native language is never loaded, accepted from the sync or
 // offered in Réglages.
+//
+// A pair is named `<studied>-<native>`: two language codes with one `-` between them, read at the
+// first `-` wherever a name is split — here, in tool/packs.mjs for the build, and in
+// translate/host/model-manifest.ts for a catalogue route's key — so `en-fr-x` is the pair en / fr-x
+// to each of them, and no two readers of a name disagree (test/pairs.spec.ts holds them equal).
 
 /** The pairs this bundle ships, the default language's first. */
 export const SHIPPED_PAIRS: readonly string[] = __LINGUA_PACKS__.split(",");
@@ -18,14 +23,25 @@ export const SHIPPED_PAIRS: readonly string[] = __LINGUA_PACKS__.split(",");
 /** The native language of a reader whose profile names none: every installed reader's (M22). */
 export const DEFAULT_NATIVE: NativeLanguage = "fr";
 
-/** The studied side of a pair: "en-fr" → "en". */
-function studiedOf(pair: string): string {
-  return pair.split("-")[0];
+/** The studied side of a pair: "en-fr" → "en". The side a page's gate reads (translate/setting.ts). */
+export function studiedOf(pair: string): string {
+  const dash = pair.indexOf("-");
+  return dash < 0 ? pair : pair.slice(0, dash);
 }
 
-/** The native side of a pair, the language its glosses are written in: "en-fr" → "fr". */
+/** The native side of a pair, the language its glosses are written in: "en-fr" → "fr"; "" without one. */
 export function nativeOf(pair: string): string {
-  return pair.split("-")[1] ?? "";
+  const dash = pair.indexOf("-");
+  return dash < 0 ? "" : pair.slice(dash + 1);
+}
+
+/**
+ * The pair that studies `language` for a reader of `native`, named as a catalogue route and a
+ * recorded state key it (generalise-lingua-translation-routes-by-pair D2): `pairOf("en", "fr")` is
+ * "en-fr", which `studiedOf` and `nativeOf` read back.
+ */
+export function pairOf(language: string, native: string): string {
+  return `${language}-${native}`;
 }
 
 /** The listed pairs glossed in `native`, in listed order. */
@@ -54,6 +70,22 @@ export function packPath(pair: string): string {
  */
 export function pairFor(language: string, native: string, pairs: readonly string[] = SHIPPED_PAIRS): string | null {
   return pairsOf(native, pairs).find((pair) => studiedOf(pair) === language) ?? null;
+}
+
+/**
+ * The reader's pairs, which the models kept on the device follow (routes-by-pair D5): the listed
+ * pair of `native` that studies each of `languages` — their accepted languages — in their order, a
+ * language no listed pair studies left out.
+ */
+export function readerPairs(
+  languages: readonly string[],
+  native: string,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): string[] {
+  return languages.flatMap((language) => {
+    const pair = pairFor(language, native, pairs);
+    return pair ? [pair] : [];
+  });
 }
 
 /** The studied language of `native`'s default pair, or the bundle's when no pair is glossed in it. */

@@ -58,13 +58,15 @@ programme settled.
 
 The page keeps asking in the document's language (*A translation is asked in its document's
 language*): `TranslationRequest.language` and `WarmMessage.language` are unchanged. The
-background forms the pair with `pairOf(language, native)`, a function of `relay.ts` (measured,
-tested), with the native language read from the stored profile exactly as `ModelController`'s
-`languages()` reads it today (`nativeLanguageOf`, or `DEFAULT_NATIVE` without a backup), then asks
-`model.ready(pair)`, `relayTranslation(engine, request, pair)` and `relayWarm(…, pair)`.
-`background.ts` itself is excluded from the coverage gate, so the forming and the two answers
-(*The same page for another native language*, *A pair without a route*) are tested through
-`pairOf` and the relay, with the background as thin glue. From there inward everything carries the pair:
+background forms the pair with `pairOf(language, native)` — in `src/analyzer/pairs.ts`, beside
+`studiedOf` and `nativeOf`, which read it back (a pair's name splits at its first `-`, and every
+reader of a name agrees) — with the native language read from the stored profile exactly as
+`ModelController`'s `languages()` reads it today (`storedNativeLanguage`: `nativeLanguageOf`, or
+`DEFAULT_NATIVE` without a backup), then asks `model.ready(pair)`, `relayTranslation(engine,
+request, pair)` and `relayWarm(…, pair)`. `background.ts` itself is excluded from the coverage gate,
+so the forming, the gate and the two answers (*The same page for another native language*, *A pair
+without a route*) live in `relay.ts`'s `answerTranslation` and `answerWarm`, tested, with the
+background as thin glue. From there inward everything carries the pair:
 `EngineAccess.translate(markup, pair)` and `warm(pair)`; the offscreen `translate` and `warm`
 requests; `WorkerRequest` `load` and `translate`; the channel's `loads`; the worker's `routes`.
 

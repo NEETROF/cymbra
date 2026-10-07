@@ -44,8 +44,19 @@ taken again.
   languages it translates between, its licence, its mirror release and its three files. For each
   file: its content-addressed path under `base`, its size as served (Mozilla's gzip), its size once
   decompressed (`unpacked`), the sha256 of its **decompressed** bytes, and where Mozilla publishes it;
-- `routes`: for each studied language, the models that translate it into French, in order. English
-  is `en-fr` alone; a language without a direct model goes through English.
+- `routes`: for each pair, keyed `<studied>-<native>`, the models that translate its studied language
+  into its native language, in order (`generalise-lingua-translation-routes-by-pair`). `en-fr` is the
+  `en-fr` model alone; `es-fr` goes through English, `es-en` then `en-fr`. The parser reads both
+  languages from the key and refuses a route that does not start from the one or end in the other.
+
+A page asks in the document's language and never names a pair: the background forms the pair from
+that language and the reader's native language, read from their stored profile, gates on it — the
+device records which pairs are ready — and asks the engine for that pair's route. A pair the
+catalogue lists no route for is unavailable, and the engine is not started for it. A route is
+reached only once a pack glossed in that native language ships, since a reader is served the pairs
+of their native language alone: changes 21, 22 and 25 ship each pack with its route. Marks are
+measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`): es-fr's measurement says nothing of
+es-en's.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
 setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the

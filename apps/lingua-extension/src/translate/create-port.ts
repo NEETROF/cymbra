@@ -1,10 +1,11 @@
 // Which TranslatorPort a surface gets, asked at the moment it needs one, for the language of the
-// sentence. None, unless the reader turned « Traduction étendue » on for this device AND every model
-// of that language's route is on the device (add-lingua-translation-delivery,
-// generalise-lingua-translation-model-state D5): off, downloading, failed, interrupted, removed, or
-// a language whose models are missing, every surface answers exactly as it did before the engine
-// existed — no line saying a translation is on its way. A build without the engine
-// (`__TRANSLATION_HOST__` "none") never has one.
+// sentence. None, unless the reader turned « Traduction étendue » on for this device AND a ready
+// pair studies that language — every model of its route on the device (add-lingua-translation-delivery,
+// generalise-lingua-translation-model-state D5, generalise-lingua-translation-routes-by-pair D3):
+// off, downloading, failed, interrupted, removed, or a language whose pair's models are missing,
+// every surface answers exactly as it did before the engine existed — no line saying a translation
+// is on its way. The page asks in the document's language and never names a pair; the background
+// forms it. A build without the engine (`__TRANSLATION_HOST__` "none") never has one.
 //
 // When there is one, it is the messaging port — and only ever that one, wherever the caller runs —
 // wrapped so that using it keeps the engine's host loaded between selections (keepalive.ts), and

@@ -14,10 +14,10 @@
 // read from the `lingua-model` database the download filled, by the sha256 the package's catalogue
 // pins — so only verified bytes ever reach the engine. Without them it does not start, and every
 // surface answers as it does without it. The languages it translates between are the model's
-// (generalise-lingua-translation-catalogue D3), and a sentence goes through the route of the
-// language it is asked in, each model built once (generalise-lingua-translation-model-state D5). A
-// route of two models — Spanish, through English — translates through both in one request
-// (add-lingua-spanish-translation-pivot D2).
+// (generalise-lingua-translation-catalogue D3), and a sentence goes through the route of the pair
+// it is asked for, each model built once (generalise-lingua-translation-model-state D5,
+// generalise-lingua-translation-routes-by-pair D2). A route of two models — es-fr, through
+// English — translates through both in one request (add-lingua-spanish-translation-pivot D2).
 
 import { LONG_ROUTE, NO_MODEL, type WorkerRequest, type WorkerResponse } from "./engine.ts";
 import { modelDb } from "./model-db.ts";
@@ -95,7 +95,7 @@ interface Engine {
 let engine: Engine | null = null;
 /** The translation models built in the engine, by catalogue id. */
 const models = new Map<string, unknown>();
-/** Each language's route, once loaded: the ids of its models, in order. */
+/** Each pair's route, once loaded: the ids of its models, in order. */
 const routes = new Map<string, string[]>();
 
 const scope = self as unknown as {
@@ -154,12 +154,12 @@ async function instance(): Promise<Engine> {
 }
 
 /**
- * Load `language`'s route: each of its models built once. The models first — without them, nothing
+ * Load `pair`'s route: each of its models built once. The models first — without them, nothing
  * of the engine is worth loading. A route chains two models at most.
  */
-async function load(language: string): Promise<void> {
-  if (routes.has(language)) return;
-  const route = routeOf(await loadBundledCatalogue(), language);
+async function load(pair: string): Promise<void> {
+  if (routes.has(pair)) return;
+  const route = routeOf(await loadBundledCatalogue(), pair);
   if (route.length === 0) throw new Error(NO_MODEL);
   if (route.length > 2) throw new Error(LONG_ROUTE);
   for (const manifest of route) {
@@ -183,13 +183,13 @@ async function load(language: string): Promise<void> {
     );
   }
   routes.set(
-    language,
+    pair,
     route.map((manifest) => manifest.version),
   );
 }
 
-function translate(markup: string, language: string): string {
-  const route = routes.get(language);
+function translate(markup: string, pair: string): string {
+  const route = routes.get(pair);
   if (!engine || !route) throw new Error("the engine is not loaded");
   const { bergamot, service } = engine;
   const [first, second] = route.map((version) => models.get(version));
@@ -219,11 +219,11 @@ scope.onmessage = (event) => {
   void (async () => {
     try {
       if (request.op === "load") {
-        await load(request.language);
+        await load(request.pair);
         scope.postMessage({ id: request.id, ok: true });
       } else {
-        await load(request.language);
-        scope.postMessage({ id: request.id, ok: true, html: translate(request.markup, request.language) });
+        await load(request.pair);
+        scope.postMessage({ id: request.id, ok: true, html: translate(request.markup, request.pair) });
       }
     } catch (e: unknown) {
       scope.postMessage({ id: request.id, ok: false, error: e instanceof Error ? e.message : String(e) });

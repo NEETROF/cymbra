@@ -8,12 +8,14 @@
 // escaped before the tag is placed, so the only tag the engine ever sees is ours.
 
 /**
- * The languages whose selection is marked: those whose marks were measured on the committed corpus
- * and reached the programme's first tier (release-lingua-spanish-translation, tool/marks/README.md).
- * Spanish goes through English, two alignments chained: 89 of its 90 shown marks were right, 10 %
- * withheld. A language outside the list is translated without a mark (add-lingua-spanish-translation-pivot D3).
+ * The pairs whose selection is marked: those whose marks were measured on the committed corpus of
+ * their studied language, through their route, and reached the programme's first tier
+ * (release-lingua-spanish-translation, tool/marks/README.md). es-fr goes through English, two
+ * alignments chained: 89 of its 90 shown marks were right, 10 % withheld — which says nothing of
+ * es-en's one model. A pair outside the list is translated without a mark
+ * (add-lingua-spanish-translation-pivot D3, generalise-lingua-translation-routes-by-pair D4).
  */
-export const MARKED_LANGUAGES: readonly string[] = ["en", "es"];
+export const MARKED_PAIRS: readonly string[] = ["en-fr", "es-fr"];
 
 /** The tag that marks the selection. Page text is escaped, so no other tag reaches the engine. */
 const OPEN = "<b>";

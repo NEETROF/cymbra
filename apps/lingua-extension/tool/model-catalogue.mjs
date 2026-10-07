@@ -1,6 +1,7 @@
 // The translation models' catalogue as the build and the tools read it
 // (generalise-lingua-translation-catalogue D5): model-manifest.json, the models the package may
-// download and the route of models that translates each studied language into French. One module,
+// download and, per pair, the route of models that translates its studied language into its native
+// one (generalise-lingua-translation-routes-by-pair D1). One module,
 // so the build, the variant check, the host's assembly, its check and its mirror releases never read
 // the file each in their own way.
 import { readFileSync } from "node:fs";

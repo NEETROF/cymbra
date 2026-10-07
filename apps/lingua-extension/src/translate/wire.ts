@@ -33,7 +33,10 @@ export const WARM_TYPE = "lingua-translate-warm";
 
 export interface WarmMessage {
   type: typeof WARM_TYPE;
-  /** The language whose route to load (generalise-lingua-translation-model-state D5). */
+  /**
+   * The document's language; the background forms the pair whose route to load with the reader's
+   * native language (generalise-lingua-translation-model-state D5, routes-by-pair D2).
+   */
   language: string;
 }
 

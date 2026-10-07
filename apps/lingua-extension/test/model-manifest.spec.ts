@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+import { nativeOf, studiedOf } from "@/analyzer/pairs.ts";
 import {
   fileUrl,
   loadBundledCatalogue,
@@ -30,8 +31,17 @@ const EN_FR = "en-fr/base-memory/2.0";
 const ES_EN = "es-en/base-memory/2.0";
 
 describe("the committed catalogue", () => {
+  it("Every reader today: en-fr is the en-fr model alone, es-fr is es-en then en-fr, and nothing else is listed (routes-by-pair D1)", () => {
+    const c = parseCatalogue(committed);
+    expect(Object.keys(c.models)).toEqual([EN_FR, ES_EN]);
+    expect(c.routes).toEqual({ "en-fr": [EN_FR], "es-fr": [ES_EN, EN_FR] });
+    // The same models in the same order as the routes keyed by studied language gave.
+    expect(routeOf(c, "en-fr").map((m) => m.version)).toEqual([EN_FR]);
+    expect(routeOf(c, "es-fr").map((m) => m.version)).toEqual([ES_EN, EN_FR]);
+  });
+
   it("routes English through the en→fr base-memory model the engine was measured on", () => {
-    const [model, ...rest] = routeOf(parseCatalogue(committed), "en");
+    const [model, ...rest] = routeOf(parseCatalogue(committed), "en-fr");
     expect(rest).toEqual([]);
     // The id is the version a device recorded before the catalogue: a stored model stays complete.
     expect(model.version).toBe(EN_FR);
@@ -40,13 +50,13 @@ describe("the committed catalogue", () => {
   });
 
   it("downloads 25 752 472 bytes — Mozilla's own gzip files — and keeps 36 749 127 on the device", () => {
-    const [model] = routeOf(parseCatalogue(committed), "en");
+    const [model] = routeOf(parseCatalogue(committed), "en-fr");
     expect(totalSize(model)).toBe(25_752_472);
     expect(unpackedSize(model)).toBe(36_749_127);
   });
 
   it("serves each file under a content-addressed path, from Cymbra over https", () => {
-    const [model] = routeOf(parseCatalogue(committed), "en");
+    const [model] = routeOf(parseCatalogue(committed), "en-fr");
     expect(model.base).toMatch(/^https:\/\/[a-z.]+cymbra\.app\/$/);
     for (const file of Object.values(model.files)) {
       expect(file.path).toContain(`/${file.sha256}/`);
@@ -55,8 +65,8 @@ describe("the committed catalogue", () => {
     }
   });
 
-  it("routes Spanish through English: es-en, then en-fr (add-lingua-spanish-translation-pivot D1)", () => {
-    const route = routeOf(parseCatalogue(committed), "es");
+  it("routes es-fr through English: es-en, then en-fr (add-lingua-spanish-translation-pivot D1)", () => {
+    const route = routeOf(parseCatalogue(committed), "es-fr");
     expect(route.map((m) => [m.version, m.from, m.to])).toEqual([
       [ES_EN, "es", "en"],
       [EN_FR, "en", "fr"],
@@ -67,8 +77,10 @@ describe("the committed catalogue", () => {
     expect(totalSize(route[0]) + totalSize(route[1])).toBe(51_993_524);
   });
 
-  it("has no route for a language nothing translates yet", () => {
-    expect(routeOf(parseCatalogue(committed), "de")).toEqual([]);
+  it("has no route for a pair nothing translates yet — nor for a studied language asked alone", () => {
+    expect(routeOf(parseCatalogue(committed), "de-fr")).toEqual([]);
+    expect(routeOf(parseCatalogue(committed), "es-en")).toEqual([]);
+    expect(routeOf(parseCatalogue(committed), "en")).toEqual([]);
   });
 });
 
@@ -108,27 +120,56 @@ describe("parseCatalogue", () => {
   });
 
   it("refuses a route that names a model the catalogue does not list", () => {
-    expect(() => parseCatalogue(withRoutes({ en: ["en-fr/tiny/1.0"] }))).toThrow(/not in the catalogue/);
+    expect(() => parseCatalogue(withRoutes({ "en-fr": ["en-fr/tiny/1.0"] }))).toThrow(/not in the catalogue/);
   });
 
-  it("refuses a route that does not start from its language", () => {
-    expect(() => parseCatalogue(withRoutes({ es: [EN_FR] }))).toThrow(/translates from en, with es/);
+  it("A route that does not start from its studied language: en-es starting with the es→en model is refused", () => {
+    expect(() => parseCatalogue(withRoutes({ "en-es": [ES_EN] }))).toThrow(/translates from es, with en/);
+    expect(() => parseCatalogue(withRoutes({ "es-fr": [EN_FR] }))).toThrow(/translates from en, with es/);
   });
 
   it("refuses a route that breaks the chain", () => {
-    expect(() => parseCatalogue(withRoutes({ es: ["es-en/base-memory/2.0", "es-en/base-memory/2.0"] }))).toThrow(
-      /translates from es, with en/,
-    );
+    expect(() => parseCatalogue(withRoutes({ "es-fr": [ES_EN, ES_EN] }))).toThrow(/translates from es, with en/);
   });
 
-  it("refuses a route that does not end in French", () => {
-    expect(() => parseCatalogue(withRoutes({ es: ["es-en/base-memory/2.0"] }))).toThrow(/ends in en/);
-    expect(() => parseCatalogue(withRoutes({ es: [] }))).toThrow(/names no model/);
+  it("A route that does not reach French: es-fr ending in English is refused, and nothing is fetched", () => {
+    expect(() => parseCatalogue(withRoutes({ "es-fr": [ES_EN] }))).toThrow(/ends in en, not fr/);
+    expect(() => parseCatalogue(withRoutes({ "es-fr": [] }))).toThrow(/names no model/);
+  });
+
+  it("A route that does not reach its native language: en-es ending in French is refused", () => {
+    // The parser no longer knows French: the native language is read from the key (routes-by-pair D1).
+    expect(() => parseCatalogue(withRoutes({ "en-es": [EN_FR] }))).toThrow(/ends in fr, not es/);
+  });
+
+  it("A route whose key is no pair: `en`, `en-` and `-fr` are refused", () => {
+    expect(() => parseCatalogue(withRoutes({ en: [EN_FR] }))).toThrow(/en is no pair/);
+    expect(() => parseCatalogue(withRoutes({ "en-": [EN_FR] }))).toThrow(/en- is no pair/);
+    expect(() => parseCatalogue(withRoutes({ "-fr": [EN_FR] }))).toThrow(/-fr is no pair/);
+  });
+
+  it("splits a key on its first `-`, as a pack's name is: `en-fr-x` is the pair en / fr-x, which no route ends in", () => {
+    expect(() => parseCatalogue(withRoutes({ "en-fr-x": [EN_FR] }))).toThrow(/ends in fr, not fr-x/);
+    // The same reading as analyzer/pairs.ts's: a model into `fr-x` would make the route whole.
+    expect(nativeOf("en-fr-x")).toBe("fr-x");
+    expect(studiedOf("en-fr-x")).toBe("en");
+    const base = withRoutes({ "en-fr-x": ["en-frx/base-memory/2.0"] });
+    const models: ModelCatalogue["models"] = base.models;
+    const raw = {
+      ...base,
+      models: { ...models, "en-frx/base-memory/2.0": { ...models[EN_FR]!, from: "en", to: "fr-x" } },
+    };
+    expect(routeOf(parseCatalogue(raw), "en-fr-x").map((m) => m.to)).toEqual(["fr-x"]);
   });
 
   it("accepts a route through English, in order", () => {
-    const c = parseCatalogue(withRoutes({ en: [EN_FR], es: ["es-en/base-memory/2.0", EN_FR] }));
-    expect(routeOf(c, "es").map((m) => m.version)).toEqual(["es-en/base-memory/2.0", EN_FR]);
+    const c = parseCatalogue(withRoutes({ "en-fr": [EN_FR], "es-fr": [ES_EN, EN_FR] }));
+    expect(routeOf(c, "es-fr").map((m) => m.version)).toEqual([ES_EN, EN_FR]);
+  });
+
+  it("accepts a pair glossed in another native language, with its own route", () => {
+    const c = parseCatalogue(withRoutes({ "en-fr": [EN_FR], "es-en": [ES_EN] }));
+    expect(routeOf(c, "es-en").map((m) => m.version)).toEqual([ES_EN]);
   });
 
   it("keeps only what the runtime needs", () => {
@@ -159,22 +200,23 @@ describe("the models a device needs (generalise-lingua-translation-model-state D
     parseCatalogue({
       ...committed,
       models: { ...committed.models, "es-en/base-memory/2.0": { ...committed.models[EN_FR], from: "es", to: "en" } },
-      routes: { ...committed.routes, es: ["es-en/base-memory/2.0", EN_FR] },
+      routes: { ...committed.routes, "es-fr": ["es-en/base-memory/2.0", EN_FR] },
     });
 
-  it("is the union of the languages' routes, each model once, in order", () => {
-    expect(modelsFor(pivot(), ["en", "es"]).map((m) => m.version)).toEqual([EN_FR, "es-en/base-memory/2.0"]);
-    expect(modelsFor(pivot(), ["es", "en"]).map((m) => m.version)).toEqual(["es-en/base-memory/2.0", EN_FR]);
+  it("is the union of the pairs' routes, each model once, in order (routes-by-pair D5)", () => {
+    expect(modelsFor(pivot(), ["en-fr", "es-fr"]).map((m) => m.version)).toEqual([EN_FR, "es-en/base-memory/2.0"]);
+    expect(modelsFor(pivot(), ["es-fr", "en-fr"]).map((m) => m.version)).toEqual(["es-en/base-memory/2.0", EN_FR]);
   });
 
-  it("needs nothing for a language without a route", () => {
-    expect(modelsFor(parseCatalogue(committed), ["de"])).toEqual([]);
-    expect(modelsFor(parseCatalogue(committed), ["en", "de"]).map((m) => m.version)).toEqual([EN_FR]);
+  it("needs nothing for a pair without a route", () => {
+    expect(modelsFor(parseCatalogue(committed), ["de-fr"])).toEqual([]);
+    expect(modelsFor(parseCatalogue(committed), ["en-es"])).toEqual([]);
+    expect(modelsFor(parseCatalogue(committed), ["en-fr", "de-fr"]).map((m) => m.version)).toEqual([EN_FR]);
   });
 
-  it("needs both models of the committed Spanish route, en-fr once", () => {
-    expect(modelsFor(parseCatalogue(committed), ["en", "es"]).map((m) => m.version)).toEqual([EN_FR, ES_EN]);
-    expect(modelsFor(parseCatalogue(committed), ["es"]).map((m) => m.version)).toEqual([ES_EN, EN_FR]);
+  it("needs both models of the committed es-fr route, en-fr once", () => {
+    expect(modelsFor(parseCatalogue(committed), ["en-fr", "es-fr"]).map((m) => m.version)).toEqual([EN_FR, ES_EN]);
+    expect(modelsFor(parseCatalogue(committed), ["es-fr"]).map((m) => m.version)).toEqual([ES_EN, EN_FR]);
   });
 
   it("finds models by id, leaving out an id the catalogue does not list", () => {

@@ -7,12 +7,15 @@ import {
   nativeOf,
   packPath,
   pairFor,
+  pairOf,
   pairsOf,
+  readerPairs,
   readingLanguage,
   SHIPPED_PAIRS,
+  studiedOf,
 } from "@/analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
-import { packFile, shippedPairs } from "../tool/packs.mjs";
+import { nativeOf as packNativeOf, packFile, shippedPairs, studiedOf as packStudiedOf } from "../tool/packs.mjs";
 import { makeFakePort } from "./helpers.ts";
 
 /** Today's list beside a pair glossed in English (generalise-lingua-native-language). */
@@ -42,6 +45,52 @@ describe("the pair that serves a language", () => {
   it("is read from the bundle's list by default", () => {
     expect(pairFor("en", DEFAULT_NATIVE)).toBe("en-fr");
     expect(pairFor("es", DEFAULT_NATIVE)).toBe("es-fr");
+  });
+});
+
+describe("a pair's name (generalise-lingua-translation-routes-by-pair D1, D2)", () => {
+  it("is the studied language, one `-`, the native language — and is read back at the first `-`", () => {
+    expect(pairOf("en", "fr")).toBe("en-fr");
+    expect(pairOf("es", "fr")).toBe("es-fr");
+    expect(pairOf("en", "es")).toBe("en-es");
+    for (const [studied, native] of [
+      ["en", "fr"],
+      ["es", "en"],
+    ]) {
+      expect(studiedOf(pairOf(studied!, native!))).toBe(studied);
+      expect(nativeOf(pairOf(studied!, native!))).toBe(native);
+    }
+    // A second `-` belongs to the native side: `en-fr-x` is en / fr-x, as the catalogue's parser
+    // reads a route key (model-manifest.ts). No `-`: a studied language alone, with no native side.
+    expect(studiedOf("en-fr-x")).toBe("en");
+    expect(nativeOf("en-fr-x")).toBe("fr-x");
+    expect(studiedOf("en")).toBe("en");
+    expect(nativeOf("en")).toBe("");
+  });
+
+  it("is read the same by the build (tool/packs.mjs)", () => {
+    for (const pair of ["en-fr", "es-en", "en-fr-x", "en", "-fr", "en-"]) {
+      expect(packStudiedOf(pair), pair).toBe(studiedOf(pair));
+      expect(packNativeOf(pair), pair).toBe(nativeOf(pair));
+    }
+  });
+});
+
+describe("the reader's pairs (routes-by-pair D5)", () => {
+  it("are the listed pair of their native language that studies each accepted language, in order", () => {
+    expect(readerPairs(["en"], "fr", MIXED)).toEqual(["en-fr"]);
+    expect(readerPairs(["es", "en"], "fr", MIXED)).toEqual(["es-fr", "en-fr"]);
+    expect(readerPairs(["es"], "en", MIXED)).toEqual(["es-en"]);
+  });
+
+  it("leave out a language no listed pair studies for that native language", () => {
+    expect(readerPairs(["en", "de"], "fr", MIXED)).toEqual(["en-fr"]); // de-fr: no pack
+    expect(readerPairs(["en"], "es", MIXED)).toEqual([]); // en-es: not shipped yet (changes 22, 25)
+    expect(readerPairs([], "fr", MIXED)).toEqual([]);
+  });
+
+  it("read the bundle's list by default", () => {
+    expect(readerPairs(["en", "es"], DEFAULT_NATIVE)).toEqual(["en-fr", "es-fr"]);
   });
 });
 

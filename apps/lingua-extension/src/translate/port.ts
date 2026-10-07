@@ -16,8 +16,9 @@ export interface TranslationRequest {
   /** The selection's [start, end) in `sentence`, or null to translate the sentence unmarked. */
   selection: Span | null;
   /**
-   * The studied language the sentence was read in: the route it goes through
-   * (generalise-lingua-translation-model-state D5).
+   * The studied language the sentence was read in — the document's. The background joins it with
+   * the reader's native language into the pair whose route it goes through
+   * (generalise-lingua-translation-model-state D5, generalise-lingua-translation-routes-by-pair D2).
    */
   language: string;
 }

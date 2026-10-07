@@ -23,11 +23,11 @@ declare const __SECTIONS_FROM_WORKER__: boolean;
 // the default studied language's first: each one's pack is at assets/packs/<pair>.lingua.
 declare const __LINGUA_PACKS__: string;
 
-// Where the translation engine is hosted (add-lingua-translation-engine). "none" in every
-// shipped build: the engine is built in only by a development build that side-loads a model
-// (build.mjs, LINGUA_TRANSLATION_ENGINE). "offscreen" on Chromium, whose service worker cannot
-// construct a Worker; "event-page" on Firefox, whose background page can. Never on a thread
-// that paints — there is no value for that.
+// Where the translation engine is hosted (add-lingua-translation-engine). Every shipped build
+// carries it (build.mjs `translationHost`): "offscreen" on Chromium, whose service worker cannot
+// construct a Worker; "event-page" on Firefox and on Safari, whose background pages can
+// (add-lingua-translation-safari D1). "none" folds the engine away, as the tests are defined.
+// Never on a thread that paints — there is no value for that.
 declare const __TRANSLATION_HOST__: "none" | "offscreen" | "event-page";
 
 // Backend gRPC-web origin for the sync transport, injected by esbuild `define`
