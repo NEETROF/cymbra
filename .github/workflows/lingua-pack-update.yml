@@ -5,19 +5,23 @@ name: lingua-pack-update
 # generalise-lingua-pack-reducer, es→fr since add-lingua-spanish-forms-tables).
 #
 # Releases never read upstream: they build the pack from the tables committed under
-# scripts/lingua-data/tables/<pair>/ and check it against pin.json. This workflow is the only place
-# the upstream sources are read, and nothing it produces reaches a release without a person:
+# scripts/lingua-data/tables/<pair>/ and its studied language's tables/<studied>/, and check it
+# against tables/<pair>/pin.json. This workflow is the only place the upstream sources are read, and
+# nothing it produces reaches a release without a person:
 #
 # - dispatch, mode `update`: today's sources (kaikki live; AGID, CEFR-J, Octanove at their pinned
 #   commits), kept as a new snapshot — kaikki's bytes published as the release
 #   lingua-pack-sources-<pair>-<snapshot>, never replaced — reduced, and pushed to the branch
-#   lingua-pack/<pair>/<snapshot>.
+#   lingua-pack/<pair>/<snapshot>. A studied language's reference pair (tables/<studied>/studied.json)
+#   writes that language's tables, so on the same branch it brings every other pair of the language,
+#   reduced again from its own pinned sources (split-lingua-pack-tables-by-language D5).
 # - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
 #   the branch's diff is the rules' effect alone. With pair `all`, every pair with committed tables
 #   is reduced in one run and proposed on one branch, lingua-pack/all/<snapshot>-reduce, with the
 #   invariance baselines re-blessed once (generalise-lingua-gloss-reducer D4).
 # - expect `identical`: the rules moved, not what they make. The run fails, naming the pair and the
-#   file, and proposes no branch, when a table, a kept input or NOTICE differs by one byte,
+#   file (a studied language's file with its reference pair: `es-fr: es/level.tsv`), and proposes no
+#   branch, when a table, a kept input or NOTICE differs by one byte,
 #   manifest.json anywhere but `pack_version`, pin.json anywhere but the pack's sha256 and the rules'
 #   record (pack_report.py --identical), the site's coverage figures at all, or a baseline anywhere
 #   but the lines naming the packs (`### pack`, `### beside`).
@@ -37,7 +41,7 @@ on:
         options: [update, reduce]
         default: update
       pair:
-        description: "The language pair whose tables to propose (a folder of scripts/lingua-data/tables); all = every pair, mode reduce only."
+        description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce only."
         type: choice
         options: [en-fr, es-fr, all]
         default: en-fr
@@ -107,19 +111,40 @@ jobs:
           set -euo pipefail
           snapshot=$(date -u +%Y.%m.%d)
           echo "SNAPSHOT=$snapshot" >> "$GITHUB_ENV"
-          pairs=("$PAIR")
+          # Each studied language's reference pair first: it writes tables/<studied>/, which the
+          # language's other pairs build on. A named reference brings the pairs that read its studied
+          # folder along, reduced again from their own pinned sources after it
+          # (split-lingua-pack-tables-by-language).
+          tables=scripts/lingua-data/tables
+          # Listed by a plain assignment, which `set -e` stops on: a failing process substitution
+          # feeding the array would leave it empty and this step green, having reduced nothing.
           if [ "$PAIR" = all ]; then
-            pairs=()
-            for tables in scripts/lingua-data/tables/*/; do pairs+=("$(basename "$tables")"); done
+            list="$(python scripts/lingua-data/pack_sources.py pairs --tables "$tables")"
+          elif [ "$MODE" = dry ]; then
+            list="$PAIR" # the monthly matrix checks every pair on its own
+          else
+            list="$(python scripts/lingua-data/pack_sources.py pairs --tables "$tables" --after "$PAIR")"
+          fi
+          pairs=()
+          while IFS= read -r pair; do [ -z "$pair" ] || pairs+=("$pair"); done <<<"$list"
+          if [ "${#pairs[@]}" -eq 0 ]; then
+            echo "::error::No pair to reduce under $tables."
+            exit 1
           fi
           echo "PAIRS=${pairs[*]}" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/committed"
           for pair in "${pairs[@]}"; do
-            cp -r "scripts/lingua-data/tables/$pair" "$RUNNER_TEMP/committed/$pair"
-            LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$MODE" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
-            # A re-reduction keeps nothing of its raw sources (an update publishes them below); the
-            # next pair needs the room.
-            if [ "$MODE" = reduce ]; then rm -rf "scripts/lingua-data/work/$pair"; fi
+            studied="${pair%%-*}"
+            cp -r "$tables/$pair" "$RUNNER_TEMP/committed/$pair"
+            [ -d "$RUNNER_TEMP/committed/$studied" ] || cp -r "$tables/$studied" "$RUNNER_TEMP/committed/$studied"
+            mode="$MODE"
+            # The pairs a named reference brings along: their pinned sources, reduced again.
+            [ "$PAIR" != all ] && [ "$pair" != "$PAIR" ] && mode=reduce
+            LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+            # A re-reduction keeps nothing of its raw sources (an update publishes the named pair's
+            # below); the next pair needs the room. Each pair by its own mode: the pairs an update
+            # brings along are re-reductions too.
+            if [ "$mode" = reduce ]; then rm -rf "scripts/lingua-data/work/$pair"; fi
           done
 
       - name: Report against the committed tables
@@ -127,14 +152,20 @@ jobs:
           set -euo pipefail
           status=0
           : > "$RUNNER_TEMP/report.md"
-          for pair in $PAIRS; do
-            new="scripts/lingua-data/tables/$pair"
-            [ "$MODE" = dry ] && new="scripts/lingua-data/work/dry/$pair"
+          new="scripts/lingua-data/tables"
+          [ "$MODE" = dry ] && new="scripts/lingua-data/work/dry"
+          # Each pair's native side, then each studied language's side its reference wrote — whose
+          # report names every pair reading it whose pack moves.
+          for folder in $PAIRS $(for pair in $PAIRS; do echo "${pair%%-*}"; done | sort -u); do
+            [ -d "$new/$folder" ] || continue
             identical=()
-            [ "$EXPECT" = identical ] && identical=(--identical --pair "$pair")
-            printf '\n**%s**\n\n' "$pair" >> "$RUNNER_TEMP/report.md"
-            python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed/$pair" "$new" \
-              --pack "$RUNNER_TEMP/pack-$pair.lingua" --max-loss "$MAX_LOSS" "${identical[@]}" \
+            # Named after the folder, or, for a studied language's, after the reference that writes it.
+            [ "$EXPECT" = identical ] && identical=(--identical)
+            pack=()
+            [ -f "$RUNNER_TEMP/pack-$folder.lingua" ] && pack=(--pack "$RUNNER_TEMP/pack-$folder.lingua")
+            printf '\n**%s**\n\n' "$folder" >> "$RUNNER_TEMP/report.md"
+            python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed/$folder" "$new/$folder" \
+              "${pack[@]}" --max-loss "$MAX_LOSS" "${identical[@]}" \
               >> "$RUNNER_TEMP/report.md" || status=1
           done
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"

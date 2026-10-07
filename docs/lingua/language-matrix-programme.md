@@ -144,7 +144,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 1 Native-language platform (silent release) | 4 | `generalise-lingua-native-language` | 6–10 | Done (proposal [#732](https://github.com/NEETROF/cymbra/pull/732)) |
 | 1 | 5 | `add-lingua-pack-lexical-layer` | 4–7 | Done (proposal [#735](https://github.com/NEETROF/cymbra/pull/735)) |
 | 1 | 6 | `generalise-lingua-gloss-reducer`: the fr, en and es Wiktionary editions' rules at once | 4–7 | Done (proposal [#737](https://github.com/NEETROF/cymbra/pull/737)); en-fr and es-fr re-pinned, tables byte-identical |
-| 1 | 7 | `split-lingua-pack-tables-by-language` (M24) | 4–7 | Not started |
+| 1 | 7 | `split-lingua-pack-tables-by-language` (M24) | 4–7 | Done (proposal [#739](https://github.com/NEETROF/cymbra/pull/739)); tables/en and tables/es, nothing moved |
 | 1 | 8 | `generalise-lingua-translation-routes-by-pair` | 5–8.5 | Not started |
 | 1 | 9 | `harden-lingua-translation-engine` | 2–3.5 | Not started |
 | 1 | 10 | `add-lingua-native-language-server` (M4, M14), server first | 4–6.5 | Not started |

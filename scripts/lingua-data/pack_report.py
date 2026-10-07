@@ -14,11 +14,19 @@ samples — and the new pack's size against its budget. Exits 1 when a table the
 is missing from the new one, or loses more than `--max-loss` of its rows: an upstream format change
 shows as a collapse, not as an error, so the monthly check has to look for one.
 
+The folders compared are a pair's (tables/<pair>/: glosses, senses, expressions) or a studied
+language's (tables/<studied>/, split-lingua-pack-tables-by-language: forms, ranks, levels, readings
+and dictionary words), which its reference pair's reduction writes. For a studied language's folder,
+the report also names every pair reading it whose pack moves: the pairs beside the new folder whose
+`pin.json` records another pack than beside the committed one.
+
 With `--identical` (generalise-lingua-gloss-reducer D4), the new tables were reduced again expecting
 no change — the rules moved, not what they make — and it also exits 1, naming the pair and the
-file, when a table, a kept input (`tags.tsv`, `lexical.tsv`) or NOTICE differs by one byte, when
-`manifest.json` differs anywhere but `meta.pack_version`, or when `pin.json` differs anywhere but
-the record of the pack's sha256 and of the rules (`reducer`). The pair is the new tables' folder.
+file, when a table, a kept input (`tags.tsv`, `studied.json`), the dictionary words (`lexical.tsv`)
+or NOTICE differs by one byte, when `manifest.json` differs anywhere but `meta.pack_version`, or when
+`pin.json` differs anywhere but the record of the pack's sha256 and of the rules (`reducer`). The
+pair is the new tables' folder, or for a studied language's folder its reference pair, the file
+then named with its folder (`es-fr: es/level.tsv differs`).
 """
 
 from __future__ import annotations
@@ -29,7 +37,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pack_sources import KEPT_INPUTS
+from pack_sources import KEPT_INPUTS, LEXICAL, STUDIED_RECORD, PinError, get, load, reference_of, studied_of
 
 # What each table maps, as the reader of the report thinks of it.
 TABLES = {
@@ -40,9 +48,12 @@ TABLES = {
     "mwe.tsv": "expression → gloss",
     "grammar.tsv": "form lemma reading → may be named as another word",
     "senses.tsv": "lemma → parts of speech of its senses",
+    LEXICAL: "dictionary word",
 }
 # Tables with several lines per first field: the key is every field but the last.
 MULTI_KEYED = {"grammar.tsv"}
+# Tables of one column: each line is a key.
+KEYS_ONLY = {LEXICAL}
 BUDGET = 5 * 1024 * 1024  # the pack's size budget (lingua-data-packs)
 SAMPLES = 8
 # Ranks move by one for every lemma above an insertion: a rank change is news past this.
@@ -63,6 +74,10 @@ def read_table(path: Path) -> dict[str, str]:
     if not path.is_file():
         return rows
     for line in path.read_text(encoding="utf-8").splitlines():
+        if path.name in KEYS_ONLY:
+            if line.strip():
+                rows[line.strip()] = ""
+            continue
         if path.name in MULTI_KEYED:
             key, sep, value = line.rpartition("\t")
             key = key.replace("\t", " ")
@@ -133,29 +148,56 @@ def moved(old, new, at: tuple = ()) -> set[tuple]:
     return set() if old == new else {at}
 
 
-def not_identical(pair: str, old: Path, new: Path) -> list[str]:
-    """What moved, in tables reduced again expecting no change: one line per file, naming the pair."""
+def not_identical(pair: str, old: Path, new: Path, folder: str = "") -> list[str]:
+    """What moved, in tables reduced again expecting no change: one line per file, naming the pair,
+    and the file with `folder` before it (a studied language's folder, which `pair` writes)."""
     out = []
     for name in IDENTICAL:
         before, after = old / name, new / name
         if not before.is_file() and not after.is_file():
             continue
         if not (before.is_file() and after.is_file()) or before.read_bytes() != after.read_bytes():
-            out.append(f"{pair}: {name} differs")
+            out.append(f"{pair}: {folder}{name} differs")
     for name, may in MAY_MOVE.items():
         before, after = old / name, new / name
         if not before.is_file() and not after.is_file():
             continue
         if not (before.is_file() and after.is_file()):
-            out.append(f"{pair}: {name} differs")
+            out.append(f"{pair}: {folder}{name} differs")
             continue
         paths = moved(*(json.loads(path.read_text(encoding="utf-8")) for path in (before, after))) - may
         if paths:
-            out.append(f"{pair}: {name} differs at {', '.join(sorted('.'.join(map(str, p)) for p in paths))}")
+            out.append(f"{pair}: {folder}{name} differs at {', '.join(sorted('.'.join(map(str, p)) for p in paths))}")
     return out
 
 
-def render(diffs: list[TableDiff], pack: Path | None, issues: list[str]) -> str:
+def is_studied(folder: Path) -> bool:
+    """A studied language's folder: it names its reference pair."""
+    return (folder / STUDIED_RECORD).is_file()
+
+
+def packs_moved(old: Path, new: Path) -> list[str]:
+    """The pairs reading a studied language's folder whose pack moves: the pairs beside `new`
+    studying its language whose `pin.json` records another pack than the same pair's beside `old`.
+    A pair with no committed pin beside `old` was not part of the run, and is not named."""
+    language = new.resolve().name
+    out = []
+    for folder in sorted(new.parent.iterdir()):
+        if not folder.is_dir() or "-" not in folder.name or studied_of(folder.name) != language:
+            continue
+        before, after = old.parent / folder.name / "pin.json", folder / "pin.json"
+        if not (before.is_file() and after.is_file()):
+            continue
+        try:
+            shas = [get(load(pin), "pack.sha256") for pin in (before, after)]
+        except PinError:
+            continue
+        if shas[0] != shas[1]:
+            out.append(folder.name)
+    return out
+
+
+def render(diffs: list[TableDiff], pack: Path | None, issues: list[str], readers: list[str] | None = None) -> str:
     lines = ["## Dictionary update — what the new tables change", ""]
     lines.append("| Table | Rows before → after | Added | Removed | Changed |")
     lines.append("|---|---|---|---|---|")
@@ -163,6 +205,12 @@ def render(diffs: list[TableDiff], pack: Path | None, issues: list[str]) -> str:
         lines.append(
             f"| `{d.name}` ({TABLES[d.name]}) | {d.before} → {d.after} | {len(d.added)} | {len(d.removed)} | {len(d.changed)} |"
         )
+    if readers is not None:
+        lines.append("")
+        if readers:
+            lines.append("Pairs reading these tables whose pack moves: " + ", ".join(f"`{r}`" for r in readers) + ".")
+        else:
+            lines.append("No pack of a pair reading these tables moves.")
     if pack is not None and pack.is_file():
         size = pack.stat().st_size
         lines += ["", f"Pack: **{size:,} B**, {size / BUDGET:.1%} of the {BUDGET // (1024 * 1024)} MiB budget."]
@@ -192,15 +240,21 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--pack", type=Path)
     ap.add_argument("--max-loss", type=float, default=0.2)
     ap.add_argument("--identical", action="store_true", help="fail on any byte the rules were not meant to move")
-    ap.add_argument("--pair", help="the pair the tables are (default: the new tables' folder)")
+    ap.add_argument(
+        "--pair",
+        help="the pair the tables are (default: the new tables' folder, or the reference a studied language's names)",
+    )
     a = ap.parse_args(argv)
     diffs = compare_dirs(a.old, a.new)
     issues = problems(diffs, a.old, a.new, a.max_loss)
-    moved_files = not_identical(a.pair or a.new.resolve().name, a.old, a.new) if a.identical else []
+    studied = is_studied(a.new)
+    pair = a.pair or (reference_of(a.new) if studied else None) or a.new.resolve().name
+    folder = f"{a.new.resolve().name}/" if studied else ""
+    moved_files = not_identical(pair, a.old, a.new, folder) if a.identical else []
     issues += moved_files
     if a.pack is not None and a.pack.is_file() and a.pack.stat().st_size > BUDGET:
         issues.append(f"the pack is {a.pack.stat().st_size:,} B, over its budget")
-    sys.stdout.write(render(diffs, a.pack, issues))
+    sys.stdout.write(render(diffs, a.pack, issues, packs_moved(a.old, a.new) if studied else None))
     if a.identical and not moved_files:
         sys.stdout.write(
             "\nReduced again expecting no change: every table, kept input and NOTICE is byte for byte as "

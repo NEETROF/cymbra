@@ -32,6 +32,24 @@ class MeasureTest(unittest.TestCase):
             (tables / "gloss.tsv").write_text("# comment\n\n" + (tables / "gloss.tsv").read_text(encoding="utf-8"))
             self.assertEqual(coverage.measure(tables, (2, 3, 4)), [50.0, 66.7, 75.0])
 
+    def test_a_pair_s_ranks_come_from_its_studied_language_s_folder(self) -> None:
+        # split-lingua-pack-tables-by-language: freq.tsv in tables/<studied>/, gloss.tsv in
+        # tables/<pair>/ (spec: *The published coverage follows the studied tables*).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tables" / "es").mkdir(parents=True)
+            (root / "tables" / "es-fr").mkdir()
+            write_table(root / "tables" / "es" / "freq.tsv", [("a", "1"), ("b", "2"), ("c", "3")])
+            write_table(root / "tables" / "es-fr" / "gloss.tsv", [("a", "A"), ("c", "C")])
+            packs = root / "packs.json"
+            packs.write_text(json.dumps({"pairs": ["es-fr"]}), encoding="utf-8")
+            before = coverage.figures(root / "tables", packs)
+            self.assertEqual(before["glossed"]["es-fr"], [66.7, 66.7, 66.7])
+            # Spanish's ranks change: the figures move, so the published ones are stale.
+            write_table(root / "tables" / "es" / "freq.tsv", [("a", "1"), ("c", "2"), ("b", "3"), ("d", "4")])
+            self.assertNotEqual(coverage.figures(root / "tables", packs), before)
+            self.assertEqual(coverage.figures(root / "tables", packs)["glossed"]["es-fr"], [50.0, 50.0, 50.0])
+
 
 class PublishedFiguresTest(unittest.TestCase):
     def test_the_site_reads_what_the_committed_tables_give(self) -> None:

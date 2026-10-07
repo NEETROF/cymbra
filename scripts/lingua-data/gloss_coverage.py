@@ -46,9 +46,11 @@ def read_keys(path: Path) -> dict[str, str]:
     return rows
 
 
-def measure(tables: Path, tops: tuple[int, ...] = TOPS) -> list[float]:
-    """One pair's glossed share of its `tops` commonest lemmas, in percent to one decimal."""
-    ranks = read_keys(tables / "freq.tsv")
+def measure(tables: Path, tops: tuple[int, ...] = TOPS, studied: Path | None = None) -> list[float]:
+    """One pair's glossed share of its `tops` commonest lemmas, in percent to one decimal: the
+    ranks from its studied language's folder (split-lingua-pack-tables-by-language), the glosses
+    from its own."""
+    ranks = read_keys((studied or tables) / "freq.tsv")
     glossed = read_keys(tables / "gloss.tsv")
     ranked = sorted(ranks, key=lambda lemma: int(ranks[lemma]))
     shares = []
@@ -64,7 +66,11 @@ def shipped_pairs(packs: Path = PACKS) -> list[str]:
 
 def figures(tables: Path = TABLES, packs: Path = PACKS) -> dict:
     """Every shipped pair's figures, as the site reads them."""
-    return {"tops": list(TOPS), "glossed": {pair: measure(tables / pair) for pair in shipped_pairs(packs)}}
+    return {
+        "tops": list(TOPS),
+        # A pair's ranks are its studied language's, kept once in tables/<studied>/; its glosses its own.
+        "glossed": {pair: measure(tables / pair, studied=tables / pair.split("-")[0]) for pair in shipped_pairs(packs)},
+    }
 
 
 def render(data: dict) -> str:

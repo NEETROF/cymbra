@@ -3,8 +3,10 @@
 # into <dir>/<pair>.lingua:
 #   yarn gen:pack       → assets/packs/  from the tiny committed testdata
 #                                          (scripts/lingua-data/testdata/<pair>; dogfooding, CI)
-#   yarn gen:pack:real  → assets/packs/  from the committed tables, offline, each checked against
-#                                          its own scripts/lingua-data/tables/<pair>/pin.json
+#   yarn gen:pack:real  → assets/packs/  from the committed tables, offline — the pair's
+#                                          scripts/lingua-data/tables/<pair>/ and its studied
+#                                          language's tables/<studied>/ — each checked against its
+#                                          own tables/<pair>/pin.json
 # Both outputs are gitignored. `yarn gen:fixtures` writes the committed vitest fixture
 # (test/fixtures/en-fr.testdata.lingua) with build.sh directly.
 #

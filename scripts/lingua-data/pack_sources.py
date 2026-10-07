@@ -30,10 +30,17 @@ Stdlib only: the build mode reads this record too, and needs no Python package.
     pack_sources.py check-reducer --pin P --reducer R              # the rules, against the record
     pack_sources.py get           --pin P KEY                      # e.g. snapshot, pack.sha256
     pack_sources.py assets        --pin P                          # the snapshot's release assets
-    pack_sources.py keep          --from D --to T                  # the kept inputs of D, into T
+    pack_sources.py keep          --from D --to T                  # a studied folder, into T
+    pack_sources.py split         --work W --tables T --pair P     # a reduction, into T's folders
+    pack_sources.py pairs         --tables T [--after P]           # the pairs, references first
+    pack_sources.py moved         --tables T < git-status          # each moved file, by its writer
 
-Beside the tables a reducer writes, a pair's folder holds inputs no reducer writes, which reducing
-the pair again must keep (`KEPT_INPUTS`, add-lingua-pack-lexical-layer).
+The tables are kept once per studied language (split-lingua-pack-tables-by-language, M24):
+`tables/<studied>/` holds the studied side (`STUDIED_TABLES`, the pinned tag pool `tags.tsv` and
+the dictionary words `lexical.tsv`) and `studied.json`, which names the language's reference pair;
+`tables/<pair>/` holds the native side (`PAIR_TABLES`), `pin.json` and README.md. A pair's reducer
+writes both sides into its work folder; `split` files them, and only the reference pair's reduction
+writes the studied folder. The reference's `pin.json` is the studied tables' provenance.
 """
 
 from __future__ import annotations
@@ -131,11 +138,20 @@ DUMPS = {
         },
     },
 }
-# The inputs of a pair's tables that no reducer writes, so that no rule digest moves with them
-# (add-lingua-pack-lexical-layer D1, D4): the studied language's pinned tag pool, which every
-# committed pair carries, and the dictionary words of a pair glossed in another native language
-# than its studied language's reference pair. Reducing a pair again keeps them as they are.
-KEPT_INPUTS = ("tags.tsv", "lexical.tsv")
+# What a reducer writes, by side (split-lingua-pack-tables-by-language, M24). The studied side
+# belongs to the studied language and is kept once, in tables/<studied>/; the native side, with the
+# pack's manifest and attribution, in tables/<pair>/.
+STUDIED_TABLES = ("forms.tsv", "freq.tsv", "grammar.tsv", "level.tsv")
+PAIR_TABLES = ("gloss.tsv", "mwe.tsv", "senses.tsv", "NOTICE", "manifest.json")
+# The file of a studied folder that names its reference pair: the one pair whose reduction writes
+# the folder, and whose glossed lemmas are the language's dictionary words.
+STUDIED_RECORD = "studied.json"
+# The dictionary words (add-lingua-pack-lexical-layer D1, D3): the reference's glossed lemmas,
+# written by `split` beside the studied tables — no reducer writes them, so no digest moves.
+LEXICAL = "lexical.tsv"
+# The inputs of a studied folder that nothing writes but a person, so that no rule digest moves with
+# them (add-lingua-pack-lexical-layer D4): the pinned tag pool, and the record naming the reference.
+KEPT_INPUTS = ("tags.tsv", STUDIED_RECORD)
 PINNED_POOL = KEPT_INPUTS[0]
 WORDFREQ = "3.1.1"
 PYTHON = (3, 12)
@@ -177,6 +193,167 @@ def sha256(path: Path) -> str:
 
 def pair_of(pin: Path) -> str:
     return pin.parent.name
+
+
+def studied_of(pair: str) -> str:
+    """A pair's studied language, as its name says: `es-fr` studies `es`."""
+    return pair.split("-", 1)[0]
+
+
+def studied_dir(pin: Path) -> Path:
+    """The studied folder beside a pair's folder: tables/es for tables/es-fr/pin.json."""
+    return pin.parent.parent / studied_of(pair_of(pin))
+
+
+def reference_of(studied: Path) -> str | None:
+    """The pair a studied folder names as its reference, or None when it names none yet. A record
+    that cannot be read fails as an error line, not a traceback."""
+    record = studied / STUDIED_RECORD
+    if not record.is_file():
+        return None
+    try:
+        reference = json.loads(record.read_text(encoding="utf-8"))["reference"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise PinError(f"{studied.name}/{STUDIED_RECORD}: {e!r}: expected {{\"reference\": \"<pair>\"}}") from None
+    if not isinstance(reference, str) or not is_pair_name(reference):
+        raise PinError(f"{studied.name}/{STUDIED_RECORD} names {reference!r}, which is no pair (<studied>-<native>)")
+    return reference
+
+
+def is_pair_name(name: str) -> bool:
+    """A pair is named `<studied>-<native>`, both non-empty."""
+    studied, sep, native = name.partition("-")
+    return bool(sep and studied and native)
+
+
+def is_pair(folder: Path) -> bool:
+    """A folder of tables/ is a pair's when it is named `<studied>-<native>`."""
+    return folder.is_dir() and "-" in folder.name
+
+
+def folders(tables: Path) -> list[Path]:
+    """The folders of `tables`, but hidden ones; each is a pair's or a studied language's, which
+    names its reference pair (`studied.json`). Any other fails: a loop would take it for a pair."""
+    found = sorted(f for f in tables.iterdir() if f.is_dir() and not f.name.startswith("."))
+    for folder in found:
+        if not is_pair(folder) and not (folder / STUDIED_RECORD).is_file():
+            raise PinError(
+                f"{folder} is neither a pair (a folder named <studied>-<native>) nor a studied "
+                f"language ({folder.name}/{STUDIED_RECORD} names the pair whose reduction writes it)"
+            )
+    return found
+
+
+def pairs(tables: Path, after: str | None = None) -> list[str]:
+    """The pairs of `tables`, each studied language's reference first, then its other pairs, by
+    name; with `after`, that pair, then — when it is its language's reference — the pairs that read
+    its studied folder, which must be reduced again after it. No pair at all fails: a loop over
+    none would reduce nothing and pass."""
+    names = [folder.name for folder in folders(tables) if is_pair(folder)]
+    if not names:
+        raise PinError(f"{tables} holds no pair (a folder named <studied>-<native>)")
+    refs = {lang: reference_of(tables / lang) for lang in {studied_of(n) for n in names}}
+    ordered = sorted(names, key=lambda n: (refs[studied_of(n)] != n, n))
+    if after is None:
+        return ordered
+    if after not in names:
+        raise PinError(f"{after} is no pair of {tables} ({', '.join(ordered)})")
+    if refs.get(studied_of(after)) != after:
+        return [after]
+    return [after, *(n for n in ordered if n != after and studied_of(n) == studied_of(after))]
+
+
+def glossed_lemmas(gloss: Path) -> list[str]:
+    """The lemmas a gloss table glosses, byte-sorted, each once — as the builder reads them
+    (lingua_pack::tsv_pairs: the text before the first tab, trimmed, non-empty)."""
+    words = set()
+    # Bytes, not universal newlines: the builder splits on \n alone, so a lone \r stays in its key.
+    try:
+        text = gloss.read_bytes().decode("utf-8")
+    except FileNotFoundError:
+        raise PinError(f"{gloss.parent.name}/{gloss.name} is missing: the dictionary words are its lemmas") from None
+    for line in text.split("\n"):
+        key, sep, _ = line.removesuffix("\r").partition("\t")
+        if sep and key.strip():
+            words.add(key.strip())
+    # Code-point order is UTF-8 byte order.
+    return sorted(words)
+
+
+def split(work: Path, tables: Path, pair: str) -> list[str]:
+    """File a reduction's tables, left in `work` by the pair's reducer, into `tables`: the native
+    side into tables/<pair>/, and — when `pair` is its studied language's reference, or the first
+    pair reduced for a language — the studied side into tables/<studied>/, with the dictionary words
+    (`lexical.tsv`, the pair's glossed lemmas). Any other pair reads the studied folder and never
+    writes it: what its reducer wrote of the studied side is left in `work`. Answers the files
+    written, as `<folder>/<file>`."""
+    lang = studied_of(pair)
+    written = []
+
+    def file(names: tuple[str, ...], to: Path) -> None:
+        to.mkdir(parents=True, exist_ok=True)
+        for name in names:
+            if (work / name).is_file():
+                shutil.copyfile(work / name, to / name)
+                written.append(f"{to.name}/{name}")
+            else:
+                (to / name).unlink(missing_ok=True)
+
+    studied = tables / lang
+    reference = reference_of(studied)  # before anything is written: a bad record fails cleanly
+    file(PAIR_TABLES, tables / pair)
+    if reference is None:
+        studied.mkdir(parents=True, exist_ok=True)
+        (studied / STUDIED_RECORD).write_text(json.dumps({"reference": pair}, indent=2) + "\n", encoding="utf-8")
+        written.append(f"{lang}/{STUDIED_RECORD}")
+        reference = pair
+    if reference == pair:
+        file(STUDIED_TABLES, studied)
+        (studied / LEXICAL).write_text(
+            "".join(f"{w}\n" for w in glossed_lemmas(tables / pair / "gloss.tsv")), encoding="utf-8"
+        )
+        written.append(f"{lang}/{LEXICAL}")
+    return written
+
+
+def writer_of(tables: Path, folder: str) -> str:
+    """The pair whose reduction writes a folder of `tables`: a pair's own, or the reference a
+    studied language's folder names."""
+    if "-" in folder:
+        return folder
+    return reference_of(tables / folder) or f"{folder}'s reference (no {STUDIED_RECORD})"
+
+
+def moved(tables: Path, status: list[str]) -> list[str]:
+    """`git status --porcelain` lines under `tables`, as `<pair>: <folder>/<file>`, the pair being
+    the one whose reduction writes the file — a studied table names its language's reference."""
+    out = []
+    for line in status:
+        path = line[3:].strip() if len(line) > 3 and line[2] == " " else line.strip()
+        if not path:
+            continue
+        path = path.split(" -> ")[-1].strip('"')
+        parts = Path(path).parts
+        if tables.name in parts:
+            parts = parts[parts.index(tables.name) + 1 :]
+        if not parts:
+            out.append(f"?: {path}")
+            continue
+        out.append(f"{writer_of(tables, parts[0])}: {'/'.join(parts)}{'/' if len(parts) == 1 else ''}")
+    return out
+
+
+def keep(committed: Path, tables: Path) -> list[str]:
+    """Copy a committed studied folder into `tables`, the studied folder a dry run reduces into
+    anew: its kept inputs, and the studied tables a pair that is not the reference builds on.
+    Answers the names copied."""
+    kept = []
+    tables.mkdir(parents=True, exist_ok=True)
+    for source in sorted(committed.iterdir()) if committed.is_dir() else ():
+        if source.is_file() and source.resolve() != (tables / source.name).resolve():
+            shutil.copyfile(source, tables / source.name)
+            kept.append(source.name)
+    return kept
 
 
 def release_tag(pair: str, snapshot: str) -> str:
@@ -475,23 +652,11 @@ def rules_sha256(reducer: Path) -> str:
     return files_sha256(rule_files(reducer))
 
 
-def keep(committed: Path, tables: Path) -> list[str]:
-    """Copy the kept inputs `committed` holds into `tables`, a folder the pair's tables are reduced
-    into anew (a dry run's scratch copy); answers the names copied."""
-    kept = []
-    tables.mkdir(parents=True, exist_ok=True)
-    for name in KEPT_INPUTS:
-        source = committed / name
-        if source.is_file() and source.resolve() != (tables / name).resolve():
-            shutil.copyfile(source, tables / name)
-            kept.append(name)
-    return kept
-
-
 def record_build(pin: Path, pack: Path, reducer: Path) -> None:
-    if not (pin.parent / PINNED_POOL).is_file():
+    pool = studied_dir(pin) / PINNED_POOL
+    if not pool.is_file():
         raise PinError(
-            f"{pin.parent / PINNED_POOL} is missing: the studied language's pinned tag pool is an input no "
+            f"{pool} is missing: the studied language's pinned tag pool is an input no "
             "reducer writes, which the tables must keep (scripts/lingua-data/SOURCES.md)"
         )
     record = load(pin)
@@ -523,6 +688,20 @@ def check_pack(pin: Path, pack: Path) -> None:
 
 
 def check_reducer(pin: Path, reducer: Path) -> None:
+    """The rules a pair's tables were reduced by, against its record — and, for a pair that is not
+    its studied language's reference, its reference's too: that pair's reduction writes the studied
+    tables every pair of the language reads (split-lingua-pack-tables-by-language)."""
+    check_own_reducer(pin, reducer)
+    pair, studied = pair_of(pin), studied_dir(pin)
+    reference = reference_of(studied)
+    if reference is not None and reference != pair:
+        try:
+            check_own_reducer(studied.parent / reference / "pin.json", reducer.parent / f"reduce-{reference}.py")
+        except PinError as e:
+            raise PinError(f"{pair} reads {studied.name}/, which {reference}'s reduction writes: {e}") from e
+
+
+def check_own_reducer(pin: Path, reducer: Path) -> None:
     record = load(pin)
     want = get(record, "reducer.sha256")
     files = rule_files(reducer)
@@ -549,11 +728,20 @@ def check_reducer(pin: Path, reducer: Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get", "assets", "keep"):
+    commands = ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get", "assets")
+    for name in (*commands, "keep", "split", "pairs", "moved"):
         p = sub.add_parser(name)
         if name == "keep":
             p.add_argument("--from", dest="source", type=Path, required=True)
             p.add_argument("--to", dest="dest", type=Path, required=True)
+            continue
+        if name in ("split", "pairs", "moved"):
+            p.add_argument("--tables", type=Path, required=True)
+            if name == "split":
+                p.add_argument("--work", type=Path, required=True)
+                p.add_argument("--pair", required=True)
+            elif name == "pairs":
+                p.add_argument("--after")
             continue
         p.add_argument("--pin", type=Path, required=name != "rules")
         if name in ("fetch-pinned", "fetch-live"):
@@ -589,6 +777,13 @@ def main(argv: list[str] | None = None) -> int:
         elif a.cmd == "keep":
             for name in keep(a.source, a.dest):
                 print(f"kept {name}")
+        elif a.cmd == "split":
+            for name in split(a.work, a.tables, a.pair):
+                print(f"wrote {name}")
+        elif a.cmd == "pairs":
+            print("\n".join(pairs(a.tables, a.after)))
+        elif a.cmd == "moved":
+            print("\n".join(moved(a.tables, sys.stdin.read().splitlines())))
     except (PinError, subprocess.CalledProcessError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

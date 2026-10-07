@@ -132,9 +132,9 @@ async function engine(modelsDir) {
 }
 
 // D5 — the experiment: the pack's own French gloss of the selected word, found in the sentence.
-function table(pair, name) {
+function table(folder, name) {
   const rows = new Map();
-  for (const line of readFileSync(join(TABLES, pair, name), "utf8").split("\n")) {
+  for (const line of readFileSync(join(TABLES, folder, name), "utf8").split("\n")) {
     const tab = line.indexOf("\t");
     if (tab > 0 && !rows.has(line.slice(0, tab))) rows.set(line.slice(0, tab), line.slice(tab + 1));
   }
@@ -183,7 +183,9 @@ async function main() {
   const tables = Object.fromEntries(
     Object.entries(PAIRS).map(([language, pair]) => [
       language,
-      { forms: table(pair, "forms.tsv"), gloss: table(pair, "gloss.tsv") },
+      // The forms are the studied language's, kept once in tables/<studied>/
+      // (split-lingua-pack-tables-by-language); the glosses the pair's.
+      { forms: table(language, "forms.tsv"), gloss: table(pair, "gloss.tsv") },
     ]),
   );
   for (const language of Object.keys(PAIRS)) {

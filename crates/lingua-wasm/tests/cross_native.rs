@@ -41,7 +41,7 @@ use std::collections::BTreeSet;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
-use lingua_pack::{PackInputs, build_pack, inputs_from_dir};
+use lingua_pack::{PackInputs, build_pack, inputs_from_tables};
 use support::Scenario;
 use support::english::ENGLISH;
 use support::spanish::SPANISH;
@@ -78,16 +78,28 @@ struct OtherNative {
 impl OtherNative {
     /// The reference pack's inputs, and the second pack's.
     fn inputs(&self) -> (PackInputs, PackInputs) {
-        let dir = Scenario::tables_dir(self.pair);
-        let read = || inputs_from_dir(&dir).unwrap_or_else(|e| panic!("{}: {e}", self.pair));
+        let root = Scenario::tables_root();
+        let read = || {
+            inputs_from_tables(&root, self.pair).unwrap_or_else(|e| panic!("{}: {e}", self.pair))
+        };
         let reference = read();
         assert!(
             reference.tag_pool.is_some(),
             "{} pins its studied language's pool",
             self.pair
         );
-        assert!(reference.lexical.is_none(), "{} is a reference", self.pair);
         let glossed: BTreeSet<String> = reference.glosses.iter().map(|(l, _)| l.clone()).collect();
+        // A reference's dictionary words are its glossed lemmas: its pack carries no lexical
+        // section (asserted below), whatever tables/<studied>/lexical.tsv repeats.
+        assert_eq!(
+            reference
+                .lexical
+                .as_ref()
+                .map(|w| w.iter().cloned().collect::<BTreeSet<_>>()),
+            Some(glossed.clone()),
+            "{} is a reference",
+            self.pair
+        );
 
         let mut other = read();
         other.meta.native = self.native.into();
