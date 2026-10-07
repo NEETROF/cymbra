@@ -6,7 +6,7 @@
 
 ## 2. Cards (apps/lingua-extension)
 
-- [x] 2.1 `pushCards` sends `glossLanguage` (an absent label as empty), and holds a card whose label is other than `fr` while `languageLabels` is false; `fetchCards` sends `anyGlossLanguage: true`, passes `gloss_language` to `applyCardOps`, and pulls from the start once under `cymbra-lingua-sync-labels` (D2). `test/sync.spec.ts`: each scenario of *A device sends the language of a gloss only to a server that stores it*, *A French card* and *The first pull of this build* included.
+- [x] 2.1 `pushCards` sends `glossLanguage` (an absent label as empty), and holds a card whose label is other than `fr` while `languageLabels` is false; `fetchCards` sends `anyGlossLanguage: true`, passes `gloss_language` to `applyCardOps`, and resets the card cursor once under `cymbra-lingua-sync-labels` (D2) — the status cursor stands; the echo of a card held this sync is dropped before the pulled operations are applied (D2). `test/sync.spec.ts`: each scenario of *A device sends the language of a gloss only to a server that stores it*, *A French card*, *The first pull of this build* and *A server that no longer stores the labels* included; the review half of *A card pulled with its label* (a gloss the reader can read) is pinned by change 11's tests (`add-lingua-card-gloss-language`).
 
 ## 3. Daily statistics v4 (apps/lingua-extension)
 

@@ -36,9 +36,11 @@ change and one built with it write the same rows.
   French gloss (change 11), which the server reads as `fr` — and pushes a card whose label is
   other than `fr` only when the server stores labels; the pull says the client reads labels
   (`any_gloss_language`, change 10 D7) and reads `gloss_language` into the applied operation
-  (change 11 applies it); the first pull that says so pulls again from the start, since the
-  server withheld non-French cards from this device before and kept no memory of them, as
-  widening the languages does.
+  (change 11 applies it); the first pull that says so resets the card cursor and pulls the cards
+  again from the start, since the server withheld non-French cards from this device before and
+  kept no memory of them (the statuses were never withheld; widening the languages resets both
+  cursors). The echo of a card held this sync, from a server that stores no label, is not
+  applied: it would relabel the card French.
 - **Daily statistics, v4.** The device's daily statistics are keyed by day and studied language
   and carry the native language of the day; v3 is read once as French (and v2 as English and
   French, as v3 reads it today); v3 stays stored, as v2 does, so a downgraded build still reads
@@ -60,7 +62,10 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-sync`: ADDED *A device sends the language of a gloss only to a server that stores it*.
+- `lingua-sync`: ADDED *A device sends the language of a gloss only to a server that stores it*;
+  MODIFIED *Widening a device's languages pulls again from the start* — the scenario *Updating the
+  extension* says the card cursor is reset once, by the first pull of this build; every other
+  sentence and scenario kept.
 - `lingua-stats`: ADDED *A device's daily statistics carry its native language*.
 - `lingua-decks-review`: MODIFIED *The backup records the reader's language profile* — one sentence
   and one scenario reworded for the native language that now travels on a statistic; every

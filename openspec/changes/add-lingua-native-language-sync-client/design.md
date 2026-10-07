@@ -48,9 +48,18 @@ card stays local and is pushed at a later sync, as non-English cards are held wh
 `fetchCards` sends `anyGlossLanguage: true` (change 10 D7: this build reads every label, change
 11 shows a gloss the reader can read) and passes `gloss_language` into the operation
 `applyCardOps` reads. Before this build the server withheld non-French cards from this device
-and kept no memory of them, and the cursor passed them: the first pull that says it reads labels
-pulls again from the start, once, under a stored marker (`cymbra-lingua-sync-labels`), exactly
-as *Widening a device's languages pulls again from the start* does for a language added.
+and kept no memory of them, and the card cursor passed them: the first pull that says it reads
+labels resets the card cursor and pulls the cards again from the start, once, under a stored
+marker (`cymbra-lingua-sync-labels`). The status cursor stands: no status was ever withheld.
+Where *Widening a device's languages pulls again from the start* resets both cursors for a
+language added, this resets the card cursor only — its scenario *Updating the extension* now says
+so.
+
+A server rolled back to before change 10 stores no label: it echoes a card this device holds with
+none — `fr` to the engine — dated no earlier than the device's copy, which last-writer-wins would
+apply, relabelling the device's card and, at the next push, the server's. The ids of the cards held
+this sync are remembered, and their echo is dropped before the pulled operations are applied: a
+label from a server that does not store labels is not information.
 
 Alternative: send a non-French gloss unlabelled to an older server. The row would be labelled
 `fr` for ever: the one case the programme's rule exists to prevent.
@@ -91,7 +100,7 @@ says what a request carries.
 ### D5 — The disclosures, in the same release
 
 `confidentialite.md` and `en/privacy.md`, Lingua annex, table « Ce qui est synchronisé si vous
-êtes connecté »: the deck row names « sa traduction, et la langue de cette traduction »; the
+êtes connecté »: the deck row names « sa traduction, la langue de cette traduction et son état de révision »; the
 statistics row names « votre langue maternelle (celle des traductions) »; and the "stays on the
 device" list is unchanged. `apps/lingua-apple/README.md`, the App Store answers: the « What it is in Lingua » column of
 the User Content row adds the gloss language, that of the Usage Data row the native language;
@@ -104,6 +113,8 @@ The Spanish annex comes with the Spanish site (changes 29, 31), which carries th
 - **A non-French label dropped by an older server** → D2 and D3 hold them; the flag is read at
   every sync.
 - **Cards withheld before this build** → the one-time pull from the start under its marker (D2).
+- **A rolled-back server's echo relabelling a held card French** → the echo of a card held this
+  sync is dropped before it is applied (D2).
 - **A French card held back by mistake** → the label's default is spelled out: an absent label
   is `fr`, and only a label other than `fr` waits for the flag (D2).
 - **A v3 record read as French on a device that was not** → no device could be: the native
