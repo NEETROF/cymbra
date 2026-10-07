@@ -6,11 +6,11 @@ See proposal.md (Why) and change 13's design. Today:
 
 | Module | Copy / behaviour |
 |---|---|
-| `account/copy.ts` | `errorCopy(context, kind)`, `linkCopy(provider, kind)`: the errors in plain words per flow and provider (25 + 3 templates) |
+| `account/copy.ts` | `errorCopy(context, kind)` and the private `linkCopy(provider, kind)`: the errors in plain words per flow and provider (25 + 3 templates) |
 | `account/flow.ts` | the steps' messages (« Un code de vérification a été envoyé à ${email} », « C'est noté : ton pseudo est @${handle} »…); `deps.locale` sent on four requests — `account:signUp`, `account:resendVerification`, `account:requestPasswordReset`, `account:setPassword`; `deleteAccountUrl(locale)` chooses the French or English deletion page by `locale.toLowerCase().startsWith("fr")` |
 | `account/view.ts` | 82 literals + « Lié le ${date} » (`toLocaleDateString("fr-FR")`), « Retirer ${provider} de ton compte ? », « Saisis le code envoyé à » + `<b>email</b>` |
-| `account/account.ts` | `locale: navigator.language || "fr"` — the whole tag; its storage reads are `chrome.storage.session` (the pending e-mail), none of `chrome.storage.local` |
-| `account.html` | two text nodes |
+| `account/account.ts` | `locale: navigator.language || "fr"` — the whole tag; its only `chrome.storage.local` read is `followSurfaceLook`'s (the colours, at module load); the pending e-mail is in `chrome.storage.session` |
+| `account.html` | three text nodes (two French per the lint) |
 | `onboarding.html` | 13 text nodes (title, « Quelles langues apprends-tu ? », « Pour commencer », the account offer) |
 | `onboarding.ts`, `level-row.ts` | « Débutant — je pars de zéro », « Niveau enregistré : ${…}. Tu peux fermer… » |
 | Cymbra ID | `UserAccount.locale` (`user.proto` field 7), stored as sent and adopted as such by Music; the e-mail templates in Music's four locales (fr, en, es, it); the site's deletion pages `/suppression-compte` (fr) and `/en/delete-account` |
@@ -32,9 +32,9 @@ See proposal.md (Why) and change 13's design. Today:
 
 ### D1 — The account page reads the key first
 
-`account.ts` reads the interface language from `chrome.storage.local` — a read of its own,
-before any copy renders; its `chrome.storage.session` reads (the pending e-mail) are another
-thing — and hands it to the flow and the view (it has no engine); `onboarding.ts` reads it the
+`account.ts` reads the interface language from `chrome.storage.local` with its first read of
+its own, before any copy renders (`followSurfaceLook`'s colour read and the `chrome.storage.session`
+pending-e-mail reads are other things) and hands it to the flow and the view (it has no engine); `onboarding.ts` reads it the
 same way before `hydrateEngine` (a read, not a write: the store's ownership rule is about
 writes). Both pages are filled at mount with change 14's `fillPage` and carry `lang`.
 
@@ -62,11 +62,13 @@ alternative in task 3.3.
 
 ### D3 — Slot messages and dates
 
-« Lié le ${date} » takes a date formatted for the interface language (`fr-FR` kept for French,
-change 13's `formatDate`); « Saisis le code envoyé à <b>email</b> » takes the e-mail as a slot
-the view renders in bold; « 1 à ${max} lettres ou chiffres » takes the bound. `errorCopy(language,
-context, kind)` and `linkCopy(language, provider, kind)` take the language first and read the
-catalogue's tables; the flow holds the language and passes it.
+« Lié le ${date} », « Saisis le code envoyé à <b>email</b> » and « 1 à ${max} lettres ou
+chiffres » are change 13's slot messages `linkedOn(date)`, `codeSentTo(email)` and
+`handleEmpty(max)`/`handleInvalid(max)`; the date is formatted for the interface language
+(`fr-FR` kept for French, change 13's `formatDate`), the e-mail rendered in bold by the view.
+`errorCopy(context, kind, language = "fr")` takes the language as an optional last parameter and
+reads the catalogue's `account` entries; the private `linkCopy` likewise; the flow holds the
+language and passes it — so `account-copy.spec.ts` passes unchanged.
 
 ### D4 — The baseline, after this change
 

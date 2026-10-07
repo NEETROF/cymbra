@@ -25,8 +25,10 @@ shared account locale Music adopts does not move either.
   onboarding}.ts`**, picked by the interface language read from `chrome.storage.local` before
   any copy renders (the account page has no engine; the onboarding reads it before its engine);
   their pages are filled at mount with change 14's `fillPage` and carry `lang`; « Lié le
-  ${date} » and « 1 à ${max} lettres ou chiffres » become slot messages with the locale's date in
-  English and Spanish; `errorCopy` and `linkCopy` take the language.
+  ${date} », « 1 à ${max} lettres ou chiffres » and « Saisis le code envoyé à … » are change 13's
+  slot messages `linkedOn`, `handleEmpty`/`handleInvalid` and `codeSentTo`, with the locale's date
+  in English and Spanish; `errorCopy` takes the language as an optional last parameter (the
+  private `linkCopy` likewise), so its spec passes unchanged.
 - **The locale sent to the server** on the four requests that carry one: the interface language
   when it is `fr`, `en` or `es`; the browser's language instead when the browser is in a language
   Cymbra speaks and the extension does not (`it` today), so that Music's Italian stays Italian.
