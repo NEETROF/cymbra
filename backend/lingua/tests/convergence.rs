@@ -211,11 +211,13 @@ impl DeckRepo for FakeDeck {
         _user: &str,
         cursor: i64,
         languages: &[String],
+        any_gloss_language: bool,
     ) -> Result<Vec<Card>> {
         let rows = self.rows.lock().unwrap();
         let mut out: Vec<Card> = rows
             .values()
             .filter(|c| c.sequence > cursor && languages.contains(&c.language))
+            .filter(|c| any_gloss_language || c.gloss_language == "fr")
             .cloned()
             .collect();
         out.sort_by_key(|c| c.sequence);
@@ -336,11 +338,13 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
         source_sentence: "They seldom ship.".into(),
         updated_at: 100,
         device_id: "iphone".into(),
+        // As the edge stores a card from a client that predates labels.
+        gloss_language: "fr".into(),
         ..Card::default()
     };
     card.lemma = "seldom".into();
     deck.push_cards(USER, vec![card], 1_000).await.unwrap();
-    let (mac_cards, _) = deck.pull_cards(USER, 0, &[]).await.unwrap();
+    let (mac_cards, _) = deck.pull_cards(USER, 0, &[], false).await.unwrap();
     assert_eq!(mac_cards[0].source_sentence, "They seldom ship.");
     let edited = Card {
         language: "en".into(),
@@ -348,10 +352,12 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
         source_sentence: "They rarely ship.".into(),
         updated_at: 300,
         device_id: "mac".into(),
+        // As the edge stores a card from a client that predates labels.
+        gloss_language: "fr".into(),
         ..Card::default()
     };
     deck.push_cards(USER, vec![edited], 1_000).await.unwrap();
-    let (iphone_cards, _) = deck.pull_cards(USER, 0, &[]).await.unwrap();
+    let (iphone_cards, _) = deck.pull_cards(USER, 0, &[], false).await.unwrap();
     assert_eq!(iphone_cards[0].source_sentence, "They rarely ship."); // the later edit won
 
     // Stats: both devices upsert the same day; the consolidated read sums them.
@@ -367,6 +373,7 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
                     words_learned: 1,
                     reviews_done: 20,
                     unknown_seen: Some(0),
+                    native_language: "fr".into(),
                 },
                 DailyStat {
                     day: 20_000,
@@ -376,6 +383,7 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
                     words_learned: 2,
                     reviews_done: 10,
                     unknown_seen: Some(0),
+                    native_language: "fr".into(),
                 },
             ],
         )
@@ -388,6 +396,53 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
     assert_eq!(consolidated.len(), 1);
     assert_eq!(consolidated[0].reviews_done, 30);
     assert_eq!(consolidated[0].words_learned, 3);
+}
+
+#[tokio::test]
+async fn a_card_glossed_in_english_converges_across_two_devices_with_its_label() {
+    const USER: &str = "user-2";
+    let deck = DeckModule::new(Arc::new(FakeDeck::default()), Arc::new(Marks::default()));
+
+    // An English-native iPad creates a Spanish card with an English gloss...
+    let created = Card {
+        language: "es".into(),
+        client_id: "hijo".into(),
+        lemma: "hijo".into(),
+        gloss: "son".into(),
+        gloss_language: "en".into(),
+        updated_at: 100,
+        device_id: "ipad".into(),
+        ..Card::default()
+    };
+    deck.push_cards(USER, vec![created], 1_000).await.unwrap();
+
+    // ...and the French-native Mac, which reads labels, pulls it with its label rather
+    // than assuming French.
+    let es = ["es".to_string()];
+    let (mac_cards, cursor) = deck.pull_cards(USER, 0, &es, true).await.unwrap();
+    assert_eq!(mac_cards.len(), 1);
+    assert_eq!(
+        (
+            mac_cards[0].gloss.as_str(),
+            mac_cards[0].gloss_language.as_str()
+        ),
+        ("son", "en")
+    );
+
+    // The Mac reviews it and pushes the card back as it received it, label included.
+    let reviewed = Card {
+        fsrs_state: "{\"reps\":1}".into(),
+        updated_at: 300,
+        device_id: "mac".into(),
+        ..mac_cards[0].clone()
+    };
+    deck.push_cards(USER, vec![reviewed], 1_000).await.unwrap();
+
+    // The iPad pulls the edit: the label survived the round trip through the other device.
+    let (ipad_cards, _) = deck.pull_cards(USER, cursor, &es, true).await.unwrap();
+    assert_eq!(ipad_cards.len(), 1);
+    assert_eq!(ipad_cards[0].fsrs_state, "{\"reps\":1}");
+    assert_eq!(ipad_cards[0].gloss_language, "en");
 }
 
 #[tokio::test]
@@ -411,6 +466,8 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
         lemma: "seldom".into(),
         updated_at: erased_at - 1_000,
         device_id: "mac".into(),
+        // As the edge stores a card from a client that predates labels.
+        gloss_language: "fr".into(),
         ..Card::default()
     };
     let old_stat = DailyStat {
@@ -422,6 +479,7 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
         reviews_done: 4,
         // Reports reading, so it is the erasure — not the outdated-client filter — that drops it.
         unknown_seen: Some(1),
+        native_language: "fr".into(),
     };
     words
         .push_ops(
@@ -439,7 +497,13 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
         .await
         .unwrap();
     assert!(words.pull_changes(ERASED, 0).await.unwrap().0.is_empty());
-    assert!(deck.pull_cards(ERASED, 0, &[]).await.unwrap().0.is_empty());
+    assert!(
+        deck.pull_cards(ERASED, 0, &[], false)
+            .await
+            .unwrap()
+            .0
+            .is_empty()
+    );
     assert!(
         stats
             .get_stats(ERASED, 19_990, 20_010, None)
@@ -465,7 +529,10 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
     // Another account is untouched by this reader's mark.
     deck.push_cards(OTHER, vec![old_card], now).await.unwrap();
     stats.upsert_stats(OTHER, vec![old_stat]).await.unwrap();
-    assert_eq!(deck.pull_cards(OTHER, 0, &[]).await.unwrap().0.len(), 1);
+    assert_eq!(
+        deck.pull_cards(OTHER, 0, &[], false).await.unwrap().0.len(),
+        1
+    );
     assert_eq!(
         stats
             .get_stats(OTHER, 19_990, 20_010, None)

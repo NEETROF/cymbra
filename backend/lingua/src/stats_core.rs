@@ -21,6 +21,10 @@ pub struct DailyStat {
     pub reviews_done: u32,
     /// New words seen; `None` when the client predates the counter (then not stored).
     pub unknown_seen: Option<u32>,
+    /// The device's native language that day; normalised by the adapter, `fr` when the
+    /// client sent none (add-lingua-native-language-server). A value of the row, not of
+    /// its key, and not a dimension of [`ConsolidatedStat`].
+    pub native_language: String,
 }
 
 /// Whether a pushed stat comes from a client that counts reading in blocks seen — the
@@ -73,6 +77,7 @@ mod tests {
             words_learned: 0,
             reviews_done: reviews,
             unknown_seen: Some(0),
+            native_language: "fr".into(),
         }
     }
 
@@ -110,6 +115,22 @@ mod tests {
         assert_eq!((out[0].day, out[0].language.as_str()), (20_000, "en"));
         assert_eq!((out[1].day, out[1].language.as_str()), (20_000, "fr"));
         assert_eq!((out[2].day, out[2].language.as_str()), (20_001, "en"));
+    }
+
+    #[test]
+    fn the_native_language_is_not_a_dimension_of_the_consolidated_read() {
+        // Two devices of different native languages, one day of English reading: one
+        // consolidated row (add-lingua-native-language-server, D5).
+        let rows = vec![
+            stat(20_000, "mac", 20),
+            DailyStat {
+                native_language: "es".into(),
+                ..stat(20_000, "ipad", 10)
+            },
+        ];
+        let out = consolidate(&rows);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].reviews_done, 30);
     }
 
     #[test]

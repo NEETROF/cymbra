@@ -147,7 +147,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 1 | 7 | `split-lingua-pack-tables-by-language` (M24) | 4–7 | Done (proposal [#739](https://github.com/NEETROF/cymbra/pull/739)); tables/en and tables/es, nothing moved |
 | 1 | 8 | `generalise-lingua-translation-routes-by-pair` | 5–8.5 | Not started |
 | 1 | 9 | `harden-lingua-translation-engine` | 2–3.5 | Not started |
-| 1 | 10 | `add-lingua-native-language-server` (M4, M14), server first | 4–6.5 | Not started |
+| 1 | 10 | `add-lingua-native-language-server` (M4, M14), server first | 4–6.5 | Done (proposal [#748](https://github.com/NEETROF/cymbra/pull/748)); the owner deploys it and checks it from outside before change 12 |
 | 1 | 11 | `add-lingua-card-gloss-language` | 3–5.5 | Not started |
 | 1 | 12 | `add-lingua-native-language-sync-client` | 3.5–6 | Not started |
 | 1 | 13 | `add-lingua-interface-language`: the catalogue, no visible change | 5–8 | Not started |

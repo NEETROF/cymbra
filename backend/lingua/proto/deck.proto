@@ -42,6 +42,12 @@ message CardOp {
   // that predate the field never set it and keep being understood. Normalised on
   // receipt (trimmed, lowercased, primary subtag).
   string language = 11;
+  // The language of the card's gloss (add-lingua-native-language-server). Empty means
+  // "fr": every pack ever shipped is glossed in French, and clients that predate the
+  // field never set it. Normalised on receipt like `language`; returned as stored. Not
+  // part of the key: two devices of one account write one card row, and the label
+  // travels with the gloss that wins.
+  string gloss_language = 12;
 }
 
 message PushCardsRequest {
@@ -60,6 +66,12 @@ message PullCardsRequest {
   // would mis-file. Cards in other languages are withheld, not consumed: the cursor
   // returned is the highest sequence among the cards returned.
   repeated string languages = 2;
+  // Whether this client reads a card's gloss language and accepts every one
+  // (add-lingua-native-language-server). Unset means French-glossed cards only, so a
+  // client that predates labels never holds a gloss it would push back unlabelled. Cards
+  // glossed in other languages are withheld, not consumed: the cursor returned is the
+  // highest sequence among the cards returned.
+  bool any_gloss_language = 3;
 }
 
 message PullCardsResponse {

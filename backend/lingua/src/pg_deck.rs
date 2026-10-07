@@ -7,7 +7,11 @@
 //! Postgres adapter for [`DeckRepo`]. Thin sqlx glue — coverage-excluded; LWW logic is
 //! host-tested in `deck`. Media contents are never stored (allow-list): no media column,
 //! and no page address either (add-lingua-privacy-controls). A card is keyed by
-//! (user, language, client id) since add-lingua-card-language.
+//! (user, language, client id) since add-lingua-card-language; its gloss language is a
+//! value of the row (add-lingua-native-language-server), `DEFAULT 'fr'` for every row
+//! written before migration 0006, and a pull that does not say it reads labels is
+//! filtered to French-glossed cards in the same WHERE as the languages, so the cursor
+//! semantics stay the precedent's.
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
@@ -15,6 +19,7 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::deck::{Card, DeckRepo};
+use crate::language_core::DEFAULT_NATIVE_LANGUAGE;
 
 fn internal(e: sqlx::Error) -> AppError {
     AppError::Internal(anyhow::anyhow!("lingua db: {e}"))
@@ -40,12 +45,14 @@ impl DeckRepo for PgDeckRepo {
         let affected = sqlx::query(
             "INSERT INTO lingua.cards \
                (user_id, language, client_id, lemma, surface_form, source_sentence, gloss, \
-                fsrs_state, deleted, updated_at, device_id, seq) \
-             VALUES ($1, $11, $2, $3, $4, $5, $6, $7, $8, $9, $10, nextval('lingua.change_seq')) \
+                fsrs_state, deleted, updated_at, device_id, seq, gloss_language) \
+             VALUES ($1, $11, $2, $3, $4, $5, $6, $7, $8, $9, $10, nextval('lingua.change_seq'), \
+                     $12) \
              ON CONFLICT (user_id, language, client_id) DO UPDATE SET \
                lemma = excluded.lemma, surface_form = excluded.surface_form, \
                source_sentence = excluded.source_sentence, \
-               gloss = excluded.gloss, fsrs_state = excluded.fsrs_state, \
+               gloss = excluded.gloss, gloss_language = excluded.gloss_language, \
+               fsrs_state = excluded.fsrs_state, \
                deleted = excluded.deleted, updated_at = excluded.updated_at, \
                device_id = excluded.device_id, seq = nextval('lingua.change_seq') \
              WHERE excluded.updated_at > lingua.cards.updated_at \
@@ -63,6 +70,7 @@ impl DeckRepo for PgDeckRepo {
         .bind(card.updated_at)
         .bind(&card.device_id)
         .bind(&card.language)
+        .bind(&card.gloss_language)
         .execute(&self.pool)
         .await
         .map_err(internal)?
@@ -85,16 +93,21 @@ impl DeckRepo for PgDeckRepo {
         user: &str,
         cursor: i64,
         languages: &[String],
+        any_gloss_language: bool,
     ) -> Result<Vec<Card>> {
         let rows = sqlx::query(
             "SELECT language, client_id, lemma, surface_form, source_sentence, gloss, \
-                    fsrs_state, deleted, updated_at, device_id, seq \
+                    gloss_language, fsrs_state, deleted, updated_at, device_id, seq \
              FROM lingua.cards \
-             WHERE user_id = $1 AND seq > $2 AND language = ANY($3) ORDER BY seq",
+             WHERE user_id = $1 AND seq > $2 AND language = ANY($3) \
+               AND ($4 OR gloss_language = $5) \
+             ORDER BY seq",
         )
         .bind(uid(user)?)
         .bind(cursor)
         .bind(languages)
+        .bind(any_gloss_language)
+        .bind(DEFAULT_NATIVE_LANGUAGE)
         .fetch_all(&self.pool)
         .await
         .map_err(internal)?;
@@ -107,6 +120,7 @@ impl DeckRepo for PgDeckRepo {
                 surface_form: r.get("surface_form"),
                 source_sentence: r.get("source_sentence"),
                 gloss: r.get::<Option<String>, _>("gloss").unwrap_or_default(),
+                gloss_language: r.get("gloss_language"),
                 fsrs_state: r.get("fsrs_state"),
                 deleted: r.get("deleted"),
                 updated_at: r.get("updated_at"),

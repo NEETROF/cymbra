@@ -16,7 +16,7 @@ use tonic::{Request, Response, Status};
 
 use crate::deck::{Card, DeckModule};
 use crate::grpc_util::{caller, now_ms};
-use crate::language_core::normalise;
+use crate::language_core::{gloss_language, normalise};
 use crate::proto::deck_service_server::DeckService;
 use crate::proto::{
     CardOp, PullCardsRequest, PullCardsResponse, PushCardsRequest, PushCardsResponse,
@@ -41,6 +41,8 @@ fn from_proto(o: CardOp) -> Card {
         surface_form: o.surface_form,
         source_sentence: o.source_sentence,
         gloss: o.gloss,
+        // Empty from a client that predates the field: every gloss it holds is French.
+        gloss_language: gloss_language(&o.gloss_language),
         fsrs_state: o.fsrs_state,
         deleted: o.deleted,
         updated_at: o.client_ts,
@@ -65,6 +67,7 @@ fn to_proto(c: Card) -> CardOp {
         client_ts: c.updated_at,
         device_id: c.device_id,
         language: c.language,
+        gloss_language: c.gloss_language,
     }
 }
 
@@ -86,14 +89,89 @@ impl DeckService for DeckGrpc {
     ) -> Result<Response<PullCardsResponse>, Status> {
         let user = caller(&req)?;
         let r = req.into_inner();
-        // An empty list is a client that predates card languages: English only.
+        // An empty list is a client that predates card languages: English only; an unset
+        // flag, one that predates gloss labels: French-glossed cards only.
         let (cards, cursor) = self
             .module
-            .pull_cards(&user, r.cursor, &r.languages)
+            .pull_cards(&user, r.cursor, &r.languages, r.any_gloss_language)
             .await?;
         Ok(Response::new(PullCardsResponse {
             cards: cards.into_iter().map(to_proto).collect(),
             cursor,
         }))
+    }
+}
+
+// The adapter is excluded from the coverage gate; these tests are for its correctness:
+// the edge's defaults and what it maps onto the module.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::MockErasureMarks;
+    use crate::deck::MockDeckRepo;
+    use cymbra_platform::AuthIdentity;
+
+    fn as_reader<T>(body: T) -> Request<T> {
+        let mut req = Request::new(body);
+        req.extensions_mut().insert(AuthIdentity {
+            user_id: "u1".into(),
+            ..AuthIdentity::default()
+        });
+        req
+    }
+
+    // --- A card carries the language of its gloss (add-lingua-native-language-server) ---
+
+    #[test]
+    fn an_op_without_a_gloss_language_reads_fr_at_the_edge() {
+        let card = from_proto(CardOp::default());
+        assert_eq!(card.gloss_language, "fr");
+        assert_eq!(
+            card.language, "en",
+            "the studied language keeps its own default"
+        );
+    }
+
+    #[test]
+    fn an_upper_case_gloss_language_is_normalised_at_the_edge() {
+        let op = CardOp {
+            gloss_language: "EN".into(),
+            ..CardOp::default()
+        };
+        assert_eq!(from_proto(op).gloss_language, "en");
+    }
+
+    #[test]
+    fn a_pulled_card_carries_its_gloss_language_as_stored() {
+        let stored = Card {
+            gloss_language: "tlh".into(),
+            ..Card::default()
+        };
+        assert_eq!(to_proto(stored).gloss_language, "tlh");
+    }
+
+    #[tokio::test]
+    async fn a_pull_maps_any_gloss_language_onto_the_module() {
+        for flag in [false, true] {
+            let mut repo = MockDeckRepo::new();
+            repo.expect_changes_since()
+                .withf(move |_, cursor, languages, any_gloss_language| {
+                    *cursor == 7 && languages == ["en"] && *any_gloss_language == flag
+                })
+                .times(1)
+                .returning(|_, _, _, _| Ok(vec![]));
+            let module = DeckModule::new(Arc::new(repo), Arc::new(MockErasureMarks::new()));
+            let grpc = DeckGrpc::new(Arc::new(module));
+            let out = grpc
+                .pull_cards(as_reader(PullCardsRequest {
+                    cursor: 7,
+                    languages: vec![],
+                    any_gloss_language: flag,
+                }))
+                .await
+                .unwrap()
+                .into_inner();
+            assert_eq!(out.cursor, 7, "nothing returned, the cursor stays");
+        }
     }
 }

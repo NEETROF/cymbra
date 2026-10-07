@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::grpc_util::caller;
-use crate::language_core::normalise;
+use crate::language_core::{native_language, normalise};
 use crate::proto::stats_service_server::StatsService;
 use crate::proto::{
     ConsolidatedStat as ProtoConsolidated, DailyStat as ProtoDaily, GetStatsRequest,
@@ -41,6 +41,8 @@ fn from_proto(s: ProtoDaily) -> DailyStat {
         words_learned: s.words_learned,
         reviews_done: s.reviews_done,
         unknown_seen: s.unknown_seen,
+        // Empty from a client that predates the field: its reader is French-native.
+        native_language: native_language(&s.native_language),
     }
 }
 
@@ -85,5 +87,40 @@ impl StatsService for StatsGrpc {
         Ok(Response::new(GetStatsResponse {
             stats: stats.into_iter().map(to_proto).collect(),
         }))
+    }
+}
+
+// The adapter is excluded from the coverage gate; these tests are for its correctness:
+// the edge's defaults.
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- A daily statistic carries the native language of its device
+    // (add-lingua-native-language-server) ---
+
+    #[test]
+    fn a_stat_without_a_native_language_reads_fr_at_the_edge() {
+        let stat = from_proto(ProtoDaily::default());
+        assert_eq!(stat.native_language, "fr");
+        assert_eq!(
+            stat.language, "en",
+            "the studied language keeps its own default"
+        );
+        assert_eq!(
+            stat.unknown_seen, None,
+            "presence still marks an up-to-date client"
+        );
+    }
+
+    #[test]
+    fn a_regional_native_language_is_normalised_at_the_edge() {
+        let stat = from_proto(ProtoDaily {
+            native_language: "es-MX".into(),
+            unknown_seen: Some(1),
+            ..ProtoDaily::default()
+        });
+        assert_eq!(stat.native_language, "es");
+        assert_eq!(stat.unknown_seen, Some(1));
     }
 }

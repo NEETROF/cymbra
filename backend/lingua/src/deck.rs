@@ -8,9 +8,14 @@
 //! language, last-write-wins per card (tombstones included). A pull names the languages
 //! the client accepts and receives nothing else (add-lingua-card-language), so a client
 //! that predates card languages — it names none, so English only — never receives a card
-//! it would mis-file. Same clamp + LWW rules as KnownWords
-//! ([`known_words_core`]). Media contents never cross the wire (allow-list) — there is
-//! no media field — and neither does the page a card was captured from
+//! it would mis-file. A card also says which language its gloss is written in
+//! (add-lingua-native-language-server): a label of the row, not of its key, so two
+//! devices of one account with different native languages write one card row and the
+//! label travels with the gloss that wins. A pull that does not say it reads labels
+//! receives French-glossed cards only: an installed client pushes its whole deck back
+//! unlabelled, and would relabel an English gloss `fr`. Same clamp + LWW rules as
+//! KnownWords ([`known_words_core`]). Media contents never cross the wire (allow-list) —
+//! there is no media field — and neither does the page a card was captured from
 //! (add-lingua-privacy-controls): a card has no source here. Ops dated before the user's
 //! erasure mark are dropped ([`data_core`](crate::data_core)).
 
@@ -35,6 +40,9 @@ pub struct Card {
     pub surface_form: String,
     pub source_sentence: String,
     pub gloss: String,
+    /// The language of `gloss`; normalised by the adapter, `fr` when the client sent
+    /// none (add-lingua-native-language-server). Not part of the key.
+    pub gloss_language: String,
     pub fsrs_state: String,
     pub deleted: bool,
     pub updated_at: i64,
@@ -43,6 +51,7 @@ pub struct Card {
 }
 
 /// Storage port for cards.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait DeckRepo: Send + Sync {
     /// Apply one card op (its `updated_at` is already clamped). Returns whether it won
@@ -50,12 +59,15 @@ pub trait DeckRepo: Send + Sync {
     async fn apply_card(&self, user: &str, card: &Card) -> Result<bool>;
     async fn tip_cursor(&self, user: &str) -> Result<i64>;
     /// Cards with `sequence > cursor` whose language is in `languages`, in sequence order
-    /// (tombstones included).
+    /// (tombstones included); those glossed in
+    /// [`DEFAULT_NATIVE_LANGUAGE`](crate::language_core::DEFAULT_NATIVE_LANGUAGE) only
+    /// unless `any_gloss_language` (add-lingua-native-language-server).
     async fn changes_since(
         &self,
         user: &str,
         cursor: i64,
         languages: &[String],
+        any_gloss_language: bool,
     ) -> Result<Vec<Card>>;
 }
 
@@ -89,17 +101,23 @@ impl DeckModule {
     }
 
     /// The cards after `cursor` in the languages the client accepts (none named = English
-    /// only). The cursor returned is the highest sequence among the cards returned, or
-    /// `cursor` when none was: cards in other languages are withheld, not consumed, so a
-    /// client that later accepts more languages can pull again from an earlier cursor.
+    /// only), glossed in French only unless the client says it reads gloss languages
+    /// (add-lingua-native-language-server). The cursor returned is the highest sequence
+    /// among the cards returned, or `cursor` when none was: cards in other languages, or
+    /// glossed in another, are withheld, not consumed, so a client that later accepts
+    /// more can pull again from an earlier cursor.
     pub async fn pull_cards(
         &self,
         user: &str,
         cursor: i64,
         languages: &[String],
+        any_gloss_language: bool,
     ) -> Result<(Vec<Card>, i64)> {
         let accepted = accepted_languages(languages);
-        let cards = self.repo.changes_since(user, cursor, &accepted).await?;
+        let cards = self
+            .repo
+            .changes_since(user, cursor, &accepted, any_gloss_language)
+            .await?;
         let next = cards.iter().map(|c| c.sequence).max().unwrap_or(cursor);
         Ok((cards, next))
     }
@@ -110,6 +128,7 @@ mod tests {
     use super::*;
     use crate::data::MockErasureMarks;
     use crate::known_words_core::wins;
+    use crate::language_core::{DEFAULT_NATIVE_LANGUAGE, gloss_language};
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -161,6 +180,7 @@ mod tests {
             user: &str,
             cursor: i64,
             languages: &[String],
+            any_gloss_language: bool,
         ) -> Result<Vec<Card>> {
             let rows = self.rows.lock().unwrap();
             let mut out: Vec<Card> = rows
@@ -168,6 +188,7 @@ mod tests {
                 .into_iter()
                 .flat_map(|m| m.values())
                 .filter(|c| c.sequence > cursor && languages.contains(&c.language))
+                .filter(|c| any_gloss_language || c.gloss_language == DEFAULT_NATIVE_LANGUAGE)
                 .cloned()
                 .collect();
             out.sort_by_key(|c| c.sequence);
@@ -193,6 +214,7 @@ mod tests {
             surface_form: "seldom".into(),
             source_sentence: sentence.into(),
             gloss: "rarement".into(),
+            gloss_language: "fr".into(),
             fsrs_state: "{}".into(),
             deleted: false,
             updated_at: ts,
@@ -212,7 +234,7 @@ mod tests {
             )
             .await
             .unwrap();
-        let (cards, _) = module.pull_cards("u1", 0, &[]).await.unwrap();
+        let (cards, _) = module.pull_cards("u1", 0, &[], false).await.unwrap();
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].source_sentence, "They seldom ship.");
         assert!(!cards[0].deleted);
@@ -228,7 +250,7 @@ mod tests {
         let mut tomb = card("c1", "s", 200, "mac");
         tomb.deleted = true;
         module.push_cards("u1", vec![tomb], 1_000).await.unwrap();
-        let (cards, _) = module.pull_cards("u1", 0, &[]).await.unwrap();
+        let (cards, _) = module.pull_cards("u1", 0, &[], false).await.unwrap();
         assert_eq!(cards.len(), 1);
         assert!(cards[0].deleted); // tombstone wins and is pulled so clients delete
     }
@@ -248,7 +270,7 @@ mod tests {
         assert_eq!(
             module
                 .repo
-                .changes_since("u1", 0, &["en".to_string()])
+                .changes_since("u1", 0, &["en".to_string()], false)
                 .await
                 .unwrap()[0]
                 .source_sentence,
@@ -268,7 +290,14 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(applied, 0);
-        assert!(module.pull_cards("u1", 0, &[]).await.unwrap().0.is_empty());
+        assert!(
+            module
+                .pull_cards("u1", 0, &[], false)
+                .await
+                .unwrap()
+                .0
+                .is_empty()
+        );
     }
 
     #[tokio::test]
@@ -280,7 +309,7 @@ mod tests {
             .unwrap();
         assert_eq!(applied, 1);
         assert_eq!(
-            module.pull_cards("u1", 0, &[]).await.unwrap().0[0].client_id,
+            module.pull_cards("u1", 0, &[], false).await.unwrap().0[0].client_id,
             "new"
         );
     }
@@ -326,7 +355,7 @@ mod tests {
         edited.gloss = "ils sont".into();
         module.push_cards("u1", vec![edited], 1_000).await.unwrap();
         let both = ["en".to_string(), "es".to_string()];
-        let (cards, _) = module.pull_cards("u1", 0, &both).await.unwrap();
+        let (cards, _) = module.pull_cards("u1", 0, &both, false).await.unwrap();
         assert_eq!(cards.len(), 2);
         let english = cards.iter().find(|c| c.language == "en").unwrap();
         let spanish_card = cards.iter().find(|c| c.language == "es").unwrap();
@@ -346,12 +375,12 @@ mod tests {
             .await
             .unwrap();
         // The installed client: no language named.
-        let (cards, cursor) = module.pull_cards("u1", 0, &[]).await.unwrap();
+        let (cards, cursor) = module.pull_cards("u1", 0, &[], false).await.unwrap();
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].language, "en");
         assert_eq!(cursor, 1, "the withheld Spanish card is not consumed");
         // Nothing new for it afterwards, and the cursor does not move.
-        let (again, cursor2) = module.pull_cards("u1", cursor, &[]).await.unwrap();
+        let (again, cursor2) = module.pull_cards("u1", cursor, &[], false).await.unwrap();
         assert!(again.is_empty());
         assert_eq!(cursor2, cursor);
     }
@@ -367,15 +396,172 @@ mod tests {
             )
             .await
             .unwrap();
-        let (_, cursor) = module.pull_cards("u1", 0, &[]).await.unwrap();
+        let (_, cursor) = module.pull_cards("u1", 0, &[], false).await.unwrap();
         let both = ["en".to_string(), "es-ES".to_string()];
-        let (cards, next) = module.pull_cards("u1", cursor, &both).await.unwrap();
+        let (cards, next) = module.pull_cards("u1", cursor, &both, false).await.unwrap();
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].language, "es");
         assert_eq!(next, 2);
         // Re-pulling from the start with both is a no-op for what it already holds.
-        let (all, _) = module.pull_cards("u1", 0, &both).await.unwrap();
+        let (all, _) = module.pull_cards("u1", 0, &both, false).await.unwrap();
         assert_eq!(all.len(), 2);
+    }
+
+    // --- A card carries the language of its gloss (add-lingua-native-language-server) ---
+
+    /// A card whose gloss carries the literal label the edge stored
+    /// (`deck_grpc::from_proto` through the named reader).
+    fn labelled(id: &str, gloss: &str, label: &str, ts: i64, device: &str) -> Card {
+        Card {
+            gloss: gloss.into(),
+            gloss_language: label.into(),
+            ..card(id, "They seldom ship.", ts, device)
+        }
+    }
+
+    #[tokio::test]
+    async fn an_installed_client_that_sends_no_gloss_language() {
+        // The empty wire value, through the named reader the edge calls.
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        module
+            .push_cards(
+                "u1",
+                vec![labelled("c1", "rarement", &gloss_language(""), 100, "mac")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        let (cards, _) = module.pull_cards("u1", 0, &[], false).await.unwrap();
+        assert_eq!(cards.len(), 1);
+        assert_eq!(cards[0].gloss, "rarement");
+        assert_eq!(cards[0].gloss_language, "fr");
+    }
+
+    #[tokio::test]
+    async fn a_card_glossed_in_english() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        module
+            .push_cards(
+                "u1",
+                vec![labelled("c1", "rarely", "en", 100, "ipad")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        // A device that reads labels receives it, whatever its own native language.
+        let (cards, _) = module.pull_cards("u1", 0, &[], true).await.unwrap();
+        assert_eq!(cards.len(), 1);
+        assert_eq!(
+            (cards[0].gloss.as_str(), cards[0].gloss_language.as_str()),
+            ("rarely", "en")
+        );
+    }
+
+    #[tokio::test]
+    async fn two_devices_of_different_native_languages() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        // The Spanish-native device writes first, the French-native one last.
+        module
+            .push_cards(
+                "u1",
+                vec![labelled("c1", "raramente", "es", 100, "ipad")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        module
+            .push_cards(
+                "u1",
+                vec![labelled("c1", "rarement", "fr", 200, "mac")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        let (cards, _) = module.pull_cards("u1", 0, &[], true).await.unwrap();
+        assert_eq!(cards.len(), 1, "the key did not change: one row");
+        assert_eq!(
+            (cards[0].gloss.as_str(), cards[0].gloss_language.as_str()),
+            ("rarement", "fr")
+        );
+        // A stale Spanish write afterwards changes neither the gloss nor its label.
+        let (applied, _) = module
+            .push_cards(
+                "u1",
+                vec![labelled("c1", "raramente", "es", 150, "ipad")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        assert_eq!(applied, 0);
+        let (cards, _) = module.pull_cards("u1", 0, &[], true).await.unwrap();
+        assert_eq!(cards[0].gloss_language, "fr");
+    }
+
+    #[tokio::test]
+    async fn a_pull_from_a_client_that_predates_labels() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        // The account holds a card glossed in French, then one glossed in English.
+        module
+            .push_cards("u1", vec![card("c1", "s", 100, "mac")], 1_000)
+            .await
+            .unwrap();
+        module
+            .push_cards(
+                "u1",
+                vec![labelled("c2", "rarely", "en", 100, "ipad")],
+                1_000,
+            )
+            .await
+            .unwrap();
+        // The installed client: it does not say it reads gloss languages.
+        let (cards, cursor) = module.pull_cards("u1", 0, &[], false).await.unwrap();
+        assert_eq!(cards.len(), 1);
+        assert_eq!(
+            (
+                cards[0].client_id.as_str(),
+                cards[0].gloss_language.as_str()
+            ),
+            ("c1", "fr")
+        );
+        assert_eq!(
+            cursor, 1,
+            "the withheld English-glossed card is not consumed"
+        );
+        // Nothing new for it afterwards, and the cursor does not move.
+        let (again, cursor2) = module.pull_cards("u1", cursor, &[], false).await.unwrap();
+        assert!(again.is_empty());
+        assert_eq!(cursor2, cursor);
+    }
+
+    #[tokio::test]
+    async fn a_pull_from_a_client_that_reads_labels() {
+        let module = DeckModule::new(Arc::new(FakeDeckRepo::default()), never_erased());
+        module
+            .push_cards(
+                "u1",
+                vec![
+                    card("c1", "s", 100, "mac"),
+                    labelled("c2", "rarely", "en", 100, "ipad"),
+                ],
+                1_000,
+            )
+            .await
+            .unwrap();
+        // The same account, pulled by a client that says it reads gloss languages.
+        let (cards, cursor) = module.pull_cards("u1", 0, &[], true).await.unwrap();
+        assert_eq!(cards.len(), 2);
+        assert_eq!(
+            cards
+                .iter()
+                .map(|c| (c.client_id.as_str(), c.gloss_language.as_str()))
+                .collect::<Vec<_>>(),
+            [("c1", "fr"), ("c2", "en")]
+        );
+        assert_eq!(cursor, 2);
+        // From the cursor an installed client stopped at, it receives what was withheld.
+        let (withheld, _) = module.pull_cards("u1", 1, &[], true).await.unwrap();
+        assert_eq!(withheld.len(), 1);
+        assert_eq!(withheld[0].client_id, "c2");
     }
 
     #[tokio::test]
@@ -384,10 +570,32 @@ mod tests {
         let mut pt = spanish("filho", 100, "mac");
         pt.language = "pt".into();
         module.push_cards("u1", vec![pt], 1_000).await.unwrap();
-        assert!(module.pull_cards("u1", 0, &[]).await.unwrap().0.is_empty());
+        assert!(
+            module
+                .pull_cards("u1", 0, &[], false)
+                .await
+                .unwrap()
+                .0
+                .is_empty()
+        );
         let es = ["es".to_string()];
-        assert!(module.pull_cards("u1", 0, &es).await.unwrap().0.is_empty());
+        assert!(
+            module
+                .pull_cards("u1", 0, &es, false)
+                .await
+                .unwrap()
+                .0
+                .is_empty()
+        );
         let pt = ["pt".to_string()];
-        assert_eq!(module.pull_cards("u1", 0, &pt).await.unwrap().0.len(), 1);
+        assert_eq!(
+            module
+                .pull_cards("u1", 0, &pt, false)
+                .await
+                .unwrap()
+                .0
+                .len(),
+            1
+        );
     }
 }

@@ -7,7 +7,13 @@
 //! A card keyed by its studied language, against live Postgres (change:
 //! add-lingua-card-language). `PgDeckRepo` is the one place the composite key, the
 //! `DEFAULT 'en'` and the `language = ANY(...)` filter exist, and migration 0005's
-//! primary-key swap only fails for real against a real server.
+//! primary-key swap only fails for real against a real server. Since
+//! add-lingua-native-language-server a card also carries the language of its gloss
+//! (migration 0006, `DEFAULT 'fr'`), a value of the row the winning write sets, and a
+//! pull that does not say it reads labels is filtered to French-glossed cards in SQL.
+//! This database is fresh (CI boots one): every row here is written after 0006, so a
+//! row "written before it" is one written by SQL that names no label, and what that
+//! proves is the column's default, not a rewrite — see `every_stored_gloss_today`.
 //!
 //! Run: `CYMBRA_LINGUA_DATABASE_URL=… cargo test -p cymbra-lingua --test pg_deck_it -- --ignored`
 
@@ -34,6 +40,7 @@ fn card(language: &str, id: &str, gloss: &str, ts: i64) -> Card {
         surface_form: id.into(),
         source_sentence: "…".into(),
         gloss: gloss.into(),
+        gloss_language: "fr".into(),
         fsrs_state: "{}".into(),
         deleted: false,
         updated_at: ts,
@@ -94,13 +101,13 @@ async fn a_row_written_without_a_language_is_english() {
     .expect("seed legacy card");
     let repo = PgDeckRepo::new(pool.clone());
     let en = repo
-        .changes_since(&user.to_string(), 0, &["en".to_string()])
+        .changes_since(&user.to_string(), 0, &["en".to_string()], false)
         .await
         .expect("pull en");
     assert_eq!(en.len(), 1);
     assert_eq!(en[0].language, "en");
     let es = repo
-        .changes_since(&user.to_string(), 0, &["es".to_string()])
+        .changes_since(&user.to_string(), 0, &["es".to_string()], false)
         .await
         .expect("pull es");
     assert!(es.is_empty());
@@ -138,19 +145,155 @@ async fn the_same_client_id_in_two_languages_is_two_rows_with_independent_lww() 
     );
 
     let english_only = repo
-        .changes_since(&u, 0, &["en".to_string()])
+        .changes_since(&u, 0, &["en".to_string()], false)
         .await
         .unwrap();
     assert_eq!(english_only.len(), 1);
     assert_eq!(english_only[0].gloss, "fils (edited)");
 
     let both = repo
-        .changes_since(&u, 0, &["en".to_string(), "es".to_string()])
+        .changes_since(&u, 0, &["en".to_string(), "es".to_string()], false)
         .await
         .unwrap();
     assert_eq!(both.len(), 2);
     assert!(both.windows(2).all(|w| w[0].sequence < w[1].sequence));
     let spanish = both.iter().find(|c| c.language == "es").unwrap();
     assert_eq!(spanish.gloss, "ils sont");
+    wipe(&pool, user).await;
+}
+
+#[tokio::test]
+#[ignore = "needs CYMBRA_LINGUA_DATABASE_URL"]
+async fn every_stored_gloss_today() {
+    // `pool()` ran 0006 before any row existed, so this row is written AFTER the
+    // migration, by SQL that names no gloss language — as every client's write did
+    // before the field. What it proves is the column's default: the value a row that
+    // predates 0006 also reads, by Postgres's catalogue default, without a rewrite. That
+    // a real pre-0006 row reads so is rehearsed on a copy of production (task 5.1).
+    let pool = pool().await;
+    let user = uuid::Uuid::new_v4();
+    sqlx::query(
+        "INSERT INTO lingua.cards (user_id, client_id, lemma, gloss, updated_at, seq) \
+         VALUES ($1, 'seldom', 'seldom', 'rarement', 1, nextval('lingua.change_seq'))",
+    )
+    .bind(user)
+    .execute(&pool)
+    .await
+    .expect("seed legacy card");
+    let repo = PgDeckRepo::new(pool.clone());
+    let cards = repo
+        .changes_since(&user.to_string(), 0, &["en".to_string()], false)
+        .await
+        .expect("pull");
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0].gloss, "rarement");
+    assert_eq!(cards[0].gloss_language, "fr");
+    wipe(&pool, user).await;
+}
+
+#[tokio::test]
+#[ignore = "needs CYMBRA_LINGUA_DATABASE_URL"]
+async fn the_gloss_language_travels_with_the_write_that_wins() {
+    let pool = pool().await;
+    let user = uuid::Uuid::new_v4();
+    let u = user.to_string();
+    let repo = PgDeckRepo::new(pool.clone());
+    let labelled = |gloss: &str, label: &str, ts: i64, device: &str| Card {
+        gloss_language: label.into(),
+        device_id: device.into(),
+        ..card("en", "seldom", gloss, ts)
+    };
+    // A labelled row round-trips, to a client that reads labels.
+    assert!(
+        repo.apply_card(&u, &labelled("raramente", "es", 100, "ipad"))
+            .await
+            .unwrap()
+    );
+    let stored = repo
+        .changes_since(&u, 0, &["en".to_string()], true)
+        .await
+        .unwrap();
+    assert_eq!(stored.len(), 1);
+    assert_eq!(stored[0].gloss_language, "es");
+    // The French-native device writes last: one row, its gloss, its label...
+    assert!(
+        repo.apply_card(&u, &labelled("rarement", "fr", 200, "mac"))
+            .await
+            .unwrap()
+    );
+    // ...and a stale Spanish write afterwards loses, label included.
+    assert!(
+        !repo
+            .apply_card(&u, &labelled("raramente", "es", 150, "ipad"))
+            .await
+            .unwrap()
+    );
+    let stored = repo
+        .changes_since(&u, 0, &["en".to_string()], false)
+        .await
+        .unwrap();
+    assert_eq!(stored.len(), 1);
+    assert_eq!(
+        (stored[0].gloss.as_str(), stored[0].gloss_language.as_str()),
+        ("rarement", "fr")
+    );
+    wipe(&pool, user).await;
+}
+
+#[tokio::test]
+#[ignore = "needs CYMBRA_LINGUA_DATABASE_URL"]
+async fn a_pull_without_any_gloss_language_withholds_a_non_french_gloss() {
+    let pool = pool().await;
+    let user = uuid::Uuid::new_v4();
+    let u = user.to_string();
+    let repo = PgDeckRepo::new(pool.clone());
+    // A French-glossed card, then an English-glossed one, in the same studied language.
+    assert!(
+        repo.apply_card(&u, &card("en", "seldom", "rarement", 100))
+            .await
+            .unwrap()
+    );
+    assert!(
+        repo.apply_card(
+            &u,
+            &Card {
+                gloss_language: "en".into(),
+                ..card("en", "rarely", "rarely", 100)
+            }
+        )
+        .await
+        .unwrap()
+    );
+    let en = vec!["en".to_string()];
+    // A client that predates labels: the French one only, in the same WHERE as the
+    // language filter, so the English one is withheld, not consumed.
+    let predates = repo.changes_since(&u, 0, &en, false).await.unwrap();
+    assert_eq!(predates.len(), 1);
+    assert_eq!(
+        (
+            predates[0].client_id.as_str(),
+            predates[0].gloss_language.as_str()
+        ),
+        ("seldom", "fr")
+    );
+    let french_seq = predates[0].sequence;
+    // A client that reads labels: both, each with its label, the English one after.
+    let reads = repo.changes_since(&u, 0, &en, true).await.unwrap();
+    assert_eq!(reads.len(), 2);
+    assert_eq!(
+        reads
+            .iter()
+            .map(|c| (c.client_id.as_str(), c.gloss_language.as_str()))
+            .collect::<Vec<_>>(),
+        [("seldom", "fr"), ("rarely", "en")]
+    );
+    assert_eq!(
+        repo.changes_since(&u, french_seq, &en, true)
+            .await
+            .unwrap()
+            .len(),
+        1,
+        "from the cursor the old client stopped at, the withheld card is delivered"
+    );
     wipe(&pool, user).await;
 }
