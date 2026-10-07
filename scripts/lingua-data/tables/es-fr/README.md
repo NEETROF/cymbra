@@ -5,19 +5,36 @@ build makes the same pack with no download, and so that a change to the dictiona
 request whose diff shows it (add-lingua-spanish-forms-tables). No extension package carries the
 pack yet: that is `enable-lingua-spanish`.
 
+They are in two folders (split-lingua-pack-tables-by-language). This one holds what belongs to
+es-fr alone: its French glosses, its expressions, the parts of speech of their senses, its notice,
+manifest and pin. Spanish's own tables — its forms, ranks, levels, readings, tag pool and dictionary
+words — are kept once, in `../es/`, for every pair studying Spanish. es-fr is Spanish's reference
+pair (`../es/studied.json`): its reduction writes `../es/`, and this folder's `pin.json` records the
+sources of both. That matters for the levels: they are estimated from es-fr's French glosses, so
+every pair studying Spanish reads es-fr's.
+
+In this folder:
+
+| File | What it maps | From |
+|---|---|---|
+| `gloss.tsv` | lemma → French gloss | the French Wiktionary's Spanish entries; else the Spanish Wiktionary's French translations; else the French Wiktionary's translation tables, read backwards (all CC BY-SA 4.0 + GFDL, through kaikki) |
+| `senses.tsv` | lemma → part of speech of each run of its gloss's senses, a noun's with its gender | the same, the gender from `../es/forms.tsv`'s source |
+| `mwe.tsv` | expression → French gloss | the same sources, for multi-word headwords |
+| `NOTICE` | the attribution stack, embedded in the pack | — |
+| `manifest.json` | the pack's metadata: Spanish, the Spanish analyser's version, and `pack_version` (the snapshot, and the rules that reduced it) | — |
+| `pin.json` | the raw sources these tables and `../es/` came from, and the pack they build | — |
+
+In `../es/`, Spanish's tables, written by es-fr's reduction:
+
 | File | What it maps | From |
 |---|---|---|
 | `forms.tsv` | form → lemma | kaikki.org extract of the English Wiktionary, Spanish section (CC BY-SA 4.0 + GFDL), with UD Spanish-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
 | `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | kaikki's tags (CC BY-SA 4.0 + GFDL) |
-| `gloss.tsv` | lemma → French gloss | the French Wiktionary's Spanish entries; else the Spanish Wiktionary's French translations; else the French Wiktionary's translation tables, read backwards (all CC BY-SA 4.0 + GFDL, through kaikki) |
-| `senses.tsv` | lemma → part of speech of each run of its gloss's senses, a noun's with its gender | the same, the gender from `forms.tsv`'s source |
-| `mwe.tsv` | expression → French gloss | the same sources, for multi-word headwords |
-| `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and `gloss.tsv` (no source of its own) |
-| `NOTICE` | the attribution stack, embedded in the pack | — |
-| `manifest.json` | the pack's metadata: Spanish, the Spanish analyser's version, and `pack_version` (the snapshot, and the rules that reduced it) | — |
+| `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and this folder's `gloss.tsv` (no source of its own) |
+| `lexical.tsv` | Spanish's dictionary words: the lemmas `gloss.tsv` glosses, byte-sorted, one per line | derived from this folder's `gloss.tsv` by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | Spanish's pinned tag pool, which every pack studying Spanish lays its pool out from; written by no reducer, kept when the tables are reduced again (`../../SOURCES.md`, *What a pack studies, whatever it glosses*) | this pack's own pool, committed by hand |
-| `pin.json` | the raw sources these tables came from, and the pack they build | — |
+| `studied.json` | the pair whose reduction writes `../es/`: es-fr | committed by hand |
 
 ## What is in them
 
@@ -107,20 +124,25 @@ The pack is 2,190,188 B, with the grammar, the glosses and the levels.
 
 ## Licences
 
-The repository is Apache-2.0; **these files are not**. They are derived from the sources above and
-carry their licences:
-- `forms.tsv`: CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts);
-- `grammar.tsv`, `gloss.tsv`, `senses.tsv`, `mwe.tsv`: CC BY-SA 4.0 and the GFDL (kaikki);
-- `level.tsv`: derived from `freq.tsv` (CC BY-SA 4.0) and `gloss.tsv`;
-- `freq.tsv`: CC BY-SA 4.0.
+The repository is Apache-2.0; **these files are not**, nor Spanish's in `../es/`. They are derived
+from the sources above and carry their licences:
+- `../es/forms.tsv`: CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts);
+- `../es/grammar.tsv`, `gloss.tsv`, `senses.tsv`, `mwe.tsv`, and `../es/lexical.tsv` (derived from
+  `gloss.tsv`): CC BY-SA 4.0 and the GFDL (kaikki);
+- `../es/level.tsv`: derived from `../es/freq.tsv` (CC BY-SA 4.0) and `gloss.tsv`;
+- `../es/freq.tsv`: CC BY-SA 4.0.
 
 `NOTICE` gives the full attribution. See `../../SOURCES.md`.
 
 ## Changing them
 
-Never by hand — except `tags.tsv`, which no reducer writes. It is Spanish's pinned tag pool: every
-pack studying Spanish stores its readings against it, so editing it changes how each of them stores
-them. Its pull request says so, and every pair studying Spanish carries the same file.
+Never by hand — except `../es/tags.tsv` and `../es/studied.json`, which no reducer writes.
+`tags.tsv` is Spanish's pinned tag pool: every pack studying Spanish stores its readings against it,
+so editing it changes how each of them stores them. Its pull request says so, and every pair
+studying Spanish reads that one file. `../es/` is written by es-fr's reduction alone: a change there
+— new sources, new rules, or a lemma es-fr glosses, which moves the dictionary words and may move a
+level — reaches every pair studying Spanish, whose packs are recorded again in the same pull request
+(`lingua-pack-update` reduces them along with es-fr).
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `pair=es-fr` and `mode=update`.
   It works as for en-fr:
@@ -134,9 +156,9 @@ them. Its pull request says so, and every pair studying Spanish carries the same
   included; `reduce_common.py`, which every pair shares; or `reduce_edition_fr.py`, the French
   Wiktionary's rules, which every pair glossed in French loads (`pin.json` lists the three under
   `reducer.files`, the modules the reducer loads, `../../SOURCES.md`, *The Wiktionary editions'
-  rules*): the check lane fails until the tables are reduced again from the pinned sources. Run
-  `scripts/lingua-data/build.sh --reduce es-fr <out>` (Python 3.12, `requirements-reduce.txt`), or
-  `lingua-pack-update` with `mode=reduce`. The English and Spanish Wiktionaries' rules
+  rules*): the check lane fails, for es-fr and every other pair studying Spanish, until the tables
+  are reduced again from the pinned sources. Run `scripts/lingua-data/build.sh --reduce es-fr <out>`
+  (Python 3.12, `requirements-reduce.txt`), or `lingua-pack-update` with `mode=reduce`. The English and Spanish Wiktionaries' rules
   (`reduce_edition_en.py`, `reduce_edition_es.py`) are not es-fr's — its forms are read from the
   English Wiktionary by its own rules, its glosses from the French one — so editing them asks
   nothing of these tables.

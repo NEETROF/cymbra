@@ -197,34 +197,126 @@ impl std::fmt::Display for BuildError {
 
 impl std::error::Error for BuildError {}
 
-/// Loads a pack's inputs from a directory holding `manifest.json`,
+/// Loads a pack's inputs from one directory holding both sides: `manifest.json`,
 /// `forms.tsv`, `freq.tsv`, `gloss.tsv` and `NOTICE`, and the optional tables
-/// beside them. Shared by the CLI and the pipeline test.
+/// beside them — the `testdata/` fixtures and the tests' scratch folders.
 pub fn inputs_from_dir(dir: &Path) -> std::io::Result<PackInputs> {
-    let read = |name: &str| std::fs::read_to_string(dir.join(name));
+    inputs_from_dirs(dir, dir)
+}
+
+/// The tables of a pair's studied side (split-lingua-pack-tables-by-language, M24): they
+/// belong to its studied language and are kept once per studied language, in
+/// `tables/<studied>/`, whatever native language a pair is glossed in.
+pub const STUDIED_SIDE: [&str; 6] = [
+    "forms.tsv",
+    "freq.tsv",
+    "level.tsv",
+    "grammar.tsv",
+    TAG_POOL_TABLE,
+    LEXICAL_TABLE,
+];
+
+/// The tables of a pair's native side, kept per pair in `tables/<pair>/`.
+pub const PAIR_SIDE: [&str; 5] = [
+    "manifest.json",
+    "gloss.tsv",
+    "mwe.tsv",
+    "senses.tsv",
+    "NOTICE",
+];
+
+/// A committed pair's studied language, as its folder names it: `es-fr` studies `es`.
+pub fn studied_of(pair: &str) -> &str {
+    pair.split_once('-').map_or(pair, |(studied, _)| studied)
+}
+
+/// Loads a committed pair's inputs from the tables root (`scripts/lingua-data/tables`):
+/// its studied side from `<root>/<studied>/`, the studied language being the first side of the
+/// pair's name, and its native side from `<root>/<pair>/` (split-lingua-pack-tables-by-language).
+pub fn inputs_from_tables(root: &Path, pair: &str) -> std::io::Result<PackInputs> {
+    inputs_from_dirs(&root.join(studied_of(pair)), &root.join(pair))
+}
+
+/// Loads a pack's inputs from two directories: the studied side ([`STUDIED_SIDE`]) from
+/// `studied`, the native side ([`PAIR_SIDE`]) from `pair`. The same directory twice reads a
+/// folder that holds both, as the `testdata/` fixtures do.
+///
+/// Two directories must each hold their own side alone: a table on the wrong side is refused,
+/// by path, rather than read from one side and silently left to drift on the other. The
+/// studied directory is named after the language the pair's manifest studies.
+pub fn inputs_from_dirs(studied: &Path, pair: &Path) -> std::io::Result<PackInputs> {
+    let invalid = |message: String| std::io::Error::new(std::io::ErrorKind::InvalidData, message);
+    let two = studied != pair;
+    if two {
+        if !studied.is_dir() {
+            return Err(invalid(format!(
+                "{} holds no studied tables: {} is built from that folder too",
+                studied.display(),
+                pair.display()
+            )));
+        }
+        let misplaced = STUDIED_SIDE
+            .iter()
+            .map(|t| pair.join(t))
+            .chain(PAIR_SIDE.iter().map(|t| studied.join(t)))
+            .find(|path| path.exists());
+        if let Some(path) = misplaced {
+            return Err(invalid(format!(
+                "{} is on the wrong side: the studied side is read from {} alone, the native \
+                 side from {} alone",
+                path.display(),
+                studied.display(),
+                pair.display()
+            )));
+        }
+    }
+    let read = |name: &str| std::fs::read_to_string(pair.join(name));
+    let read_studied = |name: &str| std::fs::read_to_string(studied.join(name));
     let manifest: Manifest = serde_json::from_str(&read("manifest.json")?)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    if two {
+        let folder = |dir: &Path| {
+            dir.file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default()
+        };
+        let language = folder(studied);
+        if manifest.meta.studied != language {
+            return Err(invalid(format!(
+                "{}/manifest.json studies {:?}, but {} is built from the studied tables of {:?} \
+                 ({}): a pair's folder is named <studied>-<native>",
+                folder(pair),
+                manifest.meta.studied,
+                folder(pair),
+                language,
+                studied.display()
+            )));
+        }
+    }
     Ok(PackInputs {
         meta: manifest.meta,
-        form_lemma: tsv_pairs(&read("forms.tsv")?),
-        ranks: tsv_pairs(&read("freq.tsv")?)
+        form_lemma: tsv_pairs(&read_studied("forms.tsv")?),
+        ranks: tsv_pairs(&read_studied("freq.tsv")?)
             .into_iter()
             .filter_map(|(lemma, rank)| rank.parse::<u32>().ok().map(|r| (lemma, r)))
             .collect(),
         glosses: tsv_pairs(&read("gloss.tsv")?),
-        levels: read_levels(dir)?,
-        expressions: read_expressions(dir)?,
-        readings: read_readings(dir)?,
-        senses: read_senses(dir)?,
+        levels: read_levels(studied)?,
+        expressions: read_expressions(pair)?,
+        readings: read_readings(studied)?,
+        senses: read_senses(pair)?,
         notice: read("NOTICE")?,
         sources: manifest.sources,
-        lexical: read_lines(dir, LEXICAL_TABLE)?,
-        tag_pool: read_lines(dir, TAG_POOL_TABLE)?,
+        lexical: read_lines(studied, LEXICAL_TABLE)?,
+        tag_pool: read_lines(studied, TAG_POOL_TABLE)?,
     })
 }
 
-/// The file naming a pack's dictionary words, when they are not its glossed lemmas
-/// (add-lingua-pack-lexical-layer D1). No reducer writes it.
+/// The file naming a studied language's dictionary words (add-lingua-pack-lexical-layer D1):
+/// its reference pair's glossed lemmas, kept in `tables/<studied>/` beside the studied tables
+/// (split-lingua-pack-tables-by-language). No reducer writes it: `pack_sources.py split` derives
+/// it when the reference pair is reduced. A pack whose dictionary words are its glossed lemmas
+/// carries no lexical section.
 pub const LEXICAL_TABLE: &str = "lexical.tsv";
 
 /// The file pinning a studied language's tag pool (add-lingua-pack-lexical-layer D4). No
@@ -1526,6 +1618,122 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    #[test]
+    fn spec_scenario_a_pair_reads_its_studied_side_from_its_language_s_folder() {
+        // split-lingua-pack-tables-by-language: tables/<studied>/ and tables/<pair>/.
+        let root = std::env::temp_dir().join(format!("lingua-split-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (en, en_fr) = (root.join("en"), root.join("en-fr"));
+        std::fs::create_dir_all(&en).unwrap();
+        std::fs::create_dir_all(&en_fr).unwrap();
+        let manifest = serde_json::json!({
+            "meta": {"studied": "en", "native": "fr", "pack_version": "t",
+                     "analyzer_version": ANALYZER_VERSION, "licences": []},
+            "sources": []
+        });
+        std::fs::write(en_fr.join("manifest.json"), manifest.to_string()).unwrap();
+        for (dir, name, text) in [
+            (&en, "forms.tsv", "ran\trun\n"),
+            (&en, "freq.tsv", "run\t1\n"),
+            (&en, TAG_POOL_TABLE, "VERB\n"),
+            (&en, LEXICAL_TABLE, "run\n"),
+            (&en_fr, "gloss.tsv", "run\tCourir\n"),
+            (&en_fr, "NOTICE", "notice"),
+        ] {
+            std::fs::write(dir.join(name), text).unwrap();
+        }
+        let inp = inputs_from_tables(&root, "en-fr").expect("read");
+        assert_eq!(inp.form_lemma, [("ran".to_owned(), "run".to_owned())]);
+        assert_eq!(inp.glosses, [("run".to_owned(), "Courir".to_owned())]);
+        assert_eq!(
+            (inp.lexical, inp.tag_pool),
+            (owned(&["run"]), owned(&["VERB"]))
+        );
+        // A studied table left in the pair's folder is refused, by path.
+        std::fs::write(en_fr.join("forms.tsv"), "ran\trun\n").unwrap();
+        let err = inputs_from_tables(&root, "en-fr")
+            .err()
+            .expect("refused")
+            .to_string();
+        assert!(
+            err.contains("en-fr/forms.tsv") && err.contains("wrong side"),
+            "{err}"
+        );
+        std::fs::remove_file(en_fr.join("forms.tsv")).unwrap();
+        // So is a native table in the studied folder.
+        std::fs::write(en.join("gloss.tsv"), "run\tCourir\n").unwrap();
+        let err = inputs_from_tables(&root, "en-fr")
+            .err()
+            .expect("refused")
+            .to_string();
+        assert!(
+            err.contains("en/gloss.tsv") && err.contains("wrong side"),
+            "{err}"
+        );
+        std::fs::remove_file(en.join("gloss.tsv")).unwrap();
+        // A pair whose studied language has no folder: the error names the folder to add.
+        std::fs::rename(&en_fr, root.join("de-fr")).unwrap();
+        let err = inputs_from_tables(&root, "de-fr")
+            .err()
+            .expect("no studied folder")
+            .to_string();
+        assert!(
+            err.contains(&format!("{}", root.join("de").display())) && err.contains("de-fr"),
+            "{err}"
+        );
+        // spec: *A pair whose manifest studies another language* — a pair named es-en whose
+        // manifest studies English fails, naming the pair and both languages.
+        std::fs::rename(root.join("de-fr"), root.join("es-en")).unwrap();
+        std::fs::create_dir_all(root.join("es")).unwrap();
+        for name in ["forms.tsv", "freq.tsv"] {
+            std::fs::copy(en.join(name), root.join("es").join(name)).unwrap();
+        }
+        let err = inputs_from_tables(&root, "es-en")
+            .err()
+            .expect("refused")
+            .to_string();
+        assert!(
+            err.contains("es-en/manifest.json studies \"en\"") && err.contains("of \"es\""),
+            "{err}"
+        );
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn a_two_folder_build_equals_the_single_folder_build() {
+        // split-lingua-pack-tables-by-language D4: the testdata fixtures hold both sides in one
+        // folder; filed by side into two folders, they build the same bytes.
+        for pair in ["en-fr", "es-fr"] {
+            let single = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../scripts/lingua-data/testdata")
+                .join(pair);
+            let root = std::env::temp_dir()
+                .join(format!("lingua-two-folders-{pair}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&root);
+            let (studied, own) = (root.join(studied_of(pair)), root.join(pair));
+            std::fs::create_dir_all(&studied).unwrap();
+            std::fs::create_dir_all(&own).unwrap();
+            for entry in std::fs::read_dir(&single).unwrap() {
+                let name = entry.unwrap().file_name();
+                let side = if STUDIED_SIDE.contains(&name.to_str().unwrap()) {
+                    &studied
+                } else {
+                    &own
+                };
+                std::fs::copy(single.join(&name), side.join(&name)).unwrap();
+            }
+            let one = build_pack(&inputs_from_dir(&single).expect("read")).expect("build");
+            let two =
+                build_pack(&inputs_from_tables(&root, pair).expect("read two")).expect("build");
+            assert!(one == two, "{pair}: the two-folder build differs");
+            assert!(
+                std::fs::read_dir(&studied).unwrap().count() >= 2,
+                "{pair}: the studied side is read from its own folder"
+            );
+            std::fs::remove_dir_all(&root).unwrap();
+        }
+    }
+
     /// The pool a built pack carries, one tag per line.
     fn pool_of(bytes: &[u8]) -> Vec<String> {
         let tags = section_of(bytes, section::TAGS).expect("a tag pool");
@@ -1642,11 +1850,10 @@ mod tests {
         // Spanish's pinned pool, as committed beside the es-fr tables: it lacks the clitic's
         // dative tag.
         const CLITIC: &str = "PRON|Case=Dat|Number=Sing|Person=1|PronType=Prs";
-        let es_fr =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/lingua-data/tables/es-fr");
-        let pin = read_lines(&es_fr, TAG_POOL_TABLE)
+        let es = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/lingua-data/tables/es");
+        let pin = read_lines(&es, TAG_POOL_TABLE)
             .expect("read")
-            .expect("es-fr pins Spanish's tag pool");
+            .expect("tables/es pins Spanish's tag pool");
         assert!(!pin.iter().any(|tag| tag == CLITIC), "{CLITIC} is pinned");
         // The archived Romance pack, built with that pin.
         let mut inp = inputs();

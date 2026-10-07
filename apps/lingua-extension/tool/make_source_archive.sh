@@ -82,10 +82,12 @@ $(node -e "const p=require('$REPO_ROOT/apps/lingua-extension/engine-pin.json'); 
 EOF
 
 # One line per shipped pair (packs.json, generalise-lingua-pack-build): each pack is built from its
-# own tables and checked against its own pin.
+# own tables and its studied language's (split-lingua-pack-tables-by-language), and checked against
+# its own pin. scripts/lingua-data comes whole, so both kinds of folder are in the archive.
 {
-  echo "Its data packs are built from the tables in \`scripts/lingua-data/tables/<pair>/\` by"
-  echo "\`yarn gen:pack:real\`, offline, and checked against:"
+  echo "Its data packs are built from the tables in \`scripts/lingua-data/tables/<pair>/\` and their"
+  echo "studied language's \`scripts/lingua-data/tables/<studied>/\` by \`yarn gen:pack:real\`, offline,"
+  echo "and checked against:"
   echo '```'
   for pair in $(node "$REPO_ROOT/apps/lingua-extension/tool/packs.mjs" pairs); do
     pin="$REPO_ROOT/scripts/lingua-data/tables/$pair/pin.json"

@@ -22,15 +22,25 @@ out="$here/../work/measure"
 glue="$repo/apps/lingua-extension/src/wasm/pkg"
 [[ -f "$glue/lingua_wasm.js" ]] || { echo "error: no wasm glue in $glue — run yarn gen:wasm in apps/lingua-extension." >&2; exit 2; }
 
+studied="${pair%%-*}"
 mkdir -p "$out/base"
 rm -rf "${out:?}/base/"*
-git -C "$repo" archive "$base" "scripts/lingua-data/tables/$pair" | tar -x -C "$out/base" --strip-components=4
+# The ref's tables: the pair's folder and its studied language's (split-lingua-pack-tables-by-
+# language); a ref older than the split holds both sides in the pair's folder.
+if git -C "$repo" cat-file -e "$base:scripts/lingua-data/tables/$studied/studied.json" 2>/dev/null; then
+  git -C "$repo" archive "$base" "scripts/lingua-data/tables/$pair" "scripts/lingua-data/tables/$studied" \
+    | tar -x -C "$out/base" --strip-components=3
+  base_studied="$out/base/$studied"
+else
+  git -C "$repo" archive "$base" "scripts/lingua-data/tables/$pair" | tar -x -C "$out/base" --strip-components=3
+  base_studied="$out/base/$pair"
+fi
 [[ -f "$out/corpus.json" ]] || python3 "$here/fetch_corpus.py" "$here/corpus.json" "$out/corpus.json"
 
-build() { cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- "$1" "$2"; }
-build "$out/base" "$out/base.lingua"
-build "$here/../tables/$pair" "$out/working.lingua"
+build() { cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- --studied "$1" "$2" "$3"; }
+build "$base_studied" "$out/base/$pair" "$out/base.lingua"
+build "$here/../tables/$studied" "$here/../tables/$pair" "$out/working.lingua"
 node "$here/compare_packs.mjs" "$glue/lingua_wasm.js" "$glue/lingua_wasm_bg.wasm" \
   "$out/base.lingua" "$out/working.lingua" "$out/corpus.json" \
-  "$out/base/freq.tsv" "$here/../tables/$pair/freq.tsv" "$out/report.json"
+  "$base_studied/freq.tsv" "$here/../tables/$studied/freq.tsv" "$out/report.json"
 echo "Details (top lemma changes, gains, losses): $out/report.json"

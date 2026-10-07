@@ -1,6 +1,7 @@
 # Raw downloaded sources and built packs are never committed. Tracked: the scripts, testdata/
-# (a tiny hand-made fixture) and tables/<pair>/ — the reduced tables every release builds its
-# pack from, with pin.json (pin-lingua-pack-sources).
+# (a tiny hand-made fixture), tables/<pair>/ and tables/<studied>/ — the reduced tables every
+# release builds its pack from, with each pair's pin.json (pin-lingua-pack-sources,
+# split-lingua-pack-tables-by-language).
 work/
 dist/
 *.lingua

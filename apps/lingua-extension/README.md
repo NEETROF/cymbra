@@ -203,9 +203,9 @@ default pair's pack, and adds another listed pair's the first time its language 
 (`src/analyzer/pairs.ts`). `tool/check_variants.mjs` refuses a package whose packs differ from the
 list, and any list but en-fr until Spanish is enabled.
 `yarn gen:pack:real` builds each listed pair's pack from the reduced tables committed under
-`scripts/lingua-data/tables/<pair>/` — offline, in seconds — and checks it against the sha256
-in that pair's `pin.json`, the record of which raw sources those tables came from
-(pin-lingua-pack-sources). Changing the dictionary is a pull request with new tables: see
+`scripts/lingua-data/tables/<pair>/` and its studied language's `scripts/lingua-data/tables/<studied>/`
+(kept once per studied language) — offline, in seconds — and checks it against the sha256 in that
+pair's `pin.json`, the record of which raw sources those tables came from (pin-lingua-pack-sources). Changing the dictionary is a pull request with new tables: see
 `scripts/lingua-data/tables/en-fr/README.md`.
 
 `yarn gen:pack` builds from the tiny committed **testdata** sources

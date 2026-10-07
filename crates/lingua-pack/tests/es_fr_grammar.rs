@@ -26,15 +26,15 @@ use lingua_core::analysis::percent::TokenClass;
 use lingua_core::engine::{analyse_page, gloss_phrase, word_grammar};
 use lingua_core::knowledge::state::KnowledgeState;
 use lingua_core::packs::Pack;
-use lingua_pack::{build_pack, inputs_from_dir};
+use lingua_pack::{build_pack, inputs_from_tables};
 
 /// The pack's bytes, built once for every test of this file.
 fn es_fr_pack() -> Pack {
     static BYTES: OnceLock<Vec<u8>> = OnceLock::new();
     let bytes = BYTES.get_or_init(|| {
-        let tables = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../scripts/lingua-data/tables/es-fr");
-        let inputs = inputs_from_dir(&tables).expect("read the committed es-fr tables");
+        let tables =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../scripts/lingua-data/tables");
+        let inputs = inputs_from_tables(&tables, "es-fr").expect("read the committed es-fr tables");
         build_pack(&inputs).expect("build the es-fr pack")
     });
     Pack::load(bytes).expect("load the es-fr pack")

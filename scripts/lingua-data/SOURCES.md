@@ -5,14 +5,16 @@ stages (pin-lingua-pack-sources):
 
 1. **Reduce** (`reduce-<pair>.py`, with the rules every pair shares in `reduce_common.py` and the
    rules of the Wiktionary edition its glosses come from in `reduce_edition_<native>.py`; see
-   *The Wiktionary editions' rules*): the raw sources become the tables of `tables/<pair>/`, which
-   are **committed** with `pin.json` — the record of each raw source (at a commit and by sha256,
-   or as our own snapshot for kaikki, which upstream regenerates daily) and of the pack they
-   build. Only `build.sh --update` (today's sources), `--reduce` (the pinned sources, after a
-   change to the rules) and `--dry` (the monthly check) read raw sources, and only the
-   `lingua-pack-update` workflow or a person runs them.
-2. **Build** (`lingua-pack-build`): the committed tables become the pack, offline, checked against
-   `pin.json`. That is all a release or a pull request runs.
+   *The Wiktionary editions' rules*): the raw sources become the tables of `tables/<pair>/` and,
+   when the pair is its studied language's reference, of `tables/<studied>/` (see *What a pack
+   studies, whatever it glosses*), which are **committed** with the pair's `pin.json` — the
+   record of each raw source (at a commit and by sha256, or as our own snapshot for kaikki, which
+   upstream regenerates daily) and of the pack they build. Only `build.sh --update` (today's
+   sources), `--reduce` (the pinned sources, after a change to the rules) and `--dry` (the monthly
+   check) read raw sources, and only the `lingua-pack-update` workflow or a person runs them.
+2. **Build** (`lingua-pack-build`): the pair's committed tables and its studied language's become
+   the pack, offline, checked against the pair's `pin.json`. That is all a release or a pull
+   request runs.
 
 Raw sources and built packs are never committed. Only sources whose licence permits commercial use
 are allowed; the builder additionally enforces the denylist and refuses to build on a denied source.
@@ -173,16 +175,54 @@ D1 is not needed. The pack is 2,190,188 B, with the grammar, the glosses and the
 ## What a pack studies, whatever it glosses
 
 Two packs of one studied language must analyse it alike whatever native language they are glossed
-in (add-lingua-pack-lexical-layer). Two inputs beside a pair's tables serve that, and **no reducer
-writes them**, so no rule digest moves with them: `build.sh` never overwrites them when it reduces a
-pair again (`--reduce`, `--update`; they are not in its `TABLE_FILES`), a dry run copies them into
-its scratch folder (`pack_sources.py keep`, `KEPT_INPUTS`), and `pack_sources.py record-build`
-refuses tables without `tags.tsv`.
+in (add-lingua-pack-lexical-layer). So **a studied language's tables are kept once**
+(split-lingua-pack-tables-by-language, the language matrix programme's M24), in `tables/<studied>/`
+— `tables/en/`, `tables/es/` — and every pair studying that language is built from that folder
+together with its own:
 
-| File | What it holds | Who writes it |
+| Folder | Holds |
+|---|---|
+| `tables/<studied>/` | the studied tables `forms.tsv`, `freq.tsv`, `grammar.tsv` and `level.tsv`, the pinned tag pool `tags.tsv`, the dictionary words `lexical.tsv`, and `studied.json`, which names the language's reference pair — nothing else |
+| `tables/<pair>/` | `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE`, `manifest.json`, `pin.json` and `README.md` — no table of its studied language |
+
+A folder is a pair's when its name is `<studied>-<native>`; any other is a studied language's. The
+builder reads both (`lingua-pack-build --studied tables/<studied> tables/<pair> <out>`; `build.sh`
+passes them) and refuses, by path, a table on the wrong side, and a pair whose manifest studies
+another language than its studied folder's. The `testdata/` fixtures stay one folder, passed twice.
+The checks (`lingua_pack::tables`, `tests/committed_tables.rs`) refuse a folder that is neither, a
+studied table in a pair's folder — naming the pair, the file and the reference pair — anything else
+in a studied folder, and a pair whose studied language has no folder; they hold en-fr's and es-fr's
+packs, built from the two folders, to the sha256 their pins record.
+
+**Only the reference pair's reduction writes a studied language's tables** — en-fr for English,
+es-fr for Spanish, and for a language studied later the first pair reduced for it. A reducer still
+writes every table into its work folder; `pack_sources.py split` then files them by side: the pair's
+own into `tables/<pair>/`, and the studied tables into `tables/<studied>/` only when `studied.json`
+names the pair. Any other pair reads the studied folder as committed and never writes it. The
+reference's reduction reads its native side too — the French Wiktionary's form links give English
+forms, French glosses decide which Spanish lemmas take a level, and its glossed lemmas are the
+dictionary words — so its `pin.json` and its rules are the record of its studied language's tables:
+one pin per pair, none in a studied folder. Hence:
+- a change to the reference's rules fails `check-reducer` for every pair of its language, naming the
+  reference's rule files, until the reference is reduced again;
+- a run that reduces several pairs reduces each reference first (`pack_sources.py pairs`), and the
+  `reduce` job names, for each file that moved, the pair whose reduction writes it
+  (`pack_sources.py moved`: `en-fr: en/forms.tsv`);
+- an update of a reference reduces every other pair of its language again, from its own pinned
+  sources, on the same branch (`pairs --after`), and its report lists what the studied tables change
+  — forms, ranks, levels, readings and dictionary words — and names every pair whose pack moves.
+
+Two inputs of a studied folder are **written by no reducer**, so no rule digest moves with them:
+`split` never overwrites them, a dry run copies the studied folder into its scratch root
+(`pack_sources.py keep`, `KEPT_INPUTS`), and `pack_sources.py record-build` refuses tables whose
+studied folder lacks `tags.tsv`. The dictionary words are written by `split`, not by a reducer,
+either.
+
+| File (in `tables/<studied>/`) | What it holds | Who writes it |
 |---|---|---|
-| `tags.tsv` *(every pair)* | The studied language's **pinned tag pool**: one canonical Universal Dependencies tag per line, each once. The builder lays the pack's pool out as the pin in its own order, then the readings' tags the pin lacks, then the tags only senses carry, each part sorted, so a form's readings index the same tags whatever parts of speech a native language's senses use (en-es's senses use `NUM`, en-fr's none). en-fr's and es-fr's are the pools their packs already carried (27 and 106 tags), so both keep their bytes; a later pair of the same studied language copies its reference's. A pack built without one (the `testdata/` fixtures, the tests' packs) keeps a single sorted pool. | A person. The checks fail when a committed pair lacks it, or when two pairs of one studied language pin different pools (`lingua_pack::tables`). |
-| `lexical.tsv` *(optional)* | The pack's **dictionary words**, one lemma per line, byte-sorted: the lemmas its studied language's reference pack glosses — en-fr for English, es-fr for Spanish, and for a language studied later the first pack built for it. They are what the vocabulary estimate and a CEFR list's typical vocabularies count, and what the Spanish names rule keeps as words. The builder writes them as a `lexical` section, one bit per lemma id, only when they differ from the lemmas the pack glosses; it then refuses, by name, a dictionary word or a glossed lemma that is neither the lemma of a form nor a ranked lemma, so no native language's glosses add a lemma. A pack without the section — or read by a core that predates it — reads its glossed lemmas as its dictionary words. en-fr and es-fr, the references, carry none. | A person, copying the reference's `gloss.tsv` lemma column (until `split-lingua-pack-tables-by-language` moves it beside the studied tables). The checks fail when two pairs of one studied language hold different dictionary words. |
+| `tags.tsv` | The studied language's **pinned tag pool**: one canonical Universal Dependencies tag per line, each once. The builder lays the pack's pool out as the pin in its own order, then the readings' tags the pin lacks, then the tags only senses carry, each part sorted, so a form's readings index the same tags whatever parts of speech a native language's senses use (en-es's senses use `NUM`, en-fr's none). English's and Spanish's are the pools en-fr's and es-fr's packs already carried (27 and 106 tags), so both keep their bytes; every pair of the language reads the same file. A pack built without one (the `testdata/` fixtures, the tests' packs) keeps a single sorted pool. | A person. The checks fail when a studied language's folder lacks it (`lingua_pack::tables`). |
+| `lexical.tsv` | The language's **dictionary words**, one lemma per line, byte-sorted: the lemmas its reference pair glosses. They are what the vocabulary estimate and a CEFR list's typical vocabularies count, and what the Spanish names rule keeps as words. The builder writes them as a `lexical` section, one bit per lemma id, only when they differ from the lemmas the pack glosses; it then refuses, by name, a dictionary word or a glossed lemma that is neither the lemma of a form nor a ranked lemma, so no native language's glosses add a lemma. A pack without the section — or read by a core that predates it — reads its glossed lemmas as its dictionary words. en-fr and es-fr, the references, gloss exactly these, so their packs carry none; a pair glossed in another native language carries the section. | `pack_sources.py split`, when the reference is reduced: its `gloss.tsv` lemmas, read as the builder reads them (the text before the first tab, trimmed, non-empty), byte-sorted, each once. The checks fail, naming the reference and a lemma, when it is not the reference's glossed lemmas. |
+| `studied.json` | `{"reference": "<pair>"}`: the pair whose reduction writes the folder, and whose `pin.json` is its provenance. | A person, or `split` for a language's first pair. |
 
 **A noun's gender comes from its readings.** The builder gives a noun's sense runs the gender its
 dictionary form, read as itself in `grammar.tsv`, has when that is a single one, and refuses a run
@@ -191,13 +231,10 @@ table says; a noun read with no gender keeps its runs as the sense table writes 
 noun runs, which its reducer genders the same way, are reproduced exactly, so a pack glossed in
 another language shows the same « nom féminin » with no gender in its own sense tables.
 
-**Two pairs of one studied language share its studied tables.** `forms.tsv`, `freq.tsv`, `level.tsv`
-and `grammar.tsv` belong to the studied language: a later pair copies its reference's byte for byte
-(until `split-lingua-pack-tables-by-language` keeps them once per studied language), and the checks
-fail, naming both pairs and the table, when two pairs of one studied language hold different ones
-(`lingua_pack::tables::STUDIED_TABLES`). With the pinned pool and the dictionary words, they decide
-the lemma ids and how a form's readings are stored. Nothing copies them automatically: an update of
-the reference is copied to its siblings in the same pull request.
+**Two pairs of one studied language cannot disagree on its studied tables**: there is one copy.
+With the pinned pool and the dictionary words, `forms.tsv`, `freq.tsv`, `level.tsv` and
+`grammar.tsv` decide the lemma ids and how a form's readings are stored, so a pair glossed in
+another native language stores them byte for byte as its reference does.
 
 ## The Wiktionary editions' rules
 
@@ -238,13 +275,14 @@ one writes them under its senses (68,579 English entries list Spanish translatio
 5,080 for the whole entry).
 
 **The committed tables are what the rules make of the pinned sources.** The `reduce` job of
-`lingua-extension-check` reduces every pair again from its pinned sources, with the pinned
-interpreter and dependencies, whenever `scripts/lingua-data` or the job changes, and fails on any byte of the
-tables, `manifest.json` or `pin.json` that differs — a table or a digest written by hand cannot
-pass. To change the rules without moving a table, dispatch `lingua-pack-update` with `mode=reduce`,
+`lingua-extension-check` reduces every pair again from its pinned sources, each reference first,
+with the pinned interpreter and dependencies, whenever `scripts/lingua-data` or the job changes, and
+fails on any byte of the tables — both kinds of folder — `manifest.json` or `pin.json` that differs,
+naming the pair whose reduction writes the file: a table or a digest written by hand cannot pass.
+To change the rules without moving a table, dispatch `lingua-pack-update` with `mode=reduce`,
 `pair=all` and `expect=identical`: one branch with every pair's tables, the baselines re-blessed
-once, and a failure naming the pair and the file when a table, `tags.tsv`, `lexical.tsv` or NOTICE
-moves, when `manifest.json` moves beyond `pack_version` or `pin.json` beyond the pack's sha256 and
+once, and a failure naming the pair and the file (a studied language's file with its reference:
+`es-fr: es/level.tsv`) when a table, `tags.tsv`, `studied.json`, `lexical.tsv` or NOTICE moves, when `manifest.json` moves beyond `pack_version` or `pin.json` beyond the pack's sha256 and
 the rules' record (`pack_report.py --identical`), when the site's coverage figures move, or when a
 baseline moves beyond the lines naming the packs.
 

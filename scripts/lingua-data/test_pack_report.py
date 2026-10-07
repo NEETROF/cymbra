@@ -210,5 +210,77 @@ class Identical(unittest.TestCase):
         self.assertIn("- en-fr: gloss.tsv differs", report)
 
 
+class Studied(unittest.TestCase):
+    """A studied language's folder (split-lingua-pack-tables-by-language): what its tables change,
+    and the pairs reading it whose pack moves."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.committed, self.tables = self.root / "committed", self.root / "tables"
+        for root in (self.committed, self.tables):
+            tables(
+                root / "es",
+                forms_tsv="casas\tcasa\n",
+                freq_tsv="casa\t1\ndios\t2\n",
+                level_tsv="casa\tA1\ndios\tA2\n",
+                grammar_tsv="casas\tcasa\tNOUN|Number=Plur\t-\n",
+                tags_tsv="NOUN\n",
+                lexical_tsv="casa\ndios\n",
+                studied_json='{"reference": "es-fr"}\n',
+            )
+            for pair, sha in (("es-fr", "aaaa"), ("es-en", "bbbb"), ("en-fr", "cccc")):
+                (root / pair).mkdir(parents=True)
+                (root / pair / "pin.json").write_text(json.dumps({"pack": {"sha256": sha}}), encoding="utf-8")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_report(self, *args: str) -> tuple[int, str]:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = pr.main([str(self.committed / "es"), str(self.tables / "es"), *args])
+        return code, out.getvalue()
+
+    def test_spec_scenario_spanish_s_tables_change_under_a_second_pair(self):
+        # es-fr's update changes Spanish's levels and dictionary words; es-fr and es-en record new
+        # packs, en-fr does not.
+        tables(self.tables / "es", level_tsv="casa\tA1\ndios\tB1\n", lexical_tsv="casa\ndios\nárbol\n")
+        for pair in ("es-fr", "es-en"):
+            (self.tables / pair / "pin.json").write_text(json.dumps({"pack": {"sha256": "ffff"}}), encoding="utf-8")
+        code, report = self.run_report()
+        self.assertEqual(code, 0, report)
+        self.assertIn("| `level.tsv` (lemma → CEFR level) | 2 → 2 | 0 | 0 | 1 |", report)
+        self.assertIn("- `dios`: A2 → B1", report)
+        self.assertIn("| `lexical.tsv` (dictionary word) | 2 → 3 | 1 | 0 | 0 |", report)
+        self.assertIn("Added: `árbol`", report)
+        self.assertIn("Pairs reading these tables whose pack moves: `es-en`, `es-fr`.", report)
+        self.assertNotIn("en-fr", report)
+
+    def test_no_pack_moves_with_tables_that_do_not(self):
+        code, report = self.run_report()
+        self.assertEqual(code, 0, report)
+        self.assertIn("No pack of a pair reading these tables moves.", report)
+        # A pair the run did not reduce (no committed pin) is not named, nor a malformed record.
+        (self.committed / "es-en" / "pin.json").unlink()
+        (self.tables / "es-en" / "pin.json").write_text(json.dumps({"pack": {"sha256": "ffff"}}), encoding="utf-8")
+        (self.tables / "es-xx").mkdir()
+        (self.committed / "es-xx").mkdir()
+        for root in (self.committed, self.tables):
+            (root / "es-xx" / "pin.json").write_text("{}", encoding="utf-8")
+        self.assertIn("No pack of a pair reading these tables moves.", self.run_report()[1])
+
+    def test_spec_scenario_a_studied_table_meant_not_to_move(self):
+        # Reduced again expecting no change: one byte of Spanish's level.tsv names es-fr and es/level.tsv.
+        tables(self.tables / "es", level_tsv="casa\tA1\ndios\tA2 \n")
+        code, report = self.run_report("--identical")
+        self.assertEqual(code, 1)
+        self.assertIn("- es-fr: es/level.tsv differs", report)
+        tables(self.tables / "es", level_tsv="casa\tA1\ndios\tA2\n", studied_json='{"reference": "es-en"}\n')
+        code, report = self.run_report("--identical")
+        self.assertEqual(code, 1)
+        self.assertIn("- es-en: es/studied.json differs", report)
+
+
 if __name__ == "__main__":
     unittest.main()

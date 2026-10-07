@@ -340,7 +340,10 @@ class Record(unittest.TestCase):
         self.root = Path(self._tmp.name)
         self.pin = self.root / "en-fr" / "pin.json"
         ps.save(self.pin, {"snapshot": "2026.09.26", "sources": {"wordfreq": {"version": "3.1.1"}}})
-        (self.pin.parent / "tags.tsv").write_text("NOUN\nVERB\n")
+        # The studied language's folder beside the pair's (split-lingua-pack-tables-by-language).
+        self.studied = self.root / "en"
+        self.studied.mkdir()
+        (self.studied / "tags.tsv").write_text("NOUN\nVERB\n")
         self.pack = self.root / "pack.lingua"
         self.pack.write_bytes(b"LINGUA pack")
         self.reducer = self.root / "reduce-en-fr.py"
@@ -430,6 +433,48 @@ class Record(unittest.TestCase):
         with self.assertRaisesRegex(ps.PinError, "--reduce"):
             ps.check_reducer(self.pin, self.reducer)
 
+    def test_a_reference_s_rules_changed_fail_every_pair_of_its_language(self):
+        # spec: *A reference pair's rules changed and not applied* — es-fr's and es-en's checks fail,
+        # naming es-fr's rule files; en-fr's still pass.
+        (self.studied / "studied.json").write_text('{"reference": "en-fr"}\n')
+        spanish = self.root / "es"
+        spanish.mkdir()
+        (spanish / "studied.json").write_text('{"reference": "es-fr"}\n')
+        (spanish / "tags.tsv").write_text("NOUN\n")
+        pins = {"en-fr": self.pin}
+        for pair in ("es-fr", "es-en"):
+            pins[pair] = self.root / pair / "pin.json"
+            ps.save(pins[pair], {"snapshot": "2026.10.03", "sources": {}})
+            (self.root / f"reduce-{pair}.py").write_text(f"# {pair}'s rules\n")
+        for pair, pin in pins.items():
+            ps.record_build(pin, self.pack, self.root / f"reduce-{pair}.py")
+            ps.check_reducer(pin, self.root / f"reduce-{pair}.py")
+        (self.root / "reduce-es-fr.py").write_text("# es-fr's rules, edited\n")
+        with self.assertRaisesRegex(ps.PinError, r"reduce-es-fr\.py.*--reduce es-fr"):
+            ps.check_reducer(pins["es-fr"], self.root / "reduce-es-fr.py")
+        with self.assertRaisesRegex(ps.PinError, r"es-en reads es/, which es-fr's reduction writes: .*reduce-es-fr\.py"):
+            ps.check_reducer(pins["es-en"], self.root / "reduce-es-en.py")
+        ps.check_reducer(pins["en-fr"], self.reducer)
+        # Reduced again (recorded), every Spanish pair passes.
+        ps.record_build(pins["es-fr"], self.pack, self.root / "reduce-es-fr.py")
+        ps.check_reducer(pins["es-en"], self.root / "reduce-es-en.py")
+
+    def test_build_sh_names_the_studied_folder_a_listed_pair_lacks(self):
+        # spec: *A listed pair whose studied language has no tables* — before any cargo run.
+        scratch = self.root / "data"
+        (scratch / "tables" / "de-fr").mkdir(parents=True)
+        shutil.copy(HERE / "build.sh", scratch / "build.sh")
+        ps.save(scratch / "tables" / "de-fr" / "pin.json", {"pack": {"sha256": "0" * 64}})
+        done = subprocess.run(
+            ["bash", str(scratch / "build.sh"), "de-fr", str(self.root / "de-fr.lingua")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(done.returncode, 2, done.stderr)
+        self.assertIn("de-fr studies de", done.stderr)
+        self.assertIn("tables/de/", done.stderr)
+
     def test_get_reads_a_dotted_key(self):
         self.assertEqual(ps.get(ps.load(self.pin), "sources.wordfreq.version"), "3.1.1")
         with self.assertRaises(ps.PinError):
@@ -451,41 +496,57 @@ class Record(unittest.TestCase):
     def test_a_build_is_recorded_only_beside_the_pinned_tag_pool(self):
         # add-lingua-pack-lexical-layer D4: tags.tsv is an input no reducer writes; tables reduced
         # again without it would build a pack whose readings another pair stores differently.
-        (self.pin.parent / "tags.tsv").unlink()
+        (self.studied / "tags.tsv").unlink()
         with self.assertRaisesRegex(ps.PinError, "tags.tsv"):
             ps.record_build(self.pin, self.pack, self.reducer)
         self.assertNotIn("pack", ps.load(self.pin))
 
-    def test_keep_copies_the_inputs_no_reducer_writes(self):
-        committed = self.pin.parent
-        (committed / "lexical.tsv").write_text("casa\n")
-        (committed / "gloss.tsv").write_text("casa\tMaison\n")
-        scratch = self.root / "dry" / "en-fr"
-        self.assertEqual(ps.keep(committed, scratch), ["tags.tsv", "lexical.tsv"])
+    def test_keep_copies_a_studied_folder_into_a_dry_run_s_root(self):
+        (self.studied / "studied.json").write_text('{"reference": "en-fr"}\n')
+        (self.studied / "forms.tsv").write_text("ran\trun\n")
+        scratch = self.root / "dry" / "en"
+        self.assertEqual(ps.keep(self.studied, scratch), ["forms.tsv", "studied.json", "tags.tsv"])
         self.assertEqual((scratch / "tags.tsv").read_text(), "NOUN\nVERB\n")
-        self.assertEqual((scratch / "lexical.tsv").read_text(), "casa\n")
-        self.assertFalse((scratch / "gloss.tsv").exists(), "a reducer's table is not kept")
-        # Into the folder itself, nothing is copied.
-        self.assertEqual(ps.keep(committed, committed), [])
-        # A pair without a lexical table keeps its pool alone.
-        (committed / "lexical.tsv").unlink()
+        # Into the folder itself, nothing is copied; a language with no folder yet keeps nothing.
+        self.assertEqual(ps.keep(self.studied, self.studied), [])
         with contextlib.redirect_stdout(io.StringIO()) as out:
-            self.assertEqual(ps.main(["keep", "--from", str(committed), "--to", str(self.root / "other")]), 0)
-        self.assertEqual(out.getvalue(), "kept tags.tsv\n")
-        self.assertEqual(sorted(p.name for p in (self.root / "other").iterdir()), ["tags.tsv"])
+            self.assertEqual(ps.main(["keep", "--from", str(self.root / "fr"), "--to", str(self.root / "other")]), 0)
+        self.assertEqual(out.getvalue(), "")
 
-    def test_build_sh_never_overwrites_a_kept_input(self):
-        # copy_tables touches the tables a reducer writes alone, so reducing a pair again keeps
-        # tags.tsv and lexical.tsv; a dry run copies them into its scratch folder.
+    def test_build_sh_files_a_reduction_by_side_and_never_writes_a_kept_input(self):
+        # A reducer writes both sides; split files them, and touches no input a person writes.
+        self.assertFalse(set(ps.STUDIED_TABLES) & set(ps.PAIR_TABLES))
+        self.assertFalse((set(ps.STUDIED_TABLES) | set(ps.PAIR_TABLES) | {ps.LEXICAL}) & set(ps.KEPT_INPUTS))
         script = (HERE / "build.sh").read_text()
-        written = re.search(r"^TABLE_FILES=\((.*?)\)$", script, re.M).group(1).split()
-        self.assertTrue(written)
-        self.assertFalse(set(written) & set(ps.KEPT_INPUTS))
+        self.assertIn('pack_sources.py" split --work', script)
         self.assertIn('pack_sources.py" keep --from', script)
+        self.assertNotIn("TABLE_FILES", script)
 
-    def test_every_committed_pair_keeps_its_pinned_tag_pool(self):
+    def test_every_committed_pair_reads_a_studied_folder_that_pins_its_tag_pool(self):
         for pin in sorted((HERE / "tables").glob("*/pin.json")):
-            self.assertTrue((pin.parent / ps.PINNED_POOL).is_file(), pin.parent.name)
+            studied = ps.studied_dir(pin)
+            self.assertTrue((studied / ps.PINNED_POOL).is_file(), studied.name)
+            self.assertIsNotNone(ps.reference_of(studied), studied.name)
+            for name in ps.STUDIED_TABLES + (ps.PINNED_POOL, ps.LEXICAL):
+                self.assertFalse((pin.parent / name).exists(), f"{pin.parent.name}/{name}")
+
+    def test_every_folder_of_the_tables_is_a_pair_or_a_studied_language(self):
+        for folder in ps.folders(HERE / "tables"):
+            if ps.is_pair(folder):
+                self.assertTrue((folder / "pin.json").is_file(), folder.name)
+            else:
+                self.assertTrue((folder / ps.STUDIED_RECORD).is_file(), folder.name)
+        # The reduce job's order: each reference before the other pairs of its language.
+        self.assertEqual(ps.pairs(HERE / "tables")[:2], ["en-fr", "es-fr"])
+
+    def test_the_committed_dictionary_words_are_the_reference_s_glossed_lemmas(self):
+        for language in ("en", "es"):
+            studied = HERE / "tables" / language
+            reference = ps.reference_of(studied)
+            words = (studied / ps.LEXICAL).read_text(encoding="utf-8")
+            self.assertEqual(
+                words, "".join(f"{w}\n" for w in ps.glossed_lemmas(HERE / "tables" / reference / "gloss.tsv")), language
+            )
 
     def test_the_pairs_glossed_in_french_read_the_french_wiktionary_s_rules_alone(self):
         for pair in ("en-fr", "es-fr"):
@@ -551,6 +612,130 @@ class Record(unittest.TestCase):
                 (record["snapshot"], f"{record['snapshot']}+{record['reducer']['sha256'][:7]}"),
                 f"{pair}: the pack says which dictionary it is",
             )
+
+
+class Split(unittest.TestCase):
+    """A reduction filed by side (split-lingua-pack-tables-by-language, M24)."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.tables = self.root / "tables"
+        self.work = self.root / "work"
+        self.work.mkdir()
+        for name, text in {
+            "forms.tsv": "casas\tcasa\n",
+            "freq.tsv": "casa\t1\ndios\t2\n",
+            "grammar.tsv": "casas\tcasa\tNOUN\t-\n",
+            "gloss.tsv": "dios\tDieu\ncasa\tMaison\n \tnothing\nno tab\n",
+            "senses.tsv": "casa\tNOUN:1\n",
+            "NOTICE": "notice",
+            "manifest.json": "{}",
+        }.items():
+            (self.work / name).write_text(text, encoding="utf-8")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_the_first_pair_of_a_language_is_its_reference_and_writes_both_sides(self):
+        written = ps.split(self.work, self.tables, "es-fr")
+        self.assertEqual(ps.reference_of(self.tables / "es"), "es-fr")
+        self.assertIn("es/forms.tsv", written)
+        self.assertIn("es-fr/gloss.tsv", written)
+        self.assertEqual(sorted(p.name for p in (self.tables / "es-fr").iterdir()),
+                         ["NOTICE", "gloss.tsv", "manifest.json", "senses.tsv"])
+        self.assertEqual(sorted(p.name for p in (self.tables / "es").iterdir()),
+                         ["forms.tsv", "freq.tsv", "grammar.tsv", "lexical.tsv", "studied.json"])
+        # The dictionary words: the glossed lemmas, byte-sorted, as the builder reads them.
+        self.assertEqual((self.tables / "es" / "lexical.tsv").read_text(), "casa\ndios\n")
+
+    def test_a_reference_reduced_again_writes_both_folders_and_keeps_the_pinned_pool(self):
+        # spec: *A reference pair reduced again* — both folders as before, tags.tsv kept.
+        ps.split(self.work, self.tables, "es-fr")
+        (self.tables / "es" / "tags.tsv").write_text("NOUN\nVERB\n")
+        before = {p.relative_to(self.tables): p.read_bytes() for p in self.tables.rglob("*") if p.is_file()}
+        written = ps.split(self.work, self.tables, "es-fr")
+        self.assertIn("es/lexical.tsv", written)
+        self.assertNotIn("es/tags.tsv", written)
+        self.assertNotIn("es/studied.json", written, "the record is written once, by the first pair")
+        after = {p.relative_to(self.tables): p.read_bytes() for p in self.tables.rglob("*") if p.is_file()}
+        self.assertEqual(after, before)
+        # A new lemma glossed by the reference reaches the dictionary words.
+        (self.work / "gloss.tsv").write_text("dios\tDieu\ncasa\tMaison\nárbol\tArbre\n", encoding="utf-8")
+        ps.split(self.work, self.tables, "es-fr")
+        self.assertEqual((self.tables / "es" / "lexical.tsv").read_text(encoding="utf-8"), "casa\ndios\nárbol\n")
+        self.assertEqual((self.tables / "es" / "tags.tsv").read_text(), "NOUN\nVERB\n")
+
+    def test_the_dictionary_words_are_read_as_the_builder_reads_a_gloss_table(self):
+        # lingua_pack::tsv_pairs: lines split on \n, a trailing \r dropped, the key before the first
+        # tab, trimmed; a line without a tab or with a blank key is no gloss.
+        gloss = self.root / "gloss.tsv"
+        gloss.write_bytes("b\tB\r\n  a \tA\n\t\n   \tblank\nno tab\nz\tZ\tmore\né\tE\nb\tB again\n".encode())
+        self.assertEqual(ps.glossed_lemmas(gloss), ["a", "b", "z", "é"])
+
+    def test_another_pair_reads_the_studied_folder_and_never_writes_it(self):
+        ps.split(self.work, self.tables, "es-fr")
+        (self.tables / "es" / "tags.tsv").write_text("NOUN\n")
+        before = {p.name: p.read_bytes() for p in (self.tables / "es").iterdir()}
+        (self.work / "forms.tsv").write_text("casas\tcasar\n")
+        (self.work / "gloss.tsv").write_text("casa\tHouse\naugusto\tAugust\n")
+        written = ps.split(self.work, self.tables, "es-en")
+        self.assertTrue(all(w.startswith("es-en/") for w in written), written)
+        self.assertEqual({p.name: p.read_bytes() for p in (self.tables / "es").iterdir()}, before)
+        self.assertFalse((self.tables / "es-en" / "forms.tsv").exists())
+
+    def test_a_table_the_reduction_no_longer_writes_is_removed(self):
+        ps.split(self.work, self.tables, "es-fr")
+        (self.work / "senses.tsv").unlink()
+        (self.work / "grammar.tsv").unlink()
+        ps.split(self.work, self.tables, "es-fr")
+        self.assertFalse((self.tables / "es-fr" / "senses.tsv").exists())
+        self.assertFalse((self.tables / "es" / "grammar.tsv").exists())
+
+    def test_pairs_come_references_first_and_a_reference_brings_its_readers(self):
+        for pair in ("en-fr", "es-en", "es-fr", "en-es"):
+            ps.split(self.work, self.tables, pair)
+        (self.tables / "es" / "studied.json").write_text('{"reference": "es-fr"}\n')
+        self.assertEqual(ps.reference_of(self.tables / "en"), "en-fr")
+        self.assertEqual(ps.pairs(self.tables), ["en-fr", "es-fr", "en-es", "es-en"])
+        self.assertEqual(ps.pairs(self.tables, after="es-fr"), ["es-fr", "es-en"])
+        self.assertEqual(ps.pairs(self.tables, after="es-en"), ["es-en"])
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ps.main(["pairs", "--tables", str(self.tables), "--after", "en-fr"]), 0)
+        self.assertEqual(out.getvalue(), "en-fr\nen-es\n")
+        # The studied folders are no pairs; a hidden folder is skipped.
+        (self.tables / ".cache").mkdir()
+        self.assertNotIn("es", ps.pairs(self.tables))
+        self.assertEqual(len(ps.pairs(self.tables)), 4)
+
+    def test_a_folder_that_is_neither_a_pair_nor_a_studied_language_fails(self):
+        ps.split(self.work, self.tables, "es-fr")
+        (self.tables / "work").mkdir()
+        with self.assertRaisesRegex(ps.PinError, r"work is neither a pair .* nor a studied language"):
+            ps.pairs(self.tables)
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(ps.main(["pairs", "--tables", str(self.tables)]), 1)
+        self.assertIn("work/studied.json", err.getvalue())
+
+    def test_a_moved_file_names_the_pair_whose_reduction_writes_it(self):
+        # spec: *A studied table edited by hand* — the reduce job names en-fr and en/forms.tsv.
+        for pair in ("en-fr", "es-fr"):
+            ps.split(self.work, self.tables, pair)
+        status = [
+            " M scripts/lingua-data/tables/en/forms.tsv",
+            " M scripts/lingua-data/tables/es-fr/gloss.tsv",
+            "?? scripts/lingua-data/tables/es/stray.tsv",
+            "?? scripts/lingua-data/tables/es-en/",
+            "",
+        ]
+        self.assertEqual(
+            ps.moved(self.tables, status),
+            ["en-fr: en/forms.tsv", "es-fr: es-fr/gloss.tsv", "es-fr: es/stray.tsv", "es-en: es-en/"],
+        )
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            with unittest.mock.patch("sys.stdin", io.StringIO(" M scripts/lingua-data/tables/es/level.tsv\n")):
+                self.assertEqual(ps.main(["moved", "--tables", str(self.tables)]), 0)
+        self.assertEqual(out.getvalue(), "es-fr: es/level.tsv\n")
 
 
 if __name__ == "__main__":

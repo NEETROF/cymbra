@@ -29,5 +29,9 @@ serde_json = { workspace = true }
 # never targeted to WASM (the reader in lingua-core uses pure-Rust ruzstd).
 zstd = { workspace = true }
 
+[dev-dependencies]
+# The shipped packs' sha256, held to their pins (tests/committed_tables.rs).
+sha2 = { workspace = true }
+
 [lints]
 workspace = true

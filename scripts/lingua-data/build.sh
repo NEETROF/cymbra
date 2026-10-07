@@ -14,22 +14,26 @@
 #   scripts/lingua-data/build.sh --testdata en-fr <out>        # the tiny fixture
 #
 # Build mode is what every release and every pull request runs: lingua-pack-build on
-# tables/<pair>/, then the pack's sha256 against tables/<pair>/pin.json. It reads nothing from the
-# network and needs no Python. The other modes reduce raw sources into tables again — the pinned
-# bytes when the reduction rules change, today's bytes to take in upstream changes — and are run by
-# a person, or by the lingua-pack-update workflow; they write tables/<pair>/ and pin.json, and the
-# result reaches a release only through a pull request (see tables/<pair>/README.md).
+# tables/<pair>/ and its studied language's tables/<studied>/, then the pack's sha256 against
+# tables/<pair>/pin.json. It reads nothing from the network and needs no Python. The other modes
+# reduce raw sources into tables again — the pinned bytes when the reduction rules change, today's
+# bytes to take in upstream changes — and are run by a person, or by the lingua-pack-update
+# workflow; they write tables/<pair>/ and pin.json — and tables/<studied>/ when the pair is its
+# studied language's reference (tables/<studied>/studied.json) — and the result reaches a release
+# only through a pull request (see tables/<pair>/README.md).
 #
 # Raw sources and packs are never committed; the reduced tables are.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON="${LINGUA_PYTHON:-python3}"
-# The tables a reducer writes. A pair's folder also holds inputs no reducer writes — its studied
-# language's pinned tag pool, `tags.tsv`, and a pair's `lexical.tsv` (pack_sources.py KEPT_INPUTS,
-# add-lingua-pack-lexical-layer) — which copy_tables never touches, so reducing a pair again keeps
-# them; a dry run copies them into its scratch folder.
-TABLE_FILES=(forms.tsv freq.tsv gloss.tsv level.tsv mwe.tsv grammar.tsv senses.tsv NOTICE manifest.json)
+# A reducer writes both sides of a pair's tables into its work folder; `pack_sources.py split`
+# files them (split-lingua-pack-tables-by-language, M24): the native side into tables/<pair>/, the
+# studied side into tables/<studied>/ only when the pair is that language's reference, with the
+# dictionary words (`lexical.tsv`, the reference's glossed lemmas). The studied folder's inputs no
+# reducer writes — the pinned tag pool `tags.tsv` and `studied.json` (pack_sources.py KEPT_INPUTS) —
+# are never touched, so reducing a pair again keeps them; a dry run copies the studied folder into
+# its scratch root.
 
 sha256_of() {
   if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi
@@ -41,11 +45,12 @@ recorded_pack_sha256() {
   sed -n '/"pack": {/,/}/s/.*"sha256": *"\([0-9a-f]\{64\}\)".*/\1/p' "$1" | head -n1
 }
 
+# build_pack <studied dir> <pair dir> <out>; the testdata fixture holds both sides in one folder.
 build_pack() {
-  local input="$1" out="$2"
+  local studied="$1" input="$2" out="$3"
   # The builder writes the file but not its folder, which a fresh checkout may lack.
   mkdir -p "$(dirname "$out")"
-  cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- "$input" "$out"
+  cargo run --quiet --release -p lingua-pack --bin lingua-pack-build -- --studied "$studied" "$input" "$out"
 }
 
 # How many lemmas a pair keeps by default: Spanish keeps 60,000, for which the forms of the
@@ -66,12 +71,9 @@ reduce() {
     --built-at "${snapshot//./-}" --pack-version "$version"
 }
 
-copy_tables() {
-  local from="$1" to="$2"
-  mkdir -p "$to"
-  for f in "${TABLE_FILES[@]}"; do
-    if [[ -f "$from/$f" ]]; then cp "$from/$f" "$to/$f"; else rm -f "$to/$f"; fi
-  done
+# split <work> <tables root>: the reduction's tables, filed by side.
+split() {
+  "$PYTHON" "$here/pack_sources.py" split --work "$1" --tables "$2" --pair "$pair"
 }
 
 mode=build
@@ -80,23 +82,31 @@ case "${1:-}" in
 esac
 pair="${1:?pair, e.g. en-fr}"
 out="${2:?output path}"
-tables="$here/tables/$pair"
+root="$here/tables"
+tables="$root/$pair"
+studied="$root/${pair%%-*}"
 pin="$tables/pin.json"
 work="$here/work/$pair"
 
 case "$mode" in
   testdata)
-    build_pack "$here/testdata/$pair" "$out"
+    build_pack "$here/testdata/$pair" "$here/testdata/$pair" "$out"
     ;;
 
   build)
     [[ -f "$pin" ]] || { echo "error: no committed tables for $pair ($pin)." >&2; exit 2; }
-    build_pack "$tables" "$out"
+    if [[ ! -f "$studied/studied.json" ]]; then
+      echo "error: $pair studies ${pair%%-*}, but tables/${pair%%-*}/ holds no studied tables ($studied/studied.json)." >&2
+      echo "  Add tables/${pair%%-*}/: the reduction of its reference pair writes it (build.sh --reduce <pair>)." >&2
+      exit 2
+    fi
+    build_pack "$studied" "$tables" "$out"
     want="$(recorded_pack_sha256 "$pin")"
     got="$(sha256_of "$out")"
     if [[ "$got" != "$want" ]]; then
-      echo "error: $out has sha256 $got, but the committed tables build $want (pin.json)." >&2
-      echo "  The builder or a dependency changed the pack; if that is intended, update pack.sha256 in the same pull request." >&2
+      echo "error: $pair: $out has sha256 $got, but the committed tables build $want (tables/$pair/pin.json)." >&2
+      echo "  The builder, a dependency or its studied language's tables (tables/${pair%%-*}/) changed the pack; if that" >&2
+      echo "  is intended, record it in the same pull request (update pack.sha256, or reduce $pair again)." >&2
       exit 1
     fi
     echo "Built $out from the committed $pair tables (sha256 $got)."
@@ -112,8 +122,8 @@ case "$mode" in
     # The rule set: reduce-<pair>.py and the shared reduce_*.py modules it loads (pack_sources.py `rules`).
     rules="$("$PYTHON" "$here/pack_sources.py" rules --reducer "$here/reduce-$pair.py")"
     reduce "$pair" "$work" "$snapshot" "$snapshot+${rules:0:7}"
-    copy_tables "$work" "$tables"
-    build_pack "$tables" "$out"
+    split "$work" "$root"
+    build_pack "$studied" "$tables" "$out"
     "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
     ;;
 
@@ -121,17 +131,21 @@ case "$mode" in
     # Today's sources. A dry run reduces into a scratch copy and leaves the committed tables alone.
     snapshot="${LINGUA_SNAPSHOT:-$(date -u +%Y.%m.%d)}"
     if [[ "$mode" == dry ]]; then
-      tables="${LINGUA_DRY_TABLES:-$here/work/dry/$pair}"
-      rm -rf "$tables" && mkdir -p "$tables"
+      # A scratch root laid out as tables/: the pair's folder and its studied language's, which the
+      # reference overwrites and any other pair builds on.
+      root="${LINGUA_DRY_ROOT:-$here/work/dry}"
+      tables="$root/$pair"
+      studied="$root/${pair%%-*}"
+      rm -rf "$tables" "$studied" && mkdir -p "$tables"
       [[ -f "$pin" ]] && cp "$pin" "$tables/pin.json"
-      "$PYTHON" "$here/pack_sources.py" keep --from "$here/tables/$pair" --to "$tables"
+      "$PYTHON" "$here/pack_sources.py" keep --from "$here/tables/${pair%%-*}" --to "$studied"
       pin="$tables/pin.json"
     fi
     rm -rf "$work" && mkdir -p "$work"
     "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot"
     reduce "$pair" "$work" "$snapshot"
-    copy_tables "$work" "$tables"
-    build_pack "$tables" "$out"
+    split "$work" "$root"
+    build_pack "$studied" "$tables" "$out"
     "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
     echo "Reduced today's $pair sources into $tables (snapshot $snapshot)."
     ;;

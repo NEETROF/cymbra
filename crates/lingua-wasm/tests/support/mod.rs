@@ -85,11 +85,15 @@ impl Scenario {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     }
 
-    /// A pair's committed tables, `scripts/lingua-data/tables/<pair>`.
+    /// The committed tables, `scripts/lingua-data/tables`: a pair's native side in
+    /// `<pair>/`, its studied language's side in `<studied>/`.
+    pub fn tables_root() -> PathBuf {
+        Self::crate_dir().join("../../scripts/lingua-data/tables")
+    }
+
+    /// A pair's committed native side, `scripts/lingua-data/tables/<pair>`.
     pub fn tables_dir(pair: &str) -> PathBuf {
-        Self::crate_dir()
-            .join("../../scripts/lingua-data/tables")
-            .join(pair)
+        Self::tables_root().join(pair)
     }
 
     fn golden_path(&self) -> PathBuf {
@@ -99,7 +103,7 @@ impl Scenario {
     /// The pack the extension ships, built from the committed tables (the build is
     /// deterministic; `lingua-extension-check` holds the tables to `pin.json`).
     fn real_pack(pair: &str) -> Vec<u8> {
-        let inputs = lingua_pack::inputs_from_dir(&Self::tables_dir(pair))
+        let inputs = lingua_pack::inputs_from_tables(&Self::tables_root(), pair)
             .unwrap_or_else(|e| panic!("read the committed {pair} tables: {e}"));
         lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the {pair} pack: {e}"))
     }
