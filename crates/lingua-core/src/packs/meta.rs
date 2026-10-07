@@ -21,7 +21,9 @@ use serde::{Deserialize, Serialize};
 pub struct PackMeta {
     /// ISO-639-1 tag of the studied language (e.g. `"en"`).
     pub studied: String,
-    /// ISO-639-1 tag of the native / gloss language (e.g. `"fr"`).
+    /// ISO-639-1 tag of the native / gloss language (e.g. `"fr"`). A string, so
+    /// no pack byte moves; the reader checks it at load
+    /// (generalise-lingua-native-language D1).
     pub native: String,
     /// The pack's own content version (data revision).
     pub pack_version: String,
@@ -44,9 +46,10 @@ fn is_false(value: &bool) -> bool {
 }
 
 impl PackMeta {
-    /// The pair key, e.g. `"en->fr"`.
+    /// The pair key, `<studied>-<native>` (e.g. `"en-fr"`), as
+    /// [`crate::knowledge::LanguagePair::key`] forms it.
     pub fn pair_key(&self) -> String {
-        format!("{}->{}", self.studied, self.native)
+        format!("{}-{}", self.studied, self.native)
     }
 }
 
@@ -61,6 +64,12 @@ mod tests {
         let meta: PackMeta = serde_json::from_str(WITHOUT).expect("parse");
         assert!(!meta.levels_estimated);
         assert_eq!(serde_json::to_string(&meta).expect("serialise"), WITHOUT);
+    }
+
+    #[test]
+    fn the_pair_key_reads_studied_then_native() {
+        let meta: PackMeta = serde_json::from_str(WITHOUT).expect("parse");
+        assert_eq!(meta.pair_key(), "en-fr");
     }
 
     #[test]

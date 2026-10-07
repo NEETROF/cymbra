@@ -224,6 +224,19 @@ describe("rpc host", () => {
     expect(detect).toHaveBeenCalledWith("detectLanguage", [["Hola"], ["es", "en"], "es"]);
   });
 
+  it("forwards the native language as a whole-reader call, answered without a pack (generalise-lingua-native-language)", async () => {
+    const send = vi.fn(async (method: string) => (method === "nativeLanguage" ? "fr" : undefined));
+    expect(await new MessagingLinguaPort(send).nativeLanguage()).toBe("fr");
+    expect(send.mock.calls).toEqual([["nativeLanguage", []]]);
+
+    const glue = vi.fn(async (): Promise<WasmModule> => {
+      throw new Error("an engine was built");
+    });
+    const engine = new WasmAnalyzerPort(glue, ["en-fr", "es-fr"], async () => "fr");
+    expect(await handleRpc(engine, async () => {}, req("nativeLanguage"))).toEqual({ ok: true, result: "fr" });
+    expect(glue).not.toHaveBeenCalled();
+  });
+
   it("captures a thrown error as a failed result", async () => {
     const { port } = makeFakePort();
     const boom = async () => {

@@ -145,6 +145,10 @@ export function isPaintedClass(cls: TokenClass): cls is "Learning" | "Unknown" {
 /** A language the engine can study, as its ISO 639-1 tag (generalise-lingua-extension-port). */
 export type StudiedLanguage = "en" | "es";
 
+/** A language the engine glosses in — the reader's native language — as its ISO 639-1 tag
+ *  (generalise-lingua-native-language). */
+export type NativeLanguage = "fr" | "en" | "es";
+
 /** A CEFR level, ordered A1 < … < C2 (add-lingua-cefr-levels). */
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 

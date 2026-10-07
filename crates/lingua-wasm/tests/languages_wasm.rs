@@ -18,10 +18,34 @@
 
 #![cfg(target_arch = "wasm32")]
 
+use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::packs::{PackMeta, read_container, write_container};
 use lingua_wasm::LinguaEngine;
+use wasm_bindgen::{JsError, JsValue};
 use wasm_bindgen_test::wasm_bindgen_test;
 
 const PACK: &[u8] = include_bytes!("fixtures/pack.lingua");
+
+/// The fixture pack, its metadata rewritten to study `studied` glossed in `native`
+/// (generalise-lingua-native-language): the analyser only reads the forms, so English ones
+/// serve here.
+fn rewritten(studied: StudiedLanguage, native: &str) -> Vec<u8> {
+    let (meta, sections) = read_container(PACK).unwrap();
+    let mut meta: PackMeta = serde_json::from_slice(&meta).unwrap();
+    meta.studied = studied.tag().into();
+    meta.analyzer_version = studied.analyzer_version().into();
+    meta.native = native.into();
+    let sections: Vec<(&str, &[u8])> = sections
+        .iter()
+        .map(|s| (s.name.as_str(), s.data.as_slice()))
+        .collect();
+    write_container(&serde_json::to_vec(&meta).unwrap(), &sections)
+}
+
+/// What a refusal says, as the extension reads it (`Error: <message>`, then its stack).
+fn message(error: JsError) -> String {
+    format!("{:?}", JsValue::from(error))
+}
 
 #[wasm_bindgen_test]
 fn spec_scenario_a_language_without_a_pack_is_refused() {
@@ -93,4 +117,69 @@ fn spec_scenario_one_pack_per_language() {
     let mut engine = LinguaEngine::new(PACK).unwrap();
     assert!(engine.add_pack(PACK).is_err());
     assert_eq!(engine.languages(), r#"["en"]"#);
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_a_pack_of_another_native_language_is_refused() {
+    let mut engine = LinguaEngine::new(PACK).unwrap();
+    let backup = engine.backup();
+    let Err(refused) = engine.add_pack(&rewritten(StudiedLanguage::Spanish, "en")) else {
+        panic!("a pack glossed in English was added to an engine serving French");
+    };
+    // The error names both languages.
+    let said = message(refused);
+    assert!(said.contains("\"fr\"") && said.contains("\"en\""), "{said}");
+    assert_eq!(engine.languages(), r#"["en"]"#, "the packs held stay");
+    assert_eq!(engine.native_language(), "fr");
+    assert_eq!(engine.backup(), backup, "the profile stays");
+    // The same pair glossed in French is added.
+    assert_eq!(
+        engine
+            .add_pack(&rewritten(StudiedLanguage::Spanish, "fr"))
+            .unwrap(),
+        "es"
+    );
+    // A pack glossed in a language the core does not know, or in the one it studies, never loads.
+    assert!(LinguaEngine::new(&rewritten(StudiedLanguage::English, "de")).is_err());
+    assert!(LinguaEngine::new(&rewritten(StudiedLanguage::English, "en")).is_err());
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_a_native_language_no_pack_serves_is_refused() {
+    let mut engine = LinguaEngine::new(PACK).unwrap();
+    engine
+        .add_pack(&rewritten(StudiedLanguage::Spanish, "fr"))
+        .unwrap();
+    engine
+        .set_studied_languages(vec!["es".to_owned(), "en".to_owned()])
+        .unwrap();
+    let backup = engine.backup();
+    let Err(refused) = engine.set_profile("en", vec!["es".to_owned()]) else {
+        panic!("a native language no pack serves was set");
+    };
+    assert!(message(refused).contains("no pack the engine holds is glossed in \"en\""));
+    assert!(engine.set_profile("de", vec!["es".to_owned()]).is_err());
+    assert!(engine.set_profile("fr", vec!["pt".to_owned()]).is_err());
+    assert!(engine.set_profile("fr", vec![]).is_err());
+    assert_eq!(engine.profile_native_language(), "fr");
+    assert_eq!(engine.studied_languages(), r#"["es","en"]"#);
+    assert_eq!(engine.backup(), backup, "a refused profile changes nothing");
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_the_native_language_is_never_studied() {
+    let mut engine = LinguaEngine::new(&rewritten(StudiedLanguage::Spanish, "en")).unwrap();
+    assert_eq!(engine.native_language(), "en");
+    assert!(
+        engine
+            .set_studied_languages(vec!["es".to_owned(), "en".to_owned()])
+            .is_err()
+    );
+    assert!(
+        engine
+            .set_profile("en", vec!["en".to_owned(), "es".to_owned()])
+            .is_err()
+    );
+    assert_eq!(engine.studied_languages(), r#"["es"]"#);
+    assert_eq!(engine.profile_native_language(), "en");
 }

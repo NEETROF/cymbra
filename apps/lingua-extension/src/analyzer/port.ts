@@ -2,6 +2,7 @@ import type {
   CefrLevel,
   LemmaStatus,
   LevelRow,
+  NativeLanguage,
   PageAnalysis,
   PhraseGloss,
   SeedOrder,
@@ -172,6 +173,9 @@ export interface LinguaPort {
   for(language: StudiedLanguage): LanguagePort;
   /** The studied languages the engine holds a pack for, the default first. */
   languages(): Promise<StudiedLanguage[]>;
+  /** The native language this port was built for, read from the reader's stored profile: every
+   *  pack it loads is glossed in it (generalise-lingua-native-language D7). Loads no pack. */
+  nativeLanguage(): Promise<NativeLanguage>;
   /** The reader's studied languages, from their profile, the primary first
    *  (add-lingua-studied-language-profile). Not the packs held: see `languages`. */
   studiedLanguages(): Promise<StudiedLanguage[]>;

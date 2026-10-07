@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { StudiedLanguage } from "@/analyzer/types.ts";
+import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
 import { mountStudiedLanguages, shippedLanguages } from "@/reading/studied-languages-view.ts";
 import { makeFakePort } from "./helpers.ts";
 
@@ -11,8 +11,9 @@ const settle = async (): Promise<void> => {
   for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
-async function mount(studied: StudiedLanguage[], pairs: readonly string[] = BOTH) {
+async function mount(studied: StudiedLanguage[], pairs: readonly string[] = BOTH, native: NativeLanguage = "fr") {
   const { port } = makeFakePort();
+  port.nativeLanguage = async () => native;
   await port.setStudiedLanguages(studied);
   const block = document.createElement("div");
   const persist = vi.fn(async () => {});
@@ -77,6 +78,33 @@ describe("« Langues étudiées »", () => {
   it("hides when the package ships a single language", async () => {
     const s = await mount(["en"], ["en-fr"]);
     expect(s.block.hidden).toBe(true);
+  });
+
+  it("offers a French reader the languages glossed in French alone (generalise-lingua-native-language)", async () => {
+    const s = await mount(["en"], ["en-fr", "es-en", "es-fr"]);
+    expect(s.block.hidden).toBe(false);
+    expect([...s.block.querySelectorAll<HTMLInputElement>("input")].map((b) => b.dataset.language)).toEqual([
+      "en",
+      "es",
+    ]);
+    // Without es-fr, Spanish glossed in English is not a choice for them.
+    const without = await mount(["en"], ["en-fr", "es-en"]);
+    expect(without.block.hidden).toBe(true);
+  });
+
+  it("offers an English reader the languages glossed in English alone", async () => {
+    const s = await mount(["es"], ["en-fr", "es-en", "es-fr"], "en");
+    expect([...s.block.querySelectorAll<HTMLInputElement>("input")].map((b) => b.dataset.language)).toEqual(["es"]);
+    // One language glossed in English: nothing to choose, though two are listed in French.
+    expect(s.block.hidden).toBe(true);
+  });
+
+  it("shows a French reader's boxes before the port answers, as before", () => {
+    const { port } = makeFakePort();
+    const block = document.createElement("div");
+    mountStudiedLanguages(block, port, async () => {}, BOTH);
+    expect(block.hidden).toBe(false);
+    expect(block.querySelectorAll("input")).toHaveLength(2);
   });
 
   it("says that several languages at once are free for now", async () => {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { studiedLanguagesOf } from "@/state/profile.ts";
+import { nativeLanguageOf, studiedLanguagesOf } from "@/state/profile.ts";
 
-// The studied languages read from a stored backup without an engine
-// (generalise-lingua-translation-model-state D2). The layout is the engine's, pinned on its side by
-// lingua-core's decks/backup.rs.
+// The studied languages (generalise-lingua-translation-model-state D2) and the native language
+// (generalise-lingua-native-language D7) read from a stored backup without an engine. The layout is
+// the engine's, pinned on its side by lingua-core's decks/backup.rs.
 
 /** A version 2 backup as the engine writes it, cut to what matters here. */
 const version2 = (studied: unknown) =>
@@ -27,5 +27,42 @@ describe("the studied languages of a stored backup", () => {
   it("reads anything unreadable as English", () => {
     expect(studiedLanguagesOf("not json")).toEqual(["en"]);
     expect(studiedLanguagesOf("null")).toEqual(["en"]);
+  });
+});
+
+describe("the native language of a stored backup", () => {
+  /** A version 2 backup naming `native`, as the engine writes it, cut to what matters here. */
+  const native = (name: unknown) =>
+    JSON.stringify({ schema_version: 2, profile: { native_language: name, studied_languages: ["Spanish"] } }, null, 2);
+  /** Today's list beside pairs glossed in English and in Spanish. */
+  const MIXED = ["en-fr", "es-fr", "es-en", "en-es"];
+
+  it("reads the engine's names", () => {
+    expect(nativeLanguageOf(native("English"), MIXED)).toBe("en");
+    expect(nativeLanguageOf(native("Spanish"), MIXED)).toBe("es");
+    expect(nativeLanguageOf(native("French"), MIXED)).toBe("fr");
+  });
+
+  it("is French for a backup without a profile — every installed reader", () => {
+    expect(nativeLanguageOf(JSON.stringify({ schema_version: 1, knowledge: {} }), MIXED)).toBe("fr");
+    expect(nativeLanguageOf(JSON.stringify({ schema_version: 2, profile: {} }), MIXED)).toBe("fr");
+  });
+
+  it("is French for a name this build does not know, or no name at all", () => {
+    for (const name of ["Italian", "Portuguese", "english", "en", "toString", "", 3, null, ["English"]]) {
+      expect(nativeLanguageOf(native(name), MIXED)).toBe("fr");
+    }
+  });
+
+  it("is French for anything unreadable", () => {
+    expect(nativeLanguageOf("not json", MIXED)).toBe("fr");
+    expect(nativeLanguageOf("null", MIXED)).toBe("fr");
+  });
+
+  it("is French for a native language no listed pair is glossed in", () => {
+    expect(nativeLanguageOf(native("English"), ["en-fr", "es-fr"])).toBe("fr");
+    expect(nativeLanguageOf(native("Spanish"), ["en-fr", "es-en"])).toBe("fr");
+    // The bundle's list, today: every pair is glossed in French.
+    expect(nativeLanguageOf(native("English"))).toBe("fr");
   });
 });

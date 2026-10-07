@@ -23,10 +23,11 @@ use std::collections::BTreeMap;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::percent::TokenClass;
 use lingua_core::decks::card::{Card, EncounterSource, Provenance};
+use lingua_core::knowledge::profile::NativeLanguage;
 use lingua_core::knowledge::state::KnowledgeState;
 use lingua_core::knowledge::status::Status;
 
-use crate::engine::{Library, analyse, blocks};
+use crate::engine::{Library, Skipped, analyse, blocks};
 use crate::store::Store;
 
 /// One unknown word offered by `/vocab`.
@@ -100,6 +101,39 @@ pub fn language_name(language: StudiedLanguage) -> &'static str {
         StudiedLanguage::English => "Anglais",
         StudiedLanguage::Spanish => "Espagnol",
     }
+}
+
+/// A native language's name in the plugin's French copy, as a gloss language.
+pub fn native_name(native: NativeLanguage) -> &'static str {
+    match native {
+        NativeLanguage::French => "français",
+        NativeLanguage::English => "anglais",
+        NativeLanguage::Spanish => "espagnol",
+    }
+}
+
+/// What `/vocab` says after its listing of the packs installed but not followed, because they are
+/// glossed in another native language than the plugin's (generalise-lingua-native-language D9):
+/// one line per file, or nothing — every install today. The hooks and the statusline stay silent.
+pub fn skipped_notice(skipped: &[Skipped], native: Option<NativeLanguage>) -> String {
+    let Some(native) = native else {
+        return String::new();
+    };
+    skipped
+        .iter()
+        .map(|skip| {
+            let name = skip
+                .file
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| skip.file.display().to_string());
+            format!(
+                "Pack ignoré : {name} — traduit en {}, alors que le plugin suit les packs traduits en {}.\n",
+                native_name(skip.native),
+                native_name(native)
+            )
+        })
+        .collect()
 }
 
 /// The `/vocab` listing: one line per word, under a heading per language when the plugin

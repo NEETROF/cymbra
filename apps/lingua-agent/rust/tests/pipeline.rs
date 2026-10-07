@@ -22,9 +22,10 @@ use lingua_agent::ingest::{ingest_texts, run_ingest};
 use lingua_agent::source::{ClaudeCodeSource, extract_assistant_texts};
 use lingua_agent::statusline::statusline_text;
 use lingua_agent::store::Store;
-use lingua_agent::vocab::{VocabWord, add_to_deck, listing, vocab_words};
+use lingua_agent::vocab::{VocabWord, add_to_deck, listing, skipped_notice, vocab_words};
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::packs::Pack;
+use lingua_core::knowledge::profile::NativeLanguage;
+use lingua_core::packs::{Pack, PackMeta, read_container, write_container};
 
 const EN: StudiedLanguage = StudiedLanguage::English;
 const ES: StudiedLanguage = StudiedLanguage::Spanish;
@@ -42,6 +43,37 @@ const SPANISH: &str = "Hablaba de la casa y el vino. Hablo de la casa, es el vin
 
 fn pack() -> Pack {
     Pack::load(PACK_BYTES).expect("fixture pack loads")
+}
+
+/// `bytes` with its metadata rewritten to name `native` as the language of its glosses.
+fn glossed_in(bytes: &[u8], native: &str) -> Vec<u8> {
+    let (meta, sections) = read_container(bytes).expect("a container");
+    let mut meta: PackMeta = serde_json::from_slice(&meta).expect("metadata");
+    meta.native = native.into();
+    let sections: Vec<(&str, &[u8])> = sections
+        .iter()
+        .map(|s| (s.name.as_str(), s.data.as_slice()))
+        .collect();
+    write_container(&serde_json::to_vec(&meta).expect("json"), &sections)
+}
+
+/// The Spanish fixture, glossed in English.
+fn es_en_bytes() -> Vec<u8> {
+    glossed_in(ES_PACK_BYTES, "en")
+}
+
+/// A fresh directory holding `files`, and their paths in file-name order, as `installed` reads
+/// them.
+fn installed(name: &str, files: &[(&str, &[u8])]) -> (std::path::PathBuf, Vec<std::path::PathBuf>) {
+    let dir = std::env::temp_dir().join(format!("lingua-agent-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    for (file, bytes) in files {
+        std::fs::write(dir.join(file), bytes).unwrap();
+    }
+    let mut paths: Vec<_> = files.iter().map(|(file, _)| dir.join(file)).collect();
+    paths.sort();
+    (dir, paths)
 }
 
 fn english() -> Library {
@@ -225,6 +257,29 @@ fn engine_path_resolution_honours_env_and_defaults() {
     assert_eq!(library.languages(), vec![EN, ES]);
     assert!(library.several());
     assert_eq!(library.pack(ES).map(|p| p.studied()), Some(ES));
+    assert!(
+        library.skipped().is_empty(),
+        "today's install skips nothing"
+    );
+
+    // A pack glossed in another native language is skipped, though it sorts first
+    // (generalise-lingua-native-language D9).
+    std::fs::write(dir.join("es-en.lingua"), es_en_bytes()).unwrap();
+    let mut library = Library::installed();
+    assert_eq!(library.languages(), vec![EN, ES]);
+    assert_eq!(library.native(), Some(NativeLanguage::French));
+    assert_eq!(
+        library.pack(ES).map(|p| p.native()),
+        Some(NativeLanguage::French)
+    );
+    assert_eq!(
+        library
+            .skipped()
+            .iter()
+            .map(|s| s.file.clone())
+            .collect::<Vec<_>>(),
+        vec![dir.join("es-en.lingua")]
+    );
 
     // LINGUA_PACK overrides everything: that pack alone is followed.
     let pack = dir.join("custom.lingua");
@@ -235,12 +290,105 @@ fn engine_path_resolution_honours_env_and_defaults() {
     assert_eq!(library.languages(), vec![EN]);
     assert!(library.pack(EN).is_some());
     assert!(library.pack(ES).is_none());
+    assert!(library.skipped().is_empty());
+
+    // Whatever it is glossed in: its native language is the plugin's.
+    let es_en = dir.join("custom-es-en.lingua");
+    std::fs::write(&es_en, es_en_bytes()).unwrap();
+    unsafe { std::env::set_var("LINGUA_PACK", &es_en) };
+    let mut library = Library::installed();
+    assert_eq!(library.languages(), vec![ES]);
+    assert_eq!(library.native(), Some(NativeLanguage::English));
+    assert!(library.pack(ES).is_some());
+    assert!(library.skipped().is_empty());
 
     unsafe {
         std::env::remove_var("LINGUA_HOME");
         std::env::remove_var("LINGUA_PACK");
     }
     std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn spec_scenario_a_pack_of_another_native_language_is_skipped_and_named() {
+    let es_en = es_en_bytes();
+    let (dir, files) = installed(
+        "other-native",
+        &[
+            ("pack.lingua", PACK_BYTES),
+            ("es-fr.lingua", ES_PACK_BYTES),
+            ("es-en.lingua", &es_en),
+        ],
+    );
+    let mut library = Library::from_files(files);
+    // English and Spanish still followed, with French glosses.
+    assert_eq!(library.languages(), vec![EN, ES]);
+    assert_eq!(library.native(), Some(NativeLanguage::French));
+    let hablar = library
+        .pack(ES)
+        .and_then(|p| p.gloss("hablar").map(str::to_owned));
+    assert_eq!(hablar.as_deref(), Some("Parler"));
+    // `/vocab` names the file it skipped, after its listing.
+    assert_eq!(library.skipped().len(), 1);
+    assert_eq!(library.skipped()[0].native, NativeLanguage::English);
+    assert_eq!(
+        skipped_notice(library.skipped(), library.native()),
+        "Pack ignoré : es-en.lingua — traduit en anglais, alors que le plugin suit les packs \
+         traduits en français.\n"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn spec_scenario_today_s_installs_show_no_notice() {
+    for (name, files) in [
+        ("english-alone", vec![("pack.lingua", PACK_BYTES)]),
+        (
+            "english-and-spanish",
+            vec![("pack.lingua", PACK_BYTES), ("es-fr.lingua", ES_PACK_BYTES)],
+        ),
+    ] {
+        let (dir, files) = installed(name, &files);
+        let library = Library::from_files(files);
+        assert!(library.skipped().is_empty());
+        assert_eq!(skipped_notice(library.skipped(), library.native()), "");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+    let none = Library::from_files(Vec::new());
+    assert_eq!(none.native(), None);
+    assert_eq!(skipped_notice(none.skipped(), none.native()), "");
+}
+
+#[test]
+fn without_a_readable_pack_lingua_the_first_readable_file_gives_the_native_language() {
+    let es_en = es_en_bytes();
+    let (dir, files) = installed(
+        "no-anchor",
+        &[
+            ("broken.lingua", b"not a pack"),
+            ("es-en.lingua", &es_en),
+            ("es-fr.lingua", ES_PACK_BYTES),
+            ("pack.lingua", b"damaged"),
+        ],
+    );
+    let library = Library::from_files(files);
+    assert_eq!(library.native(), Some(NativeLanguage::English));
+    assert_eq!(library.languages(), vec![ES]);
+    assert_eq!(library.skipped().len(), 1);
+    assert_eq!(library.skipped()[0].native, NativeLanguage::French);
+    assert!(
+        skipped_notice(library.skipped(), library.native())
+            .starts_with("Pack ignoré : es-fr.lingua — traduit en français"),
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn loaded_packs_follow_the_first_one_s_native_language() {
+    let library = Library::from_packs([pack(), Pack::load(&es_en_bytes()).expect("es-en loads")]);
+    assert_eq!(library.languages(), vec![EN]);
+    assert_eq!(library.native(), Some(NativeLanguage::French));
+    assert!(Library::from_packs([]).native().is_none());
 }
 
 #[test]

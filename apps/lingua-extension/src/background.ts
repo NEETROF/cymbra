@@ -1,5 +1,5 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
-import { acceptedLanguages } from "./analyzer/pairs.ts";
+import { acceptedLanguages, DEFAULT_NATIVE, SHIPPED_PAIRS } from "./analyzer/pairs.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { type AccountHostDeps, handleAccountMessage } from "./account/host.ts";
 import { userServicePort } from "./account/profile.ts";
@@ -36,8 +36,15 @@ import { UNAVAILABLE } from "./translate/port.ts";
 import { relayTranslation, relayWarm } from "./translate/host/relay.ts";
 import { isTranslateMessage, isWarmMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
-import { studiedLanguagesOf } from "./state/profile.ts";
-import { type AsyncStorageArea, hydrateEngine, loadStored, ROOT_KEY, SESSION_LOST_KEY } from "./state/storage.ts";
+import { nativeLanguageOf, studiedLanguagesOf } from "./state/profile.ts";
+import {
+  type AsyncStorageArea,
+  hydrateEngine,
+  loadStored,
+  ROOT_KEY,
+  SESSION_LOST_KEY,
+  storedNativeLanguage,
+} from "./state/storage.ts";
 import {
   dropRetiredKeys,
   idbArea,
@@ -259,10 +266,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // content script's `resolveContentPort` routes to it over this RPC. Lazy: the engine
 // instantiates on the first RPC, so a Chromium session that never hits a CSP-strict
 // page pays nothing. It self-hydrates from storage on wake, so a restarted worker
-// restores state before answering; the surfaces persist after their own mutations.
+// restores state before answering; the surfaces persist after their own mutations. Like every
+// engine, it loads only the pairs of the reader's native language, read from the stored backup
+// before its first pack (generalise-lingua-native-language D7).
 {
   const storage = ownedStore;
-  const enginePort = new WasmAnalyzerPort(staticGlue);
+  const enginePort = new WasmAnalyzerPort(staticGlue, SHIPPED_PAIRS, () => storedNativeLanguage(storage));
   let hydrated: Promise<void> | null = null;
   const ensure = (): Promise<void> => (hydrated ??= hydrateEngine(enginePort, storage));
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -327,9 +336,11 @@ if (__TRANSLATION_HOST__ !== "none") {
     // for a translation must not load the reading engine and its pack (model-state D2).
     languages: async () => {
       const stored = await loadStored(ownedStore);
-      // No backup yet: none studied, which acceptedLanguages reads as the default pair's language.
+      // No backup yet: none studied, which acceptedLanguages reads as the default pair's language,
+      // for a reader of French.
       const studied = stored.kind === "v2" ? studiedLanguagesOf(stored.backup) : [];
-      return acceptedLanguages({ studiedLanguages: async () => studied });
+      const native = stored.kind === "v2" ? nativeLanguageOf(stored.backup) : DEFAULT_NATIVE;
+      return acceptedLanguages({ studiedLanguages: async () => studied, nativeLanguage: async () => native });
     },
   });
   controller = model;
@@ -433,7 +444,7 @@ if (__TRANSLATION_HOST__ !== "none") {
   // import()) that the SyncEngine hydrates from the backup each run, leaving the
   // rpc-host reading engine untouched. Runs only while signed in; debounced so a burst
   // of mutations (each persisting the backup) coalesces into one exchange.
-  const syncPort = new WasmAnalyzerPort(staticGlue);
+  const syncPort = new WasmAnalyzerPort(staticGlue, SHIPPED_PAIRS, () => storedNativeLanguage(ownedStore));
   let deviceIdPromise: Promise<string> | null = null;
   let syncEngine: SyncEngine | null = null;
   const getSyncEngine = async (): Promise<SyncEngine> => {

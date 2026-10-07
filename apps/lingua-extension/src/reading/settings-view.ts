@@ -616,7 +616,9 @@ export function mountSettings(
       await port.reset();
       await clearSyncCursors(opts.store);
     }
-    // Every accepted language starts over (a full reset returns the profile to English).
+    // Every accepted language starts over. A full reset returns the profile to the engine's native
+    // language, studying its first pack's language alone — English, for a reader of French
+    // (generalise-lingua-native-language D5).
     for (const language of await acceptedLanguages(port, pairs)) {
       const view = port.for(language);
       await view.setCalibration((await view.hasLevels()) ? 0 : 3000);

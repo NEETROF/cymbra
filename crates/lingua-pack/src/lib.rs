@@ -32,6 +32,7 @@ use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lemmatize::lemmatize;
 use lingua_core::analysis::lexicon::{FstLexicon, Lexicon, build_lexicon_blobs};
 use lingua_core::knowledge::level::CefrLevel;
+use lingua_core::knowledge::profile::NativeLanguage;
 use lingua_core::packs::format::write_container;
 use lingua_core::packs::grammar::{
     FormEdit, ParadigmEntry, SenseRun, Tag, encode_indexed, encode_paradigm, encode_runs,
@@ -119,6 +120,11 @@ pub enum BuildError {
     /// The pack studies a language the core has no analyser for: no core
     /// could load it (`Pack::load` refuses it too).
     UnknownLanguage(String),
+    /// The pack is glossed in a native language the core does not know: no core
+    /// could load it (`Pack::load` refuses it too, generalise-lingua-native-language D1).
+    UnknownNative(String),
+    /// The pack is glossed in the language it studies, which no core loads either.
+    NativeStudied(String),
     /// The assembled pack exceeds [`MAX_PACK_BYTES`].
     OverBudget {
         size: usize,
@@ -151,6 +157,13 @@ impl std::fmt::Display for BuildError {
                 f,
                 "the pack studies {tag:?}, a language the core cannot analyse"
             ),
+            BuildError::UnknownNative(tag) => write!(
+                f,
+                "the pack is glossed in {tag:?}, a native language the core does not know"
+            ),
+            BuildError::NativeStudied(tag) => {
+                write!(f, "the pack studies {tag:?} and is glossed in it too")
+            }
             BuildError::OverBudget {
                 size,
                 budget,
@@ -316,6 +329,13 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     // one every analysis of this pack will run (generalise-lingua-analysis-by-language).
     let studied = StudiedLanguage::from_tag(&inputs.meta.studied)
         .ok_or_else(|| BuildError::UnknownLanguage(inputs.meta.studied.clone()))?;
+    // The native language its glosses are written in: refused as the core refuses it at load, so
+    // no build produces a pack no core loads (generalise-lingua-native-language D1).
+    let native = NativeLanguage::from_tag(&inputs.meta.native)
+        .ok_or_else(|| BuildError::UnknownNative(inputs.meta.native.clone()))?;
+    if native.studied() == Some(studied) {
+        return Err(BuildError::NativeStudied(inputs.meta.native.clone()));
+    }
 
     // FST + lemma pool. Lemmas absent from the form→lemma pairs (e.g. glossed
     // or ranked lemmas with no listed inflection) are added to the pool so
@@ -783,7 +803,7 @@ mod tests {
     fn built_pack_round_trips_through_the_reader() {
         let bytes = build_pack(&inputs()).expect("build");
         let pack = Pack::load(&bytes).expect("load");
-        assert_eq!(pack.meta().pair_key(), "en->fr");
+        assert_eq!(pack.meta().pair_key(), "en-fr");
         assert_eq!(pack.lexicon().lemma_of("running"), Some("run"));
         assert_eq!(pack.rank("run"), Some(500));
         assert_eq!(pack.gloss("city"), Some("ville"));
@@ -1136,6 +1156,48 @@ mod tests {
                 .to_string()
                 .contains("\"pt\"")
         );
+    }
+
+    #[test]
+    fn spec_scenario_a_native_language_the_core_does_not_know_is_refused_at_build() {
+        for tag in ["de", "it", "FR", ""] {
+            let mut inp = inputs();
+            inp.meta.native = tag.into();
+            assert_eq!(
+                build_pack(&inp),
+                Err(BuildError::UnknownNative(tag.into())),
+                "{tag:?}"
+            );
+        }
+        let message = BuildError::UnknownNative("de".into()).to_string();
+        assert!(message.contains("\"de\""), "{message}");
+        // The studied language is still checked first.
+        let mut inp = inputs();
+        inp.meta.studied = "pt".into();
+        inp.meta.native = "de".into();
+        assert_eq!(
+            build_pack(&inp),
+            Err(BuildError::UnknownLanguage("pt".into()))
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_pack_glossed_in_the_language_it_studies_is_refused_at_build() {
+        let mut inp = inputs();
+        inp.meta.native = "en".into();
+        assert_eq!(
+            build_pack(&inp),
+            Err(BuildError::NativeStudied("en".into()))
+        );
+        assert!(
+            BuildError::NativeStudied("en".into())
+                .to_string()
+                .contains("\"en\"")
+        );
+        // Another native language the core knows builds a pack the core loads.
+        inp.meta.native = "es".into();
+        let pack = Pack::load(&build_pack(&inp).expect("an en-es pack builds")).expect("loads");
+        assert_eq!(pack.pair().key(), "en-es");
     }
 
     #[test]

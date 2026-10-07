@@ -74,6 +74,8 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
       return Object.assign(Object.create(this) as FakePort, { language });
     },
     languages: async () => ["en"],
+    // Every reader today: a spec of another native language replaces it.
+    nativeLanguage: async () => "fr",
     studiedLanguages: async () => [...studied],
     setStudiedLanguages: async (languages) => {
       studied = [...languages];

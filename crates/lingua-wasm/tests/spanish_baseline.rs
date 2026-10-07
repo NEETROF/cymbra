@@ -21,11 +21,14 @@
 //! axis can move: the Spanish names rule and the vocabulary estimate read gloss presence.
 //!
 //! The engine holds en-fr beside es-fr, as the extension does (it starts on the default pair's
-//! pack): the estimated Spanish ladder borrows English's typical vocabularies from it.
+//! pack). The estimated Spanish ladder borrows English's typical vocabularies, which the core
+//! freezes (`ENGLISH_TYPICAL_VOCABULARY`, generalise-lingua-native-language D6): the figures this
+//! golden recorded when they were read from en-fr.
 //!
 //! A pull request that changes `baseline/es-fr.golden` changes what readers of Spanish see.
-//! Only a dictionary update (either pair: the ladder reads en-fr), or a deliberate analyser
-//! change that bumps the Spanish analyser version, should do that. Re-bless with
+//! Only a dictionary update of es-fr, or a deliberate analyser change that bumps the Spanish
+//! analyser version, should do that; an en-fr update moves the `beside en-fr` line alone.
+//! Re-bless with
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test spanish_baseline` and say why in the pull
 //! request; `lingua-pack-update` re-blesses on its own branch.
 //!
@@ -177,8 +180,8 @@ fn spanish_output_has_not_moved() {
         actual == expected,
         "Spanish output moved (docs/lingua/language-matrix-programme.md: es-fr does not move).\n\
          First difference — {}\n\
-         If this pull request means to change Spanish output (a dictionary update of es-fr or \
-         en-fr, or an analyser change that bumps the Spanish analyser version), re-bless with\n  \
+         If this pull request means to change Spanish output (a dictionary update of es-fr, or \
+         an analyser change that bumps the Spanish analyser version), re-bless with\n  \
          LINGUA_BLESS=1 cargo test -p lingua-wasm --test spanish_baseline\n\
          and say why in the pull request. Otherwise the change is wrong.",
         first_difference(&expected, &actual)

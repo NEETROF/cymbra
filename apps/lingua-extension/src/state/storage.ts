@@ -1,6 +1,8 @@
+import { DEFAULT_NATIVE, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
-import type { LemmaStatus, StudiedLanguage } from "../analyzer/types.ts";
+import type { LemmaStatus, NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
 import type { SpeechSettings, VoicePreference } from "../reading/speech.ts";
+import { nativeLanguageOf } from "./profile.ts";
 
 // Versioned local state (designs D4 + the review change). The authoritative state is
 // lingua-core's LinguaState, held by the WASM engine and persisted as its lossless
@@ -268,6 +270,19 @@ export function classifyStored(raw: unknown): Stored {
 export async function loadStored(area: AsyncStorageArea): Promise<Stored> {
   const got = await area.get(ROOT_KEY);
   return classifyStored(got[ROOT_KEY]);
+}
+
+/**
+ * The reader's native language, as their stored backup names it (`nativeLanguageOf`): French with
+ * no backup yet, or a reading-only (v1) store, which predates the profile. Read before an engine
+ * loads its first pack, which must be glossed in it (generalise-lingua-native-language D7).
+ */
+export async function storedNativeLanguage(
+  area: AsyncStorageArea,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): Promise<NativeLanguage> {
+  const stored = await loadStored(area);
+  return stored.kind === "v2" ? nativeLanguageOf(stored.backup, pairs) : DEFAULT_NATIVE;
 }
 
 /** Persist a backup string under the root key. */

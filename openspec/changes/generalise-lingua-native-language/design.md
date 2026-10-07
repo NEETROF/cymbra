@@ -148,6 +148,8 @@ The reader's native language comes from the stored backup:
 
 `WasmAnalyzerPort` takes a native-language resolver, called once before the first pack is
 fetched:
+- A resolver that failed is asked again by the next call. The engine's build is cached only once the
+  native language is known, so a store that did not answer never leaves a failed build behind.
 - `create-port.ts` and `background.ts` wire it to the stored backup.
 - It builds on `defaultPair(native)`, and adds only that native language's pairs.
 - Its refusal for a language no pair serves names the native language's pairs. For French
@@ -167,6 +169,8 @@ engine build is the cost, and hydration already makes the same read.
 at offset 10. It no longer scans the bytes with a regular expression.
 - `assertPacksMatchEngine` refuses a listed pack whose `native` is not its pair's native side, and
   the message names the rebuild command.
+- It also refuses a pack whose metadata does not read, or lacks one of the three fields: every pack
+  the core accepts names them all, so such a pack would only be refused at runtime.
 - `shippedPairs` refuses a pair whose two sides are the same (`fr-fr`).
 - The check reads the built pack rather than the tables, because the pack is what ships.
 
