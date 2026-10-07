@@ -17,8 +17,8 @@ Change 21 settled the shape of a reader pair: the native side alone, from the co
 tables and the pair's own sources, a digest of its own, a pin recording the studied tables it
 read, sources shared by release. This change reuses it and adds what en-es needs alone: the
 Spanish edition bound to an English studied side, three tables of glosses (entries, direct and
-inverted — es-fr's own shape), two derived files from large dumps, the English extract read as
-served, and a coverage floor the owner sets on the pull request, since en-es is the thin pair
+inverted — es-fr's own shape), three derived files from two large dumps, the English extract
+read as served, and a coverage floor the owner sets on the pull request, since en-es is the thin pair
 risk 5 names.
 
 ## What Changes

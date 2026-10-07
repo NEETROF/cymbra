@@ -44,16 +44,20 @@ The digest is `reduce-en-es.py`, `reduce_common.py` and `reduce_edition_es.py`.
 ### D2 — Two derived files, one new dump source, the extract read as served
 
 `DUMPS["en-es"]`:
-- `kaikki-es-English.jsonl`, `("entries", "en")` from es-fr's `kaikki-es` dump (the same address;
-  en-es's update downloads the dump and derives its file; the Spanish Wiktionary's dump is 98 MB
-  by the study's measure — recorded at the first update);
+- from es-fr's `kaikki-es` dump (the same address; en-es's update downloads the dump — 98 MB by
+  the study's measure, recorded at the first update — and derives two files in one pass):
+  `kaikki-es-English.jsonl`, `("entries", "en")`, and `kaikki-es-traductions-en.jsonl`,
+  `("translations", "es", "en")` — change 21's derivation, run on en-es's own snapshot of the
+  dump, since a dump record carries one release for all its files and en-es downloads the dump
+  anyway; en-es's pin is self-contained, and an es-en re-snapshot moves no en-es byte;
 - `kaikki-en-traductions-es.jsonl`, `("translations", "en", "es")` from a new dump source,
   `kaikki-en`: the English Wiktionary's English extract, served uncompressed — `fetch_live` saves
   a dump as it is served and `derive` reads a plain or a gzipped file, told apart by the gzip
   magic. Fetched by `fetch_live` only, derived in one pass, never kept.
-Both are release assets of `lingua-pack-sources-en-es-<snapshot>`; the inverted table is change
-21's asset, named by its release in en-es's pin (change 21 D2). A pinned reduction fetches the
-three derived files and nothing larger. The dump records are written as every dump's is
+All three are release assets of `lingua-pack-sources-en-es-<snapshot>`, published under
+`release_tag(pair, snapshot)` with notes that name no extract (`sources.kaikki` is absent for a
+dumps-only pair, and `pack_sources.py assets` lists the dump records' files alone). A pinned
+reduction fetches the three derived files and nothing larger. The dump records are written as every dump's is
 (release, address, fetched, last_modified, files).
 
 Why the extract and not the raw dump risk 6 names: the raw English dump is several times the
@@ -74,9 +78,11 @@ with the pair.
 ### D4 — The translation-table share
 
 Among the glossed lemmas of the top 10,000, the share whose gloss came from a translation table
-(direct or inverted) rather than from an entry. `native_tables` already counts the primary
-source; the reducer records the source per lemma while reducing and prints the share to stderr,
-and `pack_report` prints it beside the coverage; it is shown in the pull request and in the
+(direct or inverted) rather than from an entry. The reducer calls `common.reduce_gloss` and
+`common.fallback_glosses` as `native_tables` does and keeps the lemma set of each step, so the
+share is computed in `reduce-en-es.py` alone and `reduce_common.py` is not edited (the main
+spec's *A shared rule changes*); the share is printed to stderr, and `pack_report` prints it
+beside the coverage; it is shown in the pull request and in the
 tables' README, not stored in the pack.
 
 ### D5 — The owner's review
