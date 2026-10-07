@@ -147,6 +147,9 @@ describe("SyncEngine", () => {
           source_sentence: "s",
           source: "https://x",
           gloss: "rarement",
+          // The engine labels a gloss in another language (add-lingua-card-gloss-language);
+          // the label is not sent until the wire carries it (add-lingua-native-language-sync-client).
+          gloss_language: "en",
           fsrs_state: "{}",
           deleted: false,
           client_ts: 1800,
@@ -160,6 +163,9 @@ describe("SyncEngine", () => {
 
     const res = await engine.sync();
     expect(res).toEqual({ pushedStatuses: 1, pushedCards: 1, pulled: 0 });
+    const [pushed] = f.pushCards.mock.calls[0] as unknown as [{ cards: Record<string, unknown>[] }];
+    expect(pushed.cards[0]).not.toHaveProperty("glossLanguage");
+    expect(pushed.cards[0]).not.toHaveProperty("gloss_language");
     expect(f.pushOps).toHaveBeenCalledWith({
       ops: [
         { language: "en", lemma: "run", status: "known", provenance: "manual", clientTs: 1700n, deviceId: "dev-1" },

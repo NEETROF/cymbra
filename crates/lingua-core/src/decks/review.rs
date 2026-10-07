@@ -50,6 +50,13 @@ impl Deck {
         self.cards.keys().copied().collect()
     }
 
+    /// Every card with its language, borrowed, in (language, lemma) order.
+    pub fn iter(&self) -> impl Iterator<Item = (StudiedLanguage, &Card)> {
+        self.cards
+            .iter()
+            .flat_map(|(&lang, per_lang)| per_lang.values().map(move |card| (lang, card)))
+    }
+
     /// Inserts or replaces the card for a lemma.
     pub fn upsert(&mut self, lang: StudiedLanguage, card: Card) {
         self.cards
@@ -63,11 +70,13 @@ impl Deck {
     /// default) — for level-targeted feeding (`add-lingua-cefr-levels`). Skips
     /// any lemma that already has a card or an explicit status in `knowledge`
     /// (idempotent), stops after `cap` new cards, and stamps each with the
-    /// reserved `Import` source. Returns the number actually added.
+    /// reserved `Import` source. The glosses are the pack's, written in
+    /// `gloss_language`. Returns the number actually added.
     pub fn seed_lemmas<'a>(
         &mut self,
         lang: StudiedLanguage,
         lemmas: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+        gloss_language: &str,
         knowledge: &KnowledgeState,
         cap: usize,
         at: i64,
@@ -80,7 +89,10 @@ impl Deck {
             if self.get(lang, lemma).is_some() || knowledge.explicit_status(lang, lemma).is_some() {
                 continue;
             }
-            self.upsert(lang, Card::seeded(lemma, gloss.map(str::to_owned), at));
+            self.upsert(
+                lang,
+                Card::seeded(lemma, gloss.map(str::to_owned), gloss_language, at),
+            );
             added += 1;
         }
         added
@@ -336,6 +348,7 @@ mod tests {
                 captured_at: 0,
             },
             None,
+            "fr",
         )
     }
 
@@ -424,7 +437,7 @@ mod tests {
             ("quixotic", None),         // new → add
             ("arcane", None),           // would add, but the cap stops us first
         ];
-        let added = deck.seed_lemmas(EN, candidates, &knowledge, 2, 5 * DAY);
+        let added = deck.seed_lemmas(EN, candidates, "fr", &knowledge, 2, 5 * DAY);
         assert_eq!(added, 2);
         assert!(deck.get(EN, "nuance").is_some());
         assert!(deck.get(EN, "quixotic").is_some());

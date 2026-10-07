@@ -29,6 +29,7 @@ use lingua_agent::statusline::statusline_text;
 use lingua_agent::store::Store;
 use lingua_agent::vocab::{add_to_deck, listing, skipped_notice, vocab_words};
 use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::knowledge::profile::NativeLanguage;
 use lingua_core::knowledge::state::KnowledgeState;
 
 fn now() -> i64 {
@@ -164,7 +165,8 @@ fn cmd_vocab(args: &[String]) -> ExitCode {
             .map(|s| s.trim().to_lowercase())
             .filter(|s| !s.is_empty())
             .collect();
-        let Ok(added) = add_to_deck(&store, &words, &chosen, language, now()) else {
+        let native = library.native().unwrap_or(NativeLanguage::French);
+        let Ok(added) = add_to_deck(&store, &words, &chosen, language, native, now()) else {
             return ExitCode::SUCCESS;
         };
         println!("Ajouté {} mot(s) au deck.", added.added);
@@ -189,10 +191,15 @@ fn cmd_mcp() -> ExitCode {
     };
     // With no pack installed the deck is still served, as English, as it always was.
     let library = Library::installed();
-    let followed = if library.is_empty() {
+    let languages = if library.is_empty() {
         vec![StudiedLanguage::English]
     } else {
         library.languages()
+    };
+    // With no pack, the deck is served as it always was: English, glossed in French.
+    let followed = mcp::Followed {
+        languages: &languages,
+        native: library.native().unwrap_or(NativeLanguage::French),
     };
     match mcp::serve(&store, &followed, now) {
         Ok(()) => ExitCode::SUCCESS,

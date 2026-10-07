@@ -18,13 +18,14 @@
 //! One scenario per shipped pair (`english.rs`, `spanish.rs` here, frozen by `english_baseline.rs`
 //! and `spanish_baseline.rs`), one harness: the probes and the reader's history are the same for
 //! every pair, only the words differ. `cross_native.rs` answers the same scenarios through a pack
-//! glossed in another native language.
+//! glossed in another native language (`other_native.rs` builds it).
 //! A golden is re-blessed with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test <test>`, and the
 //! pull request says why (docs/lingua/language-matrix-programme.md: en-fr and es-fr do not move).
 
 #![allow(dead_code)]
 
 pub mod english;
+pub mod other_native;
 pub mod spanish;
 
 use std::fmt::Write as _;
@@ -102,7 +103,7 @@ impl Scenario {
 
     /// The pack the extension ships, built from the committed tables (the build is
     /// deterministic; `lingua-extension-check` holds the tables to `pin.json`).
-    fn real_pack(pair: &str) -> Vec<u8> {
+    pub fn real_pack(pair: &str) -> Vec<u8> {
         let inputs = lingua_pack::inputs_from_tables(&Self::tables_root(), pair)
             .unwrap_or_else(|e| panic!("read the committed {pair} tables: {e}"));
         lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the {pair} pack: {e}"))

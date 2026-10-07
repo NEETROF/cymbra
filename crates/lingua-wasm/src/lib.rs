@@ -33,7 +33,9 @@
 
 use lingua_core::analysis::language::{StudiedLanguage, detect_document_language};
 use lingua_core::decks::backup::LinguaState;
-use lingua_core::decks::card::{Card, EncounterSource, Provenance};
+use lingua_core::decks::card::{
+    Card, EncounterSource, FRENCH, Provenance, gloss_language_or_french,
+};
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
 use lingua_core::engine::{analyse_page_json, gloss_phrase_json, word_grammar_json};
@@ -96,6 +98,23 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
         profile: Profile::studying(packs.native(), packs.default_language()),
         ..LinguaState::default()
     }
+}
+
+/// The gloss review shows for a card whose gloss is written in another language than the
+/// engine's native (add-lingua-card-gloss-language D3, D4): the current pack's for the card's
+/// lemma — a word's gloss, or an expression's (a lemma with spaces) from the pack's expression
+/// table — and the card's own text when the pack has none, or when no pack is held for the
+/// card's language. The card is not rewritten.
+fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
+    pack.and_then(|pack| {
+        if card.is_expression() {
+            pack.expression(&card.lemma)
+        } else {
+            pack.gloss(&card.lemma)
+        }
+    })
+    .map(str::to_owned)
+    .or_else(|| card.gloss.clone())
 }
 
 /// The languages a list of ISO 639-1 tags names, unknown tags dropped; absent is none, which the
@@ -650,7 +669,10 @@ impl LinguaEngine {
     /// opaque JSON string. `device_id` is left empty for the caller to attach;
     /// `client_ts` is the card's `updated_at` in millis. `source` is always empty: the
     /// page a card was captured from stays on the device (add-lingua-privacy-controls)
-    /// and only the local backup keeps it.
+    /// and only the local backup keeps it. `gloss_language` is the language the gloss is
+    /// written in (add-lingua-card-gloss-language D2), left out when it is `fr` as the backup
+    /// leaves it, so the baselines' export keeps its bytes; the sync client sends it from
+    /// `add-lingua-native-language-sync-client`.
     #[wasm_bindgen(js_name = exportCardOps)]
     pub fn export_card_ops(&self) -> String {
         let ops: Vec<serde_json::Value> = self
@@ -659,7 +681,7 @@ impl LinguaEngine {
             .export_cards()
             .into_iter()
             .map(|(language, card)| {
-                serde_json::json!({
+                let mut op = serde_json::json!({
                     "client_id": card.lemma,
                     "language": language.tag(),
                     "lemma": card.lemma,
@@ -671,7 +693,11 @@ impl LinguaEngine {
                     "deleted": false,
                     "client_ts": card.updated_at * 1000,
                     "device_id": "",
-                })
+                });
+                if card.gloss_language != FRENCH {
+                    op["gloss_language"] = card.gloss_language.clone().into();
+                }
+                op
             })
             .collect();
         serde_json::to_string(&ops).unwrap_or_else(|_| "[]".to_owned())
@@ -720,6 +746,13 @@ impl LinguaEngine {
                 .and_then(|v| v.as_str())
                 .filter(|s| !s.is_empty())
                 .map(str::to_owned);
+            // The language the gloss is written in, trimmed and lowercased; absent, blank or
+            // not a string means `fr`, the wire's default (add-lingua-card-gloss-language D2).
+            let gloss_language = gloss_language_or_french(
+                op.get("gloss_language")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(""),
+            );
             let review: ReviewState =
                 serde_json::from_str(&str_field("fsrs_state")).unwrap_or_default();
             let mut card = Card::new(
@@ -733,6 +766,7 @@ impl LinguaEngine {
                     captured_at: updated_at,
                 },
                 gloss,
+                &gloss_language,
             );
             card.review = review;
             card.updated_at = updated_at;
@@ -851,6 +885,8 @@ impl LinguaEngine {
             Status::Learning,
             (captured_at as i64) * 1000,
         );
+        // The gloss handed in is the pack's, or the one the surface showed: both in the engine's
+        // native language, which labels the card (add-lingua-card-gloss-language D2).
         let card = Card::new(
             lemma,
             surface,
@@ -862,6 +898,7 @@ impl LinguaEngine {
                 captured_at: captured_at as i64,
             },
             gloss,
+            self.packs.native().tag(),
         );
         self.state.deck.upsert(language, card);
         Ok(())
@@ -915,6 +952,7 @@ impl LinguaEngine {
         Ok(self.state.deck.seed_lemmas(
             language,
             items.iter().map(|(l, g)| (*l, *g)),
+            self.packs.native().tag(),
             &self.state.knowledge,
             count,
             at as i64,
@@ -956,20 +994,30 @@ impl LinguaEngine {
     /// source, gloss, revealed, remaining }` — or `null` when the session is finished
     /// or not started. `source` is where the word was met, as the device kept it: a
     /// page address, or a book and its chapter (`add-lingua-reader`); empty when none.
+    /// `gloss` is the card's, unless its gloss is written in another language than the
+    /// engine's native: then the current pack's for the lemma, and the card's own text when
+    /// the pack has none (add-lingua-card-gloss-language D3, D4). The keys do not change, so
+    /// the baselines pin the same bytes; the card itself is not rewritten.
     #[wasm_bindgen(js_name = reviewCurrent)]
     pub fn review_current(&self) -> Option<String> {
         let session = self.session.as_ref()?;
         let card = session.current(&self.state.deck)?;
+        let (language, _) = session.current_key()?;
         let source = match &card.provenance.source {
             EncounterSource::Web { url } => url.as_str(),
             EncounterSource::AgentSession { .. } | EncounterSource::Import => "",
+        };
+        let gloss = if card.gloss_language == self.packs.native().tag() {
+            card.gloss.clone()
+        } else {
+            readable_gloss(self.packs.get(*language), card)
         };
         let view = serde_json::json!({
             "headword": card.lemma,
             "surface": card.encountered_form,
             "sentence": card.provenance.sentence,
             "source": source,
-            "gloss": card.gloss,
+            "gloss": gloss,
             "revealed": session.is_revealed(),
             "remaining": session.remaining(),
         });

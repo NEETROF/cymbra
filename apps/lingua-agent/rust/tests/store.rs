@@ -33,6 +33,7 @@ fn card(lemma: &str) -> Card {
             captured_at: 0,
         },
         Some(format!("gloss-{lemma}")),
+        "fr",
     )
 }
 
