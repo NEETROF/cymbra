@@ -24,4 +24,4 @@
 
 ## 4. Release (owner)
 
-- [ ] 4.1 `site-deploy` is dispatched with the release that ships Spanish.
+- [x] 4.1 `site-deploy` is dispatched with the release that ships Spanish.
