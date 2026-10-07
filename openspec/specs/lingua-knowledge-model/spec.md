@@ -49,15 +49,19 @@ synchronisation) SHALL record no withdrawal and SHALL return to the implicit res
 - **THEN** the analysis classifies it as known
 
 ### Requirement: L1/L2 profile
-The user profile SHALL keep `native_language` (the language of comfort: glosses, future
-translations) distinct from the studied languages, and all language-dependent data
-(glosses, packs, knowledge state) SHALL be keyed by pair (studied language → native
-language). The MVP SHALL ship the (English → French) pair only, and adding a pair SHALL
-NOT require a code change.
+The user profile SHALL keep `native_language` (the language of comfort: glosses, future translations) distinct from the studied languages, and SHALL never name the native language among the studied ones. A native language SHALL be French, English or Spanish, named by its ISO 639-1 tag. Glosses and packs SHALL be keyed by pair, named `<studied>-<native>` (`en-fr`), whereas knowledge state SHALL be keyed by studied language alone (*Knowledge keyed by language-lemma pair*), so it does not depend on the native language. Adding a pair between languages the core knows SHALL NOT require a code change.
 
 #### Scenario: Glosses in the native language
 - **WHEN** a user whose native language is `fr` opens the popup for an English word
-- **THEN** the gloss shown comes from the (en → fr) pack
+- **THEN** the gloss shown comes from the en-fr pack
+
+#### Scenario: The native language is never studied
+- **WHEN** a reader whose native language is English is given English among their studied languages
+- **THEN** the choice is refused and the profile is unchanged
+
+#### Scenario: Knowledge does not follow the native language
+- **WHEN** a reader's native language changes from French to English
+- **THEN** their statuses, declared levels and cards in Spanish are kept as they were
 
 ### Requirement: Exposure counters
 The model SHALL maintain, per (studied language, lemma), an exposure counter (occurrences encountered, the source of the last encounter, a timestamp) and enough state to count the number of distinct UTC days on which the lemma was encountered. Recording exposure SHALL NOT modify a lemma's status by itself; a status change driven by exposure SHALL happen only through the explicit promotion operation (see "Exposure-confirmed known"), never as a side effect of recording. The counter is input data for that promotion and for future SRS inference.
