@@ -44,10 +44,14 @@ An empty client id hides that provider's button; so does a browser without
 **Sign in with Apple** asks Apple for **no scope** (`response_type=code id_token`,
 `response_mode=fragment`): Apple only allows the fragment without email/name scopes, and
 Cymbra ID resolves the account by `(apple, sub)` without reading the email — so the same
-Apple ID lands on the same account as in Cymbra Music. The client id is the site's
-**Services ID** (`PUBLIC_APPLE_CLIENT_ID`, already in the backend's `CYMBRA_APPLE_AUDIENCE`);
-add the extension redirect URLs (`https://<extension-id>.chromiumapp.org/` and Firefox's
-`identity.getRedirectURL()`) as return URLs on it.
+Apple ID lands on the same account as in Cymbra Music. The client id is the extension's own
+**Services ID**, `com.cymbra.lingua.web`, grouped under the `com.cymbra.lingua` App ID so that
+Apple's consent screen says « Cymbra Lingua ». It is listed in the backend's
+`CYMBRA_APPLE_AUDIENCE`, and the extension's redirect URLs are its return URLs: the development
+and Chrome Web Store ids' `https://<extension-id>.chromiumapp.org/`, and Firefox's
+`identity.getRedirectURL()`. A new extension id needs its URL added there. Until 2026-10-07 the
+extension used the site's Services ID, `com.cymbra.bo.web`, which keeps the same return URLs
+for the versions already installed.
 
 Two one-time manual steps make **real** sign-in work (the code + email/password path ship
 regardless; Google needs the client, and the backend must allow the extension origin):
@@ -410,7 +414,7 @@ the public values, as `PUBLIC_GOOGLE_CLIENT_ID` already is:
 | `CWS_EXTENSION_ID`        | the Chrome Web Store item id, `lodgdmkjlbpieomelpdkfaifdbipfncd` — it is in the store URL, and the listing must already exist    |
 | `CWS_PUBLISHER_ID`        | the publisher that owns the item, under Publisher > Settings in the developer dashboard; the store's API V2 names items under it |
 | `LINGUA_GOOGLE_CLIENT_ID` | the web OAuth client carrying the extension's redirect URI                                                                       |
-| `LINGUA_APPLE_CLIENT_ID`  | the Apple Services ID, the same one the site uses (`com.cymbra.bo.web`)                                                          |
+| `LINGUA_APPLE_CLIENT_ID`  | the extension's Apple Services ID, `com.cymbra.lingua.web` (grouped under `com.cymbra.lingua`)                                   |
 
 Repository **secrets**, for the credentials:
 
