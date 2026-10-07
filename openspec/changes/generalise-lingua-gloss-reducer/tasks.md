@@ -27,16 +27,16 @@
 
 - [x] 4.1 en-fr and es-fr reduced again from their pinned sources with the new rules (D5). The seven tables, `tags.tsv` and NOTICE are byte-identical; `manifest.json` moves `meta.pack_version` only; `pin.json` moves `pack.sha256` and `reducer.*` only. `pack_report.py --identical` passes for both.
 - [x] 4.2 Both goldens re-blessed: exactly three lines move, in their `pack_version` token. `cross_native`, `committed_tables` and `backup_format` pass.
-- [ ] 4.3 The owner approves the re-bless in the pull request.
+- [x] 4.3 The owner approves the re-bless in the pull request (approved 2026-10-07, #738).
 
 ## 5. Gates and docs
 
-- [ ] 5.1 Gates:
+- [x] 5.1 Gates:
   - the Python tests (`python3 -m unittest discover -s scripts/lingua-data`);
   - `cargo test -p lingua-core -p lingua-pack -p lingua-wasm`;
   - in `apps/lingua-extension`: `yarn test`, `yarn build` and `yarn check:variants`, since the packs are rebuilt;
-  - the new `reduce` job, green on this pull request (the first Linux reproduction);
-  - `lingua-pack-update` dispatched on this branch with `mode=reduce`, `pair=all` and `expect=identical`: it reports every pair identical and proposes nothing.
+  - the new `reduce` job, green on this pull request (the first Linux reproduction: every byte reproduced, #738);
+  - `lingua-pack-update` dispatched on this branch with `mode=reduce`, `pair=all` and `expect=identical`: it reports every pair identical and proposes nothing (run 37568511875).
 - [x] 5.2 Docs:
   - `SOURCES.md`, both tables' `README.md` and `apps/lingua-extension/REVIEWERS.md` name the rule modules and describe the editions;
   - `reduce_common.py`'s docstring stops saying « every <studied>→FR pair »;
