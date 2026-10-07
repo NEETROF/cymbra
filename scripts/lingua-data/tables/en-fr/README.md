@@ -30,7 +30,7 @@ In `../en/`, English's tables, written by en-fr's reduction:
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
 | `level.tsv` | lemma → CEFR level | CEFR-J Wordlist v1.5 (commercial use with citation) + Octanove Vocabulary Profile C1/C2 v1.0 (CC BY-SA 4.0) |
 | `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | ESDB's slots (permissive) and kaikki's form links (CC BY-SA 4.0 + GFDL) |
-| `lexical.tsv` | English's dictionary words: the lemmas `gloss.tsv` glosses, byte-sorted, one per line | derived from this folder's `gloss.tsv` by `build.sh` (`pack_sources.py split`) |
+| `lexical.tsv` | English's dictionary words: the lemmas en-fr glosses, byte-sorted, one per line | derived from `../en-fr/gloss.tsv` by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | English's pinned tag pool, which every pack studying English lays its pool out from; written by no reducer, kept when the tables are reduced again (`../../SOURCES.md`, *What a pack studies, whatever it glosses*) | this pack's own pool, committed by hand |
 | `studied.json` | the pair whose reduction writes `../en/`: en-fr | committed by hand |
 

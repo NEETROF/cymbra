@@ -71,8 +71,8 @@ reduce() {
     --built-at "${snapshot//./-}" --pack-version "$version"
 }
 
-# split <work> <tables root>: the reduction's tables, filed by side.
-split() {
+# file_sides <work> <tables root>: the reduction's tables, filed by side.
+file_sides() {
   "$PYTHON" "$here/pack_sources.py" split --work "$1" --tables "$2" --pair "$pair"
 }
 
@@ -122,7 +122,7 @@ case "$mode" in
     # The rule set: reduce-<pair>.py and the shared reduce_*.py modules it loads (pack_sources.py `rules`).
     rules="$("$PYTHON" "$here/pack_sources.py" rules --reducer "$here/reduce-$pair.py")"
     reduce "$pair" "$work" "$snapshot" "$snapshot+${rules:0:7}"
-    split "$work" "$root"
+    file_sides "$work" "$root"
     build_pack "$studied" "$tables" "$out"
     "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
     ;;
@@ -144,7 +144,7 @@ case "$mode" in
     rm -rf "$work" && mkdir -p "$work"
     "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot"
     reduce "$pair" "$work" "$snapshot"
-    split "$work" "$root"
+    file_sides "$work" "$root"
     build_pack "$studied" "$tables" "$out"
     "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
     echo "Reduced today's $pair sources into $tables (snapshot $snapshot)."

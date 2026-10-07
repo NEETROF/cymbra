@@ -261,17 +261,30 @@ pub fn inputs_from_dirs(studied: &Path, pair: &Path) -> std::io::Result<PackInpu
             .chain(PAIR_SIDE.iter().map(|t| studied.join(t)))
             .find(|path| path.exists());
         if let Some(path) = misplaced {
+            // The reference pair's reduction is what writes the studied folder, when the
+            // folder records one (`studied.json`); the message names it, so the person knows
+            // which reduction the misplaced table belongs to.
+            let written_by = tables::reference_of(studied)
+                .map(|reference| format!(" (written by {reference}'s reduction)"))
+                .unwrap_or_default();
             return Err(invalid(format!(
-                "{} is on the wrong side: the studied side is read from {} alone, the native \
-                 side from {} alone",
+                "{} is on the wrong side: the studied side is read from {} alone{}, the \
+                 native side from {} alone",
                 path.display(),
                 studied.display(),
+                written_by,
                 pair.display()
             )));
         }
     }
-    let read = |name: &str| std::fs::read_to_string(pair.join(name));
-    let read_studied = |name: &str| std::fs::read_to_string(studied.join(name));
+    // A required file that is missing names its path: a pair is read from two folders, so
+    // "No such file or directory" alone would not say which side lacks it.
+    let read_at = |path: std::path::PathBuf| {
+        std::fs::read_to_string(&path)
+            .map_err(|e| std::io::Error::new(e.kind(), format!("{}: {e}", path.display())))
+    };
+    let read = |name: &str| read_at(pair.join(name));
+    let read_studied = |name: &str| read_at(studied.join(name));
     let manifest: Manifest = serde_json::from_str(&read("manifest.json")?)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     if two {
@@ -1649,7 +1662,8 @@ mod tests {
             (inp.lexical, inp.tag_pool),
             (owned(&["run"]), owned(&["VERB"]))
         );
-        // A studied table left in the pair's folder is refused, by path.
+        // A studied table left in the pair's folder is refused, by path; the folder's
+        // record names the reduction that writes the studied side.
         std::fs::write(en_fr.join("forms.tsv"), "ran\trun\n").unwrap();
         let err = inputs_from_tables(&root, "en-fr")
             .err()
@@ -1659,7 +1673,33 @@ mod tests {
             err.contains("en-fr/forms.tsv") && err.contains("wrong side"),
             "{err}"
         );
+        assert!(!err.contains("reduction"), "no record yet: {err}");
+        std::fs::write(
+            en.join(tables::STUDIED_RECORD),
+            "{\"reference\": \"en-fr\"}\n",
+        )
+        .unwrap();
+        let err = inputs_from_tables(&root, "en-fr")
+            .err()
+            .expect("refused")
+            .to_string();
+        assert!(err.contains("written by en-fr's reduction"), "{err}");
+        std::fs::remove_file(en.join(tables::STUDIED_RECORD)).unwrap();
         std::fs::remove_file(en_fr.join("forms.tsv")).unwrap();
+        // A required file missing on either side is named, with its side.
+        for (dir, name) in [(&en, "freq.tsv"), (&en_fr, "gloss.tsv")] {
+            let kept = std::fs::read_to_string(dir.join(name)).unwrap();
+            std::fs::remove_file(dir.join(name)).unwrap();
+            let err = inputs_from_tables(&root, "en-fr")
+                .err()
+                .expect("missing")
+                .to_string();
+            assert!(
+                err.contains(&format!("{}", dir.join(name).display())),
+                "{name}: {err}"
+            );
+            std::fs::write(dir.join(name), kept).unwrap();
+        }
         // So is a native table in the studied folder.
         std::fs::write(en.join("gloss.tsv"), "run\tCourir\n").unwrap();
         let err = inputs_from_tables(&root, "en-fr")

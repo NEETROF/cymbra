@@ -31,8 +31,8 @@ In `../es/`, Spanish's tables, written by es-fr's reduction:
 | `forms.tsv` | form → lemma | kaikki.org extract of the English Wiktionary, Spanish section (CC BY-SA 4.0 + GFDL), with UD Spanish-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
 | `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | kaikki's tags (CC BY-SA 4.0 + GFDL) |
-| `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and this folder's `gloss.tsv` (no source of its own) |
-| `lexical.tsv` | Spanish's dictionary words: the lemmas `gloss.tsv` glosses, byte-sorted, one per line | derived from this folder's `gloss.tsv` by `build.sh` (`pack_sources.py split`) |
+| `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and `../es-fr/gloss.tsv` (no source of its own) |
+| `lexical.tsv` | Spanish's dictionary words: the lemmas es-fr glosses, byte-sorted, one per line | derived from `../es-fr/gloss.tsv` by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | Spanish's pinned tag pool, which every pack studying Spanish lays its pool out from; written by no reducer, kept when the tables are reduced again (`../../SOURCES.md`, *What a pack studies, whatever it glosses*) | this pack's own pool, committed by hand |
 | `studied.json` | the pair whose reduction writes `../es/`: es-fr | committed by hand |
 

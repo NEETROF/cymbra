@@ -719,11 +719,35 @@ class Split(unittest.TestCase):
         self.assertEqual((self.tables / "es" / "tags.tsv").read_text(), "NOUN\nVERB\n")
 
     def test_the_dictionary_words_are_read_as_the_builder_reads_a_gloss_table(self):
-        # lingua_pack::tsv_pairs: lines split on \n, a trailing \r dropped, the key before the first
-        # tab, trimmed; a line without a tab or with a blank key is no gloss.
+        # lingua_pack::tsv_pairs: lines split on \n alone, a trailing \r dropped, the key before the
+        # first tab, trimmed; a line without a tab or with a blank key is no gloss. A lone \r is no
+        # line break for the builder, so it is none here either: `ca\rsa` is one key.
         gloss = self.root / "gloss.tsv"
-        gloss.write_bytes("b\tB\r\n  a \tA\n\t\n   \tblank\nno tab\nz\tZ\tmore\né\tE\nb\tB again\n".encode())
-        self.assertEqual(ps.glossed_lemmas(gloss), ["a", "b", "z", "é"])
+        gloss.write_bytes("b\tB\r\n  a \tA\n\t\n   \tblank\nno tab\nz\tZ\tmore\né\tE\nb\tB again\nca\rsa\tX\n".encode())
+        self.assertEqual(ps.glossed_lemmas(gloss), ["a", "b", "ca\rsa", "z", "é"])
+        with self.assertRaisesRegex(ps.PinError, "es-en/gloss.tsv is missing"):
+            ps.glossed_lemmas(self.root / "es-en" / "gloss.tsv")
+
+    def test_a_record_that_cannot_be_read_fails_before_anything_is_written(self):
+        # A malformed studied.json is an error line, and the pair folder is left as it was.
+        (self.tables / "es").mkdir(parents=True)
+        (self.tables / "es" / "studied.json").write_text("{", encoding="utf-8")
+        with self.assertRaisesRegex(ps.PinError, "es/studied.json"):
+            ps.split(self.work, self.tables, "es-fr")
+        self.assertFalse((self.tables / "es-fr").exists())
+        (self.tables / "es" / "studied.json").write_text('{"reference": "es"}\n', encoding="utf-8")
+        with self.assertRaisesRegex(ps.PinError, "names 'es', which is no pair"):
+            ps.reference_of(self.tables / "es")
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(ps.main(["split", "--work", str(self.work), "--tables", str(self.tables), "--pair", "es-fr"]), 1)
+        self.assertIn("error: es/studied.json", err.getvalue())
+
+    def test_after_names_a_pair(self):
+        ps.split(self.work, self.tables, "es-fr")
+        with self.assertRaisesRegex(ps.PinError, "es is no pair of"):
+            ps.pairs(self.tables, after="es")
+        with self.assertRaisesRegex(ps.PinError, "en-fr is no pair of"):
+            ps.pairs(self.tables, after="en-fr")
 
     def test_another_pair_reads_the_studied_folder_and_never_writes_it(self):
         ps.split(self.work, self.tables, "es-fr")

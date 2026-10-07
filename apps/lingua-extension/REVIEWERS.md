@@ -61,8 +61,8 @@ translation data, the one pair `packs.json` lists. It is **generated, not author
 file is not in the archive, but everything it is built from is. `yarn gen:pack:real` runs
 `scripts/lingua-data/build.sh en-fr assets/packs/en-fr.lingua` for it, which builds it from the
 reduced tables in `scripts/lingua-data/tables/en-fr/` (the French glosses) and
-`scripts/lingua-data/tables/en/` (English's forms, frequencies, levels and readings, kept once for
-every pack studying English) — **offline, with no download and no Python** — and checks the
+`scripts/lingua-data/tables/en/` (English's forms, frequencies, levels, readings, pinned tag pool
+and dictionary words, kept once for every pack studying English) — **offline, with no download and no Python** — and checks the
 result against the sha256 recorded in `tables/en-fr/pin.json` (also printed at the end of this
 README): the build fails unless it produces the very bytes the package carries.
 

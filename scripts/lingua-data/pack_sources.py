@@ -206,9 +206,24 @@ def studied_dir(pin: Path) -> Path:
 
 
 def reference_of(studied: Path) -> str | None:
-    """The pair a studied folder names as its reference, or None when it names none yet."""
+    """The pair a studied folder names as its reference, or None when it names none yet. A record
+    that cannot be read fails as an error line, not a traceback."""
     record = studied / STUDIED_RECORD
-    return json.loads(record.read_text(encoding="utf-8"))["reference"] if record.is_file() else None
+    if not record.is_file():
+        return None
+    try:
+        reference = json.loads(record.read_text(encoding="utf-8"))["reference"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise PinError(f"{studied.name}/{STUDIED_RECORD}: {e!r}: expected {{\"reference\": \"<pair>\"}}") from None
+    if not isinstance(reference, str) or not is_pair_name(reference):
+        raise PinError(f"{studied.name}/{STUDIED_RECORD} names {reference!r}, which is no pair (<studied>-<native>)")
+    return reference
+
+
+def is_pair_name(name: str) -> bool:
+    """A pair is named `<studied>-<native>`, both non-empty."""
+    studied, sep, native = name.partition("-")
+    return bool(sep and studied and native)
 
 
 def is_pair(folder: Path) -> bool:
@@ -241,6 +256,8 @@ def pairs(tables: Path, after: str | None = None) -> list[str]:
     ordered = sorted(names, key=lambda n: (refs[studied_of(n)] != n, n))
     if after is None:
         return ordered
+    if after not in names:
+        raise PinError(f"{after} is no pair of {tables} ({', '.join(ordered)})")
     if refs.get(studied_of(after)) != after:
         return [after]
     return [after, *(n for n in ordered if n != after and studied_of(n) == studied_of(after))]
@@ -250,7 +267,12 @@ def glossed_lemmas(gloss: Path) -> list[str]:
     """The lemmas a gloss table glosses, byte-sorted, each once — as the builder reads them
     (lingua_pack::tsv_pairs: the text before the first tab, trimmed, non-empty)."""
     words = set()
-    for line in gloss.read_text(encoding="utf-8").split("\n"):
+    # Bytes, not universal newlines: the builder splits on \n alone, so a lone \r stays in its key.
+    try:
+        text = gloss.read_bytes().decode("utf-8")
+    except FileNotFoundError:
+        raise PinError(f"{gloss.parent.name}/{gloss.name} is missing: the dictionary words are its lemmas") from None
+    for line in text.split("\n"):
         key, sep, _ = line.removesuffix("\r").partition("\t")
         if sep and key.strip():
             words.add(key.strip())
@@ -277,9 +299,9 @@ def split(work: Path, tables: Path, pair: str) -> list[str]:
             else:
                 (to / name).unlink(missing_ok=True)
 
-    file(PAIR_TABLES, tables / pair)
     studied = tables / lang
-    reference = reference_of(studied)
+    reference = reference_of(studied)  # before anything is written: a bad record fails cleanly
+    file(PAIR_TABLES, tables / pair)
     if reference is None:
         studied.mkdir(parents=True, exist_ok=True)
         (studied / STUDIED_RECORD).write_text(json.dumps({"reference": pair}, indent=2) + "\n", encoding="utf-8")

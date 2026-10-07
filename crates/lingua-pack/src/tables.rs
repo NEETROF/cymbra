@@ -83,7 +83,7 @@ fn read_pair(dir: &Path) -> Result<Pair, String> {
 }
 
 /// The reference pair a studied folder names.
-fn reference_of(dir: &Path) -> Result<String, String> {
+pub(crate) fn reference_of(dir: &Path) -> Result<String, String> {
     let lang = folder_name(dir);
     let record: StudiedRecord = serde_json::from_str(
         &std::fs::read_to_string(dir.join(STUDIED_RECORD))

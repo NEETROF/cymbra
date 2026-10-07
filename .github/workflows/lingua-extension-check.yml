@@ -42,6 +42,8 @@ jobs:
               - 'crates/lingua-pack/**'
               - 'scripts/lingua-data/**'
               - '.github/workflows/lingua-extension-check.yml'
+              # Its Reduce step's script is run by test_reduce_loops.py, in the `check` job.
+              - '.github/workflows/lingua-pack-update.yml'
             # The pairs' tables, their pinned sources and the rules and tools that reduce them: the
             # `reduce` job re-reduces every pair from its pinned sources. The workflow itself too: a
             # pull request that edits the job runs it.
