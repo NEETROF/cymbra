@@ -9,7 +9,9 @@
 //! and no page address either (add-lingua-privacy-controls). A card is keyed by
 //! (user, language, client id) since add-lingua-card-language; its gloss language is a
 //! value of the row (add-lingua-native-language-server), `DEFAULT 'fr'` for every row
-//! written before migration 0006.
+//! written before migration 0006, and a pull that does not say it reads labels is
+//! filtered to French-glossed cards in the same WHERE as the languages, so the cursor
+//! semantics stay the precedent's.
 
 use async_trait::async_trait;
 use cymbra_platform::{AppError, Result};
@@ -17,6 +19,7 @@ use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::deck::{Card, DeckRepo};
+use crate::language_core::DEFAULT_NATIVE_LANGUAGE;
 
 fn internal(e: sqlx::Error) -> AppError {
     AppError::Internal(anyhow::anyhow!("lingua db: {e}"))
@@ -90,16 +93,21 @@ impl DeckRepo for PgDeckRepo {
         user: &str,
         cursor: i64,
         languages: &[String],
+        any_gloss_language: bool,
     ) -> Result<Vec<Card>> {
         let rows = sqlx::query(
             "SELECT language, client_id, lemma, surface_form, source_sentence, gloss, \
                     gloss_language, fsrs_state, deleted, updated_at, device_id, seq \
              FROM lingua.cards \
-             WHERE user_id = $1 AND seq > $2 AND language = ANY($3) ORDER BY seq",
+             WHERE user_id = $1 AND seq > $2 AND language = ANY($3) \
+               AND ($4 OR gloss_language = $5) \
+             ORDER BY seq",
         )
         .bind(uid(user)?)
         .bind(cursor)
         .bind(languages)
+        .bind(any_gloss_language)
+        .bind(DEFAULT_NATIVE_LANGUAGE)
         .fetch_all(&self.pool)
         .await
         .map_err(internal)?;

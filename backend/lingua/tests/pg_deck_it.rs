@@ -97,13 +97,13 @@ async fn a_row_written_without_a_language_is_english() {
     .expect("seed legacy card");
     let repo = PgDeckRepo::new(pool.clone());
     let en = repo
-        .changes_since(&user.to_string(), 0, &["en".to_string()])
+        .changes_since(&user.to_string(), 0, &["en".to_string()], false)
         .await
         .expect("pull en");
     assert_eq!(en.len(), 1);
     assert_eq!(en[0].language, "en");
     let es = repo
-        .changes_since(&user.to_string(), 0, &["es".to_string()])
+        .changes_since(&user.to_string(), 0, &["es".to_string()], false)
         .await
         .expect("pull es");
     assert!(es.is_empty());
@@ -141,14 +141,14 @@ async fn the_same_client_id_in_two_languages_is_two_rows_with_independent_lww() 
     );
 
     let english_only = repo
-        .changes_since(&u, 0, &["en".to_string()])
+        .changes_since(&u, 0, &["en".to_string()], false)
         .await
         .unwrap();
     assert_eq!(english_only.len(), 1);
     assert_eq!(english_only[0].gloss, "fils (edited)");
 
     let both = repo
-        .changes_since(&u, 0, &["en".to_string(), "es".to_string()])
+        .changes_since(&u, 0, &["en".to_string(), "es".to_string()], false)
         .await
         .unwrap();
     assert_eq!(both.len(), 2);
@@ -175,7 +175,7 @@ async fn every_stored_gloss_today() {
     .expect("seed legacy card");
     let repo = PgDeckRepo::new(pool.clone());
     let cards = repo
-        .changes_since(&user.to_string(), 0, &["en".to_string()])
+        .changes_since(&user.to_string(), 0, &["en".to_string()], false)
         .await
         .expect("pull");
     assert_eq!(cards.len(), 1);
@@ -201,14 +201,14 @@ async fn the_gloss_language_travels_with_the_write_that_wins() {
         device_id: device.into(),
         ..card("en", "seldom", gloss, ts)
     };
-    // A labelled row round-trips.
+    // A labelled row round-trips, to a client that reads labels.
     assert!(
         repo.apply_card(&u, &labelled("raramente", "es", 100, "ipad"))
             .await
             .unwrap()
     );
     let stored = repo
-        .changes_since(&u, 0, &["en".to_string()])
+        .changes_since(&u, 0, &["en".to_string()], true)
         .await
         .unwrap();
     assert_eq!(stored.len(), 1);
@@ -227,13 +227,71 @@ async fn the_gloss_language_travels_with_the_write_that_wins() {
             .unwrap()
     );
     let stored = repo
-        .changes_since(&u, 0, &["en".to_string()])
+        .changes_since(&u, 0, &["en".to_string()], false)
         .await
         .unwrap();
     assert_eq!(stored.len(), 1);
     assert_eq!(
         (stored[0].gloss.as_str(), stored[0].gloss_language.as_str()),
         ("rarement", "fr")
+    );
+    wipe(&pool, user).await;
+}
+
+#[tokio::test]
+#[ignore = "needs CYMBRA_LINGUA_DATABASE_URL"]
+async fn a_pull_without_any_gloss_language_withholds_a_non_french_gloss() {
+    let pool = pool().await;
+    let user = uuid::Uuid::new_v4();
+    let u = user.to_string();
+    let repo = PgDeckRepo::new(pool.clone());
+    // A French-glossed card, then an English-glossed one, in the same studied language.
+    assert!(
+        repo.apply_card(&u, &card("en", "seldom", "rarement", 100))
+            .await
+            .unwrap()
+    );
+    assert!(
+        repo.apply_card(
+            &u,
+            &Card {
+                gloss_language: "en".into(),
+                ..card("en", "rarely", "rarely", 100)
+            }
+        )
+        .await
+        .unwrap()
+    );
+    let en = vec!["en".to_string()];
+    // A client that predates labels: the French one only, in the same WHERE as the
+    // language filter, so the English one is withheld, not consumed.
+    let predates = repo.changes_since(&u, 0, &en, false).await.unwrap();
+    assert_eq!(predates.len(), 1);
+    assert_eq!(
+        (
+            predates[0].client_id.as_str(),
+            predates[0].gloss_language.as_str()
+        ),
+        ("seldom", "fr")
+    );
+    let french_seq = predates[0].sequence;
+    // A client that reads labels: both, each with its label, the English one after.
+    let reads = repo.changes_since(&u, 0, &en, true).await.unwrap();
+    assert_eq!(reads.len(), 2);
+    assert_eq!(
+        reads
+            .iter()
+            .map(|c| (c.client_id.as_str(), c.gloss_language.as_str()))
+            .collect::<Vec<_>>(),
+        [("seldom", "fr"), ("rarely", "en")]
+    );
+    assert_eq!(
+        repo.changes_since(&u, french_seq, &en, true)
+            .await
+            .unwrap()
+            .len(),
+        1,
+        "from the cursor the old client stopped at, the withheld card is delivered"
     );
     wipe(&pool, user).await;
 }

@@ -89,10 +89,11 @@ impl DeckService for DeckGrpc {
     ) -> Result<Response<PullCardsResponse>, Status> {
         let user = caller(&req)?;
         let r = req.into_inner();
-        // An empty list is a client that predates card languages: English only.
+        // An empty list is a client that predates card languages: English only; an unset
+        // flag, one that predates gloss labels: French-glossed cards only.
         let (cards, cursor) = self
             .module
-            .pull_cards(&user, r.cursor, &r.languages)
+            .pull_cards(&user, r.cursor, &r.languages, r.any_gloss_language)
             .await?;
         Ok(Response::new(PullCardsResponse {
             cards: cards.into_iter().map(to_proto).collect(),

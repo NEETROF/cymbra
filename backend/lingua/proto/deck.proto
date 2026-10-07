@@ -66,6 +66,12 @@ message PullCardsRequest {
   // would mis-file. Cards in other languages are withheld, not consumed: the cursor
   // returned is the highest sequence among the cards returned.
   repeated string languages = 2;
+  // Whether this client reads a card's gloss language and accepts every one
+  // (add-lingua-native-language-server). Unset means French-glossed cards only, so a
+  // client that predates labels never holds a gloss it would push back unlabelled. Cards
+  // glossed in other languages are withheld, not consumed: the cursor returned is the
+  // highest sequence among the cards returned.
+  bool any_gloss_language = 3;
 }
 
 message PullCardsResponse {

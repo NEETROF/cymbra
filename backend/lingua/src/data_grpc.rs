@@ -54,7 +54,7 @@ impl LinguaDataService for DataGrpc {
             card_language: true,
             // ...and stores the language of a card's gloss and the native language of a
             // daily statistic (add-lingua-native-language-server). Not a version number.
-            native_language: true,
+            language_labels: true,
         }))
     }
 }
@@ -88,13 +88,14 @@ mod tests {
             .await
             .unwrap()
             .into_inner();
-        assert!(state.native_language, "this server stores both labels");
+        assert!(state.language_labels, "this server stores both labels");
         assert!(state.card_language);
     }
 
     #[test]
-    fn a_server_that_predates_the_flag() {
-        // Such a server's answer carries no field 3; a client decodes proto3's default.
+    fn an_answer_without_field_3_decodes_to_false_the_wires_default() {
+        // *A server that predates the flag*: its answer carries no field 3 on the wire, so
+        // what this proves is prost's decoding of those bytes, not a server's behaviour.
         let before_the_field = GetDataStateResponse {
             erased_at: 5,
             card_language: true,
@@ -102,7 +103,7 @@ mod tests {
         }
         .encode_to_vec();
         let decoded = GetDataStateResponse::decode(before_the_field.as_slice()).unwrap();
-        assert!(!decoded.native_language);
-        assert!(!GetDataStateResponse::default().native_language);
+        assert!(!decoded.language_labels);
+        assert!(!GetDataStateResponse::default().language_labels);
     }
 }
