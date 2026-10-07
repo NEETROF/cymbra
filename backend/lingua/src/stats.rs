@@ -79,7 +79,7 @@ impl StatsModule {
 mod tests {
     use super::*;
     use crate::data::MockErasureMarks;
-    use crate::language_core::{DEFAULT_NATIVE_LANGUAGE, normalise_or};
+    use crate::language_core::native_language;
     use std::collections::HashMap;
     use std::sync::Mutex;
 
@@ -219,11 +219,11 @@ mod tests {
     // --- A daily statistic carries the native language of its device
     // (add-lingua-native-language-server) ---
 
-    /// A statistic as the gRPC edge builds it from the wire value of `native_language`
-    /// (`stats_grpc::from_proto`): the one normaliser, French when the client sent none.
-    fn native(wire_native_language: &str, day: i32, device: &str, reviews: u32) -> DailyStat {
+    /// A statistic carrying the literal native language the edge stored
+    /// (`stats_grpc::from_proto` through `language_core::native_language`).
+    fn native(label: &str, day: i32, device: &str, reviews: u32) -> DailyStat {
         DailyStat {
-            native_language: normalise_or(wire_native_language, DEFAULT_NATIVE_LANGUAGE),
+            native_language: label.into(),
             ..stat(day, device, reviews)
         }
     }
@@ -235,9 +235,10 @@ mod tests {
 
     #[tokio::test]
     async fn an_installed_client_that_sends_no_native_language() {
+        // The empty wire value, through the named reader the edge calls.
         let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
         module
-            .upsert_stats("u1", vec![native("", 20_000, "mac", 3)])
+            .upsert_stats("u1", vec![native(&native_language(""), 20_000, "mac", 3)])
             .await
             .unwrap();
         let rows = rows(&module, 20_000).await;
@@ -314,17 +315,6 @@ mod tests {
                 reviews_done: 30,
             }]
         );
-    }
-
-    #[tokio::test]
-    async fn a_regional_code() {
-        // `es-MX` on a statistic is stored as `es` (the card half is in `deck`).
-        let module = StatsModule::new(Arc::new(FakeStatsRepo::default()), never_erased());
-        module
-            .upsert_stats("u1", vec![native("es-MX", 20_000, "ipad", 1)])
-            .await
-            .unwrap();
-        assert_eq!(rows(&module, 20_000).await[0].native_language, "es");
     }
 
     #[tokio::test]

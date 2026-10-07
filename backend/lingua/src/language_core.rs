@@ -49,6 +49,19 @@ pub fn normalise_or(raw: &str, default: &str) -> String {
     primary.chars().take(MAX_LEN).collect()
 }
 
+/// The language of a card's gloss, as the edge reads it: [`normalise_or`] with
+/// [`DEFAULT_NATIVE_LANGUAGE`] — every gloss a client that predates the field holds is
+/// French (add-lingua-native-language-server).
+pub fn gloss_language(raw: &str) -> String {
+    normalise_or(raw, DEFAULT_NATIVE_LANGUAGE)
+}
+
+/// The native language of a device, as the edge reads it from a daily statistic: the
+/// same reader as [`gloss_language`] — a client that predates the field is French-native.
+pub fn native_language(raw: &str) -> String {
+    normalise_or(raw, DEFAULT_NATIVE_LANGUAGE)
+}
+
 /// The languages a pull accepts: each normalised, deduplicated in first-seen order, and
 /// English only when the client named none — the client that predates card languages.
 pub fn accepted_languages(list: &[String]) -> Vec<String> {
@@ -98,35 +111,36 @@ mod tests {
         assert_eq!(normalise("pt"), "pt");
     }
 
+    // --- Language values are normalised on receipt: a gloss or native language reads
+    // `fr` when empty (add-lingua-native-language-server) ---
+
     #[test]
     fn a_gloss_or_native_language_reads_as_french_when_empty() {
-        assert_eq!(normalise_or("", DEFAULT_NATIVE_LANGUAGE), "fr");
-        assert_eq!(normalise_or("   ", DEFAULT_NATIVE_LANGUAGE), "fr");
-        assert_eq!(normalise_or("-MX", DEFAULT_NATIVE_LANGUAGE), "fr");
+        assert_eq!(gloss_language(""), "fr");
+        assert_eq!(native_language(""), "fr");
+        assert_eq!(gloss_language("   "), "fr");
+        assert_eq!(native_language("-MX"), "fr");
         // The studied language keeps its own default.
         assert_eq!(normalise(""), "en");
         assert_eq!(normalise_or("", DEFAULT_LANGUAGE), "en");
     }
 
     #[test]
-    fn a_regional_native_language_folds_onto_its_primary_subtag() {
-        assert_eq!(normalise_or("es-MX", DEFAULT_NATIVE_LANGUAGE), "es");
-        assert_eq!(normalise_or("EN", DEFAULT_NATIVE_LANGUAGE), "en");
-        assert_eq!(normalise_or(" Pt_BR ", DEFAULT_NATIVE_LANGUAGE), "pt");
+    fn a_regional_code_on_a_label() {
+        // `es-MX` on a statistic is stored as `es`, `EN` on a card as `en`.
+        assert_eq!(native_language("es-MX"), "es");
+        assert_eq!(gloss_language("EN"), "en");
+        assert_eq!(native_language(" Pt_BR "), "pt");
         // The same rule as the studied language's, whatever the default.
-        assert_eq!(
-            normalise_or("es-ES", DEFAULT_NATIVE_LANGUAGE),
-            normalise("es-ES")
-        );
+        assert_eq!(gloss_language("es-ES"), normalise("es-ES"));
     }
 
     #[test]
-    fn a_native_language_never_seen_is_kept_and_an_over_long_one_capped() {
-        assert_eq!(normalise_or("tlh", DEFAULT_NATIVE_LANGUAGE), "tlh");
-        assert_eq!(
-            normalise_or("abcdefghijklmnop", DEFAULT_NATIVE_LANGUAGE),
-            "abcdefgh"
-        );
+    fn a_label_the_server_has_never_seen() {
+        // Kept, not refused; an over-long code is capped like a studied language's.
+        assert_eq!(gloss_language("tlh"), "tlh");
+        assert_eq!(native_language("tlh"), "tlh");
+        assert_eq!(gloss_language("abcdefghijklmnop"), "abcdefgh");
     }
 
     #[test]
