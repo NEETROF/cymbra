@@ -67,10 +67,12 @@ None.
 
 ## Impact
 
-- **Products.** Cymbra Lingua only: `apps/lingua-extension/src/reading/grammar-labels.ts` (becomes
-  the description and the French renderer's host), `src/reading/grammar-description.ts`,
-  `src/i18n/{fr,en,es}/grammar.ts`, `src/reading/wordpopup.ts` (the `lang` attributes and the
-  renderer chosen by the interface language), `test/word-grammar*.spec.ts`. The engine, the packs
+- **Products.** Cymbra Lingua only: `apps/lingua-extension/src/reading/grammar-labels.ts` (keeps
+  its exported API over `fr/grammar.ts` and the description, holds no literal),
+  `src/reading/grammar-description.ts`, `src/i18n/{fr,en,es}/grammar.ts`, `src/reading/wordpopup.ts`
+  (the `lang` attributes and the renderer chosen by the interface language), `src/i18n/index.ts`
+  (the `GrammarRenderer` interface), `src/i18n/README.md`, `test/i18n.spec.ts` (the `grammar`
+  surface checked as a renderer, not as texts), `test/word-grammar*.spec.ts`. The engine, the packs
   and the goldens of `lingua-wasm` are untouched. ID, Music, Live, the back office and the site
   are untouched.
 - **No byte moves.** The 108 French assertions pass unchanged; the WASM goldens pin the engine's

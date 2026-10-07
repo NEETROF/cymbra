@@ -13,7 +13,7 @@ See proposal.md (Why). Where the card's grammar wording lives today:
 | `test/word-grammar.spec.ts` | 108 `expect` calls, most on French wording, some on layout and paging; the one place the order of tenses is pinned (`hable`: subjunctive before imperative); `null` asserted for `{PRON, Case: Dat}` and for an English `Mood=Sub` |
 | `crates/lingua-wasm/tests/baseline/*.golden` | `### word-grammar` probes pin the engine's JSON, no wording |
 | Specs | *The word card says what the form is* ("in words of the interface language… a name that depends on the studied language, such as the name of a tense, SHALL be provided for English"); *A Spanish card names its forms as French schools do* ("SHALL be named in French school terms… French articles and elision SHALL apply"), a rule about the French interface, held by no open change |
-| Change 13 | `src/i18n/{fr,en,es}/grammar.ts` created as data typed `typeof fr.grammar` (the French tables extracted); the parity test calls functions with sample arguments; the content script reads the interface language and hands it to `ReadingSession`, which hands it to the card (change 14) |
+| Change 13 | `src/i18n/{fr,en,es}/grammar.ts` created as flat text entries (`posAdjective`, `englishPast`, `spanishPreterite`, `mayAlsoBe`…), en and es typed `typeof fr`; `grammar-labels.ts` does not read them yet and stays on the lint's baseline; the parity test calls each function with sample strings; the content script reads the interface language and hands it to `ReadingSession`, which hands it to the card (change 14) |
 
 ## Goals / Non-Goals
 
@@ -41,7 +41,9 @@ See proposal.md (Why). Where the card's grammar wording lives today:
 - `own: Reading[]` — the readings of the headword that are not the dictionary form, each
   `{pos, case?, definite?, degree?, gender?, number?, persons: string[], mood?, tense?, verbForm?,
   pronType?, reflex?}` (every feature of the engine's vocabulary), persons merged within the same
-  (mood, tense, number) tag and duplicates dropped by tag;
+  (mood, tense, number) tag and duplicates dropped by tag; `own` and each `others[i].readings`
+  keep the pack's order of first occurrence, since the French renderer places a merged group
+  where the pack's order gave its first reading;
 - `others: {lemma, readings: Reading[]}[]`, `pieces: string[]`, `sameAsHeadword: boolean`;
 - `senses: {pos?, gender?}[]` for the headings.
 The French renderer re-merges by its own names, as today: the conditional and the imperative
@@ -55,15 +57,20 @@ names.
 ### D2 — A renderer per interface language, behind the French one's API
 
 Each renderer exposes `grammarLines`, `readingName`, `senseHeading`, `lineText` and its joining
-function with today's signatures and `GrammarLine` shape. `src/reading/grammar-labels.ts` stays
+function with today's signatures and `GrammarLine` shape, `Named.article` widened to `string` —
+the French renderer keeps its four values, which `test/word-grammar.spec.ts` asserts by value. `src/reading/grammar-labels.ts` stays
 the French renderer, its exported API and wording unchanged, now reading the French tables from
 `src/i18n/fr/grammar.ts` and the description from D1; `test/word-grammar.spec.ts` runs on it
 without a change. `src/i18n/fr/grammar.ts` exports `const grammar: GrammarRenderer` — the interface declared in
 `src/i18n/index.ts`: the renderer functions, and the tables behind them private to each module
 (English has no articles; Spanish has) — and `src/i18n/en/grammar.ts`, `src/i18n/es/grammar.ts`
-are `typeof fr.grammar`, as change 13's rule says; change 13's parity test treats `grammar`
-modules as renderers: it calls `readingName` and `senseHeading` on the sample tags and
-`grammarLines` on the French spec's inputs and asserts non-empty, non-French results.
+are typed `typeof fr` (change 13's form: `import type { grammar as fr } from "../fr/grammar.ts"`),
+which here is `GrammarRenderer`: the compiler checks a renderer's functions, not its private
+tables — *What each renderer names* checks those. This is the one module where change 13's rule
+covers code, not texts; `src/i18n/README.md` says so. Change 13's parity test (`test/i18n.spec.ts`,
+which today calls every entry with sample strings) treats `grammar` modules as renderers instead:
+it calls `readingName` and `senseHeading` on the sample tags and `grammarLines` on the French
+spec's inputs and asserts non-empty, non-French results.
 `src/reading/grammar-labels.ts` keeps its exported API and its French strings (« peut aussi
 être … de », « et », the elisions) — it stays on change 13's baseline until the French renderer's
 strings move into `fr/grammar.ts`, which this change does: `grammar-labels.ts` then holds no
@@ -91,7 +98,8 @@ both (M9).
 
 ### D5 — The studied-language words carry `lang`
 
-`renderGrammar` sets `lang` of the studied language on each `{word}` segment and on the headword;
+`renderGrammar` sets `lang` of the studied language on each `{word}` segment, and the card sets
+it on its headword element;
 the card host's `lang` (the interface language) is change 14's, with the HUD's and the drawer's.
 
 ## Risks / Trade-offs

@@ -9,11 +9,11 @@ The word card SHALL describe a form in terms that name no language — the readi
 
 #### Scenario: An English-native reader of Spanish
 - **WHEN** the interface language is English and the card opens on « vino » with lemma « venir »
-- **THEN** a line reads "third-person singular preterite indicative of venir", with "venir" marked as Spanish
+- **THEN** a line names, in English, the third person, the singular, the preterite, the indicative and « venir », in the English Wiktionary's form-of wording (D4's draft, reviewed by the owner), with « venir » marked as Spanish
 
 #### Scenario: A Spanish-native reader of English
 - **WHEN** the interface language is Spanish and the card opens on "went"
-- **THEN** a line reads « pasado simple de go », with "go" marked as English
+- **THEN** a line names, in Spanish, the pasado simple and "go", in RAE/ASALE terms (D4's draft, reviewed by the owner), with "go" marked as English
 
 #### Scenario: The order of tenses in each language
 - **WHEN** the card opens on « hable » in each interface language
