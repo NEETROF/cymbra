@@ -8,88 +8,93 @@ See proposal.md (Why). Where the card's grammar wording lives today:
 |---|---|
 | `crates/lingua-core/src/packs/grammar.rs` `Tag` | `{pos, features}` with a closed vocabulary: 17 UPOS; Case, Definite, Degree, Gender, Mood (Cnd/Imp/Ind/Sub), Number, Person, PronType, Reflex, Tense (Fut/Imp/Past/Pqp/Pres), VerbForm (Fin/Ger/Inf/Part) |
 | `crates/lingua-core/src/engine.rs` `WordGrammar` | `{gloss, senses, readings, others, pieces}`, readings in the pack's order; `wordGrammar` in `lingua-wasm`; mirrored in `src/analyzer/types.ts` |
-| `src/reading/grammar-labels.ts` | the tables (parts of speech, genders, persons, ordinals, numbers, `ENGLISH_TENSES`, `SPANISH_TENSES` keyed Mood/Tense), the French grammar (`elides`, `ofName`, `agreement`, `of`, `withArticles`, `joinFrench`), `readingName`, `namesOf` (persons merged), `tenseRank` (the French school's order for Spanish; the pack's order for English), `grammarLines`, `senseHeading` |
-| `src/reading/wordpopup.ts` `renderGrammar` | calls `grammarLines(…, "en" | "es")`, builds `.grammar-line` nodes with `<em>` for a studied-language word; the host `#cymbra-lingua-host` sets no `lang` |
-| `test/word-grammar.spec.ts` | 108 assertions on French wording, the one place the order of tenses is pinned (`hable`: subjunctive before imperative) |
+| `src/reading/grammar-labels.ts` | the French tables (parts of speech — PUNCT, SYM and X unnamed; genders; persons; ordinals; numbers; `ENGLISH_TENSES` Past/Pres; `SPANISH_TENSES` keyed Mood/Tense), the French grammar (`elides`, `ofName`, `agreement`, `of`, `withArticles`, `joinFrench`, U+2019 apostrophes), `readingName(tag, studied)` (the gerund « forme en -ing » for English and « gérondif » for Spanish; the infinitive named for Spanish only; for English only the indicative's tenses), `namesOf` (persons merged on the French tense name), `tenseRank` (the Spanish table's order; the pack's order for English), `grammarLines`, `senseHeading`, `lineText`; the exported API `test/word-grammar.spec.ts` imports: `grammarLines`, `joinFrench`, `lineText`, `readingName`, `senseHeading` |
+| `src/reading/wordpopup.ts` `renderGrammar` | calls `grammarLines(…, "en" \| "es")`, builds `.grammar-line` nodes with `<em>` for a studied-language word; the card is built in `ReadingSession`'s constructor and reads no preference of its own |
+| `test/word-grammar.spec.ts` | 108 `expect` calls, most on French wording, some on layout and paging; the one place the order of tenses is pinned (`hable`: subjunctive before imperative); `null` asserted for `{PRON, Case: Dat}` and for an English `Mood=Sub` |
 | `crates/lingua-wasm/tests/baseline/*.golden` | `### word-grammar` probes pin the engine's JSON, no wording |
-| Specs | *The word card says what the form is* (":…in words of the interface language… a name that depends on the studied language, such as the name of a tense, SHALL be provided for English"), *A Spanish card names its forms as French schools do*, held by no open change |
+| Specs | *The word card says what the form is* ("in words of the interface language… a name that depends on the studied language, such as the name of a tense, SHALL be provided for English"); *A Spanish card names its forms as French schools do* ("SHALL be named in French school terms… French articles and elision SHALL apply"), a rule about the French interface, held by no open change |
+| Change 13 | `src/i18n/{fr,en,es}/grammar.ts` created as data typed `typeof fr.grammar` (the French tables extracted); the parity test calls functions with sample arguments; `ReadingSession` reads the interface language before it builds the card (change 14) |
 
 ## Goals / Non-Goals
 
 **Goals:**
-- One description of a form, with no language in it.
-- The French wording byte for byte, through its renderer.
+- One description of a form, with no language in it, merged and deduplicated by tag.
+- The French wording byte for byte, through `grammar-labels.ts`'s unchanged exported API.
 - English and Spanish renderers that read as grammar in those languages, drafted for the owner's
-  review.
-- The card carries `lang`.
+  review; the rule that a Spanish card is named "as French schools do" rewritten as "as the
+  interface language's grammar does".
+- The studied-language words of a line carry their `lang`.
 
 **Non-Goals:**
-- The card's other copy (change 14) and the languages' names (change 19).
-- Showing English or Spanish to anyone (the interface language's choice is change 20; the
-  renderers wait).
-- Lemma alternatives for homographs (M8, optional change).
+- The card's other copy (change 14: it also owns the `lang` of the injected hosts) and the
+  languages' names (change 19).
+- Naming tags the French card does not name today (PUNCT, SYM, X; Case, Definite, PronType,
+  Reflex, Pqp): a renderer names what the French one names, no more.
+- Showing English or Spanish to anyone before the interface speaks them (change 20).
+- French as a studied language (stage 3 adds `fr` to `StudiedLanguage` and the tables).
 
 ## Decisions
 
-### D1 — A `FormDescription` with no words
+### D1 — A `FormDescription` with no words, merged by tag
 
-`describeForm(grammar, headword, surface, written)` in `src/reading/grammar-description.ts`
-gives:
+`describeForm(grammar, headword, surface, written)` in `src/reading/grammar-description.ts` gives:
 - `own: Reading[]` — the readings of the headword that are not the dictionary form, each
-  `{pos, degree?, gender?, number?, persons: string[], mood?, tense?, verbForm?}`, persons
-  merged within a tense and number as `namesOf` merges them today;
+  `{pos, degree?, gender?, number?, persons: string[], mood?, tense?, verbForm?}`, persons merged
+  within the same (mood, tense, number) tag — not within the same French name, as `namesOf` does
+  today — and duplicates dropped by tag;
 - `others: {lemma, readings: Reading[]}[]`, `pieces: string[]`, `sameAsHeadword: boolean`;
 - `senses: {pos?, gender?}[]` for the headings.
-It is `grammar-labels.ts`'s logic with every French word removed: the tables, the articles and
-the joining go to the renderers. Its tests are the structural half of today's assertions.
+Merging by tag and by French name give the same lines for every input the French spec pins (two
+tags that share a French name share their mood and tense), which the spec's unchanged run proves.
+The description names every member of the engine's vocabulary; a renderer may leave one unnamed,
+as the French one does, and a test enumerates which each renderer names.
 
-### D2 — A renderer per interface language, in the catalogue
+### D2 — A renderer per interface language, behind the French one's API
 
-`src/i18n/<language>/grammar.ts` exports `renderForm(description, studied): GrammarLine[]` and
-`senseHeading(sense)`, with its own tables: parts of speech, genders, numbers, persons (« 1re
-personne » / "1st person" / « 1.ª persona »), degrees, the joining, articles and elision where
-the language has them (French `le/la/l'/les`, `de/d'`; Spanish `el/la/los/las`, `de`; English
-none), and the forms of the fixed sentences (« peut aussi être … de », "can also be … of", « también
-puede ser … de »). `GrammarLine` keeps its shape (`{word}` segments for studied-language words).
+Each renderer exposes `grammarLines`, `readingName`, `senseHeading`, `lineText` and its joining
+function with today's signatures and `GrammarLine` shape. `src/reading/grammar-labels.ts` stays
+the French renderer, its exported API and wording unchanged, now reading the French tables from
+`src/i18n/fr/grammar.ts` and the description from D1; `test/word-grammar.spec.ts` runs on it
+without a change. `src/i18n/en/grammar.ts` and `src/i18n/es/grammar.ts` hold the tables and the
+renderer functions of their language, typed by a shared `GrammarRenderer` interface — not
+`typeof fr.grammar`, since English has no articles and each language's functions differ; change
+13's parity test treats `grammar` modules as renderers: it calls `readingName` and `senseHeading`
+on the sample tags and `grammarLines` on the French spec's inputs and asserts non-empty,
+non-French results. `wordpopup.ts` picks the renderer by the interface language `ReadingSession`
+hands it (change 14), `fr` for every reader today.
 
-The French renderer is `grammar-labels.ts`'s wording moved, byte for byte; `test/word-grammar.
-spec.ts` runs on it unchanged. The English and Spanish renderers are drafted per `src/i18n/
-README.md` (change 13) and the programme's M10: US English; Spanish neutral, tú; English
-Wiktionary's form-of wording as the model for English ("third-person singular simple present
-of leave"), RAE/ASALE terms for Spanish (« 3.ª persona del singular del presente de indicativo de
-hablar »).
+### D3 — What a renderer keys by studied language
 
-### D3 — Tense names keyed by pair; the order of tenses per renderer
+Not only tense names: the gerund's name (« forme en -ing » / "the -ing form" / « forma en -ing »
+for English, « gérondif » / "gerund" / « gerundio » for Spanish), whether the infinitive is named
+(Spanish only today), which moods are named (English: the indicative only), and the order of
+tenses. Each renderer holds these per studied language in its own tables: `TENSES[studied]
+[moodTense]` — en-fr « prétérit », es-fr « passé simple », es-en "preterite", en-es « pasado
+simple » (the full tables for en and es studied; fr studied comes with stage 3's type) — and
+`TENSE_ORDER[studied]`, pinned per renderer on `hable` and `went`. The French renderer's values
+are today's.
 
-Each renderer holds `TENSES[studied][moodTense]` — the name a reader of this native language
-uses for the studied language's tense: en-fr « prétérit », es-fr « passé simple », es-en
-"preterite", en-es « pasado simple », fr-en "past historic (passé simple)", fr-es « pretérito
-perfecto simple », the programme's examples, and the full tables for en and es studied; fr
-studied is filled by stage 3 (its tags exist already; the entries are drafted here so the table
-is whole). Each renderer orders tenses as its grammar does: the French renderer keeps
-`tenseRank`'s order (indicative, conditional, subjunctive, imperative for Spanish; the pack's
-order for English); the English and Spanish renderers state theirs, and a test per renderer
-pins it on `hable` and `went`.
+### D4 — The wording of the drafts
 
-### D4 — The renderer follows the interface language; the card says its language
+English follows the English Wiktionary's form-of wording: "third-person singular preterite
+indicative of venir", "past participle of walk", "-ing form of go"; Spanish follows RAE/ASALE
+terms: « tercera persona del singular del pretérito perfecto simple de indicativo de venir »,
+« participio de hablar », « gerundio de hablar ». Neither calques the French. The owner reviews
+both (M9).
 
-`wordpopup.ts` picks the renderer by the interface language (change 13's key, read with the
-card's other preferences) — `fr` for every reader today — and sets `lang` on the card host to
-it, and `lang` of the studied language on each `{word}` segment and on the headword. The HUD and
-the drawer get the interface language's `lang` on their hosts too (one attribute each).
+### D5 — The studied-language words carry `lang`
 
-Alternative: keep the French renderer as the only one until change 20. The renderers are
-written here so the owner reviews the wording once, with the catalogue's drafts (M9), and so
-the goldens exist before any reader sees them.
+`renderGrammar` sets `lang` of the studied language on each `{word}` segment and on the headword;
+the card host's `lang` (the interface language) is change 14's, with the HUD's and the drawer's.
 
 ## Risks / Trade-offs
 
-- **A French byte moves** → the 108 assertions run on the French renderer through the new
+- **A French byte moves** → the French spec runs on the French renderer through the new
   description; the diff of `test/word-grammar.spec.ts` must be empty.
-- **English wording that reads as a translation of French** → the English Wiktionary's form-of
-  wording as the model; the owner's review; change 23 refines with es-en's dogfood.
+- **English wording that reads as a translation of French** → D4's models; the owner's review;
+  change 23 refines with es-en's dogfood.
 - **A tag the description does not know** → the engine's vocabulary is closed (`FEATURES`); the
-  description names every member, and a test enumerates them.
+  description names every member, and a test enumerates what each renderer names.
 
 ## Migration Plan
 

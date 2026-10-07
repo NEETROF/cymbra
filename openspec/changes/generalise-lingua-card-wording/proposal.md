@@ -22,29 +22,34 @@ the current wording, pinned by the same 108 assertions; then English and Spanish
 stage 2). Tense names are the one thing a renderer keys by pair: the same `Tense=Past` is
 « prétérit » for en-fr and "preterite" for es-en.
 
-The card also gets its `lang`: the injected hosts set none today, so a screen reader reads
-French prose with the page's voice and a Spanish word with the French one.
+The studied words of a line also get their `lang`: the card sets none today, so a screen reader
+reads a Spanish word with the French voice (the hosts' `lang` is change 14's).
 
 ## What Changes
 
 - **A neutral description.** `src/reading/grammar-description.ts` turns a `WordGrammar` into a
-  `FormDescription`: the readings grouped as the card groups them today (persons merged within a
-  tense and number, the dictionary form left out, the other lemmas, the pieces), with no word of
-  any language — parts of speech, genders, numbers, persons, moods and tenses as the engine's
-  tags, degrees, and the lemmas.
-- **One renderer per interface language**, `src/i18n/<language>/grammar.ts` (change 13's
-  catalogue): the parts of speech, genders, numbers, persons and degrees in that language, its
-  articles and elisions, its joining (« a, b et c », "a, b and c", « a, b y c »), its sense
-  headings (« nom féminin », "feminine noun", « sustantivo femenino »), and its order of tenses.
-  The French renderer is today's wording, byte for byte.
-- **Tense names keyed by pair**: a table in each renderer, by studied language — en-fr
-  « prétérit », es-fr « passé simple », es-en "preterite", en-es « pasado simple », fr-en "past
-  historic (passé simple)", fr-es « pretérito perfecto simple » — the six pairs' names drafted
-  now, the French ones unchanged.
-- **The card says its language**: `lang` on the card host (the interface language) and on each
-  studied-language word inside a line (the studied language).
+  `FormDescription`: the readings grouped as the card groups them today (persons merged and
+  duplicates dropped by tag, the dictionary form left out, the other lemmas, the pieces), with
+  no word of any language — parts of speech, genders, numbers, persons, moods and tenses as the
+  engine's tags, degrees, and the lemmas.
+- **One renderer per interface language**: `src/reading/grammar-labels.ts` stays the French one,
+  its exported API and wording unchanged, reading its tables from the catalogue;
+  `src/i18n/{en,es}/grammar.ts` are the English and Spanish ones behind the same interface — the
+  parts of speech, genders, numbers, persons and degrees in that language, its articles and
+  elisions where it has them, its joining (« a, b et c », "a, b and c", « a, b y c »), its sense
+  headings (« nom féminin », "feminine noun", « sustantivo femenino »). A renderer names what the
+  French one names, no more.
+- **What depends on the studied language is keyed by it in each renderer**: tense names (en-fr
+  « prétérit », es-fr « passé simple », es-en "preterite", en-es « pasado simple »), the gerund's
+  name, whether the infinitive is named, which moods are named, the order of tenses — the French
+  values today's.
+- **The rule for a Spanish card** — « as French schools do » — becomes « as the interface
+  language's grammar does »: French school terms in French, RAE/ASALE terms in Spanish, the
+  English Wiktionary's form-of wording in English.
+- **The studied-language words say their language**: `lang` on each word of a line and on the
+  headword (the hosts' `lang` is change 14's).
 - **Goldens per renderer**: the French spec unchanged; an English and a Spanish spec over the
-  same inputs, each pinning the order of tenses.
+  same inputs, each pinning the order of tenses and the named tags.
 
 ## Capabilities
 
@@ -55,10 +60,10 @@ None.
 ### Modified Capabilities
 
 - `lingua-browser-extension`: ADDED *The word card describes a form once, and says it in the
-  interface language*. *The word card says what the form is* and *A Spanish card names its forms
-  as French schools do* (held by no open change) stand as the French renderer's requirements, and
-  are not modified: the umbrella rule of change 13 reads their quoted copy as the French
-  interface's.
+  interface language*; MODIFIED *A Spanish card names its forms as French schools do* — a rule
+  about French grammar that the umbrella rule does not cover: it now names the interface
+  language's grammar, every scenario kept. *The word card says what the form is* (held by no open
+  change) stands under the umbrella rule.
 
 ## Impact
 
