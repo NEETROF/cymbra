@@ -367,6 +367,7 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
                     words_learned: 1,
                     reviews_done: 20,
                     unknown_seen: Some(0),
+                    native_language: "fr".into(),
                 },
                 DailyStat {
                     day: 20_000,
@@ -376,6 +377,7 @@ async fn two_devices_converge_across_statuses_cards_and_stats() {
                     words_learned: 2,
                     reviews_done: 10,
                     unknown_seen: Some(0),
+                    native_language: "fr".into(),
                 },
             ],
         )
@@ -422,6 +424,7 @@ async fn a_device_that_missed_the_erasure_cannot_bring_the_data_back() {
         reviews_done: 4,
         // Reports reading, so it is the erasure — not the outdated-client filter — that drops it.
         unknown_seen: Some(1),
+        native_language: "fr".into(),
     };
     words
         .push_ops(

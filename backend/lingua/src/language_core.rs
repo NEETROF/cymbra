@@ -4,15 +4,21 @@
 // this file except in compliance with the License. You may obtain a copy of the
 // License at http://www.apache.org/licenses/LICENSE-2.0
 
-//! The one rule for every studied-language value the module receives — statuses,
-//! declared levels, daily stats and cards (add-lingua-card-language). Pure and
-//! host-tested; the gRPC adapters apply it at the edge. The server decides nothing about
-//! which languages exist: it only keeps `es`, `ES` and `es-ES` from splitting one
-//! language into three keys, and reads an absent value as the language every client
-//! sent before the field existed.
+//! The one rule for every language value the module receives — the studied language of
+//! statuses, declared levels, daily stats and cards (add-lingua-card-language), and the
+//! language of a card's gloss or of a device's native tongue
+//! (add-lingua-native-language-server). Pure and host-tested; the gRPC adapters apply it
+//! at the edge. The server decides nothing about which languages exist: it only keeps
+//! `es`, `ES` and `es-ES` from splitting one language into three keys, and reads an
+//! absent value as the language every client sent before the field existed — `en` for a
+//! studied language, `fr` for a gloss or a native language.
 
-/// The language a client that predates the field is understood to mean.
+/// The studied language a client that predates the field is understood to mean.
 pub const DEFAULT_LANGUAGE: &str = "en";
+
+/// The language of every gloss ever shipped, and the native language a client that
+/// predates the field is understood to mean (add-lingua-native-language-server).
+pub const DEFAULT_NATIVE_LANGUAGE: &str = "fr";
 
 /// Longest primary subtag kept (ISO 639 codes are 2-3 letters; BCP 47 allows 8).
 const MAX_LEN: usize = 8;
@@ -22,6 +28,14 @@ const MAX_LEN: usize = 8;
 /// and [`DEFAULT_LANGUAGE`] when nothing is left. Never fails: an unknown code is a
 /// language the server has not met yet, not an error.
 pub fn normalise(raw: &str) -> String {
+    normalise_or(raw, DEFAULT_LANGUAGE)
+}
+
+/// [`normalise`], given the language an empty value is read as: [`DEFAULT_LANGUAGE`]
+/// for a studied language, [`DEFAULT_NATIVE_LANGUAGE`] for the language of a gloss or a
+/// device's native language (add-lingua-native-language-server). The same rule
+/// otherwise, and it still refuses nothing.
+pub fn normalise_or(raw: &str, default: &str) -> String {
     let primary = raw
         .trim()
         .split(['-', '_'])
@@ -30,7 +44,7 @@ pub fn normalise(raw: &str) -> String {
         .trim()
         .to_lowercase();
     if primary.is_empty() {
-        return DEFAULT_LANGUAGE.to_owned();
+        return default.to_owned();
     }
     primary.chars().take(MAX_LEN).collect()
 }

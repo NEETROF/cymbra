@@ -16,7 +16,7 @@ use tonic::{Request, Response, Status};
 
 use crate::deck::{Card, DeckModule};
 use crate::grpc_util::{caller, now_ms};
-use crate::language_core::normalise;
+use crate::language_core::{DEFAULT_NATIVE_LANGUAGE, normalise, normalise_or};
 use crate::proto::deck_service_server::DeckService;
 use crate::proto::{
     CardOp, PullCardsRequest, PullCardsResponse, PushCardsRequest, PushCardsResponse,
@@ -41,6 +41,8 @@ fn from_proto(o: CardOp) -> Card {
         surface_form: o.surface_form,
         source_sentence: o.source_sentence,
         gloss: o.gloss,
+        // Empty from a client that predates the field: every gloss it holds is French.
+        gloss_language: normalise_or(&o.gloss_language, DEFAULT_NATIVE_LANGUAGE),
         fsrs_state: o.fsrs_state,
         deleted: o.deleted,
         updated_at: o.client_ts,
@@ -65,6 +67,7 @@ fn to_proto(c: Card) -> CardOp {
         client_ts: c.updated_at,
         device_id: c.device_id,
         language: c.language,
+        gloss_language: c.gloss_language,
     }
 }
 

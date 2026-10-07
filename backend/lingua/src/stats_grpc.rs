@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 use crate::grpc_util::caller;
-use crate::language_core::normalise;
+use crate::language_core::{DEFAULT_NATIVE_LANGUAGE, normalise, normalise_or};
 use crate::proto::stats_service_server::StatsService;
 use crate::proto::{
     ConsolidatedStat as ProtoConsolidated, DailyStat as ProtoDaily, GetStatsRequest,
@@ -41,6 +41,8 @@ fn from_proto(s: ProtoDaily) -> DailyStat {
         words_learned: s.words_learned,
         reviews_done: s.reviews_done,
         unknown_seen: s.unknown_seen,
+        // Empty from a client that predates the field: its reader is French-native.
+        native_language: normalise_or(&s.native_language, DEFAULT_NATIVE_LANGUAGE),
     }
 }
 

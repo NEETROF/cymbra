@@ -21,6 +21,10 @@ pub struct DailyStat {
     pub reviews_done: u32,
     /// New words seen; `None` when the client predates the counter (then not stored).
     pub unknown_seen: Option<u32>,
+    /// The device's native language that day; normalised by the adapter, `fr` when the
+    /// client sent none (add-lingua-native-language-server). A value of the row, not of
+    /// its key, and not a dimension of [`ConsolidatedStat`].
+    pub native_language: String,
 }
 
 /// Whether a pushed stat comes from a client that counts reading in blocks seen — the
@@ -73,6 +77,7 @@ mod tests {
             words_learned: 0,
             reviews_done: reviews,
             unknown_seen: Some(0),
+            native_language: "fr".into(),
         }
     }
 

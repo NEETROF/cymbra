@@ -34,6 +34,7 @@ fn card(language: &str, id: &str, gloss: &str, ts: i64) -> Card {
         surface_form: id.into(),
         source_sentence: "…".into(),
         gloss: gloss.into(),
+        gloss_language: "fr".into(),
         fsrs_state: "{}".into(),
         deleted: false,
         updated_at: ts,

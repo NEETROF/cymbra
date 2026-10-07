@@ -138,6 +138,7 @@ mod tests {
             words_learned: 0,
             reviews_done: reviews,
             unknown_seen: Some(0),
+            native_language: "fr".into(),
         }
     }
 

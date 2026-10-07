@@ -52,6 +52,9 @@ impl LinguaDataService for DataGrpc {
             erased_at,
             // This server keys cards by studied language (add-lingua-card-language).
             card_language: true,
+            // ...and stores the language of a card's gloss and the native language of a
+            // daily statistic (add-lingua-native-language-server). Not a version number.
+            native_language: true,
         }))
     }
 }

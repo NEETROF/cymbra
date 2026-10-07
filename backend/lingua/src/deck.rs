@@ -8,7 +8,10 @@
 //! language, last-write-wins per card (tombstones included). A pull names the languages
 //! the client accepts and receives nothing else (add-lingua-card-language), so a client
 //! that predates card languages — it names none, so English only — never receives a card
-//! it would mis-file. Same clamp + LWW rules as KnownWords
+//! it would mis-file. A card also says which language its gloss is written in
+//! (add-lingua-native-language-server): a label of the row, not of its key, so two
+//! devices of one account with different native languages write one card row and the
+//! label travels with the gloss that wins. Same clamp + LWW rules as KnownWords
 //! ([`known_words_core`]). Media contents never cross the wire (allow-list) — there is
 //! no media field — and neither does the page a card was captured from
 //! (add-lingua-privacy-controls): a card has no source here. Ops dated before the user's
@@ -35,6 +38,9 @@ pub struct Card {
     pub surface_form: String,
     pub source_sentence: String,
     pub gloss: String,
+    /// The language of `gloss`; normalised by the adapter, `fr` when the client sent
+    /// none (add-lingua-native-language-server). Not part of the key.
+    pub gloss_language: String,
     pub fsrs_state: String,
     pub deleted: bool,
     pub updated_at: i64,
@@ -193,6 +199,7 @@ mod tests {
             surface_form: "seldom".into(),
             source_sentence: sentence.into(),
             gloss: "rarement".into(),
+            gloss_language: "fr".into(),
             fsrs_state: "{}".into(),
             deleted: false,
             updated_at: ts,
