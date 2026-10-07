@@ -114,6 +114,13 @@ describe("the stored setting", () => {
         pairs: ["en-fr"],
         total: 26,
       });
+      // A language no shipped pair studies reads as its pair of French too; the controller's next
+      // reconciliation drops it, since no route of the reader's pairs makes it.
+      expect(parseModelState({ phase: "ready", models: [EN_FR], languages: ["en", "de"] })).toEqual({
+        phase: "ready",
+        models: [EN_FR],
+        pairs: ["en-fr", "de-fr"],
+      });
       // English and Spanish pages are translated as before, through the pairs the background gates on.
       expect(languageReady("local", ready, "en")).toBe(true);
       expect(languageReady("local", ready, "es")).toBe(true);
@@ -130,6 +137,13 @@ describe("the stored setting", () => {
     it("reads a bare `ready`, from the release before anything was recorded with it, as en-fr", () => {
       // That release recorded `ready` only once the English model — en-fr's one model — was there.
       expect(parseModelState({ phase: "ready" })).toEqual({ phase: "ready", models: [], pairs: ["en-fr"] });
+      // A `ready` that names its models but neither languages nor pairs — generalise-lingua-translation-
+      // catalogue's, before model-state named languages — is en-fr's as well.
+      expect(parseModelState({ phase: "ready", models: [EN_FR] })).toEqual({
+        phase: "ready",
+        models: [EN_FR],
+        pairs: ["en-fr"],
+      });
       expect(parseModelState({ phase: "missing", models: [EN_FR], total: 26 })).toEqual({
         phase: "missing",
         models: [EN_FR],
@@ -294,6 +308,29 @@ describe("translatorSource — which translator a surface gets", () => {
     change();
     await flush();
     expect(source("en")).toBeNull();
+  });
+
+  it("follows the off-switch through storage.onChanged with a state that names pairs: a Spanish page loses its port", async () => {
+    const { source, area, port, change } = setup({
+      [TRANSLATION_HOST_KEY]: "local",
+      [MODEL_STATE_KEY]: { phase: "ready", models: [ES_EN, EN_FR], pairs: ["es-fr"] },
+    });
+    await flush();
+    expect(source("es")).toBe(port);
+
+    area.store[TRANSLATION_HOST_KEY] = "none";
+    change();
+    await flush();
+    expect(source("es")).toBeNull();
+
+    // On again, with es-fr no longer among the ready pairs — the background's reconciliation rewrote
+    // them: the page's gate follows the same channel.
+    area.store[TRANSLATION_HOST_KEY] = "local";
+    area.store[MODEL_STATE_KEY] = { phase: "ready", models: [EN_FR], pairs: ["en-fr"] };
+    change();
+    await flush();
+    expect(source("es")).toBeNull();
+    expect(source("en")).toBe(port);
   });
 
   it("gives none when the storage cannot be read (an orphaned page)", async () => {

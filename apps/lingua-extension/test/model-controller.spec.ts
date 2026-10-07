@@ -397,6 +397,62 @@ describe("ModelController", () => {
       expect(db.erase).not.toHaveBeenCalled();
     });
 
+    it("rewrites a state recorded without pairs once, then leaves it: `languages`, then a bare `ready`", async () => {
+      const { controller, area, setting } = setup({
+        seed: {
+          [TRANSLATION_HOST_KEY]: "local",
+          [MODEL_STATE_KEY]: { phase: "ready", models: [EN_FR], languages: ["en"] },
+        },
+        stored: [EN_FR],
+      });
+      const set = vi.spyOn(area, "set");
+      await controller.status();
+      expect(set).toHaveBeenCalledOnce();
+      expect(setting().state).toEqual(READY_EN);
+      await controller.status();
+      expect(set).toHaveBeenCalledOnce(); // the pairs are stored now: nothing to rewrite
+      const bare = setup({
+        seed: { [TRANSLATION_HOST_KEY]: "local", [MODEL_STATE_KEY]: { phase: "ready" } },
+        stored: [EN_FR],
+      });
+      const bareSet = vi.spyOn(bare.area, "set");
+      await bare.controller.status();
+      await bare.controller.status();
+      expect(bareSet).toHaveBeenCalledOnce();
+      expect(bare.setting().state).toEqual(READY_EN);
+    });
+
+    it("does not rewrite a state the storage hands back with its keys in another order", async () => {
+      // Chrome's storage returns an object's keys in its own order; what is compared is the state read,
+      // not its text — or `ready` would be rewritten on every status.
+      const { controller, area } = setup({
+        seed: {
+          [TRANSLATION_HOST_KEY]: "local",
+          [MODEL_STATE_KEY]: { models: [EN_FR], pairs: ["en-fr"], phase: "ready" },
+        },
+        stored: [EN_FR],
+      });
+      const set = vi.spyOn(area, "set");
+      await controller.status();
+      await controller.status();
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it("drops at the reconcile a language recorded before pairs that no shipped pair studies: `de` read as de-fr", async () => {
+      const { controller, setting } = setup({
+        seed: {
+          [TRANSLATION_HOST_KEY]: "local",
+          [MODEL_STATE_KEY]: { phase: "ready", models: [EN_FR], languages: ["en", "de"] },
+        },
+        stored: [EN_FR],
+        pairs: ["en-fr"],
+      });
+      expect(await controller.ready("de-fr")).toBe(true); // as recorded, until reconciled
+      await controller.status();
+      expect(setting().state).toEqual(READY_EN);
+      expect(await controller.ready("de-fr")).toBe(false);
+    });
+
     it("reads a missing model under such a `ready` as removed by the browser, not as a new language", async () => {
       const { controller } = setup({
         seed: { [TRANSLATION_HOST_KEY]: "local", [MODEL_STATE_KEY]: { phase: "ready" } },

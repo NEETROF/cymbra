@@ -89,6 +89,15 @@ function pivots({ catalogue, pairs }: Needs): boolean {
   return pairs.some((pair) => routeOf(catalogue, pair).length > 1);
 }
 
+/**
+ * A stored `ready` or `missing` from before pairs were recorded (routes-by-pair D3): it names
+ * languages, or nothing. It reads as the same pairs, and is rewritten with them once.
+ */
+function namesNoPairs(raw: unknown): boolean {
+  const s = raw as { phase?: unknown; pairs?: unknown } | null | undefined;
+  return (s?.phase === "ready" || s?.phase === "missing") && !Array.isArray(s.pairs);
+}
+
 const LOG = (message: string, detail?: unknown): void => console.warn(`[Cymbra Lingua] ${message}`, detail ?? "");
 
 const sum = (models: ModelManifest[], size: (m: ModelManifest) => number): number =>
@@ -214,9 +223,10 @@ export class ModelController {
       return this.answer(host, ABSENT, needs);
     }
     const next = await this.observed(state, needs);
-    // Written when it differs from what is STORED, not from what was read: a state an earlier release
-    // wrote with languages reads as the same pairs, and is rewritten with them (routes-by-pair D3).
-    if (JSON.stringify(next) !== JSON.stringify(got[MODEL_STATE_KEY])) {
+    // Written when it differs from what was read — the states compared, never their stored text: the
+    // storage hands an object's keys back in its own order — and once for a state stored without
+    // pairs, which reads as the same pairs and is rewritten with them (routes-by-pair D3).
+    if (JSON.stringify(next) !== JSON.stringify(state) || namesNoPairs(got[MODEL_STATE_KEY])) {
       await saveTranslationSetting(this.deps.area, { state: next });
     }
     return this.answer(host, next, needs);
