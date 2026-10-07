@@ -25,25 +25,28 @@ studied.
 
 ## What Changes
 
-- **A background command, `setNativeLanguage(native)`**: refused when no shipped pair is glossed
-  in it; otherwise the background builds a fresh engine for that native, restores the stored
-  backup into it with the profile set to (native, the studied languages minus the native — or
-  the native's first shipped pair's studied language when nothing is left), saves the backup,
-  replaces its own engines (the rpc one, the sync one), writes the interface-language key (change
-  13), and announces the store change.
-- **Ports follow the backup's native language**: a port whose restored backup names another
-  native than its engine's rebuilds its engine for it, as a restore already reloads the state;
-  every surface's `watchBackup` therefore rebuilds, and the page reads in the new language.
+- **A runtime message to the background, `lingua-native-language`**: refused when no shipped
+  pair is glossed in the native asked; otherwise the background rewrites the stored backup's
+  profile with a pure engine function (the native, and the studied languages minus the native —
+  or the native's first shipped pair's studied language when nothing is left), saves it — the
+  store's owner writes the interface-language key with it (change 13) — announces the store
+  change, and drops its own two engines, rebuilt for the new native on their next use.
+- **Every port follows the backup's native language**: a port whose restored backup names
+  another native than its engine's rebuilds its engine for it; the surfaces that restore on the
+  store's change follow, and those that hydrate once (the popup, the onboarding) rebuild their
+  port and re-read the key.
 - **The choice, in three places**, each shown only when `shippedNatives()` counts two or more:
   the onboarding's first question (« Je lis en… » — the native languages named each in its own
-  language — preset from `navigator.language` when it is one of them, English otherwise, M13);
-  the popup's first-run call to action, before the level's; Réglages, « Langue », a block above
-  « Langues étudiées ».
-- **What follows**: the sync's accepted languages (`widen` when they grow), the translation pairs
-  (the controller reconciles), the review language (the first studied language), the level
-  prompts; a full reset keeps the native language (M3: `reset` builds the fresh state on the
-  engine's native).
-- **A new device** asks at onboarding (M3); the profile is never synced.
+  language), preset on a new install before it paints — the browser's language when a shipped
+  pair is glossed in it, English when English ships, French otherwise (M3, M13); the popup's
+  first-run call to action, before the level's, only for a store without a backup; Réglages,
+  « Langue », a block above « Langues étudiées ».
+- **What follows**: the sync's accepted languages (`widen` when they grow; a dropped language's
+  cards stay), the translation pairs (the controller reconciles), the review's language, the
+  level prompts; a full reset keeps the native language (M3: `reset` builds the fresh state on
+  the engine's native).
+- **An installed extension is never asked** (M22): a store holding a backup keeps its native
+  language; a new device chooses at onboarding (M3); the profile is never synced.
 
 ## Capabilities
 
@@ -59,17 +62,16 @@ None.
 
 ## Impact
 
-- **Products.** Cymbra Lingua only: `apps/lingua-extension` (`src/background.ts`, `src/analyzer/
-  {engine,port,messaging-port,pairs}.ts`, `src/state/storage.ts`, `src/onboarding/**`,
-  `src/popup/popup.ts`, `src/reading/settings-view.ts`, a `native-language-view.ts`, tests). The
-  engine's `setProfile` and `reset` are already what this needs. ID, Music, Live, the back office
+- **Products.** Cymbra Lingua only: `crates/lingua-wasm` (`reprofileBackup`), `apps/lingua-extension`
+  (`src/background.ts`, `src/analyzer/{engine,pairs}.ts`, `src/onboarding/**`, `src/popup/popup.ts`,
+  `src/reading/settings-view.ts`, a `native-language-view.ts`, tests). ID, Music, Live, the back office
   and the site are untouched.
 - **No byte moves**: the choice is hidden while one native ships; the French copy of the three
   places is in the catalogue (changes 14, 15, 17 move those surfaces; this change writes its new
   French strings into the catalogue directly, with their English and Spanish).
-- **Order.** After changes 13 (the key), 14/15/17 for the surfaces it touches (or it writes its
-  strings into the catalogue beside the surfaces' literals, on the lint's baseline), 19 (the
-  languages' names). Change 21 ships the first second native.
+- **Order.** After changes 13 (the key), 14, 15 and 17 (the surfaces it touches read the
+  catalogue), 19 (the languages' names). Change 21 ships the first second native, which is when
+  the choice appears.
 - **Not here.** The studied languages' choice (exists); the native language on the server (12);
   what an open page's answer memory does across a change of native (the engines are rebuilt, the
   page's memory is per page and goes with it).

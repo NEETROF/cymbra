@@ -1,15 +1,17 @@
 # Tasks
 
-## 1. Pairs and ports (apps/lingua-extension)
+## 1. The engine and the ports (crates/lingua-wasm, apps/lingua-extension)
 
-- [ ] 1.1 `src/analyzer/pairs.ts` `shippedNatives()` (D1); tests: one native today, two with a test pair list.
-- [ ] 1.2 `src/analyzer/engine.ts` `WasmAnalyzerPort.restore` rebuilds the engine when the backup's native differs from the engine's (D3); `port.ts`, `messaging-port.ts` `setNativeLanguage(native)`; tests: a restore under another native rebuilds and keeps the state.
-- [ ] 1.3 `src/background.ts` serves `setNativeLanguage`: refusal, the studied languages' rule, the fresh engine, the backup saved, the ports replaced, the interface-language key written, the store change announced (D2). Tests on the pieces that are measured (the studied-languages rule as a pure function; the key writer).
+- [ ] 1.1 `crates/lingua-wasm`: `reprofileBackup(backup, native, studied)`, pure, validating as `Profile::set` does, schema version 2 (D2); tests: a backup reprofiled restores on an engine of the new native; a refused choice returns an error.
+- [ ] 1.2 `src/analyzer/pairs.ts` `shippedNatives()` (D1); tests: one native today, two with a test pair list.
+- [ ] 1.3 `src/analyzer/engine.ts` `WasmAnalyzerPort.restore` rebuilds the engine when the backup's native differs from the engine's (D3); test: a restore under another native rebuilds and keeps the state.
+- [ ] 1.4 `src/background.ts` serves `lingua-native-language`: refusal, the studied-languages rule (a pure function, tested), `reprofileBackup`, the backup saved (the key written by the store's owner), the store change announced, its two engines and the `hydrated` memo dropped (D2).
 
 ## 2. The choice (apps/lingua-extension)
 
-- [ ] 2.1 `src/reading/native-language-view.ts`: the natives of `shippedNatives()` in their own names, the current one selected, the studied-languages consequence stated, hidden under two (D4); its French, English and Spanish copy in the catalogue (D6). Tests: *Every reader today*, *A native language that was the only studied one*, *A native language with no pair*.
-- [ ] 2.2 Réglages « Langue »: `settingBlock("Langue maternelle")` above « Langues étudiées » (`lint-settings-hosts` follows); the onboarding's first question, preset from the browser's language (D4); the popup's first-run call to action when the native was never chosen (`cymbra-lingua-native-chosen`). Tests: *A new install when two native languages ship*, *A browser in another language*, *Safari without the onboarding*.
+- [ ] 2.1 `src/reading/native-language-view.ts`: the natives of `shippedNatives()` in their own names, the current one selected, the consequence stated, hidden under two, the message sent and the host's port rebuilt (D4); its copy in the catalogue (D6). Tests: *Every reader today*, *A native language that was the only studied one*, *A native language with no pair*.
+- [ ] 2.2 Réglages « Langue »: the block above « Langues étudiées », its title from the catalogue; the onboarding's first question with the preset applied before painting on a new install; the popup's first-run call to action when the marker is unset and the store holds no backup (D4). Tests: *A new install when two native languages ship*, *A browser in another language*, *An installed extension is not asked*, *Safari without the onboarding*.
+- [ ] 2.3 The surfaces that hydrate once (popup, onboarding) rebuild their port and re-read the key on the announced store change; the content script re-reads the key and re-labels (D3).
 
 ## 3. What follows (apps/lingua-extension)
 
@@ -17,5 +19,5 @@
 
 ## 4. Gates and docs
 
-- [ ] 4.1 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`; the choice hidden in every built target (`SHIPPED_PAIRS` French-native only).
+- [ ] 4.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-core -p lingua-wasm`; in `apps/lingua-extension`: `yarn gen:wasm`, `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`; the choice hidden in every built target (`SHIPPED_PAIRS` French-native only).
 - [ ] 4.2 `openspec validate add-lingua-native-language-choice --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-native-language-choice` exits 0; change 20 is marked done in `docs/lingua/language-matrix-programme.md`.
