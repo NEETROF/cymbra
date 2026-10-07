@@ -64,24 +64,21 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import reduce_common as common  # noqa: E402 — the rules every <studied>->FR pair shares
+import reduce_common as common  # noqa: E402 — the rules every pair shares
+import reduce_edition_fr as french  # noqa: E402 — the French Wiktionary's rules, which en-fr reads
 from reduce_common import (  # noqa: E402,F401 — re-exported: the tests and main() use them by these names
-    _FORM_OF,
     _LEVEL_RANK,
-    _MWE_FORM_OF,
     _acronym,
-    _is_form_of,
     _join_senses,
     _join_senses_by_pos,
-    clean_gloss,
     compound_inflections,
     cut_at_word,
     orphaned_forms,
     reduce_levels,
     resolve_forms,
-    strip_wiki_notes,
     write,
 )
+from reduce_edition_fr import _FORM_OF, _MWE_FORM_OF  # noqa: E402,F401 — re-exported, as above
 
 _TOKEN = re.compile(r"[A-Za-z][A-Za-z'\-]*")
 
@@ -606,13 +603,19 @@ _COORDINATORS = frozenset({"and", "or", "but", "nor", "yet", "so", "for"})
 
 # English, as the shared rules see it (reduce_common.Studied).
 EN = common.Studied(code="en", token=_TOKEN, form_of_target=_FORM_OF_TARGET, coordinators=_COORDINATORS)
-wiktionary_signals = functools.partial(common.wiktionary_signals, studied=EN)
+# The French Wiktionary, as the shared rules see it (reduce_common.Edition): its English entries give
+# both English's own signals (form-of links, which senses are meanings) and the French glosses.
+EDITION = french.FR
+_is_form_of = functools.partial(common._is_form_of, edition=EDITION)
+strip_wiki_notes = functools.partial(common.strip_wiki_notes, edition=EDITION)
+clean_gloss = functools.partial(common.clean_gloss, edition=EDITION)
+wiktionary_signals = functools.partial(common.wiktionary_signals, studied=EN, edition=EDITION)
 canonical_ranks = functools.partial(common.canonical_ranks, studied=EN)
 append_level_extras = functools.partial(common.append_level_extras, studied=EN)
 kaikki_upos = functools.partial(common.kaikki_upos, studied=EN)
-_read_entries = functools.partial(common._read_entries, studied=EN)
-reduce_gloss = functools.partial(common.reduce_gloss, studied=EN)
-reduce_expressions = functools.partial(common.reduce_expressions, studied=EN)
+_read_entries = functools.partial(common._read_entries, studied=EN, edition=EDITION)
+reduce_gloss = functools.partial(common.reduce_gloss, studied=EN, edition=EDITION)
+reduce_expressions = functools.partial(common.reduce_expressions, studied=EN, edition=EDITION)
 
 # Expressions the French Wiktionary does not gloss, each with its French gloss, written and reviewed
 # by a person: expression -> gloss. It wins over the source, as es-fr's LOCUTIONS. The card shows it
@@ -754,12 +757,17 @@ def main():
     lemmas = set(ranks)
 
     pairs |= compound_inflections(lemmas, pairs, readings)
-    runs = {}
-    glosses = reduce_gloss(
-        kaikki, lemmas, a.max_word_gloss_len, per_sense=a.max_word_sense_len, max_senses=a.max_word_senses, runs=runs
+    # The native side every pair shares: the French Wiktionary's English entries gloss the words and
+    # the expressions, and the locutions a person wrote win (en-fr reads no translation table).
+    glosses, runs, expressions, _ = common.native_tables(
+        kaikki,
+        lemmas,
+        studied=EN,
+        edition=EDITION,
+        locutions=LOCUTIONS,
+        word_gloss={"maxlen": a.max_word_gloss_len, "per_sense": a.max_word_sense_len, "max_senses": a.max_word_senses},
+        expression_len=a.max_gloss_len,
     )
-    expressions = reduce_expressions(kaikki, a.max_gloss_len)
-    expressions.update(LOCUTIONS)
     forms = resolve_forms(pairs, ranks, targets, set(glosses))
     levels = reduce_levels(cefr, lemmas)
 

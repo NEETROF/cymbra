@@ -67,8 +67,12 @@ this README): the build fails unless it produces the very bytes the package carr
 
 Those tables were reduced from public corpora — Kaikki's French Wiktionary extract of English
 entries, the `wordfreq` distribution, ESDB's inflections (SCOWLv2), and the CEFR-J and Octanove
-vocabulary profiles — by `scripts/lingua-data/reduce-en-fr.py` and the shared rules it imports,
-`scripts/lingua-data/reduce_common.py`, both in this archive.
+vocabulary profiles — by `scripts/lingua-data/reduce-en-fr.py` and the rule modules it imports,
+all in this archive: `scripts/lingua-data/reduce_common.py`, the rules every pair shares, and
+`scripts/lingua-data/reduce_edition_fr.py`, the French Wiktionary's — which of its senses only point
+at another word, and the notes it writes for its own readers, taken out of a gloss.
+`reduce_edition_en.py` and `reduce_edition_es.py`, the English and Spanish Wiktionaries' rules, are
+in the archive too; they reduce no table this package ships.
 `pin.json` names each raw source at a fixed commit or snapshot, with its sha256, so the
 tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer does not
 need to.

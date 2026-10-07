@@ -23,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ext: ${{ steps.f.outputs.ext }}
+      data: ${{ steps.f.outputs.data }}
     steps:
       - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v4
@@ -39,6 +40,12 @@ jobs:
               - 'crates/lingua-core/**'
               # The pack builder the reviewer's archive runs (`yarn gen:pack`).
               - 'crates/lingua-pack/**'
+              - 'scripts/lingua-data/**'
+              - '.github/workflows/lingua-extension-check.yml'
+            # The pairs' tables, their pinned sources and the rules and tools that reduce them: the
+            # `reduce` job re-reduces every pair from its pinned sources. The workflow itself too: a
+            # pull request that edits the job runs it.
+            data:
               - 'scripts/lingua-data/**'
               - '.github/workflows/lingua-extension-check.yml'
 
@@ -166,3 +173,55 @@ jobs:
           done
           LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
           test -f dist-firefox/manifest.json
+
+  # The committed tables are what the rules make of the pinned sources (lingua-data-packs,
+  # generalise-lingua-gloss-reducer D4): every pair reduced again from its pinned sources, with the
+  # pinned interpreter and dependencies, must give the committed tables, manifest.json and pin.json
+  # byte for byte. The `check` job only compares the rules' digest with pin.json, which a person can
+  # write by hand; this reduces. It reads upstream (the snapshots' release assets and the sources
+  # pinned at a commit, each checked by its sha256), so it runs only when scripts/lingua-data or
+  # this workflow changes. Its first run, on generalise-lingua-gloss-reducer's pull request, is the
+  # first time tables reduced on macOS are reproduced on Linux.
+  reduce:
+    needs: changes
+    if: ${{ needs.changes.outputs.data == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # The reducer's interpreter and its one dependency are pinned: the same raw bytes give the
+      # same tables (requirements-reduce.txt, hash-checked) — as lingua-pack-update installs them.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install the reducer's pinned dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet --require-hashes -r scripts/lingua-data/requirements-reduce.txt
+          sudo apt-get install -y --no-install-recommends zstd >/dev/null
+      - name: Reduce every pair again from its pinned sources
+        env:
+          LINGUA_PYTHON: python
+        run: |
+          set -euo pipefail
+          for tables in scripts/lingua-data/tables/*/; do
+            pair="$(basename "$tables")"
+            scripts/lingua-data/build.sh --reduce "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+            # The raw sources weigh about 1.5 GB per pair; the next pair needs the room.
+            rm -rf "scripts/lingua-data/work/$pair"
+          done
+      - name: The committed tables are what the rules make of them
+        run: |
+          set -euo pipefail
+          moved="$(git status --porcelain -- scripts/lingua-data/tables)"
+          if [ -n "$moved" ]; then
+            echo "::error::Reduced again from their pinned sources, these files are not the committed ones (pair/file):"
+            printf '%s\n' "$moved"
+            git diff --stat -- scripts/lingua-data/tables
+            echo "Reduce the pair again (scripts/lingua-data/build.sh --reduce <pair> <out>, Python 3.12 and"
+            echo "requirements-reduce.txt, or lingua-pack-update with mode=reduce) and commit what it writes."
+            exit 1
+          fi
+          echo "Every pair's tables, manifest.json and pin.json are what the rules make of the pinned sources."

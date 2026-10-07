@@ -13,7 +13,14 @@ name: lingua-pack-update
 #   lingua-pack-sources-<pair>-<snapshot>, never replaced — reduced, and pushed to the branch
 #   lingua-pack/<pair>/<snapshot>.
 # - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
-#   the branch's diff is the rules' effect alone.
+#   the branch's diff is the rules' effect alone. With pair `all`, every pair with committed tables
+#   is reduced in one run and proposed on one branch, lingua-pack/all/<snapshot>-reduce, with the
+#   invariance baselines re-blessed once (generalise-lingua-gloss-reducer D4).
+# - expect `identical`: the rules moved, not what they make. The run fails, naming the pair and the
+#   file, and proposes no branch, when a table, a kept input or NOTICE differs by one byte,
+#   manifest.json anywhere but `pack_version`, pin.json anywhere but the pack's sha256 and the rules'
+#   record (pack_report.py --identical), the site's coverage figures at all, or a baseline anywhere
+#   but the lines naming the packs (`### pack`, `### beside`).
 # - monthly: `update` in dry mode. Nothing is committed or published; the run reports how far
 #   upstream has drifted and FAILS when a source cannot be fetched, the reduction fails, or a table
 #   collapses (an upstream format change shows as lost rows, not as an error).
@@ -30,10 +37,15 @@ on:
         options: [update, reduce]
         default: update
       pair:
-        description: "The language pair whose tables to propose (a folder of scripts/lingua-data/tables)."
+        description: "The language pair whose tables to propose (a folder of scripts/lingua-data/tables); all = every pair, mode reduce only."
         type: choice
-        options: [en-fr, es-fr]
+        options: [en-fr, es-fr, all]
         default: en-fr
+      expect:
+        description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
+        type: choice
+        options: [any, identical]
+        default: any
   schedule:
     - cron: "17 5 3 * *" # the 3rd of every month, 05:17 UTC — dry run
 
@@ -55,6 +67,7 @@ jobs:
     env:
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
       PAIR: ${{ matrix.pair }}
+      EXPECT: ${{ inputs.expect || 'any' }}
       # A monthly run fails when a table loses more than this share of its rows (D7). A starting
       # value, to set from the first runs.
       MAX_LOSS: "0.2"
@@ -73,6 +86,20 @@ jobs:
           python -m pip install --quiet --require-hashes -r scripts/lingua-data/requirements-reduce.txt
           sudo apt-get install -y --no-install-recommends zstd >/dev/null
 
+      # Every pair is reduced from its pinned sources only: an update reads today's sources and
+      # publishes them as one pair's snapshot release.
+      - name: Check the inputs
+        run: |
+          set -euo pipefail
+          if [ "$PAIR" = all ] && [ "$MODE" != reduce ]; then
+            echo "::error::pair=all reduces every pair again from its pinned sources: dispatch it with mode=reduce."
+            exit 1
+          fi
+          if [ "$EXPECT" = identical ] && [ "$MODE" != reduce ]; then
+            echo "::error::expect=identical checks a change of the rules alone: dispatch it with mode=reduce."
+            exit 1
+          fi
+
       - name: Reduce
         env:
           LINGUA_PYTHON: python
@@ -80,17 +107,36 @@ jobs:
           set -euo pipefail
           snapshot=$(date -u +%Y.%m.%d)
           echo "SNAPSHOT=$snapshot" >> "$GITHUB_ENV"
-          cp -r "scripts/lingua-data/tables/$PAIR" "$RUNNER_TEMP/committed"
-          LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$MODE" "$PAIR" "$RUNNER_TEMP/pack.lingua"
+          pairs=("$PAIR")
+          if [ "$PAIR" = all ]; then
+            pairs=()
+            for tables in scripts/lingua-data/tables/*/; do pairs+=("$(basename "$tables")"); done
+          fi
+          echo "PAIRS=${pairs[*]}" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/committed"
+          for pair in "${pairs[@]}"; do
+            cp -r "scripts/lingua-data/tables/$pair" "$RUNNER_TEMP/committed/$pair"
+            LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$MODE" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+            # A re-reduction keeps nothing of its raw sources (an update publishes them below); the
+            # next pair needs the room.
+            if [ "$MODE" = reduce ]; then rm -rf "scripts/lingua-data/work/$pair"; fi
+          done
 
       - name: Report against the committed tables
         run: |
           set -euo pipefail
-          new="scripts/lingua-data/tables/$PAIR"
-          [ "$MODE" = dry ] && new="scripts/lingua-data/work/dry/$PAIR"
           status=0
-          python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed" "$new" \
-            --pack "$RUNNER_TEMP/pack.lingua" --max-loss "$MAX_LOSS" > "$RUNNER_TEMP/report.md" || status=$?
+          : > "$RUNNER_TEMP/report.md"
+          for pair in $PAIRS; do
+            new="scripts/lingua-data/tables/$pair"
+            [ "$MODE" = dry ] && new="scripts/lingua-data/work/dry/$pair"
+            identical=()
+            [ "$EXPECT" = identical ] && identical=(--identical --pair "$pair")
+            printf '\n**%s**\n\n' "$pair" >> "$RUNNER_TEMP/report.md"
+            python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed/$pair" "$new" \
+              --pack "$RUNNER_TEMP/pack-$pair.lingua" --max-loss "$MAX_LOSS" "${identical[@]}" \
+              >> "$RUNNER_TEMP/report.md" || status=1
+          done
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
           exit $status
 
@@ -127,6 +173,7 @@ jobs:
         if: env.MODE != 'dry'
         run: |
           set -euo pipefail
+          # One branch, also for pair=all: every pair's tables, manifests and pins together.
           branch="lingua-pack/$PAIR/$SNAPSHOT"
           [ "$MODE" = reduce ] && branch="lingua-pack/$PAIR/$SNAPSHOT-reduce"
           if git diff --quiet -- scripts/lingua-data/tables; then
@@ -139,14 +186,32 @@ jobs:
           # The invariance baselines follow the dictionary (docs/lingua/spanish-programme.md,
           # docs/lingua/language-matrix-programme.md): re-blessed here, so the pull request shows
           # what the update changes in English and Spanish output. Both, whatever the pair: the
-          # Spanish ladder borrows English's figures from the en-fr pack.
+          # Spanish ladder borrows English's figures from the en-fr pack. Once, whatever the pairs.
           LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
+          if [ "$EXPECT" = identical ]; then
+            # The rules moved, not what they make: the site's figures stay, and a baseline moves only
+            # in the lines naming the packs (`### pack`, `### beside`), whose pack_version names the
+            # new rules.
+            if ! git diff --quiet -- apps/site/src/data/lingua-coverage.json; then
+              echo "::error::Expected no change, but the site's coverage figures moved:"
+              git diff -- apps/site/src/data/lingua-coverage.json
+              exit 1
+            fi
+            moved="$(git diff -U0 -- crates/lingua-wasm/tests/baseline | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' \
+              | grep -vE '^[-+][a-z]{2}-[a-z]{2}, [0-9]+ bytes, pack_version "[^"]*", analyzer_version "[^"]*"$' || true)"
+            if [ -n "$moved" ]; then
+              echo "::error::Expected no change, but a baseline moved beyond the lines naming the packs:"
+              printf '%s\n' "$moved"
+              exit 1
+            fi
+          fi
           git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline apps/site/src/data/lingua-coverage.json
           message="chore(lingua): $PAIR dictionary tables $SNAPSHOT"
           [ "$MODE" = reduce ] && message="chore(lingua): reduce the $PAIR dictionary tables again ($SNAPSHOT)"
-          git commit -q -m "$message"
+          [ "$PAIR" = all ] && message="chore(lingua): reduce every pair's dictionary tables again ($SNAPSHOT)"
+          git commit -q -m "$message" -m "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           git push -q origin "$branch"
           {
             echo ""

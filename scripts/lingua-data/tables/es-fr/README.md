@@ -130,11 +130,19 @@ them. Its pull request says so, and every pair studying Spanish carries the same
      DUMPS`);
   3. reduces;
   4. pushes the branch `lingua-pack/es-fr/<snapshot>`.
-- **After editing the reduction rules** — `reduce-es-fr.py`, the override and locution lists included, or
-  `reduce_common.py`, which every pair shares (`pin.json` lists both under `reducer.files`): the
-  check lane fails until the tables are reduced again from the pinned sources. Run
+- **After editing the reduction rules** — `reduce-es-fr.py`, the override and locution lists
+  included; `reduce_common.py`, which every pair shares; or `reduce_edition_fr.py`, the French
+  Wiktionary's rules, which every pair glossed in French loads (`pin.json` lists the three under
+  `reducer.files`, the modules the reducer loads, `../../SOURCES.md`, *The Wiktionary editions'
+  rules*): the check lane fails until the tables are reduced again from the pinned sources. Run
   `scripts/lingua-data/build.sh --reduce es-fr <out>` (Python 3.12, `requirements-reduce.txt`), or
-  `lingua-pack-update` with `mode=reduce`.
+  `lingua-pack-update` with `mode=reduce`. The English and Spanish Wiktionaries' rules
+  (`reduce_edition_en.py`, `reduce_edition_es.py`) are not es-fr's — its forms are read from the
+  English Wiktionary by its own rules, its glosses from the French one — so editing them asks
+  nothing of these tables.
+- **A change of rules meant to move no table**: dispatch `lingua-pack-update` with `mode=reduce`,
+  `pair=all` and `expect=identical`, as for en-fr. The `reduce` job of `lingua-extension-check`
+  reduces every pair again on each pull request that touches `scripts/lingua-data`.
 - **After a builder or dependency change** that changes the pack's bytes: update `pack.sha256` and
   `pack.size` in `pin.json` in the same pull request.
 

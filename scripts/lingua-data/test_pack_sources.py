@@ -9,6 +9,7 @@
 Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
+import ast
 import contextlib
 import datetime
 import gzip
@@ -28,6 +29,26 @@ sys.path.insert(0, str(HERE))
 import pack_sources as ps  # noqa: E402
 
 HAS_ZSTD = shutil.which("zstd") is not None
+
+
+# What makes a module load code other than by an import statement: `rule_files` reads `sys.modules`
+# once the reducer is imported, and the import-statement test reads the source, so both miss it.
+_DYNAMIC_MODULES = {"importlib", "runpy", "imp", "pkgutil"}
+_DYNAMIC_NAMES = {"__import__", "exec", "eval"}
+
+
+def _dynamic_loads(source):
+    """Where `source` loads code by name or by path rather than by an import statement."""
+    found = []
+    for node in ast.walk(ast.parse(source)):
+        modules = [a.name for a in node.names] if isinstance(node, ast.Import) else []
+        if isinstance(node, ast.ImportFrom):
+            modules = [node.module or ""]
+        found += [f"{node.lineno}: imports {m}" for m in modules if m.split(".")[0] in _DYNAMIC_MODULES]
+        name = node.id if isinstance(node, ast.Name) else node.attr if isinstance(node, ast.Attribute) else None
+        if name in _DYNAMIC_NAMES:
+            found.append(f"{node.lineno}: {name}")
+    return found
 
 
 class Pinned(unittest.TestCase):
@@ -213,6 +234,61 @@ class Dumps(unittest.TestCase):
         # `chat` lists no Spanish word; the Italian translation of `maison` is not read.
         self.assertEqual(tables, [{"pos": "noun", "translations": [{"sense": "Bâtiment", "word": "casa"}], "word": "maison"}])
 
+    def test_an_entry_level_table_derives_byte_for_byte_as_before(self):
+        # generalise-lingua-gloss-reducer D3: the French and Spanish Wiktionaries write their tables per
+        # entry, and es-fr's pinned derived files must re-derive to their sha256.
+        self.work.mkdir()
+        dump = self.work / "fr.jsonl.gz"
+        dump.write_bytes(self.dump(self.FR))
+        ps.derive(dump, {"t.jsonl": ("translations", "fr", "es")}, self.work)
+        self.assertEqual(
+            (self.work / "t.jsonl").read_text(encoding="utf-8"),
+            '{"pos": "noun", "translations": [{"sense": "Bâtiment", "word": "casa"}], "word": "maison"}\n',
+        )
+
+    def test_a_table_under_a_sense_is_derived_with_the_sense_it_names(self):
+        # The English Wiktionary writes its tables under its senses (68,579 English entries list
+        # Spanish translations under a sense, 5,080 for the whole entry).
+        house = {
+            "word": "house",
+            "lang_code": "en",
+            "pos": "noun",
+            "translations": [{"lang_code": "es", "word": "hogar", "sense": "home"}],
+            "senses": [
+                {
+                    "glosses": ["A structure serving as an abode of human beings."],
+                    "translations": [
+                        {"lang_code": "fr", "word": "maison", "sense": "abode of a human being"},
+                        {"lang_code": "es", "word": "casa", "sense": "abode of a human being"},
+                        {"lang_code": "es", "word": "vivienda", "sense": "abode of a human being"},
+                    ],
+                },
+                {"glosses": ["A dynasty."], "translations": [{"lang_code": "es", "word": "casa"}]},
+                {"glosses": ["An audience."]},
+            ],
+        }
+        self.work.mkdir()
+        dump = self.work / "en.jsonl.gz"
+        dump.write_bytes(self.dump([house, {"word": "home", "lang_code": "en", "pos": "noun", "senses": [{}]}]))
+        ps.derive(dump, {"en-es.jsonl": ("translations", "en", "es")}, self.work)
+        lines = (self.work / "en-es.jsonl").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(
+            [json.loads(line) for line in lines],
+            [
+                {
+                    "word": "house",
+                    "pos": "noun",
+                    "translations": [
+                        {"word": "hogar", "sense": "home"},
+                        {"word": "casa", "sense": "abode of a human being"},
+                        {"word": "vivienda", "sense": "abode of a human being"},
+                        {"word": "casa"},
+                    ],
+                }
+            ],
+            "the entry's table first, then each sense's, with the sense a table names; no French word",
+        )
+
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_update_keeps_each_derived_file_as_an_asset_of_the_snapshot(self):
         record = self.update()
@@ -274,14 +350,60 @@ class Record(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_a_shared_rule_module_is_part_of_every_pair_s_rules(self):
-        ps.record_build(self.pin, self.pack, self.reducer)
         shared = self.root / "reduce_common.py"
         shared.write_text("# shared rules\n")
-        with self.assertRaises(ps.PinError):
-            ps.check_reducer(self.pin, self.reducer)
+        self.reducer.write_text("import reduce_common  # noqa: F401\n")
         ps.record_build(self.pin, self.pack, self.reducer)
         self.assertEqual(ps.load(self.pin)["reducer"]["files"], ["reduce-en-fr.py", "reduce_common.py"])
         ps.check_reducer(self.pin, self.reducer)
+        shared.write_text("# shared rules, edited\n")
+        with self.assertRaisesRegex(ps.PinError, "reduce-en-fr.py, reduce_common.py"):
+            ps.check_reducer(self.pin, self.reducer)
+        ps.record_build(self.pin, self.pack, self.reducer)
+        ps.check_reducer(self.pin, self.reducer)
+
+    def test_a_rule_module_the_reducer_does_not_load_is_not_part_of_its_rules(self):
+        # generalise-lingua-gloss-reducer D2: the English Wiktionary's rules are no French-native
+        # pair's, so tuning them re-pins none.
+        (self.root / "reduce_common.py").write_text("# shared rules\n")
+        (self.root / "reduce_edition_fr.py").write_text("import reduce_common  # noqa: F401\n")
+        (self.root / "reduce_edition_en.py").write_text("# the English Wiktionary's rules\n")
+        self.reducer.write_text("import reduce_edition_fr  # noqa: F401\n")
+        ps.record_build(self.pin, self.pack, self.reducer)
+        self.assertEqual(
+            ps.load(self.pin)["reducer"]["files"], ["reduce-en-fr.py", "reduce_common.py", "reduce_edition_fr.py"]
+        )
+        (self.root / "reduce_edition_en.py").write_text("# the English Wiktionary's rules, tuned\n")
+        ps.check_reducer(self.pin, self.reducer)
+        (self.root / "reduce_edition_fr.py").write_text("import reduce_common  # noqa: F401\n# tuned\n")
+        with self.assertRaisesRegex(ps.PinError, "reduce_edition_fr.py"):
+            ps.check_reducer(self.pin, self.reducer)
+
+    def test_a_reducer_loading_a_module_its_record_does_not_name_fails_naming_it(self):
+        (self.root / "reduce_common.py").write_text("# shared rules\n")
+        self.reducer.write_text("import reduce_common  # noqa: F401\n")
+        ps.record_build(self.pin, self.pack, self.reducer)
+        (self.root / "reduce_edition_es.py").write_text("# the Spanish Wiktionary's rules\n")
+        self.reducer.write_text("import reduce_common  # noqa: F401\nimport reduce_edition_es  # noqa: F401\n")
+        with self.assertRaisesRegex(ps.PinError, r"loads reduce_edition_es\.py, which the rules recorded in pin\.json"):
+            ps.check_reducer(self.pin, self.reducer)
+        # Even with the digest written by hand: the record still names the files it was reduced by.
+        record = ps.load(self.pin)
+        record["reducer"]["sha256"] = ps.rules_sha256(self.reducer)
+        ps.save(self.pin, record)
+        with self.assertRaisesRegex(ps.PinError, "reduce_edition_es.py"):
+            ps.check_reducer(self.pin, self.reducer)
+
+    def test_the_caller_s_imports_are_no_rules_of_the_reducer(self):
+        # rule_files imports the reducer in an interpreter of its own: what this process has loaded
+        # (the test runner holds reduce_common from the reducers' tests) does not count.
+        (self.root / "reduce_common.py").write_text("# shared rules\n")
+        self.assertEqual(ps.rule_files(self.reducer), [self.reducer])
+
+    def test_a_reducer_that_cannot_be_imported_is_refused(self):
+        self.reducer.write_text("import reduce_missing  # noqa: F401\n")
+        with self.assertRaisesRegex(ps.PinError, "importing reduce-en-fr.py failed: .*reduce_missing"):
+            ps.rule_files(self.reducer)
 
     def test_another_pair_s_reducer_is_not_part_of_this_pair_s_rules(self):
         ps.record_build(self.pin, self.pack, self.reducer)
@@ -365,21 +487,70 @@ class Record(unittest.TestCase):
         for pin in sorted((HERE / "tables").glob("*/pin.json")):
             self.assertTrue((pin.parent / ps.PINNED_POOL).is_file(), pin.parent.name)
 
+    def test_the_pairs_glossed_in_french_read_the_french_wiktionary_s_rules_alone(self):
+        for pair in ("en-fr", "es-fr"):
+            reducer = HERE / f"reduce-{pair}.py"
+            self.assertEqual(
+                [p.name for p in ps.rule_files(reducer)],
+                [reducer.name, "reduce_common.py", "reduce_edition_fr.py"],
+                f"{pair} loads the shared rules and the French Wiktionary's, not another edition's",
+            )
+
+    def test_no_rule_module_a_reducer_imports_escapes_its_rules(self):
+        # rule_files reads sys.modules after importing the reducer; an import made later — inside a
+        # function — would escape it. Every `reduce_*` import anywhere in a reducer or in a module it
+        # loads must be one of its rule files.
+        for pin in sorted((HERE / "tables").glob("*/pin.json")):
+            reducer = HERE / f"reduce-{pin.parent.name}.py"
+            files = ps.rule_files(reducer)
+            names = {p.stem for p in files}
+            for path in files:
+                for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                    imported = [a.name for a in node.names] if isinstance(node, ast.Import) else []
+                    if isinstance(node, ast.ImportFrom) and node.module:
+                        imported = [node.module]
+                    for module in imported:
+                        if module.startswith("reduce_"):
+                            self.assertIn(module, names, f"{path.name} imports {module}, outside {reducer.name}'s rules")
+
+    def test_a_reducer_and_its_rules_load_code_by_import_statements_alone(self):
+        # The test above reads import statements: a module loaded by name or by path at run time
+        # (`importlib`, `__import__`, `exec`) would escape it, and `sys.modules` too when it runs
+        # inside a function. No reducer or rule module loads code that way, so none may.
+        modules = sorted(HERE.glob("reduce[-_]*.py"))
+        self.assertGreaterEqual(len(modules), 5)
+        for path in modules:
+            self.assertEqual(_dynamic_loads(path.read_text(encoding="utf-8")), [], path.name)
+
+    def test_a_dynamic_load_is_seen_wherever_it_sits(self):
+        # Made up: a rule module loading another edition inside a function, four ways.
+        for body in (
+            "import importlib\n    return importlib.import_module('reduce_edition_en')",
+            "from importlib import import_module\n    return import_module('reduce_edition_en')",
+            "return __import__('reduce_edition_en')",
+            "exec(open('reduce_edition_en.py').read())",
+        ):
+            self.assertNotEqual(_dynamic_loads(f"import re\n\ndef gloss():\n    {body}\n"), [], body)
+        self.assertEqual(_dynamic_loads("import re\nimport reduce_common as common\nre.compile('x')\n"), [])
+
     def test_the_committed_record_is_complete(self):
-        pin = HERE / "tables" / "en-fr" / "pin.json"
-        record = ps.load(pin)
-        self.assertRegex(record["snapshot"], r"^\d{4}\.\d{2}\.\d{2}$")
-        self.assertRegex(record["pack"]["sha256"], r"^[0-9a-f]{64}$")
-        self.assertEqual(record["reducer"]["sha256"], ps.rules_sha256(HERE / "reduce-en-fr.py"), "tables reduced by these rules")
-        self.assertEqual(record["reducer"]["files"], [p.name for p in ps.rule_files(HERE / "reduce-en-fr.py")])
-        manifest = json.loads((pin.parent / "manifest.json").read_text())
-        # The pack says which dictionary it is: the snapshot for tables an update reduced, the
-        # snapshot and the rules for tables a re-reduction made from the same sources.
-        self.assertIn(
-            manifest["meta"]["pack_version"],
-            (record["snapshot"], f"{record['snapshot']}+{record['reducer']['sha256'][:7]}"),
-            "the pack says which dictionary it is",
-        )
+        for pin in sorted((HERE / "tables").glob("*/pin.json")):
+            pair = pin.parent.name
+            record = ps.load(pin)
+            self.assertRegex(record["snapshot"], r"^\d{4}\.\d{2}\.\d{2}$", pair)
+            self.assertRegex(record["pack"]["sha256"], r"^[0-9a-f]{64}$", pair)
+            reducer = HERE / f"reduce-{pair}.py"
+            self.assertEqual(record["reducer"]["sha256"], ps.rules_sha256(reducer), f"{pair}: tables reduced by these rules")
+            self.assertEqual(record["reducer"]["files"], [p.name for p in ps.rule_files(reducer)], pair)
+            ps.check_reducer(pin, reducer)
+            manifest = json.loads((pin.parent / "manifest.json").read_text())
+            # The pack says which dictionary it is: the snapshot for tables an update reduced, the
+            # snapshot and the rules for tables a re-reduction made from the same sources.
+            self.assertIn(
+                manifest["meta"]["pack_version"],
+                (record["snapshot"], f"{record['snapshot']}+{record['reducer']['sha256'][:7]}"),
+                f"{pair}: the pack says which dictionary it is",
+            )
 
 
 if __name__ == "__main__":

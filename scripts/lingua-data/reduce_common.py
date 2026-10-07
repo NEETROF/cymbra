@@ -4,30 +4,41 @@
 # this file except in compliance with the License. You may obtain a copy of the
 # License at http://www.apache.org/licenses/LICENSE-2.0
 
-"""The reduction rules every <studied>->FR pair shares (generalise-lingua-pack-reducer).
+"""The reduction rules every pair shares (generalise-lingua-pack-reducer, generalise-lingua-gloss-reducer).
 
 A pair's reducer (`reduce-<pair>.py`) reads its own inflection and level sources; what it does
-with the French Wiktionary — cleaning a gloss, grouping its senses by part of speech, the
-expressions — and what it does with forms once it has them — one lemma per form, dense ranks,
-the words a level list adds — is the same for every studied language whose glosses are in
-French, and lives here.
+with a Wiktionary's glosses — cleaning a gloss, grouping its senses by part of speech, the
+expressions, the fallbacks on translation tables — and what it does with forms once it has them —
+one lemma per form, dense ranks, the words a level list adds — is the same for every pair, and
+lives here.
 
 What IS the studied language's is passed in as a `Studied`: which strings are words of it, how a
-French form-of gloss names its target, which conjunctions coordinate, and wordfreq's code for it.
-The rules themselves do not change with the language, and moving them here changed no English
-table (the en-fr tables reduce byte for byte as before).
+form-of gloss names its target, which conjunctions coordinate, and wordfreq's code for it.
+
+What is the Wiktionary edition's — the edition that wrote the glosses, in the reader's native
+language — is passed in as an `Edition`: which senses only point at another word, the notes and
+placeholders it writes for its own readers, the coordinators a sense can be left hanging on, a
+letter's name, and how a gloss made of translation-table words is cased. Each edition's rules are
+a module of their own (`reduce_edition_fr.py`, `reduce_edition_en.py`, `reduce_edition_es.py`),
+which a pair's reducer imports for the edition it reads. This module imports none of them: the
+rules of an edition a pair does not read are never part of its rules (pack_sources.py
+`rule_files`). Every function that cleans or classifies a gloss takes its edition by name; the
+reducers of the pairs glossed in French bind the French Wiktionary's, today's rules, unchanged.
 
 This module is part of every pair's reduction rules: its sha256 enters the rule set pinned in
-tables/<pair>/pin.json (pack_sources.py `rules`), so editing it asks for every pair to be
-reduced again.
+tables/<pair>/pin.json (pack_sources.py `rules`), beside the edition module the pair's reducer
+loads, so editing it asks for every pair to be reduced again.
 """
 
 import bisect
+import collections
 import itertools
 import json
 import os
 import re
+import unicodedata
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -36,36 +47,49 @@ class Studied:
 
     code: str  # wordfreq's language code: "en"
     token: re.Pattern  # a word of the language, whole: `token.fullmatch(w)`
-    form_of_target: re.Pattern  # the word a French form-of gloss points at ("Pluriel de datum.")
+    form_of_target: re.Pattern  # the word a form-of gloss points at ("Pluriel de datum.")
     coordinators: frozenset  # the conjunctions kaikki's `conj` means as CCONJ, not SCONJ
 
 
-# French frwiktionary "form-of" gloss templates — these mark an entry that is an
-# inflected form, not a word with a meaning of its own; never a useful translation.
-# kaikki also tags most such senses `form-of` (see `_is_form_of`); the regex catches the
-# untagged ones.
-_FORM_OF = re.compile(
-    r"^(pluriel|singulier|f[ée]minin|masculin|participe|pr[ée]t[ée]rit|pass[ée]|imparfait|"
-    r"comparatif|superlatif|g[ée]rondif|(troisi[èe]me|deuxi[èe]me|premi[èe]re) personne|"
-    r"variante|autre graphie|forme (de|du|d'|verbale|fl[ée]chie)|genre|orthographe)\b",
-    re.IGNORECASE,
-)
+@dataclass(frozen=True)
+class Edition:
+    """What the shared rules need to know about the Wiktionary edition a pair's glosses come from.
+
+    The edition is the reader's native language: its glosses are written in it, by people
+    (lingua-data-packs, *A gloss is in the reader's language, written by a person*). Its rules say
+    what in a sense is no meaning — a pointer to another word, a note to the wiki's own readers, a
+    letter's name — and how a gloss made of translation-table words reads. None of them depends on
+    the studied language. The instances are the `reduce_edition_*.py` modules'.
+    """
+
+    code: str  # the edition's language, the pack's native language: "fr"; wordfreq's code for it
+    form_of: re.Pattern  # an untagged sense that only points at another word ("Pluriel de datum.")
+    mwe_form_of: Optional[re.Pattern] = None  # more pointer wordings, read for multi-word headwords only
+    pointer_tags: frozenset = frozenset({"form-of"})  # kaikki's tags of a sense that points
+    pointer_fields: tuple = ("form_of",)  # the sense fields naming the word a sense points at
+    notes: Optional[re.Pattern] = None  # what the wiki writes for its own readers, taken out wherever it sits
+    letter: Optional[re.Pattern] = None  # a sense naming a letter ("Nom de la lettre d.")
+    dangling: Optional[re.Pattern] = None  # a coordinator a sense is left opening on, taken out
+    capitalised: bool = True  # a gloss of translation-table words opens on a capital, as the edition's own
+    long_parenthesis: int = 0  # a parenthesis whose text runs this long or longer goes (M20); 0 keeps all
 
 
-# Four more pointer wordings, applied in the MULTI-WORD path ONLY: "Présent progressif.",
-# "Graphie alternative de douchebag." name a tense or a spelling, not a meaning. They are
-# not in `_FORM_OF` because that regex also feeds forms.tsv, freq.tsv and gloss.tsv, which
-# this pair's single-word tables must keep producing byte for byte; the eight senses it
-# would cost there are not worth the risk.
-_MWE_FORM_OF = re.compile(r"^(pr[ée]sent|futur|conjugaison|graphie)\b", re.IGNORECASE)
+def _pointers(sense, edition):
+    """The words a sense points at, in the fields the edition names them in (`form_of`, `alt_of`)."""
+    return [ref for field in edition.pointer_fields for ref in sense.get(field) or ()]
 
 
-def _is_form_of(sense, gloss):
-    """Whether a kaikki sense only points at another word ("Pluriel de …", "Passé de …")."""
-    return "form-of" in (sense.get("tags") or ()) or bool(sense.get("form_of")) or bool(_FORM_OF.match(gloss))
+def _is_form_of(sense, gloss, *, edition):
+    """Whether a kaikki sense only points at another word ("Pluriel de …", "plural of …"): tagged as
+    such, naming the word in a pointer field, or worded as the edition words a pointer."""
+    return (
+        not edition.pointer_tags.isdisjoint(sense.get("tags") or ())
+        or any(sense.get(field) for field in edition.pointer_fields)
+        or bool(edition.form_of.match(gloss))
+    )
 
 
-def wiktionary_signals(path, words, *, studied):
+def wiktionary_signals(path, words, *, studied, edition):
     """For the given words: the parts of speech they have a meaning under, and their form-of targets.
 
     A sense is a meaning when its gloss says what the word means ("Beurre."), not which
@@ -87,11 +111,11 @@ def wiktionary_signals(path, words, *, studied):
                 gloss = gg[0].strip() if gg else ""
                 if not gloss:
                     continue
-                if _is_form_of(sense, gloss):
+                if _is_form_of(sense, gloss, edition=edition):
                     found = {t.lower() for t in studied.form_of_target.findall(gloss)}
                     found |= {
                         (ref.get("word") or "").strip().lower()
-                        for ref in sense.get("form_of") or ()
+                        for ref in _pointers(sense, edition)
                         if isinstance(ref, dict)
                     }
                     found.discard("")
@@ -230,40 +254,30 @@ def resolve_forms(pairs, ranks, targets=None, glossed=frozenset()):
     }
 
 
-# A sense left hanging on a coordinator: the Wiktionary line read "(Vieilli) ou Pluie" and
-# the parenthetical went, so the gloss opens on "ou". LOWERCASE only — `etcetera` is glossed
-# "Et cetera", where the coordinator IS the translation, and a capital is what tells them
-# apart across the 15 entries the corpus holds.
-_DANGLING_COORDINATOR = re.compile(r"^(?:ou|et)\s+")
+def strip_wiki_notes(text, *, edition):
+    """`text` without the notes the edition writes for its own readers (`Edition.notes`): the French
+    Wiktionary's pointers and placeholders, the Spanish one's sense-link subscripts."""
+    return edition.notes.sub("", text) if edition.notes is not None else text
 
 
-# What the Wiktionary writes for its own readers, not a translation: a pointer to another page
-# ("Y avoir. → voir there be", "(→ voir bone marrow)", "(→ Comparer avec -ative)") — a link on the
-# wiki, dead text on a card — and the placeholders of an unfinished page ("Définition manquante ou
-# à compléter. (Ajouter)", an invitation to contributors), wherever they sit in the sense.
-_WIKI_NOTES = re.compile(
-    r"\s*\(→[^)]*\)"
-    r"|\s*→\s*(?:voir|comparer)\b[^;]*"
-    r"|\s*\(?Définition manquante ou à co.*?(?:\(Ajouter\)\)?|$)[.…]*"
-    r"|\s*Étymologie manquante ou incomplète.*?(?:cliquant ici\.|$)",
-    re.IGNORECASE,
-)
+def _long_parenthesis(length):
+    """A parenthesis whose text runs `length` characters or more, with the space before it."""
+    return re.compile(r"\s*\([^()]{%d,}\)" % length)
 
 
-def strip_wiki_notes(text):
-    """`text` without the Wiktionary's pointers and placeholders (`_WIKI_NOTES`)."""
-    return _WIKI_NOTES.sub("", text)
-
-
-def clean_gloss(text, maxlen, whole_words=False):
-    """A sense, tidied and held within `maxlen` characters.
+def clean_gloss(text, maxlen, whole_words=False, *, edition):
+    """A sense, tidied by the rules of the edition that wrote it and held within `maxlen` characters.
 
     The expressions keep the plain cut. A word's senses (`whole_words`) are cut at a word
     boundary and end with an ellipsis (`cut_at_word`), since the word card shows them in full.
     A sense that is nothing but a pointer or a placeholder comes out empty, and is left out.
     """
-    g = re.sub(r"\s+", " ", strip_wiki_notes(text)).strip(" ;,").rstrip(".:").strip()
-    g = _DANGLING_COORDINATOR.sub("", g)
+    text = strip_wiki_notes(text, edition=edition)
+    if edition.long_parenthesis:
+        text = _long_parenthesis(edition.long_parenthesis).sub("", text)
+    g = re.sub(r"\s+", " ", text).strip(" ;,").rstrip(".:").strip()
+    if edition.dangling is not None:
+        g = edition.dangling.sub("", g)
     if len(g) > maxlen:
         g = cut_at_word(g, maxlen) if whole_words else g[:maxlen].rstrip()
     return g
@@ -403,7 +417,7 @@ def _acronym(headword):
     return len(headword) > 1 and headword.isupper()
 
 
-def _read_entries(path, words, per_sense, pointers=None, *, studied):
+def _read_entries(path, words, per_sense, pointers=None, *, studied, edition):
     """The glossed kaikki entries of `words`: word -> [(an acronym's entry, part of speech, [gloss])].
 
     With `pointers`, also the words a word's form-of senses point at, with the part of speech of
@@ -426,12 +440,12 @@ def _read_entries(path, words, per_sense, pointers=None, *, studied):
                 gg = sense.get("glosses") or []
                 if not gg:
                     continue
-                if not _is_form_of(sense, gg[0].strip()):
-                    g = clean_gloss(gg[0], per_sense, whole_words=True)
+                if not _is_form_of(sense, gg[0].strip(), edition=edition):
+                    g = clean_gloss(gg[0], per_sense, whole_words=True, edition=edition)
                     if g:
                         senses.append(g)
                 elif pointers is not None:
-                    for target in sense.get("form_of") or []:
+                    for target in _pointers(sense, edition):
                         base = (target.get("word") or "").strip().lower()
                         if len(base) >= _MIN_BASE and base != word and (base, pos) not in pointers.get(word, []):
                             pointers.setdefault(word, []).append((base, pos))
@@ -445,8 +459,8 @@ def _read_entries(path, words, per_sense, pointers=None, *, studied):
 _MIN_BASE = 3
 
 
-def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None, *, studied):
-    """Up to `max_senses` short French glosses per canonical lemma, joined by "; ".
+def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None, *, studied, edition):
+    """Up to `max_senses` short glosses per canonical lemma, in the edition's language, joined by "; ".
 
     Form-of senses ("Pluriel de …") are skipped — they are not meanings. An acronym's
     entries do not gloss the common word spelled like it in lower case when that word has an
@@ -463,7 +477,7 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None, *,
     them; a base in another part of speech lends nothing ("hearted" is no form of the noun "heart").
     """
     pointers = {}
-    entries = _read_entries(path, lemmas, per_sense, pointers, studied=studied)
+    entries = _read_entries(path, lemmas, per_sense, pointers, studied=studied, edition=edition)
     glosses = {}
 
     def gloss(word, found):
@@ -479,7 +493,7 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None, *,
         gloss(word, found)
     borrowing = {word: bases for word, bases in pointers.items() if word not in glosses}
     lenders = _read_entries(
-        path, {base for bases in borrowing.values() for base, _ in bases}, per_sense, studied=studied
+        path, {base for bases in borrowing.values() for base, _ in bases}, per_sense, studied=studied, edition=edition
     )
     for word, bases in borrowing.items():
         for base, pos in bases:
@@ -490,8 +504,8 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None, *,
     return glosses
 
 
-def reduce_expressions(path, maxlen, per_sense=42, max_senses=3, *, studied):
-    """Up to `max_senses` short French glosses per MULTI-WORD headword ("give up").
+def reduce_expressions(path, maxlen, per_sense=42, max_senses=3, *, studied, edition):
+    """Up to `max_senses` short glosses per MULTI-WORD headword ("give up"), in the edition's language.
 
     `reduce_gloss`'s reduction over the entries it can never reach: it is scoped to the
     kept lemmas, a lemma is one word, so the 33 404 multi-word entries of the source were
@@ -518,9 +532,11 @@ def reduce_expressions(path, maxlen, per_sense=42, max_senses=3, *, studied):
             for sense in d.get("senses", []):
                 gg = sense.get("glosses") or []
                 gloss = gg[0].strip() if gg else ""
-                if not gloss or _is_form_of(sense, gloss) or _MWE_FORM_OF.match(gloss):
+                if not gloss or _is_form_of(sense, gloss, edition=edition):
                     continue
-                g = clean_gloss(gloss, per_sense)
+                if edition.mwe_form_of is not None and edition.mwe_form_of.match(gloss):
+                    continue
+                g = clean_gloss(gloss, per_sense, edition=edition)
                 if g:
                     senses.append(g)
             if senses:
@@ -551,3 +567,169 @@ def reduce_levels(cefr, lemmas):
 def write(work, name, text):
     with open(os.path.join(work, name), "w", encoding="utf-8") as f:
         f.write(text)
+
+
+# — The native side: the glosses' fallbacks on translation tables (add-lingua-spanish-gloss-tables) —
+#
+# The edition's own entries of the studied language gloss a word or an expression first
+# (`reduce_gloss`, `reduce_expressions`). Where they say nothing, the glosses fall back on
+# translations people wrote: the native words an edition of the studied language lists for a studied
+# entry, then the native entries whose translation tables list it. A table qualifies only when it
+# pairs the studied and the native language directly: a gloss is never in the studied language,
+# never in a third language, never machine-translated and never pivoted through a third language
+# (lingua-data-packs, *A gloss is in the reader's language, written by a person*).
+
+# A word's gloss is paged on its card (add-lingua-word-grammar): eight whole senses.
+WORD_GLOSS = {"maxlen": 800, "per_sense": 300, "max_senses": 8}
+EXPRESSION_GLOSS_LEN = 80
+# Native words a fallback gloss keeps per part of speech.
+FALLBACK_WORDS = 3
+
+
+def without_letter_senses(src, dst, *, edition):
+    """An edition's entries without their letters, written to `dst` for the gloss reduction
+    (fix-lingua-spanish-card-noise D2): an entry of the `character` part of speech, and a sense naming
+    a letter (`Edition.letter`). The card of `a` opened on « Première lettre et première voyelle de
+    l'alphabet espagnol » before « À ». An entry left with no sense goes."""
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if entry.get("pos") == "character":
+                continue
+            senses = entry.get("senses") or []
+            kept = [s for s in senses if not _names_a_letter(s, edition)]
+            if len(kept) == len(senses):
+                out.write(line if line.endswith("\n") else line + "\n")
+            elif kept:
+                out.write(json.dumps({**entry, "senses": kept}, ensure_ascii=False) + "\n")
+    return dst
+
+
+def _names_a_letter(sense, edition):
+    return edition.letter is not None and any(edition.letter.search(g) for g in sense.get("glosses") or ())
+
+
+def studied_headword(text, *, studied):
+    """A studied headword as the pack keys it — lowercase, NFC, single spaces — or None when it is
+    not words of the studied language."""
+    word = re.sub(r"\s+", " ", unicodedata.normalize("NFC", (text or "").strip().lower()))
+    return word if word and all(studied.token.fullmatch(part) for part in word.split(" ")) else None
+
+
+def native_words(text):
+    """A translation, tidied: its separators stay out of the gloss's own (`;`)."""
+    return re.sub(r"\s+", " ", (text or "").replace(";", ",")).strip(" ,")
+
+
+def read_translations(path, *, inverted, studied):
+    """What a translation file (`pack_sources.derive`) says of studied words: word → {UPOS: [native
+    word, …]}, in the file's order.
+
+    Direct (an edition's studied entries): a studied entry's native translations. Inverted (the
+    native edition's own entries): a native entry is a native word for each studied word its table
+    lists. A proper noun's entry glosses nothing: a place or a first name translated is itself
+    (`alcalá de la vega`, `celina` « Céline »).
+    """
+    out = collections.defaultdict(lambda: collections.defaultdict(list))
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if entry.get("pos") == "name":
+                continue
+            for listed in entry.get("translations") or ():
+                ends = (listed.get("word"), entry.get("word")) if inverted else (entry.get("word"), listed.get("word"))
+                word, native = studied_headword(ends[0], studied=studied), native_words(ends[1])
+                if not word or not native:
+                    continue
+                upos = kaikki_upos(entry.get("pos") or "", word, studied=studied)
+                if native not in out[word][upos]:
+                    out[word][upos].append(native)
+    return out
+
+
+def translation_gloss(by_pos, order, *, edition):
+    """A gloss from translations: per part of speech, up to `FALLBACK_WORDS` native words in `order`,
+    as one sense — `(gloss, runs)`, the runs `[(UPOS, 1), …]`. It opens on a capital when the
+    edition's own senses do (`Edition.capitalised`), and keeps the case its words have otherwise."""
+    senses, runs = [], []
+    for upos, words in by_pos.items():
+        kept = order(words)[:FALLBACK_WORDS]
+        if kept:
+            text = ", ".join(kept)
+            senses.append(text[:1].upper() + text[1:] if edition.capitalised else text)
+            runs.append((upos, 1))
+    return "; ".join(senses), runs
+
+
+def fallback_glosses(lemmas, glossed, sources, *, edition):
+    """Glosses for the lemmas the edition's own entries leave out, from each `(source, order)` in
+    turn: `lemma → (gloss, runs)`."""
+    out = {}
+    for lemma in sorted(set(lemmas) - set(glossed)):
+        for source, order in sources:
+            by_pos = source.get(lemma)
+            if by_pos:
+                gloss, runs = translation_gloss(by_pos, order, edition=edition)
+                if gloss:
+                    out[lemma] = (gloss, runs)
+                    break
+    return out
+
+
+def fallback_expressions(expressions, sources, *, edition):
+    """Glosses for the multi-word headwords the edition's own entries do not gloss, from each
+    `(source, order)` in turn: `expression → gloss`. An expression's gloss has no runs, so its parts
+    of speech are one."""
+    out = {}
+    for source, order in sources:
+        for headword, by_pos in source.items():
+            if " " not in headword or headword in expressions or headword in out:
+                continue
+            words = []
+            for found in by_pos.values():
+                words.extend(w for w in found if w not in words)
+            gloss, _ = translation_gloss({"X": words}, order, edition=edition)
+            if gloss:
+                out[headword] = gloss
+    return out
+
+
+def by_native_frequency(frequency):
+    """The order of an inverted table's native words: the commonest first, then alphabetical."""
+    return lambda words: sorted(words, key=lambda w: (-frequency(w), w))
+
+
+def native_tables(
+    entries,
+    lemmas,
+    *,
+    studied,
+    edition,
+    fallbacks=(),
+    locutions=None,
+    word_gloss=None,
+    expression_len=EXPRESSION_GLOSS_LEN,
+):
+    """A pair's native side: `(glosses, runs, expressions, primary)`.
+
+    The edition's own entries of the studied language (`entries`) gloss `lemmas` (`word_gloss`, by
+    default `WORD_GLOSS`) and the multi-word headwords; each `(source, order)` of `fallbacks`, in
+    turn, glosses what they leave out; the `locutions` a person wrote win over every source.
+    `primary` counts the glosses the edition's entries gave.
+    """
+    runs = {}
+    word_gloss = word_gloss or WORD_GLOSS
+    glosses = reduce_gloss(entries, set(lemmas), **word_gloss, runs=runs, studied=studied, edition=edition)
+    expressions = reduce_expressions(entries, expression_len, studied=studied, edition=edition)
+    primary = len(glosses)
+    for lemma, (gloss, gloss_runs) in fallback_glosses(lemmas, glosses, fallbacks, edition=edition).items():
+        glosses[lemma], runs[lemma] = gloss, gloss_runs
+    expressions.update(fallback_expressions(expressions, fallbacks, edition=edition))
+    expressions.update(locutions or {})
+    return glosses, runs, expressions, primary
