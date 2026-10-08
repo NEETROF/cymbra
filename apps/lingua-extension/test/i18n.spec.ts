@@ -10,6 +10,7 @@ import {
   formatDate,
   formatNumber,
   formatPercent,
+  type GrammarRenderer,
   INTERFACE_LANGUAGE_KEY,
   type InterfaceLanguage,
   interfaceLanguage,
@@ -470,23 +471,21 @@ const SAME_EVERYWHERE = new Set([
   "/",
   "; ",
   " · ",
-  ", ",
-  " + ",
   "This is how your pages will sound when Lingua reads them aloud.",
   "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
 ]);
 
 /** Texts a language happens to share with the French, and no other. */
 const SAME_AS_FRENCH: Record<"en" | "es", Set<string>> = {
-  en: new Set(["Email", "Option", "Double", "+ Deck", "interjection"]),
-  es: new Set(["la"]),
+  en: new Set(["Email", "Option", "Double", "+ Deck"]),
+  es: new Set(),
 };
 
 /** Slot messages whose text is only their parts and a symbol — the same shape in every language. */
-const SAME_SHAPE_EVERYWHERE = new Set(["@α", "▶ α", "α → β", "α / β", `≈${NBSP}α`, "α…", "α β", "α β γ", "α — β"]);
+const SAME_SHAPE_EVERYWHERE = new Set(["@α", "▶ α", "α → β", "α / β", `≈${NBSP}α`, "α…", "α — β"]);
 const SAME_SHAPE_AS_FRENCH: Record<"en" | "es", Set<string>> = {
   en: new Set(),
-  es: new Set(["de α"]),
+  es: new Set(),
 };
 
 /**
@@ -548,6 +547,12 @@ function shape(value: unknown): unknown {
   return typeof value;
 }
 
+/**
+ * The surfaces whose modules are texts. `grammar` is a renderer, not texts
+ * (generalise-lingua-card-wording D2): it is checked as one below.
+ */
+const TEXT_SURFACES = SURFACES.filter((surface) => surface !== "grammar");
+
 describe("the drafts are whole", () => {
   it("has a module for every surface in every language, and no other", () => {
     for (const language of ["fr", "en", "es"] as const) {
@@ -559,7 +564,7 @@ describe("the drafts are whole", () => {
     }
   });
 
-  for (const surface of SURFACES) {
+  for (const surface of TEXT_SURFACES) {
     describe(surface, () => {
       const fr = catalogue("fr", surface);
 
@@ -596,7 +601,7 @@ describe("the drafts are whole", () => {
 
   it("the lists of texts that are the same everywhere name only texts that are", () => {
     const equal = { en: new Set<string>(), es: new Set<string>() };
-    for (const surface of SURFACES) {
+    for (const surface of TEXT_SURFACES) {
       const fr = catalogue("fr", surface);
       const slots = slotsOf(fr, surface);
       const source = new Map(texts(fr, surface, slots).map((t) => [t.path, t.text]));
@@ -654,4 +659,48 @@ describe("the drafts are whole", () => {
     const draft: typeof frPopup = incomplete;
     expect(draft).toBeDefined();
   });
+});
+
+describe("the grammar modules are renderers (generalise-lingua-card-wording D2)", () => {
+  type Tag = { pos: string; features?: Record<string, string> };
+  const PAST: Tag = { pos: "VERB", features: { Mood: "Ind", Tense: "Past", VerbForm: "Fin" } };
+  const THIRD = { pos: "VERB", features: { Mood: "Ind", Number: "Sing", Person: "3", Tense: "Pres", VerbForm: "Fin" } };
+  const grammarOf = (readings: Tag[], others: { lemma: string; readings: Tag[] }[] = []) => ({
+    gloss: null,
+    senses: [],
+    readings,
+    others,
+    pieces: [],
+  });
+  const fr = catalogue("fr", "grammar") as unknown as GrammarRenderer;
+
+  for (const language of ["en", "es"] as const) {
+    it(`${language} says what the French says, in other words`, () => {
+      const draft = catalogue(language, "grammar") as unknown as GrammarRenderer;
+      for (const tag of [PAST, THIRD, { pos: "NOUN", features: { Number: "Plur" } }]) {
+        const [french, said] = [fr.readingName(tag), draft.readingName(tag)];
+        expect(said?.name.trim(), JSON.stringify(tag)).toBeTruthy();
+        expect(said?.name).not.toBe(french?.name);
+      }
+      for (const tag of [{ pos: "NOUN", features: { Gender: "Fem" } }, { pos: "VERB" }]) {
+        expect(draft.senseHeading(tag)).toBeTruthy();
+        expect(draft.senseHeading(tag)).not.toBe(fr.senseHeading(tag));
+      }
+      const inputs: [ReturnType<typeof grammarOf>, string, string][] = [
+        [grammarOf([PAST]), "go", "went"],
+        [grammarOf([PAST]), "put", "put"],
+        [
+          grammarOf([THIRD], [{ lemma: "leaf", readings: [{ pos: "NOUN", features: { Number: "Plur" } }] }]),
+          "leave",
+          "leaves",
+        ],
+      ];
+      for (const [grammar, headword, surface] of inputs) {
+        const said = draft.grammarLines(grammar, headword, surface, surface).map(draft.lineText);
+        const french = fr.grammarLines(grammar, headword, surface, surface).map(fr.lineText);
+        expect(said).toHaveLength(french.length);
+        said.forEach((line, i) => expect(line).not.toBe(french[i]));
+      }
+    });
+  }
 });
