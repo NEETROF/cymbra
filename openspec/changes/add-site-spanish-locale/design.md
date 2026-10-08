@@ -11,8 +11,9 @@ See proposal.md (Why). What exists:
 | `src/layouts/Legal.astro` | passes `title` and `lang` only: every Markdown page's switch and `hreflang` point at `/` and `/en/` |
 | Pages | 12 French, 12 English twins: `cgu`↔`en/terms`, `confidentialite`↔`en/privacy`, `suppression-compte`↔`en/delete-account`, `support`; no Spanish |
 | `src/lib/i18n.ts` | `type Lang = "fr" \| "en"`, 94 keys each, `t()`, `formatDate` `fr-FR`/`en-US`; islands (`SignInForm`, `DeleteAccountIsland`, …) take `lang` |
-| `packages/web-auth` | Apple's SDK locale map `{en: en_US, fr: fr_FR}`; `appleReturnUrl` strips an `/en` prefix |
-| `src/lib/pinned-routes.ts` | the single list of routes clients use, read by `yarn check:routes`; Music's legal pages, account and billing; none of Lingua's |
+| `packages/web-auth/src/apple.ts` | Apple's SDK locale map `{en: en_US, fr: fr_FR}` |
+| `apps/site/src/lib/plan-view.ts` | `appleReturnUrl` strips an `/en` prefix (`SignInForm.vue` always sends it when an Apple client id is set); `.env.example` and the README list `/redeem` and `/account` as registered Return URLs |
+| `src/lib/pinned-routes.ts` | the single list of routes clients use, read by `yarn check:routes`; Music's legal pages, account and billing, `/en/delete-account/` (Play, Apple); not `/suppression-compte/` nor `/lingua/`, although Lingua's `flow.ts` and its listings' Homepage and Marketing URL point at them (`README.md` says the former is unpinned because nothing points at it — stale) |
 | `test/post-build/pinned-routes.spec.ts` | every pinned route built; 404 pages `404.html` and `en/404.html` |
 | Cloudflare Pages | serves the nearest `404.html`: without `es/404.html`, an unknown `/es/…` path answers in French |
 | `apps/lingua-extension/src/account/flow.ts` | `deleteAccountUrl`: French page for French, English otherwise (change 17 keys it on the interface language) |
@@ -39,24 +40,34 @@ See proposal.md (Why). What exists:
 ### D2 — `alternates`, one prop for every page
 
 `Base.astro` takes `alternates: Partial<Record<"fr"|"en"|"es", string>>` in place of `frHref`/
-`enHref`; the switch lists the page's other languages; `hreflang` names each alternate and
-`x-default` the English one when it exists, else the French one; the nav and footer come from one
-table per language. `Legal.astro` takes and forwards `alternates` from each Markdown page's front
-matter. Pages that exist in one language pass that one.
+`enHref`; the switch lists the page's other languages; `hreflang` names each alternate (no
+`x-default`: the site has none today, and choosing one is the owner's); the nav and footer come from
+one table per language. The Spanish table links the Spanish pages and, where a page has no Spanish
+twin (home, Music, Lingua, account, code), its English page; the brand links `/en/`. `Legal.astro`
+takes and forwards `alternates` from each Markdown page's front matter, labels `es` « Última
+actualización », and passes each page's `description`. Pages that exist in one language pass that
+one.
 
 ### D3 — The islands
 
 `Lang = "fr" | "en" | "es"`; `es` typed `typeof fr`; `formatDate` adds `es-ES`; Apple's SDK
-locale `es_ES`; `appleReturnUrl` strips a `/es` prefix as it strips `/en`. Only the islands the
+locale `es_ES` (`packages/web-auth/src/apple.ts`); `appleReturnUrl` (`apps/site/src/lib/plan-view.ts`)
+strips a `/es` prefix as it strips `/en`, so `/es/eliminar-cuenta/` sends
+`https://cymbra.app/eliminar-cuenta`, which the owner registers. Only the islands the
 Spanish pages mount must work in Spanish (the deletion island and its sign-in); the dictionary is
 complete anyway, as its type demands.
 
 ### D4 — Pins and the extension's link
 
-`pinned-routes.ts` gains `/suppression-compte/` and `/en/delete-account/` (pinned by Lingua's
-shipped `flow.ts`), and `/es/eliminar-cuenta/` once the extension links it — in this change:
-`deleteAccountUrl` answers `/es/eliminar-cuenta/` for a Spanish interface. An extension release
-carrying it ships after the site is deployed (D5).
+`pinned-routes.ts` gains `/suppression-compte/` (Lingua's shipped `flow.ts`, the App Review notes)
+and `/lingua/` (the listings' Homepage and Marketing URL); `/en/delete-account/`, pinned already,
+names Lingua in its `pinnedBy`; `/es/eliminar-cuenta/` joins with the extension's link, `pinnedBy`
+« Lingua — deletion link, Spanish interface ». The README's stale sentence goes. The link: after
+change 17's `deleteAccountUrl(interfaceLanguage)` has merged, it answers `/es/eliminar-cuenta/` for a
+Spanish interface (in `account/flow.ts`, or `account/locale.ts` if change 17 moved it). An extension
+release carrying it ships after the site is deployed (D5). The not-found page of `/es/` is required by
+the open `site-client-route-contract` (*An unmatched path SHALL NOT serve the home page*, in the
+locale of the requested path); D1's copy satisfies it.
 
 ### D5 — Deploy order (owner)
 

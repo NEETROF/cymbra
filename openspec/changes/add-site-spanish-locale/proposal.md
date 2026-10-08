@@ -23,16 +23,16 @@ switch and `hreflang` point at `/` and `/en/`.
   Lingua page in Spanish is change 30's (it is built once a pair glossed in Spanish ships).
 - **Pages that know their translations**: the layout takes `alternates` — the page's address in
   each language it exists in — for its language switch (every other language the page exists in)
-  and its `hreflang` (each alternate, and `x-default` pointing at the English page when there is
-  one, the French one otherwise); the legal layout forwards them, which fixes the French and
+  and its `hreflang` (each alternate); the legal layout forwards them, which fixes the French and
   English legal pages' switch and `hreflang`.
 - **The islands in Spanish**: `Lang` gains `es`, the dictionary's Spanish entries typed after the
   French (the 94 keys), dates in `es-ES`, Apple's sign-in locale `es_ES`, and the Apple return
   address recognising `/es/`.
-- **The routes pinned** that shipped clients already use and the list omits — Lingua's
-  `/suppression-compte/` and `/en/delete-account/` — and the Spanish deletion page once the
-  extension links it: the extension's deletion link for a Spanish interface becomes
-  `/es/eliminar-cuenta/` (change 17 sends it to the English page until this page exists).
+- **The routes pinned** that shipped clients and listings already use and the list omits —
+  Lingua's `/suppression-compte/` and `/lingua/` (`/en/delete-account/`, pinned already, names Lingua
+  too) — and the Spanish deletion page once the extension links it: after change 17's
+  implementation, the extension's deletion link for a Spanish interface becomes `/es/eliminar-cuenta/`
+  (change 17 sends it to the English page until this page exists).
 - **Drafts for the owner**: the Spanish legal texts are translations of the French ones, for the
   owner's review (M9), who may also want them read by counsel before they are published.
 
@@ -47,8 +47,10 @@ switch and `hreflang` point at `/` and `/en/`.
 
 - `lingua-privacy`: MODIFIED *Cymbra account deletion is reachable from Lingua* (held by no open
   change): the link follows the interface language — the French page for French, the Spanish page
-  for Spanish, the English page otherwise; every scenario kept, one added. Archived after change 17,
-  which moves the link from the browser's language to the interface language.
+  for Spanish, the English page otherwise; every scenario kept, one added.
+- `lingua-interface-language`: MODIFIED *The account's e-mails follow the interface language*
+  (change 17's, so this change is archived after it): its scenario *A Spanish-native reader* now opens
+  the Spanish deletion page; every other scenario verbatim.
 
 ## Impact
 
@@ -58,7 +60,7 @@ switch and `hreflang` point at `/` and `/en/`.
 - **Visible for French and English visitors**: the legal pages' language switch now opens the same
   page in the other language instead of the home page.
 - **The owner deploys the site** (`site-deploy`, manual) before any release of the extension or
-  of Cymbra ID that links a Spanish page (M18); and registers the Spanish deletion page with Apple's
-  Services ID if its sign-in returns through Apple's return address.
+  of Cymbra ID that links a Spanish page (M18), and registers on Apple's Services ID the Return URL
+  the Spanish deletion page sends (`https://cymbra.app/eliminar-cuenta`).
 - **Not here.** `/es/lingua` (30); the Lingua annex's update (31); the e-mails' links (32); a
   Spanish home page, account, code redemption or checkout pages (beyond M11).
