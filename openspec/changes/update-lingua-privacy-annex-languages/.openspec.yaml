@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-10-08
+archiveAfter:
+  - add-site-spanish-locale
+  - add-lingua-native-language-sync-client
