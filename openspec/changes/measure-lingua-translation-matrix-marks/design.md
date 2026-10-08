@@ -6,7 +6,7 @@ See proposal.md (Why). What exists:
 
 | Where | What |
 |---|---|
-| `tool/measure_marks.mjs` | `--pair`, `--models <dir>`, `--limit`; throws without `catalogue.routes[pair]`; per selection: the sentence translated with `markSelection`, read back with `readMarked`, reconciled against the fragment translated alone (`reconcileMarks`); a French `STOP` set; the result key `french`; a gloss experiment reading `tables/<studied>/forms.tsv` and `tables/<pair>/gloss.tsv` unconditionally; no trap handling (a `RuntimeError` exits 1) |
+| `tool/measure_marks.mjs` | `--pair`, optional `--models <dir>`; throws without `catalogue.routes[pair]`; per selection: the sentence translated with `markSelection`, read back with `readMarked`, reconciled against the fragment translated alone (`reconcileMarks`); a French `STOP` set; the result key `french`; a gloss experiment reading `tables/<studied>/forms.tsv` and `tables/<pair>/gloss.tsv` unconditionally; no trap handling (a `RuntimeError` exits 1) |
 | `tool/marks/` | `corpus.json` (100 en and 100 es selections from PUD, the rule in `select_corpus.mjs`), `pud.mjs` (pinned by commit and sha256), `engine.mjs` (loads the pinned engine and the models, every file checked against the catalogue), `tier.mjs` (`firstTier`: correct/shown ≥ 0.9 and withheld/total ≤ 0.25; `judgedCounts` reads the `engine` column), `results-{en-fr,es-fr}.jsonl`, `judged-{en-fr,es-fr}.tsv` (`k id word upos engine_marks engine engine_reason gloss_marks gloss gloss_reason`), `README.md` (criteria: correct = the marks cover the French rendering of the selected word; figures en-fr 96/97, 3 % withheld; es-fr 89/90, 10 %) |
 | `src/translate/markup.ts` | `MARKED_PAIRS = ["en-fr", "es-fr"]`; `relay.ts` sends a pair outside it untagged |
 | `test/translate-marks.spec.ts` | the harness names `--pair` and `results-${pair}.jsonl`; each marked pair's results and judged totals equal its corpus; `MARKED_PAIRS` equals en-fr and es-fr, each first tier; es-en and en-es have no judged file |
@@ -34,17 +34,25 @@ See proposal.md (Why). What exists:
 The harness reads the pair's native language from the route's last model and picks its stop
 words: the French set as today, an English set and a Spanish set of function words (articles,
 prepositions, conjunctions, pronouns, auxiliaries), each a constant in `tool/marks/stop-words.mjs`
-with a test that it holds no content word of the corpus's selections. The translated sentence's
+with a test that it holds no content word of its own language from the committed tables. The translated sentence's
 key becomes `translation`; en-fr's and es-fr's committed results are rewritten with the key
-renamed, every value byte for byte — a test compares their values with the previous file's.
+renamed, every value byte for byte — checked once in the pull request: `git diff --word-diff` of
+each file shows only `french` → `translation`, the key in its place.
 
-### D2 — A trap answered as the channel answers it
+### D2 — A trap answered as the extension answers it, per request
 
-`translate` that throws a trap (`isTrap`, change 9) closes the engine; the harness starts it again
-and asks the same selection once more. A second trap records the selection with `trapped: true`, no
-translation and no mark, and the run goes on. The tier counts a trapped selection as withheld:
-the reader would get no mark (nor any translation), and the withheld rate is the conservative
-place for it. The README lists the trapped ids beside the soak's (change 25).
+The channel of change 9 retries per request, and a selection costs two: the sentence with its
+selection tagged, then the fragment alone (`relay.ts`). Each request that traps (`isTrap`) is asked
+once more on a fresh engine — `engine()` called again: `loadBergamot` keeps its state per call, so
+a new instance is clean. A sentence that traps twice is recorded `trapped: true`, with no
+translation and no mark; a fragment that traps twice leaves the sentence's tagged marks
+unreconciled, as `relay.ts` shows them. A trapped selection's row in `judged-<pair>.tsv` reads
+`withheld` in the `engine` column and `trapped twice` in `engine_reason`, so `judgedCounts` counts
+it as withheld, unchanged. The per-selection loop moves into `tool/marks/measure.mjs`, a function
+that takes the engine factory, tested with a fake engine that traps; `measure_marks.mjs` keeps
+`--pair`, `catalogue.routes[pair]` and `results-${pair}.jsonl`, which `test/translate-marks.spec.ts`
+reads. The README lists the trapped ids, and `TRANSLATION.md`, where change 25 recorded the soak,
+points to them.
 
 ### D3 — The gloss experiment fills in when the pair's table exists
 
@@ -55,19 +63,23 @@ column only, as today.
 
 ### D4 — Judging, fixed before the run
 
-The criteria are written in the README before any result is read: a mark is correct when it
-covers the rendering, in the pair's native language, of the selected word or phrase — in English
-for es-en, in Spanish for en-es — wrong when it covers another word, and withheld when the
-sentence carries no mark. One judge reads both pairs, as the shipped pairs were judged; a
+The README's criteria are kept word for word — the article, preposition or auxiliary may be
+included, marks may be split, an expression's rendering counts, only a function word or only part
+of a compound is wrong, and a mark on a word the translation omitted is wrong — « the French
+rendering » becoming « the rendering in the pair's native language » (English for es-en, Spanish
+for en-es), with an English and a Spanish example beside the French ones; they are committed
+before any result is read. One judge reads both pairs, as the shipped pairs were judged; a
 doubtful line is marked as such in `engine_reason`. The owner may re-judge any line in the pull
 request; the figures are recomputed from the committed judgments by `judgedCounts`.
 
 ### D5 — The list
 
 A pair that reaches the first tier joins `MARKED_PAIRS`; it is inert until the pair ships (no
-reader has it). A pair between 75 % and 90 % stays out and the programme's table says it ships
-translated without a mark; under 75 % or over 30 % withheld, the table says translation is not
-offered for it, and changes 34 or 35 carry that.
+reader has it), and `test/translate-relay.spec.ts`'s es-en and en-es cases follow the list. A pair
+short of the first tier but at or above 75 % correct with at most 30 % withheld stays out and
+translates without a mark; under 75 % correct or over 30 % withheld, the figures are reported to
+the owner, who settles under M15 whether changes 34 or 35 offer the pair's translation unmarked or
+not at all — this change decides nothing for it.
 
 ## Risks / Trade-offs
 
