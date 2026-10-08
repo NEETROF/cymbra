@@ -108,13 +108,15 @@ jobs:
             bash ../../scripts/lingua-data/build.sh "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
           done
       # The invariance baselines: what the engine gives the extension over a fixed corpus, with
-      # the real packs — en-fr (the Spanish programme's S0, docs/lingua/spanish-programme.md) and
-      # es-fr (docs/lingua/language-matrix-programme.md, change 3). A pull request that moves one
-      # re-blesses it (LINGUA_BLESS=1) and says why: a dictionary update, or an analyser change
-      # that bumps that language's analyser version. Here too, not only in `rust`, because a
-      # tables-only pull request (lingua-pack-update) does not start `rust`.
-      - name: Invariance baselines (en-fr, es-fr)
-        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline
+      # the real packs — en-fr (the Spanish programme's S0, docs/lingua/spanish-programme.md),
+      # es-fr (docs/lingua/language-matrix-programme.md, change 3) and es-en (change 23: the
+      # Spanish scenario glossed in English, whose grammar probes the extension's
+      # test/word-card-es-en.spec.ts renders and pins). A pull request that moves one re-blesses
+      # it (LINGUA_BLESS=1) and says why: a dictionary update, or an analyser change that bumps
+      # that language's analyser version. Here too, not only in `rust`, because a tables-only
+      # pull request (lingua-pack-update) does not start `rust`.
+      - name: Invariance baselines (en-fr, es-fr, es-en)
+        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):
       # a studied language's tables — its pinned tag pool, studied tables and dictionary words —
       # are kept once, in tables/<studied>/, and read by every pair of that language

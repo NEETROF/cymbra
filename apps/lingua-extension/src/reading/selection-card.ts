@@ -161,7 +161,12 @@ const DEFAULT_CLOCK: Clock = {
   clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
-/** A gloss the reducer left with nothing in it: the Wiktionary entry had no definition (older packs). */
+/**
+ * A gloss the reducer left with nothing in it: the Wiktionary entry had no definition (older
+ * packs). It matches no gloss of any edition the packs read today, each reducer leaving its
+ * edition's placeholders out — measured over every committed gloss by
+ * `test/row-gloss-tables.spec.ts` (add-lingua-english-card-wording D4).
+ */
 const EMPTY_SENSE = /définition manquante/i;
 
 /** The longest sense a row shows: what a sense held before the pack kept them whole. */
@@ -185,7 +190,15 @@ export function rowGloss(gloss: string, copy: SelectionCopy = frSelection): stri
   return null;
 }
 
-/** `text` within `max` characters, the ellipsis included, ending on a whole word when it can. */
+/**
+ * `text` within `max` characters, the ellipsis included, ending on a whole word when it can. The
+ * trailing set strips the separators and the opening marks a cut can leave behind; it gains an
+ * opening mark of an edition only when a committed row would end on one (none does today, the
+ * English Wiktionary's “ and ‘ included: `test/row-gloss-tables.spec.ts` measures every pair's
+ * glosses), and a closing mark is never stripped — ’ is also the apostrophe
+ * (add-lingua-english-card-wording D4). Every French row is held byte for byte by that spec's
+ * snapshot.
+ */
 function cutAtWord(text: string, max: number, copy: SelectionCopy): string {
   if (text.length <= max) return text;
   const room = max - 1;

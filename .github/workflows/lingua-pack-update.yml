@@ -28,8 +28,8 @@ name: lingua-pack-update
 #   file (a studied language's file with its reference pair: `es-fr: es/level.tsv`), and proposes no
 #   branch, when a table, a kept input or NOTICE differs by one byte,
 #   manifest.json anywhere but `pack_version`, pin.json anywhere but the pack's sha256 and the rules'
-#   record (pack_report.py --identical), the site's coverage figures at all, or a baseline anywhere
-#   but the lines naming the packs (`### pack`, `### beside`).
+#   record (pack_report.py --identical), the site's coverage figures at all, a baseline anywhere
+#   but the lines naming the packs (`### pack`, `### beside`), or an extension snapshot at all.
 # - monthly: `update` in dry mode. Nothing is committed or published; the run reports how far
 #   upstream has drifted and FAILS when a source cannot be fetched, the reduction fails, or a table
 #   collapses (an upstream format change shows as lost rows, not as an error).
@@ -190,6 +190,23 @@ jobs:
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
           exit $status
 
+      # The extension's snapshots follow the goldens and the tables (add-lingua-english-card-wording
+      # D2, D4): re-blessed with Node by the push step below, as `lingua-extension-check` runs them.
+      # Installed once the inputs are checked and the tables reduced and reported, and before the
+      # snapshot's release is published, so a failed install leaves no release behind. Nothing is
+      # blessed in dry mode.
+      - uses: actions/setup-node@v5
+        if: env.MODE != 'dry'
+        with:
+          node-version: "22"
+      - name: Enable Corepack (Yarn Berry)
+        if: env.MODE != 'dry'
+        run: corepack enable
+      - name: Install the extension's dependencies
+        if: env.MODE != 'dry'
+        working-directory: apps/lingua-extension
+        run: yarn install --immutable
+
       - name: Keep kaikki's bytes as the snapshot's release
         if: env.MODE == 'update'
         env:
@@ -252,29 +269,36 @@ jobs:
           git switch -c "$branch"
           # The invariance baselines follow the dictionary (docs/lingua/spanish-programme.md,
           # docs/lingua/language-matrix-programme.md): re-blessed here, so the pull request shows
-          # what the update changes in English and Spanish output. Both, whatever the pair: the
-          # Spanish ladder borrows English's figures from the en-fr pack. Once, whatever the pairs.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline
+          # what the update changes in English and Spanish output. All three, whatever the pair:
+          # the Spanish ladder borrows English's figures from the en-fr pack, and es-en's golden
+          # moves with es-fr's studied tables (change 23). Once, whatever the pairs.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline
+          # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4): the
+          # English card's lines over the es-en golden's grammar probes, and the selection card's
+          # rows over the committed French glosses. `-u` after the files: vitest's `-u, --update
+          # [type]` takes an optional value, so `-u <file>` would read the first file as that value
+          # and run the second alone, leaving the first snapshot as it was.
+          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/row-gloss-tables.spec.ts -u)
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
           if [ "$EXPECT" = identical ]; then
-            # The rules moved, not what they make: the site's figures stay, and a baseline moves only
+            # The rules moved, not what they make: the site's figures stay, a baseline moves only
             # in the lines naming the packs (`### pack`, `### beside`), whose pack_version names the
-            # new rules.
+            # new rules, and the extension's snapshots do not move.
             if ! git diff --quiet -- apps/site/src/data/lingua-coverage.json; then
               echo "::error::Expected no change, but the site's coverage figures moved:"
               git diff -- apps/site/src/data/lingua-coverage.json
               exit 1
             fi
-            moved="$(git diff -U0 -- crates/lingua-wasm/tests/baseline | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' \
+            moved="$(git diff -U0 -- crates/lingua-wasm/tests/baseline apps/lingua-extension/test/baseline | grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' \
               | grep -vE '^[-+][a-z]{2}-[a-z]{2}, [0-9]+ bytes, pack_version "[^"]*", analyzer_version "[^"]*"$' || true)"
             if [ -n "$moved" ]; then
-              echo "::error::Expected no change, but a baseline moved beyond the lines naming the packs:"
+              echo "::error::Expected no change, but a baseline moved beyond the lines naming the packs, or a snapshot moved:"
               printf '%s\n' "$moved"
               exit 1
             fi
           fi
-          git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline apps/site/src/data/lingua-coverage.json
+          git add scripts/lingua-data/tables crates/lingua-wasm/tests/baseline apps/lingua-extension/test/baseline apps/site/src/data/lingua-coverage.json
           message="chore(lingua): $PAIR dictionary tables $SNAPSHOT"
           [ "$MODE" = reduce ] && message="chore(lingua): reduce the $PAIR dictionary tables again ($SNAPSHOT)"
           [ "$PAIR" = all ] && message="chore(lingua): reduce every pair's dictionary tables again ($SNAPSHOT)"

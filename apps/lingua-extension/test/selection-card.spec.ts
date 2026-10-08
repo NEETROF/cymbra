@@ -1161,6 +1161,30 @@ describe("rowGloss", () => {
     expect(row).toBe("Se rapporter (se rapporter à = to refer to), concerner, être en relation avec…");
     expect(rowGloss("a".repeat(100))).toBe(`${"a".repeat(79)}…`);
   });
+
+  it("never strips a closing mark, and leaves an opening one behind with its word (add-lingua-english-card-wording D4)", () => {
+    // ’ is also the apostrophe: a row cut right after it keeps it, as it keeps « ) » and « ] ».
+    const closing = `${"a".repeat(60)} ${"b".repeat(13)}’ ${"c".repeat(30)}`;
+    expect(rowGloss(closing)).toBe(`${"a".repeat(60)} ${"b".repeat(13)}’…`);
+    // A cut at the space before « “quoted » ends on the word before the mark, which goes with
+    // its word.
+    const opening = `${"a".repeat(60)} ${"b".repeat(13)} “${"c".repeat(30)}”`;
+    expect(rowGloss(opening)).toBe(`${"a".repeat(60)} ${"b".repeat(13)}…`);
+    expect(rowGloss(`${"a".repeat(60)} ${"b".repeat(13)} («${"c".repeat(30)}»)`)).toBe(
+      `${"a".repeat(60)} ${"b".repeat(13)}…`,
+    );
+    expect(rowGloss(`${"a".repeat(74)} (${"c".repeat(30)})`)).toBe(`${"a".repeat(74)}…`);
+  });
+
+  it("strips an opening mark the cut lands right after, then the space before it (add-lingua-english-card-wording D4)", () => {
+    // French spacing: « guillemets » stand apart from their words, so the cut's last space is
+    // the one after the opening mark — the row ends on the word before it, then the ellipsis.
+    expect(rowGloss(`${"a".repeat(70)} « ${"c".repeat(30)} »`)).toBe(`${"a".repeat(70)}…`);
+    expect(rowGloss(`${"a".repeat(70)} ( ${"c".repeat(30)} )`)).toBe(`${"a".repeat(70)}…`);
+    // A cut with no space to land on cuts at the limit, right after the bracket.
+    expect(rowGloss(`${"a".repeat(78)}(${"c".repeat(30)})`)).toBe(`${"a".repeat(78)}…`);
+    expect(rowGloss(`${"a".repeat(78)}«${"c".repeat(30)}»`)).toBe(`${"a".repeat(78)}…`);
+  });
 });
 
 describe("rowsFor", () => {

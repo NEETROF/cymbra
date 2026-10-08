@@ -47,8 +47,9 @@ branch and a tables-only pull request runs it.
 `test/word-card-en-es.spec.ts` reads every `word-grammar` probe of the committed golden — the
 reference's and the 40 — renders each through `src/i18n/es/grammar.ts` and the card's layout functions
 (`senseHeading`, `glossPages`, `rowGloss`) with the interface in Spanish, and pins the lines in a
-committed snapshot (`toMatchFileSnapshot`), re-blessed with `yarn vitest -u
-test/word-card-en-es.spec.ts`; `lingua-pack-update` re-blesses it beside the Rust goldens (with
+committed snapshot (`toMatchFileSnapshot`), re-blessed with `yarn vitest run
+test/word-card-en-es.spec.ts -u` (the flag after the file: vitest's `-u [type]` would take a file
+written after it as its value); `lingua-pack-update` re-blesses it beside the Rust goldens (with
 Node). Nothing reads the tables, so nothing copies the engine's grouping into TypeScript.
 
 ### D3 — Corrections on real forms

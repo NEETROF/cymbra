@@ -210,6 +210,24 @@ describe("the word card in English, of a Spanish word", () => {
     expect(spanish("grande", "grandes", [{ pos: "ADJ", features: { Number: "Plur" } }])).toEqual(["plural of grande"]);
   });
 
+  it("Two genders of one number, named once (add-lingua-english-card-wording D3: « gran » of « grande »)", () => {
+    const readings: GrammarTag[] = [
+      { pos: "ADJ", features: { Number: "Sing" } },
+      { pos: "NOUN", features: { Gender: "Fem", Number: "Sing" } },
+      { pos: "NOUN", features: { Gender: "Masc", Number: "Sing" } },
+    ];
+    expect(spanish("grande", "gran", readings)).toEqual(["masculine and feminine singular of grande"]);
+    // The French names the same genders and number, in its words, as before.
+    expect(fr.grammarLines(grammar({ readings }), "grande", "gran", "gran", "es").map(lineText)).toEqual([
+      "féminin singulier et masculin singulier de grande",
+    ]);
+    // Each number on its own, where the first of its genders stood.
+    const agreed = (Gender: string, Number: string): GrammarTag => ({ pos: "ADJ", features: { Gender, Number } });
+    expect(spanish("x", "y", [agreed("Fem", "Plur"), agreed("Masc", "Sing"), agreed("Masc", "Plur")])).toEqual([
+      "masculine and feminine plural and masculine singular of x",
+    ]);
+  });
+
   it("The dictionary form itself: no line, and the other dictionary form named", () => {
     expect(spanish("hablar", "hablar", [verb({ VerbForm: "Inf" })])).toEqual([]);
     expect(spanish("casa", "casa", [{ pos: "NOUN", features: { Gender: "Fem", Number: "Sing" } }])).toEqual([]);

@@ -16,9 +16,11 @@
 //! pack built from the committed tables, frozen in `tests/baseline/<pair>.golden`.
 //!
 //! One scenario per shipped pair (`english.rs`, `spanish.rs` here, frozen by `english_baseline.rs`
-//! and `spanish_baseline.rs`), one harness: the probes and the reader's history are the same for
+//! and `spanish_baseline.rs`; es-en's, the Spanish scenario glossed in English, is declared by
+//! `es_en_baseline.rs` itself), one harness: the probes and the reader's history are the same for
 //! every pair, only the words differ. `cross_native.rs` answers the same scenarios through a pack
-//! glossed in another native language (`other_native.rs` builds it).
+//! glossed in another native language (`other_native.rs` builds it); `probes` and `studied_side`
+//! here are how it, and `es_en_baseline.rs`, read a golden probe by probe and remove the native side.
 //! A golden is re-blessed with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test <test>`, and the
 //! pull request says why (docs/lingua/language-matrix-programme.md: en-fr and es-fr do not move).
 
@@ -99,6 +101,18 @@ impl Scenario {
 
     fn golden_path(&self) -> PathBuf {
         Self::crate_dir().join(format!("tests/baseline/{}.golden", self.pair))
+    }
+
+    /// The committed golden, as the repository holds it.
+    pub fn committed_golden(&self) -> String {
+        let path = self.golden_path();
+        std::fs::read_to_string(&path).unwrap_or_else(|_| {
+            panic!(
+                "{} is missing: run LINGUA_BLESS=1 cargo test -p lingua-wasm --test {}",
+                path.display(),
+                self.test
+            )
+        })
     }
 
     /// The pack the extension ships, built from the committed tables (the build is
@@ -352,13 +366,7 @@ impl Scenario {
                 .unwrap_or_else(|e| panic!("write {}: {e}", path.display()));
             return None;
         }
-        Some(std::fs::read_to_string(&path).unwrap_or_else(|_| {
-            panic!(
-                "{} is missing: run LINGUA_BLESS=1 cargo test -p lingua-wasm --test {}",
-                path.display(),
-                self.test
-            )
-        }))
+        Some(self.committed_golden())
     }
 }
 
@@ -374,6 +382,65 @@ impl Golden {
 
 fn shown(value: Option<String>) -> String {
     value.unwrap_or_else(|| "(none)".to_owned())
+}
+
+/// A golden's probes, by name, in order.
+pub fn probes(text: &str) -> Vec<(String, String)> {
+    format!("\n{text}")
+        .split("\n### ")
+        .skip(1)
+        .map(|chunk| {
+            let (name, body) = chunk.split_once('\n').unwrap_or((chunk, ""));
+            (name.to_owned(), body.to_owned())
+        })
+        .collect()
+}
+
+/// Removes the native side of an output: glosses, their language, their senses, and expressions.
+fn strip(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for key in ["gloss", "gloss_language", "senses", "expressions"] {
+                map.remove(key);
+            }
+            map.values_mut().for_each(strip);
+        }
+        serde_json::Value::Array(items) => items.iter_mut().for_each(strip),
+        _ => {}
+    }
+}
+
+/// A probe's output with its native side removed; `None` for the probes that are native or
+/// pack identity by definition: the pack lines and a card's gloss — and, when `own_credits`, the
+/// notice and the licences: a real pack's attributions credit the sources of its glosses, so
+/// es-en's name the English and Spanish Wiktionaries where es-fr's name the French one
+/// (add-lingua-pack-es-en D4). A synthetic second pack keeps its reference's credits, and they
+/// are compared.
+///
+/// An engine's native language is its reader's (generalise-lingua-native-language), so the
+/// backup records the reader's profile, and writes it in the schema version a profile other
+/// than the default needs: both name the reader, not what the pack analyses.
+pub fn studied_side(name: &str, body: &str, own_credits: bool) -> Option<String> {
+    if name == "pack"
+        || (own_credits && matches!(name, "notice" | "licences"))
+        || name.starts_with("beside ")
+        || name.starts_with("gloss ")
+    {
+        return None;
+    }
+    Some(match serde_json::from_str::<serde_json::Value>(body) {
+        Ok(mut value) => {
+            strip(&mut value);
+            if name == "backup"
+                && let Some(backup) = value.as_object_mut()
+            {
+                backup.remove("profile");
+                backup.remove("schema_version");
+            }
+            value.to_string()
+        }
+        Err(_) => body.to_owned(),
+    })
 }
 
 /// The first probe that differs, with a window around the first character that does.
