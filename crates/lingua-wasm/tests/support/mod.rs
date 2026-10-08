@@ -16,11 +16,13 @@
 //! pack built from the committed tables, frozen in `tests/baseline/<pair>.golden`.
 //!
 //! One scenario per shipped pair (`english.rs`, `spanish.rs` here, frozen by `english_baseline.rs`
-//! and `spanish_baseline.rs`; es-en's, the Spanish scenario glossed in English, is declared by
-//! `es_en_baseline.rs` itself), one harness: the probes and the reader's history are the same for
-//! every pair, only the words differ. `cross_native.rs` answers the same scenarios through a pack
-//! glossed in another native language (`other_native.rs` builds it); `probes` and `studied_side`
-//! here are how it, and `es_en_baseline.rs`, read a golden probe by probe and remove the native side.
+//! and `spanish_baseline.rs`; es-en's, the Spanish scenario glossed in English, and en-es's, the
+//! English scenario glossed in Spanish, are declared by `es_en_baseline.rs` and `en_es_baseline.rs`
+//! themselves), one harness: the probes and the reader's history are the same for every pair, only
+//! the words differ. `cross_native.rs` answers the same scenarios through a pack glossed in
+//! another native language (`other_native.rs` builds it); `probes` and `studied_side` here are how
+//! it, `es_en_baseline.rs` and `en_es_baseline.rs` read a golden probe by probe and remove the
+//! native side.
 //! A golden is re-blessed with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test <test>`, and the
 //! pull request says why (docs/lingua/language-matrix-programme.md: en-fr and es-fr do not move).
 
