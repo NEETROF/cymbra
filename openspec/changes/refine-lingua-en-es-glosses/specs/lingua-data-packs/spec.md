@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: en-es's glosses read an English word's meanings, not its page's notes
-The en-es reduction SHALL take out of a sense the Spanish Wiktionary's notes to its readers — a maintenance template, a disambiguation note, a reference to its numbered senses, its expansion notice — and a usage note written after the meaning; SHALL NOT let the sense of a capitalised proper noun that only says a word is a surname or a given name gloss a word that has an entry of its own in lower case; SHALL read an adjective section the edition tags possessive or demonstrative as a determiner; and SHALL write the senses the edition marks obsolete or outdated after the other senses of their entry.
+The en-es reduction SHALL take out of a sense the Spanish Wiktionary's notes to its readers — a maintenance template, a disambiguation note, a reference to its numbered senses, its expansion notice — and a usage note written after the meaning; SHALL NOT let the sense of a capitalised proper noun that only says a word is a surname or a given name gloss a word that has an entry of its own in lower case, other than a proper noun's, that holds a meaning; SHALL read an adjective section the edition tags possessive or demonstrative as a determiner; and SHALL write the senses the edition marks obsolete or outdated after the other senses of their entry.
 A usage note is a sentence that opens, after the meaning's period, on one of a closed list of the
 edition's openers (« A veces », « Precediendo », « Usado », « Utilizado », « Empleado », « Se usa »,
 « Se dice », « Se emplea », « Se utiliza », « A no confundir », « Compárese » and their forms); a
