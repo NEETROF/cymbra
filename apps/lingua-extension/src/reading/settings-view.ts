@@ -115,8 +115,8 @@ export interface SyncControls {
   /** This device's last successful sync (epoch millis), or null. */
   lastSync: () => Promise<number | null>;
   now: () => number;
-  /** Call `onChange` whenever a sync completes elsewhere (the background). */
-  watch: (onChange: () => void) => void;
+  /** Call `onChange` whenever a sync completes elsewhere (the background); returns how to stop. */
+  watch: (onChange: () => void) => (() => void) | void;
 }
 
 function runtimeSyncControls(area: AsyncStorageArea): SyncControls {
@@ -125,10 +125,13 @@ function runtimeSyncControls(area: AsyncStorageArea): SyncControls {
     syncNow: () => requestSyncNow(),
     lastSync: () => loadLastSync(area),
     now: () => Date.now(),
-    watch: (onChange) =>
-      chrome.storage.onChanged.addListener((changes, areaName) => {
+    watch: (onChange) => {
+      const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
         if (areaName === "local" && changes[LAST_SYNC_KEY]) onChange();
-      }),
+      };
+      chrome.storage.onChanged.addListener(listener);
+      return () => chrome.storage.onChanged.removeListener(listener);
+    },
   };
 }
 
@@ -140,6 +143,12 @@ export interface SettingsView {
   refresh: () => Promise<void>;
   /** Bring a sub-tab forward (an entry point that leads to one setting, the level). */
   show: (tab: SettingsTab) => void;
+  /**
+   * Stop watching the background and the preferences: the view's host is taken down — the drawer of
+   * a reading session built anew for another native language (add-lingua-native-language-choice D3).
+   * A page that reloads never calls it.
+   */
+  destroy: () => void;
 }
 
 /** Tells apart the tab ids of two views mounted in one document. */
@@ -548,7 +557,7 @@ export function mountSettings(
   syncBtn.addEventListener("click", () => void runSync());
   restartBtn.addEventListener("click", () => void restartFromServer());
   // A sync completes after every sign-in, here or in another surface: the account follows too.
-  sync.watch(() => void Promise.all([refreshSync(), account.refresh()]));
+  const unwatchSync = sync.watch(() => void Promise.all([refreshSync(), account.refresh()]));
 
   /**
    * The automatic choice first, naming the voice it lands on; then the ordinary voices; then
@@ -664,7 +673,14 @@ export function mountSettings(
   }
 
   void refresh();
-  return { refresh, show: tabs.show };
+  return {
+    refresh,
+    show: tabs.show,
+    destroy: () => {
+      unwatchSync?.();
+      translation?.destroy();
+    },
+  };
 }
 
 interface TabSpec {

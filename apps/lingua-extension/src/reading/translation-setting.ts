@@ -30,8 +30,8 @@ export interface TranslationControls {
   /** Where things stand, reconciled by the background (an interrupted download, a removed model). */
   status(): Promise<ModelStatus>;
   command(op: Exclude<ModelCommand, "status">): Promise<ModelStatus>;
-  /** Call `onChange` with the stored setting whenever the background changes it. */
-  watch(onChange: (setting: TranslationSetting) => void): void;
+  /** Call `onChange` with the stored setting whenever the background changes it; returns how to stop. */
+  watch(onChange: (setting: TranslationSetting) => void): (() => void) | void;
   /** Keep the engine's host awake — ping it — while `when` holds; returns how to stop. */
   keepAwake(when: () => boolean): () => void;
 }
@@ -40,11 +40,14 @@ export function runtimeTranslationControls(): TranslationControls {
   return {
     status: () => askModel("status"),
     command: (op) => askModel(op),
-    watch: (onChange) =>
-      chrome.storage.onChanged.addListener((changes, area) => {
+    watch: (onChange) => {
+      const listener = (changes: Record<string, chrome.storage.StorageChange>, area: string): void => {
         if (area !== "local" || !(TRANSLATION_HOST_KEY in changes || MODEL_STATE_KEY in changes)) return;
         void loadTranslationSetting(chrome.storage.local).then(onChange, () => undefined);
-      }),
+      };
+      chrome.storage.onChanged.addListener(listener);
+      return () => chrome.storage.onChanged.removeListener(listener);
+    },
     keepAwake: (when) => keepEngineWarm(undefined, when),
   };
 }
@@ -158,6 +161,8 @@ function el<K extends keyof HTMLElementTagNameMap>(
 export interface TranslationSettingView {
   /** Re-read where things stand (call each time the settings view is shown). */
   refresh(): Promise<void>;
+  /** Stop watching the setting and pinging the engine's host: the view's host is taken down. */
+  destroy(): void;
 }
 
 export interface TranslationSettingOptions {
@@ -261,7 +266,7 @@ export function mountTranslationSetting(
     const op = action.dataset.op;
     if (op === "disable" || op === "resume") void run(op);
   });
-  controls.watch((setting) => {
+  const unwatch = controls.watch((setting) => {
     if (!status) return;
     status = { ...status, ...setting };
     render();
@@ -272,5 +277,11 @@ export function mountTranslationSetting(
     render();
   }
 
-  return { refresh };
+  function destroy(): void {
+    unwatch?.();
+    stopPinging?.();
+    stopPinging = null;
+  }
+
+  return { refresh, destroy };
 }

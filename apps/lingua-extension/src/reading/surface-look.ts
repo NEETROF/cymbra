@@ -51,9 +51,11 @@ export function applySurfaceLook(root: HTMLElement, colours: ColourPreference, d
 /**
  * Paint `root` now, then again whenever the reader's colours or display change, from any
  * surface. Both preferences live in `chrome.storage.local`, whose change event reaches every
- * context; `area` reads them first.
+ * context; `area` reads them first. Returns how to stop following: a surface taken down calls it,
+ * or the listener would keep it — and the reading session it belongs to — alive
+ * (add-lingua-native-language-choice D3).
  */
-export function followSurfaceLook(root: HTMLElement, area: AsyncStorageArea = preferences): void {
+export function followSurfaceLook(root: HTMLElement, area: AsyncStorageArea = preferences): () => void {
   let colours = DEFAULT_COLOUR_PREFERENCE;
   let display = DEFAULT_READER_DISPLAY;
   const paint = (): void => applySurfaceLook(root, colours, display);
@@ -66,7 +68,7 @@ export function followSurfaceLook(root: HTMLElement, area: AsyncStorageArea = pr
     },
     () => {},
   );
-  chrome.storage.onChanged.addListener((changes, areaName) => {
+  const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
     if (areaName !== "local") return;
     const changedColours = changes[COLOURS_KEY];
     const changedDisplay = changes[READER_DISPLAY_KEY];
@@ -74,5 +76,7 @@ export function followSurfaceLook(root: HTMLElement, area: AsyncStorageArea = pr
     if (changedColours) colours = colourPreferenceOf(changedColours.newValue);
     if (changedDisplay) display = readerDisplayOf(changedDisplay.newValue);
     paint();
-  });
+  };
+  chrome.storage.onChanged.addListener(listener);
+  return () => chrome.storage.onChanged.removeListener(listener);
 }

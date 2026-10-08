@@ -602,6 +602,8 @@ export class WordPopup {
   /** The host element in the page (excluded from scanning by its id). */
   readonly host: HTMLElement;
   private readonly view: CardView;
+  /** Stops following the reader's look (`destroy`). */
+  private readonly unfollowLook: () => void = () => {};
 
   constructor(private readonly opts: WordPopupOptions) {
     this.view = createCard(opts.speaker, opts.language);
@@ -613,7 +615,13 @@ export class WordPopup {
     const style = document.createElement("style");
     style.textContent = opts.css;
     root.append(style, this.view.el);
-    if (opts.followLook) followSurfaceLook(this.host);
+    if (opts.followLook) this.unfollowLook = followSurfaceLook(this.host);
+  }
+
+  /** Leave the page for good: its reading session is taken down (add-lingua-native-language-choice D3). */
+  destroy(): void {
+    this.unfollowLook();
+    this.host.remove();
   }
 
   private attach(): void {

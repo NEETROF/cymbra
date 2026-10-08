@@ -59,7 +59,10 @@ beforeEach(() => {
     runtime: { sendMessage: vi.fn(async () => undefined), onMessage: { addListener: () => {} } },
     storage: {
       local: { get: async (keys: string | string[]) => areaWith(local).get(keys), set: async () => {} },
-      onChanged: { addListener: (fn: Listener) => void listeners.push(fn) },
+      onChanged: {
+        addListener: (fn: Listener) => void listeners.push(fn),
+        removeListener: (fn: Listener) => void listeners.splice(listeners.indexOf(fn), 1),
+      },
     },
   });
 });
@@ -116,6 +119,17 @@ describe("a surface's root", () => {
     change(READER_DISPLAY_KEY, { textScale: 80, theme: "dark", turn: "instant" }, "sync"); // not the reader's area
     change("cymbra-lingua-enabled", false);
     expect(root.style.getPropertyValue(UI_SCALE_VAR)).toBe("2");
+    expect(root.getAttribute(SURFACE_THEME_ATTR)).toBe("light");
+  });
+
+  it("stops following once its surface is taken down (add-lingua-native-language-choice D3)", async () => {
+    const root = document.createElement("div");
+    const stop = followSurfaceLook(root, areaWith({}));
+    await settle();
+    expect(listeners).toHaveLength(1);
+    stop();
+    expect(listeners).toHaveLength(0);
+    change(COLOURS_KEY, { preset: "eink-colour" });
     expect(root.getAttribute(SURFACE_THEME_ATTR)).toBe("light");
   });
 

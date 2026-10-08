@@ -223,6 +223,19 @@ describe("the Traduction étendue setting", () => {
       expect(v.stops[0]).toHaveBeenCalledOnce();
     });
 
+    it("stops pinging and watching once its host is taken down (add-lingua-native-language-choice D3)", async () => {
+      const unwatch = vi.fn();
+      const fake = controls(on({ phase: "downloading", received: 0, total: 1 }));
+      const view = mountTranslationSetting(document.createElement("div"), { ...fake.c, watch: () => unwatch });
+      await view.refresh();
+      expect(fake.c.keepAwake).toHaveBeenCalledOnce();
+
+      view.destroy();
+
+      expect(fake.stops[0]).toHaveBeenCalledOnce();
+      expect(unwatch).toHaveBeenCalledOnce();
+    });
+
     it("pings for nothing else", async () => {
       const v = await mount(on({ phase: "ready", models: ["en-fr/base-memory/2.0"], pairs: ["en-fr"] }));
       expect(v.c.keepAwake).not.toHaveBeenCalled();
@@ -275,7 +288,13 @@ describe("the runtime controls", () => {
     const local = { get: vi.fn(async () => ({ "cymbra-lingua-translation-host": "local" })) };
     vi.stubGlobal("chrome", {
       runtime: { sendMessage },
-      storage: { local, onChanged: { addListener: (l: (typeof listeners)[number]) => listeners.push(l) } },
+      storage: {
+        local,
+        onChanged: {
+          addListener: (l: (typeof listeners)[number]) => listeners.push(l),
+          removeListener: (l: (typeof listeners)[number]) => listeners.splice(listeners.indexOf(l), 1),
+        },
+      },
     });
     vi.useFakeTimers();
     try {
@@ -285,7 +304,7 @@ describe("the runtime controls", () => {
       expect(sendMessage).toHaveBeenCalledWith({ type: "lingua-model", op: "enable" });
 
       const seen: TranslationSetting[] = [];
-      c.watch((s) => seen.push(s));
+      const unwatch = c.watch((s) => seen.push(s));
       listeners[0]!({ "unrelated-key": {} }, "local");
       listeners[0]!({ "cymbra-lingua-model-state": {} }, "sync");
       listeners[0]!({ "cymbra-lingua-model-state": {} }, "local");
@@ -294,6 +313,8 @@ describe("the runtime controls", () => {
       await Promise.resolve();
       expect(local.get).toHaveBeenCalledOnce();
       expect(seen).toEqual([{ host: "local", state: { phase: "absent" } }]);
+      unwatch?.();
+      expect(listeners).toHaveLength(0);
 
       const stop = c.keepAwake(() => true);
       vi.advanceTimersByTime(5_000);

@@ -277,6 +277,8 @@ export class LinguaHud {
   private readonly view: HudView;
   private hidden = false;
   private last: HudState | null = null;
+  /** Stops following the reader's look (`destroy`). */
+  private readonly unfollowLook: () => void = () => {};
 
   constructor(opts: HudOptions) {
     const language = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
@@ -289,7 +291,7 @@ export class LinguaHud {
     style.textContent = opts.css;
     this.view = createHud(opts.actions, opts.onMoved, opts.copy ?? frHud, language);
     root.append(style, this.view.el);
-    if (opts.followLook) followSurfaceLook(this.host);
+    if (opts.followLook) this.unfollowLook = followSurfaceLook(this.host);
   }
 
   /** Attach the host to the page (idempotent; clears any orphan host from a failed retry). */
@@ -325,8 +327,9 @@ export class LinguaHud {
     }
   }
 
-  /** Remove the host from the page. */
+  /** Remove the host from the page, and stop following the reader's look. */
   destroy(): void {
+    this.unfollowLook();
     this.host.remove();
   }
 }

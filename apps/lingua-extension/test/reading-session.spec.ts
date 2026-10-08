@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PageAnalysis } from "@/analyzer/types.ts";
 import { HL_UNKNOWN } from "@/reading/highlight.ts";
 import type { Gesture } from "@/reading/wordpopup.ts";
+import { followNativeLanguage } from "@/reading/native-rebuild.ts";
 import { type ReadingHost, ReadingSession, type SessionOptions } from "@/reading/session.ts";
 import { COLOURS_KEY, HUD_POSITION_KEY, type HudPosition } from "@/state/storage.ts";
+import type { StoreChangeReason } from "@/state/store.ts";
 import { makeFakePort } from "./helpers.ts";
 
 // The reading session reads the document it is given (add-lingua-reader D3). A book section
@@ -543,19 +545,35 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
 describe("a session taken down (add-lingua-native-language-choice D3)", () => {
   type Changed = (changes: Record<string, { newValue?: unknown }>, area: string) => void;
 
-  it("leaves the document unpainted, its surfaces off the page, and reacts to nothing any more", async () => {
-    const changed: Changed[] = [];
-    const removed: unknown[] = [];
+  /** The extension's events as a page holds them: what is listening now, and every listener ever added. */
+  function listening() {
     const chromeStub = (globalThis as unknown as { chrome: Record<string, Record<string, Record<string, unknown>>> })
       .chrome;
-    chromeStub.storage.onChanged.addListener = (fn: Changed) => void changed.push(fn);
-    chromeStub.storage.onChanged.removeListener = (fn: Changed) => void removed.push(fn);
-    chromeStub.runtime.onMessage.removeListener = (fn: RuntimeListener) => void removed.push(fn);
+    const changed = new Set<Changed>();
+    const everChanged: Changed[] = [];
+    const messages = new Set<RuntimeListener>();
+    chromeStub.storage.onChanged.addListener = (fn: Changed) => {
+      changed.add(fn);
+      everChanged.push(fn);
+    };
+    chromeStub.storage.onChanged.removeListener = (fn: Changed) => void changed.delete(fn);
+    chromeStub.runtime.onMessage.addListener = (fn: RuntimeListener) => {
+      messages.add(fn);
+      runtimeListeners.push(fn);
+    };
+    chromeStub.runtime.onMessage.removeListener = (fn: RuntimeListener) => void messages.delete(fn);
+    return { changed, everChanged, messages };
+  }
+
+  it("leaves the document unpainted, its surfaces off the page, and reacts to nothing any more", async () => {
+    const events = listening();
     const destroyed = vi.fn();
     const { s, calls } = session({
       indicator: () => ({ mount() {}, update() {}, setHidden() {}, destroy: destroyed }),
     });
     await s.start(null);
+    // The session's own listeners, its watch of the store among them (the drawer's views add theirs).
+    const own = [...events.everChanged];
     const { host, registry } = section("<p>It was a dark night.</p>");
     await s.attach(host);
     expect(registry.has(HL_UNKNOWN)).toBe(true);
@@ -578,19 +596,57 @@ describe("a session taken down (add-lingua-native-language-choice D3)", () => {
     expect(document.getElementById("cymbra-lingua-host")).toBeNull();
     expect(document.getElementById("cymbra-lingua-drawer-host")).toBeNull();
     expect(destroyed).toHaveBeenCalledOnce();
-    // Every listener `start` hung on the extension's events is removed: the store's, the
-    // preferences' and the popup's messages.
-    expect(removed).toHaveLength(3);
-    expect(removed).toEqual(expect.arrayContaining(runtimeListeners));
-    expect(removed.filter((fn) => changed.includes(fn as Changed))).toHaveLength(2);
-    // A backup another context wrote after it is not restored, even by a listener still called.
+    // Every listener the session hung on the extension's events is removed.
+    expect(events.changed.size).toBe(0);
+    expect(events.messages.size).toBe(0);
+    // A backup another context wrote after it is not restored, even by a listener still called:
+    // the store now holds one, so only the session's own guard keeps it out.
+    vi.mocked(chrome.runtime.sendMessage).mockImplementation((async (msg: { type?: string }) => {
+      sent.push(msg);
+      return msg?.type === "store:get" ? { items: { lingua: { v: 2, backup: '{"words":["later"]}' } } } : undefined;
+    }) as never);
     const restored = calls.restored.length;
-    for (const fn of changed)
-      fn({ "cymbra-lingua-store-changed": { newValue: { rev: 9, keys: ["lingua"] } } }, "local");
+    for (const fn of own) fn({ "cymbra-lingua-store-changed": { newValue: { rev: 9, keys: ["lingua"] } } }, "local");
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(calls.restored).toHaveLength(restored);
+    expect(sent).toContainEqual({ type: "store:get", keys: "lingua" }); // the backup was read…
+    expect(calls.restored).toHaveLength(restored); // …and not restored
     s.stop(); // twice is once
     expect(destroyed).toHaveBeenCalledOnce();
+  });
+
+  it("Changing the native language: after a rebuild, the extension's events hold what they held before", async () => {
+    const events = listening();
+    const before = events.changed.size;
+    const sessions: ReadingSession[] = [];
+    let announce!: (keys: string[], reason?: StoreChangeReason) => void;
+    // The content script's sessions: the page's own HUD, word card and drawer, following the look.
+    const build = async (): Promise<ReadingSession> => {
+      const { s } = session();
+      sessions.push(s);
+      await s.start(null);
+      await s.attach(section("<p>It was a dark night.</p>").host);
+      // Every view of the drawer mounted: Révision, Statistiques and Réglages.
+      await s["drawer"].openOn("review");
+      await s["drawer"].openOn("stats");
+      await s["drawer"].openOn("settings");
+      return s;
+    };
+    await followNativeLanguage(build, (fn) => {
+      announce = fn;
+      return () => {};
+    });
+    const one = events.changed.size;
+    expect(one).toBeGreaterThan(before);
+
+    announce(["lingua"], { type: "native-language", native: "en" });
+    await vi.waitFor(() => expect(sessions).toHaveLength(2));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // One session's worth listening, the first one's gone with it.
+    expect(events.changed.size).toBe(one);
+    sessions[1].stop();
+    expect(events.changed.size).toBe(before);
+    expect(events.messages.size).toBe(0);
   });
 
   it("counts the words read before it was taken down in the day's statistics, never in the backup", async () => {

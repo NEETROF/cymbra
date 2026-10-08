@@ -277,11 +277,17 @@ export class ReadingSession {
   private native: NativeLanguage = "fr";
   /** The language Révision was last told to open in beside this document (`besideLanguage`). */
   private besideAnnounced: StudiedLanguage | null | undefined;
+  /**
+   * The session's lifetime, aborted by `stop`: the surface document's listeners `start` adds, and
+   * what the speaker and the translator follow, end with it.
+   */
+  private readonly lifetime = new AbortController();
   /** Reads a card's selection and sentence aloud, with a voice on this device only. */
   private readonly speaker: Speaker = createSpeaker(
     browserSpeechEngine(),
     () => this.language,
     storedVoicePreference(storageArea),
+    this.lifetime.signal,
   );
   /** What a selection or a click opens — every decision lives there, tested; this class only wires it. */
   private readonly cards: SelectionCards;
@@ -314,8 +320,6 @@ export class ReadingSession {
   private readonly surfaceWin: Window = window;
   /** Set by `stop`: nothing reacts, nothing is persisted any more. */
   private stopped = false;
-  /** The surface document's listeners `start` adds, removed by `stop`. */
-  private readonly lifetime = new AbortController();
   /** What `start` hung on the extension's events, undone by `stop`. */
   private readonly unhooks: (() => void)[] = [];
 
@@ -325,7 +329,7 @@ export class ReadingSession {
     private readonly port: LinguaPort,
     private readonly opts: SessionOptions,
   ) {
-    this.translator = opts.translator ?? createTranslatorPort();
+    this.translator = opts.translator ?? createTranslatorPort(this.lifetime.signal);
     // The interface language and the surfaces' copy, handed in before anything shows (D1): each
     // surface gets its module and the language at construction, so its first paint is the catalogue's.
     const interfaceLanguage = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
@@ -582,7 +586,7 @@ export class ReadingSession {
     this.speaker.stop();
     this.lifetime.abort();
     for (const unhook of this.unhooks.splice(0)) unhook();
-    this.popup.host.remove();
+    this.popup.destroy();
     this.drawer.destroy();
     this.indicator.destroy?.();
   }

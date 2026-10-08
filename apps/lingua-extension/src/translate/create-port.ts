@@ -38,12 +38,20 @@ export interface TranslatorSourceDeps {
   port: () => TranslatorPort;
 }
 
-const REAL: () => TranslatorSourceDeps = () => ({
+/**
+ * The browser's: `signal`, when given, is the lifetime of the surface that asks — a reading session
+ * built anew for another native language (add-lingua-native-language-choice D3) — and its watch ends
+ * with it.
+ */
+const REAL = (signal?: AbortSignal): TranslatorSourceDeps => ({
   area: chrome.storage.local,
-  watch: (keys, onChange) =>
-    chrome.storage.onChanged.addListener((changes, areaName) => {
+  watch: (keys, onChange) => {
+    const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
       if (areaName === "local" && keys.some((k) => k in changes)) onChange();
-    }),
+    };
+    chrome.storage.onChanged.addListener(listener);
+    signal?.addEventListener("abort", () => chrome.storage.onChanged.removeListener(listener), { once: true });
+  },
   port: () => rememberAnswers(keepWarm(new MessagingTranslatorPort())),
 });
 
@@ -70,8 +78,8 @@ export function translatorSource(deps: TranslatorSourceDeps): TranslatorSource {
   };
 }
 
-export function createTranslatorPort(): TranslatorSource {
+export function createTranslatorPort(signal?: AbortSignal): TranslatorSource {
   // A ternary, not an early return: esbuild drops a folded branch's references only in this form,
   // and a build without the engine must not keep the messaging port.
-  return __TRANSLATION_HOST__ === "none" ? () => null : translatorSource(REAL());
+  return __TRANSLATION_HOST__ === "none" ? () => null : translatorSource(REAL(signal));
 }

@@ -58,6 +58,8 @@ export class Drawer {
   private settings: SettingsView | null = null;
   private open = false;
   private current: DrawerView = "review";
+  /** Stops following the reader's look (`destroy`). */
+  private readonly unfollowLook: () => void = () => {};
 
   constructor(private readonly opts: DrawerOptions) {
     const copy = opts.copy ?? frDrawer;
@@ -66,7 +68,7 @@ export class Drawer {
     this.host.setAttribute("data-cymbra-lingua-skip", "");
     this.host.lang = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
     const root = this.host.attachShadow({ mode: "closed" });
-    if (opts.followLook) followSurfaceLook(this.host, opts.area);
+    if (opts.followLook) this.unfollowLook = followSurfaceLook(this.host, opts.area);
     const style = document.createElement("style");
     style.textContent = opts.css;
 
@@ -153,9 +155,16 @@ export class Drawer {
     this.panel.hidden = true;
   }
 
-  /** Leave the page: its reading session is taken down (add-lingua-native-language-choice D3). */
+  /**
+   * Leave the page: its reading session is taken down (add-lingua-native-language-choice D3). The
+   * views it mounted stop watching the store and the preferences, so nothing keeps the session's
+   * engine alive, or restores a backup into it, once a new session has its own.
+   */
   destroy(): void {
     this.hide();
+    this.unfollowLook();
+    this.reviewPage?.destroy();
+    this.settings?.destroy();
     this.host.remove();
   }
 
