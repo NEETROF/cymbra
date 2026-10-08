@@ -131,6 +131,42 @@ export function formatDate(language: InterfaceLanguage, date: Date, options?: In
 }
 
 /**
+ * The mark a page's `<html>` carries until its static copy is filled: each page's stylesheet hides
+ * `body` under it, so nothing shows empty before the catalogue (localise-lingua-reading-surfaces D2).
+ */
+export const COPY_PENDING_ATTR = "data-copy-pending";
+
+/** The attribute naming the entry a text node shows: `data-copy="key"`. */
+export const COPY_ATTR = "data-copy";
+
+/**
+ * Fill a page's static copy from a surface's module (D2): an element with `data-copy="key"` takes
+ * the entry as its text, one with `data-copy-<attribute>="key"` takes it as that attribute
+ * (`data-copy-aria-label`, `data-copy-title`); then `data-copy-pending` leaves `<html>`, and the
+ * page shows. Only a plain text fills a node — a slot message is the script's to render — and a
+ * key the module lacks leaves its node as it is: the page's spec asserts every node, so a missing
+ * key fails there, never on a reader's screen.
+ */
+export function fillPage(document: Document, copy: Record<string, unknown>): void {
+  const text = (key: string | null): string | null => {
+    const entry = key == null ? undefined : copy[key];
+    return typeof entry === "string" ? entry : null;
+  };
+  for (const el of document.querySelectorAll(`[${COPY_ATTR}]`)) {
+    const entry = text(el.getAttribute(COPY_ATTR));
+    if (entry != null) el.textContent = entry;
+  }
+  for (const el of document.querySelectorAll("*")) {
+    for (const { name, value } of [...el.attributes]) {
+      if (!name.startsWith(`${COPY_ATTR}-`) || name === COPY_PENDING_ATTR) continue;
+      const entry = text(value);
+      if (entry != null) el.setAttribute(name.slice(COPY_ATTR.length + 1), entry);
+    }
+  }
+  document.documentElement.removeAttribute(COPY_PENDING_ATTR);
+}
+
+/**
  * A counted message: the form `Intl.PluralRules` picks for `n` in the language, given the number
  * as the language writes it — in French the raw count the surfaces write today (« 1234 carte(s) »,
  * never a grouped « 1 234 »), in English and Spanish the formatted one. A surface that already

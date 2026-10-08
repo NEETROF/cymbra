@@ -1,7 +1,9 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from "vitest";
 import {
+  COPY_PENDING_ATTR,
   DEFAULT_INTERFACE_LANGUAGE,
+  fillPage,
   formatDate,
   formatNumber,
   formatPercent,
@@ -134,6 +136,54 @@ describe("a count in each language", () => {
     );
     expect(frStats.approxWords("16" + NARROW + "000")).toBe(`≈${NBSP}16${NARROW}000 mots`);
     expect(plural("fr", 20_000, frStats.words, formatNumber("fr", 20_000))).toBe(`20${NARROW}000 mots`);
+  });
+});
+
+describe("a page filled from the catalogue (localise-lingua-reading-surfaces D2)", () => {
+  /** A page's skeleton, as the HTML pages are written: no text, keys on the nodes, `<html>` pending. */
+  function page(): Document {
+    return new DOMParser().parseFromString(
+      [
+        `<!doctype html><html ${COPY_PENDING_ATTR}><head><title data-copy="title"></title></head><body>`,
+        '<h1 data-copy="heading"></h1>',
+        '<button id="gear" data-copy-aria-label="settings" data-copy-title="settings">⚙</button>',
+        '<p id="missing" data-copy="noSuchKey">kept</p>',
+        '<p id="slot" data-copy="review">kept too</p>',
+        "</body></html>",
+      ].join(""),
+      "text/html",
+    );
+  }
+  const copy = { title: "Cymbra Lingua — révision", heading: "Cymbra Lingua", settings: "Réglages", review: () => "" };
+
+  it("A page before its script: the text nodes and the attributes take their entries, then the page shows", () => {
+    const doc = page();
+    expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(true);
+    fillPage(doc, copy);
+    expect(doc.title).toBe("Cymbra Lingua — révision");
+    expect(doc.querySelector("h1")?.textContent).toBe("Cymbra Lingua");
+    const gear = doc.getElementById("gear")!;
+    expect(gear.getAttribute("aria-label")).toBe("Réglages");
+    expect(gear.getAttribute("title")).toBe("Réglages");
+    expect(gear.textContent).toBe("⚙"); // an attribute key fills the attribute, not the text
+    expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+  });
+
+  it("leaves a node whose key is not a plain text of the module, and shows the page anyway", () => {
+    const doc = page();
+    fillPage(doc, copy);
+    expect(doc.getElementById("missing")?.textContent).toBe("kept");
+    expect(doc.getElementById("slot")?.textContent).toBe("kept too"); // a slot message is the script's
+    expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+  });
+
+  it("fills the same page in another language", () => {
+    const doc = page();
+    fillPage(doc, { ...copy, heading: "Cymbra Lingua", settings: "Settings", title: "Cymbra Lingua — review" });
+    setDocumentLanguage(doc, "en");
+    expect(doc.title).toBe("Cymbra Lingua — review");
+    expect(doc.getElementById("gear")?.getAttribute("aria-label")).toBe("Settings");
+    expect(doc.documentElement.lang).toBe("en");
   });
 });
 

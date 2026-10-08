@@ -21,8 +21,22 @@ language.
 
 The interface language is the reader's native language (`language.ts`: `interfaceLanguage(area)`,
 `fr` when the key is absent); `index.ts` holds the helpers — `plural`, `formatNumber`,
-`formatPercent`, `formatDate` — and maps no surface, so importing it costs an entry nothing. A
-surface imports its own three modules and picks by the language.
+`formatPercent`, `formatDate`, `fillPage` — and maps no surface, so importing it costs an entry
+nothing. A surface imports its own three modules and picks by the language.
+
+## Pages
+
+An HTML page holds no text of its own: a node carries `data-copy="key"` and an attribute
+`data-copy-aria-label="key"` or `data-copy-title="key"`, and the page's script calls
+`fillPage(document, module)` with the module for the interface language, with its first storage
+read, before it builds anything that shows copy, then `setDocumentLanguage` for the page's `lang`.
+Until then `<html>` carries `data-copy-pending`, under which the page's stylesheet hides `body`
+(`html[data-copy-pending] body { visibility: hidden }`): `fillPage` removes it. A text assembled
+around a figure (« Réviser (3) », « Niveau d'anglais : B1 ») is a slot message the script renders
+into the node. Every reader surface reads its module the same way (localise-lingua-reading-surfaces):
+the content script and the reader page read the key before they build the reading session, which
+hands the HUD, the drawer, the word card and the selection card their module and the language at
+construction, and each injected host says it in `lang`.
 
 ## Shape
 
