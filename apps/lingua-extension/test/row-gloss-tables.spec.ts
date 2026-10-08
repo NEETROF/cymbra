@@ -9,9 +9,9 @@ import { rowGloss } from "@/reading/selection-card.ts";
 // gloss's first sense as the table writes it, unless the cut or the empty-sense skip touched it:
 // those rows — and only those — are written in the snapshot, so the snapshot stays small and every
 // row stays pinned: a rule that touched a row it did not touch before adds a line, one that leaves
-// a row alone removes one. Re-blessed with `yarn vitest -u test/row-gloss-tables.spec.ts` when the
-// tables move (`lingua-pack-update` does, on its branch), and in the pull request that moves the
-// cut, which says why.
+// a row alone removes one. Re-blessed with `yarn vitest run test/row-gloss-tables.spec.ts -u` when
+// the tables move (`lingua-pack-update` does, on its branch), and in the pull request that moves
+// the cut, which says why.
 
 const TABLES = join(dirname(fileURLToPath(import.meta.url)), "../../../scripts/lingua-data/tables");
 
@@ -49,9 +49,10 @@ describe("the selection card's rows over the committed French glosses", () => {
 });
 
 // The cut's rules, owned by add-lingua-english-card-wording (D4) and measured on every committed
-// gloss of every pair, the English-glossed one included: the trailing set gains an opening mark
-// only when a committed row would end on one — none does — and a closing mark is never stripped.
-const PAIRS = ["en-fr", "es-fr", "es-en"];
+// gloss of every pair, the English- and Spanish-glossed ones included: the trailing set gains an
+// opening mark only when a committed row would end on one — none does — and a closing mark is
+// never stripped.
+const PAIRS = ["en-fr", "es-fr", "es-en", "en-es"];
 
 /** The marks a row must not end on, before its ellipsis: the openers of every edition the packs read. */
 const OPENING = /[“‘«([]…$/u;

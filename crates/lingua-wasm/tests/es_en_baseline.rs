@@ -34,8 +34,8 @@
 //! Spanish will see. Only a dictionary update of es-en or of es-fr (which moves the studied
 //! tables), or a deliberate analyser change that bumps the Spanish analyser version, should do
 //! that. Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test es_en_baseline` — then
-//! the extension's snapshot, `yarn vitest -u test/word-card-es-en.spec.ts` — and say why in the
-//! pull request; `lingua-pack-update` re-blesses both on its own branch.
+//! the extension's snapshot, `yarn vitest run test/word-card-es-en.spec.ts -u` — and say why in
+//! the pull request; `lingua-pack-update` re-blesses both on its own branch.
 //!
 //! Host only: the pack builder is native (C zstd), and the wasm surface is the same methods.
 
@@ -124,7 +124,7 @@ fn es_en_output_has_not_moved() {
          If this pull request means to change es-en output (a dictionary update of es-en or of \
          es-fr, or an analyser change that bumps the Spanish analyser version), re-bless with\n  \
          LINGUA_BLESS=1 cargo test -p lingua-wasm --test es_en_baseline\n  \
-         cd apps/lingua-extension && yarn vitest -u test/word-card-es-en.spec.ts\n\
+         cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts -u\n\
          and say why in the pull request. Otherwise the change is wrong.",
         first_difference(&expected, &actual)
     );
@@ -156,7 +156,8 @@ fn the_probes_are_the_references_and_forty_more() {
 }
 
 /// The card's shown gloss is the es-en pack's first page for its lemma: whole senses, up to
-/// 160 characters (the extension's `glossPages`), which for « viaje » is the whole gloss.
+/// 160 characters as the extension's `glossPages` counts them — UTF-16 code units, JavaScript's
+/// `length` — which for « viaje » is the whole gloss.
 #[test]
 fn the_cards_gloss_is_the_packs_first_page() {
     let engine = SPANISH_IN_ENGLISH.loaded();
@@ -164,9 +165,10 @@ fn the_cards_gloss_is_the_packs_first_page() {
         .gloss("viaje", Some("es".to_owned()))
         .unwrap()
         .expect("es-en glosses viaje");
+    let units = |text: &str| text.encode_utf16().count();
     let mut page = String::new();
     for sense in gloss.split("; ") {
-        if !page.is_empty() && page.len() + 2 + sense.len() > 160 {
+        if !page.is_empty() && units(&page) + 2 + units(sense) > 160 {
             break;
         }
         if !page.is_empty() {
@@ -213,17 +215,11 @@ fn the_golden_is_the_spanish_one_on_the_studied_side() {
         .map(|(name, _)| name.as_str())
         .filter(|name| !shared.contains(name))
         .collect();
-    assert_eq!(
-        own,
-        MORE_LEMMAS
-            .iter()
-            .map(|lemma| format!("word-grammar {lemma} {lemma}"))
-            .collect::<Vec<_>>()
-            .iter()
-            .map(String::as_str)
-            .collect::<Vec<_>>(),
-        "es-en's own probes are the 40 lemmas"
-    );
+    let more: Vec<String> = MORE_LEMMAS
+        .iter()
+        .map(|lemma| format!("word-grammar {lemma} {lemma}"))
+        .collect();
+    assert_eq!(own, more, "es-en's own probes are the 40 lemmas");
     let mut compared = 0;
     for (name, body) in &es_fr {
         // The `about` line names the test that generated the golden.

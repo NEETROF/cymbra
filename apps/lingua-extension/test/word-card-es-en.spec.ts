@@ -16,8 +16,8 @@ import { rowGloss } from "@/reading/selection-card.ts";
 // is rendered with the interface in English through `src/i18n/en/grammar.ts` and the card's
 // layout functions, and the lines are held in a snapshot: the grammar line, each gloss page with
 // its sense headings, and the selection card's row. Re-blessed with
-// `yarn vitest -u test/word-card-es-en.spec.ts` when the golden is (`lingua-pack-update` does, on
-// its branch), and in the pull request that moves the wording, which says why (M9: the owner
+// `yarn vitest run test/word-card-es-en.spec.ts -u` when the golden is (`lingua-pack-update` does,
+// on its branch), and in the pull request that moves the wording, which says why (M9: the owner
 // reviews every English line).
 
 const GOLDEN = join(dirname(fileURLToPath(import.meta.url)), "../../../crates/lingua-wasm/tests/baseline/es-en.golden");
