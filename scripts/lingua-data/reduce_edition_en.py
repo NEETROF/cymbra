@@ -93,8 +93,10 @@ def merge_same_pos_etymologies(src, dst, *, merged=None):
     kaikki writes one entry per etymology, each with the page's `word` and its `pos`; a page's
     entries are consecutive in the extract, so a word's group is the run of lines sharing its
     `word`. The first entry of a part of speech keeps its other fields and gains the later ones'
-    senses; a line that is no entry, or has no senses, is written as it is. The headword's exact
-    spelling is the key: an acronym's entries (« CASA ») never merge with the common word's.
+    senses, so the round-robin across a word's entries (`reduce_common._join_senses_by_pos`) takes
+    the first etymology's senses before the next one's; an entry with no senses is kept as it is,
+    and a line that is no JSON object is left out, as the shared rules leave it. The headword's
+    exact spelling is the key: an acronym's entries (« CASA ») never merge with the common word's.
     """
     if not (MERGE_SAME_POS_ETYMOLOGIES if merged is None else merged):
         return src
@@ -111,11 +113,12 @@ def merge_same_pos_etymologies(src, dst, *, merged=None):
                 entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            word = entry.get("word") if isinstance(entry, dict) else None
-            if word != group_word:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("word") != group_word:
                 flush()
-                group_word = word
-            senses = entry.get("senses") if isinstance(entry, dict) else None
+                group_word = entry.get("word")
+            senses = entry.get("senses") or []
             same = next((e for e in group if e.get("pos") == entry.get("pos")), None) if senses else None
             if same is None:
                 group.append(entry)
