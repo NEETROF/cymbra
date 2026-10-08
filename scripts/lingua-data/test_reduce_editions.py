@@ -559,6 +559,1036 @@ class TheEnglishEditionSettings(Entries):
         self.assertEqual({p: after[p] for p in ("en-fr", "es-fr", "es-en")}, {p: before[p] for p in ("en-fr", "es-fr", "es-en")})
 
 
+# — es-en's glosses read as meanings (refine-lingua-es-en-glosses) —
+# Recorded from the extract es-en pins (kaikki's of 2026-10-03), as `native_fields` cuts it. HACER,
+# ESTAR, SENOR, POR_PREP, SE_PRON and YA_ADV keep their entry's first senses only.
+VENIR = {
+    "word": "venir",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["Senses relating to literal movement.", "to come (move closer to some location (most often closer to the speaker), by default the speaker's location)"], "tags": ["reflexive", "sometimes"]},
+        {"glosses": ["Senses relating to literal movement.", "to arrive"]},
+        {"glosses": ["Figurative senses.", "to come from, originate"]},
+        {"glosses": ["Figurative senses.", "to come (happen)"]},
+        {"glosses": ["Figurative senses.", "to come (appear)"]},
+        {"glosses": ["Figurative senses.", "to come (to have some characteristic or quality) (with an adjective or prepositional phrase)"]},
+        {"glosses": ["Figurative senses.", "to receive something, get something"]},
+        {"glosses": ["Figurative senses.", "to get (something felt in one's body or perceived in one's mind, a feeling, an illness, pain, an urge, an idea, etc.)"]},
+        {"glosses": ["Figurative senses.", "to be coming or coming up (of a date, event, etc.)"]},
+        {"glosses": ["Figurative senses.", "translated with next (used with semana, mes, año, days of the week, etc.)"]},
+        {"glosses": ["Figurative senses.", "translated with be about, mean"]},
+        {"glosses": ["Figurative senses.", "translated with end up"]},
+        {"glosses": ["Figurative senses.", "to be (with \"bien\" (convenient, helpful, good), \"mal\" (bad), etc.)"]},
+        {"glosses": ["Figurative senses.", "to suit (well, badly)"]},
+        {"glosses": ["Figurative senses.", "to fit, to be (of clothing, with adjectives like \"grande\" (be big), etc., or \"bien\" (fit well))"]},
+        {"glosses": ["Figurative senses.", "to orgasm, to cum, to come"], "tags": ["colloquial", "reflexive"]},
+    ],
+}
+CUSCO = {
+    "word": "Cusco",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["alternative spelling of Cuzco"], "tags": ["alt-of", "alternative", "masculine"], "alt_of": [{"word": "Cuzco"}]},
+        {"glosses": ["places in Peru:", "a region of Peru"], "tags": ["masculine"]},
+        {"glosses": ["places in Peru:", "a province of Cusco"], "tags": ["masculine"]},
+        {"glosses": ["places in Peru:", "a city, the provincial capital of Cusco, Peru"], "tags": ["masculine"]},
+    ],
+}
+HACER = {
+    "word": "hacer",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["to do, perform, execute, carry out"], "tags": ["transitive"]},
+        {"glosses": ["to do, perform, execute, carry out", "Forms ad hoc verbs from borrowed nouns."], "tags": ["transitive"]},
+        {"glosses": ["to make", "to create, to build, to bring forth"], "tags": ["transitive"]},
+        {"glosses": ["to make", "to write, to compose"], "tags": ["transitive"]},
+        {"glosses": ["to make", "to prepare (food)"], "tags": ["transitive"]},
+    ],
+}
+CASITA = {
+    "word": "casita",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["diminutive of casa", "small house"], "tags": ["feminine"]},
+        {"glosses": ["diminutive of casa", "house"], "tags": ["endearing", "feminine"]},
+        {"glosses": ["mother-in-law apartment"], "tags": ["feminine"]},
+        {"glosses": ["house (children's activity of pretending to be a family)"], "tags": ["feminine", "in-plural"]},
+    ],
+}
+COSITA = {
+    "word": "cosita",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["diminutive of cosa", "small thing"], "tags": ["feminine"]},
+        {"glosses": ["diminutive of cosa", "thingy"], "tags": ["feminine"]},
+    ],
+}
+QUEBEC = {
+    "word": "Québec",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["alternative form of Quebec:", "Quebec (a province in eastern Canada)"]},
+        {"glosses": ["alternative form of Quebec:", "Quebec, Quebec City (the capital city of the province of Quebec, Canada)"]},
+    ],
+}
+SU = {
+    "word": "su",
+    "pos": "det",
+    "senses": [
+        {"glosses": ["apocopic form of suyo"], "tags": ["abbreviation", "alt-of", "apocopic"], "alt_of": [{"word": "suyo"}]},
+        {"glosses": ["apocopic form of suyo", "used to express an approximate number: about, approximately"]},
+    ],
+}
+SUYO_PRON = {
+    "word": "suyo",
+    "pos": "pron",
+    "senses": [
+        {"glosses": ["his, hers, its"], "tags": ["masculine", "singular"]},
+        {"glosses": ["theirs"], "tags": ["masculine", "singular"]},
+        {"glosses": ["yours"], "tags": ["formal", "masculine", "singular"]},
+    ],
+}
+SUYO_DET = {
+    "word": "suyo",
+    "pos": "det",
+    "senses": [
+        {"glosses": ["his, hers, its, to her"], "tags": ["masculine", "singular"]},
+        {"glosses": ["theirs, their, to them"], "tags": ["masculine", "singular"]},
+        {"glosses": ["yours, your, to you"], "tags": ["formal", "masculine", "singular"]},
+    ],
+}
+SI_PRON = {
+    "word": "sí",
+    "pos": "pron",
+    "senses": [
+        {"glosses": ["prepositional form of se", "himself, herself, itself, themself, themselves"]},
+        {"glosses": ["prepositional form of se", "yourself, yourselves"]},
+    ],
+}
+GOMA = {
+    "word": "goma",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["rubber (substance, material)", "ellipsis of cinta de goma or goma elástica (“rubber band”)"], "tags": ["abbreviation", "alt-of", "ellipsis", "feminine"], "alt_of": [{"word": "cinta de goma or goma elástica", "extra": "rubber band"}]},
+        {"glosses": ["rubber (substance, material)", "rubber tree"], "tags": ["Bolivia", "feminine"]},
+        {"glosses": ["rubber (substance, material)", "teether"], "tags": ["Bolivia", "feminine"]},
+        {"glosses": ["rubber (substance, material)", "ellipsis of goma de borrar (“eraser”)"], "tags": ["abbreviation", "alt-of", "ellipsis", "feminine"], "alt_of": [{"word": "goma de borrar", "extra": "eraser"}]},
+        {"glosses": ["rubber (substance, material)", "condom"], "tags": ["feminine"]},
+        {"glosses": ["rubber (substance, material)", "tire"], "tags": ["feminine"]},
+        {"glosses": ["rubber (substance, material)", "boob; tit"], "tags": ["Chile", "Rioplatense", "feminine", "in-plural", "vulgar"]},
+        {"glosses": ["gum (substance exuded by certain plants)", "ellipsis of goma de mascar (“chewing gum”)"], "tags": ["Bolivia", "Chile", "Colombia", "Peru", "abbreviation", "alt-of", "ellipsis", "feminine"], "alt_of": [{"word": "goma de mascar", "extra": "chewing gum"}]},
+        {"glosses": ["gum (substance exuded by certain plants)", "glue"], "tags": ["Costa-Rica", "Cuba", "Guatemala", "Nicaragua", "Panama", "Uruguay", "feminine"]},
+    ],
+}
+MI_DET = {
+    "word": "mi",
+    "pos": "det",
+    "senses": [
+        {"glosses": ["apocopic form of mío, my"], "tags": ["abbreviation", "alt-of", "apocopic", "first-person", "possessive", "singular"], "alt_of": [{"word": "mío"}, {"word": "my"}]},
+    ],
+}
+MI_NOUN_1 = {"word": "mi", "pos": "noun", "senses": [{"glosses": ["mu; the Greek letter Μ, μ"], "tags": ["feminine"]}]}
+MI_NOUN_2 = {"word": "mi", "pos": "noun", "senses": [{"glosses": ["mi"], "tags": ["masculine"]}]}
+MUY = {
+    "word": "muy",
+    "pos": "adv",
+    "senses": [
+        {"glosses": ["apocopic form of mucho; very"], "tags": ["abbreviation", "alt-of", "apocopic"], "alt_of": [{"word": "mucho", "extra": "very"}]},
+    ],
+}
+MUCHO_ADV = {
+    "word": "mucho",
+    "pos": "adv",
+    "senses": [
+        {"glosses": ["much, a lot, far, way, many times"]},
+        {"glosses": ["very"]},
+        {"glosses": ["long (a long time)"]},
+    ],
+}
+UN_ARTICLE = {"word": "un", "pos": "article", "senses": [{"glosses": ["an; a"], "tags": ["indefinite", "masculine"]}]}
+UN_NUM = {
+    "word": "un",
+    "pos": "num",
+    "senses": [
+        {"glosses": ["apocopic form of uno (“one”)"], "tags": ["abbreviation", "alt-of", "apocopic", "masculine"], "alt_of": [{"word": "uno", "extra": "one"}]},
+    ],
+}
+MAL_ADV = {
+    "word": "mal",
+    "pos": "adv",
+    "senses": [
+        {"glosses": ["badly, poorly, ill"]},
+        {"glosses": ["awry, amiss, wrong, wrongly"]},
+        {"glosses": ["hard (functions as an adverb in Spanish but translates as an adjective in English)"]},
+        {"glosses": ["Used as an intensifier, very"], "tags": ["Argentina", "colloquial"]},
+        {"glosses": ["yes"], "tags": ["Argentina", "colloquial"]},
+    ],
+}
+MAL_NOUN = {
+    "word": "mal",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["evil, harm; a bad thing or situation"], "tags": ["masculine"]},
+        {"glosses": ["disease, illness, ailment"], "tags": ["masculine"]},
+        {"glosses": ["worse (substantive)"], "tags": ["masculine"]},
+    ],
+}
+MAL_ADJ = {
+    "word": "mal",
+    "pos": "adj",
+    "senses": [
+        {"glosses": ["apocopic form of malo bad; evil"], "tags": ["abbreviation", "alt-of", "apocopic", "masculine"], "alt_of": [{"word": "malo bad", "extra": "evil"}]},
+        {"glosses": ["amiss, awry, off, wrong"], "tags": ["abbreviation", "apocopic", "masculine"]},
+    ],
+}
+CINCUENTA_Y_UN = {
+    "word": "cincuenta y un",
+    "pos": "num",
+    "senses": [
+        {"glosses": ["apocopic form of cincuenta y uno (“fifty-one”)"], "tags": ["abbreviation", "alt-of", "apocopic", "masculine"], "alt_of": [{"word": "cincuenta y uno", "extra": "fifty-one"}]},
+    ],
+}
+NOS_PRON = {
+    "word": "nos",
+    "pos": "pron",
+    "senses": [
+        {"glosses": ["dative of nosotros: to us, for us"], "tags": ["dative", "form-of"], "form_of": [{"word": "nosotros", "extra": "to us, for us"}]},
+        {"glosses": ["accusative of nosotros: us"], "tags": ["accusative", "form-of"], "form_of": [{"word": "nosotros", "extra": "us"}]},
+        {"glosses": ["reflexive of nosotros: ourselves; each other"], "tags": ["form-of", "pronoun", "reflexive"], "form_of": [{"word": "nosotros", "extra": "ourselves; each other"}]},
+        {"glosses": ["first person (except in vocative, and in the oblique it requires a preposition); I (singular; compare vos)"], "tags": ["archaic", "formal"]},
+        {"glosses": ["first person nominative, prepositional and vocative plural pronoun"], "tags": ["archaic", "first-person", "formal", "nominative", "plural", "prepositional", "pronoun", "vocative"]},
+    ],
+}
+NOS_NOUN = {
+    "word": "nos",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["plural of no"], "tags": ["form-of", "masculine", "plural"], "form_of": [{"word": "no"}]},
+    ],
+}
+ER = {
+    "word": "er",
+    "pos": "article",
+    "senses": [
+        {"glosses": ["eye dialect spelling of el"], "tags": ["Andalusia", "alt-of", "pronunciation-spelling"], "alt_of": [{"word": "el"}]},
+        {"glosses": ["pronunciation spelling of el"], "tags": ["Andalusia", "alt-of", "pronunciation-spelling"], "alt_of": [{"word": "el"}]},
+    ],
+}
+EL_1 = {"word": "el", "pos": "article", "senses": [{"glosses": ["masculine singular definite article; the"]}]}
+EL_2 = {
+    "word": "el",
+    "pos": "article",
+    "senses": [
+        {"glosses": ["feminine singular definite article used before nouns which start with a stressed /a/"]},
+    ],
+}
+LO_PRON = {
+    "word": "lo",
+    "pos": "pron",
+    "senses": [
+        {"glosses": ["accusative of él and usted (when referring to a man), and a variant of ello in many constructions; him, you (formal), it, that"], "tags": ["accusative", "form-of"], "form_of": [{"word": "él and usted", "extra": "(when referring to a man), and a variant of ello in many constructions; him, you (formal), it, that"}]},
+    ],
+}
+LO_ARTICLE = {
+    "word": "lo",
+    "pos": "article",
+    "senses": [
+        {"glosses": ["neuter definite article used only before nominalized adjectives: the, that which is"]},
+    ],
+}
+LES_PRON = {
+    "word": "les",
+    "pos": "pron",
+    "senses": [
+        {"glosses": ["dative of ellos and ellas; to them, for them"], "tags": ["dative", "form-of"], "form_of": [{"word": "ellos and ellas", "extra": "to them, for them"}]},
+        {"glosses": ["dative of ustedes; to you all, for you all (formal)"], "tags": ["dative", "form-of"], "form_of": [{"word": "ustedes", "extra": "to you all, for you all (formal)"}]},
+        {"glosses": ["accusative of ustedes; you all (formal)"], "tags": ["accusative", "dialectal", "form-of"], "form_of": [{"word": "ustedes", "extra": "you all (formal)"}]},
+        {"glosses": ["accusative of ellos and ellas; them"], "tags": ["accusative", "dialectal", "form-of"], "form_of": [{"word": "ellos and ellas", "extra": "them"}]},
+        {"glosses": ["dative of elles; to them, for them"], "tags": ["dative", "form-of", "gender-neutral", "neologism"], "form_of": [{"word": "elles", "extra": "to them, for them"}]},
+    ],
+}
+LES_ARTICLE = {
+    "word": "les",
+    "pos": "article",
+    "senses": [
+        {"glosses": ["the (plural)"], "tags": ["gender-neutral", "neologism"]},
+    ],
+}
+TOY = {"word": "toy", "pos": "verb", "senses": [{"glosses": ["apheretic form of estoy"], "tags": ["colloquial"]}]}
+ESTOY = {
+    "word": "estoy",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["first-person singular present indicative of estar; am"], "tags": ["first-person", "form-of", "indicative", "present", "singular"], "form_of": [{"word": "estar", "extra": "am"}]},
+    ],
+}
+ESTAR = {
+    "word": "estar",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["to be (have a temporary or permanent location in space)"], "tags": ["copulative", "intransitive"]},
+        {"glosses": ["to be present"], "tags": ["intransitive"]},
+        {"glosses": ["to be (denotes a copula, in a transient fashion)"], "tags": ["copulative", "intransitive"]},
+    ],
+}
+PO_FAVO = {
+    "word": "po favó",
+    "pos": "intj",
+    "senses": [
+        {"glosses": ["pronunciation spelling of por favor"], "tags": ["alt-of", "pronunciation-spelling"], "alt_of": [{"word": "por favor"}]},
+    ],
+}
+POR_FAVOR = {
+    "word": "por favor",
+    "pos": "intj",
+    "senses": [
+        {"glosses": ["please"]},
+        {"glosses": ["you're welcome"], "tags": ["dialectal"]},
+    ],
+}
+SEO = {
+    "word": "seó",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["apocopic form of seor"], "tags": ["abbreviation", "alt-of", "apocopic", "colloquial", "masculine"], "alt_of": [{"word": "seor"}]},
+    ],
+}
+SEOR = {"word": "seor", "pos": "noun", "senses": [{"glosses": ["syncopic form of señor"], "tags": ["masculine"]}]}
+SENOR = {
+    "word": "señor",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["mister, sir, lord (title conferred on a married or older male)"], "tags": ["masculine"]},
+        {"glosses": ["gentleman"], "tags": ["masculine"]},
+    ],
+}
+COMO_NAME = {
+    "word": "Como",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["Como (a city and comune, the capital of the province of Como, Lombardy)"]},
+        {"glosses": ["Como (a province of Lombardy, Italy)"]},
+        {"glosses": ["a number of places in the United States:", "Como (a town in Panola County, Mississippi)"]},
+        {"glosses": ["a number of places in the United States:", "Como (a town in Hertford County, North Carolina)"]},
+        {"glosses": ["a number of places in the United States:", "Como (a town in Hopkins County, Texas)"]},
+        {"glosses": ["a number of places in the United States:", "Como (a census-designated place in the town of Geneva, Walworth County, Wisconsin)"]},
+        {"glosses": ["a number of places in Australia:", "Como (a suburb of Sydney in Sutherland Shire, New South Wales)"]},
+        {"glosses": ["a number of places in Australia:", "Como (a suburb of Perth in the City of South Perth, Western Australia)"]},
+    ],
+}
+COMO_ADV = {
+    "word": "como",
+    "pos": "adv",
+    "senses": [
+        {"glosses": ["as (to such an extent or degree)"]},
+        {"glosses": ["like, about (approximately)"]},
+    ],
+}
+COMO_CONJ = {
+    "word": "como",
+    "pos": "conj",
+    "senses": [
+        {"glosses": ["as (introducing a basis of comparison or equality)"]},
+        {"glosses": ["as, since (being that)"]},
+        {"glosses": ["how (in which way)"]},
+        {"glosses": ["if, unless (under the condition that)"]},
+    ],
+}
+COMO_PREP = {
+    "word": "como",
+    "pos": "prep",
+    "senses": [
+        {"glosses": ["as (in the manner or role specified)"]},
+        {"glosses": ["such as (for example)"]},
+        {"glosses": ["like (similar to, reminiscent of)"]},
+    ],
+}
+COMO_VERB = {
+    "word": "como",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["first-person singular present indicative of comer"], "tags": ["first-person", "form-of", "indicative", "present", "singular"], "form_of": [{"word": "comer"}]},
+    ],
+}
+PR_NAME = {
+    "word": "PR",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["initialism of Puerto Rico (“Puerto Rico (a commonwealth, island and dependent territory of the United States in the Caribbean)”)"], "tags": ["abbreviation", "alt-of", "initialism"], "alt_of": [{"word": "Puerto Rico", "extra": "(“Puerto Rico (a commonwealth, island and dependent territory of the United States in the Caribbean)”)"}]},
+    ],
+}
+PUERTO_RICO = {
+    "word": "Puerto Rico",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["Puerto Rico (a commonwealth, island and dependent territory of the United States in the Caribbean; official name: Estado Libre Asociado de Puerto Rico)"]},
+    ],
+}
+PR_PREP = {
+    "word": "pr",
+    "pos": "prep",
+    "senses": [
+        {"glosses": ["abbreviation of por"], "tags": ["Internet", "abbreviation", "alt-of"], "alt_of": [{"word": "por"}]},
+        {"glosses": ["abbreviation of para"], "tags": ["Internet", "abbreviation", "alt-of"], "alt_of": [{"word": "para"}]},
+    ],
+}
+PR_CONJ = {
+    "word": "pr",
+    "pos": "conj",
+    "senses": [
+        {"glosses": ["abbreviation of pero"], "tags": ["Internet", "abbreviation", "alt-of"], "alt_of": [{"word": "pero"}]},
+    ],
+}
+POR_PREP = {
+    "word": "por",
+    "pos": "prep",
+    "senses": [
+        {"glosses": ["by"]},
+        {"glosses": ["for (indicates something given in an exchange)"]},
+        {"glosses": ["through, out, via (indicating movement)"]},
+    ],
+}
+CHILE_NAME = {
+    "word": "Chile",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["Chile (a country in South America; capital: Santiago)"], "tags": ["masculine"]},
+    ],
+}
+CHILE_NOUN = {
+    "word": "chile",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["a chili pepper"], "tags": ["Costa-Rica", "Guatemala", "Honduras", "Mexico", "Nicaragua", "Philippines", "US", "masculine"]},
+        {"glosses": ["penis"], "tags": ["El-Salvador", "Guatemala", "Mexico", "masculine", "vulgar"]},
+        {"glosses": ["lie"], "tags": ["Guatemala", "colloquial", "masculine"]},
+    ],
+}
+AMOR_NAME = {
+    "word": "Amor",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["a surname"], "tags": ["by-personal-gender", "feminine", "masculine"]},
+    ],
+}
+AMOR_NOUN = {
+    "word": "amor",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["love"], "tags": ["masculine"]},
+        {"glosses": ["love affair"], "tags": ["masculine"]},
+    ],
+}
+NI_CONJ = {
+    "word": "ni",
+    "pos": "conj",
+    "senses": [
+        {"glosses": ["Used when negating two or more elements, and not, not A or B, not A nor B, neither A nor B"]},
+    ],
+}
+NI_ADV = {
+    "word": "ni",
+    "pos": "adv",
+    "senses": [
+        {"glosses": ["Used in emphatic negations, not even"]},
+        {"glosses": ["Forms an emphatic negative imperative, don't even"]},
+    ],
+}
+SE_PRON = {
+    "word": "se",
+    "pos": "pron",
+    "senses": [
+        {"glosses": ["A reflexive or reciprocal pronoun: oneself, himself, herself, itself, yourself; themselves; yourselves; each other; one another"], "tags": ["by-personal-gender", "feminine", "masculine", "plural", "singular", "third-person"]},
+    ],
+}
+YA_ADV = {
+    "word": "ya",
+    "pos": "adv",
+    "senses": [
+        {"glosses": ["now, right now, (in the negative) anymore, no longer"]},
+        {"glosses": ["now, right now, (in the negative) anymore, no longer", "by now, at this point"]},
+        {"glosses": ["indicates completion of an action (difference from sense 4 depends on context)"]},
+        {"glosses": ["yet (in questions)"]},
+    ],
+}
+JURADO_NOUN = {
+    "word": "jurado",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["juror, juryman, juryperson (member of a jury [sense 1])"], "tags": ["masculine"]},
+        {"glosses": ["judge (member of a jury [sense 2]; officiator of a competitive event)"], "tags": ["masculine"]},
+    ],
+}
+NADA_PRON = {"word": "nada", "pos": "pron", "senses": [{"glosses": ["nothing, zero, zilch, not...anything"]}]}
+TANTO_CONJ = {
+    "word": "tanto",
+    "pos": "conj",
+    "senses": [
+        {"glosses": ["both ... and (introduces the first of two linked elements)"]},
+    ],
+}
+O_CONJ = {"word": "o", "pos": "conj", "senses": [{"glosses": ["either … or"]}]}
+AHORA_CONJ = {
+    "word": "ahora",
+    "pos": "conj",
+    "senses": [
+        {"glosses": ["now...now, whether...or..."], "tags": ["literary"]},
+    ],
+}
+OTRO_INTJ = {
+    "word": "otro",
+    "pos": "intj",
+    "senses": [
+        {"glosses": ["\"Not again!\" or \"What, again?\" (also Otra vez! or Otra vez?)"], "tags": ["masculine"]},
+    ],
+}
+CANINO_ADJ = {
+    "word": "canino",
+    "pos": "adj",
+    "senses": [
+        {"glosses": ["canine"]},
+        {"glosses": ["canine"]},
+        {"glosses": ["ravenously hungry; hungry as a hog"], "tags": ["idiomatic"]},
+        {"glosses": ["ravenously hungry; hungry as a hog\nMarcos siempre estaba canino después de tomar su medicación.\nMarcos was always hungry as a hog after taking his medication.", "Marcos siempre estaba canino después de tomar su medicación."], "tags": ["idiomatic"]},
+        {"glosses": ["ravenously hungry; hungry as a hog\nMarcos siempre estaba canino después de tomar su medicación.\nMarcos was always hungry as a hog after taking his medication.", "Marcos was always hungry as a hog after taking his medication."], "tags": ["idiomatic"]},
+    ],
+}
+A_LA_MIERDA = {"word": "a la mierda", "pos": "phrase", "senses": [{"glosses": ["screw this; to hell with..."]}]}
+CASCANUECES = {"word": "Cascanueces", "pos": "name", "senses": [{"glosses": ["The Nutcracker (ballet)"]}]}
+AGATEADOR_NORTENO = {
+    "word": "agateador norteño",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["The Eurasian treecreeper."], "tags": ["masculine"]},
+    ],
+}
+DIEZ_NOUN = {
+    "word": "diez",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["A (highest grade in testing)"], "tags": ["masculine"]},
+    ],
+}
+JULIO = {"word": "julio", "pos": "noun", "senses": [{"glosses": ["July"], "tags": ["masculine"]}]}
+CHAMORRO = {
+    "word": "chamorro",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["shank (of pork, beef, etc.), e.g. 'chamorro de puerco', pork shank"], "tags": ["Mexico", "masculine"]},
+    ],
+}
+EJQUE = {
+    "word": "ejque",
+    "pos": "phrase",
+    "senses": [
+        {"glosses": ["pronunciation spelling of es que in the Madrid dialect"], "tags": ["alt-of", "pronunciation-spelling"], "alt_of": [{"word": "es que in the Madrid dialect"}]},
+    ],
+}
+TAS = {"word": "tas", "pos": "verb", "senses": [{"glosses": ["apheretic form of estás"], "tags": ["colloquial"]}]}
+
+
+class EsEnGlossesReadAsMeanings(Entries):
+    """es-en's glosses read a Spanish word's meanings, not its page's layout, in one English typography
+    (refine-lingua-es-en-glosses): `reduce_edition_en.read_as_meanings`, a pre-pass of the English
+    edition that `reduce-es-en.py` runs before the shared rules read the file."""
+
+    def read(self, *entries):
+        """The entries as the pre-pass writes them, in its order."""
+        out = english.read_as_meanings(self.jsonl(*entries), str(self.dir / "meanings.jsonl"))
+        return [json.loads(line) for line in Path(out).read_text(encoding="utf-8").splitlines()]
+
+    def tables(self, lemmas, *entries):
+        """What es-en's shared rules make of the pre-pass's file: `(glosses, runs, expressions)`."""
+        out = english.read_as_meanings(self.jsonl(*entries), str(self.dir / "meanings.jsonl"))
+        ranks = {lemma: rank for rank, lemma in enumerate(lemmas, start=1)}
+        glosses, runs, expressions, _ = common.native_tables(out, ranks, studied=SPANISH, edition=EN)
+        return glosses, runs, expressions
+
+    # — D2: a nested sense under a label or a pointer is read by its own gloss —
+
+    def test_spec_scenario_sense_group_labels(self):
+        # Recorded: venir's sixteen senses, nested under « Senses relating to literal movement. »
+        # and « Figurative senses. ». Read as written, the labels were its gloss.
+        written, _ = self.gloss(EN, SPANISH, {"venir"}, VENIR)
+        self.assertEqual(written["venir"], "Senses relating to literal movement; Figurative senses")
+        glosses, runs, _ = self.tables(["venir"], VENIR)
+        self.assertTrue(
+            glosses["venir"].startswith(
+                "to come (move closer to some location (most often closer to the speaker), by default the speaker's "
+                "location); to arrive; to come from, originate; to come (happen); "
+            ),
+            glosses["venir"],
+        )
+        self.assertNotIn("senses", glosses["venir"].lower())
+        self.assertEqual(runs["venir"], [("VERB", 8)])
+
+    def test_spec_scenario_a_list_s_introduction(self):
+        # Recorded: `Cusco`'s places, nested under « places in Peru: »; its pointer stays one.
+        written, _ = self.gloss(EN, SPANISH, {"cusco"}, CUSCO)
+        self.assertEqual(written["cusco"], "places in Peru")
+        glosses, _, _ = self.tables(["cusco"], CUSCO)
+        self.assertEqual(
+            glosses["cusco"], "a region of Peru; a province of Cusco; a city, the provincial capital of Cusco, Peru"
+        )
+
+    def test_spec_scenario_a_parent_that_is_a_meaning(self):
+        # Recorded: hacer's first five senses. « to make » is neither a label nor a pointer: it
+        # keeps glossing « to create, to build, to bring forth », as before.
+        glosses, _, _ = self.tables(["hacer"], HACER)
+        self.assertEqual(glosses["hacer"], "to do, perform, execute, carry out; to make")
+        written, _ = self.gloss(EN, SPANISH, {"hacer"}, HACER)
+        self.assertEqual(glosses, written)
+        (entry,) = self.read(HACER)
+        self.assertEqual([s["glosses"][0] for s in entry["senses"]], [s["glosses"][0] for s in HACER["senses"]])
+
+    def test_spec_scenario_a_meaning_nested_under_a_diminutive(self):
+        # Recorded: `casita`'s « small house » and « house » under « diminutive of casa », and every
+        # sense of `cosita` under « diminutive of cosa », which left it unglossed.
+        written, _ = self.gloss(EN, SPANISH, {"casita", "cosita"}, CASITA, COSITA)
+        self.assertEqual(
+            written, {"casita": "mother-in-law apartment; house (children's activity of pretending to be a family)"}
+        )
+        glosses, _, _ = self.tables(["casita", "cosita"], CASITA, COSITA)
+        self.assertEqual(
+            glosses,
+            {
+                "casita": "small house; house; mother-in-law apartment; "
+                "house (children's activity of pretending to be a family)",
+                "cosita": "small thing; thingy",
+            },
+        )
+        # The new sense keeps its tags: none of them points.
+        self.assertEqual(self.read(CASITA)[0]["senses"][1], {"glosses": ["house"], "tags": ["endearing", "feminine"]})
+
+    def test_a_meaning_nested_under_an_alternative_form(self):
+        # Recorded: `Québec`'s two places under « alternative form of Quebec: », unglossed before.
+        written, _ = self.gloss(EN, SPANISH, {"québec"}, QUEBEC)
+        self.assertEqual(written, {})
+        glosses, _, _ = self.tables(["québec"], QUEBEC)
+        self.assertEqual(
+            glosses["québec"],
+            "Quebec (a province in eastern Canada); "
+            "Quebec, Quebec City (the capital city of the province of Quebec, Canada)",
+        )
+
+    def test_a_sense_nested_under_a_pointer_of_its_entry(self):
+        # Recorded: su's second sense is nested under its first, a pointer of the same entry, and
+        # sí's pronoun senses under « prepositional form of se ». Neither target is in the file, so
+        # the pointers themselves stay what they are.
+        su, si = self.read(SU, SI_PRON)
+        self.assertEqual(su["senses"], [SU["senses"][0], {"glosses": ["used to express an approximate number: about, approximately"]}])
+        self.assertEqual(
+            si["senses"],
+            [{"glosses": ["himself, herself, itself, themself, themselves"]}, {"glosses": ["yourself, yourselves"]}],
+        )
+
+    def test_a_nested_pointer_stays_a_pointer(self):
+        # Recorded: goma's « ellipsis of goma de mascar (“chewing gum”) », tagged `alt-of`, nested
+        # under « gum (substance exuded by certain plants) », a meaning: the sense is untouched and
+        # still skipped, and goma's gloss is as before.
+        (goma,) = self.read(GOMA)
+        self.assertEqual(goma["senses"], GOMA["senses"])
+        glosses, _, _ = self.tables(["goma"], GOMA)
+        written, _ = self.gloss(EN, SPANISH, {"goma"}, GOMA)
+        self.assertEqual(glosses, written)
+        self.assertNotIn("chewing gum", glosses["goma"])
+
+    # — D3: a shortened or respelled form, or a pronoun's case form, reads as its meaning —
+
+    def test_spec_scenario_an_apocope_that_carries_its_meaning(self):
+        # Recorded: « mi » beside the Greek letter mu and the note mi; « muy » « apocopic form of
+        # mucho; very », which borrowed all of « mucho »'s adverb; « un » « (“one”) ».
+        entries = (MI_DET, MI_NOUN_1, MI_NOUN_2, MUY, MUCHO_ADV, UN_ARTICLE, UN_NUM)
+        written, _ = self.gloss(EN, SPANISH, {"mi", "muy", "un"}, *entries)
+        self.assertEqual(
+            written,
+            {
+                "mi": "mu, the Greek letter Μ, μ; mi",
+                "muy": "much, a lot, far, way, many times; very; long (a long time)",
+                "un": "an, a",
+            },
+        )
+        glosses, runs, _ = self.tables(["mi", "muy", "un"], *entries)
+        self.assertEqual(glosses, {"mi": "my; mu, the Greek letter Μ, μ; mi", "muy": "very", "un": "an, a; one"})
+        self.assertEqual(runs["mi"], [("DET", 1), ("NOUN", 2)])
+        # Its other tags kept, the pointer's tags and fields dropped.
+        self.assertEqual(
+            self.read(MI_DET)[0]["senses"],
+            [{"glosses": ["my"], "tags": ["abbreviation", "apocopic", "first-person", "possessive", "singular"]}],
+        )
+
+    def test_spec_scenario_a_form_named_by_its_pointer_s_fields(self):
+        # Recorded: mal's adjective « apocopic form of malo bad; evil » (kaikki's target « malo bad »,
+        # its `extra` « evil »), and « cincuenta y un » « apocopic form of cincuenta y uno (“fifty-one”) »:
+        # its target is the pointer's word, whole, not the gloss's first word (« fifty »).
+        entries = (MAL_ADV, MAL_NOUN, MAL_ADJ, CINCUENTA_Y_UN)
+        glosses, runs, expressions = self.tables(["mal"], *entries)
+        self.assertEqual(
+            glosses["mal"],
+            "badly, poorly, ill; awry, amiss, wrong, wrongly; hard (functions as an adverb in Spanish but translates "
+            "as an adjective in English); evil, harm, a bad thing or situation; disease, illness, ailment; "
+            "worse (substantive); evil; amiss, awry, off, wrong",
+        )
+        self.assertEqual(runs["mal"], [("ADV", 3), ("NOUN", 3), ("ADJ", 2)])
+        self.assertNotIn("apocopic form of", glosses["mal"])
+        self.assertEqual(expressions["cincuenta y un"], "fifty-one")
+        # The carried sense takes a place in the round-robin: « Used as an intensifier, very » is
+        # crowded out of the eight (named in the sample for the owner).
+        written, _ = self.gloss(EN, SPANISH, {"mal"}, *entries)
+        self.assertIn("Used as an intensifier, very", written["mal"])
+        self.assertNotIn("intensifier", glosses["mal"])
+
+    def test_spec_scenario_a_tag_is_no_pointer(self):
+        # Recorded: mal's « amiss, awry, off, wrong » is tagged `apocopic`, nos's « first person
+        # nominative, prepositional and vocative plural pronoun » `prepositional`: neither is worded
+        # as a pointer, so both stay meanings.
+        mal, nos = self.read(MAL_ADJ, NOS_PRON)
+        self.assertEqual(mal["senses"][1], MAL_ADJ["senses"][1])
+        self.assertEqual(nos["senses"][4], NOS_PRON["senses"][4])
+        glosses, _, _ = self.tables(["mal", "nos"], MAL_ADJ, NOS_PRON)
+        self.assertIn("amiss, awry, off, wrong", glosses["mal"].split("; "))
+        self.assertIn("first person nominative, prepositional and vocative plural pronoun", glosses["nos"].split("; "))
+
+    def test_spec_scenario_an_apocope_that_carries_none(self):
+        # Recorded: « su » « apocopic form of suyo » with a sense nested under it; `suyo` as a
+        # pronoun and a determiner. su takes suyo's determiner senses, in the pointer's place, and
+        # keeps its nested sense. Without the pre-pass, the edition's wording makes both senses
+        # pointers: su borrows suyo's senses whole, and the nested one is lost (the committed tables,
+        # before the wording, read « apocopic form of suyo »).
+        written, _ = self.gloss(EN, SPANISH, {"su"}, SU, SUYO_PRON, SUYO_DET)
+        self.assertEqual(written["su"], "his, hers, its, to her; theirs, their, to them; yours, your, to you")
+        glosses, runs, _ = self.tables(["su"], SU, SUYO_PRON, SUYO_DET)
+        self.assertEqual(
+            glosses["su"],
+            "his, hers, its, to her; theirs, their, to them; yours, your, to you; "
+            "used to express an approximate number: about, approximately",
+        )
+        self.assertEqual(runs["su"], [("DET", 4)])
+        lent = self.read(SU, SUYO_PRON, SUYO_DET)[0]["senses"][0]
+        self.assertEqual(lent, {"glosses": ["his, hers, its, to her"], "tags": ["abbreviation", "apocopic"]})
+
+    def test_spec_scenario_a_target_of_two_letters(self):
+        # Recorded: « er », only « pronunciation spelling of el » and « eye dialect spelling of el »:
+        # el has two letters, lending nothing (`reduce_common._MIN_BASE`), so they stay pointers.
+        er = self.read(ER, EL_1, EL_2)[0]
+        self.assertEqual(er["senses"], ER["senses"])
+        self.assertTrue(all(EN.form_of.match(s["glosses"][0]) for s in er["senses"]))
+        glosses, _, _ = self.tables(["er", "el"], ER, EL_1, EL_2)
+        self.assertNotIn("er", glosses)
+        self.assertIn("el", glosses)
+
+    def test_spec_scenario_a_pronoun_s_case_form(self):
+        # Recorded: lo's, nos's and les's case forms carry their meaning after a colon or a
+        # semicolon; read as pointers, lo read only its article and les only « the (plural) ».
+        entries = (LO_PRON, LO_ARTICLE, NOS_PRON, NOS_NOUN, LES_PRON, LES_ARTICLE)
+        written, _ = self.gloss(EN, SPANISH, {"lo", "nos", "les"}, *entries)
+        self.assertEqual(
+            written,
+            {
+                "lo": "neuter definite article used only before nominalized adjectives: the, that which is",
+                "nos": "first person (except in vocative, and in the oblique it requires a preposition), "
+                "I (singular, compare vos); first person nominative, prepositional and vocative plural pronoun",
+                "les": "the (plural)",
+            },
+        )
+        glosses, _, _ = self.tables(["lo", "nos", "les"], *entries)
+        self.assertEqual(
+            glosses,
+            {
+                "lo": "him, you (formal), it, that; "
+                "neuter definite article used only before nominalized adjectives: the, that which is",
+                "nos": "to us, for us; us; ourselves, each other; first person (except in vocative, and in the "
+                "oblique it requires a preposition), I (singular, compare vos); "
+                "first person nominative, prepositional and vocative plural pronoun",
+                "les": "to them, for them; to you all, for you all (formal); you all (formal); them; the (plural)",
+            },
+        )
+        # lo's `extra` opens on the note: a case form's meaning is the text after the first colon or
+        # semicolon of its gloss.
+        self.assertEqual(self.read(LO_PRON)[0]["senses"], [{"glosses": ["him, you (formal), it, that"], "tags": ["accusative"]}])
+
+    def test_a_form_of_a_form_follows_its_pointer_once(self):
+        # Recorded: « toy », untagged « apheretic form of estoy »; estoy only a form of estar (estar's
+        # first three senses). Read as a meaning, toy was glossed « apheretic form of estoy ».
+        glosses, runs, _ = self.tables(["toy"], TOY, ESTOY, ESTAR)
+        self.assertEqual(
+            glosses["toy"],
+            "to be (have a temporary or permanent location in space); to be present; "
+            "to be (denotes a copula, in a transient fashion)",
+        )
+        self.assertEqual(runs["toy"], [("VERB", 3)])
+
+    def test_a_multi_word_target_is_lent_whole(self):
+        # Recorded: « po favó », « pronunciation spelling of por favor », an expression nothing glossed.
+        _, _, expressions = self.tables([], PO_FAVO, POR_FAVOR)
+        self.assertEqual(expressions["po favó"], "please; you're welcome")
+
+    def test_a_form_with_no_meaning_and_no_lender_stays_a_pointer(self):
+        # Recorded: « ejque » names a garbled target, « es que in the Madrid dialect »; « seó » names
+        # `seor`, itself only « syncopic form of señor » — whose pointer is in its text, not in a
+        # field — so seó stays a pointer, while seor takes señor's senses (its first two). Made up:
+        # « tas », « apheretic form of estás », without its target in the file — untagged, it was
+        # read as a meaning; the edition's wording makes it a pointer.
+        ejque, seo, seor, _, tas = self.read(EJQUE, SEO, SEOR, SENOR, TAS)
+        self.assertEqual((ejque, seo, tas), (EJQUE, SEO, TAS))
+        self.assertTrue(EN.form_of.match(TAS["senses"][0]["glosses"][0]))
+        self.assertEqual(
+            seor["senses"],
+            [
+                {
+                    "glosses": ["mister, sir, lord (title conferred on a married or older male)"],
+                    "tags": ["masculine"],
+                },
+                {"glosses": ["gentleman"], "tags": ["masculine"]},
+            ],
+        )
+        written, _ = self.gloss(EN, SPANISH, {"tas"}, TAS)
+        self.assertEqual(written, {})
+        glosses, _, expressions = self.tables(["ejque", "tas"], EJQUE, TAS)
+        self.assertEqual((glosses, expressions), ({}, {}))
+
+    # — D4: a function word does not open on a place's name —
+
+    def test_spec_scenario_a_function_word_spelled_like_a_place(self):
+        # Recorded: `Como`, the Italian city, stands before como's adverb, conjunction and
+        # preposition in the file, so the round-robin opened como on the city, twice.
+        entries = (COMO_NAME, COMO_ADV, COMO_CONJ, COMO_PREP, COMO_VERB)
+        written, _ = self.gloss(EN, SPANISH, {"como"}, *entries)
+        self.assertTrue(written["como"].startswith("Como (a city and comune"), written["como"])
+        self.assertEqual([(e["word"], e["pos"]) for e in self.read(*entries)], [
+            ("como", "adv"), ("como", "conj"), ("como", "prep"), ("como", "verb"), ("Como", "name"),
+        ])
+        glosses, runs, _ = self.tables(["como"], *entries)
+        self.assertEqual(
+            glosses["como"],
+            "as (to such an extent or degree); like, about (approximately); "
+            "as (introducing a basis of comparison or equality); as, since (being that); "
+            "as (in the manner or role specified); such as (for example); "
+            "Como (a city and comune, the capital of the province of Como, Lombardy); "
+            "Como (a province of Lombardy, Italy)",
+        )
+        self.assertEqual(runs["como"], [("ADV", 2), ("SCONJ", 2), ("ADP", 2), ("PROPN", 2)])
+
+    def test_spec_scenario_an_acronym_keeps_its_place(self):
+        # Recorded: `pr` has only pointers — « abbreviation of por », « para », « pero » — and `PR`,
+        # all in capitals, « initialism of Puerto Rico »: pr borrows from the first in file order,
+        # Puerto Rico. Moved last, `PR` would open pr on por's « by » (por's first three senses).
+        entries = (PR_NAME, PUERTO_RICO, PR_PREP, PR_CONJ, POR_PREP)
+        self.assertEqual(self.read(*entries), [json.loads(json.dumps(e)) for e in entries], "nothing moved")
+        glosses, _, _ = self.tables(["pr"], *entries)
+        self.assertEqual(
+            glosses["pr"],
+            "Puerto Rico (a commonwealth, island and dependent territory of the United States in the Caribbean, "
+            "official name: Estado Libre Asociado de Puerto Rico)",
+        )
+        moved, _ = self.gloss(EN, SPANISH, {"pr"}, PUERTO_RICO, PR_PREP, PR_CONJ, POR_PREP, PR_NAME)
+        self.assertTrue(moved["pr"].startswith("by; for"), moved["pr"])
+
+    def test_a_proper_noun_before_a_common_word_keeps_its_place(self):
+        # Recorded: `Chile` before `chile`, `Amor` (a surname) before `amor`, in file order. Neither
+        # common word is a function word: their lines stay where they are (Q3, for the owner).
+        entries = (CHILE_NAME, CHILE_NOUN, AMOR_NAME, AMOR_NOUN)
+        self.assertEqual(self.read(*entries), [json.loads(json.dumps(e)) for e in entries])
+        glosses, _, _ = self.tables(["chile", "amor"], *entries)
+        self.assertTrue(glosses["chile"].startswith("Chile (a country in South America"), glosses["chile"])
+        self.assertEqual(glosses["amor"], "a surname; love; love affair")
+
+    def test_a_headword_s_moved_lines_stay_one_run(self):
+        # Made up from `Como`'s: its senses as two `name` entries, two etymologies, and a made-up
+        # place `Ni` written between them. Each headword's moved lines are written together, in
+        # their order, after every other line, so the merging still reads them as one run.
+        como_a = {**COMO_NAME, "senses": COMO_NAME["senses"][:2]}
+        como_b = {**COMO_NAME, "senses": COMO_NAME["senses"][2:]}
+        ni = {"word": "Ni", "pos": "name", "senses": [{"glosses": ["a made-up place"]}]}
+        lines = self.read(como_a, ni, como_b, COMO_CONJ, NI_CONJ)
+        self.assertEqual(
+            [(e["word"], e["pos"], len(e["senses"])) for e in lines],
+            [("como", "conj", 4), ("ni", "conj", 1), ("Como", "name", 2), ("Como", "name", 6), ("Ni", "name", 1)],
+        )
+        merged = english.merge_same_pos_etymologies(str(self.dir / "meanings.jsonl"), str(self.dir / "merged.jsonl"), merged=True)
+        lines = [json.loads(line) for line in Path(merged).read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(
+            [(e["word"], e["pos"], len(e["senses"])) for e in lines],
+            [("como", "conj", 4), ("ni", "conj", 1), ("Como", "name", 8), ("Ni", "name", 1)],
+        )
+
+    # — D5: one English typography —
+
+    def test_spec_scenario_the_edition_s_description_in_lower_case(self):
+        # Recorded: ni's conjunction and adverb, se's first sense.
+        glosses, _, _ = self.tables(["ni", "se"], NI_CONJ, NI_ADV, SE_PRON)
+        self.assertEqual(
+            glosses["ni"],
+            "used when negating two or more elements, and not, not A or B, not A nor B, neither A nor B; "
+            "used in emphatic negations, not even; forms an emphatic negative imperative, don't even",
+        )
+        self.assertTrue(glosses["se"].startswith("a reflexive or reciprocal pronoun: oneself, "), glosses["se"])
+
+    def test_spec_scenario_a_capital_that_is_no_description(self):
+        # Recorded: a ballet's title, a species, a grade and a month keep their capital.
+        for gloss in ("The Nutcracker (ballet)", "The Eurasian treecreeper.", "A (highest grade in testing)", "July"):
+            self.assertEqual(english.english_typography(gloss), gloss)
+        glosses, _, expressions = self.tables(
+            ["cascanueces", "diez", "julio"], CASCANUECES, AGATEADOR_NORTENO, DIEZ_NOUN, JULIO
+        )
+        self.assertEqual(
+            glosses, {"cascanueces": "The Nutcracker (ballet)", "diez": "A (highest grade in testing)", "julio": "July"}
+        )
+        self.assertEqual(expressions["agateador norteño"], "The Eurasian treecreeper")
+        # Only the closed list, and only before a letter.
+        for gloss in ("Thing (a capital kept)", "Use of", "In 1990", "Interjections"):
+            self.assertEqual(english.english_typography(gloss), gloss)
+
+    def test_spec_scenario_one_ellipsis(self):
+        # Recorded: nada's pronoun, tanto's and o's conjunctions, ahora's conjunction. The shared
+        # cleaning strips a sense's final periods, but « … » is no period: ahora keeps its last one.
+        glosses, _, _ = self.tables(
+            ["nada", "tanto", "o", "ahora"], NADA_PRON, TANTO_CONJ, O_CONJ, AHORA_CONJ
+        )
+        self.assertEqual(
+            glosses,
+            {
+                "nada": "nothing, zero, zilch, not … anything",
+                "tanto": "both … and (introduces the first of two linked elements)",
+                "o": "either … or",
+                "ahora": "now … now, whether … or…",
+            },
+        )
+        written, _ = self.gloss(EN, SPANISH, {"ahora"}, AHORA_CONJ)
+        self.assertEqual(written["ahora"], "now...now, whether...or")
+        self.assertEqual(english.english_typography("let's see..."), "let's see…")
+        self.assertEqual(english.english_typography("my name is ..., I am ..."), "my name is …, I am …")
+
+    def test_spec_scenario_paired_quotes(self):
+        # Recorded: otro's interjection; chamorro's single quotes stay as written. Made up: an odd
+        # number of straight quotes stays.
+        glosses, _, _ = self.tables(["otro", "chamorro"], OTRO_INTJ, CHAMORRO)
+        self.assertEqual(glosses["otro"], "“Not again!” or “What, again?” (also Otra vez! or Otra vez?)")
+        self.assertEqual(glosses["chamorro"], "shank (of pork, beef, etc.), e.g. 'chamorro de puerco', pork shank")
+        self.assertEqual(english.english_typography('a 12" record, "vinyl"'), 'a 12" record, "vinyl"')
+
+    def test_spec_scenario_a_numbered_sense_of_the_source(self):
+        # Recorded: ya's first four senses, jurado's two. A bracketed sense number goes first, so a
+        # parenthesis that says more stays; the sense's own `;` is written `,` by the shared rules.
+        glosses, _, _ = self.tables(["ya", "jurado"], YA_ADV, JURADO_NOUN)
+        self.assertEqual(
+            glosses,
+            {
+                "ya": "now, right now, (in the negative) anymore, no longer; indicates completion of an action; "
+                "yet (in questions)",
+                "jurado": "juror, juryman, juryperson (member of a jury); "
+                "judge (member of a jury, officiator of a competitive event)",
+            },
+        )
+
+    def test_spec_scenario_an_example_after_a_line_break(self):
+        # Recorded: canino's adjective, an example sentence and its translation after line breaks.
+        written, _ = self.gloss(EN, SPANISH, {"canino"}, CANINO_ADJ)
+        self.assertIn("Marcos siempre estaba canino", written["canino"])
+        glosses, _, _ = self.tables(["canino"], CANINO_ADJ)
+        self.assertEqual(glosses["canino"], "canine; ravenously hungry, hungry as a hog")
+
+    def test_an_expression_gets_the_same_rules(self):
+        # Recorded: « a la mierda » « screw this; to hell with... », which lost its ellipsis.
+        written = common.reduce_expressions(self.jsonl(A_LA_MIERDA), 80, studied=SPANISH, edition=EN)
+        self.assertEqual(written["a la mierda"], "screw this; to hell with")
+        _, _, expressions = self.tables([], A_LA_MIERDA)
+        self.assertEqual(expressions["a la mierda"], "screw this; to hell with…")
+
+    # — D1: where the rules live —
+
+    def test_the_pre_pass_writes_what_it_cannot_read_as_it_is(self):
+        # Made up: lines that are no JSON object, an entry it does not change, a sense of no
+        # kaikki shape. Each is written as it is, byte for byte.
+        src = self.dir / "entries.jsonl"
+        text = (
+            "not json\n[1, 2]\n"
+            '{"word":"casa","pos":"noun","senses":[{"glosses":["house"],"tags":["feminine"]}]}\n'
+            '{"word": "raro", "pos": "adj", "senses": ["odd", {"glosses": [1]}, {"tags": ["no-gloss"]}]}\n'
+            '{"word": 3, "senses": 4}\n'
+        )
+        src.write_text(text, encoding="utf-8")
+        out = english.read_as_meanings(str(src), str(self.dir / "meanings.jsonl"))
+        self.assertEqual(Path(out).read_text(encoding="utf-8"), text)
+
+    def test_reduce_es_en_runs_it_before_the_etymology_merging(self):
+        # es-en reduced as its build runs it (`main()`): the pre-pass reads the file the letters'
+        # passes wrote, and the merging reads the pre-pass's.
+        work, studied = self.dir / "work", self.dir / "es"
+        work.mkdir()
+        studied.mkdir()
+        (studied / "forms.tsv").write_text("venir\tvenir\ncosita\tcosita\n", encoding="utf-8")
+        (studied / "freq.tsv").write_text("venir\t1\ncosita\t2\n", encoding="utf-8")
+        self.jsonl(VENIR, COSITA, name="work/kaikki-Spanish.jsonl")
+        self.jsonl(name="work/kaikki-es-traductions-en.jsonl")
+        calls = []
+
+        def spy(name, real):
+            def call(src, dst, **kwargs):
+                calls.append((name, Path(src).name, Path(dst).name))
+                return real(src, dst, **kwargs)
+
+            return call
+
+        argv = [
+            "reduce-es-en.py",
+            *("--work", str(work), "--studied", str(studied)),
+            *("--built-at", "2026-10-08", "--pack-version", "test"),
+        ]
+        with (
+            mock.patch.object(sys, "argv", argv),
+            mock.patch.object(english, "read_as_meanings", spy("read_as_meanings", english.read_as_meanings)),
+            mock.patch.object(
+                english, "merge_same_pos_etymologies", spy("merge", english.merge_same_pos_etymologies)
+            ),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            es_en.main()
+        self.assertEqual(
+            calls,
+            [
+                ("read_as_meanings", "kaikki-Spanish-headwords.jsonl", "kaikki-Spanish-meanings.jsonl"),
+                ("merge", "kaikki-Spanish-meanings.jsonl", "kaikki-Spanish-merged.jsonl"),
+            ],
+        )
+        self.assertEqual(
+            (work / "gloss.tsv").read_text(encoding="utf-8").splitlines()[0], "cosita\tsmall thing; thingy"
+        )
+
+    def test_spec_scenario_nothing_else_moves(self):
+        # The rules are the English edition's: es-en's rule digest moves with them and no other
+        # pair's — en-fr's and es-fr's load the French edition, en-es's the Spanish one — and
+        # reduce_common.py, which every pair loads, is not edited. The committed pins record the
+        # rules they were reduced with: es-en's, re-pinned with these rules, and the other three, as
+        # they were.
+        pairs = ("en-fr", "es-fr", "es-en", "en-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for name, old, new in (
+            ("reduce_edition_en.py", '_FUNCTION_WORDS = frozenset({"prep", "conj", "pron", "det", "article"})', "_FUNCTION_WORDS = frozenset()"),
+            ("reduce_edition_en.py", "(?:pronunciation|eye dialect) spelling", "pronunciation spelling"),
+            ("reduce_edition_en.py", 'text.count(\'"\') % 2 == 0', "False"),
+            ("reduce-es-en.py", "entries = english.read_as_meanings(", "entries = (lambda src, dst: src)("),
+        ):
+            edition = copy / name
+            text = edition.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            edition.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertNotEqual(after["es-en"], before["es-en"], new)
+            self.assertEqual({p: after[p] for p in ("en-fr", "es-fr", "en-es")}, {p: before[p] for p in ("en-fr", "es-fr", "en-es")}, new)
+            before = after
+
+
 class TheSpanishEdition(Entries):
     def test_forma_del_plural_de_is_a_form_of(self):
         sense = CHIPS["senses"][0]
