@@ -9,30 +9,49 @@ name: lingua-pack-update
 # against tables/<pair>/pin.json. This workflow is the only place the upstream sources are read, and
 # nothing it produces reaches a release without a person:
 #
-# - dispatch, mode `update`: today's sources (kaikki live; AGID, CEFR-J, Octanove at their pinned
-#   commits), kept as a new snapshot — kaikki's bytes published as the release
-#   lingua-pack-sources-<pair>-<snapshot>, never replaced — reduced, and pushed to the branch
-#   lingua-pack/<pair>/<snapshot>. A studied language's reference pair (tables/<studied>/studied.json)
-#   writes that language's tables, so on the same branch it brings every other pair of the language,
-#   reduced again from its own pinned sources (split-lingua-pack-tables-by-language D5). Each pair
-#   pins its own extract (add-lingua-pack-es-en D2: es-en reads es-fr's address, fetched live when
-#   es-en is updated): the release is the named pair's own and holds its own assets only, and a pair
-#   brought along publishes nothing. A pair whose sources are dumps alone (en-es,
-#   add-lingua-pack-en-es D2) publishes the files it derives from them, and its release notes name
-#   no extract. A pair's first update — its folder holds no tables yet — proposes the folder whole.
+# - dispatch, mode `update`: today's sources (CEFR-J, Octanove, ESDB, UD Spanish-GSD at their pinned
+#   commits; kaikki live), kept as a new snapshot, reduced, and pushed to the branch
+#   lingua-pack/<pair>/<snapshot>. kaikki is read as its dumps of whole Wiktionary editions alone —
+#   the English, French and Spanish Wiktionaries', one address each (pack_sources.py EDITIONS,
+#   migrate-lingua-pack-sources-to-raw-dumps D1): the files the pair reads are derived from them in
+#   one pass per edition and published as the release lingua-pack-sources-<pair>-<snapshot>, never
+#   replaced, whose notes name each dump by its address, regeneration date and decompressed sha256;
+#   no dump is kept (the English edition's alone is 2.78 GiB gzipped, above the 2 GiB a release
+#   asset may weigh). A studied language's reference pair (tables/<studied>/studied.json) writes that
+#   language's tables, so on the same branch it brings every other pair of the language, reduced
+#   again from its own pinned sources (split-lingua-pack-tables-by-language D5). Each pair pins its
+#   own fetch (add-lingua-pack-es-en D2): the release is the named pair's own and holds its own
+#   assets only, and a pair brought along publishes nothing and reads no dump. A pin written before
+#   the dumps — en-fr's, es-fr's and es-en's name kaikki's per-language extracts — is read as it is
+#   recorded, and moves to the dumps at the pair's next update (D5). A pair's first update — its
+#   folder holds no tables yet — proposes the folder whole.
 # - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
-#   the branch's diff is the rules' effect alone. With pair `all`, every pair with committed tables
-#   is reduced in one run and proposed on one branch, lingua-pack/all/<snapshot>-reduce, with the
-#   invariance baselines re-blessed once (generalise-lingua-gloss-reducer D4).
+#   the branch's diff is the rules' effect alone; no dump is read. With pair `all`, every pair with
+#   committed tables is reduced in one run and proposed on one branch,
+#   lingua-pack/all/<snapshot>-reduce, with the invariance baselines re-blessed once
+#   (generalise-lingua-gloss-reducer D4).
 # - expect `identical`: the rules moved, not what they make. The run fails, naming the pair and the
 #   file (a studied language's file with its reference pair: `es-fr: es/level.tsv`), and proposes no
 #   branch, when a table, a kept input or NOTICE differs by one byte,
 #   manifest.json anywhere but `pack_version`, pin.json anywhere but the pack's sha256 and the rules'
 #   record (pack_report.py --identical), the site's coverage figures at all, a baseline anywhere
 #   but the lines naming the packs (`### pack`, `### beside`), or an extension snapshot at all.
-# - monthly: `update` in dry mode. Nothing is committed or published; the run reports how far
-#   upstream has drifted and FAILS when a source cannot be fetched, the reduction fails, or a table
-#   collapses (an upstream format change shows as lost rows, not as an error).
+# - monthly, or dispatch mode `dry`: `update` into scratch folders. Nothing is committed or
+#   published; the run reports how far upstream has drifted and FAILS when a source cannot be
+#   fetched, a reduction fails, or a table collapses (an upstream format change shows as lost rows,
+#   not as an error). The monthly run (and a `dry` dispatch with pair `all`) checks every pair in
+#   ONE job, in `pairs` order (D4): each edition's dump is fetched and read once a month, its whole
+#   catalogue derived at the first pair that reads it and copied by the later ones — about 3.6 GiB
+#   for the three dumps, where a job per pair would fetch the English one once per pair reading it.
+#   Each pair reduces into a dry root of its own (work/dry/<pair>), so a later pair never lays the
+#   committed studied folder over the drift its reference wrote; a pair that fails is named, the
+#   loop goes on, and the job fails at the end.
+#   Measured on the implementation pull request (2026-10-08, scripts/lingua-data/SOURCES.md, *The
+#   editions' dumps*): the four pairs in 17 min 11 s, each dump fetched once — the English one,
+#   2.98 GB gzipped and 25.6 GB decompressed, in under 2 min, its pass in 3 min; a dry run of es-fr,
+#   an update's cost, in 16 min 57 s. At most 68 GB of the runner's disk used, of which about 63 GB
+#   is the runner's own image before the job starts: the run itself peaks about 5 GB above it, and
+#   82 GiB stayed free.
 #
 # It never opens the pull request: the repository setting that would allow it also lets workflows
 # approve pull requests, and a pull request opened with this token would run none of its required
@@ -41,12 +60,12 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "update = today's sources, new snapshot; reduce = the pinned sources, after a change to the reduction rules."
+        description: "update = today's sources, new snapshot; reduce = the pinned sources, after a change to the reduction rules; dry = today's sources into scratch folders, nothing committed or published (the monthly check)."
         type: choice
-        options: [update, reduce]
+        options: [update, reduce, dry]
         default: update
       pair:
-        description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce only."
+        description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce or dry."
         type: choice
         options: [en-fr, es-fr, es-en, en-es, all]
         default: en-fr
@@ -56,17 +75,18 @@ on:
         options: [any, identical]
         default: any
   schedule:
-    - cron: "17 5 3 * *" # the 3rd of every month, 05:17 UTC — dry run
+    - cron: "17 5 3 * *" # the 3rd of every month, 05:17 UTC — dry run of every pair, one job
 
 permissions:
-  contents: write # push the branch lingua-pack/<snapshot>, publish the kaikki snapshot release
+  contents: write # push the branch lingua-pack/<snapshot>, publish the pair's sources release
 
 # One run at a time per studied language: an update of a reference pair rewrites the studied
 # folder its readers build on and brings them along — es-fr writes tables/es/ and reduces es-en
 # again, en-fr writes tables/en/ and reduces en-es again (add-lingua-pack-en-es D1: en-es reads
 # tables/en/ as committed and pins its digest) — so a reference's and its reader's dispatches
 # never propose the reader's folder on two branches at once: the `es` group for es-fr and es-en,
-# the `en` group for en-fr and en-es. `all` (mode reduce) and the monthly dry run have a group each.
+# the `en` group for en-fr and en-es. `all` (modes reduce and dry) and the monthly dry run have a
+# group each.
 concurrency:
   group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || inputs.pair || 'monthly' }}
   cancel-in-progress: false
@@ -74,14 +94,14 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        # A dispatch proposes the pair it names; the monthly dry run checks every pair with tables.
-        pair: ${{ github.event_name == 'schedule' && fromJSON('["en-fr", "es-fr", "es-en", "en-es"]') || fromJSON(format('["{0}"]', inputs.pair)) }}
+    # An update measured 17 min, the monthly job over four pairs 17 min too (scripts/lingua-data/
+    # SOURCES.md, *The editions' dumps*): a run five times as long has stalled — a dump's transfer
+    # that stalls is cut sooner (pack_sources.py STALL).
+    timeout-minutes: 90
     env:
+      # The monthly run checks every pair in one job (D4); a dispatch names its mode and pair.
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
-      PAIR: ${{ matrix.pair }}
+      PAIR: ${{ github.event_name == 'schedule' && 'all' || inputs.pair }}
       EXPECT: ${{ inputs.expect || 'any' }}
       # A monthly run fails when a table loses more than this share of its rows (D7). A starting
       # value, to set from the first runs.
@@ -106,8 +126,8 @@ jobs:
       - name: Check the inputs
         run: |
           set -euo pipefail
-          if [ "$PAIR" = all ] && [ "$MODE" != reduce ]; then
-            echo "::error::pair=all reduces every pair again from its pinned sources: dispatch it with mode=reduce."
+          if [ "$PAIR" = all ] && [ "$MODE" = update ]; then
+            echo "::error::pair=all reduces every pair again (mode=reduce) or checks every pair against today's sources (mode=dry); an update names its pair."
             exit 1
           fi
           if [ "$EXPECT" = identical ] && [ "$MODE" != reduce ]; then
@@ -122,17 +142,19 @@ jobs:
           set -euo pipefail
           snapshot=$(date -u +%Y.%m.%d)
           echo "SNAPSHOT=$snapshot" >> "$GITHUB_ENV"
+          started=$(date +%s)
           # Each studied language's reference pair first: it writes tables/<studied>/, which the
           # language's other pairs build on. A named reference brings the pairs that read its studied
           # folder along, reduced again from their own pinned sources after it
           # (split-lingua-pack-tables-by-language).
           tables=scripts/lingua-data/tables
+          work=scripts/lingua-data/work
           # Listed by a plain assignment, which `set -e` stops on: a failing process substitution
           # feeding the array would leave it empty and this step green, having reduced nothing.
           if [ "$PAIR" = all ]; then
             list="$(python scripts/lingua-data/pack_sources.py pairs --tables "$tables")"
           elif [ "$MODE" = dry ]; then
-            list="$PAIR" # the monthly matrix checks every pair on its own
+            list="$PAIR" # a dry run of one pair checks that pair alone
           else
             list="$(python scripts/lingua-data/pack_sources.py pairs --tables "$tables" --after "$PAIR")"
           fi
@@ -144,6 +166,7 @@ jobs:
           fi
           echo "PAIRS=${pairs[*]}" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/committed"
+          failed=()
           for pair in "${pairs[@]}"; do
             studied="${pair%%-*}"
             cp -r "$tables/$pair" "$RUNNER_TEMP/committed/$pair"
@@ -151,29 +174,63 @@ jobs:
             mode="$MODE"
             # The pairs a named reference brings along: their pinned sources, reduced again.
             [ "$PAIR" != all ] && [ "$pair" != "$PAIR" ] && mode=reduce
-            LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+            if [ "$MODE" = dry ]; then
+              # Each pair into a dry root of its own (D4): build.sh lays the committed studied
+              # folder down again under its root, which in a shared root would hide the drift the
+              # language's reference wrote before the report reads it. A pair that fails is named and
+              # the loop goes on: one pair's failure hides no other pair's report.
+              pair_started=$(date +%s)
+              if ! LINGUA_DRY_ROOT="$work/dry/$pair" LINGUA_SNAPSHOT=$snapshot \
+                scripts/lingua-data/build.sh --dry "$pair" "$RUNNER_TEMP/pack-$pair.lingua"; then
+                echo "::error::$pair: the dry run failed; the other pairs go on, and the job fails at the end."
+                failed+=("$pair")
+              fi
+              echo "$pair: $(( $(date +%s) - pair_started )) s; disk used, free: $(df -h --output=used,avail / 2>/dev/null | tail -n1)"
+            else
+              LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+            fi
             # What a reducer measures of its own tables and stores in no pack — en-es's
             # translation-table share (add-lingua-pack-en-es D4) — kept for the report.
-            if [ -f "scripts/lingua-data/work/$pair/measures.json" ]; then
-              cp "scripts/lingua-data/work/$pair/measures.json" "$RUNNER_TEMP/measures-$pair.json"
+            if [ -f "$work/$pair/measures.json" ]; then
+              cp "$work/$pair/measures.json" "$RUNNER_TEMP/measures-$pair.json"
             fi
-            # A re-reduction keeps nothing of its raw sources (an update publishes the named pair's
-            # below); the next pair needs the room. Each pair by its own mode: the pairs an update
-            # brings along are re-reductions too.
-            if [ "$mode" = reduce ]; then rm -rf "scripts/lingua-data/work/$pair"; fi
+            # A re-reduction and a dry run keep nothing of their raw sources (an update publishes the
+            # named pair's below); the next pair needs the room (D8). Each pair by its own mode: the
+            # pairs an update brings along are re-reductions too.
+            if [ "$mode" != update ]; then rm -rf "${work:?}/$pair"; fi
           done
+          # Each edition's catalogue was the run's alone (D4); its dumps were deleted after their pass.
+          rm -rf "${work:?}/editions" "${work:?}/dumps"
+          # Empty arrays expanded with a default: `set -u` refuses them on bash before 4.4.
+          echo "FAILED=${failed[*]-}" >> "$GITHUB_ENV"
+          echo "Reduced ${pairs[*]} in $(( $(date +%s) - started )) s."
 
       - name: Report against the committed tables
         run: |
           set -euo pipefail
           status=0
           : > "$RUNNER_TEMP/report.md"
-          new="scripts/lingua-data/tables"
-          [ "$MODE" = dry ] && new="scripts/lingua-data/work/dry"
           # Each pair's native side, then each studied language's side its reference wrote — whose
-          # report names every pair reading it whose pack moves.
+          # report names every pair reading it whose pack moves. A dry run wrote each pair under a
+          # root of its own: a pair's folder is under its root, a studied language's under the root
+          # of the language's first pair in `pairs` order — its reference, whose drift it holds.
+          root_of() {
+            local folder="$1" pair
+            if [ "$MODE" != dry ]; then echo "scripts/lingua-data/tables"; return; fi
+            for pair in $PAIRS; do
+              if [ "$pair" = "$folder" ] || [ "${pair%%-*}" = "$folder" ]; then
+                echo "scripts/lingua-data/work/dry/$pair"
+                return
+              fi
+            done
+          }
           for folder in $PAIRS $(for pair in $PAIRS; do echo "${pair%%-*}"; done | sort -u); do
-            [ -d "$new/$folder" ] || continue
+            root="$(root_of "$folder")"
+            # A dry run's pair that failed wrote nothing worth reporting, nor did its studied language's
+            # folder when that pair is the root it lies under: the Reduce step named it.
+            case " $FAILED " in *" ${root##*/} "*) continue ;; esac
+            new="$root/$folder"
+            [ -d "$new" ] || continue
             identical=()
             # Named after the folder, or, for a studied language's, after the reference that writes it.
             [ "$EXPECT" = identical ] && identical=(--identical)
@@ -183,10 +240,17 @@ jobs:
             measures=()
             [ -f "$RUNNER_TEMP/measures-$folder.json" ] && measures=(--measures "$RUNNER_TEMP/measures-$folder.json")
             printf '\n**%s**\n\n' "$folder" >> "$RUNNER_TEMP/report.md"
-            python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed/$folder" "$new/$folder" \
-              "${pack[@]}" "${measures[@]}" --max-loss "$MAX_LOSS" "${identical[@]}" \
-              >> "$RUNNER_TEMP/report.md" || status=1
+            # Each optional argument array expanded only when set: `set -u` refuses an empty one on
+            # bash before 4.4.
+            python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed/$folder" "$new" \
+              ${pack[@]+"${pack[@]}"} ${measures[@]+"${measures[@]}"} --max-loss "$MAX_LOSS" \
+              ${identical[@]+"${identical[@]}"} >> "$RUNNER_TEMP/report.md" || status=1
           done
+          if [ -n "$FAILED" ]; then
+            printf '\n**Failed**: %s — see the Reduce step.\n' "$FAILED" >> "$RUNNER_TEMP/report.md"
+            echo "::error::These pairs failed: $FAILED."
+            status=1
+          fi
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
           exit $status
 
@@ -215,24 +279,19 @@ jobs:
           set -euo pipefail
           pin="scripts/lingua-data/tables/$PAIR/pin.json"
           # The pair's own release of this snapshot (release_tag): an update records every source it
-          # fetched under it — each pair pins its own extract (add-lingua-pack-es-en D2).
+          # fetched under it — each pair pins its own fetch (add-lingua-pack-es-en D2).
           tag=$(python scripts/lingua-data/pack_sources.py release-tag --pin "$pin")
-          # The extract's address, for a pair that pins one. A pair whose sources are dumps alone
-          # (en-es, add-lingua-pack-en-es D2) records no `sources.kaikki`: its notes name no extract.
-          if url=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.url 2>/dev/null); then
-            sources_read="the extract ($url), and the files derived from whole Wiktionary dumps, if the pair reads any"
-          else
-            sources_read="the files derived from the whole Wiktionary dumps and extracts the pair reads (it pins no extract of its own; the dumps are not kept)"
-          fi
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "::error::$tag already exists; a snapshot is never replaced. Dispatch again tomorrow."
             exit 1
           fi
-          # The pair's own assets: the extract, then each file the pair derives from a whole
-          # Wiktionary dump (pack_sources.py DUMPS) — the records whose release is this one.
-          # Listed by a plain assignment, which `set -e` stops on: a failing process substitution
-          # feeding the loop would leave the list empty and this step green, having published nothing.
+          # The pair's own assets: each file it derives from a whole Wiktionary edition's dump
+          # (pack_sources.py DUMPS) — the records whose release is this one — and the dumps they come
+          # from, for the notes (D7). Listed by plain assignments, which `set -e` stops on: a failing
+          # process substitution feeding the loop would leave the list empty and this step green,
+          # having published nothing.
           list="$(python scripts/lingua-data/pack_sources.py assets --pin "$pin" --release "$tag")"
+          dumps="$(python scripts/lingua-data/pack_sources.py dumps --pin "$pin" --release "$tag")"
           files=()
           while IFS= read -r asset; do
             [ -z "$asset" ] || files+=("scripts/lingua-data/work/$PAIR/$asset")
@@ -242,8 +301,14 @@ jobs:
             exit 1
           fi
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: $sources_read.
-          They are the pack's raw sources, kept because upstream regenerates them every day. Each is
+          The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the files the
+          pair derives from kaikki's dumps of whole Wiktionary editions. The dumps are not kept — the
+          English edition's alone is above the 2 GiB a release asset may weigh — and each is named here by its
+          address, the date kaikki regenerated it and the sha256 of its decompressed bytes:
+
+          $dumps
+
+          The assets are the pack's raw sources, kept because upstream regenerates them every day. Each is
           zstd-compressed; decompressed, its sha256 is in \`scripts/lingua-data/tables/$PAIR/pin.json\`.
 
           Licence: Wiktionary content, CC BY-SA 4.0 and GFDL — https://kaikki.org, https://www.wiktionary.org.

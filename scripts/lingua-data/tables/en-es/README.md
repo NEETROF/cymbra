@@ -241,9 +241,17 @@ D2). The derived files are the assets of en-es's own release, `lingua-pack-sourc
   (`kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl`), served uncompressed —
   3,335,546,346 B as served at the first update (kaikki's regeneration of 2026-10-03), read as a dump is, told apart
   by the gzip magic, and not kept. They gloss what the Spanish Wiktionary leaves out, at most three
-  words per part of speech, in the table's order. The programme's risk 6 names the raw English
-  dump; the extract keeps the update within the job's reach today, and change 38 switches the
-  address if kaikki stops serving it (`../../SOURCES.md`).
+  words per part of speech, in the table's order. Change 38 (`migrate-lingua-pack-sources-to-raw-
+  dumps`) switched the address, as the programme's risk 6 asks: an update derives this file from
+  the English Wiktionary's dump (`kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz`,
+  2,981,058,381 B gzipped), the pin keeping the extract's derivation until en-es's next update.
+  The dump keeps each table where the page writes it, in the page's order, where the extract moves
+  it under the sense it translates, and 60 entries repeat 77 translations they already list (the
+  extract lists each once): 186 glosses and 55 expressions take their words in another order or
+  another third word, no row added or removed (`../../SOURCES.md`, *Extract and dump are measured
+  against each other*). No reducer fix — the derived file keeps no sense glosses to order the
+  words by —: en-es's next update carries them, named in its report, and the owner judges the 186
+  glosses there.
 
 ## Licences
 
@@ -257,8 +265,9 @@ attribution. See `../../SOURCES.md`.
 Never by hand.
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `pair=en-es` and `mode=update`.
-  It reads today's Spanish Wiktionary dump and English Wiktionary extract, keeps the three derived
-  files as the release `lingua-pack-sources-en-es-<snapshot>`, reduces, and pushes the branch
+  It reads today's Spanish and English Wiktionaries' dumps, keeps the three derived files as the
+  release `lingua-pack-sources-en-es-<snapshot>`, whose notes name the dumps, reduces, and pushes
+  the branch
   `lingua-pack/en-es/<snapshot>`. The update's summary shows the coverage and the share beside what
   the tables change.
 - **When English's tables move**: en-fr's update or re-reduction writes `../en/`, and brings en-es

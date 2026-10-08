@@ -670,10 +670,11 @@ class AGlossIsWrittenInTheReadersLanguage(Entries):
         self.assertNotIn("casa", (self.dir / "en-fr.jsonl").read_text(encoding="utf-8"))
 
     def test_every_translation_file_a_pair_reads_pairs_its_studied_and_native_languages(self):
-        for pair, dumps in ps.DUMPS.items():
+        for pair, editions in ps.DUMPS.items():
             studied, native = pair.split("-")
-            for dump in dumps.values():
-                for name, (kind, lang, *into) in dump["files"].items():
+            for edition, names in editions.items():
+                for name in names:
+                    kind, lang, *into = ps.EDITIONS[edition]["files"][name]
                     if kind == "translations":
                         self.assertEqual({lang, *into}, {studied, native}, f"{pair}: {name}")
                     else:

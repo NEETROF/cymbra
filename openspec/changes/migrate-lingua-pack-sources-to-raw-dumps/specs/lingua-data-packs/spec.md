@@ -24,7 +24,7 @@ The update SHALL read, of kaikki, only its dump of a whole Wiktionary edition �
 - **THEN** it names those three files of the catalogue, by edition, and adds no derivation
 
 ### Requirement: A pin recorded against kaikki's per-language extract stays readable
-The pipeline SHALL read a pin recorded before this rule — one naming kaikki's per-language extract as an asset of the pair's release — as it is recorded: a re-reduction SHALL fetch the extract from that release under the asset name the record gives, check it by sha256, reproduce the committed tables byte for byte and keep the record in the pin, pruning nothing. A pair's move to the dumps SHALL be an update of that pair, reviewed as any update is; a pin written before the rule stays readable until then.
+The pipeline SHALL read a pin recorded before this rule — one naming kaikki's per-language extract as an asset of the pair's release — as it is recorded: a re-reduction SHALL fetch the extract from that release under the asset name the record gives, check it by sha256, reproduce the committed tables byte for byte and keep the record in the pin, pruning nothing. A pair's move to the dumps SHALL be an update of that pair, reviewed as any update is; a pin written before the rule stays readable until then. Before that update, the pair's tables SHALL be reduced from both readings of one regeneration — the extract, and the section derived from the edition's dump — and every table that differs SHALL be recorded in `SOURCES.md` with the difference between kaikki's two outputs that causes it; that update's report shows it beside the upstream drift, and a difference that breaks another requirement of this capability SHALL be fixed by a change of its own before that update is merged.
 
 #### Scenario: The committed pairs reduce as before
 - **WHEN** the reduce job runs with en-fr's, es-fr's and es-en's pins recorded against their extracts
@@ -38,9 +38,13 @@ The pipeline SHALL read a pin recorded before this rule — one naming kaikki's 
 - **WHEN** en-fr is next updated
 - **THEN** its pin records the French edition's dump and the English entries derived from it, names no extract, and the update's report lists the upstream drift since the pinned regeneration and nothing else
 
-#### Scenario: Extract and dump agree
-- **WHEN**, on one day, es-fr and es-en are reduced from their pinned sources with the Spanish section read once as kaikki's extract and once derived from the English edition's dump of the same regeneration, en-fr likewise with the English section of the French edition, and en-es's Spanish translations are derived once from the English extract and once from the English edition's dump
-- **THEN** both reductions give the same tables byte for byte, in the pairs' folders and in `tables/en/` and `tables/es/`, en-es's translation tables derive from the dump exactly as they derived from the extract, and `SOURCES.md` records the measurement
+#### Scenario: Extract and dump are measured against each other
+- **WHEN**, on one day and from one regeneration — the extract's and the dump's `Last-Modified` checked —, es-fr and es-en are reduced from their pinned sources with the Spanish section read once as kaikki's extract and once derived from the English edition's dump, en-fr likewise with the French edition's English section, and en-es with its Spanish translations derived once from the English extract and once from the English edition's dump
+- **THEN** `pack_report.py --identical` compares every folder both reductions write, `tables/en/` and `tables/es/` included, and `SOURCES.md` records, pair by pair, the tables that are byte for byte the same, the rows that are not and the cause of each; no pin, table, pack or baseline moves
+
+#### Scenario: A pair whose two readings differ
+- **WHEN** the two readings give different tables — on 2026-10-08 es-fr's `es/grammar.tsv`, 4 readings, the dump leaving the page's categories on the entry, and en-es's `gloss.tsv` and `mwe.tsv`, 186 and 55 entries, the dump keeping translation tables in page order
+- **THEN** the pair keeps its pin, the difference is carried by the pair's next update and named in its report, and es-fr's — which reads `betas` as the plural of the letter *beta*, against *A letter's name gives no reading of its plural* — is fixed by a change of its own before es-fr's next update is merged
 
 #### Scenario: kaikki retires its per-language files
 - **WHEN** kaikki no longer serves a per-language extract
@@ -77,3 +81,18 @@ The pipeline SHALL read kaikki's dump of a whole Wiktionary edition served gzipp
 #### Scenario: An extract served plain
 - **WHEN** kaikki serves an edition's dump plain rather than gzipped
 - **THEN** `derive` tells it from a gzipped one by the gzip magic and reads it the same way, in one pass, deriving the same files, recorded by the same decompressed sha256
+
+### Requirement: A translation table is read wherever the edition writes it
+A file derived from a dump's translations SHALL hold every translation into its target language that an entry lists, whether the edition writes the table for the whole entry or under one of its senses, with the sense the table names when it names one.
+
+#### Scenario: The English Wiktionary's tables under senses
+- **WHEN** the Spanish translations of the English Wiktionary's English entries are derived from kaikki's per-language extract, which moves each table under the sense it translates
+- **THEN** the entries whose tables sit under a sense are kept with them, about 65,752 entries with a table under a sense against 5,074 for the whole entry
+
+#### Scenario: An edition that writes tables per entry
+- **WHEN** an entry lists its translations only for the whole entry, as every French and Spanish Wiktionary entry es-fr reads does
+- **THEN** its derived line is byte for byte the one derived before this change
+
+#### Scenario: The English edition's dump writes its tables on the entry
+- **WHEN** the Spanish translations of the English Wiktionary's English entries are derived from the English edition's dump
+- **THEN** every table is kept, all of them on the entry in the page's order — 68,582 entries, none with a table under a sense — and a translation the page lists twice is kept twice

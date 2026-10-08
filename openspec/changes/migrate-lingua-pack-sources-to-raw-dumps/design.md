@@ -44,7 +44,9 @@ the **catalogue** of files derivable from it, each `("entries", lang)` or `("tra
 into)` as `derive` already reads them. `DUMPS[pair]` becomes the files the pair reads, by edition,
 and `KAIKKI` is deleted: `fetch_live` requires `pair in DUMPS` and reads nothing else of kaikki.
 Existing file names are kept, since a name is a reducer's input and part of its rules; new ones
-carry the edition. The catalogue, with the pairs that read each file:
+carry the edition, in ASCII alone — GitHub renames a release asset whose name holds another
+character on upload, so `kaikki-es-Frances.jsonl`, not kaikki's « Francés ». The catalogue, with the
+pairs that read each file:
 
 | Edition (dump, gzipped, 2026-10-08) | File | Kind | Read by |
 |---|---|---|---|
@@ -57,7 +59,7 @@ carry the edition. The catalogue, with the pairs that read each file:
 | | `kaikki-fr-traductions.jsonl` | translations `fr` → `es` (6,191,621 B pinned) | es-fr (inverted), fr-es (direct; change 49) |
 | | `kaikki-fr-traductions-en.jsonl` | translations `fr` → `en` | fr-en (direct; change 48) |
 | `es`, 103,226,106 B | `kaikki-es-English.jsonl` | entries `en` (47,311,153 B as the Inglés extract) | en-es (glosses; change 22) |
-| | `kaikki-es-Francés.jsonl` | entries `fr` (11,862,917 B as the Francés extract) | fr-es (glosses; change 49) |
+| | `kaikki-es-Frances.jsonl` | entries `fr` (11,862,917 B as the Francés extract) | fr-es (glosses; change 49) |
 | | `kaikki-es-traductions.jsonl` | translations `es` → `fr` (1,537,580 B pinned) | es-fr (direct), fr-es (inverted; change 49) |
 | | `kaikki-es-traductions-en.jsonl` | translations `es` → `en` (2,200,504 B pinned) | es-en (direct), en-es (inverted; change 22) |
 
@@ -192,8 +194,9 @@ so the design names them:
 The reduce job keeps reproducing every committed table, manifest and pin from the pinned
 extracts, and the `check` job keeps building the pinned packs. A pair moves to the dumps when it
 is next updated: its pin then records the editions' dumps and the files derived from them, names
-no extract, and its report shows the upstream drift and nothing else — the equivalence (D6) is
-what makes "nothing else" true.
+no extract, and its report shows the upstream drift beside what D6 measured for that pair — nothing
+else for en-fr and es-en, whose tables are the same both ways; es-fr's four readings and en-es's
+order of the translation tables otherwise.
 
 Why not re-reduce from the dumps "at the same snapshot": the dumps of 2026-09-24, 2026-09-28 and
 2026-10-03 were never kept (add-lingua-spanish-gloss-tables D1 keeps no dump, and kaikki serves
@@ -204,7 +207,8 @@ the Spanish extract es-en pins (2026-10-03 10:55) most likely came from. While t
 committed tables can be reproduced from the dump itself (T2.2), and es-fr's derived files
 re-derive to their pinned sha256. It is an opportunity, not a plan and not a gate: T2.2 tries it
 if the dumps are still served that day and skips it otherwise, saying so in `SOURCES.md`; it ends
-with kaikki's next regeneration, and D6's both-ways measurement is the proof either way.
+with kaikki's next regeneration, and D6's both-ways measurement is what each pair's move relies on
+either way.
 
 Why not re-pin every pair now from today's dumps: that is an update — en-fr's dictionary has
 drifted since 2026-09-24, es-fr's since 2026-09-28 — and the programme keeps a dictionary update
@@ -212,11 +216,11 @@ drifted since 2026-09-24, es-fr's since 2026-09-28 — and the programme keeps a
 a tooling change that must move nothing. The owner decides when each pair's next update is
 dispatched (T5.1); this change does not require one.
 
-### D6 — The proof: both readings of one regeneration give one set of tables
+### D6 — The measurement: both readings of one regeneration, reduced both ways
 
-Before the first update under D1, each kind of file that replaces an extract is proved equivalent
-on the real data, at the table level — the file level is already known not to hold (212 MB against
-259 MB for the Spanish section of the French edition; what differs is measured and said in
+Before the first update under D1, each kind of file that replaces an extract is measured against
+it on the real data, at the table level — the file level is already known not to hold (212 MB
+against 259 MB for the Spanish section of the French edition; what differs is measured and said in
 `SOURCES.md`, T2.2):
 
 - the English edition's Spanish section: es-fr and es-en reduced from their pinned sources with
@@ -227,11 +231,21 @@ on the real data, at the table level — the file level is already known not to 
   them, else the two derived files compared as sets of lines (`derive` writes in input order, and
   the extract's order is not the dump's).
 
-Identical tables are what the implementation pull request shows; a difference is measured, explained in
-`SOURCES.md`, and carried by the pair's next update, which the report then describes — this
-change still re-pins nothing. Both readings must come from the same regeneration: kaikki writes
-the dump first and the per-language files from it within hours, so the measurement runs on one
-day and checks the two `Last-Modified` dates.
+Both readings must come from the same regeneration: kaikki writes the dump first and the
+per-language files from it within hours, so the measurement runs on one day and checks the two
+`Last-Modified` dates. Measured on 2026-10-08 (`SOURCES.md`, *Extract and dump are measured against
+each other*): en-fr's and es-en's tables are byte for byte the same both ways. es-fr's
+`es/grammar.tsv` gains 4 readings from the dump — the feminine plurals of *beta*, *delta*, *kappa*
+and *zeta* —: the dump leaves the page's categories on the entry, where the extract assigns them to
+the senses, and es-fr's letter-name rule reads a sense's. en-es's `gloss.tsv` and `mwe.tsv` take
+186 and 55 entries' words in another order or another third word: the dump keeps each translation
+table where the page writes it, where the extract moves it under the sense it translates. Each
+difference is recorded in `SOURCES.md` with its cause and carried by the pair's next update, which
+names it in its report — this change re-pins nothing. es-fr's breaks *A letter's name gives no
+reading of its plural* (`betas` read as the plural of the letter *beta*), so a change of its own
+fixes it before es-fr's next update is merged (Open Questions); en-es's calls for no reducer fix —
+the derived file has no sense glosses to order the words by — and the owner judges the 186 glosses
+at en-es's next update.
 
 ### D7 — The publish step and its notes
 
@@ -266,11 +280,12 @@ a dump is fetched once per run is `fetch_live`'s doing, not the workflow's, so i
   runner's 14 GB. The monthly job reads the editions in the order the pairs need them, deletes
   each dump after its pass and each pair's work folder after its pack (D4): without that removal
   the four pairs' work folders alone would add about 2.8 GB.
-- Optional, not done here: the English edition's Spanish section (1.05 GB raw) is zstd-compressed
-  once per pair that reads it — twice per monthly job, by es-fr and es-en, minutes each at level
-  19. Compressing it once in `work/editions/` and copying the `.zst` (the pin records the
-  decompressed sha256, the same either way) would save that; worth doing if T2.3 shows the
-  compression weighing on the job.
+- The English edition's Spanish section (1.05 GB raw) was zstd-compressed once per pair that
+  reads it — twice per monthly job, by es-fr and es-en, minutes each at level 19. T2.3 measured it
+  at about 3 minutes of the monthly job, so `pack_asset` computes the sha256 first and copies the
+  entry the asset cache already holds under it — those bytes, compressed by an earlier pair of the
+  run or fetched and checked — instead of compressing again (the pin records the decompressed
+  sha256, the same either way).
 
 ### D9 — What the documents say
 
@@ -288,10 +303,11 @@ gzipped; the magic tells them apart).
 - **The equivalence does not hold for a section** (an extract carries lines or fields the dump
   lacks, or the reverse) → measured before anything depends on it (D6); the difference is
   explained and carried by that pair's next update, reviewed; nothing committed moves here.
-- **The English dump's pass is slower than estimated** → the update job has no timeout; the
-  measurement (T2.3) sets the figure; above 45 minutes for one update, the prefilter is tightened
-  (an entry's `"lang_code"` sits near the end of its line today; a cheaper mark exists) before a
-  per-edition job is considered.
+- **The English dump's pass is slower than estimated** → the measurement (T2.3) sets the figure;
+  above 45 minutes for one update, the prefilter is tightened (an entry's `"lang_code"` sits near
+  the end of its line today; a cheaper mark exists) before a per-edition job is considered. The
+  update job's timeout is 90 minutes, five times what T2.3 measured, and a stalled transfer is cut
+  and retried (`STALL`).
 - **kaikki's bandwidth** → an update reads 3.6 GiB at most, the monthly job the same once; the
   per-pair matrix would have read four times as much. The sequence of the monthly job (D4) is the
   mitigation.
@@ -310,11 +326,17 @@ its own reviewed pull request; stage 3's pairs are born on them.
 
 ## Open Questions
 
+- es-fr's four readings from the dump (D6) break *A letter's name gives no reading of its plural*:
+  a change of its own must fix them before es-fr's next update is merged (T5.1). Reading the
+  entry's categories would be wrong — the dump puts the section's categories on every entry of the
+  page, so the rule would drop the committed `Masc|Plur` readings of a page's other nouns; the
+  likely fix is a rule on the sense's gloss (« the Greek letter … », « Greek letter delta »,
+  « the letter Z »), tested on a fixture shaped as the dump writes an entry.
 - Whether the owner wants the shipped pairs moved soon after the merge (an update of es-fr, which
   brings es-en along, then of en-fr — two reviewed dictionary updates, baselines re-blessed), or
   left to the monthly report (T5.1).
 - The monthly job's duration as one sequential job (D4): acceptable up to what figure, before the
   per-edition derive job is worth its day.
-- The names of the new files (`kaikki-French.jsonl` against `kaikki-es-Francés.jsonl`): the
+- The names of the new files (`kaikki-French.jsonl` against `kaikki-es-Frances.jsonl`): the
   existing convention is kept for the English edition and the edition-marked one elsewhere; a
   single convention would rename files reducers read and move their digests, so it is not done here.

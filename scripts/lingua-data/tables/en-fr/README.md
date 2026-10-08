@@ -22,9 +22,9 @@ In this folder:
 
 | File | What it maps | From |
 |---|---|---|
-| `gloss.tsv` | lemma → French gloss | kaikki.org extract of the French Wiktionary (CC BY-SA 4.0 + GFDL) |
-| `mwe.tsv` | expression → French gloss | kaikki.org extract of the French Wiktionary (CC BY-SA 4.0 + GFDL) |
-| `senses.tsv` | lemma → part of speech of each run of its gloss's senses | kaikki.org extract of the French Wiktionary (CC BY-SA 4.0 + GFDL) |
+| `gloss.tsv` | lemma → French gloss | kaikki.org, the French Wiktionary's English entries (CC BY-SA 4.0 + GFDL) |
+| `mwe.tsv` | expression → French gloss | kaikki.org, the French Wiktionary's English entries (CC BY-SA 4.0 + GFDL) |
+| `senses.tsv` | lemma → part of speech of each run of its gloss's senses | kaikki.org, the French Wiktionary's English entries (CC BY-SA 4.0 + GFDL) |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata; `pack_version` is the snapshot | — |
 | `pin.json` | the raw sources these tables and `../en/` came from, and the pack they build | — |
@@ -62,10 +62,17 @@ pair studying English, en-es today, whose packs are recorded again in the same p
 (`lingua-pack-update` reduces them along with en-fr, after it).
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `mode=update`. It reads today's
-  sources, keeps kaikki's bytes as the release `lingua-pack-sources-en-fr-<snapshot>`, reduces, then
-  reduces en-es again from its own pinned sources, pushes the branch `lingua-pack/en-fr/<snapshot>`,
-  and writes a report of what changes. Open the pull request from the link in its summary; releases
-  keep these tables until it is merged.
+  sources — kaikki as the French Wiktionary's dump (737 MB gzipped), from which it derives the
+  English entries in one pass and keeps no dump (`../../SOURCES.md`, *The editions' dumps*) —,
+  keeps the derived file as the release `lingua-pack-sources-en-fr-<snapshot>`, whose notes name
+  the dump by its address, regeneration date and sha256, reduces, then reduces en-es again from
+  its own pinned sources, pushes the branch `lingua-pack/en-fr/<snapshot>`, and writes a report of
+  what changes. Open the pull request from the link in its summary; releases keep these tables
+  until it is merged. The pin committed today names kaikki's per-language extract of the French
+  Wiktionary's English section (2026-09-24), from before the dumps: it stays readable as it is
+  recorded, and the next update moves en-fr to the dump — the same entries, read the same way
+  (`../../SOURCES.md`, *Extract and dump are measured against each other*: en-fr's and `../en/`'s
+  tables byte for byte the same both ways), so its report shows the upstream drift alone.
 - **After editing the reduction rules** — `reduce-en-fr.py`; `reduce_common.py`, which every pair
   shares; or `reduce_edition_fr.py`, the French Wiktionary's rules, which every pair glossed in French
   loads (`pin.json` lists the three under `reducer.files`, the modules the reducer loads,

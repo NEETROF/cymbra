@@ -25,9 +25,9 @@ are allowed; the builder additionally enforces the denylist and refuses to build
 |---|---|---|---|
 | `forms.tsv` (`form → lemma`) | **ESDB** (English Speller Database, SCOWLv2, `en-wl/wordlist` `rel-2026.02.25`, the maintained successor of AGID), completed by **kaikki.org**'s Wiktionary form links | ESDB: permissive, Kevin Atkinson's notice and WordNet's (used by ESDB for parts of speech) in every copy; kaikki: CC BY-SA 4.0 + GFDL | ESDB's derived forms of `n`, `v`, `m`, `n_v`, `aj`, `av`, `a` and the comparisons of `d`, sizes ≤ 80, primary and equal spellings only (never a lesser variant: `born` is no form of `bear`, `art` none of `be`), no possessive; kaikki's form links only where the inflection is regular and the target is longer than two letters (recent plurals ESDB lacks: `smartphones`, `influencers`, `apps`). Then **one lemma per form**: a kept lemma maps to itself, any other form to the base Wiktionary names, else one with a gloss, else the most frequent (see *Words the inflection source gets wrong*); a listed hyphenated compound also gets its inflections (`t-shirts`, `mothers-in-law`) |
 | `freq.tsv` (`lemma → rank`) | **wordfreq** English large list | CC BY-SA 4.0 (incl. SUBTLEX with Brysbaert's permission) | top 40k canonical lemmas, dense rank; CEFR words the pack would otherwise lack are added too — a hyphenated compound at its rarest part's rank, any other word with the lemmas of its frequency (after the list when rarer than all of them) |
-| `gloss.tsv` (`lemma → gloss`) | **kaikki.org** extract of the French Wiktionary (`frwiktionary`) | CC BY-SA 4.0 + GFDL | one short French gloss per lemma, top ~20–30k lemmas (arbitrated by the 5 MB budget) |
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the French Wiktionary's (`frwiktionary`) English entries (`kaikki-Anglais.jsonl`), derived from the edition's dump (*The editions' dumps*; pinned as kaikki's per-language extract of 2026-09-24 until en-fr's next update) | CC BY-SA 4.0 + GFDL | one short French gloss per lemma, top ~20–30k lemmas (arbitrated by the 5 MB budget) |
 | `level.tsv` (`lemma → CEFR`) *(optional)* | **CEFR-J Wordlist v1.5** (A1–B2, Tono Lab / TUFS) + **Octanove Vocabulary Profile C1/C2 v1.0** (C1–C2, Octanove Labs), both from the Open Language Profiles repo | CEFR-J: commercial use allowed with acknowledgement; Octanove: CC BY-SA 4.0 | lowest CEFR level per kept lemma across POS rows; the only pairing that covers A1→C2 with commercial-redistribution rights (Octanove was built to extend CEFR-J past B2) |
-| `mwe.tsv` (`expression → gloss`) *(optional)* | **kaikki.org** extract of the French Wiktionary (`frwiktionary`), its multi-word entries | CC BY-SA 4.0 + GFDL | the same sense picker and cuts as `gloss.tsv`, over the entries whose headword holds a space; proper-noun-only entries and form-of senses dropped. The **keys are computed by the builder**, not here: each word goes through lingua-core's own lemmatiser against the lexicon that build assembled (`starting point` → `start point`), so a key is what the reader's cascade produces. Python cannot do it — it mirrors the analyser's irregulars but not its morphy rules or its out-of-lexicon plural. |
+| `mwe.tsv` (`expression → gloss`) *(optional)* | **kaikki.org**: the same English entries of the French Wiktionary (`frwiktionary`), its multi-word ones | CC BY-SA 4.0 + GFDL | the same sense picker and cuts as `gloss.tsv`, over the entries whose headword holds a space; proper-noun-only entries and form-of senses dropped. The **keys are computed by the builder**, not here: each word goes through lingua-core's own lemmatiser against the lexicon that build assembled (`starting point` → `start point`), so a key is what the reader's cascade produces. Python cannot do it — it mirrors the analyser's irregulars but not its morphy rules or its out-of-lexicon plural. |
 | `NOTICE` | all of the above | — | the full attribution stack, embedded in the pack and shown on the extension's Attributions page |
 
 ### Words the inflection source gets wrong
@@ -137,10 +137,10 @@ Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish 
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
-| `forms.tsv` (`form → lemma`) | **kaikki.org** extract of the English Wiktionary (`enwiktionary`), Spanish section — our snapshot of its 2026-09-28 dump; **UD Spanish-GSD** (train and dev, at a commit) for homographs | kaikki: CC BY-SA 4.0 + GFDL; GSD: CC BY-SA 4.0, read for counts only | the inflections a lemma's entry lists and the form-of links of a form's own entry: lowercased, NFC, single Spanish words. Never a verb with its clitics — a `combined-form`, or a sense naming the pronoun (`object-…` tags); the analyser's enclitic rule reads those — but a string that is also a plain form keeps it (`principales` → *principal*). **One lemma per form**: a reviewed override (`OVERRIDES` in the reducer, each with its reason; none yet, since an override takes the other lemma out of the pack), then GSD's counts of the form under each lemma, then the form's own entry, then the lemma's frequency, then the alphabet. Only the forms of kept lemmas that wordfreq attests, and every lemma's own form |
+| `forms.tsv` (`form → lemma`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) Spanish section (`kaikki-Spanish.jsonl`), derived from the edition's dump (*The editions' dumps*; pinned as kaikki's per-language extract of 2026-09-28 until es-fr's next update); **UD Spanish-GSD** (train and dev, at a commit) for homographs | kaikki: CC BY-SA 4.0 + GFDL; GSD: CC BY-SA 4.0, read for counts only | the inflections a lemma's entry lists and the form-of links of a form's own entry: lowercased, NFC, single Spanish words. Never a verb with its clitics — a `combined-form`, or a sense naming the pronoun (`object-…` tags); the analyser's enclitic rule reads those — but a string that is also a plain form keeps it (`principales` → *principal*). **One lemma per form**: a reviewed override (`OVERRIDES` in the reducer, each with its reason; none yet, since an override takes the other lemma out of the pack), then GSD's counts of the form under each lemma, then the form's own entry, then the lemma's frequency, then the alphabet. Only the forms of kept lemmas that wordfreq attests, and every lemma's own form |
 | `freq.tsv` (`lemma → rank`) | **wordfreq** Spanish list | CC BY-SA 4.0 | the top 60k canonical lemmas, dense rank; inflected forms, and combined forms that are no word of their own, skipped |
-| `grammar.tsv` (`form → readings`) | **kaikki.org**, the same extract: the tags of each form | CC BY-SA 4.0 + GFDL | the readings of the forms `forms.tsv` holds, under kept lemmas, as Universal Dependencies tags (add-lingua-spanish-grammar-tables). A verb form takes its mood, tense, person and number — the conditional as a mood, the *usted* imperative as a third person, the negative imperative left to the subjunctive it repeats — or its form (`Inf`, `Ger`, an agreed `Part`). A noun takes its gender (`es-noun`'s argument, else its senses' tags) on its own form and its plural; an adjective, determiner or pronoun its agreement. A pronominal form (`azotarse`) reads from its own entry. Each reading of another lemma than the form's is marked `other`: kaikki's tables are structured, so the card may name it |
-| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the French Wiktionary's Spanish entries; else the French translations the Spanish Wiktionary's Spanish entries list; else the French Wiktionary's French entries whose translation tables list the word. The last two are derived from kaikki's dumps of the whole editions (`pack_sources.py DUMPS`) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish entries: up to eight senses grouped by part of speech (add-lingua-spanish-gloss-tables). A fallback gloss is up to three French words per part of speech, the commonest first from a table read backwards. A proper noun's translation glosses nothing; a gloss is never English and never a machine translation. Coverage below |
+| `grammar.tsv` (`form → readings`) | **kaikki.org**, the same section: the tags of each form | CC BY-SA 4.0 + GFDL | the readings of the forms `forms.tsv` holds, under kept lemmas, as Universal Dependencies tags (add-lingua-spanish-grammar-tables). A verb form takes its mood, tense, person and number — the conditional as a mood, the *usted* imperative as a third person, the negative imperative left to the subjunctive it repeats — or its form (`Inf`, `Ger`, an agreed `Part`). A noun takes its gender (`es-noun`'s argument, else its senses' tags) on its own form and its plural; an adjective, determiner or pronoun its agreement. A pronominal form (`azotarse`) reads from its own entry. Each reading of another lemma than the form's is marked `other`: kaikki's tables are structured, so the card may name it |
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the French Wiktionary's Spanish entries; else the French translations the Spanish Wiktionary's Spanish entries list; else the French Wiktionary's French entries whose translation tables list the word. All three are derived from the French and Spanish editions' dumps (*The editions' dumps*) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish entries: up to eight senses grouped by part of speech (add-lingua-spanish-gloss-tables). A fallback gloss is up to three French words per part of speech, the commonest first from a table read backwards. A proper noun's translation glosses nothing; a gloss is never English and never a machine translation. Coverage below |
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs of senses; a fallback gloss has one sense per part of speech. A noun's runs carry its gender, from the `es-noun` heads its readings read (`NOUN\|Gender=Fem`), unless it has both (add-lingua-spanish-word-card) |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer, written by a person, wins (empty so far). The builder keys them through the lexicon |
 | `level.tsv` (`lemma → CEFR`) | none: derived from `freq.tsv` and `gloss.tsv` | that of `freq.tsv` | **estimated**, since no Spanish CEFR list can be shipped (ELELex is NC, the PCIC all rights reserved). The commonest lemmas whose French gloss is not only a proper noun's take, in rank order, English's band sizes (1,020 A1 … 876 C2): 8,302 lemmas. The manifest says `levels_estimated`, and the extension labels the levels « estimé » (add-lingua-spanish-levels) |
@@ -186,7 +186,7 @@ the French edition, so nothing of es-fr moves with it.
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
-| `gloss.tsv` (`lemma → gloss`) | **kaikki.org** extract of the English Wiktionary (`enwiktionary`), Spanish section — the extract es-fr reads for Spanish's forms; else the English translations the Spanish Wiktionary's Spanish entries list (`kaikki-es-traductions-en.jsonl`, derived from kaikki's dump of the whole edition, `pack_sources.py DUMPS`) | CC BY-SA 4.0 + GFDL | the shared rules on the English Wiktionary's Spanish entries, cleaned by the English edition's (`reduce_edition_en.EN`): up to eight senses grouped by part of speech, in lower case as the edition writes them. A fallback gloss is up to three English words per part of speech, in the table's order. No inverted table (the English Wiktionary's English entries are en-es's), no pivot, no machine translation |
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) Spanish section — the file es-fr reads for Spanish's forms, derived from the edition's dump (pinned as kaikki's per-language extract of 2026-10-03 until es-en's next update); else the English translations the Spanish Wiktionary's Spanish entries list (`kaikki-es-traductions-en.jsonl`, derived from the Spanish edition's dump; *The editions' dumps*) | CC BY-SA 4.0 + GFDL | the shared rules on the English Wiktionary's Spanish entries, cleaned by the English edition's (`reduce_edition_en.EN`): up to eight senses grouped by part of speech, in lower case as the edition writes them. A fallback gloss is up to three English words per part of speech, in the table's order. No inverted table (the English Wiktionary's English entries are en-es's), no pivot, no machine translation |
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; no gender — the builder gives a noun's runs the gender of its readings in `tables/es/grammar.tsv` |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer is empty |
 | `NOTICE` | both sides' sources | — | the English Wiktionary's Spanish section (forms, readings, glosses), the Spanish Wiktionary's translations, the French Wiktionary (es-fr's glosses decide the dictionary words and which lemmas take a level), wordfreq and UD Spanish-GSD; the levels, es-fr's estimate from its French glosses, said so. The manifest says `levels_estimated` |
@@ -212,17 +212,18 @@ spelling alphabet's « the letter E in … » (36 glosses ended on one), a pre-p
 « abbreviation of caballo »), and the direct table leaves out the letters the Spanish Wiktionary
 translates as themselves (`b` « b »).
 
-**Each pair pins its own extract, one release per pair** (D2). es-en's extract is es-fr's address,
-fetched live when es-en is updated and published under es-en's own release, `release_tag(pair,
+**Each pair pins its own fetch, one release per pair** (D2). es-en's Spanish section is es-fr's
+file, derived when es-en is updated and published under es-en's own release, `release_tag(pair,
 snapshot)` (`pack_sources.py release-tag`); an update publishes a pair's own assets only (`assets
 --release`), and its release step fails when it cannot list them. When es-fr's update brings es-en
 along, es-en is reduced from its own pin and nothing of it is published. Fetched release assets are
 kept in `work/cache/<sha256>` (written whole or not at all; an entry that does not decompress to its
 name is deleted, the error naming it), so an asset two pins name is fetched once per run and a pair
 reduced again on the same machine fetches nothing again. es-en's first update was dispatched alone
-(2026-10-08): it fetched its own extract and published it, with its derived translations, as
-`lingua-pack-sources-es-en-2026.10.08`. Its extract is kaikki's regeneration of 2026-10-03, not the
-one es-fr pins, so the `reduce` job fetches both (52 MB compressed each). es-en's re-reduction from
+(2026-10-08), before the dumps: it fetched kaikki's per-language extract of the section and
+published it, with its derived translations, as `lingua-pack-sources-es-en-2026.10.08`. Its
+extract is kaikki's regeneration of 2026-10-03, not the one es-fr pins, so the `reduce` job fetches
+both (52 MB compressed each); each pair's next update moves it to the English edition's dump. es-en's re-reduction from
 its pinned sources takes about 30 s on a laptop, fetch and pack build included; its first update run
 took 6 minutes, and the `reduce` job reduced en-fr, es-fr and es-en again in 3 min 38 s of its
 45-minute timeout (2026-10-08).
@@ -249,7 +250,7 @@ nothing of en-fr moves with it (the digest test says so against en-fr's, es-fr's
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
-| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's English entries (`kaikki-es-English.jsonl`, derived from kaikki's dump of the whole edition, `pack_sources.py DUMPS`); else the Spanish translations the English Wiktionary's English entries list (`kaikki-en-traductions-es.jsonl`, derived from kaikki's extract of that section, served uncompressed); else the English translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions-en.jsonl`, es-en's derivation run again on en-es's own snapshot of the dump) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish Wiktionary's English entries, cleaned by the Spanish edition's (`reduce_edition_es.ES`): up to eight senses grouped by part of speech, opening on a capital as the edition writes them. A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, as es-fr orders its inverted table by French frequency. A letter glosses no word in either direction: a single letter is glossed only by a sense that is neither the letter nor a name borrowed through it (a `character` entry, a one-letter word translated as itself or under a noun entry — the letter's name, a note, a grade —, « Nombre de la letra Q »; read backwards, no one-letter English word at all, since the entry is the Spanish word's and says nothing of the English side: the Spanish Wiktionary's `do` lists « C »). No pivot, no machine translation. Coverage below |
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's English entries (`kaikki-es-English.jsonl`, derived from kaikki's dump of the whole edition, `pack_sources.py DUMPS`); else the Spanish translations the English Wiktionary's English entries list (`kaikki-en-traductions-es.jsonl`, derived from the English edition's dump; pinned from kaikki's extract of that section, served uncompressed, until en-es's next update); else the English translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions-en.jsonl`, es-en's derivation run again on en-es's own snapshot of the dump) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish Wiktionary's English entries, cleaned by the Spanish edition's (`reduce_edition_es.ES`): up to eight senses grouped by part of speech, opening on a capital as the edition writes them. A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, as es-fr orders its inverted table by French frequency. A letter glosses no word in either direction: a single letter is glossed only by a sense that is neither the letter nor a name borrowed through it (a `character` entry, a one-letter word translated as itself or under a noun entry — the letter's name, a note, a grade —, « Nombre de la letra Q »; read backwards, no one-letter English word at all, since the entry is the Spanish word's and says nothing of the English side: the Spanish Wiktionary's `do` lists « C »). No pivot, no machine translation. Coverage below |
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; English's readings come from `tables/en/grammar.tsv` |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish Wiktionary's multi-word English entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer is empty |
 | `NOTICE` | both sides' sources | — | the studied side as en-fr's notice credits it (ESDB with its WordNet notice, wordfreq, the French Wiktionary's form links and dictionary words, CEFR-J, Octanove), and the native side (the Spanish Wiktionary's definitions and English translations, the English Wiktionary's Spanish translations). The levels are CEFR-J's and Octanove's, not estimated |
@@ -278,8 +279,8 @@ the pack carries a lexical section: its dictionary words are en-fr's. There are 
 expressions. The pack is 1,690,595 B. A sample of 100 glosses, marked by source, is in
 `tables/en-es/README.md`.
 
-**A pair whose sources are dumps alone** (D2). en-es has no `KAIKKI` entry and its pin no
-`sources.kaikki`: everything it reads is derived at an update, in one pass per dump, and kept as the
+**A pair whose sources are dumps alone** (D2). en-es was the first pair with no extract of its own
+and no `sources.kaikki` in its pin: everything it reads is derived at an update, in one pass per dump, and kept as the
 assets of its own release, `lingua-pack-sources-en-es-<snapshot>` — `kaikki-es-English.jsonl` and
 `kaikki-es-traductions-en.jsonl` from the Spanish Wiktionary's dump (103 MB gzipped, es-fr's and
 es-en's address, en-es's own snapshot of it), `kaikki-en-traductions-es.jsonl` from the English
@@ -289,12 +290,143 @@ kaikki's regeneration of 2026-10-03). `derive` reads a plain or a gzipped dump a
 release notes name no extract; a pinned reduction fetches the three derived files and nothing
 larger. Why the extract and not the raw English dump the programme's risk 6 names: the raw dump is
 several times the extract and holds every language's entries; `derive` reads both, so the address is
-the only difference, and the extract keeps the update within the job's reach today. If kaikki stops
-serving the extract, change 38 (`migrate-lingua-pack-sources-to-raw-dumps`) switches the address
-to the raw dump. en-es's first update was dispatched alone on its pull request branch
+the only difference. Change 38 (`migrate-lingua-pack-sources-to-raw-dumps`) switched the address:
+`kaikki-en` names the English edition's dump from en-es's next update on; the file derived from
+it holds the extract's entries, with some tables in the dump's order, and 60 entries repeat 77
+translations they already list (the extract lists each once; *Extract and dump are measured against
+each other*). en-es's first update was dispatched alone on its pull request branch
 (2026-10-08, run [37771510878](https://github.com/NEETROF/cymbra/actions/runs/37771510878), 4 min 57 s whole, 2 min 16 s of it the extract's fetch and derivation): it fetched the dump and the extract, published the derived files as
 `lingua-pack-sources-en-es-2026.10.08`, and the pinned reduction that committed the tables followed on the same branch
 (`build.sh --reduce en-es`, about 6 s on a laptop, fetch and pack build included).
+
+## The editions' dumps
+
+kaikki is read at **three addresses, one dump per Wiktionary edition**
+(migrate-lingua-pack-sources-to-raw-dumps, change 38 of `docs/lingua/language-matrix-programme.md`):
+kaikki has marked its per-language files deprecated and keeps its dumps of whole editions. Every file
+a pair reads of kaikki is derived from the dump of the edition that writes it, in one pass per
+edition (`pack_sources.py derive`): a language's entries as the dump writes them, or the
+translations an edition's entries list into one language, cut down to those. `pack_sources.py
+EDITIONS` is the catalogue — each edition's address and every file derivable from it that a pair of
+the programme reads — and `DUMPS[pair]` names the files a pair reads, by edition; a pair that needs a
+file the catalogue lacks adds it there, in the edition that writes it, and nowhere else. The files
+derived from the dumps served on 2026-10-08:
+
+| Edition: the dump, as served on 2026-10-08 | File | Kind | Derived | Read by |
+|---|---|---|---|---|
+| **English** (`kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz`): 2,981,058,381 B gzipped, 25,614,284,530 B decompressed, regenerated 2026-10-03 08:24 | `kaikki-Spanish.jsonl` | Spanish entries | 928,737,891 B | es-fr (forms, readings, genders), es-en (glosses) |
+| | `kaikki-French.jsonl` | French entries | 510,058,226 B | fr-en (change 48) |
+| | `kaikki-en-traductions-es.jsonl` | English entries' Spanish translations | 13,762,773 B | en-es (direct) |
+| | `kaikki-en-traductions-fr.jsonl` | English entries' French translations | 13,003,913 B | fr-en (inverted) |
+| **French** (`kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz`): 736,590,407 B gzipped, 6,865,136,428 B decompressed, regenerated 2026-10-02 00:10 | `kaikki-Anglais.jsonl` | English entries | 145,705,523 B | en-fr |
+| | `kaikki-fr-Espagnol.jsonl` | Spanish entries | 212,331,331 B | es-fr |
+| | `kaikki-fr-traductions.jsonl` | French entries' Spanish translations | 6,191,621 B | es-fr (inverted), fr-es (direct) |
+| | `kaikki-fr-traductions-en.jsonl` | French entries' English translations | 14,573,988 B | fr-en (direct) |
+| **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
+| | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (change 49) |
+| | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
+| | `kaikki-es-traductions-en.jsonl` | Spanish entries' English translations | 2,200,504 B | es-en (direct), en-es (inverted) |
+
+The existing names are kept — a name is a reducer's input — and the new ones carry their edition,
+in ASCII alone: GitHub renames a release asset whose name holds another character on upload
+(`kaikki-es-Frances.jsonl`, not kaikki's « Francés »). fr-en and fr-es register what they read and
+derive nothing new.
+
+**A dump is recorded, never kept.** It is fetched into `work/dumps/`, read once and deleted; the
+English edition's alone is above the 2 GiB a release asset may weigh. A pair's derived files are
+zstd-compressed and published under the pair's own release, `lingua-pack-sources-<pair>-<snapshot>`,
+pinned by the sha256 of their decompressed bytes, as before (the largest, the Spanish section, about
+52 MB compressed). The pin records each edition's dump as a source, `kaikki-<edition>`: its address,
+the day it was fetched, kaikki's regeneration date (`last_modified`), `dump` — the sha256 and size
+of its decompressed bytes, hashed in the pass that derives from it, and its size as served — and the
+`files` derived from it. Two pairs updated from one regeneration therefore carry one dump sha256 and
+files of one sha256, which the asset cache fetches once; a re-reduction fetches the derived files and
+never a dump. The release notes name each dump the same way (`pack_sources.py dumps --pin`).
+
+**A dump is read once per run.** At the first read of a run, the edition's whole catalogue is
+derived into `work/editions/<edition>-<snapshot>/` (`build.sh` passes `LINGUA_EDITIONS`), and a later
+pair of the run copies what it reads from there: the pass is the cost, writing a file no pair of the
+run reads is not. The folder counts once it holds `dump.json`, written last, so a pass cut short is
+started again; it is the run's own and `lingua-pack-update` removes it at the end. On a laptop it
+outlives the run, one folder per edition and day: a folder of the same day counts only while its
+`dump.json` records today's address and catalogue and every file of it is there, else it is derived
+again, and `work/editions` can be removed at any time — the next update fetches the dumps again.
+An update of one pair fetches only the dumps of the editions it reads (es-en: the English and
+Spanish ones); the pairs it brings along read their own pins. The monthly dry run checks every pair
+**in one job**, in `pairs` order, so each dump is fetched once a month rather than once per pair reading its edition; each pair
+reduces into a dry root of its own (`work/dry/<pair>`), so a later pair never lays the committed
+studied folder over the drift its reference wrote, and a pair that fails is named, the loop goes on,
+and the job fails at the end.
+
+**A pin written before the dumps stays readable** (D5). en-fr's, es-fr's and es-en's pins name
+kaikki's per-language extract (`kaikki`: `asset`, `sha256`, the extract's address); en-es's names
+files derived from the Spanish dump and from the English extract, read as a dump is. `fetch-pinned`
+reads a record by its shape — an extract's `asset` or derived `files` — from the release it names,
+checked by sha256, keeps a legacy `kaikki` record (nothing is pruned, the pin's bytes do not move)
+and fetches the extract under the name its asset gives (`kaikki-Spanish.jsonl.zst` →
+`kaikki-Spanish.jsonl`). The `reduce` job reproduces every committed table, manifest and pin from
+them as before, and no pin, table, pack or baseline moved in this change. A pair moves to the dumps
+at its next update, the owner's dispatch: its pin then names the editions' dumps and no extract.
+
+**Extract and dump are measured against each other** (D6). On 2026-10-08 kaikki served, side by
+side, the English dump of 2026-10-03 08:24 and the Spanish extract of 2026-10-03 10:55 (the bytes
+es-en pins), the French dump of 2026-10-02 00:10 and the Anglais extract of 00:18, and the English
+extract of 2026-10-03 11:09 that en-es's direct translations were derived from. Each pair was reduced
+from its pinned sources twice, the one file read once as the extract gives it and once as the dump
+gives it (`pack_report.py --identical` on every folder):
+
+| Section | The two files | Reduced |
+|---|---|---|
+| The English edition's Spanish entries | the same 811,049 entries; the extract adds an `id` to each sense and assigns the page's categories to the senses by disambiguation, as objects, the dump keeps them on the entry as names; 37 entries or runs of entries stand elsewhere in the file. 1,054,565,723 B against 928,737,891 B | es-en: identical. es-fr: `es-fr/` identical; `es/` identical but `grammar.tsv`, which gains 4 readings from the dump — the feminine plurals of *beta*, *delta*, *kappa* and *zeta* (`betas beta NOUN\|Gender=Fem\|Number=Plur`). es-fr's letter-name rule (`_names_a_letter`) reads a sense's categories, where the extract puts « Greek letter names » and the dump does not |
+| The French edition's English entries | the same 194,304 entries, differing the same way (sense ids, categories as objects); 201,505,597 B against 145,705,523 B | en-fr: `en-fr/` and `en/` identical |
+| The English entries' Spanish translations | the same 68,058 words and parts of speech, the dump writing 3 more entries for them (`do` and `ceno-`); 1,703 entries list the same translations in another order — the extract assigns each table to the sense it translates, the dump keeps it where the page writes it — and 60 repeat 77 translations they already list (the extract lists each once). 13,757,388 B against 13,762,773 B | en-es: 186 glosses and 55 expressions take their words in another order or another third word (the direct fallback takes the table's first three); no row added or removed, the coverage the same (93.0 / 85.0 / 71.7 %) |
+
+So the dumps give en-fr's and es-en's tables byte for byte. The two pairs that differ keep their
+pins, and each difference reaches the committed tables only through the pair's next update, whose
+report names it beside the upstream drift (*A pair whose two readings differ*). es-fr's four
+readings break *A letter's name gives no reading of its plural* — `betas` read as the plural of the
+letter *beta* —, so a change of its own must fix them before es-fr's next update is merged. Not by
+reading the entry's categories: the dump puts the section's categories on every entry of the page
+(« Greek letter names » on *beta* the letter and on *beta*, a matter, masculine), and the rule
+would drop the committed `Masc|Plur` readings of those other nouns; the likely fix is a rule on the
+sense's gloss (« beta; the Greek letter Β, β », « Greek letter delta », « the letter Z »), tested on
+a fixture shaped as the dump writes an entry. en-es's 186 glosses and 55 expressions call for no
+reducer fix — the derived file keeps no sense glosses to order the words by —: en-es's next update
+carries them, and the owner judges the 186 glosses there. Neither difference is a defect of the
+dumps: kaikki's post-processing of the extract moves categories and translation tables.
+
+The regenerations the pins record were still served that day, so the opportunity was taken too:
+es-fr's three derived files and es-en's and en-es's derived from the French and Spanish dumps re-derive
+to their pinned sha256 byte for byte (the new `derive`, hashing in the same pass, writes what the old
+one wrote); es-en's committed tables reproduce byte for byte from the English dump of 2026-10-03
+08:24 (the Spanish section derived from it, Spanish's committed tables, every other source pinned);
+and en-es's direct translations re-derive from today's English extract to the sha256 its pin
+records.
+
+**Measured** (D4, D8). On a laptop (Apple silicon), the pass of `derive` over each edition's dump,
+deriving its whole catalogue and hashing the decompressed stream: the English 2 min 39 s (25.6 GB
+decompressed), the French 52 s, the Spanish 9 s, at about 90 MB of memory; the downloads, at the
+laptop's throughput, 2 min 3 s, 1 min 1 s and 12 s. On the implementation pull request's runners:
+the monthly job as one job over en-fr, es-fr, en-es and es-en — run
+[37805366125](https://github.com/NEETROF/cymbra/actions/runs/37805366125), `ubuntu-24.04`,
+2026-10-08 — took 17 min 11 s, its loop 16 min 39 s (en-fr 3 min 39 s, es-fr 9 min 25 s, en-es 21 s,
+es-en 3 min 13 s), each dump fetched and read once: the French one fetched in 29 s and its catalogue
+derived in 57 s, the English one in 1 min 48 s (about 28 MB/s from kaikki, not the 4 MB/s the
+design feared) and 2 min 55 s, the Spanish one in 6 s and 9 s. A dry run of es-fr alone — an
+update's cost but its release and branch — run
+[37805406472](https://github.com/NEETROF/cymbra/actions/runs/37805406472), took 16 min 57 s, its
+reduction 16 min 14 s (the English dump fetched in 2 min 27 s and derived in 4 min 6 s, the French
+in 35 s and 1 min 27 s, the Spanish in 7 s and 14 s): an update stays well within the 45 minutes, and
+the prefilter needs no tightening. What a pair then spends is mostly compression: es-en's 3 min 13 s
+were about 2 min 50 s of zstd at level 19 over the 929 MB Spanish section, which es-fr compresses
+too; since this measurement it is compressed once per run (D8): es-en copies the compressed bytes
+es-fr left in the asset cache under their sha256, about 3 minutes less for the monthly job.
+
+The disk at the run's fullest — the end of the English pass, its 2.98 GB dump and 1.47 GB
+catalogue beside the French catalogue and the pack builder — held 68.2 GB used, about 4 GB more than
+during the French pass. Most of it is not the run's: about 63 GB is the runner's own image, used
+before the job starts, so the run itself peaks about 5 GB above it; `df` showed 82 GiB or more free
+after each pair — far more room than the 14 GB the design assumed.
 
 ## What a pack studies, whatever it glosses
 
@@ -407,13 +539,16 @@ reducer would make later than at import time, and any module loaded other than b
 statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.
 
 **Translation tables wherever the edition writes them.** `derive` reads an entry's table for the
-whole entry and each of its senses' (`translations_of`), with the sense a table names. The French and
-Spanish Wiktionaries write one table per entry, so es-fr's derived files are unchanged; the English
-one writes them under its senses (68,579 English entries list Spanish translations under a sense,
-5,080 for the whole entry). `derive` reads a dump as served, gzipped or plain, told apart by the
-gzip magic and not by the address: an edition's dump is gzipped, a language's extract — the English
-Wiktionary's English one, which en-es reads for those tables — is served uncompressed
-(add-lingua-pack-en-es D2).
+whole entry and each of its senses' (`translations_of`), with the sense a table names. The editions'
+dumps write one table per entry: the French and Spanish ones, so es-fr's derived files are
+unchanged, and the English one too — 68,582 of its English entries list Spanish translations, every
+table on the entry in the page's order, none under a sense, a translation the page lists twice kept
+twice. It is kaikki's per-language extract of the English Wiktionary's English section, which en-es's
+pin was derived from, that moves each table under the sense it translates (about 65,752 entries with
+a table under a sense, 5,074 for the whole entry). `derive` reads a dump as served, gzipped or plain, told apart by the
+gzip magic and not by the address: kaikki serves an edition's dump gzipped and its per-language
+extracts uncompressed — the English Wiktionary's English one, which en-es's first update read for
+those tables (add-lingua-pack-en-es D2).
 
 **The committed tables are what the rules make of the pinned sources.** The `reduce` job of
 `lingua-extension-check` reduces every pair again from its pinned sources, each reference first,

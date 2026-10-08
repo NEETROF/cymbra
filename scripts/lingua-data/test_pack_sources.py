@@ -23,6 +23,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -53,7 +54,26 @@ def _dynamic_loads(source):
     return found
 
 
+def gz(entries):
+    """A dump as kaikki serves an edition's: one JSON entry per line, gzipped."""
+    return gzip.compress(plain(entries))
+
+
+def plain(entries):
+    return "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries).encode()
+
+
+def catalogue(pair, edition):
+    """The files a pair reads of an edition, as the edition's catalogue describes them."""
+    return {name: ps.EDITIONS[edition]["files"][name] for name in ps.DUMPS[pair][edition]}
+
+
 class Pinned(unittest.TestCase):
+    """en-fr: CEFR-J and Octanove at a commit, ESDB built at one, and the French Wiktionary's English
+    entries, derived from its dump (migrate-lingua-pack-sources-to-raw-dumps D1)."""
+
+    ANGLAIS = [{"word": "harbour", "lang_code": "en", "pos": "noun", "senses": [{"glosses": ["Port."]}]}]
+
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
@@ -61,7 +81,9 @@ class Pinned(unittest.TestCase):
         self.work = self.root / "work"
         # What "upstream" serves, by URL.
         self.served = {spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["en-fr"].items()}
-        self.served[ps.KAIKKI["en-fr"]["url"]] = b'{"word": "harbour"}\n'
+        self.served[ps.EDITIONS["fr"]["url"]] = gz(
+            [*self.ANGLAIS, {"word": "port", "lang_code": "fr", "pos": "noun", "translations": [{"lang_code": "en", "word": "harbour"}]}]
+        )
         self.esdb_export = "35: run <n_v>: ran, run, running, runs, run's\n"
 
     def tearDown(self):
@@ -78,7 +100,7 @@ class Pinned(unittest.TestCase):
         dest.parent.mkdir(parents=True, exist_ok=True)
         if url in self.served:
             dest.write_bytes(self.served[url])
-            return {"last-modified": "Thu, 24 Sep 2026 00:04:03 GMT"}
+            return {"last-modified": "Fri, 02 Oct 2026 00:10:16 GMT"}
         released = self.work.parent / "released" / Path(url).name
         shutil.copy(released, dest)
         return {}
@@ -86,27 +108,35 @@ class Pinned(unittest.TestCase):
     def update(self, snapshot="2026.09.26"):
         import unittest.mock as mock
 
-        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ), contextlib.redirect_stderr(io.StringIO()):
             return ps.fetch_live(
                 self.pin, self.work, snapshot, fetch=self.fetch, build=self.build, today=datetime.date(2026, 9, 26)
             )
 
+    def release(self):
+        released = self.root / "released"
+        released.mkdir()
+        shutil.copy(self.work / "kaikki-Anglais.jsonl.zst", released / "kaikki-Anglais.jsonl.zst")
+
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_update_records_every_source_and_keeps_kaikki(self):
+    def test_update_records_every_source_and_reads_kaikki_as_the_french_dump(self):
         record = self.update()
         self.assertEqual(record["snapshot"], "2026.09.26")
         sources = record["sources"]
-        self.assertEqual(set(sources), {"esdb", "cefrj", "octanove", "kaikki", "wordfreq"})
+        self.assertEqual(set(sources), {"esdb", "cefrj", "octanove", "kaikki-fr", "wordfreq"}, "no extract record")
         self.assertEqual(sources["esdb"]["commit"], ps.ESDB["en-fr"]["commit"])
         self.assertRegex(sources["esdb"]["sha256"], r"^[0-9a-f]{64}$")
         for name in ("cefrj", "octanove"):
             self.assertRegex(sources[name]["url"], r"/[0-9a-f]{40}/", f"{name} must be read at a commit")
             self.assertRegex(sources[name]["sha256"], r"^[0-9a-f]{64}$")
-        kaikki = sources["kaikki"]
-        self.assertEqual(kaikki["release"], "lingua-pack-sources-en-fr-2026.09.26")
-        self.assertEqual(kaikki["asset"], "kaikki-Anglais.jsonl.zst")
-        self.assertTrue((self.work / kaikki["asset"]).is_file(), "the snapshot to publish is left beside the source")
-        self.assertEqual(kaikki["last_modified"], "Thu, 24 Sep 2026 00:04:03 GMT")
+        fr = sources["kaikki-fr"]
+        self.assertEqual(fr["release"], "lingua-pack-sources-en-fr-2026.09.26")
+        self.assertEqual(fr["url"], "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz")
+        self.assertEqual(fr["last_modified"], "Fri, 02 Oct 2026 00:10:16 GMT")
+        self.assertEqual(list(fr["files"]), ["kaikki-Anglais.jsonl"])
+        self.assertEqual(fr["files"]["kaikki-Anglais.jsonl"]["asset"], "kaikki-Anglais.jsonl.zst")
+        self.assertTrue((self.work / "kaikki-Anglais.jsonl.zst").is_file(), "the snapshot to publish is left beside the source")
+        self.assertEqual((self.work / "kaikki-Anglais.jsonl").read_bytes(), plain(self.ANGLAIS), "the lines as the dump writes them")
         self.assertEqual(sources["wordfreq"], {"version": "3.1.1"})
         self.assertEqual(json.loads(self.pin.read_text()), record, "the record round-trips")
 
@@ -115,14 +145,12 @@ class Pinned(unittest.TestCase):
         import unittest.mock as mock
 
         self.update()
-        released = self.root / "released"
-        released.mkdir()
-        shutil.copy(self.work / "kaikki-Anglais.jsonl.zst", released / "kaikki-Anglais.jsonl.zst")
+        self.release()
         again = self.root / "again"
         self.work = again
         with mock.patch.object(ps, "wordfreq_version", return_value="3.1.1"):
             ps.fetch_pinned(self.pin, again, fetch=self.fetch, build=self.build)
-            self.assertEqual((again / "kaikki-Anglais.jsonl").read_bytes(), b'{"word": "harbour"}\n')
+            self.assertEqual((again / "kaikki-Anglais.jsonl").read_bytes(), plain(self.ANGLAIS))
             # Upstream changed the bytes behind a pinned address.
             self.served[ps.PINNED["en-fr"]["cefrj"]["url"]] = b"something else\n"
             with self.assertRaisesRegex(ps.PinError, "cefrj"):
@@ -138,13 +166,10 @@ class Pinned(unittest.TestCase):
         import unittest.mock as mock
 
         self.update()
-        released = self.root / "released"
-        released.mkdir()
-        shutil.copy(self.work / "kaikki-Anglais.jsonl.zst", released / "kaikki-Anglais.jsonl.zst")
+        self.release()
         with mock.patch.object(ps, "wordfreq_version", return_value="3.2.0"):
             with self.assertRaisesRegex(ps.PinError, "wordfreq"):
                 ps.fetch_pinned(self.pin, self.root / "again", fetch=self.fetch, build=self.build)
-
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_a_record_from_before_esdb_takes_it_in_and_drops_agid(self):
@@ -155,10 +180,8 @@ class Pinned(unittest.TestCase):
         del record["sources"]["esdb"]
         record["sources"]["agid"] = {"url": "https://raw.githubusercontent.com/en-wl/wordlist/464bea8c/agid/infl.txt", "sha256": "0" * 64}
         ps.save(self.pin, record)
-        released = self.root / "released"
-        released.mkdir()
-        shutil.copy(self.work / "kaikki-Anglais.jsonl.zst", released / "kaikki-Anglais.jsonl.zst")
-        with mock.patch.object(ps, "wordfreq_version", return_value="3.1.1"):
+        self.release()
+        with mock.patch.object(ps, "wordfreq_version", return_value="3.1.1"), contextlib.redirect_stderr(io.StringIO()):
             ps.fetch_pinned(self.pin, self.root / "again", fetch=self.fetch, build=self.build)
         sources = ps.load(self.pin)["sources"]
         self.assertNotIn("agid", sources)
@@ -167,8 +190,20 @@ class Pinned(unittest.TestCase):
 
 
 class Dumps(unittest.TestCase):
-    """es-fr reads kaikki's dumps of whole Wiktionary editions, kept as the files it derives."""
+    """es-fr reads three editions' dumps — the English Wiktionary's Spanish section, the French
+    Wiktionary's Spanish entries and translations, the Spanish Wiktionary's French translations —
+    kept as the files it derives."""
 
+    EN = [
+        {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["house"]}]},
+        {"word": "maison", "lang_code": "fr", "pos": "noun", "senses": [{"glosses": ["house"]}]},
+        {
+            "word": "house",
+            "lang_code": "en",
+            "pos": "noun",
+            "senses": [{"translations": [{"lang_code": "es", "word": "casa"}, {"lang_code": "fr", "word": "maison"}]}],
+        },
+    ]
     FR = [
         {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
         {
@@ -199,17 +234,15 @@ class Dumps(unittest.TestCase):
         self.pin = self.root / "tables" / "es-fr" / "pin.json"
         self.work = self.root / "work"
         self.served = {spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["es-fr"].items()}
-        self.served[ps.KAIKKI["es-fr"]["url"]] = b'{"word": "casa"}\n'
-        dumps = ps.DUMPS["es-fr"]
-        self.served[dumps["kaikki-fr"]["url"]] = self.dump(self.FR)
-        self.served[dumps["kaikki-es"]["url"]] = self.dump(self.ES)
+        for edition, entries in (("en", self.EN), ("fr", self.FR), ("es", self.ES)):
+            self.served[ps.EDITIONS[edition]["url"]] = gz(entries)
 
     def tearDown(self):
         self._tmp.cleanup()
 
     @staticmethod
     def dump(entries):
-        return gzip.compress("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries).encode())
+        return gz(entries)
 
     def fetch(self, url, dest, compressed=False):
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -222,14 +255,14 @@ class Dumps(unittest.TestCase):
     def update(self):
         import unittest.mock as mock
 
-        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ), contextlib.redirect_stderr(io.StringIO()):
             return ps.fetch_live(self.pin, self.work, "2026.10.04", fetch=self.fetch, today=datetime.date(2026, 10, 4))
 
     def test_derive_keeps_a_language_s_entries_and_cuts_tables_down_to_translations(self):
         self.work.mkdir()
         dump = self.work / "fr.jsonl.gz"
         dump.write_bytes(self.dump(self.FR))
-        ps.derive(dump, ps.DUMPS["es-fr"]["kaikki-fr"]["files"], self.work)
+        ps.derive(dump, catalogue("es-fr", "fr"), self.work)
         entries = (self.work / "kaikki-fr-Espagnol.jsonl").read_text(encoding="utf-8")
         self.assertEqual(entries, json.dumps(self.FR[0], ensure_ascii=False) + "\n", "the line as the dump writes it")
         tables = [json.loads(line) for line in (self.work / "kaikki-fr-traductions.jsonl").read_text().splitlines()]
@@ -249,8 +282,9 @@ class Dumps(unittest.TestCase):
         )
 
     def test_a_table_under_a_sense_is_derived_with_the_sense_it_names(self):
-        # The English Wiktionary writes its tables under its senses (68,579 English entries list
-        # Spanish translations under a sense, 5,080 for the whole entry).
+        # Spec scenario *The English Wiktionary's tables under senses*: kaikki's per-language extract
+        # of the English Wiktionary moves each table under the sense it translates (about 65,752
+        # English entries with Spanish translations under a sense, 5,074 for the whole entry).
         house = {
             "word": "house",
             "lang_code": "en",
@@ -291,20 +325,65 @@ class Dumps(unittest.TestCase):
             "the entry's table first, then each sense's, with the sense a table names; no French word",
         )
 
+    def test_spec_scenario_the_english_edition_s_dump_writes_its_tables_on_the_entry(self):
+        # The English edition's dump writes every table on the entry, in the page's order, none
+        # under a sense (68,582 English entries list Spanish translations): each is kept, with the
+        # sense it names, and a translation the page lists twice is kept twice.
+        house = {
+            "word": "house",
+            "lang_code": "en",
+            "pos": "noun",
+            "senses": [{"glosses": ["A structure serving as an abode of human beings."]}, {"glosses": ["A dynasty."]}],
+            "translations": [
+                {"lang_code": "es", "word": "casa", "sense": "abode of a human being"},
+                {"lang_code": "fr", "word": "maison", "sense": "abode of a human being"},
+                {"lang_code": "es", "word": "vivienda", "sense": "abode of a human being"},
+                {"lang_code": "es", "word": "casa", "sense": "dynasty"},
+                {"lang_code": "es", "word": "casa", "sense": "dynasty"},
+            ],
+        }
+        self.work.mkdir()
+        dump = self.work / "en.jsonl.gz"
+        dump.write_bytes(self.dump([house]))
+        ps.derive(dump, {"en-es.jsonl": ("translations", "en", "es")}, self.work)
+        self.assertEqual(
+            json.loads((self.work / "en-es.jsonl").read_text(encoding="utf-8")),
+            {
+                "word": "house",
+                "pos": "noun",
+                "translations": [
+                    {"word": "casa", "sense": "abode of a human being"},
+                    {"word": "vivienda", "sense": "abode of a human being"},
+                    {"word": "casa", "sense": "dynasty"},
+                    {"word": "casa", "sense": "dynasty"},
+                ],
+            },
+            "the page's order, the sense each names, the repeated translation twice; no French word",
+        )
+
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_update_keeps_each_derived_file_as_an_asset_of_the_snapshot(self):
+    def test_spec_scenario_an_update_of_es_fr_reads_three_dumps(self):
         record = self.update()
         sources = record["sources"]
-        self.assertEqual(set(sources), {"gsd-train", "gsd-dev", "kaikki", "kaikki-fr", "kaikki-es", "wordfreq"})
-        fr = sources["kaikki-fr"]
-        self.assertEqual(fr["release"], "lingua-pack-sources-es-fr-2026.10.04")
-        self.assertEqual(fr["last_modified"], "Fri, 02 Oct 2026 00:10:16 GMT")
-        self.assertEqual(set(fr["files"]), {"kaikki-fr-Espagnol.jsonl", "kaikki-fr-traductions.jsonl"})
-        for name, file in {**fr["files"], **sources["kaikki-es"]["files"]}.items():
-            self.assertEqual(file["asset"], name + ".zst")
-            self.assertEqual(file["sha256"], ps.sha256(self.work / name))
-            self.assertTrue((self.work / file["asset"]).is_file(), "the asset to publish is left beside it")
-        self.assertFalse(list(self.work.glob("*.dump.jsonl.gz")), "a dump is never kept whole")
+        self.assertEqual(list(sources), ["gsd-train", "gsd-dev", "kaikki-en", "kaikki-fr", "kaikki-es", "wordfreq"])
+        own = "lingua-pack-sources-es-fr-2026.10.04"
+        for edition in ("en", "fr", "es"):
+            dumped = sources[f"kaikki-{edition}"]
+            self.assertEqual(dumped["release"], own)
+            self.assertEqual(dumped["url"], ps.EDITIONS[edition]["url"])
+            self.assertEqual(dumped["last_modified"], "Fri, 02 Oct 2026 00:10:16 GMT")
+            self.assertEqual(list(dumped["files"]), list(ps.DUMPS["es-fr"][edition]))
+            self.assertEqual(set(dumped["dump"]), {"sha256", "size", "compressed_size"})
+        self.assertEqual(set(sources["kaikki-fr"]["files"]), {"kaikki-fr-Espagnol.jsonl", "kaikki-fr-traductions.jsonl"})
+        self.assertEqual(
+            (self.work / "kaikki-Spanish.jsonl").read_bytes(), plain(self.EN[:1]), "the English edition's Spanish section"
+        )
+        for spec in sources.values():
+            for name, file in (spec.get("files") or {}).items():
+                self.assertEqual(file["asset"], name + ".zst")
+                self.assertEqual(file["sha256"], ps.sha256(self.work / name))
+                self.assertTrue((self.work / file["asset"]).is_file(), "the asset to publish is left beside it")
+        self.assertEqual([p for p in self.work.rglob("*.jsonl.gz")], [], "a dump is never kept whole")
         self.assertEqual(
             ps.assets(record),
             [
@@ -313,6 +392,7 @@ class Dumps(unittest.TestCase):
                 "kaikki-fr-traductions.jsonl.zst",
                 "kaikki-es-traductions.jsonl.zst",
             ],
+            "the four derived files, no dump",
         )
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
@@ -327,20 +407,303 @@ class Dumps(unittest.TestCase):
         again = self.root / "again"
         with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
             ps.fetch_pinned(self.pin, again, fetch=self.fetch)
-            self.assertEqual(
-                (again / "kaikki-es-traductions.jsonl").read_bytes(), (self.work / "kaikki-es-traductions.jsonl").read_bytes()
-            )
+            for name in ("kaikki-Spanish.jsonl", "kaikki-es-traductions.jsonl"):
+                self.assertEqual((again / name).read_bytes(), (self.work / name).read_bytes())
             self.assertIn("kaikki-fr", ps.load(self.pin)["sources"], "a derived source is no retired one")
             subprocess.run(["zstd", "-q", "-f", "-o", str(released / "kaikki-fr-traductions.jsonl.zst"), "-"], input=b"{}\n", check=True)
             with self.assertRaisesRegex(ps.PinError, "kaikki-fr: kaikki-fr-traductions.jsonl"):
                 ps.fetch_pinned(self.pin, again, fetch=self.fetch)
 
 
-class OwnExtracts(unittest.TestCase):
-    """Each pair pins its own extract (add-lingua-pack-es-en D2): es-en reads the address es-fr
-    reads, fetched live when es-en is updated and published under es-en's own release; a pair an
-    update brings along is reduced from its own pin; the asset cache fetches an asset once when two
-    pins name it, and keeps an entry whole or not at all."""
+class Editions(unittest.TestCase):
+    """One dump per Wiktionary edition, read once per run (migrate-lingua-pack-sources-to-raw-dumps
+    D1, D3, D4): the edition's whole catalogue is derived at the run's first read, and later pairs of
+    the run copy what they read from it; each dump is recorded by its identity and never kept."""
+
+    EN = [
+        {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["house"]}]},
+        {"word": "chat", "lang_code": "fr", "pos": "noun", "senses": [{"glosses": ["cat"]}]},
+        {
+            "word": "house",
+            "lang_code": "en",
+            "pos": "noun",
+            "senses": [{"translations": [{"lang_code": "es", "word": "casa"}, {"lang_code": "fr", "word": "maison"}]}],
+        },
+    ]
+    FR = [
+        {"word": "harbour", "lang_code": "en", "pos": "noun", "senses": [{"glosses": ["Port."]}]},
+        {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
+        {
+            "word": "maison",
+            "lang_code": "fr",
+            "pos": "noun",
+            "translations": [{"lang_code": "es", "word": "casa"}, {"lang_code": "en", "word": "house"}],
+        },
+    ]
+    ES = [
+        {"word": "house", "lang_code": "en", "pos": "noun", "senses": [{"glosses": ["Casa."]}]},
+        {"word": "chat", "lang_code": "fr", "pos": "noun", "senses": [{"glosses": ["Gato."]}]},
+        {
+            "word": "sector",
+            "lang_code": "es",
+            "pos": "noun",
+            "translations": [{"lang_code": "fr", "word": "secteur"}, {"lang_code": "en", "word": "sector"}],
+        },
+    ]
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.tables = self.root / "tables"
+        self.work = self.root / "work"
+        self.editions = self.work / "editions"
+        self.cache = self.work / "cache"
+        self.served = {}
+        for pair in ("en-fr", "es-fr"):
+            self.served.update({spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED[pair].items()})
+        for edition, entries in (("en", self.EN), ("fr", self.FR), ("es", self.ES)):
+            self.served[ps.EDITIONS[edition]["url"]] = gz(entries)
+        self.fetched = []
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def fetch(self, url, dest, compressed=False):
+        self.fetched.append(url)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(self.served[url])
+        return {"last-modified": "Sat, 03 Oct 2026 08:24:38 GMT"}
+
+    def build(self, spec, work):
+        out = Path(work) / spec["file"]
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text("35: run <n_v>: ran, run\n", encoding="utf-8")
+        return out
+
+    def update(self, pair, snapshot="2026.10.08", editions="run"):
+        """One pair of a run: its work folder of its own, the run's editions folder shared."""
+        import unittest.mock as mock
+
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                record = ps.fetch_live(
+                    self.tables / pair / "pin.json",
+                    self.work / pair,
+                    snapshot,
+                    fetch=self.fetch,
+                    build=self.build,
+                    today=datetime.date(2026, 10, 8),
+                    cache=self.cache,
+                    editions=self.editions if editions == "run" else editions,
+                )
+        self.notes = err.getvalue()
+        return record
+
+    def urls(self, *editions):
+        return [ps.EDITIONS[edition]["url"] for edition in editions]
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_one_pass_per_edition_per_run_and_a_dump_fetched_once(self):
+        # The monthly job's order (`pairs`): en-fr, es-fr, en-es, es-en. Each dump is fetched and
+        # read once, however many pairs of the run read its edition.
+        import unittest.mock as mock
+
+        with mock.patch.object(ps, "derive", wraps=ps.derive) as derive:
+            for pair in ("en-fr", "es-fr", "en-es", "es-en"):
+                self.update(pair)
+        kaikki = [url for url in self.fetched if urllib.parse.urlparse(url).hostname == "kaikki.org"]
+        self.assertEqual(sorted(kaikki), sorted(self.urls("fr", "en", "es")), "one fetch per edition")
+        self.assertEqual(derive.call_count, 3, "one pass per edition")
+        self.assertEqual(
+            sorted(p.name for p in self.editions.iterdir()), ["en-2026.10.08", "es-2026.10.08", "fr-2026.10.08"]
+        )
+        self.assertEqual([p for p in (self.work / "dumps").iterdir()], [], "each dump deleted after its pass")
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_two_pairs_one_regeneration(self):
+        es_fr = self.update("es-fr")["sources"]
+        es_en = self.update("es-en")["sources"]
+        self.assertEqual(es_en["kaikki-en"]["dump"], es_fr["kaikki-en"]["dump"], "one dump sha256")
+        spanish = "kaikki-Spanish.jsonl"
+        self.assertEqual(es_en["kaikki-en"]["files"][spanish]["sha256"], es_fr["kaikki-en"]["files"][spanish]["sha256"])
+        self.assertNotEqual(es_en["kaikki-en"]["release"], es_fr["kaikki-en"]["release"], "each pair's own release")
+        self.assertEqual(self.fetched.count(ps.EDITIONS["en"]["url"]), 1)
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_the_dump_s_identity(self):
+        # The sha256 and size of the decompressed bytes, and the size as served, measured in the
+        # pass that derives from the dump: the dump is recorded, never kept.
+        record = self.update("es-en")
+        dumped = record["sources"]["kaikki-en"]
+        raw = plain(self.EN)
+        self.assertEqual(
+            dumped["dump"],
+            {"sha256": hashlib.sha256(raw).hexdigest(), "size": len(raw), "compressed_size": len(self.served[ps.EDITIONS["en"]["url"]])},
+        )
+        self.assertEqual(list(dumped), ["release", "url", "fetched", "last_modified", "dump", "files"])
+        self.assertEqual(dumped["url"], "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz")
+        self.assertEqual((dumped["fetched"], dumped["last_modified"]), ("2026-10-08", "Sat, 03 Oct 2026 08:24:38 GMT"))
+        self.assertIn(f"note: kaikki-en: {len(self.served[ps.EDITIONS['en']['url']]):,} B as served, fetched in ", self.notes)
+        self.assertIn(f"{len(raw):,} B decompressed, its catalogue (4 files) derived in ", self.notes)
+        self.assertEqual(ps.load(self.tables / "es-en" / "pin.json"), record)
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_one_pair_s_update_reads_two_editions(self):
+        # es-en reads the English and the Spanish editions: the French dump is not fetched, and
+        # es-en's release holds the two files it reads.
+        record = self.update("es-en")
+        self.assertEqual(sorted(self.fetched), sorted(self.urls("en", "es")))
+        self.assertEqual(list(record["sources"]), ["kaikki-en", "kaikki-es", "wordfreq"])
+        own = ps.release_tag("es-en", "2026.10.08")
+        self.assertEqual(ps.assets(record, own), ["kaikki-Spanish.jsonl.zst", "kaikki-es-traductions-en.jsonl.zst"])
+        line = json.loads((self.work / "es-en" / "kaikki-es-traductions-en.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual(line, {"pos": "noun", "translations": [{"word": "sector"}], "word": "sector"}, "English words alone")
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_the_catalogue_derived_whole(self):
+        # en-fr reads the French edition's English entries alone: its Spanish entries and its
+        # Spanish and English translations are derived in the same pass, kept for the run, and
+        # nothing of them is en-fr's.
+        record = self.update("en-fr")
+        folder = self.editions / "fr-2026.10.08"
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), sorted([*ps.EDITIONS["fr"]["files"], "dump.json"]))
+        self.assertEqual(
+            (folder / "kaikki-fr-traductions-en.jsonl").read_text(encoding="utf-8"),
+            '{"pos": "noun", "translations": [{"word": "house"}], "word": "maison"}\n',
+        )
+        self.assertEqual(ps.assets(record), ["kaikki-Anglais.jsonl.zst"], "en-fr's release holds its English entries alone")
+        self.assertEqual(
+            sorted(p.name for p in (self.work / "en-fr").iterdir() if p.name.startswith("kaikki")),
+            ["kaikki-Anglais.jsonl", "kaikki-Anglais.jsonl.zst"],
+        )
+
+    def test_a_pass_cut_short_is_started_again(self):
+        # A dump that cannot be read whole leaves the edition's folder without its record: the next
+        # read of the run fetches the dump again rather than trusting half a catalogue.
+        whole = self.served[ps.EDITIONS["es"]["url"]]
+        self.served[ps.EDITIONS["es"]["url"]] = whole[: len(whole) // 2]
+        with self.assertRaisesRegex(ps.PinError, r"dumps/es-2026\.10\.08\.jsonl\.gz: cannot be read whole"):
+            ps.read_edition("es", "2026.10.08", self.editions, fetch=self.fetch)
+        self.assertFalse((self.editions / "es-2026.10.08" / "dump.json").exists())
+        self.assertEqual([p for p in self.work.rglob("*") if p.is_file()], [], "no derived file, no dump")
+        self.served[ps.EDITIONS["es"]["url"]] = whole
+        with contextlib.redirect_stderr(io.StringIO()):
+            folder, dumped = ps.read_edition("es", "2026.10.08", self.editions, fetch=self.fetch)
+        self.assertEqual(self.fetched.count(ps.EDITIONS["es"]["url"]), 2)
+        self.assertEqual(json.loads((folder / "dump.json").read_text()), dumped)
+        self.assertEqual(dumped["dump"]["size"], len(plain(self.ES)))
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_two_runs_each_read_their_dumps(self):
+        # The editions' folder is the run's: another run (another folder) fetches the dumps again,
+        # and a run of another day reads another snapshot's folder.
+        self.update("es-en")
+        self.update("es-en", editions=self.root / "another-run")
+        self.update("es-en", snapshot="2026.10.09")
+        self.assertEqual(self.fetched.count(ps.EDITIONS["en"]["url"]), 3)
+
+    def test_a_folder_of_another_catalogue_is_derived_again(self):
+        # `work/editions` is per day and outlives a run on a laptop: a folder of the same day counts
+        # only while its record names today's address and catalogue and every file of it is there.
+        import unittest.mock as mock
+
+        url = ps.EDITIONS["es"]["url"]
+
+        def read():
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                folder, record = ps.read_edition("es", "2026.10.08", self.editions, fetch=self.fetch)
+            return folder, record, err.getvalue()
+
+        folder, record, _ = read()
+        self.assertEqual(record["catalogue"], {name: list(kind) for name, kind in ps.EDITIONS["es"]["files"].items()})
+        self.assertEqual(json.loads((folder / "dump.json").read_text()), record)
+        read()
+        self.assertEqual(self.fetched.count(url), 1, "today's catalogue, every file there: the folder counts")
+        # A record written before the catalogue was recorded.
+        (folder / "dump.json").write_text(json.dumps({k: v for k, v in record.items() if k != "catalogue"}))
+        _, _, notes = read()
+        self.assertEqual(self.fetched.count(url), 2)
+        self.assertIn("is not today's catalogue; derived again", notes)
+        # A file added to the catalogue since: derived again, with it — and back, once it is gone.
+        with mock.patch.dict(ps.EDITIONS["es"]["files"], {"kaikki-es-Deutsch.jsonl": ("entries", "de")}):
+            read()
+            self.assertTrue((folder / "kaikki-es-Deutsch.jsonl").is_file())
+        self.assertEqual(self.fetched.count(url), 3)
+        read()
+        self.assertEqual(self.fetched.count(url), 4)
+        self.assertFalse((folder / "kaikki-es-Deutsch.jsonl").exists())
+        # A file of the catalogue missing, or another address recorded, or no record that reads.
+        (folder / "kaikki-es-traductions.jsonl").unlink()
+        read()
+        self.assertEqual(self.fetched.count(url), 5)
+        (folder / "dump.json").write_text(json.dumps({**record, "url": "https://kaikki.org/elsewhere.jsonl.gz"}))
+        read()
+        (folder / "dump.json").write_text("{")
+        read()
+        self.assertEqual(self.fetched.count(url), 7)
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_file_the_edition_s_folder_lacks_is_named(self):
+        import unittest.mock as mock
+
+        empty = self.editions / "es-2026.10.08"
+        empty.mkdir(parents=True)
+        with mock.patch.object(ps, "read_edition", return_value=(empty, {"url": "u", "fetched": "f", "last_modified": "", "dump": {}})):
+            with self.assertRaisesRegex(
+                ps.PinError, r"es-en reads kaikki-Spanish\.jsonl of the 'en' edition, which .*es-2026\.10\.08 does not hold"
+            ):
+                self.update("es-en")
+
+    def test_a_failed_download_leaves_no_part_file_and_a_stall_is_cut(self):
+        import unittest.mock as mock
+
+        dest = self.work / "dumps" / "es-2026.10.08.jsonl.gz"
+        calls = []
+
+        def curl(cmd, **kwargs):
+            calls.append(cmd)
+            Path(cmd[cmd.index("-o") + 1]).write_bytes(b"half a dump")
+            raise subprocess.CalledProcessError(28, cmd)
+
+        with mock.patch.object(ps.subprocess, "run", curl), self.assertRaises(subprocess.CalledProcessError):
+            ps.download(ps.EDITIONS["es"]["url"], dest)
+        self.assertEqual(list(dest.parent.iterdir()), [], "no dump, no .part")
+        limit, seconds = ps.STALL
+        self.assertEqual(calls[0][calls[0].index("--speed-limit") + 1], str(limit))
+        self.assertEqual(calls[0][calls[0].index("--speed-time") + 1], str(seconds))
+        self.assertIn("--retry", calls[0], "a transfer cut for stalling is retried")
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_section_two_pairs_read_is_compressed_once_a_run(self):
+        # D8: es-fr compresses the English edition's Spanish section; es-en, later in the run, copies
+        # the compressed bytes the cache keeps under their sha256 rather than compressing them again.
+        import unittest.mock as mock
+
+        real = subprocess.run
+        compressed = []
+
+        def run(cmd, *args, **kwargs):
+            if cmd[0] == "zstd" and f"-{ps.ZSTD_LEVEL}" in cmd:
+                compressed.append(Path(cmd[cmd.index("-o") - 1]).name)
+            return real(cmd, *args, **kwargs)
+
+        with mock.patch.object(ps.subprocess, "run", run):
+            self.update("es-fr")
+            self.update("es-en")
+        self.assertEqual(compressed.count("kaikki-Spanish.jsonl"), 1, "compressed once, by es-fr")
+        self.assertEqual(compressed.count("kaikki-es-traductions-en.jsonl"), 1, "es-en's own file, compressed")
+        es_en = self.work / "es-en" / "kaikki-Spanish.jsonl.zst"
+        self.assertEqual(es_en.read_bytes(), (self.work / "es-fr" / "kaikki-Spanish.jsonl.zst").read_bytes())
+        out = real(["zstd", "-q", "-d", "-c", str(es_en)], capture_output=True, check=True).stdout
+        pinned = ps.load(self.tables / "es-en" / "pin.json")["sources"]["kaikki-en"]["files"]["kaikki-Spanish.jsonl"]
+        self.assertEqual(hashlib.sha256(out).hexdigest(), pinned["sha256"], "es-en's asset is the bytes its pin records")
+
+
+class OwnFetch(unittest.TestCase):
+    """Each pair pins its own fetch (add-lingua-pack-es-en D2): es-en reads the English edition's
+    Spanish section as es-fr does, derived when es-en is updated and published under es-en's own
+    release; a pair an update brings along is reduced from its own pin; the asset cache fetches an
+    asset once when two pins name it, and keeps an entry whole or not at all."""
 
     ES = [
         {
@@ -361,9 +724,9 @@ class OwnExtracts(unittest.TestCase):
         (self.tables / "es" / "tags.tsv").write_text("NOUN\n")
         self.cache = self.root / "work" / "cache"
         self.served = {spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["es-fr"].items()}
-        self.serve_extract("house")
-        self.served[ps.DUMPS["es-fr"]["kaikki-fr"]["url"]] = Dumps.dump(self.FR)
-        self.served[ps.DUMPS["es-fr"]["kaikki-es"]["url"]] = Dumps.dump(self.ES)
+        self.serve_spanish("house")
+        self.served[ps.EDITIONS["fr"]["url"]] = gz(self.FR)
+        self.served[ps.EDITIONS["es"]["url"]] = gz(self.ES)
         self.released = self.root / "released"
         self.released.mkdir()
         self.fetched = []
@@ -371,10 +734,10 @@ class OwnExtracts(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def serve_extract(self, gloss):
-        # kaikki regenerates its extract every day: what the address serves today.
-        line = {"word": "casa", "senses": [{"glosses": [gloss]}]}
-        self.served[ps.KAIKKI["es-fr"]["url"]] = (json.dumps(line) + "\n").encode()
+    def serve_spanish(self, gloss):
+        # kaikki regenerates its dumps: the English edition's Spanish section as served today.
+        line = {"word": "casa", "lang_code": "es", "senses": [{"glosses": [gloss]}]}
+        self.served[ps.EDITIONS["en"]["url"]] = gz([line])
 
     def fetch(self, url, dest, compressed=False):
         self.fetched.append(url)
@@ -393,9 +756,10 @@ class OwnExtracts(unittest.TestCase):
         return self.root / "work" / pair
 
     def update(self, pair, snapshot="2026.10.08", cache=True):
+        """A run of its own: the pair's editions are derived in its work folder."""
         import unittest.mock as mock
 
-        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ), contextlib.redirect_stderr(io.StringIO()):
             return ps.fetch_live(
                 self.pin(pair),
                 self.work(pair),
@@ -420,29 +784,29 @@ class OwnExtracts(unittest.TestCase):
         with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
             ps.fetch_pinned(self.pin(pair), self.work(pair), fetch=self.fetch, cache=self.cache)
 
-    def test_the_two_pairs_name_one_address_and_their_own_derived_files(self):
-        self.assertEqual(ps.KAIKKI["es-en"], ps.KAIKKI["es-fr"], "one address, one file name")
-        self.assertEqual(ps.DUMPS["es-en"]["kaikki-es"]["url"], ps.DUMPS["es-fr"]["kaikki-es"]["url"])
-        self.assertEqual(
-            ps.DUMPS["es-en"]["kaikki-es"]["files"], {"kaikki-es-traductions-en.jsonl": ("translations", "es", "en")}
-        )
+    def spanish_sha(self, pair):
+        return ps.load(self.pin(pair))["sources"]["kaikki-en"]["files"]["kaikki-Spanish.jsonl"]["sha256"]
+
+    def test_the_two_pairs_read_one_section_and_their_own_derived_files(self):
+        self.assertEqual(ps.DUMPS["es-en"]["en"], ps.DUMPS["es-fr"]["en"], "one file of one edition")
+        self.assertEqual(ps.DUMPS["es-en"]["es"], ("kaikki-es-traductions-en.jsonl",))
+        self.assertEqual(ps.EDITIONS["es"]["files"]["kaikki-es-traductions-en.jsonl"], ("translations", "es", "en"))
         self.assertEqual(ps.release_tag("es-en", "2026.10.08"), "lingua-pack-sources-es-en-2026.10.08")
         self.assertFalse(hasattr(ps, "shared_extract"), "no pair records another pair's fetch")
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_updated_a_reader_pair_fetches_and_publishes_its_own_extract(self):
-        # es-fr updated, then es-en the same day: es-en fetches the extract again and publishes it,
-        # with its derived file, under its own release — never under es-fr's.
+    def test_updated_a_reader_pair_fetches_and_publishes_its_own_section(self):
+        # es-fr updated, then es-en in a run of its own: es-en reads the English dump again and
+        # publishes the Spanish section, with its derived translations, under its own release —
+        # never under es-fr's.
         self.update("es-fr")
         es_fr = self.publish("es-fr")
         reader = self.update("es-en")
-        self.assertEqual(self.fetched.count(ps.KAIKKI["es-en"]["url"]), 2, "each pair fetches its own")
+        self.assertEqual(self.fetched.count(ps.EDITIONS["en"]["url"]), 2, "each run reads its own")
         own = ps.release_tag("es-en", "2026.10.08")
-        self.assertEqual(reader["sources"]["kaikki"]["release"], own)
+        self.assertEqual(reader["sources"]["kaikki-en"]["release"], own)
         self.assertEqual(reader["sources"]["kaikki-es"]["release"], own)
-        self.assertEqual(set(reader["sources"]), {"kaikki", "kaikki-es", "wordfreq"})
-        line = json.loads((self.work("es-en") / "kaikki-es-traductions-en.jsonl").read_text(encoding="utf-8"))
-        self.assertEqual(line, {"pos": "noun", "translations": [{"word": "sector"}], "word": "sector"}, "English words alone")
+        self.assertEqual(set(reader["sources"]), {"kaikki-en", "kaikki-es", "wordfreq"})
         self.assertEqual(self.publish("es-en"), ["kaikki-Spanish.jsonl.zst", "kaikki-es-traductions-en.jsonl.zst"])
         self.assertNotIn("kaikki-es-traductions-en.jsonl.zst", es_fr, "nothing of es-en under es-fr's release")
         with contextlib.redirect_stdout(io.StringIO()) as out:
@@ -452,7 +816,7 @@ class OwnExtracts(unittest.TestCase):
         # Without a cache too: the fetch does not depend on it.
         self.fetched.clear()
         self.update("es-en", snapshot="2026.10.09", cache=False)
-        self.assertEqual(self.fetched.count(ps.KAIKKI["es-en"]["url"]), 1)
+        self.assertEqual(self.fetched.count(ps.EDITIONS["en"]["url"]), 1)
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_an_update_carries_a_reader_pair_s_studied_record_over(self):
@@ -466,17 +830,17 @@ class OwnExtracts(unittest.TestCase):
         self.assertNotIn("studied", self.update("es-fr"), "the reference records none")
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_spec_scenario_each_pair_s_own_extract(self):
+    def test_spec_scenario_each_pair_s_own_fetch(self):
         # es-en's pin names its own release (its first update, dispatched alone). es-fr's update
-        # brings es-en along: es-en is reduced from its own pin — its own extract, though kaikki
-        # serves another one today — nothing of es-en is published, and its pin still names its
-        # own release.
+        # brings es-en along: es-en is reduced from its own pin — its own Spanish section, though
+        # kaikki serves another one today — nothing of es-en is published, and its pin still names
+        # its own release.
         self.update("es-en", snapshot="2026.10.07")
         self.publish("es-en")
         pinned = self.pin("es-en").read_bytes()
         shutil.rmtree(self.root / "work")
         self.fetched.clear()
-        self.serve_extract("home")
+        self.serve_spanish("home")
         self.update("es-fr")
         es_fr = self.publish("es-fr")
         self.fetch_pinned("es-en")
@@ -502,21 +866,21 @@ class OwnExtracts(unittest.TestCase):
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_the_cache_fetches_an_asset_once_and_a_reduction_again_nothing(self):
-        # Two pins naming the same asset — es-en's extract record copied from es-fr's (made up):
+        # Two pins naming the same asset — es-en's English record copied from es-fr's (made up):
         # the reduce job fetches it once. Reduced again on the same machine, nothing is fetched.
         self.update("es-fr")
         self.publish("es-fr")
         self.update("es-en")
         self.publish("es-en")
         record = ps.load(self.pin("es-en"))
-        record["sources"]["kaikki"] = ps.load(self.pin("es-fr"))["sources"]["kaikki"]
+        record["sources"]["kaikki-en"] = ps.load(self.pin("es-fr"))["sources"]["kaikki-en"]
         ps.save(self.pin("es-en"), record)
         shutil.rmtree(self.root / "work")
         self.fetched.clear()
         self.fetch_pinned("es-fr")
         self.fetch_pinned("es-en")
-        extract = ps.release_url(ps.release_tag("es-fr", "2026.10.08"), "kaikki-Spanish.jsonl.zst")
-        self.assertEqual(self.fetched.count(extract), 1, "fetched once, for both pins")
+        spanish = ps.release_url(ps.release_tag("es-fr", "2026.10.08"), "kaikki-Spanish.jsonl.zst")
+        self.assertEqual(self.fetched.count(spanish), 1, "fetched once, for both pins")
         self.assertEqual(
             (self.work("es-en") / "kaikki-Spanish.jsonl").read_bytes(), (self.work("es-fr") / "kaikki-Spanish.jsonl").read_bytes()
         )
@@ -531,11 +895,12 @@ class OwnExtracts(unittest.TestCase):
     def test_a_cache_entry_that_is_not_its_bytes_is_deleted_and_named(self):
         self.update("es-en")
         self.publish("es-en")
-        sha = ps.load(self.pin("es-en"))["sources"]["kaikki"]["sha256"]
-        entry = self.cache / sha
+        entry = self.cache / self.spanish_sha("es-en")
         # Other bytes under its name: deleted, and the error names the cache path.
         subprocess.run(["zstd", "-q", "-f", "-o", str(entry), "-"], input=b"{}\n", check=True)
-        with self.assertRaisesRegex(ps.PinError, rf"kaikki: the snapshot decompresses .*the cached {re.escape(str(entry))} is deleted"):
+        with self.assertRaisesRegex(
+            ps.PinError, rf"kaikki-en: kaikki-Spanish\.jsonl decompresses .*the cached {re.escape(str(entry))} is deleted"
+        ):
             self.fetch_pinned("es-en")
         self.assertFalse(entry.exists(), "deleted")
         # Bytes that do not decompress at all (a truncated copy): deleted, and named.
@@ -554,10 +919,15 @@ class OwnExtracts(unittest.TestCase):
         import unittest.mock as mock
 
         # A copy into the cache that stops half way (a full disk, a killed job) leaves no entry: a
-        # later fetch reads the release, not half an asset.
+        # later fetch reads the release, not half an asset. The pair's copy of the edition's file
+        # goes through `copyfile` too, and stops the same way.
+        real = shutil.copyfile
+
         def interrupted(src, dst):
-            Path(dst).write_bytes(Path(src).read_bytes()[:10])
-            raise OSError("No space left on device")
+            if Path(dst).parent == self.cache:
+                Path(dst).write_bytes(Path(src).read_bytes()[:10])
+                raise OSError("No space left on device")
+            return real(src, dst)
 
         with mock.patch.object(ps.shutil, "copyfile", interrupted), self.assertRaises(OSError):
             self.update("es-en")
@@ -569,7 +939,7 @@ class OwnExtracts(unittest.TestCase):
         self.fetch_pinned("es-en")
         self.assertEqual(self.fetched, [], "the whole entries a complete update kept")
         # A fetch into the cache goes through `<sha256>.part` too: a fetch that fails leaves none.
-        sha = ps.load(self.pin("es-en"))["sources"]["kaikki"]["sha256"]
+        sha = self.spanish_sha("es-en")
         (self.cache / sha).unlink()
 
         def failing(url, dest, compressed=False):
@@ -585,8 +955,12 @@ class OwnExtracts(unittest.TestCase):
     def test_build_sh_keeps_the_cache_outside_a_pair_s_work_folder(self):
         script = (HERE / "build.sh").read_text()
         self.assertIn('cache="${LINGUA_CACHE:-$here/work/cache}"', script)
+        self.assertIn('editions="${LINGUA_EDITIONS:-$here/work/editions}"', script)
         self.assertIn('fetch-pinned --pin "$pin" --work "$work" --cache "$cache"', script)
-        self.assertIn('fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache"', script)
+        self.assertIn(
+            'fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache" --editions "$editions"', script
+        )
+        self.assertEqual(script.count("--editions"), 1, "an update alone reads a dump; a re-reduction never does")
         self.assertIn('LINGUA_STUDIED="$studied"', script, "a reader pair reads this run's studied folder")
         self.assertIn("es-*) echo 60000", script, "every Spanish pair keeps 60,000 lemmas")
         # The version, in both modes, from `pack_sources.py version` (add-lingua-pack-es-en D3).
@@ -595,10 +969,225 @@ class OwnExtracts(unittest.TestCase):
         self.assertEqual(script.count('reduce "$pair" "$work" "$snapshot" "$version"'), 2)
 
 
+class Legacy(unittest.TestCase):
+    """A pin recorded against kaikki's per-language extract stays readable
+    (migrate-lingua-pack-sources-to-raw-dumps D5): `fetch-pinned` reads a record by its shape, from
+    the release it names — the extract under the name its asset gives — keeps it in the pin, and
+    prunes nothing, so the reduce job's `git status` gate stays green on the committed pins."""
+
+    SPANISH = b'{"word": "casa", "lang_code": "es", "senses": [{"glosses": ["house"]}]}\n'
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.tables = self.root / "tables"
+        self.work = self.root / "work"
+        self.released = self.root / "released"
+        self.fetched = []
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def fetch(self, url, dest, compressed=False):
+        self.fetched.append(url)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        tag, asset = url.rsplit("/", 2)[-2:]
+        shutil.copy(self.released / tag / asset, dest)
+        return {}
+
+    def release(self, tag, asset, raw):
+        (self.released / tag).mkdir(parents=True, exist_ok=True)
+        subprocess.run(["zstd", "-q", "-f", "-o", str(self.released / tag / asset), "-"], input=raw, check=True)
+        return hashlib.sha256(raw).hexdigest()
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_legacy_extract_record_is_kept_and_read_under_its_asset_s_name(self):
+        # es-en's pin as change 21 wrote it: its own extract, and the derived file beside it.
+        import unittest.mock as mock
+
+        tag = "lingua-pack-sources-es-en-2026.10.08"
+        translations = b'{"pos": "noun", "translations": [{"word": "sector"}], "word": "sector"}\n'
+        record = {
+            "snapshot": "2026.10.08",
+            "sources": {
+                "kaikki": {
+                    "release": tag,
+                    "asset": "kaikki-Spanish.jsonl.zst",
+                    "sha256": self.release(tag, "kaikki-Spanish.jsonl.zst", self.SPANISH),
+                    "size": len(self.SPANISH),
+                    "fetched": "2026-10-08",
+                    "last_modified": "Sat, 03 Oct 2026 10:55:10 GMT",
+                    "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
+                },
+                "kaikki-es": {
+                    "release": tag,
+                    "url": ps.EDITIONS["es"]["url"],
+                    "fetched": "2026-10-08",
+                    "last_modified": "Fri, 02 Oct 2026 12:12:06 GMT",
+                    "files": {
+                        "kaikki-es-traductions-en.jsonl": {
+                            "asset": "kaikki-es-traductions-en.jsonl.zst",
+                            "sha256": self.release(tag, "kaikki-es-traductions-en.jsonl.zst", translations),
+                            "size": len(translations),
+                        }
+                    },
+                },
+                "wordfreq": {"version": "3.1.1"},
+            },
+        }
+        pin = self.tables / "es-en" / "pin.json"
+        ps.save(pin, record)
+        pinned = pin.read_bytes()
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                ps.fetch_pinned(pin, self.work, fetch=self.fetch)
+        self.assertEqual(pin.read_bytes(), pinned, "the record kept, nothing pruned, nothing rewritten")
+        self.assertNotIn("no longer read", err.getvalue())
+        self.assertEqual((self.work / "kaikki-Spanish.jsonl").read_bytes(), self.SPANISH)
+        self.assertEqual((self.work / "kaikki-es-traductions-en.jsonl").read_bytes(), translations)
+        self.assertEqual(
+            self.fetched,
+            [ps.release_url(tag, "kaikki-Spanish.jsonl.zst"), ps.release_url(tag, "kaikki-es-traductions-en.jsonl.zst")],
+        )
+        self.assertEqual(ps.assets(record, tag), ["kaikki-Spanish.jsonl.zst", "kaikki-es-traductions-en.jsonl.zst"])
+        # The raw file is named after the record's asset, not after any registry.
+        record["sources"]["kaikki"]["asset"] = "kaikki-Elsewhere.jsonl.zst"
+        self.release(tag, "kaikki-Elsewhere.jsonl.zst", self.SPANISH)
+        ps.save(pin, record)
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            ps.fetch_pinned(pin, self.root / "again", fetch=self.fetch)
+        self.assertEqual((self.root / "again" / "kaikki-Elsewhere.jsonl").read_bytes(), self.SPANISH)
+        # Other bytes are refused, naming the record.
+        self.release(tag, "kaikki-Elsewhere.jsonl.zst", b"{}\n")
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            with self.assertRaisesRegex(ps.PinError, r"^kaikki: the snapshot decompresses to sha256"):
+                ps.fetch_pinned(pin, self.root / "again", fetch=self.fetch)
+        # A record that names neither an extract nor derived files is no record to read.
+        del record["sources"]["kaikki"]["asset"]
+        ps.save(pin, record)
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            with self.assertRaisesRegex(ps.PinError, r"kaikki: pin.json names neither an extract"):
+                ps.fetch_pinned(pin, self.root / "again", fetch=self.fetch)
+
+    def test_a_name_or_a_sha256_that_is_not_one_is_refused_before_any_path_is_built(self):
+        # A pin is read from a pull request: a name it gives is a file name and a sha256 a sha256,
+        # checked before the fetch builds a path from either. Otherwise a `files` key would write
+        # beside the work folder, and a sha256 naming a cache entry outside the cache would have the
+        # entry that "does not decompress" — someone else's file — deleted.
+        import unittest.mock as mock
+
+        tag = "lingua-pack-sources-es-en-2026.10.08"
+        sha = "0" * 64
+        asset = {"asset": "kaikki-es-traductions-en.jsonl.zst", "sha256": sha}
+        # The cache beside the victim: `cache/../victim.txt` is the victim.
+        cache, victim = self.root / "cache", self.root / "victim.txt"
+        cases = [
+            ({"kaikki-es": {"release": tag, "files": {"../../escaped.jsonl": asset}}}, r"^kaikki-es: pin\.json names '\.\./\.\./escaped\.jsonl', which is not a file name"),
+            ({"kaikki-es": {"release": tag, "files": {"kaikki-es-traductions-en.jsonl": {**asset, "sha256": "../victim.txt"}}}}, r"^kaikki-es: kaikki-es-traductions-en\.jsonl: pin\.json records sha256 '\.\./victim\.txt', which is no sha256"),
+            ({"kaikki-es": {"release": tag, "files": {"kaikki-es-traductions-en.jsonl": {**asset, "asset": "../x.zst"}}}}, r"names '\.\./x\.zst', which is not a file name"),
+            ({"kaikki-es": {"release": tag, "files": {"..": asset}}}, r"names '\.\.', which is not a file name"),
+            ({"kaikki-es": {"release": tag, "files": {"kaikki-es-Francés.jsonl": asset}}}, r"names 'kaikki-es-Francés\.jsonl', which is not a file name"),
+            ({"kaikki": {"release": tag, "asset": "../../escaped.jsonl.zst", "sha256": sha}}, r"^kaikki: pin\.json names '\.\./\.\./escaped\.jsonl\.zst'"),
+            ({"kaikki": {"release": tag, "asset": ".zst", "sha256": sha}}, r"^kaikki: the raw file of \.zst: pin\.json names ''"),
+            ({"kaikki": {"release": tag, "asset": "...zst", "sha256": sha}}, r"^kaikki: the raw file of \.\.\.zst: pin\.json names '\.\.'"),
+            ({"kaikki": {"release": tag, "asset": "kaikki-Spanish.jsonl.zst", "sha256": "../victim.txt"}}, r"^kaikki: pin\.json records sha256 '\.\./victim\.txt'"),
+        ]
+        for kaikki, refused in cases:
+            with self.subTest(refused=refused):
+                victim.write_text("someone else's\n")
+                pin = self.tables / "es-en" / "pin.json"
+                ps.save(pin, {"snapshot": "2026.10.08", "sources": {**kaikki, "wordfreq": {"version": ps.WORDFREQ}}})
+                pinned = pin.read_bytes()
+                before = sorted(p.relative_to(self.root) for p in self.root.rglob("*"))
+                with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+                    with self.assertRaisesRegex(ps.PinError, refused):
+                        ps.fetch_pinned(pin, self.work / "es-en", fetch=self.fetch, cache=cache)
+                self.assertEqual(sorted(p.relative_to(self.root) for p in self.root.rglob("*")), before, "nothing written")
+                self.assertEqual(victim.read_text(), "someone else's\n", "nothing deleted")
+                self.assertEqual(pin.read_bytes(), pinned)
+                self.assertEqual(self.fetched, [])
+        # The cache refuses such a sha256 too, whoever asks.
+        with self.assertRaisesRegex(ps.PinError, r"which is no sha256"):
+            ps.release_asset(self.fetch, "https://example.invalid/x.zst", self.work / "x.zst", "../victim.txt", cache)
+        self.assertTrue(victim.is_file())
+        # And a release's asset list, which the publish step uploads by path, names files alone.
+        with self.assertRaisesRegex(ps.PinError, r"names '\.\./\.\./etc/passwd'"):
+            ps.assets({"sources": {"kaikki-es": {"release": tag, "files": {"x.jsonl": {"asset": "../../etc/passwd"}}}}})
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_the_committed_pairs_reduce_as_before(self):
+        # Every committed pin, as committed — en-fr's, es-fr's and es-en's against their extracts,
+        # en-es's against derived files alone. The bytes behind each record are stood in for by a
+        # marker naming the sha256 it records (the real ones are the releases' and kaikki's), so
+        # the fetch reads every record and each check passes: the pin's bytes are unchanged after
+        # `fetch_pinned`, a legacy record is kept, and each raw file is named as its record says.
+        import unittest.mock as mock
+
+        real = ps.sha256
+
+        def marked(path):
+            data = Path(path).read_bytes()
+            return data[7:71].decode() if data.startswith(b"sha256:") and len(data) == 72 else real(path)
+
+        def marker(digest):
+            return f"sha256:{digest}\n".encode()
+
+        committed = sorted(p.parent.name for p in (HERE / "tables").glob("*/pin.json"))
+        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr"])
+        for pair in committed:
+            pin = self.tables / pair / "pin.json"
+            pin.parent.mkdir(parents=True)
+            shutil.copyfile(HERE / "tables" / pair / "pin.json", pin)
+            sources = ps.load(pin)["sources"]
+            served, raws = {}, []
+            for name, spec in ps.PINNED.get(pair, {}).items():
+                served[sources[name].get("url") or spec["url"]] = marker(sources[name]["sha256"])
+            for name in ps.kaikki_records(pair, sources):
+                record = sources[name]
+                if "asset" in record:
+                    raws.append(record["asset"].removesuffix(".zst"))
+                    self.release(record["release"], record["asset"], marker(record["sha256"]))
+                for file, spec in (record.get("files") or {}).items():
+                    raws.append(file)
+                    self.release(record["release"], spec["asset"], marker(spec["sha256"]))
+            fetched = []
+
+            def fetch(url, dest, compressed=False):
+                fetched.append(url)
+                if url in served:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(served[url])
+                    return {}
+                return self.fetch(url, dest)
+
+            def build(spec, work):
+                out = Path(work) / spec["file"]
+                out.write_bytes(marker(sources["esdb"]["sha256"]))
+                return out
+
+            with mock.patch.object(ps, "sha256", marked), mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+                with contextlib.redirect_stderr(io.StringIO()) as err:
+                    ps.fetch_pinned(pin, self.work / pair, fetch=fetch, build=build)
+            self.assertEqual(pin.read_bytes(), (HERE / "tables" / pair / "pin.json").read_bytes(), f"{pair}: the pin moved")
+            self.assertEqual(err.getvalue(), "", f"{pair}: nothing pruned, nothing recorded")
+            for raw in raws:
+                self.assertTrue((self.work / pair / raw).is_file(), f"{pair}: {raw}")
+            self.assertEqual(
+                sum("releases/download" in url for url in fetched), len(raws), f"{pair}: every asset of its records"
+            )
+            self.assertEqual("kaikki" in sources, pair != "en-es", f"{pair}: its legacy extract record")
+        self.assertEqual(
+            sorted(p.name for p in (self.work / "es-en").iterdir() if p.suffix == ".jsonl"),
+            ["kaikki-Spanish.jsonl", "kaikki-es-traductions-en.jsonl"],
+            "es-en's extract under the name its asset gives",
+        )
+
+
 class DumpsOnly(unittest.TestCase):
-    """A pair whose sources are dumps alone (add-lingua-pack-en-es D2): en-es has no extract of its
-    own — no `KAIKKI` entry, no `sources.kaikki` — and reads the Spanish Wiktionary's dump and the
-    English Wiktionary's English extract, served plain, for the files it derives from them."""
+    """en-es (add-lingua-pack-en-es D2), born on dumps: the Spanish Wiktionary's English section and
+    the English translations its Spanish entries list, and the Spanish translations the English
+    Wiktionary's English entries list — the English edition's dump, which kaikki may serve gzipped
+    or plain (`derive` tells them apart by the magic)."""
 
     # The Spanish Wiktionary's dump: an English entry (en-es's entries), a Spanish entry listing an
     # English translation (es-en's and en-es's inverted table) and a French one (es-fr's).
@@ -611,7 +1200,8 @@ class DumpsOnly(unittest.TestCase):
             "translations": [{"lang_code": "fr", "word": "secteur"}, {"lang_code": "en", "word": "sector"}],
         },
     ]
-    # The English Wiktionary's English extract: its tables under its senses.
+    # The English Wiktionary's English entries, a table under a sense as kaikki's per-language
+    # extract writes it (the dump writes it on the entry; `derive` reads both, `translations_of`).
     EN = [
         {
             "word": "house",
@@ -628,6 +1218,7 @@ class DumpsOnly(unittest.TestCase):
             ],
         },
         {"word": "home", "lang_code": "en", "pos": "noun", "senses": [{"glosses": ["A dwelling."]}]},
+        {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["house"]}]},
     ]
 
     def setUp(self):
@@ -642,11 +1233,10 @@ class DumpsOnly(unittest.TestCase):
         self.cache = self.root / "work" / "cache"
         self.released = self.root / "released"
         self.released.mkdir()
-        dumps = ps.DUMPS["en-es"]
         self.served = {
-            dumps["kaikki-es"]["url"]: Dumps.dump(self.ES),
-            # Served uncompressed, as kaikki serves a language's extract.
-            dumps["kaikki-en"]["url"]: "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in self.EN).encode(),
+            ps.EDITIONS["es"]["url"]: gz(self.ES),
+            # Served uncompressed: the magic, not the address, says how to read it.
+            ps.EDITIONS["en"]["url"]: plain(self.EN),
         }
         self.fetched = []
 
@@ -658,7 +1248,7 @@ class DumpsOnly(unittest.TestCase):
         dest.parent.mkdir(parents=True, exist_ok=True)
         if url in self.served:
             dest.write_bytes(self.served[url])
-            return {"last-modified": "Sat, 03 Oct 2026 11:09:08 GMT"}
+            return {"last-modified": "Sat, 03 Oct 2026 08:24:38 GMT"}
         tag, asset = url.rsplit("/", 2)[-2:]
         shutil.copy(self.released / tag / asset, dest)
         return {}
@@ -682,35 +1272,75 @@ class DumpsOnly(unittest.TestCase):
             shutil.copy(self.work / asset, self.released / tag / asset)
         return sorted(p.name for p in (self.released / tag).iterdir())
 
-    def test_a_pair_whose_sources_are_dumps_alone_is_registered_by_them(self):
-        self.assertNotIn("en-es", ps.KAIKKI, "no extract of its own")
+    def test_every_pair_registers_its_reads_against_the_catalogue(self):
+        import unittest.mock as mock
+
+        self.assertFalse(hasattr(ps, "KAIKKI"), "the extract registry is retired")
         self.assertEqual(
-            ps.DUMPS["en-es"]["kaikki-es"]["files"],
-            {"kaikki-es-English.jsonl": ("entries", "en"), "kaikki-es-traductions-en.jsonl": ("translations", "es", "en")},
-            "the entries and the inverted table, in one pass over en-es's own snapshot of the dump",
+            {edition: spec["url"] for edition, spec in ps.EDITIONS.items()},
+            {
+                "en": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+                "fr": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+                "es": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+            },
+            "three addresses, one dump per edition",
         )
-        self.assertEqual(ps.DUMPS["en-es"]["kaikki-es"]["url"], ps.DUMPS["es-en"]["kaikki-es"]["url"])
-        self.assertEqual(ps.DUMPS["en-es"]["kaikki-en"]["files"], {"kaikki-en-traductions-es.jsonl": ("translations", "en", "es")})
         self.assertEqual(
-            ps.DUMPS["en-es"]["kaikki-en"]["url"], "https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl"
+            ps.DUMPS["en-es"],
+            {"es": ("kaikki-es-English.jsonl", "kaikki-es-traductions-en.jsonl"), "en": ("kaikki-en-traductions-es.jsonl",)},
+            "the entries and the inverted table, then the direct one",
         )
-        ps.check_registered("en-es")
-        ps.check_registered("es-en")
-        with self.assertRaisesRegex(ps.PinError, r"no source registry for de-en: add it to PINNED / ESDB / KAIKKI / DUMPS"):
+        self.assertEqual(catalogue("en-es", "en"), {"kaikki-en-traductions-es.jsonl": ("translations", "en", "es")})
+        self.assertEqual(ps.DUMPS["en-fr"], {"fr": ("kaikki-Anglais.jsonl",)})
+        for pair in ps.DUMPS:
+            ps.check_registered(pair)
+        with self.assertRaisesRegex(ps.PinError, r"no source registry for de-en: add it to PINNED / ESDB / DUMPS"):
             ps.check_registered("de-en")
+        with mock.patch.dict(ps.DUMPS, {"de-en": {"en": ("kaikki-German.jsonl",)}}):
+            with self.assertRaisesRegex(ps.PinError, r"de-en reads kaikki-German\.jsonl of the 'en' edition, which its catalogue"):
+                ps.check_registered("de-en")
+
+    def test_spec_scenario_a_pair_of_stage_3_registers_what_it_reads(self):
+        # fr-en (change 48): the English Wiktionary's French section, its English entries' French
+        # translations, the French Wiktionary's English translations — all three in the catalogue.
+        import unittest.mock as mock
+
+        fr_en = {
+            "en": ("kaikki-French.jsonl", "kaikki-en-traductions-fr.jsonl"),
+            "fr": ("kaikki-fr-traductions-en.jsonl",),
+        }
+        fr_es = {"es": ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl"), "fr": ("kaikki-fr-traductions.jsonl",)}
+        with mock.patch.dict(ps.DUMPS, {"fr-en": fr_en, "fr-es": fr_es}):
+            ps.check_registered("fr-en")
+            ps.check_registered("fr-es")
+        self.assertEqual(catalogue("es-fr", "en"), {"kaikki-Spanish.jsonl": ("entries", "es")})
+        self.assertEqual(ps.EDITIONS["en"]["files"]["kaikki-French.jsonl"], ("entries", "fr"))
+        self.assertEqual(ps.EDITIONS["es"]["files"]["kaikki-es-Frances.jsonl"], ("entries", "fr"))
+
+    def test_every_catalogue_name_is_ascii_and_in_one_edition_alone(self):
+        # GitHub renames a release asset whose name holds a character outside these on upload: an
+        # asset named `kaikki-es-Francés.jsonl.zst` would be served under another name, and
+        # `fetch-pinned` would ask for one the release does not hold.
+        names = [name for spec in ps.EDITIONS.values() for name in spec["files"]]
+        for name in names:
+            self.assertRegex(name, r"^[A-Za-z0-9._+@-]+$", f"{name}: GitHub would rename its asset")
+            self.assertEqual(ps.plain_name(name + ".zst", "test"), name + ".zst")
+        # A pair's work folder holds the files of every edition it reads, by name: one name, one file.
+        self.assertEqual(sorted(names), sorted(set(names)), "a file named in two editions' catalogues")
 
     def test_derive_reads_a_plain_or_a_gzipped_dump_alike(self):
         # Told apart by the gzip magic, not the name: the same lines, whatever the encoding.
         self.work.mkdir(parents=True)
-        plain, gzipped = self.work / "plain.dump.jsonl.gz", self.work / "gzipped.jsonl"
-        plain.write_bytes(self.served[ps.DUMPS["en-es"]["kaikki-en"]["url"]])
-        gzipped.write_bytes(gzip.compress(plain.read_bytes()))
-        files = ps.DUMPS["en-es"]["kaikki-en"]["files"]
-        out = {}
-        for dump in (plain, gzipped):
-            ps.derive(dump, files, self.work)
+        plain_dump, gzipped = self.work / "plain.dump.jsonl.gz", self.work / "gzipped.jsonl"
+        plain_dump.write_bytes(self.served[ps.EDITIONS["en"]["url"]])
+        gzipped.write_bytes(gzip.compress(plain_dump.read_bytes()))
+        files = catalogue("en-es", "en")
+        out, identity = {}, {}
+        for dump in (plain_dump, gzipped):
+            identity[dump.name] = ps.derive(dump, files, self.work)
             out[dump.name] = (self.work / "kaikki-en-traductions-es.jsonl").read_text(encoding="utf-8")
         self.assertEqual(out["plain.dump.jsonl.gz"], out["gzipped.jsonl"])
+        self.assertEqual(identity["plain.dump.jsonl.gz"], identity["gzipped.jsonl"], "one identity: the decompressed bytes")
         self.assertEqual(
             json.loads(out["gzipped.jsonl"]),
             {"pos": "noun", "translations": [{"sense": "abode", "word": "casa"}], "word": "house"},
@@ -724,65 +1354,70 @@ class DumpsOnly(unittest.TestCase):
         # renamed whole), rather than a short file the update would compress and publish as the
         # snapshot's; and `fetch_live` keeps no dump either way.
         entries = [dict(self.ES[0], word=f"house{n}", senses=[{"glosses": [f"Casa {n} {os.urandom(8).hex()}."]}]) for n in range(400)]
-        whole = Dumps.dump(entries)
+        whole = gz(entries)
         cut = whole[: len(whole) * 2 // 3]
         read = 0
         with self.assertRaises(EOFError), gzip.open(io.BytesIO(cut), "rt", encoding="utf-8") as f:
             for _ in f:
                 read += 1
         self.assertGreater(read, 0, "the cut stream yields lines before it fails")
-        self.served[ps.DUMPS["en-es"]["kaikki-es"]["url"]] = cut
-        with self.assertRaisesRegex(ps.PinError, r"kaikki-es\.dump\.jsonl\.gz: cannot be read whole \(Compressed file ended"):
+        self.served[ps.EDITIONS["es"]["url"]] = cut
+        with self.assertRaisesRegex(ps.PinError, r"dumps/es-2026\.10\.09\.jsonl\.gz: cannot be read whole \(Compressed file ended"):
             self.update()
-        self.assertEqual(sorted(p.name for p in self.work.iterdir()), [], "no derived file, no .part, no dump")
+        self.assertEqual([p for p in self.work.rglob("*") if p.is_file()], [], "no derived file, no .part, no dump")
         self.assertFalse(self.pin.exists(), "no record")
 
     def test_a_dump_that_is_not_utf_8_or_not_gzip_is_refused_naming_it(self):
-        # Served plain, as the English extract is, with a byte no UTF-8 text holds; and a stream
-        # that is not gzip after its magic. `derive` names the dump, which stays its caller's.
+        # Served plain, with a byte no UTF-8 text holds; and a stream that is not gzip after its
+        # magic. `derive` names the dump, which stays its caller's.
         self.work.mkdir(parents=True)
-        dump = self.work / "kaikki-en.dump.jsonl.gz"
-        files = ps.DUMPS["en-es"]["kaikki-en"]["files"]
+        dump = self.work / "en-2026.10.09.jsonl.gz"
+        files = catalogue("en-es", "en")
         dump.write_bytes(json.dumps(self.EN[0]).encode() + b"\n\xff\n")
-        with self.assertRaisesRegex(ps.PinError, r"kaikki-en\.dump\.jsonl\.gz: cannot be read whole \('utf-8' codec"):
+        with self.assertRaisesRegex(ps.PinError, r"en-2026\.10\.09\.jsonl\.gz: cannot be read whole \('utf-8' codec"):
             ps.derive(dump, files, self.work)
-        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["kaikki-en.dump.jsonl.gz"], "no derived file, no .part")
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["en-2026.10.09.jsonl.gz"], "no derived file, no .part")
         dump.write_bytes(ps.GZIP_MAGIC + b"not a gzip stream\n")
-        with self.assertRaisesRegex(ps.PinError, r"kaikki-en\.dump\.jsonl\.gz: cannot be read whole \("):
+        with self.assertRaisesRegex(ps.PinError, r"en-2026\.10\.09\.jsonl\.gz: cannot be read whole \("):
             ps.derive(dump, files, self.work)
-        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["kaikki-en.dump.jsonl.gz"])
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["en-2026.10.09.jsonl.gz"])
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_spec_scenario_an_extract_served_plain(self):
-        # lingua-pack-update reads the English Wiktionary's English extract for en-es: the Spanish
-        # translation tables are derived from it in one pass, published with the snapshot, and the
-        # extract is not kept — nor the Spanish Wiktionary's dump, from which the English entries
+    def test_spec_scenario_a_dump_served_plain(self):
+        # lingua-pack-update reads the English Wiktionary's dump for en-es, served plain: the
+        # Spanish translation tables are derived from it in one pass, published with the snapshot,
+        # and the dump is not kept — nor the Spanish Wiktionary's, from which the English entries
         # and the English translations of Spanish entries come in one pass too.
         record = self.update()
-        self.assertEqual(set(record["sources"]), {"kaikki-es", "kaikki-en", "wordfreq"}, "no extract of its own")
-        self.assertNotIn("kaikki", record["sources"])
+        self.assertEqual(list(record["sources"]), ["kaikki-es", "kaikki-en", "wordfreq"], "no extract record")
         own = ps.release_tag("en-es", "2026.10.09")
-        for name in ("kaikki-es", "kaikki-en"):
-            self.assertEqual(record["sources"][name]["release"], own)
-            self.assertEqual(record["sources"][name]["url"], ps.DUMPS["en-es"][name]["url"])
-            self.assertEqual(record["sources"][name]["last_modified"], "Sat, 03 Oct 2026 11:09:08 GMT")
+        for edition in ("es", "en"):
+            dumped = record["sources"][f"kaikki-{edition}"]
+            self.assertEqual(dumped["release"], own)
+            self.assertEqual(dumped["url"], ps.EDITIONS[edition]["url"])
+            self.assertEqual(dumped["last_modified"], "Sat, 03 Oct 2026 08:24:38 GMT")
+        served = self.served[ps.EDITIONS["en"]["url"]]
+        self.assertEqual(
+            record["sources"]["kaikki-en"]["dump"],
+            {"sha256": hashlib.sha256(served).hexdigest(), "size": len(served), "compressed_size": len(served)},
+            "a dump served plain is its own decompressed bytes",
+        )
         entries = (self.work / "kaikki-es-English.jsonl").read_text(encoding="utf-8")
         self.assertEqual(entries, json.dumps(self.ES[0], ensure_ascii=False) + "\n", "the English entry as the dump writes it")
         inverted = json.loads((self.work / "kaikki-es-traductions-en.jsonl").read_text(encoding="utf-8"))
         self.assertEqual(inverted, {"pos": "noun", "translations": [{"word": "sector"}], "word": "sector"})
         direct = json.loads((self.work / "kaikki-en-traductions-es.jsonl").read_text(encoding="utf-8"))
         self.assertEqual(direct, {"pos": "noun", "translations": [{"sense": "abode", "word": "casa"}], "word": "house"})
-        self.assertFalse(list(self.work.glob("*.dump*")), "neither the dump nor the extract is kept")
+        self.assertEqual([p for p in self.work.rglob("*.jsonl.gz")], [], "no dump is kept")
         self.assertEqual(
             ps.assets(record),
             ["kaikki-es-English.jsonl.zst", "kaikki-es-traductions-en.jsonl.zst", "kaikki-en-traductions-es.jsonl.zst"],
-            "the derived files alone, no extract",
+            "the derived files alone, no dump",
         )
         self.assertEqual(ps.assets(record, own), ps.assets(record))
         self.assertEqual(ps.assets(record, "lingua-pack-sources-es-en-2026.10.09"), [])
         # Its size as served is measured at the update, since the repository keeps none.
-        served = len(self.served[ps.DUMPS["en-es"]["kaikki-en"]["url"]])
-        self.assertIn(f"note: kaikki-en: {served:,} B as served, derived and not kept", self.notes)
+        self.assertIn(f"note: kaikki-en: {len(served):,} B as served", self.notes)
         with contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(ps.main(["assets", "--pin", str(self.pin), "--release", own]), 0)
         self.assertEqual(out.getvalue(), "\n".join(ps.assets(record)) + "\n")
@@ -795,8 +1430,7 @@ class DumpsOnly(unittest.TestCase):
         self.assertEqual(self.publish(), sorted(ps.assets(ps.load(self.pin))))
         pinned = self.pin.read_bytes()
         # On another machine: nothing in the cache, the release read.
-        shutil.rmtree(self.work)
-        shutil.rmtree(self.cache)
+        shutil.rmtree(self.root / "work")
         self.fetched.clear()
         with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
             ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
@@ -804,7 +1438,7 @@ class DumpsOnly(unittest.TestCase):
         self.assertEqual(
             self.fetched,
             [ps.release_url(own, asset) for asset in ps.assets(ps.load(self.pin))],
-            "the three derived files from en-es's own release; no dump, no extract",
+            "the three derived files from en-es's own release; no dump",
         )
         for name in ("kaikki-es-English.jsonl", "kaikki-es-traductions-en.jsonl", "kaikki-en-traductions-es.jsonl"):
             self.assertTrue((self.work / name).is_file(), name)
@@ -820,17 +1454,42 @@ class DumpsOnly(unittest.TestCase):
             with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
                 ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
 
-    def test_a_record_without_an_extract_lists_its_derived_assets(self):
-        record = {
-            "sources": {
-                "kaikki-es": {"release": "r", "files": {"a.jsonl": {"asset": "a.jsonl.zst"}}},
-                "kaikki-en": {"release": "r", "files": {"b.jsonl": {"asset": "b.jsonl.zst"}}},
-                "wordfreq": {"version": "3.1.1"},
-            }
+    def test_assets_and_dumps_list_a_record_of_either_shape(self):
+        dumped = {
+            "release": "r",
+            "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+            "last_modified": "Sat, 03 Oct 2026 08:24:38 GMT",
+            "dump": {"sha256": "a" * 64, "size": 23_000_000_000, "compressed_size": 2_981_058_381},
+            "files": {"b.jsonl": {"asset": "b.jsonl.zst"}},
         }
-        self.assertEqual(ps.assets(record), ["a.jsonl.zst", "b.jsonl.zst"])
-        self.assertEqual(ps.assets(record, "r"), ["a.jsonl.zst", "b.jsonl.zst"])
+        legacy = {
+            "release": "r",
+            "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
+            "last_modified": "Sat, 03 Oct 2026 10:55:10 GMT",
+            "asset": "kaikki-Spanish.jsonl.zst",
+            "sha256": "c" * 64,
+            "size": 1_054_565_723,
+        }
+        derived = {"release": "r", "url": ps.EDITIONS["es"]["url"], "files": {"a.jsonl": {"asset": "a.jsonl.zst"}}}
+        record = {"sources": {"kaikki": legacy, "kaikki-es": derived, "kaikki-en": dumped, "wordfreq": {"version": "3.1.1"}}}
+        self.assertEqual(ps.assets(record), ["kaikki-Spanish.jsonl.zst", "a.jsonl.zst", "b.jsonl.zst"])
+        self.assertEqual(ps.assets(record, "r"), ps.assets(record))
         self.assertEqual(ps.assets(record, "other"), [])
+        self.assertEqual(
+            ps.dumps(record),
+            [
+                "- `kaikki`: kaikki's per-language extract https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl, "
+                f"regenerated Sat, 03 Oct 2026 10:55:10 GMT, kept whole as `kaikki-Spanish.jsonl.zst` (sha256 {'c' * 64}, 1,054,565,723 B)",
+                "- `kaikki-es`: the dump https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz, regenerated on a date not "
+                "recorded; the dump's sha256 was not recorded (a pin written before the dumps were); derived: `a.jsonl`",
+                "- `kaikki-en`: the dump https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz, regenerated Sat, 03 Oct 2026 "
+                f"08:24:38 GMT; decompressed sha256 {'a' * 64}, 23,000,000,000 B (2,981,058,381 B as served); derived: `b.jsonl`",
+            ],
+        )
+        self.assertEqual(ps.dumps(record, "other"), [])
+        record["sources"]["kaikki-fr"] = {"release": "r"}
+        with self.assertRaisesRegex(ps.PinError, r"kaikki-fr: pin.json names release r but neither an extract"):
+            ps.assets(record)
 
 
 class ReaderPair(unittest.TestCase):
