@@ -116,6 +116,26 @@ describe("the view (D4)", () => {
     expect(button(container).hidden).toBe(true);
   });
 
+  it("The bundle's list since change 35 (enable-lingua-spanish-speakers): « Español » offered beside French and English", async () => {
+    const container = document.createElement("div");
+    const view = mountNativeLanguage(container, {
+      language: "fr",
+      copy: frCopy,
+      profile: profile("fr", ["en", "es"]),
+    })!;
+    await view.refresh();
+
+    expect(radios(container)).toEqual([
+      { native: "fr", checked: true, name: "Français", lang: "fr" },
+      { native: "en", checked: false, name: "English", lang: "en" },
+      { native: "es", checked: false, name: "Español", lang: "es" },
+    ]);
+    // Spanish chosen: confirming is offered; no line names English, studied next through en-es.
+    pick(container, "es");
+    expect(visibleNotes(container)).toEqual([frCopy.note]);
+    expect(button(container).hidden).toBe(false);
+  });
+
   it("A native language that was the only studied one: the choice offers to confirm, naming no studied language", async () => {
     const container = document.createElement("div");
     const choose = vi.fn(async (): Promise<NativeLanguageReply> => ({ ok: true, changed: true }));
