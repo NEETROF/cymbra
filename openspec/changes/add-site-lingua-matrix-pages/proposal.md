@@ -29,9 +29,9 @@ French speakers.
   (change 27): deploying the site never publishes a Spanish Lingua page for a product no Spanish
   speaker can use yet. Likewise the English page's audience sentence names the English-glossed
   pairs only once one ships.
-- **No byte moves while only French-native pairs ship** for `/lingua/`; `/en/lingua/` loses the
-  French buttons it quotes (« Je connais », « + Deck ») for the English interface's words once the
-  English interface ships, its audience sentence unchanged until then.
+- **No byte moves while only French-native pairs ship** for `/lingua/` and `/en/lingua/`; the
+  English page's quoted French buttons (« Je connais », « + Deck ») are change 34's to replace when it
+  ships the English interface.
 
 ## Capabilities
 
@@ -47,9 +47,10 @@ None.
 
 ## Impact
 
-- **Products.** The site only: `apps/site/src/pages/{lingua,en/lingua,es/lingua}.astro`, a shared
-  component and its data reader (`packs.json`, `lingua-coverage.json`, the extension's
-  `model-manifest.json` routes). The extension, ID and Music are untouched.
+- **Products.** The site only: `apps/site/src/pages/{lingua,en/lingua,[locale]/lingua}.astro`, a
+  shared component and its data reader (`lingua-coverage.json`, the extension's
+  `model-manifest.json` routes), `stores.ts` and `Community.astro` in Spanish, and `site-check.yml`'s
+  filter watching the catalogue. The extension, ID and Music are untouched.
 - **Order.** After change 29. Its pages change what they say when changes 34 and 35 list their
   pairs, with no edit here; the owner deploys the site with those releases (M18).
 - **Not here.** The listings (36, 37); the figures themselves (`gloss_coverage.py`, unchanged).

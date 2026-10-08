@@ -12,8 +12,8 @@ The site's Lingua page SHALL be built from the pairs Cymbra Lingua ships, in eac
 - **THEN** the coverage check fails until the figures are measured again
 
 #### Scenario: Translation for English only
-- **WHEN** extended translation serves English and not yet Spanish
-- **THEN** the page says so, and that Spanish follows
+- **WHEN** extended translation serves one shipped pair and not another
+- **THEN** the page says, for each pair, whether it is translated, directly or through English, and which is not yet
 
 #### Scenario: English speakers learning Spanish
 - **WHEN** es-en ships beside en-fr and es-fr
@@ -22,3 +22,7 @@ The site's Lingua page SHALL be built from the pairs Cymbra Lingua ships, in eac
 #### Scenario: Before any pair glossed in Spanish
 - **WHEN** every shipped pair is glossed in French or English
 - **THEN** no Spanish Lingua page is built
+
+#### Scenario: Spanish speakers learning English
+- **WHEN** en-es ships
+- **THEN** `/es/lingua/` is built, presents English for Spanish speakers first, and the Spanish navigation links it

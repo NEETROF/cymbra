@@ -27,8 +27,12 @@ See proposal.md (Why). What exists:
 ### D1 — One component, fed by data
 
 `src/components/LinguaPage.astro` takes the site language and renders the page from
-`linguaPairs()` (`src/lib/lingua-pairs.ts`): the shipped pairs (`packs.json`), each with its studied
-and native language, its coverage (`lingua-coverage.json`) and its route length (the catalogue).
+`linguaPairs()` (`src/lib/lingua-pairs.ts`): the shipped pairs, taken from `src/data/lingua-coverage.json`
+(whose `glossed` keys are exactly `packs.json`'s pairs, `gloss_coverage.py` and its test hold it), each
+with its studied and native language, its coverage and its route length from
+`apps/lingua-extension/model-manifest.json` — read in Astro frontmatter only, never from a Vue island;
+`site-check.yml`'s `site` filter gains `apps/lingua-extension/model-manifest.json`. `linguaStores` and
+`Community.astro` take `es`.
 The three pages are one line each. The text around the data — tagline, the card and levels
 sections, notes — is per site language, in a table beside the component; the French table is
 today's French page, byte for byte where no pair is added.
@@ -42,14 +46,19 @@ keeps today's sentence that the product is made for French speakers.
 
 ### D3 — A page for a language no pair is glossed in
 
-`/es/lingua/` is generated only when a shipped pair is glossed in Spanish (`getStaticPaths` over the
-natives of `packs.json`), and the Spanish nav links it only then; until then `/es/lingua/` answers the
-Spanish 404. When en-es ships, the page appears with the site deploy that goes with it.
+`/es/lingua/` is `src/pages/[locale]/lingua.astro`, whose `getStaticPaths()` returns `{ params: {
+locale } }` for each native language of a shipped pair other than `fr` and `en` (`es` once en-es
+ships) and `[]` until then — a fixed-path page would always be built; the static `lingua.astro` and
+`en/lingua.astro` outrank it. One predicate in `lingua-pairs.ts` drives the Spanish nav link and the
+`alternates`/`hreflang` of `/lingua/` and `/en/lingua/` (change 29's rule that a page names every
+translation). Until then `/es/lingua/` answers the Spanish not-found page. When en-es ships, the page
+appears with the site deploy that goes with it.
 
 ### D4 — Coverage and translation per pair
 
-The coverage table's columns are the shipped pairs, headed "<studied> → <native>", its caption "the
-share of the commonest words that have a gloss in the reader's language"; the translation note says,
+While every pair is glossed in the page's language, the coverage table keeps today's headers
+(« Anglais », « Espagnol ») and caption; "<studied> → <native>" headers, and a caption naming "a
+gloss in the reader's language", appear once a pair of another native is listed; the translation note says,
 per pair, whether extended translation serves it and whether directly or through English, from the
 route's length.
 
