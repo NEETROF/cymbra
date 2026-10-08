@@ -20,7 +20,7 @@
 
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::packs::{PackMeta, read_container, write_container};
-use lingua_wasm::LinguaEngine;
+use lingua_wasm::{LinguaEngine, reprofile_backup};
 use wasm_bindgen::{JsError, JsValue};
 use wasm_bindgen_test::wasm_bindgen_test;
 
@@ -201,4 +201,29 @@ fn spec_scenario_a_french_native_reader_cannot_study_french() {
     );
     assert_eq!(engine.studied_languages(), r#"["en"]"#);
     assert_eq!(engine.backup(), backup, "a refused profile changes nothing");
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_a_refused_native_language_choice_returns_an_error() {
+    // add-lingua-native-language-choice D2: the background's rewrite of the backup throws, and
+    // the extension keeps the backup it had.
+    let backup = LinguaEngine::new(PACK).unwrap().backup();
+    let refuse = |native: &str, studied: &[&str]| {
+        let Err(refused) = reprofile_backup(
+            &backup,
+            native,
+            studied.iter().map(|tag| (*tag).to_owned()).collect(),
+        ) else {
+            panic!("{native} studying {studied:?} was accepted");
+        };
+        message(refused)
+    };
+    assert!(refuse("en", &["en"]).contains("the native language, which a reader never studies"));
+    assert!(refuse("en", &[]).contains("a reader studies at least one language"));
+    assert!(refuse("de", &["en"]).contains("unknown native language \"de\""));
+    let reprofiled = reprofile_backup(&backup, "en", vec!["es".to_owned()]).unwrap();
+    let mut engine = LinguaEngine::new(&rewritten(StudiedLanguage::Spanish, "en")).unwrap();
+    engine.restore(&reprofiled).unwrap();
+    assert_eq!(engine.profile_native_language(), "en");
+    assert_eq!(engine.studied_languages(), r#"["es"]"#);
 }
