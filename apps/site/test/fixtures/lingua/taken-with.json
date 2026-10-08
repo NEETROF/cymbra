@@ -1,0 +1,13 @@
+{
+  "coverage": {
+    "tops": [5000, 10000, 20000],
+    "glossed": {
+      "en-fr": [95.1, 90.1, 78.9],
+      "es-fr": [87.6, 77.2, 63.7]
+    }
+  },
+  "routes": {
+    "en-fr": ["en-fr/base-memory/2.0"],
+    "es-fr": ["es-en/base-memory/2.0", "en-fr/base-memory/2.0"]
+  }
+}

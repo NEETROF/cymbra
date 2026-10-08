@@ -33,7 +33,7 @@ const DESKTOP_SOON: Record<Lang, string> = {
 const FIREFOX_DESKTOP: Record<Lang, string> = {
   fr: "Firefox (ordinateur)",
   en: "Firefox (desktop)",
-  es: "Firefox (ordenador)",
+  es: "Firefox (escritorio)",
 };
 
 /** Where to get Cymbra Music, most-used platform first. */

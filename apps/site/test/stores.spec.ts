@@ -27,7 +27,7 @@ describe("store links", () => {
 
   it("labels the channels in each site language", () => {
     // The Spanish labels (change: add-site-lingua-matrix-pages); the store names do not move.
-    expect(linguaStores("es").map((l) => l.label)).toEqual(["Chrome", "Firefox (ordenador)", "Safari (iPhone, iPad, Mac)"]);
+    expect(linguaStores("es").map((l) => l.label)).toEqual(["Chrome", "Firefox (escritorio)", "Safari (iPhone, iPad, Mac)"]);
     expect(musicStores("es")[2].label).toBe("Windows / Linux — próximamente");
     expect(linguaStores("fr")[1].label).toBe("Firefox (ordinateur)");
     expect(linguaStores("en")[1].label).toBe("Firefox (desktop)");

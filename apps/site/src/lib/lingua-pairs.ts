@@ -4,11 +4,17 @@
 // One source for the pairs: `src/data/lingua-coverage.json`, whose `glossed` keys are
 // exactly the pairs of `apps/lingua-extension/packs.json` — `scripts/lingua-data/
 // gloss_coverage.py --write` writes it from them, its `--check` holds the figures to the
-// committed tables, and `test_gloss_coverage.py` holds both. The extension's model
-// catalogue (`apps/lingua-extension/model-manifest.json`) says, per pair, whether extended
+// committed tables, `test_gloss_coverage.py` holds both, and `test/lingua-pairs.spec.ts`
+// holds the keys to `packs.json` on the site's side. The extension's model catalogue
+// (`apps/lingua-extension/model-manifest.json`) says, per pair, whether extended
 // translation serves it: a route of one model is direct, a route of two goes through
 // English, no route means not yet. Both files are read in Astro front matter and in tests
 // only, never from a Vue island.
+//
+// The page inserts its text with `set:html` (D1: the French bytes do not move), language
+// names and lists included, so what reaches it from these files is checked here and the
+// build fails on anything else: a pair key is two language codes, a route is a list, every
+// figure is a finite number and there is one per top.
 
 import coverage from "../data/lingua-coverage.json";
 import manifest from "../../../lingua-extension/model-manifest.json";
@@ -20,15 +26,16 @@ export type Translation = "direct" | "through-english" | "none";
 export interface LinguaPair {
   /** `<studied>-<native>`, as `packs.json` lists it. */
   pair: string;
-  /** The language read, ISO 639-1. */
+  /** The language read, ISO 639 (two or three lowercase letters). */
   studied: string;
-  /** The language the glosses are in, ISO 639-1. */
+  /** The language the glosses are in, ISO 639 (two or three lowercase letters). */
   native: string;
-  /** The glossed share of the `LINGUA_TOPS` commonest words, in percent, one per top. */
+  /** The glossed share of the commonest words, in percent, one per `ShippedPairs.tops`. */
   glossed: number[];
   translation: Translation;
 }
 
+/** `lingua-coverage.json`'s shape. */
 export interface Coverage {
   tops: number[];
   glossed: Record<string, number[]>;
@@ -37,20 +44,55 @@ export interface Coverage {
 /** The catalogue's routes: pair → the model ids extended translation chains for it. */
 export type Routes = Record<string, string[]>;
 
-/** The sizes of the commonest-words lists the coverage is measured on (5,000, 10,000, 20,000). */
-export const LINGUA_TOPS: number[] = coverage.tops;
+/** The shipped pairs and the sizes of the commonest-words lists their figures are measured on. */
+export interface ShippedPairs {
+  /** 5,000, 10,000, 20,000 today. */
+  tops: number[];
+  /** In `lingua-coverage.json`'s order, which is `packs.json`'s. */
+  pairs: LinguaPair[];
+}
 
-/** The shipped pairs, in `packs.json`'s order, with their figures and their translation route. */
-export function linguaPairs(data: Coverage = coverage, routes: Routes = manifest.routes): LinguaPair[] {
-  return Object.entries(data.glossed).map(([pair, glossed]) => {
+/** A language code as `packs.json` writes one. */
+const LANGUAGE_CODE = /^[a-z]{2,3}$/;
+
+function refuse(message: string): never {
+  throw new Error(`lingua-pairs.ts: ${message}`);
+}
+
+/**
+ * The shipped pairs with their figures and their translation route, checked: the build
+ * fails loudly on a key that is not `<studied>-<native>`, a figure that is not a finite
+ * number, a pair with more or fewer figures than tops, or a route that is not a list.
+ */
+export function shippedPairs(data: Coverage = coverage, routes: Routes = manifest.routes): ShippedPairs {
+  const { tops } = data;
+  if (!Array.isArray(tops) || tops.length === 0 || !tops.every((top) => Number.isInteger(top) && top > 0)) {
+    refuse(`lingua-coverage.json: "tops" must be positive whole numbers — got ${JSON.stringify(tops)}`);
+  }
+  const pairs = Object.entries(data.glossed).map(([pair, glossed]): LinguaPair => {
     const [studied, native, extra] = pair.split("-");
-    if (!studied || !native || extra !== undefined) {
-      throw new Error(`lingua-coverage.json: "${pair}" is not a <studied>-<native> pair`);
+    if (!LANGUAGE_CODE.test(studied) || !LANGUAGE_CODE.test(native ?? "") || extra !== undefined) {
+      refuse(`lingua-coverage.json: ${JSON.stringify(pair)} is not a <studied>-<native> pair of language codes`);
     }
-    const route = routes[pair] ?? [];
+    if (!Array.isArray(glossed) || glossed.length !== tops.length) {
+      refuse(`lingua-coverage.json: "${pair}" needs one figure per top (${tops.length}) — got ${JSON.stringify(glossed)}`);
+    }
+    if (!glossed.every((share) => Number.isFinite(share))) {
+      refuse(`lingua-coverage.json: "${pair}" has a figure that is not a finite number — got ${JSON.stringify(glossed)}`);
+    }
+    const route: unknown = Object.hasOwn(routes, pair) ? routes[pair] : [];
+    if (!Array.isArray(route)) {
+      refuse(`model-manifest.json: the route of "${pair}" is not a list of models — got ${JSON.stringify(route)}`);
+    }
     const translation: Translation = route.length === 0 ? "none" : route.length === 1 ? "direct" : "through-english";
     return { pair, studied, native, glossed, translation };
   });
+  return { tops, pairs };
+}
+
+/** The shipped pairs alone, in `packs.json`'s order (see `shippedPairs`). */
+export function linguaPairs(data: Coverage = coverage, routes: Routes = manifest.routes): LinguaPair[] {
+  return shippedPairs(data, routes).pairs;
 }
 
 export interface NativeGroup {

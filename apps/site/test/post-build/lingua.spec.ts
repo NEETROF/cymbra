@@ -1,22 +1,28 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { linguaHref, linguaLocalePaths, linguaPairs, pairsByNative } from "../../src/lib/lingua-pairs";
-import { LINGUA_TEXT } from "../../src/lib/lingua-text";
-import { outputFileFor } from "../../src/lib/pinned-routes";
+import manifest from "../../../lingua-extension/model-manifest.json";
+import coverage from "../../src/data/lingua-coverage.json";
+import takenWith from "../fixtures/lingua/taken-with.json";
 
 // Run after `yarn build` (see `vitest.build.config.ts`). The Lingua page is one component
-// fed by the shipped pairs (change: add-site-lingua-matrix-pages); with today's pairs the
-// French and English pages must read as the committed pages did (M23: the French bytes do
-// not move). The fixtures are each page's `<main>` as origin/main built it, with no
-// community invite; a build with PUBLIC_DISCORD_URL set adds the invite to the hero note
-// and the community band, which the comparison removes first. The Spanish page exists only
-// once a pair glossed in Spanish ships (D3), so the second block asserts whichever way the
-// shipped pairs point.
+// fed by the shipped pairs (change: add-site-lingua-matrix-pages); with the pairs the
+// fixtures were taken with, the French and English pages must read as origin/main built
+// them (D1: the French bytes do not move). Nothing here asks `src/lib/lingua-pairs.ts` what
+// to expect: the expectations come from `lingua-coverage.json`'s keys and from `dist/`.
 
 const dist = resolve(__dirname, "../../dist");
 const read = (file: string) => readFileSync(resolve(dist, file), "utf8");
-const fixture = (lang: string) => readFileSync(resolve(__dirname, `fixtures/lingua-main.${lang}.html`), "utf8");
+const fixture = (lang: string) => readFileSync(resolve(__dirname, `../fixtures/lingua/main.${lang}.html`), "utf8");
+
+/** Every built page, relative to `dist/`. */
+function builtPages(dir = dist): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return builtPages(path);
+    return entry.name.endsWith(".html") ? [relative(dist, path)] : [];
+  });
+}
 
 /** The page's `<main>` without what a community invite adds to it. */
 function mainWithoutInvite(html: string): string {
@@ -26,53 +32,106 @@ function mainWithoutInvite(html: string): string {
     .replace(/<section class="container community".*?<\/section>/s, "");
 }
 
-describe("the Lingua page with today's pairs", () => {
-  const today = linguaPairs();
-  const onlyFrenchNative = today.every((p) => p.native === "fr");
+/** The coverage table's cells blanked: what is left is every byte but the figures. */
+const withoutFigures = (main: string) => main.replace(/<td>[^<]*<\/td>/g, "<td></td>");
 
-  it.skipIf(!onlyFrenchNative)("French: <main> is the committed page's, byte for byte", () => {
-    expect(mainWithoutInvite(read(outputFileFor("/lingua/")))).toBe(fixture("fr"));
+describe("the Lingua page with the pairs the fixtures were taken with", () => {
+  // The fixtures (`test/fixtures/lingua/`) hold the `<main>` of `/lingua/` and `/en/lingua/`
+  // as origin/main built them, with the pairs, figures and routes of `taken-with.json`. A
+  // figure refreshed since (lingua-pack-update) blanks the table's cells on both sides; a pair
+  // added or removed, or a route changed, moves the page's words: the comparison is skipped,
+  // saying so, and the fixtures are refreshed as `apps/site/README.md` says.
+  // `test/astro/lingua-page.spec.ts` keeps the byte pin on the fixtures' own pairs either way.
+  const livePairs = Object.keys(coverage.glossed);
+  const liveRoutes = Object.fromEntries(
+    livePairs.map((pair) => [pair, Object.hasOwn(manifest.routes, pair) ? manifest.routes[pair as keyof typeof manifest.routes] : []]),
+  );
+  const sameWords =
+    JSON.stringify(livePairs) === JSON.stringify(Object.keys(takenWith.coverage.glossed)) &&
+    JSON.stringify(coverage.tops) === JSON.stringify(takenWith.coverage.tops) &&
+    JSON.stringify(liveRoutes) === JSON.stringify(takenWith.routes);
+  const sameFigures = JSON.stringify(coverage.glossed) === JSON.stringify(takenWith.coverage.glossed);
+  const why =
+    `the shipped pairs or their routes are no longer the fixtures' (${JSON.stringify(takenWith.routes)}; now ${JSON.stringify(liveRoutes)}): ` +
+    "the pages' words moved with them — refresh test/fixtures/lingua/ as apps/site/README.md says";
+  const compare = (built: string, lang: string) => {
+    const [actual, expected] = [mainWithoutInvite(built), fixture(lang)];
+    if (sameFigures) expect(actual).toBe(expected);
+    else expect(withoutFigures(actual)).toBe(withoutFigures(expected));
+  };
+
+  it("French: <main> is the fixture's, byte for byte (but the figures, once refreshed)", (ctx) => {
+    ctx.skip(!sameWords, why);
+    compare(read("lingua/index.html"), "fr");
   });
 
-  it.skipIf(!onlyFrenchNative)("English: <main> reads as the committed page's", () => {
-    expect(mainWithoutInvite(read(outputFileFor("/en/lingua/")))).toBe(fixture("en"));
+  it("English: <main> is the fixture's, byte for byte (but the figures, once refreshed)", (ctx) => {
+    ctx.skip(!sameWords, why);
+    compare(read("en/lingua/index.html"), "en");
   });
 
   it("titles and describes each page as before", () => {
-    const fr = read(outputFileFor("/lingua/"));
+    const fr = read("lingua/index.html");
     expect(fr).toContain("<title>Cymbra Lingua — enrichissez votre vocabulaire en lisant le web</title>");
     expect(fr).toContain('<html lang="fr"');
-    const en = read(outputFileFor("/en/lingua/"));
+    const en = read("en/lingua/index.html");
     expect(en).toContain("<title>Cymbra Lingua — grow your vocabulary while you read the web</title>");
     expect(en).toContain('<html lang="en"');
   });
 });
 
+describe("every link to a Lingua page opens one", () => {
+  it("each href to …/lingua, hreflang included, is a page of dist/", () => {
+    const missing: string[] = [];
+    let links = 0;
+    for (const page of builtPages()) {
+      for (const [, path] of read(page).matchAll(/href="(?:https:\/\/cymbra\.app)?(\/(?:[a-z]{2}\/)?lingua)\/?"/g)) {
+        links += 1;
+        if (!existsSync(resolve(dist, `.${path}`, "index.html"))) missing.push(`${page} → ${path}`);
+      }
+    }
+    expect(links).toBeGreaterThan(0);
+    expect(missing).toEqual([]);
+  });
+});
+
 describe("a Spanish Lingua page only once a pair glossed in Spanish ships (D3)", () => {
-  const extra = linguaLocalePaths();
-  const esPage = resolve(dist, outputFileFor("/es/lingua/"));
+  // From the keys of the file the build reads, `<studied>-<native>`: no helper of the site's.
+  const glossedInSpanish = Object.keys(coverage.glossed).filter((pair) => pair.split("-")[1] === "es");
+  const expected = glossedInSpanish.length ? "/es/lingua" : "/en/lingua";
+  const esPage = resolve(dist, "es/lingua/index.html");
+  const spanishPages = builtPages().filter((page) => page.startsWith("es/") && !page.startsWith("es/lingua/"));
 
-  it("builds /es/lingua/ exactly when the shipped pairs call for it", () => {
-    expect(existsSync(esPage), "dist/es/lingua/index.html").toBe(extra.some((p) => p.params.locale === "es"));
+  it("builds /es/lingua/ exactly when a shipped pair is glossed in Spanish", () => {
+    expect(existsSync(esPage), "dist/es/lingua/index.html").toBe(glossedInSpanish.length > 0);
   });
 
-  it("sends the Spanish not-found page's Lingua link where the page exists", () => {
-    const notFound = read("es/404.html");
-    expect(notFound).toContain(`<a class="btn btn-ghost" href="${linguaHref("es")}">Cymbra Lingua</a>`);
-    const nav = notFound.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1] ?? "";
-    expect(nav).toContain(`<a href="${linguaHref("es")}">Lingua</a>`);
+  it(`links Lingua from every Spanish page's nav and footer to ${expected}`, () => {
+    expect(spanishPages.length).toBeGreaterThan(0);
+    for (const page of spanishPages) {
+      const html = read(page);
+      const nav = html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1] ?? "";
+      const footer = html.match(/<footer class="site-footer">(.*?)<\/footer>/s)?.[1] ?? "";
+      expect(nav, `${page} nav`).toContain(`<a href="${expected}">Lingua</a>`);
+      expect(footer, `${page} footer`).toContain(`<a href="${expected}">Lingua</a>`);
+    }
+    expect(read("es/404.html")).toContain(`<a class="btn btn-ghost" href="${expected}">Cymbra Lingua</a>`);
   });
 
-  it.skipIf(!existsSync(esPage))("/es/lingua/ is Spanish, leads with the Spanish-glossed pairs and is linked from the Spanish nav", () => {
-    const html = read(outputFileFor("/es/lingua/"));
-    expect(html).toContain('<html lang="es"');
-    expect(html).toContain(`<title>${LINGUA_TEXT.es.title}</title>`);
-    expect(html).toContain('<link rel="alternate" hreflang="es" href="https://cymbra.app/es/lingua">');
-    expect(html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1]).toContain('<a href="/es/lingua">Lingua</a>');
-    // The first coverage column after the row header is the first Spanish-glossed pair.
-    const first = pairsByNative("es", linguaPairs())[0];
-    expect(first.native).toBe("es");
-    const headers = [...html.matchAll(/<th>([^<]*)<\/th>/g)].map((m) => m[1]);
-    expect(headers[1]).toBe(`${LINGUA_TEXT.es.names[first.pairs[0].studied].replace(/^./, (c) => c.toUpperCase())} → español`);
-  });
+  it.skipIf(glossedInSpanish.length === 0)(
+    "/es/lingua/ is Spanish, leads with a Spanish-glossed pair and is linked from its own nav and footer",
+    () => {
+      const html = read("es/lingua/index.html");
+      expect(html).toContain('<html lang="es"');
+      expect(html).toContain('<link rel="alternate" hreflang="es" href="https://cymbra.app/es/lingua">');
+      expect(html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1]).toContain('<a href="/es/lingua">Lingua</a>');
+      expect(html.match(/<footer class="site-footer">(.*?)<\/footer>/s)?.[1]).toContain('<a href="/es/lingua">Lingua</a>');
+      // The first coverage column after the row header is a pair glossed in Spanish: its
+      // header names the studied language, then « → español » when other readers' pairs
+      // follow.
+      const headers = [...html.matchAll(/<th>([^<]*)<\/th>/g)].map((m) => m[1]);
+      const spanishOnly = Object.keys(coverage.glossed).every((pair) => pair.endsWith("-es"));
+      expect(headers[1]).toMatch(spanishOnly ? /^\p{Lu}\p{Ll}+$/u : /^\p{Lu}\p{Ll}+ → español$/u);
+    },
+  );
 });

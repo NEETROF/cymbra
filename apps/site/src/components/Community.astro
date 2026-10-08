@@ -4,7 +4,11 @@
 import { config } from '../lib/config';
 import type { Lang } from '../lib/i18n';
 
-const { lang = 'fr' } = Astro.props as { lang?: Lang };
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = 'fr' } = Astro.props;
 const url = config.discordUrl;
 
 const TEXT: Record<Lang, { title: string; body: string; button: string }> = {

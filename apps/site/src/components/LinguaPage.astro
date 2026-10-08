@@ -6,28 +6,30 @@
 // `[locale]/lingua.astro` are one line each around this.
 //
 // Every text slot is inserted with `set:html`, never as an `{expression}`: an expression
-// escapes apostrophes (`'` → `&#39;`) and would move the French bytes (M23). The strings
-// are the site's own, with no reader input.
+// escapes apostrophes (`'` → `&#39;`) and would move the French bytes (D1). The strings
+// are the site's own; what comes from the data files is checked by `lingua-pairs.ts` and
+// escaped by `lingua-text.ts`'s `fill`. A test renders this page on its own pair list by
+// standing in for the data files (`test/astro/lingua-page.spec.ts`), so the layout's
+// Spanish links read the same list.
 import Base from '../layouts/Base.astro';
 import Community from './Community.astro';
 import StoreButtons from './StoreButtons.astro';
 import { linguaStores } from '../lib/stores';
 import { config } from '../lib/config';
 import type { Lang } from '../lib/i18n';
-import { linguaAlternates, linguaPairs, type LinguaPair } from '../lib/lingua-pairs';
+import { linguaAlternates, shippedPairs } from '../lib/lingua-pairs';
 import { linguaPageText } from '../lib/lingua-text';
 
 interface Props {
   lang: Lang;
-  /** The shipped pairs; a test passes its own list. */
-  pairs?: LinguaPair[];
 }
 
-const { lang, pairs = linguaPairs() } = Astro.props;
-const t = linguaPageText(lang, pairs, { discordUrl: config.discordUrl });
+const { lang } = Astro.props;
+const shipped = shippedPairs();
+const t = linguaPageText(lang, shipped, { discordUrl: config.discordUrl });
 ---
 
-<Base title={t.title} description={t.description} lang={lang} alternates={linguaAlternates(pairs)}>
+<Base title={t.title} description={t.description} lang={lang} alternates={linguaAlternates(shipped.pairs)}>
   <section class="hero container">
     <p class="kicker" set:html={t.kicker} />
     <h1 set:html={t.headline} />

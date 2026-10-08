@@ -6,7 +6,11 @@ import StoreButtons from './StoreButtons.astro';
 import { musicStores } from '../lib/stores';
 import type { Lang } from '../lib/i18n';
 
-const { lang = 'fr' } = Astro.props as { lang?: Lang };
+interface Props {
+  lang?: Lang;
+}
+
+const { lang = 'fr' } = Astro.props;
 const TITLE: Record<Lang, string> = {
   fr: 'Télécharger Cymbra Music',
   en: 'Get Cymbra Music',

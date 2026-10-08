@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { linguaAlternates } from "../../src/lib/lingua-pairs";
+import coverage from "../../src/data/lingua-coverage.json";
 import { outputFileFor } from "../../src/lib/pinned-routes";
 
 // Run after `yarn build` (see `vitest.build.config.ts`): a page names its translations
@@ -49,11 +49,15 @@ describe("each page names its translations", () => {
   }
 
   it("the Lingua page names the languages a shipped pair is glossed in (change: add-site-lingua-matrix-pages)", () => {
-    const expected = Object.entries(linguaAlternates()).map(([l, href]) => [l, `${site}${href}`]);
-    for (const [lang, path] of Object.entries(linguaAlternates())) {
+    // French and English always; Spanish once a key of the file the build reads,
+    // `<studied>-<native>`, is glossed in Spanish — read here, not asked of the site's helpers.
+    const lingua: Record<string, string> = { fr: "/lingua", en: "/en/lingua" };
+    if (Object.keys(coverage.glossed).some((pair) => pair.split("-")[1] === "es")) lingua.es = "/es/lingua";
+    const expected = Object.entries(lingua).map(([l, href]) => [l, `${site}${href}`]);
+    for (const [lang, path] of Object.entries(lingua)) {
       const { hreflang, switchTo } = alternatesOf(path);
       expect(hreflang, `${path} hreflang`).toEqual(expected);
-      const others = Object.entries(linguaAlternates())
+      const others = Object.entries(lingua)
         .filter(([l]) => l !== lang)
         .map(([l, href]) => [l.toUpperCase(), href]);
       expect(switchTo, `${path} switch`).toEqual(others);

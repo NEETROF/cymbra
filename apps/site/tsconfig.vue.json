@@ -15,6 +15,7 @@
     "test/**/*.ts"
   ],
   "exclude": [
-    "dist"
+    "dist",
+    "test/astro"
   ]
 }
