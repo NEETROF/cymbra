@@ -5,7 +5,7 @@ the reader's data lives, and how a dictionary becomes a pack in a reader's brows
 [C4 model](https://c4model.com): system context (C1), containers (C2), components (C3) and code
 (C4), plus dynamic views of the flows that matter most.
 
-- Written against `main` at `ce706b3a` (2026-10-08): extension 1.7.0, Safari host app 1.5.0
+- Written against `main` at `d7ae2f62` (2026-10-09): extension 1.7.0, Safari host app 1.5.0
   (`.release-please-manifest.json`).
 - Paths are relative to the repository root. `file:line` anchors were checked on that commit; lines
   drift as code moves, the symbol named beside them is the stable part.
