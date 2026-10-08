@@ -49,12 +49,13 @@ None.
 
 ## Impact
 
-- **Products.** Cymbra Lingua only: `apps/lingua-extension` (`_locales/`, `build.mjs`,
-  `tool/check_version.mjs`, `tool/check_variants.mjs`, their specs, `STORE-LISTING.md`'s note on
+- **Products.** Cymbra Lingua only: `apps/lingua-extension` (`_locales/`, `build.mjs`, `tool/manifests.mjs`,
+  `tool/packs.mjs`, `tool/check_version.mjs`, `tool/check_variants.mjs`, their specs, `STORE-LISTING.md`'s note on
   the summary). The Safari host app's copy phase removes `_locales/` from the extension before copying `dist-safari`. ID, Music, Live, the back
   office and the site are untouched.
 - **No byte moves** in any package built while only French-native pairs ship.
 - **The first package that carries `_locales`** is the one that ships es-en (change 34) — the
   English listing goes with it (M13, change 36): the owner checks on a device that Safari shows the
   localised description, and Apple's upload accepts it.
+- **Order.** After change 20 (`shippedNatives`, D2).
 - **Not here.** The listings themselves (36, 37), the host app's own text (28).
