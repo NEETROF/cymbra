@@ -717,6 +717,41 @@ class DumpsOnly(unittest.TestCase):
             "the Spanish translation under the sense; no French word, and `home`, which lists none",
         )
 
+    def test_a_dump_cut_short_leaves_no_derived_file_and_no_dump(self):
+        # A transfer that ends early: the gzip stream stops before its end-of-stream marker. The
+        # lines before the cut are read — a derived file was being written — so `derive` fails
+        # naming the dump and leaves none of it behind (each file is written as `.part` and
+        # renamed whole), rather than a short file the update would compress and publish as the
+        # snapshot's; and `fetch_live` keeps no dump either way.
+        entries = [dict(self.ES[0], word=f"house{n}", senses=[{"glosses": [f"Casa {n} {os.urandom(8).hex()}."]}]) for n in range(400)]
+        whole = Dumps.dump(entries)
+        cut = whole[: len(whole) * 2 // 3]
+        read = 0
+        with self.assertRaises(EOFError), gzip.open(io.BytesIO(cut), "rt", encoding="utf-8") as f:
+            for _ in f:
+                read += 1
+        self.assertGreater(read, 0, "the cut stream yields lines before it fails")
+        self.served[ps.DUMPS["en-es"]["kaikki-es"]["url"]] = cut
+        with self.assertRaisesRegex(ps.PinError, r"kaikki-es\.dump\.jsonl\.gz: cannot be read whole \(Compressed file ended"):
+            self.update()
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), [], "no derived file, no .part, no dump")
+        self.assertFalse(self.pin.exists(), "no record")
+
+    def test_a_dump_that_is_not_utf_8_or_not_gzip_is_refused_naming_it(self):
+        # Served plain, as the English extract is, with a byte no UTF-8 text holds; and a stream
+        # that is not gzip after its magic. `derive` names the dump, which stays its caller's.
+        self.work.mkdir(parents=True)
+        dump = self.work / "kaikki-en.dump.jsonl.gz"
+        files = ps.DUMPS["en-es"]["kaikki-en"]["files"]
+        dump.write_bytes(json.dumps(self.EN[0]).encode() + b"\n\xff\n")
+        with self.assertRaisesRegex(ps.PinError, r"kaikki-en\.dump\.jsonl\.gz: cannot be read whole \('utf-8' codec"):
+            ps.derive(dump, files, self.work)
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["kaikki-en.dump.jsonl.gz"], "no derived file, no .part")
+        dump.write_bytes(ps.GZIP_MAGIC + b"not a gzip stream\n")
+        with self.assertRaisesRegex(ps.PinError, r"kaikki-en\.dump\.jsonl\.gz: cannot be read whole \("):
+            ps.derive(dump, files, self.work)
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["kaikki-en.dump.jsonl.gz"])
+
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_spec_scenario_an_extract_served_plain(self):
         # lingua-pack-update reads the English Wiktionary's English extract for en-es: the Spanish

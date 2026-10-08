@@ -79,6 +79,7 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+import zlib
 from pathlib import Path
 
 REPOSITORY = "NEETROF/cymbra"
@@ -488,13 +489,21 @@ def derive(dump: Path, files: dict, work: Path) -> None:
     speech and its translations into one language (the word, and the sense when the table names
     one), wherever the entry lists them (`translations_of`), as sorted JSON: the rest of the entry
     is not read, and would weigh down the release. The dump is read gzipped or plain (`open_dump`).
+
+    Each file is written as `<name>.part` and renamed whole at the end, as `download` and the
+    asset cache write theirs: a dump that cannot be read whole — a transfer cut short (the gzip
+    stream ends before its marker), a stream that is not gzip after its magic, a body that is not
+    UTF-8 — is a `PinError` naming it, and leaves no derived file behind, partial or not, for an
+    update to compress and publish as the snapshot's.
     """
     # A line cannot belong to a file unless it names the languages that file reads, as the dump
     # writes them; most of a dump's millions of lines are then never parsed.
     marks = {
         name: [f'"lang_code": "{code}"' for code in (lang, *into)] for name, (_, lang, *into) in files.items()
     }
-    outs = {name: open(work / name, "w", encoding="utf-8") for name in files}
+    parts = {name: work / f"{name}.part" for name in files}
+    outs = {name: open(part, "w", encoding="utf-8") for name, part in parts.items()}
+    whole = False
     try:
         with open_dump(dump) as f:
             for line in f:
@@ -518,9 +527,17 @@ def derive(dump: Path, files: dict, work: Path) -> None:
                     if found:
                         cut = {"word": entry.get("word"), "pos": entry.get("pos"), "translations": found}
                         outs[name].write(json.dumps(cut, ensure_ascii=False, sort_keys=True) + "\n")
+        whole = True
+    except (EOFError, gzip.BadGzipFile, zlib.error, UnicodeDecodeError) as why:
+        raise PinError(f"{dump}: cannot be read whole ({why}): nothing is derived from it") from why
     finally:
         for out in outs.values():
             out.close()
+        for name, part in parts.items():
+            if whole:
+                os.replace(part, work / name)
+            else:
+                part.unlink(missing_ok=True)
 
 
 def build_esdb(spec: dict, work: Path) -> Path:
@@ -722,15 +739,18 @@ def fetch_live(
             "url": KAIKKI[pair]["url"],
         }
     for name, spec in DUMPS.get(pair, {}).items():
-        # The dump itself is never kept: only what the pair derives from it. Saved as served —
-        # gzipped, or plain for a language's extract — whatever the name says (`open_dump`).
+        # The dump itself is never kept, derived whole or not: only what the pair derives from it.
+        # Saved as served — gzipped, or plain for a language's extract — whatever the name says
+        # (`open_dump`).
         dump = work / f"{name}.dump.jsonl.gz"
-        headers = fetch(spec["url"], dump) or {}
-        # Its size as served, measured here since the repository keeps no dump (the English
-        # extract's was unknown until en-es's first update, add-lingua-pack-en-es).
-        print(f"note: {name}: {dump.stat().st_size:,} B as served, derived and not kept", file=sys.stderr)
-        derive(dump, spec["files"], work)
-        dump.unlink()
+        try:
+            headers = fetch(spec["url"], dump) or {}
+            # Its size as served, measured here since the repository keeps no dump (the English
+            # extract's was unknown until en-es's first update, add-lingua-pack-en-es).
+            print(f"note: {name}: {dump.stat().st_size:,} B as served, derived and not kept", file=sys.stderr)
+            derive(dump, spec["files"], work)
+        finally:
+            dump.unlink(missing_ok=True)
         files = {}
         for file in spec["files"]:
             raw = work / file
