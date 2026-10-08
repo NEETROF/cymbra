@@ -645,16 +645,32 @@ describe("WasmAnalyzerPort packs", () => {
         expect(await port.nativeLanguage()).toBe("en");
       });
 
-      it("builds again after a rebuild whose pack failed to load", async () => {
+      it("keeps serving the restored engine after a rebuild whose pack failed to load, then builds again", async () => {
         const glue = packGlue();
         const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "fr");
+        await port.for("es").analyse(["El faro"]);
         failing.add(ES_EN);
 
         await expect(port.restore(ENGLISH_NATIVE)).rejects.toThrow("fetch failed");
+
+        // The French engine, the backup restored in it and its Spanish pack still there: no fresh,
+        // empty engine is built for a surface to serve or persist.
+        expect(await port.nativeLanguage()).toBe("fr");
+        expect(await port.languages()).toEqual(["en", "es"]);
+        await port.for("es").analyse(["El faro"]);
+        await port.backup();
+        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN]);
+        expect(glue.restores).toEqual([["fr", ENGLISH_NATIVE]]);
+
         await port.restore(ENGLISH_NATIVE);
 
         expect(await port.nativeLanguage()).toBe("en");
-        expect(packs()).toEqual([EN_FR, ES_EN, ES_EN]);
+        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN, ES_EN]);
+        expect(glue.restores).toEqual([
+          ["fr", ENGLISH_NATIVE],
+          ["fr", ENGLISH_NATIVE],
+          ["en", ENGLISH_NATIVE],
+        ]);
       });
 
       it("follows the reader back to French", async () => {

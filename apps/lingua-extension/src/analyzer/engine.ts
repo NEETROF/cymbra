@@ -355,13 +355,14 @@ export class WasmAnalyzerPort implements LinguaPort {
 
   /**
    * Restore the reader's state. A backup whose profile names another native language than this
-   * engine's — the reader chose it in another context, or a file or a sync brought it — has this
-   * port drop its engine and its added packs and build again for that native language, then
-   * restore into the new engine (add-lingua-native-language-choice D3): every port follows the
-   * backup's native language. One no listed pair is glossed in is restored whole into this engine,
-   * as before, and the reader is served in its language (M22). The engine itself says which native
-   * language the backup names, after its own parse — nothing is parsed twice on this path, which
-   * every store change takes.
+   * engine's — the reader chose it in another context, or a file or a sync brought it — is restored
+   * here first, then this port builds an engine for that native language, its packs added again as
+   * their languages are asked, and restores the backup there too (add-lingua-native-language-choice
+   * D3): every port follows the backup's native language. A backup naming one no listed pair is
+   * glossed in stays restored in this engine, which keeps serving in its own native language (M22).
+   * The engine itself says which native language the backup names, after its own parse — nothing is
+   * parsed twice on this path, which every store change takes. A rebuild that fails rejects the
+   * restore and leaves this port on the engine it had, the backup restored in it (`rebuildFor`).
    */
   async restore(json: string): Promise<void> {
     const engine = await this.engine();
@@ -374,18 +375,26 @@ export class WasmAnalyzerPort implements LinguaPort {
   /**
    * This port's engine for `native` from now on: built again, its packs added again as their
    * languages are asked. A build for the same native language already under way is shared, so two
-   * restores of one change land in one engine, in the order they asked.
+   * restores of one change land in one engine, in the order they asked. A build that fails puts the
+   * previous engine back, with its native language and its packs: it holds the backup the restore
+   * gave it, where a fresh engine would serve — and a surface would persist — an empty state. The
+   * next restore tries the rebuild again.
    */
   private rebuildFor(native: NativeLanguage): Promise<WasmEngine> {
     if (this.rebuilt?.native === native && this.enginePromise === this.rebuilt.engine) return this.rebuilt.engine;
+    const previous = { engine: this.enginePromise, native: this.nativePromise, added: new Map(this.added) };
     this.added.clear();
     this.nativePromise = Promise.resolve(native);
     const engine = this.build(native);
     this.enginePromise = engine;
     this.rebuilt = { native, engine };
-    // A build that failed is tried again by the next call rather than remembered.
     engine.catch(() => {
-      if (this.enginePromise === engine) this.enginePromise = null;
+      if (this.enginePromise !== engine) return;
+      this.enginePromise = previous.engine;
+      this.nativePromise = previous.native;
+      this.added.clear();
+      for (const [language, load] of previous.added) this.added.set(language, load);
+      this.rebuilt = null;
     });
     return engine;
   }
