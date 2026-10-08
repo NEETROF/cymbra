@@ -189,40 +189,46 @@ the French edition, so nothing of es-fr moves with it.
 | `gloss.tsv` (`lemma → gloss`) | **kaikki.org** extract of the English Wiktionary (`enwiktionary`), Spanish section — the extract es-fr reads for Spanish's forms; else the English translations the Spanish Wiktionary's Spanish entries list (`kaikki-es-traductions-en.jsonl`, derived from kaikki's dump of the whole edition, `pack_sources.py DUMPS`) | CC BY-SA 4.0 + GFDL | the shared rules on the English Wiktionary's Spanish entries, cleaned by the English edition's (`reduce_edition_en.EN`): up to eight senses grouped by part of speech, in lower case as the edition writes them. A fallback gloss is up to three English words per part of speech, in the table's order. No inverted table (the English Wiktionary's English entries are en-es's), no pivot, no machine translation |
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; no gender — the builder gives a noun's runs the gender of its readings in `tables/es/grammar.tsv` |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer is empty |
-| `NOTICE` | both sides' sources | — | the English Wiktionary's Spanish section (forms, readings, glosses), the Spanish Wiktionary's translations, wordfreq and UD Spanish-GSD; the levels, es-fr's estimate from its French glosses, said so. The manifest says `levels_estimated` |
+| `NOTICE` | both sides' sources | — | the English Wiktionary's Spanish section (forms, readings, glosses), the Spanish Wiktionary's translations, the French Wiktionary (es-fr's glosses decide the dictionary words and which lemmas take a level), wordfreq and UD Spanish-GSD; the levels, es-fr's estimate from its French glosses, said so. The manifest says `levels_estimated` |
 
 **English glosses**, the share of the commonest lemmas glossed on the 2026-10-08 tables, held by the
-`reduce` job to es-fr's published figures (`gloss_coverage.py --pair es-en --floor 87.6 77.2 63.7`)
+`reduce` job to es-fr's published figures (`gloss_coverage.py --pair es-en`, its floor in `FLOORS`)
 and published nowhere until the pair ships:
 
 | Lemmas | English Wiktionary | with the translations | es-fr (the floor) |
 |---|---|---|---|
-| top 5,000 | 93.0 % | 93.3 % | 87.6 % |
-| top 10,000 | 86.4 % | 86.6 % | 77.2 % |
+| top 5,000 | 92.9 % | 93.0 % | 87.6 % |
+| top 10,000 | 86.3 % | 86.5 % | 77.2 % |
 | top 20,000 | 76.3 % | 76.5 % | 63.7 % |
 | all 60,000 | 52.9 % | 53.1 % | 37.9 % |
 
-31,889 lemmas are glossed, 31,753 from the English Wiktionary. 9,926 of them are no dictionary word
-of Spanish (es-fr glosses none of them), and 792 dictionary words have no English gloss, so the pack
+31,876 lemmas are glossed, 31,747 from the English Wiktionary. 9,923 of them are no dictionary word
+of Spanish (es-fr glosses none of them), and 802 dictionary words have no English gloss, so the pack
 carries a lexical section: its dictionary words are es-fr's. There are 15,490 expressions: 14,778
-from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,568,024 B.
+from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,567,750 B.
+A letter glosses no word: the English edition's letter rule takes « the letter r » and the Spanish
+spelling alphabet's « the letter E in … » (36 glosses ended on one), a pre-pass of
+`reduce_edition_en.py` drops the entries written under a single capital letter (`A` « bishop », `C`
+« abbreviation of caballo »), and the direct table leaves out the letters the Spanish Wiktionary
+translates as themselves (`b` « b »).
 
-**Shared sources, one release per pair** (D2). es-en's extract is es-fr's address, and each source
-record in a pin names the release that holds its asset, whichever pair's: `fetch-pinned` follows it.
-An update publishes a pair's own assets only, under `release_tag(pair, snapshot)` (`pack_sources.py
-release-tag`, `assets --release`). Fetched release assets are kept in `work/cache/<sha256>` across
-pairs, so a run reducing es-fr and es-en fetches an extract they share once, and `fetch-live` of
-es-en after es-fr's in the same run reads the extract es-fr fetched and records es-fr's release for
-it. es-en's first update was dispatched alone (2026-10-08): it fetched its own extract and published
-it, with its derived translations, as `lingua-pack-sources-es-en-2026.10.08`. Its extract is kaikki's
-regeneration of 2026-10-03, not the one es-fr pins, so until es-fr is updated with es-en after it,
-the `reduce` job fetches both (52 MB compressed each). es-en's re-reduction from its pinned sources
-takes about 30 s on a laptop, fetch and pack build included; its first update run took 6 minutes,
-and the `reduce` job reduced en-fr, es-fr and es-en again in 3 min 38 s of its 45-minute timeout
-(2026-10-08).
+**Each pair pins its own extract, one release per pair** (D2). es-en's extract is es-fr's address,
+fetched live when es-en is updated and published under es-en's own release, `release_tag(pair,
+snapshot)` (`pack_sources.py release-tag`); an update publishes a pair's own assets only (`assets
+--release`), and its release step fails when it cannot list them. When es-fr's update brings es-en
+along, es-en is reduced from its own pin and nothing of it is published. Fetched release assets are
+kept in `work/cache/<sha256>` (written whole or not at all; an entry that does not decompress to its
+name is deleted, the error naming it), so an asset two pins name is fetched once per run and a pair
+reduced again on the same machine fetches nothing again. es-en's first update was dispatched alone
+(2026-10-08): it fetched its own extract and published it, with its derived translations, as
+`lingua-pack-sources-es-en-2026.10.08`. Its extract is kaikki's regeneration of 2026-10-03, not the
+one es-fr pins, so the `reduce` job fetches both (52 MB compressed each). es-en's re-reduction from
+its pinned sources takes about 30 s on a laptop, fetch and pack build included; its first update run
+took 6 minutes, and the `reduce` job reduced en-fr, es-fr and es-en again in 3 min 38 s of its
+45-minute timeout (2026-10-08).
 
 **The English edition's two settings** are es-en's alone (D5, M20): `LONG_PARENTHESIS` (a
-parenthesis of 40 characters or more taken out: 1,058 of the top 10,000 glosses would change) and
+parenthesis of 40 characters or more taken out: 1,057 of the top 10,000 glosses would change) and
 `MERGE_SAME_POS_ETYMOLOGIES` (a word's entries of one part of speech merged before the round-robin:
 247 would change). Both are committed at their defaults, off, until the owner picks them on samples
 of the top 10,000; a value chosen re-pins es-en alone.
@@ -275,7 +281,9 @@ read (`forms.tsv`, `freq.tsv`, `grammar.tsv`, `level.tsv`, `lexical.tsv`, `tags.
 one, the pair's pack no longer matches its pin, and `check-reducer` and `pack_report.py` name the
 pair and the table (`es-en: es/level.tsv`) until it is reduced again. A rules-only change of the
 reference that moves no studied table leaves the reader's pin and pack as they are. A reader's
-`pack_version` is its own snapshot and rule digest.
+`pack_version` names its own snapshot and rule digest and a digest of that record
+(`2026.10.08+9e2a442.08034dc`, `pack_sources.py version`), in an update as after a re-reduction:
+it moves when a studied table does.
 
 Two inputs of a studied folder are **written by no reducer**, so no rule digest moves with them:
 `split` never overwrites them, a dry run copies the studied folder into its scratch root
