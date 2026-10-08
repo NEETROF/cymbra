@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { card as enCard } from "@/i18n/en/card.ts";
+import { grammar as enGrammar } from "@/i18n/en/grammar.ts";
 import { hud as enHud } from "@/i18n/en/hud.ts";
 import { selection as enSelection } from "@/i18n/en/selection.ts";
 import { selection as esSelection } from "@/i18n/es/selection.ts";
+import { grammar as esGrammar } from "@/i18n/es/grammar.ts";
+import { grammar as frGrammar } from "@/i18n/fr/grammar.ts";
 import { hud as frHud } from "@/i18n/fr/hud.ts";
 import { createHud, LinguaHud } from "@/reading/hud.ts";
 import { readingCopy } from "@/reading/reading-copy.ts";
@@ -10,6 +13,7 @@ import { rarityText, rowGloss, SelectionCards } from "@/reading/selection-card.t
 import { ReadingSession } from "@/reading/session.ts";
 import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
 import { createCard, WordPopup, type WordPopupContent, type WordPopupOptions } from "@/reading/wordpopup.ts";
+import type { InterfaceLanguage } from "@/i18n/index.ts";
 import type { ReviewView } from "@/review/session.ts";
 import { renderReview } from "@/review/view.ts";
 import { makeFakePort, makeFakeSpeech } from "./helpers.ts";
@@ -112,7 +116,7 @@ describe("the word card", () => {
   it("An English-native reader: on a Spanish page, the listen buttons and their names are the English catalogue's", () => {
     const fake = makeFakeSpeech([monica]);
     const speaker = createSpeaker(fake.engine, "es", fake.preference);
-    const { popup, root } = popupInPage({ speaker, language: "en", copy: enCard });
+    const { popup, root } = popupInPage({ speaker, language: "en" });
     const listens = () =>
       [...root.querySelectorAll<HTMLButtonElement>(".listen button")].map((b) => [
         b.textContent,
@@ -141,7 +145,7 @@ describe("the word card", () => {
   });
 
   it("An English-native reader: the labels, the actions and the close control are the English catalogue's", () => {
-    const card = createCard(undefined, enCard);
+    const card = createCard(undefined, "en");
     document.body.append(card.el);
     card.show(content({ status: "ignored" }), () => {});
     expect(card.el.querySelector(".seen")?.textContent).toBe("form seen: “running”");
@@ -163,9 +167,7 @@ describe("the word card", () => {
   });
 
   it("says the interface language on its host, French without one", () => {
-    expect(
-      new WordPopup({ css: "", onGesture: () => {}, language: "en", copy: enCard }).host.getAttribute("lang"),
-    ).toBe("en");
+    expect(new WordPopup({ css: "", onGesture: () => {}, language: "en" }).host.getAttribute("lang")).toBe("en");
     expect(new WordPopup({ css: "", onGesture: () => {} }).host.getAttribute("lang")).toBe("fr");
     expect(new WordPopup({ css: "", onGesture: () => {} }).host.id).toBe("cymbra-lingua-host");
   });
@@ -187,7 +189,7 @@ describe("the word card", () => {
   });
 
   it("names a Spanish page's words Spanish, whatever the interface language", () => {
-    const { popup, root } = popupInPage({ language: "en", copy: enCard });
+    const { popup, root } = popupInPage({ language: "en" });
     popup.show(content({ headword: "ser", surface: "Es", gloss: "to be", language: "es" }));
     expect(languageOfText(root, "ser")).toBe("es");
     expect(languageOfText(root, "Es")).toBe("es");
@@ -326,9 +328,35 @@ describe("the session hands the surfaces the language", () => {
     expect(document.getElementById("cymbra-lingua-drawer-host")?.getAttribute("lang")).toBe("fr");
   });
 
-  it("picks the four modules by language, the French being each surface's default", () => {
+  it("picks the five modules by language, the French being each surface's default", () => {
     expect(readingCopy("fr").hud).toBe(frHud);
     expect(readingCopy("en").card).toBe(enCard);
     expect(readingCopy("es").selection).toBe(esSelection);
+    expect(readingCopy("fr").grammar).toBe(frGrammar);
+    expect(readingCopy("en").grammar).toBe(enGrammar);
+    expect(readingCopy("es").grammar).toBe(esGrammar);
+  });
+
+  it("reads French for a language the catalogue lacks, never throwing", () => {
+    const bogus = "xx" as InterfaceLanguage;
+    expect(readingCopy(bogus)).toBe(readingCopy("fr"));
+    // The card built on it: French labels and the French grammar line, as a French reader's.
+    const card = createCard(undefined, bogus);
+    card.show(
+      content({
+        headword: "go",
+        surface: "went",
+        grammar: {
+          gloss: null,
+          senses: [],
+          readings: [{ pos: "VERB", features: { Mood: "Ind", Tense: "Past", VerbForm: "Fin" } }],
+          others: [],
+          pieces: [],
+        },
+      }),
+      () => {},
+    );
+    expect(card.el.querySelector(".grammar-line")?.textContent).toBe("prétérit de go");
+    expect(card.el.querySelector(".seen")?.textContent).toBe("forme vue : « went »");
   });
 });

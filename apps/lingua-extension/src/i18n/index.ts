@@ -1,3 +1,4 @@
+import type { GrammarTag, WordGrammar } from "../analyzer/types.ts";
 import {
   type InterfaceLanguage,
   type InterfaceLanguageArea,
@@ -86,6 +87,46 @@ export interface PluralForms {
  */
 export function pluralForms(forms: PluralForms): PluralForms {
   return forms;
+}
+
+/** The studied languages whose forms a card's grammar renderer names. */
+export type StudiedLanguageCode = "en" | "es";
+
+/** A name, with the article its language gives it (« le prétérit », « la forma en -ing »). */
+export interface Named {
+  article: string;
+  name: string;
+}
+
+/** One segment of a grammar line: plain text, or a word of the studied language (set apart). */
+export type LineSegment = string | { word: string };
+
+/** One line of a card's grammar block. */
+export type GrammarLine = LineSegment[];
+
+/**
+ * The `grammar` surface (generalise-lingua-card-wording D2): not texts but a renderer — the one
+ * module of the catalogue where the rule that a draft is typed after the French covers code. Each
+ * language's module turns the description of a form (`reading/grammar-description.ts`) into lines
+ * in its own words, articles, elisions and joining; its tables stay private to it, keyed by studied
+ * language where a name depends on it (a tense, the gerund), the order of its tenses being its tense
+ * table's. What is named at all, and a line's plain text (`lineText`), are the description's.
+ */
+export interface GrammarRenderer {
+  /** The lines a card shows about the form it was opened on, or none. */
+  grammarLines(
+    grammar: WordGrammar,
+    headword: string,
+    surface: string,
+    written: string,
+    studied?: StudiedLanguageCode,
+  ): GrammarLine[];
+  /** What a reading makes of a form, in words; null when the card says nothing of it. */
+  readingName(tag: GrammarTag, studied?: StudiedLanguageCode): Named | null;
+  /** The heading of a group of senses: its part of speech, with the word's gender; null for none. */
+  senseHeading(tag: GrammarTag | undefined): string | null;
+  /** A list as the language joins it: "a, b and c". */
+  join(items: readonly string[]): string;
 }
 
 const LOCALES: Record<InterfaceLanguage, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };

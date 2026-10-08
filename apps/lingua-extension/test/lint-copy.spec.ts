@@ -38,7 +38,6 @@ export const BASELINE = [
   "src/analyzer/language-labels.ts",
   "src/onboarding/level-row.ts",
   "src/onboarding/onboarding.html",
-  "src/reading/grammar-labels.ts",
 ];
 
 /** Unaccented words of the inventory's copy, matched whole and case-sensitively. */

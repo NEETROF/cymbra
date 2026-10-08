@@ -56,9 +56,10 @@ names.
 
 ### D2 — A renderer per interface language, behind the French one's API
 
-Each renderer exposes `grammarLines`, `readingName`, `senseHeading`, `lineText` and its joining
+Each renderer exposes `grammarLines`, `readingName`, `senseHeading` and its joining
 function with today's signatures and `GrammarLine` shape, `Named.article` widened to `string` —
-the French renderer keeps its four values, which `test/word-grammar.spec.ts` asserts by value. `src/reading/grammar-labels.ts` stays
+the French renderer keeps its four values, which `test/word-grammar.spec.ts` asserts by value;
+`lineText`, the same in every language, is the description's, re-exported by `grammar-labels.ts`. `src/reading/grammar-labels.ts` stays
 the French renderer, its exported API and wording unchanged, now reading the French tables from
 `src/i18n/fr/grammar.ts` and the description from D1; `test/word-grammar.spec.ts` runs on it
 without a change. `src/i18n/fr/grammar.ts` exports `const grammar: GrammarRenderer` — the interface declared in
@@ -82,16 +83,20 @@ hands it (change 14), `fr` for every reader today.
 Not only tense names: the gerund's name (« forme en -ing » / "the -ing form" / « forma en -ing »
 for English, « gérondif » / "gerund" / « gerundio » for Spanish), whether the infinitive is named
 (Spanish only today), which moods are named (English: the indicative only), and the order of
-tenses. Each renderer holds these per studied language in its own tables: `TENSES[studied]
-[moodTense]` — en-fr « prétérit », es-fr « passé simple », es-en "preterite", en-es « pasado
-simple » (the full tables for en and es studied; fr studied comes with stage 3's type) — and
-`TENSE_ORDER[studied]`, pinned per renderer on `hable` and `went`. The French renderer's values
-are today's.
+tenses. Each renderer holds the names per studied language in its own tables — `TENSES[studied]
+[moodTense]`: en-fr « prétérit », es-fr « passé simple », es-en "preterite", en-es « pasado
+simple » (the full tables for en and es studied; fr studied comes with stage 3's type), listed in
+the order the card names them, which the description derives once (`tenseOrder`: the table's order
+for Spanish, the pack's for English) and each renderer pins on `hable` and `went` — while what is
+named at all, whether the infinitive is (`NAMES_INFINITIVE`) and which moods are (`finiteKey`), is
+the description's decision, so a renderer only words it. The French renderer's values are today's.
 
 ### D4 — The wording of the drafts
 
 English follows the English Wiktionary's form-of wording: "third-person singular preterite
-indicative of venir", "past participle of walk", "present participle and gerund of go"; Spanish follows RAE/ASALE
+indicative of venir", "past participle of walk" — except the gerund, which is M10's "-ing form"
+("-ing form of go", D3), not Wiktionary's "present participle and gerund of go"; it is the one line
+that can open with a hyphen, and the owner keeps or changes it under M9; Spanish follows RAE/ASALE
 terms: « tercera persona del singular del pretérito perfecto simple de indicativo de venir »,
 « participio de hablar », « gerundio de hablar ». Neither calques the French. The owner reviews
 both (M9).
