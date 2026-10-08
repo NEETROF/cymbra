@@ -28,7 +28,7 @@ See proposal.md (Why). What exists:
 - An installed extension is never asked (M22).
 
 **Non-Goals:**
-- The second native's pack (change 21) and the choice's French copy moved with its surfaces
+- The second native's pack (change 21 commits it, change 34 ships it) and the choice's French copy moved with its surfaces
   (14, 15, 17).
 - A native language with no shipped pair: not offered.
 - Syncing the profile (never).
@@ -128,5 +128,5 @@ on the same-in-every-language list.
 
 ## Migration Plan
 
-One release, silent: the choice is hidden until change 21 ships a second native. An install
+One release, silent: the choice is hidden until change 34 lists a second native's pair in `packs.json`. An install
 updating to this build is marked as chosen by the update and never asked; a new install is preset.

@@ -15,7 +15,8 @@ preset from the browser's language; the popup's first-run call to action, becaus
 not always open the onboarding tab; and Réglages, « Langue ». The choice is hidden while only
 one native language has a shipped pair — today — so nothing a reader sees moves, and an
 installed extension keeps its reader in French without asking (M22). It appears with the first
-pair glossed in another language (change 21, es-en), without a release of its own.
+pair glossed in another language ships — es-en, listed in `packs.json` by change 34 (change 21 commits
+its tables without shipping it) — without a release of its own.
 
 Choosing a native language changes which packs an engine holds: a pack is glossed in one native
 language, and an engine holds the packs of one. So the choice rebuilds the engines — the
