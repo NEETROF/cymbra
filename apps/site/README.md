@@ -15,7 +15,7 @@ the legal texts with the rest of the repo.
 | `yarn dev` | dev server on `localhost:4321` |
 | `yarn check` | `astro check` (types of `.astro` / `.ts`) |
 | `yarn typecheck` | `vue-tsc` over the Vue islands + tests |
-| `yarn test` | vitest (islands' logic + components, jsdom) |
+| `yarn test` | vitest: the `unit` project (islands' logic + components, jsdom) and the `astro` project (`.astro` pages rendered through Astro's Container API, `test/astro/`) |
 | `yarn build` | production build → `dist/` |
 | `yarn preview` | preview the build |
 
@@ -27,7 +27,7 @@ The landing side is a **hub + one page per product**, fr (default) and en:
 |---|---|
 | `/`, `/en/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback) |
 | `/music`, `/en/music` | Cymbra Music — hero, store buttons, features. The copy mirrors `apps/music/store/copy/{fr,en}.md`, so the site and the store listings never claim different things |
-| `/lingua`, `/en/lingua` | Cymbra Lingua — the browser extension, still unpublished: disabled Chrome/Firefox/Safari buttons plus the community invite when `PUBLIC_DISCORD_URL` is set |
+| `/lingua`, `/en/lingua`, (`/es/lingua`) | Cymbra Lingua — one component, `src/components/LinguaPage.astro`, fed by the shipped pairs (`src/lib/lingua-pairs.ts`: `src/data/lingua-coverage.json` for the pairs and their figures, the extension's `model-manifest.json` for the translation routes) and by one text table per site language (`src/lib/lingua-text.ts`); store buttons, the coverage table with one column per pair, the community invite when `PUBLIC_DISCORD_URL` is set. Each page leads with the pairs glossed in its language. `/es/lingua` (`src/pages/[locale]/lingua.astro`) is built only once a pair glossed in Spanish ships (change `add-site-lingua-matrix-pages`) |
 
 Distribution links live in **one** place, `src/lib/stores.ts`, read by the product
 pages and by the post-checkout `Downloads` block. A channel is either `live: true`
@@ -37,8 +37,11 @@ and macOS, so the three share one button.
 Spanish (`/es/`, change `add-site-spanish-locale`) holds the pages Cymbra Lingua sends
 its Spanish readers to — `/es/privacidad`, `/es/terminos`, `/es/soporte`,
 `/es/eliminar-cuenta` and `/es/404` — as translations of the French pages, with Spanish
-slugs as the French pages have French ones. There is no Spanish home, product, account,
-code or checkout page: the Spanish nav and footer link the English ones there.
+slugs as the French pages have French ones. There is no Spanish home, Music, account,
+code or checkout page: the Spanish nav and footer link the English ones there. The Spanish
+Lingua page, `/es/lingua`, exists once a pair glossed in Spanish ships — `linguaHref('es')`
+(`src/lib/lingua-pairs.ts`) points the Spanish nav, footer and not-found page at it then,
+and at `/en/lingua` until then.
 
 **Every page names its translations.** `Base.astro` takes `alternates` — the page's
 address in each language it exists in, its own included, e.g.
@@ -52,6 +55,40 @@ any page whose alternates omit its own language. The footer's `FR` / `EN` links 
 locale roots, as before. The French and English pages render as before: the only
 markup differences against the previous build are the `hreflang` / switch entries and
 `&#39;` in one footer label (« Code d'accès », now an expression Astro escapes).
+
+**The Lingua page's text goes through `set:html`, not `{expressions}`.** An expression
+escapes apostrophes (`'` → `&#39;`) and `&nbsp;`; the French table of
+`src/lib/lingua-text.ts` is the page as it was, byte for byte (change
+`add-site-lingua-matrix-pages`, D1). The strings are the site's own, nothing from a reader
+reaches them, and what comes from the data files is checked before it does:
+`src/lib/lingua-pairs.ts` fails the build on a pair key that is not two language codes, a
+route that is not a list, a figure that is not a finite number or a pair without one
+figure per top; `fill` escapes `&`, `<` and `>` in the values it inserts.
+
+**The Lingua page's tests never read today's pairs as an expectation.** The unit tests
+describe the page for committed lists (`test/support/lingua.ts`: today's en-fr and es-fr,
+the matrix with es-en and en-es); only the *real files* block of
+`test/lingua-pairs.spec.ts` reads `src/data/lingua-coverage.json`, for its structure and
+to hold its pairs to `apps/lingua-extension/packs.json`'s. The byte pin has two sides,
+both on `test/fixtures/lingua/main.{fr,en}.html` — the `<main>` of `/lingua/` and
+`/en/lingua/` as the previous build wrote them, with no community invite —
+and on `taken-with.json`, the pairs, figures and routes they were taken with:
+`test/astro/lingua-page.spec.ts` renders the pages on those pairs (Container API, the data
+files stood in for), always; `test/post-build/lingua.spec.ts` compares the built pages,
+blanking the coverage cells once a figure is refreshed and skipping, with a message, once
+the shipped pairs or their routes are no longer the fixtures'.
+
+To refresh the fixtures when the page's words move on purpose (a pair ships, a route
+changes, a table is edited): `yarn build` with `PUBLIC_DISCORD_URL` unset, then write
+each page's `<main>` inner HTML, byte for byte, to the fixture —
+
+```sh
+node -e 'const fs=require("fs");for(const[l,f]of[["fr","dist/lingua/index.html"],["en","dist/en/lingua/index.html"]])fs.writeFileSync(`test/fixtures/lingua/main.${l}.html`,fs.readFileSync(f,"utf8").match(/<main>(.*?)<\/main>/s)[1])'
+```
+
+— and copy into `taken-with.json` the `coverage` of `src/data/lingua-coverage.json` and the
+`routes` of its pairs in `apps/lingua-extension/model-manifest.json`. Review the fixtures'
+diff: it is the page's change. A figure refreshed by `lingua-pack-update` needs no refresh.
 
 Astro trims the whitespace at a text/element
 boundary that falls on a source-line break — on **either** side, so both

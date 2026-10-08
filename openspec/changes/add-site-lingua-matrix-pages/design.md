@@ -67,7 +67,16 @@ route's length.
 
 - **French bytes of `/lingua/`** → a test renders it with today's pairs and compares with the
   committed page's text.
-- **A Spanish page appearing with a deploy before en-es ships** → D3 builds it from `packs.json`.
+- **A Spanish page appearing with a deploy before en-es ships** → D3 builds it from the
+  `glossed` keys of `src/data/lingua-coverage.json` (a key `<studied>-es`), which a site test
+  holds equal to `packs.json`'s `pairs`, and `site-check` runs when either file changes.
+
+## Deviations in the implementation
+
+- (a) D2: the other readers are named per group, not per pair — one sentence each, "Also for <speakers> learning <studied>: the interface and the translations are in <native>" — and the pairs as "<studied> → <native>" in the table and "<studied> to <native>" in the translation note.
+- (b) D3: a page per native language the site speaks (`LANGS`), not per native language of a shipped pair; the same predicate also points the Spanish footer and not-found links, and `musicStores`/`Downloads.astro` take `es` beside `linguaStores` and `Community.astro` (D1).
+- (c) D1: the text slots go through `set:html` (an `{expression}` escapes `'` and would move the French bytes), so `lingua-pairs.ts` fails the build on a key that is not two language codes, a route that is not a list or a figure that is not finite, and `fill` escapes `&`, `<`, `>`.
+- (d) Risks: the French bytes are compared with fixtures of the previous build's `<main>` (`apps/site/test/fixtures/lingua/`), rendered on their own pairs through Astro's Container API and checked on the build while the shipped pairs are theirs, not with "the committed page's text".
 
 ## Migration Plan
 

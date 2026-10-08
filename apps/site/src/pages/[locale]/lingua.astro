@@ -1,0 +1,20 @@
+---
+// The Lingua page of a language with no static page — `/es/lingua/` (change:
+// add-site-lingua-matrix-pages, D3). Built for each site language a shipped pair is glossed
+// in, so `[]` while none is glossed in Spanish: a deploy never publishes a Spanish Lingua
+// page no Spanish speaker can use yet, and `/es/lingua/` answers the Spanish not-found page
+// until en-es ships. A fixed-path page would always be built. The static `lingua.astro` and
+// `en/lingua.astro` outrank this route.
+import LinguaPage from '../../components/LinguaPage.astro';
+import { isLang } from '../../lib/i18n';
+import { linguaLocalePaths } from '../../lib/lingua-pairs';
+
+export function getStaticPaths() {
+  return linguaLocalePaths();
+}
+
+const { locale } = Astro.params;
+if (!isLang(locale)) throw new Error(`[locale]/lingua: "${locale}" is not a site language`);
+---
+
+<LinguaPage lang={locale} />

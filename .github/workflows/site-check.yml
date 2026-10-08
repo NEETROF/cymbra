@@ -28,7 +28,14 @@ jobs:
         with:
           filters: |
             site:
+              # Holds src/data/lingua-coverage.json, the Lingua page's pairs and figures.
               - 'apps/site/**'
+              # The Lingua page reads the extension's model catalogue (change:
+              # add-site-lingua-matrix-pages): a route added or dropped there moves the page.
+              - 'apps/lingua-extension/model-manifest.json'
+              # ...and a site test holds lingua-coverage.json's pairs to the shipped ones: a
+              # pair added to packs.json without its figures fails here.
+              - 'apps/lingua-extension/packs.json'
               - 'packages/web-auth/**'
               - '.github/workflows/site-check.yml'
 
