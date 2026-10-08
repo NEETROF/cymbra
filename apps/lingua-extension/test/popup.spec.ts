@@ -13,14 +13,17 @@ import {
   NODE_SLOT,
   renderAround,
 } from "@/i18n/index.ts";
+import { type PageStats, renderStats } from "@/popup/render.ts";
 import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helpers.ts";
 
 // The popup's page (localise-lingua-reading-surfaces D2, D5): its skeleton holds no text; opened as
 // popup.ts opens it — `fillPageInLanguage` over the preferences area, with the popup's modules —
 // every node and attribute holds byte for byte what the page held before this change in French
 // (the inventory below is that page's text), the page says its language, and the mark that hid the
-// body is gone, a storage that cannot be read included. popup.ts itself is an entry script with no
-// exported render: its own literals are guarded by its exit from the lint's baseline.
+// body is gone, a storage that cannot be read included. popup.ts itself is an entry script: its
+// main panel is popup/render.ts, mounted below on the filled page in the three languages — the
+// sentences that name the page's language are the labels module's in the language the page was
+// filled in (add-lingua-native-language-labels), the French byte for byte what the panel showed.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HTML = readFileSync(join(root, "src/popup/popup.html"), "utf8");
@@ -31,6 +34,38 @@ const POPUP: Record<InterfaceLanguage, typeof frPopup> = { fr: frPopup, en: enPo
 
 function page(): Document {
   return new DOMParser().parseFromString(HTML, "text/html");
+}
+
+/** A page's stats as the content script answers them: an English page, analysed, a declared B1. */
+function stats(over: Partial<PageStats> = {}): PageStats {
+  return {
+    analysable: true,
+    percent: 72.5,
+    counted: 1234,
+    unknownOccurrences: 56,
+    distinctUnknown: 40,
+    calibration: 0,
+    declaredLevel: "B1",
+    hasLevels: true,
+    needsLevel: false,
+    trackedCount: 7,
+    deckCount: 3,
+    dueCount: 2,
+    language: "en",
+    languages: ["en"],
+    ...over,
+  };
+}
+
+/** The page filled in `language` (none: a device that never wrote the key), then its panel rendered. */
+async function rendered(language: InterfaceLanguage | undefined, tab: PageStats | null, onReader = false) {
+  const doc = page();
+  const area = pageArea(language ? { [INTERFACE_LANGUAGE_KEY]: language } : {});
+  const got = await fillPageInLanguage(doc, area, (l) => POPUP[l]);
+  renderStats(doc, got.language, got.copy, tab, onReader);
+  const text = (id: string): string | null | undefined => doc.getElementById(id)?.textContent;
+  const hidden = (id: string): boolean => doc.getElementById(id)!.hidden;
+  return { doc, text, hidden };
 }
 
 /** Every `data-copy` text node of the page, by selector, with the text the page held before. */
@@ -133,6 +168,73 @@ describe("the popup's page, filled from the catalogue", () => {
     renderAround(line, frPopup.levelLine("Niveau d'anglais", NODE_SLOT), level);
     expect(line.textContent).toBe("Niveau d'anglais : B1");
     expect(line.querySelector("b")).toBe(level);
+  });
+
+  it("Every reader today: the panel's sentences name the page's language in French, byte for byte", async () => {
+    // A page the engine found nothing to read on: the note names its language, after « texte ».
+    let r = await rendered(undefined, stats({ analysable: false }));
+    expect(r.hidden("analysed")).toBe(true);
+    expect(r.hidden("note")).toBe(false);
+    expect(r.text("note")).toBe("Pas de texte anglais détecté sur cette page.");
+    r = await rendered(undefined, stats({ analysable: false, languages: ["en", "es"] }));
+    expect(r.text("note")).toBe("Pas de texte dans tes langues détecté sur cette page.");
+    // No level chosen yet: the call to action names the language.
+    r = await rendered(undefined, stats({ needsLevel: true }));
+    expect(r.hidden("level-cta")).toBe(false);
+    expect(r.hidden("level-indicator")).toBe(true);
+    expect(r.text("level-cta")).toBe("Choisis ton niveau d'anglais");
+    // A level chosen: the line around the bold level, the title the language's.
+    r = await rendered(undefined, stats());
+    expect(r.hidden("level-cta")).toBe(true);
+    expect(r.hidden("note")).toBe(true);
+    expect(r.text("level-line")).toBe("Niveau d'anglais : B1");
+    expect(r.doc.querySelector("#level-line b")?.textContent).toBe("B1");
+    expect(r.text("review")).toBe("Réviser (2)");
+    expect(r.text("pct-label")).toBe("de mots connus sur cette page");
+    // Estimated levels, and « Débutant » as a decision.
+    r = await rendered(
+      undefined,
+      stats({ language: "es", languages: ["es"], levelsEstimated: true, declaredLevel: null }),
+    );
+    expect(r.text("level-line")).toBe("Niveau d'espagnol estimé : Débutant");
+    // A book's section: the chapter's figures, and the note sends to the library.
+    r = await rendered(undefined, stats({ surface: "book", analysable: false }));
+    expect(r.text("pct-label")).toBe("de mots connus dans ce chapitre");
+    expect(r.text("note")).toBe("Ouvre un livre de ta bibliothèque pour voir ses chiffres.");
+    // No content script: the setup — unless the tab is the reader, which is never analysed from here.
+    r = await rendered(undefined, null);
+    expect(r.hidden("setup")).toBe(false);
+    expect(r.hidden("controls")).toBe(true);
+    r = await rendered(undefined, null, true);
+    expect(r.hidden("setup")).toBe(true);
+  });
+
+  it("An English-native reader: the panel names the page's language in English", async () => {
+    let r = await rendered("en", stats({ analysable: false }));
+    expect(r.text("note")).toBe("No English text found on this page.");
+    r = await rendered("en", stats({ analysable: false, languages: ["en", "es"] }));
+    expect(r.text("note")).toBe("No text in your languages found on this page.");
+    r = await rendered("en", stats({ needsLevel: true }));
+    expect(r.text("level-cta")).toBe("Choose your English level");
+    r = await rendered("en", stats());
+    expect(r.text("level-line")).toBe("English level: B1");
+    expect(r.text("review")).toBe("Review (2)");
+    expect(r.text("pct-label")).toBe("of words known on this page");
+    r = await rendered("en", stats({ language: "es", languages: ["es"], levelsEstimated: true, declaredLevel: null }));
+    expect(r.text("level-line")).toBe("Estimated Spanish level: Beginner");
+  });
+
+  it("A Spanish-native reader: the panel names the page's language in Spanish", async () => {
+    let r = await rendered("es", stats({ analysable: false }));
+    expect(r.text("note")).toBe("No se detectó texto en inglés en esta página.");
+    r = await rendered("es", stats({ analysable: false, languages: ["en", "es"] }));
+    expect(r.text("note")).toBe("No se detectó texto en tus idiomas en esta página.");
+    r = await rendered("es", stats({ needsLevel: true }));
+    expect(r.text("level-cta")).toBe("Elige tu nivel de inglés");
+    r = await rendered("es", stats());
+    expect(r.text("level-line")).toBe("Nivel de inglés: B1");
+    r = await rendered("es", stats({ language: "es", languages: ["es"], levelsEstimated: true, declaredLevel: null }));
+    expect(r.text("level-line")).toBe("Nivel de español estimado: Principiante");
   });
 
   it("An English-native reader: the page is the English catalogue's, and says so", async () => {

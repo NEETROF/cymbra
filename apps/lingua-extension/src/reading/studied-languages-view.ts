@@ -3,7 +3,7 @@ import { DEFAULT_NATIVE, pairsOf, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
 import { studiedLanguages as frStudiedLanguages } from "../i18n/fr/studied-languages.ts";
-import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
+import type { InterfaceLanguage } from "../i18n/index.ts";
 import type { StudiedLanguagesCopy } from "./settings-copy.ts";
 
 // « Langues étudiées » (add-lingua-language-choice D2): a box per language the package ships, ticked
@@ -15,8 +15,10 @@ import type { StudiedLanguagesCopy } from "./settings-copy.ts";
 // (generalise-lingua-native-language D7): French until the port says otherwise, so a reader of
 // French sees the boxes from the start, as before. Its two notes are the catalogue's
 // `studied-languages` module, handed by the settings view in the interface language
-// (localise-lingua-settings), which also names the languages (add-lingua-native-language-labels D2);
-// the onboarding page mounts it without one, in French.
+// (localise-lingua-settings), which also names the languages (add-lingua-native-language-labels D2).
+// The language has no default: a host that forgot it would name the languages in French to every
+// reader, and no French assertion would notice — the onboarding page hands it French explicitly,
+// until localise-lingua-account-onboarding hands it the one it reads.
 
 export interface StudiedLanguagesView {
   /** Show the stored choice (it may have changed in another context). */
@@ -31,7 +33,7 @@ export function shippedLanguages(pairs: readonly string[] = SHIPPED_PAIRS): Stud
 /**
  * Render the boxes into `block`, a settings block; `persist` saves the backup after a change; `copy`
  * is the block's module in the interface language and `language` that language, which names the
- * boxes — the French one when not given.
+ * boxes.
  */
 export function mountStudiedLanguages(
   block: HTMLElement,
@@ -39,7 +41,7 @@ export function mountStudiedLanguages(
   persist: () => Promise<void>,
   pairs: readonly string[] = SHIPPED_PAIRS,
   copy: StudiedLanguagesCopy = frStudiedLanguages,
-  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+  language: InterfaceLanguage,
 ): StudiedLanguagesView {
   const doc = block.ownerDocument;
   const row = doc.createElement("div");

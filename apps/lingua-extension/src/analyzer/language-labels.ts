@@ -15,10 +15,15 @@ import type { StudiedLanguage } from "./types.ts";
 /** The catalogue's `languages` module by interface language: the one place that holds all three. */
 const MODULES: Record<InterfaceLanguage, typeof fr> = { fr, en, es };
 
-/** The words of a studied language, in the interface language. */
+/**
+ * The words of a studied language, in the interface language: the module's entry for it, keyed by
+ * code so that a studied language the type gains and this map lacks fails to compile — and written
+ * without a literal, which test/lint-language-labels.spec.ts would refuse here.
+ */
 function words(language: InterfaceLanguage, studied: StudiedLanguage): LanguageWords {
   const module = MODULES[language];
-  return studied === "en" ? module.english : module.spanish;
+  const entries: Record<StudiedLanguage, LanguageWords> = { en: module.english, es: module.spanish };
+  return entries[studied];
 }
 
 /** « Anglais » — "English", « Inglés ». */

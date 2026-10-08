@@ -1,6 +1,8 @@
 import type { AccountReply } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import { acceptedLanguages } from "../analyzer/pairs.ts";
+import { acceptedLanguages, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
+import { studiedLanguages as frStudiedLanguages } from "../i18n/fr/studied-languages.ts";
+import { DEFAULT_INTERFACE_LANGUAGE } from "../i18n/index.ts";
 import { mountStudiedLanguages } from "../reading/studied-languages-view.ts";
 import { levelRow } from "./level-row.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
@@ -60,11 +62,22 @@ async function main(): Promise<void> {
   const persist = async (): Promise<void> => saveBackup(store, await port.backup());
 
   // The languages first, when the package ships several (add-lingua-language-choice D5); then a
-  // level for each language the reader accepts.
-  const studied = mountStudiedLanguages($("languages-section"), port, async () => {
-    await persist();
-    await renderLevels();
-  });
+  // level for each language the reader accepts. This page still speaks French: it hands the
+  // languages step and the level rows the default interface language explicitly, named here rather
+  // than defaulted in the views (add-lingua-native-language-labels) — localise-lingua-account-onboarding
+  // (change 17) replaces it by the language the page reads with its preferences.
+  const interfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
+  const studied = mountStudiedLanguages(
+    $("languages-section"),
+    port,
+    async () => {
+      await persist();
+      await renderLevels();
+    },
+    SHIPPED_PAIRS,
+    frStudiedLanguages,
+    interfaceLanguage,
+  );
   await studied.refresh();
   await renderLevels();
 
@@ -74,7 +87,9 @@ async function main(): Promise<void> {
     for (const language of await acceptedLanguages(port)) {
       const view = port.for(language);
       if (!(await view.hasLevels())) continue; // no CEFR data for this language
-      rows.append(levelRow(language, view, await view.declaredLevel(), await view.levelsEstimated(), persist));
+      rows.append(
+        levelRow(language, view, await view.declaredLevel(), await view.levelsEstimated(), persist, interfaceLanguage),
+      );
     }
     $("level-section").hidden = rows.childElementCount === 0;
   }

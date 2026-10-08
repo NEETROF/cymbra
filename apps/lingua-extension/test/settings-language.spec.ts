@@ -23,17 +23,19 @@ import type { AsyncStorageArea } from "@/state/storage.ts";
 import { lastSyncLabel, syncErrorCopy } from "@/sync/status.ts";
 import type { ModelStatus } from "@/translate/model-messages.ts";
 import type { ModelState } from "@/translate/setting.ts";
-import { makeFakePort, makeFakeSpeech } from "./helpers.ts";
+import { makeFakePort, makeFakeSpeech, voiceFixture } from "./helpers.ts";
 
 // Réglages speak the interface language (localise-lingua-settings): the view, its blocks and the
 // formats they write, handed the language by their host — what the settings-view, colour, display,
 // translation, account, sync and studied-languages specs assert in French, unchanged (no language
-// is French), asserted here in English and Spanish. The names of languages (the level blocks'
-// titles, the studied languages' boxes, the voices' notes) are the labels module's in that language
-// (add-lingua-native-language-labels D2), asserted here too.
+// is French), asserted here in English and Spanish. The names of languages — the level blocks'
+// titles and notes, the studied languages' boxes, the voices' note and install help — are the labels
+// module's in the interface language `mountSettings` hands its blocks (add-lingua-native-language-labels
+// D2), asserted here through the mounted Réglages, the French pinned beside them.
 
 const NNBSP = "\u202F";
 /** Réglages' modules in English and in Spanish: a block handed a language is handed its module too. */
+const FR = settingsCopy("fr");
 const EN = settingsCopy("en");
 const ES = settingsCopy("es");
 const NOW = Date.UTC(2026, 8, 17, 12, 0, 0);
@@ -197,6 +199,67 @@ describe("Réglages", () => {
     expect(translation.textContent).toContain("Descarga 25,8 MB una vez y luego usa unos 200 MB de memoria");
     // Day before month, as Spanish writes a date.
     expect(r.block("Sincronización").textContent).toMatch(/Última sincronización el 1[45]\/9\/2026\./);
+  });
+
+  /** Réglages whose speaker reads English on a French Windows, its only English voices Google's, allowed. */
+  async function mountEnglishVoices(interfaceLanguage: InterfaceLanguage | undefined, readAloud: string) {
+    const fake = makeFakeSpeech(voiceFixture("chrome-windows"), { remoteVoices: true });
+    const r = await mountReglages(interfaceLanguage, { speaker: createSpeaker(fake.engine, "en", fake.preference) });
+    const block = r.block(readAloud);
+    const note = [...block.querySelectorAll<HTMLElement>(".set-note")].find((n) => n.querySelector(".set-info"))!;
+    expect(note.hidden).toBe(false);
+    return {
+      fake,
+      noVoice: note.querySelector("span")?.textContent,
+      help: note.querySelector<HTMLElement>(".set-info")!.title,
+      listen: [...block.querySelectorAll("button")][0] as HTMLButtonElement,
+    };
+  }
+
+  it("An English-native reader: no English voice is installed, how to install one, the preview in English", async () => {
+    const v = await mountEnglishVoices("en", "Read aloud");
+    expect(v.noVoice).toBe("No English voice is installed on this device. ");
+    expect(v.help).toContain("Add a language › English (United States), without setting it as the display language");
+    expect(v.help).toContain("Manage Voices › English. Then restart the browser.");
+    expect(v.help).toMatch(/turn on the online voices below\.$/);
+    v.listen.click();
+    expect(v.fake.spoken.map((u) => u.text)).toEqual([
+      "This is how your pages will sound when Lingua reads them aloud.",
+    ]);
+  });
+
+  it("A Spanish-native reader: the voice's absence and the install path name English in Spanish", async () => {
+    const v = await mountEnglishVoices("es", ES.settings.readAloud);
+    expect(v.noVoice).toBe("No hay ninguna voz inglesa instalada en este dispositivo. ");
+    expect(v.help).toContain("Agregar un idioma › Inglés (Estados Unidos), sin definirlo como idioma de visualización");
+    expect(v.help).toContain("Gestionar voces › Inglés. Después, reinicia el navegador.");
+    v.listen.click();
+    expect(v.fake.spoken.map((u) => u.text)).toEqual([
+      "This is how your pages will sound when Lingua reads them aloud.",
+    ]);
+  });
+
+  it("Every reader today: the voice's absence and the install path in French, byte for byte", async () => {
+    const v = await mountEnglishVoices(undefined, "Lecture à voix haute");
+    expect(v.noVoice).toBe("Aucune voix anglaise n'est installée sur cet appareil. ");
+    expect(v.help).toContain("Ajouter une langue › Anglais (États-Unis), sans la définir comme langue d'affichage");
+    expect(v.help).toContain("Gérer les voix › Anglais. Relance ensuite le navigateur.");
+    v.listen.click();
+    expect(v.fake.spoken.map((u) => u.text)).toEqual([
+      "This is how your pages will sound when Lingua reads them aloud.",
+    ]);
+  });
+
+  it("names the studied languages' boxes in the interface language, through mountSettings", async () => {
+    const names = (block: HTMLElement): (string | null)[] =>
+      [...block.querySelectorAll("label span")].map((s) => s.textContent);
+    const en = await mountReglages("en", { pairs: ["en-fr", "es-fr"] });
+    expect(names(en.block("Languages studied"))).toEqual(["English", "Spanish"]);
+    const es = await mountReglages("es", { pairs: ["en-fr", "es-fr"] });
+    expect(names(es.block("Idiomas estudiados"))).toEqual(["Inglés", "Español"]);
+    // Every reader today: the French, byte for byte.
+    const fr = await mountReglages(undefined, { pairs: ["en-fr", "es-fr"] });
+    expect(names(fr.block("Langues étudiées"))).toEqual(["Anglais", "Espagnol"]);
   });
 
   it("names a voice and the automatic choice in the interface language", async () => {
@@ -409,7 +472,7 @@ describe("the studied languages' block", () => {
     expect([...block.querySelectorAll("label span")].map((s) => s.textContent)).toEqual(["English", "Spanish"]);
   });
 
-  it("A Spanish-native reader: the languages' names are Spanish; French when no language is given", async () => {
+  it("A Spanish-native reader: the languages' names are Spanish; French when handed French", async () => {
     const { port } = makeFakePort();
     port.nativeLanguage = async () => "fr";
     const names = (block: HTMLElement): (string | null)[] =>
@@ -418,7 +481,7 @@ describe("the studied languages' block", () => {
     await mountStudiedLanguages(spanish, port, async () => {}, ["en-fr", "es-fr"], ES.studiedLanguages, "es").refresh();
     expect(names(spanish)).toEqual(["Inglés", "Español"]);
     const french = document.createElement("div");
-    await mountStudiedLanguages(french, port, async () => {}, ["en-fr", "es-fr"]).refresh();
+    await mountStudiedLanguages(french, port, async () => {}, ["en-fr", "es-fr"], FR.studiedLanguages, "fr").refresh();
     expect(names(french)).toEqual(["Anglais", "Espagnol"]);
   });
 });

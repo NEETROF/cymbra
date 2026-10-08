@@ -1,12 +1,13 @@
 import { estimatedLevelsNote, levelName, levelQuestion } from "../analyzer/language-labels.ts";
 import type { LanguagePort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
-import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
+import type { InterfaceLanguage } from "../i18n/index.ts";
 
 // Onboarding's level question for one language, apart from the page's wiring so a test mounts it
 // alone (onboarding.ts starts the page when imported). Its question, a level's « (estimé) » and the
 // estimated levels' note are the labels module's, in the interface language it is handed
-// (add-lingua-native-language-labels D2) — French when none is, as the page mounts it today.
+// (add-lingua-native-language-labels D2) — with no default: the page hands it French explicitly,
+// until localise-lingua-account-onboarding hands it the one it reads.
 
 /**
  * One language's level question and chips; a chip is saved at once. Levels estimated from word
@@ -18,7 +19,7 @@ export function levelRow(
   current: CefrLevel | null,
   estimated: boolean,
   persist: () => Promise<void>,
-  interfaceLanguage: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+  interfaceLanguage: InterfaceLanguage,
 ): HTMLElement {
   const row = document.createElement("div");
   const title = document.createElement("h2");

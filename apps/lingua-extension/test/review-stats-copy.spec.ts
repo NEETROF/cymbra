@@ -155,6 +155,19 @@ describe("An English-native reader's review", () => {
     expect(root.querySelector(".review-sentence span")?.textContent).toBe("El faro brilla.");
   });
 
+  it("names the card's language in the interface language, when the reader studies several", () => {
+    // add-lingua-native-language-labels: the note is the labels module's in the interface language.
+    const root = document.createElement("div");
+    renderReview(root, { phase: "reviewing", card: card() }, actions, { ...english, showLanguage: true });
+    expect(text(root, ".review-language")).toBe("Spanish");
+    const spanish = { interfaceLanguage: "es" as const, showLanguage: true };
+    renderReview(root, { phase: "reviewing", card: card({ language: "en" }) }, actions, spanish);
+    expect(text(root, ".review-language")).toBe("Inglés");
+    // Every reader today: the French, byte for byte.
+    renderReview(root, { phase: "reviewing", card: card() }, actions, { showLanguage: true });
+    expect(text(root, ".review-language")).toBe("Espagnol");
+  });
+
   it("a Spanish-native reader counts in Spanish", () => {
     const root = document.createElement("div");
     const spanish = { interfaceLanguage: "es" as const };

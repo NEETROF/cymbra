@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { InterfaceLanguage } from "@/i18n/index.ts";
 import { levelRow } from "@/onboarding/level-row.ts";
 
-/** A level row over a view that records nothing; `estimated` as the pack says; French when no interface language is given. */
-function mount(language: "en" | "es", estimated: boolean, interfaceLanguage?: InterfaceLanguage): HTMLElement {
+/** A level row over a view that records nothing; `estimated` as the pack says; handed French as the page hands it, unless told otherwise. */
+function mount(language: "en" | "es", estimated: boolean, interfaceLanguage: InterfaceLanguage = "fr"): HTMLElement {
   const view = { setDeclaredLevelAt: async () => {}, setCalibration: async () => {} };
   const row = levelRow(language, view, null, estimated, async () => {}, interfaceLanguage);
   document.body.replaceChildren(row);
