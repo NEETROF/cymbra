@@ -32,8 +32,10 @@ jobs:
           filters: |
             ext:
               - 'apps/lingua-extension/**'
-              # The Safari host app's activation page, read by test/apple-activation-page.spec.ts.
-              - 'apps/lingua-apple/Shared (App)/Resources/**'
+              # The Safari host app's activation page, read by test/apple-activation-page.spec.ts. Each `?`
+              # stands for one of the folder's parentheses, which picomatch (dorny/paths-filter) reads
+              # as a regex group: 'Shared (App)' would match « Shared App » and never the folder.
+              - 'apps/lingua-apple/Shared ?App?/Resources/**'
               # The protos `yarn gen:proto` generates the extension's clients from.
               - 'backend/auth-port/proto/**'
               - 'backend/user-port/proto/**'
