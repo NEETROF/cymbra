@@ -127,6 +127,8 @@ describe("the word card of a Spanish-native reader of English, over the en-es go
     expect(grammarLines.length).toBeGreaterThan(0);
     for (const line of grammarLines) {
       expect(line).not.toMatch(/pretérito|indicativo|subjuntivo|gerundio|condicional|imperativo/);
+      // D3's two names: a bare « participio » or « presente » (the RAE's, before the correction).
+      expect(line).not.toMatch(/participio(?! pasado)|presente(?! simple)/);
     }
   });
 });

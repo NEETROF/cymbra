@@ -207,37 +207,55 @@ fn spec_scenario_english_through_another_native_language() {
         build_pack(&reference_inputs).expect("en-fr"),
         build_pack(&other_inputs).expect("en-es"),
     );
-    let en_es = Pack::load(&other).unwrap();
+    let (en_fr, en_es) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
     assert_eq!(en_es.pair().key(), "en-es", "glossed in Spanish");
     assert_studied_sections_alike("en-fr", &reference, &other);
     assert_probes_alike(&ENGLISH, None, &reference, &other, "es");
+    // Fewer glosses, yet glosses of its own: a lemma this pack glosses and en-fr does not is no
+    // dictionary word — the dictionary words are en-fr's, read from tables/en (the lexical
+    // section `assert_studied_sections_alike` found).
+    let only_here: Vec<&str> = other_inputs
+        .glosses
+        .iter()
+        .map(|(lemma, _)| lemma.as_str())
+        .filter(|lemma| en_fr.gloss(lemma).is_none())
+        .take(8)
+        .collect();
+    assert!(!only_here.is_empty(), "en-es glosses lemmas en-fr does not");
+    for lemma in &only_here {
+        assert!(
+            en_es.gloss(lemma).is_some() && !en_es.is_dictionary_word(lemma),
+            "{lemma}"
+        );
+    }
 
     // *A vocabulary size counts dictionary words*: the universe and B1's typical vocabulary.
     let (universe, typical) = sizes(&reference, "en");
     assert_eq!((universe, typical[2]), (25_372, 3_359), "en-fr, B1");
     assert_eq!(sizes(&other, "en"), (universe, typical));
 
-    // *A sense part of speech the first pack never used*: no en-fr run is tagged NUM, en-es has
-    // runs tagged NUM (the Spanish Wiktionary's numerals), and the core reads each as NUM.
+    // *A sense part of speech the first pack never used*: no en-fr run is tagged NUM; en-es tags
+    // the numbers' runs NUM (the Spanish Wiktionary's numeral sections, kaikki's `num`), and the
+    // core reads a numeral's runs as the table writes them — « three », a number and a noun.
     assert!(
         reference_inputs
             .senses
             .iter()
             .all(|(_, runs)| runs.iter().all(|(tag, _)| tag != "NUM"))
     );
-    let (lemma, runs) = other_inputs
+    let (_, runs) = other_inputs
         .senses
         .iter()
-        .find(|(_, runs)| runs.iter().any(|(tag, _)| tag == "NUM"))
-        .expect("a run tagged NUM");
+        .find(|(lemma, _)| lemma == "three")
+        .expect("three's sense runs");
+    let tags: Vec<&str> = runs.iter().map(|(tag, _)| tag.as_str()).collect();
+    assert_eq!(tags, ["NUM", "NOUN"], "three, in tables/en-es/senses.tsv");
     let read: Vec<String> = en_es
-        .sense_runs(lemma)
+        .sense_runs("three")
         .into_iter()
         .map(|(tag, _)| tag.unwrap().to_ud())
         .collect();
-    let tags: Vec<&str> = runs.iter().map(|(tag, _)| tag.as_str()).collect();
-    assert!(read.iter().any(|tag| tag == "NUM"), "{lemma}");
-    assert_eq!(read, tags, "{lemma}");
+    assert_eq!(read, tags, "three, as the core reads it");
 }
 
 #[test]
