@@ -67,14 +67,19 @@ difference, and the extract keeps the update within the job's reach today. If ka
 serving the extract, change 38 switches the address to the raw dump; this change says so in
 `SOURCES.md`.
 
-### D3 — A floor the owner sets
+### D3 — A floor the owner sets, kept in one place
 
 Risk 5 names en-es; M6's rule for fr-es — a floor, and what happens below it, fixed before the
 committed measurement — is applied here, and the owner sets the value on this change's pull
 request, where the study's figures less two points (91.4 / 83.2 / 69.9 %) are proposed. The floor
-is enforced by `gloss_coverage.py --pair en-es --floor` in the reduce job and in the `check` job's
-Python tests; a committed measurement under it fails. Change 35 publishes the measured figures
-with the pair.
+lives in `gloss_coverage.py`'s `FLOORS["en-es"]` and nowhere else: the reduce job runs
+`gloss_coverage.py --pair en-es` with no `--floor`, as es-en's line does, and the `check` job's
+Python tests hold the committed tables to that entry and assert the job passes none — two
+copies of one value drift (the coverage exclusions did, between the `rust` and `sonar`
+workflows, until `.github/coverage-ignore-regex.txt` became their one source), and a floor the
+job and the tests read from different places would fail one and pass the other. Task 5.1 writes
+the owner's value into that one entry and into the requirement's text. A committed measurement
+under it fails, naming the figure. Change 35 publishes the measured figures with the pair.
 
 ### D4 — The translation-table share
 

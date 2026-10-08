@@ -43,7 +43,8 @@ TOPS = (5_000, 10_000, 20_000)
 # (add-lingua-pack-es-en D6): es-en, es-fr's published figures when es-en was proposed. Fixed here,
 # not read from the site's file, so that es-fr's next update does not move es-en's floor.
 # en-es (add-lingua-pack-en-es D3, the programme's risk 5): the study's figures less two points —
-# proposed, owner settles (task 5.1); the reduce job passes the same value as `--floor`.
+# proposed, owner settles (task 5.1) here, the one place: the reduce job passes no `--floor`, and
+# the tests hold the committed tables to this entry.
 FLOORS = {"es-en": (87.6, 77.2, 63.7), "en-es": (91.4, 83.2, 69.9)}
 
 

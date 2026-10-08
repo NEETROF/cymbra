@@ -119,12 +119,15 @@ class OnePairTest(unittest.TestCase):
 
     def test_spec_scenario_the_floor_of_en_es(self) -> None:
         # en-es (add-lingua-pack-en-es D3): held to a floor the owner sets on the pull request —
-        # the study's figures less two points proposed — in FLOORS and in the reduce job alike, so
-        # that the two cannot drift; a committed measurement under it fails, naming the figure.
+        # the study's figures less two points proposed — in FLOORS alone: the reduce job passes no
+        # `--floor` (as es-en's line passes none), so the job and this test cannot drift apart; a
+        # committed measurement under it fails, naming the figure.
         proposed = (91.4, 83.2, 69.9)
         self.assertEqual(coverage.FLOORS["en-es"], proposed)
         job = (coverage.ROOT / ".github/workflows/lingua-extension-check.yml").read_text(encoding="utf-8")
-        self.assertIn("gloss_coverage.py --pair en-es --floor " + " ".join(str(f) for f in proposed), job)
+        self.assertIn("python scripts/lingua-data/gloss_coverage.py --pair en-es\n", job)
+        self.assertNotIn("--pair en-es --floor", job)
+        self.assertNotIn("--pair es-en --floor", job)
         with tempfile.TemporaryDirectory() as tmp:
             tables = Path(tmp)
             (tables / "en").mkdir()
@@ -140,12 +143,12 @@ class OnePairTest(unittest.TestCase):
                     "en-es: 75.0 % of the 10,000 commonest lemmas are glossed, under the floor of 83.2 %",
                 ],
             )
-        # On the committed tables, when they are there: at least the floor, and published nowhere.
+        # On the committed tables, when they are there: at least FLOORS' entry, and published nowhere.
         if (coverage.TABLES / "en-es" / "gloss.tsv").is_file():
             code, out, err = self.run_main(coverage.TABLES, "--pair", "en-es")
             self.assertEqual((code, err), (0, ""))
             measured = json.loads(out)["glossed"]["en-es"]
-            for top, share, floor in zip(coverage.TOPS, measured, proposed):
+            for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["en-es"]):
                 self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
             published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
             self.assertNotIn("en-es", published["glossed"])

@@ -255,9 +255,9 @@ nothing of en-fr moves with it (the digest test says so against en-fr's, es-fr's
 | `NOTICE` | both sides' sources | — | the studied side as en-fr's notice credits it (ESDB with its WordNet notice, wordfreq, the French Wiktionary's form links and dictionary words, CEFR-J, Octanove), and the native side (the Spanish Wiktionary's definitions and English translations, the English Wiktionary's Spanish translations). The levels are CEFR-J's and Octanove's, not estimated |
 
 **Spanish glosses**, the share of the commonest lemmas glossed on the 2026-10-08 tables, held by the
-`reduce` job to a floor the owner sets on the pull request (`gloss_coverage.py --pair en-es
---floor`, the same value in `FLOORS`; D3, the programme's risk 5 and M6's rule) and published
-nowhere until the pair ships:
+`reduce` job to a floor the owner sets on the pull request (`gloss_coverage.py --pair en-es`
+against `FLOORS["en-es"]`, the one place the value lives, no `--floor` passed; D3, the programme's
+risk 5 and M6's rule) and published nowhere until the pair ships:
 
 | Lemmas | Spanish Wiktionary | with the translations | the floor (proposed) | the study |
 |---|---|---|---|---|

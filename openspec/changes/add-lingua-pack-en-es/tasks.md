@@ -3,7 +3,7 @@
 ## 1. Sources and the pipeline (scripts/lingua-data)
 
 - [x] 1.1 `pack_sources.py`: `DUMPS["en-es"]` (`kaikki-es-English.jsonl` from es-fr's `kaikki-es` dump; `kaikki-en-traductions-es.jsonl` from the new `kaikki-en` source), a pair whose sources are dumps alone (no `KAIKKI` entry), `derive` reading a plain or a gzipped dump, `kaikki-es-traductions-en.jsonl` derived in the same pass as `kaikki-es-English.jsonl` (D1, D2). `test_pack_sources.py`: *An extract served plain*, the dumps-only pair.
-- [x] 1.2 `.github/workflows/lingua-pack-update.yml`: `en-es` in the dispatch options and the monthly matrix; the publish step's tag from `release_tag(pair, snapshot)` and its notes without an extract when `sources.kaikki` is absent; `pack_sources.py assets` lists the dump records' files alone for such a pair; `pack_report.py` names the pair and prints the share (D4); the reduce job and the `check` job's tests run `gloss_coverage.py --pair en-es --floor` (D3).
+- [x] 1.2 `.github/workflows/lingua-pack-update.yml`: `en-es` in the dispatch options and the monthly matrix; the publish step's tag from `release_tag(pair, snapshot)` and its notes without an extract when `sources.kaikki` is absent; `pack_sources.py assets` lists the dump records' files alone for such a pair; `pack_report.py` names the pair and prints the share (D4); the reduce job runs `gloss_coverage.py --pair en-es` against `FLOORS["en-es"]` with no `--floor`, and the `check` job's tests hold the committed tables to that entry and assert the job passes none (D3).
 
 ## 2. The reducer and the tables
 
@@ -22,4 +22,4 @@
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner sets the floor on this pull request (risk 5; M6's rule; 91.4 / 83.2 / 69.9 % proposed); the value is written into the requirement *English is glossed in Spanish…* and into the reduce job's `gloss_coverage.py --pair en-es --floor` before merge; the owner reviews the sample of 100 glosses and the share.
+- [ ] 5.1 [manual] The owner sets the floor on this pull request (risk 5; M6's rule; 91.4 / 83.2 / 69.9 % proposed); the value is written into `gloss_coverage.py`'s `FLOORS["en-es"]` — the one place the reduce job and the tests read it from (D3) — and into the requirement *English is glossed in Spanish…* before merge; the owner reviews the sample of 100 glosses and the share.

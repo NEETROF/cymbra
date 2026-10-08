@@ -41,7 +41,8 @@ snapshot, the rules' digest, and the digest of the studied tables `pin.json` rec
   capital as the Spanish Wiktionary writes them. A letter glosses no word, in either direction.
   No pivot through a third language, no machine translation.
 - The share of the commonest lemmas glossed, which the `reduce` job holds to a floor the owner sets
-  on the pull request (`gloss_coverage.py --pair en-es --floor …`, the same value in `FLOORS`):
+  on the pull request (`gloss_coverage.py --pair en-es`, against `FLOORS["en-es"]` — the one place
+  the value lives; the job passes no `--floor`):
 
   | Lemmas | Spanish Wiktionary | with the translations | the floor (proposed) | the study |
   |---|---|---|---|---|
@@ -51,8 +52,8 @@ snapshot, the rules' digest, and the digest of the studied tables `pin.json` rec
   | all 40,685 | 25.2 % | 54.0 % | — | — |
 
   The floor is proposed at the study's figures less two points (the programme's risk 5, M6's
-  rule); the owner settles it (task 5.1), and the value is written into the requirement and into
-  the reduce job before merge.
+  rule); the owner settles it (task 5.1), and the value is written into `FLOORS` and into the
+  requirement before merge.
 - **The translation-table share** (D4): of the 8,496 glossed lemmas among the 10,000
   commonest, **26.0 %** come from a translation table rather than from a definition — 2,135
   from the direct table, 74 from the inverted one (`measures.json`, which the reducer

@@ -252,11 +252,11 @@ jobs:
       # 5,000, 10,000 and 20,000 commonest lemmas when es-en was proposed (gloss_coverage.py
       # FLOORS). en-es, the thin pair the programme's risk 5 names, is held to a floor the owner
       # sets on its pull request (add-lingua-pack-en-es D3): the study's figures less two points
-      # are proposed here and in FLOORS, and the owner settles the value (task 5.1) before merge.
-      # The site's figures (`gloss_coverage.py --write`, the `check` job) list the shipped pairs
-      # alone.
+      # are proposed in FLOORS, the one place the owner settles (task 5.1) before merge — no
+      # `--floor` here, so the job and the `check` job's tests cannot drift apart. The site's
+      # figures (`gloss_coverage.py --write`, the `check` job) list the shipped pairs alone.
       - name: Gloss coverage of es-en and en-es, against their floors
         run: |
           set -euo pipefail
           python scripts/lingua-data/gloss_coverage.py --pair es-en
-          python scripts/lingua-data/gloss_coverage.py --pair en-es --floor 91.4 83.2 69.9
+          python scripts/lingua-data/gloss_coverage.py --pair en-es
