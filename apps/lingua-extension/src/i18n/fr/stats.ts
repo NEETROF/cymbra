@@ -67,8 +67,16 @@ export const stats = {
   markedKnownWords: (dictionary: string) => `Les mots que tu as marqués connus, ${dictionary}.`,
   fromDeclaredLevel: "ton niveau déclaré",
   fromCommonWordsSetting: "ton réglage des mots les plus courants",
-  confirmedCount: (n: string) => ` (dont ${n} confirmés)`,
-  approxWords: (n: string) => `≈\u00A0${n} mots`,
+  /** « (dont 12 345 confirmés) » — the French plural for every count, as the surface always wrote it. */
+  confirmedCount: pluralForms({
+    one: (n) => ` (dont ${n} confirmés)`,
+    other: (n) => ` (dont ${n} confirmés)`,
+  }),
+  /** « ≈ 16 000 mots » — the French plural for every count, as the surface always wrote it. */
+  approxWords: pluralForms({
+    one: (n) => `≈\u00A0${n} mots`,
+    other: (n) => `≈\u00A0${n} mots`,
+  }),
   /** `source` is `fromDeclaredLevel` or `fromCommonWordsSetting`; `confirmed` is `confirmedCount` or nothing. */
   estimateNote: (source: string, dictionary: string, confirmed: string) =>
     `D'après ${source} et tes mots marqués, extrapolé tranche de fréquence par tranche, ${dictionary}${confirmed}.`,

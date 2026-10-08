@@ -1,5 +1,7 @@
 import { languageName } from "../analyzer/language-labels.ts";
 import type { Rating } from "../analyzer/port.ts";
+import { review as enReview } from "../i18n/en/review.ts";
+import { review as esReview } from "../i18n/es/review.ts";
 import { review as frReview } from "../i18n/fr/review.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage, NODE_SLOT, plural, renderAround } from "../i18n/index.ts";
 import type { ReviewView } from "./session.ts";
@@ -12,6 +14,14 @@ import type { ReviewView } from "./session.ts";
 /** The review's copy: the catalogue's `review` module, in the interface language (its French the default). */
 export type ReviewCopy = typeof frReview;
 
+/** The review's copy by interface language: the one place that holds all three. */
+const REVIEW_COPY: Record<InterfaceLanguage, ReviewCopy> = { fr: frReview, en: enReview, es: esReview };
+
+/** The review's module for the interface language — the render's, and the page's around it. */
+export function reviewCopy(language: InterfaceLanguage): ReviewCopy {
+  return REVIEW_COPY[language];
+}
+
 export interface ReviewActions {
   start(): void;
   reveal(): void;
@@ -22,9 +32,8 @@ export interface ReviewActions {
 export interface ReviewRenderOptions {
   /** The reader studies several languages, so each card says its own. */
   showLanguage?: boolean;
-  /** The review's copy in the interface language; the French module when not given. */
-  copy?: ReviewCopy;
-  /** The interface language, which picks a count's plural form; French when not given. */
+  /** The interface language, whose module the review speaks and whose plural forms its counts
+   *  take — the copy derived from it, so the two cannot disagree; French when not given. */
   interfaceLanguage?: InterfaceLanguage;
 }
 
@@ -38,8 +47,8 @@ export function renderReview(
   actions: ReviewActions,
   opts: ReviewRenderOptions = {},
 ): void {
-  const copy = opts.copy ?? frReview;
   const language = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
+  const copy = REVIEW_COPY[language];
   root.replaceChildren();
 
   if (view.phase === "idle") {

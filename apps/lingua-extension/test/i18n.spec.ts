@@ -198,7 +198,7 @@ describe("a count in each language", () => {
     expect(frStats.scopeCommon).toBe(
       `«${NNBSP}courants${NNBSP}»${NBSP}: les mots les plus fréquents jusqu'à ce niveau. `,
     );
-    expect(frStats.approxWords("16" + NARROW + "000")).toBe(`≈${NBSP}16${NARROW}000 mots`);
+    expect(plural("fr", 16_000, frStats.approxWords, "16" + NARROW + "000")).toBe(`≈${NBSP}16${NARROW}000 mots`);
     expect(plural("fr", 20_000, frStats.words, formatNumber("fr", 20_000))).toBe(`20${NARROW}000 mots`);
   });
 });

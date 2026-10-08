@@ -2,9 +2,6 @@ import { acceptedLanguages, readingLanguage } from "../analyzer/pairs.ts";
 import { languageName } from "../analyzer/language-labels.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
-import { review as enReview } from "../i18n/en/review.ts";
-import { review as esReview } from "../i18n/es/review.ts";
-import { review as frReview } from "../i18n/fr/review.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
   formatCount,
@@ -18,7 +15,7 @@ import { dailyRecorder } from "../state/dailystats.ts";
 import { type AsyncStorageArea, loadReviewLanguage, saveBackup, saveReviewLanguage } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
 import { ReviewController } from "./session.ts";
-import { type ReviewActions, type ReviewCopy, renderReview } from "./view.ts";
+import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
 
 // The full Révision page — summary + the FSRS review widget + lossless backup/restore +
 // the pack's Sources & confidentialité — built as plain DOM into a container so ONE
@@ -38,9 +35,6 @@ export interface ReviewPageOptions {
    *  (localise-lingua-review-stats D1); French when not given. */
   interfaceLanguage?: InterfaceLanguage;
 }
-
-/** The review's copy by interface language: the one place that holds all three. */
-const REVIEW_COPY: Record<InterfaceLanguage, ReviewCopy> = { fr: frReview, en: enReview, es: esReview };
 
 export interface ReviewPage {
   /** Re-sync the summary + review view from the engine (call each time it is shown). */
@@ -69,7 +63,7 @@ export function mountReview(
 ): ReviewPage {
   container.replaceChildren();
   const interfaceLanguage = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
-  const copy = REVIEW_COPY[interfaceLanguage];
+  const copy = reviewCopy(interfaceLanguage);
   // Every grade and mark-known is counted under the engine's native language (add-lingua-native-language-sync-client D3).
   const recorder = dailyRecorder(area, port);
   let controller = new ReviewController(port, opts.now, recorder);
@@ -92,7 +86,7 @@ export function mountReview(
   const accepted = (candidate: string | null | undefined): StudiedLanguage | null =>
     languages.find((l) => l === candidate) ?? null;
   const render = (view: ReturnType<ReviewController["view"]>): void =>
-    renderReview(review, view, actions, { showLanguage: languages.length > 1, copy, interfaceLanguage });
+    renderReview(review, view, actions, { showLanguage: languages.length > 1, interfaceLanguage });
   /** A count of the summary — « 12 carte(s) » — its figure in bold where its message puts it. */
   const counted = (n: number, forms: PluralForms): Node[] => {
     const holder = el("span");

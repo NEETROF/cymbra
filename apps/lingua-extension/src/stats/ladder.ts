@@ -1,6 +1,8 @@
 import { borrowedTypicalNote, estimatedLevelsNote, myLevelTitle } from "../analyzer/language-labels.ts";
 import { DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { CefrLevel, LevelRow, StudiedLanguage, VocabularyEstimate } from "../analyzer/types.ts";
+import { stats as enStats } from "../i18n/en/stats.ts";
+import { stats as esStats } from "../i18n/es/stats.ts";
 import { stats as frStats } from "../i18n/fr/stats.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
@@ -20,10 +22,17 @@ import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
 /** The statistics' copy: the catalogue's `stats` module, in the interface language (its French the default). */
 export type StatsCopy = typeof frStats;
 
-/** What the ladder's functions speak: the copy, and the interface language their figures are written in. */
+/** The statistics' copy by interface language: the one place that holds all three. */
+const STATS_COPY: Record<InterfaceLanguage, StatsCopy> = { fr: frStats, en: enStats, es: esStats };
+
+/** The statistics' module for the interface language — the ladder's, the view's, and the standalone tab's page. */
+export function statsCopy(language: InterfaceLanguage): StatsCopy {
+  return STATS_COPY[language];
+}
+
+/** What the ladder's functions speak: the interface language, whose module and figures they take —
+ *  the copy derived from it, so the two cannot disagree. */
 export interface StatsCopyOptions {
-  /** The statistics' copy; the French module when not given. */
-  copy?: StatsCopy;
   /** The interface language; French when not given. */
   interfaceLanguage?: InterfaceLanguage;
 }
@@ -39,7 +48,7 @@ function speaking(opts: StatsCopyOptions): {
   fmt: (n: number) => string;
 } {
   const language = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
-  return { copy: opts.copy ?? frStats, language, fmt: (n) => formatNumber(language, n) };
+  return { copy: STATS_COPY[language], language, fmt: (n) => formatNumber(language, n) };
 }
 
 /**
@@ -94,9 +103,9 @@ export function vocabularyView(
   }
 
   const source = est.basis === "level" ? copy.fromDeclaredLevel : copy.fromCommonWordsSetting;
-  const confirmed = est.confirmed ? copy.confirmedCount(fmt(est.confirmed)) : "";
+  const confirmed = est.confirmed ? plural(language, est.confirmed, copy.confirmedCount, fmt(est.confirmed)) : "";
   const figure = Math.max(roughCount(est.estimated), est.confirmed);
-  n.textContent = copy.approxWords(fmt(figure));
+  n.textContent = plural(language, figure, copy.approxWords, fmt(figure));
   note.textContent = copy.estimateNote(source, dictionary, confirmed);
   return wrap;
 }

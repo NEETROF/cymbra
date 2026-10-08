@@ -2,14 +2,11 @@ import { estimatedLevelsNote, languageName } from "../analyzer/language-labels.t
 import { acceptedLanguages } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, CEFR_LEVELS, type SeedOrder, type StudiedLanguage } from "../analyzer/types.ts";
-import { stats as enStats } from "../i18n/en/stats.ts";
-import { stats as esStats } from "../i18n/es/stats.ts";
-import { stats as frStats } from "../i18n/fr/stats.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatCount, type InterfaceLanguage, plural } from "../i18n/index.ts";
 import { countsOf, loadDailyStats, utcDay } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { barChartElement } from "./chart.ts";
-import { ladderView, type StatsCopy, vocabularyView } from "./ladder.ts";
+import { ladderView, type StatsCopy, statsCopy, vocabularyView } from "./ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
@@ -31,13 +28,7 @@ import {
 // catalogue's `stats` module in the interface language its host hands it
 // (localise-lingua-review-stats D1).
 
-/** The statistics' copy by interface language: the one place that holds all three. */
-const STATS_COPY: Record<InterfaceLanguage, StatsCopy> = { fr: frStats, en: enStats, es: esStats };
-
-/** The statistics' module for the interface language — the view's, and the standalone tab's page. */
-export function statsCopy(language: InterfaceLanguage): StatsCopy {
-  return STATS_COPY[language];
-}
+export { statsCopy } from "./ladder.ts";
 
 /** The daily counters, each labelled by the copy's entry `label`. */
 const METRICS = [
@@ -210,8 +201,8 @@ export async function mountStats(
   chosen?: StudiedLanguage,
   interfaceLanguage: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
 ): Promise<void> {
-  const copy = STATS_COPY[interfaceLanguage];
-  const ui = { copy, interfaceLanguage };
+  const copy = statsCopy(interfaceLanguage);
+  const ui = { interfaceLanguage };
   let range: Range = 30;
   root.classList.add("stats");
   // One of the reader's languages: the one chosen, else the one this root showed, else the first;

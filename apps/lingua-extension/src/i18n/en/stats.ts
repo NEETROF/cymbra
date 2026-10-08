@@ -57,8 +57,14 @@ export const stats: typeof fr = {
   markedKnownWords: (dictionary) => `The words you marked as known, ${dictionary}.`,
   fromDeclaredLevel: "your declared level",
   fromCommonWordsSetting: "your most-common-words setting",
-  confirmedCount: (n) => ` (${n} of them confirmed)`,
-  approxWords: (n) => `≈\u00A0${n} words`,
+  confirmedCount: {
+    one: (n) => ` (${n} of them confirmed)`,
+    other: (n) => ` (${n} of them confirmed)`,
+  },
+  approxWords: {
+    one: (n) => `≈\u00A0${n} word`,
+    other: (n) => `≈\u00A0${n} words`,
+  },
   estimateNote: (source, dictionary, confirmed) =>
     `From ${source} and your marked words, extrapolated frequency band by frequency band, ${dictionary}${confirmed}.`,
   estimatedLevel: (level) => `estimated level ${level}`,
