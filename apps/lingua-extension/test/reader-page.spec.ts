@@ -1,18 +1,20 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { reader as enReader } from "@/i18n/en/reader.ts";
 import { reader as frReader } from "@/i18n/fr/reader.ts";
-import { COPY_PENDING_ATTR, fillPage, setDocumentLanguage } from "@/i18n/index.ts";
+import { COPY_PENDING_ATTR, fillPageInLanguage, INTERFACE_LANGUAGE_KEY } from "@/i18n/index.ts";
 import { ReaderApp, type ReaderDeps } from "@/reader/app.ts";
 import { COPY, readerCopy, readerModule } from "@/reader/copy.ts";
 import { type Library, titleFromName } from "@/reader/library.ts";
 import type { AsyncStorageArea } from "@/state/storage.ts";
+import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helpers.ts";
 
 // The reader's page and copy (localise-lingua-reading-surfaces D1, D2, D4): reader.html's title
-// filled from the catalogue, `COPY` the French in the shape the page reads (reader-app.spec asserts
-// it unchanged), and the page built in English — its figures written as English writes them.
+// filled as reader.ts fills it — `fillPageInLanguage` with `readerModule`, a storage that cannot be
+// read included — `COPY` the French in the shape the page reads (reader-app.spec asserts it
+// unchanged), and the page built in English — its figures written as English writes them.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HTML = readFileSync(join(root, "src/reader/reader.html"), "utf8");
@@ -24,23 +26,36 @@ describe("the reader's page, filled from the catalogue", () => {
     expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(true);
     expect(doc.documentElement.hasAttribute("lang")).toBe(false);
     expect(doc.title).toBe("");
-    expect(CSS).toMatch(/html\[data-copy-pending\] body \{\s*visibility: hidden;\s*\}/);
+    // Hidden while pending — and shown after a moment even if the script never fills it.
+    expect(CSS).toMatch(PENDING_RULE);
+    expect(CSS).toMatch(REVEAL_KEYFRAMES);
   });
 
-  it("Every reader today: the French catalogue gives the page the title it held", () => {
+  it("Every reader today: opened as reader.ts opens it, the page has the title it held", async () => {
     const doc = new DOMParser().parseFromString(HTML, "text/html");
-    fillPage(doc, readerModule("fr"));
-    setDocumentLanguage(doc, "fr");
+    const { language } = await fillPageInLanguage(doc, pageArea(), readerModule);
+    expect(language).toBe("fr");
     expect(doc.title).toBe("Bibliothèque — Cymbra Lingua");
     expect(doc.querySelectorAll("[data-copy]").length).toBe(1);
     expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
     expect(doc.documentElement.lang).toBe("fr");
   });
 
-  it("An English-native reader: the title is the English catalogue's", () => {
+  it("A storage that cannot be read: the page still shows, in French, and says so", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const doc = new DOMParser().parseFromString(HTML, "text/html");
-    fillPage(doc, readerModule("en"));
-    setDocumentLanguage(doc, "en");
+    const { language } = await fillPageInLanguage(doc, refusingArea(), readerModule);
+    expect(language).toBe("fr");
+    expect(doc.title).toBe("Bibliothèque — Cymbra Lingua");
+    expect(doc.documentElement.lang).toBe("fr");
+    expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("[Cymbra Lingua]"), expect.any(Error));
+    warn.mockRestore();
+  });
+
+  it("An English-native reader: the title is the English catalogue's", async () => {
+    const doc = new DOMParser().parseFromString(HTML, "text/html");
+    await fillPageInLanguage(doc, pageArea({ [INTERFACE_LANGUAGE_KEY]: "en" }), readerModule);
     expect(doc.title).toBe("Library — Cymbra Lingua");
     expect(doc.documentElement.lang).toBe("en");
   });

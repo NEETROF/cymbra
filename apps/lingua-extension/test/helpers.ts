@@ -222,3 +222,26 @@ export function makeFakeSpeech(voices: VoiceInfo[] = [], initial: Partial<Speech
     },
   };
 }
+
+// — The extension's pages, before and after their script (localise-lingua-reading-surfaces D2) —
+
+/** The interface language's area as a page reads it, holding `items`. */
+export function pageArea(items: Record<string, unknown> = {}): { get(key: string): Promise<Record<string, unknown>> } {
+  return {
+    async get(key) {
+      return key in items ? { [key]: items[key] } : {};
+    },
+  };
+}
+
+/** An area whose every read fails, as chrome.storage can (a context torn down, a profile locked). */
+export function refusingArea(): { get(key: string): Promise<Record<string, unknown>> } {
+  return { get: () => Promise.reject(new Error("storage unavailable")) };
+}
+
+/** A page's pending rule: the body hidden while `<html>` carries the mark, shown after 1.5 s anyway. */
+export const PENDING_RULE =
+  /html\[data-copy-pending\] body \{\s*visibility: hidden;\s*animation: lingua-copy-reveal 0s 1\.5s forwards;\s*\}/;
+
+/** What the pending rule's animation ends on: a visible body. */
+export const REVEAL_KEYFRAMES = /@keyframes lingua-copy-reveal \{\s*to \{\s*visibility: visible;\s*\}\s*\}/;

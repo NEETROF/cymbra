@@ -8,13 +8,51 @@ import { createHud, LinguaHud } from "@/reading/hud.ts";
 import { readingCopy } from "@/reading/reading-copy.ts";
 import { rarityText, rowGloss, SelectionCards } from "@/reading/selection-card.ts";
 import { ReadingSession } from "@/reading/session.ts";
-import { createCard, WordPopup, type WordPopupContent } from "@/reading/wordpopup.ts";
-import { makeFakePort } from "./helpers.ts";
+import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
+import { createCard, WordPopup, type WordPopupContent, type WordPopupOptions } from "@/reading/wordpopup.ts";
+import type { ReviewView } from "@/review/session.ts";
+import { renderReview } from "@/review/view.ts";
+import { makeFakePort, makeFakeSpeech } from "./helpers.ts";
 
 // The reading surfaces speak the interface language (localise-lingua-reading-surfaces): the HUD,
 // the word card, the selection card's lines and the session that builds them, handed the copy and
 // the language — what `hud`, `wordpopup`, `selection-card` and `rarity-text` assert in French,
-// unchanged, asserted here in English and Spanish, with the hosts' `lang`.
+// unchanged, asserted here in English and Spanish, with the hosts' `lang` — and the words of the
+// document inside them, which say the studied language in theirs (D3).
+
+/**
+ * The language a text of `container` is read in — by a voice, a hyphenator, a spell-checker: the
+ * `lang` of the innermost element holding exactly that text, or of its nearest ancestor that says
+ * one, up through a shadow root to its host.
+ */
+function languageOfText(container: ParentNode, text: string): string | null {
+  const holders = [...container.querySelectorAll("*")].filter((el) => el.textContent === text);
+  let at: Element | null = holders.at(-1) ?? null;
+  if (!at) throw new Error(`no element holds « ${text} »`);
+  while (at) {
+    const tagged: Element | null = at.closest("[lang]");
+    if (tagged) return tagged.getAttribute("lang");
+    const root = at.getRootNode();
+    at = root instanceof ShadowRoot ? root.host : null;
+  }
+  return null;
+}
+
+/** A word card in its page host, its closed shadow root opened so the test can look inside. */
+function popupInPage(opts: Partial<WordPopupOptions> = {}): { popup: WordPopup; root: ShadowRoot } {
+  const attach = HTMLElement.prototype.attachShadow;
+  let root: ShadowRoot | null = null;
+  const spy = vi.spyOn(HTMLElement.prototype, "attachShadow").mockImplementation(function (this: HTMLElement) {
+    root = attach.call(this, { mode: "open" });
+    return root;
+  });
+  const popup = new WordPopup({ css: "", onGesture: () => {}, ...opts });
+  spy.mockRestore();
+  return { popup, root: root! };
+}
+
+/** A Spanish voice, so the card offers its listen buttons on a Spanish page. */
+const monica: VoiceInfo = { name: "Mónica", lang: "es-ES", localService: true, default: false, voiceURI: "Mónica" };
 
 const NNBSP = " ";
 const actions = () => ({ onReview() {}, onStats() {}, onSettings() {} });
@@ -71,6 +109,37 @@ const content = (over: Partial<WordPopupContent> = {}): WordPopupContent => ({
 });
 
 describe("the word card", () => {
+  it("An English-native reader: on a Spanish page, the listen buttons and their names are the English catalogue's", () => {
+    const fake = makeFakeSpeech([monica]);
+    const speaker = createSpeaker(fake.engine, "es", fake.preference);
+    const { popup, root } = popupInPage({ speaker, language: "en", copy: enCard });
+    const listens = () =>
+      [...root.querySelectorAll<HTMLButtonElement>(".listen button")].map((b) => [
+        b.textContent,
+        b.getAttribute("aria-label"),
+      ]);
+    const es = { language: "es", gloss: "être", rarity: "" } as const;
+
+    popup.show(content({ ...es, headword: "ser", surface: "Es", sentence: "Es una casa." }));
+    expect(listens()).toEqual([
+      ["▶ Es", "Listen to the seen form “Es”"],
+      ["▶ ser", "Listen to the dictionary form “ser”"],
+      ["▶ Sentence", "Listen to the sentence"],
+    ]);
+    root.querySelector<HTMLButtonElement>(".listen button")!.click();
+    expect(listens()[0]).toEqual(["■ Stop", "Stop reading"]);
+
+    popup.show(content({ ...es, headword: "casa", surface: "casa", sentence: "Una casa grande." }));
+    expect(listens()).toEqual([
+      ["▶ Word", "Listen to the word"],
+      ["▶ Sentence", "Listen to the sentence"],
+    ]);
+    popup.show(content({ ...es, headword: "casa grande", surface: "casa grande", expression: true }));
+    expect(listens()[0]).toEqual(["▶ Selection", "Listen to the selection"]);
+    expect(popup.host.getAttribute("lang")).toBe("en");
+    popup.hide();
+  });
+
   it("An English-native reader: the labels, the actions and the close control are the English catalogue's", () => {
     const card = createCard(undefined, enCard);
     document.body.append(card.el);
@@ -100,6 +169,32 @@ describe("the word card", () => {
     expect(new WordPopup({ css: "", onGesture: () => {} }).host.getAttribute("lang")).toBe("fr");
     expect(new WordPopup({ css: "", onGesture: () => {} }).host.id).toBe("cymbra-lingua-host");
   });
+
+  it("On an English page with a French interface: the page's words say English, the card's labels French", () => {
+    const { popup, root } = popupInPage({ speaker: undefined });
+    popup.show(content({ status: null }));
+    expect(languageOfText(root, "run")).toBe("en"); // the headword
+    expect(languageOfText(root, "running")).toBe("en"); // the form seen…
+    expect(languageOfText(root, "forme vue : « running »")).toBe("fr"); // …inside the French label
+    expect(languageOfText(root, "Je connais")).toBe("fr");
+    expect(languageOfText(root, "Ignorer")).toBe("fr");
+    expect(languageOfText(root, "courir")).toBe("fr"); // the gloss is the reader's language
+
+    popup.show(content({ gloss: null, rows: [{ form: "late", gloss: "tard" }] }));
+    expect(languageOfText(root, "late → tard")).toBe("fr");
+    expect(languageOfText(root, "late")).toBe("en");
+    popup.hide();
+  });
+
+  it("names a Spanish page's words Spanish, whatever the interface language", () => {
+    const { popup, root } = popupInPage({ language: "en", copy: enCard });
+    popup.show(content({ headword: "ser", surface: "Es", gloss: "to be", language: "es" }));
+    expect(languageOfText(root, "ser")).toBe("es");
+    expect(languageOfText(root, "Es")).toBe("es");
+    expect(languageOfText(root, "form seen: “Es”")).toBe("en");
+    expect(languageOfText(root, "I know it")).toBe("en");
+    popup.hide();
+  });
 });
 
 describe("the selection card's lines", () => {
@@ -115,10 +210,13 @@ describe("the selection card's lines", () => {
     expect(rarityText("Unknown", null, esSelection, "es")).toBe(esSelection.rare(`20${NNBSP}000`));
   });
 
-  it("cuts a long sense with the catalogue's ellipsis, whatever the language", () => {
-    const long = `${"word ".repeat(20)}end`;
-    expect(rowGloss(long)).toBe(enSelection.truncated(rowGloss(long)!.slice(0, -1)));
-    expect(rowGloss(long, enSelection)).toBe(rowGloss(long));
+  it("cuts a long sense after a whole word with the catalogue's ellipsis, whatever the language", () => {
+    const long = `${"word ".repeat(20)}end`; // 103 characters, cut within 80
+    const kept = Array.from({ length: 16 }, () => "word").join(" ");
+    expect(rowGloss(long)).toBe(`${kept}…`);
+    expect(rowGloss(long, enSelection)).toBe(`${kept}…`);
+    // The ellipsis is the module's, not the card's: a language writing it otherwise is followed.
+    expect(rowGloss(long, { ...enSelection, truncated: (text) => `${text} [...]` })).toBe(`${kept} [...]`);
   });
 
   it("opens an expression card with the English kind line", () => {
@@ -136,6 +234,62 @@ describe("the selection card's lines", () => {
     expect(shown.at(-1)?.rarity).toBe("Expression — the card will keep its original sentence.");
     cards.openForSelection({ text: "never", sentence: "Never give up.", rect: content().rect }, null);
     expect(shown.at(-1)?.rarity).toBe("Selection.");
+  });
+
+  it("gives an expression card the document's language, as a word's card has it", () => {
+    const shown: WordPopupContent[] = [];
+    const cards = new SelectionCards(
+      {
+        phraseGloss: () => new Promise(() => {}),
+        gloss: async () => undefined,
+        wordGrammar: () => new Promise(() => {}),
+      },
+      { show: (c) => shown.push(c), generation: () => shown.length },
+      { clock: { setTimeout: () => 0, clearTimeout: () => {} }, language: () => "es" },
+    );
+    cards.openForSelection({ text: "casa grande", sentence: "Una casa grande.", rect: content().rect }, null);
+    expect(shown.at(-1)).toMatchObject({ expression: true, headword: "casa grande", language: "es" });
+  });
+});
+
+describe("the review card", () => {
+  const actions = { start() {}, reveal() {}, grade() {}, markKnown() {} };
+  const card = (over: Partial<NonNullable<ReviewView["card"]>> = {}): NonNullable<ReviewView["card"]> => ({
+    headword: "faro",
+    surface: "faro",
+    sentence: "El faro brilla.",
+    gloss: "phare",
+    revealed: true,
+    remaining: 3,
+    language: "es",
+    ...over,
+  });
+
+  /** The review as the drawer hosts it: inside a host that says the interface language. */
+  function inHost(language: string): HTMLElement {
+    const host = document.createElement("div");
+    host.lang = language;
+    const root = document.createElement("div");
+    host.append(root);
+    document.body.append(host);
+    return root;
+  }
+
+  it("says the card's language on its headword and sentence, the interface's around them", () => {
+    const root = inHost("fr");
+    renderReview(root, { phase: "reviewing", card: card() }, actions);
+    expect(languageOfText(root, "faro")).toBe("es");
+    expect(languageOfText(root, "El faro brilla.")).toBe("es");
+    expect(root.querySelector(".review-sentence")?.textContent).toBe("« El faro brilla. »");
+    expect(languageOfText(root, "« El faro brilla. »")).toBe("fr");
+    expect(languageOfText(root, "phare")).toBe("fr");
+    expect(languageOfText(root, "Correct")).toBe("fr");
+  });
+
+  it("names an older card's words English, as the review counts them", () => {
+    const root = inHost("fr");
+    renderReview(root, { phase: "reviewing", card: card({ headword: "seldom", language: undefined }) }, actions);
+    expect(languageOfText(root, "seldom")).toBe("en");
   });
 });
 
