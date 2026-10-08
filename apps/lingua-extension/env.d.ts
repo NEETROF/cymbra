@@ -69,16 +69,6 @@ declare module "@/wasm/pkg/lingua_wasm.js" {
   ): Promise<unknown>;
 }
 
-// jsdom, the test environment's DOM, which test/apple-activation-page.spec.ts also builds by hand
-// to load the Safari host app's activation page as the app does (a window of its own per page,
-// scripts evaluated in it). Typed minimally here: only what that test touches.
-declare module "jsdom" {
-  export class JSDOM {
-    constructor(html: string, options?: { runScripts?: "outside-only" | "dangerously" });
-    readonly window: Window & typeof globalThis;
-  }
-}
-
 // The vendored foliate-js (vendor/foliate-js, add-lingua-reader D2), resolved by build.mjs's
 // `foliate-js` alias. Plain JavaScript with no types of its own: only what the adapter in
 // src/reader/foliate.ts touches is declared here.

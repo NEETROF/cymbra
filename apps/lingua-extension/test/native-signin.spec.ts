@@ -1,11 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, type Mock, vi } from "vitest";
+import type { InterfaceLanguage } from "@/i18n/language.ts";
 import {
   hostAppSignInUrl,
+  interfaceLanguageTeller,
+  type NativeSend,
   nativeProviders,
   parseHandedIdToken,
   takeHandedIdToken,
   tellInterfaceLanguage,
 } from "@/state/native-signin.ts";
+import type { Provider } from "@/state/oidc.ts";
 
 describe("nativeProviders", () => {
   it("offers Apple always and Google as the host app reports it", async () => {
@@ -29,22 +33,21 @@ describe("nativeProviders", () => {
 });
 
 describe("hostAppSignInUrl", () => {
-  it("opens the host app on the requested provider", () => {
-    expect(hostAppSignInUrl("apple")).toBe("cymbra-lingua://signin?provider=apple");
-    expect(hostAppSignInUrl("google")).toBe("cymbra-lingua://signin?provider=google");
-  });
-
-  it("names the interface language the sheet should speak", () => {
+  it("opens the host app on the requested provider, in the interface language the sheet should speak", () => {
     expect(hostAppSignInUrl("apple", "fr")).toBe("cymbra-lingua://signin?provider=apple&lang=fr");
     expect(hostAppSignInUrl("google", "es")).toBe("cymbra-lingua://signin?provider=google&lang=es");
     expect(hostAppSignInUrl("apple", "en")).toBe("cymbra-lingua://signin?provider=apple&lang=en");
+  });
+
+  it("requires the language, so every caller names one", () => {
+    expectTypeOf(hostAppSignInUrl).parameters.toEqualTypeOf<[Provider, InterfaceLanguage]>();
   });
 });
 
 describe("tellInterfaceLanguage", () => {
   it("sends the host app the interface language", async () => {
     const send = vi.fn(async () => ({ language: "es" }));
-    await tellInterfaceLanguage(send, "es");
+    await expect(tellInterfaceLanguage(send, "es")).resolves.toBe(true);
     expect(send).toHaveBeenCalledWith({ type: "interface.language", language: "es" });
   });
 
@@ -53,8 +56,50 @@ describe("tellInterfaceLanguage", () => {
       tellInterfaceLanguage(async () => {
         throw new Error("no native handler");
       }, "fr"),
-    ).resolves.toBeUndefined();
-    await expect(tellInterfaceLanguage(async () => null, "en")).resolves.toBeUndefined();
+    ).resolves.toBe(false);
+    await expect(tellInterfaceLanguage(async () => null, "en")).resolves.toBe(true);
+  });
+});
+
+describe("interfaceLanguageTeller", () => {
+  const told = (send: Mock<NativeSend>): string[] =>
+    send.mock.calls.map(([message]) => (message.type === "interface.language" ? message.language : message.type));
+
+  it("tells only a language the key actually holds", async () => {
+    const send = vi.fn<NativeSend>(async () => ({}));
+    const tell = interfaceLanguageTeller(send);
+    // A key not yet written, removed, or holding anything else: nothing, not a defaulted French.
+    for (const value of [undefined, null, "", "de", "EN", 42, { language: "es" }]) await tell(value);
+    expect(send).not.toHaveBeenCalled();
+    await tell("es");
+    expect(send).toHaveBeenCalledWith({ type: "interface.language", language: "es" });
+  });
+
+  it("tells a language once, and again only once it changes", async () => {
+    const send = vi.fn<NativeSend>(async () => ({}));
+    const tell = interfaceLanguageTeller(send);
+    await tell("en");
+    await tell("en");
+    await tell("es");
+    await tell("es");
+    await tell("en");
+    expect(told(send)).toEqual(["en", "es", "en"]);
+  });
+
+  it("tells a language once when the start and a change race with it", async () => {
+    const send = vi.fn<NativeSend>(async () => ({}));
+    const tell = interfaceLanguageTeller(send);
+    await Promise.all([tell("es"), tell("es")]);
+    expect(told(send)).toEqual(["es"]);
+  });
+
+  it("tells a language again after a send that failed", async () => {
+    const send = vi.fn<NativeSend>().mockRejectedValueOnce(new Error("no native handler")).mockResolvedValue({});
+    const tell = interfaceLanguageTeller(send);
+    await tell("es");
+    await tell("es");
+    await tell("es");
+    expect(told(send)).toEqual(["es", "es"]);
   });
 });
 
