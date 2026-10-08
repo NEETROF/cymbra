@@ -77,10 +77,50 @@
           }
         }
       }
+    },
+    "en-es/base-memory/2.1": {
+      "from": "en",
+      "to": "es",
+      "licence": "MPL-2.0",
+      "mirror": "https://github.com/NEETROF/cymbra/releases/download/lingua-model-en-es-base-memory-2.1/",
+      "files": {
+        "model": {
+          "path": "en-es/base-memory/2.1/3b1c399511c01c84c36fae5c0524df44096288efdc8236e182b5c97d7ad2244c/model.bin.gz",
+          "size": 22698792,
+          "unpacked": 31561787,
+          "sha256": "3b1c399511c01c84c36fae5c0524df44096288efdc8236e182b5c97d7ad2244c",
+          "source": {
+            "path": "models/en-es/retrain_hr_fix_names_CUAEXUHoQum_cFqh-ZAryw/exported/model.enes.intgemm.alphas.bin.gz",
+            "sha256": "fe4025fde24a4d5f80533cfb7acd53d0eb7f194dfc2d8f427f0d4563cfb6ac06"
+          }
+        },
+        "lex": {
+          "path": "en-es/base-memory/2.1/7d51237c0a07027dcd61643cfbbb0f8c48597d19907ef53d2cae9d6bec2cf25c/lex.bin.gz",
+          "size": 2265250,
+          "unpacked": 4198436,
+          "sha256": "7d51237c0a07027dcd61643cfbbb0f8c48597d19907ef53d2cae9d6bec2cf25c",
+          "source": {
+            "path": "models/en-es/retrain_hr_fix_names_CUAEXUHoQum_cFqh-ZAryw/exported/lex.50.50.enes.s2t.bin.gz",
+            "sha256": "37a067966f28ff0ba430fddb7412bc5b07afa2cd2fd5a46d9ad74045a1a06380"
+          }
+        },
+        "vocab": {
+          "path": "en-es/base-memory/2.1/5ae254fa9b15aa182e70fd2a6186b1333c63a29a48043a9224c6aa4fcac058ad/vocab.spm.gz",
+          "size": 409312,
+          "unpacked": 816054,
+          "sha256": "5ae254fa9b15aa182e70fd2a6186b1333c63a29a48043a9224c6aa4fcac058ad",
+          "source": {
+            "path": "models/en-es/retrain_hr_fix_names_CUAEXUHoQum_cFqh-ZAryw/exported/vocab.enes.spm.gz",
+            "sha256": "ae2760c04bc6eb5362b16e5c2f145c376bb04bac421c33ba3c0766805e6f03b3"
+          }
+        }
+      }
     }
   },
   "routes": {
     "en-fr": ["en-fr/base-memory/2.0"],
-    "es-fr": ["es-en/base-memory/2.0", "en-fr/base-memory/2.0"]
+    "es-fr": ["es-en/base-memory/2.0", "en-fr/base-memory/2.0"],
+    "es-en": ["es-en/base-memory/2.0"],
+    "en-es": ["en-es/base-memory/2.1"]
   }
 }

@@ -2,9 +2,9 @@
 
 ## 1. The catalogue (apps/lingua-extension)
 
-- [ ] 1.1 Download en-es's three files once from Mozilla's registry; compute each gzip's sha256 and length and each decompressed file's sha256 and length; check the model against the registry's `uncompressedHash` and the three against Remote Settings' 2.1 (D1).
-- [ ] 1.2 `model-manifest.json`: `en-es/base-memory/2.1` (paths, sizes, digests, source, mirror, licence) and the routes `es-en` and `en-es` (D1, D2). `assemble_model_site.mjs` run locally over it keeps every file.
-- [ ] 1.3 `test/model-manifest.spec.ts` holds the new catalogue exactly; `model-residency.spec.ts` and `model-controller.spec.ts` use `en-es/base-memory/2.1`; a test that a French-native reader's needs, downloads and loads are unchanged (D2, D5; *Every reader today*, *A route of a pair not shipped*).
+- [x] 1.1 Download en-es's three files once from Mozilla's registry; compute each gzip's sha256 and length and each decompressed file's sha256 and length; check the model against the registry's `uncompressedHash` and the three against Remote Settings' 2.1 (D1).
+- [x] 1.2 `model-manifest.json`: `en-es/base-memory/2.1` (paths, sizes, digests, source, mirror, licence) and the routes `es-en` and `en-es` (D1, D2). `assemble_model_site.mjs` run locally over it keeps every file.
+- [x] 1.3 `test/model-manifest.spec.ts` holds the new catalogue exactly; `model-residency.spec.ts` and `model-controller.spec.ts` use `en-es/base-memory/2.1`; a test that a French-native reader's needs, downloads and loads are unchanged (D2, D5; *Every reader today*, *A route of a pair not shipped*).
 
 ## 2. The soak
 

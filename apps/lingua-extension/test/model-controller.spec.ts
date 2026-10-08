@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+import { readerPairs } from "@/analyzer/pairs.ts";
 import { ModelController, type ModelHostAccess } from "@/translate/host/model-controller.ts";
-import type { ModelCatalogue, ModelManifest } from "@/translate/host/model-manifest.ts";
+import { type ModelCatalogue, type ModelManifest, parseCatalogue } from "@/translate/host/model-manifest.ts";
 import { MODEL_STATE_KEY, type SettingArea, TRANSLATION_HOST_KEY } from "@/translate/setting.ts";
 
 // « Traduction étendue » as the background runs it — the scenarios of
@@ -10,7 +14,7 @@ import { MODEL_STATE_KEY, type SettingArea, TRANSLATION_HOST_KEY } from "@/trans
 
 const EN_FR = "en-fr/base-memory/2.0";
 const ES_EN = "es-en/base-memory/2.0";
-const EN_ES = "en-es/base-memory/2.0";
+const EN_ES = "en-es/base-memory/2.1";
 
 const files = (seed: string, sizes: [number, number, number]) => ({
   model: { path: `${seed}/m.gz`, size: sizes[0], unpacked: sizes[0] + 200, sha256: seed[0]!.repeat(64) },
@@ -28,7 +32,7 @@ const CATALOGUE: ModelCatalogue = {
   routes: { "en-fr": [EN_FR], "es-fr": [ES_EN, EN_FR] },
 };
 
-/** The catalogue a later change ships: en-es listed, with its own model (changes 21, 22, 25). */
+/** The catalogue once en-es ships: its route listed (change 25), its pair a reader's (changes 22, 35). */
 const WITH_EN_ES: ModelCatalogue = {
   ...CATALOGUE,
   models: { ...CATALOGUE.models, [EN_ES]: { from: "en", to: "es", files: files("ghi", [600, 100, 100]) } },
@@ -610,5 +614,61 @@ describe("ModelController", () => {
     await controller.handle("disable");
     expect(host.startDownload).toHaveBeenCalledOnce();
     expect(host.shutDown).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the committed catalogue: a reader of French downloads, keeps and loads as before (add-lingua-translation-matrix-models D2)", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const committed = parseCatalogue(JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8")));
+  const MATRIX_EN_ES = "en-es/base-memory/2.1";
+  /** The reader's pairs as the background forms them: the shipped pairs of their native language. */
+  const of = (languages: string[], native: string) => readerPairs(languages, native);
+
+  it("Every reader today: English and Spanish, native French — en-fr and es-en are downloaded, 51 993 524 bytes, and nothing of en-es", async () => {
+    const { controller, host, setting, downloaded } = setup({
+      pairs: of(["en", "es"], "fr"),
+      catalogue: async () => committed,
+    });
+    const status = await controller.enable();
+    expect(host.startDownload).toHaveBeenCalledWith([EN_FR, ES_EN]);
+    expect(status.cost).toEqual({ download: 51_993_524, stored: 73_763_216, pivot: true });
+    await downloaded();
+    expect(setting().state).toEqual({ phase: "ready", models: [EN_FR, ES_EN], pairs: ["en-fr", "es-fr"] });
+    // The routes it loads are en-fr's and es-fr's; es-en and en-es are no pair of this reader's.
+    expect(await controller.ready("es-en")).toBe(false);
+    expect(await controller.ready("en-es")).toBe(false);
+    expect(host.startDownload.mock.calls.flat(2)).not.toContain(MATRIX_EN_ES);
+  });
+
+  it("Every reader today: English alone, native French — en-fr alone, 25 752 472 bytes", async () => {
+    const { controller, host } = setup({ pairs: of(["en"], "fr"), catalogue: async () => committed });
+    expect((await controller.status()).cost).toEqual({ download: 25_752_472, stored: 36_749_127 });
+    await controller.enable();
+    expect(host.startDownload).toHaveBeenCalledWith([EN_FR]);
+  });
+
+  it("A route of a pair not shipped: the es-en model is kept only as es-fr's first model — Spanish removed, it is deleted although es-en is routed", async () => {
+    const { controller, stored, setting, study } = setup({
+      seed: {
+        [TRANSLATION_HOST_KEY]: "local",
+        [MODEL_STATE_KEY]: { phase: "ready", models: [EN_FR, ES_EN], pairs: ["en-fr", "es-fr"] },
+      },
+      stored: [EN_FR, ES_EN],
+      pairs: of(["en", "es"], "fr"),
+      catalogue: async () => committed,
+    });
+    study(of(["en"], "fr"));
+    await controller.status();
+    expect([...stored]).toEqual([EN_FR]);
+    expect(setting().state).toEqual(READY_EN);
+  });
+
+  it("A route of a pair not shipped: a reader native in Spanish or in English has no shipped pair — not offered, nothing downloaded", async () => {
+    for (const pairs of [of(["en"], "es"), of(["es"], "en")]) {
+      expect(pairs).toEqual([]);
+      const { controller, host } = setup({ pairs, catalogue: async () => committed });
+      expect(await controller.status()).toEqual({ offered: false, host: "none", state: { phase: "absent" } });
+      expect(host.startDownload).not.toHaveBeenCalled();
+    }
   });
 });

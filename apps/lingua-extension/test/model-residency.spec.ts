@@ -15,7 +15,7 @@ import {
 // The catalogue's ids, and the routes of the matrix's natives (harden-lingua-translation-engine D3).
 const EN_FR = "en-fr/base-memory/2.0";
 const ES_EN = "es-en/base-memory/2.0";
-const EN_ES = "en-es/base-memory/2.0";
+const EN_ES = "en-es/base-memory/2.1";
 const FR_EN = "fr-en/base-memory/2.0";
 const ROUTE: Record<string, LoadedRoute> = {
   "en-fr": { pair: "en-fr", models: [EN_FR] },
