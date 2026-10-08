@@ -390,19 +390,6 @@ export class WasmAnalyzerPort implements LinguaPort {
     return engine;
   }
 
-  /**
-   * Forget the engine, its packs and the native language it was built for: the next call asks the
-   * resolver again and builds anew (add-lingua-native-language-choice D2). The background drops its
-   * two engines so when the reader chose another native language. The old engine is not freed here —
-   * a call already under way may still hold it; the glue's finaliser frees it once unreachable.
-   */
-  drop(): void {
-    this.enginePromise = null;
-    this.nativePromise = null;
-    this.added.clear();
-    this.rebuilt = null;
-  }
-
   async reset(): Promise<void> {
     (await this.engine()).reset();
   }

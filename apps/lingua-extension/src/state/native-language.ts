@@ -119,19 +119,31 @@ export interface NativeLanguageHost {
   ensureBackup(): Promise<void>;
   /** lingua-wasm's `reprofileBackup` (analyzer/engine.ts). */
   reprofile(backup: string, native: NativeLanguage, studied: StudiedLanguage[]): Promise<string>;
-  /** Forget the background's engines: their next use builds them for the new native language. */
-  dropEngines(): void;
+  /**
+   * Run `task` with every sync held — the sync scheduler's `exclusive`. A sync restores the backup,
+   * applies what it pulled and saves the result: a change landing in between would be saved over
+   * (the native language reverted) or save over the pulls, and an engine forgotten in between would
+   * have the pulls applied to an empty state, saved over the reader's data.
+   */
+  exclusive<T>(task: () => Promise<T>): Promise<T>;
+  /**
+   * After the change, the background's reading engine restores the stored backup before its next
+   * answer, and the restore rebuilds it for the new native language (D3). The sync engine restores
+   * the backup at the start of every run, and follows by itself. No engine is ever forgotten: a port
+   * whose engine is gone would serve a fresh state until something restored it.
+   */
+  rehydrate(): void;
   /** The pairs the package ships: the bundle's, unless a spec offers others. */
   pairs?: readonly string[];
 }
 
 /**
  * The reader chooses `message.native` (D2): refused when no shipped pair is glossed in it; a preset
- * left alone when the choice was already made; otherwise the stored backup's profile is rewritten —
- * that native language, studying `studiedForNative` — and saved with its reason, so the owner writes
- * the interface language's key before it announces the change; then the background's engines are
- * dropped, and the choice is marked as made. Choosing the native language the reader already has
- * only marks it.
+ * left alone when the choice was already made; otherwise, with every sync held, the stored backup's
+ * profile is rewritten — that native language, studying `studiedForNative` — and saved with its
+ * reason, so the owner writes the interface language's key before it announces the change; then the
+ * background's reading engine restores it, and the choice is marked as made. Choosing the native
+ * language the reader already has only marks it.
  */
 export async function changeNativeLanguage(
   host: NativeLanguageHost,
@@ -142,8 +154,21 @@ export async function changeNativeLanguage(
   if (!(INTERFACE_LANGUAGES as readonly string[]).includes(native) || pairsOf(native, pairs).length === 0) {
     return { ok: false, error: "no-pair" };
   }
-  if (message.preset && (await nativeLanguageChosen(host.preferences))) return { ok: true, changed: false };
+  return host.exclusive(() => rewriteProfile(host, native, message.preset === true, pairs));
+}
+
+/**
+ * `changeNativeLanguage`'s reads, rewrite and write, run with every sync held — and after any change
+ * asked before it, so a preset that arrives after an answer finds it marked.
+ */
+async function rewriteProfile(
+  host: NativeLanguageHost,
+  native: NativeLanguage,
+  preset: boolean,
+  pairs: readonly string[],
+): Promise<NativeLanguageReply> {
   try {
+    if (preset && (await nativeLanguageChosen(host.preferences))) return { ok: true, changed: false };
     let stored = await loadStored(host.store);
     if (stored.kind !== "v2") {
       await host.ensureBackup();
@@ -159,7 +184,7 @@ export async function changeNativeLanguage(
     // Marked before it is announced: a page reloading on the change never asks again.
     await markNativeLanguageChosen(host.preferences);
     await host.store.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup } }, { type: "native-language", native });
-    host.dropEngines();
+    host.rehydrate();
     return { ok: true, changed: true };
   } catch (e) {
     console.warn("[Cymbra Lingua] could not change the native language:", e);

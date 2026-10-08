@@ -201,11 +201,21 @@ const settingsArea: AsyncStorageArea = {
 
 let storeRev = 0;
 
-/** How each of this background's engines forgets itself when the native language changes (D2). */
-const engineDrops: (() => void)[] = [];
-
 /** Hydrates the reading engine, writing a fresh backup into an empty store: set by its block below. */
 let ensureReaderBackup: () => Promise<void> = async () => {};
+
+/**
+ * Has the reading engine restore the stored backup before its next answer: set by its block below.
+ * After a change of native language the restore rebuilds it for that language (D3).
+ */
+let rehydrateReader: () => void = () => {};
+
+/**
+ * Runs a task with every sync held — the scheduler's `exclusive`, set by the sync block. A change of
+ * native language rewrites the backup a sync restores, applies its pulls to and saves again: the two
+ * never interleave (add-lingua-native-language-choice D2).
+ */
+let exclusiveOfSync: <T>(task: () => Promise<T>) => Promise<T> = (task) => task();
 
 /**
  * Set by the sync block: a change to the reader's own data schedules an exchange. The
@@ -313,12 +323,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   // A new install's preset may come before any page wrote a backup: this engine's hydration
   // writes the fresh one (add-lingua-native-language-choice D4).
   ensureReaderBackup = ensure;
-  // Another native language chosen: this engine and its hydration are forgotten, and its next call
-  // builds it for that language, restoring the reader's state into it (D2).
-  engineDrops.push(() => {
-    enginePort.drop();
+  // Another native language chosen: the next call restores the backup again first, and the restore
+  // rebuilds this engine for that language with the reader's state in it (D2, D3).
+  rehydrateReader = () => {
     hydrated = null;
-  });
+  };
 }
 
 // The reader chooses their native language (add-lingua-native-language-choice D2): in Réglages,
@@ -332,9 +341,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       preferences: settingsArea,
       ensureBackup: () => ensureReaderBackup(),
       reprofile: (backup, native, studied) => reprofileBackup(backup, native, studied, staticGlue),
-      dropEngines: () => {
-        for (const drop of engineDrops) drop();
-      },
+      exclusive: (task) => exclusiveOfSync(task),
+      rehydrate: () => rehydrateReader(),
     },
     message,
   ).then((reply) => sendResponse(reply satisfies NativeLanguageReply));
@@ -527,9 +535,9 @@ if (__TRANSLATION_HOST__ !== "none") {
   // import()) that the SyncEngine hydrates from the backup each run, leaving the
   // rpc-host reading engine untouched. Runs only while signed in; debounced so a burst
   // of mutations (each persisting the backup) coalesces into one exchange.
+  // Another native language chosen: each run restores the stored backup first, and the restore
+  // rebuilds this engine for that language (add-lingua-native-language-choice D3).
   const syncPort = new WasmAnalyzerPort(staticGlue, SHIPPED_PAIRS, () => storedNativeLanguage(ownedStore));
-  // Another native language chosen: the sync engine is built again for it on its next run (D2).
-  engineDrops.push(() => syncPort.drop());
   let deviceIdPromise: Promise<string> | null = null;
   let syncEngine: SyncEngine | null = null;
   const getSyncEngine = async (): Promise<SyncEngine> => {
@@ -560,6 +568,8 @@ if (__TRANSLATION_HOST__ !== "none") {
   // the server erasure and the local wipe, so runs are held and a running one awaited; the
   // held triggers then pull back anything created elsewhere since the erasure.
   const eraseLinguaData = (): Promise<void> => scheduler.exclusive(async () => (await getSyncEngine()).eraseAll());
+  // A change of native language is held the same way (add-lingua-native-language-choice D2).
+  exclusiveOfSync = (task) => scheduler.exclusive(task);
 
   // Safari (add-lingua-connected-clients D6): Apple and Google run in the host app, which
   // hands the id_token back through this extension's native handler.

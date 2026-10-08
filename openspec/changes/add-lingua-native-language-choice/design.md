@@ -57,9 +57,15 @@ runtime message `lingua-native-language` `{native}`:
    profile itself — the store owner's mirror (change 13 D3) runs in its debounced reaction, and a
    page reloading on the announcement must read the new key — and announce the store change
    with its reason;
-4. drop its two engines: the rpc port's and the sync port's memoised engines and the `hydrated`
-   memo are cleared (the ports are `const`; their engines rebuild for the new native on their
-   next use, resolving the native from the backup as today, through D3's restore).
+4. have its reading engine restore the backup before its next answer — the rpc port's `hydrated`
+   memo is cleared, and the restore rebuilds the engine for the new native language (D3); the sync
+   port restores the backup at the start of every run and follows by itself. No engine is dropped:
+   a port without one would serve a fresh state until something restored it.
+
+Steps 2 to 4 run with every sync held (the scheduler's `exclusive`, as the erasure does, and after
+any change asked before): a sync restores the backup, applies what it pulled and saves the result,
+and a change landing in between would be saved over — the native language reverted — or would save
+over the pulls.
 
 ### D3 — Every port follows the backup's native language
 

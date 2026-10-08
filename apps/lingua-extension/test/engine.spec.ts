@@ -671,20 +671,6 @@ describe("WasmAnalyzerPort packs", () => {
       });
     });
 
-    it("drops its engine: the next call asks the native language again and builds anew (D2)", async () => {
-      const glue = packGlue();
-      const resolve = vi.fn<() => Promise<"fr" | "en">>().mockResolvedValueOnce("fr").mockResolvedValue("en");
-      const port = new WasmAnalyzerPort(glue.load, MIXED, resolve);
-      await port.for("es").analyse(["El faro"]);
-
-      port.drop();
-      await port.for("es").analyse(["El faro"]);
-
-      expect(resolve).toHaveBeenCalledTimes(2);
-      expect(await port.nativeLanguage()).toBe("en");
-      expect(packs()).toEqual([EN_FR, ES_FR, ES_EN]);
-    });
-
     it("loads a French reader's records' packs alone", async () => {
       const glue = packGlue();
       const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-en"], async () => "fr");

@@ -5,7 +5,7 @@
 - [x] 1.1 `crates/lingua-wasm`: `reprofileBackup(backup, native, studied)`, pure, validating as `Profile::set` does, written at the version `LinguaState::to_backup` writes (1 for the default profile with English-only records, 2 otherwise) (D2); tests: a backup reprofiled restores on an engine of the new native; a refused choice returns an error.
 - [x] 1.2 `src/analyzer/pairs.ts` `shippedNatives()` (D1); tests: one native today, two with a test pair list.
 - [x] 1.3 `src/analyzer/engine.ts` `WasmAnalyzerPort.restore` rebuilds the engine when the backup's native differs from the engine's (D3); test: a restore under another native rebuilds and keeps the state.
-- [x] 1.4 `src/background.ts` serves `lingua-native-language`: refusal, the studied-languages rule (a pure function, tested), `reprofileBackup`, the backup saved and the interface-language key written from the new profile before the announcement, the store change announced with its reason, the two ports' memoised engines and the `hydrated` memo cleared (D2); `onInstalled` sets `cymbra-lingua-native-chosen` on `update` (D4).
+- [x] 1.4 `src/background.ts` serves `lingua-native-language`: refusal, the studied-languages rule (a pure function, tested), `reprofileBackup`, the backup saved and the interface-language key written from the new profile before the announcement, the store change announced with its reason, the reading engine's `hydrated` memo cleared so its next call restores — and rebuilds — it, the whole change run with every sync held (D2); `onInstalled` sets `cymbra-lingua-native-chosen` on `update` (D4).
 
 ## 2. The choice (apps/lingua-extension)
 

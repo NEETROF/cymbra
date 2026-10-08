@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { acceptedLanguages } from "@/analyzer/pairs.ts";
+import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
 import { INTERFACE_LANGUAGE_KEY } from "@/i18n/language.ts";
 import {
   changeNativeLanguage,
@@ -17,6 +19,9 @@ import {
 } from "@/state/native-language.ts";
 import { type AsyncStorageArea, ROOT_KEY } from "@/state/storage.ts";
 import { ownerArea, type StoreChangeReason, watchStore } from "@/state/store.ts";
+import { SyncScheduler } from "@/sync/scheduler.ts";
+import { SyncEngine, type SyncClients } from "@/sync/sync.ts";
+import { makeFakePort } from "./helpers.ts";
 
 // The reader chooses their native language (add-lingua-native-language-choice): the rule for the
 // studied languages, the preset, and what the background does with the message (D1, D2, D4).
@@ -79,7 +84,8 @@ function host(store: Record<string, unknown> = {}, preferences: Record<string, u
       await owned.set({ [ROOT_KEY]: { v: 2, backup: backupOf("French", ["English"]) } });
     }),
     reprofile: vi.fn(fakeReprofile),
-    dropEngines: vi.fn(),
+    exclusive: <T>(task: () => Promise<T>): Promise<T> => task(),
+    rehydrate: vi.fn(),
     pairs: MIXED,
   } satisfies NativeLanguageHost;
   return { deps, announced, prefs, owned };
@@ -148,7 +154,7 @@ describe("the studied languages of a reader who chooses (D2)", () => {
 });
 
 describe("the background's change (D2)", () => {
-  it("Changing the native language: the profile rewritten, the key written before the announcement, the engines dropped", async () => {
+  it("Changing the native language: the profile rewritten, the key written before the announcement, the reading engine restored again", async () => {
     const { deps, announced, prefs } = host({
       [ROOT_KEY]: { v: 2, backup: backupOf("French", ["English", "Spanish"]) },
     });
@@ -166,10 +172,10 @@ describe("the background's change (D2)", () => {
       { keys: [ROOT_KEY], reason: { type: "native-language", native: "en" }, key: "en", chosen: true },
     ]);
     expect(prefs.store[INTERFACE_LANGUAGE_KEY]).toBe("en");
-    expect(deps.dropEngines).toHaveBeenCalledOnce();
+    expect(deps.rehydrate).toHaveBeenCalledOnce();
   });
 
-  it("A native language with no pair: refused, nothing written, nothing dropped", async () => {
+  it("A native language with no pair: refused, nothing written, no engine restored", async () => {
     const backup = backupOf("French", ["English"]);
     const { deps, announced, prefs } = host({ [ROOT_KEY]: { v: 2, backup } });
 
@@ -183,7 +189,7 @@ describe("the background's change (D2)", () => {
     });
 
     expect(deps.reprofile).not.toHaveBeenCalled();
-    expect(deps.dropEngines).not.toHaveBeenCalled();
+    expect(deps.rehydrate).not.toHaveBeenCalled();
     expect(announced).toEqual([]);
     expect(prefs.store).toEqual({});
     expect(await stored(deps)).toEqual(JSON.parse(backup));
@@ -199,7 +205,7 @@ describe("the background's change (D2)", () => {
 
     expect(prefs.store[NATIVE_CHOSEN_KEY]).toBe(true);
     expect(deps.reprofile).not.toHaveBeenCalled();
-    expect(deps.dropEngines).not.toHaveBeenCalled();
+    expect(deps.rehydrate).not.toHaveBeenCalled();
     expect(announced).toEqual([]);
   });
 
@@ -250,7 +256,7 @@ describe("the background's change (D2)", () => {
     expect(await stored(deps)).toEqual(JSON.parse(backup));
     expect(prefs.store[NATIVE_CHOSEN_KEY]).toBeUndefined();
     expect(announced).toEqual([]);
-    expect(deps.dropEngines).not.toHaveBeenCalled();
+    expect(deps.rehydrate).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   });
 
@@ -268,6 +274,125 @@ describe("the background's change (D2)", () => {
     expect(isNativeLanguageMessage({ type: "lingua-native-language" })).toBe(false);
     expect(isNativeLanguageMessage({ type: "store:get", native: "en" })).toBe(false);
     expect(isNativeLanguageMessage(null)).toBe(false);
+  });
+});
+
+describe("the background's change, beside a sync (D2)", () => {
+  const CODES: Record<string, string> = { French: "fr", English: "en", Spanish: "es" };
+  type Held = { profile: { native_language: string; studied_languages: string[] }; words: string[] };
+
+  /**
+   * The sync's port, holding the reader's state as a backup does — its profile, the words it knows —
+   * so that what a sync restores, applies and saves can be read back. Applying what was pulled waits
+   * for `release`: the window between the sync's restore of the latest backup and its save.
+   */
+  function syncPort() {
+    const { port } = makeFakePort();
+    let held: Held = { profile: { native_language: "French", studied_languages: ["English"] }, words: [] };
+    let release: () => void = () => {};
+    let entered: () => void = () => {};
+    const applying = new Promise<void>((resolve) => (entered = resolve));
+    port.restore = async (json) => void (held = JSON.parse(json) as Held);
+    port.backup = async () => JSON.stringify({ schema_version: 2, ...held });
+    port.nativeLanguage = async () => CODES[held.profile.native_language] as NativeLanguage;
+    port.studiedLanguages = async () => held.profile.studied_languages.map((name) => CODES[name] as StudiedLanguage);
+    port.exportStatusOps = async () => [];
+    port.exportCardOps = async () => [];
+    port.exportDeclaredLevels = async () => [];
+    port.applyStatusChanges = async (changes) => {
+      entered();
+      await new Promise<void>((resolve) => (release = resolve));
+      held.words.push(...changes.map((change) => change.lemma));
+      return changes.length;
+    };
+    port.applyCardOps = async () => 0;
+    port.applyDeclaredLevelChanges = async () => 0;
+    return { port, applying, release: () => release() };
+  }
+
+  /** A server whose pulls hand back one Spanish word each — Spanish is accepted before and after. */
+  function server(lemmas: string[]) {
+    const pullChanges = vi.fn(async () => ({
+      changes: [
+        { language: "es", lemma: lemmas.shift(), status: "known", provenance: "manual", updatedAt: 5n, sequence: 1n },
+      ],
+      cursor: 7n,
+      declaredLevels: [],
+    }));
+    return {
+      knownWords: { pushOps: vi.fn(async () => ({ applied: 0n, cursor: 0n })), pullChanges },
+      deck: {
+        pushCards: vi.fn(async () => ({ applied: 0n, cursor: 0n })),
+        pullCards: vi.fn(async () => ({ cards: [], cursor: 9n })),
+      },
+      stats: { upsertDailyStats: vi.fn(async () => ({ upserted: 0n })) },
+      data: { getDataState: vi.fn(async () => ({ erasedAt: 0n })), eraseMyData: vi.fn() },
+    } as unknown as SyncClients;
+  }
+
+  it("a sync in flight when the change lands neither loses what it pulled nor reverts the choice", async () => {
+    const { deps } = host({
+      [ROOT_KEY]: {
+        v: 2,
+        backup: JSON.stringify({
+          schema_version: 2,
+          profile: { native_language: "French", studied_languages: ["English", "Spanish"] },
+          words: ["mine"],
+        }),
+      },
+    });
+    const sync = syncPort();
+    const clients = server(["pulled", "later"]);
+    const engine = new SyncEngine({
+      port: sync.port,
+      storage: deps.store,
+      clients: () => clients,
+      deviceId: "d",
+      acceptedLanguages: () => acceptedLanguages(sync.port, MIXED),
+    });
+    const scheduler = new SyncScheduler({
+      sync: async () => void (await engine.sync()),
+      signedIn: () => true,
+      now: () => 0,
+      lastSynced: async () => 0,
+      onSynced: async () => {},
+      onError: (e) => {
+        throw e;
+      },
+    });
+
+    // The sync restored the latest backup and is applying what it pulled when the reader chooses
+    // English: had the change gone ahead, the sync would save the French profile back over it, or
+    // the change would save over the word the sync pulled.
+    const first = scheduler.syncNow();
+    await sync.applying;
+    const change = changeNativeLanguage(
+      { ...deps, exclusive: (task) => scheduler.exclusive(task) },
+      { type: NATIVE_LANGUAGE_MESSAGE, native: "en" },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(deps.reprofile).not.toHaveBeenCalled(); // the change waits for the sync
+
+    sync.release();
+    expect(await first).toBeNull();
+    expect(await change).toEqual({ ok: true, changed: true });
+    // The change rewrote what the sync saved: the reader's word and the one pulled, now English-native.
+    expect(await stored(deps)).toEqual({
+      schema_version: 2,
+      profile: { native_language: "English", studied_languages: ["Spanish"] },
+      words: ["mine", "pulled"],
+    });
+
+    // The next sync restores the new profile and saves it again with what it pulls: nothing reverts.
+    const next = scheduler.syncNow();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    sync.release();
+    expect(await next).toBeNull();
+    expect(await stored(deps)).toEqual({
+      schema_version: 2,
+      profile: { native_language: "English", studied_languages: ["Spanish"] },
+      words: ["mine", "pulled", "later"],
+    });
   });
 });
 
