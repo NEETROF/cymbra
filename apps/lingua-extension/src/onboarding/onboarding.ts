@@ -8,6 +8,7 @@ import { levelRow } from "./level-row.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
 import { messagedArea } from "../state/store.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
+import { mountNativeStep, presetThenStart } from "./native-step.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
@@ -80,6 +81,9 @@ async function main(): Promise<void> {
   );
   await studied.refresh();
   await renderLevels();
+  // The native language, the first question when two ship; the page reloads when it changes
+  // (add-lingua-native-language-choice D3, D4).
+  mountNativeStep($("languages-section"), interfaceLanguage, store);
 
   async function renderLevels(): Promise<void> {
     const rows = $("level-rows");
@@ -95,4 +99,5 @@ async function main(): Promise<void> {
   }
 }
 
-void main();
+// A new install's native language is preset before the page paints (add-lingua-native-language-choice D4).
+void presetThenStart(main);

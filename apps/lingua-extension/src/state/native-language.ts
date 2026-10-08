@@ -167,6 +167,58 @@ export async function changeNativeLanguage(
   }
 }
 
+/**
+ * The reader's native language and studied languages as their stored backup holds them, without an
+ * engine — what the onboarding and the popup's first run show the choice from (D4): French studying
+ * the default pair's language before any backup, as every engine starts.
+ */
+export async function storedProfile(
+  store: AsyncStorageArea,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): Promise<{ native: NativeLanguage; studied: StudiedLanguage[] }> {
+  const stored = await loadStored(store);
+  if (stored.kind === "v2") {
+    return { native: nativeLanguageOf(stored.backup, pairs), studied: studiedLanguagesOf(stored.backup) };
+  }
+  return {
+    native: DEFAULT_NATIVE,
+    studied: [studiedOf(defaultPair(DEFAULT_NATIVE, pairs) ?? pairs[0]) as StudiedLanguage],
+  };
+}
+
+/** What a surface's preset needs: its preferences, the browser's language, and the background. */
+export interface PresetDeps {
+  /** chrome.storage.local: the marker. */
+  preferences: Pick<AsyncStorageArea, "get">;
+  /** `navigator.language`. */
+  browserLanguage: string | undefined;
+  /** The background, by default. */
+  choose?: (native: NativeLanguage, preset: boolean) => Promise<NativeLanguageReply>;
+  pairs?: readonly string[];
+}
+
+/**
+ * A new install's preset, applied before the surface paints (D4): only while two native languages
+ * ship and the choice was never made on this device. The background writes it — the backup the first
+ * page wrote, or a fresh one — and the surface then reads the interface language it names. Resolves
+ * true when this surface preset the choice, so the popup's first run asks the question; false at
+ * once, reading nothing, while one native language ships (today). Never rejects: the surface paints
+ * whatever happened.
+ */
+export async function presetNativeLanguage(deps: PresetDeps): Promise<boolean> {
+  const pairs = deps.pairs ?? SHIPPED_PAIRS;
+  if (!nativeChoiceOffered(pairs)) return false;
+  try {
+    if (await nativeLanguageChosen(deps.preferences)) return false;
+    const choose = deps.choose ?? ((native, preset) => chooseNativeLanguage(native, preset));
+    await choose(presetNative(deps.browserLanguage, pairs), true);
+    return true;
+  } catch (e) {
+    console.warn("[Cymbra Lingua] could not preset the native language:", e);
+    return false;
+  }
+}
+
 /** Ask the background to make `native` the reader's native language (D2); a refusal when it cannot be reached. */
 export async function chooseNativeLanguage(
   native: NativeLanguage,

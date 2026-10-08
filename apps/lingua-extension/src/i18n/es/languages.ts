@@ -36,6 +36,7 @@ export const languages: typeof fr = {
     preview: "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
   },
   levelScale,
+  ownNames: { french: "Français", english: "English", spanish: "Español" },
   levelTitle: (of) => `Nivel ${of}`,
   levelTitleEstimated: (of) => `Nivel ${of} estimado`,
   myLevelTitle: (of) => `Mi nivel ${of}`,

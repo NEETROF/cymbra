@@ -11,10 +11,12 @@ import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, fillSlots, formatCount, type InterfaceLanguage, slot } from "../i18n/index.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
+import { nativeChoiceOffered } from "../state/native-language.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import {
   type AsyncStorageArea,
+  hydrateEngine,
   loadHudHidden,
   loadReaderFlow,
   saveAndroidVoices,
@@ -36,6 +38,7 @@ import { type AccountControls, mountAccountSetting, runtimeAccountControls } fro
 import { mountBookDisplay } from "./book-display-view.ts";
 import { mountColourSettings } from "./colour-settings-view.ts";
 import { type SettingsModule, settingsCopy } from "./settings-copy.ts";
+import { mountNativeLanguage } from "./native-language-view.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 import {
@@ -192,6 +195,24 @@ export function mountSettings(
   const interfaceLanguage = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
   const blocksCopy = settingsCopy(interfaceLanguage);
   const copy = blocksCopy.settings;
+
+  // — Langue maternelle — above the studied languages, only when two native languages or more ship
+  // (add-lingua-native-language-choice D4): until then no block is built at all, and Réglages are
+  // what they were. A choice confirmed here rebuilds this host's port for the new native language
+  // (D3) — the page reloads, or the reading session is built anew, on the change announced.
+  const nativeBlock = nativeChoiceOffered(pairs) ? settingBlock(copy.nativeLanguage) : null;
+  const native = nativeBlock
+    ? mountNativeLanguage(nativeBlock, {
+        language: interfaceLanguage,
+        copy: blocksCopy.nativeLanguage,
+        profile: async () => ({ native: await port.nativeLanguage(), studied: await port.studiedLanguages() }),
+        onChosen: async (_native, reply) => {
+          if (reply.changed) await hydrateEngine(port, opts.store);
+          await refresh();
+        },
+        pairs,
+      })
+    : null;
 
   // — Langues étudiées — hidden when the package ships one language (add-lingua-language-choice D2).
   const languagesBlock = settingBlock(copy.studiedLanguages);
@@ -490,7 +511,11 @@ export function mountSettings(
   // the reader's data. The blocks keep their titles; a hidden block (no voice, signed out) leaves
   // its tab with the others, never empty: each tab has one block that always shows.
   const tabs = mountTabs(container, copy.tabs, [
-    { id: "language", label: copy.tabLanguage, blocks: [languagesBlock, levelBlocks, translationBlock, voiceBlock] },
+    {
+      id: "language",
+      label: copy.tabLanguage,
+      blocks: [...(nativeBlock ? [nativeBlock] : []), languagesBlock, levelBlocks, translationBlock, voiceBlock],
+    },
     { id: "look", label: copy.tabLook, blocks: [displayBlock, coloursBlock] },
     { id: "pages", label: copy.tabPages, blocks: [barBlock, booksBlock, scBlock] },
     { id: "data", label: copy.tabData, blocks: [accountBlock, syncBlock, resetBlock] },
@@ -630,7 +655,7 @@ export function mountSettings(
   }
 
   async function refresh(): Promise<void> {
-    await Promise.all([studied.refresh(), refreshLevels()]);
+    await Promise.all([native?.refresh(), studied.refresh(), refreshLevels()]);
     toggle.checked = !(await loadHudHidden(area));
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";

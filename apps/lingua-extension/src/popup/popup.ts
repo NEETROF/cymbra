@@ -6,8 +6,10 @@ import { popup as esPopup } from "../i18n/es/popup.ts";
 import { popup as frPopup } from "../i18n/fr/popup.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountSettings, type SettingsTab, type SettingsView } from "../reading/settings-view.ts";
+import { mountNativeCta } from "./native-cta.ts";
 import { type PageStats, type PopupCopy, renderStats } from "./render.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
+import { presetNativeLanguage, reloadOnNativeLanguageChange } from "../state/native-language.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
 import {
   type AsyncStorageArea,
@@ -220,10 +222,17 @@ async function applyEnabled(enabled: boolean): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // A new install whose onboarding never opened (Safari): its native language is preset before the
+  // page paints, and asked below — while two native languages ship and the choice was never made on
+  // this device; today this reads nothing (add-lingua-native-language-choice D4).
+  const firstRun = await presetNativeLanguage({ preferences: storageArea, browserLanguage: navigator.language });
   // The interface language first, with this page's first storage read: the page's static copy is
   // filled from the catalogue before anything shows (the body is hidden until then — D2), and
   // every text rendered below is that language's. A read that fails is French: the page shows.
   ({ language, copy } = await fillPageInLanguage(document, storageArea, (l) => POPUP_COPY[l]));
+  // Another native language chosen anywhere: the page reloads in it (D3).
+  reloadOnNativeLanguageChange(language);
+  if (firstRun) mountNativeCta(document, language, store);
 
   // Settings view (gear icon), also reached from the main panel's level call-to-action and
   // « Modifier ». Leaving it re-reads the page's stats: a level or a calibration chosen there

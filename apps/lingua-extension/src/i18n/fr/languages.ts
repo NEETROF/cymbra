@@ -45,6 +45,11 @@ export const languages = {
     preview: "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
   } satisfies LanguageWords,
   levelScale,
+  /**
+   * The native languages the reader may choose, each named in its own language
+   * (add-lingua-native-language-choice D4): the same in every interface language.
+   */
+  ownNames: { french: "Français", english: "English", spanish: "Español" },
   /** « Niveau d'anglais » — `of` is the language's. */
   levelTitle: (of: string) => `Niveau ${of}`,
   /** « Niveau d'espagnol estimé », when the pack's levels are estimated from word frequency. */

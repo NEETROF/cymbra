@@ -34,6 +34,7 @@ const BUILDER = join(src, "reading", "settings-view.ts");
  * studied language (`levelTitle`, language-labels), the others here; a new block's key belongs here.
  */
 const TITLE_KEYS = [
+  "nativeLanguage",
   "studiedLanguages",
   "barOnPage",
   "readAloud",

@@ -2,7 +2,7 @@ import { languages as en } from "../i18n/en/languages.ts";
 import { languages as es } from "../i18n/es/languages.ts";
 import { languages as fr, type LanguageWords } from "../i18n/fr/languages.ts";
 import type { InterfaceLanguage } from "../i18n/index.ts";
-import type { StudiedLanguage } from "./types.ts";
+import type { NativeLanguage, StudiedLanguage } from "./types.ts";
 
 // How the interface names a studied language, in the interface language (add-lingua-language-choice
 // D1, add-lingua-native-language-labels D2): the module every surface calls, which holds no name of
@@ -29,6 +29,17 @@ function words(language: InterfaceLanguage, studied: StudiedLanguage): LanguageW
 /** « Anglais » — "English", « Inglés ». */
 export function languageName(language: InterfaceLanguage, studied: StudiedLanguage): string {
   return words(language, studied).name;
+}
+
+/**
+ * A native language named in its own language — « Français », "English", « Español » — the same in
+ * every interface language (add-lingua-native-language-choice D4): a reader finds their own language
+ * whatever the interface speaks.
+ */
+export function nativeLanguageName(language: InterfaceLanguage, native: NativeLanguage): string {
+  const names = MODULES[language].ownNames;
+  const entries: Record<NativeLanguage, string> = { fr: names.french, en: names.english, es: names.spanish };
+  return entries[native];
 }
 
 /** The level scale's name: « CEFR » in French and English, « MCER » in Spanish (D3, M19). */
