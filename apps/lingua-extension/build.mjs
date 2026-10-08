@@ -50,6 +50,11 @@ function assertWasmMatchesEngine() {
   const glue = readFileSync(gluePath, "utf8").match(/export class LinguaEngine \{([\s\S]*?)\n\}/)?.[1] ?? "";
   const provided = new Set([...glue.matchAll(/^ {4}(\w+)\(/gm)].map((m) => m[1]));
   const missing = called.filter((name) => !provided.has(name));
+  // The glue's functions the extension calls beside the engine's methods (`WasmModule`).
+  const glueText = readFileSync(gluePath, "utf8");
+  for (const name of ["reprofileBackup"]) {
+    if (!new RegExp(`^export function ${name}\\(`, "m").test(glueText)) missing.push(name);
+  }
   if (missing.length > 0) {
     throw new Error(
       `src/wasm/pkg is older than the extension: LinguaEngine lacks ${missing.join(", ")}. ` +

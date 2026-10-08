@@ -1,4 +1,5 @@
 import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
+import type { NativeLanguage } from "../analyzer/types.ts";
 import { INTERFACE_LANGUAGE_KEY, type InterfaceLanguage, isInterfaceLanguage } from "../i18n/language.ts";
 import { isStorageFull } from "./auth-errors.ts";
 import { DAILY_KEY, DAY_ONLY_DAILY_KEY, PER_LANGUAGE_DAILY_KEY, RETIRED_DAILY_KEY } from "./dailystats.ts";
@@ -46,10 +47,34 @@ export const STORE_CHANGED_KEY = "cymbra-lingua-store-changed";
 /** Set once the reader's data has been copied out of chrome.storage.local (design D5). */
 export const MIGRATED_KEY = "cymbra-lingua-store-migrated";
 
+/**
+ * Why the owner wrote, when a surface must do more than read the keys again: the reader chose
+ * another native language (add-lingua-native-language-choice D2, D3). Every engine is then built
+ * again for it, an extension page reloads in its interface language and the content script builds
+ * its reading session anew. A sync, a Réglages change and a restore from a file carry none.
+ */
+export interface NativeLanguageChange {
+  type: "native-language";
+  /** The native language chosen, which the interface language key already names. */
+  native: NativeLanguage;
+}
+
+export type StoreChangeReason = NativeLanguageChange;
+
 export interface StoreChange {
   /** Strictly increasing, so a surface can ignore an echo of its own write. */
   rev: number;
   keys: string[];
+  /** Why, when it is more than a write (D2); absent otherwise, as every change before it. */
+  reason?: StoreChangeReason;
+}
+
+/** Whether a stored change names a reason this build knows: an unknown one is no reason. */
+function reasonOf(value: unknown): StoreChangeReason | undefined {
+  const reason = value as Partial<NativeLanguageChange> | null | undefined;
+  return reason?.type === "native-language" && isInterfaceLanguage(reason.native)
+    ? { type: "native-language", native: reason.native }
+    : undefined;
 }
 
 export type StoreMessage =
@@ -141,6 +166,12 @@ export async function rememberInterfaceLanguage(
 /** The owner's handle: a store whose backup writes also keep the interface language's key in step. */
 export interface OwnerArea extends AsyncStorageArea {
   /**
+   * Write `items`, then announce them. With a `reason`, the mirror of the interface language runs
+   * before the announcement rather than after it: a page that reloads on a change of native
+   * language reads the key the new profile names (add-lingua-native-language-choice D2).
+   */
+  set(items: Record<string, unknown>, reason?: StoreChangeReason): Promise<void>;
+  /**
    * Settles once every mirror the writes so far have scheduled has landed, or failed and been
    * said. The mirror is off the write path — a write resolves, and announces, before it runs — so
    * whatever must see the key current right after a write (a test; nothing in the extension, which
@@ -167,7 +198,7 @@ export interface OwnerArea extends AsyncStorageArea {
  */
 export function ownerArea(
   area: AsyncStorageArea,
-  announce: (keys: string[]) => void,
+  announce: (keys: string[], reason?: StoreChangeReason) => void,
   preferences?: AsyncStorageArea,
   pairs: readonly string[] = SHIPPED_PAIRS,
 ): OwnerArea {
@@ -192,17 +223,22 @@ export function ownerArea(
 
   return {
     get: (keys) => area.get(keys),
-    set: async (items) => {
+    set: async (items, reason) => {
       await area.set(items);
       if (preferences && ROOT_KEY in items) {
         latest = items[ROOT_KEY];
-        if (!due) {
+        if (reason) {
+          // Before the announcement, after any mirror already due: each reads `latest`, this backup.
+          chain = chain.then(mirror);
+          await chain;
+        } else if (!due) {
           // A macrotask later: writes that land in the same turn share one parse.
           due = true;
           chain = chain.then(() => new Promise<void>((resolve) => setTimeout(resolve, 0))).then(mirror);
         }
       }
-      announce(Object.keys(items));
+      if (reason) announce(Object.keys(items), reason);
+      else announce(Object.keys(items));
     },
     mirrored: () => chain,
   };
@@ -296,17 +332,24 @@ export async function dropRetiredKeys(...areas: AsyncStorageArea[]): Promise<voi
  * Follow the owner's writes. Any context can: the marker lives in chrome.storage.local, so
  * a content script hears it like an extension page does.
  */
-export function watchStore(onChanged: (keys: string[]) => void): void {
-  chrome.storage.onChanged.addListener((changes, areaName) => {
+export function watchStore(onChanged: (keys: string[], reason?: StoreChangeReason) => void): () => void {
+  const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
     if (areaName !== "local") return;
     const change = changes[STORE_CHANGED_KEY]?.newValue as StoreChange | undefined;
-    if (Array.isArray(change?.keys)) onChanged(change.keys);
-  });
+    if (!Array.isArray(change?.keys)) return;
+    const reason = reasonOf(change.reason);
+    if (reason) onChanged(change.keys, reason);
+    else onChanged(change.keys);
+  };
+  chrome.storage.onChanged.addListener(listener);
+  // What a context that outlives what it watched for calls: the content script's reading session,
+  // built anew when the native language changes (add-lingua-native-language-choice D3).
+  return () => chrome.storage.onChanged.removeListener(listener);
 }
 
-/** The saved engine backup, whenever the store says it changed. */
-export function watchBackup(area: AsyncStorageArea, onBackup: (backup: string) => void): void {
-  watchStore((keys) => {
+/** The saved engine backup, whenever the store says it changed; returns how to stop watching. */
+export function watchBackup(area: AsyncStorageArea, onBackup: (backup: string) => void): () => void {
+  return watchStore((keys) => {
     if (!keys.includes(ROOT_KEY)) return;
     void loadStored(area).then((stored) => {
       if (stored.kind === "v2") onBackup(stored.backup);

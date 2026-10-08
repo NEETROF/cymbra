@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WasmAnalyzerPort, type WasmModule } from "@/analyzer/engine.ts";
+import { reprofileBackup, WasmAnalyzerPort, type WasmModule } from "@/analyzer/engine.ts";
 
 /**
  * A glue module that behaves like wasm-pack's: init() returns at once when a previous call
@@ -64,6 +64,19 @@ describe("WasmAnalyzerPort", () => {
 
     expect(glue.init).toHaveBeenCalledTimes(1);
     expect(await first.for("en").calibration()).toBe(3000);
+  });
+
+  it("rewrites a backup's profile through the glue, once the module is initialised (D2)", async () => {
+    const glue = fakeGlue();
+    const reprofile = vi.fn((backup: string, native: string, studied: string[]) =>
+      JSON.stringify({ backup, native, studied }),
+    );
+    const mod = { ...(await glue.load()), reprofileBackup: reprofile } as WasmModule;
+
+    const rewritten = await reprofileBackup("{}", "en", ["es"], async () => mod);
+
+    expect(JSON.parse(rewritten)).toEqual({ backup: "{}", native: "en", studied: ["es"] });
+    expect(glue.init).toHaveBeenCalledTimes(1);
   });
 
   it("retries an initialisation that failed", async () => {
@@ -281,11 +294,26 @@ describe("WasmAnalyzerPort packs", () => {
   /** A glue whose engine holds the packs it is handed and records each call, with the languages it held. */
   function packGlue() {
     const calls: Array<[string, unknown[]]> = [];
+    /** Each restore, with the native language of the engine it landed in. */
+    const restores: Array<[string, string]> = [];
     const studied = (bytes: Uint8Array) => /packs\/([a-z]{2})-/.exec(new TextDecoder().decode(bytes))?.[1] ?? "?";
+    const glossedIn = (bytes: Uint8Array) =>
+      /packs\/[a-z]{2}-([a-z]{2})/.exec(new TextDecoder().decode(bytes))?.[1] ?? "?";
     class LinguaEngine {
       private readonly held: string[];
+      private readonly native: string;
+      /** The native language the restored backup's profile names: `{"native": "en"}` in these specs. */
+      private profileNative: string;
       constructor(bytes: Uint8Array) {
         this.held = [studied(bytes)];
+        this.native = glossedIn(bytes);
+        this.profileNative = this.native;
+      }
+      nativeLanguage(): string {
+        return this.native;
+      }
+      profileNativeLanguage(): string {
+        return this.profileNative;
       }
       addPack(bytes: Uint8Array): string {
         const language = studied(bytes);
@@ -316,7 +344,10 @@ describe("WasmAnalyzerPort packs", () => {
       backup(): string {
         return "{}";
       }
-      restore(): void {}
+      restore(json: string): void {
+        restores.push([this.native, json]);
+        this.profileNative = (JSON.parse(json) as { native?: string }).native ?? this.native;
+      }
       dueCount(): number {
         return 0;
       }
@@ -337,7 +368,7 @@ describe("WasmAnalyzerPort packs", () => {
       }
     }
     const mod = { default: async () => {}, LinguaEngine } as unknown as WasmModule;
-    return { load: async () => mod, calls };
+    return { load: async () => mod, calls, restores };
   }
 
   it("starts with the default pair's pack alone", async () => {
@@ -562,6 +593,96 @@ describe("WasmAnalyzerPort packs", () => {
       expect(resolve).toHaveBeenCalledTimes(2);
       expect(load).toHaveBeenCalledOnce();
       expect(packs()).toEqual([EN_FR, ES_FR]);
+    });
+
+    describe("a backup of another native language (add-lingua-native-language-choice D3)", () => {
+      const ENGLISH_NATIVE = '{"native":"en"}';
+
+      it("rebuilds the engine for it and restores the state there", async () => {
+        const glue = packGlue();
+        const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "fr");
+        await port.for("es").analyse(["El faro"]);
+        expect(packs()).toEqual([EN_FR, ES_FR]);
+
+        await port.restore(ENGLISH_NATIVE);
+
+        expect(await port.nativeLanguage()).toBe("en");
+        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN]);
+        // Restored first where it arrived, then in the engine built for its native language.
+        expect(glue.restores).toEqual([
+          ["fr", ENGLISH_NATIVE],
+          ["en", ENGLISH_NATIVE],
+        ]);
+        // Spanish is es-en's now, the engine's first pack: nothing is added for it.
+        await port.for("es").analyse(["La ciudad"]);
+        await expect(port.for("en").analyse(["The city"])).rejects.toThrow(
+          'no shipped pack studies "en" (shipped pairs: es-en)',
+        );
+        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN]);
+        expect(await port.languages()).toEqual(["es"]);
+      });
+
+      it("keeps the engine when the backup names its own native language, or one nothing is glossed in", async () => {
+        const glue = packGlue();
+        const port = new WasmAnalyzerPort(glue.load, ["en-fr", "es-fr"], async () => "fr");
+
+        await port.restore('{"native":"fr"}');
+        await port.restore(ENGLISH_NATIVE); // no listed pair is glossed in English: served in French (M22)
+
+        expect(await port.nativeLanguage()).toBe("fr");
+        expect(packs()).toEqual([EN_FR]);
+        expect(glue.restores.map(([native]) => native)).toEqual(["fr", "fr"]);
+      });
+
+      it("shares one rebuild between the restores of one change", async () => {
+        const glue = packGlue();
+        const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "fr");
+
+        await Promise.all([port.restore(ENGLISH_NATIVE), port.restore(ENGLISH_NATIVE)]);
+
+        expect(packs().filter((url) => url === ES_EN)).toHaveLength(1);
+        expect(glue.restores.filter(([native]) => native === "en")).toHaveLength(2);
+        expect(await port.nativeLanguage()).toBe("en");
+      });
+
+      it("builds again after a rebuild whose pack failed to load", async () => {
+        const glue = packGlue();
+        const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "fr");
+        failing.add(ES_EN);
+
+        await expect(port.restore(ENGLISH_NATIVE)).rejects.toThrow("fetch failed");
+        await port.restore(ENGLISH_NATIVE);
+
+        expect(await port.nativeLanguage()).toBe("en");
+        expect(packs()).toEqual([EN_FR, ES_EN, ES_EN]);
+      });
+
+      it("follows the reader back to French", async () => {
+        const glue = packGlue();
+        const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "en");
+        await port.for("es").analyse(["El faro"]);
+
+        await port.restore('{"native":"fr"}');
+
+        expect(await port.nativeLanguage()).toBe("fr");
+        expect(packs()).toEqual([ES_EN, EN_FR]);
+        await port.for("es").analyse(["El faro"]); // es-fr added again, for this engine
+        expect(packs()).toEqual([ES_EN, EN_FR, ES_FR]);
+      });
+    });
+
+    it("drops its engine: the next call asks the native language again and builds anew (D2)", async () => {
+      const glue = packGlue();
+      const resolve = vi.fn<() => Promise<"fr" | "en">>().mockResolvedValueOnce("fr").mockResolvedValue("en");
+      const port = new WasmAnalyzerPort(glue.load, MIXED, resolve);
+      await port.for("es").analyse(["El faro"]);
+
+      port.drop();
+      await port.for("es").analyse(["El faro"]);
+
+      expect(resolve).toHaveBeenCalledTimes(2);
+      expect(await port.nativeLanguage()).toBe("en");
+      expect(packs()).toEqual([EN_FR, ES_FR, ES_EN]);
     });
 
     it("loads a French reader's records' packs alone", async () => {
