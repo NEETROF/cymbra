@@ -95,11 +95,14 @@ pub fn vocab_words(
     found.into_values().collect()
 }
 
-/// The language's name in the plugin's French copy.
+/// The language's name in the plugin's French copy. French is named so the match stays
+/// exhaustive (add-lingua-french-baseline D8): no French pack is published, and one copied into
+/// `~/.lingua/` by hand is read by the baseline analysis.
 pub fn language_name(language: StudiedLanguage) -> &'static str {
     match language {
         StudiedLanguage::English => "Anglais",
         StudiedLanguage::Spanish => "Espagnol",
+        StudiedLanguage::French => "Français",
     }
 }
 

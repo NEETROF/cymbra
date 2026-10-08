@@ -22,7 +22,9 @@ use lingua_agent::ingest::{ingest_texts, run_ingest};
 use lingua_agent::source::{ClaudeCodeSource, extract_assistant_texts};
 use lingua_agent::statusline::statusline_text;
 use lingua_agent::store::Store;
-use lingua_agent::vocab::{VocabWord, add_to_deck, listing, skipped_notice, vocab_words};
+use lingua_agent::vocab::{
+    VocabWord, add_to_deck, language_name, listing, skipped_notice, vocab_words,
+};
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::knowledge::profile::NativeLanguage;
 use lingua_core::packs::{Pack, PackMeta, read_container, write_container};
@@ -564,5 +566,14 @@ fn spec_scenario_a_card_created_on_an_engine_glossed_in_english() {
     assert_eq!(
         store.card(EN, "harbour").unwrap().unwrap().gloss_language,
         "fr"
+    );
+}
+
+#[test]
+fn every_studied_language_has_a_name_in_the_plugin_s_copy() {
+    // add-lingua-french-baseline D8: French is named, though no French pack is published.
+    assert_eq!(
+        StudiedLanguage::ALL.map(language_name),
+        ["Anglais", "Espagnol", "Français"]
     );
 }

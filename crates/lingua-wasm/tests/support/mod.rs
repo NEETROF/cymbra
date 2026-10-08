@@ -27,11 +27,12 @@
 #![allow(dead_code)]
 
 pub mod english;
+pub mod french;
 pub mod other_native;
 pub mod spanish;
 
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use lingua_wasm::LinguaEngine;
 
@@ -51,10 +52,82 @@ pub struct Card {
     pub gloss: Option<&'static str>,
 }
 
+/// Where a scenario's own pack is built from (add-lingua-french-baseline D6). The packs loaded
+/// beside it are always built from the committed tables. `french.rs` (`french_baseline.rs`)
+/// freezes a pair that does not ship yet, over a fixture, until its tables are committed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PackSource {
+    /// The committed tables: `tables/<studied>/` and `tables/<pair>/`, as the extension ships.
+    Tables,
+    /// A hand-written fixture, `scripts/lingua-data/testdata/<pair>/`, until the pair's tables
+    /// are committed.
+    Testdata,
+}
+
+impl PackSource {
+    /// The folder holding the pair's `manifest.json`.
+    pub fn manifest_dir(self, pair: &str) -> PathBuf {
+        match self {
+            PackSource::Tables => Scenario::tables_dir(pair),
+            PackSource::Testdata => Scenario::crate_dir()
+                .join("../../scripts/lingua-data/testdata")
+                .join(pair),
+        }
+    }
+
+    /// The pair's pack, built from this source (the build is deterministic), once the core
+    /// loads it ([`loadable`]).
+    pub fn pack(self, pair: &str) -> Vec<u8> {
+        let dir = self.manifest_dir(pair);
+        match self {
+            PackSource::Tables => loadable(Scenario::real_pack(pair), pair, &dir),
+            PackSource::Testdata => testdata_pack(&dir, pair),
+        }
+    }
+}
+
+/// The pack built from the fixture tables in `dir` (`scripts/lingua-data/testdata/<pair>/`, or a
+/// copy of it), once the core loads it ([`loadable`]).
+pub fn testdata_pack(dir: &Path, pair: &str) -> Vec<u8> {
+    let inputs = lingua_pack::inputs_from_dir(dir)
+        .unwrap_or_else(|e| panic!("read the {pair} testdata tables: {e}"));
+    let pack = lingua_pack::build_pack(&inputs)
+        .unwrap_or_else(|e| panic!("build the {pair} testdata pack: {e}"));
+    loadable(pack, pair, dir)
+}
+
+/// `pack`, once the core loads it; else a panic naming the core's reason and the manifest to
+/// bump. The builder stamps the manifest's `analyzer_version` without checking it (the core
+/// compares it at load), and on the host the engine cannot say why it refuses a pack: its
+/// `JsError` is wasm-bindgen's, and building one outside wasm panics with « cannot call
+/// wasm-bindgen imported functions on non-wasm targets ». So a fixture whose manifest falls
+/// behind its language's analyser version (add-lingua-french-baseline D5) is named here.
+fn loadable(pack: Vec<u8>, pair: &str, manifest_dir: &Path) -> Vec<u8> {
+    if let Err(e) = lingua_core::packs::Pack::load(&pack) {
+        let manifest = manifest_dir.join("manifest.json");
+        let repo = Scenario::crate_dir().join("../..").canonicalize().ok();
+        let shown = manifest
+            .canonicalize()
+            .ok()
+            .zip(repo)
+            .and_then(|(m, r)| m.strip_prefix(r).ok().map(Path::to_path_buf))
+            .unwrap_or(manifest);
+        panic!(
+            "the {pair} pack does not load: {e}.\n\
+             If its language's analyser version moved, bump `analyzer_version` in {} to the \
+             core's, in the pull request that moves it, and re-bless the golden.",
+            shown.display()
+        );
+    }
+    pack
+}
+
 /// What one pair's baseline asks the engine.
 pub struct Scenario {
     /// The pair whose output is frozen, e.g. `en-fr`.
     pub pair: &'static str,
+    /// Where the pair's pack is built from: the committed tables, or a fixture until they are.
+    pub pack: PackSource,
     /// Pairs loaded first, as the extension does: it starts with the default pair's pack and
     /// adds another listed pair's the first time its language is needed.
     pub beside: &'static [&'static str],
@@ -123,17 +196,27 @@ impl Scenario {
         lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the {pair} pack: {e}"))
     }
 
-    fn manifest(pair: &str) -> serde_json::Value {
+    fn manifest(pair: &str, source: PackSource) -> serde_json::Value {
         serde_json::from_str(
-            &std::fs::read_to_string(Self::tables_dir(pair).join("manifest.json"))
+            &std::fs::read_to_string(source.manifest_dir(pair).join("manifest.json"))
                 .unwrap_or_else(|e| panic!("read the {pair} manifest: {e}")),
         )
         .unwrap_or_else(|e| panic!("parse the {pair} manifest: {e}"))
     }
 
+    /// Where `pair`'s pack comes from: this scenario's source for its own pair, the committed
+    /// tables for the pairs beside it.
+    fn source_of(&self, pair: &str) -> PackSource {
+        if pair == self.pair {
+            self.pack
+        } else {
+            PackSource::Tables
+        }
+    }
+
     /// `pair, N bytes, pack_version …, analyzer_version …`.
-    fn pack_line(pair: &str, pack: &[u8]) -> String {
-        let manifest = Self::manifest(pair);
+    fn pack_line(pair: &str, pack: &[u8], source: PackSource) -> String {
+        let manifest = Self::manifest(pair, source);
         format!(
             "{pair}, {} bytes, pack_version {}, analyzer_version {}",
             pack.len(),
@@ -147,7 +230,7 @@ impl Scenario {
         self.beside
             .iter()
             .chain(std::iter::once(&self.pair))
-            .map(|pair| (*pair, Self::real_pack(pair)))
+            .map(|pair| (*pair, self.source_of(pair).pack(pair)))
             .collect()
     }
 
@@ -220,9 +303,12 @@ impl Scenario {
             ),
         );
         let (pair, pack) = packs.last().expect("the pair's pack");
-        g.probe("pack", Self::pack_line(pair, pack));
+        g.probe("pack", Self::pack_line(pair, pack, self.source_of(pair)));
         for (beside, pack) in &packs[..packs.len() - 1] {
-            g.probe(&format!("beside {beside}"), Self::pack_line(beside, pack));
+            g.probe(
+                &format!("beside {beside}"),
+                Self::pack_line(beside, pack, self.source_of(beside)),
+            );
         }
 
         // A new reader: no level, no calibration, no history.

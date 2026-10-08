@@ -141,9 +141,10 @@ what a later change must show:
 The two excerpts are the only quoted texts; every other line is authored for the corpus, as the
 Spanish pages are. Their attribution and the public-domain reasoning live in `support/french.rs`'s
 doc comment (the corpus file has no comment syntax): Proust died in 1922, so *Du côté de chez
-Swann* has been in the public domain in France since 1 January 1987 under the 50-year term plus
-the wartime extensions, was not re-protected by the 1997 move to 70 years, and is pre-1929 in the
-United States; Hugo died in 1885.
+Swann* has been in the public domain in France since 1987 under the 50-year term plus the wartime
+extensions (which end around 30 September 1987), was not re-protected by the 1997 move to 70
+years, and is pre-1929 in the United States; Hugo died in 1885. The Proust paragraph is split into
+two blocks at « Et, une demi-heure après ».
 
 **Real punctuation and one NFD block.** The `fiction` and `proust` pages are set as French is
 printed — the typographic apostrophe `’` and the narrow no-break space (U+202F) before `?`, `!`
@@ -154,7 +155,11 @@ the golden records what the segmentation makes of the narrow no-break space. One
 it came (D2), so the golden records the decomposed tokens, and change 41's NFC rule shows its
 effect as the before/after of that block in its re-bless. The scenario asserts the block is still
 decomposed, so an editor or a formatter that silently composes the file fails the test rather
-than moving the golden unnoticed.
+than moving the golden unnoticed. The fixture lists one word of that block, `mémoire` (glossed
+`memory`), which the corpus has nowhere else: read as it came, the decomposed word is not the
+pack's and shows no gloss, so change 41's re-bless shows NFC as a gloss that appears in the
+golden. Without it the block's words, none of them in the pack, would be unglossed before and
+after, and NFC would only move bytes a reviewer cannot see in the diff.
 
 **The pack.** fr-en has no committed tables before change 48, and an engine holding en-fr refuses
 a pack glossed in English. The scenario therefore runs over a **fixture pack** built from
@@ -164,8 +169,8 @@ fixtures have (`forms.tsv`, `freq.tsv`, `gloss.tsv`, `mwe.tsv`, `level.tsv`, `ma
 *être*, *avoir*, *aller*, *faire*, *pouvoir*, *dire*, *venir*, *prendre*; articles and pronouns
 as plain forms; plurals and feminines; the single-letter words `a`, `à` and `y`, which the
 tokeniser drops when the lexicon does not list them — `single_letter_outside_lexicon`), ranks for
-about a hundred lemmas, about sixty English glosses, a handful of expressions, a few levels so
-that every probe of the harness answers (`seed-level`, the ladder), no grammar and no senses. The
+about a hundred lemmas, about sixty English glosses, a handful of expressions, 53 levels (A1 to
+C2) so that every probe of the harness answers (`seed-level`, the ladder), no grammar and no senses. The
 manifest studies `fr`, is glossed in `en`, carries `FRENCH_ANALYZER_VERSION`, a pack version that
 says « fixture », and no `levels_estimated` flag: the levels are a fixture's, not a decision (M7).
 The NOTICE says the tables are hand-written for the tests. The lexicon is small on purpose: the
@@ -185,7 +190,9 @@ packs as the extension does.
 glosses, phrase glosses, word grammar, levels, the review, the exports, the backup. What the
 scenario asserts beside the golden, in `french_baseline.rs`:
 - the corpus holds the thirteen pages in order, each with a block, the reader's pages among them,
-  and the `technique` page's NFD block still holds a combining mark (U+0301);
+  and the `technique` page's NFD block (its fourth) still holds a combining mark (U+0301): NFC
+  changes it, NFD does not;
+- the NFD block's `mémoire` is unglossed today, while the pack glosses the composed form;
 - French is the baseline: analysing the `elisions` page gives `l'homme` as one token whose lemma
   is `l'homme`, the `contractions` page gives `au` whole, no token of any page is a function word,
   and the analysis reports `0.1.0`;
@@ -196,7 +203,10 @@ scenario asserts beside the golden, in `french_baseline.rs`:
 switches to the committed tables and the golden is re-blessed once, in that pull request, which
 says so; the fixture folder stays for `crates/lingua-pack`'s tests, or goes with it. Until then,
 changes 40 to 47 re-bless the golden over the fixture, and the fixture's manifest follows the
-analyser version.
+analyser version. The harness loads each pack with the core before an engine is given it, so a
+manifest left behind its language's analyser version fails with the core's reason and the
+manifest to bump, not with wasm-bindgen's host panic (an engine's `JsError` cannot be built
+outside wasm).
 
 ### D6 — The harness takes the pair's pack from a source the scenario names
 
@@ -220,6 +230,13 @@ holds it, so:
 - a Spanish reader's, or an English-native reader's, stays version 2, byte for byte;
 - a French native language is not a trigger — every installed reader has it;
 - French records under a Spanish profile, or a French profile with no record yet, are version 3.
+
+The trigger is held by the files too, not only by the maps `backup_version` reads: every language
+name of a backup holding a record in each per-language map, turned into French one at a time and
+restored, is written again below version 3 only when it was the native language, so a
+per-language map added later and forgotten by the trigger fails `tests/backup_format.rs`. That
+test also pins `fixtures/backup-v3-french.json`, which a reader of versions 1 and 2 refuses as
+unsupported version 3.
 
 `from_backup` reads 1 to 3. The header-first read of `add-lingua-studied-language-profile` D3 is
 what makes the released builds' behaviour exact: every build released since 1.5.0 (2026-10-03,
@@ -258,17 +275,19 @@ order the archive workflow walks, the spec ends with both.
   « Français » so the match stays exhaustive. No French pack is published; a fixture pack copied
   there by hand would be read by the baseline, which is what it is.
 
-### D9 — Gates: three goldens, two of them untouched
+### D9 — Gates: the French golden blessed, the others untouched
 
-1. The English and Spanish baselines pass without re-blessing; a re-bless of either in this pull
-   request is a review failure. `git diff --stat origin/main -- crates/lingua-wasm/tests/baseline/
-   en-fr.golden crates/lingua-wasm/tests/baseline/es-fr.golden scripts/lingua-data/tables` is
+1. The English and Spanish baselines — en-fr, es-fr and, since change 23, es-en — pass without
+   re-blessing; a re-bless of any in this pull request is a review failure. `git diff --stat
+   origin/main -- crates/lingua-wasm/tests/baseline/en-fr.golden crates/lingua-wasm/tests/baseline/
+   es-fr.golden crates/lingua-wasm/tests/baseline/es-en.golden scripts/lingua-data/tables` is
    empty.
 2. The French golden is blessed once, in this pull request, and committed.
 3. `cross_native.rs` is unchanged: French's cross-native test needs two natives (48, 49).
 4. The existing tests pass with French arms added and one expectation flipped by design: *French
    is not studied yet* in `profile.rs` becomes « a French-native reader cannot study French ».
-5. `lingua-extension-check` runs the three baselines; `lingua-pack-update` re-blesses the three;
+5. `lingua-extension-check` runs the baselines, French's beside en-fr, es-fr and es-en (change 23's,
+   kept as merged); `lingua-pack-update` re-blesses all four beside change 23's snapshots;
    `sonar-project.properties` adds `support/french.rs` to the copy-paste exclusions beside the
    English and Spanish scenarios.
 
@@ -293,9 +312,9 @@ re-bless, bump the version, say what moved — where a reviewer of changes 40 to
   build refuses it by name and leaves it; the spec states the behaviour.
 - [`profile.ts` drops `French` from a stored profile] → Nothing writes it before change 52, which
   widens the type; the behaviour today (English when none is known) is the spec's.
-- [The two excerpts] → Both are in the public domain: Proust died in 1922 (France since 1 January
-  1987, 50 years plus the wartime extensions, not re-protected in 1997; pre-1929 in the United
-  States), Hugo in 1885; attributed, with that reasoning, in the scenario's doc. The owner may
+- [The two excerpts] → Both are in the public domain: Proust died in 1922 (France since 1987, 50
+  years plus the wartime extensions, which end around 30 September 1987; not re-protected in 1997;
+  pre-1929 in the United States), Hugo in 1885; attributed, with that reasoning, in the scenario's doc. The owner may
   swap either before the golden is blessed (task 5.1).
 - [An editor composes the NFD block] → The scenario asserts the `technique` page still holds a
   combining mark, so a silent NFC of the corpus file fails the test instead of moving the golden.

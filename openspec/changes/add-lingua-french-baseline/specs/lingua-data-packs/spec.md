@@ -28,5 +28,5 @@ The core SHALL read the language a pack studies from the pack's metadata (`studi
 - **THEN** it is refused as glossed in the language it studies
 
 #### Scenario: The shipped and committed packs do not change
-- **WHEN** the en-fr, es-fr and es-en packs are built from their committed tables after the core gains French
+- **WHEN** every committed pair's pack (en-fr, es-fr, es-en and en-es) is built from its committed tables after the core gains French
 - **THEN** each sha256 is the one its `pin.json` records

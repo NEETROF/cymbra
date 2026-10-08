@@ -105,10 +105,11 @@ pub fn analyse_page(
     };
 
     // A Spanish document's names are set aside like a proper noun outside the lexicon
-    // (add-lingua-spanish-names); English's analysis does not change.
+    // (add-lingua-spanish-names); English's analysis does not change, and French has no names
+    // rule while it is the baseline (add-lingua-french-baseline D2).
     let names = match studied {
         StudiedLanguage::Spanish => document_names(&tokens, blocks, pack),
-        StudiedLanguage::English => HashSet::new(),
+        StudiedLanguage::English | StudiedLanguage::French => HashSet::new(),
     };
     let mut coverage = Coverage::default();
     let mut out = Vec::with_capacity(tokens.len());
@@ -548,7 +549,7 @@ pub fn word_grammar_json(
 mod tests {
     use super::*;
     use crate::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
-    use crate::analysis::{ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
+    use crate::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
     use crate::knowledge::status::{KnownSource, Status};
     use crate::packs::format::write_container;
     use crate::packs::meta::PackMeta;
@@ -680,9 +681,14 @@ mod tests {
             })
             .collect();
         let gloss = build_gloss_zst(&entries);
+        // A French pack is glossed in English: a pack is never glossed in the language it studies.
+        let native = match studied {
+            StudiedLanguage::French => "en",
+            _ => "fr",
+        };
         let meta = serde_json::to_vec(&PackMeta {
             studied: studied.tag().into(),
-            native: "fr".into(),
+            native: native.into(),
             pack_version: "t".into(),
             analyzer_version: studied.analyzer_version().into(),
             levels_estimated: false,
@@ -833,6 +839,57 @@ mod tests {
             &knowledge,
         );
         assert_eq!(english.analyzer_version, ANALYZER_VERSION);
+    }
+
+    #[test]
+    fn spec_scenario_a_french_page_is_read_by_the_baseline() {
+        // add-lingua-french-baseline D2: French keeps its names as ordinary tokens (no names
+        // rule), flags no function word, splits no elision, and names its own version.
+        const FR: StudiedLanguage = StudiedLanguage::French;
+        let blocks = [
+            "Hier soir, Augusto a longtemps regardé Eugenia, puis il a prié Dieu dans la maison.",
+            "Tous les nobles de la cour regardaient la scène avec beaucoup d'attention ce soir.",
+        ];
+        let forms = [("regardé", "regarder"), ("regardaient", "regarder")];
+        let lemmas = ["eugenia", "dieu", "regarder", "maison", "la", "de", "il"];
+        // `eugenia` and `dieu` are lemmas but not dictionary words: Spanish's names rule would set
+        // both aside, being capitalised in mid-sentence and never written in lowercase.
+        let pack = build_pack_with_lexical(
+            FR,
+            &forms,
+            &lemmas,
+            &[],
+            &[],
+            &[],
+            Some(&["maison", "regarder"]),
+        );
+        let page = analyse_page(&blocks, FR, &pack, &KnowledgeState::new());
+        assert!(page.analysable);
+        assert_eq!(page.analyzer_version, FRENCH_ANALYZER_VERSION);
+        assert_eq!(page.analyzer_version, "0.1.0");
+        let class_of = |surface: &str| {
+            page.tokens
+                .iter()
+                .find(|t| t.surface == surface)
+                .map(|t| (t.lemma.as_str(), t.class))
+        };
+        assert_eq!(class_of("Eugenia"), Some(("eugenia", TokenClass::Unknown)));
+        assert_eq!(class_of("Dieu"), Some(("dieu", TokenClass::Unknown)));
+        // The rule that belongs to no language still holds: a capital outside the lexicon.
+        assert_eq!(
+            class_of("Augusto"),
+            Some(("augusto", TokenClass::ProperNounOutOfLexicon))
+        );
+        assert_eq!(class_of("regardé"), Some(("regarder", TokenClass::Unknown)));
+        assert_eq!(
+            class_of("d'attention"),
+            Some(("d'attention", TokenClass::Unknown))
+        );
+
+        let phrase = gloss_phrase("ne pas le de la maison", FR, &pack, &KnowledgeState::new());
+        assert_eq!(phrase.tokens.len(), 6);
+        assert!(phrase.tokens.iter().all(|t| !t.function_word));
+        assert_eq!(pack.pair().key(), "fr-en");
     }
 
     #[test]

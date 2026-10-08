@@ -66,8 +66,10 @@ impl NativeLanguage {
     }
 
     /// The studied language with the same tag, which a reader of this native
-    /// language never studies. `None` for a language the core cannot analyse:
-    /// French, until French is studied.
+    /// language never studies. `None` for a language the core cannot analyse;
+    /// every native language it knows is studied too since French became one
+    /// (add-lingua-french-baseline), so a French-native reader never studies
+    /// French.
     pub fn studied(self) -> Option<StudiedLanguage> {
         StudiedLanguage::from_tag(self.tag())
     }
@@ -204,6 +206,7 @@ mod tests {
 
     const EN: StudiedLanguage = StudiedLanguage::English;
     const ES: StudiedLanguage = StudiedLanguage::Spanish;
+    const FR: StudiedLanguage = StudiedLanguage::French;
 
     #[test]
     fn a_native_language_round_trips_through_its_tag() {
@@ -223,10 +226,42 @@ mod tests {
     fn a_native_language_maps_to_the_studied_language_of_its_tag() {
         assert_eq!(NativeLanguage::English.studied(), Some(EN));
         assert_eq!(NativeLanguage::Spanish.studied(), Some(ES));
+        assert_eq!(NativeLanguage::French.studied(), Some(FR));
+    }
+
+    #[test]
+    fn spec_scenario_a_french_native_reader_cannot_study_french() {
+        // add-lingua-french-baseline D8: through either setter, and the profile stays.
+        let mut profile = Profile::english_for_french();
         assert_eq!(
-            NativeLanguage::French.studied(),
-            None,
-            "French is not studied yet"
+            profile.set_studied_languages(vec![EN, FR]),
+            Err(ProfileError::NativeStudied(FR))
+        );
+        assert_eq!(
+            profile.set(NativeLanguage::French, vec![FR]),
+            Err(ProfileError::NativeStudied(FR))
+        );
+        assert!(profile.is_default(), "a refused choice leaves the profile");
+        assert_eq!(
+            ProfileError::NativeStudied(FR).to_string(),
+            "\"fr\" is the native language, which a reader never studies"
+        );
+        // A reader of English or Spanish may study French.
+        profile
+            .set(NativeLanguage::English, vec![FR, ES])
+            .expect("French for an English reader");
+        assert_eq!(profile.studied_languages, vec![FR, ES]);
+        let mut spanish = Profile::studying(NativeLanguage::Spanish, EN);
+        spanish
+            .set_studied_languages(vec![FR])
+            .expect("French for a Spanish reader");
+        assert_eq!(
+            LanguagePair {
+                studied: FR,
+                native: NativeLanguage::English
+            }
+            .key(),
+            "fr-en"
         );
     }
 
@@ -305,7 +340,7 @@ mod tests {
             ProfileError::NativeStudied(EN).to_string(),
             "\"en\" is the native language, which a reader never studies"
         );
-        // French maps to no studied language: a French reader may study both.
+        // A French reader may study English and Spanish.
         let mut french = Profile::english_for_french();
         assert_eq!(french.set_studied_languages(vec![ES, EN]), Ok(()));
     }

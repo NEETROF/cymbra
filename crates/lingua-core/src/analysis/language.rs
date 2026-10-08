@@ -39,18 +39,27 @@ pub enum StudiedLanguage {
     /// Spanish. Its analyser is a baseline until its own pre-pass and cascade
     /// land (add-lingua-spanish-analysis): no English rule ever runs on it.
     Spanish,
+    /// French. Served by the baseline analysis until its own rules land
+    /// (add-lingua-french-baseline): the rules that belong to no language and
+    /// the pack's forms, nothing of English's or Spanish's.
+    French,
 }
 
 impl StudiedLanguage {
     /// Every language the core can analyse, in declaration order.
-    pub const ALL: [StudiedLanguage; 2] = [StudiedLanguage::English, StudiedLanguage::Spanish];
+    pub const ALL: [StudiedLanguage; 3] = [
+        StudiedLanguage::English,
+        StudiedLanguage::Spanish,
+        StudiedLanguage::French,
+    ];
 
-    /// ISO 639-1 tag: `en`, `es`. The form packs (`meta.studied`), the wire
-    /// and the extension use.
+    /// ISO 639-1 tag: `en`, `es`, `fr`. The form packs (`meta.studied`), the
+    /// wire and the extension use.
     pub fn tag(self) -> &'static str {
         match self {
             StudiedLanguage::English => "en",
             StudiedLanguage::Spanish => "es",
+            StudiedLanguage::French => "fr",
         }
     }
 
@@ -68,6 +77,7 @@ impl StudiedLanguage {
         match self {
             StudiedLanguage::English => crate::analysis::ANALYZER_VERSION,
             StudiedLanguage::Spanish => crate::analysis::SPANISH_ANALYZER_VERSION,
+            StudiedLanguage::French => crate::analysis::FRENCH_ANALYZER_VERSION,
         }
     }
 
@@ -75,6 +85,7 @@ impl StudiedLanguage {
         match self {
             StudiedLanguage::English => whichlang::Lang::Eng,
             StudiedLanguage::Spanish => whichlang::Lang::Spa,
+            StudiedLanguage::French => whichlang::Lang::Fra,
         }
     }
 }
@@ -219,6 +230,7 @@ mod tests {
 
     const EN: StudiedLanguage = StudiedLanguage::English;
     const ES: StudiedLanguage = StudiedLanguage::Spanish;
+    const FR: StudiedLanguage = StudiedLanguage::French;
     const SPANISH: &str =
         "Los equipos nunca entregan el viernes por la noche, es una regla antigua.";
     const ENGLISH: &str =
@@ -309,6 +321,11 @@ mod tests {
         for lang in StudiedLanguage::ALL {
             assert_eq!(StudiedLanguage::from_tag(lang.tag()), Some(lang));
         }
+        assert_eq!(
+            StudiedLanguage::ALL.map(StudiedLanguage::tag),
+            ["en", "es", "fr"]
+        );
+        assert_eq!(StudiedLanguage::from_tag("fr"), Some(FR));
         assert_eq!(StudiedLanguage::from_tag("pt"), None);
         assert_eq!(
             StudiedLanguage::from_tag("EN"),
@@ -326,6 +343,12 @@ mod tests {
             StudiedLanguage::Spanish.analyzer_version(),
             crate::analysis::SPANISH_ANALYZER_VERSION
         );
+        // French is the baseline until its own rules land (add-lingua-french-baseline D4).
+        assert_eq!(StudiedLanguage::French.analyzer_version(), "0.1.0");
+        assert_eq!(
+            StudiedLanguage::French.analyzer_version(),
+            crate::analysis::FRENCH_ANALYZER_VERSION
+        );
     }
 
     #[test]
@@ -334,6 +357,47 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&StudiedLanguage::English).unwrap(),
             "\"English\""
+        );
+    }
+
+    #[test]
+    fn appending_french_keeps_the_order_and_every_serialised_name() {
+        // add-lingua-french-baseline D1: the derived order keys the knowledge model's maps and
+        // serde writes the variants' names, so a state of English or Spanish does not move.
+        assert!(EN < ES && ES < FR);
+        assert_eq!(
+            StudiedLanguage::ALL.map(|language| serde_json::to_value(language).unwrap()),
+            ["English", "Spanish", "French"].map(serde_json::Value::from)
+        );
+    }
+
+    const FRENCH: &str =
+        "Les équipes ne livrent jamais le vendredi soir, c'est une règle ancienne.";
+
+    #[test]
+    fn spec_scenario_a_french_block_for_a_learner_of_french_only() {
+        assert!(block_is_studied(FRENCH, FR));
+        assert!(!block_is_studied(FRENCH, EN));
+        assert!(!block_is_studied(FRENCH, ES));
+        // An English or Spanish block is excluded for a learner of French.
+        assert!(!block_is_studied(ENGLISH, FR));
+        assert!(!block_is_studied(SPANISH, FR));
+    }
+
+    #[test]
+    fn the_spanish_guard_leaves_french_detection_alone() {
+        // `l'` and `d'` count as Catalan in the guard, which only judges a block read as Spanish.
+        let elided = "L'homme d'aujourd'hui n'a plus le temps de lire, dit-elle.";
+        assert_eq!(detect(elided), whichlang::detect_language(elided));
+        assert_eq!(detect(elided), whichlang::Lang::Fra);
+        assert!(block_is_studied(elided, FR));
+        assert_eq!(
+            detect_document_language(&[FRENCH, elided], &[ES, FR], None),
+            Some(FR)
+        );
+        assert_eq!(
+            detect_document_language(&[SPANISH], &[FR, ES], None),
+            Some(ES)
         );
     }
 

@@ -1,0 +1,79 @@
+=== actualites
+Le gouvernement a présenté hier un nouveau plan pour réduire la consommation d'énergie des bâtiments publics.
+Selon l'INSEE, le chômage a reculé de 0,3 % au troisième trimestre 2025, une première depuis deux ans.
+Les syndicats de la SNCF appellent à la grève le jeudi 12 mars si aucun accord n'est trouvé d'ici là.
+La maire a expliqué que les travaux du port seraient terminés avant le début de l'été.
+=== fiction
+La tempête arriva à la tombée de la nuit. Le vieux marin ferma les fenêtres du phare et alluma la lampe.
+Personne au village ne se souvenait d’un hiver aussi long ni d’une mer aussi sombre.
+— Tu viendras demain ? demanda-t-elle sans quitter les vagues des yeux.
+Il ne répondit pas ; il resta à regarder l’horizon jusqu’à ce que la lumière s’éteigne.
+« C’est fini ! » cria le gardien. « Rentrez chez vous, tous ! »
+Elle murmura : « Qu’est-ce qu’il attend ? » puis elle referma la porte.
+=== proust
+Longtemps, je me suis couché de bonne heure. Parfois, à peine ma bougie éteinte, mes yeux se fermaient si vite que je n’avais pas le temps de me dire : « Je m’endors. »
+Et, une demi-heure après, la pensée qu’il était temps de chercher le sommeil m’éveillait ; je voulais poser le volume que je croyais avoir encore dans les mains et souffler ma lumière ; je n’avais pas cessé en dormant de faire des réflexions sur ce que je venais de lire, mais ces réflexions avaient pris un tour un peu particulier ; il me semblait que j’étais moi-même ce dont parlait l’ouvrage : une église, un quatuor, la rivalité de François Ier et de Charles Quint.
+=== homographes
+Il porte la vieille porte jusqu'à la grange, puis il ferme les volets.
+Le vent souffle de l'est, et la ville est déjà sous la neige.
+Ses deux fils tirent sur les fils de laine que leur mère a laissés sur la table.
+Les poules couvent tranquillement dans la cour du couvent depuis le printemps.
+Je vis à la campagne depuis dix ans ; hier, je vis tomber une vis sous l'établi.
+Tu as encore tiré l'as de cœur ! Prends le car de huit heures, car il ne pleut pas.
+Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.
+Cet été, la vieille maison a été repeinte en blanc.
+=== elisions
+L'homme qu'il attendait n'est jamais venu, et j'ai compris qu'on l'avait oublié.
+Aujourd'hui, c'est le jour où elle s'en va ; elle m'a promis qu'elle t'écrirait jusqu'au soir.
+Lorsqu'il pleut, nous restons à la maison, puisqu'il n'y a rien d'autre à faire sur la presqu'île.
+D'abord, il a vu un bel arbre, un nouvel ami, un vieil homme et cet oiseau ; puis mon amie est arrivée.
+Je n'ai jamais vu l'homme dont tu m'as parlé, mais j'en ai entendu parler.
+=== contractions
+Je vais au marché acheter du pain, des œufs et du fromage.
+Le prix du pain a augmenté à cause des mauvaises récoltes, explique le boulanger aux clients.
+Elle parle aux enfants du voisin et rend des livres au professeur.
+Il a mangé des cerises au jardin du château, puis il a bu du lait.
+=== inversions
+« Je reviendrai demain », dit-il en fermant la porte.
+Y a-t-il encore du café ? Est-ce que tu en veux un peu ?
+Va-t'en ! Donne-m'en un morceau, puis allez-vous-en tous les deux.
+Celui-ci est plus grand que celle-là, mais il est peut-être moins solide.
+Nous avons rendez-vous sous l'arc-en-ciel ; n'oublie pas ton porte-monnaie.
+Que pense-t-elle de ce projet ? Viendront-ils avec nous ce soir ?
+=== noms
+En 1815, M. Charles-François-Bienvenu Myriel était évêque de Digne.
+Mme Durand et le Dr Lefèvre ont retrouvé Jean-Pierre à Saint-Étienne avant de repartir pour Tours.
+Nous avons passé l'été entre Orange et Vienne, au bord du Rhône, puis quelques jours à Nice.
+Le Lot se jette dans la Garonne, et l'Aube rejoint la Seine en amont de Paris.
+Marie-Claire travaille chez Renault depuis que François a quitté Lyon pour Grenoble.
+=== informel
+jsuis trop fatigué mdr, on se voit demain ?
+chuis pas la, t'es où ? jte rappelle apres le boulot
+merci bcp pour hier soir, c'etait vraiment genial !!
+ouais bon on verra, tkt pas, ca va aller
+=== recette
+Épluchez les pommes de terre et coupez-les en fines rondelles.
+Faites chauffer deux cuillères à soupe d'huile dans une grande poêle.
+Battez quatre œufs avec une pincée de sel, versez-les sur les pommes de terre et laissez cuire 10 minutes à feu doux.
+Laissez reposer l'omelette cinq minutes avant de la servir avec une salade verte.
+=== technique
+Le serveur renvoie une erreur 404 lorsque l'API ne trouve pas la ressource demandée.
+Il faut mettre à jour le fichier config.yaml avant de relancer le build sur la CI.
+Le développeur a fait un commit, puis il a poussé sa branche pour la code review.
+Vérifiez que la mémoire disponible suffit avant de télécharger la nouvelle version du système d'exploitation.
+=== mixte
+La réunion a commencé à neuf heures et s'est terminée très tard dans la soirée.
+The lighthouse stood at the edge of the cliff, and nobody remembered who had built it.
+El faro se alzaba al borde del acantilado, y nadie recordaba quién lo había construido.
+El far s'alçava a la vora del penya-segat, i ningú no recordava qui l'havia construït.
+Lo far se quilhava a la broa de la falèsa, e degun se remembrava pas de qual l'aviá bastit.
+Il faro si ergeva sul bordo della scogliera, e nessuno ricordava chi l'avesse costruito.
+Après la réunion, tout le monde est rentré à la maison sous la pluie.
+=== grammaire
+Il fallut qu'elle partît avant que la nuit ne tombât sur la vallée.
+Les lettres qu'il a écrites sont arrivées hier ; je les ai lues tout de suite.
+Je ne mange pas de viande, je ne bois jamais d'alcool et je ne fume plus.
+Bien qu'il pût venir, il eût préféré rester chez lui ce jour-là.
+Soyez prudents et prenez vos précautions, mes amis.
+Nous vînmes, nous vîmes, et ils furent vaincus.
+Elles se sont levées tôt et sont parties sans faire de bruit.

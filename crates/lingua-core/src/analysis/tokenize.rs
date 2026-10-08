@@ -19,8 +19,11 @@
 //! (`don't` → `do` + `not`), edge apostrophes are stripped, and
 //! single-letter tokens only survive when the lexicon knows them ("I", "a").
 //! The Spanish pre-pass reads its text in NFC and splits `al`/`del` into
-//! `a`/`de` + `el` (add-lingua-spanish-analysis D1). Adding a studied language
-//! means adding a pre-pass, not touching the tokeniser.
+//! `a`/`de` + `el` (add-lingua-spanish-analysis D1). French has no pre-pass of
+//! its own yet (add-lingua-french-baseline D2): its text is read as it came and
+//! nothing is split, so `l'homme`, `aujourd'hui` and `au` are one token each.
+//! Adding a studied language means adding a pre-pass, not touching the
+//! tokeniser.
 
 use serde::Serialize;
 use unicode_normalization::UnicodeNormalization;
@@ -65,8 +68,9 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// before the pre-pass so typographic text behaves like plain text.
 ///
 /// Each language has its own pre-pass. English expands `n't`; Spanish reads
-/// its tokens in NFC and splits `al`/`del` (add-lingua-spanish-analysis D1).
-/// Both share the rules that belong to no language: segmentation, hyphenated
+/// its tokens in NFC and splits `al`/`del` (add-lingua-spanish-analysis D1);
+/// French, served by the baseline, has none (add-lingua-french-baseline D2).
+/// All share the rules that belong to no language: segmentation, hyphenated
 /// compounds, the digit drop, the edge-apostrophe trim and the single-letter
 /// rule.
 pub fn tokenize(
@@ -170,10 +174,11 @@ fn push_word(
 
 /// The word in NFC for Spanish, so a decomposed accent reads as the pack's
 /// precomposed one; any other language's text as it came — English output must
-/// not move (add-lingua-spanish-analysis D1).
+/// not move (add-lingua-spanish-analysis D1), and French's NFC is a rule of its
+/// own, not the baseline's (add-lingua-french-baseline D2).
 fn nfc_for(word: &str, language: StudiedLanguage) -> String {
     match language {
-        StudiedLanguage::English => word.to_owned(),
+        StudiedLanguage::English | StudiedLanguage::French => word.to_owned(),
         StudiedLanguage::Spanish => word.nfc().collect(),
     }
 }
@@ -218,7 +223,9 @@ fn push_compound(
 }
 
 /// The language's contraction split, if `lower` is one: English `n't`, Spanish
-/// `al`/`del` (add-lingua-spanish-analysis D1).
+/// `al`/`del` (add-lingua-spanish-analysis D1). French splits nothing while it
+/// is the baseline: `au`, `du`, `l'homme` stay whole (add-lingua-french-baseline
+/// D2).
 fn split_contraction(lower: &str, language: StudiedLanguage) -> Option<(&str, &'static str)> {
     match language {
         StudiedLanguage::English => split_english_contraction(lower),
@@ -227,6 +234,7 @@ fn split_contraction(lower: &str, language: StudiedLanguage) -> Option<(&str, &'
             "del" => Some(("de", "el")),
             _ => None,
         },
+        StudiedLanguage::French => None,
     }
 }
 
@@ -346,6 +354,75 @@ mod tests {
         assert_eq!(
             texts(&tokenize(text, StudiedLanguage::English, &lex)),
             ["Esta\u{0301}", "aquí"]
+        );
+    }
+
+    const FR: StudiedLanguage = StudiedLanguage::French;
+
+    #[test]
+    fn spec_scenario_an_elided_french_word_is_one_token() {
+        // add-lingua-french-baseline D2: UAX #29 keeps a letter-apostrophe-letter run whole, and
+        // French splits nothing yet.
+        let lex = lexicon();
+        let text = "l'homme qu'il aujourd'hui";
+        let tokens = tokenize(text, FR, &lex);
+        assert_eq!(texts(&tokens), ["l'homme", "qu'il", "aujourd'hui"]);
+        assert!(tokens.iter().all(|t| t.parts.is_empty()));
+        assert_eq!(&text[tokens[1].start..tokens[1].end], "qu'il");
+        // The typographic apostrophe of a French page reads as the straight one, as in English.
+        let typographic = "L\u{2019}homme jusqu\u{2019}au soir";
+        assert_eq!(
+            texts(&tokenize(typographic, FR, &lex)),
+            ["L'homme", "jusqu'au", "soir"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_french_contracted_articles_are_whole() {
+        let lex = lexicon();
+        let tokens = tokenize("au marché, aux halles, du pain, des pommes", FR, &lex);
+        assert_eq!(
+            texts(&tokens),
+            [
+                "au", "marché", "aux", "halles", "du", "pain", "des", "pommes"
+            ]
+        );
+        // Spanish's `al`/`del` is Spanish's alone.
+        assert_eq!(texts(&tokenize("al del", FR, &lex)), ["al", "del"]);
+    }
+
+    #[test]
+    fn spec_scenario_no_english_rule_runs_on_french() {
+        let lex = lexicon();
+        assert_eq!(texts(&tokenize("Don't", FR, &lex)), ["Don't"]);
+        assert_eq!(texts(&tokenize("won't", FR, &lex)), ["won't"]);
+    }
+
+    #[test]
+    fn french_inversions_and_compounds_follow_the_compound_rule() {
+        let lex = lexicon();
+        let tokens = tokenize("dit-il, peut-être, y a-t-il", FR, &lex);
+        // `y` is one letter the lexicon does not list: dropped, as the rule says of any language.
+        assert_eq!(texts(&tokens), ["dit-il", "peut-être", "a-t-il"]);
+        assert_eq!(tokens[0].parts, ["dit", "il"]);
+        assert_eq!(tokens[1].parts, ["peut", "être"]);
+        assert_eq!(tokens[2].parts, ["a", "t", "il"]);
+    }
+
+    #[test]
+    fn french_text_is_read_as_it_came() {
+        // No NFC while French is the baseline: a decomposed accent stays decomposed.
+        let lex = lexicon();
+        let text = "e\u{0301}te\u{0301} chaud";
+        assert_eq!(
+            texts(&tokenize(text, FR, &lex)),
+            ["e\u{0301}te\u{0301}", "chaud"]
+        );
+        // And the rules that belong to no language apply as they do to English.
+        let shared = "x-ray abc123 'team' a b well-being-2 code";
+        assert_eq!(
+            texts(&tokenize(shared, FR, &lex)),
+            texts(&tokenize(shared, StudiedLanguage::English, &lex))
         );
     }
 

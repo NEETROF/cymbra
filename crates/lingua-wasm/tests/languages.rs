@@ -82,6 +82,46 @@ fn spanish_inputs() -> lingua_pack::PackInputs {
     inputs
 }
 
+fn testdata_of(pair: &str) -> lingua_pack::PackInputs {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../scripts/lingua-data/testdata")
+        .join(pair);
+    lingua_pack::inputs_from_dir(&dir)
+        .unwrap_or_else(|e| panic!("read the {pair} testdata tables: {e}"))
+}
+
+/// A small fr→en pack: the es-en testdata's sources and notice, re-stamped `fr` as the Spanish
+/// one is, with French forms, ranks and glosses, at French's analyser version
+/// (add-lingua-french-baseline).
+fn french_pack() -> Vec<u8> {
+    let mut inputs = testdata_of("es-en");
+    inputs.meta.studied = "fr".into();
+    inputs.meta.analyzer_version = StudiedLanguage::French.analyzer_version().into();
+    inputs.meta.pack_version = "0.0.1-fr-test".into();
+    inputs.meta.levels_estimated = false;
+    inputs.form_lemma = vec![
+        ("est".into(), "être".into()),
+        ("maisons".into(), "maison".into()),
+    ];
+    inputs.ranks = vec![("être".into(), 3), ("maison".into(), 400)];
+    inputs.glosses = vec![("maison".into(), "house".into())];
+    inputs.levels = Vec::new();
+    inputs.expressions = Vec::new();
+    inputs.readings = Vec::new();
+    inputs.senses = Vec::new();
+    inputs.notice = format!("{}\nFrench test pack.", inputs.notice);
+    lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build the fr pack: {e}"))
+}
+
+/// An English-native reader's engine: the testdata es-en pack, the small French one added.
+fn english_native_engine() -> LinguaEngine {
+    let es_en = lingua_pack::build_pack(&testdata_of("es-en"))
+        .unwrap_or_else(|e| panic!("build the es-en pack: {e}"));
+    let mut engine = LinguaEngine::new(&es_en).unwrap();
+    assert_eq!(engine.add_pack(&french_pack()).unwrap(), "fr");
+    engine
+}
+
 /// `pack` with its metadata rewritten to name `native` as the language of its glosses.
 fn glossed_in(pack: &[u8], native: &str) -> Vec<u8> {
     let (meta, sections) = read_container(pack).unwrap_or_else(|e| panic!("a container: {e}"));
@@ -558,4 +598,66 @@ fn a_two_language_state_round_trips_and_an_engine_without_the_pack_keeps_it() {
             .export_status_ops()
             .contains(r#""language":"es","lemma":"haber""#)
     );
+}
+
+/// A reader of French has a backup of schema version 3, which restores whole; a reader of
+/// Spanish on the same engine keeps version 2 (add-lingua-french-baseline D7).
+#[test]
+fn spec_scenario_a_french_reader_s_backup_is_version_3() {
+    let mut engine = english_native_engine();
+    assert_eq!(engine.languages(), r#"["es","fr"]"#);
+    assert_eq!(engine.native_language(), "en");
+    // The engine starts on es-en: a reader of Spanish, at version 2.
+    assert_eq!(engine.studied_languages(), r#"["es"]"#);
+    assert!(engine.backup().starts_with("{\n  \"schema_version\": 2,"));
+
+    engine.set_profile("en", vec!["fr".to_owned()]).unwrap();
+    assert_eq!(engine.studied_languages(), r#"["fr"]"#);
+    let fr = || Some("fr".to_owned());
+    engine
+        .set_status_at("maison", "learning", T_MS, fr())
+        .unwrap();
+    engine
+        .add_card(
+            "maison",
+            "maisons",
+            "Les maisons dorment.",
+            "",
+            None,
+            T_SECS,
+            fr(),
+        )
+        .unwrap();
+    let page = engine
+        .analyse(
+            vec!["L'homme est dans la maison, et les maisons dorment encore ce matin.".to_owned()],
+            fr(),
+        )
+        .unwrap();
+    assert!(page.contains(r#""analyzer_version":"0.1.0""#), "{page}");
+    assert!(
+        page.contains(r#""surface":"L'homme","lemma":"l'homme""#),
+        "{page}"
+    );
+    let backup = engine.backup();
+    assert!(
+        backup.starts_with("{\n  \"schema_version\": 3,"),
+        "{backup}"
+    );
+
+    let mut restored = english_native_engine();
+    restored.restore(&backup).unwrap();
+    assert_eq!(restored.backup(), backup, "a version 3 restore is lossless");
+    assert_eq!(restored.studied_languages(), r#"["fr"]"#);
+    assert!(
+        restored
+            .export_status_ops()
+            .contains(r#""language":"fr","lemma":"maison""#)
+    );
+
+    // A reader studying Spanish alone on the same engine stays at version 2.
+    let mut spanish = english_native_engine();
+    spanish.set_profile("en", vec!["es".to_owned()]).unwrap();
+    spanish.set_status_at("casa", "known", T_MS, es()).unwrap();
+    assert!(spanish.backup().starts_with("{\n  \"schema_version\": 2,"));
 }

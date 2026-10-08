@@ -15,7 +15,7 @@
 //! The English invariance baseline's scenario (`english_baseline.rs`): its corpus, probes and
 //! reader, shared with the cross-native invariance test (`cross_native.rs`).
 
-use super::{Card, Scenario};
+use super::{Card, PackSource, Scenario};
 
 /// Dictionary forms whose gloss the card shows. Some have none in the pack, on purpose.
 const LEMMAS: &[&str] = &[
@@ -151,6 +151,7 @@ const PAGE_NAMES: &[&str] = &[
 
 pub const ENGLISH: Scenario = Scenario {
     pair: "en-fr",
+    pack: PackSource::Tables,
     beside: &[],
     test: "english_baseline",
     pages: "pages.txt",

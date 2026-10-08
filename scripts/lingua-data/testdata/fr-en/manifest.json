@@ -1,0 +1,17 @@
+{
+  "meta": {
+    "studied": "fr",
+    "native": "en",
+    "pack_version": "0.0.1-fixture",
+    "analyzer_version": "0.1.0",
+    "licences": [
+      "Cymbra Lingua test fixture (hand-written, no third-party data)"
+    ]
+  },
+  "sources": [
+    {
+      "name": "Cymbra Lingua test fixture",
+      "licence": "Permissive"
+    }
+  ]
+}

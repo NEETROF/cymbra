@@ -52,8 +52,8 @@ no second lemma. The golden shows the questions M21 settles; it answers none of 
   in the design, set in real French punctuation, one block committed in NFD on purpose), its
   probes, and `baseline/fr-en.golden`. It runs over a hand-written fixture
   pack (`scripts/lingua-data/testdata/fr-en/`) until the French tables are committed, with the
-  engine started on es-en, as an English-native reader's is. It runs wherever the other two run,
-  and `lingua-pack-update` re-blesses the three.
+  engine started on es-en, as an English-native reader's is. It runs wherever the others run,
+  and `lingua-pack-update` re-blesses it with them.
 - **Backup schema version 3**, written only when the state names French as a studied language —
   in its profile or in any per-language record — and read first, like 1 and 2. Every build
   released since 1.5.0 (2026-10-03, the first with the studied-language profile and its

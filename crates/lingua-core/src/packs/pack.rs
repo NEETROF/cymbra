@@ -628,7 +628,7 @@ fn read_meta(bytes: &[u8]) -> Result<(PackMeta, LanguagePair, Vec<Section>), Pac
 pub(crate) mod tests {
     use super::*;
     use crate::analysis::lexicon::build_lexicon_blobs;
-    use crate::analysis::{ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
+    use crate::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
     use crate::packs::format::{read_container, write_container};
 
     // Builds a gloss.zst section from (lemma_id, gloss) pairs, using the
@@ -804,6 +804,7 @@ pub(crate) mod tests {
         for (studied, analyzer, language) in [
             ("en", ANALYZER_VERSION, StudiedLanguage::English),
             ("es", SPANISH_ANALYZER_VERSION, StudiedLanguage::Spanish),
+            ("fr", FRENCH_ANALYZER_VERSION, StudiedLanguage::French),
         ] {
             let bytes = sample_pack_bytes_with(studied, studied, analyzer);
             match Pack::load(&bytes) {
@@ -874,6 +875,34 @@ pub(crate) mod tests {
             Ok(_) => panic!("a Spanish pack at the baseline's version loaded"),
         }
         assert!(Pack::load(&sample_pack_bytes_for("en", ANALYZER_VERSION)).is_ok());
+    }
+
+    #[test]
+    fn spec_scenario_a_french_pack_at_french_s_analyser_version() {
+        // add-lingua-french-baseline: a pack studying French loads against French's own version,
+        // whatever English's is, and is glossed in English or Spanish.
+        let bytes = sample_pack_bytes_with("fr", "en", FRENCH_ANALYZER_VERSION);
+        let french = Pack::load(&bytes).expect("a French pack at 0.1.0 loads");
+        assert_eq!(french.studied(), StudiedLanguage::French);
+        assert_eq!(french.meta().analyzer_version, "0.1.0");
+        assert_eq!(french.pair().key(), "fr-en");
+        assert_eq!(Pack::studied_in(&bytes).unwrap(), StudiedLanguage::French);
+        let fr_es = Pack::load(&sample_pack_bytes_with("fr", "es", FRENCH_ANALYZER_VERSION))
+            .expect("a fr-es pack loads");
+        assert_eq!(fr_es.pair().key(), "fr-es");
+        match Pack::load(&sample_pack_bytes_with("fr", "en", ANALYZER_VERSION)) {
+            Err(PackError::IncompatibleAnalyzer { pack, core }) => {
+                assert_eq!(pack, "1.1.0");
+                assert_eq!(core, "0.1.0");
+            }
+            Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
+            Ok(_) => panic!("a French pack at English's version loaded"),
+        }
+        // Portuguese still has no analyser.
+        assert!(matches!(
+            Pack::load(&sample_pack_bytes_with("pt", "en", FRENCH_ANALYZER_VERSION)),
+            Err(PackError::UnknownLanguage(tag)) if tag == "pt"
+        ));
     }
 
     #[test]

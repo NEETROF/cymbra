@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "knowledge": {
+    "statuses": {
+      "Spanish": {
+        "faro": "Learning"
+      },
+      "French": {
+        "phare": "Learning"
+      }
+    },
+    "calibration": {},
+    "declared_level": {},
+    "declared_level_at": {},
+    "updated": {
+      "Spanish": {
+        "faro": 1700000000500
+      },
+      "French": {
+        "phare": 1700000000700
+      }
+    }
+  },
+  "exposure": {
+    "counters": {
+      "Spanish": {
+        "marinero": {
+          "occurrences": 2,
+          "last_source": "web:example.es",
+          "last_seen": 1700000003,
+          "last_day": 19675,
+          "distinct_days": 1
+        }
+      }
+    }
+  },
+  "deck": {
+    "cards": {
+      "Spanish": {
+        "faro": {
+          "lemma": "faro",
+          "encountered_form": "faros",
+          "provenance": {
+            "sentence": "Los faros brillan.",
+            "source": {
+              "Web": {
+                "url": "https://example.es/mar"
+              }
+            },
+            "captured_at": 1700000004
+          },
+          "gloss": "lighthouse",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1700000004
+        }
+      },
+      "French": {
+        "homme": {
+          "lemma": "homme",
+          "encountered_form": "l'homme",
+          "provenance": {
+            "sentence": "L'homme regardait la mer.",
+            "source": {
+              "Web": {
+                "url": "https://example.fr/mer"
+              }
+            },
+            "captured_at": 1700000005
+          },
+          "gloss": "man",
+          "gloss_language": "en",
+          "media": null,
+          "review": {
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
+            "lapses": 0
+          },
+          "updated_at": 1700000005
+        }
+      }
+    }
+  },
+  "fsrs": {
+    "w": [
+      0.40255,
+      1.18385,
+      3.173,
+      15.69105,
+      7.1949,
+      0.5345,
+      1.4604,
+      0.0046,
+      1.54575,
+      0.1192,
+      1.01925,
+      1.9395,
+      0.11,
+      0.29605,
+      2.2698,
+      0.2315,
+      2.9898,
+      0.51655,
+      0.6621
+    ],
+    "request_retention": 0.9,
+    "maximum_interval_days": 36500
+  },
+  "profile": {
+    "native_language": "English",
+    "studied_languages": [
+      "Spanish"
+    ]
+  }
+}
