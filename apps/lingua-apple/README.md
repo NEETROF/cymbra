@@ -158,13 +158,18 @@ used for tracking.
 | Contact Info → Email Address | the Cymbra account's e-mail (sign-up, verification) | yes | App Functionality |
 | Identifiers → User ID | the Cymbra account and its handle | yes | App Functionality, Analytics |
 | Identifiers → Device ID | the random installation id used by sync | yes | App Functionality |
-| User Content → Other User Content | word statuses, level, deck (word, sentence, gloss and the language of that gloss, review state) | yes | App Functionality |
-| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), with the native language of the day | yes | App Functionality, Analytics (aggregated back-office figures) |
+| User Content → Other User Content | word statuses and level, each under the studied language it belongs to; deck (word, sentence, gloss and the language of that gloss, review state), each card under its studied language | yes | App Functionality |
+| Usage Data → Product Interaction | daily counts (words learned, reviews, words met), per day and studied language, with the native language of the day | yes | App Functionality, Analytics (aggregated back-office figures) |
 
 Not collected: browsing history, search history, location, contacts, purchases, diagnostics,
-financial or health data. Privacy policy: `https://cymbra.app/confidentialite/`
-(`/en/privacy/`, Annex B). Account deletion: `https://cymbra.app/suppression-compte/`,
-linked from the extension's account page, next to « Effacer mes données Lingua ».
+financial or health data. The language Lingua sends to the Cymbra account (the interface's or
+the browser's, kept as the account's language) maps to no Apple data type, so the categories
+stay unchanged. Privacy policy: `https://cymbra.app/confidentialite/` (`/en/privacy/`,
+`/es/privacidad/`, Annex B). Account deletion: `https://cymbra.app/suppression-compte/`
+(`/en/delete-account/`, `/es/eliminar-cuenta/`); the extension's account page links the
+French page for a French browser and the English one otherwise, next to « Effacer mes données
+Lingua ». `/es/eliminar-cuenta/` is not linked from the extension yet: that link waits for
+`add-site-spanish-locale`'s task 3.2.
 
 ## Known issue — popup title on iOS 27
 

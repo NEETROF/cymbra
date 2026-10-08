@@ -26,29 +26,41 @@ es-fr two (52,0 Mo), es-en one, en-es one (change 25).
 « les langues que vous étudiez », and each synced row says « pour chaque langue étudiée »; the
 models: « le ou les modèles de vos paires de langues — un modèle (environ 26 Mo) quand la traduction
 est directe, deux (environ 52 Mo) quand elle passe par l'anglais » — the catalogue's sizes, reviewed
-by each change that adds a model;
+by each change that adds a model; a pair added later: « les modèles d'une paire ajoutée ensuite ne sont
+téléchargés que lorsque vous le demandez » (its models are marked missing and wait for the reader,
+`translate/host/model-controller.ts`);
 the voice: « une voix de la langue lue, installée sur votre appareil ».
 
 ### D2 — The account's language
 
-A row in the account part of Annex B, worded after the owner's answer to change 17's task 3.3: « la
-langue de vos e-mails Cymbra : celle de l'interface de Lingua, ou celle du navigateur s'il est en
-italien » (M12, change 17); the native-language setting itself stays on the device and is not synced,
-while the native language reaches Cymbra as each card's gloss language and with each day's
-statistics (changes 11, 12). This change is implemented after change 17's implementation and
-published before the release that carries it.
+Its own paragraph in the account part of Annex B, not a row of the sync table: the extension sends a
+language on sign-up, on a code resend, on a password reset (signed out) and when a password is added
+(`account/flow.ts`), Cymbra ID stores it on the account, and nothing syncs it. Worded so it is true
+today (the browser's whole tag), under either answer to change 17's task 3.3, and after change 20:
+« l'extension indique à Cymbra une langue — celle de l'interface de Lingua ou celle de votre
+navigateur — que votre compte garde comme sa langue : Cymbra vous écrit dans cette langue
+(vérification, réinitialisation de mot de passe) et vos autres apps Cymbra peuvent l'adopter » (M12).
+The delta spec's requirement first named the interface language alone; it now names the language
+the extension sends — the interface language or the browser's — kept as the account's language (its
+name and the scenario's unchanged). The language settings themselves stay on the device and are not
+stored as such, while the native language reaches Cymbra as each card's gloss language and with each
+day's statistics (changes 11, 12). The site that publishes this annex is deployed after
+`add-lingua-native-language-server` is deployed and checked from outside (its 5.2) and before the
+store release that carries `add-lingua-native-language-sync-client` (its 6.1).
 
 ### D3 — The erasure path
 
-English and Spanish name it by function only ("the Lingua erasure in the account page") — their
-interface labels are drafts until change 33; the French keeps « Compte → Tes données → Effacer mes
-données Lingua ».
+English and Spanish name it by function only ("on the account page, the option that erases your
+Lingua data") — their interface labels are drafts until change 33; the French keeps « Compte → Tes
+données → Effacer mes données Lingua ».
 
 ## Risks / Trade-offs
 
-- **A disclosure that lags the code** → the annex says what changes 11, 12 and 17 do; a later
-  change that sends a new field edits it in the same pull request, as change 12 did.
+- **A disclosure that lags the code** → the annex says what changes 11 and 12 do, and words the
+  account's language so it holds before and after changes 17 and 20; a later change that sends a new
+  field edits it in the same pull request, as change 12 did.
 
 ## Migration Plan
 
-Published with the owner's next site deploy.
+Published with the first site deploy after `add-lingua-native-language-server`'s 5.2 and before the
+store release that carries `add-lingua-native-language-sync-client` (task 3.2).
