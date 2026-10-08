@@ -31,6 +31,24 @@ Inputs:
   French frequency; no letter among its words (`read_translated`).
 No pivot through a third language, no machine translation.
 
+The Spanish Wiktionary's entries reach the shared rules through three passes, in this order
+(refine-lingua-en-es-glosses D1): its letters left out (`without_letters`); its senses read as
+meanings, in their order, in one Spanish typography (`spanish.read_as_meanings`: the senses it marks
+obsolete or outdated after the others, one ellipsis, « » for straight double quotes — the edition's
+notes to its readers and a usage note after the meaning go with its `_NOTES`); then which of them
+gloss an English word (`english_entries`: a surname's or a given name's note left off the common word
+spelled like it, a possessive or demonstrative adjective read as a determiner, the -ing form named
+as the card names it). The translation tables are read through `read_translated`: the direct table's
+words without the words it labels disused or their translators' notes, the inverted table's Spanish
+words listed once per English word. Measured on en-es's tables reduced from its 2026-10-08 snapshot
+(21,965 glossed lemmas, 8,495 of the top 10,000): 754 rows (484 of the top 10,000) held a name's
+note, 61 (53) beside the senses of a word written in lower case; 6 (6) possessives and
+demonstratives headed as adjectives; 1 gloss naming the -ing form « participio presente »; 39 (9)
+direct glosses with a disused word, 68 (16) with a translator's note, 58 (10) inverted glosses
+repeating a Spanish word across its parts of speech. With the edition's rules they change 295 rows
+(149 of the top 10,000) and 64 expressions; one lemma (« malign ») and two expressions, glossed by a
+disused word alone, lose their gloss, none gains one, and the coverage holds.
+
 Outputs, in `--work`: `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and `manifest.json` — and
 `measures.json`, the translation-table share (D4), which `pack_sources.py split` files nowhere: it
 is shown in the pull request and the tables' README, and stored in no pack.
@@ -164,7 +182,7 @@ def _names_a_letter(entry):
     return all(native == word for native in listed)
 
 
-def read_translated(path, dst, *, inverted):
+def read_translated(path, dst, *, inverted, frequency, readings):
     """What a translation file (`pack_sources.derive`) says of English words, its letters left out
     (`without_letter_translations`, into `dst`): word → {UPOS: [Spanish word, …]}
     (`common.read_translations`) — the English Wiktionary's Spanish translations read forwards,
@@ -172,12 +190,236 @@ def read_translated(path, dst, *, inverted):
     English word is left out whatever lists it: the entry is the Spanish word's, so the letter
     test above sees nothing of the English side — the Spanish Wiktionary's `do` lists « C », the
     note's name borrowed through the letter — and the one word of a letter the table reaches,
-    `yo` « I », the entries and the direct table gloss before it is read."""
+    `yo` « I », the entries and the direct table gloss before it is read.
+
+    Read forwards, the translators' words without their notes (`translators_words`, `frequency`
+    the Spanish Zipf frequency of a word); read backwards, each Spanish word listed once
+    (`listed_once`, `readings` English's parts of speech by lemma); each word of both in the
+    edition's typography (`spanish.typography`) — refine-lingua-en-es-glosses D6, D7."""
     table = common.read_translations(without_letter_translations(path, dst), inverted=inverted, studied=EN)
     if inverted:
         for letter in [word for word in table if len(word) == 1]:
             del table[letter]
-    return table
+        return listed_once(table, readings)
+    return translators_words(table, frequency)
+
+
+# — The translation tables' words, without their translators' notes (refine-lingua-en-es-glosses D7) —
+#
+# The English Wiktionary's translators write a note inside the Spanish word they list, and the
+# derived file keeps it there: a label (« orquestra (disused) », « villorrio (despective) »), a
+# loanword's respelling (« hall (hol) »), a sense number (« [4] a favor »), an English usage note
+# (« Para ser honesto [with le and a, or with con] »). Read backwards, the Spanish Wiktionary lists
+# an English word under each part of speech of the Spanish word (`largo`'s adjective, noun,
+# interjection and verb each list « lengthy »).
+
+# A word the English Wiktionary labels disused: not listed.
+_DISUSED = re.compile(r"\((?:disused|desus\.)\)")
+# A translator's note: a parenthesis or a square bracket, with the space before it.
+_NOTE = re.compile(r"\s*(\(([^()]*)\)|\[([^\[\]]*)\])")
+# A word that ends on a parenthesis, and the text before it.
+_BEFORE_A_PARENTHESIS = re.compile(r"^(.+?)\s*\([^()]*\)$")
+# A note that is only a number (« [4] »), and the words of a note.
+_NUMBER = re.compile(r"[\d,\s–-]+")
+_WORDS = re.compile(r"[^\W\d_]+")
+# A note holds a Spanish word when one of its words is this frequent or more on wordfreq's Spanish
+# Zipf scale: « (despective) », « (Americanism) », « (pléilist) » hold none, « (infantil) » does.
+SPANISH_WORD_ZIPF = 1.0
+
+
+def translators_word(word, headword, frequency):
+    """A Spanish word of the direct table without its translator's note (D7): a parenthesis that ends
+    a loanword — the text before it is the English headword or one of its words (« hall (hol) »,
+    « Daisy chain (deisi chein) ») — goes; so does a note in parentheses or square brackets
+    that holds no Spanish word (every word of it under `SPANISH_WORD_ZIPF` by `frequency`), is only a
+    number (« [4] a favor ») or opens on « with ». A note holding a Spanish word stays (« dimitir
+    (de) », « guardería (infantil) »). The word is returned without them, its spaces single."""
+    loan = _BEFORE_A_PARENTHESIS.match(word)
+    if loan:
+        before, english = loan.group(1).strip().lower(), headword.lower()
+        if before == english or before in english.split(" "):
+            word = loan.group(1).strip()
+
+    def without_note(found):
+        note = found.group(2) if found.group(2) is not None else found.group(3)
+        words = _WORDS.findall(note)
+        if (
+            _NUMBER.fullmatch(note)
+            or note.startswith("with ")
+            or (words and all(frequency(w.lower()) < SPANISH_WORD_ZIPF for w in words))
+        ):
+            return ""
+        return found.group(0)
+
+    return re.sub(r"\s+", " ", _NOTE.sub(without_note, word)).strip(" ,")
+
+
+def translators_words(table, frequency):
+    """The direct table's words as their translators meant them (D6, D7): a word labelled
+    « (disused) » or « (desus.) » not listed, the next taking its place (« orchestra » « Orquesta »);
+    the others without their notes (`translators_word`) in the edition's typography, a word the
+    note's removal makes one already listed listed once; a part of speech left with no word goes,
+    and an English word left with none (« malign », whose one translation is disused) takes no gloss
+    from this table. Its parts of speech are the English word's own: a word listed under two of
+    them stays under both (« israeli » « Israelí; Israelí »)."""
+    out = {}
+    for word, by_pos in table.items():
+        kept = {}
+        for upos, natives in by_pos.items():
+            words = []
+            for native in natives:
+                if _DISUSED.search(native):
+                    continue
+                native = spanish.typography(translators_word(native, word, frequency))
+                if native and native not in words:
+                    words.append(native)
+            if words:
+                kept[upos] = words
+        if kept:
+            out[word] = kept
+    return out
+
+
+def listed_once(table, readings):
+    """The inverted table with each Spanish word listed once per English word (D7), under the first
+    of its parts of speech the English word's readings name (`readings`: English lemma → its parts of
+    speech, from `tables/en/grammar.tsv`), else under the first listed: « lengthy » « Largo » (an
+    adjective), « seaman » « Marinero » (a noun, as its readings say, not the adjective « marinero »
+    is first). A part of speech left with no word goes; each word in the edition's typography."""
+    out = {}
+    for word, by_pos in table.items():
+        by_pos = {upos: list(dict.fromkeys(spanish.typography(n) for n in natives)) for upos, natives in by_pos.items()}
+        named = readings.get(word, ())
+        home = {}
+        for natives in by_pos.values():
+            for native in natives:
+                if native not in home:
+                    listed = [upos for upos, others in by_pos.items() if native in others]
+                    home[native] = next((upos for upos in listed if upos in named), listed[0])
+        kept = {}
+        for upos, natives in by_pos.items():
+            words = [native for native in natives if home[native] == upos]
+            if words:
+                kept[upos] = words
+        if kept:
+            out[word] = kept
+    return out
+
+
+def read_readings(studied):
+    """English's parts of speech by lemma, from the committed `grammar.tsv` (form, lemma, reading):
+    lemma → {UPOS}. One of the studied tables the pin's `studied` record holds."""
+    path = os.path.join(studied, "grammar.tsv")
+    if not os.path.isfile(path):
+        raise SystemExit(f"error: {path} is missing: en-es reads English's committed tables (tables/en/, en-fr's)")
+    readings = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            columns = line.rstrip("\n").split("\t")
+            if len(columns) >= 3:
+                readings.setdefault(columns[1], set()).add(columns[2].split("|")[0])
+    return readings
+
+
+# — Which senses gloss an English word (refine-lingua-en-es-glosses D3, D4, D6) —
+#
+# The Spanish Wiktionary writes a surname or a given name as a proper noun under its capitalised
+# headword, and the shared rules read it for the lower-case lemma: « will » ended on « Apellido;
+# Hipocorístico de William », « smith » opened on « Apellido ». It heads `my`, `her`, `that`
+# « adjetivo posesivo » or « demostrativo », where en-fr's card says « déterminant ».
+
+# A proper noun's sense that only says the word is a surname or a given name (D3).
+_NAME_NOTE = re.compile(r"^(?:Apellido|Nombre de pila|Nombre personal|Hipocorístico)\b")
+# The entry tags of an adjective section that is a determiner's (D4).
+_DETERMINER_TAGS = frozenset({"possessive", "demonstrative"})
+# The -ing form as the card names it (M10), where an English entry names it a participle (D6).
+_PRESENT_PARTICIPLE, _ING_FORM = "participio presente", "forma en -ing"
+
+
+def _first_gloss(sense):
+    glosses = sense.get("glosses") if isinstance(sense, dict) else None
+    return glosses[0].strip() if isinstance(glosses, list) and glosses and isinstance(glosses[0], str) else ""
+
+
+def _headword(entry):
+    word = entry.get("word")
+    return word.strip() if isinstance(word, str) else ""
+
+
+def _holds_a_meaning(sense):
+    """A sense with a gloss that is no pointer (`reduce_common._is_form_of`)."""
+    return (
+        isinstance(sense, dict)
+        and bool(sense.get("glosses"))
+        and not common._is_form_of(sense, _first_gloss(sense), edition=EDITION)
+    )
+
+
+def _common_words(src):
+    """The headwords written in lower case that have an entry of their own, not a proper noun's,
+    holding a meaning — a sense with a gloss that is no pointer."""
+    words = set()
+    with open(src, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(entry, dict) or entry.get("pos") == "name":
+                continue
+            headword = _headword(entry)
+            senses = entry.get("senses")
+            if not headword or headword != headword.lower() or not isinstance(senses, list):
+                continue
+            if any(_holds_a_meaning(sense) for sense in senses):
+                words.add(headword)
+    return words
+
+
+def english_entries(src, dst):
+    """The Spanish Wiktionary's English entries as they gloss an English word, written to `dst` — a
+    pre-pass `main` runs after `spanish.read_as_meanings` (refine-lingua-en-es-glosses D1):
+
+    - D3, a name does not gloss the common word spelled like it: a sense of a `name` entry whose
+      headword opens on a capital, glossed « Apellido… », « Nombre de pila… », « Nombre personal… »
+      or « Hipocorístico… », is left out when the word has an entry written in lower case, not a
+      proper noun's, that holds a meaning (`_common_words`) — the condition an acronym's entry
+      meets (`reduce_common.reduce_gloss`); an entry left with no sense goes. A proper noun's other
+      senses stay (« south » « (region) Sur »), and a word that is only a name keeps its notes
+      (« wayne » « Apellido »).
+    - D4, possessives and demonstratives are determiners: an `adj` entry tagged `possessive` or
+      `demonstrative` is read as `det` (« her », « my », « that », « such »); the quantifiers the
+      edition tags indeterminate stay adjectives.
+    - D6, « participio presente » written « forma en -ing » in a sense: « be » « Estar (be + forma
+      en -ing) », the card's name for the form (M10). English's, so not the edition's: in a French
+      entry « participio presente » names the French participle.
+
+    An entry it does not change, and a line it cannot read, are written as they are."""
+    common_words = _common_words(src)
+
+    def read(entry):
+        senses = entry.get("senses")
+        if not isinstance(senses, list):
+            return entry
+        headword = _headword(entry)
+        if entry.get("pos") == "name" and headword[:1].isupper() and headword.lower() in common_words:
+            senses = [sense for sense in senses if not _NAME_NOTE.match(_first_gloss(sense))]
+            if not senses:
+                return None
+        tags = entry.get("tags") if isinstance(entry.get("tags"), list) else ()
+        if entry.get("pos") == "adj" and any(tag in _DETERMINER_TAGS for tag in tags if isinstance(tag, str)):
+            entry = {**entry, "pos": "det"}
+        senses = [
+            {**sense, "glosses": [g.replace(_PRESENT_PARTICIPLE, _ING_FORM) for g in sense["glosses"]]}
+            if isinstance(sense, dict)
+            and isinstance(sense.get("glosses"), list)
+            and all(isinstance(g, str) for g in sense["glosses"])
+            else sense
+            for sense in senses
+        ]
+        return {**entry, "senses": senses}
+
+    return spanish.rewrite_entries(src, dst, read)
 
 
 by_spanish_frequency = common.by_native_frequency
@@ -301,18 +543,25 @@ def main():
     frequency = functools.lru_cache(maxsize=None)(lambda w: zipf_frequency(w, EDITION.code))
 
     ranks = read_studied(a.studied, a.max_lemmas)
+    readings = read_readings(a.studied)
     entries = without_letters(
         os.path.join(a.work, "kaikki-es-English.jsonl"), os.path.join(a.work, "kaikki-es-English-words.jsonl")
     )
+    entries = spanish.read_as_meanings(entries, os.path.join(a.work, "kaikki-es-English-meanings.jsonl"))
+    entries = english_entries(entries, os.path.join(a.work, "kaikki-es-English-glossing.jsonl"))
     direct = read_translated(
         os.path.join(a.work, "kaikki-en-traductions-es.jsonl"),
         os.path.join(a.work, "kaikki-en-traductions-es-words.jsonl"),
         inverted=False,
+        frequency=frequency,
+        readings=readings,
     )
     inverted = read_translated(
         os.path.join(a.work, "kaikki-es-traductions-en.jsonl"),
         os.path.join(a.work, "kaikki-es-traductions-en-words.jsonl"),
         inverted=True,
+        frequency=frequency,
+        readings=readings,
     )
     sources = [(direct, list), (inverted, by_spanish_frequency(frequency))]
     glosses, runs, expressions, steps = native_side(entries, ranks, sources)

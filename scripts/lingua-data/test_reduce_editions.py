@@ -1894,17 +1894,22 @@ DO_LISTS_C = {"word": "do", "pos": "noun", "translations": [{"word": "C"}]}
 YO_LISTS_I = {"word": "yo", "pos": "pron", "translations": [{"word": "I"}]}
 
 
+# wordfreq's Spanish Zipf frequency, for a table with no note to judge: no word is frequent.
+NO_WORD = lambda word: 0.0  # noqa: E731
+
+
 class EnglishGlossedInSpanish(Entries):
     """en-es (add-lingua-pack-en-es D1, D4): the native side alone from English's committed tables,
     a definition first, then the English Wiktionary's Spanish translations, then the Spanish
     Wiktionary's English translations read backwards — and the share the tables gave."""
 
-    def studied(self, forms, freq, level=""):
+    def studied(self, forms, freq, level="", grammar=""):
         folder = self.dir / "en"
         folder.mkdir(exist_ok=True)
         (folder / "forms.tsv").write_text(forms, encoding="utf-8")
         (folder / "freq.tsv").write_text(freq, encoding="utf-8")
         (folder / "level.tsv").write_text(level, encoding="utf-8")
+        (folder / "grammar.tsv").write_text(grammar, encoding="utf-8")
         return folder
 
     def wordfreq(self, zipf):
@@ -2017,7 +2022,7 @@ class EnglishGlossedInSpanish(Entries):
             O_TRANSLATED_EN,
             name="kaikki-en-traductions-es.jsonl",
         )
-        direct = en_es.read_translated(src, str(self.dir / "direct.jsonl"), inverted=False)
+        direct = en_es.read_translated(src, str(self.dir / "direct.jsonl"), inverted=False, frequency=NO_WORD, readings={})
         self.assertEqual(direct, {"a": {"DET": ["un", "una"]}, "i": {"PRON": ["yo"]}, "o": {"PART": ["oh", "oy"]}})
         # Read backwards, a letter is never glossed: the Spanish Wiktionary's `i` lists « i », and
         # its noun `do` lists « C » — recorded: `c` was glossed « Do », the note's name borrowed
@@ -2025,7 +2030,7 @@ class EnglishGlossedInSpanish(Entries):
         # nothing of the English side. `yo` « I », the one word of a letter the table reaches, goes
         # with them: the entries and the direct table gloss `I` before it is read.
         src = self.jsonl(I_LISTS_I, PERRO_LISTS_DOG, DO_LISTS_C, YO_LISTS_I, name="kaikki-es-traductions-en.jsonl")
-        inverted = en_es.read_translated(src, str(self.dir / "inverted.jsonl"), inverted=True)
+        inverted = en_es.read_translated(src, str(self.dir / "inverted.jsonl"), inverted=True, frequency=NO_WORD, readings={})
         self.assertEqual(inverted, {"dog": {"NOUN": ["perro"]}})
         glossed = common.fallback_glosses({"c", "dog", "i", "o"}, {}, [(direct, list), (inverted, list)], edition=ES)
         self.assertEqual(
