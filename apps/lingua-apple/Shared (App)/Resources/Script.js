@@ -1,14 +1,14 @@
-// Activation page of the host app (French copy, like the extension). ViewController.swift
-// calls show() once loaded; on macOS it passes the real extension state from
-// SFSafariExtensionManager, and "Activer dans Safari" asks the app to open Safari's settings.
+// Activation page of the host app, in the language copy.js filled it in (localise-lingua-apple-host).
+// ViewController.swift calls show() once loaded; on macOS it passes the real extension state from
+// SFSafariExtensionManager, and the button asks the app to open Safari's settings.
 function show(platform, enabled, useSettingsInsteadOfPreferences) {
     document.body.classList.add(`platform-${platform}`);
 
-    // Before macOS 13, Safari called its settings "Préférences".
+    // Before macOS 13, Safari called its settings "Préférences": the page's language has those variants too.
     if (useSettingsInsteadOfPreferences === false) {
-        document.getElementsByClassName('platform-mac state-on')[0].innerText = "Extension active. Tu peux la désactiver dans les préférences de Safari, section Extensions.";
-        document.getElementsByClassName('platform-mac state-off')[0].innerText = "Extension désactivée. Active-la dans les préférences de Safari, section Extensions.";
-        document.getElementsByClassName('platform-mac state-unknown')[0].innerText = "Active Cymbra Lingua dans les préférences de Safari, section Extensions.";
+        document.getElementsByClassName('platform-mac state-on')[0].textContent = linguaCopy.text("stateOnPreferences");
+        document.getElementsByClassName('platform-mac state-off')[0].textContent = linguaCopy.text("stateOffPreferences");
+        document.getElementsByClassName('platform-mac state-unknown')[0].textContent = linguaCopy.text("stateUnknownPreferences");
     }
 
     if (typeof enabled === "boolean") {

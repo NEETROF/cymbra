@@ -32,6 +32,8 @@ jobs:
           filters: |
             ext:
               - 'apps/lingua-extension/**'
+              # The Safari host app's activation page, read by test/apple-activation-page.spec.ts.
+              - 'apps/lingua-apple/Shared (App)/Resources/**'
               # The protos `yarn gen:proto` generates the extension's clients from.
               - 'backend/auth-port/proto/**'
               - 'backend/user-port/proto/**'
