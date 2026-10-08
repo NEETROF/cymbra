@@ -298,6 +298,119 @@ it holds the extract's entries, with some tables in the dump's order and 77 more
 `lingua-pack-sources-en-es-2026.10.08`, and the pinned reduction that committed the tables followed on the same branch
 (`build.sh --reduce en-es`, about 6 s on a laptop, fetch and pack build included).
 
+## The editions' dumps
+
+kaikki is read at **three addresses, one dump per Wiktionary edition**
+(migrate-lingua-pack-sources-to-raw-dumps, change 38 of `docs/lingua/language-matrix-programme.md`):
+kaikki has marked its per-language files deprecated and keeps its dumps of whole editions. Every file
+a pair reads of kaikki is derived from the dump of the edition that writes it, in one pass per
+edition (`pack_sources.py derive`): a language's entries as the dump writes them, or the
+translations an edition's entries list into one language, cut down to those. `pack_sources.py
+EDITIONS` is the catalogue — each edition's address and every file derivable from it that a pair of
+the programme reads — and `DUMPS[pair]` names the files a pair reads, by edition; a pair that needs a
+file the catalogue lacks adds it there, in the edition that writes it, and nowhere else. The files
+derived from the dumps served on 2026-10-08:
+
+| Edition: the dump, as served on 2026-10-08 | File | Kind | Derived | Read by |
+|---|---|---|---|---|
+| **English** (`kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz`): 2,981,058,381 B gzipped, 25,614,284,530 B decompressed, regenerated 2026-10-03 08:24 | `kaikki-Spanish.jsonl` | Spanish entries | 928,737,891 B | es-fr (forms, readings, genders), es-en (glosses) |
+| | `kaikki-French.jsonl` | French entries | 510,058,226 B | fr-en (change 48) |
+| | `kaikki-en-traductions-es.jsonl` | English entries' Spanish translations | 13,762,773 B | en-es (direct) |
+| | `kaikki-en-traductions-fr.jsonl` | English entries' French translations | 13,003,913 B | fr-en (inverted) |
+| **French** (`kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz`): 736,590,407 B gzipped, 6,865,136,428 B decompressed, regenerated 2026-10-02 00:10 | `kaikki-Anglais.jsonl` | English entries | 145,705,523 B | en-fr |
+| | `kaikki-fr-Espagnol.jsonl` | Spanish entries | 212,331,331 B | es-fr |
+| | `kaikki-fr-traductions.jsonl` | French entries' Spanish translations | 6,191,621 B | es-fr (inverted), fr-es (direct) |
+| | `kaikki-fr-traductions-en.jsonl` | French entries' English translations | 14,573,988 B | fr-en (direct) |
+| **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
+| | `kaikki-es-Francés.jsonl` | French entries | 7,438,610 B | fr-es (change 49) |
+| | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
+| | `kaikki-es-traductions-en.jsonl` | Spanish entries' English translations | 2,200,504 B | es-en (direct), en-es (inverted) |
+
+The existing names are kept — a name is a reducer's input — and the new ones carry their edition.
+fr-en and fr-es register what they read and derive nothing new.
+
+**A dump is recorded, never kept.** It is fetched into `work/dumps/`, read once and deleted; the
+English edition's alone is above the 2 GiB a release asset may weigh. A pair's derived files are
+zstd-compressed and published under the pair's own release, `lingua-pack-sources-<pair>-<snapshot>`,
+pinned by the sha256 of their decompressed bytes, as before (the largest, the Spanish section, about
+52 MB compressed). The pin records each edition's dump as a source, `kaikki-<edition>`: its address,
+the day it was fetched, kaikki's regeneration date (`last_modified`), `dump` — the sha256 and size
+of its decompressed bytes, hashed in the pass that derives from it, and its size as served — and the
+`files` derived from it. Two pairs updated from one regeneration therefore carry one dump sha256 and
+files of one sha256, which the asset cache fetches once; a re-reduction fetches the derived files and
+never a dump. The release notes name each dump the same way (`pack_sources.py dumps --pin`).
+
+**A dump is read once per run.** At the first read of a run, the edition's whole catalogue is
+derived into `work/editions/<edition>-<snapshot>/` (`build.sh` passes `LINGUA_EDITIONS`), and a later
+pair of the run copies what it reads from there: the pass is the cost, writing a file no pair of the
+run reads is not. The folder counts once it holds `dump.json`, written last, so a pass cut short is
+started again; it is the run's own and `lingua-pack-update` removes it at the end. An update of one
+pair fetches only the dumps of the editions it reads (es-en: the English and Spanish ones); the pairs
+it brings along read their own pins. The monthly dry run checks every pair **in one job**, in `pairs`
+order, so each dump is fetched once a month rather than once per pair reading its edition; each pair
+reduces into a dry root of its own (`work/dry/<pair>`), so a later pair never lays the committed
+studied folder over the drift its reference wrote, and a pair that fails is named, the loop goes on,
+and the job fails at the end.
+
+**A pin written before the dumps stays readable** (D5). en-fr's, es-fr's and es-en's pins name
+kaikki's per-language extract (`kaikki`: `asset`, `sha256`, the extract's address); en-es's names
+files derived from the Spanish dump and from the English extract, read as a dump is. `fetch-pinned`
+reads a record by its shape — an extract's `asset` or derived `files` — from the release it names,
+checked by sha256, keeps a legacy `kaikki` record (nothing is pruned, the pin's bytes do not move)
+and fetches the extract under the name its asset gives (`kaikki-Spanish.jsonl.zst` →
+`kaikki-Spanish.jsonl`). The `reduce` job reproduces every committed table, manifest and pin from
+them as before, and no pin, table, pack or baseline moved in this change. A pair moves to the dumps
+at its next update, the owner's dispatch: its pin then names the editions' dumps and no extract.
+
+**Extract and dump agree — measured, not assumed** (D6). On 2026-10-08 kaikki served, side by
+side, the English dump of 2026-10-03 08:24 and the Spanish extract of 2026-10-03 10:55 (the bytes
+es-en pins), the French dump of 2026-10-02 00:10 and the Anglais extract of 00:18, and the English
+extract of 2026-10-03 11:09 that en-es's direct translations were derived from. Each pair was reduced
+from its pinned sources twice, the one file read once as the extract gives it and once as the dump
+gives it (`pack_report.py --identical` on every folder):
+
+| Section | The two files | Reduced |
+|---|---|---|
+| The English edition's Spanish entries | the same 811,049 entries; the extract adds an `id` to each sense and spreads the page's categories over the senses as objects, the dump keeps them on the entry as names; 37 entries or runs of entries stand elsewhere in the file. 1,054,565,723 B against 928,737,891 B | es-en: identical. es-fr: `es-fr/` identical; `es/` identical but `grammar.tsv`, which gains 4 readings from the dump — the feminine plurals of *beta*, *delta*, *kappa* and *zeta* (`betas beta NOUN\|Gender=Fem\|Number=Plur`). es-fr's letter-name rule (`_names_a_letter`) reads a sense's categories, where the extract puts « Greek letter names » and the dump does not |
+| The French edition's English entries | the same 194,304 entries, differing the same way (sense ids, categories as objects); 201,505,597 B against 145,705,523 B | en-fr: `en-fr/` and `en/` identical |
+| The English entries' Spanish translations | the same 68,058 words and parts of speech, the dump writing 3 more entries for them (`do` and `ceno-`); 1,703 entries list the same translations in another order — the extract assigns each table to the sense it translates, the dump keeps it where the page writes it — and 60 list 77 more. 13,757,388 B against 13,762,773 B | en-es: 186 glosses and 55 expressions take their words in another order or another third word (the direct fallback takes the table's first three); no row added or removed, the coverage the same (93.0 / 85.0 / 71.7 %) |
+
+So the dumps give en-fr's and es-en's tables byte for byte; es-fr's next update will carry the four
+readings beside upstream drift, and en-es's the 186 glosses and 55 expressions — each said by that
+update's report, as the design's risks foresee. Neither is a defect of the dumps: the extract's
+post-processing moves categories and translation tables, and a rule that wants to read the page's
+categories (es-fr's letter names) can be taught to in a change of its own, which re-pins es-fr.
+
+The regenerations the pins record were still served that day, so the opportunity was taken too:
+es-fr's three derived files and es-en's and en-es's derived from the French and Spanish dumps re-derive
+to their pinned sha256 byte for byte (the new `derive`, hashing in the same pass, writes what the old
+one wrote); es-en's committed tables reproduce byte for byte from the English dump of 2026-10-03
+08:24 (the Spanish section derived from it, Spanish's committed tables, every other source pinned);
+and en-es's direct translations re-derive from today's English extract to the sha256 its pin
+records.
+
+**Measured** (D4, D8). On a laptop (Apple silicon), the pass of `derive` over each edition's dump,
+deriving its whole catalogue and hashing the decompressed stream: the English 2 min 39 s (25.6 GB
+decompressed), the French 52 s, the Spanish 9 s, at about 90 MB of memory; the downloads, at the
+laptop's throughput, 2 min 3 s, 1 min 1 s and 12 s. On the implementation pull request's runners:
+the monthly job as one job over en-fr, es-fr, en-es and es-en — run
+[37805366125](https://github.com/NEETROF/cymbra/actions/runs/37805366125), `ubuntu-24.04`,
+2026-10-08 — took 17 min 11 s, its loop 16 min 39 s (en-fr 3 min 39 s, es-fr 9 min 25 s, en-es 21 s,
+es-en 3 min 13 s), each dump fetched and read once: the French one fetched in 29 s and its catalogue
+derived in 57 s, the English one in 1 min 48 s (about 28 MB/s from kaikki, not the 4 MB/s the
+design feared) and 2 min 55 s, the Spanish one in 6 s and 9 s. A dry run of es-fr alone — an
+update's cost but its release and branch — run
+[37805406472](https://github.com/NEETROF/cymbra/actions/runs/37805406472), took 16 min 53 s, its
+reduction 16 min 14 s (the English dump fetched in 2 min 27 s and derived in 4 min 6 s, the French
+in 35 s and 1 min 27 s, the Spanish in 7 s and 14 s): an update stays well within the 45 minutes, and
+the prefilter needs no tightening. What a pair then spends is mostly compression: es-en's 3 min 13 s
+are about 2 min 50 s of zstd at level 19 over the 929 MB Spanish section, which es-fr compresses
+too — compressing it once per run (D8's option, not done here) would save about 3 minutes of the
+monthly job. The disk at the run's fullest — the end of the English pass, its 2.98 GB dump and
+1.47 GB catalogue beside the French catalogue and the pack builder — held 68.2 GB, about 4 GB more
+than during the French pass, and `df` showed 82 GiB or more free after each pair: the runner has far
+more room than the 14 GB the design assumed.
+
 ## What a pack studies, whatever it glosses
 
 Two packs of one studied language must analyse it alike whatever native language they are glossed
