@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { hostAppSignInUrl, nativeProviders, parseHandedIdToken, takeHandedIdToken } from "@/state/native-signin.ts";
+import {
+  hostAppSignInUrl,
+  nativeProviders,
+  parseHandedIdToken,
+  takeHandedIdToken,
+  tellInterfaceLanguage,
+} from "@/state/native-signin.ts";
 
 describe("nativeProviders", () => {
   it("offers Apple always and Google as the host app reports it", async () => {
@@ -26,6 +32,29 @@ describe("hostAppSignInUrl", () => {
   it("opens the host app on the requested provider", () => {
     expect(hostAppSignInUrl("apple")).toBe("cymbra-lingua://signin?provider=apple");
     expect(hostAppSignInUrl("google")).toBe("cymbra-lingua://signin?provider=google");
+  });
+
+  it("names the interface language the sheet should speak", () => {
+    expect(hostAppSignInUrl("apple", "fr")).toBe("cymbra-lingua://signin?provider=apple&lang=fr");
+    expect(hostAppSignInUrl("google", "es")).toBe("cymbra-lingua://signin?provider=google&lang=es");
+    expect(hostAppSignInUrl("apple", "en")).toBe("cymbra-lingua://signin?provider=apple&lang=en");
+  });
+});
+
+describe("tellInterfaceLanguage", () => {
+  it("sends the host app the interface language", async () => {
+    const send = vi.fn(async () => ({ language: "es" }));
+    await tellInterfaceLanguage(send, "es");
+    expect(send).toHaveBeenCalledWith({ type: "interface.language", language: "es" });
+  });
+
+  it("treats a missing or failing handler as nothing to act on", async () => {
+    await expect(
+      tellInterfaceLanguage(async () => {
+        throw new Error("no native handler");
+      }, "fr"),
+    ).resolves.toBeUndefined();
+    await expect(tellInterfaceLanguage(async () => null, "en")).resolves.toBeUndefined();
   });
 });
 
