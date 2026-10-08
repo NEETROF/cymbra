@@ -33,6 +33,7 @@ export type Surface =
   | "review"
   | "stats"
   | "settings"
+  | "studied-languages"
   | "colours"
   | "display"
   | "translation"
@@ -54,6 +55,7 @@ export const SURFACES: readonly Surface[] = [
   "review",
   "stats",
   "settings",
+  "studied-languages",
   "colours",
   "display",
   "translation",

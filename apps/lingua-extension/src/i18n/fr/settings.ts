@@ -1,12 +1,14 @@
-// Réglages' copy (reading/settings-view.ts, reading/studied-languages-view.ts and a voice's label,
-// reading/speech.ts), in French — the source module (add-lingua-interface-language). The level,
-// colour, display, translation and account blocks have modules of their own.
+// Réglages' copy (reading/settings-view.ts and a voice's label, reading/speech.ts), in French — the
+// source module (add-lingua-interface-language). The studied languages, colour, display,
+// translation and account blocks have modules of their own.
 
 export const settings = {
   /** `windowsLanguage` and `language` come from `languages` (« Anglais (États-Unis) », « Anglais »). */
   installVoiceHelp: (windowsLanguage: string, language: string) =>
     `Pour une voix sur l'appareil, sans changer la langue du système ni du navigateur : sous Windows, Paramètres › Heure et langue › Langue et région › Ajouter une langue › ${windowsLanguage}, sans la définir comme langue d'affichage, avec la synthèse vocale ; sous macOS, Réglages Système › Accessibilité › Contenu énoncé › Voix du système › Gérer les voix › ${language}. Relance ensuite le navigateur.`,
-  installVoiceFallback: " Si l'installation échoue, active les voix en ligne ci-dessous.",
+  /** `help` is `installVoiceHelp`'s sentence, followed by the online voices where they may stand in. */
+  installVoiceHelpWithFallback: (help: string) =>
+    `${help} Si l'installation échoue, active les voix en ligne ci-dessous.`,
   studiedLanguages: "Langues étudiées",
   beginner: "Débutant",
   /** The calibration slider's label, its count in bold. */
@@ -86,9 +88,4 @@ export const settings = {
   dataErased: "Données effacées.",
   /** The tab row's accessible name. */
   tabs: "Réglages",
-
-  // — Langues étudiées (reading/studied-languages-view.ts) —
-  studiedNote:
-    "Chaque page est lue dans celle de tes langues qu'elle contient. La première cochée sert aux réglages et aux statistiques par défaut.",
-  severalLanguagesOffer: "Plusieurs langues à la fois : gratuit pour l'instant.",
 };

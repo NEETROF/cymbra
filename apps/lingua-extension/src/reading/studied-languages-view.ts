@@ -2,8 +2,8 @@ import { languageName } from "../analyzer/language-labels.ts";
 import { DEFAULT_NATIVE, pairsOf, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
-import { settings as frSettings } from "../i18n/fr/settings.ts";
-import type { SettingsModule } from "./settings-copy.ts";
+import { studiedLanguages as frStudiedLanguages } from "../i18n/fr/studied-languages.ts";
+import type { StudiedLanguagesCopy } from "./settings-copy.ts";
 
 // « Langues étudiées » (add-lingua-language-choice D2): a box per language the package ships, ticked
 // when the reader studies it. Ticking appends a language, unticking removes one, and the only ticked
@@ -12,9 +12,9 @@ import type { SettingsModule } from "./settings-copy.ts";
 // listed, and is kept. With one shipped language there is nothing to choose: the block hides.
 // The languages offered are those of the pairs glossed in the reader's native language
 // (generalise-lingua-native-language D7): French until the port says otherwise, so a reader of
-// French sees the boxes from the start, as before. Its two notes are Réglages' `settings` module's,
-// handed by the settings view in the interface language (localise-lingua-settings); the onboarding
-// page mounts it without one, in French.
+// French sees the boxes from the start, as before. Its two notes are the catalogue's
+// `studied-languages` module, handed by the settings view in the interface language
+// (localise-lingua-settings); the onboarding page mounts it without one, in French.
 
 export interface StudiedLanguagesView {
   /** Show the stored choice (it may have changed in another context). */
@@ -28,14 +28,14 @@ export function shippedLanguages(pairs: readonly string[] = SHIPPED_PAIRS): Stud
 
 /**
  * Render the boxes into `block`, a settings block; `persist` saves the backup after a change; `copy`
- * is Réglages' module in the interface language, the French one when not given.
+ * is the block's module in the interface language, the French one when not given.
  */
 export function mountStudiedLanguages(
   block: HTMLElement,
   port: Pick<LinguaPort, "studiedLanguages" | "setStudiedLanguages" | "nativeLanguage">,
   persist: () => Promise<void>,
   pairs: readonly string[] = SHIPPED_PAIRS,
-  copy: SettingsModule = frSettings,
+  copy: StudiedLanguagesCopy = frStudiedLanguages,
 ): StudiedLanguagesView {
   const doc = block.ownerDocument;
   const row = doc.createElement("div");

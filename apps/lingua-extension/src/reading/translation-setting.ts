@@ -11,7 +11,7 @@ import {
   TRANSLATION_HOST_KEY,
   type TranslationSetting,
 } from "../translate/setting.ts";
-import { settingsCopy, type TranslationCopy } from "./settings-copy.ts";
+import type { TranslationCopy } from "./settings-copy.ts";
 
 // « Traduction étendue » in the Réglages view (add-lingua-translation-delivery D2, D4, D8): one
 // checkbox, its cost stated before it is ticked, and — once ticked — where the model stands, with
@@ -22,7 +22,8 @@ import { settingsCopy, type TranslationCopy } from "./settings-copy.ts";
 // keys it writes, so progress reaches every open copy of the view. Failures are explained in the
 // reader's words, never with the error, which the background logs. The words are the catalogue's
 // `translation` module and the sizes are written in the interface language, both handed by the
-// settings view (localise-lingua-settings D1, D4); French when neither is given.
+// settings view (localise-lingua-settings D1, D4): the French module and French sizes when neither
+// is given, and a caller that passes a language passes that language's module with it.
 
 /** What the row needs from the background and the browser. A test hands in a fake. */
 export interface TranslationControls {
@@ -48,9 +49,6 @@ export function runtimeTranslationControls(): TranslationControls {
   };
 }
 
-/** The setting's French copy, the catalogue's module: what it shows when mounted without a language. */
-export const COPY: TranslationCopy = frTranslation;
-
 /**
  * Bytes as the reader reads sizes: decimal megabytes, one decimal, in the interface language
  * (« 25,8 Mo » in French, as before the catalogue).
@@ -58,7 +56,7 @@ export const COPY: TranslationCopy = frTranslation;
 export function megabytes(
   bytes: number,
   language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
-  copy: TranslationCopy = settingsCopy(language).translation,
+  copy: TranslationCopy = frTranslation,
 ): string {
   return copy.megabytes(
     formatNumber(language, bytes / 1_000_000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
@@ -72,7 +70,7 @@ export function megabytes(
 export function costText(
   cost?: ModelCost,
   language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
-  copy: TranslationCopy = settingsCopy(language).translation,
+  copy: TranslationCopy = frTranslation,
 ): string {
   const download = cost ? megabytes(cost.download, language, copy) : copy.theModel;
   // One model works in about 200 MB; through the pivot two do, the study's 322 MiB
@@ -92,8 +90,13 @@ function failureText(reason: ModelFailure, copy: TranslationCopy, size: string |
       return copy.failedNotTheModel;
     case "storage":
       return size ? copy.failedStorageSized(size) : copy.failedStorage;
-    default:
+    case "unknown":
       return copy.failedUnknown;
+    default: {
+      // Every reason has its sentence: a reason added to `ModelFailure` without one fails the type check.
+      const unexplained: never = reason;
+      return unexplained;
+    }
   }
 }
 
@@ -102,7 +105,7 @@ export function stateText(
   state: ModelState,
   cost?: ModelCost,
   language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
-  copy: TranslationCopy = settingsCopy(language).translation,
+  copy: TranslationCopy = frTranslation,
 ): string {
   const size = (bytes: number): string => megabytes(bytes, language, copy);
   // « 12,3 Mo sur 25,8 Mo » — or nothing to add when the total is unknown.
@@ -116,7 +119,7 @@ export function stateText(
     case "failed":
       return failureText(state.reason, copy, cost ? size(cost.stored) : null);
     case "interrupted":
-      return `${copy.interrupted}${progress(state.received, state.total)}`;
+      return copy.interruptedAt(progress(state.received, state.total));
     case "removed":
       return copy.removed;
     case "missing":
@@ -160,7 +163,7 @@ export interface TranslationSettingView {
 export interface TranslationSettingOptions {
   /** The interface language: the sizes are written in it; French when not given. */
   language?: InterfaceLanguage;
-  /** The setting's copy; that language's module when not given. */
+  /** The setting's copy, in that language — passed with it; the French module when not given. */
   copy?: TranslationCopy;
 }
 
@@ -172,7 +175,7 @@ export function mountTranslationSetting(
 ): TranslationSettingView {
   block.hidden = true; // until the background says the setting is offered here
   const language = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
-  const copy = opts.copy ?? settingsCopy(language).translation;
+  const copy = opts.copy ?? frTranslation;
   // The document the view is mounted in: a panel's, the popup's or a drawer's shadow.
   const doc = block.ownerDocument;
   const row = el(doc, "label", "set-toggle");

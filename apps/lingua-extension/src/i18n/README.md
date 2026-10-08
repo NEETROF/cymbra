@@ -2,8 +2,8 @@
 
 Every text the extension shows lives here, once per language: `fr/<surface>.ts`, `en/<surface>.ts`,
 `es/<surface>.ts`, one module per surface (`popup`, `hud`, `drawer`, `card`, `selection`,
-`sidepanel`, `review`, `stats`, `settings`, `colours`, `display`, `translation`, `account-setting`,
-`account`, `onboarding`, `reader`, `sync`, `languages`, `grammar`). The French module is the source;
+`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `colours`, `display`, `translation`,
+`account-setting`, `account`, `onboarding`, `reader`, `sync`, `languages`, `grammar`). The French module is the source;
 the English and Spanish ones are typed after it (`export const popup: typeof fr = { … }`), so a key
 missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts` checks the rest at
 runtime: no empty entry, every slot taken, nothing left in French outside the texts that are the same
@@ -24,8 +24,9 @@ The interface language is the reader's native language (`language.ts`: `interfac
 helpers — `plural`, `formatNumber`, `formatCount`, `formatPercent`, `formatDate`, `regionName`,
 `fillPage`, `fillPageInLanguage`, `renderAround`, `slot` and `fillSlots` — and maps no surface, so
 importing it costs an entry nothing. A surface imports its own three modules and picks by the
-language; Réglages, mounted by three hosts, picks its six (`settings`, `colours`, `display`,
-`translation`, `account-setting`, `sync`) in `reading/settings-copy.ts` and hands each block its own.
+language; Réglages, mounted by three hosts, picks its seven (`settings`, `studied-languages`,
+`colours`, `display`, `translation`, `account-setting`, `sync`) in `reading/settings-copy.ts` and hands
+each block its own, which holds its French module as its default.
 
 ## Pages
 

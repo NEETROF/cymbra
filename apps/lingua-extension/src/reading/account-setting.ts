@@ -103,9 +103,6 @@ export interface AccountSettingView {
   refresh(): Promise<void>;
 }
 
-/** The block's French copy, the catalogue's module: what it shows when mounted without a language. */
-export const ACCOUNT_COPY: AccountSettingCopy = frAccountSetting;
-
 function el<K extends keyof HTMLElementTagNameMap>(
   doc: Document,
   tag: K,
@@ -125,7 +122,7 @@ export function mountAccountSetting(
   opts: AccountSettingOptions,
 ): AccountSettingView {
   const doc = block.ownerDocument;
-  const copy = opts.copy ?? ACCOUNT_COPY;
+  const copy = opts.copy ?? frAccountSetting;
   const button = (className: string, text: string): HTMLButtonElement => {
     const b = el(doc, "button", className, text);
     b.type = "button";

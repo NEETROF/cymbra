@@ -1,3 +1,4 @@
+import { display as frDisplay } from "../i18n/fr/display.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatPercent, type InterfaceLanguage } from "../i18n/index.ts";
 import {
   type AsyncStorageArea,
@@ -11,7 +12,7 @@ import {
   TEXT_SCALE_MIN,
   TEXT_SCALE_STEP,
 } from "../state/storage.ts";
-import { type DisplayCopy, settingsCopy } from "./settings-copy.ts";
+import type { DisplayCopy } from "./settings-copy.ts";
 
 // How the reader shows text — its size and its theme (add-lingua-reader D10) — and how a book's
 // page turns (add-lingua-page-slide). The size scales the book's text and every surface of the
@@ -29,7 +30,7 @@ export interface BookDisplayOptions {
   turnContainer?: HTMLElement;
   /** The interface language: the size is written in it (« 110 % » in French); French when not given. */
   language?: InterfaceLanguage;
-  /** The block's copy; that language's module when not given. */
+  /** The block's copy, in that language — passed with it; the French module when not given. */
   copy?: DisplayCopy;
 }
 
@@ -90,7 +91,7 @@ export function mountBookDisplay(
   // The document the view is mounted in: the reader page's, a panel's or a drawer's shadow.
   const doc = container.ownerDocument;
   const language = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
-  const copy = opts.copy ?? settingsCopy(language).display;
+  const copy = opts.copy ?? frDisplay;
   const themes: { value: ReaderTheme; text: string }[] = [
     { value: "paper", text: copy.themePaper },
     { value: "dark", text: copy.themeDark },

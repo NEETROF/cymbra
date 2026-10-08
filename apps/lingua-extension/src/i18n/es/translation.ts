@@ -7,7 +7,6 @@ export const translation: typeof fr = {
   toggle: "Traducción ampliada",
   attribution: "Modelo de traducción: Firefox Translations (Mozilla), licencia MPL 2.0.",
   ready: "Lista: tus selecciones se traducen en este dispositivo.",
-  interrupted: "Descarga interrumpida.",
   removed: "El navegador ha eliminado el modelo de este dispositivo. Hay que descargarlo de nuevo.",
   missing: "Falta un modelo para uno de tus idiomas.",
   cancel: "Cancelar",
@@ -30,5 +29,6 @@ export const translation: typeof fr = {
   failedUnknown: "La descarga ha fallado. Reintenta más tarde.",
   progress: (received, total) => ` ${received} de ${total}`,
   downloading: (progress) => `Descargando el modelo…${progress}`,
+  interruptedAt: (progress) => `Descarga interrumpida.${progress}`,
   missingSized: (size) => `Falta un modelo para uno de tus idiomas. ${size} por descargar.`,
 };

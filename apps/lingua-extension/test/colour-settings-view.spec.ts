@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { INDISTINCT_WARNING, mountColourSettings } from "@/reading/colour-settings-view.ts";
+import { colours } from "@/i18n/fr/colours.ts";
+import { mountColourSettings } from "@/reading/colour-settings-view.ts";
 import { type AsyncStorageArea, COLOURS_KEY, type ColourPreference } from "@/state/storage.ts";
 import { customColours, tokenValues } from "./colour-fixtures.ts";
 
 // The Couleurs block of Réglages (add-lingua-colour-settings D5): a preset or every colour by
 // hand, a preview, a warning when the two statuses would look alike, a way back to Cymbra.
+
+const INDISTINCT_WARNING = colours.indistinctWarning;
 
 function area(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };

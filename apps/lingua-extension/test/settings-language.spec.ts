@@ -31,7 +31,10 @@ import { makeFakePort, makeFakeSpeech } from "./helpers.ts";
 // is French), asserted here in English and Spanish. The names of languages (the level blocks'
 // titles, the studied languages' boxes) are change 19's, and stay French until then.
 
-const NNBSP = " ";
+const NNBSP = "\u202F";
+/** Réglages' modules in English and in Spanish: a block handed a language is handed its module too. */
+const EN = settingsCopy("en");
+const ES = settingsCopy("es");
 const NOW = Date.UTC(2026, 8, 17, 12, 0, 0);
 const MINUTE = 60_000;
 const DAY = 86_400_000;
@@ -95,10 +98,14 @@ function translationControls(status: ModelStatus): TranslationControls {
   };
 }
 
-async function mountReglages(interfaceLanguage: InterfaceLanguage | undefined, over: Partial<SettingsOptions> = {}) {
+async function mountReglages(
+  interfaceLanguage: InterfaceLanguage | undefined,
+  over: Partial<SettingsOptions> = {},
+  fake = makeFakePort(),
+) {
   const container = document.createElement("div");
   document.body.replaceChildren(container);
-  mountSettings(container, makeFakePort().port, fakeArea(), {
+  mountSettings(container, fake.port, fakeArea(), {
     persist: async () => {},
     store: fakeArea(),
     sync: syncControls(),
@@ -134,10 +141,15 @@ describe("Réglages", () => {
     expect(r.block("Sync").textContent).toContain("Synced 3 min ago.");
     expect(r.block("Reset").textContent).toContain("Start over from the server");
 
-    // The count in bold, the sentence around it the English one's.
+    // The count in bold, as English writes a count, the sentence around it the English one's.
     const calibration = r.container.querySelector<HTMLLabelElement>(".calib label")!;
-    expect(calibration.textContent).toBe("I know the 3000 most common words");
-    expect(calibration.querySelector("b")?.textContent).toBe("3000");
+    expect(calibration.textContent).toBe("I know the 3,000 most common words");
+    expect(calibration.querySelector("b")?.textContent).toBe("3,000");
+    // The slider moved: the count follows, in the same form.
+    const slider = r.container.querySelector<HTMLInputElement>('.calib input[type="range"]')!;
+    slider.value = "10000";
+    slider.dispatchEvent(new Event("input"));
+    expect(calibration.textContent).toBe("I know the 10,000 most common words");
 
     // The keys rendered as keys, where the English line puts them.
     const lines = [...r.block("Shortcuts & gestures").querySelectorAll("li")];
@@ -161,6 +173,15 @@ describe("Réglages", () => {
     ]);
     const line = r.block("Raccourcis & gestes").querySelector("li")!;
     expect([...line.childNodes].map((n) => n.textContent)).toEqual(["Alt", "+", "Maj", "+", "S", " — panneau latéral"]);
+  });
+
+  it("A Spanish-native reader: the calibration's count as the RAE writes it", async () => {
+    const fake = makeFakePort();
+    fake.calls.setCalibration.push(10_000);
+    const r = await mountReglages("es", {}, fake);
+    const calibration = r.container.querySelector<HTMLLabelElement>(".calib label")!;
+    expect(calibration.querySelector("b")?.textContent).toBe(`10${NNBSP}000`);
+    expect(calibration.textContent).toBe(`Conozco las 10${NNBSP}000 palabras más corrientes`);
   });
 
   it("A Spanish-native reader: the tabs, the titles, the translation's cost and the last sync's date are Spanish", async () => {
@@ -234,7 +255,7 @@ describe("the colour block", () => {
   it("An English-native reader: the presets, the controls' names and the preview are English", async () => {
     const container = document.createElement("div");
     document.body.append(container);
-    mountColourSettings(container, fakeArea(), { copy: settingsCopy("en").colours });
+    mountColourSettings(container, fakeArea(), { copy: EN.colours });
     await settle();
     const presets = [...container.querySelectorAll(".set-segment")].map((b) => b.textContent);
     expect(presets).toEqual(["Cymbra", "High-contrast e-ink", "Color e-ink", "Custom"]);
@@ -248,7 +269,7 @@ describe("the colour block", () => {
 
   it("A Spanish-native reader: the preview's words where Spanish puts them", async () => {
     const container = document.createElement("div");
-    mountColourSettings(container, fakeArea(), { copy: settingsCopy("es").colours });
+    mountColourSettings(container, fakeArea(), { copy: ES.colours });
     await settle();
     const preview = container.querySelector(".set-colour-preview")!;
     expect(preview.textContent).toBe("Una palabra desconocida, una palabra en aprendizaje y una palabra conocida.");
@@ -258,7 +279,10 @@ describe("the colour block", () => {
 describe("the display block", () => {
   async function mount(language: InterfaceLanguage) {
     const container = document.createElement("div");
-    mountBookDisplay(container, fakeArea({ "cymbra-lingua-reader-display": { textScale: 120 } }), { language });
+    mountBookDisplay(container, fakeArea({ "cymbra-lingua-reader-display": { textScale: 120 } }), {
+      language,
+      copy: settingsCopy(language).display,
+    });
     await settle();
     return container;
   }
@@ -284,32 +308,36 @@ describe("the display block", () => {
 
 describe("the translation setting", () => {
   it("A Spanish-native reader: the cost, its sizes as Spanish writes them", () => {
-    expect(costText(COST, "es")).toBe(
+    expect(costText(COST, "es", ES.translation)).toBe(
       "Traduce tus frases en este dispositivo, sin enviar nada. Descarga 25,8 MB una vez y luego usa " +
         "unos 200 MB de memoria durante la traducción. Ajuste propio de este dispositivo.",
     );
-    expect(costText({ ...COST, pivot: true }, "es")).toContain("unos 340 MB de memoria");
-    expect(costText(undefined, "es")).toContain("Descarga el modelo una vez");
-    expect(megabytes(12_345_600_000, "es")).toBe(`12${NNBSP}345,6 MB`);
-    expect(stateText({ phase: "failed", reason: "storage" }, COST, "es")).toBe(
+    expect(costText({ ...COST, pivot: true }, "es", ES.translation)).toContain("unos 340 MB de memoria");
+    expect(costText(undefined, "es", ES.translation)).toContain("Descarga el modelo una vez");
+    expect(megabytes(12_345_600_000, "es", ES.translation)).toBe(`12${NNBSP}345,6 MB`);
+    expect(stateText({ phase: "failed", reason: "storage" }, COST, "es", ES.translation)).toBe(
       "No hay espacio suficiente en este dispositivo para el modelo (36,7 MB).",
     );
   });
 
   it("An English-native reader: the sizes, the states and the row are English", async () => {
-    expect(megabytes(25_752_472, "en")).toBe("25.8 MB");
-    expect(stateText({ phase: "downloading", received: 5_000_000, total: COST.download }, undefined, "en")).toBe(
-      "Downloading the model… 5.0 MB of 25.8 MB",
+    expect(megabytes(25_752_472, "en", EN.translation)).toBe("25.8 MB");
+    const downloading = { phase: "downloading", received: 5_000_000, total: COST.download } as const;
+    expect(stateText(downloading, undefined, "en", EN.translation)).toBe("Downloading the model… 5.0 MB of 25.8 MB");
+    expect(stateText({ ...downloading, phase: "interrupted" }, undefined, "en", EN.translation)).toBe(
+      "Download interrupted. 5.0 MB of 25.8 MB",
     );
-    expect(stateText({ phase: "interrupted", received: 0, total: 0 }, undefined, "en")).toBe("Download interrupted.");
-    expect(stateText(missing(COST.download), undefined, "en")).toBe(
+    expect(stateText({ phase: "interrupted", received: 0, total: 0 }, undefined, "en", EN.translation)).toBe(
+      "Download interrupted.",
+    );
+    expect(stateText(missing(COST.download), undefined, "en", EN.translation)).toBe(
       "A model is missing for one of your languages. 25.8 MB to download.",
     );
     const block = document.createElement("div");
     const view = mountTranslationSetting(
       block,
       translationControls({ offered: true, host: "local", state: missing(0), cost: COST }),
-      { language: "en" },
+      { language: "en", copy: EN.translation },
     );
     await view.refresh();
     expect(block.querySelector("label")?.textContent).toBe("Extended translation");
@@ -324,7 +352,7 @@ describe("the account block", () => {
     const out = mountAccountSetting(block, accountControls({ signedIn: false }), {
       openPage: () => {},
       onChange: () => {},
-      copy: settingsCopy("en").accountSetting,
+      copy: EN.accountSetting,
     });
     await out.refresh();
     const buttons = [...block.querySelectorAll("button")].map((b) => b.textContent);
@@ -336,7 +364,7 @@ describe("the account block", () => {
     const view = mountAccountSetting(inside, accountControls({ signedIn: true }, null), {
       openPage: () => {},
       onChange: () => {},
-      copy: settingsCopy("en").accountSetting,
+      copy: EN.accountSetting,
     });
     await view.refresh();
     expect(inside.querySelector(".set-account-row")?.textContent).toBe("Choose a username");
@@ -344,7 +372,7 @@ describe("the account block", () => {
     await mountAccountSetting(named, accountControls({ signedIn: true }, "lea"), {
       openPage: () => {},
       onChange: () => {},
-      copy: settingsCopy("en").accountSetting,
+      copy: EN.accountSetting,
     }).refresh();
     expect(named.querySelector(".set-account-row")?.textContent).toBe("@lea");
   });
@@ -353,12 +381,12 @@ describe("the account block", () => {
 describe("the sync block's copy", () => {
   it("A Spanish-native reader: the last sync's age, and its date as Spanish writes it", () => {
     expect(lastSyncLabel(null, NOW, "es", esSync)).toBe("Aún no sincronizado en este dispositivo.");
-    expect(lastSyncLabel(NOW - 5_000, NOW, "es")).toBe("Sincronizado ahora mismo.");
-    expect(lastSyncLabel(NOW - 3 * MINUTE, NOW, "es")).toBe("Sincronizado hace 3 min.");
-    expect(lastSyncLabel(NOW - 5 * 3_600_000, NOW, "es")).toBe("Sincronizado hace 5 h.");
+    expect(lastSyncLabel(NOW - 5_000, NOW, "es", esSync)).toBe("Sincronizado ahora mismo.");
+    expect(lastSyncLabel(NOW - 3 * MINUTE, NOW, "es", esSync)).toBe("Sincronizado hace 3 min.");
+    expect(lastSyncLabel(NOW - 5 * 3_600_000, NOW, "es", esSync)).toBe("Sincronizado hace 5 h.");
     const at = new Date(2026, 8, 14, 12, 0, 0).getTime();
-    expect(lastSyncLabel(at, at + 3 * DAY, "es")).toBe("Última sincronización el 14/9/2026.");
-    expect(lastSyncLabel(at, at + 3 * DAY, "en")).toBe("Last synced on 9/14/2026.");
+    expect(lastSyncLabel(at, at + 3 * DAY, "es", esSync)).toBe("Última sincronización el 14/9/2026.");
+    expect(lastSyncLabel(at, at + 3 * DAY, "en", enSync)).toBe("Last synced on 9/14/2026.");
   });
 
   it("An English-native reader: a failure explained by its category, in English", () => {
@@ -373,7 +401,7 @@ describe("the studied languages' block", () => {
     const { port } = makeFakePort();
     port.nativeLanguage = async () => "fr";
     const block = document.createElement("div");
-    const view = mountStudiedLanguages(block, port, async () => {}, ["en-fr", "es-fr"], settingsCopy("en").settings);
+    const view = mountStudiedLanguages(block, port, async () => {}, ["en-fr", "es-fr"], EN.studiedLanguages);
     await view.refresh();
     expect(block.textContent).toContain("Each page is read in whichever of your languages it holds.");
     expect(block.textContent).toContain("Several languages at once: free for now.");
@@ -390,14 +418,14 @@ describe("a voice's label", () => {
   });
 
   it("A Spanish-native reader: the region named in Spanish", () => {
-    expect(voiceLabel(voice("Samantha", "en-US"), "es")).toBe("Samantha — Estados Unidos");
-    expect(voiceLabel(voice("Daniel", "en_GB"), "es")).toBe("Daniel — Reino Unido");
+    expect(voiceLabel(voice("Samantha", "en-US"), "es", ES.settings)).toBe("Samantha — Estados Unidos");
+    expect(voiceLabel(voice("Daniel", "en_GB"), "es", ES.settings)).toBe("Daniel — Reino Unido");
   });
 
   it("names it in English, keeps the code the runtime cannot name, and the name alone without a region", () => {
-    expect(voiceLabel(voice("Daniel", "en-GB"), "en")).toBe("Daniel — United Kingdom");
-    expect(voiceLabel(voice("Odd", "en-Latn"), "en")).toBe("Odd — LATN");
-    expect(voiceLabel(voice("Plain", "en"), "es")).toBe("Plain");
+    expect(voiceLabel(voice("Daniel", "en-GB"), "en", EN.settings)).toBe("Daniel — United Kingdom");
+    expect(voiceLabel(voice("Odd", "en-Latn"), "en", EN.settings)).toBe("Odd — LATN");
+    expect(voiceLabel(voice("Plain", "en"), "es", ES.settings)).toBe("Plain");
     expect(voiceLabel(voice("Samantha", "en-US"))).toBe("Samantha — États-Unis"); // no language: French
   });
 });

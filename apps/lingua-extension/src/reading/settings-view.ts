@@ -9,7 +9,7 @@ import {
 import { acceptedLanguages, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
-import { DEFAULT_INTERFACE_LANGUAGE, fillSlots, type InterfaceLanguage, slot } from "../i18n/index.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, fillSlots, formatCount, type InterfaceLanguage, slot } from "../i18n/index.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
@@ -90,7 +90,7 @@ const PREVIEW_KEY = "preview";
  * (add-lingua-language-choice: the languages named from language-labels). On Windows, through
  * « Langue et région »: « Voix › Ajouter des voix » did nothing on a French Windows 11
  * (2026-09-29), and that install can fail outright (0x800F0950), hence the pointer to the fallback
- * (`installVoiceFallback`, added where the remote voices can stand in).
+ * (`installVoiceHelpWithFallback`, where the remote voices can stand in).
  */
 function installVoiceHelp(copy: SettingsModule, language: StudiedLanguage): string {
   return copy.installVoiceHelp(windowsVoiceLanguage(language), languageName(language));
@@ -196,7 +196,7 @@ export function mountSettings(
       await refresh();
     },
     pairs,
-    copy,
+    blocksCopy.studiedLanguages,
   );
 
   // — Niveau, one block per accepted language (add-lingua-language-choice D3) —
@@ -226,7 +226,8 @@ export function mountSettings(
     estimate.hidden = true;
     const calibBlock = el("div", "calib");
     calibBlock.hidden = true;
-    const calibValue = el("b", undefined, "3000");
+    // The count as the interface language writes a count: French bare, as before (« 3000 »).
+    const calibValue = el("b", undefined, formatCount(interfaceLanguage, 3000));
     const calibLabel = el("label");
     calibLabel.append(...fillSlots(copy.knowCommonest(slot(0)), [calibValue]));
     const calib = el("input");
@@ -238,7 +239,7 @@ export function mountSettings(
     calibBlock.append(calibLabel, calib);
     block.append(chips, hint, estimate, calibBlock);
     calib.addEventListener("input", () => {
-      calibValue.textContent = calib.value;
+      calibValue.textContent = formatCount(interfaceLanguage, Number(calib.value));
     });
     calib.addEventListener("change", async () => {
       await view.setCalibration(Number(calib.value));
@@ -273,7 +274,7 @@ export function mountSettings(
       if (!hasLevels) {
         const cal = await view.calibration();
         calib.value = String(cal);
-        calibValue.textContent = String(cal);
+        calibValue.textContent = formatCount(interfaceLanguage, cal);
       }
     }
 
@@ -533,7 +534,8 @@ export function mountSettings(
     // The language the host's speaker reads: a page's in the drawer, the reader's first elsewhere.
     const voiceLanguage = speaker.lang as StudiedLanguage;
     noVoiceText.textContent = noVoiceInstalled(voiceLanguage);
-    const help = installVoiceHelp(copy, voiceLanguage) + (offersRemote ? copy.installVoiceFallback : "");
+    const installHelp = installVoiceHelp(copy, voiceLanguage);
+    const help = offersRemote ? copy.installVoiceHelpWithFallback(installHelp) : installHelp;
     installInfo.title = help;
     installInfo.setAttribute("aria-label", help);
     remoteRow.hidden = !offersRemote;

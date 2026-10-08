@@ -39,9 +39,6 @@ export interface ColourSettingsOptions {
   copy?: ColoursCopy;
 }
 
-/** The warning shown when the two statuses would look alike without colour, in French. */
-export const INDISTINCT_WARNING = frColours.indistinctWarning;
-
 /** Render the colour choice into `container`. */
 export function mountColourSettings(
   container: HTMLElement,

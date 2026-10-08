@@ -144,6 +144,20 @@ describe("the reader page in English", () => {
     expect(root.querySelector(".reading-pct")?.textContent).toBe("45%");
   });
 
+  it("An English-native reader: the Aa panel is Réglages' Affichage block in English, its size as English writes it", async () => {
+    app({ language: "en", copy: readerCopy("en") });
+    const panel = root.querySelector<HTMLElement>(".reading-display")!;
+    await vi.waitFor(() => expect(panel.querySelector(".set-step-value")?.textContent).toBe("100%"));
+    expect(panel.textContent).toContain("Text size");
+    expect(panel.querySelector(".set-step")?.getAttribute("aria-label")).toBe("Smaller text");
+    expect([...panel.querySelectorAll(".set-segment")].map((b) => b.textContent)).toEqual([
+      "Paper",
+      "Dark",
+      "Instant",
+      "Slide",
+    ]);
+  });
+
   it("writes the chapter's figure as each language does: French spaced, Spanish with its narrow space", () => {
     const fr = app().indicator({ onReview() {}, onStats() {}, onSettings() {} });
     fr.update({ analysable: true, percent: 45 });

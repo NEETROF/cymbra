@@ -1,5 +1,6 @@
+import { settings as frSettings } from "../i18n/fr/settings.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage, regionName } from "../i18n/index.ts";
-import { type SettingsModule, settingsCopy } from "./settings-copy.ts";
+import type { SettingsModule } from "./settings-copy.ts";
 
 // Read-aloud (add-lingua-read-aloud): which voice may speak, which one does, and one speaker
 // that owns a single utterance at a time. No DOM here, and the browser's synthesiser sits behind
@@ -336,12 +337,13 @@ export function voiceGroups<V extends VoiceInfo>(
  * A voice as Réglages names it, in the interface language (localise-lingua-settings D4):
  * `Samantha — États-Unis` in French, `Samantha — United States` in English — the region through
  * `regionName`, the code where the runtime cannot name it, the name alone where the voice says none.
- * French when no language is given; `copy` is Réglages' module, that language's when not given.
+ * French when no language is given; `copy` is Réglages' module in that language, passed with it —
+ * the French one when not given.
  */
 export function voiceLabel(
   voice: VoiceInfo,
   language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
-  copy: SettingsModule = settingsCopy(language).settings,
+  copy: Pick<SettingsModule, "voiceLabel"> = frSettings,
 ): string {
   const code = region(voice.lang)?.toUpperCase();
   if (!code) return voice.name;
