@@ -36,6 +36,7 @@ import pack_sources as ps  # noqa: E402
 import reduce_common as common  # noqa: E402
 import reduce_edition_en as english  # noqa: E402
 from reduce_edition_en import EN  # noqa: E402
+import reduce_edition_es as spanish  # noqa: E402
 from reduce_edition_es import ES  # noqa: E402
 from reduce_edition_fr import FR  # noqa: E402
 
@@ -1894,17 +1895,22 @@ DO_LISTS_C = {"word": "do", "pos": "noun", "translations": [{"word": "C"}]}
 YO_LISTS_I = {"word": "yo", "pos": "pron", "translations": [{"word": "I"}]}
 
 
+# wordfreq's Spanish Zipf frequency, for a table with no note to judge: no word is frequent.
+NO_WORD = lambda word: 0.0  # noqa: E731
+
+
 class EnglishGlossedInSpanish(Entries):
     """en-es (add-lingua-pack-en-es D1, D4): the native side alone from English's committed tables,
     a definition first, then the English Wiktionary's Spanish translations, then the Spanish
     Wiktionary's English translations read backwards — and the share the tables gave."""
 
-    def studied(self, forms, freq, level=""):
+    def studied(self, forms, freq, level="", grammar=""):
         folder = self.dir / "en"
         folder.mkdir(exist_ok=True)
         (folder / "forms.tsv").write_text(forms, encoding="utf-8")
         (folder / "freq.tsv").write_text(freq, encoding="utf-8")
         (folder / "level.tsv").write_text(level, encoding="utf-8")
+        (folder / "grammar.tsv").write_text(grammar, encoding="utf-8")
         return folder
 
     def wordfreq(self, zipf):
@@ -2017,7 +2023,7 @@ class EnglishGlossedInSpanish(Entries):
             O_TRANSLATED_EN,
             name="kaikki-en-traductions-es.jsonl",
         )
-        direct = en_es.read_translated(src, str(self.dir / "direct.jsonl"), inverted=False)
+        direct = en_es.read_translated(src, str(self.dir / "direct.jsonl"), inverted=False, frequency=NO_WORD, readings={})
         self.assertEqual(direct, {"a": {"DET": ["un", "una"]}, "i": {"PRON": ["yo"]}, "o": {"PART": ["oh", "oy"]}})
         # Read backwards, a letter is never glossed: the Spanish Wiktionary's `i` lists « i », and
         # its noun `do` lists « C » — recorded: `c` was glossed « Do », the note's name borrowed
@@ -2025,7 +2031,7 @@ class EnglishGlossedInSpanish(Entries):
         # nothing of the English side. `yo` « I », the one word of a letter the table reaches, goes
         # with them: the entries and the direct table gloss `I` before it is read.
         src = self.jsonl(I_LISTS_I, PERRO_LISTS_DOG, DO_LISTS_C, YO_LISTS_I, name="kaikki-es-traductions-en.jsonl")
-        inverted = en_es.read_translated(src, str(self.dir / "inverted.jsonl"), inverted=True)
+        inverted = en_es.read_translated(src, str(self.dir / "inverted.jsonl"), inverted=True, frequency=NO_WORD, readings={})
         self.assertEqual(inverted, {"dog": {"NOUN": ["perro"]}})
         glossed = common.fallback_glosses({"c", "dog", "i", "o"}, {}, [(direct, list), (inverted, list)], edition=ES)
         self.assertEqual(
@@ -2068,6 +2074,1112 @@ class EnglishGlossedInSpanish(Entries):
         ranked = sum(1 for line in Path(_HERE, "tables", "en", "freq.tsv").read_text(encoding="utf-8").splitlines() if "\t" in line)
         self.assertEqual(len(committed), ranked, "every committed lemma, the level lists' words beyond 40,000 included")
         self.assertGreater(max(committed.values()), 40000)
+
+
+# — en-es's glosses read as meanings (refine-lingua-en-es-glosses) —
+# Recorded from the files en-es pins (lingua-pack-sources-en-es-2026.10.08): the Spanish
+# Wiktionary's English entries (`kaikki-es-English.jsonl`, its dump of 2026-10-02), cut down to the
+# fields the rules read; GO_VERB, GO_VERB_TR and GO_NOUN keep their entry's first senses only.
+STAGE_NOUN = {
+    "word": "stage",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["Fase, etapa."]},
+        {"glosses": ["Escenario, escena."]},
+        {"glosses": ["Platina de un microscopio."]},
+        {"glosses": ["Área de descanso, área de servicio."]},
+        {"glosses": ["Piso₃, planta₃ (de un edificio)."]},
+    ],
+}
+STAGE_VERB = {
+    "word": "stage",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["Escenificar, poner en escena, representar."]},
+        {"glosses": ["Identificar la fase de un proceso.^([cita requerida])"]},
+        {"glosses": ["Producir o dirigir una puesta en escena."]},
+        {"glosses": ["Detenerse entre dos etapas (de un viaje o de algún otro proceso)."]},
+    ],
+}
+FAVOR_NOUN = {"word": "favor", "pos": "noun", "tags": ["countable", "uncountable"], "senses": [{"glosses": ["Favor."]}]}
+FAVOR_VERB = {
+    "word": "favor",
+    "pos": "verb",
+    "senses": [
+        {"glosses": ["Mirar con cariño; preferir."]},
+        {"glosses": ["Usar más frecuentemente."]},
+        {"glosses": ["Alentar, conducir a."]},
+        {"glosses": ["Hacer un favor [sentido del sustantivo] para; mostrar beneficencia hacia."]},
+        {"glosses": ["Parecerse; especialmente, parecerse a (otra persona)."]},
+    ],
+}
+HARDCORE_NOUN = {"word": "hardcore", "pos": "noun", "senses": [{"glosses": ["Hardcore (definiciones [1,2])."]}]}
+HARDCORE_ADJ = {
+    "word": "hardcore",
+    "pos": "adj",
+    "senses": [{"glosses": ["Hardcore (definiciones [4,5])."]}, {"glosses": ["Incondicional, acérrimo."]}],
+}
+LEAVEN_NOUN = {
+    "word": "leaven",
+    "pos": "noun",
+    "tags": ["countable", "uncountable"],
+    "senses": [
+        {"glosses": ["Levadura, fermento."]},
+        {"glosses": ["Influencia o causa, generalmente sutil o gradual."], "tags": ["figurative"]},
+    ],
+}
+LEAVEN_VERB = {
+    "word": "leaven",
+    "pos": "verb",
+    "senses": [
+        {
+            "glosses": [
+                "Este lema en este idioma es ampliable. Retira este aviso si la mayor parte de las acepciones ya están "
+                "incluidas."
+            ]
+        }
+    ],
+}
+A_ARTICLE_ES = {
+    "word": "a",
+    "pos": "article",
+    "tags": ["indeterminate"],
+    "senses": [
+        {"glosses": ["Un, una. A veces se omite en la traducción."]},
+        {"glosses": ["Un tal, una tal. Precediendo a nombres personales de gente a la que apenas se conoce."]},
+    ],
+}
+A_PREP_ES = {
+    "word": "a",
+    "pos": "prep",
+    "senses": [
+        {"glosses": ["Por, normalmente con sentido proporción."]},
+        {
+            "glosses": ["Denota la acción de un verbo cuando se halla delante del participio activo."],
+            "tags": ["outdated"],
+        },
+    ],
+}
+WOW_INTJ = {
+    "word": "wow",
+    "pos": "intj",
+    "senses": [
+        {
+            "glosses": [
+                "Guau. Empleada para expresar sorpresa, perplejidad, entusiasmo, o sarcasticamente desaprobación."
+            ]
+        }
+    ],
+}
+WOW_VERB = {"word": "wow", "pos": "verb", "senses": [{"glosses": ["Asombrar."], "tags": ["colloquial"]}]}
+DEGREE = {
+    "word": "degree",
+    "pos": "noun",
+    "senses": [
+        {
+            "glosses": [
+                "Grado. A no confundir con Licenciatura (en el sistema de educación español) que constan de dos ciclos. "
+                "Los actuales grados sería el equivalente de las antiguas Diplomaturas (en el sistema de educación "
+                "español)."
+            ]
+        },
+        {"glosses": ["Nivel."]},
+        {"glosses": ["Título académico."]},
+    ],
+}
+ISNT = {
+    "word": "isn't",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [{"glosses": ['Contracción de el verbo is y el adverbio not. Traducida como "no es" o "no está".']}],
+}
+WERE = {
+    "word": "we're",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [{"glosses": ["Contracción de we are. Nosotros somos o nosotros estamos."]}],
+}
+PILOT_NOUN = {
+    "word": "pilot",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["Piloto. Persona que dirige un avión."]},
+        {
+            "glosses": [
+                "Piloto. Persona que conoce bien las profundidades y corrientes de una bahía o zona costera, quien es "
+                "contratado para ayudar en la navegación en ese lugar."
+            ]
+        },
+    ],
+}
+RIVER_PUMPKIN = {
+    "word": "river pumpkin",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["(Gunnera perpensa) Especie de gunera.^([definición imprecisa])"], "raw_tags": ["Plantas"]}
+    ],
+}
+GO_VERB = {
+    "word": "go",
+    "pos": "verb",
+    "tags": ["intransitive"],
+    "senses": [
+        {"glosses": ["Andar, marchar, caminar."], "tags": ["obsolete", "outdated"]},
+        {"glosses": ["Ir."]},
+        {"glosses": ["Irse, marcharse, partir."]},
+    ],
+}
+GO_VERB_TR = {
+    "word": "go",
+    "pos": "verb",
+    "tags": ["transitive"],
+    "senses": [{"glosses": ["Marchar."]}, {"glosses": ["Repartir."]}],
+}
+GO_NOUN = {
+    "word": "go",
+    "pos": "noun",
+    "tags": ["irregular"],
+    "senses": [{"glosses": ["Turno."]}, {"glosses": ["Intento."]}],
+}
+GO_INTJ = {
+    "word": "go",
+    "pos": "intj",
+    "senses": [
+        {"glosses": ["Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!."]},
+        {"glosses": ["Se emplea para infundir ánimo. ¡Vamos!, ¡adelante!."]},
+    ],
+}
+GO_GAME = {"word": "go", "pos": "noun", "senses": [{"glosses": ["Go (juego)."]}]}
+WILL_NOUN = {
+    "word": "will",
+    "pos": "noun",
+    "tags": ["countable", "uncountable"],
+    "senses": [
+        {"glosses": ["Deseo, inclinación, disposición."], "tags": ["outdated"]},
+        {"glosses": ["En particular, deseo sexual."], "tags": ["obsolete"]},
+        {"glosses": ["Deleite, placer, goce."], "tags": ["obsolete"]},
+        {"glosses": ["Voluntad, albedrío."]},
+        {"glosses": ["Decisión, intención."]},
+        {"glosses": ["Testamento."]},
+    ],
+}
+WILL_VERB = {
+    "word": "will",
+    "pos": "verb",
+    "tags": ["transitive"],
+    "senses": [
+        {"glosses": ["Querer, desear."], "tags": ["outdated"]},
+        {"glosses": ["Testar."]},
+        {"glosses": ["Legar."]},
+    ],
+}
+WILL_MODAL = {
+    "word": "will",
+    "pos": "verb",
+    "tags": ["modal"],
+    "senses": [{"glosses": ["Úsase para construir el futuro."]}],
+}
+WILL_NAME = {
+    "word": "Will",
+    "pos": "name",
+    "senses": [{"glosses": ["Apellido."]}, {"glosses": ["Hipocorístico de William."]}],
+}
+THOU = {
+    "word": "thou",
+    "pos": "pron",
+    "tags": ["personal"],
+    "senses": [
+        {
+            "glosses": ["Tú, vos (pronombre personal de la segunda persona del singular)."],
+            "tags": ["England", "Ireland", "jocular", "literary", "outdated"],
+            "raw_tags": ["dialectal", "religión", "requiere la terminación -(e)st en el verbo"],
+        }
+    ],
+}
+THY = {
+    "word": "thy",
+    "pos": "pron",
+    "tags": ["possessive"],
+    "senses": [{"glosses": ["Vuestro, vuestra, vuestros, vuestras."], "tags": ["obsolete"]}],
+}
+CLOSE_FIELD = {
+    "word": "close",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["Un campo encerrado."], "tags": ["rare"]},
+        {"glosses": ["Una calle sin salida."], "tags": ["UK"]},
+    ],
+}
+ON_PREP = {
+    "word": "on",
+    "pos": "prep",
+    "senses": [
+        {"glosses": ["Posicionado sobre la superficie superior de ..."]},
+        {"glosses": ["Que ocurre en la fecha especificada."]},
+        {"glosses": ["Relacionado con el tema ..., sobre el tema ..."]},
+        {"glosses": ["Indica contacto con ..."]},
+        {"glosses": ["Utilizado para indicar el estar en el estado o en el proceso que se especifica."]},
+    ],
+}
+NEITHER_CONJ = {"word": "neither", "pos": "conj", "senses": [{"glosses": ["(neither ... nor) Ni."]}]}
+NEITHER_ADV = {"word": "neither", "pos": "adv", "tags": ["negative"], "senses": [{"glosses": ["Tampoco."]}]}
+WHOD = {
+    "word": "who'd",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [
+        {"glosses": ["Contracción de el pronombre who y el verbo had; ¿Quién tenía / tuvo / había / hubo....?"]},
+        {"glosses": ["Contracción de el pronombre who y el verbo would; ¿Quién (+ condicional)....?"]},
+    ],
+}
+ITS_CONTRACTION = {
+    "word": "it's",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [{"glosses": ['Contracción de el pronombre it ("ello") y el verbo is ("es").']}],
+}
+IM = {
+    "word": "I'm",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [{"glosses": ['Contracción de I y am, "yo soy" o "yo estoy".']}],
+}
+BYRON = {
+    "word": "Byron",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["Nombre de pila de varón."]},
+        {"glosses": ["Apellido"]},
+        {"glosses": ['Poeta inglés autor de "Don Juan", " Las peregrinaciones de Childe Harold", etc.']},
+    ],
+}
+THATS = {
+    "word": "that's",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [{"glosses": ["Contracción de 'that is', ese es, esa es, aquel es, aquella es."]}],
+}
+SMITH = {"word": "smith", "pos": "noun", "senses": [{"glosses": ["Herrero."], "raw_tags": ["Oficios"]}]}
+SMITH_NAME = {"word": "Smith", "pos": "name", "senses": [{"glosses": ["Apellido."]}]}
+MIKE = {"word": "mike", "pos": "noun", "senses": [{"glosses": ["Micro, micrófono."], "tags": ["colloquial"]}]}
+MIKE_NAME = {
+    "word": "Mike",
+    "pos": "name",
+    "senses": [{"glosses": ["Hipocorístico de Michael."]}, {"glosses": ["Hipocorístico de Michaela."]}],
+}
+WAYNE_NAME = {"word": "Wayne", "pos": "name", "senses": [{"glosses": ["Apellido."]}]}
+DONALD_NAME = {
+    "word": "Donald",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["Nombre de pila de varón."]},
+        {"glosses": ["Apellido."]},
+        {"glosses": ["Nombre de varios lugares."]},
+    ],
+}
+SOUTH_NOUN = {
+    "word": "south",
+    "pos": "noun",
+    "tags": ["countable", "uncountable"],
+    "senses": [{"glosses": ["Sur."], "raw_tags": ["física"]}],
+}
+SOUTH_ADJ = {"word": "south", "pos": "adj", "senses": [{"glosses": ["Del sur."]}]}
+SOUTH_ADV = {"word": "south", "pos": "adv", "senses": [{"glosses": ["Al sur."]}]}
+SOUTH_NAME = {
+    "word": "South",
+    "pos": "name",
+    "senses": [{"glosses": ["Apellido."]}, {"glosses": ["(region) Sur."], "raw_tags": ["Regiones"]}],
+}
+DON_NOUN = {
+    "word": "don",
+    "pos": "noun",
+    "senses": [{"glosses": ["Profesor de una universidad, en particular Oxford y Cambridge."]}],
+}
+DON_VERB = {"word": "don", "pos": "verb", "tags": ["transitive"], "senses": [{"glosses": ["Vestirse, ponerse."]}]}
+DON_NAMES = {
+    "word": "Don",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["Hipocorístico de Donald."]},
+        {"glosses": ["Hipocorístico de Donovan."]},
+        {"glosses": ["Hipocorístico de Gordon."]},
+        {"glosses": ["Apellido."]},
+    ],
+}
+DON_RIVER = {"word": "Don", "pos": "name", "senses": [{"glosses": ["El río Don."], "raw_tags": ["Ríos"]}]}
+HER_PRON = {
+    "word": "her",
+    "pos": "pron",
+    "tags": ["personal"],
+    "senses": [{"glosses": ["Ella."]}, {"glosses": ["La (pronombre personal de objeto directo)."]}],
+}
+HER_ADJ = {"word": "her", "pos": "adj", "tags": ["possessive"], "senses": [{"glosses": ["Su (de ella)."]}]}
+MY_ADJ = {
+    "word": "my",
+    "pos": "adj",
+    "tags": ["possessive"],
+    "senses": [{"glosses": ["Mi, mío, de mí."], "raw_tags": ["se coloca delante del sustantivo"]}],
+}
+ITS_ADJ = {
+    "word": "its",
+    "pos": "adj",
+    "tags": ["possessive"],
+    "senses": [{"glosses": ["Su, sus; que pertenece a un animal o una cosa."]}],
+}
+ITS_PRON = {
+    "word": "its",
+    "pos": "pron",
+    "tags": ["possessive"],
+    "senses": [{"glosses": ["(El) suyo, (la) suya, (los) suyos o (las) suyas; que pertenece a un animal o una cosa."]}],
+}
+THEIR_ADJ = {
+    "word": "their",
+    "pos": "adj",
+    "tags": ["possessive"],
+    "senses": [{"glosses": ["Su, sus (de ellos o de ellas, o de una persona cuando no se conoce su sexo)."]}],
+}
+THAT_PRON = {
+    "word": "that",
+    "pos": "pron",
+    "tags": ["demonstrative"],
+    "senses": [{"glosses": ["Ese, esa, esos, esas."]}, {"glosses": ["Aquel, aquella, aquellos, aquellas."]}],
+}
+THAT_ADJ = {
+    "word": "that",
+    "pos": "adj",
+    "tags": ["demonstrative"],
+    "senses": [{"glosses": ["Ese."]}, {"glosses": ["Aquel."]}],
+}
+THAT_CONJ = {
+    "word": "that",
+    "pos": "conj",
+    "senses": [{"glosses": ["Que."]}, {"glosses": ["Y pensar que; ojalá."]}, {"glosses": ["Para que."]}],
+}
+SUCH_ADJ = {
+    "word": "such",
+    "pos": "adj",
+    "tags": ["demonstrative"],
+    "senses": [{"glosses": ["Tal, tal es, así, así de, semejante, tan, de este tipo."]}],
+}
+SUCH_PRON = {"word": "such", "pos": "pron", "tags": ["demonstrative"], "senses": [{"glosses": ["Lo que, como tal."]}]}
+ANY_ADJ = {
+    "word": "any",
+    "pos": "adj",
+    "tags": ["indeterminate"],
+    "senses": [
+        {"glosses": ["Cualquier."]},
+        {"glosses": ["Alguno, alguna."], "raw_tags": ["se usa solamente en una oración negativa o interrogativa"]},
+    ],
+}
+MUCH_ADJ = {
+    "word": "much",
+    "pos": "adj",
+    "tags": ["indeterminate"],
+    "senses": [{"glosses": ["Mucho."], "raw_tags": ["se usa solamente con un sustantivo no contable"]}],
+}
+BE_VERB = {
+    "word": "be",
+    "pos": "verb",
+    "tags": ["intransitive"],
+    "senses": [{"glosses": ["Ser."]}, {"glosses": ["Estar."]}, {"glosses": ["Encontrarse."]}],
+}
+BE_AUXILIARY = {
+    "word": "be",
+    "pos": "verb",
+    "tags": ["auxiliary"],
+    "senses": [
+        {"glosses": ["Ser (be + participio pasado)."], "raw_tags": ["auxiliar de voz pasiva"]},
+        {"glosses": ["Estar (be + participio presente)."], "raw_tags": ["auxiliar de progresivo"]},
+        {"glosses": ["Se usa en be to (no existe en español)."]},
+    ],
+}
+# The English Wiktionary's Spanish translations (`kaikki-en-traductions-es.jsonl`, derived from its
+# English extract of 2026-10-03), in the file's order; HALL keeps its first table's words only.
+ORCHESTRA_TRANSLATED = {
+    "pos": "noun",
+    "translations": [
+        {"word": "orquesta"},
+        {"word": "orquestra (disused)"},
+        {"word": "orquestra (disused)"},
+        {"word": "orquesta"},
+    ],
+    "word": "orchestra",
+}
+BLACKSMITH_TRANSLATED = {
+    "pos": "noun",
+    "translations": [
+        {"word": "herrero"},
+        {"word": "herrera"},
+        {"word": "ferrero (disused)"},
+        {"word": "herrador"},
+        {"word": "herradora"},
+        {"word": "ferrador (disused)"},
+    ],
+    "word": "blacksmith",
+}
+SEPTUM_TRANSLATED = {
+    "pos": "noun",
+    "translations": [{"word": "tabique"}, {"word": "septo"}, {"word": "septum"}, {"word": "septum (séptum)"}],
+    "word": "septum",
+}
+MALIGN_TRANSLATED = {"pos": "verb", "translations": [{"word": "malignar (desus.)"}], "word": "malign"}
+HALL_TRANSLATED = {
+    "pos": "noun",
+    "translations": [
+        {"word": "pasillo"},
+        {"word": "hall (hol)"},
+        {"word": "jol"},
+        {"word": "antesala"},
+        {"word": "zaguán"},
+    ],
+    "word": "hall",
+}
+APP_TRANSLATED = {"pos": "noun", "translations": [{"word": "apli"}, {"word": "app (ap)"}], "word": "app"}
+INSIDER_TRANSLATED = {
+    "pos": "noun",
+    "translations": [
+        {"word": "insider (insáider)"},
+        {"word": "adentrino"},
+        {"word": "adentreño"},
+        {"word": "dentreño"},
+    ],
+    "word": "insider",
+}
+BACKWATER_TRANSLATED = {
+    "pos": "noun",
+    "translations": [{"word": "pueblucho"}, {"word": "villorrio (despective)"}, {"word": "poblacho (despective)"}],
+    "word": "backwater",
+}
+BACKWATER_VERB_TRANSLATED = {"pos": "verb", "translations": [{"word": "ciar"}], "word": "backwater"}
+ONSIDE_TRANSLATED = {"pos": "adj", "translations": [{"word": "[4] a favor"}], "word": "onside"}
+TO_BE_HONEST_TRANSLATED = {
+    "pos": "phrase",
+    "translations": [{"word": "para ser honesto [with le and a; or with con]"}, {"word": "si me apuras"}],
+    "word": "to be honest",
+}
+QUIT_TRANSLATED = {
+    "pos": "verb",
+    "translations": [
+        {"word": "dimitir (de)"},
+        {"word": "renunciar (a)"},
+        {"word": "U.S.: cuitear"},
+        {"word": "quitear"},
+    ],
+    "word": "quit",
+}
+DAYCARE_TRANSLATED = {
+    "pos": "noun",
+    "translations": [{"word": "guardería (infantil)"}, {"word": "wawawasi"}, {"word": "nido"}],
+    "word": "daycare",
+}
+FULL_TIME_TRANSLATED = {
+    "pos": "adj",
+    "translations": [{"word": "[a] tiempo completo"}, {"word": "de jornada completa"}],
+    "word": "full-time",
+}
+PRAM_TRANSLATED = {
+    "pos": "noun",
+    "translations": [
+        {"word": "cochecito [de bebé]"},
+        {"word": "carrito [de bebé]"},
+        {"word": "carriola"},
+        {"word": "coche guagua"},
+    ],
+    "word": "pram",
+}
+ISRAELI_NOUN_TRANSLATED = {"pos": "noun", "translations": [{"word": "israelí"}], "word": "Israeli"}
+ISRAELI_ADJ_TRANSLATED = {"pos": "adj", "translations": [{"word": "israelí"}], "word": "Israeli"}
+MY_NAME_IS_TRANSLATED = {
+    "pos": "phrase",
+    "translations": [{"word": "me llamo ..."}, {"word": "mi nombre es ..."}],
+    "word": "my name is",
+}
+DEEP_END_TRANSLATED = {"pos": "noun", "translations": [{"word": "fondón (disused)"}], "word": "deep end"}
+WITH_BOTH_HANDS_TRANSLATED = {
+    "pos": "prep_phrase",
+    "translations": [{"word": "a manteniente (disused)"}],
+    "word": "with both hands",
+}
+# The Spanish Wiktionary's English translations (`kaikki-es-traductions-en.jsonl`, derived from its
+# dump of 2026-10-02), read backwards, in the file's order.
+SPANISH_LISTING_GREY_LENGTHY_SEAMAN = [
+    {"pos": "adj", "translations": [{"word": "gray"}, {"word": "grey"}], "word": "gris"},
+    {"pos": "noun", "translations": [{"word": "gray"}, {"word": "grey"}], "word": "gris"},
+    {"pos": "adj", "translations": [{"word": "long"}, {"word": "lengthy"}], "word": "largo"},
+    {"pos": "noun", "translations": [{"word": "long"}, {"word": "lengthy"}], "word": "largo"},
+    {"pos": "intj", "translations": [{"word": "long"}, {"word": "lengthy"}], "word": "largo"},
+    {"pos": "verb", "translations": [{"word": "long"}, {"word": "lengthy"}], "word": "largo"},
+    {"pos": "noun", "translations": [{"word": "lead"}, {"word": "gray"}, {"word": "grey"}], "word": "plomo"},
+    {"pos": "adj", "translations": [{"word": "lead"}, {"word": "gray"}, {"word": "grey"}], "word": "plomo"},
+    {"pos": "intj", "translations": [{"word": "lead"}, {"word": "gray"}, {"word": "grey"}], "word": "plomo"},
+    {"pos": "adj", "translations": [{"word": "sailor"}, {"word": "seaman"}, {"word": "mariner"}], "word": "marinero"},
+    {"pos": "noun", "translations": [{"word": "sailor"}, {"word": "seaman"}, {"word": "mariner"}], "word": "marinero"},
+    {"pos": "verb", "translations": [{"word": "grey"}, {"word": "gray"}], "word": "agrisar"},
+]
+# Their readings in English's committed `tables/en/grammar.tsv` (form, lemma, reading, origin).
+GREY_LENGTHY_SEAMAN_GRAMMAR = (
+    "greyed\tgrey\tVERB|Mood=Ind|Tense=Past|VerbForm=Fin\tother\n"
+    "greyer\tgrey\tADJ|Degree=Cmp\tother\n"
+    "greys\tgrey\tNOUN|Number=Plur\tother\n"
+    "lengthier\tlengthy\tADJ|Degree=Cmp\tother\n"
+    "seamen\tseaman\tNOUN|Number=Plur\tother\n"
+)
+# wordfreq 3.1.1's Spanish Zipf frequency of the notes' words, as `zipf_frequency(word, "es")` gives it.
+SPANISH_ZIPF = {
+    "a": 7.36,
+    "and": 4.95,
+    "ap": 3.95,
+    "bebé": 4.7,
+    "con": 6.97,
+    "de": 7.81,
+    "despective": 0.0,
+    "hol": 2.58,
+    "infantil": 4.6,
+    "insáider": 0.0,
+    "le": 6.4,
+    "or": 4.23,
+    "with": 4.2,
+}
+
+
+def spanish_zipf(word):
+    return SPANISH_ZIPF.get(word, 0.0)
+
+
+class EnEsGlossesReadAsMeanings(Entries):
+    """en-es's glosses read an English word's meanings, not its page's notes, in one Spanish
+    typography, and its translation tables the translators' words (refine-lingua-en-es-glosses):
+    the Spanish edition's notes and its pre-pass `reduce_edition_es.read_as_meanings`, then en-es's
+    `english_entries`, both run by `reduce-en-es.py` before the shared rules read the file, and its
+    `read_translated` over the two tables."""
+
+    def read(self, *entries):
+        """The entries as the edition's pre-pass writes them, in its order."""
+        out = spanish.read_as_meanings(self.jsonl(*entries), str(self.dir / "meanings.jsonl"))
+        return [json.loads(line) for line in Path(out).read_text(encoding="utf-8").splitlines()]
+
+    def english(self, *entries):
+        """The entries as en-es's pre-pass writes them, in its order."""
+        out = en_es.english_entries(self.jsonl(*entries), str(self.dir / "glossing.jsonl"))
+        return [json.loads(line) for line in Path(out).read_text(encoding="utf-8").splitlines()]
+
+    def tables(self, lemmas, *entries, sources=()):
+        """What en-es's shared rules make of the two pre-passes' file, as `main` runs them, with the
+        translation tables `sources` after it: `(glosses, runs, expressions)`."""
+        entries = spanish.read_as_meanings(self.jsonl(*entries), str(self.dir / "meanings.jsonl"))
+        entries = en_es.english_entries(entries, str(self.dir / "glossing.jsonl"))
+        ranks = {lemma: rank for rank, lemma in enumerate(lemmas, start=1)}
+        glosses, runs, expressions, _ = en_es.native_side(entries, ranks, list(sources))
+        return glosses, runs, expressions
+
+    def direct(self, *entries):
+        """The direct table as en-es reads it."""
+        src = self.jsonl(*entries, name="kaikki-en-traductions-es.jsonl")
+        return en_es.read_translated(
+            src, str(self.dir / "direct.jsonl"), inverted=False, frequency=spanish_zipf, readings={}
+        )
+
+    # — D2: the edition's notes to its readers, and a usage note after the meaning —
+
+    def test_spec_scenario_the_edition_s_notes_to_its_readers(self):
+        # Recorded: stage, favor, hardcore and leaven. hardcore's noun and adjective then read the
+        # same « Hardcore », picked once; leaven's verb said nothing but the expansion notice, and goes.
+        glosses, runs, _ = self.tables(
+            ["stage", "favor", "hardcore", "leaven"],
+            STAGE_NOUN,
+            STAGE_VERB,
+            FAVOR_NOUN,
+            FAVOR_VERB,
+            HARDCORE_NOUN,
+            HARDCORE_ADJ,
+            LEAVEN_NOUN,
+            LEAVEN_VERB,
+        )
+        self.assertIn("; Identificar la fase de un proceso; ", glosses["stage"])
+        self.assertEqual(
+            glosses["favor"],
+            "Favor; Mirar con cariño, preferir; Usar más frecuentemente; Alentar, conducir a; "
+            "Hacer un favor para, mostrar beneficencia hacia; Parecerse, especialmente, parecerse a (otra persona)",
+        )
+        self.assertEqual(
+            (glosses["hardcore"], runs["hardcore"]), ("Hardcore; Incondicional, acérrimo", [("NOUN", 1), ("ADJ", 1)])
+        )
+        self.assertEqual(
+            (glosses["leaven"], runs["leaven"]),
+            ("Levadura, fermento; Influencia o causa, generalmente sutil o gradual", [("NOUN", 2)]),
+        )
+        # Each note, wherever it sits; recorded: unit's and bittersweet's templates.
+        for written, read in (
+            ("Un apartamento que alberga una casa.^([cita requerida])", "Un apartamento que alberga una casa"),
+            ("Agridulce.^([definición imprecisa])", "Agridulce"),
+            ("Hardcore (acepciones [1–3]).", "Hardcore"),
+            ("Este lema en este idioma es ampliable. Retira este aviso…", ""),
+        ):
+            self.assertEqual(common.clean_gloss(written, 300, edition=ES), read)
+
+    def test_spec_scenario_a_usage_note_after_the_meaning(self):
+        # Recorded: a's article and preposition, wow, degree. The note goes with the rest of the
+        # sense, from the meaning's period on.
+        glosses, _, _ = self.tables(["a", "wow", "degree"], A_ARTICLE_ES, A_PREP_ES, WOW_INTJ, WOW_VERB, DEGREE)
+        self.assertEqual(
+            glosses,
+            {
+                "a": "Un, una; Un tal, una tal; Por, normalmente con sentido proporción; "
+                "Denota la acción de un verbo cuando se halla delante del participio activo",
+                "wow": "Guau; Asombrar",
+                "degree": "Grado; Nivel; Título académico",
+            },
+        )
+        # The closed list's openers, each after a meaning's period (recorded senses of however,
+        # cheese and a); never a period that opens the sense or follows a space.
+        for written, read in (
+            (
+                "En cualquier grado o extensión. Utilizado con un adjetivo o un adverbio.",
+                "En cualquier grado o extensión",
+            ),
+            ("Patata, whisky. Se dice para sonreír cuando tomando un foto.", "Patata, whisky"),
+            ("Un tal, una tal. Precediendo a nombres personales.", "Un tal, una tal"),
+            ("Contracción de would y have. Usado para «habría sido».", "Contracción de would y have"),
+        ):
+            self.assertEqual(common.clean_gloss(written, 300, edition=ES), read)
+
+    def test_spec_scenario_a_second_sentence_that_carries_the_meaning(self):
+        # Recorded: isn't, we're, pilot — « Traducida », « Nosotros », « Persona » are no openers.
+        glosses, _, _ = self.tables(["isn't", "we're", "pilot"], ISNT, WERE, PILOT_NOUN)
+        self.assertEqual(
+            glosses["isn't"], "Contracción de el verbo is y el adverbio not. Traducida como «no es» o «no está»"
+        )
+        self.assertEqual(glosses["we're"], "Contracción de we are. Nosotros somos o nosotros estamos")
+        self.assertTrue(glosses["pilot"].startswith("Piloto. Persona que dirige un avión; Piloto. Persona que conoce"))
+
+    def test_optional_words_in_brackets_stay(self):
+        # Recorded: full-time's and pram's translations — « [a] », « [de bebé] » are Spanish, part
+        # of the gloss.
+        direct = self.direct(FULL_TIME_TRANSLATED, PRAM_TRANSLATED)
+        self.assertEqual(
+            direct,
+            {
+                "full-time": {"ADJ": ["[a] tiempo completo", "de jornada completa"]},
+                "pram": {"NOUN": ["cochecito [de bebé]", "carrito [de bebé]", "carriola", "coche guagua"]},
+            },
+        )
+
+    def test_an_expression_gets_the_same_rules(self):
+        # Recorded: « river pumpkin », whose committed gloss was cut inside its note (« Especie de
+        # gunera.^([de »), and « my name is » from the direct table, which kept no ellipsis.
+        _, _, expressions = self.tables([], RIVER_PUMPKIN, sources=[(self.direct(MY_NAME_IS_TRANSLATED), list)])
+        self.assertEqual(
+            expressions,
+            {"river pumpkin": "(Gunnera perpensa) Especie de gunera", "my name is": "Me llamo …, mi nombre es …"},
+        )
+
+    # — D5: current senses first —
+
+    def test_spec_scenario_current_senses_first(self):
+        # Recorded: go's verbs, nouns and interjection; will's noun and verbs, and `Will`. The
+        # labelled senses go after the others of their entry, in their order: nothing is left out.
+        written = self.read(GO_VERB, WILL_NOUN)
+        self.assertEqual(
+            [[sense["glosses"][0] for sense in entry["senses"]] for entry in written],
+            [
+                ["Ir.", "Irse, marcharse, partir.", "Andar, marchar, caminar."],
+                [
+                    "Voluntad, albedrío.",
+                    "Decisión, intención.",
+                    "Testamento.",
+                    "Deseo, inclinación, disposición.",
+                    "En particular, deseo sexual.",
+                    "Deleite, placer, goce.",
+                ],
+            ],
+        )
+        self.assertEqual(written[0]["senses"][2]["tags"], ["obsolete", "outdated"], "its labels kept")
+        glosses, _, _ = self.tables(["go"], GO_VERB)
+        self.assertEqual(
+            glosses["go"], "Ir; Irse, marcharse, partir; Andar, marchar, caminar", "kept when the eight hold it"
+        )
+        glosses, runs, _ = self.tables(
+            ["go", "will"], GO_VERB, GO_VERB_TR, GO_NOUN, GO_INTJ, GO_GAME, WILL_NOUN, WILL_VERB, WILL_MODAL, WILL_NAME
+        )
+        self.assertEqual(
+            glosses["go"],
+            "Ir; Marchar; Irse, marcharse, partir; Repartir; Turno; Go (juego); Intento; "
+            "Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!",
+        )
+        self.assertEqual(
+            (glosses["will"], runs["will"]),
+            (
+                "Voluntad, albedrío; Decisión, intención; Testamento; Deseo, inclinación, disposición; Testar; "
+                "Úsase para construir el futuro; Legar; Querer, desear",
+                [("NOUN", 4), ("VERB", 4)],
+            ),
+        )
+
+    def test_an_entry_whose_every_sense_is_labelled_keeps_its_order(self):
+        # Recorded: thou and thy, each a single labelled sense; made up: two, both obsolete. Nothing
+        # moves, and the lines are written as they were.
+        both = {
+            "word": "made",
+            "pos": "noun",
+            "senses": [{"glosses": ["B."], "tags": ["obsolete"]}, {"glosses": ["A."], "raw_tags": ["Arcaico"]}],
+        }
+        src = self.jsonl(THOU, THY, both)
+        out = spanish.read_as_meanings(src, str(self.dir / "meanings.jsonl"))
+        self.assertEqual(Path(out).read_text(encoding="utf-8"), Path(src).read_text(encoding="utf-8"))
+
+    def test_a_rare_sense_keeps_its_place(self):
+        # Recorded: close's second noun entry opens on a sense tagged rare: not moved.
+        self.assertEqual(self.read(CLOSE_FIELD), [CLOSE_FIELD])
+
+    # — D6: one Spanish typography —
+
+    def test_spec_scenario_one_ellipsis(self):
+        # Recorded: on's preposition, neither's conjunction and adverb, who'd. The shared cleaning
+        # strips a sense's final periods, but « … » is no period: on's first sense keeps it.
+        written, _ = self.gloss(ES, ENGLISH, {"on"}, ON_PREP)
+        self.assertTrue(written["on"].startswith("Posicionado sobre la superficie superior de; "))
+        glosses, _, _ = self.tables(["on", "neither", "who'd"], ON_PREP, NEITHER_CONJ, NEITHER_ADV, WHOD)
+        self.assertEqual(
+            glosses,
+            {
+                "on": "Posicionado sobre la superficie superior de …; Que ocurre en la fecha especificada; "
+                "Relacionado con el tema …, sobre el tema …; Indica contacto con …; "
+                "Utilizado para indicar el estar en el estado o en el proceso que se especifica",
+                "neither": "(neither … nor) Ni; Tampoco",
+                "who'd": "Contracción de el pronombre who y el verbo had, ¿Quién tenía / tuvo / había / hubo…?; "
+                "Contracción de el pronombre who y el verbo would, ¿Quién (+ condicional)…?",
+            },
+        )
+        self.assertEqual(spanish.typography("Invitarlo a salir de cita a ...con"), "Invitarlo a salir de cita a … con")
+        self.assertEqual(spanish.typography("¿sabías que...?"), "¿sabías que…?")
+
+    def test_spec_scenario_angular_quotes(self):
+        # Recorded: it's, I'm, Byron — its « " Las peregrinaciones… » closed up —, and that's,
+        # whose single quotes stay. Made up: an odd number of straight quotes stays as written.
+        glosses, _, _ = self.tables(["it's", "i'm", "byron", "that's"], ITS_CONTRACTION, IM, BYRON, THATS)
+        self.assertEqual(
+            glosses,
+            {
+                "it's": "Contracción de el pronombre it («ello») y el verbo is («es»)",
+                "i'm": "Contracción de I y am, «yo soy» o «yo estoy»",
+                "byron": "Nombre de pila de varón; Apellido; "
+                "Poeta inglés autor de «Don Juan», «Las peregrinaciones de Childe Harold», etc",
+                "that's": "Contracción de 'that is', ese es, esa es, aquel es, aquella es",
+            },
+        )
+        self.assertEqual(spanish.typography('un disco de 12" o "vinilo"'), 'un disco de 12" o "vinilo"')
+
+    def test_spec_scenario_the_ing_form_named_as_the_card_names_it(self):
+        # Recorded: be's two verb entries. The card names the form « forma en -ing » (M10).
+        glosses, _, _ = self.tables(["be"], BE_VERB, BE_AUXILIARY)
+        self.assertEqual(
+            glosses["be"],
+            "Ser; Ser (be + participio pasado); Estar; Estar (be + forma en -ing); Encontrarse; "
+            "Se usa en be to (no existe en español)",
+        )
+
+    # — D3: a name does not gloss the common word spelled like it —
+
+    def test_spec_scenario_a_name_on_a_common_word_s_card(self):
+        # Recorded: will (above), smith and `Smith`, mike and `Mike`: the name's notes are left out
+        # of the common word's card, and an entry left with no sense goes.
+        glosses, runs, _ = self.tables(
+            ["will", "smith", "mike"], WILL_NOUN, WILL_VERB, WILL_MODAL, WILL_NAME, SMITH, SMITH_NAME, MIKE, MIKE_NAME
+        )
+        self.assertNotIn("Apellido", glosses["will"])
+        self.assertNotIn("Hipocorístico", glosses["will"])
+        self.assertEqual((glosses["smith"], runs["smith"]), ("Herrero", [("NOUN", 1)]))
+        self.assertEqual((glosses["mike"], runs["mike"]), ("Micro, micrófono", [("NOUN", 1)]))
+        # `Will` stays where no `will` is written in lower case.
+        self.assertEqual([entry["word"] for entry in self.english(SMITH_NAME, SMITH, WILL_NAME)], ["smith", "Will"])
+
+    def test_spec_scenario_a_name_s_own_row(self):
+        # Recorded: `Wayne` and `Donald`, with no entry in lower case: their notes say what they are.
+        glosses, _, _ = self.tables(["wayne", "donald"], WAYNE_NAME, DONALD_NAME)
+        self.assertEqual(
+            glosses, {"wayne": "Apellido", "donald": "Nombre de pila de varón; Apellido; Nombre de varios lugares"}
+        )
+        # Made up: an entry in lower case that only points at another word holds no meaning.
+        pointer = {"word": "wayne", "pos": "noun", "senses": [{"glosses": ["Forma del plural de way."]}]}
+        self.assertEqual(self.english(WAYNE_NAME, pointer), [WAYNE_NAME, pointer])
+
+    def test_a_proper_noun_s_other_senses_stay(self):
+        # Recorded: south and `South`, don and its two `Don` entries: the region and the river stay,
+        # the names' notes go — the first `Don` entry with all of its senses.
+        glosses, runs, _ = self.tables(
+            ["south", "don"], SOUTH_NOUN, SOUTH_ADJ, SOUTH_ADV, SOUTH_NAME, DON_NOUN, DON_VERB, DON_NAMES, DON_RIVER
+        )
+        self.assertEqual(
+            (glosses["south"], runs["south"]),
+            ("Sur; Del sur; Al sur; (region) Sur", [("NOUN", 1), ("ADJ", 1), ("ADV", 1), ("PROPN", 1)]),
+        )
+        self.assertEqual(
+            glosses["don"],
+            "Profesor de una universidad, en particular Oxford y Cambridge; Vestirse, ponerse; El río Don",
+        )
+
+    # — D4: possessives and demonstratives are determiners —
+
+    def test_spec_scenario_possessives_and_demonstratives(self):
+        # Recorded: her, my, its, their, that, such. Only the runs move, no sense.
+        glosses, runs, _ = self.tables(
+            ["her", "my", "its", "their", "that", "such"],
+            HER_PRON,
+            HER_ADJ,
+            MY_ADJ,
+            ITS_ADJ,
+            ITS_PRON,
+            THEIR_ADJ,
+            THAT_PRON,
+            THAT_ADJ,
+            THAT_CONJ,
+            SUCH_ADJ,
+            SUCH_PRON,
+        )
+        self.assertEqual(
+            runs,
+            {
+                "her": [("PRON", 2), ("DET", 1)],
+                "my": [("DET", 1)],
+                "its": [("DET", 1), ("PRON", 1)],
+                "their": [("DET", 1)],
+                "that": [("PRON", 2), ("DET", 2), ("SCONJ", 3)],
+                "such": [("DET", 1), ("PRON", 1)],
+            },
+        )
+        self.assertEqual(glosses["her"], "Ella; La (pronombre personal de objeto directo); Su (de ella)")
+        self.assertEqual(
+            glosses["that"],
+            "Ese, esa, esos, esas; Aquel, aquella, aquellos, aquellas; Ese; Aquel; Que; Y pensar que, ojalá; Para que",
+        )
+
+    def test_the_quantifiers_stay_adjectives(self):
+        # Recorded: any's and much's adjectives, which the edition tags indeterminate.
+        _, runs, _ = self.tables(["any", "much"], ANY_ADJ, MUCH_ADJ)
+        self.assertEqual(runs, {"any": [("ADJ", 2)], "much": [("ADJ", 1)]})
+
+    def test_the_pre_passes_write_what_they_cannot_read_as_they_are(self):
+        # Made up: lines that are no JSON object, an entry they do not change, senses of no kaikki
+        # shape. Each is written as it is, byte for byte, by both passes.
+        src = self.dir / "entries.jsonl"
+        text = (
+            "not json\n[1, 2]\n"
+            '{"word":"house","pos":"noun","senses":[{"glosses":["Casa."]}]}\n'
+            '{"word": "raro", "pos": "adj", "tags": "possessive", "senses": ["odd", {"glosses": [1]}, {"tags": ["obsolete"]}]}\n'
+            '{"word": 3, "senses": 4}\n'
+            '{"word": "Raro", "pos": "name", "senses": "Apellido."}\n'
+        )
+        src.write_text(text, encoding="utf-8")
+        out = spanish.read_as_meanings(str(src), str(self.dir / "meanings.jsonl"))
+        self.assertEqual(Path(out).read_text(encoding="utf-8"), text)
+        out = en_es.english_entries(str(src), str(self.dir / "glossing.jsonl"))
+        self.assertEqual(Path(out).read_text(encoding="utf-8"), text)
+
+    # — D7: the translation tables' words, without their translators' notes —
+
+    def test_spec_scenario_a_disused_word(self):
+        # Recorded: orchestra, blacksmith, malign — whose one translation is disused: no gloss from
+        # the table, which is better than a word it says is no longer used.
+        direct = self.direct(ORCHESTRA_TRANSLATED, BLACKSMITH_TRANSLATED, MALIGN_TRANSLATED)
+        self.assertEqual(
+            direct,
+            {
+                "orchestra": {"NOUN": ["orquesta"]},
+                "blacksmith": {"NOUN": ["herrero", "herrera", "herrador", "herradora"]},
+            },
+        )
+        glossed = common.fallback_glosses({"orchestra", "blacksmith", "malign"}, {}, [(direct, list)], edition=ES)
+        self.assertEqual(
+            {lemma: gloss for lemma, (gloss, _) in glossed.items()},
+            {"orchestra": "Orquesta", "blacksmith": "Herrero, herrera, herrador"},
+        )
+        # Recorded: « deep end » and « with both hands », glossed by a disused word alone.
+        _, _, expressions = self.tables(
+            [], sources=[(self.direct(DEEP_END_TRANSLATED, WITH_BOTH_HANDS_TRANSLATED, MY_NAME_IS_TRANSLATED), list)]
+        )
+        self.assertEqual(list(expressions), ["my name is"])
+
+    def test_spec_scenario_a_translator_s_note(self):
+        # Recorded. A loanword's respelling goes whatever its frequency (« hol » is 2.58 Zipf in
+        # Spanish, « ap » 3.95): the text before it is the English headword. A label holding no
+        # Spanish word goes (« despective »); so do a sense number and an English usage note.
+        direct = self.direct(
+            HALL_TRANSLATED,
+            APP_TRANSLATED,
+            INSIDER_TRANSLATED,
+            BACKWATER_TRANSLATED,
+            BACKWATER_VERB_TRANSLATED,
+            ONSIDE_TRANSLATED,
+            TO_BE_HONEST_TRANSLATED,
+        )
+        self.assertEqual(
+            direct,
+            {
+                "hall": {"NOUN": ["pasillo", "hall", "jol", "antesala", "zaguán"]},
+                "app": {"NOUN": ["apli", "app"]},
+                "insider": {"NOUN": ["insider", "adentrino", "adentreño", "dentreño"]},
+                "backwater": {"NOUN": ["pueblucho", "villorrio", "poblacho"], "VERB": ["ciar"]},
+                "onside": {"ADJ": ["a favor"]},
+                "to be honest": {"X": ["para ser honesto", "si me apuras"]},
+            },
+        )
+        glossed = common.fallback_glosses({"hall", "backwater", "onside"}, {}, [(direct, list)], edition=ES)
+        self.assertEqual(
+            {lemma: gloss for lemma, (gloss, _) in glossed.items()},
+            {"hall": "Pasillo, hall, jol", "backwater": "Pueblucho, villorrio, poblacho; Ciar", "onside": "A favor"},
+        )
+        # Recorded: septum's « septum (séptum) », after « septum »: the note's removal makes it a
+        # word already listed, listed once.
+        self.assertEqual(self.direct(SEPTUM_TRANSLATED), {"septum": {"NOUN": ["tabique", "septo", "septum"]}})
+
+    def test_spec_scenario_a_spanish_note_stays(self):
+        # Recorded: quit's « dimitir (de) », « renunciar (a) », daycare's « guardería (infantil) ».
+        direct = self.direct(QUIT_TRANSLATED, DAYCARE_TRANSLATED)
+        self.assertEqual(
+            direct,
+            {
+                "quit": {"VERB": ["dimitir (de)", "renunciar (a)", "U.S.: cuitear", "quitear"]},
+                "daycare": {"NOUN": ["guardería (infantil)", "wawawasi", "nido"]},
+            },
+        )
+
+    def test_spec_scenario_a_spanish_word_listed_once(self):
+        # Recorded: the Spanish entries listing grey, lengthy and seaman, and English's readings of
+        # them. Each Spanish word is listed once, under the first of its parts of speech the English
+        # word's readings name: lengthy is an adjective, seaman and mariner nouns.
+        studied = self.dir / "en"
+        studied.mkdir()
+        (studied / "grammar.tsv").write_text(GREY_LENGTHY_SEAMAN_GRAMMAR, encoding="utf-8")
+        readings = en_es.read_readings(str(studied))
+        self.assertEqual(readings, {"grey": {"VERB", "ADJ", "NOUN"}, "lengthy": {"ADJ"}, "seaman": {"NOUN"}})
+        src = self.jsonl(*SPANISH_LISTING_GREY_LENGTHY_SEAMAN, name="kaikki-es-traductions-en.jsonl")
+        inverted = en_es.read_translated(
+            src, str(self.dir / "inverted.jsonl"), inverted=True, frequency=spanish_zipf, readings=readings
+        )
+        self.assertEqual(inverted["lengthy"], {"ADJ": ["largo"]})
+        self.assertEqual(inverted["grey"], {"ADJ": ["gris", "plomo"], "VERB": ["agrisar"]})
+        self.assertEqual(inverted["seaman"], {"NOUN": ["marinero"]})
+        self.assertEqual(inverted["mariner"], {"ADJ": ["marinero"]}, "no reading of mariner: the first listed")
+        glossed = common.fallback_glosses(
+            {"lengthy", "grey", "seaman"}, {}, [(inverted, en_es.by_spanish_frequency(lambda w: 0.0))], edition=ES
+        )
+        self.assertEqual(
+            glossed,
+            {
+                "lengthy": ("Largo", [("ADJ", 1)]),
+                "grey": ("Gris, plomo; Agrisar", [("ADJ", 1), ("VERB", 1)]),
+                "seaman": ("Marinero", [("NOUN", 1)]),
+            },
+        )
+        (studied / "grammar.tsv").unlink()
+        with self.assertRaisesRegex(SystemExit, "grammar.tsv is missing"):
+            en_es.read_readings(str(studied))
+
+    def test_spec_scenario_the_english_word_s_own_parts_of_speech(self):
+        # Recorded: the English Wiktionary translates Israeli as a noun and as an adjective.
+        direct = self.direct(ISRAELI_NOUN_TRANSLATED, ISRAELI_ADJ_TRANSLATED)
+        glossed = common.fallback_glosses({"israeli"}, {}, [(direct, list)], edition=ES)
+        self.assertEqual(glossed, {"israeli": ("Israelí; Israelí", [("NOUN", 1), ("ADJ", 1)])})
+
+    # — D1: where the rules live —
+
+    def test_reduce_en_es_runs_the_passes_in_order(self):
+        # en-es reduced as its build runs it (`main()`): its letters left out, then the edition's
+        # pre-pass, then en-es's, then the shared rules over the last one's file.
+        work = self.dir / "work"
+        work.mkdir()
+        studied = self.dir / "en"
+        studied.mkdir()
+        (studied / "forms.tsv").write_text("go\tgo\nhall\thall\nlengthy\tlengthy\nwill\twill\n", encoding="utf-8")
+        (studied / "freq.tsv").write_text("go\t1\nwill\t2\nhall\t3\nlengthy\t4\n", encoding="utf-8")
+        (studied / "level.tsv").write_text("", encoding="utf-8")
+        (studied / "grammar.tsv").write_text(GREY_LENGTHY_SEAMAN_GRAMMAR, encoding="utf-8")
+        self.jsonl(GO_VERB, WILL_NOUN, WILL_NAME, name="work/kaikki-es-English.jsonl")
+        self.jsonl(HALL_TRANSLATED, name="work/kaikki-en-traductions-es.jsonl")
+        self.jsonl(*SPANISH_LISTING_GREY_LENGTHY_SEAMAN, name="work/kaikki-es-traductions-en.jsonl")
+        calls = []
+
+        def spy(name, real):
+            def call(*args, **kwargs):
+                calls.append((name, *(Path(arg).name for arg in args if isinstance(arg, str))))
+                return real(*args, **kwargs)
+
+            return call
+
+        wordfreq = types.ModuleType("wordfreq")
+        wordfreq.zipf_frequency = lambda word, lang: spanish_zipf(word) if lang == "es" else 0.0
+        argv = [
+            "reduce-en-es.py",
+            *("--work", str(work), "--studied", str(studied)),
+            *("--built-at", "2026-10-08", "--pack-version", "test"),
+        ]
+        with (
+            mock.patch.dict(sys.modules, {"wordfreq": wordfreq}),
+            mock.patch.object(sys, "argv", argv),
+            mock.patch.object(en_es, "without_letters", spy("without_letters", en_es.without_letters)),
+            mock.patch.object(spanish, "read_as_meanings", spy("read_as_meanings", spanish.read_as_meanings)),
+            mock.patch.object(en_es, "english_entries", spy("english_entries", en_es.english_entries)),
+            mock.patch.object(en_es, "native_side", spy("native_side", en_es.native_side)),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            en_es.main()
+        self.assertEqual(
+            calls,
+            [
+                ("without_letters", "kaikki-es-English.jsonl", "kaikki-es-English-words.jsonl"),
+                ("read_as_meanings", "kaikki-es-English-words.jsonl", "kaikki-es-English-meanings.jsonl"),
+                ("english_entries", "kaikki-es-English-meanings.jsonl", "kaikki-es-English-glossing.jsonl"),
+                ("native_side", "kaikki-es-English-glossing.jsonl"),
+            ],
+        )
+        self.assertEqual(
+            (work / "gloss.tsv").read_text(encoding="utf-8"),
+            "go\tIr; Irse, marcharse, partir; Andar, marchar, caminar\n"
+            "hall\tPasillo, hall, jol\n"
+            "lengthy\tLargo\n"
+            "will\tVoluntad, albedrío; Decisión, intención; Testamento; Deseo, inclinación, disposición; "
+            "En particular, deseo sexual; Deleite, placer, goce\n",
+        )
+
+    def test_spec_scenario_nothing_else_moves(self):
+        # The rules are the Spanish edition's and en-es's reducer's: en-es's rule digest moves with
+        # them and no other pair's — en-fr's and es-fr's load the French edition, es-en's the English
+        # one — and reduce_common.py, which every pair loads, is not edited. The committed pins
+        # record the rules they were reduced with: en-es's, re-pinned with these rules, and the other
+        # three, as they were.
+        pairs = ("en-fr", "es-fr", "es-en", "en-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        others = ("en-fr", "es-fr", "es-en")
+        for name, old, new in (
+            ("reduce_edition_es.py", '"A no confundir", ', ""),
+            ("reduce_edition_es.py", '_NO_LONGER_USED = frozenset({"obsolete", ', "_NO_LONGER_USED = frozenset({"),
+            ("reduce_edition_es.py", "if quotes and quotes % 2 == 0:", "if False:"),
+            (
+                "reduce-en-es.py",
+                '_DETERMINER_TAGS = frozenset({"possessive", "demonstrative"})',
+                "_DETERMINER_TAGS = frozenset()",
+            ),
+            ("reduce-en-es.py", "if _DISUSED.search(native):", "if False:"),
+            ("reduce-en-es.py", "entries = english_entries(", "entries = (lambda src, dst: src)("),
+        ):
+            rules = copy / name
+            text = rules.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            rules.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertNotEqual(after["en-es"], before["en-es"], new)
+            self.assertEqual({p: after[p] for p in others}, {p: before[p] for p in others}, new)
+            before = after
 
 
 if __name__ == "__main__":

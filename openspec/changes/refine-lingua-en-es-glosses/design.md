@@ -75,6 +75,15 @@ gloss, so it stays 93.0 / 85.0 / 71.7 %, and the translation-table share stays 2
 73 inverted). No row of the card (`rowGloss`) ends on an opening mark. These are a prototype's
 figures: the pull request measures again on its own code, and the sample (D10) is drawn from it.
 
+Measured again on the implementation (en-es reduced from its pinned release, each rule alone and all
+together): every figure above holds, rule by rule and together, and its `gloss.tsv`, `senses.tsv` and
+`mwe.tsv` are the prototype's byte for byte; with every rule off, the implementation reproduces the
+committed tables before it byte for byte. The English notes the D7 rule leaves are a few more than D7
+counts: in rows « mat » and « sketchy », and « duvet » « (Arg. and Ur.) » and « mockingbird » « (tropical
+mockingbird, Mimus gilvus) »; in expressions « over there », « bury the hatchet », « cash on the
+barrelhead », « christmas light », « reference work » and « sit on one's hands » — each holds a word
+wordfreq rates 1.0 Zipf or more in Spanish, all listed in the sample, none chased.
+
 ## Decisions
 
 ### D1 — en-es's rules, in the Spanish edition and in en-es's reducer

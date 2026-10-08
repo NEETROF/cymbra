@@ -29,14 +29,16 @@ In this folder:
 
 ## What is in them
 
-On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version` `2026.10.08+75631d7.e1915ca`: the
-snapshot, the rules' digest, and the digest of the studied tables `pin.json` records):
+On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version` `2026.10.08+8ba4a79.e1915ca`: the
+snapshot, the rules' digest, and the digest of the studied tables `pin.json` records), reduced again
+from the same sources with the rules that read the glosses as meanings (below,
+refine-lingua-en-es-glosses):
 
-- **Spanish glosses for 21,965 lemmas** of English's 40,685: 10,247 from the
-  Spanish Wiktionary's English entries (its definitions, by the Spanish edition's rules), 11,214
+- **Spanish glosses for 21,964 lemmas** of English's 40,685: 10,247 from the
+  Spanish Wiktionary's English entries (its definitions, by the Spanish edition's rules), 11,213
   from the Spanish translations the English Wiktionary lists (the direct table, in its order) and
   504 from the English translations the Spanish Wiktionary's Spanish entries list,
-  read backwards (the inverted table, the commonest Spanish word first); **17,096
+  read backwards (the inverted table, the commonest Spanish word first); **17,094
   expressions**. Up to eight senses grouped by part of speech, as every pair's, opening on a
   capital as the Spanish Wiktionary writes them. A letter glosses no word, in either direction:
   a single letter is glossed only by a sense that is neither the letter nor a name borrowed
@@ -65,10 +67,10 @@ snapshot, the rules' digest, and the digest of the studied tables `pin.json` rec
   writes beside its tables and no pack stores; `pack_report.py --measures` shows it in the update's
   summary).
 - **Dictionary words are en-fr's**: 2,501 lemmas en-es glosses are no dictionary word
-  of English, and 5,335 dictionary words have no Spanish gloss, so the pack
+  of English, and 5,336 dictionary words have no Spanish gloss, so the pack
   carries a lexical section, and the vocabulary estimate counts the same 24,799 words for
   both pairs.
-- **The pack is 1,690,595 B**, 32.2 % of the 5 MiB budget.
+- **The pack is 1,688,931 B**, 32.2 % of the 5 MiB budget.
 
 ## A sample of 100 glosses
 
@@ -79,7 +81,10 @@ every frequency band is represented and the list is reproducible from the tables
 English Wiktionary's Spanish translations (*direct*), or the Spanish Wiktionary's English
 translations read backwards (*inverted*): 75 definitions, 25 direct, none inverted. Seven
 glosses longer than 160 characters are shortened here with « … »; the tables hold them whole. The
-Spanish edition's settings stay as change 6 set them unless the sample says otherwise.
+Spanish edition's settings stay as change 6 set them unless the sample says otherwise. One row
+moved with refine-lingua-en-es-glosses, past its shown cut: « stage » (row 9) no longer reads « Identificar la
+fase de un proceso.^([cita requerida]) », the edition's maintenance template taken out; no other row
+of the sample moved, and none moved in or out of it.
 
 | # | Rank | Lemma | Source | Gloss |
 |---|---|---|---|---|
@@ -184,40 +189,90 @@ Spanish edition's settings stay as change 6 set them unless the sample says othe
 | 99 | 9555 | nausea | direct | Náusea, repulsión, asco |
 | 100 | 9673 | magician | direct | Mago, fenómeno |
 
+## Meanings and the translators' words
+
+The Spanish Wiktionary writes notes to its readers into its senses, opens an entry on its oldest
+sense, writes a surname's note under the capitalised headword spelled like a common word, heads a
+possessive « adjetivo », and has its own typography; the English Wiktionary's translators write
+their notes inside the Spanish words they list; read backwards, a Spanish word is listed once per
+part of speech of its own. Read as written, en-es glossed « will » (rank 37) « Deseo, inclinación,
+disposición; …; Apellido; Hipocorístico de William », « smith » « Apellido; Herrero », « a » « Un,
+una. A veces se omite en la traducción », « orchestra » « Orquesta, orquestra (disused) »,
+« lengthy » « Largo; Largo; Largo; Largo ». Rules of the Spanish edition and of en-es's reducer read
+the entries and the tables before the shared rules do (refine-lingua-en-es-glosses):
+
+- **The edition's notes to its readers** (`reduce_edition_es.py`, its notes): a maintenance template
+  (« ^([cita requerida]) »), a disambiguation note (« [sentido del sustantivo] »), a reference to
+  numbered senses (« (definiciones [1,2]) »), the expansion notice, and a usage note after the
+  meaning, a sentence opening on a closed list (« A veces », « Usado », « Se dice », « A no
+  confundir »…). A second sentence that carries the meaning stays (« isn't » « …not. Traducida como
+  «no es» o «no está» »), and so do optional words in brackets (« [a] tiempo completo »).
+- **Current senses first, one Spanish typography** (`reduce_edition_es.read_as_meanings`): the
+  senses the edition marks obsolete or outdated go after the other senses of their entry, nothing
+  left out (« go » opens on « Ir », « will » on « Voluntad, albedrío »); one ellipsis « … », spaced
+  between two words; straight double quotes paired « » (« it's » « («ello») »), single quotes kept.
+- **Which senses gloss an English word** (`reduce-en-es.py english_entries`): a capitalised proper
+  noun's sense that only says the word is a surname or a given name glosses no word that has an
+  entry of its own in lower case holding a meaning (« smith » « Herrero », « mike » « Micro,
+  micrófono »); a name's own row keeps its notes (« wayne » « Apellido »), and a proper noun's other
+  senses stay (« south » « …; (region) Sur »); a possessive or demonstrative adjective section is a
+  determiner (« her », « my », « its », « their », « that », « such »); « participio presente » reads
+  « forma en -ing », as the card names the form (« be »).
+- **The translation tables' words** (`reduce-en-es.py read_translated`): the direct table leaves out
+  a word labelled « (disused) » or « (desus.) » (« orchestra » « Orquesta »), and the note its
+  translator wrote inside a word when it follows a loanword (« hall (hol) »), holds no Spanish word
+  (« (despective) »), is only a number (« [4] a favor ») or opens on « with »; a note holding a
+  Spanish word stays (« guardería (infantil) »). The inverted table lists a Spanish word once per
+  English word, under the first of its parts of speech the English word's readings name
+  (`../en/grammar.tsv`): « lengthy » « Largo », « grey » « Gris, plomo; Agrisar », « seaman » a noun.
+
+Against the tables before them: **295 rows change, 149 of the top 10,000** — 159 / 121 glossed by
+the Spanish Wiktionary, 78 / 18 by the direct table, 58 / 10 by the inverted one —, the first sense
+of 140 / 63; **64 expressions change**. One lemma loses its gloss, « malign » (rank 33,911), whose
+one translation is labelled disused, and two expressions for the same reason (« deep end », « with
+both hands »); none gains one. Rule by rule: the notes 15 / 12 rows and 3 expressions, the names
+61 / 53, the determiners 6 / 6 (their runs alone), the order 41 / 27 (20 / 12 opening otherwise),
+the typography and the -ing form 39 / 26 and 19 expressions, the translation tables 136 / 28 and 42
+expressions. The coverage and the share do not move: no lemma of the top 20,000 gains or loses a
+gloss.
+
 ## Known noise, for the owner's 5.1
 
-What the sample and a pass over the tables show, each with the module a fix would live in. None
-is fixed here: `read_translations`, `native_words` and `translation_gloss` in `reduce_common.py`
-are shared, so an edit there re-pins es-fr and es-en too — a decision for 5.1 or for change 38 —
-while a pass in `reduce-en-es.py` over its own tables moves en-es alone.
+What the sample and a pass over the tables show, with the module a fix would live in. Fixed by
+refine-lingua-en-es-glosses (above): the English Wiktionary's editor notes in the direct table (39
+glosses held a disused word, 0 now), the inverted table's repeated words (52 glosses repeated a
+whole sense, 0 now) and the name notes on common words (61 rows, 53 of the top 10,000). Left,
+measured in its design (*Measured*, *For the owner*):
 
-- **The English Wiktionary's editor notes, carried into the direct table.** A translation it
-  lists with a note in parentheses keeps the note: « (disused) » 29 times (`orchestra`
-  « Orquesta, orquestra (disused) »), a pronunciation (`hall` « Pasillo, hall (hol), jol »,
-  `insider` « Insider (insáider), adentrino, adentreño »); 228 glosses carry a parenthesised
-  lower-case word. The Spanish edition's `long_parenthesis` cleans definitions, not translation
-  words. Where: `native_words` (`reduce_common.py`, shared), or a pass over the direct table in
-  `read_translated` (`reduce-en-es.py`, en-es alone).
-- **Regional and sense noise through the inverted table.** A Spanish entry that lists an English
-  word as its translation glosses that word whatever its register or sense: `second-hand`
-  « Chivera », `sup` « KLK », `la` « La, hombrecillo ». The inverted table glosses 504 lemmas,
-  73 of them among the 10,000 commonest (the sample draws none). Where: a floor on the Spanish
-  word's frequency, in `read_translated` or `by_spanish_frequency` (`reduce-en-es.py`, en-es
-  alone), or in `read_translations` (shared).
-- **Duplicated runs.** A Spanish word with several entries — `largo` adjective, noun,
-  interjection, verb — lists the same English word under each, and read backwards each entry is
-  a run: `lengthy` « Largo; Largo; Largo; Largo ». 288 glosses; es-fr's tables show 254 such
-  glosses through the same shared rule (`abridor` « Greffoir; Greffoir »), es-en's 9, en-fr's
-  none. Where: `read_translations` or `translation_gloss` (`reduce_common.py`, shared — re-pins
-  es-fr and es-en).
-- **Name notes.** 189 of the 8,495 glossed lemmas among the 10,000 commonest are glossed by a
-  surname or first-name note alone — « Apellido », « Nombre de pila de varón », « Nombre de pila
-  de mujer » (`jones`, `lee`, `harry`, `scott`) — and 341 when every sense opens on « Apellido »
-  or « Nombre » (`david`, `james`, `michael`; in the sample, `chandler`, `joshua`): the Spanish
-  Wiktionary's proper-noun entries read as definitions, which the `name` rule of the translation
-  tables (`read_translations`) does not reach. Where: a pass over the entries in
-  `reduce-en-es.py` (en-es alone), or `reduce_gloss` and the Spanish edition's rules
-  (`reduce_common.py`, `reduce_edition_es.py`, shared with es-fr).
+- **Labels** the packs do not carry (Q1): a sense obsolete or outdated (now after the others),
+  regional, of a register (colloquial, slang, vulgar) or rare is shown without its label —
+  « do » « Timar, estafar; Follar », « mouse » « Timorato, apocado, flojo ». Where: a rule of the
+  Spanish edition (`reduce_edition_es.py`), en-es alone.
+- **The part of speech a row opens on** (Q2): the page's order — « up » « Construido », « like »
+  « Gustar », « lead » « Plomo », « by » « Junto a ». Where: a studied-side frequency of a part of
+  speech, which no table holds.
+- **The quantifiers' heading** (Q3): « all », « no », « any », « much », « other » stay « adjetivo »,
+  as en-fr heads them. Where: `english_entries`, with a list of words.
+- **The inverted table's regional or other-sense words** (Q4): 504 lemmas, 73 of the top 10,000,
+  about a dozen of those reading wrong or regionally (`second-hand` « Chivera », `sup` « KLK », `la`
+  « La, hombrecillo », `metro` « Subte »); a floor on the Spanish word's frequency was measured and
+  rejected. Where: `read_translated` (`reduce-en-es.py`), en-es alone.
+- **A name's own row**: 603 rows (366 of the top 10,000) are glossed by name notes alone
+  (`david`, `wayne` « Apellido »; in the sample, `chandler`, `joshua`) — they tell the reader of the
+  capitalised word what it is, and hold 3.7 points of the top 10,000's coverage. Where: a card that
+  reads a token's capital, shared.
+- **The direct table's repeated word** across the English word's own parts of speech (`israeli`
+  « Israelí; Israelí », 237 glosses, 53 of the top 10,000): each run says something true of the
+  English word, so it stays. es-fr's inverted table repeats words in 254 glosses (`abridor`
+  « Greffoir; Greffoir ») and es-en's in 9, through `reduce_common.translation_gloss`: shared.
+- **English notes a Spanish text also writes** (`mat` « posavasos (coaster) », `sketchy` « (to be
+  sketchy) », the expression « over there » « (further than «allá») »), kept by the rule that a note
+  holding a word wordfreq knows in Spanish stays; and one Spanish qualifier the rule takes out
+  (« (articulario) » in « range of motion »).
+- **« etc » and an abbreviation lose a sense's last period** in every pair (`oh`, `fair`: 47 glosses
+  here): `reduce_common.clean_gloss`, shared — re-pins every pair.
+- **Upstream wording** — « !Um¡, !uf¡ » (`huh`), « Incllinarse » (`lean`), « de el » for « del » (27
+  glosses) — corrected on the Spanish Wiktionary, it arrives with en-es's next update.
 
 ## Its sources
 
@@ -249,7 +304,9 @@ D2). The derived files are the assets of en-es's own release, `lingua-pack-sourc
   it under the sense it translates, and 60 entries repeat 77 translations they already list (the
   extract lists each once): 186 glosses and 55 expressions take their words in another order or
   another third word, no row added or removed (`../../SOURCES.md`, *Extract and dump are measured
-  against each other*). No reducer fix — the derived file keeps no sense glosses to order the
+  against each other*) — the same 186 and 55 under the rules above, which act on each word the
+  file lists whatever its order (measured again from the dump of 2026-10-03 08:24, still served on
+  2026-10-08). No reducer fix — the derived file keeps no sense glosses to order the
   words by —: en-es's next update carries them, named in its report, and the owner judges the 186
   glosses there.
 
