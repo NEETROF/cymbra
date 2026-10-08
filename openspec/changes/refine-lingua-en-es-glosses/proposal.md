@@ -112,8 +112,8 @@ None.
   295 of en-es's 21,965 rows, 149 of the top 10,000 (159 / 121 glossed by the Spanish Wiktionary,
   78 / 18 by the direct table, 58 / 10 by the inverted one); the first sense of 140 / 63. One lemma
   loses its gloss — « malign » (33,911), whose one translation is labelled disused — and none gains
-  one; 64 expressions change and 2 lose theirs (« deep end », « with both hands », disused words
-  alone). Coverage stays 93.0 / 85.0 / 71.7 %: no lemma of the top 20,000 moves in or out.
+  one; 64 expressions change, 2 of them losing theirs (« deep end », « with both hands », disused
+  words alone). Coverage stays 93.0 / 85.0 / 71.7 %: no lemma of the top 20,000 moves in or out.
 - **No other pair moves**: en-fr's, es-fr's and es-en's tables, pins, packs and goldens, and the
   French snapshot of rows, are byte for byte unchanged; `tables/en/` is untouched (read, not written).
 - **Nothing shown to anyone**: `packs.json` does not list en-es until change 35.

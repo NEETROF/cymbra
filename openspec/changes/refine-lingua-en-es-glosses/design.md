@@ -65,15 +65,15 @@ The rules D2–D7 together, on the real reduction: **295 rows change, 149 of the
 159 / 121 glossed by the Spanish Wiktionary, 78 / 18 by the direct table, 58 / 10 by the inverted one;
 the first sense of 140 / 63, the runs alone of 6 / 6. **One lemma loses its gloss and none gains
 one**: « malign » (33,911), whose one translation, « malignar (desus.) », is labelled disused. **64
-expressions change** and 2 lose their gloss for the same reason (« deep end » « Fondón (disused) »,
-« with both hands » « A manteniente (disused) »), none gaining one. Rule by rule, alone: D2 15 / 12
-rows (6 / 4 notes, 9 / 8 usage notes) and 3 expressions; D3 61 / 53 rows; D4 6 / 6 (the runs alone);
-D5 41 / 27 rows, 20 / 12 opening differently; D6 39 / 26 rows and 19 expressions; D7 136 / 28 rows
-(39 / 9 a disused word left out, 68 / 16 a note left out, 58 / 10 the inverted table's repeated words)
-and 42 expressions. Coverage cannot move: no lemma of the top 20,000 gains or loses a gloss, so it
-stays 93.0 / 85.0 / 71.7 %, and the translation-table share stays 26.0 % (2,135 direct, 73 inverted).
-No row of the card (`rowGloss`) ends on an opening mark. These are a prototype's figures: the pull
-request measures again on its own code, and the sample (D10) is drawn from it.
+expressions change**, 2 of them losing their gloss for the same reason (« deep end » « Fondón
+(disused) », « with both hands » « A manteniente (disused) »), none gaining one. Rule by rule, alone:
+D2 15 / 12 rows (6 / 4 notes, 9 / 8 usage notes) and 3 expressions; D3 61 / 53 rows; D4 6 / 6 (the
+runs alone); D5 41 / 27 rows, 20 / 12 opening differently; D6 39 / 26 rows and 19 expressions; D7
+136 / 28 rows (39 / 9 a disused word left out, 68 / 16 a note left out, 58 / 10 the inverted table's
+repeated words) and 42 expressions. Coverage cannot move: no lemma of the top 20,000 gains or loses a
+gloss, so it stays 93.0 / 85.0 / 71.7 %, and the translation-table share stays 26.0 % (2,135 direct,
+73 inverted). No row of the card (`rowGloss`) ends on an opening mark. These are a prototype's
+figures: the pull request measures again on its own code, and the sample (D10) is drawn from it.
 
 ## Decisions
 
@@ -159,12 +159,12 @@ Why only the notes and not the proper noun's entry, as an acronym's: its other s
 reading when capitalised — « south »'s « (region) Sur », « don »'s « El río Don », « Turkey »'s
 « Turquía » — and es-en measured what writing names last costs (`refine-lingua-es-en-glosses` D4). Why
 not every row that holds a name note: measured, it moves 97 / 70 more rows, all of them names' own
-rows, where it reads worse — « donald », « howard », « arnold » « Nombre de varios lugares en Estados
-Unidos » — and 7 lemmas lose their gloss (« annie », « hal », « kathy »…). A name's own row keeps its
-notes: « wayne » « Apellido » tells the reader of « Wayne » what it is, and the 366 rows of the top
-10,000 glossed by name notes alone hold 3.7 points of its coverage (85.0 % without them would be
-81.3 %, under the proposed floor of 83.2 %). Which reading a capitalised token gets is the case-aware
-card's (D8).
+rows, where it reads worse — « donald » « Nombre de varios lugares », « howard », « arnold » « Nombre
+de varios lugares en Estados Unidos » — and 7 lemmas lose their gloss (« annie », « hal »,
+« kathy »…). A name's own row keeps its notes: « wayne » « Apellido » tells the reader of « Wayne »
+what it is, and the 366 rows of the top 10,000 glossed by name notes alone hold 3.7 points of its
+coverage (85.0 % without them would be 81.3 %, under the proposed floor of 83.2 %). Which reading a
+capitalised token gets is the case-aware card's (D8).
 
 ### D4 — Possessives and demonstratives are determiners
 
@@ -214,8 +214,10 @@ the owner's (Q1); rare senses (19 / 15) are not moved.
 
 `english_entries` writes « participio presente » as « forma en -ing » in the English entries' senses:
 « be » reads « Estar (be + forma en -ing) », the card's name for the form on the line above it (M10,
-settled; change 24's *Known data defects*). It is the section's one occurrence, and it stays out of the
-edition: in a French entry « participio presente » names the French participle.
+settled; change 24's *Known data defects*). It is the one a gloss holds — the section's 20 others are
+senses of -ing forms and of the suffix « -ing » (« Yendo, participio presente del verbo go »), which
+gloss no lemma — and it stays out of the edition: in a French entry « participio presente » names the
+French participle.
 
 None of them moves a word otherwise. 39 / 26 rows (the first sense of 29 / 19, nearly all
 contractions) and 19 expressions. Measured on the changed rows, no row of the card ends on an opening
@@ -241,11 +243,12 @@ con] »). `read_translated` reads the direct table's words as:
   Spanish word, every word of it under 1.0 on wordfreq's Spanish Zipf scale (« (despective) »,
   « (Americanism) », « (foundationless) », « (pléilist) »); or is only a number (« [4] »); or opens on
   « with ». A note holding a Spanish word stays (« dimitir (de) », « guardería (infantil) », « (Lat.
-  Am.) »). 68 / 16 rows; with the disused words, 78 / 18 rows and 42 expressions. Measured: one
-  Spanish qualifier goes with them, « (articulario) » in the expression « range of motion »; two rows
-  and five expressions keep an English note that opens on a word Spanish texts also use (« mat »
-  « posavasos (coaster) », « sketchy » « (to be sketchy) », « over there » « (further than «allá») »):
-  listed in the pull request, not chased.
+  Am.) »). A word the note's removal makes one already listed is listed once, as `read_translations`
+  lists each (« septum (séptum) » after « septum »). 68 / 16 rows; with the disused words, 78 / 18
+  rows and 42 expressions. Measured: one Spanish qualifier goes with them, « (articulario) » in the
+  expression « range of motion »; two rows and five expressions keep an English note that opens on a
+  word Spanish texts also use (« mat » « posavasos (coaster) », « sketchy » « (to be sketchy) »,
+  « over there » « (further than «allá») »): listed in the pull request, not chased.
 
 And it reads the inverted table's:
 
@@ -305,13 +308,14 @@ rule digests name neither file — and the reduce job reproduces every committed
 `LINGUA_BLESS=1 cargo test -p lingua-wasm --test en_es_baseline` re-blesses the golden, and `yarn
 vitest run test/word-card-en-es.spec.ts -u` (the flag after the file) the Spanish card's snapshot.
 `EXPEDITION_FIRST_PAGE` stays « Expedición »; `the_golden_is_the_english_one_on_the_studied_side` passes
-unchanged — only the native side moves. The prototype moves the glosses of `a`, `be`, `go`, `will`,
-`that`, `her`, `its` among the probes (twelve of the snapshot's: `went`, `gone`, `goes`, `go`, `are`,
-`was`, `won't`, `will`, `a`, `that`, `her`, `its`), the runs of `my`, and the corpus tokens' glosses of
-`on`, `small`, `smith`, `low`, `street`, `speed`, `pale`, `sailor`, `grease`, `however`, `wow`. `yarn
-vitest run test/row-gloss-tables.spec.ts` runs without `-u`: it is the gate, its French snapshot
-(`test/baseline/selection-rows-fr.txt`) must pass as committed — re-blessing it would hide a French row
-that moved — and no row of any pair may end on an opening mark.
+unchanged — only the native side moves. The prototype moves the glosses of `a`, `be`, `go`, `will`
+and the runs of `that`, `her`, `its` among the probes (twelve of the snapshot's: `went`, `gone`,
+`goes`, `go`, `are`, `was`, `won't`, `will`, `a`, `that`, `her`, `its`), and the corpus tokens'
+glosses of `on`, `small`, `smith`, `low` (« lowers »), `street`, `speed`, `pale`, `sailor`, `grease`,
+`however`, `wow`, `it's`, `i'm`, `he's`, `gonna`; `my`'s runs move in no line, the corpus showing its
+gloss alone. `yarn vitest run test/row-gloss-tables.spec.ts` runs without `-u`: it is the gate, its
+French snapshot (`test/baseline/selection-rows-fr.txt`) must pass as committed — re-blessing it would
+hide a French row that moved — and no row of any pair may end on an opening mark.
 
 The pull request lists every changed line of the golden and of the snapshot, with the rule that moved
 it, and a before/after sample: every changed row of the top 10,000 (about 149) with its first
