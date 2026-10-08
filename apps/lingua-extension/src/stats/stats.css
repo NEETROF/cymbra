@@ -3,6 +3,21 @@
    so this sheet can be linked into the side panel without restyling its body/h1; the
    `.stats-page` rules style only the standalone tab's shell. */
 
+/* Nothing shows before the catalogue fills the standalone tab's copy (stats.ts removes the mark).
+   Should the script never get there — it failed before the fill — the page shows anyway after a
+   moment, unfilled rather than blank for good (localise-lingua-reading-surfaces D2). Scoped to the
+   tab's body like its other shell rules: the side panel links this sheet and has its own. */
+html[data-copy-pending] body.stats-page {
+  visibility: hidden;
+  animation: lingua-copy-reveal 0s 1.5s forwards;
+}
+
+@keyframes lingua-copy-reveal {
+  to {
+    visibility: visible;
+  }
+}
+
 .stats-page {
   margin: 0;
   background: var(--cymbra-lingua-bg);

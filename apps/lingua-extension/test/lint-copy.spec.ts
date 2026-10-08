@@ -39,9 +39,6 @@ export const BASELINE = [
   "src/onboarding/level-row.ts",
   "src/onboarding/onboarding.html",
   "src/reading/grammar-labels.ts",
-  "src/stats/ladder.ts",
-  "src/stats/stats.html",
-  "src/stats/view.ts",
 ];
 
 /** Unaccented words of the inventory's copy, matched whole and case-sensitively. */
@@ -193,7 +190,7 @@ describe("no French literal outside the catalogue", () => {
 
   it("reads the sources and the pages, and knows the baseline's files", () => {
     expect(files.length).toBeGreaterThan(100);
-    expect(BASELINE.filter((f) => f.endsWith(".html")).length).toBe(3);
+    expect(BASELINE.filter((f) => f.endsWith(".html")).length).toBe(2);
     for (const rel of BASELINE) expect(statSync(join(root, rel)).isFile(), rel).toBe(true);
   });
 
