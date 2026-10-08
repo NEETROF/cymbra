@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
+import { studiedLanguages as frStudiedLanguages } from "@/i18n/fr/studied-languages.ts";
 import { mountStudiedLanguages, shippedLanguages } from "@/reading/studied-languages-view.ts";
 import { makeFakePort } from "./helpers.ts";
 
 // « Langues étudiées » (add-lingua-language-choice D2): a box per shipped language, ticked from the
-// reader's profile; the last language cannot be removed; hidden when one language ships.
+// reader's profile; the last language cannot be removed; hidden when one language ships. Mounted in
+// French, handed explicitly: the view has no default language (add-lingua-native-language-labels).
 
 const BOTH = ["en-fr", "es-fr"];
 const settle = async (): Promise<void> => {
@@ -17,7 +19,7 @@ async function mount(studied: StudiedLanguage[], pairs: readonly string[] = BOTH
   await port.setStudiedLanguages(studied);
   const block = document.createElement("div");
   const persist = vi.fn(async () => {});
-  const view = mountStudiedLanguages(block, port, persist, pairs);
+  const view = mountStudiedLanguages(block, port, persist, pairs, frStudiedLanguages, "fr");
   await view.refresh();
   const box = (language: string): HTMLInputElement =>
     block.querySelector<HTMLInputElement>(`input[data-language="${language}"]`)!;
@@ -102,7 +104,7 @@ describe("« Langues étudiées »", () => {
   it("shows a French reader's boxes before the port answers, as before", () => {
     const { port } = makeFakePort();
     const block = document.createElement("div");
-    mountStudiedLanguages(block, port, async () => {}, BOTH);
+    mountStudiedLanguages(block, port, async () => {}, BOTH, frStudiedLanguages, "fr");
     expect(block.hidden).toBe(false);
     expect(block.querySelectorAll("input")).toHaveLength(2);
   });

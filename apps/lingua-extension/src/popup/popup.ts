@@ -1,21 +1,12 @@
 import type { AccountReply, AccountState } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import { chooseLevelPrompt, levelTitle, noTextDetected } from "../analyzer/language-labels.ts";
-import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
-import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
+import { readingLanguage } from "../analyzer/pairs.ts";
 import { popup as enPopup } from "../i18n/en/popup.ts";
 import { popup as esPopup } from "../i18n/es/popup.ts";
 import { popup as frPopup } from "../i18n/fr/popup.ts";
-import {
-  DEFAULT_INTERFACE_LANGUAGE,
-  fillPageInLanguage,
-  formatCount,
-  formatPercent,
-  type InterfaceLanguage,
-  NODE_SLOT,
-  renderAround,
-} from "../i18n/index.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountSettings, type SettingsTab, type SettingsView } from "../reading/settings-view.ts";
+import { type PageStats, type PopupCopy, renderStats } from "./render.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
 import {
@@ -58,34 +49,11 @@ const storageArea: AsyncStorageArea = {
 const store: AsyncStorageArea = messagedArea();
 
 /** The popup's copy by interface language (localise-lingua-reading-surfaces D1). */
-const POPUP_COPY: Record<InterfaceLanguage, typeof frPopup> = { fr: frPopup, en: enPopup, es: esPopup };
+const POPUP_COPY: Record<InterfaceLanguage, PopupCopy> = { fr: frPopup, en: enPopup, es: esPopup };
 
 /** The interface language and the copy, read with the first storage read, before anything renders. */
 let language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
-let copy: typeof frPopup = frPopup;
-
-interface PageStats {
-  /** "book" when the tab is the extension's reader, showing a section of a book. */
-  surface?: "page" | "book";
-  analysable: boolean;
-  percent: number | null;
-  counted: number;
-  unknownOccurrences: number;
-  distinctUnknown: number;
-  calibration: number;
-  declaredLevel: CefrLevel | null;
-  hasLevels: boolean;
-  /** Levels estimated from word frequency (add-lingua-spanish-levels); absent from an older build. */
-  levelsEstimated?: boolean;
-  /** No level decision yet (« Débutant » is a decision): show the call to action. */
-  needsLevel: boolean;
-  trackedCount: number;
-  deckCount: number;
-  dueCount: number;
-  /** The page's language and the reader's accepted ones; absent from a content script of an older build. */
-  language?: StudiedLanguage;
-  languages?: StudiedLanguage[];
-}
+let copy: PopupCopy = frPopup;
 
 function $(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -167,43 +135,9 @@ async function hasSignInError(): Promise<boolean> {
   }
 }
 
+/** The main panel, in the language this page was filled in (popup/render.ts, which a test mounts). */
 function render(stats: PageStats | null, onReader: boolean): void {
-  const present = stats !== null;
-  // A reader tab is never analysed from here: the reader page reads its books itself.
-  $("setup").hidden = present || onReader;
-  $("controls").hidden = !present;
-  if (!stats) return;
-
-  const book = stats.surface === "book" || onReader;
-  $("pct-label").textContent = book ? copy.knownInChapter : copy.knownOnPage;
-  $("analysed").hidden = !stats.analysable;
-  $("note").hidden = stats.analysable;
-  // Named from the language the page is read in (add-lingua-language-choice D1).
-  const studied = stats.language ?? DEFAULT_LANGUAGE;
-  $("note").textContent = book ? copy.openBookForFigures : noTextDetected(stats.languages ?? [studied]);
-  if (stats.analysable) {
-    const pct = stats.percent ?? 0;
-    $("pct").textContent = stats.percent == null ? copy.noPercent : formatPercent(language, pct, "tight");
-    ($("bar") as HTMLElement).style.width = `${pct}%`;
-    $("counted").textContent = formatCount(language, stats.counted);
-    $("unknown").textContent = formatCount(language, stats.unknownOccurrences);
-    $("distinct").textContent = formatCount(language, stats.distinctUnknown);
-  }
-
-  $("tracked").textContent = formatCount(language, stats.trackedCount);
-  $("deck").textContent = formatCount(language, stats.deckCount);
-  $("review").textContent = copy.review(formatCount(language, stats.dueCount));
-
-  // With CEFR data, the reader declares a level in Réglages; the main panel gets a compact
-  // reminder, or a call-to-action until a level has been chosen (asked at first use).
-  // « Débutant » is a decision (no level, but chosen): only a missing decision asks again.
-  $("level-cta").hidden = !stats.hasLevels || !stats.needsLevel;
-  $("level-indicator").hidden = !stats.hasLevels || stats.needsLevel;
-  $("level-cta").textContent = chooseLevelPrompt(studied);
-  // « Niveau de … : B1 »: the line's message rendered around the bold level (D1).
-  const level = $("level-current");
-  level.textContent = stats.declaredLevel ?? copy.beginner;
-  renderAround($("level-line"), copy.levelLine(levelTitle(studied, stats.levelsEstimated ?? false), NODE_SLOT), level);
+  renderStats(document, language, copy, stats, onReader);
 }
 
 let settings: SettingsView | null = null;

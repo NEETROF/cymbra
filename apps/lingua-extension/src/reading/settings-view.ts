@@ -92,8 +92,15 @@ const PREVIEW_KEY = "preview";
  * (2026-09-29), and that install can fail outright (0x800F0950), hence the pointer to the fallback
  * (`installVoiceHelpWithFallback`, where the remote voices can stand in).
  */
-function installVoiceHelp(copy: SettingsModule, language: StudiedLanguage): string {
-  return copy.installVoiceHelp(windowsVoiceLanguage(language), languageName(language));
+function installVoiceHelp(
+  copy: SettingsModule,
+  interfaceLanguage: InterfaceLanguage,
+  language: StudiedLanguage,
+): string {
+  return copy.installVoiceHelp(
+    windowsVoiceLanguage(interfaceLanguage, language),
+    languageName(interfaceLanguage, language),
+  );
 }
 
 /** What the Synchronisation block needs from the background and the store. */
@@ -197,6 +204,7 @@ export function mountSettings(
     },
     pairs,
     blocksCopy.studiedLanguages,
+    interfaceLanguage,
   );
 
   // — Niveau, one block per accepted language (add-lingua-language-choice D3) —
@@ -206,7 +214,7 @@ export function mountSettings(
   /** The level block of one language: its chips, hint and calibration. */
   function levelBlockFor(language: StudiedLanguage): LevelBlock {
     const view = port.for(language);
-    const block = settingBlock(levelTitle(language));
+    const block = settingBlock(levelTitle(interfaceLanguage, language));
     const title = block.querySelector<HTMLElement>(".set-label");
     const chips = el("div", "level-chips");
     const chipButtons = new Map<string, HTMLButtonElement>();
@@ -222,7 +230,7 @@ export function mountSettings(
     addChip("", copy.beginner);
     const hint = el("div", "set-note");
     // Levels estimated from frequency say so (add-lingua-spanish-levels).
-    const estimate = el("div", "set-note set-estimate", estimatedLevelsNote(language));
+    const estimate = el("div", "set-note set-estimate", estimatedLevelsNote(interfaceLanguage, language));
     estimate.hidden = true;
     const calibBlock = el("div", "calib");
     calibBlock.hidden = true;
@@ -260,7 +268,7 @@ export function mountSettings(
         await needsLevelChoice(port, language),
       ];
       const estimated = hasLevels && (await view.levelsEstimated());
-      if (title) title.textContent = levelTitle(language, estimated);
+      if (title) title.textContent = levelTitle(interfaceLanguage, language, estimated);
       estimate.hidden = !estimated;
       // Nothing is highlighted as chosen until a decision exists (« Débutant » is one).
       const current = needsChoice ? null : (declared ?? "");
@@ -506,7 +514,7 @@ export function mountSettings(
     }
     // The select, not the stored preference: the change it just saved may not be back yet.
     const voice = speaker.eligible().find((v) => v.voiceURI === voiceSelect.value) ?? speaker.automatic();
-    if (voice) speaker.speak(PREVIEW_KEY, previewSentence(speaker.lang as StudiedLanguage), voice);
+    if (voice) speaker.speak(PREVIEW_KEY, previewSentence(interfaceLanguage, speaker.lang as StudiedLanguage), voice);
   });
   speaker?.subscribe(() => renderVoices());
   flowToggle.addEventListener("change", async () => {
@@ -533,8 +541,8 @@ export function mountSettings(
     noVoiceNote.hidden = (eligible.length > 0 && !remote) || offersAndroid;
     // The language the host's speaker reads: a page's in the drawer, the reader's first elsewhere.
     const voiceLanguage = speaker.lang as StudiedLanguage;
-    noVoiceText.textContent = noVoiceInstalled(voiceLanguage);
-    const installHelp = installVoiceHelp(copy, voiceLanguage);
+    noVoiceText.textContent = noVoiceInstalled(interfaceLanguage, voiceLanguage);
+    const installHelp = installVoiceHelp(copy, interfaceLanguage, voiceLanguage);
     const help = offersRemote ? copy.installVoiceHelpWithFallback(installHelp) : installHelp;
     installInfo.title = help;
     installInfo.setAttribute("aria-label", help);

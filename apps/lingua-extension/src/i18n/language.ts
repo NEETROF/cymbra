@@ -44,7 +44,7 @@ export async function interfaceLanguage(area: InterfaceLanguageArea): Promise<In
   try {
     got = await area.get(INTERFACE_LANGUAGE_KEY);
   } catch (e) {
-    console.warn("[Cymbra Lingua] could not read the interface language, showing French:", e);
+    console.warn("[Cymbra Lingua] could not read the interface language, showing the default (fr):", e);
     return DEFAULT_INTERFACE_LANGUAGE;
   }
   const value = got?.[INTERFACE_LANGUAGE_KEY];

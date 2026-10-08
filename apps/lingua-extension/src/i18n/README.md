@@ -13,6 +13,13 @@ changes moving them take off the list: `localise-lingua-reading-surfaces` (14),
 `localise-lingua-settings` (15), `localise-lingua-review-stats` (16),
 `localise-lingua-account-onboarding` (17).
 
+A language's name — « anglais », "Spanish", « español » and their inflections, in any interface language — is
+named in `<language>/languages.ts` alone, and the surfaces ask `src/analyzer/language-labels.ts` for it in the
+interface language they read (`add-lingua-native-language-labels`); `test/lint-language-labels.spec.ts` refuses
+one in a string literal anywhere else in `src/`, the other catalogue modules included, the engine's enum names
+(`state/profile.ts`) being its one exception. The level scale is `languages.levelScale`: « CEFR » in French and
+English, « MCER » in Spanish (M19).
+
 A copy site with no French literal is beyond the lint: a format whose output is French. The one the
 inventory found, `src/reading/speech.ts`'s `voiceLabel` — a voice's region named through
 `Intl.DisplayNames(["fr"])` — now goes through `regionName(language, code)` and the

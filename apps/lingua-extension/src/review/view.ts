@@ -68,7 +68,7 @@ export function renderReview(
   const studied = card.language ?? "en";
   root.append(note(plural(language, card.remaining, copy.remaining), "remaining"));
   // The card's language, when the reader studies several (add-lingua-language-stats-review D2).
-  if (opts.showLanguage && card.language) root.append(note(languageName(card.language), "review-language"));
+  if (opts.showLanguage && card.language) root.append(note(languageName(language, card.language), "review-language"));
   root.append(headword(card.headword, studied));
 
   if (!card.revealed) {

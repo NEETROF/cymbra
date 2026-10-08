@@ -28,7 +28,7 @@ export const stats: typeof fr = {
   loading: "…",
   days: (n) => `${n} d`,
   agentNote: "AI agent sessions (Claude Code plugin) are not counted here.",
-  noLevels: "CEFR levels unavailable for this language (the pack has no CEFR data).",
+  noLevels: (scale) => `${scale} levels unavailable for this language (the pack has no ${scale} data).`,
   cardsAdded: (level) => ({
     one: (n) => `${n} card added to the deck (level ${level}).`,
     other: (n) => `${n} cards added to the deck (level ${level}).`,

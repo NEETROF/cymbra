@@ -1,7 +1,8 @@
 // How the interface names the studied languages (analyzer/language-labels.ts), in French — the
-// source module (add-lingua-interface-language). Each language's words come in the forms the
-// sentences need; the sentences take them. The English and Spanish entries are drafted here and
-// settled by add-lingua-language-labels (change 19).
+// source module (add-lingua-interface-language, settled by add-lingua-native-language-labels D1).
+// Each language's words come in the forms the sentences need; the sentences take them. The one
+// place a language's name is written in French: test/lint-language-labels.spec.ts refuses it
+// anywhere else.
 
 /** One studied language, in the forms the sentences take. */
 export interface LanguageWords {
@@ -15,11 +16,14 @@ export interface LanguageWords {
   masculine: string;
   /** After a feminine noun: « voix anglaise ». */
   feminine: string;
-  /** The language with the region its voices default to, as Windows lists it. */
+  /** The language with the region its voices default to, as Windows lists it in this interface language. */
   windowsVoice: string;
   /** What a voice preview reads, in the language itself — the same in every interface language. */
   preview: string;
 }
+
+/** The level scale's name in this interface language (D3): « CEFR » in French. */
+const levelScale = "CEFR";
 
 export const languages = {
   english: {
@@ -40,15 +44,16 @@ export const languages = {
     windowsVoice: "Espagnol (Espagne)",
     preview: "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
   } satisfies LanguageWords,
+  levelScale,
   /** « Niveau d'anglais » — `of` is the language's. */
   levelTitle: (of: string) => `Niveau ${of}`,
   /** « Niveau d'espagnol estimé », when the pack's levels are estimated from word frequency. */
   levelTitleEstimated: (of: string) => `Niveau ${of} estimé`,
   myLevelTitle: (of: string) => `Mon niveau ${of}`,
   myLevelTitleEstimated: (of: string) => `Mon niveau ${of} estimé`,
-  /** Why a language's levels read « estimé » — `the` is the language's. */
+  /** Why a language's levels read « estimé » — `the` is the language's; the scale is `levelScale`. */
   estimatedLevelsNote: (the: string) =>
-    `Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour ${the}.`,
+    `Niveaux estimés d'après la fréquence des mots, faute de liste ${levelScale} libre de droits pour ${the}.`,
   /** « repris de l'anglais, dont l'espagnol reprend les tailles de niveaux. » */
   borrowedTypicalNote: (from: string, the: string) => `repris de ${from}, dont ${the} reprend les tailles de niveaux.`,
   /** « B1 (estimé) ». */

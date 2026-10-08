@@ -19,7 +19,11 @@ import { settings } from "@/i18n/fr/settings.ts";
 // of Réglages would hold. The catalogue itself, in its three languages, is the one place — its
 // `settings` module alone, in each language, holds a title. And every host hands the view the
 // interface language (localise-lingua-settings D1): a host that forgot would show Réglages in French
-// to every reader, and no French assertion would notice.
+// to every reader, and no French assertion would notice. The same for the two views that name the
+// studied languages on their own, `mountStudiedLanguages` and `levelRow`: their language parameter
+// has no default (add-lingua-native-language-labels), so the compiler refuses a call without one —
+// what this lint adds is that the one call still handing the default, the onboarding page's, says
+// which change takes it over, rather than reading as a choice.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = join(root, "src");
@@ -58,9 +62,9 @@ function files(dir: string, ext: string): string[] {
 }
 
 const titles: string[] = TITLE_KEYS.map((key) => settings[key]);
-/** Every `mountSettings(…)` call in `code`, from its name to its closing parenthesis. */
-function mountSettingsCalls(code: string): string[] {
-  return [...code.matchAll(/\bmountSettings\(/g)].map((m) => {
+/** Every `<name>(…)` call in `code`, from its name to its closing parenthesis. */
+function callsOf(code: string, name: string): string[] {
+  return [...code.matchAll(new RegExp(`\\b${name}\\(`, "g"))].map((m) => {
     let depth = 0;
     for (let i = m.index + m[0].length - 1; i < code.length; i++) {
       if (code[i] === "(") depth++;
@@ -69,6 +73,7 @@ function mountSettingsCalls(code: string): string[] {
     return code.slice(m.index);
   });
 }
+const mountSettingsCalls = (code: string): string[] => callsOf(code, "mountSettings");
 /** Whether a `mountSettings(…)` call hands the view the interface language. */
 const handsLanguage = (call: string): boolean => /\binterfaceLanguage\b\s*[:,}]/.test(call);
 const escapeHtml = (s: string): string => s.replace(/&/g, "&amp;");
@@ -125,6 +130,56 @@ describe("one Réglages, rendered by every surface", () => {
       expect(code, `${rel(module)} builds a Réglages block`).not.toMatch(/\bsettingBlock\(|["'`]set-label["'`]/);
     });
   }
+});
+
+// — The views that name the studied languages are handed the interface language, never a default —
+
+/** The views, by the module that defines each: its own calls are not call sites. */
+const NAMING_VIEWS: Record<string, string> = {
+  mountStudiedLanguages: "src/reading/studied-languages-view.ts",
+  levelRow: "src/onboarding/level-row.ts",
+};
+/** The one host still handing `DEFAULT_INTERFACE_LANGUAGE`, and the change that takes it over. */
+const DEFAULT_UNTIL = { host: "src/onboarding/onboarding.ts", change: "localise-lingua-account-onboarding" };
+
+describe("the views that name languages, handed the interface language", () => {
+  const modules = files(src, ".ts").map((path): [string, string] => [rel(path), readFileSync(path, "utf8")]);
+
+  for (const [view, definer] of Object.entries(NAMING_VIEWS)) {
+    it(`${view} is called somewhere, and every call names the language it hands`, () => {
+      const sites = modules
+        .filter(([path]) => path !== definer)
+        .flatMap(([path, code]) => callsOf(code, view).map((call) => ({ path, call })));
+      expect(sites.length, `no call of ${view} outside ${definer}`).toBeGreaterThan(0);
+      for (const { path, call } of sites) {
+        // The language is an identifier naming it, or the default said out loud — never a bare code.
+        expect(call, `${path}: hand ${view} the interface language — ${call}`).toMatch(
+          /\b(interfaceLanguage|DEFAULT_INTERFACE_LANGUAGE)\b/,
+        );
+        expect(call, `${path}: a language code is a default in disguise — ${call}`).not.toMatch(
+          /["'](fr|en|es)["']\s*,?\s*\)$/,
+        );
+      }
+    });
+  }
+
+  it(`${DEFAULT_UNTIL.host} alone hands the default, and says ${DEFAULT_UNTIL.change} replaces it`, () => {
+    for (const [path, code] of modules) {
+      if (Object.values(NAMING_VIEWS).includes(path) || path.startsWith("src/i18n/")) continue;
+      // The default handed in the call, or bound to the name the call hands (the onboarding's shape).
+      const calls = Object.keys(NAMING_VIEWS).flatMap((view) => callsOf(code, view));
+      const handsDefault =
+        calls.length > 0 &&
+        (calls.some((call) => /\bDEFAULT_INTERFACE_LANGUAGE\b/.test(call)) ||
+          /\bconst interfaceLanguage = DEFAULT_INTERFACE_LANGUAGE\b/.test(code));
+      if (path === DEFAULT_UNTIL.host) {
+        expect(handsDefault, `${path} no longer hands the default: retire DEFAULT_UNTIL`).toBe(true);
+        expect(code, `${path}: say that ${DEFAULT_UNTIL.change} replaces the default`).toContain(DEFAULT_UNTIL.change);
+      } else {
+        expect(handsDefault, `${path} hands a naming view the default interface language`).toBe(false);
+      }
+    }
+  });
 });
 
 // — In the catalogue, a title lives in its language's `settings` module alone —

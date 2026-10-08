@@ -31,7 +31,8 @@ export const stats = {
   /** A range button: « 30 j ». */
   days: (n: string) => `${n} j`,
   agentNote: "Les sessions d'agent IA (plugin Claude Code) ne sont pas comptées ici.",
-  noLevels: "Niveaux CEFR indisponibles pour cette langue (pack sans données CEFR).",
+  /** `scale` is `languages.levelScale`, « CEFR » (add-lingua-native-language-labels D3). */
+  noLevels: (scale: string) => `Niveaux ${scale} indisponibles pour cette langue (pack sans données ${scale}).`,
   /** « 3 cartes ajoutées au deck (niveau B1). » — the forms for one level. */
   cardsAdded: (level: string) =>
     pluralForms({

@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 import { afterAll, describe, expect, it } from "vitest";
+import { baselinePath, type Hit, htmlLiterals, sources as walk, tsLiterals } from "./support/literals.ts";
 
 // The interface's copy lives in the catalogue, src/i18n (add-lingua-interface-language D5): a
 // French string literal anywhere else in src/ fails, unless its file is on the BASELINE — the
@@ -24,18 +24,12 @@ import { afterAll, describe, expect, it } from "vitest";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(root, "src");
 
-/** A file's path as the baseline writes it: relative, with `/` whatever the platform's separator. */
-function baselinePath(treeRoot: string, path: string): string {
-  return relative(treeRoot, path).split(sep).join("/");
-}
-
 /** The files that hold French literals today, until the change moving each surface removes it. */
 export const BASELINE = [
   "src/account/account.html",
   "src/account/copy.ts",
   "src/account/flow.ts",
   "src/account/view.ts",
-  "src/analyzer/language-labels.ts",
   "src/onboarding/level-row.ts",
   "src/onboarding/onboarding.html",
 ];
@@ -112,44 +106,6 @@ export function isFrench(text: string): boolean {
   return ACCENTED.test(text) || WORDS.test(text);
 }
 
-export interface Hit {
-  line: number;
-  text: string;
-}
-
-/** The string and template literals of a TypeScript source, by line. */
-export function tsLiterals(path: string, text: string): Hit[] {
-  const source = ts.createSourceFile(path, text, ts.ScriptTarget.ES2022, true);
-  const hits: Hit[] = [];
-  const line = (node: ts.Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
-  const visit = (node: ts.Node): void => {
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-      hits.push({ line: line(node), text: node.text });
-    } else if (ts.isTemplateExpression(node)) {
-      const chunks = [node.head.text, ...node.templateSpans.map((span) => span.literal.text)];
-      hits.push({ line: line(node), text: chunks.join("\u0000") });
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return hits;
-}
-
-/** The text nodes and attribute values of an HTML page, by line; comments do not count. */
-export function htmlLiterals(text: string): Hit[] {
-  const stripped = text.replace(/<!--[\s\S]*?-->/g, (c) => c.replace(/[^\n]/g, " "));
-  const hits: Hit[] = [];
-  const line = (index: number): number => stripped.slice(0, index).split("\n").length;
-  for (const m of stripped.matchAll(/>([^<>]+)</g)) {
-    const t = m[1].replace(/\s+/g, " ").trim();
-    if (t) hits.push({ line: line(m.index), text: t });
-  }
-  for (const m of stripped.matchAll(/\s[a-zA-Z-]+="([^"]*)"/g)) {
-    if (m[1]) hits.push({ line: line(m.index), text: m[1] });
-  }
-  return hits;
-}
-
 export function frenchLiterals(path: string): Hit[] {
   const text = readFileSync(path, "utf8");
   const hits = path.endsWith(".html") ? htmlLiterals(text) : tsLiterals(path, text);
@@ -158,11 +114,7 @@ export function frenchLiterals(path: string): Hit[] {
 
 /** Every source and page under `src`, the catalogue and the generated code aside. */
 export function sources(src: string): string[] {
-  return readdirSync(src).flatMap((name) => {
-    const path = join(src, name);
-    if (statSync(path).isDirectory()) return ["pkg", "gen", "i18n"].includes(name) ? [] : sources(path);
-    return /\.(ts|html)$/.test(name) && !name.endsWith(".d.ts") ? [path] : [];
-  });
+  return walk(src, ["pkg", "gen", "i18n"]);
 }
 
 /** What fails on a tree: French outside the baseline, and a baseline file holding none. */

@@ -155,6 +155,19 @@ describe("An English-native reader's review", () => {
     expect(root.querySelector(".review-sentence span")?.textContent).toBe("El faro brilla.");
   });
 
+  it("names the card's language in the interface language, when the reader studies several", () => {
+    // add-lingua-native-language-labels: the note is the labels module's in the interface language.
+    const root = document.createElement("div");
+    renderReview(root, { phase: "reviewing", card: card() }, actions, { ...english, showLanguage: true });
+    expect(text(root, ".review-language")).toBe("Spanish");
+    const spanish = { interfaceLanguage: "es" as const, showLanguage: true };
+    renderReview(root, { phase: "reviewing", card: card({ language: "en" }) }, actions, spanish);
+    expect(text(root, ".review-language")).toBe("Inglés");
+    // Every reader today: the French, byte for byte.
+    renderReview(root, { phase: "reviewing", card: card() }, actions, { showLanguage: true });
+    expect(text(root, ".review-language")).toBe("Espagnol");
+  });
+
   it("a Spanish-native reader counts in Spanish", () => {
     const root = document.createElement("div");
     const spanish = { interfaceLanguage: "es" as const };
@@ -214,7 +227,7 @@ describe("An English-native reader's review", () => {
     expect([...m.container.querySelectorAll(".summary b")].map((b) => b.textContent)).toEqual(["1", "12,345"]);
   });
 
-  it("the page: the language filter is named in English, the languages through their labels (change 19)", async () => {
+  it("the page: the language filter and the languages are named in English (add-lingua-native-language-labels)", async () => {
     packs.shipped = ["en-fr", "es-fr"];
     const { port } = makeFakePort([...DECK, { ...DECK[0], headword: "faro", language: "es" }]);
     await port.setStudiedLanguages(["en", "es"]);
@@ -222,7 +235,7 @@ describe("An English-native reader's review", () => {
     await m.refresh();
     const filter = m.container.querySelector(".review-languages");
     expect(filter?.getAttribute("aria-label")).toBe("Language");
-    expect([...(filter?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual(["Anglais", "Espagnol"]);
+    expect([...(filter?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual(["English", "Spanish"]);
   });
 
   it("the page: a restored backup and a file that is not one, said in English", async () => {
@@ -370,8 +383,8 @@ describe("A Spanish-native reader's statistics", () => {
     ]);
     expect(text(root, ".ladder-legend")).toBe(esStats.legend);
     expect(text(root, ".ladder-scope")).toBe(esStats.scopeTaught + esStats.scopeTypical(esStats.extrapolated));
-    // The ladder's title and the language names stay with the labels module (change 19).
-    expect(text(root, ".ladder-head .mlabel")).toBe("Mon niveau d'anglais");
+    // The ladder's title names the language in Spanish (add-lingua-native-language-labels D2).
+    expect(text(root, ".ladder-head .mlabel")).toBe("Mi nivel de inglés");
   });
 
   it("the seeding control, its result and the marked words speak Spanish", async () => {
@@ -423,10 +436,10 @@ describe("A Spanish-native reader's statistics", () => {
     const picker = root.querySelector(".stats-languages");
     expect(picker?.getAttribute("aria-label")).toBe("Idioma");
 
-    button(root, "Espagnol").click();
+    button(root, "Español").click();
     // The remount's last write is the scope: once it reads Spanish, the whole view is the new one.
     await vi.waitFor(() => {
-      expect(text(root, ".stats-languages .active")).toBe("Espagnol");
+      expect(text(root, ".stats-languages .active")).toBe("Español");
       expect(text(root, ".scope")).toBe("Este dispositivo");
     });
     expect(text(root, ".ladder-cols .ladder-frac")).toBe("este nivel");
@@ -522,10 +535,9 @@ describe("the ladder's functions, handed the interface language", () => {
     });
   }
 
-  it("estimated levels with borrowed figures: the English wrapper around the labels' French clause (change 19)", () => {
-    // Today's mixed output, pinned as change 19's anchor: the scope's wrapper is the interface
-    // language's, the clause naming the borrowed figures still the labels module's French
-    // (borrowedTypicalNote), which add-lingua-native-language-labels (change 19) localises.
+  it("estimated levels with borrowed figures: the whole scope in English, the languages named in it", () => {
+    // The scope's wrapper is the interface language's, and so is the clause naming the borrowed
+    // figures (borrowedTypicalNote, add-lingua-native-language-labels D2): one English sentence.
     const rows = ladder().map((r) => ({ ...r, typicalFrom: "en" as const }));
     const levelsEstimated = true;
     const view = ladderView(rows, null, "es", levelsEstimated, english);
@@ -533,9 +545,9 @@ describe("the ladder's functions, handed the interface language", () => {
     expect(view.querySelector(".ladder-scope")?.textContent).toBe(
       "“common”: the most frequent words up to this level. " +
         "“estimated”: the vocabulary a reader at this level usually has, " +
-        "repris de l'anglais, dont l'espagnol reprend les tailles de niveaux.",
+        "taken from English, whose level sizes Spanish borrows.",
     );
-    expect(view.querySelector(".ladder-head .mlabel")?.textContent).toBe("Mon niveau d'espagnol estimé");
+    expect(view.querySelector(".ladder-head .mlabel")?.textContent).toBe("My estimated Spanish level");
   });
 
   it("asks for what is missing in the language it is handed", () => {

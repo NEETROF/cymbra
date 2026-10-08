@@ -13,7 +13,7 @@ import {
   type ShelfSection,
   shelfSections,
 } from "@/reader/app.ts";
-import { COPY } from "@/reader/copy.ts";
+import { COPY, readerCopy } from "@/reader/copy.ts";
 import { type BookRecord, Library } from "@/reader/library.ts";
 import type { TocEntry } from "@/reader/renderer.ts";
 import type { StudiedLanguage } from "@/analyzer/types.ts";
@@ -243,6 +243,20 @@ describe("the library's sections (group-lingua-library-by-language)", () => {
     languages = ["es", "en"];
     await pick(lazarillo);
     await vi.waitFor(() => expect(headings()).toEqual(["Espagnol", "Anglais"]));
+  });
+
+  it("An English-native reader: the sections are headed by the languages' English names", async () => {
+    const a = app({ languages: async () => ["es", "en"], language: "en", copy: readerCopy("en") });
+    await a.start(fakeSession());
+    await pick(await bookIn("en-GB", "Hound"), await bookIn("es", "Lazarillo"), await bookIn(null, "Nameless"));
+    expect(headings()).toEqual(["Spanish", "English", "Other languages"]);
+  });
+
+  it("A Spanish-native reader: the sections are headed by the languages' Spanish names", async () => {
+    const a = app({ languages: async () => ["en", "es"], language: "es", copy: readerCopy("es") });
+    await a.start(fakeSession());
+    await pick(await bookIn("en-GB", "Hound"), await bookIn("es", "Lazarillo"));
+    expect(headings()).toEqual(["Inglés", "Español"]);
   });
 
   it("still shows every book when the languages cannot be read", async () => {
