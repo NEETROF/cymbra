@@ -14,17 +14,37 @@ does not exist yet.
 
 ## What Changes
 
-- **The extension's listing in English**: the detailed description for English speakers learning Spanish, the single
-  purpose, the permissions and remote-code answers, and the reviewer's test instructions
-  (≤ 1,000 characters, labels quoted from the English interface), beside the French ones; the summary
-  quoted from `_locales/en/messages.json`.
-- **The App Store listing in en-US and en-GB** (M16 (open) recommends en-US and en-GB beside fr-FR; fr-FR stays primary): name, subtitle,
-  promotional text, keywords, description, « What's New », each within Apple's limits; never a beta,
-  nothing about price (guideline 2.2); the review notes, in English, saying what the reviewer sees in
-  each language.
-- **Per language, like for like**: each language a listing names says whether extended translation
-  is offered for it (M15's settlement) and what it downloads (the catalogue's sizes), and points to the
-  coverage the site publishes (change 30).
+- **The extension's listing in English**: the detailed description for English speakers learning
+  Spanish, beside the French one; the summary quoted from `_locales/en/messages.json`; the one
+  test-instructions field per store rewritten for what a reviewer sees — a non-French browser
+  presets the English interface studying Spanish — its labels quoted from `src/i18n/en/`, saying
+  how to choose French in Réglages, within 1,000 characters.
+- **The single purpose, the permission justifications and the remote-code answer** are single
+  English fields, not one per language: updated in place, they name Spanish for English speakers
+  beside English and Spanish for French speakers, and the remote-code answer names es-en as the
+  direct model for an English-native reader.
+- **The App Store listing in en-US and en-GB**, as M16 recommends (open; fr-FR stays primary):
+  name, subtitle, promotional text, keywords, description, « What's New », each within Apple's
+  limits; never a beta (guideline 2.2), nothing about price (guideline 2.3.7); the en-GB text is
+  the en-US text (M10: US English). Each locale's Privacy policy URL
+  `https://cymbra.app/en/privacy/`, Support URL `https://cymbra.app/en/support/` and Marketing URL
+  `https://cymbra.app/en/lingua/`.
+- **The App Store review notes**: one field, in English, limited to 4,000 characters — today's
+  block measures 4,042, over it. Rewritten to fit: "Purpose & audience" and "Regional
+  differences" say who each interface language serves and how a reviewer chooses it; "Third-party
+  material" adds the es-en sources (the English Wiktionary's Spanish section, the Spanish
+  Wiktionary's translations); the translation model named and its size updated from the
+  catalogue.
+- **The dashboards' languages** (change 27's risk): the first package carrying `_locales` sets the
+  Chrome Web Store listing's default language to English; that package is uploaded without
+  publishing (a dashboard upload of the build artifact, or a release input that skips `:publish`),
+  the French listing re-entered under `fr`, the English filled under `en`, then submitted.
+  addons.mozilla.org reads `__MSG_` at upload: the owner checks its default locale and summary
+  after submission. Both results recorded in `STORE-LISTING.md`.
+- **Per language, like for like**: each text says whether extended translation is offered for the
+  languages it names (M15's settlement) and what it downloads (the catalogue's sizes), and points
+  to the coverage the site publishes in the text's language (change 30).
+- **The French texts** change only where they say the product is French-only (D2).
 - **Screenshots**: the list of captures per locale and platform, taken by the owner from a build of
   change 34's branch with the interface in English.
 - **The wording is the owner's** (M9): the files carry full drafts.
@@ -38,12 +58,15 @@ None.
 ### Modified Capabilities
 
 - `lingua-browser-extension`: MODIFIED *The store listings name each studied language* (held by no
-  open change): one listing per store, its texts in each native language a shipped pair is glossed
-  in; every scenario kept, one added.
+  open change): one listing per store, a text in each native language a shipped pair is glossed
+  in, naming what it teaches a reader of that language; every scenario kept, one added.
 
 ## Impact
 
 - **Products.** The two listing files; no code.
-- **Order.** Before change 34's release, which submits them with the packages.
+- **Order.** After changes 27 (the summary it quotes) and 30 (the page it points to), and M15's
+  settlement for es-en; before change 34's release; pasted after the site deploy that publishes
+  34's figures.
 - **The owner**: settles M16's locales, reviews the drafts, captures the screenshots and pastes
-  everything into the dashboards with the release (M18).
+  everything into the dashboards with the release (M18). With fr-FR primary (M16), a German App
+  Store user sees the French listing while the app opens in English (M13).
