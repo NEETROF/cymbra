@@ -9,7 +9,7 @@ Réglages — its tabs, its blocks' titles and every text of its blocks (studied
 
 #### Scenario: A Spanish-native reader
 - **WHEN** the interface language is Spanish and the reader opens Réglages
-- **THEN** the tabs, titles and blocks are the Spanish catalogue's, and the translation setting's cost and the last sync's age are formatted for Spanish — the names of languages (named by a later change) and the account messages shared with the account page excepted
+- **THEN** the tabs, titles and blocks are the Spanish catalogue's, and the translation setting's cost and the last sync's age are formatted for Spanish — the texts of `language-labels.ts` (change 19: language names, `estimatedLevelsNote`, `noVoiceInstalled`, `levelTitle`) and the account messages shared with the account page excepted
 
 #### Scenario: The titles live once
 - **WHEN** a host writes a block's title as a literal

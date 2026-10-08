@@ -39,8 +39,11 @@ interface language the content script read.
 French, so every existing spec mounts as before; the popup and the side panel pass the language
 they read with their preferences, the drawer the one the session handed it (change 14); the view
 picks the `settings` module of that language and hands each block's module its own (`colours`,
-`display`, `translation`, `account-setting`, `sync`), and the language with it where a block
-formats (D4). The blocks keep their signatures otherwise.
+`display`, `translation`, `account-setting`, `sync`, and `studied-languages` — the block's two notes,
+in a module of their own because the onboarding page mounts the block too), and the language with it
+where a block formats (D4); each block defaults to its own French module. The blocks keep their signatures otherwise. The reader's "Aa" panel — the Affichage
+block the reader page mounts alone — gets the reader page's interface language and its `display`
+module.
 
 ### D2 — Titles in the catalogue; the hosts' lint reads them there
 
@@ -50,8 +53,9 @@ formats (D4). The blocks keep their signatures otherwise.
 language, change 19's to name). `lint-settings-hosts` imports those eleven entries from
 `src/i18n/fr/settings.ts` (a `TITLE_KEYS` list in the spec names them) instead of matching
 `settingBlock("…")` in `settings-view.ts`, keeps change 13's exclusion of `src/i18n/` as a whole,
-and keeps its two checks: every host calls `mountSettings`, and no other `.ts` or `.html` holds a
-title as a literal. The catalogue's three languages are the one place.
+and keeps its two checks: every host calls `mountSettings` — handing it `interfaceLanguage` — and no
+other `.ts` or `.html` holds a title as a literal. The catalogue's three languages are the one place:
+in each, no module but `settings` holds a title.
 
 ### D3 — Fragments as slot messages
 
