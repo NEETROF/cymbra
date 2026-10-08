@@ -97,8 +97,9 @@ type PanelView = "review" | "stats" | "settings";
 let review: ReviewPage | null = null;
 let settings: SettingsView | null = null;
 let current: PanelView = "review";
-/** The interface language, read first; Réglages speak it (localise-lingua-settings D1). */
-let interfaceLang: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
+/** The interface language this page read before it showed: Révision, Statistiques and Réglages
+ *  speak it (localise-lingua-review-stats D1, localise-lingua-settings D1). */
+let interfaceLanguage: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
 
 /** Switch views; each is (re)mounted/refreshed on show so it reflects the current state. */
 async function showView(view: PanelView): Promise<void> {
@@ -110,16 +111,16 @@ async function showView(view: PanelView): Promise<void> {
     b.classList.toggle("active", b.dataset.view === view);
   }
   if (view === "review") {
-    review ??= mountReview($("view-review"), port, store, { now, prefs: area, pageLanguage });
+    review ??= mountReview($("view-review"), port, store, { now, prefs: area, pageLanguage, interfaceLanguage });
     await review.refresh();
   } else if (view === "stats") {
-    await mountStats($("view-stats"), port, store);
+    await mountStats($("view-stats"), port, store, undefined, interfaceLanguage);
   } else {
     settings ??= mountSettings($("view-settings"), port, area, {
       persist,
       store,
       speaker,
-      interfaceLanguage: interfaceLang,
+      interfaceLanguage,
     });
     await settings.refresh();
   }
@@ -128,8 +129,8 @@ async function showView(view: PanelView): Promise<void> {
 async function main(): Promise<void> {
   // The interface language first, with this page's first storage read: the page's static copy is
   // filled from the catalogue before anything shows (the body is hidden until then — D2). A read
-  // that fails is French: the page shows. Réglages is mounted in the same language.
-  interfaceLang = (await fillPageInLanguage(document, area, (l) => SIDEPANEL_COPY[l])).language;
+  // that fails is French: the page shows. Every view is mounted in the same language.
+  ({ language: interfaceLanguage } = await fillPageInLanguage(document, area, (l) => SIDEPANEL_COPY[l]));
 
   await hydrateEngine(port, store);
   language = await readingLanguage(port);

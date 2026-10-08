@@ -164,10 +164,11 @@ export class Drawer {
         now: this.opts.now,
         prefs: this.opts.area,
         pageLanguage: this.opts.pageLanguage,
+        interfaceLanguage: this.opts.language,
       });
       await this.reviewPage.refresh();
     } else if (view === "stats") {
-      await mountStats(this.statsBody, this.opts.port, this.opts.store);
+      await mountStats(this.statsBody, this.opts.port, this.opts.store, undefined, this.opts.language);
     } else {
       this.settings ??= mountSettings(this.settingsBody, this.opts.port, this.opts.area, {
         persist: this.opts.onChange,
