@@ -28,7 +28,7 @@
 
 - [x] 5.1 The Python tests: `python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"`.
 - [x] 5.2 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-pack -p lingua-wasm` (`committed_tables.rs`: es-en's pack against its new pin).
-- [ ] 5.3 `scripts/lingua-data/build.sh --reduce es-en <out>` reproduces the committed tables, manifest and pin byte for byte, and `pack_sources.py check-reducer` passes for every pair; the `reduce` job green on the pull request.
+- [x] 5.3 `scripts/lingua-data/build.sh --reduce es-en <out>` reproduces the committed tables, manifest and pin byte for byte, and `pack_sources.py check-reducer` passes for every pair; the `reduce` job green on the pull request.
 - [x] 5.4 In `apps/lingua-extension`: `yarn test` (the snapshots), `yarn lint`, `yarn typecheck`.
 - [x] 5.5 `openspec validate refine-lingua-es-en-glosses --strict` passes, and `python3 scripts/openspec_archive_order.py refine-lingua-es-en-glosses` exits 10 naming `add-lingua-pack-es-en` and `add-lingua-english-card-wording` (0 once they are archived).
 - [x] 5.6 Row 23b of `docs/lingua/language-matrix-programme.md` says where the change stands.
