@@ -27,10 +27,10 @@ describe("each page names its translations", () => {
   // Each legal page in each language: its own `hreflang` and its twins', and a switch
   // to every twin — not to the home page, as before the fix.
   const legal: Record<string, Record<string, string>> = {
-    privacy: { fr: "/confidentialite", en: "/en/privacy" },
-    terms: { fr: "/cgu", en: "/en/terms" },
-    support: { fr: "/support", en: "/en/support" },
-    deletion: { fr: "/suppression-compte", en: "/en/delete-account" },
+    privacy: { fr: "/confidentialite", en: "/en/privacy", es: "/es/privacidad" },
+    terms: { fr: "/cgu", en: "/en/terms", es: "/es/terminos" },
+    support: { fr: "/support", en: "/en/support", es: "/es/soporte" },
+    deletion: { fr: "/suppression-compte", en: "/en/delete-account", es: "/es/eliminar-cuenta" },
   };
 
   for (const [page, byLang] of Object.entries(legal)) {

@@ -1,0 +1,47 @@
+---
+import Base from '../../layouts/Base.astro';
+import DeleteAccountIsland from '../../components/DeleteAccountIsland.vue';
+
+// The Spanish twin of `/suppression-compte` (change: add-site-spanish-locale): the page
+// Lingua's deletion link opens for a Spanish interface. From here, Sign in with Apple
+// returns to `https://cymbra.app/eliminar-cuenta` (`appleReturnUrl`), which the owner
+// registers on the Services ID.
+---
+
+<Base
+  title="Eliminar mi cuenta — Cymbra"
+  description="Elimina definitivamente tu cuenta Cymbra y los datos vinculados a ella."
+  lang="es"
+  noindex
+  alternates={{ fr: '/suppression-compte', en: '/en/delete-account', es: '/es/eliminar-cuenta' }}
+>
+  <section class="container narrow">
+    <h1>Eliminar mi cuenta</h1>
+    <p class="prose">
+      Tu cuenta Cymbra es común a todas las apps Cymbra — Cymbra Music y Cymbra Lingua.
+      Eliminarla borra también tus datos en cada una de ellas.
+    </p>
+    <DeleteAccountIsland client:load lang="es" />
+
+    <!-- Partial deletion: declared to Play under "Manage app data", so it is
+         described here, outside the island, to stay readable while signed out. -->
+    <section class="prose">
+      <h2>Eliminar solo algunos datos</h2>
+      <p>
+        No tienes que eliminar tu cuenta para borrar una parte de tus datos. Desde Cymbra
+        Music puedes, en cualquier momento:
+      </p>
+      <ul>
+        <li>eliminar una partitura que hayas importado, desde tu biblioteca;</li>
+        <li>eliminar una colección, o retirar de ella una partitura;</li>
+        <li>eliminar un sonido importado, desde la pantalla de sonidos.</li>
+      </ul>
+      <p>
+        Desde Cymbra Lingua, <strong>Cuenta → Tus datos → Borrar mis datos de Lingua</strong> borra tus palabras, tu nivel, tu mazo y tus estadísticas de Lingua, en el servidor y en todos tus dispositivos, sin tocar tu cuenta ni Cymbra Music.
+      </p>
+      <p>
+        Para cualquier otra solicitud de eliminación concreta — tu progreso, tus puntuaciones o una contribución ya publicada — escribe a <a href="mailto:privacy@cymbra.app">privacy@cymbra.app</a> indicando los datos afectados.
+      </p>
+    </section>
+  </section>
+</Base>

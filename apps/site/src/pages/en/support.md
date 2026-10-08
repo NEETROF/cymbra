@@ -5,6 +5,7 @@ lang: en
 alternates:
   fr: /support
   en: /en/support
+  es: /es/soporte
 ---
 
 A question about Cymbra Music, or a problem with your account or subscription?
