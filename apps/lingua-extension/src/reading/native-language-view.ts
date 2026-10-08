@@ -37,7 +37,7 @@ export interface NativeLanguageOptions {
   profile: () => Promise<NativeProfile>;
   /** Send the choice; the background, by default. */
   choose?: (native: NativeLanguage) => Promise<NativeLanguageReply>;
-  /** After the background answered a confirmed choice: the host rebuilds its port, or drops its call to action. */
+  /** After the background answered a confirmed choice: the host refreshes, or drops its call to action. */
   onChosen?: (native: NativeLanguage, reply: Extract<NativeLanguageReply, { ok: true }>) => Promise<void> | void;
   /**
    * A question of its own — the onboarding's, the popup's first run: the preset is already applied,

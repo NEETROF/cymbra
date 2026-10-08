@@ -520,6 +520,18 @@ describe("a backup naming the native language the reader just left (add-lingua-n
     expect(o.store.store["cymbra-lingua-device"]).toBe("dev-1");
   });
 
+  it("mirrors the language the change names before announcing it, without parsing the backup", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const preferences = fakeArea({ [INTERFACE_LANGUAGE_KEY]: "fr" });
+    const seen: unknown[] = [];
+    const area = ownerArea(fakeArea(), () => seen.push(preferences.store[INTERFACE_LANGUAGE_KEY]), preferences, PAIRS);
+    // A backup that would not parse: read, it would mirror French, and say so.
+    await area.set({ [ROOT_KEY]: { v: 2, backup: "{not json" } }, CHANGE);
+    expect(seen).toEqual(["en"]);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it("is written again once the change is old: a backup restored from a file names what it names", async () => {
     const o = owner();
     await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);

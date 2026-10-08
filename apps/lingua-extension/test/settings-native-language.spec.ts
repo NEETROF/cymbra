@@ -111,7 +111,7 @@ describe("Réglages › Langue maternelle", () => {
     },
   );
 
-  it("Changing the native language: confirmed in Réglages, sent to the background, the host's port rebuilt from the store", async () => {
+  it("Changing the native language: confirmed in Réglages, sent to the background, nothing more asked of the host", async () => {
     const r = await mountReglages(MIXED, "fr");
     const english = r.languagePanel.querySelector<HTMLInputElement>('input[value="en"]')!;
     english.checked = true;
@@ -125,7 +125,7 @@ describe("Réglages › Langue maternelle", () => {
     await settle();
 
     expect(sent).toEqual([{ type: "lingua-native-language", native: "en" }]);
-    // The stored backup restored into the port, which rebuilds its engine for its native language (D3).
-    expect(r.fake.calls.restored).toEqual(["STORED"]);
+    // No engine is rebuilt here for a page about to reload, or a session about to be built anew (D3).
+    expect(r.fake.calls.restored).toEqual([]);
   });
 });

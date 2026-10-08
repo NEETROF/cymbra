@@ -243,9 +243,8 @@ export function ownerArea(
     if (named !== guard.native) throw new StaleNativeLanguageError(named, guard.native);
   };
 
-  const mirror = async (): Promise<void> => {
-    due = false;
-    const language = nativeLanguageOfStored(latest, pairs);
+  /** Write `language` as the interface language's key, unless it is the one last written. */
+  const write = async (language: InterfaceLanguage): Promise<void> => {
     if (!preferences || language === mirrored) return;
     try {
       await preferences.set({ [INTERFACE_LANGUAGE_KEY]: language });
@@ -253,6 +252,10 @@ export function ownerArea(
     } catch (e) {
       console.warn("[Cymbra Lingua] could not mirror the interface language:", e);
     }
+  };
+  const mirror = async (): Promise<void> => {
+    due = false;
+    await write(nativeLanguageOfStored(latest, pairs));
   };
 
   return {
@@ -264,8 +267,9 @@ export function ownerArea(
       if (preferences && ROOT_KEY in items) {
         latest = items[ROOT_KEY];
         if (reason) {
-          // Before the announcement, after any mirror already due: each reads `latest`, this backup.
-          chain = chain.then(mirror);
+          // Before the announcement, after any mirror already due: the language the reason names,
+          // which is the one this backup's profile names — nothing to parse.
+          chain = chain.then(() => write(reason.native));
           await chain;
         } else if (!due) {
           // A macrotask later: writes that land in the same turn share one parse.

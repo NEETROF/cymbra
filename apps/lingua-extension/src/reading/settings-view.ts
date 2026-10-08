@@ -16,7 +16,6 @@ import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import {
   type AsyncStorageArea,
-  hydrateEngine,
   loadHudHidden,
   loadReaderFlow,
   saveAndroidVoices,
@@ -207,18 +206,15 @@ export function mountSettings(
 
   // — Langue maternelle — above the studied languages, only when two native languages or more ship
   // (add-lingua-native-language-choice D4): until then no block is built at all, and Réglages are
-  // what they were. A choice confirmed here rebuilds this host's port for the new native language
-  // (D3) — the page reloads, or the reading session is built anew, on the change announced.
+  // what they were. A choice confirmed here needs nothing of this host: on the change announced, the
+  // page reloads, or the reading session is built anew, its port for the new native language (D3).
   const nativeBlock = nativeChoiceOffered(pairs) ? settingBlock(copy.nativeLanguage) : null;
   const native = nativeBlock
     ? mountNativeLanguage(nativeBlock, {
         language: interfaceLanguage,
         copy: blocksCopy.nativeLanguage,
         profile: async () => ({ native: await port.nativeLanguage(), studied: await port.studiedLanguages() }),
-        onChosen: async (_native, reply) => {
-          if (reply.changed) await hydrateEngine(port, opts.store);
-          await refresh();
-        },
+        onChosen: () => refresh(),
         pairs,
       })
     : null;
