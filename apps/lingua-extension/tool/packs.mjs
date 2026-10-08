@@ -43,6 +43,16 @@ export function nativeOf(pair) {
 }
 
 /**
+ * The native languages with at least one shipped pair, in listed order, once each
+ * (add-lingua-native-language-choice D1): the languages a package's manifest speaks
+ * (tool/manifests.mjs). src/analyzer/pairs.ts holds the same helper for the bundle; test/pairs.spec.ts
+ * holds the two equal.
+ */
+export function shippedNatives(pairs = shippedPairs()) {
+  return [...new Set(pairs.map(nativeOf))];
+}
+
+/**
  * The lingua-core constant that holds each studied language's analyser version
  * (generalise-lingua-analysis-by-language). test/packs.spec.ts holds it to
  * crates/lingua-core/src/analysis/language.rs, so a language added there fails here first.

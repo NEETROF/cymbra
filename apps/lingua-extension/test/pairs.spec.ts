@@ -12,10 +12,17 @@ import {
   readerPairs,
   readingLanguage,
   SHIPPED_PAIRS,
+  shippedNatives,
   studiedOf,
 } from "@/analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
-import { nativeOf as packNativeOf, packFile, shippedPairs, studiedOf as packStudiedOf } from "../tool/packs.mjs";
+import {
+  nativeOf as packNativeOf,
+  packFile,
+  shippedNatives as packShippedNatives,
+  shippedPairs,
+  studiedOf as packStudiedOf,
+} from "../tool/packs.mjs";
 import { makeFakePort } from "./helpers.ts";
 
 /** Today's list beside a pair glossed in English (generalise-lingua-native-language). */
@@ -115,6 +122,26 @@ describe("the pairs of a native language", () => {
     expect(DEFAULT_NATIVE).toBe("fr");
     expect(pairsOf(DEFAULT_NATIVE)).toEqual([...SHIPPED_PAIRS]);
     expect(defaultPair(DEFAULT_NATIVE)).toBe(SHIPPED_PAIRS[0]);
+  });
+});
+
+describe("the shipped natives (add-lingua-native-language-choice D1)", () => {
+  it("are the native languages with a shipped pair, in listed order, once each", () => {
+    expect(shippedNatives(["en-fr", "es-fr"])).toEqual(["fr"]);
+    expect(shippedNatives(MIXED)).toEqual(["fr", "en"]);
+    expect(shippedNatives(["es-en", "en-fr", "en-es"])).toEqual(["en", "fr", "es"]);
+    expect(shippedNatives([])).toEqual([]);
+  });
+
+  it("count one today: French (M22)", () => {
+    expect(shippedNatives()).toEqual([DEFAULT_NATIVE]);
+  });
+
+  it("are read the same by the build (tool/packs.mjs)", () => {
+    for (const pairs of [["en-fr", "es-fr"], MIXED, ["es-en", "en-fr", "en-es"], ["en-fr-x", "en"]]) {
+      expect(packShippedNatives(pairs), pairs.join(",")).toEqual(shippedNatives(pairs));
+    }
+    expect(packShippedNatives()).toEqual(shippedNatives());
   });
 });
 

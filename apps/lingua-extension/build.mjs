@@ -12,6 +12,8 @@ import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { engineFiles, engineProblems } from "./tool/engine_pin.mjs";
 import { bundledCatalogue, readCatalogue } from "./tool/model-catalogue.mjs";
+import { LOCALES_DIR, readLocales } from "./tool/locales.mjs";
+import { buildManifest } from "./tool/manifests.mjs";
 import { assertPacksMatchEngine, packFile, shippedPairs } from "./tool/packs.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -58,6 +60,10 @@ function assertWasmMatchesEngine() {
 assertWasmMatchesEngine();
 
 const baseManifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"));
+// The committed `_locales` (localise-lingua-manifest D1): every language's messages, of which a
+// package carries the shipped natives' once a pair glossed in another language than French ships
+// (tool/manifests.mjs decides; none today).
+const MESSAGES = readLocales(root);
 // The version has ONE home: package.json, which release-please bumps. It is stamped onto
 // each built manifest here rather than mirrored into manifest.json, because a mirror is a
 // second source that drifts — and release-please's JSON updater rewrites the whole file it
@@ -67,8 +73,8 @@ const { version: VERSION } = JSON.parse(readFileSync(join(root, "package.json"),
 
 // Backend gRPC-web origin + Google OAuth client id come from the environment so a
 // dogfooding/release build points at the right backend without editing source. The
-// origin is also granted in the manifest's host_permissions (below), since an MV3
-// fetch to it needs the host permission.
+// origin is also granted in the manifest's host_permissions (tool/manifests.mjs), since an
+// MV3 fetch to it needs the host permission.
 const GRPC_WEB_URL = process.env.LINGUA_GRPC_WEB_URL ?? "http://localhost:50051";
 const GOOGLE_CLIENT_ID = process.env.LINGUA_GOOGLE_CLIENT_ID ?? "";
 // Apple Services ID (the site's web client id). Empty hides "Continuer avec Apple".
@@ -122,71 +128,6 @@ const MODEL_CATALOGUE = readCatalogue();
 const MODEL_BASE_URL = process.env.LINGUA_MODEL_BASE_URL ?? "";
 if (MODEL_BASE_URL) console.warn(`[build] the models are fetched from ${MODEL_BASE_URL}: a development build.`);
 
-/** `https://host/*` match pattern for the backend origin (host_permissions). */
-function hostPattern(url) {
-  const u = new URL(url);
-  return `${u.protocol}//${u.host}/*`;
-}
-
-/** Transform the (Chromium) base manifest into the Firefox variant. */
-function firefoxManifest(base) {
-  const m = structuredClone(base);
-  delete m.minimum_chrome_version;
-  // Firefox MV3 background is an event page (scripts), not a service worker.
-  m.background = { scripts: ["background.js"] };
-  // No lateral panel on Firefox: the reader stays in the page via the injected drawer, so
-  // there is no side_panel AND no sidebar_action. A sidebar_action would make Firefox
-  // auto-open its native sidebar on install/reload (unwanted) and duplicate the drawer.
-  delete m.side_panel;
-  // Firefox requires an add-on id; it has no "sidePanel" permission.
-  //
-  // data_collection_permissions mirrors the privacy policy's Annex B (cymbra.app/confidentialite):
-  // everything here is OPTIONAL because signing in is optional (offline/anonymous use sends
-  // nothing at all — see REVIEWERS.md, "Where the add-on reaches the network"). Once signed in
-  // and syncing: authenticationInfo (the Cymbra account/session), personallyIdentifyingInfo (its
-  // email), websiteContent (the deck's stored source sentence — no URL, but still page text), and
-  // technicalAndInteraction (daily stats, the random install id; Mozilla requires this one to be
-  // optional regardless). No location/health/financial/communications/search/bookmarks data, and
-  // no browsingActivity — the page address never leaves the device (Annex B). Firefox only shows
-  // this consent UI from version 140; strict_min_version stays 128.0 for now (AMO currently only
-  // warns, not blocks, on a missing key), so this key alone isn't yet a full compliance story for
-  // Firefox 128–139 — see https://mzl.la/firefox-builtin-data-consent, "older Firefox versions".
-  m.browser_specific_settings = {
-    gecko: {
-      id: "lingua@cymbra.app",
-      strict_min_version: "128.0",
-      data_collection_permissions: {
-        // AMO refuses the key without `required`; "none" says nothing is collected unasked.
-        required: ["none"],
-        optional: ["authenticationInfo", "personallyIdentifyingInfo", "websiteContent", "technicalAndInteraction"],
-      },
-    },
-    // AMO marks a version compatible with Firefox for Android only when the manifest says so:
-    // without this key every upload was desktop-only and AMO greyed out "Add to Firefox" on
-    // Android, although the same package runs there (yarn dogfood:firefox-android).
-    gecko_android: {
-      strict_min_version: "128.0",
-    },
-  };
-  m.permissions = (m.permissions ?? []).filter((p) => p !== "sidePanel");
-  return m;
-}
-
-/** Transform the base manifest into the Safari variant (macOS + iOS), hosted by apps/lingua-apple. */
-function safariManifest(base) {
-  // Safari takes the Firefox path (event-page engine, static reader, in-page drawer) — the
-  // add-lingua-apple spike ran it unchanged on macOS, the iOS simulator and an iPhone.
-  const m = firefoxManifest(base);
-  // Safari needs no add-on id (the host app's bundle identifies it).
-  delete m.browser_specific_settings;
-  // iOS refuses a persistent background page; the event page is suspended and woken on demand.
-  m.background = { ...m.background, persistent: false };
-  // Safari does not support the identity API; Apple and Google come from the host app instead,
-  // collected through the extension's native handler (add-lingua-connected-clients D6).
-  m.permissions = [...m.permissions.filter((p) => p !== "identity"), "nativeMessaging"];
-  return m;
-}
-
 /**
  * Build-time capabilities, injected as esbuild defines so each variant's bundle folds its
  * branches (and a grep of dist-<target>/ shows only that variant's code). Chromium runs the
@@ -207,8 +148,6 @@ function capabilities(target) {
     __TRANSLATION_HOST__: JSON.stringify(translationHost(target)),
   };
 }
-
-const manifestFor = { chromium: structuredClone, firefox: firefoxManifest, safari: safariManifest };
 
 // The book reader's renderer, foliate-js, is vendored at a pinned commit (vendor/VENDOR.md) and
 // imported as `foliate-js/…`. Its zip reader is the npm package foliate builds its own copy
@@ -347,36 +286,27 @@ for (const target of targets) {
     writeFileSync(join(dist, "model-manifest.json"), `${JSON.stringify(bundled, null, 2)}\n`);
   }
 
-  const manifest = manifestFor[target](baseManifest);
-  manifest.version = VERSION;
-  // Each listed pack is fetched by the engine from whatever context hosts it: expose them all.
-  manifest.web_accessible_resources = manifest.web_accessible_resources.map((entry, i) =>
-    i === 0 ? { ...entry, resources: [...entry.resources, ...PAIRS.map(packFile)] } : entry,
-  );
-  // Chromium's service worker cannot construct a Worker, so an offscreen document owns the
-  // engine's — and that needs the permission. The variant that carries the engine asks for it.
-  if (host === "offscreen") manifest.permissions = [...manifest.permissions, "offscreen"];
-  // Grant the configured backend origin so the sync transport's gRPC-web fetch is
-  // allowed (the server must also allow the extension origin via CYMBRA_ALLOWED_WEB_ORIGINS).
-  manifest.host_permissions = [...new Set([...(manifest.host_permissions ?? []), hostPattern(GRPC_WEB_URL)])];
-  // Pin the unpacked Chromium id (stable chrome.identity redirect URL); Firefox uses its
-  // gecko id and Safari its host app's bundle, so neither must carry `key`.
-  if (target === "chromium" && EXT_KEY) manifest.key = EXT_KEY;
-  // Reader injection strategy differs by browser:
-  //  - Firefox (incl. Android): a STATIC content script on every page, ALWAYS. MV3 dynamic
-  //    registration (scripting.registerContentScripts) does not reliably fire on GeckoView,
-  //    and browser.contentScripts.register() dies with the non-persistent event page — so the
-  //    browser-level static injection is the only thing that runs on every load AND reload.
-  //    The global "Surlignage activé" toggle (default on) is the off switch; the reader is
-  //    entirely local (no network), so always-on is an acceptable trade for reliability.
-  //  - Chromium: activeTab-first by design — no static script; scripting.registerContentScripts
-  //    (which works there) powers "Toujours surligner". LINGUA_ALL_URLS=1 forces the static
-  //    script for dev testing of the always-on path on Chrome.
-  //  - Safari (macOS + iOS) follows Firefox: a static content script, like the event-page engine.
-  if (target !== "chromium" || process.env.LINGUA_ALL_URLS === "1") {
-    manifest.content_scripts = [{ matches: ["<all_urls>"], js: ["content.js"], run_at: "document_idle" }];
-  }
+  // The variant's manifest, and the languages it speaks (tool/manifests.mjs): the committed source
+  // transformed for the target, package.json's version stamped on, the packs exposed, the backend
+  // origin granted, the Chromium id pinned, the reader injected statically where the browser needs
+  // it — and, once a pair glossed in another language than French ships, the description and the
+  // commands read from `_locales`. While only French-native pairs ship, byte for byte today's.
+  const { manifest, locales } = buildManifest({
+    base: baseManifest,
+    target,
+    pairs: PAIRS,
+    messages: MESSAGES,
+    version: VERSION,
+    grpcWebUrl: GRPC_WEB_URL,
+    extKey: EXT_KEY,
+    offscreen: host === "offscreen",
+    allUrls: process.env.LINGUA_ALL_URLS === "1",
+  });
   writeFileSync(join(dist, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  // The shipped natives' messages, and no other language's (localise-lingua-manifest D2).
+  for (const language of locales) {
+    cpSync(join(root, LOCALES_DIR, language), join(dist, LOCALES_DIR, language), { recursive: true });
+  }
   for (const [from, to] of staticCopies) cpSync(join(root, from), join(dist, to));
   // The committed icon set (tool/gen_icons.sh), except the host app's 1024 px icon.
   cpSync(join(root, "icons"), join(dist, "icons"), {

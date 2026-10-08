@@ -15,3 +15,4 @@ export declare function assertPacksMatchEngine(options?: {
   pairs?: readonly string[];
   modRs?: string;
 }): void;
+export declare function shippedNatives(pairs?: readonly string[]): string[];
