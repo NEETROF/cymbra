@@ -99,4 +99,18 @@ describe("useAppleSignIn", () => {
     expect(status.value.status).toBe("success");
     expect(init).toHaveBeenCalled();
   });
+
+  it("loads the SDK in the page's language: es_ES for Spanish, en_US when unknown", async () => {
+    const { useAppleSignIn } = await import("../src/apple");
+    void useAppleSignIn("c", "r", vi.fn()).load("es");
+    const es = document.querySelector<HTMLScriptElement>('script[src*="appleid.auth.js"]');
+    expect(es?.src).toContain("/es_ES/");
+    es?.remove();
+
+    vi.resetModules();
+    const fresh = await import("../src/apple");
+    void fresh.useAppleSignIn("c", "r", vi.fn()).load("de");
+    const de = document.querySelector<HTMLScriptElement>('script[src*="appleid.auth.js"]');
+    expect(de?.src).toContain("/en_US/");
+  });
 });

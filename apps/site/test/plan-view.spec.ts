@@ -188,6 +188,27 @@ describe("Apple return URL", () => {
     expect(appleReturnUrl("https://cymbra.app", "/en/")).toBe("https://cymbra.app/");
     expect(appleReturnUrl("https://cymbra.app", "/english/")).toBe("https://cymbra.app/english");
   });
+
+  it("strips /es as it strips /en: the Spanish deletion page sends /eliminar-cuenta", () => {
+    expect(appleReturnUrl("https://cymbra.app", "/es/eliminar-cuenta/")).toBe("https://cymbra.app/eliminar-cuenta");
+    expect(appleReturnUrl("https://cymbra.app", "/es/")).toBe("https://cymbra.app/");
+    expect(appleReturnUrl("https://cymbra.app", "/espana/")).toBe("https://cymbra.app/espana");
+    // The two existing deletion pages, for the record of what the Services ID must list.
+    expect(appleReturnUrl("https://cymbra.app", "/suppression-compte/")).toBe("https://cymbra.app/suppression-compte");
+    expect(appleReturnUrl("https://cymbra.app", "/en/delete-account/")).toBe("https://cymbra.app/delete-account");
+  });
+});
+
+describe("Spanish copy", () => {
+  it("is complete, interpolates, and dates in es-ES", () => {
+    expect(t("es", "deleteTitle")).toBe("Eliminar mi cuenta");
+    expect(t("es", "deleteConfirmPrompt", { word: "neetrof" })).toBe("Para confirmar, escribe neetrof a continuación.");
+    expect(humanError("es", new WebAuthError(401, "invalid credentials"))).toBe(t("es", "errUnauthenticated"));
+    expect(humanError("es", new WebAuthError(401, "invalid credentials"))).not.toContain("invalid credentials");
+    expect(formatDate("es", "2026-11-14T10:00:00Z")).toBe("14 de noviembre de 2026");
+    expect(formatDate("fr", "2026-11-14T10:00:00Z")).toBe("14 novembre 2026");
+    expect(formatDate("en", "2026-11-14T10:00:00Z")).toBe("November 14, 2026");
+  });
 });
 
 describe("identity labels", () => {
