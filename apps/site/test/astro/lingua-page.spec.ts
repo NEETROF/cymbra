@@ -10,12 +10,12 @@ import { MATRIX, ROUTES, SIX_PAIRS, TODAY } from "../support/lingua";
 // committed pair list (change: add-site-lingua-matrix-pages, D1–D3). The test stands in for
 // `src/data/lingua-coverage.json` and the extension's model catalogue, so the page, its
 // `getStaticPaths()` and the layout's Spanish links all read the same list:
-// - the fixtures' pairs (`test/fixtures/lingua/taken-with.json`, today's en-fr and es-fr):
+// - the fixtures' pairs (`test/fixtures/lingua/taken-with.json`, the shipped en-fr, es-fr and es-en):
 //   `/lingua/` and `/en/lingua/` render the fixtures' `<main>`, byte for byte, whatever the
 //   live data holds (`test/post-build/lingua.spec.ts` checks the built pages against the
 //   same fixtures while the live pairs are the fixtures');
-// - today's pairs (`test/support/lingua.ts`): no `/es/lingua/`, the Spanish pages link the
-//   English one;
+// - the French-native pairs alone (`test/support/lingua.ts`'s `TODAY`): no `/es/lingua/`, the
+//   Spanish pages link the English one;
 // - the matrix (es-en and en-es beside them): `/es/lingua/` exists, in Spanish, leads with
 //   the Spanish-glossed pair, and the Spanish nav and footer link it — what the build will do
 //   once change 35 ships en-es;
@@ -162,12 +162,22 @@ describe("the six pairs: a row per pair, in a box that scrolls on its own (chang
     expect(main(html)).toContain("En francés y en español, la tarjeta también indica el tiempo verbal y el género.");
   });
 
-  it("today's pairs: no box, no row header — the fixtures' table", async () => {
-    shipTheFixtures();
+  it("the French-native pairs alone: no box, no row header — the table before change 34", async () => {
+    shipToday();
     for (const page of [FrenchPage, EnglishPage]) {
       const html = await render(page);
       expect(html).not.toContain("table-scroll");
       expect(rowHeaders(html)).toEqual([]);
     }
+  });
+
+  it("es-en shipping (change 34): two native languages listed, a row per pair in the box — the fixtures' table", async () => {
+    shipTheFixtures();
+    const french = await render(FrenchPage);
+    expect(main(french)).toContain('<div class="table-scroll">');
+    expect(rowHeaders(french)).toEqual(["Anglais → français", "Espagnol → français", "Espagnol → anglais"]);
+    const english = await render(EnglishPage);
+    expect(main(english)).toContain('<div class="table-scroll">');
+    expect(rowHeaders(english)).toEqual(["Spanish → English", "English → French", "Spanish → French"]);
   });
 });

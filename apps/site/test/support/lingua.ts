@@ -6,7 +6,7 @@
 // `test/fixtures/lingua/taken-with.json`, refreshed with its fixtures.
 import type { Coverage, Routes } from "../../src/lib/lingua-pairs";
 
-/** Today's shipped pairs, en-fr and es-fr, with their figures when change 30 was written. */
+/** The shipped pairs before change 34, en-fr and es-fr, with their figures when change 30 was written. */
 export const TODAY: Coverage = {
   tops: [5000, 10000, 20000],
   glossed: {
