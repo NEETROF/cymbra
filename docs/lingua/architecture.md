@@ -526,7 +526,7 @@ token (`session.ts:12-24`). The transport attaches `Authorization: Bearer`, refr
 never uses the site's cookie surface. Signing out never touches the reader's local data.
 
 **Sync.** A second, dedicated `LinguaEngine` in the background does the merging, so the reading
-engine is never disturbed (`background.ts:543`, `getSyncEngine`). Each run of `SyncEngine.sync`
+engine is never disturbed (`background.ts:553`, `getSyncEngine`). Each run of `SyncEngine.sync`
 (`sync/sync.ts:101`): read the account's erasure mark and the server's capabilities
 (`GetDataState`); restore the stored backup into the sync engine; push statuses and declared levels
 (`KnownWordsService.PushOps`, batches of 500), cards (`DeckService.PushCards`, without the page
@@ -1210,7 +1210,7 @@ What to notice:
 | **Extension package** | The packs of `packs.json`, the Lingua WASM, the Bergamot engine, the model catalogue, the interface copy | the build | it *is* what is installed | `build.mjs:186-206` (`staticCopies`), `:288-295` |
 | **IndexedDB `cymbra-lingua`** (extension origin) | The engine backup under `lingua` (statuses, deck, exposures, FSRS parameters, profile), daily statistics, device id, status and card cursors, the last erasure mark seen, the native language last chosen | the background only (store owner) | the records in it, when signed in and synced | `src/state/store.ts:20-36` |
 | **`chrome.storage.local`** | Preferences (highlighting on/off, HUD, colours, voices, reader display, interface language), the token pair, last sync time, session-lost mark, the store-changed marker, the extended-translation setting and model state | the background and surfaces | no | `src/state/storage.ts`, `src/state/session.ts:23-24`, `src/translate/setting.ts:18-19` |
-| **`chrome.storage.session`** | Transient UI state: which panel view to open, a sign-in error to show, an email awaiting its code | background, account page | no | `src/background.ts:145`, `src/state/session.ts:33`, `src/account/account.ts:31` |
+| **`chrome.storage.session`** | Transient UI state: which panel view to open, a sign-in error to show, an email awaiting its code | background, account page | no | `src/background.ts:147`, `src/state/session.ts:33`, `src/account/account.ts:31` |
 | **IndexedDB `cymbra-lingua-library`** (reader page) | Imported EPUB files keyed by SHA-256, reading positions | the reader page | never | `src/reader/library.ts` |
 | **IndexedDB `lingua-model`** | Verified, decompressed model files | the model worker | never (downloaded into it) | `src/translate/host/model-db.ts:15` |
 | **Safari App Group** | A handed id_token (taken once, within five minutes), the interface language | host app, native handler | no | `apps/lingua-apple/LinguaSignIn/Sources/LinguaSignIn/IdTokenHandoff.swift`, `SignInLanguage.swift` |
