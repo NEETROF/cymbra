@@ -18,7 +18,7 @@ for like. Stdlib only: it runs on the Python of the lingua-data unit tests.
 `--pair` measures one committed pair whether or not it ships, and prints nothing the site reads;
 it fails under the pair's floor — the share each of the three tops must reach, `FLOORS`, or
 `--floor` given (add-lingua-pack-es-en D6: es-en is held to es-fr's published figures by the reduce
-job, before it ships and is published).
+job, before it ships and is published; add-lingua-pack-en-es D3: en-es to a floor the owner sets).
 """
 
 from __future__ import annotations
@@ -42,7 +42,9 @@ TOPS = (5_000, 10_000, 20_000)
 # The share of each of `TOPS` a pair not yet shipped must gloss, held by the reduce job
 # (add-lingua-pack-es-en D6): es-en, es-fr's published figures when es-en was proposed. Fixed here,
 # not read from the site's file, so that es-fr's next update does not move es-en's floor.
-FLOORS = {"es-en": (87.6, 77.2, 63.7)}
+# en-es (add-lingua-pack-en-es D3, the programme's risk 5): the study's figures less two points —
+# proposed, owner settles (task 5.1); the reduce job passes the same value as `--floor`.
+FLOORS = {"es-en": (87.6, 77.2, 63.7), "en-es": (91.4, 83.2, 69.9)}
 
 
 def read_keys(path: Path) -> dict[str, str]:

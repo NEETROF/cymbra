@@ -104,6 +104,67 @@ class Report(unittest.TestCase):
         self.assertIn("over its budget", report)
 
 
+class Measured(unittest.TestCase):
+    """A pair's gloss coverage, new against committed, and what its reducer measured of its own
+    tables (add-lingua-pack-en-es D4): en-es's translation-table share, named with the pair."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        # The ranks are the studied language's, beside the pair's folder, on both sides.
+        ranked = "".join(f"w{i}\t{i}\n" for i in range(1, 11))
+        tables(self.root / "committed" / "en", freq_tsv=ranked)
+        tables(self.root / "tables" / "en", freq_tsv=ranked)
+        self.old = tables(self.root / "committed" / "en-es", gloss_tsv="w1\tUno\nw2\tDos\n")
+        self.new = tables(self.root / "tables" / "en-es", gloss_tsv="w1\tUno\nw2\tDos\nw3\tTres\n")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_report(self, old: Path, new: Path, *args: str) -> tuple[int, str]:
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = pr.main([str(old), str(new), *args])
+        return code, out.getvalue()
+
+    def test_the_coverage_of_the_commonest_lemmas_new_against_committed(self):
+        code, report = self.run_report(self.old, self.new)
+        self.assertEqual(code, 0, report)
+        self.assertIn("Glossed, of the 5,000 / 10,000 / 20,000 commonest lemmas: 30.0 % / 30.0 % / 30.0 % (committed: 20.0 % / 20.0 % / 20.0 %).", report)
+        # A pair's first update: nothing committed to compare with.
+        (self.old / "gloss.tsv").unlink()
+        code, report = self.run_report(self.old, self.new)
+        self.assertIn("commonest lemmas: 30.0 % / 30.0 % / 30.0 %.", report)
+        self.assertNotIn("committed:", report)
+
+    def test_no_coverage_without_a_studied_folder_beside_the_pair(self):
+        (self.root / "tables" / "en" / "freq.tsv").unlink()
+        code, report = self.run_report(self.old, self.new)
+        self.assertEqual(code, 0, report)
+        self.assertNotIn("commonest lemmas", report)
+        # Nor for a studied language's folder: its glosses are its pairs'.
+        tables(self.root / "tables" / "es", freq_tsv="a\t1\n", studied_json='{"reference": "es-fr"}\n')
+        tables(self.root / "committed" / "es", freq_tsv="a\t1\n", studied_json='{"reference": "es-fr"}\n')
+        self.assertNotIn("commonest lemmas", self.run_report(self.root / "committed" / "es", self.root / "tables" / "es")[1])
+
+    def test_the_share_the_reducer_measured_is_shown_beside_the_coverage_naming_the_pair(self):
+        measures = self.root / "measures.json"
+        measures.write_text(
+            json.dumps({"top": 10000, "glossed": 8542, "share": 7.3, "direct": ["w2"] * 601, "inverted": ["w3"] * 23}),
+            encoding="utf-8",
+        )
+        code, report = self.run_report(self.old, self.new, "--measures", str(measures))
+        self.assertEqual(code, 0, report)
+        coverage = report.index("Glossed, of the")
+        share = report.index(
+            "`en-es`: of the 8,542 glossed lemmas among the 10,000 commonest, **7.3 %** come from a translation "
+            "table (direct 601, inverted 23) rather than from an entry."
+        )
+        self.assertLess(coverage, share, "beside the coverage")
+        self.assertIn("- en-fr: gloss.tsv differs", self.run_report(self.old, self.new, "--identical", "--pair", "en-fr")[1])
+        self.assertIn("`en-fr`: of the", self.run_report(self.old, self.new, "--measures", str(measures), "--pair", "en-fr")[1])
+
+
 class Identical(unittest.TestCase):
     """--identical (generalise-lingua-gloss-reducer D4): a pair reduced again expecting no change."""
 
