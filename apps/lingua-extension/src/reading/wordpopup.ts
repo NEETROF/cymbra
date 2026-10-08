@@ -1,14 +1,17 @@
 import type { MarkedTranslation } from "../translate/markup.ts";
 import type { LemmaStatus, WordGrammar } from "../analyzer/types.ts";
 import { card as frCard } from "../i18n/fr/card.ts";
+import { grammar as enGrammar } from "../i18n/en/grammar.ts";
+import { grammar as esGrammar } from "../i18n/es/grammar.ts";
+import { grammar as frGrammar } from "../i18n/fr/grammar.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
   formatCount,
+  type GrammarRenderer,
   type InterfaceLanguage,
   NODE_SLOT,
   renderAround,
 } from "../i18n/index.ts";
-import { grammarLines, senseHeading } from "./grammar-labels.ts";
 import { glossPages, pageText, type GlossPage } from "./gloss-pages.ts";
 import { isTouchPrimary } from "../state/platform.ts";
 import { sameSpokenText, type Speaker, type Speaking } from "./speech.ts";
@@ -138,6 +141,12 @@ function studiedLanguageOf(content: WordPopupContent): string {
   return content.language ?? "en";
 }
 
+/**
+ * The word card's grammar renderer for each interface language (generalise-lingua-card-wording D2):
+ * the form described once, said in the reader's language.
+ */
+const GRAMMARS: Record<InterfaceLanguage, GrammarRenderer> = { fr: frGrammar, en: enGrammar, es: esGrammar };
+
 /** A word of the document, in its language, inside a line of the interface's. */
 function studiedWord(text: string, language: string): HTMLElement {
   const word = document.createElement("span");
@@ -195,12 +204,13 @@ function listensFor(content: WordPopupContent, copy: CardCopy): Listen[] {
 /** Build the card view (no shadow root involved — testable in isolation). With a `speaker`, the
  *  card offers to hear the selection and its sentence (add-lingua-read-aloud). Its labels are
  *  `copy`'s, the catalogue's module in the interface language (localise-lingua-reading-surfaces D1),
- *  and its figures are written in `language`; without them, the French. */
+ *  and its figures and its grammar lines are written in `language`; without them, the French. */
 export function createCard(
   speaker?: Speaker,
   copy: CardCopy = frCard,
   language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
 ): CardView {
+  const grammar = GRAMMARS[language];
   const el = div("card");
   el.hidden = true;
   el.addEventListener("click", (e) => e.stopPropagation());
@@ -331,7 +341,7 @@ export function createCard(
     grammarEl.replaceChildren();
     const lines =
       content.grammar && !content.pending && !content.expression
-        ? grammarLines(
+        ? grammar.grammarLines(
             content.grammar,
             content.headword,
             content.surface,
@@ -340,13 +350,16 @@ export function createCard(
           )
         : [];
     grammarEl.hidden = lines.length === 0;
+    const studied = studiedLanguageOf(content);
     for (const line of lines) {
       const lineEl = div("grammar-line");
       for (const segment of line) {
         if (typeof segment === "string") {
           lineEl.append(document.createTextNode(segment));
         } else {
+          // A word of the document says its language, inside the interface's line (D5).
           const word = document.createElement("em");
+          word.lang = studied;
           word.textContent = segment.word;
           lineEl.append(word);
         }
@@ -407,7 +420,7 @@ export function createCard(
         continue;
       }
       const groupEl = div("sense-group");
-      const heading = senseHeading(group.tag);
+      const heading = grammar.senseHeading(group.tag);
       if (heading) {
         const pos = document.createElement("span");
         pos.className = "pos";
