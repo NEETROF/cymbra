@@ -202,7 +202,7 @@ function render(stats: PageStats | null, onReader: boolean): void {
   $("level-cta").hidden = !stats.hasLevels || !stats.needsLevel;
   $("level-indicator").hidden = !stats.hasLevels || stats.needsLevel;
   $("level-cta").textContent = chooseLevelPrompt(studied);
-  // « Niveau d'anglais : B1 »: the line's message rendered around the bold level (D1).
+  // « Niveau de … : B1 »: the line's message rendered around the bold level (D1).
   const level = $("level-current");
   level.textContent = stats.declaredLevel ?? copy.beginner;
   const [before, after = ""] = copy.levelLine(levelTitle(studied, stats.levelsEstimated ?? false), SLOT).split(SLOT);
