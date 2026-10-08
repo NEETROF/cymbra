@@ -100,15 +100,18 @@ anyway. Six pairs would also store about 3.6 GiB of dumps per update day. Not wo
 A dump record keeps today's fields — `release`, `url`, `fetched`, `last_modified`, `files` — and
 gains `dump`: the sha256 and size of the decompressed bytes and the size of the gzipped file,
 computed in the same pass as the derivation (the gzip stream is hashed as it is read: about a
-minute more over the English edition, nothing over the others). Example, es-fr after its next update:
+minute more over the English edition, nothing over the others). Example, es-fr updated on
+2026-10-08 from the English dump served that day — its address, headers and gzipped size as
+measured; the decompressed size is D4's estimate until T2.3 measures it, the derived file's size
+an estimate until T2.2 does, the sha256 elided:
 
 ```json
 "kaikki-en": {
-  "release": "lingua-pack-sources-es-fr-2026.11.03",
+  "release": "lingua-pack-sources-es-fr-2026.10.08",
   "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
-  "fetched": "2026-11-03",
-  "last_modified": "Mon, 02 Nov 2026 08:21:40 GMT",
-  "dump": { "sha256": "…", "size": 23000000000, "compressed_size": 2990000000 },
+  "fetched": "2026-10-08",
+  "last_modified": "Sat, 03 Oct 2026 08:24:38 GMT",
+  "dump": { "sha256": "…", "size": 23000000000, "compressed_size": 2981058381 },
   "files": { "kaikki-Spanish.jsonl": { "asset": "kaikki-Spanish.jsonl.zst", "sha256": "…", "size": 1060000000 } }
 }
 ```
@@ -127,7 +130,10 @@ and a monthly report can say which regeneration drifted. The cost is one field.
 `work/editions/<edition>-<snapshot>/`, and a later pair of the same run copies what it reads from
 there instead of downloading the dump again. The pass is the cost; writing a file no pair of the
 run reads is not (the French section of the English edition, 584 MB, when only es-fr is updated).
-`work/editions/` is removed with the run; `work/<pair>/` is removed after each pair as today.
+`work/editions/` is removed with the run; `work/<pair>/` is removed after each pair — today the
+workflow removes it in reduce mode only (`lingua-pack-update.yml`, the Reduce step), since an
+update's own pair publishes from it; the single job removes it in dry mode too, once the pair's
+pack is built, since a dry run publishes nothing and the next pair needs the room (D8).
 
 The monthly dry run therefore becomes **one job over every pair**, in `pairs` order, instead of a
 matrix of one job per pair: each dump is fetched once a month — about 3.6 GiB and three passes —
@@ -135,12 +141,28 @@ instead of once per pair, about 14 GiB and four passes over the English edition 
 update dispatched for one pair fetches only the dumps of the editions that pair reads; the pairs
 it brings along read no dump (their own pins).
 
+Two things the matrix gave for free, the loop must keep:
+
+- **Each pair reduces into a dry root of its own.** `build.sh --dry` removes `<root>/<pair>` and
+  `<root>/<studied>` and lays the committed studied folder down again before every pair (the
+  `dry` branch of `build.sh`), so in one job over en-fr, es-fr, en-es, es-en the later pairs would
+  reset `work/dry/en` and `work/dry/es` — the references' drift — before the Report step reads
+  them; the matrix hid this by giving each pair a runner of its own. The loop sets
+  `LINGUA_DRY_ROOT=scripts/lingua-data/work/dry/<pair>` (a variable `build.sh` already reads) for
+  each pair, and the Report step reads a pair's folder under its own root and a studied language's
+  folder under its reference's root — the first pair of that language in `pairs` order. The roots
+  hold tables only, tens of megabytes.
+- **A failing pair does not stop the loop.** The matrix runs `fail-fast: false`, so one pair's
+  failure never hid another's report; the loop keeps that: a pair whose `build.sh` fails is named,
+  the loop goes on to the next pair, the Report step skips the folders that were not written, and
+  the job fails at the end.
+
 Estimated: at kaikki's observed 4 MB/s, the English dump downloads in about 12 minutes, the
 French in 3, the Spanish in under 1; `derive`'s pass over the English edition — an estimated 20–25
 GB decompressed (its English, Spanish and French sections alone are 5 GB), streamed through
 Python's gzip with the substring prefilter — in about 5–15 minutes. An update of es-fr would take
-25–40 minutes, the monthly job 35–50 for four pairs. Both are measured on this pull request (T2.3);
-the budget is an update within 45 minutes.
+25–40 minutes, the monthly job 35–50 for four pairs. Both are measured on the implementation pull
+request (T2.3); the budget is an update within 45 minutes.
 
 *Rejected — a per-edition derive job that publishes artifacts the per-pair jobs read.* The
 cleanest shape for the monthly run, and the right one if the single job measures too long; it
@@ -152,11 +174,26 @@ a day, outside the programme's estimate. The single job gets the same download c
 The pins of en-fr, es-fr and es-en are not touched. `fetch-pinned` reads every kaikki record of a
 pin by its shape — an `asset` at the record's top (an extract) or `files` (derived files) — from
 the release the record names, checked by sha256, with no registry check; `assets --release` lists
-both shapes. The reduce job keeps reproducing every committed table, manifest and pin from the
-pinned extracts, and the `check` job keeps building the pinned packs. A pair moves to the dumps
-when it is next updated: its pin then records the editions' dumps and the files derived from them,
-names no extract, and its report shows the upstream drift and nothing else — the equivalence (D6)
-is what makes "nothing else" true.
+both shapes. Two lines of today's `fetch_pinned` would break that silently once `KAIKKI` is gone,
+so the design names them:
+
+- **A legacy `kaikki` record is kept, not pruned.** `fetch_pinned` builds the set of records it
+  reads from the registry (`PINNED`, `ESDB`, the literal `kaikki`, `DUMPS`, `wordfreq`), deletes
+  every other record as "no longer read" and saves the pin before fetching anything. With `KAIKKI`
+  deleted, that set must still hold `kaikki` when the pin has such a record: otherwise the record
+  is pruned, the rewritten pin shows in `git status`, and the reduce job's gate
+  (`lingua-extension-check.yml`, *Reduce every pair again from its pinned sources*) fails on a pin
+  that moved. A legacy record is read as an extract, and the pin's bytes are unchanged after the
+  fetch.
+- **The extract's raw name comes from the record.** Today the raw file is
+  `work / KAIKKI[pair]["file"]`; after this change it is the record's `asset` name without its
+  `.zst` (`kaikki-Spanish.jsonl.zst` → `kaikki-Spanish.jsonl`), which is the name the reducer reads.
+
+The reduce job keeps reproducing every committed table, manifest and pin from the pinned
+extracts, and the `check` job keeps building the pinned packs. A pair moves to the dumps when it
+is next updated: its pin then records the editions' dumps and the files derived from them, names
+no extract, and its report shows the upstream drift and nothing else — the equivalence (D6) is
+what makes "nothing else" true.
 
 Why not re-reduce from the dumps "at the same snapshot": the dumps of 2026-09-24, 2026-09-28 and
 2026-10-03 were never kept (add-lingua-spanish-gloss-tables D1 keeps no dump, and kaikki serves
@@ -165,8 +202,9 @@ one exception is the present: on 2026-10-08 kaikki still serves the French and S
 2026-10-02 that es-fr and es-en pin, and an English dump of 2026-10-03 08:24 — the regeneration
 the Spanish extract es-en pins (2026-10-03 10:55) most likely came from. While that holds, es-en's
 committed tables can be reproduced from the dump itself (T2.2), and es-fr's derived files
-re-derive to their pinned sha256. It is an opportunity, not a plan: it ends with kaikki's next
-regeneration.
+re-derive to their pinned sha256. It is an opportunity, not a plan and not a gate: T2.2 tries it
+if the dumps are still served that day and skips it otherwise, saying so in `SOURCES.md`; it ends
+with kaikki's next regeneration, and D6's both-ways measurement is the proof either way.
 
 Why not re-pin every pair now from today's dumps: that is an update — en-fr's dictionary has
 drifted since 2026-09-24, es-fr's since 2026-09-28 — and the programme keeps a dictionary update
@@ -189,7 +227,7 @@ on the real data, at the table level — the file level is already known not to 
   them, else the two derived files compared as sets of lines (`derive` writes in input order, and
   the extract's order is not the dump's).
 
-Identical tables are what the pull request shows; a difference is measured, explained in
+Identical tables are what the implementation pull request shows; a difference is measured, explained in
 `SOURCES.md`, and carried by the pair's next update, which the report then describes — this
 change still re-pins nothing. Both readings must come from the same regeneration: kaikki writes
 the dump first and the per-language files from it within hours, so the measurement runs on one
@@ -201,9 +239,12 @@ The step keeps its shape: `release-tag` and `assets --release` list the pair's o
 tag refuses to exist twice, the release is created once. Its notes no longer name an extract
 (`sources.kaikki.url` is gone): a new `pack_sources.py dumps --pin` lists each edition's dump the
 pin records — address, regeneration date, decompressed sha256 and size — and the notes say that
-the assets are what the pair derives from them. `test_reduce_loops.py` doubles `gh` and `curl` as
-it does and checks the notes and the asset list for a pin with dump records only, for a legacy
-pin, and for one of each.
+the assets are what the pair derives from them. `test_reduce_loops.py` doubles `gh` and `build.sh`
+as it does — never `curl`: the workflow's steps fetch nothing themselves — and checks the notes
+and the asset list for a pin with dump records only, for a legacy pin, and for one of each. That
+a dump is fetched once per run is `fetch_live`'s doing, not the workflow's, so its test lives in
+`test_pack_sources.py` beside *One pass per edition per run*, counting the calls of the injected
+`fetch`.
 
 ### D8 — Cache keys, disk and the reduce job
 
@@ -216,11 +257,20 @@ pin, and for one of each.
 - `work/editions/<edition>-<snapshot>/` is the run's own reuse (D4), keyed by edition and snapshot
   day, never read across runs: a later run of the same day could face a regeneration in between,
   and the pin, not the folder, is the record.
-- Disk, worst case (es-fr's update): the English dump 2.8 GiB, the French 0.7, the Spanish 0.1,
-  each deleted after its pass; the editions' derived files about 2.5 GB raw at most; the pair's
-  work folder with its compressed assets about 0.1 GB. Under 7 GB at any moment, within the
-  runner's 14 GB. The monthly job reads the editions in the order the pairs need them and
-  deletes each dump after its pass.
+- Disk, worst moment (es-fr's update, or the monthly job while es-fr runs): the English dump
+  2.8 GiB, the French 0.7, the Spanish 0.1, each deleted after its pass; the editions' derived
+  files about 2.5 GB raw at most; the pair's work folder — its derived files copied from the
+  editions, about 1.3 GB raw for es-fr, and its compressed assets about 0.1 GB; the pack builder's
+  cargo target, about 1–2 GB (`cargo run --release -p lingua-pack`, restored by `rust-cache`);
+  the dry roots and the committed copy, tens of megabytes. About 9 GB — under about 10 GB of the
+  runner's 14 GB. The monthly job reads the editions in the order the pairs need them, deletes
+  each dump after its pass and each pair's work folder after its pack (D4): without that removal
+  the four pairs' work folders alone would add about 2.8 GB.
+- Optional, not done here: the English edition's Spanish section (1.05 GB raw) is zstd-compressed
+  once per pair that reads it — twice per monthly job, by es-fr and es-en, minutes each at level
+  19. Compressing it once in `work/editions/` and copying the `.zst` (the pin records the
+  decompressed sha256, the same either way) would save that; worth doing if T2.3 shows the
+  compression weighing on the job.
 
 ### D9 — What the documents say
 
@@ -253,8 +303,8 @@ gzipped; the magic tells them apart).
 
 ## Migration Plan
 
-No release, no table: tooling and documents only. The pull request carries the measurements (T2.2,
-T2.3) and leaves every pin as it is. After the merge, the first update of a pair — the owner's
+No release, no table: tooling and documents only. The implementation pull request carries the
+measurements (T2.2, T2.3) and leaves every pin as it is. After the merge, the first update of a pair — the owner's
 dispatch, when the monthly report or a reader's bug calls for it — moves that pair to the dumps in
 its own reviewed pull request; stage 3's pairs are born on them.
 

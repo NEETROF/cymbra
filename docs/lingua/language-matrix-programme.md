@@ -175,7 +175,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 2 | 35 | `enable-lingua-spanish-speakers` (en-es), after change 9 | 4–7.5 | Not started |
 | 2 | 36 | `add-lingua-english-listings` | 3–5.5 | Not started |
 | 2 | 37 | `add-lingua-spanish-audience-listings` | 2–3.5 | Not started |
-| 3 French studied: fr-en, fr-es | 38 | `migrate-lingua-pack-sources-to-raw-dumps` | 2.5–5 | Proposed (this pull request) |
+| 3 French studied: fr-en, fr-es | 38 | `migrate-lingua-pack-sources-to-raw-dumps` | 2.5–5 | Proposed ([#788](https://github.com/NEETROF/cymbra/pull/788)) |
 | 3 | 39 | `add-lingua-french-baseline`: the variant, backup v3 | 3–5 | Not started |
 | 3 | 40 | `add-lingua-french-tokenisation` (M21) | 4.5–7.5 | Not started |
 | 3 | 41 | `add-lingua-french-analysis` | 4.5–7 | Not started |

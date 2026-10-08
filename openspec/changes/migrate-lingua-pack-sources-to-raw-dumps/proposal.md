@@ -46,17 +46,21 @@ keeps reproducing, and each pair moves to the dumps at its next update, reviewed
 - **A dump is read once per run.** The edition's whole catalogue is derived at the first read, kept
   for the run in `work/editions/`, and later pairs of the run copy what they read. The monthly dry
   run becomes one job over every pair instead of a matrix, so each dump is fetched once a month
-  (about 3.6 GiB) rather than once per pair (about 14 GiB with six pairs).
+  (about 3.6 GiB) rather than once per pair (about 14 GiB with six pairs); each pair of the loop
+  reduces into a dry root of its own, so the reports the matrix wrote are still written, and a
+  failing pair does not stop the loop.
 - **Legacy pins read as recorded.** `fetch-pinned` reads a source that names an `asset` (an
-  extract) or `files` (derived files) alike; the reduce job keeps reproducing en-fr's, es-fr's and
-  es-en's committed bytes from their pinned extracts; no pin, table, manifest, pack or baseline
-  moves in this change.
+  extract) or `files` (derived files) alike, keeps a legacy `kaikki` record in the pin instead of
+  pruning it with the registry, and names the extract's raw file after its asset; the reduce job
+  keeps reproducing en-fr's, es-fr's and es-en's committed bytes from their pinned extracts; no
+  pin, table, manifest, pack or baseline moves in this change.
 - **The equivalence is measured, not assumed.** Before the first update under the new rule, each
   pair is reduced both ways from the same regeneration — the per-language extract and the
   entries derived from the dump — and the tables must be byte for byte the same
-  (`pack_report.py --identical`); the measurement is recorded in `SOURCES.md`. On 2026-10-08 the
-  served dumps still carry the regeneration dates es-fr's and es-en's pins record, so the
-  measurement can first be tried at the pinned snapshots themselves.
+  (`pack_report.py --identical`); the measurement is recorded in `SOURCES.md`, and it is the
+  proof. On 2026-10-08 the served dumps still carry the regeneration dates es-fr's and es-en's pins
+  record, so the measurement is first tried at the pinned snapshots themselves — if the dumps are
+  still served that day, and skipped otherwise; that try gates nothing.
 - **The update workflow**: the release notes name each edition's dump, its regeneration date and
   sha256, instead of an extract; the dry run loops over every pair in one job; `test_reduce_loops.py`
   follows.
@@ -76,9 +80,10 @@ None.
 - `lingua-data-packs`: ADDED *Every kaikki source is derived from one dump per Wiktionary
   edition*, *A pin recorded against kaikki's per-language extract stays readable*, *A dump is read
   once per run*; MODIFIED *Sources derived from whole Wiktionary dumps are pinned* — an extract is
-  no longer a source of an update, the dump's own identity is recorded, and a dump is never
-  published; its three scenario names kept, the third (*An extract served plain*, change 22's) now
-  about the gzip magic. That requirement is held by the open change `add-lingua-pack-en-es`, so
+  no longer a source of an update, and the requirement keeps only what the ADDED one does not
+  say: a dump served gzipped or plain, a fetched file of other bytes refused; its three scenario
+  names kept, the third (*An extract served plain*, change 22's) now about a dump served plain,
+  read by the gzip magic. That requirement is held by the open change `add-lingua-pack-en-es`, so
   this change archives after it (`.openspec.yaml`). *A reader pair's pin records the studied tables
   it read* (change 21) stands as written: each pair still pins its own fetch and an update still
   publishes a pair's own assets only.
@@ -100,7 +105,8 @@ None.
 - **An update costs more download, once per edition.** es-fr's reads 3.6 GiB of dumps instead of
   a 1.05 GB extract and 0.8 GB of dumps; en-fr's 0.7 GiB instead of 0.2 GB; kaikki's observed
   throughput (about 4 MB/s during es-en's first update) puts the English edition's dump at about
-  12 minutes. Measured on this pull request's dry runs; the budget is one update within 45 minutes.
+  12 minutes. Measured on the implementation pull request's dry runs; the budget is one update
+  within 45 minutes.
 - **Effort.** 3–4.5 ideal days against the programme's 2.5–5: the catalogue and the pin record with
   their tests (1.5–2), the workflow and its loop tests (0.5–1), the measurements (0.5–1, mostly
   machine time), the documents (0.5). Outside the estimate: a per-edition derive job, worth

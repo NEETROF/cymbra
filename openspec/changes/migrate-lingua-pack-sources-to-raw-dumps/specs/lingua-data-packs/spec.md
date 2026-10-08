@@ -24,19 +24,23 @@ The update SHALL read, of kaikki, only its dump of a whole Wiktionary edition �
 - **THEN** it names those three files of the catalogue, by edition, and adds no derivation
 
 ### Requirement: A pin recorded against kaikki's per-language extract stays readable
-The pipeline SHALL read a pin recorded before this change — one naming kaikki's per-language extract as an asset of the pair's release — as it is recorded: a re-reduction SHALL fetch the extract from that release, check it by sha256 and reproduce the committed tables byte for byte. This change SHALL re-pin no pair and SHALL move no committed byte, and a pair's move to the dumps SHALL be its next update, reviewed as any update is. Before the first update under the new rule, the tables a pair reduces from an edition's derived entries SHALL be shown to be byte for byte what it reduces from kaikki's per-language extract of the same regeneration, and the measurement SHALL be recorded with the sources.
+The pipeline SHALL read a pin recorded before this rule — one naming kaikki's per-language extract as an asset of the pair's release — as it is recorded: a re-reduction SHALL fetch the extract from that release under the asset name the record gives, check it by sha256, reproduce the committed tables byte for byte and keep the record in the pin, pruning nothing. A pair's move to the dumps SHALL be an update of that pair, reviewed as any update is; a pin written before the rule stays readable until then.
 
 #### Scenario: The committed pairs reduce as before
-- **WHEN** the reduce job runs on this change
+- **WHEN** the reduce job runs with en-fr's, es-fr's and es-en's pins recorded against their extracts
 - **THEN** en-fr, es-fr and es-en are reduced from their pinned extracts and derived files, every committed table, manifest and pin is reproduced byte for byte, and no pin changed
+
+#### Scenario: A legacy record is kept in the pin
+- **WHEN** `fetch-pinned` reads es-en's pin, whose `kaikki` record names the Spanish extract as `kaikki-Spanish.jsonl.zst` and whose `kaikki-es` record names derived files
+- **THEN** it fetches the extract from the release the record names into `kaikki-Spanish.jsonl`, keeps both records, prunes nothing, and the pin's bytes are what they were
 
 #### Scenario: The next update moves a pair
 - **WHEN** en-fr is next updated
 - **THEN** its pin records the French edition's dump and the English entries derived from it, names no extract, and the update's report lists the upstream drift since the pinned regeneration and nothing else
 
 #### Scenario: Extract and dump agree
-- **WHEN**, on one day, es-fr and es-en are reduced from their pinned sources with the Spanish section read once as kaikki's extract and once derived from the English edition's dump of the same regeneration
-- **THEN** both reductions give the same tables byte for byte, in the pairs' folders and in `tables/es/`, and `SOURCES.md` records the measurement
+- **WHEN**, on one day, es-fr and es-en are reduced from their pinned sources with the Spanish section read once as kaikki's extract and once derived from the English edition's dump of the same regeneration, en-fr likewise with the English section of the French edition, and en-es's Spanish translations are derived once from the English extract and once from the English edition's dump
+- **THEN** both reductions give the same tables byte for byte, in the pairs' folders and in `tables/en/` and `tables/es/`, en-es's translation tables derive from the dump exactly as they derived from the extract, and `SOURCES.md` records the measurement
 
 #### Scenario: kaikki retires its per-language files
 - **WHEN** kaikki no longer serves a per-language extract
@@ -47,7 +51,7 @@ The pipeline SHALL fetch, in a run that updates or checks several pairs, each ed
 
 #### Scenario: The monthly check
 - **WHEN** the monthly dry run checks en-fr, es-fr and es-en
-- **THEN** the English, French and Spanish editions' dumps are fetched once each, about 3.6 GiB in all, every pair's report is written, and nothing is committed or published
+- **THEN** the English, French and Spanish editions' dumps are fetched once each, about 3.6 GiB in all, each pair reduces into a dry root of its own, every pair's report and every studied language's — its reference's drift, not the committed copy a later pair laid down — is written, a failing pair stops no other pair and fails the job at the end, and nothing is committed or published
 
 #### Scenario: One pair's update
 - **WHEN** es-en alone is updated
@@ -60,7 +64,7 @@ The pipeline SHALL fetch, in a run that updates or checks several pairs, each ed
 ## MODIFIED Requirements
 
 ### Requirement: Sources derived from whole Wiktionary dumps are pinned
-The pipeline SHALL derive every kaikki source a pair reads from kaikki's dump of a whole Wiktionary edition, served gzipped or plain, and SHALL never keep such a dump whole nor publish it: it SHALL keep each file the pair derives from it (a language's entries, or the translations its entries list into another language) as an asset of the snapshot's release, recorded in `pin.json` by the sha256 of its decompressed bytes beside the dump's own address, regeneration date, sha256 and size, and SHALL refuse a fetched file whose bytes differ.
+The pipeline SHALL read kaikki's dump of a whole Wiktionary edition served gzipped or plain, told apart by the gzip magic, and SHALL never keep such a dump whole: it SHALL keep each file the pair derives from it (a language's entries, or the translations its entries list into another language) as an asset of the snapshot's release, recorded in `pin.json` by the sha256 of its decompressed bytes, and SHALL refuse a fetched file whose bytes differ.
 
 #### Scenario: An update keeps the derived files
 - **WHEN** `lingua-pack-update` reads today's sources for es-fr
@@ -71,5 +75,5 @@ The pipeline SHALL derive every kaikki source a pair reads from kaikki's dump of
 - **THEN** it fails, naming the source and the file
 
 #### Scenario: An extract served plain
-- **WHEN** kaikki serves a file plain rather than gzipped — as it serves its per-language extracts, which a pin recorded before this change may still name
-- **THEN** `derive` and the fetch read it as they read a gzipped dump, told apart by the gzip magic, so that en-es's Spanish translation tables derive from the English edition's dump exactly as they derived from the English extract
+- **WHEN** kaikki serves an edition's dump plain rather than gzipped
+- **THEN** `derive` tells it from a gzipped one by the gzip magic and reads it the same way, in one pass, deriving the same files, recorded by the same decompressed sha256
