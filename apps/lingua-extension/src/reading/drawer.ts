@@ -153,6 +153,12 @@ export class Drawer {
     this.panel.hidden = true;
   }
 
+  /** Leave the page: its reading session is taken down (add-lingua-native-language-choice D3). */
+  destroy(): void {
+    this.hide();
+    this.host.remove();
+  }
+
   private async switchTo(view: DrawerView): Promise<void> {
     this.current = view;
     this.reviewBody.hidden = view !== "review";

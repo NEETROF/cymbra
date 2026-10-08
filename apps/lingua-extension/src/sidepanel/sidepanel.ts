@@ -5,6 +5,7 @@ import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import type { ReviewPage } from "../review/review-page.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup, storedVoicePreference } from "../state/storage.ts";
+import { reloadOnNativeLanguageChange } from "../state/native-language.ts";
 import { messagedArea, watchBackup } from "../state/store.ts";
 import { requestSync } from "../sync/messages.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
@@ -121,6 +122,8 @@ async function main(): Promise<void> {
   // filled from the catalogue before anything shows (the body is hidden until then — D2). A read
   // that fails is French: the page shows.
   await panel.interfaceLanguage;
+  // Another native language chosen anywhere: the panel reloads in it (add-lingua-native-language-choice D3).
+  reloadOnNativeLanguageChange(panel.interfaceLanguage);
 
   await hydrateEngine(port, store);
   language = await readingLanguage(port);

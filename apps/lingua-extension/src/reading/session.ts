@@ -123,6 +123,8 @@ export interface ReadingIndicator {
   setHidden(hidden: boolean): void;
   /** Place it where the reader dragged it: only the in-page pill moves, not the reader's toolbar. */
   setPosition?(position: HudPosition): void;
+  /** Leave the surface document: the session is taken down (`ReadingSession.stop`). */
+  destroy?(): void;
 }
 
 export interface SessionOptions {
@@ -310,6 +312,12 @@ export class ReadingSession {
   /** Where the popup, the drawer and the indicator live: this context's own document. */
   private readonly surfaceDoc: Document = document;
   private readonly surfaceWin: Window = window;
+  /** Set by `stop`: nothing reacts, nothing is persisted any more. */
+  private stopped = false;
+  /** The surface document's listeners `start` adds, removed by `stop`. */
+  private readonly lifetime = new AbortController();
+  /** What `start` hung on the extension's events, undone by `stop`. */
+  private readonly unhooks: (() => void)[] = [];
 
   // The port is resolved before construction (`resolveContentPort`) so a CSP-blocked
   // page can hand us the messaging port instead of the in-content WASM engine.
@@ -401,12 +409,17 @@ export class ReadingSession {
     this.enabled = await loadEnabled(storageArea);
     this.colourSheet = colourCss(await loadColourPreference(storageArea));
     await this.refreshNeedsLevel();
-    this.surfaceDoc.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && this.popup.visible()) this.popup.hide();
-    });
+    const signal = this.lifetime.signal;
+    this.surfaceDoc.addEventListener(
+      "keydown",
+      (e) => {
+        if (e.key === "Escape" && this.popup.visible()) this.popup.hide();
+      },
+      { signal },
+    );
     // The deck and statuses, when another surface changed them.
-    watchBackup(store, (backup) => void this.onExternalChange(backup));
-    chrome.storage.onChanged.addListener((changes, areaName) => {
+    this.unhooks.push(watchBackup(store, (backup) => void this.onExternalChange(backup)));
+    const onPreferences = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
       if (areaName !== "local") return;
       const toggled = changes[ENABLED_KEY];
       if (toggled) void this.onEnabledChange(toggled.newValue !== false);
@@ -423,21 +436,31 @@ export class ReadingSession {
       // The reader's colours, chosen here or in any other surface: repaint the read document.
       const colours = changes[COLOURS_KEY];
       if (colours) this.onColoursChange(colourPreferenceOf(colours.newValue));
-    });
+    };
+    chrome.storage.onChanged.addListener(onPreferences);
+    this.unhooks.push(() => chrome.storage.onChanged.removeListener(onPreferences));
     // Flush pending reading exposures before the tab is hidden / navigated away.
     const surface = this.surfaceDoc;
-    surface.addEventListener("visibilitychange", () => {
-      if (surface.visibilityState === "hidden" && this.hasPendingExposure()) void this.flushExposure();
-      // Nothing keeps talking in a tab the reader left.
-      if (surface.visibilityState === "hidden") this.speaker.stop();
-      // Back on the tab (possibly after reading on another device): ask for a sync too.
-      if (surface.visibilityState === "visible" && this.enabled) void requestSync("page");
-    });
+    surface.addEventListener(
+      "visibilitychange",
+      () => {
+        if (surface.visibilityState === "hidden" && this.hasPendingExposure()) void this.flushExposure();
+        // Nothing keeps talking in a tab the reader left.
+        if (surface.visibilityState === "hidden") this.speaker.stop();
+        // Back on the tab (possibly after reading on another device): ask for a sync too.
+        if (surface.visibilityState === "visible" && this.enabled) void requestSync("page");
+      },
+      { signal },
+    );
     // The word popup is position:fixed and anchored to a word's box; a scroll detaches it
     // (and near the page bottom it could sit half-off-screen). Dismiss it on scroll — a
     // re-click reopens it correctly placed. Capture so nested scroll containers count too.
-    this.surfaceWin.addEventListener("scroll", () => this.dismiss(), { capture: true, passive: true });
-    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    this.surfaceWin.addEventListener("scroll", () => this.dismiss(), { capture: true, passive: true, signal });
+    const onMessage = (
+      msg: { type?: string; view?: string } | null,
+      sender: chrome.runtime.MessageSender,
+      sendResponse: (response: unknown) => void,
+    ): boolean => {
       // An extension page hears every `runtime.sendMessage` of every tab's content script;
       // a book in the reader answers only what is addressed to it (tabs.sendMessage from the
       // popup or the background, which carries no tab).
@@ -453,7 +476,9 @@ export class ReadingSession {
         return true; // async response
       }
       return false;
-    });
+    };
+    chrome.runtime.onMessage.addListener(onMessage);
+    this.unhooks.push(() => chrome.runtime.onMessage.removeListener(onMessage));
 
     this.drawer.setSessionLost((await storageArea.get(SESSION_LOST_KEY))[SESSION_LOST_KEY] === true);
 
@@ -536,6 +561,32 @@ export class ReadingSession {
     this.updateHud();
   }
 
+  /**
+   * Take the session down (add-lingua-native-language-choice D3): the reader chose another native
+   * language, and the content script builds a new session — its engine for that language, its
+   * surfaces in its interface language. The read document is left unpainted, the surfaces leave the
+   * page, and nothing this session hung on the page or the extension's events reacts any more. What
+   * was read and not yet counted is dropped rather than persisted: this engine's backup names the
+   * native language the reader just left, and writing it would undo their choice.
+   */
+  stop(): void {
+    if (this.stopped) return;
+    this.stopped = true;
+    if (this.exposureFlushTimer !== null) clearTimeout(this.exposureFlushTimer);
+    this.exposureFlushTimer = null;
+    this.pendingExposure.clear();
+    this.pendingRead = 0;
+    this.pendingUnknown = 0;
+    this.detach();
+    this.selection.cancel();
+    this.speaker.stop();
+    this.lifetime.abort();
+    for (const unhook of this.unhooks.splice(0)) unhook();
+    this.popup.host.remove();
+    this.drawer.destroy();
+    this.indicator.destroy?.();
+  }
+
   /** Hide the word popup, if it shows: its word moved (a scroll, a page turn). */
   dismiss(): void {
     if (this.popup.visible()) this.popup.hide();
@@ -573,6 +624,7 @@ export class ReadingSession {
     if (!host) return;
     this.paintStyles(host.doc);
     await this.refresh([host.doc.body], { firstPaint: true });
+    if (this.stopped) return; // taken down while it painted: a new session reads the page
     // Mount the indicator only after a successful first paint, so a failed init (which resets
     // the injection guard and lets a retry create a fresh session) leaves no orphan host.
     if (!this.indicatorMounted) {
@@ -642,6 +694,7 @@ export class ReadingSession {
   }
 
   private async persist(): Promise<void> {
+    if (this.stopped) return; // its backup names a native language the reader left (`stop`)
     const backup = await this.port.backup();
     this.lastBackup = backup; // so our own storage.onChanged echo is ignored
     await saveBackup(store, backup);
@@ -907,6 +960,7 @@ export class ReadingSession {
   }
 
   private async onExternalChange(backup: string): Promise<void> {
+    if (this.stopped) return;
     if (backup === this.lastBackup) return; // our own write echoed back — nothing to do
     await this.port.restore(backup);
     await this.readLanguages(); // the profile came with the backup

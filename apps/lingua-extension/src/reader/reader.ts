@@ -26,6 +26,7 @@ import { isReaderWhere, type ReaderWhereReply } from "./locate.ts";
 import { requestPersistence } from "./persist.ts";
 import { clearSections } from "./section-server.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
+import { reloadOnNativeLanguageChange } from "../state/native-language.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
@@ -54,6 +55,9 @@ async function main(): Promise<void> {
   // Filled before anything can return early, so the page shows whatever happens next; a read that
   // fails is French.
   const { language } = await fillPageInLanguage(document, settings, readerModule);
+  // Another native language chosen anywhere: the page reloads in it, its book's session with it
+  // (add-lingua-native-language-choice D3).
+  reloadOnNativeLanguageChange(language);
   const root = document.getElementById("reader-root");
   if (!root) return;
   const copy = readerCopy(language);

@@ -539,3 +539,57 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
     expect(counted.due).toEqual([["es"]]);
   });
 });
+
+describe("a session taken down (add-lingua-native-language-choice D3)", () => {
+  type Changed = (changes: Record<string, { newValue?: unknown }>, area: string) => void;
+
+  it("leaves the document unpainted, its surfaces off the page, and reacts to nothing any more", async () => {
+    const changed: Changed[] = [];
+    const removed: unknown[] = [];
+    const chromeStub = (globalThis as unknown as { chrome: Record<string, Record<string, Record<string, unknown>>> })
+      .chrome;
+    chromeStub.storage.onChanged.addListener = (fn: Changed) => void changed.push(fn);
+    chromeStub.storage.onChanged.removeListener = (fn: Changed) => void removed.push(fn);
+    chromeStub.runtime.onMessage.removeListener = (fn: RuntimeListener) => void removed.push(fn);
+    const destroyed = vi.fn();
+    const { s, calls } = session({
+      indicator: () => ({ mount() {}, update() {}, setHidden() {}, destroy: destroyed }),
+    });
+    await s.start(null);
+    const { host, registry } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    expect(registry.has(HL_UNKNOWN)).toBe(true);
+    // The word card and the drawer, on the page.
+    s["popup"].show({
+      headword: "dark",
+      surface: "dark",
+      gloss: "sombre",
+      rarity: "",
+      sentence: "",
+      rect: { left: 0, top: 0, bottom: 10 },
+    });
+    await s["drawer"].openOn("review");
+    expect(document.getElementById("cymbra-lingua-host")).not.toBeNull();
+    expect(document.getElementById("cymbra-lingua-drawer-host")).not.toBeNull();
+
+    s.stop();
+
+    expect(registry.has(HL_UNKNOWN)).toBe(false);
+    expect(document.getElementById("cymbra-lingua-host")).toBeNull();
+    expect(document.getElementById("cymbra-lingua-drawer-host")).toBeNull();
+    expect(destroyed).toHaveBeenCalledOnce();
+    // Every listener `start` hung on the extension's events is removed: the store's, the
+    // preferences' and the popup's messages.
+    expect(removed).toHaveLength(3);
+    expect(removed).toEqual(expect.arrayContaining(runtimeListeners));
+    expect(removed.filter((fn) => changed.includes(fn as Changed))).toHaveLength(2);
+    // A backup another context wrote after it is not restored, even by a listener still called.
+    const restored = calls.restored.length;
+    for (const fn of changed)
+      fn({ "cymbra-lingua-store-changed": { newValue: { rev: 9, keys: ["lingua"] } } }, "local");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls.restored).toHaveLength(restored);
+    s.stop(); // twice is once
+    expect(destroyed).toHaveBeenCalledOnce();
+  });
+});
