@@ -9,13 +9,16 @@
 
 /**
  * The pairs whose selection is marked: those whose marks were measured on the committed corpus of
- * their studied language, through their route, and reached the programme's first tier
- * (release-lingua-spanish-translation, tool/marks/README.md). es-fr goes through English, two
+ * their studied language, through their route, judged in their native language, and reached the
+ * programme's first tier (release-lingua-spanish-translation,
+ * measure-lingua-translation-matrix-marks, tool/marks/README.md). es-fr goes through English, two
  * alignments chained: 89 of its 90 shown marks were right, 10 % withheld — which says nothing of
- * es-en's one model. A pair outside the list is translated without a mark
- * (add-lingua-spanish-translation-pivot D3, generalise-lingua-translation-routes-by-pair D4).
+ * es-en's one model, measured on its own: 94 of 96, 4 % withheld; en-es, 96 of 96, 4 % withheld.
+ * A pair outside the list is translated without a mark (add-lingua-spanish-translation-pivot D3,
+ * generalise-lingua-translation-routes-by-pair D4); a listed pair no reader has yet — es-en and
+ * en-es until changes 34 and 35 ship them — is inert.
  */
-export const MARKED_PAIRS: readonly string[] = ["en-fr", "es-fr"];
+export const MARKED_PAIRS: readonly string[] = ["en-fr", "es-fr", "es-en", "en-es"];
 
 /** The tag that marks the selection. Page text is escaped, so no other tag reaches the engine. */
 const OPEN = "<b>";

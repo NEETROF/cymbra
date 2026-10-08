@@ -113,18 +113,24 @@ recomputed from the committed judgments (`tier.mjs`). The rates read D2 as the s
 - correct is the share of the shown marks;
 - withheld is the share of all 100 selections.
 
-## Results (2026-10-05)
+## Results
 
-Engine pinned by `engine-pin.json`; models `en-fr` and `es-en` base-memory 2.0. The pairs listed in
-`MARKED_PAIRS` (`src/translate/markup.ts`) are the ones on the first tier here, and
-`test/translate-marks.spec.ts` holds the list to the judged files.
+Engine pinned by `engine-pin.json`; models `en-fr` base-memory 2.0, `es-en` 2.0 and `en-es` 2.1
+(`model-manifest.json`). The pairs listed in `MARKED_PAIRS` (`src/translate/markup.ts`) are the
+ones on the first tier here, and `test/translate-marks.spec.ts` holds the list to the judged files.
+en-fr and es-fr were measured on 2026-10-05, judged in French; es-en and en-es on 2026-10-08
+(measure-lingua-translation-matrix-marks), judged in English and in Spanish, one judge each.
 
-|                                    | Correct (of shown marks) | Withheld | D2                                   |
-| ---------------------------------- | ------------------------ | -------- | ------------------------------------ |
-| **es-fr, engine (pivot es→en→fr)** | **89 / 90 — 98.9 %**     | **10 %** | **First tier: marked**               |
-| en-fr, engine                      | 96 / 97 — 99.0 %         | 3 %      | (reference; the study found 83 / 87) |
-| es-fr, gloss-located (experiment)  | 76 / 78 — 97.4 %         | 22 %     | —                                    |
-| en-fr, gloss-located (experiment)  | 76 / 79 — 96.2 %         | 21 %     | —                                    |
+|                                      | Correct (of shown marks) | Withheld | D2                                               |
+| ------------------------------------ | ------------------------ | -------- | ------------------------------------------------ |
+| **es-fr, engine (pivot es→en→fr)**   | **89 / 90 — 98.9 %**     | **10 %** | **First tier: marked**                           |
+| en-fr, engine                        | 96 / 97 — 99.0 %         | 3 %      | (reference; the study found 83 / 87)             |
+| **es-en, engine, judged in English** | **94 / 96 — 97.9 %**     | **4 %**  | **First tier: marked once change 34 ships it**   |
+| **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked once change 35 ships it**   |
+| es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                |
+| en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                |
+| es-en, gloss-located (experiment)    | 75 / 78 — 96.2 %         | 22 %     | —                                                |
+| en-es, gloss-located (experiment)    | —                        | —        | left empty: no `tables/en-es/gloss.tsv` yet (22) |
 
 What these numbers say:
 
@@ -132,15 +138,27 @@ What these numbers say:
   instead of « ennemies »).
 - **It holds under a stricter reading:** if the five expression marks counted as wrong, es-fr would
   still score 84 / 90, 93 %.
+- **es-en and en-es are on the first tier too**, at the figures the study predicted (94 / 96 and
+  96 / 96). es-en's two wrong marks: « declaró » marked « he » instead of « said » (#25), and
+  « enemigas » marked « two » instead of « enemy » (#79) — the mark es-fr inherited through the
+  pivot. Its four withheld are three expressions the translation reshaped (« dejar caer », « dar
+  por hecho », « consiguió vencer ») and one hyphenated compound (« franco-monegasco »). en-es has
+  no wrong mark; its four withheld are two of en-fr's own (« officer », « the only one » — the same
+  English selections), « alarm clock » → « despertador » and « captained », unmarked. Three en-es
+  lines (#18, #70, #77) follow a mistranslation (« edge » → « ventaja »): the mark sits on the
+  rendering the reader sees, so they count correct and are flagged `doubtful:` in `engine_reason`.
+- **No request trapped** on es-en or en-es: one engine built per run, no `trapped: true` line and no
+  unreconciled fragment — the trapped ids this README would list are none (`TRANSLATION.md`, where
+  change 25 recorded the en-es soak, says the same).
 - **Sampling error:** about ±6 % at 100 selections.
 
-**The experiment** marks the first word of the sentence that matches the pack's French gloss of the
-selected word.
+**The experiment** marks the first word of the sentence that matches the pack's gloss of the
+selected word, in the pair's native language, its stop words left out (`stop-words.mjs`).
 
-- It is about as precise as the engine.
+- It is about as precise as the engine, in English as in French (es-en: 75 / 78).
 - It withholds about one selection in five: a translation often picks a synonym the gloss does not
   list.
-- Where the engine withholds, it would have found 7 of Spanish's 10 missing marks, bringing Spanish
-  to 3 % withheld.
+- Where the engine withholds, it would have found 7 of Spanish's 10 missing marks for es-fr, and
+  2 of es-en's 4.
 
 A later change may try it as a fallback; nothing here ships it.

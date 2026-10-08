@@ -117,8 +117,8 @@ measurement.
 |---|---|---|---|---|
 | en-fr | 95.1 / 90.1 / 78.9 % | French Wiktionary | en-fr | 96/97 |
 | es-fr | 87.6 / 77.2 / 63.7 % | French Wiktionary + fallbacks | es-en → en-fr | 89/90 |
-| es-en | 93.6 / 87.0 / 77.1 % | English Wiktionary, Spanish section | es-en (pinned already) | 94/96 |
-| en-es | 93.4 / 85.2 / 71.9 % | Spanish Wiktionary + English Wiktionary translation tables | en-es 2.1 | 96/96 |
+| es-en | 93.6 / 87.0 / 77.1 % | English Wiktionary, Spanish section | es-en (pinned already) | 94/96 — committed 2026-10-08 (change 26): 94/96, 4 % withheld |
+| en-es | 93.4 / 85.2 / 71.9 % | Spanish Wiktionary + English Wiktionary translation tables | en-es 2.1 | 96/96 — committed 2026-10-08 (change 26): 96/96, 4 % withheld |
 | fr-en | 93.9 / 87.1 / 76.4 % (prototype ranks, ± 1–2) | English Wiktionary, French section | fr-en 2.0 | 94/96 |
 | fr-es | 83.4 / 70.8 / 56.5 %, 24 % of them definitions | Spanish Wiktionary + French Wiktionary translations | fr-en → en-es | 90/91 |
 
@@ -163,7 +163,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 2 | 23 | `add-lingua-english-card-wording` | 3–5 | Not started |
 | 2 | 24 | `add-lingua-spanish-card-wording` | 3–5.5 | Not started |
 | 2 | 25 | `add-lingua-translation-matrix-models`: en-es 2.1; the owner redeploys the model host right after | 1–2 | Done (proposal [#768](https://github.com/NEETROF/cymbra/pull/768)); en-es soaked over the 100 English selections: all translated, no trap, no timeout, in Node; the owner deploys the model host after the merge |
-| 2 | 26 | `measure-lingua-translation-matrix-marks`: es-en, en-es | 2.5–4 | Not started |
+| 2 | 26 | `measure-lingua-translation-matrix-marks`: es-en, en-es | 2.5–4 | Done (proposal [#769](https://github.com/NEETROF/cymbra/pull/769)); es-en 94 / 96 shown marks correct, 4 % withheld; en-es 96 / 96, 4 % withheld — both on the first tier, listed in `MARKED_PAIRS` ahead of changes 34 and 35 (inert until they ship); no request trapped the engine on either pair; the harness speaks the pair's native language (stop words fr/en/es, the result key `translation`, a trapping request asked once more on a fresh engine), en-fr's and es-fr's figures unchanged |
 | 2 | 27 | `localise-lingua-manifest`: `_locales`, with the first non-French pair | 1–2 | Done pending the owner's 2.5/3.3: `_locales/{fr,en,es}` committed, the manifest localised only once a non-French native ships (today's packages byte for byte); the owner reviews the English and Spanish drafts (3.3) and validates a localised Safari archive before the first of 34/35 merges (2.5) |
 | 2 | 28 | `localise-lingua-apple-host` | 3.5–6 | Not started |
 | 2 | 29 | `add-site-spanish-locale` (M11) | 4.5–8 | Done pending the owner's 4.2/4.3: `/es/privacidad/`, `/es/terminos/`, `/es/soporte/`, `/es/eliminar-cuenta/` and `/es/404` as translations of the French pages (tú, neutral); every page names its translations (`alternates`: the fr/en legal pages' switch and `hreflang` open the same page; every other fr/en page renders as before — the only markup differences are the `hreflang`/switch entries and `&#39;` in one footer label); the islands in Spanish; `/suppression-compte/`, `/lingua/` and `/es/eliminar-cuenta/` pinned; the extension's Spanish link (3.2) waits for change 17; the owner reviews the Spanish and settles M11 (4.2), deploys the site and registers `https://cymbra.app/eliminar-cuenta` on the Services ID before a release links a Spanish page (4.3) |

@@ -77,8 +77,10 @@ device records which pairs are ready — and asks the engine for that pair's rou
 catalogue lists no route for is unavailable, and the engine is not started for it. A route is
 reached only once a pack glossed in that native language ships, since a reader is served the pairs
 of their native language alone: change 25 lists es-en's and en-es's routes, and changes 34 and 35
-ship their pairs. Marks are measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`): es-fr's
-measurement says nothing of es-en's.
+ship their pairs. Marks are measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`), each on
+its own route and judged in its native language — es-fr's measurement says nothing of es-en's.
+en-fr, es-fr, es-en and en-es are measured; es-en and en-es are listed ahead of their readers,
+inert until changes 34 and 35 ship them.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
 setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the
@@ -232,6 +234,12 @@ instance (without `--isolate`, closer to the worker, which translates sentence a
 translated all 100 too, median 35 ms, maxRSS 417.5 MiB; en-fr under `--isolate` gave no trap,
 median 151 ms, maxRSS 397.3 MiB — in this tool, en-es costs what en-fr costs. Change 35 reads these
 figures; they decide nothing here, and a trap on another input still costs the reader one respawn.
+
+The marks measurement of change 26 (`tool/measure_marks.mjs --pair en-es` and `--pair es-en`,
+2026-10-08, the same machine, engine and models) asked every selection twice — the sentence tagged,
+then the fragment alone — through one engine per run, a request that traps being asked once more on
+a fresh engine: no request trapped on either pair, so `tool/marks/README.md`, where a trapped
+selection would be listed by its id, lists none.
 
 ## What never happens
 

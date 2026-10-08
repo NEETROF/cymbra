@@ -10,9 +10,9 @@
 ## 2. The measurements
 
 - [x] 2.1 The README's criteria rewritten for any native language, before the run (D4).
-- [ ] 2.2 `measure_marks.mjs --pair es-en` and `--pair en-es` with the models assembled locally; `results-es-en.jsonl`, `results-en-es.jsonl` committed.
-- [ ] 2.3 `judged-es-en.tsv`, `judged-en-es.tsv` judged and committed; the figures in the README (its stale lines: "es-en, whose one model is measured when it ships", "models en-fr and es-en base-memory 2.0") and the programme's table; `measure_marks.mjs`'s comments naming en-fr and es-fr alone (D4).
-- [ ] 2.4 `MARKED_PAIRS` gains each pair on the first tier; `test/translate-marks.spec.ts` holds each measured pair's totals and tier, and `test/translate-relay.spec.ts`'s es-en/en-es cases follow the list (D5; *A pair measured in another native language*, *An English-native reader of Spanish*, *A selection the engine traps on*); a pair under 75 % correct or over 30 % withheld reported to the owner (M15).
+- [x] 2.2 `measure_marks.mjs --pair es-en` and `--pair en-es` with the models assembled locally; `results-es-en.jsonl`, `results-en-es.jsonl` committed.
+- [x] 2.3 `judged-es-en.tsv`, `judged-en-es.tsv` judged and committed; the figures in the README (its stale lines: "es-en, whose one model is measured when it ships", "models en-fr and es-en base-memory 2.0") and the programme's table; `measure_marks.mjs`'s comments naming en-fr and es-fr alone (D4).
+- [x] 2.4 `MARKED_PAIRS` gains each pair on the first tier; `test/translate-marks.spec.ts` holds each measured pair's totals and tier, and `test/translate-relay.spec.ts`'s es-en/en-es cases follow the list (D5; *A pair measured in another native language*, *An English-native reader of Spanish*, *A selection the engine traps on*); a pair under 75 % correct or over 30 % withheld reported to the owner (M15).
 
 ## 3. Gates and docs
 
