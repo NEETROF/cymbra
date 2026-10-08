@@ -919,7 +919,7 @@ alambre	NOUN:3
 alameda	NOUN:2	PROPN:2
 alamillo	PROPN:1
 alamán	ADJ:1
-alante	ADV:1
+alante	ADV:2
 alar	ADJ:1	NOUN:1
 alarcón	PROPN:2
 alarde	NOUN:4
@@ -1194,7 +1194,7 @@ almacenero	NOUN:1
 almacén	NOUN:6
 almadraba	NOUN:2
 almadén	PROPN:1	NOUN:1
-almagro	PROPN:2
+almagro	PROPN:5
 almaguer	PROPN:1
 almanaque	NOUN:1
 almanza	PROPN:1
@@ -1424,7 +1424,7 @@ amenazar	VERB:2
 amenizar	VERB:2
 ameno	ADJ:1
 amenorrea	NOUN:1
-americanismo	NOUN:1
+americanismo	NOUN:2
 americanista	ADJ:1	NOUN:1
 americano	ADJ:2	NOUN:4
 ametralladora	NOUN:1
@@ -2753,7 +2753,7 @@ audaz	ADJ:1
 audazmente	ADV:1
 audible	ADJ:1
 audicionar	VERB:1
-audición	NOUN:4
+audición	NOUN:6
 audiencia	NOUN:2	PROPN:1
 audio	NOUN:2
 audiolibro	NOUN:1
@@ -2994,9 +2994,9 @@ aviñón	PROPN:1
 avión	NOUN:3
 avocado	NOUN:1
 avícola	ADJ:1
-awa	NOUN:7
+awa	NOUN:1
 awebo	INTJ:1
-aweonao	ADJ:1
+aweonao	ADJ:2
 ax	INTJ:1
 axial	ADJ:1
 axila	NOUN:2
@@ -4590,6 +4590,7 @@ cajamarca	PROPN:1
 cajero	NOUN:2
 cajeta	NOUN:2
 cajetilla	NOUN:1
+cajita	NOUN:2
 cajuela	NOUN:1
 cajón	NOUN:5
 cajún	ADJ:1	NOUN:1
@@ -4690,7 +4691,7 @@ calizo	ADJ:2
 calladamente	ADV:1
 callado	ADJ:1
 callampa	NOUN:2
-callao	NOUN:2	PROPN:6
+callao	ADJ:1	NOUN:2	PROPN:5
 callar	VERB:6
 calle	NOUN:2	PROPN:1
 calleja	NOUN:1	PROPN:1
@@ -4807,7 +4808,7 @@ campanero	NOUN:2
 campania	PROPN:1
 campanilla	NOUN:4	PROPN:1
 campanillas	NOUN:1
-campanita	PROPN:1
+campanita	NOUN:1	PROPN:1
 campante	ADJ:4
 campari	NOUN:1
 campaña	NOUN:3
@@ -4896,7 +4897,7 @@ canica	NOUN:1
 caniche	NOUN:1
 canijo	ADJ:2	NOUN:4
 canilla	NOUN:6
-canino	ADJ:3	NOUN:2
+canino	ADJ:2	NOUN:2
 canje	NOUN:1
 canjear	VERB:2
 cannabis	NOUN:1
@@ -5284,7 +5285,7 @@ casimir	NOUN:3
 casimiro	PROPN:1
 casino	NOUN:2
 casiopea	PROPN:1
-casita	NOUN:2
+casita	NOUN:4
 caso	NOUN:4
 casorio	NOUN:1
 caspa	NOUN:1
@@ -5990,6 +5991,7 @@ chipriota	ADJ:1
 chipset	NOUN:1
 chiquero	NOUN:2
 chiqui	NOUN:2
+chiquillo	NOUN:2
 chiquilín	NOUN:1
 chiquimula	PROPN:1
 chiquita	NOUN:1
@@ -6782,7 +6784,7 @@ comitente	ADJ:1
 comitiva	NOUN:3
 comité	NOUN:1
 commodity	NOUN:1
-como	PROPN:2	ADV:2	SCONJ:2	ADP:2
+como	ADV:2	SCONJ:2	ADP:2	PROPN:2
 comodato	NOUN:1
 comodidad	NOUN:3
 comodoro	NOUN:2
@@ -7773,6 +7775,7 @@ coseno	NOUN:1
 coser	VERB:1
 cosido	NOUN:1
 cosificación	NOUN:2
+cosita	NOUN:2
 cosmogonía	NOUN:1
 cosmología	NOUN:1
 cosmológico	ADJ:1
@@ -8194,7 +8197,7 @@ cuidado	INTJ:3	NOUN:3	ADJ:1
 cuidador	NOUN:1
 cuidadosamente	ADV:1
 cuidadoso	ADJ:2
-cuidao	NOUN:3
+cuidao	NOUN:3	INTJ:2	ADJ:1	VERB:2
 cuidar	VERB:5
 cuido	NOUN:1
 cul	ADJ:1
@@ -8309,7 +8312,7 @@ curvado	ADJ:1
 curvatura	NOUN:1
 curvo	ADJ:1
 cuscatlán	PROPN:1
-cusco	PROPN:1
+cusco	PROPN:3
 cuscús	NOUN:1
 cusqueño	NOUN:1
 custodia	NOUN:3
@@ -11212,7 +11215,7 @@ erario	NOUN:1
 erasmo	PROPN:2
 erasmus	NOUN:2
 erazo	PROPN:1
-ere	NOUN:1
+ere	VERB:1
 erección	NOUN:2
 erecto	ADJ:1
 eremita	NOUN:1
@@ -12822,7 +12825,7 @@ figurado	ADJ:1
 figurar	VERB:1
 figurativamente	ADV:1
 figurativo	ADJ:1
-figurita	NOUN:2	ADJ:1
+figurita	NOUN:3	ADJ:1
 fijación	NOUN:2
 fijador	ADJ:1	NOUN:1
 fijamente	ADV:1
@@ -14471,10 +14474,10 @@ góndola	NOUN:1
 góngora	PROPN:1
 góspel	NOUN:2	ADJ:1
 gótico	ADJ:2	NOUN:2
-güeno	ADJ:1
+güeno	ADJ:8
 güero	ADJ:1	NOUN:1
 güevo	NOUN:7
-güey	NOUN:2
+güey	NOUN:6
 güisqui	NOUN:1
 haba	NOUN:7
 habana	ADJ:1
@@ -17055,7 +17058,7 @@ jolgorio	NOUN:1
 jolín	INTJ:2
 jonathan	PROPN:1
 jonatán	PROPN:2
-jondo	ADJ:1
+jondo	ADJ:3
 jonrón	NOUN:1
 jonás	PROPN:2
 jora	NOUN:1
@@ -17295,6 +17298,7 @@ kibbutz	NOUN:1
 kibutz	NOUN:1
 kichwa	NOUN:2
 kickboxing	NOUN:1
+kiero	VERB:5
 kiev	PROPN:2
 kigali	PROPN:1
 kiki	ADV:1
@@ -17725,7 +17729,7 @@ leptospirosis	NOUN:1
 lerdo	ADJ:2
 lero	INTJ:2
 leroux	PROPN:1
-les	DET:1
+les	PRON:4	DET:1
 lesbiana	NOUN:1
 lesbianismo	NOUN:1
 lesbiano	ADJ:2	NOUN:1
@@ -18059,7 +18063,7 @@ llover	VERB:1
 llovizna	NOUN:1
 lluvia	NOUN:2
 lluvioso	ADJ:1
-lo	DET:1
+lo	PRON:1	DET:1
 loa	NOUN:1	PROPN:1
 loable	ADJ:1
 loaiza	PROPN:1
@@ -18403,7 +18407,7 @@ madrigal	NOUN:1
 madriguera	NOUN:3
 madrileño	ADJ:1	NOUN:1
 madrina	NOUN:2
-madriz	PROPN:1
+madriz	PROPN:5
 madriza	NOUN:1
 madrona	NOUN:1
 madroño	NOUN:3
@@ -18504,7 +18508,7 @@ majestuoso	ADJ:2
 majete	ADJ:1
 majo	ADJ:3	PROPN:1
 major	NOUN:1
-mal	ADV:4	NOUN:3	ADJ:1
+mal	ADV:3	NOUN:3	ADJ:2
 mala	NOUN:3
 malabar	ADJ:1	NOUN:1
 malabarismo	NOUN:3
@@ -19553,7 +19557,7 @@ mezquital	NOUN:1
 mezquite	NOUN:1
 mezzo	NOUN:1
 meñique	ADJ:1	NOUN:2
-mi	NOUN:2
+mi	DET:1	NOUN:2
 miaja	NOUN:2
 miami	PROPN:1
 miao	ADJ:1	NOUN:1
@@ -20254,7 +20258,7 @@ mrp	X:1
 msj	NOUN:2
 msm	X:1
 msnm	NOUN:1
-mu	INTJ:1
+mu	INTJ:1	ADV:1
 mua	NOUN:1
 mucama	NOUN:2
 muchachada	NOUN:1
@@ -20286,6 +20290,7 @@ muger	NOUN:2
 mugre	NOUN:1
 mugriento	ADJ:1
 mugroso	ADJ:1
+mui	ADV:1
 muisca	ADJ:1	NOUN:1
 mujer	NOUN:2
 mujercita	NOUN:1
@@ -20413,7 +20418,7 @@ mutualismo	NOUN:2
 mutualista	ADJ:1
 mutuamente	ADV:1
 mutuo	ADJ:1
-muy	ADV:3
+muy	ADV:1
 muérdago	NOUN:1
 muñeca	NOUN:1
 muñeco	NOUN:4
@@ -20475,7 +20480,7 @@ múnich	PROPN:1
 músculo	NOUN:2
 música	NOUN:2
 músico	ADJ:1	NOUN:1
-na	PROPN:1
+na	PRON:1
 nabo	NOUN:7
 nabucodonosor	PROPN:1
 nacer	VERB:3
@@ -20929,7 +20934,7 @@ norteamérica	PROPN:1
 norteño	ADJ:2	NOUN:1
 noruega	PROPN:1
 noruego	ADJ:2	NOUN:2
-nos	PRON:2
+nos	PRON:5
 nose	X:1
 nosequé	NOUN:1
 nosocomio	NOUN:1
@@ -22923,7 +22928,7 @@ pezón	NOUN:1
 peña	NOUN:5	PROPN:1
 peñafiel	PROPN:2
 peñaflor	PROPN:1
-peñalosa	PROPN:2
+peñalosa	PROPN:3
 peñaloza	PROPN:1
 peñaranda	PROPN:1
 peñasco	NOUN:1
@@ -22984,6 +22989,7 @@ pictórico	ADJ:1
 picudo	ADJ:5	NOUN:1
 picó	NOUN:1
 picón	ADJ:5	NOUN:1
+pid	VERB:6
 pidgin	NOUN:1
 pie	NOUN:7
 piedad	NOUN:3	PROPN:1
@@ -24041,7 +24047,7 @@ principe	NOUN:2
 principiante	ADJ:1	NOUN:1
 principio	NOUN:3
 pringado	ADJ:3	NOUN:3
-pringao	ADJ:3
+pringao	ADJ:3	NOUN:3
 prior	NOUN:1
 priorato	NOUN:2
 prioridad	NOUN:2
@@ -24751,7 +24757,7 @@ quiebre	NOUN:2
 quiebro	NOUN:2
 quien	PRON:4
 quienquiera	PRON:1
-quier	SCONJ:1
+quier	SCONJ:1	VERB:5
 quieto	ADJ:2
 quietud	NOUN:2
 quijada	NOUN:3	PROPN:1
@@ -24821,6 +24827,7 @@ quiñones	PROPN:1
 quiñónez	PROPN:1
 quorum	NOUN:1
 qué	DET:2	ADV:2	PRON:1	INTJ:1
+québec	PROPN:2
 química	NOUN:2
 químicamente	ADV:1
 químico	ADJ:1	NOUN:1
@@ -24937,6 +24944,7 @@ ramera	NOUN:1
 ramificación	NOUN:1
 ramillete	NOUN:2
 ramiro	PROPN:1
+ramita	NOUN:2
 ramo	NOUN:3
 ramona	PROPN:1
 ramos	PROPN:1
@@ -28093,7 +28101,7 @@ striptease	NOUN:1
 stroessner	PROPN:1
 stroke	NOUN:1
 stylus	NOUN:1
-su	DET:1	PROPN:1
+su	DET:4	PROPN:1
 suajili	NOUN:1
 suave	ADJ:4
 suavemente	ADV:1
@@ -28536,7 +28544,7 @@ séquito	NOUN:1
 sérico	ADJ:2
 sésamo	NOUN:2
 sétimo	ADJ:1
-sí	PART:2	INTJ:1	NOUN:1	PRON:1
+sí	PART:2	INTJ:1	NOUN:1	PRON:2
 sídney	PROPN:1
 sífilis	NOUN:1
 sílaba	NOUN:1
@@ -28768,7 +28776,7 @@ taquigrafía	NOUN:1
 taquilla	NOUN:6	ADJ:1
 taquillero	ADJ:1	NOUN:1
 taquito	NOUN:1
-tar	VERB:1
+tar	VERB:8
 tara	NOUN:4
 tarado	ADJ:2	NOUN:1
 tarahumara	NOUN:1
@@ -28818,7 +28826,7 @@ tartán	NOUN:1
 tarugo	ADJ:1	NOUN:3
 tarzán	PROPN:1	NOUN:1
 tarántula	NOUN:1
-tas	NOUN:1	VERB:1
+tas	NOUN:1	VERB:7
 tasa	NOUN:2
 tasación	NOUN:1
 tasador	NOUN:2
@@ -28986,7 +28994,7 @@ telúrico	ADJ:2
 tema	NOUN:4
 temario	NOUN:1
 temblar	VERB:4
-tembleque	ADJ:1	NOUN:2
+tembleque	ADJ:1	NOUN:1
 temblor	NOUN:3
 tembloroso	ADJ:2
 temer	VERB:3
@@ -29428,7 +29436,7 @@ todoterreno	ADJ:1	NOUN:1
 tofu	NOUN:1
 toga	NOUN:3
 togo	PROPN:1
-toi	VERB:1
+toi	VERB:8
 toisón	NOUN:1
 tojo	NOUN:1
 token	NOUN:1
@@ -29606,7 +29614,7 @@ toxicología	NOUN:1
 toxicológico	ADJ:1
 toxina	NOUN:1
 toxoplasmosis	NOUN:1
-toy	VERB:1
+toy	VERB:8
 toya	PROPN:1
 tozudez	NOUN:1
 toñi	PROPN:1
@@ -30051,7 +30059,7 @@ trueque	NOUN:1
 trufa	NOUN:1
 truhán	ADJ:2
 trujillano	ADJ:1	NOUN:1
-trujillo	PROPN:2
+trujillo	PROPN:6
 trullo	NOUN:1
 truncar	VERB:3
 trunco	ADJ:1
@@ -30310,7 +30318,7 @@ umbra	NOUN:1
 umbral	NOUN:2
 umbría	NOUN:1	PROPN:1
 umma	NOUN:1
-un	DET:1
+un	DET:1	NUM:1
 unai	PROPN:1
 unamuno	PROPN:1
 unanimidad	NOUN:1
@@ -30509,7 +30517,7 @@ vaina	NOUN:8
 vainilla	NOUN:3
 vaivén	NOUN:3
 vajilla	NOUN:1
-val	NOUN:1
+val	NOUN:1	VERB:1
 valadez	PROPN:1
 valaquia	PROPN:2
 valcárcel	PROPN:1
@@ -30603,7 +30611,7 @@ vaporizador	NOUN:1
 vaporizar	VERB:1
 vaquera	NOUN:1
 vaquerizo	ADJ:1	NOUN:1
-vaquero	ADJ:1	NOUN:3	PROPN:1
+vaquero	ADJ:1	NOUN:5	PROPN:1
 vaquería	NOUN:2
 vaquilla	NOUN:1
 var	NOUN:1
@@ -30773,7 +30781,7 @@ vengativo	ADJ:1
 venia	NOUN:3
 venida	NOUN:3
 venidero	ADJ:1
-venir	VERB:2
+venir	VERB:8
 venoso	ADJ:1
 venta	NOUN:3
 ventaja	NOUN:3
@@ -30994,6 +31002,7 @@ viedma	PROPN:1
 vieira	NOUN:2	PROPN:1
 viejita	NOUN:4
 viejo	ADJ:4	NOUN:4
+vien	VERB:8
 viena	PROPN:1
 vienesa	NOUN:1
 viento	NOUN:3
@@ -31329,7 +31338,7 @@ vóleibol	NOUN:1
 vóley	NOUN:1
 vómito	NOUN:1
 vórtice	NOUN:1
-wa	INTJ:1
+wa	INTJ:1	X:1
 wacho	NOUN:5
 wadi	NOUN:1
 waffle	NOUN:1
@@ -31344,7 +31353,7 @@ wari	ADJ:1
 warrant	NOUN:1
 was	NOUN:1
 wasabi	NOUN:1
-wasap	PROPN:1
+wasap	PROPN:1	NOUN:2
 washington	PROPN:1
 watanabe	PROPN:1
 waterman	PROPN:1
@@ -31373,11 +31382,11 @@ wenceslao	PROPN:1
 wendigo	NOUN:1
 wendy	PROPN:1
 weno	ADJ:8
-weon	NOUN:1
+weon	NOUN:3
 western	NOUN:1
 wey	NOUN:2
 weá	NOUN:4
-weón	NOUN:1	INTJ:1
+weón	NOUN:3	ADJ:2	INTJ:1
 whatsapp	PROPN:1	NOUN:2
 when	SCONJ:1
 whiskey	NOUN:1

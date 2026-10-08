@@ -233,6 +233,7 @@ def main():
     )
     entries = without_letters(entries, os.path.join(a.work, "kaikki-Spanish-words.jsonl"))
     entries = english.without_letter_headwords(entries, os.path.join(a.work, "kaikki-Spanish-headwords.jsonl"))
+    entries = english.read_as_meanings(entries, os.path.join(a.work, "kaikki-Spanish-meanings.jsonl"))
     entries = english.merge_same_pos_etymologies(entries, os.path.join(a.work, "kaikki-Spanish-merged.jsonl"))
     direct = read_translated(
         os.path.join(a.work, "kaikki-es-traductions-en.jsonl"), os.path.join(a.work, "kaikki-es-traductions-en-words.jsonl")
