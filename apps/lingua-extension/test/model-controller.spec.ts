@@ -621,8 +621,7 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const committed = parseCatalogue(JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8")));
   /** The reader's pairs as the background forms them: the shipped pairs of their native language. */
-  const of = (languages: string[], native: string, pairs?: readonly string[]) =>
-    readerPairs(languages, native, pairs);
+  const of = (languages: string[], native: string, pairs?: readonly string[]) => readerPairs(languages, native, pairs);
   /** The shipped pairs before change 34 (enable-lingua-english-speakers): French-native only. */
   const FRENCH_NATIVE = ["en-fr", "es-fr"];
 

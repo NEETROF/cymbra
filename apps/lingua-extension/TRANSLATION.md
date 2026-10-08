@@ -49,22 +49,23 @@ taken again.
   reads both languages from the key and refuses a route that does not start from the one or end in
   the other.
 
-| Route   | Models, in order                                                        | Pair shipped?                          |
-| ------- | ----------------------------------------------------------------------- | -------------------------------------- |
-| `en-fr` | `en-fr/base-memory/2.0`                                                 | yes                                    |
-| `es-fr` | `es-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes                                    |
-| `es-en` | `es-en/base-memory/2.0`                                                 | not yet: change 34 (English speakers)  |
-| `en-es` | `en-es/base-memory/2.1`                                                 | not yet: change 35 (Spanish speakers)  |
-| `fr-en` | `fr-en/base-memory/2.0`                                                 | not yet: change 52 (French as studied) |
-| `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: change 52 (French as studied) |
+| Route   | Models, in order                                                        | Pair shipped?                           |
+| ------- | ----------------------------------------------------------------------- | --------------------------------------- |
+| `en-fr` | `en-fr/base-memory/2.0`                                                 | yes                                     |
+| `es-fr` | `es-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes                                     |
+| `es-en` | `es-en/base-memory/2.0`                                                 | yes, since change 34 (English speakers) |
+| `en-es` | `en-es/base-memory/2.1`                                                 | not yet: change 35 (Spanish speakers)   |
+| `fr-en` | `fr-en/base-memory/2.0`                                                 | not yet: change 52 (French as studied)  |
+| `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: change 52 (French as studied)  |
 
 English and Spanish are translated into each other directly, one model each
 (`add-lingua-translation-matrix-models`). Mozilla publishes no fr↔es model. en-es is pinned at
 2.1, the registry's one `Release` entry: the decompressed sha256 of its three files are those
 Firefox's Remote Settings publish for en→es 2.1, the model's the registry's `uncompressedHash`.
 A route is needed only by a reader whose pairs include its pair, and a reader's pairs are the
-shipped pairs of their native language (`packs.json`): until changes 34 and 35 ship es-en and
-en-es, no reader needs either route, and the es-en model is held only as es-fr's first model.
+shipped pairs of their native language (`packs.json`): es-en's route is an English-speaking reader's
+since change 34 ships es-en, and a French-speaking reader still holds the es-en model only as es-fr's
+first model; until change 35 ships en-es, no reader needs its route.
 
 French is translated into English directly and into Spanish through English, as Spanish is into
 French (`add-lingua-french-translation`). fr-en is pinned at 2.0, the registry's one fr-en entry
@@ -103,8 +104,9 @@ reached only once a pack glossed in that native language ships, since a reader i
 of their native language alone: change 25 lists es-en's and en-es's routes, and changes 34 and 35
 ship their pairs. Marks are measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`), each on
 its own route and judged in its native language — es-fr's measurement says nothing of es-en's.
-en-fr, es-fr, es-en, en-es, fr-en and fr-es are measured; es-en and en-es are listed ahead of their
-readers, inert until changes 34 and 35 ship them, and fr-en and fr-es until change 52 does.
+en-fr, es-fr, es-en, en-es, fr-en and fr-es are measured; es-en's readers have it since change 34
+ships the pair, en-es is listed ahead of its readers, inert until change 35 ships it, and fr-en and
+fr-es until change 52 does.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
 setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the
@@ -219,10 +221,11 @@ reader of Spanish and French, es-en and fr-en. The deletion runs only when the n
 changes while the worker lives — French to Spanish deletes en-fr and es-en for fr-es's two models;
 French to English deletes es-en for fr-en, then en-fr for es-en — and the worker holds two models
 after every load (`test/model-residency.spec.ts`, through the committed routes). Today's shipped
-pairs are French's alone, so it never runs in production: it is for the matrix's readers, once
-changes 34, 35 and 52 ship their pairs. A translation goes to the engine at once over a route the
-worker holds; over one it deleted since the channel loaded it, the worker answers `reload`, and the
-channel loads the route again — under the start bound — and asks once more.
+pairs — French's two and English's es-en — need two models between them, en-fr and es-en, so it
+never runs in production: it is for the matrix's readers, once changes 35 and 52 ship their pairs.
+A translation goes to the engine at once over a route the worker holds; over one it deleted since
+the channel loaded it, the worker answers `reload`, and the channel loads the route again — under
+the start bound — and asks once more.
 
 ### Soaking a route by hand
 
