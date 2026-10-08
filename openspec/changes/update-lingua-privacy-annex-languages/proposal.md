@@ -4,7 +4,7 @@
 
 Change 31 of the [language matrix programme](../../../docs/lingua/language-matrix-programme.md),
 in stage 2, with M12 and M14. Annex B of the privacy policy (`/confidentialite/`, `/en/privacy/`,
-and `/es/privacidad/` from change 29) was written when Lingua taught English alone. It still says
+and `/es/privacidad/` from change 29) was written when Lingua taught English alone, and still reads that way: it says
 it highlights "English words", downloads "a translation model (25.8 MB)", reads aloud with "an
 English voice", and syncs a "declared English level". Spanish shipped since; the matrix adds
 readers of other native languages.
@@ -21,8 +21,9 @@ two per pair. The annex's date was not moved when change 12 edited it.
 - **Annex B in each published language** (French, English, Spanish) says, without naming one
   language as if it were the only one: the studied languages; the status, level, card and day each
   stored under its studied language; the gloss's language and the day's native language (change 12's
-  rows, kept); the native language staying on the device, and the interface language sent to
-  Cymbra ID as the account's e-mail language; the models of the reader's pairs, downloaded only when
+  rows, kept); the native-language setting staying on the device (not synced as a setting) while
+  the native language reaches Cymbra as each card's gloss language and with each day's statistics,
+  and the interface language sent to Cymbra ID as the account's e-mail language; the models of the reader's pairs, downloaded only when
   the reader turns the setting on; the voice of the language read aloud. The `updated` date moves.
 - **The erasure path** is named by its function, not by French interface labels, in the English and
   Spanish annexes.
