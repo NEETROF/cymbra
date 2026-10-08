@@ -172,6 +172,61 @@ take their list's level, and 82.6 % are within one level of it. The scale is mon
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
 D1 is not needed. The pack is 2,190,188 B, with the grammar, the glosses and the levels.
 
+## ES → EN
+
+Reduced by `reduce-es-en.py` (add-lingua-pack-es-en): Spanish glossed in English, the first pair of a
+studied language's second native language (`docs/lingua/language-matrix-programme.md`, change 21).
+No extension package carries the pack: `packs.json` does not list it until change 34.
+
+es-en reads Spanish's tables in `tables/es/` as committed — es-fr's reduction writes them — and
+writes its native side alone: its lemmas and their ranks are `tables/es/forms.tsv` and `freq.tsv`
+(capped at 60,000, as for every pair studying Spanish), its readings, levels and dictionary words
+es-fr's. Its reducer loads `reduce_common.py` and `reduce_edition_en.py`, not es-fr's reducer nor
+the French edition, so nothing of es-fr moves with it.
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org** extract of the English Wiktionary (`enwiktionary`), Spanish section — the extract es-fr reads for Spanish's forms; else the English translations the Spanish Wiktionary's Spanish entries list (`kaikki-es-traductions-en.jsonl`, derived from kaikki's dump of the whole edition, `pack_sources.py DUMPS`) | CC BY-SA 4.0 + GFDL | the shared rules on the English Wiktionary's Spanish entries, cleaned by the English edition's (`reduce_edition_en.EN`): up to eight senses grouped by part of speech, in lower case as the edition writes them. A fallback gloss is up to three English words per part of speech, in the table's order. No inverted table (the English Wiktionary's English entries are en-es's), no pivot, no machine translation |
+| `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; no gender — the builder gives a noun's runs the gender of its readings in `tables/es/grammar.tsv` |
+| `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer is empty |
+| `NOTICE` | both sides' sources | — | the English Wiktionary's Spanish section (forms, readings, glosses), the Spanish Wiktionary's translations, wordfreq and UD Spanish-GSD; the levels, es-fr's estimate from its French glosses, said so. The manifest says `levels_estimated` |
+
+**English glosses**, the share of the commonest lemmas glossed on the 2026-10-08 tables, held by the
+`reduce` job to es-fr's published figures (`gloss_coverage.py --pair es-en --floor 87.6 77.2 63.7`)
+and published nowhere until the pair ships:
+
+| Lemmas | English Wiktionary | with the translations | es-fr (the floor) |
+|---|---|---|---|
+| top 5,000 | 93.0 % | 93.3 % | 87.6 % |
+| top 10,000 | 86.4 % | 86.6 % | 77.2 % |
+| top 20,000 | 76.3 % | 76.5 % | 63.7 % |
+| all 60,000 | 52.9 % | 53.1 % | 37.9 % |
+
+31,889 lemmas are glossed, 31,753 from the English Wiktionary. 9,926 of them are no dictionary word
+of Spanish (es-fr glosses none of them), and 792 dictionary words have no English gloss, so the pack
+carries a lexical section: its dictionary words are es-fr's. There are 15,490 expressions: 14,778
+from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,568,024 B.
+
+**Shared sources, one release per pair** (D2). es-en's extract is es-fr's address, and each source
+record in a pin names the release that holds its asset, whichever pair's: `fetch-pinned` follows it.
+An update publishes a pair's own assets only, under `release_tag(pair, snapshot)` (`pack_sources.py
+release-tag`, `assets --release`). Fetched release assets are kept in `work/cache/<sha256>` across
+pairs, so a run reducing es-fr and es-en fetches an extract they share once, and `fetch-live` of
+es-en after es-fr's in the same run reads the extract es-fr fetched and records es-fr's release for
+it. es-en's first update was dispatched alone (2026-10-08): it fetched its own extract and published
+it, with its derived translations, as `lingua-pack-sources-es-en-2026.10.08`. Its extract is kaikki's
+regeneration of 2026-10-03, not the one es-fr pins, so until es-fr is updated with es-en after it,
+the `reduce` job fetches both (52 MB compressed each). es-en's re-reduction from its pinned sources
+takes about 30 s on a laptop, fetch and pack build included; its first update run took 6 minutes,
+and the `reduce` job reduced en-fr, es-fr and es-en again in 3 min 38 s of its 45-minute timeout
+(2026-10-08).
+
+**The English edition's two settings** are es-en's alone (D5, M20): `LONG_PARENTHESIS` (a
+parenthesis of 40 characters or more taken out: 1,058 of the top 10,000 glosses would change) and
+`MERGE_SAME_POS_ETYMOLOGIES` (a word's entries of one part of speech merged before the round-robin:
+247 would change). Both are committed at their defaults, off, until the owner picks them on samples
+of the top 10,000; a value chosen re-pins es-en alone.
+
 ## What a pack studies, whatever it glosses
 
 Two packs of one studied language must analyse it alike whatever native language they are glossed
@@ -211,6 +266,16 @@ one pin per pair, none in a studied folder. Hence:
 - an update of a reference reduces every other pair of its language again, from its own pinned
   sources, on the same branch (`pairs --after`), and its report lists what the studied tables change
   — forms, ranks, levels, readings and dictionary words — and names every pair whose pack moves.
+
+**A reader pair's pin records the studied tables it read** (add-lingua-pack-es-en D3). The pin of a
+pair that is not its language's reference — es-en today — holds, beside its snapshot, pack, rules and
+sources, `studied`: the reference pair and the sha256 of each of the six studied tables its build
+read (`forms.tsv`, `freq.tsv`, `grammar.tsv`, `level.tsv`, `lexical.tsv`, `tags.tsv`;
+`pack_sources.py RECORDED_STUDIED`), written by `record-build`. When the reference's reduction moves
+one, the pair's pack no longer matches its pin, and `check-reducer` and `pack_report.py` name the
+pair and the table (`es-en: es/level.tsv`) until it is reduced again. A rules-only change of the
+reference that moves no studied table leaves the reader's pin and pack as they are. A reader's
+`pack_version` is its own snapshot and rule digest.
 
 Two inputs of a studied folder are **written by no reducer**, so no rule digest moves with them:
 `split` never overwrites them, a dry run copies the studied folder into its scratch root
@@ -252,7 +317,7 @@ edition (generalise-lingua-gloss-reducer):
 | Module | Edition | Read by | What it knows |
 |---|---|---|---|
 | `reduce_edition_fr.py` | French (frwiktionary) | en-fr, es-fr | Today's rules, unchanged: the form-of wordings (« Pluriel de », « Forme de », also read for en-fr's own forms), « Présent », « Graphie » for expressions, the pointers and placeholders (« → voir », « Définition manquante ou à compléter »), a coordinator left hanging (« ou », « et »), a letter's name; a gloss of translation-table words opens on a capital |
-| `reduce_edition_en.py` | English (enwiktionary) | es-en (change 21) | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Long parentheses (M20) are kept until es-en's review settles them (`long_parenthesis`, 0) |
+| `reduce_edition_en.py` | English (enwiktionary) | es-en | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Two settings, es-en's alone and off until the owner picks them: long parentheses (M20, `LONG_PARENTHESIS` as `EN.long_parenthesis`, 0 keeps them) and the merging of a word's same-part-of-speech etymologies before the round-robin (`MERGE_SAME_POS_ETYMOLOGIES`, a pre-pass `reduce-es-en.py` runs) |
 | `reduce_edition_es.py` | Spanish (eswiktionary) | en-es (change 22) | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name |
 
 Each module's docstring holds the census its rules come from, measured on the data es-fr pins. The
@@ -262,8 +327,9 @@ shared function is always told which edition it cleans.
 **The digest covers what a reducer loads.** A pair's rules (`pin.json` `reducer.files`) are its
 reducer and every `reduce_*.py` module importing it loads, read from `sys.modules`
 (`pack_sources.py rule_files`): en-fr's and es-fr's are `reduce-<pair>.py`, `reduce_common.py` and
-`reduce_edition_fr.py`. Editing the English or Spanish edition re-pins no pair glossed in French;
-editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
+`reduce_edition_fr.py`; es-en's are `reduce-es-en.py`, `reduce_common.py` and
+`reduce_edition_en.py`. Editing the English edition re-pins es-en alone, the Spanish edition no
+committed pair; editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
 reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a
 reducer would make later than at import time, and any module loaded other than by an import
 statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.

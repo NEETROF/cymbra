@@ -158,7 +158,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 1 | 18 | `generalise-lingua-card-wording` | 2.5–4.5 | Not started |
 | 1 | 19 | `add-lingua-native-language-labels` (M19) | 2–3.5 | Not started |
 | 1 | 20 | `add-lingua-native-language-choice`: hidden while only French-native pairs ship | 4–7 | Not started |
-| 2 New audiences: es-en, en-es | 21 | `add-lingua-pack-es-en` | 3.5–6 | Not started |
+| 2 New audiences: es-en, en-es | 21 | `add-lingua-pack-es-en` | 3.5–6 | Done (proposal [#763](https://github.com/NEETROF/cymbra/pull/763)); tables/es-en committed and pinned, not shipped, es-fr and en-fr byte for byte unchanged; the owner's two settings of the English edition (M20) pending, committed at their defaults |
 | 2 | 22 | `add-lingua-pack-en-es` | 5–8 | Not started |
 | 2 | 23 | `add-lingua-english-card-wording` | 3–5 | Not started |
 | 2 | 24 | `add-lingua-spanish-card-wording` | 3–5.5 | Not started |

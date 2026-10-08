@@ -26,6 +26,29 @@ In this folder:
 | `manifest.json` | the pack's metadata: Spanish glossed in English, the Spanish analyser's version, `levels_estimated`, and `pack_version` (es-en's snapshot, and the rules that reduced it) | — |
 | `pin.json` | es-en's raw sources, the pack these tables build with `../es/`, the rules that reduced them, and the sha256 of each of `../es/`'s six tables they were built on (`studied`) | — |
 
+## What is in them
+
+On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version` `2026.10.08+733f815`):
+
+- **English glosses for 31,889 lemmas** of Spanish's 60,000, 31,753 from the English Wiktionary's
+  Spanish entries and 136 from the Spanish Wiktionary's translations; **15,490 expressions**, 14,778
+  and 712. Up to eight senses grouped by part of speech, as every pair's, in the lower case the
+  English Wiktionary writes a foreign word's senses in.
+- The share of the commonest lemmas glossed, which the `reduce` job holds to es-fr's published
+  figures (`gloss_coverage.py --pair es-en --floor 87.6 77.2 63.7`):
+
+  | Lemmas | English Wiktionary | with the translations | es-fr |
+  |---|---|---|---|
+  | top 5,000 | 93.0 % | 93.3 % | 87.6 % |
+  | top 10,000 | 86.4 % | 86.6 % | 77.2 % |
+  | top 20,000 | 76.3 % | 76.5 % | 63.7 % |
+  | all 60,000 | 52.9 % | 53.1 % | 37.9 % |
+
+- **Dictionary words are es-fr's**: 9,926 lemmas es-en glosses are no dictionary word of Spanish,
+  and 792 dictionary words have no English gloss, so the pack carries a lexical section, and the
+  vocabulary estimate counts the same 22,755 words for both pairs.
+- **The pack is 2,568,024 B**, 49.0 % of the 5 MiB budget.
+
 ## Its sources
 
 - **The English Wiktionary's Spanish section** — kaikki's extract, the one es-fr reads for Spanish's
@@ -53,8 +76,9 @@ Two settings of `reduce_edition_en.py` change what es-en's glosses say, and no o
   word's entries takes one sense of each in turn; merged, a word's entries of one part of speech
   read as one, the first etymology's senses first. **Off**: read as written.
 
-Both are committed at their defaults; the owner picks them on two samples of 100 glosses from the
-top 10,000, each reduced both ways, and a value chosen re-pins es-en alone.
+Reduced both ways over the top 10,000 lemmas, the bound at 40 changes 1,058 glosses and the merging
+247. Both are committed at their defaults; the owner picks them on two samples of 100 of those
+glosses, and a value chosen re-pins es-en alone.
 
 ## Licences
 
