@@ -122,16 +122,18 @@ fn strip(value: &mut serde_json::Value) {
 }
 
 /// A probe's output with its native side removed; `None` for the probes that are native or
-/// pack identity by definition: the pack line, the notice and the licences — a pack's
-/// attributions credit the sources of its glosses, so es-en's name the Spanish Wiktionary's
-/// translations where es-fr's name the French Wiktionary (add-lingua-pack-es-en D4) — and a
-/// card's gloss.
+/// pack identity by definition: the pack line and a card's gloss — and, when `own_credits`, the
+/// notice and the licences: a real pack's attributions credit the sources of its glosses, so
+/// es-en's name the English and Spanish Wiktionaries where es-fr's name the French one
+/// (add-lingua-pack-es-en D4). A synthetic second pack keeps its reference's credits, and they
+/// are compared.
 ///
 /// An engine's native language is its reader's (generalise-lingua-native-language), so the
 /// backup records the reader's profile, and writes it in the schema version a profile other
 /// than the default needs: both name the reader, not what the pack analyses.
-fn studied_side(name: &str, body: &str) -> Option<String> {
-    if matches!(name, "pack" | "notice" | "licences")
+fn studied_side(name: &str, body: &str, own_credits: bool) -> Option<String> {
+    if name == "pack"
+        || (own_credits && matches!(name, "notice" | "licences"))
         || name.starts_with("beside ")
         || name.starts_with("gloss ")
     {
@@ -174,13 +176,15 @@ fn assert_card_ops_labelled(reference: &str, other: &str, native: &str) {
 }
 
 /// Every probe of `scenario`, through `reference` and through `other`: alike once the native
-/// side is removed. `native` is the other pack's native language, which labels its cards.
+/// side is removed. `native` is the other pack's native language, which labels its cards;
+/// `own_credits`, whether the other pack credits sources of its own (a real pack does).
 fn assert_probes_alike(
     scenario: &Scenario,
     language: Option<&str>,
     reference: &[u8],
     other: &[u8],
     native: &str,
+    own_credits: bool,
 ) {
     let render = |pack: &[u8]| {
         // The scenario's pair labels the pack line, which is not compared.
@@ -197,7 +201,10 @@ fn assert_probes_alike(
         if name == "export-card-ops" {
             assert_card_ops_labelled(x, y, native);
         }
-        let (Some(x), Some(y)) = (studied_side(name, x), studied_side(name, y)) else {
+        let (Some(x), Some(y)) = (
+            studied_side(name, x, own_credits),
+            studied_side(name, y, own_credits),
+        ) else {
             continue;
         };
         compared += 1;
@@ -217,10 +224,12 @@ fn assert_probes_alike(
                 .collect::<String>(),
         );
     }
-    // Every probe but the pack line, the notice, the licences and the cards' glosses.
+    // Every probe but the pack line, the cards' glosses and — a pack's own credits — the notice
+    // and the licences.
+    let credits = if own_credits { 2 } else { 0 };
     assert_eq!(
         compared,
-        a.len() - 3 - scenario.lemmas.len(),
+        a.len() - 1 - credits - scenario.lemmas.len(),
         "probes compared"
     );
 }
@@ -258,6 +267,7 @@ fn spec_scenario_english_through_another_native_language() {
         &reference,
         &other,
         ENGLISH_IN_SPANISH.native,
+        false,
     );
 
     // *A vocabulary size counts dictionary words*: the universe and B1's typical vocabulary.
@@ -297,7 +307,7 @@ fn spec_scenario_spanish_through_another_native_language() {
         build_pack(&other_inputs).expect("es-en"),
     );
     assert_studied_sections_alike("es-fr", &reference, &other);
-    assert_probes_alike(&SPANISH, Some("es"), &reference, &other, "en");
+    assert_probes_alike(&SPANISH, Some("es"), &reference, &other, "en", true);
 
     let (es_fr, es_en) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
     assert_eq!(es_en.pair().key(), "es-en");
