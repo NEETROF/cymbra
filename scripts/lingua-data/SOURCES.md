@@ -186,7 +186,7 @@ the French edition, so nothing of es-fr moves with it.
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
-| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) Spanish section — the file es-fr reads for Spanish's forms, derived from the edition's dump (pinned as kaikki's per-language extract of 2026-10-03 until es-en's next update); else the English translations the Spanish Wiktionary's Spanish entries list (`kaikki-es-traductions-en.jsonl`, derived from the Spanish edition's dump; *The editions' dumps*) | CC BY-SA 4.0 + GFDL | the shared rules on the English Wiktionary's Spanish entries, cleaned by the English edition's (`reduce_edition_en.EN`): up to eight senses grouped by part of speech, in lower case as the edition writes them. A fallback gloss is up to three English words per part of speech, in the table's order. No inverted table (the English Wiktionary's English entries are en-es's), no pivot, no machine translation |
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) Spanish section — the file es-fr reads for Spanish's forms, derived from the edition's dump (pinned as kaikki's per-language extract of 2026-10-03 until es-en's next update); else the English translations the Spanish Wiktionary's Spanish entries list (`kaikki-es-traductions-en.jsonl`, derived from the Spanish edition's dump; *The editions' dumps*) | CC BY-SA 4.0 + GFDL | the shared rules on the English Wiktionary's Spanish entries, read first as meanings, not as the page's layout (`reduce_edition_en.read_as_meanings`, below), and cleaned by the English edition's (`reduce_edition_en.EN`): up to eight senses grouped by part of speech, in lower case as the edition writes them. A fallback gloss is up to three English words per part of speech, in the table's order. No inverted table (the English Wiktionary's English entries are en-es's), no pivot, no machine translation |
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; no gender — the builder gives a noun's runs the gender of its readings in `tables/es/grammar.tsv` |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer is empty |
 | `NOTICE` | both sides' sources | — | the English Wiktionary's Spanish section (forms, readings, glosses), the Spanish Wiktionary's translations, the French Wiktionary (es-fr's glosses decide the dictionary words and which lemmas take a level), wordfreq and UD Spanish-GSD; the levels, es-fr's estimate from its French glosses, said so. The manifest says `levels_estimated` |
@@ -202,10 +202,10 @@ and published nowhere until the pair ships:
 | top 20,000 | 76.3 % | 76.5 % | 63.7 % |
 | all 60,000 | 52.9 % | 53.1 % | 37.9 % |
 
-31,876 lemmas are glossed, 31,747 from the English Wiktionary. 9,923 of them are no dictionary word
-of Spanish (es-fr glosses none of them), and 802 dictionary words have no English gloss, so the pack
-carries a lexical section: its dictionary words are es-fr's. There are 15,490 expressions: 14,778
-from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,567,750 B.
+31,885 lemmas are glossed, 31,756 from the English Wiktionary. 9,928 of them are no dictionary word
+of Spanish (es-fr glosses none of them), and 798 dictionary words have no English gloss, so the pack
+carries a lexical section: its dictionary words are es-fr's. There are 15,515 expressions: 14,803
+from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,567,804 B.
 A letter glosses no word: the English edition's letter rule takes « the letter r » and the Spanish
 spelling alphabet's « the letter E in … » (36 glosses ended on one), a pre-pass of
 `reduce_edition_en.py` drops the entries written under a single capital letter (`A` « bishop », `C`
@@ -227,6 +227,25 @@ both (52 MB compressed each); each pair's next update moves it to the English ed
 its pinned sources takes about 30 s on a laptop, fetch and pack build included; its first update run
 took 6 minutes, and the `reduce` job reduced en-fr, es-fr and es-en again in 3 min 38 s of its
 45-minute timeout (2026-10-08).
+
+**Meanings, not the page's layout** (refine-lingua-es-en-glosses). The English Wiktionary nests a
+sense under its parents' glosses, writes a shortened form as a pointer that carries its meaning, and
+has its own typography: read as written, es-en glossed « venir » by two sense-group labels, « su »
+« apocopic form of suyo », « lo » by its article alone, « como » by the city of Como. A pre-pass of
+the English edition, `read_as_meanings`, run after the letters' passes and before the etymology
+merging, reads a sense nested under a label or a pointer by its own gloss (D2); a shortened or
+respelled form, known by its wording and never by a tag alone, as the meaning it carries or its
+target's senses in the same part of speech from a target of three letters or more, and a pronoun's
+case form as the meaning after its colon or semicolon (D3); a function word's gloss without a place
+of the same spelling first, an acronym's lines in their place (D4); one English typography — no text
+after a line break, no source's numbered sense, the edition's descriptions in lower case, one
+ellipsis « … », straight double quotes paired “ ” (D5). es-en was reduced again from its pinned
+release, its pin's snapshot, studied record and sources byte for byte: 268 rows change (111 of the
+top 10,000), 9 lemmas and 25 expressions gain a gloss, none loses one, 332 expressions change, and
+the coverage holds to the decimal. Left, measured, for the owner or a shared fix (its design, D6):
+the labels the packs do not carry, the part of speech a row opens on, a proper noun before a common
+word, « q », « k » and « t » borrowing through an abbreviation, upstream text, and « etc »'s period,
+which `reduce_common.clean_gloss` takes from every pair.
 
 **The English edition's two settings** are es-en's alone (D5, M20): `LONG_PARENTHESIS` (a
 parenthesis of 40 characters or more taken out: 1,057 of the top 10,000 glosses would change) and
@@ -399,7 +418,10 @@ The regenerations the pins record were still served that day, so the opportunity
 es-fr's three derived files and es-en's and en-es's derived from the French and Spanish dumps re-derive
 to their pinned sha256 byte for byte (the new `derive`, hashing in the same pass, writes what the old
 one wrote); es-en's committed tables reproduce byte for byte from the English dump of 2026-10-03
-08:24 (the Spanish section derived from it, Spanish's committed tables, every other source pinned);
+08:24 (the Spanish section derived from it, Spanish's committed tables, every other source pinned) —
+and again under refine-lingua-es-en-glosses's rules, whose D3 lending, D4 and the round-robin read
+file order: es-en's re-pinned tables reduced from that Spanish section (sha256 `7622948c…`, the dump
+of 08:24 still served on 2026-10-08) are identical (`pack_report.py --identical`);
 and en-es's direct translations re-derive from today's English extract to the sha256 its pin
 records.
 
@@ -477,7 +499,7 @@ one, the pair's pack no longer matches its pin, and `check-reducer` and `pack_re
 pair and the table (`es-en: es/level.tsv`) until it is reduced again. A rules-only change of the
 reference that moves no studied table leaves the reader's pin and pack as they are. A reader's
 `pack_version` names its own snapshot and rule digest and a digest of that record
-(`2026.10.08+9e2a442.08034dc`, `pack_sources.py version`), in an update as after a re-reduction:
+(`2026.10.08+ee357fe.08034dc`, `pack_sources.py version`), in an update as after a re-reduction:
 it moves when a studied table does.
 
 Two inputs of a studied folder are **written by no reducer**, so no rule digest moves with them:
@@ -520,7 +542,7 @@ edition (generalise-lingua-gloss-reducer):
 | Module | Edition | Read by | What it knows |
 |---|---|---|---|
 | `reduce_edition_fr.py` | French (frwiktionary) | en-fr, es-fr | Today's rules, unchanged: the form-of wordings (« Pluriel de », « Forme de », also read for en-fr's own forms), « Présent », « Graphie » for expressions, the pointers and placeholders (« → voir », « Définition manquante ou à compléter »), a coordinator left hanging (« ou », « et »), a letter's name; a gloss of translation-table words opens on a capital |
-| `reduce_edition_en.py` | English (enwiktionary) | es-en | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Two settings, es-en's alone and off until the owner picks them: long parentheses (M20, `LONG_PARENTHESIS` as `EN.long_parenthesis`, 0 keeps them) and the merging of a word's same-part-of-speech etymologies before the round-robin (`MERGE_SAME_POS_ETYMOLOGIES`, a pre-pass `reduce-es-en.py` runs) |
+| `reduce_edition_en.py` | English (enwiktionary) | es-en | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Its senses read as meanings before the shared rules read them (`read_as_meanings`, refine-lingua-es-en-glosses): a sense nested under a label or a pointer by its own gloss; a shortened or respelled form (« apocopic form of », « pronunciation spelling of »…, an untagged one a pointer too) by the meaning it carries or its target's senses, a pronoun's case form by its meaning; a place's name after a function word spelled like it; the edition's descriptions in lower case, one ellipsis, curly double quotes, no numbered sense, nothing after a line break. Two settings, es-en's alone and off until the owner picks them: long parentheses (M20, `LONG_PARENTHESIS` as `EN.long_parenthesis`, 0 keeps them) and the merging of a word's same-part-of-speech etymologies before the round-robin (`MERGE_SAME_POS_ETYMOLOGIES`, a pre-pass `reduce-es-en.py` runs) |
 | `reduce_edition_es.py` | Spanish (eswiktionary) | en-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name |
 
 Each module's docstring holds the census its rules come from, measured on the data es-fr pins. The

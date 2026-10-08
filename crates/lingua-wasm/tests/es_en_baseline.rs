@@ -75,7 +75,7 @@ const GRAMMAR: [(&str, &str); SPANISH.grammar.len() + MORE_LEMMAS.len()] = {
 };
 
 /// The first page of es-en's gloss of « viaje »: the whole gloss, which fits one page.
-const VIAJE_FIRST_PAGE: &str = "voyage; journey, trip; A state of hallucination or altered consciousness caused by a narcotic drug; a lot, loads";
+const VIAJE_FIRST_PAGE: &str = "voyage; journey, trip; a state of hallucination or altered consciousness caused by a narcotic drug; a lot, loads";
 
 /// The Spanish scenario, glossed in English: es-en alone, the reference's cards with the shown
 /// gloss the es-en pack's first page for its lemma, and the 40 more grammar probes.
