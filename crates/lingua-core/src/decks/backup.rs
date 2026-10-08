@@ -850,4 +850,23 @@ mod tests {
             assert!(LinguaState::from_backup(&file).is_ok(), "version {version}");
         }
     }
+
+    #[test]
+    fn a_committed_version_3_file_is_refused_by_a_build_reading_version_2() {
+        // The file this build writes for a reader with French records, pinned by
+        // tests/backup_format.rs: a build that reads versions 1 and 2 refuses it by its version,
+        // and this build restores it.
+        let file = include_str!("../../tests/fixtures/backup-v3-french.json");
+        assert!(file.contains("\"French\": {"), "French records");
+        assert!(matches!(
+            read_backup(file, 2),
+            Err(RestoreError::UnsupportedVersion {
+                found: 3,
+                supported: 2
+            })
+        ));
+        let restored = LinguaState::from_backup(file).expect("restore");
+        assert_eq!(restored.backup_version(), 3);
+        assert_eq!(restored.to_backup(), file, "written back byte for byte");
+    }
 }
