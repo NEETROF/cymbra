@@ -2,26 +2,28 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { Coverage } from "../../src/lib/lingua-pairs";
-import { MATRIX, TODAY } from "../support/lingua";
+import type { Coverage, Routes } from "../../src/lib/lingua-pairs";
+import takenWith from "../fixtures/lingua/taken-with.json";
+import { MATRIX, ROUTES, TODAY } from "../support/lingua";
 
 // The Lingua pages rendered as the build renders them, through Astro's Container API, on a
 // committed pair list (change: add-site-lingua-matrix-pages, D1–D3). The test stands in for
 // `src/data/lingua-coverage.json` and the extension's model catalogue, so the page, its
 // `getStaticPaths()` and the layout's Spanish links all read the same list:
-// - today's pairs: `/lingua/` and `/en/lingua/` render the `<main>` of the fixtures, byte
-//   for byte, whatever the live data holds (`test/post-build/lingua.spec.ts` checks the
-//   built pages against the same fixtures while the live pairs are the fixtures');
+// - the fixtures' pairs (`test/fixtures/lingua/taken-with.json`, today's en-fr and es-fr):
+//   `/lingua/` and `/en/lingua/` render the fixtures' `<main>`, byte for byte, whatever the
+//   live data holds (`test/post-build/lingua.spec.ts` checks the built pages against the
+//   same fixtures while the live pairs are the fixtures');
+// - today's pairs (`test/support/lingua.ts`): no `/es/lingua/`, the Spanish pages link the
+//   English one;
 // - the matrix (es-en and en-es beside them): `/es/lingua/` exists, in Spanish, leads with
 //   the Spanish-glossed pair, and the Spanish nav and footer link it — what the build will do
 //   once change 35 ships en-es.
 
 const coverage = vi.hoisted(() => ({ tops: [] as number[], glossed: {} as Record<string, number[]> }));
+const manifest = vi.hoisted(() => ({ routes: {} as Record<string, string[]> }));
 vi.mock("../../src/data/lingua-coverage.json", () => ({ default: coverage }));
-vi.mock("../../../lingua-extension/model-manifest.json", async () => {
-  const { ROUTES } = await import("../support/lingua");
-  return { default: { routes: ROUTES } };
-});
+vi.mock("../../../lingua-extension/model-manifest.json", () => ({ default: manifest }));
 // The fixtures were taken with no community invite.
 vi.mock("../../src/lib/config", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../src/lib/config")>();
@@ -33,11 +35,15 @@ import EnglishPage from "../../src/pages/en/lingua.astro";
 import LocalePage, { getStaticPaths } from "../../src/pages/[locale]/lingua.astro";
 import SpanishNotFound from "../../src/pages/es/404.astro";
 
-/** The pairs every render below reads, as `lingua-coverage.json` would hold them. */
-function ship(data: Coverage): void {
+/** The pairs every render below reads, as `lingua-coverage.json` and the catalogue would hold them. */
+function ship(data: Coverage, routes: Routes): void {
   coverage.tops = data.tops;
   coverage.glossed = data.glossed;
+  manifest.routes = routes;
 }
+const shipTheFixtures = () => ship(takenWith.coverage, takenWith.routes);
+const shipToday = () => ship(TODAY, ROUTES);
+const shipTheMatrix = () => ship(MATRIX, ROUTES);
 
 const fixture = (lang: string) => readFileSync(resolve(__dirname, `../fixtures/lingua/main.${lang}.html`), "utf8");
 const main = (html: string) => html.match(/<main>(.*?)<\/main>/s)?.[1];
@@ -58,17 +64,17 @@ const localePage = LocalePage as unknown as Page;
 
 describe("today's pairs", () => {
   it("/lingua/ renders the fixture's <main>, byte for byte", async () => {
-    ship(TODAY);
+    shipTheFixtures();
     expect(main(await render(FrenchPage))).toBe(fixture("fr"));
   });
 
   it("/en/lingua/ renders the fixture's <main>, byte for byte", async () => {
-    ship(TODAY);
+    shipTheFixtures();
     expect(main(await render(EnglishPage))).toBe(fixture("en"));
   });
 
   it("builds no /es/lingua/, and the Spanish pages link the English one", async () => {
-    ship(TODAY);
+    shipToday();
     expect(getStaticPaths()).toEqual([]);
     const notFound = await render(SpanishNotFound);
     expect(navLingua(notFound)).toBe("/en/lingua");
@@ -83,12 +89,12 @@ describe("today's pairs", () => {
 
 describe("the matrix: a pair glossed in Spanish ships", () => {
   it("builds /es/lingua/", () => {
-    ship(MATRIX);
+    shipTheMatrix();
     expect(getStaticPaths()).toEqual([{ params: { locale: "es" } }]);
   });
 
   it("/es/lingua/ is Spanish, leads with the Spanish-glossed pair and is linked from the Spanish nav and footer", async () => {
-    ship(MATRIX);
+    shipTheMatrix();
     const html = await render(localePage, { locale: "es" });
     expect(html).toContain('<html lang="es">');
     expect(html).toContain("<title>Cymbra Lingua — amplía tu vocabulario leyendo la web</title>");
@@ -104,7 +110,7 @@ describe("the matrix: a pair glossed in Spanish ships", () => {
   });
 
   it("the French and English pages name it, and the Spanish not-found page links it", async () => {
-    ship(MATRIX);
+    shipTheMatrix();
     for (const page of [FrenchPage, EnglishPage]) {
       expect(hreflangs(await render(page)).map(([lang]) => lang)).toEqual(["fr", "en", "es"]);
     }
@@ -116,7 +122,7 @@ describe("the matrix: a pair glossed in Spanish ships", () => {
   });
 
   it("/en/lingua/ leads with the English-glossed pair", async () => {
-    ship(MATRIX);
+    shipTheMatrix();
     const html = await render(EnglishPage);
     expect(headers(html)[1]).toBe("Spanish → English");
     expect(main(html)).toContain("Made for English speakers learning Spanish.");
