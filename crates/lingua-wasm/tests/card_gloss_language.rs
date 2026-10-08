@@ -15,11 +15,11 @@
 //! A card says the language of its gloss, and review shows one the reader can read
 //! (add-lingua-card-gloss-language, `lingua-decks-review`).
 //!
-//! A card is created on an engine glossed in English — es-en, the second pack
-//! `support/other_native.rs` builds over es-fr's studied tables — with the gloss its surface
-//! showed, and pulled as a card operation into a French-native engine holding es-fr. Reviewed
-//! there, the view shows es-fr's gloss for the lemma: a word's, or an expression's from the
-//! pack's expression table; and the card's own text when es-fr has none. The card keeps its
+//! A card is created on an engine glossed in English — es-en, the committed pair glossed in
+//! English (add-lingua-pack-es-en), built over es-fr's studied tables — with the gloss its
+//! surface showed, and pulled as a card operation into a French-native engine holding es-fr.
+//! Reviewed there, the view shows es-fr's gloss for the lemma: a word's, or an expression's from
+//! the pack's expression table; and the card's own text when es-fr has none. The card keeps its
 //! English text and label. The baselines pin the view of every French card.
 //!
 //! Host only: the pack builder is native (C zstd).
@@ -29,24 +29,19 @@
 mod support;
 
 use lingua_core::packs::Pack;
-use lingua_pack::build_pack;
 use lingua_wasm::LinguaEngine;
 use support::Scenario;
 use support::english::ENGLISH;
-use support::other_native::SPANISH_IN_ENGLISH;
 use support::spanish::SPANISH;
 
 /// 2026-09-21T13:46:40Z, in epoch seconds: the deck bindings' unit.
 const T: f64 = 1_790_000_000.0;
 const DAY: f64 = 86_400.0;
 
-/// The reference es-fr pack, and es-en: the same studied tables, glossed in English.
+/// The reference es-fr pack, and es-en: the same studied tables, glossed in English — both from
+/// the committed tables.
 fn packs() -> (Vec<u8>, Vec<u8>) {
-    let (reference, other) = SPANISH_IN_ENGLISH.inputs();
-    (
-        build_pack(&reference).expect("es-fr"),
-        build_pack(&other).expect("es-en"),
-    )
+    (Scenario::real_pack("es-fr"), Scenario::real_pack("es-en"))
 }
 
 /// An engine glossed in English, holding one Spanish card created with the gloss its surface
@@ -263,6 +258,7 @@ fn spec_scenario_a_gloss_the_pack_has_not() {
     // A word es-en glosses and es-fr does not, and an expression neither holds: the view shows
     // the card's own text, in its language.
     assert!(pack.gloss("augusto").is_none());
+    assert!(Pack::load(&es_en).unwrap().gloss("augusto").is_some());
     assert!(pack.expression("hablar de casa").is_none());
     for (lemma, text) in [
         ("augusto", "Gloss of augusto"),

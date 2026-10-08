@@ -7,8 +7,9 @@
 """Tests for the Wiktionary editions' rules (generalise-lingua-gloss-reducer).
 
 The senses are recorded from real kaikki data, cut down to the fields the rules read: the English
-Wiktionary's Spanish section (the 2026-09-28 extract es-fr pins) and the Spanish Wiktionary's English
-entries (its 2026-10-02 dump, which es-fr pins). A case marked « made up » is not from the data.
+Wiktionary's Spanish section (the 2026-09-28 extract es-fr pins, and for `policía` its 2026-10-03
+one) and the Spanish Wiktionary's English entries (its 2026-10-02 dump, which es-fr pins). A case
+marked « made up » is not from the data.
 
 Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
@@ -33,6 +34,7 @@ sys.path.insert(0, _HERE)
 
 import pack_sources as ps  # noqa: E402
 import reduce_common as common  # noqa: E402
+import reduce_edition_en as english  # noqa: E402
 from reduce_edition_en import EN  # noqa: E402
 from reduce_edition_es import ES  # noqa: E402
 from reduce_edition_fr import FR  # noqa: E402
@@ -49,6 +51,7 @@ def _reducer(pair):
 
 en_fr = _reducer("en-fr")
 es_fr = _reducer("es-fr")
+es_en = _reducer("es-en")
 # The studied languages, as the pairs that study them describe them.
 ENGLISH = en_fr.EN
 SPANISH = es_fr.ES
@@ -125,6 +128,25 @@ DE_LETTER = {
     "word": "de",
     "pos": "noun",
     "senses": [{"glosses": ["The name of the Latin script letter D/d."], "tags": ["feminine"]}],
+}
+# A word of two noun etymologies, as kaikki writes it: one entry each (2026-10-03 extract).
+POLICIA_1 = {
+    "word": "policía",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["Civility, polity, public order, police, fineness, neatness, urbanity"], "tags": ["feminine"]},
+        {"glosses": ["police, police department, police force, police service"], "tags": ["feminine"]},
+    ],
+}
+POLICIA_2 = {
+    "word": "policía",
+    "pos": "noun",
+    "senses": [
+        {
+            "glosses": ["police officer (a member of a police force)"],
+            "tags": ["by-personal-gender", "feminine", "masculine"],
+        }
+    ],
 }
 SEPULTURA = {
     "word": "sepultura",
@@ -291,6 +313,86 @@ class TheEnglishEdition(Entries):
         )
 
 
+class TheEnglishEditionSettings(Entries):
+    """The two settings es-en's review decides (add-lingua-pack-es-en D5, M20): settings of the
+    English edition, which no pair glossed in French loads."""
+
+    def test_both_are_committed_at_their_defaults(self):
+        self.assertEqual((english.LONG_PARENTHESIS, EN.long_parenthesis), (0, 0))
+        self.assertFalse(english.MERGE_SAME_POS_ETYMOLOGIES)
+        # Off, the pre-pass reads nothing and writes nothing: the reducer reads the file as written.
+        src = self.jsonl(POLICIA_1, POLICIA_2)
+        dst = self.dir / "merged.jsonl"
+        self.assertEqual(english.merge_same_pos_etymologies(src, str(dst)), src)
+        self.assertFalse(dst.exists())
+
+    def test_the_pre_pass_merges_a_word_s_etymologies_of_one_part_of_speech(self):
+        # Recorded: `policía`'s two noun entries. Read as written, the round-robin takes the first
+        # sense of each before the second of the first; merged, the first etymology's come first.
+        written, _ = self.gloss(EN, SPANISH, {"policía"}, POLICIA_1, POLICIA_2)
+        self.assertEqual(
+            written["policía"],
+            "Civility, polity, public order, police, fineness, neatness, urbanity; "
+            "police officer (a member of a police force); police, police department, police force, police service",
+        )
+        merged = english.merge_same_pos_etymologies(
+            self.jsonl(POLICIA_1, POLICIA_2), str(self.dir / "merged.jsonl"), merged=True
+        )
+        lines = [json.loads(line) for line in Path(merged).read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(len(lines), 1)
+        self.assertEqual(lines[0]["senses"], POLICIA_1["senses"] + POLICIA_2["senses"])
+        runs = {}
+        glosses = common.reduce_gloss(merged, {"policía"}, **common.WORD_GLOSS, runs=runs, studied=SPANISH, edition=EN)
+        self.assertEqual(
+            glosses["policía"],
+            "Civility, polity, public order, police, fineness, neatness, urbanity; "
+            "police, police department, police force, police service; police officer (a member of a police force)",
+        )
+        self.assertEqual(runs["policía"], [("NOUN", 3)])
+
+    def test_the_pre_pass_keeps_other_parts_of_speech_and_other_spellings_apart(self):
+        # Made up: a verb entry between the nouns, and an acronym spelled like the word.
+        verb = {"word": "policía", "pos": "verb", "senses": [{"glosses": ["inflection of policiar:"]}]}
+        acronym = {"word": "POLICÍA", "pos": "noun", "senses": [{"glosses": ["an acronym"]}]}
+        merged = english.merge_same_pos_etymologies(
+            self.jsonl(POLICIA_1, verb, POLICIA_2, acronym, CASA), str(self.dir / "merged.jsonl"), merged=True
+        )
+        lines = [json.loads(line) for line in Path(merged).read_text(encoding="utf-8").splitlines()]
+        self.assertEqual([(e["word"], e["pos"], len(e["senses"])) for e in lines], [
+            ("policía", "noun", 3),
+            ("policía", "verb", 1),
+            ("POLICÍA", "noun", 1),
+            ("casa", "noun", 1),
+        ])
+
+    def test_spec_scenario_a_setting_of_the_english_edition(self):
+        # Either setting changed re-pins es-en alone: it is in es-en's rules and in no French-native
+        # pair's, and reduce_common.py, which every pair loads, is not edited for it.
+        self.assertEqual(
+            [p.name for p in ps.rule_files(Path(_HERE) / "reduce-es-en.py")],
+            ["reduce-es-en.py", "reduce_common.py", "reduce_edition_en.py"],
+        )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        pairs = ("en-fr", "es-fr", "es-en")
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        self.assertEqual(before, {pair: ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py") for pair in pairs})
+        edition = copy / "reduce_edition_en.py"
+        for old, new in (
+            ("LONG_PARENTHESIS = 0\n", "LONG_PARENTHESIS = 40\n"),
+            ("MERGE_SAME_POS_ETYMOLOGIES = False\n", "MERGE_SAME_POS_ETYMOLOGIES = True\n"),
+        ):
+            text = edition.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            edition.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertNotEqual(after["es-en"], before["es-en"], new)
+            self.assertEqual((after["en-fr"], after["es-fr"]), (before["en-fr"], before["es-fr"]), new)
+            before = after
+
+
 class TheSpanishEdition(Entries):
     def test_forma_del_plural_de_is_a_form_of(self):
         sense = CHIPS["senses"][0]
@@ -442,6 +544,69 @@ class AGlossIsWrittenInTheReadersLanguage(Entries):
                 es_fr.main()
         self.assertEqual((work / "freq.tsv").read_text(encoding="utf-8"), "casa\t1\nperro\t2\ngato\t3\n")
         self.assertEqual((work / "gloss.tsv").read_text(encoding="utf-8"), "gato\tChat\nperro\tChien\n")
+
+    def test_spec_scenario_a_gloss_from_a_translation_table(self):
+        # es-en reduced as its build runs it (`main()`), from a studied folder as es-fr writes it.
+        # The English Wiktionary glosses `casa`; `sector` and `correr` have no English entry, and
+        # the Spanish Wiktionary lists their English translations — at most three per part of
+        # speech, in its order, in the case their words have. Nothing glosses `gato` in English: the
+        # Spanish Wiktionary's French translations, es-fr's, are not read.
+        work, studied = self.dir / "work", self.dir / "es"
+        work.mkdir()
+        studied.mkdir()
+        (studied / "forms.tsv").write_text(
+            "casa\tcasa\ncasas\tcasa\ncorrer\tcorrer\ngato\tgato\nsector\tsector\n", encoding="utf-8"
+        )
+        (studied / "freq.tsv").write_text("casa\t1\nsector\t2\ncorrer\t3\ngato\t4\n", encoding="utf-8")
+        self.jsonl(CASA, CASAS, name="work/kaikki-Spanish.jsonl")
+        self.jsonl(
+            {"word": "casa", "pos": "noun", "translations": [{"word": "home"}]},
+            {
+                "word": "sector",
+                "pos": "noun",
+                "translations": [{"word": "sector"}, {"word": "area"}, {"word": "field"}, {"word": "zone"}],
+            },
+            {"word": "correr", "pos": "verb", "translations": [{"word": "run"}, {"word": "flow", "sense": "of a liquid"}]},
+            {"word": "Sevilla", "pos": "name", "translations": [{"word": "Seville"}]},
+            name="work/kaikki-es-traductions-en.jsonl",
+        )
+        self.jsonl({"word": "gato", "pos": "noun", "translations": [{"word": "chat"}]}, name="work/kaikki-es-traductions.jsonl")
+        argv = [
+            "reduce-es-en.py",
+            *("--work", str(work), "--studied", str(studied)),
+            *("--built-at", "2026-10-08", "--pack-version", "test"),
+        ]
+        with mock.patch.object(sys, "argv", argv), contextlib.redirect_stderr(io.StringIO()) as err:
+            es_en.main()
+        self.assertIn("reduced es-en: lemmas=4", err.getvalue())
+        self.assertEqual(
+            (work / "gloss.tsv").read_text(encoding="utf-8"),
+            "casa\thouse\ncorrer\trun, flow\nsector\tsector, area, field\n",
+        )
+        self.assertEqual(
+            (work / "senses.tsv").read_text(encoding="utf-8"), "casa\tNOUN:1\ncorrer\tVERB:1\nsector\tNOUN:1\n"
+        )
+        # The native side alone: nothing of the studied side is computed (D1).
+        written = sorted(p.name for p in work.iterdir() if not p.name.startswith("kaikki-"))
+        self.assertEqual(written, ["NOTICE", "gloss.tsv", "manifest.json", "mwe.tsv", "senses.tsv"])
+        manifest = json.loads((work / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual((manifest["meta"]["studied"], manifest["meta"]["native"]), ("es", "en"))
+        self.assertTrue(manifest["meta"]["levels_estimated"])
+        self.assertEqual(manifest["meta"]["pack_version"], "test")
+
+    def test_es_en_reads_the_committed_studied_tables_as_es_fr_writes_them(self):
+        # A studied folder whose forms and ranks disagree is not what es-fr's reduction writes.
+        studied = self.dir / "es"
+        studied.mkdir()
+        (studied / "forms.tsv").write_text("casa\tcasa\ncasas\tcasa\n", encoding="utf-8")
+        (studied / "freq.tsv").write_text("casa\t1\nperro\t2\n", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "disagree on the lemmas"):
+            es_en.read_studied(str(studied), 60000)
+        (studied / "forms.tsv").write_text("casa\tcasa\nperro\tperro\n", encoding="utf-8")
+        self.assertEqual(es_en.read_studied(str(studied), 60000), {"casa": 1, "perro": 2})
+        self.assertEqual(es_en.read_studied(str(studied), 1), {"casa": 1}, "capped by rank")
+        committed = es_en.read_studied(os.path.join(_HERE, "tables", "es"), 60000)
+        self.assertEqual(len(committed), 60000)
 
     def test_nothing_written_no_gloss(self):
         glosses, runs, expressions, primary = common.native_tables(

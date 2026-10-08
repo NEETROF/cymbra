@@ -62,6 +62,43 @@ fn pipeline_output_round_trips_through_the_reader() {
 }
 
 #[test]
+fn every_testdata_fixture_builds_and_names_its_pair() {
+    // The tiny fixtures, one folder per pair (`build.sh --testdata`): es-fr's, and es-en's
+    // (add-lingua-pack-es-en D6), which `gen:pack` builds once the pair ships. Each builds
+    // under budget and names its pair; a Spanish one studies with es's analyser.
+    let root = testdata_dir().parent().unwrap().to_path_buf();
+    let mut pairs: Vec<String> = std::fs::read_dir(&root)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.contains('-'))
+        .collect();
+    pairs.sort();
+    assert!(pairs.iter().any(|p| p == "es-en"), "{pairs:?}");
+    for pair in &pairs {
+        let mut inputs =
+            inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));
+        let (studied, native) = pair.split_once('-').unwrap();
+        assert_eq!(
+            (inputs.meta.studied.as_str(), inputs.meta.native.as_str()),
+            (studied, native),
+            "{pair}"
+        );
+        inputs.meta.analyzer_version = match studied {
+            "es" => lingua_core::analysis::SPANISH_ANALYZER_VERSION.to_owned(),
+            _ => ANALYZER_VERSION.to_owned(),
+        };
+        let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build {pair}: {e}"));
+        assert!(bytes.len() < MAX_PACK_BYTES, "{pair}");
+        let pack = Pack::load(&bytes).unwrap_or_else(|e| panic!("load {pair}: {e}"));
+        assert_eq!(pack.meta().pair_key(), *pair);
+        assert!(
+            pack.gloss("casa").is_some() || studied != "es",
+            "{pair} glosses casa"
+        );
+    }
+}
+
+#[test]
 fn pipeline_reads_the_optional_expression_table() {
     let inputs = inputs_from_dir(&testdata_dir()).expect("read testdata");
     // `mwe.tsv` reaches the builder as the reducer wrote it, spellings and all:

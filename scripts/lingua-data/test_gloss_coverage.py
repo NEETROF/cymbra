@@ -7,11 +7,14 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -49,6 +52,48 @@ class MeasureTest(unittest.TestCase):
             write_table(root / "tables" / "es" / "freq.tsv", [("a", "1"), ("c", "2"), ("b", "3"), ("d", "4")])
             self.assertNotEqual(coverage.figures(root / "tables", packs), before)
             self.assertEqual(coverage.figures(root / "tables", packs)["glossed"]["es-fr"], [50.0, 50.0, 50.0])
+
+
+class OnePairTest(unittest.TestCase):
+    """`--pair` and `--floor` (add-lingua-pack-es-en D6): a pair measured whether or not it ships,
+    held to a floor, and published nowhere."""
+
+    def run_main(self, tables: Path, *argv: str) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.object(coverage, "TABLES", tables), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = coverage.main(list(argv))
+        return code, out.getvalue(), err.getvalue()
+
+    def test_a_pair_not_shipped_is_measured_and_held_to_its_floor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tables = Path(tmp)
+            (tables / "es").mkdir()
+            (tables / "es-en").mkdir()
+            write_table(tables / "es" / "freq.tsv", [("a", "1"), ("b", "2"), ("c", "3")])
+            write_table(tables / "es-en" / "gloss.tsv", [("a", "A"), ("c", "C")])
+            code, out, err = self.run_main(tables, "--pair", "es-en")
+            self.assertEqual((code, err), (0, ""))
+            self.assertEqual(json.loads(out), {"tops": [5000, 10000, 20000], "glossed": {"es-en": [66.7, 66.7, 66.7]}})
+            self.assertEqual(self.run_main(tables, "--pair", "es-en", "--floor", "66.7", "60", "50")[0], 0)
+            code, _, err = self.run_main(tables, "--pair", "es-en", "--floor", "66.7", "70", "50")
+            self.assertEqual(code, 1)
+            self.assertEqual(
+                err, "es-en: 66.7 % of the 10,000 commonest lemmas are glossed, under the floor of 70.0 %\n"
+            )
+            with self.assertRaises(SystemExit):
+                self.run_main(tables, "--pair", "de-en")
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            coverage.main(["--floor", "87.6", "77.2", "63.7"])
+
+    def test_spec_scenario_coverage(self) -> None:
+        # es-en, on the committed tables, against es-fr's published figures — which the site
+        # publishes, and es-en's not, until it ships.
+        published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
+        floor = published["glossed"]["es-fr"]
+        self.assertEqual(floor, [87.6, 77.2, 63.7])
+        self.assertNotIn("es-en", published["glossed"])
+        code, _, err = self.run_main(coverage.TABLES, "--pair", "es-en", "--floor", *map(str, floor))
+        self.assertEqual((code, err), (0, ""))
 
 
 class PublishedFiguresTest(unittest.TestCase):
