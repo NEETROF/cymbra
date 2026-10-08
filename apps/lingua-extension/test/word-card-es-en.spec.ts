@@ -39,11 +39,23 @@ function probes(): Probe[] {
   return out;
 }
 
+/**
+ * The form a card's readings are of: for a word the pre-pass split, the piece whose dictionary form
+ * the card is about — here the one spelled like it, « a » of « al » — or the first, as the engine
+ * picks it; otherwise the word as written. The card is opened on that token (`openForToken`: its
+ * `surface` is the piece, its `written` the whole word).
+ */
+function surfaceOf({ written, lemma, grammar: wordGrammar }: Probe): string {
+  const { pieces } = wordGrammar;
+  if (pieces.length < 2) return written;
+  return pieces.find((piece) => piece.toLowerCase() === lemma.toLowerCase()) ?? pieces[0]!;
+}
+
 /** What the card shows of one probe, as the reader reads it, one line each. */
-function render({ written, lemma, grammar: wordGrammar }: Probe): string[] {
+function render(probe: Probe): string[] {
+  const { written, lemma, grammar: wordGrammar } = probe;
   const out = [`### word-grammar ${written} ${lemma}`];
-  // The card is opened on the dictionary form, the form as written on the page.
-  for (const line of grammar.grammarLines(wordGrammar, lemma, written, written, "es")) {
+  for (const line of grammar.grammarLines(wordGrammar, lemma, surfaceOf(probe), written, "es")) {
     out.push(`grammar: ${lineText(line)}`);
   }
   const { gloss } = wordGrammar;
@@ -65,23 +77,35 @@ function render({ written, lemma, grammar: wordGrammar }: Probe): string[] {
   return out;
 }
 
+/** The text the snapshot pins: every probe's lines, in the golden's order. */
+function pinned(): string {
+  return `${probes().flatMap(render).join("\n")}\n`;
+}
+
 describe("the word card of an English-native reader of Spanish, over the es-en golden", () => {
   it("renders every grammar probe as the snapshot pins it", async () => {
-    const all = probes();
-    expect(all.length).toBeGreaterThanOrEqual(68);
-    const text = `${all.flatMap(render).join("\n")}\n`;
-    await expect(text).toMatchFileSnapshot("./baseline/word-card-es-en.txt");
+    // The reference's 28 probes and the 40 lemmas.
+    expect(probes()).toHaveLength(68);
+    await expect(pinned()).toMatchFileSnapshot("./baseline/word-card-es-en.txt");
   });
 
   it("A probe of the reference golden: « vino » read as a form of « venir »", () => {
     const probe = probes().find((p) => p.written === "vino" && p.lemma === "venir")!;
-    const gloss = probe.grammar.gloss!;
-    expect(render(probe)).toEqual([
+    // `render` checks that the pages are the pack's gloss, unaltered.
+    const lines = render(probe);
+    expect(lines.slice(0, 2)).toEqual([
       "### word-grammar vino venir",
       "grammar: third-person singular preterite indicative of venir",
-      "page 1/1:",
-      `  [verb] ${gloss}`,
-      `row: ${rowGloss(gloss, selection)}`,
     ]);
+    // Its gloss headings, pages and row are the snapshot's, whatever es-en's gloss of « venir »
+    // is — the next reduction's included: the probe's block, whole and once, is in the text the
+    // test above holds to the committed snapshot. Not read from the file, which a re-bless run
+    // (`-u`) writes only once this file's tests are done: this test would fail on the old one.
+    const blocks = pinned()
+      .replace(/\n$/, "")
+      .split(/\n(?=### word-grammar )/);
+    expect(blocks.filter((block) => block === lines.join("\n"))).toHaveLength(1);
+    expect(lines.some((line) => line.startsWith("page 1/"))).toBe(true);
+    expect(lines.at(-1)).toBe(`row: ${rowGloss(probe.grammar.gloss!, selection)}`);
   });
 });

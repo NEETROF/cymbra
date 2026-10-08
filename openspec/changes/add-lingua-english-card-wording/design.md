@@ -49,7 +49,9 @@ reference's and the 40 — renders each through `src/i18n/en/grammar.ts` and the
 committed snapshot (`toMatchFileSnapshot`), re-blessed with `yarn vitest run
 test/word-card-es-en.spec.ts -u` (the flag after the file: vitest's `-u [type]` would take a file
 written after it as its value); `lingua-pack-update` re-blesses it beside the Rust goldens (with
-Node). Nothing reads the tables, so nothing copies the engine's grouping into TypeScript.
+Node). Nothing reads the tables, so nothing copies the engine's grouping into TypeScript. A word
+the pre-pass split is rendered on its piece, as the card opens it (`openForToken`: the token's
+`surface` is the piece, `written` the whole word): « al » on « a ».
 
 ### D3 — Corrections on real forms
 
