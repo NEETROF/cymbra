@@ -183,3 +183,22 @@ fn spec_scenario_the_native_language_is_never_studied() {
     assert_eq!(engine.studied_languages(), r#"["es"]"#);
     assert_eq!(engine.profile_native_language(), "en");
 }
+
+#[wasm_bindgen_test]
+fn spec_scenario_a_french_native_reader_cannot_study_french() {
+    // add-lingua-french-baseline: French is a studied language now, and never a French reader's.
+    let mut engine = LinguaEngine::new(PACK).unwrap();
+    assert_eq!(engine.native_language(), "fr");
+    let backup = engine.backup();
+    let Err(refused) = engine.set_profile("fr", vec!["fr".to_owned()]) else {
+        panic!("a French-native reader was set to study French");
+    };
+    assert!(message(refused).contains("\"fr\" is the native language"));
+    assert!(
+        engine
+            .set_studied_languages(vec!["en".to_owned(), "fr".to_owned()])
+            .is_err()
+    );
+    assert_eq!(engine.studied_languages(), r#"["en"]"#);
+    assert_eq!(engine.backup(), backup, "a refused profile changes nothing");
+}
