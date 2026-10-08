@@ -1,7 +1,13 @@
 import type { MarkedTranslation } from "../translate/markup.ts";
 import type { LemmaStatus, WordGrammar } from "../analyzer/types.ts";
 import { card as frCard } from "../i18n/fr/card.ts";
-import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
+import {
+  DEFAULT_INTERFACE_LANGUAGE,
+  formatCount,
+  type InterfaceLanguage,
+  NODE_SLOT,
+  renderAround,
+} from "../i18n/index.ts";
 import { grammarLines, senseHeading } from "./grammar-labels.ts";
 import { glossPages, pageText, type GlossPage } from "./gloss-pages.ts";
 import { isTouchPrimary } from "../state/platform.ts";
@@ -91,7 +97,8 @@ export interface WordPopupContent {
   written?: string;
   /**
    * The studied language of the document the word was met in, whose forms the grammar lines name
-   * (add-lingua-spanish-word-card); a card without one names English forms, as every card did.
+   * (add-lingua-spanish-word-card) and which the card's words of the document say in `lang`
+   * (localise-lingua-reading-surfaces); a card without one names English forms, as every card did.
    */
   language?: string;
 }
@@ -120,6 +127,24 @@ interface Listen {
 
 /** The keys the card speaks under: what closing it or opening another word silences. */
 const CARD_KEYS: ReadonlySet<string> = new Set<Listen["key"]>(["selection", "headword", "sentence"]);
+
+/**
+ * The language of the words the card shows from the document — the headword, the form seen, the
+ * word-by-word forms: the document's, which a card without one names English (`language`'s rule).
+ * The host says the interface language (D3), so these say their own, for the voices, the
+ * hyphenation and the spell-check that read them.
+ */
+function studiedLanguageOf(content: WordPopupContent): string {
+  return content.language ?? "en";
+}
+
+/** A word of the document, in its language, inside a line of the interface's. */
+function studiedWord(text: string, language: string): HTMLElement {
+  const word = document.createElement("span");
+  word.lang = language;
+  word.textContent = text;
+  return word;
+}
 
 /**
  * Whether the card shows a form seen apart from its dictionary form, case aside: it then says
@@ -169,9 +194,13 @@ function listensFor(content: WordPopupContent, copy: CardCopy): Listen[] {
 
 /** Build the card view (no shadow root involved — testable in isolation). With a `speaker`, the
  *  card offers to hear the selection and its sentence (add-lingua-read-aloud). Its labels are
- *  `copy`'s, the catalogue's module in the interface language (localise-lingua-reading-surfaces D1);
- *  without one, the French. */
-export function createCard(speaker?: Speaker, copy: CardCopy = frCard): CardView {
+ *  `copy`'s, the catalogue's module in the interface language (localise-lingua-reading-surfaces D1),
+ *  and its figures are written in `language`; without them, the French. */
+export function createCard(
+  speaker?: Speaker,
+  copy: CardCopy = frCard,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+): CardView {
   const el = div("card");
   el.hidden = true;
   el.addEventListener("click", (e) => e.stopPropagation());
@@ -391,7 +420,7 @@ export function createCard(speaker?: Speaker, copy: CardCopy = frCard): CardView
     if (!nav) return;
     nav.previous.disabled = pageIndex === 0;
     nav.next.disabled = pageIndex === pages.length - 1;
-    nav.count.textContent = `${pageIndex + 1}/${pages.length}`;
+    nav.count.textContent = `${formatCount(language, pageIndex + 1)}/${formatCount(language, pages.length)}`;
   }
 
   /** The control that moves between a gloss's pages: previous, « n/m », next. */
@@ -439,8 +468,9 @@ export function createCard(speaker?: Speaker, copy: CardCopy = frCard): CardView
       label.textContent = copy.rowsLabel;
       glossEl.append(label);
       for (const r of content.rows) {
+        // The form is the document's, the gloss the reader's: the form says its language.
         const row = div("row");
-        row.textContent = copy.row(r.form, r.gloss);
+        renderAround(row, copy.row(NODE_SLOT, r.gloss), studiedWord(r.form, studiedLanguageOf(content)));
         glossEl.append(row);
       }
       return;
@@ -497,10 +527,13 @@ export function createCard(speaker?: Speaker, copy: CardCopy = frCard): CardView
       const playing = cardSpeaking();
       if (playing && !listensFor(content, copy).some((l) => l.text === playing.text)) speaker?.stop();
       current = content;
+      const studied = studiedLanguageOf(content);
       headwordEl.textContent = content.headword;
+      headwordEl.lang = studied;
 
       const differs = seenDiffers(content);
-      seenEl.textContent = differs ? copy.seenForm(content.surface) : "";
+      if (differs) renderAround(seenEl, copy.seenForm(NODE_SLOT), studiedWord(content.surface, studied));
+      else seenEl.replaceChildren();
       seenEl.hidden = !differs;
 
       rarityEl.textContent = content.rarity;
@@ -568,7 +601,7 @@ export class WordPopup {
   private readonly view: CardView;
 
   constructor(private readonly opts: WordPopupOptions) {
-    this.view = createCard(opts.speaker, opts.copy ?? frCard);
+    this.view = createCard(opts.speaker, opts.copy ?? frCard, opts.language);
     this.host = document.createElement("div");
     this.host.id = "cymbra-lingua-host";
     this.host.setAttribute("data-cymbra-lingua-skip", "");

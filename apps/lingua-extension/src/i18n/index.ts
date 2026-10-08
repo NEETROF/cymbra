@@ -1,11 +1,17 @@
-import type { InterfaceLanguage } from "./language.ts";
+import {
+  type InterfaceLanguage,
+  type InterfaceLanguageArea,
+  interfaceLanguage,
+  setDocumentLanguage,
+} from "./language.ts";
 
 // The catalogue's helpers (add-lingua-interface-language D1, D2, D4): how a count picks its
-// plural form, how a number, a percentage and a date are written in each language. No surface's
-// copy is mapped here — a surface imports its own `./{fr,en,es}/<surface>.ts` and picks by the
-// interface language — so importing this module costs an entry nothing but these functions.
+// plural form, how a number, a percentage and a date are written in each language, and how a page
+// is filled from a module. No surface's copy is mapped here — a surface imports its own
+// `./{fr,en,es}/<surface>.ts` and picks by the interface language — so importing this module costs
+// an entry nothing but these functions.
 
-export type { InterfaceLanguage } from "./language.ts";
+export type { InterfaceLanguage, InterfaceLanguageArea } from "./language.ts";
 export {
   DEFAULT_INTERFACE_LANGUAGE,
   INTERFACE_LANGUAGE_KEY,
@@ -112,6 +118,15 @@ export function formatNumber(language: InterfaceLanguage, n: number, options?: I
 }
 
 /**
+ * A count as the interface language writes it: in French the raw figure the surfaces write today
+ * (« 1234 », never a grouped « 1 234 »), in English and Spanish through `formatNumber` ("1,234",
+ * « 1234 », « 12 345 »). A count is not a measure: French has always written it bare.
+ */
+export function formatCount(language: InterfaceLanguage, n: number): string {
+  return language === "fr" ? String(n) : formatNumber(language, n);
+}
+
+/**
  * How a French surface writes a percentage today: the popup and the HUD « 45% », the reader's
  * text size « 45 % » with a plain space. The form only decides the French (M23 keeps each
  * surface's); Spanish always parts the sign with a narrow no-break space, English never.
@@ -140,12 +155,19 @@ export const COPY_PENDING_ATTR = "data-copy-pending";
 export const COPY_ATTR = "data-copy";
 
 /**
- * Fill a page's static copy from a surface's module (D2): an element with `data-copy="key"` takes
- * the entry as its text, one with `data-copy-<attribute>="key"` takes it as that attribute
- * (`data-copy-aria-label`, `data-copy-title`); then `data-copy-pending` leaves `<html>`, and the
- * page shows. Only a plain text fills a node — a slot message is the script's to render — and a
- * key the module lacks leaves its node as it is: the page's spec asserts every node, so a missing
- * key fails there, never on a reader's screen.
+ * The attributes a page may take from the catalogue, as `data-copy-<attribute>="key"`: the ones that
+ * carry words. Nothing else — an event handler, a `href`, a `style` — is ever written from a module.
+ */
+const COPY_ATTRIBUTES: readonly string[] = ["aria-label", "title", "placeholder", "alt"];
+
+/**
+ * Fill a page's static copy from a surface's module (D2): an element with `data-copy="key"` has its
+ * whole text replaced by the entry — whatever it held, children included, so such a node holds
+ * text only — and one with `data-copy-<attribute>="key"` takes the entry as that attribute, for the
+ * attributes of `COPY_ATTRIBUTES` alone (`data-copy-aria-label`, `data-copy-title`…); then
+ * `data-copy-pending` leaves `<html>`, and the page shows. Only a plain text fills a node — a slot
+ * message is the script's to render — and a key the module lacks leaves its node as it is: the
+ * page's spec asserts every node, so a missing key fails there, never on a reader's screen.
  */
 export function fillPage(document: Document, copy: Record<string, unknown>): void {
   const text = (key: string | null): string | null => {
@@ -156,14 +178,52 @@ export function fillPage(document: Document, copy: Record<string, unknown>): voi
     const entry = text(el.getAttribute(COPY_ATTR));
     if (entry != null) el.textContent = entry;
   }
-  for (const el of document.querySelectorAll("*")) {
-    for (const { name, value } of [...el.attributes]) {
-      if (!name.startsWith(`${COPY_ATTR}-`) || name === COPY_PENDING_ATTR) continue;
-      const entry = text(value);
-      if (entry != null) el.setAttribute(name.slice(COPY_ATTR.length + 1), entry);
+  for (const attribute of COPY_ATTRIBUTES) {
+    const keyed = `${COPY_ATTR}-${attribute}`;
+    for (const el of document.querySelectorAll(`[${keyed}]`)) {
+      const entry = text(el.getAttribute(keyed));
+      if (entry != null) el.setAttribute(attribute, entry);
     }
   }
   document.documentElement.removeAttribute(COPY_PENDING_ATTR);
+}
+
+/**
+ * A page's first step (D1, D2), the same for the popup, the side panel and the reader: read the
+ * interface language, say it in the page's `lang`, then fill the page's static copy from the
+ * surface's module in that language — which shows the page — and hand both back for what the script
+ * renders next. It never rejects: a key that cannot be read is French (`interfaceLanguage`), so a
+ * failed read still shows a filled page, as a page holding its French did before the catalogue.
+ */
+export async function fillPageInLanguage<Copy extends Record<string, unknown>>(
+  document: Document,
+  area: InterfaceLanguageArea,
+  moduleOf: (language: InterfaceLanguage) => Copy,
+): Promise<{ language: InterfaceLanguage; copy: Copy }> {
+  const language = await interfaceLanguage(area);
+  const copy = moduleOf(language);
+  setDocumentLanguage(document, language);
+  fillPage(document, copy);
+  return { language, copy };
+}
+
+/**
+ * What a slot message is called with where the surface renders a node of its own — the popup's bold
+ * level, a studied word set apart in its language: a character no message writes, so the message
+ * splits around it (README › Shape).
+ */
+export const NODE_SLOT = "\u0000";
+
+/**
+ * Render into `element` a message called with `NODE_SLOT` where `node` goes — « Niveau d'anglais :
+ * <b>B1</b> », or a translation that puts the level first: the text before the slot, the node, the
+ * text after; an empty text is left out. A message without the slot (a translation that dropped it)
+ * keeps its text and has the node appended, so what the node shows is never lost.
+ */
+export function renderAround(element: Element, message: string, node: Node): void {
+  const [before = "", ...rest] = message.split(NODE_SLOT);
+  const parts: (Node | string)[] = rest.length === 0 ? [before, node] : [before, node, rest.join("")];
+  element.replaceChildren(...parts.filter((part) => part !== ""));
 }
 
 /**
@@ -176,7 +236,7 @@ export function plural(
   language: InterfaceLanguage,
   n: number,
   forms: PluralForms,
-  formatted: string = language === "fr" ? String(n) : formatNumber(language, n),
+  formatted: string = formatCount(language, n),
 ): string {
   const category = rulesOf(language).select(n);
   const form = category === "one" ? forms.one : category === "many" ? (forms.many ?? forms.other) : forms.other;

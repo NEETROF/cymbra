@@ -484,6 +484,8 @@ export class SelectionCards {
       sentence: sel.sentence,
       rect: sel.rect,
       expression: true,
+      // The selection's words say the document's language, as a word's card does.
+      ...this.languageOfCard(),
     };
     const translator = this.translator();
     // Asked now, answered whenever. The two are no longer raced: a cold engine costs seconds on

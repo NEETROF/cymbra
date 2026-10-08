@@ -33,10 +33,21 @@ export interface InterfaceLanguageArea {
   get(keys: string): Promise<Record<string, unknown>>;
 }
 
-/** The interface language the device holds; `fr` when the key is absent or unknown. */
+/**
+ * The interface language the device holds; `fr` when the key is absent or unknown — and when the
+ * read itself fails. It never rejects: every surface reads it before anything else, and a page
+ * hidden until its copy is filled (localise-lingua-reading-surfaces D2) or a reading session not
+ * yet built would otherwise stay so for good; French is what such a device showed before the key.
+ */
 export async function interfaceLanguage(area: InterfaceLanguageArea): Promise<InterfaceLanguage> {
-  const got = await area.get(INTERFACE_LANGUAGE_KEY);
-  const value = got[INTERFACE_LANGUAGE_KEY];
+  let got: Record<string, unknown> | undefined;
+  try {
+    got = await area.get(INTERFACE_LANGUAGE_KEY);
+  } catch (e) {
+    console.warn("[Cymbra Lingua] could not read the interface language, showing French:", e);
+    return DEFAULT_INTERFACE_LANGUAGE;
+  }
+  const value = got?.[INTERFACE_LANGUAGE_KEY];
   return isInterfaceLanguage(value) ? value : DEFAULT_INTERFACE_LANGUAGE;
 }
 

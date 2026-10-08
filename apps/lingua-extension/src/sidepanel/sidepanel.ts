@@ -4,7 +4,7 @@ import type { StudiedLanguage } from "../analyzer/types.ts";
 import { sidepanel as enSidepanel } from "../i18n/en/sidepanel.ts";
 import { sidepanel as esSidepanel } from "../i18n/es/sidepanel.ts";
 import { sidepanel as frSidepanel } from "../i18n/fr/sidepanel.ts";
-import { fillPage, type InterfaceLanguage, interfaceLanguage, setDocumentLanguage } from "../i18n/index.ts";
+import { fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
@@ -120,10 +120,9 @@ async function showView(view: PanelView): Promise<void> {
 
 async function main(): Promise<void> {
   // The interface language first, with this page's first storage read: the page's static copy is
-  // filled from the catalogue before anything shows (the body is hidden until then — D2).
-  const interfaceLang = await interfaceLanguage(area);
-  setDocumentLanguage(document, interfaceLang);
-  fillPage(document, SIDEPANEL_COPY[interfaceLang]);
+  // filled from the catalogue before anything shows (the body is hidden until then — D2). A read
+  // that fails is French: the page shows.
+  await fillPageInLanguage(document, area, (l) => SIDEPANEL_COPY[l]);
 
   await hydrateEngine(port, store);
   language = await readingLanguage(port);

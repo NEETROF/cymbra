@@ -18,11 +18,13 @@ async function bootstrap(): Promise<void> {
   w[GUARD] = true;
   try {
     // The port is resolved before construction so a CSP-blocked page can hand the session
-    // the messaging port instead of the in-content WASM engine.
-    const port = await resolveContentPort();
-    // The interface language, with this script's first storage read, before the session builds
-    // the surfaces it hands the copy to (localise-lingua-reading-surfaces D1).
-    const language = await interfaceLanguage({ get: (key) => chrome.storage.local.get(key) });
+    // the messaging port instead of the in-content WASM engine. The interface language is read
+    // beside it, with this script's first storage read, before the session builds the surfaces it
+    // hands the copy to (localise-lingua-reading-surfaces D1); a read that fails is French.
+    const [port, language] = await Promise.all([
+      resolveContentPort(),
+      interfaceLanguage({ get: (key) => chrome.storage.local.get(key) }),
+    ]);
     await new ReadingSession(port, { css: SURFACE_CSS, surface: "page", language, copy: readingCopy(language) }).start(
       pageHost(),
     );

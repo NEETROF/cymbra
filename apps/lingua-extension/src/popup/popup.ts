@@ -8,11 +8,12 @@ import { popup as esPopup } from "../i18n/es/popup.ts";
 import { popup as frPopup } from "../i18n/fr/popup.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
-  fillPage,
+  fillPageInLanguage,
+  formatCount,
   formatPercent,
   type InterfaceLanguage,
-  interfaceLanguage,
-  setDocumentLanguage,
+  NODE_SLOT,
+  renderAround,
 } from "../i18n/index.ts";
 import { mountSettings, type SettingsTab, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
@@ -62,9 +63,6 @@ const POPUP_COPY: Record<InterfaceLanguage, typeof frPopup> = { fr: frPopup, en:
 /** The interface language and the copy, read with the first storage read, before anything renders. */
 let language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
 let copy: typeof frPopup = frPopup;
-
-/** The part of a slot message the page renders apart (the bold level): split around, never shown. */
-const SLOT = "\u0000";
 
 interface PageStats {
   /** "book" when the tab is the extension's reader, showing a section of a book. */
@@ -187,14 +185,14 @@ function render(stats: PageStats | null, onReader: boolean): void {
     const pct = stats.percent ?? 0;
     $("pct").textContent = stats.percent == null ? copy.noPercent : formatPercent(language, pct, "tight");
     ($("bar") as HTMLElement).style.width = `${pct}%`;
-    $("counted").textContent = String(stats.counted);
-    $("unknown").textContent = String(stats.unknownOccurrences);
-    $("distinct").textContent = String(stats.distinctUnknown);
+    $("counted").textContent = formatCount(language, stats.counted);
+    $("unknown").textContent = formatCount(language, stats.unknownOccurrences);
+    $("distinct").textContent = formatCount(language, stats.distinctUnknown);
   }
 
-  $("tracked").textContent = String(stats.trackedCount);
-  $("deck").textContent = String(stats.deckCount);
-  $("review").textContent = copy.review(String(stats.dueCount));
+  $("tracked").textContent = formatCount(language, stats.trackedCount);
+  $("deck").textContent = formatCount(language, stats.deckCount);
+  $("review").textContent = copy.review(formatCount(language, stats.dueCount));
 
   // With CEFR data, the reader declares a level in Réglages; the main panel gets a compact
   // reminder, or a call-to-action until a level has been chosen (asked at first use).
@@ -205,8 +203,7 @@ function render(stats: PageStats | null, onReader: boolean): void {
   // « Niveau de … : B1 »: the line's message rendered around the bold level (D1).
   const level = $("level-current");
   level.textContent = stats.declaredLevel ?? copy.beginner;
-  const [before, after = ""] = copy.levelLine(levelTitle(studied, stats.levelsEstimated ?? false), SLOT).split(SLOT);
-  $("level-line").replaceChildren(before, level, after);
+  renderAround($("level-line"), copy.levelLine(levelTitle(studied, stats.levelsEstimated ?? false), NODE_SLOT), level);
 }
 
 let settings: SettingsView | null = null;
@@ -289,11 +286,8 @@ async function applyEnabled(enabled: boolean): Promise<void> {
 async function main(): Promise<void> {
   // The interface language first, with this page's first storage read: the page's static copy is
   // filled from the catalogue before anything shows (the body is hidden until then — D2), and
-  // every text rendered below is that language's.
-  language = await interfaceLanguage(storageArea);
-  copy = POPUP_COPY[language];
-  setDocumentLanguage(document, language);
-  fillPage(document, copy);
+  // every text rendered below is that language's. A read that fails is French: the page shows.
+  ({ language, copy } = await fillPageInLanguage(document, storageArea, (l) => POPUP_COPY[l]));
 
   // Settings view (gear icon), also reached from the main panel's level call-to-action and
   // « Modifier ». Leaving it re-reads the page's stats: a level or a calibration chosen there

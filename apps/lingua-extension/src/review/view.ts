@@ -43,10 +43,14 @@ export function renderReview(
   }
 
   const card = view.card;
+  // The card's words are the studied language's, inside a surface that says the interface's (the
+  // drawer's host, the side panel's page): they say their own, as the engine counts them — an older
+  // card without one is English (localise-lingua-reading-surfaces D3).
+  const studied = card.language ?? "en";
   root.append(note(`${card.remaining} carte(s) à revoir`, "remaining"));
   // The card's language, when the reader studies several (add-lingua-language-stats-review D2).
   if (opts.showLanguage && card.language) root.append(note(languageName(card.language), "review-language"));
-  root.append(headword(card.headword));
+  root.append(headword(card.headword, studied));
 
   if (!card.revealed) {
     root.append(button("Afficher la réponse", () => actions.reveal(), true));
@@ -54,7 +58,14 @@ export function renderReview(
   }
 
   if (card.gloss) root.append(line("gloss", card.gloss));
-  if (card.sentence) root.append(line("sentence", `« ${card.sentence} »`));
+  if (card.sentence) {
+    const sentence = line("sentence", "");
+    const words = document.createElement("span");
+    words.lang = studied;
+    words.textContent = card.sentence;
+    sentence.append("« ", words, " »");
+    root.append(sentence);
+  }
   const source = sourceLabel(card.source);
   if (source) root.append(line("source", source));
 
@@ -98,9 +109,10 @@ function note(text: string, extra = ""): HTMLElement {
   return d;
 }
 
-function headword(text: string): HTMLElement {
+function headword(text: string, language: string): HTMLElement {
   const d = document.createElement("div");
   d.className = "review-headword";
+  d.lang = language;
   d.textContent = text;
   return d;
 }

@@ -1,7 +1,7 @@
 import { installGroupBy } from "./polyfill.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { acceptedLanguages } from "../analyzer/pairs.ts";
-import { fillPage, interfaceLanguage, setDocumentLanguage } from "../i18n/index.ts";
+import { fillPageInLanguage } from "../i18n/index.ts";
 import { readingCopy } from "../reading/reading-copy.ts";
 import { ReadingSession } from "../reading/session.ts";
 import { SURFACE_CSS } from "../reading/surface-css.ts";
@@ -48,15 +48,15 @@ const PERSIST_ASKED_KEY = "cymbra-lingua-library-persist-asked";
 
 async function main(): Promise<void> {
   installGroupBy();
-  const root = document.getElementById("reader-root");
-  if (!root) return;
   // The interface language first, with this page's first storage read: the page's static copy is
   // filled from the catalogue before anything is built (the body is hidden until then —
   // localise-lingua-reading-surfaces D1, D2), and the library, the page and the session get it.
-  const language = await interfaceLanguage(settings);
+  // Filled before anything can return early, so the page shows whatever happens next; a read that
+  // fails is French.
+  const { language } = await fillPageInLanguage(document, settings, readerModule);
+  const root = document.getElementById("reader-root");
+  if (!root) return;
   const copy = readerCopy(language);
-  setDocumentLanguage(document, language);
-  fillPage(document, readerModule(language));
   if (__SECTIONS_FROM_WORKER__) await clearSections(caches);
   const library = await Library.open(undefined, copy.untitled);
   const port = createLinguaPort();
