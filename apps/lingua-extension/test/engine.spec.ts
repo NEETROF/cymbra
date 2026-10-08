@@ -673,6 +673,23 @@ describe("WasmAnalyzerPort packs", () => {
         ]);
       });
 
+      it("adds a pack again to the engine a round trip builds: French, English, French, es-fr added first", async () => {
+        const glue = packGlue();
+        const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "fr");
+        await port.for("es").analyse(["El faro"]); // es-fr added to the first French engine
+
+        await port.restore(ENGLISH_NATIVE);
+        await port.restore('{"native":"fr"}');
+        await port.for("es").analyse(["El faro"]);
+
+        // The second French engine is handed es-fr again: what the first held is not its own.
+        expect(packs()).toEqual([EN_FR, ES_FR, ES_EN, EN_FR, ES_FR]);
+        expect(glue.calls.filter(([name]) => name !== "analyse")).toEqual([
+          ["addPack", ["es"]],
+          ["addPack", ["es"]],
+        ]);
+      });
+
       it("follows the reader back to French", async () => {
         const glue = packGlue();
         const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "en");
