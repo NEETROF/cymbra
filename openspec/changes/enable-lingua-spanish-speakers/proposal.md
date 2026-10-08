@@ -58,7 +58,8 @@ None.
 - **Prerequisites, all the owner's** (M18):
   - Cymbra ID's and Lingua's servers store the gloss's language and the day's native language,
     deployed and checked from outside (change 10's tasks 5.x, change 12's 6.1) — server first (M4).
-  - Changes 22 (its floor set), 24, 26 and 33 merged — implementations, not proposals.
+  - Changes 22 (its floor set), 24, 24b (`refine-lingua-en-es-glosses`: en-es's glosses read as
+    meanings, en-es re-pinned), 26 and 33 merged — implementations, not proposals.
   - M15 and M25 settled (open, before stage 2).
   - Change 27's D4 check and change 28's task 4.5 repeated with en-es (`_locales/es`,
     `CFBundleLocalizations` `[fr, en, es]`).
