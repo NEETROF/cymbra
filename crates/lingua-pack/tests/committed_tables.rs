@@ -213,13 +213,18 @@ fn spec_scenario_the_first_reader_pair() {
 #[test]
 fn spec_scenario_the_credits() {
     // es-en's notice names both sides' sources — the English Wiktionary's Spanish section, the
-    // Spanish Wiktionary's translations, wordfreq and UD Spanish-GSD — and its manifest says the
-    // levels are estimated (D4). The pack carries both.
+    // Spanish Wiktionary's translations, the French Wiktionary (es-fr's glosses decide the
+    // dictionary words and which lemmas take a level), wordfreq and UD Spanish-GSD — and its
+    // manifest says the levels are estimated (D4). The pack carries both.
     let notice = std::fs::read_to_string(tables().join("es-en/NOTICE")).unwrap();
+    // Read as running text: a credit may wrap.
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
     for credit in [
         "English Wiktionary (enwiktionary), Spanish section",
         "Spanish Wiktionary (eswiktionary)",
         "translations its Spanish entries list",
+        "French Wiktionary (frwiktionary)",
+        "which lemmas es-fr glosses: the dictionary words and which take a level",
         "wordfreq",
         "Robyn Speer",
         "UD Spanish-GSD",
@@ -229,9 +234,18 @@ fn spec_scenario_the_credits() {
     }
     let manifest = json(&tables().join("es-en/manifest.json"));
     assert_eq!(manifest["meta"]["levels_estimated"], true);
+    assert_eq!(
+        manifest["meta"]["licences"][0],
+        "kaikki / enwiktionary, eswiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)"
+    );
     let pack = Pack::load(es_en()).unwrap();
     assert!(pack.meta().levels_estimated);
-    assert!(pack.notice().contains("UD Spanish-GSD") && pack.notice().contains("eswiktionary"));
+    for credit in ["UD Spanish-GSD", "eswiktionary", "frwiktionary"] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
 }
 
 #[test]

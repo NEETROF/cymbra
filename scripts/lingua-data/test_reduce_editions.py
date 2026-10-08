@@ -7,9 +7,9 @@
 """Tests for the Wiktionary editions' rules (generalise-lingua-gloss-reducer).
 
 The senses are recorded from real kaikki data, cut down to the fields the rules read: the English
-Wiktionary's Spanish section (the 2026-09-28 extract es-fr pins, and for `policía` its 2026-10-03
-one) and the Spanish Wiktionary's English entries (its 2026-10-02 dump, which es-fr pins). A case
-marked « made up » is not from the data.
+Wiktionary's Spanish section (the 2026-09-28 extract es-fr pins, and for `policía`, the letters and
+the full entries its 2026-10-03 one, which es-en pins) and the Spanish Wiktionary's English entries
+(its 2026-10-02 dump, which es-fr pins). A case marked « made up » is not from the data.
 
 Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
@@ -148,6 +148,85 @@ POLICIA_2 = {
         }
     ],
 }
+# Spanish letters, as the English Wiktionary's Spanish section and the Spanish Wiktionary's English
+# translations write them (add-lingua-pack-es-en).
+A_NOUN = {"word": "A", "pos": "noun", "senses": [{"glosses": ["bishop"], "tags": ["masculine", "uncountable"]}]}
+A_PREP = {
+    "word": "a",
+    "pos": "prep",
+    "senses": [
+        {"glosses": ["to"]},
+        {"glosses": ["by"]},
+        {"glosses": ["at"]},
+        {
+            "glosses": [
+                "Used before words referring to people, pets, or personified objects or places that function as "
+                "direct objects: personal a."
+            ]
+        },
+    ],
+}
+C_NOUN = {
+    "word": "C",
+    "pos": "noun",
+    "senses": [
+        {
+            "glosses": ["abbreviation of caballo (“knight”): K"],
+            "tags": ["abbreviation", "alt-of", "masculine"],
+            "alt_of": [{"word": "caballo", "extra": "(“knight”): K"}],
+        }
+    ],
+}
+CABALLO = {
+    "word": "caballo",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["horse"], "tags": ["masculine"]},
+        {"glosses": ["knight"], "tags": ["masculine"]},
+        {"glosses": ["heroin"], "tags": ["masculine", "slang"]},
+    ],
+}
+R_NOUN = {"word": "r", "pos": "noun", "senses": [{"glosses": ["the letter r"], "tags": ["feminine"]}]}
+JUEVES = {
+    "word": "jueves",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["Thursday"], "tags": ["masculine"]},
+        {"glosses": ["the letter J in the Spanish spelling alphabet"], "tags": ["masculine"]},
+    ],
+}
+ESPANA = {
+    "word": "España",
+    "pos": "name",
+    "senses": [
+        {"glosses": ["Spain (a country in Southern Europe, including most of the Iberian peninsula)"], "tags": ["feminine"]},
+        {"glosses": ["Peninsular Spain"], "tags": ["Canary-Islands", "colloquial", "feminine"]},
+        {"glosses": ["the letter E in the Spanish spelling alphabet"], "tags": ["feminine"]},
+    ],
+}
+ZETA = {
+    "word": "zeta",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["the letter Z"], "tags": ["feminine"]},
+        {"glosses": ["zeta; the Greek letter Ζ, ζ"], "tags": ["feminine"]},
+    ],
+}
+B_TRANSLATED = {"pos": "character", "translations": [{"word": "b"}], "word": "b"}
+G_TRANSLATED = {"pos": "character", "translations": [{"word": "g"}], "word": "g"}
+O_TRANSLATED = {"pos": "conj", "translations": [{"word": "or"}], "word": "o"}
+I_TRANSLATED = {"pos": "noun", "translations": [{"sense": "letra", "word": "i"}], "word": "i"}
+# Full entries, every field kaikki writes (the 2026-10-03 extract es-en pins): what `native_fields`
+# cuts down.
+FULL_QUORUM = json.loads(
+    r'''{"pos": "noun", "head_templates": [{"name": "es-noun", "args": {"1": "m", "2": "+,#,#es<l:proscribed>"}, "expansion": "quórum m (plural quórums or quórum or (proscribed) quórumes)"}], "forms": [{"form": "quórums", "tags": ["plural"]}, {"form": "quórum", "tags": ["plural"]}, {"form": "quórumes", "tags": ["plural", "proscribed"]}], "etymology_text": "Borrowed from Latin quōrum, genitive plural form of quī (“who, which”).", "etymology_links": [["quōrum", "quorum#Latin"], ["quī", "qui#Latin"]], "etymology_templates": [{"name": "bor+", "args": {"1": "es", "2": "la", "3": "quōrum"}, "expansion": "Borrowed from Latin quōrum"}], "sounds": [{"ipa": "/ˈkwoɾum/"}, {"ipa": "[ˈkwo.ɾũm]"}, {"rhymes": "-oɾum"}], "hyphenation": ["quó‧rum"], "hyphenations": [{"parts": ["quó‧rum"]}], "word": "quórum", "lang": "Spanish", "lang_code": "es", "senses": [{"links": [["cuórum", "cuórum#Spanish"]], "glosses": ["superseded spelling of cuórum"], "tags": ["alt-of", "archaic", "masculine"], "alt_of": [{"word": "cuórum"}], "id": "en-quórum-es-noun-CxQDwg2j", "categories": [{"name": "Pages with 2 entries", "kind": "other", "parents": [], "source": "w"}, {"name": "Pages with entries", "kind": "other", "parents": [], "source": "w"}, {"name": "Spanish entries with incorrect language header", "kind": "other", "parents": [], "source": "w"}, {"name": "Spanish nouns with multiple plurals", "kind": "other", "parents": [], "source": "w"}]}]}'''
+)
+FULL_CUORUM = json.loads(
+    r'''{"pos": "noun", "head_templates": [{"name": "es-noun", "args": {"1": "m", "2": "+,#"}, "expansion": "cuórum m (plural cuórums or cuórum)"}], "forms": [{"form": "cuórums", "tags": ["plural"]}, {"form": "cuórum", "tags": ["plural"]}, {"form": "quorum", "tags": ["alternative"]}, {"form": "quórum", "tags": ["alternative"]}], "sounds": [{"ipa": "/ˈkwoɾum/"}, {"ipa": "[ˈkwo.ɾũm]"}, {"rhymes": "-oɾum"}], "hyphenation": ["cuó‧rum"], "hyphenations": [{"parts": ["cuó‧rum"]}], "word": "cuórum", "lang": "Spanish", "lang_code": "es", "senses": [{"links": [["quorum", "quorum"]], "glosses": ["quorum (minimum number of votes)"], "tags": ["masculine"], "id": "en-cuórum-es-noun-kCTyEEVn", "categories": [{"name": "Pages with 1 entry", "kind": "other", "parents": [], "source": "w"}, {"name": "Pages with entries", "kind": "other", "parents": [], "source": "w"}, {"name": "Spanish entries with incorrect language header", "kind": "other", "parents": [], "source": "w"}, {"name": "Spanish nouns with multiple plurals", "kind": "other", "parents": [], "source": "w"}]}]}'''
+)
+FULL_DAR_DE_ALTA = json.loads(
+    r'''{"pos": "verb", "head_templates": [{"name": "es-verb", "args": {}, "expansion": "dar de alta (first-person singular present doy de alta, first-person singular preterite di de alta, past participle dado de alta)"}], "forms": [{"form": "doy de alta", "tags": ["first-person", "present", "singular"]}, {"form": "di de alta", "tags": ["first-person", "preterite", "singular"]}, {"form": "dado de alta", "tags": ["participle", "past"]}, {"form": "dar el alta", "tags": ["alternative"]}, {"form": "darse de alta", "tags": ["alternative", "reflexive"]}], "word": "dar de alta", "lang": "Spanish", "lang_code": "es", "sounds": [{"ipa": "/ˌdaɾ de ˈalta/"}, {"ipa": "[ˌd̪aɾ ð̞e ˈal̪.t̪a]"}], "hyphenation": ["dar de al‧ta"], "hyphenations": [{"parts": ["dar de al‧ta"]}], "senses": [{"links": [["discharge", "discharge"]], "synonyms": [{"word": "dar de baja"}], "raw_glosses": ["(transitive, idiomatic) to discharge (to release a patient from the hospital)"], "glosses": ["to discharge (to release a patient from the hospital)"], "tags": ["idiomatic", "transitive"], "id": "en-dar_de_alta-es-verb-rcPzMjq1", "categories": [{"name": "Pages with 1 entry", "kind": "other", "parents": [], "source": "w+disamb", "_dis": "51 49"}, {"name": "Pages with entries", "kind": "other", "parents": [], "source": "w+disamb", "_dis": "57 43"}, {"name": "Spanish entries with incorrect language header", "kind": "other", "parents": [], "source": "w+disamb", "_dis": "67 33"}]}, {"links": [["register", "register"], ["sign up", "sign up"]], "antonyms": [{"word": "dar de baja"}], "raw_glosses": ["(transitive, reflexive, idiomatic) to register as, to sign up for (to join a service or an organization)"], "glosses": ["to register as, to sign up for (to join a service or an organization)"], "tags": ["idiomatic", "reflexive", "transitive"], "id": "en-dar_de_alta-es-verb-FJ2AIxqK", "categories": [{"name": "Pages with 1 entry", "kind": "other", "parents": [], "source": "w+disamb", "_dis": "51 49"}]}]}'''
+)
 SEPULTURA = {
     "word": "sepultura",
     "pos": "noun",
@@ -299,6 +378,48 @@ class TheEnglishEdition(Entries):
         out = common.without_letter_senses(self.jsonl(DE_LETTER, CASA), str(self.dir / "out.jsonl"), edition=EN)
         self.assertEqual([json.loads(line)["word"] for line in Path(out).read_text().splitlines()], ["casa"])
 
+    def test_a_sense_that_only_names_a_letter_is_no_gloss(self):
+        # Recorded: `r` glossed « the letter r », and a word's place in the Spanish spelling
+        # alphabet (36 of es-en's glossed lemmas ended on one). Another sense naming a letter
+        # inside it stays a meaning, and so does « the letter » followed by a word.
+        out = common.without_letter_senses(
+            self.jsonl(R_NOUN, JUEVES, ESPANA, ZETA), str(self.dir / "out.jsonl"), edition=EN
+        )
+        glosses, _ = self.gloss(EN, SPANISH, {"r", "jueves", "españa", "zeta"}, *map(json.loads, Path(out).read_text().splitlines()))
+        self.assertEqual(
+            glosses,
+            {
+                "jueves": "Thursday",
+                "españa": "Spain (a country in Southern Europe, including most of the Iberian peninsula); Peninsular Spain",
+                "zeta": "zeta, the Greek letter Ζ, ζ",
+            },
+        )
+        for meaning in ("to roll the letter R", "the letter of the law", "the letter-writer"):
+            self.assertIsNone(EN.letter.search(meaning), meaning)
+        # Read as written, without the rule, each would gloss its word (the committed tables did).
+        written, _ = self.gloss(EN, SPANISH, {"r", "jueves"}, R_NOUN, JUEVES)
+        self.assertEqual(written, {"r": "the letter r", "jueves": "Thursday; the letter J in the Spanish spelling alphabet"})
+
+    def test_a_single_capital_letter_glosses_no_word(self):
+        # Recorded: `A` (the chess bishop) and `C` (an abbreviation of `caballo`, alt-of). Read as
+        # written, `a` opens on « bishop » and `c` borrows the gloss of `caballo`.
+        written, _ = self.gloss(EN, SPANISH, {"a", "c", "caballo"}, A_NOUN, A_PREP, C_NOUN, CABALLO)
+        self.assertTrue(written["a"].startswith("bishop; to; by; at"), written["a"])
+        self.assertEqual(written["c"], "horse; knight; heroin")
+        kept = english.without_letter_headwords(
+            self.jsonl(A_NOUN, A_PREP, C_NOUN, CABALLO), str(self.dir / "headwords.jsonl")
+        )
+        self.assertEqual([json.loads(line)["word"] for line in Path(kept).read_text().splitlines()], ["a", "caballo"])
+        glosses = common.reduce_gloss(kept, {"a", "c", "caballo"}, **common.WORD_GLOSS, studied=SPANISH, edition=EN)
+        self.assertTrue(glosses["a"].startswith("to; by; at; Used before words"), glosses["a"])
+        self.assertNotIn("c", glosses)
+        self.assertEqual(glosses["caballo"], "horse; knight; heroin")
+        # An acronym of two capitals or more is the shared rule's; a line it cannot read is passed on.
+        made_up = self.dir / "made-up.jsonl"
+        made_up.write_text('{"word": "UE", "pos": "name", "senses": []}\nnot json\n[1]\n', encoding="utf-8")
+        kept = english.without_letter_headwords(str(made_up), str(self.dir / "headwords.jsonl"))
+        self.assertEqual(Path(kept).read_text(encoding="utf-8"), made_up.read_text(encoding="utf-8"))
+
     def test_no_placeholder_and_no_dangling_coordinator(self):
         # The heraldic « or » is a meaning (made up from the census's 13 such senses).
         self.assertEqual(common.clean_gloss("or (the tincture)", 80, edition=EN), "or (the tincture)")
@@ -350,6 +471,30 @@ class TheEnglishEditionSettings(Entries):
         )
         self.assertEqual(runs["policía"], [("NOUN", 3)])
 
+    def test_the_pre_pass_keeps_a_sense_less_entry_in_its_place_and_leaves_out_non_objects(self):
+        # Made up: a noun entry with no senses before two with senses, and lines that are no JSON
+        # object. The sense-less entry merges into none; the later nouns merge into it, the first
+        # noun of the word.
+        empty = {"word": "policía", "pos": "noun", "head_templates": [{"name": "es-noun"}]}
+        verb = {"word": "policía", "pos": "verb", "senses": []}
+        src = self.dir / "entries.jsonl"
+        src.write_text(
+            "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in (empty, verb, POLICIA_1))
+            + "not json\n[1, 2]\n\"a string\"\n"
+            + json.dumps(POLICIA_2, ensure_ascii=False)
+            + "\n",
+            encoding="utf-8",
+        )
+        merged = english.merge_same_pos_etymologies(str(src), str(self.dir / "merged.jsonl"), merged=True)
+        lines = [json.loads(line) for line in Path(merged).read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(
+            lines,
+            [
+                {**empty, "senses": POLICIA_1["senses"] + POLICIA_2["senses"]},
+                verb,
+            ],
+        )
+
     def test_the_pre_pass_keeps_other_parts_of_speech_and_other_spellings_apart(self):
         # Made up: a verb entry between the nouns, and an acronym spelled like the word.
         verb = {"word": "policía", "pos": "verb", "senses": [{"glosses": ["inflection of policiar:"]}]}
@@ -379,11 +524,15 @@ class TheEnglishEditionSettings(Entries):
         pairs = ("en-fr", "es-fr", "es-en")
         before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
         self.assertEqual(before, {pair: ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py") for pair in pairs})
-        edition = copy / "reduce_edition_en.py"
-        for old, new in (
-            ("LONG_PARENTHESIS = 0\n", "LONG_PARENTHESIS = 40\n"),
-            ("MERGE_SAME_POS_ETYMOLOGIES = False\n", "MERGE_SAME_POS_ETYMOLOGIES = True\n"),
+        for name, old, new in (
+            ("reduce_edition_en.py", "LONG_PARENTHESIS = 0\n", "LONG_PARENTHESIS = 40\n"),
+            ("reduce_edition_en.py", "MERGE_SAME_POS_ETYMOLOGIES = False\n", "MERGE_SAME_POS_ETYMOLOGIES = True\n"),
+            # The letters' rules of add-lingua-pack-es-en, the English edition's and es-en's own.
+            ("reduce_edition_en.py", r"|the letter \w\b)", ")"),
+            ("reduce_edition_en.py", "len(headword) == 1 and headword.isupper()", "False"),
+            ("reduce-es-en.py", 'if entry.get("pos") == "character":', "if False:"),
         ):
+            edition = copy / name
             text = edition.read_text(encoding="utf-8")
             self.assertIn(old, text)
             edition.write_text(text.replace(old, new), encoding="utf-8")
@@ -593,6 +742,55 @@ class AGlossIsWrittenInTheReadersLanguage(Entries):
         self.assertEqual((manifest["meta"]["studied"], manifest["meta"]["native"]), ("es", "en"))
         self.assertTrue(manifest["meta"]["levels_estimated"])
         self.assertEqual(manifest["meta"]["pack_version"], "test")
+
+    def test_a_letter_s_translation_is_no_gloss(self):
+        # Recorded: the Spanish Wiktionary lists a letter as its own English translation, under
+        # its `character` entry or the noun naming it. Read as the direct table, `b`, `g` and `i`
+        # would be glossed « b », « g » and « i ». A one-letter word translated is kept (`o` « or »).
+        src = self.jsonl(B_TRANSLATED, O_TRANSLATED, G_TRANSLATED, I_TRANSLATED, name="kaikki-es-traductions-en.jsonl")
+        self.assertEqual(
+            common.read_translations(src, inverted=False, studied=SPANISH),
+            {"b": {"SYM": ["b"]}, "o": {"CCONJ": ["or"]}, "g": {"SYM": ["g"]}, "i": {"NOUN": ["i"]}},
+        )
+        direct = es_en.read_translated(src, str(self.dir / "words.jsonl"))
+        self.assertEqual(direct, {"o": {"CCONJ": ["or"]}})
+        got = common.fallback_glosses({"b", "g", "i", "o"}, {}, [(direct, list)], edition=EN)
+        self.assertEqual(got, {"o": ("or", [("CCONJ", 1)])})
+
+    def test_native_fields_cut_changes_no_table(self):
+        # Recorded full entries: the native side is the same from the extract as kaikki writes it
+        # and from its cut (`native_fields`), pointers (`alt_of`) and expressions included.
+        full = self.jsonl(FULL_QUORUM, FULL_CUORUM, FULL_DAR_DE_ALTA, name="full.jsonl")
+        cut, dropped = es_en.native_fields(full, str(self.dir / "cut.jsonl"))
+        self.assertEqual(dropped, 0)
+        self.assertLess(Path(cut).stat().st_size, Path(full).stat().st_size / 3)
+        lemmas = {"quórum": 1, "cuórum": 2}
+
+        def tables(path):
+            return common.native_tables(path, lemmas, studied=es_en.ES, edition=es_en.EDITION, fallbacks=[({}, list)])
+
+        self.assertEqual(tables(cut), tables(full))
+        glosses, _, expressions, _ = tables(cut)
+        self.assertEqual(glosses["quórum"], "quorum (minimum number of votes)", "the pointer kept")
+        self.assertIn("dar de alta", expressions)
+
+    def test_native_fields_counts_the_lines_it_leaves_out(self):
+        # Made up: an undecodable line and two JSON values that are no object.
+        src = self.dir / "extract.jsonl"
+        src.write_text(json.dumps(CASA) + "\nnot json\n[1]\n2\n", encoding="utf-8")
+        cut, dropped = es_en.native_fields(str(src), str(self.dir / "cut.jsonl"))
+        self.assertEqual(dropped, 3)
+        self.assertEqual([json.loads(line)["word"] for line in Path(cut).read_text().splitlines()], ["casa"])
+
+    def test_es_en_s_copy_of_spanish_is_es_fr_s(self):
+        # reduce-es-en.py repeats es-fr's description of Spanish (`_TOKEN`, the coordinators, the
+        # form-of target) because a reducer loads no other pair's: the two must not drift.
+        self.assertEqual(es_en._TOKEN, es_fr._TOKEN)
+        self.assertEqual(es_en.ES, es_fr.ES)
+        self.assertEqual(
+            (es_en.ES.token.pattern, es_en.ES.form_of_target.pattern, es_en.ES.coordinators),
+            (es_fr.ES.token.pattern, es_fr.ES.form_of_target.pattern, es_fr.ES.coordinators),
+        )
 
     def test_es_en_reads_the_committed_studied_tables_as_es_fr_writes_them(self):
         # A studied folder whose forms and ranks disagree is not what es-fr's reduction writes.

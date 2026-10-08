@@ -21,8 +21,8 @@ Inputs:
   Spanish words and expressions, cleaned by the English Wiktionary's rules (`reduce_edition_en.EN`).
 - `kaikki-es-traductions-en.jsonl`, in `--work`: the English translations the Spanish Wiktionary's
   Spanish entries list (derived from its dump, `pack_sources.py DUMPS`), the glosses' direct
-  fallback. No inverted table (the English Wiktionary's English entries are change 22's source),
-  no pivot, no machine translation.
+  fallback, a letter's entry left out (`read_translated`). No inverted table (the English
+  Wiktionary's English entries are change 22's source), no pivot, no machine translation.
 
 Outputs, in `--work`: `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and `manifest.json`.
 
@@ -111,14 +111,17 @@ def read_studied(studied, max_lemmas):
 def native_fields(src, dst):
     """The extract cut down to what the native side reads (`_ENTRY_FIELDS`, `_SENSE_FIELDS`),
     written to `dst`: the shared rules read the file three times, and the inflection tables are
-    most of its 1 GB. An entry's `word` and `pos` are kept as written."""
+    most of its 1 GB. An entry's `word` and `pos` are kept as written. A line that is no JSON
+    object — undecodable, or another JSON value — is left out, and counted: `(dst, dropped)`."""
+    dropped = 0
     with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
         for line in f:
             try:
                 entry = json.loads(line)
             except json.JSONDecodeError:
-                continue
+                entry = None
             if not isinstance(entry, dict):
+                dropped += 1
                 continue
             cut = {field: entry[field] for field in _ENTRY_FIELDS if field in entry}
             cut["senses"] = [
@@ -127,7 +130,7 @@ def native_fields(src, dst):
                 if isinstance(sense, dict)
             ]
             out.write(json.dumps(cut, ensure_ascii=False) + "\n")
-    return dst
+    return dst, dropped
 
 
 def without_letters(src, dst):
@@ -135,10 +138,38 @@ def without_letters(src, dst):
     return common.without_letter_senses(src, dst, edition=EDITION)
 
 
-def read_translated(path):
-    """What the Spanish Wiktionary's translation file says of Spanish words: word → {UPOS: [English
-    word, …]} (`common.read_translations`, the direct table)."""
-    return common.read_translations(path, inverted=False, studied=ES)
+def without_letter_translations(src, dst):
+    """The Spanish Wiktionary's translation file without its letters' entries, written to `dst`: a
+    `character` entry lists the letter itself as its English translation (`b` « b », `g` « g »), a
+    gloss that says nothing, and so does a one-letter word's entry whose every translation is that
+    letter (the noun `i`, « i » for « letra »). The English Wiktionary's letters go the same way
+    (`common.without_letter_senses`). A line this pass cannot read is written as it is: the shared
+    rules decide."""
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                entry = None
+            if isinstance(entry, dict) and _names_a_letter(entry):
+                continue
+            out.write(line if line.endswith("\n") else line + "\n")
+    return dst
+
+
+def _names_a_letter(entry):
+    if entry.get("pos") == "character":
+        return True
+    word = (entry.get("word") or "").strip().lower()
+    listed = [(t.get("word") or "").strip().lower() for t in entry.get("translations") or () if isinstance(t, dict)]
+    return len(word) == 1 and all(native == word for native in listed)
+
+
+def read_translated(path, dst):
+    """What the Spanish Wiktionary's translation file says of Spanish words, its letters left out
+    (`without_letter_translations`, into `dst`): word → {UPOS: [English word, …]}
+    (`common.read_translations`, the direct table)."""
+    return common.read_translations(without_letter_translations(path, dst), inverted=False, studied=ES)
 
 
 def analyser_version(path=_ANALYSIS_RS):
@@ -152,7 +183,9 @@ def analyser_version(path=_ANALYSIS_RS):
 
 
 # The credits (design D4): both sides' sources. The studied side is es-fr's reduction's, read as
-# committed; the levels are the ones es-fr estimated, and the manifest says so.
+# committed: its dictionary words and which lemmas take a level come from es-fr's French glosses,
+# so the French Wiktionary is credited too; the levels are the ones es-fr estimated, and the
+# manifest says so.
 NOTICE = """Cymbra Lingua data pack — ES->EN attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), Spanish section: CC BY-SA 4.0 + GFDL —
@@ -162,6 +195,10 @@ senses.
 
 kaikki.org extract of the Spanish Wiktionary (eswiktionary): CC BY-SA 4.0 + GFDL — the English
 translations its Spanish entries list, where the English Wiktionary has no gloss.
+
+kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — which lemmas
+es-fr glosses: the dictionary words and which take a level (Spanish's tables, read here as
+committed).
 
 wordfreq (Spanish frequency list), by Robyn Speer (https://github.com/rspeer/wordfreq): data under
 CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
@@ -191,12 +228,15 @@ def main():
 
     ranks = read_studied(a.studied, a.max_lemmas)
 
-    entries = native_fields(
+    entries, dropped = native_fields(
         os.path.join(a.work, "kaikki-Spanish.jsonl"), os.path.join(a.work, "kaikki-Spanish-senses.jsonl")
     )
     entries = without_letters(entries, os.path.join(a.work, "kaikki-Spanish-words.jsonl"))
+    entries = english.without_letter_headwords(entries, os.path.join(a.work, "kaikki-Spanish-headwords.jsonl"))
     entries = english.merge_same_pos_etymologies(entries, os.path.join(a.work, "kaikki-Spanish-merged.jsonl"))
-    direct = read_translated(os.path.join(a.work, "kaikki-es-traductions-en.jsonl"))
+    direct = read_translated(
+        os.path.join(a.work, "kaikki-es-traductions-en.jsonl"), os.path.join(a.work, "kaikki-es-traductions-en-words.jsonl")
+    )
     glosses, runs, expressions, primary = common.native_tables(
         entries, ranks, studied=ES, edition=EDITION, fallbacks=[(direct, list)], locutions=LOCUTIONS
     )
@@ -221,7 +261,7 @@ def main():
             # Spanish's levels are es-fr's estimate, read as committed: the extension says so.
             "levels_estimated": True,
             "licences": [
-                "kaikki / enwiktionary, eswiktionary (CC BY-SA 4.0 + GFDL)",
+                "kaikki / enwiktionary, eswiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)",
                 "wordfreq (CC BY-SA 4.0)",
                 "UD Spanish-GSD (CC BY-SA 4.0)",
             ],
@@ -235,7 +275,8 @@ def main():
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     print(
         f"reduced es-en: lemmas={len(ranks)} (Spanish's committed tables) glosses={len(glosses)} "
-        f"(English Wiktionary {primary}) expressions={len(expressions)}",
+        f"(English Wiktionary {primary}) expressions={len(expressions)} "
+        f"dropped={dropped} (extract lines that are no JSON object)",
         file=sys.stderr,
     )
 

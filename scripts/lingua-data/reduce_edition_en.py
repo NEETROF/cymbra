@@ -23,7 +23,13 @@ Spanish section, the 2026-09-28 dump es-fr pins: 811,049 entries, 875,591 senses
   shared rules skip a sense with no gloss, and a word left with no sense has no gloss.
 - No dangling coordinator: the 13 senses that open on « or » or « and » are meanings (the heraldic
   « or », "and a half").
-- A letter's name: "The name of the Latin script letter D/d.".
+- A letter's name: "The name of the Latin script letter D/d.", and a sense that only names a letter:
+  "the letter r" (`r`), or a word's place in the Spanish spelling alphabet, "the letter E in the
+  Spanish spelling alphabet" (36 of es-en's glossed lemmas ended on one: `españa`, `jueves`).
+- A single capital letter is no headword of a word (`without_letter_headwords`): the Spanish
+  section writes a chess piece, a compass point or a title under it (`A` « bishop », `C`
+  « abbreviation of caballo », `N` « abbreviation of norte »), which would gloss the letter `a`, or
+  lend `c` the gloss of `caballo`.
 - Casing: 98.3 % of the meaning senses open on a lower-case letter, the edition's convention for a
   foreign word's senses, so a gloss made of translation-table words keeps the case its words have.
 - Long parentheses (M20): 5,724 of 147,653 meaning senses hold one of 40 characters or more
@@ -70,8 +76,11 @@ _FORM_OF = re.compile(
     re.IGNORECASE,
 )
 
-# A sense naming a letter: "The name of the Latin script letter D/d.".
-_LETTER = re.compile(r"^(?:the )?name of the (?:[\w-]+ )?(?:script )?(?:letter|digraph)\b", re.IGNORECASE)
+# A sense naming a letter: "The name of the Latin script letter D/d.", "the letter r", "the letter E
+# in the Spanish spelling alphabet" — one letter, never a word ("the letter of the law").
+_LETTER = re.compile(
+    r"^(?:(?:the )?name of the (?:[\w-]+ )?(?:script )?(?:letter|digraph)\b|the letter \w\b)", re.IGNORECASE
+)
 
 EN = common.Edition(
     code="en",
@@ -84,6 +93,33 @@ EN = common.Edition(
 )
 
 
+def without_letter_headwords(src, dst):
+    """The edition's entries without those whose headword is a single capital letter, written to
+    `dst` — a pre-pass a reducer runs before the shared rules read the file, as it runs
+    `merge_same_pos_etymologies`.
+
+    The shared rules key a headword in lower case, and spare a word an acronym's entries only when
+    the acronym has two capitals or more (`reduce_common._acronym`). The English Wiktionary's
+    Spanish section writes chess pieces, compass points and titles under a capital letter — `A`
+    « bishop », `C` « abbreviation of caballo », `N` « abbreviation of norte », `I` « abbreviation
+    of ilustre » — so `a` opened on « bishop », and `c` borrowed the gloss of `caballo`. A letter's
+    own entries (`character`) go with `reduce_common.without_letter_senses`. A line this pass
+    cannot read is written as it is: the shared rules decide.
+    """
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                entry = None
+            if isinstance(entry, dict):
+                headword = (entry.get("word") or "").strip()
+                if len(headword) == 1 and headword.isupper():
+                    continue
+            out.write(line if line.endswith("\n") else line + "\n")
+    return dst
+
+
 def merge_same_pos_etymologies(src, dst, *, merged=None):
     """The edition's entries with a word's entries of one part of speech merged into one, their
     senses in source order — a pre-pass a reducer runs before the shared rules read the file
@@ -94,9 +130,11 @@ def merge_same_pos_etymologies(src, dst, *, merged=None):
     entries are consecutive in the extract, so a word's group is the run of lines sharing its
     `word`. The first entry of a part of speech keeps its other fields and gains the later ones'
     senses, so the round-robin across a word's entries (`reduce_common._join_senses_by_pos`) takes
-    the first etymology's senses before the next one's; an entry with no senses is kept as it is,
-    and a line that is no JSON object is left out, as the shared rules leave it. The headword's
-    exact spelling is the key: an acronym's entries (« CASA ») never merge with the common word's.
+    the first etymology's senses before the next one's. An entry with no senses merges into none:
+    it keeps its place, as written, and when it is the first of its part of speech the later ones'
+    senses merge into it. A line that is no JSON object — undecodable, or another JSON value — is
+    left out. The headword's exact spelling is the key: an acronym's entries (« CASA ») never merge
+    with the common word's.
     """
     if not (MERGE_SAME_POS_ETYMOLOGIES if merged is None else merged):
         return src
