@@ -5,6 +5,7 @@ import type {
   PhraseMatch,
   PhrasePart,
   PhraseToken,
+  StudiedLanguage,
   WordGrammar,
 } from "@/analyzer/types.ts";
 import {
@@ -1349,7 +1350,7 @@ describe("SelectionCards with the translation engine", () => {
     translation: { sentence: "Elle a abandonné après la troisième tentative.", marks: [{ start: 5, end: 16 }] },
   };
 
-  function setup(language?: string) {
+  function setup(language?: StudiedLanguage) {
     const { ports, phraseGloss, gloss } = fakePorts();
     const view = fakeSurface();
     const { clock, elapseOnly, armed } = fakeClock();

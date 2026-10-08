@@ -4,6 +4,7 @@ import type {
   PhraseGloss,
   PhraseMatch,
   PhraseToken,
+  StudiedLanguage,
   TokenClass,
   WordGrammar,
 } from "../analyzer/types.ts";
@@ -320,7 +321,7 @@ export class SelectionCards {
        * The studied language the document is read in: what a translation is asked in
        * (generalise-lingua-translation-model-state D5). English when not given.
        */
-      language?: () => string;
+      language?: () => StudiedLanguage;
       /** The interface language the cards' figures are written in; French when not given. */
       interfaceLanguage?: InterfaceLanguage;
       /** The cards' copy in that language; the French module when not given. */
@@ -524,7 +525,7 @@ export class SelectionCards {
   }
 
   /** The language a translation is asked in: the document's. */
-  private language(): string {
+  private language(): StudiedLanguage {
     return this.opts.language?.() ?? "en";
   }
 

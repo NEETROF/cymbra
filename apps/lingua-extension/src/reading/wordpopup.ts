@@ -1,18 +1,15 @@
 import type { MarkedTranslation } from "../translate/markup.ts";
-import type { LemmaStatus, WordGrammar } from "../analyzer/types.ts";
-import { card as frCard } from "../i18n/fr/card.ts";
-import { grammar as enGrammar } from "../i18n/en/grammar.ts";
-import { grammar as esGrammar } from "../i18n/es/grammar.ts";
-import { grammar as frGrammar } from "../i18n/fr/grammar.ts";
+import type { LemmaStatus, StudiedLanguage, WordGrammar } from "../analyzer/types.ts";
+import type { card as frCard } from "../i18n/fr/card.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
   formatCount,
-  type GrammarRenderer,
   type InterfaceLanguage,
   NODE_SLOT,
   renderAround,
 } from "../i18n/index.ts";
 import { glossPages, pageText, type GlossPage } from "./gloss-pages.ts";
+import { readingCopy } from "./reading-copy.ts";
 import { isTouchPrimary } from "../state/platform.ts";
 import { sameSpokenText, type Speaker, type Speaking } from "./speech.ts";
 import { followSurfaceLook } from "./surface-look.ts";
@@ -103,7 +100,7 @@ export interface WordPopupContent {
    * (add-lingua-spanish-word-card) and which the card's words of the document say in `lang`
    * (localise-lingua-reading-surfaces); a card without one names English forms, as every card did.
    */
-  language?: string;
+  language?: StudiedLanguage;
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
@@ -137,15 +134,9 @@ const CARD_KEYS: ReadonlySet<string> = new Set<Listen["key"]>(["selection", "hea
  * The host says the interface language (D3), so these say their own, for the voices, the
  * hyphenation and the spell-check that read them.
  */
-function studiedLanguageOf(content: WordPopupContent): string {
+function studiedLanguageOf(content: WordPopupContent): StudiedLanguage {
   return content.language ?? "en";
 }
-
-/**
- * The word card's grammar renderer for each interface language (generalise-lingua-card-wording D2):
- * the form described once, said in the reader's language.
- */
-const GRAMMARS: Record<InterfaceLanguage, GrammarRenderer> = { fr: frGrammar, en: enGrammar, es: esGrammar };
 
 /** A word of the document, in its language, inside a line of the interface's. */
 function studiedWord(text: string, language: string): HTMLElement {
@@ -202,15 +193,13 @@ function listensFor(content: WordPopupContent, copy: CardCopy): Listen[] {
 }
 
 /** Build the card view (no shadow root involved — testable in isolation). With a `speaker`, the
- *  card offers to hear the selection and its sentence (add-lingua-read-aloud). Its labels are
- *  `copy`'s, the catalogue's module in the interface language (localise-lingua-reading-surfaces D1),
- *  and its figures and its grammar lines are written in `language`; without them, the French. */
-export function createCard(
-  speaker?: Speaker,
-  copy: CardCopy = frCard,
-  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
-): CardView {
-  const grammar = GRAMMARS[language];
+ *  card offers to hear the selection and its sentence (add-lingua-read-aloud). Its labels, its
+ *  figures and its grammar lines are written in `language` — the catalogue's `card` module and
+ *  grammar renderer of that one language (localise-lingua-reading-surfaces D1,
+ *  generalise-lingua-card-wording D2), so they cannot disagree; without one, or with a language the
+ *  catalogue lacks, the French. */
+export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE): CardView {
+  const { card: copy, grammar } = readingCopy(language);
   const el = div("card");
   el.hidden = true;
   el.addEventListener("click", (e) => e.stopPropagation());
@@ -339,6 +328,7 @@ export function createCard(
    */
   function renderGrammar(content: WordPopupContent): void {
     grammarEl.replaceChildren();
+    const studied = studiedLanguageOf(content);
     const lines =
       content.grammar && !content.pending && !content.expression
         ? grammar.grammarLines(
@@ -346,11 +336,10 @@ export function createCard(
             content.headword,
             content.surface,
             content.written ?? content.surface,
-            content.language === "es" ? "es" : "en",
+            studied,
           )
         : [];
     grammarEl.hidden = lines.length === 0;
-    const studied = studiedLanguageOf(content);
     for (const line of lines) {
       const lineEl = div("grammar-line");
       for (const segment of line) {
@@ -602,10 +591,11 @@ export interface WordPopupOptions {
   speaker?: Speaker;
   /** Follow the reader's colours and text size (surface-look); off: the card as designed. */
   followLook?: boolean;
-  /** The interface language, said by the host's `lang` (localise-lingua-reading-surfaces D3); French when not given. */
+  /**
+   * The interface language, said by the host's `lang` (localise-lingua-reading-surfaces D3), whose
+   * `card` module and grammar renderer the card reads (`reading-copy.ts`); French when not given.
+   */
   language?: InterfaceLanguage;
-  /** The card's copy in that language; the French module when not given. */
-  copy?: CardCopy;
 }
 
 export class WordPopup {
@@ -614,7 +604,7 @@ export class WordPopup {
   private readonly view: CardView;
 
   constructor(private readonly opts: WordPopupOptions) {
-    this.view = createCard(opts.speaker, opts.copy ?? frCard, opts.language);
+    this.view = createCard(opts.speaker, opts.language);
     this.host = document.createElement("div");
     this.host.id = "cymbra-lingua-host";
     this.host.setAttribute("data-cymbra-lingua-skip", "");

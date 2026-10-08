@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GrammarTag, WordGrammar } from "@/analyzer/types.ts";
+import type { GrammarTag, StudiedLanguage, WordGrammar } from "@/analyzer/types.ts";
 import {
   describeForm,
   FEATURES,
@@ -237,7 +237,7 @@ describe("What each renderer names", () => {
 });
 
 describe("Every reader today", () => {
-  const show = (language: string | undefined, headword: string, surface: string, readings: GrammarTag[]) => {
+  const show = (language: StudiedLanguage | undefined, headword: string, surface: string, readings: GrammarTag[]) => {
     const card = createCard();
     card.show(
       {

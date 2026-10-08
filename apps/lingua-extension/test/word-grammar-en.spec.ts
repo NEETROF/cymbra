@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { GrammarTag, WordGrammar } from "@/analyzer/types.ts";
-import { card as enCard } from "@/i18n/en/card.ts";
 import { grammar as renderer } from "@/i18n/en/grammar.ts";
 import { grammar as fr } from "@/i18n/fr/grammar.ts";
 import { createCard, type WordPopupContent } from "@/reading/wordpopup.ts";
@@ -28,7 +27,7 @@ const grammar = (over: Partial<WordGrammar> = {}): WordGrammar => ({
 });
 
 function shown(over: Partial<WordPopupContent>) {
-  const card = createCard(undefined, enCard, "en");
+  const card = createCard(undefined, "en");
   document.body.append(card.el);
   card.show(
     {

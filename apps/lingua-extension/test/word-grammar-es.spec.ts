@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { GrammarTag, WordGrammar } from "@/analyzer/types.ts";
-import { card as esCard } from "@/i18n/es/card.ts";
 import { grammar as renderer } from "@/i18n/es/grammar.ts";
 import { grammar as fr } from "@/i18n/fr/grammar.ts";
 import { createCard, type WordPopupContent } from "@/reading/wordpopup.ts";
@@ -28,7 +27,7 @@ const grammar = (over: Partial<WordGrammar> = {}): WordGrammar => ({
 });
 
 function shown(over: Partial<WordPopupContent>) {
-  const card = createCard(undefined, esCard, "es");
+  const card = createCard(undefined, "es");
   document.body.append(card.el);
   card.show(
     {
@@ -231,7 +230,7 @@ describe("the word card in Spanish, of a Spanish word", () => {
     ]);
   });
 
-  it("A Spanish-native reader of Spanish: « vino » of « venir », « venir » marked as Spanish", () => {
+  it("The Spanish interface on a Spanish word: « vino » of « venir », « venir » marked as Spanish", () => {
     const { lines, card } = shown({
       language: "es",
       headword: "venir",

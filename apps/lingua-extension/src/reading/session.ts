@@ -327,8 +327,8 @@ export class ReadingSession {
       onGesture: (g) => void this.onGesture(g),
       speaker: this.speaker,
       followLook: true,
+      // Its copy and its grammar renderer are the catalogue's for this one language.
       language: interfaceLanguage,
-      copy: copy.card,
     });
     this.cards = new SelectionCards(
       // Asked at each call, so a card follows the session's language.
