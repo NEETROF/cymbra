@@ -41,6 +41,7 @@ export type Surface =
   | "translation"
   | "account-setting"
   | "account"
+  | "account-errors"
   | "onboarding"
   | "reader"
   | "sync"
@@ -64,6 +65,7 @@ export const SURFACES: readonly Surface[] = [
   "translation",
   "account-setting",
   "account",
+  "account-errors",
   "onboarding",
   "reader",
   "sync",

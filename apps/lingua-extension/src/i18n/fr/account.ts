@@ -1,6 +1,6 @@
 // The account page's copy (account/copy.ts, account/flow.ts, account/view.ts and account.html),
-// in French — the source module (add-lingua-interface-language). A provider failure is never
-// worded as a password error (add-lingua-account-parity D7).
+// in French — the source module (add-lingua-interface-language). Its errors in plain words, and the
+// providers' names they take, are `account-errors.ts` (localise-lingua-account-onboarding D3).
 
 export const account = {
   pageTitle: "Compte — Cymbra Lingua",
@@ -8,41 +8,8 @@ export const account = {
   pageFootnote:
     "Ton compte Cymbra est le même que dans Cymbra Music. Sans compte, l'extension fonctionne entièrement sur cet appareil.",
 
-  // — Failures, by flow context × category (account/copy.ts) —
-  unavailable: "Impossible de joindre Cymbra. Vérifie ta connexion et réessaie.",
-  rateLimited: "Trop de tentatives. Réessaie dans quelques minutes.",
-  generic: "Une erreur est survenue. Réessaie.",
-  storageFull:
-    "La mémoire de l’extension est pleine sur cet appareil. Réinitialise tes données locales dans Réglages, puis réessaie.",
-  badCode: "Code invalide ou expiré. Demande un nouveau code.",
-  sessionExpired: "Ta session a expiré. Reconnecte-toi.",
-  /** `provider` is `providerGoogle` or `providerApple`. */
-  linkAlreadyLinked: (provider: string) => `Ce compte ${provider} est déjà lié à un autre compte Cymbra.`,
-  linkUnauthenticated: (provider: string) =>
-    `La liaison avec ${provider} n'a pas abouti. Réessaie — si ça continue, reconnecte-toi.`,
-  linkFailed: (provider: string) => `Impossible de lier ${provider}. Réessaie.`,
-  wrongCredentials: "Email ou mot de passe incorrect.",
-  emailNotVerified: "Ton adresse email n'est pas encore vérifiée.",
-  checkCredentials: "Vérifie l'email et le mot de passe saisis.",
-  googleFailed: "La connexion avec Google a échoué. Réessaie.",
-  appleFailed: "La connexion avec Apple a échoué. Réessaie.",
-  emailTaken: "Un compte utilise déjà cet email.",
-  weakPassword: "Email invalide ou mot de passe trop faible : choisis-en un plus long.",
-  badCodeOrWeakPassword: "Code invalide ou expiré, ou mot de passe trop faible.",
-  handleJustTaken: "Ce pseudo vient d'être pris — choisis-en un autre.",
-  sessionExpiredErase: "Ta session a expiré. Reconnecte-toi pour effacer tes données.",
-  eraseFailed: "L'effacement n'a pas abouti. Tes données sont intactes : réessaie.",
-  identitiesFailed: "Impossible de charger tes méthodes de connexion. Réessaie.",
-  onlyMethod: "Tu ne peux pas retirer ta seule méthode de connexion.",
-  unlinkFailed: "Impossible de retirer cette méthode. Réessaie.",
-  addressTakenOrHasPassword:
-    "Cette adresse est déjà utilisée par un compte Cymbra, ou ton compte a déjà un mot de passe.",
-  addressJustTaken: "Cette adresse vient d'être prise par un autre compte. Recommence avec une autre.",
-
   // — The flow's notices (account/flow.ts) —
   erased: "Tes données Lingua sont effacées. Tes autres appareils les effaceront à leur prochaine synchronisation.",
-  providerGoogle: "Google",
-  providerApple: "Apple",
   providerLocal: "Email et mot de passe",
   verifyFirst: "Ton adresse email n'est pas encore vérifiée. Saisis le code reçu par email.",
   codeSent: (email: string) => `Un code de vérification a été envoyé à ${email}.`,
@@ -61,9 +28,8 @@ export const account = {
   signedOut: "Tu es déconnecté. Connecte-toi avec un autre compte ou crée-en un.",
 
   // — The views (account/view.ts) —
-  /** The handle field's help, by availability; `max` is the handle's longest length. */
+  /** The handle field's help, by availability (`handleInvalid` is `account-errors.ts`'s); `max` is the handle's longest length. */
   handleEmpty: (max: string) => `1 à ${max} lettres ou chiffres.`,
-  handleInvalid: (max: string) => `1 à ${max} lettres ou chiffres uniquement (sans espaces ni symboles).`,
   handleChecking: "Vérification…",
   handleAvailable: "Disponible !",
   handleTaken: "Ce pseudo est pris — essaies-en un autre.",

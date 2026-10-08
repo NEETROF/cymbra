@@ -1,23 +1,48 @@
+import { accountErrors as enErrors } from "../i18n/en/account-errors.ts";
 import { account as enAccount } from "../i18n/en/account.ts";
+import { accountErrors as esErrors } from "../i18n/es/account-errors.ts";
 import { account as esAccount } from "../i18n/es/account.ts";
+import { accountErrors as frErrors } from "../i18n/fr/account-errors.ts";
 import { account as frAccount } from "../i18n/fr/account.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatCount, type InterfaceLanguage } from "../i18n/index.ts";
 import type { AuthErrorKind } from "../state/auth-errors.ts";
 import { HANDLE_MAX_LENGTH } from "./handle.ts";
 
 // Reader-facing copy for account failures, chosen by flow context × category
-// (add-lingua-account-parity, design D7), in the interface language: the catalogue's `account`
-// module (localise-lingua-account-onboarding D3). A provider failure is never worded as a password
-// error.
+// (add-lingua-account-parity, design D7), in the interface language: the catalogue's
+// `account-errors` module (localise-lingua-account-onboarding D3). A provider failure is never worded
+// as a password error. The errors are a module of their own because the reading surfaces' account
+// setting imports `errorCopy`: the account page's whole copy stays out of the content script, the
+// popup, the side panel and the reader.
 
-/** The account page's copy: the catalogue's `account` module, in the interface language. */
-export type AccountCopy = typeof frAccount;
+/** The account's errors in plain words: the catalogue's `account-errors` module. */
+export type AccountErrors = typeof frErrors;
 
-const ACCOUNT_COPY: Record<InterfaceLanguage, AccountCopy> = { fr: frAccount, en: enAccount, es: esAccount };
+/** The account page's copy: its errors and the catalogue's `account` module, in the interface language. */
+export type AccountCopy = AccountErrors & typeof frAccount;
 
-/** The account page's module for the interface language (French when none is given). */
+const ERRORS: Record<InterfaceLanguage, AccountErrors> = { fr: frErrors, en: enErrors, es: esErrors };
+
+const ACCOUNT: Record<InterfaceLanguage, typeof frAccount> = { fr: frAccount, en: enAccount, es: esAccount };
+
+/** The errors' module for the interface language. */
+function errorsOf(language: InterfaceLanguage): AccountErrors {
+  return ERRORS[language];
+}
+
+const merged = new Map<InterfaceLanguage, AccountCopy>();
+
+/**
+ * The account page's copy for the interface language (French when none is given): the errors and the
+ * page's own module, one object for the page (`fillPage`), the flow and the view.
+ */
 export function accountCopy(language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE): AccountCopy {
-  return ACCOUNT_COPY[language];
+  let copy = merged.get(language);
+  if (!copy) {
+    copy = { ...ERRORS[language], ...ACCOUNT[language] };
+    merged.set(language, copy);
+  }
+  return copy;
 }
 
 export type FlowContext =
@@ -45,7 +70,7 @@ function linkCopy(
   kind: AuthErrorKind,
   language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
 ): string {
-  const c = accountCopy(language);
+  const c = errorsOf(language);
   if (kind === "alreadyExists") return c.linkAlreadyLinked(provider);
   // A rejected bearer or a rejected id_token: both say so the same way, and retrying settles it.
   if (kind === "unauthenticated") return c.linkUnauthenticated(provider);
@@ -57,7 +82,7 @@ export function errorCopy(
   kind: AuthErrorKind,
   language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
 ): string {
-  const c = accountCopy(language);
+  const c = errorsOf(language);
   if (kind === "storageFull") return c.storageFull;
   if (kind === "unavailable") return c.unavailable;
   if (kind === "rateLimited") return c.rateLimited;
