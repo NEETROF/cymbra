@@ -42,8 +42,7 @@ interface Page {
 /** The page as the host app shows it, `language` being what Swift injected (nothing: opened by hand). */
 function load(language?: string): Page {
   const dom = new JSDOM(html, { runScripts: "outside-only" });
-  const window = dom.window as unknown as Window & {
-    eval(source: string): unknown;
+  const window = dom.window as typeof dom.window & {
     linguaLanguage?: string;
     linguaCopy: LinguaCopy;
     show: Page["show"];
