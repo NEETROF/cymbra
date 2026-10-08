@@ -111,3 +111,12 @@ jobs:
           declare_again "$mac_app/Contents/Info.plist" "apps/lingua-apple/macOS (App)/Info.plist"
           declare_again "$ios_app/PlugIns/Cymbra Lingua Extension.appex/Info.plist" "apps/lingua-apple/iOS (Extension)/Info.plist"
           declare_again "$mac_app/Contents/PlugIns/Cymbra Lingua Extension.appex/Contents/Info.plist" "apps/lingua-apple/macOS (Extension)/Info.plist"
+          # What the app offers is CFBundleLocalizations alone (SignInLanguage.offered(in:)), never the
+          # development region Xcode writes: each built app declares exactly the shipped natives — [fr]
+          # while only French ships, so a device in English keeps the French page and sheet.
+          natives=$(find "$packs" -name '*.lingua' -exec basename {} .lingua \; | sed 's/.*-//' | sort -u | paste -sd , -)
+          declared() { plutil -extract CFBundleLocalizations json -o - "$1" | tr -d '[]"' | tr , '\n' | sort -u | paste -sd , -; }
+          for plist in "$ios_app/Info.plist" "$mac_app/Contents/Info.plist"; do
+            echo "$plist: CFBundleLocalizations $(declared "$plist"), shipped natives $natives"
+            test "$(declared "$plist")" = "$natives"
+          done

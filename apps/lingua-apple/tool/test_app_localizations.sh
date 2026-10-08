@@ -115,7 +115,7 @@ for plist in "$work/app.plist" "$work/app.bin.plist"; do
   bash "$script" "$english" "$plist" "$work/app.src.plist" "$development_language" >/dev/null
   if [ "$(localizations "$plist")" = '["fr","en"]' ] && [ "$(region "$plist")" = "en" ]; then pass "fr + en natives declare [fr, en] / en in $(basename "$plist")"; else fail "fr + en natives declared $(localizations "$plist") / $(region "$plist") in $(basename "$plist")"; fi
 done
-if file "$work/app.bin.plist" | grep -q "binary property list"; then pass "a binary plist stays binary"; else fail "the binary plist was converted"; fi
+if [ "$(head -c 8 "$work/app.bin.plist")" = "bplist00" ]; then pass "a binary plist stays binary"; else fail "the binary plist was converted"; fi
 bash "$script" "$english" "$work/ext.plist" "$work/ext.src.plist" "$development_language" >/dev/null
 if [ "$(localizations "$work/ext.plist")" = '["fr","en"]' ] && [ "$(region "$work/ext.plist")" = "en" ]; then pass "fr + en natives declare [fr, en] / en in an extension's plist"; else fail "fr + en natives declared $(localizations "$work/ext.plist") / $(region "$work/ext.plist") in an extension's plist"; fi
 
@@ -140,6 +140,16 @@ if [ "$(localizations "$work/app.plist")" = '["fr","en","es"]' ] && [ "$(region 
 # 7. No pack is a build that forgot the extension; a missing plist is a wrong phase; the phase's arguments are all four.
 mkdir -p "$work/empty"
 if bash "$script" "$work/empty" "$work/app.plist" "$work/app.src.plist" "$development_language" 2>/dev/null; then fail "no pack passed"; else pass "no pack fails the build"; fi
+# An empty set of natives: a packs directory whose only entry named like a pack is a folder.
+mkdir -p "$work/folders/en-fr.lingua"
+if bash "$script" "$work/folders" "$work/app.plist" "$work/app.src.plist" "$development_language" 2>/dev/null; then fail "an empty set of natives passed"; else pass "an empty set of natives fails the build"; fi
+# 8. A native is 2–3 lowercase letters: a glob, an uppercase or empty native, or no native at all fails, and the plist is left as it was.
+cp "$work/app.plist" "$work/app.plist.before"
+for pair in 'en-*' 'es-EN' 'en-' 'english' 'en-fr fr' 'en-fran'; do
+  bad=$(packs bad en-fr "$pair")
+  if bash "$script" "$bad" "$work/app.plist" "$work/app.src.plist" "$development_language" 2>/dev/null; then fail "a pack named '$pair.lingua' passed"; else pass "a pack named '$pair.lingua' fails the build"; fi
+done
+if cmp -s "$work/app.plist" "$work/app.plist.before"; then pass "a refused pack leaves the plist untouched"; else fail "a refused pack rewrote the plist"; fi
 if bash "$script" "$french" "$work/missing.plist" "$work/app.src.plist" "$development_language" 2>/dev/null; then fail "a missing plist passed"; else pass "a missing plist fails the build"; fi
 if bash "$script" "$french" "$work/app.plist" "$work/missing.src.plist" "$development_language" 2>/dev/null; then fail "a missing source plist passed"; else pass "a missing source plist fails the build"; fi
 if bash "$script" "$french" "$work/app.plist" "$work/app.src.plist" "" 2>/dev/null; then fail "an empty development language passed"; else pass "an empty development language fails the build"; fi

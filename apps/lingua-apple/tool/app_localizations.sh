@@ -47,30 +47,36 @@ fi
 
 # The natives of the shipped packs, each once, in the order the interface lists its languages
 # (src/i18n/language.ts: fr, en, es); a native the app has no copy for is declared after them,
-# so the plist says what ships, and Swift shows the development region for it.
-found=""
+# so the plist says what ships, and Swift shows the fallback for it. A native is a language code,
+# 2–3 lowercase letters, and nothing else: it is written into the plist, and a name holding a
+# glob or a space must not reach the shell's word splitting.
+found="" # one native per line
 for pack in "$packs_dir"/*.lingua; do
   [ -f "$pack" ] || continue
   pair=$(basename "$pack" .lingua)
   native=${pair##*-}
-  if [ "$native" = "$pair" ] || [ -z "$native" ]; then
-    echo "error: $pack is not a <studied>-<native>.lingua pack" >&2
+  if [ "$native" = "$pair" ] || ! [[ "$native" =~ ^[a-z]{2,3}$ ]]; then
+    echo "error: $pack is not a <studied>-<native>.lingua pack whose native is 2–3 lowercase letters" >&2
     exit 1
   fi
-  found="$found $native"
+  found="$found$native"$'\n'
 done
 if [ -z "$found" ]; then
   echo "error: no pack in $packs_dir. Build the extension first: cd apps/lingua-extension && yarn build:safari" >&2
   exit 1
 fi
 natives=""
-for native in fr en es $(printf '%s\n' $found | sort -u); do
-  case " $found " in *" $native "*) ;; *) continue ;; esac
+while IFS= read -r native; do
+  case $'\n'"$found" in *$'\n'"$native"$'\n'*) ;; *) continue ;; esac
   case " $natives " in *" $native "*) continue ;; esac
   case "$native" in fr | en | es) ;; *) echo "warning: $native-native packs ship, but the app has no copy in $native (copy.js, SignInCopy)" >&2 ;; esac
-  natives="$natives $native"
-done
-natives=${natives# }
+  natives="${natives:+$natives }$native"
+done < <(printf '%s\n' fr en es; printf '%s' "$found" | sort -u)
+if [ -z "$natives" ]; then
+  echo "error: the packs in $packs_dir name no native language" >&2
+  exit 1
+fi
+read -ra native_list <<<"$natives"
 
 # What the plist should hold: Xcode's own product while only French ships, the natives otherwise.
 if [ "$natives" = "fr" ]; then
@@ -78,7 +84,7 @@ if [ "$natives" = "fr" ]; then
   wanted_region=$development_language
 else
   wanted_json="["
-  for native in $natives; do
+  for native in "${native_list[@]}"; do
     wanted_json="$wanted_json\"$native\","
   done
   wanted_json="${wanted_json%,}]"
