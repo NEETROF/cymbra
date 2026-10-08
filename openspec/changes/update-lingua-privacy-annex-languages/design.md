@@ -24,8 +24,9 @@ es-fr two (52,0 Mo), es-en one, en-es one (change 25).
 ### D1 — Name the languages generically, the facts exactly
 
 « les langues que vous étudiez », and each synced row says « pour chaque langue étudiée »; the
-models: « le ou les modèles de vos paires de langues — un seul (environ 25 Mo) pour une langue lue
-directement, deux (environ 52 Mo) pour l'espagnol lu en français » — the sizes from the catalogue;
+models: « le ou les modèles de vos paires de langues — un modèle (environ 26 Mo) quand la traduction
+est directe, deux (environ 52 Mo) quand elle passe par l'anglais » — the catalogue's sizes, reviewed
+by each change that adds a model;
 the voice: « une voix de la langue lue, installée sur votre appareil ».
 
 ### D2 — The account's language
