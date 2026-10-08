@@ -295,21 +295,47 @@ describe("the committed catalogue", () => {
 
   it("An English-native reader of Spanish, es-en shipping (change 34): the es-en route alone; a reader of French as before", () => {
     const c = parseCatalogue(committed);
-    expect(SHIPPED_PAIRS).toEqual(["en-fr", "es-fr", "es-en"]);
+    // The scenario's list: change 34's, es-en beside the French-native pairs.
+    const shipped = ["en-fr", "es-fr", "es-en"];
+    // A reader of French: the needs, the downloads and the routes loaded are still those of before (D2).
+    expect(readerPairs(["en", "es"], "fr", shipped)).toEqual(["en-fr", "es-fr"]);
+    expect(modelsFor(c, readerPairs(["en", "es"], "fr", shipped)).map((m) => m.version)).toEqual([EN_FR, ES_EN]);
+    expect(modelsFor(c, readerPairs(["en"], "fr", shipped)).map((m) => m.version)).toEqual([EN_FR]);
+    expect(modelsFor(c, readerPairs(["es"], "fr", shipped)).map((m) => m.version)).toEqual([ES_EN, EN_FR]);
+    // A reader of English studies Spanish through es-en: its model alone, nothing of en-fr.
+    expect(readerPairs(["es"], "en", shipped)).toEqual(["es-en"]);
+    expect(modelsFor(c, readerPairs(["es"], "en", shipped)).map((m) => m.version)).toEqual([ES_EN]);
+    // A reader of Spanish has no shipped pair in that list (en-es ships with change 35).
+    expect(readerPairs(["en"], "es", shipped)).toEqual([]);
+    // Whatever a reader studies, en-es is never needed.
+    for (const native of ["fr", "en", "es"]) {
+      for (const languages of [["en"], ["es"], ["en", "es"], ["es", "en"]]) {
+        expect(modelsFor(c, readerPairs(languages, native, shipped)).map((m) => m.version)).not.toContain(EN_ES);
+      }
+    }
+  });
+
+  it("A Spanish-native reader of English, en-es shipping (change 35): the en-es route alone; readers of French and English as before", () => {
+    const c = parseCatalogue(committed);
+    expect(SHIPPED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es"]);
     // A reader of French: the needs, the downloads and the routes loaded are still those of before (D2).
     expect(readerPairs(["en", "es"], "fr")).toEqual(["en-fr", "es-fr"]);
     expect(modelsFor(c, readerPairs(["en", "es"], "fr")).map((m) => m.version)).toEqual([EN_FR, ES_EN]);
     expect(modelsFor(c, readerPairs(["en"], "fr")).map((m) => m.version)).toEqual([EN_FR]);
     expect(modelsFor(c, readerPairs(["es"], "fr")).map((m) => m.version)).toEqual([ES_EN, EN_FR]);
-    // A reader of English studies Spanish through es-en: its model alone, nothing of en-fr.
+    // A reader of English: es-en's model alone, as change 34 shipped it.
     expect(readerPairs(["es"], "en")).toEqual(["es-en"]);
     expect(modelsFor(c, readerPairs(["es"], "en")).map((m) => m.version)).toEqual([ES_EN]);
-    // A reader of Spanish still has no shipped pair (en-es ships with change 35).
-    expect(readerPairs(["en"], "es")).toEqual([]);
-    // Whatever a reader studies, en-es is never needed.
+    // A reader of Spanish studies English through en-es: its model alone, nothing of en-fr or es-en.
+    expect(readerPairs(["en"], "es")).toEqual(["en-es"]);
+    expect(modelsFor(c, readerPairs(["en"], "es")).map((m) => m.version)).toEqual([EN_ES]);
+    // en-es is needed by a reader of Spanish who studies English, and by no one else.
     for (const native of ["fr", "en", "es"]) {
       for (const languages of [["en"], ["es"], ["en", "es"], ["es", "en"]]) {
-        expect(modelsFor(c, readerPairs(languages, native)).map((m) => m.version)).not.toContain(EN_ES);
+        const needed = modelsFor(c, readerPairs(languages, native)).map((m) => m.version);
+        expect(needed.includes(EN_ES), `${native}: ${languages.join(",")}`).toBe(
+          native === "es" && languages.includes("en"),
+        );
       }
     }
   });

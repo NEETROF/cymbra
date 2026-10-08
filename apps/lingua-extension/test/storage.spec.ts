@@ -114,6 +114,11 @@ describe("the stored native language (generalise-lingua-native-language D7)", ()
     await saveBackup(area, profile("French"));
     expect(await storedNativeLanguage(area)).toBe("fr");
     expect(await storedNativeLanguage(area, ["en-fr", "es-en"])).toBe("fr");
+    // The bundle's list since change 35 (enable-lingua-spanish-speakers) glosses en-es in Spanish;
+    // change 34's did not.
+    await saveBackup(area, profile("Spanish"));
+    expect(await storedNativeLanguage(area)).toBe("es");
+    expect(await storedNativeLanguage(area, ["en-fr", "es-fr", "es-en"])).toBe("fr");
   });
 });
 

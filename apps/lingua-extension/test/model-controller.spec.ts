@@ -624,6 +624,8 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
   const of = (languages: string[], native: string, pairs?: readonly string[]) => readerPairs(languages, native, pairs);
   /** The shipped pairs before change 34 (enable-lingua-english-speakers): French-native only. */
   const FRENCH_NATIVE = ["en-fr", "es-fr"];
+  /** The shipped pairs in change 34: es-en beside them, no pair glossed in Spanish yet. */
+  const WITH_ES_EN = [...FRENCH_NATIVE, "es-en"];
 
   it("Every reader today: English and Spanish, native French — en-fr and es-en are downloaded, 51 993 524 bytes, and nothing of en-es", async () => {
     const { controller, host, setting, downloaded } = setup({
@@ -664,8 +666,13 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
   });
 
   it("A route of a pair not shipped: a reader native in Spanish or in English has no shipped pair — not offered, nothing downloaded", async () => {
-    // The scenario's list: en-fr and es-fr, as before change 34. Since it, es-en ships (below).
-    for (const pairs of [of(["en"], "es", FRENCH_NATIVE), of(["es"], "en", FRENCH_NATIVE), of(["en"], "es")]) {
+    // The scenario's list: en-fr and es-fr, as before change 34; then change 34's, which shipped es-en and no
+    // pair glossed in Spanish. Since change 35, es-en and en-es both ship (below).
+    for (const pairs of [
+      of(["en"], "es", FRENCH_NATIVE),
+      of(["es"], "en", FRENCH_NATIVE),
+      of(["en"], "es", WITH_ES_EN),
+    ]) {
       expect(pairs).toEqual([]);
       const { controller, host } = setup({ pairs, catalogue: async () => committed });
       expect(await controller.status()).toEqual({ offered: false, host: "none", state: { phase: "absent" } });
@@ -676,12 +683,13 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
   it("A route of a pair studying French: fr-en and fr-es are routed, no reader's pairs need them — nothing of fr-en is downloaded (add-lingua-french-translation D2)", async () => {
     expect(Object.keys(committed.routes)).toEqual(expect.arrayContaining(["fr-en", "fr-es"]));
     // A reader of French whose native language is English or Spanish has no shipped pair until change 52.
-    // The English-native reader of Spanish and French on the list before change 34: es-en alone since it (below).
+    // The English-native reader of Spanish and French on the list before change 34: es-en alone since it (below);
+    // the Spanish-native reader of English and French on change 34's: en-es alone since change 35 (below).
     for (const pairs of [
       of(["fr"], "en"),
       of(["fr"], "es"),
       of(["es", "fr"], "en", FRENCH_NATIVE),
-      of(["en", "fr"], "es"),
+      of(["en", "fr"], "es", WITH_ES_EN),
     ]) {
       expect(pairs).toEqual([]);
       const { controller, host } = setup({ pairs, catalogue: async () => committed });
@@ -710,6 +718,24 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
       expect(await controller.ready("es-en")).toBe(true);
       expect(await controller.ready("en-fr")).toBe(false);
       expect(await controller.ready("fr-en")).toBe(false);
+    }
+  });
+
+  it("A Spanish-native reader of English, en-es shipping (change 35): the en-es model alone, nothing of en-fr or es-en", async () => {
+    // Spanish is never a Spanish-native reader's pair: en-es alone, whatever else they list.
+    for (const languages of [["en"], ["en", "es"], ["es", "en"], ["en", "fr"]]) {
+      const pairs = of(languages, "es");
+      expect(pairs).toEqual(["en-es"]);
+      const { controller, host, setting, downloaded } = setup({ pairs, catalogue: async () => committed });
+      const status = await controller.enable();
+      expect(host.startDownload).toHaveBeenCalledWith([EN_ES]);
+      expect(status.cost).toEqual({ download: 25_373_354, stored: 36_576_277 });
+      await downloaded();
+      expect(setting().state).toEqual({ phase: "ready", models: [EN_ES], pairs: ["en-es"] });
+      expect(await controller.ready("en-es")).toBe(true);
+      expect(await controller.ready("es-en")).toBe(false);
+      expect(await controller.ready("en-fr")).toBe(false);
+      expect(await controller.ready("fr-es")).toBe(false);
     }
   });
 });

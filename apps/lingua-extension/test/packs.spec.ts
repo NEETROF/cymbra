@@ -24,8 +24,8 @@ function appWith(packs: unknown): string {
 }
 
 describe("the shipped pairs", () => {
-  it("ships en-fr, es-fr then es-en, a French-native reader's default first (enable-lingua-english-speakers)", () => {
-    expect(shippedPairs()).toEqual(["en-fr", "es-fr", "es-en"]);
+  it("ships en-fr, es-fr, es-en then en-es, a French-native reader's default first (enable-lingua-spanish-speakers)", () => {
+    expect(shippedPairs()).toEqual(["en-fr", "es-fr", "es-en", "en-es"]);
   });
 
   it("refuses a list it could not build from", () => {
