@@ -28,6 +28,21 @@ language; Réglages, mounted by three hosts, picks its seven (`settings`, `studi
 `colours`, `display`, `translation`, `account-setting`, `sync`) in `reading/settings-copy.ts` and hands
 each block its own, which holds its French module as its default.
 
+## The grammar renderers
+
+`grammar` is the one surface whose modules are code, not texts (generalise-lingua-card-wording D2):
+the word card's grammar lines are built from parts — names, articles, elisions, a joining, an order
+of tenses — that no slot message can carry. `src/reading/grammar-description.ts` describes a form in
+no language (the readings as the engine's tags, merged by tag; what a card names at all; how a line
+is composed), and each language's `grammar.ts` exports `grammar: GrammarRenderer` (`index.ts`) that
+words it — its tables private to it, keyed by studied language where a name depends on it (`TENSES`,
+`TENSE_ORDER`, the gerund, whether the infinitive is named). The rule that a draft is typed after the
+French covers code here: `en/grammar.ts` and `es/grammar.ts` are `typeof fr`, so the compiler checks
+the functions; `test/grammar-description.spec.ts` checks that every renderer names what the French
+names, no more, and `test/i18n.spec.ts` checks the drafts as renderers rather than as texts. The
+French renderer is the card's wording before the catalogue, byte for byte; `reading/grammar-labels.ts`
+keeps its API over it and holds no literal.
+
 ## Pages
 
 An HTML page holds no text of its own: a node carries `data-copy="key"` (its whole text is
@@ -99,7 +114,7 @@ dates through `en-US` (`10/4/2026`, `October 4, 2026`); a percentage `96%`.
 Terms: Settings (Réglages), deck, card, review, known / unknown words, words being learned (« mots en
 cours »), highlighting (surlignage), level, CEFR, side panel, drawer (the in-page panel), library,
 sign in / sign out, username (pseudo), connected accounts, sync, pill (pastille), pack (the
-dictionary pack), model (the translation model), _-ing form_. Grammar: _simple past_, _present_,
+dictionary pack), model (the translation model), _-ing form_. Grammar: _simple past_, _simple present_,
 _past participle_, _gerund_; the Spanish tenses by their usual English names (_present indicative_,
 _imperfect indicative_, _preterite_, _future_, _conditional_, _present subjunctive_, _imperfect
 subjunctive_, _future subjunctive_, _imperative_).
