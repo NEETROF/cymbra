@@ -15,7 +15,12 @@
 /** Case and accents removed: the form glossMark compares. */
 export const fold = (s) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
-/** The French set, word for word the one en-fr and es-fr were measured with (2026-10-05). */
+/**
+ * The French set, word for word the one en-fr and es-fr were measured with (2026-10-05). Folded,
+ * « être » is « etre » and an effective stop word now, where that measurement kept its set
+ * unfolded while it folded the gloss's tokens, so « être » never matched. No committed gloss or
+ * mark sits on it, so no figure moved.
+ */
 export const FRENCH = Object.freeze({
   articles: "le la les un une des l",
   prepositions: "de du d à a en au aux pour par sur dans avec sans",

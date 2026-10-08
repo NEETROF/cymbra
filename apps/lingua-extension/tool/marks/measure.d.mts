@@ -1,5 +1,6 @@
 /** Declared for the tests: `tool/` is plain ESM, outside the TypeScript project. */
 
+import type { ModelCatalogue } from "../../src/translate/host/model-manifest.ts";
 import type { Span } from "../../src/translate/markup.ts";
 
 /** A selection of the corpus with its sentence: what measureSelections takes. */
@@ -32,13 +33,20 @@ export interface ResultLine {
   word: string;
   upos: string;
   sentence: string;
-  /** The sentence trapped the engine twice: no translation, no mark. */
-  trapped: boolean;
+  /**
+   * The sentence trapped the engine twice: no translation, no mark. Optional because
+   * results-en-fr.jsonl and results-es-fr.jsonl predate it (measured 2026-10-05, before the loop
+   * answered a trap): absent reads as false.
+   */
+  trapped?: boolean;
   translation: string | null;
   marks: string[];
   shown: string | null;
   engineMarks: string[];
-  /** The fragment's own translation; null when it trapped twice (the marks are then unreconciled). */
+  /**
+   * The fragment's own translation; null when it trapped twice, "" for an empty fragment, which is
+   * not asked. Either way the engine's marks stand unreconciled, as relay.ts shows them.
+   */
   alone: string | null;
   gloss: { lemma: string; text: string | null; marks: string[]; shown: string } | null;
 }
@@ -54,8 +62,11 @@ export interface MeasureOptions {
   log?: (message: string) => void;
 }
 
-/** reconcile.ts's stem rule: a shared prefix of 5, covering 70 % of the shorter word. */
-export declare function sameWord(a: string, b: string): boolean;
+/**
+ * The native language `pair`'s route translates into — its last model's `to`; a route that does not
+ * end in the pair's native language is refused as a catalogue error.
+ */
+export declare function nativeOfRoute(catalogue: Pick<ModelCatalogue, "models" | "routes">, pair: string): string;
 
 /** The experiment's mark for `word` in `translation`, from the pack's gloss. */
 export declare function glossMark(word: string, translation: string, tables: GlossTables, stop: Set<string>): GlossMark;

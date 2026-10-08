@@ -1,15 +1,47 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { bracketed, glossMark, measureSelections, type Selection, type Translate } from "../tool/marks/measure.mjs";
+import {
+  bracketed,
+  glossMark,
+  measureSelections,
+  nativeOfRoute,
+  type Selection,
+  type Translate,
+} from "../tool/marks/measure.mjs";
 import { FRENCH, STOP_WORDS, fold, stopWords, wordsOf } from "../tool/marks/stop-words.mjs";
+import { nativeOf } from "../tool/packs.mjs";
 
-// The harness's loop and its stop words (measure-lingua-translation-matrix-marks D1, D2, D3),
-// apart from the engine and the files: a fake engine that traps, a gloss table or none.
+// The harness's loop, its stop words and its reading of the catalogue
+// (measure-lingua-translation-matrix-marks D1, D2, D3), apart from the engine and the files: a fake
+// engine that traps, a gloss table or none, the committed catalogue and a doctored one.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const tables = join(root, "../../scripts/lingua-data/tables");
+
+describe("the native language is the one the pair's route translates into (D1)", () => {
+  const committed = JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8"));
+
+  it("is the route's last model's `to`, the pair's native language: fr for es-fr through the pivot, en for es-en, es for en-es", () => {
+    expect(nativeOfRoute(committed, "es-fr")).toBe("fr");
+    expect(committed.routes["es-fr"]).toHaveLength(2); // the pivot: es-en then en-fr
+    expect(nativeOfRoute(committed, "es-en")).toBe("en");
+    expect(nativeOfRoute(committed, "en-es")).toBe("es");
+    expect(nativeOfRoute(committed, "en-fr")).toBe("fr");
+    for (const pair of Object.keys(committed.routes)) expect(nativeOfRoute(committed, pair), pair).toBe(nativeOf(pair));
+  });
+
+  it("refuses, as a catalogue error, a route that ends in another language than the pair's, a model the catalogue does not hold, and a pair it does not route", () => {
+    const into = (pair: string, route: string[]) => ({ ...committed, routes: { ...committed.routes, [pair]: route } });
+    expect(() => nativeOfRoute(into("es-fr", ["es-en/base-memory/2.0"]), "es-fr")).toThrow(
+      /model-manifest\.json routes es-fr into "en", not the pair's native language "fr"/,
+    );
+    expect(() => nativeOfRoute(into("en-fr", ["en-fr/base-memory/9.9"]), "en-fr")).toThrow(/a model it does not hold/);
+    expect(() => nativeOfRoute(committed, "fr-en")).toThrow(/does not route fr-en/);
+    expect(() => nativeOfRoute(into("en-fr", []), "en-fr")).toThrow(/does not route en-fr/);
+  });
+});
 
 describe("the stop words speak the pair's native language (D1)", () => {
   /**
@@ -62,8 +94,7 @@ describe("the stop words speak the pair's native language (D1)", () => {
     },
   );
 
-  it("fr: the French set is the one en-fr and es-fr were measured with, word for word (French is native only: no committed table of its own)", () => {
-    expect(existsSync(join(tables, "fr"))).toBe(false);
+  it("fr: the French set is the one en-fr and es-fr were measured with, word for word", () => {
     const measuredWith =
       "le la les un une des de du d l et ou en au aux à a pour par sur dans avec sans qui que se sa son ses leur leurs ce cet cette ces ne pas plus est être avoir être faire";
     expect(new Set(wordsOf(FRENCH).map((w) => w.word))).toEqual(new Set(measuredWith.split(" ")));
@@ -139,6 +170,27 @@ describe("the loop answers a trap as the extension answers it (D2)", () => {
     };
     return { engine, asked, built: () => built };
   }
+
+  it("builds no engine for no selection: the engine is built when the first request asks for it", async () => {
+    const fake = fakeEngine(() => false);
+    expect(await measureSelections([], { engine: fake.engine })).toEqual([]);
+    expect(fake.built()).toBe(0);
+    expect(fake.asked).toEqual([]);
+  });
+
+  it('an empty fragment is not asked, as relay.ts asks none: `alone` is "" (not null, which is a fragment trapped twice) and the engine\'s marks stand', async () => {
+    const fake = fakeEngine(() => false);
+    const log: string[] = [];
+    const empty: Selection = { k: 0, id: "e1", word: "", upos: "X", sentence, selection: { start: 4, end: 4 } };
+    const [line] = await measureSelections([empty], { engine: fake.engine, log: (m) => log.push(m) });
+    expect(fake.asked.map((a) => a.markup)).toEqual([sentence]); // the sentence only, and nothing to tag in it
+    expect(line.trapped).toBe(false);
+    expect(line.alone).toBe("");
+    expect(line.translation).toBe(sentence);
+    expect(line.marks).toEqual(line.engineMarks); // unreconciled
+    expect(log).toEqual(["1/1 e1: an empty fragment, not asked, marks unreconciled"]);
+    expect(log.join("\n")).not.toContain("trapped");
+  });
 
   it("measures a selection as relay.ts marks it: tagged sentence, fragment alone, reconciled", async () => {
     const fake = fakeEngine(() => false);

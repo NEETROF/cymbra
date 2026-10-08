@@ -10,15 +10,40 @@
 // more on a fresh engine — `engine()` called again. A sentence that traps twice is recorded
 // `trapped: true`, with no translation and no mark: the reader would get no translation. A
 // fragment that traps twice leaves the sentence's own tagged marks unreconciled, as relay.ts shows
-// them. Either way the next request gets a clean engine, built when it is asked.
+// them — so does an empty fragment, which is not asked (relay.ts asks none either): `alone` is ""
+// for it, null for one that trapped twice. Either way the next request gets a clean engine, built
+// when it is asked. The native language a pair's route translates into is read here too
+// (`nativeOfRoute`), so the harness's reading of the catalogue is tested.
 
 import { isTrap } from "../../src/translate/host/engine.ts";
 import { escapeText, markSelection, readMarked, selectedText } from "../../src/translate/markup.ts";
 import { reconcileMarks } from "../../src/translate/reconcile.ts";
+import { nativeOf } from "../packs.mjs";
 import { fold } from "./stop-words.mjs";
 
+/**
+ * The native language `pair`'s route translates into: the `to` of the route's last model
+ * (measure-lingua-translation-matrix-marks D1) — es-fr's is French, through the pivot's en-fr. The
+ * gloss, the stop words and the judge all speak it, so a route that does not end in the pair's own
+ * native language (tool/packs.mjs's reading of its name) is a catalogue error, refused here rather
+ * than measured in the wrong language.
+ */
+export function nativeOfRoute(catalogue, pair) {
+  const route = catalogue.routes[pair];
+  if (!route?.length) throw new Error(`model-manifest.json does not route ${pair}`);
+  const last = route.at(-1);
+  const model = catalogue.models[last];
+  if (!model) throw new Error(`model-manifest.json routes ${pair} through "${last}", a model it does not hold`);
+  if (model.to !== nativeOf(pair)) {
+    throw new Error(
+      `model-manifest.json routes ${pair} into "${model.to}", not the pair's native language "${nativeOf(pair)}"`,
+    );
+  }
+  return model.to;
+}
+
 /** reconcile.ts's stem rule: a shared prefix of 5, covering 70 % of the shorter word. */
-export function sameWord(a, b) {
+function sameWord(a, b) {
   if (a === b) return true;
   let n = 0;
   while (n < a.length && n < b.length && a[n] === b[n]) n++;
@@ -63,8 +88,9 @@ export function bracketed(sentence, marks) {
  * `engine`, a factory whose every call builds a fresh engine: one markup string in, its translation
  * out, as tool/marks/engine.mjs builds one. `gloss`, when the pair's table exists, is
  * `(word, translation) => { lemma, gloss, marks }` (glossMark over the pair's tables); null leaves
- * the experiment empty. `trap` tells a trap from any other error, which is thrown. One result line
- * per selection, in order.
+ * the experiment empty. `trap` tells a trap from any other error, which is thrown. The engine is
+ * built when the first request asks for it: no selection, no engine. One result line per
+ * selection, in order.
  */
 export async function measureSelections(selections, { engine, gloss = null, trap = isTrap, log = () => {} }) {
   let translate = null;
@@ -106,9 +132,11 @@ export async function measureSelections(selections, { engine, gloss = null, trap
       continue;
     }
     const tagged = readMarked(taggedHtml);
+    // An empty fragment is not asked — relay.ts asks none either — and its `alone` is "": the
+    // engine's marks stand, as they do when the fragment trapped twice (`alone` null).
     const aloneHtml = fragment ? await ask(escapeText(fragment)) : null;
-    const alone = aloneHtml === null ? null : readMarked(aloneHtml).sentence;
-    const shown = alone === null ? tagged : reconcileMarks(tagged, alone);
+    const alone = aloneHtml === null ? (fragment ? null : "") : readMarked(aloneHtml).sentence;
+    const shown = aloneHtml === null ? tagged : reconcileMarks(tagged, alone);
     const slices = (marks) => marks.map((m) => shown.sentence.slice(m.start, m.end));
     const experiment = gloss ? gloss(word, shown.sentence) : null;
     lines.push({
@@ -130,9 +158,13 @@ export async function measureSelections(selections, { engine, gloss = null, trap
         shown: bracketed(shown.sentence, experiment.marks),
       },
     });
-    log(
-      `${i + 1}/${selections.length} ${id}${alone === null ? ": the fragment trapped twice, marks unreconciled" : ""}`,
-    );
+    const note =
+      aloneHtml !== null
+        ? ""
+        : fragment
+          ? ": the fragment trapped twice, marks unreconciled"
+          : ": an empty fragment, not asked, marks unreconciled";
+    log(`${i + 1}/${selections.length} ${id}${note}`);
   }
   return lines;
 }

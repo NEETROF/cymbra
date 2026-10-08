@@ -21,7 +21,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { catalogue, engine } from "./marks/engine.mjs";
-import { glossMark, measureSelections } from "./marks/measure.mjs";
+import { glossMark, measureSelections, nativeOfRoute } from "./marks/measure.mjs";
 import { parseConllu, pudText } from "./marks/pud.mjs";
 import { stopWords } from "./marks/stop-words.mjs";
 import { studiedOf } from "./packs.mjs";
@@ -56,10 +56,12 @@ async function main() {
     );
   }
   // The studied language, from the pair's name as the build reads it: the corpus and the PUD text
-  // are its. The native language is the one the route translates into: its last model's `to`
-  // (measure-lingua-translation-matrix-marks D1); the gloss and the translated sentence are both in it.
+  // are its. The native language is the one the route translates into — its last model's `to`
+  // (measure-lingua-translation-matrix-marks D1), held to the pair's name by nativeOfRoute, which
+  // refuses a catalogue that routes a pair into another language; the gloss and the translated
+  // sentence are both in it.
   const studied = studiedOf(pair);
-  const native = catalogue.models[route.at(-1)].to;
+  const native = nativeOfRoute(catalogue, pair);
   const stop = stopWords(native);
   const modelsDir = arg("--models");
   const sentences = new Map(parseConllu(await pudText(studied)).map((s) => [s.id, s.text]));
@@ -88,10 +90,24 @@ async function main() {
   });
   const out = join(here, `marks/results-${pair}.jsonl`);
   writeFileSync(out, lines.map((line) => JSON.stringify(line)).join("\n") + "\n");
-  const trapped = lines.filter((l) => l.trapped).map((l) => l.id);
-  const unreconciled = lines.filter((l) => !l.trapped && l.alone === null).map((l) => l.id);
+  // A fragment that trapped twice (`alone` null) and an empty one, never asked (`alone` ""), both
+  // leave the engine's marks unreconciled; they are counted apart.
+  const ids = (label, picked) =>
+    `${picked.length} ${label}${picked.length ? ` (${picked.map((l) => l.id).join(", ")})` : ""}`;
+  const trapped = ids(
+    "trapped twice",
+    lines.filter((l) => l.trapped),
+  );
+  const fragmentTrapped = ids(
+    "fragments trapped twice (marks unreconciled)",
+    lines.filter((l) => !l.trapped && l.alone === null),
+  );
+  const empty = ids(
+    "empty fragments (not asked, marks unreconciled)",
+    lines.filter((l) => !l.trapped && l.alone === ""),
+  );
   console.log(
-    `${out}: ${lines.length} selections, ${built} engine${built === 1 ? "" : "s"} built, ${trapped.length} trapped twice${trapped.length ? ` (${trapped.join(", ")})` : ""}, ${unreconciled.length} unreconciled${unreconciled.length ? ` (${unreconciled.join(", ")})` : ""}`,
+    `${out}: ${lines.length} selections, ${built} engine${built === 1 ? "" : "s"} built, ${trapped}, ${fragmentTrapped}, ${empty}`,
   );
 }
 
