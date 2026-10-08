@@ -325,7 +325,8 @@ fn spec_scenario_english_glossed_in_spanish() {
         Pack::load(shipped("en-fr")).unwrap().dictionary_words(),
         "en-es's dictionary words are en-fr's"
     );
-    assert!(pack.gloss("house").is_some(), "glossed in Spanish");
+    let house = pack.gloss("house").expect("house: glossed in Spanish");
+    assert!(house.starts_with("Casa"), "house: {house}");
 }
 
 #[test]

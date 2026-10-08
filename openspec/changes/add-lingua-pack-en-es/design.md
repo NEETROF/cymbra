@@ -42,6 +42,26 @@ inverted = the Spanish Wiktionary's English translations read backwards, ordered
 frequency, as es-fr orders its inverted table by French frequency. `max_lemmas` 40,000, as en-fr.
 The digest is `reduce-en-es.py`, `reduce_common.py` and `reduce_edition_es.py`.
 
+The rule for the lemmas en-es glosses is `read_studied`'s: the lemmas `forms.tsv` maps to
+themselves, ranked by `freq.tsv`, kept when their rank is within `max_lemmas` (40,000) or they are
+words of `level.tsv` — the level lists' words en-fr keeps whatever their rank, 612 of English's
+40,685 lemmas — so that at the default cap en-es keeps every lemma `tables/en/` commits. Why: the
+pack carries en-fr's lemmas whatever en-es reads, so a cap by rank alone would leave those 612
+CEFR words, which a learner is shown with a level, unglossable in Spanish though en-fr glosses
+them (en-es glosses 338 of them today).
+
+A letter glosses no word in either direction: a single letter is glossed only by a sense that is
+neither the letter nor a name borrowed through it — `a` « un, una », `I` « yo » and the vocative
+`O` « oh, oy » are words; « i latina » names the letter, and the note `do` names C through it.
+Read forwards, `without_letter_translations` drops a `character` entry, a one-letter word whose
+every translation is itself, and a one-letter word's noun entry (the letter under its name, or a
+name borrowed through it: the words written as one letter are an article, a pronoun, a
+preposition, a particle, never a noun). Read backwards the entry is the Spanish word's, so that
+test sees nothing of the English side — the Spanish Wiktionary's `do` lists « C », and the first
+tables glossed `c` (rank 376) « Do » — and `read_translated` drops every one-letter studied key of
+the inverted table: the one word of a letter it reaches, `yo` « I », the entries and the direct
+table gloss before it is read.
+
 ### D2 — Two derived files, one new dump source, the extract read as served
 
 `DUMPS["en-es"]`:

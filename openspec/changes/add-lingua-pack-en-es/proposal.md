@@ -58,10 +58,11 @@ None.
 
 - `lingua-data-packs`: ADDED *English is glossed in Spanish from the Spanish Wiktionary's English
   section and the English Wiktionary's translation tables*; MODIFIED *Sources derived from whole
-  Wiktionary dumps are pinned* — one sentence: a language's extract is read the same way, plain
-  or gzipped; both scenarios kept. Held by no open change. The requirements of change 21 (*A pair
-  of a studied language's second native language*, *A reader pair's pin records the studied
-  tables it read*) apply as written; this change is archived after it.
+  Wiktionary dumps are pinned* — two sentences: a pair may read a language's extract as it reads
+  an edition's dump, served plain or gzipped, and the pipeline keeps neither whole; both scenarios
+  kept, *An extract served plain* added. Held by no open change. The requirements of change 21
+  (*A pair of a studied language's second native language*, *A reader pair's pin records the
+  studied tables it read*) apply as written; this change is archived after it.
 
 ## Impact
 

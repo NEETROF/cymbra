@@ -61,9 +61,12 @@ on:
 permissions:
   contents: write # push the branch lingua-pack/<snapshot>, publish the kaikki snapshot release
 
-# One run at a time per studied language: an update of es-fr rewrites tables/es-en too (it brings
-# es-en along), so es-fr's and es-en's dispatches never propose that folder on two branches at once.
-# `all` (mode reduce) and the monthly dry run have a group each.
+# One run at a time per studied language: an update of a reference pair rewrites the studied
+# folder its readers build on and brings them along — es-fr writes tables/es/ and reduces es-en
+# again, en-fr writes tables/en/ and reduces en-es again (add-lingua-pack-en-es D1: en-es reads
+# tables/en/ as committed and pins its digest) — so a reference's and its reader's dispatches
+# never propose the reader's folder on two branches at once: the `es` group for es-fr and es-en,
+# the `en` group for en-fr and en-es. `all` (mode reduce) and the monthly dry run have a group each.
 concurrency:
   group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || inputs.pair || 'monthly' }}
   cancel-in-progress: false
