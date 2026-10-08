@@ -151,8 +151,9 @@ usuario (pseudo), cuentas vinculadas, sincronización, pastilla, paquete (the di
 « forma en -ing ». Grammar: the RAE's tense names — _presente de indicativo_, _pretérito imperfecto de
 indicativo_, _pretérito perfecto simple de indicativo_, _futuro simple de indicativo_, _condicional
 simple_, _presente de subjuntivo_, _pretérito imperfecto de subjuntivo_, _futuro de subjuntivo_,
-_imperativo_; for English,
-_pasado simple_ and _presente_; _participio_, _gerundio_, _infinitivo_.
+_imperativo_; _participio_, _gerundio_, _infinitivo_. For English forms, the names Spanish-language
+teaching of English gives them, never a Spanish tense's: _pasado simple_, _presente simple_,
+_participio pasado_ (the Spanish Wiktionary's English form-of wording) and « forma en -ing ».
 
 ## What is the same everywhere
 

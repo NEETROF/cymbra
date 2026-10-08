@@ -6,33 +6,33 @@ page 1/1:
   [interjección] Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!
 row: Andar, marchar, caminar
 ### word-grammar gone go
-grammar: participio de go
+grammar: participio pasado de go
 page 1/1:
   [verbo] Andar, marchar, caminar; Marchar; Ir; Repartir
   [sustantivo] Turno; Go (juego); Intento
   [interjección] Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!
 row: Andar, marchar, caminar
 ### word-grammar goes go
-grammar: plural y tercera persona del singular del presente de go
+grammar: plural y tercera persona del singular del presente simple de go
 page 1/1:
   [verbo] Andar, marchar, caminar; Marchar; Ir; Repartir
   [sustantivo] Turno; Go (juego); Intento
   [interjección] Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!
 row: Andar, marchar, caminar
 ### word-grammar has have
-grammar: tercera persona del singular del presente de have
+grammar: tercera persona del singular del presente simple de have
 page 1/1:
   [verbo] Tener; Haber (como verbo auxiliar); De un recurso o sustancia, generalmente alimento: Consumir, usar; Invitar, hospedar
   [sustantivo] Pudiente, rico
 row: Tener
 ### word-grammar had have
-grammar: pasado simple y participio de have
+grammar: pasado simple y participio pasado de have
 page 1/1:
   [verbo] Tener; Haber (como verbo auxiliar); De un recurso o sustancia, generalmente alimento: Consumir, usar; Invitar, hospedar
   [sustantivo] Pudiente, rico
 row: Tener
 ### word-grammar are be
-grammar: presente de be
+grammar: presente simple de be
 page 1/1:
   [verbo] Ser; Ser (be + participio pasado); Estar; Estar (be + participio presente); Encontrarse; Se usa en be to (no existe en español)
 row: Ser
@@ -72,7 +72,7 @@ page 1/1:
   [sustantivo] Ratón, laucha; Por extensión, roedor; Mouse (periférico); Timorato, apocado, flojo
 row: Ratón, laucha
 ### word-grammar leaves leave
-grammar: plural y tercera persona del singular del presente de leave
+grammar: plural y tercera persona del singular del presente simple de leave
 grammar: también puede ser el plural de leaf
 page 1/1:
   [verbo] Salir; Echar hojas; Irse, marcharse; Dejar
@@ -84,7 +84,7 @@ page 1/1:
   [sustantivo] Hoja
 row: Hoja
 ### word-grammar read read
-grammar: también puede ser el pasado simple y el participio de read
+grammar: también puede ser el pasado simple y el participio pasado de read
 page 1/1:
   [verbo] Leer; Leerse; Ver; Consistir de un cierto texto; Entender, comprender; Marcar, indicar; Interpretar
   [sustantivo] Lectura
@@ -96,7 +96,7 @@ page 1/1:
   [adjetivo] Primero, líder, principal
 row: Plomo
 ### word-grammar led lead
-grammar: pasado simple y participio de lead
+grammar: pasado simple y participio pasado de lead
 page 1/1:
   [sustantivo] Plomo; Guía; Plomada
   [verbo] Emplomar; Guiar, conducir; Liderar; Conducir, llevar, ir
@@ -115,7 +115,7 @@ page 1/1:
   [sustantivo] Mayoría; Una gran cantidad
 row: Mucho
 ### word-grammar thought think
-grammar: pasado simple y participio de think
+grammar: pasado simple y participio pasado de think
 page 1/1:
   [verbo] Pensar; Creer
   [adjetivo] Perteneciente o relacionado con el pensamiento
