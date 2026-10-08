@@ -97,6 +97,12 @@ work="$here/work/$pair"
 # D2): an asset two pins name is fetched once per run, and a pair reduced again on the same machine
 # fetches nothing again. Outside work/<pair>, which a reduction removes.
 cache="${LINGUA_CACHE:-$here/work/cache}"
+# Each Wiktionary edition's catalogue, derived from its dump at the run's first read and copied by
+# the later pairs of the run (migrate-lingua-pack-sources-to-raw-dumps D4): an update reads each
+# dump once however many pairs read its edition. The run's own — keyed by edition and snapshot day,
+# never meant for another run: remove it when the run ends (lingua-pack-update does). Outside
+# work/<pair> too.
+editions="${LINGUA_EDITIONS:-$here/work/editions}"
 
 case "$mode" in
   testdata)
@@ -153,7 +159,7 @@ case "$mode" in
       pin="$tables/pin.json"
     fi
     rm -rf "$work" && mkdir -p "$work"
-    "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache"
+    "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache" --editions "$editions"
     version="$("$PYTHON" "$here/pack_sources.py" version --pin "$pin" --reducer "$here/reduce-$pair.py" --live)"
     reduce "$pair" "$work" "$snapshot" "$version"
     file_sides "$work" "$root"

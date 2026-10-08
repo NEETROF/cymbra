@@ -18,10 +18,12 @@
   `reduce_*.py` modules importing it loads (`rule_files`) — and one sha256 over all of them.
 - `sources`: each raw source, pinned — CEFR-J and Octanove at a commit of their own repository
   and by sha256; ESDB (the inflections) built at a commit of en-wl/wordlist, by the sha256 of its
-  exported `scowl.txt`; kaikki (regenerated upstream every day) as our own snapshot, a
-  zstd-compressed GitHub Release asset, checked by the sha256 of its decompressed bytes; the files
-  a pair derives from kaikki's dumps of whole Wiktionary editions, kept the same way beside it;
-  wordfreq by version (it is its own snapshot; requirements-reduce.txt pins it by hash).
+  exported `scowl.txt`; kaikki (regenerated upstream every day) as the files a pair derives from
+  its dumps of whole Wiktionary editions — our own snapshot of each, a zstd-compressed GitHub
+  Release asset, checked by the sha256 of its decompressed bytes — with each dump named by its
+  address, regeneration date and decompressed sha256, never kept (a pin written before
+  migrate-lingua-pack-sources-to-raw-dumps names kaikki's per-language extract instead, kept the
+  same way); wordfreq by version (it is its own snapshot; requirements-reduce.txt pins it by hash).
 - `studied`, for a pair that is not its studied language's reference (add-lingua-pack-es-en D3):
   the reference pair, and the sha256 of each of the six studied tables the build read as committed
   (`RECORDED_STUDIED`). The checks fail, naming the pair and the table, when a committed studied
@@ -32,7 +34,7 @@
 Stdlib only: the build mode reads this record too, and needs no Python package.
 
     pack_sources.py fetch-pinned  --pin P --work W [--cache C]     # the recorded bytes, checked, into W
-    pack_sources.py fetch-live    --pin P --work W [--snapshot D] [--cache C]  # today's bytes, recorded in P
+    pack_sources.py fetch-live    --pin P --work W [--snapshot D] [--cache C] [--editions E]  # today's bytes, recorded in P
     pack_sources.py record-build  --pin P --pack F --reducer R     # what the tables build
     pack_sources.py check-pack    --pin P --pack F                 # a pack, against the record
     pack_sources.py check-reducer --pin P --reducer R              # the rules, against the record
@@ -40,6 +42,7 @@ Stdlib only: the build mode reads this record too, and needs no Python package.
     pack_sources.py version       --pin P --reducer R [--live]     # the pack_version to reduce under
     pack_sources.py release-tag   --pin P                          # the pair's own release of its snapshot
     pack_sources.py assets        --pin P [--release TAG]          # the release assets (of TAG alone)
+    pack_sources.py dumps         --pin P [--release TAG]          # the dumps they derive from, for the notes
     pack_sources.py keep          --from D --to T                  # a studied folder, into T
     pack_sources.py split         --work W --tables T --pair P     # a reduction, into T's folders
     pack_sources.py pairs         --tables T [--after P]           # the pairs, references first
@@ -52,19 +55,25 @@ the dictionary words `lexical.tsv`) and `studied.json`, which names the language
 writes both sides into its work folder; `split` files them, and only the reference pair's reduction
 writes the studied folder. The reference's `pin.json` is the studied tables' provenance.
 
-Each pair pins its own extract (add-lingua-pack-es-en D2): es-en reads the same address as es-fr,
-fetched live when es-en is updated and published under es-en's own release, `release_tag(pair,
-snapshot)`, which holds the pair's own assets only (`assets --release`). A pair an update brings
-along is reduced from its own pin. Each source record names the release that holds its asset, and
-`fetch-pinned` follows it. With `--cache C`, a fetched release asset is kept in `C/<sha256>` (the
-sha256 of its decompressed bytes, as the record names it) and found there by a later fetch of the
-same bytes: a run fetches an asset once when two pins name the same one, and reducing a pair again
-on the same machine fetches nothing again.
+kaikki is read at three addresses, one dump per Wiktionary edition (`EDITIONS`,
+migrate-lingua-pack-sources-to-raw-dumps D1): every file a pair reads of kaikki — a language's
+entries, or the translations an edition's entries list into one language — is derived from the
+dump of the edition that writes it, and `DUMPS[pair]` names the files the pair reads, by edition.
+A dump is read once per run (D4): its edition's whole catalogue is derived at the first read, into
+`--editions E` (`work/editions/<edition>-<snapshot>/`), and a later pair of the run copies what it
+reads from there; the dump is deleted after its pass, and recorded in the pin by its address, its
+regeneration date and the sha256 and size of its decompressed bytes (D3).
 
-A pair's sources may be dumps alone (add-lingua-pack-en-es D2): en-es has no `KAIKKI` entry and
-no `sources.kaikki` — everything it reads is derived from whole Wiktionary dumps and extracts
-(`DUMPS`), fetched at an update, derived in one pass and never kept; its release holds the derived
-files alone, and `assets` lists them alone.
+Each pair pins its own fetch (add-lingua-pack-es-en D2): es-en reads the English edition's Spanish
+section as es-fr does, recorded and published under es-en's own release, `release_tag(pair,
+snapshot)`, which holds the pair's own assets only (`assets --release`). A pair an update brings
+along is reduced from its own pin. Each source record names the release that holds its assets, and
+`fetch-pinned` follows it, reading a record by its shape — derived `files`, or the `asset` of a
+per-language extract a pin written before the dumps names (D5) — so no committed pin moves. With
+`--cache C`, a fetched release asset is kept in `C/<sha256>` (the sha256 of its decompressed bytes,
+as the record names it) and found there by a later fetch of the same bytes: a run fetches an asset
+once when two pins name the same one, and reducing a pair again on the same machine fetches nothing
+again.
 """
 
 from __future__ import annotations
@@ -73,11 +82,13 @@ import argparse
 import datetime
 import gzip
 import hashlib
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 import zlib
 from pathlib import Path
@@ -127,86 +138,92 @@ ESDB = {
         "commit": "7e99edab8e32f9f9ea2b15f249ca8d4d67237410",
     }
 }
-KAIKKI = {
-    "en-fr": {
-        "file": "kaikki-Anglais.jsonl",
-        "url": "https://kaikki.org/frwiktionary/Anglais/kaikki.org-dictionary-Anglais.jsonl",
+# kaikki's dumps of whole Wiktionary editions (migrate-lingua-pack-sources-to-raw-dumps D1), the one
+# thing kaikki says it will keep serving: its per-language extracts are deprecated. Each edition's
+# **catalogue** is every file derivable from its dump that a pair of the programme reads: a file is
+# `("entries", lang)`, the entries of one language as the dump writes them, or `("translations",
+# lang, into)`, the entries of `lang` that list translations into `into`, cut down to those
+# (`derive`). A pair registers its reads in `DUMPS`; a change that needs a file the catalogue lacks
+# adds it here, in the edition that writes it, and nowhere else. The existing names are kept — a
+# name is a reducer's input — and new ones carry their edition. A dump is read as served, gzipped or
+# plain, told apart by the gzip magic (`open_dump`), and never kept: each file a pair derives from
+# it is, as a zstd-compressed asset of the pair's release.
+EDITIONS = {
+    # The English Wiktionary: 2,981,058,381 B gzipped (regenerated 2026-10-03 08:24) — above the
+    # 2 GiB a release asset may weigh. Its inflections are tagged, the French one's are not
+    # (add-lingua-spanish-forms-tables); it writes its translation tables under its senses.
+    "en": {
+        "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+        "files": {
+            # Spanish's studied side (forms, readings, the gender of nouns) and es-en's glosses.
+            "kaikki-Spanish.jsonl": ("entries", "es"),
+            # French's studied side and fr-en's glosses (changes 43, 45, 48).
+            "kaikki-French.jsonl": ("entries", "fr"),
+            # en-es's direct fallback (add-lingua-pack-en-es D2).
+            "kaikki-en-traductions-es.jsonl": ("translations", "en", "es"),
+            # fr-en's inverted fallback (change 48).
+            "kaikki-en-traductions-fr.jsonl": ("translations", "en", "fr"),
+        },
     },
-    # The English Wiktionary's Spanish section: its inflections are tagged, the French one's are not
-    # (add-lingua-spanish-forms-tables).
-    "es-fr": {
-        "file": "kaikki-Spanish.jsonl",
-        "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
+    # The French Wiktionary: 736,590,407 B gzipped (regenerated 2026-10-02 00:10).
+    "fr": {
+        "url": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+        "files": {
+            # en-fr's glosses, expressions and form links.
+            "kaikki-Anglais.jsonl": ("entries", "en"),
+            # es-fr's glosses.
+            "kaikki-fr-Espagnol.jsonl": ("entries", "es"),
+            # es-fr's inverted fallback, fr-es's direct one (change 49).
+            "kaikki-fr-traductions.jsonl": ("translations", "fr", "es"),
+            # fr-en's direct fallback (change 48).
+            "kaikki-fr-traductions-en.jsonl": ("translations", "fr", "en"),
+        },
     },
-    # The same address, read for its English glosses (add-lingua-pack-es-en D1): es-fr's reduction
-    # reads it for Spanish's forms, es-en's for the English Wiktionary's senses of the same entries.
-    # Each pair pins its own fetch of it, under its own release (D2).
-    "es-en": {
-        "file": "kaikki-Spanish.jsonl",
-        "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
+    # The Spanish Wiktionary: 103,226,106 B gzipped (regenerated 2026-10-02 12:12).
+    "es": {
+        "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+        "files": {
+            # en-es's glosses (add-lingua-pack-en-es D2).
+            "kaikki-es-English.jsonl": ("entries", "en"),
+            # fr-es's glosses (change 49).
+            "kaikki-es-Francés.jsonl": ("entries", "fr"),
+            # es-fr's direct fallback, fr-es's inverted one.
+            "kaikki-es-traductions.jsonl": ("translations", "es", "fr"),
+            # es-en's direct fallback, en-es's inverted one (add-lingua-pack-es-en D1).
+            "kaikki-es-traductions-en.jsonl": ("translations", "es", "en"),
+        },
     },
-    # No en-es: its sources are dumps alone (DUMPS, add-lingua-pack-en-es D2).
 }
-# kaikki's dumps of whole Wiktionary editions, for what a pair reads beyond its extract
-# (add-lingua-spanish-gloss-tables). kaikki is retiring its per-language files; an edition's dump
-# stays. A dump is never kept whole: each file a pair derives from it is, as a zstd-compressed asset
-# of the snapshot's release beside the extract, checked by the sha256 of its decompressed bytes.
-# A file is `("entries", lang)`, the entries of one language as the dump writes them, or
-# `("translations", lang, into)`, the entries of `lang` that list translations into `into`, cut down
-# to those (`derive`). A dump is read as served, gzipped or plain (a language's extract, which
-# kaikki serves uncompressed, is read the same way — en-es's `kaikki-en`); `derive` tells them apart
-# by the gzip magic, never by the address.
+# The files each pair reads of kaikki, by edition, in the order the pin records them (and the
+# release lists its assets): each edition the pair reads is one source record, `kaikki-<edition>`
+# (`source_name`). Each pair pins its own fetch, published under its own release — es-fr and es-en
+# read the same Spanish section, each under its own snapshot (add-lingua-pack-es-en D2).
 DUMPS = {
+    # The French Wiktionary's English entries (pin-lingua-pack-sources).
+    "en-fr": {"fr": ("kaikki-Anglais.jsonl",)},
+    # The English Wiktionary's Spanish section for Spanish's forms; the French Wiktionary's Spanish
+    # entries gloss the words and expressions, its French entries' translation tables, read
+    # backwards, gloss what those leave out; the French translations the Spanish Wiktionary's Spanish
+    # entries list (add-lingua-spanish-gloss-tables).
     "es-fr": {
-        # The French Wiktionary: its Spanish entries gloss the words and expressions; its French
-        # entries' translation tables, read backwards, gloss what those leave out.
-        "kaikki-fr": {
-            "url": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
-            "files": {
-                "kaikki-fr-Espagnol.jsonl": ("entries", "es"),
-                "kaikki-fr-traductions.jsonl": ("translations", "fr", "es"),
-            },
-        },
-        # The Spanish Wiktionary: the French translations its Spanish entries list.
-        "kaikki-es": {
-            "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
-            "files": {"kaikki-es-traductions.jsonl": ("translations", "es", "fr")},
-        },
+        "en": ("kaikki-Spanish.jsonl",),
+        "fr": ("kaikki-fr-Espagnol.jsonl", "kaikki-fr-traductions.jsonl"),
+        "es": ("kaikki-es-traductions.jsonl",),
     },
-    # es-en (add-lingua-pack-es-en D1): the English translations the Spanish Wiktionary's Spanish
-    # entries list, the direct fallback of the English Wiktionary's glosses. Derived from the same
-    # dump as es-fr's French translations, published under es-en's own release.
-    "es-en": {
-        "kaikki-es": {
-            "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
-            "files": {"kaikki-es-traductions-en.jsonl": ("translations", "es", "en")},
-        },
-    },
-    # en-es (add-lingua-pack-en-es D2): a pair whose sources are dumps alone — no extract of its
-    # own. From the Spanish Wiktionary's dump, es-fr's and es-en's address, in one pass and on
-    # en-es's own snapshot of it: its English section, the entries whose definitions gloss first,
-    # and the English translations its Spanish entries list, read backwards as the inverted
-    # fallback (es-en's derivation again, since a dump record carries one release for all its files
-    # and en-es downloads the dump anyway: its pin is self-contained, and an es-en re-snapshot moves
-    # no en-es byte). From the English Wiktionary's English extract — served uncompressed, 3.3 GB,
-    # read as a dump is and never kept — the Spanish translations its English entries list, the
-    # direct fallback. The programme's risk 6 names the raw English dump; the extract keeps the
-    # update within the job's reach, and change 38 switches the address if kaikki stops serving it
-    # (SOURCES.md).
+    # The same Spanish section, read for its English glosses, and the English translations the
+    # Spanish Wiktionary's Spanish entries list, their direct fallback (add-lingua-pack-es-en D1).
+    "es-en": {"en": ("kaikki-Spanish.jsonl",), "es": ("kaikki-es-traductions-en.jsonl",)},
+    # The Spanish Wiktionary's English section, whose definitions gloss first, and the English
+    # translations its Spanish entries list, read backwards; the Spanish translations the English
+    # Wiktionary's English entries list, the direct fallback (add-lingua-pack-en-es D2).
     "en-es": {
-        "kaikki-es": {
-            "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
-            "files": {
-                "kaikki-es-English.jsonl": ("entries", "en"),
-                "kaikki-es-traductions-en.jsonl": ("translations", "es", "en"),
-            },
-        },
-        "kaikki-en": {
-            "url": "https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl",
-            "files": {"kaikki-en-traductions-es.jsonl": ("translations", "en", "es")},
-        },
+        "es": ("kaikki-es-English.jsonl", "kaikki-es-traductions-en.jsonl"),
+        "en": ("kaikki-en-traductions-es.jsonl",),
     },
 }
+# The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as
+# a release asset (D5). Read as recorded, never written again.
+LEGACY_EXTRACT = "kaikki"
 # What a reducer writes, by side (split-lingua-pack-tables-by-language, M24). The studied side
 # belongs to the studied language and is kept once, in tables/<studied>/; the native side, with the
 # pack's manifest and attribution, in tables/<pair>/.
@@ -472,17 +489,57 @@ def translations_of(entry: dict):
 GZIP_MAGIC = b"\x1f\x8b"
 
 
-def open_dump(dump: Path):
-    """A dump's lines, as served: gzipped (an edition's dump) or plain (a language's extract,
-    which kaikki serves uncompressed — add-lingua-pack-en-es D2), told apart by the gzip magic.
-    The address says nothing: a plain file under a `.gz` name, or the reverse, reads the same."""
+class _Hashing(io.RawIOBase):
+    """A binary stream read through, hashing what it yields: the sha256 and size of a dump's
+    decompressed bytes, computed in the pass that derives from it (migrate-lingua-pack-sources-to-
+    raw-dumps D3)."""
+
+    def __init__(self, stream):
+        self.stream = stream
+        self.digest = hashlib.sha256()
+        self.size = 0
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer) -> int:
+        n = self.stream.readinto(buffer)
+        if n:
+            self.digest.update(memoryview(buffer)[:n])
+            self.size += n
+        return n
+
+    def close(self) -> None:
+        self.stream.close()
+        super().close()
+
+
+def dump_bytes(dump: Path):
+    """A dump's decompressed bytes, as served: gzipped, as kaikki serves an edition's dump, or
+    plain, as it serves a language's extract (add-lingua-pack-en-es D2) and could serve a dump —
+    told apart by the gzip magic. The address says nothing: a plain file under a `.gz` name, or
+    the reverse, reads the same."""
     with open(dump, "rb") as f:
         gzipped = f.read(len(GZIP_MAGIC)) == GZIP_MAGIC
-    return gzip.open(dump, "rt", encoding="utf-8") if gzipped else open(dump, encoding="utf-8")
+    return gzip.open(dump, "rb") if gzipped else open(dump, "rb", buffering=0)
 
 
-def derive(dump: Path, files: dict, work: Path) -> None:
-    """The files a pair takes from an edition's dump (`DUMPS`), in one pass, in the dump's order.
+def dump_lines(raw) -> io.TextIOWrapper:
+    """A dump's decompressed bytes (`dump_bytes`), read as lines of UTF-8 text with universal
+    newlines — as `open(…, encoding="utf-8")` and `gzip.open(…, "rt", encoding="utf-8")` read
+    them, so a derived file is the same bytes whichever opened it."""
+    return io.TextIOWrapper(io.BufferedReader(raw, buffer_size=1 << 20), encoding="utf-8")
+
+
+def open_dump(dump: Path) -> io.TextIOWrapper:
+    """A dump's lines, gzipped or plain alike (`dump_bytes`)."""
+    return dump_lines(dump_bytes(dump))
+
+
+def derive(dump: Path, files: dict, work: Path) -> dict:
+    """The files taken from an edition's dump (`EDITIONS`), in one pass, in the dump's order.
+    Answers the dump's identity, measured in the same pass: the sha256 and size of its decompressed
+    bytes (migrate-lingua-pack-sources-to-raw-dumps D3).
 
     An `entries` file holds each line as the dump writes it, so the shared rules read it as they
     read a per-language extract. A `translations` file holds, per entry, its word, its part of
@@ -505,7 +562,8 @@ def derive(dump: Path, files: dict, work: Path) -> None:
     outs = {name: open(part, "w", encoding="utf-8") for name, part in parts.items()}
     whole = False
     try:
-        with open_dump(dump) as f:
+        hashing = _Hashing(dump_bytes(dump))
+        with dump_lines(hashing) as f:
             for line in f:
                 if not any(all(mark in line for mark in need) for need in marks.values()):
                     continue
@@ -527,7 +585,7 @@ def derive(dump: Path, files: dict, work: Path) -> None:
                     if found:
                         cut = {"word": entry.get("word"), "pos": entry.get("pos"), "translations": found}
                         outs[name].write(json.dumps(cut, ensure_ascii=False, sort_keys=True) + "\n")
-        whole = True
+            whole = True
     except (EOFError, gzip.BadGzipFile, zlib.error, UnicodeDecodeError) as why:
         raise PinError(f"{dump}: cannot be read whole ({why}): nothing is derived from it") from why
     finally:
@@ -538,6 +596,7 @@ def derive(dump: Path, files: dict, work: Path) -> None:
                 os.replace(part, work / name)
             else:
                 part.unlink(missing_ok=True)
+    return {"sha256": hashing.digest.hexdigest(), "size": hashing.size}
 
 
 def build_esdb(spec: dict, work: Path) -> Path:
@@ -637,16 +696,41 @@ def pack_asset(raw: Path, asset: str, cache: Path | None) -> str:
     return digest
 
 
+def source_name(edition: str) -> str:
+    """The pin's record of what a pair read of an edition's dump: `kaikki-en`, `kaikki-fr`, …"""
+    return f"kaikki-{edition}"
+
+
 def check_registered(pair: str) -> None:
-    """A pair reads a Wiktionary: its extract (`KAIKKI`), or dumps alone (`DUMPS`, en-es)."""
-    if pair not in KAIKKI and pair not in DUMPS:
-        raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / KAIKKI / DUMPS in pack_sources.py")
+    """A pair reads kaikki through the editions' catalogues: each file it names in `DUMPS` is one
+    an edition's dump gives (`EDITIONS`)."""
+    if pair not in DUMPS:
+        raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / DUMPS in pack_sources.py")
+    for edition, files in DUMPS[pair].items():
+        catalogue = EDITIONS.get(edition, {}).get("files", {})
+        missing = [file for file in files if file not in catalogue]
+        if edition not in EDITIONS or missing:
+            raise PinError(
+                f"{pair} reads {', '.join(missing or files)} of the {edition!r} edition, which its catalogue "
+                f"does not list: add it to EDITIONS[{edition!r}] in pack_sources.py"
+            )
+
+
+def kaikki_records(pair: str, sources: dict) -> list[str]:
+    """The records of a pin that name kaikki's bytes, in the pin's order: a legacy extract's
+    (`LEGACY_EXTRACT`, D5) when the pin has one, and each edition's the pair reads (`DUMPS`)."""
+    named = {LEGACY_EXTRACT, *(source_name(edition) for edition in DUMPS.get(pair, {}))}
+    return [name for name in sources if name in named]
 
 
 def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cache: Path | None = None) -> None:
     """Every raw source as recorded, into `work`, each checked by sha256 (re-reduce mode). A release
-    asset is read from `cache` when an earlier fetch kept it there (`release_asset`). A pair whose
-    sources are dumps alone has no extract to fetch: its derived files, and nothing larger."""
+    asset is read from `cache` when an earlier fetch kept it there (`release_asset`). A kaikki
+    record is read by its shape, from the release it names (migrate-lingua-pack-sources-to-raw-dumps
+    D5): derived `files`, or the `asset` of a per-language extract, which a pin written before the
+    dumps names — kept in the pin, never pruned, and fetched under the name its asset gives
+    (`kaikki-Spanish.jsonl.zst` → `kaikki-Spanish.jsonl`), so the committed pins reproduce as they
+    are. No dump is read: the derived files are what the release keeps."""
     record = load(pin)
     pair = pair_of(pin)
     sources = get(record, "sources")
@@ -665,8 +749,8 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
         got = sha256(build({**esdb, **sources["esdb"]}, work))
         if got != sources["esdb"]["sha256"]:
             raise PinError(f"esdb: scowl.txt has sha256 {got}, pin.json records {sources['esdb']['sha256']}")
-    extract = ("kaikki",) if pair in KAIKKI else ()
-    read = (*PINNED.get(pair, {}), *(("esdb",) if esdb else ()), *extract, *DUMPS.get(pair, {}), "wordfreq")
+    kaikki = kaikki_records(pair, sources)
+    read = (*PINNED.get(pair, {}), *(("esdb",) if esdb else ()), *kaikki, "wordfreq")
     for retired in [name for name in sources if name not in read]:
         del sources[retired]
         print(f"note: {retired} is no longer read; removed from pin.json", file=sys.stderr)
@@ -679,43 +763,119 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
         if got != entry.get("sha256"):
             raise PinError(f"{name}: {dest.name} has sha256 {got}, pin.json records {entry.get('sha256')}")
     # Each release asset from the release its record names (add-lingua-pack-es-en D2).
-    if pair in KAIKKI:
-        kaikki = get(record, "sources.kaikki")
-        raw = work / KAIKKI[pair]["file"]
-        packed = release_asset(
-            fetch, release_url(kaikki["release"], kaikki["asset"]), raw.with_name(kaikki["asset"]), kaikki["sha256"], cache
-        )
-        unpack(packed, raw, kaikki["sha256"], "kaikki: the snapshot", cached=cache is not None)
-    for name in DUMPS.get(pair, {}):
-        dumped = get(record, f"sources.{name}")
-        for file, spec in get(record, f"sources.{name}.files").items():
-            raw = work / file
-            packed = release_asset(
-                fetch, release_url(dumped["release"], spec["asset"]), raw.with_name(spec["asset"]), spec["sha256"], cache
-            )
-            unpack(packed, raw, spec["sha256"], f"{name}: {file}", cached=cache is not None)
+    for name in kaikki:
+        spec = sources[name]
+        if not isinstance(spec, dict) or "release" not in spec:
+            raise PinError(f"{name}: pin.json names no release to fetch it from")
+        if "asset" in spec:
+            # A per-language extract, kept whole (a pin written before the dumps).
+            raw = work / spec["asset"].removesuffix(".zst")
+            if raw.name == spec["asset"]:
+                raise PinError(f"{name}: the asset {spec['asset']} is not zstd-compressed (.zst)")
+            packed = release_asset(fetch, release_url(spec["release"], spec["asset"]), raw.with_name(spec["asset"]), spec["sha256"], cache)
+            unpack(packed, raw, spec["sha256"], f"{name}: the snapshot", cached=cache is not None)
+        elif "files" in spec:
+            for file, entry in spec["files"].items():
+                raw = work / file
+                packed = release_asset(
+                    fetch, release_url(spec["release"], entry["asset"]), raw.with_name(entry["asset"]), entry["sha256"], cache
+                )
+                unpack(packed, raw, entry["sha256"], f"{name}: {file}", cached=cache is not None)
+        else:
+            raise PinError(f"{name}: pin.json names neither an extract (`asset`) nor derived `files`")
     installed = wordfreq_version()
     if installed != get(record, "sources.wordfreq.version"):
         raise PinError(f"wordfreq {installed} is installed, pin.json records {get(record, 'sources.wordfreq.version')}")
 
 
+def disk_used(path: Path) -> str:
+    """How full the disk holding `path` is, for the notes that measure a run (D8)."""
+    try:
+        return f"{shutil.disk_usage(path).used / 1e9:.1f} GB of the disk used"
+    except OSError:
+        return "disk use unknown"
+
+
+def read_edition(
+    edition: str, snapshot: str, editions: Path, *, fetch=download, today=None
+) -> tuple[Path, dict]:
+    """An edition's whole catalogue, derived from its dump once per run (D4): at the first read of
+    the run, the dump is fetched into `<editions>/../dumps/`, every file of the catalogue derived
+    into `<editions>/<edition>-<snapshot>/` in one pass, and the dump deleted; a later read finds
+    the folder. Answers the folder and what the pin records of the dump — its address, the day it
+    was fetched, the date kaikki regenerated it, and the sha256 and size of its decompressed bytes
+    with its size as served (D3). The folder is the run's: keyed by edition and snapshot day, never
+    meant to be read across runs (a regeneration may fall between two), and removed with the run.
+    It counts once it holds `dump.json`, written last: a pass cut short is started again."""
+    spec = EDITIONS[edition]
+    folder = editions / f"{edition}-{snapshot}"
+    done = folder / "dump.json"
+    if done.is_file():
+        return folder, json.loads(done.read_text(encoding="utf-8"))
+    if folder.exists():
+        shutil.rmtree(folder)
+    folder.mkdir(parents=True)
+    dump = editions.parent / "dumps" / f"{edition}-{snapshot}.jsonl.gz"
+    try:
+        started = time.monotonic()
+        headers = fetch(spec["url"], dump) or {}
+        fetched = time.monotonic() - started
+        served = dump.stat().st_size
+        started = time.monotonic()
+        identity = derive(dump, spec["files"], folder)
+        derived = time.monotonic() - started
+        # Measured here, since the repository keeps no dump: its size as served and decompressed,
+        # the download and the pass, and the disk at the run's fullest — the dump and its whole
+        # catalogue beside each other (migrate-lingua-pack-sources-to-raw-dumps D4, D8).
+        print(
+            f"note: {source_name(edition)}: {served:,} B as served, fetched in {fetched:.0f} s; "
+            f"{identity['size']:,} B decompressed, its catalogue ({len(spec['files'])} files) derived in "
+            f"{derived:.0f} s; {disk_used(folder)}; the dump is not kept",
+            file=sys.stderr,
+        )
+    finally:
+        dump.unlink(missing_ok=True)
+    record = {
+        "url": spec["url"],
+        "fetched": (today or datetime.date.today()).isoformat(),
+        "last_modified": headers.get("last-modified", ""),
+        "dump": {**identity, "compressed_size": served},
+    }
+    part = folder / "dump.json.part"
+    part.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    os.replace(part, done)
+    return folder, record
+
+
 def fetch_live(
-    pin: Path, work: Path, snapshot: str, *, fetch=download, build=build_esdb, today=None, cache: Path | None = None
+    pin: Path,
+    work: Path,
+    snapshot: str,
+    *,
+    fetch=download,
+    build=build_esdb,
+    today=None,
+    cache: Path | None = None,
+    editions: Path | None = None,
 ) -> dict:
     """Today's raw sources into `work`, recorded in `pin` as a new snapshot (update mode).
 
     CEFR-J, Octanove and ESDB stay at their pinned commits — a newer commit is a deliberate edit
-    of PINNED or ESDB. kaikki is read live, recorded by the sha256 of its bytes, and compressed beside
-    them for the pair's own release; so is each file derived from a dump (`DUMPS`). Every pair
-    fetches its own extract, even one whose address another pair reads (add-lingua-pack-es-en D2);
-    a pair whose sources are dumps alone fetches none, and records no `kaikki`
-    (add-lingua-pack-en-es D2). A reader pair's record of the studied tables it read (`studied`) is
-    carried over until `record-build` writes it anew.
+    of PINNED or ESDB. kaikki is read as its editions' dumps alone (migrate-lingua-pack-sources-to-
+    raw-dumps D1): for each edition the pair reads (`DUMPS`), the files it reads are copied from the
+    edition's catalogue, derived at the run's first read of the dump (`read_edition`, into
+    `editions`, `work/editions` by default), compressed beside them for the pair's own release and
+    recorded by the sha256 of their decompressed bytes, with the dump they came from (D3). Every
+    pair records its own fetch, under its own release, even of a file another pair reads
+    (add-lingua-pack-es-en D2). No extract is read, and no `kaikki` record is written. A reader
+    pair's record of the studied tables it read (`studied`) is carried over until `record-build`
+    writes it anew.
     """
     record = load(pin)
     pair = pair_of(pin)
     check_registered(pair)
     work.mkdir(parents=True, exist_ok=True)
+    editions = work / "editions" if editions is None else editions
     sources: dict = {}
     for name, spec in PINNED.get(pair, {}).items():
         dest = work / spec["file"]
@@ -725,47 +885,26 @@ def fetch_live(
     if esdb is not None:
         sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
         sources["esdb"]["sha256"] = sha256(build(esdb, work))
-    if pair in KAIKKI:
-        raw = work / KAIKKI[pair]["file"]
-        headers = fetch(KAIKKI[pair]["url"], raw, compressed=True) or {}
-        asset = raw.name + ".zst"
-        sources["kaikki"] = {
-            "release": release_tag(pair, snapshot),
-            "asset": asset,
-            "sha256": pack_asset(raw, asset, cache),
-            "size": raw.stat().st_size,
-            "fetched": (today or datetime.date.today()).isoformat(),
-            "last_modified": headers.get("last-modified", ""),
-            "url": KAIKKI[pair]["url"],
-        }
-    for name, spec in DUMPS.get(pair, {}).items():
-        # The dump itself is never kept, derived whole or not: only what the pair derives from it.
-        # Saved as served — gzipped, or plain for a language's extract — whatever the name says
-        # (`open_dump`).
-        dump = work / f"{name}.dump.jsonl.gz"
-        try:
-            headers = fetch(spec["url"], dump) or {}
-            # Its size as served, measured here since the repository keeps no dump (the English
-            # extract's was unknown until en-es's first update, add-lingua-pack-en-es).
-            print(f"note: {name}: {dump.stat().st_size:,} B as served, derived and not kept", file=sys.stderr)
-            derive(dump, spec["files"], work)
-        finally:
-            dump.unlink(missing_ok=True)
+    for edition, reads in DUMPS[pair].items():
+        folder, dumped = read_edition(edition, snapshot, editions, fetch=fetch, today=today)
         files = {}
-        for file in spec["files"]:
+        for file in reads:
             raw = work / file
+            shutil.copyfile(folder / file, raw)
             asset = file + ".zst"
             files[file] = {"asset": asset, "sha256": pack_asset(raw, asset, cache), "size": raw.stat().st_size}
-        sources[name] = {
+        sources[source_name(edition)] = {
             "release": release_tag(pair, snapshot),
-            "url": spec["url"],
-            "fetched": (today or datetime.date.today()).isoformat(),
-            "last_modified": headers.get("last-modified", ""),
+            "url": dumped["url"],
+            "fetched": dumped["fetched"],
+            "last_modified": dumped["last_modified"],
+            "dump": dumped["dump"],
             "files": files,
         }
     sources["wordfreq"] = {"version": wordfreq_version()}
     if sources["wordfreq"]["version"] != WORDFREQ:
         raise PinError(f"wordfreq {sources['wordfreq']['version']} is installed; the pipeline pins {WORDFREQ}")
+    print(f"note: {pair}: its sources read and compressed; {disk_used(work)}", file=sys.stderr)
     kept = {"snapshot": snapshot, "pack": record.get("pack", {}), "reducer": record.get("reducer", {})}
     if "studied" in record:
         kept["studied"] = record["studied"]
@@ -889,17 +1028,58 @@ def record_build(pin: Path, pack: Path, reducer: Path) -> None:
     save(pin, {k: record[k] for k in ("snapshot", "pack", "reducer", "studied", "sources") if k in record})
 
 
+def released(record: dict, release: str | None = None) -> list[tuple[str, dict]]:
+    """The records of a pin whose bytes a release keeps — each names its `release` — in the pin's
+    order; with `release`, those of that release alone. A record of either shape: derived `files`,
+    or a legacy extract's `asset` (D5); a record naming neither fails, naming it."""
+    out = []
+    for name, spec in get(record, "sources").items():
+        if not isinstance(spec, dict) or "release" not in spec:
+            continue
+        if "asset" not in spec and "files" not in spec:
+            raise PinError(f"{name}: pin.json names release {spec['release']} but neither an extract (`asset`) nor `files`")
+        if release is None or spec["release"] == release:
+            out.append((name, spec))
+    return out
+
+
 def assets(record: dict, release: str | None = None) -> list[str]:
-    """The files the snapshot's releases hold: the extract's, then each derived file's, in the
-    record's order. With `release`, the files that release holds alone: an update publishes a
-    pair's own assets only, under its own release (add-lingua-pack-es-en D2). A pair whose sources
-    are dumps alone records no extract: its derived files alone (add-lingua-pack-en-es D2)."""
-    sources = get(record, "sources")
-    kaikki = sources.get("kaikki")
-    out = [kaikki["asset"]] if kaikki and (release is None or kaikki.get("release") == release) else []
-    for spec in sources.values():
-        if isinstance(spec, dict) and (release is None or spec.get("release") == release):
-            out.extend(file["asset"] for file in (spec.get("files") or {}).values())
+    """The files the snapshot's releases hold, in the record's order: a legacy extract's asset
+    (D5), each derived file's. With `release`, the files that release holds alone: an update
+    publishes a pair's own assets only, under its own release (add-lingua-pack-es-en D2)."""
+    out = []
+    for _, spec in released(record, release):
+        if "asset" in spec:
+            out.append(spec["asset"])
+        out.extend(file["asset"] for file in (spec.get("files") or {}).values())
+    return out
+
+
+def dumps(record: dict, release: str | None = None) -> list[str]:
+    """What a release's notes say of the kaikki bytes its assets come from (D7), one Markdown item
+    per record: each edition's dump — its address, the date kaikki regenerated it, the sha256 and
+    size of its decompressed bytes — and the files derived from it. A record written before the
+    dumps is named as it is recorded: derived files without the dump's identity, or a per-language
+    extract kept whole."""
+    out = []
+    for name, spec in released(record, release):
+        url, regenerated = spec.get("url", "?"), spec.get("last_modified") or "on a date not recorded"
+        if "asset" in spec:
+            out.append(
+                f"- `{name}`: kaikki's per-language extract {url}, regenerated {regenerated}, kept whole as "
+                f"`{spec['asset']}` (sha256 {spec.get('sha256', '?')}, {spec.get('size', 0):,} B)"
+            )
+            continue
+        derived = ", ".join(f"`{file}`" for file in spec.get("files") or {})
+        dump = spec.get("dump")
+        if isinstance(dump, dict):
+            identity = (
+                f"decompressed sha256 {dump.get('sha256', '?')}, {dump.get('size', 0):,} B "
+                f"({dump.get('compressed_size', 0):,} B as served)"
+            )
+        else:
+            identity = "the dump's sha256 was not recorded (a pin written before the dumps were)"
+        out.append(f"- `{name}`: the dump {url}, regenerated {regenerated}; {identity}; derived: {derived}")
     return out
 
 
@@ -990,6 +1170,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     commands = ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get", "assets")
+    commands += ("dumps",)
     commands += ("release-tag", "version")
     for name in (*commands, "keep", "split", "pairs", "moved"):
         p = sub.add_parser(name)
@@ -1011,8 +1192,11 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--cache", type=Path, help="keep fetched release assets here, by sha256, across pairs")
         if name == "fetch-live":
             p.add_argument("--snapshot", default=datetime.date.today().strftime("%Y.%m.%d"))
-        if name == "assets":
-            p.add_argument("--release", help="the assets this release holds alone (a pair's own)")
+            p.add_argument(
+                "--editions", type=Path, help="derive each edition's catalogue here, once per run (default: WORK/editions)"
+            )
+        if name in ("assets", "dumps"):
+            p.add_argument("--release", help="the records of this release alone (a pair's own)")
         if name in ("record-build", "check-pack"):
             p.add_argument("--pack", type=Path, required=True)
         if name in ("record-build", "check-reducer", "rules", "version"):
@@ -1028,7 +1212,7 @@ def main(argv: list[str] | None = None) -> int:
             fetch_pinned(a.pin, a.work, cache=a.cache)
         elif a.cmd == "fetch-live":
             check_python()
-            fetch_live(a.pin, a.work, a.snapshot, cache=a.cache)
+            fetch_live(a.pin, a.work, a.snapshot, cache=a.cache, editions=a.editions)
         elif a.cmd == "record-build":
             record_build(a.pin, a.pack, a.reducer)
         elif a.cmd == "check-pack":
@@ -1041,6 +1225,8 @@ def main(argv: list[str] | None = None) -> int:
             print(get(load(a.pin), a.key))
         elif a.cmd == "assets":
             print("\n".join(assets(load(a.pin), a.release)))
+        elif a.cmd == "dumps":
+            print("\n".join(dumps(load(a.pin), a.release)))
         elif a.cmd == "release-tag":
             print(release_tag(pair_of(a.pin), get(load(a.pin), "snapshot")))
         elif a.cmd == "version":

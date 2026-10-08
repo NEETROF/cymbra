@@ -294,15 +294,16 @@ class Loops(unittest.TestCase):
         self.assertIn("tables/en-es/pin.json", notes)
 
     def test_the_release_step_fails_when_its_assets_cannot_be_listed(self):
-        # A record `assets` cannot read (the extract's asset missing): the step stops, and nothing
-        # is published — it neither passes having published nothing nor publishes half the list.
+        # A record `assets` cannot read (a release named, but neither an extract's asset nor derived
+        # files): the step stops, and nothing is published — it neither passes having published
+        # nothing nor publishes half the list.
         log = self.gh()
         record = self.own_record("es-en", "2026.10.08", "kaikki-es-traductions-en.jsonl")
         del record["sources"]["kaikki"]["asset"]
         self.pin("es-en", record)
         done = self.release("es-en")
         self.assertNotEqual(done.returncode, 0, "a step whose asset list failed passed")
-        self.assertIn("KeyError", done.stderr)
+        self.assertIn("kaikki: pin.json names release lingua-pack-sources-es-en-2026.10.08 but neither an extract", done.stderr)
         self.assertFalse(any(line.startswith("release create") for line in log.read_text().splitlines()))
 
     def test_the_release_step_fails_when_no_asset_is_the_pair_s_own(self):
