@@ -432,11 +432,14 @@ names its language (`analyzer/engine.ts:232-270`).
 
 **The reader's data has one writer.** The background owns IndexedDB `cymbra-lingua`
 (`state/store.ts:20`); every other context reads and writes it by message (`messagedArea`,
-`state/store.ts:295`), because a content script cannot open the extension's database. After each
+`state/store.ts:421`), because a content script cannot open the extension's database. After each
 write the owner bumps a marker in `chrome.storage.local`, and every surface follows it through
 `storage.onChanged` — the one channel that reaches content scripts and survives a suspended Safari
-event page (`watchStore`, `watchBackup`, `state/store.ts:375-391`). That is how a word marked in one
-tab repaints every other tab, the drawer and the side panel.
+event page (`watchStore`, `watchBackup`, `state/store.ts:511-534`). That is how a word marked in one
+tab repaints every other tab, the drawer and the side panel. Beside the backup, the owner records
+the native language the reader last chose (`LAST_NATIVE_KEY`, `state/store.ts:97`) and refuses a
+backup that names another one unless it comes with a reason — a change of native language or a
+restore from a file — so a tab or a background that started before the change cannot undo it.
 
 **One builder per view.** Review, statistics and Réglages are each built once — `mountReview`
 (`review/review-page.ts:63`), `mountStats` (`stats/view.ts:198`), `mountSettings`
@@ -1205,7 +1208,7 @@ What to notice:
 | Where | What | Written by | Leaves the device? | Where in the repo |
 |---|---|---|---|---|
 | **Extension package** | The packs of `packs.json`, the Lingua WASM, the Bergamot engine, the model catalogue, the interface copy | the build | it *is* what is installed | `build.mjs:186-206` (`staticCopies`), `:288-295` |
-| **IndexedDB `cymbra-lingua`** (extension origin) | The engine backup under `lingua` (statuses, deck, exposures, FSRS parameters, profile), daily statistics, device id, status and card cursors, the last erasure mark seen | the background only (store owner) | the records in it, when signed in and synced | `src/state/store.ts:20-36` |
+| **IndexedDB `cymbra-lingua`** (extension origin) | The engine backup under `lingua` (statuses, deck, exposures, FSRS parameters, profile), daily statistics, device id, status and card cursors, the last erasure mark seen, the native language last chosen | the background only (store owner) | the records in it, when signed in and synced | `src/state/store.ts:20-36` |
 | **`chrome.storage.local`** | Preferences (highlighting on/off, HUD, colours, voices, reader display, interface language), the token pair, last sync time, session-lost mark, the store-changed marker, the extended-translation setting and model state | the background and surfaces | no | `src/state/storage.ts`, `src/state/session.ts:23-24`, `src/translate/setting.ts:18-19` |
 | **`chrome.storage.session`** | Transient UI state: which panel view to open, a sign-in error to show, an email awaiting its code | background, account page | no | `src/background.ts:145`, `src/state/session.ts:33`, `src/account/account.ts:31` |
 | **IndexedDB `cymbra-lingua-library`** (reader page) | Imported EPUB files keyed by SHA-256, reading positions | the reader page | never | `src/reader/library.ts` |
