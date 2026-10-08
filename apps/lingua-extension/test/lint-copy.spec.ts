@@ -8,10 +8,11 @@ import { afterAll, describe, expect, it } from "vitest";
 // The interface's copy lives in the catalogue, src/i18n (add-lingua-interface-language D5): a
 // French string literal anywhere else in src/ fails, unless its file is on the BASELINE — the
 // surfaces still holding their copy, which the changes moving them take off the list:
-// localise-lingua-settings (15), localise-lingua-review-stats (16),
-// localise-lingua-account-onboarding (17); localise-lingua-reading-surfaces (14) took the popup,
-// the HUD, the drawer, the cards, the side panel's page and the reader off it. The baseline is
-// checked the other way too: a file on it that holds no French literal fails, so it cannot go stale.
+// localise-lingua-review-stats (16), localise-lingua-account-onboarding (17);
+// localise-lingua-reading-surfaces (14) took the popup, the HUD, the drawer, the cards, the side
+// panel's page and the reader off it, localise-lingua-settings (15) Réglages and its blocks. The
+// baseline is checked the other way too: a file on it that holds no French literal fails, so it
+// cannot go stale.
 //
 // What counts is read from the TypeScript syntax tree — string and template literals only, so a
 // comment or a regular expression in French is not a hit — and from the HTML pages' text nodes and
@@ -37,19 +38,12 @@ export const BASELINE = [
   "src/analyzer/language-labels.ts",
   "src/onboarding/level-row.ts",
   "src/onboarding/onboarding.html",
-  "src/reading/account-setting.ts",
-  "src/reading/book-display-view.ts",
-  "src/reading/colour-settings-view.ts",
   "src/reading/grammar-labels.ts",
-  "src/reading/settings-view.ts",
-  "src/reading/studied-languages-view.ts",
-  "src/reading/translation-setting.ts",
   "src/review/review-page.ts",
   "src/review/view.ts",
   "src/stats/ladder.ts",
   "src/stats/stats.html",
   "src/stats/view.ts",
-  "src/sync/status.ts",
 ];
 
 /** Unaccented words of the inventory's copy, matched whole and case-sensitively. */
