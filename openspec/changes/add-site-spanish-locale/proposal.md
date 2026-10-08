@@ -40,8 +40,8 @@ switch and `hreflang` point at `/` and `/en/`.
 
 ### New Capabilities
 
-- `site-locales`: the public site's languages, how a page names its translations, and the 404 of
-  each language.
+- `site-locales`: the public site's languages, how a page names its translations, and the pages
+  Lingua sends Spanish readers to.
 
 ### Modified Capabilities
 

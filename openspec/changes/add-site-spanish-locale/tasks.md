@@ -3,7 +3,7 @@
 ## 1. The locale (apps/site)
 
 - [ ] 1.1 `astro.config.mjs` `es`; `localised404()` for every non-default locale; `test/post-build/pinned-routes.spec.ts` expects `es/404.html` (D1).
-- [ ] 1.2 `Base.astro` and `Legal.astro` take `alternates`; every page passes its own; `hreflang` with `x-default`; the nav and footer per language (D2). Tests: the switch and `hreflang` of a legal page in each language.
+- [ ] 1.2 `Base.astro` and `Legal.astro` take `alternates`; every page passes its own; `hreflang` per alternate, no `x-default`; the nav and footer per language (D2). Tests: the switch and `hreflang` of a legal page in each language.
 
 ## 2. The pages
 
