@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	transition	NOUN	transición	correct				
+1	n01004009	teaching	VERB	enseñar	correct				
+2	n01010042	time	NOUN	tiempo	correct				
+3	n01016014	Korean	ADJ	surcoreana	correct	« South Korean » → « surcoreana », one word			
+4	n01019005	security	NOUN	seguridad	correct				
+5	n01022016	area	NOUN	área	correct				
+6	n01025045	history	NOUN	historia	correct				
+7	n01029011	far	ADJ	extremo	correct	« far east » → « extremo este »			
+8	n01033021	pattern	NOUN	patrón	correct				
+9	n01036020	like	VERB	gustaría	correct				
+10	n01041018	Physicians	NOUN	"los médicos	correct	« "los médicos »: the article, and the opening quotation mark, carried along			
+11	n01045035	judge	NOUN	juez	correct				
+12	n01050014	hemoglobin	NOUN	hemoglobina	correct				
+13	n01054011	released	VERB	publicaron	correct				
+14	n01059008	discordance	NOUN	discordancia	correct				
+15	n01063011	clinical	ADJ	clínicos	correct				
+16	n01066093	neglect	NOUN	negligencia	correct				
+17	n01070017	suggested	VERB	sugirió	correct				
+18	n01074020	edge	NOUN	ventaja	correct	doubtful: « edge » rendered « ventaja » (advantage), a mistranslation the mark follows			
+19	n01078025	modern	ADJ	moderna	correct				
+20	n01084008	couple	NOUN	pareja	correct				
+21	n01087005	say	VERB	decir	correct				
+22	n01091013	shooting	NOUN	de tiro	correct	« shooting lobby » → « vestíbulo de tiro », the preposition carried along			
+23	n01094014	marketplaces	NOUN	mercados	correct				
+24	n01097098	stop	NOUN	parada	correct				
+25	n01102006	told	VERB	dijo	correct				
+26	n01107006	compensation	NOUN	de compensación	correct	« compensation claims » → « reclamaciones de compensación », the preposition carried along			
+27	n01110008	Premium	ADJ	premium	correct	the engine tagged « los » and « premium »; the fragment's own translation dropped the article			
+28	n01114025	adults	NOUN	adultos	correct				
+29	n01118003	mic	NOUN	micrófono	correct				
+30	n01121032	died	VERB	murió	correct	the engine tagged « Millican »; the fragment's own translation moved the mark to « murió »			
+31	n01127089	know	VERB	sé	correct				
+32	n01130003	ground	NOUN	la zona	correct	« ground zero » → « la zona cero », the article carried along			
+33	n01134015	credited	VERB	atribuye	correct				
+34	n01138026	episodes	NOUN	episodios	correct				
+35	n01142008	incredible	ADJ	increíble",	correct	the mark carries the closing quote and comma			
+36	n01145028	volunteers	NOUN	voluntarios	correct				
+37	n01149027	see	VERB	vi	correct				
+38	w01003056	islands	NOUN	islas	correct				
+39	w01007004	limited	ADJ	limitada	correct				
+40	w01010046	state	NOUN	estado	correct				
+41	w01016070	example	NOUN	ejemplo	correct				
+42	w01020018	climate	NOUN	clima	correct				
+43	w01025085	important	ADJ	importantes	correct				
+44	w01028069	reaction	NOUN	reacción	correct				
+45	w01031015	tends	VERB	tiende	correct				
+46	w01035081	land	NOUN	tierra	correct				
+47	w01038044	indigenous	ADJ	indígenas	correct				
+48	w01042055	city	NOUN	ciudad	correct				
+49	w01046056	government	NOUN	gobierno	correct				
+50	w01050067	fall	NOUN	caída	correct				
+51	w01053015	exact	ADJ	exacto	correct				
+52	w01058009	battle	NOUN	la batalla	correct	« in battle » → « en la batalla », the article carried along			
+53	w01063048	represented	VERB	representaban	correct				
+54	w01066040	New	NOUN	Nuevo	correct				
+55	w01070031	astronomical	ADJ	astronómico	correct				
+56	w01072079	century	NOUN	siglo	correct				
+57	w01075039	make	VERB	conforman	correct	« make up » → « conforman », an expression's rendering			
+58	w01080129	enemies	NOUN	enemigos	correct				
+59	w01085004	Army	NOUN	Ejército	correct				
+60	w01089040	time	NOUN	momento	correct	« At this time » → « En este momento »			
+61	w01095090	considered	VERB	considera	correct				
+62	w01099012	origin	NOUN	origen	correct				
+63	w01102020	officer	NOUN		withheld	no mark (« an SS officer » → « oficial de las SS »)			
+64	w01106073	altitude	NOUN	altitud	correct				
+65	w01111089	met	VERB	conoció	correct				
+66	w01115023	University	NOUN	Universidad	correct				
+67	w01119059	similar	ADJ	similar	correct				
+68	w01125036	hours	NOUN	horas	correct				
+69	w01130099	released	VERB	lanzó	correct				
+70	w01133014	plotter	NOUN	conspiradora	correct	doubtful: « plotter » rendered « conspiradora » (conspirator), a mistranslation the mark follows			
+71	w01136029	stereotypical	ADJ	estereotipada	correct				
+72	w01140032	method	NOUN	método	correct				
+73	w01143037	played	VERB	interpretado	correct				
+74	w01147122	information	NOUN	información	correct				
+75	n02002007	able	ADJ	pudieron	correct	« were able to » → « pudieron », an expression's rendering			
+76	n02027007	agents	NOUN	los agentes	correct	« los agentes »: the article carried along			
+77	n02038007	gropes	VERB	anda	correct	doubtful: « gropes around » rendered « anda » (goes), a loose rendering the mark follows			
+78	n02048002	alarm	NOUN		withheld	no mark (« alarm clock » → « despertador »)			
+79	n02073024	time	NOUN	momento	correct	« For the time being » → « Por el momento », an expression's rendering			
+80	n03001007	letter	NOUN	carta	correct				
+81	n03005025	accused	VERB	acusó	correct				
+82	n03008011	way	NOUN	camino	correct	« on its way out » → « en camino de salir »			
+83	n04003043	hit	NOUN	de éxito	correct	« hit song » → « canción de éxito », the preposition carried along			
+84	n04007018	note	NOUN	nota	correct				
+85	n05001005	represents	VERB	representa	correct				
+86	n05003022	one	NOUN		withheld	no mark (« the only one » → « el único »)			
+87	n05008012	worried	ADJ	preocupado	correct	the engine tagged « está » and « preocupado »; the fragment's own translation dropped the auxiliary			
+88	w02003037	cloister	NOUN	claustro	correct				
+89	w02006081	win	VERB	ganar	correct				
+90	w02009002	severity	NOUN	severidad	correct				
+91	w02014013	last	ADJ	últimos	correct				
+92	w02017061	traces	NOUN	rastros	correct				
+93	w03003039	captained	VERB		withheld	no mark (« captained » → « capitaneado », unmarked)			
+94	w03007039	outposts	NOUN	puestos	correct	« commercial outposts » → « puestos comerciales »			
+95	w04001027	lower	ADJ	baja	correct				
+96	w04004051	parts	NOUN	partes	correct				
+97	w04010027	met	VERB	se reunieron	correct	the engine tagged « Nicolai se »; the fragment's own translation moved the mark to « se reunieron »			
+98	w05003012	breakdown	NOUN	ruptura	correct				
+99	w05006058	other	ADJ	otro	correct	« On the other hand » → « Por otro lado », an expression's rendering			

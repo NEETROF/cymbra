@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	precedentes	NOUN	precedent	correct		precedent	correct	
+1	n01004009	enseñar	VERB	teaching	correct		teaching	correct	
+2	n01010042	señor	NOUN	Mr	correct			withheld	no gloss word in the sentence
+3	n01016014	surcoreana	ADJ	South Korean	correct		South	wrong	« South » alone, half of « South Korean »
+4	n01019005	embargo	NOUN	However	correct	« Sin embargo » → « However », an expression's rendering	for	wrong	« for », not the rendering « However »
+5	n01022016	aumentaron	VERB	increased	correct		increased	correct	
+6	n01025045	largo	NOUN	throughout	correct	« a lo largo de » → « throughout », an expression's rendering		withheld	no gloss word in the sentence
+7	n01029011	Extremo	ADJ	Far	correct	« Extremo Oriente » → « Far East »: « Far » renders « Extremo »		withheld	no gloss word in the sentence
+8	n01033021	embargo	NOUN	However	correct	« Sin embargo » → « However », an expression's rendering		withheld	no gloss word in the sentence
+9	n01036020	gustaría	VERB	would | like	correct	« would … like », split	like	correct	
+10	n01041018	médicos	NOUN	Doctors	correct		Doctors	correct	
+11	n01045035	juez	NOUN	judge	correct		judge	correct	
+12	n01050014	niveles	NOUN	levels	correct		levels	correct	
+13	n01054011	publicaron	VERB	published	correct		published	correct	
+14	n01059008	discordancia	NOUN	mismatch	correct			withheld	no gloss word in the sentence
+15	n01063011	indiferentes	ADJ	indifferent	correct		indifferent	correct	
+16	n01066093	descuido	NOUN	neglect	correct			withheld	no gloss word in the sentence
+17	n01070017	sugirió	VERB	suggested	correct		suggested	correct	
+18	n01074020	manos	NOUN	hands	correct		hands	correct	
+19	n01078025	actual	ADJ	the current	correct		current	correct	
+20	n01084008	teoría	NOUN	theory	correct		theory	correct	
+21	n01087005	decir	VERB	to say	correct		say	correct	
+22	n01091013	mejor	NOUN	best	correct	« En el mejor de los casos » → « At best », an expression's rendering	best	correct	
+23	n01094014	mercados	NOUN	markets	correct		markets	correct	
+24	n01097098	parada	NOUN	stop	correct		stop	correct	
+25	n01102006	declaró	VERB	he	wrong	marks « he » instead of « said »		withheld	no gloss word in the sentence
+26	n01107006	demandas	NOUN	demands	correct		demands	correct	
+27	n01110008	diferentes	ADJ	different	correct		different	correct	
+28	n01114025	adultos	NOUN	adults	correct		adults	correct	
+29	n01118003	caer	VERB		withheld	no mark (« Dejar caer el micrófono » → « Drop the microphone »)	Drop	correct	« Dejar caer » → « Drop », an expression's rendering
+30	n01121032	hecho	NOUN		withheld	no mark (« dimos por hecho » → « we assumed »)		withheld	no gloss word in the sentence
+31	n01127089	elegí	VERB	chose	correct			withheld	no gloss word in the sentence
+32	n01130003	Norte	NOUN	North	correct		North	correct	
+33	n01134015	atribuye	VERB	credited	correct	« Se le atribuye » → « He is credited »		withheld	no gloss word in the sentence
+34	n01138026	episodios	NOUN	episodes	correct		episodes	correct	
+35	n01142008	increíble	ADJ	incredible	correct		incredible	correct	
+36	n01145028	voluntarios	NOUN	volunteers	correct		volunteers	correct	
+37	n01149027	utilizando	VERB	using	correct			withheld	no gloss word in the sentence
+38	w01003056	islas	NOUN	islands	correct		islands	correct	
+39	w01007004	franco	ADJ		withheld	no mark (« franco-monegasco » → « Franco-Monegasque »)	Franco	correct	« Franco », the rendering of « franco » in the compound
+40	w01010046	año	NOUN	year	correct		year	correct	
+41	w01016070	ejemplo	NOUN	example	correct		example	correct	
+42	w01020018	clima	NOUN	climate	correct		climate	correct	
+43	w01025085	importantes	ADJ	important	correct		important	correct	
+44	w01028069	reacción	NOUN	reaction	correct		reaction	correct	
+45	w01031015	tiende	VERB	tends	correct		tends	correct	
+46	w01035081	tierra	NOUN	land	correct		land	correct	
+47	w01038044	indígenas	ADJ	indigenous	correct		indigenous	correct	
+48	w01042055	tormentas	NOUN	Thunderstorms	correct	« tormentas eléctricas » → « Thunderstorms »	Thunderstorms	correct	
+49	w01046056	gobierno	NOUN	government	correct		government	correct	
+50	w01050067	caída	NOUN	fall	correct		fall	correct	
+51	w01053015	exacto	ADJ	exact	correct		exact	correct	
+52	w01058009	maneras	NOUN	Anyway	correct	« De todas maneras » → « Anyway », an expression's rendering		withheld	no gloss word in the sentence
+53	w01063048	representaban	VERB	represented	correct		represented	correct	
+54	w01066040	Año	NOUN	Year	correct		Year	correct	
+55	w01070031	astronómico	ADJ	astronomical	correct		astronomical	correct	
+56	w01072079	siglo	NOUN	century	correct		century	correct	
+57	w01075039	hicieron	VERB	made	correct			withheld	no gloss word in the sentence
+58	w01080129	contra	NOUN	against	correct	« en contra de » → « against »		withheld	no gloss word in the sentence (« against » is a stop word)
+59	w01085004	ejército	NOUN	army	correct		army	correct	
+60	w01089040	época	NOUN	time	correct		time	correct	
+61	w01095090	usar	VERB	to use	correct		use	correct	
+62	w01099012	explicaciones	NOUN	The explanations	correct		explanations	correct	
+63	w01102020	oficial	NOUN	officer	correct		officer	correct	
+64	w01106073	altitud	NOUN	altitude	correct		altitude	correct	
+65	w01111089	conoció	VERB	met	correct			withheld	no gloss word in the sentence
+66	w01115023	Universidad	NOUN	University	correct		University	correct	
+67	w01119059	mismo	ADJ	same	correct		same	correct	
+68	w01125036	horas	NOUN	hours	correct		hours	correct	
+69	w01130099	lanzó	VERB	released	correct		released	correct	
+70	w01133014	edición	NOUN	edition	correct		edition	correct	
+71	w01136029	estereotípica	ADJ	stereotypical	correct			withheld	no gloss in the pack
+72	w01140032	método	NOUN	method	correct	the engine tagged « improved »; the fragment's own translation moved the mark to « method »	method	correct	
+73	w01143037	haciendo	VERB	playing	correct	« haciendo el papel » → « playing the role »		withheld	no gloss word in the sentence
+74	w01147122	agosto	NOUN	August	correct		August	correct	
+75	n02002007	capaces	ADJ	able	correct	« fueron capaces de » → « were able to »	able	correct	
+76	n02027007	número	NOUN	number	correct		number	correct	
+77	n02038007	avanza	VERB	goes	correct	« avanza » rendered « goes »; the translation itself is poor		withheld	no gloss word in the sentence
+78	n02048002	despertador	NOUN	alarm clock	correct	the engine tagged « alber »; the fragment's own translation moved the mark to « alarm clock »	alarm	wrong	« alarm » alone, half of « alarm clock »
+79	n02073024	enemigas	ADJ	two	wrong	marks « two » instead of « enemy »	enemy	correct	
+80	n03001007	diferencia	NOUN	Unlike	correct	« A diferencia de » → « Unlike », an expression's rendering		withheld	no gloss word in the sentence
+81	n03005025	acusó	VERB	accused	correct		accused	correct	
+82	n03008011	últimas	NOUN	last	correct		last	correct	
+83	n04003043	musical	ADJ	musical	correct		musical	correct	
+84	n04007018	nota	NOUN	note	correct		note	correct	
+85	n05001005	representa	VERB	represents	correct		represents	correct	
+86	n05003022	único	NOUN	only	correct	« el único » → « the only one »	only	correct	
+87	n05008012	preocupado	ADJ	concerned	correct		concerned	correct	
+88	w02003037	monasterio	NOUN	monastery	correct		monastery	correct	
+89	w02006081	consiguió	VERB		withheld	no mark (« consiguió vencer » → « managed to win »)		withheld	no gloss word in the sentence
+90	w02009002	gravedad	NOUN	gravity	correct		gravity	correct	
+91	w02014013	últimos	ADJ	last	correct		last	correct	
+92	w02017061	restos	NOUN	remains	correct		remains	correct	
+93	w03003039	capitaneado	VERB	captained	correct			withheld	no gloss in the pack
+94	w03007039	comercio	NOUN	Trade	correct		Trade	correct	
+95	w04001027	baja	ADJ	lower	correct		lower	correct	
+96	w04004051	región	NOUN	region	correct		region	correct	
+97	w04010027	conocieron	VERB	met	correct			withheld	no gloss word in the sentence
+98	w05003012	ruptura	NOUN	breakup	correct		breakup	correct	
+99	w05006058	externa	ADJ	External	correct		External	correct	
