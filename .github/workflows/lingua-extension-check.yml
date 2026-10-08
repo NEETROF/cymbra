@@ -223,7 +223,10 @@ jobs:
           fi
           for pair in $pairs; do
             scripts/lingua-data/build.sh --reduce "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
-            # The raw sources weigh about 1.5 GB per pair; the next pair needs the room.
+            # The raw sources weigh about 1.5 GB per pair; the next pair needs the room. The
+            # fetched release assets stay in work/cache/<sha256> across pairs (build.sh), so the
+            # 1.05 GB extract es-fr and es-en share is fetched once per job
+            # (add-lingua-pack-es-en D2); es-en is listed after es-fr, its reference.
             rm -rf "scripts/lingua-data/work/$pair"
           done
       - name: The committed tables are what the rules make of them
@@ -241,3 +244,9 @@ jobs:
             exit 1
           fi
           echo "Every pair's tables, manifest.json and pin.json are what the rules make of the pinned sources."
+      # A pair not yet shipped is measured against a floor without being published
+      # (add-lingua-pack-es-en D6): es-en's glosses cover at least es-fr's published share of the
+      # 5,000, 10,000 and 20,000 commonest lemmas (87.6 / 77.2 / 63.7 %). The site's figures
+      # (`gloss_coverage.py --write`, the `check` job) list the shipped pairs alone.
+      - name: Gloss coverage of es-en, against es-fr's published figures
+        run: python scripts/lingua-data/gloss_coverage.py --pair es-en --floor 87.6 77.2 63.7

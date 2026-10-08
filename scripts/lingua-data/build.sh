@@ -54,19 +54,24 @@ build_pack() {
 }
 
 # How many lemmas a pair keeps by default: Spanish keeps 60,000, for which the forms of the
-# commonest lemmas pass the programme's gates (add-lingua-spanish-forms-tables D3).
+# commonest lemmas pass the programme's gates (add-lingua-spanish-forms-tables D3) — every pair
+# studying Spanish, since a pair that is not the reference reads the committed lemmas and caps
+# them the same way (add-lingua-pack-es-en D1).
 max_lemmas() {
   case "$1" in
-    es-fr) echo 60000 ;;
+    es-*) echo 60000 ;;
     *) echo 40000 ;;
   esac
 }
 
 # reduce <pair> <work> <snapshot> [<pack version>]: the reducer over the raw sources in <work>,
 # tables left in <work>. The pack version defaults to the snapshot (an update from live sources).
+# A pair that is not its studied language's reference reads the studied tables as committed
+# (LINGUA_STUDIED, the studied folder of this run's root — a dry run's scratch copy); the
+# reference's reducer, which writes them, ignores it.
 reduce() {
   local pair="$1" work="$2" snapshot="$3" version="${4:-$3}"
-  "$PYTHON" "$here/reduce-$pair.py" --work "$work" \
+  LINGUA_STUDIED="$studied" "$PYTHON" "$here/reduce-$pair.py" --work "$work" \
     --max-lemmas "${LINGUA_MAX_LEMMAS:-$(max_lemmas "$pair")}" \
     --built-at "${snapshot//./-}" --pack-version "$version"
 }
@@ -87,6 +92,10 @@ tables="$root/$pair"
 studied="$root/${pair%%-*}"
 pin="$tables/pin.json"
 work="$here/work/$pair"
+# Fetched release assets, kept by the sha256 of their decompressed bytes across pairs
+# (add-lingua-pack-es-en D2): a run over several pairs fetches the extract es-fr and es-en share
+# once. Outside work/<pair>, which a reduction removes.
+cache="${LINGUA_CACHE:-$here/work/cache}"
 
 case "$mode" in
   testdata)
@@ -115,7 +124,7 @@ case "$mode" in
   reduce)
     # The reduction rules changed: the same raw bytes, reduced again. The diff is the rules alone.
     rm -rf "$work" && mkdir -p "$work"
-    "$PYTHON" "$here/pack_sources.py" fetch-pinned --pin "$pin" --work "$work"
+    "$PYTHON" "$here/pack_sources.py" fetch-pinned --pin "$pin" --work "$work" --cache "$cache"
     snapshot="$("$PYTHON" "$here/pack_sources.py" get --pin "$pin" snapshot)"
     # New tables from the same sources are a new dictionary: the version names the snapshot AND
     # the rules that reduced it (add-lingua-word-grammar, design D8).
@@ -142,7 +151,7 @@ case "$mode" in
       pin="$tables/pin.json"
     fi
     rm -rf "$work" && mkdir -p "$work"
-    "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot"
+    "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache"
     reduce "$pair" "$work" "$snapshot"
     file_sides "$work" "$root"
     build_pack "$studied" "$tables" "$out"
