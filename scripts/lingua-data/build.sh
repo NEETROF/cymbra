@@ -101,7 +101,10 @@ cache="${LINGUA_CACHE:-$here/work/cache}"
 # the later pairs of the run (migrate-lingua-pack-sources-to-raw-dumps D4): an update reads each
 # dump once however many pairs read its edition. The run's own — keyed by edition and snapshot day,
 # never meant for another run: remove it when the run ends (lingua-pack-update does). Outside
-# work/<pair> too.
+# work/<pair> too. On a laptop it outlives the run, one folder per edition and day: a folder of the
+# same day counts only while its dump.json records today's address and catalogue and every file of
+# it is there (pack_sources.py read_edition), and work/editions can be removed at any time — the
+# next update fetches the dumps again.
 editions="${LINGUA_EDITIONS:-$here/work/editions}"
 
 case "$mode" in

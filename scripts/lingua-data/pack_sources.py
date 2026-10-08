@@ -34,7 +34,7 @@
 Stdlib only: the build mode reads this record too, and needs no Python package.
 
     pack_sources.py fetch-pinned  --pin P --work W [--cache C]     # the recorded bytes, checked, into W
-    pack_sources.py fetch-live    --pin P --work W [--snapshot D] [--cache C] [--editions E]  # today's bytes, recorded in P
+    pack_sources.py fetch-live    --pin P --work W [--snapshot D] [--cache C] [--editions E]  # today's, into P
     pack_sources.py record-build  --pin P --pack F --reducer R     # what the tables build
     pack_sources.py check-pack    --pin P --pack F                 # a pack, against the record
     pack_sources.py check-reducer --pin P --reducer R              # the rules, against the record
@@ -85,11 +85,11 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import time
-import urllib.request
 import zlib
 from pathlib import Path
 
@@ -145,7 +145,9 @@ ESDB = {
 # lang, into)`, the entries of `lang` that list translations into `into`, cut down to those
 # (`derive`). A pair registers its reads in `DUMPS`; a change that needs a file the catalogue lacks
 # adds it here, in the edition that writes it, and nowhere else. The existing names are kept — a
-# name is a reducer's input — and new ones carry their edition. A dump is read as served, gzipped or
+# name is a reducer's input — and new ones carry their edition, in ASCII alone (`FILE_NAME`): GitHub
+# renames a release asset whose name holds another character on upload, so `fetch-pinned` would ask
+# for a name the release does not hold. A dump is read as served, gzipped or
 # plain, told apart by the gzip magic (`open_dump`), and never kept: each file a pair derives from
 # it is, as a zstd-compressed asset of the pair's release.
 EDITIONS = {
@@ -187,7 +189,7 @@ EDITIONS = {
             # en-es's glosses (add-lingua-pack-en-es D2).
             "kaikki-es-English.jsonl": ("entries", "en"),
             # fr-es's glosses (change 49).
-            "kaikki-es-Francés.jsonl": ("entries", "fr"),
+            "kaikki-es-Frances.jsonl": ("entries", "fr"),
             # es-fr's direct fallback, fr-es's inverted one.
             "kaikki-es-traductions.jsonl": ("translations", "es", "fr"),
             # es-en's direct fallback, en-es's inverted one (add-lingua-pack-es-en D1).
@@ -247,10 +249,37 @@ RECORDED_STUDIED = (*STUDIED_TABLES, LEXICAL, PINNED_POOL)
 WORDFREQ = "3.1.1"
 PYTHON = (3, 12)
 ZSTD_LEVEL = 19
+# The names of the catalogue's files, and so of the release assets: ASCII alone — GitHub renames an
+# asset whose name holds another character on upload — and never a path. A name a pin gives is read
+# by the same rule (`plain_name`).
+FILE_NAME = re.compile(r"[A-Za-z0-9._+@-]+")
+# A sha256 as a pin records it, which names a cache entry (`release_asset`).
+SHA256 = re.compile(r"[0-9a-f]{64}")
+# A transfer slower than this many bytes a second for this many seconds is cut, and retried
+# (`download`): a stalled dump fails in minutes, not at the job's timeout. kaikki served the English
+# edition's dump at about 28 MB/s to a runner on 2026-10-08.
+STALL = (100_000, 60)
 
 
 class PinError(Exception):
     """A source or a pack that is not what the record says."""
+
+
+def plain_name(name, what: str) -> str:
+    """A file name a pin gives — a derived file, an asset, an extract's raw file — checked before any
+    path is built from it: one name, never a path (`../x`, `a/b`), nor `.` or `..`, in the
+    catalogue's characters (`FILE_NAME`), so that no pin makes a fetch write or delete anything
+    outside the work folder or the cache, nor a release list an asset GitHub would have renamed."""
+    if not isinstance(name, str) or name in (".", "..") or Path(name).name != name or not FILE_NAME.fullmatch(name):
+        raise PinError(f"{what}: pin.json names {name!r}, which is not a file name")
+    return name
+
+
+def recorded_sha256(value, what: str) -> str:
+    """A sha256 a pin records, checked before it names a cache entry: 64 lower-case hex digits."""
+    if not isinstance(value, str) or not SHA256.fullmatch(value):
+        raise PinError(f"{what}: pin.json records sha256 {value!r}, which is no sha256 (64 lower-case hex digits)")
+    return value
 
 
 # — the record —
@@ -459,14 +488,23 @@ def release_url(tag: str, asset: str) -> str:
 
 
 def download(url: str, dest: Path, *, compressed: bool = False) -> dict[str, str]:
-    """Fetch `url` into `dest`; returns the response headers that date it."""
+    """Fetch `url` into `dest`; returns the response headers that date it. The bytes land in
+    `<dest>.part`, renamed whole, and removed when the transfer fails: a dump cut short leaves nothing
+    behind. A transfer that stalls (`STALL`) is cut and retried — the dumps, gigabytes each, above
+    all."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_name(dest.name + ".part")
-    cmd = ["curl", "-sSL", "--fail", "--retry", "3", "-D", "-", "-o", str(tmp), url]
+    limit, seconds = STALL
+    cmd = ["curl", "-sSL", "--fail", "--retry", "3", "--speed-limit", str(limit), "--speed-time", str(seconds)]
+    cmd += ["-D", "-", "-o", str(tmp), url]
     if compressed:
         cmd.insert(1, "--compressed")
-    out = subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
-    tmp.replace(dest)
+    try:
+        out = subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
+        tmp.replace(dest)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
     headers = {}
     for line in out.splitlines():
         if ":" in line:
@@ -644,11 +682,12 @@ def release_asset(fetch, url: str, dest: Path, want: str, cache: Path | None) ->
     fetched to `dest`; or, with a `cache`, kept in `cache/<want>` and found there by a later fetch
     of the same bytes: once when two pins name the same asset, and not again when a pair is reduced
     again on the same machine. The entry appears whole or not at all (`<want>.part`, then renamed).
-    Answers where the compressed bytes are."""
+    Answers where the compressed bytes are. `want` is checked before it names an entry: a pin cannot
+    point the cache outside itself."""
     if cache is None:
         fetch(url, dest)
         return dest
-    cached = cache / want
+    cached = cache / recorded_sha256(want, Path(dest).name)
     if not cached.is_file():
         part = cache / f"{want}.part"
         fetch(url, part)
@@ -660,6 +699,7 @@ def unpack(packed: Path, raw: Path, want: str, what: str, *, cached: bool) -> No
     """`packed` decompressed into `raw`, whose sha256 must be `want`. A cache entry that does not
     decompress, or not to what its name says, is deleted before the error, which names it, so the
     next fetch reads the release again."""
+    recorded_sha256(want, what)
     raw.parent.mkdir(parents=True, exist_ok=True)
     done = subprocess.run(
         ["zstd", "-q", "-d", "-f", str(packed), "-o", str(raw)], capture_output=True, text=True, check=False
@@ -686,16 +726,24 @@ def pack_asset(raw: Path, asset: str, cache: Path | None) -> str:
     """`raw` zstd-compressed beside it as `asset`, for the release that keeps it; with a `cache`, a
     copy kept under the sha256 of `raw`, where a later fetch of the same bytes finds it — copied to
     `<sha256>.part` and renamed, so an interrupted copy never stands as the entry. Answers the
-    sha256."""
+    sha256.
+
+    An entry already under that sha256 is those bytes compressed — by an earlier pair of the run,
+    or fetched from a release and checked (`unpack` deletes one that is not) — so it is copied rather
+    than compressed again (migrate-lingua-pack-sources-to-raw-dumps D8): the English edition's
+    Spanish section, which es-fr and es-en both read, is compressed once a run."""
     packed = raw.with_name(asset)
-    subprocess.run(["zstd", "-q", f"-{ZSTD_LEVEL}", "-T0", "-f", str(raw), "-o", str(packed)], check=True)
     digest = sha256(raw)
-    if cache is not None:
+    cached = None if cache is None else cache / digest
+    if cached is not None and cached.is_file():
+        shutil.copyfile(cached, packed)
+        return digest
+    subprocess.run(["zstd", "-q", f"-{ZSTD_LEVEL}", "-T0", "-f", str(raw), "-o", str(packed)], check=True)
+    if cached is not None:
         cache.mkdir(parents=True, exist_ok=True)
-        if not (cache / digest).is_file():
-            part = cache / f"{digest}.part"
-            shutil.copyfile(packed, part)
-            os.replace(part, cache / digest)
+        part = cache / f"{digest}.part"
+        shutil.copyfile(packed, part)
+        os.replace(part, cached)
     return digest
 
 
@@ -719,6 +767,27 @@ def check_registered(pair: str) -> None:
             )
 
 
+def check_release_record(name: str, spec) -> None:
+    """A kaikki record of a pin, read before any path is built from it (D5): the release it names,
+    and each name and sha256 it gives — an extract's `asset` and the raw file named after it, or each
+    derived file and its asset (`plain_name`, `recorded_sha256`)."""
+    if not isinstance(spec, dict) or "release" not in spec:
+        raise PinError(f"{name}: pin.json names no release to fetch it from")
+    if "asset" in spec:
+        asset = plain_name(spec["asset"], name)
+        if not asset.endswith(".zst"):
+            raise PinError(f"{name}: the asset {asset} is not zstd-compressed (.zst)")
+        plain_name(asset.removesuffix(".zst"), f"{name}: the raw file of {asset}")
+        recorded_sha256(spec.get("sha256"), name)
+    elif isinstance(spec.get("files"), dict):
+        for file, entry in spec["files"].items():
+            plain_name(file, name)
+            plain_name(entry.get("asset") if isinstance(entry, dict) else None, f"{name}: {file}")
+            recorded_sha256(entry.get("sha256"), f"{name}: {file}")
+    else:
+        raise PinError(f"{name}: pin.json names neither an extract (`asset`) nor derived `files`")
+
+
 def kaikki_records(pair: str, sources: dict) -> list[str]:
     """The records of a pin that name kaikki's bytes, in the pin's order: a legacy extract's
     (`LEGACY_EXTRACT`, D5) when the pin has one, and each edition's the pair reads (`DUMPS`)."""
@@ -738,6 +807,10 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
     pair = pair_of(pin)
     sources = get(record, "sources")
     check_registered(pair)
+    # Every name and sha256 a kaikki record gives, checked before anything is written or deleted.
+    kaikki = kaikki_records(pair, sources)
+    for name in kaikki:
+        check_release_record(name, sources[name])
     work.mkdir(parents=True, exist_ok=True)
     esdb = ESDB.get(pair)
     if esdb is None:
@@ -752,7 +825,6 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
         got = sha256(build({**esdb, **sources["esdb"]}, work))
         if got != sources["esdb"]["sha256"]:
             raise PinError(f"esdb: scowl.txt has sha256 {got}, pin.json records {sources['esdb']['sha256']}")
-    kaikki = kaikki_records(pair, sources)
     read = (*PINNED.get(pair, {}), *(("esdb",) if esdb else ()), *kaikki, "wordfreq")
     for retired in [name for name in sources if name not in read]:
         del sources[retired]
@@ -765,27 +837,22 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
         got = sha256(dest)
         if got != entry.get("sha256"):
             raise PinError(f"{name}: {dest.name} has sha256 {got}, pin.json records {entry.get('sha256')}")
-    # Each release asset from the release its record names (add-lingua-pack-es-en D2).
+    # Each release asset from the release its record names (add-lingua-pack-es-en D2), its names
+    # checked above (`check_release_record`).
     for name in kaikki:
         spec = sources[name]
-        if not isinstance(spec, dict) or "release" not in spec:
-            raise PinError(f"{name}: pin.json names no release to fetch it from")
         if "asset" in spec:
             # A per-language extract, kept whole (a pin written before the dumps).
             raw = work / spec["asset"].removesuffix(".zst")
-            if raw.name == spec["asset"]:
-                raise PinError(f"{name}: the asset {spec['asset']} is not zstd-compressed (.zst)")
-            packed = release_asset(fetch, release_url(spec["release"], spec["asset"]), raw.with_name(spec["asset"]), spec["sha256"], cache)
+            url = release_url(spec["release"], spec["asset"])
+            packed = release_asset(fetch, url, raw.with_name(spec["asset"]), spec["sha256"], cache)
             unpack(packed, raw, spec["sha256"], f"{name}: the snapshot", cached=cache is not None)
-        elif "files" in spec:
-            for file, entry in spec["files"].items():
-                raw = work / file
-                packed = release_asset(
-                    fetch, release_url(spec["release"], entry["asset"]), raw.with_name(entry["asset"]), entry["sha256"], cache
-                )
-                unpack(packed, raw, entry["sha256"], f"{name}: {file}", cached=cache is not None)
-        else:
-            raise PinError(f"{name}: pin.json names neither an extract (`asset`) nor derived `files`")
+            continue
+        for file, entry in spec["files"].items():
+            raw = work / file
+            url = release_url(spec["release"], entry["asset"])
+            packed = release_asset(fetch, url, raw.with_name(entry["asset"]), entry["sha256"], cache)
+            unpack(packed, raw, entry["sha256"], f"{name}: {file}", cached=cache is not None)
     installed = wordfreq_version()
     if installed != get(record, "sources.wordfreq.version"):
         raise PinError(f"wordfreq {installed} is installed, pin.json records {get(record, 'sources.wordfreq.version')}")
@@ -805,16 +872,31 @@ def read_edition(
     """An edition's whole catalogue, derived from its dump once per run (D4): at the first read of
     the run, the dump is fetched into `<editions>/../dumps/`, every file of the catalogue derived
     into `<editions>/<edition>-<snapshot>/` in one pass, and the dump deleted; a later read finds
-    the folder. Answers the folder and what the pin records of the dump — its address, the day it
-    was fetched, the date kaikki regenerated it, and the sha256 and size of its decompressed bytes
-    with its size as served (D3). The folder is the run's: keyed by edition and snapshot day, never
-    meant to be read across runs (a regeneration may fall between two), and removed with the run.
-    It counts once it holds `dump.json`, written last: a pass cut short is started again."""
+    the folder. Answers the folder and its record: what the pin records of the dump — its address,
+    the day it was fetched, the date kaikki regenerated it, and the sha256 and size of its
+    decompressed bytes with its size as served (D3) — and the catalogue derived. The folder is the
+    run's: keyed by edition and snapshot day, never meant to be read across runs (a regeneration may
+    fall between two), and removed with the run. It counts once it holds `dump.json`, written last,
+    and only while that record names the address and the catalogue `EDITIONS` gives today and every
+    file of it is there: a pass cut short, or a folder of the same day left by a run under another
+    catalogue (a file added since), is derived again."""
     spec = EDITIONS[edition]
     folder = editions / f"{edition}-{snapshot}"
     done = folder / "dump.json"
+    catalogue = {name: list(kind) for name, kind in spec["files"].items()}
     if done.is_file():
-        return folder, json.loads(done.read_text(encoding="utf-8"))
+        try:
+            recorded = json.loads(done.read_text(encoding="utf-8"))
+        except ValueError:
+            recorded = None
+        if (
+            isinstance(recorded, dict)
+            and recorded.get("url") == spec["url"]
+            and recorded.get("catalogue") == catalogue
+            and all((folder / name).is_file() for name in catalogue)
+        ):
+            return folder, recorded
+        print(f"note: {source_name(edition)}: {folder} is not today's catalogue; derived again", file=sys.stderr)
     if folder.exists():
         shutil.rmtree(folder)
     folder.mkdir(parents=True)
@@ -843,6 +925,7 @@ def read_edition(
         "fetched": (today or datetime.date.today()).isoformat(),
         "last_modified": headers.get("last-modified", ""),
         "dump": {**identity, "compressed_size": served},
+        "catalogue": catalogue,
     }
     part = folder / "dump.json.part"
     part.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
@@ -892,6 +975,11 @@ def fetch_live(
         folder, dumped = read_edition(edition, snapshot, editions, fetch=fetch, today=today)
         files = {}
         for file in reads:
+            if not (folder / file).is_file():
+                raise PinError(
+                    f"{pair} reads {file} of the {edition!r} edition, which {folder} does not hold: remove the "
+                    "folder (it is the run's own) and run again"
+                )
             raw = work / file
             shutil.copyfile(folder / file, raw)
             asset = file + ".zst"
@@ -1040,7 +1128,9 @@ def released(record: dict, release: str | None = None) -> list[tuple[str, dict]]
         if not isinstance(spec, dict) or "release" not in spec:
             continue
         if "asset" not in spec and "files" not in spec:
-            raise PinError(f"{name}: pin.json names release {spec['release']} but neither an extract (`asset`) nor `files`")
+            raise PinError(
+                f"{name}: pin.json names release {spec['release']} but neither an extract (`asset`) nor `files`"
+            )
         if release is None or spec["release"] == release:
             out.append((name, spec))
     return out
@@ -1051,10 +1141,10 @@ def assets(record: dict, release: str | None = None) -> list[str]:
     (D5), each derived file's. With `release`, the files that release holds alone: an update
     publishes a pair's own assets only, under its own release (add-lingua-pack-es-en D2)."""
     out = []
-    for _, spec in released(record, release):
+    for name, spec in released(record, release):
         if "asset" in spec:
-            out.append(spec["asset"])
-        out.extend(file["asset"] for file in (spec.get("files") or {}).values())
+            out.append(plain_name(spec["asset"], name))
+        out.extend(plain_name(file.get("asset"), f"{name}: {key}") for key, file in (spec.get("files") or {}).items())
     return out
 
 
@@ -1196,7 +1286,9 @@ def main(argv: list[str] | None = None) -> int:
         if name == "fetch-live":
             p.add_argument("--snapshot", default=datetime.date.today().strftime("%Y.%m.%d"))
             p.add_argument(
-                "--editions", type=Path, help="derive each edition's catalogue here, once per run (default: WORK/editions)"
+                "--editions",
+                type=Path,
+                help="derive each edition's catalogue here, once per run (default: WORK/editions)",
             )
         if name in ("assets", "dumps"):
             p.add_argument("--release", help="the records of this release alone (a pair's own)")

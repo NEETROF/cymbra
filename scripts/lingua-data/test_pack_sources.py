@@ -601,6 +601,102 @@ class Editions(unittest.TestCase):
         self.update("es-en", snapshot="2026.10.09")
         self.assertEqual(self.fetched.count(ps.EDITIONS["en"]["url"]), 3)
 
+    def test_a_folder_of_another_catalogue_is_derived_again(self):
+        # `work/editions` is per day and outlives a run on a laptop: a folder of the same day counts
+        # only while its record names today's address and catalogue and every file of it is there.
+        import unittest.mock as mock
+
+        url = ps.EDITIONS["es"]["url"]
+
+        def read():
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                folder, record = ps.read_edition("es", "2026.10.08", self.editions, fetch=self.fetch)
+            return folder, record, err.getvalue()
+
+        folder, record, _ = read()
+        self.assertEqual(record["catalogue"], {name: list(kind) for name, kind in ps.EDITIONS["es"]["files"].items()})
+        self.assertEqual(json.loads((folder / "dump.json").read_text()), record)
+        read()
+        self.assertEqual(self.fetched.count(url), 1, "today's catalogue, every file there: the folder counts")
+        # A record written before the catalogue was recorded.
+        (folder / "dump.json").write_text(json.dumps({k: v for k, v in record.items() if k != "catalogue"}))
+        _, _, notes = read()
+        self.assertEqual(self.fetched.count(url), 2)
+        self.assertIn("is not today's catalogue; derived again", notes)
+        # A file added to the catalogue since: derived again, with it — and back, once it is gone.
+        with mock.patch.dict(ps.EDITIONS["es"]["files"], {"kaikki-es-Deutsch.jsonl": ("entries", "de")}):
+            read()
+            self.assertTrue((folder / "kaikki-es-Deutsch.jsonl").is_file())
+        self.assertEqual(self.fetched.count(url), 3)
+        read()
+        self.assertEqual(self.fetched.count(url), 4)
+        self.assertFalse((folder / "kaikki-es-Deutsch.jsonl").exists())
+        # A file of the catalogue missing, or another address recorded, or no record that reads.
+        (folder / "kaikki-es-traductions.jsonl").unlink()
+        read()
+        self.assertEqual(self.fetched.count(url), 5)
+        (folder / "dump.json").write_text(json.dumps({**record, "url": "https://kaikki.org/elsewhere.jsonl.gz"}))
+        read()
+        (folder / "dump.json").write_text("{")
+        read()
+        self.assertEqual(self.fetched.count(url), 7)
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_file_the_edition_s_folder_lacks_is_named(self):
+        import unittest.mock as mock
+
+        empty = self.editions / "es-2026.10.08"
+        empty.mkdir(parents=True)
+        with mock.patch.object(ps, "read_edition", return_value=(empty, {"url": "u", "fetched": "f", "last_modified": "", "dump": {}})):
+            with self.assertRaisesRegex(
+                ps.PinError, r"es-en reads kaikki-Spanish\.jsonl of the 'en' edition, which .*es-2026\.10\.08 does not hold"
+            ):
+                self.update("es-en")
+
+    def test_a_failed_download_leaves_no_part_file_and_a_stall_is_cut(self):
+        import unittest.mock as mock
+
+        dest = self.work / "dumps" / "es-2026.10.08.jsonl.gz"
+        calls = []
+
+        def curl(cmd, **kwargs):
+            calls.append(cmd)
+            Path(cmd[cmd.index("-o") + 1]).write_bytes(b"half a dump")
+            raise subprocess.CalledProcessError(28, cmd)
+
+        with mock.patch.object(ps.subprocess, "run", curl), self.assertRaises(subprocess.CalledProcessError):
+            ps.download(ps.EDITIONS["es"]["url"], dest)
+        self.assertEqual(list(dest.parent.iterdir()), [], "no dump, no .part")
+        limit, seconds = ps.STALL
+        self.assertEqual(calls[0][calls[0].index("--speed-limit") + 1], str(limit))
+        self.assertEqual(calls[0][calls[0].index("--speed-time") + 1], str(seconds))
+        self.assertIn("--retry", calls[0], "a transfer cut for stalling is retried")
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_section_two_pairs_read_is_compressed_once_a_run(self):
+        # D8: es-fr compresses the English edition's Spanish section; es-en, later in the run, copies
+        # the compressed bytes the cache keeps under their sha256 rather than compressing them again.
+        import unittest.mock as mock
+
+        real = subprocess.run
+        compressed = []
+
+        def run(cmd, *args, **kwargs):
+            if cmd[0] == "zstd" and f"-{ps.ZSTD_LEVEL}" in cmd:
+                compressed.append(Path(cmd[cmd.index("-o") - 1]).name)
+            return real(cmd, *args, **kwargs)
+
+        with mock.patch.object(ps.subprocess, "run", run):
+            self.update("es-fr")
+            self.update("es-en")
+        self.assertEqual(compressed.count("kaikki-Spanish.jsonl"), 1, "compressed once, by es-fr")
+        self.assertEqual(compressed.count("kaikki-es-traductions-en.jsonl"), 1, "es-en's own file, compressed")
+        es_en = self.work / "es-en" / "kaikki-Spanish.jsonl.zst"
+        self.assertEqual(es_en.read_bytes(), (self.work / "es-fr" / "kaikki-Spanish.jsonl.zst").read_bytes())
+        out = real(["zstd", "-q", "-d", "-c", str(es_en)], capture_output=True, check=True).stdout
+        pinned = ps.load(self.tables / "es-en" / "pin.json")["sources"]["kaikki-en"]["files"]["kaikki-Spanish.jsonl"]
+        self.assertEqual(hashlib.sha256(out).hexdigest(), pinned["sha256"], "es-en's asset is the bytes its pin records")
+
 
 class OwnFetch(unittest.TestCase):
     """Each pair pins its own fetch (add-lingua-pack-es-en D2): es-en reads the English edition's
@@ -972,6 +1068,51 @@ class Legacy(unittest.TestCase):
             with self.assertRaisesRegex(ps.PinError, r"kaikki: pin.json names neither an extract"):
                 ps.fetch_pinned(pin, self.root / "again", fetch=self.fetch)
 
+    def test_a_name_or_a_sha256_that_is_not_one_is_refused_before_any_path_is_built(self):
+        # A pin is read from a pull request: a name it gives is a file name and a sha256 a sha256,
+        # checked before the fetch builds a path from either. Otherwise a `files` key would write
+        # beside the work folder, and a sha256 naming a cache entry outside the cache would have the
+        # entry that "does not decompress" — someone else's file — deleted.
+        import unittest.mock as mock
+
+        tag = "lingua-pack-sources-es-en-2026.10.08"
+        sha = "0" * 64
+        asset = {"asset": "kaikki-es-traductions-en.jsonl.zst", "sha256": sha}
+        # The cache beside the victim: `cache/../victim.txt` is the victim.
+        cache, victim = self.root / "cache", self.root / "victim.txt"
+        cases = [
+            ({"kaikki-es": {"release": tag, "files": {"../../escaped.jsonl": asset}}}, r"^kaikki-es: pin\.json names '\.\./\.\./escaped\.jsonl', which is not a file name"),
+            ({"kaikki-es": {"release": tag, "files": {"kaikki-es-traductions-en.jsonl": {**asset, "sha256": "../victim.txt"}}}}, r"^kaikki-es: kaikki-es-traductions-en\.jsonl: pin\.json records sha256 '\.\./victim\.txt', which is no sha256"),
+            ({"kaikki-es": {"release": tag, "files": {"kaikki-es-traductions-en.jsonl": {**asset, "asset": "../x.zst"}}}}, r"names '\.\./x\.zst', which is not a file name"),
+            ({"kaikki-es": {"release": tag, "files": {"..": asset}}}, r"names '\.\.', which is not a file name"),
+            ({"kaikki-es": {"release": tag, "files": {"kaikki-es-Francés.jsonl": asset}}}, r"names 'kaikki-es-Francés\.jsonl', which is not a file name"),
+            ({"kaikki": {"release": tag, "asset": "../../escaped.jsonl.zst", "sha256": sha}}, r"^kaikki: pin\.json names '\.\./\.\./escaped\.jsonl\.zst'"),
+            ({"kaikki": {"release": tag, "asset": ".zst", "sha256": sha}}, r"^kaikki: the raw file of \.zst: pin\.json names ''"),
+            ({"kaikki": {"release": tag, "asset": "...zst", "sha256": sha}}, r"^kaikki: the raw file of \.\.\.zst: pin\.json names '\.\.'"),
+            ({"kaikki": {"release": tag, "asset": "kaikki-Spanish.jsonl.zst", "sha256": "../victim.txt"}}, r"^kaikki: pin\.json records sha256 '\.\./victim\.txt'"),
+        ]
+        for kaikki, refused in cases:
+            with self.subTest(refused=refused):
+                victim.write_text("someone else's\n")
+                pin = self.tables / "es-en" / "pin.json"
+                ps.save(pin, {"snapshot": "2026.10.08", "sources": {**kaikki, "wordfreq": {"version": ps.WORDFREQ}}})
+                pinned = pin.read_bytes()
+                before = sorted(p.relative_to(self.root) for p in self.root.rglob("*"))
+                with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+                    with self.assertRaisesRegex(ps.PinError, refused):
+                        ps.fetch_pinned(pin, self.work / "es-en", fetch=self.fetch, cache=cache)
+                self.assertEqual(sorted(p.relative_to(self.root) for p in self.root.rglob("*")), before, "nothing written")
+                self.assertEqual(victim.read_text(), "someone else's\n", "nothing deleted")
+                self.assertEqual(pin.read_bytes(), pinned)
+                self.assertEqual(self.fetched, [])
+        # The cache refuses such a sha256 too, whoever asks.
+        with self.assertRaisesRegex(ps.PinError, r"which is no sha256"):
+            ps.release_asset(self.fetch, "https://example.invalid/x.zst", self.work / "x.zst", "../victim.txt", cache)
+        self.assertTrue(victim.is_file())
+        # And a release's asset list, which the publish step uploads by path, names files alone.
+        with self.assertRaisesRegex(ps.PinError, r"names '\.\./\.\./etc/passwd'"):
+            ps.assets({"sources": {"kaikki-es": {"release": tag, "files": {"x.jsonl": {"asset": "../../etc/passwd"}}}}})
+
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_spec_scenario_the_committed_pairs_reduce_as_before(self):
         # Every committed pin, as committed — en-fr's, es-fr's and es-en's against their extracts,
@@ -1167,12 +1308,24 @@ class DumpsOnly(unittest.TestCase):
             "en": ("kaikki-French.jsonl", "kaikki-en-traductions-fr.jsonl"),
             "fr": ("kaikki-fr-traductions-en.jsonl",),
         }
-        with mock.patch.dict(ps.DUMPS, {"fr-en": fr_en, "fr-es": {"es": ("kaikki-es-Francés.jsonl", "kaikki-es-traductions.jsonl"), "fr": ("kaikki-fr-traductions.jsonl",)}}):
+        fr_es = {"es": ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl"), "fr": ("kaikki-fr-traductions.jsonl",)}
+        with mock.patch.dict(ps.DUMPS, {"fr-en": fr_en, "fr-es": fr_es}):
             ps.check_registered("fr-en")
             ps.check_registered("fr-es")
         self.assertEqual(catalogue("es-fr", "en"), {"kaikki-Spanish.jsonl": ("entries", "es")})
         self.assertEqual(ps.EDITIONS["en"]["files"]["kaikki-French.jsonl"], ("entries", "fr"))
-        self.assertEqual(ps.EDITIONS["es"]["files"]["kaikki-es-Francés.jsonl"], ("entries", "fr"))
+        self.assertEqual(ps.EDITIONS["es"]["files"]["kaikki-es-Frances.jsonl"], ("entries", "fr"))
+
+    def test_every_catalogue_name_is_ascii_and_in_one_edition_alone(self):
+        # GitHub renames a release asset whose name holds a character outside these on upload: an
+        # asset named `kaikki-es-Francés.jsonl.zst` would be served under another name, and
+        # `fetch-pinned` would ask for one the release does not hold.
+        names = [name for spec in ps.EDITIONS.values() for name in spec["files"]]
+        for name in names:
+            self.assertRegex(name, r"^[A-Za-z0-9._+@-]+$", f"{name}: GitHub would rename its asset")
+            self.assertEqual(ps.plain_name(name + ".zst", "test"), name + ".zst")
+        # A pair's work folder holds the files of every edition it reads, by name: one name, one file.
+        self.assertEqual(sorted(names), sorted(set(names)), "a file named in two editions' catalogues")
 
     def test_derive_reads_a_plain_or_a_gzipped_dump_alike(self):
         # Told apart by the gzip magic, not the name: the same lines, whatever the encoding.

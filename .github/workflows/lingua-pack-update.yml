@@ -94,6 +94,10 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-24.04
+    # An update measured 17 min, the monthly job over four pairs 17 min too (scripts/lingua-data/
+    # SOURCES.md, *The editions' dumps*): a run five times as long has stalled — a dump's transfer
+    # that stalls is cut sooner (pack_sources.py STALL).
+    timeout-minutes: 90
     env:
       # The monthly run checks every pair in one job (D4); a dispatch names its mode and pair.
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}

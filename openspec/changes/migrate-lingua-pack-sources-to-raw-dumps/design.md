@@ -44,7 +44,9 @@ the **catalogue** of files derivable from it, each `("entries", lang)` or `("tra
 into)` as `derive` already reads them. `DUMPS[pair]` becomes the files the pair reads, by edition,
 and `KAIKKI` is deleted: `fetch_live` requires `pair in DUMPS` and reads nothing else of kaikki.
 Existing file names are kept, since a name is a reducer's input and part of its rules; new ones
-carry the edition. The catalogue, with the pairs that read each file:
+carry the edition, in ASCII alone — GitHub renames a release asset whose name holds another
+character on upload, so `kaikki-es-Frances.jsonl`, not kaikki's « Francés ». The catalogue, with the
+pairs that read each file:
 
 | Edition (dump, gzipped, 2026-10-08) | File | Kind | Read by |
 |---|---|---|---|
@@ -57,7 +59,7 @@ carry the edition. The catalogue, with the pairs that read each file:
 | | `kaikki-fr-traductions.jsonl` | translations `fr` → `es` (6,191,621 B pinned) | es-fr (inverted), fr-es (direct; change 49) |
 | | `kaikki-fr-traductions-en.jsonl` | translations `fr` → `en` | fr-en (direct; change 48) |
 | `es`, 103,226,106 B | `kaikki-es-English.jsonl` | entries `en` (47,311,153 B as the Inglés extract) | en-es (glosses; change 22) |
-| | `kaikki-es-Francés.jsonl` | entries `fr` (11,862,917 B as the Francés extract) | fr-es (glosses; change 49) |
+| | `kaikki-es-Frances.jsonl` | entries `fr` (11,862,917 B as the Francés extract) | fr-es (glosses; change 49) |
 | | `kaikki-es-traductions.jsonl` | translations `es` → `fr` (1,537,580 B pinned) | es-fr (direct), fr-es (inverted; change 49) |
 | | `kaikki-es-traductions-en.jsonl` | translations `es` → `en` (2,200,504 B pinned) | es-en (direct), en-es (inverted; change 22) |
 
@@ -278,11 +280,12 @@ a dump is fetched once per run is `fetch_live`'s doing, not the workflow's, so i
   runner's 14 GB. The monthly job reads the editions in the order the pairs need them, deletes
   each dump after its pass and each pair's work folder after its pack (D4): without that removal
   the four pairs' work folders alone would add about 2.8 GB.
-- Optional, not done here: the English edition's Spanish section (1.05 GB raw) is zstd-compressed
-  once per pair that reads it — twice per monthly job, by es-fr and es-en, minutes each at level
-  19. Compressing it once in `work/editions/` and copying the `.zst` (the pin records the
-  decompressed sha256, the same either way) would save that; worth doing if T2.3 shows the
-  compression weighing on the job.
+- The English edition's Spanish section (1.05 GB raw) was zstd-compressed once per pair that
+  reads it — twice per monthly job, by es-fr and es-en, minutes each at level 19. T2.3 measured it
+  at about 3 minutes of the monthly job, so `pack_asset` computes the sha256 first and copies the
+  entry the asset cache already holds under it — those bytes, compressed by an earlier pair of the
+  run or fetched and checked — instead of compressing again (the pin records the decompressed
+  sha256, the same either way).
 
 ### D9 — What the documents say
 
@@ -300,10 +303,11 @@ gzipped; the magic tells them apart).
 - **The equivalence does not hold for a section** (an extract carries lines or fields the dump
   lacks, or the reverse) → measured before anything depends on it (D6); the difference is
   explained and carried by that pair's next update, reviewed; nothing committed moves here.
-- **The English dump's pass is slower than estimated** → the update job has no timeout; the
-  measurement (T2.3) sets the figure; above 45 minutes for one update, the prefilter is tightened
-  (an entry's `"lang_code"` sits near the end of its line today; a cheaper mark exists) before a
-  per-edition job is considered.
+- **The English dump's pass is slower than estimated** → the measurement (T2.3) sets the figure;
+  above 45 minutes for one update, the prefilter is tightened (an entry's `"lang_code"` sits near
+  the end of its line today; a cheaper mark exists) before a per-edition job is considered. The
+  update job's timeout is 90 minutes, five times what T2.3 measured, and a stalled transfer is cut
+  and retried (`STALL`).
 - **kaikki's bandwidth** → an update reads 3.6 GiB at most, the monthly job the same once; the
   per-pair matrix would have read four times as much. The sequence of the monthly job (D4) is the
   mitigation.
@@ -333,6 +337,6 @@ its own reviewed pull request; stage 3's pairs are born on them.
   left to the monthly report (T5.1).
 - The monthly job's duration as one sequential job (D4): acceptable up to what figure, before the
   per-edition derive job is worth its day.
-- The names of the new files (`kaikki-French.jsonl` against `kaikki-es-Francés.jsonl`): the
+- The names of the new files (`kaikki-French.jsonl` against `kaikki-es-Frances.jsonl`): the
   existing convention is kept for the English edition and the edition-marked one elsewhere; a
   single convention would rename files reducers read and move their digests, so it is not done here.

@@ -323,12 +323,14 @@ derived from the dumps served on 2026-10-08:
 | | `kaikki-fr-traductions.jsonl` | French entries' Spanish translations | 6,191,621 B | es-fr (inverted), fr-es (direct) |
 | | `kaikki-fr-traductions-en.jsonl` | French entries' English translations | 14,573,988 B | fr-en (direct) |
 | **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
-| | `kaikki-es-Francés.jsonl` | French entries | 7,438,610 B | fr-es (change 49) |
+| | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (change 49) |
 | | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
 | | `kaikki-es-traductions-en.jsonl` | Spanish entries' English translations | 2,200,504 B | es-en (direct), en-es (inverted) |
 
-The existing names are kept — a name is a reducer's input — and the new ones carry their edition.
-fr-en and fr-es register what they read and derive nothing new.
+The existing names are kept — a name is a reducer's input — and the new ones carry their edition,
+in ASCII alone: GitHub renames a release asset whose name holds another character on upload
+(`kaikki-es-Frances.jsonl`, not kaikki's « Francés »). fr-en and fr-es register what they read and
+derive nothing new.
 
 **A dump is recorded, never kept.** It is fetched into `work/dumps/`, read once and deleted; the
 English edition's alone is above the 2 GiB a release asset may weigh. A pair's derived files are
@@ -345,10 +347,13 @@ never a dump. The release notes name each dump the same way (`pack_sources.py du
 derived into `work/editions/<edition>-<snapshot>/` (`build.sh` passes `LINGUA_EDITIONS`), and a later
 pair of the run copies what it reads from there: the pass is the cost, writing a file no pair of the
 run reads is not. The folder counts once it holds `dump.json`, written last, so a pass cut short is
-started again; it is the run's own and `lingua-pack-update` removes it at the end. An update of one
-pair fetches only the dumps of the editions it reads (es-en: the English and Spanish ones); the pairs
-it brings along read their own pins. The monthly dry run checks every pair **in one job**, in `pairs`
-order, so each dump is fetched once a month rather than once per pair reading its edition; each pair
+started again; it is the run's own and `lingua-pack-update` removes it at the end. On a laptop it
+outlives the run, one folder per edition and day: a folder of the same day counts only while its
+`dump.json` records today's address and catalogue and every file of it is there, else it is derived
+again, and `work/editions` can be removed at any time — the next update fetches the dumps again.
+An update of one pair fetches only the dumps of the editions it reads (es-en: the English and
+Spanish ones); the pairs it brings along read their own pins. The monthly dry run checks every pair
+**in one job**, in `pairs` order, so each dump is fetched once a month rather than once per pair reading its edition; each pair
 reduces into a dry root of its own (`work/dry/<pair>`), so a later pair never lays the committed
 studied folder over the drift its reference wrote, and a pair that fails is named, the loop goes on,
 and the job fails at the end.
@@ -413,13 +418,15 @@ update's cost but its release and branch — run
 reduction 16 min 14 s (the English dump fetched in 2 min 27 s and derived in 4 min 6 s, the French
 in 35 s and 1 min 27 s, the Spanish in 7 s and 14 s): an update stays well within the 45 minutes, and
 the prefilter needs no tightening. What a pair then spends is mostly compression: es-en's 3 min 13 s
-are about 2 min 50 s of zstd at level 19 over the 929 MB Spanish section, which es-fr compresses
-too — compressing it once per run (D8's option, not done here) would save about 3 minutes of the
-monthly job. The disk at the run's fullest — the end of the English pass, its 2.98 GB dump and
-1.47 GB catalogue beside the French catalogue and the pack builder — held 68.2 GB used, about 4 GB
-more than during the French pass. Most of it is not the run's: about 63 GB is the runner's own
-image, used before the job starts, so the run itself peaks about 5 GB above it; `df` showed 82 GiB
-or more free after each pair — far more room than the 14 GB the design assumed.
+were about 2 min 50 s of zstd at level 19 over the 929 MB Spanish section, which es-fr compresses
+too; since this measurement it is compressed once per run (D8): es-en copies the compressed bytes
+es-fr left in the asset cache under their sha256, about 3 minutes less for the monthly job.
+
+The disk at the run's fullest — the end of the English pass, its 2.98 GB dump and 1.47 GB
+catalogue beside the French catalogue and the pack builder — held 68.2 GB used, about 4 GB more than
+during the French pass. Most of it is not the run's: about 63 GB is the runner's own image, used
+before the job starts, so the run itself peaks about 5 GB above it; `df` showed 82 GiB or more free
+after each pair — far more room than the 14 GB the design assumed.
 
 ## What a pack studies, whatever it glosses
 
