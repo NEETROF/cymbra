@@ -151,7 +151,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 1 | 11 | `add-lingua-card-gloss-language` | 3–5.5 | Done (proposal [#750](https://github.com/NEETROF/cymbra/pull/750)); the label on the device, review shows the current pack's gloss |
 | 1 | 12 | `add-lingua-native-language-sync-client` | 3.5–6 | Done (proposal [#751](https://github.com/NEETROF/cymbra/pull/751)); sends the labels to a server that stores them, holds them otherwise |
 | 1 | 13 | `add-lingua-interface-language`: the catalogue, no visible change | 5–8 | Done (proposal [#752](https://github.com/NEETROF/cymbra/pull/752)); the catalogue and its plumbing, nothing visible; #696 is not on main — its copy is extracted by changes 15/16, or by #696's rebase onto the catalogue once those files are off the baseline (change 15's D5) |
-| 1 | 14 | `localise-lingua-reading-surfaces` | 3.5–6 | Not started |
+| 1 | 14 | `localise-lingua-reading-surfaces` | 3.5–6 | Done (proposal [#758](https://github.com/NEETROF/cymbra/pull/758)); the popup, the HUD, the drawer, the word and selection cards, the side panel's page and the reader read the catalogue, their pages filled before they show and saying `lang`; the French byte for byte (the existing specs unchanged, new ones for the popup, the drawer, the side panel and the reader's page); the bundles grow by the English and Spanish copy (content +10 KB, popup +7 KB, reader +16 KB, side panel +2 KB); the owner's review of the drafts (M9) and the look by eye on the five targets remain |
 | 1 | 15 | `localise-lingua-settings` | 4–7 | Not started |
 | 1 | 16 | `localise-lingua-review-stats` | 3.5–6 | Not started |
 | 1 | 17 | `localise-lingua-account-onboarding` (M12) | 3.5–5.5 | Not started |
