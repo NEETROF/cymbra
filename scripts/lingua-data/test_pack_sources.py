@@ -1200,10 +1200,13 @@ class Record(unittest.TestCase):
             else:
                 self.assertTrue((folder / ps.STUDIED_RECORD).is_file(), folder.name)
         # The reduce job's order: each reference before the other pairs of its language — es-en,
-        # which reads tables/es, after es-fr, which writes it (add-lingua-pack-es-en, *The reduce job*).
-        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "es-en"])
+        # which reads tables/es, after es-fr, which writes it (add-lingua-pack-es-en, *The reduce job*);
+        # en-es, which reads tables/en, after en-fr (add-lingua-pack-en-es).
+        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "en-es", "es-en"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-fr"), ["es-fr", "es-en"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="en-fr"), ["en-fr", "en-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-en"), ["es-en"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="en-es"), ["en-es"])
 
     def test_the_committed_dictionary_words_are_the_reference_s_glossed_lemmas(self):
         for language in ("en", "es"):
