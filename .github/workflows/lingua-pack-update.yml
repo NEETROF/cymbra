@@ -100,20 +100,6 @@ jobs:
           set -euo pipefail
           python -m pip install --quiet --require-hashes -r scripts/lingua-data/requirements-reduce.txt
           sudo apt-get install -y --no-install-recommends zstd >/dev/null
-      # The extension's snapshots follow the goldens and the tables (add-lingua-english-card-wording
-      # D2, D4): re-blessed with Node when the tables are pushed, as `lingua-extension-check` runs
-      # them. Nothing is blessed in dry mode.
-      - uses: actions/setup-node@v5
-        if: env.MODE != 'dry'
-        with:
-          node-version: "22"
-      - name: Enable Corepack (Yarn Berry)
-        if: env.MODE != 'dry'
-        run: corepack enable
-      - name: Install the extension's dependencies
-        if: env.MODE != 'dry'
-        working-directory: apps/lingua-extension
-        run: yarn install --immutable
 
       # Every pair is reduced from its pinned sources only: an update reads today's sources and
       # publishes them as one pair's snapshot release.
@@ -204,6 +190,23 @@ jobs:
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
           exit $status
 
+      # The extension's snapshots follow the goldens and the tables (add-lingua-english-card-wording
+      # D2, D4): re-blessed with Node by the push step below, as `lingua-extension-check` runs them.
+      # Installed once the inputs are checked and the tables reduced and reported, and before the
+      # snapshot's release is published, so a failed install leaves no release behind. Nothing is
+      # blessed in dry mode.
+      - uses: actions/setup-node@v5
+        if: env.MODE != 'dry'
+        with:
+          node-version: "22"
+      - name: Enable Corepack (Yarn Berry)
+        if: env.MODE != 'dry'
+        run: corepack enable
+      - name: Install the extension's dependencies
+        if: env.MODE != 'dry'
+        working-directory: apps/lingua-extension
+        run: yarn install --immutable
+
       - name: Keep kaikki's bytes as the snapshot's release
         if: env.MODE == 'update'
         env:
@@ -272,8 +275,10 @@ jobs:
           LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline
           # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4): the
           # English card's lines over the es-en golden's grammar probes, and the selection card's
-          # rows over the committed French glosses.
-          (cd apps/lingua-extension && yarn vitest run -u test/word-card-es-en.spec.ts test/row-gloss-tables.spec.ts)
+          # rows over the committed French glosses. `-u` after the files: vitest's `-u, --update
+          # [type]` takes an optional value, so `-u <file>` would read the first file as that value
+          # and run the second alone, leaving the first snapshot as it was.
+          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/row-gloss-tables.spec.ts -u)
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
           if [ "$EXPECT" = identical ]; then
