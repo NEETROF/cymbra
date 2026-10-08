@@ -423,7 +423,7 @@ describe("the studied languages' block", () => {
   });
 });
 
-describe("the level blocks and the voices' notes name the language in the interface language", () => {
+describe("the level blocks name the language in the interface language", () => {
   /** Réglages with English and Spanish studied, the Spanish levels estimated. */
   async function mountLevels(interfaceLanguage: InterfaceLanguage | undefined) {
     const fake = makeFakePort();
