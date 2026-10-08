@@ -45,6 +45,9 @@ jobs:
               # The pack builder the reviewer's archive runs (`yarn gen:pack`).
               - 'crates/lingua-pack/**'
               - 'scripts/lingua-data/**'
+              # The figures gloss_coverage.py publishes for the site: test_gloss_coverage.py,
+              # in the `check` job, holds them to the committed tables and to packs.json.
+              - 'apps/site/src/data/lingua-coverage.json'
               - '.github/workflows/lingua-extension-check.yml'
               # Its Reduce step's script is run by test_reduce_loops.py, in the `check` job.
               - '.github/workflows/lingua-pack-update.yml'

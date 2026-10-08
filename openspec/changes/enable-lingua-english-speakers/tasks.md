@@ -4,6 +4,7 @@
 
 - [ ] 1.1 `packs.json` `["en-fr", "es-fr", "es-en"]` and `check_variants`'s `SHIPPED_PAIRS` (D1); `python3 scripts/lingua-data/gloss_coverage.py --write`, committing `apps/site/src/data/lingua-coverage.json` with es-en's figures (change 21 D6; `test_gloss_coverage.py` holds the file to `packs.json`, and change 30's pages read their pairs from it); `test/pairs.spec.ts` *for every reader today* rewritten for a list with a second native, and every test that asserts a French-only build from the default list (change 20's *Every reader today*) passing its list explicitly.
 - [ ] 1.2 `apps/site` `/en/lingua/`: the card's three buttons quoted from the English catalogue (`apps/lingua-extension/src/i18n/en/card.ts`) instead of « Je connais », « + Deck », « Ignorer » (handed over by change 30).
+  The same card's "its French translation" goes too (the translation is in the reader's language); `apps/site/test/lingua-text.spec.ts` fails while either is left with es-en listed.
 - [ ] 1.3 If the owner settles under M15 not to offer es-en's translation, the `es-en` route is removed from `model-manifest.json` (the model stays, as es-fr's pivot), so the pair is unavailable as *A pair without a route* says (D5).
 
 ## 2. Checks
