@@ -29,11 +29,12 @@ In this folder:
 ## What is in them
 
 On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version`
-`2026.10.08+9e2a442.08034dc`: the snapshot, the rules' digest, and the digest of the studied tables
-`pin.json` records):
+`2026.10.08+ee357fe.08034dc`: the snapshot, the rules' digest, and the digest of the studied tables
+`pin.json` records), reduced again from the same sources with the English edition's layout rules
+(below):
 
-- **English glosses for 31,876 lemmas** of Spanish's 60,000, 31,747 from the English Wiktionary's
-  Spanish entries and 129 from the Spanish Wiktionary's translations; **15,490 expressions**, 14,778
+- **English glosses for 31,885 lemmas** of Spanish's 60,000, 31,756 from the English Wiktionary's
+  Spanish entries and 129 from the Spanish Wiktionary's translations; **15,515 expressions**, 14,803
   and 712. Up to eight senses grouped by part of speech, as every pair's, in the lower case the
   English Wiktionary writes a foreign word's senses in. A letter glosses no word: a sense that only
   names one (« the letter r », « the letter E in the Spanish spelling alphabet »), an entry written
@@ -49,10 +50,10 @@ On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version`
   | top 20,000 | 76.3 % | 76.5 % | 63.7 % |
   | all 60,000 | 52.9 % | 53.1 % | 37.9 % |
 
-- **Dictionary words are es-fr's**: 9,923 lemmas es-en glosses are no dictionary word of Spanish,
-  and 802 dictionary words have no English gloss, so the pack carries a lexical section, and the
+- **Dictionary words are es-fr's**: 9,928 lemmas es-en glosses are no dictionary word of Spanish,
+  and 798 dictionary words have no English gloss, so the pack carries a lexical section, and the
   vocabulary estimate counts the same 22,755 words for both pairs.
-- **The pack is 2,567,750 B**, 49.0 % of the 5 MiB budget.
+- **The pack is 2,567,804 B**, 49.0 % of the 5 MiB budget.
 
 ## Its sources
 
@@ -73,6 +74,50 @@ On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version`
   what the English Wiktionary leaves out, at most three words per part of speech.
 - No inverted table (the English Wiktionary's English entries are en-es's source, change 22), no
   pivot through a third language, no machine translation.
+
+## Meanings, not the page's layout
+
+The English Wiktionary writes a nested sense with its parents' glosses first, a shortened form as a
+pointer that carries its meaning after its target, and its own typography; read as written, es-en
+glossed « venir » by two sense-group labels, « su » « apocopic form of suyo », « lo » by its article
+alone and « como » by the city of Como. A pre-pass of `reduce_edition_en.py`, `read_as_meanings`,
+reads the entries before the shared rules and the etymology merging do (refine-lingua-es-en-glosses):
+
+- **A nested sense under a label or a pointer** is read by its own gloss: a parent ending on a colon
+  (« places in Peru: »), naming senses (« Figurative senses. ») or pointing (« diminutive of casa »,
+  « apocopic form of suyo », « alternative form of Quebec: »). A parent that is a meaning (« to make »
+  over « to create ») keeps glossing its senses.
+- **A shortened or respelled form** — a sense worded « apocopic », « apheretic », « syncopic » or
+  « prepositional form of », « pronunciation » or « eye dialect spelling of », never known by a tag
+  alone — reads as the meaning its pointer carries (« mi » « my », « muy » « very », « cincuenta y
+  un » « fifty-one »), else as its target's senses in the same part of speech, from a target of
+  three letters or more (« su » by « suyo », « toy » by « estoy » by « estar »), in its place; else it
+  stays a pointer (« er », whose target « el » has two letters). **A pronoun's case form** reads as
+  the meaning it carries after a colon or a semicolon (« lo » « him, you (formal), it, that »).
+- **A function word does not open on a place**: the proper-noun lines of a headword with an initial
+  capital, not all capitals, go after every other line when the lower-case word is a preposition, a
+  conjunction, a pronoun, a determiner or an article (« como »).
+- **One English typography**: a gloss stops at a line break; a source's numbered sense goes (« [sense
+  1] », « (difference from sense 4 …) »); the edition's descriptions open in lower case (a closed list
+  of openers, « The » before a capital kept); one ellipsis « … », spaced between two words; straight
+  double quotes paired “ ”.
+
+Against the tables before it: **268 rows change, 111 of the top 10,000** — 250 / 104 glossed by their
+own senses, 18 / 7 borrowed from a pointer's target —, the first sense of 102 / 27; **9 lemmas gain a
+gloss** (« cosita », « cajita », « chiquillo », « ramita », « québec », « mui », « vien », « kiero »,
+« pid ») and none loses one; **332 expressions change and 25 gain a gloss** (« cincuenta y un »,
+« vigésimo primer », « cuando quier », « po favó »…); the runs of 46 rows move. Rule by rule: the
+nested senses 22 / 11 rows, the shortened forms and case forms 42 / 18 (4 lemmas and the 25
+expressions gained), « como » 1, the typography 219 / 87 rows and 330 expressions. The coverage is
+unchanged to the decimal; the tables are the same reduced from the English edition's dump of
+2026-10-03 (`../../SOURCES.md`, *Extract and dump are measured against each other*).
+
+Left as they are, for the owner or a shared fix: the labels the packs do not carry (obsolete,
+regional, register: 3,965 rows), the part of speech a row opens on (« hasta » « even »), a proper
+noun before a common word (« chile » « Chile (…) »; a case-aware card would choose by the token's
+capital), « q », « k » and « t » borrowing « que »'s and « tiempo »'s senses through an
+abbreviation, IPA and upstream wording (« indiference »), and « etc »'s period, which every pair loses
+(`reduce_common.clean_gloss`).
 
 ## The two settings of the English edition
 

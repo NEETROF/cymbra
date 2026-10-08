@@ -74,6 +74,10 @@ by rule, alone: D2 22 / 11 rows (5 / 1 of them gaining a gloss); D3 38 / 18 rows
 expressions. Coverage cannot fall below today's 93.0 / 86.5 / 76.5 %: no lemma loses its gloss, one
 of the top 10,000 gains one (« cosita ») and four of the top 20,000. These are a prototype's
 figures: the pull request measures again on its own code, and the sample (D8) is drawn from it.
+Measured again on the implementation (`read_as_meanings`, es-en reduced from its pinned release):
+every figure above holds, rule by rule and together, the census of D5 included (202 / 69 senses
+lowered, 43 « The » kept), and its `gloss.tsv`, `senses.tsv` and `mwe.tsv` are the prototype's byte
+for byte; with every rule off, the pre-pass reproduces the committed tables before it byte for byte.
 
 ## Decisions
 
