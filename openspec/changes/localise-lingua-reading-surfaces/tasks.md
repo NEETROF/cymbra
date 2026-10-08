@@ -14,6 +14,7 @@
 ## 3. The lint and the gates
 
 - [x] 3.1 `test/lint-copy.spec.ts`: the files and pages of this change leave the baseline (*Off the baseline*).
-- [x] 3.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test` (every spec asserting these surfaces' French copy unchanged, the three new specs; *Every reader today*), `yarn build`, `yarn check:variants`; bundle sizes per entry in the pull request — done; by eye on the five targets (the popup, Safari's popover size included, the side panel and a page, no flash of empty copy): owner, not done.
+- [x] 3.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test` (every spec asserting these surfaces' French copy unchanged, the three new specs; *Every reader today*), `yarn build`, `yarn check:variants`; bundle sizes per entry in the pull request.
 - [ ] 3.3 [manual] The owner reviews the English and Spanish entries of these surfaces (M9).
 - [x] 3.4 `openspec validate localise-lingua-reading-surfaces --strict` passes, and `python3 scripts/openspec_archive_order.py localise-lingua-reading-surfaces` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived); change 14 is marked done in `docs/lingua/language-matrix-programme.md`.
+- [ ] 3.5 [manual] The five targets opened by eye: the popup (Safari's popover size included), the side panel and a page — no flash of empty copy.

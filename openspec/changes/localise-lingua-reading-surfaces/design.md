@@ -61,16 +61,23 @@ the key changes is change 20's: it rebuilds the session and reloads the pages.
 copy)` — added to change 13's `index.ts` by this change — sets them before the page is shown,
 and `setDocumentLanguage(document, language)` (change 13) sets the page's `lang`. Until
 then the page's `<html>` carries `data-copy-pending`, whose rule in each page's stylesheet hides
-`body`; the script removes it after filling. The French text leaves the HTML, so the lint's
-baseline drops the pages. Safari sizes its popover from the content: the fill happens in the
-same task as the first storage read's resolution, before the popover is measured — checked by
-eye on Safari in the pull request.
+`body`; the script removes it after filling. The three pages take this step through one helper,
+`fillPageInLanguage(document, area, moduleOf)`, and it cannot be left hanging on a failed read:
+`interfaceLanguage` answers French when the storage read throws, and the pending rule reveals the
+body by itself after 1.5 s should a script die before the fill. The French text leaves the HTML,
+so the lint's baseline drops the pages. Safari sizes its popover from the content, at open and
+again as the content grows (`popup.css` already relies on that re-measure for the account block):
+the fill happens in the same task as the first storage read's resolution, so the popover grows to
+the filled page as it does to the account block — checked by eye on Safari in the pull request.
 
 ### D3 — Injected hosts carry `lang`
 
 `#cymbra-lingua-host`, `#cymbra-lingua-hud-host` and `#cymbra-lingua-drawer-host` get `lang` from
 the interface language at creation; this change owns the hosts' `lang`, change 18 the studied
-words' inside a line.
+words' inside a line. The host speaking the interface language, the words of the document a
+surface shows whole say the studied language in a `lang` of their own: the word card's headword,
+its form seen and its word-by-word forms (from the card's `language`, English without one), and a
+review card's headword and sentence (from the card's).
 
 ### D4 — Formats
 
@@ -79,8 +86,10 @@ today; Spanish per the RAE, « 20 000 » — change 13's implementation chose th
 « 20.000 », and its tests pin it); the reader's `${n} %` and the popup's and the HUD's `${pct}%`
 go through change 13's `formatPercent(language, n, form)`: in French the form the surface writes
 today (`"tight"`, "45%", for the popup and the HUD; `"spaced"`, "45 %", for the reader), in
-English "45%", in Spanish « 45 % » with a narrow no-break space. The French output is the same
-bytes.
+English "45%", in Spanish « 45 % » with a narrow no-break space. A count — the popup's figures
+and « Réviser (n) », the word card's page count — goes through `formatCount(language, n)`: French
+the bare figure it writes today, English and Spanish through `formatNumber`. The French output is
+the same bytes.
 
 ### D5 — Tests
 
@@ -100,8 +109,8 @@ English asserting three texts and the `lang` attributes. `lint-copy`'s baseline 
 - **A text the inventory missed** → the lint fails when the file leaves the baseline, naming it.
 - **A page flashing empty** → hidden until filled by `data-copy-pending`; measured by eye on the
   five targets in the pull request.
-- **The Safari popover sized before the fill** → the fill is synchronous after the first read;
-  checked by eye.
+- **The Safari popover sized before the fill** → Safari re-measures as the content grows, and the
+  fill is synchronous after the first read; checked by eye.
 - **The popup's « Réviser (n) » and « Niveau : » assembled in the HTML** → change 13's
   `popup.review(due)` and `popup.levelLine(title, level)` rendered into the nodes.
 
