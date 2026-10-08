@@ -49,6 +49,15 @@ export function pairsOf(native: string, pairs: readonly string[] = SHIPPED_PAIRS
   return pairs.filter((pair) => nativeOf(pair) === native);
 }
 
+/**
+ * The native languages with at least one shipped pair, in listed order, once each
+ * (add-lingua-native-language-choice D1): one today, French (M22). The build reads the same list
+ * for the manifest's languages (tool/packs.mjs; test/pairs.spec.ts holds the two equal).
+ */
+export function shippedNatives(pairs: readonly string[] = SHIPPED_PAIRS): string[] {
+  return [...new Set(pairs.map(nativeOf))];
+}
+
 /** The default pair of `native`: the first listed pair glossed in it, or null when none is. Its pack
  *  is the one an engine for that native language starts with. */
 export function defaultPair(native: string, pairs: readonly string[] = SHIPPED_PAIRS): string | null {

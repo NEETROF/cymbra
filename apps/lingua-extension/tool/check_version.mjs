@@ -11,6 +11,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { messagesFile, readLocales } from "./locales.mjs";
+import { COMMAND_MESSAGES, DESCRIPTION_MESSAGE, LITERAL_NATIVE } from "./manifests.mjs";
 
 const MAX_PART = 65535;
 
@@ -54,16 +56,69 @@ export function manifestProblems(manifest) {
   return problems;
 }
 
+/**
+ * Everything wrong with the committed `_locales` (localise-lingua-manifest D3), as sentences. Every
+ * language's description is what a browser in that language shows and both stores list once a pair
+ * glossed in it ships, so each is held to Apple's limit, named by its language. The French has two
+ * homes — manifest.json's literals, which every package built today carries, and `_locales/fr`,
+ * which a localised package reads — and they are held equal, key by key.
+ */
+export function localeProblems(manifest, locales) {
+  const problems = [];
+  for (const [language, messages] of Object.entries(locales)) {
+    const description = messages[DESCRIPTION_MESSAGE]?.message;
+    if (typeof description !== "string" || description.length === 0) {
+      problems.push(
+        `${messagesFile(language)} has no "${DESCRIPTION_MESSAGE}" message: it is what a browser in ${language} shows, and both stores list.`,
+      );
+    } else if (description.length > MAX_DESCRIPTION) {
+      problems.push(
+        `the ${language} description (${messagesFile(language)}) is ${description.length} characters; Apple refuses more than ${MAX_DESCRIPTION} when the archive is uploaded (Chrome allows 132, so Apple's is the limit that binds).`,
+      );
+    }
+  }
+  const french = locales[LITERAL_NATIVE];
+  if (!french) {
+    problems.push(
+      `${messagesFile(LITERAL_NATIVE)} is missing: a localised package reads the French from it, so it must hold manifest.json's literal text.`,
+    );
+    return problems;
+  }
+  const literals = [
+    [DESCRIPTION_MESSAGE, manifest.description],
+    ...Object.entries(manifest.commands ?? {}).map(([id, command]) => [COMMAND_MESSAGES[id], command?.description]),
+  ];
+  for (const [key, literal] of literals) {
+    // A command with no message of its own is refused by the build (tool/manifests.mjs), not here.
+    if (!key) continue;
+    const message = french[key]?.message;
+    if (message !== literal) {
+      problems.push(
+        `${messagesFile(LITERAL_NATIVE)}'s "${key}" reads ${JSON.stringify(message)} and manifest.json's literal reads ${JSON.stringify(literal)}: the French has two homes, held equal.`,
+      );
+    }
+  }
+  return problems;
+}
+
 function main() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
   const version = read("package.json").version;
-  const problems = [versionProblem(version), ...manifestProblems(read("manifest.json"))].filter(Boolean);
+  const manifest = read("manifest.json");
+  const locales = readLocales(root);
+  const problems = [
+    versionProblem(version),
+    ...manifestProblems(manifest),
+    ...localeProblems(manifest, locales),
+  ].filter(Boolean);
   if (problems.length > 0) {
     for (const problem of problems) console.error(`error: ${problem}`);
     process.exit(1);
   }
-  console.log(`Version ${version} is publishable, and manifest.json is one both stores accept.`);
+  console.log(
+    `Version ${version} is publishable, and manifest.json is one both stores accept, in ${Object.keys(locales).join(", ")}.`,
+  );
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

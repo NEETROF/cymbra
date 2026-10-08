@@ -1,0 +1,18 @@
+{
+  "extensionDescription": {
+    "message": "Lisez l'anglais et l'espagnol sur le web : mots inconnus surlignés, pourcentage honnête. Hors ligne et privé.",
+    "description": "The extension's description: the extensions page, and both stores' summary. At most 112 characters (Apple's limit). Names the languages a French reader can study in the shipped pairs. Held equal to manifest.json's literal by yarn check:version."
+  },
+  "commandCaptureSelection": {
+    "message": "Capturer la sélection (mot ou expression) avec sa phrase",
+    "description": "The Alt+L command, as the browser's shortcuts page describes it: capture the selected word or phrase together with its sentence."
+  },
+  "commandToggleDrawer": {
+    "message": "Ouvrir/fermer le panneau de révision sur la page",
+    "description": "The Alt+Shift+D command, as the browser's shortcuts page describes it: open or close the in-page review panel (the drawer)."
+  },
+  "commandSidePanel": {
+    "message": "Ouvrir le panneau latéral de révision",
+    "description": "The Alt+Shift+S command, as the browser's shortcuts page describes it: open the browser's review side panel (Chromium)."
+  }
+}

@@ -6,8 +6,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { engineProblems } from "./engine_pin.mjs";
+import { LOCALES_DIR, readLocales } from "./locales.mjs";
+import { defaultLocale, localised } from "./manifests.mjs";
 import { modelsOf, readCatalogue, ROLES } from "./model-catalogue.mjs";
-import { packFile, shippedPairs } from "./packs.mjs";
+import { packFile, shippedNatives, shippedPairs } from "./packs.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
@@ -299,6 +301,61 @@ for (const target of ["chromium", "firefox", "safari"]) {
   );
   const exposed = JSON.parse(read(target, "manifest.json")).web_accessible_resources.flatMap((w) => w.resources);
   for (const file of listed) expect(exposed.includes(file), `${target}: ${file} is not exposed in the manifest`);
+}
+
+// The manifest's languages (localise-lingua-manifest D3). A manifest that references `_locales`
+// (`__MSG_…__`) carries `default_locale` — Chrome's reference and MDN require it exactly when
+// `_locales` exists, and Safari is held to the same rule — the default's folder among the packaged
+// ones, every reference resolving in every packaged folder, and the packaged folders exactly the
+// shipped natives'. A manifest without a reference carries neither: while every shipped pair is
+// French-native, the package is byte for byte what it was.
+const natives = shippedNatives(pairs);
+for (const target of ["chromium", "firefox", "safari"]) {
+  const manifest = manifests[target];
+  const references = [...new Set([...read(target, "manifest.json").matchAll(/__MSG_(\w+)__/g)].map((m) => m[1]))];
+  const packaged = readLocales(join(root, `dist-${target}`));
+  const folders = Object.keys(packaged);
+  const referenced = references.length > 0;
+  expect(
+    referenced === localised(natives),
+    `${target}: the shipped natives are ${natives.join(", ")}, and the manifest ${referenced ? "references" : "does not reference"} _locales`,
+  );
+  if (!referenced) {
+    expect(
+      !("default_locale" in manifest),
+      `${target}: a manifest with no __MSG_ reference must not carry default_locale`,
+    );
+    expect(
+      folders.length === 0 && !existsSync(join(root, `dist-${target}`, LOCALES_DIR)),
+      `${target}: a manifest with no __MSG_ reference packages no ${LOCALES_DIR}/, but ${folders.join(", ")} is there`,
+    );
+    continue;
+  }
+  expect(
+    manifest.default_locale === defaultLocale(natives),
+    `${target}: a manifest referencing _locales must default to ${defaultLocale(natives)}, not ${JSON.stringify(manifest.default_locale)}`,
+  );
+  expect(
+    folders.includes(manifest.default_locale),
+    `${target}: ${LOCALES_DIR}/${manifest.default_locale}/ (the default) is not packaged`,
+  );
+  expect(
+    JSON.stringify(folders) === JSON.stringify([...natives].sort()),
+    `${target}: ${LOCALES_DIR}/ holds ${folders.join(", ")}; the shipped natives are ${natives.join(", ")}`,
+  );
+  for (const [language, messages] of Object.entries(packaged)) {
+    for (const reference of references) {
+      expect(
+        typeof messages[reference]?.message === "string" && messages[reference].message.length > 0,
+        `${target}: __MSG_${reference}__ does not resolve in ${LOCALES_DIR}/${language}/messages.json`,
+      );
+    }
+  }
+  // The brand is never localised.
+  expect(
+    manifest.name === "Cymbra Lingua" && manifest.action?.default_title === "Cymbra Lingua",
+    `${target}: the name and the action's title stay the literal « Cymbra Lingua »`,
+  );
 }
 
 if (failures.length > 0) {

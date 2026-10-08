@@ -1,0 +1,18 @@
+{
+  "extensionDescription": {
+    "message": "Read Spanish on the web: unknown words highlighted, an honest percentage. Offline and private.",
+    "description": "The extension's description: the extensions page, and both stores' summary. At most 112 characters (Apple's limit). Names the languages an English reader can study in the shipped pairs (Spanish, es-en) — not a translation of the French. US English."
+  },
+  "commandCaptureSelection": {
+    "message": "Capture the selection (a word or a phrase) with its sentence",
+    "description": "The Alt+L command, as the browser's shortcuts page describes it: capture the selected word or phrase together with its sentence."
+  },
+  "commandToggleDrawer": {
+    "message": "Open or close the review panel on the page",
+    "description": "The Alt+Shift+D command, as the browser's shortcuts page describes it: open or close the in-page review panel (the drawer)."
+  },
+  "commandSidePanel": {
+    "message": "Open the review side panel",
+    "description": "The Alt+Shift+S command, as the browser's shortcuts page describes it: open the browser's review side panel (Chromium)."
+  }
+}

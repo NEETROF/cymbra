@@ -31,15 +31,29 @@ Constants:
 109 characters, in the owner's wording (add-lingua-spanish-listings). **The limit is 112, Apple's** — checked when the signed archive is uploaded to
 App Store Connect, which is where `lingua-apple-v1.1.0` died after a full build. Chrome allows
 132, so calibrating on Chrome produces an archive Apple refuses. `yarn check:version` holds the
-112 now.
+112 now, for every committed language.
 
-Changing it means changing `manifest.json` and shipping a new package, so it is worth getting
+Changing it means changing `manifest.json` **and** `_locales/fr/messages.json` (the French has two
+homes, held equal by `yarn check:version`) and shipping a new package, so it is worth getting
 right before a submission.
 
-It is in **French** because the extension is: its whole interface is French ("Analyser cette
-page", "Je connais", "Toujours surligner"), and it teaches English and Spanish _to French speakers_. An
-English summary would send English speakers to an interface they cannot read. The listing's
-language field is French for the same reason.
+**Its language follows the shipped pairs** (localise-lingua-manifest). While every shipped pair is
+glossed in French, the package carries the literal French above and no `_locales`. Once a pair
+glossed in another language ships (es-en, change 34; en-es, change 35), `tool/manifests.mjs` writes
+the description as `__MSG_extensionDescription__` and packages `_locales/<language>/` for each
+shipped native: a browser, and a store, then shows the summary of its own language —
+`_locales/en/messages.json` for English speakers (who study Spanish), `_locales/es/messages.json`
+for Spanish speakers (who study English), each in the owner's wording and within the same 112 —
+and `default_locale` is `en` as soon as an English-glossed pair ships, `fr` otherwise. The Chrome
+Web Store takes the listing's default language from `default_locale` and a summary per `_locales`
+folder; what addons.mozilla.org does to an existing listing's summary at upload is undocumented:
+the owner checks both dashboards after change 34's first submission and records the result here.
+
+It is in **French** because the extension is: its interface follows the reader's native language —
+French for every reader today ("Analyser cette page", "Je connais", "Toujours surligner") — and it
+teaches English and Spanish _to French speakers_. An English summary would send English speakers
+to an interface they cannot read — which is why the build ships `_locales/en` only once a pair
+glossed in English does. The listing's language field is French for the same reason.
 
 ## Description
 

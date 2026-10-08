@@ -56,6 +56,9 @@ None.
 - **No byte moves** in any package built while only French-native pairs ship.
 - **The first package that carries `_locales`** is the one that ships es-en (change 34) — the
   English listing goes with it (M13, change 36): the owner checks on a device that Safari shows the
-  localised description, and Apple's upload accepts it.
+  localised description, and Apple's upload accepts it. Should change 35 (en-es) merge before 34,
+  its package is the first localised one and the validation (task 2.5) applies to it instead; once
+  Apple has accepted one localised archive, the other change adds a folder of the same shape and
+  needs no second validation.
 - **Order.** After change 20 (`shippedNatives`, D2).
 - **Not here.** The listings themselves (36, 37), the host app's own text (28).

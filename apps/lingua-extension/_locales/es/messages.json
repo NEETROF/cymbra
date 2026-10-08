@@ -1,0 +1,18 @@
+{
+  "extensionDescription": {
+    "message": "Lee inglés en la web: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión y privado.",
+    "description": "The extension's description: the extensions page, and both stores' summary. At most 112 characters (Apple's limit). Names the languages a Spanish reader can study in the shipped pairs (English, en-es) — not a translation of the French. Tú, neutral Spanish."
+  },
+  "commandCaptureSelection": {
+    "message": "Capturar la selección (palabra o expresión) con su frase",
+    "description": "The Alt+L command, as the browser's shortcuts page describes it: capture the selected word or phrase together with its sentence."
+  },
+  "commandToggleDrawer": {
+    "message": "Abrir o cerrar el panel de repaso en la página",
+    "description": "The Alt+Shift+D command, as the browser's shortcuts page describes it: open or close the in-page review panel (the drawer)."
+  },
+  "commandSidePanel": {
+    "message": "Abrir el panel lateral de repaso",
+    "description": "The Alt+Shift+S command, as the browser's shortcuts page describes it: open the browser's review side panel (Chromium)."
+  }
+}

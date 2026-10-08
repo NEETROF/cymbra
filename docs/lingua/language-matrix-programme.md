@@ -164,7 +164,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 2 | 24 | `add-lingua-spanish-card-wording` | 3–5.5 | Not started |
 | 2 | 25 | `add-lingua-translation-matrix-models`: en-es 2.1; the owner redeploys the model host right after | 1–2 | Done (proposal [#768](https://github.com/NEETROF/cymbra/pull/768)); en-es soaked over the 100 English selections: all translated, no trap, no timeout, in Node; the owner deploys the model host after the merge |
 | 2 | 26 | `measure-lingua-translation-matrix-marks`: es-en, en-es | 2.5–4 | Not started |
-| 2 | 27 | `localise-lingua-manifest`: `_locales`, with the first non-French pair | 1–2 | Not started |
+| 2 | 27 | `localise-lingua-manifest`: `_locales`, with the first non-French pair | 1–2 | Done pending the owner's 2.5/3.3: `_locales/{fr,en,es}` committed, the manifest localised only once a non-French native ships (today's packages byte for byte); the owner reviews the English and Spanish drafts (3.3) and validates a localised Safari archive before the first of 34/35 merges (2.5) |
 | 2 | 28 | `localise-lingua-apple-host` | 3.5–6 | Not started |
 | 2 | 29 | `add-site-spanish-locale` (M11) | 4.5–8 | Not started |
 | 2 | 30 | `add-site-lingua-matrix-pages` | 1.5–3 | Not started |
