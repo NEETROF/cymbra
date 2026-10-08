@@ -1,6 +1,8 @@
 import { installGroupBy } from "./polyfill.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { acceptedLanguages } from "../analyzer/pairs.ts";
+import { fillPageInLanguage } from "../i18n/index.ts";
+import { readingCopy } from "../reading/reading-copy.ts";
 import { ReadingSession } from "../reading/session.ts";
 import { SURFACE_CSS } from "../reading/surface-css.ts";
 import { colourCss } from "../reading/colours.ts";
@@ -16,6 +18,7 @@ import {
   readerFlowOf,
 } from "../state/storage.ts";
 import { ReaderApp } from "./app.ts";
+import { readerCopy, readerModule } from "./copy.ts";
 import { FoliateRenderer } from "./foliate.ts";
 import { documentFullscreen } from "./fullscreen.ts";
 import { Library } from "./library.ts";
@@ -45,13 +48,22 @@ const PERSIST_ASKED_KEY = "cymbra-lingua-library-persist-asked";
 
 async function main(): Promise<void> {
   installGroupBy();
+  // The interface language first, with this page's first storage read: the page's static copy is
+  // filled from the catalogue before anything is built (the body is hidden until then —
+  // localise-lingua-reading-surfaces D1, D2), and the library, the page and the session get it.
+  // Filled before anything can return early, so the page shows whatever happens next; a read that
+  // fails is French.
+  const { language } = await fillPageInLanguage(document, settings, readerModule);
   const root = document.getElementById("reader-root");
   if (!root) return;
+  const copy = readerCopy(language);
   if (__SECTIONS_FROM_WORKER__) await clearSections(caches);
-  const library = await Library.open();
+  const library = await Library.open(undefined, copy.untitled);
   const port = createLinguaPort();
   const app = new ReaderApp(root, {
     library,
+    language,
+    copy,
     languages: () => acceptedLanguages(port),
     createRenderer: () => new FoliateRenderer(),
     persistence: () =>
@@ -89,12 +101,16 @@ async function main(): Promise<void> {
     return false;
   });
 
+  // The book's session is built as the content script builds a page's: handed the interface
+  // language and the surfaces' copy (D1).
   const session = new ReadingSession(port, {
     css: SURFACE_CSS,
     surface: "book",
     indicator: (actions) => app.indicator(actions),
     onPainted: () => app.painted(),
     onBlankClick: (e) => app.blankClick(e),
+    language,
+    copy: readingCopy(language),
   });
   await session.start(null);
   await app.start(session);

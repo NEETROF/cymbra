@@ -168,11 +168,12 @@ No account is needed: signing in only syncs a reader's vocabulary between their 
 6. Spanish: in the popup's "Réglages", tab "Langue", tick "Espagnol", then open a Spanish article.
 ```
 
-Every label above is quoted from the source, not from memory — `popup.html` for **Analyser
-cette page**, **Choisis ton niveau d'anglais** and **Réviser**, `src/reading/wordpopup.ts` for
-the three word actions; « Réglages » is the popup's settings button (`popup.html`), « Langue » the
-settings tab (`src/reading/settings-view.ts`) and « Espagnol » the box under « Langues étudiées »
-(`src/analyzer/language-labels.ts`). An approximate label sends the reviewer looking for a control that
+Every label above is quoted from the source, not from memory — the popup's copy,
+`src/i18n/fr/popup.ts`, for **Analyser cette page** and **Réviser**, and
+`src/analyzer/language-labels.ts` for **Choisis ton niveau d'anglais**; the word card's,
+`src/i18n/fr/card.ts`, for the three word actions; « Réglages » is the popup's settings button
+(`src/i18n/fr/popup.ts`), « Langue » the settings tab (`src/reading/settings-view.ts`) and
+« Espagnol » the box under « Langues étudiées » (`src/analyzer/language-labels.ts`). An approximate label sends the reviewer looking for a control that
 does not exist.
 
 ## Single purpose (Chrome Web Store)

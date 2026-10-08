@@ -11,6 +11,20 @@
   display: none !important;
 }
 
+/* Nothing shows before the catalogue fills the page's copy (popup.ts removes the mark). Should
+   the script never get there — it failed before the fill — the page shows anyway after a moment,
+   unfilled rather than blank for good (localise-lingua-reading-surfaces D2). */
+html[data-copy-pending] body {
+  visibility: hidden;
+  animation: lingua-copy-reveal 0s 1.5s forwards;
+}
+
+@keyframes lingua-copy-reveal {
+  to {
+    visibility: visible;
+  }
+}
+
 body {
   width: calc(280px * var(--cymbra-lingua-ui-scale, 1));
   margin: 0;

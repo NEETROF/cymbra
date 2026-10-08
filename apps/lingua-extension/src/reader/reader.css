@@ -7,6 +7,21 @@ body {
   height: 100%;
 }
 
+/* Nothing shows before the catalogue fills the page's copy (reader.ts removes the mark). Should
+   the script never get there — it failed before the fill — the page shows anyway after a moment,
+   unfilled rather than blank for good (localise-lingua-reading-surfaces D2).
+   It is one step, not a motion: the page appears once, as it would have with the mark removed. */
+html[data-copy-pending] body {
+  visibility: hidden;
+  animation: lingua-copy-reveal 0s 1.5s forwards;
+}
+
+@keyframes lingua-copy-reveal {
+  to {
+    visibility: visible;
+  }
+}
+
 body {
   margin: 0;
   background: var(--cymbra-lingua-bg);

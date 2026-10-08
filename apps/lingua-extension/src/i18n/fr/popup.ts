@@ -23,8 +23,6 @@ export const popup = {
   distinctUnknown: "dont mots différents",
   wordsTracked: "Mots suivis",
   chooseLevel: "Choisis ton niveau",
-  /** The level line's label before a script names the language. */
-  level: "Niveau",
   /** « Niveau d'anglais : B1 » — the label from `languages`, the level as declared. */
   levelLine: (title: string, level: string) => `${title} : ${level}`,
   edit: "Modifier",

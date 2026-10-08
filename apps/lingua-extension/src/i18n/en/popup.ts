@@ -21,7 +21,6 @@ export const popup: typeof fr = {
   distinctUnknown: "of which distinct words",
   wordsTracked: "Words tracked",
   chooseLevel: "Choose your level",
-  level: "Level",
   levelLine: (title, level) => `${title}: ${level}`,
   edit: "Change",
   deck: "Deck (learning)",

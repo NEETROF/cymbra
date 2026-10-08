@@ -1,6 +1,10 @@
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
+import { sidepanel as enSidepanel } from "../i18n/en/sidepanel.ts";
+import { sidepanel as esSidepanel } from "../i18n/es/sidepanel.ts";
+import { sidepanel as frSidepanel } from "../i18n/fr/sidepanel.ts";
+import { fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
@@ -15,6 +19,13 @@ followSurfaceLook(document.documentElement);
 
 /** Transient key the popup / HUD set to open the panel straight on a view. */
 const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";
+
+/** The page's static copy by interface language (localise-lingua-reading-surfaces D2). */
+const SIDEPANEL_COPY: Record<InterfaceLanguage, typeof frSidepanel> = {
+  fr: frSidepanel,
+  en: enSidepanel,
+  es: esSidepanel,
+};
 
 // Side-panel controller (a surface the extension owns). The page is pushed by the browser
 // and survives navigation. It hydrates its own engine from the shared backup and renders
@@ -108,6 +119,11 @@ async function showView(view: PanelView): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // The interface language first, with this page's first storage read: the page's static copy is
+  // filled from the catalogue before anything shows (the body is hidden until then — D2). A read
+  // that fails is French: the page shows.
+  await fillPageInLanguage(document, area, (l) => SIDEPANEL_COPY[l]);
+
   await hydrateEngine(port, store);
   language = await readingLanguage(port);
   await showView("review");

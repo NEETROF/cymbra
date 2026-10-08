@@ -1,4 +1,6 @@
 import { resolveContentPort } from "./analyzer/create-port.ts";
+import { interfaceLanguage } from "./i18n/index.ts";
+import { readingCopy } from "./reading/reading-copy.ts";
 import { pageHost, ReadingSession } from "./reading/session.ts";
 import { SURFACE_CSS } from "./reading/surface-css.ts";
 
@@ -16,9 +18,16 @@ async function bootstrap(): Promise<void> {
   w[GUARD] = true;
   try {
     // The port is resolved before construction so a CSP-blocked page can hand the session
-    // the messaging port instead of the in-content WASM engine.
-    const port = await resolveContentPort();
-    await new ReadingSession(port, { css: SURFACE_CSS, surface: "page" }).start(pageHost());
+    // the messaging port instead of the in-content WASM engine. The interface language is read
+    // beside it, with this script's first storage read, before the session builds the surfaces it
+    // hands the copy to (localise-lingua-reading-surfaces D1); a read that fails is French.
+    const [port, language] = await Promise.all([
+      resolveContentPort(),
+      interfaceLanguage({ get: (key) => chrome.storage.local.get(key) }),
+    ]);
+    await new ReadingSession(port, { css: SURFACE_CSS, surface: "page", language, copy: readingCopy(language) }).start(
+      pageHost(),
+    );
   } catch (e) {
     // Surface a legible failure rather than dying as a silent unhandled rejection,
     // and allow a retry on the next injection.

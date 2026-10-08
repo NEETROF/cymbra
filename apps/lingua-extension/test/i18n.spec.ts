@@ -1,7 +1,11 @@
 /// <reference types="vite/client" />
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  COPY_PENDING_ATTR,
   DEFAULT_INTERFACE_LANGUAGE,
+  fillPage,
+  fillPageInLanguage,
+  formatCount,
   formatDate,
   formatNumber,
   formatPercent,
@@ -9,11 +13,15 @@ import {
   type InterfaceLanguage,
   interfaceLanguage,
   isInterfaceLanguage,
+  NODE_SLOT,
   plural,
   type PluralForms,
+  renderAround,
   setDocumentLanguage,
   SURFACES,
 } from "@/i18n/index.ts";
+import { popup as enPopup } from "@/i18n/en/popup.ts";
+import { popup as esPopup } from "@/i18n/es/popup.ts";
 import { popup as frPopup } from "@/i18n/fr/popup.ts";
 import { review as frReview } from "@/i18n/fr/review.ts";
 import { review as enReview } from "@/i18n/en/review.ts";
@@ -66,6 +74,36 @@ describe("the interface language, under its own key", () => {
     setDocumentLanguage(document, "fr");
     expect(document.documentElement.lang).toBe("fr");
   });
+
+  describe("a read that fails (localise-lingua-reading-surfaces D2)", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("answers French, and says why in the console", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const failure = new Error("storage unavailable");
+      expect(await interfaceLanguage({ get: () => Promise.reject(failure) })).toBe("fr");
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]![0]).toMatch(/^\[Cymbra Lingua\] /);
+      expect(warn.mock.calls[0]![1]).toBe(failure);
+    });
+
+    it("answers French when the area throws before it answers (no chrome.storage in the context)", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const area = {
+        get(): Promise<Record<string, unknown>> {
+          throw new TypeError("Cannot read properties of undefined (reading 'local')");
+        },
+      };
+      expect(await interfaceLanguage(area)).toBe("fr");
+    });
+
+    it("answers French when the area answers nothing at all", async () => {
+      const area = { get: async () => undefined as unknown as Record<string, unknown> };
+      expect(await interfaceLanguage(area)).toBe("fr");
+    });
+  });
 });
 
 describe("a count in each language", () => {
@@ -111,6 +149,19 @@ describe("a count in each language", () => {
     expect(formatNumber("en", 25.8, oneDecimal)).toBe("25.8");
   });
 
+  it("writes a count as each language does: the French bare, as the surfaces write it today", () => {
+    expect(formatCount("fr", 0)).toBe("0");
+    expect(formatCount("fr", 1234)).toBe("1234");
+    expect(formatCount("fr", 20_000)).toBe("20000");
+    expect(formatCount("en", 1234)).toBe("1,234");
+    expect(formatCount("es", 1234)).toBe("1234");
+    expect(formatCount("es", 12_345)).toBe(`12${NNBSP}345`);
+    // The popup's « Réviser (n) », French as the page wrote it, the others grouped.
+    expect(frPopup.review(formatCount("fr", 1234))).toBe("Réviser (1234)");
+    expect(enPopup.review(formatCount("en", 1234))).toBe("Review (1,234)");
+    expect(esPopup.review(formatCount("es", 12_345))).toBe(`Repasar (12${NNBSP}345)`);
+  });
+
   it("writes a percentage in each surface's French form, the Spanish with its space", () => {
     expect(formatPercent("fr", 45, "tight")).toBe("45%");
     expect(formatPercent("fr", 110, "spaced")).toBe("110 %");
@@ -134,6 +185,158 @@ describe("a count in each language", () => {
     );
     expect(frStats.approxWords("16" + NARROW + "000")).toBe(`≈${NBSP}16${NARROW}000 mots`);
     expect(plural("fr", 20_000, frStats.words, formatNumber("fr", 20_000))).toBe(`20${NARROW}000 mots`);
+  });
+});
+
+describe("a page filled from the catalogue (localise-lingua-reading-surfaces D2)", () => {
+  /** A page's skeleton, as the HTML pages are written: no text, keys on the nodes, `<html>` pending. */
+  function page(): Document {
+    return new DOMParser().parseFromString(
+      [
+        `<!doctype html><html ${COPY_PENDING_ATTR}><head><title data-copy="title"></title></head><body>`,
+        '<h1 data-copy="heading"></h1>',
+        '<button id="gear" data-copy-aria-label="settings" data-copy-title="settings">⚙</button>',
+        '<p id="missing" data-copy="noSuchKey">kept</p>',
+        '<p id="slot" data-copy="review">kept too</p>',
+        "</body></html>",
+      ].join(""),
+      "text/html",
+    );
+  }
+  const copy = { title: "Cymbra Lingua — révision", heading: "Cymbra Lingua", settings: "Réglages", review: () => "" };
+
+  it("A page before its script: the text nodes and the attributes take their entries, then the page shows", () => {
+    const doc = page();
+    expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(true);
+    fillPage(doc, copy);
+    expect(doc.title).toBe("Cymbra Lingua — révision");
+    expect(doc.querySelector("h1")?.textContent).toBe("Cymbra Lingua");
+    const gear = doc.getElementById("gear")!;
+    expect(gear.getAttribute("aria-label")).toBe("Réglages");
+    expect(gear.getAttribute("title")).toBe("Réglages");
+    expect(gear.textContent).toBe("⚙"); // an attribute key fills the attribute, not the text
+    expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+  });
+
+  it("leaves a node whose key is not a plain text of the module, and shows the page anyway", () => {
+    const doc = page();
+    fillPage(doc, copy);
+    expect(doc.getElementById("missing")?.textContent).toBe("kept");
+    expect(doc.getElementById("slot")?.textContent).toBe("kept too"); // a slot message is the script's
+    expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+  });
+
+  it("fills the same page in another language", () => {
+    const doc = page();
+    fillPage(doc, { ...copy, heading: "Cymbra Lingua", settings: "Settings", title: "Cymbra Lingua — review" });
+    setDocumentLanguage(doc, "en");
+    expect(doc.title).toBe("Cymbra Lingua — review");
+    expect(doc.getElementById("gear")?.getAttribute("aria-label")).toBe("Settings");
+    expect(doc.documentElement.lang).toBe("en");
+  });
+
+  it("writes only the attributes that carry words, and replaces a keyed node's whole text", () => {
+    const doc = new DOMParser().parseFromString(
+      [
+        `<!doctype html><html ${COPY_PENDING_ATTR}><body>`,
+        '<input id="search" data-copy-placeholder="settings" />',
+        '<img id="logo" data-copy-alt="heading" />',
+        '<a id="link" href="#home" data-copy-href="title" data-copy-onclick="title" data-copy-style="title"></a>',
+        '<p id="mixed" data-copy="heading"><b>old</b> words</p>',
+        "</body></html>",
+      ].join(""),
+      "text/html",
+    );
+    fillPage(doc, copy);
+    expect(doc.getElementById("search")?.getAttribute("placeholder")).toBe("Réglages");
+    expect(doc.getElementById("logo")?.getAttribute("alt")).toBe("Cymbra Lingua");
+    const link = doc.getElementById("link")!;
+    expect(link.getAttribute("href")).toBe("#home");
+    expect(link.hasAttribute("onclick")).toBe(false);
+    expect(link.hasAttribute("style")).toBe(false);
+    const mixed = doc.getElementById("mixed")!;
+    expect(mixed.textContent).toBe("Cymbra Lingua");
+    expect(mixed.children).toHaveLength(0);
+  });
+
+  describe("opened as a page's script opens it", () => {
+    const modules: Record<InterfaceLanguage, typeof copy> = {
+      fr: copy,
+      en: { ...copy, settings: "Settings" },
+      es: { ...copy, settings: "Ajustes" },
+    };
+    const area = (items: Record<string, unknown>) => ({ get: async (key: string) => ({ [key]: items[key] }) });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("reads the key, says the language in lang, fills the page and shows it, and hands both back", async () => {
+      const doc = page();
+      const opened = await fillPageInLanguage(doc, area({ [INTERFACE_LANGUAGE_KEY]: "es" }), (l) => modules[l]);
+      expect(opened).toEqual({ language: "es", copy: modules.es });
+      expect(doc.documentElement.lang).toBe("es");
+      expect(doc.getElementById("gear")?.getAttribute("aria-label")).toBe("Ajustes");
+      expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+    });
+
+    it("A storage that cannot be read: the page shows anyway, filled in French", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const doc = page();
+      const opened = await fillPageInLanguage(doc, { get: () => Promise.reject(new Error("gone")) }, (l) => modules[l]);
+      expect(opened.language).toBe("fr");
+      expect(doc.documentElement.lang).toBe("fr");
+      expect(doc.getElementById("gear")?.getAttribute("aria-label")).toBe("Réglages");
+      expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+    });
+  });
+});
+
+describe("a slot message rendered around a node", () => {
+  function level(text: string): HTMLElement {
+    const b = document.createElement("b");
+    b.textContent = text;
+    return b;
+  }
+
+  /** What `element` holds, a node as `<tag>` and a text as itself, in order. */
+  const parts = (element: Element): string[] =>
+    [...element.childNodes].map((n) => (n.nodeType === Node.TEXT_NODE ? (n.textContent ?? "") : `<${n.nodeName}>`));
+
+  it("puts the node where the French puts it, the label first", () => {
+    const line = document.createElement("span");
+    const node = level("B1");
+    renderAround(line, frPopup.levelLine("Niveau d'anglais", NODE_SLOT), node);
+    expect(line.textContent).toBe("Niveau d'anglais : B1");
+    expect(parts(line)).toEqual(["Niveau d'anglais : ", "<B>"]);
+    expect(line.lastChild).toBe(node);
+  });
+
+  it("puts it where the English puts it", () => {
+    const line = document.createElement("span");
+    renderAround(line, enPopup.levelLine("English level", NODE_SLOT), level("B1"));
+    expect(line.textContent).toBe("English level: B1");
+  });
+
+  it("follows a message that puts the node first, and keeps the text around it", () => {
+    const line = document.createElement("span");
+    const levelFirst = (title: string, value: string) => `${value} — ${title} (déclaré)`;
+    renderAround(line, levelFirst("niveau d'anglais", NODE_SLOT), level("B1"));
+    expect(parts(line)).toEqual(["<B>", " — niveau d'anglais (déclaré)"]);
+  });
+
+  it("appends the node to a message that dropped its slot, so the level still shows", () => {
+    const line = document.createElement("span");
+    renderAround(line, "Level", level("B1"));
+    expect(parts(line)).toEqual(["Level", "<B>"]);
+    expect(line.textContent).toBe("LevelB1");
+  });
+
+  it("replaces what the element held", () => {
+    const line = document.createElement("span");
+    line.textContent = "stale";
+    renderAround(line, `Niveau : ${NODE_SLOT}`, level("A2"));
+    expect(line.textContent).toBe("Niveau : A2");
   });
 });
 

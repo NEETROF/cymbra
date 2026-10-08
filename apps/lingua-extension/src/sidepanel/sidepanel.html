@@ -1,10 +1,13 @@
 <!doctype html>
-<html lang="fr">
+<!-- No text of its own: every node carries a data-copy key, filled by sidepanel.ts from the
+     catalogue's module for the interface language (src/i18n/README.md, Pages); data-copy-pending
+     hides the body until then, and lang is set by the script. -->
+<html data-copy-pending>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>Cymbra Lingua — révision</title>
+    <title data-copy="title"></title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="review.css" />
     <link rel="stylesheet" href="stats.css" />
@@ -12,12 +15,12 @@
     <link rel="stylesheet" href="sidepanel.css" />
   </head>
   <body>
-    <h1>Cymbra Lingua</h1>
+    <h1 data-copy="heading"></h1>
 
     <div class="views" id="views">
-      <button data-view="review" class="active">Révision</button>
-      <button data-view="stats">Statistiques</button>
-      <button data-view="settings">Réglages</button>
+      <button data-view="review" class="active" data-copy="review"></button>
+      <button data-view="stats" data-copy="stats"></button>
+      <button data-view="settings" data-copy="settings"></button>
     </div>
 
     <!-- Views are built by their shared mounts (mountReview / mountStats / mountSettings). -->

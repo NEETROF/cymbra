@@ -20,9 +20,32 @@ a `settings.voiceLabel` slot message; until then a voice is named in French in e
 language.
 
 The interface language is the reader's native language (`language.ts`: `interfaceLanguage(area)`,
-`fr` when the key is absent); `index.ts` holds the helpers — `plural`, `formatNumber`,
-`formatPercent`, `formatDate` — and maps no surface, so importing it costs an entry nothing. A
-surface imports its own three modules and picks by the language.
+`fr` when the key is absent, and when it cannot be read — it never rejects); `index.ts` holds the
+helpers — `plural`, `formatNumber`, `formatCount`, `formatPercent`, `formatDate`, `fillPage`,
+`fillPageInLanguage`, `renderAround` — and maps no surface, so importing it costs an entry nothing.
+A surface imports its own three modules and picks by the language.
+
+## Pages
+
+An HTML page holds no text of its own: a node carries `data-copy="key"` (its whole text is
+replaced) and an attribute `data-copy-aria-label="key"`, `data-copy-title`, `data-copy-placeholder`
+or `data-copy-alt` (no other attribute is ever written from a module). The page's script starts with
+`fillPageInLanguage(document, area, moduleOf)`, with its first storage read, before it builds
+anything that shows copy: it reads the interface language, sets the page's `lang`
+(`setDocumentLanguage`), then calls `fillPage(document, module)` with the module for that language,
+and hands back the language and the module. Until then `<html>` carries `data-copy-pending`, under
+which the page's stylesheet hides `body` (`html[data-copy-pending] body { visibility: hidden }`):
+`fillPage` removes it. The rule also reveals the body after 1.5 s on its own, so a script that dies
+before the fill leaves an unfilled page rather than a blank one. A text assembled around a figure
+(« Réviser (3) ») is a slot message the script renders into the node; one around a node of its own
+(« Niveau d'anglais : <b>B1</b> ») is called with `NODE_SLOT` and rendered by `renderAround`.
+
+Every reader surface reads its module the same way (localise-lingua-reading-surfaces): the content
+script and the reader page read the key before they build the reading session, which hands the HUD,
+the drawer, the word card and the selection card their module and the language at construction, and
+each injected host says it in `lang`. The words of the document inside them — the card's headword,
+its form seen and its word-by-word forms, a review card's headword and sentence — say the studied
+language in a `lang` of their own.
 
 ## Shape
 

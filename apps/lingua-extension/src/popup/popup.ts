@@ -3,6 +3,18 @@ import { createLinguaPort } from "../analyzer/create-port.ts";
 import { chooseLevelPrompt, levelTitle, noTextDetected } from "../analyzer/language-labels.ts";
 import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
 import type { CefrLevel, StudiedLanguage } from "../analyzer/types.ts";
+import { popup as enPopup } from "../i18n/en/popup.ts";
+import { popup as esPopup } from "../i18n/es/popup.ts";
+import { popup as frPopup } from "../i18n/fr/popup.ts";
+import {
+  DEFAULT_INTERFACE_LANGUAGE,
+  fillPageInLanguage,
+  formatCount,
+  formatPercent,
+  type InterfaceLanguage,
+  NODE_SLOT,
+  renderAround,
+} from "../i18n/index.ts";
 import { mountSettings, type SettingsTab, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { isPersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
@@ -44,6 +56,13 @@ const storageArea: AsyncStorageArea = {
 
 /** The reader's data, owned by the background (Réglages persist the engine's backup there). */
 const store: AsyncStorageArea = messagedArea();
+
+/** The popup's copy by interface language (localise-lingua-reading-surfaces D1). */
+const POPUP_COPY: Record<InterfaceLanguage, typeof frPopup> = { fr: frPopup, en: enPopup, es: esPopup };
+
+/** The interface language and the copy, read with the first storage read, before anything renders. */
+let language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
+let copy: typeof frPopup = frPopup;
 
 interface PageStats {
   /** "book" when the tab is the extension's reader, showing a section of a book. */
@@ -125,7 +144,7 @@ async function renderAccount(state: AccountState | null): Promise<void> {
   if (!signedIn) return;
   const res = (await sendRuntime({ type: "account:profile" })) as AccountReply | null;
   $("account-who").textContent =
-    res?.ok && res.handle ? `@${res.handle}` : res?.ok ? "Pseudo à choisir" : "Synchronisation activée";
+    res?.ok && res.handle ? copy.handle(res.handle) : res?.ok ? copy.handleToChoose : copy.syncOn;
 }
 
 /** Say, above everything else, that a session this device held was refused by the server. */
@@ -156,35 +175,35 @@ function render(stats: PageStats | null, onReader: boolean): void {
   if (!stats) return;
 
   const book = stats.surface === "book" || onReader;
-  $("pct-label").textContent = book ? "de mots connus dans ce chapitre" : "de mots connus sur cette page";
+  $("pct-label").textContent = book ? copy.knownInChapter : copy.knownOnPage;
   $("analysed").hidden = !stats.analysable;
   $("note").hidden = stats.analysable;
   // Named from the language the page is read in (add-lingua-language-choice D1).
-  const language = stats.language ?? DEFAULT_LANGUAGE;
-  $("note").textContent = book
-    ? "Ouvre un livre de ta bibliothèque pour voir ses chiffres."
-    : noTextDetected(stats.languages ?? [language]);
+  const studied = stats.language ?? DEFAULT_LANGUAGE;
+  $("note").textContent = book ? copy.openBookForFigures : noTextDetected(stats.languages ?? [studied]);
   if (stats.analysable) {
     const pct = stats.percent ?? 0;
-    $("pct").textContent = stats.percent == null ? "—" : `${pct}%`;
+    $("pct").textContent = stats.percent == null ? copy.noPercent : formatPercent(language, pct, "tight");
     ($("bar") as HTMLElement).style.width = `${pct}%`;
-    $("counted").textContent = String(stats.counted);
-    $("unknown").textContent = String(stats.unknownOccurrences);
-    $("distinct").textContent = String(stats.distinctUnknown);
+    $("counted").textContent = formatCount(language, stats.counted);
+    $("unknown").textContent = formatCount(language, stats.unknownOccurrences);
+    $("distinct").textContent = formatCount(language, stats.distinctUnknown);
   }
 
-  $("tracked").textContent = String(stats.trackedCount);
-  $("deck").textContent = String(stats.deckCount);
-  $("due").textContent = String(stats.dueCount);
+  $("tracked").textContent = formatCount(language, stats.trackedCount);
+  $("deck").textContent = formatCount(language, stats.deckCount);
+  $("review").textContent = copy.review(formatCount(language, stats.dueCount));
 
   // With CEFR data, the reader declares a level in Réglages; the main panel gets a compact
   // reminder, or a call-to-action until a level has been chosen (asked at first use).
   // « Débutant » is a decision (no level, but chosen): only a missing decision asks again.
   $("level-cta").hidden = !stats.hasLevels || !stats.needsLevel;
   $("level-indicator").hidden = !stats.hasLevels || stats.needsLevel;
-  $("level-current").textContent = stats.declaredLevel ?? "Débutant";
-  $("level-cta").textContent = chooseLevelPrompt(language);
-  $("level-label").textContent = levelTitle(language, stats.levelsEstimated ?? false);
+  $("level-cta").textContent = chooseLevelPrompt(studied);
+  // « Niveau de … : B1 »: the line's message rendered around the bold level (D1).
+  const level = $("level-current");
+  level.textContent = stats.declaredLevel ?? copy.beginner;
+  renderAround($("level-line"), copy.levelLine(levelTitle(studied, stats.levelsEstimated ?? false), NODE_SLOT), level);
 }
 
 let settings: SettingsView | null = null;
@@ -254,7 +273,7 @@ async function refresh(): Promise<void> {
 /** Reflect the global enabled flag: off hides the reader panels; on shows them. */
 async function applyEnabled(enabled: boolean): Promise<void> {
   ($("enabled") as HTMLInputElement).checked = enabled;
-  $("enabled-label").textContent = enabled ? "Surlignage activé" : "Surlignage désactivé";
+  $("enabled-label").textContent = enabled ? copy.highlightingOn : copy.highlightingOff;
   $("disabled-note").hidden = enabled;
   if (!enabled) {
     $("setup").hidden = true;
@@ -265,6 +284,11 @@ async function applyEnabled(enabled: boolean): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // The interface language first, with this page's first storage read: the page's static copy is
+  // filled from the catalogue before anything shows (the body is hidden until then — D2), and
+  // every text rendered below is that language's. A read that fails is French: the page shows.
+  ({ language, copy } = await fillPageInLanguage(document, storageArea, (l) => POPUP_COPY[l]));
+
   // Settings view (gear icon), also reached from the main panel's level call-to-action and
   // « Modifier ». Leaving it re-reads the page's stats: a level or a calibration chosen there
   // moves the percentage.
