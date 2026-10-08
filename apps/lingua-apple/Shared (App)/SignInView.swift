@@ -64,6 +64,9 @@ struct SignInView: View {
         .frame(maxWidth: 420)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.background)
+        // The sheet's language for what SwiftUI formats and reads aloud; Apple's button keeps the
+        // label the system gives it.
+        .environment(\.locale, Locale(identifier: language.rawValue))
         // Cancelling or closing the sheet also abandons a browser attempt still in flight.
         .onDisappear { google?.cancel() }
     }

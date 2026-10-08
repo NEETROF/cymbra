@@ -92,6 +92,7 @@ final class SignInFlowTests: XCTestCase {
         XCTAssertEqual(copy.button(.google), "Continuer avec Google")
         XCTAssertEqual(copy.failure(.apple), "La connexion avec Apple n'a pas abouti. Réessaie dans un instant.")
         XCTAssertEqual(copy.failure(.google), "La connexion avec Google n'a pas abouti. Réessaie dans un instant.")
+        XCTAssertEqual(copy.unavailable(.apple), "La connexion avec Apple n'est pas encore disponible dans cette version.")
         XCTAssertEqual(copy.unavailable(.google), "La connexion avec Google n'est pas encore disponible dans cette version.")
     }
 

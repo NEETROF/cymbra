@@ -25,8 +25,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// The extension's sign-in link, `cymbra-lingua://signin?provider=…&lang=…`: the sheet in the
     /// link's language when the app offers it.
     func application(_ application: NSApplication, open urls: [URL]) {
-        guard let url = urls.first(where: { SignInLink.provider(from: $0) != nil }),
-              let provider = SignInLink.provider(from: url)
+        guard let (url, provider) = urls.lazy
+            .compactMap({ url in SignInLink.provider(from: url).map { (url, $0) } })
+            .first
         else { return }
         signInWindow?.close()
         let window = NSWindow(

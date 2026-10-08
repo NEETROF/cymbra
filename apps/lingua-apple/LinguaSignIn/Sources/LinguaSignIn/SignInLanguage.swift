@@ -68,10 +68,11 @@ public enum SignInLanguage: String, CaseIterable, Codable, Sendable {
 }
 
 /// The extension's interface language, as the extension last said it (localise-lingua-apple-host,
-/// D2): its background sends `interface.language` at start and on each change (Safari only), the
-/// native handler keeps it here — in the App Group suite the id_token hand-off uses — and the host
-/// app's activation page reads it before it loads, so a French reader on a device in English keeps a
-/// French page (M22). Nil until the extension has run once: the page then follows the device.
+/// D2): its background sends `interface.language` at start and on each change, once its key holds a
+/// language (Safari only); the native handler keeps it here — in the App Group suite the id_token
+/// hand-off uses — and the host app's activation page reads it before it loads, so a French reader
+/// on a device in English keeps a French page (M22). Nil until the extension has said one: the page
+/// then follows the device.
 public final class InterfaceLanguageStore {
     static let key = "lingua.interfaceLanguage"
 

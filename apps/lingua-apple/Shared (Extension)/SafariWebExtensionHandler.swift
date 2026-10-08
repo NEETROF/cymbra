@@ -19,8 +19,13 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             googleClientId: Bundle.main.object(forInfoDictionaryKey: "LinguaGoogleClientId") as? String,
             languages: InterfaceLanguageStore.shared()
         )
-        if reply["error"] != nil {
+        switch reply["error"] as? String {
+        case "unknownLanguage":
+            os_log(.error, "Refused an interface language the app does not speak from the extension")
+        case .some:
             os_log(.error, "Refused an unknown native message from the extension")
+        case .none:
+            break
         }
 
         let response = NSExtensionItem()

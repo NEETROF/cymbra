@@ -138,7 +138,7 @@ public struct SignInCopy: Sendable {
         lede: "Sign in to find your words and your reviews on all your devices.",
         done: "Done! Go back to Safari: Cymbra Lingua is finishing the sign-in.",
         browserWaiting:
-            "Finish signing in in your browser window. If nothing opens, cancel, quit your browser and try again.",
+            "Finish signing in, in your browser window. If nothing opens, cancel, quit your browser, and try again.",
         close: "Close",
         cancel: "Cancel",
         button: "Continue with {provider}",
