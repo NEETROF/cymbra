@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-08
+archiveAfter:
+  - add-lingua-interface-language
+  - localise-lingua-reading-surfaces
+  - localise-lingua-settings
+  - localise-lingua-review-stats
+  - localise-lingua-account-onboarding
