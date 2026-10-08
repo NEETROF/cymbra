@@ -180,7 +180,7 @@ function render(stats: PageStats | null, onReader: boolean): void {
   $("note").hidden = stats.analysable;
   // Named from the language the page is read in (add-lingua-language-choice D1).
   const studied = stats.language ?? DEFAULT_LANGUAGE;
-  $("note").textContent = book ? copy.openBookForFigures : noTextDetected(stats.languages ?? [studied]);
+  $("note").textContent = book ? copy.openBookForFigures : noTextDetected(language, stats.languages ?? [studied]);
   if (stats.analysable) {
     const pct = stats.percent ?? 0;
     $("pct").textContent = stats.percent == null ? copy.noPercent : formatPercent(language, pct, "tight");
@@ -199,11 +199,15 @@ function render(stats: PageStats | null, onReader: boolean): void {
   // « Débutant » is a decision (no level, but chosen): only a missing decision asks again.
   $("level-cta").hidden = !stats.hasLevels || !stats.needsLevel;
   $("level-indicator").hidden = !stats.hasLevels || stats.needsLevel;
-  $("level-cta").textContent = chooseLevelPrompt(studied);
+  $("level-cta").textContent = chooseLevelPrompt(language, studied);
   // « Niveau de … : B1 »: the line's message rendered around the bold level (D1).
   const level = $("level-current");
   level.textContent = stats.declaredLevel ?? copy.beginner;
-  renderAround($("level-line"), copy.levelLine(levelTitle(studied, stats.levelsEstimated ?? false), NODE_SLOT), level);
+  renderAround(
+    $("level-line"),
+    copy.levelLine(levelTitle(language, studied, stats.levelsEstimated ?? false), NODE_SLOT),
+    level,
+  );
 }
 
 let settings: SettingsView | null = null;

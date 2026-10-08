@@ -29,7 +29,8 @@ import { makeFakePort, makeFakeSpeech } from "./helpers.ts";
 // formats they write, handed the language by their host — what the settings-view, colour, display,
 // translation, account, sync and studied-languages specs assert in French, unchanged (no language
 // is French), asserted here in English and Spanish. The names of languages (the level blocks'
-// titles, the studied languages' boxes) are change 19's, and stay French until then.
+// titles, the studied languages' boxes, the voices' notes) are the labels module's in that language
+// (add-lingua-native-language-labels D2), asserted here too.
 
 const NNBSP = "\u202F";
 /** Réglages' modules in English and in Spanish: a block handed a language is handed its module too. */
@@ -397,14 +398,71 @@ describe("the sync block's copy", () => {
 });
 
 describe("the studied languages' block", () => {
-  it("An English-native reader: its notes are English", async () => {
+  it("An English-native reader: its notes are English, and so are the languages' names", async () => {
     const { port } = makeFakePort();
     port.nativeLanguage = async () => "fr";
     const block = document.createElement("div");
-    const view = mountStudiedLanguages(block, port, async () => {}, ["en-fr", "es-fr"], EN.studiedLanguages);
+    const view = mountStudiedLanguages(block, port, async () => {}, ["en-fr", "es-fr"], EN.studiedLanguages, "en");
     await view.refresh();
     expect(block.textContent).toContain("Each page is read in whichever of your languages it holds.");
     expect(block.textContent).toContain("Several languages at once: free for now.");
+    expect([...block.querySelectorAll("label span")].map((s) => s.textContent)).toEqual(["English", "Spanish"]);
+  });
+
+  it("A Spanish-native reader: the languages' names are Spanish; French when no language is given", async () => {
+    const { port } = makeFakePort();
+    port.nativeLanguage = async () => "fr";
+    const names = (block: HTMLElement): (string | null)[] =>
+      [...block.querySelectorAll("label span")].map((s) => s.textContent);
+    const spanish = document.createElement("div");
+    await mountStudiedLanguages(spanish, port, async () => {}, ["en-fr", "es-fr"], ES.studiedLanguages, "es").refresh();
+    expect(names(spanish)).toEqual(["Inglés", "Español"]);
+    const french = document.createElement("div");
+    await mountStudiedLanguages(french, port, async () => {}, ["en-fr", "es-fr"]).refresh();
+    expect(names(french)).toEqual(["Anglais", "Espagnol"]);
+  });
+});
+
+describe("the level blocks and the voices' notes name the language in the interface language", () => {
+  /** Réglages with English and Spanish studied, the Spanish levels estimated. */
+  async function mountLevels(interfaceLanguage: InterfaceLanguage | undefined) {
+    const fake = makeFakePort();
+    await fake.port.setStudiedLanguages(["en", "es"]);
+    fake.port.hasLevels = async () => true;
+    fake.port.levelsEstimated = async function (this: { language: string }) {
+      return this.language === "es";
+    };
+    const r = await mountReglages(interfaceLanguage, { pairs: ["en-fr", "es-fr"] }, fake);
+    await vi.waitFor(() => expect(r.container.querySelectorAll(".set-levels .set-block").length).toBe(2));
+    await settle();
+    const titles = [...r.container.querySelectorAll<HTMLElement>(".set-levels .set-block > .set-label")].map(
+      (l) => l.textContent,
+    );
+    return { ...r, levelTitles: titles };
+  }
+
+  it("An English-native reader: the titles, the estimated note and the CEFR", async () => {
+    const r = await mountLevels("en");
+    expect(r.levelTitles).toEqual(["English level", "Estimated Spanish level"]);
+    expect(r.block("Estimated Spanish level").querySelector(".set-estimate")?.textContent).toBe(
+      "Levels estimated from word frequency, as no freely licensed CEFR list exists for Spanish.",
+    );
+  });
+
+  it("A Spanish-native reader: the titles, the estimated note and the MCER", async () => {
+    const r = await mountLevels("es");
+    expect(r.levelTitles).toEqual(["Nivel de inglés", "Nivel de español estimado"]);
+    expect(r.block("Nivel de español estimado").querySelector(".set-estimate")?.textContent).toBe(
+      "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el español.",
+    );
+  });
+
+  it("Every reader today: the French titles and note, byte for byte", async () => {
+    const r = await mountLevels(undefined);
+    expect(r.levelTitles).toEqual(["Niveau d'anglais", "Niveau d'espagnol estimé"]);
+    expect(r.block("Niveau d'espagnol estimé").querySelector(".set-estimate")?.textContent).toBe(
+      "Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour l'espagnol.",
+    );
   });
 });
 

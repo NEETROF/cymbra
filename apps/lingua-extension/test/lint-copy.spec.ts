@@ -35,7 +35,6 @@ export const BASELINE = [
   "src/account/copy.ts",
   "src/account/flow.ts",
   "src/account/view.ts",
-  "src/analyzer/language-labels.ts",
   "src/onboarding/level-row.ts",
   "src/onboarding/onboarding.html",
 ];

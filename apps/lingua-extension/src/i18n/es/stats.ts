@@ -30,7 +30,7 @@ export const stats: typeof fr = {
   loading: "…",
   days: (n) => `${n} d`,
   agentNote: "Las sesiones de agente de IA (plugin de Claude Code) no se cuentan aquí.",
-  noLevels: "Niveles MCER no disponibles para este idioma (el paquete no tiene datos MCER).",
+  noLevels: (scale) => `Niveles ${scale} no disponibles para este idioma (el paquete no tiene datos ${scale}).`,
   cardsAdded: (level) => ({
     one: (n) => `${n} tarjeta añadida al mazo (nivel ${level}).`,
     many: (n) => `${n} tarjetas añadidas al mazo (nivel ${level}).`,

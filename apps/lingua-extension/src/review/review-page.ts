@@ -126,7 +126,7 @@ export function mountReview(
       ...languages.map((choice) => {
         const b = el("button");
         b.type = "button";
-        b.textContent = languageName(choice);
+        b.textContent = languageName(interfaceLanguage, choice);
         b.dataset.language = choice;
         if (choice === language) b.className = "active";
         b.addEventListener("click", () => void choose(choice));

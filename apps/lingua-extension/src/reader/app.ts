@@ -334,7 +334,7 @@ export class ReaderApp {
   /** A section of the library: its language's name, then its books (design D6). */
   private group(section: ShelfSection): HTMLElement {
     const group = el("section", "lib-group");
-    const title = section.language ? languageName(section.language) : this.copy.otherLanguages;
+    const title = section.language ? languageName(this.language, section.language) : this.copy.otherLanguages;
     group.append(el("h2", "lib-group-title", title), this.grid(section.books));
     return group;
   }

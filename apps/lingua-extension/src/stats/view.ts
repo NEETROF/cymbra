@@ -1,4 +1,4 @@
-import { estimatedLevelsNote, languageName } from "../analyzer/language-labels.ts";
+import { estimatedLevelsNote, languageName, levelScale } from "../analyzer/language-labels.ts";
 import { acceptedLanguages } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, CEFR_LEVELS, type SeedOrder, type StudiedLanguage } from "../analyzer/types.ts";
@@ -167,6 +167,7 @@ function languagePicker(
   current: StudiedLanguage,
   choose: (language: StudiedLanguage) => void,
   copy: StatsCopy,
+  interfaceLanguage: InterfaceLanguage,
 ): HTMLElement {
   const picker = document.createElement("div");
   picker.className = "ranges stats-languages";
@@ -176,7 +177,7 @@ function languagePicker(
     const btn = document.createElement("button");
     btn.type = "button";
     btn.dataset.language = language;
-    btn.textContent = languageName(language);
+    btn.textContent = languageName(interfaceLanguage, language);
     if (language === current) btn.className = "active";
     btn.addEventListener("click", () => {
       if (language !== current) choose(language);
@@ -214,7 +215,13 @@ export async function mountStats(
   const lang = port.for(language);
   const picker =
     languages.length > 1
-      ? languagePicker(languages, language, (next) => void mountStats(root, port, area, next, interfaceLanguage), copy)
+      ? languagePicker(
+          languages,
+          language,
+          (next) => void mountStats(root, port, area, next, interfaceLanguage),
+          copy,
+          interfaceLanguage,
+        )
       : null;
 
   const vocabSlot = document.createElement("div");
@@ -281,7 +288,7 @@ export async function mountStats(
     } else {
       const note = document.createElement("div");
       note.className = "note";
-      note.textContent = copy.noLevels;
+      note.textContent = copy.noLevels(levelScale(interfaceLanguage));
       pick(".ladder-slot").replaceChildren(note);
     }
   };
@@ -291,7 +298,9 @@ export async function mountStats(
   // listener); a seed persists, reports, and refreshes the ladder.
   if (await lang.hasLevels()) {
     const estimated = await lang.levelsEstimated();
-    pick(".seed-slot").replaceChildren(buildSeedControl(estimated ? estimatedLevelsNote(language) : null, copy));
+    pick(".seed-slot").replaceChildren(
+      buildSeedControl(estimated ? estimatedLevelsNote(interfaceLanguage, language) : null, copy),
+    );
     const declared = await lang.declaredLevel();
     if (declared) pick<HTMLSelectElement>("#seed-level").value = declared;
     pick<HTMLButtonElement>("#seed-go").addEventListener("click", async () => {

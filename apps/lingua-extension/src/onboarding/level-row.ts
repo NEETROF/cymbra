@@ -1,9 +1,12 @@
 import { estimatedLevelsNote, levelName, levelQuestion } from "../analyzer/language-labels.ts";
 import type { LanguagePort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
 
 // Onboarding's level question for one language, apart from the page's wiring so a test mounts it
-// alone (onboarding.ts starts the page when imported).
+// alone (onboarding.ts starts the page when imported). Its question, a level's « (estimé) » and the
+// estimated levels' note are the labels module's, in the interface language it is handed
+// (add-lingua-native-language-labels D2) — French when none is, as the page mounts it today.
 
 /**
  * One language's level question and chips; a chip is saved at once. Levels estimated from word
@@ -15,10 +18,11 @@ export function levelRow(
   current: CefrLevel | null,
   estimated: boolean,
   persist: () => Promise<void>,
+  interfaceLanguage: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
 ): HTMLElement {
   const row = document.createElement("div");
   const title = document.createElement("h2");
-  title.textContent = levelQuestion(language);
+  title.textContent = levelQuestion(interfaceLanguage, language);
   const chips = document.createElement("div");
   chips.className = "chips";
   const confirm = document.createElement("p");
@@ -50,7 +54,7 @@ export function levelRow(
       mark(level);
       confirm.hidden = false;
       confirm.textContent = level
-        ? `Niveau enregistré : ${levelName(level, estimated)}. Tu peux fermer cet onglet et commencer à lire.`
+        ? `Niveau enregistré : ${levelName(interfaceLanguage, level, estimated)}. Tu peux fermer cet onglet et commencer à lire.`
         : "C'est noté — on part de zéro. Tu peux fermer cet onglet et commencer à lire.";
     });
   }
@@ -58,7 +62,7 @@ export function levelRow(
   if (estimated) {
     const why = document.createElement("p");
     why.className = "note";
-    why.textContent = estimatedLevelsNote(language);
+    why.textContent = estimatedLevelsNote(interfaceLanguage, language);
     row.append(why);
   }
   row.append(confirm);

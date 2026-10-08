@@ -1,13 +1,16 @@
 import type { languages as fr } from "../fr/languages.ts";
 
-// How the interface names the studied languages, in Spanish — a draft after the French
-// (src/i18n/README.md), settled by add-lingua-language-labels (change 19). Spanish agrees in
-// gender («texto inglés», «voz inglesa») and elides nothing, but contracts.
+// How the interface names the studied languages, in Spanish — after the French
+// (src/i18n/README.md; add-lingua-native-language-labels D1, the owner reviews it, M9). Spanish
+// agrees in gender («voz inglesa») and elides nothing, but contracts («del inglés»); a text is
+// «en inglés». The Windows menu path names the language as a Spanish Windows lists it.
+
+/** The level scale's name in Spanish (D3, M19): the MCER, where French and English say CEFR. */
+const levelScale = "MCER";
 
 /**
  * « de » before a word carrying its article: « de el inglés » is « del inglés ». The module's own
- * grammar, for the one message that puts « de » before a language's `the`; change 19 settles the
- * words table.
+ * grammar, for the one message that puts « de » before a language's `the`.
  */
 function de(the: string): string {
   return the.startsWith("el ") ? `del ${the.slice(3)}` : `de ${the}`;
@@ -32,17 +35,18 @@ export const languages: typeof fr = {
     windowsVoice: "Español (España)",
     preview: "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
   },
+  levelScale,
   levelTitle: (of) => `Nivel ${of}`,
   levelTitleEstimated: (of) => `Nivel ${of} estimado`,
   myLevelTitle: (of) => `Mi nivel ${of}`,
   myLevelTitleEstimated: (of) => `Mi nivel ${of} estimado`,
   estimatedLevelsNote: (the) =>
-    `Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para ${the}.`,
+    `Niveles estimados según la frecuencia de las palabras, a falta de una lista ${levelScale} de uso libre para ${the}.`,
   borrowedTypicalNote: (from, the) => `tomado ${de(from)}, cuyos tamaños de nivel retoma ${the}.`,
   levelNameEstimated: (level) => `${level} (estimado)`,
   chooseLevelPrompt: (of) => `Elige tu nivel ${of}`,
-  noTextDetected: (masculine) => `No se ha detectado texto ${masculine} en esta página.`,
-  noTextInYourLanguages: "No se ha detectado texto en tus idiomas en esta página.",
+  noTextDetected: (masculine) => `No se detectó texto en ${masculine} en esta página.`,
+  noTextInYourLanguages: "No se detectó texto en tus idiomas en esta página.",
   noVoiceInstalled: (feminine) => `No hay ninguna voz ${feminine} instalada en este dispositivo. `,
   levelQuestion: (of) => `¿Cuál es tu nivel ${of}?`,
 };

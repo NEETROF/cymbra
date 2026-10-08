@@ -3,6 +3,7 @@ import { DEFAULT_NATIVE, pairsOf, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
 import { studiedLanguages as frStudiedLanguages } from "../i18n/fr/studied-languages.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
 import type { StudiedLanguagesCopy } from "./settings-copy.ts";
 
 // « Langues étudiées » (add-lingua-language-choice D2): a box per language the package ships, ticked
@@ -14,7 +15,8 @@ import type { StudiedLanguagesCopy } from "./settings-copy.ts";
 // (generalise-lingua-native-language D7): French until the port says otherwise, so a reader of
 // French sees the boxes from the start, as before. Its two notes are the catalogue's
 // `studied-languages` module, handed by the settings view in the interface language
-// (localise-lingua-settings); the onboarding page mounts it without one, in French.
+// (localise-lingua-settings), which also names the languages (add-lingua-native-language-labels D2);
+// the onboarding page mounts it without one, in French.
 
 export interface StudiedLanguagesView {
   /** Show the stored choice (it may have changed in another context). */
@@ -28,7 +30,8 @@ export function shippedLanguages(pairs: readonly string[] = SHIPPED_PAIRS): Stud
 
 /**
  * Render the boxes into `block`, a settings block; `persist` saves the backup after a change; `copy`
- * is the block's module in the interface language, the French one when not given.
+ * is the block's module in the interface language and `language` that language, which names the
+ * boxes — the French one when not given.
  */
 export function mountStudiedLanguages(
   block: HTMLElement,
@@ -36,6 +39,7 @@ export function mountStudiedLanguages(
   persist: () => Promise<void>,
   pairs: readonly string[] = SHIPPED_PAIRS,
   copy: StudiedLanguagesCopy = frStudiedLanguages,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
 ): StudiedLanguagesView {
   const doc = block.ownerDocument;
   const row = doc.createElement("div");
@@ -50,17 +54,17 @@ export function mountStudiedLanguages(
     shownFor = native;
     offered = shippedLanguages(pairsOf(native, pairs));
     block.hidden = offered.length < 2;
-    const labels = offered.map((language) => {
+    const labels = offered.map((studied) => {
       const label = doc.createElement("label");
       label.className = "set-toggle";
       const box = doc.createElement("input");
       box.type = "checkbox";
-      box.dataset.language = language;
+      box.dataset.language = studied;
       const name = doc.createElement("span");
-      name.textContent = languageName(language);
+      name.textContent = languageName(language, studied);
       label.append(box, name);
-      box.addEventListener("change", () => void choose(language, box.checked));
-      return { language, box, label };
+      box.addEventListener("change", () => void choose(studied, box.checked));
+      return { language: studied, box, label };
     });
     boxes = labels.map(({ language, box }) => ({ language, box }));
     row.replaceChildren(...labels.map(({ label }) => label));

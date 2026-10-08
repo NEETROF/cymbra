@@ -478,7 +478,7 @@ const SAME_EVERYWHERE = new Set([
 
 /** Texts a language happens to share with the French, and no other. */
 const SAME_AS_FRENCH: Record<"en" | "es", Set<string>> = {
-  en: new Set(["Email", "Option", "Double", "+ Deck"]),
+  en: new Set(["Email", "Option", "Double", "+ Deck", "CEFR"]),
   es: new Set(),
 };
 

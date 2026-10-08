@@ -17,7 +17,8 @@ import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
 // The CEFR progression ladder's markup, shared by every stats host through mountStats.
 // Pure (rows in, DOM out), so it is unit-tested without the engine — jsdom (already the
 // project's test environment) stands in for the real DOM. Its words are the catalogue's `stats`
-// module in the interface language (localise-lingua-review-stats D1).
+// module in the interface language (localise-lingua-review-stats D1), and the languages it names are
+// the labels module's in that language (add-lingua-native-language-labels D2).
 
 /** The statistics' copy: the catalogue's `stats` module, in the interface language (its French the default). */
 export type StatsCopy = typeof frStats;
@@ -127,7 +128,7 @@ export function ladderView(
   estimated = false,
   opts: StatsCopyOptions = {},
 ): HTMLElement {
-  const { copy, fmt } = speaking(opts);
+  const { copy, language: interfaceLanguage, fmt } = speaking(opts);
   const pos = estimatedPosition(rows);
   const cumulative = cumulativeTotals(rows);
 
@@ -138,7 +139,7 @@ export function ladderView(
   head.className = "ladder-head";
   const headLabel = document.createElement("span");
   headLabel.className = "mlabel";
-  headLabel.textContent = myLevelTitle(language, estimated);
+  headLabel.textContent = myLevelTitle(interfaceLanguage, language, estimated);
   head.append(headLabel);
   if (pos) {
     const posSpan = document.createElement("span");
@@ -152,7 +153,7 @@ export function ladderView(
   if (estimated) {
     const why = document.createElement("div");
     why.className = "note ladder-estimate";
-    why.textContent = estimatedLevelsNote(language);
+    why.textContent = estimatedLevelsNote(interfaceLanguage, language);
     ladder.append(why);
   }
 
@@ -230,7 +231,7 @@ export function ladderView(
     (estimated ? copy.scopeCommon : copy.scopeTaught) +
     copy.scopeTypical(
       // A pack whose levels are estimated has no lists to extrapolate: it shows English's figures.
-      rows[0]?.typicalFrom ? borrowedTypicalNote(language, rows[0].typicalFrom) : copy.extrapolated,
+      rows[0]?.typicalFrom ? borrowedTypicalNote(interfaceLanguage, language, rows[0].typicalFrom) : copy.extrapolated,
     );
   ladder.append(scope);
 

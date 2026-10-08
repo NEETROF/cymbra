@@ -1,111 +1,104 @@
+import { languages as en } from "../i18n/en/languages.ts";
+import { languages as es } from "../i18n/es/languages.ts";
+import { languages as fr, type LanguageWords } from "../i18n/fr/languages.ts";
+import type { InterfaceLanguage } from "../i18n/index.ts";
 import type { StudiedLanguage } from "./types.ts";
 
-// How the interface names a studied language, in French (add-lingua-language-choice D1): the one
-// place a language's name is written. test/lint-language-labels.spec.ts refuses it anywhere else,
-// so a surface always names the language it speaks of.
+// How the interface names a studied language, in the interface language (add-lingua-language-choice
+// D1, add-lingua-native-language-labels D2): the module every surface calls, which holds no name of
+// its own — each is the catalogue's `languages` module for the interface language
+// (src/i18n/<language>/languages.ts), in that language's grammar. The surfaces pass the language
+// they read with their preferences, first; test/lint-language-labels.spec.ts refuses a language's
+// name anywhere but the catalogue's modules, so a surface always names the language it speaks of,
+// in the language it speaks.
 
-interface LanguageWords {
-  /** On its own, in a list: « Anglais ». */
-  readonly name: string;
-  /** After « niveau »: « d'anglais ». */
-  readonly of: string;
-  /** With its article: « l'anglais ». */
-  readonly the: string;
-  /** After a masculine noun: « texte anglais ». */
-  readonly masculine: string;
-  /** After a feminine noun: « voix anglaise ». */
-  readonly feminine: string;
-  /** The language with the region its voices default to, as Windows lists it (D5 of the programme for Spanish). */
-  readonly windowsVoice: string;
-  /** What a voice preview reads, in the language itself. */
-  readonly preview: string;
+/** The catalogue's `languages` module by interface language: the one place that holds all three. */
+const MODULES: Record<InterfaceLanguage, typeof fr> = { fr, en, es };
+
+/** The words of a studied language, in the interface language. */
+function words(language: InterfaceLanguage, studied: StudiedLanguage): LanguageWords {
+  const module = MODULES[language];
+  return studied === "en" ? module.english : module.spanish;
 }
 
-const WORDS: Record<StudiedLanguage, LanguageWords> = {
-  en: {
-    name: "Anglais",
-    of: "d'anglais",
-    the: "l'anglais",
-    masculine: "anglais",
-    feminine: "anglaise",
-    windowsVoice: "Anglais (États-Unis)",
-    preview: "This is how your pages will sound when Lingua reads them aloud.",
-  },
-  es: {
-    name: "Espagnol",
-    of: "d'espagnol",
-    the: "l'espagnol",
-    masculine: "espagnol",
-    feminine: "espagnole",
-    windowsVoice: "Espagnol (Espagne)",
-    preview: "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
-  },
-};
+/** « Anglais » — "English", « Inglés ». */
+export function languageName(language: InterfaceLanguage, studied: StudiedLanguage): string {
+  return words(language, studied).name;
+}
 
-/** « Anglais ». */
-export function languageName(language: StudiedLanguage): string {
-  return WORDS[language].name;
+/** The level scale's name: « CEFR » in French and English, « MCER » in Spanish (D3, M19). */
+export function levelScale(language: InterfaceLanguage): string {
+  return MODULES[language].levelScale;
 }
 
 /**
  * « Niveau d'anglais » — « Niveau d'espagnol estimé » when the pack's levels are estimated from word
  * frequency (add-lingua-spanish-levels).
  */
-export function levelTitle(language: StudiedLanguage, estimated = false): string {
-  return `Niveau ${WORDS[language].of}${estimated ? " estimé" : ""}`;
+export function levelTitle(language: InterfaceLanguage, studied: StudiedLanguage, estimated = false): string {
+  const module = MODULES[language];
+  const { of } = words(language, studied);
+  return estimated ? module.levelTitleEstimated(of) : module.levelTitle(of);
 }
 
 /** « Mon niveau d'anglais » — « Mon niveau d'espagnol estimé » when the levels are estimated. */
-export function myLevelTitle(language: StudiedLanguage, estimated = false): string {
-  return `Mon niveau ${WORDS[language].of}${estimated ? " estimé" : ""}`;
+export function myLevelTitle(language: InterfaceLanguage, studied: StudiedLanguage, estimated = false): string {
+  const module = MODULES[language];
+  const { of } = words(language, studied);
+  return estimated ? module.myLevelTitleEstimated(of) : module.myLevelTitle(of);
 }
 
-/** Why a language's levels read « estimé »: no CEFR list can be shipped for it. */
-export function estimatedLevelsNote(language: StudiedLanguage): string {
-  return `Niveaux estimés d'après la fréquence des mots, faute de liste CEFR libre de droits pour ${WORDS[language].the}.`;
+/** Why a language's levels read « estimé »: no list of the scale can be shipped for it. */
+export function estimatedLevelsNote(language: InterfaceLanguage, studied: StudiedLanguage): string {
+  return MODULES[language].estimatedLevelsNote(words(language, studied).the);
 }
 
 /**
  * Where a ladder's « estimés » come from when another language's pack gave them: « repris de
  * l'anglais, dont l'espagnol reprend les tailles de niveaux. » (fix-lingua-spanish-ladder-estimates).
  */
-export function borrowedTypicalNote(language: StudiedLanguage, from: StudiedLanguage): string {
-  return `repris de ${WORDS[from].the}, dont ${WORDS[language].the} reprend les tailles de niveaux.`;
+export function borrowedTypicalNote(
+  language: InterfaceLanguage,
+  studied: StudiedLanguage,
+  from: StudiedLanguage,
+): string {
+  return MODULES[language].borrowedTypicalNote(words(language, from).the, words(language, studied).the);
 }
 
 /** A level as a surface names it: « B1 », or « B1 (estimé) » when the levels are estimated. */
-export function levelName(level: string, estimated: boolean): string {
-  return estimated ? `${level} (estimé)` : level;
+export function levelName(language: InterfaceLanguage, level: string, estimated: boolean): string {
+  return estimated ? MODULES[language].levelNameEstimated(level) : level;
 }
 
 /** « Choisis ton niveau d'anglais ». */
-export function chooseLevelPrompt(language: StudiedLanguage): string {
-  return `Choisis ton niveau ${WORDS[language].of}`;
+export function chooseLevelPrompt(language: InterfaceLanguage, studied: StudiedLanguage): string {
+  return MODULES[language].chooseLevelPrompt(words(language, studied).of);
 }
 
 /** « Pas de texte anglais détecté sur cette page. » — or neutral for a reader of several languages. */
-export function noTextDetected(languages: readonly StudiedLanguage[]): string {
-  return languages.length === 1
-    ? `Pas de texte ${WORDS[languages[0]].masculine} détecté sur cette page.`
-    : "Pas de texte dans tes langues détecté sur cette page.";
+export function noTextDetected(language: InterfaceLanguage, studied: readonly StudiedLanguage[]): string {
+  const module = MODULES[language];
+  return studied.length === 1
+    ? module.noTextDetected(words(language, studied[0]).masculine)
+    : module.noTextInYourLanguages;
 }
 
 /** « Aucune voix anglaise n'est installée sur cet appareil. » */
-export function noVoiceInstalled(language: StudiedLanguage): string {
-  return `Aucune voix ${WORDS[language].feminine} n'est installée sur cet appareil. `;
+export function noVoiceInstalled(language: InterfaceLanguage, studied: StudiedLanguage): string {
+  return MODULES[language].noVoiceInstalled(words(language, studied).feminine);
 }
 
-/** The Windows language to add for a voice on the device: « Anglais (États-Unis) ». */
-export function windowsVoiceLanguage(language: StudiedLanguage): string {
-  return WORDS[language].windowsVoice;
+/** The Windows language to add for a voice on the device: « Anglais (États-Unis) », in the interface language. */
+export function windowsVoiceLanguage(language: InterfaceLanguage, studied: StudiedLanguage): string {
+  return words(language, studied).windowsVoice;
 }
 
-/** A sentence in the language, for a voice preview. */
-export function previewSentence(language: StudiedLanguage): string {
-  return WORDS[language].preview;
+/** A sentence in the studied language, for a voice preview — the same whatever the interface language. */
+export function previewSentence(language: InterfaceLanguage, studied: StudiedLanguage): string {
+  return words(language, studied).preview;
 }
 
 /** « Quel est ton niveau d'anglais ? » */
-export function levelQuestion(language: StudiedLanguage): string {
-  return `Quel est ton niveau ${WORDS[language].of} ?`;
+export function levelQuestion(language: InterfaceLanguage, studied: StudiedLanguage): string {
+  return MODULES[language].levelQuestion(words(language, studied).of);
 }
