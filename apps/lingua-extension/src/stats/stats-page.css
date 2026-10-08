@@ -1,0 +1,16 @@
+/* The standalone statistics tab's own sheet — linked by stats.html alone, never by the side panel
+   nor pulled into the in-page surfaces' CSS (reading/surface-css.ts), which take stats.css.
+
+   Nothing shows before the catalogue fills the tab's copy (page.ts removes the mark). Should the
+   script never get there — it failed before the fill — the page shows anyway after a moment,
+   unfilled rather than blank for good (localise-lingua-reading-surfaces D2). */
+html[data-copy-pending] body {
+  visibility: hidden;
+  animation: lingua-copy-reveal 0s 1.5s forwards;
+}
+
+@keyframes lingua-copy-reveal {
+  to {
+    visibility: visible;
+  }
+}

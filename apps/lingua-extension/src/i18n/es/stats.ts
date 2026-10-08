@@ -61,8 +61,14 @@ export const stats: typeof fr = {
   markedKnownWords: (dictionary) => `Las palabras que has marcado como conocidas, ${dictionary}.`,
   fromDeclaredLevel: "tu nivel declarado",
   fromCommonWordsSetting: "tu ajuste de las palabras más corrientes",
-  confirmedCount: (n) => ` (${n} de ellas confirmadas)`,
-  approxWords: (n) => `≈\u00A0${n} palabras`,
+  confirmedCount: {
+    one: (n) => ` (${n} de ellas confirmada)`,
+    other: (n) => ` (${n} de ellas confirmadas)`,
+  },
+  approxWords: {
+    one: (n) => `≈\u00A0${n} palabra`,
+    other: (n) => `≈\u00A0${n} palabras`,
+  },
   estimateNote: (source, dictionary, confirmed) =>
     `Según ${source} y tus palabras marcadas, extrapolado tramo de frecuencia por tramo, ${dictionary}${confirmed}.`,
   estimatedLevel: (level) => `nivel estimado ${level}`,

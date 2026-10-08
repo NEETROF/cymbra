@@ -13,7 +13,7 @@ The review — its surfaces, grades, counts and messages — and the statistics 
 
 #### Scenario: A Spanish-native reader's statistics
 - **WHEN** the interface language is Spanish and the reader opens the statistics
-- **THEN** the counters and the ladder's notes are the Spanish catalogue's, the ladder's numbers grouped as the RAE writes them
+- **THEN** the counters and the ladder's notes are the Spanish catalogue's, the ladder's numbers grouped as the RAE writes them; the ladder's title, the language names and the clause naming borrowed figures stay the labels module's French, which change 19 (`add-lingua-native-language-labels`) localises
 
 #### Scenario: Off the baseline
 - **WHEN** the lint runs after this change

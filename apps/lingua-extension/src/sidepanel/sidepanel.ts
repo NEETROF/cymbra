@@ -1,31 +1,20 @@
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { DEFAULT_LANGUAGE, readingLanguage } from "../analyzer/pairs.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
-import { sidepanel as enSidepanel } from "../i18n/en/sidepanel.ts";
-import { sidepanel as esSidepanel } from "../i18n/es/sidepanel.ts";
-import { sidepanel as frSidepanel } from "../i18n/fr/sidepanel.ts";
-import { DEFAULT_INTERFACE_LANGUAGE, fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
-import { mountReview, type ReviewPage } from "../review/review-page.ts";
+import type { ReviewPage } from "../review/review-page.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup, storedVoicePreference } from "../state/storage.ts";
 import { messagedArea, watchBackup } from "../state/store.ts";
-import { mountStats } from "../stats/view.ts";
 import { requestSync } from "../sync/messages.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
+import { start } from "./panel.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
 
 /** Transient key the popup / HUD set to open the panel straight on a view. */
 const PANEL_VIEW_KEY = "cymbra-lingua-panel-view";
-
-/** The page's static copy by interface language (localise-lingua-reading-surfaces D2). */
-const SIDEPANEL_COPY: Record<InterfaceLanguage, typeof frSidepanel> = {
-  fr: frSidepanel,
-  en: enSidepanel,
-  es: esSidepanel,
-};
 
 // Side-panel controller (a surface the extension owns). The page is pushed by the browser
 // and survives navigation. It hydrates its own engine from the shared backup and renders
@@ -97,8 +86,8 @@ type PanelView = "review" | "stats" | "settings";
 let review: ReviewPage | null = null;
 let settings: SettingsView | null = null;
 let current: PanelView = "review";
-/** The interface language, read first; Réglages speak it (localise-lingua-settings D1). */
-let interfaceLang: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
+/** The page's copy and Révision and Statistiques, in the interface language (panel.ts). */
+const panel = start(document, { prefs: area, store, port, now, pageLanguage });
 
 /** Switch views; each is (re)mounted/refreshed on show so it reflects the current state. */
 async function showView(view: PanelView): Promise<void> {
@@ -110,16 +99,18 @@ async function showView(view: PanelView): Promise<void> {
     b.classList.toggle("active", b.dataset.view === view);
   }
   if (view === "review") {
-    review ??= mountReview($("view-review"), port, store, { now, prefs: area, pageLanguage });
+    review = await panel.review($("view-review"));
     await review.refresh();
   } else if (view === "stats") {
-    await mountStats($("view-stats"), port, store);
+    await panel.stats($("view-stats"));
   } else {
+    // Réglages, too, waits for the language the page read: asked for first, it is never French.
+    const interfaceLanguage = await panel.interfaceLanguage;
     settings ??= mountSettings($("view-settings"), port, area, {
       persist,
       store,
       speaker,
-      interfaceLanguage: interfaceLang,
+      interfaceLanguage,
     });
     await settings.refresh();
   }
@@ -128,8 +119,8 @@ async function showView(view: PanelView): Promise<void> {
 async function main(): Promise<void> {
   // The interface language first, with this page's first storage read: the page's static copy is
   // filled from the catalogue before anything shows (the body is hidden until then — D2). A read
-  // that fails is French: the page shows. Réglages is mounted in the same language.
-  interfaceLang = (await fillPageInLanguage(document, area, (l) => SIDEPANEL_COPY[l])).language;
+  // that fails is French: the page shows.
+  await panel.interfaceLanguage;
 
   await hydrateEngine(port, store);
   language = await readingLanguage(port);

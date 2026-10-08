@@ -1,14 +1,55 @@
 import { borrowedTypicalNote, estimatedLevelsNote, myLevelTitle } from "../analyzer/language-labels.ts";
 import { DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { CefrLevel, LevelRow, StudiedLanguage, VocabularyEstimate } from "../analyzer/types.ts";
+import { stats as enStats } from "../i18n/en/stats.ts";
+import { stats as esStats } from "../i18n/es/stats.ts";
+import { stats as frStats } from "../i18n/fr/stats.ts";
+import {
+  DEFAULT_INTERFACE_LANGUAGE,
+  formatNumber,
+  type InterfaceLanguage,
+  NODE_SLOT,
+  plural,
+  renderAround,
+} from "../i18n/index.ts";
 import { cumulativeTotals, estimatedPosition, roughCount } from "./model.ts";
 
 // The CEFR progression ladder's markup, shared by every stats host through mountStats.
 // Pure (rows in, DOM out), so it is unit-tested without the engine — jsdom (already the
-// project's test environment) stands in for the real DOM.
+// project's test environment) stands in for the real DOM. Its words are the catalogue's `stats`
+// module in the interface language (localise-lingua-review-stats D1).
 
-/** A count in French notation (thin space between thousands). */
-const fmt = (n: number): string => n.toLocaleString("fr-FR");
+/** The statistics' copy: the catalogue's `stats` module, in the interface language (its French the default). */
+export type StatsCopy = typeof frStats;
+
+/** The statistics' copy by interface language: the one place that holds all three. */
+const STATS_COPY: Record<InterfaceLanguage, StatsCopy> = { fr: frStats, en: enStats, es: esStats };
+
+/** The statistics' module for the interface language — the ladder's, the view's, and the standalone tab's page. */
+export function statsCopy(language: InterfaceLanguage): StatsCopy {
+  return STATS_COPY[language];
+}
+
+/** What the ladder's functions speak: the interface language, whose module and figures they take —
+ *  the copy derived from it, so the two cannot disagree. */
+export interface StatsCopyOptions {
+  /** The interface language; French when not given. */
+  interfaceLanguage?: InterfaceLanguage;
+}
+
+/**
+ * The copy, the language, and a figure as the language writes it (D2): French through
+ * `toLocaleString("fr-FR")` as before — « 12 345 », a narrow no-break space between the groups —
+ * English "12,345", Spanish as the RAE writes it (`formatNumber`).
+ */
+function speaking(opts: StatsCopyOptions): {
+  copy: StatsCopy;
+  language: InterfaceLanguage;
+  fmt: (n: number) => string;
+} {
+  const language = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
+  return { copy: STATS_COPY[language], language, fmt: (n) => formatNumber(language, n) };
+}
 
 /**
  * The estimated vocabulary size, worded for what it rests on. Extrapolated from a
@@ -16,8 +57,13 @@ const fmt = (n: number): string => n.toLocaleString("fr-FR");
  * the words confirmed; resting only on marked words, it is their exact count. `null` when
  * the pack has no dictionary words to estimate over.
  */
-export function vocabularyView(est: VocabularyEstimate, hasLevels: boolean): HTMLElement | null {
+export function vocabularyView(
+  est: VocabularyEstimate,
+  hasLevels: boolean,
+  opts: StatsCopyOptions = {},
+): HTMLElement | null {
   if (est.universe === 0) return null;
+  const { copy, language, fmt } = speaking(opts);
   const exact = est.basis === "marked";
 
   const wrap = document.createElement("div");
@@ -27,14 +73,14 @@ export function vocabularyView(est: VocabularyEstimate, hasLevels: boolean): HTM
   wrap.append(head);
   const label = document.createElement("span");
   label.className = "mlabel";
-  label.textContent = exact ? "Vocabulaire connu" : "Vocabulaire estimé";
+  label.textContent = exact ? copy.vocabularyKnown : copy.vocabularyEstimated;
   head.append(label);
 
   if (est.estimated === 0) {
     const hint =
       est.basis === "level"
-        ? "Ton niveau ne présume encore aucun mot\u00A0: marque ceux que tu connais pour lancer l'estimation."
-        : `Pas encore d'estimation\u00A0: ${hasLevels ? "déclare ton niveau" : "règle les mots courants que tu connais"} dans les réglages, ou marque des mots que tu connais.`;
+        ? copy.noEstimateFromLevel
+        : copy.noEstimateYet(hasLevels ? copy.declareYourLevel : copy.setCommonWords);
     const note = document.createElement("div");
     note.className = "note";
     note.textContent = hint;
@@ -42,7 +88,7 @@ export function vocabularyView(est: VocabularyEstimate, hasLevels: boolean): HTM
     return wrap;
   }
 
-  const dictionary = `sur les ${fmt(est.universe)} mots du dictionnaire`;
+  const dictionary = copy.ofDictionary(fmt(est.universe));
   const n = document.createElement("b");
   n.className = "vocab-n";
   head.append(n);
@@ -51,18 +97,16 @@ export function vocabularyView(est: VocabularyEstimate, hasLevels: boolean): HTM
   wrap.append(note);
 
   if (exact) {
-    n.textContent = `${fmt(est.estimated)} mots`;
-    note.textContent = `Les mots que tu as marqués connus, ${dictionary}.`;
+    n.textContent = plural(language, est.estimated, copy.words, fmt(est.estimated));
+    note.textContent = copy.markedKnownWords(dictionary);
     return wrap;
   }
 
-  const source = est.basis === "level" ? "ton niveau déclaré" : "ton réglage des mots les plus courants";
-  const confirmed = est.confirmed ? ` (dont ${fmt(est.confirmed)} confirmés)` : "";
+  const source = est.basis === "level" ? copy.fromDeclaredLevel : copy.fromCommonWordsSetting;
+  const confirmed = est.confirmed ? plural(language, est.confirmed, copy.confirmedCount, fmt(est.confirmed)) : "";
   const figure = Math.max(roughCount(est.estimated), est.confirmed);
-  n.textContent = `≈\u00A0${fmt(figure)} mots`;
-  note.textContent =
-    `D'après ${source} et tes mots marqués, extrapolé tranche de fréquence par tranche, ` +
-    `${dictionary}${confirmed}.`;
+  n.textContent = plural(language, figure, copy.approxWords, fmt(figure));
+  note.textContent = copy.estimateNote(source, dictionary, confirmed);
   return wrap;
 }
 
@@ -81,7 +125,9 @@ export function ladderView(
   declared: CefrLevel | null,
   language: StudiedLanguage = DEFAULT_LANGUAGE,
   estimated = false,
+  opts: StatsCopyOptions = {},
 ): HTMLElement {
+  const { copy, fmt } = speaking(opts);
   const pos = estimatedPosition(rows);
   const cumulative = cumulativeTotals(rows);
 
@@ -97,10 +143,9 @@ export function ladderView(
   if (pos) {
     const posSpan = document.createElement("span");
     posSpan.className = "ladder-pos";
-    posSpan.append("niveau estimé ");
     const b = document.createElement("b");
     b.textContent = pos;
-    posSpan.append(b);
+    renderAround(posSpan, copy.estimatedLevel(NODE_SLOT), b);
     head.append(posSpan);
   }
   ladder.append(head);
@@ -119,13 +164,13 @@ export function ladderView(
   colsSpacer.className = "ladder-spacer";
   const colsFrac = document.createElement("span");
   colsFrac.className = "ladder-frac";
-  colsFrac.textContent = "ce niveau";
+  colsFrac.textContent = copy.thisLevel;
   const colsCum = document.createElement("span");
   colsCum.className = "ladder-cum";
-  colsCum.textContent = estimated ? "courants" : "enseignés";
+  colsCum.textContent = estimated ? copy.common : copy.taught;
   const colsEst = document.createElement("span");
   colsEst.className = "ladder-est";
-  colsEst.textContent = "estimés";
+  colsEst.textContent = copy.typical;
   cols.append(colsLvl, colsSpacer, colsFrac, colsCum, colsEst);
   ladder.append(cols);
 
@@ -155,7 +200,7 @@ export function ladderView(
 
     const frac = document.createElement("span");
     frac.className = "ladder-frac";
-    frac.textContent = `${fmt(known)} / ${fmt(r.total)}`;
+    frac.textContent = copy.fraction(fmt(known), fmt(r.total));
     row.append(frac);
 
     const cum = document.createElement("span");
@@ -165,7 +210,7 @@ export function ladderView(
 
     const est = document.createElement("span");
     est.className = "ladder-est";
-    est.textContent = r.typicalVocabulary ? `≈\u00A0${fmt(roughCount(r.typicalVocabulary))}` : "–";
+    est.textContent = r.typicalVocabulary ? copy.approx(fmt(roughCount(r.typicalVocabulary))) : copy.noFigure;
     row.append(est);
 
     ladder.append(row);
@@ -173,23 +218,20 @@ export function ladderView(
 
   const legend = document.createElement("div");
   legend.className = "note ladder-legend";
-  legend.textContent = "Confirmés (lus / appris), présumés (sous ton niveau), à apprendre.";
+  legend.textContent = copy.legend;
   ladder.append(legend);
 
   // French punctuation keeps its spaces unbreakable (narrow no-break space, U+202F, and
   // regular no-break space, U+00A0), so « enseignés » never wraps away from its guillemets
-  // in the narrow drawer.
+  // in the narrow drawer: the French module writes them as this module did (D3).
   const scope = document.createElement("div");
   scope.className = "note ladder-scope";
   scope.textContent =
-    (estimated
-      ? "«\u202Fcourants\u202F»\u00A0: les mots les plus fréquents jusqu'à ce niveau. "
-      : "«\u202Fenseignés\u202F»\u00A0: les mots de base introduits jusqu'à ce niveau par les listes d'enseignement. ") +
-    "«\u202Festimés\u202F»\u00A0: le vocabulaire qu'a en général un lecteur de ce niveau, " +
-    // A pack whose levels are estimated has no lists to extrapolate: it shows English's figures.
-    (rows[0]?.typicalFrom
-      ? borrowedTypicalNote(language, rows[0].typicalFrom)
-      : "extrapolé des mots des niveaux inférieurs sur tout le dictionnaire.");
+    (estimated ? copy.scopeCommon : copy.scopeTaught) +
+    copy.scopeTypical(
+      // A pack whose levels are estimated has no lists to extrapolate: it shows English's figures.
+      rows[0]?.typicalFrom ? borrowedTypicalNote(language, rows[0].typicalFrom) : copy.extrapolated,
+    );
   ladder.append(scope);
 
   return ladder;

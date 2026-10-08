@@ -246,6 +246,7 @@ const staticCopies = [
   ["src/sidepanel/sidepanel.css", "sidepanel.css"],
   ["src/stats/stats.html", "stats.html"],
   ["src/stats/stats.css", "stats.css"],
+  ["src/stats/stats-page.css", "stats-page.css"],
   ["src/onboarding/onboarding.html", "onboarding.html"],
   ["src/onboarding/onboarding.css", "onboarding.css"],
   ["src/account/account.html", "account.html"],

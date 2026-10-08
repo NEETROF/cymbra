@@ -2,11 +2,20 @@ import { acceptedLanguages, readingLanguage } from "../analyzer/pairs.ts";
 import { languageName } from "../analyzer/language-labels.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
+import {
+  DEFAULT_INTERFACE_LANGUAGE,
+  formatCount,
+  type InterfaceLanguage,
+  NODE_SLOT,
+  plural,
+  type PluralForms,
+  renderAround,
+} from "../i18n/index.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import { type AsyncStorageArea, loadReviewLanguage, saveBackup, saveReviewLanguage } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
 import { ReviewController } from "./session.ts";
-import { type ReviewActions, renderReview } from "./view.ts";
+import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
 
 // The full Révision page — summary + the FSRS review widget + lossless backup/restore +
 // the pack's Sources & confidentialité — built as plain DOM into a container so ONE
@@ -22,6 +31,9 @@ export interface ReviewPageOptions {
   prefs: AsyncStorageArea;
   /** The language of the page or book the review is shown beside, or null away from one (D2). */
   pageLanguage?: () => Promise<string | null>;
+  /** The interface language its host read, whose catalogue module the page speaks
+   *  (localise-lingua-review-stats D1); French when not given. */
+  interfaceLanguage?: InterfaceLanguage;
 }
 
 export interface ReviewPage {
@@ -50,6 +62,8 @@ export function mountReview(
   opts: ReviewPageOptions,
 ): ReviewPage {
   container.replaceChildren();
+  const interfaceLanguage = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
+  const copy = reviewCopy(interfaceLanguage);
   // Every grade and mark-known is counted under the engine's native language (add-lingua-native-language-sync-client D3).
   const recorder = dailyRecorder(area, port);
   let controller = new ReviewController(port, opts.now, recorder);
@@ -61,7 +75,7 @@ export function mountReview(
   // one language at a time, never several mixed (refine-lingua-review-language D1).
   const filterRow = el("div", "review-languages");
   filterRow.setAttribute("role", "group");
-  filterRow.setAttribute("aria-label", "Langue");
+  filterRow.setAttribute("aria-label", copy.language);
   filterRow.hidden = true;
   let languages: StudiedLanguage[] = [];
   /** The language the review is in: one of `languages` once they are read. */
@@ -72,15 +86,21 @@ export function mountReview(
   const accepted = (candidate: string | null | undefined): StudiedLanguage | null =>
     languages.find((l) => l === candidate) ?? null;
   const render = (view: ReturnType<ReviewController["view"]>): void =>
-    renderReview(review, view, actions, { showLanguage: languages.length > 1 });
+    renderReview(review, view, actions, { showLanguage: languages.length > 1, interfaceLanguage });
+  /** A count of the summary — « 12 carte(s) » — its figure in bold where its message puts it. */
+  const counted = (n: number, forms: PluralForms): Node[] => {
+    const holder = el("span");
+    renderAround(holder, plural(interfaceLanguage, n, forms, NODE_SLOT), bold(formatCount(interfaceLanguage, n)));
+    return [...holder.childNodes];
+  };
 
   const tools = el("div", "tools");
   const backupBtn = el("button");
   backupBtn.type = "button";
-  backupBtn.textContent = "Sauvegarder";
+  backupBtn.textContent = copy.backup;
   const restoreBtn = el("button");
   restoreBtn.type = "button";
-  restoreBtn.textContent = "Restaurer";
+  restoreBtn.textContent = copy.restore;
   const fileInput = el("input");
   fileInput.type = "file";
   fileInput.accept = "application/json";
@@ -90,9 +110,9 @@ export function mountReview(
 
   const details = el("details");
   const detailsSummary = el("summary");
-  detailsSummary.textContent = "Sources & confidentialité";
+  detailsSummary.textContent = copy.sourcesAndPrivacy;
   const privacy = el("div", "privacy");
-  privacy.textContent = "Rien ne quitte votre appareil : l'analyse et les traductions sont locales.";
+  privacy.textContent = copy.privacy;
   const licences = el("div");
   const notice = el("pre", "notice");
   details.append(detailsSummary, privacy, licences, notice);
@@ -165,12 +185,7 @@ export function mountReview(
 
   async function refreshSummary(): Promise<void> {
     const [deck, due] = [await port.deckCount(only()), await port.dueCount(opts.now(), only())];
-    summary.replaceChildren(
-      bold(String(deck)),
-      document.createTextNode(" carte(s) · "),
-      bold(String(due)),
-      document.createTextNode(" à revoir"),
-    );
+    summary.replaceChildren(...counted(deck, copy.deckCards), copy.summarySeparator, ...counted(due, copy.dueCards));
   }
 
   async function run(produce: () => Promise<ReturnType<ReviewController["view"]>>, changed: boolean): Promise<void> {
@@ -206,9 +221,9 @@ export function mountReview(
       await readLanguages(); // the file's profile may hold other languages
       await refreshSummary();
       render(controller.view());
-      msg.textContent = "Sauvegarde restaurée.";
+      msg.textContent = copy.restored;
     } catch {
-      msg.textContent = "Fichier de sauvegarde non reconnu.";
+      msg.textContent = copy.notABackup;
     }
   }
 
@@ -224,7 +239,7 @@ export function mountReview(
   async function loadAttributions(): Promise<void> {
     const lang = port.for(await readingLanguage(port));
     const names = await lang.licences();
-    licences.textContent = names.length ? `Sources : ${names.join(" · ")}` : "";
+    licences.textContent = names.length ? copy.sources(names.join(copy.sourceSeparator)) : "";
     notice.textContent = await lang.notice();
   }
 

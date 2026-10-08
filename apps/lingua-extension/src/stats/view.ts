@@ -2,10 +2,11 @@ import { estimatedLevelsNote, languageName } from "../analyzer/language-labels.t
 import { acceptedLanguages } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { type CefrLevel, CEFR_LEVELS, type SeedOrder, type StudiedLanguage } from "../analyzer/types.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, formatCount, type InterfaceLanguage, plural } from "../i18n/index.ts";
 import { countsOf, loadDailyStats, utcDay } from "../state/dailystats.ts";
 import { type AsyncStorageArea, saveBackup } from "../state/storage.ts";
 import { barChartElement } from "./chart.ts";
-import { ladderView, vocabularyView } from "./ladder.ts";
+import { ladderView, type StatsCopy, statsCopy, vocabularyView } from "./ladder.ts";
 import {
   buildSeries,
   consolidatedToMap,
@@ -23,12 +24,17 @@ import {
 // the CEFR progression ladder (from the hydrated engine) plus the daily counters
 // (local when signed out, consolidated GetStats when signed in). Self-contained: it
 // builds its own DOM into a host element, so both surfaces just hand it a container +
-// a port. Excluded from coverage (DOM wiring; model + chart are unit-tested).
+// a port. Excluded from coverage (DOM wiring; model + chart are unit-tested). Its words are the
+// catalogue's `stats` module in the interface language its host hands it
+// (localise-lingua-review-stats D1).
 
+export { statsCopy } from "./ladder.ts";
+
+/** The daily counters, each labelled by the copy's entry `label`. */
 const METRICS = [
-  { key: "exposures", label: "Mots lus", color: "var(--cymbra-lingua-teal)" },
-  { key: "wordsLearned", label: "Mots appris", color: "var(--cymbra-lingua-green)" },
-  { key: "reviews", label: "Révisions", color: "var(--cymbra-lingua-amber)" },
+  { key: "exposures", label: "wordsRead", color: "var(--cymbra-lingua-teal)" },
+  { key: "wordsLearned", label: "wordsLearned", color: "var(--cymbra-lingua-green)" },
+  { key: "reviews", label: "reviews", color: "var(--cymbra-lingua-amber)" },
 ] as const;
 
 async function sendRuntime(message: unknown): Promise<unknown> {
@@ -50,7 +56,7 @@ async function fetchCounts(
   area: AsyncStorageArea,
   range: Range,
   language: StudiedLanguage,
-): Promise<{ byDay: CountsByDay; scope: string }> {
+): Promise<{ byDay: CountsByDay; scope: "allDevices" | "thisDevice" }> {
   const account = (await sendRuntime({ type: "account:state" })) as { state?: { signedIn?: boolean } } | null;
   if (account?.state?.signedIn) {
     const { fromDay, toDay } = dayWindow(utcDay(Date.now()), range);
@@ -58,44 +64,40 @@ async function fetchCounts(
       ok?: boolean;
       rows?: ConsolidatedRow[];
     } | null;
-    if (res?.ok && res.rows) return { byDay: consolidatedToMap(res.rows), scope: "Tous tes appareils" };
+    if (res?.ok && res.rows) return { byDay: consolidatedToMap(res.rows), scope: "allDevices" };
   }
-  return { byDay: countsOf(await loadDailyStats(area), language), scope: "Cet appareil" };
+  return { byDay: countsOf(await loadDailyStats(area), language), scope: "thisDevice" };
 }
 
 /** Max cards a single "Renforcer un niveau" action may seed (matches the engine cap). */
 const SEED_CAP = 50;
 
-/** The "Mots marqués" sections: the reader's decisions open, the automatic ones folded. */
-const MARKED_SECTIONS: { origin: MarkedOrigin; label: string; note: string | null; open: boolean }[] = [
-  { origin: "decision", label: "Mes décisions", note: null, open: true },
-  {
-    origin: "reading",
-    label: "Confirmés par la lecture",
-    note: "Sous ton niveau et lus plusieurs jours différents : passés « connu » automatiquement.",
-    open: false,
-  },
-  {
-    origin: "review",
-    label: "Validés en révision",
-    note: "Marqués « je connais » pendant une révision.",
-    open: false,
-  },
+/** The "Mots marqués" sections: the reader's decisions open, the automatic ones folded; each
+ *  labelled, and noted, by the copy's entries it names. */
+const MARKED_SECTIONS: {
+  origin: MarkedOrigin;
+  label: "myDecisions" | "confirmedByReading" | "validatedInReview";
+  note: "confirmedByReadingNote" | "validatedInReviewNote" | null;
+  open: boolean;
+}[] = [
+  { origin: "decision", label: "myDecisions", note: null, open: true },
+  { origin: "reading", label: "confirmedByReading", note: "confirmedByReadingNote", open: false },
+  { origin: "review", label: "validatedInReview", note: "validatedInReviewNote", open: false },
 ];
 
 /** The control, and — for levels estimated from frequency — the note saying so. */
-function buildSeedControl(estimatedNote: string | null): HTMLElement {
+function buildSeedControl(estimatedNote: string | null, copy: StatsCopy): HTMLElement {
   const wrap = document.createElement("div");
   wrap.className = "seed";
 
   const label = document.createElement("div");
   label.className = "mlabel";
-  label.textContent = "Renforcer un niveau";
+  label.textContent = copy.seedTitle;
   wrap.append(label);
 
   const note = document.createElement("div");
   note.className = "seed-note";
-  note.textContent = "Ajoute des mots d'un niveau à ton deck de révision, sans attendre de les croiser en lisant.";
+  note.textContent = copy.seedNote;
   wrap.append(note);
   if (estimatedNote) {
     const why = document.createElement("div");
@@ -111,7 +113,7 @@ function buildSeedControl(estimatedNote: string | null): HTMLElement {
   const levelSel = document.createElement("select");
   levelSel.className = "seed-sel";
   levelSel.id = "seed-level";
-  levelSel.setAttribute("aria-label", "Niveau");
+  levelSel.setAttribute("aria-label", copy.level);
   for (const l of CEFR_LEVELS) {
     const opt = document.createElement("option");
     opt.value = l;
@@ -128,26 +130,26 @@ function buildSeedControl(estimatedNote: string | null): HTMLElement {
   countInput.max = String(SEED_CAP);
   countInput.step = "1";
   countInput.value = "20";
-  countInput.setAttribute("aria-label", "Nombre de mots");
+  countInput.setAttribute("aria-label", copy.wordCount);
   controls.append(countInput);
 
   const orderSel = document.createElement("select");
   orderSel.className = "seed-sel";
   orderSel.id = "seed-order";
-  orderSel.setAttribute("aria-label", "Ordre");
+  orderSel.setAttribute("aria-label", copy.order);
   const commonOpt = document.createElement("option");
   commonOpt.value = "common";
-  commonOpt.textContent = "courants d'abord";
+  commonOpt.textContent = copy.commonFirst;
   const rareOpt = document.createElement("option");
   rareOpt.value = "rare";
-  rareOpt.textContent = "rares d'abord";
+  rareOpt.textContent = copy.rareFirst;
   orderSel.append(commonOpt, rareOpt);
   controls.append(orderSel);
 
   const btn = document.createElement("button");
   btn.className = "seed-btn";
   btn.id = "seed-go";
-  btn.textContent = "Ajouter au deck";
+  btn.textContent = copy.addToDeck;
   wrap.append(btn);
 
   const result = document.createElement("div");
@@ -164,11 +166,12 @@ function languagePicker(
   languages: StudiedLanguage[],
   current: StudiedLanguage,
   choose: (language: StudiedLanguage) => void,
+  copy: StatsCopy,
 ): HTMLElement {
   const picker = document.createElement("div");
   picker.className = "ranges stats-languages";
   picker.setAttribute("role", "group");
-  picker.setAttribute("aria-label", "Langue");
+  picker.setAttribute("aria-label", copy.language);
   for (const language of languages) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -187,13 +190,19 @@ function languagePicker(
  *  gesture, a sync pull), and that remount keeps the reader's choice. */
 const shownLanguage = new WeakMap<HTMLElement, StudiedLanguage>();
 
-/** Render the whole stats view (ladder + seed control + daily cards) into `root`. */
+/**
+ * Render the whole stats view (ladder + seed control + daily cards) into `root`, in the interface
+ * language its host read (French when not given — localise-lingua-review-stats D1).
+ */
 export async function mountStats(
   root: HTMLElement,
   port: LinguaPort,
   area: AsyncStorageArea,
   chosen?: StudiedLanguage,
+  interfaceLanguage: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
 ): Promise<void> {
+  const copy = statsCopy(interfaceLanguage);
+  const ui = { interfaceLanguage };
   let range: Range = 30;
   root.classList.add("stats");
   // One of the reader's languages: the one chosen, else the one this root showed, else the first;
@@ -205,7 +214,7 @@ export async function mountStats(
   const lang = port.for(language);
   const picker =
     languages.length > 1
-      ? languagePicker(languages, language, (next) => void mountStats(root, port, area, next))
+      ? languagePicker(languages, language, (next) => void mountStats(root, port, area, next, interfaceLanguage), copy)
       : null;
 
   const vocabSlot = document.createElement("div");
@@ -221,14 +230,14 @@ export async function mountStats(
   topline.className = "topline";
   const scopeSpan = document.createElement("span");
   scopeSpan.className = "scope";
-  scopeSpan.textContent = "…";
+  scopeSpan.textContent = copy.loading;
   const ranges = document.createElement("div");
   ranges.className = "ranges";
   for (const r of RANGES) {
     const btn = document.createElement("button");
     btn.dataset.range = String(r);
     if (r === range) btn.className = "active";
-    btn.textContent = `${r} j`;
+    btn.textContent = copy.days(formatCount(interfaceLanguage, r));
     ranges.append(btn);
   }
   topline.append(scopeSpan, ranges);
@@ -238,7 +247,7 @@ export async function mountStats(
 
   const trailingNote = document.createElement("p");
   trailingNote.className = "note";
-  trailingNote.textContent = "Les sessions d'agent IA (plugin Claude Code) ne sont pas comptées ici.";
+  trailingNote.textContent = copy.agentNote;
 
   root.replaceChildren(
     ...(picker ? [picker] : []),
@@ -260,7 +269,7 @@ export async function mountStats(
   // The ladder and the estimate do not depend on the range; re-rendered after a seed.
   const renderLadder = async (): Promise<void> => {
     const hasLevels = await lang.hasLevels();
-    const vocab = vocabularyView(await lang.vocabularyEstimate(), hasLevels);
+    const vocab = vocabularyView(await lang.vocabularyEstimate(), hasLevels, ui);
     pick(".vocab-slot").replaceChildren(...(vocab ? [vocab] : []));
     if (hasLevels) {
       const [rows, declared, estimated] = [
@@ -268,11 +277,11 @@ export async function mountStats(
         await lang.declaredLevel(),
         await lang.levelsEstimated(),
       ];
-      pick(".ladder-slot").replaceChildren(ladderView(rows, declared, language, estimated));
+      pick(".ladder-slot").replaceChildren(ladderView(rows, declared, language, estimated, ui));
     } else {
       const note = document.createElement("div");
       note.className = "note";
-      note.textContent = "Niveaux CEFR indisponibles pour cette langue (pack sans données CEFR).";
+      note.textContent = copy.noLevels;
       pick(".ladder-slot").replaceChildren(note);
     }
   };
@@ -282,7 +291,7 @@ export async function mountStats(
   // listener); a seed persists, reports, and refreshes the ladder.
   if (await lang.hasLevels()) {
     const estimated = await lang.levelsEstimated();
-    pick(".seed-slot").replaceChildren(buildSeedControl(estimated ? estimatedLevelsNote(language) : null));
+    pick(".seed-slot").replaceChildren(buildSeedControl(estimated ? estimatedLevelsNote(language) : null, copy));
     const declared = await lang.declaredLevel();
     if (declared) pick<HTMLSelectElement>("#seed-level").value = declared;
     pick<HTMLButtonElement>("#seed-go").addEventListener("click", async () => {
@@ -294,10 +303,7 @@ export async function mountStats(
       await saveBackup(area, await port.backup());
       const result = pick("#seed-result");
       result.hidden = false;
-      result.textContent =
-        added > 0
-          ? `${added} carte${added > 1 ? "s" : ""} ajoutée${added > 1 ? "s" : ""} au deck (niveau ${level}).`
-          : `Aucune carte ajoutée — ces mots sont déjà suivis ou dans ton deck.`;
+      result.textContent = added > 0 ? plural(interfaceLanguage, added, copy.cardsAdded(level)) : copy.noCardsAdded;
       await renderLadder();
     });
   }
@@ -325,12 +331,12 @@ export async function mountStats(
     if (showBadge) {
       const badge = document.createElement("span");
       badge.className = `marked-badge marked-badge--${w.status}`;
-      badge.textContent = w.status === "known" ? "connu" : "ignoré";
+      badge.textContent = w.status === "known" ? copy.known : copy.ignored;
       li.append(badge);
     }
     const undo = document.createElement("button");
     undo.className = "marked-undo";
-    undo.textContent = "Remettre à apprendre";
+    undo.textContent = copy.relearn;
     undo.addEventListener("click", async () => {
       undo.disabled = true;
       await lang.setStatusAt(w.lemma, null, Date.now());
@@ -349,16 +355,16 @@ export async function mountStats(
     summary.className = "marked-summary";
     const label = document.createElement("span");
     label.className = "marked-summary-label";
-    label.textContent = section.label;
+    label.textContent = copy[section.label];
     const count = document.createElement("span");
     count.className = "marked-count";
-    count.textContent = String(words.length);
+    count.textContent = formatCount(interfaceLanguage, words.length);
     summary.append(label, count);
     details.append(summary);
     if (section.note) {
       const note = document.createElement("div");
       note.className = "marked-group-note";
-      note.textContent = section.note;
+      note.textContent = copy[section.note];
       details.append(note);
     }
     const list = document.createElement("ul");
@@ -385,21 +391,19 @@ export async function mountStats(
     wrap.className = "marked";
     const title = document.createElement("div");
     title.className = "mlabel";
-    title.textContent = "Mots marqués";
+    title.textContent = copy.markedTitle;
     wrap.append(title);
     if (MARKED_ORIGINS.every((origin) => groups[origin].length === 0)) {
       const empty = document.createElement("div");
       empty.className = "note";
-      empty.textContent = "Aucun mot marqué « connu » ou « ignoré » pour l'instant.";
+      empty.textContent = copy.noMarked;
       wrap.append(empty);
       slot.append(wrap);
       return;
     }
     const note = document.createElement("div");
     note.className = "seed-note";
-    note.textContent =
-      "Marqués « connu » ou « ignoré » (donc plus surlignés). Remets-en un « à apprendre » pour qu'il soit de nouveau signalé. " +
-      "En lecture : Alt/Option-clic (ou appui long sur tactile) sur un mot pour le rouvrir.";
+    note.textContent = copy.markedNote;
     wrap.append(note);
     for (const section of MARKED_SECTIONS) {
       const words = groups[section.origin];
@@ -413,7 +417,7 @@ export async function mountStats(
     const { byDay, scope } = await fetchCounts(area, range, language);
     const { fromDay, toDay } = dayWindow(utcDay(Date.now()), range);
     const series = buildSeries(byDay, fromDay, toDay);
-    pick(".scope").textContent = scope;
+    pick(".scope").textContent = copy[scope];
     const cardsEl = pick(".cards");
     cardsEl.replaceChildren();
     for (const m of METRICS) {
@@ -424,16 +428,16 @@ export async function mountStats(
       metric.className = "metric";
       const label = document.createElement("span");
       label.className = "mlabel";
-      label.textContent = m.label;
+      label.textContent = copy[m.label];
       const total = document.createElement("b");
       total.className = "mtotal";
-      total.textContent = String(series.totals[m.key]);
+      total.textContent = formatCount(interfaceLanguage, series.totals[m.key]);
       metric.append(label, total);
       card.append(metric);
 
       const chart = document.createElement("div");
       chart.className = "chart";
-      chart.append(barChartElement(series[m.key], m.color, m.label));
+      chart.append(barChartElement(series[m.key], m.color, copy[m.label]));
       card.append(chart);
 
       cardsEl.append(card);

@@ -12,8 +12,8 @@ import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helper
 // opened as sidepanel.ts opens it — `fillPageInLanguage` over the preferences area, with the page's
 // modules — every node holds byte for byte what the page held before this change in French, the page
 // says its language, and the mark that hid the body is gone, a storage that cannot be read included.
-// sidepanel.ts is an entry script with no exported render: it holds no copy of its own (the views
-// are the shared mounts).
+// sidepanel.ts is an entry script with no exported render: it holds no copy of its own (the page's
+// modules and the views are panel.ts's, whose start review-stats-copy.spec.ts drives).
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HTML = readFileSync(join(root, "src/sidepanel/sidepanel.html"), "utf8");

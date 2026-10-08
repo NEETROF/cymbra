@@ -1,16 +1,20 @@
 <!doctype html>
-<html lang="fr">
+<!-- No text of its own: every node carries a data-copy key, filled by page.ts from the catalogue's
+     module for the interface language (src/i18n/README.md, Pages); data-copy-pending hides the body
+     until then, and lang is set by the script. -->
+<html data-copy-pending>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>Statistiques — Cymbra Lingua</title>
+    <title data-copy="pageTitle"></title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="stats.css" />
+    <link rel="stylesheet" href="stats-page.css" />
   </head>
   <body class="stats-page">
     <main>
-      <h1>Statistiques d'apprentissage</h1>
+      <h1 data-copy="heading"></h1>
       <div id="stats-root"></div>
     </main>
     <script type="module" src="stats.js"></script>
