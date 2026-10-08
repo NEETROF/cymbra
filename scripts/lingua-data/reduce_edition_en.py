@@ -17,8 +17,9 @@ Spanish section, the 2026-09-28 dump es-fr pins: 811,049 entries, 875,591 senses
   names a form's lemma in `form_of`. Untagged, a sense still only points at a word when it opens
   « only used in » (1,332: "only used in en pos de"), « synonym of » (1,072: "synonym of pues", a
   word of the studied language, never a gloss), « see » or « used other than figuratively or
-  idiomatically: see … » (86), « disused form of » (20), or names an inflection or a variant
-  followed by « of » ("diminutive of figura").
+  idiomatically: see … » (86), « disused form of » (20), names an inflection or a variant
+  followed by « of » ("diminutive of figura"), or a shortened or respelled form's wording
+  (« apheretic form of estás »), which `read_as_meanings` reads first.
 - No placeholder: kaikki leaves an undefined sense without a gloss and tags it `no-gloss`; the
   shared rules skip a sense with no gloss, and a word left with no sense has no gloss.
 - No dangling coordinator: the 13 senses that open on « or » or « and » are meanings (the heraldic
@@ -40,6 +41,21 @@ Spanish section, the 2026-09-28 dump es-fr pins: 811,049 entries, 875,591 senses
   (`reduce_common._join_senses_by_pos`) takes one sense of each in turn — 532 of the top 10,000
   es-en lemmas. `MERGE_SAME_POS_ETYMOLOGIES`, below, merges a word's entries of one part of speech
   before the round-robin, so the first etymology's senses come first; off, they are read as written.
+
+- Meanings, not the page's layout (refine-lingua-es-en-glosses): `read_as_meanings`, a pre-pass
+  es-en runs before the etymology merging, reads a sense nested under a label or a pointer by its
+  own gloss (D2), a shortened or respelled form and a pronoun's case form as the meaning they carry
+  or their target's senses (D3), a place's name after a function word spelled like it (D4), and
+  every gloss in one English typography (D5). Measured on es-en's tables reduced from the 2026-10-03
+  extract (31,876 glossed lemmas): 9 rows (6 of the top 10,000) glossed by a sense-group label or a
+  list's introduction, 13 (5) by a pointer their senses are nested under; 87 senses worded as a
+  shortened or respelled form (70 tagged `alt-of`, 17 untagged) and 9 case forms carrying their
+  meaning, of « lo », « nos » and « les »; « como » opening on an Italian city; 202 senses of 170
+  rows (69 of 58) opening on the edition's description in a capital, beside 43 « The » before a
+  capital — titles, names, species — that stay; ellipses written three ways (13 rows), straight
+  double quotes (38), a source's numbered sense (2), an example after a line break (2). Together
+  they change 268 rows (111 of the top 10,000) and 332 expressions; 9 lemmas and 25 expressions
+  gain a gloss, none loses one.
 
 The two settings are the English edition's alone: a pair glossed in French loads this module no
 more than it did, so a value chosen here re-pins es-en and no other committed pair (D5; the shared
@@ -248,6 +264,19 @@ def _headword(entry):
     return word.strip() if isinstance(word, str) else ""
 
 
+def _pointer_texts(senses):
+    """The glosses of an entry's pointer senses that nest nothing — what a nested sense's parent is
+    when it is a pointer of the same entry (« apocopic form of suyo », tagged `alt-of`)."""
+    return {
+        s["glosses"][0].strip()
+        for s in senses
+        if isinstance(s, dict)
+        and _texts(s.get("glosses"))
+        and len(s["glosses"]) == 1
+        and common._is_form_of(s, s["glosses"][0].strip(), edition=EN)
+    }
+
+
 def _own_glosses(sense, pointers):
     """A nested sense read by its own gloss when its parent is no meaning (D2): a label — it ends on
     a colon or names senses — or a pointer — a pointer sense of the same entry (`pointers`) or the
@@ -277,7 +306,7 @@ def _as_meaning(sense, gloss):
 def _carried(after):
     """The meaning a shortened form writes after its target (« , my », « (“mom”) »), or None."""
     found = _AFTER_TARGET.match(after) or _QUOTED.match(after)
-    return found.group(1).strip() or None if found else None
+    return (found.group(1).strip() or None) if found else None
 
 
 def _shortened(sense, rest):
@@ -309,12 +338,7 @@ def _read_senses(entry, lend):
     if not isinstance(senses, list):
         return senses
     pos, word = entry.get("pos"), _headword(entry).lower()
-    pointers = {
-        s["glosses"][0].strip()
-        for s in senses
-        if isinstance(s, dict) and _texts(s.get("glosses")) and len(s["glosses"]) == 1
-        and common._is_form_of(s, s["glosses"][0].strip(), edition=EN)
-    }
+    pointers = _pointer_texts(senses)
     read = []
     for sense in senses:
         if not isinstance(sense, dict) or not _texts(sense.get("glosses")):
@@ -366,12 +390,7 @@ def _meanings_of(path, keys):
         if key not in keys or common._acronym(headword) or not isinstance(entry.get("senses"), list):
             continue
         senses = entry["senses"]
-        own = {
-            s["glosses"][0].strip()
-            for s in senses
-            if isinstance(s, dict) and _texts(s.get("glosses")) and len(s["glosses"]) == 1
-            and common._is_form_of(s, s["glosses"][0].strip(), edition=EN)
-        }
+        own = _pointer_texts(senses)
         for sense in senses:
             if not isinstance(sense, dict) or not _texts(sense.get("glosses")):
                 continue

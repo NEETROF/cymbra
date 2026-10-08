@@ -26,6 +26,15 @@ Inputs:
 
 Outputs, in `--work`: `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and `manifest.json`.
 
+The English Wiktionary's entries reach the shared rules through the English edition's pre-passes, in
+this order: its letters left out (`without_letters`, `english.without_letter_headwords`); its senses
+read as meanings, not as the page's layout (`english.read_as_meanings`, refine-lingua-es-en-glosses:
+a sense nested under a label or a pointer read by its own gloss, a shortened form or a pronoun's case
+form by its meaning, a place's name after a function word spelled like it, one English typography —
+268 rows of 31,876 and 332 expressions moved, 9 lemmas and 25 expressions gained); then a word's
+etymologies of one part of speech merged (`english.merge_same_pos_etymologies`, off), which reads a
+headword's lines as one run, so the pre-pass before it keeps a headword's moved lines together.
+
 Every rule here names a source or is English's: the native side every pair shares
 (`reduce_common.native_tables`) with the English edition's rules. es-fr's reducer is not loaded —
 a reducer loads code by import statements alone, and nothing of es-fr may move with this pair — so
