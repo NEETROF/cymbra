@@ -27,7 +27,7 @@ The landing side is a **hub + one page per product**, fr (default) and en:
 |---|---|
 | `/`, `/en/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback) |
 | `/music`, `/en/music` | Cymbra Music — hero, store buttons, features. The copy mirrors `apps/music/store/copy/{fr,en}.md`, so the site and the store listings never claim different things |
-| `/lingua`, `/en/lingua` | Cymbra Lingua — the browser extension, still unpublished: disabled Chrome/Firefox/Safari buttons plus the community invite when `PUBLIC_DISCORD_URL` is set |
+| `/lingua`, `/en/lingua`, (`/es/lingua`) | Cymbra Lingua — one component, `src/components/LinguaPage.astro`, fed by the shipped pairs (`src/lib/lingua-pairs.ts`: `src/data/lingua-coverage.json` for the pairs and their figures, the extension's `model-manifest.json` for the translation routes) and by one text table per site language (`src/lib/lingua-text.ts`); store buttons, the coverage table with one column per pair, the community invite when `PUBLIC_DISCORD_URL` is set. Each page leads with the pairs glossed in its language. `/es/lingua` (`src/pages/[locale]/lingua.astro`) is built only once a pair glossed in Spanish ships (change `add-site-lingua-matrix-pages`) |
 
 Distribution links live in **one** place, `src/lib/stores.ts`, read by the product
 pages and by the post-checkout `Downloads` block. A channel is either `live: true`
@@ -37,8 +37,11 @@ and macOS, so the three share one button.
 Spanish (`/es/`, change `add-site-spanish-locale`) holds the pages Cymbra Lingua sends
 its Spanish readers to — `/es/privacidad`, `/es/terminos`, `/es/soporte`,
 `/es/eliminar-cuenta` and `/es/404` — as translations of the French pages, with Spanish
-slugs as the French pages have French ones. There is no Spanish home, product, account,
-code or checkout page: the Spanish nav and footer link the English ones there.
+slugs as the French pages have French ones. There is no Spanish home, Music, account,
+code or checkout page: the Spanish nav and footer link the English ones there. The Spanish
+Lingua page, `/es/lingua`, exists once a pair glossed in Spanish ships — `linguaHref('es')`
+(`src/lib/lingua-pairs.ts`) points the Spanish nav, footer and not-found page at it then,
+and at `/en/lingua` until then.
 
 **Every page names its translations.** `Base.astro` takes `alternates` — the page's
 address in each language it exists in, its own included, e.g.
@@ -52,6 +55,14 @@ any page whose alternates omit its own language. The footer's `FR` / `EN` links 
 locale roots, as before. The French and English pages render as before: the only
 markup differences against the previous build are the `hreflang` / switch entries and
 `&#39;` in one footer label (« Code d'accès », now an expression Astro escapes).
+
+**The Lingua page's text goes through `set:html`, not `{expressions}`.** An expression
+escapes apostrophes (`'` → `&#39;`) and `&nbsp;`; the French table of
+`src/lib/lingua-text.ts` is the page as it was, byte for byte, and
+`test/post-build/lingua.spec.ts` compares the built `<main>` of `/lingua/` and
+`/en/lingua/` with the fixtures taken from the previous build (with today's pairs; the
+comparison first removes what a community invite adds). The strings are the site's own:
+nothing from a reader reaches them.
 
 Astro trims the whitespace at a text/element
 boundary that falls on a source-line break — on **either** side, so both
