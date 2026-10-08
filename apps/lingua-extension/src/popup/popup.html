@@ -1,18 +1,21 @@
 <!doctype html>
-<html lang="fr">
+<!-- No text of its own: every node carries a data-copy key, filled by popup.ts from the catalogue's
+     module for the interface language (src/i18n/README.md, Pages); data-copy-pending hides the body
+     until then, and lang is set by the script. -->
+<html data-copy-pending>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>Cymbra Lingua</title>
+    <title data-copy="title"></title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="settings.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <div class="topbar">
-      <h1>Cymbra Lingua</h1>
-      <button id="settings-open" class="icon-btn" aria-label="Réglages" title="Réglages">
+      <h1 data-copy="title"></h1>
+      <button id="settings-open" class="icon-btn" data-copy-aria-label="settings" data-copy-title="settings">
         <svg
           viewBox="0 0 24 24"
           width="18"
@@ -33,66 +36,66 @@
     </div>
 
     <div id="main-view">
-      <div id="session-lost" class="session-lost" hidden>
-        Session expirée — reconnecte-toi pour synchroniser. Tes mots restent sur cet appareil.
-      </div>
+      <div id="session-lost" class="session-lost" data-copy="sessionLost" hidden></div>
       <div class="toggle-row">
         <label class="switch">
           <input type="checkbox" id="enabled" checked />
           <span class="slider"></span>
         </label>
-        <span id="enabled-label">Surlignage activé</span>
+        <span id="enabled-label" data-copy="highlightingOn"></span>
       </div>
 
-      <div id="disabled-note" class="note" hidden>Surlignage désactivé sur toutes les pages.</div>
+      <div id="disabled-note" class="note" data-copy="highlightingOffNote" hidden></div>
 
       <div id="setup" hidden>
-        <div class="note">Cette page n'est pas encore analysée.</div>
-        <button class="primary" id="analyse">Analyser cette page</button>
-        <button class="reset" id="always">Toujours surligner (toutes les pages)</button>
+        <div class="note" data-copy="notAnalysed"></div>
+        <button class="primary" id="analyse" data-copy="analyse"></button>
+        <button class="reset" id="always" data-copy="alwaysHighlight"></button>
       </div>
 
       <div id="controls" hidden>
         <div id="analysed">
-          <div class="pct"><span id="pct">—</span></div>
-          <div class="pct-label" id="pct-label">de mots connus sur cette page</div>
+          <div class="pct"><span id="pct" data-copy="noPercent"></span></div>
+          <div class="pct-label" id="pct-label" data-copy="knownOnPage"></div>
           <div class="bar"><span id="bar" style="width: 0%"></span></div>
 
-          <div class="row"><span>Mots analysés</span><b id="counted">0</b></div>
-          <div class="row"><span>Mots inconnus</span><b id="unknown">0</b></div>
-          <div class="row sub"><span>dont mots différents</span><b id="distinct">0</b></div>
+          <div class="row"><span data-copy="wordsAnalysed"></span><b id="counted">0</b></div>
+          <div class="row"><span data-copy="wordsUnknown"></span><b id="unknown">0</b></div>
+          <div class="row sub"><span data-copy="distinctUnknown"></span><b id="distinct">0</b></div>
         </div>
 
         <div id="note" class="note" hidden></div>
 
-        <div class="row"><span>Mots suivis</span><b id="tracked">0</b></div>
+        <div class="row"><span data-copy="wordsTracked"></span><b id="tracked">0</b></div>
 
-        <button id="level-cta" class="primary" hidden>Choisis ton niveau</button>
+        <button id="level-cta" class="primary" data-copy="chooseLevel" hidden></button>
         <div id="level-indicator" class="level-indicator" hidden>
-          <span><span id="level-label">Niveau</span> : <b id="level-current">—</b></span>
-          <button id="level-edit" class="linklike">Modifier</button>
+          <!-- « Niveau d'anglais : B1 »: popup.levelLine, rendered by the script around the level. -->
+          <span id="level-line"><span data-copy="level"></span><b id="level-current">—</b></span>
+          <button id="level-edit" class="linklike" data-copy="edit"></button>
         </div>
 
-        <div class="deck"><span>Deck (en cours)</span><b id="deck">0</b></div>
-        <button class="primary" id="review">Réviser (<span id="due">0</span>)</button>
+        <div class="deck"><span data-copy="deck"></span><b id="deck">0</b></div>
+        <!-- « Réviser (3) »: popup.review, rendered by the script with the due count. -->
+        <button class="primary" id="review"></button>
       </div>
 
       <!-- Signing in lives in Réglages › Données (mountSettings), the same in every surface: this links there. -->
       <div id="account" class="account">
-        <button class="primary" id="account-signin" type="button" hidden>Se connecter pour synchroniser</button>
+        <button class="primary" id="account-signin" type="button" data-copy="signInToSync" hidden></button>
         <div id="account-in" hidden>
-          <div class="row"><span>Connecté</span><b id="account-who"></b></div>
-          <button class="linklike" id="account-manage" type="button">Compte et synchronisation</button>
+          <div class="row"><span data-copy="signedIn"></span><b id="account-who"></b></div>
+          <button class="linklike" id="account-manage" type="button" data-copy="accountAndSync"></button>
         </div>
       </div>
 
-      <button class="reset" id="open-library">Bibliothèque (livres EPUB)</button>
-      <button class="reset" id="open-stats">Statistiques d'apprentissage</button>
+      <button class="reset" id="open-library" data-copy="library"></button>
+      <button class="reset" id="open-stats" data-copy="statistics"></button>
     </div>
 
     <div id="settings-view" hidden>
       <div class="settings-head">
-        <button id="settings-back" class="icon-btn" aria-label="Retour" title="Retour">
+        <button id="settings-back" class="icon-btn" data-copy-aria-label="back" data-copy-title="back">
           <svg
             viewBox="0 0 24 24"
             width="18"
@@ -107,7 +110,7 @@
             <path d="M15 18l-6-6 6-6"></path>
           </svg>
         </button>
-        <span class="settings-title">Réglages</span>
+        <span class="settings-title" data-copy="settings"></span>
       </div>
 
       <!-- Built by mountSettings — the same Réglages as the side panel and the in-page drawer. -->

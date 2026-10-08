@@ -11,6 +11,11 @@
   display: none !important;
 }
 
+/* Nothing shows before the catalogue fills the page's copy (popup.ts removes the mark). */
+html[data-copy-pending] body {
+  visibility: hidden;
+}
+
 body {
   width: calc(280px * var(--cymbra-lingua-ui-scale, 1));
   margin: 0;

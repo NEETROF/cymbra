@@ -1,5 +1,11 @@
 /* Side-panel page (a surface the extension owns → full Cymbra identity). Colours come
    only from tokens.css (loaded first). No colour literals here. */
+
+/* Nothing shows before the catalogue fills the page's copy (sidepanel.ts removes the mark). */
+html[data-copy-pending] body {
+  visibility: hidden;
+}
+
 body {
   margin: 0;
   padding: 14px;
