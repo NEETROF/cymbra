@@ -447,7 +447,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# The app's languages are the extension's shipped natives (localise-lingua-apple-host, D1): the\n# natives of dist-safari's packs, written to the processed Info.plist only when it holds something\n# else, so a French-only build never rewrites it. Last phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n";
+			shellScript = "# The app's languages are the extension's shipped natives (localise-lingua-apple-host, D1): the\n# natives of dist-safari's packs, written to the processed Info.plist only when it holds something\n# else. While only French ships, Xcode's own product — the source plist's [fr], the development\n# language as CFBundleDevelopmentRegion — is left as it is. Last phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" \"${SRCROOT}/${INFOPLIST_FILE}\" \"${DEVELOPMENT_LANGUAGE}\"\n";
 		};
 		AFB5BE74305892E000728144 /* Declare Lingua languages */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -467,7 +467,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# The app's languages are the extension's shipped natives (localise-lingua-apple-host, D1): the\n# natives of dist-safari's packs, written to the processed Info.plist only when it holds something\n# else, so a French-only build never rewrites it. Last phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n";
+			shellScript = "# The app's languages are the extension's shipped natives (localise-lingua-apple-host, D1): the\n# natives of dist-safari's packs, written to the processed Info.plist only when it holds something\n# else. While only French ships, Xcode's own product — the source plist's [fr], the development\n# language as CFBundleDevelopmentRegion — is left as it is. Last phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" \"${SRCROOT}/${INFOPLIST_FILE}\" \"${DEVELOPMENT_LANGUAGE}\"\n";
 		};
 		AFB5BE75305892E000728144 /* Declare Lingua languages */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -487,7 +487,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# The extension declares the languages its app does (localise-lingua-apple-host, D1): the natives\n# of dist-safari's packs, written to the generated Info.plist only when it holds something else —\n# while only French ships, that plist's no CFBundleLocalizations and development region en are\n# left as generated. After the copy phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" generated\n";
+			shellScript = "# The extension declares the languages its app does (localise-lingua-apple-host, D1): the natives\n# of dist-safari's packs, written to the generated Info.plist only when it holds something else.\n# While only French ships, that plist's no CFBundleLocalizations and the development language as\n# CFBundleDevelopmentRegion are left as generated. After the copy phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" \"${SRCROOT}/${INFOPLIST_FILE}\" \"${DEVELOPMENT_LANGUAGE}\"\n";
 		};
 		AFB5BE76305892E000728144 /* Declare Lingua languages */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -507,7 +507,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# The extension declares the languages its app does (localise-lingua-apple-host, D1): the natives\n# of dist-safari's packs, written to the generated Info.plist only when it holds something else —\n# while only French ships, that plist's no CFBundleLocalizations and development region en are\n# left as generated. After the copy phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" generated\n";
+			shellScript = "# The extension declares the languages its app does (localise-lingua-apple-host, D1): the natives\n# of dist-safari's packs, written to the generated Info.plist only when it holds something else.\n# While only French ships, that plist's no CFBundleLocalizations and the development language as\n# CFBundleDevelopmentRegion are left as generated. After the copy phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" \"${SRCROOT}/${INFOPLIST_FILE}\" \"${DEVELOPMENT_LANGUAGE}\"\n";
 		};
 		AFB5BE7A305892E000728144 /* Copy Lingua extension */ = {
 			isa = PBXShellScriptBuildPhase;
