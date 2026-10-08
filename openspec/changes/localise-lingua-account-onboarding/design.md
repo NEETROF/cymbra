@@ -21,7 +21,7 @@ See proposal.md (Why) and change 13's design. Today:
 - Every text of the account and the onboarding comes from the catalogue.
 - The account's e-mails and the deletion link come in the interface language, without moving an
   Italian reader's e-mails (M12).
-- The baseline keeps only changes 18's and 19's files after this change.
+- The baseline is empty after this change, changes 18 and 19 having taken their files off.
 
 **Non-Goals:**
 - A Spanish deletion page on the site (change 29): until it exists, the deletion link for a
@@ -80,9 +80,8 @@ carried the account page's whole copy in three languages. `accountCopy(language)
 
 ### D4 — The baseline, after this change
 
-The lint's baseline, down to the account's and the onboarding's files and two others after
-14–16, loses the account's and the onboarding's; `reading/grammar-labels.ts` (change 18) and
-`analyzer/language-labels.ts` (change 19) stay until those changes, which empty it.
+The lint's baseline, down to the account's and the onboarding's files after 14–16, 18
+(`reading/grammar-labels.ts`) and 19 (`analyzer/language-labels.ts`), loses them and is empty.
 
 ## Risks / Trade-offs
 

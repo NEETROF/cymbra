@@ -39,10 +39,10 @@ account locale Music adopts does move for others: see Impact.
   content script, the popup, the side panel and the reader.
 - **The French byte for byte**: the `account-copy`, `account-flow`, `account-view`,
   `account-handle`, `account-host`, `onboarding-level-row` and `level-choice` spec files pass
-  unchanged; the onboarding page has no spec and gains one; each surface gains one test in
-  English.
-- **The baseline** loses these files; what remains on it is the two files of changes 18 and 19
-  (`reading/grammar-labels.ts`, `analyzer/language-labels.ts`), which those changes take off.
+  with their French assertions unchanged; the onboarding page has no spec and gains one; each
+  surface gains one test in English.
+- **The baseline** loses these files and is empty: changes 18 and 19 took theirs
+  (`reading/grammar-labels.ts`, `analyzer/language-labels.ts`) off first.
 
 ## Capabilities
 
