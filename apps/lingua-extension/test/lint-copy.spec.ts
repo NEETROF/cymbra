@@ -13,8 +13,9 @@ import { baselinePath, type Hit, htmlLiterals, sources as walk, tsLiterals } fro
 // localise-lingua-review-stats (16) the review and the statistics,
 // localise-lingua-account-onboarding (17) the account page and the onboarding,
 // generalise-lingua-card-wording (18) the word card's grammar and
-// add-lingua-native-language-labels (19) the languages' names. The baseline is checked the other
-// way too: a file on it that holds no French literal fails, so it cannot go stale.
+// add-lingua-native-language-labels (19) the languages' names. The list is empty since, kept for a
+// surface found still holding copy, and checked the other way too: a file on it that holds no
+// French literal fails, so it cannot go stale.
 //
 // What counts is read from the TypeScript syntax tree — string and template literals only, so a
 // comment or a regular expression in French is not a hit — and from the HTML pages' text nodes and
@@ -27,10 +28,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(root, "src");
 
 /** The files that hold French literals today, until the change moving each surface removes it. */
-export const BASELINE = [
-  "src/onboarding/level-row.ts",
-  "src/onboarding/onboarding.html",
-];
+export const BASELINE: readonly string[] = [];
 
 /** Unaccented words of the inventory's copy, matched whole and case-sensitively. */
 export const FRENCH_WORDS = [
@@ -139,7 +137,7 @@ describe("no French literal outside the catalogue", () => {
 
   it("reads the sources and the pages, and knows the baseline's files", () => {
     expect(files.length).toBeGreaterThan(100);
-    expect(BASELINE.filter((f) => f.endsWith(".html")).length).toBe(1);
+    expect(BASELINE.filter((f) => f.endsWith(".html")).length).toBe(0);
     for (const rel of BASELINE) expect(statSync(join(root, rel)).isFile(), rel).toBe(true);
   });
 

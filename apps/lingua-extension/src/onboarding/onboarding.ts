@@ -2,8 +2,9 @@ import type { AccountReply } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
 import { acceptedLanguages, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import { studiedLanguages as frStudiedLanguages } from "../i18n/fr/studied-languages.ts";
-import { DEFAULT_INTERFACE_LANGUAGE } from "../i18n/index.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, fillPageInLanguage } from "../i18n/index.ts";
 import { mountStudiedLanguages } from "../reading/studied-languages-view.ts";
+import { onboardingCopy } from "./copy.ts";
 import { levelRow } from "./level-row.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
 import { messagedArea } from "../state/store.ts";
@@ -17,7 +18,8 @@ followSurfaceLook(document.documentElement);
 // the popup's level call-to-action is the portable equivalent). It hydrates its own
 // engine from the shared backup and lets the reader pick their languages, when the package
 // ships several, and a CEFR level for each right away.
-// If the pack carries no CEFR data the level step is hidden. Excluded from coverage
+// If the pack carries no CEFR data the level step is hidden. It speaks the interface language,
+// read before its engine (localise-lingua-account-onboarding D1). Excluded from coverage
 // (DOM wiring; the engine/model are tested elsewhere).
 
 /**
@@ -57,17 +59,23 @@ async function showAccountOffer(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // The interface language first, before the engine — a read: the store's owner alone writes the
+  // key. The page's static copy is filled from the catalogue and its lang said before anything
+  // shows (the body is hidden until then); a read that fails is French.
+  const { language: interfaceLanguage } = await fillPageInLanguage(
+    document,
+    { get: (key) => chrome.storage.local.get(key) },
+    onboardingCopy,
+  );
   void showAccountOffer();
   const port = createLinguaPort();
   await hydrateEngine(port, store);
   const persist = async (): Promise<void> => saveBackup(store, await port.backup());
 
   // The languages first, when the package ships several (add-lingua-language-choice D5); then a
-  // level for each language the reader accepts. This page still speaks French: it hands the
-  // languages step and the level rows the default interface language explicitly, named here rather
-  // than defaulted in the views (add-lingua-native-language-labels) — localise-lingua-account-onboarding
-  // (change 17) replaces it by the language the page reads with its preferences.
-  const interfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
+  // level for each language the reader accepts, in the interface language read above. The
+  // languages step still speaks French: it is handed the default interface language explicitly,
+  // named here rather than defaulted in the view (add-lingua-native-language-labels).
   const studied = mountStudiedLanguages(
     $("languages-section"),
     port,
@@ -77,7 +85,7 @@ async function main(): Promise<void> {
     },
     SHIPPED_PAIRS,
     frStudiedLanguages,
-    interfaceLanguage,
+    DEFAULT_INTERFACE_LANGUAGE,
   );
   await studied.refresh();
   await renderLevels();

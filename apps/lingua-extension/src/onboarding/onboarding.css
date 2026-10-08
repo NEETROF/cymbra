@@ -1,5 +1,20 @@
 /* First-run welcome page (a surface the extension owns → full Cymbra identity).
    Colours come only from tokens.css; no colour literal here. */
+
+/* Nothing shows before the catalogue fills the page's copy (onboarding.ts removes the mark). Should
+   the script never get there — it failed before the fill — the page shows anyway after a moment,
+   unfilled rather than blank for good (localise-lingua-account-onboarding D1). */
+html[data-copy-pending] body {
+  visibility: hidden;
+  animation: lingua-copy-reveal 0s 1.5s forwards;
+}
+
+@keyframes lingua-copy-reveal {
+  to {
+    visibility: visible;
+  }
+}
+
 .onboarding {
   margin: 0;
   background: var(--cymbra-lingua-bg);
