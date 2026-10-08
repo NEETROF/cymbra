@@ -8,39 +8,28 @@ import { parseCatalogue, routeOf } from "@/translate/host/model-manifest.ts";
 // mirror releases agree on what the models are.
 
 const EN_FR = "en-fr/base-memory/2.0";
-
-/** The committed catalogue with a second model and a Spanish route through English. */
-function withSpanish() {
-  const c = readCatalogue();
-  const enFr = c.models[EN_FR]!;
-  return {
-    ...c,
-    models: {
-      ...c.models,
-      "es-en/base-memory/2.0": {
-        ...enFr,
-        from: "es",
-        to: "en",
-        mirror: "https://github.com/NEETROF/cymbra/releases/download/lingua-model-es-en-base-memory-2.0/",
-      },
-    },
-    routes: { ...c.routes, "es-fr": ["es-en/base-memory/2.0", EN_FR] },
-  };
-}
+const ES_EN = "es-en/base-memory/2.0";
+const EN_ES = "en-es/base-memory/2.1";
 
 describe("the catalogue as the tools read it", () => {
-  it("lists every model with its id", () => {
-    expect(modelsOf(withSpanish()).map((m) => [m.id, m.from, m.to])).toEqual([
+  it("lists every model with its id, in the order they were pinned", () => {
+    expect(modelsOf(readCatalogue()).map((m) => [m.id, m.from, m.to])).toEqual([
       [EN_FR, "en", "fr"],
-      ["es-en/base-memory/2.0", "es", "en"],
+      [ES_EN, "es", "en"],
+      [EN_ES, "en", "es"],
     ]);
   });
 
   it("bundles what the runtime needs, every model and route, and no deployment detail", () => {
-    const bundled = bundledCatalogue(withSpanish());
+    const bundled = bundledCatalogue(readCatalogue());
     expect(Object.keys(bundled).sort()).toEqual(["base", "models", "routes"]);
     // The routes go through as JSON, keyed by pair (routes-by-pair D1): check_variants compares them so.
-    expect(bundled.routes).toEqual({ "en-fr": [EN_FR], "es-fr": ["es-en/base-memory/2.0", EN_FR] });
+    expect(bundled.routes).toEqual({
+      "en-fr": [EN_FR],
+      "es-fr": [ES_EN, EN_FR],
+      "es-en": [ES_EN],
+      "en-es": [EN_ES],
+    });
     for (const model of Object.values(bundled.models)) {
       expect(Object.keys(model).sort()).toEqual(["files", "from", "licence", "to"]);
       expect(Object.keys(model.files)).toEqual([...ROLES]);
@@ -49,7 +38,9 @@ describe("the catalogue as the tools read it", () => {
       }
     }
     // What the package carries is what the runtime accepts.
-    expect(routeOf(parseCatalogue(bundled), "es-fr").map((m) => m.version)).toEqual(["es-en/base-memory/2.0", EN_FR]);
+    const parsed = parseCatalogue(bundled);
+    expect(routeOf(parsed, "es-fr").map((m) => m.version)).toEqual([ES_EN, EN_FR]);
+    expect(routeOf(parsed, "en-es").map((m) => m.version)).toEqual([EN_ES]);
   });
 
   it("points a development build at another host", () => {
@@ -59,27 +50,33 @@ describe("the catalogue as the tools read it", () => {
 
   it("names a model's mirror release by the last segment of its address", () => {
     expect(mirrorTag(readCatalogue().models[EN_FR] as { mirror: string })).toBe("lingua-model-en-fr-base-memory-2.0");
+    expect(mirrorTag(readCatalogue().models[EN_ES] as { mirror: string })).toBe("lingua-model-en-es-base-memory-2.1");
   });
 });
 
 describe("the mirror releases", () => {
-  it("keeps a release that exists and creates the missing one, with its model's files and notice", () => {
-    const plan = planMirrors(withSpanish(), "/site", (tag) => tag === "lingua-model-en-fr-base-memory-2.0");
+  /** The releases lingua-model-deploy created for the two models pinned before en-es. */
+  const before = (tag: string) =>
+    tag === "lingua-model-en-fr-base-memory-2.0" || tag === "lingua-model-es-en-base-memory-2.0";
+
+  it("keeps the releases that exist and creates en-es 2.1's, with its model's files and notice (matrix-models D1)", () => {
+    const plan = planMirrors(readCatalogue(), "/site", before);
     expect(plan.map((step) => [step.kind, step.tag])).toEqual([
       ["kept", "lingua-model-en-fr-base-memory-2.0"],
-      ["create", "lingua-model-es-en-base-memory-2.0"],
+      ["kept", "lingua-model-es-en-base-memory-2.0"],
+      ["create", "lingua-model-en-es-base-memory-2.1"],
     ]);
-    const created = plan[1]!;
+    const created = plan[2]!;
     expect(created.kind === "create" && created.files).toEqual([
-      ...ROLES.map((role) => `/site/${withSpanish().models["es-en/base-memory/2.0"]!.files[role]!.path}`),
-      "/site/es-en/base-memory/2.0/NOTICE.txt",
+      ...ROLES.map((role) => `/site/${readCatalogue().models[EN_ES]!.files[role]!.path}`),
+      "/site/en-es/base-memory/2.1/NOTICE.txt",
     ]);
-    expect(created.kind === "create" && created.notes).toContain("`es-en/base-memory/2.0`");
+    expect(created.kind === "create" && created.notes).toContain("`en-es/base-memory/2.1`");
   });
 
   it("creates nothing for a model without a mirror", () => {
-    const c = withSpanish();
-    delete (c.models["es-en/base-memory/2.0"] as { mirror?: string }).mirror;
-    expect(planMirrors(c, "/site", () => false).map((step) => step.model)).toEqual([EN_FR]);
+    const c = readCatalogue();
+    delete (c.models[EN_ES] as { mirror?: string }).mirror;
+    expect(planMirrors(c, "/site", () => false).map((step) => step.model)).toEqual([EN_FR, ES_EN]);
   });
 });

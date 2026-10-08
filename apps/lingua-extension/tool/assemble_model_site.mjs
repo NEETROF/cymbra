@@ -104,7 +104,7 @@ for (const model of modelsOf(catalogue)) {
       "translation model, redistributed unmodified by Cymbra for the Cymbra Lingua extension.",
       "",
       `Licence: Mozilla Public License 2.0 (${model.licence}) — https://mozilla.org/MPL/2.0/`,
-      "Source: https://github.com/mozilla/firefox-translations-models and Mozilla's model registry,",
+      "Source: Mozilla's translation model registry,",
       `${catalogue.sourceBase}`,
       "",
     ].join("\n"),

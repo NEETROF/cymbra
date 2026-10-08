@@ -6,8 +6,8 @@
 // manual tool, and a run costs ≈ 100 MB of models and about a minute.
 //
 // Usage: node --experimental-strip-types tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N] [--isolate]
-//   --pair    one the catalogue routes (en-fr, es-fr today; en-es once change 25 pins its route);
-//             the corpus is its studied language's
+//   --pair    one the catalogue routes: en-fr, es-fr, es-en or en-es (add-lingua-translation-matrix-models
+//             pins en-es and routes both); the corpus is its studied language's
 //   --models  an assembled site directory (tool/assemble_model_site.mjs); every file is checked
 //             against the catalogue's sha256 before use
 //   --limit   the first N selections only, N a positive whole number
@@ -158,7 +158,7 @@ async function main() {
   const route = pair ? catalogue.routes[pair] : undefined;
   if (!route) {
     throw new Error(
-      `--pair <pair> is required: one of the catalogue's routes, ${Object.keys(catalogue.routes).join(" or ")} (en-es once change 25 pins its route)`,
+      `--pair <pair> is required: one of the catalogue's routes, ${Object.keys(catalogue.routes).join(", ")}`,
     );
   }
   const modelsDir = arg("--models");
