@@ -106,7 +106,7 @@ page 2/2:
   [proper noun] a surname
 row: good (of good quality)
 ### word-grammar gran grande
-grammar: feminine singular and masculine singular of grande
+grammar: masculine and feminine singular of grande
 page 1/1:
   [adjective] big, large; great, grand; aged, old
   [noun] grandee; adult, grown-up

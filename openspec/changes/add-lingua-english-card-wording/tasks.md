@@ -8,7 +8,7 @@
 ## 2. The wording (apps/lingua-extension)
 
 - [x] 2.1 `test/word-card-es-en.spec.ts` and its snapshot: every probe of the committed golden rendered with the interface in English; `lingua-pack-update` re-blesses the snapshot (D2).
-- [x] 2.2 `src/i18n/en/grammar.ts`: the Spanish-studied tables corrected on the real readings; `word-grammar-en.spec.ts` moves with them (D3).
+- [x] 2.2 `src/i18n/en/grammar.ts`: the Spanish-studied tables corrected on the real readings; `word-grammar-en.spec.ts` moves with them (D3). The tenses, their order, the gerund and the moods read right on every real reading; one line corrected — two genders of one number named once (« gran »: "masculine and feminine singular of grande", was "feminine singular and masculine singular of grande"), the French unchanged; what reads wrong and is data, or wording the spec keeps, is listed in design.md *Known data defects*.
 - [x] 2.3 `selection-card.ts`: the row cut per D4, with the snapshot of every en-fr and es-fr row committed first.
 
 ## 3. Dogfood

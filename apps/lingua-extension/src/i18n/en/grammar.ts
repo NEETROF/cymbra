@@ -20,7 +20,8 @@ import type { GrammarLine, Named, StudiedLanguageCode } from "../index.ts";
 // (generalise-lingua-card-wording D2–D4), reviewed by the owner (M9). It follows the English
 // Wiktionary's form-of wording: "third-person singular preterite indicative of venir", "past
 // participle of walk". English has no gendered article and elides nothing: a line says "the" once,
-// before its list. Readings merge by tag; the tenses come in the order its table lists them.
+// before its list. Readings merge by tag; the tenses come in the order its table lists them; the
+// genders of one number are named once, "masculine and feminine singular" (add-lingua-english-card-wording D3).
 
 const PARTS_OF_SPEECH: Record<string, string> = {
   ADJ: "adjective",
@@ -72,13 +73,49 @@ function agreement({ gender, number }: Agreement): string | undefined {
   return number === "Plur" ? "plural" : undefined;
 }
 
+const the = (name: string): Named => ({ article: "the", name });
+
 /** "a", "a and b", "a, b and c". */
 function join(items: readonly string[]): string {
   if (items.length <= 1) return items.join("");
   return `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
-const the = (name: string): Named => ({ article: "the", name });
+/** Each gendered agreement's name — "feminine singular" — and the gender and number it names. */
+const GENDERED: ReadonlyMap<string, { gender: string; number: "Sing" | "Plur" }> = new Map(
+  Object.keys(GENDERS).flatMap((gender) =>
+    (["Sing", "Plur"] as const).map((number) => [agreement({ gender, number })!, { gender, number }] as const),
+  ),
+);
+
+/**
+ * The names of a line, the genders of one number named once — "masculine and feminine singular",
+ * not "feminine singular and masculine singular" — in the order of `GENDERS`, where the first of
+ * them stood. Every gender and number the French names is still named: only the wording merges.
+ */
+function mergeGenders(named: readonly Named[]): Named[] {
+  const out: Named[] = [];
+  const byNumber = new Map<string, { at: number; genders: string[] }>();
+  for (const n of named) {
+    const agreed = GENDERED.get(n.name);
+    const group = agreed && byNumber.get(agreed.number);
+    if (!agreed) {
+      out.push(n);
+    } else if (group) {
+      if (!group.genders.includes(agreed.gender)) group.genders.push(agreed.gender);
+    } else {
+      byNumber.set(agreed.number, { at: out.length, genders: [agreed.gender] });
+      out.push(n);
+    }
+  }
+  const order = Object.keys(GENDERS);
+  for (const [number, { at, genders }] of byNumber) {
+    if (genders.length < 2) continue;
+    const sorted = [...genders].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    out[at] = the(`${join(sorted.map((g) => GENDERS[g]!))} ${NUMBERS[number]}`);
+  }
+  return out;
+}
 
 const readingWords: ReadingWords = {
   tenses: TENSES,
@@ -117,7 +154,7 @@ const readingWords: ReadingWords = {
 };
 
 const lineWords: LineWords = {
-  names: (readings, studied) => nameReadings(readings, studied, readingWords),
+  names: (readings, studied) => mergeGenders(nameReadings(readings, studied, readingWords)),
   formOf: (named) => `${join(named.map((n) => n.name))} `,
   mayAlsoBe: (named) => `may also be the ${join(named.map((n) => n.name))} `,
   of: (word): GrammarLine => ["of ", { word }],
