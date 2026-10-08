@@ -81,6 +81,23 @@ the content script tears its `ReadingSession` down and builds a new one, reading
 language's with their hosts' `lang`. The reading session's `onExternalChange` keeps handling a
 synced backup as today; a native change is the one case that rebuilds.
 
+A context that started before the change — a session taken down while its engine answered, a page
+about to reload, a port not restored yet, a tab the browser restores from its back/forward cache,
+which heard nothing while it was frozen — may still save the backup its engine holds, at any time,
+and saving it would undo the choice. So the store's owner records the native language last chosen
+beside the backup, in the store it owns and in the same write (`cymbra-lingua-last-native`): the
+record outlives the background, which Chromium stops when idle and Safari suspends, and no window of
+time is involved. A backup written without a reason that names another native language is refused,
+nothing written. Only the change and a restore from a file write the record. A restore from a file
+carries its own reason: the native language it names becomes the reader's, and when it is another
+one the restore is announced as a change of native language, so every surface follows it as it
+follows a choice. A device where nothing was ever recorded — every installed extension, every reader
+who never chose — has no context holding another native language's engine: nothing is refused
+there, and no backup is parsed for it. The erasure (`SyncEngine.wipeLocal`, from « Effacer mes
+données Lingua » or from a sync's `checkErasure`) restores the stored backup before it resets, since
+an engine's reset keeps the native language of the backup it last restored: an erasure queued behind
+a change starts the reader over in the language they chose.
+
 ### D4 — Three places, one view
 
 `src/reading/native-language-view.ts` mounts the choice: the native languages of
@@ -134,8 +151,9 @@ on the same-in-every-language list.
   marker is unset.
 - **A device whose browser is German** → the preset is English when English ships, French
   otherwise; the reader changes it in the same step.
-- **A backup restored from a file naming another native** → `restore` rebuilds (D3), as a sync
-  does.
+- **A backup restored from a file naming another native** → saved with its own reason: that native
+  language becomes the reader's, recorded as their last choice, and the restore is announced as a
+  change of native language; `restore` rebuilds every port for it (D3).
 
 ## Migration Plan
 

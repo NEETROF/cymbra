@@ -59,12 +59,14 @@ import {
   isStoreMessage,
   migrateStore,
   openStore,
+  type OwnerArea,
   ownerArea,
   rememberInterfaceLanguage,
   STORE_CHANGED_KEY,
   type StoreChange,
   type StoreChangeReason,
   type StoreReply,
+  surfaceWriteReason,
   watchStore,
 } from "./state/store.ts";
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
@@ -227,10 +229,12 @@ let onReaderDataChanged: (() => void) | null = null;
 
 /**
  * Say which keys just changed, and why when a surface must do more than re-read them — the reader
- * chose another native language (add-lingua-native-language-choice D2): every page then reloads and
- * every reading session is built anew.
+ * chose another native language (add-lingua-native-language-choice D2), or restored a file that names
+ * one: every page then reloads and every reading session is built anew, and the reading engine
+ * restores the backup before its next answer, which rebuilds it for that language (D3).
  */
 function announceStoreChange(keys: string[], reason?: StoreChangeReason): void {
+  if (reason?.type === "native-language") rehydrateReader();
   storeRev += 1;
   const change: StoreChange = reason ? { rev: storeRev, keys, reason } : { rev: storeRev, keys };
   void chrome.storage.local.set({ [STORE_CHANGED_KEY]: change }).catch(() => {});
@@ -274,8 +278,12 @@ const storeArea: Promise<AsyncStorageArea> = (async () => {
   return area;
 })();
 
-/** The owner's own handle: writes announce themselves, like a surface's would. */
-const ownedStore: AsyncStorageArea = ownerArea(
+/**
+ * The owner's own handle: writes announce themselves, like a surface's would, and a backup naming
+ * another native language than the reader last chose is refused (add-lingua-native-language-choice
+ * D3), whenever it comes — the choice is kept in the store, not in this page, which the browser stops.
+ */
+const ownedStore: OwnerArea = ownerArea(
   {
     get: async (keys) => (await storeArea).get(keys),
     set: async (items) => (await storeArea).set(items),
@@ -292,7 +300,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: true, items: await area.get(message.keys) } satisfies StoreReply);
       return;
     }
-    await ownedStore.set(message.items); // announces, and schedules the sync
+    // Announces, and schedules the sync. A restore from a file says so: it may name another native
+    // language, which a surface's write may not (task 4.5).
+    await ownedStore.set(message.items, surfaceWriteReason(message));
     sendResponse({ ok: true } satisfies StoreReply);
   })().catch((e: unknown) => {
     console.warn("[Cymbra Lingua] store request failed:", e);

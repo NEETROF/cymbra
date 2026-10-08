@@ -21,7 +21,7 @@ import {
   studiedForNative,
 } from "@/state/native-language.ts";
 import { type AsyncStorageArea, ROOT_KEY } from "@/state/storage.ts";
-import { ownerArea, type StoreChangeReason, watchStore } from "@/state/store.ts";
+import { LAST_NATIVE_KEY, ownerArea, type StoreChangeReason, watchStore } from "@/state/store.ts";
 import { SyncScheduler } from "@/sync/scheduler.ts";
 import { SyncEngine, type SyncClients } from "@/sync/sync.ts";
 import { makeFakePort } from "./helpers.ts";
@@ -476,6 +476,125 @@ describe("the background's change, beside a sync (D2)", () => {
       profile: { native_language: "English", studied_languages: ["Spanish"] },
       words: ["mine", "pulled", "later"],
     });
+  });
+});
+
+describe("an erasure after a change of native language (task 4.5)", () => {
+  const CODES: Record<string, string> = { French: "fr", English: "en", Spanish: "es" };
+  const FIRST_STUDIED: Record<string, string> = { French: "English", English: "Spanish" };
+  type Held = { profile: { native_language: string; studied_languages: string[] }; words: string[] };
+
+  /**
+   * The sync's engine as its last run left it: the reader's French backup restored. Its full reset
+   * starts a fresh state on its own native language — the one of the backup it last restored.
+   */
+  function syncPort() {
+    const { port } = makeFakePort();
+    let held: Held = { profile: { native_language: "French", studied_languages: ["English"] }, words: ["mine"] };
+    port.restore = async (json) => void (held = JSON.parse(json) as Held);
+    port.backup = async () => JSON.stringify({ schema_version: 2, ...held });
+    port.nativeLanguage = async () => CODES[held.profile.native_language] as NativeLanguage;
+    port.studiedLanguages = async () => held.profile.studied_languages.map((name) => CODES[name] as StudiedLanguage);
+    port.reset = async () => {
+      const native = held.profile.native_language;
+      held = { profile: { native_language: native, studied_languages: [FIRST_STUDIED[native]] }, words: [] };
+    };
+    port.exportStatusOps = async () => [];
+    port.exportCardOps = async () => [];
+    port.exportDeclaredLevels = async () => [];
+    port.applyStatusChanges = async () => 0;
+    port.applyCardOps = async () => 0;
+    port.applyDeclaredLevelChanges = async () => 0;
+    return port;
+  }
+
+  /** A server that erased the account at 5, and has nothing to pull. */
+  function server() {
+    return {
+      knownWords: {
+        pushOps: vi.fn(async () => ({ applied: 0n, cursor: 0n })),
+        pullChanges: vi.fn(async () => ({ changes: [], cursor: 7n, declaredLevels: [] })),
+      },
+      deck: {
+        pushCards: vi.fn(async () => ({ applied: 0n, cursor: 0n })),
+        pullCards: vi.fn(async () => ({ cards: [], cursor: 9n })),
+      },
+      stats: { upsertDailyStats: vi.fn(async () => ({ upserted: 0n })) },
+      data: {
+        getDataState: vi.fn(async () => ({ erasedAt: 5n })),
+        eraseMyData: vi.fn(async () => ({ erasedAt: 5n })),
+      },
+    } as unknown as SyncClients;
+  }
+
+  /** What an erasure leaves an English reader: the fresh state of English, studying Spanish. */
+  const FRESH_ENGLISH = {
+    schema_version: 2,
+    profile: { native_language: "English", studied_languages: ["Spanish"] },
+    words: [],
+  };
+
+  function erasing(store: Record<string, unknown>) {
+    const { deps } = host({
+      [ROOT_KEY]: {
+        v: 2,
+        backup: JSON.stringify({
+          schema_version: 2,
+          profile: { native_language: "French", studied_languages: ["English", "Spanish"] },
+          words: ["mine"],
+        }),
+      },
+      ...store,
+    });
+    const port = syncPort();
+    const engine = new SyncEngine({
+      port,
+      storage: deps.store,
+      clients: server,
+      deviceId: "d",
+      acceptedLanguages: () => acceptedLanguages(port, MIXED),
+    });
+    const scheduler = new SyncScheduler({
+      sync: async () => void (await engine.sync()),
+      signedIn: () => true,
+      now: () => 0,
+      lastSynced: async () => 0,
+      onSynced: async () => {},
+      onError: (e) => {
+        throw e;
+      },
+    });
+    const change = () =>
+      changeNativeLanguage(
+        { ...deps, exclusive: (task) => scheduler.exclusive(task) },
+        { type: NATIVE_LANGUAGE_MESSAGE, native: "en" },
+      );
+    return { deps, engine, scheduler, change };
+  }
+
+  it("« Effacer mes données Lingua » queued behind a change: the fresh state is the native language chosen", async () => {
+    const { deps, engine, scheduler, change } = erasing({});
+    // The reader chose English, then erased their data before the change was over: the erasure
+    // waits behind it, on an engine that last restored the French backup.
+    const changed = change();
+    const erased = scheduler.exclusive(() => engine.eraseAll());
+    expect(await changed).toEqual({ ok: true, changed: true });
+    await erased; // reset on the French engine, the owner would refuse what it saves
+
+    expect(await stored(deps)).toEqual(FRESH_ENGLISH);
+    expect((await deps.store.get(LAST_NATIVE_KEY))[LAST_NATIVE_KEY]).toBe("en");
+    expect((await deps.store.get("cymbra-lingua-erased-at"))["cymbra-lingua-erased-at"]).toBe(5);
+  });
+
+  it("an erasure found by the next sync after a change resets to the native language chosen too", async () => {
+    // This device synced before the account was erased elsewhere; the reader then chose English.
+    const { deps, scheduler, change } = erasing({ "cymbra-lingua-status-cursor": 3 });
+    expect(await change()).toEqual({ ok: true, changed: true });
+
+    expect(await scheduler.syncNow()).toBeNull();
+
+    expect(await stored(deps)).toEqual(FRESH_ENGLISH);
+    expect((await deps.store.get("cymbra-lingua-erased-at"))["cymbra-lingua-erased-at"]).toBe(5);
   });
 });
 

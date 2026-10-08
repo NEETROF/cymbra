@@ -202,9 +202,22 @@ export class SyncEngine {
    * Empty this device's Lingua store — statuses, deck, level, calibration, exposure
    * counters, local daily stats — and the pull cursors. The other contexts follow the
    * saved backup through storage.onChanged.
+   *
+   * The engine resets to its own native language, the one of the backup it last restored: the
+   * stored backup is restored first, so an erasure queued behind a change of native language — or
+   * found by `checkErasure` at the next sync, before that sync restores anything — resets to the
+   * language the reader chose, not to the one they left, which the store's owner would refuse
+   * (add-lingua-native-language-choice D3, task 4.5). A backup that will not restore is what the
+   * erasure replaces: that is said, and the engine is reset all the same.
    */
   private async wipeLocal(): Promise<void> {
     const { port, storage } = this.deps;
+    const stored = await loadStored(storage);
+    if (stored.kind === "v2") {
+      await port.restore(stored.backup).catch((e: unknown) => {
+        console.warn("[Cymbra Lingua] the backup did not restore before the erasure:", e);
+      });
+    }
     await port.reset();
     // The reset returned the profile to the engine's native language, studying its first pack's
     // language alone — the default profile, for a reader of French (generalise-lingua-native-language
