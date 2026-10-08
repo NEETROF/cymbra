@@ -137,6 +137,28 @@ if (shippedNatives(shippedPairs()).length < 2) {
       }
     }
   }
+} else {
+  // From the second native language on (enable-lingua-english-speakers), every surface that offers
+  // the choice carries it: Réglages wherever it is hosted, the onboarding's first question and the
+  // popup's first-run call to action, each preset from the browser's language.
+  const BUILT_IN = {
+    "popup.js": ["mountNativeLanguage", "native-cta", "presetNativeLanguage"],
+    "onboarding.js": ["mountNativeLanguage", "native-section", "presetNativeLanguage"],
+    "content.js": ["mountNativeLanguage"],
+    "sidepanel.js": ["mountNativeLanguage"],
+    "reader.js": ["mountNativeLanguage"],
+  };
+  for (const target of ["chromium", "firefox", "safari"]) {
+    for (const [file, texts] of Object.entries(BUILT_IN)) {
+      const bundle = read(target, file);
+      for (const text of texts) {
+        expect(
+          bundle.includes(text),
+          `${target}/${file}: two native languages ship, and the native language's choice ("${text}") is not built in`,
+        );
+      }
+    }
+  }
 }
 
 // The translation engine (add-lingua-translation-delivery D9). Every package CARRIES it — the pinned
@@ -294,9 +316,10 @@ for (const target of ["chromium", "firefox", "safari"]) {
 
 // The packs a package ships (generalise-lingua-pack-build): exactly the pairs packs.json lists,
 // each exposed to the contexts that fetch it — English, the default, then Spanish since
-// enable-lingua-spanish. The list and this constant agree on purpose: shipping another language,
-// or dropping one, takes two edits in one pull request, one of them in this gate.
-const SHIPPED_PAIRS = ["en-fr", "es-fr"];
+// enable-lingua-spanish, then Spanish glossed in English for English speakers since
+// enable-lingua-english-speakers. The list and this constant agree on purpose: shipping another
+// language, or dropping one, takes two edits in one pull request, one of them in this gate.
+const SHIPPED_PAIRS = ["en-fr", "es-fr", "es-en"];
 const pairs = shippedPairs();
 expect(
   JSON.stringify(pairs) === JSON.stringify(SHIPPED_PAIRS),

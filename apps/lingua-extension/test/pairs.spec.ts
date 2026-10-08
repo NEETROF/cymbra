@@ -25,7 +25,8 @@ import {
 } from "../tool/packs.mjs";
 import { makeFakePort } from "./helpers.ts";
 
-/** Today's list beside a pair glossed in English (generalise-lingua-native-language). */
+/** Two French-native pairs beside a pair glossed in English (generalise-lingua-native-language):
+ *  packs.json since change 34 (enable-lingua-english-speakers), held here so these tests keep it. */
 const MIXED = ["en-fr", "es-fr", "es-en"];
 
 describe("the pair that serves a language", () => {
@@ -118,10 +119,17 @@ describe("the pairs of a native language", () => {
     expect(defaultPair("es", MIXED)).toBeNull();
   });
 
-  it("are, for every reader today, the bundle's whole list", () => {
+  it("are, in the bundle's list, French's two pairs then English's one (enable-lingua-english-speakers)", () => {
+    expect(SHIPPED_PAIRS).toEqual(MIXED);
+    // A French-native reader — every installed reader (M22) — keeps their pairs and their default.
     expect(DEFAULT_NATIVE).toBe("fr");
-    expect(pairsOf(DEFAULT_NATIVE)).toEqual([...SHIPPED_PAIRS]);
+    expect(pairsOf(DEFAULT_NATIVE)).toEqual(["en-fr", "es-fr"]);
     expect(defaultPair(DEFAULT_NATIVE)).toBe(SHIPPED_PAIRS[0]);
+    expect(defaultPair(DEFAULT_NATIVE)).toBe("en-fr");
+    // An English-native reader studies Spanish through es-en.
+    expect(pairsOf("en")).toEqual(["es-en"]);
+    expect(defaultPair("en")).toBe("es-en");
+    expect(pairsOf("es")).toEqual([]);
   });
 });
 
@@ -133,8 +141,8 @@ describe("the shipped natives (add-lingua-native-language-choice D1)", () => {
     expect(shippedNatives([])).toEqual([]);
   });
 
-  it("count one today: French (M22)", () => {
-    expect(shippedNatives()).toEqual([DEFAULT_NATIVE]);
+  it("count two in the bundle's list: French first (M22), then English (enable-lingua-english-speakers)", () => {
+    expect(shippedNatives()).toEqual([DEFAULT_NATIVE, "en"]);
   });
 
   it("are read the same by the build (tool/packs.mjs)", () => {
@@ -210,7 +218,7 @@ describe("the languages a device accepts from the sync", () => {
     expect(await acceptedLanguages(await reader(["en"], "en"), MIXED)).toEqual(["es"]);
   });
 
-  it("do not change for any reader of French with today's list", async () => {
+  it("do not change for any reader of French with the bundle's list, es-en listed (D2)", async () => {
     for (const studied of [[], ["en"], ["es"], ["en", "es"], ["es", "en"]] as StudiedLanguage[][]) {
       const french = await reader(studied);
       const expected = studied.length > 0 ? studied : ["en"];
@@ -218,11 +226,20 @@ describe("the languages a device accepts from the sync", () => {
       expect(await readingLanguage(french)).toBe(expected[0]);
     }
   });
+
+  it("are Spanish for any reader of English with the bundle's list (English speakers learning Spanish)", async () => {
+    for (const studied of [[], ["en"], ["es"], ["en", "es"], ["es", "en"]] as StudiedLanguage[][]) {
+      const english = await reader(studied, "en");
+      expect(await acceptedLanguages(english)).toEqual(["es"]);
+      expect(await readingLanguage(english)).toBe("es");
+      expect(readerPairs(await acceptedLanguages(english), "en")).toEqual(["es-en"]);
+    }
+  });
 });
 
 describe("the bundle's packs", () => {
   it("lie where the build puts them", () => {
-    for (const pair of ["en-fr", "es-fr"]) expect(packPath(pair)).toBe(packFile(pair));
+    for (const pair of ["en-fr", "es-fr", "es-en"]) expect(packPath(pair)).toBe(packFile(pair));
   });
 
   it("are the pairs packs.json lists", () => {

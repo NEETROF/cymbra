@@ -25,7 +25,7 @@ import { ownerArea, type StoreChangeReason } from "@/state/store.ts";
 // the onboarding's first question and the popup's first-run call to action.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-/** Today's package: French-native pairs alone. */
+/** The package before change 34: French-native pairs alone. */
 const TODAY = ["en-fr", "es-fr"];
 /** es-en shipping beside them (change 34). */
 const MIXED = ["en-fr", "es-fr", "es-en"];
@@ -321,7 +321,7 @@ describe("the popup's first run (D4)", () => {
     const preferences = fakeArea();
     const reads = vi.spyOn(preferences, "get");
     const choose = vi.fn();
-    expect(await presetNativeLanguage({ preferences, browserLanguage: "en-US", choose })).toBe(false);
+    expect(await presetNativeLanguage({ preferences, browserLanguage: "en-US", choose, pairs: TODAY })).toBe(false);
     expect(reads).not.toHaveBeenCalled();
     expect(choose).not.toHaveBeenCalled();
 

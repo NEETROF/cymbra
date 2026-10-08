@@ -107,9 +107,12 @@ describe("the stored native language (generalise-lingua-native-language D7)", ()
     const area = fakeArea();
     await saveBackup(area, profile("English"));
     expect(await storedNativeLanguage(area, ["en-fr", "es-en"])).toBe("en");
-    // No listed pair is glossed in it: French, as every reader today.
-    expect(await storedNativeLanguage(area)).toBe("fr");
+    // No listed pair is glossed in it: French, as every reader before change 34.
+    expect(await storedNativeLanguage(area, ["en-fr", "es-fr"])).toBe("fr");
+    // The bundle's list since change 34 (enable-lingua-english-speakers) glosses es-en in English.
+    expect(await storedNativeLanguage(area)).toBe("en");
     await saveBackup(area, profile("French"));
+    expect(await storedNativeLanguage(area)).toBe("fr");
     expect(await storedNativeLanguage(area, ["en-fr", "es-en"])).toBe("fr");
   });
 });
