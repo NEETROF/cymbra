@@ -1,22 +1,34 @@
 import { IDBFactory } from "fake-indexeddb";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { INTERFACE_LANGUAGE_KEY, interfaceLanguage } from "@/i18n/language.ts";
 import {
   idbArea,
   isStoreMessage,
+  LAST_NATIVE_KEY,
   messagedArea,
   MIGRATED_KEY,
   migrateStore,
-  NATIVE_CHANGE_GUARD_MS,
   openStore,
+  type OwnerArea,
   ownerArea,
   dropRetiredKeys,
   rememberInterfaceLanguage,
+  RESTORE_FROM_FILE,
+  saveRestoredBackup,
   STORE_KEYS,
   StaleNativeLanguageError,
+  type StoreChangeReason,
+  type StoreMessage,
   type StoreReply,
+  surfaceWriteReason,
 } from "@/state/store.ts";
-import { type AsyncStorageArea, nativeLanguageOfStored, ROOT_KEY, saveBackup } from "@/state/storage.ts";
+import {
+  type AsyncStorageArea,
+  nativeLanguageOfStored,
+  ROOT_KEY,
+  saveBackup,
+  STORAGE_VERSION,
+} from "@/state/storage.ts";
 
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -478,46 +490,190 @@ describe("the interface language follows the stored profile", () => {
   });
 });
 
-describe("a backup naming the native language the reader just left (add-lingua-native-language-choice D3)", () => {
+describe("the reader's last choice of native language (add-lingua-native-language-choice D3, task 4.5)", () => {
   const PAIRS = ["en-fr", "es-fr", "es-en"];
   const french = JSON.stringify({ profile: { native_language: "French", studied_languages: ["English"] } });
   const english = JSON.stringify({ profile: { native_language: "English", studied_languages: ["Spanish"] } });
   const CHANGE = { type: "native-language", native: "en" } as const;
+  const backup = (text: string) => ({ [ROOT_KEY]: { v: 2, backup: text } });
 
-  function owner() {
-    let clock = 1_000;
-    const store = fakeArea({ [ROOT_KEY]: { v: 2, backup: french } });
-    const announced: string[][] = [];
+  function owner(store = fakeArea(backup(french)), preferences = fakeArea()) {
+    const announced: { keys: string[]; reason?: StoreChangeReason; key: unknown }[] = [];
     const area = ownerArea(
       store,
-      (keys) => announced.push(keys),
-      fakeArea(),
+      (keys, reason) => announced.push({ keys, reason, key: preferences.store[INTERFACE_LANGUAGE_KEY] }),
+      preferences,
       PAIRS,
-      () => clock,
     );
-    return { area, store, announced, advance: (ms: number) => (clock += ms) };
+    return { area, store, announced, preferences };
   }
 
-  it("is refused while the change is recent, nothing written, nothing announced", async () => {
+  /** What the background answers a surface's `store:set` (background.ts): a refusal is no error there. */
+  function background(area: OwnerArea) {
+    return messagedArea(async (message) => {
+      const m = message as StoreMessage & { type: "store:set" };
+      try {
+        await area.set(m.items, surfaceWriteReason(m));
+        return { ok: true } satisfies StoreReply;
+      } catch {
+        return { ok: false } satisfies StoreReply;
+      }
+    });
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("refuses a backup naming the native language left, nothing written, nothing announced, however late", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
     const o = owner();
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);
+    await o.area.set(backup(english), CHANGE);
     o.announced.length = 0;
 
     // A session taken down while its engine answered saves the French backup it held.
-    await expect(o.area.set({ [ROOT_KEY]: { v: 2, backup: french } })).rejects.toThrow(StaleNativeLanguageError);
-    o.advance(NATIVE_CHANGE_GUARD_MS - 1);
+    await expect(o.area.set(backup(french))).rejects.toThrow(StaleNativeLanguageError);
+    // A day later, as much as at once: no window closes on the reader's choice.
+    vi.setSystemTime(Date.now() + 24 * 60 * 60 * 1000);
     await expect(saveBackup(o.area, french)).rejects.toThrow('a backup naming "fr" was refused');
 
     expect(o.store.store[ROOT_KEY]).toEqual({ v: 2, backup: english });
+    expect(o.store.store[LAST_NATIVE_KEY]).toBe("en");
     expect(o.announced).toEqual([]);
   });
 
-  it("leaves alone a backup naming the native language chosen, and every other key", async () => {
+  it("A restart of the background: the choice is read back from the store, and the backup left is refused", async () => {
+    const factory = new IDBFactory();
+    const before = idbArea(await openStore(factory));
+    await before.set(backup(french));
+    await ownerArea(before, () => {}, undefined, PAIRS).set(backup(english), CHANGE);
+
+    // The service worker stopped, the event page was suspended: a new owner, over the same database,
+    // remembers nothing of its own — and a context left on French saves the backup its engine holds.
+    const after = ownerArea(idbArea(await openStore(factory)), () => {}, undefined, PAIRS);
+    await expect(after.set(backup(french))).rejects.toThrow(StaleNativeLanguageError);
+    await after.set(backup(english)); // an engine rebuilt for English is written as before
+
+    const reopened = idbArea(await openStore(factory));
+    expect(await reopened.get([ROOT_KEY, LAST_NATIVE_KEY])).toEqual({
+      ...backup(english),
+      [LAST_NATIVE_KEY]: "en",
+    });
+  });
+
+  it("A tab restored from the back/forward cache: its old engine's save goes nowhere, a rebuilt one's lands", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
     const o = owner();
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } });
-    await o.area.set({ "cymbra-lingua-device": "dev-1" });
+    await o.area.set(backup(english), CHANGE);
+    // Frozen while the change was announced, the tab heard nothing; hours later, a word is clicked.
+    vi.setSystemTime(Date.now() + 3 * 60 * 60 * 1000);
+    const tab = background(o.area);
+    await saveBackup(tab, french);
+    expect(o.store.store[ROOT_KEY]).toEqual(backup(english)[ROOT_KEY]);
+
+    // Its next restore rebuilt its engine for English (D3): what it saves then is written.
+    const learned = JSON.stringify({ ...JSON.parse(english), words: ["dwell"] });
+    await saveBackup(tab, learned);
+    expect(o.store.store[ROOT_KEY]).toEqual(backup(learned)[ROOT_KEY]);
+  });
+
+  it("a change of native language passes and becomes the choice, and so does a change back", async () => {
+    const o = owner();
+    await o.area.set(backup(english), CHANGE);
+    await o.area.set(backup(english));
+    await o.area.set({ "cymbra-lingua-device": "dev-1" }); // every other key, as before
     expect(o.store.store["cymbra-lingua-device"]).toBe("dev-1");
+
+    await o.area.set(backup(french), { type: "native-language", native: "fr" });
+    expect(o.store.store[LAST_NATIVE_KEY]).toBe("fr");
+    await expect(o.area.set(backup(english))).rejects.toThrow(StaleNativeLanguageError);
+    await o.area.set(backup(french));
+    expect(o.store.store[ROOT_KEY]).toEqual(backup(french)[ROOT_KEY]);
+  });
+
+  it("A restore from a file: written whatever it names, it becomes the choice and is announced as one", async () => {
+    const o = owner();
+    await o.area.set(backup(english), CHANGE);
+    o.announced.length = 0;
+
+    await saveRestoredBackup(o.area, french);
+
+    expect(o.store.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: french });
+    expect(o.store.store[LAST_NATIVE_KEY]).toBe("fr");
+    // Every surface follows it as it follows a choice, the key mirrored before it hears of it.
+    expect(o.announced).toEqual([{ keys: [ROOT_KEY], reason: { type: "native-language", native: "fr" }, key: "fr" }]);
+    await expect(o.area.set(backup(english))).rejects.toThrow(StaleNativeLanguageError);
+
+    // A file naming the native language chosen is a write like another, the choice kept.
+    o.announced.length = 0;
+    await saveRestoredBackup(o.area, french);
+    await o.area.mirrored();
+    expect(o.announced).toEqual([{ keys: [ROOT_KEY], key: "fr" }]);
+    expect(o.store.store[LAST_NATIVE_KEY]).toBe("fr");
+  });
+
+  it("a restore from a file reaches the owner with its reason; a surface's other writes carry none", async () => {
+    const sent: StoreMessage[] = [];
+    const surface = messagedArea(async (message) => void sent.push(message as StoreMessage));
+    await saveRestoredBackup(surface, english);
+    await saveBackup(surface, english);
+    expect(sent[0]).toEqual({
+      type: "store:set",
+      items: { [ROOT_KEY]: { v: 2, backup: english } },
+      reason: RESTORE_FROM_FILE,
+    });
+    expect(surfaceWriteReason(sent[0])).toEqual(RESTORE_FROM_FILE);
+    expect(sent[1]).toEqual({ type: "store:set", items: { [ROOT_KEY]: { v: 2, backup: english } } });
+    expect(surfaceWriteReason(sent[1])).toBeUndefined();
+    // A change of native language is the background's to make (`lingua-native-language`), never a write's.
+    const forged = { type: "store:set", items: {}, reason: CHANGE } as unknown as StoreMessage;
+    expect(surfaceWriteReason(forged)).toBeUndefined();
+    expect(surfaceWriteReason({ type: "store:get", keys: ROOT_KEY })).toBeUndefined();
+  });
+
+  it("An installed extension, no choice recorded: nothing refused, nothing recorded, the backup never parsed", async () => {
+    const store = fakeArea(backup(french));
+    const reads = vi.spyOn(store, "get");
+    const announced: string[][] = [];
+    const area = ownerArea(store, (keys) => announced.push(keys), undefined, PAIRS);
+    const parse = vi.spyOn(JSON, "parse");
+
+    await saveBackup(area, french);
+    await saveBackup(area, "{not json");
+    await saveBackup(area, french);
+    expect(parse).not.toHaveBeenCalled();
+    parse.mockRestore();
+
+    expect(store.store[ROOT_KEY]).toEqual({ v: STORAGE_VERSION, backup: french });
+    expect(store.store).not.toHaveProperty(LAST_NATIVE_KEY);
+    expect(reads.mock.calls).toEqual([[LAST_NATIVE_KEY]]); // the record, once for this background
+    expect(announced).toEqual([[ROOT_KEY], [ROOT_KEY], [ROOT_KEY]]);
+  });
+
+  it("An installed extension: a file naming its own native language records nothing, one naming another does", async () => {
+    const o = owner();
+    await saveRestoredBackup(o.area, french);
+    await o.area.mirrored();
+    expect(o.store.store).not.toHaveProperty(LAST_NATIVE_KEY);
+    // A write like another: announced as it lands, the key mirrored after.
+    expect(o.announced).toEqual([{ keys: [ROOT_KEY], key: undefined }]);
+    expect(o.preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("fr");
+
+    await saveRestoredBackup(o.area, english);
+    expect(o.store.store[LAST_NATIVE_KEY]).toBe("en");
+    expect(o.announced.at(-1)).toEqual({ keys: [ROOT_KEY], reason: CHANGE, key: "en" });
+    await expect(o.area.set(backup(french))).rejects.toThrow(StaleNativeLanguageError);
+  });
+
+  it("once a choice is recorded, a backup is parsed once per write: the mirror takes the guard's reading", async () => {
+    const o = owner();
+    await o.area.set(backup(english), CHANGE);
+    const parse = vi.spyOn(JSON, "parse");
+    await o.area.set(backup(english));
+    await o.area.mirrored();
+    expect(parse).toHaveBeenCalledTimes(1);
+    expect(o.preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("en");
   });
 
   it("mirrors the language the change names before announcing it, without parsing the backup", async () => {
@@ -529,26 +685,71 @@ describe("a backup naming the native language the reader just left (add-lingua-n
     await area.set({ [ROOT_KEY]: { v: 2, backup: "{not json" } }, CHANGE);
     expect(seen).toEqual(["en"]);
     expect(warn).not.toHaveBeenCalled();
-    warn.mockRestore();
   });
 
-  it("is written again once the change is old: a backup restored from a file names what it names", async () => {
+  it("the record is the owner's: a write naming it is refused", async () => {
     const o = owner();
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);
-    o.advance(NATIVE_CHANGE_GUARD_MS);
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: french } });
-    expect(o.store.store[ROOT_KEY]).toEqual({ v: 2, backup: french });
+    await expect(o.area.set({ [LAST_NATIVE_KEY]: "en" })).rejects.toThrow(LAST_NATIVE_KEY);
+    expect(o.store.store).not.toHaveProperty(LAST_NATIVE_KEY);
   });
 
-  it("is written as before when no change was made, and a second change moves the guard", async () => {
-    const o = owner();
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }); // a restore from a file, no change
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: french } });
-    expect(o.store.store[ROOT_KEY]).toEqual({ v: 2, backup: french });
+  it("a change whose write fails is not kept: the store is read again, and holds none", async () => {
+    const store = fakeArea(backup(french));
+    const write = store.set.bind(store);
+    let fail = true;
+    store.set = async (items) => {
+      if (fail) throw new Error("QuotaExceededError");
+      await write(items);
+    };
+    const area = ownerArea(store, () => {}, undefined, PAIRS);
+    await expect(area.set(backup(english), CHANGE)).rejects.toThrow("QuotaExceededError");
+    fail = false;
+    await area.set(backup(french));
+    expect(store.store[ROOT_KEY]).toEqual(backup(french)[ROOT_KEY]);
+    expect(store.store).not.toHaveProperty(LAST_NATIVE_KEY);
+  });
 
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);
-    await o.area.set({ [ROOT_KEY]: { v: 2, backup: french } }, { type: "native-language", native: "fr" });
-    await expect(o.area.set({ [ROOT_KEY]: { v: 2, backup: english } })).rejects.toThrow(StaleNativeLanguageError);
-    expect(o.store.store[ROOT_KEY]).toEqual({ v: 2, backup: french });
+  it("a read of the record that fails fails that write alone, and is tried again", async () => {
+    const store = fakeArea({ ...backup(english), [LAST_NATIVE_KEY]: "en" });
+    const read = store.get.bind(store);
+    let fail = true;
+    store.get = async (keys) => {
+      if (fail) {
+        fail = false;
+        throw new Error("the store is closing");
+      }
+      return read(keys);
+    };
+    const area = ownerArea(store, () => {}, undefined, PAIRS);
+    await expect(area.set(backup(english))).rejects.toThrow("the store is closing");
+    await expect(area.set(backup(french))).rejects.toThrow(StaleNativeLanguageError);
+    await area.set(backup(english));
+  });
+
+  it("a change asked while the record is being read is the one a waiting write is checked against", async () => {
+    const store = fakeArea(backup(french));
+    const read = store.get.bind(store);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    store.get = async (keys) => {
+      const got = await read(keys);
+      await held; // the record read before the change landed, answered after it
+      return got;
+    };
+    const area = ownerArea(store, () => {}, undefined, PAIRS);
+    const stale = area.set(backup(french));
+    const change = area.set(backup(english), CHANGE);
+    release();
+    await change;
+    await expect(stale).rejects.toThrow(StaleNativeLanguageError);
+    expect(store.store[ROOT_KEY]).toEqual(backup(english)[ROOT_KEY]);
+  });
+
+  it("a record naming a native language no shipped pair is glossed in reads French, as the profile does", async () => {
+    const store = fakeArea({ ...backup(english), [LAST_NATIVE_KEY]: "en" });
+    const area = ownerArea(store, () => {}, undefined, ["en-fr", "es-fr"]);
+    await area.set(backup(french));
+    await area.set(backup(english)); // English-native, with no English pair: read French too (M22)
+    expect(store.store[ROOT_KEY]).toEqual(backup(english)[ROOT_KEY]);
   });
 });

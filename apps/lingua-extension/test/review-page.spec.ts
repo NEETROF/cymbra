@@ -3,7 +3,7 @@ import type { LinguaPort } from "@/analyzer/port.ts";
 import { mountReview } from "@/review/review-page.ts";
 import { loadDailyStats, utcDay } from "@/state/dailystats.ts";
 import { type AsyncStorageArea, REVIEW_LANGUAGE_KEY, ROOT_KEY, STORAGE_VERSION } from "@/state/storage.ts";
-import { STORE_CHANGED_KEY } from "@/state/store.ts";
+import { RESTORE_FROM_FILE, STORE_CHANGED_KEY } from "@/state/store.ts";
 import { type FakeCard, makeFakePort, type FakePort } from "./helpers.ts";
 
 // The Révision page as a WHOLE: the summary, the FSRS widget, backup/restore, the pack's
@@ -351,6 +351,22 @@ describe("Révision — the page", () => {
     expect(text(m.container, ".msg")).toBe("Sauvegarde restaurée.");
     expect(m.page.reviewing()).toBe(false);
     expect(button(m.container, "Réviser")).toBeTruthy();
+  });
+
+  it("saves a restored file as a restore: the native language it names becomes the reader's (task 4.5)", async () => {
+    const { port } = makeFakePort(DECK);
+    const area = fakeArea();
+    const writes = vi.spyOn(area, "set");
+    const m = mount(port, area);
+    await m.page.refresh();
+
+    choose(filePicker(m.container), '{"v":2,"deck":[]}');
+    await settle();
+
+    expect(writes).toHaveBeenCalledWith(
+      { [ROOT_KEY]: { v: STORAGE_VERSION, backup: '{"v":2,"deck":[]}' } },
+      RESTORE_FROM_FILE,
+    );
   });
 
   it("keeps the page as it was when the file is not a backup", async () => {

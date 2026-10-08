@@ -13,7 +13,7 @@ import {
 } from "../i18n/index.ts";
 import { dailyRecorder } from "../state/dailystats.ts";
 import { type AsyncStorageArea, loadReviewLanguage, saveBackup, saveReviewLanguage } from "../state/storage.ts";
-import { watchBackup } from "../state/store.ts";
+import { saveRestoredBackup, watchBackup } from "../state/store.ts";
 import { ReviewController } from "./session.ts";
 import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
 
@@ -221,7 +221,11 @@ export function mountReview(
   async function doRestore(file: File): Promise<void> {
     try {
       await port.restore(await file.text());
-      await persist();
+      // Saved as a restore from a file: the native language it names is the reader's from now on,
+      // where a write naming another would be refused (add-lingua-native-language-choice, task 4.5).
+      const backup = await port.backup();
+      lastBackup = backup; // ignore our own storage.onChanged echo
+      await saveRestoredBackup(area, backup);
       controller = new ReviewController(port, opts.now, recorder);
       await readLanguages(); // the file's profile may hold other languages
       await refreshSummary();
