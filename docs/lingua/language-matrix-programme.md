@@ -117,8 +117,8 @@ measurement.
 |---|---|---|---|---|
 | en-fr | 95.1 / 90.1 / 78.9 % | French Wiktionary | en-fr | 96/97 |
 | es-fr | 87.6 / 77.2 / 63.7 % | French Wiktionary + fallbacks | es-en → en-fr | 89/90 |
-| es-en | 93.6 / 87.0 / 77.1 % | English Wiktionary, Spanish section | es-en (pinned already) | 94/96 — committed 2026-10-08 (change 26): 94/96, 4 % withheld |
-| en-es | 93.4 / 85.2 / 71.9 % | Spanish Wiktionary + English Wiktionary translation tables | en-es 2.1 | 96/96 — committed 2026-10-08 (change 26): 96/96, 4 % withheld |
+| es-en | 93.6 / 87.0 / 77.1 % | English Wiktionary, Spanish section | es-en (pinned already) | 94/96 — committed 2026-10-08 (change 26), 4 % withheld |
+| en-es | 93.4 / 85.2 / 71.9 % | Spanish Wiktionary + English Wiktionary translation tables | en-es 2.1 | 96/96 — committed 2026-10-08 (change 26), 4 % withheld |
 | fr-en | 93.9 / 87.1 / 76.4 % (prototype ranks, ± 1–2) | English Wiktionary, French section | fr-en 2.0 | 94/96 |
 | fr-es | 83.4 / 70.8 / 56.5 %, 24 % of them definitions | Spanish Wiktionary + French Wiktionary translations | fr-en → en-es | 90/91 |
 
