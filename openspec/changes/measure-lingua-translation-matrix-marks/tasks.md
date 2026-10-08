@@ -16,5 +16,5 @@
 
 ## 3. Gates and docs
 
-- [ ] 3.1 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`.
-- [ ] 3.2 `TRANSLATION.md` names the measured pairs; `openspec validate measure-lingua-translation-matrix-marks --strict` passes, and `python3 scripts/openspec_archive_order.py measure-lingua-translation-matrix-marks` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived); change 26 is marked done in `docs/lingua/language-matrix-programme.md`.
+- [x] 3.1 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`.
+- [x] 3.2 `TRANSLATION.md` names the measured pairs; `openspec validate measure-lingua-translation-matrix-marks --strict` passes, and `python3 scripts/openspec_archive_order.py measure-lingua-translation-matrix-marks` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived); change 26 is marked done in `docs/lingua/language-matrix-programme.md`.
