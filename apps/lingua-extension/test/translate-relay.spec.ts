@@ -43,17 +43,22 @@ describe("relayTranslation", () => {
   });
 
   it("The same page for another native language: the same request goes through en-es, and nothing of en-fr is asked", async () => {
-    const { access, seen, pairs } = engine(() => ({ ok: true, html: "Se rindió tras el tercer intento." }));
+    const { access, seen, pairs } = engine((markup) => ({
+      ok: true,
+      html: markup === "gave up" ? "Se rindió" : "Se <b>rindió</b> tras el tercer intento.",
+    }));
     const request = { sentence, selection, language: "en" }; // the same wire message as above
     const result = await relayTranslation(access, request, pairOf(request.language, "es"));
-    expect(pairs).toEqual(["en-es"]);
+    expect(pairs).toEqual(["en-es", "en-es"]);
     expect(pairs).not.toContain("en-fr");
-    // en-es's marks are not measured: the sentence goes untagged, once, and comes back without a mark.
-    expect(seen).toEqual([sentence]);
-    expect(result).toEqual({
-      kind: "translated",
-      translation: { sentence: "Se rindió tras el tercer intento.", marks: [] },
-    });
+    // en-es's marks are measured (measure-lingua-translation-matrix-marks: 96 of 96, listed): the
+    // sentence goes tagged, then the fragment alone, and the selection comes back marked in Spanish.
+    expect(MARKED_PAIRS).toContain("en-es");
+    expect(seen).toEqual(["She <b>gave up</b> after the third attempt.", "gave up"]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: es, marks } = result.translation;
+    expect(es).toBe("Se rindió tras el tercer intento.");
+    expect(marks.map((m) => es.slice(m.start, m.end))).toEqual(["rindió"]);
   });
 
   it("marks a Spanish selection through es-fr, its marks measured (release-lingua-spanish-translation)", async () => {
@@ -77,32 +82,33 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are the pairs whose selection is marked (routes-by-pair D4)", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr"]);
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en and en-es are listed ahead of their readers (routes-by-pair D4, matrix-marks D5)", () => {
+    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es"]);
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
   });
 
-  it("A pair measured in another native language: es-en is translated without a mark, although es-fr's marks are measured", async () => {
-    const { access, seen, pairs } = engine(() => ({
+  it("A pair measured in another native language / An English-native reader of Spanish: es-en is marked on its own measurement, judged in English", async () => {
+    const { access, seen, pairs } = engine((markup) => ({
       ok: true,
-      html: "My grandmother lived in a small house by the sea.",
+      html: markup === "casa" ? "house" : "My grandmother lived in a small <b>house</b> by the sea.",
     }));
     const request = {
       sentence: "Mi abuela vivía en una casa pequeña cerca del mar.",
       selection: { start: 23, end: 27 },
       language: "es",
     };
+    // Listed on its own figures (94 of 96, 4 % withheld), not on es-fr's: the same Spanish selection,
+    // another route, the mark judged against the English rendering.
     expect(MARKED_PAIRS).toContain("es-fr");
-    expect(MARKED_PAIRS).not.toContain("es-en");
+    expect(MARKED_PAIRS).toContain("es-en");
     const result = await relayTranslation(access, request, pairOf(request.language, "en"));
-    expect(pairs).toEqual(["es-en"]);
-    expect(seen).toEqual([request.sentence]); // untagged, once
-    expect(result).toEqual({
-      kind: "translated",
-      translation: { sentence: "My grandmother lived in a small house by the sea.", marks: [] },
-    });
+    expect(pairs).toEqual(["es-en", "es-en"]);
+    expect(seen).toEqual(["Mi abuela vivía en una <b>casa</b> pequeña cerca del mar.", "casa"]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: en, marks } = result.translation;
+    expect(marks.map((m) => en.slice(m.start, m.end))).toEqual(["house"]);
   });
 
   it("translates a sentence through an unmeasured pair untagged, once, without a mark (pivot D3)", async () => {
@@ -370,15 +376,18 @@ describe("answerTranslation — a page's request, answered", () => {
   });
 
   it("The same page for another native language: the same request from a reader of Spanish goes through en-es, and nothing of en-fr is asked", async () => {
-    const { deps, translate } = glue("es", ["en-es"], "Se rindió tras el tercer intento."); // en-es ships, with its route
+    const { deps, translate } = glue("es", ["en-es"]); // en-es ships, with its route
+    translate.mockImplementation(async (markup) => ({
+      ok: true,
+      html: markup === "gave up" ? "Se rindió" : "Se <b>rindió</b> tras el tercer intento.",
+    }));
     const result = await answerTranslation(deps, request);
     expect(deps.ready).toHaveBeenCalledWith("en-es");
     expect(deps.ready).not.toHaveBeenCalledWith("en-fr");
-    expect(translate.mock.calls.map(([, pair]) => pair)).toEqual(["en-es"]); // unmeasured: once, untagged
-    expect(result).toEqual({
-      kind: "translated",
-      translation: { sentence: "Se rindió tras el tercer intento.", marks: [] },
-    });
+    expect(translate.mock.calls.map(([, pair]) => pair)).toEqual(["en-es", "en-es"]); // measured and listed: tagged, then the fragment
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: es, marks } = result.translation;
+    expect(marks.map((m) => es.slice(m.start, m.end))).toEqual(["rindió"]);
   });
 
   it("A pair without a route: a reader of Spanish on an English page with no en-es — unavailable, and the engine is not started", async () => {
