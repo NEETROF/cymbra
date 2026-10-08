@@ -310,11 +310,14 @@ const SPANISH: &[&[&str]] = &[
 /// lemmatisation cascade produced (lowercase), never a surface form.
 ///
 /// Each language is judged by its own tables only: `de` is not an English
-/// function word, nor `the` a Spanish one.
+/// function word, nor `the` a Spanish one. French has none while it is the
+/// baseline (add-lingua-french-baseline D2): `le`, `de`, `ne`, `pas` count like
+/// any other word.
 pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
     let tables: &[&[&str]] = match studied {
         StudiedLanguage::English => ENGLISH,
         StudiedLanguage::Spanish => SPANISH,
+        StudiedLanguage::French => &[],
     };
     tables
         .iter()
@@ -350,6 +353,19 @@ mod tests {
             );
         }
         all_function_words(&["the", "of"]);
+    }
+
+    #[test]
+    fn spec_scenario_no_french_word_is_a_function_word_yet() {
+        const FR: StudiedLanguage = StudiedLanguage::French;
+        for lemma in [
+            "pas", "ne", "le", "de", "la", "et", "que", "être", "avoir", "the",
+        ] {
+            assert!(!is_function_word(lemma, FR), "{lemma:?}");
+        }
+        // English and Spanish answer as before.
+        assert!(is_function_word("the", EN));
+        assert!(is_function_word("de", StudiedLanguage::Spanish));
     }
 
     #[test]

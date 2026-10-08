@@ -60,6 +60,8 @@ describe("each pack against its own language's analyser", () => {
     expect(coreAnalyzerVersion("pt", spanishFirst)).toBeNull();
     expect(coreAnalyzerVersion("en", modRs)).toMatch(/^\d+\.\d+\.\d+$/);
     expect(coreAnalyzerVersion("es", modRs)).toMatch(/^\d+\.\d+\.\d+$/);
+    // French is the baseline (add-lingua-french-baseline): `0.1.0`, read beside the two others'.
+    expect(coreAnalyzerVersion("fr", modRs)).toBe("0.1.0");
   });
 
   it("reads a pack's studied language, native language and analyser version from its metadata", () => {

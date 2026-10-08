@@ -151,7 +151,9 @@ const IRREGULARS: &[(&str, &str)] = &[
 /// rules, the regular-plural fallback. Spanish runs its own
 /// (add-lingua-spanish-analysis, [`super::spanish`]): the pack's forms, old
 /// spellings, enclitics, its plural fallback — never an English table or
-/// rule, which would read `has` (of *haber*) as `have`.
+/// rule, which would read `has` (of *haber*) as `have`. French, until its own
+/// cascade lands, is the baseline ([`lemmatize_baseline`],
+/// add-lingua-french-baseline D3).
 pub fn lemmatize(
     form: &str,
     studied: StudiedLanguage,
@@ -160,6 +162,25 @@ pub fn lemmatize(
     match studied {
         StudiedLanguage::English => lemmatize_english(form, lexicon),
         StudiedLanguage::Spanish => super::spanish::lemmatize(form, lexicon),
+        StudiedLanguage::French => lemmatize_baseline(form, lexicon),
+    }
+}
+
+/// The baseline lemmatisation of a language whose rules are not written: the
+/// pack's lemma for the lowercased form, else the lowercased form itself.
+///
+/// What it lacks, on purpose (spec `lingua-analysis`, *Analysis by studied
+/// language*): no exception table (`as`, `are`, `ate` stay themselves where
+/// English's irregulars would read `be` or `eat`), no morphological rule (no
+/// plural fallback, so `mes` is never `me`), no accent retry (a form with an
+/// acute accent is never looked up without it, as Spanish's old spellings are),
+/// no enclitic split, no Unicode normalisation. Each is a rule of a language's
+/// own, which its analyser version bumps when it lands.
+fn lemmatize_baseline(form: &str, lexicon: &(impl Lexicon + ?Sized)) -> String {
+    let lower = form.replace('\u{2019}', "'").to_lowercase();
+    match lexicon.lemma_of(&lower) {
+        Some(lemma) => lemma.to_owned(),
+        None => lower,
     }
 }
 
@@ -340,6 +361,43 @@ mod tests {
         let (bytes, pool) = build_lexicon_blobs(&[("has", "haber")], &["haber"]).expect("build");
         let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
         assert_eq!(lemmatize("has", StudiedLanguage::Spanish, &lex), "haber");
+    }
+
+    #[test]
+    fn spec_scenario_no_english_or_spanish_rule_runs_on_french() {
+        // add-lingua-french-baseline D3: English's cascade would read `as`/`are` as `be`, `ate`
+        // as `eat`, `has` as `have` and `mes` as `me`; Spanish's, `dámelo` as `dar`. The baseline
+        // gives each back as itself when the pack does not list it.
+        const FR: StudiedLanguage = StudiedLanguage::French;
+        let (bytes, pool) =
+            build_lexicon_blobs(&[], &["be", "have", "eat", "me", "dar", "a", "esta"])
+                .expect("build");
+        let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
+        for form in ["as", "are", "ate", "a", "mes", "has", "dámelo"] {
+            assert_eq!(lemmatize(form, FR, &lex), form, "{form:?}");
+        }
+        assert_eq!(lemmatize("has", StudiedLanguage::English, &lex), "have");
+        // No accent retry: `ésta` is not looked up as `esta`, which the pack lists.
+        assert_eq!(lemmatize("ésta", FR, &lex), "ésta");
+        assert_eq!(lemmatize("ésta", StudiedLanguage::Spanish, &lex), "esta");
+    }
+
+    #[test]
+    fn french_takes_the_lemma_its_pack_lists_else_the_lowercased_form() {
+        const FR: StudiedLanguage = StudiedLanguage::French;
+        let (bytes, pool) = build_lexicon_blobs(
+            &[("as", "avoir"), ("mes", "mon"), ("été", "être")],
+            &["avoir", "mon", "être"],
+        )
+        .expect("build");
+        let lex = FstLexicon::from_slices(bytes, &pool).expect("load");
+        assert_eq!(lemmatize("As", FR, &lex), "avoir");
+        assert_eq!(lemmatize("mes", FR, &lex), "mon");
+        assert_eq!(lemmatize("ÉTÉ", FR, &lex), "être");
+        // Unlisted, the form itself, lowercased; the typographic apostrophe reads as the straight
+        // one, as the tokeniser gives it.
+        assert_eq!(lemmatize("Maisons", FR, &lex), "maisons");
+        assert_eq!(lemmatize("L\u{2019}homme", FR, &lex), "l'homme");
     }
 
     #[test]

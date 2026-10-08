@@ -1359,6 +1359,42 @@ mod tests {
         inp.meta.native = "es".into();
         let pack = Pack::load(&build_pack(&inp).expect("an en-es pack builds")).expect("loads");
         assert_eq!(pack.pair().key(), "en-es");
+        // A French pack glossed in French, now that French is studied (add-lingua-french-baseline).
+        let mut french = inputs();
+        french.meta.studied = "fr".into();
+        french.meta.native = "fr".into();
+        french.meta.analyzer_version = StudiedLanguage::French.analyzer_version().into();
+        assert_eq!(
+            build_pack(&french),
+            Err(BuildError::NativeStudied("fr".into()))
+        );
+    }
+
+    #[test]
+    fn a_french_pack_builds_at_french_s_analyser_version_and_loads() {
+        // add-lingua-french-baseline: the builder neither stamps nor checks the analyser version
+        // (the core compares it at load); a French pack stamped `0.1.0` is one the core accepts.
+        let mut inp = inputs();
+        inp.meta.studied = "fr".into();
+        inp.meta.native = "en".into();
+        inp.meta.analyzer_version = "0.1.0".into();
+        inp.form_lemma = vec![
+            ("est".into(), "être".into()),
+            ("l'homme".into(), "homme".into()),
+        ];
+        inp.ranks = vec![("être".into(), 3), ("homme".into(), 90)];
+        inp.glosses = vec![("homme".into(), "man".into())];
+        let bytes = build_pack(&inp).expect("a fr-en pack builds");
+        let pack = Pack::load(&bytes).expect("and loads");
+        assert_eq!(pack.studied(), StudiedLanguage::French);
+        assert_eq!(pack.pair().key(), "fr-en");
+        assert_eq!(pack.meta().analyzer_version, "0.1.0");
+        assert_eq!(pack.lexicon().lemma_of("l'homme"), Some("homme"));
+        assert_eq!(pack.gloss("homme"), Some("man"));
+        // Stamped with another language's version, it builds and the core refuses it.
+        inp.meta.analyzer_version = ANALYZER_VERSION.into();
+        let other = build_pack(&inp).expect("the builder does not check the version");
+        assert!(Pack::load(&other).is_err());
     }
 
     #[test]

@@ -53,3 +53,10 @@ pub const ANALYZER_VERSION: &str = "1.1.0";
 /// add-lingua-spanish-detection-guard keeps Catalan and Galician blocks out;
 /// `1.2.0` since add-lingua-spanish-names sets a document's names aside.
 pub const SPANISH_ANALYZER_VERSION: &str = "1.2.0";
+
+/// French's analyser version: `0.1.0` while French is served by the baseline
+/// analysis (add-lingua-french-baseline) — the rules that belong to no
+/// language and the pack's forms, no elision or contraction split, no NFC, no
+/// cascade, no function words, no names rule. A `0.x` version, as a language
+/// served by the baseline carries; its own tokenisation and cascade bump it.
+pub const FRENCH_ANALYZER_VERSION: &str = "0.1.0";
