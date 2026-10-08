@@ -10,7 +10,7 @@ See proposal.md (Why). What exists:
 | `tests/english_baseline.rs`, `tests/spanish_baseline.rs` | en-fr's (alone) and es-fr's (en-fr beside it) goldens; `tests/support/english.rs` holds en-fr's probes; `beside: &[]` is how en-fr's runs alone |
 | `.github/workflows/lingua-extension-check.yml` | its invariance step runs `cargo test -p lingua-wasm --test english_baseline --test spanish_baseline` — the one baseline gate on a tables-only pull request, which does not start `rust` |
 | `.github/workflows/lingua-pack-update.yml` | re-blesses with `LINGUA_BLESS=1 … --test english_baseline --test spanish_baseline` on the update's branch |
-| `tests/cross_native.rs` | single-pack engines compared on their studied sections; `cross_native.rs`'s English check reads the real en-es pack in place of the synthetic `ENGLISH_IN_SPANISH` (unless change 22 took it) |
+| `tests/cross_native.rs` | single-pack engines compared on their studied sections; `cross_native.rs`'s English check reads the real en-es pack in place of the synthetic `ENGLISH_IN_SPANISH` (change 22 leaves it to this change) |
 | The pack's sense runs | the builder takes a noun's gender from its readings; the engine groups senses (`group_senses`) and falls back to one untagged group when the counts do not match — what the card shows is the engine's answer, not the table's line |
 | `apps/lingua-extension/src/reading/{gloss-pages,selection-card,grammar-labels}.ts` | `glossPages`, `rowGloss` (first sense, ≤ 80 characters, cut at a word; `EMPTY_SENSE = /définition manquante/i`, matching no committed gloss; the cut's trailing set `[\s,;:(«[\-–—/]`), `senseHeading` — pure functions |
 | Change 18 | the renderers and `word-grammar-es.spec.ts` over the French spec's made-up inputs |
@@ -29,14 +29,15 @@ See proposal.md (Why). What exists:
 
 ### D1 — An en-es baseline, the reference's probes and 40 more
 
-`en_es_baseline.rs` declares `Scenario { pair: "en-es", beside: &[], test: "en_es_baseline", cards: […], ..ENGLISH }`
+`en_es_baseline.rs` declares `Scenario { pair: "en-es", beside: &[], test: "en_es_baseline", cards: […], grammar: […], ..ENGLISH }`
 — en-fr's corpus, lemmas, phrases and grammar probes, each card's shown gloss the en-es pack's
 first page for its lemma — and 40 more lemmas asked as `word-grammar <lemma> <lemma>` probes after
 the reference's: the 40 most frequent lemmas of `tables/en/freq.tsv` whose en-es gloss has two sense runs or
-more, so that their glosses and sense runs, genders included, are the engine's. The two goldens
-differ only in the native side, the lines naming the packs, `notice`, `licences` and the backup's
+more, so that their glosses and sense runs are the engine's. On the probes they share, the two
+goldens differ only in the native side, the lines naming the packs, `notice`, `licences` and the backup's
 profile (en-fr's golden is rendered alone, as this one) — asserted by a test that compares the two committed goldens probe by
-probe through `cross_native.rs`'s `studied_side`. `es_en_baseline`/`en_es_baseline` joins the
+probe through `cross_native.rs`'s `studied_side`. `en_es_baseline` joins, beside change 23's
+`es_en_baseline`, the
 invariance step of `lingua-extension-check.yml` and the re-bless line of `lingua-pack-update.yml`, so
 a re-reduction of en-es or of en-fr (which moves the studied tables) re-blesses it on the update's
 branch and a tables-only pull request runs it.

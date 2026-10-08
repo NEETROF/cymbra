@@ -3,7 +3,7 @@
 ## 1. The baseline (crates/lingua-wasm, workflows)
 
 - [ ] 1.1 `tests/en_es_baseline.rs` and `baseline/en-es.golden`: the en-es scenario over the reference's corpus and probes and the 40 lemma probes, blessed; both workflows name `en_es_baseline` (D1).
-- [ ] 1.2 The golden-to-golden test through `studied_side`; `cross_native.rs`’s English check on the real en-es pack unless change 22 took it (D1).
+- [ ] 1.2 The golden-to-golden test through `studied_side`; `cross_native.rs`’s English check on the real en-es pack (Context).
 
 ## 2. The wording (apps/lingua-extension)
 
