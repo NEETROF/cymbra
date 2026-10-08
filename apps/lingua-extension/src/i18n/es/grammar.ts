@@ -6,12 +6,12 @@ import {
   type FormKind,
   formKind,
   type LineWords,
-  lineText,
   nameKind,
   nameReadings,
   type ReadingWords,
   readingOf,
   senseOf,
+  type TenseTable,
 } from "../../reading/grammar-description.ts";
 import type { grammar as fr } from "../fr/grammar.ts";
 import type { GrammarLine, Named, StudiedLanguageCode } from "../index.ts";
@@ -22,7 +22,7 @@ import type { GrammarLine, Named, StudiedLanguageCode } from "../index.ts";
 // indicativo de venir », « participio de hablar »; English's tenses by the names Spanish teaching
 // gives them (« pasado simple »). Spanish has articles and no elision: « de » before a tense
 // contracts with its « el » (« del presente »), never before a word of the page. Readings merge by
-// tag; the tenses keep the order its tables pin.
+// tag; the tenses come in the order its table lists them.
 
 const PARTS_OF_SPEECH: Record<string, string> = {
   ADJ: "adjetivo",
@@ -45,8 +45,12 @@ const GENDERS: Record<string, string> = { Masc: "masculino", Fem: "femenino", Ne
 const ORDINALS: Record<string, string> = { "1": "primera", "2": "segunda", "3": "tercera" };
 const NUMBERS: Record<string, string> = { Sing: "singular", Plur: "plural" };
 
-/** The studied languages' moods and tenses, in the RAE's terms, keyed `Mood/Tense`. */
-const TENSES: Record<StudiedLanguageCode, Record<string, string>> = {
+/**
+ * The studied languages' moods and tenses, in the RAE's terms, keyed `Mood/Tense` and listed in the
+ * RAE's order — indicative, conditional, subjunctive, imperative — which is the order the card names
+ * them in (`tenseOrder`; English's two come in the pack's order).
+ */
+const TENSES: Record<StudiedLanguageCode, TenseTable> = {
   en: { "Ind/Past": "pasado simple", "Ind/Pres": "presente" },
   es: {
     "Ind/Pres": "presente de indicativo",
@@ -61,17 +65,11 @@ const TENSES: Record<StudiedLanguageCode, Record<string, string>> = {
   },
 };
 
-/** The tenses in the RAE's order: indicative, conditional, subjunctive, imperative. */
-const TENSE_ORDER: Record<StudiedLanguageCode, readonly string[]> = { en: [], es: Object.keys(TENSES.es) };
-
 /** The gerund's name: English's « forma en -ing », Spanish's « gerundio ». */
 const GERUNDS: Record<StudiedLanguageCode, Named> = {
   en: { article: "la", name: "forma en -ing" },
   es: { article: "el", name: "gerundio" },
 };
-
-/** Whether the infinitive is named: for Spanish only, as the French card does. */
-const NAMES_INFINITIVE: Record<StudiedLanguageCode, boolean> = { en: false, es: true };
 
 /** « femenino plural », « masculino singular », « plural »: a nominal form's agreement. */
 function agreement({ gender, number }: Agreement): string | undefined {
@@ -94,7 +92,7 @@ function join(items: readonly string[]): string {
 const el = (name: string): Named => ({ article: "el", name });
 
 const readingWords: ReadingWords = {
-  tense: (key, studied) => TENSES[studied][key],
+  tenses: TENSES,
   name(kind: FormKind, studied, tense) {
     switch (kind.kind) {
       case "degree":
@@ -104,7 +102,7 @@ const readingWords: ReadingWords = {
         return name ? el(name) : null;
       }
       case "infinitive":
-        return NAMES_INFINITIVE[studied] ? el("infinitivo") : null;
+        return el("infinitivo");
       case "participle": {
         // A masculine singular participle is the participle itself; the singular goes unsaid.
         const agreed =
@@ -124,7 +122,6 @@ const readingWords: ReadingWords = {
     const who = join(persons.map((p) => ORDINALS[p]!));
     return { article: "la", name: `${who} persona del ${NUMBERS[number]} del ${tense}` };
   },
-  order: (studied) => TENSE_ORDER[studied],
   numbers: ["Sing", "Plur"],
   mergeBy: "key",
 };
@@ -153,6 +150,5 @@ export const grammar: typeof fr = {
     const named = gender ? GENDERS[gender] : undefined;
     return named ? `${name} ${named}` : name;
   },
-  lineText,
   join,
 };

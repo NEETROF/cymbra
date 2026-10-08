@@ -6,14 +6,12 @@ import {
   type FormKind,
   formKind,
   type LineWords,
-  lineText,
   nameKind,
   nameReadings,
   type ReadingWords,
   readingOf,
-  type Reading,
   senseOf,
-  tagsOf,
+  type TenseTable,
 } from "../../reading/grammar-description.ts";
 import type { GrammarLine, GrammarRenderer, Named, StudiedLanguageCode } from "../index.ts";
 
@@ -50,9 +48,11 @@ const NUMBERS: Record<string, string> = { Sing: "du singulier", Plur: "du plurie
 /**
  * The studied languages' moods and tenses, as French schools name them, keyed `Mood/Tense`
  * (`finiteKey`). English: the indicative's two. Spanish: the present and the imperfect name their
- * mood — the subjunctive has both too; the conditional and the imperative have no tense.
+ * mood — the subjunctive has both too; the conditional and the imperative have no tense — listed in
+ * the order French grammars give them, which is the order the card names them in (`tenseOrder`;
+ * English's two come in the pack's order).
  */
-const TENSES: Record<StudiedLanguageCode, Record<string, string>> = {
+const TENSES: Record<StudiedLanguageCode, TenseTable> = {
   en: { "Ind/Past": "prétérit", "Ind/Pres": "présent" },
   es: {
     "Ind/Pres": "présent de l’indicatif",
@@ -67,20 +67,11 @@ const TENSES: Record<StudiedLanguageCode, Record<string, string>> = {
   },
 };
 
-/**
- * The tenses in the order French grammars give them — indicative, conditional, subjunctive,
- * imperative; English's two come in the pack's order.
- */
-const TENSE_ORDER: Record<StudiedLanguageCode, readonly string[]> = { en: [], es: Object.keys(TENSES.es) };
-
 /** The gerund's name: English's « forme en -ing », Spanish's « gérondif ». */
 const GERUNDS: Record<StudiedLanguageCode, Named> = {
   en: { article: "la", name: "forme en -ing" },
   es: { article: "le", name: "gérondif" },
 };
-
-/** Whether the infinitive is named: for Spanish only — an English card never named it. */
-const NAMES_INFINITIVE: Record<StudiedLanguageCode, boolean> = { en: false, es: true };
 
 /** French elides before a vowel, accented or not — never before « h » or « y ». */
 function elides(word: string): boolean {
@@ -111,7 +102,7 @@ function join(items: readonly string[]): string {
 }
 
 const readingWords: ReadingWords = {
-  tense: (key, studied) => TENSES[studied][key],
+  tenses: TENSES,
   name(kind: FormKind, studied, tense) {
     switch (kind.kind) {
       case "degree":
@@ -121,7 +112,7 @@ const readingWords: ReadingWords = {
         return name ? { article: "le", name } : null;
       }
       case "infinitive":
-        return NAMES_INFINITIVE[studied] ? masculine("infinitif") : null;
+        return masculine("infinitif");
       case "participle": {
         const agreed = kind.gender === "Masc" && kind.number !== "Plur" ? undefined : agreement(kind);
         return {
@@ -139,27 +130,18 @@ const readingWords: ReadingWords = {
     const who = persons.length === 1 ? PERSONS[persons[0]!] : `${join(persons.map((p) => ORDINALS[p]!))} personnes`;
     return { article: persons.length === 1 ? "la" : "les", name: `${who} ${NUMBERS[number]} ${ofName(tense)}` };
   },
-  order: (studied) => TENSE_ORDER[studied],
   numbers: ["Plur", "Sing"],
-  // Persons merge on the French tense's name, as the card always merged them.
+  // Persons merge on the French tense's name, as the card always merged them: « 1re et 3e personnes
+  // du singulier de l’imparfait de l’indicatif » whatever else the two readings carried.
   mergeBy: "name",
 };
-
-/**
- * The names of a list of readings, each once, in the pack's order. The French card names a form
- * once per French name: the description's readings, merged by tag, are taken back to their tags
- * and merged again by name — « 1re et 3e personnes du singulier de l’imparfait de l’indicatif ».
- */
-function names(readings: readonly Reading[], studied: StudiedLanguageCode): Named[] {
-  return nameReadings(readings.flatMap(tagsOf).map(readingOf), studied, readingWords);
-}
 
 function withArticles(named: readonly Named[]): string {
   return join(named.map((n) => (n.article === "l’" ? `l’${n.name}` : `${n.article} ${n.name}`)));
 }
 
 const lineWords: LineWords = {
-  names,
+  names: (readings, studied) => nameReadings(readings, studied, readingWords),
   formOf: (named) => `${join(named.map((n) => n.name))} `,
   mayAlsoBe: (named) => `peut aussi être ${withArticles(named)} `,
   // "de go", "d’eat", "d’él": French elides before a vowel, accented or not.
@@ -183,6 +165,5 @@ export const grammar: GrammarRenderer = {
     const named = gender ? GENDERS[gender] : undefined;
     return named ? `${name} ${named}` : name;
   },
-  lineText,
   join,
 };

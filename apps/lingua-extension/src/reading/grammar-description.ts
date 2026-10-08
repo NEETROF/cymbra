@@ -114,13 +114,13 @@ export function isDictionaryForm(tag: GrammarTag): boolean {
   return tag.pos === "NOUN" || tag.pos === "PROPN" || f.Gender !== "Fem";
 }
 
-/** A tag as a reading: every feature of the vocabulary, a feature it does not know left out. */
+/** A tag as a reading: every feature of the vocabulary; one it does not know, or an empty value, left out. */
 export function readingOf(tag: GrammarTag): Reading {
   const f = tag.features ?? {};
   const reading: Reading = { pos: tag.pos, persons: f.Person ? [f.Person] : [] };
   for (const name of Object.keys(FIELDS) as FeatureName[]) {
     const value = f[name];
-    if (value !== undefined) reading[FIELDS[name]] = value;
+    if (value) reading[FIELDS[name]] = value;
   }
   return reading;
 }
@@ -146,6 +146,12 @@ const PERSONS = new Set(FEATURES.Person);
  * one reading, and tags equal but for a person of the vocabulary give one reading holding each
  * person once. On the dictionary form's own card (`same`), a tag that only says what that form is
  * is left out.
+ *
+ * This merge by tag is the one the spec asks of the description (it names no language, so it is the
+ * one merge it can make). `nameReadings` merges the persons again, by tense and number — on the
+ * tense's name for the French card, on its key for the others — which subsumes it: a renderer handed
+ * the raw tags, one per person, says the same bytes (the French renderer did, for a while). The merge
+ * stays here because the description, not a renderer, is what the spec says is merged.
  */
 function describeReadings(tags: readonly GrammarTag[], same: boolean): Reading[] {
   const out: Reading[] = [];
@@ -228,6 +234,13 @@ function agreementOf(reading: Reading): Agreement {
 }
 
 /**
+ * Whether a studied language's infinitive is named at all: Spanish's is (« infinitif de hablar »),
+ * English's never was — an English card already shows its verb as the infinitive. The description
+ * decides what is named; a renderer only words it.
+ */
+const NAMES_INFINITIVE: Record<StudiedLanguageCode, boolean> = { en: false, es: true };
+
+/**
  * A finite form's mood and tense, keyed `Mood/Tense` as the studied language has them: Spanish
  * names the conditional and the imperative without a tense; an English form without a mood is in
  * the indicative, and English has no other mood a card names. Undefined when there is nothing to
@@ -244,17 +257,17 @@ export function finiteKey(reading: Reading, studied: StudiedLanguageCode): strin
 
 /**
  * What a reading makes of a form, or null when no card names it: a degree, a nominal form's
- * agreement (a noun's plural; a gendered pronoun's or determiner's), the infinitive, the past
- * participle, the gerund, a finite form. A renderer may still leave a kind unnamed for a studied
- * language — the infinitive of English, a tense its table lacks — and the French renderer's
- * choices are every renderer's, which a test enumerates.
+ * agreement (a noun's plural; a gendered pronoun's or determiner's), the infinitive where the
+ * studied language's is named, the past participle, the gerund, a finite form. A renderer may still
+ * leave a tense unnamed — one its table lacks — and the French renderer's choices are every
+ * renderer's, which a test enumerates.
  */
 export function formKind(reading: Reading, studied: StudiedLanguageCode): FormKind | null {
   if (reading.degree === "Cmp" || reading.degree === "Sup") return { kind: "degree", degree: reading.degree };
   if (NOMINAL.has(reading.pos)) {
     const agreement = agreementOf(reading);
     if (!agreement.gender && agreement.number !== "Plur") return null;
-    // Without a gender, only a noun's plural is named, as it always was.
+    // Without a gender, only the plural of a noun, a proper noun or an adjective is named, as it always was.
     const named = reading.pos === "NOUN" || reading.pos === "PROPN" || reading.pos === "ADJ";
     if (reading.gender === undefined && !named) return null;
     return { kind: "agreement", ...agreement };
@@ -262,7 +275,7 @@ export function formKind(reading: Reading, studied: StudiedLanguageCode): FormKi
   if (reading.pos !== "VERB" && reading.pos !== "AUX") return null;
   switch (reading.verbForm) {
     case "Inf":
-      return { kind: "infinitive" };
+      return NAMES_INFINITIVE[studied] ? { kind: "infinitive" } : null;
     case "Part":
       return reading.tense === "Past" ? { kind: "participle", ...agreementOf(reading) } : null;
     case "Ger":
@@ -279,26 +292,42 @@ export function formKind(reading: Reading, studied: StudiedLanguageCode): FormKi
   }
 }
 
+/** A studied language's tense names by `finiteKey`, listed in the order its tenses come in. */
+export type TenseTable = Readonly<Record<string, string>>;
+
 /** How a renderer words what `nameReadings` hands it. */
 export interface ReadingWords {
-  /** A finite form's tense, as the renderer names it for the studied language; undefined: unnamed. */
-  tense(key: string, studied: StudiedLanguageCode): string | undefined;
+  /** Each studied language's tenses, as the renderer names them; a key the table lacks is unnamed. */
+  tenses: Readonly<Record<StudiedLanguageCode, TenseTable>>;
   /** A kind other than a finite form of known persons; null when the renderer leaves it unnamed. */
   name(kind: FormKind, studied: StudiedLanguageCode, tense: string | undefined): Named | null;
   /** A finite form's persons (sorted) and number, in its tense. */
   persons(persons: readonly string[], number: "Sing" | "Plur", tense: string): Named;
-  /** The order of a studied language's tenses, by key; a key it lacks keeps the pack's place. */
-  order(studied: StudiedLanguageCode): readonly string[];
   /** The order of the numbers within one tense. */
   numbers: readonly ("Sing" | "Plur")[];
   /** What merges the persons of two readings: the tense's name (French), or its key (by tag). */
   mergeBy: "name" | "key";
 }
 
+/** A finite form's tense as the renderer names it for the studied language; undefined: unnamed. */
+function tenseName(words: ReadingWords, key: string, studied: StudiedLanguageCode): string | undefined {
+  return words.tenses[studied][key];
+}
+
+/**
+ * The order a studied language's named tenses come in, derived once from the renderer's table:
+ * Spanish's as the table lists them — the grammars' order, indicative, conditional, subjunctive,
+ * imperative — and English's two in the pack's order, as the French card always gave them, which an
+ * empty order means.
+ */
+export function tenseOrder(tenses: ReadingWords["tenses"], studied: StudiedLanguageCode): readonly string[] {
+  return studied === "es" ? Object.keys(tenses.es) : [];
+}
+
 /** A kind as a renderer words it: a finite form through its tense table, the others as they are. */
 export function nameKind(kind: FormKind, studied: StudiedLanguageCode, words: ReadingWords): Named | null {
   if (kind.kind !== "finite") return words.name(kind, studied, undefined);
-  const tense = words.tense(kind.key, studied);
+  const tense = tenseName(words, kind.key, studied);
   if (tense === undefined) return null;
   return kind.number && kind.persons.length > 0
     ? words.persons([...kind.persons].sort(), kind.number, tense)
@@ -307,8 +336,8 @@ export function nameKind(kind: FormKind, studied: StudiedLanguageCode, words: Re
 
 /**
  * The names of a list of readings, each once, in the pack's order: the persons of one tense and one
- * number are named once, and the tenses come in the renderer's order at the places the pack's
- * order gave the first of them.
+ * number are named once, and the tenses come in the studied language's order (`tenseOrder`) at the
+ * places the pack's order gave the first of them.
  */
 export function nameReadings(readings: readonly Reading[], studied: StudiedLanguageCode, words: ReadingWords): Named[] {
   const out: Named[] = [];
@@ -318,7 +347,7 @@ export function nameReadings(readings: readonly Reading[], studied: StudiedLangu
     // A finite form of known persons and number is grouped whatever else it carries, as the
     // French card always grouped it.
     const key = reading.verbForm === "Fin" ? finiteKey(reading, studied) : undefined;
-    const tense = key === undefined ? undefined : words.tense(key, studied);
+    const tense = key === undefined ? undefined : tenseName(words, key, studied);
     const { number } = agreementOf(reading);
     const persons = reading.persons.filter((p) => PERSONS.has(p));
     if (key !== undefined && tense !== undefined && number && persons.length > 0) {
@@ -336,7 +365,9 @@ export function nameReadings(readings: readonly Reading[], studied: StudiedLangu
     const named = kind ? nameKind(kind, studied, words) : null;
     if (named && !out.some((n) => n.name === named.name)) out.push(named);
   }
-  const order = words.order(studied);
+  const order = tenseOrder(words.tenses, studied);
+  // A key the order lacks ranks with its first — which never happens while the order lists every
+  // named tense (Spanish) or none at all (English: the pack's order), as the tables do.
   const rank = (key: string): number => Math.max(0, order.indexOf(key));
   const groups = [...merged.values()];
   const places = groups.map((g) => g.at);

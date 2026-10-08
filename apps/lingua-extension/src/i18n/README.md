@@ -36,7 +36,8 @@ of tenses — that no slot message can carry. `src/reading/grammar-description.t
 no language (the readings as the engine's tags, merged by tag; what a card names at all; how a line
 is composed), and each language's `grammar.ts` exports `grammar: GrammarRenderer` (`index.ts`) that
 words it — its tables private to it, keyed by studied language where a name depends on it (`TENSES`,
-`TENSE_ORDER`, the gerund, whether the infinitive is named). The rule that a draft is typed after the
+listed in the order the card names them, and the gerund's name); what is named at all — whether the
+infinitive is, which moods are — is the description's, beside `finiteKey`. The rule that a draft is typed after the
 French covers code here: `en/grammar.ts` and `es/grammar.ts` are `typeof fr`, so the compiler checks
 the functions; `test/grammar-description.spec.ts` checks that every renderer names what the French
 names, no more, and `test/i18n.spec.ts` checks the drafts as renderers rather than as texts. The
@@ -116,8 +117,8 @@ cours »), highlighting (surlignage), level, CEFR, side panel, drawer (the in-pa
 sign in / sign out, username (pseudo), connected accounts, sync, pill (pastille), pack (the
 dictionary pack), model (the translation model), _-ing form_. Grammar: _simple past_, _simple present_,
 _past participle_, _gerund_; the Spanish tenses by their usual English names (_present indicative_,
-_imperfect indicative_, _preterite_, _future_, _conditional_, _present subjunctive_, _imperfect
-subjunctive_, _future subjunctive_, _imperative_).
+_imperfect indicative_, _preterite indicative_, _future indicative_, _conditional_, _present
+subjunctive_, _imperfect subjunctive_, _future subjunctive_, _imperative_).
 
 ## Spanish
 
@@ -141,8 +142,9 @@ desconocidas, palabras en aprendizaje (« mots en cours »), resaltado (surligna
 (CEFR), panel lateral, panel (the in-page drawer), biblioteca, iniciar / cerrar sesión, nombre de
 usuario (pseudo), cuentas vinculadas, sincronización, pastilla, paquete (the dictionary pack), modelo,
 « forma en -ing ». Grammar: the RAE's tense names — _presente de indicativo_, _pretérito imperfecto de
-indicativo_, _pretérito perfecto simple_, _futuro simple_, _condicional simple_, _presente de
-subjuntivo_, _pretérito imperfecto de subjuntivo_, _futuro de subjuntivo_, _imperativo_; for English,
+indicativo_, _pretérito perfecto simple de indicativo_, _futuro simple de indicativo_, _condicional
+simple_, _presente de subjuntivo_, _pretérito imperfecto de subjuntivo_, _futuro de subjuntivo_,
+_imperativo_; for English,
 _pasado simple_ and _presente_; _participio_, _gerundio_, _infinitivo_.
 
 ## What is the same everywhere

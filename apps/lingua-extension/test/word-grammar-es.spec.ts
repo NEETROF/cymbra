@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { GrammarTag, WordGrammar } from "@/analyzer/types.ts";
 import { grammar as renderer } from "@/i18n/es/grammar.ts";
 import { grammar as fr } from "@/i18n/fr/grammar.ts";
+import { lineText } from "@/reading/grammar-description.ts";
 import { createCard, type WordPopupContent } from "@/reading/wordpopup.ts";
 
 // generalise-lingua-card-wording: the Spanish renderer over the French spec's inputs
@@ -156,7 +157,7 @@ describe("the word card in Spanish, of an English word", () => {
         "ate",
         "ate",
       )
-      .map(renderer.lineText);
+      .map(lineText);
     expect(lines).toEqual([
       "tambi\u00e9n puede ser el pasado simple de ate",
       "tambi\u00e9n puede ser el participio de eat",
@@ -166,7 +167,7 @@ describe("the word card in Spanish, of an English word", () => {
   it("The order of tenses: English's come in the pack's order", () => {
     const pres: GrammarTag = { pos: "VERB", features: { Mood: "Ind", Tense: "Pres", VerbForm: "Fin" } };
     const of = (readings: GrammarTag[]) =>
-      renderer.grammarLines(grammar({ readings }), "read", "read2", "read2").map(renderer.lineText);
+      renderer.grammarLines(grammar({ readings }), "read", "read2", "read2").map(lineText);
     const [a, b] = [renderer.readingName(pres)!.name, renderer.readingName(PAST)!.name];
     expect(of([pres, PAST])[0]).toBe(`${renderer.join([a, b])} de read`);
     expect(of([PAST, pres])[0]).toBe(`${renderer.join([b, a])} de read`);
@@ -192,7 +193,7 @@ describe("the word card in Spanish, of a Spanish word", () => {
     expect(spanish("hablar", "hable", readings)).toEqual([
       "primera y tercera persona del singular del presente de subjuntivo y tercera persona del singular del imperativo de hablar",
     ]);
-    expect(fr.grammarLines(grammar({ readings }), "hablar", "hable", "hable", "es").map(fr.lineText)).toEqual([
+    expect(fr.grammarLines(grammar({ readings }), "hablar", "hable", "hable", "es").map(lineText)).toEqual([
       "1re et 3e personnes du singulier du présent du subjonctif et 3e personne du singulier de l’impératif de hablar",
     ]);
   });
@@ -203,7 +204,7 @@ describe("the word card in Spanish, of a Spanish word", () => {
       "tercera persona del singular del presente de indicativo y primera persona del plural del presente de indicativo de hablar",
     ]);
     // The French puts the plural first, as it always did.
-    expect(fr.grammarLines(grammar({ readings }), "hablar", "x", "x", "es").map(fr.lineText)).toEqual([
+    expect(fr.grammarLines(grammar({ readings }), "hablar", "x", "x", "es").map(lineText)).toEqual([
       "1re personne du pluriel du présent de l’indicatif et 3e personne du singulier du présent de l’indicatif de hablar",
     ]);
   });

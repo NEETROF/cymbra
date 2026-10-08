@@ -38,6 +38,7 @@ import { stats as frStats } from "@/i18n/fr/stats.ts";
 import { sync as frSync } from "@/i18n/fr/sync.ts";
 import { translation as frTranslation } from "@/i18n/fr/translation.ts";
 import { account as frAccount } from "@/i18n/fr/account.ts";
+import { lineText } from "@/reading/grammar-description.ts";
 
 // The catalogue (add-lingua-interface-language): the key every surface reads before its copy, the
 // helpers a count and a figure go through, and the parity of the English and Spanish drafts with the
@@ -696,8 +697,8 @@ describe("the grammar modules are renderers (generalise-lingua-card-wording D2)"
         ],
       ];
       for (const [grammar, headword, surface] of inputs) {
-        const said = draft.grammarLines(grammar, headword, surface, surface).map(draft.lineText);
-        const french = fr.grammarLines(grammar, headword, surface, surface).map(fr.lineText);
+        const said = draft.grammarLines(grammar, headword, surface, surface).map(lineText);
+        const french = fr.grammarLines(grammar, headword, surface, surface).map(lineText);
         expect(said).toHaveLength(french.length);
         said.forEach((line, i) => expect(line).not.toBe(french[i]));
       }

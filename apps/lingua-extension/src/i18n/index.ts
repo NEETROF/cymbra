@@ -108,8 +108,9 @@ export type GrammarLine = LineSegment[];
  * The `grammar` surface (generalise-lingua-card-wording D2): not texts but a renderer — the one
  * module of the catalogue where the rule that a draft is typed after the French covers code. Each
  * language's module turns the description of a form (`reading/grammar-description.ts`) into lines
- * in its own words, articles, elisions, joining and order of tenses; its tables stay private to it,
- * keyed by studied language where a name depends on it (a tense, the gerund).
+ * in its own words, articles, elisions and joining; its tables stay private to it, keyed by studied
+ * language where a name depends on it (a tense, the gerund), the order of its tenses being its tense
+ * table's. What is named at all, and a line's plain text (`lineText`), are the description's.
  */
 export interface GrammarRenderer {
   /** The lines a card shows about the form it was opened on, or none. */
@@ -124,8 +125,6 @@ export interface GrammarRenderer {
   readingName(tag: GrammarTag, studied?: StudiedLanguageCode): Named | null;
   /** The heading of a group of senses: its part of speech, with the word's gender; null for none. */
   senseHeading(tag: GrammarTag | undefined): string | null;
-  /** A line as plain text — what a test or an accessibility label reads. */
-  lineText(line: GrammarLine): string;
   /** A list as the language joins it: "a, b and c". */
   join(items: readonly string[]): string;
 }

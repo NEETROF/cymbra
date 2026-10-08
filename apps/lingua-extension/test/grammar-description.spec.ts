@@ -9,6 +9,7 @@ import {
   PARTS_OF_SPEECH,
   readingOf,
   tagsOf,
+  tenseOrder,
 } from "@/reading/grammar-description.ts";
 import type { GrammarRenderer, StudiedLanguageCode } from "@/i18n/index.ts";
 import { grammar as en } from "@/i18n/en/grammar.ts";
@@ -126,6 +127,28 @@ describe("the description of a form names no language", () => {
     }
     expect(readingOf({ pos: "X", features: { Aspect: "Perf" } })).toEqual({ pos: "X", persons: [] });
     expect(tagsOf(readingOf({ pos: "X" }))).toEqual([{ pos: "X" }]);
+    // An empty value is no feature.
+    expect(readingOf({ pos: "VERB", features: { Tense: "", Person: "", VerbForm: "Fin" } })).toEqual({
+      pos: "VERB",
+      persons: [],
+      verbForm: "Fin",
+    });
+  });
+
+  it("decides whether the infinitive is named: Spanish's is, English's never was", () => {
+    const inf = readingOf({ pos: "VERB", features: { VerbForm: "Inf" } });
+    expect(formKind(inf, "es")).toEqual({ kind: "infinitive" });
+    expect(formKind(inf, "en")).toBeNull();
+    for (const renderer of [fr, en, es]) {
+      expect(renderer.readingName({ pos: "VERB", features: { VerbForm: "Inf" } }, "en")).toBeNull();
+      expect(renderer.readingName({ pos: "VERB", features: { VerbForm: "Inf" } }, "es")).not.toBeNull();
+    }
+  });
+
+  it("orders a studied language's tenses once, from the renderer's table: Spanish's as listed, English's as the pack has them", () => {
+    const tenses = { en: { "Ind/Past": "a", "Ind/Pres": "b" }, es: { "Sub/Pres": "c", "Ind/Pres": "d", "Imp/": "e" } };
+    expect(tenseOrder(tenses, "es")).toEqual(["Sub/Pres", "Ind/Pres", "Imp/"]);
+    expect(tenseOrder(tenses, "en")).toEqual([]);
   });
 
   it("keys a finite form by the studied language's moods", () => {
