@@ -1,10 +1,9 @@
 import type { AccountReply } from "../account/messages.ts";
 import { createLinguaPort } from "../analyzer/create-port.ts";
-import { acceptedLanguages, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
-import { studiedLanguages as frStudiedLanguages } from "../i18n/fr/studied-languages.ts";
-import { DEFAULT_INTERFACE_LANGUAGE, fillPageInLanguage } from "../i18n/index.ts";
+import { acceptedLanguages } from "../analyzer/pairs.ts";
+import { fillPageInLanguage } from "../i18n/index.ts";
 import { mountStudiedLanguages } from "../reading/studied-languages-view.ts";
-import { onboardingCopy } from "./copy.ts";
+import { onboardingCopy, studiedLanguagesCopy } from "./copy.ts";
 import { levelRow } from "./level-row.ts";
 import { type AsyncStorageArea, hydrateEngine, saveBackup } from "../state/storage.ts";
 import { messagedArea } from "../state/store.ts";
@@ -73,9 +72,8 @@ async function main(): Promise<void> {
   const persist = async (): Promise<void> => saveBackup(store, await port.backup());
 
   // The languages first, when the package ships several (add-lingua-language-choice D5); then a
-  // level for each language the reader accepts, in the interface language read above. The
-  // languages step still speaks French: it is handed the default interface language explicitly,
-  // named here rather than defaulted in the view (add-lingua-native-language-labels).
+  // level for each language the reader accepts — both in the interface language read above, which
+  // the views that name the languages take with no default (add-lingua-native-language-labels).
   const studied = mountStudiedLanguages(
     $("languages-section"),
     port,
@@ -83,9 +81,9 @@ async function main(): Promise<void> {
       await persist();
       await renderLevels();
     },
-    SHIPPED_PAIRS,
-    frStudiedLanguages,
-    DEFAULT_INTERFACE_LANGUAGE,
+    undefined,
+    studiedLanguagesCopy(interfaceLanguage),
+    interfaceLanguage,
   );
   await studied.refresh();
   await renderLevels();

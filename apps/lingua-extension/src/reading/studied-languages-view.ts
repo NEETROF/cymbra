@@ -17,8 +17,8 @@ import type { StudiedLanguagesCopy } from "./settings-copy.ts";
 // `studied-languages` module, handed by the settings view in the interface language
 // (localise-lingua-settings), which also names the languages (add-lingua-native-language-labels D2).
 // The language has no default: a host that forgot it would name the languages in French to every
-// reader, and no French assertion would notice — the onboarding page hands it French explicitly,
-// until localise-lingua-account-onboarding hands it the one it reads.
+// reader, and no French assertion would notice — Réglages and the onboarding page each hand it the
+// one they read (localise-lingua-account-onboarding for the onboarding).
 
 export interface StudiedLanguagesView {
   /** Show the stored choice (it may have changed in another context). */

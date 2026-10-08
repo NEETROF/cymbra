@@ -3,7 +3,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { COPY_PENDING_ATTR, fillPageInLanguage, INTERFACE_LANGUAGE_KEY } from "@/i18n/index.ts";
-import { onboardingCopy } from "@/onboarding/copy.ts";
+import { studiedLanguages as enStudiedLanguages } from "@/i18n/en/studied-languages.ts";
+import { studiedLanguages as esStudiedLanguages } from "@/i18n/es/studied-languages.ts";
+import { studiedLanguages as frStudiedLanguages } from "@/i18n/fr/studied-languages.ts";
+import { onboardingCopy, studiedLanguagesCopy } from "@/onboarding/copy.ts";
 import { levelRow } from "@/onboarding/level-row.ts";
 import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helpers.ts";
 
@@ -164,5 +167,14 @@ describe("the onboarding's level row, in the interface language", () => {
     expect(row.querySelector(".confirm")?.textContent).toBe(
       "Noted — starting from scratch. You can close this tab and start reading.",
     );
+  });
+});
+
+describe("the onboarding's languages step, in the interface language", () => {
+  it("hands mountStudiedLanguages Réglages' studied-languages module for the interface language", () => {
+    expect(studiedLanguagesCopy()).toBe(frStudiedLanguages);
+    expect(studiedLanguagesCopy("fr")).toBe(frStudiedLanguages);
+    expect(studiedLanguagesCopy("en")).toBe(enStudiedLanguages);
+    expect(studiedLanguagesCopy("es")).toBe(esStudiedLanguages);
   });
 });
