@@ -12,9 +12,9 @@ import { MATRIX, ROUTES, TODAY } from "./support/lingua";
 // The last block alone reads the live pairs: the handover to change 34.
 
 /** U+202F, the narrow no-break space: French and Spanish thousands, the Spanish per-cent sign. */
-const NNBSP = " ";
+const NNBSP = "\u202F";
 /** U+00A0, the no-break space `Intl` puts before the French per-cent sign. */
-const NBSP = " ";
+const NBSP = "\u00A0";
 
 const shipped = (data: Coverage, routes: Routes = ROUTES) => shippedPairs(data, routes);
 const today = shipped(TODAY);

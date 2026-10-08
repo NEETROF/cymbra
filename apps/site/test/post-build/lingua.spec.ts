@@ -52,8 +52,9 @@ describe("the Lingua page with the pairs the fixtures were taken with", () => {
     JSON.stringify(liveRoutes) === JSON.stringify(takenWith.routes);
   const sameFigures = JSON.stringify(coverage.glossed) === JSON.stringify(takenWith.coverage.glossed);
   const why =
-    `the shipped pairs or their routes are no longer the fixtures' (${JSON.stringify(takenWith.routes)}; now ${JSON.stringify(liveRoutes)}): ` +
-    "the pages' words moved with them — refresh test/fixtures/lingua/ as apps/site/README.md says";
+    `the fixtures were taken with ${Object.keys(takenWith.coverage.glossed).join(", ")} (routes ${JSON.stringify(takenWith.routes)}), ` +
+    `the build ships ${livePairs.join(", ")} (routes ${JSON.stringify(liveRoutes)}): the pages' words moved with them — ` +
+    "refresh test/fixtures/lingua/ as apps/site/README.md says";
   const compare = (built: string, lang: string) => {
     const [actual, expected] = [mainWithoutInvite(built), fixture(lang)];
     if (sameFigures) expect(actual).toBe(expected);
