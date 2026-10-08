@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: The shipped pairs are one list
-The extension's build SHALL read the language pairs it ships from one list, whose first pair gives the default studied language, and SHALL build each listed pair's pack from that pair's committed tables, checked against that pair's own recorded sha256. It SHALL refuse a pack whose analyser version is not the version of the pack's own studied language. Every package of a release SHALL carry exactly the listed packs, each byte-identical across Chromium, Firefox and Safari. The list SHALL hold en-fr, es-fr then es-en, and a package whose list is anything else SHALL be refused.
+The extension's build SHALL read the language pairs it ships from one list, whose first pair glossed in a native language gives that native language's default studied language, and SHALL build each listed pair's pack from that pair's committed tables, checked against that pair's own recorded sha256. It SHALL refuse a pack whose analyser version is not the version of the pack's own studied language. Every package of a release SHALL carry exactly the listed packs, each byte-identical across Chromium, Firefox and Safari. The list SHALL hold en-fr, es-fr then es-en, and a package whose list is anything else SHALL be refused.
 
 #### Scenario: Building the listed packs
 - **WHEN** a release builds its packs with the list holding en-fr, es-fr then es-en
@@ -21,8 +21,8 @@ The extension's build SHALL read the language pairs it ships from one list, whos
 
 #### Scenario: English unchanged
 - **WHEN** the en-fr pack is built from its tables after this change
-- **THEN** it is byte-for-byte the pack built before, and English stays the default studied language
+- **THEN** it is byte-for-byte the pack built before, and English stays a French-native reader's default studied language
 
-#### Scenario: English speakers learning spanish
+#### Scenario: English speakers learning Spanish
 - **WHEN** a reader whose browser is in English installs a package built with this list
 - **THEN** the native-language choice is offered, preset to English, and the reader studies Spanish through es-en
