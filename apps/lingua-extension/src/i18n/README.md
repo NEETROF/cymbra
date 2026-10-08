@@ -55,10 +55,13 @@ language in a `lang` of their own.
   translation would have to equal it.
 - **A sentence built from parts** is one function of its parts — `review.sources(names)`,
   `colours.preview(unknown, learning)` — so a translation may put the parts elsewhere. A part the
-  surface renders apart (a bold number, a painted word) is passed as a sentinel and the result split
-  around it; the catalogue holds the sentence, not the markup. `slot(i)` is the `i`-th part's
-  sentinel and `fillSlots(message, parts)` the nodes to append, each part where the language put it
-  (« Je connais les **3000** mots les plus courants », Réglages' shortcut lines and colour preview).
+  surface renders apart (a bold number, a painted word) is passed as a sentinel and the result
+  rendered around it; the catalogue holds the sentence, not the markup. `slot(i)` is the `i`-th
+  part's sentinel and `fillSlots(message, parts)` the nodes to append, each part where the language
+  put it and a part the message dropped appended after it (« Je connais les **3000** mots les plus
+  courants », Réglages' shortcut lines and colour preview). `NODE_SLOT` is `slot(0)` and
+  `renderAround(element, message, node)` is `fillSlots` with that one part: one mechanism, so a
+  message renders through either helper.
 - **A count** is a `PluralForms` object, `{ one, many?, other }`, each form a function of the
   number _as the language writes it_: `plural(language, n, forms)` picks the form through
   `Intl.PluralRules`. French and Spanish have `many` (a round million); English has not, and a
