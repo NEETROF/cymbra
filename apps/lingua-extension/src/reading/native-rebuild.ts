@@ -17,26 +17,39 @@ export interface PageSession {
 /**
  * Start a session with `build`, then build it anew on every announced change of native language,
  * one after the other: the previous session is stopped before the next is built, and a build that
- * failed is followed by a fresh one on the next change. Resolves once the first session started;
- * rejects when it could not — the content script says so, and the next injection retries.
+ * failed is followed by a fresh one on the next change. The change is watched from before the first
+ * build, so one announced while the first session starts — its engine reads the backup it replaces —
+ * takes that session down as soon as it is up. Resolves once the first session started; rejects when
+ * it could not — the content script says so, the watch is undone and the next injection retries.
  */
 export async function followNativeLanguage(
   build: () => Promise<PageSession>,
-  watch: (onChanged: (keys: string[], reason?: StoreChangeReason) => void) => unknown = watchStore,
+  watch: (onChanged: (keys: string[], reason?: StoreChangeReason) => void) => (() => void) | void = watchStore,
 ): Promise<void> {
-  let session: Promise<PageSession> = build();
-  await session;
-  watch((_keys, reason) => {
-    if (reason?.type !== "native-language") return;
+  let abandoned = false;
+  let session: Promise<PageSession> | null = null;
+  const unwatch = watch((_keys, reason) => {
+    if (reason?.type !== "native-language" || !session) return;
     session = session.then(
       (previous) => {
         previous.stop();
         return build();
       },
-      () => build(),
+      (e: unknown) => {
+        if (abandoned) throw e; // the first session never started: the content script retries
+        return build();
+      },
     );
     session.catch((e: unknown) => {
-      console.error("[Cymbra Lingua] reader failed to start again in the new language:", e);
+      if (!abandoned) console.error("[Cymbra Lingua] reader failed to start again in the new language:", e);
     });
   });
+  session = build();
+  try {
+    await session;
+  } catch (e) {
+    abandoned = true;
+    unwatch?.();
+    throw e;
+  }
 }

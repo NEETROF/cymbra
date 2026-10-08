@@ -27,7 +27,9 @@ function harness() {
   return {
     sessions,
     build,
-    watch: (fn: NonNullable<typeof listener>) => (listener = fn),
+    watch: (fn: NonNullable<typeof listener>): void => {
+      listener = fn;
+    },
     change: (reason?: StoreChangeReason) => listener?.([ROOT_KEY], reason),
   };
 }
@@ -80,11 +82,61 @@ describe("the content script's session", () => {
     error.mockRestore();
   });
 
-  it("watches nothing when the first session could not start", async () => {
+  it("watches nothing once the first session could not start", async () => {
     const h = harness();
-    const watch = vi.fn();
+    const unwatch = vi.fn();
     h.build.mockRejectedValueOnce(new Error("blocked"));
-    await expect(followNativeLanguage(h.build, watch)).rejects.toThrow("blocked");
-    expect(watch).not.toHaveBeenCalled();
+    await expect(
+      followNativeLanguage(h.build, (fn) => {
+        h.watch(fn);
+        return unwatch;
+      }),
+    ).rejects.toThrow("blocked");
+    expect(unwatch).toHaveBeenCalledOnce();
+    // A change the listener still hears builds nothing: the next injection starts the reader.
+    h.change({ type: "native-language", native: "en" });
+    await settle();
+    expect(h.build).toHaveBeenCalledOnce();
+  });
+
+  it("takes down a first session the change was announced under, once it is up", async () => {
+    const h = harness();
+    let started!: () => void;
+    h.build.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => (started = resolve));
+      const session = {
+        id: 1,
+        stopped: false,
+        stop() {
+          this.stopped = true;
+        },
+      };
+      h.sessions.push(session);
+      return session;
+    });
+    const following = followNativeLanguage(h.build, h.watch);
+
+    // The reader chose English while this page's session was still starting on the French backup.
+    h.change({ type: "native-language", native: "en" });
+    started();
+    await following;
+    await settle();
+
+    expect(h.sessions.map((s) => [s.id, s.stopped])).toEqual([
+      [1, true],
+      [2, false],
+    ]);
+  });
+
+  it("does not rebuild for a change announced under a first session that then failed", async () => {
+    const h = harness();
+    let fail!: (e: Error) => void;
+    h.build.mockImplementationOnce(() => new Promise<never>((_resolve, reject) => (fail = reject)));
+    const following = followNativeLanguage(h.build, h.watch);
+    h.change({ type: "native-language", native: "en" });
+    fail(new Error("blocked"));
+    await expect(following).rejects.toThrow("blocked");
+    await settle();
+    expect(h.build).toHaveBeenCalledOnce();
   });
 });

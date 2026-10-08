@@ -696,6 +696,7 @@ export class ReadingSession {
   private async persist(): Promise<void> {
     if (this.stopped) return; // its backup names a native language the reader left (`stop`)
     const backup = await this.port.backup();
+    if (this.stopped) return; // taken down while the engine answered: the same backup
     this.lastBackup = backup; // so our own storage.onChanged echo is ignored
     await saveBackup(store, backup);
     // A level picked in the drawer's settings lands here (our own echo is ignored below).

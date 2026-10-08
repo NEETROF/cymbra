@@ -61,6 +61,24 @@ export interface NativeLanguageChange {
 
 export type StoreChangeReason = NativeLanguageChange;
 
+/**
+ * How long after a change of native language the owner refuses a backup that names another one and
+ * comes without that reason (add-lingua-native-language-choice D3). A context that started before
+ * the change — a session taken down while its engine answered, a page about to reload, a port not
+ * restored yet — may still save the backup its engine holds, and saving it would undo the reader's
+ * choice. Long enough for every open surface to have heard the change; after it, a backup restored
+ * from a file names whatever native language it names.
+ */
+export const NATIVE_CHANGE_GUARD_MS = 30_000;
+
+/** A backup refused by the owner: it names the native language the reader just left. */
+export class StaleNativeLanguageError extends Error {
+  constructor(named: NativeLanguage, chosen: NativeLanguage) {
+    super(`a backup naming "${named}" was refused: the reader just chose "${chosen}"`);
+    this.name = "StaleNativeLanguageError";
+  }
+}
+
 export interface StoreChange {
   /** Strictly increasing, so a surface can ignore an echo of its own write. */
   rev: number;
@@ -168,7 +186,9 @@ export interface OwnerArea extends AsyncStorageArea {
   /**
    * Write `items`, then announce them. With a `reason`, the mirror of the interface language runs
    * before the announcement rather than after it: a page that reloads on a change of native
-   * language reads the key the new profile names (add-lingua-native-language-choice D2).
+   * language reads the key the new profile names (add-lingua-native-language-choice D2). For
+   * `NATIVE_CHANGE_GUARD_MS` after such a write, a backup written without a reason that names
+   * another native language is refused — rejected with `StaleNativeLanguageError`, nothing written.
    */
   set(items: Record<string, unknown>, reason?: StoreChangeReason): Promise<void>;
   /**
@@ -201,6 +221,7 @@ export function ownerArea(
   announce: (keys: string[], reason?: StoreChangeReason) => void,
   preferences?: AsyncStorageArea,
   pairs: readonly string[] = SHIPPED_PAIRS,
+  now: () => number = () => Date.now(),
 ): OwnerArea {
   // The root value last written, whether a parse of it is already due, the language last
   // mirrored, and the chain the mirrors run on, one after the other.
@@ -208,6 +229,19 @@ export function ownerArea(
   let due = false;
   let mirrored: InterfaceLanguage | undefined;
   let chain: Promise<void> = Promise.resolve();
+  // The native language last chosen, while a backup naming another is refused.
+  let guard: { native: NativeLanguage; until: number } | null = null;
+
+  /** Refuse a stale backup: parsed only while a change of native language is that recent. */
+  const refuseStale = (items: Record<string, unknown>): void => {
+    if (!guard || !(ROOT_KEY in items)) return;
+    if (now() >= guard.until) {
+      guard = null;
+      return;
+    }
+    const named = nativeLanguageOfStored(items[ROOT_KEY], pairs);
+    if (named !== guard.native) throw new StaleNativeLanguageError(named, guard.native);
+  };
 
   const mirror = async (): Promise<void> => {
     due = false;
@@ -224,7 +258,9 @@ export function ownerArea(
   return {
     get: (keys) => area.get(keys),
     set: async (items, reason) => {
+      if (!reason) refuseStale(items);
       await area.set(items);
+      if (reason) guard = { native: reason.native, until: now() + NATIVE_CHANGE_GUARD_MS };
       if (preferences && ROOT_KEY in items) {
         latest = items[ROOT_KEY];
         if (reason) {

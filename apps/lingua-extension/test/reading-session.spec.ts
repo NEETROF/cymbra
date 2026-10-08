@@ -84,11 +84,11 @@ beforeEach(() => {
         sent.push(msg);
         return msg?.type === "store:get" ? { items: {} } : undefined;
       }),
-      onMessage: { addListener: (fn: RuntimeListener) => void runtimeListeners.push(fn) },
+      onMessage: { addListener: (fn: RuntimeListener) => void runtimeListeners.push(fn), removeListener: () => {} },
     },
     storage: {
       local: { get: async () => ({}), set: async () => {} },
-      onChanged: { addListener: () => {} },
+      onChanged: { addListener: () => {}, removeListener: () => {} },
     },
   });
 });
@@ -591,5 +591,24 @@ describe("a session taken down (add-lingua-native-language-choice D3)", () => {
     expect(calls.restored).toHaveLength(restored);
     s.stop(); // twice is once
     expect(destroyed).toHaveBeenCalledOnce();
+  });
+
+  it("A stopped session never writes its backup, even one its engine was still answering", async () => {
+    const { s, port } = session({ indicator: indicator().factory });
+    await s.start(null);
+    let answer!: (backup: string) => void;
+    port.backup = () => new Promise<string>((resolve) => (answer = resolve));
+    const writes = () => sent.filter((msg) => (msg as { type?: string }).type === "store:set");
+    const before = writes().length;
+
+    // A gesture's save under way when the reader chose another native language.
+    const saving = s["persist"]();
+    s.stop();
+    answer('{"profile":{"native_language":"French"}}');
+    await saving;
+    // And one asked after.
+    await s["persist"]();
+
+    expect(writes()).toHaveLength(before);
   });
 });
