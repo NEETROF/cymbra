@@ -58,6 +58,12 @@ export const PINNED_ROUTES: PinnedRoute[] = [
   { path: "/es/eliminar-cuenta/", pinnedBy: "Lingua — deletion link, Spanish interface", source: "apps/lingua-extension/src/account/locale.ts — `deleteAccountUrl`, where localise-lingua-account-onboarding (change 17) moves it and keys it on the interface language" },
   { path: "/lingua/", pinnedBy: "Lingua — Homepage of the Chrome Web Store and AMO listings, Marketing URL (ASC)", source: "apps/lingua-extension/STORE-LISTING.md; apps/lingua-apple/STORE-LISTING.md" },
 
+  // Rendered into Cymbra ID e-mails (change: localise-cymbra-id-email-legal-links).
+  // An e-mail already sent keeps the links it was rendered with, like a shipped
+  // build: a Spanish recipient may open these months later.
+  { path: "/es/terminos/", pinnedBy: "Cymbra ID e-mail footer, es", source: "backend/platform/src/email_template/mod.rs" },
+  { path: "/es/privacidad/", pinnedBy: "Cymbra ID e-mail footer, es", source: "backend/platform/src/email_template/mod.rs" },
+
   // The locale roots. Entry point for everything else, and the previous value of
   // the listings' website field.
   { path: "/", pinnedBy: "Locale root — entry point for every other surface", source: "cymbra.app" },
