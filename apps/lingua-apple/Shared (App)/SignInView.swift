@@ -13,11 +13,14 @@ protocol GoogleIdTokenSource {
 }
 
 /// The host app's sign-in sheet (add-lingua-connected-clients, design D6), opened by the
-/// Safari extension through `cymbra-lingua://signin?provider=…`. It runs the requested
+/// Safari extension through `cymbra-lingua://signin?provider=…&lang=…`. It runs the requested
 /// provider's native sheet and hands the id_token to the extension through the App Group;
-/// the Cymbra session itself stays in the extension.
+/// the Cymbra session itself stays in the extension. Its copy is in the extension's interface
+/// language when the app offers it (localise-lingua-apple-host, D3); Apple's button keeps the
+/// label the system gives it.
 struct SignInView: View {
     let requested: SignInProvider
+    let language: SignInLanguage
     let google: GoogleIdTokenSource?
     let handoff: IdTokenHandoff?
     let close: () -> Void
@@ -25,31 +28,33 @@ struct SignInView: View {
     @State private var phase: SignInPhase = .choosing
     @State private var working = false
 
+    private var copy: SignInCopy { SignInCopy(language: language) }
+
     var body: some View {
         VStack(spacing: 18) {
-            Text(SignInCopy.heading)
+            Text(copy.heading)
                 .font(.title2.bold())
                 .foregroundStyle(Palette.text)
             if phase == .done {
-                Text(SignInCopy.done)
+                Text(copy.done)
                     .foregroundStyle(Palette.green)
-                Button(SignInCopy.close, action: close)
+                Button(copy.close, action: close)
                     .buttonStyle(.plain)
                     .foregroundStyle(Palette.accent)
             } else {
-                Text(SignInCopy.lede)
+                Text(copy.lede)
                     .foregroundStyle(Palette.muted)
                 providerButton
                     .disabled(working)
                 if working {
-                    Text(SignInCopy.browserWaiting)
+                    Text(copy.browserWaiting)
                         .foregroundStyle(Palette.muted)
                 }
                 if case let .failed(provider) = phase {
-                    Text(SignInCopy.failure(provider))
+                    Text(copy.failure(provider))
                         .foregroundStyle(Palette.coral)
                 }
-                Button(SignInCopy.cancel, action: close)
+                Button(copy.cancel, action: close)
                     .buttonStyle(.plain)
                     .foregroundStyle(Palette.accent)
             }
@@ -83,7 +88,7 @@ struct SignInView: View {
                         working = false
                     }
                 } label: {
-                    Text(SignInCopy.button(.google))
+                    Text(copy.button(.google))
                         .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 48)
                 }
@@ -91,7 +96,7 @@ struct SignInView: View {
                 .foregroundStyle(Palette.accentInk)
                 .background(Palette.accentStrong, in: RoundedRectangle(cornerRadius: 12))
             } else {
-                Text(SignInCopy.unavailable(.google))
+                Text(copy.unavailable(.google))
                     .foregroundStyle(Palette.muted)
             }
         }

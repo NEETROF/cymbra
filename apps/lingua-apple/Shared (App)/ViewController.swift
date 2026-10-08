@@ -5,6 +5,7 @@
 //  Created by fortin guillaume on 14/09/2026.
 //
 
+import LinguaSignIn
 import WebKit
 
 #if os(iOS)
@@ -32,6 +33,18 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 #endif
 
         self.webView.configuration.userContentController.add(self, name: "controller")
+
+        // The page's language (localise-lingua-apple-host, D2): the extension's interface language
+        // once the extension has run — its native handler keeps it in the App Group — and the
+        // bundle's preferred localisation before, among the languages the app declares. Said to
+        // the page before it loads; copy.js fills it on DOMContentLoaded. The value is one of the
+        // closed `SignInLanguage` cases, never a string from outside.
+        let language = SignInLanguage.shown(InterfaceLanguageStore.shared()?.current(), in: .main)
+        self.webView.configuration.userContentController.addUserScript(WKUserScript(
+            source: "window.linguaLanguage = \"\(language.rawValue)\";",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        ))
 
         self.webView.loadFileURL(Bundle.main.url(forResource: "Main", withExtension: "html")!, allowingReadAccessTo: Bundle.main.resourceURL!)
     }
