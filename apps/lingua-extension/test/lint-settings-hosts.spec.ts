@@ -24,6 +24,8 @@ function files(dir: string, ext: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
     if (name === "pkg" || name === "gen") return []; // generated
+    // The copy catalogue (src/i18n) holds the block titles as text, not a block of its own.
+    if (name === "i18n") return [];
     if (statSync(path).isDirectory()) return files(path, ext);
     return path.endsWith(ext) ? [path] : [];
   });

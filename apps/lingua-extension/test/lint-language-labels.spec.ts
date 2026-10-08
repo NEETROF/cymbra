@@ -14,7 +14,9 @@ const LABELS = join(SRC, "analyzer", "language-labels.ts");
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const p = join(dir, name);
-    if (statSync(p).isDirectory()) return name === "pkg" || name === "gen" ? [] : files(p);
+    // The catalogue (src/i18n, add-lingua-interface-language) names the languages in every
+    // interface language: the labels module's own copy lives there.
+    if (statSync(p).isDirectory()) return name === "pkg" || name === "gen" || name === "i18n" ? [] : files(p);
     return /\.(ts|html)$/.test(name) && p !== LABELS ? [p] : [];
   });
 }

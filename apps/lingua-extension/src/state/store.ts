@@ -1,6 +1,8 @@
+import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
+import { INTERFACE_LANGUAGE_KEY, type InterfaceLanguage, isInterfaceLanguage } from "../i18n/language.ts";
 import { isStorageFull } from "./auth-errors.ts";
 import { DAILY_KEY, DAY_ONLY_DAILY_KEY, PER_LANGUAGE_DAILY_KEY, RETIRED_DAILY_KEY } from "./dailystats.ts";
-import { type AsyncStorageArea, loadStored, ROOT_KEY } from "./storage.ts";
+import { type AsyncStorageArea, loadStored, nativeLanguageOfStored, ROOT_KEY } from "./storage.ts";
 
 // Where the reader's own data lives (change: move-lingua-store-to-indexeddb). The engine
 // backup, the daily statistics and the sync cursors grow with the reader, and
@@ -117,17 +119,92 @@ export function idbArea(db: IDBDatabase): AsyncStorageArea {
 }
 
 /**
+ * See to it that the device holds the interface language before any surface asks for it
+ * (add-lingua-interface-language D3). The key is read first and kept when it already names a
+ * language: a background wakes often (Chromium suspends an idle service worker within a minute),
+ * every surface's first `store:get` waits behind this, and the backup it would otherwise parse is
+ * the reader's whole data. It is computed from the stored backup only when the key is absent or
+ * unknown — the one case the migration needs, a device updated with a profile already stored. From
+ * then on the owner's backup writes keep it in step (`ownerArea`).
+ */
+export async function rememberInterfaceLanguage(
+  area: AsyncStorageArea,
+  preferences: AsyncStorageArea,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): Promise<void> {
+  const held = await preferences.get(INTERFACE_LANGUAGE_KEY);
+  if (isInterfaceLanguage(held[INTERFACE_LANGUAGE_KEY])) return;
+  const got = await area.get(ROOT_KEY);
+  await preferences.set({ [INTERFACE_LANGUAGE_KEY]: nativeLanguageOfStored(got[ROOT_KEY], pairs) });
+}
+
+/** The owner's handle: a store whose backup writes also keep the interface language's key in step. */
+export interface OwnerArea extends AsyncStorageArea {
+  /**
+   * Settles once every mirror the writes so far have scheduled has landed, or failed and been
+   * said. The mirror is off the write path — a write resolves, and announces, before it runs — so
+   * whatever must see the key current right after a write (a test; nothing in the extension, which
+   * reads the key when a surface opens) awaits this.
+   */
+  mirrored(): Promise<void>;
+}
+
+/**
  * The owner's handle on its own store: every write says which keys changed. Both things
  * that follow a mutation hang off this — telling the surfaces, and scheduling the sync —
  * so neither can be forgotten when the store moves again.
+ *
+ * A write of the backup also mirrors its profile's native language into `preferences`
+ * (chrome.storage.local) under the interface language's key: a profile change, a restore from
+ * a file, a full reset and the first hydration all come through here, so the key cannot go
+ * stale behind the profile. The mirror costs the write nothing: the backup is written again at
+ * every status change — each word clicked — and parsing it (the reader's whole data) for a
+ * profile that has not moved would delay every announcement, so the parse runs after the write
+ * has resolved and announced, once for a burst of writes, and the key is written only when the
+ * language differs from the one last mirrored. A mirror that cannot be written (the area full)
+ * is said and costs the backup nothing: the key keeps its previous value, absent meaning French,
+ * and the next write that finds it still different tries again.
  */
-export function ownerArea(area: AsyncStorageArea, announce: (keys: string[]) => void): AsyncStorageArea {
+export function ownerArea(
+  area: AsyncStorageArea,
+  announce: (keys: string[]) => void,
+  preferences?: AsyncStorageArea,
+  pairs: readonly string[] = SHIPPED_PAIRS,
+): OwnerArea {
+  // The root value last written, whether a parse of it is already due, the language last
+  // mirrored, and the chain the mirrors run on, one after the other.
+  let latest: unknown;
+  let due = false;
+  let mirrored: InterfaceLanguage | undefined;
+  let chain: Promise<void> = Promise.resolve();
+
+  const mirror = async (): Promise<void> => {
+    due = false;
+    const language = nativeLanguageOfStored(latest, pairs);
+    if (!preferences || language === mirrored) return;
+    try {
+      await preferences.set({ [INTERFACE_LANGUAGE_KEY]: language });
+      mirrored = language;
+    } catch (e) {
+      console.warn("[Cymbra Lingua] could not mirror the interface language:", e);
+    }
+  };
+
   return {
     get: (keys) => area.get(keys),
     set: async (items) => {
       await area.set(items);
+      if (preferences && ROOT_KEY in items) {
+        latest = items[ROOT_KEY];
+        if (!due) {
+          // A macrotask later: writes that land in the same turn share one parse.
+          due = true;
+          chain = chain.then(() => new Promise<void>((resolve) => setTimeout(resolve, 0))).then(mirror);
+        }
+      }
       announce(Object.keys(items));
     },
+    mirrored: () => chain,
   };
 }
 

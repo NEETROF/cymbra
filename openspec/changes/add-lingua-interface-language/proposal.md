@@ -37,11 +37,12 @@ with tú and no vosotros, « forma en -ing », RAE tense names, CEFR in English 
   strings, so « carte(s) » stays « carte(s) ».
 - **The interface language, under its own key**: `cymbra-lingua-interface-language` in
   `chrome.storage.local`, `fr`, `en` or `es`; absent means `fr` for a device that predates the key
-  (M22; change 20 presets a new install). The store's owner writes it whenever it writes the
-  backup, from the profile's native language (change 4), so the choice is the native language (M2)
-  and a later override needs no migration. Every surface can read it before it renders its copy,
-  as it reads its other preferences; the static French of the HTML pages paints before any
-  script and moves with its surface (changes 14–17).
+  (M22; change 20 presets a new install). The store's owner writes it at its start when it is
+  absent, and after each write of the backup, from the native language as the extension serves it
+  (change 4's gate: French when no shipped pair is glossed in the profile's language), so the
+  choice is the native language (M2) and a later override needs no migration. Every surface can
+  read it before it renders its copy, as it reads its other preferences; the static French of the
+  HTML pages paints before any script and moves with its surface (changes 14–17).
 - **Formats by language**: in English and Spanish, numbers and dates through the locale; in
   French, exactly what the surfaces write today (« 25,8 Mo » with its plain space, « il y a
   3 min. », a raw count in « 3 carte(s) »).
@@ -83,7 +84,9 @@ None.
   reader only.
 - **Order.** `refine-lingua-review-session` (#696) adds French copy to review, Réglages and the
   popup, which the byte-for-byte extraction must hold: as the programme says, #696 merges before
-  this change, or this change is rebased onto it and extracts its copy too.
+  this change, or this change is rebased onto it and extracts its copy too. #696 is not on main;
+  its copy is extracted by changes 15/16, or by #696's rebase onto the catalogue once those files
+  are off the baseline (change 15's D5).
 - **Not here.** Moving the surfaces (14–17); the card's wording and tense names (18); the labels
   of the native languages (19); the choice in Réglages and at onboarding (20); `_locales` and the
   listings (27); the host app (28); the agent (55).

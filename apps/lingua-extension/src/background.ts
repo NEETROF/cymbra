@@ -52,6 +52,7 @@ import {
   migrateStore,
   openStore,
   ownerArea,
+  rememberInterfaceLanguage,
   STORE_CHANGED_KEY,
   type StoreChange,
   type StoreReply,
@@ -212,12 +213,19 @@ function announceStoreChange(keys: string[]): void {
  * settings area still holds a bounded state, so the reader keeps reading and reviewing.
  */
 const storeArea: Promise<AsyncStorageArea> = (async () => {
+  // The interface language follows the stored profile from this first start on, whichever area
+  // holds the backup; every later write of the backup keeps it in step (ownedStore below).
+  const remember = (area: AsyncStorageArea): Promise<void> =>
+    rememberInterfaceLanguage(area, settingsArea).catch((e: unknown) => {
+      console.warn("[Cymbra Lingua] could not remember the interface language:", e);
+    });
   let area: AsyncStorageArea;
   try {
     area = idbArea(await openStore());
   } catch (e) {
     console.warn("[Cymbra Lingua] durable store unavailable, staying on storage.local:", e);
     await dropRetiredKeys(settingsArea).catch(() => {});
+    await remember(settingsArea);
     return settingsArea;
   }
   // A migration that fails must not cost us the store: it is retried at the next start,
@@ -231,6 +239,7 @@ const storeArea: Promise<AsyncStorageArea> = (async () => {
   await dropRetiredKeys(area, settingsArea).catch((e: unknown) => {
     console.warn("[Cymbra Lingua] could not drop the retired keys:", e);
   });
+  await remember(area);
   void navigator.storage?.persist?.().catch(() => {});
   return area;
 })();
@@ -242,6 +251,7 @@ const ownedStore: AsyncStorageArea = ownerArea(
     set: async (items) => (await storeArea).set(items),
   },
   announceStoreChange,
+  settingsArea,
 );
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

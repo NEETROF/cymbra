@@ -1,0 +1,41 @@
+import type { reader as fr } from "../fr/reader.ts";
+
+// The book reader's copy in English — a draft after the French (src/i18n/README.md).
+
+export const reader: typeof fr = {
+  pageTitle: "Library — Cymbra Lingua",
+  title: "Library",
+  importButton: "Import a book (EPUB)",
+  empty: "Your library is empty. Import a DRM-free EPUB book: it stays on this device and opens offline.",
+  importing: "Importing…",
+  otherLanguages: "Other languages",
+  imported: (title) => `“${title}” is in your library.`,
+  alreadyThere: (title) => `“${title}” was already in your library.`,
+  importProtected: "This book is protected by DRM: Cymbra Lingua can't open it.",
+  importNotEpub: "This file isn't an EPUB book.",
+  importUnreadable: "This file can't be read: it may be incomplete or damaged.",
+  importStorage: "There isn't enough room left on this device to keep this book.",
+  persistenceRefused:
+    "Your browser hasn't committed to keeping your books: if it runs out of room, it might erase them. You can always import them again.",
+  open: (title) => `Open “${title}”`,
+  remove: "Delete",
+  removeConfirm: (title) => `Delete “${title}”? The cards you drew from it stay in your deck.`,
+  removeYes: "Yes, delete",
+  cancel: "Cancel",
+  missing: "This book is no longer in your library.",
+  openFailed: "This book couldn't be opened.",
+  back: "Library",
+  toc: "Contents",
+  display: "Aa",
+  displayTitle: "Text size and page",
+  fullscreen: "Full screen",
+  leaveFullscreen: "Leave full screen",
+  noToc: "This book has no table of contents.",
+  review: "Review",
+  stats: "Stats",
+  settings: "Settings",
+  prev: "Previous page",
+  next: "Next page",
+  percentTitle: "Known words in this chapter",
+  untitled: "Untitled book",
+};

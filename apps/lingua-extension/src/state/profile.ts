@@ -25,12 +25,17 @@ const NATIVE_NAMES: ReadonlyMap<unknown, NativeLanguage> = new Map<unknown, Nati
 
 const ENGLISH: StudiedLanguage[] = ["en"];
 
-/** The profile of `backup`, or undefined when it holds none or does not parse. */
+/**
+ * The profile of `backup`, or undefined when it holds none or does not parse. A backup that does
+ * not parse is said, not swallowed: read as empty it makes every reader French and English-studying,
+ * and a Spanish reader whose interface turned French would otherwise have nothing to go on.
+ */
 function profileOf(backup: string): { studied_languages?: unknown; native_language?: unknown } | undefined {
   try {
     return (JSON.parse(backup) as { profile?: { studied_languages?: unknown; native_language?: unknown } } | null)
       ?.profile;
-  } catch {
+  } catch (e) {
+    console.warn("[Cymbra Lingua] the stored backup does not parse; reading its profile as empty:", e);
     return undefined;
   }
 }
