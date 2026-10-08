@@ -9,8 +9,11 @@ export const nativeLanguage = {
   question: "Je lis en…",
   /** What the choice sets, under the native languages. */
   note: "La langue de l'interface et des traductions de mots.",
-  /** The consequence, said before confirming: `languages`, the studied languages after the change. */
-  studiesAfter: (languages: string) => `Tu étudieras ensuite : ${languages}.`,
+  /**
+   * The consequence, said before confirming: `languages`, the studied languages after the change,
+   * each with its article (`languages.ts`'s `the`) — « Tu étudieras ensuite l'espagnol. »
+   */
+  studiesAfter: (languages: string) => `Tu étudieras ensuite ${languages}.`,
   confirm: "Confirmer",
   failed: "Le changement n'a pas pu être fait. Réessaie.",
 };

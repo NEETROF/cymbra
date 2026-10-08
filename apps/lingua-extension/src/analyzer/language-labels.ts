@@ -31,6 +31,11 @@ export function languageName(language: InterfaceLanguage, studied: StudiedLangua
   return words(language, studied).name;
 }
 
+/** « l'anglais » — "English", « el inglés »: the language with its article, where a sentence takes it. */
+export function languageWithArticle(language: InterfaceLanguage, studied: StudiedLanguage): string {
+  return words(language, studied).the;
+}
+
 /**
  * A native language named in its own language — « Français », "English", « Español » — the same in
  * every interface language (add-lingua-native-language-choice D4): a reader finds their own language

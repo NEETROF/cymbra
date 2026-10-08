@@ -119,7 +119,7 @@ describe("Réglages › Langue maternelle", () => {
     const block = english.closest<HTMLElement>(".set-block")!;
     expect(
       [...block.querySelectorAll<HTMLElement>(".set-note")].filter((n) => !n.hidden).map((n) => n.textContent),
-    ).toEqual(["La langue de l'interface et des traductions de mots.", "Tu étudieras ensuite : Espagnol."]);
+    ).toEqual(["La langue de l'interface et des traductions de mots.", "Tu étudieras ensuite l'espagnol."]);
 
     block.querySelector<HTMLButtonElement>("button")!.click();
     await settle();

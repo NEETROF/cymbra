@@ -1,4 +1,4 @@
-import { languageName, nativeLanguageName } from "../analyzer/language-labels.ts";
+import { languageWithArticle, nativeLanguageName } from "../analyzer/language-labels.ts";
 import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
 import { nativeLanguage as enNativeLanguage } from "../i18n/en/native-language.ts";
@@ -115,6 +115,8 @@ export function mountNativeLanguage(container: HTMLElement, opts: NativeLanguage
   confirm.hidden = true;
   const failed = el("div", "set-warn", copy.failed);
   failed.hidden = true;
+  // Its notes and its button come and go: `.set-native` keeps `hidden` hiding them (settings.css).
+  container.classList.add("set-native");
   container.append(row, note, consequence, confirm, failed);
 
   let current: NativeProfile | null = null;
@@ -131,7 +133,7 @@ export function mountNativeLanguage(container: HTMLElement, opts: NativeLanguage
     const studied = current ? studiedForNative(current.studied, native, pairs) : null;
     consequence.hidden = !changes || studied === null;
     consequence.textContent =
-      changes && studied ? copy.studiesAfter(studied.map((l) => languageName(language, l)).join(", ")) : "";
+      changes && studied ? copy.studiesAfter(studied.map((l) => languageWithArticle(language, l)).join(", ")) : "";
     confirm.hidden = !(changes || (opts.confirmCurrent && !answered));
   }
 

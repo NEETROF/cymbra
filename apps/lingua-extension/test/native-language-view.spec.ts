@@ -131,7 +131,7 @@ describe("the view (D4)", () => {
     await view.refresh();
 
     pick(container, "en");
-    expect(visibleNotes(container)).toEqual([frCopy.note, "Tu étudieras ensuite : Espagnol."]);
+    expect(visibleNotes(container)).toEqual([frCopy.note, "Tu étudieras ensuite l'espagnol."]);
     expect(button(container).hidden).toBe(false);
     expect(button(container).textContent).toBe("Confirmer");
     expect(choose).not.toHaveBeenCalled();
@@ -159,7 +159,38 @@ describe("the view (D4)", () => {
     })!;
     await view.refresh();
     pick(container, "en");
-    expect(visibleNotes(container)).toEqual([enCopy.note, "You'll then study: Spanish."]);
+    expect(visibleNotes(container)).toEqual([enCopy.note, "You'll then study Spanish."]);
+  });
+
+  it("names the language the reader will study with its article, in each interface language", async () => {
+    const consequence = async (language: "fr" | "en" | "es", copy: typeof frCopy) => {
+      const container = document.createElement("div");
+      const view = mountNativeLanguage(container, {
+        language,
+        copy,
+        profile: profile("fr", ["en"]),
+        pairs: MIXED,
+      })!;
+      await view.refresh();
+      pick(container, "en");
+      return visibleNotes(container)[1];
+    };
+    expect(await consequence("fr", frCopy)).toBe("Tu étudieras ensuite l'espagnol.");
+    expect(await consequence("en", enCopy)).toBe("You'll then study Spanish.");
+    expect(await consequence("es", esCopy)).toBe("Luego estudiarás el español.");
+  });
+
+  it("is styled where it is mounted, its hidden parts hidden: Réglages' sheet, and the onboarding's own", () => {
+    const container = document.createElement("div");
+    mountNativeLanguage(container, { language: "fr", copy: frCopy, profile: profile("fr", ["en"]), pairs: MIXED });
+    expect(container.classList.contains("set-native")).toBe(true);
+    const settingsCss = readFileSync(join(root, "src/styles/settings.css"), "utf8");
+    expect(settingsCss).toMatch(/\.set-native \[hidden\] \{\s*display: none;/);
+    // The onboarding loads no settings.css: its own sheet styles the question, in its section alone.
+    const onboardingCss = readFileSync(join(root, "src/onboarding/onboarding.css"), "utf8");
+    const used = [...new Set([...container.querySelectorAll("[class]")].flatMap((n) => [...n.classList]))];
+    for (const name of used) expect(onboardingCss).toContain(`#native-section .${name}`);
+    expect(onboardingCss).toMatch(/#native-section \[hidden\] \{\s*display: none;/);
   });
 
   it("says a change that could not be made, and keeps the reader's pick", async () => {
@@ -175,7 +206,7 @@ describe("the view (D4)", () => {
     pick(container, "en");
     button(container).click();
     await settle();
-    expect(visibleNotes(container)).toEqual([frCopy.note, "Tu étudieras ensuite : Espagnol.", frCopy.failed]);
+    expect(visibleNotes(container)).toEqual([frCopy.note, "Tu étudieras ensuite l'espagnol.", frCopy.failed]);
     expect(radios(container).find((r) => r.checked)?.native).toBe("en");
     expect(button(container).disabled).toBe(false);
   });
