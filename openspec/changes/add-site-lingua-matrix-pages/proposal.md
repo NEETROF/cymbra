@@ -7,8 +7,8 @@ in stage 2, with M11's `/es/lingua`. The site's Lingua page (`/lingua/`, `/en/li
 written for one audience: French speakers learning English and Spanish. Its languages are a
 hard-coded map (`{'en-fr': 'Anglais', 'es-fr': 'Espagnol'}`), its coverage table is headed "a
 French gloss", the English page says the product is "made for French speakers… the interface and
-the translations are in French", and its translation note says English and Spanish are translated
-"through English". Its figures already come from the committed tables, per pair
+the translations are in French", and its translation note says extended translation serves English, and
+Spanish "through English". Its figures already come from the committed tables, per pair
 (`src/data/lingua-coverage.json`, written by `gloss_coverage.py` for the pairs `packs.json`
 ships), so the data is ready for more pairs; the words around it are not.
 
@@ -43,7 +43,7 @@ None.
 
 - `site-lingua-page`: MODIFIED *The Lingua page names its languages and publishes their coverage*
   (held by no open change): per pair, in each site language, from the shipped pairs; every scenario
-  kept, two added. Archived after change 29 (the Spanish locale).
+  kept (*Two languages* and *Translation for English only* reworded per pair), three added. Archived after change 29 (the Spanish locale).
 
 ## Impact
 

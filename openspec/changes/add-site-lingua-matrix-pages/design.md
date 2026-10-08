@@ -41,8 +41,8 @@ today's French page, byte for byte where no pair is added.
 
 The page in language L shows first the pairs whose native language is L, under an audience
 sentence ("for French speakers learning English and Spanish"), then the others, each named "<studied>
-for <native> speakers". With only French-native pairs, `/lingua/` is today's page; `/en/lingua/`
-keeps today's sentence that the product is made for French speakers.
+for <native> speakers". With only French-native pairs, both pages are today's: `/en/lingua/` presents them under today's
+sentence that the product is made for French speakers, not as "others".
 
 ### D3 — A page for a language no pair is glossed in
 
@@ -56,9 +56,10 @@ appears with the site deploy that goes with it.
 
 ### D4 — Coverage and translation per pair
 
-While every pair is glossed in the page's language, the coverage table keeps today's headers
-(« Anglais », « Espagnol ») and caption; "<studied> → <native>" headers, and a caption naming "a
-gloss in the reader's language", appear once a pair of another native is listed; the translation note says,
+While every listed pair has the same native language, the coverage table keeps today's headers
+(« Anglais », « Espagnol »; "English", "Spanish" on `/en/lingua/`) and caption; "<studied> →
+<native>" headers, and a caption naming "a gloss in the reader's language", appear once pairs of two
+native languages are listed; the translation note says,
 per pair, whether extended translation serves it and whether directly or through English, from the
 route's length.
 
