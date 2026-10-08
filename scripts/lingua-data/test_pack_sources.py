@@ -336,9 +336,11 @@ class Dumps(unittest.TestCase):
                 ps.fetch_pinned(self.pin, again, fetch=self.fetch)
 
 
-class SharedSources(unittest.TestCase):
-    """Two pairs share a source (add-lingua-pack-es-en D2): es-en reads the extract es-fr reads,
-    through one asset cache, and each update publishes a pair's own assets only."""
+class OwnExtracts(unittest.TestCase):
+    """Each pair pins its own extract (add-lingua-pack-es-en D2): es-en reads the address es-fr
+    reads, fetched live when es-en is updated and published under es-en's own release; a pair an
+    update brings along is reduced from its own pin; the asset cache fetches an asset once when two
+    pins name it, and keeps an entry whole or not at all."""
 
     ES = [
         {
@@ -359,13 +361,20 @@ class SharedSources(unittest.TestCase):
         (self.tables / "es" / "tags.tsv").write_text("NOUN\n")
         self.cache = self.root / "work" / "cache"
         self.served = {spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["es-fr"].items()}
-        self.served[ps.KAIKKI["es-fr"]["url"]] = b'{"word": "casa", "senses": [{"glosses": ["house"]}]}\n'
+        self.serve_extract("house")
         self.served[ps.DUMPS["es-fr"]["kaikki-fr"]["url"]] = Dumps.dump(self.FR)
         self.served[ps.DUMPS["es-fr"]["kaikki-es"]["url"]] = Dumps.dump(self.ES)
+        self.released = self.root / "released"
+        self.released.mkdir()
         self.fetched = []
 
     def tearDown(self):
         self._tmp.cleanup()
+
+    def serve_extract(self, gloss):
+        # kaikki regenerates its extract every day: what the address serves today.
+        line = {"word": "casa", "senses": [{"glosses": [gloss]}]}
+        self.served[ps.KAIKKI["es-fr"]["url"]] = (json.dumps(line) + "\n").encode()
 
     def fetch(self, url, dest, compressed=False):
         self.fetched.append(url)
@@ -373,7 +382,8 @@ class SharedSources(unittest.TestCase):
         if url in self.served:
             dest.write_bytes(self.served[url])
             return {"last-modified": "Sat, 03 Oct 2026 00:00:00 GMT"}
-        shutil.copy(self.root / "released" / Path(url).name, dest)
+        tag, asset = url.rsplit("/", 2)[-2:]
+        shutil.copy(self.released / tag / asset, dest)
         return {}
 
     def pin(self, pair):
@@ -395,104 +405,182 @@ class SharedSources(unittest.TestCase):
                 cache=self.cache if cache else None,
             )
 
-    def test_the_two_pairs_name_one_extract_and_their_own_derived_files(self):
-        self.assertEqual(ps.KAIKKI["es-en"], ps.KAIKKI["es-fr"], "one address, one file")
+    def publish(self, pair):
+        """What the update's release step publishes: the pair's own assets, under its own tag."""
+        record = ps.load(self.pin(pair))
+        tag = ps.release_tag(pair, record["snapshot"])
+        (self.released / tag).mkdir()
+        for asset in ps.assets(record, tag):
+            shutil.copy(self.work(pair) / asset, self.released / tag / asset)
+        return sorted(p.name for p in (self.released / tag).iterdir())
+
+    def fetch_pinned(self, pair):
+        import unittest.mock as mock
+
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            ps.fetch_pinned(self.pin(pair), self.work(pair), fetch=self.fetch, cache=self.cache)
+
+    def test_the_two_pairs_name_one_address_and_their_own_derived_files(self):
+        self.assertEqual(ps.KAIKKI["es-en"], ps.KAIKKI["es-fr"], "one address, one file name")
         self.assertEqual(ps.DUMPS["es-en"]["kaikki-es"]["url"], ps.DUMPS["es-fr"]["kaikki-es"]["url"])
         self.assertEqual(
             ps.DUMPS["es-en"]["kaikki-es"]["files"], {"kaikki-es-traductions-en.jsonl": ("translations", "es", "en")}
         )
         self.assertEqual(ps.release_tag("es-en", "2026.10.08"), "lingua-pack-sources-es-en-2026.10.08")
+        self.assertFalse(hasattr(ps, "shared_extract"), "no pair records another pair's fetch")
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_spec_scenario_a_shared_extract(self):
-        # es-fr's update, then es-en's in the same run: es-en downloads no extract, its pin names
-        # es-fr's release for it, and es-en's own release holds its derived file alone.
-        reference = self.update("es-fr")
-        extract = ps.KAIKKI["es-fr"]["url"]
-        self.assertEqual(self.fetched.count(extract), 1)
-        self.assertTrue((self.cache / reference["sources"]["kaikki"]["sha256"]).is_file(), "kept in the cache")
-        self.assertEqual(ps.assets(reference, ps.release_tag("es-fr", "2026.10.08")), ps.assets(reference))
-
-        with contextlib.redirect_stderr(io.StringIO()) as err:
-            reader = self.update("es-en")
-        self.assertEqual(self.fetched.count(extract), 1, "es-en's update downloads no extract")
-        self.assertIn("read from it", err.getvalue())
-        kaikki = reader["sources"]["kaikki"]
-        self.assertEqual(kaikki["release"], "lingua-pack-sources-es-fr-2026.10.08", "es-fr's release for the extract")
-        self.assertEqual(kaikki, reference["sources"]["kaikki"])
-        self.assertEqual(
-            (self.work("es-en") / "kaikki-Spanish.jsonl").read_bytes(), (self.work("es-fr") / "kaikki-Spanish.jsonl").read_bytes()
-        )
-        self.assertFalse((self.work("es-en") / "kaikki-Spanish.jsonl.zst").exists(), "nothing of it to publish")
-        derived = reader["sources"]["kaikki-es"]
-        self.assertEqual(derived["release"], "lingua-pack-sources-es-en-2026.10.08", "its own release")
-        self.assertEqual(list(derived["files"]), ["kaikki-es-traductions-en.jsonl"])
+    def test_updated_a_reader_pair_fetches_and_publishes_its_own_extract(self):
+        # es-fr updated, then es-en the same day: es-en fetches the extract again and publishes it,
+        # with its derived file, under its own release — never under es-fr's.
+        self.update("es-fr")
+        es_fr = self.publish("es-fr")
+        reader = self.update("es-en")
+        self.assertEqual(self.fetched.count(ps.KAIKKI["es-en"]["url"]), 2, "each pair fetches its own")
+        own = ps.release_tag("es-en", "2026.10.08")
+        self.assertEqual(reader["sources"]["kaikki"]["release"], own)
+        self.assertEqual(reader["sources"]["kaikki-es"]["release"], own)
+        self.assertEqual(set(reader["sources"]), {"kaikki", "kaikki-es", "wordfreq"})
         line = json.loads((self.work("es-en") / "kaikki-es-traductions-en.jsonl").read_text(encoding="utf-8"))
         self.assertEqual(line, {"pos": "noun", "translations": [{"word": "sector"}], "word": "sector"}, "English words alone")
-        self.assertEqual(set(reader["sources"]), {"kaikki", "kaikki-es", "wordfreq"})
-        # The update publishes a pair's own assets only: the derived file, under es-en's tag.
-        own = ps.release_tag("es-en", "2026.10.08")
-        self.assertEqual(ps.assets(reader, own), ["kaikki-es-traductions-en.jsonl.zst"])
-        self.assertEqual(ps.assets(reader), ["kaikki-Spanish.jsonl.zst", "kaikki-es-traductions-en.jsonl.zst"])
+        self.assertEqual(self.publish("es-en"), ["kaikki-Spanish.jsonl.zst", "kaikki-es-traductions-en.jsonl.zst"])
+        self.assertNotIn("kaikki-es-traductions-en.jsonl.zst", es_fr, "nothing of es-en under es-fr's release")
         with contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(ps.main(["assets", "--pin", str(self.pin("es-en")), "--release", own]), 0)
             self.assertEqual(ps.main(["release-tag", "--pin", str(self.pin("es-en"))]), 0)
-        self.assertEqual(out.getvalue(), f"kaikki-es-traductions-en.jsonl.zst\n{own}\n")
-
-    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_updated_alone_a_reader_pair_fetches_and_publishes_its_own_extract(self):
-        # Dispatched alone (the bootstrap), or a day after its reference: its own release holds
-        # the extract and the derived file.
-        self.update("es-fr", snapshot="2026.10.07")
-        reader = self.update("es-en")
-        self.assertEqual(self.fetched.count(ps.KAIKKI["es-en"]["url"]), 2)
-        self.assertEqual(reader["sources"]["kaikki"]["release"], "lingua-pack-sources-es-en-2026.10.08")
-        self.assertTrue((self.work("es-en") / "kaikki-Spanish.jsonl.zst").is_file(), "to publish")
-        self.assertEqual(
-            ps.assets(reader, ps.release_tag("es-en", "2026.10.08")),
-            ["kaikki-Spanish.jsonl.zst", "kaikki-es-traductions-en.jsonl.zst"],
-        )
-        # Without a cache, nothing is shared: the reference's fetch is not known.
+        self.assertEqual(out.getvalue(), f"kaikki-Spanish.jsonl.zst\nkaikki-es-traductions-en.jsonl.zst\n{own}\n")
+        # Without a cache too: the fetch does not depend on it.
         self.fetched.clear()
-        self.update("es-fr")
-        self.update("es-en", cache=False)
-        self.assertEqual(self.fetched.count(ps.KAIKKI["es-en"]["url"]), 2)
+        self.update("es-en", snapshot="2026.10.09", cache=False)
+        self.assertEqual(self.fetched.count(ps.KAIKKI["es-en"]["url"]), 1)
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
-    def test_a_pinned_fetch_follows_another_pair_s_release_through_the_cache(self):
-        # The reduce job: es-fr reduced, then es-en, each from its pinned sources, the shared
-        # extract fetched once — and a cache entry that is not what its name says is dropped.
-        import unittest.mock as mock
+    def test_an_update_carries_a_reader_pair_s_studied_record_over(self):
+        # fetch-live rewrites the pin's sources; the studied tables the pair was built on stay
+        # recorded until record-build writes them anew.
+        studied = {"reference": "es-fr", "tables": {"forms.tsv": "0" * 64}}
+        ps.save(self.pin("es-en"), {"snapshot": "2026.10.07", "pack": {}, "reducer": {}, "studied": studied, "sources": {}})
+        record = self.update("es-en")
+        self.assertEqual(record["studied"], studied)
+        self.assertEqual(list(ps.load(self.pin("es-en"))), ["snapshot", "pack", "reducer", "studied", "sources"])
+        self.assertNotIn("studied", self.update("es-fr"), "the reference records none")
 
-        self.update("es-fr")
-        reader = self.update("es-en")
-        released = self.root / "released"
-        released.mkdir()
-        for pair, record in (("es-fr", ps.load(self.pin("es-fr"))), ("es-en", reader)):
-            for asset in ps.assets(record, ps.release_tag(pair, "2026.10.08")):
-                shutil.copy(self.work(pair) / asset, released / asset)
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_each_pair_s_own_extract(self):
+        # es-en's pin names its own release (its first update, dispatched alone). es-fr's update
+        # brings es-en along: es-en is reduced from its own pin — its own extract, though kaikki
+        # serves another one today — nothing of es-en is published, and its pin still names its
+        # own release.
+        self.update("es-en", snapshot="2026.10.07")
+        self.publish("es-en")
+        pinned = self.pin("es-en").read_bytes()
         shutil.rmtree(self.root / "work")
         self.fetched.clear()
-        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
-            ps.fetch_pinned(self.pin("es-fr"), self.work("es-fr"), fetch=self.fetch, cache=self.cache)
-            ps.fetch_pinned(self.pin("es-en"), self.work("es-en"), fetch=self.fetch, cache=self.cache)
-        extract = ps.release_url("lingua-pack-sources-es-fr-2026.10.08", "kaikki-Spanish.jsonl.zst")
-        self.assertEqual(self.fetched.count(extract), 1, "fetched once, for both pairs")
-        self.assertIn(ps.release_url("lingua-pack-sources-es-en-2026.10.08", "kaikki-es-traductions-en.jsonl.zst"), self.fetched)
+        self.serve_extract("home")
+        self.update("es-fr")
+        es_fr = self.publish("es-fr")
+        self.fetch_pinned("es-en")
+        self.assertEqual(self.pin("es-en").read_bytes(), pinned, "es-en's pin names its own release still")
+        own = "lingua-pack-sources-es-en-2026.10.07"
+        self.assertEqual(
+            [url for url in self.fetched if "releases/download" in url],
+            [ps.release_url(own, "kaikki-Spanish.jsonl.zst"), ps.release_url(own, "kaikki-es-traductions-en.jsonl.zst")],
+        )
+        self.assertIn(b'"house"', (self.work("es-en") / "kaikki-Spanish.jsonl").read_bytes(), "its own pinned bytes")
+        self.assertIn(b'"home"', (self.work("es-fr") / "kaikki-Spanish.jsonl").read_bytes(), "es-fr's are today's")
+        self.assertEqual(
+            es_fr,
+            [
+                "kaikki-Spanish.jsonl.zst",
+                "kaikki-es-traductions.jsonl.zst",
+                "kaikki-fr-Espagnol.jsonl.zst",
+                "kaikki-fr-traductions.jsonl.zst",
+            ],
+            "es-fr's release holds es-fr's assets alone",
+        )
+        self.assertEqual(sorted(p.name for p in self.released.iterdir()), [own, ps.release_tag("es-fr", "2026.10.08")])
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_the_cache_fetches_an_asset_once_and_a_reduction_again_nothing(self):
+        # Two pins naming the same asset — es-en's extract record copied from es-fr's (made up):
+        # the reduce job fetches it once. Reduced again on the same machine, nothing is fetched.
+        self.update("es-fr")
+        self.publish("es-fr")
+        self.update("es-en")
+        self.publish("es-en")
+        record = ps.load(self.pin("es-en"))
+        record["sources"]["kaikki"] = ps.load(self.pin("es-fr"))["sources"]["kaikki"]
+        ps.save(self.pin("es-en"), record)
+        shutil.rmtree(self.root / "work")
+        self.fetched.clear()
+        self.fetch_pinned("es-fr")
+        self.fetch_pinned("es-en")
+        extract = ps.release_url(ps.release_tag("es-fr", "2026.10.08"), "kaikki-Spanish.jsonl.zst")
+        self.assertEqual(self.fetched.count(extract), 1, "fetched once, for both pins")
         self.assertEqual(
             (self.work("es-en") / "kaikki-Spanish.jsonl").read_bytes(), (self.work("es-fr") / "kaikki-Spanish.jsonl").read_bytes()
         )
+        shutil.rmtree(self.work("es-en"))
+        self.fetched.clear()
+        self.fetch_pinned("es-en")
+        self.assertEqual(self.fetched, [], "every asset read from the cache")
         self.assertTrue((self.work("es-en") / "kaikki-es-traductions-en.jsonl").is_file())
-        # A stale cache entry: dropped, and the fetch fails naming the source.
-        sha = reader["sources"]["kaikki"]["sha256"]
-        subprocess.run(["zstd", "-q", "-f", "-o", str(self.cache / sha), "-"], input=b"{}\n", check=True)
-        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
-            with self.assertRaisesRegex(ps.PinError, "kaikki: the snapshot decompresses"):
-                ps.fetch_pinned(self.pin("es-en"), self.work("es-en"), fetch=self.fetch, cache=self.cache)
-        self.assertFalse((self.cache / sha).exists(), "dropped")
-        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
-            ps.fetch_pinned(self.pin("es-en"), self.work("es-en"), fetch=self.fetch, cache=self.cache)
-        self.assertTrue((self.cache / sha).is_file(), "fetched again")
+        self.assertEqual([p.name for p in self.cache.iterdir() if p.name.endswith(".part")], [])
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_cache_entry_that_is_not_its_bytes_is_deleted_and_named(self):
+        self.update("es-en")
+        self.publish("es-en")
+        sha = ps.load(self.pin("es-en"))["sources"]["kaikki"]["sha256"]
+        entry = self.cache / sha
+        # Other bytes under its name: deleted, and the error names the cache path.
+        subprocess.run(["zstd", "-q", "-f", "-o", str(entry), "-"], input=b"{}\n", check=True)
+        with self.assertRaisesRegex(ps.PinError, rf"kaikki: the snapshot decompresses .*the cached {re.escape(str(entry))} is deleted"):
+            self.fetch_pinned("es-en")
+        self.assertFalse(entry.exists(), "deleted")
+        # Bytes that do not decompress at all (a truncated copy): deleted, and named.
+        entry.write_bytes(b"not zstd")
+        with self.assertRaisesRegex(ps.PinError, rf"the cached {re.escape(str(entry))} does not decompress .*deleted"):
+            self.fetch_pinned("es-en")
+        self.assertFalse(entry.exists(), "deleted")
+        # The next fetch reads the release again.
+        self.fetched.clear()
+        self.fetch_pinned("es-en")
+        self.assertIn(ps.release_url(ps.release_tag("es-en", "2026.10.08"), "kaikki-Spanish.jsonl.zst"), self.fetched)
+        self.assertTrue(entry.is_file(), "fetched again")
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_cache_entry_is_written_whole_or_not_at_all(self):
+        import unittest.mock as mock
+
+        # A copy into the cache that stops half way (a full disk, a killed job) leaves no entry: a
+        # later fetch reads the release, not half an asset.
+        def interrupted(src, dst):
+            Path(dst).write_bytes(Path(src).read_bytes()[:10])
+            raise OSError("No space left on device")
+
+        with mock.patch.object(ps.shutil, "copyfile", interrupted), self.assertRaises(OSError):
+            self.update("es-en")
+        self.assertEqual([p.name for p in self.cache.iterdir() if not p.name.endswith(".part")], [])
+        self.update("es-en", snapshot="2026.10.09")
+        self.publish("es-en")
+        shutil.rmtree(self.work("es-en"))
+        self.fetched.clear()
+        self.fetch_pinned("es-en")
+        self.assertEqual(self.fetched, [], "the whole entries a complete update kept")
+        # A fetch into the cache goes through `<sha256>.part` too: a fetch that fails leaves none.
+        sha = ps.load(self.pin("es-en"))["sources"]["kaikki"]["sha256"]
+        (self.cache / sha).unlink()
+
+        def failing(url, dest, compressed=False):
+            Path(dest).write_bytes(b"half")
+            raise subprocess.CalledProcessError(56, "curl")
+
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ), self.assertRaises(
+            subprocess.CalledProcessError
+        ):
+            ps.fetch_pinned(self.pin("es-en"), self.work("es-en"), fetch=failing, cache=self.cache)
+        self.assertFalse((self.cache / sha).exists())
 
     def test_build_sh_keeps_the_cache_outside_a_pair_s_work_folder(self):
         script = (HERE / "build.sh").read_text()
@@ -501,6 +589,10 @@ class SharedSources(unittest.TestCase):
         self.assertIn('fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache"', script)
         self.assertIn('LINGUA_STUDIED="$studied"', script, "a reader pair reads this run's studied folder")
         self.assertIn("es-*) echo 60000", script, "every Spanish pair keeps 60,000 lemmas")
+        # The version, in both modes, from `pack_sources.py version` (add-lingua-pack-es-en D3).
+        self.assertIn('version --pin "$pin" --reducer "$here/reduce-$pair.py")"', script)
+        self.assertIn('version --pin "$pin" --reducer "$here/reduce-$pair.py" --live)"', script)
+        self.assertEqual(script.count('reduce "$pair" "$work" "$snapshot" "$version"'), 2)
 
 
 class ReaderPair(unittest.TestCase):
@@ -607,6 +699,49 @@ class ReaderPair(unittest.TestCase):
         (self.es / "lexical.tsv").unlink()
         with self.assertRaisesRegex(ps.PinError, r"es-en: es/lexical\.tsv .*sha256 no file"):
             ps.check_studied_tables(self.pins["es-en"])
+
+    def test_an_edited_tag_pool_is_named_without_blaming_a_reduction(self):
+        # No reduction writes the pinned tag pool: a person edits it. The pair is named as left
+        # behind, and told how to catch up, as for any other table.
+        (self.es / "tags.tsv").write_text("NOUN\nVERB\n")
+        with self.assertRaises(ps.PinError) as caught:
+            ps.check_studied_tables(self.pins["es-en"])
+        message = str(caught.exception)
+        self.assertRegex(message, r"^es-en: es/tags\.tsv is not what es-en's tables were built on")
+        self.assertIn("it was edited, and es-en was left behind: reduce es-en again from its pinned sources", message)
+        self.assertNotIn("reduction moved it", message)
+
+    def test_spec_scenario_an_updated_dictionary_for_a_reader_pair(self):
+        # A reader pair's pack_version names the studied tables it read, so it moves when one of
+        # them does though nothing of the pair's own moved (lingua-data-packs, *An updated
+        # dictionary*); in either mode, so a re-reduction of an update gives its version again.
+        reducer = self.root / "reduce-es-en.py"
+        rules = ps.rules_sha256(reducer)[:7]
+        digest = ps.studied_digest(ps.load(self.pins["es-en"])["studied"]["tables"])[:7]
+        version = ps.pack_version(self.pins["es-en"], reducer)
+        self.assertEqual(version, f"2026.10.08+{rules}.{digest}")
+        self.assertEqual(ps.pack_version(self.pins["es-en"], reducer, live=True), version)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ps.main(["version", "--pin", str(self.pins["es-en"]), "--reducer", str(reducer)]), 0)
+        self.assertEqual(out.getvalue(), f"{version}\n")
+        # The reference's is its snapshot for an update, its snapshot and rules after a re-reduction.
+        fr = self.root / "reduce-es-fr.py"
+        self.assertEqual(ps.pack_version(self.pins["es-fr"], fr, live=True), "2026.10.08")
+        self.assertEqual(ps.pack_version(self.pins["es-fr"], fr), f"2026.10.08+{ps.rules_sha256(fr)[:7]}")
+        # es-fr reduced again moves Spanish's levels: es-en's version moves with them, its
+        # snapshot and rules unchanged; recorded again, the digest is the record's.
+        (self.es / "level.tsv").write_text("casa\tA2\n")
+        moved = ps.pack_version(self.pins["es-en"], reducer)
+        self.assertNotEqual(moved, version)
+        self.assertTrue(moved.startswith(f"2026.10.08+{rules}."), moved)
+        self.record("es-en")
+        self.assertEqual(moved.rsplit(".", 1)[1], ps.studied_digest(ps.load(self.pins["es-en"])["studied"]["tables"])[:7])
+        # The digest reads every recorded table by name: a table that appears or goes moves it,
+        # and so do two tables trading their bytes.
+        self.assertNotEqual(ps.studied_digest({}), ps.studied_digest({"tags.tsv": "a"}))
+        self.assertNotEqual(
+            ps.studied_digest({"forms.tsv": "a", "freq.tsv": "b"}), ps.studied_digest({"forms.tsv": "b", "freq.tsv": "a"})
+        )
 
 
 class Record(unittest.TestCase):
@@ -934,12 +1069,16 @@ class Record(unittest.TestCase):
             ps.check_reducer(pin, reducer)
             manifest = json.loads((pin.parent / "manifest.json").read_text())
             # The pack says which dictionary it is: the snapshot for tables an update reduced, the
-            # snapshot and the rules for tables a re-reduction made from the same sources.
+            # snapshot and the rules for tables a re-reduction made from the same sources — and,
+            # for a pair that is not its studied language's reference, the studied tables it read.
             self.assertIn(
                 manifest["meta"]["pack_version"],
-                (record["snapshot"], f"{record['snapshot']}+{record['reducer']['sha256'][:7]}"),
+                (ps.pack_version(pin, reducer, live=True), ps.pack_version(pin, reducer)),
                 f"{pair}: the pack says which dictionary it is",
             )
+            if "studied" in record:
+                digest = ps.studied_digest(record["studied"]["tables"])[:7]
+                self.assertTrue(manifest["meta"]["pack_version"].endswith(f".{digest}"), pair)
 
 
 class Split(unittest.TestCase):

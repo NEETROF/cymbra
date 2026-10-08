@@ -64,13 +64,14 @@ max_lemmas() {
   esac
 }
 
-# reduce <pair> <work> <snapshot> [<pack version>]: the reducer over the raw sources in <work>,
-# tables left in <work>. The pack version defaults to the snapshot (an update from live sources).
-# A pair that is not its studied language's reference reads the studied tables as committed
-# (LINGUA_STUDIED, the studied folder of this run's root — a dry run's scratch copy); the
-# reference's reducer, which writes them, ignores it.
+# reduce <pair> <work> <snapshot> <pack version>: the reducer over the raw sources in <work>,
+# tables left in <work>. The pack version is `pack_sources.py version`'s: the snapshot for an
+# update, the snapshot and the rules after a re-reduction — and, for a pair that is not its studied
+# language's reference, the studied tables it reads too, in either mode (add-lingua-pack-es-en D3).
+# Such a pair reads the studied tables as committed (LINGUA_STUDIED, the studied folder of this
+# run's root — a dry run's scratch copy); the reference's reducer, which writes them, ignores it.
 reduce() {
-  local pair="$1" work="$2" snapshot="$3" version="${4:-$3}"
+  local pair="$1" work="$2" snapshot="$3" version="$4"
   LINGUA_STUDIED="$studied" "$PYTHON" "$here/reduce-$pair.py" --work "$work" \
     --max-lemmas "${LINGUA_MAX_LEMMAS:-$(max_lemmas "$pair")}" \
     --built-at "${snapshot//./-}" --pack-version "$version"
@@ -92,9 +93,9 @@ tables="$root/$pair"
 studied="$root/${pair%%-*}"
 pin="$tables/pin.json"
 work="$here/work/$pair"
-# Fetched release assets, kept by the sha256 of their decompressed bytes across pairs
-# (add-lingua-pack-es-en D2): a run over several pairs fetches the extract es-fr and es-en share
-# once. Outside work/<pair>, which a reduction removes.
+# Fetched release assets, kept by the sha256 of their decompressed bytes (add-lingua-pack-es-en
+# D2): an asset two pins name is fetched once per run, and a pair reduced again on the same machine
+# fetches nothing again. Outside work/<pair>, which a reduction removes.
 cache="${LINGUA_CACHE:-$here/work/cache}"
 
 case "$mode" in
@@ -127,10 +128,11 @@ case "$mode" in
     "$PYTHON" "$here/pack_sources.py" fetch-pinned --pin "$pin" --work "$work" --cache "$cache"
     snapshot="$("$PYTHON" "$here/pack_sources.py" get --pin "$pin" snapshot)"
     # New tables from the same sources are a new dictionary: the version names the snapshot AND
-    # the rules that reduced it (add-lingua-word-grammar, design D8).
-    # The rule set: reduce-<pair>.py and the shared reduce_*.py modules it loads (pack_sources.py `rules`).
-    rules="$("$PYTHON" "$here/pack_sources.py" rules --reducer "$here/reduce-$pair.py")"
-    reduce "$pair" "$work" "$snapshot" "$snapshot+${rules:0:7}"
+    # the rules that reduced it (add-lingua-word-grammar, design D8) — reduce-<pair>.py and the
+    # shared reduce_*.py modules it loads (pack_sources.py `rules`) — and, for a pair that is not
+    # its studied language's reference, the studied tables it reads (`version`).
+    version="$("$PYTHON" "$here/pack_sources.py" version --pin "$pin" --reducer "$here/reduce-$pair.py")"
+    reduce "$pair" "$work" "$snapshot" "$version"
     file_sides "$work" "$root"
     build_pack "$studied" "$tables" "$out"
     "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"
@@ -152,7 +154,8 @@ case "$mode" in
     fi
     rm -rf "$work" && mkdir -p "$work"
     "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache"
-    reduce "$pair" "$work" "$snapshot"
+    version="$("$PYTHON" "$here/pack_sources.py" version --pin "$pin" --reducer "$here/reduce-$pair.py" --live)"
+    reduce "$pair" "$work" "$snapshot" "$version"
     file_sides "$work" "$root"
     build_pack "$studied" "$tables" "$out"
     "$PYTHON" "$here/pack_sources.py" record-build --pin "$pin" --pack "$out" --reducer "$here/reduce-$pair.py"

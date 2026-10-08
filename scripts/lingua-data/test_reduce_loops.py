@@ -6,7 +6,9 @@
 
 """The workflows' loops over the pairs (split-lingua-pack-tables-by-language D1, D5), run as the
 workflows run them: the `reduce` job of lingua-extension-check and the Reduce step of
-lingua-pack-update, each step's own script, over scratch tables, with `build.sh` doubled.
+lingua-pack-update, each step's own script, over scratch tables, with `build.sh` doubled — and the
+steps around them that read `pack_sources.py`: the update's release step (`gh` doubled), and the
+`check` job's build of every pair (add-lingua-pack-es-en).
 
 A loop fed by `pack_sources.py pairs` must stop when the list cannot be made — a folder that is
 neither a pair nor a studied language, or no pair at all. Under `set -e`, a failing `$(…)` in a
@@ -16,6 +18,7 @@ leaves the step green, having reduced nothing.
 Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
+import json
 import os
 import shutil
 import subprocess
@@ -87,13 +90,13 @@ class Loops(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def run_step(self, workflow: str, step: str, **env) -> subprocess.CompletedProcess:
+    def run_step(self, workflow: str, step: str, cwd=None, **env) -> subprocess.CompletedProcess:
         script = Path(self._tmp.name) / "step.sh"
         script.write_text(step_script(WORKFLOWS / workflow, step))
         return subprocess.run(
             # GitHub's `shell: bash`.
             ["bash", "--noprofile", "--norc", "-eo", "pipefail", str(script)],
-            cwd=self.repo,
+            cwd=cwd or self.repo,
             env={
                 "PATH": f"{self.bin}{os.pathsep}{os.environ['PATH']}",
                 "RUNNER_TEMP": str(self.temp),
@@ -179,6 +182,104 @@ class Loops(unittest.TestCase):
             self.assertNotEqual(done.returncode, 0, f"{mode} {pair}: a step that reduced nothing passed")
             self.assertIn("de is neither a pair", done.stderr)
         self.assertEqual(self.built(), [])
+
+    # — lingua-pack-update, the release step —
+
+    def gh(self) -> Path:
+        """`gh`, doubled: it logs its arguments; no release exists yet."""
+        log = Path(self._tmp.name) / "gh.log"
+        (self.bin / "gh").write_text(
+            f'#!/bin/sh\necho "$*" >> "{log}"\n[ "$1 $2" = "release view" ] && exit 1\nexit 0\n'
+        )
+        (self.bin / "gh").chmod(0o755)
+        return log
+
+    def pin(self, pair: str, record: dict) -> None:
+        (self.tables / pair / "pin.json").write_text(json.dumps(record, indent=2) + "\n")
+
+    def own_record(self, pair: str, snapshot: str, derived: str) -> dict:
+        release = f"lingua-pack-sources-{pair}-{snapshot}"
+        return {
+            "snapshot": snapshot,
+            "sources": {
+                "kaikki": {"release": release, "asset": "kaikki-Spanish.jsonl.zst", "url": "https://kaikki.org/x.jsonl"},
+                "kaikki-es": {"release": release, "files": {derived: {"asset": f"{derived}.zst"}}},
+                "wordfreq": {"version": "3.1.1"},
+            },
+        }
+
+    def release(self, pair: str) -> subprocess.CompletedProcess:
+        return self.run_step(
+            "lingua-pack-update.yml",
+            "Keep kaikki's bytes as the snapshot's release",
+            PAIR=pair,
+            SNAPSHOT="2026.10.08",
+            GITHUB_SHA="0" * 40,
+            GITHUB_STEP_SUMMARY=str(self.temp / "summary.md"),
+        )
+
+    def test_the_release_holds_the_named_pair_s_own_assets(self):
+        # es-fr's update brought es-en along: es-fr's release holds es-fr's assets, and nothing of
+        # es-en, whose own pin names its own release.
+        log = self.gh()
+        self.pin("es-fr", self.own_record("es-fr", "2026.10.08", "kaikki-es-traductions.jsonl"))
+        self.pin("es-en", self.own_record("es-en", "2026.10.07", "kaikki-es-traductions-en.jsonl"))
+        done = self.release("es-fr")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        created = [line for line in log.read_text().splitlines() if line.startswith("release create")]
+        self.assertEqual(len(created), 1, created)
+        work = "scripts/lingua-data/work/es-fr"
+        self.assertTrue(
+            created[0].startswith(
+                f"release create lingua-pack-sources-es-fr-2026.10.08 {work}/kaikki-Spanish.jsonl.zst "
+                f"{work}/kaikki-es-traductions.jsonl.zst --target "
+            ),
+            created[0],
+        )
+        self.assertNotIn("es-en", created[0])
+
+    def test_the_release_step_fails_when_its_assets_cannot_be_listed(self):
+        # A record `assets` cannot read (the extract's asset missing): the step stops, and nothing
+        # is published — it neither passes having published nothing nor publishes half the list.
+        log = self.gh()
+        record = self.own_record("es-en", "2026.10.08", "kaikki-es-traductions-en.jsonl")
+        del record["sources"]["kaikki"]["asset"]
+        self.pin("es-en", record)
+        done = self.release("es-en")
+        self.assertNotEqual(done.returncode, 0, "a step whose asset list failed passed")
+        self.assertIn("KeyError", done.stderr)
+        self.assertFalse(any(line.startswith("release create") for line in log.read_text().splitlines()))
+
+    def test_the_release_step_fails_when_no_asset_is_the_pair_s_own(self):
+        log = self.gh()
+        record = self.own_record("es-en", "2026.10.08", "kaikki-es-traductions-en.jsonl")
+        for source in ("kaikki", "kaikki-es"):
+            record["sources"][source]["release"] = "lingua-pack-sources-es-fr-2026.10.08"
+        self.pin("es-en", record)
+        done = self.release("es-en")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("names no asset under lingua-pack-sources-es-en-2026.10.08", done.stdout)
+        self.assertFalse(any(line.startswith("release create") for line in log.read_text().splitlines()))
+
+    # — lingua-extension-check, the `check` job's build of every pair —
+
+    def test_the_check_job_names_a_moved_studied_table_before_building(self):
+        # check-reducer runs before build.sh: a reader pair whose studied table moved fails on the
+        # check, which names the table, not on the build, which would only say the sha256 moved.
+        (self.bin / "python3").write_text(
+            "#!/bin/sh\n"
+            'pair="$(basename "$(dirname "$4")")"\n'
+            'echo "check $pair" >> "$BUILD_LOG"\n'
+            'if [ "$pair" = es-en ]; then echo "error: es-en: es/level.tsv is not what es-en\'s tables were built on" >&2; exit 1; fi\n'
+        )
+        (self.bin / "python3").chmod(0o755)
+        (self.data / "build.sh").write_text('#!/usr/bin/env bash\necho "build $1" >> "$BUILD_LOG"\n')
+        extension = self.repo / "apps" / "lingua-extension"
+        extension.mkdir(parents=True)
+        done = self.run_step("lingua-extension-check.yml", "Build the real pack from the committed tables", cwd=extension)
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("es-en: es/level.tsv", done.stderr)
+        self.assertEqual(self.built(), ["check en-fr", "build en-fr", "check es-en"])
 
     def test_the_step_scripts_are_read_whole(self):
         script = step_script(WORKFLOWS / "lingua-pack-update.yml", "Reduce")
