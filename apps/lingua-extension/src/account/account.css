@@ -4,9 +4,11 @@
   display: none !important;
 }
 
-/* Nothing shows before the catalogue fills the page's copy (account.ts removes the mark). Should
-   the script never get there — it failed before the fill — the page shows anyway after a moment,
-   unfilled rather than blank for good (localise-lingua-account-onboarding D1). */
+/* Nothing shows before the catalogue fills the page's copy (account.ts removes the mark). A
+   storage read that fails or hangs does not hold it: the interface language falls back to French
+   after 500 ms at most (i18n/language.ts) and the page is filled. Should the script die before the
+   fill, the page shows anyway after 1.5 s, unfilled rather than blank for good
+   (localise-lingua-account-onboarding D1). */
 html[data-copy-pending] body {
   visibility: hidden;
   animation: lingua-copy-reveal 0s 1.5s forwards;
