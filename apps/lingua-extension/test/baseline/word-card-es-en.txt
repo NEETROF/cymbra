@@ -35,7 +35,7 @@ grammar: first-person singular present indicative of tener
 page 1/3:
   [verb] to have, to possess; to have, to possess, to be (a condition or quality); to hold, to grasp
 page 2/3:
-  [verb] to contain, to hold (e.g. to "hold the power to", "hold the key", "hold a clue", "hold the truth", "have a hold on", "hold in store", "hold all the cards", "hold in high regard", etc.)
+  [verb] to contain, to hold (e.g. to “hold the power to”, “hold the key”, “hold a clue”, “hold the truth”, “have a hold on”, “hold in store”, “hold all the cards”, “hold in high regard”, etc.)
 page 3/3:
   [verb] to have, to feel (internally); to make to feel; to have (a measure or age); to have to
 row: to have, to possess
@@ -63,9 +63,13 @@ page 2/2:
 row: to be able to, can
 ### word-grammar vino venir
 grammar: third-person singular preterite indicative of venir
-page 1/1:
-  [verb] Senses relating to literal movement; Figurative senses
-row: Senses relating to literal movement
+page 1/3:
+  [verb] to come (move closer to some location (most often closer to the speaker), by default the speaker's location); to arrive; to come from, originate
+page 2/3:
+  [verb] to come (happen); to come (appear); to come (to have some characteristic or quality) (with an adjective or prepositional phrase)
+page 3/3:
+  [verb] to receive something, get something; to get (something felt in one's body or perceived in one's mind, a feeling, an illness, pain, an urge, an idea, etc.)
+row: to come (move closer to some location (most often closer to the speaker), by…
 ### word-grammar vino vino
 grammar: may also be the third-person singular preterite indicative of venir
 page 1/1:
@@ -74,22 +78,21 @@ row: wine (an alcoholic beverage made by fermenting grape juice, with an ABV ran
 ### word-grammar como comer
 grammar: first-person singular present indicative of comer
 page 1/2:
-  [verb] to eat; to have lunch; to eat away, corrode; to capture a piece; to have sexual intercourse (because of similarity to coger); translated with "not care"
+  [verb] to eat; to have lunch; to eat away, corrode; to capture a piece; to have sexual intercourse (because of similarity to coger); translated with “not care”
 page 2/2:
   [masculine noun] eating, food
 row: to eat
 ### word-grammar como como
 grammar: may also be the first-person singular present indicative of comer
 page 1/3:
-  [proper noun] Como (a city and comune, the capital of the province of Como, Lombardy); Como (a province of Lombardy, Italy)
-  [adverb] as (to such an extent or degree)
-page 2/3:
-  [adverb] like, about (approximately)
+  [adverb] as (to such an extent or degree); like, about (approximately)
   [conjunction] as (introducing a basis of comparison or equality); as, since (being that)
-  [preposition] as (in the manner or role specified)
+page 2/3:
+  [preposition] as (in the manner or role specified); such as (for example)
+  [proper noun] Como (a city and comune, the capital of the province of Como, Lombardy)
 page 3/3:
-  [preposition] such as (for example)
-row: Como (a city and comune, the capital of the province of Como, Lombardy)
+  [proper noun] Como (a province of Lombardy, Italy)
+row: as (to such an extent or degree)
 ### word-grammar casas casa
 grammar: feminine plural of casa
 grammar: may also be the second-person singular present indicative of casar
@@ -153,7 +156,7 @@ grammar: first- and third-person singular imperfect subjunctive of tener
 page 1/3:
   [verb] to have, to possess; to have, to possess, to be (a condition or quality); to hold, to grasp
 page 2/3:
-  [verb] to contain, to hold (e.g. to "hold the power to", "hold the key", "hold a clue", "hold the truth", "have a hold on", "hold in store", "hold all the cards", "hold in high regard", etc.)
+  [verb] to contain, to hold (e.g. to “hold the power to”, “hold the key”, “hold a clue”, “hold the truth”, “have a hold on”, “hold in store”, “hold all the cards”, “hold in high regard”, etc.)
 page 3/3:
   [verb] to have, to feel (internally); to make to feel; to have (a measure or age); to have to
 row: to have, to possess
@@ -167,9 +170,9 @@ row: rapid, quick, fast
 ### word-grammar al a
 grammar: “al” = a + el
 page 1/2:
-  [preposition] to; by; at; Used before words referring to people, pets, or personified objects or places that function as direct objects: personal a
+  [preposition] to; by; at; used before words referring to people, pets, or personified objects or places that function as direct objects: personal a
 page 2/2:
-  [interjection] Used to express indiference or sarcasm
+  [interjection] used to express indiference or sarcasm
 row: to
 ### word-grammar del de
 grammar: “del” = de + el
@@ -206,9 +209,9 @@ page 2/2:
 row: that
 ### word-grammar a a
 page 1/2:
-  [preposition] to; by; at; Used before words referring to people, pets, or personified objects or places that function as direct objects: personal a
+  [preposition] to; by; at; used before words referring to people, pets, or personified objects or places that function as direct objects: personal a
 page 2/2:
-  [interjection] Used to express indiference or sarcasm
+  [interjection] used to express indiference or sarcasm
 row: to
 ### word-grammar no no
 page 1/1:
@@ -236,10 +239,11 @@ page 4/4:
   [masculine noun] paramilitary
 row: for, to (expressing a recipient)
 ### word-grammar su su
-page 1/1:
-  [determiner] apocopic form of suyo
+page 1/2:
+  [determiner] his, hers, its, to her; theirs, their, to them; yours, your, to you; used to express an approximate number: about, approximately
+page 2/2:
   [proper noun] a diminutive of the female given name Susana
-row: apocopic form of suyo
+row: his, hers, its, to her
 ### word-grammar más más
 page 1/1:
   [adverb] more, -er (used to make comparisons); most, -est (used to make superlatives); furthermore; in addition; else
@@ -249,7 +253,7 @@ row: more, -er (used to make comparisons)
 ### word-grammar pero pero
 page 1/1:
   [conjunction] but; well well, so, well (used for emphasis); expresses surprise
-  [masculine noun] but (instance of saying "but"); but (restriction)
+  [masculine noun] but (instance of saying “but”); but (restriction)
 row: but
 ### word-grammar o o
 page 1/1:
@@ -269,7 +273,7 @@ page 1/1:
 row: all, every
 ### word-grammar ya ya
 page 1/3:
-  [adverb] now, right now, (in the negative) anymore, no longer; indicates completion of an action (difference from sense 4 depends on context); yet (in questions)
+  [adverb] now, right now, (in the negative) anymore, no longer; indicates completion of an action; yet (in questions)
 page 2/3:
   [conjunction] first (something) then (something else), first (something), now (something else); whether (something) or (something else)
   [interjection] come on!, let's go!
@@ -295,7 +299,7 @@ row: over, above, on, upon, atop
 ### word-grammar qué qué
 page 1/1:
   [determiner] what, which; what a, such
-  [adverb] how; Replaces an interrogative word like cómo, cuándo, etc
+  [adverb] how; replaces an interrogative word like cómo, cuándo, etc
   [pronoun] what
   [interjection] what (expresses surprise or confusion)
 row: what, which
@@ -311,7 +315,7 @@ page 1/2:
   [adjective] well-to-do, affluent, wealthy, upper-class
 page 2/2:
   [adjective] exclusive, upscale, high-class
-  [conjunction] either ... or, whether ... or (used to express alternatives, but with the same result)
+  [conjunction] either … or, whether … or (used to express alternatives, but with the same result)
   [masculine noun] good (as opposed to evil); goodness
 row: well (adverbial form of bueno)
 ### word-grammar hasta hasta
@@ -330,24 +334,24 @@ row: to do, perform, execute, carry out
 page 1/2:
   [adverb] now (at the present time); just now, just a moment ago (in the past); very soon, in a moment (in the future); of nowadays, of today, latter-day; today
 page 2/2:
-  [adverb] however, on the other hand; sometimes...other times
-  [conjunction] now...now, whether...or
+  [adverb] however, on the other hand; sometimes … other times
+  [conjunction] now … now, whether … or…
 row: now (at the present time)
 ### word-grammar nada nada
 grammar: may also be the third-person singular present indicative and second-person singular imperative of nadar
 page 1/1:
-  [pronoun] nothing, zero, zilch, not...anything
+  [pronoun] nothing, zero, zilch, not … anything
   [feminine noun] nothingness, nothing; nowhere, the void
   [adverb] not at all
-row: nothing, zero, zilch, not...anything
+row: nothing, zero, zilch, not … anything
 ### word-grammar ni ni
 page 1/2:
-  [conjunction] Used when negating two or more elements, and not, not A or B, not A nor B, neither A nor B
-  [adverb] Used in emphatic negations, not even
+  [conjunction] used when negating two or more elements, and not, not A or B, not A nor B, neither A nor B
+  [adverb] used in emphatic negations, not even
 page 2/2:
-  [adverb] Forms an emphatic negative imperative, don't even
+  [adverb] forms an emphatic negative imperative, don't even
   [feminine noun] nu, the Greek letter Ν, ν
-row: Used when negating two or more elements, and not, not A or B, not A nor B…
+row: used when negating two or more elements, and not, not A or B, not A nor B…
 ### word-grammar donde donde
 page 1/1:
   [adverb] where, in what place; whence
@@ -412,7 +416,7 @@ row: year
 ### word-grammar otro otro
 page 1/1:
   [determiner] other, another
-  [interjection] "Not again!" or "What, again?" (also Otra vez! or Otra vez?)
+  [interjection] “Not again!” or “What, again?” (also Otra vez! or Otra vez?)
   [pronoun] someone else, another person; something else, another one
 row: other, another
 ### word-grammar menos menos
@@ -428,7 +432,7 @@ row: less
 page 1/2:
   [determiner] so much, as much, that much; so many, as many, that many
   [adverb] so much, long, hard, often, etc
-  [conjunction] both ... and (introduces the first of two linked elements)
+  [conjunction] both … and (introduces the first of two linked elements)
   [masculine noun] copy
 page 2/2:
   [masculine noun] poker chip, counter; point, goal (in a game)
