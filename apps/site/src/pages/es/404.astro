@@ -1,0 +1,27 @@
+---
+import Base from '../../layouts/Base.astro';
+
+// See the French counterpart: without a 404 page the host serves the home page with
+// a 200 for any unmatched path (change: pin-music-site-url-contract). Copied to
+// `dist/es/404.html` by `localised404()` so an unmatched `/es/…` answers in Spanish,
+// not in French (change: add-site-spanish-locale). The site has no Spanish home,
+// Music or Lingua page: those links open the English ones.
+---
+
+<Base title="Página no encontrada — Cymbra" lang="es" noindex alternates={{ fr: '/404', en: '/en/404', es: '/es/404' }}>
+  <section class="hero container">
+    <p class="kicker">Error 404</p>
+    <h1>Esta página <span class="gradient">no existe</span></h1>
+    <p class="tagline">
+      Puede que el enlace esté caducado, o que la dirección tenga una errata.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="/en/">Inicio</a>
+      <a class="btn btn-ghost" href="/en/music">Cymbra Music</a>
+      <a class="btn btn-ghost" href="/en/lingua">Cymbra Lingua</a>
+    </div>
+    <p class="muted small hero-note">
+      ¿Buscabas otra cosa? <a href="/es/soporte">La ayuda</a>, <a href="/en/account">tu cuenta</a>, <a href="/es/privacidad">la privacidad</a> o <a href="/es/terminos">las condiciones de uso</a>.
+    </p>
+  </section>
+</Base>

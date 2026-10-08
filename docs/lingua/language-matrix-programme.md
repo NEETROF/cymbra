@@ -166,7 +166,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 2 | 26 | `measure-lingua-translation-matrix-marks`: es-en, en-es | 2.5–4 | Not started |
 | 2 | 27 | `localise-lingua-manifest`: `_locales`, with the first non-French pair | 1–2 | Done pending the owner's 2.5/3.3: `_locales/{fr,en,es}` committed, the manifest localised only once a non-French native ships (today's packages byte for byte); the owner reviews the English and Spanish drafts (3.3) and validates a localised Safari archive before the first of 34/35 merges (2.5) |
 | 2 | 28 | `localise-lingua-apple-host` | 3.5–6 | Not started |
-| 2 | 29 | `add-site-spanish-locale` (M11) | 4.5–8 | Not started |
+| 2 | 29 | `add-site-spanish-locale` (M11) | 4.5–8 | Done pending the owner's 4.2/4.3: `/es/privacidad/`, `/es/terminos/`, `/es/soporte/`, `/es/eliminar-cuenta/` and `/es/404` as translations of the French pages (tú, neutral); every page names its translations (`alternates`: the fr/en legal pages' switch and `hreflang` open the same page; every other fr/en page renders as before — the only markup differences are the `hreflang`/switch entries and `&#39;` in one footer label); the islands in Spanish; `/suppression-compte/`, `/lingua/` and `/es/eliminar-cuenta/` pinned; the extension's Spanish link (3.2) waits for change 17; the owner reviews the Spanish and settles M11 (4.2), deploys the site and registers `https://cymbra.app/eliminar-cuenta` on the Services ID before a release links a Spanish page (4.3) |
 | 2 | 30 | `add-site-lingua-matrix-pages` | 1.5–3 | Not started |
 | 2 | 31 | `update-lingua-privacy-annex-languages` | 0.5–1.5 | Not started |
 | 2 | 32 | `localise-cymbra-id-email-legal-links` | 0.5–1 | Not started |

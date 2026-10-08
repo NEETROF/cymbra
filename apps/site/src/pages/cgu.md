@@ -2,6 +2,10 @@
 layout: ../layouts/Legal.astro
 title: Conditions d'utilisation
 lang: fr
+alternates:
+  fr: /cgu
+  en: /en/terms
+  es: /es/terminos
 updated: 30/08/2026
 ---
 

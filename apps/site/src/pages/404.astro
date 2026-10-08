@@ -6,7 +6,7 @@ import Base from '../layouts/Base.astro';
 // a shipped app is asking for, say — into marketing copy nobody flags.
 ---
 
-<Base title="Page introuvable — Cymbra" lang="fr" noindex frHref="/404" enHref="/en/404">
+<Base title="Page introuvable — Cymbra" lang="fr" noindex alternates={{ fr: '/404', en: '/en/404', es: '/es/404' }}>
   <section class="hero container">
     <p class="kicker">Erreur 404</p>
     <h1>Cette page <span class="gradient">n'existe pas</span></h1>

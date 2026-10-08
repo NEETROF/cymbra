@@ -5,7 +5,7 @@ import Base from '../../layouts/Base.astro';
 // a 200 for any unmatched path (change: pin-music-site-url-contract).
 ---
 
-<Base title="Page not found — Cymbra" lang="en" noindex frHref="/404" enHref="/en/404">
+<Base title="Page not found — Cymbra" lang="en" noindex alternates={{ fr: '/404', en: '/en/404', es: '/es/404' }}>
   <section class="hero container">
     <p class="kicker">Error 404</p>
     <h1>This page <span class="gradient">does not exist</span></h1>

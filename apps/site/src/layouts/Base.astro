@@ -1,38 +1,134 @@
 ---
 import '../styles/global.css';
 import { config } from '../lib/config';
+import { LANGS, type Lang } from '../lib/i18n';
+
+/** The page's address in each language it exists in. */
+type Alternates = Partial<Record<Lang, string>>;
+
+interface Props {
+  title: string;
+  description?: string;
+  lang?: Lang;
+  /** Account / redeem / checkout pages are personal surfaces, not landing content. */
+  noindex?: boolean;
+  /**
+   * The page's address in each language it exists in, its own included. The twins are
+   * NOT derivable from the path (`/confidentialite` ↔ `/en/privacy` ↔ `/es/privacidad`),
+   * so each page declares them (change: add-site-spanish-locale): they drive the
+   * header's language switch — every OTHER language the page exists in — and
+   * `hreflang`, one per alternate. A page that exists in one language passes that one
+   * alone: no switch, its own `hreflang`.
+   */
+  alternates: Alternates;
+}
 
 const {
   title,
   description = 'Cymbra — des apps qui apprennent avec vous : la musique connectée à votre instrument, le vocabulaire connecté à ce que vous lisez.',
   lang = 'fr',
-  // Account / redeem / checkout pages are personal surfaces, not landing content.
   noindex = false,
-  // The same page in the other locale. The pair is NOT derivable from the path
-  // (`/confidentialite` ↔ `/en/privacy`), so each page that has a counterpart
-  // declares it: it drives both the header's language switch and `hreflang`.
-  frHref = '/',
-  enHref = '/en/',
+  alternates,
 } = Astro.props;
 
-const isFr = lang === 'fr';
-const nav = isFr
-  ? [
+// A page that omits its own language from `alternates` would ship no `hreflang` for
+// itself and a switch that cannot come back: refuse it at build time.
+if (!alternates[lang]) {
+  throw new Error(`${title}: \`alternates\` must name the page's own language (${lang}) — got ${JSON.stringify(alternates)}`);
+}
+
+interface Link {
+  href: string;
+  label: string;
+}
+
+// One table per language: the brand's home, the header nav and the footer (the
+// community link slots between `footerHead` and `footerTail` when an invite is set).
+// The Spanish table links the Spanish pages and, where a page has no Spanish twin
+// (home, Music, Lingua, account, code), its English page; its brand links `/en/`.
+const TABLES: Record<Lang, { home: string; nav: Link[]; footerHead: Link[]; footerTail: Link[] }> = {
+  fr: {
+    home: '/',
+    nav: [
       { href: '/music', label: 'Music' },
       { href: '/lingua', label: 'Lingua' },
       { href: '/confidentialite', label: 'Confidentialité' },
       { href: '/cgu', label: 'CGU' },
       { href: '/account', label: 'Mon compte' },
-    ]
-  : [
+    ],
+    footerHead: [
+      { href: '/music', label: 'Music' },
+      { href: '/lingua', label: 'Lingua' },
+      { href: '/support', label: 'Aide' },
+    ],
+    footerTail: [
+      { href: '/confidentialite', label: 'Confidentialité' },
+      { href: '/cgu', label: 'CGU' },
+      { href: '/account', label: 'Mon compte' },
+      { href: '/redeem', label: "Code d'accès" },
+      { href: '/suppression-compte', label: 'Supprimer mon compte' },
+      { href: '/en/', label: 'EN' },
+    ],
+  },
+  en: {
+    home: '/en/',
+    nav: [
       { href: '/en/music', label: 'Music' },
       { href: '/en/lingua', label: 'Lingua' },
       { href: '/en/privacy', label: 'Privacy' },
       { href: '/en/terms', label: 'Terms' },
       { href: '/en/account', label: 'Account' },
-    ];
-const otherLocale = isFr ? { href: enHref, label: 'EN' } : { href: frHref, label: 'FR' };
-const home = isFr ? '/' : '/en/';
+    ],
+    footerHead: [
+      { href: '/en/music', label: 'Music' },
+      { href: '/en/lingua', label: 'Lingua' },
+      { href: '/en/support', label: 'Support' },
+    ],
+    footerTail: [
+      { href: '/en/privacy', label: 'Privacy' },
+      { href: '/en/terms', label: 'Terms' },
+      { href: '/en/account', label: 'Account' },
+      { href: '/en/redeem', label: 'Access code' },
+      { href: '/en/delete-account', label: 'Delete my account' },
+      { href: '/', label: 'FR' },
+    ],
+  },
+  es: {
+    home: '/en/',
+    nav: [
+      { href: '/en/music', label: 'Music' },
+      { href: '/en/lingua', label: 'Lingua' },
+      { href: '/es/privacidad', label: 'Privacidad' },
+      { href: '/es/terminos', label: 'Términos' },
+      { href: '/en/account', label: 'Cuenta' },
+    ],
+    footerHead: [
+      { href: '/en/music', label: 'Music' },
+      { href: '/en/lingua', label: 'Lingua' },
+      { href: '/es/soporte', label: 'Ayuda' },
+    ],
+    footerTail: [
+      { href: '/es/privacidad', label: 'Privacidad' },
+      { href: '/es/terminos', label: 'Términos' },
+      { href: '/en/account', label: 'Cuenta' },
+      { href: '/en/redeem', label: 'Código de acceso' },
+      { href: '/es/eliminar-cuenta', label: 'Eliminar mi cuenta' },
+      { href: '/', label: 'FR' },
+      { href: '/en/', label: 'EN' },
+    ],
+  },
+};
+const { home, nav, footerHead, footerTail } = TABLES[lang];
+
+// The alternates in `LANGS`' order, for `hreflang` (each of them) and the switch (the
+// others). No `x-default`: the site has none today, and choosing one is the owner's.
+const LABEL: Record<Lang, string> = { fr: 'FR', en: 'EN', es: 'ES' };
+const hreflangs: { lang: Lang; href: string }[] = [];
+for (const l of LANGS) {
+  const href = alternates[l];
+  if (href) hreflangs.push({ lang: l, href });
+}
+const otherLocales: Link[] = hreflangs.filter((a) => a.lang !== lang).map((a) => ({ href: a.href, label: LABEL[a.lang] }));
 const site = 'https://cymbra.app';
 // The community server, on every page — header and footer — when an invite is set.
 const discordUrl = config.discordUrl;
@@ -53,8 +149,7 @@ const discordUrl = config.discordUrl;
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <link rel="alternate" hreflang="fr" href={`${site}${frHref}`} />
-    <link rel="alternate" hreflang="en" href={`${site}${enHref}`} />
+    {hreflangs.map((a) => <link rel="alternate" hreflang={a.lang} href={`${site}${a.href}`} />)}
   </head>
   <body>
     <header class="site-header">
@@ -73,7 +168,7 @@ const discordUrl = config.discordUrl;
         <nav class="nav-links">
           {nav.map((l) => <a href={l.href}>{l.label}</a>)}
           {discordUrl && <a class="nav-discord" href={discordUrl} rel="noopener">Discord</a>}
-          <a href={otherLocale.href}>{otherLocale.label}</a>
+          {otherLocales.map((l) => <a href={l.href}>{l.label}</a>)}
         </nav>
       </div>
     </header>
@@ -86,33 +181,11 @@ const discordUrl = config.discordUrl;
       <div class="container">
         <span>© {new Date().getFullYear()} NEETROF — Cymbra</span>
         <nav>
-          {isFr ? (
-            <>
-              <a href="/music">Music</a>
-              <a href="/lingua">Lingua</a>
-              <a href="/support">Aide</a>
-              {discordUrl && <a href={discordUrl} rel="noopener">Discord</a>}
-              <a href="/confidentialite">Confidentialité</a>
-              <a href="/cgu">CGU</a>
-              <a href="/account">Mon compte</a>
-              <a href="/redeem">Code d'accès</a>
-              <a href="/suppression-compte">Supprimer mon compte</a>
-              <a href="/en/">EN</a>
-            </>
-          ) : (
-            <>
-              <a href="/en/music">Music</a>
-              <a href="/en/lingua">Lingua</a>
-              <a href="/en/support">Support</a>
-              {discordUrl && <a href={discordUrl} rel="noopener">Discord</a>}
-              <a href="/en/privacy">Privacy</a>
-              <a href="/en/terms">Terms</a>
-              <a href="/en/account">Account</a>
-              <a href="/en/redeem">Access code</a>
-              <a href="/en/delete-account">Delete my account</a>
-              <a href="/">FR</a>
-            </>
-          )}
+          {/* Astro escapes the apostrophe of « Code d'accès » (`&#39;`), which the
+              literal markup never did: same rendering, one byte-level difference. */}
+          {footerHead.map((l) => <a href={l.href}>{l.label}</a>)}
+          {discordUrl && <a href={discordUrl} rel="noopener">Discord</a>}
+          {footerTail.map((l) => <a href={l.href}>{l.label}</a>)}
         </nav>
       </div>
     </footer>

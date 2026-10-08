@@ -10,8 +10,14 @@ import { formatDate, t, type Lang } from "../lib/i18n";
 import { identityLabel, productLabel } from "../lib/plan-view";
 
 const props = defineProps<{ lang: Lang }>();
-// Account deletion lives on its own page (Google Play requires a web path to it).
-const deleteHref = props.lang === "fr" ? "/suppression-compte" : "/en/delete-account";
+// Account deletion lives on its own page (Google Play requires a web path to it), one
+// per language: a language added to `Lang` has to choose its page here.
+const DELETE_PAGE: Record<Lang, string> = {
+  fr: "/suppression-compte",
+  en: "/en/delete-account",
+  es: "/es/eliminar-cuenta",
+};
+const deleteHref = DELETE_PAGE[props.lang];
 const {
   booted,
   plan,

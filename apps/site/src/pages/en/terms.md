@@ -2,6 +2,10 @@
 layout: ../../layouts/Legal.astro
 title: Terms of Service
 lang: en
+alternates:
+  fr: /cgu
+  en: /en/terms
+  es: /es/terminos
 updated: 30/08/2026
 ---
 

@@ -2,6 +2,10 @@
 layout: ../layouts/Legal.astro
 title: Politique de confidentialité
 lang: fr
+alternates:
+  fr: /confidentialite
+  en: /en/privacy
+  es: /es/privacidad
 updated: 29/09/2026
 ---
 

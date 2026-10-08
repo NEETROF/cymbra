@@ -1,7 +1,15 @@
-// Copy of the interactive islands, fr (default) / en — the site's convention is the
-// page's `lang`, no i18n library. Keys are grouped by island.
+// Copy of the interactive islands, fr (default) / en / es — the site's convention is
+// the page's `lang`, no i18n library. Keys are grouped by island. The Spanish is typed
+// after the French, so a key added to one language cannot be forgotten in another.
 
-export type Lang = "fr" | "en";
+/** The site's languages, in the order `hreflang` and the language switch list them. */
+export const LANGS = ["fr", "en", "es"] as const;
+export type Lang = (typeof LANGS)[number];
+
+/** Narrows a value the type system never saw (a Markdown page's front matter) to `Lang`. */
+export function isLang(value: unknown): value is Lang {
+  return typeof value === "string" && (LANGS as readonly string[]).includes(value);
+}
 
 const fr = {
   // sign-in
@@ -213,9 +221,114 @@ const en: typeof fr = {
   errCodeRefused: "This code cannot be applied to your account (already enrolled, another trial running, or beta closed).",
 };
 
+// Spanish (change: add-site-spanish-locale): tú, neutral, no vosotros. Only the pages the
+// site publishes in Spanish mount islands in Spanish (the deletion page and its sign-in);
+// the dictionary is complete anyway, as its type demands.
+const es: typeof fr = {
+  signInTitle: "Iniciar sesión",
+  signInIntro: "Inicia sesión con tu cuenta Cymbra (la misma que en la aplicación).",
+  email: "Correo electrónico",
+  password: "Contraseña",
+  signIn: "Iniciar sesión",
+  signingIn: "Iniciando sesión…",
+  signOut: "Cerrar sesión",
+  continueWithGoogle: "Continuar con Google",
+  continueWithApple: "Continuar con Apple",
+  or: "o",
+  socialUnavailable: "El inicio de sesión con Google o Apple no está disponible por ahora: usa tu correo electrónico.",
+  checkingSession: "Comprobando la sesión…",
+  redeemTitle: "Usar un código de acceso",
+  redeemIntro: "¿Has recibido un código beta en la comunidad Cymbra? Introdúcelo aquí: se aplicará a tu cuenta.",
+  code: "Código",
+  redeem: "Validar el código",
+  redeeming: "Validando…",
+  redeemedTitle: "¡Código aplicado!",
+  redeemedTrial: "Ya formas parte de la beta «{name}»: acceso Premium hasta el {date}.",
+  redeemedFeature: "Ya formas parte de la beta «{name}»: acceso anticipado a las funciones en prueba.",
+  redeemedNext: "Abre (o actualiza) la aplicación Cymbra: tus nuevos derechos aparecerán en la próxima conexión.",
+  redeemAnother: "Usar otro código",
+  accountTitle: "Mi cuenta",
+  handleLabel: "Nombre de usuario",
+  noHandle: "todavía sin nombre de usuario (se elige en la aplicación)",
+  signInMethods: "Métodos de inicio de sesión",
+  methodEmail: "Correo electrónico ({email})",
+  methodGoogle: "Google",
+  methodApple: "Apple",
+  planLabel: "Plan",
+  planFree: "Gratuito",
+  planPremium: "Premium",
+  planTrial: "Premium (beta de prueba)",
+  managedOn: "Gestionado a través de {channel}",
+  channelApple: "el App Store",
+  channelGoogle: "Google Play",
+  channelWeb: "la web",
+  renewsOn: "Renovación el {date}",
+  rightsEndOn: "Fin de los derechos el {date}",
+  trialEndsOn: "Beta «{name}»: hasta el {date}",
+  betasTitle: "Betas activas",
+  noBetas: "Ninguna beta activa.",
+  betaFeature: "acceso anticipado",
+  betaTrial: "prueba Premium",
+  manage: "Gestionar mi suscripción",
+  manageStoreApple: "Tu suscripción la gestiona el App Store: adminístrala desde tus ajustes de Apple.",
+  manageStoreGoogle: "Tu suscripción la gestiona Google Play: adminístrala desde tus suscripciones de Google Play.",
+  openStore: "Abrir la página de gestión",
+  openingPortal: "Abriendo el portal…",
+  goPremium: "Pasar a Premium",
+  choosePlan: "Elegir un plan",
+  productMonthly: "Mensual",
+  productYearly: "Anual",
+  startingCheckout: "Abriendo el pago…",
+  accountAppNote: "La gestión de la cuenta (correo electrónico, contraseña) se hace en la aplicación.",
+  deleteAccountLink: "Eliminar mi cuenta",
+  downloadTitle: "Descargar Cymbra",
+  deleteTitle: "Eliminar mi cuenta",
+  deleteIntro:
+    "La eliminación es definitiva e inmediata: tu cuenta Cymbra y los datos vinculados a ella se borran de nuestros servidores. No hay papelera ni restauración.",
+  deleteSignInNote: "Inicia sesión en la cuenta que quieres eliminar.",
+  deleteWhatTitle: "Qué se elimina",
+  deleteWhat1: "Tu cuenta, tu nombre de usuario, tus inicios de sesión con Google / Apple y tu dirección de correo electrónico.",
+  deleteWhat2: "Tu progreso: cursos, rachas de práctica, puntuaciones, insignias y clasificaciones.",
+  deleteWhat3: "Tus partituras y sonidos importados, así como tus contribuciones no publicadas.",
+  deleteKeepsTitle: "Qué no hace la eliminación",
+  deleteKeepsSubscription:
+    "No cancela una suscripción contratada en el App Store o en Google Play: cancélala desde la tienda correspondiente; si no, se seguirá cobrando.",
+  deleteKeepsPublished:
+    "Las partituras que propusiste y que se publicaron en el catálogo siguen en línea, sin vínculo con tu identidad.",
+  deleteAccountLabel: "Cuenta afectada",
+  deleteConfirmPrompt: "Para confirmar, escribe {word} a continuación.",
+  deleteConfirmWord: "ELIMINAR",
+  deleteConfirmLabel: "Confirmación",
+  deleteButton: "Eliminar definitivamente mi cuenta",
+  deleting: "Eliminando…",
+  deletedTitle: "Cuenta eliminada",
+  deletedBody:
+    "Tu cuenta ha sido eliminada. El borrado de los datos vinculados termina en los próximos minutos. Puedes cerrar esta página.",
+  deleteAppNote: "También puedes eliminar tu cuenta desde la aplicación: Cuenta → Eliminar mi cuenta.",
+  deleteContact: "¿No puedes acceder a tu cuenta? Escribe a privacy@cymbra.app.",
+  checkoutTitle: "Pago",
+  checkoutLoading: "Abriendo el pago seguro…",
+  checkoutMissing: "No hay ninguna transacción que pagar. El pago se inicia desde la aplicación o desde tu cuenta.",
+  checkoutUnavailable: "El pago web todavía no está disponible.",
+  checkoutDoneTitle: "¡Gracias!",
+  checkoutDoneBody:
+    "Tu pago ha quedado registrado. Vuelve a la aplicación Cymbra y actualízala: tu plan Premium se activará en unos instantes.",
+  goToAccount: "Ver mi cuenta",
+  errUnauthenticated: "Credenciales incorrectas o sesión caducada. Vuelve a iniciar sesión.",
+  errForbidden: "Acción no autorizada.",
+  errNotFound: "No encontrado.",
+  errPrecondition: "Esta acción no es posible para tu cuenta en este momento.",
+  errInvalid: "Entrada no válida.",
+  errRate: "Demasiados intentos: vuelve a intentarlo dentro de unos minutos.",
+  errUnavailable: "Servicio no disponible por el momento. Vuelve a intentarlo más tarde.",
+  errGeneric: "Se ha producido un error. Vuelve a intentarlo.",
+  errCodeInvalid: "Código no válido o ya utilizado.",
+  errCodeRefused: "Este código no se puede aplicar a tu cuenta (ya formas parte de esta beta, otra prueba en curso o beta cerrada).",
+};
+
 export type MessageKey = keyof typeof fr;
 
-const dict: Record<Lang, typeof fr> = { fr, en };
+const dict: Record<Lang, typeof fr> = { fr, en, es };
 
 /** Localized message with `{name}`-style interpolation. */
 export function t(lang: Lang, key: MessageKey, params: Record<string, string> = {}): string {
@@ -223,9 +336,15 @@ export function t(lang: Lang, key: MessageKey, params: Record<string, string> = 
   return raw.replace(/\{(\w+)\}/g, (_, k: string) => params[k] ?? `{${k}}`);
 }
 
-/** A localized long date (e.g. "16 août 2026" / "August 16, 2026") from an RFC 3339 string. */
+/** The BCP 47 tag `Intl` formats each language with. */
+const DATE_LOCALE: Record<Lang, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
+
+/**
+ * A localized long date (e.g. "16 août 2026" / "August 16, 2026" / "16 de agosto de 2026")
+ * from an RFC 3339 string.
+ */
 export function formatDate(lang: Lang, iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { dateStyle: "long" }).format(d);
+  return new Intl.DateTimeFormat(DATE_LOCALE[lang], { dateStyle: "long" }).format(d);
 }

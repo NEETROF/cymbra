@@ -47,9 +47,16 @@ export const PINNED_ROUTES: PinnedRoute[] = [
   // Store console fields. Editing these is a listing change, not a build.
   { path: "/support/", pinnedBy: "App Store Connect support URL, fr", source: "App Store Connect — per platform × locale" },
   { path: "/en/support/", pinnedBy: "App Store Connect support URL, en/it/es", source: "App Store Connect — per platform × locale" },
-  { path: "/en/delete-account/", pinnedBy: "Play data-deletion URL, and Apple's account-deletion requirement", source: "Play Console — app content" },
+  { path: "/en/delete-account/", pinnedBy: "Play data-deletion URL, and Apple's account-deletion requirement; and Lingua's deletion link for every interface language but French and Spanish", source: "Play Console — app content; apps/lingua-extension/src/account/flow.ts" },
   { path: "/music/", pinnedBy: "Marketing URL (ASC) / Website (Play), fr", source: "App Store Connect + Play Console" },
   { path: "/en/music/", pinnedBy: "Marketing URL (ASC) / Website (Play), en/it/es", source: "App Store Connect + Play Console" },
+
+  // Compiled into shipped Lingua builds and their listings' fields (change:
+  // add-site-spanish-locale). The extension opens the deletion page of the reader's
+  // interface language; the listings' Homepage / Marketing URL is the Lingua page.
+  { path: "/suppression-compte/", pinnedBy: "Lingua — deletion link, French interface; and the App Review notes", source: "apps/lingua-extension/src/account/flow.ts; apps/lingua-apple/STORE-LISTING.md" },
+  { path: "/es/eliminar-cuenta/", pinnedBy: "Lingua — deletion link, Spanish interface", source: "apps/lingua-extension/src/account/locale.ts — `deleteAccountUrl`, where localise-lingua-account-onboarding (change 17) moves it and keys it on the interface language" },
+  { path: "/lingua/", pinnedBy: "Lingua — Homepage of the Chrome Web Store and AMO listings, Marketing URL (ASC)", source: "apps/lingua-extension/STORE-LISTING.md; apps/lingua-apple/STORE-LISTING.md" },
 
   // The locale roots. Entry point for everything else, and the previous value of
   // the listings' website field.
