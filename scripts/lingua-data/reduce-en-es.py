@@ -28,7 +28,7 @@ Inputs:
 - `kaikki-es-traductions-en.jsonl`, in `--work`: the English translations the Spanish Wiktionary's
   Spanish entries list, derived from the same dump as the entries — read backwards, the inverted
   fallback, the commonest Spanish word first (wordfreq), as es-fr orders its inverted table by
-  French frequency.
+  French frequency; no letter among its words (`read_translated`).
 No pivot through a third language, no machine translation.
 
 Outputs, in `--work`: `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE` and `manifest.json` — and
@@ -126,12 +126,20 @@ def without_letters(src, dst):
     return common.without_letter_senses(src, dst, edition=EDITION)
 
 
+# A single letter is glossed only by a sense that is neither the letter nor a name borrowed through
+# it: `a` « un, una », `I` « yo » and the vocative `O` « oh, oy » are words; « i latina » names the
+# letter, and the note « do » names C through it (`without_letter_translations`, `read_translated`).
+
+
 def without_letter_translations(src, dst):
     """A translation file without its letters' entries, written to `dst`: a `character` entry lists
-    the letter itself as its translation (`b` « b »), a gloss that says nothing, and so does a
-    one-letter word's entry whose every translation is that letter. The same rule as es-en's, on
-    both of en-es's tables: the English Wiktionary's letters read forwards, the Spanish one's read
-    backwards. A line this pass cannot read is written as it is: the shared rules decide."""
+    the letter itself as its translation (`b` « b »), a gloss that says nothing; so does a
+    one-letter word's entry whose every translation is that letter, and a one-letter word's noun
+    entry — the letter under its name (`i` « i, i latina ») or a name borrowed through it (a note,
+    a grade): the words written as one letter are an article, a pronoun, a preposition, a
+    particle, never a noun. es-en's rule with the noun added, on both of en-es's tables: the
+    English Wiktionary's letters read forwards, the Spanish one's read backwards. A line this pass
+    cannot read is written as it is: the shared rules decide."""
     with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
         for line in f:
             try:
@@ -148,16 +156,28 @@ def _names_a_letter(entry):
     if entry.get("pos") == "character":
         return True
     word = (entry.get("word") or "").strip().lower()
+    if len(word) != 1:
+        return False
+    if entry.get("pos") == "noun":
+        return True
     listed = [(t.get("word") or "").strip().lower() for t in entry.get("translations") or () if isinstance(t, dict)]
-    return len(word) == 1 and all(native == word for native in listed)
+    return all(native == word for native in listed)
 
 
 def read_translated(path, dst, *, inverted):
     """What a translation file (`pack_sources.derive`) says of English words, its letters left out
     (`without_letter_translations`, into `dst`): word → {UPOS: [Spanish word, …]}
     (`common.read_translations`) — the English Wiktionary's Spanish translations read forwards,
-    the Spanish Wiktionary's English translations read backwards."""
-    return common.read_translations(without_letter_translations(path, dst), inverted=inverted, studied=EN)
+    the Spanish Wiktionary's English translations read backwards. Read backwards, a one-letter
+    English word is left out whatever lists it: the entry is the Spanish word's, so the letter
+    test above sees nothing of the English side — the Spanish Wiktionary's `do` lists « C », the
+    note's name borrowed through the letter — and the one word of a letter the table reaches,
+    `yo` « I », the entries and the direct table gloss before it is read."""
+    table = common.read_translations(without_letter_translations(path, dst), inverted=inverted, studied=EN)
+    if inverted:
+        for letter in [word for word in table if len(word) == 1]:
+            del table[letter]
+    return table
 
 
 by_spanish_frequency = common.by_native_frequency

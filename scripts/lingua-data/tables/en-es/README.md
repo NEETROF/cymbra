@@ -29,17 +29,22 @@ In this folder:
 
 ## What is in them
 
-On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version` `2026.10.08+65915c5.e1915ca`: the
+On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version` `2026.10.08+75631d7.e1915ca`: the
 snapshot, the rules' digest, and the digest of the studied tables `pin.json` records):
 
-- **Spanish glosses for 21,966 lemmas** of English's 40,685: 10,247 from the
+- **Spanish glosses for 21,965 lemmas** of English's 40,685: 10,247 from the
   Spanish Wiktionary's English entries (its definitions, by the Spanish edition's rules), 11,214
   from the Spanish translations the English Wiktionary lists (the direct table, in its order) and
-  505 from the English translations the Spanish Wiktionary's Spanish entries list,
+  504 from the English translations the Spanish Wiktionary's Spanish entries list,
   read backwards (the inverted table, the commonest Spanish word first); **17,096
   expressions**. Up to eight senses grouped by part of speech, as every pair's, opening on a
-  capital as the Spanish Wiktionary writes them. A letter glosses no word, in either direction.
-  No pivot through a third language, no machine translation.
+  capital as the Spanish Wiktionary writes them. A letter glosses no word, in either direction:
+  a single letter is glossed only by a sense that is neither the letter nor a name borrowed
+  through it — `a` « Un, una… », `i` « Yo » and the vocative `o` « Oh, oy » are words; « i latina »
+  names the letter, and so does the Spanish Wiktionary's note `do` « C », which glossed `c`
+  (rank 376) « Do » on the first reduction (`reduce-en-es.py read_translated`: read backwards, a
+  one-letter English word is left out whatever lists it). No pivot through a third language, no
+  machine translation.
 - The share of the commonest lemmas glossed, which the `reduce` job holds to a floor the owner sets
   on the pull request (`gloss_coverage.py --pair en-es`, against `FLOORS["en-es"]` — the one place
   the value lives; the job passes no `--floor`):
@@ -54,26 +59,27 @@ snapshot, the rules' digest, and the digest of the studied tables `pin.json` rec
   The floor is proposed at the study's figures less two points (the programme's risk 5, M6's
   rule); the owner settles it (task 5.1), and the value is written into `FLOORS` and into the
   requirement before merge.
-- **The translation-table share** (D4): of the 8,496 glossed lemmas among the 10,000
+- **The translation-table share** (D4): of the 8,495 glossed lemmas among the 10,000
   commonest, **26.0 %** come from a translation table rather than from a definition — 2,135
-  from the direct table, 74 from the inverted one (`measures.json`, which the reducer
+  from the direct table, 73 from the inverted one (`measures.json`, which the reducer
   writes beside its tables and no pack stores; `pack_report.py --measures` shows it in the update's
   summary).
 - **Dictionary words are en-fr's**: 2,501 lemmas en-es glosses are no dictionary word
-  of English, and 5,334 dictionary words have no Spanish gloss, so the pack
+  of English, and 5,335 dictionary words have no Spanish gloss, so the pack
   carries a lexical section, and the vocabulary estimate counts the same 24,799 words for
   both pairs.
-- **The pack is 1,691,073 B**, 32.3 % of the 5 MiB budget.
+- **The pack is 1,690,595 B**, 32.2 % of the 5 MiB budget.
 
 ## A sample of 100 glosses
 
 For the owner's review (D5): the glossed lemmas among the 10,000 commonest, in rank order, every
-⌊n/100⌋-th from the first (every 84th, from n = 8,496) — a systematic sample, so that
+⌊n/100⌋-th from the first (every 84th, from n = 8,495) — a systematic sample, so that
 every frequency band is represented and the list is reproducible from the tables and
 `measures.json`. The source of each gloss is marked: a *definition* of the Spanish Wiktionary, the
 English Wiktionary's Spanish translations (*direct*), or the Spanish Wiktionary's English
-translations read backwards (*inverted*). The Spanish edition's settings stay as change 6 set them
-unless the sample says otherwise.
+translations read backwards (*inverted*): 75 definitions, 25 direct, none inverted. Seven
+glosses longer than 160 characters are shortened here with « … »; the tables hold them whole. The
+Spanish edition's settings stay as change 6 set them unless the sample says otherwise.
 
 | # | Rank | Lemma | Source | Gloss |
 |---|---|---|---|---|
@@ -82,101 +88,136 @@ unless the sample says otherwise.
 | 3 | 166 | against | definition | Contra |
 | 4 | 248 | try | definition | Enjuiciar, juzgar; Probar, intentar, tratar; Tentativa |
 | 5 | 333 | anyone | definition | Cualquiera (en frase afirmativa), nadie (en frase negativa), alguien (en frase interrogativa), alguno |
-| 6 | 418 | near | definition | Cercano, próximo; Aproximado; Cerca; Casi, aproximadamente; Acercar, aproximar |
-| 7 | 498 | account | definition | Cuenta; Relato; Estado de cuenta; Argumento, causa, motivo; Relatar; Dar explicaciones; Reportar sobre el dinero recibido y gastado; Considerar |
-| 8 | 586 | director | definition | Director |
-| 9 | 673 | serious | definition | Serio |
-| 10 | 759 | base | definition | Base, pie, apoyo, sustento, soporte; Base, fundamento, esencia, raíz; Base; Base, base de Lewis, hidróxido, álcali; Base, basa, pedestal, pie, peana, soporte… |
-| 11 | 846 | island | definition | Isla; Formar una isla; Poner en una isla |
-| 12 | 932 | heavy | definition | Pesado |
-| 13 | 1015 | lack | definition | Falta, carencia; Escasez; Faltar, carecer |
-| 14 | 1099 | nation | definition | Nación |
-| 15 | 1185 | engine | definition | Motor; Locomotora |
-| 16 | 1269 | rise | definition | Subida; Elevación; Aumento; Ascenso; Surgir, salir; Subir; Elevar; Aumentar |
-| 17 | 1356 | length | definition | Longitud |
-| 18 | 1440 | audience | definition | Audiencia; Público |
-| 19 | 1522 | museum | definition | Museo |
-| 20 | 1609 | drama | direct | Drama, obra teatral |
-| 21 | 1697 | debate | definition | Participar en un debate; Un argumento o discusión, usualmente en un marco ordenado o formal, frecuentemente con más de dos personas, que generalmente termina… |
-| 22 | 1781 | bright | definition | Brillante; Iluminado, con luz; Animado, radiante; Claro, diáfano |
-| 23 | 1866 | brazil | definition | Brasil |
-| 24 | 1952 | expert | definition | Persona con amplio conocimiento o habilidad en un tema determinado, experto; Un jugador clasificado justo por debajo de maestro; Extraordinariamente capaz o… |
-| 25 | 2043 | print | definition | Imprenta; Letra de imprenta; Letra; Impresión; Copia; Imprimir, escribir; Estampar; Impreso, disponible para su venta |
-| 26 | 2132 | clinical | definition | Clínico; Desapasionado, frío |
-| 27 | 2221 | monster | definition | Monstruo; Monstruoso |
-| 28 | 2310 | awful | definition | Horrible; Extremadamente |
-| 29 | 2395 | uncle | definition | Tío |
-| 30 | 2480 | dallas | definition | Dallas |
-| 31 | 2570 | crap | definition | Afrecho, barcia, salvado; Tirada perdedora (2, 3 ó 12) en el juego de dados craps; Mierda; Basura; Estupideces, pendejadas (México), boludeces (Argentina); D… |
-| 32 | 2655 | translation | definition | Traducción; Desplazamiento |
-| 33 | 2748 | ward | definition | Apellido; Guarda, escolta, vigilante, centinela; Custodia; Tutelaje; Sala, ala; Distrito electoral |
-| 34 | 2842 | agricultural | definition | Agrícola |
-| 35 | 2933 | communist | definition | Comunista |
-| 36 | 3024 | steady | definition | Firme; Estable; Estabilizar |
-| 37 | 3115 | rely | direct | Atenerse, fiarse |
-| 38 | 3206 | tokyo | definition | Tokio, Tokío |
-| 39 | 3296 | roy | definition | Nombre de pila de varón |
-| 40 | 3388 | discipline | definition | Un comportamiento controlado, autocontrol; Una rama específica del conocimiento, el aprendizaje o la práctica: disciplina |
-| 41 | 3480 | safely | definition | Con seguridad, de modo seguro, seguramente |
-| 42 | 3572 | forty | definition | Cuarenta |
-| 43 | 3669 | xbox | direct | Xbox |
-| 44 | 3759 | grammar | definition | Gramática |
-| 45 | 3853 | tier | direct | Piso, rango, nivel |
-| 46 | 3944 | kyle | definition | Nombre personal masculino |
-| 47 | 4036 | sandwich | definition | Sándwich, emparedado; Bocadillo |
-| 48 | 4129 | hybrid | definition | Híbrido |
-| 49 | 4222 | darling | definition | Persona muy estimada por otra; Querido, tratamiento afectuoso; La persona o cosa que es la favorita; Muy estimado; Favorito; Encantador |
-| 50 | 4318 | poison | definition | Veneno; Envenenar |
-| 51 | 4411 | assure | definition | Asegurar; Convencer |
-| 52 | 4506 | medieval | definition | Medieval |
-| 53 | 4606 | taiwan | definition | Taiwan |
-| 54 | 4699 | carol | definition | Nombre de pila de varón; Nombre de pila de mujer |
-| 55 | 4805 | orchestra | direct | Orquesta, orquestra (disused) |
-| 56 | 4903 | telegraph | direct | Telégrafo; Telegrafiar |
-| 57 | 4998 | dale | definition | Valle |
-| 58 | 5091 | inclusive | direct | Inclusivo, inclusive |
-| 59 | 5189 | skirt | definition | Falda; Bordear, rodear |
-| 60 | 5285 | sixteen | definition | Dieciséis |
-| 61 | 5385 | costly | definition | Costoso |
-| 62 | 5490 | joey | definition | Nombre de pila de varón |
-| 63 | 5587 | pioneer | definition | Pionero; Promover; Ser pionero |
-| 64 | 5693 | snack | definition | Snack, colación, refrigerio, refacción, piscolabis, chuchería, mecato; Merendar, comer algo ligero; Comer entre comidas |
-| 65 | 5801 | clutch | definition | Aferrar; Agarrar; Embrague, cloch; Abrazo fuerte; Apuro, crisis, aprieto; Apretón; Desempeñarse o tender a desempeñarse bien en situaciones difíciles y de al… |
-| 66 | 5916 | processor | direct | Procesador |
-| 67 | 6017 | stunt | definition | Escena peligrosa; Truco, ardid, treta |
-| 68 | 6124 | cardiac | direct | Cardiaco |
-| 69 | 6240 | katherine | definition | Nombre de pila de mujer, equivalente del español Catalina. Variante común de Catherine |
-| 70 | 6335 | metallic | definition | Metálico |
-| 71 | 6429 | narrator | definition | Narrador |
-| 72 | 6532 | psychic | inverted | Psíquico |
-| 73 | 6638 | springfield | definition | Apellido |
-| 74 | 6742 | turnover | direct | Cifra de negocios, empanada, movimiento de mercancías |
-| 75 | 6855 | velvet | definition | Terciopelo |
-| 76 | 6963 | c'mon | definition | Contracción de 'come on' |
-| 77 | 7069 | cereal | direct | Cereal, herbal, cereales |
-| 78 | 7185 | coil | direct | Espiral, hélice, bobina; Enrollar |
-| 79 | 7297 | contributor | definition | Contribuidor |
-| 80 | 7401 | boiler | direct | Caldera, calentador, bóiler |
-| 81 | 7514 | wildly | definition | Alocadamente, locamente; Insensatamente, irreflexivamente, a tontas y a locas; Ferozmente, furiosamente, violentamente; Desordenadamente, sin disciplina |
-| 82 | 7626 | uruguay | definition | Uruguay |
-| 83 | 7743 | willis | definition | Apellido |
-| 84 | 7847 | bunker | definition | Refugio subterraneo; Búnker; Depósito de combustible; Combustible; Carbonera; Caer en el búnker; Dificultar; Cargar combustible |
-| 85 | 7952 | translator | definition | Traductor |
-| 86 | 8064 | stupidity | definition | Tontería |
-| 87 | 8186 | seafood | definition | Animales o plantas comestibles procedentes del mar |
-| 88 | 8304 | scarlet | definition | Nombre de pila de mujer; Escarlata, grana |
-| 89 | 8422 | seldom | definition | Casi nunca, rara vez |
-| 90 | 8529 | presume | direct | Presumir |
-| 91 | 8643 | payday | direct | Día de pago, recompensa |
-| 92 | 8747 | evelyn | definition | Nombre de pila de mujer; Apellido matronímico; Nombre de pila de varón |
-| 93 | 8860 | disrupt | definition | Interrumpir; Desbaratar; Perturbar |
-| 94 | 8971 | cindy | definition | Nombre de pila de mujer |
-| 95 | 9090 | colt | direct | Potranco, potro |
-| 96 | 9203 | armenia | definition | Armenia |
-| 97 | 9307 | truman | definition | Apellido |
-| 98 | 9426 | pun | definition | Juego de palabras, uso de palabras con dobles sentidos o de modo equívoco, ya sea por igualdad o similitud sonora u ortográfica de las mismas |
-| 99 | 9550 | mitigate | definition | Reducir o decrementar, hacer menos severo o más fácil de soportar; Minimizar, quitar hierro |
-| 100 | 9672 | madden | direct | Enloquecer |
+| 6 | 420 | plan | definition | Plan; Plano; Planear |
+| 7 | 500 | especially | definition | De manera especial, especialmente; Particularmente, en mayor medida de lo normal; Se utiliza para poner mayor énfasis en alguien o algo |
+| 8 | 587 | exactly | definition | Exactamente |
+| 9 | 674 | stage | definition | Fase, etapa; Escenario, escena; Platina de un microscopio; Área de descanso, área de servicio; Escenificar, poner en escena, representar; Identificar la fase… |
+| 10 | 760 | below | definition | Abajo; Debajo, por debajo de, debajo de |
+| 11 | 847 | normal | definition | Normal |
+| 12 | 933 | knowledge | definition | Conocimiento, entendimiento, comprensión, inteligencia, razón |
+| 13 | 1016 | multiple | direct | Múltiple; Múltiplo |
+| 14 | 1100 | otherwise | definition | Por lo demás, por otra parte, de lo contrario, otramente; Si no; Contrario, de otra forma |
+| 15 | 1186 | everybody | definition | Hablando de personas, todos, todo el mundo |
+| 16 | 1270 | silver | definition | Plata; Moneda hecha de este metal; Artículos de mesa hechos de este metal; Que esta hecho de plata o que es similar a la plata; Propio o relacionado con la p… |
+| 17 | 1357 | lucky | definition | Suertudo; Afortunado |
+| 18 | 1441 | bay | definition | Bahía; Muelle; Plataforma de carga; Laurel (llamado también por este nombre en inglés) |
+| 19 | 1523 | path | definition | Camino, sendero, vereda; Trayectoria; Recorrido; Curva; Secuencia de estados o pasos de un proceso informático |
+| 20 | 1610 | entry | definition | Entrada; Acceso |
+| 21 | 1698 | distribution | definition | Distribución |
+| 22 | 1782 | capable | definition | Capaz; Hábil |
+| 23 | 1867 | definition | definition | Definición |
+| 24 | 1953 | frequently | definition | Frecuentemente |
+| 25 | 2044 | quit | definition | Dejar; Renunciar; Abandonar; Saldar o pagar una deuda |
+| 26 | 2133 | comedy | direct | Comedia |
+| 27 | 2222 | olympic | direct | Olímpico |
+| 28 | 2311 | bedroom | definition | Dormitorio, cuarto, recámara (México) |
+| 29 | 2396 | unusual | definition | Inusual |
+| 30 | 2481 | designer | definition | Diseñador; De diseño o diseñador |
+| 31 | 2571 | crystal | definition | Cristal; Vidrio; Hecho de cristal; Cristalino |
+| 32 | 2656 | visible | direct | Visible |
+| 33 | 2749 | wayne | definition | Apellido |
+| 34 | 2843 | asshole | definition | Ano; Gilipollas (España), boludo (Argentina), pendejo (México), culero (México) |
+| 35 | 2934 | complaint | definition | Queja, reclamación |
+| 36 | 3025 | symbol | definition | Símbolo |
+| 37 | 3116 | remarkable | definition | Notable |
+| 38 | 3207 | tune | definition | Melodía, canción, tonada; Afinar, ajustar |
+| 39 | 3297 | rude | definition | Grosero |
+| 40 | 3390 | dominant | definition | Que gobierna, prevaleciente; Predominante, común, prevalente, de la mayor importancia; (de una parte del cuerpo) Preferida y usada con mayor destreza que la… |
+| 41 | 3481 | slight | definition | Leve, pequeño, suave, o débil, despreciable, poco importante, insignificante; Liviano, esbelto; Quitarle importancia a algo, ignorar, obviar; Actuar negligen… |
+| 42 | 3573 | generous | definition | Generoso |
+| 43 | 3670 | accessible | definition | Accesible |
+| 44 | 3760 | hiv | direct | VIH |
+| 45 | 3855 | vancouver | definition | Vancouver |
+| 46 | 3945 | lean | definition | Incllinarse; apoyarse en algo, recargar en o sobre algo; Delgado, flaco; Magro; Malo, escaso, pobre; Inclinación; Parte sin grasa o delgada de algo; Parte de… |
+| 47 | 4037 | separation | definition | Separación |
+| 48 | 4130 | keyboard | definition | Teclado; Órgano electrónico |
+| 49 | 4223 | diary | definition | Diario o publicación diaria; Diario o libro donde se registran eventos día por día; Libro con apartados para hacer anotaciones día por día; Diario |
+| 50 | 4319 | predict | definition | Predecir |
+| 51 | 4413 | ballot | definition | Boleta o papeleta para votar; El proceso de votación secreta; Votación; El derecho al voto |
+| 52 | 4507 | milan | definition | Milán |
+| 53 | 4607 | thanksgiving | definition | Día de Acción de Gracias, festividad nacional de Canadá y EEUU en la que se agradece a Dios por los favores recibidos, las buenas cosechas, etc. Se celebra a… |
+| 54 | 4700 | complexity | definition | Complejidad, complicación |
+| 55 | 4806 | oz | definition | Abreviatura de ounce ('onza') |
+| 56 | 4904 | vaccine | direct | Vacuna, linfa |
+| 57 | 4999 | defendant | definition | Demandado, acusado |
+| 58 | 5092 | jackie | definition | Hipocorístico de Jack o John; Hipocorístico de Jacqueline o Jacquelyn |
+| 59 | 5190 | socially | definition | Socialmente |
+| 60 | 5286 | sovereign | definition | Soberano; Una nación que gobierna un territorio más allá de sus fronteras; Una moneda de oro que se empleaba en la Gran Bretaña |
+| 61 | 5386 | cuban | definition | Originario, relativo a, o propio de Cubano |
+| 62 | 5491 | joshua | definition | Nombre de pila de varón, equivalente del español Josué |
+| 63 | 5588 | plaza | direct | Plaza, azogue, zócalo |
+| 64 | 5694 | spotlight | direct | Foco, proyector, rodal alumbrado; Enfocar |
+| 65 | 5802 | coconut | direct | Coco, laña |
+| 66 | 5918 | prospective | definition | Futuro; Eventual, posible |
+| 67 | 6018 | sunlight | definition | Sol, luz del sol |
+| 68 | 6126 | creep | definition | Arrastrarse; Reptar; Moverse sigilosamente; Trepar; Avanzar o moverse lentamente; Adular a alguien; Persona desagradable, repugnante |
+| 69 | 6241 | lego | direct | Lego |
+| 70 | 6336 | methodology | direct | Metodología |
+| 71 | 6430 | nate | definition | Hipocorístico de Nathan o Nathanael o Nathaniel |
+| 72 | 6533 | psychologist | definition | Psicólogo, sicólogo |
+| 73 | 6639 | stall | definition | Puesto, tenderete; Una acción destinada a causar, o que en realidad causa, retraso; Platea, luneta; Pérdida de sustentación debido a que se excede el ángulo… |
+| 74 | 6743 | uganda | definition | Uganda |
+| 75 | 6856 | viewer | definition | Espectador; Visor |
+| 76 | 6964 | chandler | definition | Nombre de pila de varón |
+| 77 | 7070 | challenger | direct | Desafiador, retante |
+| 78 | 7186 | contention | direct | Contienda, contención, contencioso |
+| 79 | 7300 | deluxe | direct | De lujo |
+| 80 | 7403 | boulder | definition | Peña, roca, bloque de roca |
+| 81 | 7515 | adore | definition | Adorar |
+| 82 | 7628 | validity | direct | Validez |
+| 83 | 7744 | willow | definition | Sauce |
+| 84 | 7848 | caffeine | definition | Cafeína |
+| 85 | 7953 | transmit | direct | Transmitir |
+| 86 | 8065 | suppress | direct | Suprimir |
+| 87 | 8187 | slash | direct | Barra oblicua, barra, slash; Tajear |
+| 88 | 8306 | sewer | definition | Alcantarillado, alcantarilla, cloaca; Costurero, costurera, cosedor, cosedora |
+| 89 | 8423 | shareholder | direct | Accionista, accionario |
+| 90 | 8530 | rapist | direct | Violador, violadora |
+| 91 | 8644 | perpetual | definition | Perpetuo |
+| 92 | 8748 | evidently | definition | Evidentemente |
+| 93 | 8862 | duplicate | direct | Duplicado; Duplicar, repetir; Duplicado |
+| 94 | 8972 | citrus | direct | Cítrico |
+| 95 | 9091 | combustion | definition | Combustión |
+| 96 | 9204 | asteroid | definition | Asteroide |
+| 97 | 9308 | upstream | direct | Aguas arriba, a contracorriente, río arriba; A contracorriente, río arriba |
+| 98 | 9427 | rag | definition | Harapo, andrajo, jirón; Trapo |
+| 99 | 9555 | nausea | direct | Náusea, repulsión, asco |
+| 100 | 9673 | magician | direct | Mago, fenómeno |
+
+## Known noise, for the owner's 5.1
+
+What the sample and a pass over the tables show, each with the module a fix would live in. None
+is fixed here: `read_translations`, `native_words` and `translation_gloss` in `reduce_common.py`
+are shared, so an edit there re-pins es-fr and es-en too — a decision for 5.1 or for change 38 —
+while a pass in `reduce-en-es.py` over its own tables moves en-es alone.
+
+- **The English Wiktionary's editor notes, carried into the direct table.** A translation it
+  lists with a note in parentheses keeps the note: « (disused) » 29 times (`orchestra`
+  « Orquesta, orquestra (disused) »), a pronunciation (`hall` « Pasillo, hall (hol), jol »,
+  `insider` « Insider (insáider), adentrino, adentreño »); 228 glosses carry a parenthesised
+  lower-case word. The Spanish edition's `long_parenthesis` cleans definitions, not translation
+  words. Where: `native_words` (`reduce_common.py`, shared), or a pass over the direct table in
+  `read_translated` (`reduce-en-es.py`, en-es alone).
+- **Regional and sense noise through the inverted table.** A Spanish entry that lists an English
+  word as its translation glosses that word whatever its register or sense: `second-hand`
+  « Chivera », `sup` « KLK », `la` « La, hombrecillo ». The inverted table glosses 504 lemmas,
+  73 of them among the 10,000 commonest (the sample draws none). Where: a floor on the Spanish
+  word's frequency, in `read_translated` or `by_spanish_frequency` (`reduce-en-es.py`, en-es
+  alone), or in `read_translations` (shared).
+- **Duplicated runs.** A Spanish word with several entries — `largo` adjective, noun,
+  interjection, verb — lists the same English word under each, and read backwards each entry is
+  a run: `lengthy` « Largo; Largo; Largo; Largo ». 288 glosses; es-fr's tables show 254 such
+  glosses through the same shared rule (`abridor` « Greffoir; Greffoir »), es-en's 9, en-fr's
+  none. Where: `read_translations` or `translation_gloss` (`reduce_common.py`, shared — re-pins
+  es-fr and es-en).
+- **Name notes.** 189 of the 8,495 glossed lemmas among the 10,000 commonest are glossed by a
+  surname or first-name note alone — « Apellido », « Nombre de pila de varón », « Nombre de pila
+  de mujer » (`jones`, `lee`, `harry`, `scott`) — and 341 when every sense opens on « Apellido »
+  or « Nombre » (`david`, `james`, `michael`; in the sample, `chandler`, `joshua`): the Spanish
+  Wiktionary's proper-noun entries read as definitions, which the `name` rule of the translation
+  tables (`read_translations`) does not reach. Where: a pass over the entries in
+  `reduce-en-es.py` (en-es alone), or `reduce_gloss` and the Spanish edition's rules
+  (`reduce_common.py`, `reduce_edition_es.py`, shared with es-fr).
 
 ## Its sources
 

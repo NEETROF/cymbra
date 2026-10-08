@@ -249,7 +249,7 @@ nothing of en-fr moves with it (the digest test says so against en-fr's, es-fr's
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
-| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's English entries (`kaikki-es-English.jsonl`, derived from kaikki's dump of the whole edition, `pack_sources.py DUMPS`); else the Spanish translations the English Wiktionary's English entries list (`kaikki-en-traductions-es.jsonl`, derived from kaikki's extract of that section, served uncompressed); else the English translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions-en.jsonl`, es-en's derivation run again on en-es's own snapshot of the dump) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish Wiktionary's English entries, cleaned by the Spanish edition's (`reduce_edition_es.ES`): up to eight senses grouped by part of speech, opening on a capital as the edition writes them. A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, as es-fr orders its inverted table by French frequency. A letter glosses no word in either direction (a `character` entry, a one-letter word translated as itself, « Nombre de la letra Q »). No pivot, no machine translation. Coverage below |
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's English entries (`kaikki-es-English.jsonl`, derived from kaikki's dump of the whole edition, `pack_sources.py DUMPS`); else the Spanish translations the English Wiktionary's English entries list (`kaikki-en-traductions-es.jsonl`, derived from kaikki's extract of that section, served uncompressed); else the English translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions-en.jsonl`, es-en's derivation run again on en-es's own snapshot of the dump) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish Wiktionary's English entries, cleaned by the Spanish edition's (`reduce_edition_es.ES`): up to eight senses grouped by part of speech, opening on a capital as the edition writes them. A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, as es-fr orders its inverted table by French frequency. A letter glosses no word in either direction: a single letter is glossed only by a sense that is neither the letter nor a name borrowed through it (a `character` entry, a one-letter word translated as itself or under a noun entry — the letter's name, a note, a grade —, « Nombre de la letra Q »; read backwards, no one-letter English word at all, since the entry is the Spanish word's and says nothing of the English side: the Spanish Wiktionary's `do` lists « C »). No pivot, no machine translation. Coverage below |
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; English's readings come from `tables/en/grammar.tsv` |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish Wiktionary's multi-word English entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer is empty |
 | `NOTICE` | both sides' sources | — | the studied side as en-fr's notice credits it (ESDB with its WordNet notice, wordfreq, the French Wiktionary's form links and dictionary words, CEFR-J, Octanove), and the native side (the Spanish Wiktionary's definitions and English translations, the English Wiktionary's Spanish translations). The levels are CEFR-J's and Octanove's, not estimated |
@@ -266,16 +266,16 @@ risk 5 and M6's rule) and published nowhere until the pair ships:
 | top 20,000 | 42.5 % | 71.7 % | 69.9 % | 71.9 % |
 | all 40,685 | 25.2 % | 54.0 % | — | — |
 
-21,966 lemmas are glossed: 10,247 from the Spanish Wiktionary's definitions,
-11,214 from the English Wiktionary's Spanish translations and 505 from the
+21,965 lemmas are glossed: 10,247 from the Spanish Wiktionary's definitions,
+11,214 from the English Wiktionary's Spanish translations and 504 from the
 Spanish Wiktionary's English translations read backwards. **The translation-table share** (D4): of
-the 8,496 glossed lemmas among the 10,000 commonest, 26.0 % come from a translation
-table rather than from a definition (2,135 direct, 74 inverted) — the reducer
+the 8,495 glossed lemmas among the 10,000 commonest, 26.0 % come from a translation
+table rather than from a definition (2,135 direct, 73 inverted) — the reducer
 measures it into `work/en-es/measures.json`, stored in no pack, and `pack_report.py --measures`
 shows it beside the coverage in the update's summary. 2,501 glossed lemmas are no
-dictionary word of English and 5,334 dictionary words have no Spanish gloss, so
+dictionary word of English and 5,335 dictionary words have no Spanish gloss, so
 the pack carries a lexical section: its dictionary words are en-fr's. There are 17,096
-expressions. The pack is 1,691,073 B. A sample of 100 glosses, marked by source, is in
+expressions. The pack is 1,690,595 B. A sample of 100 glosses, marked by source, is in
 `tables/en-es/README.md`.
 
 **A pair whose sources are dumps alone** (D2). en-es has no `KAIKKI` entry and its pin no

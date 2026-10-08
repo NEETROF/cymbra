@@ -853,6 +853,14 @@ PERRO_LISTS_DOG = {"word": "perro", "pos": "noun", "translations": [{"word": "do
 CAN_LISTS_DOG = {"word": "can", "pos": "noun", "translations": [{"word": "dog"}]}
 SEVILLA_LISTS = {"word": "Sevilla", "pos": "name", "translations": [{"word": "Seville"}]}
 I_LISTS_I = {"word": "i", "pos": "noun", "translations": [{"sense": "letra", "word": "i"}]}
+# Recorded: the English Wiktionary's one-letter words — the noun `i` under its Spanish name, the
+# pronoun `I`, the vocative `O` — and the Spanish Wiktionary's entries listing one English letter:
+# the note `do` (« C »: en-es's `c`, rank 376, was glossed « Do ») and the pronoun `yo`.
+I_NOUN_TRANSLATED_EN = {"word": "i", "pos": "noun", "translations": [{"word": "i"}, {"word": "i latina"}]}
+I_PRON_TRANSLATED_EN = {"word": "I", "pos": "pron", "translations": [{"word": "yo"}]}
+O_TRANSLATED_EN = {"word": "O", "pos": "particle", "translations": [{"word": "oh"}, {"word": "oy"}]}
+DO_LISTS_C = {"word": "do", "pos": "noun", "translations": [{"word": "C"}]}
+YO_LISTS_I = {"word": "yo", "pos": "pron", "translations": [{"word": "I"}]}
 
 
 class EnglishGlossedInSpanish(Entries):
@@ -966,16 +974,42 @@ class EnglishGlossedInSpanish(Entries):
         self.assertEqual(en_es.translation_share({"entries": set(), "direct": set(), "inverted": set()}, ranks)["share"], 0.0)
 
     def test_a_letter_s_translation_is_no_gloss_in_either_direction(self):
-        # The English Wiktionary's `b` lists « b »; a one-letter word translated is kept (`a` « un »).
-        src = self.jsonl(B_TRANSLATED_EN, A_TRANSLATED_EN, name="kaikki-en-traductions-es.jsonl")
-        self.assertEqual(
-            en_es.read_translated(src, str(self.dir / "direct.jsonl"), inverted=False), {"a": {"DET": ["un", "una"]}}
+        # A single letter is glossed only by a sense that is neither the letter nor a name borrowed
+        # through it. Read forwards: the English Wiktionary's `b` lists « b », and its noun `i`
+        # « i, i latina », the letter under its Spanish name — neither glosses; a one-letter word
+        # translated is kept: `a` « un, una », `I` « yo », the vocative `O` « oh, oy ».
+        src = self.jsonl(
+            B_TRANSLATED_EN,
+            A_TRANSLATED_EN,
+            I_NOUN_TRANSLATED_EN,
+            I_PRON_TRANSLATED_EN,
+            O_TRANSLATED_EN,
+            name="kaikki-en-traductions-es.jsonl",
         )
-        # The Spanish Wiktionary's `i` lists « i », read backwards: no gloss of English `i`.
-        src = self.jsonl(I_LISTS_I, PERRO_LISTS_DOG, name="kaikki-es-traductions-en.jsonl")
+        direct = en_es.read_translated(src, str(self.dir / "direct.jsonl"), inverted=False)
+        self.assertEqual(direct, {"a": {"DET": ["un", "una"]}, "i": {"PRON": ["yo"]}, "o": {"PART": ["oh", "oy"]}})
+        # Read backwards, a letter is never glossed: the Spanish Wiktionary's `i` lists « i », and
+        # its noun `do` lists « C » — recorded: `c` was glossed « Do », the note's name borrowed
+        # through the letter, since the entry is the Spanish word's and the letter test sees
+        # nothing of the English side. `yo` « I », the one word of a letter the table reaches, goes
+        # with them: the entries and the direct table gloss `I` before it is read.
+        src = self.jsonl(I_LISTS_I, PERRO_LISTS_DOG, DO_LISTS_C, YO_LISTS_I, name="kaikki-es-traductions-en.jsonl")
+        inverted = en_es.read_translated(src, str(self.dir / "inverted.jsonl"), inverted=True)
+        self.assertEqual(inverted, {"dog": {"NOUN": ["perro"]}})
+        glossed = common.fallback_glosses({"c", "dog", "i", "o"}, {}, [(direct, list), (inverted, list)], edition=ES)
         self.assertEqual(
-            en_es.read_translated(src, str(self.dir / "inverted.jsonl"), inverted=True), {"dog": {"NOUN": ["perro"]}}
+            glossed, {"dog": ("Perro", [("NOUN", 1)]), "i": ("Yo", [("PRON", 1)]), "o": ("Oh, oy", [("PART", 1)])}
         )
+        # On the committed tables: a one-letter lemma's gloss is neither the letter nor its name.
+        committed = Path(_HERE, "tables", "en-es", "gloss.tsv")
+        if committed.is_file():
+            for line in committed.read_text(encoding="utf-8").splitlines():
+                lemma, _, gloss = line.partition("\t")
+                if len(lemma) != 1:
+                    continue
+                for sense in gloss.split("; "):
+                    self.assertNotEqual(sense.strip().lower(), lemma, f"{lemma!r} glossed by itself")
+                    self.assertNotIn("letra", sense.lower(), f"{lemma!r} glossed as a letter: {gloss!r}")
 
     def test_en_es_s_copy_of_english_is_en_fr_s(self):
         # reduce-en-es.py repeats en-fr's description of English (`_TOKEN`, the coordinators, the
