@@ -1,4 +1,6 @@
+import { fillPageInLanguage } from "../i18n/index.ts";
 import { SIGNIN_ERROR_KEY } from "../state/session.ts";
+import { accountCopy } from "./copy.ts";
 import { AccountFlow, type AccountView, type PendingEmailStore, viewFromHash, wantsConnected } from "./flow.ts";
 import { type AccountMessage, type AccountReply, PENDING_EMAIL_KEY, PENDING_PASSWORD_EMAIL_KEY } from "./messages.ts";
 import { type AccountActions, renderAccount } from "./view.ts";
@@ -17,8 +19,9 @@ reloadOnNativeLanguageChange(DEFAULT_INTERFACE_LANGUAGE);
 // Account page bootstrap (add-lingua-account-parity, design D1): a tab — unlike the popup
 // it survives the reader switching to their mailbox for the code. Wires the controller to
 // the background (runtime messages), chrome.storage.session (pending email only) and the
-// URL hash (so a reload resumes the same step). Excluded from coverage (DOM/Chrome wiring;
-// flow.ts and view.ts are unit-tested).
+// URL hash (so a reload resumes the same step). It speaks the interface language, read first
+// (localise-lingua-account-onboarding D1). Excluded from coverage (DOM/Chrome wiring; flow.ts and
+// view.ts are unit-tested).
 
 async function send(message: AccountMessage): Promise<AccountReply | null> {
   try {
@@ -66,7 +69,11 @@ function syncHash(view: AccountView): void {
   if (location.hash !== hash) history.replaceState(null, "", hash);
 }
 
-function main(): void {
+async function main(): Promise<void> {
+  // The interface language first, with this page's first read of its own (the colours' read and the
+  // pending e-mails' are other things): the page's static copy is filled from the catalogue and its
+  // lang said before anything shows — the body is hidden until then. A read that fails is French.
+  const { language } = await fillPageInLanguage(document, { get: (key) => chrome.storage.local.get(key) }, accountCopy);
   const root = document.getElementById("account-root");
   if (!root) return;
   // The popup's « Gérer mes données » opens #data; the hash is replaced by the view once
@@ -108,9 +115,16 @@ function main(): void {
     confirmPassword: (code) => void flow.confirmPassword(code),
   };
   const flow = new AccountFlow(
-    { send, pending, pendingPassword, locale: navigator.language || "fr", clearPersistedError },
+    {
+      send,
+      pending,
+      pendingPassword,
+      locale: navigator.language || "fr",
+      language,
+      clearPersistedError,
+    },
     (state) => {
-      renderAccount(root, state, actions);
+      renderAccount(root, state, actions, language);
       syncHash(state.view);
     },
   );
@@ -131,4 +145,4 @@ function main(): void {
     });
 }
 
-main();
+void main();

@@ -1,6 +1,7 @@
+import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
 import type { AuthErrorKind } from "../state/auth-errors.ts";
 import type { Provider, Providers } from "../state/oidc.ts";
-import { errorCopy, type FlowContext } from "./copy.ts";
+import { type AccountCopy, accountCopy, errorCopy, type FlowContext } from "./copy.ts";
 import { type HandleStatus, isValidHandle, localHandleStatus } from "./handle.ts";
 import type { AccountMessage, AccountReply, LinkedIdentity } from "./messages.ts";
 
@@ -9,7 +10,8 @@ import type { AccountMessage, AccountReply, LinkedIdentity } from "./messages.ts
 // handle-less account goes through after signing in (design D9). It holds the view state
 // and, for the verification step only, the password in MEMORY (design D6) — the one thing
 // persisted is the pending email (chrome.storage.session), so a reloaded page resumes on
-// the code step. All calls go to the background; the DOM is rendered by view.ts.
+// the code step. All calls go to the background; the DOM is rendered by view.ts. Its notices and
+// errors are worded in the interface language it is given (localise-lingua-account-onboarding D3).
 
 export type AccountView = "signin" | "signup" | "verify" | "forgot" | "reset" | "handle" | "signedin" | "connected";
 
@@ -58,6 +60,8 @@ export interface AccountFlowDeps {
   pendingPassword: PendingEmailStore;
   /** The browser UI language, so verification/reset emails match the reader. */
   locale: string;
+  /** The interface language the notices and the errors are worded in; French when not given. */
+  language?: InterfaceLanguage;
   /** Drop the background's persisted provider failure once it was shown live. */
   clearPersistedError: () => Promise<void>;
 }
@@ -74,9 +78,6 @@ export function deleteAccountUrl(locale: string): string {
     : "https://cymbra.app/en/delete-account/";
 }
 
-const ERASED_NOTICE =
-  "Tes données Lingua sont effacées. Tes autres appareils les effaceront à leur prochaine synchronisation.";
-
 /** Whether a `#hash` asks for the connected accounts (signed in only). */
 export function wantsConnected(hash: string): boolean {
   return hash.replace(/^#/, "").split("?")[0] === "connected";
@@ -88,11 +89,12 @@ export function viewFromHash(hash: string): AccountView {
   return NAVIGABLE.includes(name) ? name : "signin";
 }
 
-/** How the page names a sign-in method. */
-export function providerName(provider: string): string {
-  if (provider === "google") return "Google";
-  if (provider === "apple") return "Apple";
-  if (provider === "local") return "Email et mot de passe";
+/** How the page names a sign-in method, in the interface language. */
+export function providerName(provider: string, language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE): string {
+  const c = accountCopy(language);
+  if (provider === "google") return c.providerGoogle;
+  if (provider === "apple") return c.providerApple;
+  if (provider === "local") return c.providerLocal;
   return provider;
 }
 
@@ -101,6 +103,9 @@ export class AccountFlow {
   private password: string | null = null;
   /** Bumped on every handle edit, so a slower availability answer never overwrites a newer one. */
   private checkSeq = 0;
+  /** The interface language, and the copy the notices and the errors are worded in. */
+  private readonly language: InterfaceLanguage;
+  private readonly copy: AccountCopy;
   private s: AccountViewState = {
     view: "signin",
     email: "",
@@ -125,6 +130,8 @@ export class AccountFlow {
     private readonly deps: AccountFlowDeps,
     private readonly onChange: (state: AccountViewState) => void = () => {},
   ) {
+    this.language = deps.language ?? DEFAULT_INTERFACE_LANGUAGE;
+    this.copy = accountCopy(this.language);
     this.s.deleteAccountUrl = deleteAccountUrl(deps.locale);
   }
 
@@ -180,7 +187,7 @@ export class AccountFlow {
         view: "verify",
         error: null,
         errorKind: null,
-        notice: "Ton adresse email n'est pas encore vérifiée. Saisis le code reçu par email.",
+        notice: this.copy.verifyFirst,
       });
     }
     return this.view();
@@ -194,7 +201,7 @@ export class AccountFlow {
     if (!reply?.ok) return this.view();
     this.password = password;
     await this.deps.pending.set(email);
-    return this.set({ view: "verify", notice: `Un code de vérification a été envoyé à ${email}.` });
+    return this.set({ view: "verify", notice: this.copy.codeSent(email) });
   }
 
   async verify(code: string): Promise<AccountViewState> {
@@ -207,11 +214,11 @@ export class AccountFlow {
     this.password = null;
     if (password == null) {
       // Reloaded since sign-up: the password is gone, so the reader signs in once more.
-      return this.set({ view: "signin", notice: "Adresse vérifiée. Connecte-toi." });
+      return this.set({ view: "signin", notice: this.copy.verifiedSignIn });
     }
     const signIn = await this.run("signInEmail", { type: "account:signInLocal", email: this.s.email, password });
-    if (signIn?.ok) return this.resolveProfile("Adresse vérifiée, tu es connecté.");
-    return this.set({ view: "signin", notice: "Adresse vérifiée." });
+    if (signIn?.ok) return this.resolveProfile(this.copy.verifiedSignedIn);
+    return this.set({ view: "signin", notice: this.copy.verified });
   }
 
   async resend(): Promise<AccountViewState> {
@@ -221,7 +228,7 @@ export class AccountFlow {
       email: this.s.email,
       locale: this.deps.locale,
     });
-    return reply?.ok ? this.set({ notice: "Un nouveau code a été envoyé." }) : this.view();
+    return reply?.ok ? this.set({ notice: this.copy.newCodeSent }) : this.view();
   }
 
   async requestReset(email: string): Promise<AccountViewState> {
@@ -235,10 +242,7 @@ export class AccountFlow {
     });
     if (!reply?.ok) return this.view();
     // Identical whether or not the account exists (no enumeration).
-    return this.set({
-      view: "reset",
-      notice: `Si un compte existe pour ${email}, un code vient d'y être envoyé.`,
-    });
+    return this.set({ view: "reset", notice: this.copy.resetCodeSent(email) });
   }
 
   async resetPassword(code: string, newPassword: string): Promise<AccountViewState> {
@@ -246,7 +250,7 @@ export class AccountFlow {
     if (!code || !newPassword) return this.view();
     const reply = await this.run("reset", { type: "account:resetPassword", code, newPassword });
     if (!reply?.ok) return this.view();
-    return this.set({ view: "signin", notice: "Mot de passe modifié. Connecte-toi avec le nouveau." });
+    return this.set({ view: "signin", notice: this.copy.passwordChanged });
   }
 
   async signInWith(provider: Provider): Promise<AccountViewState> {
@@ -255,8 +259,7 @@ export class AccountFlow {
     const reply = await this.run(context, { type });
     if (reply?.ok) return this.resolveProfile(null);
     // Safari: the host app shows the provider's sheet; the page collects the token on return.
-    if (reply?.handedOff)
-      return this.set({ notice: "Termine la connexion dans l'app Cymbra Lingua, puis reviens ici." });
+    if (reply?.handedOff) return this.set({ notice: this.copy.finishInApp });
     // Shown live here, so the background's persisted copy must not re-show in the popup.
     if (reply && !reply.cancelled) await this.deps.clearPersistedError();
     return this.view();
@@ -316,7 +319,7 @@ export class AccountFlow {
     });
     if (!reply?.ok) return this.view(); // a cancel says nothing; a failure is already shown
     await this.loadIdentities();
-    return this.set({ notice: `${providerName(provider)} est lié à ton compte.` });
+    return this.set({ notice: this.copy.linked(providerName(provider, this.language)) });
   }
 
   askRemove(identity: LinkedIdentity): AccountViewState {
@@ -338,7 +341,7 @@ export class AccountFlow {
     this.s.removing = null;
     if (!reply?.ok) return this.set({});
     await this.loadIdentities();
-    return this.set({ notice: `Méthode retirée : ${providerName(target.provider)}.` });
+    return this.set({ notice: this.copy.methodRemoved(providerName(target.provider, this.language)) });
   }
 
   showPasswordForm(): AccountViewState {
@@ -370,7 +373,7 @@ export class AccountFlow {
     });
     if (!reply?.ok) return this.view();
     await this.deps.pendingPassword.set(email);
-    return this.set({ passwordStep: "code", notice: `Un code de vérification a été envoyé à ${email}.` });
+    return this.set({ passwordStep: "code", notice: this.copy.codeSent(email) });
   }
 
   /** The emailed code binds the password; the reader stays signed in. */
@@ -383,9 +386,7 @@ export class AccountFlow {
     const email = this.s.passwordEmail;
     this.set({ passwordStep: "closed" });
     await this.loadIdentities();
-    return this.set({
-      notice: `Mot de passe défini : tu peux aussi te connecter avec ${email}, sur tous tes navigateurs.`,
-    });
+    return this.set({ notice: this.copy.passwordSet(email) });
   }
 
   /** « Effacer mes données Lingua » asks for an explicit confirmation first. */
@@ -401,7 +402,7 @@ export class AccountFlow {
   async eraseLinguaData(): Promise<AccountViewState> {
     if (!this.s.confirmingErase) return this.view();
     const reply = await this.run("eraseData", { type: "account:eraseLinguaData" });
-    if (reply?.ok) return this.set({ confirmingErase: false, notice: ERASED_NOTICE });
+    if (reply?.ok) return this.set({ confirmingErase: false, notice: this.copy.erased });
     return this.set({ confirmingErase: false });
   }
 
@@ -434,7 +435,7 @@ export class AccountFlow {
         handle: saved,
         candidate: "",
         handleStatus: "empty",
-        notice: `C'est noté : ton pseudo est @${saved}.`,
+        notice: this.copy.handleSaved(saved),
       });
     }
     if (reply?.error === "alreadyExists" || reply?.error === "conflict") return this.set({ handleStatus: "taken" });
@@ -451,7 +452,7 @@ export class AccountFlow {
       handleStatus: "empty",
       error: null,
       errorKind: null,
-      notice: "Tu es déconnecté. Connecte-toi avec un autre compte ou crée-en un.",
+      notice: this.copy.signedOut,
     });
   }
 
@@ -498,7 +499,7 @@ export class AccountFlow {
   }
 
   private fail(context: FlowContext, kind: AuthErrorKind): void {
-    this.set({ error: errorCopy(context, kind), errorKind: kind, notice: null });
+    this.set({ error: errorCopy(context, kind, this.language), errorKind: kind, notice: null });
   }
 
   private set(patch: Partial<AccountViewState>): AccountViewState {
