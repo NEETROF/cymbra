@@ -1,0 +1,6 @@
+Cymbra Lingua data pack — attributions (test fixture).
+
+Cymbra Lingua test fixture: every table of this fr-en pack (forms, ranks, glosses,
+expressions, levels) is hand-written for the French invariance baseline
+(add-lingua-french-baseline). No third-party data. The ranks and the levels are a
+fixture's, so that every probe answers: they decide nothing.

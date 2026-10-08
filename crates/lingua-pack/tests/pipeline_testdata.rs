@@ -21,6 +21,7 @@
 use std::path::PathBuf;
 
 use lingua_core::analysis::ANALYZER_VERSION;
+use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lexicon::Lexicon;
 use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
@@ -64,8 +65,9 @@ fn pipeline_output_round_trips_through_the_reader() {
 #[test]
 fn every_testdata_fixture_builds_and_names_its_pair() {
     // The tiny fixtures, one folder per pair (`build.sh --testdata`): es-fr's, and es-en's
-    // (add-lingua-pack-es-en D6), which `gen:pack` builds once the pair ships. Each builds
-    // under budget and names its pair; a Spanish one studies with es's analyser.
+    // (add-lingua-pack-es-en D6), which `gen:pack` builds once the pair ships, and fr-en's, the
+    // French baseline's (add-lingua-french-baseline D5). Each builds under budget and names its
+    // pair; each studies with its own language's analyser.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     let mut pairs: Vec<String> = std::fs::read_dir(&root)
         .unwrap()
@@ -83,10 +85,10 @@ fn every_testdata_fixture_builds_and_names_its_pair() {
             (studied, native),
             "{pair}"
         );
-        inputs.meta.analyzer_version = match studied {
-            "es" => lingua_core::analysis::SPANISH_ANALYZER_VERSION.to_owned(),
-            _ => ANALYZER_VERSION.to_owned(),
-        };
+        inputs.meta.analyzer_version = StudiedLanguage::from_tag(studied)
+            .unwrap_or_else(|| panic!("{pair} studies a language the core analyses"))
+            .analyzer_version()
+            .to_owned();
         let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build {pair}: {e}"));
         assert!(bytes.len() < MAX_PACK_BYTES, "{pair}");
         let pack = Pack::load(&bytes).unwrap_or_else(|e| panic!("load {pair}: {e}"));
@@ -96,6 +98,33 @@ fn every_testdata_fixture_builds_and_names_its_pair() {
             "{pair} glosses casa"
         );
     }
+}
+
+#[test]
+fn the_french_fixture_studies_french_at_its_baseline_version() {
+    // add-lingua-french-baseline D5: hand-written tables, stamped with French's analyser version
+    // as committed (not re-stamped here), glossed in English, no grammar and no senses.
+    let dir = testdata_dir().parent().unwrap().join("fr-en");
+    let inputs = inputs_from_dir(&dir).expect("read the fr-en fixture");
+    assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
+    assert!(
+        !inputs.meta.levels_estimated,
+        "a fixture's levels decide nothing"
+    );
+    assert!(inputs.meta.pack_version.contains("fixture"));
+    let bytes = build_pack(&inputs).expect("build");
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    let pack = Pack::load(&bytes).expect("the core loads it at French's version");
+    assert_eq!(pack.studied(), StudiedLanguage::French);
+    assert_eq!(pack.meta().analyzer_version, "0.1.0");
+    assert_eq!(pack.meta().pair_key(), "fr-en");
+    // The single-letter words the tokeniser keeps only when the lexicon lists them.
+    for single in ["a", "à", "y"] {
+        assert!(pack.lexicon().contains(single), "{single:?}");
+    }
+    assert_eq!(pack.lexicon().lemma_of("est"), Some("être"));
+    assert_eq!(pack.gloss("maison"), Some("house, home"));
+    assert!(pack.notice().contains("hand-written"));
 }
 
 #[test]

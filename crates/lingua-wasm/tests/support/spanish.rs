@@ -15,7 +15,7 @@
 //! The Spanish invariance baseline's scenario (`spanish_baseline.rs`): its corpus, probes and
 //! reader, shared with the cross-native invariance test (`cross_native.rs`).
 
-use super::{Card, Scenario};
+use super::{Card, PackSource, Scenario};
 
 /// Dictionary forms whose gloss the card shows: irregular verbs, homographs, apocopes,
 /// function words, words from the corpus. Some have none in the pack, on purpose.
@@ -103,6 +103,7 @@ const PAGE_NAMES: &[&str] = &[
 
 pub const SPANISH: Scenario = Scenario {
     pair: "es-fr",
+    pack: PackSource::Tables,
     beside: &["en-fr"],
     test: "spanish_baseline",
     pages: "pages-es.txt",

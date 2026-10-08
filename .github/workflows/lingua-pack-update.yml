@@ -272,7 +272,9 @@ jobs:
           # what the update changes in English and Spanish output. All three, whatever the pair:
           # the Spanish ladder borrows English's figures from the en-fr pack, and es-en's golden
           # moves with es-fr's studied tables (change 23). Once, whatever the pairs.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline
+          # The French one too: its engine holds the real es-en pack beside the fr-en fixture
+          # (add-lingua-french-baseline D5), so an es-en update moves its `beside es-en` line.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test french_baseline
           # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4): the
           # English card's lines over the es-en golden's grammar probes, and the selection card's
           # rows over the committed French glosses. `-u` after the files: vitest's `-u, --update
