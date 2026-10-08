@@ -1,4 +1,5 @@
 schema: spec-driven
 created: 2026-10-08
 archiveAfter:
+  - enable-lingua-spanish
   - enable-lingua-english-speakers
