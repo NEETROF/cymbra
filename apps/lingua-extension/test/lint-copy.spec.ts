@@ -39,8 +39,6 @@ export const BASELINE = [
   "src/onboarding/level-row.ts",
   "src/onboarding/onboarding.html",
   "src/reading/grammar-labels.ts",
-  "src/review/review-page.ts",
-  "src/review/view.ts",
   "src/stats/ladder.ts",
   "src/stats/stats.html",
   "src/stats/view.ts",
