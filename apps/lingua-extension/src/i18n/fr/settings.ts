@@ -1,6 +1,6 @@
-// Réglages' copy (reading/settings-view.ts and reading/studied-languages-view.ts), in French — the
-// source module (add-lingua-interface-language). The level, colour, display, translation and
-// account blocks have modules of their own.
+// Réglages' copy (reading/settings-view.ts, reading/studied-languages-view.ts and a voice's label,
+// reading/speech.ts), in French — the source module (add-lingua-interface-language). The level,
+// colour, display, translation and account blocks have modules of their own.
 
 export const settings = {
   /** `windowsLanguage` and `language` come from `languages` (« Anglais (États-Unis) », « Anglais »). */
@@ -77,6 +77,8 @@ export const settings = {
   automaticVoice: (name: string) => `Automatique (${name})`,
   automatic: "Automatique",
   otherVoices: "Autres voix",
+  /** A voice as the list names it: its name, then its region (`regionName`) — « Samantha — États-Unis ». */
+  voiceLabel: (name: string, place: string) => `${name} — ${place}`,
   syncing: "Synchronisation…",
   restarting: "Reprise depuis le serveur…",
   restarted: "Repris depuis le serveur.",

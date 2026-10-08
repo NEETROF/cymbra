@@ -73,6 +73,8 @@ export const settings: typeof fr = {
   automaticVoice: (name) => `Automática (${name})`,
   automatic: "Automática",
   otherVoices: "Otras voces",
+  // Two names, not two clauses: the dash stays, as in a title (src/i18n/README.md › Spanish).
+  voiceLabel: (name, place) => `${name} — ${place}`,
   syncing: "Sincronizando…",
   restarting: "Empezando de nuevo desde el servidor…",
   restarted: "Datos recuperados del servidor.",

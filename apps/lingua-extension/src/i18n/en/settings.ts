@@ -73,6 +73,7 @@ export const settings: typeof fr = {
   automaticVoice: (name) => `Automatic (${name})`,
   automatic: "Automatic",
   otherVoices: "Other voices",
+  voiceLabel: (name, place) => `${name} — ${place}`,
   syncing: "Syncing…",
   restarting: "Starting over from the server…",
   restarted: "Started over from the server.",
