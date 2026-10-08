@@ -173,6 +173,8 @@ export class Drawer {
         persist: this.opts.onChange,
         store: this.opts.store,
         speaker: this.opts.speaker,
+        // The language the reading session handed the drawer (localise-lingua-settings D1).
+        interfaceLanguage: this.opts.language,
       });
       await this.settings.refresh();
     }

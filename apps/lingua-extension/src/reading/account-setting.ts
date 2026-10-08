@@ -1,8 +1,10 @@
 import { errorCopy } from "../account/copy.ts";
 import { type AccountReply, type AccountState, PENDING_EMAIL_KEY } from "../account/messages.ts";
+import { accountSetting as frAccountSetting } from "../i18n/fr/account-setting.ts";
 import type { OpenPage } from "../state/open-page.ts";
 import type { Provider, Providers } from "../state/oidc.ts";
 import { isPersistedSignInError, type PersistedSignInError, SIGNIN_ERROR_KEY } from "../state/session.ts";
+import type { AccountSettingCopy } from "./settings-copy.ts";
 
 // « Compte » in Réglages › Données: sign in, see the account, sign out — in every host that
 // renders Réglages (the popup, the side panel, the in-page drawer), which is why it moved here
@@ -13,6 +15,10 @@ import { isPersistedSignInError, type PersistedSignInError, SIGNIN_ERROR_KEY } f
 // steps that need a page of their own — creating an account, a forgotten password, the email
 // code, the handle — open the account page, a tab that survives the reader leaving for their
 // mailbox. The password never leaves this block; for the code step only the email goes across.
+//
+// Its copy is the catalogue's `account-setting` module, handed by the settings view in the interface
+// language (localise-lingua-settings); the sign-in errors it shows are the account page's
+// (`errorCopy`), which localise-lingua-account-onboarding moves.
 
 /** What the block needs from the background. A test hands in a fake. */
 export interface AccountControls {
@@ -88,6 +94,8 @@ export interface AccountSettingOptions {
   onChange: () => Promise<void> | void;
   /** Safari: the sign-in went on in the host app (the popup closes, the next open collects it). */
   onHandedOff?: () => void;
+  /** The block's copy in the interface language; the French module when not given. */
+  copy?: AccountSettingCopy;
 }
 
 export interface AccountSettingView {
@@ -95,24 +103,8 @@ export interface AccountSettingView {
   refresh(): Promise<void>;
 }
 
-export const ACCOUNT_COPY = {
-  invite: "Connecte-toi pour synchroniser ton deck et tes mots entre appareils.",
-  google: "Continuer avec Google",
-  apple: "Continuer avec Apple",
-  local: "Email et mot de passe",
-  signIn: "Se connecter",
-  forgot: "Mot de passe oublié ?",
-  signUp: "Créer un compte",
-  signedIn: "Connecté",
-  handleMissing: "Pseudo à choisir",
-  handleCta: "Choisis ton pseudo pour garder ce compte.",
-  handleOpen: "Choisir mon pseudo",
-  connected: "Comptes connectés",
-  // add-lingua-connected-accounts D7: shown where Google or Apple is not offered.
-  providerHint:
-    "Compte créé avec Google ou Apple ? Ici, connecte-toi par email une fois un mot de passe défini dans « Comptes connectés », depuis un navigateur qui propose Google ou Apple, ou dans Cymbra Music. Créer un compte avec la même adresse en ferait un second.",
-  signOut: "Se déconnecter",
-} as const;
+/** The block's French copy, the catalogue's module: what it shows when mounted without a language. */
+export const ACCOUNT_COPY: AccountSettingCopy = frAccountSetting;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   doc: Document,
@@ -133,6 +125,7 @@ export function mountAccountSetting(
   opts: AccountSettingOptions,
 ): AccountSettingView {
   const doc = block.ownerDocument;
+  const copy = opts.copy ?? ACCOUNT_COPY;
   const button = (className: string, text: string): HTMLButtonElement => {
     const b = el(doc, "button", className, text);
     b.type = "button";
@@ -142,30 +135,31 @@ export function mountAccountSetting(
   // — Signed out —
   const out = el(doc, "div", "set-account");
   out.hidden = true;
-  const google = button("set-primary", ACCOUNT_COPY.google);
-  const apple = button("set-primary", ACCOUNT_COPY.apple);
+  const google = button("set-primary", copy.google);
+  const apple = button("set-primary", copy.apple);
   google.hidden = true;
   apple.hidden = true;
   const local = el(doc, "details", "set-account-local");
   const email = el(doc, "input");
   email.type = "email";
-  email.placeholder = "Email";
+  email.placeholder = copy.email;
   email.autocomplete = "username";
-  email.setAttribute("aria-label", "Email");
+  email.setAttribute("aria-label", copy.email);
   const password = el(doc, "input");
   password.type = "password";
-  password.placeholder = "Mot de passe";
+  password.placeholder = copy.password;
   password.autocomplete = "current-password";
-  password.setAttribute("aria-label", "Mot de passe");
-  const signIn = button("set-reset", ACCOUNT_COPY.signIn);
-  const forgot = button("linklike", ACCOUNT_COPY.forgot);
-  local.append(el(doc, "summary", undefined, ACCOUNT_COPY.local), email, password, signIn, forgot);
-  const signUp = button("linklike", ACCOUNT_COPY.signUp);
+  password.setAttribute("aria-label", copy.password);
+  const signIn = button("set-reset", copy.signIn);
+  const forgot = button("linklike", copy.forgot);
+  local.append(el(doc, "summary", undefined, copy.local), email, password, signIn, forgot);
+  const signUp = button("linklike", copy.signUp);
   const error = el(doc, "div", "set-warn");
   error.hidden = true;
-  const providerHint = el(doc, "div", "set-note", ACCOUNT_COPY.providerHint);
+  // add-lingua-connected-accounts D7: shown where Google or Apple is not offered.
+  const providerHint = el(doc, "div", "set-note", copy.providerHint);
   providerHint.hidden = true;
-  out.append(el(doc, "div", "set-note", ACCOUNT_COPY.invite), google, apple, local, providerHint, signUp, error);
+  out.append(el(doc, "div", "set-note", copy.invite), google, apple, local, providerHint, signUp, error);
 
   // — Signed in —
   const inside = el(doc, "div", "set-account");
@@ -175,11 +169,11 @@ export function mountAccountSetting(
   row.append(who);
   const handleCta = el(doc, "div");
   handleCta.hidden = true;
-  const handleOpen = button("set-primary", ACCOUNT_COPY.handleOpen);
-  handleCta.append(el(doc, "div", "set-note", ACCOUNT_COPY.handleCta), handleOpen);
-  const signOut = button("set-reset", ACCOUNT_COPY.signOut);
+  const handleOpen = button("set-primary", copy.handleOpen);
+  handleCta.append(el(doc, "div", "set-note", copy.handleCta), handleOpen);
+  const signOut = button("set-reset", copy.signOut);
   // The methods linked to the account: on the account page, which survives the mailbox (D1).
-  const connected = button("linklike", ACCOUNT_COPY.connected);
+  const connected = button("linklike", copy.connected);
   inside.append(row, handleCta, connected, signOut);
 
   block.append(out, inside);
@@ -237,7 +231,7 @@ export function mountAccountSetting(
     if (signedIn) {
       error.hidden = true;
       const handle = await controls.handle();
-      who.textContent = handle ? `@${handle}` : handle === null ? ACCOUNT_COPY.handleMissing : ACCOUNT_COPY.signedIn;
+      who.textContent = handle ? copy.handle(handle) : handle === null ? copy.handleMissing : copy.signedIn;
       handleCta.hidden = handle !== null;
       return;
     }

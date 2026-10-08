@@ -4,7 +4,7 @@ import type { StudiedLanguage } from "../analyzer/types.ts";
 import { sidepanel as enSidepanel } from "../i18n/en/sidepanel.ts";
 import { sidepanel as esSidepanel } from "../i18n/es/sidepanel.ts";
 import { sidepanel as frSidepanel } from "../i18n/fr/sidepanel.ts";
-import { fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountSettings, type SettingsView } from "../reading/settings-view.ts";
 import { browserSpeechEngine, createSpeaker } from "../reading/speech.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
@@ -97,6 +97,8 @@ type PanelView = "review" | "stats" | "settings";
 let review: ReviewPage | null = null;
 let settings: SettingsView | null = null;
 let current: PanelView = "review";
+/** The interface language, read first; Réglages speak it (localise-lingua-settings D1). */
+let interfaceLang: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE;
 
 /** Switch views; each is (re)mounted/refreshed on show so it reflects the current state. */
 async function showView(view: PanelView): Promise<void> {
@@ -113,7 +115,12 @@ async function showView(view: PanelView): Promise<void> {
   } else if (view === "stats") {
     await mountStats($("view-stats"), port, store);
   } else {
-    settings ??= mountSettings($("view-settings"), port, area, { persist, store, speaker });
+    settings ??= mountSettings($("view-settings"), port, area, {
+      persist,
+      store,
+      speaker,
+      interfaceLanguage: interfaceLang,
+    });
     await settings.refresh();
   }
 }
@@ -121,8 +128,8 @@ async function showView(view: PanelView): Promise<void> {
 async function main(): Promise<void> {
   // The interface language first, with this page's first storage read: the page's static copy is
   // filled from the catalogue before anything shows (the body is hidden until then — D2). A read
-  // that fails is French: the page shows.
-  await fillPageInLanguage(document, area, (l) => SIDEPANEL_COPY[l]);
+  // that fails is French: the page shows. Réglages is mounted in the same language.
+  interfaceLang = (await fillPageInLanguage(document, area, (l) => SIDEPANEL_COPY[l])).language;
 
   await hydrateEngine(port, store);
   language = await readingLanguage(port);

@@ -431,7 +431,8 @@ export class ReaderApp {
     );
     this.tocPanel.hidden = true;
     this.displayPanel.hidden = true;
-    this.displayView = mountBookDisplay(this.displayPanel, this.deps.displayArea);
+    // The "Aa" panel is Réglages' Affichage block: in the page's language (localise-lingua-settings).
+    this.displayView = mountBookDisplay(this.displayPanel, this.deps.displayArea, { language: this.language });
     // A tap on the page's margins lands in this document, not in the section's: same zones.
     this.bookHost.addEventListener("click", (e) => this.turnByZone(e.clientX));
     // The book, and the panels laid over it: they start under the bar, however many rows it takes.

@@ -2,6 +2,8 @@ import { languageName } from "../analyzer/language-labels.ts";
 import { DEFAULT_NATIVE, pairsOf, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
+import { settings as frSettings } from "../i18n/fr/settings.ts";
+import type { SettingsModule } from "./settings-copy.ts";
 
 // « Langues étudiées » (add-lingua-language-choice D2): a box per language the package ships, ticked
 // when the reader studies it. Ticking appends a language, unticking removes one, and the only ticked
@@ -10,7 +12,9 @@ import type { StudiedLanguage } from "../analyzer/types.ts";
 // listed, and is kept. With one shipped language there is nothing to choose: the block hides.
 // The languages offered are those of the pairs glossed in the reader's native language
 // (generalise-lingua-native-language D7): French until the port says otherwise, so a reader of
-// French sees the boxes from the start, as before.
+// French sees the boxes from the start, as before. Its two notes are Réglages' `settings` module's,
+// handed by the settings view in the interface language (localise-lingua-settings); the onboarding
+// page mounts it without one, in French.
 
 export interface StudiedLanguagesView {
   /** Show the stored choice (it may have changed in another context). */
@@ -22,12 +26,16 @@ export function shippedLanguages(pairs: readonly string[] = SHIPPED_PAIRS): Stud
   return [...new Set(pairs.map((pair) => pair.split("-")[0] as StudiedLanguage))];
 }
 
-/** Render the boxes into `block`, a settings block; `persist` saves the backup after a change. */
+/**
+ * Render the boxes into `block`, a settings block; `persist` saves the backup after a change; `copy`
+ * is Réglages' module in the interface language, the French one when not given.
+ */
 export function mountStudiedLanguages(
   block: HTMLElement,
   port: Pick<LinguaPort, "studiedLanguages" | "setStudiedLanguages" | "nativeLanguage">,
   persist: () => Promise<void>,
   pairs: readonly string[] = SHIPPED_PAIRS,
+  copy: SettingsModule = frSettings,
 ): StudiedLanguagesView {
   const doc = block.ownerDocument;
   const row = doc.createElement("div");
@@ -60,12 +68,11 @@ export function mountStudiedLanguages(
   offerFor(DEFAULT_NATIVE);
   const note = doc.createElement("div");
   note.className = "set-note";
-  note.textContent =
-    "Chaque page est lue dans celle de tes langues qu'elle contient. La première cochée sert aux réglages et aux statistiques par défaut.";
+  note.textContent = copy.studiedNote;
   // The owner's word to readers (enable-lingua-spanish D6): « pour l'instant », never « bêta ».
   const offer = doc.createElement("div");
   offer.className = "set-note";
-  offer.textContent = "Plusieurs langues à la fois : gratuit pour l'instant.";
+  offer.textContent = copy.severalLanguagesOffer;
   block.append(row, note, offer);
 
   let studied: StudiedLanguage[] = [];

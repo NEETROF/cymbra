@@ -1,3 +1,5 @@
+import { colours as frColours } from "../i18n/fr/colours.ts";
+import { fillSlots, slot } from "../i18n/index.ts";
 import {
   type AsyncStorageArea,
   type ColourPreference,
@@ -15,13 +17,15 @@ import {
   type UnderlineThickness,
 } from "../state/storage.ts";
 import { coloursFor, indistinct, type MarkedStatus, statusStyle, type TokenReader, tokensOf } from "./colours.ts";
+import type { ColoursCopy } from "./settings-copy.ts";
 
 // The Couleurs block of Réglages (add-lingua-colour-settings D5): a preset, or every colour by
 // hand — how unknown and learning words are marked, and the reader's paper and dark pages.
 // One builder, mounted by the one settings builder, so it is the same in the popup, the side
 // panel, the reader's drawer and the Safari app. Editing anything while a preset is on screen
 // starts from that preset and stores the result as the reader's own set. The preference is
-// saved; every read page and open book follows it through storage.
+// saved; every read page and open book follows it through storage. Its copy is the catalogue's
+// `colours` module, handed by the settings view in the interface language (localise-lingua-settings).
 
 export interface ColourSettingsView {
   /** Show the stored choice (it may have changed in another surface). */
@@ -31,31 +35,12 @@ export interface ColourSettingsView {
 export interface ColourSettingsOptions {
   /** Where preset colours are read; default: the tokens the block itself inherits. */
   read?: TokenReader;
+  /** The block's copy in the interface language; the French module when not given. */
+  copy?: ColoursCopy;
 }
 
-const PRESET_LABELS: { preset: ColourPresetId | "custom"; text: string }[] = [
-  { preset: "cymbra", text: "Cymbra" },
-  { preset: "eink-mono", text: "E-ink contrasté" },
-  { preset: "eink-colour", text: "E-ink couleur" },
-  { preset: "custom", text: "Perso" },
-];
-
-const INTENSITY_LABELS: Record<FillIntensity, string> = { none: "Aucun", light: "Léger", strong: "Fort" };
-const STYLE_LABELS: Record<UnderlineStyle, string> = {
-  solid: "Plein",
-  dotted: "Pointillé",
-  dashed: "Tirets",
-  wavy: "Ondulé",
-  double: "Double",
-  none: "Aucun",
-};
-const THICKNESS_LABELS: Record<UnderlineThickness, string> = { thin: "Fin", thick: "Épais" };
-
-const STATUS_LABELS: Record<MarkedStatus, string> = { unknown: "Mots inconnus", learning: "Mots en cours" };
-
-/** The warning shown when the two statuses would look alike without colour. */
-export const INDISTINCT_WARNING =
-  "Les mots inconnus et les mots en cours ont le même soulignement : sur un écran noir et blanc, ils se ressembleront.";
+/** The warning shown when the two statuses would look alike without colour, in French. */
+export const INDISTINCT_WARNING = frColours.indistinctWarning;
 
 /** Render the colour choice into `container`. */
 export function mountColourSettings(
@@ -64,7 +49,30 @@ export function mountColourSettings(
   opts: ColourSettingsOptions = {},
 ): ColourSettingsView {
   const doc = container.ownerDocument;
+  const copy = opts.copy ?? frColours;
   let preference: ColourPreference = DEFAULT_COLOUR_PREFERENCE;
+
+  const presetLabels: { preset: ColourPresetId | "custom"; text: string }[] = [
+    { preset: "cymbra", text: copy.presetCymbra },
+    { preset: "eink-mono", text: copy.presetEinkMono },
+    { preset: "eink-colour", text: copy.presetEinkColour },
+    { preset: "custom", text: copy.presetCustom },
+  ];
+  const intensityLabels: Record<FillIntensity, string> = {
+    none: copy.intensityNone,
+    light: copy.intensityLight,
+    strong: copy.intensityStrong,
+  };
+  const styleLabels: Record<UnderlineStyle, string> = {
+    solid: copy.styleSolid,
+    dotted: copy.styleDotted,
+    dashed: copy.styleDashed,
+    wavy: copy.styleWavy,
+    double: copy.styleDouble,
+    none: copy.styleNone,
+  };
+  const thicknessLabels: Record<UnderlineThickness, string> = { thin: copy.thicknessThin, thick: copy.thicknessThick };
+  const statusLabels: Record<MarkedStatus, string> = { unknown: copy.unknownWords, learning: copy.learningWords };
 
   function el<K extends keyof HTMLElementTagNameMap>(
     tag: K,
@@ -131,8 +139,8 @@ export function mountColourSettings(
   // — Presets —
   const presets = el("div", "set-segmented set-colour-presets");
   presets.setAttribute("role", "group");
-  presets.setAttribute("aria-label", "Jeu de couleurs");
-  const presetButtons = PRESET_LABELS.map(({ preset, text }) => {
+  presets.setAttribute("aria-label", copy.presets);
+  const presetButtons = presetLabels.map(({ preset, text }) => {
     const b = el("button", "set-segment", text);
     b.type = "button";
     b.addEventListener("click", () => {
@@ -145,10 +153,11 @@ export function mountColourSettings(
 
   // — Preview: painted with the same values as the sheet, without the highlight registry —
   const preview = el("p", "set-colour-preview");
-  const unknownWord = el("span", undefined, "inconnu");
-  const learningWord = el("span", undefined, "en cours");
-  preview.append("Un mot ", unknownWord, ", un mot ", learningWord, " et un mot connu.");
-  const warning = el("p", "set-note set-colour-warning", INDISTINCT_WARNING);
+  const unknownWord = el("span", undefined, copy.previewUnknown);
+  const learningWord = el("span", undefined, copy.previewLearning);
+  // The two painted words are the message's parts, where the language puts them (D3).
+  preview.append(...fillSlots(copy.preview(slot(0), slot(1)), [unknownWord, learningWord]));
+  const warning = el("p", "set-note set-colour-warning", copy.indistinctWarning);
   warning.setAttribute("role", "status");
 
   // — One status, by hand —
@@ -164,80 +173,71 @@ export function mountColourSettings(
   const statusControls = {} as Record<MarkedStatus, StatusControls>;
 
   function statusFieldset(status: MarkedStatus): HTMLFieldSetElement {
-    const name = STATUS_LABELS[status];
+    const name = statusLabels[status];
     const set = (change: (s: StatusColours) => void) => void edit((c) => change(c[status]));
     const controls: StatusControls = {
-      fill: colourInput(`${name} : couleur du fond`, (hex) => set((s) => void (s.fill.colour = hex))),
-      intensity: select(`${name} : fond`, FILL_INTENSITIES, INTENSITY_LABELS, (v) =>
+      fill: colourInput(copy.fillColour(name), (hex) => set((s) => void (s.fill.colour = hex))),
+      intensity: select(copy.fill(name), FILL_INTENSITIES, intensityLabels, (v) =>
         set((s) => void (s.fill.intensity = v)),
       ),
-      line: colourInput(`${name} : couleur du soulignement`, (hex) => set((s) => void (s.underline.colour = hex))),
-      style: select(`${name} : soulignement`, UNDERLINE_STYLES, STYLE_LABELS, (v) =>
-        set((s) => void (s.underline.style = v)),
-      ),
-      thickness: select(`${name} : épaisseur`, UNDERLINE_THICKNESSES, THICKNESS_LABELS, (v) =>
+      line: colourInput(copy.lineColour(name), (hex) => set((s) => void (s.underline.colour = hex))),
+      style: select(copy.line(name), UNDERLINE_STYLES, styleLabels, (v) => set((s) => void (s.underline.style = v))),
+      thickness: select(copy.thickness(name), UNDERLINE_THICKNESSES, thicknessLabels, (v) =>
         set((s) => void (s.underline.thickness = v)),
       ),
       textMode: select(
-        `${name} : couleur du texte`,
+        copy.textColour(name),
         ["page", "chosen"] as const,
-        { page: "Celle de la page", chosen: "Choisie" },
+        { page: copy.textOfPage, chosen: copy.textChosen },
         (v) => set((s) => void (s.text = v === "page" ? null : controls.text.value)),
       ),
-      text: colourInput(`${name} : couleur du texte choisie`, (hex) => set((s) => void (s.text = hex))),
+      text: colourInput(copy.chosenTextColour(name), (hex) => set((s) => void (s.text = hex))),
     };
     statusControls[status] = controls;
     const fieldset = el("fieldset", "set-colour-group");
     fieldset.append(
       el("legend", undefined, name),
-      row("Fond", controls.fill, controls.intensity),
-      row("Soulignement", controls.line, controls.style, controls.thickness),
-      row("Texte", controls.textMode, controls.text),
+      row(copy.background, controls.fill, controls.intensity),
+      row(copy.underline, controls.line, controls.style, controls.thickness),
+      row(copy.text, controls.textMode, controls.text),
     );
     return fieldset;
   }
 
   // — The reader's page —
-  const paperBackground = colourInput("Page papier : fond", (hex) => void edit((c) => void (c.paper.background = hex)));
-  const paperText = colourInput("Page papier : texte choisi", (hex) => void edit((c) => void (c.paper.text = hex)));
+  const paperBackground = colourInput(copy.paperBackground, (hex) => void edit((c) => void (c.paper.background = hex)));
+  const paperText = colourInput(copy.paperChosenText, (hex) => void edit((c) => void (c.paper.text = hex)));
   const paperTextMode = select(
-    "Page papier : texte",
+    copy.paperText,
     ["book", "chosen"] as const,
-    { book: "Celle du livre", chosen: "Choisie" },
+    { book: copy.textOfBook, chosen: copy.textChosen },
     (v) => void edit((c) => void (c.paper.text = v === "book" ? null : paperText.value)),
   );
-  const darkBackground = colourInput("Page sombre : fond", (hex) => void edit((c) => void (c.dark.background = hex)));
-  const darkText = colourInput("Page sombre : texte", (hex) => void edit((c) => void (c.dark.text = hex)));
+  const darkBackground = colourInput(copy.darkBackground, (hex) => void edit((c) => void (c.dark.background = hex)));
+  const darkText = colourInput(copy.darkText, (hex) => void edit((c) => void (c.dark.text = hex)));
   const pageFieldset = el("fieldset", "set-colour-group");
   pageFieldset.append(
-    el("legend", undefined, "Page du lecteur de livres"),
-    row("Papier : fond", paperBackground),
-    row("Papier : texte", paperTextMode, paperText),
-    row("Sombre : fond", darkBackground),
-    row("Sombre : texte", darkText),
+    el("legend", undefined, copy.readerPage),
+    row(copy.paperBackgroundRow, paperBackground),
+    row(copy.paperTextRow, paperTextMode, paperText),
+    row(copy.darkBackgroundRow, darkBackground),
+    row(copy.darkTextRow, darkText),
   );
 
   const details = el("details", "set-colour-details");
   details.append(
-    el("summary", undefined, "Régler chaque couleur"),
+    el("summary", undefined, copy.adjustEach),
     statusFieldset("unknown"),
     statusFieldset("learning"),
     pageFieldset,
   );
 
-  const reset = el("button", "set-reset", "Rétablir les couleurs Cymbra");
+  const reset = el("button", "set-reset", copy.restoreDefaults);
   reset.type = "button";
   reset.addEventListener("click", () => void choose(DEFAULT_COLOUR_PREFERENCE));
 
   const box = el("div", "set-colours");
-  box.append(
-    presets,
-    preview,
-    warning,
-    details,
-    reset,
-    el("div", "set-note", "Pour toutes les pages lues et le lecteur de livres, sur cet appareil."),
-  );
+  box.append(presets, preview, warning, details, reset, el("div", "set-note", copy.scopeNote));
   container.append(box);
 
   function render(): void {
