@@ -23,6 +23,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -510,7 +511,7 @@ class Editions(unittest.TestCase):
         with mock.patch.object(ps, "derive", wraps=ps.derive) as derive:
             for pair in ("en-fr", "es-fr", "en-es", "es-en"):
                 self.update(pair)
-        kaikki = [url for url in self.fetched if "kaikki.org" in url]
+        kaikki = [url for url in self.fetched if urllib.parse.urlparse(url).hostname == "kaikki.org"]
         self.assertEqual(sorted(kaikki), sorted(self.urls("fr", "en", "es")), "one fetch per edition")
         self.assertEqual(derive.call_count, 3, "one pass per edition")
         self.assertEqual(
