@@ -107,13 +107,27 @@ and its model is on the device; it is stopped after ten idle minutes. Firefox fo
 the setting exactly as Firefox desktop does.
 
 **No code is fetched.** The worker loads the glue with `importScripts` and the `.wasm` with
-`fetch`, both from the package's own files. The only thing the setting downloads is the model —
-the network's weights, which are data: a model's three files, listed in `model-manifest.json` with
+`fetch`, both from the package's own files. The only thing the setting downloads is a model — the
+network's weights, which are data: a model's three files, listed in `model-manifest.json` with
 the sha256 of their contents, checked before anything uses them (`src/translate/host/model-download.ts`).
-Nothing in the model is executed; it is read by the engine as a parameter file.
+Nothing in a model is executed; it is read by the engine as a parameter file.
 
-The model is Mozilla's `en→fr` `base-memory` model from `mozilla/firefox-translations-models`,
-under the Mozilla Public License 2.0, redistributed unmodified.
+`model-manifest.json` lists three models, Mozilla's `base-memory` models, under the Mozilla Public
+License 2.0 and redistributed unmodified:
+
+| Model                   | Translates | Route it serves                                            |
+| ----------------------- | ---------- | ---------------------------------------------------------- |
+| `en-fr/base-memory/2.0` | `en→fr`    | `en-fr`; and `es-fr`, second                               |
+| `es-en/base-memory/2.0` | `es→en`    | `es-fr`, first (Spanish goes through English); and `es-en` |
+| `en-es/base-memory/2.1` | `en→es`    | `en-es`                                                    |
+
+Their files come from Mozilla's translation model registry (`sourceBase` in `model-manifest.json`),
+not from `mozilla/firefox-translations-models`: each file lists its path there and the sha256 of
+the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks. The package downloads none of them until the
+reader turns « Traduction étendue » on, and then only the models its pairs' routes need. This
+package ships the pairs `en-fr` and `es-fr` (`packs.json`), so it downloads at most `en-fr` and
+`es-en`; the `es-en` and `en-es` routes serve pairs it does not ship, and nothing is downloaded for
+them.
 
 ## Where the add-on reaches the network
 
@@ -124,10 +138,10 @@ from the device and requests nothing.
 
 There are four origins, all of them in the source:
 
-- `https://models.cymbra.app` — the translation model, downloaded once, and only after the reader
-  turns « Traduction étendue » on in the settings (`src/translate/host/model-download.ts`). The
+- `https://models.cymbra.app` — the translation models, downloaded once, and only after the reader
+  turns « Traduction étendue » on in the settings (`src/translate/host/model-download.ts`). Each
   request asks for one file at a fixed address and carries no cookie, no referrer and nothing of
-  the reader's; turning the setting off deletes the model. The address is in
+  the reader's; turning the setting off deletes the models. The addresses are in
   `model-manifest.json`.
 - `https://api.cymbra.app` — the reader's own account, and only once they have signed in: the
   word statuses and review history they asked to synchronise across their devices. Set at

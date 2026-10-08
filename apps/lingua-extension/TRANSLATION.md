@@ -7,10 +7,10 @@ sentence too. It is off until the reader ticks it in Réglages, per device, neve
 
 What ships, and what does not:
 
-|                                                 | Where it comes from                                                    | In the package?                                         |
-| ----------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
-| The engine — `bergamot-translator.js` + `.wasm` | built from `mozilla/translations` at the commit `engine-pin.json` pins | **yes**, every variant: Chromium, Firefox and Safari    |
-| The model — `en→fr` `base-memory` 2.0           | Mozilla's registry, re-served by Cymbra (`model-manifest.json`)        | **never**: downloaded once the reader ticks the setting |
+|                                                                  | Where it comes from                                                    | In the package?                                         |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------- |
+| The engine — `bergamot-translator.js` + `.wasm`                  | built from `mozilla/translations` at the commit `engine-pin.json` pins | **yes**, every variant: Chromium, Firefox and Safari    |
+| The models — `base-memory` `en→fr` 2.0, `es→en` 2.0, `en→es` 2.1 | Mozilla's registry, re-served by Cymbra (`model-manifest.json`)        | **never**: downloaded once the reader ticks the setting |
 
 The stores count WebAssembly loaded from anywhere but the package as remote code, which a Manifest
 V3 extension may not run; the model is data, which they allow. So the engine is packaged and only
@@ -45,18 +45,40 @@ taken again.
   file: its content-addressed path under `base`, its size as served (Mozilla's gzip), its size once
   decompressed (`unpacked`), the sha256 of its **decompressed** bytes, and where Mozilla publishes it;
 - `routes`: for each pair, keyed `<studied>-<native>`, the models that translate its studied language
-  into its native language, in order (`generalise-lingua-translation-routes-by-pair`). `en-fr` is the
-  `en-fr` model alone; `es-fr` goes through English, `es-en` then `en-fr`. The parser reads both
-  languages from the key and refuses a route that does not start from the one or end in the other.
+  into its native language, in order (`generalise-lingua-translation-routes-by-pair`). The parser
+  reads both languages from the key and refuses a route that does not start from the one or end in
+  the other.
+
+| Route   | Models, in order                                                        | Pair shipped?                         |
+| ------- | ----------------------------------------------------------------------- | ------------------------------------- |
+| `en-fr` | `en-fr/base-memory/2.0`                                                 | yes                                   |
+| `es-fr` | `es-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes                                   |
+| `es-en` | `es-en/base-memory/2.0`                                                 | not yet: change 34 (English speakers) |
+| `en-es` | `en-es/base-memory/2.1`                                                 | not yet: change 35 (Spanish speakers) |
+
+English and Spanish are translated into each other directly, one model each
+(`add-lingua-translation-matrix-models`). Mozilla publishes no fr↔es model. en-es is pinned at
+2.1, the registry's one `Release` entry: the decompressed sha256 of its three files are those
+Firefox's Remote Settings publish for en→es 2.1, the model's the registry's `uncompressedHash`.
+A route is needed only by a reader whose pairs include its pair, and a reader's pairs are the
+shipped pairs of their native language (`packs.json`): until changes 34 and 35 ship es-en and
+en-es, no reader needs either route, and the es-en model is held only as es-fr's first model.
+
+**A file two models share.** en-es 2.1's vocabulary decompresses to the same bytes as es-en 2.0's
+(`5ae254fa…58ad`; Mozilla serves two different gzip files). The device stores a file under the
+sha256 of its decompressed bytes, so a reader who holds one model and then needs the other — only
+once the native language can change (change 20) — does not download that file again, and pruning
+keeps it while either model is kept. The setting's cost is the sum over the files of the models
+the reader's pairs need, so it may count that file's 409,312 bytes although it is not fetched.
 
 A page asks in the document's language and never names a pair: the background forms the pair from
 that language and the reader's native language, read from their stored profile, gates on it — the
 device records which pairs are ready — and asks the engine for that pair's route. A pair the
 catalogue lists no route for is unavailable, and the engine is not started for it. A route is
 reached only once a pack glossed in that native language ships, since a reader is served the pairs
-of their native language alone: changes 21, 22 and 25 ship each pack with its route. Marks are
-measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`): es-fr's measurement says nothing of
-es-en's.
+of their native language alone: change 25 lists es-en's and en-es's routes, and changes 34 and 35
+ship their pairs. Marks are measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`): es-fr's
+measurement says nothing of es-en's.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
 setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the
@@ -164,11 +186,12 @@ load and every failed one: a route dropped with a deleted model takes its other 
 
 A deletion does not lower what the worker holds in the operating system's eyes — a wasm instance's
 linear memory never shrinks — the bound caps growth, with the freed blocks reused by the next model
-built. With today's catalogue of two models (en-fr, es-en) no route makes a third, so the deletion
-never runs in production: it is for the matrix's models, from change 25 on. A translation goes to
-the engine at once over a route the worker holds; over one it deleted since the channel loaded it,
-the worker answers `reload`, and the channel loads the route again — under the start bound — and
-asks once more.
+built. The catalogue lists three models, but today's shipped pairs need two at most (en-fr and
+es-en, for a reader of French with English and Spanish), so no route makes a third and the deletion
+never runs in production: it is for the matrix's readers, once changes 34 and 35 ship es-en and
+en-es. A translation goes to the engine at once over a route the worker holds; over one it deleted
+since the channel loaded it, the worker answers `reload`, and the channel loads the route again —
+under the start bound — and asks once more.
 
 ### Soaking a route by hand
 
@@ -177,13 +200,37 @@ through a pair's route over the committed corpus of its studied language, in Nod
 inputs that trapped by their corpus id, the count translated, the time per sentence and the
 process's memory high-water mark; without `--isolate` the run stops at the first trap, since the
 instance is poisoned from then on. It is how a model is tried before it ships — en-es before
-change 35, once change 25 pins its route in the catalogue — and it never runs in CI: the
-programme's M25 recommends a manual tool. The memory figure is Node's RSS, not the worker's (the
-≈ 322 MiB of es-fr above was measured in the browser), and the soak says nothing of the two-model
-bound: a run loads one route and deletes nothing. `tool/marks/README.md` says how.
+change 35, now that change 25 pins its route — and it never runs in CI: the programme's M25
+recommends a manual tool. The memory figure is Node's RSS, not the worker's (the ≈ 322 MiB of es-fr
+above was measured in the browser), and the soak says nothing of the two-model bound: a run loads
+one route and deletes nothing. `tool/marks/README.md` says how.
 
 Measured on a Galaxy Tab S6 Lite (Firefox for Android, 4 GB): a cold start costs 4.1–4.7 s there
 (0.2–0.3 s on a Mac), a warm translation 0.4–1 s, and the loaded engine about 180 MB.
+
+#### en-es, soaked before it ships (2026-10-08)
+
+`node --experimental-strip-types tool/soak_engine.mjs --pair en-es --models <dir> --isolate`, over
+the 100 English selections of `tool/marks/corpus.json`, with the models assembled locally from
+Mozilla's registry by `tool/assemble_model_site.mjs` (every file kept, every digest held)
+(`add-lingua-translation-matrix-models` D4).
+
+|                        |                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Engine                 | `engine-pin.json`: `mozilla/translations` `a6310e24669df32a9098faadccbb1206448b51cb`, `.wasm` `7ef4b3fd…3122` |
+| Model                  | `en-es/base-memory/2.1`                                                                                       |
+| Machine                | MacBook Pro, Apple M2 Max (12 cores), 64 GB; macOS 26.5.2 (Darwin 25.5.0, arm64); Node 22.22.2                |
+| Selections             | 100 run, **100 translated, 0 trapped, 0 timed out**                                                           |
+| Time per sentence      | median 145 ms, mean 149 ms, max 216 ms — each in a fresh child, its first translation                         |
+| Memory high-water mark | 392.3 MiB (maxRSS, the highest child's; Node's, not the worker's)                                             |
+| Whole run              | 46 s                                                                                                          |
+
+The committed English corpus holds no input that traps en-es: the study's trapping inputs were not
+committed, and none of these 100 selections is one. Beside it, on the same machine: en-es in one
+instance (without `--isolate`, closer to the worker, which translates sentence after sentence)
+translated all 100 too, median 35 ms, maxRSS 417.5 MiB; en-fr under `--isolate` gave no trap,
+median 151 ms, maxRSS 397.3 MiB — in this tool, en-es costs what en-fr costs. Change 35 reads these
+figures; they decide nothing here, and a trap on another input still costs the reader one respawn.
 
 ## What never happens
 

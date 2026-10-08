@@ -42,15 +42,15 @@ node tool/marks/select_corpus.mjs                                               
 Beside the measurement, by hand and never in CI (the programme's M25): the real engine through a
 pair's route over the same corpus, to find the inputs that trap it — measured through the en-es
 model in the study (2026-10-06), a trap poisons the instance for every model built after it — and
-what a run costs in time and memory. It is how en-es is tried before it ships (change 35), once
-change 25 pins the en-es route in the catalogue: until then `--pair en-es` is refused, as is any
-pair the catalogue does not route.
+what a run costs in time and memory. It is how en-es is tried before it ships (change 35), now
+that change 25 pins the en-es route in the catalogue — its run is recorded in `TRANSLATION.md`; a
+pair the catalogue does not route is refused.
 
 ```bash
 node --experimental-strip-types tool/soak_engine.mjs --pair en-fr --models /tmp/models            # ~15 s
 node --experimental-strip-types tool/soak_engine.mjs --pair es-fr --models /tmp/models            # two models, through English
 node --experimental-strip-types tool/soak_engine.mjs --pair es-fr --models /tmp/models --limit 10 # the first ten selections
-node --experimental-strip-types tool/soak_engine.mjs --pair en-es --models /tmp/models --isolate  # each sentence in a child process (change 25 first)
+node --experimental-strip-types tool/soak_engine.mjs --pair en-es --models /tmp/models --isolate  # each sentence in a child process, ~45 s
 ```
 
 Each selection goes through the engine as `relay.ts` sends it: the sentence with the selection
@@ -70,9 +70,10 @@ browser's worker, and Node's figure is not like for like: read it for a run's or
 and for growth across the corpus, not against the worker's. The soak does not check the two-model
 bound of `engine-worker.ts` either: a run loads one route and deletes nothing — and a deletion
 would not show in RSS anyway, since a wasm instance's linear memory never shrinks; the bound caps
-growth, with the freed blocks reused by the next model built. With today's catalogue of two models
-(en-fr, es-en) no route makes a third, so the eviction never runs in production: it is for the
-matrix's models, from change 25 on.
+growth, with the freed blocks reused by the next model built. The catalogue lists three models
+(en-fr, es-en, en-es), but today's shipped pairs need two at most, so no route makes a third and the
+eviction never runs in production: it is for the matrix's readers, once changes 34 and 35 ship es-en
+and en-es.
 
 ## Judging
 

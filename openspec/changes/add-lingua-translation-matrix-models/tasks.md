@@ -8,13 +8,13 @@
 
 ## 2. The soak
 
-- [ ] 2.1 `tool/soak_engine.mjs --pair en-es --models <dir> --isolate` over the English corpus with the locally assembled models; the run recorded in `TRANSLATION.md` (D4; change 9's *en-es before it ships*).
+- [x] 2.1 `tool/soak_engine.mjs --pair en-es --models <dir> --isolate` over the English corpus with the locally assembled models; the run recorded in `TRANSLATION.md` (D4; change 9's *en-es before it ships*).
 
 ## 3. Gates and docs
 
-- [ ] 3.1 `TRANSLATION.md` (the routes, the shared vocabulary, the soak); `tool/marks/README.md` (the bound's note, the soak section's « once change 25 pins » lines); `tool/soak_engine.mjs`'s usage comment and refusal message; `REVIEWERS.md` (the three models, and the files now coming from Mozilla's registry, not `mozilla/firefox-translations-models`) (D3, D5).
-- [ ] 3.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`.
-- [ ] 3.3 `openspec validate add-lingua-translation-matrix-models --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-translation-matrix-models` exits 0; change 25 is marked done in `docs/lingua/language-matrix-programme.md`.
+- [x] 3.1 `TRANSLATION.md` (the routes, the shared vocabulary, the soak); `tool/marks/README.md` (the bound's note, the soak section's « once change 25 pins » lines); `tool/soak_engine.mjs`'s usage comment and refusal message; `REVIEWERS.md` (the three models, and the files now coming from Mozilla's registry, not `mozilla/firefox-translations-models`) (D3, D5).
+- [x] 3.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`.
+- [x] 3.3 `openspec validate add-lingua-translation-matrix-models --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-translation-matrix-models` exits 0; change 25 is marked done in `docs/lingua/language-matrix-programme.md`.
 
 ## 4. Owner
 
