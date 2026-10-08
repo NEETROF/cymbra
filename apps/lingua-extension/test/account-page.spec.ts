@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { accountCopy, errorCopy } from "@/account/copy.ts";
 import { AccountFlow, type AccountViewState, providerName } from "@/account/flow.ts";
 import type { AccountMessage, AccountReply } from "@/account/messages.ts";
+import { mountAccountPage } from "@/account/page.ts";
 import { type AccountActions, linkedOn, renderAccount } from "@/account/view.ts";
 import { COPY_PENDING_ATTR, fillPageInLanguage, INTERFACE_LANGUAGE_KEY } from "@/i18n/index.ts";
 import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helpers.ts";
@@ -192,5 +193,100 @@ describe("An English-native reader signs in (localise-lingua-account-onboarding)
     expect(root.textContent).toContain("You can't remove your only sign-in method.");
     expect(labels()).toContain("Set a password");
     expect(labels()).toContain("Back");
+  });
+});
+
+describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboarding D1, D2)", () => {
+  interface Mounted {
+    doc: Document;
+    sent: AccountMessage[];
+    hashes: string[];
+  }
+
+  async function mount(options: {
+    area: { get(key: string): Promise<Record<string, unknown>> };
+    browserLanguage: string;
+    hash?: string;
+    signedIn?: boolean;
+    pendingEmail?: string | null;
+  }): Promise<Mounted & { mounted: Awaited<ReturnType<typeof mountAccountPage>> }> {
+    const doc = page();
+    const sent: AccountMessage[] = [];
+    const hashes: string[] = [];
+    let hash = options.hash ?? "";
+    const replies: Partial<Record<AccountMessage["type"], AccountReply>> = {
+      "account:state": { ok: true, state: { signedIn: options.signedIn ?? false } },
+      "account:providers": { ok: true, providers: { google: true, apple: true } },
+      "account:profile": { ok: true, handle: "ana" },
+    };
+    const mounted = await mountAccountPage(doc, {
+      area: options.area,
+      browserLanguage: options.browserLanguage,
+      send: async (message) => {
+        sent.push(message);
+        return replies[message.type] ?? { ok: true };
+      },
+      pending: { get: async () => options.pendingEmail ?? null, set: async () => {} },
+      pendingPassword: { get: async () => null, set: async () => {} },
+      clearPersistedError: async () => {},
+      hash: () => hash,
+      replaceHash: (next) => {
+        hash = next;
+        hashes.push(next);
+      },
+    });
+    return { doc, sent, hashes, mounted };
+  }
+
+  it("an English interface in an Italian browser: the page in English, `it` sent to the server", async () => {
+    const { doc, sent, mounted } = await mount({
+      area: pageArea({ [INTERFACE_LANGUAGE_KEY]: "en" }),
+      browserLanguage: "it-IT",
+      hash: "#signup",
+    });
+    expect(mounted?.language).toBe("en");
+    expect(doc.documentElement.lang).toBe("en");
+    expect(doc.title).toBe("Account — Cymbra Lingua");
+    expect(doc.querySelector("#account-root h2")?.textContent).toBe("Create a Cymbra account");
+    await mounted!.flow.signUp("new@example.com", "a long passphrase");
+    expect(sent.find((m) => m.type === "account:signUp")).toEqual({
+      type: "account:signUp",
+      email: "new@example.com",
+      password: "a long passphrase",
+      locale: "it",
+    });
+    expect(doc.querySelector("#account-root .account-lead")?.textContent).toBe(
+      "Enter the code sent to new@example.com",
+    );
+  });
+
+  it("a storage that refuses, signed in: French, the signed-in step resumed, the French deletion page", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { doc, hashes } = await mount({ area: refusingArea(), browserLanguage: "en-GB", signedIn: true });
+    expect(doc.documentElement.lang).toBe("fr");
+    expect(doc.title).toBe("Compte — Cymbra Lingua");
+    expect(doc.querySelector("#account-root h2")?.textContent).toBe("Tu es connecté");
+    expect(hashes.at(-1)).toBe("#signedin");
+    const deletion = [...doc.querySelectorAll<HTMLAnchorElement>("#account-root a")].find(
+      (a) => a.textContent === "Supprimer mon compte Cymbra",
+    );
+    expect(deletion?.getAttribute("href")).toBe("https://cymbra.app/suppression-compte/");
+  });
+
+  it("a storage that refuses, a code pending: French, the code step resumed, a hostile address as text", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const hostile = "<img src=x onerror=alert(1)>@x.dev";
+    const { doc } = await mount({
+      area: refusingArea(),
+      browserLanguage: "en-GB",
+      hash: "#verify",
+      pendingEmail: hostile,
+    });
+    expect(doc.documentElement.lang).toBe("fr");
+    const lead = doc.querySelector("#account-root .account-lead")!;
+    expect(lead.textContent).toBe(`Saisis le code envoyé à ${hostile}`);
+    expect(lead.querySelector("b")?.textContent).toBe(hostile);
+    expect(doc.querySelector("img")).toBeNull();
+    expect(doc.querySelector("[onerror]")).toBeNull();
   });
 });
