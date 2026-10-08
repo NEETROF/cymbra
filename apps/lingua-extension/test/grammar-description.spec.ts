@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { GrammarTag, StudiedLanguage, WordGrammar } from "@/analyzer/types.ts";
 import {
@@ -160,6 +162,31 @@ describe("the description of a form names no language", () => {
     expect(finiteKey(r({ Mood: "Cnd", Tense: "Pres" }), "es")).toBe("Cnd/");
     expect(finiteKey(r({ Mood: "Sub", Tense: "Imp" }), "es")).toBe("Sub/Imp");
     expect(formKind(r({ Mood: "Sub" }), "en")).toBeNull();
+  });
+});
+
+describe("the vocabulary is lingua-core's", () => {
+  // The engine's closed vocabulary, read from its source (as test/packs.spec.ts reads the analyser's
+  // version): a part of speech or a feature added there is added here, or this fails.
+  const grammarRs = readFileSync(join(__dirname, "../../..", "crates/lingua-core/src/packs/grammar.rs"), "utf8");
+  const strings = (rust: string): string[] => [...rust.matchAll(/"([^"]*)"/g)].map((m) => m[1]!);
+
+  it("PARTS_OF_SPEECH equals the Rust list, in its order", () => {
+    const block = /pub const PARTS_OF_SPEECH[^=]*=\s*\[([\s\S]*?)\];/.exec(grammarRs)?.[1];
+    expect(block).toBeDefined();
+    expect(PARTS_OF_SPEECH).toEqual(strings(block!));
+    expect(PARTS_OF_SPEECH).toHaveLength(17);
+  });
+
+  it("FEATURES equals the Rust table, names, values and order", () => {
+    const block = /pub const FEATURES[^=]*=\s*&\[([\s\S]*?)\n\];/.exec(grammarRs)?.[1];
+    expect(block).toBeDefined();
+    const rust = Object.fromEntries(
+      [...block!.matchAll(/\("(\w+)",\s*&\[([^\]]*)\]\)/g)].map((m) => [m[1]!, strings(m[2]!)]),
+    );
+    expect(Object.keys(rust)).toHaveLength(11);
+    expect(FEATURES).toEqual(rust);
+    expect(Object.keys(FEATURES)).toEqual(Object.keys(rust));
   });
 });
 

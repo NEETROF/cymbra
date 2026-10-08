@@ -150,6 +150,13 @@ describe("the word card in Spanish, of an English word", () => {
     expect(renderer.join(["a"])).toBe("a");
     expect(renderer.join(["a", "b"])).toBe("a y b");
     expect(renderer.join(["a", "b", "c"])).toBe("a, b y c");
+    // « e » before the sound /i/ — i, í, hi — never before a diphthong.
+    expect(renderer.join(["subjuntivo", "imperativo"])).toBe("subjuntivo e imperativo");
+    expect(renderer.join(["a", "índice"])).toBe("a e índice");
+    expect(renderer.join(["a", "hijo"])).toBe("a e hijo");
+    expect(renderer.join(["a", "Hígado"])).toBe("a e Hígado");
+    expect(renderer.join(["a", "hielo"])).toBe("a y hielo");
+    expect(renderer.join(["a", "ion"])).toBe("a y ion");
     const lines = renderer
       .grammarLines(
         grammar({ readings: [PAST, PAST], others: [{ lemma: "eat", readings: [PARTICIPLE] }] }),
@@ -241,6 +248,12 @@ describe("the word card in Spanish, of a Spanish word", () => {
     expect(lines).toEqual(["tercera persona del singular del pret\u00e9rito perfecto simple de indicativo de venir"]);
     expect(card.el.querySelector(".grammar-line em")!.getAttribute("lang")).toBe("es");
     expect(card.el.querySelector(".headword")!.getAttribute("lang")).toBe("es");
+  });
+
+  it("A participle and an infinitive on one line: « e » before « infinitivo »", () => {
+    expect(spanish("hablar", "hablado", [PARTICIPLE, verb({ VerbForm: "Inf" })])).toEqual([
+      "participio e infinitivo de hablar",
+    ]);
   });
 
   it("A pronoun's form and a gerund: the language's own grammar, no elision", () => {

@@ -77,9 +77,12 @@ function agreement({ gender, number }: Agreement): string | undefined {
   return number === "Plur" ? "plural" : undefined;
 }
 
-/** « y » becomes « e » before a word that starts with the sound /i/ (« subjuntivo e imperativo »). */
+/**
+ * « y » becomes « e » before a word that starts with the sound /i/ — « i », « í », « hi »: « subjuntivo e
+ * imperativo », « participio e infinitivo » — but not before a diphthong (« y hielo »).
+ */
 function and(next: string): string {
-  return /^h?i(?![aeiouáéó])/i.test(next) ? "e" : "y";
+  return /^h?[ií](?![aeiouáéó])/i.test(next) ? "e" : "y";
 }
 
 /** "a", "a y b", "a, b y c". */
