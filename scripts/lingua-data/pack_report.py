@@ -18,7 +18,9 @@ The folders compared are a pair's (tables/<pair>/: glosses, senses, expressions)
 language's (tables/<studied>/, split-lingua-pack-tables-by-language: forms, ranks, levels, readings
 and dictionary words), which its reference pair's reduction writes. For a studied language's folder,
 the report also names every pair reading it whose pack moves: the pairs beside the new folder whose
-`pin.json` records another pack than beside the committed one.
+`pin.json` records another pack than beside the committed one — and fails, naming the pair and the
+table, for a pair left behind: one whose `pin.json` beside the new folder still records a studied
+table the new folder no longer holds as it was built on (add-lingua-pack-es-en D3).
 
 With `--identical` (generalise-lingua-gloss-reducer D4), the new tables were reduced again expecting
 no change — the rules moved, not what they make — and it also exits 1, naming the pair and the
@@ -37,7 +39,18 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pack_sources import KEPT_INPUTS, LEXICAL, STUDIED_RECORD, PinError, get, load, reference_of, studied_of
+from pack_sources import (
+    KEPT_INPUTS,
+    LEXICAL,
+    RECORDED_STUDIED,
+    STUDIED_RECORD,
+    PinError,
+    get,
+    load,
+    reference_of,
+    sha256,
+    studied_of,
+)
 
 # What each table maps, as the reader of the report thinks of it.
 TABLES = {
@@ -197,7 +210,34 @@ def packs_moved(old: Path, new: Path) -> list[str]:
     return out
 
 
-def render(diffs: list[TableDiff], pack: Path | None, issues: list[str], readers: list[str] | None = None) -> str:
+def left_behind(new: Path) -> list[str]:
+    """The pairs reading a studied language's folder that its new tables left behind, each with the
+    table (add-lingua-pack-es-en D3): a pair beside `new` studying its language whose `pin.json`
+    records, as what its build read, another sha256 than the new folder's table — or a table one
+    side lacks. `<pair>: <language>/<table>`, by pair then table. The reference, and a pair whose
+    pin records nothing of the studied tables, are not named: their checks say so elsewhere."""
+    language = new.resolve().name
+    out = []
+    for folder in sorted(new.parent.iterdir()):
+        if not folder.is_dir() or "-" not in folder.name or studied_of(folder.name) != language:
+            continue
+        recorded = load(folder / "pin.json").get("studied")
+        if not isinstance(recorded, dict) or not isinstance(recorded.get("tables"), dict):
+            continue
+        for name in RECORDED_STUDIED:
+            got = sha256(new / name) if (new / name).is_file() else None
+            if got != recorded["tables"].get(name):
+                out.append(f"{folder.name}: {language}/{name}")
+    return out
+
+
+def render(
+    diffs: list[TableDiff],
+    pack: Path | None,
+    issues: list[str],
+    readers: list[str] | None = None,
+    behind: list[str] | None = None,
+) -> str:
     lines = ["## Dictionary update — what the new tables change", ""]
     lines.append("| Table | Rows before → after | Added | Removed | Changed |")
     lines.append("|---|---|---|---|---|")
@@ -211,6 +251,12 @@ def render(diffs: list[TableDiff], pack: Path | None, issues: list[str], readers
             lines.append("Pairs reading these tables whose pack moves: " + ", ".join(f"`{r}`" for r in readers) + ".")
         else:
             lines.append("No pack of a pair reading these tables moves.")
+    if behind:
+        lines.append(
+            "Pairs left behind — their pin records another table than the one here: "
+            + ", ".join(f"`{b}`" for b in behind)
+            + ". Each is reduced again from its own pinned sources after the reference."
+        )
     if pack is not None and pack.is_file():
         size = pack.stat().st_size
         lines += ["", f"Pack: **{size:,} B**, {size / BUDGET:.1%} of the {BUDGET // (1024 * 1024)} MiB budget."]
@@ -254,7 +300,9 @@ def main(argv: list[str] | None = None) -> int:
     issues += moved_files
     if a.pack is not None and a.pack.is_file() and a.pack.stat().st_size > BUDGET:
         issues.append(f"the pack is {a.pack.stat().st_size:,} B, over its budget")
-    sys.stdout.write(render(diffs, a.pack, issues, packs_moved(a.old, a.new) if studied else None))
+    behind = left_behind(a.new) if studied else []
+    issues += [f"{line} moved, and that pair's pack was not recorded again" for line in behind]
+    sys.stdout.write(render(diffs, a.pack, issues, packs_moved(a.old, a.new) if studied else None, behind))
     if a.identical and not moved_files:
         sys.stdout.write(
             "\nReduced again expecting no change: every table, kept input and NOTICE is byte for byte as "

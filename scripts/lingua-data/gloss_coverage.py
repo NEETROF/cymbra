@@ -3,16 +3,21 @@
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License. You may obtain a copy of
 # the License at http://www.apache.org/licenses/LICENSE-2.0
-"""How much of each shipped pair's commonest vocabulary has a French gloss (add-site-lingua-spanish-pages D2, D3).
+"""How much of each shipped pair's commonest vocabulary has a gloss (add-site-lingua-spanish-pages D2, D3).
 
     gloss_coverage.py            # print the figures
     gloss_coverage.py --write    # write them where the site's Lingua pages read them
     gloss_coverage.py --check    # exit 1 when the written figures no longer match the tables
+    gloss_coverage.py --pair es-en [--floor 87.6 77.2 63.7]   # one pair, shipped or not; exit 1 under the floor
 
 For each pair `apps/lingua-extension/packs.json` ships: of the N lemmas its `freq.tsv` ranks
 commonest, the share its `gloss.tsv` glosses, for N = 5,000, 10,000 and 20,000, in percent to one
 decimal. The same measure for every pair, from the committed tables, so the site compares them like
 for like. Stdlib only: it runs on the Python of the lingua-data unit tests.
+
+`--pair` measures one committed pair whether or not it ships, and prints nothing the site reads;
+`--floor` gives the share each of the three tops must reach (add-lingua-pack-es-en D6: es-en is held
+to es-fr's published figures by the reduce job, before it ships and is published).
 """
 
 from __future__ import annotations
@@ -85,12 +90,45 @@ def shown(path: Path) -> str:
         return str(path)
 
 
+def pair_figures(pair: str, tables: Path) -> dict:
+    """One committed pair's figures, shipped or not, in the shape the site reads."""
+    if not (tables / pair / "gloss.tsv").is_file():
+        raise SystemExit(f"error: {shown(tables / pair)} holds no committed tables (gloss.tsv)")
+    return {"tops": list(TOPS), "glossed": {pair: measure(tables / pair, studied=tables / pair.split("-")[0])}}
+
+
+def under_floor(pair: str, shares: list[float], floor: list[float], tops: tuple[int, ...] = TOPS) -> list[str]:
+    """What falls short: one line per top whose share is under its floor."""
+    return [
+        f"{pair}: {share} % of the {top:,} commonest lemmas are glossed, under the floor of {least} %"
+        for top, share, least in zip(tops, shares, floor)
+        if share < least
+    ]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--write", action="store_true", help=f"write {shown(SITE_DATA)}")
     mode.add_argument("--check", action="store_true", help="exit 1 when the written figures are stale")
+    mode.add_argument("--pair", help="measure this committed pair alone, shipped or not")
+    parser.add_argument(
+        "--floor",
+        nargs=len(TOPS),
+        type=float,
+        metavar="PERCENT",
+        help=f"with --pair: the share each of the {len(TOPS)} tops must reach; exit 1 under it",
+    )
     args = parser.parse_args(argv)
+    if args.floor is not None and args.pair is None:
+        parser.error("--floor needs --pair")
+    if args.pair is not None:
+        data = pair_figures(args.pair, TABLES)
+        sys.stdout.write(render(data))
+        short = under_floor(args.pair, data["glossed"][args.pair], args.floor) if args.floor is not None else []
+        for line in short:
+            print(line, file=sys.stderr)
+        return 1 if short else 0
     text = render(figures())
     if args.write:
         SITE_DATA.parent.mkdir(parents=True, exist_ok=True)
