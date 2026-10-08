@@ -1,5 +1,5 @@
 import type { LinguaPort } from "../analyzer/port.ts";
-import { fillPageInLanguage, type InterfaceLanguageArea } from "../i18n/index.ts";
+import { fillPageInLanguage, type InterfaceLanguage, type InterfaceLanguageArea } from "../i18n/index.ts";
 import { type AsyncStorageArea, hydrateEngine } from "../state/storage.ts";
 import { mountStats, statsCopy } from "./view.ts";
 
@@ -44,13 +44,18 @@ function bounded(area: InterfaceLanguageArea, ms: number): InterfaceLanguageArea
   };
 }
 
-/** Start the statistics tab in `document`: its copy, its engine, then its view, in the interface language. */
-export async function start(document: Document, deps: StatsPageDeps): Promise<void> {
+/**
+ * Start the statistics tab in `document`: its copy, its engine, then its view, in the interface
+ * language — which it resolves to, for the tab's reload when the native language changes
+ * (add-lingua-native-language-choice D3).
+ */
+export async function start(document: Document, deps: StatsPageDeps): Promise<InterfaceLanguage> {
   const [{ language }] = await Promise.all([
     fillPageInLanguage(document, bounded(deps.prefs, deps.languageReadBoundMs ?? LANGUAGE_READ_BOUND_MS), statsCopy),
     hydrateEngine(deps.port, deps.store),
   ]);
   const root = document.getElementById("stats-root");
-  if (!root) return;
+  if (!root) return language;
   await mountStats(root, deps.port, deps.store, undefined, language);
+  return language;
 }

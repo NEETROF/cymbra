@@ -46,6 +46,11 @@ export interface ReviewPage {
    * opens in that page's language, whatever was chosen beside the last one (D3).
    */
   pageChanged: () => void;
+  /**
+   * Stop following the store: its host is taken down — a reading session built anew for another
+   * native language (add-lingua-native-language-choice D3). A host that reloads never calls it.
+   */
+  destroy: () => void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] {
@@ -246,7 +251,7 @@ export function mountReview(
   // Keep in sync with changes made elsewhere (a reading gesture, a reset in Réglages, or
   // another surface), unless mid-review or it is our own echo. The controller caches its
   // state, so it is rebuilt to reflect the restored engine.
-  watchBackup(area, (backup) => {
+  const unwatch = watchBackup(area, (backup) => {
     if (backup === lastBackup) return;
     if (controller.view().phase === "reviewing") return;
     void port.restore(backup).then(async () => {
@@ -270,6 +275,7 @@ export function mountReview(
     pageChanged: () => {
       followed = undefined;
     },
+    destroy: unwatch,
   };
 }
 

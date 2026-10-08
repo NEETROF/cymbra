@@ -474,6 +474,10 @@ const SAME_EVERYWHERE = new Set([
   " · ",
   "This is how your pages will sound when Lingua reads them aloud.",
   "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
+  // The native languages, each named in its own language (add-lingua-native-language-choice D4).
+  "Français",
+  "English",
+  "Español",
 ]);
 
 /** Texts a language happens to share with the French, and no other. */

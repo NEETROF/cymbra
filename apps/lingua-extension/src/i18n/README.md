@@ -2,7 +2,7 @@
 
 Every text the extension shows lives here, once per language: `fr/<surface>.ts`, `en/<surface>.ts`,
 `es/<surface>.ts`, one module per surface (`popup`, `hud`, `drawer`, `card`, `selection`,
-`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `colours`, `display`, `translation`,
+`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `native-language`, `colours`, `display`, `translation`,
 `account-setting`, `account`, `onboarding`, `reader`, `sync`, `languages`, `grammar`). The French module is the source;
 the English and Spanish ones are typed after it (`export const popup: typeof fr = { … }`), so a key
 missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts` checks the rest at
@@ -33,7 +33,9 @@ helpers — `plural`, `formatNumber`, `formatCount`, `formatPercent`, `formatDat
 importing it costs an entry nothing. A surface imports its own three modules and picks by the
 language; Réglages, mounted by three hosts, picks its seven (`settings`, `studied-languages`,
 `colours`, `display`, `translation`, `account-setting`, `sync`) in `reading/settings-copy.ts` and hands
-each block its own, which holds its French module as its default.
+each block its own, which holds its French module as its default. The native language's choice picks
+`native-language` in its own view (`reading/native-language-view.ts`), in Réglages as in the onboarding
+and the popup: a bundle built without the choice carries none of it.
 
 ## The grammar renderers
 
@@ -159,5 +161,7 @@ _participio pasado_ (the Spanish Wiktionary's English form-of wording) and « fo
 
 Names and symbols need no translation and are allowed to equal the French: « Cymbra Lingua », the
 icons (« — », « ⚙ », « ✕ »…), the separators, « Aa », the key names that are the same in the
-language (« Alt », « S »), « Google », « Apple », the voice previews (spoken in the studied language).
+language (« Alt », « S »), « Google », « Apple », the voice previews (spoken in the studied language),
+the native languages named each in its own language (« Français », “English”, « Español »:
+`languages.ownNames`, the choice of add-lingua-native-language-choice).
 `test/i18n.spec.ts` lists them, and refuses any other translation equal to its French.

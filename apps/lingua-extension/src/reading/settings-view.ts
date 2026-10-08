@@ -11,6 +11,7 @@ import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, fillSlots, formatCount, type InterfaceLanguage, slot } from "../i18n/index.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
+import { nativeChoiceOffered } from "../state/native-language.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
 import {
@@ -36,6 +37,7 @@ import { type AccountControls, mountAccountSetting, runtimeAccountControls } fro
 import { mountBookDisplay } from "./book-display-view.ts";
 import { mountColourSettings } from "./colour-settings-view.ts";
 import { type SettingsModule, settingsCopy } from "./settings-copy.ts";
+import { mountNativeLanguage, nativeLanguageCopy } from "./native-language-view.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 import {
@@ -112,8 +114,8 @@ export interface SyncControls {
   /** This device's last successful sync (epoch millis), or null. */
   lastSync: () => Promise<number | null>;
   now: () => number;
-  /** Call `onChange` whenever a sync completes elsewhere (the background). */
-  watch: (onChange: () => void) => void;
+  /** Call `onChange` whenever a sync completes elsewhere (the background); returns how to stop. */
+  watch: (onChange: () => void) => (() => void) | void;
 }
 
 function runtimeSyncControls(area: AsyncStorageArea): SyncControls {
@@ -122,10 +124,13 @@ function runtimeSyncControls(area: AsyncStorageArea): SyncControls {
     syncNow: () => requestSyncNow(),
     lastSync: () => loadLastSync(area),
     now: () => Date.now(),
-    watch: (onChange) =>
-      chrome.storage.onChanged.addListener((changes, areaName) => {
+    watch: (onChange) => {
+      const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
         if (areaName === "local" && changes[LAST_SYNC_KEY]) onChange();
-      }),
+      };
+      chrome.storage.onChanged.addListener(listener);
+      return () => chrome.storage.onChanged.removeListener(listener);
+    },
   };
 }
 
@@ -137,6 +142,12 @@ export interface SettingsView {
   refresh: () => Promise<void>;
   /** Bring a sub-tab forward (an entry point that leads to one setting, the level). */
   show: (tab: SettingsTab) => void;
+  /**
+   * Stop watching the background and the preferences: the view's host is taken down — the drawer of
+   * a reading session built anew for another native language (add-lingua-native-language-choice D3).
+   * A page that reloads never calls it.
+   */
+  destroy: () => void;
 }
 
 /** Tells apart the tab ids of two views mounted in one document. */
@@ -192,6 +203,23 @@ export function mountSettings(
   const interfaceLanguage = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
   const blocksCopy = settingsCopy(interfaceLanguage);
   const copy = blocksCopy.settings;
+
+  // — Langue maternelle — above the studied languages, only when two native languages or more ship
+  // (add-lingua-native-language-choice D4): until then no block is built at all, and Réglages are
+  // what they were — nor is the view bundled (`__NATIVE_CHOICE__`). A choice confirmed here needs
+  // nothing of this host: on the change announced, the page reloads, or the reading session is built
+  // anew, its port for the new native language (D3).
+  const nativeBlock = __NATIVE_CHOICE__ && nativeChoiceOffered(pairs) ? settingBlock(copy.nativeLanguage) : null;
+  const native =
+    __NATIVE_CHOICE__ && nativeBlock
+      ? mountNativeLanguage(nativeBlock, {
+          language: interfaceLanguage,
+          copy: nativeLanguageCopy(interfaceLanguage),
+          profile: async () => ({ native: await port.nativeLanguage(), studied: await port.studiedLanguages() }),
+          onChosen: () => refresh(),
+          pairs,
+        })
+      : null;
 
   // — Langues étudiées — hidden when the package ships one language (add-lingua-language-choice D2).
   const languagesBlock = settingBlock(copy.studiedLanguages);
@@ -490,7 +518,11 @@ export function mountSettings(
   // the reader's data. The blocks keep their titles; a hidden block (no voice, signed out) leaves
   // its tab with the others, never empty: each tab has one block that always shows.
   const tabs = mountTabs(container, copy.tabs, [
-    { id: "language", label: copy.tabLanguage, blocks: [languagesBlock, levelBlocks, translationBlock, voiceBlock] },
+    {
+      id: "language",
+      label: copy.tabLanguage,
+      blocks: [...(nativeBlock ? [nativeBlock] : []), languagesBlock, levelBlocks, translationBlock, voiceBlock],
+    },
     { id: "look", label: copy.tabLook, blocks: [displayBlock, coloursBlock] },
     { id: "pages", label: copy.tabPages, blocks: [barBlock, booksBlock, scBlock] },
     { id: "data", label: copy.tabData, blocks: [accountBlock, syncBlock, resetBlock] },
@@ -523,7 +555,7 @@ export function mountSettings(
   syncBtn.addEventListener("click", () => void runSync());
   restartBtn.addEventListener("click", () => void restartFromServer());
   // A sync completes after every sign-in, here or in another surface: the account follows too.
-  sync.watch(() => void Promise.all([refreshSync(), account.refresh()]));
+  const unwatchSync = sync.watch(() => void Promise.all([refreshSync(), account.refresh()]));
 
   /**
    * The automatic choice first, naming the voice it lands on; then the ordinary voices; then
@@ -630,7 +662,7 @@ export function mountSettings(
   }
 
   async function refresh(): Promise<void> {
-    await Promise.all([studied.refresh(), refreshLevels()]);
+    await Promise.all([native?.refresh(), studied.refresh(), refreshLevels()]);
     toggle.checked = !(await loadHudHidden(area));
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
@@ -639,7 +671,14 @@ export function mountSettings(
   }
 
   void refresh();
-  return { refresh, show: tabs.show };
+  return {
+    refresh,
+    show: tabs.show,
+    destroy: () => {
+      unwatchSync?.();
+      translation?.destroy();
+    },
+  };
 }
 
 interface TabSpec {

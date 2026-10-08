@@ -4,7 +4,8 @@ import { type AuthErrorKind, authErrorOf } from "../state/auth-errors.ts";
 // mutations coalesces into one debounced run; a trigger arriving mid-run is drained after it.
 // Opening a surface or loading a page asks for a run, granted once per interval across
 // event-page restarts (the last success is persisted); Réglages forces one and hears how it
-// went. The erasure holds every run while it clears the server and the device.
+// went. The erasure holds every run while it clears the server and the device, and so does a change
+// of native language while it rewrites the backup (add-lingua-native-language-choice D2).
 //
 // `onOpen` resolves only once its run is over, so the caller's pending message response keeps
 // Safari's event page alive: answering first and syncing after had the page suspended
@@ -30,7 +31,10 @@ export interface SchedulerDeps {
 export class SyncScheduler {
   private running: Promise<AuthErrorKind | null> | null = null;
   private pending = false;
-  private holding = false;
+  /** How many exclusive tasks are asked or running: every run is held while there is one. */
+  private holds = 0;
+  /** The exclusive tasks, one after the other. */
+  private turns: Promise<unknown> = Promise.resolve();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private lastAttempt = 0;
 
@@ -76,17 +80,31 @@ export class SyncScheduler {
     return run ? await run : "conflict";
   }
 
-  /** Run `task` with every sync held, after the one in flight; drain the triggers it held. */
+  /**
+   * Run `task` with every sync held, after the one in flight and after the exclusive tasks asked
+   * before it; once the last of them is over, drain the triggers they held. The erasure and a change
+   * of native language both rewrite the reader's data: neither may straddle a run's restore → apply
+   * → save, nor the other.
+   */
   async exclusive<T>(task: () => Promise<T>): Promise<T> {
-    this.holding = true;
-    try {
-      this.cancelTimer();
+    this.holds += 1;
+    this.cancelTimer();
+    const turn = this.turns.then(async () => {
       if (this.running) await this.running;
-      return await task();
+      return task();
+    });
+    this.turns = turn.catch(() => undefined);
+    try {
+      return await turn;
     } finally {
-      this.holding = false;
-      this.schedule(0);
+      this.holds -= 1;
+      if (this.holds === 0) this.schedule(0);
     }
+  }
+
+  /** Whether an exclusive task holds the runs. */
+  private get holding(): boolean {
+    return this.holds > 0;
   }
 
   /** Start a run, or return undefined when one cannot start now. */

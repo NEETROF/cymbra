@@ -1,4 +1,4 @@
-import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
+import { type GlueLoader, reprofileBackup, WasmAnalyzerPort, type WasmModule } from "./analyzer/engine.ts";
 import { acceptedLanguages, DEFAULT_NATIVE, readerPairs, SHIPPED_PAIRS } from "./analyzer/pairs.ts";
 import { handleRpc, isRpcRequest } from "./analyzer/rpc-host.ts";
 import { type AccountHostDeps, handleAccountMessage } from "./account/host.ts";
@@ -40,6 +40,12 @@ import { isTranslateMessage, isWarmMessage } from "./translate/wire.ts";
 import { Session } from "./state/session.ts";
 import { nativeLanguageOf, studiedLanguagesOf } from "./state/profile.ts";
 import {
+  changeNativeLanguage,
+  isNativeLanguageMessage,
+  type NativeLanguageReply,
+  onExtensionInstalled,
+} from "./state/native-language.ts";
+import {
   type AsyncStorageArea,
   hydrateEngine,
   loadStored,
@@ -57,6 +63,7 @@ import {
   rememberInterfaceLanguage,
   STORE_CHANGED_KEY,
   type StoreChange,
+  type StoreChangeReason,
   type StoreReply,
   watchStore,
 } from "./state/store.ts";
@@ -194,6 +201,22 @@ const settingsArea: AsyncStorageArea = {
 
 let storeRev = 0;
 
+/** Hydrates the reading engine, writing a fresh backup into an empty store: set by its block below. */
+let ensureReaderBackup: () => Promise<void> = async () => {};
+
+/**
+ * Has the reading engine restore the stored backup before its next answer: set by its block below.
+ * After a change of native language the restore rebuilds it for that language (D3).
+ */
+let rehydrateReader: () => void = () => {};
+
+/**
+ * Runs a task with every sync held — the scheduler's `exclusive`, set by the sync block. A change of
+ * native language rewrites the backup a sync restores, applies its pulls to and saves again: the two
+ * never interleave (add-lingua-native-language-choice D2).
+ */
+let exclusiveOfSync: <T>(task: () => Promise<T>) => Promise<T> = (task) => task();
+
 /**
  * Set by the sync block: a change to the reader's own data schedules an exchange. The
  * owner is what knows when that happens — the trigger used to watch the backup key in
@@ -202,10 +225,15 @@ let storeRev = 0;
  */
 let onReaderDataChanged: (() => void) | null = null;
 
-/** Say which keys just changed; surfaces re-read what they care about. */
-function announceStoreChange(keys: string[]): void {
+/**
+ * Say which keys just changed, and why when a surface must do more than re-read them — the reader
+ * chose another native language (add-lingua-native-language-choice D2): every page then reloads and
+ * every reading session is built anew.
+ */
+function announceStoreChange(keys: string[], reason?: StoreChangeReason): void {
   storeRev += 1;
-  void chrome.storage.local.set({ [STORE_CHANGED_KEY]: { rev: storeRev, keys } satisfies StoreChange }).catch(() => {});
+  const change: StoreChange = reason ? { rev: storeRev, keys, reason } : { rev: storeRev, keys };
+  void chrome.storage.local.set({ [STORE_CHANGED_KEY]: change }).catch(() => {});
   if (keys.includes(ROOT_KEY)) onReaderDataChanged?.();
 }
 
@@ -292,7 +320,34 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     void handleRpc(enginePort, ensure, message).then(sendResponse);
     return true; // async response
   });
+  // A new install's preset may come before any page wrote a backup: this engine's hydration
+  // writes the fresh one (add-lingua-native-language-choice D4).
+  ensureReaderBackup = ensure;
+  // Another native language chosen: the next call restores the backup again first, and the restore
+  // rebuilds this engine for that language with the reader's state in it (D2, D3).
+  rehydrateReader = () => {
+    hydrated = null;
+  };
 }
+
+// The reader chooses their native language (add-lingua-native-language-choice D2): in Réglages,
+// the onboarding or the popup's first run, or as a new install's preset. The backup's profile is
+// rewritten here, where the store is owned, then every engine follows (state/native-language.ts).
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (!isNativeLanguageMessage(message)) return undefined;
+  void changeNativeLanguage(
+    {
+      store: ownedStore,
+      preferences: settingsArea,
+      ensureBackup: () => ensureReaderBackup(),
+      reprofile: (backup, native, studied) => reprofileBackup(backup, native, studied, staticGlue),
+      exclusive: (task) => exclusiveOfSync(task),
+      rehydrate: () => rehydrateReader(),
+    },
+    message,
+  ).then((reply) => sendResponse(reply satisfies NativeLanguageReply));
+  return true; // async response
+});
 
 // The translation engine (add-lingua-translation-engine) and « Traduction étendue », which puts it
 // in the reader's hands (add-lingua-translation-delivery). Every variant carries the engine
@@ -480,6 +535,8 @@ if (__TRANSLATION_HOST__ !== "none") {
   // import()) that the SyncEngine hydrates from the backup each run, leaving the
   // rpc-host reading engine untouched. Runs only while signed in; debounced so a burst
   // of mutations (each persisting the backup) coalesces into one exchange.
+  // Another native language chosen: each run restores the stored backup first, and the restore
+  // rebuilds this engine for that language (add-lingua-native-language-choice D3).
   const syncPort = new WasmAnalyzerPort(staticGlue, SHIPPED_PAIRS, () => storedNativeLanguage(ownedStore));
   let deviceIdPromise: Promise<string> | null = null;
   let syncEngine: SyncEngine | null = null;
@@ -511,6 +568,8 @@ if (__TRANSLATION_HOST__ !== "none") {
   // the server erasure and the local wipe, so runs are held and a running one awaited; the
   // held triggers then pull back anything created elsewhere since the erasure.
   const eraseLinguaData = (): Promise<void> => scheduler.exclusive(async () => (await getSyncEngine()).eraseAll());
+  // A change of native language is held the same way (add-lingua-native-language-choice D2).
+  exclusiveOfSync = (task) => scheduler.exclusive(task);
 
   // Safari (add-lingua-connected-clients D6): Apple and Google run in the host app, which
   // hands the id_token back through this extension's native handler.
@@ -686,6 +745,9 @@ async function syncReaderRegistration(): Promise<void> {
 
 chrome.runtime.onInstalled.addListener((details) => {
   void syncReaderRegistration();
+  // An installed extension is never asked its native language (add-lingua-native-language-choice
+  // D4, M22): an update marks the choice as made (state/native-language.ts).
+  void onExtensionInstalled(details.reason, settingsArea).catch(() => {});
   // Best-effort first-run welcome (Chromium/Firefox). The popup's level CTA is the
   // portable equivalent, so failures here are swallowed (e.g. Safari, where opening a
   // tab from install is unreliable).

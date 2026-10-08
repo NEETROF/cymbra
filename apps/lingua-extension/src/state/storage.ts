@@ -396,11 +396,13 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   return {
     load,
     watch(onChange) {
-      chrome.storage.onChanged.addListener((changes, areaName) => {
+      const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
         if (areaName !== "local" || !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY] || changes[REMOTE_VOICES_KEY]))
           return;
         void load().then(onChange);
-      });
+      };
+      chrome.storage.onChanged.addListener(listener);
+      return () => chrome.storage.onChanged.removeListener(listener);
     },
   };
 }

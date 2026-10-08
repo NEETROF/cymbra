@@ -35,6 +35,7 @@ export type Surface =
   | "stats"
   | "settings"
   | "studied-languages"
+  | "native-language"
   | "colours"
   | "display"
   | "translation"
@@ -57,6 +58,7 @@ export const SURFACES: readonly Surface[] = [
   "stats",
   "settings",
   "studied-languages",
+  "native-language",
   "colours",
   "display",
   "translation",

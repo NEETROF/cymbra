@@ -1,6 +1,7 @@
 import { resolveContentPort } from "./analyzer/create-port.ts";
 import { interfaceLanguage } from "./i18n/index.ts";
 import { readingCopy } from "./reading/reading-copy.ts";
+import { followNativeLanguage } from "./reading/native-rebuild.ts";
 import { pageHost, ReadingSession } from "./reading/session.ts";
 import { SURFACE_CSS } from "./reading/surface-css.ts";
 
@@ -12,22 +13,41 @@ import { SURFACE_CSS } from "./reading/surface-css.ts";
 // grant) or an activeTab executeScript from the popup — so guard against running twice.
 const GUARD = "__cymbraLinguaReading";
 
+/**
+ * Build the page's reading session and start it. The port is resolved before construction so a
+ * CSP-blocked page can hand the session the messaging port instead of the in-content WASM engine.
+ * The interface language is read beside it, with this script's first storage read, before the
+ * session builds the surfaces it hands the copy to (localise-lingua-reading-surfaces D1); a read
+ * that fails is French. A session that fails to start is taken down, leaving nothing on the page.
+ */
+async function startSession(): Promise<ReadingSession> {
+  const [port, language] = await Promise.all([
+    resolveContentPort(),
+    interfaceLanguage({ get: (key) => chrome.storage.local.get(key) }),
+  ]);
+  const session = new ReadingSession(port, {
+    css: SURFACE_CSS,
+    surface: "page",
+    language,
+    copy: readingCopy(language),
+  });
+  try {
+    await session.start(pageHost());
+  } catch (e) {
+    session.stop();
+    throw e;
+  }
+  return session;
+}
+
 async function bootstrap(): Promise<void> {
   const w = window as unknown as Record<string, boolean>;
   if (w[GUARD]) return;
   w[GUARD] = true;
   try {
-    // The port is resolved before construction so a CSP-blocked page can hand the session
-    // the messaging port instead of the in-content WASM engine. The interface language is read
-    // beside it, with this script's first storage read, before the session builds the surfaces it
-    // hands the copy to (localise-lingua-reading-surfaces D1); a read that fails is French.
-    const [port, language] = await Promise.all([
-      resolveContentPort(),
-      interfaceLanguage({ get: (key) => chrome.storage.local.get(key) }),
-    ]);
-    await new ReadingSession(port, { css: SURFACE_CSS, surface: "page", language, copy: readingCopy(language) }).start(
-      pageHost(),
-    );
+    // Built anew, reading the key first, when the reader chooses another native language
+    // (add-lingua-native-language-choice D3).
+    await followNativeLanguage(startSession);
   } catch (e) {
     // Surface a legible failure rather than dying as a silent unhandled rejection,
     // and allow a retry on the next injection.

@@ -9,6 +9,8 @@ export const settings = {
   /** `help` is `installVoiceHelp`'s sentence, followed by the online voices where they may stand in. */
   installVoiceHelpWithFallback: (help: string) =>
     `${help} Si l'installation échoue, active les voix en ligne ci-dessous.`,
+  /** « Langue », above the studied languages (add-lingua-native-language-choice D4). */
+  nativeLanguage: "Langue maternelle",
   studiedLanguages: "Langues étudiées",
   beginner: "Débutant",
   /** The calibration slider's label, its count in bold. */

@@ -13,6 +13,9 @@ export default defineConfig({
     __SECTIONS_FROM_WORKER__: "false",
     // The shipped pairs, read from packs.json as the build reads them.
     __LINGUA_PACKS__: JSON.stringify(shippedPairs().join(",")),
+    // The native language's choice is built, so its views are tested; each one still shows only
+    // for a pair list with two native languages (add-lingua-native-language-choice D1).
+    __NATIVE_CHOICE__: "true",
     __TRANSLATION_HOST__: JSON.stringify("none"),
     __GRPC_WEB_URL__: JSON.stringify("http://localhost:50051"),
     __GOOGLE_CLIENT_ID__: JSON.stringify(""),

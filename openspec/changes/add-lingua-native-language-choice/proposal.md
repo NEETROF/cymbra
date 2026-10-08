@@ -32,8 +32,9 @@ studied.
   or the native's first shipped pair's studied language when nothing is left), saves it, writes
   the interface-language key from the new profile before announcing (the store owner's mirror of
   change 13 is debounced; a page reloading on the announcement must read the new key),
-  announces the store change with its reason, and drops its own two engines, rebuilt for the new
-  native on their next use.
+  announces the store change with its reason, and has its reading engine restore the backup
+  before its next answer — the restore rebuilds it for the new native — the whole change held
+  against the sync, as the erasure is.
 - **Every port follows the backup's native language**: a port whose restored backup names
   another native than its engine's rebuilds its engine for it; every open extension page reloads
   itself on the announced change, and the content script rebuilds its reading session (D3).

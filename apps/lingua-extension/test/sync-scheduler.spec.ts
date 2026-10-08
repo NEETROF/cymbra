@@ -155,4 +155,57 @@ describe("SyncScheduler", () => {
     expect(erased).toBe(true);
     expect(h.runs).toHaveLength(1); // the held trigger, once the erasure is done
   });
+
+  it("runs exclusive tasks one after the other, every run held until the last is over", async () => {
+    const h = makeScheduler();
+    const order: string[] = [];
+    let releaseFirst: () => void = () => {};
+
+    // An erasure under way, and a change of native language asked meanwhile
+    // (add-lingua-native-language-choice D2): the second waits for the first, and no run slips
+    // between them.
+    const first = h.scheduler.exclusive(async () => {
+      order.push("first:start");
+      await new Promise<void>((resolve) => (releaseFirst = resolve));
+      order.push("first:end");
+    });
+    const second = h.scheduler.exclusive(async () => {
+      order.push("second");
+      return "changed";
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    h.scheduler.schedule(0);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(order).toEqual(["first:start"]);
+
+    releaseFirst();
+    await first;
+    expect(h.runs).toHaveLength(0); // the second still holds them
+    expect(await second).toBe("changed");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(order).toEqual(["first:start", "first:end", "second"]);
+    expect(h.runs).toHaveLength(1); // the held trigger, once both are done
+  });
+
+  it("waits for a run in flight before an exclusive task, and goes on after one that failed", async () => {
+    const h = makeScheduler();
+    h.blockNextRun();
+    h.scheduler.schedule(0);
+    await vi.advanceTimersByTimeAsync(0);
+    const order: string[] = [];
+
+    const failing = h.scheduler.exclusive(async () => {
+      order.push("failing");
+      throw new Error("erasure refused");
+    });
+    const next = h.scheduler.exclusive(async () => void order.push("next"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(order).toEqual([]); // the run in flight first
+
+    h.finish();
+    await expect(failing).rejects.toThrow("erasure refused");
+    await next;
+    expect(order).toEqual(["failing", "next"]);
+  });
 });

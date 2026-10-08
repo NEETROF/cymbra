@@ -451,7 +451,12 @@ describe("the browser's synthesiser behind the seam", () => {
       getVoices: vi.fn(() => [samantha]),
       speak: vi.fn((u: FakeUtterance) => void utterances.push(u)),
       cancel: vi.fn(),
-      ...(withEvents ? { addEventListener: (_type: string, l: () => void) => void listeners.push(l) } : {}),
+      ...(withEvents
+        ? {
+            addEventListener: (_type: string, l: () => void) => void listeners.push(l),
+            removeEventListener: (_type: string, l: () => void) => void listeners.splice(listeners.indexOf(l), 1),
+          }
+        : {}),
     };
     return { synth: synth as unknown as SpeechSynthesis, raw: synth, utterances, listeners };
   }
@@ -504,6 +509,25 @@ describe("the browser's synthesiser behind the seam", () => {
     engine.onVoicesChanged(listener);
     f.listeners.forEach((l) => l());
     expect(listener).toHaveBeenCalled();
+  });
+
+  it("ends a speaker's listening with its lifetime (add-lingua-native-language-choice D3)", () => {
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
+    const f = fakeSynth();
+    const unwatch = vi.fn();
+    const lifetime = new AbortController();
+    createSpeaker(
+      browserSpeechEngine(f.synth),
+      "en",
+      { load: async () => ({ voices: {}, androidVoices: false, remoteVoices: false }), watch: () => unwatch },
+      lifetime.signal,
+    );
+    expect(f.listeners).toHaveLength(1);
+
+    lifetime.abort();
+
+    expect(f.listeners).toHaveLength(0);
+    expect(unwatch).toHaveBeenCalledOnce();
   });
 
   it("does not touch the page's handler when the synthesiser has no addEventListener", () => {

@@ -3,9 +3,16 @@ import { AccountFlow, type AccountView, type PendingEmailStore, viewFromHash, wa
 import { type AccountMessage, type AccountReply, PENDING_EMAIL_KEY, PENDING_PASSWORD_EMAIL_KEY } from "./messages.ts";
 import { type AccountActions, renderAccount } from "./view.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
+import { DEFAULT_INTERFACE_LANGUAGE } from "../i18n/language.ts";
+import { reloadOnNativeLanguageChange } from "../state/native-language.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
+// Another native language chosen anywhere: the page reloads in it (add-lingua-native-language-choice
+// D3), compared with the language it shows — French, its markup's, until
+// localise-lingua-account-onboarding (change 17) fills it in the interface language it reads; that
+// change hands this hook the language it fills with.
+reloadOnNativeLanguageChange(DEFAULT_INTERFACE_LANGUAGE);
 
 // Account page bootstrap (add-lingua-account-parity, design D1): a tab — unlike the popup
 // it survives the reader switching to their mailbox for the code. Wires the controller to

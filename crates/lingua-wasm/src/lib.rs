@@ -138,6 +138,43 @@ fn prune_exposures(state: &mut LinguaState, language: StudiedLanguage, pack: &Pa
     state.exposure.cap_by_recency(language, EXPOSURE_MAX_LEMMAS);
 }
 
+/// `backup` with the reader's profile replaced by `native` and `studied` (ISO 639-1 tags, the
+/// primary first), written at the version the state needs — `LinguaState::to_backup`'s rule, so
+/// a reader returned to the default profile with English-only records is written at version 1
+/// again (add-lingua-native-language-choice D2). Refused, with nothing returned, on a backup that
+/// does not restore, on an unknown tag, and on a choice `Profile::set` refuses: an empty list, a
+/// language named twice, the native language among the studied. Pure: no pack is read, so the
+/// store's owner rewrites a backup of any native language without an engine of it.
+fn reprofile(backup: &str, native: &str, studied: &[String]) -> Result<String, String> {
+    let mut state = LinguaState::from_backup(backup).map_err(|e| e.to_string())?;
+    let native = NativeLanguage::from_tag(native)
+        .ok_or_else(|| format!("unknown native language \"{native}\""))?;
+    let languages = studied
+        .iter()
+        .map(|tag| {
+            StudiedLanguage::from_tag(tag)
+                .ok_or_else(|| format!("unknown studied language \"{tag}\""))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    state
+        .profile
+        .set(native, languages)
+        .map_err(|e| e.to_string())?;
+    Ok(state.to_backup())
+}
+
+/// The reader's backup with another profile (add-lingua-native-language-choice D2): what the
+/// extension's background writes when the reader chooses their native language, before every
+/// engine is rebuilt for it. Errors as `reprofile` refuses, leaving the caller's backup as it was.
+#[wasm_bindgen(js_name = reprofileBackup)]
+pub fn reprofile_backup(
+    backup: &str,
+    native: &str,
+    studied: Vec<String>,
+) -> Result<String, JsError> {
+    reprofile(backup, native, &studied).map_err(|e| JsError::new(&e))
+}
+
 #[wasm_bindgen]
 impl LinguaEngine {
     /// Loads the engine from pack bytes (the embedded `pack.lingua`); that pack's
@@ -1135,5 +1172,85 @@ impl LinguaEngine {
     pub fn licences(&self, language: Option<String>) -> Result<String, JsError> {
         let (_, pack) = resolve(&self.packs, language.as_deref())?;
         Ok(serde_json::to_string(&pack.meta().licences).unwrap_or_else(|_| "[]".to_owned()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A backup as the extension stores one: `to_backup` over `state`.
+    fn backup(state: &LinguaState) -> String {
+        state.to_backup()
+    }
+
+    fn tags(tags: &[&str]) -> Vec<String> {
+        tags.iter().map(|tag| (*tag).to_owned()).collect()
+    }
+
+    #[test]
+    fn a_reprofiled_backup_names_the_new_profile_and_keeps_the_records() {
+        let mut state = LinguaState::default();
+        state
+            .knowledge
+            .set_status(StudiedLanguage::Spanish, "faro", Status::Learning);
+        state
+            .profile
+            .set_studied_languages(vec![StudiedLanguage::English, StudiedLanguage::Spanish])
+            .expect("two languages");
+
+        let reprofiled = reprofile(&backup(&state), "en", &tags(&["es"])).expect("a valid choice");
+        let restored = LinguaState::from_backup(&reprofiled).expect("it restores");
+        assert_eq!(
+            restored.profile,
+            Profile::studying(NativeLanguage::English, StudiedLanguage::Spanish)
+        );
+        assert_eq!(
+            restored.knowledge, state.knowledge,
+            "the reader's records stay"
+        );
+        assert!(reprofiled.starts_with("{\n  \"schema_version\": 2,"));
+    }
+
+    #[test]
+    fn a_reprofiled_backup_is_written_at_the_version_to_backup_writes() {
+        // Back to the default profile with English records only: version 1, as `to_backup` writes it.
+        let mut state = LinguaState::default();
+        state
+            .profile
+            .set(NativeLanguage::English, vec![StudiedLanguage::Spanish])
+            .expect("Spanish for an English reader");
+        assert_eq!(state.backup_version(), 2);
+        let back = reprofile(&backup(&state), "fr", &tags(&["en"])).expect("the default");
+        assert_eq!(back, LinguaState::default().to_backup());
+        assert!(back.starts_with("{\n  \"schema_version\": 1,"));
+        assert!(!back.contains("\"profile\""));
+    }
+
+    #[test]
+    fn a_refused_choice_returns_an_error() {
+        let stored = backup(&LinguaState::default());
+        let refused = |native: &str, studied: &[&str]| {
+            reprofile(&stored, native, &tags(studied)).expect_err("refused")
+        };
+        assert_eq!(refused("de", &["en"]), "unknown native language \"de\"");
+        assert_eq!(refused("en", &["pt"]), "unknown studied language \"pt\"");
+        assert_eq!(refused("en", &[]), "a reader studies at least one language");
+        assert_eq!(refused("en", &["es", "es"]), "\"es\" is named twice");
+        assert_eq!(
+            refused("en", &["es", "en"]),
+            "\"en\" is the native language, which a reader never studies"
+        );
+        assert!(
+            reprofile("{ not json", "en", &tags(&["es"]))
+                .expect_err("malformed")
+                .starts_with("malformed backup: ")
+        );
+        let future = stored.replacen("\"schema_version\": 1", "\"schema_version\": 99", 1);
+        assert!(
+            reprofile(&future, "en", &tags(&["es"]))
+                .expect_err("a future version")
+                .contains("v99 is not supported")
+        );
     }
 }

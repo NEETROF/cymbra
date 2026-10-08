@@ -101,6 +101,8 @@ interface WasmEngine {
 export interface WasmModule {
   default: (init: Response | string | URL) => Promise<unknown>;
   LinguaEngine: new (packBytes: Uint8Array) => WasmEngine;
+  /** A backup with another profile: a pure function of the glue, no engine and no pack (D2). */
+  reprofileBackup(backup: string, native: string, studied: string[]): string;
 }
 
 /** How the wasm-pack glue module is obtained. */
@@ -148,6 +150,24 @@ function initialise(mod: WasmModule): Promise<unknown> {
   return ready;
 }
 
+/**
+ * `backup` with the reader's profile replaced by `native`, studying `studied` (the primary first)
+ * — lingua-wasm's `reprofileBackup`, validating the choice as the engine's profile does and writing
+ * the version the state needs (add-lingua-native-language-choice D2). Pure: it needs the module
+ * initialised, never an engine nor a pack, so the store's owner rewrites a backup of any native
+ * language. Rejects on a refused choice, the backup left as it was.
+ */
+export async function reprofileBackup(
+  backup: string,
+  native: NativeLanguage,
+  studied: readonly StudiedLanguage[],
+  loadGlue: GlueLoader = dynamicGlue,
+): Promise<string> {
+  const mod = await loadGlue();
+  await initialise(mod);
+  return mod.reprofileBackup(backup, native, [...studied]);
+}
+
 /** A pair's pack, read from the package. */
 async function fetchPack(pair: string): Promise<Uint8Array> {
   return new Uint8Array(await (await fetch(chrome.runtime.getURL(packPath(pair)))).arrayBuffer());
@@ -158,6 +178,11 @@ export class WasmAnalyzerPort implements LinguaPort {
   private nativePromise: Promise<NativeLanguage> | null = null;
   /** The packs added after the default's, one load per language (package-lingua-packs-per-pair). */
   private readonly added = new Map<string, Promise<void>>();
+  /**
+   * The engine built for a backup of another native language than this one's (`restore`, D3): the
+   * restores of one change share it rather than each building their own.
+   */
+  private rebuilt: { native: NativeLanguage; engine: Promise<WasmEngine> } | null = null;
 
   /**
    * `pairs`: the pairs listed, the default language's first. `resolveNative`: the reader's native
@@ -328,8 +353,50 @@ export class WasmAnalyzerPort implements LinguaPort {
     return (await this.engine()).backup();
   }
 
+  /**
+   * Restore the reader's state. A backup whose profile names another native language than this
+   * engine's — the reader chose it in another context, or a file or a sync brought it — is restored
+   * here first, then this port builds an engine for that native language, its packs added again as
+   * their languages are asked, and restores the backup there too (add-lingua-native-language-choice
+   * D3): every port follows the backup's native language. A backup naming one no listed pair is
+   * glossed in stays restored in this engine, which keeps serving in its own native language (M22).
+   * The engine itself says which native language the backup names, after its own parse — nothing is
+   * parsed twice on this path, which every store change takes. A rebuild that fails rejects the
+   * restore and leaves this port on the engine it had, the backup restored in it (`rebuildFor`).
+   */
   async restore(json: string): Promise<void> {
-    (await this.engine()).restore(json);
+    const engine = await this.engine();
+    engine.restore(json);
+    const wanted = engine.profileNativeLanguage() as NativeLanguage;
+    if (wanted === engine.nativeLanguage() || defaultPair(wanted, this.pairs) === null) return;
+    (await this.rebuildFor(wanted)).restore(json);
+  }
+
+  /**
+   * This port's engine for `native` from now on: built again, its packs added again as their
+   * languages are asked. A build for the same native language already under way is shared, so two
+   * restores of one change land in one engine, in the order they asked. A build that fails puts the
+   * previous engine back, with its native language and its packs: it holds the backup the restore
+   * gave it, where a fresh engine would serve — and a surface would persist — an empty state. The
+   * next restore tries the rebuild again.
+   */
+  private rebuildFor(native: NativeLanguage): Promise<WasmEngine> {
+    if (this.rebuilt?.native === native && this.enginePromise === this.rebuilt.engine) return this.rebuilt.engine;
+    const previous = { engine: this.enginePromise, native: this.nativePromise, added: new Map(this.added) };
+    this.added.clear();
+    this.nativePromise = Promise.resolve(native);
+    const engine = this.build(native);
+    this.enginePromise = engine;
+    this.rebuilt = { native, engine };
+    engine.catch(() => {
+      if (this.enginePromise !== engine) return;
+      this.enginePromise = previous.engine;
+      this.nativePromise = previous.native;
+      this.added.clear();
+      for (const [language, load] of previous.added) this.added.set(language, load);
+      this.rebuilt = null;
+    });
+    return engine;
   }
 
   async reset(): Promise<void> {

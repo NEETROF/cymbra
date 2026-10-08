@@ -26,6 +26,8 @@ import { isReaderWhere, type ReaderWhereReply } from "./locate.ts";
 import { requestPersistence } from "./persist.ts";
 import { clearSections } from "./section-server.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
+import { reloadOnNativeLanguageChange } from "../state/native-language.ts";
+import { watchStore } from "../state/store.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
@@ -54,6 +56,14 @@ async function main(): Promise<void> {
   // Filled before anything can return early, so the page shows whatever happens next; a read that
   // fails is French.
   const { language } = await fillPageInLanguage(document, settings, readerModule);
+  // Another native language chosen anywhere: the page reloads in it, its book's session with it
+  // (add-lingua-native-language-choice D3) — that session taken down first, so nothing it still
+  // holds (the exposures a hidden page flushes) is saved under the native language the reader left.
+  let session: ReadingSession | null = null;
+  reloadOnNativeLanguageChange(language, watchStore, () => {
+    session?.stop();
+    location.reload();
+  });
   const root = document.getElementById("reader-root");
   if (!root) return;
   const copy = readerCopy(language);
@@ -103,7 +113,7 @@ async function main(): Promise<void> {
 
   // The book's session is built as the content script builds a page's: handed the interface
   // language and the surfaces' copy (D1).
-  const session = new ReadingSession(port, {
+  session = new ReadingSession(port, {
     css: SURFACE_CSS,
     surface: "book",
     indicator: (actions) => app.indicator(actions),

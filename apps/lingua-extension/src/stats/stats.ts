@@ -1,4 +1,5 @@
 import { createLinguaPort } from "../analyzer/create-port.ts";
+import { reloadOnNativeLanguageChange } from "../state/native-language.ts";
 import { messagedArea } from "../state/store.ts";
 import { start } from "./page.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
@@ -11,8 +12,11 @@ followSurfaceLook(document.documentElement);
 // backup — the reader's data from the area the background owns, the interface language from
 // chrome.storage.local (page.ts). Excluded from coverage (DOM wiring; page.ts is tested).
 
-void start(document, {
-  prefs: { get: (keys) => chrome.storage.local.get(keys) },
-  store: messagedArea(),
-  port: createLinguaPort(),
-});
+// Another native language chosen anywhere: the tab reloads in it (add-lingua-native-language-choice D3).
+reloadOnNativeLanguageChange(
+  start(document, {
+    prefs: { get: (keys) => chrome.storage.local.get(keys) },
+    store: messagedArea(),
+    port: createLinguaPort(),
+  }),
+);

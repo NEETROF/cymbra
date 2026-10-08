@@ -37,7 +37,8 @@ export interface VoiceInfo {
 export interface SpeechEngine<V extends VoiceInfo = VoiceInfo> {
   /** The voices listed right now (Chrome lists none until `voiceschanged`). */
   voices(): V[];
-  onVoicesChanged(listener: () => void): void;
+  /** Call `listener` when the voices change; returns how to stop, where the platform allows it. */
+  onVoicesChanged(listener: () => void): (() => void) | void;
   /** Speak `text` with `voice`; `done` runs once, with null or the error code. */
   speak(text: string, voice: V, done: (error: string | null) => void): void;
   /** Stop everything queued in this frame. */
@@ -59,7 +60,8 @@ export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = { voices: {}, androidVoic
 /** Where those settings are kept, and how a change made in another context reaches this one. */
 export interface VoicePreference {
   load(): Promise<SpeechSettings>;
-  watch(onChange: (settings: SpeechSettings) => void): void;
+  /** Call `onChange` when the settings change in any context; returns how to stop. */
+  watch(onChange: (settings: SpeechSettings) => void): (() => void) | void;
 }
 
 /** What is being spoken: the caller's key (`selection`, `sentence`, `preview`) and the text. */
@@ -370,11 +372,16 @@ const OWN_ERRORS = new Set(["interrupted", "canceled"]);
 /**
  * `language`: the studied language it speaks, or a getter read at each use, so a surface can
  * create its speaker before it knows the reader's language (add-lingua-studied-language-profile).
+ * `signal`: the speaker's lifetime, when its surface can be taken down before its page goes — a
+ * reading session built anew for another native language (add-lingua-native-language-choice D3):
+ * once aborted, it follows neither the voices nor the settings, and nothing it listened with keeps
+ * the session alive.
  */
 export function createSpeaker<V extends VoiceInfo>(
   engine: SpeechEngine<V> | null,
   language: string | (() => string),
   preference: VoicePreference,
+  signal?: AbortSignal,
 ): Speaker {
   const langOf = typeof language === "function" ? language : () => language;
   let voices: V[] = engine ? engine.voices() : [];
@@ -385,7 +392,7 @@ export function createSpeaker<V extends VoiceInfo>(
     for (const listener of [...listeners]) listener();
   };
 
-  engine?.onVoicesChanged(() => {
+  const unwatchVoices = engine?.onVoicesChanged(() => {
     voices = engine.voices();
     notify();
   });
@@ -394,7 +401,16 @@ export function createSpeaker<V extends VoiceInfo>(
     notify();
   };
   void preference.load().then(follow, () => {});
-  preference.watch(follow);
+  const unwatchSettings = preference.watch(follow);
+  signal?.addEventListener(
+    "abort",
+    () => {
+      unwatchVoices?.();
+      unwatchSettings?.();
+      listeners.clear();
+    },
+    { once: true },
+  );
 
   const usable = (): V[] => usableVoices(voices, langOf(), settings.androidVoices, settings.remoteVoices);
   const chosen = (): V | null =>
@@ -460,7 +476,9 @@ export function browserSpeechEngine(
     onVoicesChanged(listener) {
       // Never through `onvoiceschanged`: the page shares that object, and assigning its handler
       // would replace the page's own.
-      if (typeof synth.addEventListener === "function") synth.addEventListener("voiceschanged", listener);
+      if (typeof synth.addEventListener !== "function") return;
+      synth.addEventListener("voiceschanged", listener);
+      return () => synth.removeEventListener("voiceschanged", listener);
     },
     speak(text, voice, done) {
       const utterance = new SpeechSynthesisUtterance(text);

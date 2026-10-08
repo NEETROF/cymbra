@@ -19,28 +19,14 @@
 #![cfg(target_arch = "wasm32")]
 
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::packs::{PackMeta, read_container, write_container};
-use lingua_wasm::LinguaEngine;
+use lingua_wasm::{LinguaEngine, reprofile_backup};
 use wasm_bindgen::{JsError, JsValue};
 use wasm_bindgen_test::wasm_bindgen_test;
 
-const PACK: &[u8] = include_bytes!("fixtures/pack.lingua");
+#[path = "support/fixture_pack.rs"]
+mod fixture_pack;
 
-/// The fixture pack, its metadata rewritten to study `studied` glossed in `native`
-/// (generalise-lingua-native-language): the analyser only reads the forms, so English ones
-/// serve here.
-fn rewritten(studied: StudiedLanguage, native: &str) -> Vec<u8> {
-    let (meta, sections) = read_container(PACK).unwrap();
-    let mut meta: PackMeta = serde_json::from_slice(&meta).unwrap();
-    meta.studied = studied.tag().into();
-    meta.analyzer_version = studied.analyzer_version().into();
-    meta.native = native.into();
-    let sections: Vec<(&str, &[u8])> = sections
-        .iter()
-        .map(|s| (s.name.as_str(), s.data.as_slice()))
-        .collect();
-    write_container(&serde_json::to_vec(&meta).unwrap(), &sections)
-}
+use fixture_pack::{PACK, rewritten};
 
 /// What a refusal says, as the extension reads it (`Error: <message>`, then its stack).
 fn message(error: JsError) -> String {
@@ -201,4 +187,29 @@ fn spec_scenario_a_french_native_reader_cannot_study_french() {
     );
     assert_eq!(engine.studied_languages(), r#"["en"]"#);
     assert_eq!(engine.backup(), backup, "a refused profile changes nothing");
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_a_refused_native_language_choice_returns_an_error() {
+    // add-lingua-native-language-choice D2: the background's rewrite of the backup throws, and
+    // the extension keeps the backup it had.
+    let backup = LinguaEngine::new(PACK).unwrap().backup();
+    let refuse = |native: &str, studied: &[&str]| {
+        let Err(refused) = reprofile_backup(
+            &backup,
+            native,
+            studied.iter().map(|tag| (*tag).to_owned()).collect(),
+        ) else {
+            panic!("{native} studying {studied:?} was accepted");
+        };
+        message(refused)
+    };
+    assert!(refuse("en", &["en"]).contains("the native language, which a reader never studies"));
+    assert!(refuse("en", &[]).contains("a reader studies at least one language"));
+    assert!(refuse("de", &["en"]).contains("unknown native language \"de\""));
+    let reprofiled = reprofile_backup(&backup, "en", vec!["es".to_owned()]).unwrap();
+    let mut engine = LinguaEngine::new(&rewritten(StudiedLanguage::Spanish, "en")).unwrap();
+    engine.restore(&reprofiled).unwrap();
+    assert_eq!(engine.profile_native_language(), "en");
+    assert_eq!(engine.studied_languages(), r#"["es"]"#);
 }

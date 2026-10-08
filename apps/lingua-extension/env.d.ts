@@ -23,6 +23,11 @@ declare const __SECTIONS_FROM_WORKER__: boolean;
 // the default studied language's first: each one's pack is at assets/packs/<pair>.lingua.
 declare const __LINGUA_PACKS__: string;
 
+// Whether the reader chooses their native language (add-lingua-native-language-choice D1): true once
+// two native languages have a shipped pair (build.mjs, from packs.json). False, the choice's views,
+// its preset and its copy fold out of the bundles; the tests define it true.
+declare const __NATIVE_CHOICE__: boolean;
+
 // Where the translation engine is hosted (add-lingua-translation-engine). Every shipped build
 // carries it (build.mjs `translationHost`): "offscreen" on Chromium, whose service worker cannot
 // construct a Worker; "event-page" on Firefox and on Safari, whose background pages can

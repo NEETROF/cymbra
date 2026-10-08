@@ -6,6 +6,7 @@ export const settings: typeof fr = {
   installVoiceHelp: (windowsLanguage, language) =>
     `Para una voz en el dispositivo, sin cambiar el idioma del sistema ni del navegador: en Windows, Configuración › Hora e idioma › Idioma y región › Agregar un idioma › ${windowsLanguage}, sin definirlo como idioma de visualización, con la conversión de texto a voz; en macOS, Ajustes del Sistema › Accesibilidad › Contenido hablado › Voz del sistema › Gestionar voces › ${language}. Después, reinicia el navegador.`,
   installVoiceHelpWithFallback: (help) => `${help} Si la instalación falla, activa las voces en línea más abajo.`,
+  nativeLanguage: "Idioma materno",
   studiedLanguages: "Idiomas estudiados",
   beginner: "Principiante",
   knowCommonest: (n) => `Conozco las ${n} palabras más corrientes`,

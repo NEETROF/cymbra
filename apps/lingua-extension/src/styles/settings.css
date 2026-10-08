@@ -342,6 +342,12 @@ kbd {
   display: contents;
 }
 
+/* The choice of the native language (add-lingua-native-language-choice D4): its notes and its
+   confirmation come and go, and `.set-reset`'s display beats the UA's `[hidden]`: say it again. */
+.set-native [hidden] {
+  display: none;
+}
+
 /* The choice of studied languages (add-lingua-language-choice D2). */
 .set-languages {
   display: flex;

@@ -511,6 +511,25 @@ describe("Révision — a reader of several languages", () => {
     expect(m.prefs.raw[REVIEW_LANGUAGE_KEY]).toBeUndefined(); // the page chose, not the reader
   });
 
+  it("Changing the native language: the review opens in Spanish, the English last chosen no longer studied", async () => {
+    // A French reader of English and Spanish chose English, es-en shipping
+    // (add-lingua-native-language-choice D5): their profile is English-native, studying Spanish.
+    packs.shipped = ["en-fr", "es-fr", "es-en"];
+    const { port, calls } = makeFakePort(MIXED);
+    port.nativeLanguage = async () => "en";
+    await port.setStudiedLanguages(["es"]);
+    const lastEnglish = fakeArea();
+    lastEnglish.raw[REVIEW_LANGUAGE_KEY] = "en";
+    const m = mount(port, fakeArea(), { prefs: lastEnglish, pageLanguage: async () => null });
+    await m.page.refresh();
+
+    expect(filter(m.container)?.hidden).toBe(true); // one language studied: no filter
+    expect(calls.reviewLanguages.at(-1)).toEqual(["es"]);
+    button(m.container, "Réviser").click();
+    await settle();
+    expect(text(m.container, ".review-headword")).toBe("faro");
+  });
+
   it("opens away from a page on the language chosen last, else on the first", async () => {
     const lastSpanish = fakeArea();
     lastSpanish.raw[REVIEW_LANGUAGE_KEY] = "es";

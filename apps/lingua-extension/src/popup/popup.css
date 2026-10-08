@@ -356,3 +356,18 @@ button.primary:hover {
   font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   line-height: 1.4;
 }
+
+/* The native language's question on a first run whose onboarding never opened
+   (add-lingua-native-language-choice D4): above the page's figures, its choice styled by
+   settings.css like Réglages' own block. Built only while two native languages ship. */
+.native-cta {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--cymbra-lingua-border);
+  border-radius: var(--cymbra-lingua-radius);
+}
+
+.native-cta .native-question {
+  font-weight: 600;
+  margin-bottom: 6px;
+}

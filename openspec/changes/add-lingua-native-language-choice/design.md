@@ -57,9 +57,15 @@ runtime message `lingua-native-language` `{native}`:
    profile itself — the store owner's mirror (change 13 D3) runs in its debounced reaction, and a
    page reloading on the announcement must read the new key — and announce the store change
    with its reason;
-4. drop its two engines: the rpc port's and the sync port's memoised engines and the `hydrated`
-   memo are cleared (the ports are `const`; their engines rebuild for the new native on their
-   next use, resolving the native from the backup as today, through D3's restore).
+4. have its reading engine restore the backup before its next answer — the rpc port's `hydrated`
+   memo is cleared, and the restore rebuilds the engine for the new native language (D3); the sync
+   port restores the backup at the start of every run and follows by itself. No engine is dropped:
+   a port without one would serve a fresh state until something restored it.
+
+Steps 2 to 4 run with every sync held (the scheduler's `exclusive`, as the erasure does, and after
+any change asked before): a sync restores the backup, applies what it pulled and saves the result,
+and a change landing in between would be saved over — the native language reverted — or would save
+over the pulls.
 
 ### D3 — Every port follows the backup's native language
 
@@ -92,10 +98,15 @@ selected, the consequence for the studied languages stated before confirming, a 
 - in the popup's first run, as a call to action of its own above `#controls` (which shows only
   once a content script answers), when `cymbra-lingua-native-chosen` is unset. New install and
   update are told apart by `onInstalled`'s `reason`, which fires on every browser: on `update`
-  the background sets the marker at once — an installed extension is never asked (M22); on
-  `install` the marker is set by the preset (the onboarding's, or the popup's when the onboarding
-  tab did not open) and by the three places. A store that already holds a backup proves nothing:
-  reading one page writes one.
+  the background sets the marker at once — an installed extension is never asked (M22).
+  Otherwise the marker is set by the reader's answer in one of the three places — confirming the
+  preset counts, in the onboarding as in the popup — and never by the preset itself, so a popover
+  closed before the answer asks again. Should a browser not report an update (Safari's host app
+  may update the extension without it), a preset refuses a backup that holds the reader's data —
+  a status, a card, a profile other than the default — and marks the choice as made instead; the
+  first preset that found the device new sets `cymbra-lingua-native-preset`, so the reader's own
+  first statuses never pass for an installed extension's. A store that merely holds a backup
+  proves nothing: reading one page writes one, with its exposures.
 
 ### D5 — What follows a change
 

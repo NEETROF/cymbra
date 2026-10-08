@@ -7,11 +7,13 @@ import {
   messagedArea,
   MIGRATED_KEY,
   migrateStore,
+  NATIVE_CHANGE_GUARD_MS,
   openStore,
   ownerArea,
   dropRetiredKeys,
   rememberInterfaceLanguage,
   STORE_KEYS,
+  StaleNativeLanguageError,
   type StoreReply,
 } from "@/state/store.ts";
 import { type AsyncStorageArea, nativeLanguageOfStored, ROOT_KEY, saveBackup } from "@/state/storage.ts";
@@ -473,5 +475,80 @@ describe("the interface language follows the stored profile", () => {
     await owner.mirrored();
     expect(preferences.store[INTERFACE_LANGUAGE_KEY]).toBe("es");
     warn.mockRestore();
+  });
+});
+
+describe("a backup naming the native language the reader just left (add-lingua-native-language-choice D3)", () => {
+  const PAIRS = ["en-fr", "es-fr", "es-en"];
+  const french = JSON.stringify({ profile: { native_language: "French", studied_languages: ["English"] } });
+  const english = JSON.stringify({ profile: { native_language: "English", studied_languages: ["Spanish"] } });
+  const CHANGE = { type: "native-language", native: "en" } as const;
+
+  function owner() {
+    let clock = 1_000;
+    const store = fakeArea({ [ROOT_KEY]: { v: 2, backup: french } });
+    const announced: string[][] = [];
+    const area = ownerArea(
+      store,
+      (keys) => announced.push(keys),
+      fakeArea(),
+      PAIRS,
+      () => clock,
+    );
+    return { area, store, announced, advance: (ms: number) => (clock += ms) };
+  }
+
+  it("is refused while the change is recent, nothing written, nothing announced", async () => {
+    const o = owner();
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);
+    o.announced.length = 0;
+
+    // A session taken down while its engine answered saves the French backup it held.
+    await expect(o.area.set({ [ROOT_KEY]: { v: 2, backup: french } })).rejects.toThrow(StaleNativeLanguageError);
+    o.advance(NATIVE_CHANGE_GUARD_MS - 1);
+    await expect(saveBackup(o.area, french)).rejects.toThrow('a backup naming "fr" was refused');
+
+    expect(o.store.store[ROOT_KEY]).toEqual({ v: 2, backup: english });
+    expect(o.announced).toEqual([]);
+  });
+
+  it("leaves alone a backup naming the native language chosen, and every other key", async () => {
+    const o = owner();
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } });
+    await o.area.set({ "cymbra-lingua-device": "dev-1" });
+    expect(o.store.store["cymbra-lingua-device"]).toBe("dev-1");
+  });
+
+  it("mirrors the language the change names before announcing it, without parsing the backup", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const preferences = fakeArea({ [INTERFACE_LANGUAGE_KEY]: "fr" });
+    const seen: unknown[] = [];
+    const area = ownerArea(fakeArea(), () => seen.push(preferences.store[INTERFACE_LANGUAGE_KEY]), preferences, PAIRS);
+    // A backup that would not parse: read, it would mirror French, and say so.
+    await area.set({ [ROOT_KEY]: { v: 2, backup: "{not json" } }, CHANGE);
+    expect(seen).toEqual(["en"]);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("is written again once the change is old: a backup restored from a file names what it names", async () => {
+    const o = owner();
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);
+    o.advance(NATIVE_CHANGE_GUARD_MS);
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: french } });
+    expect(o.store.store[ROOT_KEY]).toEqual({ v: 2, backup: french });
+  });
+
+  it("is written as before when no change was made, and a second change moves the guard", async () => {
+    const o = owner();
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }); // a restore from a file, no change
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: french } });
+    expect(o.store.store[ROOT_KEY]).toEqual({ v: 2, backup: french });
+
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: english } }, CHANGE);
+    await o.area.set({ [ROOT_KEY]: { v: 2, backup: french } }, { type: "native-language", native: "fr" });
+    await expect(o.area.set({ [ROOT_KEY]: { v: 2, backup: english } })).rejects.toThrow(StaleNativeLanguageError);
+    expect(o.store.store[ROOT_KEY]).toEqual({ v: 2, backup: french });
   });
 });

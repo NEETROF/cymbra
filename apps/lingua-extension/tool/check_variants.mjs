@@ -114,10 +114,27 @@ const defines = [...readFileSync(join(root, "env.d.ts"), "utf8").matchAll(/decla
 );
 expect(defines.length > 0, "env.d.ts: no build defines found");
 for (const target of ["chromium", "firefox", "safari"]) {
-  for (const file of ["background.js", "content.js", "popup.js", "account.js"]) {
+  for (const file of ["background.js", "content.js", "popup.js", "account.js", "onboarding.js", "sidepanel.js"]) {
     const bundle = read(target, file);
     for (const name of defines) {
       expect(!bundle.includes(name), `${target}/${file}: build define "${name}" was not replaced`);
+    }
+  }
+}
+
+// The native language's choice (add-lingua-native-language-choice D1): built only once two native
+// languages have a shipped pair (`__NATIVE_CHOICE__`). Until then no surface carries its view, its
+// question or its call to action — the pages are what they were before it.
+if (shippedNatives(shippedPairs()).length < 2) {
+  for (const target of ["chromium", "firefox", "safari"]) {
+    for (const file of ["popup.js", "onboarding.js", "content.js", "sidepanel.js", "reader.js"]) {
+      const bundle = read(target, file);
+      for (const text of ["Je lis en", "mountNativeLanguage", "native-cta", "native-section", "presetNativeLanguage"]) {
+        expect(
+          !bundle.includes(text),
+          `${target}/${file}: the native language's choice ("${text}") should be folded away`,
+        );
+      }
     }
   }
 }
