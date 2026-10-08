@@ -162,10 +162,14 @@ used for tracking.
 | Usage Data → Product Interaction | daily counts (words learned, reviews, words met), per day and studied language, with the native language of the day | yes | App Functionality, Analytics (aggregated back-office figures) |
 
 Not collected: browsing history, search history, location, contacts, purchases, diagnostics,
-financial or health data. Privacy policy: `https://cymbra.app/confidentialite/`
-(`/en/privacy/`, `/es/privacidad/`, Annex B). Account deletion:
-`https://cymbra.app/suppression-compte/` (`/en/delete-account/`, `/es/eliminar-cuenta/`),
-linked from the extension's account page, next to « Effacer mes données Lingua ».
+financial or health data. The language Lingua sends to the Cymbra account (the interface's or
+the browser's, kept as the account's language) maps to no Apple data type, so the categories
+stay unchanged. Privacy policy: `https://cymbra.app/confidentialite/` (`/en/privacy/`,
+`/es/privacidad/`, Annex B). Account deletion: `https://cymbra.app/suppression-compte/`
+(`/en/delete-account/`, `/es/eliminar-cuenta/`); the extension's account page links the
+French page for a French browser and the English one otherwise, next to « Effacer mes données
+Lingua ». `/es/eliminar-cuenta/` is not linked from the extension yet: that link waits for
+`add-site-spanish-locale`'s task 3.2.
 
 ## Known issue — popup title on iOS 27
 
