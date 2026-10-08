@@ -6,7 +6,7 @@ alternates:
   fr: /confidentialite
   en: /en/privacy
   es: /es/privacidad
-updated: 29/09/2026
+updated: 08/10/2026
 ---
 
 This policy explains what personal data the **Cymbra services** (published by
@@ -149,45 +149,55 @@ addition to §2, we process:
 ## Annex B — Cymbra Lingua
 
 **Cymbra Lingua** (browser extension and Safari app) highlights, in the pages you read,
-the English words you do not know yet. In addition to §2:
+the words you do not know yet in the languages you study. In addition to §2:
 
 **What stays on your device.** Page text is analysed **on your device** and is never sent.
 Also kept on the device: the detail of your reading (which words you met, on which pages),
-the **address of the page** where you add a word to your deck and, when you are not signed
-in, all of your Lingua data.
+the **address of the page** where you add a word to your deck, your language settings and,
+when you are not signed in, all of your Lingua data.
+
+**Your languages.** The languages you study and your native language are a device setting:
+it is not synced as such. Each synced status, level, card and day of statistics is stored
+under the studied language it belongs to, and your native language reaches Cymbra as the
+language of each card's translation and with each day's statistics; Lingua's interface
+language is passed to your Cymbra account as the language of your emails (see the table
+below).
 
 **Extended translation.** This setting, off by default and specific to each device (it is not
 synced), translates on your device the sentence your selection is in. When you turn it on, the
-extension downloads a translation model **once** (25.8 MB, the Firefox Translations model
-published by Mozilla under the MPL 2.0) from `models.cymbra.app`; translation then happens **on
-your device**, and page text is still never sent. The download carries no page text, no Lingua
-data, no account token and no installation identifier, and Cymbra does not associate it with an
-account or an installation. As with any web page, the host of these files (Cloudflare) sees the
-IP address of the device asking for them. Turning the setting off deletes the model from the
-device.
+extension downloads **once** the model or models of your language pairs — one model (about
+26 MB) when the translation is direct, two (about 52 MB) when it goes through English —, the
+Firefox Translations models published by Mozilla under the MPL 2.0, from `models.cymbra.app`;
+a pair added later downloads its own the same way. Translation then happens **on your
+device**, and page text is still never sent. These downloads carry no page text, no Lingua
+data, no account token and no installation identifier, and Cymbra does not associate them
+with an account or an installation. As with any web page, the host of these files
+(Cloudflare) sees the IP address of the device asking for them. Turning the setting off
+deletes the models from the device.
 
-**Read aloud.** Read aloud uses the voices installed on your device: the text read does not
-leave it. If no English voice is installed there, you can turn on your browser's online voices
-as a fallback (a setting off by default, specific to each device): the text read is then sent
-by **your browser** to the provider of those voices (Google, for Chrome), under that provider's
-terms. Cymbra does not receive this text. As soon as an English voice is installed on the
-device, it is used instead.
+**Read aloud.** Read aloud uses a voice of the language being read, installed on your device:
+the text read does not leave it. If no voice of that language is installed there, you can turn
+on your browser's online voices as a fallback (a setting off by default, specific to each
+device): the text read is then sent by **your browser** to the provider of those voices
+(Google, for Chrome), under that provider's terms. Cymbra does not receive this text. As soon
+as a voice of that language is installed on the device, it is used instead.
 
 **What is synced when you are signed in** to your Cymbra account:
 
 | Data | Source | Purpose |
 |---|---|---|
-| Each word's status (known, learning, ignored) and your declared English level | you | find your progress on all your devices |
-| Review deck: the word, the sentence you found it in, its translation, the language it is written in, and its review state — **without** the page address | you | review on all your devices |
-| Daily statistics (words learned, reviews, number of words read and, among them, of new words), with your native language (the one the translations are in) | computed on the device | show your statistics; **aggregated** usage figures to run the service and, with no name and no number of people, published in the Cymbra community channels (see §2) |
+| Each word's status (known, learning, ignored) and your declared level, for each language you study | you | find your progress on all your devices |
+| Review deck, for each language you study: the word, the sentence you found it in, its translation, the language of that translation, and its review state — **without** the page address | you | review on all your devices |
+| Daily statistics, per day and language you study (words learned, reviews, number of words read and, among them, of new words), with your native language that day (the one the translations are in) | computed on the device | show your statistics; **aggregated** usage figures to run the service and, with no name and no number of people, published in the Cymbra community channels (see §2) |
 | Random installation identifier | generated by the extension | tell two devices apart during sync |
+| The language of your Cymbra emails: Lingua's interface language, or the browser's when it is in Italian | you (interface language) | write to you in your language (verification, password reset) |
 
 - **Legal basis**: performance of a contract (providing sync); legitimate interest for
   publishing aggregate figures (see §2).
 - **Retention**: for as long as your account exists, or until you erase your Lingua data.
-- **Erase your Lingua data without deleting your account**: in the extension,
-  *Compte → Tes données → Effacer mes données Lingua*. The erasure covers the server and
-  all your devices (each one clears itself at its next sync); your Cymbra account and your
-  other Cymbra apps are not affected.
+- **Erase your Lingua data without deleting your account**: in the extension, the Lingua
+  erasure in the account page. The erasure covers the server and all your devices (each
+  one clears itself at its next sync); your Cymbra account and your other Cymbra apps are
+  not affected.
 - **Deleting your account** (§7) also erases all of your Lingua data.
 - This data is **hosted in the European Union** (France), like the rest of your data.

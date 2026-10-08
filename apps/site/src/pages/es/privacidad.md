@@ -3,7 +3,7 @@ layout: ../../layouts/Legal.astro
 title: Política de privacidad
 description: Qué datos personales tratan los servicios Cymbra, por qué, con quién se comparten y cuáles son tus derechos.
 lang: es
-updated: 29/09/2026
+updated: 08/10/2026
 alternates:
   fr: /confidentialite
   en: /en/privacy
@@ -156,47 +156,58 @@ lo indicado en el §2, tratamos:
 ## Anexo B — Cymbra Lingua
 
 **Cymbra Lingua** (extensión de navegador y app de Safari) resalta, en las páginas que
-lees, las palabras inglesas que todavía no conoces. Además de lo indicado en el §2:
+lees, las palabras que todavía no conoces en los idiomas que estudias. Además de lo indicado
+en el §2:
 
 **Lo que se queda en tu dispositivo.** El texto de las páginas se analiza **en tu
 dispositivo** y nunca se envía. También se quedan en el dispositivo: el detalle de tus
 lecturas (qué palabras has encontrado, en qué páginas), la **dirección de la página** en la
-que añades una palabra a tu mazo y, si no has iniciado sesión, el conjunto de tus datos de
-Lingua.
+que añades una palabra a tu mazo, tus ajustes de idiomas y, si no has iniciado sesión, el
+conjunto de tus datos de Lingua.
+
+**Tus idiomas.** Los idiomas que estudias y tu lengua materna son un ajuste del dispositivo:
+no se sincroniza como tal. Cada estado, nivel, tarjeta y día de estadísticas sincronizado se
+guarda bajo el idioma estudiado al que pertenece, y tu lengua materna llega a Cymbra como
+idioma de la traducción de cada tarjeta y con tus estadísticas de cada día; el idioma de la
+interfaz de Lingua se transmite a tu cuenta Cymbra como idioma de tus correos electrónicos
+(véase la tabla siguiente).
 
 **Traducción ampliada.** Este ajuste, desactivado por defecto y propio de cada dispositivo
 (no se sincroniza), traduce en tu dispositivo la frase en la que se encuentra tu selección.
-Cuando lo activas, la extensión descarga **una sola vez** un modelo de traducción (25,8 MB,
-el modelo de Firefox Translations publicado por Mozilla bajo la licencia MPL 2.0) desde
-`models.cymbra.app`; a partir de entonces la traducción se hace **en tu dispositivo**, y el
-texto de las páginas sigue sin enviarse nunca. Esta descarga no contiene ni texto de las
+Cuando lo activas, la extensión descarga **una sola vez** el modelo o los modelos de tus
+pares de idiomas — un modelo (unos 26 MB) cuando la traducción es directa, dos (unos 52 MB)
+cuando pasa por el inglés —, los modelos de Firefox Translations publicados por Mozilla bajo
+la licencia MPL 2.0, desde `models.cymbra.app`; un par añadido más tarde descarga los suyos
+del mismo modo. A partir de entonces la traducción se hace **en tu dispositivo**, y el texto
+de las páginas sigue sin enviarse nunca. Estas descargas no contienen ni texto de las
 páginas, ni datos de Lingua, ni token de cuenta, ni identificador de instalación, y Cymbra
-no la asocia a ninguna cuenta ni a ninguna instalación. Como con cualquier página web, el
+no las asocia a ninguna cuenta ni a ninguna instalación. Como con cualquier página web, el
 proveedor que aloja estos archivos (Cloudflare) ve la dirección IP del dispositivo que los
-solicita. Desactivar el ajuste elimina el modelo del dispositivo.
+solicita. Desactivar el ajuste elimina los modelos del dispositivo.
 
-**Lectura en voz alta.** La lectura en voz alta utiliza las voces instaladas en tu
-dispositivo: el texto leído no sale de él. Si no hay ninguna voz inglesa instalada, puedes
-activar como alternativa las voces en línea de tu navegador (ajuste desactivado por
-defecto, propio de cada dispositivo): el texto leído lo envía entonces **tu navegador** al
-proveedor de esas voces (Google, en el caso de Chrome), según las condiciones de ese
-proveedor. Cymbra no recibe ese texto. En cuanto haya una voz inglesa instalada en el
-dispositivo, se utiliza en su lugar.
+**Lectura en voz alta.** La lectura en voz alta utiliza una voz del idioma leído, instalada
+en tu dispositivo: el texto leído no sale de él. Si no hay ninguna voz de ese idioma
+instalada, puedes activar como alternativa las voces en línea de tu navegador (ajuste
+desactivado por defecto, propio de cada dispositivo): el texto leído lo envía entonces **tu
+navegador** al proveedor de esas voces (Google, en el caso de Chrome), según las condiciones
+de ese proveedor. Cymbra no recibe ese texto. En cuanto haya una voz de ese idioma instalada
+en el dispositivo, se utiliza en su lugar.
 
 **Lo que se sincroniza si has iniciado sesión** con tu cuenta Cymbra:
 
 | Dato | Origen | Finalidad |
 |---|---|---|
-| Estado de cada palabra (conocida, en aprendizaje, ignorada) y nivel de inglés declarado | tú | recuperar tu progreso en tus dispositivos |
-| Mazo de repaso: la palabra, la frase en la que la encontraste, su traducción, el idioma de esa traducción y su estado de repaso — **sin** la dirección de la página | tú | repasar en todos tus dispositivos |
-| Estadísticas por día (palabras aprendidas, repasos, número de palabras leídas y, entre ellas, de palabras nuevas), con tu lengua materna (la de las traducciones) | calculadas en el dispositivo | mostrar tus estadísticas; cifras de uso **agregadas** para hacer funcionar el servicio y, sin nombre ni número de personas, publicadas en los canales de la comunidad Cymbra (véase el §2) |
+| Estado de cada palabra (conocida, en aprendizaje, ignorada) y nivel declarado, para cada idioma que estudias | tú | recuperar tu progreso en tus dispositivos |
+| Mazo de repaso, para cada idioma que estudias: la palabra, la frase en la que la encontraste, su traducción, el idioma de esa traducción y su estado de repaso — **sin** la dirección de la página | tú | repasar en todos tus dispositivos |
+| Estadísticas por día y por idioma que estudias (palabras aprendidas, repasos, número de palabras leídas y, entre ellas, de palabras nuevas), con tu lengua materna de ese día (la de las traducciones) | calculadas en el dispositivo | mostrar tus estadísticas; cifras de uso **agregadas** para hacer funcionar el servicio y, sin nombre ni número de personas, publicadas en los canales de la comunidad Cymbra (véase el §2) |
 | Identificador de instalación aleatorio | generado por la extensión | distinguir dos dispositivos durante la sincronización |
+| Idioma de tus correos electrónicos de Cymbra: el de la interfaz de Lingua, o el del navegador si está en italiano | tú (idioma de la interfaz) | escribirte en tu idioma (verificación, restablecimiento de la contraseña) |
 
 - **Base legal**: ejecución del contrato (prestación de la sincronización); interés
   legítimo para la publicación de cifras agregadas (véase el §2).
 - **Conservación**: mientras exista tu cuenta, o hasta que borres tus datos de Lingua.
-- **Borrar tus datos de Lingua sin eliminar tu cuenta**: en la extensión, *Cuenta → Tus
-  datos → Borrar mis datos de Lingua*. El borrado se aplica al servidor y a todos tus
+- **Borrar tus datos de Lingua sin eliminar tu cuenta**: en la extensión, el borrado de los
+  datos de Lingua en la página de la cuenta. El borrado se aplica al servidor y a todos tus
   dispositivos (cada uno se borra en su próxima sincronización); tu cuenta Cymbra y tus
   otras apps Cymbra no se ven afectadas.
 - La **eliminación de tu cuenta** (§7) borra también todos tus datos de Lingua.
