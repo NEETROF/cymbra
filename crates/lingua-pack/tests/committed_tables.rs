@@ -90,8 +90,8 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 #[test]
 fn every_committed_pair_holds_to_its_studied_language() {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
-    for reference in ["en-fr", "es-fr"] {
-        assert!(pairs.iter().any(|p| p == reference), "{reference} is read");
+    for pair in ["en-fr", "es-fr", "es-en", "en-es"] {
+        assert!(pairs.iter().any(|p| p == pair), "{pair} is read");
     }
 }
 
@@ -241,6 +241,132 @@ fn spec_scenario_the_credits() {
     let pack = Pack::load(es_en()).unwrap();
     assert!(pack.meta().levels_estimated);
     for credit in ["UD Spanish-GSD", "eswiktionary", "frwiktionary"] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
+}
+
+/// en-es's committed pack, built once per test binary.
+fn en_es() -> &'static [u8] {
+    static EN_ES: OnceLock<Vec<u8>> = OnceLock::new();
+    EN_ES.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "en-es").unwrap_or_else(|e| panic!("en-es: {e}"));
+        build_pack(&inputs).unwrap_or_else(|e| panic!("build en-es: {e}"))
+    })
+}
+
+#[test]
+fn spec_scenario_english_glossed_in_spanish() {
+    // en-es (add-lingua-pack-en-es): English glossed in Spanish, the first pair of a native
+    // language no shipped pack speaks, a reader pair as es-en is. Its folder holds exactly a
+    // pair's file set, its manifest studies English glossed in Spanish with English's analyser
+    // and CEFR levels (not estimated), and its studied side is tables/en, which en-fr writes.
+    let mut own: Vec<String> = PAIR_SIDE.iter().map(|t| (*t).to_owned()).collect();
+    own.extend(["pin.json".to_owned(), "README.md".to_owned()]);
+    own.sort();
+    assert_eq!(files(&tables().join("en-es")), own, "en-es/");
+    let manifest = json(&tables().join("en-es/manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "en");
+    assert_eq!(manifest["meta"]["native"], "es");
+    assert_eq!(
+        manifest["meta"]["analyzer_version"],
+        lingua_core::analysis::ANALYZER_VERSION
+    );
+    assert!(manifest["meta"].get("levels_estimated").is_none());
+
+    // Its pin records its own pack and, a reader pair's record (add-lingua-pack-es-en D3), en-fr
+    // as the reference and the sha256 of each of the six studied tables it was built on.
+    let pin = json(&tables().join("en-es/pin.json"));
+    let bytes = en_es();
+    assert_eq!(
+        pin["pack"]["sha256"],
+        sha256_hex(bytes).as_str(),
+        "en-es: pin.json"
+    );
+    assert_eq!(pin["pack"]["size"], bytes.len());
+    assert_eq!(pin["studied"]["reference"], "en-fr");
+    for name in STUDIED_SIDE {
+        let committed = std::fs::read(tables().join("en").join(name)).unwrap();
+        assert_eq!(
+            pin["studied"]["tables"][name],
+            sha256_hex(&committed).as_str(),
+            "en-es: en/{name}"
+        );
+    }
+    // Its sources are dumps alone: no extract of its own (D2), the three derived files under its
+    // own release.
+    assert!(pin["sources"].get("kaikki").is_none(), "no extract");
+    let release = pin["sources"]["kaikki-es"]["release"].as_str().unwrap();
+    assert!(
+        release.starts_with("lingua-pack-sources-en-es-"),
+        "{release}"
+    );
+    assert_eq!(pin["sources"]["kaikki-en"]["release"], release);
+    assert!(pin["sources"]["kaikki-es"]["files"]["kaikki-es-English.jsonl"].is_object());
+    assert!(pin["sources"]["kaikki-es"]["files"]["kaikki-es-traductions-en.jsonl"].is_object());
+    assert!(pin["sources"]["kaikki-en"]["files"]["kaikki-en-traductions-es.jsonl"].is_object());
+    assert!(
+        json(&tables().join("en-fr/pin.json"))
+            .get("studied")
+            .is_none(),
+        "the reference's pin records nothing of its readers"
+    );
+    // Its dictionary words are en-fr's, so the pack carries a lexical table; its levels are
+    // English's CEFR lists, read as committed.
+    let pack = Pack::load(bytes).unwrap();
+    assert_eq!(pack.pair().key(), "en-es");
+    assert!(!pack.meta().levels_estimated);
+    assert!(section_of(&sections(bytes), section::LEXICAL).is_some());
+    assert_eq!(
+        pack.dictionary_words(),
+        Pack::load(shipped("en-fr")).unwrap().dictionary_words(),
+        "en-es's dictionary words are en-fr's"
+    );
+    let house = pack.gloss("house").expect("house: glossed in Spanish");
+    assert!(house.starts_with("Casa"), "house: {house}");
+}
+
+#[test]
+fn spec_scenario_the_credits_of_en_es() {
+    // en-es's notice names both sides' sources: the studied side as en-fr's notice credits it
+    // (ESDB with its WordNet notice, wordfreq, the French Wiktionary's form links and dictionary
+    // words, CEFR-J, Octanove) and the native side (the Spanish Wiktionary's definitions and
+    // English translations, the English Wiktionary's Spanish translations). The pack carries it.
+    let notice = std::fs::read_to_string(tables().join("en-es/NOTICE")).unwrap();
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
+    for credit in [
+        "ESDB (English Speller Database, SCOWLv2, en-wl/wordlist)",
+        "WordNet, used by ESDB",
+        "wordfreq (English and Spanish frequency lists)",
+        "Robyn Speer",
+        "Spanish Wiktionary (eswiktionary)",
+        "English translations its Spanish entries list",
+        "English Wiktionary (enwiktionary)",
+        "Spanish translations its English entries list",
+        "French Wiktionary (frwiktionary)",
+        "which lemmas en-fr glosses: the dictionary words",
+        "CEFR-J: The CEFR-J Wordlist Version 1.5",
+        "Octanove: Octanove Vocabulary Profile C1/C2 v1.0",
+    ] {
+        assert!(notice.contains(credit), "en-es/NOTICE names {credit:?}");
+    }
+    let manifest = json(&tables().join("en-es/manifest.json"));
+    assert_eq!(
+        manifest["meta"]["licences"][2],
+        "kaikki / eswiktionary, enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)"
+    );
+    let pack = Pack::load(en_es()).unwrap();
+    for credit in [
+        "ESDB",
+        "eswiktionary",
+        "enwiktionary",
+        "frwiktionary",
+        "CEFR-J",
+        "Octanove",
+    ] {
         assert!(
             pack.notice().contains(credit),
             "the pack's notice names {credit:?}"

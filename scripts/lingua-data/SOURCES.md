@@ -233,6 +233,69 @@ parenthesis of 40 characters or more taken out: 1,057 of the top 10,000 glosses 
 247 would change). Both are committed at their defaults, off, until the owner picks them on samples
 of the top 10,000; a value chosen re-pins es-en alone.
 
+## EN → ES
+
+Reduced by `reduce-en-es.py` (add-lingua-pack-en-es): English glossed in Spanish, the first pair
+glossed in a native language no shipped pack speaks — Spanish speakers studying English
+(`docs/lingua/language-matrix-programme.md`, change 22, decision M1). No extension package carries
+the pack: `packs.json` does not list it until change 35.
+
+en-es reads English's tables in `tables/en/` as committed — en-fr's reduction writes them — and
+writes its native side alone: its lemmas and their ranks are `tables/en/forms.tsv` and `freq.tsv`
+(the commonest 40,000, as en-fr keeps them, and the level lists' words of `level.tsv` beyond them:
+40,685 lemmas), its readings, levels and dictionary words en-fr's. Its reducer loads
+`reduce_common.py` and `reduce_edition_es.py`, not en-fr's reducer nor the French edition, so
+nothing of en-fr moves with it (the digest test says so against en-fr's, es-fr's and es-en's pins).
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's English entries (`kaikki-es-English.jsonl`, derived from kaikki's dump of the whole edition, `pack_sources.py DUMPS`); else the Spanish translations the English Wiktionary's English entries list (`kaikki-en-traductions-es.jsonl`, derived from kaikki's extract of that section, served uncompressed); else the English translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions-en.jsonl`, es-en's derivation run again on en-es's own snapshot of the dump) | CC BY-SA 4.0 + GFDL | the shared rules on the Spanish Wiktionary's English entries, cleaned by the Spanish edition's (`reduce_edition_es.ES`): up to eight senses grouped by part of speech, opening on a capital as the edition writes them. A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, as es-fr orders its inverted table by French frequency. A letter glosses no word in either direction: a single letter is glossed only by a sense that is neither the letter nor a name borrowed through it (a `character` entry, a one-letter word translated as itself or under a noun entry — the letter's name, a note, a grade —, « Nombre de la letra Q »; read backwards, no one-letter English word at all, since the entry is the Spanish word's and says nothing of the English side: the Spanish Wiktionary's `do` lists « C »). No pivot, no machine translation. Coverage below |
+| `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; English's readings come from `tables/en/grammar.tsv` |
+| `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish Wiktionary's multi-word English entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer is empty |
+| `NOTICE` | both sides' sources | — | the studied side as en-fr's notice credits it (ESDB with its WordNet notice, wordfreq, the French Wiktionary's form links and dictionary words, CEFR-J, Octanove), and the native side (the Spanish Wiktionary's definitions and English translations, the English Wiktionary's Spanish translations). The levels are CEFR-J's and Octanove's, not estimated |
+
+**Spanish glosses**, the share of the commonest lemmas glossed on the 2026-10-08 tables, held by the
+`reduce` job to a floor the owner sets on the pull request (`gloss_coverage.py --pair en-es`
+against `FLOORS["en-es"]`, the one place the value lives, no `--floor` passed; D3, the programme's
+risk 5 and M6's rule) and published nowhere until the pair ships:
+
+| Lemmas | Spanish Wiktionary | with the translations | the floor (proposed) | the study |
+|---|---|---|---|---|
+| top 5,000 | 80.4 % | 93.0 % | 91.4 % | 93.4 % |
+| top 10,000 | 62.9 % | 85.0 % | 83.2 % | 85.2 % |
+| top 20,000 | 42.5 % | 71.7 % | 69.9 % | 71.9 % |
+| all 40,685 | 25.2 % | 54.0 % | — | — |
+
+21,965 lemmas are glossed: 10,247 from the Spanish Wiktionary's definitions,
+11,214 from the English Wiktionary's Spanish translations and 504 from the
+Spanish Wiktionary's English translations read backwards. **The translation-table share** (D4): of
+the 8,495 glossed lemmas among the 10,000 commonest, 26.0 % come from a translation
+table rather than from a definition (2,135 direct, 73 inverted) — the reducer
+measures it into `work/en-es/measures.json`, stored in no pack, and `pack_report.py --measures`
+shows it beside the coverage in the update's summary. 2,501 glossed lemmas are no
+dictionary word of English and 5,335 dictionary words have no Spanish gloss, so
+the pack carries a lexical section: its dictionary words are en-fr's. There are 17,096
+expressions. The pack is 1,690,595 B. A sample of 100 glosses, marked by source, is in
+`tables/en-es/README.md`.
+
+**A pair whose sources are dumps alone** (D2). en-es has no `KAIKKI` entry and its pin no
+`sources.kaikki`: everything it reads is derived at an update, in one pass per dump, and kept as the
+assets of its own release, `lingua-pack-sources-en-es-<snapshot>` — `kaikki-es-English.jsonl` and
+`kaikki-es-traductions-en.jsonl` from the Spanish Wiktionary's dump (103 MB gzipped, es-fr's and
+es-en's address, en-es's own snapshot of it), `kaikki-en-traductions-es.jsonl` from the English
+Wiktionary's English extract (`kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl`,
+served uncompressed: 3,335,546,346 B as served, measured and recorded at the first update,
+kaikki's regeneration of 2026-10-03). `derive` reads a plain or a gzipped dump alike, told apart by the gzip magic; the
+release notes name no extract; a pinned reduction fetches the three derived files and nothing
+larger. Why the extract and not the raw English dump the programme's risk 6 names: the raw dump is
+several times the extract and holds every language's entries; `derive` reads both, so the address is
+the only difference, and the extract keeps the update within the job's reach today. If kaikki stops
+serving the extract, change 38 (`migrate-lingua-pack-sources-to-raw-dumps`) switches the address
+to the raw dump. en-es's first update was dispatched alone on its pull request branch
+(2026-10-08, run [37771510878](https://github.com/NEETROF/cymbra/actions/runs/37771510878), 4 min 57 s whole, 2 min 16 s of it the extract's fetch and derivation): it fetched the dump and the extract, published the derived files as
+`lingua-pack-sources-en-es-2026.10.08`, and the pinned reduction that committed the tables followed on the same branch
+(`build.sh --reduce en-es`, about 6 s on a laptop, fetch and pack build included).
+
 ## What a pack studies, whatever it glosses
 
 Two packs of one studied language must analyse it alike whatever native language they are glossed
@@ -326,7 +389,7 @@ edition (generalise-lingua-gloss-reducer):
 |---|---|---|---|
 | `reduce_edition_fr.py` | French (frwiktionary) | en-fr, es-fr | Today's rules, unchanged: the form-of wordings (« Pluriel de », « Forme de », also read for en-fr's own forms), « Présent », « Graphie » for expressions, the pointers and placeholders (« → voir », « Définition manquante ou à compléter »), a coordinator left hanging (« ou », « et »), a letter's name; a gloss of translation-table words opens on a capital |
 | `reduce_edition_en.py` | English (enwiktionary) | es-en | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Two settings, es-en's alone and off until the owner picks them: long parentheses (M20, `LONG_PARENTHESIS` as `EN.long_parenthesis`, 0 keeps them) and the merging of a word's same-part-of-speech etymologies before the round-robin (`MERGE_SAME_POS_ETYMOLOGIES`, a pre-pass `reduce-es-en.py` runs) |
-| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es (change 22) | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name |
+| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name |
 
 Each module's docstring holds the census its rules come from, measured on the data es-fr pins. The
 French-native pairs' reducers bind the French edition; `reduce_common.py` imports no edition, so a
@@ -336,8 +399,9 @@ shared function is always told which edition it cleans.
 reducer and every `reduce_*.py` module importing it loads, read from `sys.modules`
 (`pack_sources.py rule_files`): en-fr's and es-fr's are `reduce-<pair>.py`, `reduce_common.py` and
 `reduce_edition_fr.py`; es-en's are `reduce-es-en.py`, `reduce_common.py` and
-`reduce_edition_en.py`. Editing the English edition re-pins es-en alone, the Spanish edition no
-committed pair; editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
+`reduce_edition_en.py`; en-es's are `reduce-en-es.py`, `reduce_common.py` and
+`reduce_edition_es.py`. Editing the English edition re-pins es-en alone, the Spanish edition en-es
+alone; editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
 reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a
 reducer would make later than at import time, and any module loaded other than by an import
 statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.
@@ -346,7 +410,10 @@ statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.
 whole entry and each of its senses' (`translations_of`), with the sense a table names. The French and
 Spanish Wiktionaries write one table per entry, so es-fr's derived files are unchanged; the English
 one writes them under its senses (68,579 English entries list Spanish translations under a sense,
-5,080 for the whole entry).
+5,080 for the whole entry). `derive` reads a dump as served, gzipped or plain, told apart by the
+gzip magic and not by the address: an edition's dump is gzipped, a language's extract — the English
+Wiktionary's English one, which en-es reads for those tables — is served uncompressed
+(add-lingua-pack-en-es D2).
 
 **The committed tables are what the rules make of the pinned sources.** The `reduce` job of
 `lingua-extension-check` reduces every pair again from its pinned sources, each reference first,

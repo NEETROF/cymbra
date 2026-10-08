@@ -595,6 +595,244 @@ class OwnExtracts(unittest.TestCase):
         self.assertEqual(script.count('reduce "$pair" "$work" "$snapshot" "$version"'), 2)
 
 
+class DumpsOnly(unittest.TestCase):
+    """A pair whose sources are dumps alone (add-lingua-pack-en-es D2): en-es has no extract of its
+    own — no `KAIKKI` entry, no `sources.kaikki` — and reads the Spanish Wiktionary's dump and the
+    English Wiktionary's English extract, served plain, for the files it derives from them."""
+
+    # The Spanish Wiktionary's dump: an English entry (en-es's entries), a Spanish entry listing an
+    # English translation (es-en's and en-es's inverted table) and a French one (es-fr's).
+    ES = [
+        {"word": "house", "lang_code": "en", "pos": "noun", "senses": [{"glosses": ["Casa."]}]},
+        {
+            "word": "sector",
+            "lang_code": "es",
+            "pos": "noun",
+            "translations": [{"lang_code": "fr", "word": "secteur"}, {"lang_code": "en", "word": "sector"}],
+        },
+    ]
+    # The English Wiktionary's English extract: its tables under its senses.
+    EN = [
+        {
+            "word": "house",
+            "lang_code": "en",
+            "pos": "noun",
+            "senses": [
+                {
+                    "glosses": ["A structure serving as an abode of human beings."],
+                    "translations": [
+                        {"lang_code": "fr", "word": "maison", "sense": "abode"},
+                        {"lang_code": "es", "word": "casa", "sense": "abode"},
+                    ],
+                }
+            ],
+        },
+        {"word": "home", "lang_code": "en", "pos": "noun", "senses": [{"glosses": ["A dwelling."]}]},
+    ]
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.tables = self.root / "tables"
+        (self.tables / "en").mkdir(parents=True)
+        (self.tables / "en" / "studied.json").write_text('{"reference": "en-fr"}\n')
+        (self.tables / "en" / "tags.tsv").write_text("NOUN\n")
+        self.pin = self.tables / "en-es" / "pin.json"
+        self.work = self.root / "work" / "en-es"
+        self.cache = self.root / "work" / "cache"
+        self.released = self.root / "released"
+        self.released.mkdir()
+        dumps = ps.DUMPS["en-es"]
+        self.served = {
+            dumps["kaikki-es"]["url"]: Dumps.dump(self.ES),
+            # Served uncompressed, as kaikki serves a language's extract.
+            dumps["kaikki-en"]["url"]: "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in self.EN).encode(),
+        }
+        self.fetched = []
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def fetch(self, url, dest, compressed=False):
+        self.fetched.append(url)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if url in self.served:
+            dest.write_bytes(self.served[url])
+            return {"last-modified": "Sat, 03 Oct 2026 11:09:08 GMT"}
+        tag, asset = url.rsplit("/", 2)[-2:]
+        shutil.copy(self.released / tag / asset, dest)
+        return {}
+
+    def update(self, snapshot="2026.10.09"):
+        import unittest.mock as mock
+
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                record = ps.fetch_live(
+                    self.pin, self.work, snapshot, fetch=self.fetch, today=datetime.date(2026, 10, 9), cache=self.cache
+                )
+        self.notes = err.getvalue()
+        return record
+
+    def publish(self):
+        record = ps.load(self.pin)
+        tag = ps.release_tag("en-es", record["snapshot"])
+        (self.released / tag).mkdir()
+        for asset in ps.assets(record, tag):
+            shutil.copy(self.work / asset, self.released / tag / asset)
+        return sorted(p.name for p in (self.released / tag).iterdir())
+
+    def test_a_pair_whose_sources_are_dumps_alone_is_registered_by_them(self):
+        self.assertNotIn("en-es", ps.KAIKKI, "no extract of its own")
+        self.assertEqual(
+            ps.DUMPS["en-es"]["kaikki-es"]["files"],
+            {"kaikki-es-English.jsonl": ("entries", "en"), "kaikki-es-traductions-en.jsonl": ("translations", "es", "en")},
+            "the entries and the inverted table, in one pass over en-es's own snapshot of the dump",
+        )
+        self.assertEqual(ps.DUMPS["en-es"]["kaikki-es"]["url"], ps.DUMPS["es-en"]["kaikki-es"]["url"])
+        self.assertEqual(ps.DUMPS["en-es"]["kaikki-en"]["files"], {"kaikki-en-traductions-es.jsonl": ("translations", "en", "es")})
+        self.assertEqual(
+            ps.DUMPS["en-es"]["kaikki-en"]["url"], "https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl"
+        )
+        ps.check_registered("en-es")
+        ps.check_registered("es-en")
+        with self.assertRaisesRegex(ps.PinError, r"no source registry for de-en: add it to PINNED / ESDB / KAIKKI / DUMPS"):
+            ps.check_registered("de-en")
+
+    def test_derive_reads_a_plain_or_a_gzipped_dump_alike(self):
+        # Told apart by the gzip magic, not the name: the same lines, whatever the encoding.
+        self.work.mkdir(parents=True)
+        plain, gzipped = self.work / "plain.dump.jsonl.gz", self.work / "gzipped.jsonl"
+        plain.write_bytes(self.served[ps.DUMPS["en-es"]["kaikki-en"]["url"]])
+        gzipped.write_bytes(gzip.compress(plain.read_bytes()))
+        files = ps.DUMPS["en-es"]["kaikki-en"]["files"]
+        out = {}
+        for dump in (plain, gzipped):
+            ps.derive(dump, files, self.work)
+            out[dump.name] = (self.work / "kaikki-en-traductions-es.jsonl").read_text(encoding="utf-8")
+        self.assertEqual(out["plain.dump.jsonl.gz"], out["gzipped.jsonl"])
+        self.assertEqual(
+            json.loads(out["gzipped.jsonl"]),
+            {"pos": "noun", "translations": [{"sense": "abode", "word": "casa"}], "word": "house"},
+            "the Spanish translation under the sense; no French word, and `home`, which lists none",
+        )
+
+    def test_a_dump_cut_short_leaves_no_derived_file_and_no_dump(self):
+        # A transfer that ends early: the gzip stream stops before its end-of-stream marker. The
+        # lines before the cut are read — a derived file was being written — so `derive` fails
+        # naming the dump and leaves none of it behind (each file is written as `.part` and
+        # renamed whole), rather than a short file the update would compress and publish as the
+        # snapshot's; and `fetch_live` keeps no dump either way.
+        entries = [dict(self.ES[0], word=f"house{n}", senses=[{"glosses": [f"Casa {n} {os.urandom(8).hex()}."]}]) for n in range(400)]
+        whole = Dumps.dump(entries)
+        cut = whole[: len(whole) * 2 // 3]
+        read = 0
+        with self.assertRaises(EOFError), gzip.open(io.BytesIO(cut), "rt", encoding="utf-8") as f:
+            for _ in f:
+                read += 1
+        self.assertGreater(read, 0, "the cut stream yields lines before it fails")
+        self.served[ps.DUMPS["en-es"]["kaikki-es"]["url"]] = cut
+        with self.assertRaisesRegex(ps.PinError, r"kaikki-es\.dump\.jsonl\.gz: cannot be read whole \(Compressed file ended"):
+            self.update()
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), [], "no derived file, no .part, no dump")
+        self.assertFalse(self.pin.exists(), "no record")
+
+    def test_a_dump_that_is_not_utf_8_or_not_gzip_is_refused_naming_it(self):
+        # Served plain, as the English extract is, with a byte no UTF-8 text holds; and a stream
+        # that is not gzip after its magic. `derive` names the dump, which stays its caller's.
+        self.work.mkdir(parents=True)
+        dump = self.work / "kaikki-en.dump.jsonl.gz"
+        files = ps.DUMPS["en-es"]["kaikki-en"]["files"]
+        dump.write_bytes(json.dumps(self.EN[0]).encode() + b"\n\xff\n")
+        with self.assertRaisesRegex(ps.PinError, r"kaikki-en\.dump\.jsonl\.gz: cannot be read whole \('utf-8' codec"):
+            ps.derive(dump, files, self.work)
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["kaikki-en.dump.jsonl.gz"], "no derived file, no .part")
+        dump.write_bytes(ps.GZIP_MAGIC + b"not a gzip stream\n")
+        with self.assertRaisesRegex(ps.PinError, r"kaikki-en\.dump\.jsonl\.gz: cannot be read whole \("):
+            ps.derive(dump, files, self.work)
+        self.assertEqual(sorted(p.name for p in self.work.iterdir()), ["kaikki-en.dump.jsonl.gz"])
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_an_extract_served_plain(self):
+        # lingua-pack-update reads the English Wiktionary's English extract for en-es: the Spanish
+        # translation tables are derived from it in one pass, published with the snapshot, and the
+        # extract is not kept — nor the Spanish Wiktionary's dump, from which the English entries
+        # and the English translations of Spanish entries come in one pass too.
+        record = self.update()
+        self.assertEqual(set(record["sources"]), {"kaikki-es", "kaikki-en", "wordfreq"}, "no extract of its own")
+        self.assertNotIn("kaikki", record["sources"])
+        own = ps.release_tag("en-es", "2026.10.09")
+        for name in ("kaikki-es", "kaikki-en"):
+            self.assertEqual(record["sources"][name]["release"], own)
+            self.assertEqual(record["sources"][name]["url"], ps.DUMPS["en-es"][name]["url"])
+            self.assertEqual(record["sources"][name]["last_modified"], "Sat, 03 Oct 2026 11:09:08 GMT")
+        entries = (self.work / "kaikki-es-English.jsonl").read_text(encoding="utf-8")
+        self.assertEqual(entries, json.dumps(self.ES[0], ensure_ascii=False) + "\n", "the English entry as the dump writes it")
+        inverted = json.loads((self.work / "kaikki-es-traductions-en.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual(inverted, {"pos": "noun", "translations": [{"word": "sector"}], "word": "sector"})
+        direct = json.loads((self.work / "kaikki-en-traductions-es.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual(direct, {"pos": "noun", "translations": [{"sense": "abode", "word": "casa"}], "word": "house"})
+        self.assertFalse(list(self.work.glob("*.dump*")), "neither the dump nor the extract is kept")
+        self.assertEqual(
+            ps.assets(record),
+            ["kaikki-es-English.jsonl.zst", "kaikki-es-traductions-en.jsonl.zst", "kaikki-en-traductions-es.jsonl.zst"],
+            "the derived files alone, no extract",
+        )
+        self.assertEqual(ps.assets(record, own), ps.assets(record))
+        self.assertEqual(ps.assets(record, "lingua-pack-sources-es-en-2026.10.09"), [])
+        # Its size as served is measured at the update, since the repository keeps none.
+        served = len(self.served[ps.DUMPS["en-es"]["kaikki-en"]["url"]])
+        self.assertIn(f"note: kaikki-en: {served:,} B as served, derived and not kept", self.notes)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(ps.main(["assets", "--pin", str(self.pin), "--release", own]), 0)
+        self.assertEqual(out.getvalue(), "\n".join(ps.assets(record)) + "\n")
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_pinned_reduction_fetches_the_derived_files_and_nothing_larger(self):
+        import unittest.mock as mock
+
+        self.update()
+        self.assertEqual(self.publish(), sorted(ps.assets(ps.load(self.pin))))
+        pinned = self.pin.read_bytes()
+        # On another machine: nothing in the cache, the release read.
+        shutil.rmtree(self.work)
+        shutil.rmtree(self.cache)
+        self.fetched.clear()
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
+        own = ps.release_tag("en-es", "2026.10.09")
+        self.assertEqual(
+            self.fetched,
+            [ps.release_url(own, asset) for asset in ps.assets(ps.load(self.pin))],
+            "the three derived files from en-es's own release; no dump, no extract",
+        )
+        for name in ("kaikki-es-English.jsonl", "kaikki-es-traductions-en.jsonl", "kaikki-en-traductions-es.jsonl"):
+            self.assertTrue((self.work / name).is_file(), name)
+        self.assertEqual(self.pin.read_bytes(), pinned, "the record stands")
+        # A derived file whose bytes differ from the record is refused, naming the source and the file.
+        subprocess.run(
+            ["zstd", "-q", "-f", "-o", str(self.released / own / "kaikki-en-traductions-es.jsonl.zst"), "-"],
+            input=b"{}\n",
+            check=True,
+        )
+        shutil.rmtree(self.cache)
+        with self.assertRaisesRegex(ps.PinError, "kaikki-en: kaikki-en-traductions-es.jsonl"):
+            with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+                ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
+
+    def test_a_record_without_an_extract_lists_its_derived_assets(self):
+        record = {
+            "sources": {
+                "kaikki-es": {"release": "r", "files": {"a.jsonl": {"asset": "a.jsonl.zst"}}},
+                "kaikki-en": {"release": "r", "files": {"b.jsonl": {"asset": "b.jsonl.zst"}}},
+                "wordfreq": {"version": "3.1.1"},
+            }
+        }
+        self.assertEqual(ps.assets(record), ["a.jsonl.zst", "b.jsonl.zst"])
+        self.assertEqual(ps.assets(record, "r"), ["a.jsonl.zst", "b.jsonl.zst"])
+        self.assertEqual(ps.assets(record, "other"), [])
+
+
 class ReaderPair(unittest.TestCase):
     """A pair that is not its studied language's reference records the studied tables its build
     read (add-lingua-pack-es-en D3): es-en, beside es-fr, which writes tables/es/."""
@@ -997,10 +1235,13 @@ class Record(unittest.TestCase):
             else:
                 self.assertTrue((folder / ps.STUDIED_RECORD).is_file(), folder.name)
         # The reduce job's order: each reference before the other pairs of its language — es-en,
-        # which reads tables/es, after es-fr, which writes it (add-lingua-pack-es-en, *The reduce job*).
-        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "es-en"])
+        # which reads tables/es, after es-fr, which writes it (add-lingua-pack-es-en, *The reduce job*);
+        # en-es, which reads tables/en, after en-fr (add-lingua-pack-en-es).
+        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "en-es", "es-en"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-fr"), ["es-fr", "es-en"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="en-fr"), ["en-fr", "en-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-en"), ["es-en"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="en-es"), ["en-es"])
 
     def test_the_committed_dictionary_words_are_the_reference_s_glossed_lemmas(self):
         for language in ("en", "es"):

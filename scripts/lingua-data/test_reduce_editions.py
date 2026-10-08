@@ -52,6 +52,7 @@ def _reducer(pair):
 en_fr = _reducer("en-fr")
 es_fr = _reducer("es-fr")
 es_en = _reducer("es-en")
+en_es = _reducer("en-es")
 # The studied languages, as the pairs that study them describe them.
 ENGLISH = en_fr.EN
 SPANISH = es_fr.ES
@@ -512,18 +513,26 @@ class TheEnglishEditionSettings(Entries):
 
     def test_spec_scenario_a_setting_of_the_english_edition(self):
         # Either setting changed re-pins es-en alone: it is in es-en's rules and in no French-native
-        # pair's, and reduce_common.py, which every pair loads, is not edited for it.
+        # pair's — nor en-es's, glossed by the Spanish edition — and reduce_common.py, which every
+        # pair loads, is not edited for it.
         self.assertEqual(
             [p.name for p in ps.rule_files(Path(_HERE) / "reduce-es-en.py")],
             ["reduce-es-en.py", "reduce_common.py", "reduce_edition_en.py"],
+        )
+        self.assertEqual(
+            [p.name for p in ps.rule_files(Path(_HERE) / "reduce-en-es.py")],
+            ["reduce-en-es.py", "reduce_common.py", "reduce_edition_es.py"],
         )
         copy = self.dir / "rules"
         copy.mkdir()
         for path in Path(_HERE).glob("reduce[-_]*.py"):
             (copy / path.name).write_bytes(path.read_bytes())
-        pairs = ("en-fr", "es-fr", "es-en")
+        pairs = ("en-fr", "es-fr", "es-en", "en-es")
         before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
         self.assertEqual(before, {pair: ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py") for pair in pairs})
+        # The committed pairs' digests are the ones their pins record: adding en-es moved none.
+        for pair in ("en-fr", "es-fr", "es-en"):
+            self.assertEqual(before[pair], ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"), pair)
         for name, old, new in (
             ("reduce_edition_en.py", "LONG_PARENTHESIS = 0\n", "LONG_PARENTHESIS = 40\n"),
             ("reduce_edition_en.py", "MERGE_SAME_POS_ETYMOLOGIES = False\n", "MERGE_SAME_POS_ETYMOLOGIES = True\n"),
@@ -538,8 +547,16 @@ class TheEnglishEditionSettings(Entries):
             edition.write_text(text.replace(old, new), encoding="utf-8")
             after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
             self.assertNotEqual(after["es-en"], before["es-en"], new)
-            self.assertEqual((after["en-fr"], after["es-fr"]), (before["en-fr"], before["es-fr"]), new)
+            self.assertEqual(
+                (after["en-fr"], after["es-fr"], after["en-es"]), (before["en-fr"], before["es-fr"], before["en-es"]), new
+            )
             before = after
+        # The Spanish edition's rules are en-es's alone (add-lingua-pack-en-es D1).
+        edition = copy / "reduce_edition_es.py"
+        edition.write_text(edition.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
+        after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        self.assertNotEqual(after["en-es"], before["en-es"])
+        self.assertEqual({p: after[p] for p in ("en-fr", "es-fr", "es-en")}, {p: before[p] for p in ("en-fr", "es-fr", "es-en")})
 
 
 class TheSpanishEdition(Entries):
@@ -811,6 +828,215 @@ class AGlossIsWrittenInTheReadersLanguage(Entries):
             self.jsonl(CONGERIES), {"congeries"}, studied=SPANISH, edition=EN, fallbacks=[({}, list)]
         )
         self.assertEqual((glosses, runs, expressions, primary), ({}, {}, {}, 0))
+
+
+# — The Spanish Wiktionary's English section, and the two translation tables en-es reads —
+
+HOUSE_ES = {"word": "house", "pos": "noun", "senses": [{"glosses": ["Casa, vivienda."]}, {"glosses": ["Hogar."]}]}
+RUN_ES_FORM = {"word": "ran", "pos": "verb", "senses": [{"glosses": ["Pasado simple del verbo (to) run."]}]}
+CUE_ES = CUE
+B_CHARACTER_ES = {"word": "b", "pos": "character", "senses": [{"glosses": ["Segunda letra del alfabeto."]}]}
+GIVE_UP_ES = {"word": "give up", "pos": "verb", "senses": [{"glosses": ["Rendirse."]}]}
+# The English Wiktionary's Spanish translations (derived from its English extract).
+SECTOR_TRANSLATED = {
+    "word": "sector",
+    "pos": "noun",
+    "translations": [{"word": "sector"}, {"word": "área"}, {"word": "campo"}, {"word": "zona"}],
+}
+RUN_TRANSLATED = {"word": "run", "pos": "verb", "translations": [{"word": "correr"}, {"word": "fluir", "sense": "of a liquid"}]}
+HOUSE_TRANSLATED = {"word": "house", "pos": "noun", "translations": [{"word": "hogar"}]}
+B_TRANSLATED_EN = {"pos": "character", "translations": [{"word": "b"}], "word": "b"}
+A_TRANSLATED_EN = {"pos": "det", "translations": [{"word": "un"}, {"word": "una"}], "word": "a"}
+GIVE_IN_TRANSLATED = {"word": "give in", "pos": "verb", "translations": [{"word": "ceder"}]}
+# The Spanish Wiktionary's English translations (es-en's direct table), read backwards.
+PERRO_LISTS_DOG = {"word": "perro", "pos": "noun", "translations": [{"word": "dog"}]}
+CAN_LISTS_DOG = {"word": "can", "pos": "noun", "translations": [{"word": "dog"}]}
+SEVILLA_LISTS = {"word": "Sevilla", "pos": "name", "translations": [{"word": "Seville"}]}
+I_LISTS_I = {"word": "i", "pos": "noun", "translations": [{"sense": "letra", "word": "i"}]}
+# Recorded: the English Wiktionary's one-letter words — the noun `i` under its Spanish name, the
+# pronoun `I`, the vocative `O` — and the Spanish Wiktionary's entries listing one English letter:
+# the note `do` (« C »: en-es's `c`, rank 376, was glossed « Do ») and the pronoun `yo`.
+I_NOUN_TRANSLATED_EN = {"word": "i", "pos": "noun", "translations": [{"word": "i"}, {"word": "i latina"}]}
+I_PRON_TRANSLATED_EN = {"word": "I", "pos": "pron", "translations": [{"word": "yo"}]}
+O_TRANSLATED_EN = {"word": "O", "pos": "particle", "translations": [{"word": "oh"}, {"word": "oy"}]}
+DO_LISTS_C = {"word": "do", "pos": "noun", "translations": [{"word": "C"}]}
+YO_LISTS_I = {"word": "yo", "pos": "pron", "translations": [{"word": "I"}]}
+
+
+class EnglishGlossedInSpanish(Entries):
+    """en-es (add-lingua-pack-en-es D1, D4): the native side alone from English's committed tables,
+    a definition first, then the English Wiktionary's Spanish translations, then the Spanish
+    Wiktionary's English translations read backwards — and the share the tables gave."""
+
+    def studied(self, forms, freq, level=""):
+        folder = self.dir / "en"
+        folder.mkdir(exist_ok=True)
+        (folder / "forms.tsv").write_text(forms, encoding="utf-8")
+        (folder / "freq.tsv").write_text(freq, encoding="utf-8")
+        (folder / "level.tsv").write_text(level, encoding="utf-8")
+        return folder
+
+    def wordfreq(self, zipf):
+        module = types.ModuleType("wordfreq")
+        module.zipf_frequency = lambda word, lang: zipf.get(word, 0.0) if lang == "es" else 0.0
+        return mock.patch.dict(sys.modules, {"wordfreq": module})
+
+    def reduce(self, work, studied, **zipf):
+        argv = [
+            "reduce-en-es.py",
+            *("--work", str(work), "--studied", str(studied)),
+            *("--built-at", "2026-10-09", "--pack-version", "test"),
+        ]
+        with self.wordfreq(zipf), mock.patch.object(sys, "argv", argv), contextlib.redirect_stderr(io.StringIO()) as err:
+            en_es.main()
+        return err.getvalue()
+
+    def test_spec_scenarios_a_definition_first_then_the_direct_then_the_inverted_table(self):
+        # en-es reduced as its build runs it (`main()`), from a studied folder as en-fr writes it.
+        # `house` has a Spanish Wiktionary entry: its definitions, by the Spanish edition's rules,
+        # win over the translations the English Wiktionary lists. `sector` and `run` have none, and
+        # the English Wiktionary lists their Spanish translations: at most three per part of
+        # speech, in the table's order, opening on a capital as the edition's own senses do. `dog`
+        # has neither, and two Spanish entries list it as their English translation: those lemmas,
+        # the commonest Spanish word first. `ran` is a form — « Pasado simple del verbo » — and
+        # nothing glosses `stone`.
+        work = self.dir / "work"
+        work.mkdir()
+        studied = self.studied(
+            "dog\tdog\nhouse\thouse\nran\tran\nrun\trun\nruns\trun\nsector\tsector\nstone\tstone\n",
+            "house\t1\nrun\t2\ndog\t3\nsector\t4\nstone\t5\nran\t6\n",
+        )
+        self.jsonl(HOUSE_ES, RUN_ES_FORM, CUE_ES, B_CHARACTER_ES, GIVE_UP_ES, name="work/kaikki-es-English.jsonl")
+        self.jsonl(
+            SECTOR_TRANSLATED,
+            RUN_TRANSLATED,
+            HOUSE_TRANSLATED,
+            B_TRANSLATED_EN,
+            A_TRANSLATED_EN,
+            GIVE_IN_TRANSLATED,
+            name="work/kaikki-en-traductions-es.jsonl",
+        )
+        self.jsonl(CAN_LISTS_DOG, PERRO_LISTS_DOG, SEVILLA_LISTS, I_LISTS_I, name="work/kaikki-es-traductions-en.jsonl")
+        err = self.reduce(work, studied, perro=5.0, can=3.0)
+        self.assertEqual(
+            (work / "gloss.tsv").read_text(encoding="utf-8"),
+            "dog\tPerro, can\nhouse\tCasa, vivienda; Hogar\nrun\tCorrer, fluir\nsector\tSector, área, campo\n",
+        )
+        self.assertEqual(
+            (work / "senses.tsv").read_text(encoding="utf-8"),
+            "dog\tNOUN:1\nhouse\tNOUN:2\nrun\tVERB:1\nsector\tNOUN:1\n",
+        )
+        self.assertEqual((work / "mwe.tsv").read_text(encoding="utf-8"), "give in\tCeder\ngive up\tRendirse\n")
+        # The native side alone (D1), and what the reducer measured of it (D4): among the glossed
+        # lemmas of the commonest, the share from a translation table — here three of four.
+        written = sorted(p.name for p in work.iterdir() if not p.name.startswith("kaikki-"))
+        self.assertEqual(written, ["NOTICE", "gloss.tsv", "manifest.json", "measures.json", "mwe.tsv", "senses.tsv"])
+        measures = json.loads((work / "measures.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            measures, {"top": 10000, "glossed": 4, "share": 75.0, "direct": ["run", "sector"], "inverted": ["dog"]}
+        )
+        self.assertIn("reduced en-es: lemmas=6 (English's committed tables) glosses=4 (Spanish Wiktionary 1", err)
+        self.assertIn("of the 4 glossed lemmas among the 10,000 commonest, 75.0 % come from a translation table", err)
+        manifest = json.loads((work / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual((manifest["meta"]["studied"], manifest["meta"]["native"]), ("en", "es"))
+        self.assertNotIn("levels_estimated", manifest["meta"], "English's levels are CEFR-J's and Octanove's")
+        self.assertEqual(manifest["meta"]["pack_version"], "test")
+        self.assertEqual(manifest["meta"]["analyzer_version"], en_fr.analyser_version())
+        notice = (work / "NOTICE").read_text(encoding="utf-8")
+        for credit in ("ESDB", "WordNet", "eswiktionary", "enwiktionary", "frwiktionary", "CEFR-J", "Octanove", "wordfreq"):
+            self.assertIn(credit, notice)
+
+    def test_native_side_gives_the_tables_native_tables_gives(self):
+        # The steps written out keep each source's lemmas, and change nothing of the tables.
+        entries = self.jsonl(HOUSE_ES, RUN_ES_FORM, GIVE_UP_ES)
+        ranks = {"house": 1, "run": 2, "dog": 3, "sector": 4, "stone": 5}
+        direct = {"sector": {"NOUN": ["sector", "área"]}, "run": {"VERB": ["correr"]}, "house": {"NOUN": ["hogar"]}}
+        inverted = {"dog": {"NOUN": ["can", "perro"]}, "run": {"VERB": ["andar"]}, "give in": {"VERB": ["ceder"]}}
+        sources = [(direct, list), (inverted, en_es.by_spanish_frequency(lambda w: {"perro": 5.0, "can": 3.0}.get(w, 0.0)))]
+        glosses, runs, expressions, steps = en_es.native_side(entries, ranks, sources)
+        shared = common.native_tables(
+            entries, ranks, studied=en_es.EN, edition=en_es.EDITION, fallbacks=sources, locutions=en_es.LOCUTIONS
+        )
+        self.assertEqual((glosses, runs, expressions), shared[:3])
+        self.assertEqual(steps, {"entries": {"house"}, "direct": {"run", "sector"}, "inverted": {"dog"}})
+        self.assertEqual(len(steps["entries"]), shared[3], "`primary`")
+        self.assertEqual(glosses["dog"], "Perro, can")
+        self.assertEqual(expressions, {"give up": "Rendirse", "give in": "Ceder"})
+
+    def test_the_share_counts_the_commonest_alone(self):
+        steps = {"entries": {"a", "c", "z"}, "direct": {"b", "y"}, "inverted": {"d"}}
+        ranks = {"a": 1, "b": 2, "c": 3, "d": 4, "y": 5, "z": 6}
+        self.assertEqual(
+            en_es.translation_share(steps, ranks, top=4),
+            {"top": 4, "glossed": 4, "share": 50.0, "direct": ["b"], "inverted": ["d"]},
+        )
+        self.assertEqual(en_es.translation_share(steps, ranks, top=6)["share"], 50.0)
+        self.assertEqual(en_es.translation_share({"entries": set(), "direct": set(), "inverted": set()}, ranks)["share"], 0.0)
+
+    def test_a_letter_s_translation_is_no_gloss_in_either_direction(self):
+        # A single letter is glossed only by a sense that is neither the letter nor a name borrowed
+        # through it. Read forwards: the English Wiktionary's `b` lists « b », and its noun `i`
+        # « i, i latina », the letter under its Spanish name — neither glosses; a one-letter word
+        # translated is kept: `a` « un, una », `I` « yo », the vocative `O` « oh, oy ».
+        src = self.jsonl(
+            B_TRANSLATED_EN,
+            A_TRANSLATED_EN,
+            I_NOUN_TRANSLATED_EN,
+            I_PRON_TRANSLATED_EN,
+            O_TRANSLATED_EN,
+            name="kaikki-en-traductions-es.jsonl",
+        )
+        direct = en_es.read_translated(src, str(self.dir / "direct.jsonl"), inverted=False)
+        self.assertEqual(direct, {"a": {"DET": ["un", "una"]}, "i": {"PRON": ["yo"]}, "o": {"PART": ["oh", "oy"]}})
+        # Read backwards, a letter is never glossed: the Spanish Wiktionary's `i` lists « i », and
+        # its noun `do` lists « C » — recorded: `c` was glossed « Do », the note's name borrowed
+        # through the letter, since the entry is the Spanish word's and the letter test sees
+        # nothing of the English side. `yo` « I », the one word of a letter the table reaches, goes
+        # with them: the entries and the direct table gloss `I` before it is read.
+        src = self.jsonl(I_LISTS_I, PERRO_LISTS_DOG, DO_LISTS_C, YO_LISTS_I, name="kaikki-es-traductions-en.jsonl")
+        inverted = en_es.read_translated(src, str(self.dir / "inverted.jsonl"), inverted=True)
+        self.assertEqual(inverted, {"dog": {"NOUN": ["perro"]}})
+        glossed = common.fallback_glosses({"c", "dog", "i", "o"}, {}, [(direct, list), (inverted, list)], edition=ES)
+        self.assertEqual(
+            glossed, {"dog": ("Perro", [("NOUN", 1)]), "i": ("Yo", [("PRON", 1)]), "o": ("Oh, oy", [("PART", 1)])}
+        )
+        # On the committed tables: a one-letter lemma's gloss is neither the letter nor its name.
+        committed = Path(_HERE, "tables", "en-es", "gloss.tsv")
+        if committed.is_file():
+            for line in committed.read_text(encoding="utf-8").splitlines():
+                lemma, _, gloss = line.partition("\t")
+                if len(lemma) != 1:
+                    continue
+                for sense in gloss.split("; "):
+                    self.assertNotEqual(sense.strip().lower(), lemma, f"{lemma!r} glossed by itself")
+                    self.assertNotIn("letra", sense.lower(), f"{lemma!r} glossed as a letter: {gloss!r}")
+
+    def test_en_es_s_copy_of_english_is_en_fr_s(self):
+        # reduce-en-es.py repeats en-fr's description of English (`_TOKEN`, the coordinators, the
+        # form-of target) because a reducer loads no other pair's: the two must not drift.
+        self.assertEqual(en_es.EN, en_fr.EN)
+        self.assertEqual(
+            (en_es.EN.token.pattern, en_es.EN.form_of_target.pattern, en_es.EN.coordinators),
+            (en_fr.EN.token.pattern, en_fr.EN.form_of_target.pattern, en_fr.EN.coordinators),
+        )
+        self.assertIs(en_es.EDITION, ES)
+
+    def test_en_es_reads_the_committed_studied_tables_as_en_fr_writes_them(self):
+        # A studied folder whose forms and ranks disagree is not what en-fr's reduction writes; the
+        # level lists' words are kept beyond the cap, as en-fr keeps them.
+        studied = self.studied("house\thouse\nhouses\thouse\n", "house\t1\nperro\t2\n")
+        with self.assertRaisesRegex(SystemExit, "disagree on the lemmas"):
+            en_es.read_studied(str(studied), 40000)
+        studied = self.studied("house\thouse\nrun\trun\nseldom\tseldom\n", "house\t1\nrun\t2\nseldom\t3\n", "seldom\tB2\n")
+        self.assertEqual(en_es.read_studied(str(studied), 40000), {"house": 1, "run": 2, "seldom": 3})
+        self.assertEqual(en_es.read_studied(str(studied), 1), {"house": 1, "seldom": 3}, "capped by rank, the levelled kept")
+        (studied / "level.tsv").unlink()
+        with self.assertRaisesRegex(SystemExit, "level.tsv is missing"):
+            en_es.read_studied(str(studied), 40000)
+        committed = en_es.read_studied(os.path.join(_HERE, "tables", "en"), 40000)
+        ranked = sum(1 for line in Path(_HERE, "tables", "en", "freq.tsv").read_text(encoding="utf-8").splitlines() if "\t" in line)
+        self.assertEqual(len(committed), ranked, "every committed lemma, the level lists' words beyond 40,000 included")
+        self.assertGreater(max(committed.values()), 40000)
 
 
 if __name__ == "__main__":

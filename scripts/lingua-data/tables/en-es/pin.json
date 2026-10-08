@@ -1,0 +1,62 @@
+{
+  "snapshot": "2026.10.08",
+  "pack": {
+    "sha256": "dc41edef51474c41464d1afed34b77fdb818b22973a58b4dfbf45f14189e19c3",
+    "size": 1690595
+  },
+  "reducer": {
+    "sha256": "75631d7ba530787516ad0d0ad367140a1b0f4b319fac5122ffa6fce7343546df",
+    "files": [
+      "reduce-en-es.py",
+      "reduce_common.py",
+      "reduce_edition_es.py"
+    ]
+  },
+  "studied": {
+    "reference": "en-fr",
+    "tables": {
+      "forms.tsv": "ba0ecb3f28d68540f57f10c4ae96ec6f298833843f76012f2920b2cf3accfae6",
+      "freq.tsv": "a3d6570460d44767be5e16713e7df56c234b9747e3783ec68a5ebaf860ad9260",
+      "grammar.tsv": "cac1ffab950228164d1cf72d32de365394b86cc4015fafe3d9c003c6fc653574",
+      "level.tsv": "6adac153859ea1b5a6a4fd64e2988c388c566e95c84731a3c02a60267afd949c",
+      "lexical.tsv": "34901440761fba5d20ea87ad9a92fec4e077701c80a9765c476d64e44950b2d9",
+      "tags.tsv": "6aedd254524a9c2c66efd24279ce0dc2bb0347ed8299f9af2880653f8f1915d8"
+    }
+  },
+  "sources": {
+    "kaikki-es": {
+      "release": "lingua-pack-sources-en-es-2026.10.08",
+      "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-08",
+      "last_modified": "Fri, 02 Oct 2026 12:12:06 GMT",
+      "files": {
+        "kaikki-es-English.jsonl": {
+          "asset": "kaikki-es-English.jsonl.zst",
+          "sha256": "5c51e802871ca4ed19a7e84a479d167980da80ed7d3d9b44c83b17ab223d22d7",
+          "size": 36426539
+        },
+        "kaikki-es-traductions-en.jsonl": {
+          "asset": "kaikki-es-traductions-en.jsonl.zst",
+          "sha256": "baf5012aeb9aa489eb9e63b86fb6295ac379fceeb196dabbf3cea6db00faab61",
+          "size": 2200504
+        }
+      }
+    },
+    "kaikki-en": {
+      "release": "lingua-pack-sources-en-es-2026.10.08",
+      "url": "https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl",
+      "fetched": "2026-10-08",
+      "last_modified": "Sat, 03 Oct 2026 11:09:08 GMT",
+      "files": {
+        "kaikki-en-traductions-es.jsonl": {
+          "asset": "kaikki-en-traductions-es.jsonl.zst",
+          "sha256": "d37241e92dcf002faff2505150e2dc555df8a8807a4a5aadd28459758d47f7d5",
+          "size": 13757388
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

@@ -60,6 +60,11 @@ along is reduced from its own pin. Each source record names the release that hol
 sha256 of its decompressed bytes, as the record names it) and found there by a later fetch of the
 same bytes: a run fetches an asset once when two pins name the same one, and reducing a pair again
 on the same machine fetches nothing again.
+
+A pair's sources may be dumps alone (add-lingua-pack-en-es D2): en-es has no `KAIKKI` entry and
+no `sources.kaikki` — everything it reads is derived from whole Wiktionary dumps and extracts
+(`DUMPS`), fetched at an update, derived in one pass and never kept; its release holds the derived
+files alone, and `assets` lists them alone.
 """
 
 from __future__ import annotations
@@ -74,6 +79,7 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+import zlib
 from pathlib import Path
 
 REPOSITORY = "NEETROF/cymbra"
@@ -139,6 +145,7 @@ KAIKKI = {
         "file": "kaikki-Spanish.jsonl",
         "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
     },
+    # No en-es: its sources are dumps alone (DUMPS, add-lingua-pack-en-es D2).
 }
 # kaikki's dumps of whole Wiktionary editions, for what a pair reads beyond its extract
 # (add-lingua-spanish-gloss-tables). kaikki is retiring its per-language files; an edition's dump
@@ -146,7 +153,9 @@ KAIKKI = {
 # of the snapshot's release beside the extract, checked by the sha256 of its decompressed bytes.
 # A file is `("entries", lang)`, the entries of one language as the dump writes them, or
 # `("translations", lang, into)`, the entries of `lang` that list translations into `into`, cut down
-# to those (`derive`).
+# to those (`derive`). A dump is read as served, gzipped or plain (a language's extract, which
+# kaikki serves uncompressed, is read the same way — en-es's `kaikki-en`); `derive` tells them apart
+# by the gzip magic, never by the address.
 DUMPS = {
     "es-fr": {
         # The French Wiktionary: its Spanish entries gloss the words and expressions; its French
@@ -171,6 +180,30 @@ DUMPS = {
         "kaikki-es": {
             "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
             "files": {"kaikki-es-traductions-en.jsonl": ("translations", "es", "en")},
+        },
+    },
+    # en-es (add-lingua-pack-en-es D2): a pair whose sources are dumps alone — no extract of its
+    # own. From the Spanish Wiktionary's dump, es-fr's and es-en's address, in one pass and on
+    # en-es's own snapshot of it: its English section, the entries whose definitions gloss first,
+    # and the English translations its Spanish entries list, read backwards as the inverted
+    # fallback (es-en's derivation again, since a dump record carries one release for all its files
+    # and en-es downloads the dump anyway: its pin is self-contained, and an es-en re-snapshot moves
+    # no en-es byte). From the English Wiktionary's English extract — served uncompressed, 3.3 GB,
+    # read as a dump is and never kept — the Spanish translations its English entries list, the
+    # direct fallback. The programme's risk 6 names the raw English dump; the extract keeps the
+    # update within the job's reach, and change 38 switches the address if kaikki stops serving it
+    # (SOURCES.md).
+    "en-es": {
+        "kaikki-es": {
+            "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+            "files": {
+                "kaikki-es-English.jsonl": ("entries", "en"),
+                "kaikki-es-traductions-en.jsonl": ("translations", "es", "en"),
+            },
+        },
+        "kaikki-en": {
+            "url": "https://kaikki.org/dictionary/English/kaikki.org-dictionary-English.jsonl",
+            "files": {"kaikki-en-traductions-es.jsonl": ("translations", "en", "es")},
         },
     },
 }
@@ -436,6 +469,18 @@ def translations_of(entry: dict):
             yield from sense.get("translations") or ()
 
 
+GZIP_MAGIC = b"\x1f\x8b"
+
+
+def open_dump(dump: Path):
+    """A dump's lines, as served: gzipped (an edition's dump) or plain (a language's extract,
+    which kaikki serves uncompressed — add-lingua-pack-en-es D2), told apart by the gzip magic.
+    The address says nothing: a plain file under a `.gz` name, or the reverse, reads the same."""
+    with open(dump, "rb") as f:
+        gzipped = f.read(len(GZIP_MAGIC)) == GZIP_MAGIC
+    return gzip.open(dump, "rt", encoding="utf-8") if gzipped else open(dump, encoding="utf-8")
+
+
 def derive(dump: Path, files: dict, work: Path) -> None:
     """The files a pair takes from an edition's dump (`DUMPS`), in one pass, in the dump's order.
 
@@ -443,16 +488,24 @@ def derive(dump: Path, files: dict, work: Path) -> None:
     read a per-language extract. A `translations` file holds, per entry, its word, its part of
     speech and its translations into one language (the word, and the sense when the table names
     one), wherever the entry lists them (`translations_of`), as sorted JSON: the rest of the entry
-    is not read, and would weigh down the release.
+    is not read, and would weigh down the release. The dump is read gzipped or plain (`open_dump`).
+
+    Each file is written as `<name>.part` and renamed whole at the end, as `download` and the
+    asset cache write theirs: a dump that cannot be read whole — a transfer cut short (the gzip
+    stream ends before its marker), a stream that is not gzip after its magic, a body that is not
+    UTF-8 — is a `PinError` naming it, and leaves no derived file behind, partial or not, for an
+    update to compress and publish as the snapshot's.
     """
     # A line cannot belong to a file unless it names the languages that file reads, as the dump
     # writes them; most of a dump's millions of lines are then never parsed.
     marks = {
         name: [f'"lang_code": "{code}"' for code in (lang, *into)] for name, (_, lang, *into) in files.items()
     }
-    outs = {name: open(work / name, "w", encoding="utf-8") for name in files}
+    parts = {name: work / f"{name}.part" for name in files}
+    outs = {name: open(part, "w", encoding="utf-8") for name, part in parts.items()}
+    whole = False
     try:
-        with gzip.open(dump, "rt", encoding="utf-8") as f:
+        with open_dump(dump) as f:
             for line in f:
                 if not any(all(mark in line for mark in need) for need in marks.values()):
                     continue
@@ -474,9 +527,17 @@ def derive(dump: Path, files: dict, work: Path) -> None:
                     if found:
                         cut = {"word": entry.get("word"), "pos": entry.get("pos"), "translations": found}
                         outs[name].write(json.dumps(cut, ensure_ascii=False, sort_keys=True) + "\n")
+        whole = True
+    except (EOFError, gzip.BadGzipFile, zlib.error, UnicodeDecodeError) as why:
+        raise PinError(f"{dump}: cannot be read whole ({why}): nothing is derived from it") from why
     finally:
         for out in outs.values():
             out.close()
+        for name, part in parts.items():
+            if whole:
+                os.replace(part, work / name)
+            else:
+                part.unlink(missing_ok=True)
 
 
 def build_esdb(spec: dict, work: Path) -> Path:
@@ -576,14 +637,20 @@ def pack_asset(raw: Path, asset: str, cache: Path | None) -> str:
     return digest
 
 
+def check_registered(pair: str) -> None:
+    """A pair reads a Wiktionary: its extract (`KAIKKI`), or dumps alone (`DUMPS`, en-es)."""
+    if pair not in KAIKKI and pair not in DUMPS:
+        raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / KAIKKI / DUMPS in pack_sources.py")
+
+
 def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cache: Path | None = None) -> None:
     """Every raw source as recorded, into `work`, each checked by sha256 (re-reduce mode). A release
-    asset is read from `cache` when an earlier fetch kept it there (`release_asset`)."""
+    asset is read from `cache` when an earlier fetch kept it there (`release_asset`). A pair whose
+    sources are dumps alone has no extract to fetch: its derived files, and nothing larger."""
     record = load(pin)
     pair = pair_of(pin)
     sources = get(record, "sources")
-    if pair not in KAIKKI:
-        raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / KAIKKI in pack_sources.py")
+    check_registered(pair)
     work.mkdir(parents=True, exist_ok=True)
     esdb = ESDB.get(pair)
     if esdb is None:
@@ -598,7 +665,8 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
         got = sha256(build({**esdb, **sources["esdb"]}, work))
         if got != sources["esdb"]["sha256"]:
             raise PinError(f"esdb: scowl.txt has sha256 {got}, pin.json records {sources['esdb']['sha256']}")
-    read = (*PINNED.get(pair, {}), *(("esdb",) if esdb else ()), "kaikki", *DUMPS.get(pair, {}), "wordfreq")
+    extract = ("kaikki",) if pair in KAIKKI else ()
+    read = (*PINNED.get(pair, {}), *(("esdb",) if esdb else ()), *extract, *DUMPS.get(pair, {}), "wordfreq")
     for retired in [name for name in sources if name not in read]:
         del sources[retired]
         print(f"note: {retired} is no longer read; removed from pin.json", file=sys.stderr)
@@ -611,12 +679,13 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
         if got != entry.get("sha256"):
             raise PinError(f"{name}: {dest.name} has sha256 {got}, pin.json records {entry.get('sha256')}")
     # Each release asset from the release its record names (add-lingua-pack-es-en D2).
-    kaikki = get(record, "sources.kaikki")
-    raw = work / KAIKKI[pair]["file"]
-    packed = release_asset(
-        fetch, release_url(kaikki["release"], kaikki["asset"]), raw.with_name(kaikki["asset"]), kaikki["sha256"], cache
-    )
-    unpack(packed, raw, kaikki["sha256"], "kaikki: the snapshot", cached=cache is not None)
+    if pair in KAIKKI:
+        kaikki = get(record, "sources.kaikki")
+        raw = work / KAIKKI[pair]["file"]
+        packed = release_asset(
+            fetch, release_url(kaikki["release"], kaikki["asset"]), raw.with_name(kaikki["asset"]), kaikki["sha256"], cache
+        )
+        unpack(packed, raw, kaikki["sha256"], "kaikki: the snapshot", cached=cache is not None)
     for name in DUMPS.get(pair, {}):
         dumped = get(record, f"sources.{name}")
         for file, spec in get(record, f"sources.{name}.files").items():
@@ -638,14 +707,14 @@ def fetch_live(
     CEFR-J, Octanove and ESDB stay at their pinned commits — a newer commit is a deliberate edit
     of PINNED or ESDB. kaikki is read live, recorded by the sha256 of its bytes, and compressed beside
     them for the pair's own release; so is each file derived from a dump (`DUMPS`). Every pair
-    fetches its own extract, even one whose address another pair reads (add-lingua-pack-es-en D2).
-    A reader pair's record of the studied tables it read (`studied`) is carried over until
-    `record-build` writes it anew.
+    fetches its own extract, even one whose address another pair reads (add-lingua-pack-es-en D2);
+    a pair whose sources are dumps alone fetches none, and records no `kaikki`
+    (add-lingua-pack-en-es D2). A reader pair's record of the studied tables it read (`studied`) is
+    carried over until `record-build` writes it anew.
     """
     record = load(pin)
     pair = pair_of(pin)
-    if pair not in KAIKKI:
-        raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / KAIKKI in pack_sources.py")
+    check_registered(pair)
     work.mkdir(parents=True, exist_ok=True)
     sources: dict = {}
     for name, spec in PINNED.get(pair, {}).items():
@@ -656,24 +725,32 @@ def fetch_live(
     if esdb is not None:
         sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
         sources["esdb"]["sha256"] = sha256(build(esdb, work))
-    raw = work / KAIKKI[pair]["file"]
-    headers = fetch(KAIKKI[pair]["url"], raw, compressed=True) or {}
-    asset = raw.name + ".zst"
-    sources["kaikki"] = {
-        "release": release_tag(pair, snapshot),
-        "asset": asset,
-        "sha256": pack_asset(raw, asset, cache),
-        "size": raw.stat().st_size,
-        "fetched": (today or datetime.date.today()).isoformat(),
-        "last_modified": headers.get("last-modified", ""),
-        "url": KAIKKI[pair]["url"],
-    }
+    if pair in KAIKKI:
+        raw = work / KAIKKI[pair]["file"]
+        headers = fetch(KAIKKI[pair]["url"], raw, compressed=True) or {}
+        asset = raw.name + ".zst"
+        sources["kaikki"] = {
+            "release": release_tag(pair, snapshot),
+            "asset": asset,
+            "sha256": pack_asset(raw, asset, cache),
+            "size": raw.stat().st_size,
+            "fetched": (today or datetime.date.today()).isoformat(),
+            "last_modified": headers.get("last-modified", ""),
+            "url": KAIKKI[pair]["url"],
+        }
     for name, spec in DUMPS.get(pair, {}).items():
-        # The dump itself is never kept: only what the pair derives from it.
+        # The dump itself is never kept, derived whole or not: only what the pair derives from it.
+        # Saved as served — gzipped, or plain for a language's extract — whatever the name says
+        # (`open_dump`).
         dump = work / f"{name}.dump.jsonl.gz"
-        headers = fetch(spec["url"], dump) or {}
-        derive(dump, spec["files"], work)
-        dump.unlink()
+        try:
+            headers = fetch(spec["url"], dump) or {}
+            # Its size as served, measured here since the repository keeps no dump (the English
+            # extract's was unknown until en-es's first update, add-lingua-pack-en-es).
+            print(f"note: {name}: {dump.stat().st_size:,} B as served, derived and not kept", file=sys.stderr)
+            derive(dump, spec["files"], work)
+        finally:
+            dump.unlink(missing_ok=True)
         files = {}
         for file in spec["files"]:
             raw = work / file
@@ -815,10 +892,11 @@ def record_build(pin: Path, pack: Path, reducer: Path) -> None:
 def assets(record: dict, release: str | None = None) -> list[str]:
     """The files the snapshot's releases hold: the extract's, then each derived file's, in the
     record's order. With `release`, the files that release holds alone: an update publishes a
-    pair's own assets only, under its own release (add-lingua-pack-es-en D2)."""
+    pair's own assets only, under its own release (add-lingua-pack-es-en D2). A pair whose sources
+    are dumps alone records no extract: its derived files alone (add-lingua-pack-en-es D2)."""
     sources = get(record, "sources")
-    kaikki = get(record, "sources.kaikki")
-    out = [kaikki["asset"]] if release is None or kaikki.get("release") == release else []
+    kaikki = sources.get("kaikki")
+    out = [kaikki["asset"]] if kaikki and (release is None or kaikki.get("release") == release) else []
     for spec in sources.values():
         if isinstance(spec, dict) and (release is None or spec.get("release") == release):
             out.extend(file["asset"] for file in (spec.get("files") or {}).values())

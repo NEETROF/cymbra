@@ -42,6 +42,26 @@ inverted = the Spanish Wiktionary's English translations read backwards, ordered
 frequency, as es-fr orders its inverted table by French frequency. `max_lemmas` 40,000, as en-fr.
 The digest is `reduce-en-es.py`, `reduce_common.py` and `reduce_edition_es.py`.
 
+The rule for the lemmas en-es glosses is `read_studied`'s: the lemmas `forms.tsv` maps to
+themselves, ranked by `freq.tsv`, kept when their rank is within `max_lemmas` (40,000) or they are
+words of `level.tsv` — the level lists' words en-fr keeps whatever their rank, 612 of English's
+40,685 lemmas — so that at the default cap en-es keeps every lemma `tables/en/` commits. Why: the
+pack carries en-fr's lemmas whatever en-es reads, so a cap by rank alone would leave those 612
+CEFR words, which a learner is shown with a level, unglossable in Spanish though en-fr glosses
+them (en-es glosses 338 of them today).
+
+A letter glosses no word in either direction: a single letter is glossed only by a sense that is
+neither the letter nor a name borrowed through it — `a` « un, una », `I` « yo » and the vocative
+`O` « oh, oy » are words; « i latina » names the letter, and the note `do` names C through it.
+Read forwards, `without_letter_translations` drops a `character` entry, a one-letter word whose
+every translation is itself, and a one-letter word's noun entry (the letter under its name, or a
+name borrowed through it: the words written as one letter are an article, a pronoun, a
+preposition, a particle, never a noun). Read backwards the entry is the Spanish word's, so that
+test sees nothing of the English side — the Spanish Wiktionary's `do` lists « C », and the first
+tables glossed `c` (rank 376) « Do » — and `read_translated` drops every one-letter studied key of
+the inverted table: the one word of a letter it reaches, `yo` « I », the entries and the direct
+table gloss before it is read.
+
 ### D2 — Two derived files, one new dump source, the extract read as served
 
 `DUMPS["en-es"]`:
@@ -67,14 +87,19 @@ difference, and the extract keeps the update within the job's reach today. If ka
 serving the extract, change 38 switches the address to the raw dump; this change says so in
 `SOURCES.md`.
 
-### D3 — A floor the owner sets
+### D3 — A floor the owner sets, kept in one place
 
 Risk 5 names en-es; M6's rule for fr-es — a floor, and what happens below it, fixed before the
 committed measurement — is applied here, and the owner sets the value on this change's pull
 request, where the study's figures less two points (91.4 / 83.2 / 69.9 %) are proposed. The floor
-is enforced by `gloss_coverage.py --pair en-es --floor` in the reduce job and in the `check` job's
-Python tests; a committed measurement under it fails. Change 35 publishes the measured figures
-with the pair.
+lives in `gloss_coverage.py`'s `FLOORS["en-es"]` and nowhere else: the reduce job runs
+`gloss_coverage.py --pair en-es` with no `--floor`, as es-en's line does, and the `check` job's
+Python tests hold the committed tables to that entry and assert the job passes none — two
+copies of one value drift (the coverage exclusions did, between the `rust` and `sonar`
+workflows, until `.github/coverage-ignore-regex.txt` became their one source), and a floor the
+job and the tests read from different places would fail one and pass the other. Task 5.1 writes
+the owner's value into that one entry and into the requirement's text. A committed measurement
+under it fails, naming the figure. Change 35 publishes the measured figures with the pair.
 
 ### D4 — The translation-table share
 
