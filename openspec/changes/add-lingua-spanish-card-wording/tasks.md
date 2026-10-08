@@ -3,7 +3,7 @@
 ## 1. The baseline (crates/lingua-wasm, workflows)
 
 - [x] 1.1 `tests/en_es_baseline.rs` and `baseline/en-es.golden`: the en-es scenario over the reference's corpus and probes and the 40 lemma probes, blessed; both workflows name `en_es_baseline` (D1).
-- [x] 1.2 The golden-to-golden test through `studied_side`; `cross_native.rs`’s English check on the real en-es pack (Context). The synthetic second pack (`support/other_native.rs`) had no user left and is gone; en-es's NUM runs, which no en-fr run carries, are the spec's *sense part of speech the first pack never used*.
+- [x] 1.2 The golden-to-golden test through `studied_side`; `cross_native.rs`’s English check on the real en-es pack (Context). The synthetic second pack (`support/other_native.rs`) had no user left and is gone; en-es's NUM runs, which no en-fr run carries, are the spec's *sense part of speech the first pack never used* (« three »: NUM, NOUN, read as written), and its glosses of lemmas en-fr does not gloss are no dictionary words, as es-en's.
 
 ## 2. The wording (apps/lingua-extension)
 
