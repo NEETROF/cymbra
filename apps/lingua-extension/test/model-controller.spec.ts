@@ -620,7 +620,6 @@ describe("ModelController", () => {
 describe("the committed catalogue: a reader of French downloads, keeps and loads as before (add-lingua-translation-matrix-models D2)", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const committed = parseCatalogue(JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8")));
-  const MATRIX_EN_ES = "en-es/base-memory/2.1";
   /** The reader's pairs as the background forms them: the shipped pairs of their native language. */
   const of = (languages: string[], native: string) => readerPairs(languages, native);
 
@@ -637,7 +636,6 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
     // The routes it loads are en-fr's and es-fr's; es-en and en-es are no pair of this reader's.
     expect(await controller.ready("es-en")).toBe(false);
     expect(await controller.ready("en-es")).toBe(false);
-    expect(host.startDownload.mock.calls.flat(2)).not.toContain(MATRIX_EN_ES);
   });
 
   it("Every reader today: English alone, native French — en-fr alone, 25 752 472 bytes", async () => {

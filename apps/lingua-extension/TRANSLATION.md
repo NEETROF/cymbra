@@ -225,8 +225,9 @@ Mozilla's registry by `tool/assemble_model_site.mjs` (every file kept, every dig
 | Memory high-water mark | 392.3 MiB (maxRSS, the highest child's; Node's, not the worker's)                                             |
 | Whole run              | 46 s                                                                                                          |
 
-The committed English corpus holds no input that traps en-es: the study's trapping inputs were not
-committed, and none of these 100 selections is one. Beside it, on the same machine: en-es in one
+No selection of the committed English corpus trapped en-es 2.1 in Node (V8) with this engine build,
+isolated or in one instance; the browsers' workers (SpiderMonkey, JavaScriptCore) were not run, and
+the study's trapping inputs and the en-es version it used were never committed. Beside it, on the same machine: en-es in one
 instance (without `--isolate`, closer to the worker, which translates sentence after sentence)
 translated all 100 too, median 35 ms, maxRSS 417.5 MiB; en-fr under `--isolate` gave no trap,
 median 151 ms, maxRSS 397.3 MiB — in this tool, en-es costs what en-fr costs. Change 35 reads these

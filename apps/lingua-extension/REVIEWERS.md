@@ -107,8 +107,8 @@ and its model is on the device; it is stopped after ten idle minutes. Firefox fo
 the setting exactly as Firefox desktop does.
 
 **No code is fetched.** The worker loads the glue with `importScripts` and the `.wasm` with
-`fetch`, both from the package's own files. The only thing the setting downloads is a model — the
-network's weights, which are data: a model's three files, listed in `model-manifest.json` with
+`fetch`, both from the package's own files. The only thing the setting downloads is models — the
+network's weights, which are data: each model's three files, listed in `model-manifest.json` with
 the sha256 of their contents, checked before anything uses them (`src/translate/host/model-download.ts`).
 Nothing in a model is executed; it is read by the engine as a parameter file.
 
@@ -123,11 +123,11 @@ License 2.0 and redistributed unmodified:
 
 Their files come from Mozilla's translation model registry (`sourceBase` in `model-manifest.json`),
 not from `mozilla/firefox-translations-models`: each file lists its path there and the sha256 of
-the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks. The package downloads none of them until the
-reader turns « Traduction étendue » on, and then only the models its pairs' routes need. This
+the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks.
+The package downloads none of them until the reader turns « Traduction étendue » on, and then only the models its pairs' routes need. This
 package ships the pairs `en-fr` and `es-fr` (`packs.json`), so it downloads at most `en-fr` and
 `es-en`; the `es-en` and `en-es` routes serve pairs it does not ship, and nothing is downloaded for
-them.
+those pairs.
 
 ## Where the add-on reaches the network
 
