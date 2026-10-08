@@ -21,27 +21,15 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::packs::{PackMeta, read_container, write_container};
 use lingua_wasm::{LinguaEngine, reprofile_backup};
 
-const PACK: &[u8] = include_bytes!("fixtures/pack.lingua");
+#[path = "support/fixture_pack.rs"]
+mod fixture_pack;
+
+use fixture_pack::{PACK, rewritten};
+
 /// 2026-09-21T13:46:40Z, in milliseconds (status bindings take them).
 const T_MS: f64 = 1_790_000_000_000.0;
-
-/// The fixture pack, its metadata rewritten to study `studied` glossed in `native`: the analyser
-/// only reads the forms, so English ones serve here.
-fn rewritten(studied: StudiedLanguage, native: &str) -> Vec<u8> {
-    let (meta, sections) = read_container(PACK).unwrap();
-    let mut meta: PackMeta = serde_json::from_slice(&meta).unwrap();
-    meta.studied = studied.tag().into();
-    meta.analyzer_version = studied.analyzer_version().into();
-    meta.native = native.into();
-    let sections: Vec<(&str, &[u8])> = sections
-        .iter()
-        .map(|s| (s.name.as_str(), s.data.as_slice()))
-        .collect();
-    write_container(&serde_json::to_vec(&meta).unwrap(), &sections)
-}
 
 fn tags(tags: &[&str]) -> Vec<String> {
     tags.iter().map(|tag| (*tag).to_owned()).collect()

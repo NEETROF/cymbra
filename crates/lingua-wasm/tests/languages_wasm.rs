@@ -19,28 +19,14 @@
 #![cfg(target_arch = "wasm32")]
 
 use lingua_core::analysis::language::StudiedLanguage;
-use lingua_core::packs::{PackMeta, read_container, write_container};
 use lingua_wasm::{LinguaEngine, reprofile_backup};
 use wasm_bindgen::{JsError, JsValue};
 use wasm_bindgen_test::wasm_bindgen_test;
 
-const PACK: &[u8] = include_bytes!("fixtures/pack.lingua");
+#[path = "support/fixture_pack.rs"]
+mod fixture_pack;
 
-/// The fixture pack, its metadata rewritten to study `studied` glossed in `native`
-/// (generalise-lingua-native-language): the analyser only reads the forms, so English ones
-/// serve here.
-fn rewritten(studied: StudiedLanguage, native: &str) -> Vec<u8> {
-    let (meta, sections) = read_container(PACK).unwrap();
-    let mut meta: PackMeta = serde_json::from_slice(&meta).unwrap();
-    meta.studied = studied.tag().into();
-    meta.analyzer_version = studied.analyzer_version().into();
-    meta.native = native.into();
-    let sections: Vec<(&str, &[u8])> = sections
-        .iter()
-        .map(|s| (s.name.as_str(), s.data.as_slice()))
-        .collect();
-    write_container(&serde_json::to_vec(&meta).unwrap(), &sections)
-}
+use fixture_pack::{PACK, rewritten};
 
 /// What a refusal says, as the extension reads it (`Error: <message>`, then its stack).
 fn message(error: JsError) -> String {
