@@ -203,6 +203,7 @@ flowchart TB
     classDef system fill:#1168bd,stroke:#0b4884,color:#ffffff
     classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
     classDef external fill:#8a8a8a,stroke:#6b6b6b,color:#ffffff
+    style lingua fill:none,stroke:#888888,stroke-dasharray:5 5
 ```
 
 **The browser extension is where Lingua happens.** It reads the page, runs the engine, paints the
@@ -313,6 +314,8 @@ flowchart LR
     classDef person fill:#08427b,stroke:#052e56,color:#ffffff
     classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
     classDef external fill:#8a8a8a,stroke:#6b6b6b,color:#ffffff
+    style repo fill:none,stroke:#888888,stroke-dasharray:5 5
+    style gh fill:none,stroke:#888888,stroke-dasharray:5 5
 ```
 
 Four rules make this pipeline reproducible (`scripts/lingua-data/SOURCES.md:3-19`):
@@ -354,7 +357,8 @@ both digests, and deploys them to Cloudflare Pages behind `models.cymbra.app`
 
 Four containers hold the interesting logic: the extension (drawn twice — reading and the reader's
 data, then account, sync and translation), the engine crates, and the sync module. The Safari host
-app and the Claude Code plugin are small enough for a table (§3.5).
+app and the Claude Code plugin are small enough for a table (§3.5). In §3.1 and §3.2, short paths
+are under `apps/lingua-extension/src/`.
 
 ### 3.1 Browser extension — reading and the reader's data
 
@@ -391,8 +395,8 @@ flowchart TB
     port -- "in-process call" --> engineC
     port -- "runtime.sendMessage (RPC)" --> rpc
     rpc --> engineB
-    engineC -- "fetch(getURL)" --> packs
-    engineB -- "fetch(getURL)" --> packs
+    engineC -- "loads (its port fetches the file)" --> packs
+    engineB -- "loads (its port fetches the file)" --> packs
     session -- "store:get, store:set" --> owner
     views -- "store:get, store:set" --> owner
     rpc -- "hydrates from" --> owner
@@ -405,6 +409,9 @@ flowchart TB
     classDef person fill:#08427b,stroke:#052e56,color:#ffffff
     classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
     classDef component fill:#85bbf0,stroke:#5d82a8,color:#000000
+    style page fill:none,stroke:#888888,stroke-dasharray:5 5
+    style bg fill:none,stroke:#888888,stroke-dasharray:5 5
+    style pages fill:none,stroke:#888888,stroke-dasharray:5 5
 ```
 
 **One reading module, two hosts.** `ReadingSession` reads whatever document it is handed as a
@@ -433,8 +440,9 @@ tab repaints every other tab, the drawer and the side panel.
 
 **One builder per view.** Review, statistics and Réglages are each built once — `mountReview`
 (`review/review-page.ts:63`), `mountStats` (`stats/view.ts:198`), `mountSettings`
-(`reading/settings-view.ts:193`) — and mounted into the side panel, the drawer and the popup; a lint
-spec fails the build when a host stops using them (`test/lint-settings-hosts.spec.ts`).
+(`reading/settings-view.ts:193`) — and mounted into the side panel and the drawer, Réglages into the
+popup too; a lint spec fails the build when a host of Réglages stops calling `mountSettings`
+(`test/lint-settings-hosts.spec.ts`).
 
 **Books stay in the reader page.** The EPUB library is a second IndexedDB database owned by the
 reader page itself (`reader/library.ts`), because a 40 MB file must not cross a message. Reading
@@ -502,6 +510,8 @@ flowchart LR
     classDef system fill:#1168bd,stroke:#0b4884,color:#ffffff
     classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
     classDef component fill:#85bbf0,stroke:#5d82a8,color:#000000
+    style bg fill:none,stroke:#888888,stroke-dasharray:5 5
+    style host fill:none,stroke:#888888,stroke-dasharray:5 5
 ```
 
 **Account.** The background owns the single session (`state/session.ts:67`). Sign-in is
@@ -584,6 +594,7 @@ flowchart TB
 
     classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
     classDef component fill:#85bbf0,stroke:#5d82a8,color:#000000
+    style core fill:none,stroke:#888888,stroke-dasharray:5 5
 ```
 
 `lingua-core` is the deterministic heart: text → tokens → lemmas → classification against the
@@ -653,6 +664,8 @@ flowchart LR
 
     classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
     classDef component fill:#85bbf0,stroke:#5d82a8,color:#000000
+    style server fill:none,stroke:#888888,stroke-dasharray:5 5
+    style crate fill:none,stroke:#888888,stroke-dasharray:5 5
 ```
 
 **Identity comes from the token only.** Every Lingua service is mounted behind the strict
@@ -664,15 +677,16 @@ handlers take the user id from there, never from the request body (`backend/ling
 **Records, not blobs.** The server stores one row per (user, language, lemma) status, per declared
 level, per card and per (day, language, device) statistic. A client timestamp in the future is
 clamped to the server's clock; the later timestamp wins, and on a tie the greater device id
-(`known_words_core.rs:14-33`, the same rule in SQL in `pg_known_words.rs`). Every write takes the
-next value of one sequence, `lingua.change_seq`, and a pull returns the user's rows past the
-client's cursor. Daily statistics are replaced per device and summed across devices on read.
+(`known_words_core.rs:14-33`, the same rule in SQL in `pg_known_words.rs`). Every write of a
+status, a declared level or a card takes the next value of one sequence, `lingua.change_seq`, and a
+pull returns the user's rows past the client's cursor. Daily statistics are replaced per device and summed across devices on read.
 
 **Privacy and erasure.** Only lemma statuses, cards and day-grained aggregates cross the wire: the
 card's page address is pushed empty and ignored (`deck.proto`, `openspec/specs/lingua-privacy`).
 `EraseMyData` deletes the reader's Lingua rows and records an erasure mark; any push dated at or
 before it is dropped, and a device whose store predates it empties itself before its next push
-(`data_core.rs`, `sync/sync.ts`, `checkErasure`).
+(`backend/lingua/src/data_core.rs`; on the client, `apps/lingua-extension/src/sync/sync.ts:185`,
+`checkErasure`).
 
 **Role from the pool.** The SQL in `pg_*.rs` names `lingua.*` tables; it runs on the pool built from
 `CYMBRA_LINGUA_DATABASE_URL` (`backend/server/src/main.rs:794`), whose user is `lingua_svc`, owner
@@ -692,8 +706,8 @@ module also runs its own migrations on that pool at start-up.
 ### 3.5 The two small containers
 
 **Safari host app** (`apps/lingua-apple`, bundle ids `com.cymbra.lingua` and
-`com.cymbra.lingua.Extension`, iOS 17.2 and macOS 12 at least — the CSS Custom Highlight API's
-floor):
+`com.cymbra.lingua.Extension`; iOS 17.2 and macOS 12 at least, since highlighting needs the CSS
+Custom Highlight API, which Safari ships from 17.2):
 
 | Component | Responsibility | Where in the repo |
 |---|---|---|
@@ -965,7 +979,7 @@ sequenceDiagram
     autonumber
     actor R as Reader
     participant CS as Content script<br/>ReadingSession
-    participant E as LinguaEngine<br/>(WASM, in page)
+    participant E as WasmAnalyzerPort<br/>+ LinguaEngine (WASM)
     participant P as Pack<br/>assets/packs/en-fr.lingua
     participant BG as Background<br/>store owner
     participant DB as IndexedDB<br/>cymbra-lingua
@@ -973,7 +987,7 @@ sequenceDiagram
 
     R->>CS: opens a page (content.ts bootstrap)
     CS->>E: resolveContentPort probes languages()
-    E->>P: fetch the default pair's pack
+    E->>P: fetch(getURL) the default pair's pack
     P-->>E: bytes, then new LinguaEngine(bytes)
     CS->>BG: store:get lingua (the engine backup)
     BG->>DB: get
@@ -1102,7 +1116,7 @@ sequenceDiagram
     O->>PR: opens the pull request
     PR->>B: build.sh for every pair, sha256 must equal pin.json
     PR->>Py: re-reduce from the pinned sources, no diff allowed (when the pipeline changed)
-    O->>RL: merge, release-please tag lingua-extension-vX.Y.Z
+    O->>RL: merges, later merges release-please's Release PR, tag lingua-extension-vX.Y.Z
     RL->>B: gen:pack:real, every pair of packs.json, checked against its pin
     RL->>RL: build.mjs copies assets/packs/pair.lingua into each dist
     RL->>GR: Chromium and Firefox zips on the tag's release
@@ -1260,6 +1274,13 @@ flowchart TB
 
     classDef container fill:#438dd5,stroke:#2e6295,color:#ffffff
     classDef external fill:#8a8a8a,stroke:#6b6b6b,color:#ffffff
+    style device fill:none,stroke:#888888,stroke-dasharray:5 5
+    style browsers fill:none,stroke:#888888,stroke-dasharray:5 5
+    style applehw fill:none,stroke:#888888,stroke-dasharray:5 5
+    style dev fill:none,stroke:#888888,stroke-dasharray:5 5
+    style vps fill:none,stroke:#888888,stroke-dasharray:5 5
+    style cf fill:none,stroke:#888888,stroke-dasharray:5 5
+    style gh fill:none,stroke:#888888,stroke-dasharray:5 5
 ```
 
 - **One VPS** runs Postgres, Valkey, `cymbra-server`, `cymbra-worker` and Caddy from one image
@@ -1274,7 +1295,7 @@ flowchart TB
   `chrome-extension://<id>` origin is listed (`backend/server/src/main.rs:858-879`). The extension
   is built with `LINGUA_GRPC_WEB_URL=https://api.cymbra.app` for releases (`apps/lingua-extension/README.md`).
 - **Static hosting** on Cloudflare Pages serves the site, the back office and the model files; each
-  is deployed by its own workflow on dispatch.
+  is deployed by its own workflow on dispatch (the site and the back office also through `deploy.yml`).
 - **Everything a reader needs to read is on the device**: if the VPS is down, reading, marking,
   reviewing and statistics keep working; only sync and sign-in wait.
 
