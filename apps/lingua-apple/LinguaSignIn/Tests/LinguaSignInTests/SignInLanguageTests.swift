@@ -47,6 +47,21 @@ final class SignInLanguageTests: XCTestCase {
         XCTAssertEqual(SignInLanguage.shown(nil, offered: [.fr], preferred: .fr), .fr)
     }
 
+    func testAPreferredLocalisationTheBuildDoesNotOfferFallsBackToTheFirstOffered() {
+        // A French-only build on a device in English: Xcode's development region, en, reads as the
+        // preferred localisation, and the page stays French, as before (the spec's scenario).
+        XCTAssertEqual(SignInLanguage.shown(nil, offered: [.fr], preferred: .en), .fr)
+        XCTAssertEqual(SignInLanguage.shown(.en, offered: [.fr], preferred: .en), .fr)
+        // fr and es ship, not en: French, the fallback while English does not ship.
+        XCTAssertEqual(SignInLanguage.shown(nil, offered: [.fr, .es], preferred: .en), .fr)
+        // Once English ships, English is the fallback, and a Spanish device's Spanish once that ships.
+        XCTAssertEqual(SignInLanguage.shown(nil, offered: [.fr, .en], preferred: .en), .en)
+        XCTAssertEqual(SignInLanguage.shown(nil, offered: [.fr, .en, .es], preferred: .es), .es)
+        // A bundle declaring none of the app's languages: French, what every device showed.
+        XCTAssertEqual(SignInLanguage.shown(nil, offered: [], preferred: .en), .fr)
+        XCTAssertEqual(SignInLanguage.shown(.es, offered: [], preferred: .es), .fr)
+    }
+
     func testTheStoreKeepsWhatTheExtensionLastSaid() {
         let store = InterfaceLanguageStore(defaults: defaults)
         XCTAssertNil(store.current())

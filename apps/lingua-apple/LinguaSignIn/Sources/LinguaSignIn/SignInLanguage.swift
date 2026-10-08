@@ -34,10 +34,15 @@ public enum SignInLanguage: String, CaseIterable, Codable, Sendable {
     }
 
     /// The language a screen shows: `requested` — the extension's interface language, from a sign-in
-    /// link or the App Group — when the bundle offers it, the preferred localisation otherwise.
+    /// link or the App Group — when the bundle offers it; the preferred localisation when the bundle
+    /// offers that; the first offered otherwise, French when none is. The last two matter on a
+    /// French-only build: Xcode writes the project's development language, `en`, as its
+    /// CFBundleDevelopmentRegion (tool/app_localizations.sh leaves that as it is), so a device in
+    /// English reads `en` as its preferred localisation while the build offers French alone.
     public static func shown(_ requested: SignInLanguage?, offered: [SignInLanguage], preferred: SignInLanguage) -> SignInLanguage {
         if let requested, offered.contains(requested) { return requested }
-        return preferred
+        if offered.contains(preferred) { return preferred }
+        return offered.first ?? .fr
     }
 
     public static func shown(_ requested: SignInLanguage?, in bundle: Bundle) -> SignInLanguage {
