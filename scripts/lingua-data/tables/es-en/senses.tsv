@@ -1,4 +1,4 @@
-a	NOUN:1	ADP:4	INTJ:1
+a	ADP:4	INTJ:1
 aa	PROPN:1
 aal	NOUN:1
 aap	PROPN:1
@@ -1828,7 +1828,7 @@ antología	NOUN:1
 antológico	ADJ:2
 antonia	PROPN:1
 antonieta	PROPN:1
-antonio	PROPN:2
+antonio	PROPN:1
 antonomasia	NOUN:1
 antorcha	NOUN:1
 antracita	NOUN:1
@@ -3081,7 +3081,6 @@ añorar	VERB:1
 aórtico	ADJ:1
 aún	ADV:2
 aúpa	INTJ:2
-b	SYM:1
 baba	NOUN:3
 babear	VERB:2
 babel	PROPN:1
@@ -3325,7 +3324,7 @@ barbudo	ADJ:1
 barbón	ADJ:1
 barca	NOUN:1
 barcaza	NOUN:2
-barcelona	PROPN:4
+barcelona	PROPN:3
 barcelonista	ADJ:1	NOUN:1
 barcelonés	ADJ:1
 barcia	NOUN:1
@@ -3344,7 +3343,7 @@ barita	NOUN:1
 barlovento	NOUN:1
 barman	NOUN:1
 barn	NOUN:1
-barna	PROPN:4
+barna	PROPN:3
 barniz	NOUN:1
 barnizado	NOUN:1
 baronesa	NOUN:1
@@ -3499,7 +3498,7 @@ baúl	NOUN:2
 bb	NOUN:1
 bbc	PROPN:1
 bce	PROPN:1
-bcn	PROPN:4
+bcn	PROPN:3
 bdsm	NOUN:1
 be	NOUN:1
 bea	PROPN:1
@@ -4432,7 +4431,6 @@ búho	NOUN:3
 búlgaro	ADJ:2	NOUN:2
 búnker	NOUN:2
 búsqueda	NOUN:2
-c	NOUN:5
 ca	SCONJ:1	INTJ:1	NOUN:1
 cabal	ADJ:3	ADV:1
 cabales	NOUN:1
@@ -5150,7 +5148,7 @@ carlos	PROPN:1
 carlota	PROPN:1
 carmelita	ADJ:1
 carmelo	PROPN:1	ADJ:1	NOUN:1
-carmen	PROPN:2	NOUN:1
+carmen	PROPN:1	NOUN:1
 carmencita	PROPN:1
 carmesí	ADJ:1
 carmina	PROPN:1
@@ -8343,7 +8341,7 @@ cyberpunk	NOUN:1
 cyborg	NOUN:1
 cyl	PROPN:1
 cábala	NOUN:2
-cáceres	PROPN:4
+cáceres	PROPN:3
 cádiz	PROPN:2
 cálcico	ADJ:2
 cálculo	NOUN:5
@@ -8434,7 +8432,6 @@ cúpula	NOUN:2
 cúrcuma	NOUN:2
 cúspide	NOUN:1
 cúter	NOUN:2
-d	NOUN:4
 dable	ADJ:2
 daca	INTJ:1	PROPN:1
 dacha	NOUN:1
@@ -8468,7 +8465,7 @@ dancing	NOUN:1
 dandi	NOUN:1
 dandy	NOUN:1
 dani	PROPN:2
-daniel	PROPN:3
+daniel	PROPN:2
 daniela	PROPN:1
 danilo	PROPN:1
 danta	NOUN:2
@@ -10976,7 +10973,7 @@ enredar	VERB:4
 enredo	NOUN:3
 enrejado	NOUN:2
 enrevesado	ADJ:2
-enrique	PROPN:2
+enrique	PROPN:1
 enriquecedor	ADJ:1
 enriquecer	VERB:2
 enriquecimiento	NOUN:1
@@ -11516,7 +11513,7 @@ espartano	ADJ:2
 espartero	NOUN:1	PROPN:1
 esparto	NOUN:2
 espasmo	NOUN:1
-españa	PROPN:3
+españa	PROPN:2
 españistán	PROPN:1
 español	ADJ:2	NOUN:2	PROPN:1
 españolidad	NOUN:1
@@ -13244,7 +13241,7 @@ frambuesa	NOUN:1
 fran	PROPN:1
 francamente	ADV:1
 frances	ADJ:1
-francia	PROPN:2
+francia	PROPN:1
 francisca	PROPN:1
 franciscano	ADJ:1
 francisco	PROPN:2
@@ -13540,7 +13537,6 @@ fúnebre	ADJ:2
 fútbol	NOUN:1
 fútil	ADJ:3
 führer	NOUN:1
-g	SYM:1
 gabacho	ADJ:2	NOUN:4
 gabaldón	PROPN:1
 gabardina	NOUN:2
@@ -13864,7 +13860,7 @@ germinar	VERB:1
 germoplasma	NOUN:1
 germán	PROPN:1
 germánico	ADJ:1
-gerona	PROPN:3
+gerona	PROPN:2
 gerontología	NOUN:1
 gerson	PROPN:1
 gertrudis	PROPN:1
@@ -14480,7 +14476,6 @@ güero	ADJ:1	NOUN:1
 güevo	NOUN:7
 güey	NOUN:2
 güisqui	NOUN:1
-h	SYM:1
 haba	NOUN:7
 habana	ADJ:1
 habanera	NOUN:1
@@ -14950,7 +14945,7 @@ histeria	NOUN:1
 histograma	NOUN:1
 histología	NOUN:1
 histológico	ADJ:1
-historia	NOUN:6
+historia	NOUN:5
 historiador	NOUN:1
 historial	NOUN:1
 historicidad	NOUN:1
@@ -15280,7 +15275,6 @@ hípico	ADJ:2
 húmedo	ADJ:1
 húmero	NOUN:1
 húngaro	ADJ:2	NOUN:3
-i	ADJ:1
 ia	NOUN:1
 iago	PROPN:1
 ibagué	PROPN:1
@@ -16701,7 +16695,7 @@ inyectable	ADJ:1
 inyectar	VERB:1
 inyector	ADJ:1	NOUN:2
 inédito	ADJ:2
-inés	PROPN:2
+inés	PROPN:1
 inútil	ADJ:1	NOUN:1
 inútilmente	ADV:2
 iodo	NOUN:1
@@ -16877,7 +16871,6 @@ iñaki	PROPN:1
 iñárritu	PROPN:1
 ión	NOUN:1
 iónico	ADJ:1
-j	SYM:1
 ja	INTJ:1
 jab	NOUN:1
 jaba	NOUN:1
@@ -17079,13 +17072,13 @@ joroba	NOUN:3
 jorobado	ADJ:1	NOUN:1
 joropo	NOUN:1
 josafat	PROPN:2
-jose	PROPN:4
+jose	PROPN:3
 josefa	PROPN:1
 josefina	PROPN:1
 joselito	PROPN:1
 joshua	PROPN:1
 josué	PROPN:3
-josé	PROPN:4
+josé	PROPN:3
 jota	NOUN:4
 jote	NOUN:3	ADJ:1
 joto	NOUN:3
@@ -17136,7 +17129,7 @@ judío	ADJ:2	NOUN:2
 jue	INTJ:1
 juego	NOUN:6
 juerga	NOUN:2
-jueves	NOUN:2
+jueves	NOUN:1
 juez	NOUN:2
 jueza	NOUN:1
 jugabilidad	NOUN:2
@@ -17308,7 +17301,7 @@ kiki	ADV:1
 kiko	NOUN:1	PROPN:2
 kilimanjaro	PROPN:1
 kill	NOUN:1
-kilo	NOUN:4
+kilo	NOUN:3
 kilogramo	NOUN:1
 kilometraje	NOUN:1
 kilométrico	ADJ:2
@@ -17366,7 +17359,6 @@ káiser	NOUN:1
 kárate	NOUN:1
 kétchup	NOUN:1
 kínder	NOUN:1
-l	SYM:1
 lab	NOUN:1
 labastida	PROPN:2
 laberinto	NOUN:1
@@ -18167,7 +18159,7 @@ lorena	PROPN:2
 lorente	PROPN:1
 lorenza	PROPN:1
 lorenzana	PROPN:1
-lorenzo	PROPN:4
+lorenzo	PROPN:3
 loreto	PROPN:2
 lorito	NOUN:1
 loro	NOUN:3
@@ -18309,7 +18301,7 @@ látex	NOUN:1
 látigo	NOUN:1
 lázaro	PROPN:2
 lémur	NOUN:1
-lérida	PROPN:3
+lérida	PROPN:2
 lésbico	ADJ:1
 léxico	ADJ:1	NOUN:1
 líbano	PROPN:1
@@ -18385,7 +18377,7 @@ macul	PROPN:1
 macular	ADJ:2	VERB:1
 macuto	NOUN:2
 macías	PROPN:1
-mad	PROPN:5
+mad	PROPN:4
 madagascar	PROPN:1
 madalena	NOUN:2
 madama	NOUN:1
@@ -18404,7 +18396,7 @@ madrazo	NOUN:1
 madre	NOUN:6
 madrear	VERB:3
 madreselva	NOUN:1
-madrid	PROPN:5
+madrid	PROPN:4
 madridismo	NOUN:1
 madridista	ADJ:1	NOUN:1
 madrigal	NOUN:1
@@ -20483,7 +20475,6 @@ múnich	PROPN:1
 músculo	NOUN:2
 música	NOUN:2
 músico	ADJ:1	NOUN:1
-n	NOUN:5
 na	PROPN:1
 nabo	NOUN:7
 nabucodonosor	PROPN:1
@@ -20613,7 +20604,7 @@ navaja	NOUN:3
 navajazo	NOUN:1
 navajo	ADJ:1
 naval	ADJ:1
-navarra	PROPN:5
+navarra	PROPN:4
 navarrete	PROPN:1
 navarro	ADJ:1	NOUN:2	PROPN:2
 nave	NOUN:2
@@ -21694,7 +21685,7 @@ overo	ADJ:1
 overol	NOUN:1
 ovetense	ADJ:1	NOUN:1
 ovidio	PROPN:2
-oviedo	PROPN:2
+oviedo	PROPN:1
 ovillo	NOUN:3
 ovino	ADJ:1
 ovni	NOUN:1
@@ -22203,7 +22194,7 @@ parásito	ADJ:1	NOUN:1
 paré	ADJ:1
 parénquima	NOUN:1
 paréntesis	NOUN:2
-parís	PROPN:3
+parís	PROPN:2
 paródico	ADJ:1
 parón	NOUN:1
 pasable	ADJ:1
@@ -24836,7 +24827,6 @@ químico	ADJ:1	NOUN:1
 quíos	PROPN:1
 quórum	NOUN:1
 qwerty	NOUN:1
-r	NOUN:1
 raba	NOUN:1
 rabadilla	NOUN:1
 rabanal	PROPN:1
@@ -24955,7 +24945,7 @@ rampante	ADJ:1
 rampla	NOUN:1
 ramsés	PROPN:1
 ramírez	PROPN:1
-ramón	NOUN:2	PROPN:2
+ramón	NOUN:2	PROPN:1
 rana	NOUN:1
 rancagua	PROPN:2
 ranchera	NOUN:2
@@ -26650,7 +26640,6 @@ rúa	NOUN:1
 rúbrica	NOUN:3
 rúcula	NOUN:1
 rústico	ADJ:2
-s	NOUN:1
 saas	NOUN:1
 saavedra	PROPN:2
 sabadell	PROPN:1
@@ -28522,7 +28511,7 @@ swahili	NOUN:1
 swap	NOUN:1
 swing	NOUN:1
 syllabus	NOUN:1
-sábado	NOUN:3
+sábado	NOUN:2
 sábana	NOUN:1
 sábila	NOUN:1
 sácate	INTJ:3
@@ -28811,7 +28800,7 @@ taro	NOUN:1
 tarot	NOUN:1
 tarqui	PROPN:1
 tarraconense	ADJ:1	NOUN:1
-tarragona	PROPN:3
+tarragona	PROPN:2
 tarrasa	PROPN:1
 tarro	NOUN:6
 tarsis	PROPN:1
@@ -29182,7 +29171,7 @@ terrícola	ADJ:1	NOUN:1
 terrón	NOUN:2
 tertulia	NOUN:2
 tertuliano	NOUN:2
-teruel	PROPN:3
+teruel	PROPN:2
 terán	PROPN:1
 tesalia	PROPN:2
 tesalonicenses	PROPN:1
@@ -30294,7 +30283,7 @@ uh	INTJ:1
 uigur	ADJ:1	NOUN:2
 ujier	NOUN:2
 ukelele	NOUN:1
-ulises	PROPN:3
+ulises	PROPN:2
 ulloa	PROPN:1
 ulterior	ADJ:2
 ulteriormente	ADV:1
@@ -30533,7 +30522,7 @@ valdivia	PROPN:5	NOUN:1
 valdivieso	PROPN:1
 valdés	PROPN:3
 valedor	NOUN:2
-valencia	PROPN:4	NOUN:1
+valencia	PROPN:3	NOUN:1
 valencianista	ADJ:1	NOUN:1
 valenciano	ADJ:1	NOUN:1
 valentina	PROPN:1
@@ -31340,7 +31329,6 @@ vóleibol	NOUN:1
 vóley	NOUN:1
 vómito	NOUN:1
 vórtice	NOUN:1
-w	SYM:1
 wa	INTJ:1
 wacho	NOUN:5
 wadi	NOUN:1
@@ -31357,7 +31345,7 @@ warrant	NOUN:1
 was	NOUN:1
 wasabi	NOUN:1
 wasap	PROPN:1
-washington	PROPN:2
+washington	PROPN:1
 watanabe	PROPN:1
 waterman	PROPN:1
 waterpolo	NOUN:1
@@ -31419,7 +31407,7 @@ writing	NOUN:1
 wtf	X:1
 wuhan	PROPN:1
 wyoming	PROPN:1
-x	PROPN:1	PRON:1
+x	PRON:1
 xalapa	PROPN:1
 xavier	PROPN:1
 xbox	NOUN:1
@@ -31433,7 +31421,7 @@ xenófobo	ADJ:1	NOUN:1
 xenón	NOUN:1
 xhosa	ADJ:1
 xi	NOUN:1
-ximena	PROPN:2
+ximena	PROPN:1
 ximénez	PROPN:1
 xiomara	PROPN:1
 xk	SCONJ:1
@@ -31450,7 +31438,7 @@ yacer	VERB:2
 yacimiento	NOUN:2
 yago	PROPN:1
 yaguareté	NOUN:1
-yagüe	PROPN:3
+yagüe	PROPN:2
 yahveh	PROPN:1
 yahvé	PROPN:1
 yahweh	PROPN:1
@@ -31481,7 +31469,7 @@ yc	PROPN:2
 yebra	PROPN:1
 yeda	PROPN:1
 yedra	NOUN:1
-yegua	NOUN:5
+yegua	NOUN:4
 yelmo	NOUN:2
 yema	NOUN:3
 yemen	PROPN:1
@@ -31560,7 +31548,6 @@ yuyu	NOUN:1
 yuzu	NOUN:1
 yáñez	PROPN:1
 yépez	PROPN:1
-z	SYM:1
 za	INTJ:1
 zabala	PROPN:1
 zac	PROPN:1
@@ -31605,7 +31592,7 @@ zanzíbar	PROPN:1
 zapa	NOUN:2
 zapallito	NOUN:1
 zapallo	NOUN:2
-zapata	NOUN:2	PROPN:2
+zapata	NOUN:2	PROPN:1
 zapateo	NOUN:1
 zapatero	ADJ:1	NOUN:3	PROPN:1
 zapatería	NOUN:2
@@ -31656,7 +31643,7 @@ zenaida	PROPN:1
 zenit	NOUN:1
 zenón	PROPN:1
 zepeda	PROPN:1
-zeta	NOUN:3
+zeta	NOUN:2
 zeus	PROPN:1
 zia	PROPN:1
 zigzag	NOUN:1
@@ -31850,7 +31837,7 @@ zúñiga	PROPN:1
 ñor	NOUN:3
 ñora	NOUN:2
 ños	INTJ:1
-ñoño	ADJ:4	NOUN:1
+ñoño	ADJ:4
 ñu	NOUN:1
 ñuble	PROPN:3
 ñublense	ADJ:1	NOUN:1

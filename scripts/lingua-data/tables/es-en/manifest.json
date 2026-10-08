@@ -2,11 +2,11 @@
   "meta": {
     "studied": "es",
     "native": "en",
-    "pack_version": "2026.10.08+733f815",
+    "pack_version": "2026.10.08+9e2a442.08034dc",
     "analyzer_version": "1.2.0",
     "levels_estimated": true,
     "licences": [
-      "kaikki / enwiktionary, eswiktionary (CC BY-SA 4.0 + GFDL)",
+      "kaikki / enwiktionary, eswiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)",
       "wordfreq (CC BY-SA 4.0)",
       "UD Spanish-GSD (CC BY-SA 4.0)"
     ]
