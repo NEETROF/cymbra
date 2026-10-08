@@ -6,10 +6,11 @@ import {
 } from "./language.ts";
 
 // The catalogue's helpers (add-lingua-interface-language D1, D2, D4): how a count picks its
-// plural form, how a number, a percentage and a date are written in each language, and how a page
-// is filled from a module. No surface's copy is mapped here — a surface imports its own
-// `./{fr,en,es}/<surface>.ts` and picks by the interface language — so importing this module costs
-// an entry nothing but these functions.
+// plural form, how a number, a percentage, a date and a region are written in each language, how a
+// page is filled from a module, and how a slot message is rendered around the parts a surface draws
+// apart. No surface's copy is mapped here — a surface imports its own `./{fr,en,es}/<surface>.ts`
+// and picks by the interface language — so importing this module costs an entry nothing but these
+// functions.
 
 export type { InterfaceLanguage, InterfaceLanguageArea } from "./language.ts";
 export {
@@ -32,6 +33,7 @@ export type Surface =
   | "review"
   | "stats"
   | "settings"
+  | "studied-languages"
   | "colours"
   | "display"
   | "translation"
@@ -53,6 +55,7 @@ export const SURFACES: readonly Surface[] = [
   "review",
   "stats",
   "settings",
+  "studied-languages",
   "colours",
   "display",
   "translation",
@@ -145,6 +148,82 @@ export function formatDate(language: InterfaceLanguage, date: Date, options?: In
   return date.toLocaleDateString(LOCALES[language], options);
 }
 
+const regions = new Map<InterfaceLanguage, Intl.DisplayNames>();
+
+/**
+ * A region as the interface language names it — the place of a voice in Réglages, « États-Unis »
+ * (localise-lingua-settings D4): the language's own `Intl.DisplayNames`, French through `["fr"]` as
+ * Réglages named it before the catalogue; the code itself where the runtime cannot name it.
+ */
+export function regionName(language: InterfaceLanguage, code: string): string {
+  try {
+    let names = regions.get(language);
+    if (!names) {
+      names = new Intl.DisplayNames([language], { type: "region" });
+      regions.set(language, names);
+    }
+    return names.of(code) ?? code;
+  } catch {
+    // Not a region this runtime can name (or no Intl.DisplayNames): the code says enough.
+    return code;
+  }
+}
+
+/**
+ * The character around a part's number in a sentinel, `\u0000<i>\u0000`: one no message writes.
+ * `slot(i)` writes a sentinel and `fillSlots` reads it — the one slot mechanism of the catalogue:
+ * `NODE_SLOT` is `slot(0)`, so any message renders through `fillSlots` or `renderAround` alike.
+ */
+const SLOT_MARK = "\u0000";
+
+/** A sentinel in a message: the mark, the part's number, the mark (built from `SLOT_MARK`). */
+const SLOT_PATTERN = new RegExp(`${SLOT_MARK}(\\d+)${SLOT_MARK}`, "g");
+
+/**
+ * The sentinel a surface passes for the `index`-th part of a slot message it renders apart — a bold
+ * count, a painted word, a key (README › Shape): numbered, so a translation may put the parts in
+ * any order. `fillSlots` renders the message around them.
+ */
+export function slot(index: number): string {
+  return `${SLOT_MARK}${index}${SLOT_MARK}`;
+}
+
+/** A part a slot message is rendered with: one node or text, or several in a row. */
+export type SlotPart = Node | string;
+
+const several = (part: SlotPart | readonly SlotPart[]): part is readonly SlotPart[] => Array.isArray(part);
+
+/**
+ * A slot message written with `slot(i)` for its parts, as the nodes to render: the texts between,
+ * in order, and each part where the language put it — a part named twice shows twice, a node the
+ * second time as a copy (a node is in one place). A sentinel with no part is left out; a part the
+ * message never names is appended after it, so what a part shows is never lost (a translation that
+ * dropped its slot). An empty text is left out, so a surface appends the same nodes it appended
+ * before the catalogue (localise-lingua-settings D3).
+ */
+export function fillSlots(message: string, parts: readonly (SlotPart | readonly SlotPart[])[]): SlotPart[] {
+  const nodes: SlotPart[] = [];
+  const placed = new Set<number>();
+  const place = (index: number): void => {
+    const part = parts[index];
+    if (part === undefined) return;
+    const again = placed.has(index);
+    placed.add(index);
+    for (const p of several(part) ? part : [part]) nodes.push(again && typeof p !== "string" ? p.cloneNode(true) : p);
+  };
+  let at = 0;
+  for (const match of message.matchAll(SLOT_PATTERN)) {
+    if (match.index > at) nodes.push(message.slice(at, match.index));
+    place(Number(match[1]));
+    at = match.index + match[0].length;
+  }
+  if (at < message.length) nodes.push(message.slice(at));
+  parts.forEach((_, index) => {
+    if (!placed.has(index)) place(index);
+  });
+  return nodes;
+}
+
 /**
  * The mark a page's `<html>` carries until its static copy is filled: each page's stylesheet hides
  * `body` under it, so nothing shows empty before the catalogue (localise-lingua-reading-surfaces D2).
@@ -208,22 +287,21 @@ export async function fillPageInLanguage<Copy extends Record<string, unknown>>(
 }
 
 /**
- * What a slot message is called with where the surface renders a node of its own — the popup's bold
- * level, a studied word set apart in its language: a character no message writes, so the message
- * splits around it (README › Shape).
+ * What a slot message is called with where the surface renders one node of its own — the popup's
+ * bold level, a studied word set apart in its language: the first part's sentinel, `slot(0)`, so the
+ * message renders through `renderAround` or `fillSlots` alike (README › Shape).
  */
-export const NODE_SLOT = "\u0000";
+export const NODE_SLOT = slot(0);
 
 /**
  * Render into `element` a message called with `NODE_SLOT` where `node` goes — « Niveau d'anglais :
- * <b>B1</b> », or a translation that puts the level first: the text before the slot, the node, the
- * text after; an empty text is left out. A message without the slot (a translation that dropped it)
- * keeps its text and has the node appended, so what the node shows is never lost.
+ * <b>B1</b> », or a translation that puts the level first: `fillSlots` with the one part — the text
+ * before the slot, the node, the text after, an empty text left out. A message without the slot (a
+ * translation that dropped it) keeps its text and has the node appended, so what the node shows is
+ * never lost.
  */
 export function renderAround(element: Element, message: string, node: Node): void {
-  const [before = "", ...rest] = message.split(NODE_SLOT);
-  const parts: (Node | string)[] = rest.length === 0 ? [before, node] : [before, node, rest.join("")];
-  element.replaceChildren(...parts.filter((part) => part !== ""));
+  element.replaceChildren(...fillSlots(message, [node]));
 }
 
 /**

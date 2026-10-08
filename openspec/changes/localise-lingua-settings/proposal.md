@@ -21,8 +21,8 @@ which the lint forces once `settings-view.ts` is off the baseline.
 
 ## What Changes
 
-- **Réglages reads its copy from `src/i18n/<language>/{settings,colours,display,translation,
-  account-setting,sync}.ts`** (`account-setting` is the Réglages block's; `account` is the account
+- **Réglages reads its copy from `src/i18n/<language>/{settings,studied-languages,colours,display,
+  translation,account-setting,sync}.ts`** (`account-setting` is the Réglages block's; `account` is the account
   page's, change 17's), picked by the interface language the popup and the side panel read with
   their preferences and the drawer is handed by the reading session (change 14); the block titles
   are catalogue entries, and `lint-settings-hosts` imports them from the French catalogue module

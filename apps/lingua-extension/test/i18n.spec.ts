@@ -5,6 +5,7 @@ import {
   DEFAULT_INTERFACE_LANGUAGE,
   fillPage,
   fillPageInLanguage,
+  fillSlots,
   formatCount,
   formatDate,
   formatNumber,
@@ -16,8 +17,10 @@ import {
   NODE_SLOT,
   plural,
   type PluralForms,
+  regionName,
   renderAround,
   setDocumentLanguage,
+  slot,
   SURFACES,
 } from "@/i18n/index.ts";
 import { popup as enPopup } from "@/i18n/en/popup.ts";
@@ -26,6 +29,10 @@ import { popup as frPopup } from "@/i18n/fr/popup.ts";
 import { review as frReview } from "@/i18n/fr/review.ts";
 import { review as enReview } from "@/i18n/en/review.ts";
 import { review as esReview } from "@/i18n/es/review.ts";
+import { colours as enColours } from "@/i18n/en/colours.ts";
+import { card as frCard } from "@/i18n/fr/card.ts";
+import { colours as frColours } from "@/i18n/fr/colours.ts";
+import { settings as frSettings } from "@/i18n/fr/settings.ts";
 import { stats as frStats } from "@/i18n/fr/stats.ts";
 import { sync as frSync } from "@/i18n/fr/sync.ts";
 import { translation as frTranslation } from "@/i18n/fr/translation.ts";
@@ -179,12 +186,94 @@ describe("a count in each language", () => {
     expect(formatDate("es", date, long)).toBe("4 de octubre de 2026");
   });
 
+  it("names a region in each language, French as Réglages named it, the code where none is known", () => {
+    expect(regionName("fr", "US")).toBe(new Intl.DisplayNames(["fr"], { type: "region" }).of("US"));
+    expect(regionName("fr", "GB")).toBe("Royaume-Uni");
+    expect(regionName("en", "GB")).toBe("United Kingdom");
+    expect(regionName("es", "US")).toBe("Estados Unidos");
+    expect(regionName("es", "LATN")).toBe("LATN"); // a script, not a region: the runtime refuses it
+  });
+
   it("keeps the ladder's escapes as the surface wrote them", () => {
     expect(frStats.scopeCommon).toBe(
       `«${NNBSP}courants${NNBSP}»${NBSP}: les mots les plus fréquents jusqu'à ce niveau. `,
     );
     expect(frStats.approxWords("16" + NARROW + "000")).toBe(`≈${NBSP}16${NARROW}000 mots`);
     expect(plural("fr", 20_000, frStats.words, formatNumber("fr", 20_000))).toBe(`20${NARROW}000 mots`);
+  });
+});
+
+describe("a slot message rendered around its parts (localise-lingua-settings D3)", () => {
+  const b = (text: string): HTMLElement => Object.assign(document.createElement("b"), { textContent: text });
+
+  it("A bold count: the French sentence around it, no empty text left at either end", () => {
+    const count = b("3000");
+    expect(fillSlots(frSettings.knowCommonest(slot(0)), [count])).toEqual([
+      "Je connais les ",
+      count,
+      " mots les plus courants",
+    ]);
+    const keys = [b("Alt"), "+", b("S")];
+    expect(fillSlots(frSettings.shortcutSidePanel(slot(0)), [keys])).toEqual([...keys, " — panneau latéral"]);
+  });
+
+  it("Two parts: each where the language put it, whatever the order", () => {
+    const [unknown, learning] = [b("U"), b("L")];
+    expect(fillSlots(frColours.preview(slot(0), slot(1)), [unknown, learning])).toEqual([
+      "Un mot ",
+      unknown,
+      ", un mot ",
+      learning,
+      " et un mot connu.",
+    ]);
+    expect(fillSlots(enColours.preview(slot(0), slot(1)), [unknown, learning])).toEqual([
+      "An ",
+      unknown,
+      " word, a word ",
+      learning,
+      " and a known word.",
+    ]);
+    // A language that names the second part first.
+    expect(fillSlots(`${slot(1)}, then ${slot(0)}`, [unknown, learning])).toEqual([learning, ", then ", unknown]);
+  });
+
+  it("leaves out a part it was not given, and keeps a message without any", () => {
+    expect(fillSlots(`a${slot(3)}b`, [])).toEqual(["a", "b"]);
+    expect(fillSlots("plain", [])).toEqual(["plain"]);
+  });
+
+  it("A translation that dropped a slot: the part it was given is appended, never lost", () => {
+    const level = b("B1");
+    expect(fillSlots("Level", [level])).toEqual(["Level", level]);
+    // The parts it names where it names them, the one it dropped after the message.
+    const [first, second] = [b("1"), b("2")];
+    expect(fillSlots(`${slot(1)} first`, [first, second])).toEqual([second, " first", first]);
+  });
+
+  it("A message that names a part twice: shown twice, a node copied the second time", () => {
+    expect(fillSlots(`${slot(0)} + ${slot(0)}`, ["Alt"])).toEqual(["Alt", " + ", "Alt"]);
+    const level = b("B1");
+    const nodes = fillSlots(`${slot(0)} — ${slot(0)}`, [level]);
+    expect(nodes[0]).toBe(level);
+    expect(nodes[1]).toBe(" — ");
+    expect(nodes[2]).not.toBe(level);
+    expect((nodes[2] as HTMLElement).outerHTML).toBe("<b>B1</b>");
+    const line = document.createElement("span");
+    line.append(...nodes);
+    expect(line.textContent).toBe("B1 — B1");
+  });
+
+  it("One mechanism: a node's slot and a numbered slot render through either helper", () => {
+    expect(NODE_SLOT).toBe(slot(0));
+    // Change 15's message through change 14's helper: the count in place, no stray "0".
+    const label = document.createElement("label");
+    const count = b("3000");
+    renderAround(label, frSettings.knowCommonest(slot(0)), count);
+    expect(label.textContent).toBe("Je connais les 3000 mots les plus courants");
+    expect(label.querySelector("b")).toBe(count);
+    // Change 14's message through change 15's helper: the node and the closing guillemet kept.
+    const form = b("vino");
+    expect(fillSlots(frCard.seenForm(NODE_SLOT), [form])).toEqual(["forme vue : « ", form, " »"]);
   });
 });
 
@@ -394,7 +483,7 @@ const SAME_AS_FRENCH: Record<"en" | "es", Set<string>> = {
 };
 
 /** Slot messages whose text is only their parts and a symbol — the same shape in every language. */
-const SAME_SHAPE_EVERYWHERE = new Set(["@α", "▶ α", "α → β", "α / β", `≈${NBSP}α`, "α…", "α β", "α β γ"]);
+const SAME_SHAPE_EVERYWHERE = new Set(["@α", "▶ α", "α → β", "α / β", `≈${NBSP}α`, "α…", "α β", "α β γ", "α — β"]);
 const SAME_SHAPE_AS_FRENCH: Record<"en" | "es", Set<string>> = {
   en: new Set(),
   es: new Set(["de α"]),

@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountReply } from "@/account/messages.ts";
-import {
-  ACCOUNT_COPY,
-  type AccountControls,
-  mountAccountSetting,
-  runtimeAccountControls,
-} from "@/reading/account-setting.ts";
+import { accountSetting as ACCOUNT_COPY } from "@/i18n/fr/account-setting.ts";
+import { type AccountControls, mountAccountSetting, runtimeAccountControls } from "@/reading/account-setting.ts";
 import type { PersistedSignInError } from "@/state/session.ts";
 
 // « Compte » in Réglages › Données: the popup's sign-in, now in every host of Réglages. The

@@ -1,3 +1,7 @@
+import { settings as frSettings } from "../i18n/fr/settings.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage, regionName } from "../i18n/index.ts";
+import type { SettingsModule } from "./settings-copy.ts";
+
 // Read-aloud (add-lingua-read-aloud): which voice may speak, which one does, and one speaker
 // that owns a single utterance at a time. No DOM here, and the browser's synthesiser sits behind
 // the `SpeechEngine` seam, so every decision is tested in jsdom — which has no synthesiser.
@@ -329,17 +333,21 @@ export function voiceGroups<V extends VoiceInfo>(
   return { ordinary: ranked.filter((v) => !isDeprioritised(v)), others: ranked.filter(isDeprioritised) };
 }
 
-/** A voice as Réglages names it: `Samantha — États-Unis`, the region in French. */
-export function voiceLabel(voice: VoiceInfo): string {
+/**
+ * A voice as Réglages names it, in the interface language (localise-lingua-settings D4):
+ * `Samantha — États-Unis` in French, `Samantha — United States` in English — the region through
+ * `regionName`, the code where the runtime cannot name it, the name alone where the voice says none.
+ * French when no language is given; `copy` is Réglages' module in that language, passed with it —
+ * the French one when not given.
+ */
+export function voiceLabel(
+  voice: VoiceInfo,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+  copy: Pick<SettingsModule, "voiceLabel"> = frSettings,
+): string {
   const code = region(voice.lang)?.toUpperCase();
   if (!code) return voice.name;
-  let place = code;
-  try {
-    place = new Intl.DisplayNames(["fr"], { type: "region" }).of(code) ?? code;
-  } catch {
-    // Not a region this runtime can name (or no Intl.DisplayNames): the code says enough.
-  }
-  return `${voice.name} — ${place}`;
+  return copy.voiceLabel(voice.name, regionName(language, code));
 }
 
 /**

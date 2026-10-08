@@ -6,7 +6,6 @@ export const translation = {
   toggle: "Traduction étendue",
   attribution: "Modèle de traduction : Firefox Translations (Mozilla), licence MPL 2.0.",
   ready: "Prête : tes sélections sont traduites sur cet appareil.",
-  interrupted: "Téléchargement interrompu.",
   removed: "Le navigateur a supprimé le modèle de cet appareil. Il faut le télécharger à nouveau.",
   missing: "Il manque un modèle pour une de tes langues.",
   cancel: "Annuler",
@@ -34,5 +33,7 @@ export const translation = {
   progress: (received: string, total: string) => ` ${received} sur ${total}`,
   /** `progress` is `progress`, or nothing while the total is unknown. */
   downloading: (progress: string) => `Téléchargement du modèle…${progress}`,
+  /** `progress` as `downloading` takes it: how far the download got, or nothing. */
+  interruptedAt: (progress: string) => `Téléchargement interrompu.${progress}`,
   missingSized: (size: string) => `Il manque un modèle pour une de tes langues. ${size} à télécharger.`,
 };

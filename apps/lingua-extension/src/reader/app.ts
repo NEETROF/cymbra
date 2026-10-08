@@ -3,6 +3,7 @@ import type { StudiedLanguage } from "../analyzer/types.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatPercent, type InterfaceLanguage } from "../i18n/index.ts";
 import { type BookDisplayView, mountBookDisplay } from "../reading/book-display-view.ts";
 import { applyColourSheet } from "../reading/highlight.ts";
+import { settingsCopy } from "../reading/settings-copy.ts";
 import type { HudActions, HudState } from "../reading/hud.ts";
 import {
   type Box,
@@ -431,7 +432,12 @@ export class ReaderApp {
     );
     this.tocPanel.hidden = true;
     this.displayPanel.hidden = true;
-    this.displayView = mountBookDisplay(this.displayPanel, this.deps.displayArea);
+    // The "Aa" panel is Réglages' Affichage block: in the page's language, its words and its size
+    // (localise-lingua-settings D1).
+    this.displayView = mountBookDisplay(this.displayPanel, this.deps.displayArea, {
+      language: this.language,
+      copy: settingsCopy(this.language).display,
+    });
     // A tap on the page's margins lands in this document, not in the section's: same zones.
     this.bookHost.addEventListener("click", (e) => this.turnByZone(e.clientX));
     // The book, and the panels laid over it: they start under the bar, however many rows it takes.

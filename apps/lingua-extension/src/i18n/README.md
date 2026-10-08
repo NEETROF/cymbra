@@ -2,8 +2,8 @@
 
 Every text the extension shows lives here, once per language: `fr/<surface>.ts`, `en/<surface>.ts`,
 `es/<surface>.ts`, one module per surface (`popup`, `hud`, `drawer`, `card`, `selection`,
-`sidepanel`, `review`, `stats`, `settings`, `colours`, `display`, `translation`, `account-setting`,
-`account`, `onboarding`, `reader`, `sync`, `languages`, `grammar`). The French module is the source;
+`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `colours`, `display`, `translation`,
+`account-setting`, `account`, `onboarding`, `reader`, `sync`, `languages`, `grammar`). The French module is the source;
 the English and Spanish ones are typed after it (`export const popup: typeof fr = { … }`), so a key
 missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts` checks the rest at
 runtime: no empty entry, every slot taken, nothing left in French outside the texts that are the same
@@ -13,17 +13,20 @@ changes moving them take off the list: `localise-lingua-reading-surfaces` (14),
 `localise-lingua-settings` (15), `localise-lingua-review-stats` (16),
 `localise-lingua-account-onboarding` (17).
 
-One copy site the lint cannot see: `src/reading/speech.ts`'s `voiceLabel` names a voice's region
-through `new Intl.DisplayNames(["fr"], { type: "region" })` and writes `${voice.name} — ${place}` —
-no French literal, French output. Change 15 moves it, with a `regionName(language, code)` helper and
-a `settings.voiceLabel` slot message; until then a voice is named in French in every interface
-language.
+A copy site with no French literal is beyond the lint: a format whose output is French. The one the
+inventory found, `src/reading/speech.ts`'s `voiceLabel` — a voice's region named through
+`Intl.DisplayNames(["fr"])` — now goes through `regionName(language, code)` and the
+`settings.voiceLabel(name, place)` slot message (`localise-lingua-settings`), so a voice is named in
+the interface language; a new format goes through a helper of `index.ts` the same way.
 
 The interface language is the reader's native language (`language.ts`: `interfaceLanguage(area)`,
 `fr` when the key is absent, and when it cannot be read — it never rejects); `index.ts` holds the
-helpers — `plural`, `formatNumber`, `formatCount`, `formatPercent`, `formatDate`, `fillPage`,
-`fillPageInLanguage`, `renderAround` — and maps no surface, so importing it costs an entry nothing.
-A surface imports its own three modules and picks by the language.
+helpers — `plural`, `formatNumber`, `formatCount`, `formatPercent`, `formatDate`, `regionName`,
+`fillPage`, `fillPageInLanguage`, `renderAround`, `slot` and `fillSlots` — and maps no surface, so
+importing it costs an entry nothing. A surface imports its own three modules and picks by the
+language; Réglages, mounted by three hosts, picks its seven (`settings`, `studied-languages`,
+`colours`, `display`, `translation`, `account-setting`, `sync`) in `reading/settings-copy.ts` and hands
+each block its own, which holds its French module as its default.
 
 ## Pages
 
@@ -53,8 +56,13 @@ language in a `lang` of their own.
   translation would have to equal it.
 - **A sentence built from parts** is one function of its parts — `review.sources(names)`,
   `colours.preview(unknown, learning)` — so a translation may put the parts elsewhere. A part the
-  surface renders apart (a bold number, a painted word) is passed as a sentinel and the result split
-  around it; the catalogue holds the sentence, not the markup.
+  surface renders apart (a bold number, a painted word) is passed as a sentinel and the result
+  rendered around it; the catalogue holds the sentence, not the markup. `slot(i)` is the `i`-th
+  part's sentinel and `fillSlots(message, parts)` the nodes to append, each part where the language
+  put it and a part the message dropped appended after it (« Je connais les **3000** mots les plus
+  courants », Réglages' shortcut lines and colour preview). `NODE_SLOT` is `slot(0)` and
+  `renderAround(element, message, node)` is `fillSlots` with that one part: one mechanism, so a
+  message renders through either helper.
 - **A count** is a `PluralForms` object, `{ one, many?, other }`, each form a function of the
   number _as the language writes it_: `plural(language, n, forms)` picks the form through
   `Intl.PluralRules`. French and Spanish have `many` (a round million); English has not, and a

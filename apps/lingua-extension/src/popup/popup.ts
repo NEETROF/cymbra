@@ -225,6 +225,8 @@ async function showSettings(tab?: SettingsTab): Promise<void> {
       speaker: createSpeaker(browserSpeechEngine(), await readingLanguage(port), storedVoicePreference(storageArea)),
       // Safari: the host app now shows the provider's sheet; the next open collects the token.
       onHandedOff: () => window.close(),
+      // The language read with this page's first storage read (localise-lingua-settings D1).
+      interfaceLanguage: language,
     });
   }
   if (tab) settings.show(tab);

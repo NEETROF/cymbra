@@ -1,3 +1,5 @@
+import { display as frDisplay } from "../i18n/fr/display.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, formatPercent, type InterfaceLanguage } from "../i18n/index.ts";
 import {
   type AsyncStorageArea,
   loadReaderDisplay,
@@ -10,6 +12,7 @@ import {
   TEXT_SCALE_MIN,
   TEXT_SCALE_STEP,
 } from "../state/storage.ts";
+import type { DisplayCopy } from "./settings-copy.ts";
 
 // How the reader shows text — its size and its theme (add-lingua-reader D10) — and how a book's
 // page turns (add-lingua-page-slide). The size scales the book's text and every surface of the
@@ -18,11 +21,17 @@ import {
 // rendered in the two places the reader looks for it: the reader's own "Aa" panel, and Réglages,
 // which shows the size and theme under Apparence › Affichage and the turn under Pages & livres ›
 // Livres, beside the continuous flow (`turnContainer`). Buttons, not a slider: a tap is one step, which an e-ink screen
-// redraws once. The choice is saved; every surface follows the stored value.
+// redraws once. The choice is saved; every surface follows the stored value. Its copy is the
+// catalogue's `display` module, and the size a percentage in the interface language
+// (localise-lingua-settings D1, D4).
 
 export interface BookDisplayOptions {
   /** Where the page-turn choice goes, when not with the size and theme (Réglages › Livres). */
   turnContainer?: HTMLElement;
+  /** The interface language: the size is written in it (« 110 % » in French); French when not given. */
+  language?: InterfaceLanguage;
+  /** The block's copy, in that language — passed with it; the French module when not given. */
+  copy?: DisplayCopy;
 }
 
 export interface BookDisplayView {
@@ -49,16 +58,6 @@ function button(doc: Document, className: string, text: string, label: string): 
   b.title = label;
   return b;
 }
-
-const THEMES: { theme: ReaderTheme; text: string }[] = [
-  { theme: "paper", text: "Papier" },
-  { theme: "dark", text: "Sombre" },
-];
-
-const TURNS: { turn: ReaderTurn; text: string }[] = [
-  { turn: "instant", text: "Directe" },
-  { turn: "slide", text: "Glissée" },
-];
 
 /** A row of mutually exclusive buttons, each saving its own choice. */
 function segmented<T>(
@@ -91,28 +90,28 @@ export function mountBookDisplay(
   let display: ReaderDisplay | null = null;
   // The document the view is mounted in: the reader page's, a panel's or a drawer's shadow.
   const doc = container.ownerDocument;
+  const language = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
+  const copy = opts.copy ?? frDisplay;
+  const themes: { value: ReaderTheme; text: string }[] = [
+    { value: "paper", text: copy.themePaper },
+    { value: "dark", text: copy.themeDark },
+  ];
+  const turnChoices: { value: ReaderTurn; text: string }[] = [
+    { value: "instant", text: copy.turnInstant },
+    { value: "slide", text: copy.turnSlide },
+  ];
 
-  const smaller = button(doc, "set-step", "A−", "Réduire le texte");
-  const larger = button(doc, "set-step", "A+", "Agrandir le texte");
+  const smaller = button(doc, "set-step", copy.smallerIcon, copy.smaller);
+  const larger = button(doc, "set-step", copy.largerIcon, copy.larger);
   const size = el(doc, "output", "set-step-value");
   const sizeRow = el(doc, "div", "set-display-row");
   const stepper = el(doc, "div", "set-stepper");
   stepper.append(smaller, size, larger);
-  sizeRow.append(el(doc, "span", undefined, "Taille du texte"), stepper);
+  sizeRow.append(el(doc, "span", undefined, copy.textSize), stepper);
 
-  const pages = segmented(
-    doc,
-    "Thème",
-    THEMES.map(({ theme, text }) => ({ value: theme, text })),
-    (theme) => void choose({ theme }),
-  );
+  const pages = segmented(doc, copy.theme, themes, (theme) => void choose({ theme }));
   // Directe by default: a slide is several frames, each of which an e-ink screen redraws.
-  const turns = segmented(
-    doc,
-    "Tourne des pages",
-    TURNS.map(({ turn, text }) => ({ value: turn, text })),
-    (turn) => void choose({ turn }),
-  );
+  const turns = segmented(doc, copy.pageTurn, turnChoices, (turn) => void choose({ turn }));
 
   const box = el(doc, "div", "set-display");
   box.append(sizeRow, pages.row);
@@ -127,7 +126,7 @@ export function mountBookDisplay(
 
   function render(): void {
     if (!display) return;
-    size.textContent = `${display.textScale} %`;
+    size.textContent = formatPercent(language, display.textScale, "spaced");
     smaller.disabled = display.textScale <= TEXT_SCALE_MIN;
     larger.disabled = display.textScale >= TEXT_SCALE_MAX;
     for (const { value, b } of pages.buttons) b.setAttribute("aria-pressed", String(display.theme === value));

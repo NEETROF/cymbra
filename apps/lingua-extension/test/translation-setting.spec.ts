@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { translation as COPY } from "@/i18n/fr/translation.ts";
 import { mountSettings } from "@/reading/settings-view.ts";
 import {
-  COPY,
   costText,
   megabytes,
   mountTranslationSetting,

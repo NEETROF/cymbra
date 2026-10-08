@@ -5,7 +5,7 @@ import type { settings as fr } from "../fr/settings.ts";
 export const settings: typeof fr = {
   installVoiceHelp: (windowsLanguage, language) =>
     `For a voice on the device, without changing the system's or the browser's language: on Windows, Settings › Time & language › Language & region › Add a language › ${windowsLanguage}, without setting it as the display language, with text-to-speech; on macOS, System Settings › Accessibility › Spoken Content › System Voice › Manage Voices › ${language}. Then restart the browser.`,
-  installVoiceFallback: " If the install fails, turn on the online voices below.",
+  installVoiceHelpWithFallback: (help) => `${help} If the install fails, turn on the online voices below.`,
   studiedLanguages: "Languages studied",
   beginner: "Beginner",
   knowCommonest: (n) => `I know the ${n} most common words`,
@@ -73,14 +73,11 @@ export const settings: typeof fr = {
   automaticVoice: (name) => `Automatic (${name})`,
   automatic: "Automatic",
   otherVoices: "Other voices",
+  voiceLabel: (name, place) => `${name} — ${place}`,
   syncing: "Syncing…",
   restarting: "Starting over from the server…",
   restarted: "Started over from the server.",
   partialResetDone: "Statuses and calibration reset.",
   dataErased: "Data erased.",
   tabs: "Settings",
-
-  studiedNote:
-    "Each page is read in whichever of your languages it holds. The first one checked is the default for the settings and the statistics.",
-  severalLanguagesOffer: "Several languages at once: free for now.",
 };

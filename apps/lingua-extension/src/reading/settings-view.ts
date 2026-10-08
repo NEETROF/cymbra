@@ -9,6 +9,7 @@ import {
 import { acceptedLanguages, SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { LinguaPort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, fillSlots, formatCount, type InterfaceLanguage, slot } from "../i18n/index.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import { type OpenPage, openPageViaBackground } from "../state/open-page.ts";
 import { hasShortcutEditor } from "../state/platform.ts";
@@ -34,6 +35,7 @@ import { clearSyncCursors } from "../sync/sync.ts";
 import { type AccountControls, mountAccountSetting, runtimeAccountControls } from "./account-setting.ts";
 import { mountBookDisplay } from "./book-display-view.ts";
 import { mountColourSettings } from "./colour-settings-view.ts";
+import { type SettingsModule, settingsCopy } from "./settings-copy.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 import {
@@ -74,22 +76,25 @@ export interface SettingsOptions {
   onHandedOff?: () => void;
   /** The pairs the package ships: the bundle's, unless a spec offers others. */
   pairs?: readonly string[];
+  /**
+   * The interface language (localise-lingua-settings D1): the one the popup and the side panel read
+   * with their preferences, the one the reading session handed the drawer. French when not given.
+   */
+  interfaceLanguage?: InterfaceLanguage;
 }
 
 /** The key the settings preview speaks under — not a card's, so no card silences it. */
 const PREVIEW_KEY = "preview";
-/** What the preview reads, in the studied language. */
 /**
- * How to install a voice on the device — a system voice, not a change of language. On Windows,
- * through « Langue et région »: « Voix › Ajouter des voix » did nothing on a French Windows 11
- * (2026-09-29), and that install can fail outright (0x800F0950), hence the pointer to the fallback.
+ * How to install a voice of `language` on the device — a system voice, not a change of language
+ * (add-lingua-language-choice: the languages named from language-labels). On Windows, through
+ * « Langue et région »: « Voix › Ajouter des voix » did nothing on a French Windows 11
+ * (2026-09-29), and that install can fail outright (0x800F0950), hence the pointer to the fallback
+ * (`installVoiceHelpWithFallback`, where the remote voices can stand in).
  */
-/** How to install a voice of `language` on the device (add-lingua-language-choice: named from language-labels). */
-function installVoiceHelp(language: StudiedLanguage): string {
-  return `Pour une voix sur l'appareil, sans changer la langue du système ni du navigateur : sous Windows, Paramètres › Heure et langue › Langue et région › Ajouter une langue › ${windowsVoiceLanguage(language)}, sans la définir comme langue d'affichage, avec la synthèse vocale ; sous macOS, Réglages Système › Accessibilité › Contenu énoncé › Voix du système › Gérer les voix › ${languageName(language)}. Relance ensuite le navigateur.`;
+function installVoiceHelp(copy: SettingsModule, language: StudiedLanguage): string {
+  return copy.installVoiceHelp(windowsVoiceLanguage(language), languageName(language));
 }
-/** Added where the remote voices can stand in. */
-const INSTALL_VOICE_FALLBACK = " Si l'installation échoue, active les voix en ligne ci-dessous.";
 
 /** What the Synchronisation block needs from the background and the store. */
 export interface SyncControls {
@@ -148,15 +153,17 @@ interface LevelBlock {
   refresh(): Promise<void>;
 }
 
+/** A block of Réglages, under its title: the catalogue's, where the hosts' lint reads it (D2). */
 function settingBlock(label: string): HTMLDivElement {
   const block = el("div", "set-block");
   block.append(el("div", "set-label", label));
   return block;
 }
 
-function shortcut(...parts: (string | HTMLElement)[]): HTMLLIElement {
+/** A shortcut's line: the catalogue's message, the keys rendered where the language puts them (D3). */
+function shortcut(line: (keys: string) => string, ...keys: (string | HTMLElement)[]): HTMLLIElement {
   const li = el("li");
-  li.append(...parts);
+  li.append(...fillSlots(line(slot(0)), [keys]));
   return li;
 }
 
@@ -173,9 +180,14 @@ export function mountSettings(
 ): SettingsView {
   container.replaceChildren();
   const pairs = opts.pairs ?? SHIPPED_PAIRS;
+  // The copy, in the interface language its host hands it (D1): this view's module, and each
+  // block's own, handed to it with the language where the block writes a figure or a date (D4).
+  const interfaceLanguage = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
+  const blocksCopy = settingsCopy(interfaceLanguage);
+  const copy = blocksCopy.settings;
 
   // — Langues étudiées — hidden when the package ships one language (add-lingua-language-choice D2).
-  const languagesBlock = settingBlock("Langues étudiées");
+  const languagesBlock = settingBlock(copy.studiedLanguages);
   const studied = mountStudiedLanguages(
     languagesBlock,
     port,
@@ -184,6 +196,7 @@ export function mountSettings(
       await refresh();
     },
     pairs,
+    blocksCopy.studiedLanguages,
   );
 
   // — Niveau, one block per accepted language (add-lingua-language-choice D3) —
@@ -206,16 +219,17 @@ export function mountSettings(
       chipButtons.set(value, b);
     };
     for (const lvl of CEFR_LEVELS) addChip(lvl, lvl);
-    addChip("", "Débutant");
+    addChip("", copy.beginner);
     const hint = el("div", "set-note");
     // Levels estimated from frequency say so (add-lingua-spanish-levels).
     const estimate = el("div", "set-note set-estimate", estimatedLevelsNote(language));
     estimate.hidden = true;
     const calibBlock = el("div", "calib");
     calibBlock.hidden = true;
-    const calibValue = el("b", undefined, "3000");
+    // The count as the interface language writes a count: French bare, as before (« 3000 »).
+    const calibValue = el("b", undefined, formatCount(interfaceLanguage, 3000));
     const calibLabel = el("label");
-    calibLabel.append("Je connais les ", calibValue, " mots les plus courants");
+    calibLabel.append(...fillSlots(copy.knowCommonest(slot(0)), [calibValue]));
     const calib = el("input");
     calib.type = "range";
     calib.min = "500";
@@ -225,7 +239,7 @@ export function mountSettings(
     calibBlock.append(calibLabel, calib);
     block.append(chips, hint, estimate, calibBlock);
     calib.addEventListener("input", () => {
-      calibValue.textContent = calib.value;
+      calibValue.textContent = formatCount(interfaceLanguage, Number(calib.value));
     });
     calib.addEventListener("change", async () => {
       await view.setCalibration(Number(calib.value));
@@ -252,15 +266,15 @@ export function mountSettings(
       const current = needsChoice ? null : (declared ?? "");
       for (const [value, b] of chipButtons) b.classList.toggle("active", value === current);
       hint.textContent = declared
-        ? `Les mots sous ${declared} ne sont plus surlignés.`
+        ? copy.wordsBelowLevel(declared)
         : needsChoice
-          ? "Choisis ton niveau — rien n'est présumé connu pour l'instant."
-          : "Débutant — rien n'est présumé connu.";
+          ? copy.chooseLevelHint
+          : copy.beginnerHint;
       calibBlock.hidden = hasLevels;
       if (!hasLevels) {
         const cal = await view.calibration();
         calib.value = String(cal);
-        calibValue.textContent = String(cal);
+        calibValue.textContent = formatCount(interfaceLanguage, cal);
       }
     }
 
@@ -278,48 +292,37 @@ export function mountSettings(
   }
 
   // — Barre sur la page —
-  const barBlock = settingBlock("Barre sur la page");
+  const barBlock = settingBlock(copy.barOnPage);
   const toggleRow = el("label", "set-toggle");
   const toggle = el("input");
   toggle.type = "checkbox";
-  toggleRow.append(toggle, el("span", undefined, "Afficher la pastille de pourcentage"));
-  barBlock.append(
-    toggleRow,
-    el("div", "set-note", "Pastille discrète en bas de la page : pourcentage + accès au deck et aux réglages."),
-  );
+  toggleRow.append(toggle, el("span", undefined, copy.showPercentPill));
+  barBlock.append(toggleRow, el("div", "set-note", copy.pillNote));
 
   // — Lecture à voix haute (once the browser lists its voices) —
   const speaker = opts.speaker;
-  const voiceBlock = settingBlock("Lecture à voix haute");
+  const voiceBlock = settingBlock(copy.readAloud);
   voiceBlock.hidden = true;
   const voiceRow = el("div", "set-voice");
   const voiceSelect = el("select");
-  voiceSelect.setAttribute("aria-label", "Voix de lecture");
-  const previewBtn = el("button", "set-reset", "▶ Écouter");
+  voiceSelect.setAttribute("aria-label", copy.readingVoice);
+  const previewBtn = el("button", "set-reset", copy.listen);
   previewBtn.type = "button";
   voiceRow.append(voiceSelect, previewBtn);
-  const onDeviceNote = el(
-    "div",
-    "set-note",
-    "Voix installées sur cet appareil : le texte lu ne quitte pas l'appareil.",
-  );
+  const onDeviceNote = el("div", "set-note", copy.onDeviceNote);
   // Firefox for Android cannot say whether Android's engine synthesises on the device, so its
   // voices speak only once the reader allows them here, told what that means.
   const androidRow = el("label", "set-toggle");
   const androidToggle = el("input");
   androidToggle.type = "checkbox";
-  androidRow.append(androidToggle, el("span", undefined, "Utiliser la voix d'Android"));
-  const androidNote = el(
-    "div",
-    "set-note",
-    "Firefox ne peut pas garantir que la voix d'Android reste sur l'appareil : selon le moteur choisi dans les réglages d'Android, le texte lu peut passer par le réseau.",
-  );
+  androidRow.append(androidToggle, el("span", undefined, copy.useAndroidVoice));
+  const androidNote = el("div", "set-note", copy.androidNote);
   // A French Windows lists only French voices of its own: Chrome's English ones are Google's,
   // remote. Said here, with how to install one (the reader need not change any language for it),
   // rather than a block that silently never shows.
   const noVoiceText = el("span");
   const noVoiceNote = el("div", "set-note");
-  const installInfo = el("span", "set-info", "ⓘ");
+  const installInfo = el("span", "set-info", copy.infoIcon);
   installInfo.tabIndex = 0;
   installInfo.setAttribute("role", "img");
   noVoiceNote.append(noVoiceText, installInfo);
@@ -328,48 +331,38 @@ export function mountSettings(
   const remoteRow = el("label", "set-toggle");
   const remoteToggle = el("input");
   remoteToggle.type = "checkbox";
-  remoteRow.append(remoteToggle, el("span", undefined, "Utiliser les voix en ligne du navigateur"));
-  const remoteNote = el(
-    "div",
-    "set-note",
-    "En secours : le texte lu est envoyé aux serveurs du fournisseur de la voix (Google, pour Chrome) et quitte l'appareil. Une voix installée le remplace dès qu'elle est là.",
-  );
+  remoteRow.append(remoteToggle, el("span", undefined, copy.useRemoteVoices));
+  const remoteNote = el("div", "set-note", copy.remoteNote);
   voiceBlock.append(androidRow, androidNote, noVoiceNote, remoteRow, remoteNote, voiceRow, onDeviceNote);
 
   // — Livres — the reader page, whichever host this view is rendered in (add-lingua-reader D8).
-  const booksBlock = settingBlock("Livres");
-  const libraryBtn = el("button", "set-reset", "Ouvrir la bibliothèque");
+  const booksBlock = settingBlock(copy.books);
+  const libraryBtn = el("button", "set-reset", copy.openLibrary);
   libraryBtn.type = "button";
   libraryBtn.addEventListener("click", () => openPage("reader.html"));
   const flowRow = el("label", "set-toggle");
   const flowToggle = el("input");
   flowToggle.type = "checkbox";
-  flowRow.append(flowToggle, el("span", undefined, "Défilement continu (au lieu de pages)"));
-  booksBlock.append(
-    libraryBtn,
-    el("div", "set-note", "Tes livres EPUB sans DRM, lus hors ligne avec le surlignage. Ils restent sur cet appareil."),
-    flowRow,
-  );
+  flowRow.append(flowToggle, el("span", undefined, copy.continuousFlow));
+  booksBlock.append(libraryBtn, el("div", "set-note", copy.booksNote), flowRow);
 
   // — Affichage — the text size and the theme: the book's text, and every surface of the extension
   // (add-lingua-colour-settings D9). The same controls as the reader's own "Aa" panel, whose page
   // turn joins Livres, after the continuous flow: both say how a book's pages go by.
-  const displayBlock = settingBlock("Affichage");
-  const bookDisplay = mountBookDisplay(displayBlock, area, { turnContainer: booksBlock });
-  displayBlock.append(
-    el(
-      "div",
-      "set-note",
-      "Le texte des livres et toute l'interface : cartes, tiroir, menus. Le thème vaut aussi pour l'interface ; un préréglage e-ink la garde en noir sur blanc.",
-    ),
-  );
+  const displayBlock = settingBlock(copy.display);
+  const bookDisplay = mountBookDisplay(displayBlock, area, {
+    turnContainer: booksBlock,
+    copy: blocksCopy.display,
+    language: interfaceLanguage,
+  });
+  displayBlock.append(el("div", "set-note", copy.displayNote));
 
   // — Couleurs — how unknown and learning words are marked, everywhere (add-lingua-colour-settings).
-  const coloursBlock = settingBlock("Couleurs");
-  const colours = mountColourSettings(coloursBlock, area);
+  const coloursBlock = settingBlock(copy.colours);
+  const colours = mountColourSettings(coloursBlock, area, { copy: blocksCopy.colours });
 
   // — Traduction (the variants that carry the engine; the background says whether it is offered) —
-  const translationBlock = settingBlock("Traduction");
+  const translationBlock = settingBlock(copy.translation);
   const translationControls =
     opts.translation !== undefined
       ? opts.translation
@@ -377,20 +370,24 @@ export function mountSettings(
         ? runtimeTranslationControls()
         : null;
   const translation: TranslationSettingView | null = translationControls
-    ? mountTranslationSetting(translationBlock, translationControls)
+    ? mountTranslationSetting(translationBlock, translationControls, {
+        copy: blocksCopy.translation,
+        language: interfaceLanguage,
+      })
     : null;
   if (!translation) translationBlock.hidden = true;
 
   // — Raccourcis & gestes —
-  const scBlock = settingBlock("Raccourcis & gestes");
+  const scBlock = settingBlock(copy.shortcuts);
   const scList = el("ul", "set-shortcuts");
+  const plus = copy.keyPlus;
   scList.append(
-    shortcut(kbd("Alt"), "+", kbd("Maj"), "+", kbd("S"), " — panneau latéral"),
-    shortcut(kbd("Alt"), "+", kbd("Maj"), "+", kbd("D"), " — panneau de révision sur la page"),
-    shortcut(kbd("Alt"), "+", kbd("L"), " — capturer la sélection"),
-    shortcut(kbd("Alt"), "/", kbd("Option"), "-clic (ou appui long) sur un mot — le reclasser"),
+    shortcut(copy.shortcutSidePanel, kbd(copy.keyAlt), plus, kbd(copy.keyShift), plus, kbd(copy.keyS)),
+    shortcut(copy.shortcutDrawer, kbd(copy.keyAlt), plus, kbd(copy.keyShift), plus, kbd(copy.keyD)),
+    shortcut(copy.shortcutCapture, kbd(copy.keyAlt), plus, kbd(copy.keyL)),
+    shortcut(copy.shortcutReclassify, kbd(copy.keyAlt), copy.keyOr, kbd(copy.keyOption)),
   );
-  const scConfig = el("button", "linklike", "Configurer les raccourcis du navigateur");
+  const scConfig = el("button", "linklike", copy.configureShortcuts);
   scConfig.type = "button";
   scConfig.addEventListener("click", () => {
     openPage(__TARGET__ === "firefox" ? "about:addons" : "chrome://extensions/shortcuts");
@@ -399,45 +396,46 @@ export function mountSettings(
   if (hasShortcutEditor()) scBlock.append(scConfig);
 
   // — Compte — sign in or out, wherever Réglages are shown (the popup's main view links here).
-  const accountBlock = settingBlock("Compte");
+  const accountBlock = settingBlock(copy.account);
   const account = mountAccountSetting(accountBlock, opts.account ?? runtimeAccountControls(), {
     openPage: (url) => openPage(url),
     onChange: () => refresh(),
     onHandedOff: opts.onHandedOff,
+    copy: blocksCopy.accountSetting,
   });
 
   // — Synchronisation (signed in only): when this device last synced, and a manual run —
   const sync = opts.sync ?? runtimeSyncControls(area);
   const openPage = opts.openPage ?? openPageViaBackground;
-  const syncBlock = settingBlock("Synchronisation");
+  const syncBlock = settingBlock(copy.sync);
   syncBlock.hidden = true;
   const syncStatus = el("div", "set-note");
-  const syncBtn = el("button", "set-reset", "Synchroniser maintenant");
+  const syncBtn = el("button", "set-reset", copy.syncNow);
   syncBtn.type = "button";
   const syncMsg = el("div", "set-note");
   syncBlock.append(syncStatus, syncBtn, syncMsg);
 
   // — Réinitialisation (scope choice; a full wipe needs an extra confirm) —
-  const resetBlock = settingBlock("Réinitialisation");
-  const localNote = el("div", "set-note", "Efface tes données locales. À n'utiliser qu'exceptionnellement.");
+  const resetBlock = settingBlock(copy.reset);
+  const localNote = el("div", "set-note", copy.resetNote);
   resetBlock.append(localNote);
-  const resetBtn = el("button", "set-reset", "Réinitialiser…");
+  const resetBtn = el("button", "set-reset", copy.resetButton);
   resetBtn.type = "button";
   const menu = el("div");
   menu.hidden = true;
-  const resetPartial = el("button", "set-reset", "Partielle — statuts + calibration (garde le deck)");
+  const resetPartial = el("button", "set-reset", copy.resetPartial);
   resetPartial.type = "button";
-  const resetFull = el("button", "set-danger", "Complète — tout effacer");
+  const resetFull = el("button", "set-danger", copy.resetFull);
   resetFull.type = "button";
-  const resetCancel = el("button", "set-reset", "Annuler");
+  const resetCancel = el("button", "set-reset", copy.cancel);
   resetCancel.type = "button";
   menu.append(resetPartial, resetFull, resetCancel);
   const confirm = el("div");
   confirm.hidden = true;
   const warn = el("div", "set-warn");
-  const confirmYes = el("button", "set-danger", "Oui, confirmer");
+  const confirmYes = el("button", "set-danger", copy.confirm);
   confirmYes.type = "button";
-  const confirmNo = el("button", "set-reset", "Annuler");
+  const confirmNo = el("button", "set-reset", copy.cancel);
   confirmNo.type = "button";
   confirm.append(warn, confirmYes, confirmNo);
   const resetMsg = el("div", "set-note");
@@ -449,19 +447,11 @@ export function mountSettings(
   localOnly.append(resetBtn, menu, confirm);
   const synced = el("div");
   synced.hidden = true;
-  const restartNote = el(
-    "div",
-    "set-note",
-    "Tes données sont sur ton compte. Vider cet appareil n'efface rien : la synchronisation les ramène. À utiliser si l'état local semble faux.",
-  );
-  const restartBtn = el("button", "set-reset", "Repartir du serveur");
+  const restartNote = el("div", "set-note", copy.restartNote);
+  const restartBtn = el("button", "set-reset", copy.restartFromServer);
   restartBtn.type = "button";
-  const eraseNote = el(
-    "div",
-    "set-note",
-    "Pour effacer partout et définitivement, utilise « Effacer mes données Lingua » dans ton compte.",
-  );
-  const eraseLink = el("button", "linklike", "Gérer mes données");
+  const eraseNote = el("div", "set-note", copy.eraseNote);
+  const eraseLink = el("button", "linklike", copy.manageData);
   eraseLink.type = "button";
   eraseLink.addEventListener("click", () => openPage("account.html#data"));
   synced.append(restartNote, restartBtn, eraseNote, eraseLink);
@@ -480,7 +470,7 @@ export function mountSettings(
     void doReset("partial");
   });
   resetFull.addEventListener("click", () => {
-    warn.textContent = "Effacer statuts, deck de révision et progression ? Action définitive hors sync.";
+    warn.textContent = copy.fullResetWarning;
     showReset(false, true);
   });
   confirmYes.addEventListener("click", () => {
@@ -491,11 +481,11 @@ export function mountSettings(
   // — The sub-tabs: the studied language, how things look, Lingua on the pages and books read,
   // the reader's data. The blocks keep their titles; a hidden block (no voice, signed out) leaves
   // its tab with the others, never empty: each tab has one block that always shows.
-  const tabs = mountTabs(container, [
-    { id: "language", label: "Langue", blocks: [languagesBlock, levelBlocks, translationBlock, voiceBlock] },
-    { id: "look", label: "Apparence", blocks: [displayBlock, coloursBlock] },
-    { id: "pages", label: "Pages & livres", blocks: [barBlock, booksBlock, scBlock] },
-    { id: "data", label: "Données", blocks: [accountBlock, syncBlock, resetBlock] },
+  const tabs = mountTabs(container, copy.tabs, [
+    { id: "language", label: copy.tabLanguage, blocks: [languagesBlock, levelBlocks, translationBlock, voiceBlock] },
+    { id: "look", label: copy.tabLook, blocks: [displayBlock, coloursBlock] },
+    { id: "pages", label: copy.tabPages, blocks: [barBlock, booksBlock, scBlock] },
+    { id: "data", label: copy.tabData, blocks: [accountBlock, syncBlock, resetBlock] },
   ]);
 
   // — Live wiring —
@@ -544,7 +534,8 @@ export function mountSettings(
     // The language the host's speaker reads: a page's in the drawer, the reader's first elsewhere.
     const voiceLanguage = speaker.lang as StudiedLanguage;
     noVoiceText.textContent = noVoiceInstalled(voiceLanguage);
-    const help = installVoiceHelp(voiceLanguage) + (offersRemote ? INSTALL_VOICE_FALLBACK : "");
+    const installHelp = installVoiceHelp(copy, voiceLanguage);
+    const help = offersRemote ? copy.installVoiceHelpWithFallback(installHelp) : installHelp;
     installInfo.title = help;
     installInfo.setAttribute("aria-label", help);
     remoteRow.hidden = !offersRemote;
@@ -562,29 +553,29 @@ export function mountSettings(
       o.value = value;
       return o;
     };
-    const voiceOption = (v: VoiceInfo): HTMLOptionElement => option(v.voiceURI, voiceLabel(v));
+    const voiceOption = (v: VoiceInfo): HTMLOptionElement => option(v.voiceURI, voiceLabel(v, interfaceLanguage, copy));
     const { ordinary, others } = voiceGroups(eligible, speaker.lang, speaker.androidVoices(), speaker.remoteVoices());
     const automatic = speaker.automatic();
     voiceSelect.replaceChildren(
-      option("", automatic ? `Automatique (${automatic.name})` : "Automatique"),
+      option("", automatic ? copy.automaticVoice(automatic.name) : copy.automatic),
       ...ordinary.map(voiceOption),
     );
     if (others.length > 0) {
       const group = el("optgroup");
-      group.label = "Autres voix";
+      group.label = copy.otherVoices;
       group.append(...others.map(voiceOption));
       voiceSelect.append(group);
     }
     const preferred = speaker.preferred();
     voiceSelect.value = preferred && eligible.some((v) => v.voiceURI === preferred) ? preferred : "";
-    previewBtn.textContent = speaker.speaking()?.key === PREVIEW_KEY ? "■ Arrêter" : "▶ Écouter";
+    previewBtn.textContent = speaker.speaking()?.key === PREVIEW_KEY ? copy.stop : copy.listen;
   }
 
   async function runSync(): Promise<void> {
     syncBtn.disabled = true;
-    syncMsg.textContent = "Synchronisation…";
+    syncMsg.textContent = copy.syncing;
     const reply = await sync.syncNow();
-    syncMsg.textContent = reply.ok ? "" : syncErrorCopy(reply.error);
+    syncMsg.textContent = reply.ok ? "" : syncErrorCopy(reply.error, blocksCopy.sync);
     syncBtn.disabled = false;
     await refreshSync();
   }
@@ -595,16 +586,16 @@ export function mountSettings(
     localNote.hidden = signedIn;
     localOnly.hidden = signedIn;
     synced.hidden = !signedIn;
-    syncStatus.textContent = lastSyncLabel(await sync.lastSync(), sync.now());
+    syncStatus.textContent = lastSyncLabel(await sync.lastSync(), sync.now(), interfaceLanguage, blocksCopy.sync);
   }
 
   /** Empty this device and pull the account's state back. Nothing is lost by design. */
   async function restartFromServer(): Promise<void> {
     restartBtn.disabled = true;
-    resetMsg.textContent = "Reprise depuis le serveur…";
+    resetMsg.textContent = copy.restarting;
     await doReset("full");
     const reply = await sync.syncNow();
-    resetMsg.textContent = reply.ok ? "Repris depuis le serveur." : syncErrorCopy(reply.error);
+    resetMsg.textContent = reply.ok ? copy.restarted : syncErrorCopy(reply.error, blocksCopy.sync);
     restartBtn.disabled = false;
     await refreshSync();
   }
@@ -627,7 +618,7 @@ export function mountSettings(
     await opts.onReset?.();
     await refresh();
     if (!synced.hidden) return; // the signed-in path writes its own message
-    resetMsg.textContent = scope === "partial" ? "Statuts et calibration réinitialisés." : "Données effacées.";
+    resetMsg.textContent = scope === "partial" ? copy.partialResetDone : copy.dataErased;
   }
 
   async function refresh(): Promise<void> {
@@ -654,11 +645,11 @@ interface TabSpec {
  * tabs, and moving selects). The first tab shows until the reader picks another; the view keeps
  * that choice for as long as it is mounted.
  */
-function mountTabs(container: HTMLElement, specs: TabSpec[]): { show: (tab: SettingsTab) => void } {
+function mountTabs(container: HTMLElement, label: string, specs: TabSpec[]): { show: (tab: SettingsTab) => void } {
   const prefix = `cymbra-lingua-set-${++mountCount}`;
   const row = el("div", "set-tabs");
   row.setAttribute("role", "tablist");
-  row.setAttribute("aria-label", "Réglages");
+  row.setAttribute("aria-label", label);
   const buttons: HTMLButtonElement[] = [];
   const panels: HTMLElement[] = [];
   for (const spec of specs) {

@@ -1,3 +1,5 @@
+import { translation as frTranslation } from "../i18n/fr/translation.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, formatNumber, type InterfaceLanguage } from "../i18n/index.ts";
 import { keepEngineWarm } from "../translate/keepalive.ts";
 import { isElement } from "./blocks.ts";
 import { askModel, type ModelCommand, type ModelCost, type ModelStatus } from "../translate/model-messages.ts";
@@ -9,6 +11,7 @@ import {
   TRANSLATION_HOST_KEY,
   type TranslationSetting,
 } from "../translate/setting.ts";
+import type { TranslationCopy } from "./settings-copy.ts";
 
 // « Traduction étendue » in the Réglages view (add-lingua-translation-delivery D2, D4, D8): one
 // checkbox, its cost stated before it is ticked, and — once ticked — where the model stands, with
@@ -17,7 +20,10 @@ import {
 //
 // The background does everything; this asks it (model-messages.ts) and follows the two storage
 // keys it writes, so progress reaches every open copy of the view. Failures are explained in the
-// reader's words, never with the error, which the background logs.
+// reader's words, never with the error, which the background logs. The words are the catalogue's
+// `translation` module and the sizes are written in the interface language, both handed by the
+// settings view (localise-lingua-settings D1, D4): the French module and French sizes when neither
+// is given, and a caller that passes a language passes that language's module with it.
 
 /** What the row needs from the background and the browser. A test hands in a fake. */
 export interface TranslationControls {
@@ -43,71 +49,81 @@ export function runtimeTranslationControls(): TranslationControls {
   };
 }
 
-export const COPY = {
-  toggle: "Traduction étendue",
-  attribution: "Modèle de traduction : Firefox Translations (Mozilla), licence MPL 2.0.",
-  ready: "Prête : tes sélections sont traduites sur cet appareil.",
-  interrupted: "Téléchargement interrompu.",
-  removed: "Le navigateur a supprimé le modèle de cet appareil. Il faut le télécharger à nouveau.",
-  missing: "Il manque un modèle pour une de tes langues.",
-  cancel: "Annuler",
-  download: "Télécharger",
-  retry: "Réessayer",
-  resume: "Reprendre",
-  again: "Télécharger à nouveau",
-} as const;
-
-/** Bytes as the reader reads sizes: decimal megabytes, one decimal, French style. */
-export function megabytes(bytes: number): string {
-  return `${(bytes / 1_000_000).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mo`;
+/**
+ * Bytes as the reader reads sizes: decimal megabytes, one decimal, in the interface language
+ * (« 25,8 Mo » in French, as before the catalogue).
+ */
+export function megabytes(
+  bytes: number,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+  copy: TranslationCopy = frTranslation,
+): string {
+  return copy.megabytes(
+    formatNumber(language, bytes / 1_000_000, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+  );
 }
 
 /**
  * What the setting costs, before it is ticked: the sizes come from the package's catalogue
  * (generalise-lingua-translation-catalogue D4), and without them the sentence names none.
  */
-export function costText(cost?: ModelCost): string {
-  const download = cost ? megabytes(cost.download) : "le modèle";
+export function costText(
+  cost?: ModelCost,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+  copy: TranslationCopy = frTranslation,
+): string {
+  const download = cost ? megabytes(cost.download, language, copy) : copy.theModel;
   // One model works in about 200 MB; through the pivot two do, the study's 322 MiB
   // (add-lingua-spanish-translation-pivot D4).
-  const memory = cost?.pivot ? "environ 340 Mo" : "environ 200 Mo";
-  return (
-    `Traduit tes phrases sur cet appareil, sans rien envoyer. Télécharge ${download} une fois, puis utilise ` +
-    `${memory} de mémoire pendant la traduction. Réglage propre à cet appareil.`
-  );
+  const memory = cost?.pivot ? copy.memoryPivot : copy.memorySingle;
+  return copy.cost(download, memory);
 }
 
-const FAILURE: Record<ModelFailure, (cost?: ModelCost) => string> = {
-  network: () => "Le téléchargement a échoué : pas de connexion. Réessaie une fois en ligne.",
-  unavailable: () => "Le téléchargement a échoué : le serveur ne répond pas. Réessaie plus tard.",
-  "not-the-model": () => "Le téléchargement a échoué : le fichier reçu n'est pas le bon modèle. Réessaie plus tard.",
-  storage: (cost) =>
-    cost
-      ? `Pas assez de place sur cet appareil pour le modèle (${megabytes(cost.stored)}).`
-      : "Pas assez de place sur cet appareil pour le modèle.",
-  unknown: () => "Le téléchargement a échoué. Réessaie plus tard.",
-};
-
-/** "12,3 Mo sur 25,8 Mo" — or nothing to add when the total is unknown. */
-function progressText(received: number, total: number): string {
-  return total > 0 ? ` ${megabytes(received)} sur ${megabytes(total)}` : "";
+/** Why a download failed, in the reader's words; `size` names a storage failure's need when known. */
+function failureText(reason: ModelFailure, copy: TranslationCopy, size: string | null): string {
+  switch (reason) {
+    case "network":
+      return copy.failedNetwork;
+    case "unavailable":
+      return copy.failedUnavailable;
+    case "not-the-model":
+      return copy.failedNotTheModel;
+    case "storage":
+      return size ? copy.failedStorageSized(size) : copy.failedStorage;
+    case "unknown":
+      return copy.failedUnknown;
+    default: {
+      // Every reason has its sentence: a reason added to `ModelFailure` without one fails the type check.
+      const unexplained: never = reason;
+      return unexplained;
+    }
+  }
 }
 
 /** The line under the checkbox, for a state; `cost` sizes a storage failure. */
-export function stateText(state: ModelState, cost?: ModelCost): string {
+export function stateText(
+  state: ModelState,
+  cost?: ModelCost,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+  copy: TranslationCopy = frTranslation,
+): string {
+  const size = (bytes: number): string => megabytes(bytes, language, copy);
+  // « 12,3 Mo sur 25,8 Mo » — or nothing to add when the total is unknown.
+  const progress = (received: number, total: number): string =>
+    total > 0 ? copy.progress(size(received), size(total)) : "";
   switch (state.phase) {
     case "downloading":
-      return `Téléchargement du modèle…${progressText(state.received, state.total)}`;
+      return copy.downloading(progress(state.received, state.total));
     case "ready":
-      return COPY.ready;
+      return copy.ready;
     case "failed":
-      return FAILURE[state.reason](cost);
+      return failureText(state.reason, copy, cost ? size(cost.stored) : null);
     case "interrupted":
-      return `${COPY.interrupted}${progressText(state.received, state.total)}`;
+      return copy.interruptedAt(progress(state.received, state.total));
     case "removed":
-      return COPY.removed;
+      return copy.removed;
     case "missing":
-      return state.total > 0 ? `${COPY.missing} ${megabytes(state.total)} à télécharger.` : COPY.missing;
+      return state.total > 0 ? copy.missingSized(size(state.total)) : copy.missing;
     default:
       return "";
   }
@@ -144,17 +160,30 @@ export interface TranslationSettingView {
   refresh(): Promise<void>;
 }
 
+export interface TranslationSettingOptions {
+  /** The interface language: the sizes are written in it; French when not given. */
+  language?: InterfaceLanguage;
+  /** The setting's copy, in that language — passed with it; the French module when not given. */
+  copy?: TranslationCopy;
+}
+
 /** Mount the row into `block`, the settings view's block for translation. */
-export function mountTranslationSetting(block: HTMLElement, controls: TranslationControls): TranslationSettingView {
+export function mountTranslationSetting(
+  block: HTMLElement,
+  controls: TranslationControls,
+  opts: TranslationSettingOptions = {},
+): TranslationSettingView {
   block.hidden = true; // until the background says the setting is offered here
+  const language = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
+  const copy = opts.copy ?? frTranslation;
   // The document the view is mounted in: a panel's, the popup's or a drawer's shadow.
   const doc = block.ownerDocument;
   const row = el(doc, "label", "set-toggle");
   const box = el(doc, "input");
   box.type = "checkbox";
-  row.append(box, el(doc, "span", undefined, COPY.toggle));
-  const costNote = el(doc, "div", "set-note", costText());
-  const attribution = el(doc, "div", "set-note", COPY.attribution);
+  row.append(box, el(doc, "span", undefined, copy.toggle));
+  const costNote = el(doc, "div", "set-note", costText(undefined, language, copy));
+  const attribution = el(doc, "div", "set-note", copy.attribution);
   const line = el(doc, "div", "set-note");
   line.setAttribute("role", "status");
   const bar = el(doc, "progress", "set-progress");
@@ -168,12 +197,12 @@ export function mountTranslationSetting(block: HTMLElement, controls: Translatio
 
   /** What the action button does in each state, and what it says. */
   const ACTIONS: Partial<Record<ModelState["phase"], { label: string; op: "disable" | "resume" }>> = {
-    downloading: { label: COPY.cancel, op: "disable" },
-    failed: { label: COPY.retry, op: "resume" },
-    interrupted: { label: COPY.resume, op: "resume" },
-    removed: { label: COPY.again, op: "resume" },
+    downloading: { label: copy.cancel, op: "disable" },
+    failed: { label: copy.retry, op: "resume" },
+    interrupted: { label: copy.resume, op: "resume" },
+    removed: { label: copy.again, op: "resume" },
     // A language the reader added needs a model: asked for, never fetched unasked (model-state D3).
-    missing: { label: COPY.download, op: "resume" },
+    missing: { label: copy.download, op: "resume" },
   };
 
   function render(): void {
@@ -184,7 +213,7 @@ export function mountTranslationSetting(block: HTMLElement, controls: Translatio
     }
     block.hidden = false;
     const { host, state } = status;
-    costNote.textContent = costText(status.cost);
+    costNote.textContent = costText(status.cost, language, copy);
     box.checked = host === "local";
     box.disabled = busy;
     const downloading = host === "local" && state.phase === "downloading";
@@ -195,7 +224,7 @@ export function mountTranslationSetting(block: HTMLElement, controls: Translatio
     } else {
       bar.removeAttribute("value"); // indeterminate
     }
-    line.textContent = host === "local" ? stateText(state, status.cost) : "";
+    line.textContent = host === "local" ? stateText(state, status.cost, language, copy) : "";
     line.hidden = !line.textContent;
     const offer = host === "local" ? ACTIONS[state.phase] : undefined;
     action.hidden = !offer;
