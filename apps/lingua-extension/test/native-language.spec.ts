@@ -29,9 +29,9 @@ import { makeFakePort } from "./helpers.ts";
 // The reader chooses their native language (add-lingua-native-language-choice): the rule for the
 // studied languages, the preset, and what the background does with the message (D1, D2, D4).
 
-/** Today's package: French-native pairs alone (packs.json). */
+/** The package before change 34: French-native pairs alone. */
 const TODAY = ["en-fr", "es-fr"];
-/** es-en shipping beside them (change 34): the first second native language. */
+/** es-en shipping beside them, the first second native language: packs.json since change 34. */
 const MIXED = ["en-fr", "es-fr", "es-en"];
 
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
@@ -99,7 +99,6 @@ const stored = (deps: { store: AsyncStorageArea }) =>
 
 describe("the choice exists from two native languages (D1)", () => {
   it("Every reader today: one native language ships, no choice is offered", () => {
-    expect(nativeChoiceOffered()).toBe(false);
     expect(nativeChoiceOffered(TODAY)).toBe(false);
     expect(offeredNatives(TODAY)).toEqual(["fr"]);
   });
@@ -107,6 +106,9 @@ describe("the choice exists from two native languages (D1)", () => {
   it("es-en shipping offers French and English, in listed order", () => {
     expect(nativeChoiceOffered(MIXED)).toBe(true);
     expect(offeredNatives(MIXED)).toEqual(["fr", "en"]);
+    // The bundle's list since change 34 (enable-lingua-english-speakers).
+    expect(nativeChoiceOffered()).toBe(true);
+    expect(offeredNatives()).toEqual(["fr", "en"]);
     expect(offeredNatives(["es-en", "en-fr", "en-es"])).toEqual(["en", "fr", "es"]);
   });
 });

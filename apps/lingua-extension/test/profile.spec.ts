@@ -62,7 +62,9 @@ describe("the native language of a stored backup", () => {
   it("is French for a native language no listed pair is glossed in", () => {
     expect(nativeLanguageOf(native("English"), ["en-fr", "es-fr"])).toBe("fr");
     expect(nativeLanguageOf(native("Spanish"), ["en-fr", "es-en"])).toBe("fr");
-    // The bundle's list, today: every pair is glossed in French.
-    expect(nativeLanguageOf(native("English"))).toBe("fr");
+    // The bundle's list since change 34 (enable-lingua-english-speakers): es-en is glossed in English,
+    // and no listed pair is glossed in Spanish.
+    expect(nativeLanguageOf(native("English"))).toBe("en");
+    expect(nativeLanguageOf(native("Spanish"))).toBe("fr");
   });
 });
