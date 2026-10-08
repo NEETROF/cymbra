@@ -194,10 +194,11 @@ export function rowGloss(gloss: string, copy: SelectionCopy = frSelection): stri
  * `text` within `max` characters, the ellipsis included, ending on a whole word when it can. The
  * trailing set strips the separators and the opening marks a cut can leave behind; it gains an
  * opening mark of an edition only when a committed row would end on one (none does today, the
- * English Wiktionary's “ and ‘ included: `test/row-gloss-tables.spec.ts` measures every pair's
- * glosses), and a closing mark is never stripped — ’ is also the apostrophe
- * (add-lingua-english-card-wording D4). Every French row is held byte for byte by that spec's
- * snapshot.
+ * English Wiktionary's “ and ‘ and the Spanish Wiktionary's ¿ and ¡ included — they stand against
+ * their words, so a cut lands on the space before them: `test/row-gloss-tables.spec.ts` measures
+ * every pair's glosses), and a closing mark is never stripped — ’ is also the apostrophe, ? and !
+ * close what they ask (add-lingua-english-card-wording D4, add-lingua-spanish-card-wording D4).
+ * Every French row is held byte for byte by that spec's snapshot.
  */
 function cutAtWord(text: string, max: number, copy: SelectionCopy): string {
   if (text.length <= max) return text;
