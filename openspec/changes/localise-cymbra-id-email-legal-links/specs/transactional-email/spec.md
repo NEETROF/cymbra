@@ -24,8 +24,12 @@ other locale SHALL fall back to the English pages.
 ## ADDED Requirements
 
 ### Requirement: An e-mail declares its language
-A transactional email's HTML SHALL declare the language it is written in, the email's locale, so that a reader's software reads it in that language.
+A transactional email's HTML SHALL declare the language it is written in — the resolved locale, English when the requested one is unsupported — so that a reader's software reads it in that language.
 
 #### Scenario: A French e-mail
 - **WHEN** an email is rendered for a French recipient
 - **THEN** its HTML declares `lang="fr"`
+
+#### Scenario: An unsupported locale
+- **WHEN** an email is rendered for a recipient whose locale is German
+- **THEN** it is written in English and its HTML declares `lang="en"`

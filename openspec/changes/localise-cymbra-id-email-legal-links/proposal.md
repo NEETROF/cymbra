@@ -16,8 +16,9 @@ reads a French e-mail with an English voice.
 - **`legal_links`**: French → `/cgu/`, `/confidentialite/`; Spanish → `/es/terminos/`,
   `/es/privacidad/`; English and Italian → `/en/terms/`, `/en/privacy/` (no Italian site).
 - **`<html lang>`** is the e-mail's locale.
-- **The tests**: `non_french_uses_english_legal_links` becomes one test per locale; the sample
-  renderer (`emit_samples`) covers Spanish.
+- **The tests**: `non_french_uses_english_legal_links` becomes one test per locale.
+- **The Spanish legal pages pinned** on the site (`pinned-routes.ts`): an e-mail already sent cannot
+  be updated, like a shipped build.
 - **The rule stated for the e-mails alone**: the requirement's "consistent with the `legal-links`
   resolution used by the apps" is dropped; Music's in-app links keep their own rule (a Music change
   may follow).
@@ -36,8 +37,9 @@ None.
 
 ## Impact
 
-- **Products.** Cymbra ID: `backend/platform/src/email_template/` (`legal_links`, the layout) and
-  its tests, the auth module's test that asserts `/cgu/`. Cymbra Music's Spanish users get Spanish
+- **Products.** Cymbra ID: `backend/platform/src/email_template/` (`legal_links`, its doc comment,
+  the layout) and its tests; `cymbra-auth`'s tests run unchanged. The site: `pinned-routes.ts` gains
+  the two Spanish pages. Cymbra Music's Spanish users get Spanish
   links in these e-mails while the app keeps linking `/en/privacy/`.
 - **Order.** After change 29, merged and **deployed**: the owner deploys the site before the
   backend that links its Spanish pages (M18). A sign-up e-mail queued before the backend deploy keeps

@@ -2,8 +2,9 @@
 
 ## 1. The e-mails (backend/platform)
 
-- [ ] 1.1 `legal_links`: Spanish → `/es/terminos/`, `/es/privacidad/` (D1); tests per locale replacing `non_french_uses_english_legal_links`.
-- [ ] 1.2 The layout's `<html lang>` from the locale (D2); test per locale; `emit_samples` covers Spanish.
+- [ ] 1.1 `legal_links`: Spanish → `/es/terminos/`, `/es/privacidad/`, and its doc comment (D1); tests per locale replacing `non_french_uses_english_legal_links`.
+- [ ] 1.2 The layout's `<html lang>` from the resolved locale (D2); a test per locale and one for `de` → `lang="en"`.
+- [ ] 1.3 `apps/site/src/lib/pinned-routes.ts` gains `/es/terminos/` and `/es/privacidad/`, `pinnedBy` « Cymbra ID e-mail footer, es », source `backend/platform/src/email_template/mod.rs`.
 
 ## 2. Gates and docs
 
