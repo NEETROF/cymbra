@@ -8,7 +8,7 @@
     gloss_coverage.py            # print the figures
     gloss_coverage.py --write    # write them where the site's Lingua pages read them
     gloss_coverage.py --check    # exit 1 when the written figures no longer match the tables
-    gloss_coverage.py --pair es-en [--floor 87.6 77.2 63.7]   # one pair, shipped or not; exit 1 under the floor
+    gloss_coverage.py --pair es-en [--floor 87.6 77.2 63.7]   # one pair, shipped or not; exit 1 under its floor
 
 For each pair `apps/lingua-extension/packs.json` ships: of the N lemmas its `freq.tsv` ranks
 commonest, the share its `gloss.tsv` glosses, for N = 5,000, 10,000 and 20,000, in percent to one
@@ -16,8 +16,9 @@ decimal. The same measure for every pair, from the committed tables, so the site
 for like. Stdlib only: it runs on the Python of the lingua-data unit tests.
 
 `--pair` measures one committed pair whether or not it ships, and prints nothing the site reads;
-`--floor` gives the share each of the three tops must reach (add-lingua-pack-es-en D6: es-en is held
-to es-fr's published figures by the reduce job, before it ships and is published).
+it fails under the pair's floor — the share each of the three tops must reach, `FLOORS`, or
+`--floor` given (add-lingua-pack-es-en D6: es-en is held to es-fr's published figures by the reduce
+job, before it ships and is published).
 """
 
 from __future__ import annotations
@@ -37,6 +38,11 @@ SITE_DATA = ROOT / "apps/site/src/data/lingua-coverage.json"
 # (« it's »), Spanish corpora's English words and abbreviations (« the », « etc ») — so that row
 # would compare the lists, not the dictionaries (D2).
 TOPS = (5_000, 10_000, 20_000)
+
+# The share of each of `TOPS` a pair not yet shipped must gloss, held by the reduce job
+# (add-lingua-pack-es-en D6): es-en, es-fr's published figures when es-en was proposed. Fixed here,
+# not read from the site's file, so that es-fr's next update does not move es-en's floor.
+FLOORS = {"es-en": (87.6, 77.2, 63.7)}
 
 
 def read_keys(path: Path) -> dict[str, str]:
@@ -117,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         nargs=len(TOPS),
         type=float,
         metavar="PERCENT",
-        help=f"with --pair: the share each of the {len(TOPS)} tops must reach; exit 1 under it",
+        help=f"with --pair: the share each of the {len(TOPS)} tops must reach (default: the pair's FLOORS); exit 1 under it",
     )
     args = parser.parse_args(argv)
     if args.floor is not None and args.pair is None:
@@ -125,7 +131,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.pair is not None:
         data = pair_figures(args.pair, TABLES)
         sys.stdout.write(render(data))
-        short = under_floor(args.pair, data["glossed"][args.pair], args.floor) if args.floor is not None else []
+        floor = args.floor if args.floor is not None else FLOORS.get(args.pair)
+        short = under_floor(args.pair, data["glossed"][args.pair], list(floor)) if floor is not None else []
         for line in short:
             print(line, file=sys.stderr)
         return 1 if short else 0
