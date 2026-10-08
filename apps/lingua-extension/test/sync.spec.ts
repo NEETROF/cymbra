@@ -527,6 +527,53 @@ describe("SyncEngine privacy controls (add-lingua-privacy-controls)", () => {
     expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
   });
 
+  it("restores the stored backup before it resets: the engine resets to the reader's native language (task 4.5)", async () => {
+    // The engine's reset keeps its own native language, the one of the backup it last restored: an
+    // erasure queued behind a change of native language must not reset to the one the reader left.
+    const f = fakeClients();
+    f.eraseMyData.mockResolvedValue({ erasedAt: BigInt(MARK) });
+    const { port } = syncPort(localOps);
+    const order: string[] = [];
+    const [restore, reset] = [port.restore, port.reset];
+    port.restore = async (json) => {
+      order.push(`restore ${json}`);
+      await restore(json);
+    };
+    port.reset = async () => {
+      order.push("reset");
+      await reset();
+    };
+    await new SyncEngine({
+      port,
+      storage: fakeArea(v2("CURRENT")),
+      clients: () => f.clients,
+      deviceId: "d",
+    }).eraseAll();
+    expect(order).toEqual(["restore CURRENT", "reset"]);
+
+    // A store with no backup yet has nothing to restore: the engine is reset as it is.
+    order.length = 0;
+    await new SyncEngine({ port, storage: fakeArea(), clients: () => f.clients, deviceId: "d" }).eraseAll();
+    expect(order).toEqual(["reset"]);
+  });
+
+  it("erases all the same a backup that will not restore, and says so", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const f = fakeClients();
+    f.eraseMyData.mockResolvedValue({ erasedAt: BigInt(MARK) });
+    const { port, calls } = syncPort(localOps);
+    port.restore = async () => {
+      throw new Error("not a backup");
+    };
+    const storage = fakeArea(v2("{broken"));
+    await new SyncEngine({ port, storage, clients: () => f.clients, deviceId: "d" }).eraseAll();
+    expect(calls.resets).toBe(1);
+    expect(storage.store[ROOT_KEY]).toEqual({ v: 2, backup: "MERGED-BACKUP" });
+    expect(storage.store["cymbra-lingua-erased-at"]).toBe(MARK);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("[Cymbra Lingua]"), expect.any(Error));
+    warn.mockRestore();
+  });
+
   it("touches nothing locally when the server erasure fails", async () => {
     const f = fakeClients();
     f.eraseMyData.mockRejectedValue(new Error("unavailable"));
