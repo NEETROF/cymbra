@@ -7,7 +7,7 @@
 
 ## 2. The App Store notes
 
-- [ ] 2.1 `apps/lingua-apple/README.md`: the rows name the studied language; categories unchanged.
+- [ ] 2.1 `apps/lingua-apple/README.md`: the rows name the studied language; categories unchanged; the deletion URLs list the English and Spanish pages beside `/suppression-compte/`.
 
 ## 3. Gates, review and docs
 

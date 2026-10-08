@@ -30,14 +30,18 @@ the voice: « une voix de la langue lue, installée sur votre appareil ».
 
 ### D2 — The account's language
 
-A row in the account part of Annex B: « la langue de l'interface de Lingua, envoyée à Cymbra ID pour
-choisir la langue de ses e-mails » (M12, change 17).
+A row in the account part of Annex B, worded after the owner's answer to change 17's task 3.3: « la
+langue de vos e-mails Cymbra : celle de l'interface de Lingua, ou celle du navigateur s'il est en
+italien » (M12, change 17); the native-language setting itself stays on the device and is not synced,
+while the native language reaches Cymbra as each card's gloss language and with each day's
+statistics (changes 11, 12). This change is implemented after change 17's implementation and
+published before the release that carries it.
 
 ### D3 — The erasure path
 
-English and Spanish name it by function ("the Lingua erasure in the account page") and quote the
-interface's label in that language once change 17 ships it; the French keeps « Compte → Tes
-données → Effacer mes données Lingua ».
+English and Spanish name it by function only ("the Lingua erasure in the account page") — their
+interface labels are drafts until change 33; the French keeps « Compte → Tes données → Effacer mes
+données Lingua ».
 
 ## Risks / Trade-offs
 
