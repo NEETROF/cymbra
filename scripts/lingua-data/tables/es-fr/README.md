@@ -166,9 +166,14 @@ request (`lingua-pack-update` reduces them along with es-fr, after it).
   section (2026-09-28), from before the dumps: it stays readable as it is recorded, and the next
   update moves es-fr to the dump. Both readings of one regeneration give the same tables but for
   four readings the dump adds to `../es/grammar.tsv` — the feminine plurals of *beta*, *delta*,
-  *kappa* and *zeta* (`../../SOURCES.md`, *Extract and dump agree*) —, so that update's report
-  shows the upstream drift and those four. es-en, brought along, keeps its own pin until its own
-  update.
+  *kappa* and *zeta* (`../../SOURCES.md`, *Extract and dump are measured against each other*): the
+  dump leaves the page's categories on the entry, where es-fr's letter-name rule reads a sense's.
+  They break *A letter's name gives no reading of its plural* (`betas` read as the plural of the
+  letter *beta*), so a change of its own must fix them before es-fr's next update is merged — by a
+  rule on the sense's gloss, not by reading the entry's categories, which the dump puts on every
+  entry of the page and which would drop the committed `Masc|Plur` readings of its other nouns.
+  That update's report then shows the upstream drift, and no longer those four. es-en, brought
+  along, keeps its own pin until its own update.
 - **After editing the reduction rules** — `reduce-es-fr.py`, the override and locution lists
   included; `reduce_common.py`, which every pair shares; or `reduce_edition_fr.py`, the French
   Wiktionary's rules, which every pair glossed in French loads (`pin.json` lists the three under

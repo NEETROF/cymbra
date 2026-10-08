@@ -244,10 +244,14 @@ D2). The derived files are the assets of en-es's own release, `lingua-pack-sourc
   words per part of speech, in the table's order. Change 38 (`migrate-lingua-pack-sources-to-raw-
   dumps`) switched the address, as the programme's risk 6 asks: an update derives this file from
   the English Wiktionary's dump (`kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz`,
-  2,981,058,381 B gzipped), the pin keeping the extract's derivation until en-es's next update,
-  which will also carry the dump's order of the translation tables — 186 glosses and 55
-  expressions take their words in another order or another third word (`../../SOURCES.md`,
-  *Extract and dump agree*).
+  2,981,058,381 B gzipped), the pin keeping the extract's derivation until en-es's next update.
+  The dump keeps each table where the page writes it, in the page's order, where the extract moves
+  it under the sense it translates, and 60 entries repeat 77 translations they already list (the
+  extract lists each once): 186 glosses and 55 expressions take their words in another order or
+  another third word, no row added or removed (`../../SOURCES.md`, *Extract and dump are measured
+  against each other*). No reducer fix — the derived file keeps no sense glosses to order the
+  words by —: en-es's next update carries them, named in its report, and the owner judges the 186
+  glosses there.
 
 ## Licences
 

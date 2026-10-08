@@ -54,11 +54,14 @@ keeps reproducing, and each pair moves to the dumps at its next update, reviewed
   pruning it with the registry, and names the extract's raw file after its asset; the reduce job
   keeps reproducing en-fr's, es-fr's and es-en's committed bytes from their pinned extracts; no
   pin, table, manifest, pack or baseline moves in this change.
-- **The equivalence is measured, not assumed.** Before the first update under the new rule, each
-  pair is reduced both ways from the same regeneration — the per-language extract and the
-  entries derived from the dump — and the tables must be byte for byte the same
-  (`pack_report.py --identical`); the measurement is recorded in `SOURCES.md`, and it is the
-  proof. On 2026-10-08 the served dumps still carry the regeneration dates es-fr's and es-en's pins
+- **The two readings are measured against each other, not assumed equal.** Before the first update
+  under the new rule, each pair is reduced both ways from the same regeneration — the per-language
+  extract and the entries derived from the dump — and the tables are compared byte for byte
+  (`pack_report.py --identical`); each table that differs is recorded in `SOURCES.md` with the
+  difference between kaikki's two outputs that causes it, and reaches the committed tables only
+  through the pair's next update, whose report names it beside the upstream drift — a difference
+  that breaks another requirement is fixed by a change of its own before that update is merged.
+  On 2026-10-08 the served dumps still carry the regeneration dates es-fr's and es-en's pins
   record, so the measurement is first tried at the pinned snapshots themselves — if the dumps are
   still served that day, and skipped otherwise; that try gates nothing.
 - **The update workflow**: the release notes name each edition's dump, its regeneration date and
@@ -84,9 +87,13 @@ None.
   say: a dump served gzipped or plain, a fetched file of other bytes refused; its three scenario
   names kept, the third (*An extract served plain*, change 22's) now about a dump served plain,
   read by the gzip magic. That requirement is held by the open change `add-lingua-pack-en-es`, so
-  this change archives after it (`.openspec.yaml`). *A reader pair's pin records the studied tables
-  it read* (change 21) stands as written: each pair still pins its own fetch and an update still
-  publishes a pair's own assets only.
+  this change archives after it (`.openspec.yaml`). MODIFIED *A translation table is read wherever
+  the edition writes it* (generalise-lingua-gloss-reducer): the same requirement, its scenario
+  *The English Wiktionary's tables under senses* now about kaikki's per-language extract, which
+  moves each table under the sense it translates, and a scenario added for the English edition's
+  dump, which writes every table on the entry in the page's order. *A reader pair's pin records the
+  studied tables it read* (change 21) stands as written: each pair still pins its own fetch and an
+  update still publishes a pair's own assets only.
 
 ## Impact
 

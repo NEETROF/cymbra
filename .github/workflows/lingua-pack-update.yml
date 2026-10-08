@@ -49,7 +49,9 @@ name: lingua-pack-update
 #   Measured on the implementation pull request (2026-10-08, scripts/lingua-data/SOURCES.md, *The
 #   editions' dumps*): the four pairs in 17 min 11 s, each dump fetched once — the English one,
 #   2.98 GB gzipped and 25.6 GB decompressed, in under 2 min, its pass in 3 min; a dry run of es-fr,
-#   an update's cost, in 16 min 53 s; at most 68 GB of the runner's disk used, 82 GiB left free.
+#   an update's cost, in 16 min 57 s. At most 68 GB of the runner's disk used, of which about 63 GB
+#   is the runner's own image before the job starts: the run itself peaks about 5 GB above it, and
+#   82 GiB stayed free.
 #
 # It never opens the pull request: the repository setting that would allow it also lets workflows
 # approve pull requests, and a pull request opened with this token would run none of its required

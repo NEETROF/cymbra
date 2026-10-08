@@ -192,8 +192,9 @@ so the design names them:
 The reduce job keeps reproducing every committed table, manifest and pin from the pinned
 extracts, and the `check` job keeps building the pinned packs. A pair moves to the dumps when it
 is next updated: its pin then records the editions' dumps and the files derived from them, names
-no extract, and its report shows the upstream drift and nothing else — the equivalence (D6) is
-what makes "nothing else" true.
+no extract, and its report shows the upstream drift beside what D6 measured for that pair — nothing
+else for en-fr and es-en, whose tables are the same both ways; es-fr's four readings and en-es's
+order of the translation tables otherwise.
 
 Why not re-reduce from the dumps "at the same snapshot": the dumps of 2026-09-24, 2026-09-28 and
 2026-10-03 were never kept (add-lingua-spanish-gloss-tables D1 keeps no dump, and kaikki serves
@@ -204,7 +205,8 @@ the Spanish extract es-en pins (2026-10-03 10:55) most likely came from. While t
 committed tables can be reproduced from the dump itself (T2.2), and es-fr's derived files
 re-derive to their pinned sha256. It is an opportunity, not a plan and not a gate: T2.2 tries it
 if the dumps are still served that day and skips it otherwise, saying so in `SOURCES.md`; it ends
-with kaikki's next regeneration, and D6's both-ways measurement is the proof either way.
+with kaikki's next regeneration, and D6's both-ways measurement is what each pair's move relies on
+either way.
 
 Why not re-pin every pair now from today's dumps: that is an update — en-fr's dictionary has
 drifted since 2026-09-24, es-fr's since 2026-09-28 — and the programme keeps a dictionary update
@@ -212,11 +214,11 @@ drifted since 2026-09-24, es-fr's since 2026-09-28 — and the programme keeps a
 a tooling change that must move nothing. The owner decides when each pair's next update is
 dispatched (T5.1); this change does not require one.
 
-### D6 — The proof: both readings of one regeneration give one set of tables
+### D6 — The measurement: both readings of one regeneration, reduced both ways
 
-Before the first update under D1, each kind of file that replaces an extract is proved equivalent
-on the real data, at the table level — the file level is already known not to hold (212 MB against
-259 MB for the Spanish section of the French edition; what differs is measured and said in
+Before the first update under D1, each kind of file that replaces an extract is measured against
+it on the real data, at the table level — the file level is already known not to hold (212 MB
+against 259 MB for the Spanish section of the French edition; what differs is measured and said in
 `SOURCES.md`, T2.2):
 
 - the English edition's Spanish section: es-fr and es-en reduced from their pinned sources with
@@ -227,11 +229,21 @@ on the real data, at the table level — the file level is already known not to 
   them, else the two derived files compared as sets of lines (`derive` writes in input order, and
   the extract's order is not the dump's).
 
-Identical tables are what the implementation pull request shows; a difference is measured, explained in
-`SOURCES.md`, and carried by the pair's next update, which the report then describes — this
-change still re-pins nothing. Both readings must come from the same regeneration: kaikki writes
-the dump first and the per-language files from it within hours, so the measurement runs on one
-day and checks the two `Last-Modified` dates.
+Both readings must come from the same regeneration: kaikki writes the dump first and the
+per-language files from it within hours, so the measurement runs on one day and checks the two
+`Last-Modified` dates. Measured on 2026-10-08 (`SOURCES.md`, *Extract and dump are measured against
+each other*): en-fr's and es-en's tables are byte for byte the same both ways. es-fr's
+`es/grammar.tsv` gains 4 readings from the dump — the feminine plurals of *beta*, *delta*, *kappa*
+and *zeta* —: the dump leaves the page's categories on the entry, where the extract assigns them to
+the senses, and es-fr's letter-name rule reads a sense's. en-es's `gloss.tsv` and `mwe.tsv` take
+186 and 55 entries' words in another order or another third word: the dump keeps each translation
+table where the page writes it, where the extract moves it under the sense it translates. Each
+difference is recorded in `SOURCES.md` with its cause and carried by the pair's next update, which
+names it in its report — this change re-pins nothing. es-fr's breaks *A letter's name gives no
+reading of its plural* (`betas` read as the plural of the letter *beta*), so a change of its own
+fixes it before es-fr's next update is merged (Open Questions); en-es's calls for no reducer fix —
+the derived file has no sense glosses to order the words by — and the owner judges the 186 glosses
+at en-es's next update.
 
 ### D7 — The publish step and its notes
 
@@ -310,6 +322,12 @@ its own reviewed pull request; stage 3's pairs are born on them.
 
 ## Open Questions
 
+- es-fr's four readings from the dump (D6) break *A letter's name gives no reading of its plural*:
+  a change of its own must fix them before es-fr's next update is merged (T5.1). Reading the
+  entry's categories would be wrong — the dump puts the section's categories on every entry of the
+  page, so the rule would drop the committed `Masc|Plur` readings of a page's other nouns; the
+  likely fix is a rule on the sense's gloss (« the Greek letter … », « Greek letter delta »,
+  « the letter Z »), tested on a fixture shaped as the dump writes an entry.
 - Whether the owner wants the shipped pairs moved soon after the merge (an update of es-fr, which
   brings es-en along, then of en-fr — two reviewed dictionary updates, baselines re-blessed), or
   left to the monthly report (T5.1).

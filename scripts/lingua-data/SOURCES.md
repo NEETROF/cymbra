@@ -292,8 +292,9 @@ larger. Why the extract and not the raw English dump the programme's risk 6 name
 several times the extract and holds every language's entries; `derive` reads both, so the address is
 the only difference. Change 38 (`migrate-lingua-pack-sources-to-raw-dumps`) switched the address:
 `kaikki-en` names the English edition's dump from en-es's next update on; the file derived from
-it holds the extract's entries, with some tables in the dump's order and 77 more translations
-(*Extract and dump agree*). en-es's first update was dispatched alone on its pull request branch
+it holds the extract's entries, with some tables in the dump's order, and 60 entries repeat 77
+translations they already list (the extract lists each once; *Extract and dump are measured against
+each other*). en-es's first update was dispatched alone on its pull request branch
 (2026-10-08, run [37771510878](https://github.com/NEETROF/cymbra/actions/runs/37771510878), 4 min 57 s whole, 2 min 16 s of it the extract's fetch and derivation): it fetched the dump and the extract, published the derived files as
 `lingua-pack-sources-en-es-2026.10.08`, and the pinned reduction that committed the tables followed on the same branch
 (`build.sh --reduce en-es`, about 6 s on a laptop, fetch and pack build included).
@@ -362,7 +363,7 @@ and fetches the extract under the name its asset gives (`kaikki-Spanish.jsonl.zs
 them as before, and no pin, table, pack or baseline moved in this change. A pair moves to the dumps
 at its next update, the owner's dispatch: its pin then names the editions' dumps and no extract.
 
-**Extract and dump agree — measured, not assumed** (D6). On 2026-10-08 kaikki served, side by
+**Extract and dump are measured against each other** (D6). On 2026-10-08 kaikki served, side by
 side, the English dump of 2026-10-03 08:24 and the Spanish extract of 2026-10-03 10:55 (the bytes
 es-en pins), the French dump of 2026-10-02 00:10 and the Anglais extract of 00:18, and the English
 extract of 2026-10-03 11:09 that en-es's direct translations were derived from. Each pair was reduced
@@ -371,15 +372,23 @@ gives it (`pack_report.py --identical` on every folder):
 
 | Section | The two files | Reduced |
 |---|---|---|
-| The English edition's Spanish entries | the same 811,049 entries; the extract adds an `id` to each sense and spreads the page's categories over the senses as objects, the dump keeps them on the entry as names; 37 entries or runs of entries stand elsewhere in the file. 1,054,565,723 B against 928,737,891 B | es-en: identical. es-fr: `es-fr/` identical; `es/` identical but `grammar.tsv`, which gains 4 readings from the dump — the feminine plurals of *beta*, *delta*, *kappa* and *zeta* (`betas beta NOUN\|Gender=Fem\|Number=Plur`). es-fr's letter-name rule (`_names_a_letter`) reads a sense's categories, where the extract puts « Greek letter names » and the dump does not |
+| The English edition's Spanish entries | the same 811,049 entries; the extract adds an `id` to each sense and assigns the page's categories to the senses by disambiguation, as objects, the dump keeps them on the entry as names; 37 entries or runs of entries stand elsewhere in the file. 1,054,565,723 B against 928,737,891 B | es-en: identical. es-fr: `es-fr/` identical; `es/` identical but `grammar.tsv`, which gains 4 readings from the dump — the feminine plurals of *beta*, *delta*, *kappa* and *zeta* (`betas beta NOUN\|Gender=Fem\|Number=Plur`). es-fr's letter-name rule (`_names_a_letter`) reads a sense's categories, where the extract puts « Greek letter names » and the dump does not |
 | The French edition's English entries | the same 194,304 entries, differing the same way (sense ids, categories as objects); 201,505,597 B against 145,705,523 B | en-fr: `en-fr/` and `en/` identical |
-| The English entries' Spanish translations | the same 68,058 words and parts of speech, the dump writing 3 more entries for them (`do` and `ceno-`); 1,703 entries list the same translations in another order — the extract assigns each table to the sense it translates, the dump keeps it where the page writes it — and 60 list 77 more. 13,757,388 B against 13,762,773 B | en-es: 186 glosses and 55 expressions take their words in another order or another third word (the direct fallback takes the table's first three); no row added or removed, the coverage the same (93.0 / 85.0 / 71.7 %) |
+| The English entries' Spanish translations | the same 68,058 words and parts of speech, the dump writing 3 more entries for them (`do` and `ceno-`); 1,703 entries list the same translations in another order — the extract assigns each table to the sense it translates, the dump keeps it where the page writes it — and 60 repeat 77 translations they already list (the extract lists each once). 13,757,388 B against 13,762,773 B | en-es: 186 glosses and 55 expressions take their words in another order or another third word (the direct fallback takes the table's first three); no row added or removed, the coverage the same (93.0 / 85.0 / 71.7 %) |
 
-So the dumps give en-fr's and es-en's tables byte for byte; es-fr's next update will carry the four
-readings beside upstream drift, and en-es's the 186 glosses and 55 expressions — each said by that
-update's report, as the design's risks foresee. Neither is a defect of the dumps: the extract's
-post-processing moves categories and translation tables, and a rule that wants to read the page's
-categories (es-fr's letter names) can be taught to in a change of its own, which re-pins es-fr.
+So the dumps give en-fr's and es-en's tables byte for byte. The two pairs that differ keep their
+pins, and each difference reaches the committed tables only through the pair's next update, whose
+report names it beside the upstream drift (*A pair whose two readings differ*). es-fr's four
+readings break *A letter's name gives no reading of its plural* — `betas` read as the plural of the
+letter *beta* —, so a change of its own must fix them before es-fr's next update is merged. Not by
+reading the entry's categories: the dump puts the section's categories on every entry of the page
+(« Greek letter names » on *beta* the letter and on *beta*, a matter, masculine), and the rule
+would drop the committed `Masc|Plur` readings of those other nouns; the likely fix is a rule on the
+sense's gloss (« beta; the Greek letter Β, β », « Greek letter delta », « the letter Z »), tested on
+a fixture shaped as the dump writes an entry. en-es's 186 glosses and 55 expressions call for no
+reducer fix — the derived file keeps no sense glosses to order the words by —: en-es's next update
+carries them, and the owner judges the 186 glosses there. Neither difference is a defect of the
+dumps: kaikki's post-processing of the extract moves categories and translation tables.
 
 The regenerations the pins record were still served that day, so the opportunity was taken too:
 es-fr's three derived files and es-en's and en-es's derived from the French and Spanish dumps re-derive
@@ -400,16 +409,17 @@ es-en 3 min 13 s), each dump fetched and read once: the French one fetched in 29
 derived in 57 s, the English one in 1 min 48 s (about 28 MB/s from kaikki, not the 4 MB/s the
 design feared) and 2 min 55 s, the Spanish one in 6 s and 9 s. A dry run of es-fr alone — an
 update's cost but its release and branch — run
-[37805406472](https://github.com/NEETROF/cymbra/actions/runs/37805406472), took 16 min 53 s, its
+[37805406472](https://github.com/NEETROF/cymbra/actions/runs/37805406472), took 16 min 57 s, its
 reduction 16 min 14 s (the English dump fetched in 2 min 27 s and derived in 4 min 6 s, the French
 in 35 s and 1 min 27 s, the Spanish in 7 s and 14 s): an update stays well within the 45 minutes, and
 the prefilter needs no tightening. What a pair then spends is mostly compression: es-en's 3 min 13 s
 are about 2 min 50 s of zstd at level 19 over the 929 MB Spanish section, which es-fr compresses
 too — compressing it once per run (D8's option, not done here) would save about 3 minutes of the
 monthly job. The disk at the run's fullest — the end of the English pass, its 2.98 GB dump and
-1.47 GB catalogue beside the French catalogue and the pack builder — held 68.2 GB, about 4 GB more
-than during the French pass, and `df` showed 82 GiB or more free after each pair: the runner has far
-more room than the 14 GB the design assumed.
+1.47 GB catalogue beside the French catalogue and the pack builder — held 68.2 GB used, about 4 GB
+more than during the French pass. Most of it is not the run's: about 63 GB is the runner's own
+image, used before the job starts, so the run itself peaks about 5 GB above it; `df` showed 82 GiB
+or more free after each pair — far more room than the 14 GB the design assumed.
 
 ## What a pack studies, whatever it glosses
 
@@ -522,10 +532,13 @@ reducer would make later than at import time, and any module loaded other than b
 statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.
 
 **Translation tables wherever the edition writes them.** `derive` reads an entry's table for the
-whole entry and each of its senses' (`translations_of`), with the sense a table names. The French and
-Spanish Wiktionaries write one table per entry, so es-fr's derived files are unchanged; the English
-one writes them under its senses (68,579 English entries list Spanish translations under a sense,
-5,080 for the whole entry). `derive` reads a dump as served, gzipped or plain, told apart by the
+whole entry and each of its senses' (`translations_of`), with the sense a table names. The editions'
+dumps write one table per entry: the French and Spanish ones, so es-fr's derived files are
+unchanged, and the English one too — 68,582 of its English entries list Spanish translations, every
+table on the entry in the page's order, none under a sense, a translation the page lists twice kept
+twice. It is kaikki's per-language extract of the English Wiktionary's English section, which en-es's
+pin was derived from, that moves each table under the sense it translates (about 65,752 entries with
+a table under a sense, 5,074 for the whole entry). `derive` reads a dump as served, gzipped or plain, told apart by the
 gzip magic and not by the address: kaikki serves an edition's dump gzipped and its per-language
 extracts uncompressed — the English Wiktionary's English one, which en-es's first update read for
 those tables (add-lingua-pack-en-es D2).

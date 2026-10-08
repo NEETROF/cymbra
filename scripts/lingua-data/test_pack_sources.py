@@ -281,8 +281,9 @@ class Dumps(unittest.TestCase):
         )
 
     def test_a_table_under_a_sense_is_derived_with_the_sense_it_names(self):
-        # The English Wiktionary writes its tables under its senses (68,579 English entries list
-        # Spanish translations under a sense, 5,080 for the whole entry).
+        # Spec scenario *The English Wiktionary's tables under senses*: kaikki's per-language extract
+        # of the English Wiktionary moves each table under the sense it translates (about 65,752
+        # English entries with Spanish translations under a sense, 5,074 for the whole entry).
         house = {
             "word": "house",
             "lang_code": "en",
@@ -321,6 +322,42 @@ class Dumps(unittest.TestCase):
                 }
             ],
             "the entry's table first, then each sense's, with the sense a table names; no French word",
+        )
+
+    def test_spec_scenario_the_english_edition_s_dump_writes_its_tables_on_the_entry(self):
+        # The English edition's dump writes every table on the entry, in the page's order, none
+        # under a sense (68,582 English entries list Spanish translations): each is kept, with the
+        # sense it names, and a translation the page lists twice is kept twice.
+        house = {
+            "word": "house",
+            "lang_code": "en",
+            "pos": "noun",
+            "senses": [{"glosses": ["A structure serving as an abode of human beings."]}, {"glosses": ["A dynasty."]}],
+            "translations": [
+                {"lang_code": "es", "word": "casa", "sense": "abode of a human being"},
+                {"lang_code": "fr", "word": "maison", "sense": "abode of a human being"},
+                {"lang_code": "es", "word": "vivienda", "sense": "abode of a human being"},
+                {"lang_code": "es", "word": "casa", "sense": "dynasty"},
+                {"lang_code": "es", "word": "casa", "sense": "dynasty"},
+            ],
+        }
+        self.work.mkdir()
+        dump = self.work / "en.jsonl.gz"
+        dump.write_bytes(self.dump([house]))
+        ps.derive(dump, {"en-es.jsonl": ("translations", "en", "es")}, self.work)
+        self.assertEqual(
+            json.loads((self.work / "en-es.jsonl").read_text(encoding="utf-8")),
+            {
+                "word": "house",
+                "pos": "noun",
+                "translations": [
+                    {"word": "casa", "sense": "abode of a human being"},
+                    {"word": "vivienda", "sense": "abode of a human being"},
+                    {"word": "casa", "sense": "dynasty"},
+                    {"word": "casa", "sense": "dynasty"},
+                ],
+            },
+            "the page's order, the sense each names, the repeated translation twice; no French word",
         )
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
@@ -1021,7 +1058,8 @@ class DumpsOnly(unittest.TestCase):
             "translations": [{"lang_code": "fr", "word": "secteur"}, {"lang_code": "en", "word": "sector"}],
         },
     ]
-    # The English Wiktionary's dump: its tables under its senses.
+    # The English Wiktionary's English entries, a table under a sense as kaikki's per-language
+    # extract writes it (the dump writes it on the entry; `derive` reads both, `translations_of`).
     EN = [
         {
             "word": "house",

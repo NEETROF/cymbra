@@ -151,7 +151,8 @@ ESDB = {
 EDITIONS = {
     # The English Wiktionary: 2,981,058,381 B gzipped (regenerated 2026-10-03 08:24) — above the
     # 2 GiB a release asset may weigh. Its inflections are tagged, the French one's are not
-    # (add-lingua-spanish-forms-tables); it writes its translation tables under its senses.
+    # (add-lingua-spanish-forms-tables). Its dump writes an entry's translation tables on the entry,
+    # in the page's order; kaikki's per-language extract moved each under the sense it translates.
     "en": {
         "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
         "files": {
@@ -476,10 +477,12 @@ def download(url: str, dest: Path, *, compressed: bool = False) -> dict[str, str
 
 def translations_of(entry: dict):
     """An entry's translations wherever its edition writes them (generalise-lingua-gloss-reducer D3):
-    the table of the whole entry, then each sense's, in source order. The French and Spanish
-    Wiktionaries write one table per entry; the English one writes them under its senses — 68,579
-    of its English entries list Spanish translations under a sense, against 5,080 for the whole
-    entry."""
+    the table of the whole entry, then each sense's, in source order. The editions' dumps write every
+    table on the entry, in the page's order — 68,582 of the English Wiktionary's English entries list
+    Spanish translations, none under a sense, a translation the page lists twice kept twice. kaikki's
+    per-language extract of that section, which en-es's pin was derived from, moves each table under
+    the sense it translates: about 65,752 entries with a table under a sense, 5,074 for the whole
+    entry (migrate-lingua-pack-sources-to-raw-dumps)."""
     yield from entry.get("translations") or ()
     for sense in entry.get("senses") or ():
         if isinstance(sense, dict):

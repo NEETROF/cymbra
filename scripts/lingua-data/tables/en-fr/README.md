@@ -71,7 +71,8 @@ pair studying English, en-es today, whose packs are recorded again in the same p
   until it is merged. The pin committed today names kaikki's per-language extract of the French
   Wiktionary's English section (2026-09-24), from before the dumps: it stays readable as it is
   recorded, and the next update moves en-fr to the dump — the same entries, read the same way
-  (*Extract and dump agree*, measured), so its report shows the upstream drift alone.
+  (`../../SOURCES.md`, *Extract and dump are measured against each other*: en-fr's and `../en/`'s
+  tables byte for byte the same both ways), so its report shows the upstream drift alone.
 - **After editing the reduction rules** — `reduce-en-fr.py`; `reduce_common.py`, which every pair
   shares; or `reduce_edition_fr.py`, the French Wiktionary's rules, which every pair glossed in French
   loads (`pin.json` lists the three under `reducer.files`, the modules the reducer loads,
