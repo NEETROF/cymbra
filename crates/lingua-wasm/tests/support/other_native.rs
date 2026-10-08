@@ -14,15 +14,18 @@
 
 //! A second pack over a reference pair's studied tables, as a pack glossed in another native
 //! language would be (add-lingua-pack-lexical-layer D6): `cross_native.rs` answers every probe of
-//! a language's baseline through both, and `card_gloss_language.rs` creates on the second the
-//! cards a French-native engine reviews.
+//! a language's baseline through both. Spanish needs none since es-en's tables are committed
+//! (add-lingua-pack-es-en): the real pack, built from `tables/es/` and `tables/es-en/`, is the
+//! second pack there, and `card_gloss_language.rs` creates on it the cards a French-native
+//! engine reviews. English glossed in Spanish stays synthetic until en-es's tables land
+//! (change 22).
 //!
 //! The second pack:
 //! - names another native language in its metadata;
 //! - keeps about 70 % of the glosses (a deterministic hash) and glosses lemmas the reference
-//!   does not, among them `augusto` and `eugenia` for Spanish;
-//! - keeps fewer expressions and sense runs, its Spanish noun runs say no gender, and a few
-//!   runs carry a part of speech no reading uses;
+//!   does not;
+//! - keeps fewer expressions and sense runs, and a few runs carry a part of speech no reading
+//!   uses;
 //! - names the reference's glossed lemmas as its dictionary words (`lexical.tsv`) and pins
 //!   the reference's tag pool (`tags.tsv`).
 
@@ -114,7 +117,8 @@ impl OtherNative {
                     .iter()
                     .all(|(tag, _)| !self.dropped_tags.contains(&tag.as_str()))
         });
-        // Glosses that say no gender: the builder gives a noun its readings' (D5).
+        // Glosses that say no gender: the builder gives a noun its readings' (D5). English's
+        // nouns carry none; kept for a reference whose sense table genders its nouns.
         for (_, runs) in &mut other.senses {
             for (tag, _) in runs.iter_mut() {
                 if tag.starts_with("NOUN|Gender=") {
@@ -142,14 +146,4 @@ pub const ENGLISH_IN_SPANISH: OtherNative = OtherNative {
     also: &[],
     new_tag: "NUM",
     dropped_tags: &[],
-};
-
-/// es-fr, and Spanish glossed in English.
-pub const SPANISH_IN_ENGLISH: OtherNative = OtherNative {
-    pair: "es-fr",
-    native: "en",
-    keep: &["casa", "estudiante", "dios"],
-    also: &["augusto", "eugenia"],
-    new_tag: "AUX",
-    dropped_tags: &["INTJ", "SYM", "X"],
 };

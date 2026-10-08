@@ -1,0 +1,23 @@
+Cymbra Lingua data pack — ES->EN attributions.
+
+kaikki.org extract of the English Wiktionary (enwiktionary), Spanish section: CC BY-SA 4.0 + GFDL —
+the forms, their lemmas and their grammar (Spanish's tables, reduced by the es-fr pack's reduction
+and read here as committed), and the English glosses of Spanish words and expressions, from its
+senses.
+
+kaikki.org extract of the Spanish Wiktionary (eswiktionary): CC BY-SA 4.0 + GFDL — the English
+translations its Spanish entries list, where the English Wiktionary has no gloss.
+
+kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — which lemmas
+es-fr glosses: the dictionary words and which take a level (Spanish's tables, read here as
+committed).
+
+wordfreq (Spanish frequency list), by Robyn Speer (https://github.com/rspeer/wordfreq): data under
+CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
+
+UD Spanish-GSD, the Universal Dependencies Spanish-GSD treebank
+(https://github.com/UniversalDependencies/UD_Spanish-GSD): CC BY-SA 4.0 — how often a form stands
+for each of its lemmas, to choose one.
+
+The levels are estimated, not taken from a CEFR list: the es-fr pack's reduction derives them from
+the frequency ranks and its French glosses, and every pack studying Spanish reads them as committed.

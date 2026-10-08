@@ -13,6 +13,13 @@ pair (`../es/studied.json`): its reduction writes `../es/`, and this folder's `p
 sources of both. That matters for the levels: they are estimated from es-fr's French glosses, so
 every pair studying Spanish reads es-fr's.
 
+One other pair reads `../es/`: **es-en** (`../es-en/`, Spanish glossed in English,
+add-lingua-pack-es-en), which reduces its own native side from it and computes nothing of it. Its
+`pin.json` records es-fr as the reference and the sha256 of each of `../es/`'s six tables its build
+read: when es-fr's reduction moves one, es-en is reduced again after es-fr, and until it is the checks
+fail naming es-en and the table (`es-en: es/level.tsv`). A change to es-fr's rules that moves no
+table of `../es/` leaves es-en's pin and pack as they are.
+
 In this folder:
 
 | File | What it maps | From |
@@ -141,8 +148,8 @@ Never by hand — except `../es/tags.tsv` and `../es/studied.json`, which no red
 so editing it changes how each of them stores them. Its pull request says so, and every pair
 studying Spanish reads that one file. `../es/` is written by es-fr's reduction alone: a change there
 — new sources, new rules, or a lemma es-fr glosses, which moves the dictionary words and may move a
-level — reaches every pair studying Spanish, whose packs are recorded again in the same pull request
-(`lingua-pack-update` reduces them along with es-fr).
+level — reaches every pair studying Spanish, es-en today, whose packs are recorded again in the same pull
+request (`lingua-pack-update` reduces them along with es-fr, after it).
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `pair=es-fr` and `mode=update`.
   It works as for en-fr:
@@ -150,7 +157,7 @@ level — reaches every pair studying Spanish, whose packs are recorded again in
   2. keeps kaikki's bytes as the release `lingua-pack-sources-es-fr-<snapshot>`: the extract, and
      the three files derived from the French and Spanish Wiktionaries' dumps (`pack_sources.py
      DUMPS`);
-  3. reduces;
+  3. reduces, then reduces es-en again from its own pinned sources;
   4. pushes the branch `lingua-pack/es-fr/<snapshot>`.
 - **After editing the reduction rules** — `reduce-es-fr.py`, the override and locution lists
   included; `reduce_common.py`, which every pair shares; or `reduce_edition_fr.py`, the French

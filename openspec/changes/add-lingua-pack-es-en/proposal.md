@@ -20,7 +20,7 @@ makes the pair's floor.
 
 This change commits the pair's native side, its reducer and its pin, and settles what change 7
 left to it: what a reader pair's pin records of the studied tables it reads, how its sources
-are shared with the reference's, and what its credits say. It does not ship the pack:
+stand beside the reference's, and what its credits say. It does not ship the pack:
 `packs.json` is unchanged, so no French reader's package or engine moves, and no English-native
 reader exists until the interface speaks English (changes 13–20) and change 34 enables them.
 
@@ -40,25 +40,28 @@ of the top-10,000 es-en lemmas), each shown on a sample of the top 10,000.
   own file, `reduce_common.py` and `reduce_edition_en.py`: es-fr's reducer and the French edition
   are not loaded, so nothing of es-fr moves and the rule that a reducer loads code by import
   statements alone stands.
-- **Shared sources, one release per pair**: es-en's pin names es-fr's release for the English
-  extract when es-fr's update brought es-en along (the extract then is the one just fetched), and
-  its own when es-en is updated alone; a pin may name another pair's release, and the live fetch
-  never downloads an extract its reference fetched in the same run; the update publishes a pair's
-  own assets only, under `release_tag(pair, snapshot)`; the reduce job keeps fetched assets in a
-  cache across pairs, so the extract is fetched once per job.
+- **Each pair pins its own extract, one release per pair**: es-en's extract is es-fr's address,
+  fetched live when es-en is updated and published under its own release,
+  `release_tag(pair, snapshot)`; a pair brought along by its reference's update is reduced from
+  its own pin; the update publishes a pair's own assets only; the reduce job fetches an asset once
+  when two pins name the same one (an asset cache keyed by sha256).
 - **A reader pair's pin records the studied tables it read**: the sha256 of each of the six
   studied tables, written by `record-build`, checked by `check-reducer` and named by
   `pack_report` — the "pair left behind" that the pack's sha256 already catches, now named by
-  table. `pack_version` is the pair's own snapshot and digest.
+  table. `pack_version` is the pair's own snapshot and rule digest, and a digest of that record, so
+  it moves when a studied table does.
 - **The pipeline knows it**: `KAIKKI`/`DUMPS` entries, the dispatch options and the monthly matrix,
   the reduce job (after es-fr), `pack_report`, the committed-tables check's file set,
   `testdata/es-en/`, `cross_native.rs` on the real pack.
 - **The two settings**: the long-parenthesis bound is `EN`'s `long_parenthesis`; the etymology
   merging is a pre-pass in `reduce_edition_en.py` that `reduce-es-en.py` calls before building the
   native tables — neither touches `reduce_common.py`, so no French-native pair is re-pinned.
-- **Measured and shown**: `gloss_coverage.py --pair es-en --floor` against es-fr's published
+- **Measured and shown**: `gloss_coverage.py --pair es-en` against its floor, es-fr's published
   figures (the reduce job runs it; the site is unchanged until the pair ships), a sample of 100
   glosses, the pack's size (bound 5 MiB).
+- **Letters gloss no word**, as in es-fr: the English edition's letter rule, a pre-pass dropping
+  the entries written under a single capital letter, and the Spanish Wiktionary's letters left out
+  of the direct table — none of it in `reduce_common.py`.
 
 ## Capabilities
 
@@ -83,6 +86,6 @@ None.
   Live, the back office and the site are untouched; `apps/lingua-extension` is untouched.
 - **No byte moves**: es-fr's and en-fr's tables, pins, packs and goldens are untouched;
   `packs.json` is unchanged; `lingua-coverage.json` is unchanged until the pair ships.
-- **The reduce job** grows by one pair reduced after es-fr, from the cached extract.
+- **The reduce job** grows by one pair reduced after es-fr, from its own pinned extract.
 - **Not here.** Shipping es-en (change 34: `packs.json`, the listings); the English card wording
   (23); the es-en marks (26); the English interface (13–20).

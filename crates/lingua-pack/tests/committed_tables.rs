@@ -141,6 +141,113 @@ fn spec_scenario_the_shipped_packs_keep_their_bytes() {
     }
 }
 
+/// es-en's committed pack, built once per test binary.
+fn es_en() -> &'static [u8] {
+    static ES_EN: OnceLock<Vec<u8>> = OnceLock::new();
+    ES_EN.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "es-en").unwrap_or_else(|e| panic!("es-en: {e}"));
+        build_pack(&inputs).unwrap_or_else(|e| panic!("build es-en: {e}"))
+    })
+}
+
+fn json(path: &Path) -> serde_json::Value {
+    serde_json::from_str(
+        &std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display())),
+    )
+    .unwrap()
+}
+
+#[test]
+fn spec_scenario_the_first_reader_pair() {
+    // es-en (add-lingua-pack-es-en): the first pair of a studied language's second native. Its
+    // folder holds exactly a pair's file set — its native side, pin and README — its manifest
+    // studies Spanish glossed in English, and its studied side is tables/es, which es-fr writes.
+    let mut own: Vec<String> = PAIR_SIDE.iter().map(|t| (*t).to_owned()).collect();
+    own.extend(["pin.json".to_owned(), "README.md".to_owned()]);
+    own.sort();
+    assert_eq!(files(&tables().join("es-en")), own, "es-en/");
+    let manifest = json(&tables().join("es-en/manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "es");
+    assert_eq!(manifest["meta"]["native"], "en");
+    let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
+    assert!(pairs.iter().any(|p| p == "es-en"), "es-en is read");
+
+    // Its pin records its own pack, and — a reader pair's record (D3) — es-fr as the reference
+    // and the sha256 of each of the six studied tables it was built on, as committed.
+    let pin = json(&tables().join("es-en/pin.json"));
+    let bytes = es_en();
+    assert_eq!(
+        pin["pack"]["sha256"],
+        sha256_hex(bytes).as_str(),
+        "es-en: pin.json"
+    );
+    assert_eq!(pin["pack"]["size"], bytes.len());
+    assert_eq!(pin["studied"]["reference"], "es-fr");
+    for name in STUDIED_SIDE {
+        let committed = std::fs::read(tables().join("es").join(name)).unwrap();
+        assert_eq!(
+            pin["studied"]["tables"][name],
+            sha256_hex(&committed).as_str(),
+            "es-en: es/{name}"
+        );
+    }
+    // The reference's pin records nothing of its readers.
+    assert!(
+        json(&tables().join("es-fr/pin.json"))
+            .get("studied")
+            .is_none()
+    );
+    // A reader pair's pack carries a lexical table: its dictionary words are es-fr's, not the
+    // lemmas it glosses.
+    assert!(section_of(&sections(bytes), section::LEXICAL).is_some());
+    let pack = Pack::load(bytes).unwrap();
+    assert_eq!(pack.pair().key(), "es-en");
+    assert_eq!(
+        pack.dictionary_words(),
+        Pack::load(shipped("es-fr")).unwrap().dictionary_words(),
+        "es-en's dictionary words are es-fr's"
+    );
+}
+
+#[test]
+fn spec_scenario_the_credits() {
+    // es-en's notice names both sides' sources — the English Wiktionary's Spanish section, the
+    // Spanish Wiktionary's translations, the French Wiktionary (es-fr's glosses decide the
+    // dictionary words and which lemmas take a level), wordfreq and UD Spanish-GSD — and its
+    // manifest says the levels are estimated (D4). The pack carries both.
+    let notice = std::fs::read_to_string(tables().join("es-en/NOTICE")).unwrap();
+    // Read as running text: a credit may wrap.
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
+    for credit in [
+        "English Wiktionary (enwiktionary), Spanish section",
+        "Spanish Wiktionary (eswiktionary)",
+        "translations its Spanish entries list",
+        "French Wiktionary (frwiktionary)",
+        "which lemmas es-fr glosses: the dictionary words and which take a level",
+        "wordfreq",
+        "Robyn Speer",
+        "UD Spanish-GSD",
+        "levels are estimated",
+    ] {
+        assert!(notice.contains(credit), "es-en/NOTICE names {credit:?}");
+    }
+    let manifest = json(&tables().join("es-en/manifest.json"));
+    assert_eq!(manifest["meta"]["levels_estimated"], true);
+    assert_eq!(
+        manifest["meta"]["licences"][0],
+        "kaikki / enwiktionary, eswiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)"
+    );
+    let pack = Pack::load(es_en()).unwrap();
+    assert!(pack.meta().levels_estimated);
+    for credit in ["UD Spanish-GSD", "eswiktionary", "frwiktionary"] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
+}
+
 #[test]
 fn spec_scenario_a_pair_glossed_in_another_native_language_copies_nothing() {
     // A test pair studying Spanish, glossed in English: its folder holds its glosses, senses,

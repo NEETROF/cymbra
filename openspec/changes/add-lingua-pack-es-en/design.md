@@ -47,6 +47,13 @@ is computed: no forms, no readings, no levels, no `noun_class_runs` (the gender 
 readings, change 5 D5). Its rule digest is `reduce-es-en.py`, `reduce_common.py` and
 `reduce_edition_en.py`.
 
+Letters gloss no word, as in es-fr: the English edition's letter rule also takes a sense that only
+names a letter (« the letter r », « the letter E in the Spanish spelling alphabet », 36 glossed
+lemmas); a pre-pass of `reduce_edition_en.py`, run like the etymology merging, drops the entries
+written under a single capital letter (`A` « bishop », `C` « abbreviation of caballo », which
+glossed `a` and `c`); and the direct table leaves out the Spanish Wiktionary's letters, which it
+translates as themselves (`b` « b »). None of it touches `reduce_common.py`.
+
 Why not load es-fr's reducer: a reducer loads code by import statements alone (the guard test
 and `rule_files`' rule), a dashed file cannot be imported, moving es-fr's studied side into a
 module would move es-fr's digest and bytes, and the main spec says a reader pair reads the
@@ -54,20 +61,26 @@ committed tables. A change to es-fr's rules reaches es-en through the tables: wh
 re-reduced and a studied table moves, es-en's build fails on its pack's sha256 until it is
 re-reduced (`pairs --after es-fr`), and D3 names the table.
 
-### D2 — Shared sources, one release per pair
+### D2 — Each pair pins its own extract, one release per pair
 
-`KAIKKI["es-en"]` names the same extract as es-fr's. `fetch_live` for a reader pair reuses the
-extract its reference fetched in the same run (the asset cache, keyed by sha256) and records the
-reference's release; dispatched alone, it downloads the live extract and records its own release
-(kaikki regenerates daily, so es-fr's pinned extract is rarely the live one). `fetch_pinned`
-follows a record's `release`, whichever pair's it is. `DUMPS["es-en"]` lists the `kaikki-es` dump with one
-derived file, `kaikki-es-traductions-en.jsonl`, published under `lingua-pack-sources-es-en-
-<snapshot>`. The update step tags `release_tag(pair, snapshot)` — never `sources.kaikki.release`, which for
-a reader pair may be its reference's — and publishes a pair's own assets only: each source record
-carries its release, and `assets --pin` lists the records whose release is that tag. The reduce job keeps
-fetched assets in `work/cache/<sha256>` across pairs, so the 1.05 GB extract is fetched once per
-job. A dispatch names one pair; es-fr's update brings es-en along in reduce mode from es-en's
-own pin, as change 7 D5 has it.
+`KAIKKI["es-en"]` names the same address as es-fr's. Each pair pins its own extract, fetched live
+when the pair is updated and published under its own release, `release_tag(pair, snapshot)`:
+`lingua-pack-sources-es-en-<snapshot>` holds es-en's extract and the one file it derives from the
+`kaikki-es` dump, `kaikki-es-traductions-en.jsonl` (`DUMPS["es-en"]`). A pair brought along by its
+reference's update is reduced from its own pin (change 7 D5): es-fr's update publishes nothing of
+es-en, and es-en's pin still names its own release. The update step tags `release_tag(pair,
+snapshot)` and publishes the pair's own assets only — `assets --pin --release` lists the records
+whose release is that tag — and fails when it cannot list them. `fetch_pinned` follows each
+record's `release`. The reduce job keeps fetched release assets in `work/cache/<sha256>`, keyed by
+the sha256 of the decompressed bytes the pin names: it fetches an asset once when two pins name the
+same one, and a local re-reduction fetches nothing again. An entry is written whole or not at all
+(`<sha256>.part`, then renamed), and one that does not decompress to its name is deleted, the error
+naming it. Each pair's update runs alone for its studied language (the update's concurrency group).
+
+Why not share the reference's fetch: kaikki regenerates the extract daily, so a reader updated
+alone never reads the reference's pinned bytes, and a pin naming another pair's release would tie
+the two pairs' updates together — for one 1.05 GB fetch a job, which the cache saves anyway when
+the pins agree.
 
 Bootstrap: es-en's first update is dispatched alone on this change's pull request branch, so it
 downloads the live extract and publishes it with its derived file under es-en's own release; the
@@ -83,14 +96,20 @@ pinned pool (`studied.json` is the record, not a table) — found through `studi
 pair and the table; `pack_report` names the table whose move left a pair behind. The pack's
 sha256 catches the move already (change 7); the record names what moved. No snapshot of the
 reference is recorded: a rules-only change of es-fr keeps its snapshot, and the tables say the
-truth. `pack_version` is `<es-en's snapshot>+<its digest[:7]>`.
+truth. `pack_version` folds the record in: `<es-en's snapshot>+<its rules' digest[:7]>.<the studied
+digest[:7]>` (`pack_sources.py version`; `studied_digest`, one sha256 over the six recorded tables'
+names and sha256), in an update as after a re-reduction — so es-en's version moves when a studied
+table moves though nothing of its own did (main spec, *An updated dictionary*), and reducing an
+update again from its pin gives its version again.
 
 ### D4 — Credits
 
 `NOTICE` names both sides: the English Wiktionary's Spanish section (CC BY-SA 4.0 + GFDL) for
 the forms, readings and glosses; the Spanish Wiktionary for the translations used as glosses;
 wordfreq; UD Spanish-GSD for the readings' counts; the levels as es-fr estimated them, from
-French glosses, and said so. `manifest.json` lists the same sources and `levels_estimated: true`.
+French glosses, and said so; the French Wiktionary, whose senses — es-fr's glosses — decide the
+dictionary words and which lemmas take a level. `manifest.json` lists the same sources and
+`levels_estimated: true`.
 
 ### D5 — The two settings, decided in the pull request, without touching `reduce_common.py`
 
@@ -105,16 +124,19 @@ before the pin is recorded.
 ### D6 — Not shipped, measured against a floor
 
 `packs.json`, `SHIPPED_PAIRS`, the listings and the site are untouched. `gloss_coverage.py`
-gains `--pair` (measure one pair) and `--floor 87.6 77.2 63.7` (fail under); the reduce job runs
-it for es-en; the figures are not published until change 34 lists the pair. `testdata/es-en/` lets
+gains `--pair` (measure one pair, and fail under its floor) and `FLOORS`, es-en's at es-fr's
+published 87.6 / 77.2 / 63.7 — fixed there, so that es-fr's next update does not move it;
+`--floor` gives another. The reduce job runs it for es-en; the figures are not published until
+change 34 lists the pair. `testdata/es-en/` lets
 `gen:pack` build it then. `cross_native.rs` compares the real es-en pack's studied sections with
 es-fr's, replacing the synthetic `SPANISH_IN_ENGLISH`.
 
 ## Risks / Trade-offs
 
-- **The English extract is 1.05 GB** → fetched once per job (the cache) and never twice at an
-  update (the reference's fetch in the same run reused); the reduce job's 45-minute timeout is measured
-  against it on the pull request.
+- **The English extract is 1.05 GB** → each pair pins its own, so the reduce job fetches es-fr's
+  and es-en's (52 MB compressed each) unless their pins name the same asset (the cache), and an
+  update fetches the named pair's alone; the reduce job's 45-minute timeout is measured against it
+  on the pull request.
 - **A gloss in a third language** (M5) → the direct table is the Spanish Wiktionary's English
   translations only; `test_reduce_editions` asserts the pairing.
 - **The English native becomes resolvable** → `packs.json` is unchanged, so no listed pair is

@@ -93,13 +93,15 @@ jobs:
           # (split-lingua-pack-tables-by-language).
           for tables in ../../scripts/lingua-data/tables/*-*/; do
             pair="$(basename "$tables")"
-            bash ../../scripts/lingua-data/build.sh "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
             # Tables reduced by other rules than the repository's — the pair's reducer or a shared
             # reduce_*.py module, or, for a pair that is not its studied language's reference, the
             # reference's, whose reduction writes the studied tables it reads: reduce them again from
-            # the pinned sources (build.sh --reduce, or lingua-pack-update with mode=reduce).
+            # the pinned sources (build.sh --reduce, or lingua-pack-update with mode=reduce). Before
+            # the build: a studied table that moved under a reader pair is named here, where the
+            # build would only say that the pack's sha256 moved (add-lingua-pack-es-en D3).
             python3 ../../scripts/lingua-data/pack_sources.py check-reducer \
               --pin "$tables/pin.json" --reducer "../../scripts/lingua-data/reduce-$pair.py"
+            bash ../../scripts/lingua-data/build.sh "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
           done
       # The invariance baselines: what the engine gives the extension over a fixed corpus, with
       # the real packs — en-fr (the Spanish programme's S0, docs/lingua/spanish-programme.md) and
@@ -223,7 +225,10 @@ jobs:
           fi
           for pair in $pairs; do
             scripts/lingua-data/build.sh --reduce "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
-            # The raw sources weigh about 1.5 GB per pair; the next pair needs the room.
+            # The raw sources weigh about 1.5 GB per pair; the next pair needs the room. Each pair
+            # is reduced from its own pin, es-en after es-fr, its reference; the release assets
+            # fetched stay in work/cache/<sha256> (build.sh), so an asset two pins name is fetched
+            # once per job (add-lingua-pack-es-en D2).
             rm -rf "scripts/lingua-data/work/$pair"
           done
       - name: The committed tables are what the rules make of them
@@ -241,3 +246,10 @@ jobs:
             exit 1
           fi
           echo "Every pair's tables, manifest.json and pin.json are what the rules make of the pinned sources."
+      # A pair not yet shipped is measured against a floor without being published
+      # (add-lingua-pack-es-en D6): es-en's glosses cover at least es-fr's published share of the
+      # 5,000, 10,000 and 20,000 commonest lemmas when es-en was proposed (gloss_coverage.py
+      # FLOORS). The site's figures (`gloss_coverage.py --write`, the `check` job) list the shipped
+      # pairs alone.
+      - name: Gloss coverage of es-en, against its floor
+        run: python scripts/lingua-data/gloss_coverage.py --pair es-en

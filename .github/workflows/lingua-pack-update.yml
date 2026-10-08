@@ -14,7 +14,11 @@ name: lingua-pack-update
 #   lingua-pack-sources-<pair>-<snapshot>, never replaced — reduced, and pushed to the branch
 #   lingua-pack/<pair>/<snapshot>. A studied language's reference pair (tables/<studied>/studied.json)
 #   writes that language's tables, so on the same branch it brings every other pair of the language,
-#   reduced again from its own pinned sources (split-lingua-pack-tables-by-language D5).
+#   reduced again from its own pinned sources (split-lingua-pack-tables-by-language D5). Each pair
+#   pins its own extract (add-lingua-pack-es-en D2: es-en reads es-fr's address, fetched live when
+#   es-en is updated): the release is the named pair's own and holds its own assets only, and a pair
+#   brought along publishes nothing. A pair's first update — its folder holds no tables yet —
+#   proposes the folder whole.
 # - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
 #   the branch's diff is the rules' effect alone. With pair `all`, every pair with committed tables
 #   is reduced in one run and proposed on one branch, lingua-pack/all/<snapshot>-reduce, with the
@@ -43,7 +47,7 @@ on:
       pair:
         description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce only."
         type: choice
-        options: [en-fr, es-fr, all]
+        options: [en-fr, es-fr, es-en, all]
         default: en-fr
       expect:
         description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
@@ -56,8 +60,11 @@ on:
 permissions:
   contents: write # push the branch lingua-pack/<snapshot>, publish the kaikki snapshot release
 
+# One run at a time per studied language: an update of es-fr rewrites tables/es-en too (it brings
+# es-en along), so es-fr's and es-en's dispatches never propose that folder on two branches at once.
+# `all` (mode reduce) and the monthly dry run have a group each.
 concurrency:
-  group: lingua-pack-update-${{ inputs.pair || 'monthly' }}
+  group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || inputs.pair || 'monthly' }}
   cancel-in-progress: false
 
 jobs:
@@ -67,7 +74,7 @@ jobs:
       fail-fast: false
       matrix:
         # A dispatch proposes the pair it names; the monthly dry run checks every pair with tables.
-        pair: ${{ github.event_name == 'schedule' && fromJSON('["en-fr", "es-fr"]') || fromJSON(format('["{0}"]', inputs.pair)) }}
+        pair: ${{ github.event_name == 'schedule' && fromJSON('["en-fr", "es-fr", "es-en"]') || fromJSON(format('["{0}"]', inputs.pair)) }}
     env:
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
       PAIR: ${{ matrix.pair }}
@@ -178,17 +185,27 @@ jobs:
         run: |
           set -euo pipefail
           pin="scripts/lingua-data/tables/$PAIR/pin.json"
-          tag=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.release)
+          # The pair's own release of this snapshot (release_tag): an update records every source it
+          # fetched under it — each pair pins its own extract (add-lingua-pack-es-en D2).
+          tag=$(python scripts/lingua-data/pack_sources.py release-tag --pin "$pin")
           url=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.url)
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "::error::$tag already exists; a snapshot is never replaced. Dispatch again tomorrow."
             exit 1
           fi
-          # The extract, then each file the pair derives from a whole Wiktionary dump (pack_sources.py DUMPS).
+          # The pair's own assets: the extract, then each file the pair derives from a whole
+          # Wiktionary dump (pack_sources.py DUMPS) — the records whose release is this one.
+          # Listed by a plain assignment, which `set -e` stops on: a failing process substitution
+          # feeding the loop would leave the list empty and this step green, having published nothing.
+          list="$(python scripts/lingua-data/pack_sources.py assets --pin "$pin" --release "$tag")"
           files=()
           while IFS= read -r asset; do
-            files+=("scripts/lingua-data/work/$PAIR/$asset")
-          done < <(python scripts/lingua-data/pack_sources.py assets --pin "$pin")
+            [ -z "$asset" ] || files+=("scripts/lingua-data/work/$PAIR/$asset")
+          done <<<"$list"
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::$PAIR's pin.json names no asset under $tag: the update fetched nothing of its own."
+            exit 1
+          fi
           cat > "$RUNNER_TEMP/notes.md" <<EOF
           The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the
           extract ($url), and the files derived from whole Wiktionary dumps, if the pair reads any.
@@ -207,7 +224,9 @@ jobs:
           # One branch, also for pair=all: every pair's tables, manifests and pins together.
           branch="lingua-pack/$PAIR/$SNAPSHOT"
           [ "$MODE" = reduce ] && branch="lingua-pack/$PAIR/$SNAPSHOT-reduce"
-          if git diff --quiet -- scripts/lingua-data/tables; then
+          # Tracked files that moved, and the untracked ones a pair's first update writes into a
+          # folder that held no tables yet (add-lingua-pack-es-en D2, the bootstrap).
+          if [ -z "$(git status --porcelain -- scripts/lingua-data/tables)" ]; then
             echo "The tables did not change: nothing to propose." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi

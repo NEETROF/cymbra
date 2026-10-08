@@ -270,6 +270,35 @@ class Studied(unittest.TestCase):
             (root / "es-xx" / "pin.json").write_text("{}", encoding="utf-8")
         self.assertIn("No pack of a pair reading these tables moves.", self.run_report()[1])
 
+    def test_a_pair_left_behind_is_named_with_the_table(self):
+        # add-lingua-pack-es-en D3: es-en's pin records what its build read of tables/es; es-fr's
+        # update moves level.tsv and es-en is not reduced again — the report names es-en and
+        # es/level.tsv, and fails. Recorded again, nothing is left behind.
+        import pack_sources as ps
+
+        tables(self.tables / "es", level_tsv="casa\tA1\ndios\tB1\n")
+        recorded = {name: ps.sha256(self.committed / "es" / name) for name in ps.RECORDED_STUDIED}
+        for root in (self.committed, self.tables):
+            (root / "es-en" / "pin.json").write_text(
+                json.dumps({"pack": {"sha256": "bbbb"}, "studied": {"reference": "es-fr", "tables": recorded}}),
+                encoding="utf-8",
+            )
+        code, report = self.run_report()
+        self.assertEqual(code, 1, report)
+        self.assertIn("Pairs left behind — their pin records another table than the one here: `es-en: es/level.tsv`.", report)
+        self.assertIn("- es-en: es/level.tsv moved, and that pair's pack was not recorded again", report)
+        self.assertNotIn("es-fr: es/", report, "the reference writes the folder; it is never behind")
+        # es-en reduced again after es-fr: its pin records the new table, and nothing is behind.
+        recorded["level.tsv"] = ps.sha256(self.tables / "es" / "level.tsv")
+        (self.tables / "es-en" / "pin.json").write_text(
+            json.dumps({"pack": {"sha256": "ffff"}, "studied": {"reference": "es-fr", "tables": recorded}}),
+            encoding="utf-8",
+        )
+        code, report = self.run_report()
+        self.assertEqual(code, 0, report)
+        self.assertNotIn("left behind", report)
+        self.assertEqual(pr.left_behind(self.tables / "es"), [])
+
     def test_spec_scenario_a_studied_table_meant_not_to_move(self):
         # Reduced again expecting no change: one byte of Spanish's level.tsv names es-fr and es/level.tsv.
         tables(self.tables / "es", level_tsv="casa\tA1\ndios\tA2 \n")

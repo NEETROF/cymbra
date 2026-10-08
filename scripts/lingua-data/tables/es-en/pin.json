@@ -1,0 +1,53 @@
+{
+  "snapshot": "2026.10.08",
+  "pack": {
+    "sha256": "3e634fccfb4c76559449d607d497f29939b05b3e3432d7800585da22bfc1390a",
+    "size": 2567750
+  },
+  "reducer": {
+    "sha256": "9e2a4429e2df20e9f83398b7ca9ca663a1388c7544f9b578086c0abfc17e3d50",
+    "files": [
+      "reduce-es-en.py",
+      "reduce_common.py",
+      "reduce_edition_en.py"
+    ]
+  },
+  "studied": {
+    "reference": "es-fr",
+    "tables": {
+      "forms.tsv": "d5b156542e1affbbd74e710ed379e9dab4decacab0238d2e24d137622131a468",
+      "freq.tsv": "063aafa1676cf95ce1def1dc60f28025407914cdebb158b59414ec77bad08add",
+      "grammar.tsv": "d99cf26e854dacef2829cf79ccc42ea35655ccb69a56e2efbae308df15b8e6e5",
+      "level.tsv": "f63bde9c292cb98cecf8e8c7640042652aef318407c03119d144704ef5c493e3",
+      "lexical.tsv": "862d21ca13e22904f4d5e543d2a65983d92d004364f1431e93420cf79778080d",
+      "tags.tsv": "8f508e408605022d1b268d3470e980f723f17e73eaaea125bbdf6afe3dbd0d92"
+    }
+  },
+  "sources": {
+    "kaikki": {
+      "release": "lingua-pack-sources-es-en-2026.10.08",
+      "asset": "kaikki-Spanish.jsonl.zst",
+      "sha256": "7b23a5dc004a47b63edc2e79a34b246bbf59d1a3067a1843a5c554c0e252b97c",
+      "size": 1054565723,
+      "fetched": "2026-10-08",
+      "last_modified": "Sat, 03 Oct 2026 10:55:10 GMT",
+      "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl"
+    },
+    "kaikki-es": {
+      "release": "lingua-pack-sources-es-en-2026.10.08",
+      "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-08",
+      "last_modified": "Fri, 02 Oct 2026 12:12:06 GMT",
+      "files": {
+        "kaikki-es-traductions-en.jsonl": {
+          "asset": "kaikki-es-traductions-en.jsonl.zst",
+          "sha256": "baf5012aeb9aa489eb9e63b86fb6295ac379fceeb196dabbf3cea6db00faab61",
+          "size": 2200504
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

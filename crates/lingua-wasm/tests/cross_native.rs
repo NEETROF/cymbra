@@ -16,8 +16,10 @@
 //! on the native language its pack is glossed in.
 //!
 //! For English and for Spanish, the reference pack (en-fr, es-fr) is built from its committed
-//! tables, and a second pack over the same studied tables, as a pack glossed in another native
-//! language would be (`support/other_native.rs` says how it differs).
+//! tables, and a second pack over the same studied tables: for English, as a pack glossed in
+//! another native language would be (`support/other_native.rs` says how it differs); for
+//! Spanish, the real one — es-en, the committed pair glossed in English (add-lingua-pack-es-en),
+//! built from `tables/es/` and `tables/es-en/`.
 //!
 //! Every probe of the language's invariance baseline is answered through both packs, and must
 //! be byte for byte alike once glosses, senses and expressions — the native side — are removed.
@@ -32,10 +34,10 @@ mod support;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
-use lingua_pack::build_pack;
+use lingua_pack::{build_pack, inputs_from_tables};
 use support::Scenario;
 use support::english::ENGLISH;
-use support::other_native::{ENGLISH_IN_SPANISH, SPANISH_IN_ENGLISH};
+use support::other_native::ENGLISH_IN_SPANISH;
 use support::spanish::SPANISH;
 
 fn sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
@@ -120,13 +122,21 @@ fn strip(value: &mut serde_json::Value) {
 }
 
 /// A probe's output with its native side removed; `None` for the probes that are native or
-/// pack identity by definition: the pack line and a card's gloss.
+/// pack identity by definition: the pack line and a card's gloss — and, when `own_credits`, the
+/// notice and the licences: a real pack's attributions credit the sources of its glosses, so
+/// es-en's name the English and Spanish Wiktionaries where es-fr's name the French one
+/// (add-lingua-pack-es-en D4). A synthetic second pack keeps its reference's credits, and they
+/// are compared.
 ///
 /// An engine's native language is its reader's (generalise-lingua-native-language), so the
 /// backup records the reader's profile, and writes it in the schema version a profile other
 /// than the default needs: both name the reader, not what the pack analyses.
-fn studied_side(name: &str, body: &str) -> Option<String> {
-    if name == "pack" || name.starts_with("beside ") || name.starts_with("gloss ") {
+fn studied_side(name: &str, body: &str, own_credits: bool) -> Option<String> {
+    if name == "pack"
+        || (own_credits && matches!(name, "notice" | "licences"))
+        || name.starts_with("beside ")
+        || name.starts_with("gloss ")
+    {
         return None;
     }
     Some(match serde_json::from_str::<serde_json::Value>(body) {
@@ -166,13 +176,15 @@ fn assert_card_ops_labelled(reference: &str, other: &str, native: &str) {
 }
 
 /// Every probe of `scenario`, through `reference` and through `other`: alike once the native
-/// side is removed. `native` is the other pack's native language, which labels its cards.
+/// side is removed. `native` is the other pack's native language, which labels its cards;
+/// `own_credits`, whether the other pack credits sources of its own (a real pack does).
 fn assert_probes_alike(
     scenario: &Scenario,
     language: Option<&str>,
     reference: &[u8],
     other: &[u8],
     native: &str,
+    own_credits: bool,
 ) {
     let render = |pack: &[u8]| {
         // The scenario's pair labels the pack line, which is not compared.
@@ -189,7 +201,10 @@ fn assert_probes_alike(
         if name == "export-card-ops" {
             assert_card_ops_labelled(x, y, native);
         }
-        let (Some(x), Some(y)) = (studied_side(name, x), studied_side(name, y)) else {
+        let (Some(x), Some(y)) = (
+            studied_side(name, x, own_credits),
+            studied_side(name, y, own_credits),
+        ) else {
             continue;
         };
         compared += 1;
@@ -209,10 +224,12 @@ fn assert_probes_alike(
                 .collect::<String>(),
         );
     }
-    // Every probe but the pack line and the cards' glosses.
+    // Every probe but the pack line, the cards' glosses and — a pack's own credits — the notice
+    // and the licences.
+    let credits = if own_credits { 2 } else { 0 };
     assert_eq!(
         compared,
-        a.len() - 1 - scenario.lemmas.len(),
+        a.len() - 1 - credits - scenario.lemmas.len(),
         "probes compared"
     );
 }
@@ -250,6 +267,7 @@ fn spec_scenario_english_through_another_native_language() {
         &reference,
         &other,
         ENGLISH_IN_SPANISH.native,
+        false,
     );
 
     // *A vocabulary size counts dictionary words*: the universe and B1's typical vocabulary.
@@ -273,27 +291,48 @@ fn spec_scenario_english_through_another_native_language() {
 
 #[test]
 fn spec_scenario_spanish_through_another_native_language() {
-    let (reference_inputs, other_inputs) = SPANISH_IN_ENGLISH.inputs();
+    // es-fr, and es-en: the committed pair glossed in English (add-lingua-pack-es-en), both
+    // built from tables/es/ — the real second pack, not a synthetic one.
+    let root = Scenario::tables_root();
+    let (reference_inputs, other_inputs) = (
+        inputs_from_tables(&root, "es-fr").expect("read es-fr"),
+        inputs_from_tables(&root, "es-en").expect("read es-en"),
+    );
+    assert_eq!(
+        other_inputs.meta.native, "en",
+        "es-en is glossed in English"
+    );
     let (reference, other) = (
         build_pack(&reference_inputs).expect("es-fr"),
         build_pack(&other_inputs).expect("es-en"),
     );
     assert_studied_sections_alike("es-fr", &reference, &other);
-    assert_probes_alike(
-        &SPANISH,
-        Some("es"),
-        &reference,
-        &other,
-        SPANISH_IN_ENGLISH.native,
-    );
+    assert_probes_alike(&SPANISH, Some("es"), &reference, &other, "en", true);
 
     let (es_fr, es_en) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
     assert_eq!(es_en.pair().key(), "es-en");
-    // *A pack glossed in English*: `casa` is one of its dictionary words, and `augusto`, which
-    // es-fr does not gloss, is not, though this pack glosses it.
+    // *A pack glossed in English*: `casa` is one of its dictionary words, glossed in English,
+    // not as es-fr glosses it.
     assert!(es_en.is_dictionary_word("casa"));
-    assert!(es_en.gloss("augusto").is_some() && es_fr.gloss("augusto").is_none());
-    assert!(!es_en.is_dictionary_word("augusto"));
+    assert_ne!(es_en.gloss("casa"), es_fr.gloss("casa"));
+    assert!(es_en.gloss("casa").is_some_and(|g| g.contains("house")));
+    // A lemma this pack glosses and es-fr does not is no dictionary word: the dictionary words
+    // are es-fr's, read from tables/es (the lexical section `assert_studied_sections_alike`
+    // found).
+    let only_here: Vec<&str> = other_inputs
+        .glosses
+        .iter()
+        .map(|(lemma, _)| lemma.as_str())
+        .filter(|lemma| es_fr.gloss(lemma).is_none())
+        .take(8)
+        .collect();
+    assert!(!only_here.is_empty(), "es-en glosses lemmas es-fr does not");
+    for lemma in &only_here {
+        assert!(
+            es_en.gloss(lemma).is_some() && !es_en.is_dictionary_word(lemma),
+            "{lemma}"
+        );
+    }
     // *Spanish glossed in another language*: the estimate's universe is es-fr's.
     assert_eq!(sizes(&reference, "es").0, 22_755);
     assert_eq!(sizes(&other, "es").0, 22_755);
@@ -324,7 +363,8 @@ fn spec_scenario_spanish_through_another_native_language() {
     assert_eq!(names(&reference), ["ProperNounOutOfLexicon"; 3]);
     assert_eq!(names(&other), names(&reference));
 
-    // *Glosses that say no gender*: the noun runs read the readings' gender.
+    // *Glosses that say no gender*: es-en's sense table carries none (its reducer computes
+    // nothing of the studied side, D1), and the noun runs read the readings' gender.
     let heading = |pack: &Pack, lemma: &str| -> Vec<String> {
         pack.sense_runs(lemma)
             .into_iter()
@@ -337,13 +377,15 @@ fn spec_scenario_spanish_through_another_native_language() {
             .iter()
             .all(|(_, runs)| runs.iter().all(|(tag, _)| !tag.contains("Gender")))
     );
-    assert_eq!(heading(&es_en, "casa"), heading(&es_fr, "casa"));
     assert_eq!(heading(&es_en, "casa")[0], "NOUN|Gender=Fem");
+    assert_eq!(heading(&es_fr, "casa")[0], "NOUN|Gender=Fem");
     // *A noun of both genders*: no gender.
-    assert_eq!(heading(&es_en, "estudiante"), ["NOUN"]);
-    // *Fewer sense tags*: no run of the second pack is tagged INTJ, SYM or X.
+    assert_eq!(heading(&es_en, "estudiante")[0], "NOUN");
+    assert_eq!(heading(&es_fr, "estudiante")[0], "NOUN");
+    // The parts of speech of es-en's runs are the English Wiktionary's, laid out after the
+    // pinned pool (`assert_studied_sections_alike`); every one is a Universal Dependencies tag.
     assert!(other_inputs.senses.iter().all(|(_, runs)| {
         runs.iter()
-            .all(|(tag, _)| !matches!(tag.as_str(), "INTJ" | "SYM" | "X"))
+            .all(|(tag, _)| tag.chars().all(|c| c.is_ascii_uppercase()))
     }));
 }

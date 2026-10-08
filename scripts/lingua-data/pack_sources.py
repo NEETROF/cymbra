@@ -10,7 +10,9 @@
 
 - `snapshot`: the day the sources were read (`2026.09.26`); it is also the pack's `pack_version`
   when the tables come from an update, and names it with the reducer's rules when they come from a
-  re-reduction of the same sources (`2026.09.26+1dff19c`).
+  re-reduction of the same sources (`2026.09.26+1dff19c`). A pair that is not its studied
+  language's reference names, in either mode, its snapshot, its rules and the studied tables it
+  read (`2026.10.08+733f815.5e0c2a1`, `pack_version`): its version moves when they do.
 - `pack`: sha256 and size of the pack the tables build — every lane must obtain exactly that.
 - `reducer`: the files the tables were reduced by — the pair's `reduce-<pair>.py` and the shared
   `reduce_*.py` modules importing it loads (`rule_files`) — and one sha256 over all of them.
@@ -20,16 +22,24 @@
   zstd-compressed GitHub Release asset, checked by the sha256 of its decompressed bytes; the files
   a pair derives from kaikki's dumps of whole Wiktionary editions, kept the same way beside it;
   wordfreq by version (it is its own snapshot; requirements-reduce.txt pins it by hash).
+- `studied`, for a pair that is not its studied language's reference (add-lingua-pack-es-en D3):
+  the reference pair, and the sha256 of each of the six studied tables the build read as committed
+  (`RECORDED_STUDIED`). The checks fail, naming the pair and the table, when a committed studied
+  table is no longer what the pair's build read: the reference's reduction moved it, and the pair
+  was left behind until it is reduced again. The pair's `pack_version` names a digest of the record
+  (`studied_digest`).
 
 Stdlib only: the build mode reads this record too, and needs no Python package.
 
-    pack_sources.py fetch-pinned  --pin P --work W    # the recorded bytes, checked, into W
-    pack_sources.py fetch-live    --pin P --work W [--snapshot D]  # today's bytes, recorded in P
+    pack_sources.py fetch-pinned  --pin P --work W [--cache C]     # the recorded bytes, checked, into W
+    pack_sources.py fetch-live    --pin P --work W [--snapshot D] [--cache C]  # today's bytes, recorded in P
     pack_sources.py record-build  --pin P --pack F --reducer R     # what the tables build
     pack_sources.py check-pack    --pin P --pack F                 # a pack, against the record
     pack_sources.py check-reducer --pin P --reducer R              # the rules, against the record
     pack_sources.py get           --pin P KEY                      # e.g. snapshot, pack.sha256
-    pack_sources.py assets        --pin P                          # the snapshot's release assets
+    pack_sources.py version       --pin P --reducer R [--live]     # the pack_version to reduce under
+    pack_sources.py release-tag   --pin P                          # the pair's own release of its snapshot
+    pack_sources.py assets        --pin P [--release TAG]          # the release assets (of TAG alone)
     pack_sources.py keep          --from D --to T                  # a studied folder, into T
     pack_sources.py split         --work W --tables T --pair P     # a reduction, into T's folders
     pack_sources.py pairs         --tables T [--after P]           # the pairs, references first
@@ -41,6 +51,15 @@ the dictionary words `lexical.tsv`) and `studied.json`, which names the language
 `tables/<pair>/` holds the native side (`PAIR_TABLES`), `pin.json` and README.md. A pair's reducer
 writes both sides into its work folder; `split` files them, and only the reference pair's reduction
 writes the studied folder. The reference's `pin.json` is the studied tables' provenance.
+
+Each pair pins its own extract (add-lingua-pack-es-en D2): es-en reads the same address as es-fr,
+fetched live when es-en is updated and published under es-en's own release, `release_tag(pair,
+snapshot)`, which holds the pair's own assets only (`assets --release`). A pair an update brings
+along is reduced from its own pin. Each source record names the release that holds its asset, and
+`fetch-pinned` follows it. With `--cache C`, a fetched release asset is kept in `C/<sha256>` (the
+sha256 of its decompressed bytes, as the record names it) and found there by a later fetch of the
+same bytes: a run fetches an asset once when two pins name the same one, and reducing a pair again
+on the same machine fetches nothing again.
 """
 
 from __future__ import annotations
@@ -50,6 +69,7 @@ import datetime
 import gzip
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -112,6 +132,13 @@ KAIKKI = {
         "file": "kaikki-Spanish.jsonl",
         "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
     },
+    # The same address, read for its English glosses (add-lingua-pack-es-en D1): es-fr's reduction
+    # reads it for Spanish's forms, es-en's for the English Wiktionary's senses of the same entries.
+    # Each pair pins its own fetch of it, under its own release (D2).
+    "es-en": {
+        "file": "kaikki-Spanish.jsonl",
+        "url": "https://kaikki.org/dictionary/Spanish/kaikki.org-dictionary-Spanish.jsonl",
+    },
 }
 # kaikki's dumps of whole Wiktionary editions, for what a pair reads beyond its extract
 # (add-lingua-spanish-gloss-tables). kaikki is retiring its per-language files; an edition's dump
@@ -137,6 +164,15 @@ DUMPS = {
             "files": {"kaikki-es-traductions.jsonl": ("translations", "es", "fr")},
         },
     },
+    # es-en (add-lingua-pack-es-en D1): the English translations the Spanish Wiktionary's Spanish
+    # entries list, the direct fallback of the English Wiktionary's glosses. Derived from the same
+    # dump as es-fr's French translations, published under es-en's own release.
+    "es-en": {
+        "kaikki-es": {
+            "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+            "files": {"kaikki-es-traductions-en.jsonl": ("translations", "es", "en")},
+        },
+    },
 }
 # What a reducer writes, by side (split-lingua-pack-tables-by-language, M24). The studied side
 # belongs to the studied language and is kept once, in tables/<studied>/; the native side, with the
@@ -153,6 +189,10 @@ LEXICAL = "lexical.tsv"
 # them (add-lingua-pack-lexical-layer D4): the pinned tag pool, and the record naming the reference.
 KEPT_INPUTS = ("tags.tsv", STUDIED_RECORD)
 PINNED_POOL = KEPT_INPUTS[0]
+# What a pair that is not its studied language's reference records of the studied folder it built
+# on (add-lingua-pack-es-en D3): the six studied tables, by sha256. `studied.json` is the record
+# naming the reference, not a table.
+RECORDED_STUDIED = (*STUDIED_TABLES, LEXICAL, PINNED_POOL)
 WORDFREQ = "3.1.1"
 PYTHON = (3, 12)
 ZSTD_LEVEL = 19
@@ -473,13 +513,78 @@ def wordfreq_version() -> str:
         raise PinError(f"wordfreq is not installed: {e}") from e
 
 
-def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb) -> None:
-    """Every raw source as recorded, into `work`, each checked by sha256 (re-reduce mode)."""
+# — the asset cache (add-lingua-pack-es-en D2) —
+
+
+def release_asset(fetch, url: str, dest: Path, want: str, cache: Path | None) -> Path:
+    """A release asset — zstd-compressed bytes whose decompressed sha256 the record names `want` —
+    fetched to `dest`; or, with a `cache`, kept in `cache/<want>` and found there by a later fetch
+    of the same bytes: once when two pins name the same asset, and not again when a pair is reduced
+    again on the same machine. The entry appears whole or not at all (`<want>.part`, then renamed).
+    Answers where the compressed bytes are."""
+    if cache is None:
+        fetch(url, dest)
+        return dest
+    cached = cache / want
+    if not cached.is_file():
+        part = cache / f"{want}.part"
+        fetch(url, part)
+        os.replace(part, cached)
+    return cached
+
+
+def unpack(packed: Path, raw: Path, want: str, what: str, *, cached: bool) -> None:
+    """`packed` decompressed into `raw`, whose sha256 must be `want`. A cache entry that does not
+    decompress, or not to what its name says, is deleted before the error, which names it, so the
+    next fetch reads the release again."""
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    done = subprocess.run(
+        ["zstd", "-q", "-d", "-f", str(packed), "-o", str(raw)], capture_output=True, text=True, check=False
+    )
+    if done.returncode != 0:
+        lines = done.stderr.strip().splitlines()
+        why = lines[-1] if lines else f"zstd exited {done.returncode}"
+        if cached:
+            packed.unlink(missing_ok=True)
+            raise PinError(f"{what}: the cached {packed} does not decompress ({why}); deleted, fetch it again")
+        raise PinError(f"{what}: {packed} does not decompress ({why})")
+    got = sha256(raw)
+    if got != want:
+        if cached:
+            packed.unlink(missing_ok=True)
+            raise PinError(
+                f"{what} decompresses to sha256 {got}, pin.json records {want}: the cached {packed} is deleted, "
+                "fetch it again"
+            )
+        raise PinError(f"{what} decompresses to sha256 {got}, pin.json records {want}")
+
+
+def pack_asset(raw: Path, asset: str, cache: Path | None) -> str:
+    """`raw` zstd-compressed beside it as `asset`, for the release that keeps it; with a `cache`, a
+    copy kept under the sha256 of `raw`, where a later fetch of the same bytes finds it — copied to
+    `<sha256>.part` and renamed, so an interrupted copy never stands as the entry. Answers the
+    sha256."""
+    packed = raw.with_name(asset)
+    subprocess.run(["zstd", "-q", f"-{ZSTD_LEVEL}", "-T0", "-f", str(raw), "-o", str(packed)], check=True)
+    digest = sha256(raw)
+    if cache is not None:
+        cache.mkdir(parents=True, exist_ok=True)
+        if not (cache / digest).is_file():
+            part = cache / f"{digest}.part"
+            shutil.copyfile(packed, part)
+            os.replace(part, cache / digest)
+    return digest
+
+
+def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cache: Path | None = None) -> None:
+    """Every raw source as recorded, into `work`, each checked by sha256 (re-reduce mode). A release
+    asset is read from `cache` when an earlier fetch kept it there (`release_asset`)."""
     record = load(pin)
     pair = pair_of(pin)
     sources = get(record, "sources")
     if pair not in KAIKKI:
         raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / KAIKKI in pack_sources.py")
+    work.mkdir(parents=True, exist_ok=True)
     esdb = ESDB.get(pair)
     if esdb is None:
         pass  # a pair whose inflections come from another source (ESDB is English)
@@ -505,40 +610,43 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb) -> 
         got = sha256(dest)
         if got != entry.get("sha256"):
             raise PinError(f"{name}: {dest.name} has sha256 {got}, pin.json records {entry.get('sha256')}")
+    # Each release asset from the release its record names (add-lingua-pack-es-en D2).
     kaikki = get(record, "sources.kaikki")
     raw = work / KAIKKI[pair]["file"]
-    packed = raw.with_name(kaikki["asset"])
-    fetch(release_url(kaikki["release"], kaikki["asset"]), packed)
-    subprocess.run(["zstd", "-q", "-d", "-f", str(packed), "-o", str(raw)], check=True)
-    got = sha256(raw)
-    if got != kaikki["sha256"]:
-        raise PinError(f"kaikki: the snapshot decompresses to sha256 {got}, pin.json records {kaikki['sha256']}")
+    packed = release_asset(
+        fetch, release_url(kaikki["release"], kaikki["asset"]), raw.with_name(kaikki["asset"]), kaikki["sha256"], cache
+    )
+    unpack(packed, raw, kaikki["sha256"], "kaikki: the snapshot", cached=cache is not None)
     for name in DUMPS.get(pair, {}):
         dumped = get(record, f"sources.{name}")
         for file, spec in get(record, f"sources.{name}.files").items():
             raw = work / file
-            packed = raw.with_name(spec["asset"])
-            fetch(release_url(dumped["release"], spec["asset"]), packed)
-            subprocess.run(["zstd", "-q", "-d", "-f", str(packed), "-o", str(raw)], check=True)
-            got = sha256(raw)
-            if got != spec["sha256"]:
-                raise PinError(f"{name}: {file} decompresses to sha256 {got}, pin.json records {spec['sha256']}")
+            packed = release_asset(
+                fetch, release_url(dumped["release"], spec["asset"]), raw.with_name(spec["asset"]), spec["sha256"], cache
+            )
+            unpack(packed, raw, spec["sha256"], f"{name}: {file}", cached=cache is not None)
     installed = wordfreq_version()
     if installed != get(record, "sources.wordfreq.version"):
         raise PinError(f"wordfreq {installed} is installed, pin.json records {get(record, 'sources.wordfreq.version')}")
 
 
-def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=build_esdb, today=None) -> dict:
+def fetch_live(
+    pin: Path, work: Path, snapshot: str, *, fetch=download, build=build_esdb, today=None, cache: Path | None = None
+) -> dict:
     """Today's raw sources into `work`, recorded in `pin` as a new snapshot (update mode).
 
     CEFR-J, Octanove and ESDB stay at their pinned commits — a newer commit is a deliberate edit
     of PINNED or ESDB. kaikki is read live, recorded by the sha256 of its bytes, and compressed beside
-    them for the release that keeps it; so is each file derived from a dump (`DUMPS`).
+    them for the pair's own release; so is each file derived from a dump (`DUMPS`). Every pair
+    fetches its own extract, even one whose address another pair reads (add-lingua-pack-es-en D2).
+    A reader pair's record of the studied tables it read (`studied`) is carried over until
+    `record-build` writes it anew.
     """
     record = load(pin)
     pair = pair_of(pin)
     if pair not in KAIKKI:
         raise PinError(f"no source registry for {pair}: add it to PINNED / ESDB / KAIKKI in pack_sources.py")
+    work.mkdir(parents=True, exist_ok=True)
     sources: dict = {}
     for name, spec in PINNED.get(pair, {}).items():
         dest = work / spec["file"]
@@ -551,13 +659,10 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=bu
     raw = work / KAIKKI[pair]["file"]
     headers = fetch(KAIKKI[pair]["url"], raw, compressed=True) or {}
     asset = raw.name + ".zst"
-    subprocess.run(
-        ["zstd", "-q", f"-{ZSTD_LEVEL}", "-T0", "-f", str(raw), "-o", str(raw.with_name(asset))], check=True
-    )
     sources["kaikki"] = {
         "release": release_tag(pair, snapshot),
         "asset": asset,
-        "sha256": sha256(raw),
+        "sha256": pack_asset(raw, asset, cache),
         "size": raw.stat().st_size,
         "fetched": (today or datetime.date.today()).isoformat(),
         "last_modified": headers.get("last-modified", ""),
@@ -573,10 +678,7 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=bu
         for file in spec["files"]:
             raw = work / file
             asset = file + ".zst"
-            subprocess.run(
-                ["zstd", "-q", f"-{ZSTD_LEVEL}", "-T0", "-f", str(raw), "-o", str(raw.with_name(asset))], check=True
-            )
-            files[file] = {"asset": asset, "sha256": sha256(raw), "size": raw.stat().st_size}
+            files[file] = {"asset": asset, "sha256": pack_asset(raw, asset, cache), "size": raw.stat().st_size}
         sources[name] = {
             "release": release_tag(pair, snapshot),
             "url": spec["url"],
@@ -587,7 +689,10 @@ def fetch_live(pin: Path, work: Path, snapshot: str, *, fetch=download, build=bu
     sources["wordfreq"] = {"version": wordfreq_version()}
     if sources["wordfreq"]["version"] != WORDFREQ:
         raise PinError(f"wordfreq {sources['wordfreq']['version']} is installed; the pipeline pins {WORDFREQ}")
-    record = {"snapshot": snapshot, "pack": record.get("pack", {}), "reducer": record.get("reducer", {}), "sources": sources}
+    kept = {"snapshot": snapshot, "pack": record.get("pack", {}), "reducer": record.get("reducer", {})}
+    if "studied" in record:
+        kept["studied"] = record["studied"]
+    record = {**kept, "sources": sources}
     save(pin, record)
     return record
 
@@ -652,6 +757,42 @@ def rules_sha256(reducer: Path) -> str:
     return files_sha256(rule_files(reducer))
 
 
+def studied_record(pin: Path) -> dict | None:
+    """What a pair's build read of its studied language's folder (add-lingua-pack-es-en D3): the
+    reference pair, and the sha256 of each studied table committed there (`RECORDED_STUDIED`), for
+    a pair that is not the reference; None for the reference, whose own reduction writes them."""
+    studied = studied_dir(pin)
+    reference = reference_of(studied)
+    if reference is None or reference == pair_of(pin):
+        return None
+    tables = {name: sha256(studied / name) for name in RECORDED_STUDIED if (studied / name).is_file()}
+    return {"reference": reference, "tables": tables}
+
+
+def studied_digest(tables: dict) -> str:
+    """One digest over a reader pair's record of the studied tables (`studied.tables`): each
+    table's name and sha256, in `RECORDED_STUDIED` order, a table the folder lacks as none."""
+    digest = hashlib.sha256()
+    for name in RECORDED_STUDIED:
+        digest.update(f"{name}\0{tables.get(name) or ''}\n".encode())
+    return digest.hexdigest()
+
+
+def pack_version(pin: Path, reducer: Path, *, live: bool = False) -> str:
+    """The `pack_version` a pair's tables are reduced under (lingua-data-packs, *A pack says which
+    dictionary it is*): its snapshot for an update (`live`), and its snapshot and rules after a
+    re-reduction of the same sources (`2026.10.03+0d876dc`). A pair that is not its studied
+    language's reference reads tables it does not write, so its version names them too, in either
+    mode: its snapshot, its rules and the digest of the studied tables its build reads
+    (`2026.10.08+733f815.5e0c2a1`, add-lingua-pack-es-en D3) — the version moves when they do,
+    though nothing of the pair's own moved."""
+    snapshot = get(load(pin), "snapshot")
+    studied = studied_record(pin)
+    if studied is None:
+        return snapshot if live else f"{snapshot}+{rules_sha256(reducer)[:7]}"
+    return f"{snapshot}+{rules_sha256(reducer)[:7]}.{studied_digest(studied['tables'])[:7]}"
+
+
 def record_build(pin: Path, pack: Path, reducer: Path) -> None:
     pool = studied_dir(pin) / PINNED_POOL
     if not pool.is_file():
@@ -663,16 +804,23 @@ def record_build(pin: Path, pack: Path, reducer: Path) -> None:
     record["pack"] = {"sha256": sha256(pack), "size": pack.stat().st_size}
     files = rule_files(reducer)
     record["reducer"] = {"sha256": files_sha256(files), "files": [p.name for p in files]}
-    save(pin, {k: record[k] for k in ("snapshot", "pack", "reducer", "sources") if k in record})
+    studied = studied_record(pin)
+    if studied is None:
+        record.pop("studied", None)
+    else:
+        record["studied"] = studied
+    save(pin, {k: record[k] for k in ("snapshot", "pack", "reducer", "studied", "sources") if k in record})
 
 
-def assets(record: dict) -> list[str]:
-    """The files the snapshot's release holds: the extract's, then each derived file's, in the
-    record's order."""
+def assets(record: dict, release: str | None = None) -> list[str]:
+    """The files the snapshot's releases hold: the extract's, then each derived file's, in the
+    record's order. With `release`, the files that release holds alone: an update publishes a
+    pair's own assets only, under its own release (add-lingua-pack-es-en D2)."""
     sources = get(record, "sources")
-    out = [get(record, "sources.kaikki.asset")]
+    kaikki = get(record, "sources.kaikki")
+    out = [kaikki["asset"]] if release is None or kaikki.get("release") == release else []
     for spec in sources.values():
-        if isinstance(spec, dict):
+        if isinstance(spec, dict) and (release is None or spec.get("release") == release):
             out.extend(file["asset"] for file in (spec.get("files") or {}).values())
     return out
 
@@ -699,6 +847,41 @@ def check_reducer(pin: Path, reducer: Path) -> None:
             check_own_reducer(studied.parent / reference / "pin.json", reducer.parent / f"reduce-{reference}.py")
         except PinError as e:
             raise PinError(f"{pair} reads {studied.name}/, which {reference}'s reduction writes: {e}") from e
+        check_studied_tables(pin)
+
+
+def check_studied_tables(pin: Path) -> None:
+    """A reader pair's record of the studied tables its build read (`studied` in pin.json), against
+    the committed ones (add-lingua-pack-es-en D3): a table the reference's reduction moved since
+    left the pair behind, and the check names the pair and the table. The pack's sha256 catches the
+    move too; this says which table."""
+    pair, studied = pair_of(pin), studied_dir(pin)
+    reference = reference_of(studied)
+    if reference is None or reference == pair:
+        return
+    again = f"reduce {pair} again from its pinned sources (scripts/lingua-data/build.sh --reduce {pair} <out>, or lingua-pack-update with mode=reduce)"
+    recorded = load(pin).get("studied")
+    if not isinstance(recorded, dict) or not isinstance(recorded.get("tables"), dict):
+        raise PinError(
+            f"{pair} reads {studied.name}/, and its pin.json records nothing of the studied tables it was built "
+            f"on (no `studied`): {again}."
+        )
+    if recorded.get("reference") != reference:
+        raise PinError(
+            f"{pair}: pin.json records {recorded.get('reference')!r} as the pair whose reduction writes "
+            f"{studied.name}/, and {studied.name}/{STUDIED_RECORD} names {reference}: {again}."
+        )
+    for name in RECORDED_STUDIED:
+        got = sha256(studied / name) if (studied / name).is_file() else None
+        want = recorded["tables"].get(name)
+        if got != want:
+            # The pinned tag pool is an input no reduction writes: a person edits it.
+            moved = "it was edited" if name in KEPT_INPUTS else f"{reference}'s reduction moved it"
+            raise PinError(
+                f"{pair}: {studied.name}/{name} is not what {pair}'s tables were built on (sha256 "
+                f"{got or 'no file'}, pin.json records {want or 'no file'}): {moved}, and {pair} was left "
+                f"behind: {again}."
+            )
 
 
 def check_own_reducer(pin: Path, reducer: Path) -> None:
@@ -729,6 +912,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
     commands = ("fetch-pinned", "fetch-live", "record-build", "check-pack", "check-reducer", "rules", "get", "assets")
+    commands += ("release-tag", "version")
     for name in (*commands, "keep", "split", "pairs", "moved"):
         p = sub.add_parser(name)
         if name == "keep":
@@ -746,22 +930,27 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--pin", type=Path, required=name != "rules")
         if name in ("fetch-pinned", "fetch-live"):
             p.add_argument("--work", type=Path, required=True)
+            p.add_argument("--cache", type=Path, help="keep fetched release assets here, by sha256, across pairs")
         if name == "fetch-live":
             p.add_argument("--snapshot", default=datetime.date.today().strftime("%Y.%m.%d"))
+        if name == "assets":
+            p.add_argument("--release", help="the assets this release holds alone (a pair's own)")
         if name in ("record-build", "check-pack"):
             p.add_argument("--pack", type=Path, required=True)
-        if name in ("record-build", "check-reducer", "rules"):
+        if name in ("record-build", "check-reducer", "rules", "version"):
             p.add_argument("--reducer", type=Path, required=True)
+        if name == "version":
+            p.add_argument("--live", action="store_true", help="an update's version: today's snapshot")
         if name == "get":
             p.add_argument("key")
     a = ap.parse_args(argv)
     try:
         if a.cmd == "fetch-pinned":
             check_python()
-            fetch_pinned(a.pin, a.work)
+            fetch_pinned(a.pin, a.work, cache=a.cache)
         elif a.cmd == "fetch-live":
             check_python()
-            fetch_live(a.pin, a.work, a.snapshot)
+            fetch_live(a.pin, a.work, a.snapshot, cache=a.cache)
         elif a.cmd == "record-build":
             record_build(a.pin, a.pack, a.reducer)
         elif a.cmd == "check-pack":
@@ -773,7 +962,11 @@ def main(argv: list[str] | None = None) -> int:
         elif a.cmd == "get":
             print(get(load(a.pin), a.key))
         elif a.cmd == "assets":
-            print("\n".join(assets(load(a.pin))))
+            print("\n".join(assets(load(a.pin), a.release)))
+        elif a.cmd == "release-tag":
+            print(release_tag(pair_of(a.pin), get(load(a.pin), "snapshot")))
+        elif a.cmd == "version":
+            print(pack_version(a.pin, a.reducer, live=a.live))
         elif a.cmd == "keep":
             for name in keep(a.source, a.dest):
                 print(f"kept {name}")

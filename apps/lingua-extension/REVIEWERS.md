@@ -73,7 +73,9 @@ all in this archive: `scripts/lingua-data/reduce_common.py`, the rules every pai
 `scripts/lingua-data/reduce_edition_fr.py`, the French Wiktionary's — which of its senses only point
 at another word, and the notes it writes for its own readers, taken out of a gloss.
 `reduce_edition_en.py` and `reduce_edition_es.py`, the English and Spanish Wiktionaries' rules, are
-in the archive too; they reduce no table this package ships.
+in the archive too, with `reduce-es-en.py` and `tables/es-en/` (Spanish glossed in English, which
+reads Spanish's tables in `tables/es/` and loads the English Wiktionary's rules); they reduce no
+table this package ships, and `packs.json` lists no pack built from them.
 `pin.json` names each raw source at a fixed commit or snapshot, with its sha256, so the
 tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer does not
 need to.
