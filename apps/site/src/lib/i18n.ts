@@ -2,7 +2,14 @@
 // the page's `lang`, no i18n library. Keys are grouped by island. The Spanish is typed
 // after the French, so a key added to one language cannot be forgotten in another.
 
-export type Lang = "fr" | "en" | "es";
+/** The site's languages, in the order `hreflang` and the language switch list them. */
+export const LANGS = ["fr", "en", "es"] as const;
+export type Lang = (typeof LANGS)[number];
+
+/** Narrows a value the type system never saw (a Markdown page's front matter) to `Lang`. */
+export function isLang(value: unknown): value is Lang {
+  return typeof value === "string" && (LANGS as readonly string[]).includes(value);
+}
 
 const fr = {
   // sign-in
@@ -316,7 +323,7 @@ const es: typeof fr = {
   errUnavailable: "Servicio no disponible por el momento. Vuelve a intentarlo más tarde.",
   errGeneric: "Se ha producido un error. Vuelve a intentarlo.",
   errCodeInvalid: "Código no válido o ya utilizado.",
-  errCodeRefused: "Este código no se puede aplicar a tu cuenta (ya formas parte de ella, otra prueba en curso o beta cerrada).",
+  errCodeRefused: "Este código no se puede aplicar a tu cuenta (ya formas parte de esta beta, otra prueba en curso o beta cerrada).",
 };
 
 export type MessageKey = keyof typeof fr;
