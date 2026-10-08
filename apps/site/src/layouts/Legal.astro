@@ -1,14 +1,28 @@
 ---
 import Base from './Base.astro';
+import type { Lang } from '../lib/i18n';
+
+// The Markdown pages (privacy, terms, support) in fr, en and es. Each names its
+// translations in its front matter (`alternates`, forwarded to Base — change:
+// add-site-spanish-locale), so its language switch and `hreflang` open the same page
+// in the other language, not the home page.
 const { frontmatter } = Astro.props;
-const lang = frontmatter.lang ?? 'fr';
-const updatedLabel = lang === 'fr' ? 'Dernière mise à jour' : 'Last updated';
+const lang: Lang = frontmatter.lang ?? 'fr';
+const alternates: Partial<Record<Lang, string>> | undefined = frontmatter.alternates;
+if (!alternates?.[lang]) {
+  throw new Error(`${frontmatter.title}: the front matter must name the page's alternates, its own (${lang}) included`);
+}
+const UPDATED: Record<Lang, string> = {
+  fr: 'Dernière mise à jour :',
+  en: 'Last updated :',
+  es: 'Última actualización:',
+};
 ---
 
-<Base title={`${frontmatter.title} — Cymbra`} lang={lang}>
+<Base title={`${frontmatter.title} — Cymbra`} description={frontmatter.description} lang={lang} alternates={alternates}>
   <article class="container prose">
     <h1>{frontmatter.title}</h1>
-    {frontmatter.updated && <p class="updated">{updatedLabel} : {frontmatter.updated}</p>}
+    {frontmatter.updated && <p class="updated">{UPDATED[lang]} {frontmatter.updated}</p>}
     <slot />
   </article>
 </Base>

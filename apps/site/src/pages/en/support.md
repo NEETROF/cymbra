@@ -2,6 +2,9 @@
 layout: ../../layouts/Legal.astro
 title: Help and support
 lang: en
+alternates:
+  fr: /support
+  en: /en/support
 ---
 
 A question about Cymbra Music, or a problem with your account or subscription?
