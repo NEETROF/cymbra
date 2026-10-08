@@ -9,7 +9,7 @@ The extension's description and its keyboard commands' descriptions SHALL be rea
 
 #### Scenario: An English-glossed pair ships
 - **WHEN** es-en is listed and the packages are built
-- **THEN** each manifest names its description and commands by `__MSG_` reference, carries `_locales/fr` and `_locales/en`, and defaults to English
+- **THEN** each package's manifest names its description and commands by `__MSG_` reference and defaults to English, and each package carries `_locales/fr` and `_locales/en` and no other
 
 #### Scenario: A browser in German
 - **WHEN** a browser in German shows the extension built with es-en listed

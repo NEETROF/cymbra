@@ -20,7 +20,8 @@ descriptions, and the brand name and action title « Cymbra Lingua ».
 
 - **`_locales/{fr,en,es}/messages.json` committed** in `apps/lingua-extension`: the description
   and the three commands' descriptions; the French byte for byte today's, the English and Spanish
-  drafted for the owner's review (M9; M10: US English, Spanish tú). The name and the action's
+  drafted for the owner's review (M9; M10: US English, Spanish tú), each naming what its own natives
+  study (Spanish for English speakers, English for Spanish speakers), not a translation of the French. The name and the action's
   title stay the literal brand « Cymbra Lingua ».
 - **The build ships a language where a shipped pair is glossed in it**: while every pair of
   `packs.json` is French-native, the built manifests are what they are today — literal French, no
@@ -50,7 +51,7 @@ None.
 
 - **Products.** Cymbra Lingua only: `apps/lingua-extension` (`_locales/`, `build.mjs`,
   `tool/check_version.mjs`, `tool/check_variants.mjs`, their specs, `STORE-LISTING.md`'s note on
-  the summary). The Safari host app copies `dist-safari` as it is. ID, Music, Live, the back
+  the summary). The Safari host app's copy phase removes `_locales/` from the extension before copying `dist-safari`. ID, Music, Live, the back
   office and the site are untouched.
 - **No byte moves** in any package built while only French-native pairs ship.
 - **The first package that carries `_locales`** is the one that ships es-en (change 34) — the
