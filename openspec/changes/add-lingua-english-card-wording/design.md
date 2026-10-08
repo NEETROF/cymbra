@@ -32,7 +32,7 @@ See proposal.md (Why). What exists:
 `es_en_baseline.rs` declares `Scenario { pair: "es-en", beside: &[], test: "es_en_baseline", cards: […], ..SPANISH }`
 — es-fr's corpus, lemmas, phrases and grammar probes, each card's shown gloss the es-en pack's
 first page for its lemma — and 40 more lemmas asked as `word-grammar <lemma> <lemma>` probes after
-the reference's: the 40 most frequent lemmas of `tables/sp/freq.tsv` whose es-en gloss has two sense runs or
+the reference's: the 40 most frequent lemmas of `tables/es/freq.tsv` whose es-en gloss has two sense runs or
 more, so that their glosses and sense runs, genders included, are the engine's. The two goldens
 differ only in the native side, the lines naming the packs, `notice`, `licences` and the backup's
 profile (es-fr's golden is rendered with en-fr beside it; this one alone, so the lines naming the packs (`pack`, `beside en-fr`) differ too) — asserted by a test that compares the two committed goldens probe by
