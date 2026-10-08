@@ -25,7 +25,7 @@ that trap, so that enabling Spanish speakers (change 35) is decided on measured 
 
 - **The catalogue pins `en-es/base-memory/2.1`**: Mozilla's three files (`model.enes.intgemm.alphas.bin.gz`,
   `lex.50.50.enes.s2t.bin.gz`, `vocab.enes.spm.gz`), each with its served size, decompressed size,
-  decompressed sha256 and the source path and gzip sha256 in Mozilla's registry, served from the
+  decompressed sha256, the source path in Mozilla's registry and the sha256 of the gzip file it serves, served from the
   model host at content-addressed paths, with its mirror release
   `lingua-model-en-es-base-memory-2.1` — as es-en was pinned. The values are read from the files
   themselves, downloaded once from the registry, and checked against the registry's and Remote
@@ -35,7 +35,7 @@ that trap, so that enabling Spanish speakers (change 35) is decided on measured 
   reader's pairs are the shipped pairs of their native language (`packs.json`, changes 34 and 35),
   so no reader of today needs either route, and nothing is downloaded.
 - **The en-es soak**, by hand (M25's recommendation, change 9): `tool/soak_engine.mjs --pair en-es
-  --isolate` over the 100 English selections of the marks corpus, its figures and the ids that
+  --models <dir> --isolate` over the 100 English selections of the marks corpus, its figures and the ids that
   trap recorded in `TRANSLATION.md`.
 - **The documents that name the models**: `TRANSLATION.md`, `tool/marks/README.md`'s notes on the
   bound, and `REVIEWERS.md` (the add-on's source archive), which names en-fr alone today.
@@ -66,6 +66,8 @@ None.
   has run, the check before a submission (`lingua-extension-release`) and before an App Store
   delivery (`lingua-apple-release`) refuses, since the host does not serve en-es yet.
 - **Order.** After change 9 (merged as #765). Before change 26 (the routes it measures) and changes
-  34 and 35 (which ship the pairs with their routes).
+  34 and 35 (which ship the pairs whose routes this change adds). The main spec's scenario *A pair
+  without a route* keeps its behaviour: en-es has a route but is not shipped, so it stays unavailable.
+  `STORE-LISTING.md`'s model sizes are changes 36 and 37's.
 - **Not here.** The marks of es-en and en-es (26); the listings' sizes (36, 37); the copy of the
   setting in English and Spanish (14, 15); fr-en and fr-es (stage 3).

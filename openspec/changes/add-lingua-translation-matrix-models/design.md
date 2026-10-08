@@ -41,7 +41,8 @@ path). `source.sha256` is each gzip's sha256, `size` its length; `sha256` and `u
 decompressed bytes'. The model's decompressed sha256 must equal the registry's `uncompressedHash`,
 and each file's must equal Remote Settings' for 2.1; a mismatch stops the change (the registry
 would then not be 2.1). The id is `en-es/base-memory/2.1`, the paths
-`en-es/base-memory/2.1/<decompressed sha256>/<file>.gz`, the mirror
+`en-es/base-memory/2.1/<decompressed sha256>/{model.bin.gz,lex.bin.gz,vocab.spm.gz}`, named as the two pinned
+models' are, the mirror
 `https://github.com/NEETROF/cymbra/releases/download/lingua-model-en-es-base-memory-2.1/`, the
 licence MPL-2.0. `assemble_model_site.mjs` run locally over the new catalogue proves the entry: it
 keeps a file only when every digest holds.
@@ -66,7 +67,7 @@ en-es 2.1's vocabulary decompresses to the same sha256 as es-en 2.0's (`5ae254fa
 files differ). The device stores files by decompressed sha256, so a reader who holds es-en and
 then needs en-es — possible only once the native language can change (change 20) — does not
 download that file again, and `prune` keeps it while either model is kept. The cost the setting
-states before a download is the sum over the route's files and may then count that file
+states before a download is the sum over the files of the models the reader's pairs need and may then count that file
 (409,312 B) although it is not fetched; this change leaves it so, as the requirement *The
 setting's cost comes from the catalogue* states it.
 

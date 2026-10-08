@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: English and Spanish are translated into each other directly
-The catalogue SHALL carry Mozilla's en-es model, version 2.1, pinned like every model and verifiable against Mozilla's publications of it. es-en's route SHALL be the es-en model alone and en-es's route the en-es model alone, with no pivot. A route SHALL be needed only by a reader whose pairs include its pair, so that a route of a pair not shipped downloads, keeps and loads nothing.
+The catalogue SHALL carry Mozilla's en-es model, version 2.1, pinned like every model and verifiable against Mozilla's publications of it. es-en's route SHALL be the es-en model alone and en-es's route the en-es model alone, with no pivot. A route SHALL be needed only by a reader whose pairs include its pair, so that a route of a pair not shipped adds nothing to what any reader downloads, keeps or loads.
 
 #### Scenario: A Spanish-native reader of English
 - **WHEN** en-es ships and a reader whose native language is Spanish ticks « Traduction étendue »
@@ -50,4 +50,4 @@ The package SHALL carry one catalogue of the translation models it may download,
 
 #### Scenario: A route of a pair not shipped
 - **WHEN** the catalogue routes es-en and en-es and the shipped pairs are en-fr and es-fr
-- **THEN** no reader's pairs need those routes, and nothing of them is downloaded, kept or loaded
+- **THEN** no reader's pairs need those routes: nothing is downloaded, kept or loaded for them, and the es-en model is held only as es-fr's first model, as before
