@@ -47,7 +47,9 @@ in, the manifest and the folders to copy out — imported by `build.mjs`; `shipp
 today's packages. Otherwise the build replaces the four strings with `__MSG_<key>__`, copies
 `_locales/<native>/` for each shipped native, and sets `default_locale` to `en` when `en` is among
 them, else `fr`. A language with a folder but no shipped pair is never copied, so a browser in
-that language reads the default.
+that language reads the default. The rule assumes a French-native pair always ships (M22), so that
+`fr` names a packaged folder; the build refuses a list whose default it would not carry (`en-es`
+alone: Spanish the only native, French the default).
 
 Alternative: ship `_locales/fr` and `default_locale: "fr"` now. Nothing visible would move, but
 every package's manifest would, and the localised path would ship before any reader needs it.

@@ -323,7 +323,19 @@ reveal: the version is three plain integers (a store refuses a `-rc.1` at upload
 the tag is pushed), `manifest.json` has not grown a `version` back, and its `description` fits
 **112 characters** — Apple's limit, validated when the signed archive reaches App Store
 Connect. Chrome allows 132; calibrating on Chrome is how `lingua-apple-v1.1.0` failed after a
-full build.
+full build. The same 112 holds every committed `_locales/<language>/messages.json` description,
+named by its language, and `_locales/fr` is held equal to the manifest's literal French, key by
+key: the French has two homes, and a drift between them would change the text at the first
+localised build.
+
+**The manifest's language follows the shipped pairs** (localise-lingua-manifest). A package built
+while only French-native pairs ship carries today's literal French manifest and no `_locales`,
+byte for byte. Once a pair glossed in English or Spanish ships (`packs.json`), `tool/manifests.mjs`
+writes the description and the commands' descriptions as `__MSG_…__` references, packages
+`_locales/<language>/` for each shipped native — never a language with no shipped pair — and sets
+`default_locale` to `en` when an English-glossed pair ships, `fr` otherwise; the brand name stays
+literal. `yarn check:variants` holds the built packages to it. The Safari host app's copy phase
+removes a stale `_locales/` before copying `dist-safari`, since `rsync -a` keeps files.
 
 **A release is not a deployment.** Merging the "Release PR" pushes a `lingua-extension-v*` tag,
 which runs `lingua-extension-release` and does everything except reach a store:
