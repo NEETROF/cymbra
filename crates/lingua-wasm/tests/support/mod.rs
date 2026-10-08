@@ -32,7 +32,7 @@ pub mod other_native;
 pub mod spanish;
 
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use lingua_wasm::LinguaEngine;
 
@@ -66,7 +66,7 @@ pub enum PackSource {
 
 impl PackSource {
     /// The folder holding the pair's `manifest.json`.
-    fn manifest_dir(self, pair: &str) -> PathBuf {
+    pub fn manifest_dir(self, pair: &str) -> PathBuf {
         match self {
             PackSource::Tables => Scenario::tables_dir(pair),
             PackSource::Testdata => Scenario::crate_dir()
@@ -75,18 +75,51 @@ impl PackSource {
         }
     }
 
-    /// The pair's pack, built from this source (the build is deterministic).
+    /// The pair's pack, built from this source (the build is deterministic), once the core
+    /// loads it ([`loadable`]).
     pub fn pack(self, pair: &str) -> Vec<u8> {
+        let dir = self.manifest_dir(pair);
         match self {
-            PackSource::Tables => Scenario::real_pack(pair),
-            PackSource::Testdata => {
-                let inputs = lingua_pack::inputs_from_dir(&self.manifest_dir(pair))
-                    .unwrap_or_else(|e| panic!("read the {pair} testdata tables: {e}"));
-                lingua_pack::build_pack(&inputs)
-                    .unwrap_or_else(|e| panic!("build the {pair} testdata pack: {e}"))
-            }
+            PackSource::Tables => loadable(Scenario::real_pack(pair), pair, &dir),
+            PackSource::Testdata => testdata_pack(&dir, pair),
         }
     }
+}
+
+/// The pack built from the fixture tables in `dir` (`scripts/lingua-data/testdata/<pair>/`, or a
+/// copy of it), once the core loads it ([`loadable`]).
+pub fn testdata_pack(dir: &Path, pair: &str) -> Vec<u8> {
+    let inputs = lingua_pack::inputs_from_dir(dir)
+        .unwrap_or_else(|e| panic!("read the {pair} testdata tables: {e}"));
+    let pack = lingua_pack::build_pack(&inputs)
+        .unwrap_or_else(|e| panic!("build the {pair} testdata pack: {e}"));
+    loadable(pack, pair, dir)
+}
+
+/// `pack`, once the core loads it; else a panic naming the core's reason and the manifest to
+/// bump. The builder stamps the manifest's `analyzer_version` without checking it (the core
+/// compares it at load), and on the host the engine cannot say why it refuses a pack: its
+/// `JsError` is wasm-bindgen's, and building one outside wasm panics with « cannot call
+/// wasm-bindgen imported functions on non-wasm targets ». So a fixture whose manifest falls
+/// behind its language's analyser version (add-lingua-french-baseline D5) is named here.
+fn loadable(pack: Vec<u8>, pair: &str, manifest_dir: &Path) -> Vec<u8> {
+    if let Err(e) = lingua_core::packs::Pack::load(&pack) {
+        let manifest = manifest_dir.join("manifest.json");
+        let repo = Scenario::crate_dir().join("../..").canonicalize().ok();
+        let shown = manifest
+            .canonicalize()
+            .ok()
+            .zip(repo)
+            .and_then(|(m, r)| m.strip_prefix(r).ok().map(Path::to_path_buf))
+            .unwrap_or(manifest);
+        panic!(
+            "the {pair} pack does not load: {e}.\n\
+             If its language's analyser version moved, bump `analyzer_version` in {} to the \
+             core's, in the pull request that moves it, and re-bless the golden.",
+            shown.display()
+        );
+    }
+    pack
 }
 
 /// What one pair's baseline asks the engine.

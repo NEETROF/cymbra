@@ -20,10 +20,11 @@
 //! public domain:
 //! - the `proust` page: the opening of Marcel Proust, *Du côté de chez Swann* (Grasset, 1913),
 //!   « Longtemps, je me suis couché de bonne heure. » to « … la rivalité de François Ier et de
-//!   Charles Quint. ». Proust died in 1922, so the work has been in the public domain in France
-//!   since 1 January 1987 (the 50-year term plus the wartime extensions), was not re-protected by
-//!   the 1997 move to 70 years, and was published before 1929, so it is in the public domain in
-//!   the United States;
+//!   Charles Quint. », its one paragraph split into two blocks at « Et, une demi-heure après ».
+//!   Proust died in 1922, so the work has been in the public domain in France since 1987 (the
+//!   50-year term plus the wartime extensions, which end around 30 September 1987), was not
+//!   re-protected by the 1997 move to 70 years, and was published before 1929, so it is in the
+//!   public domain in the United States;
 //! - the first block of the `noms` page: the first sentence of Victor Hugo, *Les Misérables*
 //!   (1862), « En 1815, M. Charles-François-Bienvenu Myriel était évêque de Digne. ». Hugo died in
 //!   1885.
@@ -33,6 +34,9 @@
 //! space (U+00A0) before `:` and after the dialogue dash. The other pages are typed as the web
 //! often has them, with the straight apostrophe. One block of the `technique` page is committed
 //! in NFD on purpose (accents as combining marks); `french_baseline.rs` asserts it still is.
+//! The fixture lists one of its words, `mémoire` (`memory`), which the corpus has nowhere else:
+//! read as it came, the decomposed word is not the pack's, so change 41's NFC shows in the golden
+//! as a gloss that appears, not only as bytes that move.
 //!
 //! The pack is the hand-written fr-en fixture, `scripts/lingua-data/testdata/fr-en/`, until
 //! change 48 commits `tables/fr/` and `tables/fr-en/`; the engine starts on the real es-en pack,

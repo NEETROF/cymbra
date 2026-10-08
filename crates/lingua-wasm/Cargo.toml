@@ -35,6 +35,8 @@ wasm-bindgen-test = { workspace = true }
 # the committed tables. Host only: the builder uses C zstd and is never compiled to wasm.
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 lingua-pack = { path = "../lingua-pack" }
+# The French baseline (tests/french_baseline.rs) holds its corpus's NFD block to NFD.
+unicode-normalization = { workspace = true }
 
 [lints]
 workspace = true

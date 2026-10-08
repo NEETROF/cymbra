@@ -39,17 +39,29 @@
 
 mod support;
 
-use support::first_difference;
+use std::sync::OnceLock;
+
 use support::french::FRENCH;
+use support::{PackSource, first_difference, testdata_pack};
+use unicode_normalization::UnicodeNormalization;
+
+/// The `technique` page's block committed in NFD.
+const NFD_BLOCK: usize = 3;
 
 fn fr() -> Option<String> {
     Some("fr".to_owned())
 }
 
+/// The golden as this build renders it, once for every test of the target.
+fn rendered() -> &'static str {
+    static RENDERED: OnceLock<String> = OnceLock::new();
+    RENDERED.get_or_init(|| FRENCH.render(Some("fr")))
+}
+
 #[test]
 fn french_output_has_not_moved() {
-    let actual = FRENCH.render(Some("fr"));
-    let Some(expected) = FRENCH.bless_or_read(&actual) else {
+    let actual = rendered();
+    let Some(expected) = FRENCH.bless_or_read(actual) else {
         return;
     };
     assert!(
@@ -62,7 +74,7 @@ fn french_output_has_not_moved() {
          re-bless with\n  \
          LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline\n\
          and say why in the pull request. Otherwise the change is wrong.",
-        first_difference(&expected, &actual)
+        first_difference(&expected, actual)
     );
 }
 
@@ -76,9 +88,20 @@ fn the_corpus_reads_as_expected() {
         .iter()
         .find(|(name, _)| name == "technique")
         .expect("the technique page");
+    let block = &technique[NFD_BLOCK];
     assert!(
-        technique.iter().any(|block| block.contains('\u{0301}')),
+        block.contains('\u{0301}'),
         "the technique page's NFD block was composed"
+    );
+    assert_ne!(
+        block.nfc().collect::<String>(),
+        *block,
+        "NFC composes the NFD block"
+    );
+    assert_eq!(
+        block.nfd().collect::<String>(),
+        *block,
+        "the NFD block is wholly decomposed"
     );
     // The fiction and Proust pages are set in French punctuation.
     for name in ["fiction", "proust"] {
@@ -157,8 +180,7 @@ fn french_is_the_baseline_until_its_rules_are_written() {
         .set_status_at("phare", "known", 1_790_000_000_000.0, fr())
         .expect("a French status");
     assert!(engine.backup().starts_with("{\n  \"schema_version\": 3,"));
-    let golden = FRENCH.render(Some("fr"));
-    let backup = golden
+    let backup = rendered()
         .split("\n### backup\n")
         .nth(1)
         .expect("the backup probe");
@@ -166,4 +188,65 @@ fn french_is_the_baseline_until_its_rules_are_written() {
         backup.starts_with("{\n  \"schema_version\": 3,"),
         "{backup}"
     );
+}
+
+#[test]
+fn the_nfd_block_s_memoire_is_glossed_once_french_composes_it() {
+    // The fixture lists `mémoire`, glossed `memory`, a word the corpus has only in its NFD block
+    // (D5): read as it came, decomposed, the word is not the pack's and has no gloss; change 41's
+    // NFC makes the gloss appear in the golden, not only bytes no one sees move.
+    let engine = FRENCH.loaded();
+    let technique = analysed(&engine, "technique");
+    let decomposed = "me\u{301}moire";
+    let token = technique["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .find(|t| t["block"] == NFD_BLOCK && t["surface"] == decomposed)
+        .expect("the NFD block's `mémoire`, as it came");
+    assert_eq!(token["lemma"], decomposed, "lowercased, not composed");
+    assert!(token["gloss"].is_null(), "{token}");
+    assert_eq!(
+        engine.gloss("m\u{e9}moire", fr()).expect("glossed"),
+        Some("memory".to_owned()),
+        "the pack glosses the composed form"
+    );
+}
+
+#[test]
+fn a_fixture_left_behind_its_analyser_names_its_manifest() {
+    // A French rule bumps French's analyser version; a fixture manifest left at the old one is
+    // refused by the core. The harness names the manifest to bump, not wasm-bindgen's host panic.
+    let committed = PackSource::Testdata.manifest_dir("fr-en");
+    let behind = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("fr-en-fixture-behind");
+    let _ = std::fs::remove_dir_all(&behind);
+    std::fs::create_dir_all(&behind).expect("a scratch fixture");
+    for entry in std::fs::read_dir(&committed).expect("the fr-en fixture") {
+        let entry = entry.expect("a fixture file");
+        std::fs::copy(entry.path(), behind.join(entry.file_name())).expect("copied");
+    }
+    let manifest_path = behind.join("manifest.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&manifest_path).expect("manifest"))
+            .expect("JSON");
+    assert_eq!(manifest["meta"]["analyzer_version"], "0.1.0");
+    manifest["meta"]["analyzer_version"] = "0.0.9".into();
+    std::fs::write(&manifest_path, manifest.to_string()).expect("written");
+
+    let Err(refused) = std::panic::catch_unwind(|| testdata_pack(&behind, "fr-en")) else {
+        panic!("a fixture behind French's analyser is refused");
+    };
+    let message = refused.downcast_ref::<String>().expect("a formatted panic");
+    assert!(
+        message.contains("pack built for analyzer 0.0.9 but this core is 0.1.0"),
+        "{message}"
+    );
+    assert!(
+        message.contains("bump `analyzer_version` in")
+            && message.contains("fr-en-fixture-behind/manifest.json"),
+        "{message}"
+    );
+    assert!(!message.contains("wasm-bindgen"), "{message}");
+    // The committed fixture loads.
+    assert!(!testdata_pack(&committed, "fr-en").is_empty());
 }
