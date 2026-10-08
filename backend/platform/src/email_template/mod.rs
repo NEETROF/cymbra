@@ -336,6 +336,7 @@ mod tests {
         assert_eq!(SupportedLocale::parse(Some("fr")), SupportedLocale::Fr);
         assert_eq!(SupportedLocale::parse(Some("fr-FR")), SupportedLocale::Fr);
         assert_eq!(SupportedLocale::parse(Some("ES_es")), SupportedLocale::Es);
+        assert_eq!(SupportedLocale::parse(Some("es-MX")), SupportedLocale::Es);
         assert_eq!(SupportedLocale::parse(Some("it")), SupportedLocale::It);
         assert_eq!(SupportedLocale::parse(Some("en-US")), SupportedLocale::En);
         assert_eq!(SupportedLocale::parse(Some("de")), SupportedLocale::En);
@@ -468,6 +469,11 @@ mod tests {
         let e = verification_email("c", SupportedLocale::parse(Some("de")), None);
         assert_eq!(e.subject, "Verify your Cymbra account");
         assert_html_lang(&e, "en");
+        assert_legal_links(
+            &e,
+            "https://cymbra.app/en/terms/",
+            "https://cymbra.app/en/privacy/",
+        );
     }
 
     #[test]
