@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-08
+archiveAfter:
+  - add-lingua-interface-language
+  - localise-lingua-reading-surfaces
+  - add-lingua-account-parity
