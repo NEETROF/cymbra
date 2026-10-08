@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
 import { afterAll, describe, expect, it } from "vitest";
+import { baselinePath, type Hit, htmlLiterals, sources as walk, tsLiterals } from "./support/literals.ts";
 
 // A language is named in one place per interface language, src/i18n/<language>/languages.ts
 // (add-lingua-language-choice D1, add-lingua-native-language-labels D4): every other source and
@@ -15,6 +15,14 @@ import { afterAll, describe, expect, it } from "vitest";
 // the BASELINE still holds names, until the change moving its copy takes it off — and a file on it
 // that holds none fails, so the baseline cannot go stale. The engine's enum names are data, not
 // copy: EXCEPTIONS lets them through, text for text, in their one file.
+//
+// NAMES bounds a name by letters alone (`\p{L}` on both sides): a digit, an underscore, a hyphen or
+// punctuation beside a name does not stop the match, so "en-US" is no hit but "English1" or
+// "english_level" would be, as would a name quoted inside a longer sentence. A literal that names a
+// language on purpose, as data, is not loosened out of the pattern: it is listed in EXCEPTIONS, text
+// for text, in its one file — the mitigation, not the regex. The readers (tsLiterals, htmlLiterals,
+// baselinePath, sources) are test/support/literals.ts's, shared with lint-copy.spec.ts; the exports
+// below mirror that spec's convention — nothing imports them.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(root, "src");
@@ -37,49 +45,6 @@ export const EXCEPTIONS: Readonly<Record<string, readonly string[]>> = {
 export const NAMES =
   /(?<!\p{L})(?:anglais|espagnol|français|english|spanish|french|ingl[eé]s|español|franc[eé]s)(?:e|es|a|as|s)?(?!\p{L})/iu;
 
-/** A file's path as the baseline writes it: relative, with `/` whatever the platform's separator. */
-function baselinePath(treeRoot: string, path: string): string {
-  return relative(treeRoot, path).split(sep).join("/");
-}
-
-export interface Hit {
-  line: number;
-  text: string;
-}
-
-/** The string and template literals of a TypeScript source, by line. */
-export function tsLiterals(path: string, text: string): Hit[] {
-  const source = ts.createSourceFile(path, text, ts.ScriptTarget.ES2022, true);
-  const hits: Hit[] = [];
-  const line = (node: ts.Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
-  const visit = (node: ts.Node): void => {
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-      hits.push({ line: line(node), text: node.text });
-    } else if (ts.isTemplateExpression(node)) {
-      const chunks = [node.head.text, ...node.templateSpans.map((span) => span.literal.text)];
-      hits.push({ line: line(node), text: chunks.join("\u0000") });
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return hits;
-}
-
-/** The text nodes and attribute values of an HTML page, by line; comments do not count. */
-export function htmlLiterals(text: string): Hit[] {
-  const stripped = text.replace(/<!--[\s\S]*?-->/g, (c) => c.replace(/[^\n]/g, " "));
-  const hits: Hit[] = [];
-  const line = (index: number): number => stripped.slice(0, index).split("\n").length;
-  for (const m of stripped.matchAll(/>([^<>]+)</g)) {
-    const t = m[1].replace(/\s+/g, " ").trim();
-    if (t) hits.push({ line: line(m.index), text: t });
-  }
-  for (const m of stripped.matchAll(/\s[a-zA-Z-]+="([^"]*)"/g)) {
-    if (m[1]) hits.push({ line: line(m.index), text: m[1] });
-  }
-  return hits;
-}
-
 /** The literals of a file that name a language, the file's exceptions left out. */
 export function nameLiterals(path: string, rel: string, exceptions = EXCEPTIONS): Hit[] {
   const text = readFileSync(path, "utf8");
@@ -90,13 +55,7 @@ export function nameLiterals(path: string, rel: string, exceptions = EXCEPTIONS)
 
 /** Every source and page under `src`, the languages modules and the generated code aside. */
 export function sources(src: string): string[] {
-  const walk = (dir: string): string[] =>
-    [...readdirSync(dir)].sort().flatMap((name) => {
-      const path = join(dir, name);
-      if (statSync(path).isDirectory()) return ["pkg", "gen"].includes(name) ? [] : walk(path);
-      return /\.(ts|html)$/.test(name) && !name.endsWith(".d.ts") ? [path] : [];
-    });
-  return walk(src).filter((path) => !LANGUAGES_MODULE.test(baselinePath(join(src, ".."), path)));
+  return walk(src, ["pkg", "gen"]).filter((path) => !LANGUAGES_MODULE.test(baselinePath(join(src, ".."), path)));
 }
 
 /** What fails on a tree: a name outside the languages modules and the baseline, and a baseline file holding none. */
