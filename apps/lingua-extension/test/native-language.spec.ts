@@ -135,6 +135,12 @@ describe("a new install's preset (D4, M3, M13)", () => {
     expect(presetNative("de", TODAY)).toBe("fr");
     expect(presetNative("es", TODAY)).toBe("fr");
   });
+
+  it("on the bundle's list since change 34: English for an English or a German browser, French for a French one", () => {
+    expect(presetNative("en-US")).toBe("en");
+    expect(presetNative("de-DE")).toBe("en");
+    expect(presetNative("fr-FR")).toBe("fr");
+  });
 });
 
 describe("the studied languages of a reader who chooses (D2)", () => {

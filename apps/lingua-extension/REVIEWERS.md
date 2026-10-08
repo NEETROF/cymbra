@@ -130,10 +130,11 @@ Their files come from Mozilla's translation model registry (`sourceBase` in `mod
 not from `mozilla/firefox-translations-models`: each file lists its path there and the sha256 of
 the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks.
 The package downloads none of them until the reader turns « Traduction étendue » on, and then only
-the models its pairs' routes need. This package ships the pairs `en-fr` and `es-fr` (`packs.json`),
-so it downloads at most `en-fr` and `es-en`; the `es-en`, `en-es`, `fr-en` and `fr-es` routes serve
-pairs it does not ship, and nothing is downloaded for those pairs — none for French, which no pair
-of this package studies.
+the models its pairs' routes need. This package ships the pairs `en-fr`, `es-fr` and `es-en`
+(`packs.json`), so it downloads at most `en-fr` and `es-en` — a French-speaking reader the models of
+`en-fr` and `es-fr`, an English-speaking reader `es-en` alone; the `en-es`, `fr-en` and `fr-es`
+routes serve pairs it does not ship, and nothing is downloaded for those pairs — none for French,
+which no pair of this package studies.
 
 ## Where the add-on reaches the network
 

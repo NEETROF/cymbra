@@ -225,7 +225,7 @@ async function main(): Promise<void> {
   // A new install whose onboarding never opened (Safari): its native language is preset before the
   // page paints, and asked below until the reader answers — while two native languages ship and the
   // choice was never made on this device (add-lingua-native-language-choice D4). Built only then
-  // (`__NATIVE_CHOICE__`): today's popup carries none of it.
+  // (`__NATIVE_CHOICE__`): a popup built while one native language ships carries none of it.
   const firstRun = __NATIVE_CHOICE__
     ? await presetNativeLanguage({ preferences: storageArea, browserLanguage: navigator.language })
     : false;

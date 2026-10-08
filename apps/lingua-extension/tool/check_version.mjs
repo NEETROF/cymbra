@@ -61,8 +61,8 @@ export function manifestProblems(manifest) {
  * Everything wrong with the committed `_locales` (localise-lingua-manifest D3), as sentences. Every
  * language's description is what a browser in that language shows and both stores list once a pair
  * glossed in it ships, so each is held to Apple's limit, named by its language. The French has two
- * homes — manifest.json's literals, which every package built today carries, and `_locales/fr`,
- * which a localised package reads — and they are held equal, key by key.
+ * homes — manifest.json's literals, which a package built with French-native pairs alone carries,
+ * and `_locales/fr`, which a localised package reads — and they are held equal, key by key.
  */
 export function localeProblems(manifest, locales) {
   const problems = [];

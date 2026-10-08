@@ -15,8 +15,8 @@ import { watchStore } from "../state/store.ts";
 // install's native language is preset before the page paints — `presetThenStart` runs before the
 // page's start, which reads the interface language the preset wrote — and the question, above the
 // languages section, lets the reader confirm it or pick another in the same step (M3): either is
-// their answer, and the popup asks no more. While one native language ships — today — the preset
-// reads nothing and the page holds no question at all.
+// their answer, and the popup asks no more. While one native language ships — French alone, before
+// change 34 shipped es-en — the preset reads nothing and the page holds no question at all.
 
 /** What the onboarding's step needs beyond its page: the defaults are the extension's. */
 export interface NativeStepDeps {
