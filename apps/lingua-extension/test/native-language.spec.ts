@@ -5,14 +5,17 @@ import { INTERFACE_LANGUAGE_KEY } from "@/i18n/language.ts";
 import {
   changeNativeLanguage,
   chooseNativeLanguage,
+  holdsReaderData,
   isNativeLanguageMessage,
   markNativeLanguageChosen,
   NATIVE_CHOSEN_KEY,
   NATIVE_LANGUAGE_MESSAGE,
+  NATIVE_PRESET_KEY,
   nativeChoiceOffered,
   nativeLanguageChosen,
   type NativeLanguageHost,
   offeredNatives,
+  onExtensionInstalled,
   presetNative,
   reloadOnNativeLanguageChange,
   studiedForNative,
@@ -167,11 +170,13 @@ describe("the background's change (D2)", () => {
       schema_version: 2,
       profile: { native_language: "English", studied_languages: ["Spanish"] },
     });
-    // One announcement, with its reason; the interface language key and the marker already written.
+    // One announcement, with its reason; the interface language key already written, the choice
+    // marked once the backup is.
     expect(announced).toEqual([
-      { keys: [ROOT_KEY], reason: { type: "native-language", native: "en" }, key: "en", chosen: true },
+      { keys: [ROOT_KEY], reason: { type: "native-language", native: "en" }, key: "en", chosen: undefined },
     ]);
     expect(prefs.store[INTERFACE_LANGUAGE_KEY]).toBe("en");
+    expect(prefs.store[NATIVE_CHOSEN_KEY]).toBe(true);
     expect(deps.rehydrate).toHaveBeenCalledOnce();
   });
 
@@ -238,8 +243,86 @@ describe("the background's change (D2)", () => {
       schema_version: 2,
       profile: { native_language: "English", studied_languages: ["Spanish"] },
     });
-    expect(prefs.store).toEqual({ [INTERFACE_LANGUAGE_KEY]: "en", [NATIVE_CHOSEN_KEY]: true });
+    // A preset is no answer: the device is known new, the choice still to be made.
+    expect(prefs.store).toEqual({ [INTERFACE_LANGUAGE_KEY]: "en", [NATIVE_PRESET_KEY]: true });
     expect(announced.at(-1)?.reason).toEqual({ type: "native-language", native: "en" });
+  });
+
+  it("a preset is applied again until the reader answers, and never once they have", async () => {
+    const { deps, announced, prefs } = host();
+    const preset = { type: NATIVE_LANGUAGE_MESSAGE, native: "en", preset: true } as const;
+
+    await changeNativeLanguage(deps, preset);
+    // The reader read pages and clicked words, and closed the popup without answering: their own data
+    // since the preset never passes for an installed extension's.
+    const stored = await deps.store.get(ROOT_KEY);
+    const backup = JSON.parse((stored[ROOT_KEY] as { backup: string }).backup) as object;
+    await deps.store.set({
+      [ROOT_KEY]: {
+        v: 2,
+        backup: JSON.stringify({ ...backup, knowledge: { statuses: { Spanish: { faro: "Learning" } } } }),
+      },
+    });
+    expect(await changeNativeLanguage(deps, preset)).toEqual({ ok: true, changed: false });
+    expect(prefs.store[NATIVE_CHOSEN_KEY]).toBeUndefined();
+
+    // The answer — the preset confirmed — marks it.
+    expect(await changeNativeLanguage(deps, { type: NATIVE_LANGUAGE_MESSAGE, native: "en" })).toEqual({
+      ok: true,
+      changed: false,
+    });
+    expect(prefs.store[NATIVE_CHOSEN_KEY]).toBe(true);
+    announced.length = 0;
+    expect(await changeNativeLanguage(deps, { ...preset, native: "fr" })).toEqual({ ok: true, changed: false });
+    expect(announced).toEqual([]);
+  });
+
+  it.each([
+    ["statuses", { knowledge: { statuses: { English: { lighthouse: "Learning" } } } }],
+    ["cards", { deck: { cards: { English: { lighthouse: { lemma: "lighthouse" } } } } }],
+    ["a profile of its own", { profile: { native_language: "French", studied_languages: ["English", "Spanish"] } }],
+  ])(
+    "An installed extension is not asked, its update unreported: a backup holding %s is never preset, and marked",
+    async (_what, data) => {
+      const backup = JSON.stringify({ schema_version: 2, exposure: { English: { the: 3 } }, ...data });
+      const { deps, announced, prefs } = host({ [ROOT_KEY]: { v: 2, backup } });
+
+      expect(await changeNativeLanguage(deps, { type: NATIVE_LANGUAGE_MESSAGE, native: "en", preset: true })).toEqual({
+        ok: true,
+        changed: false,
+      });
+
+      expect(deps.reprofile).not.toHaveBeenCalled();
+      expect(announced).toEqual([]);
+      expect(await stored(deps)).toEqual(JSON.parse(backup));
+      expect(prefs.store).toEqual({ [NATIVE_CHOSEN_KEY]: true });
+    },
+  );
+
+  it("a page read before the popup is no reader's data: its exposures alone do not stop the preset", async () => {
+    const backup = JSON.stringify({
+      schema_version: 2,
+      knowledge: { statuses: {} },
+      exposure: { English: { the: 3 } },
+      deck: { cards: {} },
+    });
+    const { deps } = host({ [ROOT_KEY]: { v: 2, backup } });
+    expect(await changeNativeLanguage(deps, { type: NATIVE_LANGUAGE_MESSAGE, native: "en", preset: true })).toEqual({
+      ok: true,
+      changed: true,
+    });
+    expect(holdsReaderData("{not json")).toBe(true); // nothing is preset over a backup that does not parse
+  });
+
+  it("onInstalled: an update marks the choice as made, an install or the browser's update nothing", async () => {
+    for (const reason of ["install", "chrome_update", "shared_module_update"]) {
+      const prefs = fakeArea();
+      await onExtensionInstalled(reason, prefs);
+      expect(prefs.store).toEqual({});
+    }
+    const prefs = fakeArea();
+    await onExtensionInstalled("update", prefs);
+    expect(prefs.store).toEqual({ [NATIVE_CHOSEN_KEY]: true });
   });
 
   it("a backup that cannot be rewritten is kept, and the choice is not marked", async () => {

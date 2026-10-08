@@ -14,8 +14,9 @@ import { watchStore } from "../state/store.ts";
 // the page's wiring so a test mounts it alone (onboarding.ts starts the page when imported). A new
 // install's native language is preset before the page paints — `presetThenStart` runs before the
 // page's start, which reads the interface language the preset wrote — and the question, above the
-// languages section, lets the reader confirm it or pick another in the same step (M3). While one
-// native language ships — today — the preset reads nothing and the page holds no question at all.
+// languages section, lets the reader confirm it or pick another in the same step (M3): either is
+// their answer, and the popup asks no more. While one native language ships — today — the preset
+// reads nothing and the page holds no question at all.
 
 /** What the onboarding's step needs beyond its page: the defaults are the extension's. */
 export interface NativeStepDeps {
@@ -48,6 +49,8 @@ export function mountNativeStep(
     language: interfaceLanguage,
     copy: nativeLanguageCopy(interfaceLanguage),
     profile: () => storedProfile(store, pairs),
+    // The preset is the language selected: confirming it is an answer too.
+    confirmCurrent: true,
     pairs,
   });
   void question?.view.refresh();

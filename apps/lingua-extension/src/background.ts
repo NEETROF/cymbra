@@ -42,8 +42,8 @@ import { nativeLanguageOf, studiedLanguagesOf } from "./state/profile.ts";
 import {
   changeNativeLanguage,
   isNativeLanguageMessage,
-  markNativeLanguageChosen,
   type NativeLanguageReply,
+  onExtensionInstalled,
 } from "./state/native-language.ts";
 import {
   type AsyncStorageArea,
@@ -746,9 +746,8 @@ async function syncReaderRegistration(): Promise<void> {
 chrome.runtime.onInstalled.addListener((details) => {
   void syncReaderRegistration();
   // An installed extension is never asked its native language (add-lingua-native-language-choice
-  // D4, M22): an update marks the choice as made, whatever the package ships. A new install chooses
-  // at onboarding, or in the popup's first run when the onboarding tab did not open.
-  if (details.reason === "update") void markNativeLanguageChosen(settingsArea).catch(() => {});
+  // D4, M22): an update marks the choice as made (state/native-language.ts).
+  void onExtensionInstalled(details.reason, settingsArea).catch(() => {});
   // Best-effort first-run welcome (Chromium/Firefox). The popup's level CTA is the
   // portable equivalent, so failures here are swallowed (e.g. Safari, where opening a
   // tab from install is unreliable).

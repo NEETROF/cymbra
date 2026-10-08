@@ -40,8 +40,9 @@ export interface NativeLanguageOptions {
   /** After the background answered a confirmed choice: the host rebuilds its port, or drops its call to action. */
   onChosen?: (native: NativeLanguage, reply: Extract<NativeLanguageReply, { ok: true }>) => Promise<void> | void;
   /**
-   * The popup's first run: the preset is already applied, and confirming it is the reader's answer —
-   * the button shows for the current language too.
+   * A question of its own — the onboarding's, the popup's first run: the preset is already applied,
+   * and confirming it is the reader's answer, which marks the choice as made (D4) — the button shows
+   * for the current language too, until it is answered.
    */
   confirmCurrent?: boolean;
   /** The pairs the package ships: the bundle's, unless a spec offers others. */
@@ -118,6 +119,8 @@ export function mountNativeLanguage(container: HTMLElement, opts: NativeLanguage
 
   let current: NativeProfile | null = null;
   let picked: NativeLanguage | null = null;
+  /** The language shown was confirmed: the question is answered, its button goes. */
+  let answered = false;
 
   /** Select `native`, and say what confirming it does. */
   function pick(native: NativeLanguage): void {
@@ -129,7 +132,7 @@ export function mountNativeLanguage(container: HTMLElement, opts: NativeLanguage
     consequence.hidden = !changes || studied === null;
     consequence.textContent =
       changes && studied ? copy.studiesAfter(studied.map((l) => languageName(language, l)).join(", ")) : "";
-    confirm.hidden = !(changes || opts.confirmCurrent);
+    confirm.hidden = !(changes || (opts.confirmCurrent && !answered));
   }
 
   confirm.addEventListener("click", () => void submit());
@@ -144,6 +147,7 @@ export function mountNativeLanguage(container: HTMLElement, opts: NativeLanguage
       failed.hidden = false;
       return;
     }
+    if (!reply.changed) answered = true;
     await opts.onChosen?.(native, reply);
     await refresh();
   }

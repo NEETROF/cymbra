@@ -98,10 +98,15 @@ selected, the consequence for the studied languages stated before confirming, a 
 - in the popup's first run, as a call to action of its own above `#controls` (which shows only
   once a content script answers), when `cymbra-lingua-native-chosen` is unset. New install and
   update are told apart by `onInstalled`'s `reason`, which fires on every browser: on `update`
-  the background sets the marker at once — an installed extension is never asked (M22); on
-  `install` the marker is set by the preset (the onboarding's, or the popup's when the onboarding
-  tab did not open) and by the three places. A store that already holds a backup proves nothing:
-  reading one page writes one.
+  the background sets the marker at once — an installed extension is never asked (M22).
+  Otherwise the marker is set by the reader's answer in one of the three places — confirming the
+  preset counts, in the onboarding as in the popup — and never by the preset itself, so a popover
+  closed before the answer asks again. Should a browser not report an update (Safari's host app
+  may update the extension without it), a preset refuses a backup that holds the reader's data —
+  a status, a card, a profile other than the default — and marks the choice as made instead; the
+  first preset that found the device new sets `cymbra-lingua-native-preset`, so the reader's own
+  first statuses never pass for an installed extension's. A store that merely holds a backup
+  proves nothing: reading one page writes one, with its exposures.
 
 ### D5 — What follows a change
 

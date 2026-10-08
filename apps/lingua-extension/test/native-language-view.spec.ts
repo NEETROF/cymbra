@@ -9,9 +9,16 @@ import { nativeLanguage as frCopy } from "@/i18n/fr/native-language.ts";
 import { mountNativeStep, presetThenStart } from "@/onboarding/native-step.ts";
 import { mountNativeCta } from "@/popup/native-cta.ts";
 import { mountNativeLanguage, nativeLanguageCopy } from "@/reading/native-language-view.ts";
-import { NATIVE_CHOSEN_KEY, type NativeLanguageReply, presetNativeLanguage } from "@/state/native-language.ts";
+import {
+  changeNativeLanguage,
+  NATIVE_CHOSEN_KEY,
+  NATIVE_LANGUAGE_MESSAGE,
+  type NativeLanguageHost,
+  type NativeLanguageReply,
+  presetNativeLanguage,
+} from "@/state/native-language.ts";
 import { type AsyncStorageArea, ROOT_KEY } from "@/state/storage.ts";
-import type { StoreChangeReason } from "@/state/store.ts";
+import { ownerArea, type StoreChangeReason } from "@/state/store.ts";
 
 // The reader's choice of native language, one view in three places (add-lingua-native-language-choice
 // D4): Réglages' block is asserted with Réglages (settings-native-language.spec.ts); here the view,
@@ -22,6 +29,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TODAY = ["en-fr", "es-fr"];
 /** es-en shipping beside them (change 34). */
 const MIXED = ["en-fr", "es-fr", "es-en"];
+/** The engine's names for the languages (state/profile.ts). */
+const NAMES = { fr: "French", en: "English", es: "Spanish" } as const;
 
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 4; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -219,6 +228,24 @@ describe("the onboarding's first question (D4)", () => {
     ]);
   });
 
+  it("the preset confirmed in the same step is the reader's answer (M3)", async () => {
+    const doc = page();
+    const step = mountNativeStep(doc.getElementById("languages-section")!, "en", storeOf("English", ["Spanish"]), {
+      pairs: MIXED,
+      watch: watcher().watch,
+    })!;
+    await settle();
+    // The view's default sends the choice to the background.
+    const sendMessage = vi.fn(async () => ({ ok: true, changed: false }));
+    vi.stubGlobal("chrome", { runtime: { sendMessage } });
+    expect(button(step).hidden).toBe(false);
+    button(step).click();
+    await settle();
+    expect(sendMessage).toHaveBeenCalledWith({ type: "lingua-native-language", native: "en" });
+    expect(button(step).hidden).toBe(true); // answered: nothing more to confirm
+    vi.unstubAllGlobals();
+  });
+
   it("the page reloads when the native language changes, not for its own preset", async () => {
     const doc = page();
     const { watch, fire } = watcher();
@@ -274,40 +301,68 @@ describe("the popup's first run (D4)", () => {
   });
 
   it("Safari without the onboarding: preset from the browser's language, asked before the level, asked no more once answered", async () => {
+    // The background's side as it runs (state/native-language.ts): a page was read before the popup
+    // opened, so the store holds a French backup with exposures and nothing else.
     const preferences = fakeArea();
+    const backup = JSON.stringify({ schema_version: 2, exposure: { English: { the: 3 } } });
+    const store = ownerArea(fakeArea({ [ROOT_KEY]: { v: 2, backup } }), () => {}, preferences, MIXED);
+    const host: NativeLanguageHost = {
+      store,
+      preferences,
+      ensureBackup: async () => {},
+      reprofile: async (from, native, studied) =>
+        JSON.stringify({
+          ...(JSON.parse(from) as object),
+          profile: { native_language: NAMES[native], studied_languages: studied.map((l) => NAMES[l]) },
+        }),
+      exclusive: (task) => task(),
+      rehydrate: () => {},
+      pairs: MIXED,
+    };
     const sent: [NativeLanguage, boolean][] = [];
-    const choose = async (native: NativeLanguage, preset: boolean): Promise<NativeLanguageReply> => {
+    const choose = (native: NativeLanguage, preset = false): Promise<NativeLanguageReply> => {
       sent.push([native, preset]);
-      // The background marks the choice as made with the preset (state/native-language.ts).
-      preferences.store[NATIVE_CHOSEN_KEY] = true;
-      return { ok: true, changed: true };
+      return changeNativeLanguage(host, { type: NATIVE_LANGUAGE_MESSAGE, native, ...(preset ? { preset } : {}) });
+    };
+    const popup = async () => {
+      const asked = await presetNativeLanguage({ preferences, browserLanguage: "en-GB", choose, pairs: MIXED });
+      const doc = page();
+      const cta = asked ? mountNativeCta(doc, "en", store, { pairs: MIXED, choose: (native) => choose(native) }) : null;
+      await settle();
+      return { asked, doc, cta };
     };
 
     // The first popup of a new install whose onboarding never opened: preset, then asked.
-    expect(await presetNativeLanguage({ preferences, browserLanguage: "en-GB", choose, pairs: MIXED })).toBe(true);
+    const first = await popup();
+    expect(first.asked).toBe(true);
     expect(sent).toEqual([["en", true]]);
-    const doc = page();
-    const cta = mountNativeCta(doc, "en", storeOf("English", ["Spanish"]), {
-      pairs: MIXED,
-      choose: async () => ({ ok: true, changed: false }),
-    })!;
-    await settle();
+    const cta = first.cta!;
     // Above the page's figures, which show once a content script answers, and the level's call to action.
     expect(cta.nextElementSibling?.id).toBe("setup");
     expect(
-      cta.compareDocumentPosition(doc.getElementById("level-cta")!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      cta.compareDocumentPosition(first.doc.getElementById("level-cta")!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(cta.querySelector(".native-question")?.textContent).toBe("I read in…");
     expect(radios(cta).find((r) => r.checked)?.native).toBe("en");
-    // The preset is an answer: confirming it removes the question.
     expect(button(cta).hidden).toBe(false);
-    button(cta).click();
-    await settle();
-    expect(doc.getElementById("native-cta")).toBeNull();
 
-    // The next popup: the choice was made, nothing is preset or asked.
-    expect(await presetNativeLanguage({ preferences, browserLanguage: "en-GB", choose, pairs: MIXED })).toBe(false);
-    expect(sent).toHaveLength(1);
+    // The popover closed before the reader answered: the next one asks again.
+    const second = await popup();
+    expect(second.asked).toBe(true);
+    expect(second.cta).not.toBeNull();
+
+    // The preset confirmed is the answer: the question goes, and no popup asks again.
+    button(second.cta!).click();
+    await settle();
+    expect(second.doc.getElementById("native-cta")).toBeNull();
+    expect(preferences.store[NATIVE_CHOSEN_KEY]).toBe(true);
+    const third = await popup();
+    expect(third.asked).toBe(false);
+    expect(sent).toEqual([
+      ["en", true],
+      ["en", true],
+      ["en", false],
+    ]);
   });
 
   it("An installed extension is not asked: the update's marker keeps the popup from presetting", async () => {

@@ -9,9 +9,10 @@ import type { AsyncStorageArea } from "../state/storage.ts";
 // D4), apart from popup.ts so a test mounts it on the popup's page: Safari does not always open the
 // onboarding tab, so a new install whose choice was never made is asked here — preset from the
 // browser's language before the page painted (popup.ts), the question above the page's figures
-// (`#setup`, `#controls`), before the level's. Confirming the preset, or another language, answers it:
-// the block goes, or the page reloads in the language chosen, and the marker the answer set keeps it
-// from asking again. Nothing is mounted while one native language ships — today.
+// (`#setup`, `#controls`), before the level's. The preset is no answer: a popover closed before the
+// reader confirmed asks again at its next opening. Confirming the preset, or another language, is
+// the answer: the background marks the choice as made, and the block goes, or the page reloads in
+// the language chosen — and asks no more. Nothing is mounted while one native language ships — today.
 
 export interface NativeCtaOptions {
   /** The bundle's pairs, unless a spec offers others. */

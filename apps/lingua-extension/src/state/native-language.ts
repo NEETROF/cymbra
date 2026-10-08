@@ -8,7 +8,7 @@ import {
   studiedOf,
 } from "../analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
-import { INTERFACE_LANGUAGES, type InterfaceLanguage } from "../i18n/language.ts";
+import { type InterfaceLanguage, isInterfaceLanguage } from "../i18n/language.ts";
 import { nativeLanguageOf, studiedLanguagesOf } from "./profile.ts";
 import { type AsyncStorageArea, loadStored, ROOT_KEY, STORAGE_VERSION } from "./storage.ts";
 import { type StoreChangeReason, watchStore } from "./store.ts";
@@ -26,8 +26,9 @@ export interface NativeLanguageMessage {
   /** The native language chosen, as an ISO 639-1 tag. */
   native: string;
   /**
-   * A new install's preset (D4): applied only while the choice was never made — another surface
-   * that presets first wins, and an updated extension, marked as chosen, is never preset (M22).
+   * A new install's preset (D4): applied only while the choice was never made, and only on a device
+   * found new — an updated extension, marked as chosen or holding its reader's data, is never preset
+   * (M22). A preset is not an answer: the choice stays to be made.
    */
   preset?: boolean;
 }
@@ -45,12 +46,21 @@ export function isNativeLanguageMessage(message: unknown): message is NativeLang
 }
 
 /**
- * Set, in chrome.storage.local, once the native language is chosen — by the reader in one of the
- * three places, by a new install's preset, or by an update (`onInstalled`'s reason), so an installed
- * extension is never asked (D4, M22). While unset, the popup's first run asks. A preference of this
- * device, never synced, never in the backup.
+ * Set, in chrome.storage.local, once the native language is chosen — by the reader's answer in one
+ * of the three places, by an update (`onInstalled`'s reason), or when a preset finds the reader's
+ * data already there, so an installed extension is never asked (D4, M22). Never by a preset: while
+ * unset, the popup's first run asks, and a popover closed before its answer asks again. A preference
+ * of this device, never synced, never in the backup.
  */
 export const NATIVE_CHOSEN_KEY = "cymbra-lingua-native-chosen";
+
+/**
+ * Set, in chrome.storage.local, once a preset found this device new — no reader's data in its
+ * backup — and applied the browser's language (D4): from then on the reader's first statuses and
+ * cards, or the preset's own profile, never pass for an installed extension's data, and the choice
+ * is asked until it is answered.
+ */
+export const NATIVE_PRESET_KEY = "cymbra-lingua-native-preset";
 
 /** Whether the choice of native language was made on this device (`NATIVE_CHOSEN_KEY`). */
 export async function nativeLanguageChosen(preferences: Pick<AsyncStorageArea, "get">): Promise<boolean> {
@@ -62,6 +72,25 @@ export async function markNativeLanguageChosen(preferences: Pick<AsyncStorageAre
   await preferences.set({ [NATIVE_CHOSEN_KEY]: true });
 }
 
+/**
+ * What `onInstalled` says about the native language (D4, M22): an update marks the choice as made,
+ * whatever the package ships, so an installed extension is never asked; a new install chooses at the
+ * onboarding, or in the popup's first run when the onboarding tab did not open. Anything else — the
+ * browser updated, a shared module — says nothing.
+ */
+export async function onExtensionInstalled(reason: string, preferences: Pick<AsyncStorageArea, "set">): Promise<void> {
+  if (reason === "update") await markNativeLanguageChosen(preferences);
+}
+
+/**
+ * Whether `value` names a native language this build knows. The interface languages are the native
+ * languages — `InterfaceLanguage` is `NativeLanguage` (add-lingua-interface-language): the reader's
+ * interface speaks their native language — so the one list serves both.
+ */
+function isNativeLanguage(value: unknown): value is NativeLanguage {
+  return isInterfaceLanguage(value);
+}
+
 /** Whether the choice is shown anywhere: two native languages or more have a shipped pair (D1). */
 export function nativeChoiceOffered(pairs: readonly string[] = SHIPPED_PAIRS): boolean {
   return shippedNatives(pairs).length >= 2;
@@ -69,9 +98,40 @@ export function nativeChoiceOffered(pairs: readonly string[] = SHIPPED_PAIRS): b
 
 /** The native languages the choice offers, in listed order: those a shipped pair is glossed in (D1). */
 export function offeredNatives(pairs: readonly string[] = SHIPPED_PAIRS): NativeLanguage[] {
-  return shippedNatives(pairs).filter((native): native is NativeLanguage =>
-    (INTERFACE_LANGUAGES as readonly string[]).includes(native),
-  );
+  return shippedNatives(pairs).filter(isNativeLanguage);
+}
+
+/**
+ * Whether `backup` holds what a reader puts there (D4, M22): a status, a card, or a profile other
+ * than the one every engine starts with — French, studying the default pair's language. Exposures do
+ * not count: reading one page writes them, and a new install's first page may come before its popup.
+ * A backup that does not parse counts: nothing is preset over it.
+ */
+export function holdsReaderData(backup: string, pairs: readonly string[] = SHIPPED_PAIRS): boolean {
+  let parsed: { knowledge?: { statuses?: unknown }; deck?: { cards?: unknown } } | null;
+  try {
+    parsed = JSON.parse(backup) as typeof parsed;
+  } catch {
+    return true;
+  }
+  // Both are kept by studied language, then by lemma: one entry anywhere is the reader's.
+  const anyEntry = (byLanguage: unknown): boolean =>
+    typeof byLanguage === "object" &&
+    byLanguage !== null &&
+    Object.values(byLanguage).some(
+      (entries) => typeof entries === "object" && entries !== null && Object.keys(entries).length > 0,
+    );
+  if (anyEntry(parsed?.knowledge?.statuses) || anyEntry(parsed?.deck?.cards)) return true;
+  const fresh = defaultProfile(pairs);
+  return nativeLanguageOf(backup, pairs) !== fresh.native || studiedLanguagesOf(backup).join() !== fresh.studied.join();
+}
+
+/** The profile every engine starts with: French, studying the default pair's language. */
+function defaultProfile(pairs: readonly string[]): { native: NativeLanguage; studied: StudiedLanguage[] } {
+  return {
+    native: DEFAULT_NATIVE,
+    studied: [studiedOf(defaultPair(DEFAULT_NATIVE, pairs) ?? pairs[0]) as StudiedLanguage],
+  };
 }
 
 /**
@@ -113,7 +173,7 @@ export interface NativeLanguageHost {
   store: Pick<AsyncStorageArea, "get"> & {
     set(items: Record<string, unknown>, reason?: StoreChangeReason): Promise<void>;
   };
-  /** chrome.storage.local: the marker. */
+  /** chrome.storage.local: the markers. */
   preferences: AsyncStorageArea;
   /** See to it that the store holds a backup: a new install's onboarding may come before any page. */
   ensureBackup(): Promise<void>;
@@ -138,20 +198,23 @@ export interface NativeLanguageHost {
 }
 
 /**
- * The reader chooses `message.native` (D2): refused when no shipped pair is glossed in it; a preset
- * left alone when the choice was already made; otherwise, with every sync held, the stored backup's
- * profile is rewritten — that native language, studying `studiedForNative` — and saved with its
- * reason, so the owner writes the interface language's key before it announces the change; then the
- * background's reading engine restores it, and the choice is marked as made. Choosing the native
- * language the reader already has only marks it.
+ * The reader chooses `message.native` (D2): refused when no shipped pair is glossed in it; otherwise,
+ * with every sync held, the stored backup's profile is rewritten — that native language, studying
+ * `studiedForNative` — and saved with its reason, so the owner writes the interface language's key
+ * before it announces the change; then the background's reading engine restores it, and the choice
+ * is marked as made. Choosing the native language the reader already has only marks it.
+ *
+ * A preset (D4) is no answer, and marks nothing: it is left alone once the choice was made, and on a
+ * device whose backup holds its reader's data — an extension installed before this build, whose
+ * update the browser did not report — which it marks as chosen instead (M22).
  */
 export async function changeNativeLanguage(
   host: NativeLanguageHost,
   message: NativeLanguageMessage,
 ): Promise<NativeLanguageReply> {
   const pairs = host.pairs ?? SHIPPED_PAIRS;
-  const native = message.native as NativeLanguage;
-  if (!(INTERFACE_LANGUAGES as readonly string[]).includes(native) || pairsOf(native, pairs).length === 0) {
+  const native = message.native;
+  if (!isNativeLanguage(native) || pairsOf(native, pairs).length === 0) {
     return { ok: false, error: "no-pair" };
   }
   return host.exclusive(() => rewriteProfile(host, native, message.preset === true, pairs));
@@ -175,21 +238,34 @@ async function rewriteProfile(
       stored = await loadStored(host.store);
     }
     if (stored.kind !== "v2") return { ok: false, error: "failed" };
+    if (preset && !(await presetBefore(host.preferences))) {
+      if (holdsReaderData(stored.backup, pairs)) {
+        await markNativeLanguageChosen(host.preferences);
+        return { ok: true, changed: false };
+      }
+      await host.preferences.set({ [NATIVE_PRESET_KEY]: true });
+    }
     if (nativeLanguageOf(stored.backup, pairs) === native) {
-      await markNativeLanguageChosen(host.preferences);
+      if (!preset) await markNativeLanguageChosen(host.preferences);
       return { ok: true, changed: false };
     }
     const studied = studiedForNative(studiedLanguagesOf(stored.backup), native, pairs) as StudiedLanguage[];
     const backup = await host.reprofile(stored.backup, native, studied);
-    // Marked before it is announced: a page reloading on the change never asks again.
-    await markNativeLanguageChosen(host.preferences);
     await host.store.set({ [ROOT_KEY]: { v: STORAGE_VERSION, backup } }, { type: "native-language", native });
     host.rehydrate();
+    // Marked once the backup is written — a write that failed answers nothing. A page that reloads on
+    // the announcement reads the marker long after this write was asked.
+    if (!preset) await markNativeLanguageChosen(host.preferences);
     return { ok: true, changed: true };
   } catch (e) {
     console.warn("[Cymbra Lingua] could not change the native language:", e);
     return { ok: false, error: "failed" };
   }
+}
+
+/** Whether a preset already found this device new (`NATIVE_PRESET_KEY`). */
+async function presetBefore(preferences: Pick<AsyncStorageArea, "get">): Promise<boolean> {
+  return (await preferences.get(NATIVE_PRESET_KEY))[NATIVE_PRESET_KEY] === true;
 }
 
 /**
@@ -205,10 +281,7 @@ export async function storedProfile(
   if (stored.kind === "v2") {
     return { native: nativeLanguageOf(stored.backup, pairs), studied: studiedLanguagesOf(stored.backup) };
   }
-  return {
-    native: DEFAULT_NATIVE,
-    studied: [studiedOf(defaultPair(DEFAULT_NATIVE, pairs) ?? pairs[0]) as StudiedLanguage],
-  };
+  return defaultProfile(pairs);
 }
 
 /** What a surface's preset needs: its preferences, the browser's language, and the background. */
@@ -226,9 +299,10 @@ export interface PresetDeps {
  * A new install's preset, applied before the surface paints (D4): only while two native languages
  * ship and the choice was never made on this device. The background writes it — the backup the first
  * page wrote, or a fresh one — and the surface then reads the interface language it names. Resolves
- * true when this surface preset the choice, so the popup's first run asks the question; false at
- * once, reading nothing, while one native language ships (today). Never rejects: the surface paints
- * whatever happened.
+ * true while the choice is still to be made, so the popup's first run asks the question — again at
+ * each opening until the reader answers; false once it was made, the background having found an
+ * installed extension's data included, and at once, reading nothing, while one native language
+ * ships (today). Never rejects: the surface paints whatever happened.
  */
 export async function presetNativeLanguage(deps: PresetDeps): Promise<boolean> {
   const pairs = deps.pairs ?? SHIPPED_PAIRS;
@@ -237,7 +311,7 @@ export async function presetNativeLanguage(deps: PresetDeps): Promise<boolean> {
     if (await nativeLanguageChosen(deps.preferences)) return false;
     const choose = deps.choose ?? ((native, preset) => chooseNativeLanguage(native, preset));
     await choose(presetNative(deps.browserLanguage, pairs), true);
-    return true;
+    return !(await nativeLanguageChosen(deps.preferences));
   } catch (e) {
     console.warn("[Cymbra Lingua] could not preset the native language:", e);
     return false;
