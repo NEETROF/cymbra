@@ -229,10 +229,7 @@ fn the_golden_is_the_english_one_on_the_studied_side() {
             .iter()
             .find(|(n, _)| n == name)
             .unwrap_or_else(|| panic!("en-es answers `{name}` too"));
-        let (Some(x), Some(y)) = (
-            studied_side(name, body, true),
-            studied_side(name, other, true),
-        ) else {
+        let (Some(x), Some(y)) = (studied_side(name, body), studied_side(name, other)) else {
             continue;
         };
         compared += 1;

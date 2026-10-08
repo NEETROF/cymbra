@@ -230,10 +230,7 @@ fn the_golden_is_the_spanish_one_on_the_studied_side() {
             assert!(name.starts_with("beside "), "es-en answers `{name}` too");
             continue;
         };
-        let (Some(x), Some(y)) = (
-            studied_side(name, body, true),
-            studied_side(name, other, true),
-        ) else {
+        let (Some(x), Some(y)) = (studied_side(name, body), studied_side(name, other)) else {
             continue;
         };
         compared += 1;
