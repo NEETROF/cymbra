@@ -37,5 +37,5 @@ The app SHALL guide the user through enabling the Safari extension, which Safari
 - **THEN** the page is in French, as before
 
 #### Scenario: A device in English once English ships
-- **WHEN** es-en ships and the app is opened on a device in English
+- **WHEN** es-en ships and the app is opened on a device in English before the extension has run
 - **THEN** the page is the English copy, and its `lang` is `en`

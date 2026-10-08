@@ -20,8 +20,8 @@ See proposal.md (Why). What exists:
 ## Goals / Non-Goals
 
 **Goals:**
-- The activation page in the device's language, the sign-in sheet in the extension's, among the
-  shipped natives.
+- The activation page in the extension's interface language once it has run, the device's before,
+  and the sign-in sheet in the extension's, among the shipped natives.
 - Nothing moves while only French-native pairs ship.
 
 **Non-Goals:**
@@ -42,8 +42,10 @@ rewrite would change its bytes) and a French-only build after a localised one is
 a Run Script phase, last on each app target and on both extension targets after their copy phase,
 with `$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)` as its input (never an output, which would collide
 with `ProcessInfoPlistFile`) and `alwaysOutOfDate = 1`, before CodeSign; it relies on
-`ENABLE_USER_SCRIPT_SANDBOXING = NO`, which the project sets. The committed Info.plists keep
-`[fr]`/`fr`. The App Store's "Languages" line reads `CFBundleLocalizations` (the precedent in
+`ENABLE_USER_SCRIPT_SANDBOXING = NO`, which the project sets. The committed app Info.plists keep
+`[fr]`/`fr`; the extensions' generated plists hold `CFBundleDevelopmentRegion` `en` and no
+`CFBundleLocalizations`, which is what a French-only list means on the extension targets, so the
+script writes there only once a non-French native ships and restores those values after. The App Store's "Languages" line reads `CFBundleLocalizations` (the precedent in
 `apps/music/ios/Runner/Info.plist`). Swift reads `Bundle.main.preferredLocalizations.first` and
 maps it to `fr`, `en` or `es`; anything else (`Base`, a regional id) maps to the development
 region. Whether `preferredLocalizations` honours `CFBundleLocalizations` without `.lproj` folders,
@@ -66,7 +68,9 @@ each text carries `data-copy="key"`; entries whose copy holds `<strong>` are HTM
 `data-copy-alt`. `copy.js` is added to the project (a file reference in `Resources`, a build file in
 both app targets' Copy Bundle Resources). The language Swift injects is the extension's interface
 language once the extension has run — its native handler writes it to the App Group suite
-`IdTokenHandoff` already uses — and the bundle's preferred localisation before (M22: a French
+`IdTokenHandoff` already uses, on a `NativeMessage` case taking a `SignInLanguage` that the
+background sends (Safari only) at start and on each change — and the bundle's preferred localisation
+before (M22: a French
 reader keeps a French page on a device in English). The lede's « en anglais », which predates
 Spanish, is a wording point for the owner's review (change 33), not changed here (M23); the
 English and Spanish drafts name the language their natives study — Spanish in `en`, English in
