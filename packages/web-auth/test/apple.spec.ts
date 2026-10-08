@@ -101,6 +101,9 @@ describe("useAppleSignIn", () => {
   });
 
   it("loads the SDK in the page's language: es_ES for Spanish, en_US when unknown", async () => {
+    // `load()` is not awaited on purpose: `run()` executes synchronously up to its first
+    // `await` — `loadAppleId()` has appended the <script> before `load()` returns its
+    // promise — and nothing fires the script's `load` event here, so an await would hang.
     const { useAppleSignIn } = await import("../src/apple");
     void useAppleSignIn("c", "r", vi.fn()).load("es");
     const es = document.querySelector<HTMLScriptElement>('script[src*="appleid.auth.js"]');
