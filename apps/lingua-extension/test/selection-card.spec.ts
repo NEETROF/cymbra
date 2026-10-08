@@ -1161,6 +1161,20 @@ describe("rowGloss", () => {
     expect(row).toBe("Se rapporter (se rapporter à = to refer to), concerner, être en relation avec…");
     expect(rowGloss("a".repeat(100))).toBe(`${"a".repeat(79)}…`);
   });
+
+  it("never strips a closing mark, and leaves an opening one behind with its word (add-lingua-english-card-wording D4)", () => {
+    // ’ is also the apostrophe: a row cut right after it keeps it, as it keeps « ) » and « ] ».
+    const closing = `${"a".repeat(60)} ${"b".repeat(13)}’ ${"c".repeat(30)}`;
+    expect(rowGloss(closing)).toBe(`${"a".repeat(60)} ${"b".repeat(13)}’…`);
+    // A cut at the space before « “quoted » ends on the word before the mark; the French marks
+    // and brackets that open on the cut's side are stripped, a closing one never.
+    const opening = `${"a".repeat(60)} ${"b".repeat(13)} “${"c".repeat(30)}”`;
+    expect(rowGloss(opening)).toBe(`${"a".repeat(60)} ${"b".repeat(13)}…`);
+    expect(rowGloss(`${"a".repeat(60)} ${"b".repeat(13)} («${"c".repeat(30)}»)`)).toBe(
+      `${"a".repeat(60)} ${"b".repeat(13)}…`,
+    );
+    expect(rowGloss(`${"a".repeat(74)} (${"c".repeat(30)})`)).toBe(`${"a".repeat(74)}…`);
+  });
 });
 
 describe("rowsFor", () => {

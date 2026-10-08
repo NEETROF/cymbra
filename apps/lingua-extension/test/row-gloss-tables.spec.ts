@@ -47,3 +47,30 @@ describe("the selection card's rows over the committed French glosses", () => {
     await expect(text).toMatchFileSnapshot("./baseline/selection-rows-fr.txt");
   });
 });
+
+// The cut's rules, owned by add-lingua-english-card-wording (D4) and measured on every committed
+// gloss of every pair, the English-glossed one included: the trailing set gains an opening mark
+// only when a committed row would end on one — none does — and a closing mark is never stripped.
+const PAIRS = ["en-fr", "es-fr", "es-en"];
+
+/** The marks a row must not end on, before its ellipsis: the openers of every edition the packs read. */
+const OPENING = /[“‘«([]…$/u;
+
+describe("the row cut over every committed gloss", () => {
+  it("skips no sense: the empty-sense pattern matches no gloss of any edition the packs read", () => {
+    for (const pair of PAIRS) {
+      for (const [lemma, gloss] of glosses(pair)) {
+        expect(gloss, `${pair} ${lemma}`).not.toMatch(/définition manquante/i);
+        expect(rowGloss(gloss), `${pair} ${lemma}`).not.toBeNull();
+      }
+    }
+  });
+
+  it("ends no row on an opening mark", () => {
+    for (const pair of PAIRS) {
+      for (const [lemma, gloss] of glosses(pair)) {
+        expect(rowGloss(gloss), `${pair} ${lemma}`).not.toMatch(OPENING);
+      }
+    }
+  });
+});
