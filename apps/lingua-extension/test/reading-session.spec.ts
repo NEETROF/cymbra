@@ -593,6 +593,23 @@ describe("a session taken down (add-lingua-native-language-choice D3)", () => {
     expect(destroyed).toHaveBeenCalledOnce();
   });
 
+  it("counts the words read before it was taken down in the day's statistics, never in the backup", async () => {
+    const { s } = session({ indicator: indicator().factory });
+    await s.start(null);
+    const writes = () => sent.filter((msg) => (msg as { type?: string }).type === "store:set") as { items: object }[];
+    const before = writes().length;
+    // A block read, its words waiting for the throttled flush.
+    s["onExposed"]({ lemmas: ["night"], read: 12, unknown: 3 } as never);
+
+    s.stop();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const written = writes().slice(before);
+    expect(written).toHaveLength(1);
+    expect(Object.keys(written[0].items)).not.toContain("lingua");
+    expect(JSON.stringify(written[0].items)).toContain('"exposures":12');
+  });
+
   it("A stopped session never writes its backup, even one its engine was still answering", async () => {
     const { s, port } = session({ indicator: indicator().factory });
     await s.start(null);

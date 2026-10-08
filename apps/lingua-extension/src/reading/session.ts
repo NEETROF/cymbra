@@ -565,9 +565,10 @@ export class ReadingSession {
    * Take the session down (add-lingua-native-language-choice D3): the reader chose another native
    * language, and the content script builds a new session — its engine for that language, its
    * surfaces in its interface language. The read document is left unpainted, the surfaces leave the
-   * page, and nothing this session hung on the page or the extension's events reacts any more. What
-   * was read and not yet counted is dropped rather than persisted: this engine's backup names the
-   * native language the reader just left, and writing it would undo their choice.
+   * page, and nothing this session hung on the page or the extension's events reacts any more. The
+   * words read since the last flush still count in the day's statistics, which live under their own
+   * key; their exposures are dropped rather than recorded: they go into this engine's backup, which
+   * names the native language the reader just left, and writing it would undo their choice.
    */
   stop(): void {
     if (this.stopped) return;
@@ -575,8 +576,7 @@ export class ReadingSession {
     if (this.exposureFlushTimer !== null) clearTimeout(this.exposureFlushTimer);
     this.exposureFlushTimer = null;
     this.pendingExposure.clear();
-    this.pendingRead = 0;
-    this.pendingUnknown = 0;
+    this.flushReading();
     this.detach();
     this.selection.cancel();
     this.speaker.stop();
