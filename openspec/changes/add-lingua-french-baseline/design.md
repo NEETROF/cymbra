@@ -8,7 +8,7 @@ See proposal.md (Why). Where a third studied language has to answer today:
 |---|---|
 | `analysis/language.rs` | `StudiedLanguage { English, Spanish }`, `ALL`, `tag()`, `from_tag()`, `analyzer_version()`, `whichlang_target()`; whichlang has a French class |
 | `analysis/mod.rs` | `ANALYZER_VERSION` (English, `1.1.0`), `SPANISH_ANALYZER_VERSION` (`1.2.0`) |
-| `analysis/tokenize.rs` | `nfc_for` (Spanish in NFC, English as it came), `split_contraction` (`n't`; `al`/`del`); the rest belongs to no language |
+| `analysis/tokenize.rs` | `nfc_for` (Spanish in NFC, English as it came), `split_contraction` (`n't`; `al`/`del`); the `’` → `'` map and the rest belong to no language |
 | `analysis/lemmatize.rs` | `lemmatize` dispatches to English's cascade or `spanish::lemmatize`; the baseline function of `generalise-lingua-analysis-by-language` D3 was retired when Spanish got its cascade (#655) |
 | `analysis/function_words.rs` | tables per language |
 | `engine.rs` | `document_names` for Spanish, none for English |
@@ -70,7 +70,8 @@ function words. French takes that, and nothing more:
 - `nfc_for` returns French text as it came (Spanish's NFC stays Spanish's);
 - `split_contraction` answers `None`: `au`, `aux`, `du`, `des` are one token each, and
   `l'homme`, `qu'il`, `aujourd'hui` are one token each — UAX #29 keeps a letter-apostrophe-letter
-  run together, and the typographic apostrophe is already normalised before the pre-pass;
+  run together, and `push_word` maps the typographic apostrophe `’` to `'` for every language
+  before the pre-pass (`tokenize.rs`), so the corpus's real apostrophes read as the straight one;
 - `lemmatize` dispatches to `lemmatize_baseline`: the pack's lemma for the lowercased form, else
   the lowercased form (D3);
 - `is_function_word` has no French table: `pas`, `ne`, `le`, `de` count like any other word;
@@ -88,8 +89,9 @@ the suffix rules would read French wrongly, and the requirement forbids a langua
 another's text.
 
 *Rejected — NFC now.* It is a pre-pass rule of French's own, which the spec's baseline does not
-have; the corpus is committed in NFC, so it would change no byte of the golden; and no live page
-is read as French before change 52. Change 40 owns the pre-pass and takes NFC with the elision.
+have, and no live page is read as French before change 52. The corpus holds one block committed
+in NFD on purpose (D5), so the golden shows its decomposed tokens today and change 41's NFC rule
+moves them: a before and an after in the diff of that re-bless, rather than a rule nobody can see.
 
 ### D3 — `lemmatize_baseline` returns
 
@@ -123,22 +125,36 @@ what a later change must show:
 | Page | What it holds |
 |---|---|
 | `actualites` | news prose: dates, figures, acronyms, `au`/`du`/`des` |
-| `fiction` | authored narrative with dialogue, « » quotes and the dash |
-| `proust` | the opening of Marcel Proust, *Du côté de chez Swann* (1913; the author died in 1922, the text is in the public domain): « Longtemps, je me suis couché de bonne heure. … » — elision-rich literary French, the Quijote page's counterpart |
+| `fiction` | authored narrative with dialogue, « » quotes and the dash, set in real French punctuation: the typographic apostrophe `’` and the narrow no-break space (U+202F) before `?`, `!` and `»` |
+| `proust` | the opening of Marcel Proust, *Du côté de chez Swann* (1913; public domain, see below): « Longtemps, je me suis couché de bonne heure. … » — elision-rich literary French, the Quijote page's counterpart, set as a French edition sets it (`’`, the narrow no-break space before `?`, `!` and `»`) |
 | `homographes` | *porte*/*porter*, *est* (verb, east), *fils*, *couvent*, *vis*, *as*, *car*, *pas* (noun), *son*, *été* — M8's cases, one lemma each at this stage |
 | `elisions` | `l'`, `d'`, `j'`, `n'`, `qu'`, `s'`, `c'`, `m'`, `t'`, `jusqu'`, `lorsqu'`, `puisqu'`, `aujourd'hui`, `presqu'île`, and the forms before a vowel (*bel*, *nouvel*, *vieil*, *cet*, *mon amie*) |
 | `contractions` | `au`, `aux`, `du`, `des` in both readings (article and preposition + article) — M21 |
 | `inversions` | `dit-il`, `y a-t-il`, `est-ce`, `va-t'en`, `donne-m'en`, `allez-vous-en`, `celui-ci`, beside true compounds (`peut-être`, `rendez-vous`, `arc-en-ciel`, `porte-monnaie`) |
-| `noms` | the first sentence of Victor Hugo, *Les Misérables* (1862, public domain): « En 1815, M. Charles-François-Bienvenu Myriel était évêque de Digne. », then titles (M., Mme, Dr), hyphenated given names and places (Jean-Pierre, Saint-Étienne), rivers and towns that are common words |
+| `noms` | the first sentence of Victor Hugo, *Les Misérables* (1862; public domain, see below): « En 1815, M. Charles-François-Bienvenu Myriel était évêque de Digne. », then titles (M., Mme, Dr), hyphenated given names and places (Jean-Pierre, Saint-Étienne), rivers and towns that are common words |
 | `informel` | chat French: `jsuis`, `chuis`, `bcp`, `mdr`, `t'es où ?`, missing accents |
 | `recette` | a recipe's imperatives (Épluchez, Faites chauffer, Laissez reposer) and quantities |
-| `technique` | technical prose with anglicisms, acronyms and `l'API`, file names, a 404 |
+| `technique` | technical prose with anglicisms, acronyms and `l'API`, file names, a 404; one block committed in NFD (accents as combining marks, as a terminal paste or an OCR writes them) |
 | `mixte` | blocks in English, Spanish, Catalan, Occitan and Italian around French ones — change 42's guard and the document vote |
 | `grammaire` | verb forms: passé simple, subjonctif, participles with agreement, `ne … pas / jamais / plus`, `eût`, `pût`, `soyez` |
 
 The two excerpts are the only quoted texts; every other line is authored for the corpus, as the
-Spanish pages are. Their attribution lives in `support/french.rs`'s doc comment (the corpus file
-has no comment syntax).
+Spanish pages are. Their attribution and the public-domain reasoning live in `support/french.rs`'s
+doc comment (the corpus file has no comment syntax): Proust died in 1922, so *Du côté de chez
+Swann* has been in the public domain in France since 1 January 1987 under the 50-year term plus
+the wartime extensions, was not re-protected by the 1997 move to 70 years, and is pre-1929 in the
+United States; Hugo died in 1885.
+
+**Real punctuation and one NFD block.** The `fiction` and `proust` pages are set as French is
+printed — the typographic apostrophe `’` and the narrow no-break space (U+202F) before `?`, `!`
+and `»` — so that M21's pieces (change 40) are exercised on the punctuation a reader's page has,
+not on the ASCII a test author types: `push_word` already maps `’` to `'` for every language, and
+the golden records what the segmentation makes of the narrow no-break space. One block of the
+`technique` page is committed in NFD, its accents as combining marks: today French text is read as
+it came (D2), so the golden records the decomposed tokens, and change 41's NFC rule shows its
+effect as the before/after of that block in its re-bless. The scenario asserts the block is still
+decomposed, so an editor or a formatter that silently composes the file fails the test rather
+than moving the golden unnoticed.
 
 **The pack.** fr-en has no committed tables before change 48, and an engine holding en-fr refuses
 a pack glossed in English. The scenario therefore runs over a **fixture pack** built from
@@ -146,13 +162,14 @@ hand-written tables in `scripts/lingua-data/testdata/fr-en/`, in the layout the 
 fixtures have (`forms.tsv`, `freq.tsv`, `gloss.tsv`, `mwe.tsv`, `level.tsv`, `manifest.json`,
 `NOTICE`): about two hundred form→lemma pairs covering the corpus's common words (forms of
 *être*, *avoir*, *aller*, *faire*, *pouvoir*, *dire*, *venir*, *prendre*; articles and pronouns
-as plain forms; plurals and feminines), ranks for about a hundred lemmas, about sixty English
-glosses, a handful of expressions, a few levels so that every probe of the harness answers
-(`seed-level`, the ladder), no grammar and no senses. The manifest studies `fr`, is glossed in
-`en`, carries `FRENCH_ANALYZER_VERSION`, a pack version that says « fixture », and no
-`levels_estimated` flag: the levels are a fixture's, not a decision (M7). The NOTICE says the
-tables are hand-written for the tests. The lexicon is small on purpose: the baseline's two
-branches — the pack's lemma, the lowercased form — both appear in the golden.
+as plain forms; plurals and feminines; the single-letter words `a`, `à` and `y`, which the
+tokeniser drops when the lexicon does not list them — `single_letter_outside_lexicon`), ranks for
+about a hundred lemmas, about sixty English glosses, a handful of expressions, a few levels so
+that every probe of the harness answers (`seed-level`, the ladder), no grammar and no senses. The
+manifest studies `fr`, is glossed in `en`, carries `FRENCH_ANALYZER_VERSION`, a pack version that
+says « fixture », and no `levels_estimated` flag: the levels are a fixture's, not a decision (M7).
+The NOTICE says the tables are hand-written for the tests. The lexicon is small on purpose: the
+baseline's two branches — the pack's lemma, the lowercased form — both appear in the golden.
 
 **Beside es-en.** The engine starts on the real es-en pack, built from its committed tables, and
 adds fr-en: what an English-native reader's engine does once both are listed. The `beside es-en`
@@ -160,14 +177,15 @@ line moves when es-en's tables are re-pinned (change 21's two settings), as es-f
 line does on an en-fr update; `lingua-pack-update` already tolerates a baseline that moves only on
 its pack lines.
 
-*Rejected — the engine on fr-en alone.* Simpler, but the estimated-ladder figures and the profile
-an engine starts with would differ from what a reader's engine has, and the Spanish baseline set
-the precedent of loading the packs as the extension does.
+*Rejected — the engine on fr-en alone.* Simpler, but the profile an engine starts with would
+differ from what a reader's engine has, and the Spanish baseline set the precedent of loading the
+packs as the extension does.
 
 **The probes** are the harness's, unchanged: pages for a new reader and for one with a history,
 glosses, phrase glosses, word grammar, levels, the review, the exports, the backup. What the
 scenario asserts beside the golden, in `french_baseline.rs`:
-- the corpus holds the thirteen pages in order, each with a block, the reader's pages among them;
+- the corpus holds the thirteen pages in order, each with a block, the reader's pages among them,
+  and the `technique` page's NFD block still holds a combining mark (U+0301);
 - French is the baseline: analysing the `elisions` page gives `l'homme` as one token whose lemma
   is `l'homme`, the `contractions` page gives `au` whole, no token of any page is a function word,
   and the analysis reports `0.1.0`;
@@ -204,12 +222,13 @@ holds it, so:
 - French records under a Spanish profile, or a French profile with no record yet, are version 3.
 
 `from_backup` reads 1 to 3. The header-first read of `add-lingua-studied-language-profile` D3 is
-what makes the released builds' behaviour exact: every build shipped since that change — the whole
-installed base, through the two silent English releases — reads `schema_version` before the rest
-and answers `UnsupportedVersion { found: 3, supported: 2 }` to a version 3 file. It never
-deserialises `"French"`, so it never says malformed; `hydrateEngine` throws, the surface does not
-start, the store is untouched, and a later build reads the file. A build older than the header
-(before R2) would report malformed; those builds were superseded by the silent releases, which the
+what makes the released builds' behaviour exact: every build released since 1.5.0 (2026-10-03,
+the first with the header-first read) reads `schema_version` before the rest and answers
+`UnsupportedVersion { found: 3, supported: 2 }` to a version 3 file. It never deserialises
+`"French"`, so it never says malformed; `hydrateEngine` throws, the surface does not start, the
+store is untouched, and a later build reads the file. A build older than the header — 1.0.2 on
+the Chrome Web Store, 1.2.1 on AMO, 1.4.0 — would report malformed, as it does of a version 2
+backup holding Spanish records; those builds were superseded by the silent releases, which the
 Spanish programme shipped for this very reason.
 
 *Rejected — folding French into version 2.* A released build reads 2, deserialises, meets
@@ -217,7 +236,7 @@ Spanish programme shipped for this very reason.
 
 *Rejected — writing version 3 for every non-default state from this build on.* A Spanish reader's
 backup would stop being readable by the current release for no reason. « v2 only when needed » is
-on the programme's never-cut list; v3 keeps the rule.
+on the Spanish programme's never-cut list (`docs/lingua/spanish-programme.md`); v3 keeps the rule.
 
 Change 12 (`add-lingua-native-language-sync-client`) rewords the same requirement's last sentence
 (the profile is never sent « as such »). This change archives after it (`archiveAfter`) and its
@@ -255,7 +274,11 @@ order the archive workflow walks, the spec ends with both.
 
 OpenSpec: two ADDED requirements in `lingua-analysis`, three MODIFIED ones held by no open change
 but one — *The backup records the reader's language profile*, held by change 12, hence
-`archiveAfter`. `openspec_archive_order.py` exits 10 naming that change alone.
+`archiveAfter`. `openspec_archive_order.py` exits 10 naming that change alone. The second ADDED
+requirement, *A French invariance baseline runs beside the English and Spanish ones*, is a new
+kind of requirement for this capability: it binds the tests and the pull requests that move the
+golden, not the engine. It is kept because it states the rule every later French change obeys —
+re-bless, bump the version, say what moved — where a reviewer of changes 40 to 48 will look for it.
 
 ## Risks / Trade-offs
 
@@ -270,9 +293,12 @@ but one — *The backup records the reader's language profile*, held by change 1
   build refuses it by name and leaves it; the spec states the behaviour.
 - [`profile.ts` drops `French` from a stored profile] → Nothing writes it before change 52, which
   widens the type; the behaviour today (English when none is known) is the spec's.
-- [The two excerpts] → Both are in the public domain everywhere (authors died in 1922 and 1885);
-  attributed in the scenario's doc. The owner may swap either before the golden is blessed (task
-  5.1).
+- [The two excerpts] → Both are in the public domain: Proust died in 1922 (France since 1 January
+  1987, 50 years plus the wartime extensions, not re-protected in 1997; pre-1929 in the United
+  States), Hugo in 1885; attributed, with that reasoning, in the scenario's doc. The owner may
+  swap either before the golden is blessed (task 5.1).
+- [An editor composes the NFD block] → The scenario asserts the `technique` page still holds a
+  combining mark, so a silent NFC of the corpus file fails the test instead of moving the golden.
 - [Thirteen authored pages take longer than planned] → The corpus is the top of the estimate's
   range; a page can be shorter than the Spanish one, the phenomena are what matter.
 
@@ -288,7 +314,8 @@ For the owner, none blocking:
    the French golden.
 2. The two excerpts (Proust, Hugo) — any other public-domain text is as good; the owner may name
    one before the golden is blessed.
-3. NFC left to change 40 (D2) — it could be the baseline's from day one at no cost to the golden,
-   but it is a French rule, and the spec's baseline has none.
+3. NFC left to change 41 (D2) — it could be the baseline's from day one, but it is a French rule,
+   the spec's baseline has none, and the `technique` page's NFD block gives that change a visible
+   before/after in its re-bless.
 4. M21, M7, M8 and M6 stay open; the golden shows `au`/`aux`/`du`/`des` and every elision whole as
    « not yet decided », not as a decision.

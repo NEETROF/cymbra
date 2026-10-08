@@ -49,15 +49,18 @@ no second lemma. The golden shows the questions M21 settles; it answers none of 
 - **A French invariance baseline**, `crates/lingua-wasm/tests/french_baseline.rs`, beside the
   English (S0) and Spanish ones, on the harness they share: a 13-page raw-text corpus
   (`baseline/pages-fr.txt`: authored pages per phenomenon plus two public-domain excerpts, named
-  in the design), its probes, and `baseline/fr-en.golden`. It runs over a hand-written fixture
+  in the design, set in real French punctuation, one block committed in NFD on purpose), its
+  probes, and `baseline/fr-en.golden`. It runs over a hand-written fixture
   pack (`scripts/lingua-data/testdata/fr-en/`) until the French tables are committed, with the
   engine started on es-en, as an English-native reader's is. It runs wherever the other two run,
   and `lingua-pack-update` re-blesses the three.
 - **Backup schema version 3**, written only when the state names French as a studied language —
-  in its profile or in any per-language record — and read first, like 1 and 2. Every released
-  build since the studied-language profile reads the version before the rest of the file, so it
-  refuses a version 3 backup as « unsupported version 3 », by name, never as malformed. A reader
-  of English or Spanish keeps the version they have, byte for byte.
+  in its profile or in any per-language record — and read first, like 1 and 2. Every build
+  released since 1.5.0 (2026-10-03, the first with the studied-language profile and its
+  header-first read) reads the version before the rest of the file, so it refuses a version 3
+  backup as « unsupported version 3 », by name, never as malformed; the three store builds before
+  it (1.0.2, 1.2.1, 1.4.0) would say malformed, as they do of a version 2 backup holding Spanish
+  records. A reader of English or Spanish keeps the version they have, byte for byte.
 - **Two compile-forced lines outside the core.** `apps/lingua-extension/tool/packs.mjs` maps `fr`
   to its constant (`test/packs.spec.ts` holds that map to `language.rs`, so a variant added there
   fails the extension's tests first); the agent plugin's `language_name` names French. Neither
@@ -99,7 +102,8 @@ None.
     `generalise-lingua-native-language`.
   - `crates/lingua-wasm` — *new*: the French baseline (scenario, corpus, golden) and the harness's
     choice of a pack source; *consumed*: the engine, unchanged (no binding is added).
-  - `crates/lingua-pack` — *consumed*: the builder; one test table gains French.
+  - `crates/lingua-pack` — *consumed*: the builder, which neither stamps nor checks the analyser
+    version; its gloss-language test gains a `fr`/`fr` case, and a `fr` build at `0.1.0` loads.
   - `scripts/lingua-data/testdata/fr-en/` — *new*: the hand-written fixture pack's tables.
   - `apps/lingua-extension` — *consumed*: one entry in the analyser-constant map; no surface, type,
     label or pack list changes.
@@ -113,8 +117,8 @@ None.
   the listed pairs' languages only, and a `fr` reaches the engine from tests alone.
 - **Compatibility.** Builds from this change on read backups of schema versions 1, 2 and 3 and
   write 3 only for a state that names French. Nothing writes such a state outside tests before
-  `enable-lingua-french` (change 52). A released build that met one would refuse it as unsupported
-  version 3 and leave it in place.
+  `enable-lingua-french` (change 52). A build released since 1.5.0 that met one would refuse it as
+  unsupported version 3 and leave it in place.
 - **Not here.** Elision, `au`/`aux` and the hyphenated inversion (40, M21); the cascade, the
   function words, the names rule and NFC (41); the Catalan and Occitan guard (42); the tables,
   grammar and levels (43, 45, 46, M7); the fr-en and fr-es packs and the cross-native test for
