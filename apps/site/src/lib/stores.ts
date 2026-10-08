@@ -24,12 +24,24 @@ export const LINGUA_CHROME_WEB_STORE =
 export const LINGUA_FIREFOX_ADDONS = "https://addons.mozilla.org/firefox/addon/cymbra-lingua/";
 export const LINGUA_APP_STORE = "https://apps.apple.com/app/id6813053825";
 
+// The labels that differ by language; the store names do not.
+const DESKTOP_SOON: Record<Lang, string> = {
+  fr: "Windows / Linux — bientôt",
+  en: "Windows / Linux — soon",
+  es: "Windows / Linux — próximamente",
+};
+const FIREFOX_DESKTOP: Record<Lang, string> = {
+  fr: "Firefox (ordinateur)",
+  en: "Firefox (desktop)",
+  es: "Firefox (ordenador)",
+};
+
 /** Where to get Cymbra Music, most-used platform first. */
 export function musicStores(lang: Lang): StoreLink[] {
   return [
     { label: "App Store (iOS, iPadOS, macOS)", href: MUSIC_APP_STORE, live: true },
     { label: "Google Play", href: MUSIC_GOOGLE_PLAY, live: true },
-    { label: lang === "fr" ? "Windows / Linux — bientôt" : "Windows / Linux — soon", href: "#", live: false },
+    { label: DESKTOP_SOON[lang], href: "#", live: false },
   ];
 }
 
@@ -37,7 +49,7 @@ export function musicStores(lang: Lang): StoreLink[] {
 export function linguaStores(lang: Lang): StoreLink[] {
   return [
     { label: "Chrome", href: LINGUA_CHROME_WEB_STORE, live: true },
-    { label: lang === "fr" ? "Firefox (ordinateur)" : "Firefox (desktop)", href: LINGUA_FIREFOX_ADDONS, live: true },
+    { label: FIREFOX_DESKTOP[lang], href: LINGUA_FIREFOX_ADDONS, live: true },
     { label: "Safari (iPhone, iPad, Mac)", href: LINGUA_APP_STORE, live: true },
   ];
 }

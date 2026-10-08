@@ -2,26 +2,39 @@
 // The community server, as a band of its own: heading, one line, one button.
 // Rendered only when PUBLIC_DISCORD_URL is set, like every other Discord link.
 import { config } from '../lib/config';
+import type { Lang } from '../lib/i18n';
 
-const { lang = 'fr' } = Astro.props;
-const isFr = lang === 'fr';
+const { lang = 'fr' } = Astro.props as { lang?: Lang };
 const url = config.discordUrl;
+
+const TEXT: Record<Lang, { title: string; body: string; button: string }> = {
+  fr: {
+    title: 'Rejoignez la communauté Cymbra',
+    body: "Questions, idées, bugs, nouveautés de Music et de Lingua : tout se passe sur le serveur Discord.",
+    button: 'Rejoindre le Discord',
+  },
+  en: {
+    title: 'Join the Cymbra community',
+    body: 'Questions, ideas, bugs, and what is new in Music and Lingua: it all happens on the Discord server.',
+    button: 'Join the Discord',
+  },
+  es: {
+    title: 'Únete a la comunidad Cymbra',
+    body: 'Preguntas, ideas, errores, novedades de Music y de Lingua: todo ocurre en el servidor de Discord.',
+    button: 'Unirse al Discord',
+  },
+};
+const t = TEXT[lang];
 ---
 
 {url && (
   <section class="container community" aria-labelledby="community-title">
     <div class="community-band">
       <div>
-        <h2 id="community-title">{isFr ? 'Rejoignez la communauté Cymbra' : 'Join the Cymbra community'}</h2>
-        <p>
-          {isFr
-            ? "Questions, idées, bugs, nouveautés de Music et de Lingua : tout se passe sur le serveur Discord."
-            : 'Questions, ideas, bugs, and what is new in Music and Lingua: it all happens on the Discord server.'}
-        </p>
+        <h2 id="community-title">{t.title}</h2>
+        <p>{t.body}</p>
       </div>
-      <a class="btn btn-discord" href={url} rel="noopener">
-        {isFr ? 'Rejoindre le Discord' : 'Join the Discord'}
-      </a>
+      <a class="btn btn-discord" href={url} rel="noopener">{t.button}</a>
     </div>
   </section>
 )}

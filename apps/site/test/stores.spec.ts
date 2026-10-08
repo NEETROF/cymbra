@@ -25,6 +25,14 @@ describe("store links", () => {
     for (const l of dead) expect(l.href).toBe("#");
   });
 
+  it("labels the channels in each site language", () => {
+    // The Spanish labels (change: add-site-lingua-matrix-pages); the store names do not move.
+    expect(linguaStores("es").map((l) => l.label)).toEqual(["Chrome", "Firefox (ordenador)", "Safari (iPhone, iPad, Mac)"]);
+    expect(musicStores("es")[2].label).toBe("Windows / Linux — próximamente");
+    expect(linguaStores("fr")[1].label).toBe("Firefox (ordinateur)");
+    expect(linguaStores("en")[1].label).toBe("Firefox (desktop)");
+  });
+
   it("points Lingua at its three published listings, Safari's App Store record among them", () => {
     const links = linguaStores("fr");
     expect(links.every((l) => l.live)).toBe(true);

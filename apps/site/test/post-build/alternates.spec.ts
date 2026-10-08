@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { linguaAlternates } from "../../src/lib/lingua-pairs";
 import { outputFileFor } from "../../src/lib/pinned-routes";
 
 // Run after `yarn build` (see `vitest.build.config.ts`): a page names its translations
@@ -46,6 +47,18 @@ describe("each page names its translations", () => {
       }
     });
   }
+
+  it("the Lingua page names the languages a shipped pair is glossed in (change: add-site-lingua-matrix-pages)", () => {
+    const expected = Object.entries(linguaAlternates()).map(([l, href]) => [l, `${site}${href}`]);
+    for (const [lang, path] of Object.entries(linguaAlternates())) {
+      const { hreflang, switchTo } = alternatesOf(path);
+      expect(hreflang, `${path} hreflang`).toEqual(expected);
+      const others = Object.entries(linguaAlternates())
+        .filter(([l]) => l !== lang)
+        .map(([l, href]) => [l.toUpperCase(), href]);
+      expect(switchTo, `${path} switch`).toEqual(others);
+    }
+  });
 
   it("a page without a Spanish twin offers French and English alone", () => {
     expect(alternatesOf("/").hreflang).toEqual([

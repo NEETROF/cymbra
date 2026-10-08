@@ -29,6 +29,9 @@ jobs:
           filters: |
             site:
               - 'apps/site/**'
+              # The Lingua page reads the extension's model catalogue (change:
+              # add-site-lingua-matrix-pages): a route added or dropped there moves the page.
+              - 'apps/lingua-extension/model-manifest.json'
               - 'packages/web-auth/**'
               - '.github/workflows/site-check.yml'
 

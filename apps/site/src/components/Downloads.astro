@@ -7,10 +7,14 @@ import { musicStores } from '../lib/stores';
 import type { Lang } from '../lib/i18n';
 
 const { lang = 'fr' } = Astro.props as { lang?: Lang };
-const fr = lang === 'fr';
+const TITLE: Record<Lang, string> = {
+  fr: 'Télécharger Cymbra Music',
+  en: 'Get Cymbra Music',
+  es: 'Descargar Cymbra Music',
+};
 ---
 
 <section class="downloads">
-  <h3>{fr ? 'Télécharger Cymbra Music' : 'Get Cymbra Music'}</h3>
+  <h3>{TITLE[lang]}</h3>
   <StoreButtons links={musicStores(lang)} centered={false} />
 </section>
