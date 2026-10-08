@@ -34,7 +34,7 @@ describe("the native language of a stored backup", () => {
   /** A version 2 backup naming `native`, as the engine writes it, cut to what matters here. */
   const native = (name: unknown) =>
     JSON.stringify({ schema_version: 2, profile: { native_language: name, studied_languages: ["Spanish"] } }, null, 2);
-  /** Today's list beside pairs glossed in English and in Spanish. */
+  /** The French-native pairs beside pairs glossed in English and in Spanish: the bundle's list since change 35. */
   const MIXED = ["en-fr", "es-fr", "es-en", "en-es"];
 
   it("reads the engine's names", () => {
@@ -62,9 +62,14 @@ describe("the native language of a stored backup", () => {
   it("is French for a native language no listed pair is glossed in", () => {
     expect(nativeLanguageOf(native("English"), ["en-fr", "es-fr"])).toBe("fr");
     expect(nativeLanguageOf(native("Spanish"), ["en-fr", "es-en"])).toBe("fr");
-    // The bundle's list since change 34 (enable-lingua-english-speakers): es-en is glossed in English,
-    // and no listed pair is glossed in Spanish.
+    // Change 34's list (enable-lingua-english-speakers): es-en is glossed in English, no pair in Spanish.
+    expect(nativeLanguageOf(native("English"), ["en-fr", "es-fr", "es-en"])).toBe("en");
+    expect(nativeLanguageOf(native("Spanish"), ["en-fr", "es-fr", "es-en"])).toBe("fr");
+  });
+
+  it("is each stored native language with the bundle's list, which glosses in all three (enable-lingua-spanish-speakers)", () => {
+    expect(nativeLanguageOf(native("French"))).toBe("fr");
     expect(nativeLanguageOf(native("English"))).toBe("en");
-    expect(nativeLanguageOf(native("Spanish"))).toBe("fr");
+    expect(nativeLanguageOf(native("Spanish"))).toBe("es");
   });
 });
