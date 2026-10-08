@@ -1,5 +1,7 @@
 import type { MarkedTranslation } from "../translate/markup.ts";
 import type { LemmaStatus, WordGrammar } from "../analyzer/types.ts";
+import { card as frCard } from "../i18n/fr/card.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
 import { grammarLines, senseHeading } from "./grammar-labels.ts";
 import { glossPages, pageText, type GlossPage } from "./gloss-pages.ts";
 import { isTouchPrimary } from "../state/platform.ts";
@@ -105,18 +107,8 @@ export interface CardView {
   generation(): number;
 }
 
-const ROWS_LABEL = "Mot à mot — ce n'est pas une traduction de l'expression.";
-const TRANSLATION_LABEL = "Dans votre phrase — traduction automatique";
-const WAITING = "Recherche dans le pack…";
-const TRANSLATING = "Traduction en cours…";
-const NO_GLOSS = "Pas de traduction dans le pack.";
-const NO_GLOSS_EXPRESSION = "Pas de traduction dans le pack pour cette expression.";
-const PREVIOUS_PAGE = "‹";
-const PREVIOUS_PAGE_LABEL = "Sens précédents";
-const NEXT_PAGE = "›";
-const NEXT_PAGE_LABEL = "Sens suivants";
-const STOP = "■ Arrêter";
-const STOP_LABEL = "Arrêter la lecture";
+/** The card's copy: the catalogue's `card` module, in the interface language (its French the default). */
+export type CardCopy = typeof frCard;
 
 /** One listen button: what it speaks, under which key, and how it is labelled. */
 interface Listen {
@@ -142,37 +134,44 @@ function seenDiffers(content: WordPopupContent): boolean {
  * the card shows another form seen, each button saying what it reads (D2) — then its sentence unless
  * it is the selection.
  */
-function listensFor(content: WordPopupContent): Listen[] {
+function listensFor(content: WordPopupContent, copy: CardCopy): Listen[] {
   const selection = (content.surface || content.headword).trim();
   if (!selection) return [];
   const headword = content.headword.trim();
   const listens: Listen[] = [];
   // Several words are a selection, whether or not the pack knows the expression (« animal doméstico »).
   if (content.expression || /\s/u.test(selection)) {
-    listens.push({ key: "selection", text: selection, label: "▶ Sélection", aria: "Écouter la sélection" });
+    listens.push({ key: "selection", text: selection, label: copy.listenSelection, aria: copy.listenSelectionLabel });
   } else if (seenDiffers(content) && headword) {
     listens.push(
-      { key: "selection", text: selection, label: `▶ ${selection}`, aria: `Écouter la forme vue « ${selection} »` },
+      {
+        key: "selection",
+        text: selection,
+        label: copy.listenForm(selection),
+        aria: copy.listenSeenFormLabel(selection),
+      },
       {
         key: "headword",
         text: headword,
-        label: `▶ ${headword}`,
-        aria: `Écouter la forme du dictionnaire « ${headword} »`,
+        label: copy.listenForm(headword),
+        aria: copy.listenDictionaryFormLabel(headword),
       },
     );
   } else {
-    listens.push({ key: "selection", text: selection, label: "▶ Mot", aria: "Écouter le mot" });
+    listens.push({ key: "selection", text: selection, label: copy.listenWord, aria: copy.listenWordLabel });
   }
   const sentence = content.sentence.trim();
   if (sentence && !sameSpokenText(sentence, selection)) {
-    listens.push({ key: "sentence", text: sentence, label: "▶ Phrase", aria: "Écouter la phrase" });
+    listens.push({ key: "sentence", text: sentence, label: copy.listenSentence, aria: copy.listenSentenceLabel });
   }
   return listens;
 }
 
 /** Build the card view (no shadow root involved — testable in isolation). With a `speaker`, the
- *  card offers to hear the selection and its sentence (add-lingua-read-aloud). */
-export function createCard(speaker?: Speaker): CardView {
+ *  card offers to hear the selection and its sentence (add-lingua-read-aloud). Its labels are
+ *  `copy`'s, the catalogue's module in the interface language (localise-lingua-reading-surfaces D1);
+ *  without one, the French. */
+export function createCard(speaker?: Speaker, copy: CardCopy = frCard): CardView {
   const el = div("card");
   el.hidden = true;
   el.addEventListener("click", (e) => e.stopPropagation());
@@ -231,7 +230,7 @@ export function createCard(speaker?: Speaker): CardView {
    */
   function renderListen(): void {
     listenEl.replaceChildren();
-    const listens = speaker && current && speaker.available() ? listensFor(current) : [];
+    const listens = speaker && current && speaker.available() ? listensFor(current, copy) : [];
     listenEl.hidden = listens.length === 0;
     if (!speaker) return;
     const playing = speaker.speaking();
@@ -239,8 +238,8 @@ export function createCard(speaker?: Speaker): CardView {
       const on = playing?.key === listen.key && playing.text === listen.text;
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = on ? STOP : listen.label;
-      b.setAttribute("aria-label", on ? STOP_LABEL : listen.aria);
+      b.textContent = on ? copy.stop : listen.label;
+      b.setAttribute("aria-label", on ? copy.stopLabel : listen.aria);
       b.classList.toggle("speaking", on);
       // Keep the reader's selection (and on a touch device the platform's callout) as it was:
       // a button's default on press is to take the focus and collapse the page selection.
@@ -279,7 +278,7 @@ export function createCard(speaker?: Speaker): CardView {
     paged = null;
     glossEl.hidden = false;
     if (content.pending) {
-      glossEl.textContent = content.translating ? TRANSLATING : WAITING;
+      glossEl.textContent = content.translating ? copy.translating : copy.waiting;
       glossEl.classList.add("waiting");
       return;
     }
@@ -289,7 +288,7 @@ export function createCard(speaker?: Speaker): CardView {
     // for the last word on their selection.
     if (content.translating && !content.translation) {
       const note = div("translating-note");
-      note.textContent = TRANSLATING;
+      note.textContent = copy.translating;
       glossEl.hidden = false;
       glossEl.append(note);
     }
@@ -373,7 +372,7 @@ export function createCard(speaker?: Speaker): CardView {
   function renderPage(pageEl: HTMLElement, nav: PageNav | null): void {
     pageEl.replaceChildren();
     for (const group of pages[pageIndex] ?? []) {
-      const text = group.senses.join("; ");
+      const text = group.senses.join(copy.senseSeparator);
       if (!group.tagged) {
         pageEl.append(document.createTextNode(text));
         continue;
@@ -401,8 +400,8 @@ export function createCard(speaker?: Speaker): CardView {
     const count = document.createElement("span");
     count.className = "page-count";
     const nav: PageNav = {
-      previous: pageButton(PREVIOUS_PAGE, PREVIOUS_PAGE_LABEL, -1),
-      next: pageButton(NEXT_PAGE, NEXT_PAGE_LABEL, 1),
+      previous: pageButton(copy.previousPageIcon, copy.previousPage, -1),
+      next: pageButton(copy.nextPageIcon, copy.nextPage, 1),
       count,
     };
     navEl.append(nav.previous, count, nav.next);
@@ -437,11 +436,11 @@ export function createCard(speaker?: Speaker): CardView {
     }
     if (content.rows && content.rows.length > 0) {
       const label = div("rows-label");
-      label.textContent = ROWS_LABEL;
+      label.textContent = copy.rowsLabel;
       glossEl.append(label);
       for (const r of content.rows) {
         const row = div("row");
-        row.textContent = `${r.form} → ${r.gloss}`;
+        row.textContent = copy.row(r.form, r.gloss);
         glossEl.append(row);
       }
       return;
@@ -450,7 +449,7 @@ export function createCard(speaker?: Speaker): CardView {
       renderGloss(content, content.gloss);
       return;
     }
-    glossEl.textContent = content.expression ? NO_GLOSS_EXPRESSION : NO_GLOSS;
+    glossEl.textContent = content.expression ? copy.noGlossExpression : copy.noGloss;
     glossEl.classList.add("empty");
   }
 
@@ -465,7 +464,7 @@ export function createCard(speaker?: Speaker): CardView {
     translationEl.hidden = !t;
     if (!t) return;
     const label = div("translation-label");
-    label.textContent = TRANSLATION_LABEL;
+    label.textContent = copy.translationLabel;
     const sentence = div("translation-sentence");
     let at = 0;
     for (const { start, end } of [...t.marks].sort((a, b) => a.start - b.start)) {
@@ -496,12 +495,12 @@ export function createCard(speaker?: Speaker): CardView {
       el.style.minWidth = "";
       // Another word silences the card; the same selection completing with its answer does not.
       const playing = cardSpeaking();
-      if (playing && !listensFor(content).some((l) => l.text === playing.text)) speaker?.stop();
+      if (playing && !listensFor(content, copy).some((l) => l.text === playing.text)) speaker?.stop();
       current = content;
       headwordEl.textContent = content.headword;
 
       const differs = seenDiffers(content);
-      seenEl.textContent = differs ? `forme vue : « ${content.surface} »` : "";
+      seenEl.textContent = differs ? copy.seenForm(content.surface) : "";
       seenEl.hidden = !differs;
 
       rarityEl.textContent = content.rarity;
@@ -523,10 +522,10 @@ export function createCard(speaker?: Speaker): CardView {
       actionsEl.replaceChildren();
       if (!content.pending && !content.noActions) {
         const st = content.status ?? null;
-        if (!content.expression && st !== "known") actionsEl.append(button("Je connais", "known", false, onGesture));
-        if (st !== "learning") actionsEl.append(button("+ Deck", "learning", true, onGesture));
-        if (st !== "ignored") actionsEl.append(button("Ignorer", "ignored", false, onGesture));
-        if (st === "ignored") actionsEl.append(button("Remettre à apprendre", null, false, onGesture));
+        if (!content.expression && st !== "known") actionsEl.append(button(copy.known, "known", false, onGesture));
+        if (st !== "learning") actionsEl.append(button(copy.addToDeck, "learning", true, onGesture));
+        if (st !== "ignored") actionsEl.append(button(copy.ignore, "ignored", false, onGesture));
+        if (st === "ignored") actionsEl.append(button(copy.relearn, null, false, onGesture));
       }
       actionsEl.hidden = actionsEl.childElementCount === 0;
 
@@ -540,8 +539,8 @@ export function createCard(speaker?: Speaker): CardView {
   // A close affordance (clicking off the popup also dismisses it — see content.ts).
   const closeEl = document.createElement("button");
   closeEl.className = "close";
-  closeEl.textContent = "✕"; // ✕
-  closeEl.setAttribute("aria-label", "Fermer");
+  closeEl.textContent = copy.closeIcon;
+  closeEl.setAttribute("aria-label", copy.close);
   closeEl.addEventListener("click", () => view.hide());
   el.append(closeEl);
 
@@ -557,6 +556,10 @@ export interface WordPopupOptions {
   speaker?: Speaker;
   /** Follow the reader's colours and text size (surface-look); off: the card as designed. */
   followLook?: boolean;
+  /** The interface language, said by the host's `lang` (localise-lingua-reading-surfaces D3); French when not given. */
+  language?: InterfaceLanguage;
+  /** The card's copy in that language; the French module when not given. */
+  copy?: CardCopy;
 }
 
 export class WordPopup {
@@ -565,10 +568,11 @@ export class WordPopup {
   private readonly view: CardView;
 
   constructor(private readonly opts: WordPopupOptions) {
-    this.view = createCard(opts.speaker);
+    this.view = createCard(opts.speaker, opts.copy ?? frCard);
     this.host = document.createElement("div");
     this.host.id = "cymbra-lingua-host";
     this.host.setAttribute("data-cymbra-lingua-skip", "");
+    this.host.lang = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
     const root = this.host.attachShadow({ mode: "closed" });
     const style = document.createElement("style");
     style.textContent = opts.css;

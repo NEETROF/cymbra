@@ -1,4 +1,6 @@
 import type { LinguaPort } from "../analyzer/port.ts";
+import { drawer as frDrawer } from "../i18n/fr/drawer.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
 import { type AsyncStorageArea } from "../state/storage.ts";
 import { mountStats } from "../stats/view.ts";
@@ -15,6 +17,9 @@ import { followSurfaceLook } from "./surface-look.ts";
 // native side panel is used instead and this stays the Alt+Shift+D micro-review.
 
 export type DrawerView = "review" | "stats" | "settings";
+
+/** The drawer's copy: the catalogue's `drawer` module, in the interface language (its French the default). */
+export type DrawerCopy = typeof frDrawer;
 
 export interface DrawerOptions {
   /** Combined token sheet + review + stats + settings + drawer styles, for the shadow. */
@@ -35,6 +40,10 @@ export interface DrawerOptions {
   /** The language of the page or book the drawer opens on, where Révision opens
    *  (refine-lingua-review-language D2). */
   pageLanguage?: () => Promise<string | null>;
+  /** The interface language, said by the host's `lang` (localise-lingua-reading-surfaces D3); French when not given. */
+  language?: InterfaceLanguage;
+  /** The drawer's copy in that language; the French module when not given. */
+  copy?: DrawerCopy;
 }
 
 export class Drawer {
@@ -51,9 +60,11 @@ export class Drawer {
   private current: DrawerView = "review";
 
   constructor(private readonly opts: DrawerOptions) {
+    const copy = opts.copy ?? frDrawer;
     this.host = document.createElement("div");
     this.host.id = "cymbra-lingua-drawer-host";
     this.host.setAttribute("data-cymbra-lingua-skip", "");
+    this.host.lang = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
     const root = this.host.attachShadow({ mode: "closed" });
     if (opts.followLook) followSurfaceLook(this.host, opts.area);
     const style = document.createElement("style");
@@ -75,19 +86,19 @@ export class Drawer {
       tabsRow.append(b);
       this.tabs.set(view, b);
     };
-    addTab("review", "Révision");
-    addTab("stats", "Stats");
-    addTab("settings", "Réglages");
+    addTab("review", copy.review);
+    addTab("stats", copy.stats);
+    addTab("settings", copy.settings);
     const close = document.createElement("button");
     close.className = "drawer-close";
-    close.textContent = "×";
-    close.setAttribute("aria-label", "Fermer");
+    close.textContent = copy.closeIcon;
+    close.setAttribute("aria-label", copy.close);
     close.addEventListener("click", () => this.hide());
     head.append(tabsRow, close);
 
     this.lost = document.createElement("div");
     this.lost.className = "drawer-lost";
-    this.lost.textContent = "Session expirée — reconnecte-toi dans Réglages › Données pour synchroniser.";
+    this.lost.textContent = copy.sessionLost;
     this.lost.hidden = true;
 
     this.reviewBody = document.createElement("div");

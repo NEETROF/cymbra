@@ -21,6 +21,8 @@ import {
   statsFromAnalysis,
 } from "./scan.ts";
 import { type HudActions, type HudState, LinguaHud } from "./hud.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
+import { type ReadingCopy, readingCopy } from "./reading-copy.ts";
 import {
   type Capture,
   type CaptureKind,
@@ -137,6 +139,14 @@ export interface SessionOptions {
   dropPhraseOnLift?: boolean;
   /** The translator, asked per selection: « Traduction étendue » when on and ready (injected in tests). */
   translator?: TranslatorSource;
+  /**
+   * The interface language, read by the content script or the reader page before the session is
+   * built (localise-lingua-reading-surfaces D1): what the HUD, the drawer, the word card and the
+   * selection card say in `lang`, and write their figures in. French when not given.
+   */
+  language?: InterfaceLanguage;
+  /** Those surfaces' copy in that language; the catalogue's modules for `language` when not given. */
+  copy?: ReadingCopy;
 }
 
 /** The figures the popup asks for with `getStats`. */
@@ -308,11 +318,17 @@ export class ReadingSession {
     private readonly opts: SessionOptions,
   ) {
     this.translator = opts.translator ?? createTranslatorPort();
+    // The interface language and the surfaces' copy, handed in before anything shows (D1): each
+    // surface gets its module and the language at construction, so its first paint is the catalogue's.
+    const interfaceLanguage = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
+    const copy = opts.copy ?? readingCopy(interfaceLanguage);
     this.popup = new WordPopup({
       css: opts.css.popup,
       onGesture: (g) => void this.onGesture(g),
       speaker: this.speaker,
       followLook: true,
+      language: interfaceLanguage,
+      copy: copy.card,
     });
     this.cards = new SelectionCards(
       // Asked at each call, so a card follows the session's language.
@@ -328,6 +344,8 @@ export class ReadingSession {
         // In the document's language: its route, and nothing while its models are missing.
         translator: () => this.translator(this.language),
         language: () => this.language,
+        interfaceLanguage,
+        copy: copy.selection,
       },
     );
     this.drawer = new Drawer({
@@ -340,6 +358,8 @@ export class ReadingSession {
       speaker: this.speaker,
       followLook: true,
       pageLanguage: async () => this.besideLanguage(),
+      language: interfaceLanguage,
+      copy: copy.drawer,
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),
@@ -353,6 +373,8 @@ export class ReadingSession {
         actions,
         onMoved: (position) => void saveHudPosition(storageArea, position),
         followLook: true,
+        language: interfaceLanguage,
+        copy: copy.hud,
       });
     this.observers = new ReadingObservers({ onRescan: (containers) => void this.refresh(containers) });
     this.exposure = new ExposureTracker<BlockReading>(

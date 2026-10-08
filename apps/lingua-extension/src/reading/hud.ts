@@ -9,8 +9,13 @@
 // Split like the word popup: a pure `createHud` factory building the DOM (testable via its
 // returned `el`), wrapped by `LinguaHud` into a closed shadow root injected on the page.
 
+import { hud as frHud } from "../i18n/fr/hud.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, formatPercent, type InterfaceLanguage } from "../i18n/index.ts";
 import { DEFAULT_HUD_POSITION, type HudPosition } from "../state/storage.ts";
 import { followSurfaceLook } from "./surface-look.ts";
+
+/** The HUD's copy: the catalogue's `hud` module, in the interface language (its French the default). */
+export type HudCopy = typeof frHud;
 
 export interface HudActions {
   /** Open the review deck (the in-page drawer). */
@@ -82,8 +87,17 @@ function button(cls: string, text: string, onClick: () => void, ariaLabel?: stri
   return b;
 }
 
-/** Build the HUD DOM and its behaviour, independent of the shadow host (so it is testable). */
-export function createHud(actions: HudActions, onMoved: HudMoved = () => {}): HudView {
+/**
+ * Build the HUD DOM and its behaviour, independent of the shadow host (so it is testable). The
+ * labels are `copy`'s, the catalogue's module for `language` (localise-lingua-reading-surfaces D1);
+ * without them, the French.
+ */
+export function createHud(
+  actions: HudActions,
+  onMoved: HudMoved = () => {},
+  copy: HudCopy = frHud,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+): HudView {
   const el = document.createElement("div");
   el.className = "hud";
   el.hidden = true;
@@ -99,32 +113,32 @@ export function createHud(actions: HudActions, onMoved: HudMoved = () => {}): Hu
   // The pill: the always-visible percentage toggles the actions row.
   const pill = document.createElement("div");
   pill.className = "hud-pill";
-  const pct = button("hud-pct", "—", () => {
+  const pct = button("hud-pct", copy.noPercent, () => {
     row.hidden = !row.hidden;
   });
-  pct.setAttribute("aria-label", "Mots connus sur la page — ouvrir les actions");
+  pct.setAttribute("aria-label", copy.pillLabel);
 
-  const review = button("hud-act", "Réviser", () => {
+  const review = button("hud-act", copy.review, () => {
     actions.onReview();
     collapse();
   });
-  const stats = button("hud-act", "Stats", () => {
+  const stats = button("hud-act", copy.stats, () => {
     actions.onStats();
     collapse();
   });
   const gear = button(
     "hud-gear",
-    "⚙",
+    copy.gearIcon,
     () => {
       actions.onSettings();
       collapse();
     },
-    "Réglages",
+    copy.settings,
   );
-  const collapseBtn = button("hud-collapse", "⌄", collapse, "Réduire");
+  const collapseBtn = button("hud-collapse", copy.collapseIcon, collapse, copy.collapse);
   row.append(review, stats, gear, collapseBtn);
   // Outside the collapsible row: visible on the bare pill until a level is declared.
-  const level = button("hud-level", "Choisis ton niveau", () => {
+  const level = button("hud-level", copy.chooseLevel, () => {
     actions.onSettings();
     collapse();
   });
@@ -237,7 +251,7 @@ export function createHud(actions: HudActions, onMoved: HudMoved = () => {}): Hu
         collapse();
         return;
       }
-      pct.textContent = state.percent == null ? "—" : `${state.percent}%`;
+      pct.textContent = state.percent == null ? copy.noPercent : formatPercent(language, state.percent, "tight");
       level.hidden = !state.needsLevel;
     },
   };
@@ -251,6 +265,10 @@ export interface HudOptions {
   onMoved?: HudMoved;
   /** Follow the reader's colours and text size (surface-look); off: the pill as designed. */
   followLook?: boolean;
+  /** The interface language, said by the host's `lang` (D3); French when not given. */
+  language?: InterfaceLanguage;
+  /** The HUD's copy in that language; the French module when not given. */
+  copy?: HudCopy;
 }
 
 /** The HUD mounted into a closed shadow root on the page (mirrors Drawer / WordPopup). */
@@ -261,13 +279,15 @@ export class LinguaHud {
   private last: HudState | null = null;
 
   constructor(opts: HudOptions) {
+    const language = opts.language ?? DEFAULT_INTERFACE_LANGUAGE;
     this.host = document.createElement("div");
     this.host.id = "cymbra-lingua-hud-host";
     this.host.setAttribute("data-cymbra-lingua-skip", ""); // the reader must not analyse itself
+    this.host.lang = language;
     const root = this.host.attachShadow({ mode: "closed" });
     const style = document.createElement("style");
     style.textContent = opts.css;
-    this.view = createHud(opts.actions, opts.onMoved);
+    this.view = createHud(opts.actions, opts.onMoved, opts.copy ?? frHud, language);
     root.append(style, this.view.el);
     if (opts.followLook) followSurfaceLook(this.host);
   }

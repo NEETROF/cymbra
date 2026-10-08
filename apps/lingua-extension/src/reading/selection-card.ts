@@ -7,9 +7,14 @@ import type {
   TokenClass,
   WordGrammar,
 } from "../analyzer/types.ts";
+import { selection as frSelection } from "../i18n/fr/selection.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, formatNumber, type InterfaceLanguage } from "../i18n/index.ts";
 import type { MarkedTranslation, Span } from "../translate/markup.ts";
 import type { TranslationRequest, TranslatorPort } from "../translate/port.ts";
 import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
+
+/** The selection card's copy: the catalogue's `selection` module, in the interface language (its French the default). */
+export type SelectionCopy = typeof frSelection;
 
 // What a selection opens, decided in one place with no DOM and injected ports, so that
 // content.ts — excluded from coverage — stays the thin caller. A selection holding
@@ -54,9 +59,6 @@ export const MAX_ROWS = 6;
  */
 export const TRANSLATION_WAIT_MS = 15_000;
 
-const EXPRESSION_KIND = "Expression — la carte gardera sa phrase d’origine.";
-const SELECTION_KIND = "Sélection.";
-
 /** The reader's current status for a token class, or null for a new/unknown word — drives
  *  which actions the popup offers when a word is reopened. */
 export function statusOfClass(cls: TokenClass): LemmaStatus | null {
@@ -72,23 +74,28 @@ export function statusOfClass(cls: TokenClass): LemmaStatus | null {
   }
 }
 
-/** « 1 000 », as French writes a number (a narrow no-break space between the groups). */
-const count = (n: number): string => n.toLocaleString("fr-FR");
-
 /**
  * How common a word is, in plain language (add-lingua-card-frequency D1, D4): the band of its
  * dictionary form's rank in the pack, whatever the reader's level — a word they are learning says so
  * instead. `null`: the pack does not rank it, so it lies beyond every band. No rank yet (a pending
- * card, or none in time): no line, rather than a guess.
+ * card, or none in time): no line, rather than a guess. The bands are `copy`'s, their counts
+ * written as `language` writes a number — French as before, « 20 000 » with its narrow no-break
+ * space (localise-lingua-reading-surfaces D4).
  */
-export function rarityText(cls: TokenClass, rank: number | null | undefined): string {
-  if (cls === "Learning") return "Dans ton deck — en cours d'apprentissage.";
+export function rarityText(
+  cls: TokenClass,
+  rank: number | null | undefined,
+  copy: SelectionCopy = frSelection,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+): string {
+  const count = (n: number): string => formatNumber(language, n);
+  if (cls === "Learning") return copy.inDeck;
   if (rank === undefined) return "";
-  if (rank === null || rank > 20_000) return `Rare — au-delà des ${count(20_000)} mots les plus fréquents.`;
-  if (rank > 5_000) return `Peu fréquent — au-delà des ${count(5_000)} mots les plus fréquents.`;
-  if (rank > 1_000) return `Assez courant — parmi les ${count(5_000)} mots les plus fréquents.`;
-  if (rank > 100) return `Courant — parmi les ${count(1_000)} mots les plus fréquents.`;
-  return `Très courant — parmi les ${count(100)} mots les plus fréquents.`;
+  if (rank === null || rank > 20_000) return copy.rare(count(20_000));
+  if (rank > 5_000) return copy.uncommon(count(5_000));
+  if (rank > 1_000) return copy.fairlyCommon(count(5_000));
+  if (rank > 100) return copy.common(count(1_000));
+  return copy.veryCommon(count(100));
 }
 
 /** The engine calls a card may need. */
@@ -169,21 +176,21 @@ export const ROW_SENSE_CHARS = 80;
  * definition is missing are skipped; a gloss made only of those gives no row. The word card of a
  * single word still shows the whole gloss.
  */
-export function rowGloss(gloss: string): string | null {
+export function rowGloss(gloss: string, copy: SelectionCopy = frSelection): string | null {
   for (const sense of gloss.split(";")) {
     const text = sense.trim();
-    if (text && !EMPTY_SENSE.test(text)) return cutAtWord(text, ROW_SENSE_CHARS);
+    if (text && !EMPTY_SENSE.test(text)) return cutAtWord(text, ROW_SENSE_CHARS, copy);
   }
   return null;
 }
 
 /** `text` within `max` characters, the ellipsis included, ending on a whole word when it can. */
-function cutAtWord(text: string, max: number): string {
+function cutAtWord(text: string, max: number, copy: SelectionCopy): string {
   if (text.length <= max) return text;
   const room = max - 1;
   const space = text.lastIndexOf(" ", room);
   const cut = space > room / 2 ? text.slice(0, space) : text.slice(0, room);
-  return `${cut.replace(/[\s,;:(«[\-–—/]+$/, "")}…`;
+  return copy.truncated(cut.replace(/[\s,;:(«[\-–—/]+$/, ""));
 }
 
 /** Whether the reader has settled this class: a known or ignored word needs no row. */
@@ -199,12 +206,16 @@ function settled(cls: TokenClass): boolean {
  * does not know it (unknown or learning), it is not a function word and the pack glosses it
  * with something to show; one row per dictionary form, in reading order, at most MAX_ROWS.
  */
-export function rowsFor(tokens: PhraseToken[], matches: readonly PhraseMatch[] = []): GlossRow[] {
+export function rowsFor(
+  tokens: PhraseToken[],
+  matches: readonly PhraseMatch[] = [],
+  copy: SelectionCopy = frSelection,
+): GlossRow[] {
   const rows: GlossRow[] = [];
   const seen = new Set<string>();
   const add = (form: string, gloss: string | null): boolean => {
     if (!gloss || seen.has(form)) return false;
-    const text = rowGloss(gloss);
+    const text = rowGloss(gloss, copy);
     if (!text) return false;
     seen.add(form);
     rows.push({ form, gloss: text });
@@ -288,6 +299,9 @@ function needsPhraseGloss(token: AnalyzedToken): boolean {
 
 export class SelectionCards {
   private readonly clock: Clock;
+  /** The cards' copy and the language its figures are written in (localise-lingua-reading-surfaces D1, D4). */
+  private readonly copy: SelectionCopy;
+  private readonly interfaceLanguage: InterfaceLanguage;
   /** A capture opened a card since the last pointer-down (see `decideClick`). */
   private openedByCapture = false;
 
@@ -307,9 +321,20 @@ export class SelectionCards {
        * (generalise-lingua-translation-model-state D5). English when not given.
        */
       language?: () => string;
+      /** The interface language the cards' figures are written in; French when not given. */
+      interfaceLanguage?: InterfaceLanguage;
+      /** The cards' copy in that language; the French module when not given. */
+      copy?: SelectionCopy;
     },
   ) {
     this.clock = opts.clock ?? DEFAULT_CLOCK;
+    this.copy = opts.copy ?? frSelection;
+    this.interfaceLanguage = opts.interfaceLanguage ?? DEFAULT_INTERFACE_LANGUAGE;
+  }
+
+  /** The frequency line of a card, in the interface language. */
+  private rarity(cls: TokenClass, rank: number | null | undefined): string {
+    return rarityText(cls, rank, this.copy, this.interfaceLanguage);
   }
 
   /** A settled selection: the expression card, the page token's word card, or the analyser's. */
@@ -335,7 +360,7 @@ export class SelectionCards {
       surface: token.surface,
       gloss: null,
       // No rank yet: it comes with the grammar (add-lingua-card-frequency D3).
-      rarity: rarityText(token.class, undefined),
+      rarity: this.rarity(token.class, undefined),
       sentence: hit.sentence,
       status: statusOfClass(token.class),
       rect: hit.rect,
@@ -365,8 +390,8 @@ export class SelectionCards {
                 {
                   ...base,
                   gloss: first.gloss,
-                  rarity: rarityText(first.class, reply.grammar?.rank),
-                  rows: first.parts?.length ? rowsFor([first], reply.answer.expressions) : [],
+                  rarity: this.rarity(first.class, reply.grammar?.rank),
+                  rows: first.parts?.length ? rowsFor([first], reply.answer.expressions, this.copy) : [],
                   ...grammarOf(reply.grammar),
                 },
                 first.class,
@@ -384,7 +409,7 @@ export class SelectionCards {
             {
               ...base,
               gloss: answer?.gloss ?? null,
-              rarity: rarityText(token.class, answer?.rank),
+              rarity: this.rarity(token.class, answer?.rank),
               ...grammarOf(answer),
             },
             token.class,
@@ -412,7 +437,7 @@ export class SelectionCards {
     const asked = this.surface.generation();
     void this.grammarBounded(written, lemma).then((grammar) => {
       if (this.surface.generation() !== asked) return;
-      this.show(finish({ ...card, rarity: rarityText(cls, grammar?.rank), ...grammarOf(grammar) }));
+      this.show(finish({ ...card, rarity: this.rarity(cls, grammar?.rank), ...grammarOf(grammar) }));
     });
   }
 
@@ -455,7 +480,7 @@ export class SelectionCards {
       headword: sel.text,
       surface: sel.text,
       gloss: null,
-      rarity: EXPRESSION_KIND,
+      rarity: this.copy.expressionKind,
       sentence: sel.sentence,
       rect: sel.rect,
       expression: true,
@@ -475,7 +500,7 @@ export class SelectionCards {
     this.request(
       { ...base, pending: true, translating: !!later },
       () => this.ports.phraseGloss(sel.text).catch(() => null),
-      (answer) => ({ ...expressionCard(base, answer), translating: !!later, later }),
+      (answer) => ({ ...expressionCard(base, answer, this.copy), translating: !!later, later }),
     );
   }
 
@@ -538,7 +563,7 @@ export class SelectionCards {
       headword: sel.text,
       surface: sel.text,
       gloss: null,
-      rarity: SELECTION_KIND,
+      rarity: this.copy.selectionKind,
       sentence: sel.sentence,
       rect: sel.rect,
     };
@@ -561,12 +586,12 @@ export class SelectionCards {
             headword: t.lemma,
             surface: t.surface,
             gloss: t.gloss,
-            rarity: rarityText(t.class, reply.grammar?.rank),
+            rarity: this.rarity(t.class, reply.grammar?.rank),
             sentence: sel.sentence,
             status: statusOfClass(t.class),
             rect: sel.rect,
             ...this.languageOfCard(),
-            rows: t.parts?.length ? rowsFor([t], answer.expressions) : undefined,
+            rows: t.parts?.length ? rowsFor([t], answer.expressions, this.copy) : undefined,
             ...(written !== t.surface ? { written } : {}),
             ...grammarOf(reply.grammar),
           },
@@ -645,7 +670,7 @@ function grammarOf(grammar: WordGrammar | null | undefined): Pick<WordPopupConte
 }
 
 /** The card an expression gets from the pack alone — exactly what it was before the engine. */
-function expressionCard(base: WordPopupContent, answer: PhraseGloss | null): WordPopupContent {
+function expressionCard(base: WordPopupContent, answer: PhraseGloss | null, copy: SelectionCopy): WordPopupContent {
   if (!answer) return { ...base, rows: [] };
   const whole = wholeSelectionMatch(answer);
   // An expression the pack knows is the answer, not a list of its words: the card is keyed by
@@ -660,5 +685,5 @@ function expressionCard(base: WordPopupContent, answer: PhraseGloss | null): Wor
       status: statusOfClass(whole.class),
     };
   }
-  return { ...base, rows: rowsFor(answer.tokens, answer.expressions) };
+  return { ...base, rows: rowsFor(answer.tokens, answer.expressions, copy) };
 }
