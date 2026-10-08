@@ -13,7 +13,7 @@ See proposal.md (Why) and change 13's design. Today:
 | `account.html` | three text nodes (two French per the lint) |
 | `onboarding.html` | 13 text nodes (title, « Quelles langues apprends-tu ? », « Pour commencer », the account offer) |
 | `onboarding.ts`, `level-row.ts` | « Débutant — je pars de zéro », « Niveau enregistré : ${…}. Tu peux fermer… » |
-| Cymbra ID | `UserAccount.locale` (`user.proto` field 7), stored as sent and adopted as such by Music; the e-mail templates in Music's four locales (fr, en, es, it); the site's deletion pages `/suppression-compte` (fr) and `/en/delete-account` |
+| Cymbra ID | `UserAccount.locale` (`user.proto` field 7), stored as sent; the e-mail templates read its primary subtag (`SupportedLocale::parse`), Music applies it to its own interface at each sign-in and cold start only on an exact match (`AppLanguage.fromCode`: `fr` yes, `fr-FR` no); the e-mail templates in Music's four locales (fr, en, es, it); the site's deletion pages `/suppression-compte` (fr) and `/en/delete-account` |
 
 ## Goals / Non-Goals
 
@@ -52,12 +52,13 @@ files in `apps/music/lib/l10n/` (those files alone), so a fifth language added t
 noticed.
 
 What changes for a reader today is in the proposal (Impact): the server keeps what is sent, so
-an English-browser reader's e-mails move to French while French is every reader's interface
-language. Alternatives: stop sending a locale from Lingua — the account's e-mails would stay
+while French is every reader's interface language an English-browser reader's e-mails move to
+French, their Cymbra Music adopts `fr` on its next start (Music ignored the whole tag Lingua sent
+until now and applies a bare code), and their deletion link opens the French page. Alternatives: stop sending a locale from Lingua — the account's e-mails would stay
 whatever the last client wrote, and a Lingua-only reader would get English; or send the
 interface language only once the reader has chosen it (change 20's `cymbra-lingua-native-chosen`)
-and the browser's whole tag until then, which keeps today's e-mails for everyone until the
-choice exists. M12 chose the interface language; the owner confirms or picks the second
+and the browser's whole tag and today's deletion rule until then, which keeps today's e-mails,
+Music's language and deletion page for everyone until the choice exists. M12 chose the interface language; the owner confirms or picks the second
 alternative in task 3.3.
 
 ### D3 — Slot messages and dates
@@ -67,8 +68,15 @@ chiffres » are change 13's slot messages `linkedOn(date)`, `codeSentTo(email)` 
 `handleEmpty(max)`/`handleInvalid(max)`; the date is formatted for the interface language
 (`fr-FR` kept for French, change 13's `formatDate`), the e-mail rendered in bold by the view.
 `errorCopy(context, kind, language = "fr")` takes the language as an optional last parameter and
-reads the catalogue's `account` entries; the private `linkCopy` likewise; the flow holds the
+reads the catalogue's `account-errors` module; the private `linkCopy` likewise; the flow holds the
 language and passes it — so `account-copy.spec.ts` passes unchanged.
+
+The errors are a module of their own, `src/i18n/{fr,en,es}/account-errors.ts` — the keys
+`errorCopy` and `linkCopy` read, with `providerGoogle` and `providerApple`, moved out of `account`
+with their values verbatim, typed after the French — because `reading/account-setting.ts` imports
+`errorCopy`: with one `account` module, the content script, the popup, the side panel and the reader
+carried the account page's whole copy in three languages. `accountCopy(language)` returns
+`{ ...errors, ...account }`, one object for the page's `fillPage`, the flow and the view.
 
 ### D4 — The baseline, after this change
 
@@ -81,8 +89,17 @@ The lint's baseline, down to the account's and the onboarding's files and two ot
 - **An Italian reader's e-mails moved** → D2 keeps the browser's `it`; tested.
 - **A locale the server does not speak** → the interface language is one of the four; a German
   browser sends the interface language, not `de`.
-- **An English-browser reader's e-mails move to French** → the owner's acknowledgement, or the
-  second alternative of D2 (task 3.3).
+- **While French is every reader's interface language (until change 20), three visible effects**
+  → the owner's acknowledgement, or the second alternative of D2 (task 3.3):
+  - a reader whose browser is not in French gets French e-mails from their next sign-up, resend,
+    reset or set-password;
+  - Cymbra Music, which applies the account locale to its interface by exact match at each sign-in
+    and cold start (it ignored the whole tags Lingua sent so far), switches to French on its next
+    start for such a reader whose Music was in English or Spanish;
+  - the deletion link opens the French page for every reader, where a non-French browser opened
+    the English one.
+- **A storage read that hangs** → `interfaceLanguage` waits 500 ms at most, then shows French with a
+  warning; the page's 1.5 s reveal is only for a script that dies before the fill.
 - **A French byte in the account flows** → the five account spec files, unchanged.
 
 ## Migration Plan

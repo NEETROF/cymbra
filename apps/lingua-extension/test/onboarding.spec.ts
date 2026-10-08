@@ -118,6 +118,23 @@ describe("the onboarding's page, filled from the catalogue", () => {
 });
 
 describe("the onboarding's level row, in the interface language", () => {
+  it("An English-native reader: the question, an estimated level and its note are English too", async () => {
+    // The labels module speaks the interface language (add-lingua-native-language-labels): the row
+    // an English-native reader sees is English throughout, the estimated levels included.
+    const view = { setDeclaredLevelAt: async () => {}, setCalibration: async () => {} };
+    const row = levelRow("es", view, null, true, async () => {}, "en");
+    document.body.replaceChildren(row);
+    expect(row.querySelector("h2")?.textContent).toBe("What's your Spanish level?");
+    expect(row.querySelector(".note")?.textContent).toBe(
+      "Levels estimated from word frequency, as no freely licensed CEFR list exists for Spanish.",
+    );
+    row.querySelector<HTMLButtonElement>('button[data-lvl="B1"]')!.click();
+    await settle();
+    expect(row.querySelector(".confirm")?.textContent).toBe(
+      "Level saved: B1 (estimated). You can close this tab and start reading.",
+    );
+  });
+
   it("A French reader: the module the page reads when none is stored", () => {
     expect(onboardingCopy()).toBe(onboardingCopy("fr"));
     const row = levelRow(
