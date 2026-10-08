@@ -8,11 +8,12 @@ See proposal.md (Why). What exists:
 |---|---|
 | `reduce-es-en.py` | `native_fields` (the extract cut to `word`, `pos`, `senses` and each sense's `glosses`, `tags`, `form_of`, `alt_of`) → `without_letters` → `english.without_letter_headwords` → `english.merge_same_pos_etymologies` (off) → `common.native_tables(…, edition=english.EN, fallbacks=[(direct, list)])` |
 | `reduce_edition_en.py` | `EN`: `_FORM_OF` (untagged pointer wordings), `_LETTER`, pointer tags `form-of`/`alt-of` and fields `form_of`/`alt_of`, `capitalised=False`, `long_parenthesis=LONG_PARENTHESIS` (0); the two pre-passes above. Loaded by es-en alone: editing it re-pins es-en and no other pair (change 6 D2, change 21 D5) |
-| `reduce_common.py` | `_read_entries` reads a sense by `glosses[0]` and skips it when `_is_form_of`; `clean_gloss` (notes, the long-parenthesis bound, whitespace, `.strip(" ;,").rstrip(".:")`, the cut); `_join_senses_by_pos` (round-robin across a word's entries in file order, up to eight senses, grouped by part of speech in the order they first appear); a word with no meaning sense borrows its pointer's target's senses in the same part of speech; an all-capitals headword does not gloss a lower-case word that has entries (`_acronym`). Every pair loads it: editing it re-pins en-fr, es-fr, es-en and en-es |
-| kaikki's senses | A nested sense carries its parents' glosses first: `glosses: ["Figurative senses.", "to come from, originate"]`; its parent may also appear alone as a sense (`["now, right now, …"]` over « by now ») or not (`["to make"]`, `["Figurative senses."]`) |
+| `reduce_common.py` | `_read_entries` reads a sense by `glosses[0]` and skips it when `_is_form_of`; `clean_gloss` (notes, the long-parenthesis bound, whitespace, `.strip(" ;,").rstrip(".:")`, the cut); `_join_senses_by_pos` (round-robin across a word's entries in file order, up to eight senses, grouped by part of speech in the order they first appear; a sense's own `;` written `,`); a word with no meaning sense borrows its pointer's target's senses in the same part of speech, from a target of three letters or more (`_MIN_BASE`); an all-capitals headword does not gloss a lower-case word that has entries (`_acronym`). Every pair loads it: editing it re-pins en-fr, es-fr, es-en and en-es |
+| kaikki's senses | A nested sense carries its parents' glosses first: `glosses: ["Figurative senses.", "to come from, originate"]`; its parent may also appear alone as a sense (`["now, right now, …"]` over « by now ») or not (`["to make"]`, `["Figurative senses."]`). A pointer names its target in `alt_of`/`form_of` — `word`, and `extra` for a meaning it carries (« mucho », « very ») — as kaikki parsed the template: « malo bad » with `extra` « evil », « voy a », « cincuenta y uno », or « mío » and « my » as two targets |
 | `tables/es-en/` | 31,876 glossed lemmas, 15,490 expressions; pinned at `2026.10.08` from `lingua-pack-sources-es-en-2026.10.08`; coverage 93.0 / 86.5 / 76.5 % against `FLOORS["es-en"]` 87.6 / 77.2 / 63.7 |
-| Change 23 | `crates/lingua-wasm/tests/es_en_baseline.rs` + `baseline/es-en.golden` (the reference's probes and 40 lemmas, among them `a`, `su`, `pero`, `o`, `ya`, `qué`, `bien`, `ahora`, `nada`, `ni`, `otro`, `tanto`, and the card of « viaje », its shown gloss a constant); `test/word-card-es-en.spec.ts` + `test/baseline/word-card-es-en.txt`; `test/row-gloss-tables.spec.ts` (no row of any pair ends on an opening mark; the French rows pinned); both re-blessed by `lingua-pack-update` |
+| Change 23 | `crates/lingua-wasm/tests/es_en_baseline.rs` + `baseline/es-en.golden` (the reference's probes and 40 lemmas, among them `a`, `su`, `pero`, `o`, `ya`, `qué`, `bien`, `ahora`, `nada`, `ni`, `otro`, `tanto`, and the card of « viaje », its shown gloss a constant); `test/word-card-es-en.spec.ts` + `test/baseline/word-card-es-en.txt`; `test/row-gloss-tables.spec.ts` (no row of any pair ends on an opening mark; the French rows pinned in `test/baseline/selection-rows-fr.txt`); `lingua-pack-update` re-blesses all of them on a dictionary update's branch |
 | Change 21 | Tasks 2.2 and 5.1 open: the owner's two settings (M20), sampled on today's tables |
+| Change 38 | `migrate-lingua-pack-sources-to-raw-dumps`, merged (#804): re-pins no pair, keeps a legacy `kaikki` record as recorded (its D5), and measured es-en's tables identical from the pinned extract and from the English dump of 2026-10-03, under today's rules (its D6; `SOURCES.md`, *Extract and dump are measured against each other*) |
 
 ## Goals / Non-Goals
 
@@ -30,35 +31,49 @@ See proposal.md (Why). What exists:
 
 ## Measured
 
-Rows are the lemmas of `tables/es-en/gloss.tsv` (31,876); "top 10k" those ranked 1–10,000 in
-`tables/es/freq.tsv` (8,646 glossed). Text classes are counted on the committed table; structural
-ones (nested senses, pointers, tags) on the pinned extract's senses, as `reduce-es-en.py` cuts them;
-each rule's effect on a replica of the shared reduction that reproduces the 30,918 rows the
-edition's own senses gloss, byte for byte with their runs (the 958 borrowed or translation-table
-rows are not replayed: the pull request measures on the real reduction). Classes overlap.
+Rows are the lemmas of `tables/es-en/gloss.tsv` (31,876): 30,918 / 8,463 glossed by their own
+senses, 829 / 167 borrowed from a pointer's target, 129 / 16 from the translation table (848 / 175
+rows have a pointer and no sense of their own; 19 / 8 of them borrow nothing). "top 10k" are those
+ranked 1–10,000 in `tables/es/freq.tsv` (8,646 glossed). Text classes are counted on the committed
+table; structural ones (nested senses, pointers, tags) on the pinned extract's senses, as
+`reduce-es-en.py` cuts them. Each rule's effect is measured on the real reduction: the shared rules
+(`common.native_tables`, the borrowing and the translation-table fallback included) over the cut
+file, with a scratch prototype of D2–D5 as the pre-pass — which, with no rule, reproduces the
+committed `gloss.tsv`, `senses.tsv` and `mwe.tsv` byte for byte. Classes overlap.
 
 | # | Class | Rows: whole / top 10k | Examples | Decision |
 |---|---|---|---|---|
 | 1 | A sense-group label or a list's introduction read as a sense | 9 / 6 | « venir » (881) « Senses relating to literal movement; Figurative senses »; « lata » (4342) « …; unit of measurement for »; « cusco » (7161) « places in Peru » | Fix (D2) |
-| 2 | A sense nested under a pointer read as the pointer | 4 / 2 | « su » (15) « apocopic form of suyo »; « sí » (96) « prepositional form of se »; « weón » (24897) « pronunciation spelling of huevón » | Fix (D2) |
-| 3 | A shortened or respelled form: its pointer kept as a meaning, or the meaning it carries lost | wording kept 13 / 5; apocopic senses under 12 / 7 lemmas; the rule changes 27 / 9 | « tas » (7587) « apheretic form of estás »; « mi » (22) « mu, the Greek letter Μ, μ; mi » (« my » lost); « muy » (32) « much, a lot, far, way, many times; very; … » (borrowed from « mucho ») | Fix (D3) |
-| 4 | An abbreviation tagged `alt-of` lending its target's gloss | 227 / 88 of the 851 / 175 borrowed rows; single letters 3 / 3 | « q » (373) « who, that; that, whom, which » (que); « k » (910) « that; than; … »; « t » (610) « time; …; weather (…) » (tiempo, the first of four targets). « qe » (6499) « Querétaro (…) » is the acronym `QE`'s own gloss (*An acronym with no common word*) | Leave; « q », « k », « t » for the owner (Q2) |
-| 5 | A proper noun opening a lower-case lemma's gloss | 242 / 124 (es-fr: 114 / 49); under a function word 1 / 1 | « como » (17) « Como (a city…); Como (a province…); as … »; « amor » (198) « a surname; love »; « chile » (328) « Chile (…); a chili pepper » | Fix « como » (D4); the rest for the owner (Q3) |
+| 2 | A sense nested under a pointer read as the pointer | 13 / 5, of which 5 / 1 have no other sense | « su » (15) « apocopic form of suyo »; « sí » (96) « prepositional form of se »; « casita » (6636) without « small house », nested under « diminutive of casa »; « cosita » (9065), « cajita », « chiquillo », « ramita » unglossed, every sense under « diminutive of … »; « québec » (34322) under « alternative form of Quebec: »; « weón » (24897) « pronunciation spelling of huevón » | Fix (D2) |
+| 3 | A shortened or respelled form: its pointer kept as a meaning, or the meaning it carries lost | wording kept 13 / 5; 87 senses so worded in the lemmas and expressions (70 tagged `alt-of`, 17 untagged), and 3 tagged `apocopic` or `prepositional` that are meanings; D3 changes 35 / 15 rows and glosses 4 more lemmas and 25 expressions | « tas » (7587) « apheretic form of estás »; « mi » (22) « mu, the Greek letter Μ, μ; mi » (« my » lost); « muy » (32) « much, a lot, far, way, many times; very; … » (borrowed from « mucho »); « cincuenta y un » unglossed (« apocopic form of cincuenta y uno (“fifty-one”) ») | Fix (D3) |
+| 3b | A pronoun's case form whose pointer carries its meaning, skipped | 3 / 3 (9 senses) | « lo » (14) loses « him, you (formal), it, that » and reads only its article; « nos » (35) reads only two archaic senses; « les » (71) « the (plural) », « to them, for them » skipped | Fix (D3) |
+| 4 | An abbreviation tagged `alt-of` lending its target's gloss | 191 / 70 of the 829 / 167 borrowed rows lend through « abbreviation of », « initialism of », « acronym of » or « clipping of »; single letters 3 / 3 | « q » (373) « who, that; that, whom, which » (que); « k » (910) « that; than; … »; « t » (610) « time; …; weather (…) » (tiempo, the first of four targets). « qe » (6499) « Querétaro (…) » is the acronym `QE`'s own gloss (*An acronym with no common word*) | Leave; « q », « k », « t » for the owner (Q2) |
+| 5 | A proper noun opening a lower-case lemma's gloss | 242 / 124 rows open on a proper noun's run before another (es-fr: 114 / 49); under a function word 1 / 1 | « como » (17) « Como (a city…); Como (a province…); as … »; « amor » (198) « a surname; love »; « chile » (328) « Chile (…); a chili pepper » | Fix « como » (D4); the rest for the owner (Q3) |
 | 5b | A common noun's sense in an English capital | 1,164 / 236 rows open on a capitalised sense that is no proper noun's | « tierra » (236) « Earth (planet…) »; « mayo » (324) « May »; « julio » (300) « July » | Leave: English capitalises the planet, months, languages and demonyms |
-| 6 | The edition's description in a capital, mid-gloss or first | 170 / 58 (202 / 69 senses, 59 / 8 opening the row); 314 expressions | « a » (6) « …; Used before words referring to people… »; « se » (9) « A reflexive or reciprocal pronoun… »; « ni » (48) « Used when negating two or more elements… » | Fix (D5) |
-| 7 | A reference to a numbered sense of the source | 2 / 2 | « ya » (26) « (difference from sense 4 depends on context) »; « jurado » (1925) « (member of a jury [sense 1]) » | Fix (D5) |
+| 6 | The edition's description in a capital, mid-gloss or first | 170 / 58 (202 / 69 senses, 59 / 8 opening the row); 314 expressions. « The » before a capital: 5 lemma senses (3 titles or names, « The Nutcracker (ballet) », « The Inca Empire »; 2 species) and 38 expression senses, 37 of them a species (« The Eurasian treecreeper », « The Puna teal, Anas puna »), the last « The Game (mind game) » | « a » (6) « …; Used before words referring to people… »; « se » (9) « A reflexive or reciprocal pronoun… »; « ni » (48) « Used when negating two or more elements… » | Fix (D5); « The » before a capital kept, the species with it (D5) |
+| 7 | A reference to a numbered sense of the source | 2 / 2 | « ya » (26) « (difference from sense 4 depends on context) »; « jurado » (1925) « (member of a jury [sense 1]) » and « judge (member of a jury [sense 2], officiator of a competitive event) » | Fix (D5) |
 | 8 | IPA inside a sense | 2 / 1 | « bueno » (104) « …with the pronunciation /bweˈno/, rather than /ˈbweno/ »; « seseo » (53052) « …as /s/ rather than /θ/ » | Leave (D6) |
-| 9 | Ellipses written three ways | `...` 12 / 10 (9 / 7 unspaced, 3 / 3 spaced); `…` inside a sense 2 / 2; 5 expressions; the rule changes 9 / 9 | « nada » (47) « not...anything »; « tanto » (76) « both ... and »; « o » (21) « either … or »; « ahora » (45) « whether...or... » loses its last one to the final-period strip | Fix (D5) |
+| 9 | Ellipses written three ways | `...` 12 / 10 (9 / 7 unspaced, 3 / 3 spaced); `…` inside a sense 2 / 2; 5 expressions, and 5 more whose final `...` the shared cleaning drops; the rule changes 13 / 10 rows and 10 expressions | « nada » (47) « not...anything »; « tanto » (76) « both ... and »; « o » (21) « either … or »; « ahora » (45) « whether...or... » loses its last one to the final-period strip, « a la mierda » « to hell with » | Fix (D5) |
 | 10 | « etc » without its period at a sense's end | 35 / 16 (and « vs », « Mrs », « e.g »: 3 / 2); es-fr 28, en-fr 57, en-es 47 rows | « qué » (37) « …cómo, cuándo, etc »; « tanto » (76) « so much, long, hard, often, etc »; « actual » (356) « of the current month, year, etc » | Leave here: `reduce_common.clean_gloss`, every pair (D6) |
-| 11 | Straight quotes | `"` 38 / 21; `'…'` 2 / 1; “ ” already 62 / 32 | « pero » (20) « but (instance of saying "but") »; « otro » (73) « "Not again!" or "What, again?" »; « tener » (79) « (e.g. to "hold the power to", …) » | Fix the double ones (D5); leave the single (D6) |
+| 11 | Straight quotes | `"` 38 / 21; `'…'` 2 / 1; “ ” already 62 / 32; the rule changes 38 / 21 rows and 6 expressions | « pero » (20) « but (instance of saying "but") »; « otro » (73) « "Not again!" or "What, again?" »; « tener » (79) « (e.g. to "hold the power to", …) » | Fix the double ones (D5); leave the single (D6) |
 | 12 | A row opening on an unexpected part of speech or sense | 3,628 / 1,487 rows have two runs or more; 39 / 35 put an open-class run before a function word's, most reading right (« más », « ya », « ahora ») | « hasta » (43) « even » before « until »; « primero » (202) the noun « former (…) » before « first »; « estado » (68) « country, land » before « state »; « yo » (28) « first-person singular pronoun in the nominative case, I » | Leave (D6); the order for the owner (Q4) |
 | 13 | A sense whose label is dropped | obsolete/archaic 252 / 99 (98 / 28 open the row; 77 / 19 rows hold nothing else); dated/historical/rare 474 / 155; regional 2,725 / 882; register 2,031 / 718 | « o » (21) « …; where » (obsolete); « ese » (62) « that; hello » (Mexico, informal); « buena » (139) « inheritance » (obsolete; its form-of pointer to « bueno » never lends) | For the owner (Q1) |
 | 14 | Upstream text | — | « a » (6) « indiference »; « otro » (73) « Otra vez! » with no ¡; « pero » (20) « well well, so, well » | Leave (D6) |
 | 15 | Found: an example sentence after a line break | 2 / 0 | « canino » (18202) « …hungry as a hog Marcos siempre estaba canino… »; « tembleque » (49440) | Fix (D5) |
 
-The rules D2–D5 together, on the replica: **251 rows change, 101 of the top 10,000; the first sense
-of 91 / 21**; one lemma gains a gloss (« er »), none loses one; about 325 expressions change, nearly
-all for D5's lower case. Coverage cannot fall below today's 93.0 / 86.5 / 76.5 %.
+The rules D2–D5 together, on the real reduction: **268 rows change, 111 of the top 10,000** —
+250 / 104 glossed by their own senses and 18 / 7 borrowed from a pointer's target (« tu », « muy »,
+« na », « val », « aver », « cártel », « weon »; « alv », « agora », « ná », « awa », « wawa »…); the
+first sense of 102 / 27. **9 lemmas gain a gloss and none loses one**: « cosita » (9065), « cajita »,
+« chiquillo », « ramita » and « québec » through D2, « mui », « vien », « kiero » and « pid » through D3.
+**332 expressions change** (330 for D5, nearly all its lower case; 2 for D2) and **25 gain a gloss**
+through D3 — the apocopic numerals and ordinals (« cincuenta y un » « fifty-one », « vigésimo primer »
+« twenty-first »), « cuando quier » and « po favó » — none losing one; the runs of 46 rows move. Rule
+by rule, alone: D2 22 / 11 rows (5 / 1 of them gaining a gloss); D3 38 / 18 rows and 4 lemmas gained
+(35 / 15 shortened forms, 3 / 3 case forms); D4 1 / 1 (« como »); D5 219 / 87 rows and 330
+expressions. Coverage cannot fall below today's 93.0 / 86.5 / 76.5 %: no lemma loses its gloss, one
+of the top 10,000 gains one (« cosita ») and four of the top 20,000. These are a prototype's
+figures: the pull request measures again on its own code, and the sample (D8) is drawn from it.
 
 ## Decisions
 
@@ -94,14 +109,20 @@ alone or not (« now, right now, … » over « by now »; « to make » over «
   kind of bird: ») or names senses (« Figurative senses. », « Senses relating to literal
   movement. »);
 - **a pointer**: the parent is a pointer sense of the same entry (« apocopic form of suyo », tagged
-  `alt-of`) or the edition's pointer wording (`_FORM_OF`, with D3's).
+  `alt-of`) or the edition's pointer wording (`_FORM_OF`, with D3's) — a shortened or respelled
+  form (« prepositional form of se », « eye dialect spelling of ahuevonado »), a diminutive
+  (« diminutive of casa » over « small house » and « house »; « cosita », « cajita », « chiquillo »,
+  « ramita », « campanita » « notification bell », « figurita » « shorty »), an alternative form
+  (« alternative form of Quebec: » over « Quebec (a province in eastern Canada) »).
 
 « venir » reads « to come (move closer to some location …); to arrive; to come from, originate; … »,
 « cusco » « a region of Peru; a province of Cusco; … », « sí »'s fifth sense « himself, herself,
-itself, … ». A parent that is neither a label nor a pointer is never replaced, and a nested pointer
-(« ellipsis of goma de mascar ») stays a pointer.
+itself, … », « casita » « small house; house; mother-in-law apartment; … ». A parent that is
+neither a label nor a pointer is never replaced, and a nested pointer (« ellipsis of goma de
+mascar ») stays a pointer. Of the 22 / 11 rows D2 moves, 9 / 6 are under a label and 13 / 5 under a
+pointer; 5 / 1 had no gloss (« cosita », « cajita », « chiquillo », « ramita », « québec »).
 
-### D3 — A shortened or respelled form reads as its meaning
+### D3 — A shortened or respelled form, or a pronoun's case form, reads as its meaning
 
 The English Wiktionary writes an apocope, an apheresis, a syncope, a prepositional form and a
 pronunciation or eye-dialect spelling as a pointer, tagged (`alt-of`, `apocopic`, with `alt_of`) or
@@ -112,63 +133,126 @@ of uno (“one”) », « apheretic form of papá (“dad”) ». The shared rul
 word with no other sense, so « muy » borrows all of « mucho ». An untagged one is read as a meaning
 (« tas », « toy »).
 
+**Which senses.** A sense is a shortened or respelled form when its gloss opens on that pointer
+wording — « apocopic form of », « apheretic form of », « syncopic form of », « prepositional form
+of », « pronunciation spelling of », « eye dialect spelling of », in any case — tagged as a pointer
+(70 senses) or not (17). The wording is the key, never a tag alone: « mal »'s adjective « amiss,
+awry, off, wrong » is tagged `apocopic` and « nos »'s « first person nominative, prepositional and
+vocative plural pronoun » `prepositional`, and both are meanings; the 8 senses tagged `alt-of` beside
+a shortened form's tag under another pointer's wording (« obsolete form of treinta y un »,
+« alternative form of hueveo ») stay the shared rules' pointers.
+
+A **pronoun's case form** is the same layout under another wording: « accusative of él and usted
+(when referring to a man), and a variant of ello in many constructions; him, you (formal), it,
+that », « dative of nosotros: to us, for us », « dative of ellos and ellas; to them, for them » —
+tagged `form-of`, so skipped: « lo » (14) reads only its article, « nos » (35) only two archaic
+senses, « les » (71) only « the (plural) ». A pointer sense of a pronoun entry whose gloss names a
+case (« nominative », « accusative », « dative », « genitive », « reflexive », « prepositional »,
+« disjunctive ») « of » a word, then carries its meaning after a colon or a semicolon, is read by
+that meaning — rule 1 only, nothing is lent to it: 9 senses, of these three lemmas alone (« me »,
+« te », « la », « los » are forms, not glossed lemmas).
+
+**Its target and its meaning.** The target is the word kaikki names in the sense's `alt_of` or
+`form_of` (the first), whole: « voy a », « cincuenta y uno », « por favor », « malo bad ». Its meaning
+is kaikki's `extra` for that target when there is one (« very », « one », « fifty-one », « I'm going
+to », « evil »), else the gloss's text after the target, past a comma, a semicolon or a colon, or
+within “ ” (« apocopic form of mío, my » → « my », « tuyo, your » → « your »). For a pronoun's case
+form it is the text after the gloss's first colon or semicolon (« him, you (formal), it, that »: lo's
+`extra` opens on the note). A sense with no pointer field names its target in its gloss — the text
+after the wording up to a comma, a semicolon, a colon, an opening parenthesis or the end (« estoy »,
+« adelante ») — and its meaning after it (« apheretic form of mamá (“mom”) » → « mom »). The target is
+never the gloss's first word after the wording: « cincuenta y un » would read « fifty », « vigésimo
+primer » « twentieth ».
+
 The pre-pass replaces such a sense, in its place, by:
-1. the meaning it carries — the text after its target, after a comma, a semicolon or a colon, or
-   in quotation marks: « my », « very », « valley », « one », « dad »;
+1. the meaning it carries: « my », « very », « valley », « one », « evil », « fifty-one », « him,
+   you (formal), it, that »;
 2. else its target's meaning senses in the same part of speech (« su » → « suyo »'s determiner
-   senses; « alante » → « adelante »'s), following the target's own pointer once when the target is
-   only a form (« toy » → « estoy » → « estar »);
-3. else nothing: `_FORM_OF` gains these wordings (« apocopic », « apheretic », « syncopic »,
-   « prepositional form of », « pronunciation spelling of », « eye dialect spelling of »), so the sense
-   is a pointer, as a tagged one already is.
+   senses; « alante » → « adelante »'s; « po favó » → « por favor »'s « please; you're welcome »),
+   following the target's own pointer once when the target is only a form (« toy » → « estoy » →
+   « estar »), from a target of three letters or more;
+3. else nothing: `_FORM_OF` gains the six wordings above, so the sense is a pointer, as a tagged
+   one already is (« seó », « apocopic form of seor »; « er », whose target has two letters).
+
+**Three letters.** Rule 2 lends from a target of three letters or more, the bound every lending of
+the shared rules keeps (`_MIN_BASE`; *A word that is only a form of another takes that word's
+gloss*: a word of fewer than three letters gives none). Lifting it here would move two rows and no
+other: « er » (5656), « pronunciation spelling of el », would gain « el »'s article senses, and
+« sho » (21886) would add « yo »'s « I » after its two interjections. The price would be a second,
+es-en-only exception to a requirement every pair holds — the reader cannot tell which rule lent a
+gloss — for two respellings of the commonest words. Kept: that requirement holds as written,
+« er » stays unglossed and « sho » reads « shush!, hush!; wow!, whoa! », as today. Rule 1 lends
+nothing, so the bound is not its: a carried meaning is read whatever its target.
 
 The new sense keeps the original's other tags and loses its pointer tags and fields. It holds for a
 word that has other senses too: « mi » reads « my; mu, the Greek letter Μ, μ; mi », « tu » « your »,
-« un » « an, a; one ». The studied side is untouched — es-fr's reduction already reads `buen` as a
-form of `bueno` (*A Spanish apocope reads as its full word*); `mi`, `tu`, `su` and `muy` are lemmas of
-their own, glossed here.
+« un » « an, a; one », « lo » « him, you (formal), it, that; neuter definite article… », « nos » « to
+us, for us; us; ourselves, each other; first person … », « les » « to them, for them; to you all,
+for you all (formal); you all (formal); them; the (plural) ». A carried or lent sense takes a place
+in the round-robin: « mal » (123) gains its adjective's « evil » and loses « used as an intensifier,
+very » from its eight; « güey » (26642) gains « buey »'s « ox, bullock, steer » and three more after
+« dude, guy, buddy »; « callao » (6243) opens on « callado »'s « quiet, silent », its adjective's
+entry coming first. The studied side is untouched — es-fr's reduction already reads `buen` as a
+form of `bueno` (*A Spanish apocope reads as its full word*); `mi`, `tu`, `su`, `muy`, `lo`, `nos`
+and `les` are lemmas of their own, glossed here.
 
 ### D4 — A function word does not open on a place's name
 
 « como » has three entries — adverb, conjunction, preposition — and the round-robin meets `Como`'s
 proper-noun entry (the Italian city) first, in file order: the row opens on the city, twice. The
-pre-pass writes the `name` entries of a capitalised headword after every other line when the
-lower-case headword has an entry that is a preposition, a conjunction, a pronoun, a determiner or an
-article: the city's senses come after « as (…) », if the eight still hold them. Nothing else moves: on
-the top 10,000 this rule changes « como » alone.
+pre-pass writes the `name` entries of a headword with an initial capital — not all capitals, which
+is an acronym and `_acronym`'s — after every other line, when the lower-case headword has an entry
+whose kaikki part of speech is `prep`, `conj`, `pron`, `det` or `article`: the city's senses come
+after « as (…) », if the eight still hold them. A headword's moved lines stay consecutive and in
+their order, so `merge_same_pos_etymologies`, which reads a headword's etymologies as one run of
+lines, still finds them together. Nothing else moves: in the whole table this rule changes « como »
+alone.
+
+Why not all capitals: « pr » (3980) has only pointers — `PR`'s « initialism of Puerto Rico », then
+its own « abbreviation of por », « para », « pero » — and borrows from the first in file order:
+« Puerto Rico (…) » today. Moving `PR`'s line after every other would put « por » first and open
+« pr » on « by; for (…); through, … », a row no rule here sets out to change.
 
 Why so narrow: a rule for every proper noun was measured both ways. Writing the names last everywhere
-changes 242 / 123 rows and puts « Brazil », « China », « María » after « brazilwood », « pebble »,
-« magpie »; writing personal names last helps « amor », « máximo », « norma » and opens « jorge » on
-« cockchafer », « fernando » on « fernet with Coca-Cola », « carmen » on « a type of house in
-Granada ». Which reading a reader meets depends on the token's capital, which the engine knows and
-the pack does not: that is the better fix, shared (D6, Q3).
+changes 243 / 124 rows — the 242 / 124 that open on a proper noun, and « tejas », borrowed, then
+« roof tile; … » instead of « Texas (…) » — and puts « Brazil », « China », « María » after
+« brazilwood », « pebble », « magpie »; writing personal names last helps « amor », « máximo »,
+« norma » and opens « jorge » on « cockchafer », « fernando » on « fernet with Coca-Cola », « carmen »
+on « a type of house in Granada ». Which reading a reader meets depends on the token's capital, which
+the engine knows and the pack does not: that is the better fix, shared (D6, Q3).
 
 ### D5 — One English typography
 
-The pre-pass writes each sense's own gloss:
+The pre-pass writes each sense's own gloss, in this order:
 
+- **No text after a line break**: a gloss stops at its first line (« canino »'s example sentence).
+- **No numbered sense**: a bracketed « [sense N] » goes first, then a parenthesis still naming
+  « sense N » goes whole. So jurado's « judge (member of a jury [sense 2]; officiator of a
+  competitive event) » keeps its parenthesis (« judge (member of a jury, officiator of a competitive
+  event) », the sense's own semicolon written as a comma by the shared rules), « juror, juryman,
+  juryperson (member of a jury [sense 1]) » reads « juror, juryman, juryperson (member of a jury) »,
+  and ya's « (difference from sense 4 depends on context) » goes.
 - **The edition's description in lower case**, as 98.3 % of its senses are written: a sense opening
-  on « A », « An », « The », « Any », « One », « Some », « Certain », « Various », « Either »,
-  « Used », « Said », « Indicate(s) », « Expresses », « Denotes », « Forms », « Replaces »,
-  « Introduces », « Refers », « Related », « Relating », « Pertaining », « Of », « Having », « In »,
-  « To », « Someone », « Something », « Term », « Expression » or « Interjection », then a space and
-  a letter, opens in lower case — the openers of the 202 senses measured. « The » before a capital is
-  a title or a name and stays (« The Nutcracker (ballet) », « The Inca Empire »), and a word followed
-  by no letter stays (« A (highest grade in testing) »). Any other capital stays: proper adjectives,
-  months, « Earth », and the odd common word the edition capitalised (« Civility » under
-  « policía »). Whether the card capitalises a sense for display stays a renderer option (change 23,
-  M9): the data is now one case to decide it on.
+  on one of a closed list — « A », « An », « The », « Any », « One », « Some », « Certain »,
+  « Various », « Either », « Used », « Said », « Indicate », « Indicates », « Expresses »,
+  « Denotes », « Forms », « Replaces », « Introduces », « Refers », « Related », « Relating »,
+  « Pertaining », « Of », « Having », « In », « To », « Someone », « Something », « Term »,
+  « Expression », « Interjection » — then a space and a letter, opens in lower case: the openers of
+  the 202 senses measured. « The » before a capital stays, whatever follows it: a title or a name
+  (« The Nutcracker (ballet) », « The Inca Empire »), and the species the edition writes the same
+  way (« The Eurasian treecreeper »: 37 expression senses and 2 lemma senses, which the rule cannot
+  tell from a title). A word followed by no letter stays (« A (highest grade in testing) »). Any
+  other capital stays: proper adjectives, months, « Earth », and the odd common word the edition
+  capitalised (« Civility » under « policía »). Whether the card capitalises a sense for display
+  stays a renderer option (change 23, M9): the data is now one case to decide it on.
 - **One ellipsis**: `...` becomes `…`; between two words it is spaced on both sides (« not …
-  anything », « both … and », « either … or », « sometimes … other times »), elsewhere the spacing
-  written stays. A `…` is no period, so the shared cleaning keeps a sense's last one (« whether …
-  or … »).
+  anything », « both … and », « either … or », « sometimes … other times »); anywhere else the
+  spacing written stays (« whether … or… », « let's see… », « my name is …, I am … »). A `…` is no
+  period, so the shared cleaning keeps a sense's last one: « ahora »'s « whether … or… » keeps it, and
+  « a la mierda » reads « to hell with… » where it read « to hell with ».
 - **Curly double quotes**: a sense with an even number of `"` has them paired “ ” in order (« “Not
   again!” or “What, again?” »); an odd number stays as written. Single quotes stay: ’ is also the
   apostrophe, and 2 rows hold quoting ones.
-- **No numbered sense**: « [sense N] » goes, and a parenthesis naming « sense N » goes whole
-  (« indicates completion of an action »; « juror, juryman, juryperson (member of a jury) »).
-- **No text after a line break**: a gloss stops at its first line (« canino »'s example sentence).
 
 None of them moves a word otherwise. Measured on the changed rows, no row of the card (`rowGloss`)
 ends on an opening mark; `row-gloss-tables.spec.ts` stays the gate.
@@ -194,31 +278,40 @@ ends on an opening mark; `row-gloss-tables.spec.ts` stays the gate.
   « seseo », the IPA is the meaning): corrected on the English Wiktionary, they arrive with es-en's
   next update. A table of corrections would be glosses written here, not by the source.
 - **« q », « k », « t »** borrow « que »'s and « tiempo »'s senses through an abbreviation (Q2); the
-  other 224 abbreviation borrowings read right (« ue » « European Union », « adn » « DNA », « tmb »
-  « also, too »).
+  other 188 rows that borrow through an abbreviation, an initialism, an acronym or a clipping read
+  right (« ue » « European Union », « adn » « DNA », « tmb » « also, too »).
 
 ### D7 — es-en re-pinned alone, at its snapshot
 
 `build.sh --reduce es-en` from `lingua-pack-sources-es-en-2026.10.08`: the pinned extract and the
-derived translations, nothing fetched beyond the release's assets. The pin keeps its snapshot,
-sources and `studied` record; its rule digest moves (`reduce-es-en.py`, `reduce_edition_en.py`), and
-with it `pack_version` (`2026.10.08+<digest[:7]>.08034dc`, the studied digest unchanged), the pack's
-sha256 and size. `gloss_coverage.py --pair es-en` holds `FLOORS["es-en"]`; the figures in
-`tables/es-en/README.md` and `SOURCES.md` follow. en-fr's, es-fr's and en-es's tables and pins are
-byte for byte unchanged — their rule digests do not name `reduce_edition_en.py` — and the reduce job
-reproduces every committed byte.
+derived translations, nothing fetched beyond the release's assets. The pin keeps its `snapshot`, its
+`studied` record and its `sources` byte for byte — the legacy `kaikki` record of the extract (asset,
+sha256, size, dates, address), `kaikki-es` and its derived file, `wordfreq`; its `reducer` digest
+moves (`reduce-es-en.py`, `reduce_edition_en.py`), and with it `pack_version`
+(`2026.10.08+<digest[:7]>.08034dc`, the studied digest unchanged), the pack's sha256 and size.
+`gloss_coverage.py --pair es-en` holds `FLOORS["es-en"]`; the figures in `tables/es-en/README.md`
+and `SOURCES.md` follow. en-fr's, es-fr's and en-es's tables and pins are byte for byte unchanged —
+their rule digests do not name `reduce_edition_en.py` — and the reduce job reproduces every
+committed byte.
 
 ### D8 — Every moved line read, and a sample for the owner
 
-`LINGUA_BLESS=1 cargo test -p lingua-wasm --test es_en_baseline` and `yarn vitest run
-test/word-card-es-en.spec.ts test/row-gloss-tables.spec.ts -u` re-bless the golden and the snapshot;
-`es_en_baseline.rs`'s shown first page of « viaje » follows D5 (« a state of hallucination… »). The
-French snapshot of rows does not move. The pull request lists every changed line of both, with the
-rule that moved it, and a before/after sample: every changed row of the top 10,000 (about 101) with
-its first differing sense, the changed expressions by rule, and 30 rows drawn from the rest — what
-the owner reviews (M9).
+`LINGUA_BLESS=1 cargo test -p lingua-wasm --test es_en_baseline` re-blesses the golden, and `yarn
+vitest run test/word-card-es-en.spec.ts -u` the English card's snapshot; `es_en_baseline.rs`'s shown
+first page of « viaje » follows D5 (« a state of hallucination… »). `yarn vitest run
+test/row-gloss-tables.spec.ts` runs without `-u`: it is the gate, its French snapshot
+(`test/baseline/selection-rows-fr.txt`) must pass as committed — re-blessing it would hide a French
+row that moved — and no row of any pair may end on an opening mark. (`lingua-pack-update` re-blesses
+both specs on a dictionary update's branch, where the French tables may move; here they may not.)
+The pull request lists every changed line of the golden and of the card's snapshot, with the rule
+that moved it, and a before/after sample: every changed row of the top 10,000 (about 111) with its
+first differing sense, the changed expressions by rule, and 30 rows drawn from the rest — what the
+owner reviews (M9). The sample names the rows where a carried or lent sense crowds another out of
+the eight or changes the opening (« mal », « güey », « callao »), the D2 parents ending on a colon
+that were meanings (« audición »'s « public entertainment, show: » over « concert », « reading »,
+« recital »), and the 18 / 7 borrowed rows that move.
 
-### D9 — With M20, whichever is settled first
+### D9 — With M20, whichever is settled first; after change 38
 
 The pipeline's order is fixed: D2–D5 run before `merge_same_pos_etymologies`, and D5's text before
 `clean_gloss` and its long-parenthesis bound. es-en's tables are therefore a function of these rules
@@ -230,14 +323,24 @@ on both.
   D5 removes it). D5 shortens a parenthesis by at most two characters per ellipsis, so one at the
   threshold may cross it: counted in whichever pull request lands second.
 - **The merging** (`MERGE_SAME_POS_ETYMOLOGIES`): D2 and D3 act per sense, D4 on another headword's
-  lines, so a merged entry keeps them; merging reorders senses 2–8, these rules what a sense says.
+  lines, kept consecutive, so a merged entry keeps them; merging reorders senses 2–8, these rules
+  what a sense says.
 - **The samples** of change 21 (tasks 2.2 and 5.1) were drawn on today's tables. If this change lands
   first, they are drawn again on its tables before the owner picks (the 1,057 and 247 rows each
-  setting changes move by at most the 251 this change touches); if M20 is settled first, this change's
+  setting changes move by at most the 268 this change touches); if M20 is settled first, this change's
   sample is drawn with the chosen values.
 
-Change 38 (`migrate-lingua-pack-sources-to-raw-dumps`) re-pins no pair; the rules read the same
-entries from a dump at es-en's next update.
+**Change 38** (`migrate-lingua-pack-sources-to-raw-dumps`) landed first (#804), and this change
+composes with it through its legacy-record path: 38 re-pins no pair and keeps es-en's `kaikki`
+record as recorded (its D5), and this change re-pins es-en from that same pinned extract, its
+`sources` byte for byte (D7, task 2.1) — neither moves the other's pin. 38's equivalence for es-en
+(identical tables from the extract and from the English dump of 2026-10-03) was measured under
+today's rules. These rules read the same fields of the same entries, but D4, D3's lending and the
+round-robin read file order, and 37 entries or runs of entries stand elsewhere in the dump: the
+implementation pull request reduces es-en from that dump as well while kaikki still serves it
+(`pack_report.py --identical`, recorded in `SOURCES.md` beside 38's measurement); otherwise es-en's
+next update, its first from the dump, names any difference in its report. The implementation builds
+on 38's `SOURCES.md`, `tables/es-en/README.md` and `test_reduce_editions.py` as merged.
 
 ## For the owner
 
@@ -261,12 +364,19 @@ again); any other is named as a follow-up in the pull request.
 
 - **A rule reads a meaning as a layout** (a parent ending on a colon that was a meaning) → D2
   replaces a parent only when it ends on a colon, names senses or is a pointer, and keeps the nested
-  senses' own glosses, so no meaning is lost; every changed row of the top 10,000 is in the sample.
+  senses' own glosses: « audición »'s « public entertainment, show: » gives way to its kinds,
+  « concert », « reading », « recital »; every changed row of the top 10,000 is in the sample.
+- **A tag read as a pointer** (« mal »'s « amiss, awry, off, wrong », tagged `apocopic`) → D3 keys on
+  the pointer's wording alone, tested on « mal » and « nos ».
+- **A target parsed from garbled text** (« malo bad », « es que in the Madrid dialect ») → the meaning
+  kaikki records wins, the target is looked up whole, and a target that names no word with a meaning
+  in that part of speech leaves the sense a pointer.
 - **A lent sense reads oddly** (« su » ← « suyo »: « his, hers, its, to her; … ») → it is the target's
   own gloss, and the sample shows it; a wording the owner wants is change 33's or Q-listed.
 - **The lower case on a proper word** → the closed list and the « The » exception; the census of the
-  202 senses is in the pull request.
-- **A golden that moves** → re-blessed in the pull request, each line read (D8).
+  202 senses, and of the 43 senses the exception keeps, is in the pull request.
+- **A golden that moves** → re-blessed in the pull request, each line read (D8); the French rows'
+  snapshot is run, never re-blessed.
 
 ## Migration Plan
 
