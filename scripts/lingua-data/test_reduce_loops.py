@@ -53,13 +53,48 @@ def step_script(workflow: Path, step: str) -> str:
 
 
 # build.sh, doubled: it logs its arguments and leaves the raw sources a reduction would — and, for
-# en-es, what its reducer measures of its tables (measures.json, add-lingua-pack-en-es D4).
-BUILD_SH = """#!/usr/bin/env bash
+# en-es, what its reducer measures of its tables (measures.json, add-lingua-pack-en-es D4). An
+# update or a dry run reads the run's editions folder (LINGUA_EDITIONS, migrate-lingua-pack-sources-
+# to-raw-dumps D4): the double logs what earlier pairs of the run left there, and leaves its own. A
+# dry run writes its root as the real one does: the pair's folder, and its studied language's,
+# removed and laid down again from the committed one — the reference then writing its drift
+# (`level.tsv`). `FAIL_PAIR` names a pair whose dry run fails, half way.
+BUILD_SH = r"""#!/usr/bin/env bash
 set -euo pipefail
-echo "${1#--} $2" >> "$BUILD_LOG"
-mkdir -p "$(dirname "$0")/work/$2"
-echo raw > "$(dirname "$0")/work/$2/raw"
-if [ "$2" = en-es ]; then echo '{"share": 1.0}' > "$(dirname "$0")/work/$2/measures.json"; fi
+here="$(dirname "$0")"
+pair="$2"
+studied="${pair%%-*}"
+echo "${1#--} $pair" >> "$BUILD_LOG"
+mkdir -p "$here/work/$pair"
+echo raw > "$here/work/$pair/raw"
+if [ "$pair" = en-es ]; then echo '{"share": 1.0}' > "$here/work/$pair/measures.json"; fi
+case "$1" in
+  --update | --dry)
+    editions="${LINGUA_EDITIONS:-$here/work/editions}"
+    mkdir -p "$editions"
+    echo "$pair: $(ls "$editions" | tr '\n' ' ')" >> "$BUILD_LOG.editions"
+    touch "$editions/$pair"
+    ;;
+esac
+if [ "$1" = --dry ]; then
+  root="${LINGUA_DRY_ROOT:-$here/work/dry}"
+  rm -rf "${root:?}/${pair:?}" "${root:?}/${studied:?}"
+  mkdir -p "$root/$pair"
+  cp -r "$here/tables/$studied" "$root/$studied"
+  echo "$pair" > "$root/$pair/gloss.tsv"
+  if [ "${FAIL_PAIR:-}" = "$pair" ]; then exit 1; fi
+  if grep -q "\"$pair\"" "$here/tables/$studied/studied.json"; then
+    echo "drift by $pair" > "$root/$studied/level.tsv"
+  fi
+fi
+"""
+
+# pack_report.py, doubled: it names the folders it compares and the tables the new one holds.
+PACK_REPORT = """import sys
+from pathlib import Path
+new = Path(sys.argv[2])
+held = {f.name: f.read_text().strip() for f in sorted(new.iterdir()) if f.suffix == ".tsv"}
+print(f"report {sys.argv[1]} {sys.argv[2]} {held}")
 """
 
 
@@ -73,6 +108,7 @@ class Loops(unittest.TestCase):
         shutil.copy(HERE / "pack_sources.py", self.data / "pack_sources.py")
         (self.data / "build.sh").write_text(BUILD_SH)
         (self.data / "build.sh").chmod(0o755)
+        (self.data / "pack_report.py").write_text(PACK_REPORT)
         # The workflows call `python`, as setup-python provides it.
         self.bin = Path(self._tmp.name) / "bin"
         self.bin.mkdir()
@@ -85,6 +121,7 @@ class Loops(unittest.TestCase):
         for lang, reference in (("en", "en-fr"), ("es", "es-fr")):
             (self.tables / lang).mkdir(parents=True)
             (self.tables / lang / "studied.json").write_text(f'{{"reference": "{reference}"}}\n')
+            (self.tables / lang / "level.tsv").write_text("committed\n")
         for pair in ("en-es", "en-fr", "es-en", "es-fr"):
             (self.tables / pair).mkdir()
             (self.tables / pair / "pin.json").write_text("{}\n")
@@ -114,6 +151,18 @@ class Loops(unittest.TestCase):
 
     def built(self) -> list[str]:
         return self.log.read_text().splitlines() if self.log.is_file() else []
+
+    def editions_seen(self) -> list[str]:
+        seen = Path(f"{self.log}.editions")
+        return [line.rstrip() for line in seen.read_text().splitlines()] if seen.is_file() else []
+
+    def github_env(self) -> dict:
+        """What a step wrote to GITHUB_ENV, as the next steps read it."""
+        env = {}
+        for line in (self.temp / "github_env").read_text().splitlines():
+            name, _, value = line.partition("=")
+            env[name] = value
+        return env
 
     def kept_work(self) -> list[str]:
         work = self.data / "work"
@@ -154,8 +203,25 @@ class Loops(unittest.TestCase):
 
     # — lingua-pack-update, the Reduce step —
 
-    def update(self, mode: str, pair: str) -> subprocess.CompletedProcess:
-        return self.run_step("lingua-pack-update.yml", "Reduce", MODE=mode, PAIR=pair)
+    def update(self, mode: str, pair: str, **env) -> subprocess.CompletedProcess:
+        return self.run_step("lingua-pack-update.yml", "Reduce", MODE=mode, PAIR=pair, **env)
+
+    def report(self, mode: str) -> subprocess.CompletedProcess:
+        """The Report step, after the Reduce step: what it wrote to GITHUB_ENV, as GitHub passes it."""
+        return self.run_step(
+            "lingua-pack-update.yml",
+            "Report against the committed tables",
+            MODE=mode,
+            EXPECT="any",
+            MAX_LOSS="0.2",
+            GITHUB_STEP_SUMMARY=str(self.temp / "summary.md"),
+            **self.github_env(),
+        )
+
+    def reported(self) -> dict:
+        """The Report step's report, by the folder each line compares."""
+        lines = (self.temp / "report.md").read_text().splitlines()
+        return {line.split()[2].rsplit("/", 1)[1]: line for line in lines if line.startswith("report ")}
 
     def test_every_pair_is_reduced_again_each_reference_first(self):
         done = self.update("reduce", "all")
@@ -180,6 +246,67 @@ class Loops(unittest.TestCase):
         done = self.update("dry", "es-fr")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(self.built(), ["dry es-fr"])
+        self.assertEqual(self.kept_work(), ["dry"], "its raw sources and the run's editions are dropped")
+        done = self.report("dry")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        reports = self.reported()
+        self.assertEqual(sorted(reports), ["es", "es-fr"])
+        self.assertIn(f"report {self.temp}/committed/es-fr scripts/lingua-data/work/dry/es-fr/es-fr ", reports["es-fr"])
+
+    def test_spec_scenario_the_dry_run_checks_every_pair_in_one_job(self):
+        # The monthly run (D4): every pair in `pairs` order, one job; each pair reduces into a dry
+        # root of its own, so the studied folder a reader pair lays down again from the committed
+        # copy never hides its reference's drift; the run's editions folder is kept across the
+        # pairs — each dump read once — and removed at the end, as is each pair's work folder.
+        done = self.update("dry", "all")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["dry en-fr", "dry es-fr", "dry en-es", "dry es-en"])
+        self.assertEqual(
+            self.editions_seen(),
+            ["en-fr:", "es-fr: en-fr", "en-es: en-fr es-fr", "es-en: en-es en-fr es-fr"],
+            "the later pairs of the run find what the earlier ones derived",
+        )
+        self.assertEqual(self.kept_work(), ["dry"], "no pair's raw sources, no editions, no dumps")
+        dry = self.data / "work" / "dry"
+        self.assertEqual(sorted(p.name for p in dry.iterdir()), ["en-es", "en-fr", "es-en", "es-fr"], "a root per pair")
+        self.assertEqual((dry / "en-es" / "en" / "level.tsv").read_text(), "committed\n", "en-es laid the committed copy down")
+        self.assertEqual(self.github_env()["FAILED"], "")
+        done = self.report("dry")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        reports = self.reported()
+        self.assertEqual(sorted(reports), ["en", "en-es", "en-fr", "es", "es-en", "es-fr"])
+        # The `en` report is the one en-fr wrote, under en-fr's root: its drift, not en-es's copy.
+        self.assertIn("work/dry/en-fr/en {'level.tsv': 'drift by en-fr'}", reports["en"])
+        self.assertIn("work/dry/es-fr/es {'level.tsv': 'drift by es-fr'}", reports["es"])
+        self.assertIn("work/dry/es-en/es-en {'gloss.tsv': 'es-en'}", reports["es-en"])
+
+    def test_a_failing_pair_does_not_stop_the_loop(self):
+        # es-fr fails half way: the loop goes on to en-es and es-en, the Report step skips what
+        # es-fr would have written — its folder and Spanish's, which lies under its root — and the
+        # job fails at the end, naming it.
+        done = self.update("dry", "all", FAIL_PAIR="es-fr")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("::error::es-fr: the dry run failed", done.stdout)
+        self.assertEqual(self.built(), ["dry en-fr", "dry es-fr", "dry en-es", "dry es-en"])
+        self.assertEqual(self.kept_work(), ["dry"], "the failed pair's raw sources dropped too")
+        self.assertEqual(self.github_env()["FAILED"], "es-fr")
+        done = self.report("dry")
+        self.assertNotEqual(done.returncode, 0, "a failed pair fails the job")
+        self.assertIn("::error::These pairs failed: es-fr.", done.stdout)
+        self.assertEqual(sorted(self.reported()), ["en", "en-es", "en-fr", "es-en"])
+        self.assertIn("**Failed**: es-fr", (self.temp / "report.md").read_text())
+
+    def test_a_reduction_still_stops_at_its_first_failure(self):
+        # Outside a dry run a failure stops the step: nothing is proposed from half a run.
+        (self.data / "build.sh").write_text('#!/usr/bin/env bash\necho "${1#--} $2" >> "$BUILD_LOG"\n[ "$2" != es-fr ]\n')
+        done = self.update("reduce", "all")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertEqual(self.built(), ["reduce en-fr", "reduce es-fr"])
+
+    def test_pair_all_is_refused_for_an_update(self):
+        for mode, refused in (("update", True), ("reduce", False), ("dry", False)):
+            done = self.run_step("lingua-pack-update.yml", "Check the inputs", MODE=mode, PAIR="all", EXPECT="any")
+            self.assertEqual(done.returncode != 0, refused, f"{mode}: {done.stdout}")
 
     def test_an_update_of_a_pair_that_is_no_reference_reduces_it_alone(self):
         # en-es reads tables/en and writes nothing of it: its update brings no pair along, and its
@@ -254,9 +381,9 @@ class Loops(unittest.TestCase):
         self.assertNotIn("es-en", created[0])
 
     def test_the_release_of_a_pair_whose_sources_are_dumps_alone_names_no_extract(self):
-        # en-es (add-lingua-pack-en-es D2): no `sources.kaikki`; the release holds the files
-        # derived from the Spanish Wiktionary's dump and the English Wiktionary's extract, and its
-        # notes name no extract.
+        # en-es's pin as change 22 wrote it (add-lingua-pack-en-es D2): no `sources.kaikki`, derived
+        # files alone; the release holds them, and its notes name each record they come from and no
+        # extract.
         log = self.gh()
         release = "lingua-pack-sources-en-es-2026.10.08"
         self.pin(
@@ -289,9 +416,98 @@ class Loops(unittest.TestCase):
             created[0],
         )
         notes = (self.temp / "notes.md").read_text()
-        self.assertIn("pins no extract of its own", notes)
-        self.assertNotIn("the extract (", notes)
+        self.assertIn("derived: `kaikki-es-English.jsonl`, `kaikki-es-traductions-en.jsonl`\n", notes)
+        self.assertIn("derived: `kaikki-en-traductions-es.jsonl`\n", notes)
+        self.assertNotIn("per-language extract", notes)
         self.assertIn("tables/en-es/pin.json", notes)
+
+    def dumped(self, release: str, files: list[str], identity: bool = True) -> dict:
+        record = {
+            "release": release,
+            "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+            "fetched": "2026-10-08",
+            "last_modified": "Sat, 03 Oct 2026 08:24:38 GMT",
+            "files": {file: {"asset": f"{file}.zst", "sha256": "1" * 64, "size": 1} for file in files},
+        }
+        if identity:
+            record["dump"] = {"sha256": "d" * 64, "size": 25_614_284_530, "compressed_size": 2_981_058_381}
+        return record
+
+    def test_spec_scenario_the_release_notes_name_the_dumps(self):
+        # A pin written by an update under the dumps: each edition's dump by its address,
+        # regeneration date and decompressed sha256, and the files derived from it; no extract.
+        log = self.gh()
+        release = "lingua-pack-sources-es-en-2026.10.08"
+        spanish = self.dumped(release, ["kaikki-es-traductions-en.jsonl"])
+        spanish.update(url="https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz", last_modified="Fri, 02 Oct 2026 12:12:06 GMT")
+        self.pin(
+            "es-en",
+            {
+                "snapshot": "2026.10.08",
+                "sources": {
+                    "kaikki-en": self.dumped(release, ["kaikki-Spanish.jsonl"]),
+                    "kaikki-es": spanish,
+                    "wordfreq": {"version": "3.1.1"},
+                },
+            },
+        )
+        done = self.release("es-en")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        created = [line for line in log.read_text().splitlines() if line.startswith("release create")]
+        work = "scripts/lingua-data/work/es-en"
+        self.assertTrue(
+            created[0].startswith(
+                f"release create {release} {work}/kaikki-Spanish.jsonl.zst {work}/kaikki-es-traductions-en.jsonl.zst --target "
+            ),
+            created[0],
+        )
+        notes = (self.temp / "notes.md").read_text()
+        self.assertIn("pair derives from kaikki's dumps of whole Wiktionary editions", notes)
+        self.assertIn(
+            "- `kaikki-en`: the dump https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz, regenerated Sat, 03 Oct "
+            f"2026 08:24:38 GMT; decompressed sha256 {'d' * 64}, 25,614,284,530 B (2,981,058,381 B as served); derived: "
+            "`kaikki-Spanish.jsonl`\n",
+            notes,
+        )
+        self.assertIn("- `kaikki-es`: the dump https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz, regenerated Fri", notes)
+        self.assertNotIn("per-language extract", notes)
+        self.assertIn("tables/es-en/pin.json", notes)
+
+    def test_the_release_notes_of_a_legacy_or_a_mixed_pin_name_what_it_records(self):
+        # A pin written before the dumps (es-fr's: an extract, and derived files whose dump was not
+        # recorded), or one of each: the notes name each record as it is, the extract as one.
+        release = "lingua-pack-sources-es-fr-2026.10.08"
+        cases = {
+            "legacy": self.own_record("es-fr", "2026.10.08", "kaikki-es-traductions.jsonl")["sources"],
+            "mixed": {
+                "kaikki-en": self.dumped(release, ["kaikki-Spanish.jsonl"]),
+                "kaikki-es": self.dumped(release, ["kaikki-es-traductions.jsonl"], identity=False),
+                "wordfreq": {"version": "3.1.1"},
+            },
+        }
+        for case, sources in cases.items():
+            with self.subTest(case):
+                log = self.gh()
+                log.unlink(missing_ok=True)
+                self.pin("es-fr", {"snapshot": "2026.10.08", "sources": sources})
+                done = self.release("es-fr")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                created = [line for line in log.read_text().splitlines() if line.startswith("release create")]
+                self.assertEqual(len(created), 1, created)
+                notes = (self.temp / "notes.md").read_text()
+                if case == "legacy":
+                    self.assertIn("- `kaikki`: kaikki's per-language extract https://kaikki.org/x.jsonl", notes)
+                    self.assertIn("- `kaikki-es`: the dump ?, regenerated on a date not recorded", notes)
+                    self.assertIn("the dump's sha256 was not recorded", notes)
+                else:
+                    self.assertIn("- `kaikki-en`: the dump https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz", notes)
+                    self.assertIn(f"decompressed sha256 {'d' * 64}", notes)
+                    self.assertIn(
+                        "the dump's sha256 was not recorded (a pin written before the dumps were); derived: "
+                        "`kaikki-es-traductions.jsonl`",
+                        notes,
+                    )
+                    self.assertNotIn("per-language extract", notes)
 
     def test_the_release_step_fails_when_its_assets_cannot_be_listed(self):
         # A record `assets` cannot read (a release named, but neither an extract's asset nor derived
