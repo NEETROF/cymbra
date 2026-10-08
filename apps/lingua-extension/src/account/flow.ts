@@ -66,7 +66,11 @@ export interface AccountFlowDeps {
    * account's e-mails come in the reader's language.
    */
   locale: string;
-  /** The interface language: the notices, the errors and the deletion page; French when not given. */
+  /**
+   * The interface language: the notices, the errors and the deletion page; French when not given.
+   * Callers pass the interface language, never the account locale (`locale` above): the deletion
+   * page is read by the reader, and follows what the reader reads (D2).
+   */
   language?: InterfaceLanguage;
   /** Drop the background's persisted provider failure once it was shown live. */
   clearPersistedError: () => Promise<void>;

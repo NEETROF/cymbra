@@ -34,8 +34,10 @@ export function accountLocale(interfaceLanguage: InterfaceLanguage, browserLangu
 /**
  * The site page that deletes the whole Cymbra account (add-lingua-privacy-controls D5), chosen by the
  * interface language alone — a page the reader reads, not an e-mail: the French page for `fr`, the
- * English one otherwise until the site has a Spanish page (change 29 adds it). A whole tag is read by
- * its primary subtag, as the page's first callers passed the browser's.
+ * English one otherwise until the site has a Spanish page (change 29 adds it). Callers pass the
+ * interface language, never the account locale (`accountLocale`), which may be the browser's `it` and
+ * would open the English page for a reader of the French interface. A whole tag is read by its
+ * primary subtag, as the page's first callers passed the browser's.
  */
 export function deleteAccountUrl(interfaceLanguage: string): string {
   return primarySubtag(interfaceLanguage) === "fr"

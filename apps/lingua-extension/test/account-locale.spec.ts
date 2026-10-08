@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -64,12 +64,21 @@ const FOUR_REQUESTS = [
 ];
 
 describe("the languages Cymbra speaks", () => {
-  it("are Music's locales, its app_<code>.arb files, so a language added to Music is noticed here", () => {
-    const music = readdirSync(MUSIC_L10N)
-      .map((name) => /^app_([a-z]{2,3})\.arb$/.exec(name)?.[1])
-      .filter((code): code is string => code != null);
-    expect([...CYMBRA_LANGUAGES].sort()).toEqual(music.sort());
-  });
+  // The AMO source archive carries the extension without apps/music: there is nothing to hold the
+  // list against there, and the check runs in the repository (and in CI, whose `ext` filter watches
+  // the ARB files).
+  it.skipIf(!existsSync(MUSIC_L10N))(
+    "are Music's locales, its app_<code>.arb files, so a language added to Music is noticed here",
+    () => {
+      const music = readdirSync(MUSIC_L10N)
+        .map((name) => /^app_(.+)\.arb$/.exec(name)?.[1])
+        .filter((code): code is string => code != null);
+      // Every file is a bare primary subtag: an `app_pt_BR.arb` would be a locale Music matches whole,
+      // which accountLocale's bare subtag would not reach.
+      for (const code of music) expect(code, `app_${code}.arb`).toMatch(/^[a-z]{2,3}$/);
+      expect([...CYMBRA_LANGUAGES].sort()).toEqual(music.sort());
+    },
+  );
 
   it("include every language the extension speaks: its e-mails exist in each", () => {
     for (const language of INTERFACE_LANGUAGES) expect(CYMBRA_LANGUAGES).toContain(language);
@@ -132,6 +141,19 @@ describe("The account's e-mails follow the interface language", () => {
     const got = await sentLocales("en", "de-DE");
     expect(got.types).toEqual(FOUR_REQUESTS);
     expect(got.locales).toEqual(["en", "en", "en", "en"]);
+    expect(got.deleteAccountUrl).toBe(ENGLISH_PAGE);
+  });
+});
+
+describe("Cymbra account deletion is reachable from Lingua (lingua-privacy, MODIFIED)", () => {
+  it("A French-speaking reader: a French interface in an English browser opens the French page", async () => {
+    const got = await sentLocales("fr", "en-GB");
+    expect(got.locales).toEqual(["fr", "fr", "fr", "fr"]);
+    expect(got.deleteAccountUrl).toBe(FRENCH_PAGE);
+  });
+
+  it("Another language: an English interface in a French browser opens the English page", async () => {
+    const got = await sentLocales("en", "fr-FR");
     expect(got.deleteAccountUrl).toBe(ENGLISH_PAGE);
   });
 });
