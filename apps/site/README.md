@@ -192,3 +192,7 @@ workflow above deploy with wrangler — then archive the old repo.
 `src/pages/es/{terminos,privacidad}.md` are the published pages; the Spanish ones are
 translations of the French, reviewed by the owner. The product-specific drafts live in `docs/legal/` at the repo
 root; keeping them in one place (a build step or a shared source) is a follow-up.
+
+Each page's `updated` date is printed as its front matter writes it, `dd/mm/yyyy` in all three
+languages: `src/layouts/Legal.astro` does not reformat it, so the English page shows
+`08/10/2026` for 8 October 2026.

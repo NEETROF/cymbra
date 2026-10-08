@@ -162,28 +162,28 @@ complément du §2 :
 **Ce qui reste sur votre appareil.** Le texte des pages est analysé **sur votre appareil** et
 n'est jamais envoyé. Restent aussi sur l'appareil : le détail de vos lectures (quels mots
 vous avez rencontrés, sur quelles pages), l'**adresse de la page** où vous ajoutez un mot à
-votre deck, vos réglages de langues et, si vous n'êtes pas connecté, l'ensemble de vos
-données Lingua.
+votre deck et, si vous n'êtes pas connecté, l'ensemble de vos données Lingua.
 
-**Vos langues.** Les langues que vous étudiez et votre langue maternelle sont un réglage de
-l'appareil : il n'est pas synchronisé en tant que tel. Chaque statut, niveau, carte et jour
-de statistiques synchronisé est rangé sous la langue étudiée à laquelle il appartient, et
-votre langue maternelle parvient à Cymbra comme langue de la traduction de chaque carte et
-avec vos statistiques de chaque jour ; la langue de l'interface de Lingua est transmise à
-votre compte Cymbra comme langue de vos emails (voir le tableau ci-dessous).
+**Vos langues.** Vos réglages de langues restent sur l'appareil : les langues que vous
+étudiez et votre langue maternelle ne sont pas enregistrées en tant que telles. Chaque statut,
+niveau, carte et jour de statistiques synchronisé est rangé sous la langue étudiée à laquelle
+il appartient, et votre langue maternelle parvient à Cymbra comme langue de la traduction de
+chaque carte et avec vos statistiques de chaque jour ; la langue de l'interface de Lingua, ou
+celle de votre navigateur, est transmise à votre compte Cymbra comme langue du compte (voir
+ci-dessous).
 
 **Traduction étendue.** Ce réglage, désactivé par défaut et propre à chaque appareil (il
 n'est pas synchronisé), traduit sur votre appareil la phrase où se trouve votre sélection.
 Quand vous l'activez, l'extension télécharge **une fois** le ou les modèles de vos paires de
 langues — un modèle (environ 26 Mo) quand la traduction est directe, deux (environ 52 Mo)
 quand elle passe par l'anglais —, les modèles de Firefox Translations publiés par Mozilla
-sous licence MPL 2.0, depuis `models.cymbra.app` ; une paire ajoutée ensuite télécharge les
-siens de même. La traduction se fait ensuite **sur votre appareil**, et le texte des pages
-n'est toujours jamais envoyé. Ces téléchargements ne contiennent ni texte des pages, ni
-données Lingua, ni jeton de compte, ni identifiant d'installation, et Cymbra ne les associe
-à aucun compte ni à aucune installation. Comme pour toute page web, l'hébergeur de ces
-fichiers (Cloudflare) voit l'adresse IP de l'appareil qui les demande. Désactiver le réglage
-supprime les modèles de l'appareil.
+sous licence MPL 2.0, depuis `models.cymbra.app` ; les modèles d'une paire ajoutée ensuite ne
+sont téléchargés que lorsque vous le demandez. La traduction se fait ensuite **sur votre
+appareil**, et le texte des pages n'est toujours jamais envoyé. Ces téléchargements ne
+contiennent ni texte des pages, ni données Lingua, ni jeton de compte, ni identifiant
+d'installation, et Cymbra ne les associe à aucun compte ni à aucune installation. Comme pour
+toute page web, l'hébergeur de ces fichiers (Cloudflare) voit l'adresse IP de l'appareil qui
+les demande. Désactiver le réglage supprime les modèles de l'appareil.
 
 **Lecture à voix haute.** La lecture à voix haute utilise une voix de la langue lue,
 installée sur votre appareil : le texte lu ne le quitte pas. Si aucune voix de cette langue
@@ -201,7 +201,6 @@ installée sur l'appareil, elle est utilisée à la place.
 | Deck de révision, pour chaque langue étudiée : le mot, la phrase où vous l'avez trouvé, sa traduction, la langue de cette traduction et son état de révision — **sans** l'adresse de la page | vous | réviser sur tous vos appareils |
 | Statistiques par jour et par langue étudiée (mots appris, révisions, nombre de mots lus et, parmi eux, de mots nouveaux), avec votre langue maternelle ce jour-là (celle des traductions) | calculées sur l'appareil | afficher vos statistiques ; chiffres d'usage **agrégés** pour faire fonctionner le service et, sans nom ni nombre de personnes, publiés sur les canaux de la communauté Cymbra (voir §2) |
 | Identifiant d'installation aléatoire | généré par l'extension | départager deux appareils lors de la synchronisation |
-| Langue de vos emails Cymbra : celle de l'interface de Lingua, ou celle du navigateur s'il est en italien | vous (langue de l'interface) | vous écrire dans votre langue (vérification, réinitialisation de mot de passe) |
 
 - **Base légale** : exécution du contrat (fourniture de la synchronisation) ; intérêt
   légitime pour la publication de chiffres agrégés (voir §2).
@@ -214,3 +213,9 @@ installée sur l'appareil, elle est utilisée à la place.
 - La **suppression de votre compte** (§7) efface aussi toutes vos données Lingua.
 - Ces données sont **hébergées dans l'Union européenne** (France), comme le reste de vos
   données.
+
+**Votre compte Cymbra.** Quand vous créez votre compte, demandez un code ou un nouveau mot de
+passe, ou ajoutez un mot de passe depuis Lingua, l'extension indique à Cymbra une langue —
+celle de l'interface de Lingua ou celle de votre navigateur — que votre compte garde comme sa
+langue : Cymbra vous écrit dans cette langue (vérification, réinitialisation de mot de passe)
+et vos autres apps Cymbra peuvent l'adopter.
