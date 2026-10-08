@@ -22,8 +22,10 @@
 //! built from `tables/es/` and `tables/es-en/`.
 //!
 //! Every probe of the language's invariance baseline is answered through both packs, and must
-//! be byte for byte alike once glosses, senses and expressions — the native side — are removed.
-//! The studied sections must be byte-equal. The baselines' own goldens are not read here.
+//! be byte for byte alike once glosses, senses and expressions — the native side — are removed
+//! (`support::studied_side`, which `es_en_baseline.rs` also compares the committed es-fr and
+//! es-en goldens through). The studied sections must be byte-equal. The baselines' own goldens
+//! are not read here.
 //!
 //! Host only: the pack builder is native (C zstd).
 
@@ -35,10 +37,10 @@ use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
 use lingua_pack::{build_pack, inputs_from_tables};
-use support::Scenario;
 use support::english::ENGLISH;
 use support::other_native::ENGLISH_IN_SPANISH;
 use support::spanish::SPANISH;
+use support::{Scenario, probes, studied_side};
 
 fn sections(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
     let (_, sections) = read_container(bytes).expect("a pack");
@@ -93,65 +95,6 @@ fn assert_studied_sections_alike(pair: &str, reference: &[u8], other: &[u8]) {
         Some(lemmas.div_ceil(8)),
         "{pair}: the second pack's lexical table"
     );
-}
-
-/// A golden's probes, by name, in order.
-fn probes(text: &str) -> Vec<(String, String)> {
-    format!("\n{text}")
-        .split("\n### ")
-        .skip(1)
-        .map(|chunk| {
-            let (name, body) = chunk.split_once('\n').unwrap_or((chunk, ""));
-            (name.to_owned(), body.to_owned())
-        })
-        .collect()
-}
-
-/// Removes the native side of an output: glosses, their language, their senses, and expressions.
-fn strip(value: &mut serde_json::Value) {
-    match value {
-        serde_json::Value::Object(map) => {
-            for key in ["gloss", "gloss_language", "senses", "expressions"] {
-                map.remove(key);
-            }
-            map.values_mut().for_each(strip);
-        }
-        serde_json::Value::Array(items) => items.iter_mut().for_each(strip),
-        _ => {}
-    }
-}
-
-/// A probe's output with its native side removed; `None` for the probes that are native or
-/// pack identity by definition: the pack line and a card's gloss — and, when `own_credits`, the
-/// notice and the licences: a real pack's attributions credit the sources of its glosses, so
-/// es-en's name the English and Spanish Wiktionaries where es-fr's name the French one
-/// (add-lingua-pack-es-en D4). A synthetic second pack keeps its reference's credits, and they
-/// are compared.
-///
-/// An engine's native language is its reader's (generalise-lingua-native-language), so the
-/// backup records the reader's profile, and writes it in the schema version a profile other
-/// than the default needs: both name the reader, not what the pack analyses.
-fn studied_side(name: &str, body: &str, own_credits: bool) -> Option<String> {
-    if name == "pack"
-        || (own_credits && matches!(name, "notice" | "licences"))
-        || name.starts_with("beside ")
-        || name.starts_with("gloss ")
-    {
-        return None;
-    }
-    Some(match serde_json::from_str::<serde_json::Value>(body) {
-        Ok(mut value) => {
-            strip(&mut value);
-            if name == "backup"
-                && let Some(backup) = value.as_object_mut()
-            {
-                backup.remove("profile");
-                backup.remove("schema_version");
-            }
-            value.to_string()
-        }
-        Err(_) => body.to_owned(),
-    })
 }
 
 /// The exported card operations say the language of their glosses before it is stripped: the

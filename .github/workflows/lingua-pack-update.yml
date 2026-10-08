@@ -252,9 +252,10 @@ jobs:
           git switch -c "$branch"
           # The invariance baselines follow the dictionary (docs/lingua/spanish-programme.md,
           # docs/lingua/language-matrix-programme.md): re-blessed here, so the pull request shows
-          # what the update changes in English and Spanish output. Both, whatever the pair: the
-          # Spanish ladder borrows English's figures from the en-fr pack. Once, whatever the pairs.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline
+          # what the update changes in English and Spanish output. All three, whatever the pair:
+          # the Spanish ladder borrows English's figures from the en-fr pack, and es-en's golden
+          # moves with es-fr's studied tables (change 23). Once, whatever the pairs.
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
           if [ "$EXPECT" = identical ]; then
