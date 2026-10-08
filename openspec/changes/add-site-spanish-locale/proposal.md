@@ -62,5 +62,10 @@ switch and `hreflang` point at `/` and `/en/`.
 - **The owner deploys the site** (`site-deploy`, manual) before any release of the extension or
   of Cymbra ID that links a Spanish page (M18), and registers on Apple's Services ID the Return URL
   the Spanish deletion page sends (`https://cymbra.app/eliminar-cuenta`).
+- **For the owner, after this change.** The `hreflang` addresses keep the site's slash-less
+  convention (`https://cymbra.app/confidentialite`) while Cloudflare Pages answers them with a
+  redirect to the slash form (`/confidentialite/`); the pages carry no `<link rel="canonical">`
+  and no `x-default` alternate. Search engines tolerate all three, but each is a choice about
+  the site's canonical addresses, not about its Spanish pages — a follow-up of its own.
 - **Not here.** `/es/lingua` (30); the Lingua annex's update (31); the e-mails' links (32); a
   Spanish home page, account, code redemption or checkout pages (beyond M11).

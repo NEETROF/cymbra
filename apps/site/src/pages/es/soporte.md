@@ -36,7 +36,7 @@ Tras cambiar de dispositivo, abre *Suscripción* en la app y toca *Restaurar com
 
 ### Mi cuenta
 
-- **Contraseña olvidada**: en la pantalla de inicio de sesión, toca *¿Has olvidado la
+- **Contraseña olvidada**: en la pantalla de inicio de sesión, toca *¿Olvidaste tu
   contraseña?*
 - **Eliminar mi cuenta**: en la app (menú de la cuenta → *Eliminar cuenta*), o
   [desde el sitio web](/es/eliminar-cuenta).

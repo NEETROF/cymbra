@@ -55,7 +55,7 @@ export const PINNED_ROUTES: PinnedRoute[] = [
   // add-site-spanish-locale). The extension opens the deletion page of the reader's
   // interface language; the listings' Homepage / Marketing URL is the Lingua page.
   { path: "/suppression-compte/", pinnedBy: "Lingua — deletion link, French interface; and the App Review notes", source: "apps/lingua-extension/src/account/flow.ts; apps/lingua-apple/STORE-LISTING.md" },
-  { path: "/es/eliminar-cuenta/", pinnedBy: "Lingua — deletion link, Spanish interface", source: "apps/lingua-extension/src/account/flow.ts (once localise-lingua-account-onboarding keys it on the interface language)" },
+  { path: "/es/eliminar-cuenta/", pinnedBy: "Lingua — deletion link, Spanish interface", source: "apps/lingua-extension/src/account/locale.ts — `deleteAccountUrl`, where localise-lingua-account-onboarding (change 17) moves it and keys it on the interface language" },
   { path: "/lingua/", pinnedBy: "Lingua — Homepage of the Chrome Web Store and AMO listings, Marketing URL (ASC)", source: "apps/lingua-extension/STORE-LISTING.md; apps/lingua-apple/STORE-LISTING.md" },
 
   // The locale roots. Entry point for everything else, and the previous value of

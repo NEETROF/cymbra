@@ -46,8 +46,12 @@ address in each language it exists in, its own included, e.g.
 derivable from the path. They drive the header's language switch (every *other* language
 the page exists in) and one `hreflang` per alternate (no `x-default`). A page that exists
 in one language passes that one alone: no switch, its own `hreflang`. Markdown pages
-declare them in their front matter, forwarded by `Legal.astro`, which refuses a page that
-names none. The footer's `FR` / `EN` links are the locale roots, as before.
+declare them in their front matter, forwarded by `Legal.astro`, which refuses a page
+whose `lang` is not one of the three or that names no alternates; `Base.astro` refuses
+any page whose alternates omit its own language. The footer's `FR` / `EN` links are the
+locale roots, as before. The French and English pages render as before: the only
+markup differences against the previous build are the `hreflang` / switch entries and
+`&#39;` in one footer label (« Code d'accès », now an expression Astro escapes).
 
 Astro trims the whitespace at a text/element
 boundary that falls on a source-line break — on **either** side, so both
@@ -132,7 +136,7 @@ from `cdn.paddle.com`, Google/Apple sign-in load their SDKs on demand.
 `.github/workflows/site-deploy.yml`: on a `site-vX.Y.Z` tag (release-please) or a
 manual dispatch, builds `dist/` and uploads it with wrangler to the Cloudflare
 Pages project named by the repo variable `CF_PAGES_SITE_PROJECT` (dormant until
-set). CI gate: `.github/workflows/site.yml` (`yarn check` + `yarn test` +
+set). CI gate: `.github/workflows/site-check.yml` (`yarn check` + `yarn test` +
 `yarn build`) on PRs touching `apps/site/**` or `packages/web-auth/**`.
 
 Deploy order (change `add-site-spanish-locale`): nothing links a Spanish page before it

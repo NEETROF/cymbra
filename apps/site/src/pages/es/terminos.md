@@ -56,8 +56,8 @@ Puedes dejar de utilizar el servicio y eliminar tu cuenta en cualquier momento.
 
 ## 7. Ley aplicable
 
-Las presentes condiciones se rigen por el **Derecho francés**. Cualquier litigio será
-competencia de los tribunales competentes.
+Las presentes condiciones se rigen por el **Derecho francés**. Cualquier litigio se
+someterá a los tribunales competentes.
 
 ## 8. Contacto
 
