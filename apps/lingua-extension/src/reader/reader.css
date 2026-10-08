@@ -7,6 +7,11 @@ body {
   height: 100%;
 }
 
+/* Nothing shows before the catalogue fills the page's copy (reader.ts removes the mark). */
+html[data-copy-pending] body {
+  visibility: hidden;
+}
+
 body {
   margin: 0;
   background: var(--cymbra-lingua-bg);

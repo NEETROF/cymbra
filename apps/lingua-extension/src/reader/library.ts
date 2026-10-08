@@ -1,3 +1,4 @@
+import { reader as frReader } from "../i18n/fr/reader.ts";
 import { isZip, openArchive } from "./archive.ts";
 import { type Protection, protectionOf } from "./drm.ts";
 import { isEpubArchive, readEpubMeta } from "./epub-meta.ts";
@@ -121,17 +122,25 @@ export async function sha256Hex(file: Blob): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** A title out of a file name, for a book whose package names none. */
-export function titleFromName(name: string | undefined): string {
+/**
+ * A title out of a file name, for a book whose package names none — or `untitled`, the catalogue's
+ * « Livre sans titre » in the interface language of the import (localise-lingua-reading-surfaces):
+ * written once into the book's record, stored data rather than display-time copy.
+ */
+export function titleFromName(name: string | undefined, untitled: string = frReader.untitled): string {
   const base = (name ?? "").replace(/^.*[\\/]/, "").replace(/\.epub$/i, "");
-  return base.replace(/[_]+/g, " ").trim() || "Livre sans titre";
+  return base.replace(/[_]+/g, " ").trim() || untitled;
 }
 
 export class Library {
-  constructor(private readonly db: IDBDatabase) {}
+  constructor(
+    private readonly db: IDBDatabase,
+    /** What a book without a title is called at import; the French when not given. */
+    private readonly untitled: string = frReader.untitled,
+  ) {}
 
-  static async open(factory?: IDBFactory): Promise<Library> {
-    return new Library(await openLibraryDb(factory));
+  static async open(factory?: IDBFactory, untitled?: string): Promise<Library> {
+    return new Library(await openLibraryDb(factory), untitled);
   }
 
   /** Every book, the one read most recently first, then the newest import. */
@@ -223,7 +232,7 @@ export class Library {
       if (!(await isEpubArchive(archive))) return { ok: false, reason: "notEpub" };
       const protection = protectionOf(await archive.loadText("META-INF/encryption.xml"), archive.names);
       if (protection) return { ok: false, reason: "protected", protection };
-      const meta = await readEpubMeta(archive, titleFromName(file.name));
+      const meta = await readEpubMeta(archive, titleFromName(file.name, this.untitled));
       const book: BookRecord = {
         hash: await sha256Hex(file),
         ...meta,

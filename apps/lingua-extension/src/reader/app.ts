@@ -1,5 +1,6 @@
 import { languageName } from "../analyzer/language-labels.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, formatPercent, type InterfaceLanguage } from "../i18n/index.ts";
 import { type BookDisplayView, mountBookDisplay } from "../reading/book-display-view.ts";
 import { applyColourSheet } from "../reading/highlight.ts";
 import type { HudActions, HudState } from "../reading/hud.ts";
@@ -17,7 +18,7 @@ import {
   type ReaderDisplay,
   type ReaderFlow,
 } from "../state/storage.ts";
-import { COPY } from "./copy.ts";
+import { COPY, type ReaderCopy } from "./copy.ts";
 import type { FullscreenHost } from "./fullscreen.ts";
 import type { BookRecord, ImportResult, Library } from "./library.ts";
 import type { Persistence } from "./persist.ts";
@@ -70,6 +71,13 @@ export interface ReaderDeps {
    */
   reviewOutsidePage?: boolean;
   now?: () => number;
+  /**
+   * The interface language, read by reader.ts before the page is built (localise-lingua-reading-surfaces
+   * D1): what the page's figures are written in. French when not given.
+   */
+  language?: InterfaceLanguage;
+  /** The page's copy in that language; the French `COPY` when not given. */
+  copy?: ReaderCopy;
   /** The longest a section stays hidden waiting for its first paint. */
   revealCapMs?: number;
   objectUrl?: (blob: Blob) => string;
@@ -159,10 +167,13 @@ export function frameOffset(doc: Document): (box: Box) => Box {
 }
 
 export class ReaderApp {
+  /** The page's copy and the language its figures are written in (D1, D4). */
+  private readonly copy: ReaderCopy;
+  private readonly language: InterfaceLanguage;
   private readonly libraryView = el("section", "library-view");
   private readonly notice = el("p", "lib-notice");
   private readonly status = el("div", "lib-status");
-  private readonly empty = el("p", "lib-empty", COPY.empty);
+  private readonly empty: HTMLParagraphElement;
   private readonly shelf = el("div", "lib-shelf");
   private readonly fileInput = el("input");
 
@@ -195,6 +206,9 @@ export class ReaderApp {
     private readonly root: HTMLElement,
     private readonly deps: ReaderDeps,
   ) {
+    this.copy = deps.copy ?? COPY;
+    this.language = deps.language ?? DEFAULT_INTERFACE_LANGUAGE;
+    this.empty = el("p", "lib-empty", this.copy.empty);
     this.buildLibrary();
     this.buildReading();
     root.replaceChildren(this.libraryView, this.readingView);
@@ -215,7 +229,7 @@ export class ReaderApp {
     this.deps.watchColours?.((css) => this.applyColours(css));
     const persistence = await this.deps.persistence();
     this.notice.hidden = persistence !== "refused";
-    this.notice.textContent = persistence === "refused" ? COPY.persistenceRefused : "";
+    this.notice.textContent = persistence === "refused" ? this.copy.persistenceRefused : "";
     const hash = bookInAddress(location.hash);
     if (hash) await this.openBook(hash);
     else await this.showLibrary();
@@ -227,7 +241,8 @@ export class ReaderApp {
     return {
       mount: () => {},
       update: (state: HudState) => {
-        this.percent.textContent = state.analysable && state.percent != null ? `${state.percent} %` : "—";
+        this.percent.textContent =
+          state.analysable && state.percent != null ? formatPercent(this.language, state.percent, "spaced") : "—";
       },
       setHidden: (hidden: boolean) => {
         this.percent.hidden = hidden;
@@ -262,14 +277,14 @@ export class ReaderApp {
 
   private buildLibrary(): void {
     const head = el("header", "lib-head");
-    head.append(el("h1", undefined, COPY.title));
+    head.append(el("h1", undefined, this.copy.title));
     const pick = el("label", "lib-import");
     this.fileInput.type = "file";
     this.fileInput.accept = ".epub,application/epub+zip";
     this.fileInput.multiple = true;
     this.fileInput.hidden = true;
     this.fileInput.addEventListener("change", () => void this.importPicked());
-    pick.append(COPY.importButton, this.fileInput);
+    pick.append(this.copy.importButton, this.fileInput);
     head.append(pick);
     this.notice.hidden = true;
     this.status.setAttribute("role", "status");
@@ -280,9 +295,9 @@ export class ReaderApp {
     const files = [...(this.fileInput.files ?? [])];
     this.fileInput.value = "";
     if (files.length === 0) return;
-    this.status.textContent = COPY.importing;
+    this.status.textContent = this.copy.importing;
     const lines: string[] = [];
-    for (const file of files) lines.push(importLine(await this.deps.library.importFile(file, this.now())));
+    for (const file of files) lines.push(importLine(await this.deps.library.importFile(file, this.now()), this.copy));
     this.status.textContent = lines.join("\n");
     await this.renderShelf();
   }
@@ -291,7 +306,7 @@ export class ReaderApp {
     this.closeBook();
     this.readingView.hidden = true;
     this.libraryView.hidden = false;
-    this.root.ownerDocument.title = `${COPY.title} — Cymbra Lingua`;
+    this.root.ownerDocument.title = this.copy.pageTitle;
     if (location.hash) history.replaceState(null, "", location.pathname + location.search);
     await this.renderShelf();
   }
@@ -318,7 +333,7 @@ export class ReaderApp {
   /** A section of the library: its language's name, then its books (design D6). */
   private group(section: ShelfSection): HTMLElement {
     const group = el("section", "lib-group");
-    const title = section.language ? languageName(section.language) : COPY.otherLanguages;
+    const title = section.language ? languageName(section.language) : this.copy.otherLanguages;
     group.append(el("h2", "lib-group-title", title), this.grid(section.books));
     return group;
   }
@@ -333,7 +348,7 @@ export class ReaderApp {
     const item = el("li", "lib-book");
     const open = el("button", "lib-open");
     open.type = "button";
-    open.setAttribute("aria-label", COPY.open(book.title));
+    open.setAttribute("aria-label", this.copy.open(book.title));
     const cover = el("div", "lib-cover");
     if (book.cover) {
       const img = el("img");
@@ -351,14 +366,14 @@ export class ReaderApp {
 
     const confirm = el("div", "lib-confirm");
     confirm.hidden = true;
-    const remove = button("lib-remove", COPY.remove, () => {
+    const remove = button("lib-remove", this.copy.remove, () => {
       remove.hidden = true;
       confirm.hidden = false;
     });
     confirm.append(
-      el("p", undefined, COPY.removeConfirm(book.title)),
-      button("lib-remove-yes", COPY.removeYes, () => void this.remove(book.hash)),
-      button("lib-remove-no", COPY.cancel, () => {
+      el("p", undefined, this.copy.removeConfirm(book.title)),
+      button("lib-remove-yes", this.copy.removeYes, () => void this.remove(book.hash)),
+      button("lib-remove-no", this.copy.cancel, () => {
         confirm.hidden = true;
         remove.hidden = false;
       }),
@@ -379,7 +394,7 @@ export class ReaderApp {
     const bar = el("header", "reading-bar");
     const titles = el("div", "reading-titles");
     titles.append(this.bookTitle, this.sectionTitle);
-    this.percent.title = COPY.percentTitle;
+    this.percent.title = this.copy.percentTitle;
     const act = (text: string, pick: (a: HudActions) => () => void): HTMLButtonElement =>
       button("reading-action", text, () => {
         if (!this.actions) return;
@@ -387,14 +402,19 @@ export class ReaderApp {
         pick(this.actions)();
       });
     bar.append(
-      button("reading-back", `‹ ${COPY.back}`, () => void this.showLibrary()),
+      button("reading-back", `‹ ${this.copy.back}`, () => void this.showLibrary()),
       titles,
       this.percent,
-      button("reading-action", COPY.toc, () => this.toggleToc()),
-      button("reading-action reading-display-toggle", COPY.display, () => this.toggleDisplay(), COPY.displayTitle),
-      act(COPY.review, (a) => a.onReview),
-      act(COPY.stats, (a) => a.onStats),
-      act(COPY.settings, (a) => a.onSettings),
+      button("reading-action", this.copy.toc, () => this.toggleToc()),
+      button(
+        "reading-action reading-display-toggle",
+        this.copy.display,
+        () => this.toggleDisplay(),
+        this.copy.displayTitle,
+      ),
+      act(this.copy.review, (a) => a.onReview),
+      act(this.copy.stats, (a) => a.onStats),
+      act(this.copy.settings, (a) => a.onSettings),
     );
     const fullscreen = this.deps.fullscreen;
     if (fullscreen?.available) {
@@ -405,9 +425,9 @@ export class ReaderApp {
     }
     const foot = el("footer", "reading-foot");
     foot.append(
-      button("reading-turn", "‹", () => void this.renderer?.prev(), COPY.prev),
+      button("reading-turn", "‹", () => void this.renderer?.prev(), this.copy.prev),
       this.progress,
-      button("reading-turn", "›", () => void this.renderer?.next(), COPY.next),
+      button("reading-turn", "›", () => void this.renderer?.next(), this.copy.next),
     );
     this.tocPanel.hidden = true;
     this.displayPanel.hidden = true;
@@ -426,7 +446,7 @@ export class ReaderApp {
     const file = book ? await this.deps.library.file(hash) : null;
     if (!book || !file) {
       await this.showLibrary();
-      this.status.textContent = COPY.missing;
+      this.status.textContent = this.copy.missing;
       return;
     }
     this.closeBook();
@@ -453,7 +473,7 @@ export class ReaderApp {
       this.renderToc(toc);
     } catch {
       await this.showLibrary();
-      this.status.textContent = COPY.openFailed;
+      this.status.textContent = this.copy.openFailed;
     }
   }
 
@@ -525,7 +545,7 @@ export class ReaderApp {
     if (!book) return;
     this.section = location.section;
     this.sectionTitle.textContent = location.section ?? "";
-    this.progress.textContent = `${Math.round(location.fraction * 100)} %`;
+    this.progress.textContent = formatPercent(this.language, Math.round(location.fraction * 100), "spaced");
     // foliate-js settles the page after every lift of a finger — a tap, a press-and-hold — and
     // reports it even when nothing moved; closing the card then would close the one that lift
     // just opened. Only a real move dismisses it and is worth writing down.
@@ -552,7 +572,7 @@ export class ReaderApp {
       }
       return ul;
     };
-    this.tocPanel.replaceChildren(toc.length > 0 ? list(toc) : el("p", "reading-toc-empty", COPY.noToc));
+    this.tocPanel.replaceChildren(toc.length > 0 ? list(toc) : el("p", "reading-toc-empty", this.copy.noToc));
   }
 
   private toggleToc(): void {
@@ -581,7 +601,7 @@ export class ReaderApp {
     const toggle = this.fullscreenToggle;
     if (!toggle || !this.deps.fullscreen) return;
     const active = this.deps.fullscreen.active();
-    const label = active ? COPY.leaveFullscreen : COPY.fullscreen;
+    const label = active ? this.copy.leaveFullscreen : this.copy.fullscreen;
     toggle.title = label;
     toggle.setAttribute("aria-label", label);
     toggle.setAttribute("aria-pressed", String(active));
@@ -640,8 +660,8 @@ export function bookInAddress(hash: string): string | null {
   return m ? m[1] : null;
 }
 
-/** One line saying what became of an imported file. */
-export function importLine(result: ImportResult): string {
-  if (!result.ok) return COPY.importFailed[result.reason];
-  return result.existed ? COPY.alreadyThere(result.book.title) : COPY.imported(result.book.title);
+/** One line saying what became of an imported file, in the page's copy (the French without one). */
+export function importLine(result: ImportResult, copy: ReaderCopy = COPY): string {
+  if (!result.ok) return copy.importFailed[result.reason];
+  return result.existed ? copy.alreadyThere(result.book.title) : copy.imported(result.book.title);
 }
