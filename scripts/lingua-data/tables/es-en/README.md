@@ -56,11 +56,14 @@ On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version`
 
 ## Its sources
 
-- **The English Wiktionary's Spanish section** — kaikki's extract, at the address es-fr reads for
-  Spanish's forms — read here for its senses, cleaned by the English Wiktionary's rules
-  (`reduce_edition_en.py`). es-en pins its own: fetched live when es-en is updated and published
-  under its own release (`lingua-pack-sources-es-en-<snapshot>`; today
-  `lingua-pack-sources-es-en-2026.10.08`, kaikki's regeneration of 2026-10-03). When es-fr's update
+- **The English Wiktionary's Spanish section** — the file es-fr reads for Spanish's forms, derived
+  at an update from the English Wiktionary's dump (`../../SOURCES.md`, *The editions' dumps*) —
+  read here for its senses, cleaned by the English Wiktionary's rules (`reduce_edition_en.py`).
+  es-en pins its own: derived when es-en is updated and published under its own release
+  (`lingua-pack-sources-es-en-<snapshot>`). The pin committed today names kaikki's per-language
+  extract of that section, from before the dumps (`lingua-pack-sources-es-en-2026.10.08`, kaikki's
+  regeneration of 2026-10-03): it stays readable as it is recorded, and es-en's next update moves
+  it to the dump. When es-fr's update
   brings es-en along, es-en is reduced from its own pin and nothing of it is published. A run that
   reduces several pairs keeps the release assets it fetched in `work/cache/<sha256>`, so an asset
   two pins name is fetched once.
@@ -98,9 +101,11 @@ attribution. See `../../SOURCES.md`.
 Never by hand.
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `pair=es-en` and `mode=update`.
-  It reads today's extract and the Spanish Wiktionary's dump, keeps the extract and the derived
-  translations as the release `lingua-pack-sources-es-en-<snapshot>`, reduces, and pushes the
-  branch `lingua-pack/es-en/<snapshot>`.
+  It reads today's English and Spanish Wiktionaries' dumps — not the French one —, derives the
+  Spanish section and the English translations from them in one pass each, keeps the two
+  derived files as the release `lingua-pack-sources-es-en-<snapshot>`, whose notes name the dumps
+  by their address, regeneration date and sha256, reduces, and pushes the branch
+  `lingua-pack/es-en/<snapshot>`. No dump is kept.
 - **When Spanish's tables move**: es-fr's update or re-reduction writes `../es/`, and brings es-en
   along on the same branch, reduced again from its own pinned sources; es-en's `pack_version` moves
   with the studied tables. A pull request that moves a table of `../es/` without recording es-en
@@ -114,4 +119,5 @@ Never by hand.
 - **After a builder or dependency change** that changes the pack's bytes: update `pack.sha256` and
   `pack.size` in `pin.json` in the same pull request.
 
-The monthly dry run of the update checks this pair as it checks en-fr and es-fr.
+The monthly dry run of the update checks this pair as it checks en-fr and es-fr, in the same job:
+each dump is read once for every pair.

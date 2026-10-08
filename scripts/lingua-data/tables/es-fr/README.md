@@ -35,7 +35,7 @@ In `../es/`, Spanish's tables, written by es-fr's reduction:
 
 | File | What it maps | From |
 |---|---|---|
-| `forms.tsv` | form → lemma | kaikki.org extract of the English Wiktionary, Spanish section (CC BY-SA 4.0 + GFDL), with UD Spanish-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
+| `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's Spanish section (CC BY-SA 4.0 + GFDL), with UD Spanish-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
 | `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | kaikki's tags (CC BY-SA 4.0 + GFDL) |
 | `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and `../es-fr/gloss.tsv` (no source of its own) |
@@ -154,11 +154,21 @@ request (`lingua-pack-update` reduces them along with es-fr, after it).
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `pair=es-fr` and `mode=update`.
   It works as for en-fr:
   1. reads today's sources;
-  2. keeps kaikki's bytes as the release `lingua-pack-sources-es-fr-<snapshot>`: the extract, and
-     the three files derived from the French and Spanish Wiktionaries' dumps (`pack_sources.py
-     DUMPS`);
+  2. keeps kaikki's bytes as the release `lingua-pack-sources-es-fr-<snapshot>`: the four files
+     derived from the English, French and Spanish Wiktionaries' dumps (`pack_sources.py DUMPS`),
+     each dump fetched once, read in one pass, named in the release notes by its address,
+     regeneration date and sha256, and not kept — about 3.6 GiB in all (`../../SOURCES.md`, *The
+     editions' dumps*);
   3. reduces, then reduces es-en again from its own pinned sources;
   4. pushes the branch `lingua-pack/es-fr/<snapshot>`.
+
+  The pin committed today names kaikki's per-language extract of the English Wiktionary's Spanish
+  section (2026-09-28), from before the dumps: it stays readable as it is recorded, and the next
+  update moves es-fr to the dump. Both readings of one regeneration give the same tables but for
+  four readings the dump adds to `../es/grammar.tsv` — the feminine plurals of *beta*, *delta*,
+  *kappa* and *zeta* (`../../SOURCES.md`, *Extract and dump agree*) —, so that update's report
+  shows the upstream drift and those four. es-en, brought along, keeps its own pin until its own
+  update.
 - **After editing the reduction rules** — `reduce-es-fr.py`, the override and locution lists
   included; `reduce_common.py`, which every pair shares; or `reduce_edition_fr.py`, the French
   Wiktionary's rules, which every pair glossed in French loads (`pin.json` lists the three under
