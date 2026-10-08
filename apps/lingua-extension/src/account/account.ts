@@ -2,6 +2,7 @@ import { fillPageInLanguage } from "../i18n/index.ts";
 import { SIGNIN_ERROR_KEY } from "../state/session.ts";
 import { accountCopy } from "./copy.ts";
 import { AccountFlow, type AccountView, type PendingEmailStore, viewFromHash, wantsConnected } from "./flow.ts";
+import { accountLocale } from "./locale.ts";
 import { type AccountMessage, type AccountReply, PENDING_EMAIL_KEY, PENDING_PASSWORD_EMAIL_KEY } from "./messages.ts";
 import { type AccountActions, renderAccount } from "./view.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
@@ -20,8 +21,8 @@ reloadOnNativeLanguageChange(DEFAULT_INTERFACE_LANGUAGE);
 // it survives the reader switching to their mailbox for the code. Wires the controller to
 // the background (runtime messages), chrome.storage.session (pending email only) and the
 // URL hash (so a reload resumes the same step). It speaks the interface language, read first
-// (localise-lingua-account-onboarding D1). Excluded from coverage (DOM/Chrome wiring; flow.ts and
-// view.ts are unit-tested).
+// (localise-lingua-account-onboarding D1), and tells the server the account locale (D2). Excluded
+// from coverage (DOM/Chrome wiring; flow.ts, view.ts and locale.ts are unit-tested).
 
 async function send(message: AccountMessage): Promise<AccountReply | null> {
   try {
@@ -119,7 +120,9 @@ async function main(): Promise<void> {
       send,
       pending,
       pendingPassword,
-      locale: navigator.language || "fr",
+      // What Cymbra ID writes to the reader in: the interface language, or the browser's own when
+      // Cymbra speaks it and the extension does not (D2).
+      locale: accountLocale(language, navigator.language || ""),
       language,
       clearPersistedError,
     },

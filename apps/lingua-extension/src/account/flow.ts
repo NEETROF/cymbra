@@ -3,7 +3,10 @@ import type { AuthErrorKind } from "../state/auth-errors.ts";
 import type { Provider, Providers } from "../state/oidc.ts";
 import { type AccountCopy, accountCopy, errorCopy, type FlowContext } from "./copy.ts";
 import { type HandleStatus, isValidHandle, localHandleStatus } from "./handle.ts";
+import { deleteAccountUrl } from "./locale.ts";
 import type { AccountMessage, AccountReply, LinkedIdentity } from "./messages.ts";
+
+export { deleteAccountUrl } from "./locale.ts";
 
 // The account page's controller (add-lingua-account-parity): sign-in, sign-up →
 // verification code → automatic sign-in, password reset, and the handle step every
@@ -58,25 +61,18 @@ export interface AccountFlowDeps {
   pending: PendingEmailStore;
   /** The address of a set-password waiting for its code (D4) — its own key, never the password. */
   pendingPassword: PendingEmailStore;
-  /** The browser UI language, so verification/reset emails match the reader. */
+  /**
+   * The account locale (`accountLocale`, D2), sent on the four requests that carry one, so the
+   * account's e-mails come in the reader's language.
+   */
   locale: string;
-  /** The interface language the notices and the errors are worded in; French when not given. */
+  /** The interface language: the notices, the errors and the deletion page; French when not given. */
   language?: InterfaceLanguage;
   /** Drop the background's persisted provider failure once it was shown live. */
   clearPersistedError: () => Promise<void>;
 }
 
 const NAVIGABLE: readonly AccountView[] = ["signin", "signup", "verify", "forgot", "reset"];
-
-/**
- * The site page that deletes the whole Cymbra account (add-lingua-privacy-controls, D5):
- * French for a French browser, English otherwise.
- */
-export function deleteAccountUrl(locale: string): string {
-  return locale.toLowerCase().startsWith("fr")
-    ? "https://cymbra.app/suppression-compte/"
-    : "https://cymbra.app/en/delete-account/";
-}
 
 /** Whether a `#hash` asks for the connected accounts (signed in only). */
 export function wantsConnected(hash: string): boolean {
@@ -132,7 +128,8 @@ export class AccountFlow {
   ) {
     this.language = deps.language ?? DEFAULT_INTERFACE_LANGUAGE;
     this.copy = accountCopy(this.language);
-    this.s.deleteAccountUrl = deleteAccountUrl(deps.locale);
+    // The interface language alone, not the account locale: a page the reader reads (D2).
+    this.s.deleteAccountUrl = deleteAccountUrl(this.language);
   }
 
   view(): AccountViewState {
