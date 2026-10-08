@@ -52,12 +52,14 @@ def step_script(workflow: Path, step: str) -> str:
     return "\n".join(body).rstrip("\n") + "\n"
 
 
-# build.sh, doubled: it logs its arguments and leaves the raw sources a reduction would.
+# build.sh, doubled: it logs its arguments and leaves the raw sources a reduction would — and, for
+# en-es, what its reducer measures of its tables (measures.json, add-lingua-pack-en-es D4).
 BUILD_SH = """#!/usr/bin/env bash
 set -euo pipefail
 echo "${1#--} $2" >> "$BUILD_LOG"
 mkdir -p "$(dirname "$0")/work/$2"
 echo raw > "$(dirname "$0")/work/$2/raw"
+if [ "$2" = en-es ]; then echo '{"share": 1.0}' > "$(dirname "$0")/work/$2/measures.json"; fi
 """
 
 
@@ -79,11 +81,11 @@ class Loops(unittest.TestCase):
         self.temp = Path(self._tmp.name) / "runner"
         self.temp.mkdir()
         self.log = Path(self._tmp.name) / "build.log"
-        # English with its reference, Spanish with its reference and a second pair reading it.
+        # English and Spanish, each with its reference and a second pair reading it.
         for lang, reference in (("en", "en-fr"), ("es", "es-fr")):
             (self.tables / lang).mkdir(parents=True)
             (self.tables / lang / "studied.json").write_text(f'{{"reference": "{reference}"}}\n')
-        for pair in ("en-fr", "es-en", "es-fr"):
+        for pair in ("en-es", "en-fr", "es-en", "es-fr"):
             (self.tables / pair).mkdir()
             (self.tables / pair / "pin.json").write_text("{}\n")
 
@@ -129,9 +131,10 @@ class Loops(unittest.TestCase):
         return self.run_step("lingua-extension-check.yml", "Reduce every pair again from its pinned sources")
 
     def test_the_reduce_job_reduces_every_pair_each_reference_first(self):
+        # en-es after en-fr, es-en after es-fr (add-lingua-pack-en-es, *The reduce job*).
         done = self.reduce_job()
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(self.built(), ["reduce en-fr", "reduce es-fr", "reduce es-en"])
+        self.assertEqual(self.built(), ["reduce en-fr", "reduce es-fr", "reduce en-es", "reduce es-en"])
         self.assertEqual(self.kept_work(), [], "the raw sources are dropped after each pair")
 
     def test_the_reduce_job_fails_when_the_pairs_cannot_be_listed(self):
@@ -142,7 +145,7 @@ class Loops(unittest.TestCase):
         self.assertEqual(self.built(), [])
 
     def test_the_reduce_job_fails_when_there_is_no_pair(self):
-        for pair in ("en-fr", "es-en", "es-fr"):
+        for pair in ("en-es", "en-fr", "es-en", "es-fr"):
             shutil.rmtree(self.tables / pair)
         done = self.reduce_job()
         self.assertNotEqual(done.returncode, 0, "a step that reduced nothing passed")
@@ -157,9 +160,12 @@ class Loops(unittest.TestCase):
     def test_every_pair_is_reduced_again_each_reference_first(self):
         done = self.update("reduce", "all")
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertEqual(self.built(), ["reduce en-fr", "reduce es-fr", "reduce es-en"])
+        self.assertEqual(self.built(), ["reduce en-fr", "reduce es-fr", "reduce en-es", "reduce es-en"])
         self.assertEqual(self.kept_work(), [])
-        self.assertIn("PAIRS=en-fr es-fr es-en\n", (self.temp / "github_env").read_text())
+        self.assertIn("PAIRS=en-fr es-fr en-es es-en\n", (self.temp / "github_env").read_text())
+        # What a reducer measured of its tables is kept for the report, though its work is dropped.
+        self.assertEqual((self.temp / "measures-en-es.json").read_text(), '{"share": 1.0}\n')
+        self.assertFalse((self.temp / "measures-en-fr.json").exists(), "en-fr's reducer measures nothing")
 
     def test_a_reference_s_update_brings_its_readers_and_keeps_its_own_sources_alone(self):
         # The named pair's raw sources are published by a later step; the pairs it brings along
@@ -174,6 +180,15 @@ class Loops(unittest.TestCase):
         done = self.update("dry", "es-fr")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(self.built(), ["dry es-fr"])
+
+    def test_an_update_of_a_pair_that_is_no_reference_reduces_it_alone(self):
+        # en-es reads tables/en and writes nothing of it: its update brings no pair along, and its
+        # raw sources — the files it derives from the dumps — are kept for the release step.
+        done = self.update("update", "en-es")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update en-es"])
+        self.assertEqual(self.kept_work(), ["en-es"])
+        self.assertTrue((self.temp / "committed" / "en").is_dir())
 
     def test_an_update_fails_when_the_pairs_cannot_be_listed(self):
         self.a_folder_that_is_no_pair()
@@ -238,6 +253,46 @@ class Loops(unittest.TestCase):
         )
         self.assertNotIn("es-en", created[0])
 
+    def test_the_release_of_a_pair_whose_sources_are_dumps_alone_names_no_extract(self):
+        # en-es (add-lingua-pack-en-es D2): no `sources.kaikki`; the release holds the files
+        # derived from the Spanish Wiktionary's dump and the English Wiktionary's extract, and its
+        # notes name no extract.
+        log = self.gh()
+        release = "lingua-pack-sources-en-es-2026.10.08"
+        self.pin(
+            "en-es",
+            {
+                "snapshot": "2026.10.08",
+                "sources": {
+                    "kaikki-es": {
+                        "release": release,
+                        "files": {
+                            "kaikki-es-English.jsonl": {"asset": "kaikki-es-English.jsonl.zst"},
+                            "kaikki-es-traductions-en.jsonl": {"asset": "kaikki-es-traductions-en.jsonl.zst"},
+                        },
+                    },
+                    "kaikki-en": {"release": release, "files": {"kaikki-en-traductions-es.jsonl": {"asset": "kaikki-en-traductions-es.jsonl.zst"}}},
+                    "wordfreq": {"version": "3.1.1"},
+                },
+            },
+        )
+        done = self.release("en-es")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        created = [line for line in log.read_text().splitlines() if line.startswith("release create")]
+        work = "scripts/lingua-data/work/en-es"
+        self.assertEqual(len(created), 1, created)
+        self.assertTrue(
+            created[0].startswith(
+                f"release create {release} {work}/kaikki-es-English.jsonl.zst {work}/kaikki-es-traductions-en.jsonl.zst "
+                f"{work}/kaikki-en-traductions-es.jsonl.zst --target "
+            ),
+            created[0],
+        )
+        notes = (self.temp / "notes.md").read_text()
+        self.assertIn("pins no extract of its own", notes)
+        self.assertNotIn("the extract (", notes)
+        self.assertIn("tables/en-es/pin.json", notes)
+
     def test_the_release_step_fails_when_its_assets_cannot_be_listed(self):
         # A record `assets` cannot read (the extract's asset missing): the step stops, and nothing
         # is published — it neither passes having published nothing nor publishes half the list.
@@ -279,7 +334,7 @@ class Loops(unittest.TestCase):
         done = self.run_step("lingua-extension-check.yml", "Build the real pack from the committed tables", cwd=extension)
         self.assertNotEqual(done.returncode, 0)
         self.assertIn("es-en: es/level.tsv", done.stderr)
-        self.assertEqual(self.built(), ["check en-fr", "build en-fr", "check es-en"])
+        self.assertEqual(self.built(), ["check en-es", "build en-es", "check en-fr", "build en-fr", "check es-en"])
 
     def test_the_step_scripts_are_read_whole(self):
         script = step_script(WORKFLOWS / "lingua-pack-update.yml", "Reduce")

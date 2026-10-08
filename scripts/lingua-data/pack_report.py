@@ -7,12 +7,18 @@
 """What new tables change, against the committed ones (pin-lingua-pack-sources D6, D7).
 
     pack_report.py <committed tables> <new tables> [--pack <new pack>] [--max-loss 0.2]
-                   [--identical [--pair <pair>]]
+                   [--identical [--pair <pair>]] [--measures <measures.json>]
 
 Prints a Markdown report — per table, the keys added, removed and whose value changed, with
 samples — and the new pack's size against its budget. Exits 1 when a table the committed set has
 is missing from the new one, or loses more than `--max-loss` of its rows: an upstream format change
 shows as a collapse, not as an error, so the monthly check has to look for one.
+
+For a pair's folder whose studied language's folder stands beside it (`freq.tsv`), the report also
+gives the gloss coverage — the share of the 5,000, 10,000 and 20,000 commonest lemmas glossed
+(`gloss_coverage.measure`), new against committed — and, with `--measures`, what the pair's reducer
+measured of its own tables and stores in no pack: en-es's translation-table share, named with the
+pair (add-lingua-pack-en-es D4), beside the coverage.
 
 The folders compared are a pair's (tables/<pair>/: glosses, senses, expressions) or a studied
 language's (tables/<studied>/, split-lingua-pack-tables-by-language: forms, ranks, levels, readings
@@ -39,6 +45,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from gloss_coverage import TOPS, measure
 from pack_sources import (
     KEPT_INPUTS,
     LEXICAL,
@@ -46,6 +53,7 @@ from pack_sources import (
     STUDIED_RECORD,
     PinError,
     get,
+    is_pair_name,
     load,
     reference_of,
     sha256,
@@ -231,12 +239,50 @@ def left_behind(new: Path) -> list[str]:
     return out
 
 
+def coverage_of(folder: Path) -> list[float] | None:
+    """A pair folder's gloss coverage, its ranks read from the studied language's folder beside it
+    (`<root>/<studied>/freq.tsv`, as tables/ and a dry run's root lay them out); None when the
+    folder is no pair's, or has no glosses or no studied folder beside it to rank them by."""
+    name = folder.resolve().name
+    if not is_pair_name(name) or is_studied(folder):
+        return None
+    studied = folder.resolve().parent / studied_of(name)
+    if not (folder / "gloss.tsv").is_file() or not (studied / "freq.tsv").is_file():
+        return None
+    return measure(folder, studied=studied)
+
+
+def coverage_line(old: Path, new: Path) -> str | None:
+    """The new tables' gloss coverage of the commonest lemmas, against the committed tables'."""
+    after = coverage_of(new)
+    if after is None:
+        return None
+    tops = " / ".join(f"{top:,}" for top in TOPS)
+    shares = " / ".join(f"{share} %" for share in after)
+    before = coverage_of(old)
+    was = f" (committed: {' / '.join(f'{share} %' for share in before)})" if before is not None else ""
+    return f"Glossed, of the {tops} commonest lemmas: {shares}{was}."
+
+
+def share_line(pair: str, measures: Path) -> str:
+    """What the reducer measured of the glosses' sources (`measures.json`, add-lingua-pack-en-es
+    D4): among the glossed lemmas of the `top` commonest, the share from a translation table —
+    the direct, then the inverted — rather than from an entry; the pair named."""
+    got = json.loads(measures.read_text(encoding="utf-8"))
+    tables = ", ".join(f"{name} {len(got.get(name) or ())}" for name in ("direct", "inverted"))
+    return (
+        f"`{pair}`: of the {got['glossed']:,} glossed lemmas among the {got['top']:,} commonest, "
+        f"**{got['share']} %** come from a translation table ({tables}) rather than from an entry."
+    )
+
+
 def render(
     diffs: list[TableDiff],
     pack: Path | None,
     issues: list[str],
     readers: list[str] | None = None,
     behind: list[str] | None = None,
+    measured: list[str] = (),
 ) -> str:
     lines = ["## Dictionary update — what the new tables change", ""]
     lines.append("| Table | Rows before → after | Added | Removed | Changed |")
@@ -245,6 +291,8 @@ def render(
         lines.append(
             f"| `{d.name}` ({TABLES[d.name]}) | {d.before} → {d.after} | {len(d.added)} | {len(d.removed)} | {len(d.changed)} |"
         )
+    if measured:
+        lines += ["", *measured]
     if readers is not None:
         lines.append("")
         if readers:
@@ -290,6 +338,11 @@ def main(argv: list[str] | None = None) -> int:
         "--pair",
         help="the pair the tables are (default: the new tables' folder, or the reference a studied language's names)",
     )
+    ap.add_argument(
+        "--measures",
+        type=Path,
+        help="what the pair's reducer measured of its tables (work/<pair>/measures.json): shown beside the coverage",
+    )
     a = ap.parse_args(argv)
     diffs = compare_dirs(a.old, a.new)
     issues = problems(diffs, a.old, a.new, a.max_loss)
@@ -302,7 +355,10 @@ def main(argv: list[str] | None = None) -> int:
         issues.append(f"the pack is {a.pack.stat().st_size:,} B, over its budget")
     behind = left_behind(a.new) if studied else []
     issues += [f"{line} moved, and that pair's pack was not recorded again" for line in behind]
-    sys.stdout.write(render(diffs, a.pack, issues, packs_moved(a.old, a.new) if studied else None, behind))
+    measured = [line for line in (coverage_line(a.old, a.new),) if line]
+    if a.measures is not None:
+        measured.append(share_line(pair, a.measures))
+    sys.stdout.write(render(diffs, a.pack, issues, packs_moved(a.old, a.new) if studied else None, behind, measured))
     if a.identical and not moved_files:
         sys.stdout.write(
             "\nReduced again expecting no change: every table, kept input and NOTICE is byte for byte as "

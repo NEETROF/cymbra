@@ -17,8 +17,9 @@ name: lingua-pack-update
 #   reduced again from its own pinned sources (split-lingua-pack-tables-by-language D5). Each pair
 #   pins its own extract (add-lingua-pack-es-en D2: es-en reads es-fr's address, fetched live when
 #   es-en is updated): the release is the named pair's own and holds its own assets only, and a pair
-#   brought along publishes nothing. A pair's first update — its folder holds no tables yet —
-#   proposes the folder whole.
+#   brought along publishes nothing. A pair whose sources are dumps alone (en-es,
+#   add-lingua-pack-en-es D2) publishes the files it derives from them, and its release notes name
+#   no extract. A pair's first update — its folder holds no tables yet — proposes the folder whole.
 # - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
 #   the branch's diff is the rules' effect alone. With pair `all`, every pair with committed tables
 #   is reduced in one run and proposed on one branch, lingua-pack/all/<snapshot>-reduce, with the
@@ -47,7 +48,7 @@ on:
       pair:
         description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce only."
         type: choice
-        options: [en-fr, es-fr, es-en, all]
+        options: [en-fr, es-fr, es-en, en-es, all]
         default: en-fr
       expect:
         description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
@@ -74,7 +75,7 @@ jobs:
       fail-fast: false
       matrix:
         # A dispatch proposes the pair it names; the monthly dry run checks every pair with tables.
-        pair: ${{ github.event_name == 'schedule' && fromJSON('["en-fr", "es-fr", "es-en"]') || fromJSON(format('["{0}"]', inputs.pair)) }}
+        pair: ${{ github.event_name == 'schedule' && fromJSON('["en-fr", "es-fr", "es-en", "en-es"]') || fromJSON(format('["{0}"]', inputs.pair)) }}
     env:
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
       PAIR: ${{ matrix.pair }}
@@ -148,6 +149,11 @@ jobs:
             # The pairs a named reference brings along: their pinned sources, reduced again.
             [ "$PAIR" != all ] && [ "$pair" != "$PAIR" ] && mode=reduce
             LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+            # What a reducer measures of its own tables and stores in no pack — en-es's
+            # translation-table share (add-lingua-pack-en-es D4) — kept for the report.
+            if [ -f "scripts/lingua-data/work/$pair/measures.json" ]; then
+              cp "scripts/lingua-data/work/$pair/measures.json" "$RUNNER_TEMP/measures-$pair.json"
+            fi
             # A re-reduction keeps nothing of its raw sources (an update publishes the named pair's
             # below); the next pair needs the room. Each pair by its own mode: the pairs an update
             # brings along are re-reductions too.
@@ -170,9 +176,12 @@ jobs:
             [ "$EXPECT" = identical ] && identical=(--identical)
             pack=()
             [ -f "$RUNNER_TEMP/pack-$folder.lingua" ] && pack=(--pack "$RUNNER_TEMP/pack-$folder.lingua")
+            # The reducer's own measurements, when it wrote any (the Reduce step kept them).
+            measures=()
+            [ -f "$RUNNER_TEMP/measures-$folder.json" ] && measures=(--measures "$RUNNER_TEMP/measures-$folder.json")
             printf '\n**%s**\n\n' "$folder" >> "$RUNNER_TEMP/report.md"
             python scripts/lingua-data/pack_report.py "$RUNNER_TEMP/committed/$folder" "$new/$folder" \
-              "${pack[@]}" --max-loss "$MAX_LOSS" "${identical[@]}" \
+              "${pack[@]}" "${measures[@]}" --max-loss "$MAX_LOSS" "${identical[@]}" \
               >> "$RUNNER_TEMP/report.md" || status=1
           done
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
@@ -188,7 +197,13 @@ jobs:
           # The pair's own release of this snapshot (release_tag): an update records every source it
           # fetched under it — each pair pins its own extract (add-lingua-pack-es-en D2).
           tag=$(python scripts/lingua-data/pack_sources.py release-tag --pin "$pin")
-          url=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.url)
+          # The extract's address, for a pair that pins one. A pair whose sources are dumps alone
+          # (en-es, add-lingua-pack-en-es D2) records no `sources.kaikki`: its notes name no extract.
+          if url=$(python scripts/lingua-data/pack_sources.py get --pin "$pin" sources.kaikki.url 2>/dev/null); then
+            sources_read="the extract ($url), and the files derived from whole Wiktionary dumps, if the pair reads any"
+          else
+            sources_read="the files derived from the whole Wiktionary dumps and extracts the pair reads (it pins no extract of its own; the dumps are not kept)"
+          fi
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "::error::$tag already exists; a snapshot is never replaced. Dispatch again tomorrow."
             exit 1
@@ -207,8 +222,7 @@ jobs:
             exit 1
           fi
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: the
-          extract ($url), and the files derived from whole Wiktionary dumps, if the pair reads any.
+          The kaikki.org data read for Cymbra Lingua's $PAIR data pack, as it was on $SNAPSHOT: $sources_read.
           They are the pack's raw sources, kept because upstream regenerates them every day. Each is
           zstd-compressed; decompressed, its sha256 is in \`scripts/lingua-data/tables/$PAIR/pin.json\`.
 
