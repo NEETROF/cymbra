@@ -12,7 +12,12 @@ import {
   offeredNatives,
   studiedForNative,
 } from "../state/native-language.ts";
-import type { NativeLanguageCopy } from "./settings-copy.ts";
+
+/**
+ * The choice's copy (D6): the catalogue's `native-language` module. Picked by this view, not with
+ * Réglages' blocks (`settings-copy.ts`), so that a bundle built without the choice carries none of it.
+ */
+export type NativeLanguageCopy = typeof frNativeLanguage;
 
 // The reader's choice of native language (add-lingua-native-language-choice D4): one view, mounted
 // in Réglages (« Langue », above the studied languages), in the onboarding (its first question) and

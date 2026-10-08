@@ -37,7 +37,7 @@ import { type AccountControls, mountAccountSetting, runtimeAccountControls } fro
 import { mountBookDisplay } from "./book-display-view.ts";
 import { mountColourSettings } from "./colour-settings-view.ts";
 import { type SettingsModule, settingsCopy } from "./settings-copy.ts";
-import { mountNativeLanguage } from "./native-language-view.ts";
+import { mountNativeLanguage, nativeLanguageCopy } from "./native-language-view.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
 import {
@@ -206,18 +206,20 @@ export function mountSettings(
 
   // — Langue maternelle — above the studied languages, only when two native languages or more ship
   // (add-lingua-native-language-choice D4): until then no block is built at all, and Réglages are
-  // what they were. A choice confirmed here needs nothing of this host: on the change announced, the
-  // page reloads, or the reading session is built anew, its port for the new native language (D3).
-  const nativeBlock = nativeChoiceOffered(pairs) ? settingBlock(copy.nativeLanguage) : null;
-  const native = nativeBlock
-    ? mountNativeLanguage(nativeBlock, {
-        language: interfaceLanguage,
-        copy: blocksCopy.nativeLanguage,
-        profile: async () => ({ native: await port.nativeLanguage(), studied: await port.studiedLanguages() }),
-        onChosen: () => refresh(),
-        pairs,
-      })
-    : null;
+  // what they were — nor is the view bundled (`__NATIVE_CHOICE__`). A choice confirmed here needs
+  // nothing of this host: on the change announced, the page reloads, or the reading session is built
+  // anew, its port for the new native language (D3).
+  const nativeBlock = __NATIVE_CHOICE__ && nativeChoiceOffered(pairs) ? settingBlock(copy.nativeLanguage) : null;
+  const native =
+    __NATIVE_CHOICE__ && nativeBlock
+      ? mountNativeLanguage(nativeBlock, {
+          language: interfaceLanguage,
+          copy: nativeLanguageCopy(interfaceLanguage),
+          profile: async () => ({ native: await port.nativeLanguage(), studied: await port.studiedLanguages() }),
+          onChosen: () => refresh(),
+          pairs,
+        })
+      : null;
 
   // — Langues étudiées — hidden when the package ships one language (add-lingua-language-choice D2).
   const languagesBlock = settingBlock(copy.studiedLanguages);

@@ -14,7 +14,7 @@ import { engineFiles, engineProblems } from "./tool/engine_pin.mjs";
 import { bundledCatalogue, readCatalogue } from "./tool/model-catalogue.mjs";
 import { LOCALES_DIR, readLocales } from "./tool/locales.mjs";
 import { buildManifest } from "./tool/manifests.mjs";
-import { assertPacksMatchEngine, packFile, shippedPairs } from "./tool/packs.mjs";
+import { assertPacksMatchEngine, packFile, shippedNatives, shippedPairs } from "./tool/packs.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const requested = process.argv.slice(2).filter((a) => !a.startsWith("-"));
@@ -232,6 +232,10 @@ for (const target of targets) {
       // A string, not an array: esbuild would put an array in a `<define:…>` module whose marker
       // comment keeps the name in the bundle, which check_variants rightly refuses.
       __LINGUA_PACKS__: JSON.stringify(PAIRS.join(",")),
+      // Whether the reader chooses their native language (add-lingua-native-language-choice D1):
+      // only once two native languages have a shipped pair. Until then the choice's views, its
+      // preset and its copy fold out of every bundle, and the pages are `main`'s.
+      __NATIVE_CHOICE__: JSON.stringify(shippedNatives(PAIRS).length > 1),
     },
   };
 

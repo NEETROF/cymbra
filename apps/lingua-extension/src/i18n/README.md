@@ -31,9 +31,11 @@ The interface language is the reader's native language (`language.ts`: `interfac
 helpers — `plural`, `formatNumber`, `formatCount`, `formatPercent`, `formatDate`, `regionName`,
 `fillPage`, `fillPageInLanguage`, `renderAround`, `slot` and `fillSlots` — and maps no surface, so
 importing it costs an entry nothing. A surface imports its own three modules and picks by the
-language; Réglages, mounted by three hosts, picks its eight (`settings`, `studied-languages`,
-`native-language`, `colours`, `display`, `translation`, `account-setting`, `sync`) in `reading/settings-copy.ts` and hands
-each block its own, which holds its French module as its default.
+language; Réglages, mounted by three hosts, picks its seven (`settings`, `studied-languages`,
+`colours`, `display`, `translation`, `account-setting`, `sync`) in `reading/settings-copy.ts` and hands
+each block its own, which holds its French module as its default. The native language's choice picks
+`native-language` in its own view (`reading/native-language-view.ts`), in Réglages as in the onboarding
+and the popup: a bundle built without the choice carries none of it.
 
 ## The grammar renderers
 

@@ -223,16 +223,21 @@ async function applyEnabled(enabled: boolean): Promise<void> {
 
 async function main(): Promise<void> {
   // A new install whose onboarding never opened (Safari): its native language is preset before the
-  // page paints, and asked below — while two native languages ship and the choice was never made on
-  // this device; today this reads nothing (add-lingua-native-language-choice D4).
-  const firstRun = await presetNativeLanguage({ preferences: storageArea, browserLanguage: navigator.language });
+  // page paints, and asked below until the reader answers — while two native languages ship and the
+  // choice was never made on this device (add-lingua-native-language-choice D4). Built only then
+  // (`__NATIVE_CHOICE__`): today's popup carries none of it.
+  const firstRun = __NATIVE_CHOICE__
+    ? await presetNativeLanguage({ preferences: storageArea, browserLanguage: navigator.language })
+    : false;
   // The interface language first, with this page's first storage read: the page's static copy is
   // filled from the catalogue before anything shows (the body is hidden until then — D2), and
   // every text rendered below is that language's. A read that fails is French: the page shows.
   ({ language, copy } = await fillPageInLanguage(document, storageArea, (l) => POPUP_COPY[l]));
-  // Another native language chosen anywhere: the page reloads in it (D3).
-  reloadOnNativeLanguageChange(language);
-  if (firstRun) mountNativeCta(document, language, store);
+  if (__NATIVE_CHOICE__) {
+    // Another native language chosen anywhere: the page reloads in it (D3).
+    reloadOnNativeLanguageChange(language);
+    if (firstRun) mountNativeCta(document, language, store);
+  }
 
   // Settings view (gear icon), also reached from the main panel's level call-to-action and
   // « Modifier ». Leaving it re-reads the page's stats: a level or a calibration chosen there

@@ -82,8 +82,8 @@ async function main(): Promise<void> {
   await studied.refresh();
   await renderLevels();
   // The native language, the first question when two ship; the page reloads when it changes
-  // (add-lingua-native-language-choice D3, D4).
-  mountNativeStep($("languages-section"), interfaceLanguage, store);
+  // (add-lingua-native-language-choice D3, D4). Built only then (`__NATIVE_CHOICE__`).
+  if (__NATIVE_CHOICE__) mountNativeStep($("languages-section"), interfaceLanguage, store);
 
   async function renderLevels(): Promise<void> {
     const rows = $("level-rows");
@@ -99,5 +99,6 @@ async function main(): Promise<void> {
   }
 }
 
-// A new install's native language is preset before the page paints (add-lingua-native-language-choice D4).
-void presetThenStart(main);
+// A new install's native language is preset before the page paints (add-lingua-native-language-choice
+// D4) — while two native languages ship; until then the page starts as it did.
+void (__NATIVE_CHOICE__ ? presetThenStart(main) : main());

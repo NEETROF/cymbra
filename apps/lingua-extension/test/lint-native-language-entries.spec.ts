@@ -88,6 +88,17 @@ describe("the entries follow a change of native language (add-lingua-native-lang
     expect(text).toMatch(/if \(firstRun\)[^;]*mountNativeCta\(/);
   });
 
+  it("the choice is built only while two native languages ship (__NATIVE_CHOICE__, D1)", () => {
+    // The define folds the views, the preset and the copy out of today's bundles (check_variants).
+    expect(code("src/popup/popup.ts")).toMatch(/__NATIVE_CHOICE__\s*\?\s*await presetNativeLanguage\(/);
+    expect(code("src/popup/popup.ts")).toMatch(/if \(__NATIVE_CHOICE__\) \{[^}]*mountNativeCta\(/);
+    expect(code("src/onboarding/onboarding.ts")).toMatch(/if \(__NATIVE_CHOICE__\) mountNativeStep\(/);
+    expect(code("src/onboarding/onboarding.ts")).toMatch(/__NATIVE_CHOICE__ \? presetThenStart\(main\) : main\(\)/);
+    expect(code("src/reading/settings-view.ts")).toMatch(
+      /__NATIVE_CHOICE__ && nativeBlock\s*\?\s*mountNativeLanguage\(/,
+    );
+  });
+
   it("the onboarding presets before it starts, and asks its first question (D4)", () => {
     const text = code("src/onboarding/onboarding.ts");
     expect(callsOf(text, "presetThenStart")).toEqual(["presetThenStart(main)"]);
