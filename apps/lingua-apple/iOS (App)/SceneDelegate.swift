@@ -27,13 +27,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
     }
 
-    /// Show the sign-in sheet for `cymbra-lingua://signin?provider=…`, replacing one already open.
+    /// Show the sign-in sheet for `cymbra-lingua://signin?provider=…&lang=…`, replacing one already
+    /// open, in the link's language when the app offers it.
     private func open(_ url: URL) {
         guard let provider = SignInLink.provider(from: url), let root = window?.rootViewController else { return }
         root.dismiss(animated: false)
         let sheet = UIHostingController(
             rootView: SignInView(
                 requested: provider,
+                language: SignInLanguage.shown(SignInLink.language(from: url), in: .main),
                 google: GoogleWebSignIn.fromBundle(anchor: { [weak self] in self?.window ?? UIWindow() }),
                 handoff: IdTokenHandoff.shared()
             ) { [weak root] in

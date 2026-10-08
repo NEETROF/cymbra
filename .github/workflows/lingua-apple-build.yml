@@ -48,6 +48,9 @@ jobs:
       - name: Test the release tools (lingua-apple-release)
         working-directory: apps/lingua-apple/tool
         run: python3 -m unittest -v test_ci_release_signing test_release_version
+      - name: Test the languages phase (tool/app_localizations.sh)
+        working-directory: apps/lingua-apple
+        run: bash tool/test_app_localizations.sh
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -84,7 +87,36 @@ jobs:
         run: |
           xcodebuild -project "Cymbra Lingua.xcodeproj" -scheme "Cymbra Lingua (macOS)" \
             -configuration Release -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO build
-      - name: Verify the extension is bundled
+      - name: Verify the extension is bundled and the languages declared
         run: |
-          test -f "$RUNNER_TEMP/dd/Build/Products/Release-iphonesimulator/Cymbra Lingua.app/PlugIns/Cymbra Lingua Extension.appex/manifest.json"
-          test -f "$RUNNER_TEMP/dd/Build/Products/Release/Cymbra Lingua.app/Contents/PlugIns/Cymbra Lingua Extension.appex/Contents/Resources/manifest.json"
+          ios_app="$RUNNER_TEMP/dd/Build/Products/Release-iphonesimulator/Cymbra Lingua.app"
+          mac_app="$RUNNER_TEMP/dd/Build/Products/Release/Cymbra Lingua.app"
+          test -f "$ios_app/PlugIns/Cymbra Lingua Extension.appex/manifest.json"
+          test -f "$mac_app/Contents/PlugIns/Cymbra Lingua Extension.appex/Contents/Resources/manifest.json"
+          # The activation page's copy table (localise-lingua-apple-host, D2) ships in both apps.
+          test -f "$ios_app/copy.js"
+          test -f "$mac_app/Contents/Resources/copy.js"
+          # Every built plist already declares the shipped natives (D1): the phase ran, and running
+          # it again on a copy — with the target's source plist and the project's development
+          # language, as the phase does — changes nothing.
+          packs=apps/lingua-extension/dist-safari/assets/packs
+          development_language=$(sed -n 's/^[[:space:]]*developmentRegion = \([A-Za-z-]*\);.*/\1/p' "apps/lingua-apple/Cymbra Lingua.xcodeproj/project.pbxproj")
+          test -n "$development_language"
+          declare_again() { # declare_again BUILT_PLIST SOURCE_PLIST
+            cp "$1" "$RUNNER_TEMP/declared.plist"
+            bash apps/lingua-apple/tool/app_localizations.sh "$packs" "$RUNNER_TEMP/declared.plist" "$2" "$development_language"
+            cmp "$1" "$RUNNER_TEMP/declared.plist"
+          }
+          declare_again "$ios_app/Info.plist" "apps/lingua-apple/iOS (App)/Info.plist"
+          declare_again "$mac_app/Contents/Info.plist" "apps/lingua-apple/macOS (App)/Info.plist"
+          declare_again "$ios_app/PlugIns/Cymbra Lingua Extension.appex/Info.plist" "apps/lingua-apple/iOS (Extension)/Info.plist"
+          declare_again "$mac_app/Contents/PlugIns/Cymbra Lingua Extension.appex/Contents/Info.plist" "apps/lingua-apple/macOS (Extension)/Info.plist"
+          # What the app offers is CFBundleLocalizations alone (SignInLanguage.offered(in:)), never the
+          # development region Xcode writes: each built app declares exactly the shipped natives — [fr]
+          # while only French ships, so a device in English keeps the French page and sheet.
+          natives=$(find "$packs" -name '*.lingua' -exec basename {} .lingua \; | sed 's/.*-//' | sort -u | paste -sd , -)
+          declared() { plutil -extract CFBundleLocalizations json -o - "$1" | tr -d '[]"' | tr , '\n' | sort -u | paste -sd , -; }
+          for plist in "$ios_app/Info.plist" "$mac_app/Contents/Info.plist"; do
+            echo "$plist: CFBundleLocalizations $(declared "$plist"), shipped natives $natives"
+            test "$(declared "$plist")" = "$natives"
+          done

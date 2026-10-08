@@ -6,8 +6,10 @@ import { userServicePort } from "./account/profile.ts";
 import { type AccountReply, isAccountMessage } from "./account/messages.ts";
 import { api, initApi } from "./net/api.ts";
 import { setTokenRefresher, setUnauthenticatedHandler } from "./net/transport.ts";
+import { INTERFACE_LANGUAGE_KEY, interfaceLanguage } from "./i18n/language.ts";
 import {
   hostAppSignInUrl,
+  interfaceLanguageTeller,
   NATIVE_APP_ID,
   type NativeSend,
   nativeProviders,
@@ -516,11 +518,28 @@ if (__TRANSLATION_HOST__ !== "none") {
   const native = __NATIVE_PROVIDERS__
     ? (() => {
         const send: NativeSend = (message) => chrome.runtime.sendNativeMessage(NATIVE_APP_ID, message);
+        // The host app's activation page follows the interface language once the extension has
+        // run (localise-lingua-apple-host D2): said at start, once the key is in step with the
+        // profile, and again on each change — only what the key holds, never the French a failed
+        // read defaults to, and only when it differs from what was last said. The key lives in
+        // chrome.storage.local, so its changes are watched there.
+        const tell = interfaceLanguageTeller(send);
+        void storeArea
+          .then(() => settingsArea.get(INTERFACE_LANGUAGE_KEY))
+          .then((got) => tell(got[INTERFACE_LANGUAGE_KEY]))
+          .catch((e: unknown) =>
+            console.warn("[Cymbra Lingua] could not read the interface language for the host app:", e),
+          );
+        chrome.storage.onChanged.addListener((changes, area) => {
+          if (area === "local" && INTERFACE_LANGUAGE_KEY in changes)
+            void tell(changes[INTERFACE_LANGUAGE_KEY]?.newValue);
+        });
         return {
           providers: () => nativeProviders(send),
           handOff: {
+            // The sheet in the interface language, the page it is opened from being in it (D3).
             open: async (provider: Provider): Promise<void> => {
-              await chrome.tabs.create({ url: hostAppSignInUrl(provider) });
+              await chrome.tabs.create({ url: hostAppSignInUrl(provider, await interfaceLanguage(settingsArea)) });
             },
             take: () => takeHandedIdToken(send),
           },

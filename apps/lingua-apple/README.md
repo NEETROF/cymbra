@@ -14,20 +14,49 @@ extension (see `openspec/changes/add-lingua-apple`).
   file in the extension is never silently left out. It does not delete: a file that left
   `dist-safari` stays in the `.appex` of an incremental build. After switching a local build
   between variants, delete its DerivedData; a release builds clean.
-- **Activation page** — `Shared (App)/Resources/Base.lproj/Main.html` (French copy),
-  driven by `Shared (App)/ViewController.swift`: iOS shows the steps (no state API
+- **Activation page** — `Shared (App)/Resources/Base.lproj/Main.html` (French in the
+  markup), driven by `Shared (App)/ViewController.swift`: iOS shows the steps (no state API
   there); macOS shows the real state (`SFSafariExtensionManager`) and opens Safari's
-  settings on the extension (`SFSafariApplication.showPreferencesForExtension`).
+  settings on the extension (`SFSafariApplication.showPreferencesForExtension`). Its copy
+  is one table per language, `Resources/copy.js` (fr byte for byte the markup's, en and es
+  drafts), which fills the page on `DOMContentLoaded` in the language `ViewController`
+  injects before load: the extension's interface language once the extension has run
+  (its native handler keeps it in the App Group, `interface.language`), the device's
+  before — among the declared languages only, English once English ships and French
+  otherwise when neither is declared. A French page is
+  left untouched; `apps/lingua-extension/test/apple-activation-page.spec.ts` pins the
+  French and the fill (`openspec/changes/localise-lingua-apple-host`, D2).
+- **Languages** — the app declares the native languages of the packs the Safari build
+  carries (`dist-safari/assets/packs/<studied>-<native>.lingua`), nothing else: the
+  _Declare Lingua languages_ phase (`tool/app_localizations.sh`, last on both app targets,
+  after the copy on both extension targets) writes `CFBundleLocalizations` — what the App
+  Store's "Languages" line shows — and `CFBundleDevelopmentRegion` (`en` once English
+  ships, `fr` otherwise) into the processed plist, only when it holds something else; a
+  native is 2–3 lowercase letters, or the build fails. While every shipped native is
+  French, the plist is never touched — left as Xcode generated it: the source plist's
+  `[fr]` on the apps, none on the extensions, and `en` — the project's development
+  language, which Xcode writes over the source's `fr` — as the region. So the Swift side
+  counts as declared `CFBundleLocalizations` alone (`SignInLanguage.offered(in:)`), never
+  `Bundle.localizations`, which adds that `en` and the `.lproj` folders: a device in
+  English keeps a French page and a French sheet, and a link naming English a French
+  sheet, until English ships. Tested by `tool/test_app_localizations.sh` and `swift test`
+  (a bundle built on disk as Xcode builds it), and `lingua-apple-build` checks every built
+  plist and each app's `CFBundleLocalizations` (D1).
 - **Minimum OS** — iOS 17.2 / macOS 12: the reader paints with the CSS Custom Highlight
   API, which Safari ships from 17.2.
 - **Apple and Google sign-in** (`openspec/changes/add-lingua-connected-clients`, D6) — Safari
   has no `identity.launchWebAuthFlow`, so the extension opens this app on
-  `cymbra-lingua://signin?provider=apple|google` (`CFBundleURLTypes` in both apps). The app
-  shows `Shared (App)/SignInView.swift`, runs the provider's native sheet and leaves the
-  id_token in the App Group; the extension's `SafariWebExtensionHandler` answers
+  `cymbra-lingua://signin?provider=apple|google&lang=fr|en|es` (`CFBundleURLTypes` in both
+  apps). The app shows `Shared (App)/SignInView.swift`, runs the provider's native sheet and
+  leaves the id_token in the App Group; the extension's `SafariWebExtensionHandler` answers
   `auth.takeIdToken` with it once, within five minutes. The Cymbra session stays in the
   extension. The logic lives in the local package [`LinguaSignIn`](LinguaSignIn), linked by
-  all four targets.
+  all four targets. The sheet's copy (`SignInCopy(language:)`, fr byte for byte, en and es
+  drafts) is in the link's `lang` — the extension's interface language — when the app
+  declares that language, the device's when declared, English once English ships and
+  French otherwise; `lang` is read from a closed list (`SignInLink.language(from:)`), never
+  shown or passed on, and an older link naming none is shown the same way without it.
+  Apple's button keeps the label the system gives it (D3).
 
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by
 hand to replace its copied resources with the build phase above.

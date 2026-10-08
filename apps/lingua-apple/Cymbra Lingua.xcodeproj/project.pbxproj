@@ -29,6 +29,8 @@
 		AFB5BE0D305892E000728144 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AFB5BDCD305892E000728144 /* Assets.xcassets */; };
 		AFB5BE0E305892E000728144 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BDCF305892E000728144 /* SafariWebExtensionHandler.swift */; };
 		AFB5BE0F305892E000728144 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BDCF305892E000728144 /* SafariWebExtensionHandler.swift */; };
+		AFB5BE71305892E000728144 /* copy.js in Resources */ = {isa = PBXBuildFile; fileRef = AFB5BE70305892E000728144 /* copy.js */; };
+		AFB5BE72305892E000728144 /* copy.js in Resources */ = {isa = PBXBuildFile; fileRef = AFB5BE70305892E000728144 /* copy.js */; };
 		AFB5BE83305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE81305892E000728144 /* LinguaSignIn */; };
 		AFB5BE84305892E000728144 /* LinguaSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = AFB5BE82305892E000728144 /* LinguaSignIn */; };
 		AFB5BE86305892E000728144 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFB5BE85305892E000728144 /* SignInView.swift */; };
@@ -103,6 +105,7 @@
 		AFB5BDF7305892E000728144 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AFB5BDFC305892E000728144 /* Cymbra Lingua Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Cymbra Lingua Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AFB5BE01305892E000728144 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AFB5BE70305892E000728144 /* copy.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = copy.js; sourceTree = "<group>"; };
 		AFB5BE85305892E000728144 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		AFB5BE8C305892E000728144 /* GoogleWebSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleWebSignIn.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -175,6 +178,7 @@
 				AFB5BDC9305892DF00728144 /* Icon.png */,
 				AFB5BDCA305892DF00728144 /* Style.css */,
 				AFB5BDCB305892DF00728144 /* Script.js */,
+				AFB5BE70305892E000728144 /* copy.js */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -247,6 +251,7 @@
 				AFB5BDD1305892E000728144 /* Frameworks */,
 				AFB5BDD2305892E000728144 /* Resources */,
 				AFB5BE15305892E000728144 /* Embed Foundation Extensions */,
+				AFB5BE73305892E000728144 /* Declare Lingua languages */,
 			);
 			buildRules = (
 			);
@@ -269,6 +274,7 @@
 				AFB5BDE3305892E000728144 /* Frameworks */,
 				AFB5BDE4305892E000728144 /* Resources */,
 				AFB5BE1C305892E000728144 /* Embed Foundation Extensions */,
+				AFB5BE74305892E000728144 /* Declare Lingua languages */,
 			);
 			buildRules = (
 			);
@@ -291,6 +297,7 @@
 				AFB5BDEF305892E000728144 /* Frameworks */,
 				AFB5BDF0305892E000728144 /* Resources */,
 				AFB5BE7A305892E000728144 /* Copy Lingua extension */,
+				AFB5BE75305892E000728144 /* Declare Lingua languages */,
 			);
 			buildRules = (
 			);
@@ -312,6 +319,7 @@
 				AFB5BDF9305892E000728144 /* Frameworks */,
 				AFB5BDFA305892E000728144 /* Resources */,
 				AFB5BE7B305892E000728144 /* Copy Lingua extension */,
+				AFB5BE76305892E000728144 /* Declare Lingua languages */,
 			);
 			buildRules = (
 			);
@@ -383,6 +391,7 @@
 				AFB5BDDD305892E000728144 /* LaunchScreen.storyboard in Resources */,
 				AFB5BE02305892E000728144 /* Main.html in Resources */,
 				AFB5BE08305892E000728144 /* Script.js in Resources */,
+				AFB5BE71305892E000728144 /* copy.js in Resources */,
 				AFB5BE0C305892E000728144 /* Assets.xcassets in Resources */,
 				AFB5BDE0305892E000728144 /* Main.storyboard in Resources */,
 				AFB5BE06305892E000728144 /* Style.css in Resources */,
@@ -397,6 +406,7 @@
 				AFB5BE07305892E000728144 /* Style.css in Resources */,
 				AFB5BDEC305892E000728144 /* Main.storyboard in Resources */,
 				AFB5BE09305892E000728144 /* Script.js in Resources */,
+				AFB5BE72305892E000728144 /* copy.js in Resources */,
 				AFB5BE0D305892E000728144 /* Assets.xcassets in Resources */,
 				AFB5BE03305892E000728144 /* Main.html in Resources */,
 			);
@@ -419,6 +429,86 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		AFB5BE73305892E000728144 /* Declare Lingua languages */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Declare Lingua languages";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The app's languages are the extension's shipped natives (localise-lingua-apple-host, D1): the\n# natives of dist-safari's packs, written to the processed Info.plist only when it holds something\n# else. While only French ships, Xcode's own product — the source plist's [fr], the development\n# language as CFBundleDevelopmentRegion — is left as it is. Last phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" \"${SRCROOT}/${INFOPLIST_FILE}\" \"${DEVELOPMENT_LANGUAGE}\"\n";
+		};
+		AFB5BE74305892E000728144 /* Declare Lingua languages */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Declare Lingua languages";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The app's languages are the extension's shipped natives (localise-lingua-apple-host, D1): the\n# natives of dist-safari's packs, written to the processed Info.plist only when it holds something\n# else. While only French ships, Xcode's own product — the source plist's [fr], the development\n# language as CFBundleDevelopmentRegion — is left as it is. Last phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" \"${SRCROOT}/${INFOPLIST_FILE}\" \"${DEVELOPMENT_LANGUAGE}\"\n";
+		};
+		AFB5BE75305892E000728144 /* Declare Lingua languages */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Declare Lingua languages";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The extension declares the languages its app does (localise-lingua-apple-host, D1): the natives\n# of dist-safari's packs, written to the generated Info.plist only when it holds something else.\n# While only French ships, that plist's no CFBundleLocalizations and the development language as\n# CFBundleDevelopmentRegion are left as generated. After the copy phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" \"${SRCROOT}/${INFOPLIST_FILE}\" \"${DEVELOPMENT_LANGUAGE}\"\n";
+		};
+		AFB5BE76305892E000728144 /* Declare Lingua languages */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Declare Lingua languages";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The extension declares the languages its app does (localise-lingua-apple-host, D1): the natives\n# of dist-safari's packs, written to the generated Info.plist only when it holds something else.\n# While only French ships, that plist's no CFBundleLocalizations and the development language as\n# CFBundleDevelopmentRegion are left as generated. After the copy phase, before signing.\nbash \"${SRCROOT}/tool/app_localizations.sh\" \"${SRCROOT}/../lingua-extension/dist-safari/assets/packs\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" \"${SRCROOT}/${INFOPLIST_FILE}\" \"${DEVELOPMENT_LANGUAGE}\"\n";
+		};
 		AFB5BE7A305892E000728144 /* Copy Lingua extension */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

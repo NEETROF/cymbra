@@ -1,9 +1,11 @@
+import { type InterfaceLanguage, isInterfaceLanguage } from "../i18n/language.ts";
 import type { Provider, Providers } from "./oidc.ts";
 
 // Apple and Google on Safari (add-lingua-connected-clients, design D3/D6). Safari has no
 // identity.launchWebAuthFlow, so the host app (apps/lingua-apple) runs the native Apple or
 // Google sheet and hands the id_token back through this extension's native handler, which
-// returns it once. Pure helpers; the background supplies the browser APIs.
+// returns it once. The same handler keeps the interface language for the app's activation page
+// (localise-lingua-apple-host, D2). Pure helpers; the background supplies the browser APIs.
 
 /** The host app's URL scheme (CFBundleURLTypes in apps/lingua-apple). */
 export const HOST_APP_SCHEME = "cymbra-lingua";
@@ -11,10 +13,23 @@ export const HOST_APP_SCHEME = "cymbra-lingua";
 /** The application id given to sendNativeMessage: Safari always routes to the containing app's handler. */
 export const NATIVE_APP_ID = "com.cymbra.lingua";
 
-/** The URL that opens the host app on a provider's sign-in sheet. */
-export function hostAppSignInUrl(provider: Provider): string {
-  return `${HOST_APP_SCHEME}://signin?provider=${provider}`;
+/**
+ * The URL that opens the host app on a provider's sign-in sheet, in the interface language
+ * (localise-lingua-apple-host D3): the sheet is a step of a flow begun on a page in that language.
+ * The language is required, so every caller names one. The app reads `lang` from a closed list and
+ * shows the link's language only among the ones it offers; an older link naming none shows the
+ * app's preferred localisation.
+ */
+export function hostAppSignInUrl(provider: Provider, language: InterfaceLanguage): string {
+  return `${HOST_APP_SCHEME}://signin?${new URLSearchParams({ provider, lang: language }).toString()}`;
 }
+
+/** What the extension sends the host app's native handler (SafariWebExtensionHandler, NativeMessage.swift). */
+export type NativeMessage =
+  | { type: "auth.providers" }
+  | { type: "auth.takeIdToken" }
+  /** The interface language, kept in the App Group for the activation page (localise-lingua-apple-host D2). */
+  | { type: "interface.language"; language: InterfaceLanguage };
 
 export interface HandedIdToken {
   provider: Provider;
@@ -28,7 +43,7 @@ export function parseHandedIdToken(reply: unknown): HandedIdToken | null {
   return typeof r.idToken === "string" && r.idToken.length > 0 ? { provider: r.provider, idToken: r.idToken } : null;
 }
 
-export type NativeSend = (message: { type: string }) => Promise<unknown>;
+export type NativeSend = (message: NativeMessage) => Promise<unknown>;
 
 /**
  * The providers the host app offers: Apple always, Google once the app is built with a Google
@@ -50,4 +65,35 @@ export async function takeHandedIdToken(send: NativeSend): Promise<HandedIdToken
   } catch {
     return null;
   }
+}
+
+/**
+ * Tell the host app the interface language, so its activation page follows the extension rather
+ * than the device (M22). A missing or failing handler is nothing to act on: the page then follows
+ * the device, as before the extension first ran. Resolves to whether the handler took it.
+ */
+export async function tellInterfaceLanguage(send: NativeSend, language: InterfaceLanguage): Promise<boolean> {
+  try {
+    await send({ type: "interface.language", language });
+    return true;
+  } catch {
+    /* the page follows the device until the handler answers */
+    return false;
+  }
+}
+
+/**
+ * What the background calls with the interface language key's value, at its start and on each
+ * change: it tells the host app only a language the key actually holds — never the French a
+ * failed read or a key not yet written defaults to, which would put a French page before an
+ * English reader — and only when it differs from the last one told in this background's life. A
+ * send that fails is not counted as told, so the next call with that language tries again.
+ */
+export function interfaceLanguageTeller(send: NativeSend): (value: unknown) => Promise<void> {
+  let told: InterfaceLanguage | null = null;
+  return async (value) => {
+    if (!isInterfaceLanguage(value) || value === told) return;
+    told = value;
+    if (!(await tellInterfaceLanguage(send, value)) && told === value) told = null;
+  };
 }
