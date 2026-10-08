@@ -16,16 +16,16 @@
 //! on the native language its pack is glossed in.
 //!
 //! For English and for Spanish, the reference pack (en-fr, es-fr) is built from its committed
-//! tables, and a second pack over the same studied tables: for English, as a pack glossed in
-//! another native language would be (`support/other_native.rs` says how it differs); for
-//! Spanish, the real one — es-en, the committed pair glossed in English (add-lingua-pack-es-en),
-//! built from `tables/es/` and `tables/es-en/`.
+//! tables, and the second pack is the real one over the same studied tables: en-es, the committed
+//! pair glossed in Spanish (add-lingua-pack-en-es), built from `tables/en/` and `tables/en-es/`;
+//! es-en, the committed pair glossed in English (add-lingua-pack-es-en), built from `tables/es/`
+//! and `tables/es-en/`.
 //!
 //! Every probe of the language's invariance baseline is answered through both packs, and must
 //! be byte for byte alike once glosses, senses and expressions — the native side — are removed
-//! (`support::studied_side`, which `es_en_baseline.rs` also compares the committed es-fr and
-//! es-en goldens through). The studied sections must be byte-equal. The baselines' own goldens
-//! are not read here.
+//! (`support::studied_side`, which `es_en_baseline.rs` and `en_es_baseline.rs` also compare the
+//! committed goldens through). The studied sections must be byte-equal. The baselines' own
+//! goldens are not read here.
 //!
 //! Host only: the pack builder is native (C zstd).
 
@@ -38,7 +38,6 @@ use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
 use lingua_pack::{build_pack, inputs_from_tables};
 use support::english::ENGLISH;
-use support::other_native::ENGLISH_IN_SPANISH;
 use support::spanish::SPANISH;
 use support::{Scenario, probes, studied_side};
 
@@ -119,15 +118,14 @@ fn assert_card_ops_labelled(reference: &str, other: &str, native: &str) {
 }
 
 /// Every probe of `scenario`, through `reference` and through `other`: alike once the native
-/// side is removed. `native` is the other pack's native language, which labels its cards;
-/// `own_credits`, whether the other pack credits sources of its own (a real pack does).
+/// side is removed — the other pack's own credits included. `native` is the other pack's native
+/// language, which labels its cards.
 fn assert_probes_alike(
     scenario: &Scenario,
     language: Option<&str>,
     reference: &[u8],
     other: &[u8],
     native: &str,
-    own_credits: bool,
 ) {
     let render = |pack: &[u8]| {
         // The scenario's pair labels the pack line, which is not compared.
@@ -144,10 +142,7 @@ fn assert_probes_alike(
         if name == "export-card-ops" {
             assert_card_ops_labelled(x, y, native);
         }
-        let (Some(x), Some(y)) = (
-            studied_side(name, x, own_credits),
-            studied_side(name, y, own_credits),
-        ) else {
+        let (Some(x), Some(y)) = (studied_side(name, x), studied_side(name, y)) else {
             continue;
         };
         compared += 1;
@@ -169,10 +164,9 @@ fn assert_probes_alike(
     }
     // Every probe but the pack line, the cards' glosses and — a pack's own credits — the notice
     // and the licences.
-    let credits = if own_credits { 2 } else { 0 };
     assert_eq!(
         compared,
-        a.len() - 1 - credits - scenario.lemmas.len(),
+        a.len() - 1 - 2 - scenario.lemmas.len(),
         "probes compared"
     );
 }
@@ -196,40 +190,72 @@ fn sizes(pack: &[u8], language: &str) -> (u64, Vec<u64>) {
 
 #[test]
 fn spec_scenario_english_through_another_native_language() {
-    let (reference_inputs, other_inputs) = ENGLISH_IN_SPANISH.inputs();
+    // en-fr, and en-es: the committed pair glossed in Spanish (add-lingua-pack-en-es), both
+    // built from tables/en/ — the real second pack, not a synthetic one.
+    let root = Scenario::tables_root();
+    let (reference_inputs, other_inputs) = (
+        inputs_from_tables(&root, "en-fr").expect("read en-fr"),
+        inputs_from_tables(&root, "en-es").expect("read en-es"),
+    );
+    assert_eq!(
+        other_inputs.meta.native, "es",
+        "en-es is glossed in Spanish"
+    );
+    // *Glossed in Spanish with fewer glosses*.
+    assert!(other_inputs.glosses.len() < reference_inputs.glosses.len());
     let (reference, other) = (
         build_pack(&reference_inputs).expect("en-fr"),
         build_pack(&other_inputs).expect("en-es"),
     );
-    let en_es = Pack::load(&other).unwrap();
+    let (en_fr, en_es) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
     assert_eq!(en_es.pair().key(), "en-es", "glossed in Spanish");
     assert_studied_sections_alike("en-fr", &reference, &other);
-    assert_probes_alike(
-        &ENGLISH,
-        None,
-        &reference,
-        &other,
-        ENGLISH_IN_SPANISH.native,
-        false,
-    );
+    assert_probes_alike(&ENGLISH, None, &reference, &other, "es");
+    // Fewer glosses, yet glosses of its own: a lemma this pack glosses and en-fr does not is no
+    // dictionary word — the dictionary words are en-fr's, read from tables/en (the lexical
+    // section `assert_studied_sections_alike` found).
+    let only_here: Vec<&str> = other_inputs
+        .glosses
+        .iter()
+        .map(|(lemma, _)| lemma.as_str())
+        .filter(|lemma| en_fr.gloss(lemma).is_none())
+        .take(8)
+        .collect();
+    assert!(!only_here.is_empty(), "en-es glosses lemmas en-fr does not");
+    for lemma in &only_here {
+        assert!(
+            en_es.gloss(lemma).is_some() && !en_es.is_dictionary_word(lemma),
+            "{lemma}"
+        );
+    }
 
     // *A vocabulary size counts dictionary words*: the universe and B1's typical vocabulary.
     let (universe, typical) = sizes(&reference, "en");
     assert_eq!((universe, typical[2]), (25_372, 3_359), "en-fr, B1");
     assert_eq!(sizes(&other, "en"), (universe, typical));
 
-    // *A sense part of speech the first pack never used*: the core reads the run as NUM.
-    let (lemma, _) = other_inputs
+    // *A sense part of speech the first pack never used*: no en-fr run is tagged NUM; en-es tags
+    // the numbers' runs NUM (the Spanish Wiktionary's numeral sections, kaikki's `num`), and the
+    // core reads a numeral's runs as the table writes them — « three », a number and a noun.
+    assert!(
+        reference_inputs
+            .senses
+            .iter()
+            .all(|(_, runs)| runs.iter().all(|(tag, _)| tag != "NUM"))
+    );
+    let (_, runs) = other_inputs
         .senses
         .iter()
-        .find(|(_, runs)| runs[..] == [("NUM".to_owned(), 1)])
-        .expect("a run tagged NUM");
-    let runs: Vec<String> = en_es
-        .sense_runs(lemma)
+        .find(|(lemma, _)| lemma == "three")
+        .expect("three's sense runs");
+    let tags: Vec<&str> = runs.iter().map(|(tag, _)| tag.as_str()).collect();
+    assert_eq!(tags, ["NUM", "NOUN"], "three, in tables/en-es/senses.tsv");
+    let read: Vec<String> = en_es
+        .sense_runs("three")
         .into_iter()
         .map(|(tag, _)| tag.unwrap().to_ud())
         .collect();
-    assert_eq!(runs, ["NUM"], "{lemma}");
+    assert_eq!(read, tags, "three, as the core reads it");
 }
 
 #[test]
@@ -250,7 +276,7 @@ fn spec_scenario_spanish_through_another_native_language() {
         build_pack(&other_inputs).expect("es-en"),
     );
     assert_studied_sections_alike("es-fr", &reference, &other);
-    assert_probes_alike(&SPANISH, Some("es"), &reference, &other, "en", true);
+    assert_probes_alike(&SPANISH, Some("es"), &reference, &other, "en");
 
     let (es_fr, es_en) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
     assert_eq!(es_en.pair().key(), "es-en");

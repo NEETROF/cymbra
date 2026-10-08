@@ -1,0 +1,425 @@
+### word-grammar went go
+grammar: pasado simple de go
+page 1/1:
+  [verbo] Andar, marchar, caminar; Marchar; Ir; Repartir
+  [sustantivo] Turno; Go (juego); Intento
+  [interjección] Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!
+row: Andar, marchar, caminar
+### word-grammar gone go
+grammar: participio pasado de go
+page 1/1:
+  [verbo] Andar, marchar, caminar; Marchar; Ir; Repartir
+  [sustantivo] Turno; Go (juego); Intento
+  [interjección] Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!
+row: Andar, marchar, caminar
+### word-grammar goes go
+grammar: plural y tercera persona del singular del presente simple de go
+page 1/1:
+  [verbo] Andar, marchar, caminar; Marchar; Ir; Repartir
+  [sustantivo] Turno; Go (juego); Intento
+  [interjección] Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!
+row: Andar, marchar, caminar
+### word-grammar has have
+grammar: tercera persona del singular del presente simple de have
+page 1/1:
+  [verbo] Tener; Haber (como verbo auxiliar); De un recurso o sustancia, generalmente alimento: Consumir, usar; Invitar, hospedar
+  [sustantivo] Pudiente, rico
+row: Tener
+### word-grammar had have
+grammar: pasado simple y participio pasado de have
+page 1/1:
+  [verbo] Tener; Haber (como verbo auxiliar); De un recurso o sustancia, generalmente alimento: Consumir, usar; Invitar, hospedar
+  [sustantivo] Pudiente, rico
+row: Tener
+### word-grammar are be
+grammar: presente simple de be
+page 1/1:
+  [verbo] Ser; Ser (be + participio pasado); Estar; Estar (be + participio presente); Encontrarse; Se usa en be to (no existe en español)
+row: Ser
+### word-grammar was be
+grammar: pasado simple de be
+page 1/1:
+  [verbo] Ser; Ser (be + participio pasado); Estar; Estar (be + participio presente); Encontrarse; Se usa en be to (no existe en español)
+row: Ser
+### word-grammar better good
+grammar: comparativo de good
+grammar: también puede ser el comparativo de well
+page 1/1:
+  [adjetivo] Bueno, buen
+  [sustantivo] Bien (posesión, mercancía)
+row: Bueno, buen
+### word-grammar best good
+grammar: superlativo de good
+grammar: también puede ser el superlativo de well
+page 1/1:
+  [adjetivo] Bueno, buen
+  [sustantivo] Bien (posesión, mercancía)
+row: Bueno, buen
+### word-grammar worse bad
+grammar: comparativo de bad
+grammar: también puede ser el comparativo de ill
+page 1/1:
+  [adjetivo] Malo
+row: Malo
+### word-grammar children child
+grammar: plural de child
+page 1/1:
+  [sustantivo] Niño, niña; Hijo, hija
+row: Niño, niña
+### word-grammar mice mouse
+grammar: plural de mouse
+page 1/1:
+  [sustantivo] Ratón, laucha; Por extensión, roedor; Mouse (periférico); Timorato, apocado, flojo
+row: Ratón, laucha
+### word-grammar leaves leave
+grammar: plural y tercera persona del singular del presente simple de leave
+grammar: también puede ser el plural de leaf
+page 1/1:
+  [verbo] Salir; Echar hojas; Irse, marcharse; Dejar
+  [sustantivo] Licencia, autorización; Vacaciones; Partida, salida
+row: Salir
+### word-grammar leaves leaf
+grammar: plural de leaf
+page 1/1:
+  [sustantivo] Hoja
+row: Hoja
+### word-grammar read read
+grammar: también puede ser el pasado simple y el participio pasado de read
+page 1/1:
+  [verbo] Leer; Leerse; Ver; Consistir de un cierto texto; Entender, comprender; Marcar, indicar; Interpretar
+  [sustantivo] Lectura
+row: Leer
+### word-grammar lead lead
+page 1/1:
+  [sustantivo] Plomo; Guía; Plomada
+  [verbo] Emplomar; Guiar, conducir; Liderar; Conducir, llevar, ir
+  [adjetivo] Primero, líder, principal
+row: Plomo
+### word-grammar led lead
+grammar: pasado simple y participio pasado de lead
+page 1/1:
+  [sustantivo] Plomo; Guía; Plomada
+  [verbo] Emplomar; Guiar, conducir; Liderar; Conducir, llevar, ir
+  [adjetivo] Primero, líder, principal
+row: Plomo
+### word-grammar ate eat
+grammar: pasado simple de eat
+page 1/1:
+  [verbo] Comer, tomar; Comer, almorzar, cenar
+row: Comer, tomar
+### word-grammar more more
+grammar: también puede ser el comparativo de more
+page 1/1:
+  [adjetivo] Mucho
+  [pronombre] Muchos, muchas
+  [sustantivo] Mayoría; Una gran cantidad
+row: Mucho
+### word-grammar thought think
+grammar: pasado simple y participio pasado de think
+page 1/1:
+  [verbo] Pensar; Creer
+  [adjetivo] Perteneciente o relacionado con el pensamiento
+  [sustantivo] Meditación
+row: Pensar
+### word-grammar thought thought
+page 1/1:
+  [verbo] Pensar; Creer
+  [adjetivo] Perteneciente o relacionado con el pensamiento
+  [sustantivo] Meditación
+row: Pensar
+### word-grammar running run
+grammar: forma en -ing de run
+page 1/1:
+  [verbo] Correr; Mover; Funcionar, estar en marcha; Dirigir
+  [sustantivo] Carrera; Viaje, paseo; Racha, período, etapa; Corral, gallinero
+row: Correr
+### word-grammar ran run
+grammar: pasado simple de run
+page 1/1:
+  [verbo] Correr; Mover; Funcionar, estar en marcha; Dirigir
+  [sustantivo] Carrera; Viaje, paseo; Racha, período, etapa; Corral, gallinero
+row: Correr
+### word-grammar feet foot
+grammar: plural de foot
+page 1/1:
+  [sustantivo] Pie; Pata; Base; Pie (unidad de longitud); Pie (unidad métrica cuantitativa de verso)
+row: Pie
+### word-grammar lying lie
+grammar: forma en -ing de lie
+page 1/1:
+  [verbo] Yacer, estar acostado, estar tumbado; Mentir; Residir, encontrarse, ubicarse, estar colocado o ubicado
+  [sustantivo] Mentira
+row: Yacer, estar acostado, estar tumbado
+### word-grammar lay lie
+grammar: pasado simple de lie
+page 1/1:
+  [verbo] Yacer, estar acostado, estar tumbado; Mentir; Residir, encontrarse, ubicarse, estar colocado o ubicado
+  [sustantivo] Mentira
+row: Yacer, estar acostado, estar tumbado
+### word-grammar lay lay
+grammar: también puede ser el pasado simple de lay
+page 1/1:
+  [verbo] Yacer, estar acostado, estar tumbado; Mentir; Residir, encontrarse, ubicarse, estar colocado o ubicado
+  [sustantivo] Mentira
+row: Yacer, estar acostado, estar tumbado
+### word-grammar saw see
+grammar: pasado simple de see
+page 1/1:
+  [verbo] Ver; Entender
+  [sustantivo] Sede (de un obispo o arzobispo); Diócesis
+row: Ver
+### word-grammar saw saw
+grammar: también puede ser el pasado simple de saw
+page 1/1:
+  [verbo] Ver; Entender
+  [sustantivo] Sede (de un obispo o arzobispo); Diócesis
+row: Ver
+### word-grammar don't do
+grammar: «don't» = do + not
+page 1/2:
+  [verbo] Hacer; Bastar; Verbo usado para construir frases negativas, interrogativas o resaltar la acción del verbo que acompaña; Tratar; Finalizar; Matar; Timar, estafar
+page 2/2:
+  [verbo] Follar
+row: Hacer
+### word-grammar won't will
+grammar: «won't» = will + not
+page 1/2:
+  [sustantivo] Deseo, inclinación, disposición; En particular, deseo sexual; Deleite, placer, goce
+  [verbo] Querer, desear; Úsase para construir el futuro; Testar
+  [nombre propio] Apellido
+page 2/2:
+  [nombre propio] Hipocorístico de William
+row: Deseo, inclinación, disposición
+### word-grammar children's child
+page 1/1:
+  [sustantivo] Niño, niña; Hijo, hija
+row: Niño, niña
+### word-grammar to to
+page 1/1:
+  [preposición] A; Hacia; Hasta; Con; En; Para
+  [adverbio] Hasta cerrar
+row: A
+### word-grammar a a
+page 1/2:
+  [determinante] Un, una. A veces se omite en la traducción; Un tal, una tal. Precediendo a nombres personales de gente a la que apenas se conoce
+page 2/2:
+  [preposición] Por, normalmente con sentido proporción; Denota la acción de un verbo cuando se halla delante del participio activo
+row: Un, una. A veces se omite en la traducción
+### word-grammar in in
+page 1/1:
+  [preposición] En, dentro, dentro de; A; Para; Con
+  [adjetivo] De moda; En temporada
+  [adverbio] En casa; Dentro, adentro, en el interior, al interior
+row: En, dentro, dentro de
+### word-grammar for for
+page 1/1:
+  [preposición] Para; Hacia; En dirección a; Durante; Por; A favor de; A causa de
+  [conjunción] Porque, ya que, puesto que
+row: Para
+### word-grammar that that
+page 1/1:
+  [pronombre] Ese, esa, esos, esas; Aquel, aquella, aquellos, aquellas
+  [adjetivo] Ese; Aquel
+  [conjunción] Que; Y pensar que, ojalá; Para que
+  [adverbio] Tan
+row: Ese, esa, esos, esas
+### word-grammar have have
+page 1/1:
+  [verbo] Tener; Haber (como verbo auxiliar); De un recurso o sustancia, generalmente alimento: Consumir, usar; Invitar, hospedar
+  [sustantivo] Pudiente, rico
+row: Tener
+### word-grammar by by
+page 1/1:
+  [preposición] Junto a; Por; A las; De
+  [adverbio] Por ahí; Apartado, reservado
+row: Junto a
+### word-grammar but but
+page 1/1:
+  [conjunción] Pero; Sino; Aunque
+  [preposición] Excepto, nada más que
+  [adverbio] Solo, solamente
+row: Pero
+### word-grammar or or
+page 1/1:
+  [conjunción] O
+  [sustantivo] Oro
+row: O
+### word-grammar all all
+page 1/1:
+  [adjetivo] Todo
+  [pronombre] Todos
+  [adverbio] Completamente, totalmente
+row: Todo
+### word-grammar one one
+page 1/1:
+  [numeral] Uno, i, I o 1
+  [pronombre] Uno
+  [sustantivo] El número uno
+row: Uno, i, I o 1
+### word-grammar can can
+page 1/1:
+  [verbo] Poder (tener capacidad de); Enlatar; Poder (tener permiso de); Saber (tener la habilidad de hacer algo)
+  [sustantivo] Lata, bote
+row: Poder (tener capacidad de)
+### word-grammar will will
+page 1/2:
+  [sustantivo] Deseo, inclinación, disposición; En particular, deseo sexual; Deleite, placer, goce
+  [verbo] Querer, desear; Úsase para construir el futuro; Testar
+  [nombre propio] Apellido
+page 2/2:
+  [nombre propio] Hipocorístico de William
+row: Deseo, inclinación, disposición
+### word-grammar just just
+page 1/1:
+  [adjetivo] Justo; Razonable; Merecido
+  [adverbio] Exactamente; Recientemente, justo ahora, ahora mismo, hace un momento; En este momento; En el momento en que; Apenas
+row: Justo
+### word-grammar like like
+page 1/1:
+  [verbo] Gustar
+  [preposición] Como, tal como
+  [adjetivo] Parecido, semejante; Típico, característico; Con deseo de; Probable, cercano
+row: Gustar
+### word-grammar about about
+page 1/3:
+  [preposición] En círculo alrededor, en general, en todos los lados de, en el exterior de, alrededor
+page 2/3:
+  [preposición] Sobre diferentes partes de, a través o por encima en varias direcciones, aquí y allá en, de un lado a otro, a lo largo; Acerca de; Sobre; Con respecto a
+page 3/3:
+  [adverbio] Más o menos; A punto de; Alrededor de
+row: En círculo alrededor, en general, en todos los lados de, en el exterior de…
+### word-grammar up up
+page 1/1:
+  [adjetivo] Construido; Despierto, levantado
+  [adverbio] Arriba; Derecho, de pie
+  [preposición] Hacia arriba, en lo alto; A lo largo de, al final de
+  [verbo] Incrementar, aumentar
+  [sustantivo] Subida
+row: Construido
+### word-grammar out out
+page 1/1:
+  [adverbio] Fuera; Totalmente, completamente; Afuera; De dominio público; Lejos
+  [adjetivo] Equivocado; En huelga; Pasado de moda
+row: Fuera
+### word-grammar no no
+page 1/1:
+  [adjetivo] Ningún, ninguno
+  [adverbio] No
+row: Ningún, ninguno
+### word-grammar her her
+page 1/1:
+  [pronombre] Ella; La (pronombre personal de objeto directo)
+  [adjetivo] Su (de ella)
+row: Ella
+### word-grammar time time
+page 1/1:
+  [sustantivo] Tiempo; Hora; Momento; Vez; Época, período
+  [verbo] Cronometrar; Seleccionar el momento de
+row: Tiempo
+### word-grammar new new
+page 1/1:
+  [adjetivo] Nuevo, nueva; Reciente
+  [adverbio] Recientemente
+  [sustantivo] Algo que es nuevo
+row: Nuevo, nueva
+### word-grammar some some
+page 1/1:
+  [pronombre] Algunos, unos
+  [adjetivo] Extraordinario
+row: Algunos, unos
+### word-grammar now now
+page 1/1:
+  [adverbio] Ahora, en el momento presente; Ahora mismo, inmediatamente; Entonces
+  [conjunción] Ahora que, ya que
+row: Ahora, en el momento presente
+### word-grammar other other
+page 1/1:
+  [pronombre] Otro, otra
+  [adjetivo] Otro
+row: Otro, otra
+### word-grammar its its
+page 1/1:
+  [adjetivo] Su, sus, que pertenece a un animal o una cosa
+  [pronombre] (El) suyo, (la) suya, (los) suyos o (las) suyas, que pertenece a un animal o una cosa
+row: Su, sus, que pertenece a un animal o una cosa
+### word-grammar good good
+page 1/1:
+  [adjetivo] Bueno, buen
+  [sustantivo] Bien (posesión, mercancía)
+row: Bueno, buen
+### word-grammar only only
+page 1/1:
+  [adjetivo] Único
+  [adverbio] Sólo, solamente, únicamente
+  [conjunción] Pero
+row: Único
+### word-grammar after after
+page 1/1:
+  [preposición] Tras, tras de
+  [adverbio] Después, después de; Detrás, detrás de
+  [adjetivo] Subsecuente, posterior
+  [conjunción] Después
+row: Tras, tras de
+### word-grammar first first
+page 1/1:
+  [adjetivo] Primero
+  [sustantivo] El primero, la primera; Primera vez
+  [adverbio] Primeramente
+row: Primero
+### word-grammar see see
+page 1/1:
+  [verbo] Ver; Entender
+  [sustantivo] Sede (de un obispo o arzobispo); Diócesis
+row: Ver
+### word-grammar over over
+page 1/1:
+  [preposición] Sobre, encima de, más de; Por todo; Por, por motivos de; Durante, a lo largo de
+  [adjetivo] Mayor; Terminado
+  [adverbio] De sobra; Completamente
+row: Sobre, encima de, más de
+### word-grammar think think
+page 1/1:
+  [verbo] Pensar; Creer
+  [adjetivo] Perteneciente o relacionado con el pensamiento
+  [sustantivo] Meditación
+row: Pensar
+### word-grammar any any
+page 1/1:
+  [adjetivo] Cualquier; Alguno, alguna
+  [adverbio] Algo
+  [pronombre] Cualquiera
+row: Cualquier
+### word-grammar back back
+page 1/1:
+  [sustantivo] Espalda; Lomo; Parte trasera
+  [adjetivo] Trasero
+  [adverbio] De vuelta; Atrás
+  [verbo] Ir hacia atrás; Mover hacia atrás
+row: Espalda
+### word-grammar want want
+page 1/1:
+  [verbo] Querer, desear; Faltar; Requerir
+  [sustantivo] Falta; Deseo
+row: Querer, desear
+### word-grammar go go
+page 1/1:
+  [verbo] Andar, marchar, caminar; Marchar; Ir; Repartir
+  [sustantivo] Turno; Go (juego); Intento
+  [interjección] Se emplea para iniciar un juego o competencia. ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos!
+row: Andar, marchar, caminar
+### word-grammar well well
+page 1/1:
+  [adverbio] Competentemente; Completamente
+  [adjetivo] Bien
+  [sustantivo] Pozo
+row: Competentemente
+### word-grammar way way
+page 1/1:
+  [sustantivo] Camino, vía, calle, avenida; Entrada, salida; Dirección; Distancia; Manera, modo, forma, aspecto
+  [adverbio] Muy, mucho, más, de sobra
+row: Camino, vía, calle, avenida
+### word-grammar much much
+page 1/1:
+  [adjetivo] Mucho
+  [pronombre] Tanto, mucho
+row: Mucho

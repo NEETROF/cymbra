@@ -1185,6 +1185,24 @@ describe("rowGloss", () => {
     expect(rowGloss(`${"a".repeat(78)}(${"c".repeat(30)})`)).toBe(`${"a".repeat(78)}…`);
     expect(rowGloss(`${"a".repeat(78)}«${"c".repeat(30)}»`)).toBe(`${"a".repeat(78)}…`);
   });
+
+  it("cuts before the Spanish opening marks and keeps the closing ones (add-lingua-spanish-card-wording D4)", () => {
+    // ¿ and ¡ stand against their words, so a cut lands on the space before them: the row ends on
+    // the word before the mark, which goes with its word.
+    expect(rowGloss(`${"a".repeat(60)} ${"b".repeat(13)} ¿${"c".repeat(30)}?`)).toBe(
+      `${"a".repeat(60)} ${"b".repeat(13)}…`,
+    );
+    expect(rowGloss(`${"a".repeat(60)} ${"b".repeat(13)} ¡${"c".repeat(30)}!`)).toBe(
+      `${"a".repeat(60)} ${"b".repeat(13)}…`,
+    );
+    // ? and ! close what they ask or exclaim: a row cut right after them keeps them.
+    expect(rowGloss(`${"a".repeat(60)} ¿${"b".repeat(12)}? ${"c".repeat(30)}`)).toBe(
+      `${"a".repeat(60)} ¿${"b".repeat(12)}?…`,
+    );
+    expect(rowGloss(`${"a".repeat(60)} ¡${"b".repeat(12)}! ${"c".repeat(30)}`)).toBe(
+      `${"a".repeat(60)} ¡${"b".repeat(12)}!…`,
+    );
+  });
 });
 
 describe("rowsFor", () => {

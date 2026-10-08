@@ -17,12 +17,16 @@ import type { grammar as fr } from "../fr/grammar.ts";
 import type { GrammarLine, Named, StudiedLanguageCode } from "../index.ts";
 
 // The word card's grammar in Spanish — a draft after the French renderer
-// (generalise-lingua-card-wording D2–D4), reviewed by the owner (M9). It names the forms in the
+// (generalise-lingua-card-wording D2–D4), reviewed by the owner (M9). It names Spanish forms in the
 // RAE/ASALE's terms (M10): « tercera persona del singular del pretérito perfecto simple de
-// indicativo de venir », « participio de hablar »; English's tenses by the names Spanish teaching
-// gives them (« pasado simple »). Spanish has articles and no elision: « de » before a tense
-// contracts with its « el » (« del presente »), never before a word of the page. Readings merge by
-// tag; the tenses come in the order its table lists them.
+// indicativo de venir », « participio de hablar »; English forms by the names Spanish-language
+// teaching of English gives them, never a Spanish tense's — the Spanish Wiktionary's English form-of
+// wording (« Pasado simple del verbo (to) have », « Tercera persona del singular (he, she, it) del
+// presente simple del verbo (to) go », « Participio pasado del verbo (to) have ») and M10's « forma
+// en -ing », read on the en-es golden's real forms (add-lingua-spanish-card-wording D3). Spanish has
+// articles and no elision: « de » before a tense contracts with its « el » (« del presente simple »),
+// never before a word of the page. Readings merge by tag; the tenses come in the order its table
+// lists them.
 
 const PARTS_OF_SPEECH: Record<string, string> = {
   ADJ: "adjetivo",
@@ -46,12 +50,13 @@ const ORDINALS: Record<string, string> = { "1": "primera", "2": "segunda", "3": 
 const NUMBERS: Record<string, string> = { Sing: "singular", Plur: "plural" };
 
 /**
- * The studied languages' moods and tenses, in the RAE's terms, keyed `Mood/Tense` and listed in the
- * RAE's order — indicative, conditional, subjunctive, imperative — which is the order the card names
- * them in (`tenseOrder`; English's two come in the pack's order).
+ * The studied languages' moods and tenses, keyed `Mood/Tense`: Spanish's in the RAE's terms, listed in
+ * the RAE's order — indicative, conditional, subjunctive, imperative — which is the order the card
+ * names them in (`tenseOrder`); English's two as Spanish-language teaching names them — « presente
+ * simple », not the RAE's « presente » (add-lingua-spanish-card-wording D3) — in the pack's order.
  */
 const TENSES: Record<StudiedLanguageCode, TenseTable> = {
-  en: { "Ind/Past": "pasado simple", "Ind/Pres": "presente" },
+  en: { "Ind/Past": "pasado simple", "Ind/Pres": "presente simple" },
   es: {
     "Ind/Pres": "presente de indicativo",
     "Ind/Imp": "pretérito imperfecto de indicativo",
@@ -70,6 +75,12 @@ const GERUNDS: Record<StudiedLanguageCode, Named> = {
   en: { article: "la", name: "forma en -ing" },
   es: { article: "el", name: "gerundio" },
 };
+
+/**
+ * The past participle's name: English's « participio pasado », as Spanish-language teaching of English
+ * names it (add-lingua-spanish-card-wording D3); Spanish's « participio », the RAE's.
+ */
+const PARTICIPLES: Record<StudiedLanguageCode, string> = { en: "participio pasado", es: "participio" };
 
 /** « femenino plural », « masculino singular », « plural »: a nominal form's agreement. */
 function agreement({ gender, number }: Agreement): string | undefined {
@@ -112,7 +123,7 @@ const readingWords: ReadingWords = {
           kind.gender === "Masc" && kind.number !== "Plur"
             ? undefined
             : agreement(kind.number === "Sing" ? { gender: kind.gender } : kind);
-        return el(agreed ? `participio ${agreed}` : "participio");
+        return el(agreed ? `${PARTICIPLES[studied]} ${agreed}` : PARTICIPLES[studied]);
       }
       case "gerund":
         return GERUNDS[studied];

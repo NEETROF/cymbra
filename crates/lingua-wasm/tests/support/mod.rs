@@ -16,11 +16,13 @@
 //! pack built from the committed tables, frozen in `tests/baseline/<pair>.golden`.
 //!
 //! One scenario per shipped pair (`english.rs`, `spanish.rs` here, frozen by `english_baseline.rs`
-//! and `spanish_baseline.rs`; es-en's, the Spanish scenario glossed in English, is declared by
-//! `es_en_baseline.rs` itself), one harness: the probes and the reader's history are the same for
-//! every pair, only the words differ. `cross_native.rs` answers the same scenarios through a pack
-//! glossed in another native language (`other_native.rs` builds it); `probes` and `studied_side`
-//! here are how it, and `es_en_baseline.rs`, read a golden probe by probe and remove the native side.
+//! and `spanish_baseline.rs`; es-en's, the Spanish scenario glossed in English, and en-es's, the
+//! English scenario glossed in Spanish, are declared by `es_en_baseline.rs` and `en_es_baseline.rs`
+//! themselves), one harness: the probes and the reader's history are the same for every pair, only
+//! the words differ. `cross_native.rs` answers the English and Spanish scenarios through the real
+//! pack of the same studied tables glossed in another native language (en-es, es-en); `probes`
+//! and `studied_side` here are how it, `es_en_baseline.rs` and `en_es_baseline.rs` read a golden
+//! probe by probe and remove the native side.
 //! A golden is re-blessed with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test <test>`, and the
 //! pull request says why (docs/lingua/language-matrix-programme.md: en-fr and es-fr do not move).
 
@@ -28,7 +30,6 @@
 
 pub mod english;
 pub mod french;
-pub mod other_native;
 pub mod spanish;
 
 use std::fmt::Write as _;
@@ -497,18 +498,17 @@ fn strip(value: &mut serde_json::Value) {
 }
 
 /// A probe's output with its native side removed; `None` for the probes that are native or
-/// pack identity by definition: the pack lines and a card's gloss — and, when `own_credits`, the
-/// notice and the licences: a real pack's attributions credit the sources of its glosses, so
-/// es-en's name the English and Spanish Wiktionaries where es-fr's name the French one
-/// (add-lingua-pack-es-en D4). A synthetic second pack keeps its reference's credits, and they
-/// are compared.
+/// pack identity by definition: the pack lines, a card's gloss, the notice and the licences — a
+/// real pack's attributions credit the sources of its glosses, so es-en's name the English and
+/// Spanish Wiktionaries where es-fr's name the French one (add-lingua-pack-es-en D4), and en-es's
+/// the Spanish one where en-fr's name the French one.
 ///
 /// An engine's native language is its reader's (generalise-lingua-native-language), so the
 /// backup records the reader's profile, and writes it in the schema version a profile other
 /// than the default needs: both name the reader, not what the pack analyses.
-pub fn studied_side(name: &str, body: &str, own_credits: bool) -> Option<String> {
+pub fn studied_side(name: &str, body: &str) -> Option<String> {
     if name == "pack"
-        || (own_credits && matches!(name, "notice" | "licences"))
+        || matches!(name, "notice" | "licences")
         || name.starts_with("beside ")
         || name.starts_with("gloss ")
     {

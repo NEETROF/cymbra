@@ -334,18 +334,20 @@ jobs:
           git switch -c "$branch"
           # The invariance baselines follow the dictionary (docs/lingua/spanish-programme.md,
           # docs/lingua/language-matrix-programme.md): re-blessed here, so the pull request shows
-          # what the update changes in English and Spanish output. All three, whatever the pair:
-          # the Spanish ladder borrows English's figures from the en-fr pack, and es-en's golden
-          # moves with es-fr's studied tables (change 23). Once, whatever the pairs.
+          # what the update changes in English and Spanish output. All five, whatever the pair:
+          # the Spanish ladder borrows English's figures from the en-fr pack, es-en's golden
+          # moves with es-fr's studied tables (change 23) and en-es's with en-fr's (change 24).
+          # Once, whatever the pairs.
           # The French one too: its engine holds the real es-en pack beside the fr-en fixture
           # (add-lingua-french-baseline D5), so an es-en update moves its `beside es-en` line.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test french_baseline
-          # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4): the
-          # English card's lines over the es-en golden's grammar probes, and the selection card's
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline
+          # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4,
+          # add-lingua-spanish-card-wording D2): the English card's lines over the es-en golden's
+          # grammar probes, the Spanish card's over the en-es golden's, and the selection card's
           # rows over the committed French glosses. `-u` after the files: vitest's `-u, --update
           # [type]` takes an optional value, so `-u <file>` would read the first file as that value
-          # and run the second alone, leaving the first snapshot as it was.
-          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/row-gloss-tables.spec.ts -u)
+          # and run the others alone, leaving the first snapshot as it was.
+          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/row-gloss-tables.spec.ts -u)
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
           if [ "$EXPECT" = identical ]; then

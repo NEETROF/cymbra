@@ -8,7 +8,9 @@ import { createCard, type WordPopupContent } from "@/reading/wordpopup.ts";
 // generalise-lingua-card-wording: the Spanish renderer over the French spec's inputs
 // (test/word-grammar.spec.ts), drafted for the owner's review (M9, D4) and shown to no reader until
 // the interface speaks Spanish (change 20). It names what the French card names, in its own words,
-// joining and order of tenses.
+// joining and order of tenses. English forms by the names Spanish-language teaching of English gives
+// them — « presente simple », « participio pasado » — as the en-es golden's real forms read
+// (add-lingua-spanish-card-wording D3, test/word-card-en-es.spec.ts).
 
 const PAST: GrammarTag = { pos: "VERB", features: { Mood: "Ind", Tense: "Past", VerbForm: "Fin" } };
 const PARTICIPLE: GrammarTag = { pos: "VERB", features: { Tense: "Past", VerbForm: "Part" } };
@@ -62,12 +64,12 @@ describe("the word card in Spanish, of an English word", () => {
       surface: "walked",
       grammar: grammar({ readings: [PAST, PARTICIPLE] }),
     });
-    expect(lines).toEqual(["pasado simple y participio de walk"]);
+    expect(lines).toEqual(["pasado simple y participio pasado de walk"]);
   });
 
   it("A form spelled like its dictionary form, as a possibility", () => {
     const { lines } = shown({ headword: "put", surface: "put", grammar: grammar({ readings: [PAST, PARTICIPLE] }) });
-    expect(lines).toEqual(["tambi\u00e9n puede ser el pasado simple y el participio de put"]);
+    expect(lines).toEqual(["tambi\u00e9n puede ser el pasado simple y el participio pasado de put"]);
   });
 
   it("A form of two dictionary forms", () => {
@@ -77,7 +79,7 @@ describe("the word card in Spanish, of an English word", () => {
       grammar: grammar({ readings: [THIRD], others: [{ lemma: "leaf", readings: [PLURAL] }] }),
     });
     expect(lines).toEqual([
-      "tercera persona del singular del presente de leave",
+      "tercera persona del singular del presente simple de leave",
       "tambi\u00e9n puede ser el plural de leaf",
     ]);
   });
@@ -93,7 +95,7 @@ describe("the word card in Spanish, of an English word", () => {
         written: "doesn't",
         grammar: grammar({ pieces: ["does", "not"], readings: [THIRD] }),
       }).lines,
-    ).toEqual(["\u00abdoesn't\u00bb = does + not", "tercera persona del singular del presente de do"]);
+    ).toEqual(["\u00abdoesn't\u00bb = does + not", "tercera persona del singular del presente simple de do"]);
   });
 
   it("No code reaches the reader", () => {
@@ -128,16 +130,20 @@ describe("the word card in Spanish, of an English word", () => {
 
   it("names English verb forms, plurals and degrees", () => {
     expect(renderer.readingName({ pos: "VERB", features: { VerbForm: "Ger" } })?.name).toBe("forma en -ing");
-    expect(renderer.readingName(THIRD)?.name).toBe("tercera persona del singular del presente");
+    expect(renderer.readingName(THIRD)?.name).toBe("tercera persona del singular del presente simple");
     expect(
       renderer.readingName({
         pos: "VERB",
         features: { Mood: "Ind", Number: "Sing", Person: "1", Tense: "Pres", VerbForm: "Fin" },
       })?.name,
-    ).toBe("primera persona del singular del presente");
+    ).toBe("primera persona del singular del presente simple");
     expect(renderer.readingName({ pos: "VERB", features: { Mood: "Ind", Tense: "Pres", VerbForm: "Fin" } })?.name).toBe(
-      "presente",
+      "presente simple",
     );
+    // The past participle as Spanish-language teaching of English names it; Spanish's is the RAE's
+    // « participio ».
+    expect(renderer.readingName(PARTICIPLE)).toEqual({ article: "el", name: "participio pasado" });
+    expect(renderer.readingName(PARTICIPLE, "es")).toEqual({ article: "el", name: "participio" });
     expect(renderer.readingName(PLURAL)?.name).toBe("plural");
     expect(renderer.readingName({ pos: "ADJ", features: { Degree: "Cmp" } })?.name).toBe("comparativo");
     expect(renderer.readingName({ pos: "ADV", features: { Degree: "Sup" } })?.name).toBe("superlativo");
@@ -167,7 +173,7 @@ describe("the word card in Spanish, of an English word", () => {
       .map(lineText);
     expect(lines).toEqual([
       "tambi\u00e9n puede ser el pasado simple de ate",
-      "tambi\u00e9n puede ser el participio de eat",
+      "tambi\u00e9n puede ser el participio pasado de eat",
     ]);
   });
 

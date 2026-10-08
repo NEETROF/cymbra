@@ -50,7 +50,9 @@ reference's and the 40 — renders each through `src/i18n/es/grammar.ts` and the
 committed snapshot (`toMatchFileSnapshot`), re-blessed with `yarn vitest run
 test/word-card-en-es.spec.ts -u` (the flag after the file: vitest's `-u [type]` would take a file
 written after it as its value); `lingua-pack-update` re-blesses it beside the Rust goldens (with
-Node). Nothing reads the tables, so nothing copies the engine's grouping into TypeScript.
+Node). Nothing reads the tables, so nothing copies the engine's grouping into TypeScript. A word
+the pre-pass split is rendered on its piece, as the card opens it (`openForToken`: the token's
+`surface` is the piece, `written` the whole word): « don't » on « do ».
 
 ### D3 — Corrections on real forms
 
@@ -79,6 +81,105 @@ sentence before change 25's route. Every card that reads wrong is fixed here —
 cut (D4), or, when the gloss itself is wrong, a rule of `reduce_edition_*.py` or the pair's reducer
 that re-pins en-es alone (change 6 D2) — or listed for change 33 when the fix is the owner's wording
 call, or for a follow-up named in the pull request.
+
+### Known data defects
+
+What the snapshot pins that reads wrong and is not the renderer's wording (D3), named by the card,
+not by a table line, each with the module its fix lives in — the input of an en-es reducer fix after
+this change, which re-pins en-es alone (change 6 D2) and re-blesses the golden and the snapshot. The
+counts are over the 5,000 commonest lemmas en-es glosses (`tables/en/freq.tsv`), on the tables of
+2026-10-08.
+
+The glosses (the native side: the Spanish Wiktionary's rules `scripts/lingua-data/reduce_edition_es.py`,
+the pair's reducer `scripts/lingua-data/reduce-en-es.py`, or the rules every pair shares in
+`reduce_common.py`):
+- Surnames on a common word's card: « will » ends on « [nombre propio] Apellido; Hipocorístico de
+  William »; of the 5,000, 108 have a sense that is a bare « Apellido » (« will », « south »), 69 of
+  them end on it (« white », « small »), and 111 name « Apellido » in a sense (the three more: « Apellido
+  inglés », « Apellido de origen escocés », « Apellido del alemán »): the Spanish Wiktionary's English
+  proper-noun sections — a surname spelled like the word — glossing the lower-case lemma —
+  `reduce-en-es.py` (which entries gloss a lemma), or `reduce_edition_es.py` (a bare « Apellido »
+  left out, as a letter's name is).
+- Editorial notes kept: « stage », « unit »: « .^([cita requerida]) »; « favor »: « Hacer un favor
+  [sentido del sustantivo] para »; « full-time »: « [a] tiempo completo » — `reduce_edition_es.py`
+  (`_NOTES`).
+- An English label in a Spanish gloss: « south »: « (region) Sur », a translation table's
+  qualifier kept — `reduce-en-es.py` (`read_translated`).
+- « etc » without its period: « oh » (« …desaprobación, etc »), « personal », « fair »
+  (« Moderadamente bueno, grande, amplio, etc »), 29 of the 5,000: the period closing a sense is
+  stripped with the sense's own — `reduce_common.py` (`rstrip(".:")`, every pair's: an edition rule
+  keeps the en-fr and es-fr bytes), as es-en's « etc » (change 23).
+- Usage notes inside a sense, shown on the row: « a »: « Un, una. A veces se omite en la
+  traducción »; « get »: « (Seguido de un participio pasado) Ser »; and a usage note shown as a sense,
+  « be »'s last: « Se usa en be to (no existe en español) » — `reduce_edition_es.py`.
+- One form named two ways on one card: « be »'s gloss calls the -ing form « participio presente »
+  (« Estar (be + participio presente) ») where the card's line says « forma en -ing » (M10,
+  « running »: « forma en -ing de run ») — `reduce_edition_es.py` (the edition's « participio
+  presente » in an English entry read as the card names it), the name being M10's.
+- Senses shown with no label (usage, register and region are not in the packs): « do »'s
+  « Timar, estafar » and « Follar », « mouse »'s « laucha » (Southern Cone) and « Timorato, apocado,
+  flojo » (figurative), « or »'s « [sustantivo] Oro » (heraldry) — `reduce_edition_es.py`, whether
+  such a sense is kept being the owner's call (change 33).
+- Possessives, demonstratives and quantifiers headed « adjetivo »: « her » (« [adjetivo] Su (de
+  ella) »), « its », « that » (« [adjetivo] Ese; Aquel »), « all », « no », « any », « much »,
+  « other » — the Spanish Wiktionary's « adjetivo posesivo / demostrativo / indefinido », which the
+  RAE's grammar calls determinantes, filed by kaikki as `adj`; the heading is the sense run's tag, not
+  the renderer's wording — `reduce_edition_es.py` (those sections read as `DET`), through
+  `reduce_common.py`'s map of kaikki's parts of speech.
+- Rows opening on an unexpected group or sense: « up » on « Construido » (the adjective before the
+  adverb « Arriba »), « well » on « Competentemente » (before « Bien »), « lead » on « Plomo » (the
+  noun before the verb « Guiar, conducir »), « will » and « won't » on « Deseo, inclinación,
+  disposición » (the noun before the modal « Úsase para construir el futuro »: runs NOUN:3 VERB:3
+  PROPN:2), « go », « went », « gone » and « goes » on « Andar, marchar, caminar » (« Ir » third,
+  « Marchar » twice: « Andar, marchar, caminar; Marchar; Ir »), « about » on the archaic « En círculo
+  alrededor, en general, … » (before « Acerca de; Sobre »), « by » on « Junto a » (before « Por ») —
+  `reduce-en-es.py` (the runs' order, `reduce_common.py`'s `_join_senses_by_pos`, which also keeps a
+  sense repeating a word of the one before, as « Marchar ») and `reduce_edition_es.py` (the sense kept
+  first).
+- A common word read as another entry: « billiard » tagged NUM and glossed « Billardo » (mis-tagged:
+  the reader's « billiard » is the game's, en-fr's card reading the adjective « Relatif au billard »)
+  — `reduce-en-es.py` (which entries gloss a lemma).
+- The source's own wording: « huh »: « !Um¡, !uf¡ », the marks swapped; « who'd »: « Contracción de
+  el pronombre who y el verbo had, ¿Quién tenía / tuvo / había / hubo....? »; « it's »: straight
+  quotes, « ("ello") »; « a »: « Por, normalmente con sentido proporción » (« de » missing);
+  « read »: « Consistir de un cierto texto »; « one »: « Uno, i, I o 1 », the Roman numerals — the
+  entries upstream, or a `reduce_edition_es.py` rule for the quotes.
+
+For the owner's review (4.2), each a call between the source's wording and a rule, none blocking:
+- « to »: « [adverbio] Hasta cerrar » (the adverb of « pull the door to »), true to the source and a
+  fragment on the card — `reduce_edition_es.py` if it is left out.
+- « Sólo » (« only »: « Sólo, solamente, únicamente »): the accent the RAE's 2010 *Ortografía*
+  advises against (« solo »), kept as the edition spells it — `reduce_edition_es.py` if respelled.
+- « Úsase » (« will »: « Úsase para construir el futuro »): the edition's enclitic, dated beside « Se
+  usa » — `reduce_edition_es.py` if reworded.
+- Usage notes inside a sense: « go »'s interjection (« Se emplea para iniciar un juego o competencia.
+  ¡Ya!, ¡ahora!, ¡fuera!, ¡vamos! ») and « have »'s « De un recurso o sustancia, generalmente
+  alimento: Consumir, usar », the note before the meaning — `reduce_edition_es.py`, as « a »'s and
+  « get »'s above.
+- Rows opening on the adjective or the verb before the sense most read: « just » on « Justo » (before
+  the adverb « Exactamente … Apenas »), « only » on « Único » (before « Sólo, solamente »), « like »
+  on « Gustar » (before the preposition « Como ») — `reduce-en-es.py` (the runs' order,
+  `reduce_common.py`), as the rows above.
+
+Not defects, said here so that they are not looked for again:
+- The readings (`tables/en/`, en-fr's) read right on every probe; « goes » and « leaves » name the
+  noun's plural beside the verb's form on one line, as the French card does.
+- « lay », « saw » and « more » asked as their own dictionary form: the analyser reads them as forms
+  of « lie », « see » and « many », so the engine answers with those readings and glosses while the
+  line names the word asked (« también puede ser el pasado simple de lay ») — a card the reader never
+  opens, the same in en-fr's golden. « thought » asked as its own likewise shows think's gloss
+  (« Pensar; Creer … »), with no line: `tables/en/forms.tsv` reads it as think's form alone, and
+  neither pack glosses a lemma « thought » — the same in en-fr's golden; the card a reader opens is
+  the probe `thought think`'s, « pasado simple y participio pasado de think ».
+- Single translation-table words (« expedition »: « Expedición », « lighthouse »: « Faro »,
+  « dove »: « Paloma »), capitalised as the edition writes its senses: the Risks' owner's call.
+- No row ends on an opening mark: the Spanish Wiktionary's ¿ and ¡ stand against their words, so
+  a cut lands on the space before them (D4).
+
+Wording the spec keeps, for the owner (M9, change 33), not data: the -ing form reads « forma en -ing »
+(M10; the Spanish Wiktionary writes « Participio presente y gerundio del verbo (to) run », and the
+spec forbids the gerundio); a line names the dictionary form alone (« de go »), not « del verbo (to)
+go », and no persons' pronouns (« (he, she, it) »), as every renderer.
 
 ## Risks / Trade-offs
 

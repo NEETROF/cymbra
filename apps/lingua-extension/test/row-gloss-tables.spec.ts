@@ -50,12 +50,12 @@ describe("the selection card's rows over the committed French glosses", () => {
 
 // The cut's rules, owned by add-lingua-english-card-wording (D4) and measured on every committed
 // gloss of every pair, the English- and Spanish-glossed ones included: the trailing set gains an
-// opening mark only when a committed row would end on one — none does — and a closing mark is
-// never stripped.
+// opening mark only when a committed row would end on one — none does, the Spanish Wiktionary's ¿
+// and ¡ included (add-lingua-spanish-card-wording D4) — and a closing mark is never stripped.
 const PAIRS = ["en-fr", "es-fr", "es-en", "en-es"];
 
 /** The marks a row must not end on, before its ellipsis: the openers of every edition the packs read. */
-const OPENING = /[“‘«([]…$/u;
+const OPENING = /[“‘«([¿¡]…$/u;
 
 describe("the row cut over every committed gloss", () => {
   it("skips no sense: the empty-sense pattern matches no gloss of any edition the packs read", () => {

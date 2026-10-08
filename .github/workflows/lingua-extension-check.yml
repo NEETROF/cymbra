@@ -112,16 +112,17 @@ jobs:
           done
       # The invariance baselines: what the engine gives the extension over a fixed corpus, with
       # the real packs — en-fr (the Spanish programme's S0, docs/lingua/spanish-programme.md),
-      # es-fr (docs/lingua/language-matrix-programme.md, change 3) and es-en (change 23: the
+      # es-fr (docs/lingua/language-matrix-programme.md, change 3), es-en (change 23: the
       # Spanish scenario glossed in English, whose grammar probes the extension's
-      # test/word-card-es-en.spec.ts renders and pins). A pull request that moves one re-blesses
-      # it (LINGUA_BLESS=1) and says why: a dictionary update, or an analyser change that bumps
-      # that language's analyser version. Here too, not only in `rust`, because a tables-only
-      # pull request (lingua-pack-update) does not start `rust`. fr-en (change 39,
+      # test/word-card-es-en.spec.ts renders and pins) and en-es (change 24: the English scenario
+      # glossed in Spanish, pinned by test/word-card-en-es.spec.ts). A pull request that moves one
+      # re-blesses it (LINGUA_BLESS=1) and says why: a dictionary update, or an analyser change
+      # that bumps that language's analyser version. Here too, not only in `rust`, because a
+      # tables-only pull request (lingua-pack-update) does not start `rust`. fr-en (change 39,
       # add-lingua-french-baseline) freezes French's baseline analysis over a fixture pack, beside
       # the real es-en pack, whose update moves its `beside es-en` line alone.
-      - name: Invariance baselines (en-fr, es-fr, es-en, fr-en)
-        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test french_baseline
+      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en)
+        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):
       # a studied language's tables — its pinned tag pool, studied tables and dictionary words —
       # are kept once, in tables/<studied>/, and read by every pair of that language
