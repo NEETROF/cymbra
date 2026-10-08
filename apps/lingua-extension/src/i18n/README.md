@@ -13,17 +13,19 @@ changes moving them take off the list: `localise-lingua-reading-surfaces` (14),
 `localise-lingua-settings` (15), `localise-lingua-review-stats` (16),
 `localise-lingua-account-onboarding` (17).
 
-One copy site the lint cannot see: `src/reading/speech.ts`'s `voiceLabel` names a voice's region
-through `new Intl.DisplayNames(["fr"], { type: "region" })` and writes `${voice.name} — ${place}` —
-no French literal, French output. Change 15 moves it, with a `regionName(language, code)` helper and
-a `settings.voiceLabel` slot message; until then a voice is named in French in every interface
-language.
+A copy site with no French literal is beyond the lint: a format whose output is French. The one the
+inventory found, `src/reading/speech.ts`'s `voiceLabel` — a voice's region named through
+`Intl.DisplayNames(["fr"])` — now goes through `regionName(language, code)` and the
+`settings.voiceLabel(name, place)` slot message (`localise-lingua-settings`), so a voice is named in
+the interface language; a new format goes through a helper of `index.ts` the same way.
 
 The interface language is the reader's native language (`language.ts`: `interfaceLanguage(area)`,
 `fr` when the key is absent, and when it cannot be read — it never rejects); `index.ts` holds the
-helpers — `plural`, `formatNumber`, `formatCount`, `formatPercent`, `formatDate`, `fillPage`,
-`fillPageInLanguage`, `renderAround` — and maps no surface, so importing it costs an entry nothing.
-A surface imports its own three modules and picks by the language.
+helpers — `plural`, `formatNumber`, `formatCount`, `formatPercent`, `formatDate`, `regionName`,
+`fillPage`, `fillPageInLanguage`, `renderAround`, `slot` and `fillSlots` — and maps no surface, so
+importing it costs an entry nothing. A surface imports its own three modules and picks by the
+language; Réglages, mounted by three hosts, picks its six (`settings`, `colours`, `display`,
+`translation`, `account-setting`, `sync`) in `reading/settings-copy.ts` and hands each block its own.
 
 ## Pages
 
@@ -54,7 +56,9 @@ language in a `lang` of their own.
 - **A sentence built from parts** is one function of its parts — `review.sources(names)`,
   `colours.preview(unknown, learning)` — so a translation may put the parts elsewhere. A part the
   surface renders apart (a bold number, a painted word) is passed as a sentinel and the result split
-  around it; the catalogue holds the sentence, not the markup.
+  around it; the catalogue holds the sentence, not the markup. `slot(i)` is the `i`-th part's
+  sentinel and `fillSlots(message, parts)` the nodes to append, each part where the language put it
+  (« Je connais les **3000** mots les plus courants », Réglages' shortcut lines and colour preview).
 - **A count** is a `PluralForms` object, `{ one, many?, other }`, each form a function of the
   number _as the language writes it_: `plural(language, n, forms)` picks the form through
   `Intl.PluralRules`. French and Spanish have `many` (a round million); English has not, and a

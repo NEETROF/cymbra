@@ -551,7 +551,7 @@ export function mountSettings(
       o.value = value;
       return o;
     };
-    const voiceOption = (v: VoiceInfo): HTMLOptionElement => option(v.voiceURI, voiceLabel(v));
+    const voiceOption = (v: VoiceInfo): HTMLOptionElement => option(v.voiceURI, voiceLabel(v, interfaceLanguage, copy));
     const { ordinary, others } = voiceGroups(eligible, speaker.lang, speaker.androidVoices(), speaker.remoteVoices());
     const automatic = speaker.automatic();
     voiceSelect.replaceChildren(
