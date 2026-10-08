@@ -57,16 +57,25 @@ impl SupportedLocale {
     }
 }
 
-/// Locale-aware Terms + Privacy URLs on the `cymbra.app` legal site (mirrors the
-/// app-side `legal-links` spec): French uses the French pages, every other locale
-/// falls back to the English pages.
+/// Locale-aware Terms + Privacy URLs on the `cymbra.app` legal site (change:
+/// localise-cymbra-id-email-legal-links): French uses the French pages, Spanish the
+/// Spanish pages, and every other locale — English, and Italian, which has no site
+/// pages — falls back to the English pages. The rule is the e-mails' own; the apps
+/// resolve their in-app legal links by their own rule.
+///
+/// A sent e-mail keeps its links forever, so every path here is pinned on the site
+/// (`apps/site/src/lib/pinned-routes.ts`).
 fn legal_links(locale: SupportedLocale) -> (&'static str, &'static str) {
     match locale {
         SupportedLocale::Fr => (
             "https://cymbra.app/cgu/",
             "https://cymbra.app/confidentialite/",
         ),
-        _ => (
+        SupportedLocale::Es => (
+            "https://cymbra.app/es/terminos/",
+            "https://cymbra.app/es/privacidad/",
+        ),
+        SupportedLocale::En | SupportedLocale::It => (
             "https://cymbra.app/en/terms/",
             "https://cymbra.app/en/privacy/",
         ),
@@ -352,26 +361,58 @@ mod tests {
         assert!(!all.contains("splash_logo"));
     }
 
+    /// The HTML part and the text part both link `terms` and `privacy`.
+    fn assert_legal_links(e: &RenderedEmail, terms: &str, privacy: &str) {
+        for (part, body) in [("html", &e.html), ("text", &e.text)] {
+            assert!(body.contains(terms), "{part} part lacks {terms}");
+            assert!(body.contains(privacy), "{part} part lacks {privacy}");
+        }
+    }
+
     #[test]
     fn french_localizes_subject_and_legal_links() {
         let e = verification_email("code", SupportedLocale::Fr, None);
         assert_eq!(e.subject, "Vérifiez votre compte Cymbra");
-        assert!(e.html.contains("https://cymbra.app/cgu/"));
-        assert!(e.html.contains("https://cymbra.app/confidentialite/"));
-        assert!(e.text.contains("https://cymbra.app/cgu/"));
+        assert_legal_links(
+            &e,
+            "https://cymbra.app/cgu/",
+            "https://cymbra.app/confidentialite/",
+        );
     }
 
     #[test]
-    fn non_french_uses_english_legal_links() {
-        for loc in [
-            SupportedLocale::En,
-            SupportedLocale::Es,
-            SupportedLocale::It,
-        ] {
-            let e = password_reset_email("code", loc, None);
-            assert!(e.html.contains("https://cymbra.app/en/terms/"));
-            assert!(e.html.contains("https://cymbra.app/en/privacy/"));
-        }
+    fn english_uses_english_legal_links() {
+        let e = password_reset_email("code", SupportedLocale::En, None);
+        assert_legal_links(
+            &e,
+            "https://cymbra.app/en/terms/",
+            "https://cymbra.app/en/privacy/",
+        );
+    }
+
+    #[test]
+    fn spanish_uses_spanish_legal_links() {
+        let e = password_reset_email("code", SupportedLocale::Es, None);
+        assert_legal_links(
+            &e,
+            "https://cymbra.app/es/terminos/",
+            "https://cymbra.app/es/privacidad/",
+        );
+        assert!(
+            !e.html.contains("https://cymbra.app/en/"),
+            "a Spanish e-mail must not link the English pages"
+        );
+    }
+
+    #[test]
+    fn italian_uses_english_legal_links() {
+        // No Italian site pages: Italian falls back to the English ones.
+        let e = password_reset_email("code", SupportedLocale::It, None);
+        assert_legal_links(
+            &e,
+            "https://cymbra.app/en/terms/",
+            "https://cymbra.app/en/privacy/",
+        );
     }
 
     #[test]
