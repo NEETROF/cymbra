@@ -83,11 +83,9 @@ _NOT_AFTER_A_PREPOSITION = "".join(rf"(?<!\b{word})" for word in _PREPOSITIONS)
 # A usage note's opening words, after the meaning's period (refine-lingua-en-es-glosses D2): a closed
 # list measured on the section. « Traducida », « Nosotros », « Persona » open a second sentence that
 # carries the meaning, and are not in it.
-_USAGE_OPENERS = (
-    "A veces", "Precediendo", "Usado", "Usada", "Usados", "Usadas", "Utilizado", "Utilizada", "Utilizados",
-    "Utilizadas", "Empleado", "Empleada", "Se usa", "Se dice", "Se emplea", "Se utiliza", "A no confundir",
-    "Compárese",
-)
+_USAGE_OPENERS = ("A veces", "Precediendo", "Usado", "Usada", "Usados", "Usadas", "Utilizado", "Utilizada")
+_USAGE_OPENERS += ("Utilizados", "Utilizadas", "Empleado", "Empleada", "Se usa", "Se dice", "Se emplea")
+_USAGE_OPENERS += ("Se utiliza", "A no confundir", "Compárese")
 
 # The notes the edition writes for its own readers: a sense link and « Véase también … »; and
 # (refine-lingua-en-es-glosses D2) its maintenance templates, its disambiguation notes, its
@@ -128,8 +126,9 @@ ES = common.Edition(
 #
 # The edition often opens an entry on its oldest sense (« go »'s « Andar, marchar, caminar », tagged
 # obsolete, before « Ir »), and the round-robin takes each entry's first senses; it writes an ellipsis
-# three ways and straight double quotes. `read_as_meanings` rewrites the senses before the shared
-# rules read them; it is the Spanish edition's, so it re-pins the pairs glossed in Spanish alone.
+# as three dots or more, and quotes as straight double quotes. `read_as_meanings` rewrites the senses
+# before the shared rules read them; it is the Spanish edition's, so it re-pins the pairs glossed in
+# Spanish alone.
 
 # The labels of a sense the edition marks no longer used (D5): kaikki's tags, and the raw labels it
 # leaves as written. « raro » is not one: a rare sense keeps its place.
