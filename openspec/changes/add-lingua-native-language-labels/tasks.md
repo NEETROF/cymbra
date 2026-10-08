@@ -13,5 +13,5 @@
 ## 3. Gates, review and docs
 
 - [x] 3.1 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`.
-- [ ] 3.2 [manual] The owner reviews the English and Spanish messages in the pull request (M9).
+- [ ] 3.2 [manual] The owner reviews the English and Spanish messages in the pull request (M9). Flagged for the owner's pick, the strings left as they are: the Spanish `noTextDetected` / `noTextInYourLanguages` use the pretérito simple (« No se detectó ») while the neighbouring popup sentences use the compuesto (« se ha analizado ») — one tense or the other; « Nivel de inglés estimado » against « Nivel estimado de inglés »; « cuyos tamaños de nivel retoma el español » reads as a calque of the French; the English "No text in your languages found on this page." could read "No text in your languages was found on this page.".
 - [x] 3.3 `openspec validate add-lingua-native-language-labels --strict` passes, and `python3 scripts/openspec_archive_order.py add-lingua-native-language-labels` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived); change 19 is marked done in `docs/lingua/language-matrix-programme.md`.

@@ -61,18 +61,33 @@ language, identical in the three modules) are on the same-everywhere list.
 
 `language-labels.ts` keeps its twelve exported names and signatures with one added, leading
 parameter: the interface language (`levelTitle(language, lang, estimated)`), and delegates to
-the catalogue's module for it; the surfaces pass the language they read with their preferences
-(changes 14–17 give each surface its `copy`; the language is beside it). The module is
-synchronous, as its callers are; nothing is cached. It comes off the lint's baseline with this
-change: it holds no literal.
+the catalogue's module for it; a thirteenth name, `levelScale(language)`, reads D1's entry for
+the one surface that spells the scale in a sentence of its own (D3). The surfaces pass the
+language they read with their preferences (changes 14–17 give each surface its `copy`; the
+language is beside it). The module is synchronous, as its callers are; nothing is cached. It
+comes off the lint's baseline with this change: it holds no literal.
 
 Alternative: a module-level setter filled by each entry. A surface that forgot it would read
 French silently.
 
+The same rule reaches the two views that name languages on their own and were mounted without a
+language: `mountStudiedLanguages` (`reading/studied-languages-view.ts`) and `levelRow`
+(`onboarding/level-row.ts`) take the interface language as a required parameter — no default —
+and the onboarding page, still French until change 17, hands them `DEFAULT_INTERFACE_LANGUAGE`
+explicitly, saying which change replaces it. The popup's main panel, rendered by an entry script
+no test runs, moves to `popup/render.ts` (`renderStats(document, language, copy, stats,
+onReader)`), which a test mounts on `popup.html` in the three languages; the entry keeps one line
+of wiring. A literal `"fr"` at any caller is then a failing test, not a silent default:
+`test/lint-settings-hosts.spec.ts` also reads every call of the two views, as it reads
+`mountSettings`'s.
+
 ### D3 — The level scale
 
 `estimatedLevelsNote` and the statistics' note (change 13's `stats.noLevels`, in change 16's
-file) read `levelScale`; a Spanish interface says « MCER ».
+file) read `levelScale`; a Spanish interface says « MCER ». Change 13's `stats.noLevels` was a
+string spelling « CEFR » twice; it is now a function of the scale, `noLevels(scale)`, in the three
+`stats` modules, and `stats/view.ts` calls it with `levelScale(interfaceLanguage)` — the scale's
+name lives in `languages.levelScale` alone.
 
 ### D4 — The lint names every language in every interface language
 
@@ -83,6 +98,12 @@ case-insensitively — « anglais », « espagnol », « français », "English"
 « inglés », « español », « francés » and their inflections, with change 13's baseline for the
 files not yet moved. Named exceptions, data not copy: the engine's enum names in
 `state/profile.ts` (`French`, `English`, `Spanish` as values), and a studied-language code.
+The lint reaches a developer-facing string too: `i18n/language.ts`'s warning, when the key cannot
+be read, said « showing French » — "French" is a name — and now says « showing the default (fr) »,
+naming the default by its code, which is data. The lint's boundaries are letters alone
+(`\p{L}`): a digit, an underscore or punctuation beside a name does not end the match, and a
+literal that names a language as data is listed in the exceptions, text for text, rather than
+loosened out of the pattern.
 
 ## Risks / Trade-offs
 
