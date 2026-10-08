@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: The store listings name each studied language
-Each store listing of Cymbra Lingua SHALL name every language the packages teach, in one listing per store: the Chrome Web Store, addons.mozilla.org and the App Store listing of the Safari app; each listing SHALL carry its texts in each native language a shipped pair is glossed in. For each language, a listing SHALL say whether extended translation is offered and what it downloads, and SHALL point to the published coverage of that language's glosses in the reader's language. The App Store listing SHALL NOT call the app a beta or a trial. The listings' text SHALL be kept in the repository's listing files, in the owner's wording.
+Each store listing of Cymbra Lingua SHALL name every language the packages teach, in one listing per store: the Chrome Web Store, addons.mozilla.org and the App Store listing of the Safari app; each listing SHALL carry a text in each native language a shipped pair is glossed in, naming the languages the packages teach a reader of that language. For each language, a text SHALL say whether extended translation is offered and what it downloads, and SHALL point to the published coverage of that language's glosses in the text's language. The App Store listing SHALL NOT call the app a beta or a trial. The listings' text SHALL be kept in the repository's listing files, in the owner's wording.
 
 #### Scenario: Spanish ships
 - **WHEN** the packages ship en-fr and es-fr
@@ -15,6 +15,10 @@ Each store listing of Cymbra Lingua SHALL name every language the packages teach
 - **WHEN** the App Store listing is prepared
 - **THEN** it calls the app neither a beta nor a trial, and says nothing of price
 
+#### Scenario: A listing in English
+- **WHEN** the packages ship es-en for English speakers learning Spanish
+- **THEN** each store's listing carries its English texts, written for them, beside the French
+
 #### Scenario: A listing in Spanish
 - **WHEN** the packages ship en-es for Spanish speakers learning English
-- **THEN** each store's listing carries its Spanish texts, written for them, beside the French
+- **THEN** each store's listing carries its Spanish texts, written for them, beside the French and the English
