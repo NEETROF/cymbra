@@ -95,12 +95,12 @@ Spanish edition as committed. Rows / top 10,000.
 |---|---|---|---|---|---|
 | The edition's notes (`ES`, 24b D2: templates, disambiguation, numbered senses, expansion notice, a usage note after the meaning) — already the edition's, measured against the edition before 24b | 3 / 3 | 2 / 2 | 0 | 15 / 12 | « madame » « Señora (vocativo). Se utiliza en presencia de… » → « Señora (vocativo) », « mademoiselle », « de »; no template, disambiguation note, reference or notice occurs in the section |
 | Senses marked obsolete or outdated after the others (`read_as_meanings`, 24b D5) | 19 / 7 | 10 / 2 | 1 | 41 / 27 | « chapelet » « Guirnalda; Rosario » → « Rosario; Guirnalda »; « rien », « mec », « foutre »; « baiser » opens on « Coger (sexualmente) », its « Besar » labelled outdated |
-| One typography (`typography`, 24b D6), senses and table words | 0 | 0 | 3 | 39 / 26 | « prière de » « … Se ruega que … », « trêve de plaisanterie » « Bromas aparte… »; the section's 50 straight quotes sit in pointer senses |
+| One typography (`typography`, 24b D6), senses and table words | 0 | 0 | 3 | 39 / 26 | « prière de » « … Se ruega que … », « trêve de plaisanterie » « Bromas aparte… »; the section's 50 straight quotes sit mostly in pointer senses |
 | A name's note does not gloss the common word (24b D3, fr-es's pass) | 17 / 12 | 8 / 6 | 0 | 61 / 53 | « jean » no longer opens on « Nombre de pila de varón, equivalente del español Juan »; « pierre » « Piedra », « rose », « romain » « Romano », « gay », « royal », « gagner » without « Apellido » |
-| Possessives and demonstratives are determiners, and their forms (24b D4, fr-es's pass) | 7 / 7, runs alone | 0 | 0 | 6 / 6 | `mon`, `ma`, `ton`, `ta`, `notre`, `ce` ADJ → DET; `mes` keeps « Mi », borrowed from `mon` as a determiner |
+| Possessives and demonstratives are determiners, and their forms (24b D4, fr-es's pass) | 7 / 7, runs alone | 0 | 0 | 6 / 6 | `ce`, `mon`, `ma`, `ton`, `ta`, `notre` ADJ → DET; `mes` keeps « Mi », borrowed from `mon` as a determiner |
 | Translators' notes and disused words (24b D7) | 0 | 0 | 0 | 136 / 28 | about twenty notes in 78,472 translations (« embaucar (1) », « afanar (se) »), none in a word a gloss keeps: not ported |
 | A Spanish word read backwards listed once (24b D7) | 94 / 31 | 6 / 2 | 0 | 58 / 10 | « cet » « Este; Este » → « Este », « capital », « joli » « Lindo, bonito, guapo; Guapo » → « Lindo, bonito, guapo », « vigueur » |
-| A letter glosses no word (en-es D1, the tables) | 11 / 11 lose a gloss | — | 0 | (en-es's first tables) | `h` « H », `x` « X », `r`, `b`, `o`, `g`, `k`, `w`, `z`, `q`, `i` « I latina, i »; `à`, `y`, `ô` keep their definitions |
+| A letter glosses no word (en-es D1, the tables) | 11 / 11 lose a gloss | — | 0 | (en-es's first tables) | `h` « H », `x` « X », `r`, `b`, `o`, `g`, `k`, `w`, `z`, `q`, `i` « I latina, i »; `à` and `y` keep their definitions, `ô` the direct table's « Oh » |
 | The studied word is no definition (D7, fr-es's) | 9 / 4 | 9 / 4 | 0 | — | « et » (rank 3) « Et » → « Y, e »; « troll » « Trol », « slip » « Calzoncillos, braguitas », « clochard » « Mendigo », « yucca » « Yuca »; « élite » « Élite » → « Elite » |
 | **Together** | **149 / 64** | **33 / 14** | **4** | 295 / 149 | 7 / 7 runs alone; 11 letters lose their gloss; none gained; coverage 83.4 / 70.9 / 56.9 → 83.2 / 70.8 / 56.8 % |
 
@@ -221,7 +221,8 @@ fr-es reads the section through the Spanish edition as en-es does (24b D1): `com
 (a `character` entry, a sense naming a letter), then `spanish.read_as_meanings` (the senses the
 edition marks obsolete or outdated after the others of their entry, one typography), then fr-es's
 own pass (D5), then the shared rules, whose cleaning runs the edition's notes (`ES`). The table
-above measures each: 3 rows for the notes, 19 for the order, 3 expressions for the typography. They
+above measures each: 3 rows for the notes, 19 for the order, 2 expressions for the typography (a
+third is a table's word, D6). They
 are the edition's rules, applied unchanged: the French section is written as the English section is,
 in fewer senses.
 
@@ -261,8 +262,8 @@ defect:
 - **A letter glosses no word.** A `character` entry, a one-letter word's noun entry and a one-letter
   word every translation of which is itself are left out of both tables, and a one-letter French key
   of the inverted table is dropped: `h` « H », `x` « X » and nine more letters ranked among French's
-  2,300 commonest lemmas lose a gloss that was the letter. `à`, `y` and `ô`, words of one letter, keep
-  the definitions the section gives them before any table is read.
+  2,300 commonest lemmas lose a gloss that was the letter. `à` and `y`, words of one letter, keep the
+  definitions the section gives them before any table is read, and `ô` the direct table's « Oh ».
 - **A Spanish word listed once.** Read backwards, the Spanish Wiktionary lists a French word under
   each part of speech of the Spanish word (`este`, adjective and pronoun, both list `cet`): it is listed
   once, under the first of those parts of speech French's readings name (`tables/fr/grammar.tsv`,
@@ -377,7 +378,7 @@ systematic in rank order, each marked by its source, goes in the pull request fo
 
 - **`fr-en.golden` does not move.** fr-es is not in the French invariance baseline, whose engine is an
   English-native reader's (fr-en beside es-en); this change edits no French rule, no table of
-  `tables/fr/` and no file of `crates/`'s sources. fr-es's own golden — the French scenario glossed in
+  `tables/fr/` and no source of lingua-core, lingua-wasm or lingua-pack — two of their tests only. fr-es's own golden — the French scenario glossed in
   Spanish, rendered by the Spanish card — is change 51's, as en-es's was change 24's.
 - **en-fr, es-fr, es-en, en-es and fr-en cannot move.** No file of their rule digests changes:
   `reduce_common.py` and the three `reduce_edition_*.py` are read, not edited, their reducers
@@ -420,12 +421,12 @@ before change 52 if it is wanted (rows / top 10,000).
 | A function word's description | 2 / 2 | `il` « …; Pronombre sujeto expletivo impersonal. (No tiene traducción al español. No existe en español.) », `de` « … (no existe en español) » | change 24's Q5 |
 | A possessive headed as a pronoun | 2 / 2 | `son` « Su » PRON, `leur` « Suyo, suya » PRON | upstream, or a rule naming them |
 | The direct table's word under two parts of speech | 421 / 129 | « parti » « Partido; Partido », « européen » | Open Question 3 |
-| The inverted table's other-sense words | about a dozen of 265 / 265 | « us » « EEUU », « fr » « Imperial, calabaza », « rap » « Secuestro », « pa » « Autopiloto », « luc » « San Lucas » | 24b's Q4, Open Question 4 |
+| The inverted table's other-sense words | about a dozen of the 265 rows of the top 10,000 it glosses | « us » « EEUU », « fr » « Imperial, calabaza », « rap » « Secuestro », « pa » « Autopiloto », « luc » « San Lucas » | 24b's Q4, Open Question 4 |
 | A translation written in French | 8 / 2 | « arnaque » « Arnaque », « gâche » « Gâche » | upstream (the French Wiktionary's tables) |
 | Upstream wording | single rows | « siège » « …; Local, stilla », « pieux » « …, pièsa », « modo » « Jur mödo, jur, mödo », « ol » « Elle », « chaussée » « Carreta, … » | upstream |
 | « etc » without its period | 5 / 4 | « avec », « adresse », « cochon » | shared, every pair (24b D8) |
 | A proper noun's run first | 596 / 353 rows hold one | « france » « Francia; Nombre de pila de mujer », « terre » | the case-aware card, shared |
-| Words of no French dictionary glossed | 544 / 40 | `el` « Ella, ello o él », `for` « Fuero », `last` « Lastre », `okay` « Oquey, oqué » | fr-es's tables; no dictionary word, no vocabulary count |
+| Lemmas outside French's dictionary words glossed | 544 / 40 | `el` « Ella, ello o él », `for` « Fuero », `last` « Lastre », `okay` « Oquey, oqué » | fr-es's tables; no dictionary word, no vocabulary count |
 
 ## Risks / Trade-offs
 
