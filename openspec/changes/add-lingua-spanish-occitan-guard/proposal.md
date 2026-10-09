@@ -28,9 +28,9 @@ as broken Spanish, every word unknown, words that do not exist in Spanish propos
   `degun`, `eth`, `dera`, `damb`, `ua`…). Left out, each measured: every word a Spanish text writes as
   Spanish — `e` (« geografía e historia »: 517 Spanish blocks refused), `fa` (« fa mayor », « por
   fa »), `res` (« carne de res »), `cal`, `pus`, `ara`, `per` (« per cápita »), `cap.` — and every
-  regional spelling met in the Spanish corpora: `mai` (« mi mai », Caribbean), `mos` (rural « mos
-  vamos »), `soi` and `ai` (Chilean voseo), `ei`, `dei` and `aquelas` (*Martín Fierro*), `vos`,
-  `sos`, `ta`. An Occitan word counts only as written in lowercase: « Pas de la Casa » is a name (D3).
+  regional spelling met in the Spanish corpora: `mai` (« mi mai », Caribbean), `mos` (rural « Ya
+  mos… »), `soi` (Chilean voseo), `ai` (an old *hay*), `ei`, `dei` and `aquelas` (*Martín Fierro*),
+  `vos`, `sos`, `ta`. An Occitan word counts only as written in lowercase: « Pas de la Casa » is a name (D3).
 - **Measured** on 597,086 blocks — change 42's corpus, with Tatoeba's whole Spanish export, UD Spanish
   (AnCora, GSD, PUD, COSER with its Canary and Colombian transcriptions), 58 Spanish Wikipedia articles
   (Spain, Catalan and Occitan subjects, Latin America and its varieties, the Canaries), five Argentine,
