@@ -13,6 +13,7 @@ See proposal.md (Why). What exists on `main` (4222a013) and in the changes this 
 | `apps/site/src/components/LinguaPage.astro`, `global.css` | the coverage table: one column per pair, `.prose table { width: 100% }`, cells padded 0.5rem × 0.7rem; `test/fixtures/lingua/main.{fr,en}.html` pin `/lingua/` and `/en/lingua/` byte for byte on today's pairs |
 | `apps/site/src/pages/en/index.astro` | the English home: the Lingua card's paragraph is literal, « Read the English web… » |
 | Change 29b (`extend-site-spanish-locale`, #841, open) | the Spanish home's Lingua card built from the pairs (« Lee la web en inglés o en francés… » with fr-en and fr-es), the French and English cards left literal |
+| `apps/back-office/src/i18n/locales/{fr,en}.json` | `lingua.languages`: « Anglais », « Espagnol » / "English", "Spanish"; a language with no name shows its code (`languageLabel`, `src/i18n/language-label.ts`), so French reads « fr » from change 52. Changes 39 and 52 hand its name here |
 | `apps/lingua-extension/model-manifest.json` | routes `fr-en` = [`fr-en/base-memory/2.0`], `fr-es` = [`fr-en/base-memory/2.0`, `en-es/base-memory/2.1`] (change 50, inert until 52) |
 | Changes 45, 46, 48, 49, 51 | French's readings (genders included), French's estimated levels (`levels_estimated`), fr-en's glosses (the English Wiktionary's French section), fr-es's (the Spanish Wiktionary's French section, then the French Wiktionary's Spanish translations, then the Spanish Wiktionary's French translations read backwards), the card's French wording ("past historic (passé simple)", « pretérito perfecto simple de indicativo ») |
 
@@ -61,15 +62,26 @@ Like for like with what the texts already say of Spanish (changes 36 and 37):
 | The meaning in Spanish, from Wiktionary, written by people (fr-es) | fr-es's `gloss.tsv`, the Spanish Wiktionary's French section, then the French and Spanish Wiktionaries' translation tables (change 49), M5 |
 | The card names the tense and the gender: "past historic (passé simple)", « pretérito perfecto simple de indicativo », "feminine noun" | change 51's renderers (`TENSES` keyed by studied language, `src/i18n/{en,es}/grammar.ts`), pinned by its snapshots; the genders from change 45's `tables/fr/grammar.tsv`. Quoted from change 51's scenarios: the owner checks them against the merged snapshot before pasting, as changes 36 and 37 had « Español » checked against change 20 |
 | French's levels estimated from word frequency (M7) | `levels_estimated` in every French pack's manifest (change 46, D5); the labels "Estimated French level", « Nivel de francés estimado » (`levelTitleEstimated`, `estimatedLevelsNote`, `src/i18n/{en,es}/languages.ts`), whose key change 52 widens |
-| Extended translation straight from French into English: 26.2 MB | route `fr-en` = `fr-en/base-memory/2.0`: 23,175,075 + 2,649,934 + 409,706 B = 26,234,715 B, "26.2 MB" as the setting rounds it (`megabytes`, `src/reading/translation-setting.ts`); the setting adds the models of every language the reader studies (`modelsFor`, `model-controller.ts`): es-en and fr-en together 52,475,767 B, so "26.2 MB each" |
+| Extended translation straight from French into English: 26.2 MB | route `fr-en` = `fr-en/base-memory/2.0`: 23,175,075 + 2,649,934 + 409,706 B = 26,234,715 B, "26.2 MB" as the setting rounds it (`megabytes`, `src/reading/translation-setting.ts`); the setting adds the models of every language the reader studies (`modelsFor`, `src/translate/host/model-manifest.ts`, called by `model-controller.ts`): es-en and fr-en together 52,475,767 B, so "26.2 MB each" |
 | Into Spanish through English: « 25,4 MB para el inglés, 51,6 MB con el francés » (fr-es) | route `fr-es` = fr-en 2.0 then en-es 2.1: 26,234,715 + 25,373,354 = 51,608,069 B; en-es alone 25,373,354 B — French needs both models whether or not English is studied, as Spanish does for a French speaker (« 52,0 Mo avec l'espagnol ») |
 | The figures at `cymbra.app/en/lingua` (and `/es/lingua`) | change 52 writes fr-en's (and fr-es's) figures into `apps/site/src/data/lingua-coverage.json` (`gloss_coverage.py --write`); change 30's pages lead with the reader's pairs |
-| « Para el francés, el diccionario español es algo menos completo que para el inglés » (fr-es, M6) | fr-es 83.2 / 70.8 / 56.8 % of the 5,000 / 10,000 / 20,000 commonest lemmas against en-es's 93.0 / 85.0 / 71.7 % (changes 49 and 22), re-measured at change 52's commit; the French text's sentence about Spanish (es-fr's 87.6 / 77.2 / 63.7 against en-fr's 95.1 / 90.1 / 78.9), transposed. fr-en (93.6 / 86.9 / 76.3, change 48) stands beside es-en (93.6 / 87.0 / 77.1): the English texts say nothing of it |
+| « Para el francés, el diccionario español es algo menos completo que para el inglés » (fr-es, M6) | fr-es 83.2 / 70.8 / 56.8 % of the 5,000 / 10,000 / 20,000 commonest lemmas against en-es's 93.0 / 85.0 / 71.7 % (changes 49 and 22), re-measured at change 52's commit; the French text's sentence about Spanish (es-fr's 87.6 / 77.2 / 63.7 against en-fr's 95.1 / 90.1 / 78.9), transposed. fr-en (93.6 / 86.9 / 76.3, change 48) stands beside es-en's committed 93.0 / 86.5 / 76.5 (`tables/es-en/README.md`, the figures change 34 publishes): the English texts say nothing of it |
 | The step "For French, check it in Settings › Language, then choose your level of French" | the "Language" tab (`tabLanguage`), "Languages studied", the box's "French" (`languageName`), "Choose your French level" (`chooseLevelPrompt`) |
 | Spanish stays the language an English reader starts in (the steps and the test instructions say "pick a Spanish level") | `defaultPair("en")` is the first listed English-glossed pair: change 52 lists fr-en after es-en (and fr-es after en-es), a hand-over (D12) |
 
 What the texts say, per field, is in *Measured*. No text calls the app a beta or speaks of price
-(guidelines 2.2, 2.3.7; the programme's rule for every listing).
+(guidelines 2.2, 2.3.7; the programme's rule for every listing) — the review notes' « the app is
+free » included (D4).
+
+**« Several languages at once » stays out, for a new reason.** Changes 36 and 37 left the French
+text's second line (« Plusieurs langues à la fois : gratuit pour l'instant ») out because their
+readers studied one language and the studied-languages box hid itself (`offerFor`). From change 52
+an English reader has two pairs (a Spanish reader too, with fr-es), the box shows, and its own line
+reads "Several languages at once: free for now." (`severalLanguagesOffer`,
+`src/i18n/en/studied-languages.ts`). The texts carry the French text's first sentence and not that
+line: a listing speaks of no price. The notes of both files that give the old reason (« es-en is the
+one English-glossed pair… », « en-es is the one pair glossed in Spanish… ») are rewritten with this
+one (tasks 1.1, 1.3).
 
 ### D3 — The French texts: only what another reader studies
 
@@ -103,9 +115,12 @@ search term, D7).
   every feature works signed out), "External services"' « (bundled WebAssembly engines + offline
   dictionaries) » (the engine is said to ship inside the app, the dictionaries to be bundled),
   "Regional differences"' audiences (now in "Purpose & audience", once), « for Spanish » and « for
-  both » in "Third-party material". **3,976 → 3,995** with fr-es; **3,954** without it (its
-  « and French » and « ; French to Spanish chains two » go). Per paragraph: account −37, steps +104,
-  OPTIONAL +40, purpose +37, external −52, regional −68, sources −5.
+  both » in "Third-party material", and "External services"' « No payment processor: the app is
+  free, with no in-app purchase » → « No payment processor and no in-app purchase » (D2: no text
+  speaks of price; the payment processor, the external service Apple asks about, is still
+  answered). **3,976**, today's count, with fr-es; **3,935** without it (its « and French » and
+  « ; French to Spanish chains two » go). Per paragraph: account −37, steps +104, OPTIONAL +40,
+  purpose +37, external −71, regional −68, sources −5.
 
 ### D5 — The App Store locales
 
@@ -132,13 +147,14 @@ literal for French — names, in that language, every language the native's ship
 other. Names are matched whole and case-insensitively, from a table of three names per language held
 equal to the catalogue's (`name` in `src/i18n/{fr,en,es}/languages.ts`, by a test): « anglais »,
 « espagnol », « français »; "English", "Spanish", "French"; « inglés », « español », « francés ».
-Prototyped (scratchpad) on the committed messages and the programme's pair lists:
+Prototyped (scratchpad) on the committed messages and the programme's pair lists — stage 2's as
+#810 and #814 list them:
 
 | Pairs listed | Committed summaries | With the drafts |
 |---|---|---|
 | en-fr, es-fr (today) | pass | — |
 | + es-en (change 34); + en-es (change 35) | pass | the drafts fail: en names French, es names French, neither studied |
-| + fr-en (change 52) | fail: en names Spanish, studies Spanish and French | pass |
+| + fr-en (change 52) | fail: en names Spanish, studies Spanish and French | pass with the English draft; the Spanish one fails (es names French, not studied) |
 | + fr-en, fr-es | fail: en, and es names English, studies English and French | pass |
 
 The pull request that lists fr-en therefore commits the English draft, and fr-es's the Spanish one —
@@ -191,11 +207,13 @@ Change 30 keeps one column per pair, which today's two pairs fit. Measured with 
 The page scrolls sideways from stage 2 on. While every listed pair is glossed in one language the
 table is today's; once two native languages are listed — the moment change 30's headers turn to
 "<studied> → <native>" — it has one row per pair (the pair as the row's header, `scope="row"`) and
-four columns (« Mots les plus courants » over the tops 5 000, 10 000, 20 000), the readers' pairs
-first. At 360 px the English table is 327 px for 320, absorbed by the gutter; at 320 px the tables
-are 301–327 px for 280, so the per-pair table sits in a box that scrolls on its own
-(`overflow-x: auto`): measured, the page is then 320 px wide at 320 px. The box is not used for the
-one-column-per-pair table, so today's bytes do not move.
+four columns (the corner header « Mots les plus courants », then the tops 5 000, 10 000, 20 000), the
+readers' pairs first. At 360 px the English table is 327 px for 320, which the gutter would absorb; at
+320 px the tables are 301–327 px for 280 and, unboxed, the page is 347 px wide — so the per-pair
+table sits in a box that scrolls on its own (`overflow-x: auto`): measured, the page is then 320 px
+wide at 320 px, and 360 at 360. The box is not used for the one-column-per-pair table, so today's
+markup does not move; its rule in `global.css` renames the bundled stylesheet (*What does not
+move*).
 
 *Rejected — the scrolling box alone.* A phone would show the first pair and hide four or five.
 
@@ -230,10 +248,12 @@ Spanish descriptions pasted and its summaries checked. Both results recorded in 
 
 ### D11 — What this change does not decide
 
-- **The share of definitions among fr-es's glosses** (change 49's open question 7): not on the site.
-  The table publishes one measure for every pair, "a gloss in the reader's language", and a definition
-  written by a person is one (M5); a column for one pair would break like for like, and en-es's share
-  (26.0 % of its glossed top 10,000) is in its README alone. fr-es's stays in its README too.
+- **The share of definitions among fr-es's glosses** (change 49's open question 7): not on the site,
+  this design's recommendation, the owner's to settle (open question 3). The table publishes one
+  measure for every pair, "a gloss in the reader's language", and a translation-table entry written
+  by a person is one (M5); a column for one pair would break like for like, and en-es's split (26.0 %
+  of its glossed top 10,000 from a translation table) is in its README alone. fr-es's stays in its
+  README too.
 - **Withholding a pair's translation**: M15 is settled (translation opens with each pair); should
   change 52 not offer one, its clause goes from each text and every count only falls.
 - **The host app's activation page** says « choose your level of Spanish » (change 28): the App Store
@@ -247,6 +267,15 @@ Spanish descriptions pasted and its summaries checked. Both results recorded in 
 | 34 `enable-lingua-english-speakers` | the English home's card (D9) and the coverage table's rows (D8) come with its pairs; nothing to write |
 | 56 `refine-lingua-matrix-wording` | the owner's corrections to the drafts after the release |
 
+### D13 — The back office names French
+
+Changes 39 and 52 leave the back office's name for `fr` to this change: from change 52 its Lingua
+screen shows French's usage under the code « fr », as *The studied languages are named in the
+console's language* allows for a language it has no name for. `lingua.languages.fr` is added —
+« Français » in `fr.json`, "French" in `en.json` — and `test/lingua.spec.ts`'s `languageLabel` case
+gains it. Inert until a device reports French; no requirement moves (that one already asks for a
+name).
+
 ## Measured
 
 How: the edits applied by a script (scratchpad, never committed) to the committed texts, counted as
@@ -256,20 +285,20 @@ the listing files count — every character inside the block, line breaks includ
 | Field | Limit | Locale | Today | Draft | Count |
 |---|---|---|---|---|---|
 | Summary | 112 | en | Read Spanish on the web… (94) | Read Spanish and French on the web: unknown words highlighted, an honest percentage. Offline and private. | 105 |
-| Summary | 112 | es | Lee inglés en la web… (99) | Lee inglés y francés en la web: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión y privado. | 109 |
+| Summary | 112 | es (fr-es) | Lee inglés en la web… (99) | Lee inglés y francés en la web: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión y privado. | 109 |
 | Subtitle | 30 | en-US, en-GB | Learn Spanish while you read (28) | Spanish and French as you read | 30 |
-| Subtitle | 30 | es-ES, es-MX | Aprende inglés mientras lees (28) | Inglés y francés mientras lees | 30 |
+| Subtitle | 30 | es-ES, es-MX | Aprende inglés mientras lees (28) | Inglés y francés mientras lees (fr-es; without it, unchanged) | 30 |
 | Promotional text | 170 | en-US, en-GB | 120 | The Spanish or French words you don't know yet, highlighted on the page you're reading. The analysis runs on your device, offline. | 130 |
-| Promotional text | 170 | es-ES, es-MX | 133 | Las palabras en inglés o en francés que todavía no conoces, resaltadas en la página que lees. El análisis se hace en tu dispositivo, sin conexión. | 146 |
+| Promotional text | 170 | es-ES, es-MX | 133 | Las palabras en inglés o en francés que todavía no conoces, resaltadas en la página que lees. El análisis se hace en tu dispositivo, sin conexión. (fr-es; without it, unchanged) | 146 |
 | Keywords | 100 | en-US, en-GB | 99 | « review » replaced by « french » | 99 |
-| Keywords | 100 | es-ES, es-MX | 98 | « repaso » replaced by « francés » | 99 |
+| Keywords | 100 | es-ES, es-MX | 98 | « repaso » replaced by « francés » (fr-es; without it, unchanged) | 99 |
 | Description | 4,000 | en-US, en-GB | 2,682 | D2's claims | 2,902 |
 | Description | 4,000 | es-ES, es-MX | 2,895 | D2's claims; without fr-es, the last line only | 3,279; 2,905 |
 | Description | 4,000 | fr-FR | 3,021 | the last line (D3) | 3,036 |
 | What's New | 4,000 | en-US, en-GB | — | the paragraph below | 380 |
 | What's New | 4,000 | es-ES, es-MX | — | the paragraph below (fr-es) | 449 |
 | Test instructions | 1,000 | Chrome Web Store, AMO | 996 | D4 | 998 |
-| Review notes | 4,000 | every locale | 3,976 | D4 | 3,995; 3,954 |
+| Review notes | 4,000 | every locale | 3,976 | D4 | 3,976; 3,935 |
 | Single purpose | — | Chrome Web Store | 573 | D4 | 593; 583 |
 | Description | 16,000 | Chrome Web Store, AMO en | 2,375 | D2's claims | 2,579 |
 | Description | 16,000 | Chrome Web Store, AMO es | 2,576 | D2's claims; without fr-es, the last line only | 3,045; 2,586 |
@@ -292,7 +321,9 @@ or `assets/` is edited: no table, pack, analyser version, engine or catalogue st
 (`french_baseline.rs`, `fr-en.golden`) read none of what this change edits and cannot move; the
 French interface cannot move. `check_version.mjs` builds nothing: the packages are byte for byte. On
 the site with today's pairs: `/lingua/` one word (« CECR » → « CEFR »), `/en/lingua/`, `/`, `/en/`,
-`/es/…` and every other page byte for byte.
+`/es/…` and every other page byte for byte but one name — the box's rule in `global.css` changes the
+bundled stylesheet, so its hashed name (`/_astro/Base.<hash>.css`) changes in every page's `<link>`.
+The back office's new name shows only for a language no device reports before change 52.
 
 ## Appendix — the two fields at the edge, as measured
 
@@ -309,8 +340,8 @@ No account needed: signing in only syncs words across devices. The interface fol
 6. Popup gear ("Settings") > "Language": "Languages studied" > "French" adds French pages; "Español" to study English, "Français" English and Spanish. In Spanish, steps 1-5 on English pages: "Elige tu nivel de inglés", "Analizar esta página", "La conozco".
 ```
 
-The App Store review notes (3,995 / 4,000) with fr-es; without it, « Spanish speakers English and
-French, » reads « Spanish speakers English, » and « ; French to Spanish chains two » goes (3,954):
+The App Store review notes (3,976 / 4,000) with fr-es; without it, « Spanish speakers English and
+French, » reads « Spanish speakers English, » and « ; French to Spanish chains two » goes (3,935):
 
 ```
 No account is needed to review this app: every feature works signed out. An optional Cymbra account saves the learner's progress - known words, deck, level and statistics - across reinstalls and devices (iPhone, iPad, Mac). To test it, create one from the extension (panel > Settings > Data > Account) with Sign in with Apple or Google - no invitation is needed.
@@ -330,7 +361,7 @@ OPTIONAL - "Extended translation", off by default (Settings > Language). The tra
 
 Purpose & audience: Cymbra Lingua helps people learn a language by reading real web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and the reader's CEFR level (A1-C2) is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English and French, French speakers English and Spanish.
 
-External services: none by default - highlighting, lookup, the level estimate and translation run on the device. No AI/LLM API, no analytics, no ads. Only on the reader's action: https://models.cymbra.app serves the models above; https://api.cymbra.app (our backend) syncs the word list when signed in; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor: the app is free, with no in-app purchase.
+External services: none by default - highlighting, lookup, the level estimate and translation run on the device. No AI/LLM API, no analytics, no ads. Only on the reader's action: https://models.cymbra.app serves the models above; https://api.cymbra.app (our backend) syncs the word list when signed in; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor and no in-app purchase.
 
 Regional differences: none. The interface follows the device's language (French, Spanish, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes".
 
@@ -342,9 +373,11 @@ Third-party material: the bundled dictionaries combine sources licensed for comm
 - **A listing that promises what is not shipped** → each French claim tied to its file (D2), the
   texts pasted with change 52's release; the Spanish ones in two variants (D1); the summary held by
   the check (D6).
-- **Counts at the edge** (998 / 1,000, 3,995 / 4,000, two subtitles at 30 / 30) → each count is the
-  text's length, recomputed by the task that writes it; an owner's rewording is recounted before
-  pasting.
+- **Counts at the edge** (998 / 1,000, two subtitles at 30 / 30) → each count is the text's length
+  in characters, a line break one, as changes 36 and 37 counted; recomputed by the task that writes
+  it; an owner's rewording is recounted before pasting, and the dashboard's own counter read on
+  paste (a field counting a line break as two would put the test instructions, seven breaks, at
+  1,005).
 - **Card lines quoted before change 51's snapshot exists** → quoted from its scenarios, checked by the
   owner against the merged snapshot (D2).
 - **The table's orientation surprising a reader used to columns** → it turns at the moment its
@@ -365,3 +398,5 @@ and submits (M18). Reverting removes a check and a few sentences; no data moves.
    change 34?
 2. **The subtitles at 30 / 30** — "Spanish and French as you read", « Inglés y francés mientras
    lees » — or a shorter wording the owner prefers (M9)?
+3. **The share of definitions on the site** (change 49's open question 7, D11): in fr-es's README
+   alone, as en-es's split is, or a column beside the coverage for every pair?

@@ -34,6 +34,8 @@ does not know it:
   speakers, wrong for the English speakers who land on `/en/` from change 34 on, and more so once
   they read French. Change 29b gives the Spanish home's card its words from the shipped pairs and
   leaves the French and English cards literal.
+- **The back office's Lingua screen** names « Anglais » and « Espagnol » and would show French as
+  its code, « fr »: changes 39 and 52 leave its name to this change.
 
 ## What Changes
 
@@ -53,8 +55,8 @@ does not know it:
 - **The fields that are one per store**: the single purpose, the remote-code answer (fr-en direct,
   fr-es through English) and the permission justifications updated in place; the test instructions
   gain the French path within 1,000 characters (998); the App Store review notes gain it, the
-  French sources and the models within 4,000 (3,995 with fr-es, 3,954 without), wording cut, no step
-  lost.
+  French sources and the models within 4,000 (3,976 with fr-es, 3,935 without), wording cut (« the app
+  is free » among it: no listing text speaks of price), no step lost.
 - **The stores' summary follows the pairs**: drafted here ("Read Spanish and French on the web…",
   105 characters; « Lee inglés y francés en la web… », 109), and held by `yarn check:version`, which
   fails when a shipped native's description does not name exactly the languages its shipped pairs
@@ -73,6 +75,7 @@ does not know it:
 - **Screenshots**: one capture more per locale that gains French (a French page, the card on
   « fut »); **the dashboards**: no language is added, the procedure and the record of what each
   dashboard shows.
+- **The back office names French** (« Français », "French"), inert until a device reports it.
 - **The wording is the owner's** (M9): full drafts in the files, reviewed before change 52's release.
 
 ## Capabilities
@@ -100,9 +103,10 @@ None.
 - **Products.** Lingua: the two listing files and `tool/check_version.mjs` (a check, run by
   `lingua-extension-check`; nothing it builds moves). The site (`apps/site`): `src/lib/lingua-text.ts`,
   `src/components/LinguaPage.astro`, `src/styles/global.css`, `src/pages/en/index.astro`, their tests
-  and one fixture. **Consumed**: change 30's shipped pairs and text tables, change 29b's home-card
-  builder, change 27's `_locales`, the catalogue's routes and sizes (changes 25, 50). Cymbra ID,
-  Music, the back office and the backend are untouched.
+  and one fixture. The back office (`apps/back-office`): one name in each locale file and its test.
+  **Consumed**: change 30's shipped pairs and text tables, change 29b's home-card builder, change
+  27's `_locales`, the catalogue's routes and sizes (changes 25, 50). Cymbra ID, Music and the
+  backend are untouched.
 - **Nothing studied moves**: no table, pack, analyser, engine or interface string is edited, so S0,
   the es-fr, es-en, en-es and French goldens (`fr-en.golden`) and the French interface cannot move;
   the extension's packages are byte for byte what they were.
@@ -112,7 +116,12 @@ None.
 - **Order.** The listing texts are true of what change 52 ships, and pasted with its release (M18).
   The pull request may merge before change 52, as changes 36 and 37 merged before 34 and 35: the
   site's code is inert until the pairs are listed, and the check makes 52 commit the summaries. It
-  builds on changes 29b, 30, 36, 37, 45, 46, 48–51 and is archived after them.
+  builds on changes 29b, 30, 36, 37, 45, 46, 48–51, and is archived after them and 27, 29 and 52
+  (`.openspec.yaml`).
+- **Effort, against 1.5–3 ideal days**: the listings, drafted here, written with their claims and
+  recounted 0.5–1; the summary check and its tests 0.25–0.5; the site (the per-language sentences,
+  the turned table, the English home's card, their tests and the fixture) 0.75–1.25; the back
+  office's name 0.1; docs 0.1. 1.7–3, the site the uncertain part.
 - **The owner** reviews the English and Spanish drafts (M9), captures the screenshots, pastes the
   listings with change 52's release after the site deploy that publishes its figures, and records what
   the dashboards show (M18).
