@@ -343,8 +343,9 @@ mod tests {
             StudiedLanguage::Spanish.analyzer_version(),
             crate::analysis::SPANISH_ANALYZER_VERSION
         );
-        // French is the baseline until its own rules land (add-lingua-french-baseline D4).
-        assert_eq!(StudiedLanguage::French.analyzer_version(), "0.1.0");
+        // French has its own tokenisation pre-pass and the baseline's lemmas
+        // (add-lingua-french-tokenisation D9); its cascade makes it `1.0.0`.
+        assert_eq!(StudiedLanguage::French.analyzer_version(), "0.2.0");
         assert_eq!(
             StudiedLanguage::French.analyzer_version(),
             crate::analysis::FRENCH_ANALYZER_VERSION
