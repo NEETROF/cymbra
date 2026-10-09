@@ -9,8 +9,8 @@ pack before `enable-lingua-french` (change 52).
 They are in two folders (split-lingua-pack-tables-by-language). fr-en is French's reference pair
 (`../fr/studied.json`): its reduction writes French's own tables in `../fr/`, which every pair
 studying French reads as committed (fr-es, change 49), and this folder's `pin.json` records the
-sources of both. Today fr-en reduces French's forms, ranks and estimated levels: it glosses nothing
-yet.
+sources of both. Today fr-en reduces French's forms, ranks, readings and estimated levels: it
+glosses nothing yet.
 
 In this folder:
 
@@ -27,12 +27,11 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 |---|---|---|
 | `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's French section (CC BY-SA 4.0 + GFDL), with UD French-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by GSD's own frequency too |
+| `grammar.tsv` | form → its readings, as Universal Dependencies tags (`form<TAB>lemma<TAB>tag<TAB>other\|-`) | kaikki.org, the same section (add-lingua-french-grammar-tables, change 45) |
 | `level.tsv` | lemma → estimated CEFR level (*The levels* below) | derived from `freq.tsv` and the English Wiktionary's French section (no source of its own) |
 | `lexical.tsv` | French's dictionary words, the lemmas fr-en glosses: **empty** until change 48 | derived from `gloss.tsv` by `build.sh` (`pack_sources.py split`) |
-| `tags.tsv` | French's pinned tag pool: **empty** until add-lingua-french-grammar-tables (change 45) pins it; written by no reducer | committed by hand |
+| `tags.tsv` | French's pinned tag pool: the 79 tags its readings carry, in byte order; written by no reducer | committed by hand, once, from the first reduction's readings |
 | `studied.json` | the pair whose reduction writes `../fr/`: fr-en | committed by hand |
-
-`grammar.tsv` (the readings) comes with change 45.
 
 ## The sources
 
@@ -135,8 +134,9 @@ apostrophe (`aujourd'hui` 136, `quelqu'un` 204). Every ranked lemma's own form r
 lemma).
 
 The pack these two tables built — no gloss, reading or level — was 1,241,733 B; Spanish's same two
-tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*). The builder holds it
-under 5 MiB; the glosses and readings are measured against that budget by the changes that add them.
+tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*), and with the readings
+too PACKSIZE B (*The readings*). The builder holds it under 5 MiB; the glosses are measured against
+that budget by the change that adds them.
 
 ## Measured
 
@@ -460,6 +460,171 @@ again in one pull request. This estimate is measured against FLELex then, and th
 The levels section is one byte per lemma of the pack's pool: the pack grows from 1,241,733 B to
 1,302,031 B — 60,035 B the section and the manifest's flag, 263 B the NOTICE's sentence.
 
+## The readings (`../fr/grammar.tsv`)
+
+French's word grammar (add-lingua-french-grammar-tables, change 45): each form's readings, in the
+vocabulary the word card reads (add-lingua-word-grammar), written by the same pass over the French
+section as the forms, once they are chosen — the readings choose no form and no rank. Only the forms
+`forms.tsv` holds carry readings, and only under the lemmas `freq.tsv` ranks: a card opens on a form
+the analysis resolved through the table.
+
+**The rules** (`reduce-fr-en.py`, after the forms):
+- **Verbs.** kaikki's tags as UD's: the indicative's present, imperfect and future; the passé simple
+  (`historic past`) as `Tense=Past`; the present and imperfect subjunctive; the conditional and the
+  imperative with **no tense**, as Spanish's tables write them (UD French writes `Tense=Pres`); the
+  infinitive; the present participle as `VerbForm=Part|Tense=Pres`, as UD French writes it; the past
+  participle with its gender and number — a verb's table lists it bare, the masculine singular, and
+  the agreed forms hang under the participle's own entry (`dirigé`: `dirigée`, `dirigés`,
+  `dirigées`). Every verb is `VERB`. A sense merging persons or moods (`parle`: « first/third-person
+  singular present indicative/subjunctive ») reads as each of them; a compound tense
+  (`avoir + past participle`) gives none. A pronominal verb's rows read without their pronoun
+  (`s'évanouit` → `évanouit`, `nous évanouissions` → `évanouissions`, `évanouis-toi` →
+  `évanouis`), as French's pre-pass leaves the bare form: 12,023 rows.
+- **Nouns, adjectives, determiners (articles among them), pronouns, numerals.** A noun's gender from
+  `fr-noun`'s head, else its senses, on its own form and on its plural, a reading per gender for a
+  noun of both (`enfant`); both numbers on a noun the dictionary gives one form for (`temps`, `bras`,
+  `vis`: 549 readings); no reading from a feminine noun's masculine row (`déesse` → `dieu`). An
+  adjective's own form is masculine singular when it has a feminine of its own (`grand`), singular
+  when one form serves both (`rapide`), plural when every sense is (`plusieurs`); `bel` is a
+  masculine singular. A determiner, pronoun or numeral reads its gender and number (`la` is *le*'s
+  as the article and as the pronoun), a pronoun's row only with a gender (`ils` is no plural of
+  *il*), and a plural-headed determiner's or pronoun's table gives none (`tes` lists `ton`). A
+  determiner's, pronoun's or numeral's dictionary form names nothing on its own card.
+- **Where a reading comes from.** A lemma's table first, a form's own entry for the pairs no table
+  lists. A form of a form along one part of speech reads as the word the form is a form of reads,
+  with its own agreement (`dirigée` → `dirigé` → *diriger*'s feminine past participle; `faites`
+  adds *faire*'s feminine plural participle), through the form's own lemma too, unless the form
+  already reads as that word in that part of speech and verb form (`les` is no feminine through
+  `la`). A spelling variant reads as the word it spells (`coeurs` → *cœur*).
+- **A reading's part of speech is one its lemma's entries hold**, when the dictionary holds the lemma
+  as a noun, verb, adjective, determiner, pronoun or numeral: a participle filed under a noun's or
+  an adjective's spelling reads no verb form of it and names its verb (`cités`, the plural of the
+  noun *cité*, names *citer*; `privée` *priver*), and `venait` names no *came*, an English gloss its
+  entry lists that the section holds as a noun.
+- **Never a reading** from a row or sense change 43 leaves out of the forms (alternative, obsolete,
+  archaic, rare, dated, misspelt, nonstandard, proscribed, abbreviated, a multi-word construction…),
+  from a form's own sense marked as a region's or a register's (`été`, Louisiana's past participle of
+  *aller*), from a capitalised headword (`CE`, `LE`: 3,592 entries), from an entry whose every sense
+  is an alternative form or a neologism (`estre`, archaic spelling of *être*, whose table would make
+  `est` its form; `lea`: 2,548 entries), from a letter's name toward its plural (`elle`, the letter
+  L), or through a link an override row of change 43 sets aside as a copy error: `fatiguée`'s verb
+  entry reads « feminine singular of parlé », and no reading of it names *parler* (an overridden
+  form's own entry linking it to another word than the row's, which no lemma's table lists).
+- **`other` marks (M8).** A form's readings of its own lemma are its own; a reading of another
+  ranked lemma is marked `other`, and the card names that word without counting it (`fils` names
+  *fil*, `couvent` *couver*, `vis` *vivre* and *voir*), only toward an entry of the dictionary that
+  is not only regional: `irait` names no *would*, `va` no *vader* (Louisiana's, Switzerland's),
+  `entrainait` (*entraîner*'s) no *entrainer*, a spelling the section holds no entry of.
+
+**What they hold**, on the 2026-10-09 tables: **125,177 readings of 88,666 forms**, in 79 tags —
+116,089 under the form's own lemma, which 88,518 forms carry, and **9,088 `other` marks** on 4,832
+forms. 116,561 come from a lemma's table, 484 from a form's own entry, 8,132 from a form of a form.
+By part of speech: 70,566 verb readings, 34,958 noun, 19,570 adjective, 39 determiner, 30 pronoun,
+14 numeral. Own readings per form:
+
+| Readings | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| Forms | 69,640 | 15,010 | 1,475 | 101 | 2,152 | 140 |
+
+The 35,578 forms without a reading of their own are, for 35,308 of them, forms of a lemma the
+dictionary holds as none of the parts of speech read (adverbs, prepositions, conjunctions,
+interjections, names); the rest are a determiner's, pronoun's or numeral's dictionary form (`le`,
+`je`, `deux`), old spellings the dictionary marks doubtful, and 18 forms whose readings the
+part-of-speech rule takes off their lemma (`croisée`, filed under the noun *croisé*, names
+*croiser*; `vingt-et-unième`, an ordinal filed under the numeral *vingt*, reads nothing). The 60,000
+lemmas hold 3,339 verbs, 3,285 of them with all 45 simple finite cells in their table; those tables
+list 151,363 form–cell pairs, 53,080 of them (35.07 %) forms the table holds — the rest are forms
+wordfreq never met (`vînmes`). 17,118 of the 17,128 ranked nouns carry a gender on their own form.
+
+**M8's cost.** A dictionary noun whose own form the forms table reads as another word is no lemma of
+the tables, so none of its readings is kept: 551 nouns, 296 of them forms of one of the 5,000
+commonest lemmas (`fait`, `été`, `porte`, `demande`, `élève`). « La porte » opens *porter*'s card
+with its five verb readings.
+
+**The five-reading forms (M21).** `parle` carries five readings, each its own tag — present
+indicative and present subjunctive, first and third persons singular, and the imperative's second
+person singular —, all under *parler*: **2,141 forms of 2,110 verbs** (40 of the 1,000 commonest
+lemmas, 350 of the 5,000), 180 of PUD's 3,282 verb words and 92 of GSD test's 1,180. The two
+presents carry `Tense=Pres` and the imperative none, so the card, which already merges the persons of
+one tense and number, is left three groups, and the moods' merge — the word card's, change 51 —
+joins the two presents and leaves the imperative apart. No flag marks them: a five-reading form is
+recognised from its readings. 6,145 forms read the indicative and the subjunctive of one tense,
+person and number (the 2,141, 2,728 third persons plural, 1,080 second persons singular, 162 like
+`finissent`, 33 like `finissions`, one other): whether change 51 merges those too is its call.
+
+**The tag pool** (`../fr/tags.tsv`): the 79 tags the readings carry, in byte order, written once by a
+person (`cut -f3 grammar.tsv | LC_ALL=C sort -u`) and kept by every reduction (`pack_sources.py
+KEPT_INPUTS`); a tag a later reduction adds is appended after them, so that a pinned tag never
+changes index. Every pack studying French lays its pool out as the pin, then any reading tag it
+lacks, then the tags only its senses carry: fr-en's and fr-es's readings are stored alike whatever
+their glosses' senses carry. The pin moves no byte today — fr-en built with the empty pin had the
+same sha256. `crates/lingua-pack/tests/committed_tables.rs` holds it to the readings, naming a tag
+missing or left over.
+
+**Size.** `grammar.tsv` is 7,936,427 B (752,507 B gzipped); with `forms.tsv` and `freq.tsv`, French's
+three tables hold 11,038,422 B (1,636,173 B gzipped, file by file). The pack grows by 158,222 B, to
+1,399,955 B.
+
+**Measured** on the held-out treebanks (`measure/fr-ud.sh` → `measure/fr_readings.py`, reported,
+never gating): over the words whose form the tables map to the treebank's lemma, the share that carry
+a reading of their own and the share of those whose treebank part of speech and features are among
+them — an auxiliary read as a verb, the conditional's and the imperative's tense left aside, a
+participle without a tense read either way.
+
+| | Words | Read | Agree |
+|---|---|---|---|
+| PUD, finite verbs | 1,742 | 99.94 % | 99.60 % |
+| PUD, participles | 973 | 100 % | 99.38 % |
+| PUD, infinitives | 466 | 100 % | 100 % |
+| PUD, nouns | 4,482 | 99.09 % | 98.85 % |
+| PUD, adjectives | 1,473 | 98.85 % | 96.43 % |
+| PUD, determiners | 3,587 | 61.36 % | 85.42 % |
+| PUD, pronouns | 522 | 16.67 % | 27.59 % |
+| GSD test, finite verbs | 637 | 100 % | 99.53 % |
+| GSD test, participles | 302 | 100 % | 99.34 % |
+| GSD test, infinitives | 190 | 99.47 % | 100 % |
+| GSD test, nouns | 1,772 | 98.65 % | 98.68 % |
+| GSD test, adjectives | 560 | 98.93 % | 95.67 % |
+| GSD test, determiners | 1,350 | 57.85 % | 78.10 % |
+| GSD test, pronouns | 292 | 20.89 % | 19.67 % |
+
+A determiner's or pronoun's dictionary form names nothing, hence their « read » column; what they
+read is mostly a dictionary noun's spelling — `un` (the noun « un »), `son` (« sound »), `nous` —,
+whose readings are the noun's, hence their « agree » column. Among verbs, what disagrees is mostly
+the treebank's own annotation (`prit` and `crée` as participles, `attirerait` as an imperfect).
+
+**Each rule, switched off alone** (on these tables; PUD's figures move as shown):
+
+| Rule switched off | Readings | Forms with one | `other` | Five-reading forms | On PUD |
+|---|---|---|---|---|---|
+| — (the rules) | 125,177 | 88,518 | 9,088 | 2,141 | — |
+| a reading's part of speech its lemma's | 126,495 | 88,536 | 9,051 | 2,141 | adjectives agree 96.43 → 96.57 % |
+| a form of a form | 117,038 | 81,649 | 8,124 | 2,141 | participles read 100 → 75.44 %, agree 99.38 → 98.09 % |
+| both numbers on an invariable noun | 124,628 | 88,518 | 9,088 | 2,141 | nouns agree 98.85 → 97.79 % |
+| spelling variants | 124,662 | 88,095 | 9,118 | 2,128 | nouns read 99.09 → 99.02 % |
+| merged senses read as each | 125,097 | 88,503 | 9,088 | 2,130 | — |
+| a pronominal verb without its pronoun | 125,127 | 88,484 | 9,079 | 2,141 | infinitives read 100 → 99.79 %; 37 fewer full paradigms |
+| a participle sense without `past` | 125,162 | 88,507 | 9,087 | 2,141 | — |
+| articles as determiners | 125,171 | 88,518 | 9,085 | 2,141 | determiners agree 85.42 → 9.59 % |
+
+| Exclusion switched off | Readings | Forms with one | `other` | On PUD |
+|---|---|---|---|---|
+| capitalised headwords read | 126,684 | 88,766 | 9,123 | nouns agree 98.85 → 99.26 %, adjectives 96.43 → 96.23 %, determiners 85.42 → 83.93 % |
+| alternative-only and neologism entries read | 125,874 | 88,958 | 9,189 | nouns agree 98.85 → 98.81 % |
+| `other` toward a link-only or a regional word | 125,348 | 88,518 | 9,259 | — |
+| a feminine noun's masculine row read | 125,323 | 88,524 | 9,228 | — |
+| a composed reading over a direct one | 125,192 | 88,518 | 9,091 | — |
+| a letter's plural read | 125,190 | 88,518 | 9,089 | — |
+| a pronoun's form without a gender read | 125,185 | 88,520 | 9,093 | pronouns read 16.67 → 23.37 %, agree 27.59 → 48.36 % |
+| a plural-headed table read | 125,179 | 88,518 | 9,090 | — |
+| a regional sense of a form's entry read | 125,180 | 88,518 | 9,091 | — |
+| a link an override row sets aside | 125,178 | 88,518 | 9,089 | — (`fatiguée` names *parler*) |
+
+**Known data defects**, left as the source writes them: `supe` reads as the verb *super* (« to
+sip »), one of the 40 five-reading forms among the 1,000 commonest lemmas; `meilleure` reads as the
+noun *meilleur* only, the adjective being a form entry of *bon*; `quelques-unes`, « feminine of
+quelques-uns » with no number, reads as a feminine singular of *quelqu'un*.
+
 ## What the later changes add
 
 | Change | Adds |
@@ -467,7 +632,6 @@ The levels section is one byte per lemma of the pack's pool: the pack grows from
 | 40 tokenisation | French's pre-pass, which these tables serve; its version bump re-reduces fr-en (`manifest.json` alone moves, and the pack and pin with it). The check over these tables (`crates/lingua-pack/tests/committed_tables.rs`) then reads its lists from lingua-core |
 | 41 analysis | the cascade, designed and measured on these tables; its version bump re-reduces fr-en |
 | 44 expression keys | the plain words left out here because they begin with a piece (`d'abord`, `c'est`, `l'on`) |
-| 45 grammar | the readings of these forms (`../fr/grammar.tsv`), and French's tag pool (`../fr/tags.tsv`) |
 | 48 fr-en | the English glosses, expressions and senses; `../fr/lexical.tsv` then holds the glossed lemmas, and the French invariance baseline moves from its fixture to these tables |
 | 49 fr-es | a reader of `../fr/` as committed, capped at the same 60,000 |
 
@@ -477,6 +641,7 @@ The repository is Apache-2.0; **these files are not**, nor French's in `../fr/`.
 from the sources above and carry their licences:
 - `../fr/forms.tsv`: CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts);
 - `../fr/freq.tsv`: CC BY-SA 4.0 (wordfreq, and GSD's counts for the compounds);
+- `../fr/grammar.tsv`: CC BY-SA 4.0 and the GFDL (kaikki);
 - `../fr/level.tsv`: CC BY-SA 4.0 (derived from `freq.tsv`) and CC BY-SA 4.0 and the GFDL (kaikki,
   which says which lemmas take a level).
 
@@ -499,5 +664,9 @@ Never by hand — except `../fr/tags.tsv` and `../fr/studied.json`, which no red
   or `lingua-pack-update` with `mode=reduce`. A bump of `FRENCH_ANALYZER_VERSION` asks the same.
 - **After a builder or dependency change** that changes the pack's bytes: update `pack.sha256` and
   `pack.size` in `pin.json` in the same pull request.
+- **When a reduction's readings carry a tag `../fr/tags.tsv` does not pin, or no longer carry a
+  pinned one**, `crates/lingua-pack/tests/committed_tables.rs` fails naming it: append the new tag
+  after the pinned ones (a pinned tag never changes index), or remove the one left over, in the same
+  pull request.
 
 The monthly dry run of the update checks this pair as it checks the others.
