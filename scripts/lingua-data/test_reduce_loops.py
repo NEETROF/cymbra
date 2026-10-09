@@ -52,6 +52,27 @@ def step_script(workflow: Path, step: str) -> str:
     return "\n".join(body).rstrip("\n") + "\n"
 
 
+def concurrency_group(workflow: Path, pair: str) -> str:
+    """The concurrency group `workflow` runs a dispatch of `pair` in, its expression evaluated as
+    GitHub does: `startsWith(inputs.pair, 'xx-') && 'xx'` terms, then `inputs.pair`, then a literal,
+    the first truthy one winning (`a && b || c`)."""
+    line = next(l for l in workflow.read_text(encoding="utf-8").splitlines() if l.strip().startswith("group: "))
+    prefix, _, expression = line.strip().removeprefix("group: ").partition("${{")
+    for term in expression.removesuffix("}}").split("||"):
+        term = term.strip()
+        if term.startswith("startsWith("):
+            test, _, value = term.partition("&&")
+            start = test.split(",")[1].strip().strip("')")
+            if pair.startswith(start):
+                return prefix + value.strip().strip("'")
+        elif term == "inputs.pair":
+            if pair:
+                return prefix + pair
+        else:
+            return prefix + term.strip("'")
+    raise AssertionError(f"no group for {pair!r}")
+
+
 # build.sh, doubled: it logs its arguments and leaves the raw sources a reduction would — and, for
 # en-es, what its reducer measures of its tables (measures.json, add-lingua-pack-en-es D4). An
 # update or a dry run reads the run's editions folder (LINGUA_EDITIONS, migrate-lingua-pack-sources-
@@ -532,6 +553,55 @@ class Loops(unittest.TestCase):
         self.assertNotEqual(done.returncode, 0)
         self.assertIn("names no asset under lingua-pack-sources-es-en-2026.10.08", done.stdout)
         self.assertFalse(any(line.startswith("release create") for line in log.read_text().splitlines()))
+
+    # — French, the third studied language (add-lingua-french-forms-tables) —
+
+    def french(self) -> None:
+        """French's reference pair and its studied folder, as the committed tables hold them."""
+        (self.tables / "fr").mkdir()
+        (self.tables / "fr" / "studied.json").write_text('{"reference": "fr-en"}\n')
+        (self.tables / "fr" / "level.tsv").write_text("committed\n")
+        (self.tables / "fr-en").mkdir()
+        (self.tables / "fr-en" / "pin.json").write_text("{}\n")
+
+    def test_spec_scenario_the_reduce_job_reduces_fr_en_with_the_references(self):
+        self.french()
+        done = self.reduce_job()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["reduce en-fr", "reduce es-fr", "reduce fr-en", "reduce en-es", "reduce es-en"])
+        done = self.update("reduce", "all")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("PAIRS=en-fr es-fr fr-en en-es es-en\n", (self.temp / "github_env").read_text())
+
+    def test_an_update_of_fr_en_reduces_it_alone_and_keeps_its_sources(self):
+        # French's reference, with no other pair reading tables/fr yet: nothing comes along.
+        self.french()
+        done = self.update("update", "fr-en")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update fr-en"])
+        # Its raw sources are kept for the release step; the run's editions folder is removed.
+        self.assertEqual(self.kept_work(), ["fr-en"])
+        self.assertTrue((self.temp / "committed" / "fr").is_dir(), "French's studied folder is reported on")
+
+    def test_a_french_dispatch_runs_in_the_fr_group(self):
+        workflow = WORKFLOWS / "lingua-pack-update.yml"
+        text = workflow.read_text(encoding="utf-8")
+        self.assertIn("options: [en-fr, es-fr, es-en, en-es, fr-en, all]", text)
+        groups = {pair: concurrency_group(workflow, pair) for pair in ("en-fr", "en-es", "es-fr", "es-en", "fr-en", "fr-es", "all", "")}
+        self.assertEqual(
+            groups,
+            {
+                "en-fr": "lingua-pack-update-en",
+                "en-es": "lingua-pack-update-en",
+                "es-fr": "lingua-pack-update-es",
+                "es-en": "lingua-pack-update-es",
+                # fr-en writes tables/fr/, which fr-es (change 49) will read: one run at a time.
+                "fr-en": "lingua-pack-update-fr",
+                "fr-es": "lingua-pack-update-fr",
+                "all": "lingua-pack-update-all",
+                "": "lingua-pack-update-monthly",
+            },
+        )
 
     # — lingua-extension-check, the `check` job's build of every pair —
 

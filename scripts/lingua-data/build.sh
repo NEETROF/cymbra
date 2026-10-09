@@ -56,10 +56,11 @@ build_pack() {
 # How many lemmas a pair keeps by default: Spanish keeps 60,000, for which the forms of the
 # commonest lemmas pass the programme's gates (add-lingua-spanish-forms-tables D3) — every pair
 # studying Spanish, since a pair that is not the reference reads the committed lemmas and caps
-# them the same way (add-lingua-pack-es-en D1).
+# them the same way (add-lingua-pack-es-en D1). French keeps 60,000 too, measured the same way
+# (add-lingua-french-forms-tables D8), for every pair studying it.
 max_lemmas() {
   case "$1" in
-    es-*) echo 60000 ;;
+    es-* | fr-*) echo 60000 ;;
     *) echo 40000 ;;
   esac
 }
