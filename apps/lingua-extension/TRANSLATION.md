@@ -231,10 +231,10 @@ through a pair's route over the committed corpus of its studied language, in Nod
 inputs that trapped by their corpus id, the count translated, the time per sentence and the
 process's memory high-water mark; without `--isolate` the run stops at the first trap, since the
 instance is poisoned from then on. It is how a model is tried before it ships — en-es before
-change 35, now that change 25 pins its route — and it never runs in CI: the programme's M25
-recommends a manual tool. The memory figure is Node's RSS, not the worker's (the ≈ 322 MiB of es-fr
-above was measured in the browser), and the soak says nothing of the two-model bound: a run loads
-one route and deletes nothing. `tool/marks/README.md` says how.
+change 35, now that change 25 pins its route, and fr-en and fr-es before change 52, now that change
+50 routes them — and it never runs in CI: the programme's M25 recommends a manual tool. The memory
+figure is Node's RSS, not the worker's (the ≈ 322 MiB of es-fr above was measured in the browser),
+and the soak says nothing of the two-model bound: a run loads one route and deletes nothing. `tool/marks/README.md` says how.
 
 Measured on a Galaxy Tab S6 Lite (Firefox for Android, 4 GB): a cold start costs 4.1–4.7 s there
 (0.2–0.3 s on a Mac), a warm translation 0.4–1 s, and the loaded engine about 180 MB.
@@ -269,6 +269,37 @@ The marks measurement of change 26 (`tool/measure_marks.mjs --pair en-es` and `-
 then the fragment alone — through one engine per run, a request that traps being asked once more on
 a fresh engine: no request trapped on either pair, so `tool/marks/README.md`, where a trapped
 selection would be listed by its id, lists none.
+
+#### fr-en and fr-es, soaked before they ship (2026-10-09)
+
+`node --experimental-strip-types tool/soak_engine.mjs --pair fr-en --models <dir>` and
+`--pair fr-es`, each with `--isolate` and in one instance, over the 100 French selections of
+`tool/marks/corpus.json`, with the four models assembled locally from Mozilla's registry by
+`tool/assemble_model_site.mjs` (every file kept, every digest held) (`add-lingua-french-translation`
+D5). The same engine (`a6310e24…`, `.wasm` `7ef4b3fd…3122`) and machine as en-es's soak above.
+
+|                        | fr-en `--isolate`           | fr-es `--isolate`           | fr-en, one instance        | fr-es, one instance        |
+| ---------------------- | --------------------------- | --------------------------- | -------------------------- | -------------------------- |
+| Models                 | `fr-en/base-memory/2.0`     | fr-en 2.0, then en-es 2.1   | `fr-en/base-memory/2.0`    | fr-en 2.0, then en-es 2.1  |
+| Selections translated  | **100 / 100**               | **100 / 100**               | **100 / 100**              | **100 / 100**              |
+| Trapped, timed out     | **0, 0**                    | **0, 0**                    | **0, 0**                   | **0, 0**                   |
+| Time per sentence      | 146 / 150 / 230 ms          | 227 / 234 / 396 ms          | 39 / 43 / 207 ms           | 68 / 76 / 304 ms           |
+| Memory high-water mark | 395.3 MiB (highest child's) | 546.0 MiB (highest child's) | 415.4 MiB (this process's) | 557.1 MiB (this process's) |
+| Whole run              | 46 s                        | 74 s                        | 5.0 s                      | 9.0 s                      |
+
+Times are median / mean / max; maxRSS is Node's, not the worker's. Beside them, in the same session:
+es-fr 68 / 75 / 298 ms and 558.5 MiB in one instance, 220 / 226 / 311 ms and 547.5 MiB isolated;
+en-fr 35 / 39 / 180 ms and 416.6 MiB in one instance — in this tool, French's routes cost what the
+shipped ones cost, fr-es what es-fr does. The machine was not idle (other work kept its one-minute
+load average between 4.8 and 7.0 during the runs); a first session under a load average near 25 gave
+the same counts, memory within 7 % and median times up to twice as long. No selection of the
+committed French corpus trapped fr-en 2.0 or fr-es in Node (V8) with this engine build; the
+browsers' workers were not run. Change 52 reads these figures; they decide nothing here, and a trap on another input
+still costs the reader one respawn.
+
+The marks measurement of change 50 (`tool/measure_marks.mjs --pair fr-en` and `--pair fr-es`, the
+same day, machine, engine and models) asked every French selection twice through one engine per
+run: no request trapped on either pair, and `tool/marks/README.md` lists no trapped selection.
 
 ## What never happens
 
