@@ -38,7 +38,7 @@ French-PUD and GSD with change 43's prototype tables, and on 864,079 tokens of r
   composed; spans still point into the source.
 - **French's cascade** (`analysis/french.rs`, new; `lemmatize` dispatches to it): the pack's
   forms → a lowercase plural the pack does not list whose singular it does not list either, read
-  as that singular (`-s`, `-eaux`, `-aux` → `-al`; short words, `-us`/`-is`/`-ès`/`-os`
+  as that singular (`-s`, `-eaux` → `-eau`, `-aux` → `-al`; short words, `-us`/`-is`/`-ès`/`-os`
   singulars and passé simple endings left alone) → the form itself. The tables decide every
   lemma (M8): no rule reads a form as a word the pack lists, so change 43's `étés` stays out of
   *être*. Measured and rejected: a capital without its accent, `oe` for `œ`, a plural or feminine

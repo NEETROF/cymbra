@@ -83,8 +83,8 @@ For each French token, lowercased (`’` read as `'`) and in NFC:
 1. **The pack's forms** (`lemma_of`): the lemma change 43's tables chose — one per form, by its
    override list, GSD's counts, the form's own entry, frequency, order (its D5, M8).
 2. **An unlisted plural**, only for a form written in lowercase that the pack does not hold at
-   all, and only when its singular is not in the pack either: `-aux` → `-al`, `-eaux` → `-eau`,
-   `-s` after a letter other than `s` → without it. Left alone: forms of four letters or fewer,
+   all, and only when its singular is not in the pack either: `-eaux` → `-eau`, any other `-aux` →
+   `-al`, `-s` after a letter other than `s` → without it. Left alone: forms of four letters or fewer,
    singulars in `-us`, `-is`, `-ès`, `-os`, a hyphenated or elided word, and the passé simple's
    `-âmes`, `-îmes`, `-ûmes`, `-âtes`, `-îtes`, `-ûtes`.
 3. **The form itself.**
@@ -103,7 +103,8 @@ a name or a people already set aside as a proper noun (`Lluís` → `lluí`, `Ni
 `Wisigoths`): the rule only renamed them. Lowercase, it moves 1,400 tokens (0.16 %), 965 distinct
 words: `belgicismes`, `félibres`, `patoisants`, `comarques`, `alluvions`, `ramures` — and leaves 63
 passé simple forms (`dormîmes`, `cessâmes`) alone, which `-s` alone would have cut to `dormîme`.
-`-eux` and `-oux` are not stripped: an unlisted `-eux` is far likelier an adjective
+`-eaux` is read before `-aux` (`perdreaux` → `perdreau`, not `perdreal`: 8 raw tokens). `-eux` and
+`-oux` are not stripped: an unlisted `-eux` is far likelier an adjective
 (`sablonneux`) than the plural of an `-eu` noun, all of which the tables list.
 
 **On UD**, step 2 changes 18 PUD words and 8 GSD test words; their content lemmas go from 96.38 %
