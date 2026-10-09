@@ -15,19 +15,19 @@ lemma per form (M8).
 
 What French text still lacks on `main` (35faf774), measured on change 39's corpus, on UD
 French-PUD and GSD with change 43's prototype tables, and on 864,079 tokens of raw French text
-(design D6):
+(design, *How it was measured*):
 
 - **Decomposed text is not French's.** A word typed or pasted in NFD (`e` + U+0301 in
-  « mémoire ») is not the pack's `mémoire`: change 39's corpus holds one such block on purpose, and its `mémoire`
-  shows no gloss. A decomposed `ç'` escapes change 40's elision, a decomposed `peut-être` its
+  « mémoire ») is not the pack's `mémoire`: change 39's corpus holds one such block on purpose,
+  and its `mémoire` shows no gloss. A decomposed `ç'` escapes change 40's elision, a decomposed `peut-être` its
   listed-run check.
 - **Every closed-class word is a row.** A word-by-word gloss lists `le`, `de`, `que`, `il` and
   « pas » beside the words worth reading: 46 of the 91 tokens of the golden's phrase glosses.
 - **Names are words.** Change 43's tables rank `paris`, `lyon`, `lot`, `aube`, `durand` as
-  wordfreq does, so the out-of-lexicon proper-noun rule leaves them counted: with the cascade's
+  wordfreq does, so the out-of-lexicon proper-noun rule leaves them counted: with this change's
   names rule, 31,582 tokens of the raw corpus (3.65 %; Wikipedia 6.0 %, novels 1.1 %) are set
   aside, Spanish's rule extended after an elided piece (`l'Europe`, `d'Espagne`) and to
-  hyphenated names (`Saint-Étienne`, `Jean-Pierre`), which French writes far more than Spanish.
+  hyphenated names (`Saint-Étienne`, `Jean-Pierre`), which Spanish's rule leaves out.
 - **An unlisted plural is a second word.** `mégalithes` and `mégalithe` count twice; 1,400 tokens
   of the raw corpus, 18 PUD words.
 
