@@ -61,9 +61,9 @@ convent
 ### gloss couver
 (none)
 ### gloss vis
-to live
+(none)
 ### gloss as
-to have
+(none)
 ### gloss car
 because; coach
 ### gloss pas
@@ -71,9 +71,9 @@ not; step
 ### gloss son
 his, her, its; sound
 ### gloss été
-to be
+(none)
 ### gloss est
-to be
+(none)
 ### gloss homme
 man
 ### gloss l'homme
@@ -189,7 +189,7 @@ bishop
 ### word-grammar été être
 {"gloss":"to be","senses":[{"text":"to be"}],"readings":[],"others":[],"pieces":[]}
 ### word-grammar été été
-{"gloss":"to be","senses":[{"text":"to be"}],"readings":[],"others":[],"pieces":[]}
+{"gloss":null,"senses":[],"readings":[],"others":[],"pieces":[]}
 ### word-grammar a avoir
 {"gloss":"to have","senses":[{"text":"to have"}],"readings":[],"others":[],"pieces":[]}
 ### word-grammar ai avoir
