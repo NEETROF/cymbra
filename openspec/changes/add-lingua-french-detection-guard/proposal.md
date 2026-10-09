@@ -7,7 +7,7 @@ in stage 3 (French studied: fr-en, fr-es). Once French is a studied language, wh
 detector that gates every block and votes on each document's language — decides what a reader of
 French is shown as French. It has sixteen classes and none for Catalan, Occitan, Romanian,
 Franco-Provençal, Picard or Walloon; it reads many of their blocks as French. Measured on 2026-10-09
-(design D2, sources in the design), blocks of 12 bytes or more read as French:
+(the design's Measurement names the sources), blocks of 12 bytes or more read as French:
 
 | | Blocks | Read as French | Share of the text |
 |---|---|---|---|
