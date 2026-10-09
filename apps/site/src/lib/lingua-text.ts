@@ -1,6 +1,7 @@
 // The words of the Lingua page, one table per site language, and the builders that fill
 // them from the shipped pairs (change: add-site-lingua-matrix-pages, D1, D2, D4). Read by
-// `src/components/LinguaPage.astro`.
+// `src/components/LinguaPage.astro` — and, for the Lingua card of the Spanish home page,
+// by `src/pages/es/index.astro` (`spanishHomeLinguaCard`, change: extend-site-spanish-locale, D3).
 //
 // Every string is the INNER HTML of its slot — inserted with `set:html`, never through an
 // `{expression}`: an expression escapes apostrophes (`'` → `&#39;`) and `&nbsp;`, and the
@@ -27,7 +28,7 @@
 // (`apps/lingua-extension/src/i18n/es/card.ts`).
 
 import type { Lang } from "./i18n";
-import { type LinguaPair, type NativeGroup, pairsByNative, type ShippedPairs } from "./lingua-pairs";
+import { type LinguaPair, linguaHref, type NativeGroup, pairsByNative, type ShippedPairs } from "./lingua-pairs";
 
 /** The feature cards, named so that a sentence is appended to the right one. */
 export type CardKey = "highlight" | "percentage" | "click" | "deck" | "offline" | "level" | "account" | "languages";
@@ -301,8 +302,8 @@ const es: LinguaTable = {
 
 export const LINGUA_TEXT: Record<Lang, LinguaTable> = { fr, en, es };
 
-/** Where each language's page sends its readers for Cymbra Music (no Spanish Music page). */
-const MUSIC_HREF: Record<Lang, string> = { fr: "/music", en: "/en/music", es: "/en/music" };
+/** Where each language's page sends its readers for Cymbra Music: its Music page in that language. */
+const MUSIC_HREF: Record<Lang, string> = { fr: "/music", en: "/en/music", es: "/es/music" };
 
 // Each language's grammar around a language name: the forms the sentences need, the list
 // conjunctions and the number formats. Code, not copy: nothing here reaches the page on its
@@ -518,4 +519,53 @@ export function linguaPageText(lang: Lang, shipped: ShippedPairs, options: Lingu
     },
     closing: { heading: t.closingHeading, body: fill(t.closingBody, { music: MUSIC_HREF[lang] }) },
   };
+}
+
+// The Lingua card of the Spanish home page (change: extend-site-spanish-locale, D3). The
+// French and English homes' cards are literal markup and say « en anglais » / "English": true
+// for their readers. Translated as it stands, the Spanish card would tell Spanish speakers
+// that Lingua explains English words in Spanish before any pair does, so its words come from
+// the shipped pairs, as the Lingua page's do, with the Spanish table's names, speakers and
+// grammar: the languages read with a Spanish gloss once one ships; until then every language
+// read, and one sentence for whom it is made.
+const HOME_ES = {
+  read: "Lee la web {ofStudied} con las palabras que aún no conoces resaltadas en la propia página. Un porcentaje honesto por página, un clic para la traducción y tu vocabulario, que se construye solo.",
+  audience: " Pensada para {speakers}, con la interfaz y las traducciones en su idioma.",
+};
+
+/** The Lingua card of the Spanish home page: its text, ready for `set:html`, and its button's address. */
+export interface HomeLinguaCard {
+  body: string;
+  href: string;
+}
+
+/**
+ * The Spanish home page's Lingua card, from the shipped pairs: a pair glossed in Spanish
+ * ships → the languages read with a Spanish gloss, no audience, the button opens
+ * `/es/lingua`; none ships → every language read, the speakers of every native language as
+ * its readers, the button opens `/en/lingua` (`linguaHref('es')`, as the Spanish nav).
+ */
+export function spanishHomeLinguaCard(pairs: LinguaPair[]): HomeLinguaCard {
+  const t = LINGUA_TEXT.es;
+  const g = GRAMMAR.es;
+  const name = (code: string): string => {
+    if (!Object.hasOwn(t.names, code)) throw new Error(`lingua-text.ts: the es table has no name for the language "${code}"`);
+    return t.names[code];
+  };
+  const speakers = (code: string): string => {
+    if (!Object.hasOwn(t.speakers, code)) {
+      throw new Error(`lingua-text.ts: the es table has no speakers for the language "${code}"`);
+    }
+    return t.speakers[code];
+  };
+  const groups = pairsByNative("es", pairs);
+  if (groups.length === 0) throw new Error("lingua-text.ts: no shipped pair to describe");
+  const readers = groups[0].native === "es" ? groups[0] : null;
+  // The languages read, once each, in `packs.json`'s order: the readers' alone once they
+  // exist, every pair's until then.
+  const studied: string[] = [];
+  for (const p of readers ? readers.pairs : pairs) if (!studied.includes(p.studied)) studied.push(p.studied);
+  let body = fill(HOME_ES.read, { ofStudied: g.or(studied.map((code) => g.of(name(code)))) });
+  if (!readers) body += fill(HOME_ES.audience, { speakers: g.and(groups.map((group) => speakers(group.native))) });
+  return { body, href: linguaHref("es", pairs) };
 }

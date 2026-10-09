@@ -146,7 +146,8 @@ export function linguaLocalePaths(pairs: LinguaPair[] = linguaPairs()): { params
 /**
  * Where a page in `lang` links Lingua: the Lingua page in that language when it exists,
  * else the English one — `Base.astro`'s rule for a page with no Spanish twin. Drives the
- * Spanish nav, footer and not-found links.
+ * Spanish nav, footer and not-found links, and the Spanish home's Lingua card
+ * (`spanishHomeLinguaCard`, change: extend-site-spanish-locale).
  */
 export function linguaHref(lang: Lang, pairs: LinguaPair[] = linguaPairs()): string {
   return linguaPageLangs(pairs).includes(lang) ? linguaPath(lang) : linguaPath("en");

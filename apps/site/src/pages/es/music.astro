@@ -1,0 +1,67 @@
+---
+import Base from '../../layouts/Base.astro';
+import Community from '../../components/Community.astro';
+import StoreButtons from '../../components/StoreButtons.astro';
+import { musicStores } from '../../lib/stores';
+
+// Cymbra Music's Spanish page (change: extend-site-spanish-locale): the French page
+// translated (tú, neutral), static, no island, in the app's own Spanish terms
+// (`apps/music/lib/l10n/app_es.arb`) and its Spanish listing's (`apps/music/store/copy/es.md`)
+// elsewhere. The French page's closing paragraph — the plan, betas, subscription and access
+// code, on the account and code pages — is not carried: both pages are English (D4); the
+// account stays in the navigation.
+---
+
+<Base
+  title="Cymbra Music — práctica y cursos de música conectados"
+  description="Conecta tu teclado MIDI y toca: Cymbra Music sigue la partitura en tiempo real, te da una respuesta inmediata y te hace progresar lección a lección."
+  lang="es"
+  alternates={{ fr: '/music', en: '/en/music', es: '/es/music' }}
+>
+  <section class="hero container">
+    <p class="kicker">Cymbra Music</p>
+    <h1>Aprende música, <span class="gradient">con tu instrumento conectado</span></h1>
+    <p class="tagline">
+      Cymbra convierte la práctica en una experiencia guiada: sigue cursos, toca en
+      tiempo real con tu instrumento y progresa paso a paso.
+    </p>
+    <StoreButtons links={musicStores('es')} primary />
+  </section>
+
+  <section id="funciones" class="features container">
+    <div class="card">
+      <h3>🎹 Conectado a tus instrumentos</h3>
+      <p>Conecta cualquier teclado MIDI USB o batería electrónica, o toca directamente en la pantalla.</p>
+    </div>
+    <div class="card">
+      <h3>👀 Dos formas de leer</h3>
+      <p>Partitura clásica en el pentagrama para practicar la lectura, o notas que caen en cascada para aprender rápido. Cambia de vista en cualquier momento.</p>
+    </div>
+    <div class="card">
+      <h3>⏸️ Modo Espera</h3>
+      <p>La partitura se detiene hasta que tocas la nota correcta. Mano izquierda y mano derecha por separado, con un color para cada mano.</p>
+    </div>
+    <div class="card">
+      <h3>🥁 También la batería</h3>
+      <p>Partes de batería reales, en el pentagrama o en un kit animado. Asocia tus pads una vez y aísla un elemento para trabajar un groove.</p>
+    </div>
+    <div class="card">
+      <h3>🎯 Puntuación en tiempo real</h3>
+      <p>Precisión y ritmo puntuados mientras tocas, con un resumen de la sesión tras cada intento.</p>
+    </div>
+    <div class="card">
+      <h3>📚 Una biblioteca que crece</h3>
+      <p>Partituras de dominio público, de principiante a avanzado, sonidos de piano de calidad y tus propias SoundFonts si quieres.</p>
+    </div>
+    <div class="card">
+      <h3>🌍 Cuatro idiomas</h3>
+      <p>Español, inglés, francés e italiano.</p>
+    </div>
+    <div class="card">
+      <h3>🔒 Respeto por tu privacidad</h3>
+      <p>Datos alojados en Francia (UE), sin reventa y sin rastreadores publicitarios.</p>
+    </div>
+  </section>
+
+  <Community lang="es" />
+</Base>
