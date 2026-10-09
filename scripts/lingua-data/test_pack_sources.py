@@ -962,7 +962,12 @@ class OwnFetch(unittest.TestCase):
         )
         self.assertEqual(script.count("--editions"), 1, "an update alone reads a dump; a re-reduction never does")
         self.assertIn('LINGUA_STUDIED="$studied"', script, "a reader pair reads this run's studied folder")
-        self.assertIn("es-*) echo 60000", script, "every Spanish pair keeps 60,000 lemmas")
+        # Every pair studying Spanish or French keeps 60,000 lemmas (add-lingua-french-forms-tables D10),
+        # English 40,000: build.sh's own `max_lemmas`, run.
+        body = re.search(r"\nmax_lemmas\(\) \{\n.*?\n\}\n", script, re.S).group(0)
+        for pair, want in (("es-fr", "60000"), ("es-en", "60000"), ("fr-en", "60000"), ("fr-es", "60000"), ("en-fr", "40000")):
+            done = subprocess.run(["bash", "-c", f"{body}max_lemmas {pair}"], capture_output=True, text=True, check=True)
+            self.assertEqual(done.stdout.strip(), want, pair)
         # The version, in both modes, from `pack_sources.py version` (add-lingua-pack-es-en D3).
         self.assertIn('version --pin "$pin" --reducer "$here/reduce-$pair.py")"', script)
         self.assertIn('version --pin "$pin" --reducer "$here/reduce-$pair.py" --live)"', script)
@@ -1133,7 +1138,7 @@ class Legacy(unittest.TestCase):
             return f"sha256:{digest}\n".encode()
 
         committed = sorted(p.parent.name for p in (HERE / "tables").glob("*/pin.json"))
-        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr"])
+        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en"])
         for pair in committed:
             pin = self.tables / pair / "pin.json"
             pin.parent.mkdir(parents=True)
@@ -1175,7 +1180,8 @@ class Legacy(unittest.TestCase):
             self.assertEqual(
                 sum("releases/download" in url for url in fetched), len(raws), f"{pair}: every asset of its records"
             )
-            self.assertEqual("kaikki" in sources, pair != "en-es", f"{pair}: its legacy extract record")
+            # en-es and fr-en were born on the dumps: no extract of their own.
+            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en"), f"{pair}: its legacy extract record")
         self.assertEqual(
             sorted(p.name for p in (self.work / "es-en").iterdir() if p.suffix == ".jsonl"),
             ["kaikki-Spanish.jsonl", "kaikki-es-traductions-en.jsonl"],
@@ -2013,15 +2019,18 @@ class Record(unittest.TestCase):
                 self.assertTrue((folder / ps.STUDIED_RECORD).is_file(), folder.name)
         # The reduce job's order: each reference before the other pairs of its language — es-en,
         # which reads tables/es, after es-fr, which writes it (add-lingua-pack-es-en, *The reduce job*);
-        # en-es, which reads tables/en, after en-fr (add-lingua-pack-en-es).
-        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "en-es", "es-en"])
+        # en-es, which reads tables/en, after en-fr (add-lingua-pack-en-es); fr-en, French's reference,
+        # among the references (add-lingua-french-forms-tables).
+        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "en-es", "es-en"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="fr-en"), ["fr-en"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-fr"), ["es-fr", "es-en"])
         self.assertEqual(ps.pairs(HERE / "tables", after="en-fr"), ["en-fr", "en-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-en"), ["es-en"])
         self.assertEqual(ps.pairs(HERE / "tables", after="en-es"), ["en-es"])
 
     def test_the_committed_dictionary_words_are_the_reference_s_glossed_lemmas(self):
-        for language in ("en", "es"):
+        # French's are none: fr-en glosses nothing yet.
+        for language in ("en", "es", "fr"):
             studied = HERE / "tables" / language
             reference = ps.reference_of(studied)
             words = (studied / ps.LEXICAL).read_text(encoding="utf-8")

@@ -357,8 +357,8 @@ package carries the pack: `packs.json` does not list it until change 52. Its red
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
-| `tables/fr/forms.tsv` (`form → lemma`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) French section (`kaikki-French.jsonl`, `DUMPS["fr-en"]`), derived from the English edition's dump — the catalogue's file, no new derivation; **UD French-GSD**'s training and development sections at a commit (`PINNED["fr-en"]`), for homographs | kaikki: CC BY-SA 4.0 + GFDL; GSD: CC BY-SA 4.0, read for counts only | the inflections a lemma's entry lists and the first word of each form-of target of a form's own entry: lowercased, NFC, the typographic apostrophe read as `'`; never kaikki's bookkeeping, a multi-word construction, nor an inflection tagged alternative, obsolete, archaic, rare, dated, uncommon, misspelt, nonstandard, proscribed, abbreviated, clipped or a pronunciation spelling. **A form of a form along one part of speech** (`dirigée` → `dirigé` → *diriger*; `étés`, a noun's plural, not to *être*). **French's tokenisation** (M21): the fourteen elided pieces by a reviewed table (`ELISIONS`, `l'` → *le*); no plain word beginning with a piece (`c'est`, `d'abord`, `l'on`), a hyphenated run may be one (`c'est-à-dire`); the dictionary's nouns, adjectives, adverbs, pronouns and prepositions ending in a pronoun listed whole (`rendez-vous`, `qu'en-dira-t-on`), the reduction failing if one is not; `au` and `aux` no form; `du` and `des` words of their own; a verb joined to its pronouns by hyphens (`souviens-toi`) no form. **A spelling variant** (`coeur`, `connait`) reads as the word it spells. **One lemma per form**: a name and a commoner word keep the word, then a reviewed override (`OVERRIDES`, empty), GSD's counts, the form's own entry, the lemma's frequency, the alphabet. Only the forms of kept lemmas that wordfreq attests, every lemma's own form, and the pieces |
-| `tables/fr/freq.tsv` (`lemma → rank`) | **wordfreq** French list; **UD French-GSD**'s frequency of a hyphenated lemma | CC BY-SA 4.0 | the top 60,000 lemmas, dense rank: wordfreq's order, inflected forms skipped, and its elision stems (`l`, `d`, `qu`, `jusqu`, …), which carry the pieces' frequency, and `au`/`aux`. A word no form reaches gives its rank to the next (`tenue`, whose every form reads as *tenir*). A hyphenated word only when GSD attests it, at the lower of wordfreq's estimate and GSD's own frequency, after wordfreq's words of the same frequency (`peut-être`, 941; never an inversion such as `est-il`); the nouns ending in a pronoun GSD never meets at the cut's last ranks |
+| `tables/fr/forms.tsv` (`form → lemma`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) French section (`kaikki-French.jsonl`, `DUMPS["fr-en"]`), derived from the English edition's dump — the catalogue's file, no new derivation; **UD French-GSD**'s training and development sections at a commit (`PINNED["fr-en"]`), for homographs | kaikki: CC BY-SA 4.0 + GFDL; GSD: CC BY-SA 4.0, read for counts only | the inflections a lemma's entry lists and the first word of each form-of target of a form's own entry: lowercased, NFC, the typographic apostrophe read as `'`; never kaikki's bookkeeping, a multi-word construction, an inflection tagged alternative, obsolete, archaic, rare, dated, uncommon, misspelt, nonstandard, proscribed, abbreviated, clipped or a pronunciation spelling, nor a gender or number marker a head left among the forms (`m` under *Paris*). **A form of a form along one part of speech** (`dirigée` → `dirigé` → *diriger*; `étés`, a noun's plural, not to *être*). **French's tokenisation** (M21): the fourteen elided pieces by a reviewed table (`ELISIONS`, `l'` → *le*); no plain word beginning with a piece (`c'est`, `d'abord`, `l'on`), a hyphenated run may be one (`c'est-à-dire`); the dictionary's nouns, adjectives, adverbs, pronouns and prepositions ending in a pronoun listed whole (`rendez-vous`, `qu'en-dira-t-on`), the reduction failing if one is not; `au` and `aux` no form; `du` and `des` words of their own; a verb joined to its pronouns by hyphens (`souviens-toi`) no form. **A spelling variant** (`coeur`, `connait`) reads as the word it spells. **One lemma per form**: a name and a commoner word keep the word, then a reviewed override (`OVERRIDES`, empty), GSD's counts, the form's own entry, the lemma's frequency, the alphabet. Only the forms of kept lemmas that wordfreq attests, every lemma's own form, and the pieces |
+| `tables/fr/freq.tsv` (`lemma → rank`) | **wordfreq** French list; **UD French-GSD**'s frequency of a hyphenated lemma | CC BY-SA 4.0 | the top 60,000 lemmas, dense rank: wordfreq's order, inflected forms skipped, and its elision stems (`l`, `d`, `qu`, `jusqu`, …), which carry the pieces' frequency, and `au`/`aux`. A word whose own form reads as another gives its rank to the next (`tenue`, whose every form reads as *tenir*; `donnée`, read as *donner*): a pack finds a lemma by its own form, so the builder would key its rank on the other word. A hyphenated word only when GSD attests it, at the lower of wordfreq's estimate and GSD's own frequency, after wordfreq's words of the same frequency (`peut-être`, 941; never an inversion such as `est-il`); the nouns ending in a pronoun GSD never meets at the cut's last ranks |
 | `tables/fr-en/gloss.tsv` | none yet | — | empty: the glosses are change 48's |
 | `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
 
@@ -372,20 +372,23 @@ English edition's dump regenerated on 2026-10-03 08:24 (decompressed sha256 `93b
 read already: the monthly dry run derives the French section in the same pass, one more reduction and
 no more download.
 
-**The cut**: 60,000 lemmas and their attested forms, as Spanish — 124,040 forms, `forms.tsv`
-2,255,625 B and `freq.tsv` 844,895 B. 40,000 lemmas pass the gates too, 0.16 points of resolution
-lower on PUD; every form nobody writes would add 88,678 rows for 0.02 points. The pack built from the
-two tables alone is 1,239,834 B (`tables/fr-en/README.md`, with M8's cost: the 132 dictionary nouns
-among wordfreq's 5,000 commonest words that read as a verb).
+**The cut**: 60,000 lemmas and their attested forms, as Spanish — 124,050 forms, `forms.tsv`
+2,255,817 B and `freq.tsv` 844,901 B. On the design's prototype tables, 40,000 lemmas passed the
+gates too, 0.16 points of resolution lower on PUD, and every form nobody writes would have added
+88,678 rows for 0.02 points. The pack built from the two tables alone is 1,240,351 B
+(`tables/fr-en/README.md`, with M8's cost — the 135 dictionary nouns among wordfreq's 5,000 commonest
+words that read as a verb — and the twelve determiners and pronouns ranked on their own).
 
 **Measured on UD French-PUD and on GSD's test section** (`measure/fr-ud.sh`), neither committed nor
 read by the reduction, each fetched at a commit and checked by sha256 — PUD
 (`db260db10fe728853c549760801229ef4e7b16e1`, sha256 `4dfed37b…`, CC BY-SA 3.0) held to Spanish's
 gates, GSD's test section reported:
-- PUD: 99.12 % of 20,232 words resolve (gate 98.5 %), 96.38 % of 9,573 content words and 99.90 % of
+- PUD: 99.12 % of 20,232 words resolve (gate 98.5 %), 96.30 % of 9,573 content words and 99.90 % of
   1,030 auxiliaries take PUD's lemma (gates 93.5 % and 97 %);
-- GSD's test section: 98.91 % of 8,049 words resolve, 95.65 % of 3,791 content words and 99.72 % of
+- GSD's test section: 98.89 % of 8,049 words resolve, 95.67 % of 3,791 content words and 99.72 % of
   359 auxiliaries take its lemma.
+
+French's analyser at `0.2.0`; it reads the treebanks' words alike at `0.1.0`.
 
 ## The editions' dumps
 
