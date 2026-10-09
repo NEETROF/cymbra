@@ -137,8 +137,9 @@ Change 43's prototype has four such levelled lemmas — `venue` (→ *venir*), `
 `saisie` (→ *saisir*), `tranchée` (→ *trancher*): ranked because their plurals still read as them
 (change 43's D6, « a word another of its forms still reaches keeps its rank »), while their own
 form reads as the verb. Built as they are, the pack gives *venir* and *donner* the A2 of `venue`
-and `donnée` instead of their own A1, and the four nouns no level (measured: the A1 ladder counts
-1,018 lemmas, B2 2,346). Rule 4 of D2 leaves them out, and the next lemmas take their places.
+and `donnée` instead of their own A1, and the nouns' own entries lose theirs (measured: 8,299 of
+the pack's lemmas carry a level instead of 8,302; the A1 ladder counts 1,018, B2 2,346). Rule 4 of
+D2 leaves them out, and the next lemmas take their places.
 
 **A check over every committed pair** (*A level reaches the lemma it is written for*): the
 committed-tables test builds each pair's pack and requires every lemma of its studied language's
@@ -148,11 +149,13 @@ second half catches a level landing on a lemma the table leaves without one. Mea
 passes with rule 4, and fails without it, naming `donner` and `venir`.
 
 **The same keying moves ranks, which is change 43's.** Built from the prototype's tables, the
-pack ranks *donner* 1,711 instead of 225, *venir* 1,637 instead of 388, *trancher*, *retomber* and
-*border* likewise, and `donnée`, `venue`, … not at all. Change 43's implementation is in progress;
-its committed-tables test can hold every rank as this change's holds every level, and its
-reducer can keep a lemma only when its own form reads as itself. If it does, rule 4 leaves nothing
-out and stays as a guard.
+pack ranks *donner* 1,711 instead of 225, *venir* 1,637 instead of 388, *trancher* 7,931 instead of
+6,654 and *retomber* 18,045 instead of 7,691 — the ranks of `donnée`, `venue`, `tranchée` and
+`retombée` — and those nouns, read through their plurals, carry no rank of their own (five of the
+60,000 ranks are not the table's, measured). Change 43's implementation is in progress; its
+committed-tables test can hold every rank as this change's holds every level, and its reducer can
+keep a lemma only when its own form reads as itself. If it does, rule 4 leaves nothing out and
+stays as a guard. A gloss is keyed the same way, which change 48 meets if 43 keeps such lemmas.
 
 ### D4 — Six levels: the scale is monotone
 
@@ -223,14 +226,16 @@ kept the fixture whole for the same reason.
 
 **What the levels will move at the hand-over**, measured by blessing the golden in a scratch copy
 over change 43's prototype forms and ranks with the fixture's glosses, with and without this table
-and its flag: **23 of the 136 probes** — the `pack` line (+60,035 B), `has-levels`, `level-ladder`
-(totals 1,020, 1,158, 2,015, 2,347, 886, 876, English's figures, `typicalFrom: "en"`), both
-vocabulary estimates (a universe of 8,302 dictionary words before change 48's lexical table; the
-reader's estimate 2,179), `promote-by-exposure` (0 → 3), both `seed-level` probes and the review,
-deck and card probes that follow from the cards they seed, the four reader pages (the B1 reader
-presumes 247 of their 309 tokens known, against 109 with the fixture and 1 with no table), the
-reader's phrase gloss, the status and card exports and the backup. Change 48's re-bless shows them
-together with the forms, readings and glosses; its pull request can name these as the levels'.
+and its flag: **23 of the 136 probes** move — the `pack` line (+60,035 B), `has-levels` (which the
+fixture already answers `true`, so it does not move at the hand-over), `level-ladder` (totals
+1,020, 1,158, 2,015, 2,347, 886, 876, English's figures, `typicalFrom: "en"`), both vocabulary
+estimates (a universe of about 8,300 words before change 48's lexical table, the levelled lemmas
+being dictionary words; the reader's estimate 2,179), `promote-by-exposure` (0 → 3), both
+`seed-level` probes and the review, deck and card probes that follow from the cards they seed,
+the four reader pages (247 of their 309 tokens read as known for the B1 reader, against 109 of 308
+with the fixture and 1 with no table), the reader's phrase gloss, the status and card exports and
+the backup. Change 48's re-bless shows these 22 with the forms, readings and glosses; its pull
+request can name them as the levels'.
 
 ### D8 — If a licence is granted
 
