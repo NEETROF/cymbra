@@ -154,7 +154,10 @@ renderer's table gives (D2). Everything else is named as before:
 - « soyez » (subjunctive and imperative) and « vis » (present and past historic) are not merged:
   their tenses or moods differ otherwise.
 
-**Where.** In the description's `nameReadings`, once the persons are merged by tense and number:
+**Where.** The description's merge by tag already reduces « parle »'s five tags to three readings
+— the imperative, second person; the present indicative and the present subjunctive, each of persons
+1 and 3 —, as it does every one of the 2,142 five-reading forms (measured). The moods merge in
+`nameReadings`, once the persons are merged by tense and number:
 two groups keyed `Ind/T` and `Sub/T`, of one number and the same persons, become one group keyed
 `Ind|Sub/T` at the place of the first, when `NAMES[studied]` merges moods (French) and the renderer
 names the merged key. The merged name is a tense name, so « only tense names are keyed by pair »
@@ -436,7 +439,7 @@ Rollback is a revert.
 
 ## Effort
 
-4–6 ideal days, against the programme's 3.5–6: the description and the three renderers (D1–D6) 1–1.5;
+4–5.75 ideal days, against the programme's 3.5–6: the description and the three renderers (D1–D6) 1–1.5;
 their specs 0.5–0.75; the selection's routing and its tests (D7) 0.75–1.25; the stored gloss and
 review by name (D8) 0.5–0.75; the probes, the fr-es golden, the two snapshots and the workflow lines
 (D9) 0.75–1; the defects listed, specs and programme 0.5.

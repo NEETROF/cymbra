@@ -140,4 +140,4 @@ None.
   `StudiedLanguage`, the labels, `packs.json` and the dogfood on devices (52); the shared wording
   questions the snapshots raise for every pair (56, `refine-lingua-matrix-wording`); `Pack::readings`
   for a lemma that is another word's form (change 45's open question 4).
-- **Effort, against 3.5–6 ideal days**: 4–6 (design, *Effort*).
+- **Effort, against 3.5–6 ideal days**: 4–5.75 (design, *Effort*).
