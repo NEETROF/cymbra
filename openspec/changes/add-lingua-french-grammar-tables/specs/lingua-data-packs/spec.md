@@ -16,8 +16,8 @@ French's studied tables SHALL carry, in `tables/fr/grammar.tsv`, the readings of
 - **THEN** `parlerait` is `VERB|Mood=Cnd|Number=Sing|Person=3|VerbForm=Fin`, with no tense; `parlant` is `VERB|Tense=Pres|VerbForm=Part`; and `dirigée`, which the dictionary gives as the feminine of the participle `dirigé`, is `VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part` of *diriger*
 
 #### Scenario: A pronominal verb
-- **WHEN** the dictionary writes *s'évanouir*'s present as `s'évanouit` and `nous évanouissons`, and its imperative as `évanouis-toi`
-- **THEN** `évanouit` reads as its present indicative, third person singular, `évanouissons` as its first person plural, and `évanouis` carries the imperative, second person singular, among its readings
+- **WHEN** the dictionary writes *s'évanouir*'s forms with their pronoun — `s'évanouit`, `s'évanouissaient`, and the imperative `évanouis-toi`
+- **THEN** `évanouit` carries its present indicative, third person singular, `évanouissaient` its imperfect indicative, third person plural, and `évanouis` the imperative, second person singular, among their readings
 
 #### Scenario: A noun says its gender
 - **WHEN** the card asks the grammar of `maisons` as *maison*, and of `temps` as *temps*
