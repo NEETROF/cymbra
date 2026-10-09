@@ -183,7 +183,11 @@ table with them.
 ### D5 — One lemma per form (M8), and what it costs
 
 When a form has several candidates, the first rule that decides wins — Spanish's order:
-1. **the override list** (`OVERRIDES`: form, lemma, reason), empty, as Spanish's;
+1. **the override list** (`OVERRIDES`: form, lemma, reason), empty of homographs, as Spanish's; the
+   implementation adds two rows for the source's copy errors, which no rule tells from a meaning —
+   `fatiguée`, whose verb entry reads « feminine singular of parlé » (→ *fatiguer*), and `bridée`, a
+   form-of target « female slant » (→ *bridé*), found among the 106 forms whose lemma begins with
+   another letter;
 2. **GSD's counts** of the form under each candidate;
 3. **the form's own entry**, when it is a lemma;
 4. **the candidate's wordfreq frequency**;
@@ -348,7 +352,7 @@ the gated figure is the conservative one.
 **On the implemented tables** (D3's markers, D6's rank rule and stems), French at `0.2.0`: PUD
 99.12 % resolved, 96.30 % content lemmas, 99.90 % auxiliaries; GSD's test section 98.91 → 98.89 %,
 95.65 → 95.67 %, 99.72 % — the rank rule moves the content words, the markers GSD's resolution
-(its `m` no longer reads as Paris). 124,050 forms, a pack of 1,240,351 B with fr-en's real NOTICE
+(its `m` no longer reads as Paris). 124,050 forms, a pack of 1,239,671 B with fr-en's real NOTICE
 and manifest.
 
 `lingua-pack-measure` needs no French arm — it lemmatises through the pack's studied language —

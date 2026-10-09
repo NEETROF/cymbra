@@ -156,9 +156,22 @@ _WORDFREQ_DEPTH = 6
 # rules' sha256, so the tables must be reduced again, as for any rule.
 #
 # A row costs the other lemma its place in the pack: a lemma's own form always reads as itself, so
-# keeping the noun `porte` would read « il porte » as the door. The list starts empty, as Spanish's
-# did; M8's cost — the dictionary nouns a verb's form takes — is listed in tables/fr-en/README.md.
-OVERRIDES = {}
+# keeping the noun `porte` would read « il porte » as the door. No homograph has a row, as in
+# Spanish's; M8's cost — the dictionary nouns a verb's form takes — is listed in
+# tables/fr-en/README.md. The rows below correct the source's copy errors, which no rule can tell
+# from a meaning.
+OVERRIDES = {
+    "fatiguée": (
+        "fatiguer",
+        "a copy error: the English Wiktionary's verb entry reads « feminine singular of parlé »; its "
+        "adjective entry and fatigué's tables make it fatigué's feminine, which reads as fatiguer",
+    ),
+    "bridée": (
+        "bridé",
+        "a copy error: the noun's form-of targets are « bridé » and « female slant », whose first word "
+        "is English (« female equivalent of bridé, female slant »)",
+    ),
+}
 
 
 def nfc_lower(text):
