@@ -7,7 +7,7 @@ See proposal.md (Why). Where French stands, and what this design measured:
 | What | Where, today |
 |---|---|
 | French in the core | `StudiedLanguage::French`, analyser `0.1.0`, the baseline analysis: the pack's form→lemma lookup, else the lowercased form (`lemmatize_baseline`); no tokenisation of its own, no NFC (add-lingua-french-baseline D2) |
-| French tables | none: `scripts/lingua-data/testdata/fr-en/` is a hand-written fixture of about two hundred forms, which the French invariance baseline runs over until change 48 (change 39 D5, *Hand-over*) |
+| French tables | none: `scripts/lingua-data/testdata/fr-en/` is a hand-written fixture of 286 forms, which the French invariance baseline runs over until change 48 (change 39 D5, *Hand-over*) |
 | The layout (M24) | `tables/<studied>/` holds `forms.tsv`, `freq.tsv`, `grammar.tsv`, `level.tsv`, the pinned tag pool `tags.tsv`, the dictionary words `lexical.tsv` and `studied.json`; `tables/<pair>/` the native side, `pin.json`, `README.md`. A studied folder is written only by its reference pair's reduction, « the first pair built for » a language studied later (`pack_sources.py split`, which makes the first pair reduced the reference); `check_committed_tables` requires `tags.tsv` and `lexical.tsv` to exist, the second equal to the reference's glossed lemmas |
 | The source | change 38's catalogue: `kaikki-French.jsonl`, `("entries", "fr")` of the English edition, « French's studied side and fr-en's glosses (changes 43, 45, 48) »; no pair registers it yet |
 | Spanish's precedent | add-lingua-spanish-forms-tables: tagged inflections and form-of links, combined forms left to the analyser, one lemma by override / GSD counts / own entry / frequency / order, 60,000 lemmas by wordfreq and their attested forms, `lingua-pack-measure` over PUD held to 98.5 / 93.5 / 97 |
@@ -19,7 +19,7 @@ forms or verbs, 90,698 nouns, 47,011 adjectives, 10,111 names; 7,395 verbs carry
 table (`inflection-template`); 76,591 words have a sense that is not a form-of (the dictionary's
 lemmas), 7,969 of them names only. A verb's table lists the masculine singular past participle
 (`dirigé`) and none of its agreed forms: those hang under the participle's own entry, which is a
-form of the verb. 12,548 listed inflections are tagged alternative, obsolete, archaic, rare,
+form of the verb. 12,536 listed inflections are tagged alternative, obsolete, archaic, rare,
 dated, misspelt, nonstandard or abbreviated.
 
 ## Goals / Non-Goals
@@ -103,7 +103,7 @@ form's candidate lemmas come from:
   part of speech: `dirigée` is the feminine of the participle `dirigé` (a verb entry), itself the
   past participle of *diriger* (a verb entry), so `dirigée` → *diriger*; `étés` is the plural of the
   noun `été` (a noun entry), and `été` reads as *être* through a verb entry, so `étés` reaches
-  nothing and stays out: an unknown word rather than the verb. 6,367 forms of the table get
+  nothing and stays out: an unknown word rather than the verb. 6,368 forms of the table get
   their lemma this way. Without the rule, the tables fail the resolution gate (S0 below).
 
 An entry with a sense that is not a form-of is a lemma, and its own candidate.
@@ -123,11 +123,11 @@ step 2). The tables hold what that pre-pass looks up, and nothing it never does:
 
 - **Every word the pre-pass writes is a form.** Measured on the prototype's tables: all 32 —
   the 17 words of the elisions, `à`, `le`, `les`, and the pronouns — are forms, each a ranked lemma
-  or a form of one (`les` and `la` of *le*); the rarest, `quoique`, is rank 3,328.
+  or a form of one (`les` and `la` of *le*); the rarest, `quoique`, is rank 3,321.
 - **The pieces themselves are forms too**, by a closed, reviewed table in the reducer (`ELISIONS`:
-  form, lemma, reason), each mapped to the first word the pre-pass reads it as: `l'` → *le*, `s'` →
-  *se*, `m'` → *me*, `t'` → *te*, and the eleven others as above. The pre-pass never looks a piece
-  up; the treebanks do: UD writes the piece as the word (`l'`, lemma `le`), and the measurement
+  form, lemma, reason), each mapped to the word the pre-pass reads it as outside its special cases:
+  `l'` → *le*, `s'` → *se*, `m'` → *me*, `t'` → *te*, and the ten others as above. The pre-pass
+  never looks a piece up; the treebanks do: UD writes the piece as the word (`l'`, lemma `le`), and the measurement
   lemmatises a treebank's words as written (D9). The pieces are 5.53 % of PUD's measured words
   (1,118 of 20,232) and 5.55 % of GSD's test section — the 6.5 % of literary French the programme
   measured is of the same order —; without the table they would not resolve. The dictionary could
@@ -135,7 +135,7 @@ step 2). The tables hold what that pre-pass looks up, and nothing it never does:
   `qu'` under *que* and *qui*.
 - **No plain word beginning with a piece is a form.** The pre-pass splits a word without a hyphen
   at its piece whatever the pack lists (`c'est`, `d'abord`, `l'on`, `jusqu'à`), so the whole string
-  is never looked up: 180 dictionary entries and 609 of wordfreq's tokens are left out, and the
+  is never looked up: 165 dictionary entries and 608 of wordfreq's words are left out, and the
   expressions among them are expression keys (change 44). A **hyphenated run** beginning with a piece
   is read whole first, so it is a candidate like any compound (D6): `c'est-à-dire`, which GSD
   attests, is a form (rank 460). A word whose inner apostrophe is no piece's stays, as change 40
@@ -145,13 +145,13 @@ step 2). The tables hold what that pre-pass looks up, and nothing it never does:
   dictionary has 19 hyphenated words whose last piece is one of the pronouns above: 15 are verbs,
   phrases or interjections made of a verb and its pronouns (`est-il`, `a-t-il`, `allez-y`,
   `excusez-moi`), which the split reads right and the tables leave out; 4 are nouns —
-  `rendez-vous` (GSD-attested, rank 1,587), `qu'en-dira-t-on`, `malgré-nous` and `non-moi` —, which
+  `rendez-vous` (GSD-attested, rank 1,586), `qu'en-dira-t-on`, `malgré-nous` and `non-moi` —, which
   the tables keep, the last three, which GSD never meets, at the 60,000 cut's last ranks. The
-  demonstratives `celui-ci` (336) and `celui-là` (5,018) are lemmas, `celle-ci`, `ceux-là`, … their
+  demonstratives `celui-ci` (336) and `celui-là` (5,000) are lemmas, `celle-ci`, `ceux-là`, … their
   forms. `chez-moi`, which change 40's design names, is no entry of this dictionary: it reads
   `chez` + `moi`.
 - **`au` and `aux` are no word**: neither a form nor a rank, since the pre-pass always splits them.
-  Left in, they would be French's 15th and 40th words — at A1 once change 46 bands the ranks — for
+  Left in, they would be French's 16th and 41st words — at A1 once change 46 bands the ranks — for
   strings no page token can be. (Spanish's `al` and `del`, which its tokeniser splits too, keep the
   ranks es-fr gave them; nothing of es-fr moves here.)
 - **`du` and `des` are words of their own**, since they stay whole: `du` maps to itself (its own
@@ -165,10 +165,13 @@ step 2). The tables hold what that pre-pass looks up, and nothing it never does:
 
 **The check is this change's**, as change 40's design leaves it (« change 43 runs the same check
 on the real tables »): a test over the committed tables that every word the French pre-pass can
-write is a form of `tables/fr/forms.tsv`, that every piece of `ELISIONS` maps to the first word the
-pre-pass reads it as, that every hyphenated noun, adjective, adverb, pronoun or preposition of the
-dictionary ending in one of its pronouns is a form, and that `au` and `aux` are not (task 3.3). It
-reads change 40's lists from lingua-core when change 40 is on `main`, and holds them literally
+write is a form of `tables/fr/forms.tsv`, that every piece of `ELISIONS` maps to the word the
+pre-pass reads it as outside its special cases, that every hyphenated noun, adjective, adverb,
+pronoun or preposition of the dictionary ending in one of its pronouns is a form, and that `au` and
+`aux` are not (task 3.3). It is narrower than change 40's wording, « every hyphenated entry … whose
+last piece is one of the pronouns »: the 15 verb, phrase and interjection entries are a verb and its
+pronouns, which change 40's inversion rule reads as words, and listing them whole would stop it.
+The test reads change 40's lists from lingua-core when change 40 is on `main`, and holds them literally
 until then; if change 40 settles other lists, its pull request moves the test and this reducer's
 table with them.
 
@@ -186,20 +189,22 @@ another word's keeps only the commoner reading, by wordfreq — `cette` reads as
 `claire` as *clair*; `paris` stays the city (Zipf 5.71 against *pari*'s 4.12). It narrows 226
 forms.
 
-Measured on the tables: 3,599 forms keep more than one candidate after the cut; the counts decide
-1,384, the own entry 1,314, frequency or order 901. **The cost M8 accepts** is a dictionary noun
+Measured on the tables: 3,598 forms keep more than one candidate after the cut; the counts decide
+1,383, the own entry 1,314, frequency or order 901. **The cost M8 accepts** is a dictionary noun
 whose own form a verb takes, which then leaves the pack, since a lemma is keyed by its own form:
 - `porte`: GSD counts 39 *porter*, 23 *porte* — the noun « door » leaves the pack, `portes` reads as
   *porter* (it is also its second person), and « la porte » shows *porter*'s card;
 - `été` (830 *être*, 51 *été*), `demande` (37 *demander*, 36 *demande*), `offre` (23, 15), `reste`
   (88, 37), `passé` (38, 12), `produit` (48, 22), `montre` (24, 3), `sort` (17, 9);
-- in all, 29, 54 and 125 dictionary nouns among wordfreq's 1,000, 2,000 and 5,000 commonest words
-  read as a verb. **Spanish's committed tables, by the same rule and the same count, have 30, 48 and
-  95** (`cuenta` → *contar*, `pregunta` → *preguntar*): the rule costs French what it costs Spanish.
+- in all, 29, 54 and 132 dictionary nouns among wordfreq's 1,000, 2,000 and 5,000 commonest words
+  read as a verb and are no ranked lemma. **Spanish's committed tables, by the same rule and the same
+  count, have 30, 48 and 95** (`cuenta` → *contar*, `pregunta` → *preguntar*): among the commonest
+  words the rule costs French what it costs Spanish; further down French loses more, its past
+  participles being nouns too (`arrêté`, `élu`, `envoyé`, `tenue`).
 
 The alternative was measured too: **the form's own entry first** (a noun keeps its form) keeps those
-nouns and breaks the auxiliaries — `est`, `été`, `suis`, `a` read as *est*, *été*, … —: 39.03 % of
-PUD's auxiliaries and 91.50 % of its content words take the treebank's lemma, below two gates. A
+nouns and breaks the auxiliaries — `est`, `été`, `suis`, `a` read as *est*, *été*, … —: 42.14 % of
+PUD's auxiliaries and 91.55 % of its content words take the treebank's lemma, below two gates. A
 list of overrides could keep a single noun (`porte` → *porte*, reading « il porte » as the door);
 the list starts empty, as Spanish's did, and the owner may name a row (Open Questions).
 
@@ -209,6 +214,15 @@ the list starts empty, as Spanish's did, and the owner may name a row (Open Ques
   first choice of D5, dense, the 60,000 first kept. Words the dictionary does not know (names,
   loans, `etc`) are ranked as en-fr's and es-fr's are: a lowercase word outside the lexicon reads as
   unknown.
+- **A word no form reaches is no rank.** D3's form of a form adds candidates after that first
+  choice, and the counts can then read every form of a word the first choice kept as another's —
+  `tenue` and `tenues` as *tenir*, `allée` as *aller*. Such a word gives its rank to the next, until
+  every ranked lemma is some form's lemma, as Spanish's and English's committed tables already are:
+  19 words move out (`tenue`, `allée`, `destinée`, `levée`, …) and 19 come in at the cut's end, and
+  the gates do not move. A word another of its forms still reaches keeps its rank (`donnée`, rank
+  1,711, which `données` reaches while `donnée` itself reads as *donner*). *Rejected — ranking by
+  the final choice:* `données` would read as *donner* too, 96.32 % of PUD's content words by the
+  lookup against 96.40 %.
 - **wordfreq's elision stems are no words.** Its tokeniser splits `l'homme` into `l` and `homme`,
   so `l`, `d`, `c`, `qu`, `j`, `n`, `s`, `t` and `m` carry the elided pieces' frequency and stand at
   ranks 5 to 63 of its list; ranked, the letter `l` would be French's fourth commonest word. They
@@ -217,17 +231,18 @@ the list starts empty, as Spanish's did, and the owner may name a row (Open Ques
   `peut-être`; for a hyphenated string it answers the combination of its parts, which is about its
   rarest part's frequency. Ranked by that estimate, `est-il` and `a-t-il` — inversions the
   dictionary lists as entries — would be French's 17th and 49th words, `fait-tout` the 51st,
-  `en-cas` the 133rd, and 2,760 compounds would enter the 60,000 (measured with S4's other rules).
+  `en-cas` the 134th, and 2,771 compounds would enter the 60,000 (measured with S4's other rules).
   So a compound is ranked only when GSD's training sections attest it as a lemma, at the **lower**
   of wordfreq's estimate and GSD's own frequency (its count over 390,368 words, as a Zipf value) —
   and, whatever GSD says, when it is one of D4's nouns ending in a pronoun, at the cut's last
-  ranks: 474 compounds, 70 of them in the 5,000 commonest — `lui-même` 277, `celui-ci` 336,
-  `c'est-à-dire` 460, `peut-être` 941, `au-delà` 1,010, `rendez-vous` 1,587, `week-end` 1,674,
-  `après-midi` 1,923, `grand-mère` 3,540 —, `en-cas` at 10,723, and no inversion. The lower of two sources never ranks
-  a compound above what either supports; on the 77 compounds GSD meets five times or more,
-  wordfreq's estimate runs a median 0.23 Zipf above GSD's own frequency, against −0.12 for single
-  words, and the gap widens as the compound gets rarer. Resolution pays 0.07 points on PUD for the
-  rule (99.28 % with the raw estimate). A word
+  ranks: 474 compounds, 79 of them in the 5,000 commonest — `lui-même` 277, `celui-ci` 336,
+  `c'est-à-dire` 460, `peut-être` 941, `au-delà` 1,010, `rendez-vous` 1,586, `week-end` 1,673,
+  `après-midi` 1,921, `grand-mère` 3,529 —, `en-cas` at 10,666, and no inversion. At an equal
+  frequency a compound comes after wordfreq's words, and compounds alphabetically, so the order
+  never depends on the source's. The lower of two sources never ranks a compound above what either
+  supports; on the 72 word-shaped compounds GSD meets five times or more, wordfreq's estimate runs a
+  median 0.17 Zipf above GSD's own frequency, where it runs 0.28 below it for single words.
+  Resolution pays 0.07 points on PUD for the rule (99.28 % with the raw estimate). A word
   with an inner apostrophe needs no estimate: wordfreq lists `aujourd'hui` and `quelqu'un` whole.
 - **Forms**: those whose chosen lemma is kept and that wordfreq attests (a Zipf frequency above
   zero), each kept lemma's identity form, and the elided pieces, as Spanish's.
@@ -235,11 +250,11 @@ the list starts empty, as Spanish's did, and the owner may name a row (Open Ques
 ### D7 — A spelling variant reads as the word it spells
 
 An entry whose every sense only spells another word — an ASCII spelling of a ligature
-(`coeur`, « nonstandard spelling of *cœur* », 52 entries) or a post-1990 spelling (`connait`,
-`évènement`, `chaine`, `weekend`, « post-1990 spelling of … », 323 entries) — is read as a form of
+(`coeur`, « nonstandard spelling of *cœur* », 42 entries) or a post-1990 spelling (`connait`,
+`évènement`, `chaine`, `weekend`, « post-1990 spelling of … », 287 entries) — is read as a form of
 that word, with its own inflections (`coeurs` → *cœur*). Otherwise each would be a lemma of its own
-beside the word it spells — 20 and 81 of them among wordfreq's 60,000 commonest —, and a reader who
-knows `boîte` would meet `boite` as new. The tables gain 209 forms and lose those lemmas' ranks to
+beside the word it spells — 20 and 73 of them among wordfreq's 60,000 commonest —, and a reader who
+knows `boîte` would meet `boite` as new. The tables gain 210 forms and lose those lemmas' ranks to
 other words; the gates do not move (S3). An alternative that is a word of its own (`clef`, whose
 entry also glosses the musical clef) keeps its entry, as any lemma does.
 
@@ -251,27 +266,27 @@ D9 gives the binary's):
 | Rules, 60,000 lemmas, attested forms | Forms | `forms.tsv` | PUD resolved | content | AUX | GSD test resolved | content | AUX |
 |---|---|---|---|---|---|---|---|---|
 | S0 Spanish's rules transposed, with the pieces of D4 | 117,826 | 2.12 MB | 97.61 % | 93.86 % | 99.90 % | 97.80 % | 93.72 % | 99.72 % |
-| S1 + a form of a form (D3) | 123,895 | 2.24 MB | 98.90 % | 96.30 % | 99.90 % | 98.88 % | 95.65 % | 99.72 % |
-| S2 + compounds by evidence (D6) | 124,172 | 2.26 MB | 99.21 % | 96.39 % | 99.90 % | 99.12 % | 95.70 % | 99.72 % |
-| S3 + spelling variants (D7) | 124,381 | 2.26 MB | 99.21 % | 96.40 % | 99.90 % | 99.12 % | 95.67 % | 99.72 % |
-| **S4 + M21 as change 40 writes it (D4): this design** | **124,013** | **2.26 MB** | **99.21 %** | **96.40 %** | **99.90 %** | **99.12 %** | **95.67 %** | **99.72 %** |
+| S1 + a form of a form (D3) | 123,916 | 2.25 MB | 98.90 % | 96.30 % | 99.90 % | 98.88 % | 95.65 % | 99.72 % |
+| S2 + compounds by evidence (D6) | 124,198 | 2.26 MB | 99.21 % | 96.39 % | 99.90 % | 99.12 % | 95.70 % | 99.72 % |
+| S3 + spelling variants (D7) | 124,408 | 2.26 MB | 99.21 % | 96.40 % | 99.90 % | 99.12 % | 95.67 % | 99.72 % |
+| **S4 + M21 as change 40 writes it (D4): this design** | **124,040** | **2.26 MB** | **99.21 %** | **96.40 %** | **99.90 %** | **99.12 %** | **95.67 %** | **99.72 %** |
 
 | Cut (S4's rules) | Forms | `forms.tsv` | `freq.tsv` | PUD resolved | content | AUX | GSD test resolved | content | AUX |
 |---|---|---|---|---|---|---|---|---|---|
-| 20,000 lemmas, attested | 61,989 | 1.15 MB | 0.28 MB | 98.24 % | 95.65 % | 99.90 % | 97.70 % | 94.14 % | 99.72 % |
-| 40,000 lemmas, attested | 97,013 | 1.78 MB | 0.56 MB | 99.05 % | 96.29 % | 99.90 % | 98.93 % | 95.41 % | 99.72 % |
-| **60,000 lemmas, attested** | **124,013** | **2.26 MB** | **0.84 MB** | **99.21 %** | **96.40 %** | **99.90 %** | **99.12 %** | **95.67 %** | **99.72 %** |
-| 80,000 lemmas, attested | 147,752 | 2.66 MB | 1.13 MB | 99.32 % | 96.46 % | 99.90 % | 99.23 % | 95.75 % | 99.72 % |
-| 100,000 lemmas, attested | 170,208 | 3.04 MB | 1.41 MB | 99.37 % | 96.49 % | 99.90 % | 99.29 % | 95.83 % | 99.72 % |
-| 60,000 lemmas, every form | 212,655 | 4.15 MB | 0.84 MB | 99.23 % | 96.44 % | 99.90 % | 99.12 % | 95.67 % | 99.72 % |
-| 100,000 lemmas, every form | 283,848 | 5.49 MB | 1.41 MB | 99.39 % | 96.53 % | 99.90 % | 99.29 % | 95.83 % | 99.72 % |
+| 20,000 lemmas, attested | 62,013 | 1.15 MB | 0.28 MB | 98.24 % | 95.65 % | 99.90 % | 97.70 % | 94.14 % | 99.72 % |
+| 40,000 lemmas, attested | 97,037 | 1.78 MB | 0.56 MB | 99.05 % | 96.29 % | 99.90 % | 98.93 % | 95.41 % | 99.72 % |
+| **60,000 lemmas, attested** | **124,040** | **2.26 MB** | **0.84 MB** | **99.21 %** | **96.40 %** | **99.90 %** | **99.12 %** | **95.67 %** | **99.72 %** |
+| 80,000 lemmas, attested | 147,773 | 2.66 MB | 1.13 MB | 99.32 % | 96.46 % | 99.90 % | 99.23 % | 95.75 % | 99.72 % |
+| 100,000 lemmas, attested | 170,228 | 3.04 MB | 1.41 MB | 99.37 % | 96.49 % | 99.90 % | 99.29 % | 95.83 % | 99.72 % |
+| 60,000 lemmas, every form | 212,718 | 4.15 MB | 0.84 MB | 99.23 % | 96.44 % | 99.90 % | 99.12 % | 95.67 % | 99.72 % |
+| 100,000 lemmas, every form | 283,870 | 5.49 MB | 1.41 MB | 99.39 % | 96.53 % | 99.90 % | 99.29 % | 95.83 % | 99.72 % |
 
-**60,000 lemmas and their attested forms**, as Spanish: every form nobody writes would add 88,642
+**60,000 lemmas and their attested forms**, as Spanish: every form nobody writes would add 88,678
 rows (1.9 MB) for 0.02 points; 40,000 passes too, with 0.16 points less resolution on PUD and
 0.19 on GSD; 80,000 adds 0.4 MB of forms and 0.3 MB of ranks for 0.11. The analysis of change 41
 resolves part of the long tail by rule, as Spanish's enclitic rule does.
 
-**The pack** built from these two tables alone (no gloss, reading or level) is 1,240,362 B; the same
+**The pack** built from these two tables alone (no gloss, reading or level) is 1,239,104 B; the same
 two tables of Spanish build 1,308,123 B. Both French packs (48, 49) carry it; their glosses,
 readings and levels are measured against the 5 MiB budget by the changes that add them. No package
 changes here.
@@ -291,7 +306,7 @@ With the prototype's tables, French at `0.1.0`:
 
 | | Words | Resolved | Content words | Auxiliaries |
 |---|---|---|---|---|
-| UD French-PUD (gated) | 20,232 | **99.12 %** | **96.36 %** of 9,573 | **99.90 %** of 1,030 |
+| UD French-PUD (gated) | 20,232 | **99.12 %** | **96.38 %** of 9,573 | **99.90 %** of 1,030 |
 | GSD test (reported) | 8,049 | 98.91 % | 95.65 % of 3,791 | 99.72 % of 359 |
 
 The binary reads UD's words as UD writes them, without tokenising them: an elided piece is `l'`,
@@ -303,8 +318,9 @@ the gated figure is the conservative one.
 `lingua-pack-measure` needs no French arm — it lemmatises through the pack's studied language —
 and its doc line names both treebanks.
 
-The PUD pin is the one change 50's marks measurement reads for French (`tool/marks/pud.mjs`), so
-the two never measure different files.
+Change 50 pins French's PUD for its marks measurement at this same commit and sha256 in
+`tool/marks/pud.mjs`, which pins English's and Spanish's today, so the two never measure different
+files.
 
 ### D10 — Committed tables and the pipeline
 
@@ -346,7 +362,11 @@ The pipeline:
   the golden until change 48. The fixture is kept; *The committed tables replace the fixture*
   happens in change 48, which commits fr-en's tables in the sense that scenario reads — its
   glosses. This change's spec says so (*French's forms and frequencies*, *The French baseline keeps
-  its fixture*).
+  its fixture*). Change 39's scenario reads, to the letter, « WHEN the French tables and the fr-en
+  pair's tables are committed »: its design wrote it when change 48 was to commit both. Read as
+  written it would fire here; the reading this change takes — fr-en's tables are committed when
+  they gloss — is the owner's to confirm, and the scenario's words are best made « WHEN fr-en's
+  glosses are committed » when change 39 is archived (Open Question 4).
 - **en-fr, es-fr, es-en and en-es cannot move**: no file of their rule digests changes —
   `reduce-en-fr.py`, `reduce-es-fr.py`, `reduce-es-en.py`, `reduce-en-es.py`, `reduce_common.py`,
   the `reduce_edition_*.py` — (`pack_sources.py` and `build.sh` are outside every digest, change 38),
@@ -383,7 +403,9 @@ naming those still open on this branch's base — 38 and 39 today, 40 once its p
   optional lemma alternatives are where it returns; an override row is the owner's to name.
 - **[Compound ranks are estimates]** → the lower of two sources, GSD-attested only; a compound GSD
   never met is classified from its parts by the tokeniser, as today, and an update's report lists
-  the ranks that move.
+  the ranks that move. They are coarse: 240 of the 474 are met once in GSD and most take that one
+  occurrence's frequency (ranks about 10,600 to 10,800), 94 met twice about 6,700; change 46's
+  levels band them by it.
 - **[Change 40's pre-pass moves after this change is designed]** — another piece, another read
   word, another pronoun — → the check of D4 reads its lists from lingua-core once change 40 is on
   `main` and fails in the pull request that moves them; the reducer's table follows the tokeniser in
@@ -397,7 +419,7 @@ naming those still open on this branch's base — 38 and 39 today, 40 once its p
   at the dispatch day's snapshot; task 2.2 measures them again and records the figures; the gates,
   not the prototype's figures, decide.
 - **[The reduce job grows]** → one more pair, a 26 MB asset and two GSD files; the job measured
-  3 min 38 s for three pairs (add-lingua-pack-es-en) and keeps its 45-minute timeout.
+  3 min 38 s for en-fr, es-fr and es-en on 2026-10-08 (change 38) and keeps its 45-minute timeout.
 - **[GSD's counts are sparse beyond common words]** → steps 3 to 5 of D5 decide, towards the word's
   own entry, as Spanish's do.
 
@@ -415,13 +437,14 @@ the pipeline's registration and its Python tests 0.75–1.25, the dispatch, tabl
 report and the check of D4 0.5–1, spec and programme 0.5. The top is at the programme's ≈ 10.
 
 **If it runs over, it splits** at the rules that only refine: **43a**, `add-lingua-french-forms-tables`
-— D1–D5 (the four nouns ending in a pronoun included, which change 40 needs), D6 without the
-GSD-attested compounds, D8–D12 — passes the gates alone (measured with the binary, before D4's
-whole runs, which move no measured word but `c'est-à-dire`: PUD 98.81 % resolved, 96.27 % content
-lemmas, 99.90 % auxiliaries; GSD test 98.65 / 95.65 / 99.72);
-**43b**, `refine-lingua-french-forms-tables` — the compound ranks (D6) and the spelling variants
-(D7), about 1.5–2 days — re-reduces fr-en alone, which no reader holds, and moves forms and ranks
-only. 45, 46 and 48 would follow 43b.
+— D1–D5 (the four nouns ending in a pronoun included, at the cut's last ranks, which change 40
+needs), D6 without the GSD-attested compounds, D8–D12 — passes the gates alone (measured with the
+binary on its own tables: PUD 98.81 % resolved, 96.28 % content lemmas, 99.90 % auxiliaries; GSD
+test 98.66 / 95.65 / 99.72); **43b**, `refine-lingua-french-forms-tables` — the compound ranks (D6)
+and the spelling variants (D7), about 1.5–2 days — re-reduces fr-en alone, which no reader holds,
+and moves forms and ranks only. 43b takes the scenarios *A hyphenated word by evidence* and *A
+spelling variant*, and `c'est-à-dire` out of *The elided pieces*: without D6's compounds it is no
+form, and change 40 splits it until 43b. 45, 46 and 48 would follow 43b.
 
 ## Open Questions
 
@@ -433,4 +456,8 @@ For the owner, none blocking:
 2. **`des` as a word of its own** (D4) rather than *un*, as GSD's counts read it: the one place the
    design overrides the counts, for M21's « du/des whole ».
 3. **GSD's test section reported, not gated** (D9): gating it too is one line, at the risk of an
-   update failing on a section 0.39 points above the gate.
+   update failing on a section 0.41 points above the gate.
+4. **Change 39's scenario *The committed tables replace the fixture*** (D11): its « WHEN the French
+   tables and the fr-en pair's tables are committed » read as fr-en's glosses (change 48), and its
+   words made so when change 39 is archived, so that the two specs never say opposite things of
+   this change.

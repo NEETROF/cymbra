@@ -6,8 +6,8 @@ Change 43 of the [language matrix programme](../../../docs/lingua/language-matri
 stage 3 (French studied: fr-en, fr-es). Change 39 made French a studied language served by the
 baseline analysis (analyser `0.1.0`): the pack's form→lemma lookup, else the lowercased form. No
 pack studying French exists outside the hand-written fixture of `testdata/fr-en/`, so today every
-French word but two hundred reads as itself. The forms table decides how each French token is
-lemmatised, which words are counted, known and reviewed, and which reading of a homograph a
+French word but the fixture's 286 forms reads as itself. The forms table decides how each French
+token is lemmatised, which words are counted, known and reviewed, and which reading of a homograph a
 reader meets. Every later change of the stage reads it: the analysis (41) is written and measured
 against it, the grammar (45) reads the readings of the forms it holds, the levels (46) its ranks,
 the fr-en and fr-es packs (48, 49) are built on it.
@@ -28,7 +28,7 @@ as they are, fail the resolution gate (97.61 % on PUD): the English Wiktionary l
 verb's agreed participles (`dirigée`, `composées`) under the participle, not under the verb; it
 writes the elided pieces (`l'`, `qu'`, `s'`) with no pointer or with several; wordfreq cannot rank a
 hyphenated word and splits elisions into bare letters. With the rules of this design, the tables
-pass on PUD with the real analyser (99.12 % resolved, 96.36 % content lemmas, 99.90 %
+pass on PUD with the real analyser (99.12 % resolved, 96.38 % content lemmas, 99.90 %
 auxiliaries) and hold on GSD's held-out test section (98.91 / 95.65 / 99.72).
 
 Two decisions of the owner bind these tables (2026-10-09):
@@ -64,8 +64,9 @@ Two decisions of the owner bind these tables (2026-10-09):
     and a commoner word keeps the commoner reading;
   - **the 60,000 commonest lemmas** by wordfreq `fr`, wordfreq's elision stems (`l`, `d`, `qu`, …)
     no words, a hyphenated word ranked when GSD attests it, at the lower of wordfreq's estimate and
-    GSD's own frequency; their forms attested in wordfreq.
-- **Committed tables.** `tables/fr/`: `forms.tsv` (124,013 rows, 2.26 MB in the prototype),
+    GSD's own frequency; no word whose every form reads as another (`tenue`, read as *tenir*);
+    their forms attested in wordfreq.
+- **Committed tables.** `tables/fr/`: `forms.tsv` (124,040 rows, 2.26 MB in the prototype),
   `freq.tsv` (60,000 rows, 0.84 MB), `studied.json` naming fr-en, and the two files every studied
   folder holds, empty until the changes that fill them: `tags.tsv` (45) and `lexical.tsv` (48).
   `tables/fr-en/`: an empty `gloss.tsv` (the glosses are change 48), `NOTICE`, `manifest.json`
@@ -118,7 +119,7 @@ None.
 - **What does not move.** en-fr, es-fr, es-en and en-es — tables, pins, packs and goldens — byte for
   byte, and the French golden too: it runs over its fixture pack until change 48 (design D11).
 - **Size.** 3.1 MB of tables committed. The pack they build (forms and ranks, nothing else) is
-  1,240,362 B, against 1,308,123 B for Spanish's same two tables; each French pack carries it. The
+  1,239,104 B, against 1,308,123 B for Spanish's same two tables; each French pack carries it. The
   reviewers' source archive copies `scripts/lingua-data` whole and grows by the tables.
 - **Not here.** The readings and the tag pool (45), the levels (46), the glosses, expressions and
   dictionary words (48), fr-es (49), the French rules of the analyser — elision, contractions,
