@@ -22,9 +22,10 @@ type learning `fr` (change 39's D8, change 47's D4, change 51's D1).
 Measured on a scratch copy of `main` with change 35's implementation (#814) merged (design,
 *Measured*): with the list widened and the type widened, the extension compiles but for the one
 call change 51 widens, 6 of its 3,148 tests fail — each asserting a list or a French pair « inert
-until change 52 » — and one Rust test does the same; every invariance golden and every snapshot
-passes unchanged; the variant check passes; the site describes French on its three Lingua pages
-with no code change; the host app declares the same three languages. The package grows to about
+until change 52 » — and one Rust test does the same (1 of 20, re-run on `main` at `aabe17b3`, after
+changes 42 and 46 merged); every invariance golden and every snapshot passes unchanged; the variant
+check passes; the site describes French on its three Lingua pages with no code change; the host app
+declares the same three languages. The package grows to about
 12.1 MB zipped with six packs (10.8 MB with fr-en alone), inside the programme's 11–13.5 MB.
 
 ## What Changes
@@ -52,13 +53,22 @@ with no code change; the host app declares the same three languages. The package
   « about 340 MB » rather than « about 200 MB ». Every reader before this change reads what they
   read today.
 - **The manifest's descriptions** (D7): `_locales/en` names Spanish and French, `_locales/es` names
-  English and French when fr-es ships — drafts for the owner (M9), within Apple's 112 characters;
+  English and French when fr-es ships — change 53's drafts (its D6), which its summary check
+  requires of the pull request that lists the pairs, read by the owner (M9), within Apple's 112
+  characters;
   `_locales/fr`, `default_locale` and the host app's languages do not move (the French pairs add no
   native language).
 - **Backup v3 in readers' hands** (D4): a reader who studies French writes backup schema 3
-  (change 39). No released build reads it today — 1.7.0 and the host app's 1.5.0 predate it — so the
-  release carrying `fix-lingua-lemma-lookup` (41b), which reads version 3, is live on every store
+  (change 39). Every build since change 39's implementation (#803, `9fde7bb1`) reads it, but no
+  release does yet — 1.7.0 and the host app's 1.5.0 predate it and refuse it by name. So the first
+  release cut after #803 — change 34's, 35's or `fix-lingua-lemma-lookup`'s (41b, its task 4.3),
+  whichever reaches the stores first; 41b itself moves no stored format — is live on every store
   before this change's release: a rollback then lands on a build that keeps a French reader's data.
+- **Requirements true of their time** (D14): change 43's *French's forms and frequencies* and change
+  48's *fr-en is committed at its studied tables' snapshot…* say « no package SHALL list it », and
+  their scenarios and change 49's that the list does not name the pair. MODIFIED here, each archived
+  after the change that holds it, so that no archived spec contradicts the list; 49's only when fr-es
+  ships.
 - **A dogfood pass on five targets** (D12) with the English and Spanish interfaces, carrying change
   47's read-aloud checklist and change 51's selection gestures; TestFlight first; the owner's
   go-ahead before the merge and before each submission (M18).
@@ -75,7 +85,12 @@ None.
   `enable-lingua-spanish-speakers`, itself archived after `enable-lingua-english-speakers` and
   `enable-lingua-spanish`, so this change is archived after all three): the list holds en-fr,
   es-fr, es-en, en-es then fr-en, followed by fr-es once its tables are committed at or above its
-  floor; a listed pair with a floor is held to it; every scenario kept, five added.
+  floor; a listed pair with a floor is held to it; every scenario kept, five added. MODIFIED too,
+  each archived after the change that holds it, its other words and scenarios verbatim (D14):
+  change 43's *French's forms and frequencies*, change 48's *fr-en is committed at its studied
+  tables' snapshot, and the French baseline runs on it* and, with fr-es, change 49's *French is
+  glossed in Spanish from the Spanish Wiktionary's French section and the French Wiktionary's
+  translation tables* — a package carries the pair once the list names it.
 - `lingua-browser-extension`: ADDED *French is studied by readers of English and Spanish* — the
   extension's own French: the stored profile, the offer per native language and never to a French
   speaker, the labels and the card's studied words.
@@ -83,12 +98,8 @@ None.
   the sentence counts the models the reader's pairs need together, not the pivots. *The setting's
   cost comes from the catalogue* is held by no open change and is not modified.
 
-Three scenarios of open changes are true of their time and not after this one — change 43's *The
-pack builds where the others' do*, change 48's and change 49's *The pack is built, not shipped*
-(« the extension's list of shipped pairs does not name it »). Their words are best amended when
-those changes are archived (design, Open Question 5), as change 48's Open Question 4 asks for its
-own. Change 50's *A route of a pair studying French* stays true as written: it reads « when … no
-shipped pair studies French ».
+Change 50's *A route of a pair studying French* stays true as written: it reads « when … no shipped
+pair studies French ».
 
 ## Impact
 
@@ -102,10 +113,11 @@ shipped pair studies French ».
     new tests of French in the English and Spanish interfaces.
   - `scripts/lingua-data/` — *new*: `testdata/fr-es/` (with fr-es); *changed*:
     `test_gloss_coverage.py`; *consumed*: `gloss_coverage.py`, every table, unchanged.
-  - `crates/lingua-pack/tests/committed_tables.rs` — the fr-en (and fr-es) scenario that says no
-    package lists it.
-  - `apps/site` — `src/data/lingua-coverage.json` (written by the script); no page or text changes
-    (French's level sentence, « CECR » or « CEFR », and the listings are change 53's).
+  - `crates/lingua-pack/tests/committed_tables.rs` — change 43's scenario asserts the list names
+    fr-en; with fr-es, change 49's « listed nowhere » assertion goes (D11, D14).
+  - `apps/site` — `src/data/lingua-coverage.json` (written by the script); no page or text changes:
+    the three Lingua pages and the Spanish home's Lingua card (change 29b) follow the list (French's
+    level sentence, « CECR » or « CEFR », and the listings are change 53's).
   - `apps/lingua-apple` — consumed: the host app declares fr, en and es as it does since change 35.
 
   ID, Music, Live, the back office (it shows the `fr` code; its name for it is change 53's, per
@@ -113,14 +125,16 @@ shipped pair studies French ».
   (`backend/lingua/src/language_core.rs` refuses none), so French cards, statuses and days sync with
   no server change. lingua-core, lingua-wasm, the packs, every table and every golden: untouched.
 - **Prerequisites, all the owner's** (M18):
-  - Implementations merged: changes 17 (#786), 34 (#810), 35 (#814) — 35 required for fr-es, and
-    the list this change extends —, 42, 45, 46, 48, `refine-lingua-fr-en-glosses` (to be proposed,
-    change 48's D7), 49's committed measurement (merged above the floor, or recorded under it), 51,
-    and 41b; 39, 40, 41, 43, 44, 47 and 50 are on `main`.
+  - Implementations merged: changes 17 (#786), 34 (#810), 35 (#814) — 35 under the floor too: the
+    list this change extends and the requirement it modifies are 35's, and M1 puts both stage-2
+    audiences before French —, 45, 48, `refine-lingua-fr-en-glosses` (to be proposed, change 48's
+    D7), 49's committed measurement (merged above the floor, or recorded under it), 51, and 41b;
+    39 to 44, 46, 47 and 50 are on `main`.
   - `fix-lingua-lemma-lookup` released on the Chrome Web Store, addons.mozilla.org and in the host
-    app (its task 4.3) — the release that reads backup v3 (D4).
+    app (its task 4.3) — at the latest, the release that first reads backup v3, as every release cut
+    after #803 does (D4).
   - The owner's readings: change 48's floor and sample (its 6.1), 51's tables and snapshots (its
-    6.1), the English and Spanish drafts here (M9).
+    6.1), change 53's English and Spanish drafts, quoted here (M9).
   - Test accounts for the dogfood (risk 2).
   - Change 53's listings (French named in each store's listing, the requirement *The store listings
     name each studied language*) in the same submission (D13).
