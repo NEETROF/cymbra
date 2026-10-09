@@ -398,7 +398,7 @@ For the owner, none blocking:
    `au`/`aux` share their span the same way (an expression ending on `à` matched in « … au » would leave `le` outside): the
    same rule for French would move `fr-en.golden`, a change of its own or change 51's.
 4. **Names across natives (D3).** The rule change 44 settled for French, applied to Spanish as
-   decided on 2026-10-10: 75 of the 3,757 keys es-fr and es-en both reach are named differently, so
+   decided on 2026-10-09: 75 of the 3,757 keys es-fr and es-en both reach are named differently, so
    a status set under one is not read under the other.
 5. **Held wording (D9).** *Multi-word expression table*, *Expression lookup in a phrase gloss* and
    *An expression is the card's answer* (`add-lingua-expression-table`), and change 44's three

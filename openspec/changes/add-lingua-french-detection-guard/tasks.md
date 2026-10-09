@@ -25,7 +25,7 @@
 
 ## 4. Owner
 
-- [x] 4.1 [manual] Settled by the owner on 2026-10-10 (in session): Romanian kept; Spanish's own Occitan leak fixed in a Spanish change of its own, proposed separately; the Arpitan words not added for now; the order settled by implementing after change 41. The owner settles the design's open questions before the pull request merges: Romanian kept in the guard (1), Spanish's Occitan leak left to a change of its own (2), Franco-Provençal left out (3), the order, after change 41 (4). Dropping Romanian removes its 32 words, its scenario and its test; adding the eight Arpitan words adds them to the table and one test.
+- [x] 4.1 [manual] Settled by the owner on 2026-10-09 (in session): Romanian kept; Spanish's own Occitan leak fixed in a Spanish change of its own, proposed separately; the Arpitan words not added for now; the order settled by implementing after change 41. The owner settles the design's open questions before the pull request merges: Romanian kept in the guard (1), Spanish's Occitan leak left to a change of its own (2), Franco-Provençal left out (3), the order, after change 41 (4). Dropping Romanian removes its 32 words, its scenario and its test; adding the eight Arpitan words adds them to the table and one test.
 
 ## 5. Gates
 

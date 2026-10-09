@@ -245,7 +245,7 @@ moves; reverting the change removes two pages nothing outside the site links.
 
 ## Open Questions
 
-1. **Music's Spanish store listing** — **settled by the owner on 2026-10-10: pointed at the Spanish pages in a Music listing change of its own, after this deploy and change 29's legal review.** It points at `/en/music/`, `/en/support/` and `/en/privacy/`.
+1. **Music's Spanish store listing** — **settled by the owner on 2026-10-09: pointed at the Spanish pages in a Music listing change of its own, after this deploy and change 29's legal review.** It points at `/en/music/`, `/en/support/` and `/en/privacy/`.
    Recommendation: point it at `/es/music/`, `/es/soporte/` and `/es/privacidad/` in a Music listing
    change of its own, after change 29's Spanish legal pages are reviewed (its 4.2) and this change's
    pages deployed — `copy/es.md` and `pinned-routes.ts` in the same pull request, the console paste
@@ -254,13 +254,13 @@ moves; reverting the change removes two pages nothing outside the site links.
    whose scenario asks for the product page « in the listing's locale »; the requirement is held by
    the open `pin-music-site-url-contract`, so the listing change follows its archive. Not here: this
    change pins nothing.
-2. **The « beta » badge** — **settled on 2026-10-10: kept, as on the other pages.** The badge on the Spanish home's Lingua kicker is carried from the French and English
+2. **The « beta » badge** — **settled on 2026-10-09: kept, as on the other pages.** The badge on the Spanish home's Lingua kicker is carried from the French and English
    homes, which show it today, as do the Lingua pages' three tables (`lingua-text.ts`) —
    `/es/lingua/`'s among them, the Marketing URL of Lingua's Spanish listing (change 37). The App
    Store rule that keeps « beta » out of Lingua's listing texts (guidelines 2.2 and 2.3.7,
    `apps/lingua-apple/STORE-LISTING.md`) governs the listings, not cymbra.app, and no listing field
    points at `/es/`. Keep it on the Spanish home, or drop it — from the Spanish home alone, or from
    every home and Lingua page (a change of its own)?
-3. **The Music page's closing paragraph** — **settled on 2026-10-10: left out of Spanish.** It is left out of Spanish (D4). Keep it out, or add a neutral
+3. **The Music page's closing paragraph** — **settled on 2026-10-09: left out of Spanish.** It is left out of Spanish (D4). Keep it out, or add a neutral
    line linking the (English) account page?
-4. **« lectura » or « reproducción »** in the offline card (D2) — **settled on 2026-10-10: « reproducción ».**
+4. **« lectura » or « reproducción »** in the offline card (D2) — **settled on 2026-10-09: « reproducción ».**

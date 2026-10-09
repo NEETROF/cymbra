@@ -160,7 +160,7 @@ describe, without the parts of speech its senses had, beside no reading: the dic
 one word shown as another's, which no table wrote and no reviewer of a table sees. A word card with no gloss is
 translated in its sentence where the reader has translation (`wordEngine`), as any word the pack does
 not gloss already is; a review card keeps the gloss it stored (`readable_gloss`). The owner settled it
-so on 2026-10-10, for every language (open question 1).
+so on 2026-10-09, for every language (open question 1).
 
 ### D3 — An estimate keeps reading through the spelling
 
@@ -259,7 +259,7 @@ implementation branches (the prototype applied, the five goldens blessed, every 
 
 - **[A Spanish diminutive or variant loses an approximate gloss]** (`videos`, `galletitas`,
   `añitos`; 1,005 Spanish words with a frequency) → translated in its sentence where translation is
-  on; the owner chose this over the spelling's gloss on 2026-10-10 (open question 1).
+  on; the owner chose this over the spelling's gloss on 2026-10-09 (open question 1).
 - **[An English plural loses a gloss that was mostly wrong]** (`buildings`, `settings`, `wounds`)
   → the same; without translation, the card shows no gloss rather than a wrong one.
 - **[A pack whose pool is out of order is refused]** → `build_lexicon_blobs` has sorted and
@@ -272,7 +272,7 @@ implementation branches (the prototype applied, the five goldens blessed, every 
   change of its own, which D1 makes possible.
 - **[Cards created before]** keep the gloss they stored; review shows it when the pack has none.
 - **[The programme's invariance rule]** → en-fr's 10 and es-fr's 3 lines are a deliberate move,
-  approved by the owner on 2026-10-10 (task 4.1); the pull request lists them.
+  approved by the owner on 2026-10-09 (task 4.1); the pull request lists them.
 
 ## Migration Plan
 
@@ -288,7 +288,7 @@ owner's. Rollback is a revert, the goldens and the snapshot reverting with it.
 ## Open Questions
 
 For the owner:
-1. **The gloss of a word the pack holds only as a form** (D2). **Settled by the owner on 2026-10-10:
+1. **The gloss of a word the pack holds only as a form** (D2). **Settled by the owner on 2026-10-09:
    none, as proposed** (the card offers the sentence's translation). The alternative was the gloss of
    the word its spelling reads as, for Spanish alone (diminutives and variants right, verbs' nouns
    wrong), shown as that word's — a card naming the other word, which would be change 51's.
@@ -297,4 +297,4 @@ For the owner:
    lemma (*ojo*, *vídeo*, *build* — the same token then counts as known with its base), or not at
    all (French's rule: `buildings` stays `buildings`)? Either moves those languages' analysis and
    bumps their analyser versions: a change of its own per language, not this one. **Left open by the
-   owner on 2026-10-10, outside this change**, which it does not block.
+   owner on 2026-10-09, outside this change**, which it does not block.

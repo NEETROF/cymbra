@@ -5,8 +5,8 @@
 Change 51 of the [language matrix programme](../../../docs/lingua/language-matrix-programme.md)
 (`add-lingua-french-word-card`, #838) leaves one line off a French card: on a form spelled like its
 dictionary form, the plural spelled the same way (its D5: `temps`, `pays`, `un`). Its open question 3
-asked whether English and Spanish cards should do the same. The owner settled it on 2026-10-10 —
-**aligned with French, in a change of its own** — and its boundary on 2026-10-11: **the line goes
+asked whether English and Spanish cards should do the same. The owner settled it on 2026-10-09 —
+**aligned with French, in a change of its own** — and its boundary on 2026-10-09: **the line goes
 only for a true invariable**, a form the card also reads as a singular of that part of speech
 (`crisis`, `lunes`, `temps`); a noun used only in the plural keeps it (`gafas`, `gens`). This is that
 change (row 51b, outside the 57).
@@ -44,7 +44,7 @@ Today **Spanish** cards say it of **576 such forms**, 13 of the 1,000 commonest 
   pack byte, pin, `pack_version` or analyser version.
 - **es-fr moves, approved by the owner** (D5): the programme's rule « en-fr and es-fr output does not
   move, nor the French interface » is departed from for es-fr's 576 cards in French, by the owner's
-  decision; the owner approved the re-bless on 2026-10-11 (task 4.1). en-fr does not move.
+  decision; the owner approved the re-bless on 2026-10-09 (task 4.1). en-fr does not move.
 
 ## Capabilities
 

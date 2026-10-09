@@ -385,7 +385,7 @@ implementation, `fr-en.golden` runs over the fixture and every grammar probe ans
 (readings), 48 (the French baseline on the committed tables) and 49 (fr-es's tables) — and after 44,
 whose names the whole-selection cards show, as they show change 41's closed classes (on `main`), and
 so after 41b, which comes before 45. If change 49's committed measurement falls below its floor (M6:
-81.4 / 68.8 / 54.5 % of the 5,000 / 10,000 / 20,000 commonest lemmas, settled on 2026-10-10), its
+81.4 / 68.8 / 54.5 % of the 5,000 / 10,000 / 20,000 commonest lemmas, settled on 2026-10-09), its
 *Below it* applies: no fr-es table is committed, no package lists fr-es, and French ships for English
 speakers alone. Then `fr_es_baseline.rs` and `fr-es.golden` have nothing to run on, and
 `word-card-fr-es.txt` pins the Spanish renderer's grammar line of each of `fr-en.golden`'s grammar
@@ -492,16 +492,16 @@ review by name (D8) 0.5–0.75; the probes, the fr-es golden, the two snapshots 
 ## Open Questions
 
 For the owner, none blocking:
-1. **The moods' merge beyond M21's words** (D3) — **settled by the owner on 2026-10-10: merged everywhere, as designed.** M21 names five-reading forms; the rule also merges
+1. **The moods' merge beyond M21's words** (D3) — **settled by the owner on 2026-10-09: merged everywhere, as designed.** M21 names five-reading forms; the rule also merges
    the indicative and the subjunctive on 4,005 more forms (`parlent`, `parles`, `finissions`), as change
    45's D7 leaves to this change. Merging the five-reading forms only would say « parle » once and
    « parlent » twice.
-2. **« participio presente » or the RAE's « participio de presente »** (D4) — **settled on 2026-10-10: « participio presente ».**, and « participio pasado »
+2. **« participio presente » or the RAE's « participio de presente »** (D4) — **settled on 2026-10-09: « participio presente ».**, and « participio pasado »
    beside it.
-3. **An invariable plural on Spanish and English cards** (D5) — **settled on 2026-10-10: aligned in a change of its own, proposed separately.** French cards leave it out (1,072 forms);
+3. **An invariable plural on Spanish and English cards** (D5) — **settled on 2026-10-09: aligned in a change of its own, proposed separately.** French cards leave it out (1,072 forms);
    Spanish's 667 (`tu`, `menos`) and English's 194 keep theirs unless a change of their own moves es-fr
    and en-fr cards.
-4. **A double-click on « l’homme »** (D7) — **settled on 2026-10-10: the whole-selection card, as designed.** the whole-selection card, as change 40 recommended; the
+4. **A double-click on « l’homme »** (D7) — **settled on 2026-10-09: the whole-selection card, as designed.** the whole-selection card, as change 40 recommended; the
    other choice needs a function-word flag on page tokens.
 5. **Held wording** (D7, D8, D9), in open changes this one cannot MODIFY: *A French invariance baseline
    runs beside the English and Spanish ones* lists three reasons for moving the golden — probes added by
