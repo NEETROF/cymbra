@@ -310,6 +310,20 @@ class ReadingKaikki(unittest.TestCase):
         )
         self.assertIn("clef", lexicon(clef).lemmas)
 
+    def test_a_gender_or_number_marker_is_no_form(self):
+        # The dump writes a name's gender among its forms, untagged (`m` under Paris), or a number
+        # marker tagged plural (`p` under Saintes): no form of the name, or « M. » reads as Paris.
+        lex = lexicon(
+            entry("Paris", pos="name", forms=[("m", [])], senses=[{"glosses": ["Paris"]}]),
+            entry("Saintes", pos="name", forms=[("p", ["plural"])], senses=[{"glosses": ["Saintes"]}]),
+            entry("M", pos="character", forms=[("m", ["lowercase"])], senses=[{"glosses": ["The letter M."]}]),
+            entry("Angora", pos="name", forms=[("f", [])], senses=[{"glosses": ["Ankara"]}]),
+        )
+        self.assertEqual(lex.candidates["m"], {"m"}, "the letter's own case pair is the word itself")
+        self.assertNotIn("p", lex.candidates)
+        self.assertNotIn("f", lex.candidates)
+        self.assertNotIn("paris", lex.candidates["m"])
+
     def test_names_are_the_words_whose_only_lemma_entries_are_names(self):
         lex = lexicon()
         self.assertIn("paris", lex.names)

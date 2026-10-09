@@ -80,6 +80,13 @@ _DOUBTFUL = frozenset(
     }
 )
 
+# The gender and number markers a head template writes (`m`, `f`, `p` for plural, …). The dump
+# leaves a few among an entry's forms, untagged or tagged by number: `m` under *Paris*, `f` under
+# *Angora* and *Chambord*, `p` under *Socceroos* and *Saintes* — and `m` → *paris* would read « M. »
+# (Monsieur) as Paris. A marker is no form of another word; a letter's entry listing its own other
+# case (`M` lists `m`) is the word itself.
+_MARKERS = frozenset({"m", "f", "n", "c", "p", "s", "mf", "pl", "sg", "mpl", "fpl", "inv"})
+
 # The elided pieces (D4), each a form of the word the French pre-pass reads it as outside its
 # special cases: piece → (lemma, reason). The pre-pass never looks a piece up — it hands the lookup
 # the word — but a treebank writes the piece as the word (UD: `l'`, lemma `le`), and a card can be
@@ -230,8 +237,8 @@ class Lexicon:
     def read(self, entry):
         """One kaikki entry (D3, D4, D7).
 
-        An elided piece is read by `ELISIONS` alone. A word that is no form (`is_form`) is skipped
-        whole. An entry whose every sense only spells another word is a form of that word, its
+        An elided piece is read by `ELISIONS` alone, and a gender or number marker is no inflection
+        (`_MARKERS`). A word that is no form (`is_form`) is skipped whole. An entry whose every sense only spells another word is a form of that word, its
         inflections forms of it. Otherwise: an entry with a sense that is not a form-of is a lemma
         and its own candidate; the inflections it lists are its forms, but the bookkeeping, the
         doubtful ones and the multi-word constructions; its form-of senses make it a form of
@@ -268,6 +275,8 @@ class Lexicon:
             tags = set(inflection.get("tags") or ())
             form = nfc_lower(inflection.get("form"))
             if tags & _BOOKKEEPING or tags & _DOUBTFUL or not is_form(form) or form in ELISIONS:
+                continue
+            if form in _MARKERS and form != word:
                 continue
             self.link(form, word, pos)
 
