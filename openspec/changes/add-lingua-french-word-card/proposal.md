@@ -52,8 +52,8 @@ Three hand-overs land here too:
   52, as change 47 left it, so no French reaches a card before then — the renderers are driven by
   tests.
 - **French's forms, named by each renderer** (D2): in English, the English Wiktionary's French
-  form-of wording — present, imperfect and future indicative, past historic (M10), conditional,
-  present and imperfect subjunctive, imperative —; in Spanish, the RAE's terms (M10) — « pretérito
+  form-of wording — present and imperfect indicative, past historic (M10), simple future,
+  conditional, present and imperfect subjunctive, imperative —; in Spanish, the RAE's terms (M10) — « pretérito
   perfecto simple de indicativo », « futuro simple de indicativo », « condicional simple »… —; in
   French, for the override M2 reserves, French school terms. Tenses come in the grammars' order:
   indicative, conditional, subjunctive, imperative; the snapshots lock it.
@@ -118,8 +118,12 @@ None.
     and `selection-card.ts` (the routing, `cardGloss`); *new*: `test/word-card-fr-en.spec.ts`,
     `test/word-card-fr-es.spec.ts` and their snapshots; *moving*: `test/word-grammar-en.spec.ts`,
     `-es.spec.ts`, `grammar-description.spec.ts`, `selection.spec.ts` (change 40's pinned case),
-    `session.spec.ts`/`reading-session.spec.ts`; `test/word-grammar.spec.ts` unchanged.
-  - `crates/lingua-wasm` — `src/lib.rs` `readable_gloss` (French's arm); `tests/support/french.rs`
+    `session.spec.ts`/`reading-session.spec.ts`; `test/word-grammar.spec.ts` unchanged; *consumed*:
+    the description and the renderers' API (change 18), the click's hit test (40), the closed classes
+    the rows leave out (41), the expressions' names (44), the readings (45), `rowGloss` and the
+    snapshots' harness (23, 24).
+  - `crates/lingua-wasm` — `src/lib.rs` `readable_gloss` (French's arm, over change 44's
+    `french_expression_key`, *consumed*); `tests/support/french.rs`
     (the card's probes), `tests/fr_es_baseline.rs` and `baseline/fr-es.golden` (new),
     `baseline/fr-en.golden` (probes added).
   - `.github/workflows/lingua-extension-check.yml` and `lingua-pack-update.yml` — `fr_es_baseline`
@@ -128,8 +132,8 @@ None.
   ID, Music, Live, the back office, the site, the backend, the packs, the reducers, lingua-core,
   the Apple host app and the agent plugin are untouched.
 - **Release.** Silent: no listed pair studies French, `StudiedLanguage` has no `fr` until change 52.
-  English and Spanish selections move only over a hyphenated run holding a digit, of which the four
-  corpora hold none (D7).
+  English and Spanish selections move only over a hyphenated run holding a digit, of which the
+  English and Spanish corpora hold none (D7).
 - **Compatibility.** No stored format, wire field, table, pin or pack moves.
 - **Order.** Implemented after the implementations of changes 41 (the closed classes the rows leave
   out), 44 (the names), 45 (the readings), 48 (the French baseline on the committed tables) and 49
