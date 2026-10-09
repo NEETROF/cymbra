@@ -34,11 +34,11 @@
 - [x] 7.2 `tests/support/french.rs`: `PHRASES` gains « Il ne fait pas un pas sans son chien, et le son de sa voix le rassure. » and « Personne au village ne se souvenait »; the doc comment says what `1.0.0` reads.
 - [x] 7.3 `tests/french_baseline.rs`: the module doc says French has its analysis at `1.0.0`; `french_has_its_pre_pass_and_the_baseline_s_lemmas` becomes `french_has_its_pre_pass_and_its_analysis` — its pieces, spans and U+202F assertions kept; `pas`, `ne`, `le` flagged in the `homographes` page's phrase gloss and `personne` not, where it asserted no function word; on `noms`, `Paris`, `Lot`, `Aube`, `Jean-Pierre` and `Saint-Étienne` set aside and `Orange`, `Vienne`, `Mme` words; French's version no longer `0.x`; es-en beside and the backup at schema version 3, as before; `the_nfd_block_s_memoire_is_glossed_once_french_composes_it` asserts the NFD block's token composed, lemmatised `mémoire` and glossed « memory », its span covering the decomposed bytes; `a_fixture_left_behind_its_analyser_names_its_manifest` reads `1.0.0` and names « this core is 1.0.0 ».
 - [x] 7.4 `tests/languages.rs` `spec_scenario_a_french_reader_s_backup_is_version_3` asserts French's new version.
-- [ ] 7.5 Re-bless once: `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline`, `tests/baseline/fr-en.golden` committed; the pull request lists what moved against `main`'s golden, rule by rule (D7: 39 probes moved, 2 added, 102 byte for byte; counted 958 → 963, glossed 387 → 390, set aside 44 → 39), and says any figure that differs from the design's.
+- [x] 7.5 Re-bless once: `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline`, `tests/baseline/fr-en.golden` committed; the pull request lists what moved against `main`'s golden, rule by rule (D7: 39 probes moved, 2 added, 102 byte for byte; counted 958 → 963, glossed 387 → 390, set aside 44 → 39), and says any figure that differs from the design's.
 
 ## 8. Measurement
 
-- [ ] 8.1 When change 43's tables are on `main`: `scripts/lingua-data/measure/fr-ud.sh`, its PUD and GSD test-section figures recorded in the pull request and in the programme (D6: expected 99.12 / 96.48 / 99.90 on PUD and 98.91 / 95.81 / 99.72 on GSD's test section with change 43's prototype tables). Otherwise the pull request says so, and change 43's measurement runs through this cascade.
+- [x] 8.1 When change 43's tables are on `main`: `scripts/lingua-data/measure/fr-ud.sh`, its PUD and GSD test-section figures recorded in the pull request and in the programme (D6: expected 99.12 / 96.48 / 99.90 on PUD and 98.91 / 95.81 / 99.72 on GSD's test section with change 43's prototype tables). Otherwise the pull request says so, and change 43's measurement runs through this cascade.
 
 ## 9. Owner
 
