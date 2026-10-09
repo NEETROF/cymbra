@@ -2,7 +2,7 @@
 
 ## 0. Before the implementation measures anything
 
-- [ ] 0.1 [manual] The owner settles the floor and its consequence on this proposal's pull request (design D8, Open Question 1): 81.4 / 68.8 / 54.5 % and *Below it* as written, or other values and wording, recorded in the design and the requirement *fr-es is held to a coverage floor fixed before its first committed measurement* before task 3.1 dispatches anything (M6).
+- [x] 0.1 [manual] Settled by the owner on 2026-10-10, before the pull request (asked in session): 81.4 / 68.8 / 54.5 % and *Below it* as written. The owner settles the floor and its consequence on this proposal's pull request (design D8, Open Question 1): 81.4 / 68.8 / 54.5 % and *Below it* as written, or other values and wording, recorded in the design and the requirement *fr-es is held to a coverage floor fixed before its first committed measurement* before task 3.1 dispatches anything (M6).
 - [ ] 0.2 Merge order (design D12): changes 43's and 48's implementations on `main` (required: `tables/fr/` and its `lexical.tsv` committed); 45 and 46 on `main` (planned) — or the pull request says which of D6's readings and the pin's studied record they will move when they land.
 
 ## 1. Sources and the pipeline (scripts/lingua-data, .github/workflows)

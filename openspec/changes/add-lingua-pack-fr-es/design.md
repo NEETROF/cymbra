@@ -321,7 +321,7 @@ needs: the committed measurement reads the dumps of its dispatch day, not the pr
 job runs `gloss_coverage.py --pair fr-es` with no `--floor`, and the Python tests hold the committed
 tables to that entry, assert the job passes none, and pin the entry's value to the requirement's.
 
-**When.** The owner settles the value and the consequence on this proposal's pull request (task 0.1);
+**When.** Settled by the owner on 2026-10-10, as written here, before this proposal's pull request (task 0.1);
 the implementation writes them into `FLOORS` and the requirement **before** it dispatches the update
 whose tables are committed (task 3.1). en-es's floor was set on its implementation's pull request,
 after its tables were measured (its task 5.1); M6 rules that order out for fr-es.
@@ -477,8 +477,8 @@ checks 0.5–1; the sample, the spec and the programme 0.25–0.5.
 ## Open Questions
 
 For the owner:
-1. **The floor and its consequence** (D8): 81.4 / 68.8 / 54.5 %, and *Below it* as written. Settled
-   on this proposal's pull request, before the implementation dispatches the update it measures — the
+1. **The floor and its consequence** (D8): 81.4 / 68.8 / 54.5 %, and *Below it* as written. **Settled
+   by the owner on 2026-10-10** (task 0.1), as asked: on this proposal, before the implementation dispatches the update it measures — the
    one question that blocks task 3.1.
 2. **Labels and the order of a row** (24b's Q1 and Q2, now fr-es's too through the Spanish edition):
    « baiser » opening on « Coger (sexualmente) », its « Besar » labelled outdated; 136 / 79 rows show
