@@ -118,7 +118,8 @@ d'espagnol »), transposed; their « What's New » paragraph is for change 52's 
 ### D6 — The stores' summary is held to the shipped pairs
 
 The summary is the package's description, read by the browser from `_locales` and by both stores as
-the listing's summary: it is listing copy that lives in the package. Its drafts are written here
+the listing's summary — and, by M13, the English one by every browser in a language Lingua does not
+speak: it is listing copy that lives in the package. Its drafts are written here
 (en "Read Spanish and French on the web: unknown words highlighted, an honest percentage. Offline and
 private.", 105 / 112; es « Lee inglés y francés en la web: palabras desconocidas resaltadas,
 porcentaje honesto. Sin conexión y privado. », 109 / 112). Committed now, they would claim French in
@@ -292,6 +293,49 @@ or `assets/` is edited: no table, pack, analyser version, engine or catalogue st
 French interface cannot move. `check_version.mjs` builds nothing: the packages are byte for byte. On
 the site with today's pairs: `/lingua/` one word (« CECR » → « CEFR »), `/en/lingua/`, `/`, `/en/`,
 `/es/…` and every other page byte for byte.
+
+## Appendix — the two fields at the edge, as measured
+
+The test instructions (998 / 1,000), the same whether fr-es ships or not:
+
+```
+No account needed: signing in only syncs words across devices. The interface follows the browser: French, Spanish, else English (studying Spanish).
+
+1. Pick a level, e.g. B1, at "What's your Spanish level?" (welcome tab) or "Choose your Spanish level" (popup). With none, every word is highlighted and the score reads 0%.
+2. Open a Spanish article. On Chrome, click "Analyze this page" in the popup, or grant "Always highlight (every page)".
+3. Words above that level are highlighted; the pill shows the share of the page you know.
+4. Click one for its card: English translation, dictionary form, frequency, and "I know it", "+ Deck", "Ignore".
+5. Alt+L captures a selected phrase; Alt+Shift+S or the popup's "Review" opens the review panel.
+6. Popup gear ("Settings") > "Language": "Languages studied" > "French" adds French pages; "Español" to study English, "Français" English and Spanish. In Spanish, steps 1-5 on English pages: "Elige tu nivel de inglés", "Analizar esta página", "La conozco".
+```
+
+The App Store review notes (3,995 / 4,000) with fr-es; without it, « Spanish speakers English and
+French, » reads « Spanish speakers English, » and « ; French to Spanish chains two » goes (3,954):
+
+```
+No account is needed to review this app: every feature works signed out. An optional Cymbra account saves the learner's progress - known words, deck, level and statistics - across reinstalls and devices (iPhone, iPad, Mac). To test it, create one from the extension (panel > Settings > Data > Account) with Sign in with Apple or Google - no invitation is needed.
+
+IMPORTANT - this app is a Safari extension host: its own screen only explains. The extension must be enabled in Safari before anything happens.
+
+1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
+2. In SAFARI (not in the app), open the extension from the address-bar menu, keep English as your language and pick a Spanish level, e.g. B1. With no level chosen the engine assumes zero known words: every word is highlighted and the pill reads 0%.
+3. Open a Spanish page. Reload any tab opened BEFORE the extension was enabled or the level picked.
+4. Words above your level are highlighted; the pill shows the share of the page you know. Tap a highlighted word: a card gives its English translation, dictionary form and frequency, with "I know it", "+ Deck", "Ignore".
+5. Tap the pill to open the panel: Review, Stats (estimated vocabulary, A1 to C2), Settings (four tabs; the account is under Data).
+6. French: Settings > Language > "Languages studied" > "French", then a French level, on a French page.
+
+Account deletion: panel > Settings > Data, signed in > "Manage my data" opens the account page. "Erase my Lingua data…" erases that data on the server and every device, keeping the account. "Delete my Cymbra account" opens https://cymbra.app/en/delete-account/, where the account (shared by Cymbra's apps) is deleted after signing in.
+
+OPTIONAL - "Extended translation", off by default (Settings > Language). The translation engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app. Turning it on downloads data only - a model per pair studied (Spanish or French to English 26.2 MB each, English to Spanish 25.4 MB; French to Spanish chains two) from https://models.cymbra.app, checked against a pinned sha256 - and the selected sentence is then translated on the device. No page text, account or device identifier is sent. Turning it off deletes the models.
+
+Purpose & audience: Cymbra Lingua helps people learn a language by reading real web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and the reader's CEFR level (A1-C2) is estimated from the words they marked. English speakers learn Spanish and French, Spanish speakers English and French, French speakers English and Spanish.
+
+External services: none by default - highlighting, lookup, the level estimate and translation run on the device. No AI/LLM API, no analytics, no ads. Only on the reader's action: https://models.cymbra.app serves the models above; https://api.cymbra.app (our backend) syncs the word list when signed in; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor: the app is free, with no in-app purchase.
+
+Regional differences: none. The interface follows the device's language (French, Spanish, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes".
+
+Third-party material: the bundled dictionaries combine sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequency lists; kaikki.org extracts of the English, French and Spanish Wiktionaries (definitions and translation tables) for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
+```
 
 ## Risks / Trade-offs
 
