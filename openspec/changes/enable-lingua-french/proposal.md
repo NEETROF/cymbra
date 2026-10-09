@@ -7,13 +7,15 @@ the stage-3 release: English speakers learn French through fr-en, and Spanish sp
 fr-es — only if fr-es's committed tables stand at or above the floor M6 fixed before they were
 measured (81.4 / 68.8 / 54.5 %, settled by the owner on 2026-10-10, change 49's D8); below it,
 French ships for English speakers alone. A French-native reader cannot study French (change 39), so
-French readers see nothing new.
+French readers see nothing new in the extension; the host app's activation page names, by the owner's
+decision of 2026-10-09, every language its reader can study, the French page included (D7).
 
 What French needs is built silently before it — a precondition, listed under Impact's
 prerequisites, not a fact today: the variant and backup v3 (39), the tokenisation, analysis and
 detection guard (40, 41, 42), the forms, expression keys, grammar and levels (43–46), the voice
-(47), fr-en's and fr-es's glosses (48, 49, and `refine-lingua-fr-en-glosses`, named by change 48's
-D7), the routes and the marks (50), the card (51), and the core fix `fix-lingua-lemma-lookup` (41b)
+(47), fr-en's and fr-es's glosses (48, 49, and their refinements `refine-lingua-fr-en-glosses`,
+named by change 48's D7, and `refine-lingua-fr-es-glosses`, settled by the owner on 2026-10-09), the
+routes and the marks (50), the card (51), and the core fix `fix-lingua-lemma-lookup` (41b)
 in readers' hands. The English- and Spanish-native interfaces are changes 34's and 35's: French is
 studied from them, so this change comes after both. Every one of those changes leaves the same
 edits to this one: `packs.json` listing the French pairs, and the extension's own studied-language
@@ -32,10 +34,12 @@ declares the same three languages. The package grows to about
 
 - **The French pairs ship** (design D1, D2): `packs.json` becomes `["en-fr", "es-fr", "es-en",
   "en-es", "fr-en", "fr-es"]`, or ends with `fr-en` when change 49's first committed measurement
-  fell under fr-es's floor (its tables are then not committed); `check_variants`'s `SHIPPED_PAIRS`
-  follows. French pairs come last, so every native language keeps its default pair: en-fr for
-  French, es-en for English, en-es for Spanish. `scripts/lingua-data/testdata/fr-es/`, a
-  hand-written fixture, lets `yarn gen:pack` build fr-es as it builds the others (D10).
+  fell under fr-es's floor (its tables are then not committed); fr-es is listed only once
+  `refine-lingua-fr-es-glosses` has fixed its known defects and merged, at or above the floor;
+  `check_variants`'s `SHIPPED_PAIRS` follows. French pairs come last, so every native language keeps
+  its default pair: en-fr for French, es-en for English, en-es for Spanish.
+  `scripts/lingua-data/testdata/fr-es/`, a hand-written fixture, lets `yarn gen:pack` build fr-es as
+  it builds the others (D10).
 - **The published coverage** (D8): `gloss_coverage.py --write` publishes fr-en's figures, and
   fr-es's when it ships, in `apps/site/src/data/lingua-coverage.json`; `test_gloss_coverage.py`
   holds every listed pair that has a floor at or above it. The site's Lingua pages name French for
@@ -58,6 +62,11 @@ declares the same three languages. The package grows to about
   characters;
   `_locales/fr`, `default_locale` and the host app's languages do not move (the French pairs add no
   native language).
+- **The host app's activation page names every studied language** (D7, settled by the owner on
+  2026-10-09): `copy.js`'s `lede` and `step3` name every language a native language's shipped pairs
+  study — Spanish and French in English, English and Spanish in French, English and French in
+  Spanish with fr-es — step 3 choosing the first one's level, then saying where another is ticked;
+  the French page, in `copy.js` and `Main.html`, moves by this decision.
 - **Backup v3 in readers' hands** (D4): a reader who studies French writes backup schema 3
   (change 39). Every build since change 39's implementation (#803, `9fde7bb1`) reads it, but no
   release does yet — 1.7.0 and the host app's 1.5.0 predate it and refuse it by name. So the first
@@ -91,6 +100,10 @@ None.
   tables' snapshot, and the French baseline runs on it* and, with fr-es, change 49's *French is
   glossed in Spanish from the Spanish Wiktionary's French section and the French Wiktionary's
   translation tables* — a package carries the pair once the list names it.
+- `lingua-apple-app`: MODIFIED *Guided activation* (held by `localise-lingua-apple-host`, which
+  modifies `add-lingua-apple`'s, so this change is archived after both): « the French copy SHALL
+  stay what it was » becomes « each language's copy SHALL name every language the shipped pairs
+  glossed in it study »; every scenario kept, three added.
 - `lingua-browser-extension`: ADDED *French is studied by readers of English and Spanish* — the
   extension's own French: the stored profile, the offer per native language and never to a French
   speaker, the labels and the card's studied words.
@@ -110,7 +123,8 @@ pair studies French ».
     `src/reading/translation-setting.ts`, `_locales/en` and (with fr-es) `_locales/es`, the comments
     that say « until change 52 », `README.md`, `REVIEWERS.md`, `TRANSLATION.md`,
     `tool/marks/README.md`; the tests that read the list and those that hold a French pair inert;
-    new tests of French in the English and Spanish interfaces.
+    new tests of French in the English and Spanish interfaces; `test/apple-activation-page.spec.ts`
+    (the activation page's languages).
   - `scripts/lingua-data/` — *new*: `testdata/fr-es/` (with fr-es); *changed*:
     `test_gloss_coverage.py`; *consumed*: `gloss_coverage.py`, every table, unchanged.
   - `crates/lingua-pack/tests/committed_tables.rs` — change 43's scenario asserts the list names
@@ -118,7 +132,9 @@ pair studies French ».
   - `apps/site` — `src/data/lingua-coverage.json` (written by the script); no page or text changes:
     the three Lingua pages and the Spanish home's Lingua card (change 29b) follow the list (French's
     level sentence, « CECR » or « CEFR », and the listings are change 53's).
-  - `apps/lingua-apple` — consumed: the host app declares fr, en and es as it does since change 35.
+  - `apps/lingua-apple` — *changed*: `Shared (App)/Resources/copy.js` (`lede` and `step3` in fr, en
+    and es, the last only with fr-es) and `Base.lproj/Main.html` (the French, in place); *consumed*:
+    the host app declares fr, en and es as it does since change 35.
 
   ID, Music, Live, the back office (it shows the `fr` code; its name for it is change 53's, per
   change 39) and the backend are untouched: the server stores any studied language a client sends
@@ -128,19 +144,23 @@ pair studies French ».
   - Implementations merged: changes 17 (#786), 34 (#810), 35 (#814) — 35 under the floor too: the
     list this change extends and the requirement it modifies are 35's, and M1 puts both stage-2
     audiences before French —, 45, 48, `refine-lingua-fr-en-glosses` (to be proposed, change 48's
-    D7), 49's committed measurement (merged above the floor, or recorded under it), 51, and 41b;
-    39 to 44, 46, 47 and 50 are on `main`.
+    D7), 49's committed measurement (merged above the floor, or recorded under it), with fr-es
+    `refine-lingua-fr-es-glosses` (to be proposed after change 49's implementation; the owner,
+    2026-10-09), 51, and 41b; 39 to 44, 46, 47 and 50 are on `main`. The two refinements join
+    `archiveAfter` once proposed.
   - `fix-lingua-lemma-lookup` released on the Chrome Web Store, addons.mozilla.org and in the host
     app (its task 4.3) — at the latest, the release that first reads backup v3, as every release cut
     after #803 does (D4).
   - The owner's readings: change 48's floor and sample (its 6.1), 51's tables and snapshots (its
-    6.1), change 53's English and Spanish drafts, quoted here (M9).
+    6.1), change 53's English and Spanish drafts, quoted here, and the activation page's drafts
+    (M9).
   - Test accounts for the dogfood (risk 2).
   - Change 53's listings (French named in each store's listing, the requirement *The store listings
     name each studied language*) in the same submission (D13).
   - Nothing to deploy first: the model host serves fr-en (checked on 2026-10-09), and the privacy
     annex already names the languages generically, its sizes still true (change 31's D1; change 50).
-- **Release.** The first packages in which French is studied, TestFlight first (D13); the site
+- **Release.** The first packages in which French is studied, released on their own after 34's and
+  35's (settled by the owner on 2026-10-09), TestFlight first (D13); the site
   deployed after the merge, with fr-en's (and fr-es's) figures, before the listings are pasted.
   Nothing is submitted by this pull request.
 - **Order.** After 34 and 35 (stage 2); after every French change above; before 53 (listings and

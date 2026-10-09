@@ -15,7 +15,7 @@ See proposal.md (Why). What the list governs, and what each French change left f
 | Backup | schema 3 written only when the state names French (change 39's D7); read by every build since #803 (`9fde7bb1`, change 39's implementation), carried by no release yet |
 | Model catalogue | four models, six routes, `fr-en` direct and `fr-es` through English (change 50, #837); `MARKED_PAIRS` lists both, « inert until change 52 »; `model-controller.ts` flags `pivot` when a needed route has two models, and the setting then says « environ 340 Mo », else « environ 200 Mo » (change 50's D3 hands the English-native case here) |
 | `_locales/{fr,en,es}` | descriptions naming what each native can study — `en` « Read Spanish on the web… », `es` « Lee inglés en la web… »; change 27's D1: « it changes when a pair of that native is added (fr-en, fr-es) » |
-| Safari host app | `apps/lingua-apple/tool/app_localizations.sh` declares the natives of the bundled packs (change 28) |
+| Safari host app | `apps/lingua-apple/tool/app_localizations.sh` declares the natives of the bundled packs (change 28); the activation page, `Shared (App)/Resources/copy.js` (French in place in `Base.lproj/Main.html`, held equal by `apps/lingua-extension/test/apple-activation-page.spec.ts`), names each native language's default studied language alone — « Lis le web en anglais », "Read the web in Spanish", « Lee la web en inglés » — in `lede` and `step3` |
 | `gloss_coverage.py` | `--write` publishes the pairs of `packs.json`; `FLOORS` holds es-en and en-es, and fr-en (48) and fr-es (49) once they land; `test_gloss_coverage.py` holds the file to the list |
 | `apps/site` | the Lingua pages built from `lingua-coverage.json` and the catalogue's routes (change 30); the Spanish home's Lingua card from the same list (change 29b, `spanishHomeLinguaCard`, #845) |
 | Owner checks left here | change 40: whether two adjacent highlights need a hairline; change 44: an expression card on real pages; change 47's 6.2: the read-aloud checklist; change 50: the worker's memory on devices, fr-es on the iPhone; change 51's 6.2: the selection gestures |
@@ -24,7 +24,8 @@ See proposal.md (Why). What the list governs, and what each French change left f
 
 **Goals:**
 - fr-en in every package, and fr-es when its committed tables stand at or above its floor, shown to
-  English and Spanish speakers; nothing moved for a French-native reader.
+  English and Spanish speakers; nothing moved for a French-native reader but the host app's
+  activation page, by the owner's decision (D7).
 - The extension's own French: the type, the stored profile, the offer, the labels, the memory
   sentence; measured on the real list before it ships.
 
@@ -32,7 +33,8 @@ See proposal.md (Why). What the list governs, and what each French change left f
 - The listings, French's sentence on estimated levels on the site, « CECR » or « CEFR », the back
   office's name for `fr` (change 53); the agent plugin (M17).
 - Any table, pack, rule, golden or analyser version; any card wording (51); the glosses' defects
-  (`refine-lingua-fr-en-glosses`, fr-es's refinement if the owner wants one).
+  (`refine-lingua-fr-en-glosses` and `refine-lingua-fr-es-glosses`, each merged before this change
+  lists its pair).
 - A release: the owner's.
 
 ## Measured
@@ -168,8 +170,13 @@ order the reader sets with one box anyway.
 Change 49 commits fr-es's tables only at or above 81.4 / 68.8 / 54.5 % (its D8), and fails any
 later reduction under it. So this change is implemented once change 49's first committed measurement
 is known, whatever it says:
-- **At or above** (49 merged): fr-es is listed after fr-en, its figures published, `_locales/es`
-  names French (D7), and Spanish-native readers are offered French.
+- **At or above** (49 merged): fr-es is listed after fr-en once `refine-lingua-fr-es-glosses` has
+  merged — settled by the owner on 2026-10-09 (Open Question 4): fr-es's known defects (change 51's
+  *Known data defects*) are fixed before it ships, by a refinement of its own proposed after change
+  49's implementation, as 24b was before 35, its reduce job holding the floor —; its figures are
+  published, `_locales/es` and the activation page name French (D7), and Spanish-native readers are
+  offered French. `refine-lingua-fr-es-glosses` joins `archiveAfter` once proposed, as
+  `refine-lingua-fr-en-glosses` (change 48's D7, before fr-en ships) does.
 - **Under** (49's pull request records the figures and does not merge): the list ends with fr-en;
   Spanish-native readers are offered English alone, as since change 35; `_locales/es`, the site's
   Spanish readers' line and change 53's Spanish listing name no French. A later change lists fr-es
@@ -208,8 +215,8 @@ Tests: `profile.spec.ts` (a profile studying Spanish then French, English native
 `language-labels.spec.ts`, `settings-language.spec.ts`, `onboarding-level-row.spec.ts`,
 `popup.spec.ts` and `stats-view.spec.ts` in the English and Spanish interfaces with French studied
 (the labels of *Measured*, change 46's D6 hand-over);
-`wordpopup.spec.ts` (a French card's studied words in `fr`). The French interface does not move: no
-French-native reader is offered French, and the French catalogue is untouched.
+`wordpopup.spec.ts` (a French card's studied words in `fr`). The extension's French interface does
+not move: no French-native reader is offered French, and the French catalogue is untouched.
 
 ### D4 — Backup v3 reaches a store before French does
 
@@ -278,9 +285,35 @@ language's description names every language its shipped pairs study and no other
 change, it fails this pull request until the drafts are committed; merged after, its own — either
 way they land here, in the pull request that lists the pairs (53's D12).
 
-The host app's activation page (`copy.js`) names each native language's default studied language —
-« Read the web in Spanish », « choose your level of Spanish » — as the French page has named English
-alone since es-fr shipped; it stays (Open Question 2).
+**The host app's activation page** — settled by the owner on 2026-10-09 (Open Question 2): each
+language's `lede` and `step3` in `copy.js` name every language its native language's shipped pairs
+study, in every language, the French page included — English and Spanish in French, Spanish and
+French in English, English and French in Spanish with fr-es, English alone without it. Step 3
+chooses the first language's level, as today, then says where another is ticked — Réglages' first
+tab, « Langue » ("Language", « Idioma »: `tabLanguage`), which holds the studied languages' boxes and
+a level block per ticked language (`settings-view.ts`) — so that it stays true for a reader of
+several languages. The French page moves by this decision, the one exception to « the French
+interface byte for byte » (M23): `copy.js`'s `fr` and `Main.html`'s text in place, two keys. Every
+other key of every table, `ViewController.swift` and `Script.js` stay. Drafts (M9; the page's
+register, tu and tú; `<strong>` as step 1's paths have it):
+
+| | `lede` | `step3` |
+|---|---|---|
+| `fr` | `Lis le web en anglais ou en espagnol : les mots que tu ne connais pas encore sont surlignés, directement dans Safari.` | `Dans Safari, ouvre l’extension depuis le <strong>menu de la barre d’adresse</strong> et choisis ton niveau d’anglais. Pour l’espagnol, coche-le dans les <strong>Réglages</strong> de l’extension, onglet <strong>Langue</strong>, puis choisis ton niveau d’espagnol.` |
+| `en` | `Read the web in Spanish or French: the words you don't know yet are highlighted, right in Safari.` | `In Safari, open the extension from the <strong>address bar menu</strong> and choose your level of Spanish. For French, check it in the extension's <strong>Settings</strong>, under <strong>Language</strong>, then choose your level of French.` |
+| `es`, with fr-es | `Lee la web en inglés o en francés: las palabras que todavía no conoces aparecen resaltadas, directamente en Safari.` | `En Safari, abre la extensión desde el <strong>menú de la barra de direcciones</strong> y elige tu nivel de inglés. Para el francés, márcalo en los <strong>Ajustes</strong> de la extensión, pestaña <strong>Idioma</strong>, y luego elige tu nivel de francés.` |
+| `es`, without fr-es | unchanged: « Lee la web en inglés: … » | unchanged: « … y elige tu nivel de inglés. » |
+
+« de l’extension » keeps the extension's Réglages apart from step 1's, the system's. What moves in
+`apps/lingua-extension/test/apple-activation-page.spec.ts`: *names, in English and Spanish, the
+language their natives study* becomes « names every language a native language's pairs study »,
+`lede` and `step3` holding « anglais » and « espagnol » in French, "Spanish" and "French" in English,
+« inglés » and (with fr-es) « francés » in Spanish, and no language naming its own; *is the page's
+French, byte for byte* keeps passing, `copy.js` and `Main.html` moving together. Change 53's App
+Store descriptions quote step 3 (`apps/lingua-apple/STORE-LISTING.md`) and follow the page. The
+requirement *Guided activation* said « the French copy SHALL stay what it was » (change 28): it is
+MODIFIED to name every language each native language's pairs study, archived after
+`add-lingua-apple` and `localise-lingua-apple-host`, which hold it (D14).
 
 ### D8 — The published coverage, and the site
 
@@ -293,7 +326,7 @@ the file and the routes with no code change (*Measured*), and so does the Spanis
 with fr-es (change 29b); its level card, French's « estimés » and « CECR »/« CEFR » are change 53's
 (change 46's D11).
 
-### D9 — What a French-native reader sees: nothing
+### D9 — What a French-native reader sees: nothing but the activation page
 
 | | French native | English native | Spanish native |
 |---|---|---|---|
@@ -304,6 +337,7 @@ with fr-es (change 29b); its level card, French's « estimés » and « CECR »/
 | Translation downloads | as before | es-en, fr-en | en-es, fr-en |
 | `_locales` read | `fr`, unchanged | `en`, names French | `es`, names French with fr-es |
 | Backup | 1 or 2, unchanged | 3 once French is studied | 3 once French is studied |
+| Host app's activation page | English and Spanish (D7) | Spanish and French | English and French with fr-es |
 
 A French-native reader's package carries two packs more, never fetched (≈ 3.0 MB zipped with both,
 ≈ 1.75 MB with fr-en alone),
@@ -326,9 +360,10 @@ The tests that read the list or held a French pair inert (*Measured*) are rewrit
 each keeping the earlier lists it named as explicit arguments; new ones are D3's, D5's and D6's
 (`translation-setting.spec.ts` and `model-controller.spec.ts`: the English-native reader of Spanish
 and French told « about 340 MB » for 52,475,767 B; the Spanish-native reader of French, 51,608,069 B
-and « unos 340 MB »; the French-native rows unchanged). `committed_tables.rs`: change 43's *The pack
-builds where the others' do* asserts that `packs.json` lists fr-en (D14); with fr-es, change 49's
-« listed nowhere » assertion goes, its scenario holding only while the list does not name fr-es.
+and « unos 340 MB »; the French-native rows unchanged), and D7's in `apple-activation-page.spec.ts`.
+`committed_tables.rs`: change 43's *The pack builds where the others' do* asserts that `packs.json`
+lists fr-en (D14); with fr-es, change 49's « listed nowhere » assertion goes, its scenario holding
+only while the list does not name fr-es.
 `test_gloss_coverage.py`: D2's floor test and D8's publication.
 
 Documents: `README.md` and `REVIEWERS.md` (what ships, what a reviewer installs, French for English
@@ -376,13 +411,18 @@ this branch with the real packs, on test accounts (risk 2):
     place of this build (D4) starts and keeps reading Spanish — a reader of French alone too —, and
     this build reloaded finds the French cards.
 11. The library: a French EPUB shelved under French for an English-native reader.
+12. The host app's activation page on the iPhone and the Mac, the device in French, English and
+    (with fr-es) Spanish: the languages D7 names, and step 3 followed as written to a second
+    language's level.
 
 The owner runs it on their devices, with Claude where a session can drive the browser; the findings
 go to the pull request.
 
 ### D13 — The release, TestFlight first
 
-TestFlight first. The store submission that first carries French carries change 53's listings —
+Released on its own, after 34's and 35's, so that a regression is attributed to one audience —
+settled by the owner on 2026-10-09 (Open Question 3). TestFlight first. The store submission that
+first carries French carries change 53's listings —
 French named in each store's listing, as *The store listings name each studied language* requires —
 and the descriptions of D7; the site is deployed after the merge, with fr-en's (and fr-es's)
 figures, before the listings are pasted. The previous release on every store reads backup v3 (D4).
@@ -408,10 +448,12 @@ three, and no other open change holds them:
   does not name » their pair, as change 50's *A route of a pair studying French* holds « when no
   shipped pair studies French ».
 
-Every other word and scenario is carried verbatim. Checked with OpenSpec 1.13.2 on a scratch copy of
-`openspec/`: the 39 changes this one waits for, transitively, archived each as soon as
-`openspec_archive_order.py` allowed, then this one — every archive succeeds, the four requirements
-hold 12, 19, 6 and 15 scenarios, and no archived spec says the list does not name fr-en or fr-es.
+Every other word and scenario is carried verbatim. D7's *Guided activation* is MODIFIED the same way,
+after `add-lingua-apple` and `localise-lingua-apple-host`, which hold it. Checked with OpenSpec
+1.13.2 on a scratch copy of `openspec/`: the 41 changes this one waits for, transitively, archived
+each as soon as `openspec_archive_order.py` allowed, then this one — every archive succeeds, the five
+requirements hold 12, 19, 6, 15 and 7 scenarios, no archived spec says the list does not name fr-en
+or fr-es, and none that the French activation page stays what it was.
 
 Two conditions bind the implementation. The blocks are the requirements as their changes hold them
 when this change is implemented — 48's and 49's implementations may still reword theirs —, re-copied
@@ -428,8 +470,10 @@ nothing moving: it is written by the core over the committed tables, which this 
 touch. en-fr, es-fr, es-en and en-es cannot move: their tables and pins are untouched, their goldens
 pass as committed (*Measured*: the five baselines and `cross_native.rs` without re-blessing), their
 readers' pairs, routes, downloads and marks are unchanged (`readerPairs` keeps the pairs of a native
-language; D6's table), and the extension's snapshots pass as committed. The French interface is
-byte for byte: no French string moves, and no French-native reader is offered French. The gate:
+language; D6's table), and the extension's snapshots pass as committed. The extension's French
+interface is byte for byte: no French string moves, and no French-native reader is offered French.
+The one French text that moves is the host app's activation page, `lede` and `step3`, by the owner's
+decision (D7). The gate:
 `git diff --stat origin/main -- crates/lingua-core crates/lingua-wasm scripts/lingua-data/tables`
 empty.
 
@@ -438,9 +482,9 @@ empty.
 - **fr-es under its floor** → D2: French for English speakers alone, nothing published or listed
   for fr-es, a later change when a regeneration measures above it.
 - **A rollback after French** → D4: the previous store release reads schema 3.
-- **fr-en's glosses read wrong in places** → `refine-lingua-fr-en-glosses` before this change (change
-  48's D7), the owner's sample (48's 6.1); fr-es's known defects (change 51's list) read by the owner
-  (Open Question 4).
+- **fr-en's or fr-es's glosses read wrong in places** → `refine-lingua-fr-en-glosses` (change 48's
+  D7) and `refine-lingua-fr-es-glosses` (change 51's list; the owner, 2026-10-09) before this change
+  lists each pair, the owner's sample (48's 6.1).
 - **Package size** → ≈ 12.1 MB zipped, inside the programme's estimate and every store's limit;
   a reader loads only their native language's packs.
 - **Memory on iOS with fr-es** → es-fr's size, already dogfooded on the iPhone; D12 step 7 again.
@@ -465,7 +509,7 @@ Against 4–7.5 ideal days:
 - the list, the gate, the fixture, the coverage and the tests that read the list: 0.75–1.25;
 - the extension's French (type, name, offer) and its tests in English and Spanish: 1–1.75;
 - the memory sentence and its tests: 0.25–0.5;
-- the descriptions, the comments and the documents: 0.25–0.5;
+- the descriptions, the activation page and its test, the comments and the documents: 0.25–0.5;
 - the checks (Rust, Python, site, host app): 0.25–0.5;
 - the dogfood on five targets, two interfaces and the two owner checklists: 1.25–2.5;
 - the spec and the programme: 0.25–0.5.
@@ -477,14 +521,15 @@ Total 4–7.5.
 For the owner:
 1. **The descriptions** (D7): change 53's drafts, « Read Spanish and French on the web: … » and « Lee
    inglés y francés en la web: … » — or other words (M9), read once for both changes.
-2. **The host app's activation page** (D7): keep naming the default studied language (« Read the
-   web in Spanish »), as the French page names English alone since es-fr shipped, or name every
-   language the reader can study — in every language, the French page included.
-3. **One release per audience** (D13): this change released on its own after 34's and 35's, so a
-   regression is attributed to one audience (recommended), or with 35's.
+2. **The host app's activation page** (D7) — *settled on 2026-10-09*: every language the reader
+   can study is named, in every language, the French page included; the drafts are read with the
+   descriptions (M9, task 6.2).
+3. **One release per audience** (D13) — *settled on 2026-10-09*: this change released on its own,
+   after 34's and 35's.
 4. **fr-es's known defects** (change 51's *Known data defects*: `être` opening on « Ser », `qui`
-   « Quién. (Pronombre nominativo.) », `rien`, a run with no part of speech under `des`): a
-   refinement before this change, as 24b was before 35, or fr-es shipped as measured.
+   « Quién. (Pronombre nominativo.) », `rien`, a run with no part of speech under `des`) — *settled
+   on 2026-10-09*: fixed before fr-es ships, by `refine-lingua-fr-es-glosses`, proposed after change
+   49's implementation; this change lists fr-es once it has merged (D2).
 5. **The archive under the floor** (D14): change 49 stays open until fr-es measures at or above its
    floor, and changes 51 and 53, which name it in `archiveAfter`, wait with it — and this change,
    archived after 51. Recommended: under the floor, 51 and 53 drop 49 from `archiveAfter`, as this

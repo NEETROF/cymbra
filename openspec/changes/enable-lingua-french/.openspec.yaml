@@ -1,6 +1,8 @@
 schema: spec-driven
 created: 2026-10-09
 archiveAfter:
+  - add-lingua-apple
+  - localise-lingua-apple-host
   - enable-lingua-spanish
   - enable-lingua-english-speakers
   - enable-lingua-spanish-speakers
