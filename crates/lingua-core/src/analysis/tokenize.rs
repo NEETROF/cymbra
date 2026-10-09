@@ -306,8 +306,10 @@ const NARROW_NO_BREAK_SPACE: char = '\u{202F}';
 /// Two readings depend on the context ([`french_elided_word`]): `s'` is `si`
 /// before `il` and `ils`, and `m'`, `t'` are `moi`, `toi` right after a hyphen.
 /// `presqu'` and `quelqu'` are left off on purpose: they elide only in
-/// lexicalised words (`presqu'île`, `quelqu'un`), which stay whole.
-const FRENCH_ELISIONS: &[(&str, &str)] = &[
+/// lexicalised words (`presqu'île`, `quelqu'un`), which stay whole. Public for
+/// the check that French's committed tables hold every word it reads
+/// (`lingua-pack`'s `committed_tables.rs`, add-lingua-french-forms-tables D4).
+pub const FRENCH_ELISIONS: &[(&str, &str)] = &[
     // `c'est` → `ce` + `est`
     ("c", "ce"),
     // `d'abord` → `de` + `abord`
@@ -340,7 +342,8 @@ const FRENCH_ELISIONS: &[(&str, &str)] = &[
 
 /// The pronouns the pieces of a French hyphenated inversion after the first
 /// are (D5), sorted: `dit-il`, `allez-vous-en`, `coupez-les`, `dis-le-moi`.
-const FRENCH_INVERSION_PRONOUNS: &[&str] = &[
+/// Public for the same check as [`FRENCH_ELISIONS`].
+pub const FRENCH_INVERSION_PRONOUNS: &[&str] = &[
     "ce", "elle", "elles", "en", "il", "ils", "je", "la", "le", "les", "leur", "lui", "moi",
     "nous", "on", "toi", "tu", "vous", "y",
 ];
