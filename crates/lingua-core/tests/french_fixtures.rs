@@ -12,26 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Non-regression fixtures for French's tokenisation pre-pass
-//! (add-lingua-french-tokenisation, task 1.7 — at least 80 cases), grouped by
-//! rule: the narrow no-break space, each elided form, the words that stay whole,
-//! `au`/`aux` and `du`/`des`, the hyphenated inversions and the runs that are
-//! none. Every case states each token beside the source text its span covers, so
-//! every split is checked with its spans. Any change to a fixture's expectation
-//! is a behavioural change of the French analyser and demands a
-//! `FRENCH_ANALYZER_VERSION` bump; English's and Spanish's fixtures and
-//! baselines do not move.
+//! Non-regression fixtures for French's analysis, grouped by rule.
 //!
-//! The lexicon is a small stand-in for the forms tables
+//! Its tokenisation pre-pass (add-lingua-french-tokenisation, task 1.7 — at
+//! least 80 cases): the narrow no-break space, each elided form, the words that
+//! stay whole, `au`/`aux` and `du`/`des`, the hyphenated inversions and the runs
+//! that are none. Every case states each token beside the source text its span
+//! covers, so every split is checked with its spans.
+//!
+//! The rules of its own analysis (add-lingua-french-analysis, task 6.1 — at
+//! least 70 cases): NFC in the pre-pass (decomposed words, elisions, runs and
+//! capitals, each span the source's), the cascade (listed forms, each plural
+//! ending, each exclusion, the guard on a listed singular), the closed classes
+//! (each class, each word left out) and the names rule, through `analyse_page`
+//! on a small synthetic pack (each branch of its design's D4).
+//!
+//! Any change to a fixture's expectation is a behavioural change of the French
+//! analyser and demands a `FRENCH_ANALYZER_VERSION` bump; English's and
+//! Spanish's fixtures and baselines do not move.
+//!
+//! The lexicons are small stand-ins for the forms tables
 //! (add-lingua-french-forms-tables), which measure these rules on real text.
 
 use lingua_core::analysis::FRENCH_ANALYZER_VERSION;
+use lingua_core::analysis::function_words::is_function_word;
 use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::analysis::lemmatize::lemmatize;
 use lingua_core::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
+use lingua_core::analysis::percent::TokenClass;
 use lingua_core::analysis::tokenize::{Token, tokenize};
-use lingua_core::engine::word_grammar;
+use lingua_core::engine::{analyse_page, word_grammar};
+use lingua_core::knowledge::{KnowledgeState, KnownSource, Status};
 use lingua_core::packs::pack::section;
 use lingua_core::packs::{Pack, PackMeta, write_container};
+use unicode_normalization::UnicodeNormalization;
 
 const FR: StudiedLanguage = StudiedLanguage::French;
 
@@ -360,4 +374,597 @@ fn a_word_card_reads_the_written_word_through_the_pre_pass() {
     // A word the pre-pass leaves whole has none.
     assert!(pieces("dit", "dire").is_empty());
     assert!(pieces("aujourd'hui", "aujourd'hui").is_empty());
+}
+
+// --- add-lingua-french-analysis (task 6.1) ---
+
+/// NFC in the pre-pass (D1): (text tokenised as French, the tokens as (text, the source text the
+/// span covers)). Every word is composed before it is compared and written composed; every span
+/// covers the decomposed letters and their combining marks.
+const NFC_CASES: &[Case] = &[
+    ("me\u{301}moire", &[("mémoire", "me\u{301}moire")]),
+    ("E\u{301}cole", &[("École", "E\u{301}cole")]),
+    ("E\u{301}TAT", &[("ÉTAT", "E\u{301}TAT")]),
+    ("a\u{300}", &[("à", "a\u{300}")]),
+    (
+        "A\u{300} demain",
+        &[("À", "A\u{300}"), ("demain", "demain")],
+    ),
+    ("c\u{327}'a", &[("ça", "c\u{327}'"), ("a", "a")]),
+    (
+        "C\u{327}\u{2019}e\u{301}tait",
+        &[("Ça", "C\u{327}\u{2019}"), ("était", "e\u{301}tait")],
+    ),
+    ("c\u{327}\u{2019} ", &[("ça", "c\u{327}\u{2019}")]),
+    (
+        "l'e\u{301}te\u{301}",
+        &[("le", "l'"), ("été", "e\u{301}te\u{301}")],
+    ),
+    (
+        "qu\u{2019}E\u{301}lise",
+        &[("que", "qu\u{2019}"), ("Élise", "E\u{301}lise")],
+    ),
+    ("jusqu'a\u{300}", &[("jusque", "jusqu'"), ("à", "a\u{300}")]),
+    ("presqu'i\u{302}le", &[("presqu'île", "presqu'i\u{302}le")]),
+    (
+        "Au cafe\u{301}",
+        &[("À", "Au"), ("le", "Au"), ("café", "cafe\u{301}")],
+    ),
+    ("peut-e\u{302}tre", &[("peut-être", "peut-e\u{302}tre")]),
+    (
+        "c'est-a\u{300}-dire",
+        &[("c'est-à-dire", "c'est-a\u{300}-dire")],
+    ),
+    (
+        "l'arc-en-ciel e\u{301}tait",
+        &[
+            ("le", "l'"),
+            ("arc-en-ciel", "arc-en-ciel"),
+            ("était", "e\u{301}tait"),
+        ],
+    ),
+    (
+        "Saint-E\u{301}tienne",
+        &[("Saint-Étienne", "Saint-E\u{301}tienne")],
+    ),
+    (
+        "re\u{301}pondit-il",
+        &[("répondit", "re\u{301}pondit"), ("il", "il")],
+    ),
+    (
+        "e\u{301}tait-il",
+        &[("était", "e\u{301}tait"), ("il", "il")],
+    ),
+];
+
+/// The forms the cascade's stand-in pack lists, with their lemmas: one lemma per form, as the
+/// tables choose (M8).
+const CASCADE_FORMS: &[(&str, &str)] = &[
+    ("as", "avoir"),
+    ("a", "avoir"),
+    ("été", "être"),
+    ("étais", "être"),
+    ("est", "être"),
+    ("peut", "pouvoir"),
+    ("doit", "devoir"),
+    ("porte", "porter"),
+    ("portes", "porter"),
+    ("vivant", "vivre"),
+    ("sort", "sortir"),
+    ("vienne", "venir"),
+    ("mes", "mon"),
+    ("travaux", "travail"),
+    ("endors", "endormir"),
+    ("yeux", "œil"),
+    ("fait", "faire"),
+    ("ces", "ce"),
+];
+
+/// Lemmas the cascade's stand-in pack lists as their own forms.
+const CASCADE_LEMMAS: &[&str] = &[
+    "avoir",
+    "être",
+    "pouvoir",
+    "devoir",
+    "porter",
+    "vivre",
+    "sortir",
+    "venir",
+    "mon",
+    "travail",
+    "endormir",
+    "œil",
+    "cheval",
+    "maison",
+    "printemps",
+    "faire",
+    "ce",
+    "personne",
+];
+
+/// (form, expected lemma), grouped by the step of the cascade that resolves them (D2).
+const CASCADE_CASES: &[(&str, &str)] = &[
+    // --- the pack's forms: the tables decide ---
+    ("porte", "porter"),
+    ("Portes", "porter"),
+    ("été", "être"),
+    ("ÉTÉ", "être"),
+    ("étais", "être"),
+    ("as", "avoir"),
+    ("mes", "mon"),
+    ("travaux", "travail"),
+    ("endors", "endormir"),
+    ("yeux", "œil"),
+    ("printemps", "printemps"),
+    ("Vienne", "venir"),
+    ("e\u{301}te\u{301}", "être"),
+    // --- an unlisted lowercase plural in `-s`, its singular unlisted too ---
+    ("mégalithes", "mégalithe"),
+    ("vicissitudes", "vicissitude"),
+    ("auspices", "auspice"),
+    ("belgicismes", "belgicisme"),
+    ("félibres", "félibre"),
+    ("comarques", "comarque"),
+    ("alluvions", "alluvion"),
+    ("ramures", "ramure"),
+    ("patoisants", "patoisant"),
+    ("me\u{301}galithes", "mégalithe"),
+    // --- `-aux` → `-al` ---
+    ("chenaux", "chenal"),
+    ("bocaux", "bocal"),
+    ("végétaux", "végétal"),
+    // --- `-eaux` → `-eau`, before `-aux` ---
+    ("perdreaux", "perdreau"),
+    ("lionceaux", "lionceau"),
+    ("bateaux", "bateau"),
+    // --- the guard: a singular the pack lists keeps its plural itself (M8) ---
+    ("étés", "étés"),
+    ("vivants", "vivants"),
+    ("sorts", "sorts"),
+    ("chevaux", "chevaux"),
+    ("maisons", "maisons"),
+    ("personnes", "personnes"),
+    // --- exclusions: `-x` that is no `-aux`, singulars in `-s`, short words ---
+    ("heureux", "heureux"),
+    ("bijoux", "bijoux"),
+    ("campus", "campus"),
+    ("souris", "souris"),
+    ("succès", "succès"),
+    ("repos", "repos"),
+    ("stress", "stress"),
+    ("gens", "gens"),
+    ("mois", "mois"),
+    ("bras", "bras"),
+    // --- exclusions: hyphenated and elided words ---
+    ("arc-en-ciels", "arc-en-ciels"),
+    ("prud'hommes", "prud'hommes"),
+    ("grand'mères", "grand'mères"),
+    // --- exclusions: the passé simple ---
+    ("dormîmes", "dormîmes"),
+    ("cessâmes", "cessâmes"),
+    ("reçûmes", "reçûmes"),
+    ("cessâtes", "cessâtes"),
+    ("dormîtes", "dormîtes"),
+    ("reçûtes", "reçûtes"),
+    // --- a capitalised form outside the pack: the form, lowercased ---
+    ("Belfons", "belfons"),
+    ("Wisigoths", "wisigoths"),
+    ("MÉGALITHES", "mégalithes"),
+    ("ME\u{301}GALITHES", "mégalithes"),
+    // --- the form itself ---
+    ("maison", "maison"),
+    ("hier", "hier"),
+];
+
+/// (form, whether its lemma is a function word), each class and each word left out (D3). The
+/// forms go through the cascade first, as a phrase gloss's do.
+const CLOSED_CLASS_CASES: &[(&str, bool)] = &[
+    // --- determiners ---
+    ("le", true),
+    ("la", true),
+    ("les", true),
+    ("un", true),
+    ("une", true),
+    ("du", true),
+    ("des", true),
+    ("cet", true),
+    ("ces", true),
+    ("mon", true),
+    ("mes", true),
+    ("ton", true),
+    ("son", true),
+    ("leur", true),
+    ("chaque", true),
+    ("tout", true),
+    ("beaucoup", true),
+    // --- pronouns ---
+    ("je", true),
+    ("il", true),
+    ("on", true),
+    ("nous", true),
+    ("y", true),
+    ("en", true),
+    ("ça", true),
+    ("qui", true),
+    ("dont", true),
+    ("lequel", true),
+    ("quelqu'un", true),
+    ("rien", true),
+    // --- prepositions ---
+    ("à", true),
+    ("de", true),
+    ("dans", true),
+    ("pour", true),
+    ("jusque", true),
+    ("malgré", true),
+    // --- conjunctions ---
+    ("et", true),
+    ("mais", true),
+    ("que", true),
+    ("si", true),
+    ("lorsque", true),
+    // --- auxiliaries and modals, through their forms ---
+    ("été", true),
+    ("as", true),
+    ("peut", true),
+    ("doit", true),
+    // --- negation, « pas » by M21 ---
+    ("ne", true),
+    ("pas", true),
+    ("non", true),
+    // --- left out: words that look closed but carry meaning ---
+    ("personne", false),
+    ("point", false),
+    ("or", false),
+    ("plus", false),
+    ("jamais", false),
+    ("guère", false),
+    ("certain", false),
+    ("fait", false),
+    ("falloir", false),
+    ("vouloir", false),
+    ("aller", false),
+    ("voici", false),
+    ("voilà", false),
+    // --- content words ---
+    ("maison", false),
+    ("porte", false),
+    ("hier", false),
+];
+
+fn cascade_lexicon() -> FstLexicon<Vec<u8>> {
+    let (bytes, pool) = build_lexicon_blobs(CASCADE_FORMS, CASCADE_LEMMAS).expect("build");
+    FstLexicon::from_slices(bytes, &pool).expect("load")
+}
+
+#[test]
+fn french_nfc_fixtures() {
+    let lex = lexicon();
+    let wrong: Vec<String> = NFC_CASES
+        .iter()
+        .filter_map(|(text, expected)| {
+            let tokens = tokenize(text, FR, &lex);
+            let got = read(text, &tokens);
+            (got != *expected).then(|| format!("{text:?}: expected {expected:?}, got {got:?}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    // English reads the same text as it came.
+    for (text, _) in NFC_CASES {
+        for token in tokenize(text, StudiedLanguage::English, &lex) {
+            assert_eq!(
+                token.text,
+                text[token.start..token.end].replace('\u{2019}', "'")
+            );
+        }
+    }
+}
+
+#[test]
+fn french_cascade_fixtures() {
+    let lex = cascade_lexicon();
+    let wrong: Vec<String> = CASCADE_CASES
+        .iter()
+        .filter_map(|(form, expected)| {
+            let got = lemmatize(form, FR, &lex);
+            (got != *expected).then(|| format!("{form:?}: expected {expected:?}, got {got:?}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    // Every lemma is lowercase and composed.
+    for (form, _) in CASCADE_CASES {
+        let got = lemmatize(form, FR, &lex);
+        assert_eq!(got, got.to_lowercase(), "{form:?}");
+        assert!(!got.contains('\u{301}'), "{form:?}");
+    }
+}
+
+#[test]
+fn french_closed_class_fixtures() {
+    let lex = cascade_lexicon();
+    let wrong: Vec<String> = CLOSED_CLASS_CASES
+        .iter()
+        .filter_map(|(form, expected)| {
+            let lemma = lemmatize(form, FR, &lex);
+            let got = is_function_word(&lemma, FR);
+            (got != *expected).then(|| format!("{form:?} → {lemma:?}: expected {expected}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    // French's tables are French's: neither English nor Spanish reads `ne` or `pas` as theirs.
+    for language in [StudiedLanguage::English, StudiedLanguage::Spanish] {
+        assert!(!is_function_word("ne", language));
+        assert!(!is_function_word("pas", language));
+    }
+}
+
+/// The names rule's stand-in pack (D4): every word the cases write that the pack lists, the
+/// dictionary words named by a lexical section, `vienne` a form of the dictionary word `venir`.
+const NAMES_FORMS: &[(&str, &str)] = &[("vienne", "venir")];
+
+/// Lemmas of the names pack.
+const NAMES_LEMMAS: &[&str] = &[
+    "paris", "lot", "aube", "espagne", "saint", "pierre", "orange", "venir", "mme", "garonne",
+    "durand", "le", "la", "de",
+];
+
+/// The names pack's dictionary words; `paris`, `lot`, `aube`, `espagne`, `mme`, `garonne` and
+/// `durand` are lemmas but no dictionary words.
+const NAMES_DICTIONARY: &[&str] = &["saint", "pierre", "orange", "venir", "le", "la", "de"];
+
+/// (the document's blocks, a surface, the class of each of its occurrences, in order).
+type NameCase = (&'static [&'static str], &'static str, &'static [TokenClass]);
+
+const NAME: TokenClass = TokenClass::ProperNounOutOfLexicon;
+const WORD: TokenClass = TokenClass::Unknown;
+
+const NAME_CASES: &[NameCase] = &[
+    // --- Spanish's rule: a capital in mid-sentence, never in lowercase, no dictionary word ---
+    (
+        &["Nous partons de Paris demain matin avec toute la famille et le chien."],
+        "Paris",
+        &[NAME],
+    ),
+    (
+        &[
+            "Nous partons de Paris demain matin avec toute la famille et le chien.",
+            "Paris est loin de notre petit village de montagne, mais le voyage est beau.",
+        ],
+        "Paris",
+        &[NAME, NAME],
+    ),
+    (
+        &["Il pleut encore, Paris dort sous les nuages gris de ce long matin d'hiver."],
+        "Paris",
+        &[NAME],
+    ),
+    // --- no evidence: the head of a block, of a sentence, after `M.`'s full stop ---
+    (
+        &[
+            "Paris est une grande ville avec beaucoup de musées et de jardins.",
+            "Paris attire chaque année des millions de visiteurs du monde entier.",
+        ],
+        "Paris",
+        &[WORD, WORD],
+    ),
+    (
+        &["Il est arrivé hier soir. Paris dormait déjà sous la pluie froide de novembre."],
+        "Paris",
+        &[WORD],
+    ),
+    (
+        &["Nous avons rencontré M. Durand près de la gare du village hier soir."],
+        "Durand",
+        &[WORD],
+    ),
+    (
+        &[
+            "Mme Durand ouvre la boutique tous les matins à huit heures précises.",
+            "Mme Durand vend du pain, des gâteaux et des croissants au beurre frais.",
+        ],
+        "Mme",
+        &[WORD, WORD],
+    ),
+    // --- a capital right after an elided piece, straight or typographic, even at a head ---
+    (
+        &["La rivière traverse l'Aube avant de rejoindre la Seine près du village."],
+        "Aube",
+        &[NAME],
+    ),
+    (
+        &["L'Aube rejoint la Seine dans la plaine, après un long voyage vers le nord."],
+        "Aube",
+        &[NAME],
+    ),
+    (
+        &["Ils reviennent d\u{2019}Espagne avec leurs amis après un long voyage en voiture."],
+        "Espagne",
+        &[NAME],
+    ),
+    (
+        &["Le train part demain. D'Espagne, il rejoindra la mer avant la fin du mois."],
+        "Espagne",
+        &[NAME],
+    ),
+    // --- a hyphenated run the pack does not list is one form ---
+    (
+        &["Les gendarmes ont retrouvé Jean-Pierre près de la gare hier soir avec son chien."],
+        "Jean-Pierre",
+        &[NAME],
+    ),
+    (
+        &["Nous avons visité Saint-Étienne pendant les vacances avec toute la famille."],
+        "Saint-Étienne",
+        &[NAME],
+    ),
+    (
+        &["Nous avons visité Saint-E\u{301}tienne pendant les vacances avec toute la famille."],
+        "Saint-Étienne",
+        &[NAME],
+    ),
+    (
+        &["Saint-Étienne est une grande ville industrielle au sud de la région."],
+        "Saint-Étienne",
+        &[WORD],
+    ),
+    // --- a dictionary word stays a word, by its lemma or by the lemma its form reads as ---
+    (
+        &["Le train roule entre Orange et la mer pendant toute la matinée."],
+        "Orange",
+        &[WORD],
+    ),
+    (
+        &["Nous avons passé l'été entre la mer et Vienne pendant les vacances."],
+        "Vienne",
+        &[WORD],
+    ),
+    (
+        &["Nous avons vu Pierre hier soir près de la gare avec son chien."],
+        "Pierre",
+        &[WORD],
+    ),
+    // --- a form the document also writes in lowercase ---
+    (
+        &[
+            "La rivière du Lot traverse le village avant de rejoindre la Garonne.",
+            "Il a acheté un lot de livres anciens au marché de la place.",
+        ],
+        "Lot",
+        &[WORD],
+    ),
+    (
+        &[
+            "La rivière du Lot traverse le village avant de rejoindre la Garonne.",
+            "Il a acheté un lot de livres anciens au marché de la place.",
+        ],
+        "Garonne",
+        &[NAME],
+    ),
+];
+
+/// A French pack holding the names lexicon, its dictionary words in a lexical section, at French's
+/// analyser version.
+fn names_pack() -> Pack {
+    let (forms, pool) = build_lexicon_blobs(NAMES_FORMS, NAMES_LEMMAS).expect("lexicon");
+    let lex = FstLexicon::from_slices(forms.clone(), &pool).expect("load");
+    let freq = vec![0u8; lex.lemma_count() * 4];
+    let mut lexical = vec![0u8; lex.lemma_count().div_ceil(8)];
+    for word in NAMES_DICTIONARY {
+        let id = lex.id_of(word).expect("a dictionary word is a lemma") as usize;
+        lexical[id / 8] |= 1 << (id % 8);
+    }
+    let meta = serde_json::to_vec(&PackMeta {
+        studied: "fr".into(),
+        native: "en".into(),
+        pack_version: "fixture".into(),
+        analyzer_version: FRENCH_ANALYZER_VERSION.into(),
+        licences: vec![],
+        levels_estimated: false,
+    })
+    .expect("meta");
+    let sections: [(&str, &[u8]); 4] = [
+        (section::FORMS, &forms),
+        (section::LEMMAS, pool.as_bytes()),
+        (section::FREQ, &freq),
+        (section::LEXICAL, &lexical),
+    ];
+    Pack::load(&write_container(&meta, &sections)).expect("the names pack loads")
+}
+
+/// The classes of every token written `surface` on a French page.
+fn classes(
+    pack: &Pack,
+    blocks: &[&str],
+    surface: &str,
+    knowledge: &KnowledgeState,
+) -> Vec<TokenClass> {
+    let page = analyse_page(blocks, FR, pack, knowledge);
+    assert!(page.analysable, "{blocks:?}");
+    page.tokens
+        .into_iter()
+        .filter(|token| token.surface.nfc().collect::<String>() == surface)
+        .map(|token| token.class)
+        .collect()
+}
+
+#[test]
+fn french_names_fixtures() {
+    let pack = names_pack();
+    let knowledge = KnowledgeState::new();
+    let wrong: Vec<String> = NAME_CASES
+        .iter()
+        .filter_map(|(blocks, surface, expected)| {
+            let got = classes(&pack, blocks, surface, &knowledge);
+            (got != *expected)
+                .then(|| format!("{surface:?} in {blocks:?}: expected {expected:?}, got {got:?}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn a_name_the_reader_marked_keeps_its_status() {
+    let pack = names_pack();
+    let mut knowledge = KnowledgeState::new();
+    knowledge.set_status(FR, "paris", Status::Learning);
+    knowledge.set_status(FR, "jean-pierre", Status::Known(KnownSource::Manual));
+    let blocks = [
+        "Nous partons de Paris demain matin avec toute la famille et le chien.",
+        "Les gendarmes ont retrouvé Jean-Pierre près de la gare hier soir.",
+    ];
+    assert_eq!(
+        classes(&pack, &blocks, "Paris", &knowledge),
+        [TokenClass::Learning]
+    );
+    assert_eq!(
+        classes(&pack, &blocks, "Jean-Pierre", &knowledge),
+        [TokenClass::Known]
+    );
+}
+
+#[test]
+fn a_glossed_lemma_is_a_dictionary_word_of_a_pack_without_a_lexical_section() {
+    // The fixture's case (`is_dictionary_word`'s fallback): `orange` glossed stays a word,
+    // `paris` unglossed goes.
+    let (forms, pool) =
+        build_lexicon_blobs(&[], &["orange", "paris", "le", "la", "de"]).expect("lexicon");
+    let lex = FstLexicon::from_slices(forms.clone(), &pool).expect("load");
+    let freq = vec![0u8; lex.lemma_count() * 4];
+    let orange = lex.id_of("orange").expect("orange") as u32;
+    let mut raw = Vec::new();
+    raw.extend_from_slice(&1u32.to_le_bytes());
+    raw.extend_from_slice(&orange.to_le_bytes());
+    raw.extend_from_slice(&0u32.to_le_bytes());
+    raw.extend_from_slice(&6u32.to_le_bytes());
+    raw.extend_from_slice(b"orange");
+    let gloss = zstd::encode_all(raw.as_slice(), 19).expect("zstd");
+    let meta = serde_json::to_vec(&PackMeta {
+        studied: "fr".into(),
+        native: "en".into(),
+        pack_version: "fixture".into(),
+        analyzer_version: FRENCH_ANALYZER_VERSION.into(),
+        licences: vec![],
+        levels_estimated: false,
+    })
+    .expect("meta");
+    let sections: [(&str, &[u8]); 4] = [
+        (section::FORMS, &forms),
+        (section::LEMMAS, pool.as_bytes()),
+        (section::FREQ, &freq),
+        (section::GLOSS_ZST, &gloss),
+    ];
+    let pack = Pack::load(&write_container(&meta, &sections)).expect("loads");
+    let blocks = ["Le train roule entre Orange et Paris pendant toute la matinée."];
+    let knowledge = KnowledgeState::new();
+    assert_eq!(classes(&pack, &blocks, "Orange", &knowledge), [WORD]);
+    assert_eq!(classes(&pack, &blocks, "Paris", &knowledge), [NAME]);
+}
+
+#[test]
+fn the_new_rules_hold_at_least_seventy_cases() {
+    let cases = NFC_CASES.len() + CASCADE_CASES.len() + CLOSED_CLASS_CASES.len() + NAME_CASES.len();
+    assert!(
+        cases >= 70,
+        "task 6.1 asks for at least 70 cases, got {cases}"
+    );
 }
