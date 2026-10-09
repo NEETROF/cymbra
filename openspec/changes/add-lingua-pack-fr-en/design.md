@@ -56,8 +56,8 @@ commonest lemmas of `tables/fr/freq.tsv` with a gloss.
 | + the English Wiktionary's French translations, backwards (inverted) — en-es's shape | 32,047 (+312; 38) | 94.6 / 88.6 / 78.7 % | 50,411 (+12,869) | 2,773,699 B |
 | The section for words, the direct table for expressions only | 30,059 | 93.6 / 86.9 / 76.3 % | 39,664 | 2,564,304 B |
 
-The programme's « 93.9 / 87.1 / 76.4 % (prototype ranks, ± 1–2) » is the section alone; on change
-43's tables it reads 93.6 / 86.9 / 76.3. The pack of change 43's two tables alone is 1,239,838 B;
+The programme's « 93.9 / 87.1 / 76.4 % (prototype ranks, ± 1–2) » names the section alone as its
+source; on change 43's tables it reads 93.6 / 86.9 / 76.3. The pack of change 43's two tables alone is 1,239,838 B;
 with changes 45's and 46's prototype tables (`grammar.tsv`, the pinned pool, `level.tsv`) the
 proposed pack is 2,421,321 B. es-en's is 2,567,804 B.
 
@@ -68,7 +68,7 @@ English words in French text (« in » « in », « and » « AND », « end » 
 « out », « king » « sounding stone, bianqing, king »), names (« kim », « sam », « jack »),
 initialisms (« sh » « CW », « cde » « end of operation »), unaccented misspellings (« tres » « too »,
 « secretaire » « amanuensis »). Kept to the 64 words the section lists but does not gloss, and that
-are not glossed by themselves (20 of the top 10,000), half still read wrong: « stp » « pipeline-end
+are not glossed by themselves (20 of the top 10,000), about half still read wrong: « stp » « pipeline-end
 termination », « french » « French kiss », « v » « G », « ep » « cockpit voice recorder, CVR, EP ».
 
 **What the tables' expressions are met as.** Keyed by the forms table and counted in UD French's
@@ -92,12 +92,12 @@ without them:
 | D2, nested senses | 21 / 13 | 12 / 7 | 1 changed, 1 gained | « chambre » (324) « a chamber in its various senses, including » → « a room; a hotel room; a bedroom; a house of a parliament »; « champ », « scène », « nous » (34) « the plural personal pronoun in the first person; … » → « we; us, to us; … », « concevoir », « parrain », « ours » |
 | D3, shortened and case forms | 8 / 4; 2 lemmas gained (« eine », « mam'zelle ») | 3 / 0 | 1 gained | « elle » (28) gains « her, it, à elle = hers, its », « elles » « them (female) », « pus » « more, no more, no longer » |
 | D4, a function word spelled like a place | 0 | 0 | 0 | — |
-| D5, one typography | 243 / 110 | 93 / 30 | 141 | « du » (10) « Forms the partitive article » → « forms the partitive article », « se », « que », « ou » « either...or » → « either … or », « dont » "including" → “including” |
+| D5, one typography | 243 / 110 | 93 / 30 | 141 | « du » (10) « Forms the partitive article » → « forms the partitive article », « se », « que », « ou » « either...or » → « either … or », « dont »'s « translated as "including" » → « … as “including” » |
 | **Together** | **269 / 125** | **107 / 37** | **142 changed, 2 gained** | no gloss lost |
 
 Before them, the section reads as es-en read before 23b: 8 / 6 rows with `...`, 46 / 28 with
 straight quotes, 188 / 77 opening a sense on one of the edition's descriptions in a capital
-(110 expressions). After them, none of those.
+(110 expressions). After them, no word's gloss holds any of those.
 
 **M20 on fr-en.** The long-parenthesis bound at 40 changes 2,342 rows (902 of the top 10,000), the
 etymology merging 304 (168); neither loses a gloss.
@@ -163,8 +163,8 @@ and would load nothing of it; fr-en has no rule of its own to put there (D2, D3)
 The English Wiktionary writes its French section as it writes its Spanish one, and the measurement
 shows the same layouts read as meanings: a sense-group label or a list's introduction (« chambre »,
 « champ »: « … in its various senses, including »), a pronoun's senses under its description
-(« nous »), the edition's descriptions in a capital (110 of the top 10,000), three ellipses, straight
-quotes. `read_as_meanings` reads them right on fr-en — 269 rows, 125 of the top 10,000, the first
+(« nous »), the edition's descriptions in a capital (188 rows, 77 of the top 10,000), ellipses
+written `...` (8 rows), straight quotes (46). `read_as_meanings` reads them right on fr-en — 269 rows, 125 of the top 10,000, the first
 sense of 107 / 37, 2 glosses gained (« eine », « mam'zelle »), none lost — and moves nothing it should
 not: D4 changes no French row, D3's lending stays bounded by `_MIN_BASE`.
 
@@ -189,7 +189,7 @@ fr-en, measured, neither table is taken:
   French (*A pack's dictionary words do not depend on its glosses*), so « in », « end », « kim » and
   « sam » would be counted by every French reader's vocabulary estimate, in fr-en and in fr-es alike,
   and kept as words by a names rule that reads dictionary words. Kept only for words the section
-  lists, the table glosses 64, half of them wrong.
+  lists, the table glosses 64, about half of them wrong.
 - **Expressions.** The inverted table makes the commonest French bigrams expressions (« il est »
   "he's", « la plus » "most", « tous les » "all"): 6,443 occurrences in 425,111 words, against the
   section's 32,998, and wrong wherever they are not a translation of an English word. The direct
