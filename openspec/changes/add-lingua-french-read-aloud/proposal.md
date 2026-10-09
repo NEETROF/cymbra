@@ -12,10 +12,10 @@ was measured on the seven voice lists captured on real browsers
 things read wrong:
 
 - **A Canadian voice by default.** French has no preferred region, so the automatic choice is the
-  browser's first French voice. Every Apple target lists `Amélie` (fr-CA) before `Thomas` (fr-FR),
-  alphabetically: the automatic French voice is Canadian on Chrome, Firefox and Safari for macOS
-  (and the iOS Simulator, which lists the host Mac's voices) — 4 of the 7 captures. It is a voice
-  of France only on the iPhone, by its list's order, and on Chrome for Windows, by its one default
+  browser's first French voice. Chrome, Firefox and Safari on macOS (and the iOS Simulator, which
+  lists the host Mac's voices) list `Amélie` (fr-CA) before `Thomas` (fr-FR), alphabetically: the
+  automatic French voice is Canadian on 4 of the 7 captures. It is a voice of France only on the
+  iPhone, whose list happens to put `Thomas` first, and on Chrome for Windows, by its one default
   voice. Spanish settled the same question with a voice of Spain (`add-lingua-spanish-read-aloud`).
 - **An Eloquence voice among the ordinary ones.** Chrome on macOS lists `Jacques`, which is Apple's
   `com.apple.eloquence.fr-FR.Jacques` — the French (France) Eloquence set has Jacques where every
@@ -29,9 +29,9 @@ things read wrong:
   highlight span (change 40), so `l'` of « l'homme » gets a card of its own. Spoken alone by
   Apple's French voices, `l'` is byte for byte the audio of « elle », `d'` of « dé », `j'` of « ji »,
   `s'` « esse », `c'` « cé », `m'` « emme », `t'` « té »; `qu'` is a clipped sound. Spoken with the
-  word it leans on — « l'homme » — it is right.
+  word it leans on it is right: « l'homme » is byte for byte « lomme », « qu'il » « kil ».
 
-And Réglages cannot yet say « no French voice is installed » in English or Spanish, nor offer a
+And Réglages cannot yet say "no French voice is installed" in English or Spanish, nor offer a
 French sample: those words live in the catalogue's `languages` modules, which name English and
 Spanish only.
 
@@ -49,12 +49,12 @@ surface reads French until then.
   exists.
 - **French-speaking regions in three letters.** `THREE_LETTER_REGIONS` gains France, Belgium and
   Switzerland (`fra`, `bel`, `che`; Canada's `can` is there): `fra-FRA-default` is a voice of France,
-  named « France », "France", « Francia ».
+  named « France » in French and English, « Francia » in Spanish.
 - **The French words in the catalogue.** `src/i18n/{fr,en,es}/languages.ts` gain `french`: its
   name, its forms, the Windows language a voice is installed with (« Français (France) », "French
   (France)", « Francés (Francia) ») and the sentence a preview reads, in French whatever the
-  interface. The voice block reads them through the speaker's language — « No French voice is
-  installed on this device. », « No hay ninguna voz francesa instalada en este dispositivo. » —
+  interface. The voice block reads them through the speaker's language — "No French voice is
+  installed on this device.", « No hay ninguna voz francesa instalada en este dispositivo. » —
   without widening the extension's `StudiedLanguage` type, which change 52 widens (change 39, D8).
 - **An elided French piece is heard with the word it leans on.** When the speaker reads French, a
   card opened on an elided piece reads it with the rest of the word the page writes it against
