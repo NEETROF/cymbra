@@ -635,8 +635,14 @@ fn spec_scenario_a_french_reader_s_backup_is_version_3() {
         )
         .unwrap();
     // French's pre-pass splits the elision, each piece with its own span
-    // (add-lingua-french-tokenisation).
-    assert!(page.contains(r#""analyzer_version":"0.2.0""#), "{page}");
+    // (add-lingua-french-tokenisation), and the page reports French's own version, no longer one
+    // of the baseline's `0.x` (add-lingua-french-analysis D5).
+    let french = StudiedLanguage::French.analyzer_version();
+    assert!(!french.starts_with("0."), "{french}");
+    assert!(
+        page.contains(&format!(r#""analyzer_version":"{french}""#)),
+        "{page}"
+    );
     assert!(
         page.contains(r#""start":0,"end":2,"surface":"Le","lemma":"le""#),
         "{page}"

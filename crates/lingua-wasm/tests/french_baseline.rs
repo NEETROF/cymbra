@@ -15,13 +15,16 @@
 //! French invariance baseline (`docs/lingua/language-matrix-programme.md`, change 39,
 //! add-lingua-french-baseline).
 //!
-//! French is a studied language with its own tokenisation pre-pass (analyser `0.2.0`,
-//! add-lingua-french-tokenisation) and, for its lemmas, the baseline analysis: the narrow no-break
-//! space is a space, an elided word is split from the word it is joined to and read as the word it
-//! stands for, each piece with its own span (`l'homme` → `le` + `homme`; `aujourd'hui` whole),
-//! `au`/`aux` are `à` + `le`/`les` sharing a span, `du`/`des` stay whole, a hyphenated inversion
-//! is read as words (`dit-il` → `dit` + `il`); then the rules that belong to no language and the
-//! pack's forms — nothing is a function word, there is no names rule and no NFC.
+//! French is a studied language with its own analysis at analyser `1.0.0`
+//! (add-lingua-french-analysis). Its tokenisation pre-pass (add-lingua-french-tokenisation) reads
+//! the narrow no-break space as a space, splits an elided word from the word it is joined to and
+//! reads it as the word it stands for, each piece with its own span (`l'homme` → `le` + `homme`;
+//! `aujourd'hui` whole), `au`/`aux` as `à` + `le`/`les` sharing a span, `du`/`des` whole, a
+//! hyphenated inversion as words (`dit-il` → `dit` + `il`), and every word in NFC, its span the
+//! source's. Its cascade reads the pack's forms, then an unlisted lowercase plural as its unlisted
+//! singular, then the form; its closed classes flag a phrase gloss's function words, « pas »
+//! among them (M21); a document's names are set aside — Spanish's rule, a capital after an elided
+//! piece, a hyphenated run as one form.
 //! This freezes what the engine makes of raw French text today, over a thirteen-page corpus
 //! (`baseline/pages-fr.txt`, its sources in `support/french.rs`), so that each later change of
 //! the French stage shows its effect as the diff of a re-bless. It is not French support: no pair
@@ -45,6 +48,7 @@ mod support;
 
 use std::sync::OnceLock;
 
+use lingua_core::analysis::FRENCH_ANALYZER_VERSION;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::tokenize::tokenize;
 use support::french::FRENCH;
@@ -180,21 +184,53 @@ fn offset_in(page: &str, block: usize, word: &str) -> usize {
         .unwrap_or_else(|| panic!("{word:?} in {page}[{block}]"))
 }
 
+/// The classes of a page's tokens written `surface`.
+fn classes_of(page: &serde_json::Value, surface: &str) -> Vec<String> {
+    page["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .filter(|t| t["surface"] == surface)
+        .map(|t| t["class"].as_str().expect("class").to_owned())
+        .collect()
+}
+
+/// A phrase gloss's (lemma, function word) pairs.
+fn function_words(engine: &lingua_wasm::LinguaEngine, text: &str) -> Vec<(String, bool)> {
+    let glossed: serde_json::Value =
+        serde_json::from_str(&engine.phrase_gloss(text, fr()).expect("glossed")).expect("JSON");
+    glossed["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .map(|t| {
+            (
+                t["lemma"].as_str().expect("lemma").to_owned(),
+                t["function_word"].as_bool().expect("function_word"),
+            )
+        })
+        .collect()
+}
+
 #[test]
-fn french_has_its_pre_pass_and_the_baseline_s_lemmas() {
+fn french_has_its_pre_pass_and_its_analysis() {
     let mut engine = FRENCH.loaded();
     assert_eq!(engine.languages(), r#"["es","fr"]"#, "es-en beside fr-en");
     assert_eq!(engine.native_language(), "en");
 
-    // An elision is two pieces, each with its own span, the elided one read as `le`.
+    // An elision is two pieces, each with its own span, the elided one read as `le`. French
+    // reports its own version, no longer one of the baseline's `0.x` (add-lingua-french-analysis
+    // D5).
     let elisions = analysed(&engine, "elisions");
-    assert_eq!(elisions["analyzer_version"], "0.2.0");
+    let version = elisions["analyzer_version"].as_str().expect("version");
+    assert_eq!(version, FRENCH_ANALYZER_VERSION);
+    assert!(!version.starts_with("0."), "{version}");
     assert_eq!(tokens_at(&elisions, 0, 0), [token("Le", "le", 2)]);
     assert_eq!(tokens_at(&elisions, 0, 2), [token("homme", "homme", 7)]);
 
     // `au` is `à` + `le` sharing its span; `du` is whole.
     let contractions = analysed(&engine, "contractions");
-    assert_eq!(contractions["analyzer_version"], "0.2.0");
+    assert_eq!(contractions["analyzer_version"], FRENCH_ANALYZER_VERSION);
     let au = offset_in("contractions", 0, "au");
     assert_eq!(
         tokens_at(&contractions, 0, au),
@@ -234,15 +270,58 @@ fn french_has_its_pre_pass_and_the_baseline_s_lemmas() {
         }
     }
 
-    // No word of any page is a function word: French has no table yet.
-    for (name, blocks) in FRENCH.pages() {
-        for block in blocks {
-            let glossed = engine.phrase_gloss(&block, fr()).expect("glossed");
-            assert!(
-                !glossed.contains(r#""function_word":true"#),
-                "{name}: {glossed}"
-            );
-        }
+    // The closed classes (D3): the `homographes` page's negation, « pas » both times (M21), and
+    // its `le`, flagged; the `fiction` page's `Personne` is not.
+    let (_, homographes) = FRENCH
+        .pages()
+        .into_iter()
+        .find(|(n, _)| n == "homographes")
+        .expect("homographes");
+    let negation = homographes
+        .iter()
+        .find(|block| block.starts_with("Il ne fait pas un pas"))
+        .expect("the negation's block");
+    let flags = function_words(&engine, negation);
+    for lemma in ["ne", "pas", "le", "il", "un", "son"] {
+        assert!(
+            flags.iter().any(|(l, flagged)| l == lemma && *flagged),
+            "{lemma}: {flags:?}"
+        );
+    }
+    assert_eq!(
+        flags
+            .iter()
+            .filter(|(l, flagged)| l == "pas" && *flagged)
+            .count(),
+        2,
+        "{flags:?}"
+    );
+    assert!(
+        flags.iter().all(|(l, flagged)| !*flagged || l != "faire"),
+        "{flags:?}"
+    );
+    let (_, fiction) = FRENCH
+        .pages()
+        .into_iter()
+        .find(|(n, _)| n == "fiction")
+        .expect("fiction");
+    let personne = function_words(&engine, &fiction[1]);
+    assert_eq!(personne.first(), Some(&("personne".to_owned(), false)));
+    assert!(personne.iter().any(|(l, flagged)| l == "ne" && *flagged));
+
+    // The names rule (D4) on the `noms` page: Spanish's rule sets `Paris` and `Lot` aside, the
+    // elided `l'` gives `Aube`'s evidence, and the runs are one form each; `Orange` and `Vienne`
+    // are dictionary words (a gloss, `venir`'s), `Mme` only opens its block.
+    let noms = analysed(&engine, "noms");
+    for name in ["Paris", "Lot", "Aube", "Jean-Pierre", "Saint-Étienne"] {
+        assert_eq!(
+            classes_of(&noms, name),
+            ["ProperNounOutOfLexicon"],
+            "{name}"
+        );
+    }
+    for word in ["Orange", "Vienne", "Mme"] {
+        assert_eq!(classes_of(&noms, word), ["Unknown"], "{word}");
     }
 
     // The reader's records are French, under the profile the engine started with (Spanish,
@@ -295,19 +374,29 @@ fn the_fixture_lists_every_word_the_pre_pass_writes() {
 #[test]
 fn the_nfd_block_s_memoire_is_glossed_once_french_composes_it() {
     // The fixture lists `mémoire`, glossed `memory`, a word the corpus has only in its NFD block
-    // (D5): read as it came, decomposed, the word is not the pack's and has no gloss; change 41's
-    // NFC makes the gloss appear in the golden, not only bytes no one sees move.
+    // (change 39's D5): French's pre-pass reads it in NFC (add-lingua-french-analysis D1), so the
+    // token is the pack's word, glossed, and its span still covers the decomposed bytes.
     let engine = FRENCH.loaded();
     let technique = analysed(&engine, "technique");
     let decomposed = "me\u{301}moire";
+    let at = offset_in("technique", NFD_BLOCK, decomposed);
     let token = technique["tokens"]
         .as_array()
         .expect("tokens")
         .iter()
-        .find(|t| t["block"] == NFD_BLOCK && t["surface"] == decomposed)
-        .expect("the NFD block's `mémoire`, as it came");
-    assert_eq!(token["lemma"], decomposed, "lowercased, not composed");
-    assert!(token["gloss"].is_null(), "{token}");
+        .find(|t| t["block"] == NFD_BLOCK && t["start"] == at)
+        .expect("the NFD block's `mémoire`");
+    assert_eq!(token["surface"], "m\u{e9}moire", "composed");
+    assert_eq!(token["lemma"], "m\u{e9}moire");
+    assert_eq!(token["gloss"], "memory", "{token}");
+    assert_eq!(token["end"], at + decomposed.len(), "the decomposed bytes");
+    // No token of the block is decomposed any more.
+    for t in technique["tokens"].as_array().expect("tokens") {
+        if t["block"] == NFD_BLOCK {
+            let surface = t["surface"].as_str().expect("surface");
+            assert_eq!(surface.nfc().collect::<String>(), surface, "{t}");
+        }
+    }
     assert_eq!(
         engine.gloss("m\u{e9}moire", fr()).expect("glossed"),
         Some("memory".to_owned()),
@@ -331,7 +420,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     let mut manifest: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&manifest_path).expect("manifest"))
             .expect("JSON");
-    assert_eq!(manifest["meta"]["analyzer_version"], "0.2.0");
+    assert_eq!(manifest["meta"]["analyzer_version"], "1.0.0");
     manifest["meta"]["analyzer_version"] = "0.0.9".into();
     std::fs::write(&manifest_path, manifest.to_string()).expect("written");
 
@@ -340,7 +429,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     };
     let message = refused.downcast_ref::<String>().expect("a formatted panic");
     assert!(
-        message.contains("pack built for analyzer 0.0.9 but this core is 0.2.0"),
+        message.contains("pack built for analyzer 0.0.9 but this core is 1.0.0"),
         "{message}"
     );
     assert!(

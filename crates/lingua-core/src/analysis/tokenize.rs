@@ -24,8 +24,10 @@
 //! a space, splits an elided word off the word it is joined to (`l'homme` →
 //! `le` + `homme`, each piece with its own span; `aujourd'hui` stays whole),
 //! splits `au`/`aux` into `à` + `le`/`les` and reads a hyphenated inversion as
-//! words (`dit-il` → `dit` + `il`); its text is otherwise read as it came, NFC
-//! being a rule of its cascade. Adding a studied language means adding a
+//! words (`dit-il` → `dit` + `il`); it reads every word in NFC before comparing
+//! it with anything — the elided forms, `au`/`aux`, a run the pack lists — and
+//! writes every token's text composed, each span still the source's
+//! (add-lingua-french-analysis D1). Adding a studied language means adding a
 //! pre-pass, not touching the tokeniser.
 
 use serde::Serialize;
@@ -78,10 +80,11 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// Each language has its own pre-pass. English expands `n't`; Spanish reads
 /// its tokens in NFC and splits `al`/`del` (add-lingua-spanish-analysis D1);
 /// French takes an arm of its own (add-lingua-french-tokenisation): its words
-/// are cut at U+202F, then read by `push_french_word` and `push_french_run` —
-/// elisions, `au`/`aux`, hyphenated inversions. All share the rules that
-/// belong to no language: segmentation, the hyphen run, the compound rule, the
-/// digit drop, the edge-apostrophe trim and the single-letter rule.
+/// are cut at U+202F, then read in NFC (add-lingua-french-analysis) by
+/// `push_french_word` and `push_french_run` — elisions, `au`/`aux`, hyphenated
+/// inversions. All share the rules that belong to no language: segmentation,
+/// the hyphen run, the compound rule, the digit drop, the edge-apostrophe trim
+/// and the single-letter rule.
 pub fn tokenize(
     text: &str,
     language: StudiedLanguage,
@@ -136,7 +139,7 @@ pub fn tokenize(
 }
 
 /// Emits an ordinary single-word token, applying the pre-pass: apostrophe
-/// normalisation/trimming, NFC (Spanish), the language's contraction split
+/// normalisation/trimming, NFC (Spanish, French), the language's contraction split
 /// (English `n't`, Spanish `al`/`del`), the digit drop and the
 /// single-letter-needs-the-lexicon rule.
 ///
@@ -146,7 +149,8 @@ pub fn tokenize(
 /// before this ([`push_french_word`]) and capitalises the read word's own first
 /// letter ([`french_cased`]): `à` is two bytes where `A` is one, and the slice
 /// would panic. For French, what reaches this is the word that remains — the
-/// rules every language shares.
+/// rules every language shares, its text composed; its span stays the source's,
+/// combining marks included.
 fn push_word(
     tokens: &mut Vec<Token>,
     word: &str,
@@ -200,15 +204,14 @@ fn push_word(
     });
 }
 
-/// The word in NFC for Spanish, so a decomposed accent reads as the pack's
-/// precomposed one; any other language's text as it came — English output must
-/// not move (add-lingua-spanish-analysis D1), and French's NFC is a rule of its
-/// cascade, not of its tokenisation pre-pass (add-lingua-french-baseline D2,
-/// add-lingua-french-tokenisation): French text is still read as it came.
+/// The word in NFC for Spanish and French, so a decomposed accent reads as the
+/// pack's precomposed one (add-lingua-spanish-analysis D1,
+/// add-lingua-french-analysis D1); English text as it came — its output must not
+/// move.
 fn nfc_for(word: &str, language: StudiedLanguage) -> String {
     match language {
-        StudiedLanguage::English | StudiedLanguage::French => word.to_owned(),
-        StudiedLanguage::Spanish => word.nfc().collect(),
+        StudiedLanguage::English => word.to_owned(),
+        StudiedLanguage::Spanish | StudiedLanguage::French => word.nfc().collect(),
     }
 }
 
@@ -348,6 +351,13 @@ const FRENCH_INVERSION_PRONOUNS: &[&str] = &[
 /// The pronouns the euphonic `t` is written before: `a-t-il`, `pense-t-elle`.
 const AFTER_EUPHONIC_T: &[&str] = &["elle", "elles", "il", "ils", "on"];
 
+/// A French written piece as the pre-pass compares it: lowercase and in NFC, so a
+/// decomposed `ç'` is the elided `ç'` and a decomposed `peut-être` the run the
+/// pack lists (add-lingua-french-analysis D1).
+fn french_lowercase(written: &str) -> String {
+    written.to_lowercase().nfc().collect()
+}
+
 /// The straight and the typographic apostrophe, the two French text is written
 /// with (D3). U+02BC, U+2018 and U+FF07 are not read as apostrophes.
 fn is_apostrophe(c: char) -> bool {
@@ -403,9 +413,10 @@ fn french_elided_word(written: &str, next: &str, after_hyphen: bool) -> Option<&
 
 /// Splits the elided words off the front of a French word written at `start`
 /// (D3): each is a token of its own, read as the word it stands for and spanning
-/// its letters and its apostrophe, and the rule runs again on what follows, as
-/// long as a letter follows the apostrophe. Returns where the rest starts and
-/// the rest. `after_hyphen`: the word is a piece after a hyphen.
+/// its letters and its apostrophe — a combining mark among them, the written piece
+/// being looked up composed —, and the rule runs again on what follows, as long as
+/// a letter follows the apostrophe. Returns where the rest starts and the rest.
+/// `after_hyphen`: the word is a piece after a hyphen.
 fn push_french_elisions<'a>(
     tokens: &mut Vec<Token>,
     word: &'a str,
@@ -426,7 +437,7 @@ fn push_french_elisions<'a>(
             .flat_map(char::to_lowercase)
             .collect();
         let first_piece = at == start && after_hyphen;
-        let Some(read) = french_elided_word(&written.to_lowercase(), &next, first_piece) else {
+        let Some(read) = french_elided_word(&french_lowercase(written), &next, first_piece) else {
             break;
         };
         let end = at + i + apostrophe.len_utf8();
@@ -458,7 +469,9 @@ fn apostrophe_ending_a_word(text: &str, end: usize) -> Option<usize> {
 /// piece of a run holding a digit, or an inversion's first piece: its elisions
 /// (D3); then `au`/`aux`, split into `à` + `le`/`les` sharing the span,
 /// `du`/`des` whole (D4); an elided word written on its own (D3); or the rules
-/// every language shares ([`push_word`]).
+/// every language shares ([`push_word`]). Each check reads the word composed and
+/// each token's text is composed (add-lingua-french-analysis D1); the spans are
+/// the source's.
 fn push_french_word(
     tokens: &mut Vec<Token>,
     text: &str,
@@ -468,7 +481,7 @@ fn push_french_word(
 ) {
     let (at, rest) = push_french_elisions(tokens, word, start, false);
     let end = at + rest.len();
-    let lower = rest.to_lowercase();
+    let lower = french_lowercase(rest);
     let article = match lower.as_str() {
         "au" => Some("le"),
         "aux" => Some("les"),
@@ -500,10 +513,11 @@ fn push_french_word(
 }
 
 /// Whether the pack lists a hyphenated run whole, as `resolve_lemmas`
-/// (`pipeline.rs`) reads it: `peut-être`, `rendez-vous`.
+/// (`pipeline.rs`) reads it: `peut-être`, `rendez-vous` — the run composed, so a
+/// decomposed `peut-être` is found (add-lingua-french-analysis D1).
 fn listed_whole(run: &str, lexicon: &(impl Lexicon + ?Sized)) -> bool {
     lexicon
-        .lemma_of(&run.replace('\u{2019}', "'").to_lowercase())
+        .lemma_of(&french_lowercase(&run.replace('\u{2019}', "'")))
         .is_some()
 }
 
@@ -1085,20 +1099,107 @@ mod tests {
     }
 
     #[test]
-    fn french_text_is_read_as_it_came() {
-        // No NFC while French is the baseline: a decomposed accent stays decomposed.
+    fn french_text_is_read_in_nfc() {
+        // add-lingua-french-analysis D1: a decomposed accent is read composed.
         let lex = lexicon();
         let text = "e\u{0301}te\u{0301} chaud";
-        assert_eq!(
-            texts(&tokenize(text, FR, &lex)),
-            ["e\u{0301}te\u{0301}", "chaud"]
-        );
+        assert_eq!(texts(&tokenize(text, FR, &lex)), ["été", "chaud"]);
         // And the rules that belong to no language apply as they do to English.
         let shared = "x-ray abc123 'team' a b well-being-2 code";
         assert_eq!(
             texts(&tokenize(shared, FR, &lex)),
             texts(&tokenize(shared, StudiedLanguage::English, &lex))
         );
+    }
+
+    #[test]
+    fn spec_scenario_a_decomposed_accent_in_french() {
+        // `mémoire` written with `e` + U+0301: one token, composed, spanning the decomposed bytes.
+        let text = "me\u{301}moire vive";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
+            [("mémoire", "me\u{301}moire"), ("vive", "vive")]
+        );
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 9));
+    }
+
+    #[test]
+    fn spec_scenario_a_decomposed_elision() {
+        // `ç'a` written with `c` + U+0327: the elided `ç'` is found, `ça` spanning the `c`, its
+        // cedilla and the apostrophe.
+        let text = "c\u{327}'a e\u{301}te\u{301}";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
+            [
+                ("ça", "c\u{327}'"),
+                ("a", "a"),
+                ("été", "e\u{301}te\u{301}")
+            ]
+        );
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 4));
+        // Capitalised, the read word takes the capital on its own letter.
+        let text = "C\u{327}\u{2019}e\u{301}tait";
+        assert_eq!(
+            read(text, &french(text)),
+            [("Ça", "C\u{327}\u{2019}"), ("était", "e\u{301}tait")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_decomposed_run_the_pack_lists() {
+        // `peut-être` written with `e` + U+0302 is the run the pack lists: one token.
+        let text = "peut-e\u{302}tre";
+        let tokens = french(text);
+        assert_eq!(read(text, &tokens), [("peut-être", text)]);
+        assert!(tokens[0].parts.iter().all(|p| p == "peut" || p == "être"));
+        // A run the pack does not list keeps its parts, each composed.
+        let text = "Saint-E\u{301}tienne";
+        let tokens = french(text);
+        assert_eq!(read(text, &tokens), [("Saint-Étienne", text)]);
+        assert_eq!(tokens[0].parts, ["Saint", "Étienne"]);
+    }
+
+    #[test]
+    fn a_decomposed_capital_keeps_its_capital_composed() {
+        let text = "E\u{301}cole de l'E\u{301}tat";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
+            [
+                ("École", "E\u{301}cole"),
+                ("de", "de"),
+                ("le", "l'"),
+                ("État", "E\u{301}tat")
+            ]
+        );
+    }
+
+    #[test]
+    fn a_decomposed_contraction_and_elided_word_alone_are_read_composed() {
+        // `au` is never decomposed, but the word after it is; `ç’` alone reads `ça`.
+        let text = "au cafe\u{301} c\u{327}\u{2019} ";
+        assert_eq!(
+            read(text, &french(text)),
+            [
+                ("à", "au"),
+                ("le", "au"),
+                ("café", "cafe\u{301}"),
+                ("ça", "c\u{327}\u{2019}")
+            ]
+        );
+    }
+
+    #[test]
+    fn english_text_holding_a_combining_mark_is_not_composed() {
+        let lex = lexicon();
+        let text = "cafe\u{301} re\u{301}sume\u{301}";
+        assert_eq!(
+            texts(&tokenize(text, StudiedLanguage::English, &lex)),
+            ["cafe\u{301}", "re\u{301}sume\u{301}"]
+        );
+        assert_eq!(texts(&tokenize(text, FR, &lex)), ["café", "résumé"]);
     }
 
     #[test]

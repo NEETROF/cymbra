@@ -24,6 +24,11 @@
 //! would not do, since the hundred commonest lemmas hold `time`, `people`,
 //! `say` and `know`, exactly the words worth a row.
 //!
+//! Spanish's tables (add-lingua-spanish-analysis D5) and French's
+//! (add-lingua-french-analysis D3) follow, in the same six classes, each holding
+//! its language's dictionary forms and the inflected forms a pack may keep as
+//! lemmas of their own; French's flag « pas » (M21).
+//!
 //! Every table MUST stay sorted: lookups binary-search them directly (a test
 //! enforces the ordering). Adding a studied language means adding its tables,
 //! like its tokeniser pre-pass.
@@ -304,20 +309,226 @@ const SPANISH: &[&[&str]] = &[
     ES_NEGATION,
 ];
 
+/// French articles and other determiners: `le`, `un`, `du`, `des`, the
+/// demonstratives, the possessives, `quel`, the indefinites `aucun`, `nul`,
+/// `chaque`, `plusieurs`, `quelque`, `tout`, `même`, `autre`, `tel`, and the
+/// quantifiers `beaucoup`, `peu`, `trop`, `tant` (English keeps `many`, `much`,
+/// `few`; Spanish `mucho`, `poco`, `tanto`). Inflected forms too, which a pack may
+/// keep as lemmas of their own (`cet`, `ma`, `mes`, `ton`, `ta`, `tes`, `la`,
+/// `une`, `toutes`…), so that a reduction moving a form to its own lemma gives a
+/// gloss no row for it. `certain` is left out: one GSD use in four is the
+/// adjective « sure ». `ton` stays, though it hides the noun « tone » (10 of GSD's
+/// 18 uses), as `son` hides « sound » (21 of 3,287).
+const FR_DETERMINERS: &[&str] = &[
+    "aucun",
+    "aucune",
+    "autre",
+    "autres",
+    "beaucoup",
+    "ce",
+    "ces",
+    "cet",
+    "cette",
+    "chaque",
+    "des",
+    "du",
+    "la",
+    "le",
+    "les",
+    "leur",
+    "leurs",
+    "ma",
+    "mes",
+    "mon",
+    "même",
+    "mêmes",
+    "nos",
+    "notre",
+    "nul",
+    "nulle",
+    "peu",
+    "plusieurs",
+    "quel",
+    "quelle",
+    "quelles",
+    "quelque",
+    "quelques",
+    "quels",
+    "sa",
+    "ses",
+    "son",
+    "ta",
+    "tant",
+    "tel",
+    "telle",
+    "telles",
+    "tels",
+    "tes",
+    "ton",
+    "tous",
+    "tout",
+    "toute",
+    "toutes",
+    "trop",
+    "un",
+    "une",
+    "vos",
+    "votre",
+];
+
+/// French personal (`je` … `elles`, `me`, `te`, `se`, `moi`, `toi`, `soi`,
+/// `lui`, `eux`, `y`, `en`), demonstrative (`ce`, `ceci`, `cela`, `ça`, `celui`
+/// and its forms), relative and interrogative (`qui`, `que`, `quoi`, `dont`,
+/// `lequel` and its forms) and indefinite pronouns (`quelqu'un`, `chacun`,
+/// `rien`, `autrui`, `quiconque`). `personne` is left out: 153 of GSD's 171 uses
+/// are the noun « person ».
+const FR_PRONOUNS: &[&str] = &[
+    "auquel",
+    "autrui",
+    "auxquelles",
+    "auxquels",
+    "ce",
+    "ceci",
+    "cela",
+    "celle",
+    "celle-ci",
+    "celle-là",
+    "celles",
+    "celles-ci",
+    "celles-là",
+    "celui",
+    "celui-ci",
+    "celui-là",
+    "ceux",
+    "ceux-ci",
+    "ceux-là",
+    "chacun",
+    "chacune",
+    "desquelles",
+    "desquels",
+    "dont",
+    "duquel",
+    "elle",
+    "elles",
+    "en",
+    "eux",
+    "il",
+    "ils",
+    "je",
+    "la",
+    "laquelle",
+    "le",
+    "lequel",
+    "les",
+    "lesquelles",
+    "lesquels",
+    "leur",
+    "lui",
+    "me",
+    "moi",
+    "nous",
+    "on",
+    "que",
+    "quelqu'un",
+    "qui",
+    "quiconque",
+    "quoi",
+    "rien",
+    "se",
+    "soi",
+    "te",
+    "toi",
+    "tu",
+    "vous",
+    "y",
+    "ça",
+];
+
+/// French prepositions, `jusque` among them (`jusqu'ici`), and `afin`, `près`
+/// of the locutions `afin de`, `près de`. `voici` and `voilà`, presentatives, are
+/// left out.
+const FR_PREPOSITIONS: &[&str] = &[
+    "afin",
+    "après",
+    "avant",
+    "avec",
+    "chez",
+    "contre",
+    "dans",
+    "de",
+    "depuis",
+    "derrière",
+    "devant",
+    "durant",
+    "dès",
+    "en",
+    "entre",
+    "envers",
+    "hormis",
+    "hors",
+    "jusque",
+    "malgré",
+    "outre",
+    "par",
+    "parmi",
+    "pendant",
+    "pour",
+    "près",
+    "sans",
+    "sauf",
+    "selon",
+    "sous",
+    "sur",
+    "vers",
+    "via",
+    "à",
+];
+
+/// French coordinating and subordinating conjunctions, with `parce` and `tandis`
+/// of `parce que`, `tandis que`. `or` is left out: 51 of GSD's 69 uses are the
+/// noun « gold ».
+const FR_CONJUNCTIONS: &[&str] = &[
+    "car", "comme", "donc", "et", "lorsque", "mais", "ni", "ou", "où", "parce", "puisque", "quand",
+    "que", "quoique", "si", "tandis",
+];
+
+/// French auxiliaries and modals (Spanish's `ser`, `haber`, `poder`, `deber`).
+/// `falloir`, `vouloir`, `aller` and `faire` are left out: content verbs, as
+/// Spanish's `querer`, `ir` and `hacer`.
+const FR_AUXILIARIES_AND_MODALS: &[&str] = &["avoir", "devoir", "pouvoir", "être"];
+
+/// French negation. `pas` is a function word (M21) although its form is also
+/// the noun « step » (10 of GSD's 1,047 uses); `point` (« ne … point »,
+/// literary: 173 of GSD's 185 uses are the noun), `plus`, `jamais` and `guère`
+/// are left out — adverbs with content of their own, as English's `never` and
+/// Spanish's `nunca`.
+const FR_NEGATION: &[&str] = &["ne", "non", "pas"];
+
+/// The six French tables (add-lingua-french-analysis D3). Like Spanish's, and
+/// unlike English's, a word may stand in two classes: `ce`, `le`, `la`, `les` and
+/// `leur` are determiners and pronouns, `en` a pronoun and a preposition, `que` a
+/// pronoun and a conjunction.
+const FRENCH: &[&[&str]] = &[
+    FR_DETERMINERS,
+    FR_PRONOUNS,
+    FR_PREPOSITIONS,
+    FR_CONJUNCTIONS,
+    FR_AUXILIARIES_AND_MODALS,
+    FR_NEGATION,
+];
+
 /// Whether a dictionary form is a closed-class word of the studied language:
 /// an article or other determiner, a pronoun, a preposition or particle, a
 /// conjunction, an auxiliary or modal, or a negation. `lemma` is what the
 /// lemmatisation cascade produced (lowercase), never a surface form.
 ///
 /// Each language is judged by its own tables only: `de` is not an English
-/// function word, nor `the` a Spanish one. French has none while it is the
-/// baseline (add-lingua-french-baseline D2): `le`, `de`, `ne`, `pas` count like
-/// any other word.
+/// function word, nor `the` a Spanish one, nor `ne` a Spanish one.
 pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
     let tables: &[&[&str]] = match studied {
         StudiedLanguage::English => ENGLISH,
         StudiedLanguage::Spanish => SPANISH,
-        StudiedLanguage::French => &[],
+        StudiedLanguage::French => FRENCH,
     };
     tables
         .iter()
@@ -336,6 +547,8 @@ mod tests {
         }
     }
 
+    const FR: StudiedLanguage = StudiedLanguage::French;
+
     #[test]
     fn each_language_is_judged_by_its_own_tables() {
         const ES: StudiedLanguage = StudiedLanguage::Spanish;
@@ -353,19 +566,133 @@ mod tests {
             );
         }
         all_function_words(&["the", "of"]);
+        // French has its own (add-lingua-french-analysis D3): `de` is French and Spanish, `the`
+        // English only, `ne` French only.
+        assert!(is_function_word("de", FR) && is_function_word("de", ES));
+        assert!(!is_function_word("de", EN));
+        assert!(!is_function_word("the", FR) && !is_function_word("the", ES));
+        assert!(is_function_word("ne", FR));
+        assert!(!is_function_word("ne", ES) && !is_function_word("ne", EN));
+        // Words of the other languages' tables are not French ones.
+        for lemma in ["of", "have", "haber", "el", "no", "nunca"] {
+            assert!(!is_function_word(lemma, FR), "{lemma:?}");
+        }
     }
 
     #[test]
-    fn spec_scenario_no_french_word_is_a_function_word_yet() {
-        const FR: StudiedLanguage = StudiedLanguage::French;
+    fn spec_scenario_a_french_phrase() {
+        // « la maison de mon père », lemmatised: the closed classes are flagged, the nouns are
+        // not.
+        let flagged: Vec<bool> = ["la", "maison", "de", "mon", "père"]
+            .iter()
+            .map(|lemma| is_function_word(lemma, FR))
+            .collect();
+        assert_eq!(flagged, [true, false, true, true, false]);
+    }
+
+    #[test]
+    fn spec_scenario_the_french_negation() {
+        // « Il ne fait pas un pas »: both `pas` are flagged — the noun « step » with the
+        // negation (M21) —, `fait` (*faire*) is not.
+        let flagged: Vec<bool> = ["il", "ne", "faire", "pas", "un", "pas"]
+            .iter()
+            .map(|lemma| is_function_word(lemma, FR))
+            .collect();
+        assert_eq!(flagged, [true, true, false, true, true, true]);
+    }
+
+    #[test]
+    fn spec_scenario_french_words_that_look_closed_but_carry_meaning() {
         for lemma in [
-            "pas", "ne", "le", "de", "la", "et", "que", "être", "avoir", "the",
+            "personne", "point", "or", "jamais", "plus", "guère", "certain", "faire", "falloir",
+            "vouloir", "aller", "voici", "voilà",
         ] {
+            assert!(!is_function_word(lemma, FR), "{lemma:?} carries meaning");
+        }
+    }
+
+    /// Every word of `words` is in `table` and is a French function word.
+    fn french_class_holds(table: &[&str], words: &str) {
+        for word in words.split_whitespace() {
+            assert!(table.binary_search(&word).is_ok(), "{word:?}");
+            assert!(is_function_word(word, FR), "{word:?}");
+        }
+    }
+
+    #[test]
+    fn french_determiners_are_function_words() {
+        // Articles, demonstratives, possessives and their inflected forms, indefinites and
+        // quantifiers.
+        french_class_holds(
+            FR_DETERMINERS,
+            "le la les un une du des ce cet cette ces mon ma mes ton ta tes son notre votre leur \
+             quel aucun nul chaque plusieurs quelque tout toutes même autre tel beaucoup peu trop \
+             tant",
+        );
+    }
+
+    #[test]
+    fn french_pronouns_are_function_words() {
+        // Personal, demonstrative, relative and interrogative, indefinite.
+        french_class_holds(
+            FR_PRONOUNS,
+            "je tu il elle on nous vous ils elles me te se moi toi soi lui eux y en ce ceci cela \
+             ça celui celui-ci celui-là qui que quoi dont lequel duquel auquel quelqu'un chacun \
+             rien autrui quiconque",
+        );
+    }
+
+    #[test]
+    fn french_prepositions_are_function_words() {
+        french_class_holds(
+            FR_PREPOSITIONS,
+            "à de en dans par pour sur sous avec sans chez entre vers contre depuis pendant \
+             durant avant après devant derrière parmi selon malgré envers hors hormis dès jusque \
+             outre sauf via près afin",
+        );
+    }
+
+    #[test]
+    fn french_conjunctions_are_function_words() {
+        french_class_holds(
+            FR_CONJUNCTIONS,
+            "et ou mais donc ni car que si quand comme où lorsque puisque quoique parce tandis",
+        );
+    }
+
+    #[test]
+    fn french_auxiliaries_and_modals_are_function_words() {
+        french_class_holds(FR_AUXILIARIES_AND_MODALS, "être avoir pouvoir devoir");
+        // The other common verbs carry meaning.
+        for lemma in ["falloir", "vouloir", "aller", "faire"] {
             assert!(!is_function_word(lemma, FR), "{lemma:?}");
         }
-        // English and Spanish answer as before.
-        assert!(is_function_word("the", EN));
-        assert!(is_function_word("de", StudiedLanguage::Spanish));
+    }
+
+    #[test]
+    fn french_negation_is_a_function_word_with_pas_but_not_jamais() {
+        french_class_holds(FR_NEGATION, "ne pas non");
+        for lemma in ["jamais", "plus", "point", "guère", "personne"] {
+            assert!(!is_function_word(lemma, FR), "{lemma:?}");
+        }
+    }
+
+    #[test]
+    fn a_french_word_stands_in_two_classes_only_where_it_reads_two_ways() {
+        // Like Spanish's, French's tables may list a word twice — and only these, so a table that
+        // went stale is not hidden by a second one.
+        let mut seen: Vec<&str> = Vec::new();
+        let mut twice: Vec<&str> = Vec::new();
+        for table in FRENCH {
+            for word in *table {
+                if seen.contains(word) {
+                    twice.push(word);
+                }
+                seen.push(word);
+            }
+        }
+        twice.sort_unstable();
+        assert_eq!(twice, ["ce", "en", "la", "le", "les", "leur", "que"]);
     }
 
     #[test]
@@ -402,7 +729,7 @@ mod tests {
 
     #[test]
     fn every_table_is_sorted_and_free_of_duplicates() {
-        for table in ENGLISH.iter().chain(SPANISH) {
+        for table in ENGLISH.iter().chain(SPANISH).chain(FRENCH) {
             for pair in table.windows(2) {
                 assert!(
                     pair[0] < pair[1],
@@ -412,8 +739,8 @@ mod tests {
                 );
             }
         }
-        // A lemma belongs to one class: listing it twice would hide a table
-        // that went stale.
+        // An English lemma belongs to one class: listing it twice would hide a
+        // table that went stale. (Spanish and French words may stand in two.)
         let mut all: Vec<&str> = ENGLISH.iter().flat_map(|t| t.iter().copied()).collect();
         let total = all.len();
         all.sort_unstable();

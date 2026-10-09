@@ -25,6 +25,7 @@
 //! pack. Keep outputs order-stable (no iteration over unordered maps ends up
 //! in a result).
 
+mod french;
 pub mod function_words;
 pub mod language;
 pub mod lemmatize;
@@ -60,8 +61,11 @@ pub const SPANISH_ANALYZER_VERSION: &str = "1.2.0";
 /// narrow no-break space (U+202F) a space, an elided word split from the word it
 /// is joined to and read as the word it stands for, each piece with its own span
 /// (`l'homme` → `le` + `homme`), `au`/`aux` → `à` + `le`/`les`, `du`/`des`
-/// whole, a hyphenated inversion read as words (`dit-il` → `dit` + `il`). Its
-/// lemmatisation is still the baseline's — the pack's forms, else the lowercased
-/// form; no NFC, no cascade, no function words, no names rule — so the version
-/// stays `0.x`; its cascade bumps it to `1.0.0`.
-pub const FRENCH_ANALYZER_VERSION: &str = "0.2.0";
+/// whole, a hyphenated inversion read as words (`dit-il` → `dit` + `il`);
+/// `1.0.0` since add-lingua-french-analysis gives it its own analysis, leaving
+/// the baseline's `0.x` versions: its pre-pass reads every word in NFC, its
+/// cascade reads the pack's forms then an unlisted lowercase plural as its
+/// unlisted singular (`analysis/french.rs`), its six closed classes flag a phrase gloss's
+/// function words, « pas » among them, and a French document's names are set
+/// aside (`engine::document_names`).
+pub const FRENCH_ANALYZER_VERSION: &str = "1.0.0";
