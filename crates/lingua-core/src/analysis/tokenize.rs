@@ -80,9 +80,8 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// French takes an arm of its own (add-lingua-french-tokenisation): its words
 /// are cut at U+202F, then read by `push_french_word` and `push_french_run` —
 /// elisions, `au`/`aux`, hyphenated inversions. All share the rules that
-/// belong to no language:
-/// segmentation, the hyphen run, the compound rule, the digit drop, the
-/// edge-apostrophe trim and the single-letter rule.
+/// belong to no language: segmentation, the hyphen run, the compound rule, the
+/// digit drop, the edge-apostrophe trim and the single-letter rule.
 pub fn tokenize(
     text: &str,
     language: StudiedLanguage,
@@ -254,9 +253,9 @@ fn push_compound(
 
 /// The language's contraction split, if `lower` is one: English `n't`, Spanish
 /// `al`/`del` (add-lingua-spanish-analysis D1). French has none here: its
-/// `au`/`aux` and its elisions are its own pre-pass's ([`push_french_word`],
-/// add-lingua-french-tokenisation D3–D4), which casing a two-byte `à` needs, and
-/// `du`/`des` stay whole (M21).
+/// `au`/`aux` and its elisions are read by its own pre-pass
+/// ([`push_french_word`], add-lingua-french-tokenisation D3–D4), whose casing
+/// takes a two-byte `à`; `du` and `des` stay whole (M21).
 fn split_contraction(lower: &str, language: StudiedLanguage) -> Option<(&str, &'static str)> {
     match language {
         StudiedLanguage::English => split_english_contraction(lower),
@@ -455,10 +454,11 @@ fn apostrophe_ending_a_word(text: &str, end: usize) -> Option<usize> {
     }
 }
 
-/// One French word outside a hyphenated run, written at `start` of `text`: its
-/// elisions (D3); then `au`/`aux`, split into `à` + `le`/`les` sharing the
-/// span, `du`/`des` whole (D4); an elided word written on its own (D3); or
-/// the rules every language shares ([`push_word`]).
+/// One French word written at `start` of `text` — outside a hyphenated run, a
+/// piece of a run holding a digit, or an inversion's first piece: its elisions
+/// (D3); then `au`/`aux`, split into `à` + `le`/`les` sharing the span,
+/// `du`/`des` whole (D4); an elided word written on its own (D3); or the rules
+/// every language shares ([`push_word`]).
 fn push_french_word(
     tokens: &mut Vec<Token>,
     text: &str,
