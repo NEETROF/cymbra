@@ -27,6 +27,7 @@ use lingua_core::analysis::tokenize::{FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
+use lingua_core::packs::grammar::Tag;
 use lingua_core::packs::pack::section;
 use lingua_pack::studied_of;
 use lingua_pack::tables::{STUDIED_RECORD, check_committed_tables};
@@ -555,15 +556,16 @@ fn tsv(path: &Path) -> BTreeMap<String, String> {
 #[test]
 fn spec_scenario_the_reference_pair_writes_french_s_folder() {
     // fr-en (add-lingua-french-forms-tables D1, D10), French's reference pair: tables/fr/ holds
-    // French's forms and ranks, its record naming fr-en, and the two files every studied folder
-    // holds, empty until the changes that fill them — the tag pool (45) and the dictionary words,
-    // fr-en's glossed lemmas (48) — and the estimated levels (46). `grammar.tsv` comes with 45.
+    // French's forms and ranks, its readings and their pinned tag pool
+    // (add-lingua-french-grammar-tables), its estimated levels (add-lingua-french-levels), its record
+    // naming fr-en, and the dictionary words, empty until fr-en glosses (48).
     let fr = tables().join("fr");
     assert_eq!(
         files(&fr),
         [
             "forms.tsv",
             "freq.tsv",
+            "grammar.tsv",
             "level.tsv",
             "lexical.tsv",
             "studied.json",
@@ -571,9 +573,11 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
         ]
     );
     assert_eq!(json(&fr.join(STUDIED_RECORD))["reference"], "fr-en");
-    for empty in ["tags.tsv", "lexical.tsv"] {
-        assert_eq!(std::fs::read(fr.join(empty)).unwrap(), b"", "fr/{empty}");
-    }
+    assert_eq!(
+        std::fs::read(fr.join("lexical.tsv")).unwrap(),
+        b"",
+        "fr/lexical.tsv"
+    );
     // tables/fr-en/ holds a pair's native side — an empty gloss table — its pin and README.
     let fr_en_dir = tables().join("fr-en");
     assert_eq!(
@@ -681,6 +685,148 @@ fn spec_scenario_the_reduction_never_reads_the_treebanks_it_is_measured_on() {
     for held_out in ["fr_gsd-ud-test", "fr_pud", "UD_French-PUD"] {
         assert!(!text.contains(held_out), "fr-en's pin names {held_out}");
     }
+}
+
+// French's pinned tag pool (add-lingua-french-grammar-tables D8): the tags French's readings carry,
+// each once, written by a person — no reducer writes it — and held to the readings here.
+
+/// Where a pin and the readings' tags part: the canonical, distinct lines of `pin` against the
+/// third column of `grammar` (`grammar.tsv`), each difference named.
+fn pin_against_readings(pin: &str, grammar: &str) -> Result<(), String> {
+    let mut pinned = BTreeSet::new();
+    for line in pin.lines() {
+        let canonical = Tag::parse_strict(line)
+            .map_err(|e| format!("tags.tsv: {line:?} is no tag ({e})"))?
+            .to_ud();
+        if canonical != line {
+            return Err(format!(
+                "tags.tsv: {line:?} is not written as {canonical:?}"
+            ));
+        }
+        if !pinned.insert(line) {
+            return Err(format!("tags.tsv: {line:?} is listed twice"));
+        }
+    }
+    let read: BTreeSet<&str> = grammar
+        .lines()
+        .map(|row| row.split('\t').nth(2).unwrap_or_else(|| panic!("{row:?}")))
+        .collect();
+    let missing: Vec<&&str> = read.difference(&pinned).collect();
+    if !missing.is_empty() {
+        return Err(format!(
+            "a reading carries {missing:?}, which tags.tsv does not pin: append it, after the pinned tags"
+        ));
+    }
+    let left: Vec<&&str> = pinned.difference(&read).collect();
+    if !left.is_empty() {
+        return Err(format!("tags.tsv pins {left:?}, which no reading carries"));
+    }
+    Ok(())
+}
+
+#[test]
+fn spec_scenario_the_pin_is_the_readings_tags() {
+    let fr = tables().join("fr");
+    let pin = std::fs::read_to_string(fr.join("tags.tsv")).unwrap();
+    let grammar = std::fs::read_to_string(fr.join("grammar.tsv")).unwrap();
+    pin_against_readings(&pin, &grammar).unwrap_or_else(|e| panic!("fr/{e}"));
+    // The first reduction's tags, in byte order: 79, as the design counted them.
+    let lines: Vec<&str> = pin.lines().collect();
+    assert_eq!(lines.len(), 79);
+    assert!(lines.is_sorted(), "fr/tags.tsv is not in byte order");
+    // The pack lays its pool out as the pin: fr-en carries no sense tag yet, so the pool is the pin.
+    let (_, sections) = read_container(fr_en()).unwrap();
+    let pool = sections
+        .iter()
+        .find(|s| s.name == section::TAGS)
+        .map(|s| String::from_utf8(s.data.clone()).unwrap())
+        .expect("a tag pool");
+    assert_eq!(pool.split('\n').collect::<Vec<_>>(), lines);
+}
+
+#[test]
+fn spec_scenario_a_later_reduction_carries_a_new_tag() {
+    let pin = "NOUN|Gender=Fem|Number=Sing\nVERB|VerbForm=Inf\n";
+    let grammar =
+        "maison\tmaison\tNOUN|Gender=Fem|Number=Sing\t-\nparler\tparler\tVERB|VerbForm=Inf\t-\n";
+    assert_eq!(pin_against_readings(pin, grammar), Ok(()));
+    // A reading's new tag fails, named, until it is appended after the pinned ones.
+    let newer = format!("{grammar}parlant\tparler\tVERB|Tense=Pres|VerbForm=Part\t-\n");
+    let err = pin_against_readings(pin, &newer).unwrap_err();
+    assert!(err.contains("VERB|Tense=Pres|VerbForm=Part"), "{err}");
+    let appended = format!("{pin}VERB|Tense=Pres|VerbForm=Part\n");
+    assert_eq!(pin_against_readings(&appended, &newer), Ok(()));
+    // A pinned tag no reading carries any more fails, named.
+    let err = pin_against_readings(&appended, grammar).unwrap_err();
+    assert!(err.contains("which no reading carries"), "{err}");
+    assert!(err.contains("VERB|Tense=Pres|VerbForm=Part"), "{err}");
+    // A line not written as the vocabulary writes it, or listed twice, fails, named.
+    let err = pin_against_readings("NOUN|Number=Sing|Gender=Fem\n", "").unwrap_err();
+    assert!(err.contains("is not written as"), "{err}");
+    let err = pin_against_readings("VERB|VerbForm=Inf\nVERB|VerbForm=Inf\n", "").unwrap_err();
+    assert!(err.contains("listed twice"), "{err}");
+    assert!(pin_against_readings("Gender=Fem\n", "").is_err());
+}
+
+#[test]
+fn spec_scenario_senses_another_pack_s_glosses_carry() {
+    // A pack studying French, its glosses carrying a sense run tagged INTJ, a tag no reading
+    // carries: its readings are stored byte for byte as without it, the pool only grows at its end,
+    // and the core reads the run as INTJ.
+    let build = |runs: bool| {
+        let mut inputs = inputs_from_tables(&tables(), "fr-en").expect("fr-en");
+        inputs.glosses.push(("ah".into(), "Ah!".into()));
+        if runs {
+            inputs.senses.push(("ah".into(), vec![("INTJ".into(), 1)]));
+        }
+        build_pack(&inputs).expect("build fr-en")
+    };
+    let (without, with) = (build(false), build(true));
+    let (a, b) = (sections(&without), sections(&with));
+    assert!(section_of(&a, section::PARADIGMS_ZST).is_some());
+    assert!(
+        section_of(&a, section::PARADIGMS_ZST) == section_of(&b, section::PARADIGMS_ZST),
+        "the INTJ run moved the readings"
+    );
+    let pool = |s: &[(String, Vec<u8>)]| -> Vec<String> {
+        String::from_utf8(section_of(s, section::TAGS).unwrap().to_vec())
+            .unwrap()
+            .split('\n')
+            .map(str::to_owned)
+            .collect()
+    };
+    let (pool_a, pool_b) = (pool(&a), pool(&b));
+    assert_eq!(pool_b[..pool_a.len()], pool_a[..]);
+    assert_eq!(pool_b[pool_a.len()..], ["INTJ"]);
+    let pack = Pack::load(&with).unwrap();
+    let runs: Vec<String> = pack
+        .sense_runs("ah")
+        .into_iter()
+        .map(|(tag, _)| tag.unwrap().to_ud())
+        .collect();
+    assert_eq!(runs, ["INTJ"]);
+    // Built without a pin — one sorted pool —, INTJ falls among the readings' tags and moves them.
+    let mut unpinned = inputs_from_tables(&tables(), "fr-en").expect("fr-en");
+    unpinned.glosses.push(("ah".into(), "Ah!".into()));
+    unpinned
+        .senses
+        .push(("ah".into(), vec![("INTJ".into(), 1)]));
+    unpinned.tag_pool = None;
+    let moved = sections(&build_pack(&unpinned).unwrap());
+    assert!(section_of(&moved, section::PARADIGMS_ZST) != section_of(&a, section::PARADIGMS_ZST));
+}
+
+#[test]
+fn the_pin_moves_no_byte_of_today_s_pack() {
+    // The readings' tags in byte order are what the empty pin laid out too: fr-en built with an
+    // empty pin is the pack its pin records (design D8).
+    let mut empty = inputs_from_tables(&tables(), "fr-en").expect("fr-en");
+    assert_eq!(empty.tag_pool.as_ref().map(Vec::len), Some(79));
+    empty.tag_pool = Some(vec![]);
+    assert!(
+        build_pack(&empty).unwrap() == fr_en(),
+        "the pin moved fr-en's bytes"
+    );
 }
 
 // French's pre-pass (add-lingua-french-tokenisation D3–D5): the tables must hold every word it
