@@ -20,9 +20,9 @@
 
 use std::path::PathBuf;
 
-use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lexicon::Lexicon;
+use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
 use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
 use lingua_pack::{MAX_PACK_BYTES, build_pack, inputs_from_dir};
