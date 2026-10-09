@@ -1,0 +1,16 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - add-lingua-english-listings
+  - add-lingua-spanish-audience-listings
+  - localise-lingua-manifest
+  - add-site-spanish-locale
+  - add-site-lingua-matrix-pages
+  - extend-site-spanish-locale
+  - add-lingua-french-grammar-tables
+  - add-lingua-french-levels
+  - add-lingua-pack-fr-en
+  - add-lingua-pack-fr-es
+  - add-lingua-french-translation
+  - add-lingua-french-word-card
+  - enable-lingua-french
