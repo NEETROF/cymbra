@@ -82,9 +82,9 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 /// French takes an arm of its own (add-lingua-french-tokenisation): its words
 /// are cut at U+202F, then read in NFC (add-lingua-french-analysis) by
 /// `push_french_word` and `push_french_run` — elisions, `au`/`aux`, hyphenated
-/// inversions. All share the rules that
-/// belong to no language: segmentation, the hyphen run, the compound rule, the
-/// digit drop, the edge-apostrophe trim and the single-letter rule.
+/// inversions. All share the rules that belong to no language: segmentation,
+/// the hyphen run, the compound rule, the digit drop, the edge-apostrophe trim
+/// and the single-letter rule.
 pub fn tokenize(
     text: &str,
     language: StudiedLanguage,
@@ -415,8 +415,8 @@ fn french_elided_word(written: &str, next: &str, after_hyphen: bool) -> Option<&
 /// (D3): each is a token of its own, read as the word it stands for and spanning
 /// its letters and its apostrophe — a combining mark among them, the written piece
 /// being looked up composed —, and the rule runs again on what follows, as long as
-/// a letter follows the apostrophe. Returns where the rest starts and
-/// the rest. `after_hyphen`: the word is a piece after a hyphen.
+/// a letter follows the apostrophe. Returns where the rest starts and the rest.
+/// `after_hyphen`: the word is a piece after a hyphen.
 fn push_french_elisions<'a>(
     tokens: &mut Vec<Token>,
     word: &'a str,
