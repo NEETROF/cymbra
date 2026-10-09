@@ -14,7 +14,7 @@ does not know it:
   changes 36 and 37 for English speakers learning Spanish and Spanish speakers learning English.
   Every English text names Spanish alone (« Learn Spanish while you read », keywords with no
   "french", "levels estimated … for Spanish", one model of 26.2 MB); every Spanish text names English
-  alone and says its levels are not estimated; the fields that are one per store (the test
+  alone and names its levels on the MCER scale with no word of estimation; the fields that are one per store (the test
   instructions at 996 / 1,000 characters, the App Store review notes at 3,976 / 4,000) have no French
   path and no room for one.
 - **The stores' summary** is the package's own description (`_locales/en`: "Read Spanish on the
