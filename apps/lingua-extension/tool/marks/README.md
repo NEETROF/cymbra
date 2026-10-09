@@ -2,10 +2,11 @@
 
 How often the translated sentence marks the right words for the reader's selection, per pair: en-fr
 and es-fr (release-lingua-spanish-translation), es-en and en-es
-(measure-lingua-translation-matrix-marks). es-fr goes through English, so its mark crosses two
+(measure-lingua-translation-matrix-marks), fr-en and fr-es (add-lingua-french-translation). es-fr
+and fr-es go through English — es-en then en-fr, fr-en then en-es — so their marks cross two
 alignments. A measurement is a pair's — es-fr's says nothing of es-en, measured on its own route and
-judged in English (generalise-lingua-translation-routes-by-pair D6). Decision D2 of the Spanish
-programme fixed what the result decides before anything was measured:
+judged in English (generalise-lingua-translation-routes-by-pair D6), nor fr-es's of fr-en's.
+Decision D2 of the Spanish programme fixed what the result decides before anything was measured:
 
 - **≥ 90 % correct and ≤ 25 % withheld:** marked;
 - **75–90 %:** unmarked;
@@ -97,15 +98,19 @@ and en-es.
 ## Judging
 
 The criteria were written before the run (release-lingua-spanish-translation D3, then
-measure-lingua-translation-matrix-marks D4 for any native language), and a pair is judged in its
-**native language** — French for en-fr and es-fr, English for es-en, Spanish for en-es.
+measure-lingua-translation-matrix-marks D4 for any native language; add-lingua-french-translation D6
+added the French examples, before fr-en and fr-es were run, and moved no verdict), and a pair is
+judged in its **native language** — French for en-fr and es-fr, English for es-en and fr-en, Spanish
+for en-es and fr-es. Through English, fr-es's mark crosses two alignments, as es-fr's does: it is
+judged against the Spanish rendering the reader sees, whatever the English one in between.
 
 - **Correct:**
   - the marks cover the rendering, in the pair's native language, of the selected word in that
     sentence;
   - they may include the article, preposition or auxiliary it carries, and may be split;
   - an expression's rendering counts, as « sin embargo » → « Cependant » (es-fr), « sin embargo »
-    → « However » (es-en), « gave up » → « se rindió » (en-es).
+    → « However » (es-en), « gave up » → « se rindió » (en-es), « A travers » → « Throughout »
+    (fr-en), « Par conséquence » → « Como resultado » (fr-es).
 - **Wrong:** the marks cover another word, only a function word, or only part of a compound; or a
   word the translation omitted, so that the marks cover something else.
 - **Withheld:** no mark — a sentence the engine trapped on twice included (`withheld`,
