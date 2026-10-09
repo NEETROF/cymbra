@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: French expressions are found on French's reading of a selection
-The phrase gloss SHALL find a French pack's expressions on the selection's tokens written as *A French pack keys its expressions as French is read* writes a key — each token's dictionary form, the determiners and pronouns that requirement lists written as the pre-pass gives them — over runs of two to seven tokens, the longest run first, a token belonging to at most one match. A run that no key matches and whose last token reads `du` or `des` SHALL be tried once more with that token read as `de`, the match then covering it. A match SHALL report as its key the expression's name — its headword as the dictionary writes it, or the key itself when the pack carries no name for it — and the reader's status of the expression SHALL be read on that name. The tokens SHALL be what they are without the table, and a page's analysis SHALL not change. English and Spanish selections SHALL be matched as before, over runs of up to five tokens, on their lemmas.
+The phrase gloss SHALL find a French pack's expressions on the selection's tokens written as *A French pack keys its expressions as French is read* writes a key — each token's dictionary form, the determiners and pronouns that requirement lists written as the pre-pass gives them — over runs of two to seven tokens, the longest run first, a token belonging to at most one match. A run that no key matches and whose last token reads `du` or `des` SHALL be tried once more with that token read as `de`, the match then covering it. A match SHALL report as its key the expression's name — its headword as the dictionary writes it, or the key itself when the pack carries no name for it — and the reader's status of the expression SHALL be read on that name. The tokens SHALL be what they are without the table, and a page's analysis SHALL not change. For a French selection, these rules SHALL take the place of the matching rule of *Expression lookup in a phrase gloss* (runs of dictionary forms), every other rule of that requirement still applying. English and Spanish selections SHALL be matched as before, over runs of up to five tokens, on their lemmas.
 
 #### Scenario: A contracted article
 - **WHEN** « Au revoir » is glossed with a French pack holding `au revoir`
@@ -37,7 +37,7 @@ The phrase gloss SHALL find a French pack's expressions on the selection's token
 
 #### Scenario: What the French baseline shows
 - **WHEN** the French invariance baseline is re-blessed for these keys
-- **THEN** « Au revoir », « un coup d’œil », « D’abord », « au fur et à mesure », « à cause des » and « à la maison » each answer an expression, « il y a » and « il y avait » answer `il y a`, « au marché » and « jusqu'au soir » answer none, and no `analyse` probe moves
+- **THEN** « Au revoir », « un coup d’œil », « D’abord », « au fur et à mesure », « à cause des » and « à la maison » each answer an expression, « il y a » and « il y avait » answer `il y a`, the Proust sentence answers `de bonne heure`, « au marché » and « jusqu'au soir » answer none, and no `analyse` probe moves
 
 #### Scenario: English and Spanish do not move
 - **WHEN** the English, Spanish, es-en and en-es invariance baselines run after French's expression rules are added

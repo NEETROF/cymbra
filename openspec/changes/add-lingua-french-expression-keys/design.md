@@ -14,14 +14,15 @@ merged):
 | `apps/lingua-extension` `selection-card.ts` | a match covering the selection heads the card with `key`, keys the card, its status and its deck entry by it (`expressionCard`); a match inside a longer selection is a row whose form is `key` (`rowsFor`); `cardGloss` stores the gloss the card showed when the card's lemma holds a space, and asks the single-lemma port otherwise |
 | French, change 40 (merged, #821; French at `0.2.0`) | an elided piece is a token read as its word (`d'` → `de`, `qu'` → `que`, `s'` → `si`/`se`), `au`/`aux` → `à` + `le`/`les` sharing a span, `du`/`des` whole, an inversion read as words; D8 hands this change the keys holding `au`/`aux` or an elision, and adds `au revoir` and `coup d'œil` to the fixture |
 | French, change 43 (proposed) | `au`/`aux` no word; `du`, `des` lemmas of their own; `la`, `les`, `l'` → `le` and `une` → `un` (M8); no plain word beginning with a piece is a form (`d'abord`, `c'est`, `l'on`), « the expressions among them are expression keys (change 44) » |
-| French, change 41 (being proposed in parallel; not pushed when this was written) | French's cascade, NFC, closed classes (« pas »), names rule. Assumed here: it changes how a token is lemmatised, never how a page is cut into tokens, and keeps `du`/`des` whole (M21) |
+| French, change 41 (being proposed in parallel; not pushed when this was written or reviewed) | French's cascade, NFC in the pre-pass, closed classes (« pas »), names rule. Assumed here: it composes a token's text and changes how a token is lemmatised, never where a page is cut into tokens, and keeps `du`/`des` whole (M21); a headword goes through both, `tokenize` and `resolve_lemmas` (D1) |
 
 **The Spanish precedent.** Spanish splits `al`/`del` into `a`/`de` + `el` (analyser `1.0.0`) and
 its keys were never read that way: of es-fr's 15,133 expressions, 596 hold `al` or `del` (change
 40's D8 count), 526 of them are keyed `al …`/`del …` — `al` and `del` being lemmas of
-`tables/es` — and no selection reaches them. And 3,936 of its 11,972 keys are lemma chains unlike
-their headword, which its cards show: `es-fr.golden` holds `tener en contar`, `haber que`,
-`dar contar`. Nothing of Spanish moves here (open question 4).
+`tables/es` — and no selection reaches them. And 3,815 of the pack's 11,851 keys (3,936 of its
+11,972 keyed headwords) are lemma chains unlike their headword, which its cards show:
+`es-fr.golden` holds `tener en contar`, `haber que`, `dar contar`. Nothing of Spanish moves here
+(open question 4).
 
 **How it was measured.** A scratch copy of `origin/main` at 35faf774 (change 40 merged, French at
 `0.2.0`), never committed, carrying a prototype of this design — first written on change 40's
@@ -60,10 +61,12 @@ glossed as one selection. The fr-es cross-check reads the Spanish Wiktionary's F
 The key is made where the reading lives: `expression_key`, for a pack studying French, hands the
 headword to a core function (`analysis/pipeline.rs`, `headword_reading`) that tokenises it with
 French's pre-pass and resolves each token as `analyse_document` and `gloss_phrase` do
-(`resolve_lemmas`). The phrase gloss already joins the same tokens' readings, so a key and a
-selection holding its words meet by construction, as `add-lingua-expression-table` D1 decided for
-the lemmatiser: one implementation, the core's. English and Spanish keep the split at spaces, byte
-for byte (D7).
+(`resolve_lemmas`); `engine::french_expression_key` writes those tokens as D2 does and makes D4's
+and D6's cuts, and the builder's French arm is that function. The phrase gloss already joins the
+same tokens' readings, so a key and a selection holding its words meet by construction, as
+`add-lingua-expression-table` D1 decided for the lemmatiser: one implementation, the core's. The
+dependency is the one the builder already has — `lingua-pack` calls `lingua_core::analysis`'s
+`lemmatize` today. English and Spanish keep the split at spaces, byte for byte (D7).
 
 Three places were measured, on the 17,523 candidates and the corpus:
 
@@ -74,8 +77,10 @@ Three places were measured, on the 17,523 candidates and the corpus:
 | **B — the builder, through the core's reading** | **14,586** | **14,512** | **69** |
 | C — the matcher, on written words: a word the pre-pass splits kept as written (`d'abord`), every other word lemmatised, on both sides | 14,586 | 14,528 | 53 |
 
-B keys 2,158 headwords today's keying cannot — 1,564 holding an elision, 457 holding `au` or `aux`,
-101 words without a space, 36 holding an inversion — and loses none.
+B keys 2,158 headwords today's keying cannot — 1,564 holding an elision, 457 holding `au` or `aux`
+(23 of them an elision too, counted here), 101 words without a space, 36 holding an inversion — and
+loses none. French's window (D4) then leaves 173 of the 14,586 out, 65 of them keyed today but
+longer than today's five tokens, so never met: the pack keys 14,413 headwords.
 
 *Rejected — A, in the tables.* The reducers would carry a Python copy of change 40's pre-pass: the
 elided forms and what each reads as (`s'` → `si` before `il`), `au`/`aux`, the pronouns of an
@@ -106,8 +111,9 @@ lowercase as the pre-pass gives them: `le`, `la`, `les`, `un`, `une`, `ce`, `cet
 (`au` → `à` + `le`, `aux` → `à` + `les`, `l'` → `le`), so `au revoir` is `à le revoir` and
 `à la` stays `à la`.
 
-M8 files `la`, `les` and `l'` under `le` and `une` under `un`, which is right for a word and wrong
-for an expression, measured:
+M8 files `la`, `les` and `l'` under `le`, `une` under `un`, and in change 43's prototype tables
+`cette` and `ces` under `ce`, `sa` and `ses` under `son`, `nos` under `notre`, `vos` under `votre`,
+`leurs` under `leur` — right for a word and wrong for an expression, measured:
 - with every token lemmatised, `à la` (« in the style or manner of ») is keyed `à le` and answers
   every « au » and « aux »: on the corpus, 10 matches of `à la`, 7 of them on a contracted « au »
   or « aux »; written, the 3 on « à la » stay and the 7 go;
@@ -137,7 +143,25 @@ pack container, keyed by language pair*): zstd, offset-indexed by expression id,
 none, and the phrase gloss falls back on the key. Written for a pack studying French only, so no
 English or Spanish pack gains a byte. Measured on the prototype: 5,260 of the 14,352 keys (36.6 %)
 carry a name, 49,990 B; every name stored would be 120,240 B. `Pack::expression_name(key)` reads
-it.
+it. No name is another key's name or key (measured: none), so a name stands for one expression of
+a pack, as a key does.
+
+**Review.** A card is created with the name as its lemma, and *Review shows a gloss the reader can
+read* (M4) reads an expression card's gloss in the table at that lemma (`readable_gloss`,
+`crates/lingua-wasm`): `au revoir` is no key, so a French card glossed in another language would
+show its own text where the pack holds a gloss. For a French card whose lemma holds a space, review
+reads the table at the key its name reads as — `french_expression_key` on the pack's lexicon, the
+builder's own function — and every other card as before; no baseline holds such a card, so no
+golden moves. A name without a space (`d'abord`) is no expression to `Card::is_expression`: with
+its stored gloss, change 51's (D9).
+
+**What a name costs.** A key is the lexicon's, which every French pair shares (*A studied
+language's tables are kept once*); a name is the winning headword of one dictionary, and fr-en and
+fr-es are written from two Wiktionaries. Where they win different headwords for one key, a status
+or a card made under one native language's name is not found under the other's. Measured: of the
+426 keys that both fr-en's 17,523 and fr-es's 749 candidates reach, 8 are named differently —
+`s'il vous plait` and `s'il vous plaît`, `allez-y` and `vas-y`, `ça ira` and `ça va`,
+`œuf brouillé` and `œufs brouillés`… (open question 1).
 
 *Rejected — keeping the lemma chain, as English and Spanish do.* `à le revoir`, `il y avoir`,
 `de bon heure` and `coup de œil` are not French, and a learner would review them in the deck.
@@ -207,7 +231,8 @@ tenses of one phrase over its present (`quel que fût`, `quoi qu'il en fût`, `�
 where one lemma merges two headwords (Risks).
 
 The fr-es cross-check: of the Spanish Wiktionary's 749 French candidates, today's keying keeps 480,
-this design 619 (601 keys) — the same rule, whichever reducer feeds it.
+this design reads 619 (601 keys) and keeps the 611 within French's window (593 keys) — the same
+rule, whichever reducer feeds it.
 
 ### D7 — What does not move, and the version
 
@@ -222,14 +247,27 @@ this design 619 (601 keys) — the same rule, whichever reducer feeds it.
   that ships with the pack (*Packs stay embedded, one package per store*), and the names section is
   additive, so the container's rule applies — `pack_version` moves, `analyzer_version` stays, as
   `add-lingua-expression-table` D5 decided for the table itself. A French pack built by this
-  change and read by a core before it would miss the expressions holding a written determiner and
-  show lemma chains; no French pack is published before change 52, and none is read by another
-  core than the one built beside it. This change names no version number, so changes 41 and 42's
-  bumps cannot contradict it.
+  change and read by a core before it would miss the expressions holding a written determiner,
+  longer than five tokens or reached through `du`/`des`, and show lemma chains; no French pack is
+  published before change 52, and none is read by another core than the one built beside it. The
+  container needs no new format: `Pack::load` ignores a section it does not know
+  (`a_pack_carrying_an_unknown_section_loads_unchanged`), and `FORMAT_VERSION` stays 1. This
+  change names no version number, so changes 41 and 42's bumps cannot contradict it.
 - **The baseline's reason.** *A French invariance baseline runs beside the English and Spanish ones*
-  asks a pull request moving the golden to say why; this one's reason is French's expression keys,
-  not a tokenisation or lemmatisation rule, so *A French rule lands* — which bumps the version — is
-  not this case.
+  asks a pull request moving the golden to say why, and names three reasons: a French rule that
+  bumps French's analyser version, the fixture replaced by the committed tables, the beside pack's
+  update. This change is none of them — a rule of the builder and the phrase gloss that leaves the
+  analysis, hence its version, alone, and three expressions and three forms added to the fixture —
+  so *A French rule lands* is not its case either. Change 39's design expects changes 40 to 47 to
+  re-bless the golden over the fixture; the requirement is changes 39 and 40's, both open, so it is
+  not MODIFIED here: the pull request says why, and the wording is the owner's (open question 5).
+- **The requirements this one narrows.** `add-lingua-expression-table` (open) holds *Multi-word
+  expression table* — a key is « the sequence of dictionary forms of its words », by the core's
+  lemmatiser — and *Expression lookup in a phrase gloss* — runs of « dictionary forms », « over a
+  bounded number of tokens ». For a French pack D1, D2, D4 and D5 replace both rules. A requirement
+  another open change holds is not MODIFIED, so this change's two ADDED requirements say, each,
+  that they take the place of those rules for French, every other rule of theirs still applying
+  (open question 5).
 
 ### D8 — The fixture, the probes, and what `fr-en.golden` shows
 
@@ -247,7 +285,9 @@ Re-blessed on the prototype, against `fr-en.golden` as change 40 merged it (35fa
 - « un coup d’œil »: none → `coup d'œil`, covering `coup` to `œil` (D1);
 - « à cause des »: none → `à cause de` (D5);
 - added: « D’abord » → `d'abord` (D6), « au fur et à mesure » → one match over six tokens (D4),
-  « il y avait » → `il y a` (D3), « à la maison » → `à la` (D2);
+  « il y avait » → `il y a` (D3), « à la maison » → `à la` (D2) — the rule, not the sense: « in
+  the style of » is no reading of « à la maison », and which such entries a reducer keeps is
+  change 48's;
 - byte for byte: every `analyse`, `gloss` and `word-grammar` probe, the levels, the review, the
   exports, the backup, and « au marché » and « jusqu'au soir », which answer no `à la`.
 
@@ -269,10 +309,10 @@ may lemmatise a piece differently, which moves a key and the reading together.
 
 | Change | Takes |
 |---|---|
-| 41 analysis | nothing to do: the keys follow its cascade, NFC and closed classes through `resolve_lemmas`; its function words leave the keys alone (a match covers function words; the rows leave them out) |
-| 48 fr-en | the expressions' glosses; French's candidates — the headwords with a space, and the words without one the pre-pass splits (D6) —, read by its own reducer since `reduce_common.py` cannot be edited; the 43 pointer senses left out (« X + Y », « post-1990 spelling of », an inverted form); the golden's hand-over to the committed tables, which shows the real expressions |
+| 41 analysis | nothing to do: the keys follow its NFC and cascade through `tokenize` and `resolve_lemmas`; its function words leave the keys alone (a match covers function words; the rows leave them out) |
+| 48 fr-en | the expressions' glosses; French's candidates — the headwords with a space, and the words without one the pre-pass splits (D6) —, read by its own reducer since `reduce_common.py` cannot be edited; the 43 pointer senses left out (« X + Y », « post-1990 spelling of », an inverted form), and the entries made of function words whose sense a page rarely means (`à la` « in the style of », D8); the golden's hand-over to the committed tables, which shows the real expressions |
 | 49 fr-es | the same, from its sources |
-| 51 word card | a one-word selection over several pieces opens the whole-selection card (change 40's D7, as carried), where `d'abord` and `c'est` answer; `cardGloss` stores the gloss the card showed for an expression whose name holds no space (today it asks the single-lemma port, which knows no `d'abord`) |
+| 51 word card | a one-word selection over several pieces opens the whole-selection card (change 40's D7, as carried), where `d'abord` and `c'est` answer; `cardGloss` stores the gloss the card showed for an expression whose name holds no space (today it asks the single-lemma port, which knows no `d'abord`), and review reads such a card as an expression (D3) |
 | 52 enable | the dogfood: an expression card on real pages in fr-en and fr-es |
 
 ## Risks / Trade-offs
@@ -293,6 +333,10 @@ may lemmatise a piece differently, which moves a key and the reading together.
 - [Two headwords on one key, the wrong one named] → 7 of the 60 such keys (D6): three post-1990
   pointers change 48 leaves out, one post-1990 spelling, three tenses of a phrase that one lemma
   merges.
+- [fr-en and fr-es name one key differently] → A status or a card made under one native language is
+  not found under the other: 8 of the 426 keys both reach (D3); open question 1.
+- [A French card reviewed in another language] → Read at its name's key (D3); a name without a
+  space shows the card's own text until change 51.
 
 ## Migration Plan
 
@@ -301,22 +345,31 @@ studies French. A French pack gains an optional section. Rollback is a revert.
 
 ## Effort
 
-1.75–2.5 ideal days, against the programme's 1–2.5: the reading of a headword, the key pieces, the
+2–2.75 ideal days, against the programme's 1–2.5: the reading of a headword, the key pieces, the
 window, the `du`/`des` retry and the names in the core 0.5–0.75; the builder's French arm, the
-names section, the order and the cut 0.5–0.75; their tests 0.25–0.5; the fixture, the probes and
-the re-bless 0.25; spec and programme 0.25.
+names section, the order and the cut 0.5–0.75; review's lookup by name and its test 0.25; their
+tests 0.25–0.5; the fixture, the probes and the re-bless 0.25; spec and programme 0.25.
 
 ## Open Questions
 
 For the owner, none blocking:
 1. **Names (D3).** A French expression card headed by the dictionary's spelling (`au revoir`,
    `il y a`) rather than its lemmas (`à le revoir`, `il y avoir`), as English and Spanish cards are
-   headed.
+   headed — at the cost of a status keyed by a dictionary's headword: 8 of the 426 keys fr-en and
+   fr-es both reach are named differently, and a status set under one is not read under the
+   other.
 2. **Determiners written (D2).** `à la` no longer answers « au », and `haut la main` and
    `haut les mains` stay two; an expression whose determiner varies is met only as written.
 3. **`du`/`des` read as `de` at the end of an expression (D5).** « à cause des » answers
    `à cause de`; `pas de` before an indefinite `des` is the known misreading.
-4. **Spanish.** The same rule would let es-fr's 526 keys holding `al`/`del` be reached and name its
-   3,936 lemma-chain expressions by their headword (`tener en cuenta`, not `tener en contar`); it
-   moves es-fr and es-en output, so it would be a change of its own, re-blessing both with the
+4. **Spanish.** The same rule would let es-fr's 526 keyed headwords holding `al`/`del` be reached
+   and name its 3,815 lemma-chain keys by their headword (`tener en cuenta`, not `tener en contar`);
+   it moves es-fr and es-en output, so it would be a change of its own, re-blessing both with the
    owner's approval — not in the programme's 57.
+5. **Held requirements' wording (D7).** *Multi-word expression table* and *Expression lookup in a
+   phrase gloss* (`add-lingua-expression-table`) state their key and match rules for every pack, and
+   *A French invariance baseline runs beside the English and Spanish ones* (changes 39, 40) names
+   three reasons for moving the golden, none of them this change's. Their changes are open, so
+   nothing here MODIFIES them: this change's ADDED requirements take the place of the first two's
+   rules for French, and its pull request says why the golden moves. Whether their wording is
+   narrowed when they archive is the owner's.
