@@ -252,6 +252,29 @@ describe("a session attached to a book section", () => {
     expect(blank).toHaveBeenCalledOnce();
   });
 
+  it("does not hand over a tap on a word it does not paint, or just beside one", async () => {
+    const blank = vi.fn();
+    const { s } = session({ onBlankClick: blank });
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    // "It" is known here: never painted, so no card — and still text, so no page turn.
+    const text = host.doc.querySelector("p")!.firstChild!;
+    const doc = host.doc as Document & { caretRangeFromPoint?: (x: number, y: number) => Range };
+    doc.caretRangeFromPoint = () => {
+      const r = host.doc.createRange();
+      r.setStart(text, 1);
+      return r;
+    };
+    const proto = host.win.Range.prototype as unknown as { getClientRects?: () => DOMRect[] };
+    proto.getClientRects = () => [{ left: 0, right: 14, top: 0, bottom: 18 } as DOMRect];
+    for (const clientX of [7, 22]) {
+      host.doc.body.dispatchEvent(new host.win.MouseEvent("click", { bubbles: true, clientX, clientY: 9 }));
+    }
+    expect(blank).not.toHaveBeenCalled();
+    delete proto.getClientRects;
+  });
+
   it("does not hand over a click on a link", async () => {
     const blank = vi.fn();
     const { s } = session({ onBlankClick: blank });

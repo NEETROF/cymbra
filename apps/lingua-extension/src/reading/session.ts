@@ -31,7 +31,7 @@ import {
   SelectionWatcher,
   sentenceAndSelection,
 } from "./selection.ts";
-import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./selection-card.ts";
+import { clickIsOnWord, decideClick, type PageHit, SelectionCards, tapIsOnText } from "./selection-card.ts";
 import { browserSpeechEngine, createSpeaker, type Speaker } from "./speech.ts";
 import type { SurfaceCss } from "./surface-css.ts";
 import { type Gesture, WordPopup } from "./wordpopup.ts";
@@ -866,8 +866,10 @@ export class ReadingSession {
     // Alt-click — never otherwise, so a painted word inside a <label>/<summary>/<button>
     // keeps its native activation.
     if (decision.cancel) e.preventDefault();
-    // A click on nothing at all — no word, no link, no card it closes — is the host's.
-    if (!hit && !isLink && !cardWasOpen && decision.card === "hide") this.opts.onBlankClick?.(e);
+    // A click on nothing at all — no text (a known word, or beside a word, is still text), no
+    // link, no card it closes — is the host's: the reader turns its page on one.
+    const blank = !hit && !isLink && !cardWasOpen && decision.card === "hide";
+    if (blank && !tapIsOnText(caret, e.clientX, e.clientY)) this.opts.onBlankClick?.(e);
   }
 
   /**

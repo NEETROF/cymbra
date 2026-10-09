@@ -23,6 +23,7 @@ import {
   rowsFor,
   wholeSelectionMatch,
   SelectionCards,
+  tapIsOnText,
   type SelectionCardPorts,
   type SelectionInput,
   TRANSLATION_WAIT_MS,
@@ -1161,6 +1162,49 @@ describe("clickIsOnWord", () => {
 
   it("refuses a word with no box at all", () => {
     expect(clickIsOnWord(130, 50, [])).toBe(false);
+  });
+});
+
+describe("tapIsOnText", () => {
+  // "dark night" sets one line, boxed at x 100–120, y 40–58.
+  const caretIn = (text: string, offset: number) => {
+    const node = document.createTextNode(text);
+    document.body.replaceChildren(node);
+    return { node, offset };
+  };
+  const box = { left: 100, right: 120, top: 40, bottom: 58 } as DOMRect;
+  const withBoxes = (rects: DOMRect[], run: () => void) => {
+    const proto = Range.prototype as unknown as { getClientRects?: () => DOMRect[] };
+    const before = proto.getClientRects;
+    proto.getClientRects = () => rects;
+    try {
+      run();
+    } finally {
+      proto.getClientRects = before;
+    }
+  };
+
+  it("takes a tap on the letters, painted word or not", () => {
+    withBoxes([box], () => expect(tapIsOnText(caretIn("dark night", 4), 110, 50)).toBe(true));
+  });
+
+  it("takes a fingertip's miss beside a word as still on the text", () => {
+    withBoxes([box], () => expect(tapIsOnText(caretIn("dark night", 4), 130, 64)).toBe(true));
+  });
+
+  it("refuses a tap well away from the line, in the page's empty margin", () => {
+    withBoxes([box], () => {
+      expect(tapIsOnText(caretIn("dark night", 4), 300, 50)).toBe(false);
+      expect(tapIsOnText(caretIn("dark night", 4), 110, 200)).toBe(false);
+    });
+  });
+
+  it("refuses no caret, a caret outside text, or an empty text", () => {
+    withBoxes([box], () => {
+      expect(tapIsOnText(null, 110, 50)).toBe(false);
+      expect(tapIsOnText({ node: document.body, offset: 0 }, 110, 50)).toBe(false);
+      expect(tapIsOnText(caretIn("", 0), 110, 50)).toBe(false);
+    });
   });
 });
 
