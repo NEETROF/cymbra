@@ -13,7 +13,7 @@ reads `coup` + `de` + `œil`, « d’abord » reads `de` + `abord`, « Qu’est-
 + `ce` + `que`. A key written `au revoir` or `coup d'œil` is never met.
 
 Measured on the English Wiktionary's French section (the file change 43 measured) against change
-43's prototype tables, with change 40's implementation at analyser `0.2.0`: of 17,523 candidate
+43's prototype tables, on `main` with change 40 merged (analyser `0.2.0`): of 17,523 candidate
 expressions, today's keying keeps 12,428, and **2,158 more** are reachable once the key is read the
 way the page is — 1,564 holding an elision (`coup d'œil`, `jusqu'à ce que`), 457 holding `au` or
 `aux` (`au revoir`, `au fur et à mesure`), 101 words without a space that the pre-pass splits

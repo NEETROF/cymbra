@@ -2,7 +2,8 @@
 
 ## Context
 
-See proposal.md (Why). How expressions are keyed and found today (`origin/main` 1cfa4d99):
+See proposal.md (Why). How expressions are keyed and found today (`origin/main` 35faf774, change 40
+merged):
 
 | Seam | Today |
 |---|---|
@@ -11,7 +12,7 @@ See proposal.md (Why). How expressions are keyed and found today (`origin/main` 
 | the pack | `expr` (FST: key → id) and `expr.zst` (glosses by id), optional and additive |
 | `crates/lingua-core` `engine::match_expressions` | from each token of a selection, the longest run of 2 to 5 tokens whose lemmas, joined, are a key; a token in one match at most. `PhraseMatch.key` is that key, and the status is read on it (`knowledge.classify`) |
 | `apps/lingua-extension` `selection-card.ts` | a match covering the selection heads the card with `key`, keys the card, its status and its deck entry by it (`expressionCard`); a match inside a longer selection is a row whose form is `key` (`rowsFor`); `cardGloss` stores the gloss the card showed when the card's lemma holds a space, and asks the single-lemma port otherwise |
-| French, change 40 (proposed; implemented on `claude/add-lingua-french-tokenisation-impl`, `1d67576a`, not merged) | an elided piece is a token read as its word (`d'` → `de`, `qu'` → `que`, `s'` → `si`/`se`), `au`/`aux` → `à` + `le`/`les` sharing a span, `du`/`des` whole, an inversion read as words; D8 hands this change the keys holding `au`/`aux` or an elision, and adds `au revoir` and `coup d'œil` to the fixture |
+| French, change 40 (merged, #821; French at `0.2.0`) | an elided piece is a token read as its word (`d'` → `de`, `qu'` → `que`, `s'` → `si`/`se`), `au`/`aux` → `à` + `le`/`les` sharing a span, `du`/`des` whole, an inversion read as words; D8 hands this change the keys holding `au`/`aux` or an elision, and adds `au revoir` and `coup d'œil` to the fixture |
 | French, change 43 (proposed) | `au`/`aux` no word; `du`, `des` lemmas of their own; `la`, `les`, `l'` → `le` and `une` → `un` (M8); no plain word beginning with a piece is a form (`d'abord`, `c'est`, `l'on`), « the expressions among them are expression keys (change 44) » |
 | French, change 41 (being proposed in parallel; not pushed when this was written) | French's cascade, NFC, closed classes (« pas »), names rule. Assumed here: it changes how a token is lemmatised, never how a page is cut into tokens, and keeps `du`/`des` whole (M21) |
 
@@ -22,8 +23,10 @@ its keys were never read that way: of es-fr's 15,133 expressions, 596 hold `al` 
 their headword, which its cards show: `es-fr.golden` holds `tener en contar`, `haber que`,
 `dar contar`. Nothing of Spanish moves here (open question 4).
 
-**How it was measured.** A scratch copy of change 40's implementation (`1d67576a`, French at
-`0.2.0`), never committed, carrying a prototype of this design; change 43's prototype tables
+**How it was measured.** A scratch copy of `origin/main` at 35faf774 (change 40 merged, French at
+`0.2.0`), never committed, carrying a prototype of this design — first written on change 40's
+implementation branch (`1d67576a`), whose code differs from the merged one by doc comments only,
+and re-run on the merge with the same figures; change 43's prototype tables
 (`tables/fr/forms.tsv` 124,013 forms, `freq.tsv` 60,000 lemmas); the English Wiktionary's French
 section change 43 measured (`kaikki-French.jsonl`, derived on 2026-10-08 from the English dump of
 2026-10-03, 510,058,226 B). The candidates are the expressions change 48's reducer would offer:
@@ -235,8 +238,8 @@ The fixture (`scripts/lingua-data/testdata/fr-en/`): `mwe.tsv` gains `à la` («
 `abord`, `fur`, `mesure`; `manifest.json`'s `pack_version` becomes `0.0.2-fixture` (a new section).
 The scenario's phrases gain « D’abord », « au fur et à mesure », « il y avait » and « à la maison ».
 
-Re-blessed on the prototype (change 40 at `0.2.0`): **6 of the 141 probes move, 4 are added, 135
-are byte for byte.**
+Re-blessed on the prototype, against `fr-en.golden` as change 40 merged it (35faf774, French at
+`0.2.0`): **6 of its 141 probes move, 4 are added, 135 are byte for byte.**
 - `pack`: 5,139 → 5,549 bytes, `pack_version "0.0.2-fixture"`;
 - « il y a »: `il y avoir` → `il y a` (D3);
 - « Longtemps, je me suis couché de bonne heure. »: `de bon heure` → `de bonne heure` (D3);
