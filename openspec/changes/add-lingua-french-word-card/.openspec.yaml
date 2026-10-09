@@ -1,0 +1,16 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - add-lingua-phrase-gloss
+  - add-lingua-expression-table
+  - generalise-lingua-card-wording
+  - add-lingua-english-card-wording
+  - add-lingua-spanish-card-wording
+  - add-lingua-french-baseline
+  - add-lingua-french-tokenisation
+  - add-lingua-french-analysis
+  - add-lingua-french-forms-tables
+  - add-lingua-french-expression-keys
+  - add-lingua-french-grammar-tables
+  - add-lingua-pack-fr-en
+  - add-lingua-pack-fr-es
