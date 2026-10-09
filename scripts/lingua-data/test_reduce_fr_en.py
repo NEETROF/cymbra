@@ -731,7 +731,7 @@ class Main(unittest.TestCase):
         self.assertEqual(out["gloss.tsv"], "")
         for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json"):
             self.assertTrue(out[name], name)
-        self.assertNotIn("grammar.tsv", out)
+        self.assertIn("dirigée\tdiriger\tVERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part\t-\n", out["grammar.tsv"])
         # and French's estimated levels (add-lingua-french-levels, `EstimatedLevels` below).
         self.assertIn("de\tA1\n", out["level.tsv"])
         self.assertIn("dirigée\tdiriger\n", out["forms.tsv"])
