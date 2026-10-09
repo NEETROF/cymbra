@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	partie	NOUN		withheld	no mark (« la plus grande partie de » → « la mayor parte de »)			
+1	n01004009	enseigner	VERB	enseñar	correct				
+2	n01010042	moment	NOUN	momento	correct				
+3	n01016014	propre	ADJ	propio	correct				
+4	n01019005	experts	NOUN	expertos	correct				
+5	n01022016	progressé	VERB	aumentado	correct				
+6	n01025045	travers	NOUN	A lo largo	correct	« A travers » → « A lo largo de », an expression's rendering			
+7	n01029011	extrême	ADJ	extremo	correct				
+8	n01033021	schéma	NOUN	patrón	correct				
+9	n01036020	souhaiterait	VERB	desearía	correct				
+10	n01041018	médecins	NOUN	médicos	correct				
+11	n01045035	juge	NOUN	juez	correct				
+12	n01050014	taux	NOUN	nivel	correct				
+13	n01054011	diffusées	VERB	publicaron	correct				
+14	n01059008	discordance	NOUN		withheld	no mark (« discordance » rendered « dispensación »)			
+15	n01063011	principal	ADJ	principal	correct	the engine tagged « su »; the fragment's own translation moved the mark to « principal »			
+16	n01066093	intérêt	NOUN	interés	correct				
+17	n01070017	suggèrait	VERB	sugirió	correct				
+18	n01074020	jeu	NOUN	juego	correct				
+19	n01078025	moderne	ADJ	moderna	correct				
+20	n01084008	couple	NOUN	pareja	correct				
+21	n01087005	crois	VERB	Creo	correct				
+22	n01091013	mieux	NOUN		withheld	no mark (« au mieux » → « mejor »)			
+23	n01094014	marchés	NOUN	mercados	correct				
+24	n01097098	étape	NOUN	paso	correct				
+25	n01102006	voudrait	VERB	el | querría”,	correct	doubtful: the mark is on « querría », carrying the closing quote and comma, with a stray « el » (« gobierno »'s article)			
+26	n01107006	conséquence	NOUN	Como resultado	correct	« Par conséquence » → « Como resultado »			
+27	n01110008	ordinaires	ADJ	ordinarias	correct				
+28	n01114025	adultes	NOUN	adultos	correct				
+29	n01118003	tomber	VERB	Deje caer	correct	« Laisse tomber » → « Deje caer », an expression's rendering			
+30	n01121032	fois	NOUN	la	wrong	marks « la » instead of « vez »			
+31	n01127089	comprends	VERB	entiendo	correct				
+32	n01130003	Nord	NOUN	Norte	correct				
+33	n01134015	reconnu	VERB	sabe	correct	« Il est reconnu pour » → « Se sabe que »: « sabe » renders « reconnu »			
+34	n01138026	épisodes	NOUN	episodios	correct				
+35	n01142008	mondial	ADJ	del mundo	correct	« numéro un mondial » → « número uno del mundo »			
+36	n01145028	volontaires	NOUN	voluntarios	correct				
+37	n01149027	gens	NOUN	gente	correct				
+38	w01003056	îles	NOUN	islas	correct				
+39	w01007004	limitée	ADJ	limitada	correct				
+40	w01010046	état	NOUN	estado	correct				
+41	w01016070	préparatifs	NOUN	preparativos	correct				
+42	w01020018	climat	NOUN	el clima	correct	the mark carries the article			
+43	w01025085	importantes	ADJ	importantes	correct				
+44	w01028069	réactions	NOUN	reacciones	correct				
+45	w01031015	atteint	VERB	llega	correct				
+46	w01035081	terrains	NOUN	tierra	correct				
+47	w01038044	nombreux	ADJ	Muchos	correct	« De nombreux » → « Muchos »			
+48	w01042055	orages	NOUN		withheld	no mark			
+49	w01046056	gouvernement	NOUN	gobierno	correct				
+50	w01050067	chute	NOUN	caída	correct				
+51	w01053015	exacte	ADJ	exacto	correct				
+52	w01058009	combat	NOUN	acción	correct	« tué au combat » → « asesinado en acción », English's idiom carried through the pivot			
+53	w01063048	représentaient	VERB	representaban	correct				
+54	w01066040	fêtes	NOUN	fiestas	correct				
+55	w01070031	astronomique	ADJ	astronómico	correct				
+56	w01072079	siècle	NOUN		withheld	no mark (« Au troisième siècle » → « En el siglo III »)			
+57	w01075039	dit	VERB		withheld	no mark (« Autrement dit » → « En otras palabras »)			
+58	w01080129	ennemis	NOUN	enemigos	correct				
+59	w01085004	armée	NOUN	ejército	correct				
+60	w01089040	époque	NOUN	momento	correct	« À cette époque » → « En ese momento »			
+61	w01095090	considère	VERB	considera	correct				
+62	w01099012	spéculations	NOUN	especulación	correct				
+63	w01102020	honoraire	ADJ	honorario	correct				
+64	w01106073	altitude	NOUN	altitud	correct				
+65	w01111089	rencontre	VERB	conoce	correct				
+66	w01115023	université	NOUN	Universidad	correct				
+67	w01119059	similaire	ADJ	similar	correct				
+68	w01125036	heures	NOUN	horas	correct				
+69	w01130099	sort	VERB	lanzó	correct	« sort deux albums » → « lanzó dos álbumes »			
+70	w01133014	fil	NOUN	hilo	correct				
+71	w01136029	stéréotypé	ADJ		withheld	no mark			
+72	w01140032	méthode	NOUN	método	correct				
+73	w01143037	joué	VERB	Interpretó	correct				
+74	w01147122	août	NOUN	agosto	correct				
+75	n02002007	officiers	NOUN	oficiales	correct				
+76	n02027007	nombre	NOUN	número	correct				
+77	n02038007	traverse	VERB	cruza	correct				
+78	n02048002	disputez	VERB	discutiendo	correct				
+79	n02073024	instant	NOUN		withheld	no mark (« Pour l'instant » → « Por ahora »)			
+80	n03001007	octobre	NOUN	octubre	correct				
+81	n03005025	taxait	VERB	llamó	correct				
+82	n03008011	terre	NOUN	el suelo”,	correct	« à terre » → « en el suelo »: the mark carries the article, the closing quote and comma			
+83	n04003043	chanson	NOUN	canción	correct	the engine tagged « es » and « de »; the fragment's own translation moved the mark to « canción »			
+84	n04007018	note	NOUN	nota	correct				
+85	n05001005	représente	VERB		withheld	no mark			
+86	n05003022	baron	NOUN	Barón	correct				
+87	n05008012	inquiet	ADJ	preocupado	correct				
+88	w02003037	fabricant	NOUN	fabricante	correct				
+89	w02006081	remporter	VERB	ganar	correct				
+90	w02009002	présence	NOUN	presencia	correct				
+91	w02014013	derniers	ADJ	últimas	correct				
+92	w02017061	traces	NOUN	Los rastros	correct				
+93	w03003039	commandé	VERB	comandado	correct				
+94	w03007039	commerce	NOUN	comercio	correct				
+95	w04001027	inférieure	ADJ	baja	correct				
+96	w04004051	région	NOUN	región	correct				
+97	w04010027	rencontrés	VERB	se reunieron	correct	the engine tagged « , se »; the fragment's own translation moved the mark to « se reunieron »			
+98	w05003012	rupture	NOUN	ruptura	correct				
+99	w05006058	autre	ADJ	otro	correct	« D'autre part » → « Por otro lado »			

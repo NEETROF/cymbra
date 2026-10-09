@@ -1,6 +1,7 @@
-// Parallel Universal Dependencies (PUD), English and Spanish, as the marks measurement reads it
-// (release-lingua-spanish-translation D1): fetched at pinned commits, checked by sha256, kept in
-// scripts/lingua-data/work/marks/ (git-ignored) and never committed — CC BY-SA, as es-pud.sh keeps it.
+// Parallel Universal Dependencies (PUD), English, Spanish and French, as the marks measurement reads
+// it (release-lingua-spanish-translation D1, add-lingua-french-translation D4): fetched at pinned
+// commits, checked by sha256, kept in scripts/lingua-data/work/marks/ (git-ignored) and never
+// committed — CC BY-SA, as es-pud.sh keeps it.
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,7 +11,10 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 export const WORK = join(here, "../../../../scripts/lingua-data/work/marks");
 
-/** The two treebanks, pinned. Spanish is the file es-pud.sh pins. */
+/**
+ * The three treebanks, pinned. Spanish is the file es-pud.sh pins; French is the one
+ * add-lingua-french-forms-tables pins (its D9 hands the pin over), the same commit and bytes.
+ */
 export const PUD = {
   en: {
     repo: "UD_English-PUD",
@@ -23,6 +27,12 @@ export const PUD = {
     commit: "818a82b8628c9cbec78750c7e83ccba34b9ce22b",
     file: "es_pud-ud-test.conllu",
     sha256: "48a7b5c7f409100b24eba90c7397e01f6fecaaf3207315a9a1bda029f77e98d3",
+  },
+  fr: {
+    repo: "UD_French-PUD",
+    commit: "db260db10fe728853c549760801229ef4e7b16e1",
+    file: "fr_pud-ud-test.conllu",
+    sha256: "4dfed37b83d76e77fd2e9963d0be00d723e9a010e7e2a746f8b7640c48063c10",
   },
 };
 

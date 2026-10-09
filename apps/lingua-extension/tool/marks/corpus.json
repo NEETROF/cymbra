@@ -11,9 +11,15 @@
       "commit": "818a82b8628c9cbec78750c7e83ccba34b9ce22b",
       "file": "es_pud-ud-test.conllu",
       "sha256": "48a7b5c7f409100b24eba90c7397e01f6fecaaf3207315a9a1bda029f77e98d3"
+    },
+    "fr": {
+      "repo": "UD_French-PUD",
+      "commit": "db260db10fe728853c549760801229ef4e7b16e1",
+      "file": "fr_pud-ud-test.conllu",
+      "sha256": "4dfed37b83d76e77fd2e9963d0be00d723e9a010e7e2a746f8b7640c48063c10"
     }
   },
-  "rule": "every tenth PUD sentence; NOUN, VERB, NOUN, ADJ in turn; not the first word, letters only (3+), not in a multiword token; else the first NOUN/VERB/ADJ; else the next sentence (both languages)",
+  "rule": "every tenth PUD sentence; NOUN, VERB, NOUN, ADJ in turn; not the first word, letters only (3+), not in a multiword token; else the first NOUN/VERB/ADJ; else the next sentence (every language)",
   "items": [
     {
       "k": 0,
@@ -36,6 +42,16 @@
       "end": 26
     },
     {
+      "k": 0,
+      "id": "n01001011",
+      "lang": "fr",
+      "token": 7,
+      "word": "partie",
+      "upos": "NOUN",
+      "start": 27,
+      "end": 33
+    },
+    {
       "k": 1,
       "id": "n01004009",
       "lang": "en",
@@ -54,6 +70,16 @@
       "upos": "VERB",
       "start": 25,
       "end": 32
+    },
+    {
+      "k": 1,
+      "id": "n01004009",
+      "lang": "fr",
+      "token": 4,
+      "word": "enseigner",
+      "upos": "VERB",
+      "start": 13,
+      "end": 22
     },
     {
       "k": 2,
@@ -76,6 +102,16 @@
       "end": 8
     },
     {
+      "k": 2,
+      "id": "n01010042",
+      "lang": "fr",
+      "token": 8,
+      "word": "moment",
+      "upos": "NOUN",
+      "start": 27,
+      "end": 33
+    },
+    {
       "k": 3,
       "id": "n01016014",
       "lang": "en",
@@ -94,6 +130,16 @@
       "upos": "ADJ",
       "start": 11,
       "end": 21
+    },
+    {
+      "k": 3,
+      "id": "n01016014",
+      "lang": "fr",
+      "token": 20,
+      "word": "propre",
+      "upos": "ADJ",
+      "start": 101,
+      "end": 107
     },
     {
       "k": 4,
@@ -116,6 +162,16 @@
       "end": 11
     },
     {
+      "k": 4,
+      "id": "n01019005",
+      "lang": "fr",
+      "token": 3,
+      "word": "experts",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 16
+    },
+    {
       "k": 5,
       "id": "n01022016",
       "lang": "en",
@@ -134,6 +190,16 @@
       "upos": "VERB",
       "start": 30,
       "end": 40
+    },
+    {
+      "k": 5,
+      "id": "n01022016",
+      "lang": "fr",
+      "token": 7,
+      "word": "progressé",
+      "upos": "VERB",
+      "start": 44,
+      "end": 53
     },
     {
       "k": 6,
@@ -156,6 +222,16 @@
       "end": 28
     },
     {
+      "k": 6,
+      "id": "n01025045",
+      "lang": "fr",
+      "token": 2,
+      "word": "travers",
+      "upos": "NOUN",
+      "start": 2,
+      "end": 9
+    },
+    {
       "k": 7,
       "id": "n01029011",
       "lang": "en",
@@ -174,6 +250,16 @@
       "upos": "ADJ",
       "start": 46,
       "end": 53
+    },
+    {
+      "k": 7,
+      "id": "n01029011",
+      "lang": "fr",
+      "token": 12,
+      "word": "extrême",
+      "upos": "ADJ",
+      "start": 53,
+      "end": 60
     },
     {
       "k": 8,
@@ -196,6 +282,16 @@
       "end": 11
     },
     {
+      "k": 8,
+      "id": "n01033021",
+      "lang": "fr",
+      "token": 11,
+      "word": "schéma",
+      "upos": "NOUN",
+      "start": 44,
+      "end": 50
+    },
+    {
       "k": 9,
       "id": "n01036020",
       "lang": "en",
@@ -214,6 +310,16 @@
       "upos": "VERB",
       "start": 11,
       "end": 19
+    },
+    {
+      "k": 9,
+      "id": "n01036020",
+      "lang": "fr",
+      "token": 2,
+      "word": "souhaiterait",
+      "upos": "VERB",
+      "start": 3,
+      "end": 15
     },
     {
       "k": 10,
@@ -236,6 +342,16 @@
       "end": 11
     },
     {
+      "k": 10,
+      "id": "n01041018",
+      "lang": "fr",
+      "token": 2,
+      "word": "médecins",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 12
+    },
+    {
       "k": 11,
       "id": "n01045035",
       "lang": "en",
@@ -251,6 +367,16 @@
       "lang": "es",
       "token": 2,
       "word": "juez",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 7
+    },
+    {
+      "k": 11,
+      "id": "n01045035",
+      "lang": "fr",
+      "token": 2,
+      "word": "juge",
       "upos": "NOUN",
       "start": 3,
       "end": 7
@@ -276,6 +402,16 @@
       "end": 22
     },
     {
+      "k": 12,
+      "id": "n01050014",
+      "lang": "fr",
+      "token": 7,
+      "word": "taux",
+      "upos": "NOUN",
+      "start": 32,
+      "end": 36
+    },
+    {
       "k": 13,
       "id": "n01054011",
       "lang": "en",
@@ -296,6 +432,16 @@
       "end": 23
     },
     {
+      "k": 13,
+      "id": "n01054011",
+      "lang": "fr",
+      "token": 8,
+      "word": "diffusées",
+      "upos": "VERB",
+      "start": 39,
+      "end": 48
+    },
+    {
       "k": 14,
       "id": "n01059008",
       "lang": "en",
@@ -313,6 +459,16 @@
       "word": "discordancia",
       "upos": "NOUN",
       "start": 5,
+      "end": 17
+    },
+    {
+      "k": 14,
+      "id": "n01059008",
+      "lang": "fr",
+      "token": 2,
+      "word": "discordance",
+      "upos": "NOUN",
+      "start": 6,
       "end": 17
     },
     {
@@ -336,6 +492,16 @@
       "end": 55
     },
     {
+      "k": 15,
+      "id": "n01063011",
+      "lang": "fr",
+      "token": 19,
+      "word": "principal",
+      "upos": "ADJ",
+      "start": 106,
+      "end": 115
+    },
+    {
       "k": 16,
       "id": "n01066093",
       "lang": "en",
@@ -354,6 +520,16 @@
       "upos": "NOUN",
       "start": 12,
       "end": 20
+    },
+    {
+      "k": 16,
+      "id": "n01066093",
+      "lang": "fr",
+      "token": 6,
+      "word": "intérêt",
+      "upos": "NOUN",
+      "start": 19,
+      "end": 26
     },
     {
       "k": 17,
@@ -376,6 +552,16 @@
       "end": 12
     },
     {
+      "k": 17,
+      "id": "n01070017",
+      "lang": "fr",
+      "token": 2,
+      "word": "suggèrait",
+      "upos": "VERB",
+      "start": 5,
+      "end": 14
+    },
+    {
       "k": 18,
       "id": "n01074020",
       "lang": "en",
@@ -394,6 +580,16 @@
       "upos": "NOUN",
       "start": 36,
       "end": 41
+    },
+    {
+      "k": 18,
+      "id": "n01074020",
+      "lang": "fr",
+      "token": 5,
+      "word": "jeu",
+      "upos": "NOUN",
+      "start": 15,
+      "end": 18
     },
     {
       "k": 19,
@@ -416,6 +612,16 @@
       "end": 41
     },
     {
+      "k": 19,
+      "id": "n01078025",
+      "lang": "fr",
+      "token": 8,
+      "word": "moderne",
+      "upos": "ADJ",
+      "start": 41,
+      "end": 48
+    },
+    {
       "k": 20,
       "id": "n01084008",
       "lang": "en",
@@ -434,6 +640,16 @@
       "upos": "NOUN",
       "start": 3,
       "end": 9
+    },
+    {
+      "k": 20,
+      "id": "n01084008",
+      "lang": "fr",
+      "token": 4,
+      "word": "couple",
+      "upos": "NOUN",
+      "start": 18,
+      "end": 24
     },
     {
       "k": 21,
@@ -456,6 +672,16 @@
       "end": 14
     },
     {
+      "k": 21,
+      "id": "n01087005",
+      "lang": "fr",
+      "token": 2,
+      "word": "crois",
+      "upos": "VERB",
+      "start": 3,
+      "end": 8
+    },
+    {
       "k": 22,
       "id": "n01091013",
       "lang": "en",
@@ -474,6 +700,16 @@
       "upos": "NOUN",
       "start": 6,
       "end": 11
+    },
+    {
+      "k": 22,
+      "id": "n01091013",
+      "lang": "fr",
+      "token": 7,
+      "word": "mieux",
+      "upos": "NOUN",
+      "start": 22,
+      "end": 27
     },
     {
       "k": 23,
@@ -496,6 +732,16 @@
       "end": 21
     },
     {
+      "k": 23,
+      "id": "n01094014",
+      "lang": "fr",
+      "token": 5,
+      "word": "marchés",
+      "upos": "NOUN",
+      "start": 32,
+      "end": 39
+    },
+    {
       "k": 24,
       "id": "n01097098",
       "lang": "en",
@@ -514,6 +760,16 @@
       "upos": "NOUN",
       "start": 13,
       "end": 19
+    },
+    {
+      "k": 24,
+      "id": "n01097098",
+      "lang": "fr",
+      "token": 2,
+      "word": "étape",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 9
     },
     {
       "k": 25,
@@ -536,6 +792,16 @@
       "end": 43
     },
     {
+      "k": 25,
+      "id": "n01102006",
+      "lang": "fr",
+      "token": 12,
+      "word": "voudrait",
+      "upos": "VERB",
+      "start": 63,
+      "end": 71
+    },
+    {
       "k": 26,
       "id": "n01107006",
       "lang": "en",
@@ -554,6 +820,16 @@
       "upos": "NOUN",
       "start": 49,
       "end": 57
+    },
+    {
+      "k": 26,
+      "id": "n01107006",
+      "lang": "fr",
+      "token": 2,
+      "word": "conséquence",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 15
     },
     {
       "k": 27,
@@ -576,6 +852,16 @@
       "end": 63
     },
     {
+      "k": 27,
+      "id": "n01110008",
+      "lang": "fr",
+      "token": 17,
+      "word": "ordinaires",
+      "upos": "ADJ",
+      "start": 85,
+      "end": 95
+    },
+    {
       "k": 28,
       "id": "n01114025",
       "lang": "en",
@@ -594,6 +880,16 @@
       "upos": "NOUN",
       "start": 18,
       "end": 25
+    },
+    {
+      "k": 28,
+      "id": "n01114025",
+      "lang": "fr",
+      "token": 2,
+      "word": "adultes",
+      "upos": "NOUN",
+      "start": 7,
+      "end": 14
     },
     {
       "k": 29,
@@ -616,6 +912,16 @@
       "end": 10
     },
     {
+      "k": 29,
+      "id": "n01118003",
+      "lang": "fr",
+      "token": 2,
+      "word": "tomber",
+      "upos": "VERB",
+      "start": 7,
+      "end": 13
+    },
+    {
       "k": 30,
       "id": "n01121032",
       "lang": "en",
@@ -634,6 +940,16 @@
       "upos": "NOUN",
       "start": 33,
       "end": 38
+    },
+    {
+      "k": 30,
+      "id": "n01121032",
+      "lang": "fr",
+      "token": 13,
+      "word": "fois",
+      "upos": "NOUN",
+      "start": 65,
+      "end": 69
     },
     {
       "k": 31,
@@ -656,6 +972,16 @@
       "end": 22
     },
     {
+      "k": 31,
+      "id": "n01127089",
+      "lang": "fr",
+      "token": 3,
+      "word": "comprends",
+      "upos": "VERB",
+      "start": 6,
+      "end": 15
+    },
+    {
       "k": 32,
       "id": "n01130003",
       "lang": "en",
@@ -676,6 +1002,16 @@
       "end": 18
     },
     {
+      "k": 32,
+      "id": "n01130003",
+      "lang": "fr",
+      "token": 5,
+      "word": "Nord",
+      "upos": "NOUN",
+      "start": 15,
+      "end": 19
+    },
+    {
       "k": 33,
       "id": "n01134015",
       "lang": "en",
@@ -693,6 +1029,16 @@
       "word": "atribuye",
       "upos": "VERB",
       "start": 6,
+      "end": 14
+    },
+    {
+      "k": 33,
+      "id": "n01134015",
+      "lang": "fr",
+      "token": 3,
+      "word": "reconnu",
+      "upos": "VERB",
+      "start": 7,
       "end": 14
     },
     {
@@ -716,6 +1062,16 @@
       "end": 25
     },
     {
+      "k": 34,
+      "id": "n01138026",
+      "lang": "fr",
+      "token": 3,
+      "word": "épisodes",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 21
+    },
+    {
       "k": 35,
       "id": "n01142008",
       "lang": "en",
@@ -734,6 +1090,16 @@
       "upos": "ADJ",
       "start": 72,
       "end": 81
+    },
+    {
+      "k": 35,
+      "id": "n01142008",
+      "lang": "fr",
+      "token": 10,
+      "word": "mondial",
+      "upos": "ADJ",
+      "start": 44,
+      "end": 51
     },
     {
       "k": 36,
@@ -756,6 +1122,16 @@
       "end": 20
     },
     {
+      "k": 36,
+      "id": "n01145028",
+      "lang": "fr",
+      "token": 5,
+      "word": "volontaires",
+      "upos": "NOUN",
+      "start": 12,
+      "end": 23
+    },
+    {
       "k": 37,
       "id": "n01149027",
       "lang": "en",
@@ -774,6 +1150,16 @@
       "upos": "VERB",
       "start": 35,
       "end": 45
+    },
+    {
+      "k": 37,
+      "id": "n01149027",
+      "lang": "fr",
+      "token": 9,
+      "word": "gens",
+      "upos": "NOUN",
+      "start": 30,
+      "end": 34
     },
     {
       "k": 38,
@@ -796,6 +1182,16 @@
       "end": 9
     },
     {
+      "k": 38,
+      "id": "w01003056",
+      "lang": "fr",
+      "token": 2,
+      "word": "îles",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 8
+    },
+    {
       "k": 39,
       "id": "w01007004",
       "lang": "en",
@@ -814,6 +1210,16 @@
       "upos": "ADJ",
       "start": 29,
       "end": 35
+    },
+    {
+      "k": 39,
+      "id": "w01007004",
+      "lang": "fr",
+      "token": 13,
+      "word": "limitée",
+      "upos": "ADJ",
+      "start": 80,
+      "end": 87
     },
     {
       "k": 40,
@@ -836,6 +1242,16 @@
       "end": 9
     },
     {
+      "k": 40,
+      "id": "w01010046",
+      "lang": "fr",
+      "token": 7,
+      "word": "état",
+      "upos": "NOUN",
+      "start": 22,
+      "end": 26
+    },
+    {
       "k": 41,
       "id": "w01016070",
       "lang": "en",
@@ -854,6 +1270,16 @@
       "upos": "NOUN",
       "start": 12,
       "end": 19
+    },
+    {
+      "k": 41,
+      "id": "w01016070",
+      "lang": "fr",
+      "token": 2,
+      "word": "préparatifs",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 15
     },
     {
       "k": 42,
@@ -876,6 +1302,16 @@
       "end": 15
     },
     {
+      "k": 42,
+      "id": "w01020018",
+      "lang": "fr",
+      "token": 5,
+      "word": "climat",
+      "upos": "NOUN",
+      "start": 28,
+      "end": 34
+    },
+    {
       "k": 43,
       "id": "w01025085",
       "lang": "en",
@@ -894,6 +1330,16 @@
       "upos": "ADJ",
       "start": 39,
       "end": 50
+    },
+    {
+      "k": 43,
+      "id": "w01025085",
+      "lang": "fr",
+      "token": 2,
+      "word": "importantes",
+      "upos": "ADJ",
+      "start": 2,
+      "end": 13
     },
     {
       "k": 44,
@@ -916,6 +1362,16 @@
       "end": 11
     },
     {
+      "k": 44,
+      "id": "w01028069",
+      "lang": "fr",
+      "token": 2,
+      "word": "réactions",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 13
+    },
+    {
       "k": 45,
       "id": "w01031015",
       "lang": "en",
@@ -934,6 +1390,16 @@
       "upos": "VERB",
       "start": 11,
       "end": 17
+    },
+    {
+      "k": 45,
+      "id": "w01031015",
+      "lang": "fr",
+      "token": 23,
+      "word": "atteint",
+      "upos": "VERB",
+      "start": 100,
+      "end": 107
     },
     {
       "k": 46,
@@ -956,6 +1422,16 @@
       "end": 9
     },
     {
+      "k": 46,
+      "id": "w01035081",
+      "lang": "fr",
+      "token": 2,
+      "word": "terrains",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 12
+    },
+    {
       "k": 47,
       "id": "w01038044",
       "lang": "en",
@@ -974,6 +1450,16 @@
       "upos": "ADJ",
       "start": 18,
       "end": 27
+    },
+    {
+      "k": 47,
+      "id": "w01038044",
+      "lang": "fr",
+      "token": 2,
+      "word": "nombreux",
+      "upos": "ADJ",
+      "start": 3,
+      "end": 11
     },
     {
       "k": 48,
@@ -996,6 +1482,16 @@
       "end": 13
     },
     {
+      "k": 48,
+      "id": "w01042055",
+      "lang": "fr",
+      "token": 2,
+      "word": "orages",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 10
+    },
+    {
       "k": 49,
       "id": "w01046056",
       "lang": "en",
@@ -1014,6 +1510,16 @@
       "upos": "NOUN",
       "start": 3,
       "end": 11
+    },
+    {
+      "k": 49,
+      "id": "w01046056",
+      "lang": "fr",
+      "token": 2,
+      "word": "gouvernement",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 15
     },
     {
       "k": 50,
@@ -1036,6 +1542,16 @@
       "end": 12
     },
     {
+      "k": 50,
+      "id": "w01050067",
+      "lang": "fr",
+      "token": 3,
+      "word": "chute",
+      "upos": "NOUN",
+      "start": 11,
+      "end": 16
+    },
+    {
       "k": 51,
       "id": "w01053015",
       "lang": "en",
@@ -1054,6 +1570,16 @@
       "upos": "ADJ",
       "start": 7,
       "end": 13
+    },
+    {
+      "k": 51,
+      "id": "w01053015",
+      "lang": "fr",
+      "token": 3,
+      "word": "exacte",
+      "upos": "ADJ",
+      "start": 8,
+      "end": 14
     },
     {
       "k": 52,
@@ -1076,6 +1602,16 @@
       "end": 16
     },
     {
+      "k": 52,
+      "id": "w01058009",
+      "lang": "fr",
+      "token": 11,
+      "word": "combat",
+      "upos": "NOUN",
+      "start": 50,
+      "end": 56
+    },
+    {
       "k": 53,
       "id": "w01063048",
       "lang": "en",
@@ -1093,6 +1629,16 @@
       "word": "representaban",
       "upos": "VERB",
       "start": 11,
+      "end": 24
+    },
+    {
+      "k": 53,
+      "id": "w01063048",
+      "lang": "fr",
+      "token": 3,
+      "word": "représentaient",
+      "upos": "VERB",
+      "start": 10,
       "end": 24
     },
     {
@@ -1116,6 +1662,16 @@
       "end": 6
     },
     {
+      "k": 54,
+      "id": "w01066040",
+      "lang": "fr",
+      "token": 8,
+      "word": "fêtes",
+      "upos": "NOUN",
+      "start": 35,
+      "end": 40
+    },
+    {
       "k": 55,
       "id": "w01070031",
       "lang": "en",
@@ -1134,6 +1690,16 @@
       "upos": "ADJ",
       "start": 16,
       "end": 27
+    },
+    {
+      "k": 55,
+      "id": "w01070031",
+      "lang": "fr",
+      "token": 3,
+      "word": "astronomique",
+      "upos": "ADJ",
+      "start": 16,
+      "end": 28
     },
     {
       "k": 56,
@@ -1156,6 +1722,16 @@
       "end": 14
     },
     {
+      "k": 56,
+      "id": "w01072079",
+      "lang": "fr",
+      "token": 4,
+      "word": "siècle",
+      "upos": "NOUN",
+      "start": 13,
+      "end": 19
+    },
+    {
       "k": 57,
       "id": "w01075039",
       "lang": "en",
@@ -1174,6 +1750,16 @@
       "upos": "VERB",
       "start": 43,
       "end": 51
+    },
+    {
+      "k": 57,
+      "id": "w01075039",
+      "lang": "fr",
+      "token": 2,
+      "word": "dit",
+      "upos": "VERB",
+      "start": 10,
+      "end": 13
     },
     {
       "k": 58,
@@ -1196,6 +1782,16 @@
       "end": 30
     },
     {
+      "k": 58,
+      "id": "w01080129",
+      "lang": "fr",
+      "token": 7,
+      "word": "ennemis",
+      "upos": "NOUN",
+      "start": 35,
+      "end": 42
+    },
+    {
       "k": 59,
       "id": "w01085004",
       "lang": "en",
@@ -1214,6 +1810,16 @@
       "upos": "NOUN",
       "start": 3,
       "end": 11
+    },
+    {
+      "k": 59,
+      "id": "w01085004",
+      "lang": "fr",
+      "token": 2,
+      "word": "armée",
+      "upos": "NOUN",
+      "start": 2,
+      "end": 7
     },
     {
       "k": 60,
@@ -1236,6 +1842,16 @@
       "end": 12
     },
     {
+      "k": 60,
+      "id": "w01089040",
+      "lang": "fr",
+      "token": 3,
+      "word": "époque",
+      "upos": "NOUN",
+      "start": 8,
+      "end": 14
+    },
+    {
       "k": 61,
       "id": "w01095090",
       "lang": "en",
@@ -1254,6 +1870,16 @@
       "upos": "VERB",
       "start": 78,
       "end": 82
+    },
+    {
+      "k": 61,
+      "id": "w01095090",
+      "lang": "fr",
+      "token": 4,
+      "word": "considère",
+      "upos": "VERB",
+      "start": 21,
+      "end": 30
     },
     {
       "k": 62,
@@ -1276,6 +1902,16 @@
       "end": 17
     },
     {
+      "k": 62,
+      "id": "w01099012",
+      "lang": "fr",
+      "token": 2,
+      "word": "spéculations",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 16
+    },
+    {
       "k": 63,
       "id": "w01102020",
       "lang": "en",
@@ -1294,6 +1930,16 @@
       "upos": "NOUN",
       "start": 41,
       "end": 48
+    },
+    {
+      "k": 63,
+      "id": "w01102020",
+      "lang": "fr",
+      "token": 5,
+      "word": "honoraire",
+      "upos": "ADJ",
+      "start": 25,
+      "end": 34
     },
     {
       "k": 64,
@@ -1316,6 +1962,16 @@
       "end": 15
     },
     {
+      "k": 64,
+      "id": "w01106073",
+      "lang": "fr",
+      "token": 3,
+      "word": "altitude",
+      "upos": "NOUN",
+      "start": 9,
+      "end": 17
+    },
+    {
       "k": 65,
       "id": "w01111089",
       "lang": "en",
@@ -1334,6 +1990,16 @@
       "upos": "VERB",
       "start": 9,
       "end": 16
+    },
+    {
+      "k": 65,
+      "id": "w01111089",
+      "lang": "fr",
+      "token": 3,
+      "word": "rencontre",
+      "upos": "VERB",
+      "start": 13,
+      "end": 22
     },
     {
       "k": 66,
@@ -1356,6 +2022,16 @@
       "end": 37
     },
     {
+      "k": 66,
+      "id": "w01115023",
+      "lang": "fr",
+      "token": 7,
+      "word": "université",
+      "upos": "NOUN",
+      "start": 25,
+      "end": 35
+    },
+    {
       "k": 67,
       "id": "w01119059",
       "lang": "en",
@@ -1374,6 +2050,16 @@
       "upos": "ADJ",
       "start": 28,
       "end": 33
+    },
+    {
+      "k": 67,
+      "id": "w01119059",
+      "lang": "fr",
+      "token": 9,
+      "word": "similaire",
+      "upos": "ADJ",
+      "start": 44,
+      "end": 53
     },
     {
       "k": 68,
@@ -1396,6 +2082,16 @@
       "end": 45
     },
     {
+      "k": 68,
+      "id": "w01125036",
+      "lang": "fr",
+      "token": 9,
+      "word": "heures",
+      "upos": "NOUN",
+      "start": 52,
+      "end": 58
+    },
+    {
       "k": 69,
       "id": "w01130099",
       "lang": "en",
@@ -1414,6 +2110,16 @@
       "upos": "VERB",
       "start": 9,
       "end": 14
+    },
+    {
+      "k": 69,
+      "id": "w01130099",
+      "lang": "fr",
+      "token": 3,
+      "word": "sort",
+      "upos": "VERB",
+      "start": 15,
+      "end": 19
     },
     {
       "k": 70,
@@ -1436,6 +2142,16 @@
       "end": 23
     },
     {
+      "k": 70,
+      "id": "w01133014",
+      "lang": "fr",
+      "token": 6,
+      "word": "fil",
+      "upos": "NOUN",
+      "start": 27,
+      "end": 30
+    },
+    {
       "k": 71,
       "id": "w01136029",
       "lang": "en",
@@ -1454,6 +2170,16 @@
       "upos": "ADJ",
       "start": 64,
       "end": 77
+    },
+    {
+      "k": 71,
+      "id": "w01136029",
+      "lang": "fr",
+      "token": 12,
+      "word": "stéréotypé",
+      "upos": "ADJ",
+      "start": 69,
+      "end": 79
     },
     {
       "k": 72,
@@ -1476,6 +2202,16 @@
       "end": 25
     },
     {
+      "k": 72,
+      "id": "w01140032",
+      "lang": "fr",
+      "token": 6,
+      "word": "méthode",
+      "upos": "NOUN",
+      "start": 31,
+      "end": 38
+    },
+    {
       "k": 73,
       "id": "w01143037",
       "lang": "en",
@@ -1494,6 +2230,16 @@
       "upos": "VERB",
       "start": 30,
       "end": 38
+    },
+    {
+      "k": 73,
+      "id": "w01143037",
+      "lang": "fr",
+      "token": 3,
+      "word": "joué",
+      "upos": "VERB",
+      "start": 5,
+      "end": 9
     },
     {
       "k": 74,
@@ -1516,6 +2262,16 @@
       "end": 12
     },
     {
+      "k": 74,
+      "id": "w01147122",
+      "lang": "fr",
+      "token": 2,
+      "word": "août",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 7
+    },
+    {
       "k": 75,
       "id": "n02002007",
       "lang": "en",
@@ -1534,6 +2290,16 @@
       "upos": "ADJ",
       "start": 21,
       "end": 28
+    },
+    {
+      "k": 75,
+      "id": "n02002007",
+      "lang": "fr",
+      "token": 2,
+      "word": "officiers",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 13
     },
     {
       "k": 76,
@@ -1556,6 +2322,16 @@
       "end": 32
     },
     {
+      "k": 76,
+      "id": "n02027007",
+      "lang": "fr",
+      "token": 6,
+      "word": "nombre",
+      "upos": "NOUN",
+      "start": 23,
+      "end": 29
+    },
+    {
       "k": 77,
       "id": "n02038007",
       "lang": "en",
@@ -1574,6 +2350,16 @@
       "upos": "VERB",
       "start": 17,
       "end": 23
+    },
+    {
+      "k": 77,
+      "id": "n02038007",
+      "lang": "fr",
+      "token": 6,
+      "word": "traverse",
+      "upos": "VERB",
+      "start": 24,
+      "end": 32
     },
     {
       "k": 78,
@@ -1596,6 +2382,16 @@
       "end": 27
     },
     {
+      "k": 78,
+      "id": "n02048002",
+      "lang": "fr",
+      "token": 6,
+      "word": "disputez",
+      "upos": "VERB",
+      "start": 21,
+      "end": 29
+    },
+    {
       "k": 79,
       "id": "n02073024",
       "lang": "en",
@@ -1614,6 +2410,16 @@
       "upos": "ADJ",
       "start": 79,
       "end": 87
+    },
+    {
+      "k": 79,
+      "id": "n02073024",
+      "lang": "fr",
+      "token": 3,
+      "word": "instant",
+      "upos": "NOUN",
+      "start": 7,
+      "end": 14
     },
     {
       "k": 80,
@@ -1636,6 +2442,16 @@
       "end": 12
     },
     {
+      "k": 80,
+      "id": "n03001007",
+      "lang": "fr",
+      "token": 7,
+      "word": "octobre",
+      "upos": "NOUN",
+      "start": 28,
+      "end": 35
+    },
+    {
       "k": 81,
       "id": "n03005025",
       "lang": "en",
@@ -1654,6 +2470,16 @@
       "upos": "VERB",
       "start": 48,
       "end": 53
+    },
+    {
+      "k": 81,
+      "id": "n03005025",
+      "lang": "fr",
+      "token": 11,
+      "word": "taxait",
+      "upos": "VERB",
+      "start": 51,
+      "end": 57
     },
     {
       "k": 82,
@@ -1676,6 +2502,16 @@
       "end": 24
     },
     {
+      "k": 82,
+      "id": "n03008011",
+      "lang": "fr",
+      "token": 6,
+      "word": "terre",
+      "upos": "NOUN",
+      "start": 23,
+      "end": 28
+    },
+    {
       "k": 83,
       "id": "n04003043",
       "lang": "en",
@@ -1694,6 +2530,16 @@
       "upos": "ADJ",
       "start": 9,
       "end": 16
+    },
+    {
+      "k": 83,
+      "id": "n04003043",
+      "lang": "fr",
+      "token": 6,
+      "word": "chanson",
+      "upos": "NOUN",
+      "start": 20,
+      "end": 27
     },
     {
       "k": 84,
@@ -1716,6 +2562,16 @@
       "end": 40
     },
     {
+      "k": 84,
+      "id": "n04007018",
+      "lang": "fr",
+      "token": 10,
+      "word": "note",
+      "upos": "NOUN",
+      "start": 34,
+      "end": 38
+    },
+    {
       "k": 85,
       "id": "n05001005",
       "lang": "en",
@@ -1734,6 +2590,16 @@
       "upos": "VERB",
       "start": 61,
       "end": 71
+    },
+    {
+      "k": 85,
+      "id": "n05001005",
+      "lang": "fr",
+      "token": 12,
+      "word": "représente",
+      "upos": "VERB",
+      "start": 62,
+      "end": 72
     },
     {
       "k": 86,
@@ -1756,6 +2622,16 @@
       "end": 25
     },
     {
+      "k": 86,
+      "id": "n05003022",
+      "lang": "fr",
+      "token": 2,
+      "word": "baron",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 8
+    },
+    {
       "k": 87,
       "id": "n05008012",
       "lang": "en",
@@ -1774,6 +2650,16 @@
       "upos": "ADJ",
       "start": 27,
       "end": 37
+    },
+    {
+      "k": 87,
+      "id": "n05008012",
+      "lang": "fr",
+      "token": 9,
+      "word": "inquiet",
+      "upos": "ADJ",
+      "start": 37,
+      "end": 44
     },
     {
       "k": 88,
@@ -1796,6 +2682,16 @@
       "end": 30
     },
     {
+      "k": 88,
+      "id": "w02003037",
+      "lang": "fr",
+      "token": 10,
+      "word": "fabricant",
+      "upos": "NOUN",
+      "start": 39,
+      "end": 48
+    },
+    {
       "k": 89,
       "id": "w02006081",
       "lang": "en",
@@ -1816,6 +2712,16 @@
       "end": 71
     },
     {
+      "k": 89,
+      "id": "w02006081",
+      "lang": "fr",
+      "token": 13,
+      "word": "remporter",
+      "upos": "VERB",
+      "start": 68,
+      "end": 77
+    },
+    {
       "k": 90,
       "id": "w02009002",
       "lang": "en",
@@ -1831,6 +2737,16 @@
       "lang": "es",
       "token": 2,
       "word": "gravedad",
+      "upos": "NOUN",
+      "start": 3,
+      "end": 11
+    },
+    {
+      "k": 90,
+      "id": "w02009002",
+      "lang": "fr",
+      "token": 2,
+      "word": "présence",
       "upos": "NOUN",
       "start": 3,
       "end": 11
@@ -1856,6 +2772,16 @@
       "end": 18
     },
     {
+      "k": 91,
+      "id": "w02014013",
+      "lang": "fr",
+      "token": 5,
+      "word": "derniers",
+      "upos": "ADJ",
+      "start": 12,
+      "end": 20
+    },
+    {
       "k": 92,
       "id": "w02017061",
       "lang": "en",
@@ -1871,6 +2797,16 @@
       "lang": "es",
       "token": 2,
       "word": "restos",
+      "upos": "NOUN",
+      "start": 4,
+      "end": 10
+    },
+    {
+      "k": 92,
+      "id": "w02017061",
+      "lang": "fr",
+      "token": 2,
+      "word": "traces",
       "upos": "NOUN",
       "start": 4,
       "end": 10
@@ -1896,6 +2832,16 @@
       "end": 90
     },
     {
+      "k": 93,
+      "id": "w03003039",
+      "lang": "fr",
+      "token": 13,
+      "word": "commandé",
+      "upos": "VERB",
+      "start": 72,
+      "end": 80
+    },
+    {
       "k": 94,
       "id": "w03007039",
       "lang": "en",
@@ -1914,6 +2860,16 @@
       "upos": "NOUN",
       "start": 3,
       "end": 11
+    },
+    {
+      "k": 94,
+      "id": "w03007039",
+      "lang": "fr",
+      "token": 4,
+      "word": "commerce",
+      "upos": "NOUN",
+      "start": 21,
+      "end": 29
     },
     {
       "k": 95,
@@ -1936,6 +2892,16 @@
       "end": 16
     },
     {
+      "k": 95,
+      "id": "w04001027",
+      "lang": "fr",
+      "token": 4,
+      "word": "inférieure",
+      "upos": "ADJ",
+      "start": 15,
+      "end": 25
+    },
+    {
       "k": 96,
       "id": "w04004051",
       "lang": "en",
@@ -1954,6 +2920,16 @@
       "upos": "NOUN",
       "start": 28,
       "end": 34
+    },
+    {
+      "k": 96,
+      "id": "w04004051",
+      "lang": "fr",
+      "token": 3,
+      "word": "région",
+      "upos": "NOUN",
+      "start": 12,
+      "end": 18
     },
     {
       "k": 97,
@@ -1976,6 +2952,16 @@
       "end": 85
     },
     {
+      "k": 97,
+      "id": "w04010027",
+      "lang": "fr",
+      "token": 15,
+      "word": "rencontrés",
+      "upos": "VERB",
+      "start": 78,
+      "end": 88
+    },
+    {
       "k": 98,
       "id": "w05003012",
       "lang": "en",
@@ -1996,6 +2982,16 @@
       "end": 15
     },
     {
+      "k": 98,
+      "id": "w05003012",
+      "lang": "fr",
+      "token": 4,
+      "word": "rupture",
+      "upos": "NOUN",
+      "start": 14,
+      "end": 21
+    },
+    {
       "k": 99,
       "id": "w05006058",
       "lang": "en",
@@ -2014,6 +3010,16 @@
       "upos": "ADJ",
       "start": 12,
       "end": 19
+    },
+    {
+      "k": 99,
+      "id": "w05006058",
+      "lang": "fr",
+      "token": 2,
+      "word": "autre",
+      "upos": "ADJ",
+      "start": 2,
+      "end": 7
     }
   ]
 }

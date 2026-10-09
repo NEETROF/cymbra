@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -7,6 +8,7 @@ import {
   glossMark,
   measureSelections,
   nativeOfRoute,
+  readGlossTables,
   type Selection,
   type Translate,
 } from "../tool/marks/measure.mjs";
@@ -23,12 +25,15 @@ const tables = join(root, "../../scripts/lingua-data/tables");
 describe("the native language is the one the pair's route translates into (D1)", () => {
   const committed = JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8"));
 
-  it("is the route's last model's `to`, the pair's native language: fr for es-fr through the pivot, en for es-en, es for en-es", () => {
+  it("is the route's last model's `to`, the pair's native language: fr for es-fr through the pivot, en for es-en and fr-en, es for en-es and fr-es through the pivot", () => {
     expect(nativeOfRoute(committed, "es-fr")).toBe("fr");
     expect(committed.routes["es-fr"]).toHaveLength(2); // the pivot: es-en then en-fr
     expect(nativeOfRoute(committed, "es-en")).toBe("en");
     expect(nativeOfRoute(committed, "en-es")).toBe("es");
     expect(nativeOfRoute(committed, "en-fr")).toBe("fr");
+    expect(nativeOfRoute(committed, "fr-en")).toBe("en");
+    expect(nativeOfRoute(committed, "fr-es")).toBe("es");
+    expect(committed.routes["fr-es"]).toHaveLength(2); // the pivot: fr-en then en-es (add-lingua-french-translation D2)
     for (const pair of Object.keys(committed.routes)) expect(nativeOfRoute(committed, pair), pair).toBe(nativeOf(pair));
   });
 
@@ -38,7 +43,7 @@ describe("the native language is the one the pair's route translates into (D1)",
       /model-manifest\.json routes es-fr into "en", not the pair's native language "fr"/,
     );
     expect(() => nativeOfRoute(into("en-fr", ["en-fr/base-memory/9.9"]), "en-fr")).toThrow(/a model it does not hold/);
-    expect(() => nativeOfRoute(committed, "fr-en")).toThrow(/does not route fr-en/);
+    expect(() => nativeOfRoute(committed, "de-fr")).toThrow(/does not route de-fr/);
     expect(() => nativeOfRoute(into("en-fr", []), "en-fr")).toThrow(/does not route en-fr/);
   });
 });
@@ -136,6 +141,53 @@ describe("the gloss experiment (D3, D5 of release-lingua-spanish-translation)", 
       marks: [],
     });
     expect(glossMark("casa", "A garden.", glossTables, stopWords("en")).marks).toEqual([]);
+  });
+});
+
+describe("the experiment's tables are read only when the pair's gloss table holds a gloss (add-lingua-french-translation D6)", () => {
+  /** A tables folder holding `<studied>/forms.tsv` and, when given, `<pair>/gloss.tsv` with `gloss` as its text. */
+  function folder(gloss: string | null) {
+    const dir = mkdtempSync(join(tmpdir(), "marks-tables-"));
+    mkdirSync(join(dir, "fr"));
+    writeFileSync(join(dir, "fr", "forms.tsv"), "maisons\tmaison\n");
+    if (gloss !== null) {
+      mkdirSync(join(dir, "fr-en"));
+      writeFileSync(join(dir, "fr-en", "gloss.tsv"), gloss);
+    }
+    return dir;
+  }
+  const read = (gloss: string | null) => {
+    const dir = folder(gloss);
+    try {
+      return readGlossTables(dir, "fr-en", "fr");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it("leaves the experiment empty for a pair without a gloss table, as before", () => {
+    expect(read(null)).toBeNull();
+  });
+
+  it("leaves the experiment empty for an empty gloss table — fr-en's, committed empty until its glosses come — rather than a column of « no gloss »", () => {
+    expect(read("")).toBeNull();
+    expect(read("\n")).toBeNull();
+    expect(read("maison\t\nchat\t  \n")).toBeNull(); // keys without a gloss hold no gloss either
+  });
+
+  it("reads the studied language's forms and the pair's glosses once the table holds one, the first value of every key", () => {
+    const tables = read("maison\thouse; home\nmaison\tlater row\nchat\t\n");
+    expect(tables).not.toBeNull();
+    expect([...tables!.forms]).toEqual([["maisons", "maison"]]);
+    expect(tables!.gloss.get("maison")).toBe("house; home");
+    // What the experiment then finds with them.
+    expect(glossMark("maisons", "The houses by the sea.", tables!, stopWords("en")).marks).toHaveLength(1);
+  });
+
+  it("over the committed tables: es-en's experiment is read, fr-en's and fr-es's are not, with no gloss table yet", () => {
+    expect(readGlossTables(tables, "es-en", "es")?.gloss.size).toBeGreaterThan(0);
+    expect(readGlossTables(tables, "fr-en", "fr")).toBeNull();
+    expect(readGlossTables(tables, "fr-es", "fr")).toBeNull();
   });
 });
 

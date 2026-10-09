@@ -1,0 +1,101 @@
+k	id	word	upos	engine_marks	engine	engine_reason	gloss_marks	gloss	gloss_reason
+0	n01001011	partie	NOUN		withheld	no mark (« la plus grande partie de » → « most of »)			
+1	n01004009	enseigner	VERB	teaching	correct				
+2	n01010042	moment	NOUN	point	correct	« à un moment donné » → « at one point »			
+3	n01016014	propre	ADJ	own	correct				
+4	n01019005	experts	NOUN	experts	correct				
+5	n01022016	progressé	VERB	increased	correct				
+6	n01025045	travers	NOUN	Throughout	correct	« A travers » → « Throughout », an expression's rendering			
+7	n01029011	extrême	ADJ	far	correct	« l'extrême Est » → « the far east »: « far » renders « extrême »			
+8	n01033021	schéma	NOUN	pattern	correct				
+9	n01036020	souhaiterait	VERB	like	correct				
+10	n01041018	médecins	NOUN	Doctors	correct				
+11	n01045035	juge	NOUN	judge	correct				
+12	n01050014	taux	NOUN	level	correct	« taux d'hémoglobine » → « hemoglobin level »			
+13	n01054011	diffusées	VERB	released	correct				
+14	n01059008	discordance	NOUN	discrepance	correct				
+15	n01063011	principal	ADJ	their	wrong	marks « their » instead of « main »			
+16	n01066093	intérêt	NOUN	interest	correct				
+17	n01070017	suggèrait	VERB	suggested	correct				
+18	n01074020	jeu	NOUN	game	correct				
+19	n01078025	moderne	ADJ	modern	correct				
+20	n01084008	couple	NOUN	couple	correct				
+21	n01087005	crois	VERB	think	correct				
+22	n01091013	mieux	NOUN	best	correct	« au mieux » → « best », an expression's rendering			
+23	n01094014	marchés	NOUN	markets	correct				
+24	n01097098	étape	NOUN	step	correct				
+25	n01102006	voudrait	VERB	want	correct				
+26	n01107006	conséquence	NOUN	As | result	correct	« Par conséquence » → « As a result », split			
+27	n01110008	ordinaires	ADJ	ordinary	correct				
+28	n01114025	adultes	NOUN	adults	correct				
+29	n01118003	tomber	VERB	Drop	correct	« Laisse tomber » → « Drop », an expression's rendering			
+30	n01121032	fois	NOUN	time	correct				
+31	n01127089	comprends	VERB	understand	correct				
+32	n01130003	Nord	NOUN	North	correct				
+33	n01134015	reconnu	VERB	known	correct				
+34	n01138026	épisodes	NOUN	episodes	correct				
+35	n01142008	mondial	ADJ	world	correct				
+36	n01145028	volontaires	NOUN	volunteers	correct				
+37	n01149027	gens	NOUN	people	correct				
+38	w01003056	îles	NOUN	islands	correct				
+39	w01007004	limitée	ADJ	for limited	correct	doubtful: the mark carries « for », of « providing for »			
+40	w01010046	état	NOUN	state	correct				
+41	w01016070	préparatifs	NOUN	preparations	correct				
+42	w01020018	climat	NOUN	climate	correct				
+43	w01025085	importantes	ADJ	Important	correct				
+44	w01028069	réactions	NOUN	reactions	correct				
+45	w01031015	atteint	VERB	reaches	correct				
+46	w01035081	terrains	NOUN	land	correct				
+47	w01038044	nombreux	ADJ	Many	correct	« De nombreux » → « Many »			
+48	w01042055	orages	NOUN		withheld	no mark			
+49	w01046056	gouvernement	NOUN	government	correct				
+50	w01050067	chute	NOUN	fall	correct				
+51	w01053015	exacte	ADJ	exact	correct				
+52	w01058009	combat	NOUN	action	correct	« tué au combat » → « killed in action »			
+53	w01063048	représentaient	VERB	represented	correct				
+54	w01066040	fêtes	NOUN	holidays	correct				
+55	w01070031	astronomique	ADJ	astronomical	correct				
+56	w01072079	siècle	NOUN	century	correct				
+57	w01075039	dit	VERB		withheld	no mark (« Autrement dit » → « In other words »)			
+58	w01080129	ennemis	NOUN	enemies	correct				
+59	w01085004	armée	NOUN	army	correct				
+60	w01089040	époque	NOUN	time	correct	« À cette époque » → « At that time »			
+61	w01095090	considère	VERB	considers	correct				
+62	w01099012	spéculations	NOUN	Speculation	correct				
+63	w01102020	honoraire	ADJ	honorary	correct				
+64	w01106073	altitude	NOUN	altitude	correct				
+65	w01111089	rencontre	VERB	meets	correct				
+66	w01115023	université	NOUN	University	correct				
+67	w01119059	similaire	ADJ	similar	correct				
+68	w01125036	heures	NOUN	hours	correct				
+69	w01130099	sort	VERB	released	correct	« sort deux albums » → « released two albums »			
+70	w01133014	fil	NOUN	thread	correct				
+71	w01136029	stéréotypé	ADJ	stereotypical	correct				
+72	w01140032	méthode	NOUN	method	correct				
+73	w01143037	joué	VERB	played	correct				
+74	w01147122	août	NOUN	August	correct				
+75	n02002007	officiers	NOUN	officers	correct				
+76	n02027007	nombre	NOUN	number	correct				
+77	n02038007	traverse	VERB	crosses	correct				
+78	n02048002	disputez	VERB	arguing	correct				
+79	n02073024	instant	NOUN		withheld	no mark (« Pour l'instant » → « For now »)			
+80	n03001007	octobre	NOUN	October	correct				
+81	n03005025	taxait	VERB	called	correct	« taxait … de » → « called … »			
+82	n03008011	terre	NOUN	the ground	correct	« à terre » → « on the ground »: the mark carries the article			
+83	n04003043	chanson	NOUN	song	correct				
+84	n04007018	note	NOUN	note	correct				
+85	n05001005	représente	VERB	represents	correct				
+86	n05003022	baron	NOUN	Baron	correct				
+87	n05008012	inquiet	ADJ	worried	correct				
+88	w02003037	fabricant	NOUN	manufacturer	correct				
+89	w02006081	remporter	VERB	to win	correct	the mark carries « to »			
+90	w02009002	présence	NOUN	presence	correct				
+91	w02014013	derniers	ADJ	last	correct				
+92	w02017061	traces	NOUN	The blood trails	correct	doubtful: the mark spans « The blood trails », « sang »'s rendering inside the compound			
+93	w03003039	commandé	VERB	commanded	correct				
+94	w03007039	commerce	NOUN	trade	correct				
+95	w04001027	inférieure	ADJ	lower	correct				
+96	w04004051	région	NOUN	region	correct				
+97	w04010027	rencontrés	VERB	met	correct				
+98	w05003012	rupture	NOUN	break	correct				
+99	w05006058	autre	ADJ	other	correct	« D'autre part » → « On the other hand »			
