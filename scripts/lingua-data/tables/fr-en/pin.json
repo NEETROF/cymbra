@@ -1,8 +1,8 @@
 {
-  "snapshot": "2026.10.08",
+  "snapshot": "2026.10.09",
   "pack": {
-    "sha256": "ed9fb0fe3eb1123f58360396abc63497f1864b7fa82760dd78bd02d9e2610c53",
-    "size": 1239671
+    "sha256": "5cead5819e9d293d668e9a8e33fac77ff7e279b35cf93c174e447948adca9792",
+    "size": 1239663
   },
   "reducer": {
     "sha256": "946dffe098bdbd333c4ef8f6cdfcca1e085a5e4c6ae15b67ba8d9d38179d3912",
@@ -21,9 +21,9 @@
       "sha256": "9221e5084cc6a1b1540671cfbd2fc0456efc223b2fe8dd2146c2bad921be02d4"
     },
     "kaikki-en": {
-      "release": "lingua-pack-sources-fr-en-2026.10.08",
+      "release": "lingua-pack-sources-fr-en-2026.10.09",
       "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
-      "fetched": "2026-10-08",
+      "fetched": "2026-10-09",
       "last_modified": "Sat, 03 Oct 2026 08:24:38 GMT",
       "dump": {
         "sha256": "93b79aac5d7ce404f1b38441639609caa4e9194b7444c2d3c9f26ec7f24c7632",
