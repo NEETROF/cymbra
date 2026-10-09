@@ -24,7 +24,10 @@
 //!
 //! A French expression card is named by its headword (add-lingua-french-expression-keys D3):
 //! reviewed in another language than its gloss's, it is read in the table at the key its name
-//! reads as, on the fr-en fixture until French's tables are committed.
+//! reads as, on the fr-en fixture until French's tables are committed. A Spanish expression card
+//! is named by its headword too (add-lingua-spanish-expression-keys D3), and one made before was
+//! made under its key: review reads es-fr's table at the card's lemma, then at the key the lemma
+//! reads as (D7).
 //!
 //! Host only: the pack builder is native (C zstd).
 
@@ -230,8 +233,10 @@ fn spec_scenario_a_word_glossed_in_another_native_language() {
 #[test]
 fn spec_scenario_an_expression_glossed_in_another_native_language() {
     let (es_fr, es_en) = packs();
-    // The expression table is keyed by the words' lemmas — `tener en cuenta` is held as `tener
-    // en contar` — and that key is the lemma the surface creates the card with.
+    // The expression table is keyed by Spanish's reading — `tener en cuenta` is held as `tener
+    // en contar` —, the lemma the surface created the card with before Spanish expressions were
+    // named: a card made before (add-lingua-spanish-expression-keys D7). The surface now creates
+    // it with the name, `tener en cuenta` (the next scenario).
     let key = "tener en contar";
     let pack_gloss = Pack::load(&es_fr)
         .unwrap()
@@ -254,6 +259,66 @@ fn spec_scenario_an_expression_glossed_in_another_native_language() {
         text_and_label(&engine),
         ("to take into account".to_owned(), "en".to_owned())
     );
+}
+
+#[test]
+fn spec_scenario_a_named_spanish_expression_card_glossed_in_another_language() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    // `tener en cuenta` is the card's name, no key of the table; `tener en contar` is its key.
+    assert_eq!(pack.expression("tener en cuenta"), None);
+    assert_eq!(
+        pack.expression_name("tener en contar"),
+        Some("tener en cuenta")
+    );
+    let pack_gloss = pack
+        .expression("tener en contar")
+        .expect("es-fr holds the key")
+        .to_owned();
+
+    let mut engine = french_native_reviewing(
+        &es_fr,
+        &glossed_in_english(&es_en, "tener en cuenta", "to take into account"),
+    );
+    let shown = view(&engine);
+    assert_eq!(shown["headword"], "tener en cuenta");
+    assert_eq!(
+        shown["gloss"], pack_gloss,
+        "es-fr's gloss for `tener en contar`"
+    );
+    // The card keeps its English text and label, under review and once graded.
+    assert_eq!(
+        text_and_label(&engine),
+        ("to take into account".to_owned(), "en".to_owned())
+    );
+    engine.review_grade("good", T + DAY);
+    assert_eq!(
+        text_and_label(&engine),
+        ("to take into account".to_owned(), "en".to_owned())
+    );
+}
+
+#[test]
+fn a_spanish_card_is_read_at_its_lemma_then_at_its_name_s_key() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    let gloss_of = |key: &str| pack.expression(key).expect(key).to_owned();
+    // `al menos` is read at `a el menos`, `a la vez` is its own key; a card made before on a
+    // chain the determiners now split (`a el vez`, D2) is no key any more and shows its own text,
+    // as a gloss the pack has not.
+    assert_eq!(pack.expression("a el vez"), None);
+    for (lemma, text, shown) in [
+        ("al menos", "at least", gloss_of("a el menos")),
+        ("a la vez", "at the same time", gloss_of("a la vez")),
+        (
+            "a el vez",
+            "at the same time",
+            "at the same time".to_owned(),
+        ),
+    ] {
+        let engine = french_native_reviewing(&es_fr, &glossed_in_english(&es_en, lemma, text));
+        assert_eq!(view(&engine)["gloss"], shown, "{lemma}");
+    }
 }
 
 #[test]
