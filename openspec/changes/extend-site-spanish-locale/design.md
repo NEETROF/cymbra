@@ -13,10 +13,11 @@ See proposal.md (Why). What exists on `main` (bac5cc51):
 | `apps/site/src/lib/lingua-text.ts` | Change 30's text tables: Spanish names (« inglés », « español », « francés »), speakers (« francohablantes », « anglohablantes », « hispanohablantes »), the Spanish grammar (`of` « en inglés », `esOr`, `esAnd`), `fill`; `MUSIC_HREF.es = "/en/music"` for the closing of `/es/lingua/` |
 | `apps/site/src/lib/lingua-pairs.ts` | `linguaPairs()`, `linguaPageLangs()`, `linguaHref('es')` — `/es/lingua` once a pair glossed in Spanish is in `src/data/lingua-coverage.json`, `/en/lingua` until then (change 30, D3) |
 | `apps/site/src/lib/stores.ts` | `musicStores('es')`: « App Store (iOS, iPadOS, macOS) » and « Google Play » (language-neutral store URLs), « Windows / Linux — próximamente » dimmed |
-| `apps/music/store/copy/es.md` | Music's Spanish listing (tú): « Modo Espera », « Notas que caen al estilo Synthesia (cascada) », « pentagrama », « batería electrónica », « dominio público », « SoundFont »; its URL fields `/en/music/`, `/en/support/`, `/en/privacy/` (pinned for en/it/es) |
+| `apps/music/store/copy/es.md` | Music's Spanish listing (tú): « Modo Espera », « Notas que caen al estilo Synthesia (cascada) », « pentagrama », « batería electrónica », « dominio público », « tu propio SoundFont »; its URL fields `/en/music/`, `/en/support/`, `/en/privacy/` (pinned for en/it/es) |
+| `apps/music/lib/l10n/app_es.arb` | The app's Spanish: « Cursos », « ¡Lección completada! », « Modo Espera », its two views « Pentagrama » and « Cascada », « tus propias SoundFonts » |
 | `apps/site/src/lib/pinned-routes.ts` | No Spanish route but `/es/eliminar-cuenta/`, `/es/terminos/`, `/es/privacidad/` |
 | `apps/site/test/post-build/alternates.spec.ts` | The legal pages' twins; *a page without a Spanish twin offers French and English alone*, on `/` and `/en/music` |
-| Sitemap, `robots.txt` | None: no `@astrojs/sitemap`, nothing in `public/` |
+| Sitemap, `robots.txt` | None: no `@astrojs/sitemap`, and `public/` holds the icons alone |
 
 The account, code redemption and checkout pages (`/account`, `/redeem`, `/checkout`,
 `/checkout/done` and their English twins) are Vue islands (`AccountIsland`, `RedeemIsland`,
@@ -42,31 +43,37 @@ is complete in Spanish since change 29.
 ### D1 — Two static pages, Spanish section ids
 
 `src/pages/es/index.astro` and `src/pages/es/music.astro`, beside change 29's Spanish pages, with
-the French pages' structure and classes; they mount no island. Section ids in Spanish as change 30's
-Spanish Lingua page has them (`productos`, `funciones`); nothing links the French or English ids
-(searched: no `#produits`, `#products`, `#fonctionnalites` or `#features` anywhere in the site, the
-app or the extension). `/es/` is a static page: unlike `/es/lingua/` (change 30, D3), it describes
-Cymbra Music, which Spanish speakers can use today, so it is always built; only its Lingua card
-follows the pairs (D3). `src/pages/[locale]/lingua.astro` and the new `es/index.astro` do not
-collide (built together in the prototype).
+the French pages' structure and classes; they mount no island. Section ids in Spanish (`productos`,
+`funciones`), as change 30's Spanish Lingua page names its features `funciones`; nothing links the
+French or English ids (searched: no `#produits`, `#products`, `#fonctionnalites` or `#features`
+anywhere in the site, the app or the extension). `/es/` is a static page: unlike `/es/lingua/`
+(change 30, D3), it describes Cymbra Music, which Spanish speakers can use today, so it is always
+built; only its Lingua card follows the pairs (D3). `src/pages/[locale]/lingua.astro` and the new
+`es/index.astro` do not collide (built together in the prototype, with today's pairs and with the
+matrix, where `/es/lingua/` is built beside `/es/`).
 
-### D2 — The Spanish text: a translation of the French, the listing's terms
+### D2 — The Spanish text: a translation of the French, Music's own terms
 
 Each string translates the French page (M10: tú, neutral, no vosotros), not the English one where
 the two differ (the French says « notes qui tombent façon cascade », the English "Synthesia-style
-falling notes": the Spanish follows the French). Where Cymbra Music has a Spanish term — its store
-listing (`copy/es.md`) and its app (`app_es.arb`, « Cursos », « Lección », « Modo Espera ») — the
-page uses it, so the page and the listing never name one feature two ways. Genders are avoided where
-French defaults to the masculine (« connecté à votre instrument » → « con tu instrumento
-conectado »). Store buttons are text, not badge images: `musicStores('es')` already gives their
-Spanish labels, and the store URLs carry no language (each store shows its Spanish listing to a
-Spanish storefront), so nothing is added.
+falling notes": the Spanish follows the French). Where Cymbra Music has a Spanish term, the page
+uses it, so the page, the app and the listing never name one feature two ways: the app's
+(`app_es.arb`: « Cursos », « Lección », « Modo Espera », « Cascada », « tus propias SoundFonts »)
+where the listing words it otherwise (« al estilo Synthesia (cascada) », « tu propio SoundFont »),
+the listing's (`copy/es.md`) elsewhere (« pentagrama », « batería electrónica », « dominio
+público », « Puntuación en tiempo real »). Lingua is named as change 30's Spanish Lingua page names
+it, « extensión para el navegador ». Genders are avoided where French defaults to the masculine for
+the reader (« connecté à votre instrument » → « con tu instrumento conectado »). Store buttons are
+text, not badge images: `musicStores('es')` already gives their Spanish labels, and the store URLs
+carry no language (each store shows its Spanish listing to a Spanish storefront), so nothing is
+added.
 
-Measured: **38 strings, 36 distinct** (the privacy card is on both pages), **436 words**
-(421 distinct) — 18 on the home page (one of them the Lingua card's audience sentence, which has no
+Measured: **38 strings, 36 distinct** (the privacy card is on both pages), **437 words** (422
+distinct) — 18 on the home page (one of them the Lingua card's audience sentence, which has no
 French source, D3), 20 on the Music page. Neutral strings are not counted: « Cymbra Music · iOS,
-iPadOS, macOS, Android », « 🎹 Music », « 📖 Lingua », the store labels. Drafts for the owner's review
-(M9); italics mark the `gradient` span and the badge, braces what the pairs fill (D3):
+iPadOS, macOS, Android », the Music page's kicker « Cymbra Music », « 🎹 Music », « 📖 Lingua », the
+store labels. Drafts for the owner's review (M9); italics mark the `gradient` span and the badge,
+braces what the pairs fill (D3):
 
 | Page | Slot | French (source) | Spanish (draft) |
 |---|---|---|---|
@@ -76,7 +83,7 @@ iPadOS, macOS, Android », « 🎹 Music », « 📖 Lingua », the store labels
 | | tagline | Cymbra fait deux applications construites sur la même idée : on progresse dans ce qu'on fait déjà. Devant votre instrument, ou devant une page web. | Cymbra crea dos aplicaciones con una misma idea: progresas en lo que ya haces. Frente a tu instrumento, o frente a una página web. |
 | | Music card | Branchez votre clavier MIDI et jouez : l'application suit la partition en temps réel, vous dit ce qui est juste et vous fait avancer leçon par leçon. | Conecta tu teclado MIDI y toca: la aplicación sigue la partitura en tiempo real, te dice qué está bien y te hace avanzar lección a lección. |
 | | Music button | Découvrir Music | Descubrir Music |
-| | Lingua kicker | Cymbra Lingua · extension navigateur *bêta* | Cymbra Lingua · extensión del navegador *beta* |
+| | Lingua kicker | Cymbra Lingua · extension navigateur *bêta* | Cymbra Lingua · extensión para el navegador *beta* |
 | | Lingua card (D3) | Lisez le web en anglais, les mots que vous ne connaissez pas encore sont surlignés sur place. Un pourcentage honnête par page, un clic pour la traduction, et votre vocabulaire qui se construit tout seul. | Lee la web {en inglés} con las palabras que aún no conoces resaltadas en la propia página. Un porcentaje honesto por página, un clic para la traducción y tu vocabulario, que se construye solo. |
 | | Lingua audience (D3) | — | Pensada para {francohablantes}, con la interfaz y las traducciones en su idioma. |
 | | Lingua button | Découvrir Lingua | Descubrir Lingua |
@@ -130,17 +137,16 @@ Measured on the prototype (scratchpad, not committed), with the pair lists of th
 | + en-es (change 35) | Lee la web en inglés con las palabras… solo. (34) | `/es/lingua` |
 | + fr-en, fr-es (stage 3) | Lee la web en inglés o en francés con las palabras… solo. (37) | `/es/lingua` |
 
-The kicker keeps the badge (« beta »), as the French home and change 30's Spanish Lingua page carry
-it (open question 2). The French and English homes' cards stay literal: their bytes do not move, and
-their naming English alone is theirs to change.
+The kicker keeps the badge (« beta »), as the French and English homes and change 30's three Lingua
+tables carry it (open question 2). The French and English homes' cards stay literal: their bytes do
+not move, and their naming English alone is theirs to change.
 
 ### D4 — Account, code redemption and checkout stay French and English
 
 M11 names the home page and Cymbra Music's page; these are not landing pages:
 
-- They are about plans, betas, subscriptions, access codes and payment — wording this programme
-  keeps out of the Spanish pages it adds (and Cymbra Music's store builds never link `/redeem`,
-  Apple 3.1.1).
+- They are account flows: plans, betas, subscriptions, access codes, payment (Cymbra Music's store
+  builds never link `/redeem`, Apple 3.1.1).
 - Their consumers open fixed, unprefixed, pinned paths: Music's « manage » action `/account`,
   Paddle `/checkout` and its return `/checkout/done`, the access-code links `/redeem`. A Spanish twin
   would be reached from the Spanish navigation alone; sending Spanish users to it from the app or
@@ -157,9 +163,14 @@ recorded here: the islands' dictionary is complete in Spanish, the shells are �
 (`/account`, `/redeem`).
 
 For the same reason the Music page's closing paragraph (« Retrouvez votre formule, vos bêtas et la
-gestion de votre abonnement… Un code d'accès… ») is not carried into Spanish: it speaks of plans,
-betas and codes, and both its links would open English pages. The Spanish page ends with the
-community band (when an invite is set); the account stays in the navigation.
+gestion de votre abonnement… Un code d'accès… ») is not carried into Spanish: it exists to send the
+reader to the account and code pages, and both its links would open English pages. The Spanish page
+ends with the community band (when an invite is set); the account stays in the navigation.
+
+Account deletion is not among these pages: `/es/eliminar-cuenta/` is Spanish since change 29, and
+the extension's link (`deleteAccountUrl`, `account/flow.ts` today, `account/locale.ts` once change
+17 moves it and keys it on the interface language) opens it for a Spanish interface. This change
+moves only its brand and « Music » links (D5).
 
 ### D5 — The links that move, and those that do not
 
@@ -183,9 +194,10 @@ Spanish twin already offers it); the store URLs; `apps/music/store/copy/es.md`'s
 English only); Lingua's listings.
 
 Nothing is pinned: no shipped client and no listing field requests `/es/` or `/es/music/`
-(`pinned-routes.ts`'s rule: a route joins with its first consumer). `yarn check:routes` still
-checks every pinned route and the three not-found pages; its `alternates` and `locale` specs gain
-the two pages (tasks 2.1, 2.2).
+(`pinned-routes.ts`'s rule: a route joins with its first consumer). `/` and `/en/` are pinned as
+locale roots — entry points, and the listings' website field before the product pages; `/es/` was
+never a listing's field. `yarn check:routes` still checks every pinned route and the three not-found
+pages; its `alternates` and `locale` specs gain the two pages (tasks 2.1, 2.2).
 
 ### D6 — Nothing else moves for French and English visitors: measured
 
@@ -210,14 +222,15 @@ and two checkouts at different paths differ on every island page for that reason
 `site-deploy` is manual (M18). A deploy publishes everything merged: with this change, change 31's
 privacy annex, which says the native language reaches Cymbra with each card and day, so the deploy
 comes after change 10's server is deployed and checked from outside (its task 5.2), as change 31's
-3.2 requires — and change 29's 4.3 (`/eliminar-cuenta` on the Services ID) is unaffected: these
-pages mount no sign-in. The Spanish home and Music page are then live before change 35, as M11 asks;
+3.2 requires. These pages mount no sign-in, so change 29's 4.3 is unchanged: if this deploy is the
+first to publish `/es/eliminar-cuenta/`, `https://cymbra.app/eliminar-cuenta` is registered on the
+Services ID with it. The Spanish home and Music page are then live before change 35, as M11 asks;
 their Lingua card says nothing in Spanish's favour until en-es's figures are in the build (D3).
 
 ## Risks / Trade-offs
 
 - **A Spanish page that claims something the French does not** → a translation string by string
-  (D2's table), the Music terms from the reviewed Spanish listing, the owner's review (M9).
+  (D2's table), Music's terms from its app and its Spanish listing, the owner's review (M9).
 - **Lingua promised to Spanish speakers before it serves them** → D3, its four states tested.
 - **A Spanish visitor sent to English pages for the account** → as since change 29; D4 records why
   and what a Spanish twin would cost.
@@ -236,10 +249,18 @@ moves; reverting the change removes two pages nothing outside the site links.
    Recommendation: point it at `/es/music/`, `/es/soporte/` and `/es/privacidad/` in a Music listing
    change of its own, after change 29's Spanish legal pages are reviewed (its 4.2) and this change's
    pages deployed — `copy/es.md` and `pinned-routes.ts` in the same pull request, the console paste
-   after the deploy (es-ES and es-MX on App Store Connect, Spanish on Play). Not here: this change
-   pins nothing.
-2. **The « beta » badge** on the Spanish home's Lingua kicker is carried from the French home and
-   matches change 30's Spanish Lingua page. Drop it from the Spanish pages, or keep it?
+   after the deploy (es-ES and es-MX on App Store Connect, Spanish on Play). That change also
+   modifies `store-distribution`'s *Store-listing URL fields*, which fixes `/en/music/` for `es` and
+   whose scenario asks for the product page « in the listing's locale »; the requirement is held by
+   the open `pin-music-site-url-contract`, so the listing change follows its archive. Not here: this
+   change pins nothing.
+2. **The « beta » badge** on the Spanish home's Lingua kicker is carried from the French and English
+   homes, which show it today, as do the Lingua pages' three tables (`lingua-text.ts`) —
+   `/es/lingua/`'s among them, the Marketing URL of Lingua's Spanish listing (change 37). The App
+   Store rule that keeps « beta » out of Lingua's listing texts (guidelines 2.2 and 2.3.7,
+   `apps/lingua-apple/STORE-LISTING.md`) governs the listings, not cymbra.app, and no listing field
+   points at `/es/`. Keep it on the Spanish home, or drop it — from the Spanish home alone, or from
+   every home and Lingua page (a change of its own)?
 3. **The Music page's closing paragraph** is left out of Spanish (D4). Keep it out, or add a neutral
    line linking the (English) account page?
 4. **« lectura » or « reproducción »** in the offline card (D2).

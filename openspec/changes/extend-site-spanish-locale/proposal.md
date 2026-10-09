@@ -5,22 +5,23 @@
 Change 29b of the [language matrix programme](../../../docs/lingua/language-matrix-programme.md),
 in stage 2, outside the 57, decision M11 (settled): beyond change 29's privacy policy, terms,
 support and account deletion pages, and change 30's `/es/lingua`, the site's **home page and
-Cymbra Music's page** in Spanish too (`/es/`, `/es/music/`), before en-es ships (change 35).
+Cymbra Music's page** in Spanish too (`/es/`, `/es/music/`; the site has one Music page, and its
+support page is Spanish since change 29), before en-es ships (change 35).
 
 Today a Spanish visitor reads four Spanish pages and is sent to English ones for everything else:
 the brand of every Spanish page opens `/en/`, the Spanish navigation's and footer's « Music » open
 `/en/music`, and the Spanish not-found page's « Inicio » and « Cymbra Music » buttons open the
-English pages (change 29, D2). Cymbra Music has been in Spanish since its first release (the app
-speaks Spanish, its store listing has a Spanish text, `apps/music/store/copy/es.md`); its site page
-has not.
+English pages (change 29, D2). Cymbra Music has been in Spanish since its first store release (the
+app speaks Spanish, its store listing has a Spanish text, `apps/music/store/copy/es.md`); its site
+page has not.
 
 ## What Changes
 
 - **Two Spanish pages**, translations of the French ones (tú, neutral, no vosotros, M10), drafted
   for the owner's review (M9): `/es/` (the hub: both products, what they share) and `/es/music/`
-  (hero, store buttons, the eight feature cards), 38 strings measured (36 distinct, 436 words), the
-  Music terms taken from the Spanish store listing so that the page and the listing never claim different
-  things.
+  (hero, store buttons, the eight feature cards), 38 strings measured (36 distinct, 437 words), the
+  Music terms taken from the app and its Spanish store listing so that the page, the app and the
+  listing never name one feature two ways.
 - **The home's Lingua card follows the shipped pairs**, as change 30's Lingua page does: once a pair
   glossed in Spanish ships it reads « Lee la web en inglés… » and opens `/es/lingua/`; until then it
   names the languages Lingua reads and the readers it is made for (« Pensada para francohablantes… »),
@@ -69,8 +70,9 @@ None.
   also publishes change 31's privacy annex, which says the native language reaches Cymbra with each
   card and day: the owner deploys only after change 10's server (`add-lingua-native-language-server`)
   is deployed and checked from outside (its task 5.2), as change 31's task 3.2 requires.
-- **Order.** Before change 35 (`enable-lingua-spanish-speakers`), whose prerequisites name the
-  Spanish site pages live; independent of every other change of stage 2.
+- **Order.** Before change 35 (`enable-lingua-spanish-speakers`), whose prerequisites list this
+  change's pages live and its Spanish reviewed beside change 29's; independent of every other change
+  of stage 2.
 - **Not here.** Spanish account, code and checkout pages; Music's Spanish store listing pointing at
   `/es/music/`, `/es/soporte/` and `/es/privacidad/` (a listing change, open question 1); an
   `x-default`, canonical addresses or a sitemap (none exists; change 29's follow-up); the French

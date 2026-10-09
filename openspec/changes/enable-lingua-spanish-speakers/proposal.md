@@ -65,12 +65,12 @@ None.
     `CFBundleLocalizations` `[fr, en, es]`).
   - The en-es model host deployed (change 25's task 4.1) and its soak read by the owner (change 25
     recorded which selections trap; risk 3, change 9).
-  - The Spanish site pages live (change 29, M11), `https://cymbra.app/eliminar-cuenta` registered
-    on the Services ID (change 29's task 4.3), and Cymbra ID's e-mails linking them deployed
-    (change 32).
+  - The Spanish site pages live (change 29, and change 29b's home and Music page,
+    `extend-site-spanish-locale`, M11), `https://cymbra.app/eliminar-cuenta` registered on the
+    Services ID (change 29's task 4.3), and Cymbra ID's e-mails linking them deployed (change 32).
   - The privacy annex in fr, en and es deployed (change 31; the App Store answers' categories
     unchanged, their notes updated) before the release (M14).
-  - The Spanish copy reviewed (M9): the drafts of changes 13–20, 24, 27, 28, 29, 30 and 31, and
+  - The Spanish copy reviewed (M9): the drafts of changes 13–20, 24, 27, 28, 29, 29b, 30 and 31, and
     change 33's corrections.
   - The Spanish listings (change 37) in the same submission: as M13 binds the English listing to
     the first `_locales`, the Spanish listing goes with the first `_locales/es`.
