@@ -17,7 +17,7 @@
 
 - [x] 3.1 `LINGUA_BLESS=1 cargo test -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline`: `en-fr.golden` and `en-es.golden` move on 10 lines each, `es-fr.golden` and `es-en.golden` on 3, `fr-en.golden` on 5 — exactly the probes of design *Measured* and of the scenario *What the invariance baselines show*; no other line. `cross_native.rs` and the studied-side comparisons of changes 23 and 24 pass unchanged (D6).
 - [x] 3.2 In `apps/lingua-extension`: `yarn vitest run test/word-card-en-es.spec.ts -u` (the flag after the file) re-blesses `test/baseline/word-card-en-es.txt` on its four probes (`more more`, `thought thought`, `lay lay`, `saw saw`: 21 lines out, 4 in); `word-card-es-en.spec.ts`, `row-gloss-tables.spec.ts` and the voice ranking pass without `-u`.
-- [ ] 3.3 In the pull request: every moved golden and snapshot line with its before and after, grouped by why it moved — a homograph probe asked as its own dictionary form, the gloss of a form, a token a plural fallback reads as a form — and the figures of design *Measured* measured again on the implementation (the probe over each released pack's lexicon, the tables' census).
+- [x] 3.3 In the pull request (#848): every moved golden and snapshot line with its before and after, grouped by why it moved — a homograph probe asked as its own dictionary form, the gloss of a form, a token a plural fallback reads as a form — and the figures of design *Measured* measured again on the implementation (the probe over each released pack's lexicon, the tables' census).
 
 ## 4. Owner
 
