@@ -3,3 +3,4 @@ created: 2026-10-09
 archiveAfter:
   - migrate-lingua-pack-sources-to-raw-dumps
   - add-lingua-french-baseline
+  - add-lingua-french-tokenisation

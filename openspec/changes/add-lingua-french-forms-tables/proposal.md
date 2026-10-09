@@ -29,15 +29,19 @@ verb's agreed participles (`dirigée`, `composées`) under the participle, not u
 writes the elided pieces (`l'`, `qu'`, `s'`) with no pointer or with several; wordfreq cannot rank a
 hyphenated word and splits elisions into bare letters. With the rules of this design, the tables
 pass on PUD with the real analyser (99.12 % resolved, 96.36 % content lemmas, 99.90 %
-auxiliaries) and hold on GSD's held-out test section (98.89 / 95.65 / 99.72).
+auxiliaries) and hold on GSD's held-out test section (98.91 / 95.65 / 99.72).
 
 Two decisions of the owner bind these tables (2026-10-09):
 - **M8, one form, one lemma**, homographs included: `porte` maps to one lemma by a stated rule. The
   rule is Spanish's, and its cost is measured (design D5): GSD counts `porte` 39 times as *porter*
   and 23 times as the noun, so the noun leaves the pack, as `cuenta` left Spanish's.
-- **M21, French tokenisation**: `au`/`aux` split, `du`/`des` whole, one span per elision piece. The
-  tables serve it: every elided piece is a form, `au` and `aux` are no word, `du` and `des` are
-  words of their own, and no form begins with an elided piece (design D4).
+- **M21, French tokenisation**: `au`/`aux` split, `du`/`des` whole, one span per elision piece.
+  Change 40's proposed pre-pass hands the lookup the word a piece stands for (`l'` → `le`, `s'` →
+  `si` or `se`, `t'` → `toi` or `te`), splits `au` into `à` + `le` and an inversion into its words,
+  and keeps whole a hyphenated run the pack lists. The tables serve it (design D4): every word that
+  pre-pass writes is a form (all 32, measured), the nouns ending in a pronoun (`rendez-vous`,
+  `qu'en-dira-t-on`) are listed whole so the inversion rule never splits them, `au` and `aux` are no
+  word, `du` and `des` are words of their own, and no plain word beginning with a piece is a form.
 
 ## What Changes
 
@@ -46,11 +50,13 @@ Two decisions of the owner bind these tables (2026-10-09):
   - **forms** from the French section's tagged inflections and form-of links, a doubtful or
     alternative inflection left out, and a form of a form reaching the word it is a form of along
     one part of speech (`dirigée` → `dirigé` → *diriger*);
-  - **the elided pieces** as a reviewed closed table (`l'` → *le*, `qu'` → *que*, `s'` → *se*, …,
-    fourteen pieces), and no word that begins with one (`d'abord`, `l'on`, `jusqu'à`: the
-    tokeniser splits them);
-  - **M21**: `au` and `aux` neither forms nor ranks; `du` and `des` lemmas of their own; a verb
-    form joined to its clitic pronouns by hyphens (`souviens-toi`) left out;
+  - **M21, as change 40 writes it**: every word its pre-pass writes a form; the fourteen elided
+    pieces forms too, by a reviewed closed table (`l'` → *le*, `qu'` → *que*, `s'` → *se*, …), for
+    the treebanks that write them as words; no plain word that begins with one (`c'est`,
+    `d'abord`, `l'on`: the pre-pass splits them), while a hyphenated run may be (`c'est-à-dire`);
+    the dictionary's nouns ending in a pronoun kept whole; `au` and `aux` neither forms nor ranks;
+    `du` and `des` lemmas of their own; a verb form joined to its clitic pronouns by hyphens
+    (`souviens-toi`) left out;
   - **a spelling variant** — an ASCII spelling of a ligature (`coeur`), a post-1990 spelling
     (`connait`) — read as the word it spells;
   - **one lemma per form**: a reviewed override list (empty), then UD French-GSD's counts, then the
@@ -59,7 +65,7 @@ Two decisions of the owner bind these tables (2026-10-09):
   - **the 60,000 commonest lemmas** by wordfreq `fr`, wordfreq's elision stems (`l`, `d`, `qu`, …)
     no words, a hyphenated word ranked when GSD attests it, at the lower of wordfreq's estimate and
     GSD's own frequency; their forms attested in wordfreq.
-- **Committed tables.** `tables/fr/`: `forms.tsv` (124,014 rows, 2.26 MB in the prototype),
+- **Committed tables.** `tables/fr/`: `forms.tsv` (124,013 rows, 2.26 MB in the prototype),
   `freq.tsv` (60,000 rows, 0.84 MB), `studied.json` naming fr-en, and the two files every studied
   folder holds, empty until the changes that fill them: `tags.tsv` (45) and `lexical.tsv` (48).
   `tables/fr-en/`: an empty `gloss.tsv` (the glosses are change 48), `NOTICE`, `manifest.json`
@@ -85,9 +91,9 @@ None.
 ### Modified Capabilities
 
 - `lingua-data-packs`: ADDED — *French's forms and frequencies* and *French forms are measured on
-  held-out treebanks*. No requirement is modified: the open changes on this capability hold
-  others, and this one reads change 38's catalogue and change 39's French as they define them
-  (`archiveAfter`).
+  held-out treebanks*. No requirement is modified, and none of `lingua-analysis`: this change reads
+  change 38's catalogue, change 39's French and change 40's pre-pass as they define them, and
+  archives after the three (`archiveAfter`).
 
 ## Impact
 
@@ -112,7 +118,7 @@ None.
 - **What does not move.** en-fr, es-fr, es-en and en-es — tables, pins, packs and goldens — byte for
   byte, and the French golden too: it runs over its fixture pack until change 48 (design D11).
 - **Size.** 3.1 MB of tables committed. The pack they build (forms and ranks, nothing else) is
-  1,240,093 B, against 1,308,123 B for Spanish's same two tables; each French pack carries it. The
+  1,240,362 B, against 1,308,123 B for Spanish's same two tables; each French pack carries it. The
   reviewers' source archive copies `scripts/lingua-data` whole and grows by the tables.
 - **Not here.** The readings and the tag pool (45), the levels (46), the glosses, expressions and
   dictionary words (48), fr-es (49), the French rules of the analyser — elision, contractions,
