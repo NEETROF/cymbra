@@ -448,10 +448,17 @@ class Reducing(unittest.TestCase):
         self.assertEqual(self.forms["tenue"], "tenir")
         self.assertEqual(self.forms["tenues"], "tenir")
         self.assertNotIn("tenue", self.ranks)
-        # `donnée` reads as donner, but `données` still reaches the noun: it keeps its rank.
+
+    def test_a_ranked_word_whose_own_form_reads_as_another_gives_its_rank(self):
+        # `donnée` reads as donner by GSD's counts. `données` still reaches the noun, but a pack
+        # finds a lemma by its own form: ranked, *donnée* would lend its rank to donner. It leaves
+        # the pack, as M8's nouns do, and `données` reads as donner.
         self.assertEqual(self.forms["donnée"], "donner")
-        self.assertEqual(self.forms["données"], "donnée")
-        self.assertIn("donnée", self.ranks)
+        self.assertNotIn("donnée", self.ranks)
+        self.assertEqual(self.forms["données"], "donner")
+        # Every ranked lemma's own form reads as itself.
+        for lemma in self.ranks:
+            self.assertEqual(self.forms[lemma], lemma, lemma)
 
     def test_a_word_no_form_reaches_gives_its_rank_to_the_next(self):
         # One word short of every rankable one: ranked by the first choice alone, `tenue` would
