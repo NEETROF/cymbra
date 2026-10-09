@@ -366,7 +366,7 @@ package carries the pack: `packs.json` does not list it until change 52. Its red
 English edition's dump regenerated on 2026-10-03 08:24 (decompressed sha256 `93b79aac…`,
 25,614,284,530 B; 2,981,058,381 B gzipped) — 403,269 entries, 510,058,226 B, sha256 `2d7bbe5f…`,
 26,410,463 B as its zstd level-19 asset `kaikki-French.jsonl.zst`, under fr-en's own release
-`lingua-pack-sources-fr-en-2026.10.08`; GSD's `fr_gsd-ud-train.conllu` and `fr_gsd-ud-dev.conllu` at
+`lingua-pack-sources-fr-en-2026.10.09`; GSD's `fr_gsd-ud-train.conllu` and `fr_gsd-ud-dev.conllu` at
 `94d5b68e185fc22a9ef292040e84f476d36d9b0e` (25,555,018 and 2,573,677 B), the default branch's head of
 2026-05-06; wordfreq 3.1.1. An update reads no dump but the English edition's, which es-fr and es-en
 read already: the monthly dry run derives the French section in the same pass, one more reduction and
@@ -375,7 +375,7 @@ no more download.
 **The cut**: 60,000 lemmas and their attested forms, as Spanish — 124,050 forms, `forms.tsv`
 2,255,819 B and `freq.tsv` 844,901 B. On the design's prototype tables, 40,000 lemmas passed the
 gates too, 0.16 points of resolution lower on PUD, and every form nobody writes would have added
-88,678 rows for 0.02 points. The pack built from the two tables alone is 1,239,671 B
+88,678 rows for 0.02 points. The pack built from the two tables alone is 1,239,663 B
 (`tables/fr-en/README.md`, with M8's cost — the 135 dictionary nouns among wordfreq's 5,000 commonest
 words that read as a verb — and the twelve determiners and pronouns ranked on their own).
 

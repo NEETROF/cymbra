@@ -36,7 +36,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 
 - **kaikki.org, the English Wiktionary's French section** (`kaikki-French.jsonl`, 403,269 entries,
   510,058,226 B), derived from the English edition's dump (`pack_sources.py EDITIONS`, `DUMPS["fr-en"]`):
-  the dump regenerated on 2026-10-03 08:24, read on 2026-10-08, decompressed sha256 `93b79aac…`.
+  the dump regenerated on 2026-10-03 08:24, read on 2026-10-09, decompressed sha256 `93b79aac…`.
   Its inflections are tagged, a lemma's table lists them and a form's own entry points at what it is
   a form of. A verb's table lists the masculine singular past participle (`dirigé`) and none of its
   agreed forms: those hang under the participle's own entry.
@@ -114,7 +114,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 
 ## What is in them
 
-On the 2026-10-08 tables: **60,000 lemmas** and **124,050 forms** (`forms.tsv` 2,255,819 B,
+On the 2026-10-09 tables: **60,000 lemmas** and **124,050 forms** (`forms.tsv` 2,255,819 B,
 `freq.tsv` 844,901 B). 3,597 forms keep more than one ranked candidate: GSD's counts decide 1,382,
 the form's own entry 1,314, frequency or the alphabet 901. 6,374 forms take their lemma through a
 form of a form. 474 hyphenated words are ranked — 471 by GSD's evidence and the 3 nouns ending in a
@@ -123,7 +123,7 @@ apostrophe (`aujourd'hui` 136, `quelqu'un` 204). Every ranked lemma's own form r
 (`crates/lingua-pack/tests/committed_tables.rs` checks every pair's pack holds each rank on its own
 lemma).
 
-The pack these two tables build — no gloss, reading or level yet — is 1,239,671 B; Spanish's same two
+The pack these two tables build — no gloss, reading or level yet — is 1,239,663 B; Spanish's same two
 tables build 1,308,123 B. The builder holds it under 5 MiB; the glosses, readings and levels are
 measured against that budget by the changes that add them.
 

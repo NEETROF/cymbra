@@ -352,7 +352,7 @@ the gated figure is the conservative one.
 **On the implemented tables** (D3's markers, D6's rank rule and stems), French at `0.2.0`: PUD
 99.12 % resolved, 96.30 % content lemmas, 99.90 % auxiliaries; GSD's test section 98.91 → 98.89 %,
 95.65 → 95.67 %, 99.72 % — the rank rule moves the content words, the markers GSD's resolution
-(its `m` no longer reads as Paris). 124,050 forms, a pack of 1,239,671 B with fr-en's real NOTICE
+(its `m` no longer reads as Paris). 124,050 forms, a pack of 1,239,663 B with fr-en's real NOTICE
 and manifest.
 
 `lingua-pack-measure` needs no French arm — it lemmatises through the pack's studied language —
