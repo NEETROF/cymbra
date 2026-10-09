@@ -6,12 +6,12 @@ See proposal.md (Why). Where fr-en stands, and what this design builds on:
 
 | What | Where, today |
 |---|---|
-| French's studied side | change 43 (`add-lingua-french-forms-tables`, proposed, implementation in progress): `reduce-fr-en.py` is French's reference reducer and writes `tables/fr/` (`forms.tsv`, `freq.tsv`, `studied.json` naming fr-en, an empty `tags.tsv` and an empty `lexical.tsv`) and `tables/fr-en/` with an empty `gloss.tsv`; its rule digest is `reduce-fr-en.py` and `reduce_common.py`; its pin names `kaikki-French.jsonl`, derived from the English edition's dump, GSD's two sections and wordfreq. Changes 45 and 46 add `grammar.tsv`, the tag pool and `level.tsv` to the same reducer |
+| French's studied side | change 43 (`add-lingua-french-forms-tables`, proposed, implementation in progress): `reduce-fr-en.py` is French's reference reducer and writes `tables/fr/` (`forms.tsv`, `freq.tsv`, `studied.json` naming fr-en, an empty `tags.tsv` and an empty `lexical.tsv`) and `tables/fr-en/` with an empty `gloss.tsv`; its rule digest is `reduce-fr-en.py` and `reduce_common.py`; its pin names `kaikki-French.jsonl`, derived from the English edition's dump, GSD's two sections and wordfreq. Its implementation ranks a lemma only when its own form reads as itself (`donnée`, read as *donner*, leaves the ranks: the builder finds a lemma's rank, gloss and level by its own form), and is still fixing lemmas such as `ma`, `mes`, `ils`, `cet`, ranked as their own. Changes 45 and 46 add `grammar.tsv`, the tag pool and `level.tsv` to the same reducer |
 | The English edition's rules | `reduce_edition_en.py`: `EN` (pointer wordings and fields, letters, `capitalised=False`, `LONG_PARENTHESIS` 0), `without_letter_headwords`, `merge_same_pos_etymologies` (off), `read_as_meanings` (23b: D2 nested senses, D3 shortened and case forms, D4 a function word spelled like a place, D5 one typography). Loaded by es-en alone today. M20's two settings are the owner's (change 21, tasks 2.2 and 5.1), committed at 0 and off |
 | The shared native side | `reduce_common.native_tables(entries, lemmas, studied, edition, fallbacks)`: the edition's entries gloss the lemmas (eight whole senses, grouped by part of speech) and the multi-word headwords; each fallback glosses what they leave out, words and expressions alike |
 | The catalogue | change 38's `EDITIONS`: `kaikki-French.jsonl` (« French's studied side and fr-en's glosses (changes 43, 45, 48) »), `kaikki-en-traductions-fr.jsonl` (« fr-en's inverted fallback (change 48) »), `kaikki-fr-traductions-en.jsonl` (« fr-en's direct fallback (change 48) ») |
 | Dictionary words | *A pack's dictionary words do not depend on its glosses*: « the lemmas its studied language's reference pack glosses — … for a language studied later the first pack built for it »; `split` writes them to `tables/<studied>/lexical.tsv` from the reference's `gloss.tsv`. They feed the vocabulary estimate (`Pack::dictionary_words`) and a names rule (`Pack::is_dictionary_word`, Spanish's `document_names`) |
-| The French baseline | change 39: `french_baseline.rs` over `pages-fr.txt` (13 pages), `support/french.rs` with `pack: PackSource::Testdata` (the fixture: 286 forms, 114 ranks, 70 glosses, 7 expressions, 53 levels, no grammar), es-en beside it; *Hand-over* (D5): « when change 48 commits `tables/fr/` and `tables/fr-en/`, the scenario's pack source switches to the committed tables and the golden is re-blessed once, in that pull request » |
+| The French baseline | change 39: `french_baseline.rs` over `pages-fr.txt` (13 pages), `support/french.rs` with `pack: PackSource::Testdata` (the fixture: 296 forms, 114 ranks, 70 glosses, 9 expressions, 53 levels, no grammar, at analyser `0.2.0` since change 40), es-en beside it; 141 probes; *Hand-over* (D5): « when change 48 commits `tables/fr/` and `tables/fr-en/`, the scenario's pack source switches to the committed tables and the golden is re-blessed once, in that pull request » |
 | Coverage | `gloss_coverage.py`: `FLOORS` es-en (es-fr's published figures), en-es (the study's figures less two points); the reduce job runs `--pair` for each; `lingua-coverage.json` lists the shipped pairs alone |
 
 ## Goals / Non-Goals
@@ -35,15 +35,20 @@ See proposal.md (Why). Where fr-en stands, and what this design builds on:
 ## Measured
 
 A prototype in the scratchpad (never committed): change 43's implementation tables in progress
-(branch `claude/add-lingua-french-forms-tables-impl`, reduced on 2026-10-09: 124,040 forms, 60,000
-lemmas), the French section change 38 derived on 2026-10-08 from the English dump regenerated on
-2026-10-03 (`kaikki-French.jsonl`, 403,269 entries), the French Wiktionary's English translations
-derived from the French dump regenerated on 2026-10-02 (`kaikki-fr-traductions-en.jsonl`, 108,947
-entries that are not names), the English Wiktionary's French translations (`kaikki-en-traductions-fr.jsonl`,
-128,303 French words listed), the rules of `origin/main` (`1cfa4d99`: `reduce_common.py`,
-`reduce_edition_en.py` with M20 at 0 and off), wordfreq 3.1.1. Packs built by `lingua-pack-build`
-from `origin/main`'s builder; the golden by `french_baseline.rs` with its pack source switched, in a
-scratch copy of `origin/main`.
+(branch `claude/add-lingua-french-forms-tables-impl`, reduced on 2026-10-09 before its fixes:
+124,040 forms, 60,000 lemmas, six of them lemmas whose own form reads as another, `donnée` among
+them), the French section change 38 derived on 2026-10-08 from the English dump regenerated on
+2026-10-03 (`kaikki-French.jsonl`, 403,269 entries, the bytes change 43's pin records), the French
+Wiktionary's English translations derived from the French dump regenerated on 2026-10-02
+(`kaikki-fr-traductions-en.jsonl`, 108,947 entries that are not names), the English Wiktionary's
+French translations (`kaikki-en-traductions-fr.jsonl`, 128,303 French translations listed, 74,233
+French words and expressions read backwards), the rules of `origin/main` (`reduce_common.py`,
+`reduce_edition_en.py` with M20 at 0 and off, the same at `1cfa4d99` and `35faf774`), wordfreq
+3.1.1. Packs built by `lingua-pack-build` from `origin/main`'s builder; the golden by
+`french_baseline.rs` with its pack source switched, in a scratch copy of `origin/main` at
+`35faf774` (change 40 landed: French's tokenisation at `0.2.0`). Re-run by the review: every table
+byte for byte; on change 43's tables after its first fix (`donnée` and five others out of the
+ranks), 30,056 glossed lemmas, 93.6 / 86.8 / 76.3 %.
 
 **The sources.** Coverage is `gloss_coverage.py`'s: the share of the 5,000 / 10,000 / 20,000
 commonest lemmas of `tables/fr/freq.tsv` with a gloss.
@@ -68,7 +73,7 @@ English words in French text (« in » « in », « and » « AND », « end » 
 « out », « king » « sounding stone, bianqing, king »), names (« kim », « sam », « jack »),
 initialisms (« sh » « CW », « cde » « end of operation »), unaccented misspellings (« tres » « too »,
 « secretaire » « amanuensis »). Kept to the 64 words the section lists but does not gloss, and that
-are not glossed by themselves (20 of the top 10,000), about half still read wrong: « stp » « pipeline-end
+are not glossed by themselves (16 of the top 10,000), about half still read wrong: « stp » « pipeline-end
 termination », « french » « French kiss », « v » « G », « ep » « cockpit voice recorder, CVR, EP ».
 
 **What the tables' expressions are met as.** Keyed by the forms table and counted in UD French's
@@ -102,23 +107,30 @@ straight quotes, 188 / 77 opening a sense on one of the edition's descriptions i
 **M20 on fr-en.** The long-parenthesis bound at 40 changes 2,342 rows (902 of the top 10,000), the
 etymology merging 304 (168); neither loses a gloss.
 
-**The golden.** `fr-en.golden` re-blessed over the prototype pack (French at `0.1.0`), against the
-fixture's:
+**The golden.** `fr-en.golden` re-blessed over the prototype pack, against the fixture's on `main`
+at `35faf774` (French at `0.2.0`, change 40's re-bless: 141 probes, 162,405 B):
 
-| | Probes moved, of 136 | Unchanged | Bytes |
+| | Probes moved, of 141 | Unchanged | Bytes |
 |---|---|---|---|
-| Changes 43 and 48 only (no readings, no levels) | 127 | 9 (`about`, `beside es-en`, four glosses, `calibration`, `declared-level`, `export-declared-levels`) | 150,213 → 302,510 |
-| **With changes 45's and 46's prototype tables** | **120** | **16** (those, and `has-levels`, both `seed-level`, `start-review`, `review-remaining`, `deck-count`, `due-count`) | **150,213 → 283,802** |
+| Changes 43 and 48 only (no readings, no levels) | 132 | 9 (`about`, `beside es-en`, four glosses, `calibration`, `declared-level`, `export-declared-levels`) | 162,405 → 364,717 |
+| **With changes 45's and 46's prototype tables** (46's `levels_estimated` set) | **125** | **16** (those, and `has-levels`, both `seed-level`, `start-review`, `review-remaining`, `deck-count`, `due-count`) | **162,405 → 332,811** |
 
-Without levels, `has-levels` turns false, the ladder empties, `seed-level` adds nothing and the
-deck holds 3 cards instead of 11: the fixture's 53 levels are what kept those probes answering. On
-the thirteen analysed pages, 917 tokens become 919 (`M` on `noms` and `e` on `mixte`, single letters
-the lexicon now lists); 85 tokens' lemmas move (`présenté` → *présenter*, `travaux` → *travail*,
-`porte` → *porter*, M8; `ma` and `mes` no longer *mon*, `ils` no longer *il*, change 43's lemmas) and
-15 tokens' classes; glossed tokens go from 313 to 804, proper nouns out of the lexicon from 43 to 5
-(the real lexicon holds the names); the vocabulary estimate's universe from 55 to 30,094 dictionary
-words. Of the JSON probes, 60 move in what is not a gloss (lemmas, classes, readings, counts) and 26
-in their glosses alone.
+(Before change 40, on `1cfa4d99`: 127 and 120 of 136.) Without levels, `has-levels` turns false, the
+ladder empties, `seed-level` adds nothing and the deck holds 3 cards instead of 11: the fixture's 53
+levels are what kept those probes answering. On the thirteen analysed pages, 1,002 tokens become
+1,004 (`M` on `noms` and `e` on `mixte`, single letters the lexicon now lists); 113 tokens' lemmas
+move (`présenté` → *présenter*, `travaux` → *travail*, `porte` → *porter*, M8; nine read as
+`ma`, `mes`, `ils`, `cet`, `amie`, change 43's lemmas, which its fixes in progress may take back) and 42
+tokens' classes, the proper nouns out of the lexicon going from 44 to 2 (the real lexicon holds the
+names); glossed tokens go from 387 to 975; the vocabulary estimate's universe from 55 to 30,094
+dictionary words (30,054 without levels: a levelled lemma counts, D10). Of the 82 JSON probes that
+move with 45's and 46's tables, 67 move in what is not a gloss (lemmas, classes, readings, counts)
+and 15 in their glosses alone.
+
+The prototype's pack also glossed *venir* « coming, arrival »: `venue`, ranked in change 43's tables
+before its fix while its own form reads as *venir*, had its row attached to *venir* by the builder,
+which keys a gloss by looking its lemma up as a form. On change 43's tables after that fix the same
+132 probes move and `gloss venir` reads « to come … ». D8's review and task 3.1 check for it.
 
 **The sample.** 100 rows drawn from the top 10,000 (seed 48) read right but for the page's own
 notes: « heure » « hour, time; o'clock », « planète » « planet », « casser » « to break; to break up
@@ -150,10 +162,14 @@ request draws it again from its own tables for the owner (task 6.1).
 4. **The credits**: `NOTICE` and the manifest name the English Wiktionary's French section for the
    English glosses of French words and expressions too; no source is added.
 
-Nothing of the studied side changes: the same lemmas, ranks and forms. A ranked lemma that is not
-its own form (change 43 D6: `donnée`, which `données` reaches while `donnée` reads as *donner*; six
-of them) is glossed by its own entry, as any ranked lemma. fr-en's rule digest becomes
-`reduce-fr-en.py`, `reduce_common.py` and `reduce_edition_en.py` (`rule_files`, by its imports).
+Nothing of the studied side changes: the same lemmas, ranks and forms. The glosses are keyed by the
+ranked lemmas, and the pack builder attaches a gloss to the lemma its key reads as in the forms table
+(`FstLexicon::id_of`): a ranked lemma whose own form reads as another would lend its gloss to that
+word. Change 43's implementation ranks no such lemma (its fix of 2026-10-09: `donnée`, read as
+*donner*, leaves the ranks); the prototype, on its tables before that fix, glossed *venir* with
+*venue*'s « coming, arrival » (*Measured*). This change relies on no such lemma and checks that none
+is glossed (task 3.1). fr-en's rule digest becomes `reduce-fr-en.py`, `reduce_common.py` and
+`reduce_edition_en.py` (`rule_files`, by its imports).
 
 *Rejected — a module of French native-side rules.* fr-es (49) glosses in Spanish from other editions
 and would load nothing of it; fr-en has no rule of its own to put there (D2, D3).
@@ -200,8 +216,15 @@ fr-en, measured, neither table is taken:
 A lemma or an expression the section does not gloss has no gloss. The two catalogue entries change
 38 registered for this change (`kaikki-en-traductions-fr.jsonl`, `kaikki-fr-traductions-en.jsonl`)
 are removed from `EDITIONS`: no pair reads them, and an entry nobody reads is derived on every update
-of its edition. No pin names them, and `pack_sources.py` is in no rule digest, so nothing is
-re-pinned.
+of its edition. No pin names them, no pair's `DUMPS` lists them (change 43 registers
+`kaikki-French.jsonl` alone), and `pack_sources.py` is in no rule digest, so nothing is re-pinned and
+no other pair's tables can move. What moves is tests and words: `test_pack_sources.py`'s test of
+change 38's scenario *A pair of stage 3 registers what it reads* (fr-en registering the three files,
+`check_registered`) and of *The catalogue derived whole* (the French edition's derived
+`kaikki-fr-traductions-en.jsonl`), its note of the English catalogue's « 4 files », change 43's test
+of the English catalogue's four names and its `DUMPS` comment (« fr-en's glosses add the translation
+tables »), `SOURCES.md`'s catalogue table. Change 38's scenario reads « WHEN fr-en is added with … as
+its sources »: a condition this change does not meet, its wording left to Open Question 4.
 
 *Rejected — es-en's shape (the direct table, words and expressions).* +1.3 points at 10,000, for the
 noise above, made French's dictionary words.
@@ -222,7 +245,8 @@ the floor (task 6.1), here and nowhere else.
 ### D5 — Re-reduced from change 43's pin; French's dictionary words
 
 fr-en is reduced again from the pin change 43 recorded — `build.sh --reduce fr-en`, nothing fetched
-beyond the release's assets — with the native side added: the pin's `snapshot` and `sources` byte for
+but what the pin records (its release's `kaikki-French.jsonl` asset, GSD's two files by URL and
+sha256, wordfreq 3.1.1) — with the native side added: the pin's `snapshot` and `sources` byte for
 byte, its `reducer` digest and `pack` moved, `pack_version` `<snapshot>+<digest[:7]>` (fr-en is a
 reference: no studied digest). `tables/fr/`'s forms, ranks — and readings, tag pool and levels, if
 changes 45 and 46 have landed — come out byte for byte; `split` writes `tables/fr/lexical.tsv`, fr-en's
@@ -255,23 +279,29 @@ measured, none of its 30,059 rows fails.
 
 What still reads wrong in fr-en, measured on the prototype, and where its fix belongs. None is fixed
 here (D2): together they are the input of `refine-lingua-fr-en-glosses`, outside the 57, before
-change 52 ships fr-en — as 23b was before 34 — with the owner's reading of the sample.
+change 52 ships fr-en — as 23b was before 34 — with the owner's reading of the sample. Its programme
+row, and change 52's row naming it among its prerequisites, are written by its own proposal, as 23b's
+and 24b's were; until then change 48's row names it (task 5.4), where change 52's proposal meets
+it.
 
 | Class | Rows / top 10k | Examples | Where |
 |---|---|---|---|
-| A borrowed gloss that is wrong for the word | of 540 / 116 rows glossed from a pointer's target | « des » (6) « of the; some, the feminine partitive article » — its pointers carry « some » (« plural of un (“some”, …) ») and lend a target's senses; « ma » (59) *mon*'s « (used to qualify masculine nouns…) »; « ca » (144) « board of directors » (wordfreq's `ca` is mostly an unaccented `ça`) | a rule of fr-en (a pointer's carried meaning); `ma`, `ca` as lemmas are change 43's |
-| A proper noun's run before a common word's | 218 / 108 (es-en 242 / 124) | « marche » « Marche (a department of France); march… », « midi », « somme », « réunion », « bordeaux » | 23b's Q3, a case-aware card |
-| The page's own notes | « see usage notes » 7 / 5; « (all senses) » 97 / 30; « in its various senses » 2 / 2; « (Folk etymology: …) » 5 / 3 (es-en: 1 / 1, 15 / 7, 0, 1 / 0) | « en », « dans », « ne » (« …, see usage notes »), « contrôle » « control (all senses) », « mon » | the English edition, or fr-en alone |
+| A borrowed gloss that is wrong for the word | of 540 / 116 rows glossed from a pointer's target | « des » (6) « of the; some, the feminine partitive article » — its pointers carry « some » (« plural of un (“some”, …) ») and lend a target's senses; « ca » (144) « board of directors » (wordfreq's `ca` is mostly an unaccented `ça`) | a rule of fr-en (a pointer's carried meaning); `ca` as a lemma is change 43's |
+| A pointer's own meaning left out | « il y a » and about 50 words (15 of the top 10,000) | « il y a » « ago »: its « there is, there are » is written on a pointer to *y avoir*, which the shared rules leave out | with the row above |
+| An expression that only points | 18 expressions | « crème fraiche », « s'il vous plait » « post-1990 spelling of … » (17), « y a-t-il » « subject-inverted form of il y a »; « à la » « in the style of », met on every « à la » — change 44's proposal ([#823](https://github.com/NEETROF/cymbra/pull/823), D6, D8) hands these to 48 | the English edition's pointer wordings for expressions, or fr-en (Open Question 5) |
+| A proper noun's run in a common word's row | first 218 / 108 (es-en 242 / 123); after another run 484 / 260 (es-en 729 / 430) | « marche » « Marche (a department of France); march… », « midi », « somme », « réunion », « bordeaux »; « le » ending on « a surname from Vietnamese » | 23b's Q3, a case-aware card |
+| The page's own notes | « see usage notes » 6 / 4; « (all senses) » 97 / 30; « in its various senses » 2 / 2; « (Folk etymology: …) » 2 / 2 (es-en: 1 / 1, 15 / 7, 0, 0) | « en », « dans », « ne » (« …, see usage notes »), « contrôle » « control (all senses) », « mon », « stand », « consul » | the English edition, or fr-en alone |
 | A description in a capital outside 23b's list | 64 / 30 (es-en 45 / 17) | « que » « Substitutes for… », « il » « Impersonal subject, it », « mon » « Followed by rank… » | the English edition |
 | A citation inside a sense | 2 / 2 | « liberté » « liberty, freedom. 1688, Guy Miège, … » | fr-en, or upstream |
 | A source's numbered sense in another shape | 1 / 1 | « téléphonie » « telephony (2) » | the English edition |
 | « etc » without its period | 51 / 23 | « le », « pas », « possible » | shared, every pair (23b D6) |
 | Labels left out | 443 / 163 rows hold an obsolete or archaic sense | « or », « monde » | 23b's Q1 |
-| The part of speech a row opens on | 2,957 / 1,273 rows hold two or more | — | 23b's Q4 |
+| The part of speech a row opens on | 2,896 / 1,264 rows hold two or more | — | 23b's Q4 |
 
-The hand-over also shows the studied side as change 43 commits it: `ma`, `mes`, `ils`, `cet`,
-`amie` as lemmas of their own, `vînmes` unknown (an unattested form). Those are tables/fr's, for
-changes 43 and 41, not glosses.
+The hand-over also shows the studied side as change 43's tables read on 2026-10-09: `ma`, `mes`,
+`ils`, `cet`, `amie` as lemmas of their own (some of which 43's fixes in progress take back),
+`vînmes` unknown (an unattested form). Those are tables/fr's, for changes 43 and 41, not glosses, and
+no task here depends on them.
 
 ### D8 — The hand-over of change 39's baseline
 
@@ -280,10 +310,18 @@ changes 43 and 41, not glosses.
 comment and `french_baseline.rs`'s say so. The fixture (`scripts/lingua-data/testdata/fr-en/`) stays:
 `crates/lingua-pack/tests/pipeline_testdata.rs` builds it, and
 `a_fixture_left_behind_its_analyser_names_its_manifest` still checks that a manifest left behind
-French's analyser is named — its manifest keeps following the version, as change 39 D5 says.
+French's analyser is named — its manifest keeps following the version, as change 39 D5 says — and
+`the_fixture_lists_every_word_the_pre_pass_writes` (change 40) still reads the fixture's forms.
 `the_nfd_block_s_memoire_is_glossed_once_french_composes_it` asserted the fixture's « memory »: the
 pack's gloss of the composed `mémoire` now opens on « memory » (« memory; memo; dissertation, … »),
-and the decomposed token still has none.
+and the decomposed token still has none. Measured, it is the one test of `french_baseline.rs` that
+fails on the committed tables; `french_has_its_pre_pass_and_the_baseline_s_lemmas` passes on them.
+
+From the hand-over on, the golden reads the committed French tables: a pull request that moves
+`tables/fr/` or `tables/fr-en/` — a dictionary update, change 45's readings or 46's levels landing
+after this change, an English-edition rule — can move it too, and then re-blesses it and says so, as
+a dictionary update does the other baselines. `french_baseline.rs`'s doc and its failure message,
+which name three reasons today, name that one too.
 
 Change 39's scenario *The committed tables replace the fixture* says « WHEN the French tables and the
 fr-en pair's tables are committed »: read, as change 43 D11 and the programme read it, as « when
@@ -291,19 +329,30 @@ fr-en's glosses are committed » — this change. The golden is re-blessed once,
 request changes no French rule, so the analyser version in its pack line is the one on `main` and
 every probe moves for the pack alone.
 
-**How the re-bless is reviewed.** 120 of 136 probes move, the golden doubles: its diff is not read
-line by line. The pull request carries, from a scratch comparison of the two goldens:
-- the `pack`, `notice` and `licences` lines (the provenance);
-- per analysed page, every token whose lemma or class moved, fixture → tables, with its reason in
-  the forms table (an inflection now resolved, M8's homographs, change 43's lemma choices) — 85
-  lemmas and 15 classes in the prototype;
-- the 45 gloss probes and 20 phrase probes, the fixture's gloss beside the tables' first sense, and
-  the expressions each phrase finds;
-- the counts (vocabulary estimate, tracked, deck, due, promote-by-exposure) and the ladder, each with
-  its cause.
-A reviewer checks that nothing moved for a reason outside the pack. en-fr's, es-fr's, es-en's and
-en-es's goldens, the extension's snapshots and the French golden's `beside es-en` line pass without
-re-blessing.
+**How the re-bless is reviewed.** 125 of 141 probes move once changes 45 and 46 have landed (132
+before), the golden doubles (162 KB to 333–365 KB): its diff is not read line by line. A comparison script, run in a
+scratch folder over `git show origin/main:crates/lingua-wasm/tests/baseline/fr-en.golden` and the
+re-blessed file and pasted into the pull request with its output so that a reviewer runs it again,
+splits both goldens at their `### ` probe lines and gives:
+- **mechanical checks**, each a yes or no: the same probe names in the same order; `about`,
+  `beside es-en`, `calibration`, `declared-level` and `export-declared-levels` byte for byte; every
+  analysed page's `analyzer_version` unchanged and every token's span unchanged but the tokens the
+  lexicon now lists (`M`, `e` in the prototype); every `gloss <word>` probe equal to the row
+  `tables/fr-en/gloss.tsv` holds for the lemma `tables/fr/forms.tsv` reads the word as, or none —
+  the check that catches a gloss lent to another lemma (*venir* « coming, arrival » in the
+  prototype);
+- **the probes by kind**, moved and unchanged, and the JSON probes that move in their glosses alone
+  (their other fields compared with the glosses taken out);
+- **per analysed page, every token whose lemma or class moved**, fixture → tables, with its line of
+  the forms table and its cause (an inflection now resolved, M8's homographs, change 43's lemma
+  choices, a name the lexicon holds) — 113 lemmas and 42 classes in the prototype;
+- **the 45 gloss and 23 phrase probes**, the fixture's gloss beside the tables' first sense, and the
+  expressions each phrase finds;
+- **the provenance and the counts**: the `pack`, `notice` and `licences` lines, the vocabulary
+  estimate, tracked, deck, due, promote-by-exposure and the ladder, each with its cause.
+A reviewer checks the mechanical lines first, then that every other move has a cause in the tables.
+en-fr's, es-fr's, es-en's and en-es's goldens, the extension's snapshots and the French golden's
+`beside es-en` line pass without re-blessing.
 
 **Order.** The hand-over wants change 46 first: measured, before it the level probes go blank
 (`has-levels` false, an empty ladder, a deck of 3 instead of 11) until 46 re-blesses them. 45 is
@@ -325,17 +374,18 @@ this change may still merge, its pull request saying the level probes are blank 
 OpenSpec: two ADDED requirements in `lingua-data-packs`, nothing MODIFIED. `archiveAfter`: change 38
 (the catalogue this change prunes), 21 (the English edition and its settings), 23b (the pre-pass),
 39 (the hand-over), 43 (French's tables and reference pair); `openspec_archive_order.py` exits 10
-naming those still open. 45 and 46 have no proposal on `main` yet: their order is a merge order
-(D8, D10), not an archive one.
+naming those still open. 45 and 46 have no proposal on `main` yet (46's is open, #822): their order
+is a merge order (D8, D10), not an archive one.
 
 ### D10 — Order, and what later changes take from here
 
 | Change | Relation |
 |---|---|
 | 39 French baseline | before (required): the golden this change hands over |
-| 43 forms tables | before (required): the reducer, `tables/fr/`, the pin this change re-reduces from |
-| 45 grammar, 46 levels | before (planned): the hand-over keeps the golden's level probes (D8) |
-| 40 tokenisation, 41 analysis, 42 detection guard, 44 expression keys | either side. Each bumps or keys through the analyser, not the glosses. Landed before, the hand-over shows the real analysis on the real pack; after, each re-blesses over the real pack. 41's names rule, if it reads dictionary words as Spanish's does, reads the fixture's 70 before this change and fr-en's 30,059 after; 44 keys whatever `mwe.tsv` holds |
+| 40 tokenisation | before, landed (`35faf774`, French at `0.2.0`): the golden's figures are measured on it |
+| 43 forms tables | before (required), its implementation with its fixes: the reducer, `tables/fr/`, the pin this change re-reduces from. No task here relies on a lemma its fixes take back (`donnée` ranked, `ma`, `mes`, `ils`, `cet` lemmas of their own); task 3.1 checks the one that would lend a gloss |
+| 45 grammar, 46 levels | before (planned): the hand-over keeps the golden's level probes (D8). 46's proposal ([#822](https://github.com/NEETROF/cymbra/pull/822), its D3 and D11) hands this change a check that every levelled lemma is a dictionary word: measured on its prototype table, 40 of its 8,302 levelled lemmas have no fr-en gloss — words met only in an expression (`parce`, `quant`, `instar`, `for`), initialisms written in capitals (`pme`, `tom`), pointers (`expliquez`, `ès`, `french`), a letter (`x`). The pack's vocabulary estimate counts a levelled lemma whether glossed or not (`Pack::dictionary_words`), so they count; a card seeded from a level would carry no gloss. This change measures and lists them (task 3.1) and asserts nothing: the rule is 46's (Open Question 5) |
+| 41 analysis, 42 detection guard, 44 expression keys | either side. Each bumps or keys through the analyser, not the glosses. Landed before, the hand-over shows the real analysis on the real pack; after, each re-blesses over the real pack. 41's names rule, if it reads dictionary words as Spanish's does, reads the fixture's 70 before this change and fr-en's 30,059 after; 44 keys whatever `mwe.tsv` holds. 44's proposal ([#823](https://github.com/NEETROF/cymbra/pull/823), D9) hands 48 more: the words the pre-pass splits offered as expressions (`d'abord`, `c'est`: 101 headwords `reduce_expressions` does not read), and its pointer-only and function-word expressions left out (D7); this design does neither — no fr-en rule here (D2) — and lists them for the refinement (Open Question 5) |
 | 49 fr-es | after: French's dictionary words (`tables/fr/lexical.tsv`), the cross-native test for French (two natives) |
 | 50 marks | after or beside: marks are the translation engine's, not the glosses' |
 | 51 word card | after: the English card renders fr-en's glosses and runs |
@@ -355,7 +405,11 @@ naming those still open. 45 and 46 have no proposal on `main` yet: their order i
   reviewed by probe kind (D8).
 - **[Change 46 slips]** → the level probes go blank until it lands, said in the pull request (D8).
 - **[Change 43's tables move before this lands]** → the figures are re-measured on the committed
-  tables (task 2.2); the floor holds them, not the prototype's figures.
+  tables (task 2.2); the floor holds them, not the prototype's figures. On 43's tables after its
+  first fix, measured: 30,056 glossed lemmas, 93.6 / 86.8 / 76.3 %, the same 132 probes moving.
+- **[A gloss lent to another lemma]** → a ranked lemma whose own form reads as another would give
+  its gloss to that word (*venir* « coming, arrival » in the prototype): change 43 ranks none, and
+  task 3.1 and D8's mechanical check hold it.
 - **[Change 38's catalogue loses two files a later change wants]** → re-added by that change, in its
   edition, as the catalogue's rule says.
 
@@ -368,7 +422,8 @@ the harness's source; `lexical.tsv` returns to empty, the golden to the fixture'
 
 2–3.5 ideal days, the programme's: the reducer's native side and its tests 1–1.5; the catalogue,
 the floor and its job, the re-reduction, pin, README and `SOURCES.md` 0.25–0.5; the hand-over — the
-harness, the `mémoire` test, the re-bless and the review tables of D8 — 0.5–1; the sample, the
+harness, the `mémoire` test, the re-bless, the comparison script and the review tables of D8 —
+0.5–1; the sample, the
 defects' list, `committed_tables.rs`, the row check, spec and programme 0.25–0.5.
 
 ## Open Questions
@@ -388,4 +443,11 @@ For the owner, none blocking:
    tables replace the fixture* (« the French tables and the fr-en pair's tables »): read as before this
    change, and their words best made « es-en and fr-en », « while fr-en glosses nothing », « when a
    pair of stage 3 reads them » and « when fr-en's glosses are committed » when each is archived, so
-   that no two specs say opposite things of this change.
+   that no two specs say opposite things of this change. 39's requirement names three reasons the
+   golden moves; this change's spec adds the fourth, a change to the committed French tables.
+5. **What the refinement and changes 44 and 46 expect of fr-en** (D7, D10): change 44's proposal
+   hands this change French's split words as expressions (`d'abord`, `c'est`) and the expressions to
+   leave out (17 « post-1990 spelling of », `y a-t-il`, `à la`); change 46's, a check that every
+   levelled lemma is a dictionary word, which 40 of 8,302 are not. Measured and listed here, not
+   decided: each is a rule of fr-en's reducer, of the English edition or of 46's levels, and the
+   owner says which of the refinement before 52, change 44 and change 46 takes it.

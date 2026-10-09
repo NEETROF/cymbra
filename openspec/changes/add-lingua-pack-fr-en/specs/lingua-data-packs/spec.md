@@ -41,19 +41,25 @@ so that a change to them re-pins those two and no other.
 - **WHEN** fr-en is reduced
 - **THEN** `tables/fr/lexical.tsv` lists exactly the lemmas `tables/fr-en/gloss.tsv` glosses, and fr-en's pack carries no lexical table
 
+#### Scenario: A gloss is its lemma's
+- **WHEN** fr-en's glosses are committed
+- **THEN** every lemma `tables/fr-en/gloss.tsv` glosses is a ranked lemma that `tables/fr/forms.tsv` reads as itself, so that the pack attaches no gloss to another word
+
 #### Scenario: A rule of the English edition
 - **WHEN** `reduce_edition_en.py` changes
 - **THEN** es-en's and fr-en's rule digests move, and en-fr's, es-fr's and en-es's do not
 
 ### Requirement: fr-en is committed at its studied tables' snapshot, and the French baseline runs on it
-fr-en's native side SHALL be reduced from the pin French's studied tables were reduced from, fetching no source, and committed beside them, every studied table but the dictionary words byte for byte; its pack SHALL be built and checked against its pin wherever the committed pairs' packs are, SHALL stay under the size budget, and no package SHALL list it; and from the pull request that commits fr-en's glosses on, the French invariance baseline SHALL run over the pack built from the committed French tables.
+fr-en's native side SHALL be reduced from the pin French's studied tables were reduced from, fetching no source the pin does not record, and committed beside them, every studied table but the dictionary words byte for byte; its pack SHALL be built and checked against its pin wherever the committed pairs' packs are, SHALL stay under the size budget, and no package SHALL list it; and from the pull request that commits fr-en's glosses on, the French invariance baseline SHALL run over the pack built from the committed French tables.
 fr-en's folder holds its glosses, sense runs and expressions, its notice and manifest — which credit
 the English Wiktionary's French section for the glosses too — its pin and its README; the pin keeps
 its snapshot and its sources, and names the new rule digest and pack. The French golden SHALL be
 re-blessed once, in that pull request, which changes no French rule and says, probe kind by probe
 kind, what moved and why; the hand-written fr-en fixture stays for the tests that build it, its
-manifest following French's analyser version. en-fr's, es-fr's, es-en's and en-es's tables, pins,
-packs and goldens SHALL NOT move.
+manifest following French's analyser version. From then on a change to `tables/fr/` or
+`tables/fr-en/` that moves the French golden re-blesses it in its own pull request and says so, as a
+dictionary update does the other baselines. en-fr's, es-fr's, es-en's and en-es's tables, pins, packs and goldens SHALL
+NOT move.
 
 #### Scenario: The same snapshot
 - **WHEN** fr-en is reduced from its pin with its native side
@@ -66,6 +72,10 @@ packs and goldens SHALL NOT move.
 #### Scenario: The French baseline on the committed pack
 - **WHEN** fr-en's glosses are committed
 - **THEN** the French invariance baseline builds fr-en's pack from the committed tables, beside es-en's, its golden is re-blessed once in that pull request, its pack line names fr-en's `pack_version`, and its `beside es-en` line does not move
+
+#### Scenario: The French tables move after the hand-over
+- **WHEN** a later pull request changes `tables/fr/` or `tables/fr-en/`, and the French baseline's output moves with it
+- **THEN** that pull request re-blesses the French golden and names the tables' change as the reason
 
 #### Scenario: The fixture stays
 - **WHEN** a test builds the hand-written fr-en fixture after the hand-over

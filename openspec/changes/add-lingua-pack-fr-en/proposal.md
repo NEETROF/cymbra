@@ -8,7 +8,7 @@ French's reference pair: `reduce-fr-en.py` writes `tables/fr/` from the English 
 section, and commits `tables/fr-en/` with an empty `gloss.tsv` and an empty `tables/fr/lexical.tsv`
 — « the glosses, expressions and dictionary words (48) ». Until they exist, no French word has an
 English gloss, French has no dictionary word, and change 39's French invariance baseline runs over
-a hand-written fixture of 286 forms and 70 glosses (`scripts/lingua-data/testdata/fr-en/`), « until
+a hand-written fixture of 296 forms and 70 glosses (`scripts/lingua-data/testdata/fr-en/`), « until
 change 48 commits `tables/fr/` and `tables/fr-en/` ».
 
 The programme names the source: « fr-en | 93.9 / 87.1 / 76.4 % (prototype ranks, ± 1–2) | English
@@ -21,7 +21,7 @@ Wiktionary's English translations (direct) and the English Wiktionary's French t
 backwards (inverted).
 
 This change prototyped fr-en's native side on the real data — change 43's implementation tables
-(124,040 forms, 60,000 lemmas), the French section of 2026-10-03, both translation tables, the
+before its fixes (124,040 forms, 60,000 lemmas), the French section of 2026-10-03, both translation tables, the
 committed rules — and measured what each source and each rule does (design, *Measured*). The French
 section alone glosses 4,678 / 8,686 / 15,256 of the 5,000 / 10,000 / 20,000 commonest lemmas
 (93.6 / 86.9 / 76.3 %, inside the programme's ± 1–2). The translation tables add 1,988 lemmas,
@@ -55,9 +55,10 @@ and kept as a word by a names rule.
 - **French's dictionary words** (D5): `pack_sources.py split` writes `tables/fr/lexical.tsv`, fr-en's
   30,059 glossed lemmas; the fr-en pack carries no lexical table (its dictionary words are its
   glosses), and fr-es (49) reads them as committed.
-- **Re-reduced from change 43's pin, at its snapshot** (D5): no source fetched, the pin's snapshot and
-  sources byte for byte, every other studied table byte for byte; its rule digest now names
-  `reduce_edition_en.py`, which es-en and fr-en read from here on.
+- **Re-reduced from change 43's pin, at its snapshot** (D5): nothing fetched that the pin does not
+  record, the pin's snapshot and sources byte for byte, every other studied table byte for byte; its
+  rule digest now names `reduce_edition_en.py`, which es-en and fr-en read from here on (es-en's
+  digest and pin unchanged: no file of its rule set is edited).
 - **Measured against a floor, not shipped** (D4, D6): `FLOORS["fr-en"]` = 91.9 / 85.1 / 74.4, the
   study's figures less two points, as en-es's; the reduce job runs `gloss_coverage.py --pair fr-en`;
   the pack is 2,201,349 B with change 43's two tables (2,421,321 B with changes 45's and 46's
@@ -65,7 +66,13 @@ and kept as a word by a names rule.
   until change 52; fr-en's rows join the row cut's check over every committed gloss.
 - **The hand-over of change 39's baseline** (D8): `support/french.rs` builds fr-en's pack from the
   committed tables (`PackSource::Tables`); `fr-en.golden` is re-blessed once, in this pull request,
-  which reviews it probe kind by probe kind; the fixture stays for the tests that build it.
+  which reviews it with a comparison script — mechanical checks first (the same probes, the lines
+  that cannot move, every gloss probe its lemma's row), then probe kind by probe kind; the fixture
+  stays for the tests that build it. From then on a change to the French tables may move the golden,
+re-blessed in its own pull request.
+- **No gloss lent to another word** (D1): every glossed lemma is one the forms table reads as itself
+  — the pack builder keys a gloss through the forms table, and the prototype, on change 43's tables
+  before its fix, glossed *venir* with *venue*'s « coming, arrival ».
 
 ## Capabilities
 
@@ -90,7 +97,8 @@ None.
   empty »), 38's scenario *A pair of stage 3 registers what it reads* (fr-en with three sources) —
   and their words are best amended when those changes are archived (Open Question 4).
 - `lingua-analysis`: none. Change 39's requirement *A French invariance baseline runs beside the
-  English and Spanish ones* already says what this change does to the baseline.
+  English and Spanish ones* already says what this change does to the baseline; the reason it moves
+  from then on, a change to the committed French tables, is this change's second requirement.
 
 ## Impact
 
@@ -99,14 +107,18 @@ None.
     `tables/fr-en/` (`gloss.tsv`, `senses.tsv`, `mwe.tsv`, `NOTICE`, `manifest.json`, `pin.json`,
     `README.md`), `tables/fr/lexical.tsv`, `pack_sources.py` (two catalogue entries removed),
     `gloss_coverage.py` (`FLOORS["fr-en"]`), `test_reduce_editions.py` (the English edition's
-    digest now fr-en's too), `SOURCES.md`; *consumed*: `reduce_common.py`, `reduce_edition_en.py`,
+    digest now fr-en's too), `test_pack_sources.py` (the tests naming the two catalogue entries, change
+    38's scenario's among them), `SOURCES.md`; *consumed*: `reduce_common.py`, `reduce_edition_en.py`,
     unchanged.
   - `crates/lingua-wasm/tests` — *changed*: `support/french.rs` (the pack source), `french_baseline.rs`
-    (its doc and the `mémoire` test), `baseline/fr-en.golden` re-blessed; *consumed*: the harness.
-  - `crates/lingua-pack/tests/committed_tables.rs` — fr-en's file set and dictionary words.
+    (its doc, its reasons for a re-bless and the `mémoire` test), `baseline/fr-en.golden` re-blessed;
+    *consumed*: the harness.
+  - `crates/lingua-pack/tests/committed_tables.rs` — fr-en's file set, its dictionary words, no gloss
+    lent to another lemma.
   - `apps/lingua-extension/test/row-gloss-tables.spec.ts` — fr-en among the pairs whose rows are
     checked; no source, bundle or package changes.
-  - `.github/workflows/lingua-extension-check.yml` — the reduce job holds fr-en to its floor.
+  - `.github/workflows/lingua-extension-check.yml` — the reduce job holds fr-en to its floor; the
+    baselines' comment says fr-en's runs over its committed tables.
 
   ID, Music, Live, the back office, the site, the backend, lingua-core, the engine, the Apple host
   app and the agent plugin are untouched.
@@ -117,9 +129,12 @@ None.
   extension's snapshots — byte for byte; `tables/fr/`'s forms, ranks, readings and levels byte for
   byte; the French golden's `beside es-en` line.
 - **What moves.** fr-en's pin (rule digest, pack), its manifest's `pack_version`, `tables/fr/lexical.tsv`
-  (0 → 30,059 words), and `fr-en.golden`: measured, 120 of its 136 probes move when changes 45 and
-  46 have landed, 127 when they have not, the level probes then going blank (design D8).
-- **Order.** After 39 and 43 (required), after 45 and 46 (planned, the programme's order, so that the
-  hand-over keeps the golden's level probes answering); before 49 (fr-es reads French's dictionary
-  words), 51 and 52. 40, 41, 42 and 44 may land on either side.
+  (0 → 30,059 words), and `fr-en.golden`: measured against `main`'s at analyser `0.2.0` (change 40),
+  125 of its 141 probes move when changes 45 and 46 have landed, 132 when they have not, the level
+  probes then going blank (design D8).
+- **Order.** After 39 and 43 (required; 43's implementation with its fixes, on which no task here
+  depends), after 45 and 46 (planned, the programme's order, so that the hand-over keeps the golden's
+  level probes answering); before 49 (fr-es reads French's dictionary words), 51 and 52, and before
+  `refine-lingua-fr-en-glosses`, which 52 waits for. 40 has landed; 41, 42 and 44 may land on either
+  side.
 - **Effort, against 2–3.5 ideal days**: 2–3.5 (design, *Effort*).
