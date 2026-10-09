@@ -381,6 +381,7 @@ export class SelectionCards {
       rect: hit.rect,
       ...this.languageOfCard(),
       ...(written !== token.surface ? { written } : {}),
+      ...placeInSentence(hit.selection),
     };
     const inSentence = (card: WordPopupContent, cls: TokenClass) =>
       this.wordEngine(card, cls, {
@@ -610,6 +611,7 @@ export class SelectionCards {
             ...this.languageOfCard(),
             rows: t.parts?.length ? rowsFor([t], answer.expressions, this.copy) : undefined,
             ...(written !== t.surface ? { written } : {}),
+            ...placeInSentence(sel.selection),
             ...grammarOf(reply.grammar),
           },
           t.class,
@@ -684,6 +686,15 @@ function grammarOf(grammar: WordGrammar | null | undefined): Pick<WordPopupConte
     grammar.pieces.length > 1 ||
     grammar.senses.some((group) => group.tag !== undefined);
   return says ? { grammar } : {};
+}
+
+/**
+ * The selection's place in its sentence, as a spreadable field: written only where known
+ * (add-lingua-french-read-aloud D5), so a card opened without one is exactly the card it was. The
+ * card reads it to hear a French elided piece with the word it leans on.
+ */
+function placeInSentence(selection: Span | null | undefined): Pick<WordPopupContent, "selection"> {
+  return selection ? { selection } : {};
 }
 
 /** The card an expression gets from the pack alone — exactly what it was before the engine. */

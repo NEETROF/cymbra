@@ -861,6 +861,37 @@ describe("a word card asks its word's grammar (add-lingua-word-grammar)", () => 
     expect(h.last()).toMatchObject({ headword: "do", surface: "do", written: "don't", grammar: split });
   });
 
+  it("carries the selection's place in its sentence, only where known (add-lingua-french-read-aloud D5)", async () => {
+    const h = harness();
+    const piece = pageToken({ surface: "l'", lemma: "le", class: "Unknown", gloss: "Le" });
+    const place = { start: 0, end: 2 };
+    h.cards.openForToken({ token: piece, rect: RECT, sentence: "L'homme est venu.", selection: place });
+    await settle();
+    expect(h.shows.length).toBeGreaterThan(0);
+    expect(h.shows.every((card) => card.selection === place)).toBe(true);
+    // Without a place, no key at all: the card is exactly the card it was.
+    h.cards.openForToken({ ...hitOf(piece), selection: null });
+    await settle();
+    expect("selection" in h.last()).toBe(false);
+    h.cards.openForToken(hitOf(piece));
+    await settle();
+    expect("selection" in h.last()).toBe(false);
+  });
+
+  it("carries the place of a word outside the page analysis, only where known", async () => {
+    const h = harness();
+    const place = { start: 5, end: 9 };
+    h.cards.openForSelection({ ...selection("went"), selection: place }, null);
+    h.phraseGloss[0]!.resolve({ tokens: [tok({ surface: "went", lemma: "go", class: "Unknown", gloss: "Aller" })] });
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "go", selection: place });
+    h.cards.openForSelection(selection("went"), null);
+    h.phraseGloss[1]!.resolve({ tokens: [tok({ surface: "went", lemma: "go", class: "Unknown", gloss: "Aller" })] });
+    await settle();
+    expect(h.last().headword).toBe("go");
+    expect("selection" in h.last()).toBe(false);
+  });
+
   it("a word outside the page analysis asks its grammar once the analyser has read it", async () => {
     const h = harness({ grammar: "manual" });
     h.cards.openForSelection(selection("went"), null);
