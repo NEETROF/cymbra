@@ -12,8 +12,8 @@ See proposal.md (Why). Where levels stand, and what this design measured:
 | The ladder | `LinguaEngine::level_ladder`: a pack of another language than English whose levels are estimated gives each level `ENGLISH_TYPICAL_VOCABULARY` (`[0, 1_292, 3_359, 7_988, 16_326, 20_556]`, frozen in lingua-core by `generalise-lingua-native-language` D6) and says `typicalFrom: "en"` |
 | French's tables | change 43 (`add-lingua-french-forms-tables`, proposal merged, implementation in progress): `reduce-fr-en.py`, fr-en French's reference pair, writes `tables/fr/forms.tsv` and `freq.tsv` (60,000 lemmas by wordfreq, `au`/`aux` no word, `du`/`des` words of their own, compounds ranked when GSD attests them) from the English Wiktionary's French section; « `grammar.tsv` and `level.tsv` come with 45 and 46 », « 46 levels: the ranks (estimated, M7) » (its D10, D12); `lexical.tsv` empty until change 48 glosses fr-en |
 | The French golden | change 39 (`add-lingua-french-baseline`): `fr-en.golden` over the hand-written fixture `testdata/fr-en/` (53 hand-written levels, no `levels_estimated`, « the levels are a fixture's, not a decision (M7) ») until change 48 commits fr-en's glosses and switches it to the tables (its D5 *Hand-over*; change 43's D11) |
-| The extension's French | `StudiedLanguage` is `en \| es` until change 52; change 47 brings the catalogue's `french` words forward for the voice block, the level messages gain French with change 52 (change 47's D4) |
-| The measurement inputs | change 43's prototype tables (the 124,040 forms and 60,000 ranks its design reports, in their deterministic order), the English Wiktionary's French and Spanish sections derived on 2026-10-08 from the English dump (`kaikki-French.jsonl`, 510,058,226 B; `kaikki-Spanish.jsonl`), the committed `tables/en`, `tables/es` and `tables/es-en`, UD French-, Spanish- and English-PUD (the same 1,000 sentences, CC BY-SA 3.0, never committed), wordfreq 3.1.1; a scratch copy of `origin/main` `c989aaff` for the pack and golden figures |
+| The extension's French | `StudiedLanguage` is `en \| es` until change 52; change 47 (merged) brought the catalogue's `french` words forward for the voice block, the level messages gain French with change 52 (change 47's D4) |
+| The measurement inputs | change 43's prototype tables (the 124,040 forms and 60,000 ranks its design reports, in their deterministic order), the English Wiktionary's French and Spanish sections derived on 2026-10-08 from the English dump (`kaikki-French.jsonl`, 510,058,226 B; `kaikki-Spanish.jsonl`), the committed `tables/en`, `tables/es` and `tables/es-en`, UD French-, Spanish- and English-PUD (the same 1,000 sentences, CC BY-SA 3.0, never committed), wordfreq 3.1.1; a scratch copy of `origin/main` `35faf774` (French's tokenisation at `0.2.0`, change 40) for the pack and golden figures |
 
 No openly licensed French CEFR word list was found: FLELex (CEFRLex) is non-commercial, the
 *Français fondamental* lists are not published under an open licence, and the CEFR-tagged lists of
@@ -203,9 +203,9 @@ No code changes for French's levels to read as Spanish's do:
   (estimated) »; in Spanish « Nivel de francés estimado », « … a falta de una lista MCER de uso
   libre para el francés. », « B1 (estimado) »; the ladder's « courants » column. The French
   interface's scale is « CEFR » (`src/i18n/fr/languages.ts`, M19: « French unchanged »), and it
-  never names French levels: a French-native reader cannot study French. The `french` words come
-  with change 47 (its D4), the level messages' key with change 52, whose surfaces' tests in English
-  and Spanish cover them.
+  never names French levels: a French-native reader cannot study French. The `french` words are
+  in the catalogue since change 47 (its D4); the level messages' key widens with change 52, whose
+  surfaces' tests in English and Spanish cover them.
 - The site's French text says « CECR » (`apps/site/src/lib/lingua-text.ts`, `spanishLevels`)
   where the extension's says « CEFR »; change 53 writes French's sentence beside Spanish's and
   chooses.
@@ -218,7 +218,7 @@ table and leaves the fixture alone — its 53 hand-written levels and its manife
 `levels_estimated` — so `fr-en.golden` does not move, and neither do the four other goldens.
 
 *Rejected — flagging the fixture's manifest now.* Measured: it would move two probes, the `pack`
-line (4,948 → 4,972 B) and `level-ladder` (English's figures and `typicalFrom: "en"` instead of the
+line (5,139 → 5,163 B) and `level-ladder` (English's figures and `typicalFrom: "en"` instead of the
 fixture's own 0, 27, 46, 54, 55, 55). It would show M7 in the golden one change early, but change
 39's requirement names the reasons the golden moves — a French rule, the fixture replaced by the
 committed tables, the beside pack's update — and a flag on the fixture is none of them; change 43
@@ -226,13 +226,13 @@ kept the fixture whole for the same reason.
 
 **What the levels will move at the hand-over**, measured by blessing the golden in a scratch copy
 over change 43's prototype forms and ranks with the fixture's glosses, with and without this table
-and its flag: **23 of the 136 probes** move — the `pack` line (+60,035 B), `has-levels` (which the
+and its flag: **23 of the 141 probes** move — the `pack` line (+60,037 B), `has-levels` (which the
 fixture already answers `true`, so it does not move at the hand-over), `level-ladder` (totals
 1,020, 1,158, 2,015, 2,347, 886, 876, English's figures, `typicalFrom: "en"`), both vocabulary
 estimates (a universe of about 8,300 words before change 48's lexical table, the levelled lemmas
 being dictionary words; the reader's estimate 2,179), `promote-by-exposure` (0 → 3), both
 `seed-level` probes and the review, deck and card probes that follow from the cards they seed,
-the four reader pages (247 of their 309 tokens read as known for the B1 reader, against 109 of 308
+the four reader pages (312 of their 343 tokens read as known for the B1 reader, against 146 of 342
 with the fixture and 1 with no table), the reader's phrase gloss, the status and card exports and
 the backup. Change 48's re-bless shows these 22 with the forms, readings and glosses; its pull
 request can name them as the levels'.
