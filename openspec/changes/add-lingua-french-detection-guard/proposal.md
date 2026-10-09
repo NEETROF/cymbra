@@ -74,7 +74,8 @@ None.
   requirement is rewritten: *Per-block language detection*, *A document's language, chosen among
   the reader's* and *Catalan and Galician are not read as Spanish* hold as written; change 39's
   two requirements and change 40's rewording of them are left to those changes. It archives after
-  `add-lingua-french-baseline`, whose requirement makes French a studied language.
+  `add-lingua-french-baseline`, whose requirement makes French a studied language, and after
+  changes 40 and 41, implemented before it.
 
 ## Impact
 
