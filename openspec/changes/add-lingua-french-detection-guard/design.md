@@ -84,7 +84,7 @@ either table (« Soi content de te veire. »), sentence-initial capitals (« În
 and Tatoeba's Gascon and Provençal.
 
 **French refused.** Of 42,961 French blocks, whichlang reads 41,312 as French (the other 3.8 % —
-headings, English titles, one-word lines — were already lost, guard or not). The guard refuses 26
+headings, lists, names and titles — were already lost, guard or not). The guard refuses 26
 of them (0.063 %; 0.081 % of the text):
 
 | French corpus | Read as French | Refused |
@@ -97,14 +97,14 @@ of them (0.063 %; 0.081 % of the text):
 | Wikipedia on regional French and the regional languages | 3,276 | 2 |
 
 By length: 6 of 15,419 blocks under 40 bytes, 8 of 14,328 from 40 to 99, 12 of 11,565 from 100.
-Fourteen of the 26 are not French: Catalan place lists and a park's name (« Gràcia : Vallcarca i els
-Penitents… »), Catalan bibliography entries, Occitan and Provençal verse and prose quoted, an
-Occitan glossary and a heading naming an Occitan school, two Arpitan quotations. Twelve are French: six sentences about letters and forms (« [e] fermé en
-roussillonnais. », « L'occitan ignore … (type e muet). »), two quoting Occitan words (« disaient lo
-romans… », « publication de la Gramatica occitana segon los parlars… »), four Italian captions with
-`del` or `dei` (« Piazza del Duomo, la célèbre place de la cathédrale »). Québécois « i » (*il*),
-« pantoute », « pus », Belgian « septante », « une fois », inclusive writing and ordinals are all
-kept.
+Fourteen of the 26 are not French: Catalan place lists and a park's name (« Gràcia : Vallcarca i
+els Penitents… »), Catalan bibliography entries, Occitan and Provençal verse and prose quoted, an
+Occitan glossary and a heading naming an Occitan school, two Arpitan quotations. Twelve are French:
+six sentences about letters and forms (« [e] fermé en roussillonnais. », « L'occitan ignore …
+(type e muet). »), two quoting Occitan words (« disaient lo romans… », « publication de la
+Gramatica occitana segon los parlars… »), four Italian captions with `del` or `dei` (« Piazza del
+Duomo, la célèbre place de la cathédrale »). Québécois « qu'i s'aident pas pantoute » (*i* for
+*il*), Belgian « septante » and « une fois », inclusive writing and ordinals are kept.
 
 ## Decisions
 
@@ -128,7 +128,8 @@ most of them quoted Catalan and Occitan. « More than French » has no parameter
 
 Measured above. Catalan and Occitan are the change's reason; Romanian joins them because whichlang
 reads a quarter of it as French and its function words (`în`, `să`, `și`, `cu`, `pe`, `pentru`,
-`fost`…) are not French words — 32 entries, no French block refused by them in the measurement.
+`fost`…) are not French words — 32 entries; the one more block they refuse in the French corpora
+is an Arpitan quotation (`pe`).
 The others are left as they are, with what was measured:
 - **Italian**: whichlang has an Italian class; 0.2 % of Italian blocks read as French. Nothing to do.
 - **Franco-Provençal**: it shares French's own function words (`et`, `est`, `du`, `des`, `sont`,
@@ -138,8 +139,8 @@ The others are left as they are, with what was measured:
   two of the words Middle French. Open question 3.
 - **Picard and Walloon**: Oïl languages, French's own function words; the words that tell them
   apart are informal French's and Québécois spellings (`pi`, `ti`, `alle`, `bin`, `pa`, `ki`, `kel`,
-  `min`). A table of them took Walloon from 63.2 to 12.8 % of the text, Picard from 86.6 to 69.1 %,
-  and refused six more French blocks in corpora that hold almost no chat French: rejected.
+  `min`). A table of them took Walloon from 63.2 to 12.8 % of the text, Picard from 86.6 to 69.5 %,
+  and refused five more blocks of the French corpora, which hold almost no chat French: rejected.
 - **Latin** (18 %) shares `et` and `est`; **Haitian Creole** (25 %) writes `pa`, `ki`, `pou`, `sa`,
   chat French's spellings. Left as measured.
 
@@ -332,7 +333,7 @@ held by 39 and reworded by change 40, and are left to them. `archiveAfter` names
   out every chat and Québécois spelling found (`com`, `pus`, `jamai`, `ki`, `pi`, `alle`, D3), and
   the corpus's `informel` page is read as French before and after.
 - [A text about letters or sounds] → « le e muet », « [e] fermé »: refused, measured (six blocks, all
-  in Wikipedia's article on Occitan and Catalan phonology). Accepted.
+  in the French Wikipedia's articles on Occitan and Catalan). Accepted.
 - [An Italian caption in a French page] → « Piazza del Duomo, la célèbre place de la cathédrale »:
   refused, 4 of 720 blocks of two French articles on Italian cities. Dropping `del` and `dei` would
   let 75 Catalan and 88 Occitan blocks back in; accepted.
