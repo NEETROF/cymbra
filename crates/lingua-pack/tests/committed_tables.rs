@@ -1120,11 +1120,14 @@ fn level_table(studied: &Path) -> BTreeMap<String, String> {
 }
 
 /// Each level of a studied language's `level.tsv` on the lemma it is written for, in a pair's
-/// pack (add-lingua-french-levels D3). The builder keys a level by looking the lemma up as a form
-/// (`FstLexicon::id_of`), so a lemma whose own form reads as another hands that other lemma its
-/// level. Every lemma of the table must carry the table's level in the pack, and every lemma the
-/// pack gives a level the table's — the second half catches a level landing on a lemma the table
-/// leaves without one. The levels carried, or the pair and each lemma off, with both levels.
+/// pack (add-lingua-french-levels D3). The builder keyed a level by looking the lemma up as a form
+/// (`FstLexicon::id_of`), so a lemma whose own form reads as another handed that other lemma its
+/// level; it now files a level at the lemma's own place and a level written for a string that is
+/// no lemma under none (fix-lingua-lemma-lookup D4), which this check sees as a level the pack
+/// does not carry. Every lemma of the table must carry the table's level in the pack, and every
+/// lemma the pack gives a level the table's — the second half catches a level landing on a lemma
+/// the table leaves without one. The levels carried, or the pair and each lemma off, with both
+/// levels.
 fn levels_on_their_lemmas(
     pair: &str,
     bytes: &[u8],
@@ -1191,8 +1194,9 @@ fn spec_scenario_the_committed_pairs_give_each_level_to_its_own_lemma() {
 fn spec_scenario_a_level_written_for_a_lemma_whose_form_reads_as_another() {
     // French's forms table maps the form `donnée` to *donner* (change 43: the noun leaves the
     // pack). A level table giving `donnée` B1 and `donner` A1 — sorted, as a reducer writes it —
-    // builds a pack in which the level written for `donnée` lands on donner, the builder looking
-    // `donnée` up as a form: the check fails, naming the pair and donner.
+    // builds a pack in which donner keeps its A1 and the level written for `donnée`, no lemma of
+    // the pack, lands on no lemma (fix-lingua-lemma-lookup D4; the builder looked `donnée` up as a
+    // form and gave donner its B1): the check fails, naming the pair and donnée.
     assert_eq!(
         tsv(&tables().join("fr/forms.tsv"))
             .get("donnée")
@@ -1207,10 +1211,20 @@ fn spec_scenario_a_level_written_for_a_lemma_whose_form_reads_as_another() {
     let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build fr-en: {e}"));
     let table = level_table(&fr);
     std::fs::remove_dir_all(&scratch).unwrap();
+    let pack = Pack::load(&bytes).unwrap();
+    assert!(!pack.lexicon().contains_lemma("donnée"));
+    let at = |level: CefrLevel| -> Vec<&str> {
+        pack.lemmas_at_level(level)
+            .into_iter()
+            .map(|(lemma, _)| lemma)
+            .filter(|lemma| lemma.starts_with("donn"))
+            .collect()
+    };
+    assert_eq!(at(CefrLevel::A1), ["donner"]);
+    assert!(at(CefrLevel::B1).is_empty());
     let failure = levels_on_their_lemmas("fr-en", &bytes, &table).unwrap_err();
     assert_eq!(
         failure,
-        "fr-en: 2 level(s) not on the lemma they are written for: donner (table A1, pack B1), \
-         donnée (table B1, pack none)"
+        "fr-en: 1 level(s) not on the lemma they are written for: donnée (table B1, pack none)"
     );
 }
