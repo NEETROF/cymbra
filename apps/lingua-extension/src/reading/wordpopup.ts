@@ -1,4 +1,4 @@
-import type { MarkedTranslation } from "../translate/markup.ts";
+import type { MarkedTranslation, Span } from "../translate/markup.ts";
 import type { LemmaStatus, StudiedLanguage, WordGrammar } from "../analyzer/types.ts";
 import type { card as frCard } from "../i18n/fr/card.ts";
 import {
@@ -96,6 +96,12 @@ export interface WordPopupContent {
   /** The word as it stands on the page (`don't` for its `do`); defaults to `surface`. */
   written?: string;
   /**
+   * Where the selection sits in `sentence`, as [start, end) offsets — written only where known
+   * (add-lingua-french-read-aloud D5): a French card reads an elided piece with the word the page
+   * writes it against, which it finds after this span.
+   */
+  selection?: Span | null;
+  /**
    * The studied language of the document the word was met in, whose forms the grammar lines name
    * (add-lingua-spanish-word-card) and which the card's words of the document say in `lang`
    * (localise-lingua-reading-surfaces); a card without one names English forms, as every card did.
@@ -154,26 +160,91 @@ function seenDiffers(content: WordPopupContent): boolean {
   return !!content.surface && content.surface.toLowerCase() !== content.headword.toLowerCase();
 }
 
+/** A letter of the page, an accent written apart included. */
+const LETTER = /[\p{L}\p{M}]/u;
+/** An apostrophe, straight or typographic. */
+const APOSTROPHE = /['\u2019]/u;
+/** A form written with its apostrophe last: an elided piece (`l’`, `qu'`). */
+const ELIDED = /['\u2019]$/u;
+
+/** A text as the engine reads it: letter case, Unicode normalisation and the apostrophe's form aside. */
+function engineForm(text: string): string {
+  return text
+    .normalize("NFC")
+    .replace(/\u2019/gu, "'")
+    .toLowerCase();
+}
+
+/**
+ * The word an elided piece leans on, as the page writes it with the piece: from the selection's
+ * start through the letters that follow it in its sentence, carrying on across an apostrophe
+ * followed by a letter (« jusqu'aujourd'hui »), up to a space, a hyphen, a digit or punctuation
+ * (« Qu'est » of « Qu'est-ce »). Null unless the selection is glued to what follows — a letter, or
+ * an apostrophe and a letter — which holds whether the piece's span takes its apostrophe (`l'` |
+ * `homme`) or leaves it to the next one (`l` | `'homme`).
+ */
+function gluedWord(content: WordPopupContent): string | null {
+  const span = content.selection;
+  const text = content.sentence;
+  if (!span || span.start < 0 || span.end <= span.start || span.end > text.length) return null;
+  const letterAt = (i: number): boolean => i < text.length && LETTER.test(text.charAt(i));
+  const gluedAt = (i: number): boolean => letterAt(i) || (APOSTROPHE.test(text.charAt(i)) && letterAt(i + 1));
+  if (!gluedAt(span.end)) return null;
+  let end = span.end;
+  while (gluedAt(end)) end += letterAt(end) ? 1 : 2;
+  return text.slice(span.start, end);
+}
+
+/** What a single word's button reads, and whether it is an elided piece read with its word. */
+interface Heard {
+  text: string;
+  leaning: boolean;
+}
+
+/**
+ * What a single word's button reads (add-lingua-french-read-aloud D5). Read alone by a voice, a
+ * French elided piece is a letter's name (`l'` is « elle »), so when the speaker reads French the
+ * button reads what the page writes: an elided piece with the word it leans on (`l'` → « l'homme »);
+ * else a piece of a word the analysis split, the word as written (`à` → « au ») — but never an
+ * elided piece alone (`l’ homme` typed with a space), whose form seen is the word it stands for when
+ * the analysis writes it so (`Le`); else the form seen, as every card reads in English and Spanish
+ * (`del` still reads its piece).
+ */
+function heardWord(content: WordPopupContent, seen: string, speakerLanguage: string): Heard {
+  if (speakerLanguage !== "fr") return { text: seen, leaning: false };
+  const glued = gluedWord(content);
+  if (glued) return { text: glued, leaning: true };
+  const written = content.written?.trim();
+  const asWritten = !!written && !ELIDED.test(written) && engineForm(written) !== engineForm(seen);
+  return { text: asWritten ? written : seen, leaning: false };
+}
+
 /**
  * The texts a card offers to hear: the selection as seen — with the dictionary form beside it when
  * the card shows another form seen, each button saying what it reads (D2) — then its sentence unless
- * it is the selection.
+ * it is what the word button reads. A French speaker hears a single word as `heardWord` says.
  */
-function listensFor(content: WordPopupContent, copy: CardCopy): Listen[] {
+function listensFor(content: WordPopupContent, copy: CardCopy, speakerLanguage: string): Listen[] {
   const selection = (content.surface || content.headword).trim();
   if (!selection) return [];
   const headword = content.headword.trim();
   const listens: Listen[] = [];
   // Several words are a selection, whether or not the pack knows the expression (« animal doméstico »).
-  if (content.expression || /\s/u.test(selection)) {
+  const several = content.expression || /\s/u.test(selection);
+  const word = several ? { text: selection, leaning: false } : heardWord(content, selection, speakerLanguage);
+  const heard = word.text;
+  // An elided piece read with its word shows a form other than its dictionary one, whatever text the
+  // analysis gives its token — `l'`, or the word it stands for, `Le` (add-lingua-french-tokenisation).
+  const leans = word.leaning && heard.toLowerCase() !== headword.toLowerCase();
+  if (several) {
     listens.push({ key: "selection", text: selection, label: copy.listenSelection, aria: copy.listenSelectionLabel });
-  } else if (seenDiffers(content) && headword) {
+  } else if ((seenDiffers(content) || leans) && headword) {
     listens.push(
       {
         key: "selection",
-        text: selection,
-        label: copy.listenForm(selection),
-        aria: copy.listenSeenFormLabel(selection),
+        text: heard,
+        label: copy.listenForm(heard),
+        aria: copy.listenSeenFormLabel(heard),
       },
       {
         key: "headword",
@@ -183,10 +254,10 @@ function listensFor(content: WordPopupContent, copy: CardCopy): Listen[] {
       },
     );
   } else {
-    listens.push({ key: "selection", text: selection, label: copy.listenWord, aria: copy.listenWordLabel });
+    listens.push({ key: "selection", text: heard, label: copy.listenWord, aria: copy.listenWordLabel });
   }
   const sentence = content.sentence.trim();
-  if (sentence && !sameSpokenText(sentence, selection)) {
+  if (sentence && !sameSpokenText(sentence, heard)) {
     listens.push({ key: "sentence", text: sentence, label: copy.listenSentence, aria: copy.listenSentenceLabel });
   }
   return listens;
@@ -258,7 +329,7 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
    */
   function renderListen(): void {
     listenEl.replaceChildren();
-    const listens = speaker && current && speaker.available() ? listensFor(current, copy) : [];
+    const listens = speaker && current && speaker.available() ? listensFor(current, copy, speaker.lang) : [];
     listenEl.hidden = listens.length === 0;
     if (!speaker) return;
     const playing = speaker.speaking();
@@ -527,7 +598,9 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
       el.style.minWidth = "";
       // Another word silences the card; the same selection completing with its answer does not.
       const playing = cardSpeaking();
-      if (playing && !listensFor(content, copy).some((l) => l.text === playing.text)) speaker?.stop();
+      if (playing && !listensFor(content, copy, speaker?.lang ?? "").some((l) => l.text === playing.text)) {
+        speaker?.stop();
+      }
       current = content;
       const studied = studiedLanguageOf(content);
       headwordEl.textContent = content.headword;

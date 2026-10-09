@@ -3,6 +3,11 @@
 // Each language's words come in the forms the sentences need; the sentences take them. The one
 // place a language's name is written in French: test/lint-language-labels.spec.ts refuses it
 // anywhere else.
+//
+// `french` is there for French's voices (add-lingua-french-read-aloud D4): the read-aloud block
+// names a speaker's language before French is a studied language. A French-native reader cannot
+// study French, so no French interface shows these words today; this module carries them because
+// the English and Spanish ones are typed after it.
 
 /** One studied language, in the forms the sentences take. */
 export interface LanguageWords {
@@ -43,6 +48,15 @@ export const languages = {
     feminine: "espagnole",
     windowsVoice: "Espagnol (Espagne)",
     preview: "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
+  } satisfies LanguageWords,
+  french: {
+    name: "Français",
+    of: "de français",
+    the: "le français",
+    masculine: "français",
+    feminine: "française",
+    windowsVoice: "Français (France)",
+    preview: "Voici comment sonneront tes pages quand Lingua les lira à voix haute.",
   } satisfies LanguageWords,
   levelScale,
   /**

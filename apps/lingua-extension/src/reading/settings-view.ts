@@ -1,7 +1,9 @@
 import {
   estimatedLevelsNote,
+  isNamedLanguage,
   languageName,
   levelTitle,
+  type NamedLanguage,
   noVoiceInstalled,
   previewSentence,
   windowsVoiceLanguage,
@@ -94,11 +96,7 @@ const PREVIEW_KEY = "preview";
  * (2026-09-29), and that install can fail outright (0x800F0950), hence the pointer to the fallback
  * (`installVoiceHelpWithFallback`, where the remote voices can stand in).
  */
-function installVoiceHelp(
-  copy: SettingsModule,
-  interfaceLanguage: InterfaceLanguage,
-  language: StudiedLanguage,
-): string {
+function installVoiceHelp(copy: SettingsModule, interfaceLanguage: InterfaceLanguage, language: NamedLanguage): string {
   return copy.installVoiceHelp(
     windowsVoiceLanguage(interfaceLanguage, language),
     languageName(interfaceLanguage, language),
@@ -546,7 +544,9 @@ export function mountSettings(
     }
     // The select, not the stored preference: the change it just saved may not be back yet.
     const voice = speaker.eligible().find((v) => v.voiceURI === voiceSelect.value) ?? speaker.automatic();
-    if (voice) speaker.speak(PREVIEW_KEY, previewSentence(interfaceLanguage, speaker.lang as StudiedLanguage), voice);
+    const language = speaker.lang;
+    if (!voice || !isNamedLanguage(language)) return;
+    speaker.speak(PREVIEW_KEY, previewSentence(interfaceLanguage, language), voice);
   });
   speaker?.subscribe(() => renderVoices());
   flowToggle.addEventListener("change", async () => {
@@ -570,14 +570,21 @@ export function mountSettings(
     voiceBlock.hidden = eligible.length === 0 && !offersAndroid && !speaker?.listsVoices();
     if (!speaker || voiceBlock.hidden) return;
     const remote = offersRemote && speaker.remoteVoices();
-    noVoiceNote.hidden = (eligible.length > 0 && !remote) || offersAndroid;
-    // The language the host's speaker reads: a page's in the drawer, the reader's first elsewhere.
-    const voiceLanguage = speaker.lang as StudiedLanguage;
-    noVoiceText.textContent = noVoiceInstalled(interfaceLanguage, voiceLanguage);
-    const installHelp = installVoiceHelp(copy, interfaceLanguage, voiceLanguage);
-    const help = offersRemote ? copy.installVoiceHelpWithFallback(installHelp) : installHelp;
-    installInfo.title = help;
-    installInfo.setAttribute("aria-label", help);
+    // The language the host's speaker reads: a page's in the drawer, the reader's first elsewhere —
+    // French among them, whose words the catalogue holds before it is studied. A tag the catalogue
+    // does not name (none, with the shipped pairs) leaves out the sentences that would name it, and
+    // the preview that would speak it (add-lingua-french-read-aloud D4).
+    const voiceLanguage = speaker.lang;
+    const named = isNamedLanguage(voiceLanguage);
+    noVoiceNote.hidden = (eligible.length > 0 && !remote) || offersAndroid || !named;
+    previewBtn.hidden = !named;
+    if (named) {
+      noVoiceText.textContent = noVoiceInstalled(interfaceLanguage, voiceLanguage);
+      const installHelp = installVoiceHelp(copy, interfaceLanguage, voiceLanguage);
+      const help = offersRemote ? copy.installVoiceHelpWithFallback(installHelp) : installHelp;
+      installInfo.title = help;
+      installInfo.setAttribute("aria-label", help);
+    }
     remoteRow.hidden = !offersRemote;
     remoteNote.hidden = !offersRemote;
     remoteToggle.checked = speaker.remoteVoices();
