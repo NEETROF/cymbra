@@ -22,9 +22,9 @@ Inputs, in `--work`:
 - wordfreq `fr` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
   attested at all (D6).
 
-Outputs, in `--work`: `forms.tsv`, `freq.tsv`, an empty `gloss.tsv` (fr-en's glosses come with
-add-lingua-pack-fr-en), `NOTICE` and `manifest.json`. The readings (`grammar.tsv`) and the levels
-(`level.tsv`) are later changes' of the same reducer.
+Outputs, in `--work`: `forms.tsv`, `freq.tsv`, `level.tsv` (French's estimated levels,
+add-lingua-french-levels), an empty `gloss.tsv` (fr-en's glosses come with add-lingua-pack-fr-en),
+`NOTICE` and `manifest.json`. The readings (`grammar.tsv`) are a later change's of the same reducer.
 
 The tables serve French's tokenisation as add-lingua-french-tokenisation writes it (M21, design
 D4): the pre-pass hands the lookup the word an elided piece stands for (`l'` is read `le`), splits
@@ -551,6 +551,148 @@ def analyser_version(path=_ANALYSIS_RS):
     return m.group(1)
 
 
+# — The estimated levels (add-lingua-french-levels) —
+#
+# No French CEFR list can be shipped (FLELex is non-commercial), so French's levels are estimated
+# from frequency, as Spanish's are (the programme's M7), and the pack says so. The commonest lemmas,
+# in rank order, take the sizes of English's CEFR levels: measured on English, giving its 8,302 CEFR
+# lemmas their levels this way by their own ranks agrees with the lists for 39.8 % of them, and
+# within one level for 82.6 % (design D1). The sizes are es-fr's (`reduce-es-fr.py`, measured on
+# en-fr's 2026-09-26 tables), kept here: an English update must not move French's levels
+# unannounced, and moving them into reduce_common.py would move every pair's rule digest.
+ENGLISH_BANDS = (("A1", 1020), ("A2", 1158), ("B1", 2015), ("B2", 2347), ("C1", 886), ("C2", 876))
+
+# Which lemmas a CEFR list would hold is read from the English Wiktionary's French section, the
+# source of the forms, never from a pair's glosses (design D2): the table does not wait for fr-en's
+# glosses, and does not move when they land.
+#
+# A single character takes a level only as a word (D2, rule 2): a sense of another part of speech
+# than a letter's, a symbol's or a name's that is no abbreviation — `à`, a preposition, and `y`, a
+# pronoun; not `b` or `e`, a letter's name, a symbol or an abbreviation.
+_LETTER_POS = frozenset({"character", "symbol", "name"})
+_NOT_A_WORD_TAGS = frozenset({"abbreviation", "initialism", "acronym", "letter"})
+# A sense that only spells another word (D2, rule 3), as the section's glosses open: a reader learns
+# the word it spells (`etre` → *être*, `parceque`, `hazard` → *hasard*).
+_SPELLING_OF = (
+    "alternative spelling of",
+    "obsolete spelling of",
+    "archaic spelling of",
+    "dated spelling of",
+    "misspelling of",
+    "alternative letter-case form of",
+    "pronunciation spelling of",
+    "nonstandard spelling of",
+    "eye dialect spelling of",
+    "obsolete form of",
+    "archaic form of",
+    "dated form of",
+    "rare spelling of",
+    "uncommon spelling of",
+    "informal spelling of",
+)
+# Why a ranked lemma takes no level, in the order the rules are read (D2, D3): the section does not
+# know it as a word, or knows it only as a name; its own form reads as another lemma; it is a letter
+# that is no word; it only spells another word.
+LEVEL_RULES = ("unknown", "name", "elsewhere", "letter", "spelling")
+
+
+def word_senses(entry):
+    """`(word, [(part of speech, first gloss, tags)])`: the senses of a kaikki entry that are not a
+    form of another word (`_is_form_of`), its word as the tables write it."""
+    pos = entry.get("pos")
+    return nfc_lower(entry.get("word")), [
+        (pos, (sense.get("glosses") or [""])[0] or "", frozenset(sense.get("tags") or ()))
+        for sense in entry.get("senses") or ()
+        if not _is_form_of(sense)
+    ]
+
+
+def read_level_senses(path):
+    """`word → senses`, over the French section: each word the section gives a sense that is not a
+    form of another word, with those senses (`word_senses`). Its own pass, so the forms' reading is
+    not edited for it."""
+    senses = collections.defaultdict(list)
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            word, own = word_senses(entry)
+            if own:
+                senses[word].extend(own)
+    return senses
+
+
+def _a_word(word, senses):
+    """Whether a single character is a word (rule 2); a longer word always is."""
+    if len(word) != 1:
+        return True
+    return any(
+        pos not in _LETTER_POS and not tags & _NOT_A_WORD_TAGS and not gloss.lower().startswith("abbreviation of")
+        for pos, gloss, tags in senses
+    )
+
+
+def _only_spells_another(senses):
+    """Whether every sense but a name's only spells another word (rule 3)."""
+    own = [(gloss, tags) for pos, gloss, tags in senses if pos != "name"]
+    return bool(own) and all(gloss.lower().startswith(_SPELLING_OF) or "misspelling" in tags for gloss, tags in own)
+
+
+def no_level(lemma, forms, senses):
+    """Why a ranked lemma takes no level (`LEVEL_RULES`), or None when a CEFR list would hold it
+    (design D2):
+    1. the section gives it no sense that is not a form of another word (`the`, `etc`, `km`), or
+       only a name's (`paris`, `france`) — but `du` and `des`, words of their own (M21);
+    4. its own form reads as another lemma in the forms table: the builder keys a level by looking
+       the lemma up as a form, so `donnée`, read as *donner*, would give *donner* its level (D3);
+    2. it is a single character the section gives no word's sense (`b`, `e`);
+    3. every sense it is given only spells another word (`etre`, `parceque`)."""
+    own = senses.get(lemma, ())
+    if lemma not in OWN_WORDS:
+        if not own:
+            return "unknown"
+        if {pos for pos, _, _ in own} == {"name"}:
+            return "name"
+    if forms.get(lemma, lemma) != lemma:
+        return "elsewhere"
+    if not _a_word(lemma, own):
+        return "letter"
+    if _only_spells_another(own):
+        return "spelling"
+    return None
+
+
+def estimated_levels(ranks, forms, senses, bands=ENGLISH_BANDS):
+    """`(lemma → level, rule → lemmas)`: in rank order then lemma, each band's size to the ranked
+    lemmas a CEFR list would hold (`no_level`), and the lemmas each rule left out before the last
+    level was given."""
+    slots = [level for level, size in bands for _ in range(size)]
+    levels, left_out = {}, {rule: [] for rule in LEVEL_RULES}
+    for lemma in sorted(ranks, key=lambda lemma: (ranks[lemma], lemma)):
+        if len(levels) == len(slots):
+            break
+        why = no_level(lemma, forms, senses)
+        if why:
+            left_out[why].append(lemma)
+        else:
+            levels[lemma] = slots[len(levels)]
+    return levels, left_out
+
+
+def levels_report(levels, left_out, ranks):
+    """The reduction's line on the levels: each level's rank span, and how many lemmas each rule
+    left out."""
+    spans = []
+    for level, _ in ENGLISH_BANDS:
+        at = [ranks[lemma] for lemma, lvl in levels.items() if lvl == level]
+        if at:
+            spans.append(f"{level} {len(at)} ({min(at)}–{max(at)})")
+    out = ", ".join(f"{rule} {len(lemmas)}" for rule, lemmas in left_out.items())
+    return f"levels={len(levels)} estimated: {'; '.join(spans)}; left out: {out}"
+
+
 NOTICE = """Cymbra Lingua data pack — FR->EN attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), French section: CC BY-SA 4.0 + GFDL —
@@ -562,6 +704,10 @@ CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
 UD French-GSD, the Universal Dependencies French-GSD treebank
 (https://github.com/UniversalDependencies/UD_French-GSD): CC BY-SA 4.0 — how often a form stands
 for each of its lemmas, to choose one, and how often a hyphenated word occurs, to rank it.
+
+The levels are estimated, not taken from a CEFR list: the commonest lemmas by wordfreq's ranks take
+the sizes of English's CEFR levels, the English Wiktionary's French section saying which lemmas take
+one, and every pack studying French reads them as committed.
 """
 
 
@@ -604,6 +750,10 @@ def main():
         "freq.tsv",
         "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))),
     )
+    # French's estimated levels (add-lingua-french-levels): from the ranks and the section's senses,
+    # never from the glosses.
+    levels, left_out = estimated_levels(ranks, forms, read_level_senses(os.path.join(a.work, "kaikki-French.jsonl")))
+    common.write(a.work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
     # fr-en glosses nothing yet: the file every pair's folder holds, empty, so French's dictionary
     # words (tables/fr/lexical.tsv, its glossed lemmas) are none.
     common.write(a.work, "gloss.tsv", "")
@@ -614,6 +764,8 @@ def main():
             "native": "en",
             "pack_version": a.pack_version,
             "analyzer_version": analyser_version(),
+            # Derived from frequency, not taken from a CEFR list: the extension says so.
+            "levels_estimated": True,
             "licences": [
                 "kaikki / enwiktionary (CC BY-SA 4.0 + GFDL)",
                 "wordfreq (CC BY-SA 4.0)",
@@ -628,6 +780,7 @@ def main():
     }
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     print(f"reduced fr-en: forms={len(forms)} lemmas={len(ranks)}", file=sys.stderr)
+    print(f"reduced fr-en: {levels_report(levels, left_out, ranks)}", file=sys.stderr)
 
 
 if __name__ == "__main__":

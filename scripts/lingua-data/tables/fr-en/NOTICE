@@ -9,3 +9,7 @@ CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
 UD French-GSD, the Universal Dependencies French-GSD treebank
 (https://github.com/UniversalDependencies/UD_French-GSD): CC BY-SA 4.0 — how often a form stands
 for each of its lemmas, to choose one, and how often a hyphenated word occurs, to rank it.
+
+The levels are estimated, not taken from a CEFR list: the commonest lemmas by wordfreq's ranks take
+the sizes of English's CEFR levels, the English Wiktionary's French section saying which lemmas take
+one, and every pack studying French reads them as committed.

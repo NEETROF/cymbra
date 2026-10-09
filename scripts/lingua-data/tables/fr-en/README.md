@@ -9,7 +9,8 @@ pack before `enable-lingua-french` (change 52).
 They are in two folders (split-lingua-pack-tables-by-language). fr-en is French's reference pair
 (`../fr/studied.json`): its reduction writes French's own tables in `../fr/`, which every pair
 studying French reads as committed (fr-es, change 49), and this folder's `pin.json` records the
-sources of both. Today fr-en reduces French's forms and ranks alone: it glosses nothing yet.
+sources of both. Today fr-en reduces French's forms, ranks and estimated levels: it glosses nothing
+yet.
 
 In this folder:
 
@@ -17,7 +18,7 @@ In this folder:
 |---|---|---|
 | `gloss.tsv` | lemma → English gloss: **empty** until add-lingua-pack-fr-en (change 48) | — |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
-| `manifest.json` | the pack's metadata: French glossed in English, French's analyser version (`FRENCH_ANALYZER_VERSION`, read from lingua-core), and `pack_version` (the snapshot, and the rules that reduced it) | — |
+| `manifest.json` | the pack's metadata: French glossed in English, French's analyser version (`FRENCH_ANALYZER_VERSION`, read from lingua-core), `levels_estimated` (the levels are estimated, not a CEFR list's), and `pack_version` (the snapshot, and the rules that reduced it) | — |
 | `pin.json` | the raw sources these tables and `../fr/` came from, and the pack they build | — |
 
 In `../fr/`, French's tables, written by fr-en's reduction:
@@ -26,11 +27,12 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 |---|---|---|
 | `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's French section (CC BY-SA 4.0 + GFDL), with UD French-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by GSD's own frequency too |
+| `level.tsv` | lemma → estimated CEFR level (*The levels* below) | derived from `freq.tsv` and the English Wiktionary's French section (no source of its own) |
 | `lexical.tsv` | French's dictionary words, the lemmas fr-en glosses: **empty** until change 48 | derived from `gloss.tsv` by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | French's pinned tag pool: **empty** until add-lingua-french-grammar-tables (change 45) pins it; written by no reducer | committed by hand |
 | `studied.json` | the pair whose reduction writes `../fr/`: fr-en | committed by hand |
 
-`grammar.tsv` (the readings) and `level.tsv` (the estimated levels) come with changes 45 and 46.
+`grammar.tsv` (the readings) comes with change 45.
 
 ## The sources
 
@@ -132,9 +134,9 @@ apostrophe (`aujourd'hui` 136, `quelqu'un` 204). Every ranked lemma's own form r
 (`crates/lingua-pack/tests/committed_tables.rs` checks every pair's pack holds each rank on its own
 lemma).
 
-The pack these two tables build — no gloss, reading or level yet — is 1,241,733 B; Spanish's same two
-tables build 1,308,123 B. The builder holds it under 5 MiB; the glosses, readings and levels are
-measured against that budget by the changes that add them.
+The pack these two tables built — no gloss, reading or level — was 1,241,733 B; Spanish's same two
+tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*). The builder holds it
+under 5 MiB; the glosses and readings are measured against that budget by the changes that add them.
 
 ## Measured
 
@@ -360,6 +362,104 @@ read `nous` as *je* and `vous` as *tu*. The rows that would — `ma` → *mon*, 
 in `OVERRIDES`, each with its reason (task 5.1); `cet` → *ce* needs a candidate the dictionary does
 not give, left to the analysis (change 41) or the grammar (change 45).
 
+## The levels (`../fr/level.tsv`)
+
+**Estimated, not a CEFR list's** (add-lingua-french-levels, the programme's M7). No French CEFR list
+can be shipped: FLELex (CEFRLex) is CC BY-NC-SA 4.0, which the builder's licence guard refuses, and
+no openly licensed French CEFR word list was found. French's levels are estimated from frequency, as
+Spanish's are, and the manifest says `levels_estimated`: the extension labels them estimated and the
+ladder borrows English's typical vocabularies, saying so — no code of their own. No FLELex data is
+read, measured against or committed.
+
+**The derivation.** The lemmas of `../fr/freq.tsv`, in rank order, take English's level sizes —
+1,020 A1, 1,158 A2, 2,015 B1, 2,347 B2, 886 C1, 876 C2: 8,302 lemmas — skipping those a CEFR list
+would leave out. The sizes are constants of `reduce-fr-en.py` (`ENGLISH_BANDS`), equal to es-fr's by
+a test and never read from English's tables, so an English update cannot move French's levels
+unannounced. Where the truth is known, giving English's 8,302 CEFR lemmas these sizes in their own
+rank order agrees with the lists for 39.8 % of them and within one level for 82.6 %; each estimated
+level's mean true level rises from 1.67 at A1 to 5.03 at C2, so French keeps six levels.
+
+**Which lemmas take one** is read from the English Wiktionary's French section — the source of the
+forms, never a pair's glosses: the table does not wait for fr-en's glosses (change 48) and does not
+move when they land. Within the levelled span (ranks 1–10,762), 2,460 ranked lemmas take no level:
+
+| Rule | Left out | For example |
+|---|---|---|
+| 1. the section gives it no sense that is not a form of another word… | 1,389 | `the`, `etc`, `in`, `km`, `http` |
+| …or only a name's | 1,022 | `france`, `paris`, `québec`, `facebook` |
+| 2. a single character the section gives no word's sense — a letter's name, a symbol, an abbreviation | 16 | `p`, `i`, `h`, `e`, `b`; `à` (a preposition), `y` (a pronoun), `x` (a stool, X-rated) and `ô` (a vocative) keep their place |
+| 3. every sense it is given, a name's aside, only spells another word — an obsolete, archaic, rare, dated or alternative spelling, a letter-case form, a misspelling, a pronunciation spelling | 33 | `etat`, `etre`, `etait`, `parceque`, `orient`, `zombie`, `lys` |
+| 4. its own form reads as another lemma in `forms.tsv` | 0 | none: the ranks keep no such lemma; the rule stays as a guard, since the builder keys a level by looking the lemma up as a form (`donnée`, read as *donner*, would give *donner* its level) |
+
+`du` and `des`, words of their own (M21), are A1 whatever their senses say; `au` and `aux` are no
+words. Every word the pre-pass writes has a level: the elided pieces' words, `à`, `le` and the
+inversion's pronouns are A1, `jusque` A2 and `quoique` B1. M8's cost carries over: `porte` is no
+lemma, so the door has no level and « il porte » reads as *porter* (A1).
+
+| Level | Lemmas | Ranks | First words |
+|---|---|---|---|
+| A1 | 1,020 | 1–1,080 | de, le, et, à, en, des, un, que |
+| A2 | 1,158 | 1,081–2,374 | certainement, clairement, collection, conscience, content, croissance |
+| B1 | 2,015 | 2,375–4,809 | trompe, val, alimentaire, annuel, apparence, autrefois |
+| B2 | 2,347 | 4,810–8,081 | rébellion, rédacteur, réserver, simultanément, slogan, sonde |
+| C1 | 886 | 8,082–9,412 | conjoncture, consolidation, consolider, contradictoire, corner, croquis |
+| C2 | 876 | 9,413–10,762 | clandestin, commentateur, contrefaçon, convaincant, convenablement, croate |
+
+**Measured with open data only** (design D4), Spanish's committed estimate the control:
+
+| | French | Spanish |
+|---|---|---|
+| A levelled lemma's translation — the first word of its English Wiktionary glosses that English's CEFR lists level — and that word's level: exact / within one | 28.3 % / 66.7 % of 5,949 (71.7 % covered) | 29.4 % / 65.9 % of 6,140 (74.0 %) |
+| Mean English level of the translations, A1 → C2 | 1.80, 2.40, 2.75, 3.06, 3.12, 3.06 | 1.83, 2.37, 2.74, 3.04, 3.04, 3.08 |
+| A1 words whose translation is English A1 / A1–A2 | 51.6 % / 76.5 % | 49.6 % / 73.8 % |
+| UD PUD's words at A1, A2, B1, B2, C1, C2, none (gold lemmas; names, numbers, symbols, punctuation left out) | 78.4, 7.8, 5.7, 2.7, 0.6, 0.6, 4.3 % | 76.6, 8.1, 6.0, 2.6, 0.8, 0.4, 5.5 % |
+| PUD's words presumed known when declaring A2, B1, B2, C1, C2 | 78.4, 86.2, 91.9, 94.6, 95.2 % | 76.6, 84.7, 90.7, 93.3, 94.1 % |
+
+English's lists on the same PUD sentences: 65.8, 12.2, 9.0, 3.9, 0.5, 0.2, 8.3 %, a B1 reader
+presumed to know 78.0 % of the words. The estimate presumes more below each level than English's
+lists, in French as in Spanish. The translation proxy rises from A1 to B2 and cannot tell B2, C1 and
+C2 apart in either language: a rare word's translation is often a common English word.
+
+**Against the design's figures**, measured on change 43's prototype ranks: every proxy holds to the
+tenth, and the spans end a few ranks earlier — A2 at 2,374 (2,376), B1 at 4,809 (4,814), B2 at
+8,081 (8,086), C1 at 9,412 (9,418), C2 at 10,762 (10,768). Seven lemmas the prototype ranked within
+the span are no ranks of these tables: `venue`, `donnée`, `saisie`, `tranchée` and `revenue`, whose
+own form reads as a verb, and `ç` and `jusqu`, wordfreq's elision stems. So 2,460 lemmas are left out
+instead of 2,466 — rule 4 finds none of its four, the letters lose `ç`, the unknown words `jusqu` —,
+the translation proxy covers 5,949 lemmas instead of 5,950, and four levels differ from the
+prototype's table: `revenue` (B2) is no lemma, so `confidentialité` moves up to B2, `cheveu` to C1,
+and `sous-préfecture` takes C2's last place. On the prototype's ranks the reduction gives the
+design's table byte for byte.
+
+**Departures from Spanish's outcome.** Rules 2 and 3 are French's: Spanish's rule (a French gloss
+that is not only a proper noun's) levels 20 single characters, 15 of them letters rather than words
+(`b`, `d`, `h`, `k` A1, `w` A2, `z` B1), which « Renforcer un niveau » can seed. Without them French's
+A1 would hold 11 letters and `etat`, `etats`, `etre`. Most of the 33 spellings spell a word with a
+level of its own (`etre` → *être*, `hazard` → *hasard*); some spell none the table levels (`orient`,
+`méditerranée`, `zombie`, `ndlr`, `latino-américain`) and lose a level with nothing in its place.
+Spanish's table does not move; aligning it, or narrowing rule 3 to a spelling of a commoner word, is
+the owner's question (task 5.2).
+
+**Known weaknesses**, as for Spanish: numbers written as words are levelled by frequency (`onze`,
+`treize`, `soixante`, `dix-sept` B1, `vingt-quatre` B2, `dix-neuf`, `soixante-dix` C2, `trente-deux`
+none), where English's lists put them at A1; a word ranked by a name's frequency keeps its rank
+(`jean` A1, `twitter` A2); a noun said mostly in the plural ranks by its singular (`cheveu` C1, `œil`
+A2). C2 ends inside a block of 326 ranked lemmas sharing Zipf 3.41, most of them compounds GSD meets
+once: 209 of C2's 876 lemmas are in it, 125 of them compounds, and its 27 lemmas past the edge have
+no level. A C2 word is presumed known by no declared level, so only the C2 ladder and C2 seeding see
+it.
+
+**If a licence is granted** (design D8): the owner asks UCLouvain's CENTAL for FLELex, with ELELex,
+for deriving a lemma → level table, committing it in this public repository and shipping it in the
+packages for commercial use. Then `reduce-fr-en.py` reads FLELex at a pinned version — each lemma the
+first level at which the list attests it, the lowest on collisions, joined to French's lemmas through
+`forms.tsv` —, the manifest drops `levels_estimated`, the NOTICE credits the list under the granted
+terms, the licence guard admits the grant as a category of its own, and fr-en and fr-es are reduced
+again in one pull request. This estimate is measured against FLELex then, and the figures kept here.
+
+The levels section is one byte per lemma of the pack's pool: the pack grows from 1,241,733 B to
+1,302,031 B — 60,035 B the section and the manifest's flag, 263 B the NOTICE's sentence.
+
 ## What the later changes add
 
 | Change | Adds |
@@ -368,7 +468,6 @@ not give, left to the analysis (change 41) or the grammar (change 45).
 | 41 analysis | the cascade, designed and measured on these tables; its version bump re-reduces fr-en |
 | 44 expression keys | the plain words left out here because they begin with a piece (`d'abord`, `c'est`, `l'on`) |
 | 45 grammar | the readings of these forms (`../fr/grammar.tsv`), and French's tag pool (`../fr/tags.tsv`) |
-| 46 levels | the estimated levels, from these ranks (`../fr/level.tsv`) |
 | 48 fr-en | the English glosses, expressions and senses; `../fr/lexical.tsv` then holds the glossed lemmas, and the French invariance baseline moves from its fixture to these tables |
 | 49 fr-es | a reader of `../fr/` as committed, capped at the same 60,000 |
 
@@ -377,7 +476,9 @@ not give, left to the analysis (change 41) or the grammar (change 45).
 The repository is Apache-2.0; **these files are not**, nor French's in `../fr/`. They are derived
 from the sources above and carry their licences:
 - `../fr/forms.tsv`: CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts);
-- `../fr/freq.tsv`: CC BY-SA 4.0 (wordfreq, and GSD's counts for the compounds).
+- `../fr/freq.tsv`: CC BY-SA 4.0 (wordfreq, and GSD's counts for the compounds);
+- `../fr/level.tsv`: CC BY-SA 4.0 (derived from `freq.tsv`) and CC BY-SA 4.0 and the GFDL (kaikki,
+  which says which lemmas take a level).
 
 `NOTICE` gives the full attribution. See `../../SOURCES.md`.
 

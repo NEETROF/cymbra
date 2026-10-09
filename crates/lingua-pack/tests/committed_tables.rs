@@ -24,6 +24,7 @@ use std::sync::OnceLock;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lexicon::Lexicon;
 use lingua_core::analysis::tokenize::{FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, tokenize};
+use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
@@ -556,13 +557,14 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
     // fr-en (add-lingua-french-forms-tables D1, D10), French's reference pair: tables/fr/ holds
     // French's forms and ranks, its record naming fr-en, and the two files every studied folder
     // holds, empty until the changes that fill them — the tag pool (45) and the dictionary words,
-    // fr-en's glossed lemmas (48). `grammar.tsv` and `level.tsv` come with 45 and 46.
+    // fr-en's glossed lemmas (48) — and the estimated levels (46). `grammar.tsv` comes with 45.
     let fr = tables().join("fr");
     assert_eq!(
         files(&fr),
         [
             "forms.tsv",
             "freq.tsv",
+            "level.tsv",
             "lexical.tsv",
             "studied.json",
             "tags.tsv"
@@ -624,7 +626,10 @@ fn spec_scenario_the_pack_builds_where_the_others_do() {
     assert!(section_of(&sections(bytes), section::LEXICAL).is_none());
     let pack = Pack::load(bytes).unwrap();
     assert_eq!(pack.pair().key(), "fr-en");
-    assert!(pack.dictionary_words().is_empty());
+    // No lemma is glossed, so a vocabulary estimate counts the levelled lemmas alone
+    // (add-lingua-french-levels: French's 8,302 estimated levels).
+    assert!(!pack.is_dictionary_word("maison"));
+    assert_eq!(pack.dictionary_words().len(), 8_302);
     assert!(pack.gloss("porte").is_none());
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
@@ -812,4 +817,222 @@ fn every_rank_lands_on_its_own_lemma_in_the_built_pack() {
             assert_eq!(got, want, "{pair}: ranks {lo}–{hi}");
         }
     }
+}
+
+// French's estimated levels (add-lingua-french-levels, M7): fr-en's reduction writes
+// `tables/fr/level.tsv`, English's level sizes given to French's commonest lemmas in rank order,
+// which lemmas take one read from the English Wiktionary's French section.
+
+/// English's CEFR level sizes, which French's estimated levels borrow, as Spanish's do
+/// (`ENGLISH_BANDS` in reduce-fr-en.py and reduce-es-fr.py).
+const ENGLISH_LEVEL_SIZES: [(&str, usize); 6] = [
+    ("A1", 1_020),
+    ("A2", 1_158),
+    ("B1", 2_015),
+    ("B2", 2_347),
+    ("C1", 886),
+    ("C2", 876),
+];
+
+#[test]
+fn spec_scenario_six_levels_of_english_s_sizes() {
+    let fr = tables().join("fr");
+    let levels = tsv(&fr.join("level.tsv"));
+    let ranks = tsv(&fr.join("freq.tsv"));
+    let forms = tsv(&fr.join("forms.tsv"));
+    assert_eq!(levels.len(), 8_302);
+    // Each a ranked lemma whose own form reads as itself: a pack finds a lemma by its own form.
+    for lemma in levels.keys() {
+        assert!(ranks.contains_key(lemma), "{lemma}: levelled, not ranked");
+        assert_eq!(
+            forms.get(lemma),
+            Some(lemma),
+            "{lemma}: its own form reads elsewhere"
+        );
+    }
+    // As many at each level as English's lists hold, given in rank order: each level's ranks come
+    // after the level below's.
+    let mut below = 0;
+    for (label, size) in ENGLISH_LEVEL_SIZES {
+        let at: Vec<u32> = levels
+            .iter()
+            .filter(|(_, level)| *level == label)
+            .map(|(lemma, _)| ranks[lemma].parse().unwrap())
+            .collect();
+        assert_eq!(at.len(), size, "fr/level.tsv: {label}");
+        let (first, last) = (*at.iter().min().unwrap(), *at.iter().max().unwrap());
+        assert!(
+            first > below,
+            "{label} starts at rank {first}, the level below ends at {below}"
+        );
+        below = last;
+    }
+}
+
+#[test]
+fn spec_scenario_the_commonest_words_are_a1() {
+    let levels = tsv(&tables().join("fr/level.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    for word in ["de", "le", "et", "à", "être", "avoir", "du", "des", "y"] {
+        assert_eq!(levels.get(word).map(String::as_str), Some("A1"), "{word}");
+    }
+    // `au` and `aux` are no words of French's tables.
+    for word in ["au", "aux"] {
+        assert!(!levels.contains_key(word), "{word} has a level");
+    }
+    // What a CEFR list leaves out (design D2), all ranked: a name, a word the section does not
+    // know, a letter, another word's spelling.
+    for word in ["paris", "france", "the", "b", "e", "etre"] {
+        assert!(ranks.contains_key(word), "{word} is no ranked lemma");
+        assert!(!levels.contains_key(word), "{word} has a level");
+    }
+}
+
+#[test]
+fn spec_scenario_every_french_pack_says_so() {
+    // Every pack studying French built from the committed tables — fr-en today — says its levels
+    // are estimated, in its manifest and its pack, and its NOTICE says so, citing no CEFR list.
+    let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
+    let french: Vec<&String> = pairs.iter().filter(|p| studied_of(p) == "fr").collect();
+    assert!(french.iter().any(|p| *p == "fr-en"), "{french:?}");
+    for pair in french {
+        let dir = tables().join(pair);
+        assert_eq!(
+            json(&dir.join("manifest.json"))["meta"]["levels_estimated"],
+            true,
+            "{pair}/manifest.json"
+        );
+        let pack = Pack::load(&committed_pack(pair)).unwrap();
+        assert!(pack.has_levels(), "{pair}");
+        assert!(pack.levels_estimated(), "{pair}");
+        let notice = std::fs::read_to_string(dir.join("NOTICE")).unwrap();
+        assert!(
+            notice.contains("The levels are estimated, not taken from a CEFR list"),
+            "{pair}/NOTICE"
+        );
+        for list in ["FLELex", "CEFRLex", "CEFR-J", "Octanove"] {
+            assert!(!notice.contains(list), "{pair}/NOTICE names {list}");
+        }
+    }
+}
+
+/// A committed pair's pack, built once per test binary for the five pairs the tests above build.
+fn committed_pack(pair: &str) -> std::borrow::Cow<'static, [u8]> {
+    use std::borrow::Cow;
+    match pair {
+        "en-fr" | "es-fr" => Cow::Borrowed(shipped(pair)),
+        "es-en" => Cow::Borrowed(es_en()),
+        "en-es" => Cow::Borrowed(en_es()),
+        "fr-en" => Cow::Borrowed(fr_en()),
+        _ => Cow::Owned(
+            build_pack(&inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}")))
+                .unwrap_or_else(|e| panic!("build {pair}: {e}")),
+        ),
+    }
+}
+
+/// A studied language's level table, `lemma → level`; empty when it has none.
+fn level_table(studied: &Path) -> BTreeMap<String, String> {
+    let path = studied.join("level.tsv");
+    if path.exists() {
+        tsv(&path)
+    } else {
+        BTreeMap::new()
+    }
+}
+
+/// Each level of a studied language's `level.tsv` on the lemma it is written for, in a pair's
+/// pack (add-lingua-french-levels D3). The builder keys a level by looking the lemma up as a form
+/// (`FstLexicon::id_of`), so a lemma whose own form reads as another hands that other lemma its
+/// level. Every lemma of the table must carry the table's level in the pack, and every lemma the
+/// pack gives a level the table's — the second half catches a level landing on a lemma the table
+/// leaves without one. The levels carried, or the pair and each lemma off, with both levels.
+fn levels_on_their_lemmas(
+    pair: &str,
+    bytes: &[u8],
+    table: &BTreeMap<String, String>,
+) -> Result<usize, String> {
+    let pack = Pack::load(bytes).map_err(|e| format!("{pair}: {e}"))?;
+    let mut carried: BTreeMap<&str, &str> = BTreeMap::new();
+    for level in CefrLevel::ALL {
+        for (lemma, _) in pack.lemmas_at_level(level) {
+            carried.insert(lemma, level.label());
+        }
+    }
+    let lemmas: BTreeSet<&str> = table
+        .keys()
+        .map(String::as_str)
+        .chain(carried.keys().copied())
+        .collect();
+    let off: Vec<String> = lemmas
+        .into_iter()
+        .filter_map(|lemma| {
+            let written = table.get(lemma).map(String::as_str);
+            let landed = carried.get(lemma).copied();
+            (written != landed).then(|| {
+                format!(
+                    "{lemma} (table {}, pack {})",
+                    written.unwrap_or("none"),
+                    landed.unwrap_or("none")
+                )
+            })
+        })
+        .collect();
+    if off.is_empty() {
+        Ok(carried.len())
+    } else {
+        Err(format!(
+            "{pair}: {} level(s) not on the lemma they are written for: {}",
+            off.len(),
+            off.join(", ")
+        ))
+    }
+}
+
+#[test]
+fn spec_scenario_the_committed_pairs_give_each_level_to_its_own_lemma() {
+    // Every committed pair's pack gives every lemma of its studied language's level.tsv exactly
+    // that level, and no other lemma one: 8,302 levels each.
+    let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
+    for pair in &pairs {
+        let table = level_table(&tables().join(studied_of(pair)));
+        let carried = levels_on_their_lemmas(pair, &committed_pack(pair), &table)
+            .unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(carried, table.len(), "{pair}");
+    }
+    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en"] {
+        assert_eq!(
+            level_table(&tables().join(studied_of(pair))).len(),
+            8_302,
+            "{pair}"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_a_level_written_for_a_lemma_whose_form_reads_as_another() {
+    // French's forms table maps the form `donnée` to *donner* (change 43: the noun leaves the
+    // pack). A level table giving `donnée` B1 and `donner` A1 — sorted, as a reducer writes it —
+    // builds a pack in which the level written for `donnée` lands on donner, the builder looking
+    // `donnée` up as a form: the check fails, naming the pair and donner.
+    assert_eq!(
+        tsv(&tables().join("fr/forms.tsv"))
+            .get("donnée")
+            .map(String::as_str),
+        Some("donner")
+    );
+    let scratch = std::env::temp_dir().join(format!("lingua-levels-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    let fr = studied_copy(&scratch, "fr");
+    std::fs::write(fr.join("level.tsv"), "donner\tA1\ndonnée\tB1\n").unwrap();
+    let inputs = inputs_from_dirs(&fr, &tables().join("fr-en")).unwrap_or_else(|e| panic!("{e}"));
+    let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build fr-en: {e}"));
+    let table = level_table(&fr);
+    std::fs::remove_dir_all(&scratch).unwrap();
+    let failure = levels_on_their_lemmas("fr-en", &bytes, &table).unwrap_err();
+    assert_eq!(
+        failure,
+        "fr-en: 2 level(s) not on the lemma they are written for: donner (table A1, pack B1), \
+         donnée (table B1, pack none)"
+    );
 }
