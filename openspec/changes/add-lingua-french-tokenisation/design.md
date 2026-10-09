@@ -271,7 +271,7 @@ read `au` + `revoir` and matched the key `au revoir`; at `0.2.0` it reads `À` +
 and the key is out of reach until change 44 builds keys through the analyser. Keys holding an
 elision (`coup d'œil`: `d'œil` is no lemma) are already dropped at build — the study's 9.6 % of
 French expressions — so this change adds the keys holding `au`/`aux` to those 44 repairs, as the
-596 es-fr keys holding `al`/`del` were for Spanish. Nothing ships in between.
+study's 596 es-fr keys holding `al`/`del` are for Spanish. Nothing ships in between.
 
 To make 44's effect visible, the fixture gains the expressions `au revoir` (« goodbye ») and
 `coup d'œil` (« glance ») and the scenario two phrase probes, « Au revoir » and « un coup d’œil »:
