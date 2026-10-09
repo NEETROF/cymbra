@@ -27,7 +27,7 @@
 
 ## 5. Gates and docs
 
-- [ ] 5.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-core -p lingua-pack -p lingua-wasm -p lingua-agent`, and `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`.
+- [x] 5.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-core -p lingua-pack -p lingua-wasm -p lingua-agent`, and `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`.
 - [x] 5.2 The WASM lane: `wasm-pack test --node crates/lingua-wasm` (native/WASM parity over the fixture corpus) passes.
 - [x] 5.3 In `apps/lingua-extension`: `yarn gen:wasm`, then `yarn test`, `yarn lint`, `yarn typecheck`, `yarn build` and `yarn check:variants` (no source moves; the snapshot does).
 - [x] 5.4 `openspec validate fix-lingua-lemma-lookup --strict` passes, and `python3 scripts/openspec_archive_order.py fix-lingua-lemma-lookup` exits 10 naming `add-lingua-french-baseline`, `add-lingua-french-forms-tables` (whose fr-en pair *The committed pairs* names), `add-lingua-pack-es-en`, `add-lingua-pack-en-es`, `add-lingua-english-card-wording` and `add-lingua-spanish-card-wording` (0 once they are archived).
