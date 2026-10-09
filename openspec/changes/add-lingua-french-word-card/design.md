@@ -14,7 +14,7 @@ See proposal.md (Why). What exists:
 | The selection | `selection.ts` `captureFrom` widens a selection to whole words over `WORD_CHAR` (`[\p{L}\p{N}'’-]`) and keeps only the widened range; `classifySelection` calls it a « word » without whitespace; `session.ts` `onCapture` resolves a « word » at the widened range's start (`hitAt`, `findTokenAt` made half-open by change 40); `selection-card.ts` `openForSelection` opens a word card, or the whole-selection card (`openExpression`) for text holding whitespace; `expressionCard` makes an expression covering the whole selection the card's answer (`expression: false`, headed by the match's key); `rowsFor` leaves function words and settled words out |
 | `cardGloss` | `selection-card.ts`: a card keyed by text holding a space stores the gloss it showed; any other asks the single-lemma port (`ports.gloss`) |
 | Review | `crates/lingua-wasm/src/lib.rs` `readable_gloss` (M4): a card whose lemma holds a space (`Card::is_expression`) reads the expression table, any other the gloss table; change 44 adds French's arm: a French card whose lemma holds a space reads the table at the key its name reads as (`french_expression_key`) |
-| The French golden | `crates/lingua-wasm/tests/french_baseline.rs`, `baseline/fr-en.golden`: 141 probes on `main`, 31 `word-grammar` and 23 `phrase-gloss` among them (changes 41 and 44 add 2 and 4), over the hand-written fixture until change 48 switches it to the committed tables (`"readings":[]` until then); the engine starts on es-en beside it |
+| The French golden | `crates/lingua-wasm/tests/french_baseline.rs`, `baseline/fr-en.golden`: 143 probes on `main` since change 41's implementation, 31 `word-grammar` and 25 `phrase-gloss` among them (change 44 adds 4), over the hand-written fixture until change 48 switches it to the committed tables (`"readings":[]` until then); the engine starts on es-en beside it |
 | The workflows | `lingua-extension-check.yml` runs `english_baseline`, `spanish_baseline`, `es_en_baseline`, `en_es_baseline` and `french_baseline`; `lingua-pack-update.yml` re-blesses them and the two card snapshots (`yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/row-gloss-tables.spec.ts -u`) |
 
 **What change 45 gives the card** (its design): 125,193 readings of 88,579 French forms, 79 tags; a
@@ -26,7 +26,8 @@ a noun spelled alike (`temps`); the agreement of adjectives, determiners, pronou
 carries five readings, unmerged, for this change (its D7 and D13).
 
 **How it was measured.** A prototype, never committed, in a scratch copy of `origin/main` at
-`cf392473` (French at analyser `0.2.0`):
+`cf392473` (French at analyser `0.2.0`), run again at `da94a82e`, after change 41's implementation
+(#832, French at `1.0.0`):
 - `tables/fr/` from change 43's implementation (`claude/add-lingua-french-forms-tables-impl` at
   `2ed01a18`: 124,050 forms, 60,000 lemmas) with change 45's prototype readings on those tables
   (125,191 readings, the same 79 tags and 2,142 five-reading forms, its D9 cross-check), change 46's
@@ -41,9 +42,12 @@ carries five readings, unmerged, for this change (its D7 and D13).
 - the French golden switched to the tables (change 48's switch), the card's probes added, and a
   scratch `fr_es_baseline.rs`; the snapshots rendered by copies of `word-card-es-en.spec.ts`.
 
-Changes 41 (the closed classes) and 44 (the expression keys) are not implemented on `main`, so the
-prototype's whole-selection cards still show `à le` « a la, in the style… » for « Au revoir » and
-`il y avoir` for « il y a »: the snapshots are blessed after both (D9).
+Every card answer is the same at both commits: a form's dictionary form comes from the forms table,
+which change 41's cascade does not change, and the four other pairs' 440,534 answers are byte for
+byte. Change 41's closed classes already leave `le`, `que` and `il` out of the whole-selection
+cards' rows (« l’homme » shows `homme` alone, « dit-il » `dire`); change 44 is not implemented, so
+those cards still show `à le` « a la, in the style… » for « Au revoir » and `il y avoir` for « il y
+a »: the snapshots are blessed after it (D9).
 
 ## Goals / Non-Goals
 
@@ -312,8 +316,8 @@ golden moves: a test in `crates/lingua-wasm/tests/card_gloss_language.rs` holds 
 - a phrase probe, « l’homme », the whole-selection card of D7.
 
 The 31 reference probes, among them `porte` (*porter*, five readings) and `vis` (*vivre*, *voir*),
-stay. `fr-en.golden` gains the 62 probes; measured on the prototype — `main`'s 141 probes, before
-changes 41 and 44 add theirs, after change 48's switch — 141 → 203 probes, none of the 141 moving.
+stay. `fr-en.golden` gains the 62 probes; measured on the prototype — `main`'s 143 probes, before
+change 44 adds its 4, after change 48's switch — 143 → 205 probes, none of the 143 moving.
 *A French invariance baseline runs beside the English and Spanish ones*, held by changes 39, 40 and
 41, names three reasons for moving the golden, none of them a probe added: its pull request says
 why, as change 44's did (open question 5).
@@ -322,7 +326,7 @@ why, as change 44's did (open question 5).
 beside: &["en-es"], test: "fr_es_baseline", ..FRENCH }` — the French scenario glossed in Spanish, the
 engine started on en-es as a Spanish-native reader's is, as the French scenario starts on es-en — and
 writes `baseline/fr-es.golden`. A test compares it with `fr-en.golden` through `studied_side`, as
-es-en's is compared with es-fr's: measured, 153 probes compared, none differing (the others: the
+es-en's is compared with es-fr's: measured, 155 probes compared, none differing (the others: the
 pack, beside, gloss, notice, licences and about lines).
 
 **Snapshots.** `test/word-card-fr-en.spec.ts` reads `fr-en.golden`, `test/word-card-fr-es.spec.ts`
@@ -333,7 +337,7 @@ probe as the whole-selection card shows it: headed by the expression's name with
 covers the whole selection, else its rows. They pin the lines in `test/baseline/word-card-fr-en.txt`
 and `word-card-fr-es.txt`, re-blessed with `yarn vitest run <files> -u` (the flag after the files).
 Measured on the prototype: 92 grammar probes each, 48 with a grammar line (54 lines), the order of
-tenses on every one of them; fr-en 47 of its 91 glossed probes paged, fr-es 9; 24 phrase probes.
+tenses on every one of them; fr-en 47 of its 91 glossed probes paged, fr-es 9; 26 phrase probes.
 
 **Where they run.** `fr_es_baseline` joins the invariance step of `lingua-extension-check.yml` and the
 re-bless line of `lingua-pack-update.yml`; the two specs join that workflow's vitest re-bless line,
@@ -343,8 +347,8 @@ snapshots on its branch.
 **Order, and what they run on.** The snapshots read the goldens, never the tables. Until change 48's
 implementation, `fr-en.golden` runs over the fixture and every grammar probe answers
 `"readings":[]`: a snapshot would pin nothing. So this change is implemented after changes 45
-(readings), 48 (the French baseline on the committed tables) and 49 (fr-es's tables) — and after 41
-and 44, whose closed classes and names the whole-selection cards show. If change 49's committed
+(readings), 48 (the French baseline on the committed tables) and 49 (fr-es's tables) — and after 44,
+whose names the whole-selection cards show, as they show change 41's closed classes (on `main`). If change 49's committed
 measurement falls below its floor (M6) and no fr-es table is committed, `fr_es_baseline.rs` and
 `word-card-fr-es.txt` wait for fr-es's tables, and the Spanish lines are pinned meanwhile by rendering
 `fr-en.golden`'s grammar probes in Spanish — the readings are the studied side's, the same through

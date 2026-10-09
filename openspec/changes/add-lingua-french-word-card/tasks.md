@@ -1,6 +1,6 @@
 # Tasks
 
-Implemented after the implementations of changes 41, 44, 45, 48 and 49 are on `main` (design D9).
+Implemented once the implementations of changes 44, 45, 48 and 49 are on `main`, after change 41's (design D9).
 
 ## 1. The description and the renderers (apps/lingua-extension)
 

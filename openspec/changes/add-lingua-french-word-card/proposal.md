@@ -135,9 +135,9 @@ None.
   English and Spanish selections move only over a hyphenated run holding a digit, of which the
   English and Spanish corpora hold none (D7).
 - **Compatibility.** No stored format, wire field, table, pin or pack moves.
-- **Order.** Implemented after the implementations of changes 41 (the closed classes the rows leave
-  out), 44 (the names), 45 (the readings), 48 (the French baseline on the committed tables) and 49
-  (fr-es's tables); before 52. Until 48, the French golden answers `"readings":[]` and a snapshot
+- **Order.** Implemented after the implementations of changes 44 (the names), 45 (the readings), 48
+  (the French baseline on the committed tables) and 49 (fr-es's tables) — change 41's, whose closed
+  classes the rows leave out, is on `main`; before 52. Until 48, the French golden answers `"readings":[]` and a snapshot
   would pin nothing; if 49's committed measurement falls below its floor, fr-es's golden and snapshot
   wait for its tables and the Spanish lines are pinned on fr-en's readings (D9).
 - **Not here.** The pairs' glosses and their refinements (48, 49, `refine-lingua-fr-en-glosses`);
