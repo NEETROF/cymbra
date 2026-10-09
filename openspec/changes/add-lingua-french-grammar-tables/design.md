@@ -116,6 +116,7 @@ singular present indicative/subjunctive » is four readings); a table row names 
 sense that names an agreement without `past` (`feminine singular of dirigé`) is the past one.
 
 **Never a reading**: a compound tense (`avoir + past participle` and the like): it is not one token.
+
 **A pronominal verb's forms read without their pronoun.** Its table writes `m'évanouis`, `nous
 évanouissons`, `évanouis-toi`; change 40's pre-pass splits the pronoun off what a page writes, and
 change 43 keeps the bare form, so the bare form takes the reading: `évanouit` is *s'évanouir*'s
@@ -132,10 +133,10 @@ already.
   gender. 17,122 of the 17,132 ranked nouns (99.94 %) carry a gender on their own form — the
   readings change 48's sense runs take their « masculine noun » from (`A noun's gender comes from its
   readings`).
-- **A noun the dictionary gives one form for** (`invariable`, or no plural where its head implies
-  one spelled alike: `temps`, `fois`, `bras`, `vis`) reads singular and plural, as Spanish's
-  `crisis` does: 549 readings; without them 98.83 % of PUD's nouns agree with the treebank, 99.84 %
-  with them (D10). The card says « may also be the plural of *temps* » on its own form, as it does
+- **A noun the dictionary gives one form for** — its head's plural `#`, or a sense tagged
+  `invariable` and no plural listed: `temps`, `fois`, `bras`, `vis` — reads singular and plural, as
+  Spanish's `crisis` does: 549 readings; without them 98.83 % of PUD's nouns agree with the
+  treebank, 99.84 % with them (D10). The card says « may also be the plural of *temps* » on its own form, as it does
   of `crisis` (open question 3).
 - **A feminine noun's masculine row gives no reading** (`déesse`: masculine `dieu`; `sainte`:
   `saint`): the masculine is its own dictionary form, not an inflection of the feminine, and the card
@@ -258,27 +259,33 @@ moods on those 4,005 too is its call; the readings serve either.
 
 ### D8 — French's tag pool, pinned
 
-`tables/fr/tags.tsv` holds **the 78 tags French's readings carry**, one per line, in byte order, no
-other. A person writes it once from the first reduction's readings (`cut -f3 grammar.tsv | LC_ALL=C
-sort -u`) and reviews it in the pull request; no reducer writes it (`KEPT_INPUTS`), so no rule
-digest moves with it and `split` never overwrites it.
+`tables/fr/tags.tsv` holds **the 78 tags French's readings carry**, one per line, each once, no
+other: in byte order as the first reduction gives them (`cut -f3 grammar.tsv | LC_ALL=C sort -u`),
+and a tag a later reduction adds appended after them, so that a pinned tag never changes index. A
+person writes it and reviews it in the pull request; no reducer writes it (`KEPT_INPUTS`), so no rule
+digest moves with it and `split` never overwrites it. The committed-tables check holds it to the
+readings' tags: an update whose readings carry a new tag, or no longer carry a pinned one, fails
+naming it, and its pull request appends or removes the line.
 
-What it buys, measured: the builder lays every French pack's pool out as the pin, then any reading
-tag the pin lacks, then the tags only senses carry (`tags.rs`). With the pin, fr-en's (48) and
-fr-es's (49) senses — `NOUN|Gender=Fem` runs, bare `ADV`, `INTJ`, whatever each native's Wiktionary
-uses — land after the readings' 78 tags, so the paradigms index the same tags in both packs, which
-*A form's readings do not depend on the pack's native language* requires; and a reading tag a later
-dump introduces lands after the pin instead of shifting every index after it, until a person folds
-it in. Today the pin moves no byte: fr-en's pack built with it has the sha256 the empty pin gives
-(both measured), since with no sense in the pack the pool is the readings' tags in byte order
-either way.
+What it buys, measured. The builder lays a pack's pool out as the pin, then the readings' tags it
+lacks, then the tags only senses carry (`tags.rs`); with no pin file at all, as one sorted pool, where
+a sense tag can fall between two reading tags. Change 43's empty pin already keeps the senses after
+the readings; this pin names the readings' tags, so the pool's first 78 tags are French's readings'
+and nothing a native's senses add — fr-en's `NOUN|Gender=Fem` runs and bare `ADV` (48), fr-es's
+(49) — can move them, as *A form's readings do not depend on the pack's native language* requires;
+a tag a later dump introduces takes the next index instead of shifting every index after it; and
+the folder is what a studied folder is (SOURCES.md, *What a pack studies, whatever it glosses*): a
+pool a person wrote. Today the pin moves no byte: fr-en's pack built with it has the sha256 the empty
+pin gives (both measured), since the readings' tags in byte order are what the empty pin lays out
+too.
 
 *Rejected — the full pool, as English's and Spanish's pins hold it.* Those pins are the pools the
 shipped en-fr and es-fr packs carried, sense tags included, so that those packs kept their bytes.
 No French pack has shipped, and a sense tag inside the pin buys nothing: a pack's sense runs are its
 own.
-*Rejected — a pin written by the reducer.* It would move with every rule, and the folder contract
-says a person writes it (SOURCES.md, *What a pack studies, whatever it glosses*).
+*Rejected — a pin the reducer writes.* It would follow every reduction, which is what a pin must
+not do, and the folder contract says a person writes it (SOURCES.md, *What a pack studies, whatever
+it glosses*).
 
 ### D9 — The table's size, in git, and the pack
 
@@ -304,8 +311,8 @@ gates, over the two files that script fetched: for each part of speech, the word
 tables map to the treebank's lemma, the share that carry a reading, and the share of those whose
 treebank features are among their readings — the conditional's and the imperative's tense left
 aside (D3), and a participle without a tense, as GSD's recent releases write it, read either way. It
-reads the committed tables, never the treebanks' lemmas into them, and reports without deciding the
-exit status: a treebank's own errors would otherwise fail an update.
+reads the committed tables — the reduction never reads either treebank — and reports without
+deciding the exit status: a treebank's own errors would otherwise fail an update.
 
 | | Words | Read | Agree |
 |---|---|---|---|
@@ -365,9 +372,9 @@ rule, which changes one reading, `plusieurs`, and lifts PUD's adjectives from 97
   `maisons`, `temps`, `la` as *le*, `couvent` naming *couver*, `fils` *fil*, `vis` *vivre* and
   *voir*, `porte` as *porter* naming nothing, `est` and `va` naming nothing. Every probe asks a
   lemma the tables keep (D12).
-- **`committed_tables.rs`**: `tables/fr/tags.tsv` is exactly the tags of `tables/fr/grammar.tsv`,
-  canonical, in byte order, each once; a pack built from `tables/fr/` with a sense run tagged
-  `INTJ` stores its paradigms byte for byte as without it.
+- **`committed_tables.rs`**: `tables/fr/tags.tsv` holds exactly the tags of `tables/fr/grammar.tsv`,
+  canonical, each once, and the check names a tag missing or left over; a pack built from
+  `tables/fr/` with a sense run tagged `INTJ` stores its paradigms byte for byte as without it.
 - **`measure/fr_readings.py`** on a hand-written CoNLL-U fixture: a verb read, a participle
   without a tense, the conditional's tense left aside, a word whose lemma the tables do not give.
 
@@ -379,11 +386,11 @@ rule, which changes one reading, `plusieurs`, and lifts PUD's adjectives from 97
   `porte` noun — a lemma of the fixture, not of the tables (M8) — would show a reading the real pack
   never has. The readings are pinned instead by `fr_en_grammar.rs` over the committed tables.
 - **What change 48's switch will show** of this change, measured on the prototype's pack with the
-  core on `main` (French at `0.1.0`; changes 40 and 41 move the `au` and `l'homme` probes' pieces,
-  not their readings): 23 of the 29 `word-grammar` probes gain readings — `est`, `sont`, `était`,
-  `fut`, `a`, `ai`, `as`, `eût`, `pût` one each, `été` (*être*) its participle, `soyez`, `va`,
-  `allez`, `fait`, `prenez`, `vis` (*voir*), `couvent` (*couver*) two, `faites`, `dit`, `vis`
-  (*vivre*) three, `porte` (*porter*) five; `couvent` (*couvent*) and `fils` read their own noun and
+  core on `main` (French at `0.1.0`; once change 40 splits `l'homme`, its probe reads `homme`'s own
+  noun reading, which the card leaves unnamed): 23 of the 29 `word-grammar` probes gain readings —
+  `est`, `sont`, `était`, `fut`, `a`, `ai`, `as`, `eût`, `pût` one each, `été` (*être*) its
+  participle, `soyez`, `va`, `allez`, `fait`, `prenez`, `vis` (*voir*), `couvent` (*couver*) two,
+  `faites`, `dit`, `vis` (*vivre*) three, `porte` (*porter*) five; `couvent` (*couvent*) and `fils` read their own noun and
   name *couver* and *fil*; `vînmes` (a form the table does not hold), `au`, `du` and `l'homme`
   stay empty. Two probes ask a lemma the committed tables do not keep, `été été` and `porte porte`
   (the fixture's nouns, M8's cost): `Pack::readings` looks a lemma up through `id_of`, which maps a
@@ -427,21 +434,21 @@ What reads wrong in the source, left as it is, each with where its fix lives:
 - **`supe`** reads as the verb *super* (« to sip »), which shares its lemma with the common
   adjective *super*: one of the 40 five-reading forms among the 1,000 commonest lemmas is this one.
 - **`meilleure`** reads as the noun *meilleur* only: the adjective `meilleur` is a form entry of
-  *bon*, whose own forms this design does not read (123 readings of such entries, measured; no
-  card names them better).
+  *bon*, and this design does not read a form entry's own forms (doing so for adjectives and nouns
+  adds 123 readings, measured) — left to a later reduction, as no card is wrong without them.
 
 ## Risks / Trade-offs
 
-- **[kaikki's tags drift]** → the pin of change 43 holds the source; an unknown combination gives
+- **[kaikki's tags drift]** → fr-en's `pin.json` holds the source; an unknown combination gives
   no reading rather than a wrong one, a tag outside the vocabulary fails the build, and D10's report
   shows a fall of agreement on the next update.
 - **[The card names nothing French until change 51]** → no package carries a French pack before
   change 52, which comes after the card.
 - **[A common noun has no reading]** (`porte`, `élève`) → M8 accepts it (D6); an override row of
   change 43 brings it back without a change here.
-- **[A reading tag a later dump introduces]** → it lands after the pin, the pack moves, the update's
-  report lists the readings that move; a person folds it into the pin in that pull request or a
-  later one.
+- **[A reading tag a later dump introduces]** → the committed-tables check fails, naming it; the
+  update's pull request appends it to the pin, so no pinned tag changes index, and its report lists
+  the readings that move.
 - **[A large text table]** → D9; the compact table stays the way out, and the pack does not change.
 - **[The golden's non-lemma probes at change 48]** → D12, open question 4.
 

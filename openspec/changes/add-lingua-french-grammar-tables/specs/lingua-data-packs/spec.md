@@ -40,11 +40,15 @@ French's studied tables SHALL carry, in `tables/fr/grammar.tsv`, the readings of
 - **THEN** `tables/fr/forms.tsv`, `freq.tsv`, `lexical.tsv` and `studied.json` are byte for byte as before; en-fr's, es-fr's, es-en's and en-es's tables, pins and packs are byte for byte as before and their invariance baselines pass without re-blessing; and the French invariance baseline still runs over its fixture pack, its golden unmoved
 
 ### Requirement: French's pinned tag pool
-`tables/fr/tags.tsv`, French's pinned tag pool, SHALL hold every tag French's readings carry, each once, one per line, in byte order, and no other tag; it SHALL be written by a person from fr-en's reduction and kept by every later reduction, as English's and Spanish's are. Every pack studying French SHALL lay its tag pool out as that pin, then any reading tag a later reduction adds, then the tags only its senses carry, so that fr-en and fr-es store a form's readings byte for byte alike whatever their glosses' senses carry.
+`tables/fr/tags.tsv`, French's pinned tag pool, SHALL hold every tag French's readings carry, each once, one per line, and no other tag — the first reduction's in byte order, a tag a later reduction adds appended after them, so that a pinned tag never changes index; it SHALL be written by a person and kept by every reduction, as English's and Spanish's are, and the checks SHALL fail, naming the tag, when it holds a tag no reading carries or misses one a reading carries. Every pack studying French SHALL lay its tag pool out as that pin, then any reading tag a later reduction adds, then the tags only its senses carry, so that fr-en and fr-es store a form's readings byte for byte alike whatever their glosses' senses carry.
 
 #### Scenario: The pin is the readings' tags
 - **WHEN** French's readings are committed
-- **THEN** every tag of `tables/fr/grammar.tsv` is a line of `tables/fr/tags.tsv`, every line of it is a tag of `grammar.tsv` written in canonical form, and its lines are in byte order, each once
+- **THEN** every tag of `tables/fr/grammar.tsv` is a line of `tables/fr/tags.tsv`, every line of it is a tag of `grammar.tsv` written in canonical form, each once, and its lines are in byte order
+
+#### Scenario: A later reduction carries a new tag
+- **WHEN** fr-en is reduced from a later dump whose readings carry a tag the pin does not hold
+- **THEN** the checks fail and name the tag until it is appended to `tables/fr/tags.tsv`, after the tags already pinned
 
 #### Scenario: A reduction keeps the pin
 - **WHEN** fr-en is reduced again from its pinned sources

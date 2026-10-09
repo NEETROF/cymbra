@@ -19,7 +19,7 @@
 ## 3. Checks and measurement
 
 - [ ] 3.1 `crates/lingua-pack/tests/fr_en_grammar.rs`, the fr-en pack built from the committed tables (design D11): `fut`, `parle` (five readings, in the pool's order), `parlerait`, `parlant`, `dirigée`, `faites`, `été` as *être*, `évanouit`, `maisons`, `temps`, `la` as *le*, `couvent` naming *couver*, `fils` naming *fil*, `vis` naming *vivre* and *voir*, `porte` as *porter* naming nothing, `est` and `va` naming nothing; every probe asking a lemma the tables keep.
-- [ ] 3.2 `crates/lingua-pack/tests/committed_tables.rs`: `tables/fr/` holds `grammar.tsv` beside its other tables; `tables/fr/tags.tsv` is exactly the tags of `tables/fr/grammar.tsv`, canonical, in byte order, each once (*The pin is the readings' tags*); the fr-en pack built with a sense run tagged `INTJ` stores its readings byte for byte as without it (*Senses another pack's glosses carry*).
+- [ ] 3.2 `crates/lingua-pack/tests/committed_tables.rs`: `tables/fr/` holds `grammar.tsv` beside its other tables; `tables/fr/tags.tsv` holds exactly the tags of `tables/fr/grammar.tsv`, canonical, each once, failing by name on a tag missing or left over (*The pin is the readings' tags*, *A later reduction carries a new tag*); the fr-en pack built with a sense run tagged `INTJ` stores its readings byte for byte as without it (*Senses another pack's glosses carry*).
 - [ ] 3.3 `scripts/lingua-data/measure/fr_readings.py`, run by `measure/fr-ud.sh` after its gates (D10): over the files that script fetched, the readings' figures per part of speech on PUD and GSD's test section, never deciding the exit status; a test on a hand-written CoNLL-U fixture. Run it and record the figures in `tables/fr-en/README.md` and the programme.
 
 ## 4. Gates
