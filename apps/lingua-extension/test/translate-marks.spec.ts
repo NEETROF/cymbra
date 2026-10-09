@@ -188,8 +188,47 @@ describe("A pair's marks are measured before they are shown", () => {
     expect(results("en-es").every((line) => line.gloss === null)).toBe(true);
   });
 
+  it("A French selection, judged in English: fr-en, measured on the French selections through the fr-en model, is listed on its own figures — 95 of 96, 4 % withheld (add-lingua-french-translation D6)", () => {
+    expect(nativeOf("fr-en")).toBe("en");
+    expect(judged("fr-en")).toEqual({ correct: 95, shown: 96, withheld: 4, total: 100 });
+    expect(firstTier(judged("fr-en"))).toBe(true);
+    expect(MARKED_PAIRS).toContain("fr-en");
+    // The French selection marked in the English sentence: « A travers » → « Throughout », an expression's rendering.
+    const english = results("fr-en").find((line) => line.k === 6);
+    expect(english?.word).toBe("travers");
+    expect(english?.shown).toMatch(/^⟦Throughout⟧ history/u);
+  });
+
+  it("French through English, judged in Spanish: fr-es, the same French selections through fr-en then en-es, is listed on its own figures — 90 of 91, 9 % withheld, whatever fr-en's are", () => {
+    expect(nativeOf("fr-es")).toBe("es");
+    expect(judged("fr-es")).toEqual({ correct: 90, shown: 91, withheld: 9, total: 100 });
+    expect(firstTier(judged("fr-es"))).toBe(true);
+    expect(MARKED_PAIRS).toContain("fr-es");
+    // Its own measurement: the same selections as fr-en, another route, another native language.
+    expect(results("fr-es").map((line) => line.id)).toEqual(results("fr-en").map((line) => line.id));
+    expect(judged("fr-es")).not.toEqual(judged("fr-en"));
+    // No request trapped, every fragment reconciled, one judge — the doubtful lines named, and the tier
+    // held with them counted wrong (fr-en k 39 and k 92: 93 / 96; fr-es k 25: 89 / 91).
+    for (const pair of ["fr-en", "fr-es"]) {
+      const lines = results(pair);
+      expect(lines.every((line) => line.trapped === false && line.alone !== null && line.alone !== "")).toBe(true);
+      // The experiment left empty: no French gloss table is committed yet (D6).
+      expect(lines.every((line) => line.gloss === null)).toBe(true);
+      const rows = readFileSync(join(marks, `judged-${pair}.tsv`), "utf8")
+        .trim()
+        .split("\n")
+        .slice(1);
+      const doubtful = rows
+        .filter((row) => row.split("\t")[6]!.startsWith("doubtful"))
+        .map((row) => row.split("\t")[0]);
+      expect(doubtful, pair).toEqual(pair === "fr-en" ? ["39", "92"] : ["25"]);
+      const strict = { ...judged(pair), correct: judged(pair).correct - doubtful.length };
+      expect(firstTier(strict), pair).toBe(true);
+    }
+  });
+
   it("structural: the list is exactly the judged pairs on the first tier — a pair with no judged file, or short of the tier, is not listed", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es"]);
+    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"]);
     expect(new Set(judgedPairs())).toEqual(new Set(MARKED_PAIRS));
     for (const pair of judgedPairs()) expect(MARKED_PAIRS.includes(pair), pair).toBe(firstTier(judged(pair)));
     expect(existsSync(join(marks, "judged-de-fr.tsv"))).toBe(false);
