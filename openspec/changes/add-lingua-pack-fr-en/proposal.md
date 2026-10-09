@@ -24,11 +24,12 @@ This change prototyped fr-en's native side on the real data — change 43's impl
 (124,040 forms, 60,000 lemmas), the French section of 2026-10-03, both translation tables, the
 committed rules — and measured what each source and each rule does (design, *Measured*). The French
 section alone glosses 4,678 / 8,686 / 15,256 of the 5,000 / 10,000 / 20,000 commonest lemmas
-(93.6 / 86.9 / 76.3 %, inside the programme's ± 1–2). The translation tables add 1,988 lemmas, 1,895
-of them words the section has no entry for — English words, names, initialisms, unaccented
-misspellings — 1,193 listing the word itself among their translations (« in » « in », « jack » « jack »); and fr-en is French's
-reference, so every lemma it glosses becomes a French dictionary word (*A pack's dictionary words do
-not depend on its glosses*), counted by the vocabulary estimate and kept as a word by a names rule.
+(93.6 / 86.9 / 76.3 %, inside the programme's ± 1–2). The translation tables add 1,988 lemmas,
+1,895 of them words the section has no entry for — English words, names, initialisms, unaccented
+misspellings — and 1,193 listing the word itself among their translations (« in » « in », « jack »
+« jack »); and fr-en is French's reference, so every lemma it glosses becomes a French dictionary
+word (*A pack's dictionary words do not depend on its glosses*), counted by the vocabulary estimate
+and kept as a word by a names rule.
 23b's rules, run on fr-en, move 269 rows (125 of the top 10,000), gain 2 glosses and lose none.
 
 ## What Changes
