@@ -474,6 +474,8 @@ const SAME_EVERYWHERE = new Set([
   " · ",
   "This is how your pages will sound when Lingua reads them aloud.",
   "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
+  // The French voices' preview, in French whatever the interface (add-lingua-french-read-aloud D4).
+  "Voici comment sonneront tes pages quand Lingua les lira à voix haute.",
   // The native languages, each named in its own language (add-lingua-native-language-choice D4).
   "Français",
   "English",

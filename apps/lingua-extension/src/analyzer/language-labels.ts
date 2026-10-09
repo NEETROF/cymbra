@@ -16,18 +16,33 @@ import type { NativeLanguage, StudiedLanguage } from "./types.ts";
 const MODULES: Record<InterfaceLanguage, typeof fr> = { fr, en, es };
 
 /**
- * The words of a studied language, in the interface language: the module's entry for it, keyed by
- * code so that a studied language the type gains and this map lacks fails to compile — and written
- * without a literal, which test/lint-language-labels.spec.ts would refuse here.
+ * A language the catalogue names: a studied language, or a native one — French among them, whose
+ * voices the read-aloud block speaks of before French is a studied language
+ * (add-lingua-french-read-aloud D4; the studied type is widened by enable-lingua-french).
  */
-function words(language: InterfaceLanguage, studied: StudiedLanguage): LanguageWords {
+export type NamedLanguage = StudiedLanguage | NativeLanguage;
+
+/** The languages the catalogue names, by code: what `isNamedLanguage` reads a plain tag against. */
+const NAMED: Record<NamedLanguage, true> = { en: true, es: true, fr: true };
+
+/** Whether the catalogue names `tag` — a speaker's language, a plain primary subtag. */
+export function isNamedLanguage(tag: string): tag is NamedLanguage {
+  return Object.hasOwn(NAMED, tag);
+}
+
+/**
+ * The words of a language, in the interface language: the module's entry for it, keyed by code so
+ * that a language the types gain and this map lacks fails to compile — and written without a
+ * literal, which test/lint-language-labels.spec.ts would refuse here.
+ */
+function words(language: InterfaceLanguage, named: NamedLanguage): LanguageWords {
   const module = MODULES[language];
-  const entries: Record<StudiedLanguage, LanguageWords> = { en: module.english, es: module.spanish };
-  return entries[studied];
+  const entries: Record<NamedLanguage, LanguageWords> = { en: module.english, es: module.spanish, fr: module.french };
+  return entries[named];
 }
 
 /** « Anglais » — "English", « Inglés ». */
-export function languageName(language: InterfaceLanguage, studied: StudiedLanguage): string {
+export function languageName(language: InterfaceLanguage, studied: NamedLanguage): string {
   return words(language, studied).name;
 }
 
@@ -105,17 +120,17 @@ export function noTextDetected(language: InterfaceLanguage, studied: readonly St
 }
 
 /** « Aucune voix anglaise n'est installée sur cet appareil. » */
-export function noVoiceInstalled(language: InterfaceLanguage, studied: StudiedLanguage): string {
+export function noVoiceInstalled(language: InterfaceLanguage, studied: NamedLanguage): string {
   return MODULES[language].noVoiceInstalled(words(language, studied).feminine);
 }
 
 /** The Windows language to add for a voice on the device: « Anglais (États-Unis) », in the interface language. */
-export function windowsVoiceLanguage(language: InterfaceLanguage, studied: StudiedLanguage): string {
+export function windowsVoiceLanguage(language: InterfaceLanguage, studied: NamedLanguage): string {
   return words(language, studied).windowsVoice;
 }
 
-/** A sentence in the studied language, for a voice preview — the same whatever the interface language. */
-export function previewSentence(language: InterfaceLanguage, studied: StudiedLanguage): string {
+/** A sentence in the speaker's language, for a voice preview — the same whatever the interface language. */
+export function previewSentence(language: InterfaceLanguage, studied: NamedLanguage): string {
   return words(language, studied).preview;
 }
 

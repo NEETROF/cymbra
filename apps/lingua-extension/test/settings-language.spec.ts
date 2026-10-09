@@ -278,6 +278,113 @@ describe("Réglages", () => {
   });
 });
 
+describe("Réglages for a speaker reading French (add-lingua-french-read-aloud)", () => {
+  const PREVIEW = "Voici comment sonneront tes pages quand Lingua les lira à voix haute.";
+
+  /** Réglages whose speaker reads `lang` over `voices`; the read-aloud block and its parts. */
+  async function mountVoices(
+    interfaceLanguage: InterfaceLanguage | undefined,
+    readAloud: string,
+    lang: string,
+    voices: VoiceInfo[],
+  ) {
+    const fake = makeFakeSpeech(voices);
+    const r = await mountReglages(interfaceLanguage, { speaker: createSpeaker(fake.engine, lang, fake.preference) });
+    const block = r.block(readAloud);
+    const note = [...block.querySelectorAll<HTMLElement>(".set-note")].find((n) => n.querySelector(".set-info"))!;
+    const toggles = [...block.querySelectorAll<HTMLLabelElement>("label.set-toggle")];
+    return {
+      fake,
+      block,
+      note,
+      select: block.querySelector("select")!,
+      options: [...block.querySelectorAll("option")].map((o) => o.textContent),
+      remote: (label: string) => toggles.find((t) => t.textContent === label)!,
+      listen: [...block.querySelectorAll("button")][0] as HTMLButtonElement,
+    };
+  }
+
+  /** Chrome on a French Windows without its three French voices: derived, not captured (D7). */
+  const noLocalFrench = (): VoiceInfo[] =>
+    voiceFixture("chrome-windows").filter((v) => !(v.lang.startsWith("fr") && v.localService));
+
+  it("An English-native reader on Safari for macOS: Thomas automatic, the regions in English", async () => {
+    const v = await mountVoices("en", "Read aloud", "fr", voiceFixture("safari-macos"));
+    expect(v.options).toEqual(["Automatic (Thomas)", "Thomas — France", "Amélie — Canada"]);
+    expect(v.note.hidden).toBe(true);
+  });
+
+  it("A Spanish-native reader on Safari for macOS: the regions in Spanish", async () => {
+    const v = await mountVoices("es", ES.settings.readAloud, "fr", voiceFixture("safari-macos"));
+    expect(v.options).toEqual(["Automática (Thomas)", "Thomas — Francia", "Amélie — Canadá"]);
+  });
+
+  it("the preview speaks the French sentence with the selected voice, whatever the interface", async () => {
+    for (const [language, readAloud] of [
+      ["en", "Read aloud"],
+      ["es", ES.settings.readAloud],
+    ] as const) {
+      const v = await mountVoices(language, readAloud, "fr", voiceFixture("safari-macos"));
+      v.select.value = "com.apple.voice.super-compact.fr-CA.Amelie";
+      v.listen.click();
+      expect(v.fake.spoken.map((u) => [u.text, u.voice.name])).toEqual([[PREVIEW, "Amélie"]]);
+    }
+  });
+
+  it("An English-native reader, no French voice on the device: the sentence, the tooltip, the online voices off", async () => {
+    const v = await mountVoices("en", "Read aloud", "fr", noLocalFrench());
+    expect(v.note.hidden).toBe(false);
+    expect(v.note.querySelector("span")?.textContent).toBe("No French voice is installed on this device. ");
+    const help = v.note.querySelector<HTMLElement>(".set-info")!.title;
+    expect(help).toContain("Add a language › French (France), without setting it as the display language");
+    expect(help).toContain("Manage Voices › French. Then restart the browser.");
+    expect(help).toMatch(/turn on the online voices below\.$/);
+    const remote = v.remote("Use the browser's online voices");
+    expect(remote.hidden).toBe(false);
+    expect(remote.querySelector("input")!.checked).toBe(false);
+    v.listen.click();
+    expect(v.fake.spoken).toEqual([]);
+    // Once allowed, Google's French voice stands in, and the preview speaks French with it.
+    v.fake.prefer({ remoteVoices: true });
+    expect([...v.block.querySelectorAll("option")].map((o) => o.textContent)).toEqual([
+      "Automatic (Google français)",
+      "Google français — France",
+    ]);
+    v.listen.click();
+    expect(v.fake.spoken.map((u) => [u.text, u.voice.name])).toEqual([[PREVIEW, "Google français"]]);
+  });
+
+  it("A Spanish-native reader, no French voice on the device: the sentence and the tooltip in Spanish", async () => {
+    const v = await mountVoices("es", ES.settings.readAloud, "fr", noLocalFrench());
+    expect(v.note.querySelector("span")?.textContent).toBe(
+      "No hay ninguna voz francesa instalada en este dispositivo. ",
+    );
+    const help = v.note.querySelector<HTMLElement>(".set-info")!.title;
+    expect(help).toContain("Agregar un idioma › Francés (Francia), sin definirlo como idioma de visualización");
+    expect(help).toContain("Gestionar voces › Francés. Después, reinicia el navegador.");
+    const remote = v.remote("Usar las voces en línea del navegador");
+    expect(remote.hidden).toBe(false);
+    expect(remote.querySelector("input")!.checked).toBe(false);
+  });
+
+  it("a tag the catalogue does not name: the block without the sentences naming it, and no throw", async () => {
+    // German on a French Windows: only Google's voice, remote — the case that names the language.
+    const windows = await mountVoices("en", "Read aloud", "de", voiceFixture("chrome-windows"));
+    expect(windows.block.hidden).toBe(false);
+    expect(windows.note.hidden).toBe(true);
+    expect(windows.note.textContent).toBe("ⓘ");
+    expect(windows.note.querySelector<HTMLElement>(".set-info")!.title).toBe("");
+    expect(windows.remote("Use the browser's online voices").hidden).toBe(false);
+    expect(windows.listen.hidden).toBe(true);
+    // German on a Mac: its voices listed, the automatic choice named, nothing that names the language.
+    const mac = await mountVoices("en", "Read aloud", "de", voiceFixture("chrome-macos"));
+    expect(mac.options[0]).toBe("Automatic (Anna)");
+    expect(mac.listen.hidden).toBe(true);
+    mac.listen.click();
+    expect(mac.fake.spoken).toEqual([]);
+  });
+});
+
 describe("the drawer's Réglages", () => {
   beforeEach(() => {
     vi.stubGlobal("chrome", {

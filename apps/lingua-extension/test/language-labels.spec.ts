@@ -3,6 +3,7 @@ import {
   borrowedTypicalNote,
   chooseLevelPrompt,
   estimatedLevelsNote,
+  isNamedLanguage,
   languageName,
   levelName,
   levelQuestion,
@@ -182,5 +183,58 @@ describe("every message, in every interface language, for every studied language
       expect(previewSentence(language, "en")).toBe(previewSentence("fr", "en"));
       expect(previewSentence(language, "es")).toBe(previewSentence("fr", "es"));
     }
+  });
+});
+
+describe("French, for its voices (add-lingua-french-read-aloud D4)", () => {
+  /** The four messages the read-aloud block calls, for a speaker reading French. */
+  const voiceMessages = (language: InterfaceLanguage): Record<string, string> => ({
+    languageName: languageName(language, "fr"),
+    noVoiceInstalled: noVoiceInstalled(language, "fr"),
+    windowsVoiceLanguage: windowsVoiceLanguage(language, "fr"),
+    previewSentence: previewSentence(language, "fr"),
+  });
+  const PREVIEW = "Voici comment sonneront tes pages quand Lingua les lira à voix haute.";
+
+  it("an English-native reader reads them in English", () => {
+    expect(voiceMessages("en")).toEqual({
+      languageName: "French",
+      noVoiceInstalled: "No French voice is installed on this device. ",
+      windowsVoiceLanguage: "French (France)",
+      previewSentence: PREVIEW,
+    });
+  });
+
+  it("a Spanish-native reader reads them in Spanish: « voz francesa », « Francés (Francia) »", () => {
+    expect(voiceMessages("es")).toEqual({
+      languageName: "Francés",
+      noVoiceInstalled: "No hay ninguna voz francesa instalada en este dispositivo. ",
+      windowsVoiceLanguage: "Francés (Francia)",
+      previewSentence: PREVIEW,
+    });
+  });
+
+  it("the French module holds them too, in French", () => {
+    expect(voiceMessages("fr")).toEqual({
+      languageName: "Français",
+      noVoiceInstalled: "Aucune voix française n'est installée sur cet appareil. ",
+      windowsVoiceLanguage: "Français (France)",
+      previewSentence: PREVIEW,
+    });
+  });
+
+  it("none of the English and Spanish ones is the French one, but the preview, the same in all three", () => {
+    const french = voiceMessages("fr");
+    for (const language of ["en", "es"] as const) {
+      for (const [key, text] of Object.entries(voiceMessages(language))) {
+        if (key === "previewSentence") expect(text).toBe(french[key]);
+        else expect(text, `${language}: ${key} is still the French`).not.toBe(french[key]);
+      }
+    }
+  });
+
+  it("names the languages the catalogue holds, and no other tag", () => {
+    expect(["en", "es", "fr"].every(isNamedLanguage)).toBe(true);
+    expect(["de", "", "EN", "fra", "constructor", "toString"].some(isNamedLanguage)).toBe(false);
   });
 });

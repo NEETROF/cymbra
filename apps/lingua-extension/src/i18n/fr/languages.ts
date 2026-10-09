@@ -44,6 +44,21 @@ export const languages = {
     windowsVoice: "Espagnol (Espagne)",
     preview: "Así sonarán tus páginas cuando Lingua las lea en voz alta.",
   } satisfies LanguageWords,
+  /**
+   * French, for its voices (add-lingua-french-read-aloud D4): the read-aloud block names a French
+   * speaker's language before French is a studied language. A French-native reader cannot study
+   * French, so no French interface shows these words today; the module carries them because the
+   * English and Spanish ones are typed after it.
+   */
+  french: {
+    name: "Français",
+    of: "de français",
+    the: "le français",
+    masculine: "français",
+    feminine: "française",
+    windowsVoice: "Français (France)",
+    preview: "Voici comment sonneront tes pages quand Lingua les lira à voix haute.",
+  } satisfies LanguageWords,
   levelScale,
   /**
    * The native languages the reader may choose, each named in its own language
