@@ -64,7 +64,7 @@ pack. The Spanish edition's rules SHALL be read by en-es and fr-es and by no oth
 
 #### Scenario: French's dictionary words
 - **WHEN** fr-es's pack is built from `tables/fr/` and `tables/fr-es/`
-- **THEN** it carries a lexical table listing exactly the lemmas `tables/fr/lexical.tsv` lists, and `quant`, which fr-es glosses and fr-en does not, is no dictionary word
+- **THEN** it carries a lexical table listing exactly the lemmas `tables/fr/lexical.tsv` lists, and a lemma fr-es glosses and fr-en does not (`quant` in the prototype) is no dictionary word
 
 #### Scenario: The pack is built, not shipped
 - **WHEN** a pull request runs the extension's checks

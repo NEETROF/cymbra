@@ -6,8 +6,8 @@ See proposal.md (Why). Where fr-es stands, and what this design builds on:
 
 | What | Where, today |
 |---|---|
-| French's studied side | change 43 (`add-lingua-french-forms-tables`, proposed, implementation in progress on `claude/add-lingua-french-forms-tables-impl`): `reduce-fr-en.py`, French's reference reducer, writes `tables/fr/` — `forms.tsv` (124,050 rows), `freq.tsv` (60,000 lemmas), `studied.json` naming fr-en, an empty `tags.tsv` and an empty `lexical.tsv`; `build.sh` caps every `fr-*` pair at 60,000 lemmas; `lingua-pack-update` runs one French dispatch at a time (its `fr` group). Changes 45 and 46 add `grammar.tsv`, the pinned tag pool and `level.tsv` |
-| French's dictionary words | change 48 (`add-lingua-pack-fr-en`, PR #824, under review): fr-en glosses from the English Wiktionary's French section alone, no translation table; `split` writes its glossed lemmas — 30,056 on change 43's implemented tables — to `tables/fr/lexical.tsv`; « 49 fr-es: after: French's dictionary words, the cross-native test for French (two natives) » |
+| French's studied side | change 43 (`add-lingua-french-forms-tables`, proposal on `main`; its implementation, PR #829, in CI, published `lingua-pack-sources-fr-en-2026.10.09` from the English Wiktionary's dump of 2026-10-03): `reduce-fr-en.py`, French's reference reducer, writes `tables/fr/` — `forms.tsv` (124,050 rows), `freq.tsv` (60,000 lemmas), `studied.json` naming fr-en, an empty `tags.tsv` and an empty `lexical.tsv`; `build.sh` caps every `fr-*` pair at 60,000 lemmas; `lingua-pack-update` runs one French dispatch at a time (its `fr` group). Changes 45 and 46 add `grammar.tsv`, the pinned tag pool and `level.tsv` |
+| French's dictionary words | change 48 (`add-lingua-pack-fr-en`, proposal on `main`, #824; not implemented): fr-en glosses from the English Wiktionary's French section alone, no translation table; `split` writes its glossed lemmas — 30,056 on change 43's implemented tables — to `tables/fr/lexical.tsv`; « 49 fr-es: after: French's dictionary words, the cross-native test for French (two natives) » |
 | A reader pair | change 21 (`add-lingua-pack-es-en`): the native side alone from the committed studied tables, no other pair's reducer loaded, a pin recording the six studied tables it read and a `pack_version` naming their digest, its own release, reduced after its reference, measured against a floor before it ships |
 | The closest precedent | change 22 (`add-lingua-pack-en-es`, merged): the Spanish Wiktionary's English section, then the English Wiktionary's Spanish translations (direct, the table's order), then the Spanish Wiktionary's English translations read backwards (inverted, by Spanish frequency); a letter glosses no word; `FLOORS["en-es"]` the one place its floor lives, set by the owner on its implementation's pull request (its task 5.1, open); the translation-table share in its README |
 | The Spanish edition's rules | `reduce_edition_es.py`: `ES` (pointer wordings, notes — sense-link subscripts, and since 24b maintenance templates, disambiguation notes, numbered-sense references, the expansion notice, a usage note after the meaning —, letters; `capitalised`), `read_as_meanings` (senses marked obsolete or outdated after the others; `typography`: one « … », straight quotes paired « »). Loaded by en-es alone today; 24b (`refine-lingua-en-es-glosses` D1): « fr-es (change 49) will load them for the French section and measure them there » |
@@ -39,7 +39,10 @@ A prototype in the scratchpad (never committed), run on:
   snapshot 2026.10.08: 124,050 forms, 60,000 lemmas); French's dictionary words as change 48's
   prototype makes them on those tables (30,056 lemmas, the figure its review measured); change 45's
   prototype readings (`grammar.tsv`, its tag pool) and change 46's prototype levels, for the pack's
-  size and the readings D6 reads.
+  size and the readings D6 reads. Change 43's implementation has since re-recorded its tables at
+  snapshot 2026.10.09 (PR #829): `freq.tsv` byte for byte, three rows of `forms.tsv` corrected
+  (`bridée`, `bridées`, `fatiguée`). Re-run on them, every gloss, run, expression and figure below is
+  the same, and the pack 680 B lighter (1,692,702 B; 1,911,131 B with 45's and 46's tables).
 - **The sources**: the files change 38's measurement derived on 2026-10-08 from the Spanish
   Wiktionary's dump regenerated on 2026-10-02 12:12 (sha256 `46e1f04f…`, 1,233,016,167 B
   decompressed) — `kaikki-es-Frances.jsonl` (8,683 entries, 7,438,610 B, sha256 `2e724e39…`) and
@@ -98,7 +101,7 @@ Spanish edition as committed. Rows / top 10,000.
 | One typography (`typography`, 24b D6), senses and table words | 0 | 0 | 3 | 39 / 26 | « prière de » « … Se ruega que … », « trêve de plaisanterie » « Bromas aparte… »; the section's 50 straight quotes sit mostly in pointer senses |
 | A name's note does not gloss the common word (24b D3, fr-es's pass) | 17 / 12 | 8 / 6 | 0 | 61 / 53 | « jean » no longer opens on « Nombre de pila de varón, equivalente del español Juan »; « pierre » « Piedra », « rose », « romain » « Romano », « gay », « royal », « gagner » without « Apellido » |
 | Possessives and demonstratives are determiners, and their forms (24b D4, fr-es's pass) | 7 / 7, runs alone | 0 | 0 | 6 / 6 | `ce`, `mon`, `ma`, `ton`, `ta`, `notre` ADJ → DET; `mes` keeps « Mi », borrowed from `mon` as a determiner |
-| Translators' notes and disused words (24b D7) | 0 | 0 | 0 | 136 / 28 | about twenty notes in 78,472 translations (« embaucar (1) », « afanar (se) »), none in a word a gloss keeps: not ported |
+| Translators' notes and disused words (24b D7) | 0 | 0 | 0 | 78 / 18 | about twenty notes in 78,472 translations (« embaucar (1) », « afanar (se) »), none in a word a gloss keeps: not ported |
 | A Spanish word read backwards listed once (24b D7) | 94 / 31 | 6 / 2 | 0 | 58 / 10 | « cet » « Este; Este » → « Este », « capital », « joli » « Lindo, bonito, guapo; Guapo » → « Lindo, bonito, guapo », « vigueur » |
 | A letter glosses no word (en-es D1, the tables) | 11 / 11 lose a gloss | — | 0 | (en-es's first tables) | `h` « H », `x` « X », `r`, `b`, `o`, `g`, `k`, `w`, `z`, `q`, `i` « I latina, i »; `à` and `y` keep their definitions, `ô` the direct table's « Oh » |
 | The studied word is no definition (D7, fr-es's) | 9 / 4 | 9 / 4 | 0 | — | « et » (rank 3) « Et » → « Y, e »; « troll » « Trol », « slip » « Calzoncillos, braguitas », « clochard » « Mendigo », « yucca » « Yuca »; « élite » « Élite » → « Elite » |
@@ -124,11 +127,12 @@ fr-es is not French's reference pair: its glosses make no dictionary word. The t
 cost 196 KB of pack.
 
 **The pack.** 1,693,382 B with change 43's tables and fr-en's dictionary words: gloss 178,768 B,
-senses 57,049 B, expressions 211,561 B, the lexical table 7,500 B (fr-es glosses other lemmas than
+senses 54,279 B, expressions 211,561 B, the lexical table 7,500 B (fr-es glosses other lemmas than
 fr-en, so it carries French's dictionary words); 1,911,078 B with changes 45's and 46's prototype
-tables. Built beside fr-en's prototype pack from the same studied tables, the studied sections —
-forms, lemmas, ranks, levels, paradigms and the tag pool — are byte for byte alike. en-es's
-pack is 1,688,931 B, fr-en's 2,422,318 B with the same prototype tables. No committed row is empty
+tables (their levels and paradigms; senses 57,049 B on 45's tag pool). Built beside fr-en's
+prototype pack from the same studied tables, the studied sections — forms, lemmas, ranks, levels,
+paradigms and the tag pool — are byte for byte alike. en-es's pack is 1,688,931 B, fr-en's
+2,422,318 B with the same prototype tables. No committed row is empty
 or ends on an opening mark under the row cut (`rowGloss`, measured on the 19,050 rows).
 
 **The sample.** 100 rows of the top 10,000, systematic in rank order (every 70.8th glossed lemma):
@@ -214,6 +218,12 @@ The pin's `studied` record names fr-en and the sha256 of the six studied tables 
 D3). The first tables come from `lingua-pack-update`, dispatched on the implementation's branch in
 update mode for fr-es, as en-es's did; the pinned reduction follows on the same branch and must
 reproduce them. That first update's tables are **the committed measurement** M6 speaks of (D8).
+
+fr-es reads no English dump: French's side is `tables/fr/` as committed — change 43's reduction of
+the English Wiktionary's dump (of 2026-10-03 at its implementation's snapshot) —, recorded by sha256
+in the pin's `studied` record, not as a source. The Spanish and French dumps its pin records are the
+ones kaikki serves on the dispatch day; the prototype read the regenerations of 2026-10-02 (Spanish
+12:12, French 00:10) that es-fr's pin records, and en-es's the Spanish one.
 
 ### D4 — The Spanish edition's notes and pre-pass, as en-es reads them
 
@@ -337,8 +347,8 @@ after its tables were measured (its task 5.1); M6 rules that order out for fr-es
 `gloss_coverage.py --write`, the site's like-for-like table, beside es-fr's (M6's precedent) — the
 moment `packs.json` lists it; before that it is shown nowhere but in its README and pull request.
 
-*Rejected — es-fr's published figures as the floor* (es-en's rule): 4.4 / 6.4 / 6.9 points above
-anything the three sources give, so fr-es would never ship, against M6.
+*Rejected — es-fr's published figures as the floor* (es-en's rule): 4.2 / 6.3 / 6.8 points above
+the most the three sources give (83.4 / 70.9 / 56.9 %, no rule), so fr-es would never ship, against M6.
 *Rejected — the prototype's figures as the floor*: no room for a regeneration; a dispatch a tenth of
 a point under would stop a pair that reads as the prototype does.
 *Rejected — below the floor, ship with a warning*: the floor would decide nothing.
@@ -347,8 +357,9 @@ a point under would stop a pair that reads as the prototype does.
 
 `reduce-fr-es.py` writes `measures.json` as en-es's does — among the glossed lemmas of the top
 10,000, those from a definition, from the direct and from the inverted table, and the share from a
-table —, which `split` files nowhere and `pack_report.py` prints beside the coverage. The share of
-all glossed lemmas from a definition (the programme's « 24 % ») is printed with it. Both are in the
+table —, which `split` files nowhere and `pack_report.py` prints beside the coverage, as it prints any
+pair's (unchanged). The share of all glossed lemmas from a definition (the programme's « 24 % ») is
+printed on the reducer's summary line, as en-es's prints its counts. Both are in the
 tables' README and the pull request, stored in no pack. A sample of 100 glosses of the top 10,000,
 systematic in rank order, each marked by its source, goes in the pull request for the owner.
 
@@ -368,6 +379,11 @@ systematic in rank order, each marked by its source, goes in the pull request fo
   the French invariance baseline answered through each, alike once glosses and senses are removed;
   a lemma fr-es glosses and fr-en does not (`quant`) is no dictionary word; `maison` reads « Casa ».
   The scenario's engine holds the one pack, so its native language is the pack's (`render_with`).
+  Two helpers of the file are generalised, the English and Spanish scenarios unchanged:
+  `assert_card_ops_labelled` takes the reference's label — en-fr's and es-fr's cards carry none
+  (French glosses), fr-en's carry `en` —, and `assert_studied_sections_alike` compares the sections
+  the reference carries, French's levels and paradigms only once changes 46 and 45 have landed (it
+  asserts both today).
 - **The row cut** (`apps/lingua-extension/test/row-gloss-tables.spec.ts`): `PAIRS` gains fr-es — no
   row empty, none ending on an opening mark (measured: none of 19,050).
 - **The rule digests** (`test_reduce_editions.py`): an edit of `reduce_edition_es.py` moves en-es's
@@ -393,7 +409,7 @@ OpenSpec: two ADDED requirements in `lingua-data-packs` and one MODIFIED in `lin
 analysis does not depend on the native language*, held by no open change). `archiveAfter`: 38 (the
 catalogue), 21 (a reader pair and its pin), 22 (en-es's floor, kept in one place), 24b (the Spanish
 edition's rules), 39 (French as a studied language, its baseline), 43 (French's tables) and 48
-(French's dictionary words, not yet on `main`: `openspec_archive_order.py` waits for it once it is).
+(French's dictionary words).
 
 ### D12 — Order, and what later changes take from here
 
@@ -422,7 +438,7 @@ before change 52 if it is wanted (rows / top 10,000).
 | A possessive headed as a pronoun | 2 / 2 | `son` « Su » PRON, `leur` « Suyo, suya » PRON | upstream, or a rule naming them |
 | The direct table's word under two parts of speech | 421 / 129 | « parti » « Partido; Partido », « européen » | Open Question 3 |
 | The inverted table's other-sense words | about a dozen of the 265 rows of the top 10,000 it glosses | « us » « EEUU », « fr » « Imperial, calabaza », « rap » « Secuestro », « pa » « Autopiloto », « luc » « San Lucas » | 24b's Q4, Open Question 4 |
-| A translation written in French | 8 / 2 | « arnaque » « Arnaque », « gâche » « Gâche » | upstream (the French Wiktionary's tables) |
+| A translation written in French — the studied language, against M5 | 8 / 2, by wordfreq (no Spanish frequency, a French one) | « arnaque » « Arnaque », « gâche » « Gâche »; loanwords Spanish spells alike among them (« diaporama », « raï ») | upstream (the French Wiktionary's tables), Open Question 8 |
 | Upstream wording | single rows | « siège » « …; Local, stilla », « pieux » « …, pièsa », « modo » « Jur mödo, jur, mödo », « ol » « Elle », « chaussée » « Carreta, … » | upstream |
 | « etc » without its period | 5 / 4 | « avec », « adresse », « cochon » | shared, every pair (24b D8) |
 | A proper noun's run first | 596 / 353 rows hold one | « france » « Francia; Nombre de pila de mujer », « terre » | the case-aware card, shared |
@@ -481,3 +497,6 @@ For the owner:
    fr-es together, outside the 57 — or kept in each reducer.
 7. **The share of definitions on the site** (change 53): beside the coverage for every pair, or in the
    README alone as en-es's share is.
+8. **A gloss in French** (M5): 8 / 2 rows of the direct table give the French word itself (« arnaque »
+   « Arnaque », « gâche » « Gâche »), loanwords Spanish writes alike among them (« diaporama »,
+   « raï »). Left upstream, or a list of fr-es's reducer that drops the French ones?

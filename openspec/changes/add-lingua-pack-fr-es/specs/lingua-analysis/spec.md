@@ -16,7 +16,7 @@ language's invariance baseline with its glosses and senses removed.
 
 #### Scenario: French through another native language
 - **WHEN** the French invariance baseline is answered with the fr-en pack and with the fr-es pack, both built from French's committed tables, the second glossed in Spanish with fewer glosses
-- **THEN** every probe is byte for byte alike once glosses and senses are removed, the two packs' studied sections are byte for byte alike, and a lemma fr-es glosses that fr-en does not is no dictionary word
+- **THEN** every probe is byte for byte alike once glosses and senses are removed, the two packs' studied sections are byte for byte alike (the tag pool up to its pinned prefix), and a lemma fr-es glosses that fr-en does not is no dictionary word
 
 #### Scenario: English and Spanish output do not move
 - **WHEN** the English and Spanish invariance baselines run after this change

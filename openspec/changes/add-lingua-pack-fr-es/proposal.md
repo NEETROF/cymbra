@@ -118,9 +118,10 @@ None.
   extension's snapshots — byte for byte; `tables/fr/` (read, never written); `fr-en.golden`, which
   fr-es does not enter.
 - **What it weighs.** 1,693,382 B for the prototype pack (change 43's tables and fr-en's dictionary
-  words), 1,911,078 B with changes 45's and 46's prototype tables: under the 5 MiB budget, beside
-  en-es's 1,688,931 B.
-- **Order.** After 43 and 48 (required: French's tables and dictionary words), after 45 and 46
+  words; 1,692,702 B on 43's tables as re-recorded at 2026.10.09), 1,911,078 B with changes 45's and
+  46's prototype tables: under the 5 MiB budget, beside en-es's 1,688,931 B.
+- **Order.** After 43's and 48's implementations (required: French's tables and dictionary words
+  committed), after 45 and 46
   (planned: the readings the inverted table is read by, the levels its pin records); before 50
   (marks), 51 (the Spanish card for French), 52 (ships fr-es, or not, by the floor) and 53.
 - **Effort, against 2.5–5 ideal days**: 2.5–4.5 (design, *Effort*).
