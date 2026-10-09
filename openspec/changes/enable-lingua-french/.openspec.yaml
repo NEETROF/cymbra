@@ -1,0 +1,20 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - enable-lingua-spanish
+  - enable-lingua-english-speakers
+  - enable-lingua-spanish-speakers
+  - add-lingua-french-baseline
+  - add-lingua-french-tokenisation
+  - add-lingua-french-analysis
+  - fix-lingua-lemma-lookup
+  - add-lingua-french-detection-guard
+  - add-lingua-french-forms-tables
+  - add-lingua-french-expression-keys
+  - add-lingua-french-grammar-tables
+  - add-lingua-french-levels
+  - add-lingua-french-read-aloud
+  - add-lingua-pack-fr-en
+  - add-lingua-pack-fr-es
+  - add-lingua-french-translation
+  - add-lingua-french-word-card
