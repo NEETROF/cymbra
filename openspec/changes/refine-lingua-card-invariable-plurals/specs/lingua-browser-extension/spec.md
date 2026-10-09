@@ -5,10 +5,13 @@ The word card SHALL say what the form the reader met is, in words of the interfa
 - **What the form is.** Its readings as the card's dictionary form, beside the form as seen,
   SHALL be joined into one statement. A form spelled like its dictionary form SHALL show this
   statement only when the pack gives it a reading other than the dictionary form itself and other
-  than a plural spelled like it, and SHALL present that reading as a possibility: on that form's own
-  card, a noun's, proper noun's, adjective's, determiner's or pronoun's plural reading without a
-  degree, whatever its gender, SHALL give no line, in every studied language and every interface
-  language, while the form's other readings and other dictionary forms SHALL be said as before.
+  than its plural where it is also read in the singular, and SHALL present that reading as a
+  possibility:
+  on that form's own card, a noun's, proper noun's, adjective's, determiner's or pronoun's plural
+  reading without a degree, whatever its gender, SHALL give no line when the card also reads the form
+  as a singular of that part of speech, in every studied language and every interface language; a
+  plural with no such singular, as a noun used only in the plural, SHALL be said as before, as SHALL
+  the form's other readings and other dictionary forms.
 - **Other dictionary forms.** Each SHALL be named, with its reading, as another possibility. It
   SHALL be text only: it SHALL NOT open a card, and it SHALL NOT change the key of this card,
   its status or its actions.
@@ -50,10 +53,14 @@ depends on the studied language, such as the name of a tense, SHALL be provided 
 - **WHEN** any word card is shown
 - **THEN** no Universal Dependencies code (such as `VERB` or `Tense=Past`) and no occurrence of "lemma" or "lemme" appears in it
 
-#### Scenario: A plural spelled like its dictionary form
-- **WHEN** the reader opens the card of `police`, or of the Spanish `crisis` or `nadie`, in any interface language
+#### Scenario: A plural read in both numbers
+- **WHEN** the reader opens the card of the Spanish `crisis` or `nadie`, in any interface language
 - **THEN** no line says that it may be the plural of itself, while the card of `leaves` still says that it may be the plural of `leaf`, and the card of the Spanish `paso` still says that it may be a form of `pasar`
+
+#### Scenario: A noun used only in the plural
+- **WHEN** the reader opens the card of the Spanish `gafas`, or of `police`, in any interface language
+- **THEN** the card still says that it may be the plural of itself, and the card of `gafas` that it may be the feminine plural of `gafa`
 
 #### Scenario: Nothing else on the card moves
 - **WHEN** every form of the en-fr, es-fr, es-en and en-es packs is rendered in each interface language
-- **THEN** only the cards that said their form may be the plural of their own dictionary form change, each losing that line and nothing else
+- **THEN** only the cards that said their form may be the plural of their own dictionary form, and also read it as its singular, change, each losing that line and nothing else; no English card changes
