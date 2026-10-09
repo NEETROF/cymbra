@@ -45,13 +45,23 @@ pub mod section {
     /// core that simply ignores the section.
     pub const LEVELS: &str = "levels";
     /// Multi-word expressions: an FST mapping a key — the words' dictionary
-    /// forms, lowercase, joined by single spaces — to an expression id.
+    /// forms, lowercase, joined by single spaces; for French, the pieces French's
+    /// analysis reads in the headword, its determiners as written
+    /// (add-lingua-french-expression-keys) — to an expression id.
     /// Optional and additive, like [`LEVELS`]: written only when the pair's
     /// sources hold expressions, ignored by a core that does not read it.
     pub const EXPR: &str = "expr";
     /// zstd-compressed, offset-indexed expression glosses, in the layout
     /// [`GLOSS_ZST`] uses, keyed by the id [`EXPR`] maps to.
     pub const EXPR_ZST: &str = "expr.zst";
+    /// zstd-compressed, offset-indexed expression names, in the layout
+    /// [`GLOSS_ZST`] uses, keyed by the id [`EXPR`] maps to: the headword as the
+    /// dictionary writes it (`au revoir`), for the expressions whose key differs
+    /// from it (`à le revoir`) — a key that is its own headword has none
+    /// (add-lingua-french-expression-keys D3). Written for a pack studying French
+    /// only, when one name differs. Optional and additive, like [`EXPR`]: a core
+    /// that predates it ignores it and reports keys, as English and Spanish do.
+    pub const EXPR_NAMES_ZST: &str = "expr.names.zst";
     /// The grammar tag pool: one Universal Dependencies tag per line, id =
     /// line index (`add-lingua-word-grammar`). Optional and additive, like
     /// [`LEVELS`]; the two grammar blobs point into it.
@@ -156,6 +166,10 @@ pub struct Pack {
     /// Gloss per expression id, in the same layout as `glosses`. Empty when
     /// the pack carries no expression table.
     expression_glosses: BTreeMap<u64, String>,
+    /// Name per expression id, in the same layout as `glosses`, for the
+    /// expressions named otherwise than their key. Empty when the pack carries
+    /// no names.
+    expression_names: BTreeMap<u64, String>,
     /// The grammar tables, when the pack carries them.
     grammar: Grammar,
     notice: String,
@@ -221,6 +235,10 @@ impl Pack {
             Some(s) => parse_glosses(&s.data, section::EXPR_ZST)?,
             None => BTreeMap::new(),
         };
+        let expression_names = match sections.iter().find(|s| s.name == section::EXPR_NAMES_ZST) {
+            Some(s) => parse_glosses(&s.data, section::EXPR_NAMES_ZST)?,
+            None => BTreeMap::new(),
+        };
         let notice = sections
             .iter()
             .find(|s| s.name == section::NOTICE)
@@ -238,6 +256,7 @@ impl Pack {
             lexical,
             expressions,
             expression_glosses,
+            expression_names,
             grammar,
             notice,
         })
@@ -293,11 +312,23 @@ impl Pack {
 
     /// The native-language gloss of a multi-word expression, keyed by its
     /// dictionary form: the words' lemmas, lowercase, joined by single spaces
-    /// (`starting point` is looked up as `start point`). `None` when the pack
-    /// carries no expression table, or holds no such key.
+    /// (`starting point` is looked up as `start point`); for a pack studying
+    /// French, the key [`french_expression_key`](crate::engine::french_expression_key)
+    /// makes of its headword (`au revoir` is looked up as `à le revoir`). `None`
+    /// when the pack carries no expression table, or holds no such key.
     pub fn expression(&self, key: &str) -> Option<&str> {
         let id = self.expressions.as_ref()?.get(key.as_bytes())?;
         self.expression_glosses.get(&id).map(String::as_str)
+    }
+
+    /// The name of the expression filed under `key` — its headword as the
+    /// dictionary writes it (`au revoir` for `à le revoir`) — when the pack names
+    /// it otherwise than its key; `None` when the key is its own name, the pack
+    /// holds no such key, or carries no names (add-lingua-french-expression-keys
+    /// D3).
+    pub fn expression_name(&self, key: &str) -> Option<&str> {
+        let id = self.expressions.as_ref()?.get(key.as_bytes())?;
+        self.expression_names.get(&id).map(String::as_str)
     }
 
     /// Whether the pack carries an expression table, so a caller can skip the
@@ -535,7 +566,8 @@ fn parse_lexical(bytes: &[u8], lemma_count: usize) -> Result<Vec<u8>, PackError>
 /// `count u32 | count*(id u32, off u32, len u32) | utf8 bytes`, offsets
 /// relative to the start of the utf8 payload. The lemma glosses
 /// ([`section::GLOSS_ZST`]) and the expression glosses
-/// ([`section::EXPR_ZST`]) share it; `name` is the section a malformed blob
+/// ([`section::EXPR_ZST`]) share it, and so do the expression names
+/// ([`section::EXPR_NAMES_ZST`]); `name` is the section a malformed blob
 /// is reported under, so the error names the table actually at fault.
 fn parse_glosses(zst: &[u8], name: &'static str) -> Result<BTreeMap<u64, String>, PackError> {
     let raw = zstd_decode(zst)?;
@@ -1221,6 +1253,108 @@ pub(crate) mod tests {
             Pack::load(&pack_with(&keys, &truncated)),
             Err(PackError::Malformed(section::EXPR_ZST))
         ));
+    }
+
+    // — expression names (add-lingua-french-expression-keys D3) —
+
+    /// The name section for a table built by [`build_expr_sections`] from `keys`: each
+    /// (key, name) pair filed under the id the key's sorted position gives it.
+    fn build_expr_names(keys: &[&str], names: &[(&str, &str)]) -> Vec<u8> {
+        let mut sorted = keys.to_vec();
+        sorted.sort_unstable();
+        let mut entries: Vec<(u32, &str)> = names
+            .iter()
+            .map(|(key, name)| {
+                let id = sorted.binary_search(key).expect("a key of the table");
+                (id as u32, *name)
+            })
+            .collect();
+        entries.sort_unstable();
+        build_gloss_zst(&entries)
+    }
+
+    /// A small fr-en pack holding `à le revoir` (named `au revoir`) and `tout de suite` (its
+    /// own name), with the names section when `names` is given.
+    fn french_expression_pack(names: Option<&[u8]>) -> Vec<u8> {
+        let (forms, pool) = build_lexicon_blobs(&[], &["à", "le", "revoir", "tout", "de", "suite"])
+            .expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let (keys, glosses) =
+            build_expr_sections(&[("à le revoir", "goodbye"), ("tout de suite", "right away")]);
+        let mut sections: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, pool.as_bytes()),
+            (section::FREQ, &freq_bytes),
+            (section::EXPR, &keys),
+            (section::EXPR_ZST, &glosses),
+        ];
+        if let Some(names) = names {
+            sections.push((section::EXPR_NAMES_ZST, names));
+        }
+        write_container(
+            &meta_json_with("fr", "en", FRENCH_ANALYZER_VERSION),
+            &sections,
+        )
+    }
+
+    fn french_names() -> Vec<u8> {
+        build_expr_names(
+            &["à le revoir", "tout de suite"],
+            &[("à le revoir", "au revoir")],
+        )
+    }
+
+    #[test]
+    fn a_pack_without_the_names_section_names_no_expression_and_loads_as_before() {
+        let pack = Pack::load(&french_expression_pack(None)).expect("load");
+        assert_eq!(pack.expression("à le revoir"), Some("goodbye"));
+        assert_eq!(pack.expression_name("à le revoir"), None);
+        // Nor does a pack without an expression table at all.
+        let bare = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
+        assert_eq!(bare.expression_name("give up"), None);
+    }
+
+    #[test]
+    fn a_pack_with_the_names_section_names_its_expressions() {
+        let pack = Pack::load(&french_expression_pack(Some(&french_names()))).expect("load");
+        assert_eq!(pack.expression_name("à le revoir"), Some("au revoir"));
+        // A key that is its own name carries none; a name is no key; a key the table does not
+        // hold has no name.
+        assert_eq!(pack.expression_name("tout de suite"), None);
+        assert_eq!(pack.expression("tout de suite"), Some("right away"));
+        assert_eq!(pack.expression_name("au revoir"), None);
+        assert_eq!(pack.expression("au revoir"), None);
+        assert_eq!(pack.expression_name("à le soir"), None);
+    }
+
+    #[test]
+    fn a_malformed_names_section_is_refused_under_its_own_name() {
+        let truncated = zstd::encode_all(&1u32.to_le_bytes()[..], 19).expect("zstd encode");
+        assert!(matches!(
+            Pack::load(&french_expression_pack(Some(&truncated))),
+            Err(PackError::Malformed(section::EXPR_NAMES_ZST))
+        ));
+    }
+
+    #[test]
+    fn a_core_ignoring_the_names_section_reads_the_same_table() {
+        // A core that predates the section ignores it, as it ignores any section it does not
+        // know (`a_pack_carrying_an_unknown_section_loads_unchanged`): stripped of its names,
+        // the pack answers every key with the same gloss — only the names are missing.
+        let named = Pack::load(&french_expression_pack(Some(&french_names()))).expect("load");
+        let (meta, sections) =
+            read_container(&french_expression_pack(Some(&french_names()))).expect("read");
+        let unnamed: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::EXPR_NAMES_ZST)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        let older = Pack::load(&write_container(&meta, &unnamed)).expect("load");
+        for key in ["à le revoir", "tout de suite", "au revoir"] {
+            assert_eq!(older.expression(key), named.expression(key), "{key}");
+            assert_eq!(older.expression_name(key), None, "{key}");
+        }
     }
 
     /// The sample pack plus whatever grammar sections a test names.

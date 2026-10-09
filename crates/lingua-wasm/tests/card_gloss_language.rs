@@ -22,6 +22,10 @@
 //! the pack's expression table; and the card's own text when es-fr has none. The card keeps its
 //! English text and label. The baselines pin the view of every French card.
 //!
+//! A French expression card is named by its headword (add-lingua-french-expression-keys D3):
+//! reviewed in another language than its gloss's, it is read in the table at the key its name
+//! reads as, on the fr-en fixture until French's tables are committed.
+//!
 //! Host only: the pack builder is native (C zstd).
 
 #![cfg(not(target_arch = "wasm32"))]
@@ -30,9 +34,10 @@ mod support;
 
 use lingua_core::packs::Pack;
 use lingua_wasm::LinguaEngine;
-use support::Scenario;
 use support::english::ENGLISH;
+use support::french::FRENCH;
 use support::spanish::SPANISH;
+use support::{PackSource, Scenario};
 
 /// 2026-09-21T13:46:40Z, in epoch seconds: the deck bindings' unit.
 const T: f64 = 1_790_000_000.0;
@@ -310,4 +315,109 @@ fn a_card_of_a_language_the_engine_holds_no_pack_for_keeps_its_text() {
     assert_eq!(engine.start_review(T + DAY, None), 1);
     assert_eq!(engine.review_current_language().as_deref(), Some("es"));
     assert_eq!(view(&engine)["gloss"], "house");
+}
+
+/// A French card glossed in Spanish, as a Spanish-native engine creates it, written as the card
+/// operation it syncs as: no pack glossed in Spanish studies French before change 49, so the
+/// operation is the wire's.
+fn french_card_glossed_in_spanish(lemma: &str, surface: &str, gloss: &str) -> String {
+    serde_json::json!([{
+        "client_id": lemma,
+        "language": "fr",
+        "lemma": lemma,
+        "surface_form": surface,
+        "source_sentence": "Au revoir, et à demain.",
+        "source": "",
+        "gloss": gloss,
+        "gloss_language": "es",
+        "fsrs_state": "",
+        "deleted": false,
+        "client_ts": (T as i64) * 1000,
+        "device_id": "",
+    }])
+    .to_string()
+}
+
+/// An English-native engine holding the fr-en fixture beside es-en, as the French baseline's
+/// reader does, reviewing the French card the operation creates.
+fn english_native_reviewing_french(op: &str) -> LinguaEngine {
+    let mut engine = FRENCH.loaded();
+    assert_eq!(engine.native_language(), "en");
+    match engine.apply_card_ops(op) {
+        Ok(changed) => assert_eq!(changed, 1),
+        Err(_) => panic!("the French card applies"),
+    }
+    assert_eq!(engine.start_review(T + DAY, None), 1);
+    assert_eq!(engine.review_current_language().as_deref(), Some("fr"));
+    engine
+}
+
+#[test]
+fn spec_scenario_a_french_expression_card_glossed_in_another_language() {
+    let fixture = Pack::load(&PackSource::Testdata.pack("fr-en")).unwrap();
+    // `au revoir` is the card's name, no key of the table; `à le revoir` is its key.
+    assert_eq!(fixture.expression("au revoir"), None);
+    assert_eq!(fixture.expression_name("à le revoir"), Some("au revoir"));
+    let pack_gloss = fixture
+        .expression("à le revoir")
+        .expect("the fixture holds the key")
+        .to_owned();
+
+    let mut engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "au revoir",
+        "Au revoir",
+        "adiós",
+    ));
+    let shown = view(&engine);
+    assert_eq!(shown["headword"], "au revoir");
+    assert_eq!(
+        shown["gloss"], pack_gloss,
+        "the fixture's gloss for `à le revoir`"
+    );
+    // The card keeps its Spanish text and label, under review and once graded.
+    assert_eq!(
+        text_and_label(&engine),
+        ("adiós".to_owned(), "es".to_owned())
+    );
+    engine.review_grade("good", T + DAY);
+    assert_eq!(
+        text_and_label(&engine),
+        ("adiós".to_owned(), "es".to_owned())
+    );
+}
+
+#[test]
+fn a_french_card_is_read_at_its_name_s_key_or_shows_its_own_text() {
+    let fixture = Pack::load(&PackSource::Testdata.pack("fr-en")).unwrap();
+    let gloss_of = |key: &str| fixture.expression(key).expect(key).to_owned();
+    for (lemma, surface, text, shown) in [
+        // Named by its headword, read at its key; a name that is its own key.
+        ("il y a", "il y avait", "hay", gloss_of("il y avoir")),
+        (
+            "tout de suite",
+            "tout de suite",
+            "enseguida",
+            gloss_of("tout de suite"),
+        ),
+        // A card made under the key itself, a lemma chain, reads as that key too.
+        ("à le revoir", "Au revoir", "adiós", gloss_of("à le revoir")),
+        // An expression the fixture does not hold shows the card's own text; a French word is
+        // read as before.
+        (
+            "au bord de",
+            "au bord du",
+            "al borde de",
+            "al borde de".to_owned(),
+        ),
+        (
+            "maison",
+            "maison",
+            "casa",
+            fixture.gloss("maison").expect("maison").to_owned(),
+        ),
+    ] {
+        let engine =
+            english_native_reviewing_french(&french_card_glossed_in_spanish(lemma, surface, text));
+        assert_eq!(view(&engine)["gloss"], shown, "{lemma}");
+    }
 }

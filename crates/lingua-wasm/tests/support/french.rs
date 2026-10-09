@@ -53,10 +53,16 @@
 //! aside, and keeps `Orange` and `Vienne` (dictionary words) and `Mme` (at a block's head only).
 //! The fixture lists every word the pre-pass writes (`french_baseline.rs` holds it), the forms
 //! the real tables hold where a gap would mislead the plural rule (`printemps`, `travaux`) or
-//! keep the names rule from meeting a lexicon word (`paris`, `aube`), and two expressions holding
-//! `au` and an elision, `au revoir` and `coup d'œil`, which no selection reaches until the pack
-//! keys expressions through the analyser: the probes « Au revoir » and « un coup d’œil » show
-//! them appear then.
+//! keep the names rule from meeting a lexicon word (`paris`, `aube`), and expressions holding
+//! `au` and an elision, `au revoir` and `coup d'œil`, a word the pre-pass splits, `d'abord`, an
+//! expression of six tokens, `au fur et à mesure`, and `à la`, its article as written. The pack
+//! keys expressions as French is read — the builder hands each headword to the core's French
+//! reading, its determiners written as the pre-pass gives them, up to seven tokens — and names
+//! each by its headword where its key differs (add-lingua-french-expression-keys): the probes
+//! « Au revoir », « un coup d’œil », « D’abord », « au fur et à mesure » and « à cause des » find
+//! their expression, « il y a » and « il y avait » answer `il y a`, the Proust sentence
+//! `de bonne heure`, « à la maison » `à la` (the rule, not the sense), and « au marché » and
+//! « jusqu'au soir » no `à la`.
 
 use super::{Card, PackSource, Scenario};
 
@@ -113,7 +119,9 @@ const LEMMAS: &[&str] = &[
 
 /// Selections a reader glosses: expressions, the Proust sentence, elided, contracted and inverted
 /// selections — one set with the narrow no-break space —, the expressions holding `au` and an
-/// elision, the `homographes` page's « pas » and `son`, both flagged (M21 and M8's cost), and the
+/// elision, a word the pre-pass splits, six tokens, another tense and an article as written
+/// (add-lingua-french-expression-keys), the `homographes` page's « pas » and `son`, both flagged
+/// (M21 and M8's cost), and the
 /// `fiction` page's `Personne`, not, and the blocks that are not French (English, Spanish,
 /// Catalan, Occitan, Italian).
 const PHRASES: &[&str] = &[
@@ -134,6 +142,10 @@ const PHRASES: &[&str] = &[
     "S\u{2019}il pleut, viendras-tu\u{202f}?",
     "Au revoir",
     "un coup d\u{2019}œil",
+    "D\u{2019}abord",
+    "au fur et à mesure",
+    "il y avait",
+    "à la maison",
     "Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.",
     "Personne au village ne se souvenait",
     "The lighthouse stood",
