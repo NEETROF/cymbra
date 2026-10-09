@@ -55,20 +55,20 @@ fr→en 1.0 and 2.0, nothing later. Downloaded once and measured, every pin agre
 
 | File | Served (gzip) | gzip sha256 | Decompressed | sha256 (decompressed) = Remote Settings 2.0 |
 |---|---|---|---|---|
-| `model.fren.intgemm.alphas.bin.gz` | 23,175,075 | `06b1eeed…a2ee` | 31,561,787 | `15f997bc0d13808b0b0fbd0786e684a3c8a52adcd8071844b76123fdacbf2b90` (= the registry's `uncompressedHash`) |
-| `lex.50.50.fren.s2t.bin.gz` | 2,649,934 | `395aa776…642a` | 4,824,120 | `87c6752ea908f5f0347c10ac0cf7d80d9c2f4f20c81c90168f3e8230b56d4440` |
-| `vocab.fren.spm.gz` | 409,706 | `8d15b219…53a7` | 814,404 | `783abf3abe075afdf8d85d233994bef2c3a064e935ab1bed946820aff6ac002a` (= en-fr 2.0's) |
+| `model.fren.intgemm.alphas.bin.gz` | 23,175,075 | `06b1eeedd3944260d00a393d12ec7192490c5b7c930b97212faf4d5f5c90a2ee` | 31,561,787 | `15f997bc0d13808b0b0fbd0786e684a3c8a52adcd8071844b76123fdacbf2b90` (= the registry's `uncompressedHash`) |
+| `lex.50.50.fren.s2t.bin.gz` | 2,649,934 | `395aa7767220e1bcfc085f2b2787ff98005d0075e55451f1e0832885e3d9642a` | 4,824,120 | `87c6752ea908f5f0347c10ac0cf7d80d9c2f4f20c81c90168f3e8230b56d4440` |
+| `vocab.fren.spm.gz` | 409,706 | `8d15b219ffd32327b4cabf0d94a05a4fecb8923a4f386badbcbe5e86ede453a7` | 814,404 | `783abf3abe075afdf8d85d233994bef2c3a064e935ab1bed946820aff6ac002a` (= en-fr 2.0's) |
 
 The download is 26,234,715 B (« 26,2 Mo »), 37,200,311 B on the device. The id is
 `fr-en/base-memory/2.0` — the one `test/model-residency.spec.ts` already uses — the paths
 `fr-en/base-memory/2.0/<decompressed sha256>/{model.bin.gz,lex.bin.gz,vocab.spm.gz}`, the mirror
 `https://github.com/NEETROF/cymbra/releases/download/lingua-model-fr-en-base-memory-2.0/`, the
-licence MPL-2.0, `source.path` the registry's paths and `source.sha256` the gzip digests above
-(full values in the implementation; the prototype entry holds them). `assemble_model_site.mjs`,
-run over the prototype catalogue, took all twelve files of the four models from the registry,
-« every pin matches », in 7 s. A mismatch between the registry and Remote Settings stops the change,
-as change 25's D1 says. The largest file, 23,175,075 B, is under Cloudflare Pages' 25 MiB per file,
-as the three models already served are.
+licence MPL-2.0, `source.path` the registry's paths
+(`models/fr-en/retrain_hr_EFgIftH_RrCyzl5gjemVNg/exported/<file>`) and `source.sha256` the gzip
+digests above. `assemble_model_site.mjs`, run over the prototype catalogue, took all twelve files
+of the four models from the registry, « every pin matches », in 7 s. A mismatch between the
+registry and Remote Settings stops the change, as change 25's D1 says. The largest file,
+23,175,075 B, is under Cloudflare Pages' 25 MiB per file, as the three models already served are.
 
 ### D2 — Two routes: French direct to English, through English to Spanish
 
