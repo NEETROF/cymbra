@@ -7,6 +7,10 @@ and deck creation — **no account, no network** (until the reader signs in, or 
 Framework-free TypeScript, MV3, Yarn Berry. It consumes the shared `lingua-core` analysis
 engine compiled to WASM (`crates/lingua-wasm`).
 
+How the whole product fits together — this extension, the Safari host app, the Claude Code plugin,
+the sync server, the packs and the models — is in the
+[architecture of Cymbra Lingua](../../docs/lingua/architecture.md) (C4 model).
+
 ## Develop
 
 ```bash
