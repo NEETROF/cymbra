@@ -15,20 +15,20 @@ English (fr-en) and in Spanish (fr-es).
 Change 45 (`add-lingua-french-grammar-tables`) gives French's forms their readings: 125,193
 readings of 88,579 forms in 79 tags, the passé simple as `Tense=Past`, the conditional and the
 imperative without a tense, a present participle (`VerbForm=Part|Tense=Pres`), and « parle »'s
-five readings stored unmerged for this change to say once (M21). Rendered today through the card
-of English and Spanish, measured on change 43's implemented tables with change 45's readings (all
-124,050 forms, design *Measured*):
-- every finite French form is unnamed: `finiteKey` keys French as English (the indicative's two
-  tenses), and no renderer has a French table;
-- the 2,836 forms whose reading is the present participle are unnamed (`formKind` names a
+five readings stored unmerged for this change to say once (M21). The card cannot say any of it
+yet, and its rules, applied to French as they stand, would say it badly — measured on change 43's
+implemented tables with change 45's readings (all 124,050 forms, design *How it was measured*):
+- no renderer has a French table, and `finiteKey` keys any language but Spanish as English's
+  indicative, so no French finite form would be named;
+- the 2,836 forms whose reading is the present participle would be unnamed (`formKind` names a
   participle only when its tense is `Past`);
 - « parle », once named, would read « first- and third-person singular present indicative,
   first- and third-person singular present subjunctive and second-person singular imperative of
   parler »: M21 (2026-10-09) merges the moods, which no card does yet (Spanish's « hable » reads
   its subjunctive and its imperative apart);
-- 1,072 forms spelled like their dictionary form say « may also be the masculine plural of … »
-  of themselves — 71 of them among the 1,000 commonest lemmas: `temps`, `pays`, and `un`, `pas`,
-  `plus`, `si`, `nous`, read through their homograph nouns (M8).
+- 1,072 forms spelled like their dictionary form would say « may also be the masculine plural
+  of … » of themselves — 71 of them among the 1,000 commonest lemmas: `temps`, `pays`, and `un`,
+  `pas`, `plus`, `si`, `nous`, read through their homograph nouns (M8).
 
 Three hand-overs land here too:
 - **A selection inside a word written as pieces** (change 40's D7): change 40 gave each elision

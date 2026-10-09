@@ -14,7 +14,7 @@ See proposal.md (Why). What exists:
 | The selection | `selection.ts` `captureFrom` widens a selection to whole words over `WORD_CHAR` (`[\p{L}\p{N}'’-]`) and keeps only the widened range; `classifySelection` calls it a « word » without whitespace; `session.ts` `onCapture` resolves a « word » at the widened range's start (`hitAt`, `findTokenAt` made half-open by change 40); `selection-card.ts` `openForSelection` opens a word card, or the whole-selection card (`openExpression`) for text holding whitespace; `expressionCard` makes an expression covering the whole selection the card's answer (`expression: false`, headed by the match's key); `rowsFor` leaves function words and settled words out |
 | `cardGloss` | `selection-card.ts`: a card keyed by text holding a space stores the gloss it showed; any other asks the single-lemma port (`ports.gloss`) |
 | Review | `crates/lingua-wasm/src/lib.rs` `readable_gloss` (M4): a card whose lemma holds a space (`Card::is_expression`) reads the expression table, any other the gloss table; change 44 adds French's arm: a French card whose lemma holds a space reads the table at the key its name reads as (`french_expression_key`) |
-| The French golden | `crates/lingua-wasm/tests/french_baseline.rs`, `baseline/fr-en.golden`: 141 probes after change 44, 31 `word-grammar` and 23 `phrase-gloss` among them, over the hand-written fixture until change 48 switches it to the committed tables (`"readings":[]` until then); the engine starts on es-en beside it |
+| The French golden | `crates/lingua-wasm/tests/french_baseline.rs`, `baseline/fr-en.golden`: 141 probes on `main`, 31 `word-grammar` and 23 `phrase-gloss` among them (changes 41 and 44 add 2 and 4), over the hand-written fixture until change 48 switches it to the committed tables (`"readings":[]` until then); the engine starts on es-en beside it |
 | The workflows | `lingua-extension-check.yml` runs `english_baseline`, `spanish_baseline`, `es_en_baseline`, `en_es_baseline` and `french_baseline`; `lingua-pack-update.yml` re-blesses them and the two card snapshots (`yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/row-gloss-tables.spec.ts -u`) |
 
 **What change 45 gives the card** (its design): 125,193 readings of 88,579 French forms, 79 tags; a
@@ -130,8 +130,8 @@ indicativo » (381), « presente de subjuntivo » (334), « pretérito perfecto 
 « pretérito imperfecto de indicativo », « pretérito imperfecto de subjuntivo », « imperativo »
 (161). No pronoun after the person (« (je) »), as change 24 decided for English.
 
-**French** is the French card's Spanish table without the future subjunctive, French having none.
-It is shown to no one.
+**French** is the French card's Spanish table without the future subjunctive, French having none,
+and with the two merged tenses. It is shown to no one.
 
 *Rejected — one table per pair, outside the renderers.* The architecture keys tense names by pair;
 a renderer is its native language, so `TENSES[studied]` in each renderer is the pair key, as
@@ -175,8 +175,9 @@ never has to choose.
 
 *Rejected — merging the five-reading forms only.* « parle » would be said once and « parlent »
 twice, one phenomenon read two ways on one page; the rule reads the readings, never their count.
-*Rejected — Spanish too.* No Spanish or English reading meets the rule (D10), but « hable »'s line is
-change 18's scenario; `NAMES.es.moods` stays false, so Spanish could only move by a change of its own.
+*Rejected — Spanish too.* No Spanish or English form meets the rule (measured: none of es-fr's 144,952
+forms nor of en-fr's 75,315), but « hable »'s line is change 18's scenario; `NAMES.es.moods` stays
+false, so Spanish could only move by a change of its own.
 
 ### D4 — The present participle, and no gerund
 
@@ -242,9 +243,10 @@ with spans of their own, `le` [0, 4) and `homme` [4, 9), but `captureFrom` widen
 3. the selection as the reader made it lies inside one piece: that piece's card — a drag over
    « homme » opens `homme`, over « il » in « dit-il » opens `il`;
 4. it covers several pieces: the whole-selection card, read by the phrase gloss as any selection is —
-   a double-click on « l’homme », which browsers select whole (the apostrophe joins letters in
-   Unicode's word breaks), shows the row `homme`, `le` being a function word after change 41; a
-   double-click on « d’abord » shows the expression `d'abord` as its answer (change 44).
+   a double-click on « l’homme » where the browser selects it whole (Unicode's word breaks join
+   letters around an apostrophe) shows the row `homme`, `le` being a function word after change 41;
+   a double-click on « d’abord » shows the expression `d'abord` as its answer (change 44). A browser
+   that stops a double-click at the apostrophe selects « homme » alone, and rule 3 opens `homme`.
 
 A selection in a block the page analysis did not cover keeps *A selected word resolves to its
 dictionary form* (`add-lingua-phrase-gloss`): the analyser's answer carries no spans, so pieces
@@ -283,7 +285,7 @@ Two consequences:
   carries it, and `cardGloss` stores the gloss the card showed for it, whatever its name's spelling;
   a word card still asks the pack.
 - **Review** (M4) reads a card's pack gloss at its lemma: `d'abord` is no word of the gloss table, and
-  `Card::is_expression` reads a space. `readable_gloss` gains to change 44's French arm: a French
+  `Card::is_expression` reads a space. Change 44's French arm of `readable_gloss` gains a case: a French
   card whose lemma holds no space but reads, through French's reading, as two tokens or more — what
   change 44 calls an expression — reads the expression table at the key that lemma reads as
   (`de abord`); a lemma read as one token (`aujourd'hui`) is looked up as a word, as before.
@@ -307,10 +309,11 @@ golden moves: a test in `crates/lingua-wasm/tests/card_gloss_language.rs` holds 
 - a phrase probe, « l’homme », the whole-selection card of D7.
 
 The 31 reference probes, among them `porte` (*porter*, five readings) and `vis` (*vivre*, *voir*),
-stay. `fr-en.golden` gains the 62 probes; measured on the prototype, after change 48's switch, 141 →
-203 probes, none of the 141 moving. *A French invariance baseline runs beside the English and Spanish
-ones*, held by changes 39, 40 and 41, names three reasons for moving the golden, none of them a probe
-added: its pull request says why, as change 44's did (open question 5).
+stay. `fr-en.golden` gains the 62 probes; measured on the prototype — `main`'s 141 probes, before
+changes 41 and 44 add theirs, after change 48's switch — 141 → 203 probes, none of the 141 moving.
+*A French invariance baseline runs beside the English and Spanish ones*, held by changes 39, 40 and
+41, names three reasons for moving the golden, none of them a probe added: its pull request says
+why, as change 44's did (open question 5).
 
 **fr-es's golden.** `crates/lingua-wasm/tests/fr_es_baseline.rs` declares `Scenario { pair: "fr-es",
 beside: &["en-es"], test: "fr_es_baseline", ..FRENCH }` — the French scenario glossed in Spanish, the
@@ -366,6 +369,16 @@ either pack (*A form's readings do not depend on the pack's native language*) �
 The bundles holding the card (content, reader) grow by the three French tables, the `NAMES` table,
 the merges and the selection's routing — about 3 kB as built, measured in the pull request.
 
+### D11 — What later changes take from here
+
+| Change | Takes |
+|---|---|
+| 52 enable | `StudiedLanguage` widened to `fr`, which the card already accepts (D1); the content's `language` then says `fr`, and the studied words their `lang`; the dogfood of the selection gestures on devices (task 6.2) and of change 40's two adjacent highlights |
+| 53 listings | nothing of the card's wording; the listings may quote a card line the snapshots pin |
+| 56 `refine-lingua-matrix-wording` | the shared wording D5 and D6 leave: a bare plural beside gendered ones, an invariable plural on Spanish and English cards |
+| `refine-lingua-fr-en-glosses`, fr-es's refinement | the glosses' defects below, re-measured on the committed snapshots; each re-reduction re-blesses the goldens and the snapshots |
+| a core change for `Pack::readings` (change 45's open question 4) | the `été été` and `porte porte` probes, re-blessed with it |
+
 ## Known data defects
 
 What the prototype's snapshots show wrong that is not this change's wording, named by the card, each
@@ -373,16 +386,17 @@ with where its fix lives — indicative, on the pairs' prototype tables; the pul
 again from the committed ones.
 
 The studied side (`tables/fr/`, changes 43 and 45, or the core):
-- `été été` and `porte porte`: « may also be the past participle of été », and `porte` read through
-  *porter*'s paradigm — `Pack::readings` reads another word's paradigm for a lemma that is a form
-  (change 45's open question 4; change 48 drops or re-asks the two probes).
+- `été été` and `porte porte`: « may also be the past participle of été », and `porte` given
+  *porter*'s readings (a masculine noun, the infinitive), unsaid only because both are dictionary
+  forms — `Pack::readings` reads another word's paradigm for a lemma that is a form (change 45's open
+  question 4; change 48 drops or re-asks the two probes).
 - « Others » that are true and read as noise on the commonest words, from change 45's `other` marks
   (M8): `plus` « may also be the masculine plural past participle and first- and second-person
   singular past historic of plaire » and the participle of *pleuvoir*; `mais` the plural of *mai*;
   `tu` the participle of *taire*; `suis` *suivre*'s.
 - `trente-et-une` and five like it read as forms of `trente` (change 43's mapping); `abime`,
   `coeur`, `aout` read « masculine singular of abîme » (a spelling variant named by its agreement, as
-  Spanish's `dia` is « masculine singular of día » on es-fr's card today).
+  Spanish's `dia` is « masculin singulier de día » on es-fr's card today).
 - `meilleures` « may also be the comparative of bien ».
 
 fr-en's glosses (`refine-lingua-fr-en-glosses`, change 48's follow-up): rows opening on another part of
@@ -391,8 +405,8 @@ determiner, `leur` « (to) them » before « their », `même` « even » before
 among common words (`le` « a surname from Vietnamese », `on` « a village in Luxembourg, Belgium »);
 `des` « some, the feminine partitive article »; « see usage notes ».
 
-fr-es's glosses (fr-es's refinement, change 49's): `être`, `avoir` opening on the noun (« Ser »)
-before the verb, usage notes inside a sense (« (être + participio) Haber »), `qui` « Quién.
+fr-es's glosses (fr-es's refinement, change 49's): `être` opening on the noun (« Ser ») before the
+verb, usage notes inside a sense (« (être + participio) Haber »), `qui` « Quién.
 (Pronombre nominativo.) », `peu` and `autre` glossed only as pronouns, `rien` « Pequeño cantidad de
 algo », a run with no part of speech under `des` (« [—] Contracción… »).
 
