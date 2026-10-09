@@ -63,6 +63,10 @@
 //! their expression, « il y a » and « il y avait » answer `il y a`, the Proust sentence
 //! `de bonne heure`, « à la maison » `à la` (the rule, not the sense), and « au marché » and
 //! « jusqu'au soir » no `à la`.
+//!
+//! At analyser `1.1.0` French's detection guard (add-lingua-french-detection-guard) refuses the
+//! `mixte` page's Occitan block, which whichlang reads as French; its Catalan block whichlang reads
+//! as Italian, guard or not.
 
 use super::{Card, PackSource, Scenario};
 
