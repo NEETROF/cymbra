@@ -977,6 +977,74 @@ describe("an elided French word, heard with the word it leans on (add-lingua-fre
     expect(row(card, fake)[0]).toEqual(["▶ L'", "L'"]);
   });
 
+  describe("whatever text the analysis gives the piece's token (add-lingua-french-tokenisation D3, D6)", () => {
+    // Change 40 writes an elided piece's token as the word it stands for — `Le` [0, 2) for `L'` —
+    // and the card's `written` is the range's text: `L'`.
+    it("`Le` written `L'`: « ▶ L'homme », then « ▶ le », then the sentence", () => {
+      const { fake, card } = speaking();
+      const sentence = "L'homme est venu.";
+      card.show(
+        content({ headword: "le", surface: "Le", written: "L'", sentence, selection: placeOf(sentence, "L'") }),
+        () => {},
+      );
+      expect(row(card, fake)).toEqual([
+        ["▶ L'homme", "L'homme"],
+        ["▶ le", "le"],
+        ["▶ Sentence", "L'homme est venu."],
+      ]);
+    });
+
+    it("`Ce` written `C’` inside guillemets and a narrow no-break space: « ▶ C’est », then « ▶ ce »", () => {
+      const { fake, card } = speaking();
+      const sentence = "«\u202FC’est la vie\u202F»";
+      card.show(
+        content({ headword: "ce", surface: "Ce", written: "C’", sentence, selection: placeOf(sentence, "C’") }),
+        () => {},
+      );
+      expect(row(card, fake).slice(0, 2)).toEqual([
+        ["▶ C’est", "C’est"],
+        ["▶ ce", "ce"],
+      ]);
+    });
+
+    it("`jusqu'au`: the elided piece reads « jusqu'au », the contraction's piece « au »", () => {
+      const { fake, card } = speaking();
+      const sentence = "Il dort jusqu'au soir.";
+      card.show(
+        content({
+          headword: "jusque",
+          surface: "jusque",
+          written: "jusqu'",
+          sentence,
+          selection: placeOf(sentence, "jusqu'"),
+        }),
+        () => {},
+      );
+      expect(row(card, fake).slice(0, 2)).toEqual([
+        ["▶ jusqu'au", "jusqu'au"],
+        ["▶ jusque", "jusque"],
+      ]);
+      card.show(
+        content({ headword: "à", surface: "à", written: "au", sentence, selection: placeOf(sentence, "au") }),
+        () => {},
+      );
+      expect(row(card, fake)[0]).toEqual(["▶ Word", "au"]);
+    });
+
+    it("an elided piece alone, or without its place, reads the word it stands for — never its letter", () => {
+      const { fake, card } = speaking();
+      // `l’ homme`, typed with a space: nothing to lean on.
+      const sentence = "Voici l’ homme.";
+      card.show(
+        content({ headword: "le", surface: "le", written: "l’", sentence, selection: placeOf(sentence, "l’") }),
+        () => {},
+      );
+      expect(row(card, fake)[0]).toEqual(["▶ Word", "le"]);
+      card.show(content({ headword: "le", surface: "Le", written: "L'", sentence: "L'homme est venu." }), () => {});
+      expect(row(card, fake)[0]).toEqual(["▶ Word", "Le"]);
+    });
+  });
+
   it("keeps « ▶ Selection » for a selection of several words", () => {
     const { fake, card } = speaking();
     card.show(
@@ -1010,6 +1078,7 @@ describe("an elided French word, heard with the word it leans on (add-lingua-fre
     const cards = (): WordPopupContent[] => [
       article("L'"),
       article("L"),
+      article("L'", { surface: "Le", written: "L'" }),
       content({
         headword: "do",
         surface: "do",
@@ -1044,8 +1113,10 @@ describe("an elided French word, heard with the word it leans on (add-lingua-fre
         withPlace.card.show(cards()[0], () => {});
         expect(row(withPlace.card, withPlace.fake)[0]).toEqual(["▶ L'", "L'"]);
         withPlace.card.show(cards()[2], () => {});
-        expect(row(withPlace.card, withPlace.fake)[0]).toEqual(["▶ Word", "do"]);
+        expect(row(withPlace.card, withPlace.fake)[0]).toEqual(["▶ Word", "Le"]);
         withPlace.card.show(cards()[3], () => {});
+        expect(row(withPlace.card, withPlace.fake)[0]).toEqual(["▶ Word", "do"]);
+        withPlace.card.show(cards()[4], () => {});
         expect(row(withPlace.card, withPlace.fake)[0]).toEqual(["▶ Word", "de"]);
       });
     }
