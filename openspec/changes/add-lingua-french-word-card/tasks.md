@@ -34,5 +34,5 @@ Implemented once the implementations of changes 44, 45, 48 and 49 are on `main`,
 
 ## 6. Owner
 
-- [ ] 6.1 [manual] The owner reviews the English and Spanish tables and every line the two snapshots pin (M9), and settles open questions 1–5.
+- [ ] 6.1 [manual] The owner reviews the English and Spanish tables and every line the two snapshots pin (M9), and settles open questions 1–5 (1–4 settled in session on 2026-10-10, each as the design recommends; 5 is reworded when the held changes archive).
 - [ ] 6.2 [manual] In change 52's dogfood, on devices: a drag inside « l’homme » and « dit-il », a double-click and a long press on « l’homme » and « d’abord ».

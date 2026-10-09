@@ -492,16 +492,16 @@ review by name (D8) 0.5–0.75; the probes, the fr-es golden, the two snapshots 
 ## Open Questions
 
 For the owner, none blocking:
-1. **The moods' merge beyond M21's words** (D3): M21 names five-reading forms; the rule also merges
+1. **The moods' merge beyond M21's words** (D3) — **settled by the owner on 2026-10-10: merged everywhere, as designed.** M21 names five-reading forms; the rule also merges
    the indicative and the subjunctive on 4,005 more forms (`parlent`, `parles`, `finissions`), as change
    45's D7 leaves to this change. Merging the five-reading forms only would say « parle » once and
    « parlent » twice.
-2. **« participio presente » or the RAE's « participio de presente »** (D4), and « participio pasado »
+2. **« participio presente » or the RAE's « participio de presente »** (D4) — **settled on 2026-10-10: « participio presente ».**, and « participio pasado »
    beside it.
-3. **An invariable plural on Spanish and English cards** (D5): French cards leave it out (1,072 forms);
+3. **An invariable plural on Spanish and English cards** (D5) — **settled on 2026-10-10: aligned in a change of its own, proposed separately.** French cards leave it out (1,072 forms);
    Spanish's 667 (`tu`, `menos`) and English's 194 keep theirs unless a change of their own moves es-fr
    and en-fr cards.
-4. **A double-click on « l’homme »** (D7): the whole-selection card, as change 40 recommended; the
+4. **A double-click on « l’homme »** (D7) — **settled on 2026-10-10: the whole-selection card, as designed.** the whole-selection card, as change 40 recommended; the
    other choice needs a function-word flag on page tokens.
 5. **Held wording** (D7, D8, D9), in open changes this one cannot MODIFY: *A French invariance baseline
    runs beside the English and Spanish ones* lists three reasons for moving the golden — probes added by
