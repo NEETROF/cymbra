@@ -375,7 +375,7 @@ no more download.
 **The cut**: 60,000 lemmas and their attested forms, as Spanish — 124,050 forms, `forms.tsv`
 2,255,819 B and `freq.tsv` 844,901 B. On the design's prototype tables, 40,000 lemmas passed the
 gates too, 0.16 points of resolution lower on PUD, and every form nobody writes would have added
-88,678 rows for 0.02 points. The pack built from the two tables alone is 1,239,663 B
+88,678 rows for 0.02 points. The pack built from the two tables alone is 1,239,671 B
 (`tables/fr-en/README.md`, with M8's cost — the 135 dictionary nouns among wordfreq's 5,000 commonest
 words that read as a verb — and the twelve determiners and pronouns ranked on their own).
 

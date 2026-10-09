@@ -123,7 +123,7 @@ apostrophe (`aujourd'hui` 136, `quelqu'un` 204). Every ranked lemma's own form r
 (`crates/lingua-pack/tests/committed_tables.rs` checks every pair's pack holds each rank on its own
 lemma).
 
-The pack these two tables build — no gloss, reading or level yet — is 1,239,663 B; Spanish's same two
+The pack these two tables build — no gloss, reading or level yet — is 1,239,671 B; Spanish's same two
 tables build 1,308,123 B. The builder holds it under 5 MiB; the glosses, readings and levels are
 measured against that budget by the changes that add them.
 
