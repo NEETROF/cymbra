@@ -41,4 +41,14 @@ describe("each locale's pages say their language", () => {
       expect(read(NOT_FOUND[lang])).toContain(`<html lang="${lang}"`);
     });
   }
+
+  // The Spanish home and Music pages (change: extend-site-spanish-locale, D1): static
+  // pages, in Spanish, mounting no island.
+  for (const path of ["/es/", "/es/music"]) {
+    it(`es: ${path} is <html lang="es"> and mounts no island`, () => {
+      const html = read(outputFileFor(path));
+      expect(html).toContain('<html lang="es"');
+      expect(html).not.toContain("<astro-island");
+    });
+  }
 });
