@@ -142,9 +142,10 @@ and `donnée` instead of their own A1, and the four nouns no level (measured: th
 
 **A check over every committed pair** (*A level reaches the lemma it is written for*): the
 committed-tables test builds each pair's pack and requires every lemma of its studied language's
-`level.tsv` to carry that level. Measured on `origin/main`: en-fr, es-fr, es-en and en-es pass,
-8,302 levels each; French's table passes with rule 4, and fails without it, naming `donner` and
-`venir`.
+`level.tsv` to carry that level, and every lemma the pack gives a level to carry the table's — the
+second half catches a level landing on a lemma the table leaves without one. Measured on
+`origin/main`: en-fr, es-fr, es-en and en-es pass both ways, 8,302 levels each; French's table
+passes with rule 4, and fails without it, naming `donner` and `venir`.
 
 **The same keying moves ranks, which is change 43's.** Built from the prototype's tables, the
 pack ranks *donner* 1,711 instead of 225, *venir* 1,637 instead of 388, *trancher*, *retomber* and
