@@ -14,6 +14,7 @@ import {
   voiceGroups,
   voiceLabel,
 } from "@/reading/speech.ts";
+import { settingsCopy } from "@/reading/settings-copy.ts";
 import { makeFakeSpeech, voiceFixture } from "./helpers.ts";
 
 const voice = (over: Partial<VoiceInfo> & { name: string }): VoiceInfo => ({
@@ -146,6 +147,98 @@ describe("a Spanish voice from Spain by default (add-lingua-spanish-read-aloud)"
 
   it("leaves English's choice as it was", () => {
     expect(rankVoices([daniel, samantha], "en")).toEqual([samantha, daniel]);
+  });
+});
+
+describe("a French voice from France by default (add-lingua-french-read-aloud)", () => {
+  /** Réglages' modules in English and in Spanish, which word a voice's label. */
+  const EN = settingsCopy("en").settings;
+  const ES = settingsCopy("es").settings;
+  const thomas = voice({ name: "Thomas", lang: "fr-FR" });
+  const amelie = voice({ name: "Amélie", lang: "fr-CA" });
+  const android = (name: string, lang: string): VoiceInfo =>
+    voice({ name, lang, localService: false, voiceURI: `moz-tts:android:${lang.replace(/-/g, "_")}` });
+
+  it.each(["chrome-macos", "firefox-macos", "safari-macos", "safari-ios-simulator", "safari-ios"])(
+    "%s: Thomas, though macOS lists Amélie (fr-CA) first",
+    (target) => {
+      const picked = pickVoice(voiceFixture(target), "fr", null);
+      expect(picked?.name).toBe("Thomas");
+      expect(picked?.lang).toBe("fr-FR");
+    },
+  );
+
+  it("Chrome Windows set to French: its one default voice, Hortense", () => {
+    expect(pickVoice(voiceFixture("chrome-windows"), "fr", null)?.name).toBe("Microsoft Hortense - French (France)");
+  });
+
+  it("Firefox Android: nothing until Android's voices are allowed, then the voice of France", () => {
+    const voices = voiceFixture("firefox-android");
+    expect(pickVoice(voices, "fr", null)).toBeNull();
+    expect(pickVoice(voices, "fr", null, true)?.lang).toBe("fra-FRA-default");
+  });
+
+  it("groups Chrome macOS: Thomas and Amélie, then 16 others, Jacques among them", () => {
+    const { ordinary, others } = voiceGroups(voiceFixture("chrome-macos"), "fr");
+    expect(ordinary.map((v) => v.name)).toEqual(["Thomas", "Amélie"]);
+    expect(others).toHaveLength(16);
+    expect(others.map((v) => v.name)).toContain("Jacques");
+    expect(others.every(isDeprioritised)).toBe(true);
+  });
+
+  it("puts a voice of France before a Canadian one of the same quality", () => {
+    expect(rankVoices([amelie, thomas], "fr")).toEqual([thomas, amelie]);
+    expect(pickVoice([amelie, thomas], "fr", null)).toBe(thomas);
+  });
+
+  it("keeps a voice the reader downloaded for its quality first", () => {
+    const enhanced = voice({ name: "Amélie", lang: "fr-CA", voiceURI: "com.apple.voice.enhanced.fr-CA.Amelie" });
+    const compact = voice({ name: "Thomas", lang: "fr-FR", voiceURI: "com.apple.voice.compact.fr-FR.Thomas" });
+    expect(pickVoice([enhanced, compact], "fr", null)).toBe(enhanced);
+  });
+
+  it("reads Firefox for Android's three-letter regions", () => {
+    const canada = android("français (CAN,DEFAULT)", "fra-CAN-default");
+    const france = android("français (FRA,DEFAULT)", "fra-FRA-default");
+    expect(pickVoice([canada, france], "fr", null, true)).toBe(france);
+  });
+
+  it("names Firefox for Android's France, and Belgium and Switzerland, in the interface language", () => {
+    const france = android("français (FRA,DEFAULT)", "fra-FRA-default");
+    expect(voiceLabel(france)).toBe("français (FRA,DEFAULT) — France");
+    expect(voiceLabel(france, "en", EN)).toBe("français (FRA,DEFAULT) — France");
+    expect(voiceLabel(france, "es", ES)).toBe("français (FRA,DEFAULT) — Francia");
+    const belgium = voice({ name: "Belgique", lang: "fr-BE" });
+    const switzerland = voice({ name: "Suisse", lang: "fr-CH" });
+    expect(voiceLabel(belgium, "en", EN)).toBe("Belgique — Belgium");
+    expect(voiceLabel(switzerland, "en", EN)).toBe("Suisse — Switzerland");
+    expect(voiceLabel(belgium, "es", ES)).toBe("Belgique — Bélgica");
+    expect(voiceLabel(switzerland, "es", ES)).toBe("Suisse — Suiza");
+    expect(voiceLabel(android("français (BEL,DEFAULT)", "fra-BEL-default"), "en", EN)).toBe(
+      "français (BEL,DEFAULT) — Belgium",
+    );
+    expect(voiceLabel(android("français (CHE,DEFAULT)", "fra-CHE-default"), "es", ES)).toBe(
+      "français (CHE,DEFAULT) — Suiza",
+    );
+  });
+
+  it("knows Jacques as an Eloquence voice, by name and by family", () => {
+    expect(isDeprioritised(voice({ name: "Jacques", lang: "fr-FR" }))).toBe(true);
+    expect(
+      isDeprioritised(voice({ name: "Jacques", lang: "fr-FR", voiceURI: "com.apple.eloquence.fr-FR.Jacques" })),
+    ).toBe(true);
+    expect(
+      isDeprioritised(
+        voice({ name: "X", lang: "fr-FR", voiceURI: "urn:moz-tts:osx:com.apple.eloquence.fr-FR.Jacques" }),
+      ),
+    ).toBe(true);
+  });
+
+  it("leaves English's and Spanish's choices as they were", () => {
+    expect(rankVoices([daniel, samantha], "en")).toEqual([samantha, daniel]);
+    const monica = voice({ name: "Mónica", lang: "es-ES" });
+    const paulina = voice({ name: "Paulina", lang: "es-MX" });
+    expect(rankVoices([paulina, monica], "es")).toEqual([monica, paulina]);
   });
 });
 

@@ -137,6 +137,10 @@ const DEPRIORITISED_NAMES = new Set([
   "Rocko",
   "Sandy",
   "Shelley",
+  // France's Eloquence voice where every other language has Reed: Apple's
+  // `com.apple.eloquence.fr-FR.Jacques`, which Chrome lists under its bare name
+  // (add-lingua-french-read-aloud D2) — neither the family nor a suffixed name catches it.
+  "Jacques",
   // legacy
   "Fred",
   "Junior",
@@ -151,10 +155,11 @@ const QUALITIES = ["super-compact", "compact", "enhanced", "premium"];
 const QUALITY = /com\.apple\.voice\.(super-compact|compact|enhanced|premium)\./;
 /**
  * Within a tier, the regions tried first, per studied language: for Spanish, a voice of Spain
- * (the programme's decision D5, add-lingua-spanish-read-aloud), the other accents after it in the
- * browser's order.
+ * (the programme's decision D5, add-lingua-spanish-read-aloud); for French, a voice of France
+ * (add-lingua-french-read-aloud D1) — macOS lists `Amélie` (fr-CA) before `Thomas` (fr-FR). The
+ * other accents come after it in the browser's order.
  */
-const PREFERRED_REGIONS: Record<string, readonly string[]> = { en: ["us", "gb"], es: ["es"] };
+const PREFERRED_REGIONS: Record<string, readonly string[]> = { en: ["us", "gb"], es: ["es"], fr: ["fr"] };
 /** Android's engine as Firefox for Android exposes it: one voice per locale, place unknown. */
 const ANDROID_VOICE = /^moz-tts:android:/;
 /** Firefox for Android writes ISO 639-2 languages and ISO 3166 alpha-3 regions (`eng-GBR`). */
@@ -190,6 +195,10 @@ const THREE_LETTER_REGIONS: Record<string, string> = {
   col: "co",
   chl: "cl",
   per: "pe",
+  // The French-speaking regions (add-lingua-french-read-aloud D3), Canada's `can` above.
+  fra: "fr",
+  bel: "be",
+  che: "ch",
 };
 
 function subtags(lang: string): string[] {
