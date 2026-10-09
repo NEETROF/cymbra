@@ -36,3 +36,16 @@ never reads it.
 ```bash
 scripts/lingua-data/measure/es-pud.sh
 ```
+
+## French forms on two treebanks
+
+`fr-ud.sh` measures the fr-en pack, built from the committed tables, with the same harness
+(add-lingua-french-forms-tables D9): on UD French-PUD, held to Spanish's gates above (its exit
+status the script's), and on UD French-GSD's test section, reported beside it and not gated — the
+reduction reads GSD's training and development sections, so a held-out section of the same treebank
+is the weaker test. Both are fetched at a pinned commit and checked by sha256 into
+`work/measure-fr/`. Neither is committed, and the reduction reads neither.
+
+```bash
+scripts/lingua-data/measure/fr-ud.sh
+```
