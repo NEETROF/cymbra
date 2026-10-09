@@ -87,7 +87,9 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   (`clef`) keeps its entry.
 - **One lemma per form (M8).** A form that is a proper name and a commoner word's keeps the word
   (`cette` → *ce*; `paris` stays the city), then the first rule that decides wins:
-  1. `OVERRIDES` in `reduce-fr-en.py`, each row with its reason — **empty**;
+  1. `OVERRIDES` in `reduce-fr-en.py`, each row with its reason — no homograph; two rows correct
+     the source's copy errors: `fatiguée` (« feminine singular of parlé ») → *fatiguer*, `bridée`
+     (a form-of target « female slant ») → *bridé*;
   2. GSD's counts of the form under each lemma (`porte` → *porter*, 39 against 23);
   3. the form's own entry;
   4. the commoner lemma;
@@ -112,7 +114,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 
 ## What is in them
 
-On the 2026-10-08 tables: **60,000 lemmas** and **124,050 forms** (`forms.tsv` 2,255,817 B,
+On the 2026-10-08 tables: **60,000 lemmas** and **124,050 forms** (`forms.tsv` 2,255,819 B,
 `freq.tsv` 844,901 B). 3,597 forms keep more than one ranked candidate: GSD's counts decide 1,382,
 the form's own entry 1,314, frequency or the alphabet 901. 6,374 forms take their lemma through a
 form of a form. 474 hyphenated words are ranked — 471 by GSD's evidence and the 3 nouns ending in a
@@ -121,7 +123,7 @@ apostrophe (`aujourd'hui` 136, `quelqu'un` 204). Every ranked lemma's own form r
 (`crates/lingua-pack/tests/committed_tables.rs` checks every pair's pack holds each rank on its own
 lemma).
 
-The pack these two tables build — no gloss, reading or level yet — is 1,240,351 B; Spanish's same two
+The pack these two tables build — no gloss, reading or level yet — is 1,239,671 B; Spanish's same two
 tables build 1,308,123 B. The builder holds it under 5 MiB; the glosses, readings and levels are
 measured against that budget by the changes that add them.
 
@@ -143,6 +145,14 @@ reads its tables alike at `0.1.0` and `0.2.0`. Two rules of the implementation m
 word whose own form reads as another gives its rank (PUD's content words 96.38 → 96.30, `données`
 now *donner*; GSD's 95.65 → 95.67), and a gender marker is no form (GSD's resolved words 98.91 →
 98.89: its `m` no longer reads as Paris).
+
+The copy errors were looked for by the forms whose lemma begins with another letter (106): all but
+three are a suppletive verb (`sont` → *être*, `va` → *aller*), a ligature's ASCII spelling (`oeuvre`
+→ *œuvre*), `eux` → *ils*, `yeux` → *œil*, a pair the dictionary itself links (`marraine` →
+*parrain*, `moindre` → *petit*), an Old French form (`fust` → *estre*) or an inclusive pronoun
+(`ellui` → *iel*). `fatiguée` and `bridée` are overridden; `créditiste` (Zipf 1.2) reads as
+*ralliement*, the first word of its target « Ralliement créditiste », which no row can mend since
+*créditiste* is no ranked lemma.
 
 The harness reads UD's words as UD writes them: an elided piece is `l'`, which `ELISIONS` resolves;
 an inverted pronoun is `-il` or `-t-il`, which stays unresolved where the pre-pass hands `il` to the

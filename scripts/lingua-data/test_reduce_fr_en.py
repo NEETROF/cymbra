@@ -357,6 +357,36 @@ class ChoosingOneLemma(unittest.TestCase):
         for form, (lemma, reason) in red.OVERRIDES.items():
             self.assertTrue(reason and len(reason) > 20, form)
 
+    def test_a_copy_error_of_the_source_is_overridden(self):
+        # The dump's verb entry `fatiguée` reads « feminine singular of parlé »: its form of a form
+        # reaches parler, the commoner verb, as well as fatiguer. The reviewed row reads it as fatiguer.
+        entries = [
+            entry("fatiguer", pos="verb", forms=[*TABLE_HEAD, ("fatigue", PRESENT_3S), ("fatigué", PARTICIPLE)]),
+            entry("fatigué", pos="verb", forms=[("fatiguée", ["feminine"]), ("fatiguées", ["feminine", "plural"])], senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "fatiguer"}]}]),
+            entry("fatigué", pos="adj", forms=[("fatiguée", ["feminine"])], senses=[{"glosses": ["tired"]}]),
+            form_of("fatiguée", "fatigué", pos="adj", tags=("feminine", "form-of", "singular")),
+            entry("fatiguée", pos="verb", forms=[("fatiguées", ["plural"])], senses=[{"glosses": ["feminine singular of parlé"], "tags": ["feminine", "form-of", "participle", "singular"], "form_of": [{"word": "parlé"}]}]),
+            entry("parler", pos="verb", forms=[*TABLE_HEAD, ("parle", PRESENT_3S), ("parlé", PARTICIPLE)]),
+            form_of("parlé", "parler", tags=("form-of", "participle", "past")),
+        ]
+        lex = lexicon(*entries)
+        freq = {"parler": 5.5, "fatiguer": 3.9, "fatiguée": 3.9, "fatigué": 4.2, "fatiguées": 2.5, "parle": 5.0, "fatigue": 4.0, "parlé": 4.2}.get
+
+        # GSD reads the participle `fatigué` as fatiguer, as UD lemmatises participles.
+        counts = {("fatigué", "fatiguer"): 3}
+
+        def reduced(overrides):
+            top = lambda n: ["parler", "parle", "fatiguer"][:n]  # noqa: E731
+            return red.reduce_forms(lex, counts, {}, lambda w: freq(w, 0.0), top, 10, overrides)[0]
+
+        self.assertEqual(reduced({})["fatiguée"], "parler", "the source's error, read by frequency")
+        forms = reduced(red.OVERRIDES)
+        self.assertEqual(forms["fatiguée"], "fatiguer")
+        self.assertEqual(forms["fatigué"], "fatiguer")
+        self.assertEqual(forms["fatiguées"], "fatiguer")
+        self.assertEqual(red.OVERRIDES["fatiguée"][0], "fatiguer")
+        self.assertEqual(red.OVERRIDES["bridée"][0], "bridé")
+
     def test_a_name_and_a_commoner_word(self):
         lex = lexicon()
         red.name_or_word(lex.candidates, lex.names, frequency)
