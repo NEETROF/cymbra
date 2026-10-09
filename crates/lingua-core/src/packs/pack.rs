@@ -304,9 +304,13 @@ impl Pack {
         &self.lexicon
     }
 
-    /// The native-language gloss for a lemma, if the pack carries one.
+    /// The native-language gloss of the dictionary form `lemma`, if the pack
+    /// carries one: its own, found among the pack's lemmas. A string the pack
+    /// holds as no lemma — a form of another word (`saw`, of *see*) or a word it
+    /// does not hold — has none, never the gloss of the word its spelling is a
+    /// form of (fix-lingua-lemma-lookup D2).
     pub fn gloss(&self, lemma: &str) -> Option<&str> {
-        let id = self.lexicon.id_of(lemma)?;
+        let id = self.lexicon.lemma_id(lemma)?;
         self.glosses.get(&id).map(String::as_str)
     }
 
@@ -347,14 +351,16 @@ impl Pack {
         self.grammar.paradigms.is_some() || self.grammar.senses.is_some()
     }
 
-    /// The paradigm filed under a dictionary form, decoded; empty when the
-    /// pack has none for it.
+    /// The paradigm filed under a dictionary form, found among the pack's
+    /// lemmas, decoded; empty when the pack has none for it, or holds no such
+    /// lemma — a form of another word reads no other word's paradigm
+    /// (fix-lingua-lemma-lookup D2).
     fn paradigm(&self, lemma: &str) -> Vec<ParadigmEntry> {
         let Some(blob) = &self.grammar.paradigms else {
             return Vec::new();
         };
         self.lexicon
-            .id_of(lemma)
+            .lemma_id(lemma)
             .and_then(|id| blob.get(u32::try_from(id).ok()?))
             .and_then(decode_paradigm)
             .unwrap_or_default()
@@ -366,7 +372,8 @@ impl Pack {
 
     /// The readings of `form` (lowercase) as the dictionary form `lemma`, in
     /// the pack's order. Empty when the pack carries no grammar, holds no
-    /// such form, or reads none of its tags.
+    /// such form, holds `lemma` as no lemma of its own, or reads none of its
+    /// tags.
     pub fn readings(&self, lemma: &str, form: &str) -> Vec<Tag> {
         self.paradigm(lemma)
             .into_iter()
@@ -400,13 +407,14 @@ impl Pack {
     /// The runs of a dictionary form's gloss: consecutive senses sharing a
     /// part of speech, each with its tag (`None` when this core cannot read
     /// it) and the number of senses it covers. Empty when the pack carries
-    /// no runs for the word.
+    /// no runs for the word, or holds it as no lemma of its own: the runs
+    /// follow [`Pack::gloss`] (fix-lingua-lemma-lookup D2).
     pub fn sense_runs(&self, lemma: &str) -> Vec<(Option<&Tag>, usize)> {
         let Some(blob) = &self.grammar.senses else {
             return Vec::new();
         };
         self.lexicon
-            .id_of(lemma)
+            .lemma_id(lemma)
             .and_then(|id| blob.get(u32::try_from(id).ok()?))
             .and_then(decode_runs)
             .unwrap_or_default()
@@ -487,8 +495,14 @@ impl Pack {
     /// Whether `lemma` is one of the pack's dictionary words — a word of its studied
     /// language rather than a name or noise (add-lingua-pack-lexical-layer D2). The
     /// lexical table says so when the pack carries one; a pack without one reads its
-    /// glossed lemmas as its dictionary words, which is exactly
-    /// `self.gloss(lemma).is_some()`. A lemma the lexicon does not hold is none.
+    /// glossed lemmas as its dictionary words, which for a lemma of the pack is exactly
+    /// `self.gloss(lemma).is_some()`. A string the lexicon does not hold is none.
+    ///
+    /// An estimate, like [`FrequencyRanks::rank`] and [`CefrLevels::level`]: it reads
+    /// through the spelling, for the lemma the pack's forms read `lemma` as, so that a
+    /// string the analysis returns as a form of a dictionary word is no name
+    /// (fix-lingua-lemma-lookup D3). Every lemma of a pack the builder writes reads as
+    /// itself, so for a lemma it is that lemma's own mark.
     pub fn is_dictionary_word(&self, lemma: &str) -> bool {
         self.lexicon
             .id_of(lemma)
@@ -507,6 +521,11 @@ impl Pack {
 }
 
 impl FrequencyRanks for Pack {
+    /// The frequency rank of `lemma`, an estimate: read through the spelling, for the
+    /// lemma the pack's forms read `lemma` as (fix-lingua-lemma-lookup D3) — a reader
+    /// who knows *strange* is estimated to know `strangers`, which the analysis reads
+    /// as `stranger`, a form of *strange*. A lemma of a pack the builder writes reads as
+    /// itself, so its rank is its own.
     fn rank(&self, lemma: &str) -> Option<u32> {
         let id = self.lexicon.id_of(lemma)? as usize;
         match self.freq.get(id).copied() {
@@ -517,6 +536,8 @@ impl FrequencyRanks for Pack {
 }
 
 impl CefrLevels for Pack {
+    /// The CEFR level of `lemma`, an estimate read through the spelling like
+    /// [`FrequencyRanks::rank`] (fix-lingua-lemma-lookup D3).
     fn level(&self, lemma: &str) -> Option<CefrLevel> {
         let id = self.lexicon.id_of(lemma)? as usize;
         CefrLevel::from_code(self.levels.get(id).copied()?)
@@ -1435,6 +1456,143 @@ pub(crate) mod tests {
             .collect();
         assert_eq!(runs, [(Some("VERB".to_owned()), 1)]);
         assert!(pack.sense_runs("unlisted").is_empty());
+    }
+
+    // — a dictionary form is read as itself (fix-lingua-lemma-lookup) —
+
+    const PAST: &str = "VERB|Mood=Ind|Tense=Past|VerbForm=Fin";
+
+    /// A pack whose forms read `saw` and `seen` as *see*, and `are` and `is` as *be*: *see*
+    /// ranked 200 and A1, glossed with a verb's sense and a noun's, its runs saying so and its
+    /// paradigm naming `saw` its past tense; *be* ranked 2 and glossed. Neither `saw` nor `are`
+    /// is a lemma of the pack.
+    fn see_pack() -> Vec<u8> {
+        use super::super::grammar::{
+            FormEdit, ParadigmEntry, SenseRun, encode_indexed, encode_paradigm, encode_runs,
+            encode_tag_pool,
+        };
+        use crate::knowledge::level::CefrLevel;
+        let (forms, pool) = build_lexicon_blobs(
+            &[("saw", "see"), ("seen", "see"), ("are", "be"), ("is", "be")],
+            &[],
+        )
+        .expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let id = |lemma: &str| lex.lemma_id(lemma).expect("a lemma of the pack") as u32;
+        let mut freq = vec![0u32; lex.lemma_count()];
+        freq[id("see") as usize] = 200;
+        freq[id("be") as usize] = 2;
+        let freq_bytes: Vec<u8> = freq.iter().flat_map(|r| r.to_le_bytes()).collect();
+        let mut levels = vec![0u8; lex.lemma_count()];
+        levels[id("see") as usize] = CefrLevel::A1.to_code();
+        let gloss = build_gloss_zst(&[(id("be"), "Être"), (id("see"), "Voir; Siège")]);
+        let tags = encode_tag_pool(&["NOUN".into(), "VERB".into(), PAST.into()]);
+        let paradigm = encode_paradigm(&[ParadigmEntry::Reading {
+            form: FormEdit::between("see", "saw").unwrap(),
+            tag: 2,
+        }]);
+        let paradigms =
+            zstd::encode_all(encode_indexed(&[(id("see"), paradigm)]).as_slice(), 19).unwrap();
+        let runs = encode_runs(&[SenseRun { tag: 1, count: 1 }, SenseRun { tag: 0, count: 1 }]);
+        let senses = zstd::encode_all(encode_indexed(&[(id("see"), runs)]).as_slice(), 19).unwrap();
+        write_container(
+            &meta_json(ANALYZER_VERSION),
+            &[
+                (section::FORMS, &forms),
+                (section::LEMMAS, pool.as_bytes()),
+                (section::FREQ, &freq_bytes),
+                (section::LEVELS, &levels),
+                (section::GLOSS_ZST, &gloss),
+                (section::TAGS, &tags),
+                (section::PARADIGMS_ZST, &paradigms),
+                (section::SENSES_ZST, &senses),
+                (section::NOTICE, b"kaikki: CC BY-SA."),
+            ],
+        )
+    }
+
+    fn uds(tags: &[Tag]) -> Vec<String> {
+        tags.iter().map(Tag::to_ud).collect()
+    }
+
+    #[test]
+    fn spec_scenario_a_form_asked_about_as_its_own_dictionary_form() {
+        let pack = Pack::load(&see_pack()).expect("load");
+        // `saw` is held only as a form of see: nothing of see's entry is read for it.
+        assert_eq!(pack.gloss("saw"), None);
+        assert!(pack.sense_runs("saw").is_empty());
+        assert!(pack.readings("saw", "saw").is_empty());
+        assert!(pack.other_readings("saw", "saw").is_empty());
+        // see's own entry, read as before.
+        assert_eq!(pack.gloss("see"), Some("Voir; Siège"));
+        assert_eq!(uds(&pack.readings("see", "saw")), [PAST]);
+        let runs: Vec<(Option<String>, usize)> = pack
+            .sense_runs("see")
+            .into_iter()
+            .map(|(tag, count)| (tag.map(Tag::to_ud), count))
+            .collect();
+        assert_eq!(
+            runs,
+            [(Some("VERB".to_owned()), 1), (Some("NOUN".to_owned()), 1)]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_gloss_of_a_form() {
+        let pack = Pack::load(&see_pack()).expect("load");
+        assert_eq!(pack.gloss("are"), None);
+        assert_eq!(pack.gloss("be"), Some("Être"));
+        // A word the pack does not hold has none either.
+        assert_eq!(pack.gloss("absent"), None);
+    }
+
+    #[test]
+    fn the_estimates_keep_reading_through_the_spelling() {
+        use crate::knowledge::level::CefrLevel;
+        let pack = Pack::load(&see_pack()).expect("load");
+        // Rank, level and dictionary-word mark: see's, for the form the pack reads as see.
+        assert_eq!(pack.rank("saw"), Some(200));
+        assert_eq!(pack.rank("saw"), pack.rank("see"));
+        assert_eq!(pack.level("saw"), Some(CefrLevel::A1));
+        assert!(pack.is_dictionary_word("saw"));
+        assert_eq!(pack.rank("are"), Some(2));
+        // Its gloss does not follow them.
+        assert_eq!(pack.gloss("saw"), None);
+        // A word the pack does not hold has none of them.
+        assert_eq!(pack.rank("absent"), None);
+        assert_eq!(pack.level("absent"), None);
+        assert!(!pack.is_dictionary_word("absent"));
+    }
+
+    #[test]
+    fn spec_scenario_a_lemma_list_out_of_order() {
+        let (meta, sections) = read_container(&see_pack()).unwrap();
+        for (pool, named) in [
+            ("see\nbe", "\"be\" after \"see\""),
+            ("be\nbe\nsee", "\"be\" twice"),
+        ] {
+            let rewritten: Vec<(&str, &[u8])> = sections
+                .iter()
+                .map(|s| {
+                    let data: &[u8] = if s.name == section::LEMMAS {
+                        pool.as_bytes()
+                    } else {
+                        &s.data
+                    };
+                    (s.name.as_str(), data)
+                })
+                .collect();
+            match Pack::load(&write_container(&meta, &rewritten)) {
+                Err(err @ PackError::Lexicon(LexiconError::LemmaPoolOutOfOrder { .. })) => {
+                    assert!(err.to_string().contains(named), "{err}");
+                    assert!(err.to_string().starts_with("pack lexicon: "), "{err}");
+                }
+                Err(other) => panic!("{pool:?}: expected LemmaPoolOutOfOrder, got {other}"),
+                Ok(_) => panic!("{pool:?}: a pack whose lemma list is out of order loaded"),
+            }
+        }
+        // The pack as built loads.
+        assert!(Pack::load(&see_pack()).is_ok());
     }
 
     #[test]

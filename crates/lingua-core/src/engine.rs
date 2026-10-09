@@ -2198,6 +2198,21 @@ mod tests {
         also: &[Also],
         runs: &[Runs],
     ) -> Pack {
+        build_pack_with_grammar_for(EN, forms, lemmas, &[], glosses, readings, also, runs)
+    }
+
+    /// [`build_pack_with_grammar`] for any studied language, with ranks.
+    #[allow(clippy::too_many_arguments)]
+    fn build_pack_with_grammar_for(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        readings: &[Reading],
+        also: &[Also],
+        runs: &[Runs],
+    ) -> Pack {
         use crate::packs::grammar::{
             FormEdit, ParadigmEntry, SenseRun, encode_indexed, encode_paradigm, encode_runs,
             encode_tag_pool,
@@ -2255,12 +2270,16 @@ mod tests {
             .collect();
         run_entries.sort_unstable_by_key(|(id, _)| *id);
         let gloss_entries: Vec<(u32, &str)> = glosses.iter().map(|(l, g)| (id(l), *g)).collect();
-        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let mut freq = vec![0u32; lex.lemma_count()];
+        for (lemma, rank) in ranks {
+            freq[id(lemma) as usize] = *rank;
+        }
+        let freq_bytes: Vec<u8> = freq.iter().flat_map(|r| r.to_le_bytes()).collect();
         let meta = serde_json::to_vec(&PackMeta {
-            studied: "en".into(),
+            studied: studied.tag().into(),
             native: "fr".into(),
             pack_version: "t".into(),
-            analyzer_version: ANALYZER_VERSION.into(),
+            analyzer_version: studied.analyzer_version().into(),
             levels_estimated: false,
             licences: vec![],
         })
@@ -2506,5 +2525,227 @@ mod tests {
             grammar.senses[1].tag.as_ref().map(Tag::to_ud),
             Some("NOUN".into())
         );
+    }
+
+    // — a dictionary form is read as itself (fix-lingua-lemma-lookup) —
+
+    /// What a card answers for a string that is no dictionary form of the pack.
+    fn nothing() -> WordGrammar {
+        WordGrammar {
+            gloss: None,
+            senses: Vec::new(),
+            readings: Vec::new(),
+            others: Vec::new(),
+            pieces: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_form_asked_about_as_its_own_dictionary_form() {
+        // `saw` is held only as a form of see, which files its gloss, its runs and `saw` as its
+        // past tense.
+        let pack = build_pack_with_grammar(
+            &[("saw", "see"), ("seen", "see")],
+            &["see"],
+            &[("see", "Voir; Siège")],
+            &[("saw", "see", PAST), ("seen", "see", PARTICIPLE)],
+            &[],
+            &[("see", &[("VERB", 1), ("NOUN", 1)])],
+        );
+        assert_eq!(word_grammar("saw", "saw", EN, &pack), nothing());
+        assert_eq!(
+            word_grammar_json("saw", "saw", EN, &pack),
+            r#"{"gloss":null,"senses":[],"readings":[],"others":[],"pieces":[]}"#
+        );
+        // Asked for see, the card reads see's entry, as before.
+        let see = word_grammar("saw", "see", EN, &pack);
+        assert_eq!(see.gloss.as_deref(), Some("Voir; Siège"));
+        let groups: Vec<(Option<String>, &str)> = see
+            .senses
+            .iter()
+            .map(|g| (g.tag.as_ref().map(Tag::to_ud), g.text.as_str()))
+            .collect();
+        assert_eq!(
+            groups,
+            [
+                (Some("VERB".to_owned()), "Voir"),
+                (Some("NOUN".to_owned()), "Siège")
+            ]
+        );
+        assert_eq!(ud(&see.readings), [PAST]);
+    }
+
+    #[test]
+    fn spec_scenario_a_dictionary_form_keeps_its_own() {
+        let pack = grammar_pack();
+        let went = word_grammar("went", "go", EN, &pack);
+        assert_eq!(went.gloss.as_deref(), Some("Aller"));
+        assert_eq!(
+            went.senses,
+            [SenseGroup {
+                tag: None,
+                text: "Aller".into()
+            }]
+        );
+        assert_eq!(ud(&went.readings), [PAST]);
+        let leaves = word_grammar("leaves", "leave", EN, &pack);
+        assert_eq!(ud(&leaves.readings), [THIRD_SINGULAR]);
+        assert_eq!(leaves.others.len(), 1);
+        assert_eq!(leaves.others[0].lemma, "leaf");
+        assert_eq!(ud(&leaves.others[0].readings), [PLURAL]);
+    }
+
+    /// An en→fr pack holding `building` only as a form of *build*, whose paradigm files
+    /// `builds` — the edit `+s` — as its present third person singular.
+    fn building_pack() -> Pack {
+        build_pack_with_grammar_for(
+            EN,
+            &[
+                ("building", "build"),
+                ("builds", "build"),
+                ("built", "build"),
+            ],
+            &[
+                "again", "and", "build", "every", "in", "old", "stand", "still", "the", "town",
+                "year",
+            ],
+            &[
+                ("the", 1),
+                ("and", 2),
+                ("in", 4),
+                ("again", 70),
+                ("every", 150),
+                ("year", 180),
+                ("still", 200),
+                ("old", 300),
+                ("build", 500),
+                ("town", 600),
+                ("stand", 800),
+            ],
+            &[("build", "Construire, édifier")],
+            &[
+                ("builds", "build", THIRD_SINGULAR),
+                ("built", "build", PAST),
+                ("building", "build", "VERB|VerbForm=Ger"),
+            ],
+            &[],
+            &[("build", &[("VERB", 1)])],
+        )
+    }
+
+    #[test]
+    fn spec_scenario_an_english_plural_the_pack_does_not_list() {
+        let pack = building_pack();
+        // The plural fallback reads `buildings` as `building`, a form of build: no gloss, no
+        // reading — not build's present third person singular put on another word.
+        assert_eq!(
+            crate::analysis::lemmatize::lemmatize("buildings", EN, pack.lexicon()),
+            "building"
+        );
+        assert_eq!(word_grammar("buildings", "building", EN, &pack), nothing());
+        let blocks =
+            ["The old buildings still stand in the town, and the town builds again every year."];
+        let mut knowledge = KnowledgeState::new();
+        // Under build's rank: the token is unknown, glossed with nothing, beside `builds`
+        // glossed with build's gloss.
+        knowledge.set_calibration(EN, 400);
+        let page = analyse_page(&blocks, EN, &pack, &knowledge);
+        let token = |surface: &str| {
+            page.tokens
+                .iter()
+                .find(|t| t.surface == surface)
+                .unwrap_or_else(|| panic!("{surface}"))
+                .clone()
+        };
+        let buildings = token("buildings");
+        assert_eq!(buildings.lemma, "building");
+        assert_eq!(buildings.class, TokenClass::Unknown);
+        assert_eq!(buildings.gloss, None);
+        let builds = token("builds");
+        assert_eq!(builds.class, TokenClass::Unknown);
+        assert_eq!(builds.gloss.as_deref(), Some("Construire, édifier"));
+        // Over it: build's rank still makes the token known, so the page counts it as before —
+        // every word of the page is ranked under 3,000.
+        knowledge.set_calibration(EN, 3_000);
+        let page = analyse_page(&blocks, EN, &pack, &knowledge);
+        let buildings = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == "buildings")
+            .unwrap();
+        assert_eq!(buildings.class, TokenClass::Known);
+
+        assert_eq!(buildings.gloss, None);
+        assert_eq!(
+            (page.counted, page.known, page.percent),
+            (15, 15, Some(100))
+        );
+    }
+
+    #[test]
+    fn a_phrase_gloss_glosses_a_form_with_nothing() {
+        let pack = building_pack();
+        let phrase = gloss_phrase("old buildings", EN, &pack, &KnowledgeState::new());
+        let buildings = &phrase.tokens[1];
+        assert_eq!(buildings.lemma, "building");
+        assert_eq!(buildings.gloss, None);
+        // A token read as build itself keeps build's gloss.
+        let phrase = gloss_phrase("old builds", EN, &pack, &KnowledgeState::new());
+        assert_eq!(
+            phrase.tokens[1].gloss.as_deref(),
+            Some("Construire, édifier")
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_plural_the_pack_does_not_list() {
+        const MASC_PLURAL: &str = "ADJ|Gender=Masc|Number=Plur";
+        // `ablativa` is held only as a form of ablativo, whose paradigm files `ablativos` — the
+        // edit `+s` — as its masculine plural.
+        let pack = build_pack_with_grammar_for(
+            ES,
+            &[("ablativa", "ablativo"), ("ablativos", "ablativo")],
+            &["ablativo", "las", "son", "raras"],
+            &[
+                ("las", 1),
+                ("son", 20),
+                ("raras", 4_000),
+                ("ablativo", 30_000),
+            ],
+            &[("ablativo", "Ablatif")],
+            &[
+                ("ablativos", "ablativo", MASC_PLURAL),
+                ("ablativa", "ablativo", "ADJ|Gender=Fem|Number=Sing"),
+            ],
+            &[],
+            &[("ablativo", &[("ADJ", 1)])],
+        );
+        assert_eq!(
+            crate::analysis::lemmatize::lemmatize("ablativas", ES, pack.lexicon()),
+            "ablativa"
+        );
+        // The card names no reading — not ablativo's masculine plural — and no gloss.
+        assert_eq!(word_grammar("ablativas", "ablativa", ES, &pack), nothing());
+        assert_eq!(
+            ud(&word_grammar("ablativos", "ablativo", ES, &pack).readings),
+            [MASC_PLURAL]
+        );
+        // The page analysis glosses the token with nothing; its class is ablativo's.
+        let page = analyse_page(
+            &["Las ablativas son raras en los textos que leemos cada día en la escuela."],
+            ES,
+            &pack,
+            &KnowledgeState::new(),
+        );
+        let ablativas = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == "ablativas")
+            .expect("ablativas");
+        assert_eq!(ablativas.lemma, "ablativa");
+        assert_eq!(ablativas.class, TokenClass::Unknown);
+        assert_eq!(ablativas.gloss, None);
+        let phrase = gloss_phrase("ablativas", ES, &pack, &KnowledgeState::new());
+        assert_eq!(phrase.tokens[0].gloss, None);
     }
 }
