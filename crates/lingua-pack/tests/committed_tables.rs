@@ -21,9 +21,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::analysis::lexicon::Lexicon;
+use lingua_core::analysis::tokenize::{FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, tokenize};
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
+use lingua_pack::studied_of;
 use lingua_pack::tables::{STUDIED_RECORD, check_committed_tables};
 use lingua_pack::{
     MAX_PACK_BYTES, PAIR_SIDE, STUDIED_SIDE, build_pack, inputs_from_dirs, inputs_from_tables,
@@ -674,61 +678,54 @@ fn spec_scenario_the_reduction_never_reads_the_treebanks_it_is_measured_on() {
     }
 }
 
-// French's pre-pass (add-lingua-french-tokenisation D3–D5), as change 40's design writes it: the
-// tables must hold every word it hands the lookup (add-lingua-french-forms-tables D4). Held
-// literally here until change 40 is on `main`; its pull request reads them from lingua-core.
+// French's pre-pass (add-lingua-french-tokenisation D3–D5): the tables must hold every word it
+// hands the lookup (add-lingua-french-forms-tables D4). Its lists are read from lingua-core, and the
+// words it writes from its own tokeniser, so a pull request that moves them moves this check.
 
-/// Each elided piece, and the word the pre-pass reads it as outside its special cases.
-const ELIDED: [(&str, &str); 14] = [
-    ("c'", "ce"),
-    ("ç'", "ça"),
-    ("d'", "de"),
-    ("j'", "je"),
-    ("l'", "le"),
-    ("m'", "me"),
-    ("n'", "ne"),
-    ("qu'", "que"),
-    ("s'", "se"),
-    ("t'", "te"),
-    ("jusqu'", "jusque"),
-    ("lorsqu'", "lorsque"),
-    ("puisqu'", "puisque"),
-    ("quoiqu'", "quoique"),
-];
-/// The words its special cases read: `s'` before il/ils, `m'` and `t'` right after a hyphen.
-const ELIDED_SPECIAL: [&str; 3] = ["si", "moi", "toi"];
-/// `au` and `aux`, split into these words.
-const CONTRACTIONS: [(&str, [&str; 2]); 2] = [("au", ["à", "le"]), ("aux", ["à", "les"])];
-/// The pronouns of an inversion.
-const INVERSION_PRONOUNS: [&str; 19] = [
-    "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ce", "le", "la", "les", "lui",
-    "leur", "moi", "toi", "y", "en",
-];
+/// The words French's pre-pass writes, read by lingua-core's tokeniser with fr-en's lexicon: each
+/// elided piece before a word, and in its special cases (`s'il`, `donne-m'en`, `va-t'en`); `au` and
+/// `aux`; and an inversion with each of its pronouns, the euphonic `t` too. The words they are
+/// written beside (`avoir`, `dit`, …) left out.
+fn pre_pass_words(lexicon: &(impl Lexicon + ?Sized)) -> BTreeSet<String> {
+    let mut text: Vec<String> = FRENCH_ELISIONS
+        .iter()
+        .map(|(written, _)| format!("{written}'avoir"))
+        .collect();
+    text.extend(["s'il", "donne-m'en", "va-t'en", "au", "aux", "a-t-il"].map(String::from));
+    text.extend(FRENCH_INVERSION_PRONOUNS.iter().map(|p| format!("dit-{p}")));
+    tokenize(&text.join(" "), StudiedLanguage::French, lexicon)
+        .into_iter()
+        .map(|token| token.text.to_lowercase())
+        .filter(|word| !["avoir", "donne", "va", "a", "dit"].contains(&word.as_str()))
+        .collect()
+}
 
 #[test]
 fn spec_scenario_every_word_the_pre_pass_writes_is_a_form() {
     let forms = tsv(&tables().join("fr/forms.tsv"));
     let ranks = tsv(&tables().join("fr/freq.tsv"));
-    let written: BTreeSet<&str> = ELIDED
-        .iter()
-        .map(|(_, word)| *word)
-        .chain(ELIDED_SPECIAL)
-        .chain(CONTRACTIONS.iter().flat_map(|(_, words)| *words))
-        .chain(INVERSION_PRONOUNS)
-        .collect();
-    assert_eq!(written.len(), 32, "the 32 words of change 40's design");
+    let pack = Pack::load(fr_en()).unwrap();
+    let written = pre_pass_words(pack.lexicon());
+    // The 17 words of the elisions, `à`, `le`, `les` and the inversion's pronouns: 32, as the
+    // design counted them — a word the tokeniser dropped would be missing here.
+    assert_eq!(written.len(), 32, "{written:?}");
     for word in &written {
         let lemma = forms
-            .get(*word)
+            .get(word)
             .unwrap_or_else(|| panic!("{word}: the pre-pass writes it, and fr/forms.tsv lacks it"));
         assert!(
             ranks.contains_key(lemma),
             "{word} → {lemma}: no ranked lemma"
         );
     }
-    // Each piece maps to the word the pre-pass reads it as outside its special cases.
-    for (piece, word) in ELIDED {
-        assert_eq!(forms.get(piece).map(String::as_str), Some(word), "{piece}");
+    // Each elided piece maps to the word the pre-pass reads it as outside its special cases.
+    for (written, read) in FRENCH_ELISIONS {
+        let piece = format!("{written}'");
+        assert_eq!(
+            forms.get(&piece).map(String::as_str),
+            Some(*read),
+            "{piece}"
+        );
     }
 }
 
@@ -738,7 +735,7 @@ fn spec_scenario_the_contracted_articles() {
     // which it keeps whole, are words of their own.
     let forms = tsv(&tables().join("fr/forms.tsv"));
     let ranks = tsv(&tables().join("fr/freq.tsv"));
-    for (contraction, _) in CONTRACTIONS {
+    for contraction in ["au", "aux"] {
         assert!(!forms.contains_key(contraction), "{contraction} is a form");
         assert!(!ranks.contains_key(contraction), "{contraction} is ranked");
     }
@@ -766,5 +763,53 @@ fn spec_scenario_the_contracted_articles() {
         "jusqu'à",
     ] {
         assert!(!forms.contains_key(split), "{split} is a form");
+    }
+}
+
+#[test]
+fn every_rank_lands_on_its_own_lemma_in_the_built_pack() {
+    // The builder keys a lemma's rank by looking the lemma up as a form (`FstLexicon::id_of`): a
+    // ranked lemma whose own form reads as another word would lend its rank to that word, and keep
+    // none (add-lingua-french-forms-tables: `donnée`, read as donner, gave donner its 1,711).
+    // Every committed pair's pack holds each rank of its studied language's freq.tsv on that very
+    // lemma, and no other.
+    for (pair, bytes) in [
+        ("en-fr", shipped("en-fr")),
+        ("es-fr", shipped("es-fr")),
+        ("es-en", es_en()),
+        ("en-es", en_es()),
+        ("fr-en", fr_en()),
+    ] {
+        let pack = Pack::load(bytes).unwrap();
+        let ranks: BTreeMap<String, u32> = tsv(&tables().join(studied_of(pair)).join("freq.tsv"))
+            .into_iter()
+            .map(|(lemma, rank)| (lemma, rank.parse().unwrap()))
+            .collect();
+        let elsewhere: Vec<(&String, Option<&str>)> = ranks
+            .keys()
+            .map(|lemma| (lemma, pack.lexicon().lemma_of(lemma)))
+            .filter(|(lemma, read)| *read != Some(lemma.as_str()))
+            .take(10)
+            .collect();
+        assert!(
+            elsewhere.is_empty(),
+            "{pair}: ranked lemmas whose own form reads elsewhere: {elsewhere:?}"
+        );
+        // Band by band, the pack's ranked lemmas are exactly freq.tsv's.
+        let top = ranks.values().copied().max().unwrap();
+        for lo in (1..=top).step_by(1000) {
+            let hi = lo + 999;
+            let got: BTreeSet<&str> = pack
+                .lemmas_in_rank_band(lo, hi)
+                .into_iter()
+                .map(|(lemma, _)| lemma)
+                .collect();
+            let want: BTreeSet<&str> = ranks
+                .iter()
+                .filter(|(_, rank)| (lo..=hi).contains(*rank))
+                .map(|(lemma, _)| lemma.as_str())
+                .collect();
+            assert_eq!(got, want, "{pair}: ranks {lo}–{hi}");
+        }
     }
 }
