@@ -95,7 +95,9 @@ None.
   on different lines, and whichever merges second re-blesses on top of the other.
 - **Not here.** Recognising Occitan as a language; Asturian (70 % of its blocks still read as Spanish)
   and Aragonese; the vote, which still gives a page to Spanish when any of its blocks leaks; the
-  existing guard's own refusals (« per cápita », names with `l'` and `d'`) and its reading of words.
+  existing guard's reading of words, and its own refusals of real Spanish — 850 of the Spanish blocks
+  measured, 795 of them by Galician's `da` and `das`, Spanish's *gives* (« ¿Cuánto se da de propina en
+  España? »): the design's open question 4 asks whether to fold that fix into this bump.
 - **Effort, against 1.5–3 ideal days.** The comparison, its tables and doc comments: 0.5–0.75. Unit
   tests: 0.5–1. The bump, the re-reductions, the fixtures and the goldens: 0.25–0.75. Spec, programme:
   0.25–0.5.
