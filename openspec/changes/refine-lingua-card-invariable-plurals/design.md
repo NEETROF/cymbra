@@ -105,7 +105,7 @@ no such distinction either.
 
 ### D3 — The order with change 51
 
-Either order gives the same code and the same lines; **this change first is recommended**: it waits
+Either order ends with the same code and lines; **this change first is recommended**: it waits
 on nothing, where change 51 is implemented once changes 44, 45, 48 and 49 are.
 
 - **This change first.** The rule is in `describeReadings` for every studied language. Change 51's
@@ -116,8 +116,10 @@ on nothing, where change 51 is implemented once changes 44, 45, 48 and 49 are.
   is taken against a `main` holding this change, and holds; its implementation's pull request says
   so, pointing here.
 - **Change 51 first.** French leaves the plural out through `CARD_NAMES.fr`; this change removes that
-  entry and that arm and puts the rule in `describeReadings` — French's 1,072 cards byte for byte, the
-  861 English and Spanish ones moving as D4 says.
+  entry and that arm and puts the rule in `describeReadings` — French's 1,072 cards still without the
+  plural, byte for byte unless that arm dropped a whole line holding another reading (then `pop` and
+  `antipersonnel` get their feminine singular back, D1), the 861 English and Spanish ones moving as D4
+  says.
 
 Change 51 is not in `archiveAfter`: this change modifies a requirement change 51 does not hold, and
 reads none of its own; change 51's *A French card names its forms in the interface language's
