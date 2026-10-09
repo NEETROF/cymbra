@@ -18,7 +18,7 @@ and es-en, committed and shipped by change 34; the fixtures `testdata/es-fr` and
 build the small packs of the core's and the agent's tests.
 
 whichlang 0.1.1 has no Occitan class. Change 42 measured, and left to a Spanish change (its open
-question 2, settled so by the owner on 2026-10-10), that Spanish's guard lets 19.2 % of Occitan text
+question 2, settled so by the owner on 2026-10-09), that Spanish's guard lets 19.2 % of Occitan text
 through as Spanish. The guard misses Occitan for a reason of its own: Occitan's articles `lo`, `los`,
 `las` and its `sus` (*on*) are four of Spanish's seventeen markers. An Occitan sentence's own articles
 count for Spanish, and its Occitan words count for no one. What the guard does refuse of Occitan, it

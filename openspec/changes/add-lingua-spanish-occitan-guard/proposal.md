@@ -5,7 +5,7 @@
 Change 42b of the [language matrix programme](../../../docs/lingua/language-matrix-programme.md),
 outside the 57. `add-lingua-french-detection-guard` (change 42) measured Spanish's own leak on
 Occitan and left it to a Spanish change (its open question 2); the owner settled it that way on
-2026-10-10. whichlang has no Occitan class and reads 27.2 % of Occitan blocks as Spanish; Spanish's
+2026-10-09. whichlang has no Occitan class and reads 27.2 % of Occitan blocks as Spanish; Spanish's
 guard, written for Catalan and Galician (`add-lingua-spanish-detection-guard`), still lets 23.7 % of
 the blocks and **19.2 % of the text** through as Spanish. It misses Occitan for a reason of its own:
 Occitan's articles `lo`, `los`, `las` and its `sus` are in Spanish's own marker table, so an Occitan
