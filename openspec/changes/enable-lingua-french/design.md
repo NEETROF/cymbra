@@ -52,7 +52,8 @@ Pro (Apple M2 Max), 2026-10-09.
   two pairs, English's one, Spanish's one), `model-manifest.spec.ts` twice (change 50's « no
   reader's pairs need fr-en or fr-es », and change 35's « en-es is needed by no one else » — a
   Spanish-native reader of French needs it too, fr-es's second model), `model-controller.spec.ts`
-  (change 50's « nothing of fr-en is downloaded »). Every snapshot (`word-card-*.txt`,
+  (change 50's « nothing of fr-en is downloaded », which already fails where change 35's list meets
+  change 50's tests — 35's rebase repairs that). Every snapshot (`word-card-*.txt`,
   `selection-rows-fr.txt`, `voice-ranking.txt`), every lint and every surface spec passes.
 - `cargo test -p lingua-pack --test committed_tables`: 1 of 15 fails, change 43's
   `spec_scenario_the_pack_builds_where_the_others_do`, « no package lists fr-en ».
@@ -287,7 +288,8 @@ the file and the routes with no code change (*Measured*); its level card, French
 | `_locales` read | `fr`, unchanged | `en`, names French | `es`, names French with fr-es |
 | Backup | 1 or 2, unchanged | 3 once French is studied | 3 once French is studied |
 
-A French-native reader's package carries two packs more, never fetched (≈ 2.2 MB zipped with both),
+A French-native reader's package carries two packs more, never fetched (≈ 3.0 MB zipped with both,
+≈ 1.75 MB with fr-en alone),
 and every request, sentence, card and statistic is what it was. A French page is not read for them,
 as today. On an account shared with an English-native device that studies French, their device
 never pulls a French card: it pulls only the languages it accepts.
@@ -377,8 +379,8 @@ pass as committed (*Measured*: the five baselines and `cross_native.rs` without 
 readers' pairs, routes, downloads and marks are unchanged (`readerPairs` keeps the pairs of a native
 language; D6's table), and the extension's snapshots pass as committed. The French interface is
 byte for byte: no French string moves, and no French-native reader is offered French. The gate:
-`git diff --stat origin/main -- crates/lingua-core crates/lingua-wasm scripts/lingua-data/tables
-crates/lingua-wasm/tests/baseline` empty.
+`git diff --stat origin/main -- crates/lingua-core crates/lingua-wasm scripts/lingua-data/tables`
+empty.
 
 ## Risks / Trade-offs
 

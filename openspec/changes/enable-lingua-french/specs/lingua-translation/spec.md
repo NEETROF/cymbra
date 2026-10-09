@@ -15,6 +15,6 @@ The translation setting SHALL state the memory of two models when the reader's p
 - **WHEN** fr-es is listed and a reader whose native language is Spanish accepts French
 - **THEN** the setting says it downloads 51,6 MB once and uses unos 340 MB, the two models fr-es's route goes through
 
-#### Scenario: Every reader of French as before
+#### Scenario: A French speaker as before
 - **WHEN** a reader whose native language is French opens the setting with English, Spanish or both accepted
 - **THEN** it says what it said before: 25,8 Mo and « environ 200 Mo » for English alone, 52,0 Mo and « environ 340 Mo » with Spanish
