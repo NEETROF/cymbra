@@ -11,7 +11,7 @@
 
 - [ ] 2.1 `build_pack`: refuses a form the forms table lists with two lemmas and a lemma of the pool — of the forms table, the ranks or the glosses — whose own spelling the forms table reads as another, each by a `BuildError` naming the form or the lemma and the lemmas involved, shown by `lingua-pack-build` (D4).
 - [ ] 2.2 Ranks, glosses, levels, `lexical_table` and `grammar_sections` (a reading's key, an « also » entry's key and target, a run's key) keyed by `lex.lemma_id`; a level, dictionary word, reading or run naming no lemma filed nowhere — the lexical table's refusal and the grammar's drop as today; the comments of `lexical.rs` and `grammar_sections` say where a lemma is filed (D4).
-- [ ] 2.3 Tests (`tests/pipeline_testdata.rs`, `src/lib.rs`): *A lemma whose own spelling reads as another* (`venue` ranked, the forms reading it as *venir*: refused, both named); *A form listed with two lemmas* (`porte` as `porte` and `porter`: refused, the three named); *A level written for a form* (`donner` A1 then `donnée` B1, `donnée` no lemma: `donner` A1, no lemma B1 — today's builder gives B1); *The committed pairs* — `committed_tables.rs` builds en-fr, es-fr, es-en and en-es to their pins, unchanged; every `testdata/` pair builds byte for byte as before.
+- [ ] 2.3 Tests (`tests/pipeline_testdata.rs`, `src/lib.rs`): *A lemma whose own spelling reads as another* (`venue` ranked, the forms reading it as *venir*: refused, both named); *A form listed with two lemmas* (`porte` as `porte` and `porter`: refused, the three named); *A level written for a form* (`donner` A1 then `donnée` B1, `donnée` no lemma: `donner` A1, no lemma B1 — today's builder gives B1); *The committed pairs* — `committed_tables.rs` builds en-fr, es-fr, es-en, en-es and fr-en to their pins, unchanged, and `every_rank_lands_on_its_own_lemma_in_the_built_pack` keeps passing, its comment no longer saying the builder keys a rank through `id_of`; every `testdata/` pair builds byte for byte as before (en-fr's to lingua-wasm's and the extension's fixture, es-fr's to the agent's, each sha256 in the pull request).
 
 ## 3. The baselines and the snapshot (crates/lingua-wasm, apps/lingua-extension)
 
@@ -22,13 +22,13 @@
 ## 4. Owner
 
 - [x] 4.1 [manual] Approved by the owner on 2026-10-10 (in session), before the implementation. The owner approves the re-bless: en-fr's 10 and es-fr's 3 lines (the programme's rule « en-fr and es-fr output does not move »), es-en's 3, en-es's 10, fr-en's 5 and the Spanish card's four probes (M9).
-- [ ] 4.2 [manual] The owner answers open questions 1 and 2 (design): an answer that changes this change's gloss rule joins it before it merges, its goldens re-blessed again; a cascade change is named as a follow-up per language.
-- [ ] 4.3 [manual] The owner releases the extension (Chrome Web Store, addons.mozilla.org, the Safari host app) and the agent plugin with the fix, before change 52 ships French.
+- [x] 4.2 [manual] Settled by the owner on 2026-10-10 (in session): open question 1 — no gloss for a word the pack holds only as a form, as proposed (the card offers the sentence's translation); open question 2 (the English and Spanish plural fallbacks) left open, a change of its own per language, outside this one.
+- [ ] 4.3 [manual] The owner releases the extension (Chrome Web Store, addons.mozilla.org, the Safari host app) with the fix, before change 52 ships French; the agent plugin, outside the programme (M17), takes it with its next release.
 
 ## 5. Gates and docs
 
 - [ ] 5.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-core -p lingua-pack -p lingua-wasm -p lingua-agent`, and `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`.
 - [ ] 5.2 The WASM lane: `wasm-pack test --node crates/lingua-wasm` (native/WASM parity over the fixture corpus) passes.
-- [ ] 5.3 In `apps/lingua-extension`: `yarn gen:wasm`, then `yarn test`, `yarn lint`, `yarn typecheck`.
-- [ ] 5.4 `openspec validate fix-lingua-lemma-lookup --strict` passes, and `python3 scripts/openspec_archive_order.py fix-lingua-lemma-lookup` exits 10 naming `add-lingua-french-baseline`, `add-lingua-pack-es-en`, `add-lingua-pack-en-es`, `add-lingua-english-card-wording` and `add-lingua-spanish-card-wording` (0 once they are archived).
+- [ ] 5.3 In `apps/lingua-extension`: `yarn gen:wasm`, then `yarn test`, `yarn lint`, `yarn typecheck`, `yarn build` and `yarn check:variants` (no source moves; the snapshot does).
+- [ ] 5.4 `openspec validate fix-lingua-lemma-lookup --strict` passes, and `python3 scripts/openspec_archive_order.py fix-lingua-lemma-lookup` exits 10 naming `add-lingua-french-baseline`, `add-lingua-french-forms-tables` (whose fr-en pair *The committed pairs* names), `add-lingua-pack-es-en`, `add-lingua-pack-en-es`, `add-lingua-english-card-wording` and `add-lingua-spanish-card-wording` (0 once they are archived).
 - [ ] 5.5 Row 41b of `docs/lingua/language-matrix-programme.md` says where the change stands.

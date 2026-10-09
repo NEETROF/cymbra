@@ -11,7 +11,7 @@ outside the list. Every pair's committed tables already meet these rules: their 
 bytes.
 
 #### Scenario: The committed pairs
-- **WHEN** en-fr, es-fr, es-en and en-es are built from their committed tables
+- **WHEN** en-fr, es-fr, es-en, en-es and fr-en are built from their committed tables
 - **THEN** each builds, to the sha256 its pin records: no form of theirs has two lemmas, every lemma reads as itself, and nothing was filed under another lemma
 
 #### Scenario: A lemma whose own spelling reads as another

@@ -25,7 +25,7 @@ no analyser version and no pack byte.
 
 #### Scenario: An English plural the pack does not list
 - **WHEN** the analysis reads `buildings` as `building`, which the (en → fr) pack holds only as a form of `build`
-- **THEN** the token has no gloss and its card no reading, where they showed *build*'s « Construire, édifier » and a present-tense third person singular, and the token's class is the one *build*'s rank gives it, as before
+- **THEN** the token has no gloss and its card no reading, where they showed *build*'s « Construire, édifier » and the readings a plural noun and a present-tense third person singular, and the token's class is the one *build*'s rank gives it, as before
 
 #### Scenario: A dictionary form keeps its own
 - **WHEN** the core is asked about `went` for `go`, and about `leaves` for `leave` with `leaf` in the pack

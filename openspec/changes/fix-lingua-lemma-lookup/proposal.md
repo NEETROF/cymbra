@@ -20,18 +20,19 @@ return a singular the lexicon holds only as a form (measured, design *Measured*)
   29,830 another word's gloss in es-fr (`cuentos` « Compter », `tomos` « Prendre »).
 - **English**: 15,215 words; 12,129 carry another word's readings, 14,231 another word's gloss in
   en-fr. Most are no words (`abandoneds`), but 625 have a frequency in wordfreq: `buildings` reads
-  as *build* — « Construire, édifier » and a present-tense third person singular —, `wounds` as
-  *wind* (« Vent »), `settings` as *set* (« Prêt »), `thoughts` as *think*.
+  as *build* — « Construire, édifier », a plural noun and a present-tense third person singular —,
+  `wounds` as *wind* (« Vent »), `settings` as *set* (« Prêt »), `thoughts` as *think*.
 - **The goldens already pin it**: `en-fr.golden` and `en-es.golden` record `saw` asked as `saw` with
   *see*'s gloss and *see*'s past tense as its reading, `lay`, `thought` and `more` alike; the
   Spanish card renders it « también puede ser el pasado simple de saw ».
 
 French's own analysis (change 41, merged) never asks so — its plural rule requires the singular to
 be unknown too — but its golden's `été` probe does, and its `porte` probe will once change 48 builds
-the golden from the tables: change 45 measured `porte` read off *porter*'s paradigm there. The builder's twin has hit no committed table, and change 43's
-implementation now forbids it in French's; its earlier prototype gave *venir* the rank and level of
-`venue`. This is a core fix outside the programme's 57 changes, to land before French ships (change
-52) and before changes 45, 46 and 48 rely on lemma lookups.
+the golden from the tables: change 45 measured `porte` read off *porter*'s paradigm there. The
+builder's twin has hit no committed table, and change 43 (merged, #829) forbids it in French's; its
+earlier prototype gave *venir* the rank and level of `venue`. This is a core fix outside the
+programme's 57 changes, to land before French ships (change 52) and before changes 45, 46 and 48
+rely on lemma lookups.
 
 ## What Changes
 
@@ -67,11 +68,14 @@ None.
 - `lingua-analysis`: ADDED *A dictionary form is read as itself*. *A word's grammar, from the pack*
   (archived) is read as written: « the dictionary form its card is keyed by » is that dictionary
   form, and a string that is no dictionary form of the pack has none of what it lists. *A French
-  invariance baseline runs beside the English and Spanish ones* (held by
-  `add-lingua-french-baseline`, not archived) is read as written: this change moves five of its
-  probes and re-blesses them, saying why, as that requirement asks of any pull request that moves its
-  golden; its scenario *Nothing of French changed* reads a change to how the core reads every pack
-  as one of the rules French runs.
+  invariance baseline runs beside the English and Spanish ones* (added by
+  `add-lingua-french-baseline`, modified by changes 40 and 41, none archived) is read as written:
+  this change moves five of its probes and re-blesses them, saying why, as that requirement asks of
+  any pull request that moves its golden. Its reasons (a French rule that bumps French's analyser
+  version, the fixture replaced by the committed tables, the beside pack's update) do not name a fix
+  of how the core reads every pack, which bumps no version (design D6): a departure from that list,
+  stated here and in the pull request, which this change cannot modify while those changes hold it;
+  its scenario *Nothing of French changed* reads this change as one of the rules French runs.
 - `lingua-data-packs`: ADDED *A pack's lexicon reads every lemma as itself*. *Versioned pack
   container, keyed by language pair* (« compressed glosses indexed by lemma ») and *Reproducible
   offline build* hold as written; every committed pair already meets the new rule, byte for byte.
@@ -83,7 +87,8 @@ None.
 ## Impact
 
 - **Products.** Cymbra Lingua only: `crates/lingua-core` (`analysis/lexicon.rs`, `packs/pack.rs`),
-  `crates/lingua-pack` (`lib.rs`, `lexical.rs`), `crates/lingua-wasm/tests/baseline/*.golden`,
+  `crates/lingua-pack` (`lib.rs`, `lexical.rs`), their tests,
+  `crates/lingua-wasm/tests/baseline/*.golden`,
   `apps/lingua-extension/test/baseline/word-card-en-es.txt`. The extension (Chromium, Firefox,
   Safari's host app) and the agent plugin take it with their next release. ID, Music, Live, the
   back office and the site are untouched.
@@ -94,13 +99,16 @@ None.
   `es-en.golden` 3 — `gloss cuenta`, `gloss llama`, the `quijote` page (`quebrantos`); `fr-en.golden`
   5 — `gloss vis`, `as`, `été`, `est` and `word-grammar été été`; `word-card-en-es.txt` the four
   probes (21 lines out, 4 in). Nothing else: 31 of 31 changed golden lines are these.
-- **What does not move**: the four committed packs (sha256 = pin), the testdata and fixture packs,
-  change 43's implemented fr-en pack, every token's lemma, class and count, every percentage,
+- **What does not move**: the five committed packs (sha256 = pin), fr-en's since #829 included, the
+  testdata and fixture packs, every token's lemma, class and count, every percentage,
   `word-card-es-en.txt`, `selection-rows-fr.txt`, `voice-ranking.txt`; 122 of the extension's 123
   test files and every Rust test pass unchanged.
-- **Order.** After change 41 (merged, #832: the same 5 French lines move on it). Before the
-  implementations of changes 45, 46 and 48 and before change 52; independent of 42, 44, 47, 49
-  and 50. Row 41b, outside the 57, like rows 23b and 24b.
-- **Owner.** The re-bless of en-fr's and es-fr's lines (the programme's rule « en-fr and es-fr output
-  does not move »), and of es-en's, en-es's, fr-en's and the Spanish card's; the gloss decision (Q1);
-  the extension's and the agent's release.
+- **Order.** After changes 41 (merged, #832: the same 5 French lines move on it) and 43 (merged,
+  #829: its tables pass D4). Before the implementations of changes 45, 46 and 48 and before change
+  52; in either order with 42 and 44 (measured on their branches: the same 31 lines, theirs
+  elsewhere in `fr-en.golden`, design D7); independent of 47, 49 and 50. Row 41b, outside the 57,
+  like rows 23b and 24b.
+- **Owner.** Approved on 2026-10-10: the re-bless of en-fr's and es-fr's lines (the programme's rule
+  « en-fr and es-fr output does not move »), and of es-en's, en-es's, fr-en's and the Spanish card's;
+  Q1 settled the same day (no gloss), Q2 left open as a change of its own. Remains: the extension's
+  release; the agent plugin, outside the programme (M17), takes the fix with its next release.
