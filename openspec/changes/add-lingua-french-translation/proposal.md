@@ -13,10 +13,11 @@ The programme's architecture says what French needs: « Mozilla publishes no fr�
 2.1 is pinned in stage 2, fr-en 2.0 in stage 3, fr-es pivots through English. A reader needs at
 most two models (≈ 322 MiB, as es-fr) ». Mozilla's registry holds one fr-en entry, `base-memory`,
 `releaseStatus: "Release"`, whose model's decompressed sha256 is the one Firefox's Remote Settings
-publish for fr→en 2.0 (measured 2026-10-09; Remote Settings lists 1.0 and 2.0, nothing later). The
-study measured fr-en's marks at 94 / 96 and fr-es's at 90 / 91, one judge, ± 6 % — indicative
-until each pair's committed measurement, which needs the routes and a corpus of French selections
-that neither exists yet.
+publish for fr→en 2.0 (measured 2026-10-09: their `translations-models` lists 1.0 and 2.0, nothing
+later; the newer `translations-models-v2` lists one fr→en, 3.0, with the same three decompressed
+files, as it relabels each model the catalogue pins). The study measured fr-en's marks at
+94 / 96 and fr-es's at 90 / 91, one judge, ± 6 % — indicative until each pair's committed
+measurement, which needs the routes and a corpus of French selections that neither exists yet.
 
 Nothing is offered to a reader here: a route is needed only by a reader whose pairs include it,
 and no pair studying French ships before change 52 (`enable-lingua-french`).
@@ -32,9 +33,9 @@ and no pair studying French ships before change 52 (`enable-lingua-french`).
   registry's and Remote Settings'; the vocabulary the same bytes as en-fr's once decompressed.
 - **Two routes**: `"fr-en": ["fr-en/base-memory/2.0"]`, direct, and
   `"fr-es": ["fr-en/base-memory/2.0", "en-es/base-memory/2.1"]`, through English (51,608,069 B,
-  « 51,6 Mo »). Inert until change 52 lists the pairs in `packs.json`. With them, every native
-  language's pairs need two models together: fr {en-fr, es-en}, en {es-en, fr-en}, es {en-es,
-  fr-en}.
+  « 51,6 MB » as a Spanish-native reader reads it). Inert until change 52 lists the pairs in
+  `packs.json`. With them, every native language's pairs need two models together: fr {en-fr,
+  es-en}, en {es-en, fr-en}, es {en-es, fr-en}.
 - **A French corpus for the marks**: `tool/marks/pud.mjs` pins UD French-PUD at the commit and
   sha256 change 43 pins (its D9 hands this pin over), and the selection rule runs over English,
   Spanish and French at once — the same 100 sentences: measured, French gives a word on every one,
@@ -84,20 +85,30 @@ None.
   hold them, `TRANSLATION.md`, `REVIEWERS.md`). The site reads the catalogue's routes for its
   shipped pairs only (`apps/site/src/lib/lingua-pairs.ts`), so its pages do not move; `site-check`
   runs on the catalogue and passes unchanged. ID, Music, Live and the back office are untouched.
-- **Nothing a reader sees moves**: their pairs, routes, downloads and marks are en-fr's and
-  es-fr's. No Rust, no table, no pack, no golden: `fr-en.golden`, S0, the es-fr, es-en and en-es
-  goldens and the extension's snapshots are unchanged; en-fr's, es-fr's, es-en's and en-es's
-  results and judgments are not rewritten.
-- **The owner deploys the model host after the merge** (M18): until `lingua-model-deploy` has run,
-  the check before a submission (`lingua-extension-release`) and before an App Store delivery
-  (`lingua-apple-release`) refuses. On 2026-10-09 the host still answers 404 for en-es's files
-  (change 25's task 4.1 has not run), so it refuses already; one dispatch serves both models.
+- **Nothing a reader sees moves**: their pairs, routes, downloads and marks are the shipped pairs' —
+  en-fr's and es-fr's, and es-en's and en-es's once changes 34 and 35 ship them (PRs #810, #814,
+  open; either order with this change). No Rust, no table, no pack, no golden: `fr-en.golden`, S0,
+  the es-fr, es-en and en-es goldens and the extension's snapshots are unchanged; en-fr's, es-fr's,
+  es-en's and en-es's results and judgments are not rewritten.
+- **The owner deploys the model host after the merge** (M18): `tool/check_model_host.mjs` checks
+  every model of the catalogue the run checks out, and refuses until `lingua-model-deploy` serves
+  them. It already refuses on 2026-10-09: the host answers 404 for en-es's three files and the
+  release `lingua-model-en-es-base-memory-2.1` does not exist (change 25's task 4.1 has not run),
+  so any version cut from `main` since en-es was pinned (8900eedc, 2026-10-08) is refused — by
+  `lingua-extension-release`'s step « Refuse to submit a package whose translation model cannot be
+  downloaded » on a publishing dispatch (a tag with `publish`; a tag push or a build-only dispatch
+  only warns), and by `lingua-apple-release`'s « Refuse to deliver an app whose translation model
+  cannot be downloaded » on every `lingua-apple-v*` tag push and every `deliver` dispatch. The
+  released tags (`lingua-extension-v1.7.0`, `lingua-apple-v1.5.0`) pin en-fr and es-en only and
+  still pass. One dispatch after this merge serves en-es and fr-en; one before it serves en-es,
+  and fr-en needs a second (design, Open Question 3).
 - **Order.** After changes 9, 25 and 26 (archived after them). Independent of changes 40–49 in
   code: the engine's measurement needs no French analysis and no pack, so it can merge before 48
   and 49; their glosses only fill the experiment's columns, then or later. Before change 52, which
   ships fr-en and fr-es and offers translation as M15 settles it, and change 53, which writes the
-  sizes into the listings (26.2 MB direct, 51.6 MB through English) — the privacy annex's « about
-  26 MB direct, about 52 MB through English » (change 31) stays true.
+  sizes into the listings (26.2 MB for fr-en in English, « 51,6 MB » for fr-es in Spanish) — the
+  privacy annex's « about 26 MB direct, about 52 MB through English » (change 31) stays true.
 - **Not here.** Shipping the pairs or offering translation to their readers (52, M15); the listings
   and the site's sentences (53); the copy of the setting (14, 15); a selection inside an elided word
-  (51).
+  (51); the setting's memory sentence for an English-native reader of Spanish and French, who
+  holds two models through no pivot (52, design D3).

@@ -8,7 +8,7 @@ See proposal.md (Why). What exists, on `main` at `80af4f72`:
 |---|---|
 | `apps/lingua-extension/model-manifest.json` | `base` `https://models.cymbra.app/`, `sourceBase` Mozilla's registry; models `en-fr/base-memory/2.0`, `es-en/base-memory/2.0`, `en-es/base-memory/2.1` (change 25), each `from`, `to`, `licence`, `mirror`, `files.{model,lex,vocab}` with `path` (`<id>/<decompressed sha256>/<file>.gz`), `size`, `unpacked`, `sha256` (decompressed), `source.{path, sha256}`; routes `en-fr`, `es-fr` (es-en then en-fr), `es-en`, `en-es` |
 | `src/translate/host/model-manifest.ts` | `parseCatalogue` (a route keyed `<studied>-<native>`, known ids, starts from the studied language, chains, ends in the native one), `routeOf`, `modelsFor` (the union of the pairs' routes, each model once) |
-| `src/analyzer/pairs.ts`, `packs.json` | `SHIPPED_PAIRS` `en-fr`, `es-fr`; `readerPairs(languages, native)` keeps shipped pairs only — a route of a pair not shipped is needed by no reader |
+| `src/analyzer/pairs.ts`, `packs.json` | `SHIPPED_PAIRS` `en-fr`, `es-fr`; `readerPairs(languages, native)` keeps shipped pairs only — a route of a pair not shipped is needed by no reader. The implementations of changes 34 and 35 (PRs #810, #814, open) ship es-en and en-es and give `readerPairs` the shipped list as a third argument; nothing here depends on which merges first, since no French pair ships before change 52 |
 | `src/translate/host/model-db.ts`, `model-controller.ts` | files stored by decompressed sha256, a stored file not fetched again; `prune(needed)` keeps every file a needed model names, stored or not |
 | `src/translate/host/model-residency.ts` (change 9) | the worker holds two models at most; above, the least recently used model the new route does not need is deleted with its routes; `test/model-residency.spec.ts` already uses the placeholder ids `fr-en/base-memory/2.0` and routes `fr-en`, `fr-es` = fr-en then en-es |
 | `tool/assemble_model_site.mjs`, `mirror_models.mjs`, `check_model_host.mjs`, `.github/workflows/lingua-model-deploy.yml` | read the catalogue: the host is assembled from Mozilla's registry, then the mirror, then the host, keeping a file only when every pin holds; one mirror release per model, created once; the host checked from outside before a submission or an App Store delivery |
@@ -18,10 +18,13 @@ See proposal.md (Why). What exists, on `main` at `80af4f72`:
 | `tool/soak_engine.mjs` (change 9) | `--pair` (a pair the catalogue routes), `--models`, `--limit`, `--isolate`; the en-es soak recorded in `TRANSLATION.md` |
 | `apps/site/src/lib/lingua-pairs.ts` (change 30) | reads the catalogue's route of each **shipped** pair (direct, through English, none) |
 | Change 43 (proposed) | pins UD French-PUD at `db260db10fe728853c549760801229ef4e7b16e1`, sha256 `4dfed37b…3c10`, and hands the same pin to this change (its D9); commits `tables/fr/forms.tsv` and an **empty** `tables/fr-en/gloss.tsv`, filled by change 48 |
-| The model host, 2026-10-09 | `models.cymbra.app` serves en-fr's and es-en's files and answers 404 for en-es's; the release `lingua-model-en-es-base-memory-2.1` does not exist — change 25's task 4.1 has not run |
+| The model host, 2026-10-09 17:50 UTC | a HEAD on each catalogue path: en-fr's and es-en's six files 200, en-es's three 404; the releases hold `lingua-model-en-fr-base-memory-2.0` and `lingua-model-es-en-base-memory-2.0` only — change 25's task 4.1 has not run (the last `lingua-model-deploy` run, 2026-10-05, deployed es-en). So `check_model_host.mjs` already fails for any catalogue from `main` since 8900eedc (en-es pinned, 2026-10-08): `lingua-extension-release`'s step « Refuse to submit a package whose translation model cannot be downloaded » fails a publishing dispatch (a tag with `publish`) and only warns on a tag push or a build-only dispatch; `lingua-apple-release`'s « Refuse to deliver an app whose translation model cannot be downloaded » fails every `lingua-apple-v*` tag push and every `deliver` dispatch. The released tags `lingua-extension-v1.7.0` and `lingua-apple-v1.5.0` pin en-fr and es-en only and still pass |
 
-How it was measured: Mozilla's registry (`db/models.json`, generated 2026-10-09T00:54:11Z) and
-Firefox's Remote Settings (`translations-models`, `fromLang=fr&toLang=en`) read on 2026-10-09; the
+How it was measured: Mozilla's registry
+(`https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/db/models.json`,
+generated 2026-10-09T00:54:11Z) and Firefox's Remote Settings
+(`https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/translations-models/records?fromLang=fr&toLang=en`,
+and `translations-models-v2/records?sourceLanguage=fr&targetLanguage=en`) read on 2026-10-09; the
 three files downloaded once from the registry; a scratch copy of `apps/lingua-extension/tool` and
 `src` (never committed) with the prototype catalogue entry, the three-language selection rule and
 French PUD, run with the pinned engine (`a6310e24…`, `.wasm` `7ef4b3fd…3122`) on a MacBook Pro,
@@ -50,8 +53,12 @@ Apple M2 Max (12 cores), 64 GB, macOS 26.5.2, Node 22.22.2 — the machine chang
 Mozilla's registry lists one fr-en entry: `base-memory`, `releaseStatus: "Release"`, run
 `models/fr-en/retrain_hr_EFgIftH_RrCyzl5gjemVNg/exported/`, the model's `uncompressedSize`
 31,561,787 and `uncompressedHash` `15f997bc…2b90`; flores200-plus BLEU 42.95 and COMET-22 0.886
-(en-fr 48.85 / 0.865, es-en 26.85 / 0.857, en-es 27.52 / 0.854). Firefox's Remote Settings list
-fr→en 1.0 and 2.0, nothing later. Downloaded once and measured, every pin agrees:
+(en-fr 48.85 / 0.865, es-en 26.85 / 0.857, en-es 27.52 / 0.854). Firefox's Remote Settings
+`translations-models` lists fr→en 1.0 and 2.0, nothing later; the newer `translations-models-v2`
+lists one fr→en, 3.0, whose three `decompressedHash` and `decompressedSize` are 2.0's — it lists
+en-fr 2.0, es-en 2.0 and en-es 2.1 as 3.0 the same way, so the id keeps the version of
+`translations-models`, as the three pinned models do. Downloaded once and measured, every pin
+agrees:
 
 | File | Served (gzip) | gzip sha256 | Decompressed | sha256 (decompressed) = Remote Settings 2.0 |
 |---|---|---|---|---|
@@ -59,8 +66,8 @@ fr→en 1.0 and 2.0, nothing later. Downloaded once and measured, every pin agre
 | `lex.50.50.fren.s2t.bin.gz` | 2,649,934 | `395aa7767220e1bcfc085f2b2787ff98005d0075e55451f1e0832885e3d9642a` | 4,824,120 | `87c6752ea908f5f0347c10ac0cf7d80d9c2f4f20c81c90168f3e8230b56d4440` |
 | `vocab.fren.spm.gz` | 409,706 | `8d15b219ffd32327b4cabf0d94a05a4fecb8923a4f386badbcbe5e86ede453a7` | 814,404 | `783abf3abe075afdf8d85d233994bef2c3a064e935ab1bed946820aff6ac002a` (= en-fr 2.0's) |
 
-The download is 26,234,715 B (« 26,2 Mo »), 37,200,311 B on the device. The id is
-`fr-en/base-memory/2.0` — the one `test/model-residency.spec.ts` already uses — the paths
+The download is 26,234,715 B ("26.2 MB" to an English-native reader), 37,200,311 B on the device.
+The id is `fr-en/base-memory/2.0` — the one `test/model-residency.spec.ts` already uses — the paths
 `fr-en/base-memory/2.0/<decompressed sha256>/{model.bin.gz,lex.bin.gz,vocab.spm.gz}`, the mirror
 `https://github.com/NEETROF/cymbra/releases/download/lingua-model-fr-en-base-memory-2.0/`, the
 licence MPL-2.0, `source.path` the registry's paths
@@ -78,8 +85,9 @@ were pinned (en-fr, es-en, en-es, fr-en). Both satisfy the parser (each starts f
 English, ends in the pair's native language), so the bundled catalogue loads — checked by
 `parseCatalogue` on the prototype entry. fr-es goes through English because Mozilla publishes no
 French–Spanish model, as es-fr does; its download is fr-en's and en-es's, 51,608,069 B
-(« 51,6 Mo », es-fr's 52,0), and the setting already states the pivot's memory when a needed route
-has two models (« environ 340 Mo », `translation-setting.ts`).
+(« 51,6 MB » to a Spanish-native reader, es-fr's « 52,0 Mo »), and the setting already states the
+pivot's memory when a needed route has two models (`memoryPivot`, « unos 340 MB », chosen by
+`src/reading/translation-setting.ts` when the cost says `pivot`).
 
 A route is needed only when its pair is a reader's pair, and a reader's pairs are shipped pairs:
 until change 52 lists fr-en and fr-es in `packs.json`, no reader needs either route, and the
@@ -100,7 +108,7 @@ prototype catalogue):
 |---|---|---|---|
 | French | en-fr, es-fr | en-fr, es-en | 51,993,524 B (52,0 Mo, as today) |
 | English | es-en, fr-en | es-en, fr-en | 52,475,767 B (52.5 MB) |
-| Spanish | en-es, fr-es | en-es, fr-en | 51,608,069 B (51.6 MB) |
+| Spanish | en-es, fr-es | en-es, fr-en | 51,608,069 B (51,6 MB) |
 
 So a reader who stays in one native language never makes the worker evict: change 9's bound of
 two (`model-residency.ts`) holds every model their pairs need. Run through `toLoad`/`loaded` on the
@@ -126,6 +134,14 @@ in the registry) load for fr-es as for es-fr, whose 321.8 MiB was measured in th
 figure is not the worker's, but like for like it shows French's routes cost what the shipped ones
 do: fr-es 557.0 MiB in one instance against es-fr's 559.3, 547.2 isolated against 545.9; fr-en
 415.1 against en-fr's 415.7. The worker's own figure is measured on devices in change 52's dogfood.
+
+**What the setting says of memory.** It counts a pivot, not the models held: `pivots` in
+`model-controller.ts` sets `pivot` when a needed route has two models, and the setting then states
+« about 340 MB », else « about 200 MB ». A Spanish-native reader of French needs fr-es, a pivot,
+and reads 340; an English-native reader of Spanish and French needs es-en and fr-en, two one-model
+routes, holds both once both languages are read (≈ 322 MiB in the worker, as es-fr), and would
+read « about 200 MB ». Inert here, since no reader has fr-en before change 52; handed to change 52,
+which ships it, to make the sentence count the models the reader's pairs need.
 
 ### D4 — French selections: one rule, the same sentences, nothing else moves
 
@@ -185,11 +201,13 @@ corpus (prototype: every line of the four results equal but for the experiment's
 scratch copy ran without tables, and the `trapped` key, which en-fr's and es-fr's committed lines
 predate — en-es's file byte for byte), so a rewrite would only churn them.
 
-The criteria are kept word for word (change 26's D4) and gain, before any result is read, a French
+The criteria are kept word for word (change 26's D4) and gain, before the committed run, a French
 example per native language — « A travers » → « Throughout » (fr-en), « Par conséquence » →
-« Como resultado » (fr-es) — and the README says fr-es crosses two alignments through English, as
-es-fr does. One judge reads each pair; a doubtful line says so in `engine_reason`; the owner may
-re-judge any line in the pull request, the figures recomputed by `judgedCounts`.
+« Como resultado » (fr-es), the prototype's own lines k 6 and k 26: they illustrate the rule
+already written, that an expression's rendering counts, and move no verdict — and the README says
+fr-es crosses two alignments through English, as es-fr does. One judge reads each pair; a doubtful
+line says so in `engine_reason`; the owner may re-judge any line in the pull request, the figures
+recomputed by `judgedCounts`.
 
 **The gloss experiment fills in only from a pair's committed glosses.** `measure_marks.mjs` reads
 the experiment's table when `tables/<pair>/gloss.tsv` exists; change 43 commits fr-en's empty, and
@@ -245,8 +263,9 @@ it, nor M15 for either pair.
   paths, source and mirror (*Pinned against Mozilla's publications*); fr-en's vocabulary equal to
   en-fr's once decompressed, its gzip file not; fr-es's download 51,608,069 B; for each native
   language, every route keyed by it needs two models together (*Every native language's pairs*);
-  the no-route test keeps `de-fr` and `en` alone and drops `fr-en`/`fr-es`; *A route of a pair not
-  shipped* covers fr-en and fr-es.
+  the no-route test keeps `de-fr` and `en` alone and drops `fr-en`/`fr-es`, and « needs nothing for
+  a pair without a route » drops `fr-es` (it asserts `modelsFor(["fr-es"])` is empty today); *A
+  route of a pair not shipped* covers fr-en and fr-es.
 - `test/model-residency.spec.ts`: the sequences of D3 through the committed catalogue's routes.
 - `test/translate-marks.spec.ts`: the corpus's languages are en, es and fr, each step's three items
   share `k` and `id` (*A studied language added to the corpus*); fr-en's and fr-es's totals and tier;
@@ -257,9 +276,10 @@ it, nor M15 for either pair.
 - `TRANSLATION.md`: the routes table (fr-en direct, fr-es through English, « not yet: change
   52 »), the shared vocabulary, D3's per-native table, the soak (D5), the measured pairs.
   `tool/marks/README.md`: three studied languages, the French pin, the files, the criteria's
-  examples, the results table and what the figures say. `REVIEWERS.md`: four models, which routes
-  each serves, the package downloading none for French. `soak_engine.mjs`'s and `measure_marks.mjs`'s
-  usage comments name the six routes.
+  examples, the results table and what the figures say, and the soak section's bound note (« The
+  catalogue lists three models », four now; the eviction runs only on a change of native language,
+  D3). `REVIEWERS.md`: four models, which routes each serves, the package downloading none for
+  French. `soak_engine.mjs`'s and `measure_marks.mjs`'s usage comments name the six routes.
 
 ## What moves, and what cannot
 
@@ -277,9 +297,10 @@ two pair names; nothing else.
 ## Risks / Trade-offs
 
 - **Submissions refused until the host serves fr-en** → the owner dispatches `lingua-model-deploy`
-  after the merge (task 5.1). The host already refuses today for en-es's files (change 25's 4.1 not
-  run on 2026-10-09); one dispatch assembles every model of the catalogue and creates both missing
-  mirror releases.
+  after the merge (task 5.1). The check already refuses today for en-es's files (Context: change
+  25's 4.1 not run on 2026-10-09); a dispatch after this merge assembles every model of the
+  catalogue and creates both missing mirror releases, one before it serves en-es only (Open
+  Question 3).
 - **Remote Settings' 2.0 is not the registry's file** → D1 refuses the entry; the change waits.
 - **One judge** → the criteria fixed before the run, every judgment committed and re-judgeable, the
   doubtful lines named; the tier holds with them counted wrong.
@@ -303,3 +324,6 @@ deploys the model host after the merge; nothing a reader has stored moves.
 2. **M15 for French** (open): whether change 52 offers fr-en's and fr-es's translation, everywhere at
    once, with the marks this change measures — the owner's, before change 52; this change lists the
    pairs that reach the tier and decides nothing else.
+3. **When to deploy the host** (M18): dispatching `lingua-model-deploy` now (change 25's 4.1)
+   unblocks the next release before this change merges, and a second dispatch after the merge
+   serves fr-en; waiting for the merge needs one dispatch, and the next release waits for it.
