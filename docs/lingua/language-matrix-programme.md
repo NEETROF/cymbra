@@ -45,9 +45,9 @@ recommendation and are settled before the stage named.
 | M3 | **The native language stays on the device** (profile and backup), like D9. A new device asks for it at onboarding, preset from the browser's language. A full reset keeps it. | Settled |
 | M4 | **Cards record the language of their gloss, server first.** Every stored gloss is French today, so a default of `fr` labels existing rows exactly; the label is in production before any client that can create a non-French gloss syncs. Review shows the current pack's gloss when the card's gloss is in another language (words and table expressions); a free translation keeps its text. | Settled |
 | M5 | **D4, restated:** a gloss is in the reader's native language and written by a person — never the studied language, never a third language, never machine-translated or pivoted. Words people wrote into Wiktionary translation tables qualify. | Settled |
-| M6 | fr-es ships with its coverage published (es-fr precedent). A floor, and what happens below it, are fixed before the committed measurement. | Open, before stage 3 |
-| M7 | French levels are estimated, as D1 (FLELex is CC BY-NC-SA 4.0); a licence request goes with ELELex's. | Open, before stage 3 |
-| M8 | Lemma alternatives for noun/verb homographs (*porte*/*porter*, *cuenta*/*contar*), in every language — or keep « one form, one lemma ». | Open, before stage 3 |
+| M6 | **fr-es ships with its coverage published (es-fr precedent).** A floor, and what happens below it, are fixed before the committed measurement. | Settled (2026-10-09) |
+| M7 | **French levels are estimated, as D1** (FLELex is CC BY-NC-SA 4.0); a licence request goes with ELELex's, sent by the owner. | Settled (2026-10-09) |
+| M8 | **« One form, one lemma » is kept, in every language**, noun/verb homographs included (*porte*/*porter*, *cuenta*/*contar*); lemma alternatives stay the optional `add-lingua-lemma-alternatives`, outside the counts. | Settled (2026-10-09) |
 | M9 | **The owner reviews the English and the Spanish wording** (interface, card, listings). Drafts land in each pull request. | Settled |
 | M10 | **Spanish: tú, neutral, no vosotros. English: US.** Terms: « forma en -ing », RAE tense names for French forms, "past historic (passé simple)", RAE numbers (20 000; 96 %). | Settled |
 | M11 | Spanish site pages: at least privacy, account deletion, support and `/es/lingua`. | Open, before stage 2 (en-es) |
@@ -60,7 +60,7 @@ recommendation and are settled before the stage named.
 | M18 | Nothing is released, deployed or published without the owner's go-ahead. | Settled |
 | M19 | **Level acronym: CEFR in English, MCER in Spanish, French unchanged.** | Settled |
 | M20 | English glosses drop long explanatory parentheses (≥ 40 characters). | Open, before stage 2 |
-| M21 | French tokenisation: au/aux split, du/des whole; one highlight span per elision piece; « pas » a function word; moods merged on five-reading forms. | Open, before stage 3 |
+| M21 | **French tokenisation: au/aux split, du/des whole; one highlight span per elision piece; « pas » a function word; moods merged on five-reading forms.** | Settled (2026-10-09) |
 | M22 | **Existing installs stay French without being asked**; the choice is in Réglages. | Settled |
 | M23 | **The French interface is extracted byte for byte.** A typography pass, if any, is separate. | Settled |
 | M24 | **The studied side of the tables is kept once per studied language** (`tables/<studied>/`), the native side per pair (`tables/<pair>/`). | Settled |
