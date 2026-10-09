@@ -109,7 +109,9 @@ export interface Speaker {
  * Firefox also carry an identifier whose family says it — and whose last part does not always
  * repeat the name (`Wobble` is `…voice.Deranged`). The names are English on a Mac, but an
  * iPhone translates them into its own language (`Bubbles` is `Bulles` in French): there, the
- * family is the only thing to go by.
+ * family is the only thing to go by. `Jacques` is `com.apple.eloquence.fr-FR.Jacques`, France's
+ * Eloquence voice where every other language has `Reed`, which Chrome lists under its bare name
+ * (add-lingua-french-read-aloud D2): neither the family nor a suffixed name catches it.
  */
 const DEPRIORITISED_NAMES = new Set([
   // novelty
@@ -137,9 +139,6 @@ const DEPRIORITISED_NAMES = new Set([
   "Rocko",
   "Sandy",
   "Shelley",
-  // France's Eloquence voice where every other language has Reed: Apple's
-  // `com.apple.eloquence.fr-FR.Jacques`, which Chrome lists under its bare name
-  // (add-lingua-french-read-aloud D2) — neither the family nor a suffixed name catches it.
   "Jacques",
   // legacy
   "Fred",
@@ -180,6 +179,10 @@ const THREE_LETTER_LANGUAGES: Record<string, string> = {
   zho: "zh",
   chi: "zh",
 };
+/**
+ * The English-, Spanish- and French-speaking regions (add-lingua-french-read-aloud D3: France,
+ * Belgium and Switzerland beside Canada), so that such a voice is placed and named.
+ */
 const THREE_LETTER_REGIONS: Record<string, string> = {
   usa: "us",
   gbr: "gb",
@@ -195,7 +198,6 @@ const THREE_LETTER_REGIONS: Record<string, string> = {
   col: "co",
   chl: "cl",
   per: "pe",
-  // The French-speaking regions (add-lingua-french-read-aloud D3), Canada's `can` above.
   fra: "fr",
   bel: "be",
   che: "ch",
