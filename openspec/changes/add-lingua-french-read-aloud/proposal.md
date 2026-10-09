@@ -15,16 +15,18 @@ things read wrong:
   browser's first French voice. Chrome, Firefox and Safari on macOS (and the iOS Simulator, which
   lists the host Mac's voices) list `Amélie` (fr-CA) before `Thomas` (fr-FR), alphabetically: the
   automatic French voice is Canadian on 4 of the 7 captures. It is a voice of France only on the
-  iPhone, whose list happens to put `Thomas` first, and on Chrome for Windows, by its one default
-  voice. Spanish settled the same question with a voice of Spain (`add-lingua-spanish-read-aloud`).
+  iPhone, whose list happens to put `Thomas` first, on Chrome for Windows, by its one default
+  voice, and on Firefox for Android once Android's voices are allowed, its two French voices
+  being France's. Spanish settled the same question with a voice of Spain
+  (`add-lingua-spanish-read-aloud`).
 - **An Eloquence voice among the ordinary ones.** Chrome on macOS lists `Jacques`, which is Apple's
   `com.apple.eloquence.fr-FR.Jacques` — the French (France) Eloquence set has Jacques where every
   other language has Reed — under its bare name, so neither the family nor the name list catches
   it. It is offered as an ordinary voice today, and preferring France alone would make it the
   automatic French voice there (`Jacques` sorts before `Thomas`).
 - **Firefox for Android's French regions.** It writes `fra-FRA-default`; the three-letter table
-  knows no French-speaking country, so the region is unread and Réglages names it « FRA », the code,
-  in every interface language.
+  knows Canada's `can` but not France's `fra`, so the region is unread and Réglages names it
+  « FRA », the code, in every interface language.
 - **An elided word spoken alone is a letter's name.** M21 gives each elision piece its own
   highlight span (change 40), so `l'` of « l'homme » gets a card of its own. Spoken alone by
   Apple's French voices, `l'` is byte for byte the audio of « elle », `d'` of « dé », `j'` of « ji »,
@@ -56,6 +58,8 @@ surface reads French until then.
   interface. The voice block reads them through the speaker's language — "No French voice is
   installed on this device.", « No hay ninguna voz francesa instalada en este dispositivo. » —
   without widening the extension's `StudiedLanguage` type, which change 52 widens (change 39, D8).
+  Change 39's D8 left the labels to change 52 as well: their French words come here instead, a
+  departure design D4 justifies.
 - **An elided French piece is heard with the word it leans on.** When the speaker reads French, a
   card opened on an elided piece reads it with the rest of the word the page writes it against
   (`l'` → « l'homme », `qu'` → « qu'il », `jusqu'` → « jusqu'à »), and a piece of a split word reads
@@ -100,8 +104,9 @@ None.
   the stored profile's French is still dropped by `state/profile.ts` (change 39, D8).
 - **Goldens.** None moves: `fr-en.golden`, `en-fr.golden`, `es-fr.golden`, `es-en.golden` and
   `en-es.golden` are produced by `crates/lingua-wasm` from the core and the packs, which this change
-  does not touch; the card snapshots (`word-card-es-en.txt`, `word-card-en-es.txt`,
-  `selection-rows-fr.txt`) hold no listen row.
+  does not touch — change 39's D5 counts 47 among the changes that re-bless `fr-en.golden`, but this
+  one has nothing to re-bless, and not one byte of it moves; the card snapshots
+  (`word-card-es-en.txt`, `word-card-en-es.txt`, `selection-rows-fr.txt`) hold no listen row.
 - **Dependencies.** After change 39 (`add-lingua-french-baseline`), and after the open
   `add-lingua-read-aloud`, `localise-lingua-settings` and `add-lingua-native-language-labels`
   (`archiveAfter`). Independent of changes 40–46: the elided-piece rule acts on a card's text and

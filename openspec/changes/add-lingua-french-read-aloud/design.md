@@ -16,7 +16,7 @@ language tag from end to end, so French needs no new seam, only answers at the o
 | `src/reading/settings-view.ts` | the voice block casts `speaker.lang as StudiedLanguage` for its no-voice sentence, install help and preview |
 | `src/reading/wordpopup.ts` `listensFor` | the word button reads `surface` — the piece of a split word (`de` of `del`, `add-lingua-dictionary-form-voice`'s non-goal); with a form seen apart from the dictionary form, two buttons labelled with what they read |
 | `src/reading/selection-card.ts` | holds the selection's place in its sentence (`PageHit.selection`, `SelectionInput.selection`) for the translator; the card content does not carry it |
-| `src/analyzer/types.ts` | the extension's `StudiedLanguage` is `en \| es`; change 39 (D8) leaves its widening to change 52, with `state/profile.ts`'s `NAMES` and the pairs |
+| `src/analyzer/types.ts` | the extension's `StudiedLanguage` is `en \| es`; change 39 (D8) leaves its widening to change 52, with `state/profile.ts`'s `NAMES` and the labels |
 
 ### Measured: the French voices of the seven captures
 
@@ -101,7 +101,7 @@ for byte. Inflected forms that French does not pronounce are spoken alike: `homm
   before change 52.
 
 **Non-Goals:**
-- An accent setting (as Spanish D5): the voice picker is the way to another accent.
+- An accent setting (as the Spanish programme's D5): the voice picker is the way to another accent.
 - The extension's `StudiedLanguage` type, `state/profile.ts`'s `NAMES` and `packs.json` (change
   52, after change 39's D8), and what a French card's grammar says (change 51).
 - A single-letter word spoken alone (« à », « y »; Spanish « y », English "I") and reading a split
@@ -190,9 +190,17 @@ not name (none, with the shipped pairs) leaves the sentences naming it out.
 extension with the type widened to `en | es | fr`: two errors, the labels table (wanted) and
 `wordpopup.ts:339`, where the card hands its language to the grammar renderer, typed
 `StudiedLanguageCode` (`en | es`). Widening would make this change decide what a French card's
-grammar says — change 51's question — and would part from change 39's D8, which leaves the type,
-`NAMES` and the pairs to change 52 together. With D4, change 51 widens the renderer's code, change
-52 widens `StudiedLanguage` and finds the labels table already holding French.
+grammar says — change 51's question — and would part from change 39's D8 further than D4 does. With
+D4, change 51 widens the renderer's code, change 52 widens `StudiedLanguage` and finds the labels
+table already holding French.
+
+**A departure from change 39's D8, stated.** That D8 leaves the extension's `StudiedLanguage` type,
+`NAMES` and the labels to change 52, together (and `packs.json`, its Non-Goals). D4 moves one part
+forward — the labels' French words and the four voice messages' key — and leaves the type, `NAMES`
+and `packs.json` where D8 put them. What D8 protects still holds: `Record<StudiedLanguage, …>`
+tables are unchanged, the labels lint (`test/lint-language-labels.spec.ts`, which exempts
+`src/i18n/*/languages.ts`) finds the new names in the modules it allows, and the French interface's
+messages (`test/language-labels.spec.ts`, M23) read as before.
 
 *Rejected — the words in change 52.* The voice block would then throw the day a speaker reads `fr`
 (`words(…, "fr")` is `undefined`, its `feminine` a `TypeError`) unless change 52 remembered the
@@ -213,7 +221,9 @@ Read alone, 61 of the corpus's 66 elided pieces are spelled or clipped (Context)
    the selection, so it holds whether change 40's span for the piece takes its apostrophe (`l'` |
    `homme`) or leaves it to the next one (`l` | `'homme`).
 2. **A piece of a split word** — the card's `written` (the range's text, `au`) differs from its
-   `surface` (`à`), letter case and Unicode normalisation aside: the button reads `written`.
+   `surface` (`à`), letter case, Unicode normalisation and the apostrophe's form aside (the engine
+   reads `’` as `'`, `tokenize.rs` `push_word`, so a whole `l’homme` has `written` « l’homme » and
+   `surface` « l'homme »): the button reads `written`.
 3. Otherwise the button reads `surface`, as today.
 
 The button is labelled with what it reads where it already says its text: an elided piece differs
@@ -224,13 +234,24 @@ keeps one « ▶ Word » / « ▶ Palabra » button, which reads « au ».
 
 The card content gains `selection?: Span | null`, the selection's place in its sentence, which
 `selection-card.ts` already holds for the translator (`PageHit.selection`, `SelectionInput.selection`).
-The rule is a pure function of the content and the speaker's language, in `wordpopup.ts` beside
-`listensFor`; without a place (a range outside any block) the button reads as today.
+It is written only where known, by a conditional spread as `written` is, so a card opened without a
+place carries no new key and the exact contents `test/selection-card.spec.ts` asserts with `toEqual`
+stay as they are. The rule is a pure function of the content and the speaker's language, in
+`wordpopup.ts` beside `listensFor`; without a place (a range outside any block) rule 1 cannot apply.
 
 It is gated on the speaker's language, a plain tag (`speaker.lang === "fr"`), not on the card's
 `StudiedLanguage` (D4): English and Spanish cards read exactly as before — `del` still reads its
 piece, `add-lingua-dictionary-form-voice`'s non-goal. It is inert until change 40: the baseline
-reads `l'homme` as one token (change 39, D2), whose sentence continues with a space.
+reads `l'homme` as one token (change 39, D2), whose sentence continues with a space, and whose
+`written` differs from its `surface` at most by the apostrophe's form, which rule 2 sets aside. A
+selection never ends inside a word either: `captureFrom` snaps it outward over letters and
+apostrophes (`selection.ts`), so rule 1 fires only on a page token the analysis cut inside a word.
+
+For a French card this says what *The card reads the selection and its sentence aloud*
+(`add-lingua-read-aloud`) and *The card reads a word's dictionary form when it differs from the form
+seen* mean by the form « as it appears on the page »: the piece as the page writes it, with the word
+it leans on. It is stated as an ADDED requirement, French only, rather than a MODIFIED one: the
+first is held by an open change, and English and Spanish cards keep reading as both say.
 
 *Rejected — reading the piece alone.* It is a letter's name (Context); a period after it does not
 help (`l'.` is still « elle »).
@@ -284,9 +305,11 @@ count for nothing in French; the owner checks on such a machine if one is at han
   entry no French-native reader can be shown.
 
 No golden moves: `fr-en.golden`, `en-fr.golden`, `es-fr.golden`, `es-en.golden` and `en-es.golden`
-are written by `crates/lingua-wasm` from the core and the packs, which this change does not touch;
-the card snapshots (`word-card-es-en.txt`, `word-card-en-es.txt`, `selection-rows-fr.txt`) hold
-grammar lines and gloss rows, never a listen row.
+are written by `crates/lingua-wasm` from the core and the packs, which this change does not touch.
+Change 39's D5 counts 47 among the changes that re-bless `fr-en.golden` over its fixture; this one
+has nothing to re-bless, and not one byte of the French golden moves. The card snapshots
+(`word-card-es-en.txt`, `word-card-en-es.txt`, `selection-rows-fr.txt`) hold grammar lines and gloss
+rows, never a listen row.
 
 ### D9 — Tests, gates and the on-device checklist
 
@@ -301,6 +324,9 @@ grammar lines and gloss rows, never a listen row.
   `fra-CAN` before `fra-FRA` gives `fra-FRA`, `fr-BE` and `fr-CH` named in the three languages.
 - `test/language-labels.spec.ts`: the four voice messages for French in the three interface
   languages, the en and es ones not French's, the preview identical in all three.
+- `test/i18n.spec.ts`: `SAME_EVERYWHERE` gains the French preview, beside the English and Spanish
+  ones — without it the drafts' parity test refuses `languages.french.preview` in English and
+  Spanish as « still the French ».
 - `test/settings-language.spec.ts`: the voice block mounted with a speaker reading `fr`, in English
   and in Spanish — the voices' labels, the automatic label, and on D7's derived list the no-voice
   sentence, its tooltip and the online voices' switch, off; the existing French assertions pass
@@ -309,11 +335,14 @@ grammar lines and gloss rows, never a listen row.
   apostrophe, « Qu'est-ce », « jusqu’à », the contraction `au`, the sentence button against the heard
   text, no place in the sentence, and the same contents under a speaker reading English or Spanish
   reading as before.
-- Gates: `yarn typecheck`, `yarn lint`, `yarn format:check`, `yarn test` (coverage), `yarn build`,
-  `yarn check:variants`; the bundles' growth against the merge-base, per entry (an estimate before
-  measuring: under 1 kB minified for the entries carrying Réglages or the card — three `french`
-  entries of seven short strings, three table entries, one function); `git diff --stat
-  origin/main -- crates scripts/lingua-data` empty.
+- Gates: `yarn typecheck`, `yarn lint`, `yarn format:check`, `yarn test` (coverage, and the labels,
+  copy and parity lints, which are specs), `yarn build`, `yarn check:variants`; the bundles' growth
+  against the merge-base, per entry (an estimate before measuring: under 1 kB minified for the
+  entries carrying Réglages or the card — three `french` entries of seven short strings, three
+  table entries, one function); `git diff --stat origin/main -- crates scripts apps/lingua-agent
+  apps/lingua-apple` empty — no Rust or Python file moves, so `cargo fmt`, `clippy -D warnings`,
+  `wasm-pack test` and the Python tests check nothing new, and the five invariance baselines pass
+  without re-blessing.
 - **On devices, in change 52's dogfood** (nothing reads French before it): Chrome, Firefox and
   Safari on macOS — `Thomas` automatic, `Jacques` and the Eloquence voices under "Other voices" on
   Chrome; the iPhone; Firefox for Android — the switch, « — France »; the card of `l'` in « l'homme »
@@ -345,8 +374,8 @@ and nothing reads French before change 52. Rollback is a revert.
 ## Open Questions
 
 For the owner, none blocking:
-1. France first and the other regions in the browser's order (Spanish D5's rule), or Belgium and
-   Switzerland before Canada? No captured list holds a Belgian or Swiss voice.
+1. France first and the other regions in the browser's order (the rule of the Spanish programme's
+   D5), or Belgium and Switzerland before Canada? No captured list holds a Belgian or Swiss voice.
 2. The French preview: « Voici comment sonneront tes pages quand Lingua les lira à voix haute. »
 3. The shared follow-up of D6 — a single-letter word spoken alone, and split words read as written
    in English and Spanish — as one change for the three languages after stage 3, or not at all.

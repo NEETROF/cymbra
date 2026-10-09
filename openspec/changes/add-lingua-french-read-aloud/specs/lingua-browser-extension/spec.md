@@ -46,7 +46,7 @@ Réglages SHALL name a French voice by the name the platform gives it, followed 
 Where the speaker reads French, Réglages' read-aloud block SHALL say in the reader's interface language that no French voice is installed when none is on the device, its install help SHALL name the language Windows lists for a French voice of France and the language macOS lists, both in the interface language, and its preview SHALL speak one French sentence, the same whatever the interface language. The French interface SHALL read exactly as before.
 
 #### Scenario: No French voice, in English
-- **WHEN** the browser lists Google's remote French voice and no French voice on the device, and the interface is in English
+- **WHEN** a French page is read, the browser lists Google's remote French voice and no French voice on the device, and the interface is in English
 - **THEN** the card shows no listen row, and Réglages says "No French voice is installed on this device.", its tooltip names "French (France)" for Windows and "French" for macOS, and it offers "Use the browser's online voices", off
 
 #### Scenario: No French voice, in Spanish
@@ -62,10 +62,10 @@ Where the speaker reads French, Réglages' read-aloud block SHALL say in the rea
 - **THEN** the read-aloud block reads exactly as before
 
 ### Requirement: An elided French word is heard with the word it leans on
-When the card's speaker reads French, the word button of a card opened on an elided piece — a selection the page writes glued to the next word, as `l'` in « l'homme » — SHALL read the piece together with the word it leans on as the page writes them, up to the next space, hyphen, digit or punctuation, and SHALL be labelled with that text where the card labels the form seen. A card opened on a piece of a word the analysis split, which the page writes as one word (`à` of `au`), SHALL read that word as the page writes it. The dictionary form's button and the sentence button SHALL read as before. A card read in English or Spanish SHALL read exactly as before.
+When the card's speaker reads French, the word button of a card opened on an elided piece — a selection the page writes glued to the next word, as `l'` in « l'homme » — SHALL read the piece together with the word it leans on as the page writes them, up to the next space, hyphen, digit or punctuation — an apostrophe between two letters carrying on, as in « jusqu'aujourd'hui » — and SHALL be labelled with that text where the card labels the form seen. A card opened on a piece of a word the analysis split, which the page writes as one word (`à` of `au`), SHALL read that word as the page writes it. The dictionary form's button and the sentence button SHALL read as before. A card read in English or Spanish SHALL read exactly as before.
 
 #### Scenario: An elided article
-- **WHEN** the reader, with the interface in English, opens the card of `l'` in « L'homme est venu. »
+- **WHEN** the reader, with the interface in English, opens the card of `l'` in « L'homme est venu. » on a French page
 - **THEN** the card offers « ▶ L'homme », which speaks « L'homme », then « ▶ le », which speaks `le`, then "▶ Sentence"
 
 #### Scenario: Before a hyphen
