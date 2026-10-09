@@ -328,6 +328,16 @@ impl KnowledgeState {
             .copied()
     }
 
+    /// Whether the reader holds a record on this lemma: an explicit status, or a
+    /// withdrawn one — a sync stamp left by a clear, whatever its time, a stamp of 0
+    /// included (see [`clear_status_at`](Self::clear_status_at)). What the phrase
+    /// gloss asks before reporting a Spanish expression under the lemma chain the
+    /// reader settled it under rather than its name
+    /// (add-lingua-spanish-expression-keys D6).
+    pub fn holds_record(&self, lang: StudiedLanguage, lemma: &str) -> bool {
+        self.explicit_status(lang, lemma).is_some() || self.is_withdrawn(lang, lemma)
+    }
+
     /// Whether the reader withdrew a decision on this lemma: no explicit status,
     /// but a sync timestamp left behind by a clear (see
     /// [`clear_status_at`](Self::clear_status_at)).
@@ -1223,5 +1233,27 @@ mod tests {
         state.clear_status(EN, "run");
         assert_eq!(state.classify(EN, &["run"], &ranks()), TokenClass::Known);
         assert!(state.export_statuses().is_empty());
+    }
+
+    #[test]
+    fn a_record_is_a_status_or_a_withdrawn_one_whatever_its_time() {
+        // add-lingua-spanish-expression-keys D6: what the phrase gloss asks of a lemma chain.
+        let mut state = KnowledgeState::new();
+        assert!(!state.holds_record(EN, "run"));
+        // A status, stamped or not.
+        state.set_status(EN, "run", Status::Learning);
+        state.set_status_at(EN, "walk", Status::Known(KnownSource::Manual), 1_000);
+        assert!(state.holds_record(EN, "run"));
+        assert!(state.holds_record(EN, "walk"));
+        // A withdrawal, stamped 0 included, and one pulled from another device.
+        state.clear_status_at(EN, "walk", 0);
+        assert_eq!(state.status_updated_at(EN, "walk"), 0);
+        assert!(state.holds_record(EN, "walk"));
+        assert!(state.apply_status_lww(EN, "swim", None, 500));
+        assert!(state.holds_record(EN, "swim"));
+        // An unstamped clear leaves nothing behind; another language holds its own records.
+        state.clear_status(EN, "run");
+        assert!(!state.holds_record(EN, "run"));
+        assert!(!state.holds_record(StudiedLanguage::Spanish, "walk"));
     }
 }
