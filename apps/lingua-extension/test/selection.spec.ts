@@ -198,6 +198,33 @@ describe("captureSelection", () => {
     expect(String(window.getSelection())).toBe("the parity pro");
   });
 
+  // add-lingua-french-tokenisation D7, handed to change 51: the word snap widens a selection
+  // inside one piece of a split French word to the whole written word, a « word » resolved at its
+  // start — the first piece (`le` for `homme`, `dit` for `il`). Pinned as it is today, so that
+  // change 51's diff shows it moving.
+  it("widens a selection inside one piece of a split word to the whole written word", () => {
+    for (const [full, word, piece] of [
+      ["Il voit l’homme.", "l’homme", "homme"],
+      ["« Je reviendrai », dit-il en partant.", "dit-il", "il"],
+    ] as const) {
+      document.body.innerHTML = `<p>${full}</p>`;
+      const textNode = document.querySelector("p")!.firstChild!;
+      const at = full.indexOf(word) + word.lastIndexOf(piece);
+      const range = document.createRange();
+      range.setStart(textNode, at);
+      range.setEnd(textNode, at + piece.length);
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      const cap = captureSelection()!;
+      expect(cap.text).toBe(word);
+      expect(classifySelection(cap.text)).toBe("word");
+      expect(cap.range.startContainer).toBe(textNode);
+      expect(cap.range.startOffset).toBe(full.indexOf(word));
+      expect(full.charAt(cap.range.startOffset)).toBe(word.charAt(0)); // `l`, `d`
+    }
+  });
+
   it("rejects a selection longer than a phrase", () => {
     document.body.innerHTML = `<p>${"word ".repeat(60)}</p>`;
     const textNode = document.querySelector("p")!.firstChild!;
