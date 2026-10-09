@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - add-lingua-read-aloud
+  - localise-lingua-settings
+  - add-lingua-native-language-labels
+  - add-lingua-french-baseline
