@@ -200,7 +200,7 @@ the experiment fills from `tables/fr-en/gloss.tsv` (with `tables/fr/forms.tsv`, 
 `tables/fr-es/gloss.tsv`; otherwise a later run may fill it without touching the engine's columns
 (change 26's D3).
 
-Prototype, one judge (the author of this design), the criteria above:
+Prototype, one judge per pair as for the four others, the criteria above, the judgments kept in the scratch directory (never committed):
 
 | | Correct (of shown marks) | Withheld | D2 |
 |---|---|---|---|
@@ -245,7 +245,7 @@ it, nor M15 for either pair.
   paths, source and mirror (*Pinned against Mozilla's publications*); fr-en's vocabulary equal to
   en-fr's once decompressed, its gzip file not; fr-es's download 51,608,069 B; for each native
   language, every route keyed by it needs two models together (*Every native language's pairs*);
-  the no-route test names `de-fr` and `fr` alone, no longer `fr-en`/`fr-es`; *A route of a pair not
+  the no-route test keeps `de-fr` and `en` alone and drops `fr-en`/`fr-es`; *A route of a pair not
   shipped* covers fr-en and fr-es.
 - `test/model-residency.spec.ts`: the sequences of D3 through the committed catalogue's routes.
 - `test/translate-marks.spec.ts`: the corpus's languages are en, es and fr, each step's three items
@@ -268,10 +268,11 @@ Nothing in `crates/`, `scripts/lingua-data/` or `apps/site/` changes, so no gold
 translation involved), S0, the es-fr, es-en and en-es goldens, the extension's snapshots
 (`test/baseline/*.txt`) and the site's pinned build all stay as committed, run without re-blessing.
 en-fr, es-fr, es-en and en-es cannot move here: their catalogue entries and routes are byte for
-byte (the test holds the four routes and three models as before), their readers' needs are
+byte (the test holds their three models and four routes as before), their readers' needs are
 unchanged (`readerPairs` keeps shipped pairs), their corpus items are byte for byte (D4), their
 results and judgments are not rewritten (D6), and `MARKED_PAIRS` keeps their four entries in order.
-The bundled catalogue grows by 1,147 B per package (3,354 → 4,501 B as built), nothing else.
+The bundled catalogue grows by 1,147 B per package (3,354 → 4,501 B as built) and `MARKED_PAIRS` by
+two pair names; nothing else.
 
 ## Risks / Trade-offs
 
@@ -285,8 +286,8 @@ The bundled catalogue grows by 1,147 B per package (3,354 → 4,501 B as built),
 - **PUD is news and Wikipedia prose, selected word by word** → as for every pair; elided pieces are
   never selected. Literary French and phrase selections are checked by eye in change 52's dogfood.
 - **The pivot reads English through** (« tué au combat » → « asesinado en acción », English's
-  « killed in action ») → as es-fr's French reads Spanish through English; the card says it is a
-  machine translation, and the mark follows the rendering the reader sees.
+  « killed in action ») → as es-fr already goes through English; the card says it is a machine
+  translation, and the mark follows the rendering the reader sees.
 - **Memory on iOS** → fr-es's two models are es-fr's size, already dogfooded on the iPhone
   (2026-10-05); change 52's dogfood measures it again.
 
