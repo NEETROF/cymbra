@@ -17,8 +17,8 @@ What French text still lacks on `main` (35faf774), measured on change 39's corpu
 French-PUD and GSD with change 43's prototype tables, and on 864,079 tokens of raw French text
 (design D6):
 
-- **Decomposed text is not French's.** A word typed or pasted in NFD (`mémoire`) is not
-  the pack's `mémoire`: change 39's corpus holds one such block on purpose, and its `mémoire`
+- **Decomposed text is not French's.** A word typed or pasted in NFD (`e` + U+0301 in
+  « mémoire ») is not the pack's `mémoire`: change 39's corpus holds one such block on purpose, and its `mémoire`
   shows no gloss. A decomposed `ç'` escapes change 40's elision, a decomposed `peut-être` its
   listed-run check.
 - **Every closed-class word is a row.** A word-by-word gloss lists `le`, `de`, `que`, `il` and

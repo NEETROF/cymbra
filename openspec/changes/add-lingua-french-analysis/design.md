@@ -68,12 +68,13 @@ what the page holds.
 matches written pieces against its tables before any lemma is sought: a decomposed `ç'`
 (`c` + U+0327) is not `ç` and is never split, a decomposed `peut-être` is not the run the pack
 lists and goes to the inversion and compound rules. Checked on the prototype: with the pre-pass
-composing, `ç'a été peut-être` gives `ça` [0, 4) — the apostrophe and the
-combining cedilla in its span —, `a`, `été` and the listed `peut-être`. *Rejected — NFKC*: it
+composing, « ç'a été peut-être » written decomposed (`c` + U+0327, `e` + U+0301, `e` + U+0302)
+gives `ça` [0, 4) — the apostrophe and the combining cedilla in its span —, `a`, `été` and the
+listed `peut-être`. *Rejected — NFKC*: it
 folds ligatures, superscripts and U+202F, which change 40 reads already.
 
-Measured: none of the 43,494 raw paragraphs and none of PUD's or GSD's test words is decomposed, so NFC moves no
-token there; it moves the golden's NFD block (D7), which change 39 committed for this change. It is
+Measured: none of the 43,494 raw paragraphs and none of PUD's or GSD's test words is
+decomposed, so NFC moves no token there; it moves the golden's NFD block (D7), which change 39 committed for this change. It is
 there for what is: text typed through a dead-key layout that composes late, pasted from a terminal,
 an OCR or a macOS file name.
 
@@ -225,12 +226,12 @@ words (`France`, `Paris`, `Mme`, `The`, `New`, `II`), and a few French words: `E
 empty, so every capitalised form never written in lowercase is set aside — `État`, `Institut`,
 `Conseil` with the names (the second column). Nothing ships before change 52, and change 48 fills the
 section from fr-en's glosses. The fixture pack has no lexical section, so its dictionary words are
-its glossed lemmas, as Spanish's es-fr has been read.
+its glossed lemmas (`is_dictionary_word`'s fallback).
 
 **What it does not do.** A dictionary word stays a word: `Orange` (the town, glossed « orange »)
 and `Vienne`, whose form the tables read as *venir* (M8), keep their cards. A name met only at the
-head of sentences, or after `M.` — a full stop, as Spanish's rule reads it —, stays a word: `M.
-Myriel`'s capital proves nothing. *Rejected — every capitalised word outside the lexicon's
+head of sentences, or after `M.` — a full stop, as Spanish's rule reads it —, stays a word: in
+« M. Durand » the capital proves nothing. *Rejected — every capitalised word outside the lexicon's
 dictionary words*: `Dieu`, `Seigneur` and a reader's `État` would go.
 
 ### D5 — French's analyser version leaves the baseline's
@@ -296,7 +297,7 @@ Token by token (1,002 tokens before and after; counted 958 → 963, glossed 387 
 | Rule | Tokens it moves | Probes |
 |---|---|---|
 | NFC (D1) | 4 of the `technique` page's NFD block composed — `Vérifiez`, `système`, `télécharger`, and `mémoire`, whose gloss « memory » appears | 1 |
-| The unlisted plural (D2) | 18: `bâtiments`, `publics`, `syndicats`, `terminés` (`actualites`), `cerises`, `clients`, `levées`, `prudents`, `précautions`, `écrites`, `poules`, `volets`, `quelques`, `réflexions` ×2, `cuillères`, `fines`, `rondelles` — each read as its singular, where the fixture lacks a form the real tables hold | 9 |
+| The unlisted plural (D2) | 18: `bâtiments`, `publics`, `syndicats`, `terminés`, `cerises`, `clients`, `levées`, `prudents`, `précautions`, `écrites`, `poules`, `volets`, `quelques`, `réflexions` ×2, `cuillères`, `fines`, `rondelles` — each read as its singular, where the fixture lacks a form the real tables hold | 9 |
 | The closed classes (D3) | no page token; 46 of the 91 tokens of the 23 phrase glosses `main` has flagged (`il y a` all three, `du pain et des œufs` `du`, `et`, `des`; the Italian `Il` and `si` too: a selection has no language detection), and 17 of the two new probes' 24 | 23, 2 of them added |
 | The names rule (D4) | 5 set aside on `noms`: `Paris`, `Lot` (Spanish's rule), `Aube` (only after `l'`), `Jean-Pierre`, `Saint-Étienne` (as runs) | 1 |
 | The fixture's forms alone | `travaux` → *travail*, `endors` → *endormir*; `Orange` and `Vienne` (dictionary words), `Mme` (only at a block's head), `Longtemps`, `Personne` become words; `Paris`, `Lot`, `Aube`, `Jean-Pierre`, `Saint-Étienne` lexicon words, set aside again by the names rule | — |
