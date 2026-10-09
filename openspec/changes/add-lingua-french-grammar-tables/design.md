@@ -11,9 +11,9 @@ See proposal.md (Why). Where French's word grammar stands, and what this design 
 | French's tables | change 43 (`add-lingua-french-forms-tables`, proposed): `reduce-fr-en.py` writes `tables/fr/forms.tsv` (124,040 forms) and `freq.tsv` (60,000 lemmas) from the English Wiktionary's French section; `tags.tsv` committed empty « until change 45 » (its D1), `lexical.tsv` empty until 48; its D12 hands this change « `reduce-fr-en.py`'s pass over the same entries, the forms it reads the readings of, `tags.tsv` to pin » |
 | The tag pool | `crates/lingua-pack/src/tags.rs` `tag_pool`: the pin in its own order, then the readings' tags it lacks, then the tags only senses carry, each part sorted. English's (27 tags) and Spanish's (106) pins are the pools en-fr's and es-fr's packs already carried, sense tags included. No reducer writes a pin (`pack_sources.py KEPT_INPUTS`); `record-build` and the committed-tables check require the file |
 | The card | `apps/lingua-extension/src/reading/grammar-description.ts`: readings merged by tag (one reading per tag, persons merged), `nameReadings` merging the persons of one tense and number, `tenseOrder` per studied language, `formKind` naming a participle only when its tense is `Past`; the extension's `StudiedLanguage` is `en \| es` until changes 51 and 52 |
-| The French golden | `crates/lingua-wasm/tests/baseline/fr-en.golden`, over the hand-written fixture pack (no grammar, change 39 D5): its 29 `word-grammar` probes answer `"readings":[]` |
+| The French golden | `crates/lingua-wasm/tests/baseline/fr-en.golden`, over the hand-written fixture pack (no grammar, change 39 D5): its 31 `word-grammar` probes answer `"readings":[]`. French is at `0.2.0` since change 40's pre-pass merged (#821): an elided piece, `au` and an inversion are tokens of their own |
 | The measurement inputs | change 43's: the French section derived on 2026-10-08 from the English dump of 2026-10-03 (403,269 entries, 510,058,226 B, sha256 `2d7bbe5f…`), UD French-PUD and GSD's test section at the commits change 43 pins; the forms and ranks of change 43's prototype tables (its design's S4: 124,040 forms, 60,000 lemmas) |
-| How it was measured | a prototype of this design's reducer in the scratchpad (never committed) over those tables; its tables built into a fr-en pack by `lingua-pack-build` from `origin/main`; the card's answer asked through `lingua_core::engine::word_grammar` by a scratch binary on `origin/main` c989aaff, French at `0.1.0`; each rule switched off alone to measure what it does |
+| How it was measured | a prototype of this design's reducer in the scratchpad (never committed) over those tables; its tables built into a fr-en pack by `lingua-pack-build` from `origin/main`; the card's answer asked through `lingua_core::engine::word_grammar` by a scratch binary on `origin/main` 35faf774, French at `0.2.0`; each rule switched off alone to measure what it does |
 
 What the English Wiktionary's French section says of grammar, as measured: 7,395 verbs carry a
 conjugation table (the study's « ≈ 7,380 fully tagged verbs »), and 7,058 of them list every one of
@@ -123,7 +123,9 @@ change 43 keeps the bare form, so the bare form takes the reading: `évanouit` i
 present indicative third person singular, and `évanouis` carries the imperative a page writes as
 `évanouis-toi`. Measured: 12,023 rows read without their pronoun; 37 more ranked verbs get a full
 paradigm (3,248 → 3,285), most of their forms having had readings through their own entries
-already.
+already. Through the engine on `main` (change 40's pre-pass merged), the card on `s'évanouit`
+(pieces `se`, `évanouit`) reads `évanouit`'s present and passé simple, and the card on
+`évanouis-toi` (`évanouis`, `toi`) carries the imperative among its six readings.
 
 ### D4 — Nouns, adjectives, determiners, pronouns, numerals
 
@@ -136,8 +138,8 @@ already.
 - **A noun the dictionary gives one form for** — its head's plural `#`, or a sense tagged
   `invariable` and no plural listed: `temps`, `fois`, `bras`, `vis` — reads singular and plural, as
   Spanish's `crisis` does: 549 readings; without them 98.83 % of PUD's nouns agree with the
-  treebank, 99.84 % with them (D10). The card says « may also be the plural of *temps* » on its own form, as it does
-  of `crisis` (open question 3).
+  treebank, 99.84 % with them (D10). The card says « may also be the plural of *temps* » on its
+  own form, as it does of `crisis` (open question 3).
 - **A feminine noun's masculine row gives no reading** (`déesse`: masculine `dieu`; `sainte`:
   `saint`): the masculine is its own dictionary form, not an inflection of the feminine, and the card
   of `dieu` would otherwise say « may also be the masculine singular of *déesse* »: 76 readings, 70
@@ -386,17 +388,18 @@ rule, which changes one reading, `plusieurs`, and lifts PUD's adjectives from 97
   `porte` noun — a lemma of the fixture, not of the tables (M8) — would show a reading the real pack
   never has. The readings are pinned instead by `fr_en_grammar.rs` over the committed tables.
 - **What change 48's switch will show** of this change, measured on the prototype's pack with the
-  core on `main` (French at `0.1.0`; once change 40 splits `l'homme`, its probe reads `homme`'s own
-  noun reading, which the card leaves unnamed): 23 of the 29 `word-grammar` probes gain readings —
+  core on `main` (French at `0.2.0`): 24 of the 31 `word-grammar` probes gain readings —
   `est`, `sont`, `était`, `fut`, `a`, `ai`, `as`, `eût`, `pût` one each, `été` (*être*) its
   participle, `soyez`, `va`, `allez`, `fait`, `prenez`, `vis` (*voir*), `couvent` (*couver*) two,
-  `faites`, `dit`, `vis` (*vivre*) three, `porte` (*porter*) five; `couvent` (*couvent*) and `fils` read their own noun and
-  name *couver* and *fil*; `vînmes` (a form the table does not hold), `au`, `du` and `l'homme`
-  stay empty. Two probes ask a lemma the committed tables do not keep, `été été` and `porte porte`
-  (the fixture's nouns, M8's cost): `Pack::readings` looks a lemma up through `id_of`, which maps a
-  form to its lemma's id, so they read *être*'s and *porter*'s paradigms against the wrong word
-  (`porte` as *porte*: `NOUN|Gender=Masc|Number=Sing` and `VERB|VerbForm=Inf`). A card never asks
-  so — its lemma is the token's —, but the golden would record it (open question 4).
+  `faites`, `dit`, `vis` (*vivre*) three, `porte` (*porter*) five; `couvent` (*couvent*) and `fils`
+  read their own noun and name *couver* and *fil*; `l'homme` (*homme*), split by change 40, reads
+  its piece's own noun reading, which the card leaves unnamed. `vînmes` (a form the table does not
+  hold), `au` (*au* and *à*), `du` and `l’` stay empty. Two probes ask a lemma the committed tables
+  do not keep, `été été` and `porte porte` (the fixture's nouns, M8's cost): `Pack::readings` looks
+  a lemma up through `id_of`, which maps a form to its lemma's id, so they read *être*'s and
+  *porter*'s paradigms against the wrong word (`porte` as *porte*: `NOUN|Gender=Masc|Number=Sing`
+  and `VERB|VerbForm=Inf`). A card never asks so — its lemma is the token's —, but the golden would
+  record it (open question 4).
 - **en-fr, es-fr, es-en and en-es cannot move**: no file of their rule digests changes
   (`reduce-fr-en.py` is fr-en's alone; `reduce_common.py` and the `reduce_edition_*.py` are not
   edited), no file of `tables/en/`, `tables/es/` or their pairs' folders, and nothing of lingua-core,
