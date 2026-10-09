@@ -108,4 +108,4 @@ changes 39, 40, 41 and 43 define it: the five are in `archiveAfter`.
   « post-1990 spelling of … »): changes 48 and 49, with their glosses. A one-word selection over
   several pieces opening the whole-selection card, where `d'abord` answers, and a name without a
   space stored with its gloss: change 51.
-- **Effort, against 1–2.5 ideal days**: 1.5–2.5 (design, *Effort*).
+- **Effort, against 1–2.5 ideal days**: 1.75–2.5 (design, *Effort*).
