@@ -28,5 +28,34 @@ A pack studying Spanish SHALL key each expression by what the core's Spanish ana
 - **THEN** the pack holds one expression, keyed `ser inglés` and named `soy inglés`
 
 #### Scenario: The committed packs
-- **WHEN** the en-fr, en-es, es-fr and es-en packs are built from their committed tables
-- **THEN** each has the sha256 its pin records, the en-fr and en-es pins as they were, and the es-fr and es-en packs carry the names section, their tables and `pack_version` unchanged
+- **WHEN** the en-fr, en-es, fr-en, es-fr and es-en packs are built from their committed tables
+- **THEN** each has the sha256 its pin records, the en-fr, en-es and fr-en pins as they were, and the es-fr and es-en packs carry the names section, their tables and `pack_version` unchanged
+
+## MODIFIED Requirements
+
+### Requirement: Versioned pack container, keyed by language pair
+A pack SHALL be a single versioned container, keyed by pair (studied language → native language), holding: metadata (the pair, `pack_version`, the compatible `analyzer_version`, licences), a form→lemma FST, a frequency table (ranks), compressed glosses indexed by lemma, an optional per-lemma CEFR level table (present for pairs that have licence-clean CEFR data, absent otherwise), an optional multi-word expression table, optional grammar tables, and a NOTICE file. The core SHALL refuse a pack whose analyser version is incompatible. A table that only a new interface reads is additive: it SHALL be optional, a core that does not know it SHALL ignore it, and adding it SHALL leave `analyzer_version` alone. A table added with new tables SHALL bump `pack_version`, as new tables do (*A pack says which dictionary it is*); a section the builder derives from tables already committed — an expression table's names — SHALL leave `pack_version` alone, the pack's new sha256 and size being recorded in its pin (*Reproducible offline build*).
+
+#### Scenario: Loading the EN→FR pack
+- **WHEN** the extension starts with the (en → fr) pack embedded
+- **THEN** the core exposes lemmatisation, frequency ranks, French glosses, CEFR levels, expressions and word grammar for English
+
+#### Scenario: Pair without CEFR data
+- **WHEN** a pack for a pair with no licence-clean CEFR data is loaded
+- **THEN** it loads with no level table and the core reports levels as unavailable for that language
+
+#### Scenario: Incompatible pack
+- **WHEN** a pack declares an `analyzer_version` incompatible with the core
+- **THEN** loading fails with an explicit error and no partial analysis is produced
+
+#### Scenario: A pack whose only new table is additive
+- **WHEN** a pack is rebuilt with an expression table and no other change
+- **THEN** its `analyzer_version` is the one the core already accepted, and its `pack_version` is new
+
+#### Scenario: A pack whose new tables are grammar tables
+- **WHEN** a pack is rebuilt with grammar tables and no other change
+- **THEN** its `analyzer_version` is the one the core already accepted, and its `pack_version` is new
+
+#### Scenario: A section derived from committed tables
+- **WHEN** the es-fr pack is rebuilt with its expressions' names from its committed tables and no other change
+- **THEN** its `analyzer_version` and its `pack_version` are the ones it had, and `tables/es-fr/pin.json` records its new sha256 and size

@@ -13,7 +13,7 @@ spaces, each word lemmatised. The page is not read that way. Measured on the com
 (`tables/es`, `tables/es-fr`, `tables/es-en`) and the Spanish corpus (`baseline/pages-es.txt`):
 - **`al` and `del` are never met.** The Spanish pre-pass splits them into `a` + `el` and
   `de` + `el` (*Spanish tokenisation pre-pass*), but `al` and `del` are lemmas of `tables/es`, so
-  526 of es-fr's keys and 607 of es-en's are written `al …`/`del …` and no selection reaches
+  526 of es-fr's keys and 607 of es-en's hold `al` or `del` as a word and no selection reaches
   them: « al menos », « al fin y al cabo », « del todo ».
 - **The article entries answer every article.** « One form, one lemma » (M8) files `la`, `los` and
   `las` under `el`. es-fr's `a la`, `a las`, `a los` (« À la », « Aux ») are all keyed `a el`, and
@@ -24,8 +24,8 @@ spaces, each word lemmatised. The page is not read that way. Measured on the com
   `a las armas` and `al arma`, would be one key if the articles were lemmatised.
 - **The card shows a lemma chain.** The phrase gloss reports the key as the expression's dictionary
   form, so the card is headed, keyed and listed by it: `tener en contar` for « tener en cuenta »,
-  `dar contar`, `a el vez` (`es-fr.golden` today). 3,815 of es-fr's 11,851 keys are not their
-  headword, 4,665 of es-en's 13,739.
+  `dar contar` for « darse cuenta », `a el` for « a la casa » (`es-fr.golden` today). 3,815 of
+  es-fr's 11,851 keys are not their headword, 4,665 of es-en's 13,739.
 - **Five tokens are not enough once `al` and `del` are read**: « al fin y al cabo » is five words and
   seven tokens.
 
@@ -73,13 +73,17 @@ None.
   (the pieces, the window, the article of a contraction covered, the name reported) and *A Spanish
   expression settled under its lemmas keeps that key*.
 - `lingua-decks-review`: ADDED — *Review finds a Spanish expression card by its name*.
+- `lingua-data-packs`: MODIFIED — *Versioned pack container, keyed by language pair*: a section the
+  builder derives from committed tables (the names) leaves `pack_version` alone, the pin recording
+  the bytes; a table added with new tables still bumps it (design D9). No open change holds it.
 
-No requirement is modified. For Spanish, the first two take the place of the key and match rules
-of `add-lingua-expression-table`'s *Multi-word expression table* and *Expression lookup in a phrase
-gloss*, and of the sentences of change 44's *A French pack keys its expressions as French is read*
-and *French expressions are found on French's reading of a selection* that keep Spanish as it was;
-both changes are open, so each requirement here says so rather than MODIFY them (design D9). The
-four changes whose requirements this one builds on are in `archiveAfter`.
+For Spanish, the ADDED requirements take the place of the key and match rules of
+`add-lingua-expression-table`'s *Multi-word expression table* and *Expression lookup in a phrase
+gloss*, and of the sentences of change 44's *A French pack keys its expressions as French is read*,
+*French expressions are found on French's reading of a selection* and *Review finds a French
+expression card by its name* that keep Spanish as it was; both changes are open, so each
+requirement here says so rather than MODIFY them (design D9). The four changes whose requirements
+this one builds on are in `archiveAfter`.
 
 ## Impact
 
@@ -99,10 +103,12 @@ four changes whose requirements this one builds on are in `archiveAfter`.
 
   ID, Music, Live, the back office, the site, the backend, the Apple host app, the agent plugin
   (which reads no expression) and every reducer are untouched.
-- **Release.** Visible to readers of Spanish (es-fr) in the next release, with the owner's approval
-  of the re-bless (the programme's rule: es-fr's output moves only so). es-en is not shipped yet.
-- **Compatibility.** No table, stored format, wire field or `pack_version` moves. The packs gain an
-  optional section an older core ignores; a pack and its core ship together. A reader's statuses
-  and cards are not rewritten (D6).
+- **Release.** es-fr has shipped: merging changes no reader's extension. The change reaches es-fr's
+  readers only with an extension release — Chrome, Firefox and the Safari host app, each carrying
+  the new pack — which the owner decides (M18, task 6.4), after approving the re-bless (6.1). es-en
+  is not shipped yet.
+- **Compatibility.** No table, stored format, wire field or `pack_version` moves (the container's
+  `pack_version` sentence modified to say so, D9). The packs gain an optional section an older core
+  ignores; a pack and its core ship together. A reader's statuses and cards are not rewritten (D6).
 - **Effort, against no programme estimate (outside the 57)**: 1.5–2.5 ideal days (design,
   *Effort*).

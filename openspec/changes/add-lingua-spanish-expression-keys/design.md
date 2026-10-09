@@ -19,16 +19,19 @@ See proposal.md (Why). How Spanish expressions are keyed and found on `origin/ma
 **The figures today.** es-fr keys 11,972 headwords on 11,851 keys, es-en 13,889 on 13,739. Of
 those, a selection reaches only the keys of five tokens or fewer that hold no `al` or `del` as a
 word: es-fr **11,199 headwords on 11,081 keys**, es-en **12,966 on 12,822**. The 526 es-fr keys and
-607 es-en keys written `al …`/`del …` are never met, nor the 302 es-fr headwords keyed on more
-than five tokens. 3,815 of es-fr's keys and 4,665 of es-en's are not their headword, and the card shows them
-(`es-fr.golden`: `tener en contar`, `dar contar`, `haber que`, `a el vez`).
+607 es-en keys holding `al` or `del` as a word are never met, nor the 302 es-fr headwords keyed on
+more than five tokens. 3,815 of es-fr's keys and 4,665 of es-en's are not their headword, and the
+card shows them (`es-fr.golden`: `tener en contar`, `dar contar`, `a el` on « a la casa »).
 
 **How it was measured.** A scratch copy of `origin/main` at bac5cc51, never committed, carrying a
 prototype of this design (the core, the builder and review, about 120 lines), measured on the
 committed `tables/es`, `tables/es-fr` and `tables/es-en` and on the Spanish baseline's corpus
 (`crates/lingua-wasm/tests/baseline/pages-es.txt`, 13 pages), each block glossed as one selection
 through the real `gloss_phrase`. Every variant below was built into real packs; the goldens were
-re-blessed on the prototype, and each rule switched off once to see it in the diff (D8).
+re-blessed on the prototype, and each rule switched off once to see it in the diff (D8). Every
+figure here was measured again on `origin/main` f43c6035 (changes 42 and 50 merged), the same,
+the re-blessed goldens byte for byte the prototype's but for `fr-en.golden`, which moves on its
+`beside es-en` line alone there too.
 
 ## Goals / Non-Goals
 
@@ -187,17 +190,30 @@ es-fr is read. Until this change the phrase gloss reported a Spanish expression 
 lemmas, joined — the key — and the reader's status, and the deck card the « + Deck » gesture makes
 (it sets « learning »), were written on that string. Measured: of the 11,199 headwords es-fr
 reaches today, **3,538** would be reported under another string (3,499 distinct strings today);
-es-en, not shipped, 4,333 of 12,966. A reader who marked `tener en contar` known would see
+es-en, not shipped, 4,333 of 12,966 (4,282 strings). Glossing every headword as a selection through
+today's and the prototype's `gloss_phrase` gives the same strings: 3,543 and 4,337 headwords, the
+extra 5 and 4 reached today only through another headword's key (« al arma » answering
+`a las armas`'s `a el arma`). A reader who marked `tener en contar` known would see
 `tener en cuenta` unknown, and « + Deck » would make a second card.
 
 So, in a Spanish match: when the reader holds a record on the run's lemma chain — a status, or a
-withdrawn one (`KnowledgeState::explicit_status` or `status_updated_at`) — and none on the name,
-the match reports the lemma chain as its key and reads its class there. The chain is computed on
-the run before D5's extension, so it is exactly what the phrase gloss reported for those tokens
-before. The card is then headed, keyed and acted on as it was: its status, its deck card, « Je
-connais » and the retirement of the card all reach the same record. Every expression the reader
+withdrawn one: an explicit status or a sync stamp, whatever its time, as `KnowledgeState`'s
+`is_withdrawn` reads it (the prototype's `status_updated_at != 0` misses a withdrawal stamped 0) —
+and none on the name, the match reports the lemma chain as its key and reads its class there. The
+chain is computed on the run before D5's extension, so it is exactly what the phrase gloss reported
+for those tokens before. The card is then headed, keyed and acted on as it was: its status, its
+deck card, « Je connais » and the retirement of the card all reach the same record. Every expression the reader
 never settled is named (D3). No record is rewritten and nothing new is synced; the knowledge model
 is per studied language, so the rule is Spanish's, whatever the native language.
+
+Across devices: a status pulled from the server goes through `applyStatusChanges` →
+`KnowledgeState::apply_status_lww`, which stores it, or a withdrawal's stamp, exactly as a local
+gesture does, and the server's rows are keyed by `(user_id, language, lemma)`
+(`backend/lingua` `word_statuses`), the native language no part of them; a sync applies the
+statuses before the cards (`sync.ts`). So a chain settled before the update, or on a device not yet
+updated, is found on every device. Measured on the prototype with records pulled through
+`apply_status_lww`: `tener en contar` known keeps « tener en cuenta » on it, known; `a el vez`
+withdrawn keeps « a la vez » on `a el vez`; `a el` learning answers « a los » as `a el`.
 
 Measured on the prototype, a reader holding `tener en contar` known and `a el vez` learning:
 « tener en cuenta » answers `tener en contar`, known; « a la vez » answers `a el vez`, learning (the
@@ -226,8 +242,8 @@ holds such a card, so no golden moves.
 
 ### D8 — What moves, what does not, and what the goldens show
 
-**`es-fr.golden`**, re-blessed on the prototype: **8 of its 133 probes move, 4 are added, 125 are
-byte for byte.**
+**`es-fr.golden`**, re-blessed on the prototype: **8 of its 133 sections move — its `pack` line and
+7 phrase probes —, 4 probes are added, 125 sections are byte for byte.**
 - `pack`: 2,190,188 → 2,224,439 bytes (`pack_version` and `analyzer_version` unchanged);
 - « tener en cuenta »: `tener en contar` → `tener en cuenta` (D3);
 - « darse cuenta »: `dar contar` → `dar cuenta`, the same gloss (D3);
@@ -240,7 +256,8 @@ byte for byte.**
   `a el vez`), « después del » → `después de` over its three tokens (today two), « al fin y al
   cabo » → one match over seven tokens (today `a el` « À la » twice).
 
-**`es-en.golden`**: **8 of its 172 probes move, the same 4 are added, 164 are byte for byte.** The
+**`es-en.golden`**: **8 of its 172 sections move, the same 4 probes are added, 164 are byte for
+byte.** The
 `pack` line (2,567,804 → 2,608,413 bytes); `tener en cuenta`; « darse cuenta » → `darse cuenta`
 (es-en holds no `dar cuenta`); « al aire libre » → `al aire libre` « outdoors (in the open air) »
 over four tokens, where `a el` and `aire libre` answered; `de el` → `de la` « of the » on « de la
@@ -261,7 +278,7 @@ byte); `english_baseline` (en-fr), `en_es_baseline`, `cross_native`, `parity`,
 two unit tests that assert Spanish is keyed as before, rewritten here (the Spanish line of
 `a_french_key_writes_its_determiners_and_lemmatises_the_rest`, and
 `an_english_or_spanish_pack_carries_no_names`);
-`committed_tables` once the two pins move, en-fr's and en-es's pins included; the English and
+`committed_tables` once the two pins move, en-fr's, en-es's and fr-en's pins included; the English and
 Spanish fixtures (`pipeline_testdata`: the Spanish fixtures hold no expression); the reducers' 405
 Python tests. The extension's snapshots — `word-card-es-en.txt` (the es-en golden's `word-grammar`
 probes), `selection-rows-fr.txt` (the committed glosses), `word-card-en-es.txt` and
@@ -285,17 +302,27 @@ re-measured on the implementation's base.
 ### D9 — The version, `pack_version`, and the requirements this one narrows
 
 - **Spanish's analyser version does not move.** No token and no lemma changes (D8); the keys and the
-  names are pack data built by the core that ships with the pack (*Packs stay embedded, one package
-  per store*), and D5 and D6 change which tokens a match covers and which string it reports, not
-  the analysis. A pack built here read by a core before it would miss the keys holding a written
+  names are pack data built by the core that ships with the pack (the programme's *Packs stay
+  embedded, one package per store*), and D5 and D6 change which tokens a match covers and which
+  string it reports, not the analysis. A pack built here read by a core before it would miss the keys holding a written
   determiner or longer than five tokens and show lemma chains; no such pairing ships. This change
   names no version number.
-- **`pack_version` does not move.** *A pack says which dictionary it is* identifies the tables, and
-  the tables do not move (*Two releases, one dictionary*); the checks derive `pack_version` from the
-  pin's snapshot and rules (`test_pack_sources.py`). What records the new bytes is the pin's `pack`
-  (*Reproducible offline build*). The container's sentence that adding an additive table « SHALL
-  bump `pack_version` » predates the pins; the names section is additive (an older core ignores it,
-  `FORMAT_VERSION` 1) and nothing reads `pack_version` to choose a pack (open question 5).
+- **`pack_version` does not move, and the container says so.** *A pack says which dictionary it is*
+  identifies the tables, and the tables do not move (*Two releases, one dictionary*); the reducer
+  writes `pack_version` from the pin's snapshot and rules (`pack_sources.py version`, checked by
+  `test_pack_sources.py`), so a builder change cannot move it without inventing a version the
+  tables do not have. What records the new bytes is the pin's `pack` (*Reproducible offline build*:
+  a pull request that changes the builder so that the pack's sha256 no longer holds fails until the
+  pin moves), as #690 moved es-fr's sha256 with no new `pack_version`. But *Versioned pack
+  container, keyed by language pair* says that adding an additive table « SHALL bump
+  `pack_version` », and the names section is one (an older core ignores it, `FORMAT_VERSION` 1):
+  keeping es-fr's and es-en's `pack_version` would break it the day this change merges, so it is
+  not left to archive. No open change holds that requirement, so this change MODIFIES it: a table
+  added with new tables bumps `pack_version`, as new tables do — the expression table and the
+  grammar tables did, and change 44's names came with new fixture tables (`0.0.1-fixture` →
+  `0.0.2-fixture`) —; a section the builder derives from committed tables leaves it alone, its
+  bytes recorded by the pin. Nothing but the goldens and the checks reads `pack_version`: the core
+  loads a pack on its `analyzer_version` alone, and no surface chooses or caches a pack by it.
 - **The requirements this one narrows.** `add-lingua-expression-table` (open) holds *Multi-word
   expression table* (« the sequence of dictionary forms of its words ») and *Expression lookup in a
   phrase gloss* (runs of « dictionary forms »), and *An expression is the card's answer* (« key the
@@ -303,12 +330,15 @@ re-measured on the implementation's base.
   a settled expression); change 44 (open) holds *A French pack keys its expressions as French is
   read* (« A pack studying English or Spanish SHALL be keyed as before and carry no such section »)
   and *French expressions are found on French's reading of a selection* (« English and Spanish
-  selections SHALL be matched as before, over runs of up to five tokens, on their lemmas »). None
-  is MODIFIED: this change's ADDED requirements each say they take the place of those sentences for
-  Spanish, and the four changes are in `archiveAfter`; change 44's own `archiveAfter` orders the
-  French changes that hold *A French invariance baseline runs beside the English and Spanish ones*,
-  whose `beside es-en` line moves here. The wording at archive is the owner's, as change 44's open
-  question 5 was settled.
+  selections SHALL be matched as before, over runs of up to five tokens, on their lemmas ») and
+  *Review finds a French expression card by its name* (« Every other card SHALL be looked up as
+  before »). None is MODIFIED: this change's ADDED requirements each say they take the place of
+  those sentences for Spanish, and the four changes are in `archiveAfter`; change 44's own
+  `archiveAfter` orders the French changes that hold *A French invariance baseline runs beside the
+  English and Spanish ones*, whose `beside es-en` line moves here. Change 48's *fr-en is committed at
+  its studied tables' snapshot…* (« es-fr's, es-en's … pins, packs and goldens SHALL NOT move »)
+  speaks of fr-en's own commit, not of a later change, and is not narrowed. The wording at archive
+  is the owner's, as change 44's open question 5 was settled.
 
 ### D10 — What other changes take from here
 
@@ -316,7 +346,8 @@ re-measured on the implementation's base.
 |---|---|
 | 34 `enable-lingua-english-speakers` | es-en ships keyed and named as Spanish is read if this lands first; if not, its readers' records are D6's too (one knowledge model per studied language) |
 | 48, 49 (fr-en, fr-es) | nothing: French keeps change 44's rules byte for byte |
-| 51 French word card | D5's French counterpart, if the owner wants it (open question 3) |
+| 51 French word card | D5's French counterpart, if the owner wants it (open question 3); `french_expression_key`, which it names, stays — French's call of `reading_expression_key` |
+| `fix-lingua-lemma-lookup` (outside the 57) | both re-bless `es-fr.golden` and `es-en.golden`, it on the lines that read another word's entry, this change on its `pack` line and phrase probes: whichever lands second re-blesses them and lists its own lines only; neither moves the other's keys (`reading_expression_key` asks `contains_lemma`, which it leaves alone) |
 | 54, 56 wording | nothing: no interface text moves |
 
 ## Risks / Trade-offs
@@ -329,6 +360,10 @@ re-measured on the implementation's base.
   gloss unchanged. As English's `break point` and French's `ça ira`.
 - [A reader's records under a lemma chain] → Kept (D6). A record set on a chain after this change
   ships — by a device not yet updated — is read too.
+- [Devices on different releases] → The stores do not publish on the same day (the Safari host app
+  waits for App Store review): until every device is updated, a status set on a name by an updated
+  device is not read by one that is not, which still shows the lemma chain. It resolves with the
+  update; nothing is lost.
 - [Names differ between es-fr and es-en] → 75 of 3,757 keys (D3); a status set under one native
   language's name is not read under the other's.
 - [A card made before, reviewed in another language] → 747 of es-fr's keys moved (D7): such a card
@@ -366,7 +401,8 @@ For the owner, none blocking:
    decided on 2026-10-10: 75 of the 3,757 keys es-fr and es-en both reach are named differently, so
    a status set under one is not read under the other.
 5. **Held wording (D9).** *Multi-word expression table*, *Expression lookup in a phrase gloss* and
-   *An expression is the card's answer* (`add-lingua-expression-table`), change 44's two French
-   requirements' sentences keeping Spanish as it was, and the container's « adding it SHALL bump
-   `pack_version` », which pinned packs no longer follow: reworded when they are archived, as change
-   44's open question 5 was settled.
+   *An expression is the card's answer* (`add-lingua-expression-table`), and change 44's three
+   requirements' sentences keeping Spanish as it was: reworded when they are archived, as change
+   44's open question 5 was settled. The container's « adding it SHALL bump `pack_version` » is not
+   deferred: no open change holds it, and this change MODIFIES it (D9) — the owner may prefer a
+   new `pack_version` scheme naming the builder, a larger change of its own.
