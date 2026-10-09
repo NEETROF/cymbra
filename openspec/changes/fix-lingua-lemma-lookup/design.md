@@ -49,14 +49,15 @@ reads them (pool = the forms' lemmas, the ranked and the glossed):
 | en-fr, en-es (`tables/en/`) | 75,315 | 40,685 | 0 | 0 | 0 | 0 of the ranks, glosses, 8,302 levels, dictionary words, readings (20,205 lemmas), runs |
 | es-fr, es-en (`tables/es/`) | 144,952 | 60,000 | 0 | 0 | 0 | 0 (27,233 lemmas with readings) |
 | fr-en, change 43's implementation (2026-10-09, `a75baae2`) | 124,096 | 60,000 | 0 | 0 | 0 | 0 |
-| fr-en, change 43's earlier prototype (change 46's measurement) | 124,040 | 60,002 | 0 | 5: `bordée`, `donnée`, `retombée`, `tranchée`, `venue` | 2: `porte`, `saisie` | the 5 lemmas' ranks |
+| fr-en, change 43's earlier prototype (change 46's measurement) | 124,040 | 60,002 | 0 | 5: `bordée`, `donnée`, `retombée`, `tranchée`, `venue` | 2: `porte`, `saisie` | the 5 lemmas' ranks, and without change 46's rule 4 three levels (`donnée`, `tranchée`, `venue`) |
 
 The prototype builder builds the four committed pairs **to the sha256 their pins record**, the five
 `testdata/` pairs byte for byte as today's builder does (en-fr's is the extension's and lingua-wasm's
 fixture, es-fr's the agent's), change 43's implemented fr-en pack to its pin (1,241,733 B) and change
 41's French fixture (5,439 B); it refuses change 43's earlier prototype, naming `bordée` (read as
-*border*) first, and a fixture listing `porte` as `porte` and as `porter`. On a fixture where a level table gives `donner` A1 then `donnée` B1 and the
-forms map `donnée` to *donner*, today's builder makes *donner* B1, the prototype A1.
+*border*) first, and a fixture listing `porte` as `porte` and as `porter`. On a fixture where a
+level table gives `donner` A1 then `donnée` B1 and the forms map `donnée` to *donner*, today's builder
+makes *donner* B1, the prototype A1.
 
 **What a string that is no lemma reads today.** Every form of a pack's lexicon that is no lemma
 (en 34,630; es 84,952; fr about 64,100) reads another word's entry when asked as a lemma. The
@@ -120,7 +121,7 @@ The commonest real words, and what their card reads today (en-fr, es-fr):
   whole suite on the prototype's WASM: 122 of 123 files pass, the 123rd that snapshot.
 - Every Rust test of lingua-core, lingua-pack, lingua-wasm and lingua-agent passes with the goldens
   re-blessed (37 test binaries), `cross_native.rs` and the studied-side comparisons of changes 23
-  and 24 included.
+  and 24 included, and so does the WASM lane (`wasm-pack test --node crates/lingua-wasm`).
 
 ## Decisions
 
@@ -131,7 +132,8 @@ the pool, whatever the forms say of its spelling. The builder writes the pool so
 repeat (`build_lexicon_blobs` has since the first pack); `from_slices` now checks it once, at load, and
 refuses a pool out of order or with a repeated lemma, as it refuses a form pointing outside the pool
 (`LexiconError`, `PackError::Lexicon`: no partial analysis). `id_of` stays the form lookup, its
-comment corrected.
+comment corrected. A lookup costs about sixteen string comparisons over 60,000 lemmas, the check one
+pass over the pool when a pack loads; no memory is added.
 
 *Rejected — `id_of` then `lemma_at(id) == lemma`.* Exact on every pack D4 lets the builder write, and
 no memory; but the lookup would depend on the forms reading every lemma as itself, and a lemma
@@ -152,8 +154,8 @@ it is right for a share of Spanish diminutives and variants (`videos` « Vidéo 
 and wrong for English nouns read through a verb (`buildings` « Construire », `settings` « Prêt »,
 `wounds` « Vent »), Spanish nouns read through a verb (`cuentos` « Compter ») and every
 probe that asks a homograph (`saw` « Voir »). Kept, it would sit under a headword it does not
-describe, without the parts of speech its senses had, beside no reading — and *A gloss is in the
-reader's language, written by a person* is a gloss of the word shown. A word card with no gloss is
+describe, without the parts of speech its senses had, beside no reading: the dictionary's gloss of
+one word shown as another's, which no table wrote and no reviewer of a table sees. A word card with no gloss is
 translated in its sentence where the reader has translation (`wordEngine`), as any word the pack does
 not gloss already is; a review card keeps the gloss it stored (`readable_gloss`). The owner may prefer
 the spelling's gloss for Spanish (open question 1).
@@ -247,8 +249,8 @@ owner's. Rollback is a revert, the goldens and the snapshot reverting with it.
 
 ## Effort
 
-1–2 ideal days: the core's lookup and its load check 0.25–0.5, the builder's refusals and keying 0.25–0.5,
-the tests 0.5–0.75, the re-bless and the pull request's line-by-line list 0.25.
+1.25–2 ideal days: the core's lookup and its load check 0.25–0.5, the builder's refusals and keying
+0.25–0.5, the tests 0.5–0.75, the re-bless and the pull request's line-by-line list 0.25.
 
 ## Open Questions
 
