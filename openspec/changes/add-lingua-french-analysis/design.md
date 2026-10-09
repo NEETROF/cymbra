@@ -56,7 +56,7 @@ switchable, so that each was measured alone and switched off from the whole. Thr
 
 ## Decisions
 
-### D1 — NFC is a rule of French's pre-pass, not of its cascade
+### D1 — NFC is a rule of French's pre-pass, not of its cascade alone
 
 French's arm composes every word it reads, before anything compares it: the elided piece looked up
 in `FRENCH_ELISIONS`, the `au`/`aux` check, the run `listed_whole` looks up, and each token's text
@@ -99,7 +99,7 @@ reads as *être*, stays out (its D3, « an unknown word rather than the verb »)
 unknown word. The cascade never picks between a form's readings; lemma alternatives stay the
 optional `add-lingua-lemma-alternatives`.
 
-**Why lowercase only.** On the raw corpus 913 of the rule's 2,313 hits were capitalised, every one
+**Why lowercase only.** On the raw corpus 910 of the rule's 2,310 hits were capitalised, every one
 a name or a people already set aside as a proper noun (`Lluís` → `lluí`, `Niaux` → `nial`,
 `Wisigoths`): the rule only renamed them. Lowercase, it moves 1,400 tokens (0.16 %), 965 distinct
 words: `belgicismes`, `félibres`, `patoisants`, `comarques`, `alluvions`, `ramures` — and leaves 63
@@ -120,9 +120,9 @@ and 99.72 %, unchanged.
 |---|---|---|---|
 | A capital without its accent (`Ecole` → `école`, `Etat` → `état`) | 3 tokens (13 more, `Etat`, `Etats`, `Ecole`, are then set aside by the names rule, D4) | none in PUD; 5 words in GSD's 400,000 | edited French sets its accents on capitals |
 | `oe` read as `œ` (`manoeuvre`) | 3 tokens | 0 | change 43 maps the dictionary's ASCII spellings (`coeur`, its D7) |
-| A plural or feminine read through its listed singular (`vivantes` → *vivre*) | 1,102 tokens: `servante` → *servir*, `subite` → *subir*, `étés` → *être*, `surplombe` → *surplomb* | PUD 99.12 → 99.23 % resolved, content 96.48 → 96.51 % | it undoes change 43's D3 (*A noun's plural is not its homograph's verb*) and M8's choice, word by word |
+| A plural or feminine read through its listed singular (`vivantes` → *vivre*) | 1,098 tokens: `servante` → *servir*, `subite` → *subir*, `étés` → *être*, `surplombe` → *surplomb* | PUD 99.12 → 99.23 % resolved, content 96.48 → 96.51 % | it undoes change 43's D3 (*A noun's plural is not its homograph's verb*) and M8's choice, word by word |
 | Verb endings checked against the lexicon (`promenèrent` → *promener*) | 458 tokens (0.056 %), with `silve` → *silver*, `enfe` → *enfer*, `meurtrie` → *meurtrier* | — | guesswork where the tables are exact; the literary forms belong in them (change 43's « every form » cut, its D8) |
-| A capital `A` read as `à` | 169 standalone `A`, 110 of them before a lowercase word (`A présent`, `A la`); 610 `À` | GSD and PUD read 96 standalone `A` as `à`, 2 as a verb | `a` is listed (*avoir*), and an inversion's `A` (`A-t-il`) is *avoir*: the tokeniser's knowledge, not the cascade's; both readings are among the commonest words and both are function words (D3) |
+| A capital `A` read as `à` | 169 standalone `A`, 110 of them before a lowercase word (`A présent`, `A la`); 610 `À` | GSD and PUD read 96 standalone `A` as `à`, 1 as *avoir* | `a` is listed (*avoir*), and an inversion's `A` (`A-t-il`) is *avoir*: the tokeniser's knowledge, not the cascade's; both readings are among the commonest words and both are function words (D3) |
 
 *Rejected — Spanish's cascade.* Its accent retry reads the spellings the 2010 rules retired, which
 French has no equivalent of; enclitics are hyphenated in French and split by change 40.
@@ -160,19 +160,21 @@ of their own: change 43's tables keep `cet`, `ma`, `mes`, `ta`, `tes`, `ton` apa
 so that a later reduction moving a form to its own lemma does not give a gloss a row for it.
 
 **What a table hides**, measured on GSD (train, dev and test; the words whose form change 43's
-tables read as the lemma, and those the treebank reads as another word or tags NOUN):
+tables read as the lemma, and those the treebank reads as another word or tags NOUN); « the other
+treebanks » are the test sections of FQB, ParTUT, ParisStories, PUD, Rhapsodie and Sequoia
+(Sequoia's dev too):
 
 | Lemma | GSD words | Read otherwise | Decision |
 |---|---|---|---|
-| `pas` | 1,047 | 10 nouns « step » (1.0 %); the other six French treebanks: 9 of 576 | kept (M21); the noun's row is lost with it, as M8 already merges the two |
+| `pas` | 1,047 | 10 nouns « step » (1.0 %); the other treebanks 6 of 430 | kept (M21); the noun's row is lost with it, as M8 already merges the two |
 | `son` | 3,287 | 21 nouns « sound » (0.6 %) | kept |
-| `ton` | 18 | 10 nouns « tone »; the other treebanks 4 of 8 | kept with the possessives — open question 2 |
+| `ton` | 18 | 10 nouns « tone »; the other treebanks 1 of 4 | kept with the possessives — open question 2 |
 | `car` | 132 | 4 nouns « coach » | kept |
 | `entre` | 493 | 27 forms of *entrer*, already read as *entre* by the tables (M8) | kept |
 | `contre`, `avant`, `vers` | 300, 258, 225 | 24, 14, 8 nouns | kept |
 | `pouvoir`, `devoir` | 773, 355 | 89 and 9 nouns (« power », « duty ») | kept, as Spanish's `poder` |
 | `peu` | 248 | 74 tagged NOUN, all `un peu` | kept |
-| `personne` | 171 | 153 nouns (89.5 %; the other treebanks 24 of 32) | **left out** |
+| `personne` | 171 | 153 nouns (89.5 %; the other treebanks 53 of 59) | **left out** |
 | `point` | 185 | 173 nouns (93.5 %) | **left out** — `ne … point` is literary |
 | `or` | 69 | 51 nouns « gold » (73.9 %) | **left out** |
 | `certain` | 241 | 61 adjectives « sure » | left out |
@@ -214,9 +216,9 @@ Spanish's arm is unchanged (no elision evidence, no runs); English has no names 
 
 By source, with the stand-in: novels 2,438 tokens (1.1 %), Tatoeba 1,925 (1.2 %), UD's raw
 sentences 5,187 (4.4 %), Wikipedia 22,032 (6.0 %). The commonest forms set aside: `France` (821),
-`Tom` (752), `Toulouse`, `Montpellier`, `Paris`, `Mme` (398), `Montréal`, `Europe`; after an elided
-piece `Espagne` (142), `Europe` (120), `Italie`, `Algérie`, `UNESCO`; as runs `Haute-Garonne` (65),
-`Saint-Laurent`, `Saint-Jean`, `Michel-Ange`, `Radio-Canada`. A random sample of 80 runs and of 60
+`Tom` (752), `Toulouse` (717), `Montpellier`, `Catalogne`, `Barcelone`, `Mme` (398), `Montréal`,
+`Paris`; after an elided piece `Espagne` (142), `Europe` (120), `Hérault`, `Aragon`, `Italie`; as
+runs `Haute-Garonne` (65), `Saint-Laurent`, `Saint-Jean`, `Saint-Sernin`, `Charles-Eugène`. A random sample of 80 runs and of 60
 words set aside reads as names, acronyms, roman numerals and English words; of the 6,867 distinct
 forms, 287 have a lemma among the 3,000 commonest — names, titles, letters, acronyms and English
 words (`France`, `Paris`, `Mme`, `The`, `New`, `II`), and a few French words: `Etat`, `Etats`,
@@ -287,7 +289,8 @@ M8's cost) and « Personne au village ne se souvenait » (`personne` not flagged
 - `pack`: `analyzer_version "1.0.0"`, 5,139 → 5,439 bytes.
 - The 13 `analyse new-reader` pages and the 4 `analyse reader` pages (the version on each).
 - 20 of the 22 phrase glosses (their function-word flags; « Aujourd'hui » and « The lighthouse
-  stood » hold none) and the reader's phrase gloss.
+  stood » hold none — « Longtemps, je me suis couché… » also reads `Longtemps` as a word, the
+  fixture's `longtemps`) and the reader's phrase gloss.
 - Unmoved: every `gloss` and `word-grammar` probe, the expressions of every phrase gloss, the
   levels, the ladder, the estimates, the review, the exports and the backup.
 
@@ -328,25 +331,46 @@ prototype: these nine Rust tests and no others fail before they are rewritten): 
 `spec_scenario_a_french_reader_s_backup_is_version_3` (`languages.rs`); and the extension's
 `test/packs.spec.ts`, which reads French's version.
 
-### D8 — OpenSpec: ADDED only
+### D8 — OpenSpec: the baseline's requirements rewritten, not handed on
 
 Four ADDED requirements in `lingua-analysis`, held by no other change: *French text is read in
 NFC*, *French lemmatisation cascade*, *French closed classes*, *A French document's names are set
-aside*. None is MODIFIED.
+aside*.
 
-The two requirements change 39 added and change 40 MODIFIED are left to them. Their wording was
-written to expire: French is served « until its lemmatisation rules are written » by the rest of the
-baseline, at « `0.2.0` while its lemmatisation is the baseline's ». *French lemmatisation cascade*
-says that these are French's lemmatisation rules, so those clauses no longer bind. Three scenarios
-name what this change ends and will read false once it is implemented: *No French word is a
-function word yet* and *Each language reports its own version* (`0.2.0`) in *French is a studied
-language served by the baseline analysis*, and *What the baseline shows today* (`0.2.0`, no function
-word) in *A French invariance baseline runs beside the English and Spanish ones*. They are handed on
-(open question 1).
+The requirements change 39 added and change 40 MODIFIED would read false once this change is
+implemented, and an archived spec would hold them beside this change's: *Each language reports its
+own version* (`0.2.0`) and *No French word is a function word yet* in *French is a studied language
+served by the baseline analysis*, *What the baseline shows today* (`0.2.0`, no function word) in *A
+French invariance baseline runs beside the English and Spanish ones*, and, in `lingua-data-packs`,
+change 39's *A French pack at French's analyser version* in *A pack names the language it studies*,
+where a pack at `0.1.0` loads (false since change 40, and its `1.1.0` refused would turn false at
+change 42). So this change rewrites them, as change 40's D10 asks of the change that writes the
+cascade, every requirement it touches archived after the changes that hold it:
+- *French is a studied language served by the baseline analysis* is REMOVED and replaced by the
+  ADDED *French is a studied language served by its own analysis*: its name and *No French word is
+  a function word yet* describe the baseline this change ends, and `openspec archive` refuses a
+  MODIFIED block that drops a scenario (measured: « current spec contains scenario(s) not present
+  in the modified block … Aborted »). Its five other scenarios are carried over verbatim, and *Each
+  language reports its own version* names French's own version, no `0.x` one;
+- *A French invariance baseline runs beside the English and Spanish ones* is MODIFIED: *What the
+  baseline shows today* names French's own version; the requirement and its other scenarios are
+  change 40's;
+- *A pack names the language it studies* is MODIFIED: its French scenario has a pack at French's
+  version load and one at `0.2.0` refused; the rest is change 39's.
 
-`archiveAfter`: change 39 and change 40, whose requirements this change's build on (the French
-variant, the pre-pass whose pieces it reads), and change 43, whose tables decide every lemma it
-returns (*French's forms and frequencies*). `openspec_archive_order.py` exits 10 naming the three.
+No version number is named that change 42's bump (`1.1.0`) would contradict. Checked by archiving
+changes 39, 40 and 41 in turn on a scratch copy of `openspec/`: each archive succeeds, and no
+French scenario of `lingua-analysis` or `lingua-data-packs` names `0.1.0` or `0.2.0` but those
+that refuse a pack at it.
+
+This change's own *What the French baseline shows* is bound to the fixture pack (« runs over its
+fixture pack »): once change 48 builds the baseline from the committed tables, `aube` (« dawn »)
+and `lot` are likely dictionary words, and `Aube` and `Lot` would stay words.
+
+`archiveAfter`: change 39 and change 40, which hold the three requirements rewritten here and whose
+requirements this change's build on (the French variant, the pre-pass whose pieces it reads), and
+change 43, whose tables decide every lemma it returns (*French's forms and frequencies*).
+`openspec_archive_order.py` exits 10 naming the three.
 The phrase gloss's function-word flag is `add-lingua-phrase-gloss`'s (open, implemented, one owner
 task left); an ADDED requirement needs no order on it, as *Spanish closed classes* did not.
 
@@ -379,17 +403,15 @@ tables re-reduced if change 43 has merged. Rollback is a revert.
 ## Open Questions
 
 For the owner, none blocking:
-1. **The baseline's scenarios after the cascade** (D8). This change only adds requirements, so
-   once changes 39, 40 and 41 are archived the spec still holds *No French word is a function word
-   yet*, *Each language reports its own version* (`0.2.0`) and *What the baseline shows today*
-   beside this change's. Recommended: the first change archived after this one that touches *French
-   is a studied language served by the baseline analysis* or *A French invariance baseline…* — at
-   the latest `enable-lingua-french` (change 52) — MODIFIES both to drop the baseline's tense (the
-   first one's name too), as `add-lingua-spanish-analysis` rewrote *Analysis by studied language*.
-   The alternative is this change MODIFYING them with change 40 in `archiveAfter`, which the
-   programme's rules allow.
-2. **`ton`** (D3): flagged with the possessives, it hides « tone » (10 of GSD's 18 uses, 4 of 8 in
-   the other treebanks). Leaving it out is one line.
+1. **The baseline's requirements, rewritten here** (D8). Done in this change: *French is a
+   studied language served by the baseline analysis* REMOVED for the ADDED *… served by its own
+   analysis*, *A French invariance baseline…* and *A pack names the language it studies* MODIFIED,
+   each archived after changes 39 and 40, so that no archived scenario reads `0.1.0`, `0.2.0` or
+   « no function word yet » beside this change's. The alternative, leaving them to a later change
+   (at the latest `enable-lingua-french`, change 52), leaves the spec false between the two
+   archives.
+2. **`ton`** (D3): flagged with the possessives, it hides « tone » (10 of GSD's 18 uses; 1 of 4 in
+   the test sections of the other six treebanks). Leaving it out is one line.
 3. **The names rule's two French readings** (D4) — after an elided piece, over a hyphenated run —
    go beyond Spanish's rule as the owner chose it (2026-10-04); measured at 1,684 and 2,350 raw
    tokens, names in every sample.

@@ -12,7 +12,7 @@
 ## 3. French's closed classes (crates/lingua-core)
 
 - [ ] 3.1 `analysis/function_words.rs`: six sorted French tables (D3) — determiners, pronouns, prepositions, conjunctions, auxiliaries and modals, negation — each with its doc line saying what it holds and what is left out and why (`personne`, `point`, `or`, `certain`, `plus`, `jamais`, `guère`, `falloir`, `vouloir`, `aller`, `faire`, `voici`, `voilà`), the inflected forms a pack may keep as lemmas included; `is_function_word` answers French from them; the module doc names the three languages.
-- [ ] 3.2 Tests: every table sorted and free of duplicates (the existing test takes the French tables); one test per class; `pas` and `ne` flagged; `personne`, `point`, `or`, `jamais`, `plus`, `faire` not; `spec_scenario_no_french_word_is_a_function_word_yet` becomes `spec_scenario_a_french_phrase` (« la maison de mon père »); `each_language_is_judged_by_its_own_tables` gains French (`de` French and Spanish, `the` English only, `le` French only).
+- [ ] 3.2 Tests: every table sorted, so free of duplicates (the existing test's sort check takes the French tables; like Spanish's, and unlike English's, a word may stand in two classes — `le`, `la`, `les`, `leur` and `ce` determiners and pronouns, `en` pronoun and preposition, `que` pronoun and conjunction — so the cross-table check stays English's); one test per class; `pas` and `ne` flagged; `personne`, `point`, `or`, `jamais`, `plus`, `faire` not; `spec_scenario_no_french_word_is_a_function_word_yet` becomes `spec_scenario_a_french_phrase` (« la maison de mon père »); `each_language_is_judged_by_its_own_tables` gains French (`de` French and Spanish, `the` English only, `ne` French only — Spanish lists `le` too).
 
 ## 4. A French document's names (crates/lingua-core)
 
@@ -32,7 +32,7 @@
 
 - [ ] 7.1 `scripts/lingua-data/testdata/fr-en/`: `manifest.json` at `1.0.0`; `forms.tsv` gains `printemps`, `moins`, `longtemps`, `travail`, `travaux` (→ `travail`), `endormir`, `endors` (→ `endormir`), `apres`, `paris`, `lot`, `aube`, `saint`, `pierre`, `orange`, `vienne` (→ `venir`), `mme` and `personne`; `gloss.tsv` gains `orange` (« orange ») and `pierre` (« stone ») (D7). The NOTICE is unchanged.
 - [ ] 7.2 `tests/support/french.rs`: `PHRASES` gains « Il ne fait pas un pas sans son chien, et le son de sa voix le rassure. » and « Personne au village ne se souvenait »; the doc comment says what `1.0.0` reads.
-- [ ] 7.3 `tests/french_baseline.rs`: the module doc says French has its analysis at `1.0.0`; `french_has_its_pre_pass_and_the_baseline_s_lemmas` becomes `french_has_its_pre_pass_and_its_analysis` — its pieces, spans and U+202F assertions kept; `pas`, `ne`, `le` flagged in the `homographes` page's phrase gloss and `personne` not, where it asserted no function word; on `noms`, `Paris`, `Lot`, `Aube`, `Jean-Pierre` and `Saint-Étienne` set aside and `Orange`, `Vienne`, `Mme` words; French's version no longer `0.x`; es-en beside, the backup at schema version 3 —; `the_nfd_block_s_memoire_is_glossed_once_french_composes_it` asserts the NFD block's token composed, lemmatised `mémoire` and glossed « memory », its span covering the decomposed bytes; `a_fixture_left_behind_its_analyser_names_its_manifest` reads `1.0.0` and names « this core is 1.0.0 ».
+- [ ] 7.3 `tests/french_baseline.rs`: the module doc says French has its analysis at `1.0.0`; `french_has_its_pre_pass_and_the_baseline_s_lemmas` becomes `french_has_its_pre_pass_and_its_analysis` — its pieces, spans and U+202F assertions kept; `pas`, `ne`, `le` flagged in the `homographes` page's phrase gloss and `personne` not, where it asserted no function word; on `noms`, `Paris`, `Lot`, `Aube`, `Jean-Pierre` and `Saint-Étienne` set aside and `Orange`, `Vienne`, `Mme` words; French's version no longer `0.x`; es-en beside and the backup at schema version 3, as before; `the_nfd_block_s_memoire_is_glossed_once_french_composes_it` asserts the NFD block's token composed, lemmatised `mémoire` and glossed « memory », its span covering the decomposed bytes; `a_fixture_left_behind_its_analyser_names_its_manifest` reads `1.0.0` and names « this core is 1.0.0 ».
 - [ ] 7.4 `tests/languages.rs` `spec_scenario_a_french_reader_s_backup_is_version_3` asserts French's new version.
 - [ ] 7.5 Re-bless once: `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline`, `tests/baseline/fr-en.golden` committed; the pull request lists what moved against `main`'s golden, rule by rule (D7: 39 probes moved, 2 added, 102 byte for byte; counted 958 → 963, glossed 387 → 390, set aside 44 → 39), and says any figure that differs from the design's.
 
@@ -42,7 +42,7 @@
 
 ## 9. Owner
 
-- [ ] 9.1 [manual] The owner reads D3's tables and their left-out words (`ton` kept, open question 2), D4's two French readings of the names rule (open question 3), and chooses how the baseline's three stale scenarios are retired (open question 1: by the next change that touches those requirements, at the latest change 52, or by this change MODIFYING them).
+- [ ] 9.1 [manual] The owner reads D3's tables and their left-out words (`ton` kept, open question 2), D4's two French readings of the names rule (open question 3), and the baseline's requirements rewritten here rather than left to change 52 (open question 1, D8).
 
 ## 10. Gates
 

@@ -69,13 +69,16 @@ None.
 ### Modified Capabilities
 
 - `lingua-analysis`: ADDED — *French text is read in NFC*, *French lemmatisation cascade*,
-  *French closed classes* and *A French document's names are set aside*. No requirement is
-  modified: *French is a studied language served by the baseline analysis* and *A French
-  invariance baseline runs beside the English and Spanish ones*, added by change 39 and
-  MODIFIED by change 40, both open, are left to them; their « until its lemmatisation rules are
-  written » ends with this change's cascade, and the three scenarios that name `0.2.0` or « no
-  function word yet » are handed on (design D8, open question 1). Archives after changes 39, 40
-  and 43 (`archiveAfter`).
+  *French closed classes*, *A French document's names are set aside*, and *French is a studied
+  language served by its own analysis*, which replaces the REMOVED *French is a studied language
+  served by the baseline analysis* (its name and its scenarios *No French word is a function word
+  yet* and `0.2.0` would read false; OpenSpec refuses a MODIFIED block that drops a scenario);
+  MODIFIED — *A French invariance baseline runs beside the English and Spanish ones*, whose *What
+  the baseline shows today* names French's own version instead of `0.2.0` (design D8).
+- `lingua-data-packs`: MODIFIED — *A pack names the language it studies*, whose *A French pack at
+  French's analyser version* no longer has a `0.1.0` pack load.
+- The three were added or MODIFIED by changes 39 and 40, both open: this change archives after
+  them, and after change 43 (`archiveAfter`), as change 40's D10 asks of it.
 
 ## Impact
 
