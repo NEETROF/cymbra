@@ -126,6 +126,21 @@ PINNED = {
             "267f3530d4f122ee85d1891800211a06dfb79347/es_gsd-ud-dev.conllu",
         },
     },
+    # UD French-GSD's training and development sections, read for their counts of each form under
+    # each lemma and of each hyphenated lemma (add-lingua-french-forms-tables D2), at the default
+    # branch's head of 2026-05-06. Its test section is the measurement's, never the reduction's.
+    "fr-en": {
+        "gsd-train": {
+            "file": "fr_gsd-ud-train.conllu",
+            "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/"
+            "94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-train.conllu",
+        },
+        "gsd-dev": {
+            "file": "fr_gsd-ud-dev.conllu",
+            "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/"
+            "94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-dev.conllu",
+        },
+    },
 }
 # ESDB, the English Speller Database (switch-lingua-inflections-to-esdb): not a file but a database
 # its repository builds; `scowl.txt` is its export. Built at the commit of `rel-2026.02.25`, with
@@ -223,6 +238,10 @@ DUMPS = {
         "es": ("kaikki-es-English.jsonl", "kaikki-es-traductions-en.jsonl"),
         "en": ("kaikki-en-traductions-es.jsonl",),
     },
+    # The English Wiktionary's French section, French's studied side: its forms and their lemmas
+    # (add-lingua-french-forms-tables D2) — the catalogue's file, no new derivation. fr-en's glosses
+    # add the translation tables (add-lingua-pack-fr-en).
+    "fr-en": {"en": ("kaikki-French.jsonl",)},
 }
 # The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as
 # a release asset (D5). Read as recorded, never written again.

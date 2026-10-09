@@ -22,7 +22,7 @@
 ## 5. French's version (crates/lingua-core, crates/lingua-pack, apps/lingua-extension)
 
 - [x] 5.1 `analysis/mod.rs`: `FRENCH_ANALYZER_VERSION = "1.0.0"`, its doc saying what `1.0.0` adds (NFC, the cascade, the closed classes, the names rule) beside `0.1.0` and `0.2.0` (D5). Tests that name French's version follow: `analysis::language::tests::english_keeps_its_analyser_version_and_spanish_has_its_own` (French reads its constant, no `0.x`), `packs::pack::tests::spec_scenario_a_french_pack_at_french_s_analyser_version` (a pack at `0.2.0` refused), the extension's `test/packs.spec.ts` (`coreAnalyzerVersion("fr", modRs)`). `crates/lingua-pack` reads the constant and does not change.
-- [ ] 5.2 If change 43's `tables/fr-en/` is on `main`: re-reduce fr-en (`build.sh --reduce fr-en` from its pinned sources), `manifest.json` and `pin.json` alone moving; the reduce job and the build loop reproduce them. If change 43 merges after this change, its reduction reads `1.0.0` and nothing is done here.
+- [x] 5.2 If change 43's `tables/fr-en/` is on `main`: re-reduce fr-en (`build.sh --reduce fr-en` from its pinned sources), `manifest.json` and `pin.json` alone moving; the reduce job and the build loop reproduce them. If change 43 merges after this change, its reduction reads `1.0.0` and nothing is done here. — Change 43 landed second: its branch, rebased on this change, re-reduced fr-en from the pinned sources at `1.0.0`; `manifest.json` (`analyzer_version` `1.0.0`) and `pin.json` alone moved, `forms.tsv` and `freq.tsv` byte for byte, the pack 1,241,733 B.
 
 ## 6. French fixtures (crates/lingua-core)
 
@@ -38,7 +38,7 @@
 
 ## 8. Measurement
 
-- [ ] 8.1 When change 43's tables are on `main`: `scripts/lingua-data/measure/fr-ud.sh`, its PUD and GSD test-section figures recorded in the pull request and in the programme (D6: expected 99.12 / 96.48 / 99.90 on PUD and 98.91 / 95.81 / 99.72 on GSD's test section with change 43's prototype tables). Otherwise the pull request says so, and change 43's measurement runs through this cascade.
+- [x] 8.1 When change 43's tables are on `main`: `scripts/lingua-data/measure/fr-ud.sh`, its PUD and GSD test-section figures recorded in the pull request and in the programme (D6: expected 99.12 / 96.48 / 99.90 on PUD and 98.91 / 95.81 / 99.72 on GSD's test section with change 43's prototype tables). Otherwise the pull request says so, and change 43's measurement runs through this cascade. — Run on change 43's branch rebased on this change, its committed tables at `1.0.0`: UD French-PUD 99.13 % resolved, 96.41 % of 9,573 content words, 99.90 % of 1,030 auxiliaries; GSD's test section 98.89 %, 95.86 % of 3,791, 99.72 % of 359 (the pack's lookup alone, `0.2.0`: 99.13 / 96.30 / 99.90 and 98.89 / 95.70 / 99.72); recorded in change 43's row of the programme.
 
 ## 9. Owner
 

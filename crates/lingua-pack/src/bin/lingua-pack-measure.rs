@@ -13,7 +13,9 @@
 // limitations under the License.
 
 //! `lingua-pack-measure` — a built pack's lemmas against a treebank, held to the programme's gates
-//! (add-lingua-spanish-forms-tables D5). Run by `scripts/lingua-data/measure/es-pud.sh`.
+//! (add-lingua-spanish-forms-tables D5). Run by `scripts/lingua-data/measure/es-pud.sh` on UD
+//! Spanish-PUD, and by `scripts/lingua-data/measure/fr-ud.sh` on UD French-PUD and UD French-GSD's
+//! test section (add-lingua-french-forms-tables D9).
 //!
 //! Usage:
 //!   lingua-pack-measure <pack.lingua> <treebank.conllu>

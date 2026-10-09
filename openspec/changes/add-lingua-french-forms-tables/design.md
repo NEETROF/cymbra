@@ -97,6 +97,11 @@ form's candidate lemmas come from:
   form a source marks archaic, rarer or doubtful is no inflection (*Licence hygiene*);
 - **the `form_of` targets** of a form's own entry, the target's first word (kaikki writes `beau used
   before a masculine noun…` as `bel`'s target);
+- never **a gender or number marker** a head template left among an entry's forms (`_MARKERS`: `m`,
+  `f`, `p`, …), unless it is the word itself (a letter's other case): found by the implementation, 7
+  rows in the section — `m` under *Paris*, `f` under *Angora* and *Chambord*, `p` tagged plural under
+  *Socceroos*, *Matildas*, *Saintes* and *Tarterêts* —, of which `m` → *paris* reached the
+  prototype's table and read « M. » (Monsieur) as Paris;
 - **a form of a form, along one part of speech.** When a candidate is itself read as a form of
   another word (the first choice of D5 maps it elsewhere), the form reaches that word too, if the
   entry linking the form to the candidate and the one linking the candidate to the word are of one
@@ -105,6 +110,34 @@ form's candidate lemmas come from:
   noun `été` (a noun entry), and `été` reads as *être* through a verb entry, so `étés` reaches
   nothing and stays out: an unknown word rather than the verb. 6,368 forms of the table get
   their lemma this way. Without the rule, the tables fail the resolution gate (S0 below).
+
+  **The chain follows the part of speech, not the candidate's first choice** (found by change 45's
+  review, fixed here). The implementation first followed a candidate's overall first choice, which
+  stops at a lemma of *another* part of speech spelt like the intermediate form: the participle
+  `cité` is *citer*'s, but its first choice is the noun *cité* (the city), so `citée` read as the
+  city; `tues` read as the pronoun *tu* (also *taire*'s participle), `marchée` as the noun *marché*,
+  `quise` as *qui* — 157 forms only verb entries link, filed under a lemma none of whose entries is
+  a verb's (112 nouns, 21 names, adjectives, prepositions, pronouns). A candidate is now followed
+  along the part of speech of the entry linking the form to it (`reduce-fr-en.py`, `follow`):
+  along it, a word reads as the first choice of D5 among itself —
+  **only when one of its lemma entries is of that part of speech**; a participle's own inflections
+  (`compromis`, invariable, lists itself) are no lemma entry — and the words its entries of that
+  part of speech link it to, but a word whose entries are all of other parts of speech (`quis`'s
+  « masculine plural of qui », and *qui* has no verb entry); a candidate the chain reads as another
+  word stands for it, not beside it. An override holds wherever a chain passes (`fatiguées` follows
+  `fatiguée`'s row). `citée` → *citer*, `tues` → *tuer* (its second person, the commoner of *tuer*
+  and *taire* by D5's frequency), `tus` → *taire*, `quise` → *quérir*, `marchée` → *marcher*,
+  `compromise` → *compromettre*; `étés` still reaches the noun alone. Of the 157, one remains
+  (`shaka`, whose verb *shaker* has no verb entry), and `quis` itself takes an override row (D5).
+  7,156 forms of the implemented tables take their lemma through a chain; 713 forms change lemma,
+  98 come in (`brulée` → *brûler*, `copié-collée` → *copier-coller*) and 52 leave (`vitrée`,
+  `exceptée`, `libellée`: participles once read as a noun or a name, whose verb is no ranked lemma;
+  `sit`, `sied` once read as *soir*). Most of the changes are a participle's agreed form that is an
+  adjective's too (`morte`, `sacrée`, `animée`, `ravie`, 506 of them): the chain now reaches the
+  verb beside the adjective, and D5 decides between them — GSD reads `morte` 13 times as *mourir*
+  and once as *mort*; without counts the commoner lemma wins (`crues` → *croire*, `rangées` →
+  *ranger*), as M8 accepts. No form among wordfreq's 1,800 commonest changes; the gates move by a
+  word (D9).
 
 An entry with a sense that is not a form-of is a lemma, and its own candidate.
 
@@ -178,7 +211,12 @@ table with them.
 ### D5 — One lemma per form (M8), and what it costs
 
 When a form has several candidates, the first rule that decides wins — Spanish's order:
-1. **the override list** (`OVERRIDES`: form, lemma, reason), empty, as Spanish's;
+1. **the override list** (`OVERRIDES`: form, lemma, reason), empty of homographs, as Spanish's; the
+   implementation adds three rows for the source's copy errors, which no rule tells from a meaning —
+   `fatiguée`, whose verb entry reads « feminine singular of parlé » (→ *fatiguer*), and `bridée`, a
+   form-of target « female slant » (→ *bridé*), found among the 106 forms whose lemma begins with
+   another letter, and `quis`, a verb entry's « masculine plural of qui » (→ *quérir*), found by D3's
+   chain fix;
 2. **GSD's counts** of the form under each candidate;
 3. **the form's own entry**, when it is a lemma;
 4. **the candidate's wordfreq frequency**;
@@ -200,7 +238,23 @@ whose own form a verb takes, which then leaves the pack, since a lemma is keyed 
   read as a verb and are no ranked lemma. **Spanish's committed tables, by the same rule and the same
   count, have 30, 48 and 95** (`cuenta` → *contar*, `pregunta` → *preguntar*): among the commonest
   words the rule costs French what it costs Spanish; further down French loses more, its past
-  participles being nouns too (`arrêté`, `élu`, `envoyé`, `tenue`).
+  participles being nouns too (`arrêté`, `élu`, `envoyé`, `tenue`). On the implemented tables, where
+  the nouns D6's rank rule takes out (`donnée`, `venue`) leave too, the French figures are 30, 55 and
+  135.
+
+**Function words ranked on their own** (found by the implementation). Twelve determiners and
+pronouns are ranked lemmas of their own though another one's table lists them as its feminine or
+plural — `des` (M21), `vous` and `nous` (`tu`'s and `je`'s plurals), `ils`, `ma`, `mes`, `elles`,
+`ta`, `tes`, `vôtres`, `iels`, `celleux` —, and `cet` is a headword no table points from `ce`.
+Spanish's tables merge theirs (`mis` → *mi*, `ellos` → *él*), English's keep a pronoun's case forms
+apart (`them`). The dictionary gives each French one an entry of its own, and GSD's lemmas never name
+the dictionary's head — every possessive is *son* (`ma` 54 times, `mon` 66), `ils` is *lui* — so the
+counts cannot decide and the form's own entry does; `ma` is also a Louisiana preposition's headword,
+which two `Ma` proper nouns in GSD count for. No rule merges them: a paradigm rule would read `nous`
+as *je* and `vous` as *tu*. The rows that would — `ma`, `mes` → *mon*, `ta`, `tes` → *ton*, and as a
+convention `ils` → *il*, `elles` → *elle* — are the owner's to name in `OVERRIDES` (Open Questions
+5); `cet` → *ce* needs a candidate the dictionary does not give, the analysis's or the grammar's
+(changes 41, 45). Determiners and pronouns are outside the gates' content words.
 
 The alternative was measured too: **the form's own entry first** (a noun keeps its form) keeps those
 nouns and breaks the auxiliaries — `est`, `été`, `suis`, `a` read as *est*, *été*, … —: 42.14 % of
@@ -214,19 +268,29 @@ the list starts empty, as Spanish's did, and the owner may name a row (Open Ques
   first choice of D5, dense, the 60,000 first kept. Words the dictionary does not know (names,
   loans, `etc`) are ranked as en-fr's and es-fr's are: a lowercase word outside the lexicon reads as
   unknown.
-- **A word no form reaches is no rank.** D3's form of a form adds candidates after that first
-  choice, and the counts can then read every form of a word the first choice kept as another's —
-  `tenue` and `tenues` as *tenir*, `allée` as *aller*. Such a word gives its rank to the next, until
-  every ranked lemma is some form's lemma, as Spanish's and English's committed tables already are:
-  19 words move out (`tenue`, `allée`, `destinée`, `levée`, …) and 19 come in at the cut's end, and
-  the gates do not move. A word another of its forms still reaches keeps its rank (`donnée`, rank
-  1,711, which `données` reaches while `donnée` itself reads as *donner*). *Rejected — ranking by
-  the final choice:* `données` would read as *donner* too, 96.32 % of PUD's content words by the
-  lookup against 96.40 %.
+- **A word whose own form reads as another is no rank.** D3's form of a form adds candidates after
+  that first choice, and the counts can then read a word the first choice kept as another's —
+  `tenue` and `tenues` as *tenir*, `allée` as *aller*, `donnée` as *donner*. Such a word gives its
+  rank to the next, until every ranked lemma's own form reads as itself, as Spanish's and English's
+  committed tables already do: 25 words move out (`tenue`, `allée`, `destinée`, `levée`, `donnée`,
+  `venue`, `saisie`, `tranchée`, `bordée`, `retombée`, …) and 25 come in at the cut's end — 27
+  once D3's chain follows the part of speech, `revenue` and `subordonnée` reading as *revenir* and
+  *subordonner* by GSD's counts. A pack
+  finds a lemma by its own form — the builder keys a rank, and later a gloss and a level, by looking
+  the lemma up as a form (`FstLexicon::id_of`) —, so a ranked word whose form reads elsewhere lends
+  its rank to the other word: the prototype kept `donnée` (rank 1,711), which `données` still
+  reached, and its built pack gave *donner* rank 1,711 instead of 225 and *venir* 1,637 instead of
+  388, five ranks wrong in all, which the implementation found and fixed. The noun *donnée* leaves
+  the pack, as M8's nouns do (D5), and `données` reads as *donner*: 96.30 % of PUD's content words
+  take the treebank's lemma, against the prototype's 96.38 %. A test holds every committed pair's
+  pack to each rank on its own lemma.
 - **wordfreq's elision stems are no words.** Its tokeniser splits `l'homme` into `l` and `homme`,
   so `l`, `d`, `c`, `qu`, `j`, `n`, `s`, `t` and `m` carry the elided pieces' frequency and stand at
   ranks 5 to 63 of its list; ranked, the letter `l` would be French's fourth commonest word. They
-  are skipped; the pieces are forms of their words (D4).
+  are skipped; the pieces are forms of their words (D4). The implementation skips every piece's
+  stem (`ELISIONS`, apostrophe dropped): the prototype's nine left `ç` (rank 4,316), `jusqu` (4,358),
+  `lorsqu` (17,042) and `puisqu` (27,335) ranked as words; four other words take their ranks at the
+  cut's end, and the gates do not move.
 - **A hyphenated word is ranked by evidence.** wordfreq splits at the hyphen too and never lists
   `peut-être`; for a hyphenated string it answers the combination of its parts, which is about its
   rarest part's frequency. Ranked by that estimate, `est-il` and `a-t-il` — inversions the
@@ -302,7 +366,8 @@ Spanish, which French meets); GSD's test section is reported beside it and not g
 reduction reads GSD's other two sections and a held-out section of the same treebank is the
 weaker test. Neither file is committed, and the reduction reads neither.
 
-With the prototype's tables, French at `0.1.0`:
+With the prototype's tables, French at `0.1.0` (the same at `0.2.0`, change 40's, which this
+harness reads alike):
 
 | | Words | Resolved | Content words | Auxiliaries |
 |---|---|---|---|---|
@@ -315,6 +380,20 @@ words, 17 of GSD's), which stays unresolved where change 40's pre-pass hands `il
 the Python lookup of D8, which strips their hyphens, reads 0.09 points more on PUD. The harness is
 not changed to run a tokenisation: its figure does not depend on whether change 40 has landed, and
 the gated figure is the conservative one.
+**On the implemented tables** (D3's markers, D6's rank rule and stems), French at `0.2.0`: PUD
+99.12 % resolved, 96.30 % content lemmas, 99.90 % auxiliaries; GSD's test section 98.91 → 98.89 %,
+95.65 → 95.67 %, 99.72 % — the rank rule moves the content words, the markers GSD's resolution
+(its `m` no longer reads as Paris). 124,050 forms, a pack of 1,239,671 B with fr-en's real NOTICE
+and manifest. **Once D3's chain follows the part of speech**: PUD 99.13 % resolved, 96.30 %
+content lemmas, 99.90 % auxiliaries (`maitrisés` resolves; six participles gain the treebank's verb
+lemma — `traitée`, `coupée`, `revenue` —, four adjectives and a noun lose theirs — `morte` →
+*mourir* where PUD writes *mort* —, and `entrainé` reads as *entraîner*, D7's spelling, where PUD
+writes *entrainer*); GSD's test section 98.89 %, 95.67 → 95.70 %, 99.72 %. 124,096 forms
+(`forms.tsv` 2,257,098 B, `freq.tsv` 844,897 B), a pack of 1,241,733 B. **Through change 41's
+cascade** (`1.0.0`, on `main` before this change, whose reduction then reads `1.0.0`: the manifest
+and the pin move, the forms and ranks do not): PUD 99.13 % resolved, 96.41 % content lemmas,
+99.90 % auxiliaries; GSD's test section 98.89 %, 95.86 %, 99.72 % — change 41's tasks 5.2 and 8.1.
+
 `lingua-pack-measure` needs no French arm — it lemmatises through the pack's studied language —
 and its doc line names both treebanks.
 
@@ -331,8 +410,9 @@ files.
 
 `manifest.json` studies `fr`, is glossed in `en`, and names French's analyser version as
 `analysis/mod.rs` writes it (`FRENCH_ANALYZER_VERSION`, read by the reducer as es-fr's reads
-Spanish's): `0.1.0` today. `NOTICE` and the manifest credit kaikki / the English Wiktionary
-(CC BY-SA 4.0 + GFDL), wordfreq (CC BY-SA 4.0) and UD French-GSD (CC BY-SA 4.0, counts only).
+Spanish's): `0.1.0` when designed, `1.0.0` once change 41 landed. `NOTICE` and the manifest credit
+kaikki / the English Wiktionary (CC BY-SA 4.0 + GFDL), wordfreq (CC BY-SA 4.0) and UD French-GSD
+(CC BY-SA 4.0, counts only).
 `pin.json` records the derived file, its dump, GSD's two files, wordfreq, the rules and the pack.
 
 The pipeline:
@@ -461,3 +541,5 @@ For the owner, none blocking:
    tables and the fr-en pair's tables are committed » read as fr-en's glosses (change 48), and its
    words made so when change 39 is archived, so that the two specs never say opposite things of
    this change.
+5. **The function words ranked on their own** (D5): override rows `ma`, `mes` → *mon*, `ta`, `tes` →
+   *ton*, and whether `ils`, `elles` read as *il*, *elle*, each with its reason — or none, as today.

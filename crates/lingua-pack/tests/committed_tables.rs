@@ -17,15 +17,21 @@
 //! tag pool and names its reference pair's glossed lemmas as its dictionary words. Moving the
 //! tables there left every shipped pack byte for byte as its pin records.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::analysis::lexicon::Lexicon;
+use lingua_core::analysis::tokenize::{FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, tokenize};
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
+use lingua_pack::studied_of;
 use lingua_pack::tables::{STUDIED_RECORD, check_committed_tables};
-use lingua_pack::{PAIR_SIDE, STUDIED_SIDE, build_pack, inputs_from_dirs, inputs_from_tables};
+use lingua_pack::{
+    MAX_PACK_BYTES, PAIR_SIDE, STUDIED_SIDE, build_pack, inputs_from_dirs, inputs_from_tables,
+};
 use sha2::{Digest, Sha256};
 
 fn tables() -> PathBuf {
@@ -90,7 +96,7 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 #[test]
 fn every_committed_pair_holds_to_its_studied_language() {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
-    for pair in ["en-fr", "es-fr", "es-en", "en-es"] {
+    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en"] {
         assert!(pairs.iter().any(|p| p == pair), "{pair} is read");
     }
 }
@@ -521,4 +527,289 @@ fn spec_scenario_a_pair_left_behind() {
     );
     assert!(Pack::load(&gained).unwrap().is_dictionary_word("augusto"));
     assert!(!Pack::load(&recorded).unwrap().is_dictionary_word("augusto"));
+}
+
+/// fr-en's committed pack, built once per test binary.
+fn fr_en() -> &'static [u8] {
+    static FR_EN: OnceLock<Vec<u8>> = OnceLock::new();
+    FR_EN.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "fr-en").unwrap_or_else(|e| panic!("fr-en: {e}"));
+        build_pack(&inputs).unwrap_or_else(|e| panic!("build fr-en: {e}"))
+    })
+}
+
+/// A committed two-column table, `key → value`, as the builder reads it.
+fn tsv(path: &Path) -> BTreeMap<String, String> {
+    std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+        .lines()
+        .map(|line| {
+            let (key, value) = line.split_once('\t').unwrap_or_else(|| panic!("{line:?}"));
+            (key.to_owned(), value.to_owned())
+        })
+        .collect()
+}
+
+#[test]
+fn spec_scenario_the_reference_pair_writes_french_s_folder() {
+    // fr-en (add-lingua-french-forms-tables D1, D10), French's reference pair: tables/fr/ holds
+    // French's forms and ranks, its record naming fr-en, and the two files every studied folder
+    // holds, empty until the changes that fill them — the tag pool (45) and the dictionary words,
+    // fr-en's glossed lemmas (48). `grammar.tsv` and `level.tsv` come with 45 and 46.
+    let fr = tables().join("fr");
+    assert_eq!(
+        files(&fr),
+        [
+            "forms.tsv",
+            "freq.tsv",
+            "lexical.tsv",
+            "studied.json",
+            "tags.tsv"
+        ]
+    );
+    assert_eq!(json(&fr.join(STUDIED_RECORD))["reference"], "fr-en");
+    for empty in ["tags.tsv", "lexical.tsv"] {
+        assert_eq!(std::fs::read(fr.join(empty)).unwrap(), b"", "fr/{empty}");
+    }
+    // tables/fr-en/ holds a pair's native side — an empty gloss table — its pin and README.
+    let fr_en_dir = tables().join("fr-en");
+    assert_eq!(
+        files(&fr_en_dir),
+        [
+            "NOTICE",
+            "README.md",
+            "gloss.tsv",
+            "manifest.json",
+            "pin.json"
+        ]
+    );
+    assert_eq!(std::fs::read(fr_en_dir.join("gloss.tsv")).unwrap(), b"");
+    let manifest = json(&fr_en_dir.join("manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "fr");
+    assert_eq!(manifest["meta"]["native"], "en");
+    assert_eq!(
+        manifest["meta"]["analyzer_version"],
+        lingua_core::analysis::FRENCH_ANALYZER_VERSION
+    );
+    // Every ranked lemma is the lemma of at least one form.
+    let forms = tsv(&fr.join("forms.tsv"));
+    let lemmas: BTreeSet<&String> = forms.values().collect();
+    let ranks = tsv(&fr.join("freq.tsv"));
+    assert_eq!(ranks.len(), 60_000);
+    let unreached: Vec<&String> = ranks.keys().filter(|l| !lemmas.contains(l)).collect();
+    assert!(
+        unreached.is_empty(),
+        "ranked, no form's lemma: {unreached:?}"
+    );
+    // The reference's pin records its sources and pack, and nothing of a studied record.
+    let pin = json(&fr_en_dir.join("pin.json"));
+    assert!(pin.get("studied").is_none());
+}
+
+#[test]
+fn spec_scenario_the_pack_builds_where_the_others_do() {
+    // fr-en's pack, built from tables/fr/ and tables/fr-en/, has the sha256 its pin records, carries
+    // no lexical section (its dictionary words are its glossed lemmas: none yet), fits the budget,
+    // and no package lists it.
+    let bytes = fr_en();
+    let pin = json(&tables().join("fr-en/pin.json"));
+    assert_eq!(
+        pin["pack"]["sha256"],
+        sha256_hex(bytes).as_str(),
+        "fr-en: pin.json"
+    );
+    assert_eq!(pin["pack"]["size"], bytes.len());
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    assert!(section_of(&sections(bytes), section::LEXICAL).is_none());
+    let pack = Pack::load(bytes).unwrap();
+    assert_eq!(pack.pair().key(), "fr-en");
+    assert!(pack.dictionary_words().is_empty());
+    assert!(pack.gloss("porte").is_none());
+    let packs = json(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
+    );
+    assert!(
+        !packs["pairs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p == "fr-en"),
+        "no package lists fr-en"
+    );
+}
+
+#[test]
+fn spec_scenario_the_reduction_never_reads_the_treebanks_it_is_measured_on() {
+    // fr-en's pin records the English Wiktionary's French section, derived from the edition's dump
+    // under fr-en's own release, GSD's training and development sections at a commit, and wordfreq —
+    // never GSD's test section nor PUD, which measure/fr-ud.sh holds out.
+    let pin = json(&tables().join("fr-en/pin.json"));
+    let sources: Vec<&String> = pin["sources"].as_object().unwrap().keys().collect();
+    // serde_json's map is sorted by key.
+    assert_eq!(sources, ["gsd-dev", "gsd-train", "kaikki-en", "wordfreq"]);
+    for (name, file) in [
+        ("gsd-train", "fr_gsd-ud-train.conllu"),
+        ("gsd-dev", "fr_gsd-ud-dev.conllu"),
+    ] {
+        let url = pin["sources"][name]["url"].as_str().unwrap();
+        assert!(
+            url.starts_with(
+                "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/"
+            ) && url.ends_with(&format!("/{file}")),
+            "{name}: {url}"
+        );
+    }
+    let kaikki = &pin["sources"]["kaikki-en"];
+    let release = kaikki["release"].as_str().unwrap();
+    assert!(
+        release.starts_with("lingua-pack-sources-fr-en-"),
+        "{release}"
+    );
+    assert_eq!(
+        kaikki["url"],
+        "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz"
+    );
+    let derived: Vec<&String> = kaikki["files"].as_object().unwrap().keys().collect();
+    assert_eq!(derived, ["kaikki-French.jsonl"]);
+    let text = pin.to_string();
+    for held_out in ["fr_gsd-ud-test", "fr_pud", "UD_French-PUD"] {
+        assert!(!text.contains(held_out), "fr-en's pin names {held_out}");
+    }
+}
+
+// French's pre-pass (add-lingua-french-tokenisation D3–D5): the tables must hold every word it
+// hands the lookup (add-lingua-french-forms-tables D4). Its lists are read from lingua-core, and the
+// words it writes from its own tokeniser, so a pull request that moves them moves this check.
+
+/// The words French's pre-pass writes, read by lingua-core's tokeniser with fr-en's lexicon: each
+/// elided piece before a word, and in its special cases (`s'il`, `donne-m'en`, `va-t'en`); `au` and
+/// `aux`; and an inversion with each of its pronouns, the euphonic `t` too. The words they are
+/// written beside (`avoir`, `dit`, …) left out.
+fn pre_pass_words(lexicon: &(impl Lexicon + ?Sized)) -> BTreeSet<String> {
+    let mut text: Vec<String> = FRENCH_ELISIONS
+        .iter()
+        .map(|(written, _)| format!("{written}'avoir"))
+        .collect();
+    text.extend(["s'il", "donne-m'en", "va-t'en", "au", "aux", "a-t-il"].map(String::from));
+    text.extend(FRENCH_INVERSION_PRONOUNS.iter().map(|p| format!("dit-{p}")));
+    tokenize(&text.join(" "), StudiedLanguage::French, lexicon)
+        .into_iter()
+        .map(|token| token.text.to_lowercase())
+        .filter(|word| !["avoir", "donne", "va", "a", "dit"].contains(&word.as_str()))
+        .collect()
+}
+
+#[test]
+fn spec_scenario_every_word_the_pre_pass_writes_is_a_form() {
+    let forms = tsv(&tables().join("fr/forms.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    let pack = Pack::load(fr_en()).unwrap();
+    let written = pre_pass_words(pack.lexicon());
+    // The 17 words of the elisions, `à`, `le`, `les` and the inversion's pronouns: 32, as the
+    // design counted them — a word the tokeniser dropped would be missing here.
+    assert_eq!(written.len(), 32, "{written:?}");
+    for word in &written {
+        let lemma = forms
+            .get(word)
+            .unwrap_or_else(|| panic!("{word}: the pre-pass writes it, and fr/forms.tsv lacks it"));
+        assert!(
+            ranks.contains_key(lemma),
+            "{word} → {lemma}: no ranked lemma"
+        );
+    }
+    // Each elided piece maps to the word the pre-pass reads it as outside its special cases.
+    for (written, read) in FRENCH_ELISIONS {
+        let piece = format!("{written}'");
+        assert_eq!(
+            forms.get(&piece).map(String::as_str),
+            Some(*read),
+            "{piece}"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_the_contracted_articles() {
+    // `au` and `aux`, which the pre-pass always splits, are neither forms nor ranks; `du` and `des`,
+    // which it keeps whole, are words of their own.
+    let forms = tsv(&tables().join("fr/forms.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    for contraction in ["au", "aux"] {
+        assert!(!forms.contains_key(contraction), "{contraction} is a form");
+        assert!(!ranks.contains_key(contraction), "{contraction} is ranked");
+    }
+    for word in ["du", "des"] {
+        assert_eq!(forms.get(word).map(String::as_str), Some(word));
+        assert!(ranks.contains_key(word), "{word} is no ranked lemma");
+    }
+    // A noun ending in a pronoun is listed whole, so the inversion rule never splits it; a verb and
+    // its pronoun is not, and no plain word beginning with a piece is a form.
+    for whole in [
+        "rendez-vous",
+        "qu'en-dira-t-on",
+        "c'est-à-dire",
+        "aujourd'hui",
+    ] {
+        assert!(forms.contains_key(whole), "{whole} is no form");
+    }
+    for split in [
+        "est-il",
+        "allez-y",
+        "souviens-toi",
+        "c'est",
+        "d'abord",
+        "l'on",
+        "jusqu'à",
+    ] {
+        assert!(!forms.contains_key(split), "{split} is a form");
+    }
+}
+
+#[test]
+fn every_rank_lands_on_its_own_lemma_in_the_built_pack() {
+    // The builder keys a lemma's rank by looking the lemma up as a form (`FstLexicon::id_of`): a
+    // ranked lemma whose own form reads as another word would lend its rank to that word, and keep
+    // none (add-lingua-french-forms-tables: `donnée`, read as donner, gave donner its 1,711).
+    // Every committed pair's pack holds each rank of its studied language's freq.tsv on that very
+    // lemma, and no other.
+    for (pair, bytes) in [
+        ("en-fr", shipped("en-fr")),
+        ("es-fr", shipped("es-fr")),
+        ("es-en", es_en()),
+        ("en-es", en_es()),
+        ("fr-en", fr_en()),
+    ] {
+        let pack = Pack::load(bytes).unwrap();
+        let ranks: BTreeMap<String, u32> = tsv(&tables().join(studied_of(pair)).join("freq.tsv"))
+            .into_iter()
+            .map(|(lemma, rank)| (lemma, rank.parse().unwrap()))
+            .collect();
+        let elsewhere: Vec<(&String, Option<&str>)> = ranks
+            .keys()
+            .map(|lemma| (lemma, pack.lexicon().lemma_of(lemma)))
+            .filter(|(lemma, read)| *read != Some(lemma.as_str()))
+            .take(10)
+            .collect();
+        assert!(
+            elsewhere.is_empty(),
+            "{pair}: ranked lemmas whose own form reads elsewhere: {elsewhere:?}"
+        );
+        // Band by band, the pack's ranked lemmas are exactly freq.tsv's.
+        let top = ranks.values().copied().max().unwrap();
+        for lo in (1..=top).step_by(1000) {
+            let hi = lo + 999;
+            let got: BTreeSet<&str> = pack
+                .lemmas_in_rank_band(lo, hi)
+                .into_iter()
+                .map(|(lemma, _)| lemma)
+                .collect();
+            let want: BTreeSet<&str> = ranks
+                .iter()
+                .filter(|(_, rank)| (lo..=hi).contains(*rank))
+                .map(|(lemma, _)| lemma.as_str())
+                .collect();
+            assert_eq!(got, want, "{pair}: ranks {lo}–{hi}");
+        }
+    }
 }

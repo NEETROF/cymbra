@@ -75,7 +75,9 @@ at another word, and the notes it writes for its own readers, taken out of a glo
 `reduce_edition_en.py` and `reduce_edition_es.py`, the English and Spanish Wiktionaries' rules, are
 in the archive too, with `reduce-es-en.py` and `tables/es-en/` (Spanish glossed in English, which
 reads Spanish's tables in `tables/es/` and loads the English Wiktionary's rules); they reduce no
-table this package ships, and `packs.json` lists no pack built from them.
+table this package ships, and `packs.json` lists no pack built from them. So are `reduce-fr-en.py`,
+`tables/fr/` and `tables/fr-en/` (French's forms and ranks, which the checks build into a pack
+studying French): they reduce nothing this package carries either.
 `pin.json` names each raw source at a fixed commit or snapshot, with its sha256, so the
 tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer does not
 need to.

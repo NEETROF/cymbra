@@ -1,0 +1,45 @@
+{
+  "snapshot": "2026.10.09",
+  "pack": {
+    "sha256": "8663007bc391c19e3c61aff61a926c18dcc4faf6ff6ab649042f77583ae7ce6e",
+    "size": 1241733
+  },
+  "reducer": {
+    "sha256": "cbc6ed9433707319d2f7900fda67963bb65f3b38ac1369d248d4e7bdd517acff",
+    "files": [
+      "reduce-fr-en.py",
+      "reduce_common.py"
+    ]
+  },
+  "sources": {
+    "gsd-train": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-train.conllu",
+      "sha256": "4b9a87b1b7e6e7003219df1d3ccca87ffaca0f00a6055b12b1857df5373589d2"
+    },
+    "gsd-dev": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-dev.conllu",
+      "sha256": "9221e5084cc6a1b1540671cfbd2fc0456efc223b2fe8dd2146c2bad921be02d4"
+    },
+    "kaikki-en": {
+      "release": "lingua-pack-sources-fr-en-2026.10.09",
+      "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-09",
+      "last_modified": "Sat, 03 Oct 2026 08:24:38 GMT",
+      "dump": {
+        "sha256": "93b79aac5d7ce404f1b38441639609caa4e9194b7444c2d3c9f26ec7f24c7632",
+        "size": 25614284530,
+        "compressed_size": 2981058381
+      },
+      "files": {
+        "kaikki-French.jsonl": {
+          "asset": "kaikki-French.jsonl.zst",
+          "sha256": "2d7bbe5ff054e2edf9af208be5e40b09eba7cc020a0241bbd2aa2bd62ef8561e",
+          "size": 510058226
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

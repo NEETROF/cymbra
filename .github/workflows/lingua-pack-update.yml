@@ -2,7 +2,8 @@ name: lingua-pack-update
 
 # Proposes new tables for one of Cymbra Lingua's data packs — the `pair` input, en→fr by default; the
 # monthly run checks every pair (pin-lingua-pack-sources D6, D7; the pair since
-# generalise-lingua-pack-reducer, es→fr since add-lingua-spanish-forms-tables).
+# generalise-lingua-pack-reducer, es→fr since add-lingua-spanish-forms-tables, fr→en — French's
+# reference pair, which writes tables/fr/ — since add-lingua-french-forms-tables).
 #
 # Releases never read upstream: they build the pack from the tables committed under
 # scripts/lingua-data/tables/<pair>/ and its studied language's tables/<studied>/, and check it
@@ -10,7 +11,7 @@ name: lingua-pack-update
 # nothing it produces reaches a release without a person:
 #
 # - dispatch, mode `update`: today's sources (CEFR-J, Octanove, ESDB, UD Spanish-GSD at their pinned
-#   commits; kaikki live), kept as a new snapshot, reduced, and pushed to the branch
+#   commits, UD French-GSD too; kaikki live), kept as a new snapshot, reduced, and pushed to the branch
 #   lingua-pack/<pair>/<snapshot>. kaikki is read as its dumps of whole Wiktionary editions alone —
 #   the English, French and Spanish Wiktionaries', one address each (pack_sources.py EDITIONS,
 #   migrate-lingua-pack-sources-to-raw-dumps D1): the files the pair reads are derived from them in
@@ -67,7 +68,7 @@ on:
       pair:
         description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce or dry."
         type: choice
-        options: [en-fr, es-fr, es-en, en-es, all]
+        options: [en-fr, es-fr, es-en, en-es, fr-en, all]
         default: en-fr
       expect:
         description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
@@ -85,10 +86,11 @@ permissions:
 # again, en-fr writes tables/en/ and reduces en-es again (add-lingua-pack-en-es D1: en-es reads
 # tables/en/ as committed and pins its digest) — so a reference's and its reader's dispatches
 # never propose the reader's folder on two branches at once: the `es` group for es-fr and es-en,
-# the `en` group for en-fr and en-es. `all` (modes reduce and dry) and the monthly dry run have a
-# group each.
+# the `en` group for en-fr and en-es, the `fr` group for fr-en and the pairs that will read
+# tables/fr/ (fr-es, add-lingua-french-forms-tables D10). `all` (modes reduce and dry) and the
+# monthly dry run have a group each.
 concurrency:
-  group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || inputs.pair || 'monthly' }}
+  group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || startsWith(inputs.pair, 'fr-') && 'fr' || inputs.pair || 'monthly' }}
   cancel-in-progress: false
 
 jobs:

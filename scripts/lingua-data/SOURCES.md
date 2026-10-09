@@ -345,6 +345,52 @@ each other*). en-es's first update was dispatched alone on its pull request bran
 `lingua-pack-sources-en-es-2026.10.08`, and the pinned reduction that committed the tables followed on the same branch
 (`build.sh --reduce en-es`, about 6 s on a laptop, fetch and pack build included).
 
+## FR → EN: French studied
+
+Reduced by `reduce-fr-en.py` (add-lingua-french-forms-tables): fr-en is **French's reference pair**,
+whose reduction writes `tables/fr/` (`tables/fr/studied.json`), and which every later pair studying
+French reads as committed (fr-es, change 49). It writes French's forms and ranks alone today: its
+glosses, readings and levels are changes 48, 45 and 46, so `tables/fr-en/gloss.tsv`,
+`tables/fr/lexical.tsv` and the pinned tag pool `tables/fr/tags.tsv` are committed empty. No extension
+package carries the pack: `packs.json` does not list it until change 52. Its reducer loads
+`reduce_common.py` alone; no shared module was edited for it, so no other pair's rule digest moved.
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `tables/fr/forms.tsv` (`form → lemma`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) French section (`kaikki-French.jsonl`, `DUMPS["fr-en"]`), derived from the English edition's dump — the catalogue's file, no new derivation; **UD French-GSD**'s training and development sections at a commit (`PINNED["fr-en"]`), for homographs | kaikki: CC BY-SA 4.0 + GFDL; GSD: CC BY-SA 4.0, read for counts only | the inflections a lemma's entry lists and the first word of each form-of target of a form's own entry: lowercased, NFC, the typographic apostrophe read as `'`; never kaikki's bookkeeping, a multi-word construction, an inflection tagged alternative, obsolete, archaic, rare, dated, uncommon, misspelt, nonstandard, proscribed, abbreviated, clipped or a pronunciation spelling, nor a gender or number marker a head left among the forms (`m` under *Paris*). **A form of a form along one part of speech** (`dirigée` → `dirigé` → *diriger*; `citée` → `cité` → *citer*, past the noun *cité* the participle is spelt like; `étés`, a noun's plural, not to *être*). **French's tokenisation** (M21): the fourteen elided pieces by a reviewed table (`ELISIONS`, `l'` → *le*); no plain word beginning with a piece (`c'est`, `d'abord`, `l'on`), a hyphenated run may be one (`c'est-à-dire`); the dictionary's nouns, adjectives, adverbs, pronouns and prepositions ending in a pronoun listed whole (`rendez-vous`, `qu'en-dira-t-on`), the reduction failing if one is not; `au` and `aux` no form; `du` and `des` words of their own; a verb joined to its pronouns by hyphens (`souviens-toi`) no form. **A spelling variant** (`coeur`, `connait`) reads as the word it spells. **One lemma per form**: a name and a commoner word keep the word, then a reviewed override (`OVERRIDES`: no homograph; three rows mend the source's copy errors, `fatiguée` « feminine singular of parlé », `bridée` and `quis` « masculine plural of qui »), GSD's counts, the form's own entry, the lemma's frequency, the alphabet. Only the forms of kept lemmas that wordfreq attests, every lemma's own form, and the pieces |
+| `tables/fr/freq.tsv` (`lemma → rank`) | **wordfreq** French list; **UD French-GSD**'s frequency of a hyphenated lemma | CC BY-SA 4.0 | the top 60,000 lemmas, dense rank: wordfreq's order, inflected forms skipped, and its elision stems (`l`, `d`, `qu`, `jusqu`, …), which carry the pieces' frequency, and `au`/`aux`. A word whose own form reads as another gives its rank to the next (`tenue`, whose every form reads as *tenir*; `donnée`, read as *donner*): a pack finds a lemma by its own form, so the builder would key its rank on the other word. A hyphenated word only when GSD attests it, at the lower of wordfreq's estimate and GSD's own frequency, after wordfreq's words of the same frequency (`peut-être`, 941; never an inversion such as `est-il`); the nouns ending in a pronoun GSD never meets at the cut's last ranks |
+| `tables/fr-en/gloss.tsv` | none yet | — | empty: the glosses are change 48's |
+| `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
+
+**The sources pinned** (`tables/fr-en/pin.json`): the French section derived on 2026-10-08 from the
+English edition's dump regenerated on 2026-10-03 08:24 (decompressed sha256 `93b79aac…`,
+25,614,284,530 B; 2,981,058,381 B gzipped) — 403,269 entries, 510,058,226 B, sha256 `2d7bbe5f…`,
+26,410,463 B as its zstd level-19 asset `kaikki-French.jsonl.zst`, under fr-en's own release
+`lingua-pack-sources-fr-en-2026.10.09`; GSD's `fr_gsd-ud-train.conllu` and `fr_gsd-ud-dev.conllu` at
+`94d5b68e185fc22a9ef292040e84f476d36d9b0e` (25,555,018 and 2,573,677 B), the default branch's head of
+2026-05-06; wordfreq 3.1.1. An update reads no dump but the English edition's, which es-fr and es-en
+read already: the monthly dry run derives the French section in the same pass, one more reduction and
+no more download.
+
+**The cut**: 60,000 lemmas and their attested forms, as Spanish — 124,096 forms, `forms.tsv`
+2,257,098 B and `freq.tsv` 844,897 B. On the design's prototype tables, 40,000 lemmas passed the
+gates too, 0.16 points of resolution lower on PUD, and every form nobody writes would have added
+88,678 rows for 0.02 points. The pack built from the two tables alone is 1,241,733 B
+(`tables/fr-en/README.md`, with M8's cost — the 135 dictionary nouns among wordfreq's 5,000 commonest
+words that read as a verb — and the twelve determiners and pronouns ranked on their own).
+
+**Measured on UD French-PUD and on GSD's test section** (`measure/fr-ud.sh`), neither committed nor
+read by the reduction, each fetched at a commit and checked by sha256 — PUD
+(`db260db10fe728853c549760801229ef4e7b16e1`, sha256 `4dfed37b…`, CC BY-SA 3.0) held to Spanish's
+gates, GSD's test section reported:
+- PUD: 99.13 % of 20,232 words resolve (gate 98.5 %), 96.41 % of 9,573 content words and 99.90 % of
+  1,030 auxiliaries take PUD's lemma (gates 93.5 % and 97 %);
+- GSD's test section: 98.89 % of 8,049 words resolve, 95.86 % of 3,791 content words and 99.72 % of
+  359 auxiliaries take its lemma.
+
+French's analyser at `1.0.0` (change 41's cascade); at `0.2.0`, the pack's lookup alone, the content
+words read 96.30 % and 95.70 %, the rest alike.
+
 ## The editions' dumps
 
 kaikki is read at **three addresses, one dump per Wiktionary edition**
@@ -488,7 +534,7 @@ after each pair — far more room than the 14 GB the design assumed.
 Two packs of one studied language must analyse it alike whatever native language they are glossed
 in (add-lingua-pack-lexical-layer). So **a studied language's tables are kept once**
 (split-lingua-pack-tables-by-language, the language matrix programme's M24), in `tables/<studied>/`
-— `tables/en/`, `tables/es/` — and every pair studying that language is built from that folder
+— `tables/en/`, `tables/es/`, `tables/fr/` — and every pair studying that language is built from that folder
 together with its own:
 
 | Folder | Holds |
@@ -506,7 +552,7 @@ in a studied folder, and a pair whose studied language has no folder; they hold 
 packs, built from the two folders, to the sha256 their pins record.
 
 **Only the reference pair's reduction writes a studied language's tables** — en-fr for English,
-es-fr for Spanish, and for a language studied later the first pair reduced for it. A reducer still
+es-fr for Spanish, fr-en for French: for a language studied later, the first pair reduced for it. A reducer still
 writes every table into its work folder; `pack_sources.py split` then files them by side: the pair's
 own into `tables/<pair>/`, and the studied tables into `tables/<studied>/` only when `studied.json`
 names the pair. Any other pair reads the studied folder as committed and never writes it. The
