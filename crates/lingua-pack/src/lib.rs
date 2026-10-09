@@ -851,8 +851,8 @@ fn compress_glosses(entries: &[(u32, &str)]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lingua_core::analysis::ANALYZER_VERSION;
     use lingua_core::analysis::lexicon::Lexicon;
+    use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
     use lingua_core::knowledge::state::FrequencyRanks;
     use lingua_core::packs::Pack;
 
@@ -1373,11 +1373,12 @@ mod tests {
     #[test]
     fn a_french_pack_builds_at_french_s_analyser_version_and_loads() {
         // add-lingua-french-baseline: the builder neither stamps nor checks the analyser version
-        // (the core compares it at load); a French pack stamped `0.1.0` is one the core accepts.
+        // (the core compares it at load); a French pack stamped with French's version is one the
+        // core accepts, whichever version French's rules have made it.
         let mut inp = inputs();
         inp.meta.studied = "fr".into();
         inp.meta.native = "en".into();
-        inp.meta.analyzer_version = "0.1.0".into();
+        inp.meta.analyzer_version = FRENCH_ANALYZER_VERSION.into();
         inp.form_lemma = vec![
             ("est".into(), "être".into()),
             ("l'homme".into(), "homme".into()),
@@ -1388,7 +1389,7 @@ mod tests {
         let pack = Pack::load(&bytes).expect("and loads");
         assert_eq!(pack.studied(), StudiedLanguage::French);
         assert_eq!(pack.pair().key(), "fr-en");
-        assert_eq!(pack.meta().analyzer_version, "0.1.0");
+        assert_eq!(pack.meta().analyzer_version, FRENCH_ANALYZER_VERSION);
         assert_eq!(pack.lexicon().lemma_of("l'homme"), Some("homme"));
         assert_eq!(pack.gloss("homme"), Some("man"));
         // Stamped with another language's version, it builds and the core refuses it.

@@ -15,9 +15,13 @@
 //! French invariance baseline (`docs/lingua/language-matrix-programme.md`, change 39,
 //! add-lingua-french-baseline).
 //!
-//! French is a studied language served by the baseline analysis (analyser `0.1.0`): the rules that
-//! belong to no language and the pack's forms, nothing else — `l'homme`, `aujourd'hui`, `au`, `du`
-//! and every elision stay whole, nothing is a function word, there is no names rule and no NFC.
+//! French is a studied language with its own tokenisation pre-pass (analyser `0.2.0`,
+//! add-lingua-french-tokenisation) and, for its lemmas, the baseline analysis: the narrow no-break
+//! space is a space, an elided word is split from the word it is joined to and read as the word it
+//! stands for, each piece with its own span (`l'homme` → `le` + `homme`; `aujourd'hui` whole),
+//! `au`/`aux` are `à` + `le`/`les` sharing a span, `du`/`des` stay whole, a hyphenated inversion
+//! is read as words (`dit-il` → `dit` + `il`); then the rules that belong to no language and the
+//! pack's forms — nothing is a function word, there is no names rule and no NFC.
 //! This freezes what the engine makes of raw French text today, over a thirteen-page corpus
 //! (`baseline/pages-fr.txt`, its sources in `support/french.rs`), so that each later change of
 //! the French stage shows its effect as the diff of a re-bless. It is not French support: no pair
@@ -41,6 +45,8 @@ mod support;
 
 use std::sync::OnceLock;
 
+use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::analysis::tokenize::tokenize;
 use support::french::FRENCH;
 use support::{PackSource, first_difference, testdata_pack};
 use unicode_normalization::UnicodeNormalization;
@@ -134,31 +140,99 @@ fn analysed(engine: &lingua_wasm::LinguaEngine, page: &str) -> serde_json::Value
     serde_json::from_str(&engine.analyse(blocks, fr()).expect("analysed")).expect("JSON")
 }
 
+/// The page's tokens a block has at a byte offset: (surface, lemma, end).
+fn tokens_at(page: &serde_json::Value, block: usize, start: usize) -> Vec<(String, String, u64)> {
+    page["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .filter(|t| t["block"] == block && t["start"] == start)
+        .map(|t| {
+            (
+                t["surface"].as_str().expect("surface").to_owned(),
+                t["lemma"].as_str().expect("lemma").to_owned(),
+                t["end"].as_u64().expect("end"),
+            )
+        })
+        .collect()
+}
+
+/// `(surface, lemma, end)`, owned.
+fn token(surface: &str, lemma: &str, end: usize) -> (String, String, u64) {
+    (surface.to_owned(), lemma.to_owned(), end as u64)
+}
+
+/// The byte offset of `word` in a page's block, as a whole word.
+fn offset_in(page: &str, block: usize, word: &str) -> usize {
+    let (_, blocks) = FRENCH
+        .pages()
+        .into_iter()
+        .find(|(name, _)| name == page)
+        .unwrap_or_else(|| panic!("the {page} page"));
+    let text = &blocks[block];
+    text.match_indices(word)
+        .map(|(at, _)| at)
+        .find(|&at| {
+            let before = text[..at].chars().next_back();
+            let after = text[at + word.len()..].chars().next();
+            !before.is_some_and(char::is_alphanumeric) && !after.is_some_and(char::is_alphanumeric)
+        })
+        .unwrap_or_else(|| panic!("{word:?} in {page}[{block}]"))
+}
+
 #[test]
-fn french_is_the_baseline_until_its_rules_are_written() {
+fn french_has_its_pre_pass_and_the_baseline_s_lemmas() {
     let mut engine = FRENCH.loaded();
     assert_eq!(engine.languages(), r#"["es","fr"]"#, "es-en beside fr-en");
     assert_eq!(engine.native_language(), "en");
 
+    // An elision is two pieces, each with its own span, the elided one read as `le`.
     let elisions = analysed(&engine, "elisions");
-    assert_eq!(elisions["analyzer_version"], "0.1.0");
-    let tokens = elisions["tokens"].as_array().expect("tokens");
-    let homme = tokens
-        .iter()
-        .find(|t| t["surface"] == "L'homme")
-        .expect("`L'homme` is one token");
-    assert_eq!(homme["lemma"], "l'homme");
+    assert_eq!(elisions["analyzer_version"], "0.2.0");
+    assert_eq!(tokens_at(&elisions, 0, 0), [token("Le", "le", 2)]);
+    assert_eq!(tokens_at(&elisions, 0, 2), [token("homme", "homme", 7)]);
 
+    // `au` is `à` + `le` sharing its span; `du` is whole.
     let contractions = analysed(&engine, "contractions");
-    assert_eq!(contractions["analyzer_version"], "0.1.0");
-    assert!(
-        contractions["tokens"]
-            .as_array()
-            .expect("tokens")
-            .iter()
-            .any(|t| t["surface"] == "au" && t["lemma"] == "au"),
-        "`au` is whole"
+    assert_eq!(contractions["analyzer_version"], "0.2.0");
+    let au = offset_in("contractions", 0, "au");
+    assert_eq!(
+        tokens_at(&contractions, 0, au),
+        [token("à", "à", au + 2), token("le", "le", au + 2)]
     );
+    let du = offset_in("contractions", 0, "du");
+    assert_eq!(tokens_at(&contractions, 0, du), [token("du", "du", du + 2)]);
+
+    // An inversion is read as words, each with its own span.
+    let inversions = analysed(&engine, "inversions");
+    let dit = offset_in("inversions", 0, "dit-il");
+    assert_eq!(
+        tokens_at(&inversions, 0, dit),
+        [token("dit", "dire", dit + 3)]
+    );
+    assert_eq!(
+        tokens_at(&inversions, 0, dit + 4),
+        [token("il", "il", dit + 6)]
+    );
+
+    // The narrow no-break space of French punctuation is in no token and no span.
+    for name in ["fiction", "proust"] {
+        let (_, blocks) = FRENCH
+            .pages()
+            .into_iter()
+            .find(|(n, _)| n == name)
+            .expect(name);
+        let page = analysed(&engine, name);
+        for t in page["tokens"].as_array().expect("tokens") {
+            let block = &blocks[t["block"].as_u64().expect("block") as usize];
+            let span =
+                &block[t["start"].as_u64().unwrap() as usize..t["end"].as_u64().unwrap() as usize];
+            assert!(
+                !span.contains('\u{202f}') && !t["surface"].as_str().unwrap().contains('\u{202f}'),
+                "{name}: {t}"
+            );
+        }
+    }
 
     // No word of any page is a function word: French has no table yet.
     for (name, blocks) in FRENCH.pages() {
@@ -188,6 +262,34 @@ fn french_is_the_baseline_until_its_rules_are_written() {
         backup.starts_with("{\n  \"schema_version\": 3,"),
         "{backup}"
     );
+}
+
+#[test]
+fn the_fixture_lists_every_word_the_pre_pass_writes() {
+    // Each elided form of the pre-pass before a vowel — `s'` before `il`, `m'` and `t'` after a
+    // hyphen — and `au` and `aux`, tokenised as French, give only forms of the fixture: no word the
+    // pre-pass writes is set aside as a name for want of a form (change 43 checks the real tables).
+    let dir = PackSource::Testdata.manifest_dir("fr-en");
+    let forms: std::collections::BTreeSet<String> = std::fs::read_to_string(dir.join("forms.tsv"))
+        .expect("forms.tsv")
+        .lines()
+        .filter_map(|line| line.split('\t').next())
+        .filter(|form| !form.is_empty())
+        .map(str::to_owned)
+        .collect();
+    let pack = lingua_core::packs::Pack::load(&testdata_pack(&dir, "fr-en")).expect("the fixture");
+    let line = "c'est ç'a d'avoir j'ai jusqu'à l'homme lorsqu'il m'a n'est puisqu'on qu'il \
+                quoiqu'elle s'en s'il t'a prends-m'en va-t'en au aux";
+    let tokens = tokenize(line, StudiedLanguage::French, pack.lexicon());
+    let read: Vec<String> = tokens.iter().map(|t| t.text.to_lowercase()).collect();
+    for written in [
+        "ce", "ça", "de", "je", "jusque", "le", "lorsque", "me", "ne", "puisque", "que", "quoique",
+        "se", "si", "te", "moi", "toi", "à", "les",
+    ] {
+        assert!(read.iter().any(|r| r == written), "{written:?} in {read:?}");
+    }
+    let missing: Vec<&String> = read.iter().filter(|r| !forms.contains(*r)).collect();
+    assert!(missing.is_empty(), "not forms of the fixture: {missing:?}");
 }
 
 #[test]
@@ -229,7 +331,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     let mut manifest: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&manifest_path).expect("manifest"))
             .expect("JSON");
-    assert_eq!(manifest["meta"]["analyzer_version"], "0.1.0");
+    assert_eq!(manifest["meta"]["analyzer_version"], "0.2.0");
     manifest["meta"]["analyzer_version"] = "0.0.9".into();
     std::fs::write(&manifest_path, manifest.to_string()).expect("written");
 
@@ -238,7 +340,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     };
     let message = refused.downcast_ref::<String>().expect("a formatted panic");
     assert!(
-        message.contains("pack built for analyzer 0.0.9 but this core is 0.1.0"),
+        message.contains("pack built for analyzer 0.0.9 but this core is 0.2.0"),
         "{message}"
     );
     assert!(

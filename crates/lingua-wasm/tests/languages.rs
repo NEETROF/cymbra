@@ -634,9 +634,15 @@ fn spec_scenario_a_french_reader_s_backup_is_version_3() {
             fr(),
         )
         .unwrap();
-    assert!(page.contains(r#""analyzer_version":"0.1.0""#), "{page}");
+    // French's pre-pass splits the elision, each piece with its own span
+    // (add-lingua-french-tokenisation).
+    assert!(page.contains(r#""analyzer_version":"0.2.0""#), "{page}");
     assert!(
-        page.contains(r#""surface":"L'homme","lemma":"l'homme""#),
+        page.contains(r#""start":0,"end":2,"surface":"Le","lemma":"le""#),
+        "{page}"
+    );
+    assert!(
+        page.contains(r#""start":2,"end":7,"surface":"homme","lemma":"homme""#),
         "{page}"
     );
     let backup = engine.backup();
@@ -660,4 +666,33 @@ fn spec_scenario_a_french_reader_s_backup_is_version_3() {
     spanish.set_profile("en", vec!["es".to_owned()]).unwrap();
     spanish.set_status_at("casa", "known", T_MS, es()).unwrap();
     assert!(spanish.backup().starts_with("{\n  \"schema_version\": 2,"));
+}
+
+#[path = "support/french_spans.rs"]
+mod french_spans;
+
+/// French's pieces have spans of their own, the same on the host as on the wasm target
+/// (`languages_wasm.rs` asserts these against the fixture pack re-stamped French), whatever the
+/// pack (add-lingua-french-tokenisation D6).
+#[test]
+fn spec_scenario_french_pieces_keep_their_spans_on_the_host() {
+    let mut engine = english_native_engine();
+    engine.set_profile("en", vec!["fr".to_owned()]).unwrap();
+    let page = engine
+        .analyse(
+            vec![french_spans::PARAGRAPH.to_owned()],
+            Some("fr".to_owned()),
+        )
+        .unwrap();
+    assert_eq!(
+        french_spans::surfaces_and_spans(&page),
+        french_spans::expected()
+    );
+    for (surface, start, end) in french_spans::TOKENS {
+        let source = &french_spans::PARAGRAPH[*start..*end];
+        assert!(
+            !source.contains('\u{202F}') && !source.contains('-'),
+            "{surface}: {source:?}"
+        );
+    }
 }

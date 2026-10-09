@@ -844,14 +844,19 @@ mod tests {
     #[test]
     fn spec_scenario_a_french_page_is_read_by_the_baseline() {
         // add-lingua-french-baseline D2: French keeps its names as ordinary tokens (no names
-        // rule), flags no function word, splits no elision, and names its own version.
+        // rule), flags no function word, and names its own version. Its pre-pass splits an
+        // elision into pieces with their own spans and `au` into `à` + `le` sharing one
+        // (add-lingua-french-tokenisation); the pieces are lemmatised as any French word is.
         const FR: StudiedLanguage = StudiedLanguage::French;
         let blocks = [
             "Hier soir, Augusto a longtemps regardé Eugenia, puis il a prié Dieu dans la maison.",
             "Tous les nobles de la cour regardaient la scène avec beaucoup d'attention ce soir.",
+            "L'homme est allé au marché ce matin, puis il a longtemps regardé la maison du port.",
         ];
         let forms = [("regardé", "regarder"), ("regardaient", "regarder")];
-        let lemmas = ["eugenia", "dieu", "regarder", "maison", "la", "de", "il"];
+        let lemmas = [
+            "eugenia", "dieu", "regarder", "maison", "la", "de", "il", "le", "homme",
+        ];
         // `eugenia` and `dieu` are lemmas but not dictionary words: Spanish's names rule would set
         // both aside, being capitalised in mid-sentence and never written in lowercase.
         let pack = build_pack_with_lexical(
@@ -866,7 +871,7 @@ mod tests {
         let page = analyse_page(&blocks, FR, &pack, &KnowledgeState::new());
         assert!(page.analysable);
         assert_eq!(page.analyzer_version, FRENCH_ANALYZER_VERSION);
-        assert_eq!(page.analyzer_version, "0.1.0");
+        assert_eq!(page.analyzer_version, "0.2.0");
         let class_of = |surface: &str| {
             page.tokens
                 .iter()
@@ -881,10 +886,28 @@ mod tests {
             Some(("augusto", TokenClass::ProperNounOutOfLexicon))
         );
         assert_eq!(class_of("regardé"), Some(("regarder", TokenClass::Unknown)));
-        assert_eq!(
-            class_of("d'attention"),
-            Some(("d'attention", TokenClass::Unknown))
-        );
+        // The tokens a block has at a byte offset: (surface, lemma, end).
+        let at = |block: usize, start: usize| -> Vec<(&str, &str, usize)> {
+            page.tokens
+                .iter()
+                .filter(|t| t.block == block && t.start == start)
+                .map(|t| (t.surface.as_str(), t.lemma.as_str(), t.end))
+                .collect()
+        };
+        // `d'attention` is `de` + `attention`, each piece with its own span.
+        let elided = blocks[1].find("d'attention").expect("d'attention");
+        assert_eq!(at(1, elided), [("de", "de", elided + 2)]);
+        assert_eq!(at(1, elided + 2), [("attention", "attention", elided + 11)]);
+        assert!(page.tokens.iter().all(|t| t.surface != "d'attention"));
+        // `L'homme` is `Le` [0, 2) + `homme` [2, 7); `Le` is a pack word, no name.
+        assert_eq!(at(2, 0), [("Le", "le", 2)]);
+        assert_eq!(at(2, 2), [("homme", "homme", 7)]);
+        assert_eq!(class_of("Le"), Some(("le", TokenClass::Unknown)));
+        // `au` is `à` + `le`, sharing its span; `du` is whole.
+        let au = blocks[2].find(" au ").expect("au") + 1;
+        assert_eq!(at(2, au), [("à", "à", au + 2), ("le", "le", au + 2)]);
+        let du = blocks[2].find(" du ").expect("du") + 1;
+        assert_eq!(at(2, du), [("du", "du", du + 2)]);
 
         let phrase = gloss_phrase("ne pas le de la maison", FR, &pack, &KnowledgeState::new());
         assert_eq!(phrase.tokens.len(), 6);

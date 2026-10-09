@@ -19,11 +19,14 @@
 //! (`don't` → `do` + `not`), edge apostrophes are stripped, and
 //! single-letter tokens only survive when the lexicon knows them ("I", "a").
 //! The Spanish pre-pass reads its text in NFC and splits `al`/`del` into
-//! `a`/`de` + `el` (add-lingua-spanish-analysis D1). French has no pre-pass of
-//! its own yet (add-lingua-french-baseline D2): its text is read as it came and
-//! nothing is split, so `l'homme`, `aujourd'hui` and `au` are one token each.
-//! Adding a studied language means adding a pre-pass, not touching the
-//! tokeniser.
+//! `a`/`de` + `el` (add-lingua-spanish-analysis D1). The French pre-pass
+//! (add-lingua-french-tokenisation) reads the narrow no-break space (U+202F) as
+//! a space, splits an elided word off the word it is joined to (`l'homme` →
+//! `le` + `homme`, each piece with its own span; `aujourd'hui` stays whole),
+//! splits `au`/`aux` into `à` + `le`/`les` and reads a hyphenated inversion as
+//! words (`dit-il` → `dit` + `il`); its text is otherwise read as it came, NFC
+//! being a rule of its cascade. Adding a studied language means adding a
+//! pre-pass, not touching the tokeniser.
 
 use serde::Serialize;
 use unicode_normalization::UnicodeNormalization;
@@ -33,16 +36,21 @@ use super::language::StudiedLanguage;
 use super::lexicon::Lexicon;
 
 /// A countable token: the surface text (case preserved — the proper-noun
-/// heuristic needs it) plus the byte span of the source word it came from.
-/// The two halves of an expanded contraction share the same span.
+/// heuristic needs it) plus the byte span of the source text it came from.
+/// The two halves of an expanded contraction share the written word's span
+/// (`don't`, `del`, `au`): two letters cannot be shared out. The pieces of a
+/// French elision and the words of a French inversion each have their own
+/// (`L'homme` → `Le` [0, 2) + `homme` [2, 7); `a-t-il` → `a` [0, 1) + `il`
+/// [4, 6)), so a click lands on the piece under the pointer
+/// (add-lingua-french-tokenisation D6).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Token {
     /// Surface text after the pre-pass (e.g. `do`, `not`, `Teams`). For a
     /// hyphenated compound it is the whole run, hyphens included (`repo-wide`).
     pub text: String,
-    /// Byte offset of the source word in the analysed text.
+    /// Byte offset of the token's source in the analysed text.
     pub start: usize,
-    /// Byte end (exclusive) of the source word in the analysed text.
+    /// Byte end (exclusive) of the token's source in the analysed text.
     pub end: usize,
     /// The surfaces of a hyphenated compound's pieces (`["repo", "wide"]`),
     /// empty for an ordinary single-word token. A compound the lexicon does not
@@ -69,16 +77,22 @@ const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
 ///
 /// Each language has its own pre-pass. English expands `n't`; Spanish reads
 /// its tokens in NFC and splits `al`/`del` (add-lingua-spanish-analysis D1);
-/// French, served by the baseline, has none (add-lingua-french-baseline D2).
-/// All share the rules that belong to no language: segmentation, hyphenated
-/// compounds, the digit drop, the edge-apostrophe trim and the single-letter
-/// rule.
+/// French takes an arm of its own (add-lingua-french-tokenisation): its words
+/// are cut at U+202F, then read by `push_french_word` and `push_french_run` —
+/// elisions, `au`/`aux`, hyphenated inversions. All share the rules that
+/// belong to no language: segmentation, the hyphen run, the compound rule, the
+/// digit drop, the edge-apostrophe trim and the single-letter rule.
 pub fn tokenize(
     text: &str,
     language: StudiedLanguage,
     lexicon: &(impl Lexicon + ?Sized),
 ) -> Vec<Token> {
-    let words: Vec<(usize, &str)> = text.unicode_word_indices().collect();
+    let words: Vec<(usize, &str)> = match language {
+        StudiedLanguage::French => french_words(text),
+        StudiedLanguage::English | StudiedLanguage::Spanish => {
+            text.unicode_word_indices().collect()
+        }
+    };
     let mut tokens = Vec::new();
     let mut i = 0;
     while i < words.len() {
@@ -97,7 +111,13 @@ pub fn tokenize(
             end = next_start + next.len();
             j += 1;
         }
-        if j - i >= 2 {
+        if language == StudiedLanguage::French {
+            if j - i >= 2 {
+                push_french_run(&mut tokens, text, &words[i..j], lexicon);
+            } else {
+                push_french_word(&mut tokens, text, first, start, lexicon);
+            }
+        } else if j - i >= 2 {
             push_compound(
                 &mut tokens,
                 &text[start..end],
@@ -119,6 +139,14 @@ pub fn tokenize(
 /// normalisation/trimming, NFC (Spanish), the language's contraction split
 /// (English `n't`, Spanish `al`/`del`), the digit drop and the
 /// single-letter-needs-the-lexicon rule.
+///
+/// A contraction's base keeps the written word's capital by slicing the base
+/// at the written first letter's byte length — one byte for every English and
+/// Spanish base (`D`/`d`, `A`/`a`). French reads its elisions and `au`/`aux`
+/// before this ([`push_french_word`]) and capitalises the read word's own first
+/// letter ([`french_cased`]): `à` is two bytes where `A` is one, and the slice
+/// would panic. For French, what reaches this is the word that remains — the
+/// rules every language shares.
 fn push_word(
     tokens: &mut Vec<Token>,
     word: &str,
@@ -175,7 +203,8 @@ fn push_word(
 /// The word in NFC for Spanish, so a decomposed accent reads as the pack's
 /// precomposed one; any other language's text as it came — English output must
 /// not move (add-lingua-spanish-analysis D1), and French's NFC is a rule of its
-/// own, not the baseline's (add-lingua-french-baseline D2).
+/// cascade, not of its tokenisation pre-pass (add-lingua-french-baseline D2,
+/// add-lingua-french-tokenisation): French text is still read as it came.
 fn nfc_for(word: &str, language: StudiedLanguage) -> String {
     match language {
         StudiedLanguage::English | StudiedLanguage::French => word.to_owned(),
@@ -223,9 +252,10 @@ fn push_compound(
 }
 
 /// The language's contraction split, if `lower` is one: English `n't`, Spanish
-/// `al`/`del` (add-lingua-spanish-analysis D1). French splits nothing while it
-/// is the baseline: `au`, `du`, `l'homme` stay whole (add-lingua-french-baseline
-/// D2).
+/// `al`/`del` (add-lingua-spanish-analysis D1). French has none here: its
+/// `au`/`aux` and its elisions are read by its own pre-pass
+/// ([`push_french_word`], add-lingua-french-tokenisation D3–D4), whose casing
+/// takes a two-byte `à`; `du` and `des` stay whole (M21).
 fn split_contraction(lower: &str, language: StudiedLanguage) -> Option<(&str, &'static str)> {
     match language {
         StudiedLanguage::English => split_english_contraction(lower),
@@ -259,6 +289,292 @@ fn single_letter_outside_lexicon(
     lexicon: &(impl Lexicon + ?Sized),
 ) -> bool {
     trimmed.chars().count() == 1 && !lexicon.contains(lower)
+}
+
+// French's pre-pass (add-lingua-french-tokenisation). The pieces it writes are
+// lemmatised as any French word is.
+
+const FRENCH: StudiedLanguage = StudiedLanguage::French;
+
+/// The narrow no-break space, which French sets before `?`, `!`, `;` and `»`
+/// and after `«`. UAX #29 gives it the word-break class ExtendNumLet, which
+/// glues it to the word beside it; French reads it as a space (D2).
+const NARROW_NO_BREAK_SPACE: char = '\u{202F}';
+
+/// French's elided words — what is written before the apostrophe, lowercase —
+/// and the word each stands for (D3), sorted byte-wise by the written form.
+/// Two readings depend on the context ([`french_elided_word`]): `s'` is `si`
+/// before `il` and `ils`, and `m'`, `t'` are `moi`, `toi` right after a hyphen.
+/// `presqu'` and `quelqu'` are left off on purpose: they elide only in
+/// lexicalised words (`presqu'île`, `quelqu'un`), which stay whole.
+const FRENCH_ELISIONS: &[(&str, &str)] = &[
+    // `c'est` → `ce` + `est`
+    ("c", "ce"),
+    // `d'abord` → `de` + `abord`
+    ("d", "de"),
+    // `j'ai` → `je` + `ai`
+    ("j", "je"),
+    // `jusqu'ici` → `jusque` + `ici`
+    ("jusqu", "jusque"),
+    // `l'homme` → `le` + `homme` (`la` would need the next word's gender)
+    ("l", "le"),
+    // `lorsqu'il` → `lorsque` + `il`
+    ("lorsqu", "lorsque"),
+    // `m'appelle` → `me` + `appelle`; `donne-m'en` → `moi` + `en`
+    ("m", "me"),
+    // `n'est` → `ne` + `est`
+    ("n", "ne"),
+    // `puisqu'elle` → `puisque` + `elle`
+    ("puisqu", "puisque"),
+    // `qu'on` → `que` + `on`
+    ("qu", "que"),
+    // `quoiqu'il` → `quoique` + `il`
+    ("quoiqu", "quoique"),
+    // `s'en` → `se` + `en`; `s'il` → `si` + `il`
+    ("s", "se"),
+    // `t'aime` → `te` + `aime`; `va-t'en` → `toi` + `en`
+    ("t", "te"),
+    // `ç'a été` → `ça` + `a`
+    ("ç", "ça"),
+];
+
+/// The pronouns the pieces of a French hyphenated inversion after the first
+/// are (D5), sorted: `dit-il`, `allez-vous-en`, `coupez-les`, `dis-le-moi`.
+const FRENCH_INVERSION_PRONOUNS: &[&str] = &[
+    "ce", "elle", "elles", "en", "il", "ils", "je", "la", "le", "les", "leur", "lui", "moi",
+    "nous", "on", "toi", "tu", "vous", "y",
+];
+
+/// The pronouns the euphonic `t` is written before: `a-t-il`, `pense-t-elle`.
+const AFTER_EUPHONIC_T: &[&str] = &["elle", "elles", "il", "ils", "on"];
+
+/// The straight and the typographic apostrophe, the two French text is written
+/// with (D3). U+02BC, U+2018 and U+FF07 are not read as apostrophes.
+fn is_apostrophe(c: char) -> bool {
+    c == '\'' || c == '\u{2019}'
+}
+
+/// The words of French text with their byte offsets: UAX #29's, each cut at
+/// every U+202F, the space in no part (D2). A part keeps UAX #29's own filter: it
+/// holds a letter or a digit.
+fn french_words(text: &str) -> Vec<(usize, &str)> {
+    let mut words = Vec::new();
+    for (start, word) in text.unicode_word_indices() {
+        let mut at = start;
+        for part in word.split(NARROW_NO_BREAK_SPACE) {
+            if part.chars().any(char::is_alphanumeric) {
+                words.push((at, part));
+            }
+            at += part.len() + NARROW_NO_BREAK_SPACE.len_utf8();
+        }
+    }
+    words
+}
+
+/// `read` with the capital of `written`'s first letter put on its own first
+/// letter: `L'` → `Le`, `Qu'` → `Que`, `Au` → `À` (D4). [`push_word`]'s casing
+/// slices its base at the written letter's byte length, which `à` under `A`
+/// cannot take.
+fn french_cased(read: &str, written: &str) -> String {
+    let mut letters = read.chars();
+    match (written.chars().next(), letters.next()) {
+        (Some(capital), Some(first)) if capital.is_uppercase() => {
+            first.to_uppercase().chain(letters).collect()
+        }
+        _ => read.to_owned(),
+    }
+}
+
+/// The word an elided form stands for, or `None` when `written` (lowercase,
+/// without its apostrophe) is not one (D3). `next` is the word that follows,
+/// lowercase; `after_hyphen`, whether the elided form starts a piece after a
+/// hyphen.
+fn french_elided_word(written: &str, next: &str, after_hyphen: bool) -> Option<&'static str> {
+    let index = FRENCH_ELISIONS
+        .binary_search_by_key(&written, |&(form, _)| form)
+        .ok()?;
+    Some(match FRENCH_ELISIONS[index].1 {
+        "se" if matches!(next, "il" | "ils") => "si",
+        "me" if after_hyphen => "moi",
+        "te" if after_hyphen => "toi",
+        read => read,
+    })
+}
+
+/// Splits the elided words off the front of a French word written at `start`
+/// (D3): each is a token of its own, read as the word it stands for and spanning
+/// its letters and its apostrophe, and the rule runs again on what follows, as
+/// long as a letter follows the apostrophe. Returns where the rest starts and
+/// the rest. `after_hyphen`: the word is a piece after a hyphen.
+fn push_french_elisions<'a>(
+    tokens: &mut Vec<Token>,
+    word: &'a str,
+    start: usize,
+    after_hyphen: bool,
+) -> (usize, &'a str) {
+    let mut at = start;
+    let mut rest = word;
+    while let Some((i, apostrophe)) = rest.char_indices().find(|&(_, c)| is_apostrophe(c)) {
+        let written = &rest[..i];
+        let after = &rest[i + apostrophe.len_utf8()..];
+        if !after.starts_with(char::is_alphabetic) {
+            break;
+        }
+        let next: String = after
+            .chars()
+            .take_while(|c| c.is_alphabetic())
+            .flat_map(char::to_lowercase)
+            .collect();
+        let first_piece = at == start && after_hyphen;
+        let Some(read) = french_elided_word(&written.to_lowercase(), &next, first_piece) else {
+            break;
+        };
+        let end = at + i + apostrophe.len_utf8();
+        tokens.push(Token {
+            text: french_cased(read, written),
+            start: at,
+            end,
+            parts: Vec::new(),
+        });
+        at = end;
+        rest = after;
+    }
+    (at, rest)
+}
+
+/// The byte length of the apostrophe at `end` of `text` when it ends an elided
+/// word written on its own — neither a letter nor a digit after it (D3): `l’`
+/// alone, as a word card is handed it, or `l’ homme`.
+fn apostrophe_ending_a_word(text: &str, end: usize) -> Option<usize> {
+    let mut after = text[end..].chars();
+    let apostrophe = after.next().filter(|&c| is_apostrophe(c))?;
+    match after.next() {
+        Some(c) if c.is_alphanumeric() => None,
+        _ => Some(apostrophe.len_utf8()),
+    }
+}
+
+/// One French word written at `start` of `text` — outside a hyphenated run, a
+/// piece of a run holding a digit, or an inversion's first piece: its elisions
+/// (D3); then `au`/`aux`, split into `à` + `le`/`les` sharing the span,
+/// `du`/`des` whole (D4); an elided word written on its own (D3); or the rules
+/// every language shares ([`push_word`]).
+fn push_french_word(
+    tokens: &mut Vec<Token>,
+    text: &str,
+    word: &str,
+    start: usize,
+    lexicon: &(impl Lexicon + ?Sized),
+) {
+    let (at, rest) = push_french_elisions(tokens, word, start, false);
+    let end = at + rest.len();
+    let lower = rest.to_lowercase();
+    let article = match lower.as_str() {
+        "au" => Some("le"),
+        "aux" => Some("les"),
+        _ => None,
+    };
+    if let Some(article) = article {
+        for read in [french_cased("à", rest), article.to_owned()] {
+            tokens.push(Token {
+                text: read,
+                start: at,
+                end,
+                parts: Vec::new(),
+            });
+        }
+        return;
+    }
+    if let Some(apostrophe) = apostrophe_ending_a_word(text, end)
+        && let Some(read) = french_elided_word(&lower, "", false)
+    {
+        tokens.push(Token {
+            text: french_cased(read, rest),
+            start: at,
+            end: end + apostrophe,
+            parts: Vec::new(),
+        });
+        return;
+    }
+    push_word(tokens, rest, at, end, FRENCH, lexicon);
+}
+
+/// Whether the pack lists a hyphenated run whole, as `resolve_lemmas`
+/// (`pipeline.rs`) reads it: `peut-être`, `rendez-vous`.
+fn listed_whole(run: &str, lexicon: &(impl Lexicon + ?Sized)) -> bool {
+    lexicon
+        .lemma_of(&run.replace('\u{2019}', "'").to_lowercase())
+        .is_some()
+}
+
+/// Whether the pieces after a run's first are an inversion's (D5): each a
+/// pronoun written in lowercase, or an elided `m'`, `t'` or `l'` before `en` or
+/// `y`, the euphonic `t` allowed right before `il`, `elle`, `on`, `ils` or
+/// `elles`. A capital anywhere is a name or text set in capitals.
+fn is_french_inversion(tail: &[(usize, &str)]) -> bool {
+    !tail.is_empty()
+        && tail.iter().enumerate().all(|(k, &(_, piece))| {
+            if piece.chars().any(char::is_uppercase) {
+                return false;
+            }
+            let piece = piece.replace('\u{2019}', "'");
+            match piece.as_str() {
+                "t" => tail
+                    .get(k + 1)
+                    .is_some_and(|&(_, next)| AFTER_EUPHONIC_T.contains(&next)),
+                pronoun if FRENCH_INVERSION_PRONOUNS.binary_search(&pronoun).is_ok() => true,
+                elided => matches!(elided.split_once('\''), Some(("m" | "t" | "l", "en" | "y"))),
+            }
+        })
+}
+
+/// A French hyphenated run — pieces joined by single hyphens — read in order
+/// (D5): a digit makes each piece a word of its own; a run the pack lists whole
+/// is one token; an elision on the first piece is split off and the rest read
+/// again; an inversion's pieces are words, each with its own span, the euphonic
+/// `t` and the hyphens in none; any other run follows the compound rule.
+fn push_french_run(
+    tokens: &mut Vec<Token>,
+    text: &str,
+    pieces: &[(usize, &str)],
+    lexicon: &(impl Lexicon + ?Sized),
+) {
+    let start = pieces[0].0;
+    let end = pieces[pieces.len() - 1].0 + pieces[pieces.len() - 1].1.len();
+    if text[start..end].chars().any(|c| c.is_ascii_digit()) {
+        for &(at, piece) in pieces {
+            push_french_word(tokens, text, piece, at, lexicon);
+        }
+        return;
+    }
+    if listed_whole(&text[start..end], lexicon) {
+        push_compound(
+            tokens,
+            &text[start..end],
+            pieces,
+            start,
+            end,
+            FRENCH,
+            lexicon,
+        );
+        return;
+    }
+    let (head_start, head) = push_french_elisions(tokens, pieces[0].1, start, false);
+    let mut rest = pieces.to_vec();
+    rest[0] = (head_start, head);
+    let whole = &text[head_start..end];
+    if !listed_whole(whole, lexicon) && is_french_inversion(&rest[1..]) {
+        push_french_word(tokens, text, head, head_start, lexicon);
+        for &(at, piece) in &rest[1..] {
+            if piece == "t" {
+                continue;
+            }
+            let (at, piece) = push_french_elisions(tokens, piece, at, true);
+            push_word(tokens, piece, at, at + piece.len(), FRENCH, lexicon);
+        }
+        return;
+    }
+    push_compound(tokens, whole, &rest, head_start, end, FRENCH, lexicon);
 }
 
 #[cfg(test)]
@@ -359,36 +675,391 @@ mod tests {
 
     const FR: StudiedLanguage = StudiedLanguage::French;
 
+    /// A stand-in French pack: the one-letter words it keeps, and the hyphenated runs it lists
+    /// whole.
+    fn french_lexicon() -> FstLexicon<Vec<u8>> {
+        let (bytes, pool) = build_lexicon_blobs(
+            &[
+                ("a", "avoir"),
+                ("rendez-vous", "rendez-vous"),
+                ("peut-être", "peut-être"),
+                ("arc-en-ciel", "arc-en-ciel"),
+                ("c'est-à-dire", "c'est-à-dire"),
+            ],
+            &["à", "y", "le", "de", "homme"],
+        )
+        .expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    /// Each token's text beside the source text its span covers.
+    fn read<'t>(text: &'t str, tokens: &'t [Token]) -> Vec<(&'t str, &'t str)> {
+        tokens
+            .iter()
+            .map(|t| (t.text.as_str(), &text[t.start..t.end]))
+            .collect()
+    }
+
+    fn french(text: &str) -> Vec<Token> {
+        tokenize(text, FR, &french_lexicon())
+    }
+
     #[test]
-    fn spec_scenario_an_elided_french_word_is_one_token() {
-        // add-lingua-french-baseline D2: UAX #29 keeps a letter-apostrophe-letter run whole, and
-        // French splits nothing yet.
-        let lex = lexicon();
-        let text = "l'homme qu'il aujourd'hui";
-        let tokens = tokenize(text, FR, &lex);
-        assert_eq!(texts(&tokens), ["l'homme", "qu'il", "aujourd'hui"]);
-        assert!(tokens.iter().all(|t| t.parts.is_empty()));
-        assert_eq!(&text[tokens[1].start..tokens[1].end], "qu'il");
-        // The typographic apostrophe of a French page reads as the straight one, as in English.
-        let typographic = "L\u{2019}homme jusqu\u{2019}au soir";
+    fn spec_scenario_french_punctuation() {
+        // D2: UAX #29 glues U+202F (ExtendNumLet) to the word beside it; French reads it as a space.
+        let text = "«\u{202F}C’est fini\u{202F}!\u{202F}»";
+        let tokens = french(text);
         assert_eq!(
-            texts(&tokenize(typographic, FR, &lex)),
-            ["L'homme", "jusqu'au", "soir"]
+            read(text, &tokens),
+            [("Ce", "C’"), ("est", "est"), ("fini", "fini")]
+        );
+        assert_eq!((tokens[0].start, tokens[0].end), (5, 9));
+        assert_eq!((tokens[1].start, tokens[1].end), (9, 12));
+        assert!(tokens.iter().all(|t| !t.text.contains('\u{202F}')
+            && !text[t.start..t.end].contains('\u{202F}')));
+        // A narrow no-break space inside a UAX #29 word cuts it, the space in no part.
+        let inside = "pas\u{202F}encore";
+        assert_eq!(
+            read(inside, &french(inside)),
+            [("pas", "pas"), ("encore", "encore")]
+        );
+        // The no-break space U+00A0, set before `:`, never glued: nothing to do.
+        let colon = "Note\u{A0}: fini";
+        assert_eq!(
+            read(colon, &french(colon)),
+            [("Note", "Note"), ("fini", "fini")]
         );
     }
 
     #[test]
-    fn spec_scenario_french_contracted_articles_are_whole() {
+    fn english_and_spanish_keep_the_narrow_no_break_space_as_they_read_it() {
+        // U+202F is French typography: English and Spanish output must not move (D2).
         let lex = lexicon();
-        let tokens = tokenize("au marché, aux halles, du pain, des pommes", FR, &lex);
+        let text = "Ready\u{202F}? Go";
+        for language in [StudiedLanguage::English, StudiedLanguage::Spanish] {
+            assert_eq!(
+                texts(&tokenize(text, language, &lex)),
+                ["Ready\u{202F}", "Go"]
+            );
+        }
+    }
+
+    #[test]
+    fn spec_scenario_an_elided_article() {
+        let text = "L'homme";
+        let tokens = french(text);
+        assert_eq!(read(text, &tokens), [("Le", "L'"), ("homme", "homme")]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 2));
+        assert_eq!((tokens[1].start, tokens[1].end), (2, 7));
+        // The typographic apostrophe is three bytes, all in the elided piece's span.
+        let text = "l’horizon";
+        let tokens = french(text);
+        assert_eq!(read(text, &tokens), [("le", "l’"), ("horizon", "horizon")]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 4));
+        assert_eq!((tokens[1].start, tokens[1].end), (4, 11));
+        assert!(tokens.iter().all(|t| t.parts.is_empty()));
+    }
+
+    #[test]
+    fn every_elided_form_reads_as_the_word_it_stands_for() {
+        // D3: every entry, written in lowercase and with a capital, with either apostrophe.
+        for &(written, read_as) in FRENCH_ELISIONS {
+            for apostrophe in ["'", "\u{2019}"] {
+                for capital in [false, true] {
+                    let written = if capital {
+                        french_cased(written, "X")
+                    } else {
+                        written.to_owned()
+                    };
+                    let text = format!("{written}{apostrophe}avoir");
+                    let tokens = french(&text);
+                    let elided = format!("{written}{apostrophe}");
+                    let expected = if capital {
+                        french_cased(read_as, "X")
+                    } else {
+                        read_as.to_owned()
+                    };
+                    assert_eq!(
+                        read(&text, &tokens),
+                        [(expected.as_str(), elided.as_str()), ("avoir", "avoir")],
+                        "{text}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_elision_table_is_sorted_for_its_search() {
+        assert!(FRENCH_ELISIONS.windows(2).all(|w| w[0].0 < w[1].0));
+        assert!(FRENCH_INVERSION_PRONOUNS.windows(2).all(|w| w[0] < w[1]));
+    }
+
+    #[test]
+    fn spec_scenario_elided_words_read_as_the_words_they_stand_for() {
+        let pairs =
+            |text: &str| -> Vec<String> { french(text).into_iter().map(|t| t.text).collect() };
+        assert_eq!(pairs("s'il"), ["si", "il"]);
+        assert_eq!(pairs("s'ils"), ["si", "ils"]);
+        assert_eq!(pairs("S’il"), ["Si", "il"]);
+        assert_eq!(pairs("s'en"), ["se", "en"]);
+        // `si` only before the pronoun itself, not a word that starts like it.
+        assert_eq!(pairs("s'illumine"), ["se", "illumine"]);
+        assert_eq!(pairs("qu'on"), ["que", "on"]);
+        assert_eq!(pairs("n'est"), ["ne", "est"]);
+        assert_eq!(pairs("lorsqu'elle"), ["lorsque", "elle"]);
+        // `m'` and `t'` read `me` and `te` anywhere but right after a hyphen.
+        assert_eq!(pairs("m'appelle t'aime"), ["me", "appelle", "te", "aime"]);
+    }
+
+    #[test]
+    fn the_rule_runs_again_on_what_follows_an_elision() {
+        let text = "jusqu'au";
+        let tokens = french(text);
         assert_eq!(
-            texts(&tokens),
+            read(text, &tokens),
+            [("jusque", "jusqu'"), ("à", "au"), ("le", "au")]
+        );
+        let text = "qu'aujourd'hui";
+        assert_eq!(
+            read(text, &french(text)),
+            [("que", "qu'"), ("aujourd'hui", "aujourd'hui")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_word_whose_elision_is_part_of_it() {
+        // D3: what precedes the apostrophe is not on the list, so the word stays whole.
+        for word in [
+            "aujourd'hui",
+            "presqu'île",
+            "quelqu'un",
+            "prud'homme",
+            "entr'ouvert",
+            "grand'mère",
+            "aujourd’hui",
+        ] {
+            let tokens = french(word);
+            assert_eq!(tokens.len(), 1, "{word}");
+            assert_eq!((tokens[0].start, tokens[0].end), (0, word.len()), "{word}");
+            assert!(tokens[0].parts.is_empty(), "{word}");
+        }
+        // U+02BC MODIFIER LETTER APOSTROPHE is a letter to UAX #29, and no apostrophe here.
+        assert_eq!(texts(&french("lʼhomme")), ["lʼhomme"]);
+    }
+
+    #[test]
+    fn an_elided_word_written_on_its_own() {
+        // D3: what a word card is handed for the elided piece, its apostrophe included.
+        let text = "l’";
+        let tokens = french(text);
+        assert_eq!(read(text, &tokens), [("le", "l’")]);
+        let text = "l’ homme";
+        assert_eq!(
+            read(text, &french(text)),
+            [("le", "l’"), ("homme", "homme")]
+        );
+        let text = "Qu' ";
+        assert_eq!(read(text, &french(text)), [("Que", "Qu'")]);
+        // A digit is no letter after an elision, and `d` alone falls to the single-letter rule.
+        assert!(french("d'1").is_empty());
+        // A word that is no elided form keeps the shared rules: its apostrophe is trimmed.
+        assert_eq!(texts(&french("homme’ ")), ["homme"]);
+    }
+
+    #[test]
+    fn spec_scenario_contracted_articles() {
+        let text = "au marché, aux halles, du pain, des pommes";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
             [
-                "au", "marché", "aux", "halles", "du", "pain", "des", "pommes"
+                ("à", "au"),
+                ("le", "au"),
+                ("marché", "marché"),
+                ("à", "aux"),
+                ("les", "aux"),
+                ("halles", "halles"),
+                ("du", "du"),
+                ("pain", "pain"),
+                ("des", "des"),
+                ("pommes", "pommes"),
             ]
         );
-        // Spanish's `al`/`del` is Spanish's alone.
-        assert_eq!(texts(&tokenize("al del", FR, &lex)), ["al", "del"]);
+        // The two tokens of a contraction share its span, as `don't` and `del` do.
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 2));
+        assert_eq!((tokens[1].start, tokens[1].end), (0, 2));
+        // Other words that start like them stay whole, and Spanish's `al`/`del` is Spanish's.
+        assert_eq!(
+            texts(&french("auquel auxquels duquel desquels al del")),
+            ["auquel", "auxquels", "duquel", "desquels", "al", "del"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_capitalised_contraction() {
+        // D4: the capital goes on the read word's own first letter; `à` is two bytes where `A` is
+        // one, which the casing English and Spanish share would slice through.
+        let text = "Au revoir";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
+            [("À", "Au"), ("le", "Au"), ("revoir", "revoir")]
+        );
+        assert_eq!(texts(&french("AU")), ["À", "le"]);
+        assert_eq!(texts(&french("AUX")), ["À", "les"]);
+        assert_eq!(texts(&french("Aux")), ["À", "les"]);
+    }
+
+    #[test]
+    fn a_contraction_inside_a_compound_stays_part_of_it() {
+        for (run, parts) in [
+            ("au-delà", ["au", "delà"].as_slice()),
+            ("au-dessus", ["au", "dessus"].as_slice()),
+        ] {
+            let tokens = french(run);
+            assert_eq!(tokens.len(), 1, "{run}");
+            assert_eq!(tokens[0].text, run);
+            assert_eq!(tokens[0].parts, parts, "{run}");
+        }
+        // An elision on the run's first piece is split off; the compound keeps its `au`.
+        let text = "jusqu'au-delà";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
+            [("jusque", "jusqu'"), ("au-delà", "au-delà")]
+        );
+        assert_eq!(tokens[1].parts, ["au", "delà"]);
+    }
+
+    #[test]
+    fn spec_scenario_a_subject_pronoun_after_its_verb() {
+        let text = "dit-il";
+        let tokens = french(text);
+        assert_eq!(read(text, &tokens), [("dit", "dit"), ("il", "il")]);
+        assert_eq!((tokens[1].start, tokens[1].end), (4, 6));
+        assert!(tokens.iter().all(|t| t.parts.is_empty()));
+    }
+
+    #[test]
+    fn spec_scenario_the_euphonic_t() {
+        let text = "a-t-il";
+        let tokens = french(text);
+        assert_eq!(read(text, &tokens), [("a", "a"), ("il", "il")]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 1));
+        assert_eq!((tokens[1].start, tokens[1].end), (4, 6));
+        for (text, expected) in [
+            ("pense-t-elle", ["pense", "elle"]),
+            ("va-t-on", ["va", "on"]),
+            ("Viendront-ils", ["Viendront", "ils"]),
+        ] {
+            assert_eq!(texts(&french(text)), expected, "{text}");
+        }
+        // The euphonic `t` only before a subject pronoun: elsewhere the run is a compound.
+        assert_eq!(texts(&french("dit-t-nous")), ["dit-t-nous"]);
+        assert_eq!(texts(&french("dit-t")), ["dit-t"]);
+    }
+
+    #[test]
+    fn spec_scenario_a_question_with_an_elision() {
+        let text = "Qu’est-ce";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
+            [("Que", "Qu’"), ("est", "est"), ("ce", "ce")]
+        );
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 5));
+        assert_eq!((tokens[2].start, tokens[2].end), (9, 11));
+        assert_eq!(texts(&french("Est-ce")), ["Est", "ce"]);
+    }
+
+    #[test]
+    fn spec_scenario_an_imperative_with_its_pronouns() {
+        let text = "Donne-m'en";
+        assert_eq!(
+            read(text, &french(text)),
+            [("Donne", "Donne"), ("moi", "m'"), ("en", "en")]
+        );
+        let text = "Va-t'en";
+        assert_eq!(
+            read(text, &french(text)),
+            [("Va", "Va"), ("toi", "t'"), ("en", "en")]
+        );
+        let text = "allez-vous-en";
+        assert_eq!(
+            read(text, &french(text)),
+            [("allez", "allez"), ("vous", "vous"), ("en", "en")]
+        );
+        for (text, expected) in [
+            ("coupez-les", ["coupez", "les"].as_slice()),
+            ("dis-le-moi", ["dis", "le", "moi"].as_slice()),
+            ("Vas-y", ["Vas", "y"].as_slice()),
+            ("Prends-en", ["Prends", "en"].as_slice()),
+            ("mets-l'y", ["mets", "le", "y"].as_slice()),
+        ] {
+            assert_eq!(texts(&french(text)), expected, "{text}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_compound_the_pack_lists() {
+        for run in ["rendez-vous", "peut-être", "c'est-à-dire"] {
+            let tokens = french(run);
+            assert_eq!(texts(&tokens), [run], "{run}");
+            assert_eq!((tokens[0].start, tokens[0].end), (0, run.len()));
+        }
+        // Not listed, `rendez-vous` reads as an inversion (D5's risk, checked on the real tables).
+        let lex = lexicon();
+        assert_eq!(
+            texts(&tokenize("rendez-vous", FR, &lex)),
+            ["rendez", "vous"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_elision_before_a_compound() {
+        let text = "l'arc-en-ciel";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
+            [("le", "l'"), ("arc-en-ciel", "arc-en-ciel")]
+        );
+        assert_eq!(tokens[1].parts, ["arc", "en", "ciel"]);
+        // Not listed, the rest of the run is a compound judged by its parts.
+        let text = "d'arc-en-terre";
+        let tokens = french(text);
+        assert_eq!(
+            read(text, &tokens),
+            [("de", "d'"), ("arc-en-terre", "arc-en-terre")]
+        );
+        assert_eq!(tokens[1].parts, ["arc", "en", "terre"]);
+    }
+
+    #[test]
+    fn spec_scenario_runs_that_are_no_inversion() {
+        // D5: a piece that is no pronoun, or a capital, keeps the compound rule.
+        for run in [
+            "celui-ci",
+            "celle-là",
+            "moi-même",
+            "Jean-Pierre",
+            "Saint-Y",
+            "DIT-IL",
+        ] {
+            let tokens = french(run);
+            assert_eq!(texts(&tokens), [run], "{run}");
+            assert_eq!(tokens[0].parts, run.split('-').collect::<Vec<_>>(), "{run}");
+        }
+    }
+
+    #[test]
+    fn a_digit_in_a_french_run_reads_each_piece_as_a_word() {
+        // The rule that belongs to no language, each piece read as a French word.
+        let text = "l'an-2000 au-10";
+        assert_eq!(
+            read(text, &french(text)),
+            [("le", "l'"), ("an", "an"), ("à", "au"), ("le", "au")]
+        );
     }
 
     #[test]
@@ -399,14 +1070,18 @@ mod tests {
     }
 
     #[test]
-    fn french_inversions_and_compounds_follow_the_compound_rule() {
+    fn french_rules_never_run_on_english_or_spanish() {
+        // The pre-pass is French's arm: the other languages read these words as before.
         let lex = lexicon();
-        let tokens = tokenize("dit-il, peut-être, y a-t-il", FR, &lex);
-        // `y` is one letter the lexicon does not list: dropped, as the rule says of any language.
-        assert_eq!(texts(&tokens), ["dit-il", "peut-être", "a-t-il"]);
-        assert_eq!(tokens[0].parts, ["dit", "il"]);
-        assert_eq!(tokens[1].parts, ["peut", "être"]);
-        assert_eq!(tokens[2].parts, ["a", "t", "il"]);
+        let text = "l'homme au dit-il";
+        assert_eq!(
+            texts(&tokenize(text, StudiedLanguage::English, &lex)),
+            ["l'homme", "au", "dit-il"]
+        );
+        assert_eq!(
+            texts(&tokenize(text, StudiedLanguage::Spanish, &lex)),
+            ["l'homme", "au", "dit-il"]
+        );
     }
 
     #[test]

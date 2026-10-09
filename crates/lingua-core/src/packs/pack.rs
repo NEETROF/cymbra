@@ -880,11 +880,12 @@ pub(crate) mod tests {
     #[test]
     fn spec_scenario_a_french_pack_at_french_s_analyser_version() {
         // add-lingua-french-baseline: a pack studying French loads against French's own version,
-        // whatever English's is, and is glossed in English or Spanish.
+        // whatever English's is, and is glossed in English or Spanish. Its pre-pass made it
+        // `0.2.0` (add-lingua-french-tokenisation D9).
         let bytes = sample_pack_bytes_with("fr", "en", FRENCH_ANALYZER_VERSION);
-        let french = Pack::load(&bytes).expect("a French pack at 0.1.0 loads");
+        let french = Pack::load(&bytes).expect("a French pack at 0.2.0 loads");
         assert_eq!(french.studied(), StudiedLanguage::French);
-        assert_eq!(french.meta().analyzer_version, "0.1.0");
+        assert_eq!(french.meta().analyzer_version, "0.2.0");
         assert_eq!(french.pair().key(), "fr-en");
         assert_eq!(Pack::studied_in(&bytes).unwrap(), StudiedLanguage::French);
         let fr_es = Pack::load(&sample_pack_bytes_with("fr", "es", FRENCH_ANALYZER_VERSION))
@@ -893,10 +894,19 @@ pub(crate) mod tests {
         match Pack::load(&sample_pack_bytes_with("fr", "en", ANALYZER_VERSION)) {
             Err(PackError::IncompatibleAnalyzer { pack, core }) => {
                 assert_eq!(pack, "1.1.0");
-                assert_eq!(core, "0.1.0");
+                assert_eq!(core, "0.2.0");
             }
             Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
             Ok(_) => panic!("a French pack at English's version loaded"),
+        }
+        // A pack built at the baseline's `0.1.0` tokenised French otherwise: it is refused.
+        match Pack::load(&sample_pack_bytes_with("fr", "en", "0.1.0")) {
+            Err(PackError::IncompatibleAnalyzer { pack, core }) => {
+                assert_eq!(pack, "0.1.0");
+                assert_eq!(core, "0.2.0");
+            }
+            Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
+            Ok(_) => panic!("a French pack at the baseline's version loaded"),
         }
         // Portuguese still has no analyser.
         assert!(matches!(

@@ -41,6 +41,15 @@
 //! The pack is the hand-written fr-en fixture, `scripts/lingua-data/testdata/fr-en/`, until
 //! change 48 commits `tables/fr/` and `tables/fr-en/`; the engine starts on the real es-en pack,
 //! as an English-native reader's does.
+//!
+//! At analyser `0.2.0` French reads its text through its own tokenisation pre-pass
+//! (add-lingua-french-tokenisation): the narrow no-break space is a space, an elided word is a
+//! piece of its own read as the word it stands for (`l'homme` → `le` + `homme`), `au`/`aux` are
+//! `à` + `le`/`les`, a hyphenated inversion is read as words (`dit-il` → `dit` + `il`); the
+//! pieces keep the baseline's lemmas. The fixture lists every word the pre-pass writes
+//! (`french_baseline.rs` holds it), and two expressions holding `au` and an elision, `au revoir`
+//! and `coup d'œil`, which no selection reaches until the pack keys expressions through the
+//! analyser: the probes « Au revoir » and « un coup d’œil » show them appear then.
 
 use super::{Card, PackSource, Scenario};
 
@@ -96,7 +105,8 @@ const LEMMAS: &[&str] = &[
 ];
 
 /// Selections a reader glosses: expressions, the Proust sentence, elided, contracted and inverted
-/// selections, and the blocks that are not French (English, Spanish, Catalan, Occitan, Italian).
+/// selections — one set with the narrow no-break space —, the expressions holding `au` and an
+/// elision, and the blocks that are not French (English, Spanish, Catalan, Occitan, Italian).
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -112,6 +122,9 @@ const PHRASES: &[&str] = &[
     "du pain et des œufs",
     "dit-il",
     "Y a-t-il encore du café",
+    "S\u{2019}il pleut, viendras-tu\u{202f}?",
+    "Au revoir",
+    "un coup d\u{2019}œil",
     "The lighthouse stood",
     "El faro se alzaba",
     "El far s'alçava",
@@ -120,7 +133,8 @@ const PHRASES: &[&str] = &[
 ];
 
 /// (word as written, dictionary form) pairs a word card asks the grammar of. The fixture has no
-/// grammar tables: each answers its gloss alone.
+/// grammar tables: each answers its gloss alone, and the pieces a split word is made of — an
+/// elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`.
 const GRAMMAR: &[(&str, &str)] = &[
     ("est", "être"),
     ("sont", "être"),
@@ -151,6 +165,8 @@ const GRAMMAR: &[(&str, &str)] = &[
     ("au", "au"),
     ("du", "du"),
     ("l'homme", "homme"),
+    ("l\u{2019}", "le"),
+    ("au", "à"),
 ];
 
 /// The pages analysed again for the reader with a history.

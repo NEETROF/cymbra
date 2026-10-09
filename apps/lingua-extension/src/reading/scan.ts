@@ -192,19 +192,36 @@ export async function scan(port: AnalyzerPort, root: ParentNode & Node = documen
   return { blocks, resolved, stats: statsFromAnalysis(analysis) };
 }
 
-/** Hit-test a caret position (node + offset) against the resolved token ranges. */
-export function findTokenAt(resolved: ResolvedToken[], node: Node, offset: number): ResolvedToken | null {
-  for (const r of resolved) {
-    const { startContainer, endContainer, startOffset, endOffset } = r.range;
-    if (startContainer === node && endContainer === node) {
-      if (offset >= startOffset && offset <= endOffset) return r;
-      continue;
-    }
-    try {
-      if (r.range.comparePoint(node, offset) === 0) return r;
-    } catch {
-      // node not comparable with this range (different tree) — skip.
-    }
+/** Where a caret falls against a token's range: inside it (its start included), at its very
+ *  end, or outside. */
+function caretIn(range: Range, node: Node, offset: number): "inside" | "end" | "outside" {
+  const { startContainer, endContainer, startOffset, endOffset } = range;
+  if (startContainer === node && endContainer === node) {
+    if (offset >= startOffset && offset < endOffset) return "inside";
+    return offset === endOffset ? "end" : "outside";
   }
-  return null;
+  try {
+    if (range.comparePoint(node, offset) !== 0) return "outside";
+  } catch {
+    return "outside"; // node not comparable with this range (different tree)
+  }
+  return node === endContainer && offset === endOffset ? "end" : "inside";
+}
+
+/**
+ * Hit-test a caret position (node + offset) against the resolved token ranges, half-open: a
+ * range that starts at the caret or holds it wins over one that merely ends there, which is the
+ * fallback. Two pieces of one written word may have spans of their own that meet at one offset
+ * (`l’|homme`, add-lingua-french-tokenisation D7): a click on the left half of `homme`'s first
+ * letter lands the caret there, and opens `homme`. A click at the very end of a word still opens
+ * it, and pieces sharing one span (`don't`, `del`) open on the first, as before.
+ */
+export function findTokenAt(resolved: ResolvedToken[], node: Node, offset: number): ResolvedToken | null {
+  let endingHere: ResolvedToken | null = null;
+  for (const r of resolved) {
+    const where = caretIn(r.range, node, offset);
+    if (where === "inside") return r;
+    if (where === "end") endingHere ??= r;
+  }
+  return endingHere;
 }

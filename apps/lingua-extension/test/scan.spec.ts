@@ -97,6 +97,98 @@ describe("findTokenAt", () => {
     expect(findTokenAt(resolved, textNode, 6)!.token.lemma).toBe("run");
     expect(findTokenAt(resolved, textNode, 12)).toBeNull(); // past the word
   });
+
+  // add-lingua-french-tokenisation D7: the pieces of an elision have spans of their own, which
+  // meet at one offset. The tokens are synthetic: no French pack reaches the extension yet.
+  it("opens the piece that starts at the caret when two pieces meet there", () => {
+    document.body.innerHTML = `<p>Il voit l’homme.</p>`;
+    const blocks = collectBlocks();
+    // Byte spans: `l’` is 4 bytes (the typographic apostrophe is 3), `homme` follows.
+    const a = analysis([
+      tok({ start: 8, end: 12, surface: "le", lemma: "le", class: "Unknown" }),
+      tok({ start: 12, end: 17, surface: "homme", lemma: "homme", class: "Unknown" }),
+    ]);
+    const resolved = resolveTokens(blocks, a);
+    expect(resolved.map((r) => r.range.toString())).toEqual(["l’", "homme"]);
+    const textNode = document.querySelector("p")!.firstChild!;
+    // The left half of `homme`'s first letter: the caret lands at the boundary.
+    expect(findTokenAt(resolved, textNode, 10)!.token.lemma).toBe("homme");
+    // Inside `l’`, and at its start.
+    expect(findTokenAt(resolved, textNode, 9)!.token.lemma).toBe("le");
+    expect(findTokenAt(resolved, textNode, 8)!.token.lemma).toBe("le");
+    // The end of `homme`, before the period, still opens it.
+    expect(findTokenAt(resolved, textNode, 15)!.token.lemma).toBe("homme");
+  });
+
+  it("opens the first of two pieces sharing one span, as before", () => {
+    document.body.innerHTML = `<p>They don't ship.</p>`;
+    const blocks = collectBlocks();
+    const a = analysis([
+      tok({ start: 5, end: 10, surface: "do", lemma: "do", class: "Unknown" }),
+      tok({ start: 5, end: 10, surface: "not", lemma: "not", class: "Unknown" }),
+    ]);
+    const resolved = resolveTokens(blocks, a);
+    const textNode = document.querySelector("p")!.firstChild!;
+    expect(findTokenAt(resolved, textNode, 5)!.token.lemma).toBe("do");
+    expect(findTokenAt(resolved, textNode, 7)!.token.lemma).toBe("do");
+    expect(findTokenAt(resolved, textNode, 10)!.token.lemma).toBe("do");
+  });
+
+  it("opens a word when the caret lands right after it, before a space", () => {
+    document.body.innerHTML = `<p>The runner runs.</p>`;
+    const blocks = collectBlocks();
+    const a = analysis([
+      tok({ start: 4, end: 10, surface: "runner", lemma: "runner", class: "Unknown" }),
+      tok({ start: 11, end: 15, surface: "runs", lemma: "run", class: "Unknown" }),
+    ]);
+    const resolved = resolveTokens(blocks, a);
+    const textNode = document.querySelector("p")!.firstChild!;
+    expect(findTokenAt(resolved, textNode, 10)!.token.lemma).toBe("runner");
+    expect(findTokenAt(resolved, textNode, 11)!.token.lemma).toBe("run");
+  });
+
+  it("resolves the boundary of two pieces split across inline markup", () => {
+    // The ranges lie in different text nodes: the comparison falls back to the DOM's.
+    document.body.innerHTML = `<p>Il voit <b>l’</b>homme.</p>`;
+    const blocks = collectBlocks();
+    const a = analysis([
+      tok({ start: 8, end: 12, surface: "le", lemma: "le", class: "Unknown" }),
+      tok({ start: 12, end: 17, surface: "homme", lemma: "homme", class: "Unknown" }),
+    ]);
+    const resolved = resolveTokens(blocks, a);
+    const elided = document.querySelector("b")!.firstChild!;
+    const rest = document.querySelector("b")!.nextSibling!;
+    expect(findTokenAt(resolved, rest, 0)!.token.lemma).toBe("homme");
+    expect(findTokenAt(resolved, elided, 1)!.token.lemma).toBe("le");
+    // The end of `l’` is no start of `homme` in the DOM's terms: `le` is the fallback.
+    expect(findTokenAt(resolved, elided, 2)!.token.lemma).toBe("le");
+    expect(findTokenAt(resolved, document.querySelector("p")!.firstChild!, 2)).toBeNull();
+    // A node of no tree the ranges are in answers nothing.
+    expect(findTokenAt(resolved, document.createTextNode("homme"), 0)).toBeNull();
+  });
+
+  it("resolves a piece whose range spans inline markup, at its start and at its end", () => {
+    document.body.innerHTML = `<p>Il voit l’<b>hom</b>me.</p>`;
+    const blocks = collectBlocks();
+    const a = analysis([
+      tok({ start: 8, end: 12, surface: "le", lemma: "le", class: "Unknown" }),
+      tok({ start: 12, end: 17, surface: "homme", lemma: "homme", class: "Unknown" }),
+    ]);
+    const resolved = resolveTokens(blocks, a);
+    expect(resolved.map((r) => r.range.toString())).toEqual(["l’", "homme"]);
+    const head = document.querySelector("p")!.firstChild!;
+    const inside = document.querySelector("b")!.firstChild!;
+    const tail = document.querySelector("b")!.nextSibling!;
+    // `homme` starts in the bold text: a click on the left half of its `h` lands the caret there.
+    expect(findTokenAt(resolved, inside, 0)!.token.lemma).toBe("homme");
+    expect(findTokenAt(resolved, inside, 1)!.token.lemma).toBe("homme");
+    // The end of the text node before is the end of `l’`, and no start of `homme` in the DOM's
+    // terms: `le` is the fallback.
+    expect(findTokenAt(resolved, head, 10)!.token.lemma).toBe("le");
+    // The very end of `homme`, in another node than its start, still opens it.
+    expect(findTokenAt(resolved, tail, 2)!.token.lemma).toBe("homme");
+    expect(findTokenAt(resolved, tail, 3)).toBeNull();
+  });
 });
 
 describe("scan", () => {

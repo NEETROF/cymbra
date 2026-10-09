@@ -54,9 +54,14 @@ pub const ANALYZER_VERSION: &str = "1.1.0";
 /// `1.2.0` since add-lingua-spanish-names sets a document's names aside.
 pub const SPANISH_ANALYZER_VERSION: &str = "1.2.0";
 
-/// French's analyser version: `0.1.0` while French is served by the baseline
-/// analysis (add-lingua-french-baseline) — the rules that belong to no
-/// language and the pack's forms, no elision or contraction split, no NFC, no
-/// cascade, no function words, no names rule. A `0.x` version, as a language
-/// served by the baseline carries; its own tokenisation and cascade bump it.
-pub const FRENCH_ANALYZER_VERSION: &str = "0.1.0";
+/// French's analyser version: `0.1.0` when French was served by the baseline
+/// analysis alone (add-lingua-french-baseline); `0.2.0` since
+/// add-lingua-french-tokenisation gives it its own tokenisation pre-pass — the
+/// narrow no-break space (U+202F) a space, an elided word split from the word it
+/// is joined to and read as the word it stands for, each piece with its own span
+/// (`l'homme` → `le` + `homme`), `au`/`aux` → `à` + `le`/`les`, `du`/`des`
+/// whole, a hyphenated inversion read as words (`dit-il` → `dit` + `il`). Its
+/// lemmatisation is still the baseline's — the pack's forms, else the lowercased
+/// form; no NFC, no cascade, no function words, no names rule — so the version
+/// stays `0.x`; its cascade bumps it to `1.0.0`.
+pub const FRENCH_ANALYZER_VERSION: &str = "0.2.0";
