@@ -66,7 +66,7 @@ Measured: **38 strings, 36 distinct** (the privacy card is on both pages), **436
 (421 distinct) — 18 on the home page (one of them the Lingua card's audience sentence, which has no
 French source, D3), 20 on the Music page. Neutral strings are not counted: « Cymbra Music · iOS,
 iPadOS, macOS, Android », « 🎹 Music », « 📖 Lingua », the store labels. Drafts for the owner's review
-(M9):
+(M9); italics mark the `gradient` span and the badge, braces what the pairs fill (D3):
 
 | Page | Slot | French (source) | Spanish (draft) |
 |---|---|---|---|

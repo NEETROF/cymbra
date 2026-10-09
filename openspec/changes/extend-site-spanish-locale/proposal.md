@@ -18,8 +18,8 @@ has not.
 
 - **Two Spanish pages**, translations of the French ones (tú, neutral, no vosotros, M10), drafted
   for the owner's review (M9): `/es/` (the hub: both products, what they share) and `/es/music/`
-  (hero, store buttons, the eight feature cards), 38 strings measured (≈ 420 words), the Music
-  terms taken from the Spanish store listing so that the page and the listing never claim different
+  (hero, store buttons, the eight feature cards), 38 strings measured (36 distinct, 436 words), the
+  Music terms taken from the Spanish store listing so that the page and the listing never claim different
   things.
 - **The home's Lingua card follows the shipped pairs**, as change 30's Lingua page does: once a pair
   glossed in Spanish ships it reads « Lee la web en inglés… » and opens `/es/lingua/`; until then it
