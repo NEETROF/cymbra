@@ -12,6 +12,7 @@ Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 
 import contextlib
 import importlib.util
+import inspect
 import io
 import json
 import os
@@ -731,7 +732,8 @@ class Main(unittest.TestCase):
         for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json"):
             self.assertTrue(out[name], name)
         self.assertNotIn("grammar.tsv", out)
-        self.assertNotIn("level.tsv", out)
+        # and French's estimated levels (add-lingua-french-levels, `EstimatedLevels` below).
+        self.assertIn("de\tA1\n", out["level.tsv"])
         self.assertIn("dirigée\tdiriger\n", out["forms.tsv"])
         self.assertTrue(out["freq.tsv"].startswith("de\t1\nle\t2\n"), out["freq.tsv"][:40])
         # Sorted by form, and by rank: the order never depends on the source's.
@@ -742,7 +744,7 @@ class Main(unittest.TestCase):
         self.assertEqual(manifest["meta"]["native"], "en")
         self.assertEqual(manifest["meta"]["pack_version"], "2026.10.08+abcdef0")
         self.assertEqual(manifest["meta"]["analyzer_version"], red.analyser_version())
-        self.assertNotIn("levels_estimated", manifest["meta"])
+        self.assertIs(manifest["meta"]["levels_estimated"], True)
         for source in manifest["sources"]:
             self.assertIn(source["name"], out["NOTICE"])
         self.assertEqual([s["name"] for s in manifest["sources"]], ["kaikki", "wordfreq", "UD French-GSD"])
@@ -776,6 +778,171 @@ class Manifest(unittest.TestCase):
     def test_the_notice_names_every_source_the_manifest_declares(self):
         for name in ["kaikki", "wordfreq", "UD French-GSD", "French section"]:
             self.assertIn(name, red.NOTICE)
+
+
+# — The estimated levels (add-lingua-french-levels) —
+
+# What design D2's rules read, shaped as the English dump writes it: a name, a letter, a letter's
+# abbreviation, words that are also letters, spellings of another word (one beside a name's entry).
+LEVEL_ENTRIES = [
+    entry(
+        "France",
+        pos="name",
+        senses=[
+            {"glosses": ["France (a country located primarily in Western Europe)"], "tags": ["feminine"]},
+            {"glosses": ["a female given name"], "tags": ["feminine"]},
+        ],
+    ),
+    entry("b", pos="character", senses=[{"glosses": ["The second letter of the French alphabet, written in the Latin script."], "tags": ["letter", "lowercase"]}]),
+    entry("e", pos="character", senses=[{"glosses": ["The fifth letter of the French alphabet, written in the Latin script."], "tags": ["letter", "lowercase"]}]),
+    entry("E", pos="noun", senses=[{"glosses": ["abbreviation of est; east"], "tags": ["abbreviation", "alt-of", "masculine"], "alt_of": [{"word": "est"}]}]),
+    entry("à", pos="character", senses=[{"glosses": ["A with grave accent, a letter used in French mostly to distinguish some homographs."], "tags": ["letter", "lowercase"]}]),
+    entry("y", pos="character", senses=[{"glosses": ["a letter in the French alphabet, after x and before z"], "tags": ["letter", "lowercase"]}]),
+    entry("y", pos="pron", senses=[{"glosses": ["there (at a place)"], "tags": ["adverbial"]}]),
+    entry("etre", pos="verb", senses=[{"glosses": ["obsolete spelling of être"], "tags": ["Internet", "alt-of", "colloquial", "obsolete"], "alt_of": [{"word": "être"}]}]),
+    entry("orient", senses=[{"glosses": ["alternative letter-case form of Orient"], "tags": ["alt-of", "masculine"], "alt_of": [{"word": "Orient"}]}]),
+    entry("Orient", pos="name", senses=[{"glosses": ["Orient"], "tags": ["masculine"]}]),
+    entry("parceque", pos="conj", senses=[{"glosses": ["obsolete form of parce que"], "tags": ["alt-of", "obsolete"], "alt_of": [{"word": "parce que"}]}]),
+    entry("maison", senses=[{"glosses": ["house"], "tags": ["feminine"]}]),
+]
+
+
+def level_senses(*entries):
+    """The fixture section's senses, as `read_level_senses` keeps them."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "kaikki-French.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries or [*ENTRIES, *LEVEL_ENTRIES]))
+            f.write("not json\n")
+        return red.read_level_senses(path)
+
+
+class EstimatedLevels(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.senses = level_senses()
+
+    def test_the_section_s_senses_are_those_no_form_of_another_word(self):
+        self.assertEqual({pos for pos, _, _ in self.senses["y"]}, {"character", "pron"})
+        # Words are lowercased: `France` and `E` are read as `france` and `e`.
+        self.assertEqual({pos for pos, _, _ in self.senses["france"]}, {"name"})
+        self.assertIn(("noun", "abbreviation of est; east", frozenset({"abbreviation", "alt-of", "masculine"})), self.senses["e"])
+        # `étés` is only a form of `été`; `été` is a noun of its own, besides a form of être.
+        self.assertNotIn("étés", self.senses)
+        self.assertEqual(self.senses["été"], [("noun", "summer", frozenset({"masculine"}))])
+        self.assertNotIn("the", self.senses)
+
+    def test_spec_scenario_what_a_cefr_list_leaves_out(self):
+        forms = {}
+        for lemma, why in [
+            ("paris", "name"),
+            ("france", "name"),
+            ("the", "unknown"),
+            ("b", "letter"),
+            ("e", "letter"),
+            ("etre", "spelling"),
+            ("parceque", "spelling"),
+            # A spelling whose other entry is a name's: every sense but the name's spells another word.
+            ("orient", "spelling"),
+            ("à", None),
+            ("y", None),
+            ("maison", None),
+        ]:
+            self.assertEqual(red.no_level(lemma, forms, self.senses), why, lemma)
+
+    def test_spec_scenario_a_lemma_whose_own_form_reads_as_another(self):
+        # `donnée` ranked while the forms table maps it to *donner*: the builder would key its level on
+        # donner. It takes none; donner keeps its own rank's level, and the next lemma takes the place.
+        ranks = {"de": 1, "donner": 2, "donnée": 3, "maison": 4, "y": 5}
+        forms = {"de": "de", "donner": "donner", "donnée": "donner", "données": "donner", "maison": "maison", "y": "y"}
+        self.assertEqual(red.no_level("donnée", forms, self.senses), "elsewhere")
+        levels, left_out = red.estimated_levels(ranks, forms, self.senses, bands=(("A1", 2), ("A2", 2)))
+        self.assertEqual(levels, {"de": "A1", "donner": "A1", "maison": "A2", "y": "A2"})
+        self.assertEqual(left_out["elsewhere"], ["donnée"])
+
+    def test_du_and_des_are_words_of_their_own(self):
+        # M21: whatever the section's senses say — none at all here — `du` and `des` take a level.
+        ranks = {"de": 1, "des": 2, "du": 3}
+        levels, _ = red.estimated_levels(ranks, {}, {"de": self.senses["de"]}, bands=(("A1", 3),))
+        self.assertEqual(levels, {"de": "A1", "des": "A1", "du": "A1"})
+
+    def test_the_bands_go_in_rank_order_to_the_lemmas_a_cefr_list_would_hold(self):
+        ranks = {"de": 1, "the": 2, "paris": 3, "à": 4, "b": 5, "y": 6, "etre": 7, "maison": 8, "été": 9, "e": 10, "porter": 11}
+        levels, left_out = red.estimated_levels(ranks, {}, self.senses, bands=(("A1", 2), ("A2", 1), ("B1", 2)))
+        self.assertEqual(levels, {"de": "A1", "à": "A1", "y": "A2", "maison": "B1", "été": "B1"})
+        # Each rule's lemmas, up to the last level given: `e` and `porter` come after it.
+        self.assertEqual(
+            left_out, {"unknown": ["the"], "name": ["paris"], "elsewhere": [], "letter": ["b"], "spelling": ["etre"]}
+        )
+        # Equal ranks go by the lemma, so the order never depends on the source's.
+        tied, _ = red.estimated_levels({"maison": 1, "été": 1}, {}, self.senses, bands=(("A1", 1), ("A2", 1)))
+        self.assertEqual(tied, {"maison": "A1", "été": "A2"})
+        # Too few lemmas: the bands stop where they run out.
+        short, _ = red.estimated_levels({"de": 1}, {}, self.senses)
+        self.assertEqual(short, {"de": "A1"})
+
+    def test_english_bands_hold_its_8302_cefr_lemmas_as_es_fr_s_do(self):
+        self.assertEqual([level for level, _ in red.ENGLISH_BANDS], ["A1", "A2", "B1", "B2", "C1", "C2"])
+        self.assertEqual([size for _, size in red.ENGLISH_BANDS], [1020, 1158, 2015, 2347, 886, 876])
+        self.assertEqual(sum(size for _, size in red.ENGLISH_BANDS), 8302)
+        spec = importlib.util.spec_from_file_location("reduce_es_fr", os.path.join(_HERE, "reduce-es-fr.py"))
+        es_fr = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(es_fr)
+        self.assertEqual(red.ENGLISH_BANDS, es_fr.ENGLISH_BANDS)
+
+    def test_spec_scenario_the_table_does_not_wait_for_the_glosses(self):
+        # The derivation reads the ranks, the forms and the section's senses: nothing a gloss table,
+        # fr-en's (change 48) or another pair's, could move.
+        self.assertEqual(list(inspect.signature(red.estimated_levels).parameters), ["ranks", "forms", "senses", "bands"])
+
+    def test_the_report_names_each_level_s_span_and_each_rule(self):
+        ranks = {"de": 1, "the": 2, "à": 3, "y": 4}
+        levels, left_out = red.estimated_levels(ranks, {}, self.senses, bands=(("A1", 2), ("A2", 1)))
+        self.assertEqual(
+            red.levels_report(levels, left_out, ranks),
+            "levels=3 estimated: A1 2 (1–3); A2 1 (4–4); left out: unknown 1, name 0, elsewhere 0, letter 0, spelling 0",
+        )
+
+
+class EstimatedLevelsReduced(unittest.TestCase):
+    """The reduction of the fixture section, the levels' entries added and wordfreq ranking them."""
+
+    LEVEL_FREQ = {"y": 6.3, "the": 5.0, "france": 5.8, "b": 4.8, "e": 4.9, "etre": 3.6, "maison": 5.4}
+
+    @classmethod
+    def setUpClass(cls):
+        top = [w for w in sorted({**FREQ, **cls.LEVEL_FREQ}, key=lambda w: (-{**FREQ, **cls.LEVEL_FREQ}[w], w)) if "-" not in w]
+        with mock.patch.dict(FREQ, cls.LEVEL_FREQ), mock.patch.object(sys.modules[__name__], "TOP", top):
+            cls.out = Main.run_main(cls, [*ENTRIES, *LEVEL_ENTRIES])
+        cls.levels = dict(line.split("\t") for line in cls.out["level.tsv"].splitlines())
+        cls.ranks = dict(line.split("\t") for line in cls.out["freq.tsv"].splitlines())
+
+    def test_spec_scenario_the_commonest_words_are_a1(self):
+        for word in ["de", "le", "à", "y", "être", "du", "des"]:
+            self.assertEqual(self.levels.get(word), "A1", word)
+        for word in ["au", "aux"]:
+            self.assertNotIn(word, self.ranks)
+            self.assertNotIn(word, self.levels)
+
+    def test_what_a_cefr_list_leaves_out_takes_no_level(self):
+        for word in ["paris", "france", "the", "b", "e", "etre"]:
+            self.assertIn(word, self.ranks, word)
+            self.assertNotIn(word, self.levels, word)
+
+    def test_every_level_is_a_ranked_lemma_s_and_its_own_form_s(self):
+        forms = dict(line.split("\t") for line in self.out["forms.tsv"].splitlines())
+        for lemma in self.levels:
+            self.assertIn(lemma, self.ranks)
+            self.assertEqual(forms[lemma], lemma)
+        rows = self.out["level.tsv"].splitlines()
+        self.assertEqual(rows, sorted(rows))
+
+    def test_spec_scenario_every_french_pack_says_so(self):
+        manifest = json.loads(self.out["manifest.json"])
+        self.assertIs(manifest["meta"]["levels_estimated"], True)
+        self.assertIn("The levels are estimated, not taken from a CEFR list", self.out["NOTICE"])
+        self.assertIn("the English Wiktionary's French section saying which lemmas take", self.out["NOTICE"].replace("\n", " "))
+        self.assertNotIn("FLELex", self.out["NOTICE"])
 
 
 if __name__ == "__main__":
