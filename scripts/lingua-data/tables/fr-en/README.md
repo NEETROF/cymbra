@@ -420,15 +420,16 @@ presumed to know 78.0 % of the words. The estimate presumes more below each leve
 lists, in French as in Spanish. The translation proxy rises from A1 to B2 and cannot tell B2, C1 and
 C2 apart in either language: a rare word's translation is often a common English word.
 
-**Against the design's figures**, measured on change 43's prototype ranks: the counts per rule and
-every proxy hold to the tenth but two, and the spans end a few ranks earlier — A2 at 2,374 (2,376),
-B1 at 4,809 (4,814), B2 at 8,081 (8,086), C1 at 9,412 (9,418), C2 at 10,762 (10,768). Seven lemmas
-the prototype ranked within the span are no ranks of these tables: `venue`, `donnée`, `saisie`,
-`tranchée` and `revenue`, whose own form reads as a verb, and `ç` and `jusqu`, wordfreq's elision
-stems. So 2,460 lemmas are left out instead of 2,466 — rule 4 finds none of its four, the letters lose
-`ç`, the unknown words `jusqu` —, the proxy covers 5,949 lemmas instead of 5,950, and four levels
-differ from the prototype's table: `revenue` (B2) is no lemma, so `confidentialité` moves up to B2,
-`cheveu` to C1, and `sous-préfecture` takes C2's last place.
+**Against the design's figures**, measured on change 43's prototype ranks: every proxy holds to the
+tenth, and the spans end a few ranks earlier — A2 at 2,374 (2,376), B1 at 4,809 (4,814), B2 at
+8,081 (8,086), C1 at 9,412 (9,418), C2 at 10,762 (10,768). Seven lemmas the prototype ranked within
+the span are no ranks of these tables: `venue`, `donnée`, `saisie`, `tranchée` and `revenue`, whose
+own form reads as a verb, and `ç` and `jusqu`, wordfreq's elision stems. So 2,460 lemmas are left out
+instead of 2,466 — rule 4 finds none of its four, the letters lose `ç`, the unknown words `jusqu` —,
+the translation proxy covers 5,949 lemmas instead of 5,950, and four levels differ from the
+prototype's table: `revenue` (B2) is no lemma, so `confidentialité` moves up to B2, `cheveu` to C1,
+and `sous-préfecture` takes C2's last place. On the prototype's ranks the reduction gives the
+design's table byte for byte.
 
 **Departures from Spanish's outcome.** Rules 2 and 3 are French's: Spanish's rule (a French gloss
 that is not only a proper noun's) levels 20 single characters, 15 of them letters rather than words
