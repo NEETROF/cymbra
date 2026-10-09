@@ -924,17 +924,26 @@ pub(crate) mod tests {
         let fr_es = Pack::load(&sample_pack_bytes_with("fr", "es", FRENCH_ANALYZER_VERSION))
             .expect("a fr-es pack loads");
         assert_eq!(fr_es.pair().key(), "fr-es");
-        match Pack::load(&sample_pack_bytes_with("fr", "en", ANALYZER_VERSION)) {
+        // Compared with French's own version, never another language's: a French pack at
+        // Spanish's is refused. English's `1.1.0` is French's own since
+        // add-lingua-french-detection-guard, as it was Spanish's once: the numbers may meet.
+        assert_ne!(SPANISH_ANALYZER_VERSION, FRENCH_ANALYZER_VERSION);
+        match Pack::load(&sample_pack_bytes_with(
+            "fr",
+            "en",
+            SPANISH_ANALYZER_VERSION,
+        )) {
             Err(PackError::IncompatibleAnalyzer { pack, core }) => {
-                assert_eq!(pack, "1.1.0");
+                assert_eq!(pack, SPANISH_ANALYZER_VERSION);
                 assert_eq!(core, FRENCH_ANALYZER_VERSION);
             }
             Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
-            Ok(_) => panic!("a French pack at English's version loaded"),
+            Ok(_) => panic!("a French pack at Spanish's version loaded"),
         }
-        // A pack built at `0.2.0`, the version French had before its own analysis, or at the
-        // baseline's `0.1.0`, read French otherwise: each is refused.
-        for before in ["0.2.0", "0.1.0"] {
+        // A pack built at `1.0.0`, before French's detection guard, at `0.2.0`, the version French
+        // had before its own analysis, or at the baseline's `0.1.0`, read French otherwise: each
+        // is refused.
+        for before in ["1.0.0", "0.2.0", "0.1.0"] {
             match Pack::load(&sample_pack_bytes_with("fr", "en", before)) {
                 Err(PackError::IncompatibleAnalyzer { pack, core }) => {
                     assert_eq!(pack, before);

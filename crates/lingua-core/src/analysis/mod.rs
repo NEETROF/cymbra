@@ -67,5 +67,6 @@ pub const SPANISH_ANALYZER_VERSION: &str = "1.2.0";
 /// cascade reads the pack's forms then an unlisted lowercase plural as its
 /// unlisted singular (`analysis/french.rs`), its six closed classes flag a phrase gloss's
 /// function words, « pas » among them, and a French document's names are set
-/// aside (`engine::document_names`).
-pub const FRENCH_ANALYZER_VERSION: &str = "1.0.0";
+/// aside (`engine::document_names`); `1.1.0` since add-lingua-french-detection-guard
+/// keeps Catalan, Occitan and Romanian blocks out (`language::romance_neighbour`).
+pub const FRENCH_ANALYZER_VERSION: &str = "1.1.0";

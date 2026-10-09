@@ -361,8 +361,9 @@ corpus, which reads as above.
 OpenSpec: one ADDED requirement in `lingua-analysis`, *Catalan, Occitan and Romanian are not read
 as French*. It names no version number (D6) and rewrites nothing: change 39's two requirements are
 held by 39 and reworded by change 40, and are left to them. `archiveAfter` names
-`add-lingua-french-baseline`, whose requirement makes French a studied language;
-`openspec_archive_order.py` exits 10 naming it alone.
+`add-lingua-french-baseline`, whose requirement makes French a studied language, and changes 40
+and 41 (`add-lingua-french-tokenisation`, `add-lingua-french-analysis`), implemented before it
+(D6); `openspec_archive_order.py` exits 10 naming those still open.
 
 ## Risks / Trade-offs
 

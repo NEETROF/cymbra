@@ -15,16 +15,18 @@
 //! French invariance baseline (`docs/lingua/language-matrix-programme.md`, change 39,
 //! add-lingua-french-baseline).
 //!
-//! French is a studied language with its own analysis at analyser `1.0.0`
-//! (add-lingua-french-analysis). Its tokenisation pre-pass (add-lingua-french-tokenisation) reads
-//! the narrow no-break space as a space, splits an elided word from the word it is joined to and
-//! reads it as the word it stands for, each piece with its own span (`l'homme` → `le` + `homme`;
-//! `aujourd'hui` whole), `au`/`aux` as `à` + `le`/`les` sharing a span, `du`/`des` whole, a
-//! hyphenated inversion as words (`dit-il` → `dit` + `il`), and every word in NFC, its span the
-//! source's. Its cascade reads the pack's forms, then an unlisted lowercase plural as its unlisted
-//! singular, then the form; its closed classes flag a phrase gloss's function words, « pas »
-//! among them (M21); a document's names are set aside — Spanish's rule, a capital after an elided
-//! piece, a hyphenated run as one form.
+//! French is a studied language with its own analysis (add-lingua-french-analysis, analyser
+//! `1.0.0`), at analyser `1.1.0` since its detection guard keeps Catalan, Occitan and Romanian
+//! blocks out (add-lingua-french-detection-guard): the `mixte` page's Occitan block is not
+//! analysed, its Catalan block whichlang reads as Italian. Its tokenisation pre-pass
+//! (add-lingua-french-tokenisation) reads the narrow no-break space as a space, splits an elided
+//! word from the word it is joined to and reads it as the word it stands for, each piece with its
+//! own span (`l'homme` → `le` + `homme`; `aujourd'hui` whole), `au`/`aux` as `à` + `le`/`les`
+//! sharing a span, `du`/`des` whole, a hyphenated inversion as words (`dit-il` → `dit` + `il`), and
+//! every word in NFC, its span the source's. Its cascade reads the pack's forms, then an unlisted
+//! lowercase plural as its unlisted singular, then the form; its closed classes flag a phrase
+//! gloss's function words, « pas » among them (M21); a document's names are set aside — Spanish's
+//! rule, a capital after an elided piece, a hyphenated run as one form.
 //! This freezes what the engine makes of raw French text today, over a thirteen-page corpus
 //! (`baseline/pages-fr.txt`, its sources in `support/french.rs`), so that each later change of
 //! the French stage shows its effect as the diff of a re-bless. It is not French support: no pair
@@ -324,6 +326,19 @@ fn french_has_its_pre_pass_and_its_analysis() {
         assert_eq!(classes_of(&noms, word), ["Unknown"], "{word}");
     }
 
+    // The detection guard (add-lingua-french-detection-guard): of the `mixte` page's seven
+    // blocks, the two French ones alone are analysed — not its English, Spanish and Italian
+    // blocks, nor its Catalan one (whichlang reads it as Italian) or its Occitan one (read as
+    // French, refused by the guard).
+    let mixte = analysed(&engine, "mixte");
+    let mixte_blocks: std::collections::BTreeSet<u64> = mixte["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .map(|t| t["block"].as_u64().expect("block"))
+        .collect();
+    assert_eq!(mixte_blocks.into_iter().collect::<Vec<_>>(), [0, 6]);
+
     // The reader's records are French, under the profile the engine started with (Spanish,
     // English native): the backup names French, so it is schema version 3, and the golden's
     // `backup` probe records it.
@@ -420,7 +435,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     let mut manifest: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&manifest_path).expect("manifest"))
             .expect("JSON");
-    assert_eq!(manifest["meta"]["analyzer_version"], "1.0.0");
+    assert_eq!(manifest["meta"]["analyzer_version"], "1.1.0");
     manifest["meta"]["analyzer_version"] = "0.0.9".into();
     std::fs::write(&manifest_path, manifest.to_string()).expect("written");
 
@@ -429,7 +444,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     };
     let message = refused.downcast_ref::<String>().expect("a formatted panic");
     assert!(
-        message.contains("pack built for analyzer 0.0.9 but this core is 1.0.0"),
+        message.contains("pack built for analyzer 0.0.9 but this core is 1.1.0"),
         "{message}"
     );
     assert!(

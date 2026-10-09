@@ -3,7 +3,7 @@
     "studied": "fr",
     "native": "en",
     "pack_version": "0.0.2-fixture",
-    "analyzer_version": "1.0.0",
+    "analyzer_version": "1.1.0",
     "licences": [
       "Cymbra Lingua test fixture (hand-written, no third-party data)"
     ]
