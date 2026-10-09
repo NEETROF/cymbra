@@ -918,12 +918,44 @@ fn spec_scenario_the_contracted_articles() {
 }
 
 #[test]
+fn spec_scenario_the_committed_pairs() {
+    // fix-lingua-lemma-lookup D4, D6: each committed pair builds — no form of its forms table has
+    // two lemmas, every lemma of its pack reads as itself — to the sha256 its pin records, so
+    // filing every section at the lemma's own place moved no byte.
+    for (pair, bytes) in [
+        ("en-fr", shipped("en-fr")),
+        ("es-fr", shipped("es-fr")),
+        ("es-en", es_en()),
+        ("en-es", en_es()),
+        ("fr-en", fr_en()),
+    ] {
+        let pin = json(&tables().join(pair).join("pin.json"));
+        assert_eq!(pin["pack"]["sha256"], sha256_hex(bytes).as_str(), "{pair}");
+        let pack = Pack::load(bytes).unwrap();
+        let sections = sections(bytes);
+        let pool = std::str::from_utf8(section_of(&sections, section::LEMMAS).unwrap()).unwrap();
+        let elsewhere: Vec<(&str, Option<&str>)> = pool
+            .lines()
+            .map(|lemma| (lemma, pack.lexicon().lemma_of(lemma)))
+            .filter(|(lemma, read)| *read != Some(*lemma))
+            .take(10)
+            .collect();
+        assert!(
+            elsewhere.is_empty(),
+            "{pair}: lemmas read as another: {elsewhere:?}"
+        );
+    }
+}
+
+#[test]
 fn every_rank_lands_on_its_own_lemma_in_the_built_pack() {
-    // The builder keys a lemma's rank by looking the lemma up as a form (`FstLexicon::id_of`): a
-    // ranked lemma whose own form reads as another word would lend its rank to that word, and keep
-    // none (add-lingua-french-forms-tables: `donnée`, read as donner, gave donner its 1,711).
-    // Every committed pair's pack holds each rank of its studied language's freq.tsv on that very
-    // lemma, and no other.
+    // A ranked lemma whose own form reads as another word kept no rank of its own and lent it to
+    // that word while the builder filed a rank through the form lookup
+    // (add-lingua-french-forms-tables: `donnée`, read as donner, gave donner its 1,711). The
+    // builder now files it at the lemma's own place and refuses such a lemma
+    // (fix-lingua-lemma-lookup D4); this holds the result on the packs as built: every committed
+    // pair's pack holds each rank of its studied language's freq.tsv on that very lemma, and no
+    // other.
     for (pair, bytes) in [
         ("en-fr", shipped("en-fr")),
         ("es-fr", shipped("es-fr")),

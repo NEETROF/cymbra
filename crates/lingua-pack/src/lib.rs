@@ -137,6 +137,23 @@ pub enum BuildError {
     /// neither the lemma of a form nor a ranked lemma: no native language's glosses may
     /// add a lemma to the studied language's lexicon (add-lingua-pack-lexical-layer D3).
     Lexical(String),
+    /// The forms table lists one form with two lemmas or more: the core reads a form as
+    /// one lemma (M8), and which one would be the byte-wise first, which no table decides
+    /// (fix-lingua-lemma-lookup D4). `more` counts the other forms listed so.
+    FormWithTwoLemmas {
+        form: String,
+        lemmas: Vec<String>,
+        more: usize,
+    },
+    /// A lemma of the pack — of the forms table, the ranks or the glosses — whose own
+    /// spelling the forms table reads as another lemma (`venue` as *venir*): what the pack
+    /// files under it would never be read by its spelling, and its spelling would read the
+    /// other word's (fix-lingua-lemma-lookup D4). `more` counts the other lemmas read so.
+    LemmaReadsAsAnother {
+        lemma: String,
+        reads_as: String,
+        more: usize,
+    },
     /// The pack studies a language the core has no analyser for: no core
     /// could load it (`Pack::load` refuses it too).
     UnknownLanguage(String),
@@ -174,6 +191,26 @@ impl std::fmt::Display for BuildError {
             BuildError::Fst(e) => write!(f, "could not build the forms FST: {e}"),
             BuildError::Grammar(e) => write!(f, "grammar tables: {e}"),
             BuildError::Lexical(e) => write!(f, "lexical table: {e}"),
+            BuildError::FormWithTwoLemmas { form, lemmas, more } => {
+                let lemmas: Vec<String> = lemmas.iter().map(|l| format!("{l:?}")).collect();
+                write!(
+                    f,
+                    "the forms table lists the form {form:?} with {} lemmas: {}{}",
+                    lemmas.len(),
+                    lemmas.join(", "),
+                    and_more(*more, "form")
+                )
+            }
+            BuildError::LemmaReadsAsAnother {
+                lemma,
+                reads_as,
+                more,
+            } => write!(
+                f,
+                "the lemma {lemma:?} reads as {reads_as:?}: the forms table lists it as a form of \
+                 {reads_as:?}{}",
+                and_more(*more, "lemma")
+            ),
             BuildError::UnknownLanguage(tag) => write!(
                 f,
                 "the pack studies {tag:?}, a language the core cannot analyse"
@@ -198,6 +235,15 @@ impl std::fmt::Display for BuildError {
 }
 
 impl std::error::Error for BuildError {}
+
+/// `, and 3 more forms` when a refusal stands for others: empty when it names them all.
+fn and_more(more: usize, what: &str) -> String {
+    match more {
+        0 => String::new(),
+        1 => format!(", and 1 more {what}"),
+        n => format!(", and {n} more {what}s"),
+    }
+}
 
 /// Loads a pack's inputs from one directory holding both sides: `manifest.json`,
 /// `forms.tsv`, `freq.tsv`, `gloss.tsv` and `NOTICE`, and the optional tables
@@ -493,6 +539,20 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         .iter()
         .map(|(f, l)| (f.as_str(), l.as_str()))
         .collect();
+    // One form, one lemma (M8): a form listed with two lemmas would be read as the byte-wise
+    // first, which no table decides (fix-lingua-lemma-lookup D4).
+    let mut lemmas_of: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for (form, lemma) in &pairs {
+        lemmas_of.entry(form).or_default().insert(lemma);
+    }
+    let mut ambiguous = lemmas_of.iter().filter(|(_, lemmas)| lemmas.len() > 1);
+    if let Some((form, lemmas)) = ambiguous.next() {
+        return Err(BuildError::FormWithTwoLemmas {
+            form: (*form).to_owned(),
+            lemmas: lemmas.iter().map(|l| (*l).to_owned()).collect(),
+            more: ambiguous.count(),
+        });
+    }
     let mut extra: Vec<&str> = inputs
         .ranks
         .iter()
@@ -505,11 +565,29 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         build_lexicon_blobs(&pairs, &extra).map_err(|e| BuildError::Fst(e.to_string()))?;
     let lex = FstLexicon::from_slices(forms.as_slice(), &pool)
         .map_err(|e| BuildError::Fst(e.to_string()))?;
+    // Every lemma of the pack reads as itself (fix-lingua-lemma-lookup D4): a lemma whose own
+    // spelling the forms read as another would keep what is filed under it out of the reader's
+    // reach, its spelling reading the other word's estimates. Checked on the lexicon written,
+    // where a form the pairs map reads as their lemma whatever the byte order (D5). After it,
+    // a lemma's own place (`lemma_id`) is the id its spelling reads (`id_of`).
+    let mut elsewhere = pool.lines().filter_map(|lemma| {
+        let reads_as = lex.lemma_of(lemma)?;
+        (reads_as != lemma).then_some((lemma, reads_as))
+    });
+    if let Some((lemma, reads_as)) = elsewhere.next() {
+        return Err(BuildError::LemmaReadsAsAnother {
+            lemma: lemma.to_owned(),
+            reads_as: reads_as.to_owned(),
+            more: elsewhere.count(),
+        });
+    }
 
+    // Every lemma-keyed section is filed at the lemma's own place in the lemma list, the id
+    // the core reads it by (fix-lingua-lemma-lookup D4).
     // Ranks by lemma id (0 = unranked).
     let mut freq = vec![0u32; lex.lemma_count()];
     for (lemma, rank) in &inputs.ranks {
-        if let Some(id) = lex.id_of(lemma) {
+        if let Some(id) = lex.lemma_id(lemma) {
             freq[id as usize] = *rank;
         }
     }
@@ -522,7 +600,7 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     let mut entries: Vec<(u32, &str)> = inputs
         .glosses
         .iter()
-        .filter_map(|(l, g)| lex.id_of(l).map(|id| (id as u32, g.as_str())))
+        .filter_map(|(l, g)| lex.lemma_id(l).map(|id| (id as u32, g.as_str())))
         .collect();
     entries.sort_unstable_by_key(|(id, _)| *id);
     let gloss_zst = compress_glosses(&entries);
@@ -532,13 +610,15 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
 
     // CEFR level code per lemma id (0 = no level). Emitted as an optional
     // section ONLY when the pair has CEFR data, so a level-less pack stays
-    // byte-for-byte identical to before this feature.
+    // byte-for-byte identical to before this feature. A level written for a
+    // string that is no lemma of the pack is filed under no lemma — never under
+    // the lemma that string is a form of (fix-lingua-lemma-lookup D4).
     let levels_bytes: Vec<u8> = if inputs.levels.is_empty() {
         Vec::new()
     } else {
         let mut levels = vec![0u8; lex.lemma_count()];
         for (lemma, level) in &inputs.levels {
-            if let Some(id) = lex.id_of(lemma) {
+            if let Some(id) = lex.lemma_id(lemma) {
                 levels[id as usize] = level.to_code();
             }
         }
@@ -687,9 +767,12 @@ struct GrammarSections {
 /// build by name. A reading is filed under its own dictionary form; a
 /// believable reading of another dictionary form is also filed, as such,
 /// under the one the core's own cascade reads the form as — which is what the
-/// card will be keyed by. Readings whose dictionary form the lexicon does not
-/// hold are dropped. Each run must cover exactly its word's gloss, and a noun's
-/// runs carry the gender its readings give it ([`tags::noun_runs`]).
+/// card will be keyed by. Each is filed at its dictionary form's own place in
+/// the lemma list (`lemma_id`), where the core reads it
+/// (fix-lingua-lemma-lookup D4): readings and runs whose dictionary form the
+/// lexicon does not hold as a lemma are dropped, never filed under the lemma
+/// that string is a form of. Each run must cover exactly its word's gloss, and
+/// a noun's runs carry the gender its readings give it ([`tags::noun_runs`]).
 fn grammar_sections(
     inputs: &PackInputs,
     studied: StudiedLanguage,
@@ -733,12 +816,8 @@ fn grammar_sections(
         let ud = canonical(text)?;
         Ok(*index.get(ud.as_str()).expect("pooled above"))
     };
-    let lemma_id = |lemma: &str| -> Option<u32> {
-        if !lex.contains_lemma(lemma) {
-            return None;
-        }
-        lex.id_of(lemma).and_then(|id| u32::try_from(id).ok())
-    };
+    let lemma_id =
+        |lemma: &str| -> Option<u32> { lex.lemma_id(lemma).and_then(|id| u32::try_from(id).ok()) };
     let edit = |base: &str, form: &str| {
         FormEdit::between(base, form)
             .ok_or_else(|| fail(format!("form {form:?} is too far from {base:?} to store")))
@@ -1432,6 +1511,166 @@ mod tests {
             }
             other => panic!("expected OverBudget, got {other:?}"),
         }
+    }
+
+    // — every lemma read as itself (fix-lingua-lemma-lookup D4) —
+
+    fn pairs(rows: &[(&str, &str)]) -> Vec<(String, String)> {
+        rows.iter()
+            .map(|(a, b)| ((*a).to_owned(), (*b).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn spec_scenario_a_lemma_whose_own_spelling_reads_as_another() {
+        // `venue` ranked, the forms table reading the form `venue` as venir.
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("venue", "venir"), ("viens", "venir")]));
+        inp.ranks
+            .extend([("venir".into(), 60), ("venue".into(), 1_900)]);
+        let err = build_pack(&inp).expect_err("a ranked lemma read as another");
+        assert_eq!(
+            err,
+            BuildError::LemmaReadsAsAnother {
+                lemma: "venue".into(),
+                reads_as: "venir".into(),
+                more: 0,
+            }
+        );
+        assert_eq!(
+            err.to_string(),
+            "the lemma \"venue\" reads as \"venir\": the forms table lists it as a form of \"venir\""
+        );
+    }
+
+    #[test]
+    fn a_glossed_lemma_or_a_forms_table_lemma_read_as_another_is_refused_too() {
+        // Glossed, not ranked.
+        let mut inp = french_inputs();
+        inp.form_lemma.push(("venue".into(), "venir".into()));
+        inp.ranks.push(("venir".into(), 60));
+        inp.glosses.push(("venue".into(), "coming, arrival".into()));
+        assert!(matches!(
+            build_pack(&inp),
+            Err(BuildError::LemmaReadsAsAnother { lemma, reads_as, .. })
+                if lemma == "venue" && reads_as == "venir"
+        ));
+        // The lemma of another form of the table.
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("venue", "venir"), ("venues", "venue")]));
+        assert!(matches!(
+            build_pack(&inp),
+            Err(BuildError::LemmaReadsAsAnother { lemma, .. }) if lemma == "venue"
+        ));
+        // Whatever the byte order: `donnée` sorts before `donner`, whose form the table says it
+        // is (`build_lexicon_blobs` lets the pairs win, D5). The first is named, the rest counted.
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("donnée", "donner"), ("venue", "venir")]));
+        inp.ranks.extend([
+            ("donner".into(), 70),
+            ("donnée".into(), 1_711),
+            ("venir".into(), 60),
+            ("venue".into(), 1_900),
+        ]);
+        let err = build_pack(&inp).expect_err("two ranked lemmas read as others");
+        assert_eq!(
+            err,
+            BuildError::LemmaReadsAsAnother {
+                lemma: "donnée".into(),
+                reads_as: "donner".into(),
+                more: 1,
+            }
+        );
+        assert!(err.to_string().ends_with(", and 1 more lemma"), "{err}");
+    }
+
+    #[test]
+    fn spec_scenario_a_form_listed_with_two_lemmas() {
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("porte", "porte"), ("porte", "porter")]));
+        let err = build_pack(&inp).expect_err("a form with two lemmas");
+        assert_eq!(
+            err,
+            BuildError::FormWithTwoLemmas {
+                form: "porte".into(),
+                lemmas: vec!["porte".into(), "porter".into()],
+                more: 0,
+            }
+        );
+        assert_eq!(
+            err.to_string(),
+            "the forms table lists the form \"porte\" with 2 lemmas: \"porte\", \"porter\""
+        );
+        // Two of them: the first form byte-wise is named, the other counted.
+        inp.form_lemma
+            .extend(pairs(&[("lu", "lire"), ("lu", "luire")]));
+        let err = build_pack(&inp).expect_err("two forms with two lemmas");
+        assert!(
+            matches!(&err, BuildError::FormWithTwoLemmas { form, more: 1, .. } if form == "lu"),
+            "{err:?}"
+        );
+        assert!(err.to_string().ends_with(", and 1 more form"), "{err}");
+    }
+
+    #[test]
+    fn a_form_listed_twice_with_one_lemma_builds() {
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("portes", "porte"), ("portes", "porte")]));
+        let pack = Pack::load(&build_pack(&inp).expect("one lemma, listed twice")).unwrap();
+        assert_eq!(pack.lexicon().lemma_of("portes"), Some("porte"));
+    }
+
+    #[test]
+    fn spec_scenario_a_level_written_for_a_form() {
+        use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
+        // `donnée` no lemma of the pack, the forms table reading it as donner: its B1, written
+        // after donner's A1, is filed under no lemma — where it overwrote donner's.
+        let mut inp = french_inputs();
+        inp.form_lemma.push(("donnée".into(), "donner".into()));
+        inp.ranks.push(("donner".into(), 70));
+        inp.levels = vec![
+            ("donner".into(), CefrLevel::A1),
+            ("donnée".into(), CefrLevel::B1),
+        ];
+        let pack = Pack::load(&build_pack(&inp).expect("build")).expect("load");
+        assert!(!pack.lexicon().contains_lemma("donnée"));
+        assert_eq!(pack.level("donner"), Some(CefrLevel::A1));
+        assert!(pack.lemmas_at_level(CefrLevel::B1).is_empty());
+        assert_eq!(pack.lemmas_at_level(CefrLevel::A1), vec![("donner", None)]);
+        // The spelling's estimate is donner's, the lemma the forms read it as (D3).
+        assert_eq!(pack.level("donnée"), Some(CefrLevel::A1));
+    }
+
+    #[test]
+    fn what_is_filed_under_a_lemma_is_what_the_core_reads_for_it() {
+        // Every lemma-keyed section at the lemma's own place: rank, gloss, level, lexical bit,
+        // readings and runs of a lemma of a built pack are read back by its own spelling.
+        use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
+        let mut inp = inputs_with_grammar();
+        inp.levels = vec![("leave".into(), CefrLevel::A2)];
+        // A lexical table naming `leaf` (unglossed) and not `run` (glossed): it is written.
+        inp.lexical = Some(vec!["leave".into(), "leaf".into()]);
+        let bytes = build_pack(&inp).expect("build");
+        assert!(section_of(&bytes, section::LEXICAL).is_some());
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(pack.rank("leave"), Some(371));
+        assert_eq!(pack.gloss("leave"), Some("Partir; Congé"));
+        assert_eq!(pack.level("leave"), Some(CefrLevel::A2));
+        assert!(pack.is_dictionary_word("leave"));
+        assert!(pack.is_dictionary_word("leaf"));
+        assert!(!pack.is_dictionary_word("run"));
+        assert_eq!(ud(&pack.readings("leave", "leaves")), [THIRD_SINGULAR]);
+        assert_eq!(pack.sense_runs("leave").len(), 2);
+        // A form of a lemma reads the lemma's estimates and nothing of its entry.
+        assert_eq!(pack.rank("running"), Some(500));
+        assert_eq!(pack.gloss("running"), None);
+        assert!(pack.readings("running", "running").is_empty());
+        assert!(pack.sense_runs("running").is_empty());
     }
 
     // — grammar tables (`add-lingua-word-grammar`) —
