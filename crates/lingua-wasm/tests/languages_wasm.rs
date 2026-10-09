@@ -13,7 +13,8 @@
 // limitations under the License.
 
 //! The calls the engine refuses (`generalise-lingua-wasm-engine`). They throw, which
-//! only a wasm target can show: creating a `JsError` off wasm panics.
+//! only a wasm target can show: creating a `JsError` off wasm panics. And French's pieces
+//! read with the host's spans (add-lingua-french-tokenisation D6).
 //! `wasm-pack test --node crates/lingua-wasm`.
 
 #![cfg(target_arch = "wasm32")]
@@ -25,6 +26,9 @@ use wasm_bindgen_test::wasm_bindgen_test;
 
 #[path = "support/fixture_pack.rs"]
 mod fixture_pack;
+
+#[path = "support/french_spans.rs"]
+mod french_spans;
 
 use fixture_pack::{PACK, rewritten};
 
@@ -212,4 +216,24 @@ fn spec_scenario_a_refused_native_language_choice_returns_an_error() {
     engine.restore(&reprofiled).unwrap();
     assert_eq!(engine.profile_native_language(), "en");
     assert_eq!(engine.studied_languages(), r#"["es"]"#);
+}
+
+#[wasm_bindgen_test]
+fn spec_scenario_french_pieces_keep_the_host_s_spans_on_wasm() {
+    // add-lingua-french-tokenisation D6: the pre-pass is pure Rust over the text, so the wasm
+    // target reads the paragraph `languages.rs` reads on the host into the same tokens and byte
+    // spans — elided pieces with their three-byte apostrophe, `au` shared, the euphonic `t` and the
+    // narrow no-break space in no span.
+    let engine = LinguaEngine::new(&rewritten(StudiedLanguage::French, "en")).unwrap();
+    let page = engine
+        .analyse(
+            vec![french_spans::PARAGRAPH.to_owned()],
+            Some("fr".to_owned()),
+        )
+        .unwrap();
+    assert!(page.contains(r#""analyzer_version":"0.2.0""#), "{page}");
+    assert_eq!(
+        french_spans::surfaces_and_spans(&page),
+        french_spans::expected()
+    );
 }
