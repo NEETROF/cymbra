@@ -56,12 +56,20 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   proscribed, abbreviated, clipped or a pronunciation spelling, nor a gender or number marker a head
   left among the forms (`m` under *Paris*, which read « M. » as Paris; 7 rows in the section) — and
   the first word of each form-of target of its own entry (`bel` → *beau*).
-- **A form of a form, along one part of speech.** A candidate the first choice reads as another
-  word's form stands for that word too, when the entry linking the form to it and the one linking it
-  onward are of one part of speech: `dirigée`, the feminine of the participle `dirigé`, reaches
-  *diriger*; `étés`, the plural of the noun `été`, does not follow `été` to *être* through a verb
-  entry, and stays out — an unknown word rather than the verb. Without it the tables fail the
-  resolution gate (97.61 % on PUD).
+- **A form of a form, along one part of speech.** A candidate is followed along the part of speech
+  of the entry linking the form to it: along it, a word reads as the first choice among itself —
+  only when one of its lemma entries is of that part of speech — and the words its entries of that
+  part of speech link it to, never a word whose entries are all of other parts of speech; a
+  candidate it reads as another word stands for that word. `dirigée`, the feminine of the
+  participle `dirigé`, reaches *diriger*; `citée`, the feminine of the participle `cité`, reaches
+  *citer*, not the noun *cité* (the city) the participle is spelt like; `tues` reaches *tuer* and
+  *taire* (through the participle `tu`), not the pronoun; `quise` reaches *quérir* through `quis`,
+  whose verb entry's « masculine plural of qui » is no verb; `étés`, the plural of the noun `été`,
+  does not follow `été` to *être* through a verb entry, and stays out — an unknown word rather than
+  the verb. Without the rule the tables fail the resolution gate (97.61 % on PUD). The first
+  implementation followed a candidate's overall first choice, which stopped at the noun: 157 forms
+  only verb entries link read as a noun, a name or a pronoun (`citée` → *cité*, `tues` → *tu*,
+  `marchée` → *marché*); one remains (`shaka` → *shaker*, whose verb has no entry in the section).
 - **French's tokenisation (M21)**, as add-lingua-french-tokenisation's pre-pass reads it:
   - every word the pre-pass writes is a form: the words the elided pieces stand for, `à`, `le`,
     `les` and the inversion's pronouns (32 words; the rarest, `quoique`, is rank 3,319);
@@ -87,9 +95,10 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   (`clef`) keeps its entry.
 - **One lemma per form (M8).** A form that is a proper name and a commoner word's keeps the word
   (`cette` → *ce*; `paris` stays the city), then the first rule that decides wins:
-  1. `OVERRIDES` in `reduce-fr-en.py`, each row with its reason — no homograph; two rows correct
+  1. `OVERRIDES` in `reduce-fr-en.py`, each row with its reason — no homograph; three rows correct
      the source's copy errors: `fatiguée` (« feminine singular of parlé ») → *fatiguer*, `bridée`
-     (a form-of target « female slant ») → *bridé*;
+     (a form-of target « female slant ») → *bridé*, `quis` (« masculine plural of qui » in a verb
+     entry) → *quérir*. A row holds wherever a chain passes too (`fatiguées` follows `fatiguée`);
   2. GSD's counts of the form under each lemma (`porte` → *porter*, 39 against 23);
   3. the form's own entry;
   4. the commoner lemma;
@@ -102,28 +111,28 @@ In `../fr/`, French's tables, written by fr-en's reduction:
     lemma up as a form —, so such a word would lend its rank to the other. Every form of the noun
     *tenue* reads as *tenir*; `donnée` reads as *donner*, and the noun *donnée*, which `données`
     alone still reached, leaves the pack with it, as M8's nouns do (`données` then reads as *donner*).
-    25 words give their rank to the next this way (`tenue`, `allée`, `destinée`, `levée`, `donnée`,
-    `venue`, `saisie`, `tranchée`, `bordée`, `retombée`, …);
+    27 words give their rank to the next this way (`tenue`, `allée`, `destinée`, `levée`, `donnée`,
+    `venue`, `revenue`, `saisie`, `tranchée`, `bordée`, `retombée`, `subordonnée`, …);
   - a hyphenated word GSD's training sections do not attest. wordfreq splits at the hyphen and
     estimates a compound from its parts, so `est-il` would be French's 17th word. A compound GSD
     attests is ranked at the lower of wordfreq's estimate and GSD's own frequency, after wordfreq's
     words of the same frequency, compounds alphabetically: `lui-même` 277, `celui-ci` 336,
-    `peut-être` 941, `au-delà` 1,010, `week-end` 1,673, `après-midi` 1,921, `en-cas` 10,660.
+    `peut-être` 941, `au-delà` 1,010, `week-end` 1,672, `après-midi` 1,919, `en-cas` 10,659.
 - **The forms**: those of a kept lemma that wordfreq attests, each kept lemma's own form, and the
   elided pieces.
 
 ## What is in them
 
-On the 2026-10-09 tables: **60,000 lemmas** and **124,050 forms** (`forms.tsv` 2,255,819 B,
-`freq.tsv` 844,901 B). 3,597 forms keep more than one ranked candidate: GSD's counts decide 1,382,
-the form's own entry 1,314, frequency or the alphabet 901. 6,374 forms take their lemma through a
+On the 2026-10-09 tables: **60,000 lemmas** and **124,096 forms** (`forms.tsv` 2,257,098 B,
+`freq.tsv` 844,897 B). 3,593 forms keep more than one ranked candidate: GSD's counts decide 1,382,
+the form's own entry 1,312, frequency or the alphabet 899. 7,156 forms take their lemma through a
 form of a form. 474 hyphenated words are ranked — 471 by GSD's evidence and the 3 nouns ending in a
-pronoun it never meets — 84 of them among the 5,000 first ranks, and 140 words with an inner
+pronoun it never meets — 85 of them among the 5,000 first ranks, and 140 words with an inner
 apostrophe (`aujourd'hui` 136, `quelqu'un` 204). Every ranked lemma's own form reads as itself
 (`crates/lingua-pack/tests/committed_tables.rs` checks every pair's pack holds each rank on its own
 lemma).
 
-The pack these two tables build — no gloss, reading or level yet — is 1,239,671 B; Spanish's same two
+The pack these two tables build — no gloss, reading or level yet — is 1,241,733 B; Spanish's same two
 tables build 1,308,123 B. The builder holds it under 5 MiB; the glosses, readings and levels are
 measured against that budget by the changes that add them.
 
@@ -137,14 +146,22 @@ proper nouns are left out.
 
 | | Words | Resolved | Content words | Auxiliaries |
 |---|---|---|---|---|
-| UD French-PUD (gate) | 20,232 | **99.12 %** (98.5 %) | **96.30 %** of 9,573 (93.5 %) | **99.90 %** of 1,030 (97 %) |
-| GSD test (reported) | 8,049 | 98.89 % | 95.67 % of 3,791 | 99.72 % of 359 |
+| UD French-PUD (gate) | 20,232 | **99.13 %** (98.5 %) | **96.30 %** of 9,573 (93.5 %) | **99.90 %** of 1,030 (97 %) |
+| GSD test (reported) | 8,049 | 98.89 % | 95.70 % of 3,791 | 99.72 % of 359 |
 
 The design's prototype measured 99.12 / 96.38 / 99.90 and 98.91 / 95.65 / 99.72; the same binary
 reads its tables alike at `0.1.0` and `0.2.0`. Two rules of the implementation move them: a ranked
 word whose own form reads as another gives its rank (PUD's content words 96.38 → 96.30, `données`
 now *donner*; GSD's 95.65 → 95.67), and a gender marker is no form (GSD's resolved words 98.91 →
-98.89: its `m` no longer reads as Paris).
+98.89: its `m` no longer reads as Paris). The chain along one part of speech moves them by a word:
+PUD's resolved words 99.12 → 99.13 (`maitrisés`), its content words even — six participles take
+PUD's verb (`traitée`, `coupée`, `revenue`), four adjectives and a noun lose PUD's adjective
+(`morte` → *mourir*, where PUD writes *mort*), and `entrainé` reads as *entraîner*, the spelling it
+stands for, where PUD writes *entrainer* —; GSD's content words 95.67 → 95.70. A participle's agreed
+form that is an adjective's too (`morte`, `sacrée`, `ravie`, 506 forms) now reaches the verb beside
+the adjective, and the one-lemma rule decides between them: GSD's counts first (`morte` 13 times
+*mourir*, once *mort*), else the commoner lemma (`crues` → *croire*, `rangées` → *ranger*). 713
+forms change lemma, 98 come in and 52 leave; none is among wordfreq's 1,800 commonest words.
 
 The copy errors were looked for by the forms whose lemma begins with another letter (106): all but
 three are a suppletive verb (`sont` → *être*, `va` → *aller*), a ligature's ASCII spelling (`oeuvre`

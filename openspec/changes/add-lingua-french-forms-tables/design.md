@@ -111,6 +111,34 @@ form's candidate lemmas come from:
   nothing and stays out: an unknown word rather than the verb. 6,368 forms of the table get
   their lemma this way. Without the rule, the tables fail the resolution gate (S0 below).
 
+  **The chain follows the part of speech, not the candidate's first choice** (found by change 45's
+  review, fixed here). The implementation first followed a candidate's overall first choice, which
+  stops at a lemma of *another* part of speech spelt like the intermediate form: the participle
+  `cité` is *citer*'s, but its first choice is the noun *cité* (the city), so `citée` read as the
+  city; `tues` read as the pronoun *tu* (also *taire*'s participle), `marchée` as the noun *marché*,
+  `quise` as *qui* — 157 forms only verb entries link, filed under a lemma none of whose entries is
+  a verb's (112 nouns, 21 names, adjectives, prepositions, pronouns). A candidate is now followed
+  along the part of speech of the entry linking the form to it (`reduce-fr-en.py`, `follow`):
+  along it, a word reads as the first choice of D5 among itself —
+  **only when one of its lemma entries is of that part of speech**; a participle's own inflections
+  (`compromis`, invariable, lists itself) are no lemma entry — and the words its entries of that
+  part of speech link it to, but a word whose entries are all of other parts of speech (`quis`'s
+  « masculine plural of qui », and *qui* has no verb entry); a candidate the chain reads as another
+  word stands for it, not beside it. An override holds wherever a chain passes (`fatiguées` follows
+  `fatiguée`'s row). `citée` → *citer*, `tues` → *tuer* (its second person, the commoner of *tuer*
+  and *taire* by D5's frequency), `tus` → *taire*, `quise` → *quérir*, `marchée` → *marcher*,
+  `compromise` → *compromettre*; `étés` still reaches the noun alone. Of the 157, one remains
+  (`shaka`, whose verb *shaker* has no verb entry), and `quis` itself takes an override row (D5).
+  7,156 forms of the implemented tables take their lemma through a chain; 713 forms change lemma,
+  98 come in (`brulée` → *brûler*, `copié-collée` → *copier-coller*) and 52 leave (`vitrée`,
+  `exceptée`, `libellée`: participles once read as a noun or a name, whose verb is no ranked lemma;
+  `sit`, `sied` once read as *soir*). Most of the changes are a participle's agreed form that is an
+  adjective's too (`morte`, `sacrée`, `animée`, `ravie`, 506 of them): the chain now reaches the
+  verb beside the adjective, and D5 decides between them — GSD reads `morte` 13 times as *mourir*
+  and once as *mort*; without counts the commoner lemma wins (`crues` → *croire*, `rangées` →
+  *ranger*), as M8 accepts. No form among wordfreq's 1,800 commonest changes; the gates move by a
+  word (D9).
+
 An entry with a sense that is not a form-of is a lemma, and its own candidate.
 
 ### D4 — The tables serve M21, as change 40 writes it
@@ -184,10 +212,11 @@ table with them.
 
 When a form has several candidates, the first rule that decides wins — Spanish's order:
 1. **the override list** (`OVERRIDES`: form, lemma, reason), empty of homographs, as Spanish's; the
-   implementation adds two rows for the source's copy errors, which no rule tells from a meaning —
+   implementation adds three rows for the source's copy errors, which no rule tells from a meaning —
    `fatiguée`, whose verb entry reads « feminine singular of parlé » (→ *fatiguer*), and `bridée`, a
    form-of target « female slant » (→ *bridé*), found among the 106 forms whose lemma begins with
-   another letter;
+   another letter, and `quis`, a verb entry's « masculine plural of qui » (→ *quérir*), found by D3's
+   chain fix;
 2. **GSD's counts** of the form under each candidate;
 3. **the form's own entry**, when it is a lemma;
 4. **the candidate's wordfreq frequency**;
@@ -244,7 +273,9 @@ the list starts empty, as Spanish's did, and the owner may name a row (Open Ques
   `tenue` and `tenues` as *tenir*, `allée` as *aller*, `donnée` as *donner*. Such a word gives its
   rank to the next, until every ranked lemma's own form reads as itself, as Spanish's and English's
   committed tables already do: 25 words move out (`tenue`, `allée`, `destinée`, `levée`, `donnée`,
-  `venue`, `saisie`, `tranchée`, `bordée`, `retombée`, …) and 25 come in at the cut's end. A pack
+  `venue`, `saisie`, `tranchée`, `bordée`, `retombée`, …) and 25 come in at the cut's end — 27
+  once D3's chain follows the part of speech, `revenue` and `subordonnée` reading as *revenir* and
+  *subordonner* by GSD's counts. A pack
   finds a lemma by its own form — the builder keys a rank, and later a gloss and a level, by looking
   the lemma up as a form (`FstLexicon::id_of`) —, so a ranked word whose form reads elsewhere lends
   its rank to the other word: the prototype kept `donnée` (rank 1,711), which `données` still
@@ -353,7 +384,13 @@ the gated figure is the conservative one.
 99.12 % resolved, 96.30 % content lemmas, 99.90 % auxiliaries; GSD's test section 98.91 → 98.89 %,
 95.65 → 95.67 %, 99.72 % — the rank rule moves the content words, the markers GSD's resolution
 (its `m` no longer reads as Paris). 124,050 forms, a pack of 1,239,671 B with fr-en's real NOTICE
-and manifest.
+and manifest. **Once D3's chain follows the part of speech**: PUD 99.13 % resolved, 96.30 %
+content lemmas, 99.90 % auxiliaries (`maitrisés` resolves; six participles gain the treebank's verb
+lemma — `traitée`, `coupée`, `revenue` —, four adjectives and a noun lose theirs — `morte` →
+*mourir* where PUD writes *mort* —, and `entrainé` reads as *entraîner*, D7's spelling, where PUD
+writes *entrainer*); GSD's test section 98.89 %,
+95.67 → 95.70 %, 99.72 %. 124,096 forms (`forms.tsv` 2,257,098 B, `freq.tsv` 844,897 B), a pack of
+1,241,733 B.
 
 `lingua-pack-measure` needs no French arm — it lemmatises through the pack's studied language —
 and its doc line names both treebanks.
