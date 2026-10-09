@@ -27,8 +27,8 @@ return a singular the lexicon holds only as a form (measured, design *Measured*)
   Spanish card renders it « también puede ser el pasado simple de saw ».
 
 French's own analysis (change 41, merged) never asks so — its plural rule requires the singular to
-be unknown too — but its golden's `été` and change 48's `porte` probes do, and change 45 measured
-`porte` read as *porter*'s paradigm. The builder's twin has hit no committed table, and change 43's
+be unknown too — but its golden's `été` probe does, and its `porte` probe will once change 48 builds
+the golden from the tables: change 45 measured `porte` read off *porter*'s paradigm there. The builder's twin has hit no committed table, and change 43's
 implementation now forbids it in French's; its earlier prototype gave *venir* the rank and level of
 `venue`. This is a core fix outside the programme's 57 changes, to land before French ships (change
 52) and before changes 45, 46 and 48 rely on lemma lookups.
