@@ -104,12 +104,14 @@ pub fn analyse_page(
         DocumentAnalysis::Analysed(tokens) => tokens,
     };
 
-    // A Spanish document's names are set aside like a proper noun outside the lexicon
-    // (add-lingua-spanish-names); English's analysis does not change, and French has no names
-    // rule while it is the baseline (add-lingua-french-baseline D2).
+    // A Spanish or French document's names are set aside like a proper noun outside the
+    // lexicon (add-lingua-spanish-names, add-lingua-french-analysis D4); English's analysis
+    // does not change.
     let names = match studied {
-        StudiedLanguage::Spanish => document_names(&tokens, blocks, pack),
-        StudiedLanguage::English | StudiedLanguage::French => HashSet::new(),
+        StudiedLanguage::Spanish | StudiedLanguage::French => {
+            document_names(&tokens, blocks, studied, pack)
+        }
+        StudiedLanguage::English => HashSet::new(),
     };
     let mut coverage = Coverage::default();
     let mut out = Vec::with_capacity(tokens.len());
@@ -122,9 +124,11 @@ pub fn analyse_page(
             pack,
             knowledge,
         ) {
-            // Only a word the reader has said nothing of: a name they mark stays theirs.
+            // Only a word the reader has said nothing of: a name they mark stays theirs. French
+            // also reads a hyphenated run the pack does not list as one form.
             TokenClass::Unknown
-                if token.parts.is_empty() && names.contains(&token.surface.to_lowercase()) =>
+                if (token.parts.is_empty() || studied == StudiedLanguage::French)
+                    && names.contains(&token.surface.to_lowercase()) =>
             {
                 TokenClass::ProperNounOutOfLexicon
             }
@@ -179,17 +183,38 @@ pub fn analyse_page_json(
 /// `Augusto` and `Eugenia` are lemmas of the lexicon, which the out-of-lexicon
 /// rule leaves alone; a name that is a dictionary word (`Dios`) stays a word to
 /// learn.
-fn document_names(tokens: &[AnalysedToken], blocks: &[&str], pack: &Pack) -> HashSet<String> {
+///
+/// A French document's names follow the same rule with two French readings
+/// (add-lingua-french-analysis D4): a capital right after an elided piece is in
+/// mid-sentence ([`after_elided_piece`]: `l'Europe`, `qu'Augusto`, even at the
+/// head of a sentence), and a hyphenated run the pack does not list is one form,
+/// keyed as a word is by its surface lowercased (`Saint-Étienne`, `Jean-Pierre`,
+/// whose parts `saint` and `pierre` resolve, so the compound rule keeps them).
+/// Spanish reads neither: an apostrophe gives it no evidence, and its runs are
+/// judged by their parts.
+fn document_names(
+    tokens: &[AnalysedToken],
+    blocks: &[&str],
+    studied: StudiedLanguage,
+    pack: &Pack,
+) -> HashSet<String> {
+    let french = studied == StudiedLanguage::French;
     let mut lowercase = HashSet::new();
     let mut capitalised: HashMap<String, &str> = HashMap::new();
-    for token in tokens.iter().filter(|token| token.parts.is_empty()) {
+    for token in tokens
+        .iter()
+        .filter(|token| french || token.parts.is_empty())
+    {
         let Some(first) = token.surface.chars().next() else {
             continue;
         };
         let form = token.surface.to_lowercase();
+        let text = blocks.get(token.block).copied().unwrap_or("");
         if !first.is_uppercase() {
             lowercase.insert(form);
-        } else if mid_sentence(blocks.get(token.block).copied().unwrap_or(""), token.start) {
+        } else if mid_sentence(text, token.start)
+            || (french && after_elided_piece(text, token.start))
+        {
             capitalised.entry(form).or_insert(&token.lemma);
         }
     }
@@ -198,6 +223,18 @@ fn document_names(tokens: &[AnalysedToken], blocks: &[&str], pack: &Pack) -> Has
         .filter(|(form, lemma)| !lowercase.contains(form) && !pack.is_dictionary_word(lemma))
         .map(|(form, _)| form)
         .collect()
+}
+
+/// Whether the word at byte `start` of `text` follows an elided piece: an
+/// apostrophe, straight or typographic, right after a letter (`l'Europe`,
+/// `d’Espagne`). The capital is then the word's own, whatever stands before the
+/// piece (add-lingua-french-analysis D4).
+fn after_elided_piece(text: &str, start: usize) -> bool {
+    let Some(before) = text.get(..start) else {
+        return false;
+    };
+    let mut back = before.chars().rev();
+    matches!(back.next(), Some('\'' | '\u{2019}')) && back.next().is_some_and(char::is_alphabetic)
 }
 
 /// Whether the word at byte `start` of `text` stands in mid-sentence: right
@@ -211,8 +248,9 @@ fn mid_sentence(text: &str, start: usize) -> bool {
 }
 
 /// The one classification of a token, shared by the page analysis and the
-/// phrase gloss so the two can never disagree — except for a Spanish
-/// document's names, which only the whole page can tell: a plain token is a proper noun
+/// phrase gloss so the two can never disagree — except for a Spanish or French
+/// document's names (a French one's hyphenated runs among them), which only the
+/// whole page can tell: a plain token is a proper noun
 /// outside the lexicon or whatever the knowledge model says of its lemma; a
 /// listed compound has no parts and goes the same way; an unlisted compound is
 /// a hyphenated name (`Jean-Pierre`, excluded like any proper noun) or is
@@ -573,6 +611,7 @@ mod tests {
 
     const EN: StudiedLanguage = StudiedLanguage::English;
     const ES: StudiedLanguage = StudiedLanguage::Spanish;
+    const FR: StudiedLanguage = StudiedLanguage::French;
 
     fn build_gloss_zst(entries: &[(u32, &str)]) -> Vec<u8> {
         let mut payload = Vec::new();
@@ -842,12 +881,11 @@ mod tests {
     }
 
     #[test]
-    fn spec_scenario_a_french_page_is_read_by_the_baseline() {
-        // add-lingua-french-baseline D2: French keeps its names as ordinary tokens (no names
-        // rule), flags no function word, and names its own version. Its pre-pass splits an
-        // elision into pieces with their own spans and `au` into `à` + `le` sharing one
+    fn spec_scenario_a_french_page_is_read_by_its_analysis() {
+        // add-lingua-french-analysis: French sets its document's names aside (D4), flags its
+        // closed classes (D3) and names its own version, no longer a `0.x` one (D5). Its pre-pass
+        // splits an elision into pieces with their own spans and `au` into `à` + `le` sharing one
         // (add-lingua-french-tokenisation); the pieces are lemmatised as any French word is.
-        const FR: StudiedLanguage = StudiedLanguage::French;
         let blocks = [
             "Hier soir, Augusto a longtemps regardé Eugenia, puis il a prié Dieu dans la maison.",
             "Tous les nobles de la cour regardaient la scène avec beaucoup d'attention ce soir.",
@@ -857,8 +895,8 @@ mod tests {
         let lemmas = [
             "eugenia", "dieu", "regarder", "maison", "la", "de", "il", "le", "homme",
         ];
-        // `eugenia` and `dieu` are lemmas but not dictionary words: Spanish's names rule would set
-        // both aside, being capitalised in mid-sentence and never written in lowercase.
+        // `eugenia` and `dieu` are lemmas but not dictionary words: capitalised in mid-sentence
+        // and never written in lowercase, they are the document's names.
         let pack = build_pack_with_lexical(
             FR,
             &forms,
@@ -871,21 +909,29 @@ mod tests {
         let page = analyse_page(&blocks, FR, &pack, &KnowledgeState::new());
         assert!(page.analysable);
         assert_eq!(page.analyzer_version, FRENCH_ANALYZER_VERSION);
-        assert_eq!(page.analyzer_version, "0.2.0");
+        assert!(!page.analyzer_version.starts_with("0."));
         let class_of = |surface: &str| {
             page.tokens
                 .iter()
                 .find(|t| t.surface == surface)
                 .map(|t| (t.lemma.as_str(), t.class))
         };
-        assert_eq!(class_of("Eugenia"), Some(("eugenia", TokenClass::Unknown)));
-        assert_eq!(class_of("Dieu"), Some(("dieu", TokenClass::Unknown)));
+        assert_eq!(
+            class_of("Eugenia"),
+            Some(("eugenia", TokenClass::ProperNounOutOfLexicon))
+        );
+        assert_eq!(
+            class_of("Dieu"),
+            Some(("dieu", TokenClass::ProperNounOutOfLexicon))
+        );
         // The rule that belongs to no language still holds: a capital outside the lexicon.
         assert_eq!(
             class_of("Augusto"),
             Some(("augusto", TokenClass::ProperNounOutOfLexicon))
         );
         assert_eq!(class_of("regardé"), Some(("regarder", TokenClass::Unknown)));
+        // An unlisted lowercase plural reads as its singular (D2).
+        assert_eq!(class_of("nobles"), Some(("noble", TokenClass::Unknown)));
         // The tokens a block has at a byte offset: (surface, lemma, end).
         let at = |block: usize, start: usize| -> Vec<(&str, &str, usize)> {
             page.tokens
@@ -899,7 +945,7 @@ mod tests {
         assert_eq!(at(1, elided), [("de", "de", elided + 2)]);
         assert_eq!(at(1, elided + 2), [("attention", "attention", elided + 11)]);
         assert!(page.tokens.iter().all(|t| t.surface != "d'attention"));
-        // `L'homme` is `Le` [0, 2) + `homme` [2, 7); `Le` is a pack word, no name.
+        // `L'homme` is `Le` [0, 2) + `homme` [2, 7); `Le`, at the head of its block, is no name.
         assert_eq!(at(2, 0), [("Le", "le", 2)]);
         assert_eq!(at(2, 2), [("homme", "homme", 7)]);
         assert_eq!(class_of("Le"), Some(("le", TokenClass::Unknown)));
@@ -909,10 +955,248 @@ mod tests {
         let du = blocks[2].find(" du ").expect("du") + 1;
         assert_eq!(at(2, du), [("du", "du", du + 2)]);
 
+        // The closed classes are flagged, « pas » among them (M21); `maison` is not.
         let phrase = gloss_phrase("ne pas le de la maison", FR, &pack, &KnowledgeState::new());
-        assert_eq!(phrase.tokens.len(), 6);
-        assert!(phrase.tokens.iter().all(|t| !t.function_word));
+        let flags: Vec<(&str, bool)> = phrase
+            .tokens
+            .iter()
+            .map(|t| (t.lemma.as_str(), t.function_word))
+            .collect();
+        assert_eq!(
+            flags,
+            [
+                ("ne", true),
+                ("pas", true),
+                ("le", true),
+                ("de", true),
+                ("la", true),
+                ("maison", false)
+            ]
+        );
         assert_eq!(pack.pair().key(), "fr-en");
+    }
+
+    /// The classes of every token written `surface` on a French page.
+    fn french_classes(pack: &Pack, blocks: &[&str], surface: &str) -> Vec<TokenClass> {
+        french_classes_for(pack, blocks, surface, &KnowledgeState::new())
+    }
+
+    /// [`french_classes`] for a reader with a history.
+    fn french_classes_for(
+        pack: &Pack,
+        blocks: &[&str],
+        surface: &str,
+        knowledge: &KnowledgeState,
+    ) -> Vec<TokenClass> {
+        let page = analyse_page(blocks, FR, pack, knowledge);
+        assert!(page.analysable, "{blocks:?}");
+        page.tokens
+            .into_iter()
+            .filter(|token| token.surface == surface)
+            .map(|token| token.class)
+            .collect()
+    }
+
+    /// The names a document's French tokens give under `studied`'s rule: the same tokens, so
+    /// that the two rules are compared on what each reads.
+    fn names_of(blocks: &[&str], studied: StudiedLanguage, pack: &Pack) -> Vec<String> {
+        let DocumentAnalysis::Analysed(tokens) = analyse_document(blocks, FR, pack.lexicon())
+        else {
+            panic!("{blocks:?} is not analysable as French");
+        };
+        let mut names: Vec<String> = document_names(&tokens, blocks, studied, pack)
+            .into_iter()
+            .collect();
+        names.sort_unstable();
+        names
+    }
+
+    const NAME: TokenClass = TokenClass::ProperNounOutOfLexicon;
+    const WORD: TokenClass = TokenClass::Unknown;
+
+    #[test]
+    fn a_capital_after_an_elided_piece_is_the_word_s_own() {
+        // add-lingua-french-analysis D4: an apostrophe, straight or typographic, after a letter.
+        assert!(after_elided_piece("l'Europe", 2));
+        assert!(after_elided_piece("d\u{2019}Espagne", 4));
+        assert!(after_elided_piece("Il dit qu'Augusto", 10));
+        // An apostrophe after no letter is a quotation mark, and a space ends the piece.
+        assert!(!after_elided_piece("'Europe", 1));
+        assert!(!after_elided_piece("dit ' Europe", 6));
+        assert!(!after_elided_piece("l' Europe", 3));
+        assert!(!after_elided_piece("Europe", 0));
+        // An offset inside a character is no position at all.
+        assert!(!after_elided_piece("d\u{2019}Espagne", 2));
+    }
+
+    #[test]
+    fn spec_scenario_a_french_city() {
+        let blocks = [
+            "Nous partons de Paris demain matin avec toute la famille et le chien.",
+            "Paris est loin de notre petit village de montagne, mais le voyage est beau.",
+        ];
+        let pack = build_pack_for(FR, &[], &["paris", "de", "la", "le"], &[], &[], &[]);
+        // `paris` is a lemma without a gloss: no dictionary word of a pack without a lexical
+        // section. Both occurrences go, the one at a sentence's head with the other.
+        assert_eq!(french_classes(&pack, &blocks, "Paris"), [NAME, NAME]);
+    }
+
+    #[test]
+    fn spec_scenario_after_an_elided_piece() {
+        // The only capitalised `Aube` follows `l'` at the head of its block: the elision alone is
+        // the evidence.
+        let blocks = [
+            "L'Aube rejoint la Seine dans la plaine, après un long voyage vers le nord.",
+            "Les bateaux descendent la rivière chaque matin avec leurs marchandises.",
+        ];
+        let pack = build_pack_for(FR, &[], &["aube", "le", "la"], &[], &[], &[]);
+        assert_eq!(french_classes(&pack, &blocks, "Aube"), [NAME]);
+        // Spanish's rule, on the same tokens, finds no evidence there.
+        assert!(names_of(&blocks, FR, &pack).contains(&"aube".to_owned()));
+        assert!(!names_of(&blocks, ES, &pack).contains(&"aube".to_owned()));
+        // The typographic apostrophe is evidence too.
+        let typographic = [
+            "Il rentre d\u{2019}Aube avec ses amis, après un long voyage vers le nord.",
+            "Les bateaux descendent la rivière chaque matin avec leurs marchandises.",
+        ];
+        assert_eq!(french_classes(&pack, &typographic, "Aube"), [NAME]);
+    }
+
+    #[test]
+    fn spec_scenario_a_hyphenated_name() {
+        let blocks = [
+            "Les gendarmes ont retrouvé Jean-Pierre à Saint-Étienne hier soir, près de la gare.",
+            "Il était parti depuis trois jours avec son vélo et un sac de pommes.",
+        ];
+        let pack = build_pack_for(
+            FR,
+            &[],
+            &["pierre", "saint", "de", "la", "le"],
+            &[],
+            &[("pierre", "stone"), ("saint", "saint")],
+            &[],
+        );
+        // `pierre` and `saint` resolve, so the compound rule keeps both runs; the names rule reads
+        // each run as one form, which the pack does not list.
+        assert_eq!(french_classes(&pack, &blocks, "Jean-Pierre"), [NAME]);
+        assert_eq!(french_classes(&pack, &blocks, "Saint-Étienne"), [NAME]);
+        assert_eq!(
+            names_of(&blocks, FR, &pack),
+            ["jean-pierre", "saint-étienne"]
+        );
+        // Spanish's rule judges a run by its parts: on the same tokens, no run is a name.
+        assert!(names_of(&blocks, ES, &pack).is_empty());
+        // A Spanish page keeps them words, judged by their parts.
+        let spanish = build_pack_for(
+            ES,
+            &[],
+            &["pierre", "saint", "de", "la", "el"],
+            &[],
+            &[("pierre", "pierre"), ("saint", "saint")],
+            &[],
+        );
+        let page = analyse_page(
+            &[
+                "Los gendarmes encontraron a Jean-Pierre en Saint-Étienne ayer por la noche, cerca de la estación.",
+            ],
+            ES,
+            &spanish,
+            &KnowledgeState::new(),
+        );
+        assert!(page.analysable);
+        for run in ["Jean-Pierre", "Saint-Étienne"] {
+            let classes: Vec<TokenClass> = page
+                .tokens
+                .iter()
+                .filter(|t| t.surface == run)
+                .map(|t| t.class)
+                .collect();
+            assert_eq!(classes, [WORD], "{run}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_dictionary_word_stays_a_word() {
+        // `Orange` is glossed in a pack without a lexical section, so it is a dictionary word; the
+        // tables read `vienne` as the dictionary word `venir` (M8).
+        let blocks = [
+            "Le train roule entre Orange et Vienne pendant toute la matinée.",
+            "Les voyageurs regardent les champs de lavande par la fenêtre du wagon.",
+        ];
+        let pack = build_pack_for(
+            FR,
+            &[("vienne", "venir")],
+            &["orange", "venir", "le", "la"],
+            &[],
+            &[("orange", "orange"), ("venir", "to come")],
+            &[],
+        );
+        assert_eq!(french_classes(&pack, &blocks, "Orange"), [WORD]);
+        assert_eq!(french_classes(&pack, &blocks, "Vienne"), [WORD]);
+        let page = analyse_page(&blocks, FR, &pack, &KnowledgeState::new());
+        let vienne = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == "Vienne")
+            .expect("Vienne");
+        assert_eq!(
+            (vienne.lemma.as_str(), vienne.gloss.as_deref()),
+            ("venir", Some("to come"))
+        );
+    }
+
+    #[test]
+    fn spec_scenario_capitals_at_the_head_of_sentences_only() {
+        // `Mme` is written only at the head of its blocks, and after `M.`'s full stop: no evidence.
+        let blocks = [
+            "Mme Durand ouvre la boutique tous les matins à huit heures.",
+            "Mme Durand vend du pain, des gâteaux et des croissants au beurre.",
+        ];
+        let pack = build_pack_for(FR, &[], &["mme", "le", "la"], &[], &[], &[]);
+        assert_eq!(french_classes(&pack, &blocks, "Mme"), [WORD, WORD]);
+    }
+
+    #[test]
+    fn spec_scenario_the_same_form_as_a_word() {
+        // « le Lot » in mid-sentence, « un lot » elsewhere: the form is written in lowercase.
+        let blocks = [
+            "La rivière du Lot traverse le village avant de rejoindre la Garonne.",
+            "Il a acheté un lot de livres anciens au marché de la place.",
+        ];
+        let pack = build_pack_for(FR, &[], &["lot", "le", "la", "garonne"], &[], &[], &[]);
+        assert_eq!(french_classes(&pack, &blocks, "Lot"), [WORD]);
+        // `Garonne`, never in lowercase, goes.
+        assert_eq!(french_classes(&pack, &blocks, "Garonne"), [NAME]);
+    }
+
+    #[test]
+    fn a_name_the_reader_marked_keeps_its_status() {
+        let blocks = [
+            "Nous partons de Paris demain matin avec toute la famille et le chien.",
+            "Les gendarmes ont retrouvé Jean-Pierre près de la gare hier soir.",
+        ];
+        let pack = build_pack_for(
+            FR,
+            &[],
+            &["paris", "pierre", "de", "la", "le"],
+            &[],
+            &[],
+            &[],
+        );
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(FR, "paris", Status::Learning);
+        knowledge.set_status(FR, "jean-pierre", Status::Known(KnownSource::Manual));
+        assert_eq!(
+            french_classes_for(&pack, &blocks, "Paris", &knowledge),
+            [TokenClass::Learning]
+        );
+        assert_eq!(
+            french_classes_for(&pack, &blocks, "Jean-Pierre", &knowledge),
+            [TokenClass::Known]
+        );
+        // Without the marks, both are names.
+        assert_eq!(french_classes(&pack, &blocks, "Paris"), [NAME]);
+        assert_eq!(french_classes(&pack, &blocks, "Jean-Pierre"), [NAME]);
     }
 
     #[test]

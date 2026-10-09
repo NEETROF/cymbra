@@ -39,9 +39,9 @@ pub enum StudiedLanguage {
     /// Spanish. Its analyser is a baseline until its own pre-pass and cascade
     /// land (add-lingua-spanish-analysis): no English rule ever runs on it.
     Spanish,
-    /// French. Served by the baseline analysis until its own rules land
-    /// (add-lingua-french-baseline): the rules that belong to no language and
-    /// the pack's forms, nothing of English's or Spanish's.
+    /// French (add-lingua-french-baseline), served by its own analysis since
+    /// add-lingua-french-analysis: its tokenisation pre-pass, NFC, its cascade,
+    /// its closed classes and its names rule — nothing of English's or Spanish's.
     French,
 }
 
@@ -343,12 +343,16 @@ mod tests {
             StudiedLanguage::Spanish.analyzer_version(),
             crate::analysis::SPANISH_ANALYZER_VERSION
         );
-        // French has its own tokenisation pre-pass and the baseline's lemmas
-        // (add-lingua-french-tokenisation D9); its cascade makes it `1.0.0`.
-        assert_eq!(StudiedLanguage::French.analyzer_version(), "0.2.0");
+        // French has its own analysis (add-lingua-french-analysis D5): its own constant, no
+        // longer one of the baseline's `0.x` versions.
         assert_eq!(
             StudiedLanguage::French.analyzer_version(),
             crate::analysis::FRENCH_ANALYZER_VERSION
+        );
+        assert!(
+            !StudiedLanguage::French.analyzer_version().starts_with("0."),
+            "{}",
+            StudiedLanguage::French.analyzer_version()
         );
     }
 
