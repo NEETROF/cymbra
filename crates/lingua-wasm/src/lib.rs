@@ -38,7 +38,9 @@ use lingua_core::decks::card::{
 };
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
-use lingua_core::engine::{analyse_page_json, gloss_phrase_json, word_grammar_json};
+use lingua_core::engine::{
+    analyse_page_json, french_expression_key, gloss_phrase_json, word_grammar_json,
+};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::knowledge::profile::{NativeLanguage, Profile};
 use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
@@ -105,12 +107,19 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// lemma — a word's gloss, or an expression's (a lemma with spaces) from the pack's expression
 /// table — and the card's own text when the pack has none, or when no pack is held for the
 /// card's language. The card is not rewritten.
+///
+/// A French expression card is created with the expression's name, its headword as the
+/// dictionary writes it (`au revoir`), which is no key of the table: review reads the table at
+/// the key that name reads as (`à le revoir`), through the function the builder keyed the pack
+/// with (add-lingua-french-expression-keys D3).
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| {
-        if card.is_expression() {
-            pack.expression(&card.lemma)
-        } else {
+        if !card.is_expression() {
             pack.gloss(&card.lemma)
+        } else if pack.studied() == StudiedLanguage::French {
+            french_expression_key(&card.lemma, pack.lexicon()).and_then(|key| pack.expression(&key))
+        } else {
+            pack.expression(&card.lemma)
         }
     })
     .map(str::to_owned)
