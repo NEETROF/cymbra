@@ -388,9 +388,11 @@ and manifest. **Once D3's chain follows the part of speech**: PUD 99.13 % resolv
 content lemmas, 99.90 % auxiliaries (`maitrisés` resolves; six participles gain the treebank's verb
 lemma — `traitée`, `coupée`, `revenue` —, four adjectives and a noun lose theirs — `morte` →
 *mourir* where PUD writes *mort* —, and `entrainé` reads as *entraîner*, D7's spelling, where PUD
-writes *entrainer*); GSD's test section 98.89 %,
-95.67 → 95.70 %, 99.72 %. 124,096 forms (`forms.tsv` 2,257,098 B, `freq.tsv` 844,897 B), a pack of
-1,241,733 B.
+writes *entrainer*); GSD's test section 98.89 %, 95.67 → 95.70 %, 99.72 %. 124,096 forms
+(`forms.tsv` 2,257,098 B, `freq.tsv` 844,897 B), a pack of 1,241,733 B. **Through change 41's
+cascade** (`1.0.0`, on `main` before this change, whose reduction then reads `1.0.0`: the manifest
+and the pin move, the forms and ranks do not): PUD 99.13 % resolved, 96.41 % content lemmas,
+99.90 % auxiliaries; GSD's test section 98.89 %, 95.86 %, 99.72 % — change 41's tasks 5.2 and 8.1.
 
 `lingua-pack-measure` needs no French arm — it lemmatises through the pack's studied language —
 and its doc line names both treebanks.
@@ -408,8 +410,9 @@ files.
 
 `manifest.json` studies `fr`, is glossed in `en`, and names French's analyser version as
 `analysis/mod.rs` writes it (`FRENCH_ANALYZER_VERSION`, read by the reducer as es-fr's reads
-Spanish's): `0.1.0` today. `NOTICE` and the manifest credit kaikki / the English Wiktionary
-(CC BY-SA 4.0 + GFDL), wordfreq (CC BY-SA 4.0) and UD French-GSD (CC BY-SA 4.0, counts only).
+Spanish's): `0.1.0` when designed, `1.0.0` once change 41 landed. `NOTICE` and the manifest credit
+kaikki / the English Wiktionary (CC BY-SA 4.0 + GFDL), wordfreq (CC BY-SA 4.0) and UD French-GSD
+(CC BY-SA 4.0, counts only).
 `pin.json` records the derived file, its dump, GSD's two files, wordfreq, the rules and the pack.
 
 The pipeline:

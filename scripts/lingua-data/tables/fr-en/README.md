@@ -139,15 +139,19 @@ measured against that budget by the changes that add them.
 ## Measured
 
 `scripts/lingua-data/measure/fr-ud.sh` builds the pack from these tables and runs the real analyser
-(`lingua-pack-measure`, French at `0.2.0`) over UD French-PUD at
+(`lingua-pack-measure`, French at `1.0.0`, change 41's cascade) over UD French-PUD at
 `db260db10fe728853c549760801229ef4e7b16e1` — gated, with Spanish's thresholds — and over GSD's test
 section, reported. The reduction reads neither. Punctuation, numbers, symbols, foreign words and
 proper nouns are left out.
 
 | | Words | Resolved | Content words | Auxiliaries |
 |---|---|---|---|---|
-| UD French-PUD (gate) | 20,232 | **99.13 %** (98.5 %) | **96.30 %** of 9,573 (93.5 %) | **99.90 %** of 1,030 (97 %) |
-| GSD test (reported) | 8,049 | 98.89 % | 95.70 % of 3,791 | 99.72 % of 359 |
+| UD French-PUD (gate) | 20,232 | **99.13 %** (98.5 %) | **96.41 %** of 9,573 (93.5 %) | **99.90 %** of 1,030 (97 %) |
+| GSD test (reported) | 8,049 | 98.89 % | 95.86 % of 3,791 | 99.72 % of 359 |
+
+At `0.2.0`, the pack's lookup alone, the same tables read 99.13 / 96.30 / 99.90 on PUD and 98.89 /
+95.70 / 99.72 on GSD's test section: change 41's cascade (an unlisted plural read as its singular)
+adds 0.11 and 0.16 points of content lemmas. The figures below are the lookup's, at `0.2.0`.
 
 The design's prototype measured 99.12 / 96.38 / 99.90 and 98.91 / 95.65 / 99.72; the same binary
 reads its tables alike at `0.1.0` and `0.2.0`. Two rules of the implementation move them: a ranked

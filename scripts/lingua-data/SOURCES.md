@@ -383,12 +383,13 @@ words that read as a verb — and the twelve determiners and pronouns ranked on 
 read by the reduction, each fetched at a commit and checked by sha256 — PUD
 (`db260db10fe728853c549760801229ef4e7b16e1`, sha256 `4dfed37b…`, CC BY-SA 3.0) held to Spanish's
 gates, GSD's test section reported:
-- PUD: 99.13 % of 20,232 words resolve (gate 98.5 %), 96.30 % of 9,573 content words and 99.90 % of
+- PUD: 99.13 % of 20,232 words resolve (gate 98.5 %), 96.41 % of 9,573 content words and 99.90 % of
   1,030 auxiliaries take PUD's lemma (gates 93.5 % and 97 %);
-- GSD's test section: 98.89 % of 8,049 words resolve, 95.70 % of 3,791 content words and 99.72 % of
+- GSD's test section: 98.89 % of 8,049 words resolve, 95.86 % of 3,791 content words and 99.72 % of
   359 auxiliaries take its lemma.
 
-French's analyser at `0.2.0`; it reads the treebanks' words alike at `0.1.0`.
+French's analyser at `1.0.0` (change 41's cascade); at `0.2.0`, the pack's lookup alone, the content
+words read 96.30 % and 95.70 %, the rest alike.
 
 ## The editions' dumps
 
