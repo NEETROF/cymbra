@@ -29,4 +29,4 @@
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner settles the design's open questions before the pull request merges: a French expression named by its headword, and a status keyed by it (1), the determiners written (2), `du`/`des` read as `de` at an expression's end (3), whether Spanish gets the same rule in a change of its own (4), and the wording of the held requirements this change narrows (5).
+- [x] 5.1 [manual] Settled by the owner on 2026-10-10 (in session), each as the design recommends: (1) named by its headword, (2) determiners as written, (3) `du`/`des` read as `de` at an expression's end, (4) Spanish in a change of its own, proposed separately; (5), the held requirements' wording, is reworded when they are archived. The owner settles the design's open questions before the pull request merges: a French expression named by its headword, and a status keyed by it (1), the determiners written (2), `du`/`des` read as `de` at an expression's end (3), whether Spanish gets the same rule in a change of its own (4), and the wording of the held requirements this change narrows (5).
