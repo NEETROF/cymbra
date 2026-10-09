@@ -42,14 +42,21 @@
 //! change 48 commits `tables/fr/` and `tables/fr-en/`; the engine starts on the real es-en pack,
 //! as an English-native reader's does.
 //!
-//! At analyser `0.2.0` French reads its text through its own tokenisation pre-pass
-//! (add-lingua-french-tokenisation): the narrow no-break space is a space, an elided word is a
-//! piece of its own read as the word it stands for (`l'homme` → `le` + `homme`), `au`/`aux` are
-//! `à` + `le`/`les`, a hyphenated inversion is read as words (`dit-il` → `dit` + `il`); the
-//! pieces keep the baseline's lemmas. The fixture lists every word the pre-pass writes
-//! (`french_baseline.rs` holds it), and two expressions holding `au` and an elision, `au revoir`
-//! and `coup d'œil`, which no selection reaches until the pack keys expressions through the
-//! analyser: the probes « Au revoir » and « un coup d’œil » show them appear then.
+//! At analyser `1.0.0` French has its own analysis (add-lingua-french-analysis). Its tokenisation
+//! pre-pass (add-lingua-french-tokenisation) reads the narrow no-break space as a space, an elided
+//! word as a piece of its own read as the word it stands for (`l'homme` → `le` + `homme`),
+//! `au`/`aux` as `à` + `le`/`les`, a hyphenated inversion as words (`dit-il` → `dit` + `il`), and
+//! every word in NFC, so the NFD block's `mémoire` is the pack's. Its cascade reads the pack's
+//! forms, then an unlisted lowercase plural as its singular (`syndicats` → `syndicat`), then the
+//! form; its closed classes flag a phrase gloss's function words, « pas » among them (M21); its
+//! names rule sets the `noms` page's `Paris`, `Lot`, `Aube`, `Jean-Pierre` and `Saint-Étienne`
+//! aside, and keeps `Orange` and `Vienne` (dictionary words) and `Mme` (at a block's head only).
+//! The fixture lists every word the pre-pass writes (`french_baseline.rs` holds it), the forms
+//! the real tables hold where a gap would mislead the plural rule (`printemps`, `travaux`) or
+//! keep the names rule from meeting a lexicon word (`paris`, `aube`), and two expressions holding
+//! `au` and an elision, `au revoir` and `coup d'œil`, which no selection reaches until the pack
+//! keys expressions through the analyser: the probes « Au revoir » and « un coup d’œil » show
+//! them appear then.
 
 use super::{Card, PackSource, Scenario};
 
@@ -106,7 +113,9 @@ const LEMMAS: &[&str] = &[
 
 /// Selections a reader glosses: expressions, the Proust sentence, elided, contracted and inverted
 /// selections — one set with the narrow no-break space —, the expressions holding `au` and an
-/// elision, and the blocks that are not French (English, Spanish, Catalan, Occitan, Italian).
+/// elision, the `homographes` page's « pas » and `son`, both flagged (M21 and M8's cost), and the
+/// `fiction` page's `Personne`, not, and the blocks that are not French (English, Spanish,
+/// Catalan, Occitan, Italian).
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -125,6 +134,8 @@ const PHRASES: &[&str] = &[
     "S\u{2019}il pleut, viendras-tu\u{202f}?",
     "Au revoir",
     "un coup d\u{2019}œil",
+    "Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.",
+    "Personne au village ne se souvenait",
     "The lighthouse stood",
     "El faro se alzaba",
     "El far s'alçava",
