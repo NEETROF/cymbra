@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -7,6 +8,7 @@ import {
   glossMark,
   measureSelections,
   nativeOfRoute,
+  readGlossTables,
   type Selection,
   type Translate,
 } from "../tool/marks/measure.mjs";
@@ -139,6 +141,53 @@ describe("the gloss experiment (D3, D5 of release-lingua-spanish-translation)", 
       marks: [],
     });
     expect(glossMark("casa", "A garden.", glossTables, stopWords("en")).marks).toEqual([]);
+  });
+});
+
+describe("the experiment's tables are read only when the pair's gloss table holds a gloss (add-lingua-french-translation D6)", () => {
+  /** A tables folder holding `<studied>/forms.tsv` and, when given, `<pair>/gloss.tsv` with `gloss` as its text. */
+  function folder(gloss: string | null) {
+    const dir = mkdtempSync(join(tmpdir(), "marks-tables-"));
+    mkdirSync(join(dir, "fr"));
+    writeFileSync(join(dir, "fr", "forms.tsv"), "maisons\tmaison\n");
+    if (gloss !== null) {
+      mkdirSync(join(dir, "fr-en"));
+      writeFileSync(join(dir, "fr-en", "gloss.tsv"), gloss);
+    }
+    return dir;
+  }
+  const read = (gloss: string | null) => {
+    const dir = folder(gloss);
+    try {
+      return readGlossTables(dir, "fr-en", "fr");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it("leaves the experiment empty for a pair without a gloss table, as before", () => {
+    expect(read(null)).toBeNull();
+  });
+
+  it("leaves the experiment empty for an empty gloss table — fr-en's, committed empty until its glosses come — rather than a column of « no gloss »", () => {
+    expect(read("")).toBeNull();
+    expect(read("\n")).toBeNull();
+    expect(read("maison\t\nchat\t  \n")).toBeNull(); // keys without a gloss hold no gloss either
+  });
+
+  it("reads the studied language's forms and the pair's glosses once the table holds one, the first value of every key", () => {
+    const tables = read("maison\thouse; home\nmaison\tlater row\nchat\t\n");
+    expect(tables).not.toBeNull();
+    expect([...tables!.forms]).toEqual([["maisons", "maison"]]);
+    expect(tables!.gloss.get("maison")).toBe("house; home");
+    // What the experiment then finds with them.
+    expect(glossMark("maisons", "The houses by the sea.", tables!, stopWords("en")).marks).toHaveLength(1);
+  });
+
+  it("over the committed tables: es-en's experiment is read, fr-en's and fr-es's are not, with no gloss table yet", () => {
+    expect(readGlossTables(tables, "es-en", "es")?.gloss.size).toBeGreaterThan(0);
+    expect(readGlossTables(tables, "fr-en", "fr")).toBeNull();
+    expect(readGlossTables(tables, "fr-es", "fr")).toBeNull();
   });
 });
 

@@ -13,8 +13,11 @@
 // them — so does an empty fragment, which is not asked (relay.ts asks none either): `alone` is ""
 // for it, null for one that trapped twice. Either way the next request gets a clean engine, built
 // when it is asked. The native language a pair's route translates into is read here too
-// (`nativeOfRoute`), so the harness's reading of the catalogue is tested.
+// (`nativeOfRoute`), so the harness's reading of the catalogue is tested, and so are the
+// experiment's tables (`readGlossTables`): read only when the pair's gloss table holds a gloss.
 
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { isTrap } from "../../src/translate/host/engine.ts";
 import { escapeText, markSelection, readMarked, selectedText } from "../../src/translate/markup.ts";
 import { reconcileMarks } from "../../src/translate/reconcile.ts";
@@ -40,6 +43,33 @@ export function nativeOfRoute(catalogue, pair) {
     );
   }
   return model.to;
+}
+
+/** A pack table, `<key>\t<value>` per line: the first value of every key. */
+function readTable(path) {
+  const rows = new Map();
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const tab = line.indexOf("\t");
+    if (tab > 0 && !rows.has(line.slice(0, tab))) rows.set(line.slice(0, tab), line.slice(tab + 1));
+  }
+  return rows;
+}
+
+/**
+ * The experiment's tables for `pair`, under `dir` (scripts/lingua-data/tables): the studied
+ * language's forms, kept once in `<studied>/forms.tsv` (split-lingua-pack-tables-by-language), and
+ * the pair's glosses, `<pair>/gloss.tsv` — or null, the experiment's columns left empty, when the
+ * pair has no gloss table (measure-lingua-translation-matrix-marks D3) or one that holds no gloss
+ * (add-lingua-french-translation D6). An empty table is committed for a pair whose glosses come later
+ * (fr-en's, by add-lingua-french-forms-tables); read, it would make every line « no gloss », a
+ * column that looks measured and is not.
+ */
+export function readGlossTables(dir, pair, studied) {
+  const glossTable = join(dir, pair, "gloss.tsv");
+  if (!existsSync(glossTable)) return null;
+  const gloss = readTable(glossTable);
+  if (![...gloss.values()].some((value) => value.trim() !== "")) return null;
+  return { forms: readTable(join(dir, studied, "forms.tsv")), gloss };
 }
 
 /** reconcile.ts's stem rule: a shared prefix of 5, covering 70 % of the shorter word. */
@@ -86,7 +116,7 @@ export function bracketed(sentence, marks) {
 /**
  * Every selection of `selections` — `{ k, id, word, upos, sentence, selection }` — measured through
  * `engine`, a factory whose every call builds a fresh engine: one markup string in, its translation
- * out, as tool/marks/engine.mjs builds one. `gloss`, when the pair's table exists, is
+ * out, as tool/marks/engine.mjs builds one. `gloss`, when the pair's table holds a gloss, is
  * `(word, translation) => { lemma, gloss, marks }` (glossMark over the pair's tables); null leaves
  * the experiment empty. `trap` tells a trap from any other error, which is thrown. The engine is
  * built when the first request asks for it: no selection, no engine. One result line per

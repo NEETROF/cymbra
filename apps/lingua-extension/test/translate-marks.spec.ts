@@ -41,7 +41,9 @@ describe("A pair's marks are measured before they are shown", () => {
     expect(harness).toContain("results-${pair}.jsonl");
     expect(harness).toContain("./marks/measure.mjs"); // the loop, answering a trap as the extension does (D2)
     expect(harness).toContain("stopWords(native)"); // the native language's stop words (D1)
-    expect(harness).toMatch(/existsSync\(glossTable\)/); // the experiment only when the pair's table exists (D3)
+    // The experiment only when the pair's table exists (D3) and holds a gloss (add-lingua-french-translation D6).
+    expect(harness).toContain("readGlossTables(TABLES, pair, studied)");
+    expect(readFileSync(join(marks, "measure.mjs"), "utf8")).toMatch(/existsSync\(glossTable\)/);
     const corpus = JSON.parse(readFileSync(join(marks, "corpus.json"), "utf8")) as {
       items: { lang: string; id: string }[];
     };
