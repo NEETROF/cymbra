@@ -45,7 +45,7 @@ describe("A pair's marks are measured before they are shown", () => {
     const corpus = JSON.parse(readFileSync(join(marks, "corpus.json"), "utf8")) as {
       items: { lang: string; id: string }[];
     };
-    expect(new Set(corpus.items.map((item) => item.lang))).toEqual(new Set(["en", "es"])); // per studied language
+    expect(new Set(corpus.items.map((item) => item.lang))).toEqual(new Set(["en", "es", "fr"])); // per studied language
     for (const pair of MARKED_PAIRS) {
       const lines = results(pair);
       const items = corpus.items.filter((item) => item.lang === studiedOf(pair));
@@ -54,9 +54,56 @@ describe("A pair's marks are measured before they are shown", () => {
       expect(judged(pair).total).toBe(lines.length);
     }
     // Nothing is filed by studied language any more.
-    for (const language of ["en", "es"]) {
+    for (const language of ["en", "es", "fr"]) {
       expect(existsSync(join(marks, `results-${language}.jsonl`))).toBe(false);
       expect(existsSync(join(marks, `judged-${language}.tsv`))).toBe(false);
+    }
+  });
+
+  it("A studied language added to the corpus: English, Spanish and French, 100 selections each, every step's three taken from one sentence (add-lingua-french-translation D4)", () => {
+    const corpus = JSON.parse(readFileSync(join(marks, "corpus.json"), "utf8")) as {
+      source: Record<string, { repo: string; commit: string; file: string; sha256: string }>;
+      rule: string;
+      items: { k: number; id: string; lang: string; word: string; start: number; end: number }[];
+    };
+    expect(Object.keys(corpus.source)).toEqual(["en", "es", "fr"]);
+    // French PUD at the commit and sha256 add-lingua-french-forms-tables pins (its D9).
+    expect(corpus.source.fr).toEqual({
+      repo: "UD_French-PUD",
+      commit: "db260db10fe728853c549760801229ef4e7b16e1",
+      file: "fr_pud-ud-test.conllu",
+      sha256: "4dfed37b83d76e77fd2e9963d0be00d723e9a010e7e2a746f8b7640c48063c10",
+    });
+    expect(corpus.rule).toMatch(/the next sentence \(every language\)$/);
+    for (const language of ["en", "es", "fr"]) {
+      expect(
+        corpus.items.filter((item) => item.lang === language),
+        language,
+      ).toHaveLength(100);
+    }
+    const steps = new Map<number, typeof corpus.items>();
+    for (const item of corpus.items) steps.set(item.k, [...(steps.get(item.k) ?? []), item]);
+    expect([...steps.keys()]).toEqual([...Array(100).keys()]);
+    for (const [k, items] of steps) {
+      expect(
+        items.map((item) => item.lang),
+        `k ${k}`,
+      ).toEqual(["en", "es", "fr"]);
+      expect(new Set(items.map((item) => item.id)).size, `k ${k}`).toBe(1); // one sentence, read in three languages
+    }
+    // A selection is a word, letters only, never an elided piece (« l' ») or a contraction (« du »).
+    for (const item of corpus.items.filter((i) => i.lang === "fr")) {
+      expect(item.word).toMatch(/^\p{L}{3,}$/u);
+      expect(item.end - item.start).toBe(item.word.length);
+    }
+    // Added, French moved no other language's selection: each step's English and Spanish items are the
+    // ones every committed result of en-fr, es-fr, es-en and en-es was measured on, in order.
+    for (const pair of ["en-fr", "es-fr", "es-en", "en-es"]) {
+      const items = corpus.items.filter((item) => item.lang === studiedOf(pair));
+      expect(
+        results(pair).map((line) => [line.k, line.id, line.word]),
+        pair,
+      ).toEqual(items.map((item) => [item.k, item.id, item.word]));
     }
   });
 

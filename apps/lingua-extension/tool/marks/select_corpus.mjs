@@ -1,8 +1,11 @@
 // The corpus of the marks measurement (release-lingua-spanish-translation D1): every tenth PUD
-// sentence, the same in English and Spanish, one word each — NOUN, VERB, NOUN, ADJ in turn, the
-// first such word that is not the sentence's first, is letters only (three or more) and is not
+// sentence, the same in English, Spanish and French, one word each — NOUN, VERB, NOUN, ADJ in turn,
+// the first such word that is not the sentence's first, is letters only (three or more) and is not
 // inside a multiword token; otherwise the first NOUN, VERB or ADJ that is; otherwise the next
-// sentence, for both languages. Writes tool/marks/corpus.json.
+// sentence, for every language. One rule over every studied language at once
+// (add-lingua-french-translation D4): a sentence is taken only where each language has a word, so
+// each step's selections read the same text — and French, added, moved no English or Spanish
+// selection. Writes tool/marks/corpus.json.
 //
 // Usage: node tool/marks/select_corpus.mjs
 
@@ -16,6 +19,8 @@ const OUT = join(here, "corpus.json");
 const ITEMS = 100;
 const STEP = 10;
 const CYCLE = ["NOUN", "VERB", "NOUN", "ADJ"];
+/** The studied languages, in the order their items are written: English drives the sentence order. */
+const LANGUAGES = ["en", "es", "fr"];
 const FALLBACK = ["NOUN", "VERB", "ADJ"];
 
 const eligible = (word, upos) =>
@@ -33,18 +38,19 @@ export function pick(sentence, upos) {
 }
 
 async function main() {
-  const [en, es] = await Promise.all([pudText("en").then(parseConllu), pudText("es").then(parseConllu)]);
-  const byId = { en: new Map(en.map((s) => [s.id, s])), es: new Map(es.map((s) => [s.id, s])) };
+  const texts = await Promise.all(LANGUAGES.map((language) => pudText(language).then(parseConllu)));
+  const en = texts[0];
+  const byId = Object.fromEntries(LANGUAGES.map((language, i) => [language, new Map(texts[i].map((s) => [s.id, s]))]));
   const items = [];
   for (let k = 0; k < ITEMS; k++) {
     const upos = CYCLE[k % CYCLE.length];
     for (let at = k * STEP; at < en.length; at++) {
       const id = en[at].id;
-      const sentences = { en: byId.en.get(id), es: byId.es.get(id) };
-      if (!sentences.es) continue;
-      const words = { en: pick(sentences.en, upos), es: pick(sentences.es, upos) };
-      if (!words.en || !words.es) continue; // the next sentence, for both languages
-      for (const language of ["en", "es"]) {
+      const sentences = Object.fromEntries(LANGUAGES.map((language) => [language, byId[language].get(id)]));
+      if (LANGUAGES.some((language) => !sentences[language])) continue;
+      const words = Object.fromEntries(LANGUAGES.map((language) => [language, pick(sentences[language], upos)]));
+      if (LANGUAGES.some((language) => !words[language])) continue; // the next sentence, for every language
+      for (const language of LANGUAGES) {
         const word = words[language];
         items.push({
           k,
@@ -62,12 +68,12 @@ async function main() {
   }
   const corpus = {
     source: PUD,
-    rule: "every tenth PUD sentence; NOUN, VERB, NOUN, ADJ in turn; not the first word, letters only (3+), not in a multiword token; else the first NOUN/VERB/ADJ; else the next sentence (both languages)",
+    rule: "every tenth PUD sentence; NOUN, VERB, NOUN, ADJ in turn; not the first word, letters only (3+), not in a multiword token; else the first NOUN/VERB/ADJ; else the next sentence (every language)",
     items,
   };
   writeFileSync(OUT, JSON.stringify(corpus, null, 2) + "\n");
   const count = (language) => items.filter((item) => item.lang === language).length;
-  console.log(`${OUT}: ${count("en")} English and ${count("es")} Spanish selections`);
+  console.log(`${OUT}: ${count("en")} English, ${count("es")} Spanish and ${count("fr")} French selections`);
 }
 
 main().catch((e) => {
