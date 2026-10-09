@@ -98,17 +98,17 @@ Measured, four variants of the reading (window 7):
 | **the articles and the possessive and demonstrative determiners** | **98** | **32** | **138** | **27** |
 | the same and the clitic pronouns (`me`, `te`, `se`, `nos`, `os`, `le`, `les`) | 98 | 32 | 138 | 27 |
 
-With every token lemmatised, `a la`, `a las` and `a los` stay one key (`a el`), `de las` and
-`de los` another (`de el`), and the `al` split adds new merges: `a las armas` and `al arma`,
-`a la par de` and `al par de`, `a la descubierta` and `al descubierto`. On the corpus, against every token lemmatised,
-the determiners written take away, for es-fr, the 11 matches of an article entry on another
-article or a contraction (`de las`/`de los` « Des » on « del », « de la », « de La »; `a la`
+With every token lemmatised, `a la`, `a las` and `a los` stay one key (`a el`), `de las` and `de
+los` another (`de el`), and the `al` split adds new merges: `a las armas` and `al arma`, `a la par
+de` and `al par de`, `a la descubierta` and `al descubierto`. On the corpus, against every token
+lemmatised, the determiners written take away, for es-fr, the 11 matches of an article entry on
+another article or a contraction (`de las`/`de los` « Des » on « del », « de la », « de La »; `a la`
 « À la » on « al ») and « en esta » answering `en este` (44 → 32); for es-en (43 → 27), its `de la`
-« of the » on « del », « de las » and « de los » (10), `a la` on « al » and « a las » (3),
-`la vieja` (« a three-note melody ») on « El viejo », `de esta` (« definitely this time ») on « de
-este », and `los más` (« most ») on « las más ». The clitic pronouns change nothing measurable and
-are left out, as French's list leaves out `me`, `te` and `se`: they are pronouns, not determiners;
-the `la`, `lo`, `los` and `las` they share with the articles are written already.
+« of the » on « del », « de las » and « de los » (10), `a la` on « al » and « a las » (3), `la
+vieja` (« a three-note melody ») on « El viejo », `de esta` (« definitely this time ») on « de este
+», and `los más` (« most ») on « las más ». The clitic pronouns change nothing measurable and are
+left out, as French's list leaves out `me`, `te` and `se`: they are pronouns, not determiners; the
+`la`, `lo`, `los` and `las` they share with the articles are written already.
 
 The cost, as French's: an expression whose determiner varies in use is met only as the dictionary
 writes it — on the corpus, `los más` on « las más », and es-en's `de la` « of the », a
@@ -208,8 +208,8 @@ cuenta` and `a la vez`, unknown. A record on a chain D2 splits into several keys
 *Rejected — a migration of the stored records.* A card's `client_id` is its lemma: renaming
 `tener en contar` to `tener en cuenta` is a removal and a creation on every device and on the
 server, the card's review history at risk, for a reader who may have none. *Rejected — the class
-read on the chain, the key reported as the name.* The card's gestures act on the key it shows: «
-Je connais » would write on the name, and the old card would keep coming due. *Accepting the loss*
+read on the chain, the key reported as the name.* The card's gestures act on the key it shows:
+« Je connais » would write on the name, and the old card would keep coming due. *Accepting the loss*
 is open question 1.
 
 ### D7 — Review finds a Spanish expression card by its name
@@ -258,8 +258,9 @@ names.
 `word-grammar` probe and the tokens of every phrase probe (each moved probe's `tokens` byte for
 byte); `english_baseline` (en-fr), `en_es_baseline`, `cross_native`, `parity`,
 `card_gloss_language`, `statuses` and every other lingua-core, lingua-pack and lingua-wasm test but
-two unit tests that assert Spanish is keyed as before (`a_french_key_writes_its_determiners_and_
-lemmatises_the_rest`'s Spanish line, `an_english_or_spanish_pack_carries_no_names`), rewritten here;
+two unit tests that assert Spanish is keyed as before, rewritten here (the Spanish line of
+`a_french_key_writes_its_determiners_and_lemmatises_the_rest`, and
+`an_english_or_spanish_pack_carries_no_names`);
 `committed_tables` once the two pins move, en-fr's and en-es's pins included; the English and
 Spanish fixtures (`pipeline_testdata`: the Spanish fixtures hold no expression); the reducers' 405
 Python tests. The extension's snapshots — `word-card-es-en.txt` (the es-en golden's `word-grammar`
@@ -304,8 +305,10 @@ re-measured on the implementation's base.
   and *French expressions are found on French's reading of a selection* (« English and Spanish
   selections SHALL be matched as before, over runs of up to five tokens, on their lemmas »). None
   is MODIFIED: this change's ADDED requirements each say they take the place of those sentences for
-  Spanish, and the four changes are in `archiveAfter` (with change 44's own, which hold French's
-  baseline). The wording at archive is the owner's, as change 44's open question 5 was settled.
+  Spanish, and the four changes are in `archiveAfter`; change 44's own `archiveAfter` orders the
+  French changes that hold *A French invariance baseline runs beside the English and Spanish ones*,
+  whose `beside es-en` line moves here. The wording at archive is the owner's, as change 44's open
+  question 5 was settled.
 
 ### D10 — What other changes take from here
 
@@ -357,7 +360,7 @@ For the owner, none blocking:
    or determiner varies is met only as written (`los más` on « las más »), and es-en's `de la`
    « of the » no longer answers « del ».
 3. **The article of `al`/`del` covered (D5)**, so that « después del » is answered whole. French's
-   `au`/`aux` share their span the same way (`grâce à` in « grâce au » leaves `le` outside): the
+   `au`/`aux` share their span the same way (an expression ending on `à` matched in « … au » would leave `le` outside): the
    same rule for French would move `fr-en.golden`, a change of its own or change 51's.
 4. **Names across natives (D3).** The rule change 44 settled for French, applied to Spanish as
    decided on 2026-10-10: 75 of the 3,757 keys es-fr and es-en both reach are named differently, so
