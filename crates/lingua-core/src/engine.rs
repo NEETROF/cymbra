@@ -33,11 +33,12 @@ use serde::Serialize;
 
 use crate::analysis::function_words::is_function_word;
 use crate::analysis::language::StudiedLanguage;
+use crate::analysis::lexicon::Lexicon;
 use crate::analysis::percent::{
     Coverage, TokenClass, compound_is_out_of_lexicon_proper_noun, is_out_of_lexicon_proper_noun,
 };
 use crate::analysis::pipeline::{
-    AnalysedToken, DocumentAnalysis, analyse_document, resolve_lemmas,
+    AnalysedToken, DocumentAnalysis, analyse_document, headword_reading, resolve_lemmas,
 };
 use crate::analysis::tokenize::tokenize;
 use crate::knowledge::state::KnowledgeState;
@@ -319,12 +320,16 @@ pub struct PhraseMatch {
     pub start: usize,
     /// Index just past the last token covered.
     pub end: usize,
-    /// The expression's dictionary form — the covered tokens' lemmas joined by
-    /// single spaces — which is the pack's key and the card's.
+    /// The expression's dictionary form, which is the card's. For English and
+    /// Spanish, the covered tokens' lemmas joined by single spaces, which is the
+    /// pack's key. For French, the expression's name — its headword as the
+    /// dictionary writes it (`au revoir`, `il y a`) — which the pack carries
+    /// wherever it differs from the key (`à le revoir`, `il y avoir`), and the
+    /// key itself where it carries none (add-lingua-french-expression-keys D3).
     pub key: String,
-    /// The expression's own status class, read on that key: the knowledge
-    /// model treats an expression as a lemma of its own, so the reader can
-    /// settle `give up` as they settle a word.
+    /// The expression's own status class, read on that dictionary form: the
+    /// knowledge model treats an expression as a lemma of its own, so the reader
+    /// can settle `give up` as they settle a word.
     pub class: TokenClass,
     /// The pack gloss of the expression.
     pub gloss: String,
@@ -342,16 +347,129 @@ pub struct PhraseGloss {
     pub expressions: Vec<PhraseMatch>,
 }
 
-/// How many tokens an expression may span. 98.9 % of the table is five words
-/// or fewer (`add-lingua-expression-table`, design D3), and every token of a
-/// selection pays for the ones beyond it.
+/// How many tokens an English or Spanish expression may span. 98.9 % of the
+/// English table is five words or fewer (`add-lingua-expression-table`, design
+/// D3), and every token of a selection pays for the ones beyond it.
 const EXPRESSION_WINDOW: usize = 5;
 
+/// How many tokens a French expression may span: French's pieces lengthen a key
+/// (`au fur et à mesure` is five words and six tokens), and seven tokens hold
+/// 98.8 % of its keys as five hold 98.9 % of English's
+/// (add-lingua-french-expression-keys D4). The builder leaves a longer key out.
+pub const FRENCH_EXPRESSION_WINDOW: usize = 7;
+
+/// The words a French expression key writes as the pre-pass gives them, in
+/// lowercase, rather than as their dictionary form: the articles, the possessive
+/// and demonstrative determiners and the pronouns that share their forms, sorted
+/// (add-lingua-french-expression-keys D2).
+///
+/// M8 files `la`, `les` and `l'` under `le` and `une` under `un` (and the tables
+/// `cette`, `ces` under `ce`, `sa`, `ses` under `son`…): right for a word, wrong
+/// for an expression. Measured on the English Wiktionary's 17,523 French
+/// candidates and change 39's corpus, every token lemmatised keys `à la` (« in the
+/// style of ») as `à le`, 7 of whose 10 corpus matches fell on a contracted « au »
+/// or « aux », and leaves 73 keys reached by several headwords against 60 with
+/// these words written: the 13 told apart include distinct expressions
+/// (`haut la main` and `haut les mains`, `faire la course` and
+/// `faire les courses`).
+pub const FRENCH_KEY_WRITTEN: &[&str] = &[
+    "ce", "ces", "cet", "cette", "la", "le", "les", "leur", "leurs", "ma", "mes", "mon", "nos",
+    "notre", "sa", "ses", "son", "ta", "tes", "ton", "un", "une", "vos", "votre",
+];
+
+/// A token's piece of an expression key (add-lingua-french-expression-keys D2):
+/// its dictionary form, except in French a word of [`FRENCH_KEY_WRITTEN`], written
+/// as the pre-pass gives it — lowercased, the typographic apostrophe read as the
+/// straight one — so `à la` is never `au` (`à le`). English and Spanish keys are
+/// their lemmas, as before.
+pub fn expression_piece(surface: &str, lemma: &str, studied: StudiedLanguage) -> String {
+    if studied == StudiedLanguage::French {
+        let written = surface.replace('\u{2019}', "'").to_lowercase();
+        if FRENCH_KEY_WRITTEN.binary_search(&written.as_str()).is_ok() {
+            return written;
+        }
+    }
+    lemma.to_owned()
+}
+
+/// The key a French expression's headword — or its name, which is the same
+/// thing — is filed under (add-lingua-french-expression-keys D1, D4, D6): what
+/// French's analysis reads in it ([`headword_reading`]), each token written by
+/// [`expression_piece`], joined by single spaces: `au revoir` → `à le revoir`,
+/// `coup d'œil` → `coup de œil`, `d'abord` → `de abord`, `il y a` →
+/// `il y avoir`, `à la` → `à la`.
+///
+/// `None` unless the headword reads as two to [`FRENCH_EXPRESSION_WINDOW`] tokens,
+/// every word of it giving one, and every token's dictionary form is a lemma of
+/// the lexicon: a key no reading of a page can produce would sit in the pack
+/// unreachable. The one implementation the pack builder keys a French pack with
+/// and review finds a French expression card's gloss through, so the two cannot
+/// drift; it asks the lexicon whether a dictionary form is a lemma, never which
+/// lemma a form files under.
+pub fn french_expression_key(headword: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
+    let reading = headword_reading(headword, StudiedLanguage::French, lexicon)?;
+    if !(2..=FRENCH_EXPRESSION_WINDOW).contains(&reading.len())
+        || !reading
+            .iter()
+            .all(|(_, lemma)| lexicon.contains_lemma(lemma))
+    {
+        return None;
+    }
+    Some(
+        reading
+            .iter()
+            .map(|(token, lemma)| expression_piece(&token.text, lemma, StudiedLanguage::French))
+            .collect::<Vec<_>>()
+            .join(" "),
+    )
+}
+
+/// How many tokens an expression may span in the studied language.
+fn expression_window(studied: StudiedLanguage) -> usize {
+    match studied {
+        StudiedLanguage::French => FRENCH_EXPRESSION_WINDOW,
+        StudiedLanguage::English | StudiedLanguage::Spanish => EXPRESSION_WINDOW,
+    }
+}
+
+/// The table's gloss for a run of key pieces, with the key it was found at.
+///
+/// A French run no key matches whose last piece is `du` or `des` is tried once
+/// more with it read as `de`: M21 keeps `du` and `des` whole, and after a word
+/// that governs `de` they are its contraction with the article that follows, so
+/// « à cause des » answers `à cause de` (add-lingua-french-expression-keys D5).
+fn expression_for_run(
+    pieces: &[String],
+    studied: StudiedLanguage,
+    pack: &Pack,
+) -> Option<(String, String)> {
+    let key = pieces.join(" ");
+    if let Some(gloss) = pack.expression(&key) {
+        return Some((key, gloss.to_owned()));
+    }
+    let (last, before) = pieces.split_last()?;
+    if studied != StudiedLanguage::French || !matches!(last.as_str(), "du" | "des") {
+        return None;
+    }
+    let key = before
+        .iter()
+        .map(String::as_str)
+        .chain(std::iter::once("de"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let gloss = pack.expression(&key)?.to_owned();
+    Some((key, gloss))
+}
+
 /// Finds the pack's expressions in an already-glossed selection: from each
-/// token, the longest run whose dictionary forms are a key of the table wins,
-/// and the next run starts past it, so a token belongs to at most one match.
-/// Runs start at two tokens because every key holds a space — a single lemma
-/// is a word, not an expression, and could never be one.
+/// token, the longest run whose key pieces ([`expression_piece`]: the dictionary
+/// forms, and in French the determiners as written) are a key of the table
+/// wins, and the next run starts past it, so a token belongs to at most one
+/// match. Runs start at two tokens because every key holds a space — a single
+/// lemma is a word, not an expression, and could never be one — and stop at the
+/// language's window. A match reports the expression's name where the pack
+/// carries one (French), else its key, and the reader's status is read on what
+/// it reports (add-lingua-french-expression-keys D3).
 fn match_expressions(
     tokens: &[PhraseToken],
     studied: StudiedLanguage,
@@ -361,21 +479,25 @@ fn match_expressions(
     if !pack.has_expressions() {
         return Vec::new();
     }
+    let pieces: Vec<String> = tokens
+        .iter()
+        .map(|token| expression_piece(&token.surface, &token.lemma, studied))
+        .collect();
+    let window = expression_window(studied);
     let mut matches = Vec::new();
     let mut start = 0;
     while start < tokens.len() {
-        let longest = EXPRESSION_WINDOW.min(tokens.len() - start);
+        let longest = window.min(tokens.len() - start);
         let hit = (2..=longest).rev().find_map(|len| {
-            let key = tokens[start..start + len]
-                .iter()
-                .map(|token| token.lemma.as_str())
-                .collect::<Vec<_>>()
-                .join(" ");
-            let gloss = pack.expression(&key)?.to_owned();
-            Some((len, key, gloss))
+            expression_for_run(&pieces[start..start + len], studied, pack)
+                .map(|(key, gloss)| (len, key, gloss))
         });
         match hit {
             Some((len, key, gloss)) => {
+                let key = match pack.expression_name(&key) {
+                    Some(name) => name.to_owned(),
+                    None => key,
+                };
                 let class = knowledge.classify(studied, &[key.as_str()], pack);
                 matches.push(PhraseMatch {
                     start,
@@ -698,6 +820,32 @@ mod tests {
         expressions: &[(&str, &str)],
         lexical: Option<&[&str]>,
     ) -> Pack {
+        build_pack_with_names(
+            studied,
+            forms,
+            lemmas,
+            ranks,
+            glosses,
+            expressions,
+            &[],
+            lexical,
+        )
+    }
+
+    /// [`build_pack_with_lexical`] plus, when `names` holds any, the expression names
+    /// section: each (key, name) pair filed under the key's id, as the builder files a
+    /// French pack's (add-lingua-french-expression-keys D3).
+    #[allow(clippy::too_many_arguments)]
+    fn build_pack_with_names(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        expressions: &[(&str, &str)],
+        names: &[(&str, &str)],
+        lexical: Option<&[&str]>,
+    ) -> Pack {
         let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
         let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
         let mut freq = vec![0u32; lex.lemma_count()];
@@ -748,6 +896,20 @@ mod tests {
         if !expressions.is_empty() {
             sections.push((section::EXPR, &expr_keys));
             sections.push((section::EXPR_ZST, &expr_glosses));
+        }
+        let mut keys: Vec<&str> = expressions.iter().map(|(key, _)| *key).collect();
+        keys.sort_unstable();
+        let mut named: Vec<(u32, &str)> = names
+            .iter()
+            .map(|(key, name)| {
+                let id = keys.binary_search(key).expect("a key of the table");
+                (id as u32, *name)
+            })
+            .collect();
+        named.sort_unstable();
+        let expr_names = build_gloss_zst(&named);
+        if !names.is_empty() {
+            sections.push((section::EXPR_NAMES_ZST, &expr_names));
         }
         let mut bits = vec![0u8; lex.lemma_count().div_ceil(8)];
         for lemma in lexical.unwrap_or_default() {
@@ -1756,6 +1918,263 @@ mod tests {
         );
         let phrase = gloss_phrase(six, EN, &pack, &KnowledgeState::new());
         assert!(phrase.expressions.is_empty());
+    }
+
+    // --- French expression keys (add-lingua-french-expression-keys) ---
+
+    #[test]
+    fn the_words_a_french_key_writes_are_sorted_and_twenty_four() {
+        assert_eq!(FRENCH_KEY_WRITTEN.len(), 24);
+        assert!(FRENCH_KEY_WRITTEN.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn a_french_key_writes_its_determiners_and_lemmatises_the_rest() {
+        // D2: the determiners as the pre-pass gives them, lowercased; every other token its
+        // dictionary form.
+        assert_eq!(expression_piece("la", "le", FR), "la");
+        assert_eq!(expression_piece("Les", "le", FR), "les");
+        assert_eq!(expression_piece("cet", "ce", FR), "cet");
+        // `l'` is read `le` by the pre-pass, which is what the key writes.
+        let elided = crate::analysis::tokenize::tokenize("l'homme", FR, &french_lexicon());
+        assert_eq!(elided[0].text, "le");
+        assert_eq!(expression_piece(&elided[0].text, "le", FR), "le");
+        assert_eq!(expression_piece("bonne", "bon", FR), "bon");
+        assert_eq!(expression_piece("a", "avoir", FR), "avoir");
+        // English and Spanish keys are their lemmas, a determiner too.
+        assert_eq!(expression_piece("The", "the", EN), "the");
+        assert_eq!(expression_piece("la", "el", ES), "el");
+    }
+
+    /// A French lexicon for the keys and matches below.
+    fn french_lexicon() -> FstLexicon<Vec<u8>> {
+        let (bytes, pool) = build_lexicon_blobs(FRENCH_FORMS, FRENCH_LEMMAS).expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    const FRENCH_FORMS: &[(&str, &str)] = &[
+        ("a", "avoir"),
+        ("avait", "avoir"),
+        ("bonne", "bon"),
+        ("la", "le"),
+        ("les", "le"),
+        ("mains", "main"),
+    ];
+
+    const FRENCH_LEMMAS: &[&str] = &[
+        "à", "le", "revoir", "coup", "de", "œil", "abord", "il", "y", "avoir", "haut", "main",
+        "bon", "heure", "compte", "en", "cause", "des", "du", "fur", "et", "mesure", "marché",
+        "un", "maison", "enfant", "pain",
+    ];
+
+    #[test]
+    fn a_french_expression_is_keyed_as_french_is_read() {
+        let lexicon = french_lexicon();
+        let key = |headword: &str| french_expression_key(headword, &lexicon);
+        assert_eq!(key("au revoir").as_deref(), Some("à le revoir"));
+        assert_eq!(key("coup d'œil").as_deref(), Some("coup de œil"));
+        assert_eq!(key("coup d\u{2019}œil").as_deref(), Some("coup de œil"));
+        assert_eq!(key("d'abord").as_deref(), Some("de abord"));
+        assert_eq!(key("il y a").as_deref(), Some("il y avoir"));
+        assert_eq!(key("de bonne heure").as_deref(), Some("de bon heure"));
+        // The determiners are written: `à la` is not `au`, nor `haut les mains` `haut la main`.
+        assert_eq!(key("à la").as_deref(), Some("à la"));
+        assert_eq!(key("haut la main").as_deref(), Some("haut la main"));
+        assert_eq!(key("haut les mains").as_deref(), Some("haut les main"));
+        // A name is read as its headword is, so review finds the key from it.
+        assert_eq!(key("Au revoir").as_deref(), Some("à le revoir"));
+    }
+
+    #[test]
+    fn a_french_headword_outside_the_rules_has_no_key() {
+        let lexicon = french_lexicon();
+        let key = |headword: &str| french_expression_key(headword, &lexicon);
+        // Seven tokens are French's window; eight are beyond it (D4).
+        assert_eq!(
+            key(&["coup"; 7].join(" ")).as_deref(),
+            Some(["coup"; 7].join(" ").as_str())
+        );
+        assert_eq!(key(&["coup"; 8].join(" ")), None);
+        // `au fur et à mesure`: five words, six tokens, within it.
+        assert_eq!(
+            key("au fur et à mesure").as_deref(),
+            Some("à le fur et à mesure")
+        );
+        // A word the analysis drops (D6): the lexicon lists no `t`.
+        assert_eq!(key("compte en t"), None);
+        // One token is a word, not an expression; a dictionary form the lexicon does not hold
+        // could never be met.
+        assert_eq!(key("revoir"), None);
+        assert_eq!(key("coup de foudre"), None);
+        assert_eq!(key(""), None);
+    }
+
+    /// The fr-en pack the matching scenarios read: the keys French's reading makes, each named
+    /// by its headword where it differs.
+    fn french_expression_pack() -> Pack {
+        build_pack_with_names(
+            FR,
+            FRENCH_FORMS,
+            FRENCH_LEMMAS,
+            &[],
+            &[],
+            &[
+                ("à le revoir", "goodbye"),
+                ("coup de œil", "glance"),
+                ("de abord", "first, at first"),
+                ("il y avoir", "there is, there are; ago"),
+                ("à la", "in the style of"),
+                ("à cause de", "because of"),
+                ("à le fur et à mesure", "as one goes along"),
+                ("de enfant", "of a child"),
+            ],
+            &[
+                ("à le revoir", "au revoir"),
+                ("coup de œil", "coup d'œil"),
+                ("de abord", "d'abord"),
+                ("il y avoir", "il y a"),
+                ("à le fur et à mesure", "au fur et à mesure"),
+            ],
+            None,
+        )
+    }
+
+    fn french_spans(text: &str) -> Vec<(usize, usize, String)> {
+        gloss_phrase(text, FR, &french_expression_pack(), &KnowledgeState::new())
+            .expressions
+            .into_iter()
+            .map(|m| (m.start, m.end, m.key))
+            .collect()
+    }
+
+    fn span(start: usize, end: usize, key: &str) -> (usize, usize, String) {
+        (start, end, key.to_owned())
+    }
+
+    #[test]
+    fn spec_scenario_a_contracted_article() {
+        let pack = french_expression_pack();
+        let phrase = gloss_phrase("Au revoir", FR, &pack, &KnowledgeState::new());
+        let surfaces: Vec<&str> = phrase.tokens.iter().map(|t| t.surface.as_str()).collect();
+        assert_eq!(surfaces, ["À", "le", "revoir"]);
+        assert_eq!(
+            phrase.expressions,
+            [PhraseMatch {
+                start: 0,
+                end: 3,
+                key: "au revoir".into(),
+                class: TokenClass::Unknown,
+                gloss: "goodbye".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_elided_word() {
+        assert_eq!(
+            french_spans("un coup d\u{2019}œil"),
+            [span(1, 4, "coup d'œil")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_word_the_pre_pass_splits() {
+        assert_eq!(french_spans("D\u{2019}abord"), [span(0, 2, "d'abord")]);
+    }
+
+    #[test]
+    fn spec_scenario_another_tense_of_the_expression() {
+        assert_eq!(french_spans("il y avait"), [span(0, 3, "il y a")]);
+        assert_eq!(french_spans("il y a"), [span(0, 3, "il y a")]);
+    }
+
+    #[test]
+    fn spec_scenario_a_contracted_article_is_not_the_feminine_one() {
+        assert_eq!(french_spans("au marché"), []);
+        // The feminine article as written is.
+        assert_eq!(french_spans("à la maison"), [span(0, 2, "à la")]);
+    }
+
+    #[test]
+    fn spec_scenario_an_expression_ending_on_de_before_a_contracted_article() {
+        let pack = french_expression_pack();
+        let phrase = gloss_phrase("à cause des", FR, &pack, &KnowledgeState::new());
+        assert_eq!(phrase.expressions.len(), 1);
+        assert_eq!(
+            (phrase.expressions[0].start, phrase.expressions[0].end),
+            (0, 3),
+            "`des` included"
+        );
+        assert_eq!(phrase.expressions[0].key, "à cause de");
+        assert_eq!(phrase.expressions[0].gloss, "because of");
+        // The token keeps its own lemma: the retry is the phrase gloss's.
+        assert_eq!(phrase.tokens[2].lemma, "des");
+        // Only the run's last token is read as `de`.
+        assert_eq!(french_spans("des enfant"), []);
+        assert_eq!(french_spans("de enfant"), [span(0, 2, "de enfant")]);
+    }
+
+    #[test]
+    fn spec_scenario_an_expression_of_six_tokens() {
+        let pack = french_expression_pack();
+        let phrase = gloss_phrase("au fur et à mesure", FR, &pack, &KnowledgeState::new());
+        let lemmas: Vec<&str> = phrase.tokens.iter().map(|t| t.lemma.as_str()).collect();
+        assert_eq!(lemmas, ["à", "le", "fur", "et", "à", "mesure"]);
+        assert_eq!(
+            french_spans("au fur et à mesure"),
+            [span(0, 6, "au fur et à mesure")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_status_follows_the_name() {
+        let pack = french_expression_pack();
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(FR, "il y a", Status::Known(KnownSource::Manual));
+        let phrase = gloss_phrase("il y avait", FR, &pack, &knowledge);
+        assert_eq!(phrase.expressions[0].key, "il y a");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Known);
+        // A status set on the key is not the name's.
+        let mut on_key = KnowledgeState::new();
+        on_key.set_status(FR, "il y avoir", Status::Known(KnownSource::Manual));
+        let phrase = gloss_phrase("il y avait", FR, &pack, &on_key);
+        assert_eq!(phrase.expressions[0].class, TokenClass::Unknown);
+    }
+
+    #[test]
+    fn a_french_selection_s_tokens_do_not_move_with_the_table() {
+        // The tokens are what they are without the table; the matches sit beside them.
+        let bare = build_pack_for(FR, FRENCH_FORMS, FRENCH_LEMMAS, &[], &[], &[]);
+        let knowledge = KnowledgeState::new();
+        for text in [
+            "Au revoir",
+            "à cause des",
+            "au fur et à mesure",
+            "il y avait",
+        ] {
+            let with_table = gloss_phrase(text, FR, &french_expression_pack(), &knowledge);
+            let without = gloss_phrase(text, FR, &bare, &knowledge);
+            assert_eq!(with_table.tokens, without.tokens, "{text}");
+            assert!(without.expressions.is_empty());
+            assert!(!with_table.expressions.is_empty(), "{text}");
+        }
+    }
+
+    #[test]
+    fn an_english_or_spanish_run_ending_on_du_or_des_is_not_retried() {
+        // D5 is French's: an English or Spanish key ending on `de` is never met through `des`.
+        for studied in [EN, ES] {
+            let pack = build_pack_for(
+                studied,
+                &[],
+                &["por", "de", "des"],
+                &[],
+                &[],
+                &[("por de", "x")],
+            );
+            let phrase = gloss_phrase("por des", studied, &pack, &KnowledgeState::new());
+            assert!(phrase.expressions.is_empty(), "{studied:?}");
+        }
     }
 
     // — word grammar (`add-lingua-word-grammar`) —

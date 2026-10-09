@@ -121,6 +121,44 @@ pub(crate) fn resolve_lemmas(
     (whole, parts)
 }
 
+/// What the analysis reads in an expression's headword: its tokens, through the
+/// studied language's own pre-pass, each paired with its dictionary form resolved
+/// as a page's token is ([`resolve_lemmas`]) — the reading [`analyse_document`]
+/// and the phrase gloss make of the same words on a page.
+///
+/// `None` when a word of the headword, split at its spaces, starts no token: a
+/// single letter the lexicon does not list (`compte en t`), a word holding a
+/// digit. The reading would then be shorter than the headword and match words
+/// it does not hold (add-lingua-french-expression-keys D6).
+///
+/// The pack builder keys a French expression on it, through
+/// [`french_expression_key`](crate::engine::french_expression_key), and so does
+/// review, finding a French expression card by its name (D1, D3).
+pub fn headword_reading(
+    headword: &str,
+    studied: StudiedLanguage,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> Option<Vec<(Token, String)>> {
+    let tokens = tokenize(headword, studied, lexicon);
+    let mut start = 0;
+    for word in headword.split(' ') {
+        let end = start + word.len();
+        if !word.is_empty() && !tokens.iter().any(|t| (start..end).contains(&t.start)) {
+            return None;
+        }
+        start = end + 1;
+    }
+    Some(
+        tokens
+            .into_iter()
+            .map(|token| {
+                let (lemma, _) = resolve_lemmas(&token, studied, lexicon);
+                (token, lemma)
+            })
+            .collect(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -211,5 +249,135 @@ mod tests {
             }
             other => panic!("expected analysed document, got {other:?}"),
         }
+    }
+
+    // — a headword's reading (add-lingua-french-expression-keys D1, D6) —
+
+    /// A French lexicon holding the words of the headwords below, `t` and `c` left out.
+    fn french_lexicon() -> FstLexicon<Vec<u8>> {
+        let (bytes, pool) = build_lexicon_blobs(
+            &[("a", "avoir"), ("est", "être")],
+            &[
+                "à", "le", "revoir", "coup", "de", "œil", "abord", "que", "être", "ce", "il", "y",
+                "avoir", "compte", "en", "vitamine",
+            ],
+        )
+        .expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    /// A headword's reading as (surface, dictionary form) pairs.
+    fn reading(
+        headword: &str,
+        studied: StudiedLanguage,
+        lexicon: &FstLexicon<Vec<u8>>,
+    ) -> Option<Vec<(String, String)>> {
+        headword_reading(headword, studied, lexicon).map(|tokens| {
+            tokens
+                .into_iter()
+                .map(|(token, lemma)| (token.text, lemma))
+                .collect()
+        })
+    }
+
+    fn pairs(expected: &[(&str, &str)]) -> Option<Vec<(String, String)>> {
+        Some(
+            expected
+                .iter()
+                .map(|(surface, lemma)| ((*surface).to_owned(), (*lemma).to_owned()))
+                .collect(),
+        )
+    }
+
+    #[test]
+    fn a_french_headword_is_read_as_a_page_is() {
+        let lexicon = french_lexicon();
+        let fr = StudiedLanguage::French;
+        // A contracted article is `à` + `le`, in the case it was written in.
+        assert_eq!(
+            reading("au revoir", fr, &lexicon),
+            pairs(&[("à", "à"), ("le", "le"), ("revoir", "revoir")])
+        );
+        assert_eq!(
+            reading("Au revoir", fr, &lexicon),
+            pairs(&[("À", "à"), ("le", "le"), ("revoir", "revoir")])
+        );
+        // An elided word is the word it stands for, its own token.
+        assert_eq!(
+            reading("coup d'œil", fr, &lexicon),
+            pairs(&[("coup", "coup"), ("de", "de"), ("œil", "œil")])
+        );
+        assert_eq!(
+            reading("d'abord", fr, &lexicon),
+            pairs(&[("de", "de"), ("abord", "abord")])
+        );
+        // An inversion is read as words, the typographic apostrophe as the straight one.
+        assert_eq!(
+            reading("Qu\u{2019}est-ce que", fr, &lexicon),
+            pairs(&[
+                ("Que", "que"),
+                ("est", "être"),
+                ("ce", "ce"),
+                ("que", "que")
+            ])
+        );
+        // Each token is resolved to its dictionary form.
+        assert_eq!(
+            reading("il y a", fr, &lexicon),
+            pairs(&[("il", "il"), ("y", "y"), ("a", "avoir")])
+        );
+    }
+
+    #[test]
+    fn a_headword_part_of_which_gives_no_token_has_no_reading() {
+        // `t` and `c` are single letters the lexicon does not list: the tokeniser drops them,
+        // and what remains (`compte en`) is not the headword.
+        let lexicon = french_lexicon();
+        assert_eq!(
+            reading("compte en t", StudiedLanguage::French, &lexicon),
+            None
+        );
+        assert_eq!(
+            reading("vitamine c", StudiedLanguage::French, &lexicon),
+            None
+        );
+        // A word holding a digit gives none either.
+        assert_eq!(reading("coup 2", StudiedLanguage::French, &lexicon), None);
+        // A headword's extra spaces are no words.
+        assert_eq!(
+            reading(" coup  de ", StudiedLanguage::French, &lexicon),
+            pairs(&[("coup", "coup"), ("de", "de")])
+        );
+    }
+
+    #[test]
+    fn an_english_and_a_spanish_headword_read_as_their_tokens() {
+        // English's pre-pass expands `n't`; Spanish's splits `al` into `a` + `el`. Only French's
+        // pack keys its expressions on a reading; these show the function is every language's.
+        let english = lexicon();
+        assert_eq!(
+            reading("do not jumps", StudiedLanguage::English, &english),
+            pairs(&[("do", "do"), ("not", "not"), ("jumps", "jump")])
+        );
+        assert_eq!(
+            reading("don't code", StudiedLanguage::English, &english),
+            pairs(&[("do", "do"), ("not", "not"), ("code", "code")])
+        );
+        let spanish = {
+            let (bytes, pool) =
+                build_lexicon_blobs(&[], &["a", "el", "pie", "de", "letra"]).expect("build");
+            FstLexicon::from_slices(bytes, &pool).expect("load")
+        };
+        assert_eq!(
+            reading("al pie de la letra", StudiedLanguage::Spanish, &spanish),
+            pairs(&[
+                ("a", "a"),
+                ("el", "el"),
+                ("pie", "pie"),
+                ("de", "de"),
+                ("la", "la"),
+                ("letra", "letra")
+            ])
+        );
     }
 }
