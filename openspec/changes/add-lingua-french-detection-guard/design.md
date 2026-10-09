@@ -21,8 +21,9 @@ Catalan block as Italian and its Occitan block as French, and `fr-en.golden` ana
 block's eighteen tokens as French.
 
 Nothing ships French before change 52: no listed pair studies it, so `detect` never meets French as
-a candidate in a released build. Change 40 (`add-lingua-french-tokenisation`, `0.2.0`) and change 41
-(`add-lingua-french-analysis`, `1.0.0`) are proposed beside this one; neither touches detection.
+a candidate in a released build. Change 40 (`add-lingua-french-tokenisation`, `0.2.0`) is
+proposed; change 41 (`add-lingua-french-analysis`, `1.0.0` by change 39's D4) is not yet. Neither
+touches detection.
 
 ## Goals / Non-Goals
 
@@ -56,21 +57,22 @@ all.
 | Project Gutenberg | Louis Hémon, *Maria Chapdelaine* (1913, #13525, Québec dialogue); Louis Fréchette, *Félix Poutré* (1862, #15361, Québec drama); Camille Lemonnier, *Au cœur frais de la forêt* (#65494, Belgian); Victor Cherbuliez, *Jacquine Vanesse* (#29857, Genevan) | public domain |
 
 A Python prototype chose and ablated the tables; a Rust one (whichlang 0.1.1, the guard as D3 and
-D4 write it) agrees with it on all 62,076 blocks read as French, and timed it (D5). Then the guard
-was applied to a scratch checkout of `main` and every baseline run (D7).
+D4 write it) agrees with it on all 62,076 blocks read as French, before and after the review's four
+removals (D3), and timed it (D5). Then the guard was applied to a scratch checkout of `main` and
+every baseline run (D7).
 
 **Before and after**, share of blocks read as French (share of the text in brackets):
 
 | Neighbour | Corpus | Blocks | Before | After |
 |---|---|---|---|---|
-| Catalan | UD AnCora (sentences) | 3,539 | 30.1 % (29.9) | 1.9 % (1.1) |
-| | Tatoeba (short sentences) | 10,621 | 25.0 % (26.5) | 7.9 % (6.1) |
+| Catalan | UD AnCora (sentences) | 3,539 | 30.1 % (29.9) | 2.0 % (1.2) |
+| | Tatoeba (short sentences) | 10,621 | 25.0 % (26.5) | 8.0 % (6.2) |
 | | Wikipedia (paragraphs) | 2,393 | 33.0 % (34.1) | 11.2 % (1.9) |
 | Occitan | UD TTB | 1,467 | 58.5 % (60.6) | 15.1 % (8.4) |
 | | Tatoeba | 24,098 | 41.8 % (44.4) | 26.1 % (22.2) |
 | | Wikipedia | 2,065 | 50.1 % (79.1) | 18.6 % (5.6) |
-| Romanian | UD RRT | 727 | 30.0 % (28.9) | 3.4 % (2.1) |
-| | Tatoeba | 4,904 | 22.5 % (24.0) | 8.5 % (6.7) |
+| Romanian | UD RRT | 727 | 30.0 % (28.9) | 3.0 % (1.6) |
+| | Tatoeba | 4,904 | 22.5 % (24.0) | 7.5 % (5.7) |
 | *Not guarded (D2)* | Franco-Provençal, Wikipedia | 279 | 62.7 % (91.5) | 60.9 % (86.9) |
 | | Picard, Tatoeba and Wikipedia | 1,366 | 90.3 % (91.9) | 87.9 % (86.6) |
 | | Walloon, Tatoeba and Wikipedia | 291 | 50.5 % (77.6) | 45.4 % (63.2) |
@@ -78,8 +80,8 @@ was applied to a scratch checkout of `main` and every baseline run (D7).
 | | Latin, UD and Tatoeba | 6,062 | 18.1 % (22.2) | 17.7 % (21.6) |
 | | Haitian Creole, UD and Tatoeba | 296 | 25.3 % (33.0) | 23.3 % (27.4) |
 
-Pooled: Catalan 27.2 → 7.1 % of blocks (30.6 → 2.7 % of the text), Occitan 43.3 → 24.9 % (55.4 →
-16.3 %), Romanian 23.5 → 7.8 % (25.6 → 5.2 %). What leaks is short lines without a function word of
+Pooled: Catalan 27.2 → 7.2 % of blocks (30.6 → 2.8 % of the text), Occitan 43.3 → 25.0 % (55.4 →
+16.4 %), Romanian 23.5 → 6.9 % (25.6 → 4.3 %). What leaks is short lines without a function word of
 either table (« Soi content de te veire. »), sentence-initial capitals (« În anul următor… », D4),
 and Tatoeba's Gascon and Provençal.
 
@@ -111,17 +113,21 @@ Duomo, la célèbre place de la cathédrale »). Québécois « qu'i s'aident pa
 ### D1 — Function words, counted, compared: Spanish's rule
 
 For a block whichlang reads as French, count the words of two tables (D3): neighbour markers, the
-function words Catalan, Occitan and Romanian write and French does not, and French markers, French
-function words none of them uses. The block is refused as French when neighbour markers outnumber
-French ones; a tie, or no marker, keeps it French — a short line cannot be judged, and French recall
-comes first. One neighbour table, not three: the guard asks « French or not », not which neighbour.
+function words Catalan, Occitan and Romanian write and French rarely does, and French markers,
+French function words they rarely write. The block is refused as French when neighbour markers
+outnumber French ones; a tie, or no marker, keeps it French — a short line cannot be judged, and
+French recall comes first. One neighbour table, not three: the guard asks « French or not », not
+which neighbour. That departs from Spanish's guard, which compares each neighbour's count with
+Spanish's in turn; measured with the table split by language, comparing each neighbour with French
+spares one block of the French corpora (an Arpitan quotation) and lets 0.1 point more of Romanian
+through, which three tables are not worth.
 
 *Rejected — a second detector with these classes.* A new dependency and a new model in the WASM
 bundle (whichlang alone is 65,536 weights, 256 KiB), for a question a few hundred function words
 answer; and Occitan has no class in the small detectors either.
 
-*Rejected — two markers at least before refusing.* Measured: Catalan 7.1 → 14.2 % of blocks still
-read as French, Occitan 24.9 → 35.8 %, Romanian 7.8 → 14.2 %, to spare 15 of the 26 French refusals,
+*Rejected — two markers at least before refusing.* Measured: Catalan 7.2 → 14.3 % of blocks still
+read as French, Occitan 25.0 → 35.8 %, Romanian 6.9 → 14.1 %, to spare 15 of the 26 French refusals,
 most of them quoted Catalan and Occitan. « More than French » has no parameter to tune.
 
 ### D2 — Catalan, Occitan and Romanian; not the others
@@ -147,40 +153,50 @@ The others are left as they are, with what was measured:
 ### D3 — The tables, measured word by word
 
 Closed-class words — articles, pronouns, prepositions, conjunctions, adverbs, the copula and the
-auxiliaries — kept only when the measurement shows no French use, and none as a common English,
-chat or Québécois spelling:
+auxiliaries — kept only when the measurement, word by word, shows they catch neighbour text without
+refusing French, and none as a common English, chat or Québécois spelling:
 
-- **Neighbour markers, 154**: Catalan 66 (`amb`, `els`, `és`, `són`, `molt`, `més`, `també`,
+- **Neighbour markers, 152**: Catalan 64 (`amb`, `els`, `és`, `són`, `molt`, `més`, `també`,
   `però`, `aquest`, `això`, `una`, `el`, `del`, `al`, `vaig`, `està`, `té`…), Occitan 63 (`lo`,
   `los`, `las`, `e`, `per`, `dins`, `èra`, `foguèt`, `coma`, `aquò`, `çò`, `degun`, `dau`, `dei`,
   `lei`, `deu`, `èi`, `ua`, `dambe`…), seven shared (`al`, `amb`, `aquesta`, `aquestes`, `del`,
   `dels`, `una`), Romanian 32 (`în`, `să`, `și` and `şi`, `cu`, `pe`, `este`, `fost`, `că`,
   `pentru`, `din`, `sunt`, `care`…).
-- **French markers, 71**: `le`, `et`, `est`, `une`, `du`, `des`, `au`, `aux`, `je`, `j`, `il`,
-  `ils`, `elle`, `elles`, `nous`, `vous`, `dans`, `avec`, `pour`, `sur`, `ce`, `cette`, `ces`,
-  `sont`, `suis`, `était`, `été`, `être`, `avait`, `fait`, `mais`, `ou`, `où`, `ça`, `très`, `plus`,
-  `aussi`, `leur`, `lui`, `moi`, `toi`, `cela`, `dont`, `comme`, `tout`, `rien`, `jamais`,
-  `toujours`, `encore`, `beaucoup`, `déjà`, `alors`, `donc`, `puis`, `bien`, `chez`, `sans`,
-  `sous`, `depuis`, `pendant`, `avant`, `parce`, `à`, `là`, `ici`, `quoi`…
+- **French markers, 69**: `le`, `et`, `est`, `une`, `du`, `des`, `au`, `aux`, `je`, `j`, `il`,
+  `ils`, `elle`, `elles`, `nous`, `vous`, `dans`, `avec`, `pour`, `sur`, `cette`, `ces`, `sont`,
+  `suis`, `était`, `été`, `être`, `avait`, `fait`, `mais`, `ou`, `où`, `ça`, `très`, `plus`,
+  `aussi`, `leur`, `moi`, `toi`, `cela`, `dont`, `comme`, `tout`, `rien`, `jamais`, `toujours`,
+  `encore`, `beaucoup`, `déjà`, `alors`, `donc`, `puis`, `bien`, `chez`, `sans`, `sous`,
+  `depuis`, `pendant`, `avant`, `parce`, `à`, `là`, `ici`, `quoi`…
+
+The first draft held four more, dropped in review, each measured: `uns` and `unes`, French's own
+« les uns », « les unes » (« Les uns disent oui, les autres non. » was refused; without them Catalan
+7.1 → 7.2 %, Occitan 24.9 → 25.0 %, no French block refused or spared in the corpora), and `ce` and
+`lui`, Romanian's *what* and *his*, in 4.3 % and 3.1 % of its blocks (without them Romanian
+7.8 → 6.9 %, nothing French refused).
 
 What was left out, and why, each measured against the tables above:
 
 | Word | Language | Caught | French refused | Reason |
 |---|---|---|---|---|
-| `es` | Occitan *is* | Occitan 24.9 → 21.7 % | +80 | « Tu es donc las… », « Tu n'es pas sale. » |
-| `on` | Catalan, Occitan *where* | — | +39 | « on y trouve » (Spanish's table has it) |
-| `i` | Catalan *and* | Catalan 7.1 → 6.5 % | +15 | Québécois « qu'i s'aident » (*il*), Catalan place lists |
-| `mai` | Occitan *more* | 0.4 point | +4 | the month (« 27 mai 1944 ») |
-| `ha` | Catalan *has* | Catalan 7.1 → 6.7 % | +3 | hectares, « ha ha ha » |
-| `fou` | Catalan *was* | — | +1 | « tu n'es pas fou ? » (Spanish's table has it) |
+| `es` | Occitan *is* | Occitan 25.0 → 21.7 % | +81 | « Tu es donc las… », « Tu n'es pas sale. » |
+| `on` | Catalan, Occitan *where* | — | +44 | « on y trouve » (Spanish's table has it) |
+| `i` | Catalan *and* | Catalan 7.2 → 6.6 % | +15 | Québécois « qu'i s'aident » (*il*), Catalan place lists |
+| `mai` | Occitan *more* | 0.5 point | +4 | the month (« 27 mai 1944 ») |
+| `ha` | Catalan *has* | Catalan 7.2 → 6.8 % | +3 | hectares, « ha ha ha » |
+| `fou` | Catalan *was* | — | +2 | « tu n'es pas fou ? » (Spanish's table has it) |
 | `o`, `pot` | Catalan, Occitan | — | +2, +1 | letters discussed, « le pot » |
 | `soi`, `com`, `pus`, `jamai`, `hi`, `han`, `van`, `fins` | | nothing measured | nothing measured | French words or chat and Québécois spellings: « chez soi », `com` (*comme*), `pus` (*plus*), `jamai`, « hi hi », `Han`, `van`, « à des fins de » |
-| `les` (French table) | Catalan's article | Catalan 8.1 → 7.1 % without it | 2 spared with it | kept out |
-| `pas`, `son`, `mon`, `qui`, `on`, `ont` (French table) | Occitan writes them | Occitan up to 27.1 % with them | none spared | kept out |
+| `les` (French table) | Catalan's article | Catalan 8.2 → 7.2 % without it | 2 spared with it | kept out |
+| `pas`, `son`, `mon`, `qui`, `on`, `ont` (French table) | Occitan writes them | Occitan 27.2 % with `pas`, 28.4 % with all six | none spared | kept out |
 
-Kept although shared somewhere: `le` (Toulouse Occitan, Italian), `et` (Catalan's pronoun, Latin),
-`des`, `du`, `au` — removing any catches at most 0.3 point more and refuses up to 8 more French
-blocks.
+Kept although shared somewhere: `le` (Toulouse Occitan, Italian, Romanian *them*), `et` (Catalan's
+pronoun, Latin), `des` (Catalan's *des de*), `du`, `au` (Romanian *they have*, Gascon), `nous` and
+`est` (Catalan *new*, *east*), `donc` (Occitan) — removing any catches at most 0.3 point more and
+refuses up to 8 more French blocks. Kept although French writes them as other words: `las`
+(*weary*), `mas` (*farmhouse*), `coma`, `sus` (*en sus*), `fi` (*faire fi*), `té` — each in at most
+8 of the 42,961 French blocks, none refused; without them Occitan 25.0 → 26.0 %, Catalan
+7.2 → 7.4 %, and one block spared, a Provençal verse (Risks).
 
 The Spanish guard's three tables stay as they are; French's are separate constants, beside them,
 sorted for binary search and disjoint (a test holds both). French's markers are this guard's, not
@@ -196,21 +212,24 @@ before it is looked up. A neighbour marker counts only where it is written in lo
 marker counts in any case. Words longer than the longest marker (9 bytes) are not looked up.
 
 Each rule is measured against the alternative, with the tables of D3:
-- **Splitting on every non-letter, as Spanish's guard does**: 53 French blocks refused instead of
+- **Splitting on every non-letter, as Spanish's guard does**: 52 French blocks refused instead of
   26, at the same recall — `2e` and `1re` give `e`, `ingénieur-e-s` and `étudiant·e·s` give `e`,
   `e-mail` gives `e`, and `e` is Occitan's *and*. The joiners keep `col·lecció` one Catalan word too.
-- **Counting capitalised neighbour words**: Catalan 7.1 → 5.2 %, Occitan 24.9 → 20.4 %, but 48
-  French blocks refused instead of 26, among them FQB's « Que signifie "El Niño" en espagnol ? »,
-  « Quand eurent lieu les émeutes de Los Angeles ? », « Que signifie "E pluribus unum" ? »,
-  Lausanne's coordinates (« 6° 37′ 13″ E ») and Fréchette. A capital makes a name, as the Spanish
-  names rule reads it; the cost is a neighbour sentence opening on a marker (« În anul următor… »).
-- **No composition**: an NFD block (the corpus's `technique` page holds one) splits `mémoire` into
-  `me` + `moire`; composed, a decomposed Catalan block is still refused and a decomposed French one
-  kept (both tested).
+- **Counting capitalised neighbour words**: Catalan 7.2 → 5.4 %, Occitan 25.0 → 20.5 %, Romanian
+  6.9 → 5.9 %, but 47 French blocks refused instead of 26, among them FQB's « Que signifie "El
+  Niño" en espagnol ? », « Quand eurent lieu les émeutes de Los Angeles ? », « Que signifie "E
+  pluribus unum" ? » and Lausanne's coordinates (« 6° 37′ 13″ E »). A capital makes a name, as the
+  Spanish names rule reads it; the cost is a neighbour sentence opening on a marker (« În anul
+  următor… »).
+- **Combining marks as separators, no composition**: an NFD block (the corpus's `technique` page
+  holds one) splits `mémoire` into `me` + `moire` and `été` into `e` + `te`, and `e` is Occitan's
+  *and*: « La réunion a été reportée à la semaine prochaine. », decomposed, is refused. Read as one
+  word and composed, a decomposed Catalan block is still refused and a decomposed French one kept
+  (both tested).
 
 The French corpus's blocks, read this way: whichlang reads 62 of its 66 as French; the guard refuses
-one, the `mixte` page's Occitan block (`lo`, `e`, `degun`, `qual` against none). Its Catalan block
-is read as Italian before and after.
+one, the `mixte` page's Occitan block (`e`, `degun`, `qual` against none; its opening `Lo` is
+capitalised). Its Catalan block is read as Italian before and after.
 
 ### D5 — One detection function; a guard runs only for the language it protects
 
@@ -229,38 +248,51 @@ rewritten; a Spanish block is refused exactly when `iberian_neighbour` says so, 
 the vote; a French answer was never a Spanish or English one. So their analyser versions do not
 move, and the four baselines prove it (D7).
 
-The guard's cost, timed on the 2026-10-09 samples (Apple M2 Max, release build; WebAssembly under
-Node 22, the engine's runtime family):
+The guard's cost, timed on the 2026-10-09 samples' French blocks (UD, Tatoeba, Wikipedia, the
+books; Apple M2 Max, release build; WebAssembly under Node 22, the engine's runtime family), as D3
+and D4 write it — two tables, a scan by character — and in the prototype's faster shape, one merged
+sorted table of (word, kind) and a byte scan for ASCII, which answers the same on all 62,076 blocks:
 
-| Text read as French | whichlang | French guard | Spanish guard (for scale) |
-|---|---|---|---|
-| native, µs per KB | 15.9–16.5 | 12.5–15.4 (76–93 % of whichlang) | 21.5–22.8 |
-| WebAssembly, µs per KB | 14.0–14.6 | 14.4–17.6 (102–120 %) | 20.0–21.3 |
+| Text read as French, µs per KB | whichlang | French guard | merged table | Spanish guard (for scale) |
+|---|---|---|---|---|
+| native | 16.5–17.2 | 16.5–21.1 (100–123 % of whichlang) | 12.5–16.0 (75–94 %) | 21.5–24.0 |
+| WebAssembly | 14.0–15.1 | 19.4–23.8 (138–159 %) | 14.6–19.0 (103–126 %) | 19.9–21.5 |
 
 A page analysis (`analyse_page`, the es-fr pack on 40-block pages of Spanish UD and Tatoeba text,
-native) costs 233–243 µs per KB, whichlang 7 % of it; the French guard would be 5.2–6.0 % of it, on
-the blocks it runs on. A 20 KB French article costs about 0.3 ms more in WebAssembly.
+native) costs 233–251 µs per KB, whichlang 7 % of it; the French guard would be 7–9 % of it on the
+blocks it runs on (5–6.5 % merged). A 20 KB French article costs about 0.4 ms more in WebAssembly
+(0.3 ms merged). The implementation may take the merged shape; the tests do not change.
 
 Why the guard runs only when French is asked about: a reader studying English — today's every
 reader, French-native — reads French pages all day; their blocks are read as French and excluded.
 Guarding them anyway (`detect` rewriting every `Fra` answer, as it rewrites every `Spa` answer
-today) would double detection's cost on those pages, in WebAssembly, for an answer that cannot
-change: French is not their language either way. With D5's shape, that reader pays nothing, and
-also stops paying Spanish's guard on Spanish blocks.
+today) would more than double detection's cost on those pages, in WebAssembly, for an answer that
+cannot change: French is not their language either way. With D5's shape, that reader pays nothing,
+and also stops paying Spanish's guard on Spanish blocks.
 
 *Rejected — the guard inside today's `detect(trimmed)`, French refused as Portuguese.* The
-template's shape, measured above as +100–120 % on the en-fr reader's French pages.
+template's shape, measured above as +140–160 % of detection's cost in WebAssembly on the en-fr
+reader's French pages.
 
-### D6 — French's analyser version, bumped; the number follows the order
+### D6 — French's analyser version, bumped after change 41's
 
 The guard changes which French blocks are analysed, which the analyser version exists to signal
 (*An analyser version per studied language*). English and Spanish do not move (D5).
 
-The requirement states the bump, not the number, so this change does not depend on 40 or 41:
-- in the programme's order, after change 41 (`1.0.0`): `1.1.0`, as Spanish's guard (`1.1.0`)
-  followed Spanish's analysis (`1.0.0`) — the recommendation;
-- after change 40 (`0.2.0`) and before 41: `0.3.0`, and 41 keeps `1.0.0`;
+The requirement states the bump, not the number. The number follows the order, and one order leaves
+every French requirement true:
+- after change 41 (`1.0.0`): `1.1.0`, as Spanish's guard (`1.1.0`) followed Spanish's analysis
+  (`1.0.0`);
+- not between 40 and 41: change 40's MODIFIED *French is a studied language served by the baseline
+  analysis* holds French at « `0.2.0` while its lemmatisation is the baseline's », and its scenarios
+  *Each language reports its own version* and *What the baseline shows today* read `0.2.0`. A
+  `0.3.0` there would have this change MODIFY both of change 40's requirements and archive after it
+  (change 40's D9) — the owner's call (open question 4);
 - not before change 40, whose spec names `0.2.0` (change 39's D4 reserved it).
+
+Change 41 is not proposed yet; it rewrites the same requirement for its cascade, and should word
+French's version so that a later French bump does not contradict it — Spanish's requirements still
+name `1.0.0` and `1.1.0` beside a `1.2.0` core.
 
 The bump moves what every French version bump moves: `FRENCH_ANALYZER_VERSION` and its doc line,
 the fixture's `manifest.json`, and the tests that name French's version (`language.rs`,
@@ -284,16 +316,16 @@ run): every lingua-core, lingua-pack and lingua-wasm host test passes, clippy is
     analysis — its 18 tokens (17 unknown and one name for the new reader; 12 unknown, 5 known and
     one name for the reader) — so the page counts 29 tokens instead of 46, the new reader 0 known
     (0 %) as before, the reader 12 known instead of 17, 41 % instead of 37 %: the French words they
-    know (`la`, `de`, `se`, `pas`) no longer counted inside an Occitan sentence;
+    know (`a`, `la` twice, `de` twice) no longer counted inside an Occitan sentence;
   - nothing else: the phrase glosses of the `mixte` blocks (« El far s'alçava », « Lo far se
     quilhava »…) are selections, glossed in the language the reader names without detection, and
     do not move.
 
 These figures are measured on `main` (`0.1.0`). Change 40 moves 26 probes of the same golden,
 the `mixte` lines among them (French tokens split at `0.2.0`, « l'aviá » read as `le` + `aviá`), and
-change 41 more; whichever of them merges first, this change's re-bless is re-measured on top of it
-at implementation, and its pull request states what moved: the version on every `analyse` line and
-the pack line, and the Occitan block leaving the two `mixte` lines. The corpus is not touched: its
+change 41 more; this change's re-bless is re-measured on top of both at implementation (D6), and its
+pull request states what moved: the version on every `analyse` line and the pack line, and the
+Occitan block leaving the two `mixte` lines. The corpus is not touched: its
 Catalan block reads as Italian, so Catalan and Romanian are carried by the unit tests (D8) rather
 than by a new page the owner has not read (change 39's task 5.1).
 
@@ -305,12 +337,15 @@ rather than passing for the wrong reason); the corpus's Occitan block; the table
 and `LONGEST_MARKER_BYTES` their longest entry; the word reading (`L'e-mail des étudiant·e·s, 2e
 cycle, XIIe — qu'i vient.` reads `L`, `e-mail`, `des`, `étudiant·e·s`, `cycle`, `XIIe`, `qu`, `i`,
 `vient`); a decomposed Catalan block refused and a decomposed French one kept; a capitalised marker
-not counted; a tie or no marker kept French; `detect` answering English and Spanish as before for
-any candidates, and a Catalan block read as French answering nothing for `[English, Spanish]`. The
-two existing tests that call `detect` directly are rewritten for its new signature, their
-assertions kept. In `french_baseline.rs`: the `mixte` page's analysis holds blocks 0 and 6 only.
+not counted; a tie or no marker kept French; French's own « Les uns disent oui, les autres non. »
+kept; `detect` answering English and Spanish as before for any candidates, and a Catalan block read
+as French answering nothing for `[English, Spanish]`. The two existing tests that call `detect`
+directly are rewritten for its new signature, their assertions kept. In `french_baseline.rs`: the
+`mixte` page's analysis holds blocks 0 and 6 only.
 
-All of this ran green in the prototype (38 tests in `analysis::language`).
+All of this ran green in the prototype (38 tests in `analysis::language`) with the first draft's
+tables; the review's four removals (D3) were re-checked on every scenario sentence and on the
+corpus, which reads as above.
 
 ### D9 — Gates and OpenSpec
 
@@ -318,8 +353,10 @@ All of this ran green in the prototype (38 tests in `analysis::language`).
    crates/lingua-wasm/tests/baseline/{en-fr,es-fr,es-en,en-es}.golden scripts/lingua-data/tables`
    is empty; a re-bless of any of them in this pull request is a review failure.
 2. `fr-en.golden` re-blessed once, its diff as D7 says.
-3. The workspace gates (fmt, clippy `-D warnings`, tests, `llvm-cov` ≥ 80 %, `wasm-pack test
-   --node`), the extension's (`yarn test`, `yarn check:variants`).
+3. The workspace gates (fmt, clippy `-D warnings`, tests — `lingua-agent`'s among them, it calls
+   `detect_document_language` —, `llvm-cov` ≥ 80 %, `wasm-pack test --node`), the extension's
+   (`yarn lint`, `format:check`, `typecheck`, `test`, `build`, `check:variants`), and the
+   lingua-data Python suite, which reads nothing that moves.
 
 OpenSpec: one ADDED requirement in `lingua-analysis`, *Catalan, Occitan and Romanian are not read
 as French*. It names no version number (D6) and rewrites nothing: change 39's two requirements are
@@ -343,13 +380,18 @@ held by 39 and reworded by change 40, and are left to them. `archiveAfter` names
 - [A page quoting Catalan or Occitan at length] → Its quotations are excluded: they are not French.
 - [Spanish wins an Occitan page it did not win before] → For a reader of Spanish and French, an
   Occitan page voted French (55.4 % of its text against 19.2 % for Spanish); with the guard, French
-  keeps 16.3 %, Spanish 19.2 %. The page then reads its Spanish-looking blocks as Spanish, as it
+  keeps 16.4 %, Spanish 19.2 %. The page then reads its Spanish-looking blocks as Spanish, as it
   would for a reader of Spanish alone today. Open question 2.
 - [A whichlang update] → The tables were chosen against whichlang 0.1.1's answers; the tests check
   that each scenario sentence is still read as French first, and a bump re-runs the measurement.
-- [Romanian beyond the change's name] → 32 words, nothing French refused by them; the owner may
-  drop them (open question 1), which removes one scenario and leaves 7.8 → 23.5 % of Romanian blocks
-  read as French.
+- [Romanian beyond the change's name] → 32 words; the one French-corpus block they refuse is an
+  Arpitan quotation (D2). The owner may drop them (open question 1), which removes one scenario and
+  takes Romanian blocks read as French from 6.9 back to 22.4 %; `ce` and `lui` stay out of the
+  French table either way (D3).
+- [A French noun a neighbour writes as a function word] → `las`, `mas`, `coma`, `sus`, `fi`, `té`
+  (D3): a short French line holding one and no French marker is refused (« Un vieux mas provençal
+  restauré. »); no such line among the 42,961 French blocks measured. Accepted for the point of
+  Occitan they catch.
 
 ## Migration Plan
 
@@ -368,5 +410,6 @@ For the owner, none blocking:
 3. **Franco-Provençal** (D2) — eight Arpitan words take its French-read text from 86.9 to 59.8 % with
    nothing French refused, on a thin sample. Add them now, or leave Franco-Provençal with Picard and
    Walloon?
-4. **The order** (D6) — after change 41 (`1.1.0`), as recommended, or earlier (after 40, `0.3.0`)
-   if the guard is wanted on the golden sooner?
+4. **The order** (D6) — after change 41 (`1.1.0`), the one order that contradicts no French
+   requirement; sooner (after 40, `0.3.0`) means this change MODIFIES change 40's two requirements
+   and archives after it. After 41?

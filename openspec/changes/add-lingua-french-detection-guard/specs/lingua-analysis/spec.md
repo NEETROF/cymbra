@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Catalan, Occitan and Romanian are not read as French
-The core SHALL refuse as French a block the detector reads as French whose Catalan, Occitan or Romanian function words outnumber its French ones, a neighbour's function word counting only where it is written in lowercase. A refused block SHALL be excluded from a French analysis and SHALL NOT vote for French when a document's language is chosen. A tie, or a block with no such function word, SHALL stay French. The guard SHALL run for French alone, so that English's and Spanish's detection, and the en-fr, es-fr, es-en and en-es output, stay byte for byte unchanged; adding it SHALL bump French's analyser version and no other. A short Catalan, Occitan or Romanian line with no function word of either kind is not refused and still reads as French, and Franco-Provençal, Picard and Walloon, which share French's own function words, are not refused either.
+The core SHALL refuse as French a block the detector reads as French whose Catalan, Occitan and Romanian function words, counted together, outnumber its French ones, a neighbour's function word counting only where it is written in lowercase. A refused block SHALL be excluded from a French analysis and SHALL NOT vote for French when a document's language is chosen. A tie, or a block with no such function word, SHALL stay French. The guard SHALL run for French alone, so that English's and Spanish's detection, and the en-fr, es-fr, es-en and en-es output, stay byte for byte unchanged; adding it SHALL bump French's analyser version and no other. A short Catalan, Occitan or Romanian line with no function word of either kind is not refused and still reads as French, and Franco-Provençal, Picard and Walloon, which share French's own function words, are not refused either.
 
 #### Scenario: A Catalan paragraph
 - **WHEN** "Les tradicions de la ciutat són molt antigues i el carrer principal és ple de gent." is offered as French
@@ -36,5 +36,5 @@ The core SHALL refuse as French a block the detector reads as French whose Catal
 - **THEN** every probe is byte for byte the output recorded before, without re-blessing, and English's and Spanish's analyser versions are unchanged
 
 #### Scenario: The leak the guard leaves
-- **WHEN** a short Occitan line with no function word of either kind, such as "Soi content de te veire.", is offered as French
+- **WHEN** a short Occitan line with no function word of either kind, such as "Soi plan content de te tornar veire.", is offered as French
 - **THEN** the guard does not refuse it, as this requirement states
