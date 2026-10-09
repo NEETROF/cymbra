@@ -60,8 +60,8 @@ as es-en reads `tables/es/`.
 French's rules live in the pair's own file, as Spanish's live in `reduce-es-fr.py`: a reducer named
 with a hyphen cannot be imported, so fr-es can never load them, and fr-en's rule digest is that
 file and `reduce_common.py` (change 48 adds the English edition's module for the glosses). **No
-shared module is edited**: `reduce_common.py`'s `canonical_ranks` cannot express D6, so French's ranking is written in
-the reducer, and every other pair's digest stays what its pin records (D11).
+shared module is edited**: `reduce_common.py`'s `canonical_ranks` cannot express D6, so French's
+ranking is written in the reducer, and every other pair's digest stays what its pin records (D11).
 
 *Rejected — fr-es as the reference.* Its forms would come from the Spanish Wiktionary's French
 section (11,862,917 B as kaikki's extract), whose inflections are not tagged, and the first French
@@ -103,7 +103,7 @@ form's candidate lemmas come from:
   part of speech: `dirigée` is the feminine of the participle `dirigé` (a verb entry), itself the
   past participle of *diriger* (a verb entry), so `dirigée` → *diriger*; `étés` is the plural of the
   noun `été` (a noun entry), and `été` reads as *être* through a verb entry, so `étés` reaches
-  nothing and stays out — a reader meets the summers, never the verb. 6,367 forms of the table get
+  nothing and stays out: an unknown word rather than the verb. 6,367 forms of the table get
   their lemma this way. Without the rule, the tables fail the resolution gate (S0 below).
 
 An entry with a sense that is not a form-of is a lemma, and its own candidate.
@@ -361,7 +361,7 @@ frequencies* reads change 38's catalogue (*Every kaikki source is derived from o
 Wiktionary edition*), change 39's French (*A pack names the language it studies*, MODIFIED there)
 and change 40's pre-pass (the words it writes, its MODIFIED *French is a studied language served by
 the baseline analysis*); the three are in `archiveAfter`, and `openspec_archive_order.py` exits 10
-naming them. Neither requirement of `lingua-analysis` that changes 39 and 40 hold is touched.
+naming those still open on this branch's base — 38 and 39 today, 40 once its proposal is merged. Neither requirement of `lingua-analysis` that changes 39 and 40 hold is touched.
 
 ### D12 — What the later changes of the stage take from here
 
