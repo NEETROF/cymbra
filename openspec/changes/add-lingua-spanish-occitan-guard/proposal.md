@@ -25,12 +25,15 @@ as broken Spanish, every word unknown, words that do not exist in Spanish propos
 - **121 Occitan function words and three elisions** (`qu'`, `m'`, `t'`), measured word by word (D2,
   D4): Languedocien, Provençal, Gascon and Aranese articles, pronouns, prepositions, adverbs, the
   copula and the modals (`pas`, `dins`, `aquò`, `çò`, `èra`, `siá`, `totjorn`, `fòrça`, `tanben`,
-  `degun`, `eth`, `dera`, `damb`, `ua`…). Left out, each measured: every word a Spanish text writes as
-  Spanish — `e` (« geografía e historia »: 517 Spanish blocks refused), `fa` (« fa mayor », « por
-  fa »), `res` (« carne de res »), `cal`, `pus`, `ara`, `per` (« per cápita »), `cap.` — and every
-  regional spelling met in the Spanish corpora: `mai` (« mi mai », Caribbean), `mos` (rural « Ya
-  mos… »), `soi` (Chilean voseo), `ai` (an old *hay*), `ei`, `dei` and `aquelas` (*Martín Fierro*),
-  `vos`, `sos`, `ta`. An Occitan word counts only as written in lowercase: « Pas de la Casa » is a name (D3).
+  `degun`, `eth`, `dera`, `damb`, `ua`…). Left out: every word the Spanish corpora write as Spanish —
+  `e` (« geografía e historia »: 517 Spanish blocks refused), `fa` (« fa mayor », « por fa »), `res`
+  (« carne de res »), `cal`, `pus`, `ara`, `per` (« per cápita »), `cap.` — and every regional
+  spelling met in them: `mai` (« mi mai », Caribbean), `mos` (rural « Ya mos… »), `soi` (Chilean
+  voseo), `ai` (an old *hay*), `ei`, `dei` and `aquelas` (*Martín Fierro*), `vos`, `sos`, `ta`. A few
+  kept words can still appear in Spanish though the corpora never write them so — French `pas`,
+  `mon`, `quand` and `t'`, Latin `deus`, colloquial `ma` (*mamá*) and `tas` (*estás*), the old
+  `aqueste` and `aquestas` —: open question 1 asks whether to keep them. An Occitan word counts only
+  as written in lowercase: « Pas de la Casa » is a name (D3).
 - **Measured** on 597,086 blocks — change 42's corpus, with Tatoeba's whole Spanish export, UD Spanish
   (AnCora, GSD, PUD, COSER with its Canary and Colombian transcriptions), 58 Spanish Wikipedia articles
   (Spain, Catalan and Occitan subjects, Latin America and its varieties, the Canaries), five Argentine,
@@ -57,6 +60,9 @@ as broken Spanish, every word unknown, words that do not exist in Spanish propos
   recorded digests and the agent's `es-fr.lingua` fixture follow. en-fr and en-es do not move, without
   re-blessing. es-fr's output moving needs the owner's approval (the programme's rule), in this
   change's pull request.
+- **One requirement amended** (D9): *Catalan and Galician are not read as Spanish* says a block with
+  no Catalan or Galician function word stays Spanish; it now says « unless *Occitan is not read as
+  Spanish* refuses it », and its `1.1.0`, stale since `1.2.0`, becomes the bump it stated.
 
 ## Capabilities
 
@@ -66,9 +72,12 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-analysis`: ADDED — *Occitan is not read as Spanish*. No requirement is rewritten:
-  *Catalan and Galician are not read as Spanish* holds as written, and change 42's *Catalan, Occitan
-  and Romanian are not read as French* is change 42's. It archives after
+- `lingua-analysis`: ADDED — *Occitan is not read as Spanish*; MODIFIED — *Catalan and Galician are
+  not read as Spanish*, whose « a tie, or a block with no such function word, SHALL stay Spanish »
+  an Occitan block would contradict: it gains « unless *Occitan is not read as Spanish* refuses
+  it », and « Spanish's analyser version SHALL be `1.1.0` » (stale since `1.2.0`) becomes « adding it
+  SHALL bump Spanish's analyser version and no other »; no open change holds it. Change 42's *Catalan,
+  Occitan and Romanian are not read as French* is change 42's and is not touched. It archives after
   `add-lingua-french-detection-guard`, whose `detect` it builds on.
 
 ## Impact
@@ -90,14 +99,20 @@ None.
   table row, wire field, proto or stored format changes.
 - **Release.** es-fr ships: the next extension release carries it, and a reader of Spanish stops
   seeing Occitan highlighted as Spanish. Nothing else a reader sees changes; nothing is migrated.
-- **Order.** After change 42 (merged, `a656dbcb`), on its `detect(trimmed, languages)`. Independent of
-  change 41b (`fix-lingua-lemma-lookup`) in code and spec; both move `es-fr.golden` and `es-en.golden`,
-  on different lines, and whichever merges second re-blesses on top of the other.
+- **Order.** After change 42 (merged, `a656dbcb`), on its `detect(trimmed, languages)`. Independent
+  of change 41b (`fix-lingua-lemma-lookup`, PR #848) and change 44b
+  (`add-lingua-spanish-expression-keys`) in code and spec, but not in files (D7): 41b moves 3 lines
+  of `es-fr.golden` and of `es-en.golden`, one of them — the `quijote` page's analysis — among this
+  change's 18; 44b moves the same `pack` lines and `fr-en.golden`'s `beside es-en` line (the packs'
+  size), and both packs' pins. Whichever merges second meets a conflict there, re-reduces or
+  re-records the pins on top of the other, and re-blesses once.
 - **Not here.** Recognising Occitan as a language; Asturian (70 % of its blocks still read as Spanish)
   and Aragonese; the vote, which still gives a page to Spanish when any of its blocks leaks; the
-  existing guard's reading of words, and its own refusals of real Spanish — 850 of the Spanish blocks
-  measured, 795 of them by Galician's `da` and `das`, Spanish's *gives* (« ¿Cuánto se da de propina en
-  España? »): the design's open question 4 asks whether to fold that fix into this bump.
+  existing guard's reading of words — the curly apostrophe, and the soft hyphen (U+00AD) an e-book
+  may hide inside its words, which makes « vida » `vi` and `da` (open question 5) —; and its own
+  refusals of real Spanish: 850 of the Spanish blocks measured, 796 of them by Galician's `da` and
+  `das`, Spanish's *gives* (« ¿Cuánto se da de propina en España? »), which the design's open
+  question 4 offers to fold into this bump.
 - **Effort, against 1.5–3 ideal days.** The comparison, its tables and doc comments: 0.5–0.75. Unit
   tests: 0.5–1. The bump, the re-reductions, the fixtures and the goldens: 0.25–0.75. Spec, programme:
   0.25–0.5.

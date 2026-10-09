@@ -40,11 +40,13 @@ refuses through Catalan's elisions (`l'ostal`, `d'Occitània`).
 - Asturian (70.3 % of its blocks still read as Spanish) and Aragonese: measured below, not guarded.
 - The vote: a page whose blocks all read as Occitan or English, offered with English and Spanish as
   candidates, still goes to Spanish when a single Occitan block leaks (below, *Per article*).
-- The existing guard's own refusals — 850 of the 453,821 Spanish blocks measured, 795 of them by
+- The existing guard's own refusals — 850 of the 453,821 Spanish blocks measured, 796 of them by
   Galician's `da` and `das`, Spanish's *gives* (« ¿Cuánto se da de propina en España? », « La vida
   empieza cuando te das cuenta de quién eres realmente. »), the rest by `polo`, `do`, « per se »,
-  « ON », « Guns n'Roses » — and its reading of words (the curly apostrophe, U+2019, splits a word):
-  changing either moves Catalan's and Galician's answers (open question 4).
+  « ON », « Guns n'Roses » — and its reading of words: the curly apostrophe (U+2019) splits a word,
+  and so does the soft hyphen (U+00AD) an e-book may hide inside its words, so that « vida » and
+  « todo » read as `vi` `da` and `to` `do` (Risks). Changing either moves Catalan's and Galician's
+  answers (open questions 4 and 5).
 
 ## Measurement
 
@@ -82,9 +84,10 @@ Lingua test and baseline run (D7).
 | | Aragonese, Tatoeba | 65 | 52.3 % (54.5) | 49.2 % (50.7) | 46.2 % (48.3) |
 
 Pooled over change 42's three Occitan sources: 23.7 → 15.8 % of the blocks, 19.2 → 10.9 % of the
-text. What leaks is 4,401 blocks: 3,731 without an Occitan word of the table (« Lo libre es sus la
-taula. », « La morfologia es redusida. » — `es`, `son`, `la`, `de`, `un` are Spanish too), and 670
-whose only Occitan words open a sentence (« Siá pacienta. », « Dempuèi los ans 1980… », D3).
+text. What leaks is 4,361 blocks: 3,565 without an Occitan word of the table or an elision (« Lo libre
+es sus la taula. », « La morfologia es redusida. » — `es`, `son`, `la`, `de`, `un` are Spanish too),
+and 796 whose only ones are written with a capital, mostly opening the sentence (« Siá pacienta. »,
+« Dempuèi los ans 1980… », « M'agradan los esquiròls. », D3).
 
 **Per article**, on the 32 Occitan Wikipedia articles (Languedocien, Provençal, Gascon, Aranese): the
 text the Spanish gate keeps falls from 6.9 to 3.2 % (« Occitan » 19.8 → 4.6 %, « Tolosa » 13.7 →
@@ -121,7 +124,8 @@ block's Occitan markers (D2, D3, D4) and its Spanish markers other than `lo`, `l
 The block is refused when Catalan's count or Galician's is higher than Spanish's — as today — or when
 Occitan's is higher than those Spanish markers. A tie, or no marker, keeps it Spanish. This is the
 archived guard's own rule read per neighbour: each neighbour's function words against the Spanish
-ones it does not write. Catalan and Galician write none of Spanish's seventeen, Occitan writes four.
+ones it does not write. Catalan writes none of Spanish's seventeen and Galician one (`por`); Occitan
+writes four, its articles among them.
 
 Since the first two comparisons are today's, the guard only refuses more: a block refused today is
 refused after, and Catalan's and Galician's tables and their counts do not move.
@@ -163,10 +167,15 @@ and none is written as Spanish in the Spanish corpora: the table's 17 lowercase 
 Spanish blocks today's guard keeps, in 14 blocks, are quotations — Aranese `eth`, `dera`, `aqueth`
 and Languedocien `quand` and `li` (« parla-li ») in the article on Occitan, Catalan `dins` and
 Alghero's `qual` and `quin`, toki pona's `li` —, a URL (`www.ua.gov.pl`), and Quiroga's syllables
-« de--li--rio »; the two refused blocks of the Measurement are two of them. Spanish words and regional spellings are left out; English words a
-Spanish text quotes are left out too (`an`, `as`, `car`, `far`, `fan`); three French ones are kept for
-their weight (`pas`, `mon`, `quand`; open question 1). Without `pas`, 476 more Occitan blocks would
-read as Spanish (1.7 points); without `dins`, 71.
+« de--li--rio »; the two refused blocks of the Measurement are two of them. The Spanish words and
+regional spellings the corpora write are left out; English words a Spanish text quotes are left out
+too (`an`, `as`, `car`, `far`, `fan`). Kept, though a Spanish line can write them where the corpora
+never do: three French words, for their weight (`pas`, `mon`, `quand`, and the elision `t'`), Latin
+`deus` (« un deus ex machina »), colloquial `ma` (*mamá*) and `tas` (*estás*), and `aqueste` and
+`aquestas`, Spanish demonstratives of the Golden Age (open question 1). Without `pas`, 476 more
+Occitan blocks would read as Spanish (1.7 points); without `dins`, 71; without the eight others
+(`mon`, `quand`, `t'`, `deus`, `ma`, `tas`, `aqueste`, `aquestas`), 166 (0.6 point), one Spanish block
+fewer refused.
 
 What was left out, and why, each measured by adding it alone to the table above (*caught*: Occitan
 blocks it would refuse; *refused*: Spanish blocks kept today it would refuse):
@@ -196,13 +205,13 @@ As French's guard counts its neighbours (change 42, D4): a capital makes a name.
 lets 12.9 % of Occitan blocks through instead of 15.8 % (9.1 % of the text instead of 10.9 %), but
 refuses 10 Spanish blocks instead of 2: « Mi maestra es la señora Li. », « Jet Li es una estrella de
 cine chino. », « el vuelo número UA111 », « Ma. Teresa », and « Pas de la Casa », « Mon » or « Siá »
-would join them on any page naming them. The cost is a sentence opening on its only marker (670 of the
-leaking blocks).
+would join them on any page naming them. The cost is a sentence opening on its only marker (796 of the
+4,361 leaking blocks).
 
 *Measured and not adopted — a capitalised word counted when it holds `à`, `è`, `ò` or `ç`*, letters
 Spanish never writes (« Siá » no, « Aquò », « Dempuèi », « Sèm » yes): 15.8 → 15.0 % of the blocks
-(10.9 → 10.4 % of the text), no Spanish block refused — a second casing rule for 0.8 point (open
-question 2).
+(10.9 → 10.4 % of the text), no further Spanish block refused — a second casing rule for 0.8 point
+(open question 2).
 
 ### D4 — How the guard reads a block: as today, with Occitan's elisions
 
@@ -210,8 +219,8 @@ The words are read as `iberian_neighbour` reads them today — split on every ch
 a letter nor the ASCII apostrophe, lowercased, Catalan's elisions counted first — so that Catalan's
 and Galician's counts cannot move. One addition: a word opening on `qu'`, `m'` or `t'` and longer than
 it (`qu'ei`, `m'agrada`, `t'agrada`) is an Occitan marker, under D3's casing: 16.4 → 15.8 % of the
-blocks, no Spanish block refused. Spanish writes none of them; a French quotation does (« je t'aime »,
-Risks).
+blocks, no further Spanish block refused. Spanish writes none of them; a French quotation does
+(« je t'aime », Risks).
 
 Not adopted, measured:
 - **Catalan's elisions counted for Occitan as well** (`l'`, `d'`, `s'`, `n'`, which Occitan writes):
@@ -220,7 +229,7 @@ Not adopted, measured:
   and Catalan things with them, and against Occitan's comparison they meet fewer Spanish markers.
 - **French's reading** (change 42's D4: joiners, digits, NFC): it would move Catalan's and Galician's
   counts on Spanish text, which this change does not touch.
-- **The curly apostrophe** (U+2019), which today's reading takes for a separator: 18 of the 4,401
+- **The curly apostrophe** (U+2019), which today's reading takes for a separator: 18 of the 4,361
   leaking blocks hold one.
 
 ### D5 — Inside `iberian_neighbour`; what it costs
@@ -241,7 +250,7 @@ machine dropped:
 A page analysis costs 233–251 µs per KB natively (change 42's measurement, es-fr), so the comparison
 adds 2–3 % on Spanish pages; a 20 KB Spanish article, about 0.1 ms. The *merged table* is one sorted
 table of every guard word with the kinds it belongs to (Catalan, Galician, Spanish, Occitan, the
-Spanish markers Occitan writes), built once from the four constants, one binary search per word
+Spanish markers Occitan writes), built once from the guard's tables, one binary search per word
 instead of four: it answers the same on all 475,412 blocks and costs less than today's guard. The
 implementation may take that shape; the tests do not change.
 
@@ -250,8 +259,9 @@ implementation may take that shape; the tests do not change.
 The comparison changes which Spanish blocks are analysed, which the analyser version exists to signal
 (*An analyser version per studied language*); English's and French's do not move (D5). The
 requirement states the bump, not the number, so that a later Spanish bump does not contradict it
-(change 41's lesson: Spanish's requirements still name `1.0.0` and `1.1.0` beside `1.2.0`; *Catalan
-and Galician are not read as Spanish* keeps its `1.1.0`, as the names change left it).
+(change 41's lesson: Spanish's requirements still name `1.0.0` and `1.1.0` beside `1.2.0`). *Catalan
+and Galician are not read as Spanish*, which this change modifies (D9), loses its `1.1.0` the same
+way, stale since the names change.
 
 The bump moves what a Spanish bump moves (`add-lingua-spanish-names` did the same at `1.2.0`, before
 the agent's fixture existed): `SPANISH_ANALYZER_VERSION` and its doc line, the four Spanish manifests,
@@ -278,32 +288,50 @@ Applied to a scratch checkout of `main` (`f43c6035`):
 - **The packs**: `tables/es-fr/` and `tables/es-en/` re-reduced from their pinned sources; their
   tables are byte for byte, their `pack_version` the same (snapshot and rules), and only
   `manifest.json` (`analyzer_version`) and `pin.json` (the pack's sha256) move — es-fr `ce03a605…`
-  and es-en `70030bf8…` as the scratch builds them, 2,190,188 and 2,567,804 bytes as before.
-  `scripts/lingua-data/build.sh` builds all five committed pairs to their pins.
+  and es-en `70030bf8…` as the scratch builds them on today's `main`, 2,190,188 and 2,567,804 bytes
+  as before. `scripts/lingua-data/build.sh` builds all five committed pairs to their pins. Should
+  change 44b (`add-lingua-spanish-expression-keys`) land first, the packs are its 2,224,439 and
+  2,608,413 bytes and the sha256 are re-recorded on top of it; the size stays what 44b made it.
 - **The fixtures**: `testdata/es-fr` and `testdata/es-en` manifests; `crates/lingua-pack/tests/
   pipeline_testdata.rs` records the Spanish fixtures' bytes (`ac75501f…`, `d63a846a…`, 1,342 and
   1,356 bytes); `apps/lingua-agent/rust/tests/fixtures/es-fr.lingua` is the es-fr fixture's build
   (`build.sh --testdata es-fr`) — without it, eight of the agent's pipeline tests fail, the core
   refusing a `1.2.0` pack.
-- With all of it, lingua-core, lingua-pack, lingua-agent and lingua-wasm pass (639 tests), clippy is
-  clean, and the lingua-data Python suite passes (405 tests): nothing it reads moves.
+- With all of it, lingua-core, lingua-pack, lingua-agent and lingua-wasm pass (639 tests, a scratch
+  check of the scenario sentences among them), clippy is clean, and the lingua-data Python suite
+  passes (405 tests): nothing it reads moves.
 
 The corpus is not touched: an Occitan block in `mixto` would shift the block numbers of its analyses
 and move es-fr's output beyond the version; the unit tests carry Occitan (D8), as change 42's carry
-Catalan and Romanian. Change 41b moves `es-fr.golden` and `es-en.golden` too (3 gloss lines each),
-on other lines: whichever merges second re-blesses on top of the other.
+Catalan and Romanian.
+
+Two Spanish changes in flight move the same files, on overlapping lines:
+- **Change 41b** (`fix-lingua-lemma-lookup`, PR #848) moves 3 lines of `es-fr.golden` and of
+  `es-en.golden` — `gloss cuenta`, `gloss llama`, and the `quijote` page's `analyse new-reader` line
+  (« quebrantos » loses a gloss) —, the last one among this change's 18.
+- **Change 44b** (`add-lingua-spanish-expression-keys`) moves both goldens' `pack` line and
+  `fr-en.golden`'s `beside es-en` line (the packs' size), both pins (sha256 and size), and 7 phrase
+  probes of each golden.
+
+Whichever merges second meets a textual conflict on those lines and pins, and re-blesses once on top
+of the other, each line then carrying both changes — the version from here, the gloss or the size
+from there. Landing after 44b, this change re-reduces es-fr and es-en on top of it; landing before
+it, 44b records the packs again on top of this one. Neither moves the other's lines otherwise.
 
 ### D8 — Tests
 
 In `language.rs`, beside Spanish's guard's tests: the spec's scenarios, each sentence first asserted
-to be read as Spanish by whichlang (a whichlang update that stops reading it so fails the test rather
-than passing it for the wrong reason); the Occitan table sorted, disjoint from Spanish's and
-Catalan's, and the Spanish markers Occitan writes a part of Spanish's table; Occitan's own articles not
-defending it (« Los dròlles son totjorn dins lo jardin. », a tie against the whole table); the
-elisions counted, a capitalised one not; « Pas de la Casa » and « Vielha e Mijaran » kept; regional
-Spanish kept (Rioplatense, Canary, « mi mai »), and « Junts pel Sí »; the leak kept; the Catalan and
-Galician sentences of today's tests refused as before; and a page of Occitan blocks among English and
-Spanish giving Spanish no vote. The existing tests pass unchanged.
+to be read as Spanish by whichlang (a whichlang update that stops reading it so fails the test
+rather than passing it for the wrong reason); the Occitan table sorted, disjoint from Spanish's,
+sharing with Catalan's `aquestes` alone (Languedocien and Catalan both write it, and it counts for
+both: leaving it out of Occitan's table changes no answer on the 597,086 blocks), and the Spanish
+markers Occitan writes a part of Spanish's table; Occitan's own articles not defending it (« Los
+dròlles son totjorn dins lo jardin. », a tie against the whole table); the elisions counted, a
+capitalised one not; « Pas de la Casa » and « Vielha e Mijaran » kept; regional Spanish kept
+(Rioplatense, Canary, « mi mai »), and « Junts pel Sí »; the leak kept; the Catalan and Galician
+sentences of today's tests refused as before; and a page of Occitan blocks among English and Spanish
+giving Spanish no vote. The existing tests pass unchanged, the scenarios of *Catalan and Galician
+are not read as Spanish* among them.
 
 All of this ran green in the scratch checkout (the scenario sentences through `block_is_studied` and
 `detect_document_language`).
@@ -316,26 +344,41 @@ All of this ran green in the scratch checkout (the scenario sentences through `b
 2. The workspace gates (fmt, clippy `-D warnings`, tests — `lingua-agent`'s among them —, `llvm-cov`
    ≥ 80 %, `wasm-pack test --node`), the extension's, and the lingua-data Python suite.
 
-OpenSpec: one ADDED requirement in `lingua-analysis`, *Occitan is not read as Spanish*. It names no
-version number and rewrites nothing: *Catalan and Galician are not read as Spanish* holds as written,
-and change 42's *Catalan, Occitan and Romanian are not read as French*, which says that the French
-guard leaves Spanish's detection alone, is change 42's and is not modified. `archiveAfter` names
+OpenSpec: one ADDED requirement in `lingua-analysis`, *Occitan is not read as Spanish*, which names
+no version number. One MODIFIED: *Catalan and Galician are not read as Spanish* says « a tie, or a
+block with no such function word, SHALL stay Spanish », which « Los dròlles son totjorn dins lo
+jardin. » (no Catalan or Galician word) would contradict once refused; it gains « unless *Occitan is
+not read as Spanish* refuses it », and its « Spanish's analyser version SHALL be `1.1.0` », stale
+since `1.2.0`, becomes « adding it SHALL bump Spanish's analyser version and no other » (D6). Its
+scenarios are kept word for word, and no open change holds it (the programme's rule). Change 42's
+*Catalan, Occitan and Romanian are not read as French*, which says that the French guard leaves
+Spanish's detection alone, is change 42's and is not modified. `archiveAfter` names
 `add-lingua-french-detection-guard`, whose `detect` this builds on; `openspec_archive_order.py` exits
 10 naming it.
 
 ## Risks / Trade-offs
 
-- [French words in a Spanish line] → « Bailaron un pas de deux en el último acto. » is refused (the
-  prototype says so): `pas` with no Spanish marker but `lo`, `los`, `las` or `sus`. « faux pas »,
-  « mon amour », « quand », « je t'aime » alike. None among the 453,821 Spanish blocks; `pas` alone
-  is 1.7 points of Occitan. Accepted (open question 1).
+- [French or Latin words in a Spanish line] → « Bailaron un pas de deux en el último acto. » is
+  refused (the prototype says so): `pas` with no Spanish marker but `lo`, `los`, `las` or `sus`.
+  « Cometió un faux pas », « Le dijo mon amour », « Me dijo je t'aime » and « es un deus ex machina »
+  alike. None among the 453,821 Spanish blocks; `pas` alone is 1.7 points of Occitan. Accepted (open
+  question 1).
 - [A text about Occitan] → its quotations are refused (the two measured blocks). They are not Spanish.
-- [Colloquial Spanish] → the table leaves out every regional spelling the corpora hold (D2). Two kept
-  words are colloquial elsewhere: `ma` (*mamá*) and `li`; a short « Mi ma no está. » is refused (the
-  prototype says so). Neither is written as Spanish in the 453,821 blocks.
-- [The leak] → short lines without an Occitan function word, one in seven of them opening on a
-  capitalised one; and the vote, which still gives most Occitan articles to Spanish among English and Spanish
-  (Measurement). The spec says so.
+- [Colloquial and old Spanish] → the table leaves out every regional spelling the corpora hold (D2),
+  but keeps four Spanish words they never write: colloquial `ma` (*mamá*) and `tas` (*estás*), and
+  the Golden Age's `aqueste` and `aquestas`. « Mi ma no está. », « Hola, ma, ¿qué hacemos hoy? »,
+  « ¿Dónde tas, mi amor? Te espero. » and « Mas en aqueste valle umbroso reposa el pastor. » are
+  refused (the prototype says so); a Spanish marker outside the four keeps a line (« Por aquestas
+  montañas anduve solo. »). Open question 1.
+- [Soft hyphens] → an e-book may hide a soft hyphen (U+00AD) inside its words; the guard splits on it
+  as on any non-letter, and reads syllables. Today's guard already refuses such Spanish lines through
+  Galician's `da` and `do` (« vida », « todo », « cada », « cuando »: three lines tried, three
+  refused); Occitan's short words add their own syllables (`ma` in « mañana », `sas` in « cosas »,
+  `lor` in « valor », `jos` in « lejos »). The corpora hold three such blocks read as Spanish, whose
+  answers skipping the soft hyphen would not change. Open question 5.
+- [The leak] → short lines without an Occitan function word, nearly one in five of them holding one
+  written with a capital; and the vote, which still gives most Occitan articles to Spanish among
+  English and Spanish (Measurement). The spec says so.
 - [A reader of Spanish and French] (after change 52) → change 42's risk reversed: of Occitan text,
   French keeps 16.4 % and Spanish 10.9 % instead of 19.2 %, so an Occitan page votes French again;
   the two together read 27.3 % of it instead of 35.6 %.
@@ -352,17 +395,40 @@ Rollback is a revert, the goldens, manifests, pins and fixtures with it.
 
 ## Open Questions
 
-For the owner, none blocking:
-1. **French words in Spanish** (Risks) — keep `pas`, `mon`, `quand` and the elision `t'`, which
-   refuse a short Spanish line quoting « pas de deux » or « je t'aime », for the 1.7 points `pas`
-   alone catches? The default keeps them.
-2. **Capitals holding `à`, `è`, `ò` or `ç`** (D3) — count them, for 0.8 point and no Spanish block
-   refused, at the price of a second casing rule? The default does not.
-3. **Asturian and Aragonese** — 70.3 % and 46.2 % of their Tatoeba blocks still read as Spanish.
-   Worth a change of their own, or left as they are?
-4. **Galician's `da` and `das`** (Non-goals) — today's guard refuses 795 Spanish blocks for them, 0.18 %
-   of the Spanish measured. Without `da`, 150 Spanish blocks are refused instead of 850, and Galician
-   read as Spanish goes from 21.4 to 22.2 % of its blocks (16.2 → 18.1 % of the text); without `da`
-   and `das`, 54, and 22.6 % (18.8 %). A Spanish change of its own, or folded in here, where it would
-   share this bump instead of moving es-fr's output a second time? The default leaves it out, as the
-   owner scoped this change.
+For the owner, none blocking. Each has a default, which the implementation follows unless the owner
+answers otherwise.
+
+1. **Words a Spanish sentence can borrow** (D2, Risks) — a few words of the Occitan list can also
+   appear in Spanish: French `pas`, `mon`, `quand` and `t'` (« Bailaron un pas de deux », « Me dijo
+   je t'aime »), Latin `deus` (« un deus ex machina »), everyday `ma` and `tas` (« Hola, ma »,
+   « ¿Dónde tas? ») and the old `aqueste` and `aquestas`. A short Spanish sentence holding one of
+   them and none of the list's own Spanish words (`y`, `por`, `muy`, `más`…) is then not analysed;
+   none of the 452,971 Spanish sentences and paragraphs measured writes one as Spanish. In exchange
+   they stop Occitan: `pas` alone keeps 476 of the 27,630 Occitan sentences and paragraphs from
+   passing as Spanish (1.7 %), the eight others 166 (0.6 %). Keep all nine (the default), drop the
+   eight and keep `pas` (Occitan read as Spanish 15.8 → 16.4 %), or drop all nine (18.2 %)?
+2. **An Occitan word that starts a sentence** (D3) — an Occitan word written with a capital does not
+   count, so that a place such as « Pas de la Casa » (in Andorra) never counts against Spanish. The
+   price: an Occitan sentence whose only Occitan word comes first (« Siá pacienta. », « Dempuèi los
+   ans 1980… ») stays Spanish. One more rule could count such a word anyway when it holds `à`, `è`,
+   `ò` or `ç`, letters Spanish never writes (« Dempuèi », « Aquò », « Sèm » — not « Siá », whose `á`
+   Spanish writes): Occitan read as Spanish 15.8 → 15.0 %, no more Spanish refused, one more rule and
+   test to keep. Add it, or keep the single rule (the default)?
+3. **Asturian and Aragonese** — two regional languages of Spain, close to Spanish (in Asturias, and
+   in Aragon's Pyrenees). The detector takes 70 % of Asturian sentences and 46 % of Aragonese ones
+   for Spanish (Tatoeba: 697 and 65 sentences), and this change does not touch them. A change of
+   their own later, or leave them as they are (the default)?
+4. **Spanish sentences set aside as Galician** (Non-goals) — today's guard counts `da` and `das` as
+   Galician words, but they are Spanish too (*da*, « gives »; *das*, « you give »), so « ¿Cuánto se da
+   de propina en España? » is set aside as Galician. Of the 453,821 Spanish sentences and paragraphs
+   measured, today's guard sets aside 850, 796 of them for these two words (0.18 %). Taking `da` off
+   the Galician list brings the 850 to 150, taking `das` too to 54; in exchange a little more Galician
+   passes as Spanish (21.4 → 22.2 % of Galician sentences without `da`, 22.6 % without both). Fix it
+   here, where es-fr's output then moves once for both, or in a change of its own (the default, as
+   the owner scoped this change to Occitan)?
+5. **E-books with hidden hyphens** (Risks) — some e-books hide an invisible hyphen inside words so a
+   line can break there: « vida » is stored as « vi », the hyphen, « da ». The guard reads each piece
+   as a word, so today « vida » and « todo » already look Galician (`da`, `do`) and such Spanish
+   lines are set aside; Occitan's short words add a few more (`ma` in « mañana », `sas` in
+   « cosas »). Ignoring the invisible hyphen when reading fixes it and changes no answer on the text
+   measured. Here, or in a change of its own (the default)?
