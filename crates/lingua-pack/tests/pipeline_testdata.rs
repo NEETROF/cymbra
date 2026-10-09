@@ -20,7 +20,7 @@
 
 use std::path::PathBuf;
 
-use lingua_core::analysis::ANALYZER_VERSION;
+use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lexicon::Lexicon;
 use lingua_core::knowledge::state::FrequencyRanks;
@@ -101,9 +101,11 @@ fn every_testdata_fixture_builds_and_names_its_pair() {
 }
 
 #[test]
-fn the_french_fixture_studies_french_at_its_baseline_version() {
+fn the_french_fixture_studies_french_at_its_analyser_version() {
     // add-lingua-french-baseline D5: hand-written tables, stamped with French's analyser version
-    // as committed (not re-stamped here), glossed in English, no grammar and no senses.
+    // as committed (not re-stamped here), glossed in English, no grammar and no senses. A French
+    // rule that bumps the version bumps the committed manifest with it
+    // (add-lingua-french-tokenisation: `0.2.0`).
     let dir = testdata_dir().parent().unwrap().join("fr-en");
     let inputs = inputs_from_dir(&dir).expect("read the fr-en fixture");
     assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
@@ -116,7 +118,7 @@ fn the_french_fixture_studies_french_at_its_baseline_version() {
     assert!(bytes.len() < MAX_PACK_BYTES);
     let pack = Pack::load(&bytes).expect("the core loads it at French's version");
     assert_eq!(pack.studied(), StudiedLanguage::French);
-    assert_eq!(pack.meta().analyzer_version, "0.1.0");
+    assert_eq!(pack.meta().analyzer_version, FRENCH_ANALYZER_VERSION);
     assert_eq!(pack.meta().pair_key(), "fr-en");
     // The single-letter words the tokeniser keeps only when the lexicon lists them.
     for single in ["a", "à", "y"] {
