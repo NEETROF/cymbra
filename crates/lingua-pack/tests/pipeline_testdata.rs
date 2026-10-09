@@ -25,7 +25,9 @@ use lingua_core::analysis::lexicon::Lexicon;
 use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
 use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
+use lingua_core::packs::pack::section;
 use lingua_pack::{MAX_PACK_BYTES, build_pack, inputs_from_dir};
+use sha2::{Digest, Sha256};
 
 fn testdata_dir() -> PathBuf {
     // crates/lingua-pack/ -> ../../scripts/lingua-data/testdata/en-fr
@@ -163,4 +165,84 @@ fn pipeline_reads_the_optional_grammar_tables() {
     assert_eq!(others.len(), 1);
     assert_eq!(others[0].0, "leaf");
     assert_eq!(pack.sense_runs("can").len(), 2);
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+#[test]
+fn spec_scenario_the_english_and_spanish_fixtures_keep_their_bytes() {
+    // add-lingua-french-expression-keys D7: the French arm of the keys, the order among headwords
+    // of one key and the names section are French's alone. Each English and Spanish fixture builds,
+    // as its manifest stands, to the bytes it built to before them (sha256 recorded on `main` at
+    // da94a82e), and carries no expression name.
+    let root = testdata_dir().parent().unwrap().to_path_buf();
+    for (pair, size, sha256) in [
+        (
+            "en-fr",
+            1932,
+            "d5c85ef9d875e6ea179e2e833aa0b760cc104bf3bc12894ef64664d2407384aa",
+        ),
+        (
+            "en-es",
+            1985,
+            "516afb7fc75724353922c8e731aa5398d258dd15a3288127acffc67d40cb8d73",
+        ),
+        (
+            "es-fr",
+            1342,
+            "0c571a838c7d00398c09aa4b803a1d8021261a59f69fc616331ef688c6e35a42",
+        ),
+        (
+            "es-en",
+            1356,
+            "07789967feaf67df5583d4d14ecaf6fab3eda047e0d84d21eaa71053cc34148d",
+        ),
+    ] {
+        let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));
+        let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build {pair}: {e}"));
+        assert_eq!(
+            (bytes.len(), sha256_hex(&bytes).as_str()),
+            (size, sha256),
+            "{pair}"
+        );
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(
+            sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST),
+            "{pair}"
+        );
+    }
+}
+
+#[test]
+fn the_french_fixture_keys_its_expressions_as_french_is_read() {
+    // add-lingua-french-expression-keys: each of the fixture's expressions keyed by French's
+    // reading and named by its headword where the two differ (D1, D2, D3); `au fur et à mesure`
+    // within French's window (D4); `d'abord`, a word the pre-pass splits, an expression (D6).
+    let dir = testdata_dir().parent().unwrap().join("fr-en");
+    let pack = Pack::load(&build_pack(&inputs_from_dir(&dir).expect("read")).expect("build"))
+        .expect("load");
+    for (key, name) in [
+        ("pomme de terre", None),
+        ("il y avoir", Some("il y a")),
+        ("tout de suite", None),
+        ("à cause de", None),
+        ("de bon heure", Some("de bonne heure")),
+        ("mettre à jour", None),
+        ("tout le monde", None),
+        ("à le revoir", Some("au revoir")),
+        ("coup de œil", Some("coup d'œil")),
+        ("à la", None),
+        ("de abord", Some("d'abord")),
+        ("à le fur et à mesure", Some("au fur et à mesure")),
+    ] {
+        assert!(pack.expression(key).is_some(), "{key}");
+        assert_eq!(pack.expression_name(key), name, "{key}");
+    }
+    assert_eq!(pack.expression("à le"), None, "`à la` is not `au`");
+    assert_eq!(pack.meta().pack_version, "0.0.2-fixture");
 }

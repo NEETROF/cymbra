@@ -1224,8 +1224,25 @@ mod tests {
         .map(|(form, lemma)| ((*form).into(), (*lemma).into()))
         .collect();
         inp.ranks = [
-            "à", "le", "revoir", "coup", "de", "œil", "abord", "il", "y", "avoir", "haut", "main",
-            "tout", "suite", "compte", "en", "boîte", "gant", "peut-être",
+            "à",
+            "le",
+            "revoir",
+            "coup",
+            "de",
+            "œil",
+            "abord",
+            "il",
+            "y",
+            "avoir",
+            "haut",
+            "main",
+            "tout",
+            "suite",
+            "compte",
+            "en",
+            "boîte",
+            "gant",
+            "peut-être",
         ]
         .iter()
         .zip(1..)
@@ -1315,10 +1332,7 @@ mod tests {
         let seven = ["coup"; 7].join(" ");
         let eight = ["coup"; 8].join(" ");
         let bytes = french_pack(&[&seven, &eight, "compte en t"]);
-        assert_eq!(
-            named_expressions_of(&bytes),
-            [named(&seven, None, &seven)]
-        );
+        assert_eq!(named_expressions_of(&bytes), [named(&seven, None, &seven)]);
         assert_eq!(
             french_pack(&["compte en t"]),
             build_pack(&french_inputs()).unwrap(),
@@ -1333,7 +1347,11 @@ mod tests {
         let first = french_pack(&["boite à gants", "boîte à gants"]);
         assert_eq!(
             named_expressions_of(&first),
-            [named("boîte à gant", Some("boîte à gants"), "boîte à gants")]
+            [named(
+                "boîte à gant",
+                Some("boîte à gants"),
+                "boîte à gants"
+            )]
         );
         assert_eq!(french_pack(&["boîte à gants", "boite à gants"]), first);
         // The headword written as the key still comes first.
@@ -1392,8 +1410,7 @@ mod tests {
                 .analyzer_version()
                 .into();
             let bytes = build_pack(&inp).expect("build");
-            let (_, sections) =
-                lingua_core::packs::format::read_container(&bytes).expect("decode");
+            let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
             assert!(
                 sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST),
                 "{studied}"
