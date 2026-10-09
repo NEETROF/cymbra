@@ -5,7 +5,7 @@
 Change 52 of the [language matrix programme](../../../docs/lingua/language-matrix-programme.md),
 the stage-3 release: English speakers learn French through fr-en, and Spanish speakers through
 fr-es — only if fr-es's committed tables stand at or above the floor M6 fixed before they were
-measured (81.4 / 68.8 / 54.5 %, settled by the owner on 2026-10-10, change 49's D8); below it,
+measured (81.4 / 68.8 / 54.5 %, settled by the owner on 2026-10-09, change 49's D8); below it,
 French ships for English speakers alone. A French-native reader cannot study French (change 39), so
 French readers see nothing new in the extension; the host app's activation page names, by the owner's
 decision of 2026-10-09, every language its reader can study, the French page included (D7).

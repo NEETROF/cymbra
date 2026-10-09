@@ -240,7 +240,7 @@ served back without refusing a French reader's state.
 
 ### D5 — Translation as M15 settled it: offered, marked
 
-M15 (settled 2026-10-10): translation opens with each pair, marks per pair under change 26's D2.
+M15 (settled 2026-10-09): translation opens with each pair, marks per pair under change 26's D2.
 Change 50 measured fr-en 95 / 96 (4 % withheld) and fr-es 90 / 91 (9 % withheld), both on the first
 tier, and listed both in `MARKED_PAIRS`; its routes and its model are in the catalogue, the model
 host serves them (*Measured*). Nothing in `model-manifest.json` or `markup.ts` changes but the
