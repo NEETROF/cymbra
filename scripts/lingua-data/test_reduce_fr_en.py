@@ -370,7 +370,7 @@ class ChoosingOneLemma(unittest.TestCase):
             form_of("parlé", "parler", tags=("form-of", "participle", "past")),
         ]
         lex = lexicon(*entries)
-        freq = {"parler": 5.5, "fatiguer": 3.9, "fatiguée": 3.9, "fatigué": 4.2, "fatiguées": 2.5, "parle": 5.0, "fatigue": 4.0, "parlé": 4.2}.get
+        freq = {"parler": 5.5, "fatiguer": 3.9, "fatiguée": 3.9, "fatigué": 4.2, "fatiguées": 2.5, "parle": 5.0, "fatigue": 4.0, "parlé": 4.6}.get
 
         # GSD reads the participle `fatigué` as fatiguer, as UD lemmatises participles.
         counts = {("fatigué", "fatiguer"): 3}
@@ -380,12 +380,15 @@ class ChoosingOneLemma(unittest.TestCase):
             return red.reduce_forms(lex, counts, {}, lambda w: freq(w, 0.0), top, 10, overrides)[0]
 
         self.assertEqual(reduced({})["fatiguée"], "parler", "the source's error, read by frequency")
+        # Its plural, which the erroneous entry lists, follows it to parler too.
+        self.assertEqual(reduced({})["fatiguées"], "parler")
         forms = reduced(red.OVERRIDES)
         self.assertEqual(forms["fatiguée"], "fatiguer")
         self.assertEqual(forms["fatigué"], "fatiguer")
         self.assertEqual(forms["fatiguées"], "fatiguer")
         self.assertEqual(red.OVERRIDES["fatiguée"][0], "fatiguer")
         self.assertEqual(red.OVERRIDES["bridée"][0], "bridé")
+        self.assertEqual(red.OVERRIDES["quis"][0], "quérir")
 
     def test_a_name_and_a_commoner_word(self):
         lex = lexicon()
@@ -406,6 +409,96 @@ class Reducing(unittest.TestCase):
         self.assertEqual(self.forms["dirigée"], "diriger")
         self.assertEqual(self.forms["dirigées"], "diriger")
         self.assertEqual(self.forms["dirigé"], "diriger")
+
+    def test_spec_scenario_a_participle_filed_under_a_noun_s_spelling(self):
+        # The participle `cité` is spelt like the noun *cité* (city), a ranked lemma; `tu` like the
+        # pronoun; `compromis` like the noun, and, invariable, lists itself among its own forms. A
+        # chain follows the participle's verb entry to its verb, past the lemma of another part of
+        # speech its spelling is (D3). `quis`, quérir's participle, is also « masculine plural of
+        # qui » in a verb entry, and `qui` has no verb entry: the chain from `quise` does not go there.
+        entries = [
+            entry("citer", pos="verb", forms=[*TABLE_HEAD, ("cite", PRESENT_3S), ("cité", PARTICIPLE)]),
+            entry("cité", forms=[("cités", ["plural"])], senses=[{"glosses": ["city"], "tags": ["feminine"]}]),
+            entry("cité", pos="verb", forms=[("citée", ["feminine"]), ("cités", ["masculine", "plural"]), ("citées", ["feminine", "plural"])], senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "citer"}]}]),
+            form_of("citée", "cité", tags=("feminine", "form-of", "participle", "singular")),
+            entry("tu", pos="pron", forms=[("vous", ["plural"])], senses=[{"glosses": ["you (singular)"]}]),
+            entry("tu", pos="verb", forms=[("tue", ["feminine"]), ("tus", ["masculine", "plural"]), ("tues", ["feminine", "plural"])], senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "taire"}]}]),
+            entry("taire", pos="verb", forms=[*TABLE_HEAD, ("tait", PRESENT_3S), ("tu", PARTICIPLE)]),
+            entry("tuer", pos="verb", forms=[*TABLE_HEAD, ("tue", PRESENT_3S), ("tues", ["indicative", "present", "second-person", "singular"])]),
+            form_of("tues", "tu", tags=("feminine", "form-of", "participle", "plural")),
+            form_of("tus", "tu", tags=("form-of", "masculine", "participle", "plural")),
+            entry("compromettre", pos="verb", forms=[*TABLE_HEAD, ("compromet", PRESENT_3S), ("compromis", PARTICIPLE)]),
+            entry("compromis", forms=[("compromis", ["plural"])], senses=[{"glosses": ["compromise"], "tags": ["masculine"]}]),
+            entry("compromis", pos="verb", forms=[("compromise", ["feminine"]), ("compromis", ["masculine", "plural"])], senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "compromettre"}]}]),
+            form_of("compromise", "compromis", tags=("feminine", "form-of", "participle", "singular")),
+            entry("quérir", pos="verb", forms=[*TABLE_HEAD, ("quis", PARTICIPLE)]),
+            entry("quis", pos="verb", forms=[("quise", ["feminine"])], senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "quérir"}]}]),
+            form_of("quis", "qui", tags=("form-of", "masculine", "participle", "plural")),
+            entry("qui", pos="pron"),
+            form_of("quise", "quis", tags=("feminine", "form-of", "participle", "singular")),
+        ]
+        lex = lexicon(*entries)
+        freq = {
+            "qui": 6.8, "tu": 6.6, "tuer": 4.9, "cité": 4.8, "citer": 4.5, "tue": 4.5, "compromis": 4.3,
+            "taire": 4.0, "cités": 3.9, "citée": 3.8, "compromettre": 3.6, "citées": 3.6, "compromise": 3.3,
+            "tues": 3.2, "tus": 2.8, "quérir": 2.5, "quis": 2.1, "quise": 1.3,
+        }
+        top = [w for w in sorted(freq, key=lambda w: (-freq[w], w))]
+
+        def reduced(overrides):
+            return red.reduce_forms(lex, {}, {}, lambda w: freq.get(w, 0.0), lambda n: top[:n], 20, overrides)
+
+        forms, ranks = reduced({})
+        # The noun keeps its rank and its own form; the participle's feminine reads as its verb.
+        self.assertEqual(forms["cité"], "cité")
+        self.assertIn("cité", ranks)
+        self.assertEqual(forms["citée"], "citer")
+        self.assertEqual(forms["citées"], "citer")
+        # `cités` is the noun's plural and the participle's: one lemma by D5, here the commoner.
+        self.assertEqual(forms["cités"], "cité")
+        # `tues` is taire's participle through `tu`, and tuer's second person: no longer the pronoun.
+        self.assertEqual(forms["tu"], "tu")
+        self.assertEqual(forms["tues"], "tuer")
+        self.assertEqual(forms["tus"], "taire")
+        # A participle's own inflections are no lemma entry of the verb's part of speech.
+        self.assertEqual(forms["compromis"], "compromis")
+        self.assertEqual(forms["compromise"], "compromettre")
+        # The chain never reaches `qui` through a verb entry; `quis` itself is the override's.
+        self.assertEqual(forms["quise"], "quérir")
+        self.assertEqual(forms["quis"], "qui", "the source's error, read by frequency")
+        self.assertEqual(reduced(red.OVERRIDES)[0]["quis"], "quérir")
+        # Every ranked lemma's own form reads as itself.
+        for lemma in ranks:
+            self.assertEqual(forms[lemma], lemma, lemma)
+
+    def test_a_chain_follows_one_part_of_speech_and_stops_at_a_lemma_of_it(self):
+        links = {
+            "citée": {"cité": {"verb"}},
+            "cité": {"cité": {"noun"}, "citer": {"verb"}},
+            "citer": {"citer": {"verb"}},
+            "quis": {"quérir": {"verb"}, "qui": {"verb"}},
+            "qui": {"qui": {"pron"}},
+            "quérir": {"quérir": {"verb"}},
+        }
+        poses = {"cité": {"noun"}, "citer": {"verb"}, "qui": {"pron"}, "quérir": {"verb"}}
+        # The commoner word first, as D5 would without counts: `qui` before `quérir`.
+        choose = lambda word, options: min(options, key=lambda w: (w != "qui", w))  # noqa: E731
+        self.assertEqual(red.follow("cité", "verb", links, poses, choose, {}), "citer")
+        self.assertEqual(red.follow("cité", "noun", links, poses, choose, {}), "cité")
+        # `qui` has no verb entry: a chain along the verb's part of speech does not reach it.
+        self.assertEqual(red.follow("quis", "verb", links, poses, choose, {}), "quérir")
+        # A word with nothing of the part of speech to follow stands.
+        self.assertEqual(red.follow("qui", "verb", links, poses, choose, {}), "qui")
+        # A person's decision holds wherever a chain passes.
+        self.assertEqual(red.follow("cité", "verb", links, poses, choose, {"cité": ("cité", "a reason")}), "cité")
+
+        def step(word, pos):
+            return red.follow(word, pos, links, poses, choose, {})
+
+        self.assertEqual(red.reach("citée", {"cité"}, links, step), {"citer"})
+        # The form's own entry, and a candidate no entry links it to, stand as they are.
+        self.assertEqual(red.reach("cité", {"cité", "citer"}, links, step), {"cité", "citer"})
+        self.assertEqual(red.reach("l'", {"le"}, links, step), {"le"})
 
     def test_spec_scenario_a_noun_s_plural_is_not_its_homograph_s_verb(self):
         # `étés`, the noun's plural, does not follow `été` to être through a verb entry.

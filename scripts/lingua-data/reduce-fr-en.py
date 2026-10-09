@@ -145,7 +145,9 @@ _CLITIC_PIECES = INVERSION_PRONOUNS | {"t"} | {f"{p}{w}" for p in ("m'", "t'", "
 # it. A verb, phrase or interjection made of a verb and its pronouns (`est-il`, `allez-y`,
 # `excusez-moi`) is read by that rule as words, and stays out (D4).
 _WORD_POS = frozenset({"noun", "adj", "adv", "pron", "prep"})
-# How far a form of a form is followed (D3): `dirigée` → `dirigé` → *diriger* is one step.
+# How far a form of a form is followed (D3): `dirigée` → `dirigé` → *diriger* is one step. The
+# dictionary's chains take two at most; a pair of entries pointing at each other (`pourparler` and
+# `pourparlers`) stops here.
 _FOLLOW_STEPS = 3
 # wordfreq's list is read this many times the lemmas kept: enough past the cut for its words of
 # the cut's frequency, and for the inflected forms it skips.
@@ -170,6 +172,11 @@ OVERRIDES = {
         "bridé",
         "a copy error: the noun's form-of targets are « bridé » and « female slant », whose first word "
         "is English (« female equivalent of bridé, female slant »)",
+    ),
+    "quis": (
+        "quérir",
+        "a copy error: a sense of the verb entry reads « masculine plural of qui », a word with no verb "
+        "entry; its other senses make quis quérir's past participle and past historic",
     ),
 }
 
@@ -391,26 +398,50 @@ def clitic_compound(form, lemma):
     return all(piece in _CLITIC_PIECES for piece in form.split("-")[1:])
 
 
-def reach(form, options, links, first):
-    """A form's candidates, and the words they are forms of (D3): a candidate the first choice reads
-    as a form of another word stands for that word too, when the entry linking the form to the
-    candidate and the one linking the candidate to the word share a part of speech — `dirigée`, the
-    feminine of the participle `dirigé` (a verb entry), itself the past participle of *diriger*,
-    reaches *diriger*; `étés`, the plural of the noun `été`, which reads as *être* through a verb
-    entry, does not."""
-    reached = set(options)
-    for _ in range(_FOLLOW_STEPS):
-        more = {
-            first[c]
-            for c in reached
-            if c in first
-            and c != form
-            and first[c] not in reached
-            and links.get(form, {}).get(c, set()) & links.get(c, {}).get(first[c], set())
-        }
-        if not more:
-            break
-        reached |= more
+def follow(word, pos, links, poses, choose, overrides=OVERRIDES):
+    """What `word` reads as along one part of speech (D3): an override's lemma when a person decided
+    the word (`fatiguée`, whose verb entry is a copy error, reads as *fatiguer* wherever a chain
+    passes through it); otherwise the first choice (D5) among itself, when one of its lemma entries
+    is of that part of speech, and the words its entries of that part of speech link it to — but a
+    word whose entries are all of other parts of speech, which a chain along this one cannot reach.
+    `word` itself when nothing of that part of speech is left: a participle's own inflections
+    (`compromis`, invariable, lists itself) are no lemma entry."""
+    if word in overrides:
+        return overrides[word][0]
+    along = {
+        w
+        for w, of in links.get(word, {}).items()
+        if pos in of and w != word and (not links.get(w) or any(pos in p for p in links[w].values()))
+    }
+    if pos in poses.get(word, ()):
+        along.add(word)
+    return choose(word, along) if along else word
+
+
+def reach(form, options, links, step):
+    """A form's lemmas (D3): each candidate followed along the part of speech of the entry linking
+    the form to it. A candidate that part of speech reads as a form of another word (`follow`)
+    stands for that word instead, and the chain goes on along the same part of speech; one it reads
+    as itself is a lemma the form reaches. `dirigée`, the feminine of the participle `dirigé` (a
+    verb entry), itself the past participle of *diriger*, reaches *diriger*; `citée`, the feminine
+    of the participle `cité`, reaches *citer*, not the noun *cité* (the city) the participle is
+    spelt like; `étés`, the plural of the noun `été`, reaches the noun, not *être*, which `été`
+    reads as through a verb entry. The form's own entry, and a candidate no entry links it to (an
+    elided piece, `du`, `des`), stand as they are. `step(word, pos)` is `follow` over the lexicon."""
+    reached = set()
+    for candidate in options:
+        linked = links.get(form, {}).get(candidate, set())
+        if candidate == form or not linked:
+            reached.add(candidate)
+            continue
+        for pos in linked:
+            word = candidate
+            for _ in range(_FOLLOW_STEPS):
+                nxt = step(word, pos)
+                if nxt == word:
+                    break
+                word = nxt
+            reached.add(word)
     return reached
 
 
@@ -450,13 +481,13 @@ def ranks_for(inflected, want, lemmas, poses, compounds_zipf, frequency, top_n):
     return {word: rank for rank, word in enumerate(kept, 1)}
 
 
-def forms_for(lexicon, first, ranks, counts, frequency, overrides=OVERRIDES):
+def forms_for(lexicon, step, ranks, counts, frequency, overrides=OVERRIDES):
     """`form → lemma` over the ranked lemmas (D3–D6): each form's choice among the ranked lemmas it
     reaches; the split contractions and a verb joined to its pronouns left out; a form kept when it
     is its lemma's own, an elided piece, or attested by wordfreq; and each ranked lemma's own form."""
     forms = {}
     for form, options in lexicon.candidates.items():
-        options = reach(form, options, lexicon.links, first)
+        options = reach(form, options, lexicon.links, step)
         lemma = choose_lemma(form, {o for o in options if o in ranks}, counts, lexicon.lemmas, frequency, overrides)
         if lemma is None or form in SPLIT_CONTRACTIONS or clitic_compound(form, lemma):
             continue
@@ -472,22 +503,32 @@ def reduce_forms(lexicon, counts, compounds_zipf, frequency, top_n, max_lemmas, 
 
     A first choice among every candidate says which forms are only inflected: they are never
     ranked. The ranks follow; a ranked word whose own form reads as another word once the forms of
-    forms are followed gives its rank to the next, until every ranked lemma's own form reads as
-    itself (D6). A pack finds a lemma by its own form — the builder keys its rank, and later its
-    gloss and level, by looking the lemma up as a form — so a lemma whose form reads elsewhere
-    would lend its rank to that word. Every form of the noun *tenue*, `tenue` and `tenues`, reads as
-    *tenir*; `donnée` reads as *donner*, and the noun *donnée*, which `données` alone still
-    reaches, leaves the pack with it, as M8's nouns do (D5).
+    forms are followed (`reach`, whose chains choose as the first choice does) gives its rank to the
+    next, until every ranked lemma's own form reads as itself (D6). A pack finds a lemma by its own
+    form — the builder keys its rank, and later its gloss and level, by looking the lemma up as a
+    form — so a lemma whose form reads elsewhere would lend its rank to that word. Every form of the
+    noun *tenue*, `tenue` and `tenues`, reads as *tenir*; `donnée` reads as *donner*, and the noun
+    *donnée*, which `données` alone still reaches, leaves the pack with it, as M8's nouns do (D5).
     """
     first = {
         form: choose_lemma(form, opts, counts, lexicon.lemmas, frequency, overrides)
         for form, opts in lexicon.candidates.items()
     }
     inflected = {form for form, lemma in first.items() if lemma != form}
+    steps = {}
+
+    def choose(word, options):
+        return choose_lemma(word, options, counts, lexicon.lemmas, frequency, overrides)
+
+    def step(word, pos):
+        if (word, pos) not in steps:
+            steps[(word, pos)] = follow(word, pos, lexicon.links, lexicon.poses, choose, overrides)
+        return steps[(word, pos)]
+
     unreached = set()
     while True:
         ranks = ranks_for(inflected | unreached, max_lemmas, lexicon.lemmas, lexicon.poses, compounds_zipf, frequency, top_n)
-        forms = forms_for(lexicon, first, ranks, counts, frequency, overrides)
+        forms = forms_for(lexicon, step, ranks, counts, frequency, overrides)
         lost = {lemma for lemma in ranks if forms.get(lemma) != lemma}
         if not lost:
             return forms, ranks
