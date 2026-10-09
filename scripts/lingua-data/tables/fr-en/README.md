@@ -135,7 +135,7 @@ lemma).
 
 The pack these two tables built — no gloss, reading or level — was 1,241,733 B; Spanish's same two
 tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*), and with the readings
-too PACKSIZE B (*The readings*). The builder holds it under 5 MiB; the glosses are measured against
+too 1,460,253 B (*The readings*). The builder holds it under 5 MiB; the glosses are measured against
 that budget by the change that adds them.
 
 ## Measured
@@ -562,8 +562,8 @@ same sha256. `crates/lingua-pack/tests/committed_tables.rs` holds it to the read
 missing or left over.
 
 **Size.** `grammar.tsv` is 7,936,427 B (752,507 B gzipped); with `forms.tsv` and `freq.tsv`, French's
-three tables hold 11,038,422 B (1,636,173 B gzipped, file by file). The pack grows by 158,222 B, to
-1,399,955 B.
+three tables hold 11,038,422 B (1,636,173 B gzipped, file by file). The readings add 158,222 B to the
+pack, which is 1,460,253 B with the levels (1,399,955 B on the forms and ranks alone).
 
 **Measured** on the held-out treebanks (`measure/fr-ud.sh` → `measure/fr_readings.py`, reported,
 never gating): over the words whose form the tables map to the treebank's lemma, the share that carry

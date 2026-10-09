@@ -399,7 +399,7 @@ words whose form the tables map to the treebank's lemma: on PUD, 99.94 % of 1,74
 a reading and 99.60 % of those agree with the treebank, participles 100 % and 99.38 %, nouns
 99.09 % and 98.85 %, adjectives 98.85 % and 96.43 %; on GSD's test section, finite verbs 100 % and
 99.53 %, nouns 98.65 % and 98.68 % (`tables/fr-en/README.md`, every part of speech). The fr-en pack
-built from forms, ranks and readings is 1,399,955 B.
+built from forms, ranks, readings and levels is 1,460,253 B (the readings 158,222 B of it).
 
 ## The editions' dumps
 
