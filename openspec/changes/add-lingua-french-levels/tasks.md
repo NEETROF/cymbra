@@ -25,5 +25,5 @@
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner sends UCLouvain's CENTAL the licence request for FLELex together with ELELex's (M7), asking to derive a lemma → level table, commit it in this public repository and ship it in sold packages — not use alone (design D8); the answer is recorded beside M7 in the programme.
+- [ ] 5.1 [manual] The owner sends UCLouvain's CENTAL the licence request for FLELex together with ELELex's (M7), asking to derive a lemma → level table, commit it in this public repository and ship it in the packages for commercial use — not use alone (design D8); the answer is recorded beside M7 in the programme.
 - [ ] 5.2 [manual] The owner reads the departures from Spanish's outcome (letters and spellings without level), the numbers' levels and C2's edge through the compounds GSD meets once, and settles or defers each (design, Open Questions 1–3).

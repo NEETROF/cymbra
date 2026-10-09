@@ -243,8 +243,8 @@ The owner sends a licence request to UCLouvain's CENTAL for FLELex, together wit
 (`[manual]`). For it to be usable, the grant must cover what the pipeline does with every table:
 deriving a lemma → level table from the list, **committing it in this public repository** (the
 reduction is reproducible only from committed tables and pinned sources), and shipping it in the
-packages a store distributes, for a product that is sold. A grant for use without redistribution
-of the derived table would not be enough.
+packages the stores distribute, for commercial use, which the list's non-commercial terms
+exclude. A grant for use without redistribution of the derived table would not be enough.
 
 If granted, it is a data change, not a format change:
 - `reduce-fr-en.py` reads FLELex at a pinned version: each lemma takes the first level at which the
@@ -364,4 +364,5 @@ For the owner, none blocking:
 3. **C2's edge through the compounds GSD meets once** (Risks): accept, or give such a compound no
    level, so that C2 takes single words in their place.
 4. **The licence request** (D8): ask for deriving a level table, committing it in the public
-   repository and shipping it in sold packages, not only for use — for FLELex and ELELex alike.
+   repository and shipping it in the packages for commercial use, not only for use — for FLELex and
+   ELELex alike.
