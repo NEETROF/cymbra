@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - harden-lingua-translation-engine
+  - add-lingua-translation-matrix-models
+  - measure-lingua-translation-matrix-marks
