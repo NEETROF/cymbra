@@ -3,10 +3,12 @@ import type { GrammarLine, Named, StudiedLanguageCode } from "../i18n/index.ts";
 
 // What a word card knows about a form, in no language (generalise-lingua-card-wording D1): the
 // readings as the engine's Universal Dependencies tags, merged and deduplicated by tag, the
-// dictionary form left out on its own card, the other dictionary forms and the pieces. A renderer
-// per interface language (`src/i18n/{fr,en,es}/grammar.ts`) says it in that language's words; this
-// module holds the decisions every renderer shares — what is named at all, and how a line is
-// composed from its parts — so a renderer can only word what the French card names, never more.
+// dictionary form left out on its own card — and with it its plural, where the card also reads the
+// form in the singular, for every studied language (refine-lingua-card-invariable-plurals D2) —, the
+// other dictionary forms and the pieces. A renderer per interface language
+// (`src/i18n/{fr,en,es}/grammar.ts`) says it in that language's words; this module holds the
+// decisions every renderer shares — what is named at all, and how a line is composed from its parts
+// — so a renderer can only word what the French card names, never more.
 
 /** The engine's parts of speech (lingua-core `PARTS_OF_SPEECH`), in UD's order. */
 export const PARTS_OF_SPEECH: readonly string[] = [
@@ -89,7 +91,11 @@ export interface FormDescription {
   headword: string;
   /** The word as it stands on the page (the whole word, for a split one). */
   written: string;
-  /** The readings of the headword, the dictionary form left out on its own card. */
+  /**
+   * The readings of the headword. On its own card, the dictionary form is left out
+   * (`isDictionaryForm`), and so is its plural where the card also reads it in the singular
+   * (`isInvariablePlural`); a plural alone is kept.
+   */
   own: Reading[];
   /** What else the form may be, one dictionary form each. */
   others: { lemma: string; readings: Reading[] }[];
@@ -112,6 +118,23 @@ export function isDictionaryForm(tag: GrammarTag): boolean {
   if (f.VerbForm === "Inf") return true;
   if (!NOMINAL.has(tag.pos) || f.Number !== "Sing" || f.Degree) return false;
   return tag.pos === "NOUN" || tag.pos === "PROPN" || f.Gender !== "Fem";
+}
+
+/**
+ * Whether a tag is the plural of a word the card also reads in the singular — a noun's, proper
+ * noun's, adjective's, determiner's or pronoun's plural without a degree, whatever its gender, beside
+ * a singular of that part of speech among `tags`, the card's own readings — and so, like
+ * `isDictionaryForm`, gives no line on that form's own card: the second omission of the dictionary
+ * form's own card (refine-lingua-card-invariable-plurals D1). `crisis`, `lunes` (Spanish), `temps`
+ * (French) are read in both numbers and their plural goes; a plural with no such singular — a noun
+ * used only in the plural, `gafas`, `gens`, every English one (`police`, `fish`), whose table writes
+ * no noun's singular — keeps its line, the card's one sign of the word's number. Keyed by nothing:
+ * the same for every studied language and every renderer.
+ */
+export function isInvariablePlural(tag: GrammarTag, tags: readonly GrammarTag[]): boolean {
+  const f = tag.features ?? {};
+  if (!NOMINAL.has(tag.pos) || f.Number !== "Plur" || f.Degree) return false;
+  return tags.some((other) => other.pos === tag.pos && other.features?.Number === "Sing");
 }
 
 /** A tag as a reading: every feature of the vocabulary; one it does not know, or an empty value, left out. */
@@ -145,7 +168,8 @@ const PERSONS = new Set(FEATURES.Person);
  * The readings of a list of tags, in the order of their first occurrence: a tag seen twice gives
  * one reading, and tags equal but for a person of the vocabulary give one reading holding each
  * person once. On the dictionary form's own card (`same`), a tag that only says what that form is
- * is left out.
+ * is left out (`isDictionaryForm`), and so is the plural of a word read there in the singular too
+ * (`isInvariablePlural`), in every studied language; a plural alone is kept.
  *
  * This merge by tag is the one the spec asks of the description (it names no language, so it is the
  * one merge it can make). `nameReadings` merges the persons again, by tense and number — on the
@@ -157,7 +181,7 @@ function describeReadings(tags: readonly GrammarTag[], same: boolean): Reading[]
   const out: Reading[] = [];
   const at = new Map<string, Reading>();
   for (const tag of tags) {
-    if (same && isDictionaryForm(tag)) continue;
+    if (same && (isDictionaryForm(tag) || isInvariablePlural(tag, tags))) continue;
     const reading = readingOf(tag);
     const person = reading.persons[0];
     const merges = person !== undefined && PERSONS.has(person);
