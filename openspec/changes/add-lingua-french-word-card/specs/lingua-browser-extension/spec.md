@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: A French card names its forms in the interface language's grammar
-A card of a French word SHALL name its forms in the interface language's grammar — in English, in the English Wiktionary's French form-of wording, the passé simple named the past historic; in Spanish, in RAE/ASALE terms — with their person and number, its finite tenses in the order indicative (present, imperfect, past historic, future), conditional, subjunctive (present, imperfect), imperative. A form whose readings name the indicative and the subjunctive of one tense, with the same persons and number, SHALL name the two moods once, as one tense. A present participle SHALL be named as such, apart from the past participle. On a card opened on its own dictionary form, a plural spelled like that form SHALL give no line; a numeral's form, and a determiner's or pronoun's plural that names no gender, SHALL give no line. In English and in Spanish, a line naming two genders of one number SHALL name them once. What a French card names SHALL be decided once, the same in every renderer, the French one included. The cards of English and Spanish words SHALL read as before, in every interface language.
+A card of a French word SHALL name its forms in the interface language's grammar — in English, in the English Wiktionary's French form-of wording, the passé simple named "past historic (passé simple)"; in Spanish, in RAE/ASALE terms — with their person and number, its finite tenses in the order indicative (present, imperfect, past historic, future), conditional, subjunctive (present, imperfect), imperative. A form whose readings name the indicative and the subjunctive of one tense, with the same persons and number, SHALL name the two moods once, as one tense. A present participle SHALL be named as such, apart from the past participle. On a card opened on its own dictionary form, a plural spelled like that form SHALL give no line; a numeral's form, and a determiner's or pronoun's plural that names no gender, SHALL give no line. In English and in Spanish, a line naming two genders of one number SHALL name them once. What a French card names SHALL be decided once, the same in every renderer, the French one included. The cards of English and Spanish words SHALL read as before, in every interface language.
 
 #### Scenario: A form of five readings
 - **WHEN** the interface language is English and the card opens on « parle » read as a form of « parler »
@@ -13,7 +13,7 @@ A card of a French word SHALL name its forms in the interface language's grammar
 
 #### Scenario: The passé simple
 - **WHEN** the card opens on « fut » read as a form of « être »
-- **THEN** the English line names the third-person singular past historic of « être », and the Spanish line the « tercera persona del singular del pretérito perfecto simple de indicativo de être »
+- **THEN** the English line reads "third-person singular past historic (passé simple) of être", and the Spanish line « tercera persona del singular del pretérito perfecto simple de indicativo de être »
 
 #### Scenario: The indicative before the subjunctive
 - **WHEN** the card opens on « finissions » read as a form of « finir »
@@ -45,6 +45,10 @@ The word card of French SHALL be bounded by goldens of its own, its lines read f
 #### Scenario: fr-es on the studied side
 - **WHEN** the fr-es golden is compared with the French golden probe by probe
 - **THEN** they differ only in the native side, the lines naming the packs, the notice, the licences and the backup's profile
+
+#### Scenario: fr-es not committed
+- **WHEN** fr-es measured under its coverage floor and no fr-es table is committed
+- **THEN** the Spanish snapshot pins the Spanish grammar line of every grammar probe of the French golden, with no gloss, until the change that commits fr-es's tables writes the fr-es golden and re-blesses it
 
 #### Scenario: The golden moves
 - **WHEN** a re-reduction of fr-en, of fr-es or of French's studied tables, or a renderer change, moves a line a golden or a snapshot pins

@@ -52,7 +52,7 @@ Three hand-overs land here too:
   52, as change 47 left it, so no French reaches a card before then — the renderers are driven by
   tests.
 - **French's forms, named by each renderer** (D2): in English, the English Wiktionary's French
-  form-of wording — present and imperfect indicative, past historic (M10), simple future,
+  form-of wording — present and imperfect indicative, "past historic (passé simple)" (M10), simple future,
   conditional, present and imperfect subjunctive, imperative —; in Spanish, the RAE's terms (M10) — « pretérito
   perfecto simple de indicativo », « futuro simple de indicativo », « condicional simple »… —; in
   French, for the override M2 reserves, French school terms. Tenses come in the grammars' order:
@@ -61,7 +61,8 @@ Three hand-overs land here too:
   tense, persons and number, the card names them once — « first- and third-person singular present
   indicative or subjunctive and second-person singular imperative of parler », « primera y tercera
   persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del
-  imperativo de parler ». 6,147 forms, the 2,142 five-reading ones among them.
+  imperativo de parler ». 6,147 forms, the 2,142 five-reading forms M21 names among them — wider than
+  its words, as change 45's D7 leaves to this change (open question 1).
 - **The present participle named** (D4): "present participle of parler", « participio presente de
   parler »; the past participle « participio pasado » in Spanish beside it. French has no gerund.
 - **What stays unnamed on a French card** (D5): a plural spelled like the card's own dictionary
@@ -137,11 +138,14 @@ None.
 - **Compatibility.** No stored format, wire field, table, pin or pack moves.
 - **Order.** Implemented after the implementations of changes 44 (the names), 45 (the readings), 48
   (the French baseline on the committed tables) and 49 (fr-es's tables) — change 41's, whose closed
-  classes the rows leave out, is on `main`; before 52. Until 48, the French golden answers `"readings":[]` and a snapshot
-  would pin nothing; if 49's committed measurement falls below its floor, fr-es's golden and snapshot
-  wait for its tables and the Spanish lines are pinned on fr-en's readings (D9).
+  classes the rows leave out, is on `main`, and `fix-lingua-lemma-lookup` (41b) comes before 45, so the
+  snapshots never pin `été été` or `porte porte` read off *être* or *porter*; before 52. Until 48, the
+  French golden answers `"readings":[]` and a snapshot would pin nothing; if 49's committed measurement
+  falls below its floor (M6: 81.4 / 68.8 / 54.5 %), no fr-es table is committed, fr-es's golden waits
+  for the change that commits them, and the Spanish snapshot pins the Spanish grammar lines of
+  fr-en's probes, with no gloss (D9).
 - **Not here.** The pairs' glosses and their refinements (48, 49, `refine-lingua-fr-en-glosses`);
   `StudiedLanguage`, the labels, `packs.json` and the dogfood on devices (52); the shared wording
   questions the snapshots raise for every pair (56, `refine-lingua-matrix-wording`); `Pack::readings`
-  for a lemma that is another word's form (change 45's open question 4).
+  for a lemma that is another word's form (change 45's open question 4: `fix-lingua-lemma-lookup`, 41b).
 - **Effort, against 3.5–6 ideal days**: 4–5.75 (design, *Effort*).
