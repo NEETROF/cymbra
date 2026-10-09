@@ -8,7 +8,7 @@ See proposal.md (Why). What exists:
 |---|---|
 | `apps/lingua-extension/src/reading/grammar-description.ts` (change 18) | the description: `describeForm` sets `sameAsHeadword` when the form, letter case aside, is spelled like the card's dictionary form, and `describeReadings(tags, same)` merges the readings by tag, leaving out on that form's own card every tag `isDictionaryForm` accepts — an infinitive, a noun's singular, an adjective's masculine singular; `formKind` names a nominal plural (« pluriel », "plural", « plural ») with its gender; `composeLines` writes « peut aussi être … de X » / "may also be the … of X" / « también puede ser … de X » for a form spelled like its dictionary form, then a line per other dictionary form |
 | `src/i18n/{fr,en,es}/grammar.ts` | the three renderers; none decides what is named |
-| `src/reading/wordpopup.ts` | the only caller of `grammarLines`: the word card, on pages, in the book reader and in the side panel |
+| `src/reading/wordpopup.ts` | the only caller of `grammarLines`: the word card, on pages and in the book reader |
 | The engine | `lingua-core` `engine::word_grammar` answers a form's readings as the card's dictionary form, unmerged and unfiltered; `crates/lingua-wasm/tests/baseline/*.golden` record that answer as JSON — readings, never lines |
 | Snapshots | `test/baseline/word-card-es-en.txt` (change 23) and `word-card-en-es.txt` (change 24) render the goldens' grammar probes into lines; `selection-rows-fr.txt` pins rows, which read glosses only |
 | Change 51 (`add-lingua-french-word-card`, PR #838, not merged) | its D5 leaves the plural off a French card, keyed by studied language in a `CARD_NAMES[studied]` table and applied in `composeLines` (its task 1.1), English and Spanish keeping theirs; its open question 3, settled by the owner on 2026-10-10: « aligned in a change of its own, proposed separately »; its D11 had handed « an invariable plural on Spanish and English cards » to change 56 |
@@ -25,8 +25,8 @@ lemma.
 - a scratch test in `crates/lingua-wasm` builds en-fr, es-fr, es-en and en-es from the committed
   tables (`PackSource::Tables`), takes every form of `tables/en/forms.tsv` (75,315) and
   `tables/es/forms.tsv` (144,952), resolves its dictionary form as the page analysis does
-  (`tokenize`, then `resolve_lemmas` on the first token — the page's own steps, without the block
-  gates that a one-word block fails) and asks `word_grammar` — 440,534 answers;
+  (`tokenize`, then `resolve_lemmas` on the first token, made public in the scratch copy — the
+  page's own steps, without the block gates that a one-word block fails) and asks `word_grammar` — 440,534 answers;
 - the extension's renderers, `main`'s and a copy with D2's rule, run under Node on every answer, the
   card opened as `wordpopup.ts` opens it (`surface` the first token, `written` the form), in each of
   the three interface languages; ranks are the dictionary form's in `tables/<studied>/freq.tsv`;
@@ -113,7 +113,8 @@ on nothing, where change 51 is implemented once changes 44, 45, 48 and 49 are.
   of its task 1.1 is met by the description, and its D5 holds as measured — on change 45's
   implementation the description's rule leaves out 1,072 French forms, 71 / 209 of the 1,000 / 5,000
   commonest, change 51's own figures. Its D10 comparison (en-fr, es-fr, es-en and en-es byte for byte)
-  is taken against a `main` holding this change, and holds. Its pull request says so, pointing here.
+  is taken against a `main` holding this change, and holds; its implementation's pull request says
+  so, pointing here.
 - **Change 51 first.** French leaves the plural out through `CARD_NAMES.fr`; this change removes that
   entry and that arm and puts the rule in `describeReadings` — French's 1,072 cards byte for byte, the
   861 English and Spanish ones moving as D4 says.
