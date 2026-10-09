@@ -1,0 +1,9 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - add-lingua-french-baseline
+  - add-lingua-french-forms-tables
+  - add-lingua-pack-es-en
+  - add-lingua-pack-en-es
+  - add-lingua-english-card-wording
+  - add-lingua-spanish-card-wording
