@@ -79,9 +79,11 @@ readers studied one language and the studied-languages box hid itself (`offerFor
 an English reader has two pairs (a Spanish reader too, with fr-es), the box shows, and its own line
 reads "Several languages at once: free for now." (`severalLanguagesOffer`,
 `src/i18n/en/studied-languages.ts`). The texts carry the French text's first sentence and not that
-line: a listing speaks of no price. The notes of both files that give the old reason (« es-en is the
-one English-glossed pair… », « en-es is the one pair glossed in Spanish… ») are rewritten with this
-one (tasks 1.1, 1.3).
+line: a listing speaks of no price. The owner decided on 2026-10-09 that the line itself
+leaves the extension, in French, English and Spanish, in a change of its own; the listings are
+unchanged by that change, since they never carried it. The notes of both files that give the old
+reason (« es-en is the one English-glossed pair… », « en-es is the one pair glossed in
+Spanish… ») are rewritten with this one (tasks 1.1, 1.3).
 
 ### D3 — The French texts: only what another reader studies
 
@@ -395,8 +397,9 @@ and submits (M18). Reverting removes a check and a few sentences; no data moves.
 
 1. **The English home's card** (D9): its words are the owner's, as 29b says of the French and
    English cards — "Read the web in Spanish or French…", or keep the literal and write them by hand at
-   change 34?
+   change 34? **Settled by the owner on 2026-10-09: generated from 29b's builder, as D9 proposes.**
 2. **The subtitles at 30 / 30** — "Spanish and French as you read", « Inglés y francés mientras
-   lees » — or a shorter wording the owner prefers (M9)?
+   lees » — or a shorter wording the owner prefers (M9)? **Settled on 2026-10-09: kept as drafted.**
 3. **The share of definitions on the site** (change 49's open question 7, D11): in fr-es's README
-   alone, as en-es's split is, or a column beside the coverage for every pair?
+   alone, as en-es's split is, or a column beside the coverage for every pair? **Settled on
+   2026-10-09: in fr-es's README alone, as D11 recommends.**

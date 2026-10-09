@@ -30,5 +30,5 @@
 
 ## 6. Owner
 
-- [ ] 6.1 [manual] The owner reviews the English and Spanish drafts (M9) — the descriptions, the subtitles at 30 / 30, the « What's New », the summaries, the test instructions and review notes, the English home's card (open questions 1 and 2), the share of definitions (open question 3) — and checks the quoted card lines against change 51's merged snapshots.
+- [ ] 6.1 [manual] The owner reviews the English and Spanish drafts (M9) — the descriptions, the subtitles at 30 / 30, the « What's New », the summaries, the test instructions and review notes, the English home's card (open questions 1 and 2), the share of definitions (open question 3) — and checks the quoted card lines against change 51's merged snapshots. Open questions 1–3 settled by the owner on 2026-10-09 (in session): the English home's card generated (D9), the subtitles kept, the share of definitions in fr-es's README alone; the drafts' review and the snapshot check remain.
 - [ ] 6.2 [manual] With change 52's release (M18): the site deployed with its figures first; the screenshots captured from its build; the variant matching fr-es's fate pasted into each dashboard by D10's procedure, the summaries checked after upload, both results recorded in `STORE-LISTING.md`, each dashboard's counter read on paste; change 53 marked done in `docs/lingua/language-matrix-programme.md`.
