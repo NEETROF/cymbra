@@ -52,6 +52,13 @@ and kept as a word by a names rule.
   425,111 words of UD French) — and the two entries change 38's catalogue holds for them are
   removed; adopting the French Wiktionary's table for expressions is left to the owner (Open
   Question 1).
+- **French's expressions, as change 44 hands them over** (D11), in `reduce-fr-en.py`: the single
+  words French's tokenisation splits (`d'abord`, `c'est`, `allez-y`) offered beside the headwords
+  with a space — 1,972, inert until change 44 keys them (76 then); the senses that only point at
+  another spelling, an inverted form or their pieces left out (17 post-1990 spellings, 33 split
+  words such as « qu'elle » « que + elle »; « y a-t-il » keeps « is there? are there? »); `à la`
+  left out, its one sense « in the style of » needing the word after it — before change 44 it
+  answers every « au ». `mwe.tsv` holds 17,480 expressions.
 - **French's dictionary words** (D5): `pack_sources.py split` writes `tables/fr/lexical.tsv`, fr-en's
   30,059 glossed lemmas; the fr-en pack carries no lexical table (its dictionary words are its
   glosses), and fr-es (49) reads them as committed.
@@ -62,7 +69,7 @@ and kept as a word by a names rule.
 - **Measured against a floor, not shipped** (D4, D6): `FLOORS["fr-en"]` = 91.9 / 85.1 / 74.4, the
   study's figures less two points, as en-es's; the reduce job runs `gloss_coverage.py --pair fr-en`;
   the pack is 2,201,349 B with change 43's two tables (2,421,321 B with changes 45's and 46's
-  prototype tables), under the 5 MiB budget; `packs.json`, the site and the listings are unchanged
+  prototype tables; D11's expressions add about 200 B), under the 5 MiB budget; `packs.json`, the site and the listings are unchanged
   until change 52; fr-en's rows join the row cut's check over every committed gloss.
 - **The hand-over of change 39's baseline** (D8): `support/french.rs` builds fr-en's pack from the
   committed tables (`PackSource::Tables`); `fr-en.golden` is re-blessed once, in this pull request,
@@ -137,4 +144,5 @@ None.
   level probes answering); before 49 (fr-es reads French's dictionary words), 51 and 52, and before
   `refine-lingua-fr-en-glosses`, which 52 waits for. 40 has landed; 41, 42 and 44 may land on either
   side.
-- **Effort, against 2–3.5 ideal days**: 2–3.5 (design, *Effort*).
+- **Effort, against 2–3.5 ideal days**: 2.25–4, change 44's hand-overs the difference (design,
+  *Effort*).

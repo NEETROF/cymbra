@@ -6,7 +6,10 @@ Before the shared rules read the section, its letters and the entries written un
 letter are left out, its senses are read as meanings and written in one English typography — the
 rules es-en's glosses are read by — and the English edition's long-parenthesis bound and etymology
 merging apply as they are set. A typographic apostrophe in a headword is read as `'`, as French's
-forms are. Nothing is pivoted or machine-translated: a word or an expression the section does not
+forms are. Its expressions are the section's headwords with a space and the single words French's
+tokenisation splits (an elision, an inversion) that are no form, less the senses that only point at
+another spelling, an inverted form or their pieces, and less `à la`, whose one sense needs a word
+after it. Nothing is pivoted or machine-translated: a word or an expression the section does not
 gloss has no gloss. fr-en being French's reference pair, its glossed lemmas are French's dictionary
 words. The coverage of the 5,000, 10,000 and 20,000 commonest French lemmas SHALL be at least 91.9,
 85.1 and 74.4 %, checked by the reduce job, and no site SHALL publish it before a package lists
@@ -36,6 +39,18 @@ so that a change to them re-pins those two and no other.
 #### Scenario: A bigram an English entry translates
 - **WHEN** the English Wiktionary's English entry « he's » lists the French « il est » among its translations
 - **THEN** fr-en has no expression « il est »
+
+#### Scenario: A word the pre-pass splits
+- **WHEN** the section glosses `d'abord` « first, at first » and `allez-y`, neither a form of `tables/fr/forms.tsv`
+- **THEN** fr-en's `mwe.tsv` holds both with their glosses, and holds no `aujourd'hui`, which the forms table lists
+
+#### Scenario: An expression that only points
+- **WHEN** the section's « crème fraiche » only says « post-1990 spelling of crème fraîche », « qu'elle » only « que + elle », and « y a-t-il » « subject-inverted form of il y a; is there? are there? »
+- **THEN** fr-en has no expression « crème fraiche » or « qu'elle », keeps « crème fraîche », and glosses « y a-t-il » « is there? are there? »
+
+#### Scenario: À la
+- **WHEN** the section glosses « à la » « in the style or manner of » and « à la carte » on its own entry
+- **THEN** fr-en has no expression « à la », and « à la carte » keeps its gloss
 
 #### Scenario: French's dictionary words
 - **WHEN** fr-en is reduced

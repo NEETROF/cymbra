@@ -61,6 +61,7 @@ commonest lemmas of `tables/fr/freq.tsv` with a gloss.
 | + the English Wiktionary's French translations, backwards (inverted) — en-es's shape | 32,047 (+312; 38) | 94.6 / 88.6 / 78.7 % | 50,411 (+12,869) | 2,773,699 B |
 | The section for words, the direct table for expressions only | 30,059 | 93.6 / 86.9 / 76.3 % | 39,664 | 2,564,304 B |
 
+The table's expressions are `reduce_expressions`' alone; D11's rules make this design's 17,480.
 The programme's « 93.9 / 87.1 / 76.4 % (prototype ranks, ± 1–2) » names the section alone as its
 source; on change 43's tables it reads 93.6 / 86.9 / 76.3. The pack of change 43's two tables alone is 1,239,838 B;
 with changes 45's and 46's prototype tables (`grammar.tsv`, the pinned pool, `level.tsv`) the
@@ -268,7 +269,7 @@ three diffs in one. The source is pinned already.
 ### D6 — The pack, measured and not shipped
 
 2,201,349 B with change 43's two tables (gloss 1,617,741 B, senses 512,132 B, expressions 754,014 B
-raw); 2,421,321 B with changes 45's and 46's prototype tables; under the 5 MiB budget, below es-en's
+raw; D11's expressions, 828,520 B raw, add about 200 B to the pack before change 44 keys them); 2,421,321 B with changes 45's and 46's prototype tables; under the 5 MiB budget, below es-en's
 2,567,804 B. The extension check builds it from the committed tables against its pin (change 43's
 loop). `packs.json`, `check_variants`' list, the site and the listings are untouched: no package
 carries it before change 52. `row-gloss-tables.spec.ts` checks every committed pair's rows against
@@ -288,7 +289,8 @@ it.
 |---|---|---|---|
 | A borrowed gloss that is wrong for the word | of 540 / 116 rows glossed from a pointer's target | « des » (6) « of the; some, the feminine partitive article » — its pointers carry « some » (« plural of un (“some”, …) ») and lend a target's senses; « ca » (144) « board of directors » (wordfreq's `ca` is mostly an unaccented `ça`) | a rule of fr-en (a pointer's carried meaning); `ca` as a lemma is change 43's |
 | A pointer's own meaning left out | « il y a » and about 50 words (15 of the top 10,000) | « il y a » « ago »: its « there is, there are » is written on a pointer to *y avoir*, which the shared rules leave out | with the row above |
-| An expression that only points | 18 expressions | « crème fraiche », « s'il vous plait » « post-1990 spelling of … » (17), « y a-t-il » « subject-inverted form of il y a »; « à la » « in the style of », met on every « à la » — change 44's proposal ([#823](https://github.com/NEETROF/cymbra/pull/823), D6, D8) hands these to 48 | the English edition's pointer wordings for expressions, or fr-en (Open Question 5) |
+| An expression whose sense needs a context its key does not hold | `et des` (116 in UD), `que de` (54), `sur ce` (28), `et si` (15), `un coup` (12) | « du pain et des œufs » answers `et des` « or thereabouts, and change »; « un coup d’œil » `un coup` « used to soften an order » | fr-en, D11's rule for `à la` applied with the owner's sample |
+| A post-1990 spelling keyed apart from its traditional one | 4 expressions D11 leaves out | `à priori`, `à postériori`, `et cétéra`, `crème brulée` no longer meet an expression | fr-en: lend the traditional spelling's gloss (D11) |
 | A proper noun's run in a common word's row | first 218 / 108 (es-en 242 / 123); after another run 484 / 260 (es-en 729 / 430) | « marche » « Marche (a department of France); march… », « midi », « somme », « réunion », « bordeaux »; « le » ending on « a surname from Vietnamese » | 23b's Q3, a case-aware card |
 | The page's own notes | « see usage notes » 6 / 4; « (all senses) » 97 / 30; « in its various senses » 2 / 2; « (Folk etymology: …) » 2 / 2 (es-en: 1 / 1, 15 / 7, 0, 0) | « en », « dans », « ne » (« …, see usage notes »), « contrôle » « control (all senses) », « mon », « stand », « consul » | the English edition, or fr-en alone |
 | A description in a capital outside 23b's list | 64 / 30 (es-en 45 / 17) | « que » « Substitutes for… », « il » « Impersonal subject, it », « mon » « Followed by rank… » | the English edition |
@@ -374,8 +376,8 @@ this change may still merge, its pull request saying the level probes are blank 
 OpenSpec: two ADDED requirements in `lingua-data-packs`, nothing MODIFIED. `archiveAfter`: change 38
 (the catalogue this change prunes), 21 (the English edition and its settings), 23b (the pre-pass),
 39 (the hand-over), 43 (French's tables and reference pair); `openspec_archive_order.py` exits 10
-naming those still open. 45 and 46 have no proposal on `main` yet (46's is open, #822): their order
-is a merge order (D8, D10), not an archive one.
+naming those still open. 44's and 46's proposals are on `main` (#823, #822), 45's is not written;
+no requirement here reads theirs, so their order is a merge order (D8, D10, D11), not an archive one.
 
 ### D10 — Order, and what later changes take from here
 
@@ -385,12 +387,58 @@ is a merge order (D8, D10), not an archive one.
 | 40 tokenisation | before, landed (`35faf774`, French at `0.2.0`): the golden's figures are measured on it |
 | 43 forms tables | before (required), its implementation with its fixes: the reducer, `tables/fr/`, the pin this change re-reduces from. No task here relies on a lemma its fixes take back (`donnée` ranked, `ma`, `mes`, `ils`, `cet` lemmas of their own); task 3.1 checks the one that would lend a gloss |
 | 45 grammar, 46 levels | before (planned): the hand-over keeps the golden's level probes (D8). 46's proposal ([#822](https://github.com/NEETROF/cymbra/pull/822), its D3 and D11) hands this change a check that every levelled lemma is a dictionary word: measured on its prototype table, 40 of its 8,302 levelled lemmas have no fr-en gloss — words met only in an expression (`parce`, `quant`, `instar`, `for`), initialisms written in capitals (`pme`, `tom`), pointers (`expliquez`, `ès`, `french`), a letter (`x`). The pack's vocabulary estimate counts a levelled lemma whether glossed or not (`Pack::dictionary_words`), so they count; a card seeded from a level would carry no gloss. This change measures and lists them (task 3.1) and asserts nothing: the rule is 46's (Open Question 5) |
-| 41 analysis, 42 detection guard, 44 expression keys | either side. Each bumps or keys through the analyser, not the glosses. Landed before, the hand-over shows the real analysis on the real pack; after, each re-blesses over the real pack. 41's names rule, if it reads dictionary words as Spanish's does, reads the fixture's 70 before this change and fr-en's 30,059 after; 44 keys whatever `mwe.tsv` holds. 44's proposal ([#823](https://github.com/NEETROF/cymbra/pull/823), D9) hands 48 more: the words the pre-pass splits offered as expressions (`d'abord`, `c'est`: 101 headwords `reduce_expressions` does not read), and its pointer-only and function-word expressions left out (D7); this design does neither — no fr-en rule here (D2) — and lists them for the refinement (Open Question 5) |
+| 41 analysis, 42 detection guard, 44 expression keys | either side. Each bumps or keys through the analyser, not the glosses. Landed before, the hand-over shows the real analysis on the real pack; after, each re-blesses over the real pack. 41's names rule, if it reads dictionary words as Spanish's does, reads the fixture's 70 before this change and fr-en's 30,059 after; 44 keys whatever `mwe.tsv` holds. What 44's proposal ([#823](https://github.com/NEETROF/cymbra/pull/823), D6, D9) hands 48 is taken here (D11): the words the pre-pass splits offered as expressions, the pointer-only senses left out, `à la` left out. Before 44 the split words are inert (today's builder keys a one-word headword only when it is a lemma); landed, 44 keys 76 of them |
 | 49 fr-es | after: French's dictionary words (`tables/fr/lexical.tsv`), the cross-native test for French (two natives) |
 | 50 marks | after or beside: marks are the translation engine's, not the glosses' |
 | 51 word card | after: the English card renders fr-en's glosses and runs |
 | 52 enable | after: lists fr-en, publishes its coverage, the owner's dogfood |
 | `refine-lingua-fr-en-glosses` | after, before 52: D7, outside the 57 |
+
+### D11 — French's expressions: what change 44 hands this change
+
+Change 44's proposal leaves to fr-en's reducer which headwords are expressions. They are taken here,
+in `reduce-fr-en.py` — `reduce_common.py` is in every pair's rule digest — over the same entries as
+the glosses, after `read_as_meanings`, and measured on the prototype (`mwe.tsv` 15,526 → 17,480
+rows, 754,014 → 828,520 B raw; `gloss.tsv` and `senses.tsv` byte for byte):
+
+1. **The words the pre-pass splits, offered as expressions.** A headword without a space that holds
+   an apostrophe or a hyphen, matches French's token pattern, is no form of `tables/fr/forms.tsv`
+   and no name is read with `reduce_expressions`' sense rules (pointer senses out, `clean_gloss` at
+   42 characters, three senses joined): 2,005 candidates, 1,972 kept after (2). The reducer does
+   not copy change 40's pre-pass (change 44 D1 rejects that copy): it offers every such headword,
+   and the builder keys those that read as two to seven tokens. Today's builder keys none — a
+   one-word headword is a lemma of the lexicon or nothing — measured: the golden byte for byte with
+   or without them. With change 44's prototype keying, 76 are keyed, 62 elisions (`c'est`,
+   `d'abord`, `d'accord`, `d'ailleurs`, `d'après`) and 14 inversions (`allez-y`, `vas-y`,
+   `excusez-moi`); « D’abord » answers `d'abord` « first, at first, right away », the pack +4,484 B.
+2. **Senses that only point, out.** In an expression — a headword with a space, or one of (1) — a
+   sense that only names another spelling (« post-1990 spelling of »), an inverted form
+   (« subject-inverted form of ») or the pieces it is made of (« que + elle », « contraction of que
+   + il ») is no gloss; a meaning written after it stays (« y a-t-il » « is there? are there? »,
+   which read « subject-inverted form of il y a »), and an expression no sense is left to is none.
+   Pointers the dump tags are the shared rules' already. Left out: 17 headwords with a space, all
+   post-1990 spellings (`crème fraiche`, `s'il vous plait`, `boite à gants`: the traditional
+   spelling, keyed alike, stands alone), and 33 split words — 25 of the 101 change 44 would key
+   (`qu'elle`, `s'est`, `jusqu'au`), so that « jusqu'au soir » meets `jusqu'à` « until », not
+   « jusque + au ». The cost: four post-1990 spellings the forms table does not read as their
+   traditional one (`à priori`, `à postériori`, `et cétéra`, `crème brulée`) meet no expression
+   (D7).
+3. **`à la` left out**, by name, with its reason in the reducer. Its one sense, « in the style or
+   manner of », is met only before a word that completes it, and the section writes those uses as
+   entries of their own: 109 headwords open on « à la » (« à la carte », « à la maison », « à la
+   bonne heure »). As a key it is French's commonest preposition and article: 1,209 « à la » in UD's
+   425,111 words; before change 44, keyed `à le`, every « au » too (3,462 written) — on the golden,
+   « au marché », « jusqu'au soir » and « Au revoir » answer « in the style of ».
+   *Rejected — a stated context:* a key that holds only before a completing word is a rule of the
+   engine's matcher, which no change of the programme carries. *Rejected — a D7 entry alone:* the
+   golden and every page would show the wrong gloss on the commonest bigram until the refinement.
+   The same shape — a sense met only in a context the key does not hold — remains for `et des`,
+   `que de`, `sur ce`, `et si`, `un coup` (D7), each needing the owner's sample to judge.
+
+The golden moves as before in count (132 of 141 probes, 125 with 45's and 46's tables); the three
+« in the style of » matches go (364,717 → 364,353 B; 332,811 → 332,447 B), the pack +201 B. *Rejected
+— leaving (1) to change 44:* the reducer is where headwords are chosen (44 D6), and fr-es (49)
+takes the same rules from its sources.
 
 ## Risks / Trade-offs
 
@@ -401,6 +449,9 @@ is a merge order (D8, D10), not an archive one.
   no other); a one-pair rule goes in its reducer.
 - **[A defect ships to English speakers]** → nothing ships before 52; D7 lists them, the refinement
   before 52 takes them, the owner reads the sample.
+- **[An expression left out that a reader needed]** → D11 leaves out what only points and `à la`
+  alone; the traditional spelling, the target of a pointer and the 109 « à la … » entries keep
+  theirs, and the four post-1990 spellings keyed apart are listed (D7).
 - **[The golden moves whole]** → re-blessed once, with no French rule in the same pull request, and
   reviewed by probe kind (D8).
 - **[Change 46 slips]** → the level probes go blank until it lands, said in the pull request (D8).
@@ -420,7 +471,8 @@ the harness's source; `lexical.tsv` returns to empty, the golden to the fixture'
 
 ## Effort
 
-2–3.5 ideal days, the programme's: the reducer's native side and its tests 1–1.5; the catalogue,
+2.25–4 ideal days against the programme's 2–3.5, the difference change 44's hand-overs (D11,
+0.25–0.5): the reducer's native side and its tests 1–1.5; the catalogue,
 the floor and its job, the re-reduction, pin, README and `SOURCES.md` 0.25–0.5; the hand-over — the
 harness, the `mémoire` test, the re-bless, the comparison script and the review tables of D8 —
 0.5–1; the sample, the
@@ -445,9 +497,9 @@ For the owner, none blocking:
    pair of stage 3 reads them » and « when fr-en's glosses are committed » when each is archived, so
    that no two specs say opposite things of this change. 39's requirement names three reasons the
    golden moves; this change's spec adds the fourth, a change to the committed French tables.
-5. **What the refinement and changes 44 and 46 expect of fr-en** (D7, D10): change 44's proposal
-   hands this change French's split words as expressions (`d'abord`, `c'est`) and the expressions to
-   leave out (17 « post-1990 spelling of », `y a-t-il`, `à la`); change 46's, a check that every
-   levelled lemma is a dictionary word, which 40 of 8,302 are not. Measured and listed here, not
-   decided: each is a rule of fr-en's reducer, of the English edition or of 46's levels, and the
-   owner says which of the refinement before 52, change 44 and change 46 takes it.
+5. **A level for a word fr-en does not gloss** (D10): change 46's proposal levels lemmas from the
+   section's senses, so 40 of its 8,302 levelled lemmas have no fr-en gloss (`parce`, `quant`,
+   `instar` met only in an expression, initialisms in capitals, `expliquez`, `x`); a card seeded
+   from their level would carry no gloss. Spanish levels only glossed lemmas; French's studied side
+   would then read fr-en's dictionary words. Keep them levelled, or have 46's rule leave out a lemma
+   `tables/fr/lexical.tsv` does not list once this change has filled it.
