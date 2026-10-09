@@ -1,0 +1,10 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - migrate-lingua-pack-sources-to-raw-dumps
+  - add-lingua-pack-es-en
+  - add-lingua-pack-en-es
+  - refine-lingua-en-es-glosses
+  - add-lingua-french-baseline
+  - add-lingua-french-forms-tables
+  - add-lingua-pack-fr-en
