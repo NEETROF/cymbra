@@ -19,8 +19,9 @@ Today, measured over every form of the committed packs (design *How it was measu
 
 On the commonest words the line reads a homograph's or a lexicographer's plural as the word met
 (`tu`, `nadie`, `young`, `dead`), which is change 51's reason for leaving it off French cards; on the
-others it says only that the word looks the same in the plural. The same form read in three studied
-languages should not be described by three rules.
+others it says that the word looks the same in the plural, or that a noun used only in the plural is
+one (`gafas`, `police`: design open question 3). The same form read in three studied languages
+should not be described by three rules.
 
 ## What Changes
 
