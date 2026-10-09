@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: French's estimated levels
-French's level table SHALL be estimated from word frequency, as Spanish's is, and written by the reduction of French's reference pair, fr-en, into `tables/fr/level.tsv`: in rank order, the commonest French lemmas a CEFR list would hold SHALL take the sizes of English's CEFR levels — 1,020 at A1, 1,158 at A2, 2,015 at B1, 2,347 at B2, 886 at C1 and 876 at C2 — kept as constants equal to those es-fr's reduction uses. Which lemmas a CEFR list would hold SHALL be read from the English Wiktionary's French section, the source fr-en's forms come from, and never from a pair's glosses. A ranked lemma SHALL take no level when the section gives it no sense that is not a form of another word, or only a name's; when it is a single character whose every sense in the section is a letter's, a symbol's, a name's or an abbreviation; when every sense the section gives it only spells another word; or when its own form reads as another lemma in French's forms table. Every pack studying French SHALL say in its metadata that its levels are estimated. No FLELex data, nor any other list whose licence the pack builder refuses, SHALL be read by the reduction or committed.
+French's level table SHALL be estimated from word frequency, as Spanish's is, and written by the reduction of French's reference pair, fr-en, into `tables/fr/level.tsv`: in rank order, the commonest French lemmas a CEFR list would hold SHALL take the sizes of English's CEFR levels — 1,020 at A1, 1,158 at A2, 2,015 at B1, 2,347 at B2, 886 at C1 and 876 at C2 — kept as constants equal to those es-fr's reduction uses. Which lemmas a CEFR list would hold SHALL be read from the English Wiktionary's French section, the source fr-en's forms come from, and never from a pair's glosses. A ranked lemma SHALL take no level when the section gives it no sense that is not a form of another word, or only a name's; when it is a single character whose every sense in the section is a letter's, a symbol's, a name's or an abbreviation; when every sense the section gives it only spells another word; or when its own form reads as another lemma in French's forms table. Every pack studying French that is built from the committed tables SHALL say in its metadata that its levels are estimated. No FLELex data, nor any other list whose licence the pack builder refuses, SHALL be read by the reduction or committed.
 
 #### Scenario: The commonest words are A1
 - **WHEN** fr-en is reduced
@@ -28,8 +28,8 @@ French's level table SHALL be estimated from word frequency, as Spanish's is, an
 - **THEN** its metadata says its levels are estimated, the engine reports them as estimated, and the ladder shows English's typical vocabularies and says they are English's
 
 #### Scenario: Nothing else moves
-- **WHEN** French's level table is committed
-- **THEN** en-fr's, es-fr's, es-en's and en-es's tables, pins and packs are byte for byte as before, their invariance baselines pass without re-blessing, and the French invariance baseline, still over its fixture pack, does not move
+- **WHEN** French's level table is committed while the French invariance baseline still runs over its fixture pack
+- **THEN** en-fr's, es-fr's, es-en's and en-es's tables, pins and packs are byte for byte as before, their invariance baselines pass without re-blessing, and the French invariance baseline does not move
 
 ### Requirement: A level reaches the lemma it is written for
 The pack built from a pair's committed tables SHALL give every lemma of its studied language's level table the level that table gives it, and no other lemma a level the table does not give it. The checks SHALL build every committed pair's pack and fail, naming the pair and the lemma, when a level lands on another lemma than the one it is written for.

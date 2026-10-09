@@ -22,13 +22,13 @@ of them and within one level for **82.6 %**; the mean true level of each estimat
 from 1.67 at A1 to 5.03 at C2 (measured again on the committed English tables, the study's
 figures). On French itself, measured with open data only on change 43's prototype ranks:
 
-- **Against the English level of each word's translation** (the head word of its first sense in
-  the English Wiktionary, levelled by CEFR-J and Octanove), French's estimate agrees exactly for
+- **Against the English level of each word's translation** (the first word of its English
+  Wiktionary glosses that CEFR-J or Octanove levels), French's estimate agrees exactly for
   28.3 % of 5,950 lemmas and within one level for 66.7 %; Spanish's committed estimate, the
   control, by the same method on the same edition: 29.4 % and 65.9 % of 6,140. Of French's A1
   words, 51.6 % translate to an English A1 word and 76.5 % to A1 or A2 (Spanish: 49.6 % and 73.8 %).
-- **On running text** — UD PUD, the same 1,000 sentences in the three languages — French's A1
-  covers 78.4 % of the words, Spanish's 76.6 %, English's lists 65.8 %; a reader declaring B1 is
+- **On running text** — UD PUD, the same 1,000 sentences in the three languages, names and numbers
+  left out — French's A1 covers 78.4 % of the words, Spanish's 76.6 %, English's lists 65.8 %; a reader declaring B1 is
   presumed to know 86.2 % of the French words, 84.7 % of the Spanish, 78.0 % of the English.
 
 French's levels read like Spanish's, which readers already have.
@@ -56,8 +56,9 @@ French's levels read like Spanish's, which readers already have.
   committed and says the same. fr-en's NOTICE says the levels are estimated.
 - **A level reaches the lemma it is written for.** The committed-tables checks build every pair's
   pack and require each lemma of its studied language's level table to carry that level. The four
-  committed pairs pass today (8,302 levels each, measured); French's table would not without the
-  last rule above.
+  committed pairs pass today (8,302 levels each, measured); French's table on change 43's prototype
+  ranks would not without the last rule above. Change 43's implementation in progress ranks no such
+  lemma any more (measured on its branch), so the rule stays as a guard.
 - **Nothing to build in the core, the engine or the extension.** `levelLadder` already gives a
   non-English language whose levels are estimated English's frozen typical vocabularies
   (`ENGLISH_TYPICAL_VOCABULARY`) and says so; the extension already labels estimated levels from
@@ -66,7 +67,8 @@ French's levels read like Spanish's, which readers already have.
   in Spanish (M19); the French interface, whose scale is « CEFR », never shows French levels, a
   French-native reader not studying French.
 - **Nothing else moves.** en-fr, es-fr, es-en and en-es — tables, pins, packs, goldens — byte for
-  byte; the French golden too: it runs over its fixture until change 48.
+  byte; the French golden too: it runs over its fixture until change 48 (if 48 merges first, this
+  change re-blesses it, naming the level probes — design D7).
 
 ## Capabilities
 
@@ -103,6 +105,10 @@ None.
 - **Size.** Each French pack grows by its levels section, one byte per lemma of its pool: fr-en
   1,239,104 → 1,299,139 B on the prototype (+60,035 B, the flag included), as Spanish's packs carry
   theirs; well within the 5 MiB budget.
+- **Order.** After change 39 and change 43's implementation (required: `reduce-fr-en.py` and
+  `tables/fr/` reach `main` with it); beside change 45 in either order, the second to merge
+  re-reducing fr-en on top of the first (both edit `reduce-fr-en.py`); before change 48 (planned:
+  its hand-over then keeps the golden's level probes).
 - **Release.** Silent. No package lists a French pair before change 52.
 - **Owner.** The licence request for FLELex, sent with ELELex's (`[manual]`); the design says what a
   granted licence would change: a data change, not a format change.

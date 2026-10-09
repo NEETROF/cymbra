@@ -10,7 +10,7 @@ See proposal.md (Why). Where levels stand, and what this design measured:
 | Estimated levels | `add-lingua-spanish-levels` (archived, D1 of the Spanish programme): `reduce-es-fr.py` gives English's level sizes (`ENGLISH_BANDS`: 1,020, 1,158, 2,015, 2,347, 886, 876) to Spanish's commonest lemmas, in rank order, skipping a lemma without a French gloss or with a proper noun's only; the manifest says `levels_estimated`; `PackMeta.levels_estimated`, `Pack::levels_estimated()`, the engine's `levelsEstimated` |
 | The labels | `localise-lingua-*` and `add-lingua-native-language-labels`: `levelTitleEstimated`, `estimatedLevelsNote`, `borrowedTypicalNote`, `levelNameEstimated` in `src/i18n/{fr,en,es}/languages.ts`, the scale `levelScale` « CEFR » in French and English, « MCER » in Spanish (M19); the ladder's column « courants » for estimated levels |
 | The ladder | `LinguaEngine::level_ladder`: a pack of another language than English whose levels are estimated gives each level `ENGLISH_TYPICAL_VOCABULARY` (`[0, 1_292, 3_359, 7_988, 16_326, 20_556]`, frozen in lingua-core by `generalise-lingua-native-language` D6) and says `typicalFrom: "en"` |
-| French's tables | change 43 (`add-lingua-french-forms-tables`, proposal merged, implementation in progress): `reduce-fr-en.py`, fr-en French's reference pair, writes `tables/fr/forms.tsv` and `freq.tsv` (60,000 lemmas by wordfreq, `au`/`aux` no word, `du`/`des` words of their own, compounds ranked when GSD attests them) from the English Wiktionary's French section; « `grammar.tsv` and `level.tsv` come with 45 and 46 », « 46 levels: the ranks (estimated, M7) » (its D10, D12); `lexical.tsv` empty until change 48 glosses fr-en |
+| French's tables | change 43 (`add-lingua-french-forms-tables`, proposal merged, implementation in progress): `reduce-fr-en.py`, fr-en French's reference pair, writes `tables/fr/forms.tsv` and `freq.tsv` (60,000 lemmas by wordfreq, `au`/`aux` no word, `du`/`des` words of their own, compounds ranked when GSD attests them) from the English Wiktionary's French section; « `grammar.tsv` and `level.tsv` come with 45 and 46 », « 46 levels: the ranks (estimated, M7) » (its D10, D12); `lexical.tsv` empty until change 48 glosses fr-en. Its implementation (branch `claude/add-lingua-french-forms-tables-impl`, not merged) keeps a ranked lemma only when its own form reads as itself and holds every rank on its own lemma (D3) |
 | The French golden | change 39 (`add-lingua-french-baseline`): `fr-en.golden` over the hand-written fixture `testdata/fr-en/` (53 hand-written levels, no `levels_estimated`, « the levels are a fixture's, not a decision (M7) ») until change 48 commits fr-en's glosses and switches it to the tables (its D5 *Hand-over*; change 43's D11) |
 | The extension's French | `StudiedLanguage` is `en \| es` until change 52; change 47 (merged) brought the catalogue's `french` words forward for the voice block, the level messages gain French with change 52 (change 47's D4) |
 | The measurement inputs | change 43's prototype tables (the 124,040 forms and 60,000 ranks its design reports, in their deterministic order), the English Wiktionary's French and Spanish sections derived on 2026-10-08 from the English dump (`kaikki-French.jsonl`, 510,058,226 B; `kaikki-Spanish.jsonl`), the committed `tables/en`, `tables/es` and `tables/es-en`, UD French-, Spanish- and English-PUD (the same 1,000 sentences, CC BY-SA 3.0, never committed), wordfreq 3.1.1; a scratch copy of `origin/main` `35faf774` (French's tokenisation at `0.2.0`, change 40) for the pack and golden figures |
@@ -60,20 +60,25 @@ On change 43's prototype ranks, with D2's rules:
 |---|---|---|---|---|
 | A1 | 1,020 | 1–1,080 | de, le, et, à, en, des, un, que, pas, du, il, pour | 1–1,088 |
 | A2 | 1,158 | 1,081–2,376 | certainement, clairement, collection, conscience, content, croissance | 1,089–2,423 |
-| B1 | 2,015 | 2,377–4,814 | alimentaire, annuel, apparence, autrefois, bénéfice, clinique | 2,424–5,103 |
-| B2 | 2,347 | 4,815–8,086 | rébellion, rédacteur, réserver, simultanément, slogan, tasse, tigre | 5,104–8,885 |
-| C1 | 886 | 8,088–9,418 | confidentialité, conjoncture, consolider, contradictoire, croquis | 8,888–10,474 |
-| C2 | 876 | 9,419–10,768 | clandestin, commentateur, contrefaçon, convaincant, diaspora | 10,479–12,107 |
+| B1 | 2,015 | 2,377–4,814 | trompe, val, alimentaire, annuel, apparence, autrefois, bill, bob | 2,424–5,103 |
+| B2 | 2,347 | 4,815–8,086 | rébellion, rédacteur, réserver, simultanément, slogan, sonde, tasse | 5,104–8,885 |
+| C1 | 886 | 8,088–9,418 | confidentialité, conjoncture, consolidation, consolider, contradictoire, corner | 8,888–10,474 |
+| C2 | 876 | 9,419–10,768 | cheveu, clandestin, commentateur, contrefaçon, convaincant, convenablement | 10,479–12,107 |
+
+The first words are each level's first in rank order (change 43 ranks equal frequencies
+alphabetically). The banding is Spanish's to the byte: applied to Spanish's committed ranks with
+Spanish's own rule (es-fr's glosses and sense runs), it gives `tables/es/level.tsv` exactly
+(measured); only which lemmas take a level differs (D2).
 
 French's levels end earlier than Spanish's because fewer of its commonest words are left out
 (2,466 ranked lemmas within French's span, 3,805 within Spanish's): the English Wiktionary's French
 section knows more of wordfreq's French words than the French Wiktionary's Spanish entries gloss of
 Spanish's.
 
-Every word change 40's pre-pass writes has a level: the read elided pieces, `à`, `le`, `les` and the
-inversion's pronouns are A1 but `jusque` (A2) and `quoique` (B1); `au` and `aux`, no words of
-French's tables, have none; `du` and `des` are A1. M8's cost carries over: `porte` is no lemma, so
-the door has no level and « il porte » reads as *porter* (A1).
+Every word change 40's pre-pass writes has a level: the read elided pieces, `à`, `le` (which `la`
+and `les` read as) and the inversion's pronouns are A1 but `jusque` (A2) and `quoique` (B1); `au`
+and `aux`, no words of French's tables, have none; `du` and `des` are A1. M8's cost carries over:
+`porte` is no lemma, so the door has no level and « il porte » reads as *porter* (A1).
 
 *Rejected — English's rank cutoffs* (A1 up to rank 1,096 … C2 up to 40,612), as for Spanish
 (add-lingua-spanish-levels D1): every French lemma within them would be levelled, and a declared
@@ -99,26 +104,31 @@ level when:
    `québec`, `facebook`);
 2. **it is a single character the section gives no word's sense**: every sense a letter's name, a
    symbol's or an abbreviation (`b`, `e`, `h`, `p`, `ç`). `à` and `y`, a preposition and a pronoun,
-   `x` (a stool, X-rated) and `ô` (an interjection) keep their place;
+   `x` (a stool, X-rated) and `ô` (a vocative particle) keep their place;
 3. **every sense the section gives it only spells another word** — an obsolete, archaic, rare or
    alternative spelling, a letter-case form, a misspelling, a pronunciation spelling (`etre`,
-   `etat`, `etait`, `parceque`, `derniere`, `arreter`): a reader learns the word it spells, which
-   has a level of its own;
+   `etat`, `etait`, `parceque`, `derniere`, `arreter`): a reader learns the word it spells — 23 of
+   the 33 spell a word with a level of its own (`etre` → *être*, `hazard` → *hasard*); the other 10
+   do not (Risks);
 4. **its own form reads as another lemma** in `tables/fr/forms.tsv` (D3).
 
 Measured on the prototype, within the levelled span (ranks 1–10,768): 2,466 ranked lemmas take no
 level — 1,390 unknown to the section, 1,022 names, 33 spellings, 17 letters, 4 lemmas whose own
 form reads as another. Every levelled lemma has a sense the English Wiktionary glosses (0 without
 gloss text), so the levelled lemmas are, as far as a reduction before change 48 can tell, words
-fr-en will gloss; change 48 checks it on its glosses.
+fr-en will gloss; change 48 checks it on its glosses. On change 43's implemented tables (its branch,
+2026-10-09), which rank no lemma whose own form reads as another: A1 1–1,080, C2 9,413–10,762, 2,460
+left out (1,389 unknown, 1,022 names, 33 spellings, 16 letters, none by the fourth rule), and D4's
+proxies the same to the tenth.
 
 The second and third rules are **departures from Spanish's outcome**, stated. The English
 Wiktionary writes an entry for a letter and for a misspelling; the French Wiktionary's Spanish
 entries, which decide Spanish's levels, rarely do, so Spanish's rule leaves most such words out
-without naming them — but not letters: Spanish's committed table levels 19 single letters (`b`,
-`d`, `h`, `k`, … A1), which « Renforcer un niveau » can seed as cards. Without rules 2 and 3,
-French's A1 would hold 13 letters and `etat`, `etats`, `etre`. Spanish's table does not move here
-(es-fr and es-en must not); aligning it is a change of its own (Open Questions).
+without naming them — but not letters: Spanish's committed table levels 20 single characters, 15
+of them letters rather than words (`b`, `d`, `h`, `k`, … A1, `w` A2, `z` and `á` B1), which
+« Renforcer un niveau » can seed as cards. Without rules 2 and 3, French's A1 would hold 11 letters
+(`p`, `i`, `h`, `e`, `r`, `b`, `o`, `v`, `g`, `f`, `u`) and `etat`, `etats`, `etre`. Spanish's table
+does not move here (es-fr and es-en must not); aligning it is a change of its own (Open Questions).
 
 *Rejected — waiting for fr-en's glosses (Spanish's rule word for word).* Change 46 precedes change
 48: the table would be empty until then, and would move when the glosses land. Read from the
@@ -131,15 +141,19 @@ stay A1.
 
 ### D3 — A level reaches the lemma it is written for
 
-The builder writes a lemma's level at `lex.id_of(lemma)`, the form lookup (`FstLexicon::id_of`). A
-ranked lemma whose own form the forms table maps to another lemma hands its level to that lemma.
+The builder writes a lemma's level at `lex.id_of(lemma)`, the form lookup (`FstLexicon::id_of`,
+lingua-core). A ranked lemma whose own form the forms table maps to another lemma is listed twice in
+the lexicon, as that form and as a lemma of its own, and `build_lexicon_blobs` keeps the entry whose
+lemma sorts first byte-wise (its comment says the forms table's mapping wins; it wins only then).
 Change 43's prototype has four such levelled lemmas — `venue` (→ *venir*), `donnée` (→ *donner*),
 `saisie` (→ *saisir*), `tranchée` (→ *trancher*): ranked because their plurals still read as them
-(change 43's D6, « a word another of its forms still reaches keeps its rank »), while their own
-form reads as the verb. Built as they are, the pack gives *venir* and *donner* the A2 of `venue`
-and `donnée` instead of their own A1, and the nouns' own entries lose theirs (measured: 8,299 of
-the pack's lemmas carry a level instead of 8,302; the A1 ladder counts 1,018, B2 2,346). Rule 4 of
-D2 leaves them out, and the next lemmas take their places.
+(change 43's D6 as merged, « a word another of its forms still reaches keeps its rank »), while the
+forms table reads their own form as the verb. In the pack `venue`, `donnée` and `tranchée` read as
+the verb, which sorts first, and `saisie` as itself. Built as they are, the pack gives *venir* and
+*donner* the A2 of `venue` and `donnée` instead of their own A1, *trancher* gets the B2 it has
+anyway, and the three nouns lose theirs (measured: 8,299 of the pack's lemmas carry a level instead
+of 8,302; the A1 ladder counts 1,018, B2 2,346). Rule 4 of D2 leaves out all four, reading the forms
+table as change 43's reducer does, and the next lemmas take their places.
 
 **A check over every committed pair** (*A level reaches the lemma it is written for*): the
 committed-tables test builds each pair's pack and requires every lemma of its studied language's
@@ -151,11 +165,11 @@ passes with rule 4, and fails without it, naming `donner` and `venir`.
 **The same keying moves ranks, which is change 43's.** Built from the prototype's tables, the
 pack ranks *donner* 1,711 instead of 225, *venir* 1,637 instead of 388, *trancher* 7,931 instead of
 6,654 and *retomber* 18,045 instead of 7,691 — the ranks of `donnée`, `venue`, `tranchée` and
-`retombée` — and those nouns, read through their plurals, carry no rank of their own (five of the
-60,000 ranks are not the table's, measured). Change 43's implementation is in progress; its
-committed-tables test can hold every rank as this change's holds every level, and its reducer can
-keep a lemma only when its own form reads as itself. If it does, rule 4 leaves nothing out and
-stays as a guard. A gloss is keyed the same way, which change 48 meets if 43 keeps such lemmas.
+`retombée` —, and `bordée` reads *border*'s 14,022 instead of its own 10,948: five of the 60,000
+ranks are not the table's (measured). Handed to change 43, whose implementation in progress now
+keeps a ranked lemma only when its own form reads as itself and tests every committed pack's ranks
+on their own lemmas, as this change's check does the levels: on its tables rule 4 leaves nothing
+out and stays as a guard (D2). A gloss is keyed the same way, which change 48 would meet otherwise.
 
 ### D4 — Six levels: the scale is monotone
 
@@ -167,18 +181,18 @@ against two open proxies, with Spanish's committed table as the control:
 
 | Proxy | French (prototype) | Spanish (committed) |
 |---|---|---|
-| A levelled lemma's translation — the head word of its first sense in the English Wiktionary — levelled by English's CEFR lists: exact / within one | 28.3 % / 66.7 % of 5,950 (71.7 % covered) | 29.4 % / 65.9 % of 6,140 (74.0 %) |
+| A levelled lemma's translation — the first word of its English Wiktionary glosses, in page order, that English's CEFR lists level — and that word's level: exact / within one | 28.3 % / 66.7 % of 5,950 (71.7 % covered) | 29.4 % / 65.9 % of 6,140 (74.0 %) |
 | Mean English level of the translations, by estimated level A1 → C2 | 1.80, 2.40, 2.75, 3.06, 3.12, 3.06 | 1.83, 2.37, 2.74, 3.04, 3.04, 3.08 |
 | A1 words whose translation is English A1 / A1–A2 | 51.6 % / 76.5 % | 49.6 % / 73.8 % |
-| UD PUD's words at A1, A2, B1, B2, C1, C2, none (gold lemmas) | 78.4, 7.8, 5.7, 2.7, 0.6, 0.6, 4.3 % | 76.6, 8.1, 6.0, 2.6, 0.8, 0.4, 5.5 % |
+| UD PUD's words at A1, A2, B1, B2, C1, C2, none (gold lemmas; names, numbers, symbols and punctuation left out) | 78.4, 7.8, 5.7, 2.7, 0.6, 0.6, 4.3 % | 76.6, 8.1, 6.0, 2.6, 0.8, 0.4, 5.5 % |
 | PUD's words presumed known when declaring A2, B1, B2, C1, C2 | 78.4, 86.2, 91.9, 94.6, 95.2 % | 76.6, 84.7, 90.7, 93.3, 94.1 % |
 
 English's lists on the same PUD sentences: 65.8, 12.2, 9.0, 3.9, 0.5, 0.2, 8.3 %, so a B1 reader is
 presumed to know 78.0 % of the words. The estimate presumes more than English's lists below each
 level, in French as in Spanish: its A1 is the 1,020 commonest words. The translation proxy rises
-from A1 to C1 in both languages and cannot tell C1 from C2 in either (a rare French word's
-translation is often a common English word), so it is no evidence against the scale's top; the
-method's monotonicity is measured on English. French keeps the six levels.
+from A1 to B2 in both languages and cannot tell B2, C1 and C2 apart in either (3.04 to 3.12: a rare
+French word's translation is often a common English word), so it is no evidence against the
+scale's top; the method's monotonicity is measured on English. French keeps the six levels.
 
 ### D5 — Every pack studying French says its levels are estimated
 
@@ -201,8 +215,8 @@ No code changes for French's levels to read as Spanish's do:
   language, with the scale's name M19 sets: in English « Estimated French level », « Levels
   estimated from word frequency, as no freely licensed CEFR list exists for French. », « B1
   (estimated) »; in Spanish « Nivel de francés estimado », « … a falta de una lista MCER de uso
-  libre para el francés. », « B1 (estimado) »; the ladder's « courants » column. The French
-  interface's scale is « CEFR » (`src/i18n/fr/languages.ts`, M19: « French unchanged »), and it
+  libre para el francés. », « B1 (estimado) »; the ladder's « common » / « corrientes » column, not
+  « taught ». The French interface's scale is « CEFR » (`src/i18n/fr/languages.ts`, M19: « French unchanged »), and it
   never names French levels: a French-native reader cannot study French. The `french` words are
   in the catalogue since change 47 (its D4); the level messages' key widens with change 52, whose
   surfaces' tests in English and Spanish cover them.
@@ -232,10 +246,15 @@ fixture already answers `true`, so it does not move at the hand-over), `level-la
 estimates (a universe of about 8,300 words before change 48's lexical table, the levelled lemmas
 being dictionary words; the reader's estimate 2,179), `promote-by-exposure` (0 → 3), both
 `seed-level` probes and the review, deck and card probes that follow from the cards they seed,
-the four reader pages (312 of their 343 tokens read as known for the B1 reader, against 146 of 342
-with the fixture and 1 with no table), the reader's phrase gloss, the status and card exports and
-the backup. Change 48's re-bless shows these 22 with the forms, readings and glosses; its pull
+the four reader pages (312 of their 343 counted words read as known for the B1 reader, against 146
+of 338 with the fixture and 1 of 343 with no table), the reader's phrase gloss, the status and card
+exports and the backup. Change 48's re-bless shows these 22 with the forms, readings and glosses; its pull
 request can name them as the levels'.
+
+**If change 48 merges first** (its D8 allows it, the level probes then going blank), the golden runs
+over the committed tables when this change lands: this change re-blesses `fr-en.golden` once, its
+pull request naming the probes the levels move — these 22 and `has-levels`, which turns true again —,
+and the four other goldens still do not move.
 
 ### D8 — If a licence is granted
 
@@ -302,7 +321,7 @@ vocabularies*, and none is modified.
 | Change | Takes |
 |---|---|
 | 45 grammar | nothing; both add to `reduce-fr-en.py`, and whichever merges second re-reduces on top of the other |
-| 48 fr-en | the table, as committed; the golden's level lines at its hand-over (D7); a check that every levelled lemma is a dictionary word once `lexical.tsv` holds fr-en's glossed lemmas |
+| 48 fr-en | the table, as committed; the golden's level lines at its hand-over (D7; if 48 merges first, this change re-blesses them); a check that every levelled lemma is a dictionary word once `lexical.tsv` holds fr-en's glossed lemmas |
 | 49 fr-es | `tables/fr/level.tsv` as committed; `levels_estimated` in its manifest; its NOTICE's credit (D5) |
 | 52 enable | the labels' French words and their tests in English and Spanish (D6) |
 | 53 listings and site | French's sentence on estimated levels beside Spanish's; « CECR » or « CEFR » in the French site text (D6) |
@@ -324,6 +343,12 @@ vocabularies*, and none is modified.
   Spanish's C2 ends inside a block of 194 equal frequencies too (7 at C2); French's is larger because
   GSD's single occurrences share one frequency. A C2 word is presumed known by no declared level, so
   only the C2 ladder and C2 seeding see the difference. Alternative in Open Questions.
+- **[A current spelling the section files as another's]** → rule 3 reads the dictionary's spelling
+  labels as written: 10 of the 33 lemmas it leaves out spell no word the table levels — `orient`
+  (filed as *Orient*'s lowercase), `méditerranée`, `zombie`, `lys`, `latino-américain`,
+  `lance-missiles`, `hydro-électrique`, `co-scénariste` (filed as a spelling of a rarer or unranked
+  word), `ndlr`, `sainte-barbe` — and lose a level with nothing in its place. Narrowing the rule to a
+  spelling of a commoner word keeps eight of them and moves 33 levels (measured). Open Questions 1.
 - **[A word ranked by a name or a brand]** → the names rule of change 43 keeps a word that is also a
   name, ranked by the string: `jean` (the cloth) is A1 by the given name's frequency, `twitter` (a
   French verb) A2, as Spanish's rule would keep them.
@@ -332,7 +357,8 @@ vocabularies*, and none is modified.
   (D1).
 - **[Change 43's tables move]** → its first tables are an update at the dispatch day's snapshot;
   this change re-measures D1, D2 and D4 on the committed ranks (task 2.2), and the sizes, not the
-  figures, are the requirement.
+  figures, are the requirement. Measured on its implemented tables (D2), the spans move by a few
+  ranks and the proxies not at all.
 - **[A rule of D2 misreads the section]** → each rule is tested on entries shaped as the dump
   writes them; the reduction reports how many lemmas each rule leaves out; an update's report lists
   the levels that move (*A change to a studied language's tables reaches every pair of that
@@ -357,8 +383,10 @@ programme 0.25.
 
 For the owner, none blocking:
 1. **The departures from Spanish's outcome** (D2: letters and spellings take no level in French).
-   Spanish's committed table levels 19 single letters, which « Renforcer un niveau » can seed;
-   aligning Spanish is a change of its own that moves es-fr's output.
+   Spanish's committed table levels 15 single letters, which « Renforcer un niveau » can seed;
+   aligning Spanish is a change of its own that moves es-fr's output. And rule 3's reach (Risks):
+   keep it as the dictionary labels spellings (`zombie`, `lys` without level), or narrow it to a
+   spelling of a commoner word.
 2. **Numbers.** Accept D1's weakness (`dix-neuf` C2), or a reviewed list putting numbers at A1 for
    every estimated language, in a change of its own.
 3. **C2's edge through the compounds GSD meets once** (Risks): accept, or give such a compound no
