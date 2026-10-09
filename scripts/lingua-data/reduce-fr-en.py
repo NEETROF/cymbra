@@ -109,10 +109,11 @@ _ELIDED_START = re.compile(
     "(?:" + "|".join(re.escape(piece) for piece in sorted(ELISIONS, key=len, reverse=True)) + rf")[{_LETTERS}]"
 )
 # wordfreq's tokeniser splits `l'homme` into `l` and `homme`: its list counts each elided piece as
-# the bare letters before the apostrophe (`l`, `d`, `qu`, …), at the pieces' frequency — ranked,
-# the letter `l` would be French's fourth commonest word (D6). They are no words; the pieces are
-# forms of theirs.
-WORDFREQ_STEMS = frozenset({"l", "d", "j", "m", "t", "s", "n", "c", "qu"})
+# the bare letters before the apostrophe (`l`, `d`, `qu`, `jusqu`, `ç`, …), at the pieces'
+# frequency — ranked, the letter `l` would be French's fourth commonest word (D6). They are no
+# words; the pieces are forms of theirs. Every piece's stem, so that no piece's frequency is ranked
+# as a word.
+WORDFREQ_STEMS = frozenset(piece[:-1] for piece in ELISIONS)
 # M21: the pre-pass always splits these into `à` + `le` and `à` + `les`, so no page token is ever
 # one: neither a form nor a rank.
 SPLIT_CONTRACTIONS = frozenset({"au", "aux"})
