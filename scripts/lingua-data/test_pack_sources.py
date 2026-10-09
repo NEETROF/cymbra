@@ -1492,6 +1492,124 @@ class DumpsOnly(unittest.TestCase):
             ps.assets(record)
 
 
+class FrenchReference(unittest.TestCase):
+    """fr-en (add-lingua-french-forms-tables D2), French's reference pair: the English Wiktionary's
+    French section — a file the English edition's catalogue already derives — and UD French-GSD's
+    training and development sections at a commit, read for their counts."""
+
+    # The English Wiktionary's dump: a French entry (fr-en's), a Spanish one (es-fr's and es-en's)
+    # and an English one listing a French translation (fr-en's glosses, a later change's).
+    EN = [
+        {"word": "porte", "lang_code": "fr", "pos": "noun", "senses": [{"glosses": ["door"]}]},
+        {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["house"]}]},
+        {"word": "door", "lang_code": "en", "pos": "noun", "translations": [{"lang_code": "fr", "word": "porte"}]},
+    ]
+    COMMIT = "94d5b68e185fc22a9ef292040e84f476d36d9b0e"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.pin = self.root / "tables" / "fr-en" / "pin.json"
+        self.work = self.root / "work" / "fr-en"
+        self.cache = self.root / "work" / "cache"
+        self.released = self.root / "released"
+        self.released.mkdir()
+        self.served = {spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["fr-en"].items()}
+        self.served[ps.EDITIONS["en"]["url"]] = gz(self.EN)
+        self.fetched = []
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def fetch(self, url, dest, compressed=False):
+        self.fetched.append(url)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if url in self.served:
+            dest.write_bytes(self.served[url])
+            return {"last-modified": "Sat, 03 Oct 2026 08:24:38 GMT"}
+        tag, asset = url.rsplit("/", 2)[-2:]
+        shutil.copy(self.released / tag / asset, dest)
+        return {}
+
+    def update(self, snapshot="2026.10.09"):
+        import unittest.mock as mock
+
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            with contextlib.redirect_stderr(io.StringIO()):
+                return ps.fetch_live(
+                    self.pin, self.work, snapshot, fetch=self.fetch, today=datetime.date(2026, 10, 9), cache=self.cache
+                )
+
+    def test_fr_en_registers_the_catalogue_s_file_and_no_derivation(self):
+        self.assertEqual(ps.DUMPS["fr-en"], {"en": ("kaikki-French.jsonl",)})
+        self.assertEqual(catalogue("fr-en", "en"), {"kaikki-French.jsonl": ("entries", "fr")})
+        ps.check_registered("fr-en")
+        # The English edition's catalogue, as change 38 wrote it: fr-en derives nothing new.
+        self.assertEqual(
+            sorted(ps.EDITIONS["en"]["files"]),
+            ["kaikki-French.jsonl", "kaikki-Spanish.jsonl", "kaikki-en-traductions-es.jsonl", "kaikki-en-traductions-fr.jsonl"],
+        )
+        # GSD's training and development sections at a commit — never its test section, which the
+        # measurement holds out (D9).
+        self.assertEqual(list(ps.PINNED["fr-en"]), ["gsd-train", "gsd-dev"])
+        for spec in ps.PINNED["fr-en"].values():
+            self.assertEqual(
+                spec["url"],
+                f"https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/{self.COMMIT}/{spec['file']}",
+            )
+        self.assertEqual([spec["file"] for spec in ps.PINNED["fr-en"].values()], ["fr_gsd-ud-train.conllu", "fr_gsd-ud-dev.conllu"])
+        self.assertNotIn("fr-en", ps.ESDB)
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_an_update_of_fr_en(self):
+        record = self.update()
+        sources = record["sources"]
+        self.assertEqual(list(sources), ["gsd-train", "gsd-dev", "kaikki-en", "wordfreq"])
+        # The English edition's dump alone, and GSD's two sections.
+        self.assertEqual(sorted(self.fetched), sorted([*(spec["url"] for spec in ps.PINNED["fr-en"].values()), ps.EDITIONS["en"]["url"]]))
+        for name in ("gsd-train", "gsd-dev"):
+            self.assertEqual(sources[name]["url"], ps.PINNED["fr-en"][name]["url"])
+            self.assertEqual(sources[name]["sha256"], hashlib.sha256(f"{name} bytes\n".encode()).hexdigest())
+        dumped = sources["kaikki-en"]
+        self.assertEqual(dumped["release"], "lingua-pack-sources-fr-en-2026.10.09")
+        self.assertEqual(dumped["url"], ps.EDITIONS["en"]["url"])
+        self.assertEqual(dumped["last_modified"], "Sat, 03 Oct 2026 08:24:38 GMT")
+        self.assertEqual(set(dumped["dump"]), {"sha256", "size", "compressed_size"})
+        self.assertEqual(list(dumped["files"]), ["kaikki-French.jsonl"])
+        self.assertEqual((self.work / "kaikki-French.jsonl").read_bytes(), plain(self.EN[:1]), "the French section alone")
+        self.assertEqual(ps.assets(record), ["kaikki-French.jsonl.zst"], "the derived file, no dump")
+        self.assertEqual([p for p in self.root.rglob("*.jsonl.gz")], [], "a dump is never kept")
+        self.assertNotIn("studied", record, "the reference records no studied tables")
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_a_pinned_reduction_reads_its_release_and_gsd_again(self):
+        import unittest.mock as mock
+
+        record = self.update()
+        tag = ps.release_tag("fr-en", record["snapshot"])
+        (self.released / tag).mkdir()
+        for asset in ps.assets(record, tag):
+            shutil.copy(self.work / asset, self.released / tag / asset)
+        pinned = self.pin.read_bytes()
+        shutil.rmtree(self.root / "work")
+        self.fetched.clear()
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
+        self.assertEqual(
+            self.fetched,
+            [*(spec["url"] for spec in ps.PINNED["fr-en"].values()), ps.release_url(tag, "kaikki-French.jsonl.zst")],
+            "GSD's two sections, then the French section from fr-en's own release; no dump",
+        )
+        for name in ("fr_gsd-ud-train.conllu", "fr_gsd-ud-dev.conllu", "kaikki-French.jsonl"):
+            self.assertTrue((self.work / name).is_file(), name)
+        self.assertEqual(self.pin.read_bytes(), pinned, "the record stands")
+        # Other bytes at GSD's address are refused, naming the source.
+        self.served[ps.PINNED["fr-en"]["gsd-dev"]["url"]] = b"moved\n"
+        with self.assertRaisesRegex(ps.PinError, "gsd-dev: fr_gsd-ud-dev.conllu has sha256"):
+            with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+                ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
+
+
 class ReaderPair(unittest.TestCase):
     """A pair that is not its studied language's reference records the studied tables its build
     read (add-lingua-pack-es-en D3): es-en, beside es-fr, which writes tables/es/."""
