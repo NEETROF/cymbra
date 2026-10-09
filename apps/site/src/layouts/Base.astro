@@ -45,10 +45,11 @@ interface Link {
 
 // One table per language: the brand's home, the header nav and the footer (the
 // community link slots between `footerHead` and `footerTail` when an invite is set).
-// The Spanish table links the Spanish pages and, where a page has no Spanish twin
-// (home, Music, account, code), its English page; its brand links `/en/`. Lingua's
-// Spanish page exists once a pair glossed in Spanish ships (`linguaHref`, change:
-// add-site-lingua-matrix-pages): the English one until then.
+// The Spanish table links the Spanish pages — the home and Music's page included
+// (change: extend-site-spanish-locale) — and, where a page has no Spanish twin
+// (account, code), its English page. Lingua's Spanish page exists once a pair glossed
+// in Spanish ships (`linguaHref`, change: add-site-lingua-matrix-pages): the English
+// one until then.
 const TABLES: Record<Lang, { home: string; nav: Link[]; footerHead: Link[]; footerTail: Link[] }> = {
   fr: {
     home: '/',
@@ -97,16 +98,16 @@ const TABLES: Record<Lang, { home: string; nav: Link[]; footerHead: Link[]; foot
     ],
   },
   es: {
-    home: '/en/',
+    home: '/es/',
     nav: [
-      { href: '/en/music', label: 'Music' },
+      { href: '/es/music', label: 'Music' },
       { href: linguaHref('es'), label: 'Lingua' },
       { href: '/es/privacidad', label: 'Privacidad' },
       { href: '/es/terminos', label: 'Términos' },
       { href: '/en/account', label: 'Cuenta' },
     ],
     footerHead: [
-      { href: '/en/music', label: 'Music' },
+      { href: '/es/music', label: 'Music' },
       { href: linguaHref('es'), label: 'Lingua' },
       { href: '/es/soporte', label: 'Ayuda' },
     ],

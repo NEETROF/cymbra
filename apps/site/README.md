@@ -21,12 +21,12 @@ the legal texts with the rest of the repo.
 
 ## Pages
 
-The landing side is a **hub + one page per product**, fr (default) and en:
+The landing side is a **hub + one page per product**, fr (default), en and es:
 
-| Page (fr / en) | What it holds |
+| Page (fr / en / es) | What it holds |
 |---|---|
-| `/`, `/en/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback) |
-| `/music`, `/en/music` | Cymbra Music — hero, store buttons, features. The copy mirrors `apps/music/store/copy/{fr,en}.md`, so the site and the store listings never claim different things |
+| `/`, `/en/`, `/es/` | The Cymbra hub: positioning, one card per product, what both apps share (one account, EU hosting, offline, immediate feedback). The Spanish home's Lingua card is built from the shipped pairs (see below) |
+| `/music`, `/en/music`, `/es/music` | Cymbra Music — hero, store buttons, features. The copy mirrors `apps/music/store/copy/{fr,en,es}.md` (and, in Spanish, the app's own terms, `apps/music/lib/l10n/app_es.arb`), so the site, the app and the store listings never claim different things |
 | `/lingua`, `/en/lingua`, (`/es/lingua`) | Cymbra Lingua — one component, `src/components/LinguaPage.astro`, fed by the shipped pairs (`src/lib/lingua-pairs.ts`: `src/data/lingua-coverage.json` for the pairs and their figures, the extension's `model-manifest.json` for the translation routes) and by one text table per site language (`src/lib/lingua-text.ts`); store buttons, the coverage table with one column per pair, the community invite when `PUBLIC_DISCORD_URL` is set. Each page leads with the pairs glossed in its language. `/es/lingua` (`src/pages/[locale]/lingua.astro`) is built only once a pair glossed in Spanish ships (change `add-site-lingua-matrix-pages`) |
 
 Distribution links live in **one** place, `src/lib/stores.ts`, read by the product
@@ -34,14 +34,25 @@ pages and by the post-checkout `Downloads` block. A channel is either `live: tru
 with a real URL, or dimmed — the App Store record `6789557194` covers iOS, iPadOS
 and macOS, so the three share one button.
 
-Spanish (`/es/`, change `add-site-spanish-locale`) holds the pages Cymbra Lingua sends
-its Spanish readers to — `/es/privacidad`, `/es/terminos`, `/es/soporte`,
-`/es/eliminar-cuenta` and `/es/404` — as translations of the French pages, with Spanish
-slugs as the French pages have French ones. There is no Spanish home, Music, account,
-code or checkout page: the Spanish nav and footer link the English ones there. The Spanish
-Lingua page, `/es/lingua`, exists once a pair glossed in Spanish ships — `linguaHref('es')`
-(`src/lib/lingua-pairs.ts`) points the Spanish nav, footer and not-found page at it then,
-and at `/en/lingua` until then.
+Spanish (`/es/`, changes `add-site-spanish-locale` and `extend-site-spanish-locale`) holds
+the pages Cymbra Lingua sends its Spanish readers to — `/es/privacidad`, `/es/terminos`,
+`/es/soporte`, `/es/eliminar-cuenta` and `/es/404` — and the home and Music pages, `/es/`
+and `/es/music`, as translations of the French pages, with Spanish slugs as the French
+pages have French ones. Every Spanish page's brand, « Music » links and not-found buttons
+open the Spanish home and Music pages. There is no Spanish account, code or checkout page,
+and the Spanish nav and footer link the English ones: they are account flows (plans, betas,
+subscriptions, access codes, payment) that their consumers open by fixed, pinned paths —
+Music's « manage » action `/account`, Paddle `/checkout`, the access-code links `/redeem` —
+and `noindex` personal surfaces, so a Spanish twin would be reached from the Spanish
+navigation alone; for the same reason the Spanish Music page leaves out the French page's
+closing paragraph about them. The Spanish Lingua page, `/es/lingua`, exists once a pair
+glossed in Spanish ships — `linguaHref('es')` (`src/lib/lingua-pairs.ts`) points the
+Spanish nav, footer and not-found page at it then, and at `/en/lingua` until then. The
+Spanish home's Lingua card follows the same pairs (`spanishHomeLinguaCard`,
+`src/lib/lingua-text.ts`): once a pair glossed in Spanish ships it names the languages read
+with a Spanish gloss and opens `/es/lingua`; until then it names every language read and
+the speakers it is made for (« Pensada para francohablantes… ») and opens `/en/lingua`, so
+it never tells a Spanish speaker that Lingua explains words in Spanish before it does.
 
 **Every page names its translations.** `Base.astro` takes `alternates` — the page's
 address in each language it exists in, its own included, e.g.

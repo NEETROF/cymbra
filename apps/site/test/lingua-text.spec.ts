@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 import coverage from "../src/data/lingua-coverage.json";
 import { type LinguaPair, linguaPairs, shippedPairs, type Coverage, type Routes } from "../src/lib/lingua-pairs";
-import { type CardKey, esAnd, esOr, fill, LINGUA_TEXT, type LinguaPageText, linguaPageText } from "../src/lib/lingua-text";
+import {
+  type CardKey,
+  esAnd,
+  esOr,
+  fill,
+  LINGUA_TEXT,
+  type LinguaPageText,
+  linguaPageText,
+  spanishHomeLinguaCard,
+} from "../src/lib/lingua-text";
 import { MATRIX, ROUTES, TODAY } from "./support/lingua";
 
 // The words around the data (change: add-site-lingua-matrix-pages, D2 and D4), built from
@@ -132,7 +141,8 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
       [`10${NNBSP}000`, `91${NNBSP}%`, `90${NNBSP}%`, `77${NNBSP}%`, `80${NNBSP}%`],
       [`20${NNBSP}000`, `80${NNBSP}%`, `79${NNBSP}%`, `64${NNBSP}%`, `70${NNBSP}%`],
     ]);
-    expect(t.closing.body).toContain('<a href="/en/music">Cymbra Music</a>');
+    // Its closing sends its readers to the Spanish Music page (change: extend-site-spanish-locale, D5).
+    expect(t.closing.body).toContain('<a href="/es/music">Cymbra Music</a>');
   });
 
   it("French: the French-native pairs first, the others named for their readers", () => {
@@ -178,6 +188,65 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
     );
     // The Spanish page is built only with a Spanish-glossed pair (D3): it has no such sentence.
     expect(() => linguaPageText("es", today, noDiscord)).toThrow(/the es page is built only with a pair glossed in its language/);
+  });
+});
+
+describe("the Spanish home's Lingua card follows the shipped pairs (change: extend-site-spanish-locale, D3)", () => {
+  // The sentence every state shares after the languages read; the card is inserted with
+  // `set:html`, as the Lingua page's slots are.
+  const REST =
+    "con las palabras que aún no conoces resaltadas en la propia página. Un porcentaje honesto por página, un clic para la traducción y tu vocabulario, que se construye solo.";
+  const words = (text: string) => text.split(/\s+/).length;
+
+  it("today's pairs: every language read, for French speakers, and the English Lingua page", () => {
+    const card = spanishHomeLinguaCard(today.pairs);
+    expect(card.body).toBe(
+      `Lee la web en inglés o en español ${REST} Pensada para francohablantes, con la interfaz y las traducciones en su idioma.`,
+    );
+    expect(words(card.body)).toBe(49);
+    expect(card.href).toBe("/en/lingua");
+  });
+
+  it("today's and es-en (change 34): for French and English speakers, still the English Lingua page", () => {
+    const withEsEn = shipped({ tops: MATRIX.tops, glossed: { ...TODAY.glossed, "es-en": MATRIX.glossed["es-en"] } });
+    const card = spanishHomeLinguaCard(withEsEn.pairs);
+    expect(card.body).toBe(
+      `Lee la web en inglés o en español ${REST} Pensada para francohablantes y anglohablantes, con la interfaz y las traducciones en su idioma.`,
+    );
+    expect(words(card.body)).toBe(51);
+    expect(card.href).toBe("/en/lingua");
+  });
+
+  it("the matrix (en-es, change 35): the language read with a Spanish gloss, no audience, the Spanish Lingua page", () => {
+    const card = spanishHomeLinguaCard(matrix.pairs);
+    expect(card.body).toBe(`Lee la web en inglés ${REST}`);
+    expect(card.body).not.toContain("Pensada para");
+    expect(words(card.body)).toBe(34);
+    expect(card.href).toBe("/es/lingua");
+  });
+
+  it("the matrix with fr-en and fr-es (stage 3): English or French, read with a Spanish gloss", () => {
+    const stage3 = shipped({ tops: MATRIX.tops, glossed: { ...MATRIX.glossed, "fr-en": [1, 1, 1], "fr-es": [1, 1, 1] } });
+    const card = spanishHomeLinguaCard(stage3.pairs);
+    expect(card.body).toBe(`Lee la web en inglés o en francés ${REST}`);
+    expect(words(card.body)).toBe(37);
+    expect(card.href).toBe("/es/lingua");
+  });
+
+  it("never says Lingua explains words in Spanish while no pair glossed in Spanish ships", () => {
+    for (const pairs of [today.pairs, shipped({ tops: MATRIX.tops, glossed: { "es-en": [1, 1, 1] } }).pairs]) {
+      const card = spanishHomeLinguaCard(pairs);
+      expect(card.body).toMatch(/ Pensada para \S+, con la interfaz y las traducciones en su idioma\.$/);
+      expect(card.href).toBe("/en/lingua");
+    }
+  });
+
+  it("refuses a language the Spanish table does not name, and an empty list, at build time", () => {
+    const italian = shipped({ tops: MATRIX.tops, glossed: { "it-fr": [1, 1, 1] } }, {});
+    expect(() => spanishHomeLinguaCard(italian.pairs)).toThrow(/the es table has no name for the language "it"/);
+    const forItalians = shipped({ tops: MATRIX.tops, glossed: { "en-it": [1, 1, 1] } }, {});
+    expect(() => spanishHomeLinguaCard(forItalians.pairs)).toThrow(/the es table has no speakers for the language "it"/);
+    expect(() => spanishHomeLinguaCard([])).toThrow(/no shipped pair to describe/);
   });
 });
 

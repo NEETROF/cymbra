@@ -5,9 +5,10 @@ import { linguaHref } from '../../lib/lingua-pairs';
 // See the French counterpart: without a 404 page the host serves the home page with
 // a 200 for any unmatched path (change: pin-music-site-url-contract). Copied to
 // `dist/es/404.html` by `localised404()` so an unmatched `/es/…` answers in Spanish,
-// not in French (change: add-site-spanish-locale). The site has no Spanish home or
-// Music page: those links open the English ones. Lingua's Spanish page exists once a
-// pair glossed in Spanish ships (`linguaHref`, change: add-site-lingua-matrix-pages).
+// not in French (change: add-site-spanish-locale). « Inicio » and « Cymbra Music » open
+// the Spanish home and Music pages (change: extend-site-spanish-locale). Lingua's Spanish
+// page exists once a pair glossed in Spanish ships (`linguaHref`, change:
+// add-site-lingua-matrix-pages).
 ---
 
 <Base title="Página no encontrada — Cymbra" lang="es" noindex alternates={{ fr: '/404', en: '/en/404', es: '/es/404' }}>
@@ -18,8 +19,8 @@ import { linguaHref } from '../../lib/lingua-pairs';
       Puede que el enlace esté caducado, o que la dirección tenga una errata.
     </p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="/en/">Inicio</a>
-      <a class="btn btn-ghost" href="/en/music">Cymbra Music</a>
+      <a class="btn btn-primary" href="/es/">Inicio</a>
+      <a class="btn btn-ghost" href="/es/music">Cymbra Music</a>
       <a class="btn btn-ghost" href={linguaHref('es')}>Cymbra Lingua</a>
     </div>
     <p class="muted small hero-note">
