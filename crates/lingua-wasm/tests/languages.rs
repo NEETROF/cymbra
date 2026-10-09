@@ -218,6 +218,40 @@ fn spec_scenario_an_estimated_ladder_without_an_english_pack() {
     assert_eq!(ladder(&english_reader, None), alone);
 }
 
+/// The committed tables' pack of `pair`, built with the pack builder.
+fn committed_pack(pair: &str) -> Vec<u8> {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../scripts/lingua-data/tables");
+    let inputs = lingua_pack::inputs_from_tables(&root, pair)
+        .unwrap_or_else(|e| panic!("read the committed {pair} tables: {e}"));
+    lingua_pack::build_pack(&inputs).unwrap_or_else(|e| panic!("build {pair}: {e}"))
+}
+
+/// French's levels are estimated (add-lingua-french-levels, M7): an English-native reader's
+/// engine on the committed es-en pack, the committed fr-en pack added, reports them as estimated,
+/// and French's ladder borrows English's frozen typical vocabularies and says so, its totals
+/// English's level sizes (design D6: no code, the paths Spanish's levels take).
+#[test]
+fn spec_scenario_every_french_pack_says_its_levels_are_estimated() {
+    let mut engine = LinguaEngine::new(&committed_pack("es-en")).unwrap();
+    assert_eq!(engine.add_pack(&committed_pack("fr-en")).unwrap(), "fr");
+    let fr = Some("fr".to_owned());
+    assert!(engine.has_levels(fr.clone()).unwrap());
+    assert!(engine.levels_estimated(fr.clone()).unwrap());
+    let rows = ladder(&engine, fr);
+    assert_eq!(rows.len(), ENGLISH_TYPICAL_VOCABULARY.len());
+    let sizes = [1_020, 1_158, 2_015, 2_347, 886, 876];
+    for ((row, typical), (level, size)) in rows
+        .iter()
+        .zip(ENGLISH_TYPICAL_VOCABULARY)
+        .zip(CefrLevel::ALL.iter().zip(sizes))
+    {
+        assert_eq!(row["level"], level.label());
+        assert_eq!(row["typicalVocabulary"], typical, "{}", level.label());
+        assert_eq!(row["typicalFrom"], "en", "{}", level.label());
+        assert_eq!(row["total"], size, "{}", level.label());
+    }
+}
+
 /// Every engine today: built on en-fr, Spanish added, French for the engine and the reader
 /// (`generalise-lingua-native-language`).
 #[test]
