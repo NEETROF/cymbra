@@ -131,13 +131,27 @@ impl SessionStore for PgSessionStore {
 
         // No row matched. If the family still exists (and is live), the presented
         // token is a replay of a rotated token → theft: revoke the whole family.
-        let live: Option<i32> =
-            sqlx::query_scalar("SELECT 1 FROM sessions WHERE id = $1 AND expires_at > now()")
-                .bind(id)
-                .fetch_optional(&mut *tx)
-                .await
-                .map_err(internal)?;
-        if live.is_some() {
+        // What was replayed, and how long after the last rotation, is logged: a client
+        // replaying the token it was just rotated out of, minutes later, is an answer
+        // lost on the way back, not a thief.
+        let live = sqlx::query(
+            "SELECT audience, prev_rt_hash = $2 AS predecessor, \
+                 EXTRACT(EPOCH FROM now() - prev_replaced_at)::float8 AS since_rotation_secs \
+             FROM sessions WHERE id = $1 AND expires_at > now()",
+        )
+        .bind(id)
+        .bind(&old_hash)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(internal)?;
+        if let Some(row) = live {
+            tracing::warn!(
+                session = %id,
+                audience = %row.get::<String, _>("audience"),
+                predecessor = row.get::<Option<bool>, _>("predecessor").unwrap_or(false),
+                since_rotation_secs = row.get::<Option<f64>, _>("since_rotation_secs"),
+                "refresh token reuse detected: session revoked"
+            );
             sqlx::query("DELETE FROM sessions WHERE id = $1")
                 .bind(id)
                 .execute(&mut *tx)
@@ -150,6 +164,8 @@ impl SessionStore for PgSessionStore {
         }
 
         tx.commit().await.map_err(internal)?;
+        // The family is gone: expired, signed out, revoked earlier, or never existed.
+        tracing::warn!(session = %id, "refresh refused: no live session");
         Err(AppError::Unauthenticated("invalid refresh token".into()))
     }
 

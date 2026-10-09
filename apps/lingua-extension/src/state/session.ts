@@ -1,8 +1,8 @@
-import type { Client } from "@connectrpc/connect";
+import { type Client, ConnectError } from "@connectrpc/connect";
 import type { AuthService } from "@/gen/auth_pb";
 import { AccountError, type AuthErrorKind, authErrorOf } from "./auth-errors.ts";
 import type { Provider } from "./oidc.ts";
-import { type AsyncStorageArea, SESSION_LOST_KEY } from "./storage.ts";
+import { type AsyncStorageArea, REFRESH_FAILURES_KEY, SESSION_LOST_KEY } from "./storage.ts";
 
 // The account session (add-lingua-connected-clients §1, add-lingua-account-parity). Owns
 // the token pair and every AuthService flow: sign-in (email, Google, Apple), sign-up,
@@ -32,6 +32,19 @@ const EXPIRY_SKEW_MS = 30_000;
  */
 export const SIGNIN_ERROR_KEY = "cymbra-lingua-signin-error";
 const AUDIENCE = "lingua";
+/** How many failed refreshes REFRESH_FAILURES_KEY keeps. */
+const REFRESH_FAILURES_KEPT = 10;
+
+/** One failed refresh, as REFRESH_FAILURES_KEY records it. */
+export interface RefreshFailure {
+  /** Epoch millis. */
+  at: number;
+  /** "purged": the server refused the token and the session is gone; "kept": it is not. */
+  outcome: "purged" | "kept";
+  kind: AuthErrorKind;
+  /** The server's reason (never a token), or the local error's message. */
+  reason: string;
+}
 
 /** What SIGNIN_ERROR_KEY holds: the provider and the category, never a message. */
 export interface PersistedSignInError {
@@ -235,8 +248,32 @@ export class Session {
       return true;
     } catch (e) {
       const stale = this.generation !== generation; // a sign-in landed meanwhile
-      if (!stale && authErrorOf(e) === "unauthenticated") await this.purge({ lost: true });
+      const kind = authErrorOf(e);
+      const purged = !stale && kind === "unauthenticated";
+      await this.recordRefreshFailure({
+        at: Date.now(),
+        outcome: purged ? "purged" : "kept",
+        kind,
+        reason: reasonOf(e),
+      });
+      if (purged) await this.purge({ lost: true });
       return false;
+    }
+  }
+
+  /**
+   * Keep a trace of a failed refresh (REFRESH_FAILURES_KEY) and say it in the background's
+   * console. A "kept" failure followed minutes later by a "purged" one is the signature of a
+   * rotation whose answer never arrived. Best effort: diagnostics never fail the refresh path.
+   */
+  private async recordRefreshFailure(failure: RefreshFailure): Promise<void> {
+    console.warn("[Cymbra Lingua] refresh failed:", failure);
+    try {
+      const got = await this.deps.localArea.get(REFRESH_FAILURES_KEY);
+      const past = Array.isArray(got[REFRESH_FAILURES_KEY]) ? (got[REFRESH_FAILURES_KEY] as RefreshFailure[]) : [];
+      await this.deps.localArea.set({ [REFRESH_FAILURES_KEY]: [...past, failure].slice(-REFRESH_FAILURES_KEPT) });
+    } catch {
+      // Storage unavailable or full: the console line above is all there is.
     }
   }
 
@@ -286,6 +323,12 @@ export class Session {
       [SESSION_LOST_KEY]: Boolean(opts.lost) && had,
     });
   }
+}
+
+/** A failure's reason for the diagnostics: the server's raw message, never a token. */
+function reasonOf(e: unknown): string {
+  if (e instanceof ConnectError) return e.rawMessage;
+  return e instanceof Error ? e.message : String(e);
 }
 
 /** Run a call, rethrowing any failure as a categorized AccountError. */
