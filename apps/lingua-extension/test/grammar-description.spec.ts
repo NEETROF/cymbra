@@ -8,6 +8,7 @@ import {
   finiteKey,
   formKind,
   isDictionaryForm,
+  isInvariablePlural,
   PARTS_OF_SPEECH,
   readingOf,
   tagsOf,
@@ -22,7 +23,8 @@ import { createCard } from "@/reading/wordpopup.ts";
 // generalise-lingua-card-wording D1: a form described once, in no language — the readings as the
 // engine's tags, merged and deduplicated by tag, the dictionary form left out on its own card — and
 // "What each renderer names": the closed vocabulary enumerated, every renderer naming what the
-// French card names, no more.
+// French card names, no more. refine-lingua-card-invariable-plurals D1, D7: on that card, a plural
+// read beside a singular of its part of speech is left out too, in every studied language.
 
 const grammar = (over: Partial<WordGrammar> = {}): WordGrammar => ({
   gloss: null,
@@ -101,6 +103,107 @@ describe("the description of a form names no language", () => {
     expect(isDictionaryForm({ pos: "ADJ", features: { Gender: "Fem", Number: "Sing" } })).toBe(false);
     expect(isDictionaryForm({ pos: "ADJ", features: { Number: "Sing", Degree: "Cmp" } })).toBe(false);
     expect(isDictionaryForm({ pos: "VERB", features: { Number: "Sing" } })).toBe(false);
+  });
+
+  it("knows a plural read beside its singular: a nominal plural without a degree, a singular of its part of speech among the card's tags", () => {
+    const tag = (pos: string, features: Record<string, string>): GrammarTag => ({ pos, features });
+    const plural = tag("NOUN", { Gender: "Fem", Number: "Plur" });
+    expect(isInvariablePlural(plural, [plural, tag("NOUN", { Gender: "Fem", Number: "Sing" })])).toBe(true);
+    // Whatever the singular's gender: the part of speech decides (« paso »).
+    expect(isInvariablePlural(plural, [tag("NOUN", { Gender: "Masc", Number: "Sing" })])).toBe(true);
+    // A plural alone, or beside another part of speech's singular only (« frais »).
+    expect(isInvariablePlural(plural, [plural])).toBe(false);
+    expect(isInvariablePlural(plural, [plural, tag("ADJ", { Number: "Sing" })])).toBe(false);
+    // A degree, a verb's or a numeral's plural, a singular: never.
+    const comparative = tag("ADJ", { Degree: "Cmp", Number: "Plur" });
+    expect(isInvariablePlural(comparative, [comparative, tag("ADJ", { Number: "Sing" })])).toBe(false);
+    for (const pos of ["VERB", "NUM"]) {
+      expect(isInvariablePlural(tag(pos, { Number: "Plur" }), [tag(pos, { Number: "Sing" })]), pos).toBe(false);
+    }
+    expect(isInvariablePlural(tag("NOUN", { Number: "Sing" }), [tag("NOUN", { Number: "Sing" })])).toBe(false);
+    expect(isInvariablePlural({ pos: "NOUN" }, [{ pos: "NOUN" }])).toBe(false);
+  });
+
+  it("leaves out, on the dictionary form's own card, a plural read beside a singular of its part of speech", () => {
+    const tag = (pos: string, Number: string, Gender?: string): GrammarTag => ({
+      pos,
+      features: Gender ? { Gender, Number } : { Number },
+    });
+    // A noun's plural of each gender, a proper noun's, an adjective's, a pronoun's and a
+    // determiner's, beside a singular of their part of speech (« crisis », « lunes », « nadie »).
+    for (const pos of ["NOUN", "PROPN", "ADJ", "PRON", "DET"]) {
+      for (const gender of [undefined, ...FEATURES.Gender!]) {
+        const own = describeForm(
+          grammar({ readings: [tag(pos, "Plur", gender), tag(pos, "Sing")] }),
+          "x",
+          "X",
+          "X",
+        ).own;
+        expect(own, `${pos} ${gender}`).toEqual([]);
+      }
+    }
+    // Every gender of the plural on one card, the singular's gender aside (« nadie »).
+    const nadie = describeForm(
+      grammar({
+        readings: [
+          tag("NOUN", "Plur", "Fem"),
+          tag("NOUN", "Sing", "Fem"),
+          tag("NOUN", "Plur", "Masc"),
+          tag("NOUN", "Sing", "Masc"),
+        ],
+      }),
+      "nadie",
+      "nadie",
+      "nadie",
+    );
+    expect(nadie.own).toEqual([]);
+    // A feminine plural beside a masculine singular, and a verb's reading beside it kept, as is
+    // the other dictionary form's (« paso » → « pasar »).
+    const pres = fin("Ind", "1", "Sing", "Pres");
+    const paso = describeForm(
+      grammar({
+        readings: [tag("ADJ", "Sing", "Masc"), tag("NOUN", "Plur", "Fem"), tag("NOUN", "Sing", "Masc"), pres],
+        others: [{ lemma: "pasar", readings: [pres] }],
+      }),
+      "paso",
+      "paso",
+      "paso",
+    );
+    expect(paso.own).toEqual([readingOf(pres)]);
+    expect(paso.others).toEqual([{ lemma: "pasar", readings: [readingOf(pres)] }]);
+  });
+
+  it("keeps a plural with no singular of its part of speech, and every plural off the dictionary form's own card", () => {
+    const tag = (pos: string, Number: string, Gender?: string): GrammarTag => ({
+      pos,
+      features: Gender ? { Gender, Number } : { Number },
+    });
+    const own = (headword: string, surface: string, readings: GrammarTag[], others: WordGrammar["others"] = []) =>
+      describeForm(grammar({ readings, others }), headword, surface, surface);
+    // A noun's plural alone (« gafas », "police"), and a noun's plural beside an adjective's
+    // singular only (« frais »: the adjective's plural goes, the noun's stays).
+    expect(own("gafas", "gafas", [tag("NOUN", "Plur", "Fem")]).own).toEqual([readingOf(tag("NOUN", "Plur", "Fem"))]);
+    expect(own("police", "police", [tag("NOUN", "Plur")]).own).toEqual([readingOf(tag("NOUN", "Plur"))]);
+    expect(
+      own("frais", "frais", [tag("ADJ", "Sing", "Masc"), tag("ADJ", "Plur", "Masc"), tag("NOUN", "Plur", "Masc")]).own,
+    ).toEqual([readingOf(tag("NOUN", "Plur", "Masc"))]);
+    // The form differs from its dictionary form: a plural of it, as before (« rápidas », « casas »).
+    expect(own("rápido", "rápidas", [tag("ADJ", "Plur", "Fem")]).own).toHaveLength(1);
+    expect(own("casa", "casas", [tag("NOUN", "Plur", "Fem")]).own).toHaveLength(1);
+    expect(own("crisis", "crises", [tag("NOUN", "Plur", "Fem"), tag("NOUN", "Sing", "Fem")]).own).toHaveLength(2);
+    // Another dictionary form's plural, even one read beside its singular ("leaves" → "leaf").
+    const leaves = own(
+      "leave",
+      "leaves",
+      [tag("NOUN", "Plur"), fin("Ind", "3", "Sing", "Pres")],
+      [{ lemma: "leaf", readings: [tag("NOUN", "Plur")] }],
+    );
+    expect(leaves.others[0]!.readings).toEqual([readingOf(tag("NOUN", "Plur"))]);
+    const both = [tag("NOUN", "Plur", "Fem"), tag("NOUN", "Sing", "Fem")];
+    expect(own("x", "x", [], [{ lemma: "y", readings: both }]).others[0]!.readings).toHaveLength(2);
+    // A comparative plural is named as such.
+    const comparative: GrammarTag = { pos: "ADJ", features: { Degree: "Cmp", Number: "Plur" } };
+    expect(own("x", "x", [comparative, tag("ADJ", "Sing")]).own).toEqual([readingOf(comparative)]);
   });
 
   it("keeps the pieces of a split word only, and the senses' headings as tags", () => {
@@ -272,6 +375,28 @@ describe("What each renderer names", () => {
       expect(renderer.senseHeading(undefined)).toBeNull();
     });
   }
+
+  it("a plural read beside its singular gets no line in any language, a plural alone keeps the French card's", () => {
+    let named = 0;
+    for (const studied of ["en", "es"] as StudiedLanguageCode[]) {
+      for (const pos of ["NOUN", "PROPN", "ADJ", "DET", "PRON"]) {
+        for (const Gender of [undefined, ...FEATURES.Gender!]) {
+          const plural: GrammarTag = { pos, features: Gender ? { Gender, Number: "Plur" } : { Number: "Plur" } };
+          const singular: GrammarTag = { pos, features: { Number: "Sing" } };
+          const french = fr.readingName(plural, studied);
+          if (french) named++;
+          for (const renderer of [fr, en, es]) {
+            const lines = (readings: GrammarTag[]) =>
+              renderer.grammarLines(grammar({ readings }), "lemma", "lemma", "lemma", studied);
+            expect(lines([plural, singular]), `${studied} ${JSON.stringify(plural)}`).toEqual([]);
+            expect(lines([singular, plural]), `${studied} ${JSON.stringify(plural)}`).toEqual([]);
+            expect(lines([plural]).length, `${studied} ${JSON.stringify(plural)}`).toBe(french ? 1 : 0);
+          }
+        }
+      }
+    }
+    expect(named).toBeGreaterThan(20);
+  });
 
   it("a form the French card says nothing about gets no line in any language", () => {
     const silent = grammar({
