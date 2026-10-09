@@ -611,148 +611,69 @@ mod tests {
         }
     }
 
+    /// Every word of `words` is in `table` and is a French function word.
+    fn french_class_holds(table: &[&str], words: &str) {
+        for word in words.split_whitespace() {
+            assert!(table.binary_search(&word).is_ok(), "{word:?}");
+            assert!(is_function_word(word, FR), "{word:?}");
+        }
+    }
+
     #[test]
-    fn french_classes_hold_what_they_name() {
-        for (table, sample) in [
-            (
-                FR_DETERMINERS,
-                &[
-                    "le",
-                    "la",
-                    "les",
-                    "un",
-                    "une",
-                    "du",
-                    "des",
-                    "ce",
-                    "cet",
-                    "cette",
-                    "ces",
-                    "mon",
-                    "ma",
-                    "mes",
-                    "ton",
-                    "ta",
-                    "tes",
-                    "son",
-                    "notre",
-                    "votre",
-                    "leur",
-                    "quel",
-                    "aucun",
-                    "nul",
-                    "chaque",
-                    "plusieurs",
-                    "quelque",
-                    "tout",
-                    "même",
-                    "autre",
-                    "tel",
-                    "beaucoup",
-                    "peu",
-                    "trop",
-                    "tant",
-                ][..],
-            ),
-            (
-                FR_PRONOUNS,
-                &[
-                    "je",
-                    "tu",
-                    "il",
-                    "elle",
-                    "on",
-                    "nous",
-                    "vous",
-                    "ils",
-                    "elles",
-                    "me",
-                    "te",
-                    "se",
-                    "moi",
-                    "toi",
-                    "soi",
-                    "lui",
-                    "eux",
-                    "y",
-                    "en",
-                    "ce",
-                    "ceci",
-                    "cela",
-                    "ça",
-                    "celui",
-                    "celui-ci",
-                    "celui-là",
-                    "qui",
-                    "que",
-                    "quoi",
-                    "dont",
-                    "lequel",
-                    "duquel",
-                    "auquel",
-                    "quelqu'un",
-                    "chacun",
-                    "rien",
-                    "autrui",
-                    "quiconque",
-                ][..],
-            ),
-            (
-                FR_PREPOSITIONS,
-                &[
-                    "à",
-                    "de",
-                    "en",
-                    "dans",
-                    "par",
-                    "pour",
-                    "sur",
-                    "sous",
-                    "avec",
-                    "sans",
-                    "chez",
-                    "entre",
-                    "vers",
-                    "contre",
-                    "depuis",
-                    "pendant",
-                    "durant",
-                    "avant",
-                    "après",
-                    "devant",
-                    "derrière",
-                    "parmi",
-                    "selon",
-                    "malgré",
-                    "envers",
-                    "hors",
-                    "hormis",
-                    "dès",
-                    "jusque",
-                    "outre",
-                    "sauf",
-                    "via",
-                    "près",
-                    "afin",
-                ][..],
-            ),
-            (
-                FR_CONJUNCTIONS,
-                &[
-                    "et", "ou", "mais", "donc", "ni", "car", "que", "si", "quand", "comme", "où",
-                    "lorsque", "puisque", "quoique", "parce", "tandis",
-                ][..],
-            ),
-            (
-                FR_AUXILIARIES_AND_MODALS,
-                &["être", "avoir", "pouvoir", "devoir"][..],
-            ),
-            (FR_NEGATION, &["ne", "pas", "non"][..]),
-        ] {
-            for word in sample {
-                assert!(table.binary_search(word).is_ok(), "{word:?}");
-                assert!(is_function_word(word, FR), "{word:?}");
-            }
+    fn french_determiners_are_function_words() {
+        // Articles, demonstratives, possessives and their inflected forms, indefinites and
+        // quantifiers.
+        french_class_holds(
+            FR_DETERMINERS,
+            "le la les un une du des ce cet cette ces mon ma mes ton ta tes son notre votre leur \
+             quel aucun nul chaque plusieurs quelque tout toutes même autre tel beaucoup peu trop \
+             tant",
+        );
+    }
+
+    #[test]
+    fn french_pronouns_are_function_words() {
+        // Personal, demonstrative, relative and interrogative, indefinite.
+        french_class_holds(
+            FR_PRONOUNS,
+            "je tu il elle on nous vous ils elles me te se moi toi soi lui eux y en ce ceci cela \
+             ça celui celui-ci celui-là qui que quoi dont lequel duquel auquel quelqu'un chacun \
+             rien autrui quiconque",
+        );
+    }
+
+    #[test]
+    fn french_prepositions_are_function_words() {
+        french_class_holds(
+            FR_PREPOSITIONS,
+            "à de en dans par pour sur sous avec sans chez entre vers contre depuis pendant \
+             durant avant après devant derrière parmi selon malgré envers hors hormis dès jusque \
+             outre sauf via près afin",
+        );
+    }
+
+    #[test]
+    fn french_conjunctions_are_function_words() {
+        french_class_holds(
+            FR_CONJUNCTIONS,
+            "et ou mais donc ni car que si quand comme où lorsque puisque quoique parce tandis",
+        );
+    }
+
+    #[test]
+    fn french_auxiliaries_and_modals_are_function_words() {
+        french_class_holds(FR_AUXILIARIES_AND_MODALS, "être avoir pouvoir devoir");
+        // The other common verbs carry meaning.
+        for lemma in ["falloir", "vouloir", "aller", "faire"] {
+            assert!(!is_function_word(lemma, FR), "{lemma:?}");
+        }
+    }
+
+    #[test]
+    fn french_negation_is_a_function_word_with_pas_but_not_jamais() {
+        french_class_holds(FR_NEGATION, "ne pas non");
+        for lemma in ["jamais", "plus", "point", "guère", "personne"] {
+            assert!(!is_function_word(lemma, FR), "{lemma:?}");
         }
     }
 
