@@ -16,17 +16,18 @@ What the baseline makes of French today, measured on change 39's thirteen-page c
 - **Elisions are whole.** The corpus holds 63 elided words — 6.9 % of its words (the study
   measured 6.5 % of literary French) — and the baseline keeps each glued to the next word:
   `l'homme`, `qu'il`, `n'est`, `jusqu'au`. Each is counted, glossed and carded as one unknown
-  « word » the pack does not have: `l'homme` is not `homme`. Three of them open a sentence
-  (`L'homme`, `Lorsqu'il`, `D'abord`) and are set aside as proper nouns, being capitalised and
-  outside the lexicon.
+  « word » the pack does not have: `l'homme` is not `homme`. Five of them open a sentence: three
+  (`L'homme`, `Lorsqu'il`, `D'abord`) are set aside as proper nouns, being capitalised and outside
+  the lexicon, and two (`C’est`, `Qu’est-ce`) are glued to a narrow no-break space (below).
 - **`au` and `aux` are one word**, so `à` and `le` are never read in them.
 - **Hyphenated inversions are compounds.** `dit-il`, `a-t-il`, `Qu’est-ce`, `allez-vous-en`,
-  `coupez-les` are 12 runs of the corpus, each counted as one unknown compound judged by its
-  weakest part; the euphonic `-t-` is read as a part.
+  `coupez-les` are 12 runs of the corpus: eleven counted as one unknown compound judged by its
+  weakest part, `Donne-m'en` set aside as a name; the euphonic `-t-` is read as a part.
 - **French punctuation glues to words.** UAX #29 gives the narrow no-break space (U+202F), which
-  French sets before `?`, `!`, `;`, `:` and `»` and after `«`, the word-break class
-  ExtendNumLet: 12 tokens of the corpus carry it (`pas `, ` Je`, ` C'est`), none of them a pack
-  word, and ` Je` is set aside as a name.
+  French sets before `?`, `!`, `;` and `»` and after `«`, the word-break class ExtendNumLet: 12
+  tokens of the corpus carry it (`pas `, ` Je`, ` C'est`), none of them a pack word, and ` Je` and
+  ` C'est` keep the space in their lemma. The no-break space U+00A0, which the corpus sets before
+  `:`, does not glue.
 
 The cascade, the closed classes, the names rule and NFC come in change 41; the expression keys in
 change 44; the word card in change 51. Each of them reads what this change cuts.
@@ -88,13 +89,16 @@ None.
     *consumed*: the tokeniser's language-neutral rules (segmentation, the hyphen run, the compound
     rule, the digit drop, the single-letter rule), the baseline lemmatisation, the `Token` model
     (unchanged: every token already has its own span).
-  - `crates/lingua-wasm` — the French baseline re-blessed, three probes added to its scenario, its
-    assertions moved to `0.2.0`; a French page under wasm checked against the host's spans.
-  - `crates/lingua-pack` — one test reads French's constant instead of a literal `0.1.0`.
+  - `crates/lingua-wasm` — the French baseline re-blessed, five probes added to its scenario (three
+    phrases, two word grammars), its assertions moved to `0.2.0`; a French page under wasm checked
+    against the host's spans.
+  - `crates/lingua-pack` — two tests read French's constant instead of a literal `0.1.0` (the
+    builder's, and the fr-en fixture's in `tests/pipeline_testdata.rs`).
   - `scripts/lingua-data/testdata/fr-en/` — the manifest at `0.2.0`, ten forms and two expressions
     added.
   - `apps/lingua-extension` — the hit test of `reading/scan.ts`; `test/packs.spec.ts` reads `0.2.0`
-    for French. No surface, type, label or pack list changes.
+    for French; `test/selection.spec.ts` pins the selection case handed to change 51. No surface,
+    type, label or pack list changes.
 
   ID, Music, Live, the back office, the site, the backend, the Apple host app and the agent plugin
   are untouched (the agent compiles the core and holds no French pack).
@@ -105,8 +109,10 @@ None.
   change 41 writes with the cascade, the names rule and NFC; the moods merged on a five-reading form
   such as « parle » (M21) — a rule of the French word card's description, change 51, reading the
   readings of change 45; expression keys through the analyser (44); which piece a one-word
-  selection opens (51); the Catalan and Occitan guard (42); the forms tables (43).
+  selection opens — a double-click on « l’homme », or a drag over « homme » that the selection's
+  word snap widens to « l’homme » (51, D7); the Catalan and Occitan guard (42); the forms tables
+  (43).
 - **Effort, against 4.5–7.5 ideal days.** The pre-pass, its spans and its casing: 1.5–2.5.
   The French fixtures (at least 80 cases, rule by rule): 1–1.5. The golden, the probes, the
-  fixture pack and the tests that flip at `0.2.0`: 0.75–1.25. The hit test and its test:
-  0.25–0.5. Specs and programme: 0.5. Total 4–6.25.
+  fixture pack and the tests that flip at `0.2.0`: 0.75–1.25. The hit test, its test and the
+  selection pin: 0.25–0.5. Specs and programme: 0.5. Total 4–6.25.

@@ -15,7 +15,7 @@ merged):
 | `engine.rs` `word_grammar` | reads the written word through `tokenize`; reports `pieces` when the pre-pass made more than one token |
 | `engine.rs` `gloss_phrase` | one row per token; expressions matched on the tokens' lemmas joined by spaces |
 | `crates/lingua-pack` `expression_key` | an expression's key is its whitespace-separated words, each lemmatised, every one a lexicon lemma or the expression is dropped |
-| `apps/lingua-extension/src/reading/scan.ts` | `rangeForToken` turns a token's byte span into a DOM range; `findTokenAt` returns the first range whose closed interval holds the caret |
+| `apps/lingua-extension/src/reading/` | `blocks.ts` `rangeForToken` turns a token's byte span into a DOM range; `scan.ts` `findTokenAt` returns the first range whose closed interval holds the caret; `selection.ts` `snapRangeToWords` widens a selection over `WORD_CHAR` (letters, digits, `'`, `’`, `-`), and a selection without whitespace is a « word », resolved at the widened start (`session.ts` `onCapture`) |
 | `crates/lingua-wasm/tests/french_baseline.rs` | the golden over 13 pages, a hand-written fr-en fixture pack, es-en beside; asserts `l'homme` one token, `au` whole, `0.1.0` |
 
 The owner's decision M21 (2026-10-09): **au/aux split, du/des whole; one highlight span per
@@ -171,10 +171,11 @@ les, or the plural of `un`) stay whole: the tokeniser cannot tell their two read
 `desquels` are other words and stay whole; nothing is split inside a hyphenated compound
 (`au-dessus`, `au-delà`), but a remainder after an elision is (`jusqu'au`).
 
-**The capital.** `Au` → `À`, `AUX` → `À` + `les`. The casing code English and Spanish share keeps
-the written first letter's case by slicing the base at that letter's byte length — `D`/`d`,
-`A`/`a`, always one byte. `à` is two bytes where `A` is one: French uppercases the read word's own
-first letter instead, and a test holds `Au` and `AU`.
+**The capital.** `Au` → `À`, `AUX` → `À` + `les`. The casing code English and Spanish share
+(`push_word`) keeps the written first letter's case by slicing the base at that letter's byte
+length — `D`/`d`, `A`/`a`, always one byte. `à` is two bytes where `A` is one: reused, it would
+panic (byte 1 of `à` is no char boundary; checked). French uppercases the read word's own first
+letter instead, and a test holds `Au` and `AU`.
 
 Measured: 9 words (`au` ×7, one of them in `jusqu'au`; `aux` ×2) become 18 tokens.
 
@@ -230,7 +231,7 @@ share the word's span; an elision's pieces and an inversion's words each have th
 |---|---|
 | `L'homme` | `Le` [0, 2) `L'`, `homme` [2, 7) |
 | `l’horizon` | `le` [0, 4) `l’` (the typographic apostrophe is three bytes), `horizon` [4, 11) |
-| `jusqu'au` | `jusque` [0, 7) `jusqu'`, `à` and `le` [7, 9) `au` |
+| `jusqu'au` | `jusque` [0, 6) `jusqu'`, `à` and `le` [6, 8) `au` |
 | `a-t-il` | `a` [0, 1), `il` [4, 6) |
 | `«\u{202F}C’est` | `Ce` [5, 9) `C’`, `est` [9, 12) — `«` and U+202F in no token |
 
@@ -238,7 +239,9 @@ Consumers, all unchanged: the extension converts each span to a DOM range (`rang
 offsets to characters — a span inside a word converts like any other) and paints it; `word_grammar`
 reports pieces when the written word holds more than one token (`l'homme` → `le`, `homme`;
 `au` → `à`, `le`); `gloss_phrase` gives one row per token. Measured: 63 elided pieces in the
-corpus, 15 of them with the typographic apostrophe.
+corpus, 15 of them with the typographic apostrophe. Change 47 (`add-lingua-french-read-aloud`,
+proposed) reads a card opened on an elided piece with the word it leans on, whichever side of the
+span the apostrophe falls; this change puts it in the elided piece's span.
 
 Determinism: the pre-pass is pure Rust over the text, so native and wasm agree by construction; a
 French page under `wasm-pack test --node` is held to the host's tokens and spans (task 2.6), the
@@ -258,10 +261,23 @@ Painting is unchanged: two adjacent ranges of one class are painted in one colou
 highlight, each clickable apart. Whether a hairline should separate them is a dogfood question for
 change 52.
 
-**Left to change 51 — a one-word selection.** A selection without whitespace is a « word »
-(`selection.ts`), resolved at the selection's start (`session.ts` `onCapture`): a double-click on
-`l’homme`, which browsers select whole, opens `le`. Which piece a selection over several pieces
-opens is a choice of the card (open question 2).
+**Handed to change 51 — a one-word selection over several pieces.** A selection is widened to
+whole words before it is read (`selection.ts` `snapRangeToWords`), over `WORD_CHAR`, which holds
+`'`, `’` and `-`; without whitespace it is a « word », resolved at the widened start (`session.ts`
+`onCapture`). So two gestures land on the first piece: a double-click on `l’homme`, which browsers
+select whole, and a drag over `homme` alone, widened to `l’homme` — both open `le`; a drag over
+`il` in `dit-il` opens `dit`. This change does not create the defect (at `0.1.0` the same drag
+opened the one token `l'homme`, not `homme`), and no French reaches the extension before change 52.
+It is not fixed here because the fix is the card's choice: stopping the snap at an elision has to
+tell `l’homme` from `aujourd’hui` (D3's table again in the extension, or the page's token ranges in
+the snap), and resolving a selection at the reader's own start would move English selections over
+a run with a digit (`well-being-2`, whose pieces have spans of their own).
+**Change 51 carries it**, as a requirement of `lingua-browser-extension`: a one-word selection whose
+widened range holds several pieces with spans of their own SHALL open the piece the reader selected
+when the selection lies inside one piece (`homme` in `l’homme`, `il` in `dit-il`), and the card
+chosen in open question 2 when it covers several; *Selection capture on any pointer* (« a
+selection of one word SHALL open that word's popup ») holds for French only then. Task 3.1 pins
+today's behaviour in `test/selection.spec.ts`, so change 51's diff shows it moving.
 
 ### D8 — What the interval between 40 and 44 costs: expression keys holding `au` or `aux`
 
@@ -271,7 +287,9 @@ read `au` + `revoir` and matched the key `au revoir`; at `0.2.0` it reads `À` +
 and the key is out of reach until change 44 builds keys through the analyser. Keys holding an
 elision (`coup d'œil`: `d'œil` is no lemma) are already dropped at build — the study's 9.6 % of
 French expressions — so this change adds the keys holding `au`/`aux` to those 44 repairs, as the
-study's 596 es-fr keys holding `al`/`del` are for Spanish. Nothing ships in between.
+596 es-fr expressions whose headword holds `al` or `del` (counted on `tables/es-fr/mwe.tsv`) are
+for Spanish today: keyed `al …`, never matched by a selection read `a` + `el`. Nothing ships in
+between.
 
 To make 44's effect visible, the fixture gains the expressions `au revoir` (« goodbye ») and
 `coup d'œil` (« glance ») and the scenario two phrase probes, « Au revoir » and « un coup d’œil »:
@@ -358,19 +376,25 @@ french_inversions_and_compounds_follow_the_compound_rule}`,
 `engine::tests::spec_scenario_a_french_page_is_read_by_the_baseline`,
 `packs::pack::tests::spec_scenario_a_french_pack_at_french_s_analyser_version` (lingua-core);
 `tests::a_french_pack_builds_at_french_s_analyser_version_and_loads` (lingua-pack, which stamps a
-literal `0.1.0`); `spec_scenario_a_french_reader_s_backup_is_version_3` (`languages.rs`), and
+literal `0.1.0`) and `the_french_fixture_studies_french_at_its_baseline_version`
+(`lingua-pack/tests/pipeline_testdata.rs`, which reads the fixture's manifest and expects `0.1.0`);
+`spec_scenario_a_french_reader_s_backup_is_version_3` (`languages.rs`), and
 `french_is_the_baseline_until_its_rules_are_written` and
 `a_fixture_left_behind_its_analyser_names_its_manifest` (`french_baseline.rs`) (lingua-wasm);
-`test/packs.spec.ts`, which reads `0.1.0` for French (the extension).
+`test/packs.spec.ts`, which reads `0.1.0` for French (the extension). Measured on the prototype:
+these eleven Rust tests, and no other but the golden's own, fail before they are rewritten (6 in
+lingua-core, 2 in lingua-pack, 3 in lingua-wasm).
 
 OpenSpec: two ADDED requirements in `lingua-analysis` and one in `lingua-browser-extension`, held by
 no open change; two MODIFIED requirements in `lingua-analysis`, both added by
 `add-lingua-french-baseline`, which is merged and not archived — hence `archiveAfter`, and
 `openspec_archive_order.py` exits 10 naming it alone. Each MODIFIED block is change 39's text with
 what moves at `0.2.0` rewritten, every requirement and scenario name kept:
-- *French is a studied language served by the baseline analysis*: French's own pre-pass is named
-  beside the rules that belong to no language, « no contraction or elision split » goes, the
-  version is `0.2.0`; the scenario *An elided word is one token* now holds the words whose elision
+- *French is a studied language served by the baseline analysis*: French is served by its own
+  pre-pass and, for its lemmatisation, the rest of the baseline (the spec's baseline has no
+  contraction split, *Analysis by studied language*), « no contraction or elision split » goes,
+  the version is `0.2.0`, and writing French's rules joins adding it among what leaves English and
+  Spanish unmoved; the scenario *An elided word is one token* now holds the words whose elision
   is part of them, *Contracted articles are whole* holds `du` and `des`, *Each language reports its
   own version* reads `0.2.0`; the four other scenarios are unchanged.
 - *A French invariance baseline runs beside the English and Spanish ones*: the scenario *What the
@@ -391,7 +415,8 @@ touches it) lists this one in its `archiveAfter` and carries this wording.
   the fixture's `au revoir` shows the repair in 44's diff (D8).
 - [Two adjacent pieces of one class read as one highlight] → Each is clickable apart (D7); a
   visual separation is a dogfood question for change 52.
-- [A double-click on `l’homme` opens `le`] → Left to change 51 with the card (open question 2);
+- [A double-click on `l’homme`, or a drag over `homme` that the word snap widens to `l’homme`,
+  opens `le`] → Handed to change 51 with the card (D7, open question 2), pinned by a test here;
   no French reaches the extension before 52.
 - [`Au` → `À` slices a two-byte letter] → French uppercases the read word's own first letter (D4);
   a test holds `Au`, `AU`, `AUX`.
@@ -410,10 +435,11 @@ For the owner, none blocking:
    closed classes, the moods merged on « parle » in change 51 with the card. Either can be pulled
    forward, at the cost of a partial table or a card rule written before its readings exist.
 2. **A one-word selection over several pieces** (D7): a double-click on « l’homme » selects the
-   whole word, and the card opens on its first piece, `le`. Recommended for change 51: such a
-   selection opens the whole-selection card, whose rows list the pieces — with change 41's closed
-   classes left out, « l’homme » shows `homme` and « dit-il » shows `dit`. The other choice, a
-   word card on the first piece that is neither elided nor a pronoun, needs the pieces' kinds in
-   the extension.
+   whole word, a drag over « homme » is widened to it, and the card opens on its first piece, `le`.
+   Handed to change 51, which opens the piece selected when the selection lies inside one.
+   Recommended for change 51, for a selection covering several pieces: it opens the whole-selection
+   card, whose rows list the pieces — with change 41's closed classes left out, « l’homme » shows
+   `homme` and « dit-il » shows `dit`. The other choice, a word card on the first piece that is
+   neither elided nor a pronoun, needs the pieces' kinds in the extension.
 3. **U+202F in English and Spanish text** (D2): the same glue happens there; fixing it would bump
    their analyser versions and re-bless their goldens, in a change of its own if wanted.
