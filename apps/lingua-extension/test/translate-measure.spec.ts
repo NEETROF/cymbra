@@ -23,12 +23,15 @@ const tables = join(root, "../../scripts/lingua-data/tables");
 describe("the native language is the one the pair's route translates into (D1)", () => {
   const committed = JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8"));
 
-  it("is the route's last model's `to`, the pair's native language: fr for es-fr through the pivot, en for es-en, es for en-es", () => {
+  it("is the route's last model's `to`, the pair's native language: fr for es-fr through the pivot, en for es-en and fr-en, es for en-es and fr-es through the pivot", () => {
     expect(nativeOfRoute(committed, "es-fr")).toBe("fr");
     expect(committed.routes["es-fr"]).toHaveLength(2); // the pivot: es-en then en-fr
     expect(nativeOfRoute(committed, "es-en")).toBe("en");
     expect(nativeOfRoute(committed, "en-es")).toBe("es");
     expect(nativeOfRoute(committed, "en-fr")).toBe("fr");
+    expect(nativeOfRoute(committed, "fr-en")).toBe("en");
+    expect(nativeOfRoute(committed, "fr-es")).toBe("es");
+    expect(committed.routes["fr-es"]).toHaveLength(2); // the pivot: fr-en then en-es (add-lingua-french-translation D2)
     for (const pair of Object.keys(committed.routes)) expect(nativeOfRoute(committed, pair), pair).toBe(nativeOf(pair));
   });
 
@@ -38,7 +41,7 @@ describe("the native language is the one the pair's route translates into (D1)",
       /model-manifest\.json routes es-fr into "en", not the pair's native language "fr"/,
     );
     expect(() => nativeOfRoute(into("en-fr", ["en-fr/base-memory/9.9"]), "en-fr")).toThrow(/a model it does not hold/);
-    expect(() => nativeOfRoute(committed, "fr-en")).toThrow(/does not route fr-en/);
+    expect(() => nativeOfRoute(committed, "de-fr")).toThrow(/does not route de-fr/);
     expect(() => nativeOfRoute(into("en-fr", []), "en-fr")).toThrow(/does not route en-fr/);
   });
 });

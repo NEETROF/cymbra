@@ -115,12 +115,52 @@
           }
         }
       }
+    },
+    "fr-en/base-memory/2.0": {
+      "from": "fr",
+      "to": "en",
+      "licence": "MPL-2.0",
+      "mirror": "https://github.com/NEETROF/cymbra/releases/download/lingua-model-fr-en-base-memory-2.0/",
+      "files": {
+        "model": {
+          "path": "fr-en/base-memory/2.0/15f997bc0d13808b0b0fbd0786e684a3c8a52adcd8071844b76123fdacbf2b90/model.bin.gz",
+          "size": 23175075,
+          "unpacked": 31561787,
+          "sha256": "15f997bc0d13808b0b0fbd0786e684a3c8a52adcd8071844b76123fdacbf2b90",
+          "source": {
+            "path": "models/fr-en/retrain_hr_EFgIftH_RrCyzl5gjemVNg/exported/model.fren.intgemm.alphas.bin.gz",
+            "sha256": "06b1eeedd3944260d00a393d12ec7192490c5b7c930b97212faf4d5f5c90a2ee"
+          }
+        },
+        "lex": {
+          "path": "fr-en/base-memory/2.0/87c6752ea908f5f0347c10ac0cf7d80d9c2f4f20c81c90168f3e8230b56d4440/lex.bin.gz",
+          "size": 2649934,
+          "unpacked": 4824120,
+          "sha256": "87c6752ea908f5f0347c10ac0cf7d80d9c2f4f20c81c90168f3e8230b56d4440",
+          "source": {
+            "path": "models/fr-en/retrain_hr_EFgIftH_RrCyzl5gjemVNg/exported/lex.50.50.fren.s2t.bin.gz",
+            "sha256": "395aa7767220e1bcfc085f2b2787ff98005d0075e55451f1e0832885e3d9642a"
+          }
+        },
+        "vocab": {
+          "path": "fr-en/base-memory/2.0/783abf3abe075afdf8d85d233994bef2c3a064e935ab1bed946820aff6ac002a/vocab.spm.gz",
+          "size": 409706,
+          "unpacked": 814404,
+          "sha256": "783abf3abe075afdf8d85d233994bef2c3a064e935ab1bed946820aff6ac002a",
+          "source": {
+            "path": "models/fr-en/retrain_hr_EFgIftH_RrCyzl5gjemVNg/exported/vocab.fren.spm.gz",
+            "sha256": "8d15b219ffd32327b4cabf0d94a05a4fecb8923a4f386badbcbe5e86ede453a7"
+          }
+        }
+      }
     }
   },
   "routes": {
     "en-fr": ["en-fr/base-memory/2.0"],
     "es-fr": ["es-en/base-memory/2.0", "en-fr/base-memory/2.0"],
     "es-en": ["es-en/base-memory/2.0"],
-    "en-es": ["en-es/base-memory/2.1"]
+    "en-es": ["en-es/base-memory/2.1"],
+    "fr-en": ["fr-en/base-memory/2.0"],
+    "fr-es": ["fr-en/base-memory/2.0", "en-es/base-memory/2.1"]
   }
 }

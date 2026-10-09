@@ -1,4 +1,8 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { parseCatalogue, routeOf } from "@/translate/host/model-manifest.ts";
 import {
   heldModels,
   loaded,
@@ -282,5 +286,76 @@ describe("The worker's bookkeeping follows the decision: what it holds is the un
     expect(w.residency()).toEqual([]);
     expect([...w.models]).toEqual([]);
     w.invariant();
+  });
+});
+
+describe("The committed catalogue's routes: a reader who keeps their native language never evicts (add-lingua-french-translation D3)", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const catalogue = parseCatalogue(JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8")));
+  /** `pair`'s route as the worker loads it: the committed catalogue's models, in order. */
+  const committed = (pair: string): LoadedRoute => ({ pair, models: routeOf(catalogue, pair).map((m) => m.version) });
+
+  /** Load `pairs` in turn as the worker does, a route already loaded being a use; every decision, and two models at most after each. */
+  function walk(pairs: string[], from: Residency = NONE) {
+    let residency = from;
+    const steps: { pair: string; evict: string[]; drop: string[]; held: string[] }[] = [];
+    for (const pair of pairs) {
+      const route = committed(pair);
+      expect(route.models.length, pair).toBeGreaterThan(0);
+      if (modelsOf(residency, pair).length > 0) {
+        residency = used(residency, pair);
+        steps.push({ pair, evict: [], drop: [], held: heldModels(residency) });
+      } else {
+        const decision = load(residency, route);
+        residency = decision.residency;
+        steps.push({ pair, evict: decision.evict, drop: decision.drop, held: heldModels(residency) });
+      }
+      expect(heldModels(residency).length, pair).toBeLessThanOrEqual(MODEL_BOUND);
+    }
+    return { steps, residency };
+  }
+
+  it("the routes are the catalogue's: fr-en's model alone, fr-es's fr-en then en-es — the ids the placeholders above use", () => {
+    expect(committed("fr-en")).toEqual(ROUTE["fr-en"]);
+    expect(committed("fr-es")).toEqual(ROUTE["fr-es"]);
+    for (const pair of ["en-fr", "es-fr", "es-en", "en-es"]) expect(committed(pair), pair).toEqual(ROUTE[pair]);
+  });
+
+  it("A Spanish-native reader of English and French: en-es, then fr-es, then en-es again — en-es serves both routes, en-es and fr-en held, nothing deleted", () => {
+    const { steps, residency } = walk(["en-es", "fr-es", "en-es", "fr-es", "en-es"]);
+    for (const step of steps) expect(step, step.pair).toMatchObject({ evict: [], drop: [] });
+    expect(steps[1]!.held).toEqual([FR_EN, EN_ES]); // fr-es's two, en-es once
+    expect([...heldModels(residency)].sort()).toEqual([EN_ES, FR_EN]);
+    expect(pairs(residency).sort()).toEqual(["en-es", "fr-es"]);
+  });
+
+  it("An English-native reader of Spanish and French: es-en and fr-en in turn, two one-model routes held side by side, nothing deleted", () => {
+    const { steps, residency } = walk(["es-en", "fr-en", "es-en", "fr-en"]);
+    for (const step of steps) expect(step, step.pair).toMatchObject({ evict: [], drop: [] });
+    expect([...heldModels(residency)].sort()).toEqual([ES_EN, FR_EN]);
+    expect(pairs(residency).sort()).toEqual(["es-en", "fr-en"]);
+  });
+
+  it("A French-native reader of English and Spanish, as before: en-fr and es-fr, nothing deleted", () => {
+    const { steps } = walk(["en-fr", "es-fr", "en-fr", "es-fr"]);
+    for (const step of steps) expect(step, step.pair).toMatchObject({ evict: [], drop: [] });
+    expect(steps.at(-1)!.held).toEqual([ES_EN, EN_FR]);
+  });
+
+  it("The native language changed from French to Spanish while the worker lives: fr-es deletes en-fr and es-en for its two models, then en-es costs nothing", () => {
+    const french = walk(["en-fr", "es-fr"]).residency;
+    const { steps } = walk(["fr-es", "en-es"], french);
+    expect(steps[0]).toEqual({ pair: "fr-es", evict: [ES_EN, EN_FR], drop: ["en-fr", "es-fr"], held: [FR_EN, EN_ES] });
+    expect(steps[1]).toMatchObject({ pair: "en-es", evict: [], drop: [] });
+    expect(steps[1]!.held).toHaveLength(MODEL_BOUND);
+  });
+
+  it("The native language changed from French to English while the worker lives: fr-en deletes es-en, then es-en deletes en-fr — two models held after every load", () => {
+    const french = walk(["en-fr", "es-fr"]).residency;
+    const { steps } = walk(["fr-en", "es-en", "fr-en"], french);
+    expect(steps[0]).toEqual({ pair: "fr-en", evict: [ES_EN], drop: ["es-fr"], held: [EN_FR, FR_EN] });
+    expect(steps[1]).toEqual({ pair: "es-en", evict: [EN_FR], drop: ["en-fr"], held: [FR_EN, ES_EN] });
+    expect(steps[2]).toMatchObject({ pair: "fr-en", evict: [], drop: [] });
+    for (const step of steps) expect(step.held, step.pair).toHaveLength(MODEL_BOUND);
   });
 });

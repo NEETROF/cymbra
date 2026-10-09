@@ -669,4 +669,21 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
       expect(host.startDownload).not.toHaveBeenCalled();
     }
   });
+
+  it("A route of a pair studying French: fr-en and fr-es are routed, no reader's pairs need them — nothing of fr-en is downloaded (add-lingua-french-translation D2)", async () => {
+    expect(Object.keys(committed.routes)).toEqual(expect.arrayContaining(["fr-en", "fr-es"]));
+    // A reader of French whose native language is English or Spanish has no shipped pair until change 52.
+    for (const pairs of [of(["fr"], "en"), of(["fr"], "es"), of(["es", "fr"], "en"), of(["en", "fr"], "es")]) {
+      expect(pairs).toEqual([]);
+      const { controller, host } = setup({ pairs, catalogue: async () => committed });
+      expect(await controller.status()).toEqual({ offered: false, host: "none", state: { phase: "absent" } });
+      expect(host.startDownload).not.toHaveBeenCalled();
+    }
+    // A reader of French who also reads French pages downloads en-fr and es-en, as before.
+    const { controller, host } = setup({ pairs: of(["en", "es", "fr"], "fr"), catalogue: async () => committed });
+    expect((await controller.enable()).cost).toEqual({ download: 51_993_524, stored: 73_763_216, pivot: true });
+    expect(host.startDownload).toHaveBeenCalledWith([EN_FR, ES_EN]);
+    expect(await controller.ready("fr-en")).toBe(false);
+    expect(await controller.ready("fr-es")).toBe(false);
+  });
 });
