@@ -17,7 +17,7 @@
 
 - [x] 2.1 `scripts/lingua-data/testdata/fr-en/manifest.json`: `analyzer_version` re-stamped to 1.3's number.
 - [x] 2.2 `tests/french_baseline.rs`: one assertion beside the others — the `mixte` page's analysis holds tokens of blocks 0 and 6 only (its English, Spanish, Catalan, Occitan and Italian blocks excluded). The corpus (`pages-fr.txt`) is not touched (D7).
-- [ ] 2.3 `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline`, once, on top of changes 40 and 41; check the diff is D7's — the pack line's and every `analyse` line's `analyzer_version`, and the `mixte` page's Occitan block leaving `analyse new-reader mixte` and `analyse reader mixte` (on `main`: 46 → 29 counted, the reader's known 17 → 12, 37 → 41 %), nothing else — and say so in the pull request, with the figures as measured on that base.
+- [x] 2.3 `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline`, once, on top of changes 40 and 41; check the diff is D7's — the pack line's and every `analyse` line's `analyzer_version`, and the `mixte` page's Occitan block leaving `analyse new-reader mixte` and `analyse reader mixte` (on `main`: 46 → 29 counted, the reader's known 17 → 12, 37 → 41 %), nothing else — and say so in the pull request, with the figures as measured on that base.
 
 ## 3. The extension
 
