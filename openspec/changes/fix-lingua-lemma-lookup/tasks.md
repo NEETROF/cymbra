@@ -21,7 +21,7 @@
 
 ## 4. Owner
 
-- [ ] 4.1 [manual] The owner approves the re-bless: en-fr's 10 and es-fr's 3 lines (the programme's rule « en-fr and es-fr output does not move »), es-en's 3, en-es's 10, fr-en's 5 and the Spanish card's four probes (M9).
+- [x] 4.1 [manual] Approved by the owner on 2026-10-10 (in session), before the implementation. The owner approves the re-bless: en-fr's 10 and es-fr's 3 lines (the programme's rule « en-fr and es-fr output does not move »), es-en's 3, en-es's 10, fr-en's 5 and the Spanish card's four probes (M9).
 - [ ] 4.2 [manual] The owner answers open questions 1 and 2 (design): an answer that changes this change's gloss rule joins it before it merges, its goldens re-blessed again; a cascade change is named as a follow-up per language.
 - [ ] 4.3 [manual] The owner releases the extension (Chrome Web Store, addons.mozilla.org, the Safari host app) and the agent plugin with the fix, before change 52 ships French.
 

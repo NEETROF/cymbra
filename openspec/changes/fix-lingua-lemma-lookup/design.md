@@ -255,7 +255,7 @@ owner's. Rollback is a revert, the goldens and the snapshot reverting with it.
 ## Open Questions
 
 For the owner:
-1. **The gloss of a word the pack holds only as a form** (D2). None, as proposed — or the gloss of
+1. **The gloss of a word the pack holds only as a form** (D2). **Settled by the owner on 2026-10-10: none, as proposed** (the card offers the sentence's translation). The alternative was or the gloss of
    the word its spelling reads as, for Spanish alone (diminutives and variants right, verbs' nouns
    wrong), shown as that word's? A card naming the other word would be change 51's.
 2. **The English and Spanish plural fallbacks** return a singular the pack holds only as a form
