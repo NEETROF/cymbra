@@ -97,7 +97,7 @@ None.
   above are measured on `main` (`0.1.0`) and are re-measured on top of whichever of 40 and 41 has
   merged (D7).
 - **Not here.** A guard for Franco-Provençal, Picard or Walloon (D2: they share French's function
-  words); Spanish's own leak on Occitan (19.2 % of Occitan text read as Spanish, open question 2);
+  words; open question 3 offers eight Arpitan words); Spanish's own leak on Occitan (19.2 % of Occitan text read as Spanish, open question 2);
   recognising any of these languages as languages of their own.
 - **Effort, against 2–4 ideal days.** The detection function and French's guard with its tables:
   0.75–1.25. Unit tests: 0.5–1. The version bump, its literals, the fixture, the re-bless and the
