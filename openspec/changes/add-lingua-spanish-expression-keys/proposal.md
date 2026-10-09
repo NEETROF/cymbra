@@ -5,7 +5,7 @@
 Row 44b of the [language matrix programme](../../../docs/lingua/language-matrix-programme.md),
 outside its 57 changes. Change 44 (`add-lingua-french-expression-keys`, merged as #835) keys a French
 pack's expressions through the core's own French reading and names each by its headword; its open
-question 4 asked whether Spanish gets the same rules. The owner answered on 2026-10-10: yes, in a
+question 4 asked whether Spanish gets the same rules. The owner answered on 2026-10-09: yes, in a
 change of its own. This is that change. It moves es-fr's output, which readers have, and es-en's.
 
 Spanish keys are still built the way change 44 replaced for French: the headword split at its

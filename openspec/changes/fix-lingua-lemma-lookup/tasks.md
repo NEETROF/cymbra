@@ -21,8 +21,8 @@
 
 ## 4. Owner
 
-- [x] 4.1 [manual] Approved by the owner on 2026-10-10 (in session), before the implementation. The owner approves the re-bless: en-fr's 10 and es-fr's 3 lines (the programme's rule « en-fr and es-fr output does not move »), es-en's 3, en-es's 10, fr-en's 5 and the Spanish card's four probes (M9).
-- [x] 4.2 [manual] Settled by the owner on 2026-10-10 (in session): open question 1 — no gloss for a word the pack holds only as a form, as proposed (the card offers the sentence's translation); open question 2 (the English and Spanish plural fallbacks) left open, a change of its own per language, outside this one.
+- [x] 4.1 [manual] Approved by the owner on 2026-10-09 (in session), before the implementation. The owner approves the re-bless: en-fr's 10 and es-fr's 3 lines (the programme's rule « en-fr and es-fr output does not move »), es-en's 3, en-es's 10, fr-en's 5 and the Spanish card's four probes (M9).
+- [x] 4.2 [manual] Settled by the owner on 2026-10-09 (in session): open question 1 — no gloss for a word the pack holds only as a form, as proposed (the card offers the sentence's translation); open question 2 (the English and Spanish plural fallbacks) left open, a change of its own per language, outside this one.
 - [ ] 4.3 [manual] The owner releases the extension (Chrome Web Store, addons.mozilla.org, the Safari host app) with the fix, before change 52 ships French; the agent plugin, outside the programme (M17), takes it with its next release.
 
 ## 5. Gates and docs

@@ -11,7 +11,7 @@ See proposal.md (Why). What exists:
 | `src/reading/wordpopup.ts` | the only caller of `grammarLines`: the word card, on pages and in the book reader |
 | The engine | `lingua-core` `engine::word_grammar` answers a form's readings as the card's dictionary form, unmerged and unfiltered; `crates/lingua-wasm/tests/baseline/*.golden` record that answer as JSON — readings, never lines |
 | Snapshots | `test/baseline/word-card-es-en.txt` (change 23) and `word-card-en-es.txt` (change 24) render the goldens' grammar probes into lines; `selection-rows-fr.txt` pins rows, which read glosses only |
-| Change 51 (`add-lingua-french-word-card`, proposal merged as #838, implementation not started) | its D5 leaves every plural spelled like the dictionary form off a French card (1,072 forms), keyed by studied language in a `CARD_NAMES[studied]` table and applied in `composeLines` (its task 1.1), English and Spanish keeping theirs; its open question 3, settled by the owner on 2026-10-10: « aligned in a change of its own, proposed separately »; its D11 had handed « an invariable plural on Spanish and English cards » to change 56 |
+| Change 51 (`add-lingua-french-word-card`, proposal merged as #838, implementation not started) | its D5 leaves every plural spelled like the dictionary form off a French card (1,072 forms), keyed by studied language in a `CARD_NAMES[studied]` table and applied in `composeLines` (its task 1.1), English and Spanish keeping theirs; its open question 3, settled by the owner on 2026-10-09: « aligned in a change of its own, proposed separately »; its D11 had handed « an invariable plural on Spanish and English cards » to change 56 |
 
 A form spelled like its dictionary form gets a plural reading when the dictionary records the same
 spelling in the plural: a true invariable (`crisis`, `lunes`, French `temps`), a homograph's plural
@@ -22,8 +22,8 @@ last: no singular of its part of speech. English's table writes no noun's singul
 English plural spelled like its lemma reads as the last kind, `police`, `headquarters` and `fish`
 alike.
 
-The owner's decisions: 2026-10-10, English and Spanish cards aligned with French's, in a change of
-its own (change 51's open question 3); 2026-10-11, the boundary: the line goes only where the card
+The owner's decisions: 2026-10-09, English and Spanish cards aligned with French's, in a change of
+its own (change 51's open question 3); 2026-10-09, the boundary: the line goes only where the card
 also reads the form as a singular of that part of speech, a noun used only in the plural keeping it,
 and English, whose table writes no singular, changing nothing.
 
@@ -127,7 +127,7 @@ what the French one leaves unnamed.
 proposal's first draft): it also took the line from nouns used only in the plural — 91 Spanish, 65
 French and all 194 English — where it is the card's one sign of the noun's number (`gafas`, `gens`,
 and `police`, which English agrees in the plural where French says « la police est »); the owner kept
-it there on 2026-10-11. *Rejected — a singular of the same gender too*: it would keep `paso`'s
+it there on 2026-10-09. *Rejected — a singular of the same gender too*: it would keep `paso`'s
 feminine plural alone; the owner named the part of speech. *Rejected — a key per studied language*
 (change 51's `CARD_NAMES[studied]` entry): a value every studied language shares is not keyed; a key
 would invite a fourth language to differ silently. *Rejected — in `composeLines`, dropping the line*:
@@ -140,7 +140,7 @@ the form in both numbers.
 
 ### D3 — The order with change 51
 
-The owner's boundary of 2026-10-11 is French's too: change 51's D5, merged before it, leaves out
+The owner's boundary of 2026-10-09 is French's too: change 51's D5, merged before it, leaves out
 every plural spelled like the dictionary form (1,072 French forms); with this boundary it leaves out
 1,007, and `gens`, `environs`, `plusieurs`, `frais` and 61 more keep their line. Either order then
 ends with the same code and lines; **this change first is recommended**: it waits on nothing, where
@@ -221,12 +221,12 @@ the three interface languages:
 ### D5 — es-fr moves, approved by the owner
 
 The programme's first rule is « en-fr and es-fr output does not move, nor the French interface ».
-This change departs from it for es-fr, by the owner's decisions of 2026-10-10 and 2026-10-11: a
+This change departs from it for es-fr, by the owner's decisions of 2026-10-09: a
 French-speaking reader of Spanish loses the line on 576 cards; en-fr does not move (0 cards). No
 committed artefact pins those French lines — the es-fr golden records readings, and the only
 French-interface card tests are hand-written — so they are measured instead: the pull request lists
 every one of the 576 cards with its line before and after, in French, ordered by rank, beside the
-es-en snapshot's line. The owner approved that re-bless under this boundary on 2026-10-11 (task 4.1),
+es-en snapshot's line. The owner approved that re-bless under this boundary on 2026-10-09 (task 4.1),
 as for change 41b's; the extension's release is the owner's (task 4.2).
 
 ### D6 — The specification, and wording held elsewhere
@@ -328,7 +328,7 @@ For the owner, none blocking:
    SHALL name its gender and number », and change 51's « a plural spelled like that form » and « as
    before », are read as written; best reworded by the change that touches each requirement next,
    once 18 and 51 archive.
-3. **A noun used only in the plural** (D1, D2) — **settled by the owner on 2026-10-11: it keeps its
+3. **A noun used only in the plural** (D1, D2) — **settled by the owner on 2026-10-09: it keeps its
    line.** The line goes only where the card also reads the form as a singular of that part of speech
    (`crisis`, `lunes`, `temps`); `gafas`, `gens` and every English plural (`police`, `headquarters`,
    `percent`) keep it: 576 Spanish cards move, 1,007 French ones for change 51, no English one.

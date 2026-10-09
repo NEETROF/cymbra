@@ -21,5 +21,5 @@ Implemented on `main` as it stands, before change 51's implementation (recommend
 
 ## 4. Owner
 
-- [x] 4.1 [manual] Approved by the owner on 2026-10-11 (in session), before the implementation. The owner approves the re-bless under D1's boundary: es-fr's 576 cards in French — the programme's rule « en-fr and es-fr output does not move, nor the French interface »; en-fr moves none — and the es-en snapshot's line (M9) (D5); the pull request lists the lines (task 2.2).
+- [x] 4.1 [manual] Approved by the owner on 2026-10-09 (in session), before the implementation. The owner approves the re-bless under D1's boundary: es-fr's 576 cards in French — the programme's rule « en-fr and es-fr output does not move, nor the French interface »; en-fr moves none — and the es-en snapshot's line (M9) (D5); the pull request lists the lines (task 2.2).
 - [ ] 4.2 [manual] The owner releases the extension (Chrome Web Store, addons.mozilla.org, the Safari host app) with the change.

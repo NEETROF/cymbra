@@ -108,7 +108,7 @@ None.
   52; in either order with 42 and 44 (measured on their branches: the same 31 lines, theirs
   elsewhere in `fr-en.golden`, design D7); independent of 47, 49 and 50. Row 41b, outside the 57,
   like rows 23b and 24b.
-- **Owner.** Approved on 2026-10-10: the re-bless of en-fr's and es-fr's lines (the programme's rule
+- **Owner.** Approved on 2026-10-09: the re-bless of en-fr's and es-fr's lines (the programme's rule
   « en-fr and es-fr output does not move »), and of es-en's, en-es's, fr-en's and the Spanish card's;
   Q1 settled the same day (no gloss), Q2 left open as a change of its own. Remains: the extension's
   release; the agent plugin, outside the programme (M17), takes the fix with its next release.
