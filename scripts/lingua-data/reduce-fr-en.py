@@ -96,7 +96,7 @@ ELISIONS = {
     "n'": ("ne", "the negation"),
     "c'": ("ce", "the pronoun"),
     "ç'": ("ça", "the pronoun"),
-    "qu'": ("que", "the conjunction and the relative pronoun; qui never elides in writing"),
+    "qu'": ("que", "the conjunction and the pronoun; the dictionary's reading as qui is Louisiana French's"),
     "jusqu'": ("jusque", "the preposition"),
     "lorsqu'": ("lorsque", "the conjunction"),
     "puisqu'": ("puisque", "the conjunction"),
@@ -449,9 +449,13 @@ def reduce_forms(lexicon, counts, compounds_zipf, frequency, top_n, max_lemmas, 
     """The forms table and the ranks: `form → lemma` over the kept lemmas, and `lemma → rank`.
 
     A first choice among every candidate says which forms are only inflected: they are never
-    ranked. The ranks follow; a ranked word no form reaches once the forms of forms are followed —
-    every form of the noun *tenue*, `tenue` and `tenues`, reads as *tenir* — gives its rank to the
-    next, until every ranked lemma is some form's lemma (D6).
+    ranked. The ranks follow; a ranked word whose own form reads as another word once the forms of
+    forms are followed gives its rank to the next, until every ranked lemma's own form reads as
+    itself (D6). A pack finds a lemma by its own form — the builder keys its rank, and later its
+    gloss and level, by looking the lemma up as a form — so a lemma whose form reads elsewhere
+    would lend its rank to that word. Every form of the noun *tenue*, `tenue` and `tenues`, reads as
+    *tenir*; `donnée` reads as *donner*, and the noun *donnée*, which `données` alone still
+    reaches, leaves the pack with it, as M8's nouns do (D5).
     """
     first = {
         form: choose_lemma(form, opts, counts, lexicon.lemmas, frequency, overrides)
@@ -462,7 +466,7 @@ def reduce_forms(lexicon, counts, compounds_zipf, frequency, top_n, max_lemmas, 
     while True:
         ranks = ranks_for(inflected | unreached, max_lemmas, lexicon.lemmas, lexicon.poses, compounds_zipf, frequency, top_n)
         forms = forms_for(lexicon, first, ranks, counts, frequency, overrides)
-        lost = set(ranks) - set(forms.values())
+        lost = {lemma for lemma in ranks if forms.get(lemma) != lemma}
         if not lost:
             return forms, ranks
         unreached |= lost
