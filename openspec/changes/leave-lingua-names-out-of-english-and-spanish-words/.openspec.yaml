@@ -1,0 +1,12 @@
+schema: spec-driven
+created: 2026-10-10
+archiveAfter:
+  - refine-lingua-fr-en-glosses
+  - add-lingua-french-analysis
+  - ignore-lingua-soft-hyphens
+  - add-lingua-pack-es-en
+  - add-lingua-pack-en-es
+  - add-lingua-english-card-wording
+  - add-lingua-spanish-card-wording
+  - refine-lingua-es-en-glosses
+  - refine-lingua-en-es-glosses
