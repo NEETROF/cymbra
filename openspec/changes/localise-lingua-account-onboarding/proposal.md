@@ -1,4 +1,4 @@
-# localise-lingua-account-onboarding — the account and the onboarding read their copy from the catalogue, and the account's e-mails follow the interface language
+# localise-lingua-account-onboarding — the account and the onboarding read their copy from the catalogue, and the account's e-mails follow the interface language once chosen
 
 ## Why
 
@@ -13,11 +13,13 @@ the errors in plain words, the connected accounts, « Lié le ${date} » — and
 The account page also tells the server which language to write to the reader in: today
 `navigator.language`, the browser's whole tag (`en-GB`, `fr-FR`), on four requests — sign-up,
 resend the code, request a password reset, set a password — and it chooses the deletion page by
-it. M12 settles it: the account's e-mails and the
-deletion link follow the interface language for `fr`, `en` and `es`; another language Cymbra
-speaks — Italian, which Music speaks and the extension does not — keeps the browser's, so a
-reader with an Italian browser is not moved from Italian e-mails to English ones. The shared
-account locale Music adopts does move for others: see Impact.
+it. M12 settles it: the account's e-mails and the deletion link follow the interface language for
+`fr`, `en` and `es`; another language Cymbra speaks — Italian, which Music speaks and the extension
+does not — keeps the browser's, so a reader with an Italian browser is not moved from Italian
+e-mails to English ones. The owner settled when (2026-10-10, in session): once the reader has
+chosen their language on the device (change 20), and not before — and, minding several devices, a
+device where the reader has not chosen never writes over the account's language, which every
+device and Cymbra Music share.
 
 ## What Changes
 
@@ -29,11 +31,17 @@ account locale Music adopts does move for others: see Impact.
   slot messages `linkedOn`, `handleEmpty`/`handleInvalid` and `codeSentTo`, with the locale's date
   in English and Spanish; `errorCopy` takes the language as an optional last parameter (the
   private `linkCopy` likewise), so its spec passes unchanged.
-- **The locale sent to the server** on the four requests that carry one: the interface language
+- **The locale sent to the server** on the four requests that carry one, **once the reader has
+  chosen their language on this device** (both of change 20's records): the interface language
   when it is `fr`, `en` or `es`; the browser's language instead when the browser is in a language
-  Cymbra speaks and the extension does not (`it` today), so that Music's Italian stays Italian.
-  The account's e-mails therefore come in the interface language. **The deletion link** follows
-  the interface language alone — it is a page the reader reads, not an e-mail (`lingua-privacy`).
+  Cymbra speaks and the extension does not (`it` today), so that Music's Italian stays Italian. The
+  account's e-mails therefore come in the language chosen. **The deletion link** then follows the
+  interface language alone — it is a page the reader reads, not an e-mail (`lingua-privacy`).
+- **Until they have chosen**, nothing that was sent moves, and nothing is written over: the
+  browser's whole tag at sign-up (a new account) and when setting a password (which records
+  nothing), as before; **no locale** on resending the code and requesting a reset, which would write
+  it over the account's — so Cymbra ID keeps the language the account has, chosen on another device
+  or given by Music, and writes the e-mail in it; the deletion link by the browser's tag, as before.
 - **The account's errors are a catalogue module of their own**, `account-errors`, which the
   reading surfaces' account setting reads without carrying the account page's whole copy into the
   content script, the popup, the side panel and the reader.
@@ -58,14 +66,17 @@ None.
 - `lingua-account` (held by `add-lingua-account-parity`, 28/29, awaiting archive — this change
   archives after it): MODIFIED *Account creation by email from the extension*, *Email verification
   by code* and *Password reset by code*, whose text sends "the browser's UI language" / "the
-  browser locale": they now send the account locale of M12; every scenario kept, the one that
-  names the locale reworded.
+  browser locale": they now send the account locale of M12 once the reader has chosen their
+  language, and before that the browser's language at sign-up and no locale on a resend or a reset
+  request (D2); every scenario kept, the one that names the locale reworded.
 
 - `lingua-privacy`: MODIFIED *Cymbra account deletion is reachable from Lingua* — the link is in
-  the reader's interface language, no longer the browser's (French for French, English otherwise
-  until the site has a Spanish page); its three scenarios kept, the first two reworded to the
-  interface language. `add-site-spanish-locale` (change 29) modifies the same requirement again to
-  add the Spanish page, and archives after this change.
+  the reader's interface language once they have chosen it, and in the browser's until then, as
+  before (French for French, English otherwise until the site has a Spanish page); its three
+  scenarios kept, the first two reworded to both states. `add-site-spanish-locale` (change 29)
+  modifies the same requirement, and *The account's e-mails follow the interface language*, again
+  to add the Spanish page, and archives after this change: its deltas are to start from these
+  texts.
 
 The other `lingua-account` requirements (held there and by `add-lingua-connected-accounts`,
 16/16) quote French copy read under the umbrella rule, and *Auth errors shown in plain words* is
@@ -74,32 +85,29 @@ met in every language.
 ## Impact
 
 - **Products.** Cymbra Lingua: `apps/lingua-extension` (the files above, the catalogue modules,
-  the baseline). Cymbra ID is consumed, not changed: the account's `locale` field exists
-  (`user.proto` `locale = 7`), the sign-up and the deletion link already take a locale; the
-  server's e-mail templates speak `fr`, `en`, `es` and `it` already (Music's locales). Music, Live,
-  the back office and the site are untouched.
+  the baseline). Cymbra ID is consumed, not changed, and no `.proto` moves: the account's `locale`
+  field exists (`user.proto` `locale = 7`), the sign-up and the deletion link already take a
+  locale, an empty one already keeps the account's (`user-locale-preference`); the server's e-mail
+  templates speak `fr`, `en`, `es` and `it` already (Music's locales). Music, Live, the back office
+  and the site are untouched.
 - **No byte moves in the copy.** The spec files are the check.
-- **Not silent for every reader — the owner's acknowledgement.** Until change 20 ships the
-  choice, every reader's interface language is French. Three effects follow, each visible:
-  - **E-mails.** Cymbra ID stores the locale as sent and writes in `fr`, `en`, `es` or `it`. A
-    reader whose browser is not in French (and not in Italian), who gets English or Spanish
-    e-mails today, gets French ones from their next sign-up, resend, reset or set-password.
-    The templates read a locale by its primary subtag (`SupportedLocale::parse`), so for them a
-    French browser's `fr-FR` and the new `fr` are the same.
-  - **Cymbra Music's interface.** Music copies the account locale onto its own interface at each
-    sign-in and cold start, by exact match on the code (`app_locale.dart`,
-    `AppLanguage.fromCode`): a whole tag such as `en-GB`, `fr-FR` or `it-IT` — what Lingua sent
-    until now — matched nothing and was ignored, while a bare `fr` or `it` is applied. So a reader
-    whose Music is in English or Spanish gets Music switched to French on its next start after a
-    sign-up, resend, reset or set-password from Lingua; a reader with an Italian browser gets
-    Music in Italian.
-  - **The deletion link.** It follows the interface language, so every reader whose browser is
-    not in French — who gets the English page today — gets the French page.
-
-  This is what M12 asks for, and it is a visible change for those readers, not a silent one: the
-  owner acknowledges it before this change merges (task 3.3), or picks D2's second alternative —
-  send the interface language only once the reader has chosen it (change 20's marker), and the
-  browser's whole tag and today's deletion rule until then — which this change can carry instead.
+- **Silent for a reader who has not chosen — the owner's decision (2026-10-10, task 3.3).** M12
+  as first designed would have moved, while French is every reader's interface language, the
+  e-mails of every reader whose browser is not in French to French, their Cymbra Music to French
+  (Music applies a bare code by exact match, `AppLanguage.fromCode`, and ignored the whole tags
+  Lingua sent), and their deletion link to the French page. The owner chose D2's second way
+  instead, minding several devices:
+  - **Until the reader has chosen on this device** — every reader while one native language ships
+    — what a reader sees does not move on one device: the sign-up records the browser's tag as
+    before, the resend and the reset are written in it, Music ignores it as before, the deletion
+    page is the same. A resend or a reset no longer writes this browser's tag over a locale another
+    device or Music gave the account: its e-mails follow the account. An account with no recorded
+    locale at all (created with Google or Apple, its password set later, never opened in Music) gets
+    its reset e-mails in English where they came in the browser's language.
+  - **Once they have chosen** (change 34 ships the choice), the next sign-up, resend, reset or
+    set-password from that device records the interface language — or `it` — and Music adopts it.
+    The choice is the device's (change 20 never syncs it): another device where the reader has
+    not chosen writes over nothing.
 - **Order.** After change 13 and change 14 (`fillPage`); independent of 15, 16. Archived after
   `add-lingua-account-parity`, whose requirements it modifies.
 - **Not here.** The native language's question at onboarding (20); the languages' names (19);
