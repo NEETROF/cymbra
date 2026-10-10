@@ -569,8 +569,9 @@ fn expression_for_run(
 /// on what it reports (add-lingua-french-expression-keys D3,
 /// add-lingua-spanish-expression-keys D3).
 ///
-/// `shares_span[i]` says whether token `i` shares its predecessor's source span —
-/// the second half of a written word the pre-pass split. A Spanish or French match
+/// `joins.shares_span[i]` ([`PageJoins`]) says whether token `i` shares its
+/// predecessor's source span — the second half of a written word the pre-pass
+/// split. A Spanish or French match
 /// never ends inside a written word: one whose last token is followed by such a
 /// token, the article of « al » or « del », of « au » or « aux », covers it too, so
 /// « después del » and « jusqu'au » are answered whole
@@ -579,8 +580,8 @@ fn expression_for_run(
 /// settled under the run's lemma chain, and not under its name, keeps that chain
 /// ([`settled_chain`], D6).
 ///
-/// `elided[i]` says whether token `i` is an elided piece ([`is_elided`]). A French
-/// run that is a key is kept only where its pieces meet the words as the
+/// `joins.elided[i]` says whether token `i` is an elided piece ([`is_elided`]). A
+/// French run that is a key is kept only where its pieces meet the words as the
 /// expression's headword writes them ([`meets_as_written`],
 /// match-lingua-french-elided-pieces D1, match-lingua-french-contracted-pieces D1):
 /// a piece the headword writes elided meets only an elided token, a piece written
@@ -622,8 +623,8 @@ fn expression_for_run(
 /// headword: the shorter runs are tried, else the next token, where the scan finds
 /// the expression as it finds any — « Elles sont au nombre de sept » answers
 /// `au nombre de` and not `être à`, « Lo hizo de todos modos » `de todos modos`,
-/// « went over the top » `over the top`. `hyphened[i]` says whether token `i` is
-/// joined to token `i - 1` by a hyphen on the page ([`is_hyphen_join`]), read only
+/// « went over the top » `over the top`. `joins.hyphened[i]` says whether token `i`
+/// is joined to token `i - 1` by a hyphen on the page ([`is_hyphen_join`]), read only
 /// by the rule's French guard (G1).
 fn match_expressions(
     tokens: &[PhraseToken],
