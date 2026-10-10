@@ -68,8 +68,9 @@ a »: the snapshots are blessed after it (D9).
   (52).
 - The pairs' glosses (48, 49 and their refinements): what the snapshots show wrong in them is listed,
   not fixed.
-- Wording every pair shares (a bare plural beside gendered ones, an invariable plural on Spanish and
-  English cards): listed for change 56.
+- Wording every pair shares (a bare plural beside gendered ones): listed for change 56. An invariable
+  plural on Spanish and English cards, listed here at first, is settled by
+  `refine-lingua-card-invariable-plurals` (51b), on `main` before this change's implementation.
 - `Pack::readings` for a lemma that is another word's form (change 45's open question 4):
   `fix-lingua-lemma-lookup` (41b), implemented before 45, 46 and 48.
 - A conjugation table, choosing a reading from context.
@@ -99,6 +100,13 @@ named, whether the moods merge (D3), whether a plural spelled like the dictionar
 its own card (D5). English and Spanish keep today's values, so their cards cannot move by
 construction; the measurement says they do not (D10).
 
+*As implemented* (`refine-lingua-card-invariable-plurals` D3, on `main` first): `CARD_NAMES` holds
+the infinitive, the present participle, the gerund and the moods' merge — `{ infinitive,
+presentParticiple, gerund, moods }`, English `false, false, true, false`, Spanish `true, false,
+true, false`, French `true, true, false, true` — and no plural: 51b's `isInvariablePlural`, the
+description's for every studied language, leaves out a plural read beside its singular, so D5's first
+row is met with no key and no `composeLines` arm.
+
 ### D2 — French's tenses, and their order
 
 `finiteKey` keys French as Spanish: `Mood/Tense`, the conditional and the imperative with no tense,
@@ -108,22 +116,29 @@ English from its table:
 
 | Key | English | Spanish | French (M2's reserve) | Forms | Lemma in top 1,000 / 5,000 |
 |---|---|---|---|---|---|
-| `Ind/Pres` | present indicative | presente de indicativo | présent de l’indicatif | 4,114 | 269 / 1,472 |
-| `Ind\|Sub/Pres` (D3) | present indicative or subjunctive | presente de indicativo o de subjuntivo | présent de l’indicatif ou du subjonctif | 7,522 | 360 / 1,977 |
-| `Ind/Imp` | imperfect indicative | pretérito imperfecto de indicativo | imparfait de l’indicatif | 5,722 | 401 / 2,323 |
+| `Ind/Pres` | present indicative | presente de indicativo | présent de l’indicatif | 4,114 | 269 / 1,475 |
+| `Ind\|Sub/Pres` (D3) | present indicative or subjunctive | presente de indicativo o de subjuntivo | présent de l’indicatif ou du subjonctif | 7,520 | 358 / 1,982 |
+| `Ind/Imp` | imperfect indicative | pretérito imperfecto de indicativo | imparfait de l’indicatif | 5,722 | 401 / 2,327 |
 | `Ind\|Sub/Imp` (D3) | imperfect indicative or subjunctive | pretérito imperfecto de indicativo o de subjuntivo | imparfait de l’indicatif ou du subjonctif | 33 | 4 / 31 |
-| `Ind/Past` | past historic (passé simple) | pretérito perfecto simple de indicativo | passé simple | 3,855 | 290 / 1,466 |
-| `Ind/Fut` | simple future | futuro simple de indicativo | futur | 5,184 | 499 / 2,863 |
-| `Cnd/` | conditional | condicional simple | conditionnel | 2,663 | 369 / 1,678 |
+| `Ind/Past` | past historic (passé simple) | pretérito perfecto simple de indicativo | passé simple | 3,855 | 288 / 1,468 |
+| `Ind/Fut` | simple future | futuro simple de indicativo | futur | 5,184 | 499 / 2,865 |
+| `Cnd/` | conditional | condicional simple | conditionnel | 2,663 | 369 / 1,680 |
 | `Sub/Pres` | present subjunctive | presente de subjuntivo | présent du subjonctif | 1,325 | 247 / 946 |
 | `Sub/Imp` | imperfect subjunctive | pretérito imperfecto de subjuntivo | imparfait du subjonctif | 482 | 92 / 209 |
-| `Imp/` | imperative | imperativo | impératif | 6,486 | 348 / 1,992 |
+| `Imp/` | imperative | imperativo | impératif | 6,485 | 348 / 1,997 |
 
 « Forms » counts the French forms whose card names that tense on a line, its own or an « also » line,
 the persons merged; a form naming two tenses counts under both. The non-finite names: the past
-participle on 10,945 forms (347 / 2,268), the present participle on 2,836 (81 / 505, D4), the
+participle on 11,020 forms (339 / 2,297), the present participle on 2,836 (81 / 506, D4), the
 infinitive on 34 (1 / 11) — Spanish's choice, a French infinitive spelled otherwise than its
 dictionary form being mostly a 1990 spelling (`abimer`, `accroitre` → `abîmer`, `accroître`).
+Measured again on the implementation (task 4.5) over the committed tables — the 124,096 forms of
+`tables/fr/forms.tsv`, each opened on the dictionary form the page analysis gives it, through this
+change's description and renderers: the figures above; the prototype's, on change 43's branch
+(124,050 forms), were 4,114 (269 / 1,472), 7,522 (360 / 1,977), 5,722 (401 / 2,323), 33, 3,855
+(290 / 1,466), 5,184 (499 / 2,863), 2,663 (369 / 1,678), 1,325, 482, 6,486 (348 / 1,992), and
+10,945 (347 / 2,268) past participles — the participles mapped to their verb by the committed table
+(`abaissée` → *abaisser*) account for most of the moves.
 
 **English** follows the English Wiktionary's French form-of wording, as change 18's D4 asks: in the
 French section the prototype read, "past historic" (36,304 glosses), "imperfect indicative"
@@ -190,11 +205,22 @@ second persons singular (`parles`), 162 like `finissent`, 33 imperfects (`finiss
 (change 45's D7). No two readings of one tense and number share some persons but not all: the rule
 never has to choose.
 
+*Measured again on the implementation* (task 4.5, the committed tables): 6,145 forms name the merge
+on their own line, 157 / 1,297 of them forms of the 1,000 / 5,000 commonest lemmas, and 1,408 more
+on an « also » line only; of the 6,145, 2,141 are five-reading forms, 2,890 third persons plural
+(`parlent`, `finissent`), 1,080 second persons singular (`parles`), 33 imperfects (`finissions`: 20
+first, 13 second persons plural) and one first person plural of the present.
+
 **Wider than M21's words, stated.** M21 settles « moods merged on five-reading forms »; the rule merges
 them, and the same two moods on 4,005 more forms (`parlent`, `parles`, `finissions`). Change 45's D7
 leaves that to this change (« whether change 51 merges the moods on those 4,005 too is its call »);
 it is read as what M21 asks of a French card rather than a limit, and the owner confirms it (open
 question 1).
+
+*As implemented:* `mergeMoods` in `grammar-description.ts`, called by `nameReadings` once the persons
+are grouped, with `mergedMoodsKey` (`Ind/T` → `Ind|Sub/T`); a merged group takes the earlier of the
+two places, and the places are filled in the pack's order, so the order of tenses holds
+(`grammar-description.spec.ts`, *what a French card names*).
 
 *Rejected — merging the five-reading forms only.* « parle » would be said once and « parlent »
 twice, one phenomenon read two ways on one page; the rule reads the readings, never their count.
@@ -225,7 +251,7 @@ choice (open question 2).
 
 | What | French readings | What the card does | Why |
 |---|---|---|---|
-| A plural spelled like the card's own dictionary form (`temps`, `pays`, `heureux`, `plusieurs`) | 1,072 forms, 71 / 209 of the 1,000 / 5,000 commonest | no line on that form's own card; its other lines kept (`fils` still says the plural of `fil`) | the line only says the word looks the same in the plural, and on French's commonest words it is a homograph noun's (M8): `un` (rank 7) « may also be the masculine plural of un » through the number, `pas` the noun « step », `plus`, `si`, `nous`, `non`, `comment`, `mieux`, `vers` |
+| A plural spelled like the card's own dictionary form (`temps`, `pays`, `heureux`, `plusieurs`) | 1,072 forms, 71 / 209 of the 1,000 / 5,000 commonest — 1,008, 69 / 201, under 51b's boundary as implemented (below) | no line on that form's own card; its other lines kept (`fils` still says the plural of `fil`) | the line only says the word looks the same in the plural, and on French's commonest words it is a homograph noun's (M8): `un` (rank 7) « may also be the masculine plural of un » through the number, `pas` the noun « step », `plus`, `si`, `nous`, `non`, `comment`, `mieux`, `vers` |
 | A numeral's form (`millions`, `cents`, `trente-et-une`) | 14 readings, 14 forms | unnamed, as a Spanish card leaves Spanish's 19 | `cents` would read « masculine plural and plural of cent » beside its noun reading; `trente-et-une` « feminine singular of trente », a lemma change 43 gives it |
 | A determiner's or pronoun's plural without a gender (`les`, `ces`, `ses`, `nos`, `quelques`) | 15 readings | unnamed, as `formKind` leaves Spanish's (`sus`) | the same rule for every language; with change 41 most are function words, not painted |
 | A comparative or a superlative (`meilleures`, `moindre`, `pire`, `génialissime`) | 9 readings | named as such, its agreement unsaid | `meilleures`' own line already says « feminine plural of meilleur », and « may also be the comparative of bon » follows |
@@ -238,17 +264,31 @@ a change of its own if the owner wants it (open question 3). Measured, 1,007 of 
 then show no grammar line at all — the other 65 keep another word's line, `fils` the plural of `fil`,
 `bois` *boire*'s —, 65,883 forms showing one.
 
+*As implemented* (`refine-lingua-card-invariable-plurals`, 51b, on `main` first; its D3): the first
+row is 51b's rule, not keyed by studied language — a plural is left out where the card also reads the
+form as a singular of that part of speech, so `gens`, `environs`, `plusieurs` and `frais` keep their
+line. Measured on the implementation over the committed tables: 1,008 French cards lose the line, 69 /
+201 of the 1,000 / 5,000 commonest (`un`, `pas`, `plus`, `si`, `nous`, `non`, `temps`, `fois`); 964
+of them then show no grammar line, and 44 keep another line — another word's (`fils` → *fil*, `bois`
+→ *boire*, `plus` → *plaire*, `as` → *avoir*), or their own feminine singular (`pop`, `antipersonnel`)
+—, more than 51b's 28 because this change names French's finite forms, which 51b's measurement left
+unnamed. 66,002 French forms show a grammar line in English. Numerals: 14 readings of 14 forms;
+genderless plural determiners and pronouns: 15 readings; comparatives and superlatives: 9 readings —
+as the table says. Open question 3 is settled by 51b for English and Spanish cards.
+
 ### D6 — The Spanish card names two genders of one number once
 
-French gives a noun of both genders a reading per gender (change 45's D4), and a word may be the
+*As implemented*, the English renderer's merge moves into the description as `mergeGenders(names,
+agreed, named, order)`, which the English and Spanish renderers call with their own words; the
+English lines are byte for byte (D10). French gives a noun of both genders a reading per gender (change 45's D4), and a word may be the
 plural of a feminine and of a masculine noun spelled alike (`sommes`: *somme* « sum », *somme*
 « nap »). The Spanish renderer would say « también puede ser el femenino plural y el masculino plural de
 somme »; it gains the English renderer's merge (change 23's « gran »): « el masculino y femenino
-plural de somme ». 951 French forms. No English reading carries a gender, so en-es's lines cannot
+plural de somme ». 951 French forms (951 again on the implementation). No English reading carries a gender, so en-es's lines cannot
 move (measured, D10).
 
 A bare plural beside the same number's gendered ones is the wording every Romance card already shows
-and this change leaves: on 793 French forms (an adjective of one form for both genders beside a noun),
+and this change leaves: on 793 French forms (791 on the committed tables; an adjective of one form for both genders beside a noun),
 388 of them « plural and masculine and feminine plural of abolitionniste », the others as « plural and
 masculine plural of acide », as es-fr says « pluriel,
 féminin pluriel et masculin pluriel d’abolicionista » on 1,027 Spanish forms today, and es-en the
@@ -283,8 +323,19 @@ range; the page's own selection is still never touched. `onCapture` routes as ab
 `openForSelection`, which gains the whole-selection route for a word. The hit test of a click
 (change 40's `findTokenAt`) is unchanged.
 
+*As implemented:* the rule is `scan.ts`'s `selectWithinWord(block, tokens, word, selected)`, beside
+`findTokenInBlock`: the block's tokens whose ranges lie within the widened word, grouped by span (the
+first of a shared span standing for it, as a click opens it), and the spans the reader's own range
+overlaps — one: that piece (`{ kind: "piece" }`); several: the whole-selection card
+(`{ kind: "pieces" }`); one span only, or a selection touching none (a hyphen between two pieces):
+as before (`{ kind: "word" }`). `session.ts` reads the block as the reclassify hit does
+(`blockTokensAt`, shared with it), and `openForSelection(sel, hit, whole)` takes the whole-selection
+route. Overlap rather than containment, so a selection that takes in a blank beside its piece still
+opens it.
+
 **What moves.** Measured on the goldens' corpora — every written word, as `WORD_CHAR` widens it, whose
-tokens have two spans or more: French 72 of 992 (59 elisions such as `l'INSEE`, `n'est`, `C’est`,
+tokens have two spans or more: French 72 of 992 — 71 on the implementation, change 42's guard having
+since refused the `mixte` page's Occitan block and its « l'aviá » — (59 elisions such as `l'INSEE`, `n'est`, `C’est`,
 `jusqu'au`; 9 hyphenated pronouns, inversions such as `dit-il`, `a-t-il`, `Viendront-ils` and
 imperatives such as `coupez-les`; 4 both, `Qu’est-ce`,
 `Va-t'en`, `Donne-m'en`, `l'arc-en-ciel`); English 0 of 867 (en-fr, en-es), Spanish 0 of 585
@@ -332,6 +383,13 @@ Two consequences:
 No baseline holds such a card (the French golden's cards are `horizon`, `récolte`, `rassurer`), so no
 golden moves: a test in `crates/lingua-wasm/tests/card_gloss_language.rs` holds both cases.
 
+*As implemented:* `expressionCard` marks the content of a whole-selection match `expressionAnswer`,
+the card's gesture carries it (only when true, so every other gesture is what it was), and
+`cardGloss` stores the gloss shown for a key holding a space or for such a gesture. In
+`readable_gloss`, a French card that is no expression reads the table at `french_expression_key`'s
+key when it gives one and the table holds it, and is looked up as a word otherwise. The two scenarios
+run over fr-en's committed pack, which holds `de abord` named `d'abord` (change 44).
+
 ### D9 — The French card, pinned on the real packs
 
 **Probes.** The French scenario (`tests/support/french.rs`) gains:
@@ -357,12 +415,26 @@ change 44 adds its 4, after change 48's switch — 143 → 205 probes, none of t
 41, names three reasons for moving the golden, none of them a probe added: its pull request says
 why, as change 44's did (open question 5).
 
+*As implemented* (task 4.1): the 40 lemmas, chosen once on the committed tables of 2026-10-10 — the
+commonest lemmas of `tables/fr/freq.tsv` with two sense runs or more in `tables/fr-en/senses.tsv` or
+`tables/fr-es/senses.tsv`, none of them a lemma the reference or the card asks as itself (none ranks
+among them) — are `de`, `le`, `en`, `des`, `un`, `que`, `pas`, `qui`, `ce`, `sur`, `par`, `on`, `plus`,
+`avec`, `mais`, `ça`, `tu`, `son`, `si`, `tout`, `nous`, `comme`, `être`, `bien`, `même`, `aussi`,
+`deux`, `leur`, `moi`, `quand`, `après`, `avoir`, `non`, `alors`, `peu`, `autre`, `rien`, `dire`,
+`monde`, `fois` (the last at rank 68). `fr-en.golden` goes from 147 probes on `main` (the 143 above
+and change 44's 4) to 209: the 62 added at the end of their kinds, the 147 in their order, and one of
+them moved — `phrase-gloss jusqu'au soir`, whose `jusqu'à` match now covers the article of « au »
+(`"end":2` → `"end":3`, D12), the owner's decision this change carries. The phrase probe « l’homme »
+answers `le` and `homme`, no expression.
+
 **fr-es's golden.** `crates/lingua-wasm/tests/fr_es_baseline.rs` declares `Scenario { pair: "fr-es",
 beside: &["en-es"], test: "fr_es_baseline", ..FRENCH }` — the French scenario glossed in Spanish, the
 engine started on en-es as a Spanish-native reader's is, as the French scenario starts on es-en — and
 writes `baseline/fr-es.golden`. A test compares it with `fr-en.golden` through `studied_side`, as
 es-en's is compared with es-fr's: measured, 155 probes compared, none differing (the others: the
-pack, beside, gloss, notice, licences and about lines).
+pack, beside, gloss, notice, licences and about lines). On the implementation (change 49 committed
+fr-es's tables above its floor: 83.2 / 70.8 / 56.8 %, so 4.2 is this change's): 209 probes each, 159
+compared on the studied side, none differing.
 
 **Snapshots.** `test/word-card-fr-en.spec.ts` reads `fr-en.golden`, `test/word-card-fr-es.spec.ts`
 reads `fr-es.golden`; each renders, with the interface in English or Spanish, every `word-grammar`
@@ -373,6 +445,11 @@ covers the whole selection, else its rows. They pin the lines in `test/baseline/
 and `word-card-fr-es.txt`, re-blessed with `yarn vitest run <files> -u` (the flag after the files).
 Measured on the prototype: 92 grammar probes each, 48 with a grammar line (54 lines), the order of
 tenses on every one of them; fr-en 47 of its 91 glossed probes paged, fr-es 9; 26 phrase probes.
+On the implementation: 92 grammar probes each, 47 with a grammar line (53 lines) — `été été` no longer
+says « may also be the past participle of été », 41b's fix —, 89 glossed (`été été`, `porte porte` and
+`au au` read no gloss), fr-en 46 of them paged and fr-es 9; 30 phrase probes (change 44's 4 and the
+reader's included), 11 answered by an expression in fr-en and 9 in fr-es; `word-card-fr-en.txt` 706
+lines, `word-card-fr-es.txt` 573. The two specs share their rendering, `test/word-card-french.ts`.
 
 **Where they run.** `fr_es_baseline` joins the invariance step of `lingua-extension-check.yml` and the
 re-bless line of `lingua-pack-update.yml`; the two specs join that workflow's vitest re-bless line,
@@ -399,7 +476,15 @@ glosses. The change that first commits fr-es's tables writes `fr_es_baseline.rs`
 - **Every form of the four other pairs.** On the prototype, the 75,315 forms of en-fr, the 144,952 of
   es-fr, the 144,952 of es-en and the 75,315 of en-es, rendered through `main`'s renderers and through
   this design's, in the pair's interface language with their sense headings, give byte for byte the
-  same 440,534 lines.
+  same 440,534 lines. Re-run on the implementation (task 5.1: the four packs built from the committed
+  tables, every form opened on the dictionary form the phrase gloss reads, `main`'s renderers at
+  `c8ddbf56` against this change's): the 440,534 forms byte for byte in their pair's interface
+  language (253,214 grammar lines; 35,033 en-fr, 87,705 es-fr, 87,705 es-en and 35,033 en-es forms
+  showing one). Rendered in all three interface languages (1,321,602 cards), the French and the
+  English interfaces never move; the Spanish renderer's own Spanish lines — the table M2 reserves,
+  shown to no reader, since a Spanish-native reader cannot study Spanish — move on 1,462 Spanish forms,
+  D6's merge (« femenino plural y masculino plural de accionista » → « masculino y femenino plural de
+  accionista »), as the English renderer's Spanish lines have merged since change 23.
 - `test/word-grammar.spec.ts` passes without a change, as do `word-grammar-en.spec.ts`,
   `-es.spec.ts`, `i18n.spec.ts`, `wordpopup.spec.ts`, `selection-card.spec.ts` and the three committed
   snapshots (`word-card-es-en.txt`, `word-card-en-es.txt`, `selection-rows-fr.txt`); the prototype's
@@ -407,11 +492,12 @@ glosses. The change that first commits fr-es's tables writes `fr_es_baseline.rs`
 - *What each renderer names*, run for `fr` studied as well: over every tag of the vocabulary, the
   English and Spanish renderers name exactly what the French one names, in other words.
 - `en-fr.golden`, `es-fr.golden`, `es-en.golden` and `en-es.golden`: nothing in the core's analysis,
-  the packs or the engine's answers changes; `readable_gloss` changes for a French card only.
+  the packs or the engine's answers changes; `readable_gloss` changes for a French card only, and
+  the phrase gloss's matching (D12) for a French selection only.
 - The French interface: its renderer's English and Spanish lines are the 440,534 above; a selection
   moves only over a word written as pieces with spans of their own, none in an English or Spanish
   corpus.
-- `fr-en.golden` gains probes and moves none.
+- `fr-en.golden` gains probes and moves none but « jusqu'au soir », D12's.
 
 The bundles holding the card (content, reader) grow by the three French tables, the `CARD_NAMES` table,
 the merges and the selection's routing — about 3 kB as built, measured in the pull request.
@@ -422,44 +508,88 @@ the merges and the selection's routing — about 3 kB as built, measured in the 
 |---|---|
 | 52 enable | `StudiedLanguage` widened to `fr`, which the card already accepts (D1); the content's `language` then says `fr`, and the studied words their `lang`; the dogfood of the selection gestures on devices (task 6.2) and of change 40's two adjacent highlights |
 | 53 listings | nothing of the card's wording; the listings may quote a card line the snapshots pin |
-| 56 `refine-lingua-matrix-wording` | the shared wording D5 and D6 leave: a bare plural beside gendered ones, an invariable plural on Spanish and English cards |
+| 56 `refine-lingua-matrix-wording` | the shared wording D6 leaves: a bare plural beside gendered ones (the invariable plural on Spanish and English cards is settled by 51b) |
 | `refine-lingua-fr-en-glosses`, fr-es's refinement | the glosses' defects below, re-measured on the committed snapshots; each re-reduction re-blesses the goldens and the snapshots |
 | the change that first commits fr-es's tables, if 49's measurement falls below the floor (M6) | `fr_es_baseline.rs`, `fr-es.golden` and the glosses of `word-card-fr-es.txt` (D9) |
 
+### D12 — A French match covers the article of « au » and « aux »
+
+The owner decided on 2026-10-09, answering `add-lingua-spanish-expression-keys`' open question 3 (its
+D5: a Spanish match ending on the `a` of « al » or the `de` of « del » covers the article sharing its
+span), that French's « au » and « aux » get the same coverage, in this change. French's pre-pass
+reads « au » as `à` + `le` and « aux » as `à` + `les`, sharing one span (change 40), and these are the
+only French tokens sharing a span (`du`, `des` stay whole): a match whose last token is followed by a
+token sharing its span covers it too, so no French match ends inside a written word.
+
+**How.** `lingua-core` `engine.rs` `match_expressions` extends the match over the following tokens
+sharing its last one's span for French as it does for Spanish (`shares_span`, which `gloss_phrase`
+computes for every selection); Spanish's settled chain (its D6) stays Spanish's; English's split words
+(`don't`) stay as they are. The match's key, gloss and status are unchanged, the tokens are what they
+are without the table, a page's analysis and French's analyser version do not move, and no pack byte
+moves — the matching is the engine's at reading time.
+
+**What moves.** `fr-en.golden`'s `phrase-gloss jusqu'au soir`: the match `jusqu'à` covers `jusque`,
+`à` and `le` (`"end":2` → `"end":3`); its whole-selection card does not move (its rows were `jusqu'à`
+and `soir` before, `le` being a function word), but a selection of « jusqu'au » alone — one written
+word whose pieces are two spans, so D7's whole-selection card — is now answered by `jusqu'à` whole.
+No other probe of the French golden ends a match on the `à` of « au » or « aux »; fr-es's table holds
+no `jusqu'à`, so `fr-es.golden` records no match there. A new requirement, *A French match never ends inside a written word*
+(`lingua-analysis`), states it beside change 44's *French expressions are found on French's reading
+of a selection*, held by that open change, which this change does not modify. The core's test
+`a_french_or_english_match_ending_before_a_split_word_s_second_half_is_not_extended`, written by
+44b for French and English, becomes `a_french_match_ending_on_the_a_of_au_or_aux_covers_its_article`
+(« face au mur », « face aux murs », « jusqu'au », « jusqu'au soir ») and
+`an_english_match_ending_before_a_split_word_s_second_half_is_not_extended` (« I don't »).
+
 ## Known data defects
 
-What the prototype's snapshots show wrong that is not this change's wording, named by the card, each
-with where its fix lives — indicative, on the pairs' prototype tables; the pull request lists them
-again from the committed ones.
+What the committed snapshots (`word-card-fr-en.txt`, `word-card-fr-es.txt`, over the goldens of the
+committed tables) show wrong that is not this change's wording, each with the module its fix lives in
+(task 4.5, written again on the implementation; the prototype's list, made before 41b, 48 and 49,
+is replaced). None is fixed here: `refine-lingua-fr-en-glosses` (48b, PR #861) and fr-es's refinement
+(its proposal in progress) re-reduce the glosses and re-bless both goldens and both snapshots.
 
-The studied side (`tables/fr/`, changes 43 and 45, or the core):
-- `été été` and `porte porte`: « may also be the past participle of été » with *être*'s gloss, and
-  `porte` given *porter*'s readings and gloss — `Pack::readings` reads another word's paradigm for a
-  lemma that is a form (change 45's open question 4). Fixed before this change by
-  `fix-lingua-lemma-lookup` (41b): neither reads another word's readings or gloss, and the snapshots
-  pin that (D9); change 48 keeps or drops the two probes.
-- « Others » that are true and read as noise on the commonest words, from change 45's `other` marks
-  (M8): `plus` « may also be the masculine plural past participle and first- and second-person
-  singular past historic of plaire » and the participle of *pleuvoir*; `mais` the plural of *mai*;
-  `tu` the participle of *taire*; `suis` *suivre*'s.
-- `trente-et-une` and five like it read as forms of `trente` (change 43's mapping); `abime`,
-  `coeur`, `aout` read « masculine singular of abîme » (a spelling variant named by its agreement, as
-  Spanish's `dia` is « masculin singulier de día » on es-fr's card today).
-- `meilleures` « may also be the comparative of bien ».
+**The studied side** — `scripts/lingua-data/tables/fr/` (change 43's forms and change 45's readings,
+`reduce-fr`'s French tables) or `crates/lingua-core`:
+- « Others » that are true and read as noise on the commonest words (M8), change 45's `other` marks in
+  `tables/fr/grammar.tsv`: `plus` « may also be the masculine plural past participle and first- and
+  second-person singular past historic (passé simple) of plaire » and « … past participle of
+  pleuvoir »; `mais` « may also be the masculine plural of mai »; `tu` « may also be the past
+  participle of taire »; `suis` *suivre*'s present and imperative beside *être*'s.
+- `meilleures` « may also be the comparative of bien » beside « … of bon » (`tables/fr/grammar.tsv`,
+  `bien` given *bon*'s comparatives).
+- Outside the snapshots, measured on the committed tables: `trente-et-une`, `trente-et-un`,
+  `vingt-et-une`, `soixante-et-onze` read as forms of `trente`, `vingt`, `soixante` — no line, the
+  numeral unnamed, but headed by another number (`tables/fr/forms.tsv`, change 43's mapping); `abime`,
+  `coeur`, `aout` « masculine singular of abîme / cœur / août », a 1990 or unaccented spelling named by
+  its agreement (`tables/fr/grammar.tsv`), as Spanish's `dia` is on es-fr's card.
+- Fixed before this change by `fix-lingua-lemma-lookup` (41b): `été été` and `porte porte` read
+  neither *être*'s nor *porter*'s readings or gloss — no line and no gloss — and the snapshots pin
+  that (D9).
 
-fr-en's glosses (`refine-lingua-fr-en-glosses`, change 48's follow-up): rows opening on another part of
-speech than the commonest — `pas` « step, pace » before the negation, `son` « sound » before the
-determiner, `leur` « (to) them » before « their », `même` « even » before « same »; proper nouns
-among common words (`le` « a surname from Vietnamese », `on` « a village in Luxembourg, Belgium »);
-`des` « some, the feminine partitive article »; « see usage notes ».
+**fr-en's glosses** — `scripts/lingua-data/reduce-fr-en.py` and `tables/fr-en/`, for
+`refine-lingua-fr-en-glosses` (48b): rows opening on another part of speech than the commonest —
+`pas` « step, pace, footstep » before the negation, `son` « sound » before the determiner, `leur`
+« (to) them » before « their », `même` « even » before « same », `bien` « good, all right, great »
+(adjective) before « well »; proper nouns among common words (`le` « a surname from Vietnamese »,
+`on` « a village in Luxembourg, Belgium »); `des` « of the; some, the feminine partitive article »;
+`du` « forms the partitive article », a definition for a row; « see usage notes » inside `en`'s
+senses; `plus`'s row a usage note cut at 80 characters (« used to express the comparative and
+superlative of a following adjective or… »); `meilleur` glossed only as the noun « best ».
 
-fr-es's glosses (fr-es's refinement, change 49's): `être` opening on the noun (« Ser ») before the
-verb, usage notes inside a sense (« (être + participio) Haber »), `qui` « Quién.
-(Pronombre nominativo.) », `peu` and `autre` glossed only as pronouns, `rien` « Pequeño cantidad de
-algo », a run with no part of speech under `des` (« [—] Contracción… »).
+**fr-es's glosses** — `scripts/lingua-data/reduce-fr-es.py` and `tables/fr-es/`, for fr-es's
+refinement: `être` opening on the noun (« Ser ») before the verb, and a usage note inside a sense
+(« (être + participio) Haber »); `qui` « Quién. (Pronombre nominativo.) »; `que`, `peu`, `autre`
+and `leur` (« Suyo, suya ») glossed only as pronouns; `rien` « Pequeño cantidad de algo » and an
+adverb « Muy; Mucha… »; `du` and `des` a run with no part of speech (« [—] Contracción de la
+preposición de y el articulo le, del »), `du`'s row that definition; `en`'s row opening on « En
+cuanto a… »; `pas` « Paso » before the negation; `plus` « Más. Comparativo irregular de beaucoup »;
+no `d'abord`, so « D’abord » shows its words' rows; the expression rows `à la` « A la » on « à la
+maison » and `y avoir` « Haber » on « Y a-t-il encore du café ».
 
-Shared wording, for change 56: a bare plural beside gendered ones (D6), an invariable plural on Spanish
-and English cards (D5).
+**Shared wording**, for change 56: a bare plural beside gendered ones (D6) — « plural and masculine
+and feminine plural of abolitionniste » on 388 French forms, 791 in all. The invariable plural on
+Spanish and English cards is settled by 51b.
 
 ## Risks / Trade-offs
 

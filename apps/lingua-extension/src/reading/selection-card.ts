@@ -352,10 +352,15 @@ export class SelectionCards {
     return rarityText(cls, rank, this.copy, this.interfaceLanguage);
   }
 
-  /** A settled selection: the expression card, the page token's word card, or the analyser's. */
-  openForSelection(sel: SelectionInput, hit: PageHit | null): void {
+  /**
+   * A settled selection: the whole-selection card, the page token's word card, or the analyser's.
+   * Text holding whitespace opens the whole-selection card, and so does one word whose pieces the
+   * selection covers several of (`whole`: « l’homme » double-clicked whole, « D’abord »,
+   * add-lingua-french-word-card D7), read by the phrase gloss as any selection is.
+   */
+  openForSelection(sel: SelectionInput, hit: PageHit | null, whole = false): void {
     this.openedByCapture = true;
-    if (/\s/.test(sel.text)) this.openExpression(sel);
+    if (whole || /\s/.test(sel.text)) this.openExpression(sel);
     else if (hit) this.openForToken(hit);
     else this.openLooseWord(sel);
   }
@@ -472,12 +477,14 @@ export class SelectionCards {
     });
   }
 
-  /** The gloss a created card carries: none for an expression, the pack's for a word. */
+  /** The gloss a created card carries: the one an expression's card showed, the pack's for a word. */
   async cardGloss(g: Gesture): Promise<string | null> {
-    // A key holding a space is an expression, which the single-lemma port cannot answer:
-    // its gloss is the one the card showed, dictionary data worth keeping. A phrase the
-    // pack does not know shows no gloss, so it carries none.
-    if (g.lemma.includes(" ")) return g.gloss ?? null;
+    // A key holding a space is an expression, which the single-lemma port cannot answer: its
+    // gloss is the one the card showed, dictionary data worth keeping. So is a card the
+    // expression table answered, whatever its name's spelling — `d'abord` holds no space
+    // (add-lingua-french-word-card D8). A phrase the pack does not know shows no gloss, so it
+    // carries none.
+    if (g.lemma.includes(" ") || g.expressionAnswer) return g.gloss ?? null;
     return (await this.ports.gloss(g.lemma.toLowerCase())) ?? null;
   }
 
@@ -711,6 +718,8 @@ function expressionCard(base: WordPopupContent, answer: PhraseGloss | null, copy
       headword: whole.key,
       gloss: whole.gloss,
       status: statusOfClass(whole.class),
+      // The expression table's answer: « + Deck » stores it whatever the name's spelling (D8).
+      expressionAnswer: true,
     };
   }
   return { ...base, rows: rowsFor(answer.tokens, answer.expressions, copy) };

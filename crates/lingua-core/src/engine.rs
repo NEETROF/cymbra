@@ -538,12 +538,14 @@ fn expression_for_run(
 /// add-lingua-spanish-expression-keys D3).
 ///
 /// `shares_span[i]` says whether token `i` shares its predecessor's source span —
-/// the second half of a written word the pre-pass split. A Spanish match never
-/// ends inside a written word: one whose last token is followed by such a token,
-/// the article of « al » or « del », covers it too, so « después del » is answered
-/// whole (add-lingua-spanish-expression-keys D5). And a Spanish expression the
-/// reader settled under the run's lemma chain, and not under its name, keeps that
-/// chain ([`settled_chain`], D6).
+/// the second half of a written word the pre-pass split. A Spanish or French match
+/// never ends inside a written word: one whose last token is followed by such a
+/// token, the article of « al » or « del », of « au » or « aux », covers it too, so
+/// « después del » and « jusqu'au » are answered whole
+/// (add-lingua-spanish-expression-keys D5, add-lingua-french-word-card D12). English's
+/// split words (`don't`) stay as they were. And a Spanish expression the reader
+/// settled under the run's lemma chain, and not under its name, keeps that chain
+/// ([`settled_chain`], D6).
 fn match_expressions(
     tokens: &[PhraseToken],
     shares_span: &[bool],
@@ -560,6 +562,7 @@ fn match_expressions(
         .collect();
     let window = expression_window(studied);
     let spanish = studied == StudiedLanguage::Spanish;
+    let whole_words = matches!(studied, StudiedLanguage::Spanish | StudiedLanguage::French);
     let mut matches = Vec::new();
     let mut start = 0;
     while start < tokens.len() {
@@ -581,7 +584,7 @@ fn match_expressions(
                     name
                 };
                 let mut end = start + len;
-                if spanish {
+                if whole_words {
                     while shares_span.get(end).copied().unwrap_or(false) {
                         end += 1;
                     }
@@ -644,8 +647,9 @@ pub fn gloss_phrase(
     let lexicon = pack.lexicon();
     let read = tokenize(text, studied, lexicon);
     // Which tokens share their predecessor's source span: the second half of a word
-    // the pre-pass split (`del` → `de` + `el`), which a Spanish match never leaves
-    // outside (add-lingua-spanish-expression-keys D5).
+    // the pre-pass split (`del` → `de` + `el`, `au` → `à` + `le`), which a Spanish or
+    // French match never leaves outside (add-lingua-spanish-expression-keys D5,
+    // add-lingua-french-word-card D12).
     let shares_span: Vec<bool> = read
         .iter()
         .enumerate()
@@ -2550,21 +2554,56 @@ mod tests {
     }
 
     #[test]
-    fn a_french_or_english_match_ending_before_a_split_word_s_second_half_is_not_extended() {
-        // D5 is Spanish's: French's « au » shares its span between `à` and `le` as « al » does,
-        // and English's « don't » between `do` and `not`; their matches stop where they stop.
-        let french = build_pack_for(
+    fn a_french_match_ending_on_the_a_of_au_or_aux_covers_its_article() {
+        // add-lingua-french-word-card D12, the owner's answer to
+        // add-lingua-spanish-expression-keys' open question 3: French's « au » and « aux » share
+        // their span between `à` and `le`/`les` as « al » does, and a match ending on that `à`
+        // covers the article too — no match ends inside a written word.
+        let french = build_pack_with_names(
             FR,
+            &[("murs", "mur")],
+            &["face", "à", "le", "les", "mur", "jusque", "soir"],
             &[],
-            &["face", "à", "le", "mur"],
             &[],
-            &[],
-            &[("face à", "facing")],
+            &[("face à", "facing"), ("jusque à", "until, up to")],
+            &[("jusque à", "jusqu'à")],
+            None,
         );
-        let phrase = gloss_phrase("face au mur", FR, &french, &KnowledgeState::new());
+        let knowledge = KnowledgeState::new();
+        let phrase = gloss_phrase("face au mur", FR, &french, &knowledge);
         let surfaces: Vec<&str> = phrase.tokens.iter().map(|t| t.surface.as_str()).collect();
         assert_eq!(surfaces, ["face", "à", "le", "mur"]);
+        assert_eq!(spans(&phrase), [(0, 3, "face à")]);
+        let phrase = gloss_phrase("face aux murs", FR, &french, &knowledge);
+        assert_eq!(phrase.tokens[2].surface, "les");
+        assert_eq!(spans(&phrase), [(0, 3, "face à")]);
+        // The selection of the written words is answered whole, under the expression's name.
+        let phrase = gloss_phrase("jusqu'au", FR, &french, &knowledge);
+        assert_eq!(phrase.tokens.len(), 3);
+        assert_eq!(spans(&phrase), [(0, 3, "jusqu'à")]);
+        let phrase = gloss_phrase("jusqu'au soir", FR, &french, &knowledge);
+        assert_eq!(spans(&phrase), [(0, 3, "jusqu'à")]);
+        // A match ending elsewhere stops where it stops; the tokens do not move with the table.
+        let bare = build_pack_for(
+            FR,
+            &[("murs", "mur")],
+            &["face", "à", "le", "les", "mur"],
+            &[],
+            &[],
+            &[],
+        );
+        assert_eq!(
+            gloss_phrase("face au mur", FR, &bare, &knowledge).tokens,
+            gloss_phrase("face au mur", FR, &french, &knowledge).tokens
+        );
+        let phrase = gloss_phrase("face à le mur", FR, &french, &knowledge);
         assert_eq!(spans(&phrase), [(0, 2, "face à")]);
+    }
+
+    #[test]
+    fn an_english_match_ending_before_a_split_word_s_second_half_is_not_extended() {
+        // English's « don't » shares its span between `do` and `not`; its matches stop where they
+        // stop (add-lingua-spanish-expression-keys D5 is Spanish's and French's).
         let english = build_pack_for(
             EN,
             &[],

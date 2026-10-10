@@ -9,6 +9,7 @@ import {
   readingByContainer,
   resolveTokens,
   scan,
+  selectWithinWord,
   statsFromAnalysis,
 } from "@/reading/scan.ts";
 
@@ -296,5 +297,79 @@ describe("readingByContainer", () => {
     const blocks = collectBlocks(document.body);
     const a = analysis([tok({ block: 9, start: 0, end: 3, surface: "x", lemma: "x", class: "Unknown" })]);
     expect(readingByContainer(blocks, a).size).toBe(0);
+  });
+});
+
+// add-lingua-french-word-card D7: a one-word selection inside an analysed block, routed by the piece
+// the reader selected.
+describe("selectWithinWord", () => {
+  const TEXT = "Il dit-il, l\u2019homme, don't, 24-year-old.";
+  const byte = (i: number) => new TextEncoder().encode(TEXT.slice(0, i)).length;
+  const piece = (surface: string, at: number, length = surface.length) =>
+    tok({ start: byte(at), end: byte(at + length), surface, lemma: surface, class: "Unknown" });
+  const at = (text: string) => TEXT.indexOf(text);
+  const TOKENS = [
+    piece("Il", 0),
+    piece("dit", at("dit-il")),
+    piece("il", at("dit-il") + 4),
+    piece("le", at("l\u2019homme"), 2),
+    piece("homme", at("homme")),
+    piece("do", at("don't"), 5),
+    piece("not", at("don't"), 5),
+    piece("24", at("24")),
+    piece("year", at("year")),
+    piece("old", at("old")),
+  ];
+
+  function setUp() {
+    document.body.innerHTML = `<p>${TEXT}</p>`;
+    const [block] = collectBlocks(document.body);
+    const node = document.querySelector("p")!.firstChild!;
+    const range = (from: number, length: number) => {
+      const r = document.createRange();
+      r.setStart(node, from);
+      r.setEnd(node, from + length);
+      return r;
+    };
+    /** Route a selection of `[from, from + length)` inside the written word at `word`. */
+    const route = (word: string, from: number, length: number) =>
+      selectWithinWord(block!, TOKENS, range(at(word), word.length), range(from, length));
+    return { route, range, block: block! };
+  }
+
+  it("opens the piece the selection lies inside", () => {
+    const { route } = setUp();
+    const homme = route("l\u2019homme", at("homme"), 5);
+    expect(homme.kind === "piece" && homme.hit.token.surface).toBe("homme");
+    const il = route("dit-il", at("dit-il") + 4, 2);
+    expect(il.kind === "piece" && il.hit.token.surface).toBe("il");
+    const old = route("24-year-old", at("old"), 2);
+    expect(old.kind === "piece" && old.hit.token.surface).toBe("old");
+  });
+
+  it("opens the whole-selection card over several pieces", () => {
+    const { route } = setUp();
+    expect(route("l\u2019homme", at("l\u2019homme"), 7)).toEqual({ kind: "pieces" });
+    // The apostrophe is the elided piece's: a drag from it covers both.
+    expect(route("l\u2019homme", at("\u2019homme"), 6)).toEqual({ kind: "pieces" });
+  });
+
+  it("opens the word as before: one span, pieces sharing one, or no piece touched", () => {
+    const { route } = setUp();
+    expect(route("don't", at("don't") + 3, 2)).toEqual({ kind: "word" });
+    expect(route("Il", 0, 1)).toEqual({ kind: "word" });
+    // The hyphen between `dit` and `il` is no piece's.
+    expect(route("dit-il", at("-il"), 1)).toEqual({ kind: "word" });
+  });
+
+  it("misses cleanly on a range of another tree", () => {
+    const { range, block } = setUp();
+    const other = document.implementation.createHTMLDocument("x");
+    other.body.textContent = "elsewhere";
+    const foreign = other.createRange();
+    foreign.setStart(other.body.firstChild!, 0);
+    foreign.setEnd(other.body.firstChild!, 4);
+    expect(selectWithinWord(block, TOKENS, foreign, foreign)).toEqual({ kind: "word" });
+    expect(selectWithinWord(block, TOKENS, range(at("l\u2019homme"), 7), foreign)).toEqual({ kind: "word" });
   });
 });

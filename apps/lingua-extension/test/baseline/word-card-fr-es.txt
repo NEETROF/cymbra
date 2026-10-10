@@ -1,0 +1,573 @@
+### phrase-gloss pommes de terre
+expression: pomme de terre
+page 1/1:
+  [—] Patata, papa
+### phrase-gloss il y a
+expression: il y a
+page 1/1:
+  [—] Hace
+### phrase-gloss tout de suite
+expression: tout de suite
+page 1/1:
+  [—] En el acto, en seguida, inmediatamente
+### phrase-gloss à cause des
+expression: à cause de
+page 1/1:
+  [—] A causa de
+### phrase-gloss mettre à jour
+expression: mettre à jour
+page 1/1:
+  [—] Actualizar (en general); Actualizar, reactualizar o recargar
+### phrase-gloss tout le monde
+expression: tout le monde
+page 1/1:
+  [—] Todo el mundo
+### phrase-gloss Longtemps, je me suis couché de bonne heure.
+row: longtemps — Largo tiempo
+row: de bonne heure — De madrugada, temprano
+### phrase-gloss l'homme qu'il attendait
+row: homme — Hombre
+row: attendre — Aguardar, esperar
+### phrase-gloss jusqu'au soir
+row: soir — Tarde
+### phrase-gloss Aujourd'hui
+row: aujourd'hui — Hoy
+### phrase-gloss au marché
+row: marché — Mercado
+### phrase-gloss du pain et des œufs
+row: pain — Pan
+row: œuf — Huevo
+### phrase-gloss dit-il
+row: dire — Decir
+### phrase-gloss Y a-t-il encore du café
+row: y avoir — Haber
+row: encore — Todavía, todavía más
+row: café — Café
+### phrase-gloss S’il pleut, viendras-tu ?
+row: pleuvoir — Llover
+row: venir — Venir
+### phrase-gloss Au revoir
+expression: au revoir
+page 1/1:
+  [—] Adiós
+### phrase-gloss un coup d’œil
+row: coup d'œil — Ojeada
+### phrase-gloss D’abord
+row: abord — Encuentro, relación, acuerdo
+### phrase-gloss au fur et à mesure
+expression: au fur et à mesure
+page 1/1:
+  [—] A medida que, sobre la marcha
+### phrase-gloss il y avait
+expression: il y a
+page 1/1:
+  [—] Hace
+### phrase-gloss à la maison
+row: à la — A la
+row: maison — Casa
+### phrase-gloss Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.
+row: faire — Hacer
+row: chien — (Canis lupus familiaris) Perro
+row: voix — Voz
+row: rassurer — Calmar, sosegar
+### phrase-gloss Personne au village ne se souvenait
+row: personne — Persona
+row: village — Pueblo, aldea
+row: se souvenir — Recordar, acordarse
+### phrase-gloss The lighthouse stood
+rows: (none)
+### phrase-gloss El faro se alzaba
+row: el — Ella, ello o él
+### phrase-gloss El far s'alçava
+row: el — Ella, ello o él
+### phrase-gloss Lo far se quilhava
+rows: (none)
+### phrase-gloss Il faro si ergeva
+rows: (none)
+### phrase-gloss l’homme
+row: homme — Hombre
+### word-grammar est être
+grammar: tercera persona del singular del presente de indicativo de être
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar sont être
+grammar: tercera persona del plural del presente de indicativo de être
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar était être
+grammar: tercera persona del singular del pretérito imperfecto de indicativo de être
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar fut être
+grammar: tercera persona del singular del pretérito perfecto simple de indicativo de être
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar soyez être
+grammar: segunda persona del plural del presente de subjuntivo y segunda persona del plural del imperativo de être
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar été être
+grammar: participio pasado de être
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar été été
+gloss: (none)
+### word-grammar a avoir
+grammar: tercera persona del singular del presente de indicativo de avoir
+page 1/1:
+  [verbo] Tener; (avoir + participio) Haber; Engañar, entrampar
+  [sustantivo masculino] Haber (en contabilidad)
+row: Tener
+### word-grammar ai avoir
+grammar: primera persona del singular del presente de indicativo de avoir
+page 1/1:
+  [verbo] Tener; (avoir + participio) Haber; Engañar, entrampar
+  [sustantivo masculino] Haber (en contabilidad)
+row: Tener
+### word-grammar as avoir
+grammar: segunda persona del singular del presente de indicativo de avoir
+page 1/1:
+  [verbo] Tener; (avoir + participio) Haber; Engañar, entrampar
+  [sustantivo masculino] Haber (en contabilidad)
+row: Tener
+### word-grammar eût avoir
+grammar: tercera persona del singular del pretérito imperfecto de subjuntivo de avoir
+page 1/1:
+  [verbo] Tener; (avoir + participio) Haber; Engañar, entrampar
+  [sustantivo masculino] Haber (en contabilidad)
+row: Tener
+### word-grammar va aller
+grammar: tercera persona del singular del presente de indicativo y segunda persona del singular del imperativo de aller
+page 1/2:
+  [verbo] Ir o viajar (ya sea en vehículo o de otra manera); Seguido de un infinitivo, crea el tiempo futuro próximo: ir a; (aller bien) Sentirse (bien o mal, estar)
+page 2/2:
+  [verbo] Ir bien con o en combinación con (ya sea vestiduras, colores etc.)
+  [sustantivo masculino] Ida
+row: Ir o viajar (ya sea en vehículo o de otra manera)
+### word-grammar allez aller
+grammar: segunda persona del plural del presente de indicativo y segunda persona del plural del imperativo de aller
+page 1/2:
+  [verbo] Ir o viajar (ya sea en vehículo o de otra manera); Seguido de un infinitivo, crea el tiempo futuro próximo: ir a; (aller bien) Sentirse (bien o mal, estar)
+page 2/2:
+  [verbo] Ir bien con o en combinación con (ya sea vestiduras, colores etc.)
+  [sustantivo masculino] Ida
+row: Ir o viajar (ya sea en vehículo o de otra manera)
+### word-grammar fait faire
+grammar: participio pasado y tercera persona del singular del presente de indicativo de faire
+page 1/2:
+  [verbo] Hacer; (faire chaud, faire froid) hacer; (faire + infinitivo) hacer, causar; (se faire + infinitivo) ser; Realizar una acción; Fabricar; Dar la apariencia de
+page 2/2:
+  [verbo] Interpretar en una obra
+row: Hacer
+### word-grammar faites faire
+grammar: participio pasado femenino plural, segunda persona del plural del presente de indicativo y segunda persona del plural del imperativo de faire
+page 1/2:
+  [verbo] Hacer; (faire chaud, faire froid) hacer; (faire + infinitivo) hacer, causar; (se faire + infinitivo) ser; Realizar una acción; Fabricar; Dar la apariencia de
+page 2/2:
+  [verbo] Interpretar en una obra
+row: Hacer
+### word-grammar pût pouvoir
+grammar: tercera persona del singular del pretérito imperfecto de subjuntivo de pouvoir
+page 1/1:
+  [verbo] Poder
+row: Poder
+### word-grammar dit dire
+grammar: participio pasado, tercera persona del singular del presente de indicativo y tercera persona del singular del pretérito perfecto simple de indicativo de dire
+page 1/1:
+  [verbo] Decir
+row: Decir
+### word-grammar vînmes venir
+page 1/1:
+  [verbo] Venir
+row: Venir
+### word-grammar prenez prendre
+grammar: segunda persona del plural del presente de indicativo y segunda persona del plural del imperativo de prendre
+page 1/1:
+  [verbo] Tomar; Obtener, procurar; Coger
+row: Tomar
+### word-grammar porte porter
+grammar: primera y tercera persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del imperativo de porter
+page 1/1:
+  [verbo] Portar, llevar
+row: Portar, llevar
+### word-grammar porte porte
+gloss: (none)
+### word-grammar vis vivre
+grammar: primera y segunda persona del singular del presente de indicativo y segunda persona del singular del imperativo de vivre
+page 1/1:
+  [verbo] Vivir
+row: Vivir
+### word-grammar vis voir
+grammar: primera y segunda persona del singular del pretérito perfecto simple de indicativo de voir
+page 1/1:
+  [verbo] Ver
+row: Ver
+### word-grammar couvent couver
+grammar: tercera persona del plural del presente de indicativo o de subjuntivo de couver
+page 1/1:
+  [verbo] Incubar, empollar, ahuevar
+row: Incubar, empollar, ahuevar
+### word-grammar couvent couvent
+grammar: también puede ser la tercera persona del plural del presente de indicativo o de subjuntivo de couver
+page 1/1:
+  [sustantivo masculino] Convento (edificio); Convento (comunidad); Casa de huéspedes, internado o pensión
+row: Convento (edificio)
+### word-grammar fils fils
+grammar: también puede ser el masculino plural de fil
+page 1/1:
+  [sustantivo masculino] Hijo (descendiente varón)
+row: Hijo (descendiente varón)
+### word-grammar au au
+grammar: «au» = à + le
+gloss: (none)
+### word-grammar du du
+page 1/1:
+  [—] Contracción de la preposición de y el articulo le, del
+row: Contracción de la preposición de y el articulo le, del
+### word-grammar l'homme homme
+grammar: «l'homme» = le + homme
+page 1/1:
+  [sustantivo masculino] Hombre
+row: Hombre
+### word-grammar l’ le
+page 1/1:
+  [determinante] El
+row: El
+### word-grammar au à
+grammar: «au» = à + le
+page 1/1:
+  [preposición] A (un lugar); A, hasta (un tiempo); A (una dirección); A (un tiempo especifico); A (en, dentro de); De (perteneciendo a); Hasta (un tiempo abstracto); Con
+row: A (un lugar)
+### word-grammar parle parler
+grammar: primera y tercera persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del imperativo de parler
+page 1/1:
+  [verbo] Hablar; Tratar de
+row: Hablar
+### word-grammar parles parler
+grammar: segunda persona del singular del presente de indicativo o de subjuntivo de parler
+page 1/1:
+  [verbo] Hablar; Tratar de
+row: Hablar
+### word-grammar parlent parler
+grammar: tercera persona del plural del presente de indicativo o de subjuntivo de parler
+page 1/1:
+  [verbo] Hablar; Tratar de
+row: Hablar
+### word-grammar parlait parler
+grammar: tercera persona del singular del pretérito imperfecto de indicativo de parler
+page 1/1:
+  [verbo] Hablar; Tratar de
+row: Hablar
+### word-grammar parlera parler
+grammar: tercera persona del singular del futuro simple de indicativo de parler
+page 1/1:
+  [verbo] Hablar; Tratar de
+row: Hablar
+### word-grammar parlerait parler
+grammar: tercera persona del singular del condicional simple de parler
+page 1/1:
+  [verbo] Hablar; Tratar de
+row: Hablar
+### word-grammar parlant parler
+grammar: participio presente de parler
+page 1/1:
+  [verbo] Hablar; Tratar de
+row: Hablar
+### word-grammar parlé parler
+grammar: participio pasado de parler
+page 1/1:
+  [verbo] Hablar; Tratar de
+row: Hablar
+### word-grammar dirigée diriger
+grammar: participio pasado femenino de diriger
+page 1/1:
+  [verbo] Dirigir, encaminar
+row: Dirigir, encaminar
+### word-grammar finissions finir
+grammar: primera persona del plural del pretérito imperfecto de indicativo o de subjuntivo y primera persona del plural del presente de subjuntivo de finir
+page 1/1:
+  [verbo] Acabar, terminar, finalizar
+row: Acabar, terminar, finalizar
+### word-grammar sommes être
+grammar: primera persona del plural del presente de indicativo de être
+grammar: también puede ser el masculino y femenino plural de somme
+grammar: también puede ser la segunda persona del singular del presente de indicativo o de subjuntivo de sommer
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar suis être
+grammar: primera persona del singular del presente de indicativo de être
+grammar: también puede ser la primera y segunda persona del singular del presente de indicativo y la segunda persona del singular del imperativo de suivre
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar grandes grand
+grammar: femenino plural de grand
+page 1/1:
+  [adjetivo] Grande
+row: Grande
+### word-grammar maisons maison
+grammar: femenino plural de maison
+page 1/1:
+  [sustantivo femenino] Casa
+row: Casa
+### word-grammar cette ce
+grammar: femenino singular de ce
+page 1/1:
+  [determinante] Este
+  [pronombre] Esto, eso, aquello
+row: Este
+### word-grammar les le
+page 1/1:
+  [determinante] El
+row: El
+### word-grammar meilleures meilleur
+grammar: femenino plural de meilleur
+grammar: también puede ser el comparativo de bien
+grammar: también puede ser el comparativo de bon
+page 1/1:
+  [sustantivo masculino] Mejor
+row: Mejor
+### word-grammar moindre petit
+grammar: comparativo de petit
+page 1/2:
+  [adjetivo] Chico, corto, escaso, pequeño o reducido; Chico, joven, niño o pequeño; Mezquino; En cantidad reducida
+  [sustantivo masculino] Joven o niño; Descendiente
+page 2/2:
+  [sustantivo masculino] Cualquier pequeña cosa o pequeño objeto
+  [adverbio] Poco
+row: Chico, corto, escaso, pequeño o reducido
+### word-grammar millions million
+page 1/1:
+  [sustantivo] Millón
+row: Millón
+### word-grammar temps temps
+page 1/1:
+  [sustantivo masculino] Tiempo
+row: Tiempo
+### word-grammar heureux heureux
+page 1/1:
+  [adjetivo] Afortunado, feliz
+row: Afortunado, feliz
+### word-grammar de de
+page 1/2:
+  [preposición] De (indica posesiva); De (indica asociación o propiedad); De (indica origen, se usa sin artículo antes de sustantivos proprios); De (indica una cantidad)
+page 2/2:
+  [preposición] De (indica atribución)
+  [determinante] Ni (siquiera) un poco de; Indica una ausencia; Se usa detrás de adverbios y expresiones de cantidad (no existe en español)
+row: De (indica posesiva)
+### word-grammar le le
+page 1/1:
+  [determinante] El
+row: El
+### word-grammar en en
+page 1/3:
+  [preposición] En cuanto a, por lo tocante a, respecto de, acerca de; Sobre; Dentro de; En; A
+  [adverbio] De allí
+page 2/3:
+  [pronombre] Sustituye un complemento indirecto introducido por la preposición de, de eso, de esa, de ello
+page 3/3:
+  [pronombre] Sustituye un complemento directo introducido por el artículo partitivo de
+row: En cuanto a, por lo tocante a, respecto de, acerca de
+### word-grammar des des
+page 1/1:
+  [determinante] Algunos, algunas, unos o unas
+  [—] Contracción de la preposición de y el artículo les, de las o de los
+row: Algunos, algunas, unos o unas
+### word-grammar un un
+page 1/1:
+  [numeral] Un o uno
+  [determinante] Un
+  [sustantivo masculino] El número uno
+  [pronombre] Uno
+row: Un o uno
+### word-grammar que que
+page 1/1:
+  [pronombre] Que; Qué
+row: Que
+### word-grammar pas pas
+page 1/1:
+  [sustantivo masculino] Paso
+  [adverbio] No
+row: Paso
+### word-grammar qui qui
+page 1/1:
+  [pronombre] Quién. (Pronombre nominativo.); Que. (Pronombre nominativo.)
+row: Quién. (Pronombre nominativo.)
+### word-grammar ce ce
+page 1/1:
+  [determinante] Este
+  [pronombre] Esto, eso, aquello
+row: Este
+### word-grammar sur sur
+page 1/1:
+  [preposición] En, en casa de, sobre, encima de
+  [adjetivo] Agrio
+row: En, en casa de, sobre, encima de
+### word-grammar par par
+page 1/2:
+  [preposición] A través de o por; Por medio de (por); Enfatiza un adverbio local; De (indica origen, especialmente visiblemente o mobilemente); Cerca de; Encima de
+page 2/2:
+  [preposición] En (un tiempo)
+  [sustantivo masculino] Par
+row: A través de o por
+### word-grammar on on
+page 1/1:
+  [pronombre] Se, alguien o uno (un individuo indeterminado); Nosotros; Yo; Tú; Vosotros; Ella; Ellas; Él
+row: Se, alguien o uno (un individuo indeterminado)
+### word-grammar plus plus
+grammar: también puede ser el participio pasado masculino plural y la primera y segunda persona del singular del pretérito perfecto simple de indicativo de plaire
+grammar: también puede ser el participio pasado masculino plural de pleuvoir
+page 1/1:
+  [adverbio] Más. Comparativo irregular de beaucoup; Ya no
+  [conjunción] Más
+row: Más. Comparativo irregular de beaucoup
+### word-grammar avec avec
+page 1/3:
+  [preposición] Con, en colaboración con, en compañía de o junto con; Introduce algunos complementos circunstanciales indicante la manera, el instrumento etc
+page 2/3:
+  [preposición] Lo que una persona ofrezca en ella de singular, de extraordinario, de ridículo etc; Contra
+page 3/3:
+  [preposición] A despecho de, a pesar de, a pesar del hecho que, aunque, malgrado, no obstante, pese a, si bien o sin embargo
+  [adverbio] También; Con este, consigo, con ella etc
+row: Con, en colaboración con, en compañía de o junto con
+### word-grammar mais mais
+grammar: también puede ser el masculino plural de mai
+page 1/1:
+  [conjunción] Pero
+row: Pero
+### word-grammar ça ça
+page 1/1:
+  [pronombre] Eso, esto, aquello
+row: Eso, esto, aquello
+### word-grammar tu tu
+grammar: también puede ser el participio pasado de taire
+page 1/1:
+  [pronombre] Tú
+row: Tú
+### word-grammar son son
+page 1/1:
+  [pronombre] Su
+  [sustantivo masculino] Sonido; Salvado, moyuelo
+row: Su
+### word-grammar si si
+page 1/1:
+  [conjunción] Si
+  [interjección] Sí
+  [adverbio] Tan
+  [sustantivo masculino] La nota musical si
+row: Si
+### word-grammar tout tout
+page 1/1:
+  [adjetivo] Todo; Cualquiera
+  [adverbio] Totalmente
+row: Todo
+### word-grammar nous nous
+page 1/1:
+  [pronombre] Nosotros; Nos
+row: Nosotros
+### word-grammar comme comme
+page 1/1:
+  [conjunción] Como; Cuando
+  [adverbio] Así, de este modo, tan; Cuán, qué; Casi; Más o menos
+row: Como
+### word-grammar être être
+page 1/1:
+  [sustantivo masculino] Ser
+  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+row: Ser
+### word-grammar bien bien
+page 1/1:
+  [adverbio] Bien; Mucho (de); Al menos; Bien (muy); Con gusto
+  [sustantivo masculino] Bien (rectitud moral); Bien (artículo de consumo)
+  [interjección] Así que, bueno
+row: Bien
+### word-grammar même même
+page 1/1:
+  [adjetivo] Mismo
+  [adverbio] Aun
+row: Mismo
+### word-grammar aussi aussi
+page 1/1:
+  [adverbio] También; Tan
+row: También
+### word-grammar deux deux
+page 1/1:
+  [numeral] Dos
+  [adjetivo] Ambos
+  [sustantivo] El número dos
+row: Dos
+### word-grammar leur leur
+page 1/1:
+  [pronombre] Suyo, suya
+row: Suyo, suya
+### word-grammar moi moi
+page 1/1:
+  [pronombre] Yo
+row: Yo
+### word-grammar quand quand
+page 1/1:
+  [conjunción] Cuando
+  [adverbio] Cuándo
+row: Cuando
+### word-grammar après après
+page 1/1:
+  [preposición] Después de, detrás de, tras
+  [adverbio] Después, más tarde
+row: Después de, detrás de, tras
+### word-grammar avoir avoir
+page 1/1:
+  [verbo] Tener; (avoir + participio) Haber; Engañar, entrampar
+  [sustantivo masculino] Haber (en contabilidad)
+row: Tener
+### word-grammar non non
+page 1/1:
+  [adverbio] No
+row: No
+### word-grammar alors alors
+page 1/1:
+  [adverbio] Entonces; En tal caso
+row: Entonces
+### word-grammar peu peu
+page 1/1:
+  [pronombre] Pocos
+row: Pocos
+### word-grammar autre autre
+page 1/1:
+  [pronombre] Otro
+row: Otro
+### word-grammar rien rien
+page 1/1:
+  [pronombre] Nada; Poca cosa; Algo
+  [sustantivo masculino] Pequeño cantidad de algo
+  [adverbio] Muy; Mucha, muchas, mucho o muchos
+row: Nada
+### word-grammar dire dire
+page 1/1:
+  [verbo] Decir
+row: Decir
+### word-grammar monde monde
+page 1/1:
+  [sustantivo masculino] Mundo
+row: Mundo
+### word-grammar fois fois
+grammar: también puede ser el femenino plural de foi
+page 1/1:
+  [sustantivo femenino] Vez
+row: Vez
+### phrase-gloss reader Le vieux marin ferma les fenêtres du phare
+row: marin — Marinero

@@ -21,6 +21,9 @@ import type { GrammarLine, GrammarRenderer, Named, StudiedLanguageCode } from ".
 // one. The names of parts of speech, gender, number and person are French; a tense's name depends
 // on the studied language — `Tense=Past` is the prétérit in English and the passé simple in
 // Spanish — so the verb-form names are keyed by studied language, as French schools name them.
+// French's own table (add-lingua-french-word-card D1, D2) serves the override M2 reserves and the
+// enumeration of what each renderer names: a French-native reader does not study French, so no
+// card shows it.
 
 const PARTS_OF_SPEECH: Record<string, string> = {
   ADJ: "adjectif",
@@ -50,7 +53,9 @@ const NUMBERS: Record<string, string> = { Sing: "du singulier", Plur: "du plurie
  * (`finiteKey`). English: the indicative's two. Spanish: the present and the imperfect name their
  * mood — the subjunctive has both too; the conditional and the imperative have no tense — listed in
  * the order French grammars give them, which is the order the card names them in (`tenseOrder`;
- * English's two come in the pack's order).
+ * English's two come in the pack's order). French: Spanish's table without the future subjunctive,
+ * with the indicative and the subjunctive of one tense said once (`Ind|Sub/…`,
+ * add-lingua-french-word-card D2, D3).
  */
 const TENSES: Record<StudiedLanguageCode, TenseTable> = {
   en: { "Ind/Past": "prétérit", "Ind/Pres": "présent" },
@@ -65,10 +70,22 @@ const TENSES: Record<StudiedLanguageCode, TenseTable> = {
     "Sub/Fut": "futur du subjonctif",
     "Imp/": "impératif",
   },
+  fr: {
+    "Ind/Pres": "présent de l’indicatif",
+    "Ind|Sub/Pres": "présent de l’indicatif ou du subjonctif",
+    "Ind/Imp": "imparfait de l’indicatif",
+    "Ind|Sub/Imp": "imparfait de l’indicatif ou du subjonctif",
+    "Ind/Past": "passé simple",
+    "Ind/Fut": "futur",
+    "Cnd/": "conditionnel",
+    "Sub/Pres": "présent du subjonctif",
+    "Sub/Imp": "imparfait du subjonctif",
+    "Imp/": "impératif",
+  },
 };
 
-/** The gerund's name: English's « forme en -ing », Spanish's « gérondif ». */
-const GERUNDS: Record<StudiedLanguageCode, Named> = {
+/** The gerund's name: English's « forme en -ing », Spanish's « gérondif »; French has none (`CARD_NAMES`). */
+const GERUNDS: Partial<Record<StudiedLanguageCode, Named>> = {
   en: { article: "la", name: "forme en -ing" },
   es: { article: "le", name: "gérondif" },
 };
@@ -120,8 +137,10 @@ const readingWords: ReadingWords = {
           name: agreed ? `participe passé ${agreed.replace(" singulier", "")}` : "participe passé",
         };
       }
+      case "presentParticiple":
+        return { article: "le", name: "participe présent" };
       case "gerund":
-        return GERUNDS[studied];
+        return GERUNDS[studied] ?? null;
       case "finite":
         return tense === undefined ? null : masculine(tense);
     }

@@ -49,7 +49,14 @@ no language (the readings as the engine's tags, merged by tag; what a card names
 is composed), and each language's `grammar.ts` exports `grammar: GrammarRenderer` (`index.ts`) that
 words it — its tables private to it, keyed by studied language where a name depends on it (`TENSES`,
 listed in the order the card names them, and the gerund's name); what is named at all — whether the
-infinitive is, which moods are — is the description's, beside `finiteKey`. The rule that a draft is typed after the
+infinitive, the present participle and the gerund are, whether the indicative and the subjunctive of
+one tense are said once — is the description's, one table keyed by studied language (`CARD_NAMES`),
+beside `finiteKey`. The studied languages the renderers name are `StudiedLanguageCode`'s: English,
+Spanish and French (add-lingua-french-word-card D1), French ahead of the extension's `StudiedLanguage`,
+which change 52 widens — until then the renderers' French is reached by tests only. Every renderer
+has a table for every studied language: the French renderer's French, which no French-native reader
+is shown, serves the interface override M2 reserves and the enumeration of what each renderer names,
+as the English renderer's English and the Spanish renderer's Spanish do. The rule that a draft is typed after the
 French covers code here: `en/grammar.ts` and `es/grammar.ts` are `typeof fr`, so the compiler checks
 the functions; `test/grammar-description.spec.ts` checks that every renderer names what the French
 names, no more, and `test/i18n.spec.ts` checks the drafts as renderers rather than as texts. The

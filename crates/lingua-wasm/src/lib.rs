@@ -116,9 +116,21 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// first — a card made before Spanish expressions were named holds the key it was shown under
 /// (`tener en contar`) — then at the key its lemma, a name (`tener en cuenta`), reads as
 /// (add-lingua-spanish-expression-keys D7).
+///
+/// A French expression may be named without a space (`d'abord`, `allez-y`): a French card whose
+/// lemma holds none but reads, through French's reading, as two tokens or more, each a lemma, is
+/// read in the table at that key (`de abord`), and as a word where the table has nothing there; a
+/// lemma read as one token (`aujourd'hui`) is a word, as before (add-lingua-french-word-card D8).
+/// `Card::is_expression` keeps its meaning for every other caller.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| {
         if !card.is_expression() {
+            if pack.studied() == StudiedLanguage::French
+                && let Some(gloss) = french_expression_key(&card.lemma, pack.lexicon())
+                    .and_then(|key| pack.expression(&key))
+            {
+                return Some(gloss);
+            }
             return pack.gloss(&card.lemma);
         }
         match pack.studied() {
