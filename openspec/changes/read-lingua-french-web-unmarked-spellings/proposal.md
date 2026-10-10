@@ -62,9 +62,9 @@ takes only the spellings the dictionary does **not** name.
     « Evidemment », which PUD lemmatises unaccented, now *évidemment*); GSD's test section 98.89 /
     95.86 / 99.72 → 98.91 / 95.94 / 99.72 % (« Eglise », « Equipe »).
 - **In running text** (D5): on the corpora at hand (UD, Tatoeba, Wikipedia, Gutenberg, change 39's
-  pages; 6.8 M words) the rows occur 159 times; 128 are the accented word (61 of 63 in Tatoeba's
+  pages; 6.8 M words) the rows occur 159 times; 128 are the accented word (60 of 63 in Tatoeba's
   user-written sentences), 12 names (« Noel Murray », « Shimon Peres »), 18 other languages' words in
-  French text (Catalan « tres », Walloon « tot », Italian « Serie A »), 1 an English title; 94 are
+  French text (Catalan « tres », Walloon « tot », Italian « Serie A »), 1 an English title; 98 are
   capitals French writes without accents (« l'Eglise », « Etant donné »), which a row reads by name.
 - **The goldens** (D6): `fr-en.golden` and `fr-es.golden` move 4 of their 221 probes each — the pack
   line, « apres » and « genial » on the `informel` page read as *après* and *génial*, the two
