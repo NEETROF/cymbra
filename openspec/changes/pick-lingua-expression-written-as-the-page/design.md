@@ -43,7 +43,8 @@ the key (`peu importer` over `peu importe`, `grand air` over `grands airs`), 9 t
 (`droit de l'homme` over `droits de l'homme`) and 20 to byte order (`ça ira` over `ça va`, `quel que
 fût` over `quel que soit`, `quoi qu'il en fût` over `quoi qu'il en soit`, `ne fût-ce que` over `ne
 serait-ce que`, `les miennes` over `les miens`). In 23 of the 60 every headword has the same gloss
-(`dis donc` and `dites donc` « wow; my »); in the others they differ, often as two expressions:
+(`fais de beaux rêves` and `faites de beaux rêves` « sweet dreams », `les miens` and `les miennes`
+« mine »); in the others they differ, often as two expressions:
 `fruit de mer` « a piece of seafood » and `fruits de mer` « seafood », `pied de mouche` « paragraph
 mark » and `pieds de mouche` « chicken scratch », `petit mal` and `moindre mal` « lesser evil »,
 `demander en mariage` « to propose » and `demande en mariage` « proposal », `grand air` « open
@@ -87,14 +88,14 @@ and name are as today), every other headword of the key:
   change 44's order gives it the key;
 - a new optional section, **`expr.others`**, lists them: `count u32 | count × (key id u32, other id
   u32)`, little-endian, sorted by key id and then in change 44's order — fr-en 61 pairs (492 B), fr-es
-  64 (516 B). Written only for a pack studying French that has one.
+  64 (516 B). Written only for a pack studying French in which a key has other headwords.
 
 | Pack | Today | This design | Growth | `expr.others` |
 |---|---|---|---|---|
 | fr-en | 2,537,386 B | 2,538,483 B | +1,097 B | 492 B |
 | fr-es | 1,971,289 B | 1,972,957 B | +1,668 B | 516 B |
 
-**A core that predates the section** ignores it (`Pack::load` keeps no unknown section,
+**A core that predates the section** ignores it (`Pack::load` passes over a section it does not know,
 `a_pack_carrying_an_unknown_section_loads_unchanged`), and the extra ids are never reached through
 `expr`: it answers every key with the headword, gloss and name it answers today. Measured: the today
 setting on the new pack reproduces `main`'s matches to the unit. `FORMAT_VERSION` stays 1, and
@@ -257,7 +258,7 @@ that add probes.
   (`dar cuenta` « Rendre compte » → `darse cuenta` « Se rendre compte »), `es-en.golden` its `pack`
   line, `en-es.golden` nothing; es-fr's and es-en's pins. The closest headword (D2) costs more in
   Spanish than in French: of the 17 (es-fr) and 167 (es-en) matches it names otherwise than the strict
-  rule, `dar vueltas` 52, `dar el alta` 17 (« le dieron el alta », discharged), `dar gracias` 8 and
+  rule, es-en's `dar vueltas` 52, `dar el alta` 17 (« le dieron el alta », discharged), `dar gracias` 8 and
   `hacerse ilusiones` 7 are right, and `tenerlos puestos` « to have balls » on « tenía puestos unos
   audífonos » 6 is wrong.
 - es-fr is read, and its output does not move without the owner's approval (the programme's rule), so
