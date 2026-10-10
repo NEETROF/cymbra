@@ -59,20 +59,25 @@ const PAIRS = ["en-fr", "es-fr", "es-en", "en-es", "fr-en"];
 const OPENING = /[“‘«([¿¡]…$/u;
 
 describe("the row cut over every committed gloss", () => {
+  // Each check gathers the offending rows and asserts once: an `expect` per gloss (about 300,000
+  // since fr-en's glosses joined) outran the test's time limit on CI.
   it("skips no sense: the empty-sense pattern matches no gloss of any edition the packs read", () => {
+    const offending: string[] = [];
     for (const pair of PAIRS) {
       for (const [lemma, gloss] of glosses(pair)) {
-        expect(gloss, `${pair} ${lemma}`).not.toMatch(/définition manquante/i);
-        expect(rowGloss(gloss), `${pair} ${lemma}`).not.toBeNull();
+        if (/définition manquante/i.test(gloss) || rowGloss(gloss) === null) offending.push(`${pair} ${lemma}`);
       }
     }
+    expect(offending).toEqual([]);
   });
 
   it("ends no row on an opening mark", () => {
+    const offending: string[] = [];
     for (const pair of PAIRS) {
       for (const [lemma, gloss] of glosses(pair)) {
-        expect(rowGloss(gloss), `${pair} ${lemma}`).not.toMatch(OPENING);
+        if (OPENING.test(rowGloss(gloss) ?? "")) offending.push(`${pair} ${lemma}`);
       }
     }
+    expect(offending).toEqual([]);
   });
 });
