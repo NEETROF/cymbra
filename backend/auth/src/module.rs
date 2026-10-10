@@ -57,16 +57,15 @@ fn now_secs() -> i64 {
         .as_secs() as i64
 }
 
-/// Resolve the effective transactional-email locale (change: persist-user-locale,
-/// D4) — the precedence **request → stored → English**, defined once. A non-empty
-/// request locale always wins; otherwise the account's stored preference is used;
-/// absent both, [`SupportedLocale::parse`] maps `None` to English.
-fn effective_locale(request_locale: &str, stored_locale: Option<&str>) -> SupportedLocale {
-    if request_locale.is_empty() {
-        SupportedLocale::parse(stored_locale)
-    } else {
-        SupportedLocale::parse(Some(request_locale))
-    }
+/// The language of an account e-mail (change: prefer-account-locale-for-emails, D1) —
+/// the precedence **stored → request → English**, defined once for the four e-mails.
+/// A non-empty stored locale always wins, even one the e-mails are not written in
+/// (`de-DE` renders in English whatever the request carries: one language per
+/// account); otherwise a non-empty request locale; absent both, English. Each tag is
+/// read by [`SupportedLocale::parse`].
+fn email_locale(stored: Option<&str>, request: &str) -> SupportedLocale {
+    let non_empty = |tag: &&str| !tag.is_empty();
+    SupportedLocale::parse(stored.filter(non_empty).or(Some(request).filter(non_empty)))
 }
 
 /// Build the enqueue request for a verification email. The producer renders the
@@ -198,6 +197,21 @@ impl AuthModule {
         .await
     }
 
+    /// The language `user_id`'s account e-mail is written in, by [`email_locale`]
+    /// (change: prefer-account-locale-for-emails, D1–D2). The request's locale is
+    /// recorded only on an account that has none, so a request never replaces the
+    /// account's language: only `SetLocale`, the account's own language setting, does.
+    /// A read then a write through the two port methods; two first requests racing on
+    /// an empty account both write a locale that account's requests carried (D2).
+    async fn account_email_locale(&self, user_id: &str, request: &str) -> Result<SupportedLocale> {
+        let stored = self.user.locale(user_id).await?;
+        let stored = stored.as_deref().filter(|tag| !tag.is_empty());
+        if stored.is_none() && !request.is_empty() {
+            self.user.set_locale(user_id, request).await?;
+        }
+        Ok(email_locale(stored, request))
+    }
+
     /// Record that `user_id` uses the app behind `audience` (change:
     /// add-directory-app-usage) — the fact the back-office directory shows. Best effort:
     /// a missing icon is not worth refusing a sign-in, so a failure is only logged. The
@@ -269,11 +283,11 @@ impl AuthPort for AuthModule {
         .await?;
         let hash = password::hash(password)?;
         self.creds.insert(email, &hash).await?; // AlreadyExists if taken
-        // Provision the shared account + its `local` identity, then record the
-        // request locale as the account's preference (no-op on empty — change:
-        // persist-user-locale).
+        // Provision the shared account + its `local` identity. The account is new, so
+        // nothing is stored yet: the request's locale is its first, recorded and used,
+        // English when it carries none (change: prefer-account-locale-for-emails, D4).
         let uid = self.user.resolve_or_provision("local", email).await?;
-        self.user.set_locale(&uid, locale).await?;
+        let email_locale = self.account_email_locale(&uid, locale).await?;
         let tok = uuid::Uuid::new_v4().to_string();
         let exp = now_secs() + self.cfg.verify_ttl.as_secs() as i64;
         // Enqueue the verification email as a job in the same transaction as the
@@ -282,7 +296,7 @@ impl AuthPort for AuthModule {
         let job = verification_email_job(
             email,
             &tok,
-            SupportedLocale::parse(Some(locale)),
+            email_locale,
             self.cfg.email_logo_url.as_deref(),
         )?;
         self.creds
@@ -340,18 +354,18 @@ impl AuthPort for AuthModule {
         if let Some(cred) = self.creds.get(email).await?
             && !cred.email_verified
         {
-            // Refresh the stored locale (no-op on empty) and render in the
-            // effective locale: request → stored → English (change:
-            // persist-user-locale).
+            // Render in the account's language: stored → request → English; the
+            // request's locale is recorded only when the account has none (change:
+            // prefer-account-locale-for-emails, D2). Inside the account-exists branch,
+            // so an unknown address reads and writes nothing (D5).
             let uid = self.user.resolve_or_provision("local", email).await?;
-            self.user.set_locale(&uid, locale).await?;
-            let stored = self.user.locale(&uid).await?;
+            let email_locale = self.account_email_locale(&uid, locale).await?;
             let tok = uuid::Uuid::new_v4().to_string();
             let exp = now_secs() + self.cfg.verify_ttl.as_secs() as i64;
             self.creds.set_verification(email, &tok, exp).await?;
             let rendered = email_template::verification_email(
                 &tok,
-                effective_locale(locale, stored.as_deref()),
+                email_locale,
                 self.cfg.email_logo_url.as_deref(),
             );
             self.email.send(email, &rendered).await?;
@@ -471,18 +485,19 @@ impl AuthPort for AuthModule {
     ) -> Result<()> {
         self.throttle_email("reset_email", email, client).await?;
         if let Some(_cred) = self.creds.get(email).await? {
-            // Locale refresh + stored-locale fallback lookup live INSIDE the
-            // account-exists branch (design D5), so they add no observable
-            // difference between existing and non-existing accounts.
+            // The stored-locale read, and the request's locale recorded only on an
+            // account that has none, live INSIDE the account-exists branch (change:
+            // prefer-account-locale-for-emails, D2 and D5), so they add no observable
+            // difference between existing and non-existing accounts. A reset needs
+            // only the address, so it never replaces the account's language.
             let uid = self.user.resolve_or_provision("local", email).await?;
-            self.user.set_locale(&uid, locale).await?;
-            let stored = self.user.locale(&uid).await?;
+            let email_locale = self.account_email_locale(&uid, locale).await?;
             let tok = uuid::Uuid::new_v4().to_string();
             let exp = now_secs() + self.cfg.reset_ttl.as_secs() as i64;
             self.creds.set_reset(email, &tok, exp).await?;
             let rendered = email_template::password_reset_email(
                 &tok,
-                effective_locale(locale, stored.as_deref()),
+                email_locale,
                 self.cfg.email_logo_url.as_deref(),
             );
             self.email.send(email, &rendered).await?;
@@ -570,11 +585,17 @@ impl AuthPort for AuthModule {
                 self.cfg.verify_ttl,
             )
             .await?;
+        // Only now, past the refusals and with the submission parked, so a refused
+        // request reads and writes nothing: the e-mail follows the account's language,
+        // and the request's locale is recorded when the account has none — often its
+        // first locale-carrying request, for an account created with Google (change:
+        // prefer-account-locale-for-emails, D3).
+        let email_locale = self.account_email_locale(user_id, locale).await?;
         // Send the branded/localized verification email inline (like resend): there
         // is no DB row to enqueue a job transactionally against.
         let rendered = email_template::verification_email(
             &tok,
-            SupportedLocale::parse(Some(locale)),
+            email_locale,
             self.cfg.email_logo_url.as_deref(),
         );
         self.email.send(email, &rendered).await?;
@@ -1252,17 +1273,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn request_locale_overrides_stored_locale() {
+    async fn stored_locale_wins_over_request_locale() {
+        // Was `request_locale_overrides_stored_locale`: inverted by change
+        // prefer-account-locale-for-emails (D1, D2, D8).
         let h = harness();
         // Stored locale is French from sign-up …
         h.m.sign_up_local("a@x.dev", PW, "fr", &ip()).await.unwrap();
-        // … but an explicit Italian request wins over the stored French.
+        // … and a request carrying Italian neither wins over it nor replaces it.
         h.m.resend_verification("a@x.dev", "it", &ip())
             .await
             .unwrap();
-        let sent = h.email.sent.lock().unwrap();
-        let msg = sent.first().expect("resend should send one email");
-        assert_eq!(msg.subject, "Verifica il tuo account Cymbra");
+        let subject = h.email.sent.lock().unwrap()[0].subject.clone();
+        assert_eq!(subject, "Vérifiez votre compte Cymbra");
+        let uid = h
+            .user
+            .resolve_or_provision("local", "a@x.dev")
+            .await
+            .unwrap();
+        assert_eq!(h.user.locale(&uid).await.unwrap().as_deref(), Some("fr"));
     }
 
     #[tokio::test]
