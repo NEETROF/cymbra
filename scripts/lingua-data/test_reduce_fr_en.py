@@ -640,6 +640,177 @@ class Reducing(unittest.TestCase):
         self.assertEqual(sorted(self.ranks.values()), list(range(1, len(self.ranks) + 1)))
 
 
+
+# read-lingua-french-ca-as-ca-cedilla: the section's entries for the spellings `UNMARKED_SPELLINGS`
+# names, and for the words they spell, as the pinned dump writes them — `CA`'s four initialisms and
+# its plural, which an entry of its own points at too; `ca` « abbreviation of circa »; the plough's
+# beam and its plural; the fixing number and its plural — and words a reader means as written.
+def _initialism(of):
+    return {"glosses": [f"initialism of {of}"], "tags": ["abbreviation", "alt-of", "initialism", "masculine"], "alt_of": [{"word": of}]}
+
+
+SPELLINGS_SECTION = [
+    entry(
+        "CA",
+        forms=[("CAs", ["plural"])],
+        senses=[_initialism(of) for of in ("conseil d'administration", "chiffre d'affaires", "courant alternatif", "comptable agréé")],
+    ),
+    form_of("CAs", "CA", pos="noun", tags=("form-of", "masculine", "plural")),
+    alt_of("ca", "circa", pos="prep", gloss="abbreviation of circa", tags=("abbreviation", "alt-of")),
+    entry("ça", pos="pron", senses=[{"glosses": ["that (distal demonstrative pronoun)"]}, {"glosses": ["this (proximal demonstrative pronoun)"]}]),
+    entry("cas", senses=[{"glosses": ["case, situation"], "tags": ["invariable", "masculine"]}]),
+    entry("age", forms=[("ages", ["plural"])], senses=[{"glosses": ["beam (central bar of a plough)"], "tags": ["masculine"]}, {"glosses": ["shaft"], "tags": ["masculine"]}]),
+    form_of("ages", "age", pos="noun", tags=("form-of", "masculine", "plural")),
+    entry("âge", forms=[("âges", ["plural"])], senses=[{"glosses": ["age"], "tags": ["masculine"]}]),
+    form_of("âges", "âge", pos="noun", tags=("form-of", "masculine", "plural")),
+    entry("forcement", forms=[("forcements", ["plural"])], senses=[{"glosses": ["fixing number; cooking the books"], "tags": ["masculine"]}]),
+    entry("forcément", pos="adv", senses=[{"glosses": ["inevitably"]}, {"glosses": ["necessarily"]}]),
+    # Words of their own beside a marked word: `ou` and `où`, `a` (avoir's) and `à`, `cote` and
+    # `côte`/`côté`, `sur` and `sûr`.
+    entry("ou", pos="conj", senses=[{"glosses": ["or"]}]),
+    entry("où", pos="adv", senses=[{"glosses": ["where"]}]),
+    entry("avoir", pos="verb", forms=[*TABLE_HEAD, ("a", PRESENT_3S)], senses=[{"glosses": ["to have"]}]),
+    form_of("a", "avoir"),
+    entry("cote", senses=[{"glosses": ["rating"], "tags": ["feminine"]}]),
+    entry("côte", senses=[{"glosses": ["coast"], "tags": ["feminine"]}]),
+    entry("côté", senses=[{"glosses": ["side"], "tags": ["masculine"]}]),
+    entry("sur", pos="prep", senses=[{"glosses": ["on"]}]),
+    entry("sûr", pos="adj", senses=[{"glosses": ["sure"]}]),
+]
+# wordfreq's Zipf values for them (3.1.1, rounded): every spelling the table names is attested,
+# `forcements` barely, and each is rarer than the word it spells.
+SPELLINGS_FREQ = {
+    "ça": 6.5, "ca": 5.6, "cas": 5.5, "âge": 5.2, "age": 4.3, "ages": 3.1, "âges": 3.6, "forcément": 4.7,
+    "forcement": 3.5, "forcements": 1.0, "ou": 6.5, "où": 6.1, "a": 7.0, "avoir": 6.4, "cote": 4.2,
+    "côte": 4.6, "côté": 5.5, "sur": 6.8, "sûr": 5.3, "circa": 2.0,
+}
+# wordfreq's list, read to six times the lemmas kept, never reaches `forcements` (Zipf 1.01): it is a
+# form only if a ranked word reaches it.
+_SPELLINGS_TOP = [
+    w
+    for w in sorted({**FREQ, **SPELLINGS_FREQ}, key=lambda w: (-{**FREQ, **SPELLINGS_FREQ}[w], w))
+    if "-" not in w and w != "forcements"
+]
+_TABLES = os.path.join(_HERE, "tables")
+
+
+def _committed(path):
+    with open(os.path.join(_TABLES, *path.split("/")), encoding="utf-8") as f:
+        return dict(line.rstrip("\n").split("\t", 1) for line in f)
+
+
+class UnmarkedSpellings(unittest.TestCase):
+    """read-lingua-french-ca-as-ca-cedilla: French written without its marks, read as the word a
+    reviewed table names (D1), the spellings' own words lost (D2)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with mock.patch.dict(FREQ, SPELLINGS_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _SPELLINGS_TOP):
+            cls.out = Main.run_main(cls, [*ENTRIES, *SPELLINGS_SECTION])
+        cls.forms = dict(line.split("\t") for line in cls.out["forms.tsv"].splitlines())
+        cls.ranks = dict(line.split("\t") for line in cls.out["freq.tsv"].splitlines())
+        cls.levels = dict(line.split("\t") for line in cls.out["level.tsv"].splitlines())
+        cls.glosses = dict(line.split("\t", 1) for line in cls.out["gloss.tsv"].splitlines())
+        cls.words = set(cls.out["lexical.tsv"].splitlines())
+
+    def test_spec_scenario_a_row_is_a_decision(self):
+        # The owner's four rows (2026-10-10), each with its reason; no row is an elided piece, `du`
+        # or `des`, nor a word a reader can mean.
+        self.assertEqual(
+            {form: word for form, (word, _) in red.UNMARKED_SPELLINGS.items()},
+            {"ca": "ça", "age": "âge", "ages": "âge", "forcement": "forcément"},
+        )
+        for form, (word, reason) in red.UNMARKED_SPELLINGS.items():
+            self.assertTrue(reason.strip(), form)
+            self.assertNotIn(form, red.ELISIONS)
+            self.assertNotIn(form, red.OWN_WORDS)
+            self.assertNotIn(form, red.OVERRIDES)
+        for never in ("cote", "tache", "pale", "foret", "aine"):
+            self.assertNotIn(never, red.UNMARKED_SPELLINGS)
+        # In the committed tables, every row's word is a ranked lemma reading as itself, and the
+        # spelling reads as it.
+        forms, ranks = _committed("fr/forms.tsv"), _committed("fr/freq.tsv")
+        for form, (word, _) in red.UNMARKED_SPELLINGS.items():
+            self.assertIn(word, ranks, word)
+            self.assertEqual(forms[word], word)
+            self.assertEqual(forms[form], word, form)
+            self.assertNotIn(form, ranks, form)
+
+    def test_spec_scenario_the_acronym_and_circa_leave_the_pack(self):
+        lex = lexicon(*SPELLINGS_SECTION)
+        # `CA`'s and `ca`'s entries, lowercased into one word, make it no lemma: the table's word is
+        # its one candidate.
+        self.assertEqual(lex.candidates["ca"], {"ça"})
+        self.assertNotIn("ca", lex.lemmas)
+        self.assertNotIn("ca", lex.poses)
+        # Neither `CA`'s inflection table nor the entry « plural of CA » links `cas` to it.
+        self.assertEqual(lex.candidates["cas"], {"cas"})
+        self.assertNotIn("ca", lex.links.get("cas", {}))
+        self.assertEqual(self.forms["cas"], "cas")
+        # No gloss, no rank, no dictionary word, no level: « board of directors » and circa are gone.
+        for spelling in ("ca", "age", "forcement"):
+            self.assertNotIn(spelling, self.ranks, spelling)
+            self.assertNotIn(spelling, self.glosses, spelling)
+            self.assertNotIn(spelling, self.words, spelling)
+            self.assertNotIn(spelling, self.levels, spelling)
+        self.assertNotIn("circa", self.glosses.get("ça", ""))
+
+    def test_spec_scenario_ca_reads_as_ca_cedilla(self):
+        self.assertEqual(self.forms["ca"], "ça")
+        self.assertEqual(self.forms["ça"], "ça")
+        self.assertIn("ça", self.ranks)
+        self.assertEqual(self.levels["ça"], "A1")
+        self.assertEqual(self.glosses["ça"].split(";")[0].strip(), "that (distal demonstrative pronoun)")
+
+    def test_spec_scenario_a_rare_word_an_unmarked_spelling_swamps(self):
+        self.assertEqual(self.forms["age"], "âge")
+        self.assertEqual(self.forms["ages"], "âge")
+        self.assertEqual(self.forms["âges"], "âge")
+        self.assertEqual(self.forms["forcement"], "forcément")
+        # The noun's plural, which only its own entry listed: no form of any word now.
+        self.assertNotIn("forcements", self.forms)
+        for word in ("âge", "forcément"):
+            self.assertIn(word, self.ranks)
+            self.assertIn(word, self.levels)
+        self.assertEqual(self.glosses["âge"], "age")
+        # No reading is written under the named words for a spelling, nor under its lost word.
+        for row in self.out["grammar.tsv"].splitlines():
+            self.assertNotIn(row.split("\t")[0], red.UNMARKED_SPELLINGS, row)
+            self.assertNotIn(row.split("\t")[1], ("ca", "age", "forcement"), row)
+
+    def test_a_row_holds_when_no_entry_names_its_form(self):
+        # Without the noun's entry, `forcement` is still forcément's: the table seeds it.
+        section = [e for e in SPELLINGS_SECTION if e["word"] != "forcement"]
+        lex = lexicon(*section)
+        self.assertNotIn("forcement", lex.candidates)
+        red.unmarked_spellings(lex)
+        self.assertEqual(lex.candidates["forcement"], {"forcément"})
+        self.assertEqual(lex.candidates["ages"], {"âge"})
+        with mock.patch.dict(FREQ, SPELLINGS_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _SPELLINGS_TOP):
+            forms, _ = red.reduce_forms(lex, {}, {}, frequency, top_n, 200)
+        self.assertEqual(forms["forcement"], "forcément")
+        # A lemma's inflection table listing a row's form adds no reading to it either.
+        lex = lexicon(entry("âge", forms=[("âges", ["plural"]), ("age", ["masculine"])]))
+        self.assertNotIn("age", lex.candidates)
+
+    def test_spec_scenario_a_word_of_its_own_is_not_read_by_its_marks(self):
+        for form, word in (("ou", "ou"), ("où", "où"), ("a", "avoir"), ("sur", "sur"), ("cote", "cote"), ("côté", "côté")):
+            self.assertEqual(self.forms[form], word, form)
+        # And in the committed tables: `ou`, `a`, `la`, `des`, `du`, `sur` and `cote` keep the
+        # reading change 43's rules give them.
+        forms = _committed("fr/forms.tsv")
+        for form, word in (("ou", "ou"), ("a", "avoir"), ("la", "le"), ("des", "des"), ("du", "du"), ("sur", "sur"), ("cote", "cote")):
+            self.assertEqual(forms[form], word, form)
+
+    def test_the_named_words_keep_their_levels_in_the_committed_tables(self):
+        levels = _committed("fr/level.tsv")
+        self.assertEqual({w: levels.get(w) for w in ("ça", "âge", "forcément")}, {"ça": "A1", "âge": "A1", "forcément": "A2"})
+        for spelling in ("ca", "age", "forcement"):
+            self.assertNotIn(spelling, levels)
+            self.assertNotIn(spelling, _committed("fr-en/gloss.tsv"))
+        self.assertNotIn("forcements", _committed("fr/forms.tsv"))
+
+
 class Ranks(unittest.TestCase):
     def ranks(self, compounds, lemmas, want=10, inflected=(), poses=None, freq=frequency):
         return red.ranks_for(set(inflected), want, set(lemmas), poses or {}, compounds, freq, top_n)
