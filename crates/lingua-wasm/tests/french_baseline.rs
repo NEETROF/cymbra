@@ -45,7 +45,9 @@
 //! the readings or the levels), the fixture replaced by the committed tables (done, once), an
 //! es-en update, which moves the `beside es-en` line alone, or probes a change of the French stage
 //! adds, the others unmoved (add-lingua-french-expression-keys, add-lingua-french-word-card: the
-//! card's 21 grammar probes, 40 lemmas and « l’homme »). `lingua-pack-update` re-blesses on its own
+//! card's 21 grammar probes, 40 lemmas and « l’homme »; match-lingua-french-elided-pieces: four
+//! phrase probes, « de l’eau », « Il a décidé de le faire », « parce qu’il pleut » and « d’un
+//! hiver »). `lingua-pack-update` re-blesses on its own
 //! branch. The extension's `test/word-card-fr-en.spec.ts` renders this golden's grammar and phrase
 //! probes, and is re-blessed with it (`yarn vitest run test/word-card-fr-en.spec.ts -u`).
 //!
