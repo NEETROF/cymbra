@@ -95,6 +95,23 @@ from pathlib import Path
 
 REPOSITORY = "NEETROF/cymbra"
 
+# UD French-GSD's training and development sections, read for their counts of each form under each
+# lemma and of each hyphenated lemma (add-lingua-french-forms-tables D2), and of each word under each
+# part of speech (refine-lingua-fr-en-glosses D5), at the default branch's head of 2026-05-06. Its
+# test section is the measurement's, never the reduction's.
+FRENCH_GSD = {
+    "gsd-train": {
+        "file": "fr_gsd-ud-train.conllu",
+        "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/"
+        "94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-train.conllu",
+    },
+    "gsd-dev": {
+        "file": "fr_gsd-ud-dev.conllu",
+        "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/"
+        "94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-dev.conllu",
+    },
+}
+
 # The sources each pair reads at a commit — en-fr's read on 2026-09-25/26. The URLs name a commit,
 # never a branch: the AGID URL the pipeline once used named `master`, a branch en-wl/wordlist no
 # longer has, and worked through a leftover redirect. At a commit, a URL means the same bytes for
@@ -126,21 +143,11 @@ PINNED = {
             "267f3530d4f122ee85d1891800211a06dfb79347/es_gsd-ud-dev.conllu",
         },
     },
-    # UD French-GSD's training and development sections, read for their counts of each form under
-    # each lemma and of each hyphenated lemma (add-lingua-french-forms-tables D2), at the default
-    # branch's head of 2026-05-06. Its test section is the measurement's, never the reduction's.
-    "fr-en": {
-        "gsd-train": {
-            "file": "fr_gsd-ud-train.conllu",
-            "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/"
-            "94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-train.conllu",
-        },
-        "gsd-dev": {
-            "file": "fr_gsd-ud-dev.conllu",
-            "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/"
-            "94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-dev.conllu",
-        },
-    },
+    # French's reference pair: UD French-GSD's two sections (`FRENCH_GSD`).
+    "fr-en": FRENCH_GSD,
+    # The same two files, at the same commit, read for the part of speech a function word's row opens
+    # on (refine-lingua-fr-es-glosses D8): fr-es's pin records them as fr-en's does.
+    "fr-es": FRENCH_GSD,
 }
 # ESDB, the English Speller Database (switch-lingua-inflections-to-esdb): not a file but a database
 # its repository builds; `scowl.txt` is its export. Built at the commit of `rel-2026.02.25`, with
