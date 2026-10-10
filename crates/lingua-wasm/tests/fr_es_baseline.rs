@@ -34,9 +34,10 @@
 //!
 //! A pull request that changes `baseline/fr-es.golden` changes what Spanish-native readers of
 //! French will see, once a package lists fr-es (change 52). Only a dictionary update of fr-es or
-//! of fr-en (which moves the studied tables), a deliberate analyser change that bumps French's
-//! analyser version, probes the French scenario gains, or an en-es update (its `beside en-es` line
-//! alone) should do that. Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test
+//! of fr-en (which moves the studied tables: read-lingua-french-ca-as-ca-cedilla's spellings moved
+//! nine probes and added four), a deliberate analyser change that bumps French's analyser version,
+//! probes the French scenario gains, or an en-es update (its `beside en-es` line alone) should do
+//! that. Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test
 //! fr_es_baseline` — then the extension's snapshot, `yarn vitest run test/word-card-fr-es.spec.ts
 //! -u` — and say why in the pull request; `lingua-pack-update` re-blesses both on its own branch.
 //!
