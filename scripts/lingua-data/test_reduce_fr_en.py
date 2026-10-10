@@ -10,6 +10,7 @@ shaped as the English Wiktionary's dump writes them — no download, and wordfre
 Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
+import collections
 import contextlib
 import importlib.util
 import inspect
@@ -118,7 +119,9 @@ ENTRIES = [
     entry("du", pos="article", forms=[("de la", ["feminine", "singular"]), ("des", ["plural"])]),
     alt_of("du", "de", pos="contraction", gloss="contraction of de + le", tags=("abbreviation", "alt-of", "contraction")),
     form_of("des", "un", "une", "du", "de la", pos="article", tags=("form-of", "plural")),
-    alt_of("des", "de", pos="contraction", gloss="contraction of de + les", tags=("abbreviation", "alt-of", "contraction")),
+    # As the section writes it: the contraction carries its meaning, which fr-en reads
+    # (refine-lingua-fr-en-glosses D4), so `des` is glossed, and one of French's dictionary words.
+    alt_of("des", "de", pos="contraction", gloss="contraction of de + les, literally “of the, from the, some”", tags=("abbreviation", "alt-of", "contraction")),
     # D4 — words ending in a pronoun: nouns kept whole, a verb and its pronouns left to the split.
     entry("rendez-vous", senses=[{"glosses": ["appointment"], "tags": ["invariable", "masculine"]}]),
     form_of("rendez-vous", "se rendre", tags=("form-of", "imperative", "plural", "second-person")),
@@ -1358,8 +1361,10 @@ class Main(unittest.TestCase):
         for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json"):
             self.assertTrue(out[name], name)
         self.assertIn("dirigée\tdiriger\tVERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part\t-\n", out["grammar.tsv"])
-        # and French's estimated levels (add-lingua-french-levels, `EstimatedLevels` below).
+        # and French's estimated levels (add-lingua-french-levels, `EstimatedLevels` below), given to
+        # French's dictionary words alone, which it writes too (refine-lingua-fr-en-glosses D2, D3).
         self.assertIn("de\tA1\n", out["level.tsv"])
+        self.assertIn("rendez-vous\n", out["lexical.tsv"])
         self.assertIn("dirigée\tdiriger\n", out["forms.tsv"])
         self.assertTrue(out["freq.tsv"].startswith("de\t1\nle\t2\n"), out["freq.tsv"][:40])
         # Sorted by form, and by rank: the order never depends on the source's.
@@ -1502,7 +1507,8 @@ class EstimatedLevels(unittest.TestCase):
         self.assertEqual(levels, {"de": "A1", "à": "A1", "y": "A2", "maison": "B1", "été": "B1"})
         # Each rule's lemmas, up to the last level given: `e` and `porter` come after it.
         self.assertEqual(
-            left_out, {"unknown": ["the"], "name": ["paris"], "elsewhere": [], "letter": ["b"], "spelling": ["etre"]}
+            left_out,
+            {"unknown": ["the"], "name": ["paris"], "elsewhere": [], "letter": ["b"], "spelling": ["etre"], "unlisted": []},
         )
         # Equal ranks go by the lemma, so the order never depends on the source's.
         tied, _ = red.estimated_levels({"maison": 1, "été": 1}, {}, self.senses, bands=(("A1", 1), ("A2", 1)))
@@ -1521,16 +1527,28 @@ class EstimatedLevels(unittest.TestCase):
         self.assertEqual(red.ENGLISH_BANDS, es_fr.ENGLISH_BANDS)
 
     def test_spec_scenario_the_table_does_not_wait_for_the_glosses(self):
-        # The derivation reads the ranks, the forms and the section's senses: nothing a gloss table,
-        # fr-en's (change 48) or another pair's, could move.
-        self.assertEqual(list(inspect.signature(red.estimated_levels).parameters), ["ranks", "forms", "senses", "bands"])
+        # The derivation reads the ranks, the forms, the section's senses and French's dictionary
+        # words (refine-lingua-fr-en-glosses D3): a gloss table moves it only through the dictionary
+        # words — a change to fr-en's glosses that adds or removes none leaves the levels as they are,
+        # and another pair's glosses never reach it.
+        self.assertEqual(
+            list(inspect.signature(red.estimated_levels).parameters), ["ranks", "forms", "senses", "words", "bands"]
+        )
+        ranks = {"de": 1, "maison": 2, "y": 3}
+        words = {"de", "maison", "y"}
+        bands = (("A1", 2), ("A2", 1))
+        self.assertEqual(
+            red.estimated_levels(ranks, {}, self.senses, words, bands),
+            red.estimated_levels(ranks, {}, self.senses, None, bands),
+        )
 
     def test_the_report_names_each_level_s_span_and_each_rule(self):
         ranks = {"de": 1, "the": 2, "à": 3, "y": 4}
         levels, left_out = red.estimated_levels(ranks, {}, self.senses, bands=(("A1", 2), ("A2", 1)))
         self.assertEqual(
             red.levels_report(levels, left_out, ranks),
-            "levels=3 estimated: A1 2 (1–3); A2 1 (4–4); left out: unknown 1, name 0, elsewhere 0, letter 0, spelling 0",
+            "levels=3 estimated: A1 2 (1–3); A2 1 (4–4); left out: unknown 1, name 0, elsewhere 0, letter 0, spelling 0, "
+            "unlisted 0",
         )
 
 
@@ -1558,6 +1576,18 @@ class EstimatedLevelsReduced(unittest.TestCase):
         for word in ["paris", "france", "the", "b", "e", "etre"]:
             self.assertIn(word, self.ranks, word)
             self.assertNotIn(word, self.levels, word)
+
+    def test_spec_scenario_english_s_sizes(self):
+        # Every levelled lemma is one of French's dictionary words, which the reduction writes
+        # (refine-lingua-fr-en-glosses D2, D3): fr-en's glossed lemmas less its names alone.
+        words = self.out["lexical.tsv"].splitlines()
+        self.assertEqual(words, sorted(words))
+        glossed = dict(line.split("\t", 1) for line in self.out["gloss.tsv"].splitlines())
+        runs = {line.split("\t")[0]: line.split("\t")[1:] for line in self.out["senses.tsv"].splitlines()}
+        self.assertEqual(words, sorted(w for w in glossed if not all(r.startswith("PROPN:") for r in runs[w])))
+        for lemma in self.levels:
+            self.assertIn(lemma, words)
+        self.assertEqual(sum(size for _, size in red.ENGLISH_BANDS), 8302)
 
     def test_every_level_is_a_ranked_lemma_s_and_its_own_form_s(self):
         forms = dict(line.split("\t") for line in self.out["forms.tsv"].splitlines())
@@ -1722,7 +1752,16 @@ NATIVE = [CHAMBRE, *NOUS, *DU, *ELLE, *LETTERS, NOMBRE_D_OXYDATION, VENIR, *VENU
 # The ranked lemmas, each its own form's lemma, as change 43's ranks are; `venue` reads as venir, and
 # `aujourd'hui` and `jusque` are forms.
 NATIVE_RANKS = {"du": 10, "elle": 28, "nous": 34, "chambre": 324, "venir": 388, "x": 434, "c": 900, "aujourd'hui": 950, "jusque": 1200}
-NATIVE_FORMS = {**{lemma: lemma for lemma in NATIVE_RANKS}, "venue": "venir", "viens": "venir", "jusqu'": "jusque"}
+NATIVE_FORMS = {
+    **{lemma: lemma for lemma in NATIVE_RANKS},
+    "venue": "venir",
+    "viens": "venir",
+    "jusqu'": "jusque",
+    # As change 43's forms table reads them: `crème fraiche` is keyed as `crème fraîche`.
+    "crème": "crème",
+    "fraiche": "frais",
+    "fraîche": "frais",
+}
 
 
 class NativeSide(unittest.TestCase):
@@ -1734,7 +1773,8 @@ class NativeSide(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as f:
                 f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries))
                 f.write("not json\n[1, 2]\n")
-            return red.native_side(work, path, ranks, forms)
+            # No treebank count: the parts of speech stay in the page's order (`ReadAsFrench` below).
+            return red.native_side(work, path, ranks, forms, collections.Counter())
 
     @classmethod
     def setUpClass(cls):
@@ -1751,9 +1791,11 @@ class NativeSide(unittest.TestCase):
         self.assertEqual(self.runs["nous"], [("PRON", 3), ("NOUN", 1)])
 
     def test_spec_scenario_the_edition_s_description_in_lower_case(self):
-        # The contraction's sense is a pointer (tagged alt-of): the article's description glosses alone.
-        self.assertEqual(self.glosses["du"], "forms the partitive article")
-        self.assertEqual(self.runs["du"], [("DET", 1)])
+        # The article's description in lower case; the contraction's pointer carries its meaning,
+        # « of the » (refine-lingua-fr-en-glosses D4), a run of its own (kaikki's `contraction`), in
+        # the page's order without the treebank's counts (`ReadAsFrench` reads them).
+        self.assertEqual(self.glosses["du"], "of the; forms the partitive article")
+        self.assertEqual(self.runs["du"], [("X", 1), ("DET", 1)])
 
     def test_a_letter_s_sense_and_a_single_capital_headword_gloss_nothing(self):
         # `elle`, the letter L, is no sense of the pronoun; its case form reads as its meaning (23b's D3).
@@ -1829,6 +1871,7 @@ class NativeSide(unittest.TestCase):
             mock.patch.object(red.common, "without_letter_senses", spy("letters", red.common.without_letter_senses)),
             mock.patch.object(red.english, "without_letter_headwords", spy("headwords", red.english.without_letter_headwords)),
             mock.patch.object(red.english, "read_as_meanings", spy("meanings", red.english.read_as_meanings)),
+            mock.patch.object(red, "read_as_french", spy("french", red.read_as_french)),
             mock.patch.object(red.english, "merge_same_pos_etymologies", spy("merge", red.english.merge_same_pos_etymologies)),
             mock.patch.object(red, "expression_senses", spy("expressions", red.expression_senses)),
         ):
@@ -1839,9 +1882,11 @@ class NativeSide(unittest.TestCase):
                 ("letters", "kaikki-French-senses.jsonl", "kaikki-French-words.jsonl"),
                 ("headwords", "kaikki-French-words.jsonl", "kaikki-French-headwords.jsonl"),
                 ("meanings", "kaikki-French-headwords.jsonl", "kaikki-French-meanings.jsonl"),
-                ("merge", "kaikki-French-meanings.jsonl", "kaikki-French-merged.jsonl"),
+                # fr-en's own pre-pass (refine-lingua-fr-en-glosses D1), before the merging.
+                ("french", "kaikki-French-meanings.jsonl", "kaikki-French-french.jsonl"),
+                ("merge", "kaikki-French-french.jsonl", "kaikki-French-merged.jsonl"),
                 # The merging is off as committed: it answers its source.
-                ("expressions", "kaikki-French-meanings.jsonl", "kaikki-French-expressions.jsonl"),
+                ("expressions", "kaikki-French-french.jsonl", "kaikki-French-expressions.jsonl"),
             ],
         )
         self.assertEqual(self.stats["dropped"], 2, "the lines that are no JSON object")
@@ -1891,9 +1936,11 @@ class NativeSide(unittest.TestCase):
         sys.path.insert(0, _HERE)
         import pack_sources as ps
 
+        # The treebank's rule (refine-lingua-fr-en-glosses D5) is a rule module of its own, in fr-en's
+        # digest.
         self.assertEqual(
             [p.name for p in ps.rule_files(ps.Path(_HERE) / "reduce-fr-en.py")],
-            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py"],
+            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py", "reduce_french_treebank.py"],
         )
 
 
@@ -1936,6 +1983,553 @@ class NativeSideReduced(unittest.TestCase):
         for name in ("gloss.tsv", "senses.tsv", "mwe.tsv"):
             rows = self.out[name].splitlines()
             self.assertEqual(rows, sorted(rows), name)
+
+
+# — fr-en read as French (refine-lingua-fr-en-glosses) —
+#
+# Recorded from the section fr-en pins (lingua-pack-sources-fr-en-2026.10.09), as `native_fields`
+# cuts it, in the section's order: every entry of the words each rule is measured on, whole.
+FRENCH_SECTION = [
+    {"word": "on", "pos": "pron", "senses": [{"glosses": ["one, people, you, someone (an unspecified individual)"], "tags": ["feminine", "indefinite", "masculine", "plural"]}, {"glosses": ["we"], "tags": ["feminine", "informal", "masculine", "personal", "plural"]}]},
+    {"word": "y", "pos": "character", "senses": [{"glosses": ["a letter in the French alphabet, after x and before z"], "tags": ["letter", "lowercase"]}]},
+    {"word": "y", "pos": "pron", "senses": [{"glosses": ["there (at a place)"], "tags": ["adverbial"]}, {"glosses": ["there, thither (to there)"], "tags": ["adverbial"]}, {"glosses": ["Used as a pronoun to replace an adverbial phrase starting with à."], "tags": ["adverbial"]}, {"glosses": ["Used as a pronoun to replace an adverbial phrase starting with à.", "With verbs: see Appendix:French verbs followed by à for verbs which use this structure."], "tags": ["adverbial"]}, {"glosses": ["Used as a pronoun to replace an adverbial phrase starting with à.", "With adjectives. Only used with a handful of adjectives (the most common combination being y compris, which is a special case), mainly in legal terminology."], "tags": ["adverbial", "archaic"]}]},
+    {"word": "y", "pos": "pron", "senses": [{"glosses": ["alternative form of il; he"], "tags": ["Quebec", "alt-of", "alternative", "colloquial"], "alt_of": [{"word": "il", "extra": "he"}]}, {"glosses": ["alternative form of ils; they (male)"], "tags": ["Quebec", "alt-of", "alternative", "colloquial"], "alt_of": [{"word": "ils", "extra": "they (male)"}]}, {"glosses": ["alternative form of elles; they (female)"], "tags": ["Quebec", "alt-of", "alternative", "colloquial"], "alt_of": [{"word": "elles", "extra": "they (female)"}]}]},
+    {"word": "en", "pos": "prep", "senses": [{"glosses": ["in (used to indicate space, also see usage notes)"]}, {"glosses": ["to (indicates direction towards certain very large locations, see usage notes)"]}, {"glosses": ["by (used to indicate means)"]}, {"glosses": ["as"]}, {"glosses": ["at (used to describe an ability)"]}, {"glosses": ["of, made of (used to describe composition)"]}, {"glosses": ["in (during the following time (used for months and years))"]}, {"glosses": ["while"]}, {"glosses": ["by, in (describing a way of getting something)"]}, {"glosses": ["in (used to describe color)"]}, {"glosses": ["in (used to describe feelings)"]}, {"glosses": ["in (as part of something)"]}]},
+    {"word": "en", "pos": "pron", "senses": [{"glosses": ["Used as the object of a verb to indicate an indefinite quantity; of it, of them. Replaces the partitive article (du, de la, etc.)"]}, {"glosses": ["Adverbial preposition indicating movement away from a place already mentioned; from there, from it. Replaces the phrase de là or d’ici."]}]},
+    {"word": "son", "pos": "noun", "senses": [{"glosses": ["sound"], "tags": ["masculine"]}, {"glosses": ["A piece (of music); a (musical) work; an opus."], "tags": ["masculine", "slang"]}]},
+    {"word": "son", "pos": "det", "senses": [{"glosses": ["his, her, their, its (used to qualify masculine nouns and before a vowel)"], "tags": ["masculine", "possessive"]}]},
+    {"word": "son", "pos": "noun", "senses": [{"glosses": ["bran"], "tags": ["masculine"]}]},
+    {"word": "NE", "pos": "noun", "senses": [{"glosses": ["abbreviation of nord-est; NE"], "tags": ["abbreviation", "alt-of"], "alt_of": [{"word": "nord-est", "extra": "NE"}]}]},
+    {"word": "NE", "pos": "name", "senses": [{"glosses": ["ISO 3166-2:CH code of Neuchâtel (canton)"]}]},
+    {"word": "bien", "pos": "adj", "senses": [{"glosses": ["good, all right, great"], "tags": ["invariable"]}, {"glosses": ["good looking, nice"], "tags": ["invariable"]}]},
+    {"word": "bien", "pos": "adv", "senses": [{"glosses": ["well"]}, {"glosses": ["indeed; so"]}, {"glosses": ["a lot (of)"]}, {"glosses": ["very; really"]}, {"glosses": ["much (more, less, better, etc.)"]}, {"glosses": ["Used to confirm or ask for confirmation"]}]},
+    {"word": "bien", "pos": "noun", "senses": [{"glosses": ["good as opposed to evil"], "tags": ["masculine"]}, {"glosses": ["a commodity, a good"], "tags": ["masculine"]}, {"glosses": ["a possession"], "tags": ["masculine"]}]},
+    {"word": "du", "pos": "contraction", "senses": [{"glosses": ["contraction of de + le, literally “of the”"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "de", "extra": "+ le, literally “of the”"}]}]},
+    {"word": "du", "pos": "article", "senses": [{"glosses": ["Forms the partitive article."], "tags": ["masculine", "singular"]}]},
+    {"word": "Paris", "pos": "name", "senses": [{"glosses": ["Paris (the capital and largest city of France)"], "tags": ["feminine", "masculine"]}, {"glosses": ["Paris (a department of Île-de-France, France)"], "tags": ["feminine", "masculine"]}]},
+    {"word": "Paris", "pos": "name", "senses": [{"glosses": ["a common surname"], "tags": ["feminine", "masculine"]}]},
+    {"word": "ne", "pos": "particle", "senses": [{"glosses": ["not (used alone to negate a verb, now chiefly with only a few particular verbs; see usage notes)"], "tags": ["literary"]}, {"glosses": ["not, no (used before a verb, with a coordinating negative element usually following; see usage notes)"]}, {"glosses": ["used in a subordinate clause before a subjunctive verb (especially when the main verb expresses doubt or fear) to provide extra overtones of doubt or uncertainty (but not negating its verb); the so-called \"pleonastic\" or \"expletive\" ne"]}, {"glosses": ["in comparative clauses usually translated with the positive sense of the subsequent negative"]}]},
+    {"word": "nice", "pos": "adj", "senses": [{"glosses": ["candid, naive"], "tags": ["archaic"]}]},
+    {"word": "Marche", "pos": "name", "senses": [{"glosses": ["Marche (a department of France)"], "tags": ["feminine"]}]},
+    {"word": "ouais", "pos": "intj", "senses": [{"glosses": ["synonym of oui; yeah, yep, yup, yes, affirmative expression"], "tags": ["informal"]}, {"glosses": ["synonym of oui (used to express consent)"], "tags": ["informal"]}, {"glosses": ["wow"], "tags": ["dated"]}, {"glosses": ["whoo (expresses joy)"], "tags": ["informal"]}]},
+    {"word": "il", "pos": "pron", "senses": [{"glosses": ["he (third-person singular masculine subject pronoun for human subject)"], "tags": ["masculine", "singular", "third-person"]}, {"glosses": ["it (third-person singular subject pronoun for grammatically masculine objects)"], "tags": ["masculine", "singular", "third-person"]}, {"glosses": ["Impersonal subject; it"], "tags": ["impersonal", "masculine", "pronoun", "singular", "third-person"]}]},
+    {"word": "le", "pos": "article", "senses": [{"glosses": ["the (definite article)"], "tags": ["masculine"]}, {"glosses": ["the; my, your, etc."], "tags": ["masculine"]}, {"glosses": ["a, an, per"], "tags": ["masculine"]}, {"glosses": ["on"], "tags": ["masculine"]}]},
+    {"word": "le", "pos": "pron", "senses": [{"glosses": ["him, her, it, them"], "tags": ["direct-object", "masculine"]}, {"glosses": ["replaces the argument of a copular verb, especially être; often not translated in English"], "tags": ["masculine"]}]},
+    {"word": "coup d'œil", "pos": "noun", "senses": [{"glosses": ["glance, look"], "tags": ["masculine"]}, {"glosses": ["sight"], "tags": ["masculine"]}]},
+    {"word": "des", "pos": "article", "senses": [{"glosses": ["plural of un (“some”, the plural indefinite article)"], "tags": ["feminine", "form-of", "masculine", "plural"], "form_of": [{"word": "un", "extra": "“some”, the plural indefinite article"}]}, {"glosses": ["plural of une (“some”, the plural indefinite article)"], "tags": ["feminine", "form-of", "masculine", "plural"], "form_of": [{"word": "une", "extra": "“some”, the plural indefinite article"}]}, {"glosses": ["plural of du (“some”, the plural partitive article)"], "tags": ["feminine", "form-of", "masculine", "plural"], "form_of": [{"word": "du", "extra": "“some”, the plural partitive article"}]}, {"glosses": ["plural of de la (“some”, the plural partitive article)"], "tags": ["feminine", "form-of", "masculine", "plural"], "form_of": [{"word": "de la", "extra": "“some”, the plural partitive article"}]}, {"glosses": ["plural of de l' (“some”, the plural partitive article)"], "tags": ["feminine", "form-of", "masculine", "plural"], "form_of": [{"word": "de l'", "extra": "“some”, the plural partitive article"}]}]},
+    {"word": "des", "pos": "contraction", "senses": [{"glosses": ["contraction of de + les, literally “of the, from the, some”"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "de", "extra": "+ les, literally “of the, from the, some”"}]}]},
+    {"word": "parce que", "pos": "conj", "senses": [{"glosses": ["because"]}]},
+    {"word": "mort", "pos": "verb", "senses": [{"glosses": ["past participle of mourir"], "tags": ["form-of", "participle", "past"], "form_of": [{"word": "mourir"}]}]},
+    {"word": "mort", "pos": "adj", "senses": [{"glosses": ["dead"]}]},
+    {"word": "mort", "pos": "noun", "senses": [{"glosses": ["dead person"], "tags": ["masculine"]}]},
+    {"word": "mort", "pos": "noun", "senses": [{"glosses": ["death"], "tags": ["feminine"]}]},
+    {"word": "pas", "pos": "noun", "senses": [{"glosses": ["step, pace, footstep"], "tags": ["invariable", "masculine"]}, {"glosses": ["strait, pass"], "tags": ["invariable", "masculine"]}, {"glosses": ["thread, pitch (of a screw or nut)"], "tags": ["invariable", "masculine"]}]},
+    {"word": "pas", "pos": "adv", "senses": [{"glosses": ["The most common adverb of negation in French, typically translating into English as not, don't, doesn't, etc."]}, {"glosses": ["used as an intensifier in underlying rhetorical questions, mostly with voilà"], "tags": ["colloquial"]}]},
+    {"word": "lot", "pos": "noun", "senses": [{"glosses": ["share (of inheritance)"], "tags": ["masculine"]}, {"glosses": ["plot (of land)"], "tags": ["masculine"]}, {"glosses": ["batch (of goods for sale)"], "tags": ["masculine"]}, {"glosses": ["lot (at auction)"], "tags": ["masculine"]}, {"glosses": ["prize (in lottery)"], "tags": ["masculine"]}, {"glosses": ["lot, fate"], "tags": ["masculine"]}, {"glosses": ["babe"], "tags": ["masculine", "slang"]}]},
+    {"word": "jean", "pos": "noun", "senses": [{"glosses": ["a pair of jeans"], "tags": ["masculine"]}]},
+    {"word": "mieux", "pos": "adv", "senses": [{"glosses": ["comparative degree of bien; better"], "tags": ["comparative", "form-of"], "form_of": [{"word": "bien", "extra": "better"}]}, {"glosses": ["superlative degree of bien; best"], "tags": ["form-of", "superlative", "with-definite-article"], "form_of": [{"word": "bien", "extra": "best"}]}, {"glosses": ["more, -er."]}]},
+    {"word": "mieux", "pos": "noun", "senses": [{"glosses": ["the best of one's ability, one's best"], "tags": ["invariable", "masculine"]}]},
+    {"word": "a priori", "pos": "adj", "senses": [{"glosses": ["intuitively known, a priori"], "tags": ["invariable"]}]},
+    {"word": "a priori", "pos": "adv", "senses": [{"glosses": ["at first glance"], "tags": ["informal"]}]},
+    {"word": "a priori", "pos": "noun", "senses": [{"glosses": ["preconceived idea"], "tags": ["invariable", "masculine"]}]},
+    {"word": "mon", "pos": "det", "senses": [{"glosses": ["my (used to qualify masculine nouns and vowel-initial words regardless of gender)"], "tags": ["masculine", "possessive"]}, {"glosses": ["Followed by rank, obligatory way of addressing a (male) superior officer within the military. (Folk etymology: military-specific short for \"monsieur\".)"], "tags": ["masculine"]}]},
+    {"word": "que", "pos": "conj", "senses": [{"glosses": ["that (introduces a subordinate noun clause and connects it to its parent clause)"]}, {"glosses": ["Substitutes for another, previously stated conjunction."]}, {"glosses": ["when, no sooner"]}, {"glosses": ["Links two noun phrases in apposition forming a clause without a (finite) verb, such that the complement acts as predicate."]}]},
+    {"word": "que", "pos": "conj", "senses": [{"glosses": ["introduces a comparison", "than"]}, {"glosses": ["introduces a comparison", "as"]}, {"glosses": ["only, just; but, nothing but"]}, {"glosses": ["how (in rhetorical interjections)"]}]},
+    {"word": "que", "pos": "pron", "senses": [{"glosses": ["The inanimate direct-object or predicative interrogative pronoun: what"], "tags": ["interrogative", "masculine"]}, {"glosses": ["The inanimate subject interrogative pronoun in impersonal constructions."], "tags": ["interrogative", "masculine"]}, {"glosses": ["The inanimate subject interrogative pronoun."], "tags": ["interrogative", "masculine", "nominative"]}]},
+    {"word": "que", "pos": "pron", "senses": [{"glosses": ["The direct object relative pronoun."], "tags": ["accusative", "feminine", "interrogative", "masculine", "relative"]}]},
+    {"word": "directeur", "pos": "noun", "senses": [{"glosses": ["director"], "tags": ["masculine"]}, {"glosses": ["school principal"], "tags": ["masculine"]}]},
+    {"word": "directeur", "pos": "adj", "senses": [{"glosses": ["leading, guiding"]}]},
+    {"word": "même", "pos": "adv", "senses": [{"glosses": ["even"]}]},
+    {"word": "même", "pos": "adj", "senses": [{"glosses": ["same"]}, {"glosses": ["very"]}]},
+    {"word": "devoir", "pos": "noun", "senses": [{"glosses": ["duty"], "tags": ["masculine"]}, {"glosses": ["exercise, assignment (set for homework)"], "tags": ["masculine"]}]},
+    {"word": "devoir", "pos": "verb", "senses": [{"glosses": ["must, to have to, should (as a requirement)"]}, {"glosses": ["must, to have to, should (as a requirement)", "must"], "tags": ["present"]}, {"glosses": ["must, to have to, should (as a requirement)", "should"], "tags": ["conditional"]}, {"glosses": ["must, to do or have with certainty"]}, {"glosses": ["to owe (money, obligation and etc)"], "tags": ["transitive"]}, {"glosses": ["(even) if it is necessary (+ infinitive)"], "tags": ["intransitive", "literary"]}, {"glosses": ["to have a duty to"], "tags": ["reflexive"]}]},
+    {"word": "ferme", "pos": "adj", "senses": [{"glosses": ["firm"]}]},
+    {"word": "ferme", "pos": "noun", "senses": [{"glosses": ["roof truss"], "tags": ["feminine"]}]},
+    {"word": "ferme", "pos": "verb", "senses": [{"glosses": ["inflection of fermer:", "first/third-person singular present indicative/subjunctive"], "tags": ["first-person", "form-of", "indicative", "present", "singular", "subjunctive", "third-person"], "form_of": [{"word": "fermer"}]}, {"glosses": ["inflection of fermer:", "second-person singular imperative"], "tags": ["form-of", "imperative", "second-person", "singular"], "form_of": [{"word": "fermer"}]}]},
+    {"word": "ferme", "pos": "noun", "senses": [{"glosses": ["farm"], "tags": ["feminine"]}]},
+    {"word": "leur", "pos": "pron", "senses": [{"glosses": ["(to) them"], "tags": ["feminine", "indirect", "masculine", "personal", "plural"]}]},
+    {"word": "leur", "pos": "det", "senses": [{"glosses": ["their"], "tags": ["feminine", "masculine"]}]},
+    {"word": "liberté", "pos": "noun", "senses": [{"glosses": ["liberty, freedom. 1688, Guy Miège, The Great French Dictionary. \"Qu'y a-t-il de plus doux dans ce monde que la liberté? What is there sweeter in this world than liberty?\""], "tags": ["countable", "feminine", "uncountable"]}]},
+    {"word": "il y a", "pos": "verb", "senses": [{"glosses": ["impersonal singular present indicative of y avoir: there is, there are"], "tags": ["form-of", "impersonal", "indicative", "present", "singular"], "form_of": [{"word": "y avoir", "extra": "there is, there are"}]}]},
+    {"word": "il y a", "pos": "prep", "senses": [{"glosses": ["ago"]}]},
+    {"word": "quand", "pos": "adv", "senses": [{"glosses": ["when (at what time)"]}]},
+    {"word": "quand", "pos": "conj", "senses": [{"glosses": ["when (at the time that)"]}, {"glosses": ["whenever"], "tags": ["Louisiana"]}]},
+    {"word": "Jean", "pos": "name", "senses": [{"glosses": ["John (biblical character)."], "tags": ["masculine"]}, {"glosses": ["John (book of the Bible)."], "tags": ["masculine"]}, {"glosses": ["a male given name from Hebrew, equivalent to English John, traditionally very popular in France, also common as the first part of hyphenated given names"], "tags": ["masculine"]}, {"glosses": ["a surname originating as a patronymic"], "tags": ["masculine"]}]},
+    {"word": "Lot", "pos": "name", "senses": [{"glosses": ["Lot (a department of Occitania, France)"], "tags": ["masculine"]}, {"glosses": ["Lot (a right tributary of the Garonne, in southern France, flowing through the departments of Lozère, Cantal, Aveyron, Lot and Lot-et-Garonne)"], "tags": ["masculine"]}]},
+    {"word": "Nice", "pos": "name", "senses": [{"glosses": ["Nice (a coastal city, the capital of Alpes-Maritimes department in the Provence-Alpes-Côte d'Azur region in southeast France)"], "tags": ["feminine"]}]},
+    {"word": "marche", "pos": "noun", "senses": [{"glosses": ["march (formal, rhythmic way of walking)"], "tags": ["feminine"]}, {"glosses": ["march (song in the genre of music written for marching)"], "tags": ["feminine"]}, {"glosses": ["walk (distance walked)"], "tags": ["feminine"]}, {"glosses": ["movement (of a vehicle)"], "tags": ["feminine"]}, {"glosses": ["functioning"], "tags": ["feminine"]}, {"glosses": ["step (step of a stair)"], "tags": ["feminine"]}, {"glosses": ["marches (region near a border)"], "tags": ["feminine"]}]},
+    {"word": "marche", "pos": "verb", "senses": [{"glosses": ["inflection of marcher:", "first/third-person singular present indicative/subjunctive"], "tags": ["first-person", "form-of", "indicative", "present", "singular", "subjunctive", "third-person"], "form_of": [{"word": "marcher"}]}, {"glosses": ["inflection of marcher:", "second-person singular imperative"], "tags": ["form-of", "imperative", "second-person", "singular"], "form_of": [{"word": "marcher"}]}]},
+    {"word": "paris", "pos": "noun", "senses": [{"glosses": ["plural of pari"], "tags": ["form-of", "masculine", "plural"], "form_of": [{"word": "pari"}]}]},
+    {"word": "moins", "pos": "adv", "senses": [{"glosses": ["comparative degree of peu; less, fewer"], "tags": ["comparative", "form-of"], "form_of": [{"word": "peu", "extra": "less, fewer"}]}, {"glosses": ["minus; negative"]}, {"glosses": ["superlative degree of peu; the least"], "tags": ["form-of", "superlative"], "form_of": [{"word": "peu", "extra": "the least"}]}]},
+    {"word": "moins", "pos": "noun", "senses": [{"glosses": ["the minus sign"], "tags": ["invariable", "masculine"]}]},
+    {"word": "moins", "pos": "prep", "senses": [{"glosses": ["minus"]}]},
+    {"word": "parce", "pos": "prep", "senses": [{"glosses": ["only used in parce que"]}]},
+    {"word": "consul", "pos": "noun", "senses": [{"glosses": ["consul, in its various senses"], "tags": ["masculine"]}]},
+    {"word": "juste", "pos": "adj", "senses": [{"glosses": ["fair, just"]}, {"glosses": ["reasonable, appropriate, grounded"]}, {"glosses": ["correct"]}, {"glosses": ["perfect"], "tags": ["perfect"]}, {"glosses": ["shorter or less than desired; insufficient"]}]},
+    {"word": "juste", "pos": "noun", "senses": [{"glosses": ["a righteous person"], "tags": ["masculine"]}]},
+    {"word": "juste", "pos": "adv", "senses": [{"glosses": ["exactly, precisely"]}, {"glosses": ["just, only"], "tags": ["informal"]}]},
+    {"word": "phare", "pos": "adj", "senses": [{"glosses": ["leading, signature, key, flagship"]}]},
+    {"word": "phare", "pos": "noun", "senses": [{"glosses": ["lighthouse"], "tags": ["masculine"]}, {"glosses": ["lantern (in a lighthouse)"], "tags": ["masculine"]}, {"glosses": ["headlight (of a vehicle)"], "tags": ["masculine"]}, {"glosses": ["headlamp (of a vehicle)"], "tags": ["masculine"]}, {"glosses": ["beacon, luminary"], "tags": ["figuratively", "masculine"]}, {"glosses": ["The set of sails on the mast."], "tags": ["masculine"]}]},
+    {"word": "contrôle", "pos": "noun", "senses": [{"glosses": ["control (all senses)"], "tags": ["masculine"]}, {"glosses": ["verification, checking"], "tags": ["masculine"]}, {"glosses": ["test"], "tags": ["masculine"]}]},
+    {"word": "contrôle", "pos": "verb", "senses": [{"glosses": ["inflection of contrôler:", "first/third-person singular present indicative/subjunctive"], "tags": ["first-person", "form-of", "indicative", "present", "singular", "subjunctive", "third-person"], "form_of": [{"word": "contrôler"}]}, {"glosses": ["inflection of contrôler:", "second-person singular imperative"], "tags": ["form-of", "imperative", "second-person", "singular"], "form_of": [{"word": "contrôler"}]}]},
+    {"word": "Coran", "pos": "name", "senses": [{"glosses": ["Koran"], "tags": ["masculine"]}]},
+    {"word": "directrice", "pos": "noun", "senses": [{"glosses": ["female equivalent of directeur: directress"], "tags": ["feminine", "form-of"], "form_of": [{"word": "directeur", "extra": "directress"}]}, {"glosses": ["ellipsis of ligne directrice: directrix"], "tags": ["abbreviation", "alt-of", "ellipsis", "feminine"], "alt_of": [{"word": "ligne directrice", "extra": "directrix"}]}]},
+    {"word": "téléphonie", "pos": "noun", "senses": [{"glosses": ["telephony (2)"], "tags": ["feminine"]}, {"glosses": ["act of installing a telephone"], "tags": ["feminine"]}]},
+    {"word": "coran", "pos": "noun", "senses": [{"glosses": ["alternative form of Coran"], "tags": ["alt-of", "alternative", "masculine"], "alt_of": [{"word": "Coran"}]}]},
+    {"word": "sur son trente et un", "pos": "adj", "senses": [{"glosses": ["all dressed up, dolled up (to the nines)"], "tags": ["colloquial", "invariable"]}]},
+    {"word": "un coup", "pos": "adv", "senses": [{"glosses": ["used to soften an order"], "tags": ["colloquial"]}, {"glosses": ["once, one time"], "tags": ["colloquial"]}]},
+    {"word": "Le", "pos": "name", "senses": [{"glosses": ["a surname from Vietnamese"], "tags": ["feminine", "masculine"]}]},
+    {"word": "Durand", "pos": "name", "senses": [{"glosses": ["a surname"]}]},
+    {"word": "On", "pos": "name", "senses": [{"glosses": ["a village in Luxembourg, Belgium"]}]},
+    {"word": "et des", "pos": "phrase", "senses": [{"glosses": ["or thereabouts, and change, and a bit over"], "tags": ["Belgium", "informal"]}]},
+    {"word": "sur son trente-et-un", "pos": "adj", "senses": [{"glosses": ["post-1990 spelling of sur son trente et un"], "tags": ["colloquial", "invariable"]}]},
+    {"word": "à priori", "pos": "prep_phrase", "senses": [{"glosses": ["post-1990 spelling of a priori"]}]},
+    # Expressions D4 would make of no meaning, left out by the owner (2026-10-10), and two it keeps.
+    {"word": "point d'inflexion", "pos": "noun", "senses": [{"glosses": ["inflection point, point of inflection (a point on a curve at which the sign of the curvature changes; at this point the second derivative of the underlying function will be zero, but positive on one side and negative on the other)"], "tags": ["masculine"]}]},
+    {"word": "n'ai", "pos": "verb", "senses": [{"glosses": ["contraction of ne (“not”) + ai (first-person singular indicative present form of avoir)"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "ne", "extra": "(“not”) + ai (first-person singular indicative present form of avoir)"}]}]},
+    {"word": "l'a", "pos": "contraction", "senses": [{"glosses": ["contraction of le/la (“him/her/it”, accusative singular clitic) + a (“has”)"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "le/la", "extra": "(“him/her/it”, accusative singular clitic) + a (“has”)"}]}]},
+    {"word": "t'es", "pos": "contraction", "senses": [{"glosses": ["contraction of te + es"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "te", "extra": "+ es"}]}, {"glosses": ["contraction of tu + es: you're"], "tags": ["abbreviation", "alt-of", "colloquial", "contraction"], "alt_of": [{"word": "tu", "extra": "+ es: you're"}]}]},
+    {"word": "t'as", "pos": "contraction", "senses": [{"glosses": ["contraction of tu + as, literally “you've”"], "tags": ["abbreviation", "alt-of", "colloquial", "contraction"], "alt_of": [{"word": "tu", "extra": "+ as, literally “you've”"}]}]},
+    {"word": "j'suis", "pos": "contraction", "senses": [{"glosses": ["contraction of je + suis, literally “I am, I'm”"], "tags": ["abbreviation", "alt-of", "contraction", "informal"], "alt_of": [{"word": "je", "extra": "+ suis, literally “I am, I'm”"}]}]},
+    {"word": "ç'a", "pos": "contraction", "senses": [{"glosses": ["contraction of ce + a: it has, that has"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "ce", "extra": "+ a: it has, that has"}]}]},
+    {"word": "de les", "pos": "article", "senses": [{"glosses": ["alternative form of des, \"of the\", some"], "tags": ["Louisiana", "alt-of", "alternative", "feminine", "masculine", "plural"], "alt_of": [{"word": "des", "extra": "\"of the\", some"}]}]},
+    {"word": "de le", "pos": "article", "senses": [{"glosses": ["alternative form of du, \"of the\", some"], "tags": ["Louisiana", "alt-of", "alternative", "masculine"], "alt_of": [{"word": "du", "extra": "\"of the\", some"}]}]},
+    {"word": "à le", "pos": "article", "senses": [{"glosses": ["Used other than figuratively or idiomatically: see à, le."], "tags": ["masculine"]}, {"glosses": ["alternative form of au (“to the”)"], "tags": ["Louisiana", "alt-of", "alternative", "masculine"], "alt_of": [{"word": "au", "extra": "to the"}]}]},
+    {"word": "à les", "pos": "prep", "senses": [{"glosses": ["Used other than figuratively or idiomatically: see à, les."]}, {"glosses": ["alternative form of aux (“to the”)"], "tags": ["Louisiana", "alt-of", "alternative"], "alt_of": [{"word": "aux", "extra": "to the"}]}]},
+    {"word": "j't'à", "pos": "contraction", "senses": [{"glosses": ["contraction of je + suis + à; the 't' is epenthetic"], "tags": ["Quebec", "abbreviation", "alt-of", "colloquial", "contraction"], "alt_of": [{"word": "je", "extra": "+ suis + à; the 't' is epenthetic"}]}]},
+    {"word": "poser des lapins", "pos": "verb", "senses": [{"glosses": ["alternative form of poser un lapin (frequentative or plural)"], "tags": ["alt-of", "alternative"], "alt_of": [{"word": "poser un lapin", "extra": "frequentative or plural"}]}]},
+]
+
+# The ranks change 43 gives these lemmas (tables/fr/freq.tsv); each is its own form's lemma.
+FRENCH_RANKS = {
+    "le": 2, "en": 5, "des": 6, "que": 8, "pas": 9, "du": 10, "il": 11, "on": 19, "ne": 20, "son": 29, "y": 30,
+    "bien": 37, "même": 40, "mon": 42, "leur": 46, "quand": 48, "moins": 81, "juste": 90, "parce": 103,
+    "paris": 109, "mieux": 116, "mort": 132, "jean": 188, "ouais": 371, "marche": 404, "contrôle": 505,
+    "directeur": 531, "liberté": 533, "devoir": 615, "ferme": 820, "nice": 1371, "lot": 2006,
+    "directrice": 3075, "phare": 4098, "coran": 4276, "consul": 5728, "téléphonie": 7254, "durand": 7413,
+}
+FRENCH_FORMS = {
+    **{lemma: lemma for lemma in FRENCH_RANKS},
+    "a": "avoir", "à": "à", "priori": "priori", "trente-et-un": "trente", "trente": "trente", "et": "et",
+    "un": "un", "sur": "sur", "coup": "coup",
+}
+# UD French-GSD's counts of these words by part of speech (`gsd_pos_counts` over the training and
+# development sections fr-en pins).
+TREEBANK = collections.Counter({
+    ("du", "DET"): 95, ("du", "ADP"): 1, ("du", "PROPN"): 3,
+    ("des", "DET"): 1730, ("des", "ADP"): 3, ("des", "X"): 1, ("des", "PROPN"): 2,
+    ("en", "ADP"): 5707, ("en", "PRON"): 270,
+    ("que", "SCONJ"): 1119, ("que", "ADV"): 148, ("que", "PRON"): 220,
+    ("il", "PRON"): 3536, ("il", "X"): 3, ("il", "PROPN"): 1,
+    ("y", "PRON"): 492, ("y", "PROPN"): 3, ("y", "SYM"): 1, ("y", "X"): 1,
+    ("ne", "ADV"): 780, ("mon", "DET"): 66, ("moins", "ADV"): 102, ("moins", "NOUN"): 1,
+    ("mieux", "ADV"): 45, ("mieux", "NOUN"): 1, ("directrice", "NOUN"): 4, ("directeur", "NOUN"): 62,
+    ("directeur", "ADJ"): 2,
+    ("pas", "ADV"): 981, ("pas", "NOUN"): 8, ("pas", "ADP"): 1,
+    ("son", "DET"): 1506, ("son", "NOUN"): 19,
+    ("leur", "DET"): 440, ("leur", "PRON"): 50,
+    ("marche", "NOUN"): 19,
+    ("ferme", "ADJ"): 7, ("ferme", "NOUN"): 17,
+    ("mort", "NOUN"): 99, ("mort", "ADJ"): 12,
+    ("devoir", "NOUN"): 9, ("devoir", "VERB"): 351,
+    ("même", "ADJ"): 262, ("même", "ADV"): 173, ("même", "X"): 2,
+    ("phare", "NOUN"): 8, ("phare", "PROPN"): 1, ("phare", "ADJ"): 1,
+    ("jean", "PROPN"): 91,
+    ("le", "DET"): 14910, ("le", "PRON"): 277, ("le", "PROPN"): 30, ("le", "X"): 2,
+    ("on", "PRON"): 507, ("on", "X"): 6,
+    ("bien", "NOUN"): 31, ("bien", "ADV"): 292, ("bien", "INTJ"): 1,
+    ("quand", "SCONJ"): 88, ("quand", "ADV"): 7,
+    ("juste", "ADJ"): 6, ("juste", "ADV"): 38, ("juste", "NOUN"): 1,
+    ("nice", "PROPN"): 11,
+    ("lot", "PROPN"): 2, ("lot", "NOUN"): 4,
+})
+
+
+def french_native(entries=None, counts=TREEBANK):
+    """fr-en's native side over the recorded entries (`FRENCH_SECTION`)."""
+    with tempfile.TemporaryDirectory() as work:
+        path = os.path.join(work, "kaikki-French.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries or FRENCH_SECTION))
+        return red.native_side(work, path, FRENCH_RANKS, FRENCH_FORMS, counts)
+
+
+class ReadAsFrench(unittest.TestCase):
+    """fr-en's own rules (refine-lingua-fr-en-glosses D4–D8) on the recorded entries."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.glosses, cls.runs, cls.expressions, cls.stats = french_native()
+
+    # D4 — a pointer that carries its meaning.
+
+    def test_spec_scenario_an_article_s_pointers(self):
+        # Borrowed from no other word: `de la` is not even in the section here.
+        self.assertEqual(self.glosses["des"], "some; of the, from the, some")
+        self.assertEqual(self.runs["des"], [("DET", 1), ("X", 1)])
+        # The treebank reads `du` 95 times as a determiner: the article's entry first (D5).
+        self.assertEqual(self.glosses["du"], "forms the partitive article; of the")
+        self.assertEqual(self.runs["du"], [("DET", 1), ("X", 1)])
+
+    def test_spec_scenario_a_degree_of_comparison(self):
+        self.assertTrue(self.glosses["mieux"].startswith("better; best; more, -er"), self.glosses["mieux"])
+        self.assertTrue(self.glosses["moins"].startswith("less, fewer; minus, negative"), self.glosses["moins"])
+
+    def test_spec_scenario_a_synonym(self):
+        self.assertTrue(
+            self.glosses["ouais"].startswith("yeah, yep, yup, yes, affirmative expression; wow"), self.glosses["ouais"]
+        )
+
+    def test_spec_scenario_an_expression_s_pointer(self):
+        self.assertEqual(self.expressions["il y a"], "there is, there are; ago")
+
+    def test_spec_scenario_another_pointer_of_a_word_stays_a_pointer(self):
+        # `y` « alternative form of il; he »: an alternative form, no wording of D4's list.
+        self.assertTrue(self.glosses["y"].startswith("there (at a place)"), self.glosses["y"])
+        self.assertNotIn("he", self.glosses["y"].split("; "))
+        # « female equivalent of directeur: directress » stays a pointer (the owner, Q3), and so does
+        # an ellipsis: `directrice` borrows directeur's gloss, as before.
+        self.assertEqual(self.glosses["directrice"], "director; school principal")
+        self.assertIsNone(red.carried_meaning(FRENCH_SECTION_BY_WORD["directrice"][0]["senses"][0], "directrice"))
+
+    def test_a_meaning_in_capitals_or_none_keeps_a_pointer(self):
+        # « NE » under `ne`: an initialism's expansion, no meaning, whatever the wording.
+        ne = FRENCH_SECTION_BY_WORD["NE"][0]["senses"][0]
+        self.assertIsNone(red.carried_meaning({**ne, "glosses": ["synonym of nord-est; NE"]}, "ne"))
+        self.assertNotIn("NE", self.glosses["ne"])
+        # A pointer carrying nothing — no extra, no quotation, nothing past a colon — stays a pointer.
+        self.assertIsNone(red.carried_meaning({"glosses": ["plural of pari"], "tags": ["form-of"], "form_of": [{"word": "pari"}]}, "paris"))
+        # A sense that does not point is no pointer, and a sense kaikki did not shape is none either.
+        for sense in ({"glosses": ["synonym of the past"]}, {"glosses": []}, {"tags": ["form-of"]}):
+            self.assertIsNone(red.carried_meaning(sense, "passé"))
+
+    def test_a_carried_meaning_by_where_the_section_writes_it(self):
+        # kaikki's `extra` for the target, its quoted text first; an initialism after a colon dropped,
+        # its own parentheses, a pointer's wording read past; a pointer's pieces are none.
+        self.assertEqual(red._meaning_of_extra("“some”, the plural indefinite article"), "some")
+        self.assertEqual(red._meaning_of_extra("better"), "better")
+        self.assertEqual(red._meaning_of_extra("(knight): N"), "knight")
+        self.assertEqual(red._meaning_of_extra("plural of la leur; theirs"), "theirs")
+        for extra in ("", "  ", "(= de + le)", "+ le", "plural of la leur"):
+            self.assertIsNone(red._meaning_of_extra(extra), extra)
+        # Else the gloss's quoted text, else its text after the target past a colon or a semicolon.
+        quoted = {"glosses": ["contraction of de + les, literally “of the”"], "tags": ["alt-of"], "alt_of": [{"word": "de"}]}
+        self.assertEqual(red.carried_meaning(quoted, "des"), "of the")
+        after = {"glosses": ["impersonal singular present indicative of y avoir: there is, there are."], "tags": ["form-of"]}
+        self.assertEqual(red.carried_meaning(after, "il y a"), "there is, there are")
+        # A word's pointer of another wording is none; an expression's is read whatever it names.
+        self.assertIsNone(red.carried_meaning(after, "ilya"))
+
+    # D5 — the part of speech a row opens on.
+
+    def test_spec_scenario_a_function_word_s_commonest_part_of_speech(self):
+        self.assertTrue(self.glosses["pas"].startswith("the most common adverb of negation in French"), self.glosses["pas"])
+        self.assertEqual(self.runs["pas"], [("ADV", 2), ("NOUN", 3)])
+        self.assertTrue(self.glosses["son"].startswith("his, her, their, its"), self.glosses["son"])
+        self.assertEqual(self.glosses["leur"], "their; (to) them")
+        # `ADV`, measured in: `bien` « well » before « good », `juste` « exactly » before « fair »; a
+        # subordinating conjunction before an adverb: `quand`.
+        self.assertTrue(self.glosses["bien"].startswith("well; indeed, so"), self.glosses["bien"])
+        self.assertTrue(self.glosses["juste"].startswith("exactly, precisely"), self.glosses["juste"])
+        self.assertTrue(self.glosses["quand"].startswith("when (at the time that)"), self.glosses["quand"])
+
+    def test_spec_scenario_a_common_word_before_a_place_s_name(self):
+        # The page opens `marche` on its capitalised name: every case of the headword is moved, the
+        # department written after the noun's senses.
+        gloss = self.glosses["marche"]
+        self.assertTrue(gloss.startswith("march (formal, rhythmic way of walking)"), gloss)
+        self.assertIn("Marche (a department of France)", gloss)
+        self.assertEqual(self.runs["marche"][0], ("NOUN", 7))
+
+    def test_spec_scenario_a_noun_a_verb_and_an_adjective_keep_the_page_s_order(self):
+        # Read more often as a noun (17 against 7) and as a verb (351 against 9): a content word
+        # ahead of another stays as the page writes it (the owner, Q2).
+        self.assertTrue(self.glosses["ferme"].startswith("firm; "), self.glosses["ferme"])
+        self.assertTrue(self.glosses["mort"].startswith("dead; "), self.glosses["mort"])
+        self.assertTrue(self.glosses["devoir"].startswith("duty; "), self.glosses["devoir"])
+
+    def test_spec_scenario_too_little_evidence(self):
+        # `même` 173 adverbs against 262 adjectives, not twice; `phare` a noun 8 times, fewer than 10.
+        self.assertTrue(self.glosses["même"].startswith("even; same"), self.glosses["même"])
+        self.assertTrue(self.glosses["phare"].startswith("leading, signature, key, flagship"), self.glosses["phare"])
+
+    def test_spec_scenario_a_name_is_never_promoted(self):
+        self.assertTrue(self.glosses["jean"].startswith("a pair of jeans; John"), self.glosses["jean"])
+        self.assertEqual(self.runs["jean"], [("NOUN", 1), ("PROPN", 4)])
+
+    def test_the_treebank_s_order_and_its_thresholds(self):
+        items = [(0, "noun", "pas"), (1, "adv", "pas"), (2, "noun", "Pas")]
+        self.assertEqual(red._treebank_order("pas", items, TREEBANK), [1, 0, 2])
+        # At the thresholds: ten times, twice as often.
+        for adverbs, nouns, moved in ((10, 5, True), (9, 1, False), (19, 10, False), (20, 10, True)):
+            counts = collections.Counter({("pas", "ADV"): adverbs, ("pas", "NOUN"): nouns})
+            self.assertEqual(red._treebank_order("pas", items, counts) is not None, moved, (adverbs, nouns))
+        self.assertEqual((red.treebank.TREEBANK_MIN, red.treebank.TREEBANK_RATIO), (10, 2))
+        self.assertEqual(red.treebank.TREEBANK_FIRST, frozenset({"ADP", "DET", "PRON", "CCONJ", "SCONJ", "PART", "ADV"}))
+        # The module decides on parts of speech alone, whatever dictionary names them: what fr-es
+        # reads it for (refine-lingua-fr-es-glosses D8).
+        self.assertEqual(red.treebank.commonest_first("pas", ["NOUN", "ADV"], "NOUN", TREEBANK), [1, 0])
+        self.assertIsNone(red.treebank.commonest_first("pas", ["ADV", "NOUN"], "ADV", TREEBANK))
+        self.assertIsNone(red.treebank.commonest_first("jean", ["PROPN", "PROPN"], "PROPN", TREEBANK))
+        self.assertEqual(red.treebank.word_key(" L’Homme "), "l'homme")
+        # One part of speech, or a proper noun alone besides the first: nothing to order.
+        self.assertIsNone(red._treebank_order("pas", [(0, "adv", "pas"), (1, "adv", "pas")], TREEBANK))
+        self.assertIsNone(red._treebank_order("jean", [(0, "name", "Jean"), (1, "name", "Jean")], TREEBANK))
+        # An acronym's entry is not the one the page opens on.
+        acronym = [(0, "noun", "ON"), (1, "pron", "on"), (2, "noun", "on")]
+        self.assertIsNone(red._treebank_order("on", acronym, TREEBANK))
+        # Ties go to the part of speech the page writes first.
+        tied = collections.Counter({("x", "ADV"): 30, ("x", "ADP"): 30})
+        self.assertEqual(red._treebank_order("x", [(0, "name", "X"), (1, "prep", "x"), (2, "adv", "x")], tied), [1, 0, 2])
+
+    def test_the_treebank_counts_parts_of_speech(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "t.conllu")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(
+                    "# sent_id = 1\n"
+                    "1\tPar\tpar\tADP\t_\t_\t3\tcase\t_\t_\n"
+                    "2\tconséquent\tconséquent\tADJ\t_\t_\t1\tfixed\t_\t_\n"
+                    "3\tLeur\tson\tDET\t_\t_\t4\tdet\t_\t_\n"
+                    "4\tmarche\tmarche\tNOUN\t_\t_\t5\tnsubj\t_\t_\n"
+                    "5\ta\tavoir\tAUX\t_\t_\t6\taux\t_\t_\n"
+                    "6\tMangé\tmanger\tVERB\t_\t_\t0\troot\t_\t_\n"
+                    "7-8\tdu\t_\t_\t_\t_\t_\t_\t_\t_\n"
+                    "7\tde\tde\tADP\t_\t_\t8\tcase\t_\t_\n"
+                    "8\tle\tle\tDET\t_\t_\t6\tobj\t_\t_\n"
+                    "8.1\tx\tx\tX\t_\t_\t_\t_\t_\t_\n"
+                )
+            counts = red.treebank.gsd_pos_counts([path])
+        # A fixed expression's word counts for none (« par conséquent »); a closed class by its own
+        # form (UD lemmatises « leur » as « son »), an open one by its lemma; the auxiliary as a verb.
+        self.assertEqual(
+            counts,
+            collections.Counter({("par", "ADP"): 1, ("leur", "DET"): 1, ("marche", "NOUN"): 1, ("avoir", "VERB"): 1,
+                                 ("manger", "VERB"): 1, ("de", "ADP"): 1, ("le", "DET"): 1}),
+        )
+
+    # D6 — no name under a function word.
+
+    def test_spec_scenario_a_function_word_s_homograph_name(self):
+        self.assertNotIn("Vietnamese", self.glosses["le"])
+        self.assertEqual(self.runs["le"], [("DET", 4), ("PRON", 2)])
+        self.assertEqual(self.glosses["on"], "one, people, you, someone (an unspecified individual); we")
+        # A word with an adjective's entry keeps its name.
+        self.assertIn("Nice (a coastal city", self.glosses["nice"])
+        self.assertEqual(self.stats["names under a function word"], 2)
+
+    # D8 — the page's notes and typography.
+
+    def test_spec_scenario_usage_notes(self):
+        self.assertTrue(self.glosses["en"].startswith("in (used to indicate space); to (indicates direction"), self.glosses["en"])
+        self.assertTrue(
+            self.glosses["ne"].startswith("not (used alone to negate a verb, now chiefly with only a few particular verbs); "),
+            self.glosses["ne"],
+        )
+        self.assertNotIn("usage notes", self.glosses["en"] + self.glosses["ne"])
+
+    def test_spec_scenario_all_senses(self):
+        self.assertTrue(self.glosses["contrôle"].startswith("control; verification"), self.glosses["contrôle"])
+        self.assertEqual(self.glosses["consul"], "consul")
+
+    def test_spec_scenario_a_folk_etymology_and_a_citation(self):
+        self.assertTrue(self.glosses["mon"].endswith("within the military"), self.glosses["mon"])
+        self.assertEqual(self.glosses["liberté"], "liberty, freedom")
+
+    def test_spec_scenario_a_description_in_a_capital(self):
+        self.assertIn("; substitutes for another, previously stated conjunction;", self.glosses["que"])
+        self.assertTrue(self.glosses["il"].endswith("; impersonal subject, it"), self.glosses["il"])
+
+    def test_spec_scenario_a_capital_that_is_no_description(self):
+        for text in ("German person", "Military rank equivalent to corporal", "Swiss (of, from or relating to Switzerland)", "Found Footage"):
+            self.assertEqual(red.french_text(text), text)
+        self.assertEqual(red.french_text("Names a thing"), "names a thing")
+        self.assertEqual(red.french_text("Exclamation (of surprise)"), "exclamation (of surprise)")
+
+    def test_spec_scenario_a_source_s_sense_number(self):
+        self.assertTrue(self.glosses["téléphonie"].startswith("telephony; "), self.glosses["téléphonie"])
+        # Two digits are no sense number.
+        self.assertEqual(red.french_text("year (12)"), "year (12)")
+
+    def test_the_notes_wherever_they_sit(self):
+        for text, read in (
+            ("in (used to indicate space, also see usage notes)", "in (used to indicate space)"),
+            ("to (see usage notes)", "to"),
+            ("to, see usage notes", "to"),
+            ("on (all senses)", "on"),
+            ("a chamber in all its various senses, including:", "a chamber:"),
+            ("my (Folk etymology: short for “monsieur” (sir).)", "my"),
+            ("freedom. 1688, Guy Miège, The Great French Dictionary.", "freedom"),
+            ("(all senses)", ""),
+        ):
+            self.assertEqual(red.french_text(text), read, text)
+
+    def test_spec_scenario_etc_with_its_period(self):
+        self.assertIn("the, my, your, etc.;", self.glosses["le"])
+        self.assertIn("not, don't, doesn't, etc.;", self.glosses["pas"])
+        self.assertIn("(money, obligation and etc.)", self.glosses["devoir"])
+        for text in ("etc.)", "and so on, etc.", "fetch, etcetera"):
+            self.assertEqual(red.with_etc_period(text), text)
+        self.assertEqual(red.with_etc_period("the, my, your, etc"), "the, my, your, etc.")
+
+    # D7 — expressions.
+
+    def test_spec_scenario_an_expression_whose_sense_needs_a_context(self):
+        for word in ("et des", "que de", "sur ce", "et si", "un coup"):
+            self.assertIn(word, red.LEFT_OUT)
+            self.assertIn("UD French-GSD", red.LEFT_OUT[word])
+        self.assertNotIn("et des", self.expressions)
+        self.assertNotIn("un coup", self.expressions)
+        # « un coup d'œil » then meets `coup d'œil` alone.
+        self.assertEqual(self.expressions["coup d'œil"], "glance, look; sight")
+        self.assertEqual(self.expressions["parce que"], "because")
+
+    def test_an_expression_d4_would_make_of_no_meaning(self):
+        # Settled by the owner on 2026-10-10, after the implementation found them: a contraction's
+        # spelling met wherever its plain words are written (`à le` « to the » on every « au »,
+        # `de le` on « de le faire », `j'suis` on every « je suis », `ç'a` on every « ça a »), one
+        # piece's meaning (`l'a` « him/her/it », `n'ai` « not »), a grammatical note (`j't'à`,
+        # `poser des lapins` « frequentative or plural ») or half a definition (`point d'inflexion`).
+        for word in ("à le", "à les", "de le", "de les", "l'a", "n'ai", "j'suis", "ç'a", "j't'à", "poser des lapins", "point d'inflexion"):
+            self.assertIn(word, red.LEFT_OUT, word)
+            self.assertTrue(red.LEFT_OUT[word], word)
+            self.assertNotIn(word, self.expressions, word)
+        # A contraction met only where it is written so, read whole, stays: « t'as » « you've ».
+        self.assertEqual(self.expressions["t'as"], "you've")
+        self.assertEqual(self.expressions["t'es"], "you're")
+        # Without the rows, D4 would have read them.
+        with mock.patch.dict(red.LEFT_OUT, clear=False):
+            for word in ("à le", "de le", "l'a", "poser des lapins"):
+                del red.LEFT_OUT[word]
+            _, _, expressions, _ = french_native()
+        self.assertEqual(expressions["à le"], "to the")
+        self.assertEqual(expressions["de le"], "“of the”, some")
+        self.assertEqual(expressions["l'a"], "him/her/it")
+        self.assertEqual(expressions["poser des lapins"], "frequentative or plural")
+
+    def test_spec_scenario_a_post_1990_spelling_keyed_apart(self):
+        self.assertEqual(self.expressions["à priori"], self.expressions["a priori"])
+        self.assertEqual(self.expressions["a priori"], "intuitively known, a priori; at first glance; preconceived idea")
+        self.assertEqual(self.expressions["sur son trente-et-un"], "all dressed up, dolled up (to the nines)")
+        self.assertEqual(self.stats["lent"], 2)
+
+    def test_a_post_1990_spelling_keyed_alike_stays_out(self):
+        # `crème fraiche` reads as `crème fraîche` (both forms of *frais*): it meets it already.
+        forms = {"crème": "crème", "fraiche": "frais", "fraîche": "frais", "à": "à", "a": "avoir"}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "section.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                for entry in (
+                    *POINTERS,
+                    {"word": "à priori", "pos": "adv", "senses": [{"glosses": ["post-1990 spelling of a priori"]}, {"glosses": ["on the face of it"]}]},
+                    {"word": "à postériori", "pos": "adv", "senses": [{"glosses": ["post-1990 spelling of a posteriori"]}]},
+                    "not an entry",
+                ):
+                    f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                f.write("not json\n")
+            lent = red.traditional_spellings(path, {"crème fraîche": "crème fraîche", "a priori": "a priori"}, forms)
+        # Neither a spelling keyed alike, nor one with a sense of its own, nor one whose traditional
+        # spelling fr-en does not gloss.
+        self.assertEqual(lent, {})
+
+    # D2 — French's dictionary words.
+
+    def test_spec_scenario_french_s_names(self):
+        words = red.dictionary_words(self.glosses, self.runs)
+        for name in ("paris", "durand", "coran"):
+            self.assertIn(name, self.glosses, name)
+            self.assertNotIn(name, words, name)
+        for word in ("marche", "lot", "nice", "le", "des"):
+            self.assertIn(word, words, word)
+        self.assertEqual(words, sorted(words))
+        self.assertEqual(red.dictionary_words({"a": "x", "b": "y"}, {"a": [("PROPN", 2)]}), ["b"])
+
+    def test_the_pass_reads_each_entry_once_in_its_place(self):
+        # Every rule off but the pass's plumbing: an entry it does not change keeps its bytes, a line
+        # it cannot read is written as it is, and the stats count what each rule moved.
+        with tempfile.TemporaryDirectory() as d:
+            src, dst = os.path.join(d, "in.jsonl"), os.path.join(d, "out.jsonl")
+            with open(src, "w", encoding="utf-8") as f:
+                f.write('{"word":"maison","pos":"noun","senses":[{"glosses":["house"]}]}\n')
+                f.write("not json\n[1]\n")
+                f.write('{"word":"pas","pos":"noun","senses":[{"glosses":["step"]}]}\n')
+                f.write('{"word":"pas","pos":"adv","senses":[{"glosses":["not"]}, "no sense"]}\n')
+                f.write('{"word":"x","pos":"noun","senses":"none"}')
+            _, stats = red.read_as_french(src, dst, TREEBANK)
+            with open(dst, encoding="utf-8") as f:
+                out = f.read().splitlines()
+        self.assertEqual(out[0], '{"word":"maison","pos":"noun","senses":[{"glosses":["house"]}]}')
+        self.assertEqual(out[1:3], ["not json", "[1]"])
+        self.assertEqual([json.loads(line)["pos"] for line in out[3:5]], ["adv", "noun"])
+        self.assertEqual(out[5], '{"word":"x","pos":"noun","senses":"none"}')
+        self.assertEqual(stats["headwords reordered by the treebank"], 1)
+
+    def test_the_pass_runs_after_the_meanings_and_before_the_merging(self):
+        # D1: fr-en's pre-pass sits between the English edition's two last ones, and the post-passes
+        # after the shared rules; the counts it reads are the ones `native_side` is handed.
+        calls = []
+        real = red.read_as_french
+
+        def spy(src, dst, counts):
+            calls.append((os.path.basename(src), os.path.basename(dst), counts is TREEBANK))
+            return real(src, dst, counts)
+
+        with mock.patch.object(red, "read_as_french", spy):
+            french_native()
+        self.assertEqual(calls, [("kaikki-French-meanings.jsonl", "kaikki-French-french.jsonl", True)])
+
+
+FRENCH_SECTION_BY_WORD = collections.defaultdict(list)
+for _entry in FRENCH_SECTION:
+    FRENCH_SECTION_BY_WORD[_entry["word"]].append(_entry)
+
+
+class FrenchLevelsAndWords(unittest.TestCase):
+    """French's levels given only to its dictionary words (refine-lingua-fr-en-glosses D3)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.senses = level_senses(*FRENCH_SECTION)
+
+    def test_spec_scenario_a_word_met_only_in_an_expression(self):
+        # `parce` « only used in parce que »: a pointer, no gloss; « parce que » keeps its own.
+        glosses, runs, expressions, _ = french_native()
+        self.assertNotIn("parce", glosses)
+        self.assertEqual(expressions["parce que"], "because")
+        words = set(red.dictionary_words(glosses, runs))
+        ranks = {"parce": 1, "pas": 2}
+        forms = {"parce": "parce", "pas": "pas"}
+        # The section gives `parce` a sense no rule of change 46 reads as a pointer: it took A1.
+        senses = {"parce": self.senses["parce"], "pas": self.senses["pas"]}
+        self.assertEqual(senses["parce"], [("prep", "only used in parce que", frozenset())])
+        self.assertIsNone(red.no_level("parce", forms, senses))
+        self.assertEqual(red.no_level("parce", forms, senses, words), "unlisted")
+        levels, left_out = red.estimated_levels(ranks, forms, senses, words, bands=(("A1", 1),))
+        self.assertEqual(levels, {"pas": "A1"})
+        self.assertEqual(left_out["unlisted"], ["parce"])
+
+    def test_spec_scenario_a_word_glossed_only_as_a_name(self):
+        # `coran` « alternative form of Coran » borrows the name's « Koran »: a name, no word.
+        glosses, runs, _, _ = french_native()
+        self.assertEqual(glosses["coran"], "Koran")
+        self.assertEqual(runs["coran"], [("PROPN", 1)])
+        words = set(red.dictionary_words(glosses, runs))
+        self.assertNotIn("coran", words)
+        self.assertEqual(red.no_level("coran", {"coran": "coran"}, self.senses, words), "unlisted")
+        # The rule is read last: a lemma another rule leaves out is named by that one.
+        self.assertEqual(red.no_level("paris", {}, {"paris": [("name", "Paris", frozenset())]}, words), "name")
+        # Without French's dictionary words the rule is not read: « alternative form of Coran » is
+        # no spelling of change 46's list, so `coran` took a level.
+        self.assertIsNone(red.no_level("coran", {"coran": "coran"}, self.senses))
+
+    def test_a_lemma_left_out_gives_its_slot_to_the_next(self):
+        ranks = {"de": 1, "parce": 2, "le": 3, "coran": 4, "pas": 5}
+        senses = {lemma: [("noun", "a meaning", frozenset())] for lemma in ranks}
+        words = {"de", "le", "pas"}
+        levels, left_out = red.estimated_levels(ranks, {}, senses, words, bands=(("A1", 2), ("A2", 1)))
+        self.assertEqual(levels, {"de": "A1", "le": "A1", "pas": "A2"})
+        self.assertEqual(left_out["unlisted"], ["parce", "coran"])
+        self.assertEqual(red.LEVEL_RULES[-1], "unlisted")
 
 
 if __name__ == "__main__":

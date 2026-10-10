@@ -1,15 +1,16 @@
 {
   "snapshot": "2026.10.09",
   "pack": {
-    "sha256": "d013a5481176a8bc97f7292adba234c76b7706406d8498aeb1b6c3eaa3cc9d66",
-    "size": 2527222
+    "sha256": "581e80acf22eab7386e03e5a127c5fc3e7179fcba89681544d8117cf494e4a6f",
+    "size": 2537386
   },
   "reducer": {
-    "sha256": "567637da618b208fcc61cff360c1ee21f626fc6e8193625accca61843544b8d0",
+    "sha256": "d2b3347282b70c26c0ce9f1ee822a045423fa512bf625cab8c446c894d4a6b48",
     "files": [
       "reduce-fr-en.py",
       "reduce_common.py",
-      "reduce_edition_en.py"
+      "reduce_edition_en.py",
+      "reduce_french_treebank.py"
     ]
   },
   "sources": {

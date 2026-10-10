@@ -1,7 +1,7 @@
 {
   "snapshot": "2026.10.10",
   "pack": {
-    "sha256": "3b015cd2507c95e36ef43203c73014fd8fc827a30c477c29c0b8f328f834a9c6",
+    "sha256": "2c320129e37daff91eb9ccac68940573b6672993c29a2f7251cdacc5a9f2ba25",
     "size": 1973407
   },
   "reducer": {
@@ -18,8 +18,8 @@
       "forms.tsv": "b013fac8d5099627c55e32b727dcdf9f6c19602d8b57dccb2528a80077a488d1",
       "freq.tsv": "6f6c3595a9b62fc61f0033bbb8cb753e97d87c6c173ead052f095e3fd2efed30",
       "grammar.tsv": "79a41a7b91ec637fedcbd24785efcd674f5f0d1668a8ffdbd8a280129aaa082c",
-      "level.tsv": "dace859891faa71798b343e90809ac72d6244bb22b661e5194dc98f12bff6e63",
-      "lexical.tsv": "93cce0699b165dfb323ebf077f6aabf22353fa48b7ce670000a07096db08082e",
+      "level.tsv": "a13925cd5693751a14a6a869b87bc218960cf5452678d0386a57a271c01a4a20",
+      "lexical.tsv": "6c58078bb8dda562922a6a3502f551891bb1d7e74dc66a4468b2f3e1462ff408",
       "tags.tsv": "bcefe71fe32b221624943c6b5c63f77a88f2bf48dd2e9e4ede5c47e4738479b7"
     }
   },

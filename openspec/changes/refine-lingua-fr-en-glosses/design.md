@@ -69,7 +69,7 @@ baseline re-blessed in a scratch copy of `main` over the prototype's tables.
 
 | Rule | Rows / top 10k | First sense | Lemmas gained | Expressions | Examples |
 |---|---|---|---|---|---|
-| D4, a pointer's meaning | 40 / 18 | 13 / 10 | 12 (4 of the top 10,000) | 15 changed, 166 gained | « des » « some; of the, from the, some », « du » « forms the partitive article; of the », « mieux » « better; best; … », « ouais »; « il y a » « there is, there are; ago » |
+| D4, a pointer's meaning | 40 / 18 | 13 / 10 | 12 (4 of the top 10,000) | 15 changed, 155 gained (166 before Q7 left eleven out) | « des » « some; of the, from the, some », « du » « forms the partitive article; of the », « mieux » « better; best; … », « ouais »; « il y a » « there is, there are; ago » |
 | D5, UD French-GSD's part of speech, function words and names | 13 / 13 | 13 / 13 | — | — | « pas » opens on its negation, « son » « his, her… », « leur » « their », « bien » « well »; « marche », « réunion », « somme » on the common noun |
 | D6, no name under a function word | 2 / 2 | — | — | — | « le », « on » |
 | D7, expressions | — | — | — | 5 left out, 6 gained | `et des`…; `à priori` |
@@ -77,12 +77,12 @@ baseline re-blessed in a scratch copy of `main` over the prototype's tables.
 | D8, openers | 14 / 8 | 8 / 2 | — | 1 changed | « que », « il », « mon », « ma », « soi », « wesh » |
 | D8, citations, numbers | 4 / 3 | 2 / 2 | — | — | « liberté », « office », « téléphonie », « proscription » |
 | D8, « etc. » | 117 / 42 | 59 / 10 | — | 7 changed | « le », « pas », « possible » |
-| **Together** | **291 / 117** | **190 / 64** | **12, none lost** | **26 changed, 172 gained, 5 left out** | coverage 93.6 / 86.9 / 76.3 % (4,679 / 8,688 / 15,260), the floor 91.9 / 85.1 / 74.4 |
+| **Together** | **291 / 117** | **190 / 64** | **12, none lost** | **26 changed, 161 gained, 5 left out** (172 gained before Q7) | coverage 93.6 / 86.9 / 76.3 % (4,679 / 8,688 / 15,260), the floor 91.9 / 85.1 / 74.4 |
 
 The 12 lemmas gained are words whose only senses were pointers of D4's wordings: `french`
 « French », `burger`, `dev`, `ès` « in the » (four of change 48's 40 levelled lemmas with no
 gloss, which therefore keep their level), `because` « because; because of », `chui` « I'm »,
-`blockchain`, `broyeuse`, `axis`, `ive`, `loix`, `sherry`. Expressions: 17,479 → 17,646.
+`blockchain`, `broyeuse`, `axis`, `ive`, `loix`, `sherry`. Expressions: 17,479 → 17,635 (17,646 before Q7).
 
 **Names** (D2). Of the 30,067 lemmas glossed with these rules, 3,581 are glossed by a proper noun's
 senses alone — every run of `senses.tsv` `PROPN` — 359 / 912 / 1,763 of the 5,000 / 10,000 / 20,000
@@ -113,8 +113,8 @@ words, a common word's senses among theirs; `Mme` and `Marie-Claire` open their 
 B2 → B1, 40 C1 → B2, 44 C2 → C1). The spans become A1 1–1,085, A2 1,086–2,385, B1 2,386–4,832, B2
 4,833–8,139, C1 8,140–9,474, C2 9,475–10,820; 8,302 levels, as many at each level as before.
 
-**The pack**: 2,527,222 → 2,537,587 B (+10,365: the glosses +2,853, the lexical table and the levels
-+7,512), under the 5 MiB budget.
+**The pack**: 2,527,222 → 2,537,386 B (+10,164: the glosses +2,652, the lexical table and the levels
++7,512; 2,537,587 B before Q7), under the 5 MiB budget.
 
 **The golden**: 47 of 147 probes move, 336,433 → 331,322 B (D11).
 
@@ -129,7 +129,8 @@ The rules run in `reduce-fr-en.py` and nowhere else:
   carried meaning, and edits neither;
 - `with_etc_period`, a post-pass over the reduced glosses and expressions (D8: the shared cleaning
   takes off a sense's final period, so a pre-pass cannot keep it);
-- `LEFT_OUT` gains five expressions, and `traditional_spellings` lends six glosses (D7);
+- `LEFT_OUT` gains five expressions (D7) and eleven a pointer would make of no meaning (Q7), and
+  `traditional_spellings` lends six glosses (D7);
 - `dictionary_words(glosses, runs)` writes `lexical.tsv` (D2), and `estimated_levels` reads it (D3),
   so the levels are computed after the native side.
 
@@ -211,8 +212,8 @@ lent here):
   « dunno »; « la vôtre » « yours (the one belonging to you) »; « chou rave » « kohlrabi »);
 - **never**: a name's entry, an acronym's, a meaning written only in capitals (« NE », « SE »).
 
-Measured: 40 rows (18 of the top 10,000); 12 lemmas gained; 15 expressions changed and 166 gained,
-none lost. `des` borrows nothing any more and reads « some; of the, from the, some »; `du` « forms the
+Measured: 40 rows (18 of the top 10,000); 12 lemmas gained; 15 expressions changed and 155 gained
+(166 before the owner left eleven out, Q7), none lost. `des` borrows nothing any more and reads « some; of the, from the, some »; `du` « forms the
 partitive article; of the » (the contraction's run is `X`, as kaikki's `contraction` is everywhere).
 A few read oddly and are in the owner's sample: « matelas » gains « French tacos » and « bercy »
 « drunkard » (synonyms the page gives), « j't'à » « the 't' is epenthetic ».
@@ -290,6 +291,12 @@ plus y'a personne »), the others « and if »; of 11 « un coup » none means �
 order (7 « un coup de »). « du pain et des œufs » then
 meets no expression, and « un coup d'œil » meets `coup d'œil` alone.
 
+**Left out on the owner's decision** (Q7, 2026-10-10): eleven expressions D4 would make of a pointer
+whose « meaning » is none of the expression's — `à le`, `à les`, `de le`, `de les`, `j'suis`, `ç'a`
+(a spelling met wherever the plain words are written), `l'a`, `n'ai` (one piece's meaning), `j't'à`,
+`poser des lapins` (a grammatical note), `point d'inflexion` (half a definition) —, each in
+`LEFT_OUT` with its reason. « au marché » and « Personne au village » then meet no `à le`.
+
 **Lent**: a headword whose every sense is « post-1990 spelling of X », and that the forms table keys
 apart from X (a word of it reads as another lemma, or splits otherwise), takes X's gloss: `à priori`,
 `à postériori`, `et cétéra`, `sur son trente-et-un`, `être sur son trente-et-un`, `se mettre sur son
@@ -365,7 +372,9 @@ French interface: no extension source changes, `packs.json` does not list fr-en.
 
 `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline` once; the owner approved the
 re-bless on 2026-10-10, before the implementation (task 6.1). Measured over the prototype's tables
-on `main` at `eddaf712`, 47 of 147 probes move (336,433 → 331,322 B), by cause:
+on `main` at `eddaf712`, 47 of 147 probes move (336,433 → 331,322 B), by cause (Q7 leaves the count:
+« au marché » and « Personne au village » move in their tokens' glosses alone; implemented on `main`
+with change 51's probes, 60 of 209 move, 371,089 → 365,496 B):
 - **the gloss rules alone** (42): `pack`; the 13 `analyse new-reader` pages, in their tokens' glosses
   only (`le`, `que`, `ne`, `pas`, `des`, `du`, `en`…; 37 tokens on `homographes`); the `gloss`
   probes of `pas`, `son`, `du`, `des` and `le`; 19 `phrase-gloss` probes, among them « du pain et des œufs » and « un coup d'œil »
@@ -427,6 +436,20 @@ fixture) is unchanged. `support/french.rs`'s doc follows D2 and D7.
   glosses* → « and French's dictionary words », « when fr-en's glosses add or remove no dictionary
   word »; 49's and 52's « French's dictionary words, fr-en's glossed lemmas » → « French's dictionary
   words ». Each is amended when its change is archived; not edited here.
+
+- **Q7 — Expressions a pointer would make of no meaning** (found by the implementation, after the
+  re-bless was approved). D4 reads an expression's pointer whatever it names, and eleven of the
+  expressions it gained read no meaning of the expression a reader meets: the Louisiana spellings
+  `à le`, `à les` « to the », which every « au »/« aux » meets once the pre-pass reads it `à` +
+  `le`/`les`, and `de le`, `de les` « “of the”, some », which « décidé de le faire » meets;
+  `j'suis` and `ç'a`, which every « je suis » and « ça a » meets; `l'a` « him/her/it » and `n'ai`
+  « not », one piece's meaning; `j't'à` « the 't' is epenthetic » and `poser des lapins`
+  « frequentative or plural », grammatical notes; `point d'inflexion`, half a definition the
+  English edition's rules read as a pointer. *Settled* on 2026-10-10: left out by name
+  (`LEFT_OUT`, each with its reason), D4 gaining 155 expressions instead of 166 and the rules
+  together 161 instead of 172; `t'as` « you've » and `t'es` « you're », met only where they are
+  written so, stay. The golden's count does not move: « au marché » and « Personne au village »
+  still move, in their tokens' glosses alone.
 
 The re-bless of `fr-en.golden` was approved on the same day, before the implementation (task 6.1),
 for the count the implementation re-measures.

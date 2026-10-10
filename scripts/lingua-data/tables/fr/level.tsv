@@ -11,7 +11,7 @@ abc	C1
 abdomen	C1
 abeille	B2
 abolir	C1
-abolition	B2
+abolition	B1
 abondamment	C1
 abondance	B2
 abonnement	B1
@@ -73,7 +73,7 @@ accueillir	A2
 accumulation	B2
 accumuler	C1
 accusation	B1
-accuser	B2
+accuser	B1
 accès	A1
 accéder	A2
 accélérateur	C2
@@ -128,7 +128,7 @@ administration	A1
 administrer	C2
 admirable	C1
 admiration	B2
-admirer	B2
+admirer	B1
 admission	B2
 adn	B1
 ado	B1
@@ -156,6 +156,7 @@ affecter	B2
 affection	B1
 affichage	B2
 afficher	B1
+affinité	C2
 affirmation	B1
 affirmer	B1
 affluence	C1
@@ -198,7 +199,7 @@ aide	A1
 aider	A1
 aigle	B2
 aigu	C1
-aiguille	B2
+aiguille	B1
 ail	B2
 aile	B1
 ailier	B2
@@ -213,7 +214,7 @@ aisance	C1
 aise	A2
 aisé	B2
 aisément	B1
-ajout	B2
+ajout	B1
 ajouter	A2
 ajustement	B2
 ajuster	B2
@@ -224,6 +225,7 @@ album	A1
 alcool	A2
 alcoolique	B2
 alcoolisme	C2
+alentour	C2
 alentours	B1
 alerte	A2
 alerter	C2
@@ -235,7 +237,7 @@ alien	C1
 alignement	B2
 aligner	B2
 aliment	C1
-alimentaire	B1
+alimentaire	A2
 alimentation	A2
 alimenter	B1
 alinéa	B2
@@ -254,6 +256,7 @@ allumé	B2
 allure	B1
 allusion	B1
 allégeance	C1
+alléger	C2
 alors	A1
 alpha	B1
 alphabet	B2
@@ -269,8 +272,8 @@ altesse	C1
 altitude	B1
 aluminium	B1
 aléatoire	B2
-am	B1
 amalgame	C1
+amande	C2
 amant	B1
 amas	B2
 amateur	B1
@@ -318,6 +321,7 @@ américain	A1
 an	A1
 anal	C1
 analogie	B2
+analogue	C2
 analyse	A1
 analyser	B1
 analyste	B2
@@ -354,7 +358,7 @@ annexion	C1
 anniversaire	A1
 annoncer	A2
 annuaire	B2
-annuel	B1
+annuel	A2
 annuellement	B2
 annulation	B1
 annuler	B1
@@ -393,11 +397,10 @@ apogée	C1
 apollon	C2
 apologie	B2
 apostolique	B2
-app	B2
 apparaître	B1
 appareil	A2
 apparemment	A2
-apparence	B1
+apparence	A2
 apparent	C2
 apparition	A2
 appart	B1
@@ -483,11 +486,12 @@ armistice	C1
 armoire	B2
 armure	B2
 armée	A1
+arménien	C2
 arnaque	B1
 arracher	B1
 arraché	B2
 arrangement	B2
-arranger	B2
+arranger	B1
 arrestation	B1
 arriver	A1
 arrivée	A1
@@ -499,6 +503,7 @@ arrière-plan	C2
 arrogance	C1
 arrogant	C2
 arrondissement	A2
+arroser	C2
 arrêt	A1
 arrêt-court	B2
 arrêter	A1
@@ -508,6 +513,7 @@ article	A1
 articulation	C1
 artifice	B2
 artificiel	B2
+artificiellement	C2
 artillerie	B1
 artisan	B2
 artisanat	B2
@@ -515,6 +521,7 @@ artiste	A1
 artistique	A2
 artère	B2
 arène	B2
+arête	C2
 as	A1
 ascendant	C1
 ascenseur	B1
@@ -531,6 +538,7 @@ assassinat	B1
 assassiner	B2
 assaut	B1
 assemblage	B2
+assembler	C2
 assemblée	A1
 asseoir	B1
 assez	A1
@@ -592,7 +600,7 @@ attractivité	C2
 attrait	B2
 attrape	B2
 attraper	B1
-attribuer	B2
+attribuer	B1
 attribution	B1
 atténuer	C1
 atypique	C1
@@ -600,7 +608,7 @@ au-delà	A1
 au-dessous	B2
 au-dessus	A1
 aube	B1
-auberge	B2
+auberge	B1
 aucun	A1
 aucunement	B2
 audace	B2
@@ -633,6 +641,7 @@ auteur-compositeur-interprète	C2
 authenticité	B2
 authentique	B1
 autisme	B2
+autiste	C2
 auto	A2
 auto-entrepreneur	B2
 autobus	B1
@@ -653,12 +662,11 @@ autorité	A1
 autoroute	A2
 autour	A1
 autre	A1
-autrefois	B1
+autrefois	A2
 autrement	A2
 autrichien	B2
 autrui	B1
 auxiliaire	B2
-av	B1
 aval	B2
 avalanche	C1
 avaler	B2
@@ -808,7 +816,6 @@ baume	C1
 bavière	B2
 bazar	C1
 bb	B2
-bcp	B2
 bd	B1
 beach	B1
 beau	A1
@@ -853,9 +860,10 @@ bienvenu	B2
 bienvenue	A2
 big	A2
 bijou	B2
+bikini	C2
 bilan	A2
 bilingue	B2
-bill	B1
+bill	A2
 billard	C1
 billet	A2
 binaire	C1
@@ -899,8 +907,7 @@ blâme	B2
 blâmer	B2
 blé	B1
 bmw	B2
-bo	B2
-bob	B1
+bob	A2
 bobo	B2
 body	B2
 bof	B2
@@ -953,6 +960,7 @@ bouddhisme	C1
 boue	B2
 bouffe	B1
 bouffer	B1
+bouffon	C2
 bouger	A2
 bougie	B2
 bouillir	C2
@@ -972,6 +980,7 @@ bourgeois	B1
 bourgeoisie	B2
 bourgmestre	C1
 bourgogne	B1
+bourre	C2
 bourreau	B2
 bourré	B1
 bourse	A2
@@ -1072,10 +1081,11 @@ bélier	C2
 bémol	B2
 bénin	B2
 bénédiction	B2
-bénéfice	B1
+bénéfice	A2
 bénéficiaire	B2
 bénéficier	B1
 bénéfique	B2
+bénévolat	C2
 bénévole	B2
 bétail	B2
 béton	B1
@@ -1090,7 +1100,6 @@ cabane	B2
 cabaret	B2
 cabine	B1
 cabinet	A2
-cac	C1
 caca	B2
 cacao	B2
 cacher	A2
@@ -1101,14 +1110,15 @@ cadavre	B1
 cadeau	A2
 cadence	C1
 cadet	B2
+cadran	C2
 cadre	A1
-caf	B2
 café	A1
 cage	B1
 cahier	B1
 caillou	C2
 caisse	A2
 cake	C2
+cal	C2
 calcaire	B2
 calcium	B2
 calcul	A2
@@ -1245,7 +1255,6 @@ caverne	C2
 caviar	C2
 cavité	C1
 cayenne	C2
-cb	B2
 cc	B1
 cd	B1
 cdd	B2
@@ -1276,7 +1285,7 @@ cerf	B2
 cerise	B2
 cerner	C1
 certain	A1
-certainement	A2
+certainement	A1
 certes	A2
 certificat	B1
 certification	B2
@@ -1298,6 +1307,7 @@ chalet	B2
 chaleur	A2
 chaleureux	B2
 challenge	B1
+challenger	C2
 chambre	A1
 champ	A1
 champagne	A2
@@ -1320,6 +1330,7 @@ chanteuse	B1
 chantier	B1
 chantilly	C2
 chaos	B1
+chaotique	C2
 chapeau	A2
 chapelle	B1
 chapitre	A2
@@ -1434,11 +1445,11 @@ ci-après	B2
 ci-contre	C2
 ci-dessous	B1
 ci-dessus	B1
+ciao	C2
 cible	A2
 cibler	C2
 cicatrice	C2
 cidre	C2
-cie	B2
 ciel	A1
 cigarette	B1
 ciment	B2
@@ -1474,9 +1485,9 @@ civil	A2
 civilisation	B1
 civique	B2
 clair	A1
-clairement	A2
+clairement	A1
 clan	B1
-clandestin	C2
+clandestin	C1
 claquer	C1
 claqué	C2
 clarifier	C1
@@ -1502,7 +1513,7 @@ climat	A2
 climatique	B1
 climatisation	C2
 clin	B2
-clinique	B1
+clinique	A2
 clip	B1
 clique	B2
 cliquer	B2
@@ -1552,7 +1563,7 @@ colle	B1
 collecte	B1
 collecter	C1
 collectif	A2
-collection	A2
+collection	A1
 collectionneur	C2
 collectivement	B2
 collectivité	B1
@@ -1576,7 +1587,6 @@ colonne	B1
 coloration	C1
 coloris	B2
 colère	A2
-com	A2
 coma	B2
 combat	A1
 combattant	B2
@@ -1602,7 +1612,7 @@ commencement	B2
 commencer	A1
 comment	A1
 commentaire	A2
-commentateur	C2
+commentateur	C1
 commenter	B1
 commerce	A1
 commercial	A2
@@ -1728,6 +1738,7 @@ confidentiel	C2
 confier	B1
 configuration	B2
 confinement	C2
+confins	C2
 confirmation	B1
 confirmer	B1
 confiture	C1
@@ -1754,7 +1765,7 @@ congrégation	B2
 congé	B1
 conjoint	B1
 conjointement	B2
-conjoncture	C1
+conjoncture	B2
 conjugaison	C2
 connaissance	A1
 connard	B1
@@ -1764,10 +1775,11 @@ conne	B2
 connecter	B2
 connerie	B1
 connexion	B1
+conquérant	C2
 conquérir	B2
 conquête	B1
 consacrer	B1
-conscience	A2
+conscience	A1
 conscient	B1
 conseil	A1
 conseiller	A2
@@ -1785,8 +1797,8 @@ consigne	B2
 consolation	C2
 console	B1
 consoler	B2
-consolidation	C1
-consolider	C1
+consolidation	B2
+consolider	B2
 consommateur	B1
 consommation	A1
 consommer	B1
@@ -1819,7 +1831,7 @@ conte	B1
 contempler	C2
 contemporain	B1
 contenir	B1
-content	A2
+content	A1
 contenter	B1
 contentieux	B2
 contenu	A2
@@ -1839,7 +1851,7 @@ contourner	B2
 contraception	C2
 contraction	B2
 contradiction	B1
-contradictoire	C1
+contradictoire	B2
 contraignant	C2
 contraindre	C1
 contrainte	B1
@@ -1857,7 +1869,7 @@ contre-offensive	B2
 contre-révolutionnaire	B2
 contrebande	C1
 contredire	C1
-contrefaçon	C2
+contrefaçon	C1
 contrepartie	B2
 contrer	B2
 contribuable	B2
@@ -1868,10 +1880,10 @@ controversé	C1
 contrôle	A1
 contrôler	A2
 contrôleur	B2
-convaincant	C2
+convaincant	C1
 convaincre	A2
 convenable	B2
-convenablement	C2
+convenablement	C1
 convenir	C1
 convention	A2
 conventionnel	C1
@@ -1902,7 +1914,6 @@ coquin	C1
 coquine	B2
 cor	C1
 corail	C2
-coran	B1
 corbeau	C2
 corde	B1
 cordialement	B2
@@ -1910,7 +1921,7 @@ cordon	B2
 corinne	C1
 corne	B2
 corneille	C1
-corner	C1
+corner	B2
 cornet	C2
 corp	C2
 corporation	B2
@@ -2020,7 +2031,7 @@ cristal	B1
 critique	A1
 critiquer	B1
 critère	B1
-croate	C2
+croate	C1
 crochet	B2
 crocodile	C2
 croire	A1
@@ -2032,7 +2043,7 @@ croissance	A2
 croissant	B1
 croisé	B1
 croix	A2
-croquis	C1
+croquis	B2
 cross	B2
 crosse	C2
 croyance	B1
@@ -2100,7 +2111,7 @@ cycle	A2
 cyclisme	B2
 cycliste	B1
 cylindre	C1
-cynique	C2
+cynique	C1
 cynisme	C2
 câble	B1
 câlin	B2
@@ -2150,7 +2161,7 @@ delta	B2
 delà	A1
 demain	A1
 demander	A1
-demandeur	C1
+demandeur	B2
 demeurer	B2
 demeuré	C2
 demi	A1
@@ -2221,7 +2232,7 @@ diamant	B1
 diamètre	B1
 diane	B1
 diarrhée	C2
-diaspora	C2
+diaspora	C1
 dictateur	B2
 dictature	B1
 dictionnaire	B1
@@ -2250,7 +2261,7 @@ dimension	A2
 diminuer	B1
 diminution	B1
 dinde	C2
-diner	C1
+diner	B2
 dingue	A2
 dinosaure	C2
 diocèse	B1
@@ -2296,14 +2307,14 @@ disque	A2
 dissimuler	C1
 dissolution	B1
 dissoudre	C1
-dissuader	C2
+dissuader	C1
 distance	A2
-distant	C2
+distant	C1
 distinct	C2
 distinction	B1
 distinguer	B1
 distraction	C2
-distraire	C2
+distraire	C1
 distribuer	B2
 distributeur	B2
 distribution	A2
@@ -2450,7 +2461,7 @@ décennie	B1
 décentralisation	B2
 déception	B1
 décevant	B2
-décevoir	C1
+décevoir	B2
 décharge	B1
 déchet	C1
 déchirer	C1
@@ -2490,13 +2501,13 @@ défaillance	B2
 défaire	B2
 défaite	A2
 défaut	A2
-défavorable	C1
+défavorable	B2
 défendre	A2
 défense	A1
 défenseur	B1
 défensif	B2
 défi	A2
-défiance	C1
+défiance	B2
 déficit	B1
 défier	B2
 défiler	B2
@@ -2514,7 +2525,7 @@ dégradation	B1
 dégrader	C2
 dégueu	C2
 dégueulasse	B1
-déguisement	C2
+déguisement	C1
 dégustation	B2
 déguster	C2
 déjeuner	A2
@@ -2542,13 +2553,13 @@ démarrer	B2
 démenti	C2
 démission	B1
 démissionner	B2
-démo	C1
+démo	B2
 démocrate	B1
 démocratie	A2
 démocratique	A2
 démographie	B2
 démographique	B2
-démolir	C2
+démolir	C1
 démolition	B2
 démon	B1
 démonstration	B1
@@ -2560,7 +2571,7 @@ déni	B2
 dénomination	B2
 dénoncer	B1
 dénonciation	B2
-dénouement	C2
+dénouement	C1
 déontologie	C1
 départ	A1
 département	A1
@@ -2572,12 +2583,12 @@ dépendre	B2
 dépens	B2
 dépense	B1
 dépenser	B1
-dépistage	C1
+dépistage	B2
 dépit	B1
 déplacement	A2
 déplacer	B1
 déploiement	B2
-déplorable	C2
+déplorable	C1
 déployer	B2
 déportation	C2
 déposer	B1
@@ -2591,7 +2602,7 @@ député	A1
 dépêche	B2
 dépôt	A2
 déranger	B2
-dérangé	C2
+dérangé	C1
 dérision	C2
 dérive	B1
 dérogation	C2
@@ -2608,7 +2619,7 @@ désespérément	C1
 désignation	B2
 désigner	B1
 désir	A2
-désirer	C1
+désirer	B2
 désireux	B2
 désolé	A1
 désordre	B2
@@ -2623,9 +2634,9 @@ détecteur	B2
 détection	B2
 détective	B2
 détendre	B2
-détenir	C2
+détenir	C1
 détente	B2
-détenteur	C1
+détenteur	B2
 détention	B1
 déterminant	B2
 détermination	B1
@@ -2680,13 +2691,13 @@ emblématique	B2
 embouchure	C1
 embrasser	B1
 embrassé	C1
-embuscade	C2
+embuscade	C1
 embêter	C1
 emmener	B1
 emmerde	B2
 emmerder	C1
 emparer	B2
-empathie	C1
+empathie	B2
 empereur	A2
 empire	A2
 emplacement	B1
@@ -2709,7 +2720,6 @@ enceinte	A2
 enchaînement	C2
 enchaîner	C1
 enclos	C1
-encontre	B1
 encore	A1
 encourageant	C1
 encouragement	C1
@@ -2754,7 +2764,7 @@ enregistrement	A2
 enregistrer	B1
 enrichir	B2
 enrichissement	B2
-ens	C2
+ens	C1
 enseignant	B1
 enseignement	A1
 enseigner	B1
@@ -2808,7 +2818,6 @@ envoi	A2
 envol	C2
 envoler	C1
 envoyer	A1
-ep	B2
 erreur	A1
 escadron	C2
 escalade	B1
@@ -2866,7 +2875,7 @@ exceptionnellement	B2
 excepté	B2
 excessif	B2
 excessivement	C2
-excitant	C1
+excitant	B2
 excitation	B2
 excité	B2
 exclure	B2
@@ -2890,7 +2899,7 @@ exil	B1
 existant	B1
 existence	A2
 exister	B1
-exode	C1
+exode	B2
 exotique	C1
 expansion	B1
 expert	A2
@@ -2901,7 +2910,6 @@ explication	A2
 explicite	B2
 explicitement	B2
 expliquer	A1
-expliquez	B2
 exploit	B1
 exploitant	B2
 exploitation	A2
@@ -2912,7 +2920,7 @@ exploser	B1
 explosif	B2
 explosion	A2
 expo	B2
-export	C1
+export	B2
 exportation	B2
 exporter	C1
 exposer	B1
@@ -2971,7 +2979,7 @@ faille	B1
 faillite	B1
 faim	A2
 faire	A1
-faisceau	C1
+faisceau	B2
 falaise	B2
 falloir	A2
 fameux	A2
@@ -2993,7 +3001,7 @@ fascinant	B2
 fascination	C2
 fascisme	B2
 fasciste	B2
-fat	C2
+fat	C1
 fatal	B2
 fatalité	C2
 fatigue	B1
@@ -3002,7 +3010,7 @@ faucon	C2
 faune	B1
 faute	A1
 fauteuil	B1
-fauve	C2
+fauve	C1
 faux	A1
 faux-fruit	C2
 faveur	A1
@@ -3040,7 +3048,7 @@ fiabilité	B2
 fiable	B1
 fiancé	C1
 fiancée	B2
-fiançailles	C2
+fiançailles	C1
 fiasco	C2
 fibre	B1
 fiche	A2
@@ -3060,7 +3068,7 @@ file	B1
 filer	B1
 filet	B1
 filiale	B1
-filiation	C1
+filiation	B2
 filière	B1
 fille	A1
 fillette	B2
@@ -3103,7 +3111,7 @@ flemme	B2
 fleur	A2
 fleuve	B1
 flexibilité	B2
-flexible	C2
+flexible	C1
 flic	B1
 flippant	C1
 flipper	B2
@@ -3149,7 +3157,6 @@ fonte	B2
 foot	A2
 football	A1
 footballeur	B2
-for	A2
 forage	C2
 force	A1
 forcement	C2
@@ -3233,7 +3240,7 @@ froid	A1
 fromage	B1
 front	A1
 frontière	A2
-frotter	C1
+frotter	B2
 fruit	A2
 frustrant	B2
 frustration	B2
@@ -3254,7 +3261,6 @@ fumé	B2
 fumée	B1
 fun	B1
 funéraire	C1
-fur	B1
 fureur	B2
 furieux	B2
 fusil	B1
@@ -3304,7 +3310,7 @@ garantie	A2
 garantir	B1
 garde	A1
 garder	A1
-garderie	C2
+garderie	C1
 gardien	A2
 gare	A2
 garer	C1
@@ -3353,7 +3359,7 @@ girl	B1
 gisement	C1
 glace	A2
 glacier	C1
-glamour	C2
+glamour	C1
 gland	C2
 glissant	C2
 glisse	B1
@@ -3380,12 +3386,12 @@ gourmand	C2
 goutte	B1
 gouvernance	B1
 gouvernement	A1
-gouvernemental	C1
+gouvernemental	B2
 gouverner	B2
 gouverneur	A2
 goût	A1
 goûter	B1
-gp	C1
+gp	B2
 graal	C2
 grade	B1
 grain	B1
@@ -3431,7 +3437,7 @@ grenier	B1
 grenouille	B2
 griffe	C2
 grille	B1
-griller	C1
+griller	B2
 grimper	B2
 grippe	B1
 gris	A2
@@ -3473,7 +3479,7 @@ guérison	B2
 gym	B2
 gymnase	B2
 gymnastique	C1
-gâche	C2
+gâche	C1
 gâcher	B2
 gâchis	C1
 gâché	C2
@@ -3511,7 +3517,7 @@ gérant	B1
 gérer	A2
 gênant	B1
 gêne	B1
-gêner	C1
+gêner	B2
 gêné	B2
 ha	A2
 hab	B2
@@ -3541,7 +3547,7 @@ haleine	B2
 hall	B1
 halle	B2
 halloween	B2
-hallucinant	C2
+hallucinant	C1
 halte	B2
 hameau	B2
 hanche	C1
@@ -3558,7 +3564,7 @@ harmonisation	C2
 harper	B1
 hart	C1
 hasard	A2
-hashtag	C2
+hashtag	C1
 hausse	A2
 haut	A1
 hautement	B1
@@ -3572,7 +3578,7 @@ hein	A1
 hello	B1
 henry	A2
 herbe	B1
-hercule	C1
+hercule	B2
 heu	B1
 heure	A1
 heureusement	A2
@@ -3590,7 +3596,7 @@ historiquement	B2
 hit	C1
 hiver	A1
 hiérarchie	B1
-hiérarchique	C2
+hiérarchique	C1
 hlm	C1
 hmm	B2
 ho	B1
@@ -3603,7 +3609,7 @@ homme	A1
 homo	B1
 homogène	B2
 homologue	C1
-homophobe	C1
+homophobe	B2
 homophobie	C1
 homosexualité	B2
 homosexuel	B2
@@ -3621,7 +3627,7 @@ hop	B1
 horaire	B1
 horde	C2
 horizon	B1
-horizontal	C2
+horizontal	C1
 horizontale	C1
 horloge	B1
 hormis	B1
@@ -3640,7 +3646,6 @@ hot-dog	C2
 house	B1
 hp	B2
 hs	C1
-ht	B2
 hui	B2
 huile	A2
 huissier	C1
@@ -3779,7 +3784,7 @@ impossibilité	B2
 impossible	A1
 impression	A1
 impressionnant	B1
-impressionner	C2
+impressionner	C1
 impressionné	B2
 imprimante	C1
 imprimer	B1
@@ -3788,7 +3793,7 @@ imprimeur	C2
 improbable	B2
 improvisation	C1
 imprévisible	C1
-impuissance	C1
+impuissance	B2
 impuissant	C2
 impulsion	B1
 impunité	B2
@@ -3815,14 +3820,14 @@ incidence	B2
 incident	B1
 incitation	B2
 inciter	B2
-inclinaison	C2
+inclinaison	C1
 inclure	B2
 inclusion	C2
 incomparable	C2
 incompatible	C1
 incompréhensible	B2
 incompréhension	C1
-incompétence	C1
+incompétence	B2
 inconnu	A2
 inconscient	B2
 incontestable	C2
@@ -3856,11 +3861,11 @@ industrie	A1
 industriel	A2
 indécis	C2
 indéfiniment	C2
-indéniable	C1
+indéniable	B2
 indépendamment	B2
 indépendance	A2
 indépendant	A2
-indépendantiste	C2
+indépendantiste	C1
 inertie	C1
 infanterie	B1
 infantile	C1
@@ -3875,7 +3880,7 @@ infirmier	B2
 infirmière	B1
 inflammation	C1
 inflation	B1
-infliger	C2
+infliger	C1
 influence	A2
 influencer	B2
 influent	C1
@@ -3916,7 +3921,7 @@ inquiétude	B1
 inscription	A2
 inscrire	B1
 insecte	B2
-insensible	C2
+insensible	C1
 insertion	B2
 insigne	B2
 insistance	C1
@@ -3935,14 +3940,13 @@ instance	B1
 instant	A1
 instantané	C2
 instantanément	B2
-instar	B1
 instauration	B2
 instaurer	B2
 instinct	B1
 institut	A2
 instituteur	C2
 institution	A2
-institutionnel	C1
+institutionnel	B2
 instruction	B1
 instrument	B1
 insu	B2
@@ -3964,14 +3968,13 @@ intense	B1
 intensif	C2
 intensité	B1
 intention	A2
-inter	B1
 interaction	B2
 interdiction	A2
 interdire	B1
 interdit	A2
 interface	B2
 interlocuteur	B2
-interminable	C2
+interminable	C1
 intermédiaire	A2
 internat	C1
 international	A1
@@ -4046,7 +4049,7 @@ invoquer	C1
 inédit	B1
 inégalité	B2
 inévitable	B1
-inévitablement	C1
+inévitablement	B2
 ion	C1
 ipad	B2
 iphone	B1
@@ -4057,7 +4060,7 @@ irlandais	B1
 ironie	B1
 ironique	B2
 irresponsable	C1
-irrigation	C2
+irrigation	C1
 irruption	C2
 irréprochable	C1
 irrésistible	C1
@@ -4094,7 +4097,7 @@ janvier	A1
 japon	A2
 japonais	A2
 jardin	A2
-jardinier	C1
+jardinier	B2
 jargon	C2
 jaune	A2
 java	B2
@@ -4112,9 +4115,8 @@ jeune	A1
 jeunesse	A2
 jeûne	C1
 ji	C1
-jo	B1
 job	A2
-jogging	C2
+jogging	C1
 joie	A2
 joindre	B1
 joke	C2
@@ -4132,7 +4134,7 @@ journalisme	B1
 journaliste	A1
 journée	A1
 joyeux	A2
-jt	C1
+jt	B2
 judas	C2
 judaïsme	C1
 judiciaire	A2
@@ -4171,7 +4173,6 @@ ka	C1
 karen	B2
 karma	B2
 kayak	C1
-ken	B1
 kevin	B1
 khan	B2
 kid	B2
@@ -4184,7 +4185,7 @@ kurde	C1
 label	B1
 labo	B2
 laboratoire	A2
-labrador	C2
+labrador	C1
 labyrinthe	B2
 lac	A2
 lady	B1
@@ -4212,7 +4213,7 @@ lard	C2
 large	A1
 largement	A1
 largeur	B1
-larme	C1
+larme	B2
 larousse	C2
 las	B1
 laser	B1
@@ -4477,7 +4478,7 @@ malin	B1
 malsain	C2
 maltraitance	C2
 malédiction	B2
-maléfique	C2
+maléfique	C1
 maman	A2
 mamie	B2
 man	A2
@@ -4510,7 +4511,6 @@ manufacture	C1
 manuscrit	B1
 manège	C1
 manœuvre	B1
-mao	C1
 maquette	C1
 maquillage	B1
 marais	B1
@@ -4530,7 +4530,7 @@ marguerite	B1
 mari	A1
 mariage	A1
 marier	B1
-marijuana	C2
+marijuana	C1
 marin	B1
 marine	A1
 marionnette	C2
@@ -4543,7 +4543,7 @@ marocain	B1
 marquage	C2
 marque	A1
 marquer	B1
-marqueur	C1
+marqueur	B2
 marquis	B1
 marquise	C2
 marrant	A2
@@ -4567,7 +4567,7 @@ masque	B1
 masquer	B2
 masqué	C1
 massacre	B1
-massacrer	C2
+massacrer	C1
 massage	B2
 masse	A2
 massif	B1
@@ -4662,7 +4662,7 @@ meuf	B2
 meunier	C1
 meurtre	A2
 meurtrier	B2
-meute	C1
+meute	B2
 mexicain	B2
 mgr	B2
 mi	A1
@@ -4727,7 +4727,7 @@ mirage	C2
 mire	C2
 miroir	B1
 mise	A1
-miser	C2
+miser	C1
 missile	B2
 mission	A1
 missionnaire	B2
@@ -4739,7 +4739,6 @@ mix	B1
 mixité	C1
 mixte	B1
 mlle	B2
-mm	A1
 mme	A1
 mo	B2
 mobile	A2
@@ -4783,7 +4782,7 @@ mondial	A2
 mondialisation	B2
 moniteur	B2
 monnaie	A2
-mono	C2
+mono	C1
 monopole	B1
 monseigneur	B2
 monsieur	A1
@@ -4813,7 +4812,7 @@ morphologie	C2
 mort	A1
 mortalité	B1
 mortel	B1
-mortier	C1
+mortier	B2
 mosaïque	C1
 mosquée	B1
 mot	A1
@@ -4922,7 +4921,7 @@ mélanger	B2
 mélodie	B2
 mémoire	A1
 mémorable	B2
-mémorial	C1
+mémorial	B2
 ménage	A2
 ménager	C1
 mépris	B1
@@ -4983,7 +4982,6 @@ nazisme	C1
 naître	B1
 naïf	B2
 naïveté	C1
-nc	C2
 ne	A1
 nef	B2
 neige	A2
@@ -5162,7 +5160,6 @@ on	A1
 once	B2
 oncle	A2
 onde	B1
-ong	B1
 ongle	C2
 onze	B1
 opaque	C2
@@ -5326,7 +5323,6 @@ parapluie	C1
 parasite	B2
 paraître	B1
 parc	A1
-parce	A1
 parcelle	B2
 parcourir	B1
 parcours	A1
@@ -5387,7 +5383,6 @@ parvis	C2
 paré	C2
 pas	A1
 pascal	A2
-pass	B2
 passage	A1
 passager	B2
 passeport	B1
@@ -5640,10 +5635,8 @@ plutôt	A1
 plâtre	B2
 pm	B2
 pma	C2
-pme	B1
 pneu	B2
 pneumonie	C2
-po	B1
 poche	A2
 pochette	B2
 podcast	C1
@@ -5772,8 +5765,6 @@ poète	A2
 poésie	A2
 poétique	B1
 poêle	B2
-pp	A2
-pq	A2
 pr	B1
 pragmatique	B2
 prairie	B2
@@ -6105,7 +6096,6 @@ qualification	B1
 qualifier	B1
 qualité	A1
 quand	A1
-quant	A1
 quantique	C1
 quantité	A2
 quarantaine	B1
@@ -6236,7 +6226,6 @@ ravitaillement	C1
 rayon	B1
 rayonnement	B2
 rayé	C2
-rc	B2
 rdc	B2
 rdv	B1
 rebelle	B1
@@ -6481,8 +6470,6 @@ rigoureux	B2
 rigueur	B1
 rime	B2
 ring	B2
-rio	B1
-rip	C1
 riposte	C2
 rire	A1
 ris	B2
@@ -6544,7 +6531,6 @@ roux	B1
 roy	A2
 royal	A2
 royaume	A1
-rsa	B2
 ru	C2
 ruban	B2
 rubrique	B2
@@ -6578,7 +6564,7 @@ réaliser	A2
 réalisme	B2
 réaliste	B1
 réalité	A1
-rébellion	B2
+rébellion	B1
 récemment	A2
 récent	B1
 récepteur	C1
@@ -6601,7 +6587,7 @@ réconfort	C1
 récupération	B1
 récupérer	A2
 récurrent	C1
-rédacteur	B2
+rédacteur	B1
 rédaction	A2
 rédemption	C2
 rédiger	B2
@@ -6665,7 +6651,7 @@ répétition	B1
 réseau	A1
 réservation	B2
 réserve	A2
-réserver	B2
+réserver	B1
 réservoir	B1
 résidence	A2
 résident	B2
@@ -6764,7 +6750,6 @@ saoudite	B1
 saoul	C1
 sapin	B2
 sas	B2
-satan	B2
 satellite	B1
 satire	C2
 satirique	C2
@@ -6938,7 +6923,7 @@ simplification	B2
 simplifier	B2
 simulation	B2
 simuler	C2
-simultanément	B2
+simultanément	B1
 sincère	B1
 sincèrement	B1
 sincérité	B2
@@ -6965,7 +6950,7 @@ ski	A2
 sky	B2
 slave	C2
 slip	B2
-slogan	B2
+slogan	B1
 smartphone	B1
 smic	B2
 sms	B1
@@ -7034,7 +7019,7 @@ sommeil	A2
 sommet	A2
 son	A1
 sondage	A2
-sonde	B2
+sonde	B1
 songer	C2
 sonner	B2
 sonnerie	C1
@@ -7099,6 +7084,8 @@ sous-marin	B1
 sous-officier	C2
 sous-préfecture	C2
 sous-sol	B1
+sous-système	C2
+sous-titre	C2
 souscription	B2
 souscrire	C1
 soustraire	C2
@@ -7110,7 +7097,6 @@ souvent	A1
 souverain	B1
 souveraineté	B1
 soviétique	B1
-sp	B2
 spam	C1
 spatial	B2
 spectacle	A2
@@ -7179,7 +7165,6 @@ stone	B2
 stop	A2
 stopper	B2
 store	B2
-stp	B2
 stratégie	A2
 stratégique	B1
 stream	C1
@@ -7216,8 +7201,12 @@ sucre	A2
 sucré	B2
 sud	A1
 sud-africain	B2
+sud-américain	C2
+sud-coréen	C2
 sud-est	A1
+sud-occidental	C2
 sud-ouest	A1
+sud-sud-est	C2
 sueur	B2
 suffire	B2
 suffisamment	A2
@@ -7237,6 +7226,7 @@ sujet	A1
 sultan	B2
 super	A1
 super-héros	B2
+super-vilain	C2
 superbe	A2
 superficie	B1
 superman	B2
@@ -7319,6 +7309,7 @@ system	B2
 système	A1
 systématique	B1
 systématiquement	B1
+sèche-cheveux	C2
 séance	A2
 sécher	B2
 sécheresse	B2
@@ -7371,6 +7362,7 @@ taf	B2
 taff	B2
 tag	B2
 taille	A1
+taille-douce	C2
 tailler	B2
 tailleur	C1
 taire	B1
@@ -7397,7 +7389,7 @@ tarif	B1
 tarte	B2
 taré	C1
 tas	A2
-tasse	B2
+tasse	B1
 tata	C2
 tatouage	B2
 taule	C1
@@ -7495,7 +7487,7 @@ tien	B1
 tierce	C2
 tiers	A2
 tige	B2
-tigre	B2
+tigre	B1
 timbre	B2
 timbre-poste	B2
 timide	B1
@@ -7504,6 +7496,7 @@ tin	C2
 tintin	B2
 tir	A2
 tirage	B1
+tire-bouchon	C2
 tirer	A1
 tireur	B2
 tiroir	B2
@@ -7513,17 +7506,14 @@ titan	C1
 titre	A1
 titulaire	A2
 tiède	C2
-tnt	B2
-to	A1
 toc	B2
 toi	A1
 toile	A2
-toilette	B2
+toilette	B1
 toit	A2
 toiture	C1
 tolérance	B1
 tolérer	C1
-tom	A2
 tomate	B2
 tombeau	B2
 tomber	A1
@@ -7565,7 +7555,6 @@ toutefois	A1
 toux	C1
 toxicité	C2
 toxique	B2
-tpe	C1
 trace	A2
 tracer	B2
 tracteur	C1
@@ -7641,7 +7630,14 @@ tremplin	C2
 trempé	C1
 trentaine	B1
 trente	A2
+trente-cinq	C2
+trente-deux	C2
+trente-neuf	C2
 trente-quatre	B2
+trente-quatrième	C2
+trente-sept	C2
+trente-septième	C2
+trente-six	C2
 tri	B1
 triangle	B2
 triangulaire	C2
@@ -7665,7 +7661,8 @@ tristesse	B1
 trois	A1
 troisième	A1
 troll	B2
-trompe	B1
+trompe	A2
+trompe-l'œil	C2
 tromper	B1
 trompette	C2
 tronc	B2
@@ -7789,7 +7786,7 @@ vaincre	B1
 vainqueur	A2
 vaisseau	B1
 vaisselle	B1
-val	B1
+val	A2
 valable	B1
 valence	B1
 valet	C1
@@ -7815,7 +7812,7 @@ vapeur	B1
 variable	B1
 variant	C2
 variante	B2
-variation	B2
+variation	B1
 varier	B2
 varié	B2
 variété	B1
@@ -7872,6 +7869,7 @@ vibrer	C1
 vicaire	C1
 vice	A2
 vice-amiral	B2
+vice-chancelier	C2
 vice-président	A2
 vice-roi	B2
 vichy	B2
@@ -7907,24 +7905,27 @@ vin	A1
 vinaigre	B2
 vingt	A1
 vingt-cinq	B2
+vingt-neuf	C2
 vingt-quatre	B2
+vingt-quatrième	C2
 vingt-sept	B2
+vingt-sixième	C2
 vingtaine	B1
 vintage	C1
 vinyle	C2
 viol	B1
 violation	B1
 viole	B2
-violemment	B2
+violemment	B1
 violence	A1
 violent	B1
-violer	B2
-violet	B2
+violer	B1
+violet	B1
 violette	B2
 violeur	C1
 violon	B2
 vip	B2
-virage	B2
+virage	B1
 vire	B2
 virement	C2
 virer	B1
@@ -7957,7 +7958,6 @@ vitrine	B2
 vivement	A2
 vivre	A1
 vivres	B2
-vo	B2
 vocabulaire	B1
 vocal	C1
 vocation	B1
@@ -8042,10 +8042,10 @@ week-end	A2
 western	B2
 whisky	B2
 wi	C1
+wi-fi	C2
 wifi	B1
 wiki	C2
 wikipédia	B2
-x	A1
 xi	B1
 y	A1
 yacht	C2
@@ -8119,7 +8119,7 @@ zéro	A2
 écouter	A2
 écouteurs	C1
 écran	A2
-écraser	B2
+écraser	B1
 écrire	A1
 écriture	A2
 écrivain	A2

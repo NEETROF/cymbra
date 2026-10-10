@@ -5,7 +5,7 @@ page 1/1:
 ### phrase-gloss il y a
 expression: il y a
 page 1/1:
-  [—] ago
+  [—] there is, there are; ago
 ### phrase-gloss tout de suite
 expression: tout de suite
 page 1/1:
@@ -38,7 +38,6 @@ row: aujourd'hui — today
 row: marché — market
 ### phrase-gloss du pain et des œufs
 row: pain — bread
-row: et des — or thereabouts, and change, and a bit over
 row: œuf — egg
 ### phrase-gloss dit-il
 row: dire — to say, to tell (to express through speech)
@@ -54,8 +53,7 @@ expression: au revoir
 page 1/1:
   [—] goodbye
 ### phrase-gloss un coup d’œil
-row: un coup — used to soften an order
-row: œil — eye, organ that is sensitive to light, helping organisms to see
+row: coup d'œil — glance, look
 ### phrase-gloss D’abord
 expression: d'abord
 page 1/1:
@@ -67,7 +65,7 @@ page 1/1:
 ### phrase-gloss il y avait
 expression: il y a
 page 1/1:
-  [—] ago
+  [—] there is, there are; ago
 ### phrase-gloss à la maison
 expression: à la maison
 page 1/1:
@@ -276,6 +274,7 @@ gloss: (none)
 ### word-grammar du du
 page 1/1:
   [determiner] forms the partitive article
+  [—] of the
 row: forms the partitive article
 ### word-grammar l'homme homme
 grammar: “l'homme” = le + homme
@@ -285,11 +284,10 @@ page 1/1:
 row: man (adult male human)
 ### word-grammar l’ le
 page 1/2:
-  [determiner] the (definite article); the, my, your, etc; a, an, per; on
+  [determiner] the (definite article); the, my, your, etc.; a, an, per; on
   [pronoun] him, her, it, them
 page 2/2:
   [pronoun] replaces the argument of a copular verb, especially être, often not translated in English
-  [proper noun] a surname from Vietnamese
 row: the (definite article)
 ### word-grammar au à
 grammar: “au” = à + le
@@ -412,19 +410,19 @@ page 1/1:
 row: this, that
 ### word-grammar les le
 page 1/2:
-  [determiner] the (definite article); the, my, your, etc; a, an, per; on
+  [determiner] the (definite article); the, my, your, etc.; a, an, per; on
   [pronoun] him, her, it, them
 page 2/2:
   [pronoun] replaces the argument of a copular verb, especially être, often not translated in English
-  [proper noun] a surname from Vietnamese
 row: the (definite article)
 ### word-grammar meilleures meilleur
 grammar: feminine plural of meilleur
 grammar: may also be the comparative of bien
 grammar: may also be the comparative of bon
 page 1/1:
+  [adjective] better
   [masculine noun] best
-row: best
+row: better
 ### word-grammar moindre petit
 grammar: comparative of petit
 page 1/2:
@@ -457,26 +455,26 @@ page 3/3:
 row: from (used to indicate origin)
 ### word-grammar le le
 page 1/2:
-  [determiner] the (definite article); the, my, your, etc; a, an, per; on
+  [determiner] the (definite article); the, my, your, etc.; a, an, per; on
   [pronoun] him, her, it, them
 page 2/2:
   [pronoun] replaces the argument of a copular verb, especially être, often not translated in English
-  [proper noun] a surname from Vietnamese
 row: the (definite article)
 ### word-grammar en en
 page 1/4:
-  [preposition] in (used to indicate space, also see usage notes); to (indicates direction towards certain very large locations, see usage notes); by (used to indicate means)
+  [preposition] in (used to indicate space); to (indicates direction towards certain very large locations); by (used to indicate means); as; at (used to describe an ability)
 page 2/4:
-  [preposition] as; at (used to describe an ability); of, made of (used to describe composition)
+  [preposition] of, made of (used to describe composition)
 page 3/4:
   [pronoun] used as the object of a verb to indicate an indefinite quantity, of it, of them. Replaces the partitive article (du, de la, etc.)
 page 4/4:
-  [pronoun] Adverbial preposition indicating movement away from a place already mentioned, from there, from it. Replaces the phrase de là or d’ici
-row: in (used to indicate space, also see usage notes)
+  [pronoun] adverbial preposition indicating movement away from a place already mentioned, from there, from it. Replaces the phrase de là or d’ici
+row: in (used to indicate space)
 ### word-grammar des des
 page 1/1:
-  [determiner] of the; some, the feminine partitive article
-row: of the
+  [determiner] some
+  [—] of the, from the, some
+row: some
 ### word-grammar un un
 page 1/1:
   [determiner] an, a
@@ -488,20 +486,19 @@ row: an, a
 page 1/4:
   [conjunction] that (introduces a subordinate noun clause and connects it to its parent clause); introduces a comparison
 page 2/4:
-  [conjunction] Substitutes for another, previously stated conjunction; when, no sooner; only, just, but, nothing but
+  [conjunction] substitutes for another, previously stated conjunction; when, no sooner; only, just, but, nothing but
 page 3/4:
   [pronoun] the inanimate direct-object or predicative interrogative pronoun: what; the direct object relative pronoun
 page 4/4:
   [pronoun] the inanimate subject interrogative pronoun in impersonal constructions
 row: that (introduces a subordinate noun clause and connects it to its parent clause)
 ### word-grammar pas pas
-page 1/3:
-  [masculine noun] step, pace, footstep; strait, pass; thread, pitch (of a screw or nut)
-page 2/3:
-  [adverb] the most common adverb of negation in French, typically translating into English as not, don't, doesn't, etc
-page 3/3:
+page 1/2:
+  [adverb] the most common adverb of negation in French, typically translating into English as not, don't, doesn't, etc.
+page 2/2:
   [adverb] used as an intensifier in underlying rhetorical questions, mostly with voilà
-row: step, pace, footstep
+  [masculine noun] step, pace, footstep; strait, pass; thread, pitch (of a screw or nut)
+row: the most common adverb of negation in French, typically translating into…
 ### word-grammar qui qui
 page 1/1:
   [pronoun] who, whom; who, which, that; whom (after a preposition); he who, who(m)ever; what
@@ -530,7 +527,6 @@ row: through
 ### word-grammar on on
 page 1/1:
   [pronoun] one, people, you, someone (an unspecified individual); we
-  [proper noun] a village in Luxembourg, Belgium
 row: one, people, you, someone (an unspecified individual)
 ### word-grammar plus plus
 grammar: may also be the masculine plural past participle and first- and second-person singular past historic (passé simple) of plaire
@@ -573,9 +569,9 @@ page 1/1:
 row: you (singular)
 ### word-grammar son son
 page 1/1:
-  [masculine noun] sound; bran; a piece (of music), a (musical) work, an opus
   [determiner] his, her, their, its (used to qualify masculine nouns and before a vowel)
-row: sound
+  [masculine noun] sound; bran; a piece (of music), a (musical) work, an opus
+row: his, her, their, its (used to qualify masculine nouns and before a vowel)
 ### word-grammar si si
 page 1/2:
   [conjunction] if, whether; if (assuming that); even if; although, while
@@ -609,10 +605,10 @@ page 2/2:
 row: to be
 ### word-grammar bien bien
 page 1/1:
-  [adjective] good, all right, great; good looking, nice
   [adverb] well; indeed, so; a lot (of)
+  [adjective] good, all right, great; good looking, nice
   [masculine noun] good as opposed to evil; a commodity, a good; a possession
-row: good, all right, great
+row: well
 ### word-grammar même même
 page 1/1:
   [adverb] even
@@ -629,9 +625,9 @@ page 1/1:
 row: two
 ### word-grammar leur leur
 page 1/1:
-  [pronoun] (to) them
   [determiner] their
-row: (to) them
+  [pronoun] (to) them
+row: their
 ### word-grammar moi moi
 page 1/1:
   [pronoun] me (first-person singular disjunctive pronoun); me (first-person singular object pronoun of imperative verbs)
@@ -639,9 +635,9 @@ page 1/1:
 row: me (first-person singular disjunctive pronoun)
 ### word-grammar quand quand
 page 1/1:
-  [adverb] when (at what time)
   [conjunction] when (at the time that); whenever
-row: when (at what time)
+  [adverb] when (at what time)
+row: when (at the time that)
 ### word-grammar après après
 page 1/1:
   [preposition] after, later than in time; after, coming for, trying to get (someone)

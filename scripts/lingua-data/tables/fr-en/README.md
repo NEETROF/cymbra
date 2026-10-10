@@ -11,7 +11,8 @@ They are in two folders (split-lingua-pack-tables-by-language). fr-en is French'
 studying French reads as committed (fr-es, change 49), and this folder's `pin.json` records the
 sources of both. fr-en reduces French's forms, ranks, readings and estimated levels, and its own
 native side — the English glosses of French words and expressions (add-lingua-pack-fr-en, change 48,
-*The glosses* below) — from the same section; its glossed lemmas are French's dictionary words.
+*The glosses* below) — from the same section; its glossed lemmas, less those it glosses by a proper
+noun's senses alone, are French's dictionary words (refine-lingua-fr-en-glosses).
 
 In this folder:
 
@@ -31,8 +32,8 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 | `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's French section (CC BY-SA 4.0 + GFDL), with UD French-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by GSD's own frequency too |
 | `grammar.tsv` | form → its readings, as Universal Dependencies tags (`form<TAB>lemma<TAB>tag<TAB>other\|-`) | kaikki.org, the same section (add-lingua-french-grammar-tables, change 45) |
-| `level.tsv` | lemma → estimated CEFR level (*The levels* below) | derived from `freq.tsv` and the English Wiktionary's French section (no source of its own) |
-| `lexical.tsv` | French's dictionary words, the lemmas fr-en glosses (30,055) | derived from `gloss.tsv` by `build.sh` (`pack_sources.py split`) |
+| `level.tsv` | lemma → estimated CEFR level (*The levels* below) | derived from `freq.tsv`, the English Wiktionary's French section and French's dictionary words (no source of its own) |
+| `lexical.tsv` | French's dictionary words: the lemmas fr-en glosses less those it glosses by a proper noun's senses alone (26,486; *The glosses*) | derived from `gloss.tsv` and `senses.tsv` by `reduce-fr-en.py` (`dictionary_words`), filed by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | French's pinned tag pool: the 79 tags its readings carry, in byte order; written by no reducer | committed by hand, once, from the first reduction's readings |
 | `studied.json` | the pair whose reduction writes `../fr/`: fr-en | committed by hand |
 
@@ -46,8 +47,9 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   agreed forms: those hang under the participle's own entry. Its senses, written in English for
   French words, are fr-en's glosses too: the one source of the native side, no translation table.
 - **UD French-GSD**, its training and development sections at `94d5b68e185fc22a9ef292040e84f476d36d9b0e`
-  (`pack_sources.py PINNED["fr-en"]`), read for one thing: how often a form stands for each lemma, and
-  how often a hyphenated lemma occurs (390,368 words). Its test section is never read: the
+  (`pack_sources.py PINNED["fr-en"]`), read for how often a form stands for each lemma and how often
+  a hyphenated lemma occurs (390,368 words) — and, for the glosses, how often it reads each word
+  under each part of speech (refine-lingua-fr-en-glosses D5). Its test section is never read: the
   measurement holds it out.
 - **wordfreq `fr` 3.1.1**, pinned by version and by `../../requirements-reduce.txt`'s hashes.
 
@@ -139,8 +141,9 @@ lemma).
 
 The pack these two tables built — no gloss, reading or level — was 1,241,733 B; Spanish's same two
 tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*), and with the readings
-too 1,460,253 B (*The readings*). With the glosses, their runs and the expressions it is
-**2,527,222 B** (*The glosses*), under the builder's 5 MiB.
+too 1,460,253 B (*The readings*). With the glosses, their runs and the expressions it was 2,527,222 B,
+and with fr-en's own rules and French's lexical table it is **2,537,386 B** (*The glosses*), under
+the builder's 5 MiB.
 
 ## Measured
 
@@ -384,16 +387,19 @@ rank order agrees with the lists for 39.8 % of them and within one level for 82.
 level's mean true level rises from 1.67 at A1 to 5.03 at C2, so French keeps six levels.
 
 **Which lemmas take one** is read from the English Wiktionary's French section — the source of the
-forms, never a pair's glosses: the table does not wait for fr-en's glosses (change 48) and does not
-move when they land. Within the levelled span (ranks 1–10,762), 2,460 ranked lemmas take no level:
+forms, never a pair's glosses — and, since refine-lingua-fr-en-glosses (D3), from French's
+dictionary words: a lemma they do not list takes no level, so that a card seeded from a level always
+carries a gloss. The table moves with fr-en's glosses only when they add or remove a dictionary word.
+Within the levelled span (ranks 1–10,820), 2,518 ranked lemmas take no level:
 
 | Rule | Left out | For example |
 |---|---|---|
-| 1. the section gives it no sense that is not a form of another word… | 1,389 | `the`, `etc`, `in`, `km`, `http` |
-| …or only a name's | 1,022 | `france`, `paris`, `québec`, `facebook` |
+| 1. the section gives it no sense that is not a form of another word… | 1,395 | `the`, `etc`, `in`, `km`, `http` |
+| …or only a name's | 1,028 | `france`, `paris`, `québec`, `facebook` |
 | 2. a single character the section gives no word's sense — a letter's name, a symbol, an abbreviation | 16 | `p`, `i`, `h`, `e`, `b`; `à` (a preposition), `y` (a pronoun), `x` (a stool, X-rated) and `ô` (a vocative) keep their place |
 | 3. every sense it is given, a name's aside, only spells another word — an obsolete, archaic, rare, dated or alternative spelling, a letter-case form, a misspelling, a pronunciation spelling | 33 | `etat`, `etre`, `etait`, `parceque`, `orient`, `zombie`, `lys` |
 | 4. its own form reads as another lemma in `forms.tsv` | 0 | none: the ranks keep no such lemma; the rule stays as a guard, since the builder keys a level by looking the lemma up as a form (`donnée`, read as *donner*, would give *donner* its level) |
+| 5. French's dictionary words do not list it — fr-en glosses it not at all, or by a name's senses alone (read last; refine-lingua-fr-en-glosses D3) | 46 | `parce` (met only in « parce que »), `quant`, `x`, `pme`, `stp`, `expliquez`; `coran`, `satan`, `bcp`, `jo` |
 
 `du` and `des`, words of their own (M21), are A1 whatever their senses say; `au` and `aux` are no
 words. Every word the pre-pass writes has a level: the elided pieces' words, `à`, `le` and the
@@ -402,12 +408,24 @@ lemma, so the door has no level and « il porte » reads as *porter* (A1).
 
 | Level | Lemmas | Ranks | First words |
 |---|---|---|---|
-| A1 | 1,020 | 1–1,080 | de, le, et, à, en, des, un, que |
-| A2 | 1,158 | 1,081–2,374 | certainement, clairement, collection, conscience, content, croissance |
-| B1 | 2,015 | 2,375–4,809 | trompe, val, alimentaire, annuel, apparence, autrefois |
-| B2 | 2,347 | 4,810–8,081 | rébellion, rédacteur, réserver, simultanément, slogan, sonde |
-| C1 | 886 | 8,082–9,412 | conjoncture, consolidation, consolider, contradictoire, corner, croquis |
-| C2 | 876 | 9,413–10,762 | clandestin, commentateur, contrefaçon, convaincant, convenablement, croate |
+| A1 | 1,020 | 1–1,085 | de, le, et, à, en, des, un, que |
+| A2 | 1,158 | 1,086–2,385 | croissance, célèbre, davantage, distance, entier, exposition |
+| B1 | 2,015 | 2,386–4,832 | communiste, concentration, couteau, doucement, ed, fi |
+| B2 | 2,347 | 4,833–8,139 | australien, boue, ciné, configuration, cuire, célébration |
+| C1 | 886 | 8,140–9,474 | naïveté, parano, patriotique, pitoyable, plasma, postal |
+| C2 | 876 | 9,475–10,820 | morphologie, nantais, opter, orphelin, panda, parachute |
+
+**Levels given to dictionary words alone** (refine-lingua-fr-en-glosses D3): against change 46's
+table, 45 lemmas lose their level — 36 fr-en does not gloss (`parce`, `x`, `quant`, `to`, `mm`,
+`for`, `pp`, `tom`, `com`, `inter`, `rio`, `av`, `encontre`, `fur`, `pme`, `po`, `am`, `ong`,
+`instar`, `ken`, `ep`, `bo`, `app`, `cie`, `pass`, `stp`, `caf`, `expliquez`, `sp`, `rc`, `ht`,
+`rsa`, `tnt`, `rip`, `tpe`, `nc`) and 9 it glosses as names alone (`pq`, `jo`, `coran`, `bcp`,
+`satan`, `vo`, `cb`, `cac`, `mao`); rule 5 also names `asm`, past the old span —, 45 gain one at C2's end (ranks 10,763–10,820:
+`sous-titre`, `sèche-cheveux`, `tire-bouchon`…), and 122 move one band up (5 A2 → A1, 10 B1 → A2,
+23 B2 → B1, 40 C1 → B2, 44 C2 → C1): 212 rows, 8,302 levels, as many at each level as before. The
+four levelled lemmas of change 48's 40 that fr-en now glosses (`french`, `burger`, `dev`, `ès`, by a
+pointer that carries its meaning) keep their level. The figures below are change 46's, measured on
+its table.
 
 **Measured with open data only** (design D4), Spanish's committed estimate the control:
 
@@ -448,9 +466,9 @@ the owner's question (task 5.2).
 `treize`, `soixante`, `dix-sept` B1, `vingt-quatre` B2, `dix-neuf`, `soixante-dix` C2, `trente-deux`
 none), where English's lists put them at A1; a word ranked by a name's frequency keeps its rank
 (`jean` A1, `twitter` A2); a noun said mostly in the plural ranks by its singular (`cheveu` C1, `œil`
-A2). C2 ends inside a block of 326 ranked lemmas sharing Zipf 3.41, most of them compounds GSD meets
-once: 209 of C2's 876 lemmas are in it, 125 of them compounds, and its 27 lemmas past the edge have
-no level. A C2 word is presumed known by no declared level, so only the C2 ladder and C2 seeding see
+A2). On change 46's table C2 ended inside a block of 326 ranked lemmas sharing Zipf 3.41, most of
+them compounds GSD meets once: 209 of C2's 876 lemmas were in it, 125 of them compounds, and its 27
+lemmas past the edge had no level. C2 now ends at rank 10,820. A C2 word is presumed known by no declared level, so only the C2 ladder and C2 seeding see
 it.
 
 **If a licence is granted** (design D8): the owner asks UCLouvain's CENTAL for FLELex, with ELELex,
@@ -662,6 +680,76 @@ edited):
    the lemma's own place, and no gloss is lent to another word — the design's prototype, on change
    43's tables before its fix, glossed *venir* « coming, arrival », `venue`'s.
 
+5. **fr-en's own rules** (refine-lingua-fr-en-glosses), in `reduce-fr-en.py` and, for the treebank's
+   part of speech, `reduce_french_treebank.py` — a rule module of its own, in fr-en's digest, that
+   fr-es is to read too (refine-lingua-fr-es-glosses D8) — the English edition's and the shared rules
+   read es-en's rows and every pair's too, and are not edited, so only fr-en re-pins (D1):
+   - `read_as_french`, a pre-pass after `read_as_meanings` and before the etymology merging:
+     **a pointer that carries its meaning** is read as that meaning (D4) — the section's `extra`
+     for its target, else its quoted text, else its text past a colon or a semicolon —, for a word
+     only when it names a degree of comparison, a synonym, a plural or a contraction (« des »
+     « some; of the, from the, some », « mieux » « better; best; … », « ouais » « yeah, yep… »),
+     never a female equivalent (`directrice` keeps `directeur`'s « director; school principal »:
+     the owner, 2026-10-10), an alternative form, a spelling, an ellipsis or a clipping; for an
+     expression whatever it names (« il y a » « there is, there are; ago »); never in a name's or an
+     acronym's entry, never a meaning in capitals only. **A function word's row** (`ADP`, `DET`,
+     `PRON`, `CCONJ`, `SCONJ`, `PART`, `ADV`) **or a row the page opens on a name** opens on the
+     part of speech UD French-GSD reads the word as at least ten times and twice as often as the
+     page's first, never a proper noun's (D5: `pas` on its negation, `son` « his, her… », `leur`
+     « their », `bien` « well », `quand`, `juste`, `pendant`, `outre`, `envers`; `marche`,
+     `réunion`, `somme`, `restauration` no longer open on a place; with D4, `du`'s article before
+     its contraction); a noun, verb or adjective ahead
+     of another stays as the page writes it (`ferme` « firm », `mort` « dead », `devoir` « duty »:
+     the owner). **No name under a function word** (D6: `le` « a surname from Vietnamese », `on`
+     « a village in Luxembourg »). **The page's notes out** (D8: « see usage notes », « (all
+     senses) », « in its various senses », « (Folk etymology: …) »), fr-en's description openers in
+     lower case (« Substitutes », « Impersonal », « Followed »…), a quotation's citation cut, a
+     source's sense number out.
+   - Five expressions whose one sense needs a context their key does not hold are left out by name
+     (`LEFT_OUT`, each with its reason counted in GSD's text: `et des`, `que de`, `sur ce`, `et
+     si`, `un coup`), and six post-1990 spellings keyed apart from their traditional spelling lend
+     its gloss (`traditional_spellings`: `à priori`, `à postériori`, `et cétéra`, `sur son
+     trente-et-un` and two verbs on it) (D7).
+   - Eleven expressions D4 would make of no meaning are left out by name too (`LEFT_OUT`, settled by
+     the owner on 2026-10-10 after the implementation found them): the Louisiana spellings `à le`,
+     `à les` « to the », which every « au »/« aux » would meet once the pre-pass reads it `à` +
+     `le`/`les`, and `de le`, `de les` « “of the”, some », which « décidé de le faire » would meet;
+     `j'suis` and `ç'a`, which every « je suis » and « ça a » would meet; `l'a` « him/her/it » and
+     `n'ai` « not », one piece's meaning; `j't'à` « the 't' is epenthetic » and `poser des lapins`
+     « frequentative or plural », grammatical notes; `point d'inflexion`, half a definition. `t'as`
+     « you've » and `t'es` « you're », met only where they are written so, stay.
+   - « etc » takes its period back after the shared rules (`with_etc_period`, D8).
+   - **French's dictionary words** (`dictionary_words`, D2): the glossed lemmas less the 3,581 every
+     sense run of which is a proper noun's, written to `../fr/lexical.tsv`; the levels read them
+     (*The levels*).
+
+**fr-en's own rules, each alone and together** (the design's *Measured*, re-measured with the
+reducer's own code on the committed tables, its rules switched off but one; with none, the tables
+before them byte for byte):
+
+| Rule | Rows / top 10,000 | First sense / top 10,000 | Lemmas gained | Expressions changed / gained / left out |
+|---|---|---|---|---|
+| D4, a pointer's meaning (the eleven of its expressions left out by name) | 40 / 18 | 13 / 10 | 12 (4 of the top 10,000) | 15 / 155 / 0 |
+| D5, the treebank's part of speech | 13 / 13 | 13 / 13 | — | — |
+| D6, no name under a function word | 2 / 2 | 0 / 0 | — | — |
+| D7, left out by name | — | — | — | 0 / 0 / 5 |
+| D7, post-1990 spellings lent | — | — | — | 0 / 6 / 0 |
+| D8, notes | 106 / 36 | 96 / 28 | — | 3 / 0 / 0 |
+| D8, openers | 14 / 8 | 8 / 2 | — | 1 / 0 / 0 |
+| D8, citations and sense numbers | 4 / 3 | 2 / 2 | — | — |
+| D8, « etc. » | 117 / 42 | 59 / 10 | — | 7 / 0 / 0 |
+| **Together** | **291 / 117** | **190 / 64** | **12, none lost** | **26 / 161 / 5** |
+
+The 12 lemmas gained are words whose only senses were pointers of D4's wordings: `french`, `burger`,
+`dev`, `ès` (four of change 48's levelled lemmas with no gloss, which keep their level), `ive`,
+`because`, `blockchain`, `chui`, `sherry`, `axis`, `loix`, `broyeuse`. Every figure is the design's,
+its expressions gained as amended when the owner left the eleven out (166 → 155 by D4, 172 → 161
+together). A few read oddly and are in the owner's sample (task 6.2): « matelas » gains
+« French tacos », « bercy » « drunkard ». « au marché », « Personne au village » and « Il a décidé de
+le faire » meet none of the eleven (« de le faire » meets `de l'`, which `main` already glossed: a
+separate change makes an elided expression piece match an elided token only, the owner decided on
+2026-10-10).
+
 **No translation table** (D3). The French Wiktionary's English translations and the English
 Wiktionary's French translations read backwards were measured on the design's prototype and
 declined: they would add 1,988 lemmas, 1,895 of them words the section has no entry for — English
@@ -678,11 +766,12 @@ a later update is the owner's question (design, Open Question 1).
 
 | | |
 |---|---|
-| Glossed lemmas — French's dictionary words (`../fr/lexical.tsv`) | **30,055**, every one from the section's own entries |
-| Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,678 / 8,684 / 15,252 — 93.6 / 86.8 / 76.3 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; the owner settles it) |
-| Expressions | **17,479**: 15,508 headwords with a space and 1,971 words the tokenisation splits |
-| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,617,567, 512,074 and 828,470 B (625,710, 125,586 and 324,639 B gzipped); `../fr/lexical.tsv` 283,562 B |
-| The pack | **2,527,222 B**: the studied side's 1,460,253 B, the glosses and their runs +625,398 B, the expressions +441,571 B (2,384 B of them the split words) |
+| Glossed lemmas | **30,067**, every one from the section's own entries |
+| French's dictionary words (`../fr/lexical.tsv`) | **26,486**: the glossed lemmas less the 3,581 glossed by a proper noun's senses alone (359 / 912 / 1,763 of the 5,000 / 10,000 / 20,000 commonest) |
+| Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,679 / 8,688 / 15,260 — 93.6 / 86.9 / 76.3 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; settled by the owner) |
+| Expressions | **17,635**: 15,653 headwords with a space and 1,982 words the tokenisation splits |
+| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,616,576, 512,267 and 833,953 B (625,308, 125,636 and 326,483 B gzipped); `../fr/lexical.tsv` 253,742 B |
+| The pack | **2,537,386 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B |
 
 No figure is published: the site's figures list the shipped pairs alone, and fr-en ships with change
 52.
@@ -726,40 +815,49 @@ rules, so no sense is left); the 23b and M20 figures to the row. The pack, 2,421
 with change 44's builder, which keys French's expressions through the core's reading and names each
 by its headword where its key differs.
 
-**Names glossed by the section are dictionary words.** 3,586 glossed lemmas (914 of the top 10,000)
-are glossed by a name's entries alone — `france`, `paris`, `québec`, `françois`, `lyon`, `durand`
-« a surname » — as the shared rules gloss es-en's. fr-en being French's reference, they are French's
-dictionary words: the vocabulary estimate counts them, and change 41's names rule keeps them as words
-to learn — on the baseline's `noms` page only `Myriel` is set aside. Change 46 levels none of them
-(its rule 1, 1,022 within its span). Listed for the owner, with the defects below.
+**Names glossed by the section are no dictionary words** (refine-lingua-fr-en-glosses D2, the
+owner's decision of 2026-10-10). 3,581 glossed lemmas (912 of the top 10,000) are glossed by a
+proper noun's senses alone — every run of their `senses.tsv` row is `PROPN`: `france`, `paris`,
+`québec`, `françois`, `lyon`, `durand` « a surname »; 3,586 before fr-en's own rules. They keep
+their gloss — a reader who opens `Paris` at a sentence's head, or a lowercase `lyon`, still reads it
+— and leave French's dictionary words: the vocabulary estimate's universe goes from 30,095 to 26,486
+words, and change 41's names rule sets them aside as written: on the baseline's `noms` page `Durand`,
+`Lefèvre`, `Jean-Pierre`, `Saint-Étienne`, `Rhône`, `Garonne`, `Paris`, `Renault`, `François`, `Lyon`
+and `Grenoble` with `Myriel` (70 → 59 counted words), on `proust` `François` and `Charles`. A word
+with a common sense beside a name's stays one (`lot`, `aube`, `nice`, `marche`). Left unglossed, the
+names would take fr-en under its floor at every cut (86.4 / 77.8 / 67.5 %). English's and Spanish's
+dictionary words keep their names: a change of its own (the owner, Q1). fr-en's pack therefore
+carries a lexical table, and `crates/lingua-pack`'s check of a studied folder accepts a reference's
+glossed lemmas or all of them but its names alone, nothing in between.
 
-**Levelled lemmas fr-en does not gloss** (D10, the design's Open Question 5): 40 of the 8,302 —
-`parce` (A1, 103), `x` (A1, 434), `quant` (A1), `to` (A1), `mm` (A1), `for`, `pp`, `tom`, `com`
-(A2), `inter`, `rio`, `av`, `encontre`, `french`, `fur`, `pme`, `po`, `am`, `ong`, `instar`, `ken`
-(B1), `ep`, `bo`, `app`, `cie`, `pass`, `stp`, `burger`, `caf`, `expliquez`, `sp`, `rc`, `ht`,
-`rsa`, `tnt` (B2), `rip`, `tpe`, `dev` (C1), `nc`, `ès` (C2): words met only in an expression
-(`parce que`, `quant à`, `à l'instar de`, `au fur et à mesure`), initialisms the section writes in
-capitals, pointers. A card seeded from their level carries no gloss; whether they keep it is change
-46's rule, and the owner's question. No test asserts it.
+**No level without a gloss** (D3, the owner's decision): of change 48's 40 levelled lemmas fr-en did
+not gloss, four are glossed now (`french`, `burger`, `dev`, `ès`) and keep their level; the 36 others
+and the 9 levelled lemmas glossed as names alone lose theirs, their slots going to the next lemmas in
+rank order (*The levels*). `crates/lingua-pack/tests/committed_tables.rs` checks that every levelled
+lemma is a dictionary word with a gloss.
 
-**What still reads wrong** (D7), counted on these rows, for `refine-lingua-fr-en-glosses` before
-change 52 ships fr-en, with the owner's reading of the sample:
+**What still reads wrong**. Change 48's list (its D7) was the input of refine-lingua-fr-en-glosses,
+which fixed or left each class (its design's D9), the owner settling Q1–Q5 on 2026-10-10:
 
-| Class | Rows / top 10,000 | Examples | Where |
-|---|---|---|---|
-| A borrowed gloss wrong for the word | of the rows glossed from a pointer's target | « des » « of the; some, the feminine partitive article »; « ca » « board of directors » | a rule of fr-en (a pointer's carried meaning); `ca` as a lemma is change 43's |
-| A pointer's own meaning left out | « il y a » and about 50 words | « il y a » « ago »: « there is, there are » is written on a pointer to *y avoir* | with the row above |
-| An expression whose sense needs a context its key does not hold | `et des`, `que de`, `sur ce`, `et si`, `un coup` | « du pain et des œufs » meets `et des` « or thereabouts, and change »; « un coup d’œil » meets `un coup` « used to soften an order » before `coup d'œil` | fr-en, `LEFT_OUT`'s rule, with the owner's sample |
-| A post-1990 spelling keyed apart from its traditional one | 4 expressions | `à priori`, `à postériori`, `et cétéra`, `crème brulée` meet no expression | fr-en: lend the traditional spelling's gloss |
-| A name glossed and a dictionary word | 3,586 / 914 | « paris », « durand » « a surname », « lyon » (above) | the owner; the names rule reads dictionary words |
-| A proper noun's run in a common word's row | first 218 / 108; after another run 484 / 260 | « marche » « Marche (a department of France); march… », « midi », « somme », « réunion »; « le » ending on « a surname from Vietnamese » | 23b's Q3, a case-aware card |
-| The page's own notes | « see usage notes » 5 / 3; « (all senses) » 98 / 30; « in its various senses » 1 / 1; « (Folk etymology: …) » 2 / 2 | « en », « dans », « ne »; « contrôle » « control (all senses) » | the English edition, or fr-en alone |
-| A description in a capital outside 23b's list | — | « que » « Substitutes for… », « il » « Impersonal subject, it », « mon » « Followed by rank… » | the English edition |
-| A citation inside a sense | 2 / 2 | « liberté » « liberty, freedom. 1688, Guy Miège, … » | fr-en, or upstream |
-| A source's numbered sense in another shape | 1 / 1 | « téléphonie » « telephony (2) » | the English edition |
-| « etc » without its period | 116 / 42 | « le », « pas », « possible » | shared, every pair (23b D6) |
-| Labels left out | — | « or », « monde »: an obsolete or archaic sense | 23b's Q1 |
-| The part of speech a row opens on | 2,897 / 1,264 rows hold two or more | — | 23b's Q4 |
+| Class | Then (rows / top 10,000) | Now |
+|---|---|---|
+| A borrowed gloss wrong for the word | « des » « of the; some, the feminine partitive article »; « ca » « board of directors » | `des` reads its own pointers (D4). `ca` keeps « board of directors »: wordfreq's `ca` is mostly an unaccented `ça`, to be read as its spelling in a forms-table change of its own (Q4) |
+| A pointer's own meaning left out | « il y a », `mieux`, `moins`, `ouais` | read as meanings (D4), on a closed list of a word's wordings |
+| An expression whose sense needs a context its key does not hold | `et des`, `que de`, `sur ce`, `et si`, `un coup` | left out by name (D7) |
+| A post-1990 spelling keyed apart from its traditional one | `à priori`, `à postériori`, `et cétéra`, `sur son trente-et-un` | lend the traditional spelling's gloss (D7); `crème brulée` already met `crème brûlée` |
+| A name glossed and a dictionary word | 3,586 / 914 | no dictionary word, still glossed (D2) |
+| A proper noun's run in a common word's row | first 218 / 108; after another run 484 / 260 | the 13 function words' and names-first rows D5 moves, `le` and `on` (D6); 217 rows (104 of the top 10,000: `louis`, `midi`, `belgique`, `noël`, `bordeaux`) still open on a proper noun and 487 / 263 end on one — accepted until a card reads the token's capital (23b's Q3; Q5) |
+| The page's own notes | « see usage notes » 5 / 3; « (all senses) » 98 / 30; « in its various senses » 1 / 1; « (Folk etymology: …) » 2 / 2 | out (D8) |
+| A description in a capital outside 23b's list | 14 / 8 | fr-en's openers in lower case (D8); the definitions the page writes in sentence case (« Military rank equivalent to corporal ») stay |
+| A citation inside a sense | 2 / 2 | cut (D8) |
+| A source's numbered sense in another shape | 2 / 1 | out (D8) |
+| « etc » without its period | 117 / 42 | « etc. » in fr-en (D8); en-fr's, es-fr's, es-en's and en-es's « etc » is the shared fix 23b named (its D6) |
+| Labels left out | « or », « monde »: an obsolete or archaic sense | 23b's Q1 |
+| The part of speech a row opens on | 2,897 / 1,264 rows hold two or more | 13 move (D5); a noun, verb or adjective ahead of another stays (Q2) |
+| An acronym's pointers lending to a word with an entry of its own | `ca`, `svp`, `jsp`, `cv` | left (D9): dropping them would cost `svp` and `jsp` their gloss |
+
+The rules fr-en adds would read es-en's rows right too (« (all senses) » in 15 es-en rows, its
+« etc » in 35): a later refinement of the English edition, which re-pins es-en and fr-en together.
 
 **The French baseline** (`crates/lingua-wasm/tests/french_baseline.rs`) runs over the pack these
 tables build from this change on: a pull request that moves `../fr/` or this folder and the French
@@ -773,6 +871,7 @@ golden with them re-blesses `fr-en.golden` and says so.
 | 41 analysis | the cascade, designed and measured on these tables; its version bump re-reduces fr-en |
 | 44 expression keys | the plain words left out here because they begin with a piece (`d'abord`, `c'est`, `l'on`) |
 | 48 fr-en | done: the English glosses, expressions and senses (*The glosses*); `../fr/lexical.tsv` holds the glossed lemmas, and the French invariance baseline runs over these tables |
+| 48b refine-lingua-fr-en-glosses | done: fr-en's own rules (*The glosses*); French's dictionary words leave out the names fr-en glosses alone, and only they take a level |
 | 49 fr-es | a reader of `../fr/` as committed, capped at the same 60,000 |
 
 ## Licences
@@ -784,8 +883,9 @@ from the sources above and carry their licences:
 - `../fr/grammar.tsv`: CC BY-SA 4.0 and the GFDL (kaikki);
 - `../fr/level.tsv`: CC BY-SA 4.0 (derived from `freq.tsv`) and CC BY-SA 4.0 and the GFDL (kaikki,
   which says which lemmas take a level);
-- `gloss.tsv`, `senses.tsv`, `mwe.tsv` and `../fr/lexical.tsv` (derived from `gloss.tsv`): CC BY-SA
-  4.0 and the GFDL (kaikki).
+- `gloss.tsv`, `senses.tsv`, `mwe.tsv` and `../fr/lexical.tsv` (derived from `gloss.tsv` and
+  `senses.tsv`): CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts, which order a
+  function word's senses).
 
 `NOTICE` gives the full attribution. See `../../SOURCES.md`.
 

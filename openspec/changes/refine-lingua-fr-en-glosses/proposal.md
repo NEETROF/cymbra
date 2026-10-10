@@ -72,7 +72,8 @@ glossed lemmas):
   synonym, a plural or a contraction (« des » « some; of the, from the, some », « mieux » « better;
   best; … », « ouais »), never a female equivalent (`directrice` keeps « director; school
   principal »); for an expression, any pointer (« il y a » « there is, there are; ago »). 40 rows
-  (18 of the top 10,000), 12 lemmas and 166 expressions gained.
+  (18 of the top 10,000), 12 lemmas and 155 expressions gained; eleven expressions it would make of
+  no meaning (`à le`, `de le`, `l'a`, `j'suis`…) left out by name (the owner, 2026-10-10).
 - **The part of speech a row opens on, by UD French-GSD** (D5): fr-en's pin already holds GSD's
   training and development sections; a function word's row (`ADP`, `DET`, `PRON`, `CCONJ`, `SCONJ`,
   `PART` and, measured, `ADV`) or a row the page opens on a name opens on the part of speech they
@@ -92,9 +93,9 @@ glossed lemmas):
   Q1), es-en's own notes, the shared « etc »; names out of English's and Spanish's dictionary words,
   a change of its own.
 - **fr-en re-reduced at its pin** (D10): 291 rows change (117 of the top 10,000), 12 lemmas gain a
-  gloss, none loses one; 26 expressions change, 172 are gained, 5 left out; coverage 93.6 / 86.9 /
+  gloss, none loses one; 26 expressions change, 161 are gained, 5 left out; coverage 93.6 / 86.9 /
   76.3 % against the 91.9 / 85.1 / 74.4 floor; `tables/fr/` moves in `lexical.tsv` and `level.tsv`
-  alone; the pack 2,527,222 → 2,537,587 B.
+  alone; the pack 2,527,222 → 2,537,386 B.
 - **The golden re-blessed, every move read** (D11): `fr-en.golden` moves on 47 of its 147 probes,
   each with its cause; `french_baseline.rs`'s names assertions follow D2; the owner approved the
   re-bless on 2026-10-10, before the implementation, and reads the moved rows.

@@ -339,26 +339,24 @@ fn french_has_its_pre_pass_and_its_analysis() {
     assert_eq!(personne.first(), Some(&("personne".to_owned(), false)));
     assert!(personne.iter().any(|(l, flagged)| l == "ne" && *flagged));
 
-    // The names rule (D4) on the `noms` page, over the committed tables: a name the English
-    // Wiktionary's French section glosses — `Paris`, `Lot`, `Aube`, `Jean-Pierre`,
-    // `Saint-Étienne` — is one of French's dictionary words, fr-en's glossed lemmas
-    // (add-lingua-pack-fr-en), and stays a word to learn, as Spanish's `Dios` does; `Myriel`, which
-    // the lexicon does not hold, is set aside. The rule's French readings on lemmas that are no
-    // dictionary word are the fixture's (`the_names_rule_reads_french_s_evidence`).
+    // The names rule (D4) on the `noms` page, over the committed tables. French's dictionary words
+    // hold no names (refine-lingua-fr-en-glosses D2): a lemma fr-en glosses by a proper noun's
+    // senses alone — `Paris`, `Jean-Pierre`, `Saint-Étienne` — is no dictionary word, so the rule
+    // sets it aside, as it sets `Myriel`, which the lexicon does not hold; a name with a common
+    // word's senses among its own — `Lot`, `Aube`, `Orange`, `Vienne` — stays a word to learn, and
+    // `Mme` opens its block. The rule's French readings on the fixture are
+    // `the_names_rule_reads_french_s_evidence`'s.
     let noms = analysed(&engine, "noms");
-    for word in [
-        "Paris",
-        "Lot",
-        "Aube",
-        "Jean-Pierre",
-        "Saint-Étienne",
-        "Orange",
-        "Vienne",
-        "Mme",
-    ] {
+    for name in ["Paris", "Jean-Pierre", "Saint-Étienne", "Myriel"] {
+        assert_eq!(
+            classes_of(&noms, name),
+            ["ProperNounOutOfLexicon"],
+            "{name}"
+        );
+    }
+    for word in ["Lot", "Aube", "Orange", "Vienne", "Mme"] {
         assert_eq!(classes_of(&noms, word), ["Unknown"], "{word}");
     }
-    assert_eq!(classes_of(&noms, "Myriel"), ["ProperNounOutOfLexicon"]);
 
     // The detection guard (add-lingua-french-detection-guard): of the `mixte` page's seven
     // blocks, the two French ones alone are analysed — not its English, Spanish and Italian
@@ -398,7 +396,8 @@ fn the_names_rule_reads_french_s_evidence() {
     // glosses leave the `noms` page's names out of French's dictionary words: Spanish's rule sets
     // `Paris` and `Lot` aside, the elided `l'` gives `Aube`'s evidence, and the runs are one form
     // each; `Orange` and `Vienne` are dictionary words (a gloss, `venir`'s), `Mme` only opens its
-    // block. Over the committed tables, the section glosses those names
+    // block. Over the committed tables, French's dictionary words leave out the names fr-en
+    // glosses alone, and `Lot` and `Aube` are words, a common sense among theirs
     // (`french_has_its_pre_pass_and_its_analysis`).
     let engine = support::Scenario::engine(&[
         ("es-en", PackSource::Tables.pack("es-en")),

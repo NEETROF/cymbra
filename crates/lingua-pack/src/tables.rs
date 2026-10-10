@@ -24,12 +24,16 @@
 //!
 //! The studied tables are written by one pair's reduction only — the language's reference
 //! pair, which `tables/<studied>/studied.json` names; its `pin.json` is their provenance. The
-//! dictionary words (`lexical.tsv`) are that pair's glossed lemmas.
+//! dictionary words (`lexical.tsv`) are that pair's glossed lemmas — or, as its reduction writes
+//! them, every one but those it glosses by a proper noun's senses alone (French's, which leave
+//! `paris` and `durand` out: refine-lingua-fr-en-glosses D2).
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use crate::{LEXICAL_TABLE, Manifest, STUDIED_SIDE, TAG_POOL_TABLE, read_lines, tsv_pairs};
+use crate::{
+    LEXICAL_TABLE, Manifest, STUDIED_SIDE, TAG_POOL_TABLE, read_lines, read_senses, tsv_pairs,
+};
 
 /// The file of a studied folder naming its reference pair.
 pub const STUDIED_RECORD: &str = "studied.json";
@@ -99,6 +103,17 @@ fn glossed(pair: &Pair) -> Result<BTreeSet<String>, String> {
         .map_err(|e| format!("{}/gloss.tsv: {e}", pair.name))?;
     Ok(tsv_pairs(&text)
         .into_iter()
+        .map(|(lemma, _)| lemma)
+        .collect())
+}
+
+/// The lemmas a pair glosses by a proper noun's senses alone: every run of their `senses.tsv`
+/// row is `PROPN` (refine-lingua-fr-en-glosses D2). A pair without `senses.tsv` has none.
+fn names_only(pair: &Pair) -> Result<BTreeSet<String>, String> {
+    let runs = read_senses(&pair.dir).map_err(|e| format!("{}/senses.tsv: {e}", pair.name))?;
+    Ok(runs
+        .into_iter()
+        .filter(|(_, runs)| runs.iter().all(|(tag, _)| tag == "PROPN"))
         .map(|(lemma, _)| lemma)
         .collect())
 }
@@ -206,29 +221,42 @@ fn check_studied(dir: &Path, pairs: &[Pair]) -> Result<(), String> {
     }
     let words: BTreeSet<String> = words.into_iter().collect();
     let glossed = glossed(reference)?;
-    if words != glossed {
-        return Err(format!(
-            "{lang}/{LEXICAL_TABLE} is not the lemmas its reference {} glosses: {} only in \
-             {LEXICAL_TABLE} ({}), {} only in {}/gloss.tsv ({}). Reduce {} again (build.sh \
-             writes it).",
-            reference.name,
-            words.difference(&glossed).count(),
-            sample(words.difference(&glossed)),
-            glossed.difference(&words).count(),
-            reference.name,
-            sample(glossed.difference(&words)),
-            reference.name,
-        ));
+    if words == glossed {
+        return Ok(());
     }
-    Ok(())
+    // The other set the reference's reduction may write: its glossed lemmas less those it glosses
+    // by a proper noun's senses alone — all of them, never some (*Names left out by halves*).
+    let names = names_only(reference)?;
+    let words_not_names: BTreeSet<String> = glossed.difference(&names).cloned().collect();
+    if !names.is_empty() && words == words_not_names {
+        return Ok(());
+    }
+    Err(format!(
+        "{lang}/{LEXICAL_TABLE} is not the lemmas its reference {} glosses: {} only in \
+         {LEXICAL_TABLE} ({}), {} only in {}/gloss.tsv ({}); nor those less the {} it glosses by \
+         a proper noun's senses alone: {} only in {LEXICAL_TABLE} ({}), {} left out ({}). Reduce \
+         {} again (build.sh writes it).",
+        reference.name,
+        words.difference(&glossed).count(),
+        sample(words.difference(&glossed)),
+        glossed.difference(&words).count(),
+        reference.name,
+        sample(glossed.difference(&words)),
+        names.len(),
+        words.difference(&words_not_names).count(),
+        sample(words.difference(&words_not_names)),
+        words_not_names.difference(&words).count(),
+        sample(words_not_names.difference(&words)),
+        reference.name,
+    ))
 }
 
 /// Checks the tables root. Every folder is a pair's (named `<studied>-<native>` after its
 /// manifest) or a studied language's (holding `studied.json`); anything else fails. Each pair
 /// finds its studied language's folder beside it and holds no table of it. Each studied folder
 /// names an existing reference pair of its language, holds its studied tables and
-/// `studied.json` alone, pins its tag pool, and holds that pair's glossed lemmas as its
-/// dictionary words.
+/// `studied.json` alone, pins its tag pool, and holds as its dictionary words that pair's
+/// glossed lemmas, or all of them but those it glosses by a proper noun's senses alone.
 /// Answers the pairs read, by name; an error names the folder and the file at fault, and the
 /// reference pair whose reduction writes a studied table.
 pub fn check_committed_tables(root: &Path) -> Result<Vec<String>, String> {
@@ -424,6 +452,56 @@ mod tests {
             err.contains("es has no lexical.tsv") && err.contains("es-fr"),
             "{err}"
         );
+    }
+
+    /// French read by fr-en, which glosses `paris` and `lyon` by a proper noun's senses alone,
+    /// `lot` by a common noun's beside a name's, and `maison`.
+    fn french(tag: &str, lexical: &str) -> Root {
+        let root = Root::new(tag);
+        root.pair("fr-en", &["lot", "lyon", "maison", "paris"]);
+        root.write(
+            "fr-en/senses.tsv",
+            "lot\tNOUN:2\tPROPN:1\nlyon\tPROPN:1\nmaison\tNOUN:1\nparis\tPROPN:2\n",
+        );
+        root.studied("fr", "fr-en", Some(POOL), Some(lexical));
+        root
+    }
+
+    #[test]
+    fn the_reference_s_glossed_lemmas_or_all_but_its_names_pass() {
+        // refine-lingua-fr-en-glosses D2: either set, as the reference's reduction writes it.
+        let root = french("names-all", "lot\nlyon\nmaison\nparis\n");
+        assert_eq!(
+            check_committed_tables(&root.0),
+            Ok(vec!["fr-en".to_owned()])
+        );
+        let root = french("names-out", "lot\nmaison\n");
+        assert_eq!(
+            check_committed_tables(&root.0),
+            Ok(vec!["fr-en".to_owned()])
+        );
+    }
+
+    #[test]
+    fn spec_scenario_names_left_out_by_halves() {
+        // `paris` left out, `lyon` listed: neither set — named, with fr-en.
+        let root = french("names-halves", "lot\nlyon\nmaison\n");
+        let err = root.error();
+        assert!(
+            err.contains("reference fr-en")
+                && err.contains("less the 2 it glosses by a proper noun's senses alone")
+                && err.contains("1 only in lexical.tsv (lyon)"),
+            "{err}"
+        );
+        // A word with a common sense beside a name's is no name: leaving it out fails too.
+        let root = french("names-word", "maison\n");
+        let err = root.error();
+        assert!(err.contains("1 left out (lot)"), "{err}");
+        // A reference with no name glosses one set alone (Spanish, `spec_scenario_dictionary_words_
+        // that_are_not_the_reference_s`); an unreadable senses.tsv fails, named.
+        let root = french("names-broken", "lot\nmaison\n");
+        root.write("fr-en/senses.tsv", "lot\n");
+        assert!(root.error().contains("fr-en/senses.tsv"));
     }
 
     #[test]

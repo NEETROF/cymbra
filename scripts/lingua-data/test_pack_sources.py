@@ -2172,14 +2172,23 @@ class Record(unittest.TestCase):
         self.assertEqual(ps.pairs(HERE / "tables", after="en-es"), ["en-es"])
 
     def test_the_committed_dictionary_words_are_the_reference_s_glossed_lemmas(self):
-        # French's are none: fr-en glosses nothing yet.
+        # English's and Spanish's are their references' glossed lemmas, as `split` writes them;
+        # French's, fr-en's less those it glosses by a proper noun's senses alone, as its reducer
+        # writes them (refine-lingua-fr-en-glosses D2).
         for language in ("en", "es", "fr"):
             studied = HERE / "tables" / language
             reference = ps.reference_of(studied)
             words = (studied / ps.LEXICAL).read_text(encoding="utf-8")
-            self.assertEqual(
-                words, "".join(f"{w}\n" for w in ps.glossed_lemmas(HERE / "tables" / reference / "gloss.tsv")), language
-            )
+            glossed = ps.glossed_lemmas(HERE / "tables" / reference / "gloss.tsv")
+            if language == "fr":
+                runs = {
+                    line.split("\t")[0]: line.split("\t")[1:]
+                    for line in (HERE / "tables" / reference / "senses.tsv").read_text(encoding="utf-8").splitlines()
+                }
+                names = {w for w in glossed if all(run.startswith("PROPN:") for run in runs[w])}
+                self.assertIn("paris", names)
+                glossed = [w for w in glossed if w not in names]
+            self.assertEqual(words, "".join(f"{w}\n" for w in glossed), language)
 
     def test_the_pairs_glossed_in_french_read_the_french_wiktionary_s_rules_alone(self):
         for pair in ("en-fr", "es-fr"):
@@ -2302,6 +2311,28 @@ class Split(unittest.TestCase):
         ps.split(self.work, self.tables, "es-fr")
         self.assertEqual((self.tables / "es" / "lexical.tsv").read_text(encoding="utf-8"), "casa\ndios\nárbol\n")
         self.assertEqual((self.tables / "es" / "tags.tsv").read_text(), "NOUN\nVERB\n")
+
+    def test_a_reference_whose_reducer_writes_its_dictionary_words_has_them_filed(self):
+        # refine-lingua-fr-en-glosses D2: fr-en's reducer writes French's dictionary words — its
+        # glossed lemmas less those it glosses as names alone — and `split` files them as written.
+        (self.work / "gloss.tsv").write_text("maison\tHouse\nparis\tParis\nlot\tbatch; Lot\n", encoding="utf-8")
+        (self.work / "lexical.tsv").write_text("lot\nmaison\n", encoding="utf-8")
+        written = ps.split(self.work, self.tables, "fr-en")
+        self.assertIn("fr/lexical.tsv", written)
+        self.assertEqual((self.tables / "fr" / "lexical.tsv").read_text(encoding="utf-8"), "lot\nmaison\n")
+        # It is no table of the pair's: tables/fr-en/ holds none.
+        self.assertFalse((self.tables / "fr-en" / "lexical.tsv").exists())
+        # A reader pair's reducer that wrote one writes nothing of the studied folder.
+        before = (self.tables / "fr" / "lexical.tsv").read_bytes()
+        (self.work / "lexical.tsv").write_text("augusto\n", encoding="utf-8")
+        written = ps.split(self.work, self.tables, "fr-es")
+        self.assertTrue(all(w.startswith("fr-es/") for w in written), written)
+        self.assertEqual((self.tables / "fr" / "lexical.tsv").read_bytes(), before)
+        # A reference whose reducer writes none — en-fr's and es-fr's — has its glossed lemmas
+        # written, byte for byte as before.
+        (self.work / "lexical.tsv").unlink()
+        ps.split(self.work, self.tables, "es-fr")
+        self.assertEqual((self.tables / "es" / "lexical.tsv").read_text(encoding="utf-8"), "lot\nmaison\nparis\n")
 
     def test_the_dictionary_words_are_read_as_the_builder_reads_a_gloss_table(self):
         # lingua_pack::tsv_pairs: lines split on \n alone, a trailing \r dropped, the key before the
