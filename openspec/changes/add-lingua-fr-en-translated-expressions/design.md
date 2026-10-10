@@ -167,8 +167,8 @@ wrong as often as the raw table: « de la » and « de l' » glossed as a partit
 the" (« la tête de l'équipe »), « m'a » "“I'm going”" on « il m'a sauvé », « en être » on « qui en
 sont membres », « dire que » "to think that" on « ont dit qu'ils », « en fait » "actually" met by
 « en faisant » (33 of its 175 matches), « en tenue » by « s'en tenir », « sa mère » "(so) fucking"
-on « sa mère favorise », « espèce de » "you" on « une espèce d'amphibien », « au fait » glossed "au
-fait". fr-es, which reads the French Wiktionary's Spanish translations as its direct fallback,
+on « sa mère favorise », « espèce de » "you" on « une espèce d'amphibien », « grand pont » "kick/pass
+around a player's legs" on « le grand pont de bois », « au fait » glossed "au fait". fr-es, which reads the French Wiktionary's Spanish translations as its direct fallback,
 meets « sur le champ » "En el acto" in « sur le champ de bataille » and gives the key of « crème
 brûlée » to its table's « crème brulée ».
 
