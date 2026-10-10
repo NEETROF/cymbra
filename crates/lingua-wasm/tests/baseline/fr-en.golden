@@ -51,7 +51,7 @@ to see (visually); to see (to understand); to see (to visit, to go and see); ple
 ### gloss vivre
 to live; to experience
 ### gloss porte
-to carry; to support, to bear; to wear; to be about, to concern; to feel, to be in good/bad health; porter (beer); a surname, Porter, from English
+(none)
 ### gloss porter
 to carry; to support, to bear; to wear; to be about, to concern; to feel, to be in good/bad health; porter (beer); a surname, Porter, from English
 ### gloss fils
@@ -71,9 +71,9 @@ step, pace, footstep; strait, pass; thread, pitch (of a screw or nut); the most 
 ### gloss son
 sound; bran; a piece (of music), a (musical) work, an opus; his, her, their, its (used to qualify masculine nouns and before a vowel)
 ### gloss été
-to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect; being, thing, creature; being, the state or fact of existence
+(none)
 ### gloss est
-to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect; being, thing, creature; being, the state or fact of existence
+(none)
 ### gloss homme
 man (adult male human); man, Man (species); man (employee); husband; boyfriend; Man (genus Homo)
 ### gloss l'homme
@@ -189,7 +189,7 @@ omelette
 ### word-grammar été être
 {"gloss":"to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect; being, thing, creature; being, the state or fact of existence","senses":[{"tag":{"pos":"VERB"},"text":"to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"being, thing, creature; being, the state or fact of existence"}],"readings":[{"pos":"VERB","features":{"Gender":"Masc","Number":"Sing","Tense":"Past","VerbForm":"Part"}}],"others":[],"pieces":[]}
 ### word-grammar été été
-{"gloss":"to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect; being, thing, creature; being, the state or fact of existence","senses":[{"tag":{"pos":"VERB"},"text":"to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"being, thing, creature; being, the state or fact of existence"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}},{"pos":"VERB","features":{"VerbForm":"Inf"}},{"pos":"VERB","features":{"Gender":"Masc","Number":"Sing","Tense":"Past","VerbForm":"Part"}}],"others":[],"pieces":[]}
+{"gloss":null,"senses":[],"readings":[],"others":[],"pieces":[]}
 ### word-grammar a avoir
 {"gloss":"to have, to own, to possess, to get; to have (to experience or suffer from a state or condition); to have (an age); used to form the compound tenses of most verbs, such as the perfect and pluperfect; to have (to), must; (chiefly in se faire avoir) to have (to trick, to con); asset, possession","senses":[{"tag":{"pos":"VERB"},"text":"to have, to own, to possess, to get; to have (to experience or suffer from a state or condition); to have (an age); used to form the compound tenses of most verbs, such as the perfect and pluperfect; to have (to), must; (chiefly in se faire avoir) to have (to trick, to con)"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"asset, possession"}],"readings":[{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}}],"others":[],"pieces":[]}
 ### word-grammar ai avoir
@@ -217,7 +217,7 @@ omelette
 ### word-grammar porte porter
 {"gloss":"to carry; to support, to bear; to wear; to be about, to concern; to feel, to be in good/bad health; porter (beer); a surname, Porter, from English","senses":[{"tag":{"pos":"VERB"},"text":"to carry; to support, to bear; to wear; to be about, to concern; to feel, to be in good/bad health"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"porter (beer)"},{"tag":{"pos":"PROPN"},"text":"a surname, Porter, from English"}],"readings":[{"pos":"VERB","features":{"Mood":"Imp","Number":"Sing","Person":"2","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"1","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Sub","Number":"Sing","Person":"1","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Sub","Number":"Sing","Person":"3","Tense":"Pres","VerbForm":"Fin"}}],"others":[],"pieces":[]}
 ### word-grammar porte porte
-{"gloss":"to carry; to support, to bear; to wear; to be about, to concern; to feel, to be in good/bad health; porter (beer); a surname, Porter, from English","senses":[{"tag":{"pos":"VERB"},"text":"to carry; to support, to bear; to wear; to be about, to concern; to feel, to be in good/bad health"},{"tag":{"pos":"NOUN","features":{"Gender":"Masc"}},"text":"porter (beer)"},{"tag":{"pos":"PROPN"},"text":"a surname, Porter, from English"}],"readings":[{"pos":"NOUN","features":{"Gender":"Masc","Number":"Sing"}},{"pos":"VERB","features":{"VerbForm":"Inf"}}],"others":[],"pieces":[]}
+{"gloss":null,"senses":[],"readings":[],"others":[],"pieces":[]}
 ### word-grammar vis vivre
 {"gloss":"to live; to experience","senses":[{"tag":{"pos":"VERB"},"text":"to live; to experience"}],"readings":[{"pos":"VERB","features":{"Mood":"Imp","Number":"Sing","Person":"2","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"1","Tense":"Pres","VerbForm":"Fin"}},{"pos":"VERB","features":{"Mood":"Ind","Number":"Sing","Person":"2","Tense":"Pres","VerbForm":"Fin"}}],"others":[],"pieces":[]}
 ### word-grammar vis voir

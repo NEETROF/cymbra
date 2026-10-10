@@ -63,9 +63,12 @@
 //! pack keys expressions as French is read — the builder hands each headword to the core's French
 //! reading, its determiners written as the pre-pass gives them, up to seven tokens — and names
 //! each by its headword where its key differs (add-lingua-french-expression-keys): the probes
-//! « Au revoir », « un coup d’œil », « D’abord », « au fur et à mesure » and « à cause des » find
-//! their expression, « il y a » and « il y avait » answer `il y a`, the Proust sentence
-//! `de bonne heure`, and « à la maison », « au marché » and « jusqu'au soir » no `à la`.
+//! « Au revoir », « D’abord », « au fur et à mesure » and « à cause des » find their expression,
+//! « il y a » and « il y avait » answer `il y a`, the Proust sentence `de bonne heure`,
+//! « jusqu'au soir » `jusqu'à`, « à la maison » the section's own `à la maison`, and « au marché »
+//! nothing. « un coup d’œil » meets `un coup` before `coup d'œil`, and « du pain et des œufs »
+//! `et des`: senses their keys do not hold the context of, listed for
+//! `refine-lingua-fr-en-glosses` (add-lingua-pack-fr-en D7).
 //!
 //! At analyser `1.1.0` French's detection guard (add-lingua-french-detection-guard) refuses the
 //! `mixte` page's Occitan block, which whichlang reads as French; its Catalan block whichlang reads
