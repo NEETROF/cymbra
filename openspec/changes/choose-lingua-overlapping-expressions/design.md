@@ -52,7 +52,8 @@ on a verb it is mostly the wrong one:
   `au nombre de`, « Lo hizo de todos modos » `de todos modos`, « went over the top » `over the top`.
 - Keep what today's order gets right (« jusqu'au début », `jusqu'à`), and cut the rule's misfires
   with measured guards.
-- A French headword's hyphen held to the page, so « c'est ce que » never answers `est-ce que`.
+- A French headword's hyphen held to the page where its expression would take a word, so « c'est ce
+  que » never answers `est-ce que`, and nothing else moves.
 - Read what the core already has: the pack's grammar, the closed classes, the tokens' spans and the
   text between them. No pack, key, table, pin or analyser version moves.
 
@@ -77,7 +78,7 @@ it** when:
    headword there, as the scan would find it — **holds more tokens than the match**, or (French,
    Spanish) starts on the `à` of « au »/« aux » or the `a`/`de` of « al »/« del » the match ends on,
    which it then covers whole;
-3. **neither guard of D3 holds.**
+3. **no guard of D3 holds.**
 
 The match then does not match at that length: the shorter runs are tried, else the scan moves to the
 next token, exactly as for a run that does not meet its headword (changes 44c, 44d); the expression
@@ -102,33 +103,28 @@ is found on that token in turn. Anything else keeps today's order.
 
 | Pair | Matches today | Lost | Gained | After | Selections moved |
 |---|---|---|---|---|---|
-| fr-en | 60,360 | 368 | 295 | 60,287 | 320 |
-| fr-es | 41,549 | 93 | 90 | 41,546 | 90 |
+| fr-en | 60,360 | 322 | 283 | 60,321 | 275 |
+| fr-es | 41,549 | 89 | 87 | 41,547 | 86 |
 | es-fr | 205,743 | 308 | 229 | 205,664 | 228 |
 | es-en | 236,765 | 453 | 391 | 236,703 | 389 |
 | en-fr | 48,552 | 73 | 71 | 48,550 | 71 |
 | en-es | 62,835 | 140 | 124 | 62,819 | 124 |
 
-French's figures hold G1's own moves (D3): 49 fr-en selections (4 of them the rule moves too) and 4
-fr-es selections the hyphen check moves on today's order, before any overlap.
-
 **Judged:**
 
 | Language | Changes | Judged | Better | Worse | Neither |
 |---|---|---|---|---|---|
-| French | fr-en 320 | all, by kind | 285 | 18 | 17 |
-| French | fr-es 90 | all, by kind | 85 | 4 | 1 |
-| French | 346 distinct | sample of 30 | 28 | 0 | 2 |
+| French | fr-en 275 | all, by kind | 251 | 7 | 17 |
+| French | fr-es 86 | all, by kind | 85 | 0 | 1 |
+| French | 301 distinct | sample of 30 | 30 | 0 | 0 |
 | Spanish | 567 distinct (es-fr 228, es-en 389) | sample of 30 | 22 | 2 | 6 |
 | English | 160 distinct (en-fr 71, en-es 124) | sample of 30 | 22 | 2 | 6 |
 
-French's 18 worse in fr-en are 11 of G1's own (« Est ce que vous… », « n'est ce pas », « Vois tu »
-written without their hyphen lose their expression, D3) and 7 of the rule's (`pas de quoi` on
+French's 7 worse in fr-en are `pas de quoi` on
 « savent pas de quoi » 3, `garde à vous` on « prendre garde à vous », `au noir` on « le blanc l'est au
 noir », `avoir la peau de` on « J'ai la peau du ventre », `faire le jeu de` on « Tout compte fait, le
 jeu »); its 17 neither are places where both readings are wrong or both right (« se mettre d'accord »
-5, « se mettre en route » 2, « est au plus haut », « à moins de la moitié »). fr-es's 4 worse are G1's
-(« Qu'est ce que » without its hyphen). Spanish's 2 worse in the sample: `es lo que hay` (« it is
+5, « se mettre en route » 2, « est au plus haut », « à moins de la moitié »). Spanish's 2 worse in the sample: `es lo que hay` (« it is
 what it is ») on « ¿Qué es lo que hay sobre la cama? » and `sea lo que sea` on « seguir siendo lo que
 somos »; English's: `out of gas` and `out of the wood`, idioms read on a page that means them
 literally. The neither are mostly a literal reading both expressions miss (`down the road` over `run
@@ -151,7 +147,7 @@ is a verb. A pack without grammar reads no verb, and keeps today's order.
 Readings of « built on a verb », measured in French (fr-en / fr-es selections moved), the « au »
 and longer conditions of D1 as they are:
 
-| Reading | French | Differs |
+| Reading | French, fr-en / fr-es | Differs |
 |---|---|---|
 | a verb among the tokens before the last (the first proposal's first variant) | 175 / 83 | gives « del » away in Spanish's `a partir de` on « a partir del cual », `a pesar de` on « a pesar del tiempo », prepositions built on an infinitive |
 | a verb before the last, no preposition before it (the first proposal) | 173 / 83 | keeps `j'ai` and `c'est`, whose verb is the last token |
@@ -170,8 +166,8 @@ right where it keeps today's reading, every selection judged ([review.md](review
 
 | Guard | Languages | Selections it changes | Better | Worse | Neither | Kept |
 |---|---|---|---|---|---|---|
-| **G1 — a French headword's hyphen meets only a hyphen** (in the overlap rule) | French | 23 (fr-en) | 23 | 0 | 0 | yes |
-| G1, on its own (today's order, before any overlap) | French | 53 (fr-en 49, fr-es 4) | 38 | 15 | 0 | yes, with it |
+| **G1 — the expression taking a word meets its headword's hyphens** | French | 23 (fr-en) | 23 | 0 | 0 | yes |
+| G1 as first worded: every French match held to its hyphens, overlap or not | French | 53 more, on today's order (fr-en 49, fr-es 4) | 38 | 15 | 0 | no |
 | **G2 — a preposition the page follows with « que » stays** | French, Spanish | 8 (es-fr 8, es-en 7; French 0) | 8 | 0 | 0 | yes |
 | **G3 — the expression next is not cut**, if it holds a word that is not a function word | all three | 10 (Spanish 7, English 3; French 0) | 7 | 2 | 1 | yes |
 | G3 cutting any expression, `de la` included | all three | 14 more | 0 | 13 | 1 | no |
@@ -180,18 +176,17 @@ right where it keeps today's reading, every selection judged ([review.md](review
 | the verb written as its dictionary form (« pesar »), else no verb | Spanish | es-fr 242 → 190, es-en 397 → 259 | — | most | — | no |
 
 **G1 — hyphens.** French's pre-pass splits « est-ce », « a-t-il », « allez-y » into pieces with
-spans of their own, so a headword's hyphen was invisible to the matcher: `est-ce que` met « c'est ce
-que » and « Est ce que » alike. The owner's guard: a headword joining two pieces with a hyphen —
-read by `headword_reading`, a hyphen with the euphonic `t` between (`-t-`) counted as one — meets
-only a page joining them with a hyphen too, read without soft hyphens (change 42d). It is a matching
-rule beside changes 44c's and 44d's, checked in the same reading of the name, and it moves matches
-on its own, before any overlap: on fr-en 49 selections, 38 better — `est-il` no longer reads « À
-l'Est, il » or « comme il est, il », `puis-je` « et puis je lui ai dit », `allez-y` « on va y
-arriver », `a-t-il` « qui les ont. Il » — and 11 worse, where the page writes the expression without
-its hyphen (« Est ce que vous envisagez », « n'est ce pas », « Vois tu »); fr-es 4, all worse (its
-table holds only the `qu'est-ce` family of these). Measured, the narrower guard — the hyphen checked
-only for the expression that would take a word — removes the same 23 `est-ce que` and moves nothing
-on its own; this design keeps the owner's (open question 1).
+spans of their own, so a headword's hyphen is invisible to the matcher: `est-ce que` meets « c'est ce
+que » and « Est-ce que » alike, and the widened rule would let `c'est` give « est » to it 23 times in
+fr-en (« C'est ce qu'on appelle une campagne »). The guard: an expression whose headword joins two
+pieces with a hyphen — read by `headword_reading`, a hyphen with the euphonic `t` between (`-t-`)
+counted as one — takes a word only where the page joins the two tokens with a hyphen too, read
+without soft hyphens (change 42d). It is asked only for the expression that would take a word, so it
+removes those 23 and moves nothing else. Measured, the owner's first wording — every French match
+held to its hyphens, overlap or not — would also move 53 selections on its own: 38 better (`est-il`
+no longer reading « À l'Est, il », `puis-je` « et puis je lui ai dit »), 15 worse, where a page writes
+« Est ce que vous… », « n'est ce pas », « Vois tu » without the hyphen; the owner chose the narrow
+form (2026-10-10).
 
 **G2 — « que » after a preposition.** `pese a` (« despite ») and `debido a` (« due to ») are
 prepositions made of a verb form, and with « que » after them conjunctions: « Pese a que no tengo
@@ -229,10 +224,10 @@ the way the scan looks one up (the longest run that is a key and meets its headw
 whether that one would in turn give way); then condition 2; then G2 (a lemma); then whether the run
 is built on a verb (its tokens' readings); then G3 (one more lookup). `gloss_phrase` computes the
 page's hyphen joins once per selection, from the text between the tokens' spans, beside
-`shares_span` and `elided`.
+`shares_span` and `elided`; only G1 reads them, and only for a headword holding a hyphen.
 
 Measured, the median of interleaved passes over each language's selections, natively, on a machine
-shared with other sessions: fr-en 2.861 → 2.959 s (+3.4 %), fr-es 2.732 → 2.762 s (+1.1 %), es-fr
+shared with other sessions: fr-en 2.854 → 2.978 s (+4.3 %), fr-es 2.724 → 2.794 s (+2.6 %), es-fr
 9.342 → 9.551 s (+2.2 %), es-en 8.828 → 9.056 s (+2.6 %), en-es 2.872 → 2.898 s (+0.9 %), en-fr 2.976 → 2.964 s (within the noise).
 
 The giving match is treated as a run that does not match at that length, so change 51's D12 never
@@ -282,7 +277,6 @@ every `lingua-core` test passes. So the scenarios gain probes:
 | « grâce au travail du monteur » | `grâce à`; `grâce à` | the same |
 | « J'ai besoin de toi. » | `j'ai`; `avoir besoin de` | **`avoir besoin de`**; the same |
 | « C'est ce que tu veux. » | `c'est`, `ce que`; `ce que` | the same (G1) |
-| « À l'est, il fait froid. » | `est-il`, `faire froid`; none | **`faire froid`**; none (G1) |
 | **Spanish** (`support/spanish.rs`, after « La ciutat de Barcelona ») | es-fr; es-en | es-fr; es-en |
 | « Lo hizo de todos modos. » | `hacer de`; `hacer de` | **`de todos modos`**; **`de todos modos`** |
 | « No es del todo cierto. » | none; `ser de` | none; **`del todo`** |
@@ -294,14 +288,13 @@ every `lingua-core` test passes. So the scenarios gain probes:
 | « He was standing in front of the house. » | `stand in`; `stand in` | **`in front of`**; **`in front of`** |
 | « They were picking up and running off. » | `pick up`; `pick up`, `run off` | **`up and run`** (en-fr holds no `run off`, so G3 has nothing to keep); the same (G3) |
 
-Re-blessed on the prototype, lines added only: `fr-en.golden` 813 → 829 and `fr-es.golden` 823 → 839
-(16 each), `es-fr.golden` 648 → 658 and `es-en.golden` 748 → 758 (10 each), `en-fr.golden` 655 → 661
-and `en-es.golden` 763 → 769 (6 each). `word-card-fr-en.txt` 737 → 761 and `word-card-fr-es.txt` 601
-→ 625 gain the eight French probes' cards (24 lines each, every block before byte for byte) — in
+Re-blessed on the prototype, lines added only: `fr-en.golden` 813 → 827 and `fr-es.golden` 823 → 837
+(14 each), `es-fr.golden` 648 → 658 and `es-en.golden` 748 → 758 (10 each), `en-fr.golden` 655 → 661
+and `en-es.golden` 763 → 769 (6 each). `word-card-fr-en.txt` 737 → 759 and `word-card-fr-es.txt` 601
+→ 622 gain the seven French probes' cards (22 and 21 lines, every block before byte for byte) — in
 fr-en « au nombre de — numbering », « à la fois — at a time, at the same time, at once », « au
 courant — up to date, abreast », « se mettre — to place oneself in a place » and « au lit — in bed »,
-« avoir besoin de — to need », no row for `est-il`; their specs count 50 phrase probes (49 phrases and
-the reader's). `word-card-es-en.txt` and `word-card-en-es.txt` render grammar probes only and do not
+« avoir besoin de — to need »; their specs count 49 phrase probes (48 phrases and the reader's). `word-card-es-en.txt` and `word-card-en-es.txt` render grammar probes only and do not
 move. No `analyse`, `gloss`, `word-grammar` or review probe, pack, pin, table, `pack_version` or
 fixture moves; every analyser version stays, as changes 44, 51, 44c and 44d read *An analyser version
 per studied language* for the phrase gloss's matching.
@@ -312,12 +305,13 @@ changes 44, 51, 44c and 44d added theirs and said so in their pull requests, and
 ### D7 — es-fr and en-fr move, approved
 
 es-fr and en-fr ship today; the programme's rule is that their output does not move. The owner
-approved it moving on 2026-10-10 (tasks 0.2), told that the shared rule fixes 25 of 30 sampled
-changes and breaks 3 to 4 in Spanish and English, and that es-fr and en-fr move (141 and 61
-selections with the first proposal's rule). The rule as settled moves es-fr on 228 of 464,574 Spanish
-selections and en-fr on 71 of 68,484 English ones, es-en and en-es on 389 and 124; it lands with the
-next release that carries the core, and a reader's statuses and cards are untouched (a match's key
-is what it is without the rule). The goldens show the new probes; no earlier probe moves.
+approved it moving on 2026-10-10, told that the shared rule fixes 25 of 30 sampled changes and breaks
+3 to 4 in Spanish and English (141 es-fr and 61 en-fr selections with the first proposal's rule), and
+confirmed it the same day at the rule's final figures (tasks 0.2): es-fr moves on 228 of 464,574
+Spanish selections and en-fr on 71 of 68,484 English ones (es-en and en-es on 389 and 124), sampled
+22 better, 2 worse and 6 neither in each language. It lands with the next release that carries the
+core; a reader's statuses and cards are untouched (a match's key is what it is without the rule).
+The goldens show the new probes; no earlier probe moves.
 
 ### D8 — What later changes take from here
 
@@ -325,14 +319,11 @@ is what it is without the rule). The goldens show the new probes; no earlier pro
 |---|---|
 | 52 `enable-lingua-french` | the dogfood: « Elles sont au nombre de sept », « Il est à la fois sévère », « jusqu'au début », « C'est ce que tu veux » on a real page in fr-en |
 | 44e `pick-lingua-expression-written-as-the-page` (proposed) | the probes, in whichever re-bless of `fr-en.golden`, `fr-es.golden` and the two French snapshots lands second (both add phrase probes and move the snapshots' count) |
-| a change that reads more of a page's punctuation | G1 reads hyphens only; « Est ce que » without its hyphen loses `est-ce que` (11 places) until a page's informal spelling is read as the dictionary's |
 
 ## Risks / Trade-offs
 
-- [A right reading given up] → French 7 of 320 in fr-en through the rule; Spanish and English about
-  2 in 30 each, sampled (D1).
-- [G1 on informal pages] → « Est ce que », « n'est ce pas », « Vois tu » written without their hyphen
-  lose their expression: 11 places in fr-en, 4 in fr-es (D3, open question 1).
+- [A right reading given up] → French 7 of 275 in fr-en, none in fr-es; Spanish and English about 2
+  in 30 each, sampled (D1).
 - [A preposition made of a verb] → `pese a`, `debido a` before « que » are kept by G2; before a noun
   phrase (« debido al uso habitual ») they still give « al » to `al uso` (2 places), which S1 would
   keep at the cost of 25 right moves.
@@ -341,8 +332,9 @@ is what it is without the rule). The goldens show the new probes; no earlier pro
 - [Chains] → the expression a match gives way to is not asked whether it would give way in turn; the
   scan finds it, or a shorter one, when it reaches it. Measured in D1's figures.
 - [Shipped pairs move] → es-fr and en-fr readers see other expressions on 228 and 71 of the
-  selections measured; approved (D7), and read by the owner in the pull request (4.2).
-- [Cost] → +0.9 % to +3.4 % of the gloss time (D4).
+  selections measured; approved and confirmed (D7), the probes read by the owner in the pull request
+  (4.2).
+- [Cost] → +0.9 % to +4.3 % of the gloss time (D4).
 
 ## Migration Plan
 
@@ -352,7 +344,7 @@ reader sees that expression's status. Rollback is a revert.
 
 ## Effort
 
-1–2 ideal days: `is_preposition`, the hyphen join and G1 in the French check, 0.25–0.5; the rule, its
+1–2 ideal days: `is_preposition`, the hyphen join and G1's French check, 0.25–0.5; the rule, its
 two guards and the shared lookup in `match_expressions`, with a test per scenario on inline packs
 holding expressions, names and readings in the three languages, 0.5–0.9; the probes, six goldens and
 two snapshots re-blessed, 0.15–0.3; spec, doc comments and programme 0.1–0.3.
@@ -360,14 +352,7 @@ two snapshots re-blessed, 0.15–0.3; spec, doc comments and programme 0.1–0.3
 ## Open Questions
 
 **Settled by the owner on 2026-10-10 (in session):** all three languages in this change, es-fr's and
-en-fr's output moving (tasks 0.2); the rule widened to any last word now, with a guard holding a
-French headword's hyphen to the page; compound prepositions keep their « à »; the five French probes
-approved (4.1).
-
-For the owner, none blocking, each with the design's recommendation:
-1. **G1 as the owner worded it moves 53 selections on its own (D3).** It removes `est-il` from « À
-   l'Est, il » and `puis-je` from « et puis je lui ai dit » (38 better), but « Est ce que vous… »
-   written without its hyphen loses `est-ce que` (15 worse, 4 of them in fr-es). The narrower guard —
-   the hyphen checked only where an expression would take a word — removes the same 23 `est-ce que`
-   on « c'est ce que » and moves nothing else. Recommended: keep the owner's; the narrower one is a
-   one-line change in 1.4 if he prefers it.
+en-fr's output moving — approved, then confirmed at the final figures (tasks 0.2); the rule widened to
+any last word now, with a guard holding a French headword's hyphen to the page, in its narrow form —
+only for the expression that would take a word (D3); compound prepositions keep their « à »; the five
+French probes approved (4.1). None is open.

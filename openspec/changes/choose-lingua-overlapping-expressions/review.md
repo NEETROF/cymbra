@@ -14,40 +14,40 @@ quotations, some from songs and books under copyright: there only the expression
 
 ## 1. The rule as settled — 30 sampled per language
 
-### French: 346 selections moved; sampled 30: 28 better, 0 worse, 2 neither
+### French: 301 selections moved; sampled 30: 30 better, 0 worse, 0 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
-| 1 | fr-en | ce spectacle où la nostalgie ⟦sera à l'honneur⟧ . | `être à` | `à l'honneur` | better |
-| 2 | fr-en+fr-es | Il semble qu'il ⟦soit au courant⟧ des faits. | `être à` | `au courant` | better |
-| 3 | fr-en | sont leurs animaux qui les ⟦ont. Il⟧ n'y a pas de _boss_ | `a-t-il` | none | better |
-| 4 | fr-en | le norouâ qui prend: il ⟦va y avoir⟧ une tempête, dit Tit'Sèbe. | `allez-y` | `y avoir` | better |
-| 5 | fr-en | ⟦J'ai besoin d'⟧ informations. | `j'ai` | `avoir besoin de` | better |
-| 6 | fr-es | le catalan et l'espagnol. C' ⟦est à la suite de⟧ cela que l'occitan est une | `être à` | `à la suite de` | better |
-| 7 | fr-en | et témoigne que son caractère ⟦est à la hauteur⟧ de son génie. | `être à` | `à la hauteur` | better |
-| 8 | fr-en | avec ce peuple comme quelqu’un ⟦venu du côté de l’⟧ orient. Ils regardaient profondément la | `venir de`, `de l'` | `du côté de` | better |
-| 9 | fr-en | de Cardiff (Pays de Galles), ⟦était à l'origine⟧ une collection de scripts pouvant | `être à` | `à l'origine` | better |
-| 10 | fr-en | géant turc des télécommunications qui ⟦est, à compter de la⟧ saison 2009-2010, le principal sponsor | `être à`, `de la` | `à compter de` | better |
-| 11 | fr-en | qu'elle passera sur tout. Et ⟦puis je⟧ compte sur l'amitié de Mme | `puis-je` | none | better |
-| 12 | fr-en | moins destinée au dancefloor comme ⟦c'est le cas⟧ pour le Crunk d'Atlanta. | `c'est` | `être le cas` | better |
-| 13 | fr-en+fr-es | 2019, la population de Florence ⟦est à peu près⟧ à 85 % d'origine italienne | `être à` | `à peu près` | better |
-| 14 | fr-en | Le cinéma hispanophone ⟦est à l'honneur⟧ avec, au mois de mars, | `être à` | `à l'honneur` | better |
-| 15 | fr-en | parties ne parviennent pas à ⟦se mettre d'accord⟧ sur la composition du corps | `se mettre`, `d'accord` | `mettre d'accord` | neither |
-| 16 | fr-en | de la prison; les prisonniers ⟦sont au fond⟧ ._) | `être à` | `au fond` | better |
-| 17 | fr-en | ⟦Tous firent la fête⟧ . | `tout fait` | `faire la fête` | better |
-| 18 | fr-en | les activités artistiques et créatives. ⟦C'est le cas⟧ de l'université Harvard, à la | `c'est` | `être le cas` | better |
-| 19 | fr-en+fr-es | J' ⟦étais au milieu de⟧ quelque chose. | `être à` | `au milieu de` | better |
-| 20 | fr-en | de peinture de la Catalogne ⟦sont, au regard de la⟧ fréquentation en 2014, le théâtre-musée | `être à`, `de la` | `au regard de` | better |
-| 21 | fr-en | De fil en aiguille se ⟦tient à la maison⟧ pour tous Mélina Mercouri de | `tenir à` | `à la maison` | neither |
-| 22 | fr-en+fr-es | récession cet hiver, la moins-value ⟦serait au maximum⟧ de quelques centaines de millions | `être à` | `au maximum` | better |
-| 23 | fr-en | bien fini, il en était ⟦quitte à bon compte⟧ . Mais au moment d'atteindre | `quitte à` | `à bon compte` | better |
-| 24 | fr-en | dès le XIe siècle. Elle ⟦est à l'origine⟧ un prieuré de l'abbaye de | `être à` | `à l'origine` | better |
-| 25 | fr-en | J'en ai assez d' ⟦être à la maison⟧ toute la journée. | `être à` | `à la maison` | better |
-| 26 | fr-en | Je crois que ⟦j'ai besoin de⟧ bretelles. | `j'ai` | `avoir besoin de` | better |
-| 27 | fr-en | Cet article ⟦est à l'origine⟧ une traduction tirée de l'Encyclopædia | `être à` | `à l'origine` | better |
-| 28 | fr-es | Ce mot ⟦a au moins⟧ trois différentes significations. | `avoir à` | `au moins` | better |
-| 29 | fr-en | chef en Roussillon, où il ⟦est à l’origine⟧ de grands travaux, du renouveau | `être à` | `à l'origine` | better |
-| 30 | fr-es | CARDINAL--C' ⟦est à peu près⟧ ce qu'on m'a déjà rapporté. | `être à` | `à peu près` | better |
+| 1 | fr-en | Le brouillard dans cette zone ⟦était à couper au couteau⟧ . | `être à` | `à couper au couteau` | better |
+| 2 | fr-en | ⟦J'ai besoin d'⟧ un peu de compagnie. | `j'ai` | `avoir besoin de` | better |
+| 3 | fr-en | Ainsi en 2004, elle ⟦fut à l'affiche⟧ des films Une famille pour | `être à` | `à l'affiche` | better |
+| 4 | fr-en | ⟦J'ai la gueule de bois⟧ et je tourne. | `j'ai`, `gueule de bois` | `avoir la gueule de bois` | better |
+| 5 | fr-en+fr-es | sensible et souffrante : elle ⟦est au contraire⟧ respect de la liberté humaine, | `être à` | `au contraire` | better |
+| 6 | fr-en | Les prestations ⟦sont à la hauteur⟧ de son excellente réputation ! | `être à` | `à la hauteur` | better |
+| 7 | fr-en | élevée. La majorité des plats ⟦sont à base de⟧ viande. L'animal entier était traditionnelle | `être à` | `à base de` | better |
+| 8 | fr-es | m de hauteur. Les architectes ⟦étant pour la plupart⟧ parisiens, est utilisée essentiellement de | `être pour` | `pour la plupart` | better |
+| 9 | fr-en | ⟦J'ai du mal⟧ à y croire... J'ai plutôt | `j'ai` | `avoir du mal` | better |
+| 10 | fr-en+fr-es | onze heures du soir. Ils ⟦sont à peu près⟧ cinq mille hommes. Pars immédiatement | `être à` | `à peu près` | better |
+| 11 | fr-en | bien fini, il en était ⟦quitte à bon compte⟧ . Mais au moment d'atteindre | `quitte à` | `à bon compte` | better |
+| 12 | fr-en | peuples vietnamien et algérien qui ⟦sont à l'origine⟧ de cette résolution. | `être à` | `à l'origine` | better |
+| 13 | fr-en | Personne n'a ⟦dit quoi que ce soit⟧ de tel. | `dire quoi` | `quoi que ce soit` | better |
+| 14 | fr-en | de la prison; les prisonniers ⟦sont au fond⟧ ._) | `être à` | `au fond` | better |
+| 15 | fr-en+fr-es | je vous déclare que vous ⟦êtes à la fois⟧ la plus admirable et la | `être à` | `à la fois` | better |
+| 16 | fr-en | Tu sais que ⟦j'ai besoin de⟧ toi. | `j'ai` | `avoir besoin de` | better |
+| 17 | fr-es | embarqués par la fusée Ariane ⟦sont, pour la plupart⟧ , conçus et assemblés dans | `être pour` | `pour la plupart` | better |
+| 18 | fr-en | des amis de l'Occident qui ⟦étaient au pouvoir⟧ , mais au Caire on | `être à` | `au pouvoir` | better |
+| 19 | fr-es | . . . oui, c' ⟦est à peu près⟧ l'heure . . . O | `être à` | `à peu près` | better |
+| 20 | fr-en+fr-es | Il ⟦est à la fois⟧ sévère et amical. | `être à` | `à la fois` | better |
+| 21 | fr-en+fr-es | La semaine dernière nous ⟦étions au bord du gouffre⟧ , cette semaine nous avons | `être à` | `au bord du gouffre` | better |
+| 22 | fr-en | avec ce peuple comme quelqu’un ⟦venu du côté de l’⟧ orient. Ils regardaient profondément la | `venir de`, `de l'` | `du côté de` | better |
+| 23 | fr-en | autre, c'est très difficile d' ⟦être à la hauteur⟧ de son image. | `être à` | `à la hauteur` | better |
+| 24 | fr-en | une naissance imminente qui aurait ⟦été à l'origine⟧ de la décision d'Alger d'accueillir | `être à` | `à l'origine` | better |
+| 25 | fr-en | Cet article ⟦est à l'origine⟧ une traduction tirée de l'Encyclopædia | `être à` | `à l'origine` | better |
+| 26 | fr-en | C'est bien que tu ⟦sois à la maison⟧ . | `être à` | `à la maison` | better |
+| 27 | fr-en | unique contrat de transport comme ⟦c'est le cas⟧ , par exemple, du « | `c'est` | `être le cas` | better |
+| 28 | fr-en | profond et morne silence. Elle ⟦tenait à la main⟧ une rose qu'elle venait de | `tenir à` | `à la main` | better |
+| 29 | fr-en | de Cardiff (Pays de Galles), ⟦était à l'origine⟧ une collection de scripts pouvant | `être à` | `à l'origine` | better |
+| 30 | fr-en | l'hébergement et la restauration ont ⟦été à la hauteur⟧ de ce que nous pouvions | `être à` | `à la hauteur` | better |
 
 ### Spanish: 567 selections moved; sampled 30: 22 better, 2 worse, 6 neither
 
@@ -121,7 +121,46 @@ quotations, some from songs and books under copyright: there only the expression
 
 ## 2. The guards — every selection each one changes
 
-### G1 — a French headword's hyphen, on its own: 53 selections (fr-en 49, fr-es 4); 38 better, 15 worse
+### G1 — the expression taking a word meets its headword's hyphens: 23 selections, all better
+
+Without the guard, `c'est` would give « est » to `est-ce que` (the yes-or-no question marker) on « c'est ce que », 23 times in fr-en (« C'est ce qu'on appelle une campagne », « Je suppose que c'est ce que vous voulez »); the page writes « est » and « ce » apart, so `est-ce que` does not meet it and `c'est` and `ce que` stay.
+
+### G2 — a preposition the page follows with « que » stays: 8 selections (Spanish), 8 better
+
+| # | Pair | Selection | With the guard | Without it | |
+|---|---|---|---|---|---|
+| 1 | es-fr | ⟦Pese a que no⟧ existe un consenso oficial al | as today | `a que no` | better |
+| 2 | es-fr | ⟦Pese a que no⟧ se han encontrado restos fósiles | as today | `a que no` | better |
+| 3 | es-fr | Pasé muchas dificultades en México ⟦debido a que no⟧ podía entender del todo el | as today | `a que no` | better |
+| 4 | es-fr | Tuvo fallos en el examen ⟦debido a que no⟧ había estudiado. | as today | `a que no` | better |
+| 5 | es-fr | línea quien marcó el gol ⟦pese a que no⟧ estaba parado a la altura | as today | `a que no` | better |
+| 6 | es-fr | Las encuestas ⟦apuntan a que no⟧ habrá mayoría para ninguno. | as today | `a que no` | better |
+| 7 | es-fr | ⟦Pese a que no⟧ tengo dinero, volví a comprarme | as today | `a que no` | better |
+| 8 | es-fr | queda toda podrida la fruta ⟦debido a que no⟧ la pusieron en el refrigerador. | as today | `a que no` | better |
+
+### G3 — the expression next is not cut: 7 Spanish selections, 5 better, 1 worse, 1 neither
+
+| # | Pair | Selection | With the guard | Without it | |
+|---|---|---|---|---|---|
+| 1 | es-fr | ¡Y ahora, concluído! Ella se ⟦iba al día siguiente⟧ a Montevideo. ¿Qué le importaba | as today | `al día` | better |
+| 2 | es-fr | ¿Alguna vez has ⟦ido al fin del mundo⟧ ? | as today | `al fin` | better |
+| 3 | es-fr | Ella ⟦sabe que yo sé que⟧ ella sabe. | as today | `que yo sepa` | neither |
+| 4 | es-fr | minuto más en ese lugar ⟦dejado de la mano de Dios⟧ . | as today | `de la mano` | better |
+| 5 | es-fr | Aquel pueblo está ⟦dejado de la mano de Dios⟧ . | as today | `de la mano` | better |
+| 6 | es-fr | él y su esposa se ⟦irían al día siguiente⟧ . | as today | `al día` | better |
+| 7 | es-en | entender que las cosas no ⟦van del todo bien⟧ en su matrimonio. | as today | `del todo` | worse |
+
+### G3 — English: 3 selections, 2 better, 1 worse
+
+| # | Pair | Selection | With the guard | Without it | |
+|---|---|---|---|---|---|
+| 1 | en-es | — | as today | `up and run` | better |
+| 2 | en-es | — | as today | `on the way` | better |
+| 3 | en-es | — | as today | `all in a day's work` | worse |
+
+### Measured and not kept
+
+**G1 as first worded — a French headword's hyphen held to the page for every match, not only in an overlap**: 53 selections on its own, before any overlap (fr-en 49, fr-es 4); 38 better, 15 worse. The owner chose the narrow G1 (2026-10-10).
 
 What the hyphen check moves on today's order, before any overlap: « Today » is what `main` shows, « With the guard » what the check leaves.
 
@@ -181,45 +220,6 @@ What the hyphen check moves on today's order, before any overlap: « Today » is
 | 52 | fr-es | ⟦Qu’est ce qu’⟧ il y avait de commun | `qu'est-ce que` | `ce que` | worse |
 | 53 | fr-es | ⟦Qu'est ce qui⟧ est plus lourd : un | `qu'est-ce qui` | `ce qui` | worse |
 
-### G1 — in the overlap rule: 23 selections, all better
-
-Without the guard, `c'est` would give « est » to `est-ce que` (the yes-or-no question marker) on « c'est ce que », 23 times in fr-en (« C'est ce qu'on appelle une campagne », « Je suppose que c'est ce que vous voulez »); the page writes « est » and « ce » apart, so `est-ce que` does not meet it and `c'est` and `ce que` stay.
-
-### G2 — a preposition the page follows with « que » stays: 8 selections (Spanish), 8 better
-
-| # | Pair | Selection | With the guard | Without it | |
-|---|---|---|---|---|---|
-| 1 | es-fr | ⟦Pese a que no⟧ existe un consenso oficial al | as today | `a que no` | better |
-| 2 | es-fr | ⟦Pese a que no⟧ se han encontrado restos fósiles | as today | `a que no` | better |
-| 3 | es-fr | Pasé muchas dificultades en México ⟦debido a que no⟧ podía entender del todo el | as today | `a que no` | better |
-| 4 | es-fr | Tuvo fallos en el examen ⟦debido a que no⟧ había estudiado. | as today | `a que no` | better |
-| 5 | es-fr | línea quien marcó el gol ⟦pese a que no⟧ estaba parado a la altura | as today | `a que no` | better |
-| 6 | es-fr | Las encuestas ⟦apuntan a que no⟧ habrá mayoría para ninguno. | as today | `a que no` | better |
-| 7 | es-fr | ⟦Pese a que no⟧ tengo dinero, volví a comprarme | as today | `a que no` | better |
-| 8 | es-fr | queda toda podrida la fruta ⟦debido a que no⟧ la pusieron en el refrigerador. | as today | `a que no` | better |
-
-### G3 — the expression next is not cut: 7 Spanish selections, 5 better, 1 worse, 1 neither
-
-| # | Pair | Selection | With the guard | Without it | |
-|---|---|---|---|---|---|
-| 1 | es-fr | ¡Y ahora, concluído! Ella se ⟦iba al día siguiente⟧ a Montevideo. ¿Qué le importaba | as today | `al día` | better |
-| 2 | es-fr | ¿Alguna vez has ⟦ido al fin del mundo⟧ ? | as today | `al fin` | better |
-| 3 | es-fr | Ella ⟦sabe que yo sé que⟧ ella sabe. | as today | `que yo sepa` | neither |
-| 4 | es-fr | minuto más en ese lugar ⟦dejado de la mano de Dios⟧ . | as today | `de la mano` | better |
-| 5 | es-fr | Aquel pueblo está ⟦dejado de la mano de Dios⟧ . | as today | `de la mano` | better |
-| 6 | es-fr | él y su esposa se ⟦irían al día siguiente⟧ . | as today | `al día` | better |
-| 7 | es-en | entender que las cosas no ⟦van del todo bien⟧ en su matrimonio. | as today | `del todo` | worse |
-
-### G3 — English: 3 selections, 2 better, 1 worse
-
-| # | Pair | Selection | With the guard | Without it | |
-|---|---|---|---|---|---|
-| 1 | en-es | — | as today | `up and run` | better |
-| 2 | en-es | — | as today | `on the way` | better |
-| 3 | en-es | — | as today | `all in a day's work` | worse |
-
-### Measured and not kept
-
 **S1 — a verb written as the headword writes it, inflected (« pese », « debido »), keeps its words** (Spanish): 36 selections, 10 better, 25 worse, 1 neither — `es más` (« what's more ») would keep « más » from `más o menos` 20 times.
 
 | Selections | The rule without the guard: today → rule | |
@@ -250,7 +250,7 @@ Without the guard, `c'est` would give « est » to `est-ce que` (the yes-or-no q
 | 1 | `dire que`, `est-ce que` → `qu'est-ce que` | worse |
 
 
-**G3 without « holding a word that is not a function word »** — cutting any next expression, `de la` and `de l'` included: 14 selections more than G3, 13 worse, 1 neither (French 10: `à cause de` on « c'est à cause de la souris », `au regard de` on « sont, au regard de la fréquentation »; Spanish 1: `de aquí a` on « hay de aquí a la estación »; English 3: `in and out` on « moving in and out of the shops »).
+**G3 without « holding a word that is not a function word »** — cutting any next expression, `de la` and `de l'` included: 14 selections more than G3, 13 worse, 1 neither (French 10: `à cause de` on « c'est à cause de la souris », `au regard de` on « sont, au regard de la fréquentation »; Spanish 1: `de aquí a` on « hay de aquí a la estación »; English 3: `in and out` over `move in` and `go in`).
 
 | Selections | The rule without the guard: today → rule | |
 |---|---|---|
@@ -678,7 +678,7 @@ As C, only when the giving match holds a verb.
 | 29 | es-fr | Si no sabes adónde ⟦vas al menos⟧ deberías ser el primero en | `ir a` | `al menos` | better |
 | 30 | es-en | los goces del lujo no ⟦son del todo⟧ incompatibles con este aislamiento; puede | `ser de` | `del todo` | better |
 
-### F — This design (D1)
+### F — The first proposal's rule
 
 A match built on a verb gives the preposition it ends on to the match starting on it, when that one is longer or the preposition is the `à` of « au »/« aux ».
 
