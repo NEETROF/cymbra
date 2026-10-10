@@ -461,18 +461,20 @@ fn card_ops(engine: &lingua_wasm::LinguaEngine) -> Vec<serde_json::Value> {
     serde_json::from_str(&engine.export_card_ops()).expect("an array of card operations")
 }
 
+/// What one pack's seedings gave: each level-order's cards, levels in order, `common` before
+/// `rare`, and how many lemmas the gloss filter passed over among the [`SEEDED`] each seeding would
+/// have drawn without it.
+struct Seeded {
+    cards: Vec<BTreeSet<String>>,
+    skipped: usize,
+}
+
 /// Through `bytes` (whose loaded pack is `pack`), from a fresh deck, one seeding of each level in
 /// each order: the cards are the first [`SEEDED`] lemmas of the level, in that order, that the pack
 /// glosses — `order` read from `reference`, whose studied sections every pack of the language
 /// shares —, each with the pack's gloss and labelled with its native language, the reader's level
-/// ladder and estimate untouched. Answers each level-order's cards, and how many lemmas the gloss
-/// filter passed over among the [`SEEDED`] the seeding would have drawn without it.
-fn seedings(
-    language: &str,
-    reference: &Pack,
-    pack: &Pack,
-    bytes: &[u8],
-) -> (Vec<BTreeSet<String>>, usize) {
+/// ladder and estimate untouched.
+fn seedings(language: &str, reference: &Pack, pack: &Pack, bytes: &[u8]) -> Seeded {
     let lang = || Some(language.to_owned());
     let native = pack.native().tag();
     // One engine, its state restored to a fresh reader's before each seeding: loading a pack is
@@ -543,21 +545,16 @@ fn seedings(
             cards.push(seeded);
         }
     }
-    (cards, skipped)
+    Seeded { cards, skipped }
 }
 
-/// [`seedings`] through a language's two packs, built from the committed tables: each pack's cards
-/// and the lemmas its gloss filter passed over, then the two packs' bytes.
+/// [`seedings`] through a language's two packs, built from the committed tables, then the two
+/// packs' bytes.
 fn seed_through(
     language: &str,
     reference_pair: &str,
     other_pair: &str,
-) -> (
-    (Vec<BTreeSet<String>>, usize),
-    (Vec<BTreeSet<String>>, usize),
-    Vec<u8>,
-    Vec<u8>,
-) {
+) -> (Seeded, Seeded, Vec<u8>, Vec<u8>) {
     let root = Scenario::tables_root();
     let build = |pair: &str| -> Vec<u8> {
         build_pack(&inputs_from_tables(&root, pair).unwrap_or_else(|e| panic!("{pair}: {e}")))
@@ -600,20 +597,20 @@ fn seeding_follows_each_packs_glosses() {
             .collect()
     });
     let mut french = None;
-    for ((language, reference_pair, other_pair), ((a, skipped_a), (b, skipped_b), r, o)) in
-        languages.into_iter().zip(checked)
+    for ((language, reference_pair, other_pair), (a, b, r, o)) in languages.into_iter().zip(checked)
     {
         // The measure the design quotes (*What the tests show*), not pinned: a gloss update moves it.
         println!(
             "{language}: lemmas without a gloss among the first {SEEDED} of the 12 level-orders, \
-             {reference_pair} {skipped_a}, {other_pair} {skipped_b}"
+             {reference_pair} {}, {other_pair} {}",
+            a.skipped, b.skipped
         );
         match language {
             // *A pack that glosses every levelled lemma*: es-fr seeds what it always seeded.
-            "es" => assert_eq!(skipped_a, 0, "es-fr glosses every levelled lemma"),
+            "es" => assert_eq!(a.skipped, 0, "es-fr glosses every levelled lemma"),
             // The C1 lemmas en-fr seeds rarest first are not en-es's: C1 is the fifth level,
             // `rare` its second order.
-            "en" => assert_ne!(a[4 * 2 + 1], b[4 * 2 + 1], "C1, rarest first"),
+            "en" => assert_ne!(a.cards[4 * 2 + 1], b.cards[4 * 2 + 1], "C1, rarest first"),
             _ => french = Some((r, o)),
         }
     }
