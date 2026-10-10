@@ -1,15 +1,16 @@
 {
   "snapshot": "2026.10.10",
   "pack": {
-    "sha256": "2c320129e37daff91eb9ccac68940573b6672993c29a2f7251cdacc5a9f2ba25",
-    "size": 1973407
+    "sha256": "6de64e292e3439704a8e751e99a6e0c54e82eac985dadb140fa0cda3f2856c82",
+    "size": 1971289
   },
   "reducer": {
-    "sha256": "3f293e883e0efe30edf0ea13ab0b71f1c63fe1b2d632bd1d3195e8ebce78dea9",
+    "sha256": "4e7aa33c1fc0ff1d6f92741a39349116886a0fbb08349da2d0d4e4b5304bc382",
     "files": [
       "reduce-fr-es.py",
       "reduce_common.py",
-      "reduce_edition_es.py"
+      "reduce_edition_es.py",
+      "reduce_french_treebank.py"
     ]
   },
   "studied": {
@@ -24,6 +25,14 @@
     }
   },
   "sources": {
+    "gsd-train": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-train.conllu",
+      "sha256": "4b9a87b1b7e6e7003219df1d3ccca87ffaca0f00a6055b12b1857df5373589d2"
+    },
+    "gsd-dev": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-dev.conllu",
+      "sha256": "9221e5084cc6a1b1540671cfbd2fc0456efc223b2fe8dd2146c2bad921be02d4"
+    },
     "kaikki-es": {
       "release": "lingua-pack-sources-fr-es-2026.10.10",
       "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",

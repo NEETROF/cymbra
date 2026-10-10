@@ -1625,7 +1625,8 @@ class FrenchGlossedInSpanish(unittest.TestCase):
     """fr-es (add-lingua-pack-fr-es D3): the catalogue's three files, no new derivation — the Spanish
     Wiktionary's French section and the French translations its Spanish entries list, from the
     Spanish edition's dump, and the Spanish translations the French Wiktionary's French entries list,
-    from the French edition's. No English dump: French's studied side is tables/fr/ as committed."""
+    from the French edition's. No English dump: French's studied side is tables/fr/ as committed. And
+    UD French-GSD's two sections, fr-en's files (refine-lingua-fr-es-glosses D8)."""
 
     # The Spanish Wiktionary's dump: a French entry (fr-es's definitions), a Spanish entry listing a
     # French and an English translation (fr-es's inverted table, es-fr's direct one; en-es's
@@ -1662,6 +1663,7 @@ class FrenchGlossedInSpanish(unittest.TestCase):
         self.released = self.root / "released"
         self.released.mkdir()
         self.served = {ps.EDITIONS["es"]["url"]: gz(self.ES), ps.EDITIONS["fr"]["url"]: gz(self.FR)}
+        self.served.update({spec["url"]: f"{name} bytes\n".encode() for name, spec in ps.PINNED["fr-es"].items()})
         self.fetched = []
 
     def tearDown(self):
@@ -1702,8 +1704,20 @@ class FrenchGlossedInSpanish(unittest.TestCase):
         # The two translation files are es-fr's, read the other way round: one name, one file.
         self.assertIn("kaikki-es-traductions.jsonl", ps.DUMPS["es-fr"]["es"])
         self.assertIn("kaikki-fr-traductions.jsonl", ps.DUMPS["es-fr"]["fr"])
-        self.assertNotIn("fr-es", ps.PINNED)
+        # UD French-GSD's two sections, fr-en's files at fr-en's commit (refine-lingua-fr-es-glosses D8).
+        self.assertEqual(ps.PINNED["fr-es"], ps.PINNED["fr-en"])
+        self.assertEqual(list(ps.PINNED["fr-es"]), ["gsd-train", "gsd-dev"])
         self.assertNotIn("fr-es", ps.ESDB)
+
+    def test_fr_es_s_pinned_files_are_fr_en_s_treebank_files(self):
+        # The committed pins record the same two files, at the same addresses and bytes: what fr-en's
+        # reduction counts, fr-es's counts too.
+        pins = {pair: ps.load(HERE / "tables" / pair / "pin.json")["sources"] for pair in ("fr-en", "fr-es")}
+        for name, spec in ps.PINNED["fr-es"].items():
+            self.assertEqual(pins["fr-es"][name], pins["fr-en"][name], name)
+            self.assertEqual(pins["fr-es"][name]["url"], spec["url"], name)
+        # The kaikki records stay beside them, the snapshot's.
+        self.assertEqual(list(pins["fr-es"]), ["gsd-train", "gsd-dev", "kaikki-es", "kaikki-fr", "wordfreq"])
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_spec_scenario_an_update_of_fr_es(self):
@@ -1711,8 +1725,15 @@ class FrenchGlossedInSpanish(unittest.TestCase):
         # editions' dumps alone, derives its three files in one pass of each, records each dump and
         # publishes the files under its own release; no dump is kept.
         record = self.update()
-        self.assertEqual(sorted(self.fetched), sorted([ps.EDITIONS["es"]["url"], ps.EDITIONS["fr"]["url"]]))
-        self.assertEqual(list(record["sources"]), ["kaikki-es", "kaikki-fr", "wordfreq"], "no extract, no English dump")
+        self.assertEqual(
+            sorted(self.fetched),
+            sorted([ps.EDITIONS["es"]["url"], ps.EDITIONS["fr"]["url"], *(spec["url"] for spec in ps.PINNED["fr-es"].values())]),
+        )
+        self.assertEqual(
+            list(record["sources"]), ["gsd-train", "gsd-dev", "kaikki-es", "kaikki-fr", "wordfreq"], "no extract, no English dump"
+        )
+        for name, spec in ps.PINNED["fr-es"].items():
+            self.assertEqual(record["sources"][name], {"url": spec["url"], "sha256": hashlib.sha256(f"{name} bytes\n".encode()).hexdigest()})
         own = ps.release_tag("fr-es", "2026.10.10")
         self.assertEqual(own, "lingua-pack-sources-fr-es-2026.10.10")
         for edition in ("es", "fr"):
@@ -1749,10 +1770,10 @@ class FrenchGlossedInSpanish(unittest.TestCase):
             ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
         self.assertEqual(
             self.fetched,
-            [ps.release_url(tag, f"{name}.zst") for name in self.FILES],
-            "the three derived files from fr-es's own release; no dump",
+            [*(spec["url"] for spec in ps.PINNED["fr-es"].values()), *(ps.release_url(tag, f"{name}.zst") for name in self.FILES)],
+            "GSD's two sections, then the three derived files from fr-es's own release; no dump",
         )
-        for name in self.FILES:
+        for name in (*self.FILES, "fr_gsd-ud-train.conllu", "fr_gsd-ud-dev.conllu"):
             self.assertTrue((self.work / name).is_file(), name)
         self.assertEqual(self.pin.read_bytes(), pinned, "the record stands")
 

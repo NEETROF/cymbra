@@ -5,7 +5,7 @@ page 1/1:
 ### phrase-gloss il y a
 expression: il y a
 page 1/1:
-  [—] Hace
+  [—] Hay; Hace
 ### phrase-gloss tout de suite
 expression: tout de suite
 page 1/1:
@@ -61,7 +61,7 @@ page 1/1:
 ### phrase-gloss il y avait
 expression: il y a
 page 1/1:
-  [—] Hace
+  [—] Hay; Hace
 ### phrase-gloss à la maison
 row: à la — A la
 row: maison — Casa
@@ -87,9 +87,9 @@ row: se souvenir — Recordar, acordarse
 ### phrase-gloss The lighthouse stood
 rows: (none)
 ### phrase-gloss El faro se alzaba
-row: el — Ella, ello o él
+rows: (none)
 ### phrase-gloss El far s'alçava
-row: el — Ella, ello o él
+rows: (none)
 ### phrase-gloss Lo far se quilhava
 rows: (none)
 ### phrase-gloss Il faro si ergeva
@@ -99,38 +99,32 @@ row: homme — Hombre
 ### word-grammar est être
 grammar: tercera persona del singular del presente de indicativo de être
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar sont être
 grammar: tercera persona del plural del presente de indicativo de être
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar était être
 grammar: tercera persona del singular del pretérito imperfecto de indicativo de être
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar fut être
 grammar: tercera persona del singular del pretérito perfecto simple de indicativo de être
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar soyez être
 grammar: segunda persona del plural del presente de subjuntivo y segunda persona del plural del imperativo de être
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar été être
 grammar: participio pasado de être
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar été été
 gloss: (none)
@@ -177,16 +171,16 @@ row: Ir o viajar (ya sea en vehículo o de otra manera)
 ### word-grammar fait faire
 grammar: participio pasado y tercera persona del singular del presente de indicativo de faire
 page 1/2:
-  [verbo] Hacer; (faire chaud, faire froid) hacer; (faire + infinitivo) hacer, causar; (se faire + infinitivo) ser; Realizar una acción; Fabricar; Dar la apariencia de
+  [verbo] Hacer; (faire chaud, faire froid) hacer; (faire + infinitivo) hacer, causar; (se faire + infinitivo) ser; Realizar una acción; Fabricar
 page 2/2:
-  [verbo] Interpretar en una obra
+  [verbo] (despectivo) Dar la apariencia de; Interpretar en una obra
 row: Hacer
 ### word-grammar faites faire
 grammar: participio pasado femenino plural, segunda persona del plural del presente de indicativo y segunda persona del plural del imperativo de faire
 page 1/2:
-  [verbo] Hacer; (faire chaud, faire froid) hacer; (faire + infinitivo) hacer, causar; (se faire + infinitivo) ser; Realizar una acción; Fabricar; Dar la apariencia de
+  [verbo] Hacer; (faire chaud, faire froid) hacer; (faire + infinitivo) hacer, causar; (se faire + infinitivo) ser; Realizar una acción; Fabricar
 page 2/2:
-  [verbo] Interpretar en una obra
+  [verbo] (despectivo) Dar la apariencia de; Interpretar en una obra
 row: Hacer
 ### word-grammar pût pouvoir
 grammar: tercera persona del singular del pretérito imperfecto de subjuntivo de pouvoir
@@ -244,7 +238,7 @@ grammar: «au» = à + le
 gloss: (none)
 ### word-grammar du du
 page 1/1:
-  [—] Contracción de la preposición de y el articulo le, del
+  [preposición] Contracción de la preposición de y el articulo le, del
 row: Contracción de la preposición de y el articulo le, del
 ### word-grammar l'homme homme
 grammar: «l'homme» = le + homme
@@ -315,15 +309,13 @@ grammar: primera persona del plural del presente de indicativo de être
 grammar: también puede ser el masculino y femenino plural de somme
 grammar: también puede ser la segunda persona del singular del presente de indicativo o de subjuntivo de sommer
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar suis être
 grammar: primera persona del singular del presente de indicativo de être
 grammar: también puede ser la primera y segunda persona del singular del presente de indicativo y la segunda persona del singular del imperativo de suivre
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar grandes grand
 grammar: femenino plural de grand
@@ -396,28 +388,29 @@ row: En cuanto a, por lo tocante a, respecto de, acerca de
 ### word-grammar des des
 page 1/1:
   [determinante] Algunos, algunas, unos o unas
-  [—] Contracción de la preposición de y el artículo les, de las o de los
+  [preposición] Contracción de la preposición de y el artículo les, de las o de los
 row: Algunos, algunas, unos o unas
 ### word-grammar un un
 page 1/1:
-  [numeral] Un o uno
   [determinante] Un
+  [numeral] Un o uno
   [sustantivo masculino] El número uno
   [pronombre] Uno
-row: Un o uno
+row: Un
 ### word-grammar que que
 page 1/1:
-  [pronombre] Que; Qué
+  [conjunción] Que
+  [pronombre] Qué
 row: Que
 ### word-grammar pas pas
 page 1/1:
-  [sustantivo masculino] Paso
   [adverbio] No
-row: Paso
+  [sustantivo masculino] Paso
+row: No
 ### word-grammar qui qui
 page 1/1:
-  [pronombre] Quién. (Pronombre nominativo.); Que. (Pronombre nominativo.)
-row: Quién. (Pronombre nominativo.)
+  [pronombre] Quién; Que
+row: Quién
 ### word-grammar ce ce
 page 1/1:
   [determinante] Este
@@ -436,8 +429,10 @@ page 2/2:
   [sustantivo masculino] Par
 row: A través de o por
 ### word-grammar on on
-page 1/1:
-  [pronombre] Se, alguien o uno (un individuo indeterminado); Nosotros; Yo; Tú; Vosotros; Ella; Ellas; Él
+page 1/2:
+  [pronombre] Se, alguien o uno (un individuo indeterminado); (coloquial) Nosotros; (coloquial) Yo; (coloquial) Tú; (coloquial) Vosotros; (coloquial) Ella; (coloquial) Ellas
+page 2/2:
+  [pronombre] (coloquial) Él
 row: Se, alguien o uno (un individuo indeterminado)
 ### word-grammar plus plus
 grammar: también puede ser el participio pasado masculino plural y la primera y segunda persona del singular del pretérito perfecto simple de indicativo de plaire
@@ -447,13 +442,15 @@ page 1/1:
   [conjunción] Más
 row: Más. Comparativo irregular de beaucoup
 ### word-grammar avec avec
-page 1/3:
-  [preposición] Con, en colaboración con, en compañía de o junto con; Introduce algunos complementos circunstanciales indicante la manera, el instrumento etc
-page 2/3:
-  [preposición] Lo que una persona ofrezca en ella de singular, de extraordinario, de ridículo etc; Contra
-page 3/3:
+page 1/4:
+  [preposición] Con, en colaboración con, en compañía de o junto con; Introduce algunos complementos circunstanciales indicante la manera, el instrumento etc.
+page 2/4:
+  [preposición] Lo que una persona ofrezca en ella de singular, de extraordinario, de ridículo etc.; Contra
+page 3/4:
   [preposición] A despecho de, a pesar de, a pesar del hecho que, aunque, malgrado, no obstante, pese a, si bien o sin embargo
-  [adverbio] También; Con este, consigo, con ella etc
+  [adverbio] (Quebec, Bélgica) También
+page 4/4:
+  [adverbio] Con este, consigo, con ella etc.
 row: Con, en colaboración con, en compañía de o junto con
 ### word-grammar mais mais
 grammar: también puede ser el masculino plural de mai
@@ -462,13 +459,13 @@ page 1/1:
 row: Pero
 ### word-grammar ça ça
 page 1/1:
-  [pronombre] Eso, esto, aquello
-row: Eso, esto, aquello
+  [pronombre] (coloquial) Eso, esto, aquello
+row: (coloquial) Eso, esto, aquello
 ### word-grammar tu tu
 grammar: también puede ser el participio pasado de taire
 page 1/1:
-  [pronombre] Tú
-row: Tú
+  [pronombre] (coloquial) Tú
+row: (coloquial) Tú
 ### word-grammar son son
 page 1/1:
   [pronombre] Su
@@ -483,7 +480,7 @@ page 1/1:
 row: Si
 ### word-grammar tout tout
 page 1/1:
-  [adjetivo] Todo; Cualquiera
+  [adjetivo] Todo; (literario) Cualquiera
   [adverbio] Totalmente
 row: Todo
 ### word-grammar nous nous
@@ -497,8 +494,7 @@ page 1/1:
 row: Como
 ### word-grammar être être
 page 1/1:
-  [sustantivo masculino] Ser
-  [verbo] (être + participio) Haber; Estar; (être + participio) ser
+  [verbo] Ser; (être + participio) Haber; Estar; (être + participio) ser
 row: Ser
 ### word-grammar bien bien
 page 1/1:
@@ -562,9 +558,9 @@ page 1/1:
 row: Otro
 ### word-grammar rien rien
 page 1/1:
-  [pronombre] Nada; Poca cosa; Algo
-  [sustantivo masculino] Pequeño cantidad de algo
-  [adverbio] Muy; Mucha, muchas, mucho o muchos
+  [pronombre] Nada; Poca cosa; (obsoleto) Algo
+  [sustantivo masculino] Pequeña cantidad de algo
+  [adverbio] (coloquial, irónico) Muy; Mucha, muchas, mucho o muchos
 row: Nada
 ### word-grammar dire dire
 page 1/1:
