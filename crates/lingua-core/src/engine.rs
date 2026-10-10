@@ -41,6 +41,7 @@ use crate::analysis::pipeline::{
     AnalysedToken, DocumentAnalysis, analyse_document, headword_reading, resolve_lemmas,
 };
 use crate::analysis::tokenize::{Token, is_elided, tokenize, without_soft_hyphens};
+use crate::knowledge::level::CefrLevels;
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
 use crate::packs::grammar::Tag;
@@ -105,15 +106,10 @@ pub fn analyse_page(
         DocumentAnalysis::Analysed(tokens) => tokens,
     };
 
-    // A Spanish or French document's names are set aside like a proper noun outside the
-    // lexicon (add-lingua-spanish-names, add-lingua-french-analysis D4); English's analysis
-    // does not change.
-    let names = match studied {
-        StudiedLanguage::Spanish | StudiedLanguage::French => {
-            document_names(&tokens, blocks, studied, pack)
-        }
-        StudiedLanguage::English => HashSet::new(),
-    };
+    // A document's names are set aside like a proper noun outside the lexicon, in every studied
+    // language (add-lingua-spanish-names, add-lingua-french-analysis D4,
+    // leave-lingua-names-out-of-english-and-spanish-words D4).
+    let names = document_names(&tokens, blocks, studied, pack);
     let mut coverage = Coverage::default();
     let mut out = Vec::with_capacity(tokens.len());
     for token in tokens {
@@ -193,6 +189,14 @@ pub fn analyse_page_json(
 /// whose parts `saint` and `pierre` resolve, so the compound rule keeps them).
 /// Spanish reads neither: an apostrophe gives it no evidence, and its runs are
 /// judged by their parts.
+///
+/// An English document's names follow Spanish's rule as written, with two English
+/// readings (leave-lingua-names-out-of-english-and-spanish-words D4): the pronoun
+/// `I` and its contractions (`I'm`, `I'll`, `I’d`), capitalised wherever they
+/// stand, give no evidence ([`is_pronoun_i`]); and a lemma a CEFR list levels
+/// (`june`, `mr`, `mrs`, [`CefrLevels::level`]) is a word a reader learns, never a
+/// name. Neither reading runs for Spanish or French, whose levels are estimated
+/// and go only to dictionary words.
 fn document_names(
     tokens: &[AnalysedToken],
     blocks: &[&str],
@@ -200,6 +204,7 @@ fn document_names(
     pack: &Pack,
 ) -> HashSet<String> {
     let french = studied == StudiedLanguage::French;
+    let english = studied == StudiedLanguage::English;
     let mut lowercase = HashSet::new();
     let mut capitalised: HashMap<String, &str> = HashMap::new();
     for token in tokens
@@ -210,6 +215,9 @@ fn document_names(
             continue;
         };
         let form = token.surface.to_lowercase();
+        if english && is_pronoun_i(&form) {
+            continue;
+        }
         let text = blocks.get(token.block).copied().unwrap_or("");
         if !first.is_uppercase() {
             lowercase.insert(form);
@@ -221,9 +229,21 @@ fn document_names(
     }
     capitalised
         .into_iter()
-        .filter(|(form, lemma)| !lowercase.contains(form) && !pack.is_dictionary_word(lemma))
+        .filter(|(form, lemma)| {
+            !lowercase.contains(form)
+                && !pack.is_dictionary_word(lemma)
+                && !(english && pack.level(lemma).is_some())
+        })
         .map(|(form, _)| form)
         .collect()
+}
+
+/// Whether an English form, lowercased, is the pronoun `I` or one of its
+/// contractions (`i`, `i'm`, `i'll`, `i’d`, `i've`): capitalised wherever it
+/// stands, so its capital says nothing of a name
+/// (leave-lingua-names-out-of-english-and-spanish-words D4).
+fn is_pronoun_i(form: &str) -> bool {
+    form == "i" || form.starts_with("i'") || form.starts_with("i\u{2019}")
 }
 
 /// Whether the word at byte `start` of `text` follows an elided piece: an
@@ -249,8 +269,8 @@ fn mid_sentence(text: &str, start: usize) -> bool {
 }
 
 /// The one classification of a token, shared by the page analysis and the
-/// phrase gloss so the two can never disagree — except for a Spanish or French
-/// document's names (a French one's hyphenated runs among them), which only the
+/// phrase gloss so the two can never disagree — except for a document's names (a
+/// French one's hyphenated runs among them), which only the
 /// whole page can tell: a plain token is a proper noun
 /// outside the lexicon or whatever the knowledge model says of its lemma; a
 /// listed compound has no parts and goes the same way; an unlisted compound is
@@ -962,6 +982,7 @@ mod tests {
     use super::*;
     use crate::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
     use crate::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, SPANISH_ANALYZER_VERSION};
+    use crate::knowledge::level::CefrLevel;
     use crate::knowledge::status::{KnownSource, Status};
     use crate::packs::format::write_container;
     use crate::packs::meta::PackMeta;
@@ -1098,6 +1119,33 @@ mod tests {
         names: &[(&str, &str)],
         lexical: Option<&[&str]>,
     ) -> Pack {
+        build_pack_with_levels(
+            studied,
+            forms,
+            lemmas,
+            ranks,
+            glosses,
+            expressions,
+            names,
+            lexical,
+            &[],
+        )
+    }
+
+    /// [`build_pack_with_names`] plus, when `levels` holds any, the level table: each
+    /// lemma's CEFR level, as the builder writes a pack's `level.tsv`.
+    #[allow(clippy::too_many_arguments)]
+    fn build_pack_with_levels(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        expressions: &[(&str, &str)],
+        names: &[(&str, &str)],
+        lexical: Option<&[&str]>,
+        levels: &[(&str, CefrLevel)],
+    ) -> Pack {
         let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
         let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
         let mut freq = vec![0u32; lex.lemma_count()];
@@ -1171,6 +1219,14 @@ mod tests {
         if lexical.is_some() {
             sections.push((section::LEXICAL, &bits));
         }
+        let mut level_codes = vec![0u8; lex.lemma_count()];
+        for (lemma, level) in levels {
+            level_codes[lex.id_of(lemma).expect("levelled lemma listed") as usize] =
+                level.to_code();
+        }
+        if !levels.is_empty() {
+            sections.push((section::LEVELS, &level_codes));
+        }
         Pack::load(&write_container(&meta, &sections)).expect("load")
     }
 
@@ -1235,7 +1291,8 @@ mod tests {
         assert_eq!(spanish_classes(&table, &blocks, "Augusto"), [WORD]);
         // Glosses are untouched: `Dios` keeps none on the page only because names show none.
         assert_eq!(table.gloss("dios"), Some("Dieu"));
-        // English's analysis has no names rule, table or not.
+        // English reads the same rule since leave-lingua-names-out-of-english-and-spanish-words
+        // (D4): `augusto`, a lemma of the pack and none of its dictionary words, is set aside.
         let english = build_pack_with_lexical(
             EN,
             &[],
@@ -1246,17 +1303,202 @@ mod tests {
             Some(&[]),
         );
         let page = analyse_page(
-            &["The man met Augusto, and the man met Augusto."],
+            &english_page("The man met Augusto at the market, and the man met Augusto again."),
             EN,
             &english,
             &KnowledgeState::new(),
         );
-        assert!(
-            page.tokens
-                .iter()
-                .filter(|t| t.surface == "Augusto")
-                .all(|t| t.class == WORD)
+        assert!(page.analysable);
+        let augusto: Vec<TokenClass> = page
+            .tokens
+            .iter()
+            .filter(|t| t.surface == "Augusto")
+            .map(|t| t.class)
+            .collect();
+        assert_eq!(augusto, [NAME, NAME]);
+    }
+
+    /// The classes of every token written `surface` on an English page, for a reader
+    /// with no history.
+    fn english_classes(pack: &Pack, blocks: &[&str], surface: &str) -> Vec<TokenClass> {
+        let page = analyse_page(blocks, EN, pack, &KnowledgeState::new());
+        assert!(page.analysable, "{blocks:?}");
+        page.tokens
+            .into_iter()
+            .filter(|token| token.surface == surface)
+            .map(|token| token.class)
+            .collect()
+    }
+
+    /// An en→fr pack for English's names rule: `lemmas` in the lexicon, `words` its
+    /// dictionary words (a lexical table, as en-fr's since
+    /// leave-lingua-names-out-of-english-and-spanish-words), `levels` its CEFR levels.
+    fn english_names_pack(lemmas: &[&str], words: &[&str], levels: &[(&str, CefrLevel)]) -> Pack {
+        let glosses: Vec<(&str, &str)> = lemmas.iter().map(|lemma| (*lemma, "glose")).collect();
+        build_pack_with_levels(
+            EN,
+            &[],
+            lemmas,
+            &[],
+            &glosses,
+            &[],
+            &[],
+            Some(words),
+            levels,
+        )
+    }
+
+    /// A long-enough English page around `sentence`, so the page is analysable.
+    fn english_page(sentence: &str) -> [&str; 2] {
+        [
+            sentence,
+            "The rest of the evening passed quietly, and nobody in the house said a word about it.",
+        ]
+    }
+
+    #[test]
+    fn spec_scenario_an_english_character_of_a_story() {
+        let blocks = english_page(
+            "When the train pulled into the station, Margaret grabbed her brother's coat and ran.",
         );
+        // `margaret` is glossed (« Marguerite ») but no dictionary word: a name alone.
+        let pack = english_names_pack(
+            &["margaret", "train", "station"],
+            &["train", "station"],
+            &[],
+        );
+        assert_eq!(pack.gloss("margaret"), Some("glose"));
+        assert_eq!(english_classes(&pack, &blocks, "Margaret"), [NAME]);
+        let page = analyse_page(&blocks, EN, &pack, &KnowledgeState::new());
+        assert_eq!(page.analyzer_version, ANALYZER_VERSION);
+        // Not underlined, and out of the percentage.
+        let without = analyse_page(
+            &blocks,
+            EN,
+            &english_names_pack(
+                &["margaret", "train", "station"],
+                &["margaret", "train", "station"],
+                &[],
+            ),
+            &KnowledgeState::new(),
+        );
+        assert_eq!(page.counted + 1, without.counted);
+    }
+
+    #[test]
+    fn spec_scenario_an_english_city() {
+        let blocks =
+            english_page("We flew from Paris to London. London was cold and wet all week.");
+        let pack = english_names_pack(&["london", "paris", "cold"], &["cold"], &[]);
+        assert_eq!(english_classes(&pack, &blocks, "London"), [NAME, NAME]);
+    }
+
+    #[test]
+    fn spec_scenario_the_pronoun_i() {
+        // `I'll` follows a word and `I'm` a comma: both capitalised in mid-sentence, neither a
+        // dictionary word, and neither a name. `Mum` is a word of the pack.
+        let blocks = english_page("Tell Mum I'll call tonight, and I'm sure she knows already.");
+        let pack = english_names_pack(&["i'll", "i'm", "i", "mum"], &["i", "mum"], &[]);
+        assert_eq!(english_classes(&pack, &blocks, "I'll"), [WORD]);
+        assert_eq!(english_classes(&pack, &blocks, "I'm"), [WORD]);
+        // A typographic apostrophe, and the pronoun alone, give no evidence either.
+        assert!(is_pronoun_i("i\u{2019}d"));
+        assert!(is_pronoun_i("i've"));
+        assert!(is_pronoun_i("i"));
+        assert!(!is_pronoun_i("ian"));
+        assert!(!is_pronoun_i("it's"));
+        // The tokeniser reads `I’d` as `I'd`; the pronoun alone is no name either.
+        let blocks =
+            english_page("Then I\u{2019}d say that I would rather walk home alone tonight.");
+        let pack = english_names_pack(&["i'd", "i"], &[], &[]);
+        assert_eq!(english_classes(&pack, &blocks, "I'd"), [WORD]);
+        assert_eq!(english_classes(&pack, &blocks, "I"), [WORD]);
+    }
+
+    #[test]
+    fn spec_scenario_a_word_a_cefr_list_levels() {
+        let blocks = english_page("The lanes open in June, said Mr Brown to the eager swimmers.");
+        // `june` is glossed as a name alone and `mr` not at all; both carry a level.
+        let levels = [("june", CefrLevel::A1), ("mr", CefrLevel::A1)];
+        let pack = english_names_pack(&["june", "mr", "brown"], &["brown"], &levels);
+        assert_eq!(english_classes(&pack, &blocks, "June"), [WORD]);
+        assert_eq!(english_classes(&pack, &blocks, "Mr"), [WORD]);
+        // Without their levels, both would be names.
+        let unlevelled = english_names_pack(&["june", "mr", "brown"], &["brown"], &[]);
+        assert_eq!(english_classes(&unlevelled, &blocks, "June"), [NAME]);
+        assert_eq!(english_classes(&unlevelled, &blocks, "Mr"), [NAME]);
+    }
+
+    #[test]
+    fn spec_scenario_an_english_dictionary_word() {
+        let blocks =
+            english_page("Everyone at the table turned when Bill finally stood up to speak.");
+        let pack = english_names_pack(&["bill", "table"], &["bill", "table"], &[]);
+        assert_eq!(english_classes(&pack, &blocks, "Bill"), [WORD]);
+        // Its card still has its gloss.
+        let page = analyse_page(&blocks, EN, &pack, &KnowledgeState::new());
+        let bill = page
+            .tokens
+            .iter()
+            .find(|t| t.surface == "Bill")
+            .expect("Bill");
+        assert_eq!(bill.gloss.as_deref(), Some("glose"));
+    }
+
+    #[test]
+    fn spec_scenario_english_capitals_at_the_head_of_sentences_only() {
+        let blocks = english_page("Margaret ran. Margaret stopped at the gate and looked back.");
+        let pack = english_names_pack(&["margaret"], &[], &[]);
+        assert_eq!(english_classes(&pack, &blocks, "Margaret"), [WORD, WORD]);
+    }
+
+    #[test]
+    fn spec_scenario_the_same_english_form_as_a_word() {
+        let blocks = [
+            "Nobody answered the door, said Sam to the others waiting outside in the rain.",
+            "The account was registered under the user name sam on the old forum years ago.",
+        ];
+        let pack = english_names_pack(&["sam"], &[], &[]);
+        assert_eq!(english_classes(&pack, &blocks, "Sam"), [WORD]);
+    }
+
+    #[test]
+    fn a_spanish_document_still_sets_aside_a_levelled_lemma_that_is_no_dictionary_word() {
+        // English's two readings are English's alone (D4): a Spanish capital after an apostrophe
+        // and a Spanish level say nothing, and Spanish's `yo` is no pronoun I.
+        let blocks = [
+            "Cuando llegó el tren, Junio cogió el abrigo de su hermano y salió corriendo.",
+            "Todos los nobles de la corte miraban la escena con mucha atención.",
+        ];
+        let pack = build_pack_with_levels(
+            ES,
+            &[],
+            &["junio", "tren", "abrigo"],
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&["tren", "abrigo"]),
+            &[("junio", CefrLevel::A1)],
+        );
+        assert_eq!(spanish_classes(&pack, &blocks, "Junio"), [NAME]);
+        // And a French one too.
+        let blocks = [
+            "Quand le train est arrivé, Juin a pris le manteau de son frère et il est parti.",
+            "Tous les nobles de la cour regardaient la scène avec beaucoup d'attention ce soir.",
+        ];
+        let pack = build_pack_with_levels(
+            FR,
+            &[],
+            &["juin", "train", "manteau"],
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&["train", "manteau"]),
+            &[("juin", CefrLevel::A1)],
+        );
+        assert_eq!(french_classes(&pack, &blocks, "Juin"), [NAME]);
     }
 
     #[test]
@@ -3848,7 +4090,7 @@ mod tests {
         let knowledge = KnowledgeState::new();
         let a = analyse_page_json(&blocks, EN, &with, &knowledge);
         assert_eq!(a, analyse_page_json(&blocks, EN, &without, &knowledge));
-        assert!(a.contains("\"analyzer_version\":\"1.2.0\""));
+        assert!(a.contains("\"analyzer_version\":\"1.3.0\""));
     }
 
     #[test]
