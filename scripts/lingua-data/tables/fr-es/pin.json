@@ -1,8 +1,8 @@
 {
   "snapshot": "2026.10.10",
   "pack": {
-    "sha256": "6de64e292e3439704a8e751e99a6e0c54e82eac985dadb140fa0cda3f2856c82",
-    "size": 1971289
+    "sha256": "c9924f8fc4e3a98f26b2089a0f1d1566e627bb6b6bd7ec10cab816d5b2e9b9f3",
+    "size": 1971114
   },
   "reducer": {
     "sha256": "4e7aa33c1fc0ff1d6f92741a39349116886a0fbb08349da2d0d4e4b5304bc382",
@@ -16,11 +16,11 @@
   "studied": {
     "reference": "fr-en",
     "tables": {
-      "forms.tsv": "b013fac8d5099627c55e32b727dcdf9f6c19602d8b57dccb2528a80077a488d1",
-      "freq.tsv": "6f6c3595a9b62fc61f0033bbb8cb753e97d87c6c173ead052f095e3fd2efed30",
-      "grammar.tsv": "79a41a7b91ec637fedcbd24785efcd674f5f0d1668a8ffdbd8a280129aaa082c",
-      "level.tsv": "a13925cd5693751a14a6a869b87bc218960cf5452678d0386a57a271c01a4a20",
-      "lexical.tsv": "6c58078bb8dda562922a6a3502f551891bb1d7e74dc66a4468b2f3e1462ff408",
+      "forms.tsv": "0f088fb24273d9e3d3fbbe6ab83091663200bb46b56a6c4ecbfad388235b1554",
+      "freq.tsv": "12b6efb17818fde23d8677025086ee3c461bd2dd38d82d7f9f4b39a01455f3bd",
+      "grammar.tsv": "c6a29c7423907c6b58f6aacc6dcb7e7836e6ff16c65e28bf121aa401ecc421a3",
+      "level.tsv": "00a558fe1212491469dc4cab30d34699d59bc8b132cd96a277fefa3b4539f0c0",
+      "lexical.tsv": "33e55fc3b50bf36d4087ba7a79e4cb6184f1faab83bb55a770e8040f088bd116",
       "tags.tsv": "bcefe71fe32b221624943c6b5c63f77a88f2bf48dd2e9e4ede5c47e4738479b7"
     }
   },
