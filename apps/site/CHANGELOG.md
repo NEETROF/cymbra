@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.14.0](https://github.com/NEETROF/cymbra/compare/site-v0.13.0...site-v0.14.0) (2026-10-10)
+
+
+### Features
+
+* **lingua:** the device sends the language of a gloss and of a day ([#766](https://github.com/NEETROF/cymbra/issues/766)) ([14fce62](https://github.com/NEETROF/cymbra/commit/14fce6205760fa1262e5a111e3db324e7a3561f7))
+* **lingua:** the language choice and Lingua page say nothing of price ([#854](https://github.com/NEETROF/cymbra/issues/854)) ([f2a485e](https://github.com/NEETROF/cymbra/commit/f2a485eed82f37f2b2c62eede919c5833bb8943a))
+* **lingua:** the listings and the site, for the readers who study French ([#868](https://github.com/NEETROF/cymbra/issues/868)) ([2550a6e](https://github.com/NEETROF/cymbra/commit/2550a6e7ab3c8a2b43f6cea5535c5b2bc2e9eac2))
+* **platform:** Cymbra ID e-mails link the legal pages in their language ([#794](https://github.com/NEETROF/cymbra/issues/794)) ([5c7a6c5](https://github.com/NEETROF/cymbra/commit/5c7a6c5a3de8df35b845a3586d600a47004614ed))
+* **site:** privacy annex names the languages Lingua stores ([#797](https://github.com/NEETROF/cymbra/issues/797)) ([4741b7a](https://github.com/NEETROF/cymbra/commit/4741b7a4bdbcc379d9ccf08b2d5036d312954ba0))
+* **site:** Spanish home and Music pages ([#845](https://github.com/NEETROF/cymbra/issues/845)) ([aabe17b](https://github.com/NEETROF/cymbra/commit/aabe17b3822b1381fda15939a7f7671190d1ce74))
+* **site:** Spanish locale — privacy, terms, support, deletion, 404 ([#792](https://github.com/NEETROF/cymbra/issues/792)) ([bfd0df6](https://github.com/NEETROF/cymbra/commit/bfd0df6fe08b7826ada4fe61dcd2ec91aa0ff227))
+* **site:** the Lingua page per language, built from the shipped pairs ([#799](https://github.com/NEETROF/cymbra/issues/799)) ([c384536](https://github.com/NEETROF/cymbra/commit/c3845363c58f99fba05b61fd8340b996e9a4821c))
+
 ## [0.13.0](https://github.com/NEETROF/cymbra/compare/site-v0.12.0...site-v0.13.0) (2026-10-06)
 
 
