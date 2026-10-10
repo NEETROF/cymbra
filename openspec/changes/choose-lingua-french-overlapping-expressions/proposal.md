@@ -4,13 +4,13 @@
 
 Row 44f of the [language matrix programme](../../../docs/lingua/language-matrix-programme.md),
 outside its 57 changes. The phrase gloss finds a selection's expressions from left to right: from
-each token, the longest run that is a key wins, and the next run starts past it (`add-lingua-expression-table`'s
-D3, change 44). When two expressions overlap, the one that starts first always
-wins, however short. Change 44d (`match-lingua-french-contracted-pieces`, merged) measured the case
-the owner then made a change of its own on 2026-10-10 (its open question 4): in « Elles sont **au**
-nombre de sept », `être à` (« to pertain to; to belong to ») takes the `à` of « au », so the card
-shows it, and `nombre de` (« quite a few »), where `au nombre de` (« numbering; among ») fits —
-91 such places in fr-en, 33 in fr-es on its corpora.
+each token, the longest run that is a key wins, and the next run starts past it
+(`add-lingua-expression-table`'s D3, change 44). When two expressions overlap, the one that starts
+first always wins, however short. Change 44d (`match-lingua-french-contracted-pieces`, merged)
+measured the case the owner then made a change of its own on 2026-10-10 (its open question 4): in
+« Elles sont **au** nombre de sept », `être à` (« to pertain to; to belong to ») takes the `à` of
+« au », so the card shows it, and `nombre de` (« quite a few »), where `au nombre de` (« numbering;
+among ») fits — 91 such places in fr-en, 33 in fr-es on its corpora.
 
 Measured over change 44c's 51,790 French selections (1,085,056 tokens: change 39's corpus, UD
 French-GSD, four Gutenberg novels, French Wikipedia, Tatoeba), on `main` 9c88442a:
