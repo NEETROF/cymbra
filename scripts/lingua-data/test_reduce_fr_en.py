@@ -2084,6 +2084,20 @@ FRENCH_SECTION = [
     {"word": "et des", "pos": "phrase", "senses": [{"glosses": ["or thereabouts, and change, and a bit over"], "tags": ["Belgium", "informal"]}]},
     {"word": "sur son trente-et-un", "pos": "adj", "senses": [{"glosses": ["post-1990 spelling of sur son trente et un"], "tags": ["colloquial", "invariable"]}]},
     {"word": "à priori", "pos": "prep_phrase", "senses": [{"glosses": ["post-1990 spelling of a priori"]}]},
+    # Expressions D4 would make of no meaning, left out by the owner (2026-10-10), and two it keeps.
+    {"word": "point d'inflexion", "pos": "noun", "senses": [{"glosses": ["inflection point, point of inflection (a point on a curve at which the sign of the curvature changes; at this point the second derivative of the underlying function will be zero, but positive on one side and negative on the other)"], "tags": ["masculine"]}]},
+    {"word": "n'ai", "pos": "verb", "senses": [{"glosses": ["contraction of ne (“not”) + ai (first-person singular indicative present form of avoir)"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "ne", "extra": "(“not”) + ai (first-person singular indicative present form of avoir)"}]}]},
+    {"word": "l'a", "pos": "contraction", "senses": [{"glosses": ["contraction of le/la (“him/her/it”, accusative singular clitic) + a (“has”)"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "le/la", "extra": "(“him/her/it”, accusative singular clitic) + a (“has”)"}]}]},
+    {"word": "t'es", "pos": "contraction", "senses": [{"glosses": ["contraction of te + es"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "te", "extra": "+ es"}]}, {"glosses": ["contraction of tu + es: you're"], "tags": ["abbreviation", "alt-of", "colloquial", "contraction"], "alt_of": [{"word": "tu", "extra": "+ es: you're"}]}]},
+    {"word": "t'as", "pos": "contraction", "senses": [{"glosses": ["contraction of tu + as, literally “you've”"], "tags": ["abbreviation", "alt-of", "colloquial", "contraction"], "alt_of": [{"word": "tu", "extra": "+ as, literally “you've”"}]}]},
+    {"word": "j'suis", "pos": "contraction", "senses": [{"glosses": ["contraction of je + suis, literally “I am, I'm”"], "tags": ["abbreviation", "alt-of", "contraction", "informal"], "alt_of": [{"word": "je", "extra": "+ suis, literally “I am, I'm”"}]}]},
+    {"word": "ç'a", "pos": "contraction", "senses": [{"glosses": ["contraction of ce + a: it has, that has"], "tags": ["abbreviation", "alt-of", "contraction"], "alt_of": [{"word": "ce", "extra": "+ a: it has, that has"}]}]},
+    {"word": "de les", "pos": "article", "senses": [{"glosses": ["alternative form of des, \"of the\", some"], "tags": ["Louisiana", "alt-of", "alternative", "feminine", "masculine", "plural"], "alt_of": [{"word": "des", "extra": "\"of the\", some"}]}]},
+    {"word": "de le", "pos": "article", "senses": [{"glosses": ["alternative form of du, \"of the\", some"], "tags": ["Louisiana", "alt-of", "alternative", "masculine"], "alt_of": [{"word": "du", "extra": "\"of the\", some"}]}]},
+    {"word": "à le", "pos": "article", "senses": [{"glosses": ["Used other than figuratively or idiomatically: see à, le."], "tags": ["masculine"]}, {"glosses": ["alternative form of au (“to the”)"], "tags": ["Louisiana", "alt-of", "alternative", "masculine"], "alt_of": [{"word": "au", "extra": "to the"}]}]},
+    {"word": "à les", "pos": "prep", "senses": [{"glosses": ["Used other than figuratively or idiomatically: see à, les."]}, {"glosses": ["alternative form of aux (“to the”)"], "tags": ["Louisiana", "alt-of", "alternative"], "alt_of": [{"word": "aux", "extra": "to the"}]}]},
+    {"word": "j't'à", "pos": "contraction", "senses": [{"glosses": ["contraction of je + suis + à; the 't' is epenthetic"], "tags": ["Quebec", "abbreviation", "alt-of", "colloquial", "contraction"], "alt_of": [{"word": "je", "extra": "+ suis + à; the 't' is epenthetic"}]}]},
+    {"word": "poser des lapins", "pos": "verb", "senses": [{"glosses": ["alternative form of poser un lapin (frequentative or plural)"], "tags": ["alt-of", "alternative"], "alt_of": [{"word": "poser un lapin", "extra": "frequentative or plural"}]}]},
 ]
 
 # The ranks change 43 gives these lemmas (tables/fr/freq.tsv); each is its own form's lemma.
@@ -2369,6 +2383,29 @@ class ReadAsFrench(unittest.TestCase):
         # « un coup d'œil » then meets `coup d'œil` alone.
         self.assertEqual(self.expressions["coup d'œil"], "glance, look; sight")
         self.assertEqual(self.expressions["parce que"], "because")
+
+    def test_an_expression_d4_would_make_of_no_meaning(self):
+        # Settled by the owner on 2026-10-10, after the implementation found them: a contraction's
+        # spelling met wherever its plain words are written (`à le` « to the » on every « au »,
+        # `de le` on « de le faire », `j'suis` on every « je suis », `ç'a` on every « ça a »), one
+        # piece's meaning (`l'a` « him/her/it », `n'ai` « not »), a grammatical note (`j't'à`,
+        # `poser des lapins` « frequentative or plural ») or half a definition (`point d'inflexion`).
+        for word in ("à le", "à les", "de le", "de les", "l'a", "n'ai", "j'suis", "ç'a", "j't'à", "poser des lapins", "point d'inflexion"):
+            self.assertIn(word, red.LEFT_OUT, word)
+            self.assertTrue(red.LEFT_OUT[word], word)
+            self.assertNotIn(word, self.expressions, word)
+        # A contraction met only where it is written so, read whole, stays: « t'as » « you've ».
+        self.assertEqual(self.expressions["t'as"], "you've")
+        self.assertEqual(self.expressions["t'es"], "you're")
+        # Without the rows, D4 would have read them.
+        with mock.patch.dict(red.LEFT_OUT, clear=False):
+            for word in ("à le", "de le", "l'a", "poser des lapins"):
+                del red.LEFT_OUT[word]
+            _, _, expressions, _ = french_native()
+        self.assertEqual(expressions["à le"], "to the")
+        self.assertEqual(expressions["de le"], "“of the”, some")
+        self.assertEqual(expressions["l'a"], "him/her/it")
+        self.assertEqual(expressions["poser des lapins"], "frequentative or plural")
 
     def test_spec_scenario_a_post_1990_spelling_keyed_apart(self):
         self.assertEqual(self.expressions["à priori"], self.expressions["a priori"])

@@ -63,9 +63,12 @@ the English edition's meanings, reads a pointer that carries its meaning as that
 function word's row on the part of speech UD French-GSD reads it as (D5, the treebank's module, which
 fr-es is to read too), leaves a name out of a function word's row (D6) and takes the
 page's notes out (D8); five expressions whose sense needs a context are left out and six post-1990
-spellings lend their traditional spelling's gloss (D7); « etc » takes its period back (D8). Measured
-on the pinned section (its design's *Measured*): 291 rows change, 117 of the 10,000 commonest, 12
-lemmas gain a gloss and none loses one; 26 expressions change, 172 are gained and 5 left out. French's
+spellings lend their traditional spelling's gloss (D7), and eleven expressions D4 would make — a
+contraction's spelling met wherever its plain words are written, one piece's meaning, a grammatical
+note — are left out by the owner's decision of 2026-10-10; « etc » takes its period back (D8).
+Measured on the pinned section (its design's *Measured*): 291 rows change, 117 of the 10,000
+commonest, 12 lemmas gain a gloss and none loses one; 26 expressions change, 161 are gained and 5
+left out. French's
 dictionary words are fr-en's glossed lemmas less the 3,581 it glosses by a proper noun's senses alone
 (`paris`, `durand`: D2, `dictionary_words`), written here so that the levels can read them: a French
 level goes to a dictionary word alone (D3).
@@ -1281,6 +1284,55 @@ LEFT_OUT = {
         "cannot tell from the noun's: of 11 « un coup » in UD French-GSD none means either (7 are « un "
         "coup de »), and « un coup d'œil » would meet it beside `coup d'œil`"
     ),
+    # Settled by the owner on 2026-10-10, after the implementation found them: expressions D4 would
+    # make of a pointer (an expression's pointer is read whatever it names) whose « meaning » is no
+    # meaning of the expression a reader meets — the pre-pass's own reading of a contraction met
+    # wherever the plain words are written, one piece's meaning, or a grammatical note.
+    "à le": (
+        "a Louisiana spelling of « au » (« alternative form of au (“to the”) »): the pre-pass writes "
+        "every « au » as `à` + `le`, so every « au » would meet a spelling no reader writes"
+    ),
+    "à les": (
+        "a Louisiana spelling of « aux » (« alternative form of aux (“to the”) »): the pre-pass writes "
+        "every « aux » as `à` + `les`, so every « aux » would meet a spelling no reader writes"
+    ),
+    "de le": (
+        "a Louisiana spelling of « du » (« of the, some »): « de » before the pronoun « le » would meet "
+        "it — « décidé de le faire » would read « of the, some »"
+    ),
+    "de les": (
+        "a Louisiana spelling of « des » (« of the, some »): « de » before the pronoun « les » would "
+        "meet it — « parle de les voir » would read « of the, some »"
+    ),
+    "l'a": (
+        "a contraction of « le »/« la » and « a » whose pointer carries the pronoun's meaning alone, "
+        "« him/her/it »: every « l'a » (« il l'a vu ») would meet it"
+    ),
+    "n'ai": (
+        "a contraction of « ne » and « ai » whose pointer carries the negation's meaning alone, « not »: "
+        "every « je n'ai » would meet it"
+    ),
+    "j'suis": (
+        "a contraction of « je » and « suis »: the pre-pass reads « j' » as `je`, so every « je suis » "
+        "would meet a colloquial spelling it does not write, as every « au » would meet `à le`"
+    ),
+    "ç'a": (
+        "a contraction of « ce » and « a »: the pre-pass reads « ç' » as `ça`, so every « ça a » would "
+        "meet a spelling it does not write, as every « au » would meet `à le`"
+    ),
+    "j't'à": (
+        "a contraction whose pointer carries a grammatical note, « the 't' is epenthetic », not a meaning"
+    ),
+    "poser des lapins": (
+        "its one sense points at « poser un lapin » with a grammatical note, « frequentative or "
+        "plural », not a meaning"
+    ),
+    "point d'inflexion": (
+        "its one sense is a definition the English edition's rules read as a pointer (« inflection "
+        "point, point of inflection (…; at this point the second derivative of… »), and an expression's "
+        "pointer read past its semicolon leaves half a sentence, « at this point the second derivative "
+        "of the »"
+    ),
 }
 
 
@@ -1400,7 +1452,7 @@ def split_words(path, forms, maxlen=common.EXPRESSION_GLOSS_LEN, per_sense=42, m
 # fr-en's alone, in its reducer, so only fr-en re-pins (design D1). Each was measured alone on the
 # whole table and on the 10,000 commonest lemmas, over the pinned section (design *Measured*): with
 # all of them, 291 rows change (117 of the top 10,000), 12 lemmas gain a gloss and none loses one,
-# 26 expressions change, 172 are gained and 5 left out. Several would read es-en's rows right too
+# 26 expressions change, 161 are gained and 5 left out. Several would read es-en's rows right too
 # (« (all senses) », « etc »): es-en's next refinement of the English edition (D9).
 
 # D4 — a pointer that carries its meaning. A word's pointer is read as its meaning only for these
