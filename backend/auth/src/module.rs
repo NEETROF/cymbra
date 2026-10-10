@@ -1601,10 +1601,10 @@ mod tests {
         ));
         assert!(h.email.sent.lock().unwrap().is_empty());
 
-        // A weak password.
+        // A weak password: the test passphrase cut short.
         let h = harness_over(no_locale_port());
         assert!(matches!(
-            h.m.set_local_credential(UID, ACCOUNT, "short", "fr").await,
+            h.m.set_local_credential(UID, ACCOUNT, &PW[..5], "fr").await,
             Err(AppError::InvalidArgument(_))
         ));
         assert!(h.email.sent.lock().unwrap().is_empty());
