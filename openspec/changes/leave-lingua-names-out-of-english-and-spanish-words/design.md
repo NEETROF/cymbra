@@ -7,7 +7,7 @@ See proposal.md (Why). What exists, on `main` at `f3585580`:
 | Where | What |
 |---|---|
 | `tables/<lang>/studied.json` | English's reference pair is en-fr, Spanish's es-fr, French's fr-en. The reference's reduction writes the studied tables, and its glossed lemmas, as its reduction writes them, are the language's dictionary words |
-| `reduce-fr-en.py` `dictionary_words` (48b D2) | French's dictionary words: fr-en's glossed lemmas less those every sense run of which is `PROPN`, written to `lexical.tsv` (30,055 → 26,486). The levels read them (48b D3) |
+| `reduce-fr-en.py` `dictionary_words` (48b D2) | French's dictionary words: fr-en's glossed lemmas less those every sense run of which is `PROPN`, written to `lexical.tsv` (26,486 of its 30,067 glossed lemmas). The levels read them (48b D3) |
 | `reduce-en-fr.py`, `reduce-es-fr.py` | Write no `lexical.tsv`. Their rule digests are `reduce-<pair>.py`, `reduce_common.py` and `reduce_edition_fr.py`, the French Wiktionary's module, which no other pair loads |
 | `pack_sources.py split` (48b) | Files a reference's own `lexical.tsv` when its reducer wrote one, else writes the reference's glossed lemmas. In no rule digest |
 | `crates/lingua-pack/src/tables.rs` `check_studied`, `names_only` (48b) | A studied folder's `lexical.tsv` must be the reference's glossed lemmas, or those less every one whose `senses.tsv` runs are all `PROPN`; anything else fails, naming the lemma |
@@ -87,7 +87,8 @@ may be a word a learner wants. Measured two ways:
   The words a learner may want:
   - **English, words English always capitalises**: `easter`, `halloween`, `islam`, `judaism`,
     `ramadan`, `passover`, `renaissance`, `hebrew`, `hindi`, `sanskrit`, `urdu`, `telugu`, `croatian`,
-    `esperanto` (out of the 124 only for some of them);
+    `esperanto` (the Spanish Wiktionary gives most of them a common noun's sense, so they are among
+    the 124);
   - **English, mis-tagged**: `unseen` « Inédit; Inaperçu », `goofy`, `saline`, `heartland`, `tong`,
     `butte`, `glover`;
   - **Spanish**: `cristo`, `biblia`, `islam`; mis-tagged `títere` « Marionnette », `tea` (the
@@ -166,7 +167,7 @@ run of which (`senses.tsv`) is `PROPN`. The runs are the reference's: the French
 and Spanish sections for en-fr and es-fr. Their `PROPN` is the page's « Nom propre », kaikki's `name`
 part of speech. This is 48b's D2 for French, word for word, and `check_studied` already holds it for
 any language. A lemma with a common sense beside a name's stays a word: `bill`, `mark`, `will`, `hope`
-in English, `luna`, `sol`, `don` in Spanish. The lemma keeps its gloss: a reader who selects `Madrid`
+in English, `luna` and `don` in Spanish. The lemma keeps its gloss: a reader who selects `Madrid`
 or `London` reads it, and so does one who meets it written in lowercase.
 
 *Rejected: any sense that is a name's* (a lemma with one `PROPN` run, or a sense tagged `surname`
