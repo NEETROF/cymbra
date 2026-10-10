@@ -115,9 +115,10 @@ cas »), 3 more. fr-es holds neither `de l'` nor `de un`: it loses `c'est clair`
 across a number, « d'la » (4), `coup de pied`, `ce qui`, and `se altérer` on « s'altèrent » (2, a
 headword the Spanish Wiktionary writes without its elision); it gains `du gâteau`.
 
-The rule as worded would also refuse the last piece written in full on an elided word: 2,521 right
-matches in fr-en and 1,996 in fr-es, the « Bien qu'il » and « Qu’est-ce qu’il » change 44's D1
-rejected matching on written words to keep (open question 1).
+The rule as worded would also refuse the last piece written in full on an elided word: 2,521
+matches in fr-en, all but one right (Risks), and 1,996 in fr-es, whose last pieces are all `de`,
+`que` or `si` — among them the « Bien qu'il » and « Qu’est-ce qu’il » change 44's D1 rejected
+matching on written words to keep (open question 1).
 
 *Rejected — elided pieces only* (an elided headword piece needs an elided word, a piece in full takes
 either): it keeps the 1,513 `de un` on « d’un », the commonest wrong match measured; it loses 495
@@ -288,8 +289,8 @@ For the owner, none blocking — each with the design's recommendation:
 1. **The last piece written in full (D1).** Your rule, word for word, would also stop « parce qu’il
    pleut » answering `parce que`, « pas d’argent » `pas de` and « Bien qu’il pût venir » `bien que`:
    the `que` is elided because « il » follows, and « il » is not part of the expression. That is
-   2,521 right matches in fr-en and 1,996 in fr-es on the corpus. Recommended: a last piece written
-   in full meets either form; a last piece written elided (`de l'`) still needs « l’ ».
+   2,521 matches in fr-en (all but one right) and 1,996 in fr-es on the corpus. Recommended: a last
+   piece written in full meets either form; a last piece written elided (`de l'`) still needs « l’ ».
 2. **`c'est` and the other forms written in full (D4).** With the rule, « Ce sont mes amis », « ce fut
    le cas » and « que ce soit » no longer show the card `c'est` (282 matches in fr-en); « C’était
    l’hiver » still does. Likewise « J’étais enceinte » no longer shows `je suis enceinte`, and

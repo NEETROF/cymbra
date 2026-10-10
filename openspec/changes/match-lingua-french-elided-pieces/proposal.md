@@ -22,16 +22,16 @@ elided pieces —, of fr-en's 62,803 matches today:
 - **an elided piece meets a word written in full 492 times**: `de l'` on « de le » 165 times (« offert
   de le payer »), `c'est` on « ce sont », « ce fut », « ce soit », « ce sera » 282 times, and 45
   more, 34 of them across a number the tokeniser drops (« de 1278 entre » answers `d'entre`) and 5
-  across an inversion (« Pourrais-je avoir » answers `j'ai`);
+  across an inversion or a markup (« Pourrais-je avoir » answers `j'ai`);
 - **a piece written in full meets an elided word 4,047 times**: 1,526 inside the expression, of which
   1,513 are `de un` (« first, first up ») on every « d'un » (« ne se souvenait d’un hiver » in change
-  39's own corpus); and 2,521 on the expression's last piece, all right: `parce que` on « parce
+  39's own corpus); and 2,521 on the expression's last piece, all but one right: `parce que` on « parce
   qu'il », `pas de` on « pas d'argent », `bien que` on « Bien qu'il pût venir ».
 
 The last figure is why the rule needs one reading the owner's wording does not spell out: French
 elides a word before the word that follows it, and after an expression's last piece that word is the
 page's, outside the expression. Applied there too, the rule would stop « parce qu'il pleut »
-answering `parce que` — 2,521 right matches in fr-en, 1,996 in fr-es, and the « Qu’est-ce qu’il
+answering `parce que` — 2,521 matches in fr-en, all but one right, 1,996 in fr-es, and the « Qu’est-ce qu’il
 attend » and « Bien qu'il pût venir » change 44 kept on purpose (its D1).
 
 ## What Changes
