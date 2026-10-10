@@ -2303,6 +2303,28 @@ class Split(unittest.TestCase):
         self.assertEqual((self.tables / "es" / "lexical.tsv").read_text(encoding="utf-8"), "casa\ndios\nárbol\n")
         self.assertEqual((self.tables / "es" / "tags.tsv").read_text(), "NOUN\nVERB\n")
 
+    def test_a_reference_whose_reducer_writes_its_dictionary_words_has_them_filed(self):
+        # refine-lingua-fr-en-glosses D2: fr-en's reducer writes French's dictionary words — its
+        # glossed lemmas less those it glosses as names alone — and `split` files them as written.
+        (self.work / "gloss.tsv").write_text("maison\tHouse\nparis\tParis\nlot\tbatch; Lot\n", encoding="utf-8")
+        (self.work / "lexical.tsv").write_text("lot\nmaison\n", encoding="utf-8")
+        written = ps.split(self.work, self.tables, "fr-en")
+        self.assertIn("fr/lexical.tsv", written)
+        self.assertEqual((self.tables / "fr" / "lexical.tsv").read_text(encoding="utf-8"), "lot\nmaison\n")
+        # It is no table of the pair's: tables/fr-en/ holds none.
+        self.assertFalse((self.tables / "fr-en" / "lexical.tsv").exists())
+        # A reader pair's reducer that wrote one writes nothing of the studied folder.
+        before = (self.tables / "fr" / "lexical.tsv").read_bytes()
+        (self.work / "lexical.tsv").write_text("augusto\n", encoding="utf-8")
+        written = ps.split(self.work, self.tables, "fr-es")
+        self.assertTrue(all(w.startswith("fr-es/") for w in written), written)
+        self.assertEqual((self.tables / "fr" / "lexical.tsv").read_bytes(), before)
+        # A reference whose reducer writes none — en-fr's and es-fr's — has its glossed lemmas
+        # written, byte for byte as before.
+        (self.work / "lexical.tsv").unlink()
+        ps.split(self.work, self.tables, "es-fr")
+        self.assertEqual((self.tables / "es" / "lexical.tsv").read_text(encoding="utf-8"), "lot\nmaison\nparis\n")
+
     def test_the_dictionary_words_are_read_as_the_builder_reads_a_gloss_table(self):
         # lingua_pack::tsv_pairs: lines split on \n alone, a trailing \r dropped, the key before the
         # first tab, trimmed; a line without a tab or with a blank key is no gloss. A lone \r is no

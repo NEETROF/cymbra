@@ -261,7 +261,9 @@ PAIR_TABLES = ("gloss.tsv", "mwe.tsv", "senses.tsv", "NOTICE", "manifest.json")
 # the folder, and whose glossed lemmas are the language's dictionary words.
 STUDIED_RECORD = "studied.json"
 # The dictionary words (add-lingua-pack-lexical-layer D1, D3): the reference's glossed lemmas,
-# written by `split` beside the studied tables — no reducer writes them, so no digest moves.
+# written by `split` beside the studied tables — or, when the reference's reducer wrote its own
+# (fr-en's: its glossed lemmas less those it glosses as names alone, refine-lingua-fr-en-glosses D2),
+# that file, filed as it is. The rule is the reducer's, in its digest; `split` is plumbing.
 LEXICAL = "lexical.tsv"
 # The inputs of a studied folder that nothing writes but a person, so that no rule digest moves with
 # them (add-lingua-pack-lexical-layer D4): the pinned tag pool, and the record naming the reference.
@@ -429,9 +431,10 @@ def split(work: Path, tables: Path, pair: str) -> list[str]:
     """File a reduction's tables, left in `work` by the pair's reducer, into `tables`: the native
     side into tables/<pair>/, and — when `pair` is its studied language's reference, or the first
     pair reduced for a language — the studied side into tables/<studied>/, with the dictionary words
-    (`lexical.tsv`, the pair's glossed lemmas). Any other pair reads the studied folder and never
-    writes it: what its reducer wrote of the studied side is left in `work`. Answers the files
-    written, as `<folder>/<file>`."""
+    (`lexical.tsv`: the one the reducer wrote, when it wrote one — fr-en's, which leaves out the
+    lemmas it glosses as names alone —, else the pair's glossed lemmas). Any other pair reads the
+    studied folder and never writes it: what its reducer wrote of the studied side is left in
+    `work`. Answers the files written, as `<folder>/<file>`."""
     lang = studied_of(pair)
     written = []
 
@@ -454,9 +457,12 @@ def split(work: Path, tables: Path, pair: str) -> list[str]:
         reference = pair
     if reference == pair:
         file(STUDIED_TABLES, studied)
-        (studied / LEXICAL).write_text(
-            "".join(f"{w}\n" for w in glossed_lemmas(tables / pair / "gloss.tsv")), encoding="utf-8"
-        )
+        if (work / LEXICAL).is_file():
+            shutil.copyfile(work / LEXICAL, studied / LEXICAL)
+        else:
+            (studied / LEXICAL).write_text(
+                "".join(f"{w}\n" for w in glossed_lemmas(tables / pair / "gloss.tsv")), encoding="utf-8"
+            )
         written.append(f"{lang}/{LEXICAL}")
     return written
 
