@@ -61,7 +61,7 @@ final class SignInLanguageTests: XCTestCase {
     func testAScreenShowsTheRequestedLanguageOnlyAmongTheOffered() {
         // Every shipped pair glossed in French: the sheet asked for English shows French.
         XCTAssertEqual(SignInLanguage.shown(.en, offered: [.fr], preferred: .fr), .fr)
-        // es-en ships: a Spanish-native reader's sheet is Spanish once Spanish is offered…
+        // en-es ships (change 35): a Spanish-native reader's sheet is Spanish once Spanish is offered…
         XCTAssertEqual(SignInLanguage.shown(.es, offered: [.fr, .en, .es], preferred: .en), .es)
         // …and the device's preferred localisation when it is not.
         XCTAssertEqual(SignInLanguage.shown(.es, offered: [.fr, .en], preferred: .en), .en)
