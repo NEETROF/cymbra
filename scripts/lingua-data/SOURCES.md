@@ -509,6 +509,11 @@ cifra de negocios, facturación; Corriente alterna » from its own expressions, 
 byte, the pack 1,969,484 B. fr-en's and fr-es's rule digests move, and fr-es's pin records the new
 studied tables.
 
+**Every headword of a shared key** (pick-lingua-expression-written-as-the-page): no table moves; a
+French pack keeps the other headwords of the keys several reach (`ça va` beside `ça ira` on `ça
+aller`) and lists them in `expr.others` — fr-en 61 headwords on 60 keys, 2,536,702 B, fr-es 64 on
+64, 1,971,104 B —, `pack_version` unchanged, their pins alone moving.
+
 ## The editions' dumps
 
 kaikki is read at **three addresses, one dump per Wiktionary edition**
