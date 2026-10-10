@@ -237,6 +237,14 @@ const PHRASES: &[&str] = &[
     "Quelle que soit la distance",
     "Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.",
     "Personne au village ne se souvenait",
+    // add-lingua-fr-en-translated-expressions D8: a table expression met (« il existe »), none where
+    // the table's was left out by name (« les autres »), and a proper noun's entry the table glosses
+    // (« moyen âge »); the section's expression where the table's would have taken its key
+    // (« une crème brûlée ») or cut it (« sur le champ de bataille ») are refine-lingua-fr-es-expressions'
+    // probes, below.
+    "Il existe plusieurs solutions.",
+    "Les autres enfants jouent dehors.",
+    "au Moyen Âge",
     "The lighthouse stood",
     "El faro se alzaba",
     "El far s'alçava",

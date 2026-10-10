@@ -73,7 +73,13 @@
 //! « apres » and « genial » on the `informel` page read as `après` and `génial`, the two vocabulary
 //! estimates — and five phrase probes, « c'etait deja tres bien », « une facon de parler francais »,
 //! « j'ai recu ta reponse », « L'Ecole est fermée. » and « regarde cette video », and two grammar
-//! probes, `recu` and `arrete`, are added).
+//! probes, `recu` and `arrete`, are added; add-lingua-fr-en-translated-expressions: fr-en's
+//! expressions completed by the French Wiktionary's English translations move the pack, notice and
+//! licences lines and four phrase probes that now meet one of its expressions — « Il est prêt à le
+//! faire » « prêt à », « un moteur diesel » « moteur diesel », « Il est au courant de tout. » « être
+//! au courant », longer than « au courant », and « Elle se leva. » « se lever » —, and three phrase
+//! probes are added, « Il existe plusieurs solutions. », « Les autres enfants jouent dehors. » and
+//! « au Moyen Âge »).
 //! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
 //! renders this golden's grammar and phrase probes, and is re-blessed with it
 //! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).
