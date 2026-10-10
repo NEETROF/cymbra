@@ -169,7 +169,6 @@ afin	A1
 africain	B1
 afro	B2
 afro-américain	C2
-age	B1
 agence	A1
 agenda	B1
 agent	A2
@@ -631,7 +630,7 @@ auquel	A2
 aurore	B2
 aussi	A1
 aussitôt	B1
-australien	B2
+australien	B1
 austérité	B2
 autant	A1
 autel	B1
@@ -957,7 +956,7 @@ bouclier	B2
 bouclé	C2
 bouddha	B2
 bouddhisme	C1
-boue	B2
+boue	B1
 bouffe	B1
 bouffer	B1
 bouffon	C2
@@ -1095,7 +1094,6 @@ bêtement	B2
 bêtise	B2
 bœuf	B2
 c'est-à-dire	A1
-ca	A1
 cabane	B2
 cabaret	B2
 cabine	B1
@@ -1633,7 +1631,7 @@ communion	B2
 communiquer	B1
 communiqué	A2
 communisme	B2
-communiste	B1
+communiste	A2
 communément	B2
 commémoration	C1
 compact	C1
@@ -2006,6 +2004,7 @@ coût	A2
 coûter	B2
 coûteux	B2
 cpe	C1
+crabe	C2
 cracher	B2
 crack	B2
 craindre	B1
@@ -2039,7 +2038,7 @@ croisade	B2
 croisement	B2
 croiser	B1
 croisière	B2
-croissance	A2
+croissance	A1
 croissant	B1
 croisé	B1
 croix	A2
@@ -2082,6 +2081,7 @@ cuire	B2
 cuisine	A1
 cuisiner	B2
 cuisinier	B2
+cuisinière	C2
 cuisse	B2
 cuisson	B2
 cuit	B2
@@ -2143,6 +2143,7 @@ dans	A1
 danse	A2
 danser	B1
 danseur	B2
+dar	C2
 das	B2
 date	A1
 dater	C2
@@ -3159,7 +3160,6 @@ football	A1
 footballeur	B2
 forage	C2
 force	A1
-forcement	C2
 forcer	B1
 forcément	A2
 ford	B1
@@ -4808,7 +4808,7 @@ mordre	B2
 mordu	C2
 more	B1
 moreau	B2
-morphologie	C2
+morphologie	C1
 mort	A1
 mortalité	B1
 mortel	B1
@@ -4953,7 +4953,7 @@ nager	B2
 nain	B2
 naissance	A1
 nana	B1
-nantais	C2
+nantais	C1
 napoléon	B1
 nappe	C1
 narrateur	B2
@@ -4981,7 +4981,7 @@ nazi	B2
 nazisme	C1
 naître	B1
 naïf	B2
-naïveté	C1
+naïveté	B2
 ne	A1
 nef	B2
 neige	A2
@@ -5318,7 +5318,7 @@ parallèle	A2
 parallèlement	B1
 paralysie	C1
 paramètre	C2
-parano	C1
+parano	B2
 parapluie	C1
 parasite	B2
 paraître	B1

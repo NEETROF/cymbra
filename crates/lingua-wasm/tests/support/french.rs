@@ -86,6 +86,12 @@
 //! At analyser `1.1.0` French's detection guard (add-lingua-french-detection-guard) refuses the
 //! `mixte` page's Occitan block, which whichlang reads as French; its Catalan block whichlang reads
 //! as Italian, guard or not.
+//!
+//! fr-en's reducer reads four spellings without their marks as their word
+//! (read-lingua-french-ca-as-ca-cedilla): `ca` as `ça` — the `informel` page's « ca va aller » —,
+//! `age` and `ages` as `âge`, `forcement` as `forcément`. Four phrase probes show it where a reader
+//! meets it: « comme ca », « c'est ca », « à mon age », and « Le CA a voté le budget. », the record
+//! that « CA » in capitals reads as `ça` until an analyser change keeps the acronym.
 
 use super::{Card, PackSource, Scenario};
 
@@ -150,7 +156,10 @@ const LEMMAS: &[&str] = &[
 /// (match-lingua-french-contracted-pieces), the `homographes` page's « pas » and `son`, both flagged
 /// (M21 and M8's cost), and the
 /// `fiction` page's `Personne`, not, and the blocks that are not French (English, Spanish,
-/// Catalan, Occitan, Italian).
+/// Catalan, Occitan, Italian), and French written without its marks as fr-en's table reads it
+/// (read-lingua-french-ca-as-ca-cedilla): « comme ca » and « c'est ca » meet `ça`'s expressions,
+/// « à mon age » reads `âge`, and « Le CA a voté le budget. » records that « CA » in capitals reads
+/// as `ça` until an analyser change reads a word in capitals apart, which moves it.
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -188,6 +197,10 @@ const PHRASES: &[&str] = &[
     "El far s'alçava",
     "Lo far se quilhava",
     "Il faro si ergeva",
+    "comme ca",
+    "c'est ca",
+    "Le CA a voté le budget.",
+    "à mon age",
     // The whole-selection card of a word written as pieces, as a double-click selects it
     // (add-lingua-french-word-card D7).
     "l\u{2019}homme",

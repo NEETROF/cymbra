@@ -3220,7 +3220,6 @@ agaçant	agaçant	ADJ|Gender=Masc|Number=Sing	-
 agaçante	agaçant	ADJ|Gender=Fem|Number=Sing	-
 agaçantes	agaçant	ADJ|Gender=Fem|Number=Plur	-
 agaçants	agaçant	ADJ|Gender=Masc|Number=Plur	-
-age	age	NOUN|Gender=Masc|Number=Sing	-
 agence	agence	NOUN|Gender=Fem|Number=Sing	-
 agence	agencer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	other
 agence	agencer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
@@ -3272,7 +3271,6 @@ agente	agent	NOUN|Gender=Fem|Number=Sing	-
 agentes	agent	NOUN|Gender=Fem|Number=Plur	-
 agents	agent	NOUN|Gender=Masc|Number=Plur	-
 agençant	agencer	VERB|Tense=Pres|VerbForm=Part	-
-ages	age	NOUN|Gender=Masc|Number=Plur	-
 agglo	agglo	NOUN|Gender=Masc|Number=Sing	-
 agglomération	agglomération	NOUN|Gender=Fem|Number=Sing	-
 agglomérations	agglomération	NOUN|Gender=Fem|Number=Plur	-
@@ -30484,6 +30482,10 @@ cônes	cône	NOUN|Gender=Masc|Number=Plur	-
 côte	côte	NOUN|Gender=Fem|Number=Sing	-
 côtelette	côtelette	NOUN|Gender=Fem|Number=Sing	-
 côtelettes	côtelette	NOUN|Gender=Fem|Number=Plur	-
+côtelé	côtelé	ADJ|Gender=Masc|Number=Sing	-
+côtelée	côtelé	ADJ|Gender=Fem|Number=Sing	-
+côtelées	côtelé	ADJ|Gender=Fem|Number=Plur	-
+côtelés	côtelé	ADJ|Gender=Masc|Number=Plur	-
 côtes	côte	NOUN|Gender=Fem|Number=Plur	-
 côtier	côtier	ADJ|Gender=Masc|Number=Sing	-
 côtiers	côtier	ADJ|Gender=Masc|Number=Plur	-
@@ -50566,8 +50568,6 @@ force	forcer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
 force	forcer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	other
 force	forcer	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
 force	forcer	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	other
-forcement	forcement	NOUN|Gender=Masc|Number=Sing	-
-forcements	forcement	NOUN|Gender=Masc|Number=Plur	-
 forcent	forcer	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
 forcent	forcer	VERB|Mood=Sub|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
 forcené	forcené	ADJ|Gender=Masc|Number=Sing	-

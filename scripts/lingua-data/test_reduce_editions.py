@@ -1667,6 +1667,47 @@ class FrEnGlossesReadAsFrench(Entries):
         self.assertNotIn("pack_sources.py", [p.name for pair in pairs for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")])
 
 
+class FrenchUnmarkedSpellings(Entries):
+    """read-lingua-french-ca-as-ca-cedilla: French's table of spellings without their marks, in
+    fr-en's reducer (D1, D4)."""
+
+    def test_spec_scenario_nothing_else_moves(self):
+        # The table lives in reduce-fr-en.py: editing a row moves fr-en's rule digest alone — es-en's,
+        # glossed by the same English edition, en-fr's, es-fr's, en-es's and fr-es's do not, since no
+        # shared, edition or treebank module is edited. fr-es moves only through the tables/fr/ fr-en
+        # writes, which its pin records apart (`studied`).
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for old, new in (
+            ('    "ages": ("âge", ', '    "agés": ("âge", '),
+            ("        if word in UNMARKED_SPELLINGS:\n", "        if False:\n"),
+            ("def unmarked_spellings(lexicon):", "def unmarked_spellings(lexicon, rows=()):"),
+        ):
+            reducer = copy / "reduce-fr-en.py"
+            text = reducer.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            reducer.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertNotEqual(after["fr-en"], before["fr-en"], new)
+            self.assertEqual({p: after[p] for p in pairs if p != "fr-en"}, {p: before[p] for p in pairs if p != "fr-en"}, new)
+            before = after
+        # fr-es's pin records the studied tables fr-en wrote, file by file.
+        self.assertEqual(
+            ps.load(Path(_HERE) / "tables" / "fr-es" / "pin.json")["studied"],
+            ps.studied_record(Path(_HERE) / "tables" / "fr-es" / "pin.json"),
+        )
+
+
 class FrEsGlossesRefined(Entries):
     """refine-lingua-fr-es-glosses: fr-es's own rules, in its reducer and the treebank's module it
     shares with fr-en (D1, D8)."""

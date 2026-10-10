@@ -111,6 +111,19 @@ row: far — far breton
 row: far — far breton
 ### phrase-gloss Il faro si ergeva
 rows: (none)
+### phrase-gloss comme ca
+expression: comme ça
+page 1/1:
+  [—] like that/this, that/this way, so, thus; large, big; just like that (suddenly an
+### phrase-gloss c'est ca
+expression: c'est ça
+page 1/1:
+  [—] Confirmation of a question: that's right;
+### phrase-gloss Le CA a voté le budget.
+row: voter — to vote
+row: budget — a budget
+### phrase-gloss à mon age
+row: âge — age
 ### phrase-gloss l’homme
 row: homme — man (adult male human)
 ### word-grammar est être

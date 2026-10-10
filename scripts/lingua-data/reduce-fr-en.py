@@ -37,6 +37,13 @@ D4): the pre-pass hands the lookup the word an elided piece stands for (`l'` is 
 `au` and `aux` into `à` + `le`/`les` and an inversion into its words (`dit-il` → `dit` + `il`),
 keeps `du` and `des` whole, and keeps whole a hyphenated run the pack lists.
 
+French written without its marks (read-lingua-french-ca-as-ca-cedilla D1): the reviewed table
+`UNMARKED_SPELLINGS` reads four spellings as their word alone, as `ELISIONS` reads an elided piece —
+`ca` as *ça*, `age` and `ages` as *âge*, `forcement` as *forcément* —, and their own entries (`CA`'s
+initialisms, `ca` « abbreviation of circa », the plough's beam, the fixing number) leave the tables.
+The analysis looks every token up lowercased, so « CA » in capitals reads as *ça* until a rule of
+French's analysis reads a word in capitals apart (D2).
+
 The native side (add-lingua-pack-fr-en D1–D3, D11) is read from the same section as the forms, after
 the studied side, as es-en's is from the Spanish section: the section cut to what the native side
 reads, a headword's typographic apostrophe read as `'` (`native_fields`); the English edition's
@@ -153,6 +160,37 @@ ELISIONS = {
     "lorsqu'": ("lorsque", "the conjunction"),
     "puisqu'": ("puisque", "the conjunction"),
     "quoiqu'": ("quoique", "the conjunction"),
+}
+# French written without its marks (read-lingua-french-ca-as-ca-cedilla D1): a spelling a reviewed row
+# names is a form of that word alone, read as an elided piece is — form → (word, reason). Each row is
+# a person's decision, its reason part of it, and it says what the dictionary does not: no entry links
+# these spellings to their word, so it is no override (`OVERRIDES` chooses among a form's candidates
+# only) and no spelling rule (`spelling_target` reads what an entry says it spells). The spelling's
+# own entries — `CA`'s initialisms, `ca` « abbreviation of circa », the plough's beam, the fixing
+# number — make it no lemma and list no inflection of it, and an entry pointing at it points at a word
+# the tables no longer hold; whatever its case, the analysis looks it up lowercased, so « CA » in
+# capitals reads as ça until a rule of French's analysis reads a word in capitals apart (D2). `cote`
+# (« rating »), `tache` (« stain »), `pale` (« blade »), `foret` (« drill bit ») and `aine` (« groin »)
+# are words a reader can mean, and never rows. Editing this table changes the rules' sha256, as for
+# any rule.
+UNMARKED_SPELLINGS = {
+    "ca": (
+        "ça",
+        "ça written without its cedilla (the owner's decision of 2026-10-10): UD's treebanks read every "
+        "« ca » and « Ca » as ça; the section's own entries — CA's initialisms, ca « abbreviation of "
+        "circa » — leave the tables",
+    ),
+    "age": (
+        "âge",
+        "âge written without its accent (the owner, 2026-10-10): UD reads both « age » as âge; the "
+        "section's « beam (central bar of a plough); shaft » leaves the tables",
+    ),
+    "ages": ("âge", "âges written without its accent, age's row's plural (the owner, 2026-10-10)"),
+    "forcement": (
+        "forcément",
+        "forcément written without its accent (the owner, 2026-10-10); the section's « fixing number, "
+        "cooking the books » leaves the tables",
+    ),
 }
 # A plain word beginning with a piece (`c'est`, `d'abord`, `l'on`, `jusqu'à`): the pre-pass always
 # splits it there, so the whole string is never looked up. Longest piece first: `qu'` is the end
@@ -302,8 +340,9 @@ class Lexicon:
     def read(self, entry):
         """One kaikki entry (D3, D4, D7).
 
-        An elided piece is read by `ELISIONS` alone, and a gender or number marker is no inflection
-        (`_MARKERS`). A word that is no form (`is_form`) is skipped whole. An entry whose every sense only spells another word is a form of that word, its
+        An elided piece is read by `ELISIONS` alone, a spelling without its marks by
+        `UNMARKED_SPELLINGS` alone — no entry pointing at it makes another word its form —, and a
+        gender or number marker is no inflection (`_MARKERS`). A word that is no form (`is_form`) is skipped whole. An entry whose every sense only spells another word is a form of that word, its
         inflections forms of it. Otherwise: an entry with a sense that is not a form-of is a lemma
         and its own candidate; the inflections it lists are its forms, but the bookkeeping, the
         doubtful ones and the multi-word constructions; its form-of senses make it a form of
@@ -312,6 +351,9 @@ class Lexicon:
         word = nfc_lower(entry.get("word"))
         if word in ELISIONS:
             self.candidates[word].add(ELISIONS[word][0])
+            return
+        if word in UNMARKED_SPELLINGS:
+            self.candidates[word].add(UNMARKED_SPELLINGS[word][0])
             return
         if not is_form(word):
             return
@@ -332,7 +374,7 @@ class Lexicon:
         for sense in senses:
             for target in _form_targets(sense):
                 target = nfc_lower(target)
-                if is_form(target):
+                if is_form(target) and target not in UNMARKED_SPELLINGS:
                     self.link(word, target, pos)
 
     def _inflections(self, entry, word, pos):
@@ -340,6 +382,8 @@ class Lexicon:
             tags = set(inflection.get("tags") or ())
             form = nfc_lower(inflection.get("form"))
             if tags & _BOOKKEEPING or tags & _DOUBTFUL or not is_form(form) or form in ELISIONS:
+                continue
+            if form in UNMARKED_SPELLINGS:
                 continue
             if form in _MARKERS and form != word:
                 continue
@@ -406,6 +450,14 @@ def own_words(lexicon):
     for word in OWN_WORDS:
         lexicon.candidates[word] = {word}
         lexicon.lemmas.add(word)
+
+
+def unmarked_spellings(lexicon):
+    """Each spelling `UNMARKED_SPELLINGS` names, a form of its word alone whether or not an entry
+    names it (read-lingua-french-ca-as-ca-cedilla D1), as `own_words` seeds `du` and `des`."""
+    for form, (word, _) in UNMARKED_SPELLINGS.items():
+        lexicon.candidates[form] = {word}
+        lexicon.lemmas.discard(form)
 
 
 def choose_lemma(form, options, counts, lemmas, frequency, overrides=OVERRIDES):
@@ -1841,6 +1893,7 @@ def main():
     )
     name_or_word(lexicon.candidates, lexicon.names, frequency)
     own_words(lexicon)
+    unmarked_spellings(lexicon)
     forms, ranks = reduce_forms(
         lexicon, counts, gsd_zipf(counts), frequency, lambda n: top_n_list("fr", n), a.max_lemmas
     )
