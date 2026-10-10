@@ -3,6 +3,15 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
+import { languageName } from "@/analyzer/language-labels.ts";
+import { pairsOf, studiedOf } from "@/analyzer/pairs.ts";
+import type { NativeLanguage } from "@/analyzer/types.ts";
+import { drawer as enDrawer } from "@/i18n/en/drawer.ts";
+import { settings as enSettings } from "@/i18n/en/settings.ts";
+import { drawer as esDrawer } from "@/i18n/es/drawer.ts";
+import { settings as esSettings } from "@/i18n/es/settings.ts";
+import { drawer as frDrawer } from "@/i18n/fr/drawer.ts";
+import { settings as frSettings } from "@/i18n/fr/settings.ts";
 
 // The Safari host app's activation page (apps/lingua-apple, localise-lingua-apple-host D2): Main.html
 // keeps its French text in place, each text under a data-copy key; copy.js holds the page's copy per
@@ -77,6 +86,10 @@ const BEFORE_13 = {
 
 const LANGUAGES = ["fr", "en", "es"];
 
+/** The first language a native language's pairs study, as its page writes it inside a sentence. */
+const named1 = (native: string): string =>
+  languageName(native as NativeLanguage, studiedOf(pairsOf(native)[0]!) as NativeLanguage).toLowerCase();
+
 describe("the activation page's copy table", () => {
   const { copy, document } = load();
 
@@ -108,14 +121,49 @@ describe("the activation page's copy table", () => {
     for (const key of copy.FRAGMENTS) expect(copy.COPY.fr[key]).toContain("<strong>");
   });
 
-  it("names, in English and Spanish, the language their natives study", () => {
-    // Not translations of « en anglais » (M23, the French is the owner's to revise): English natives
-    // study Spanish (es-en), Spanish natives study English (en-es).
-    for (const key of ["lede", "step3"]) {
-      expect(copy.COPY.en[key]).toContain("Spanish");
-      expect(copy.COPY.es[key]).toContain("inglés");
-      expect(copy.COPY.fr[key]).toContain("anglais");
+  it("names every language a native language's pairs study, in the pairs' order, and never its own (enable-lingua-french D7)", () => {
+    // Each page speaks to the natives of its language: French natives study English and Spanish
+    // (en-fr, es-fr), English natives Spanish and French (es-en, fr-en), Spanish natives English and
+    // French (en-es, fr-es) — read from the bundle's list, named as the extension names them.
+    const named = (native: NativeLanguage) =>
+      pairsOf(native).map((pair) => languageName(native, studiedOf(pair) as NativeLanguage).toLowerCase());
+    expect(named("fr")).toEqual(["anglais", "espagnol"]);
+    expect(named("en")).toEqual(["spanish", "french"]);
+    expect(named("es")).toEqual(["inglés", "francés"]);
+    for (const native of ["fr", "en", "es"] as const) {
+      const own = languageName(native, native).toLowerCase();
+      for (const key of ["lede", "step3"]) {
+        const text = copy.COPY[native][key].toLowerCase();
+        const at = named(native).map((name) => text.indexOf(name));
+        expect(
+          at.every((i) => i >= 0),
+          `${native}.${key} names ${named(native).join(" and ")}`,
+        ).toBe(true);
+        expect(
+          [...at].sort((a, b) => a - b),
+          `${native}.${key}: in the pairs' order`,
+        ).toEqual(at);
+        expect(text, `${native}.${key} names its own language`).not.toContain(own);
+      }
     }
+  });
+
+  it("says, in its last step, where a second language is ticked: the extension's settings, its language tab", () => {
+    // Réglages' first tab holds the studied languages' boxes and a level block per ticked language
+    // (settings-view.ts): the page names both as the extension does, in its language.
+    const places = { fr: [frDrawer, frSettings], en: [enDrawer, enSettings], es: [esDrawer, esSettings] } as const;
+    for (const [language, [drawer, settings]] of Object.entries(places)) {
+      const step3 = copy.COPY[language].step3;
+      expect(step3, language).toContain(`<strong>${drawer.settings}</strong>`);
+      expect(step3, language).toContain(`<strong>${settings.tabLanguage}</strong>`);
+      // The first language's level is chosen before the second is ticked.
+      const first = step3.toLowerCase().indexOf(named1(language));
+      expect(first, language).toBeGreaterThanOrEqual(0);
+      expect(first, language).toBeLessThan(step3.toLowerCase().indexOf(drawer.settings.toLowerCase()));
+    }
+  });
+
+  it("is in English and Spanish no copy of the French", () => {
     for (const language of ["en", "es"]) {
       for (const [key, text] of Object.entries(copy.COPY[language])) {
         if (key !== "title") expect(text, `${language}.${key} left in French`).not.toBe(copy.COPY.fr[key]);
