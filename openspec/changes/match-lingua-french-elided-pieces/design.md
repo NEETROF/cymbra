@@ -285,6 +285,10 @@ spec and programme 0.1.
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session), each as recommended:** the last piece written in
+full meets either form; `c'est` no longer meeting forms written in full is accepted; contractions are
+a small change of their own.
+
 For the owner, none blocking — each with the design's recommendation:
 1. **The last piece written in full (D1).** Your rule, word for word, would also stop « parce qu’il
    pleut » answering `parce que`, « pas d’argent » `pas de` and « Bien qu’il pût venir » `bien que`:

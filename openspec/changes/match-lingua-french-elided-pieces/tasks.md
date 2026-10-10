@@ -2,7 +2,7 @@
 
 ## 0. Owner, before the implementation
 
-- [ ] 0.1 [manual] The owner answers the design's open questions: the last piece written in full meets either form (1), `c'est` and the other forms written in full no longer answered (2), contractions left to a change of their own (3). Each answer that departs from the design's recommendation is written into the design, the spec and these tasks before 1.1.
+- [x] 0.1 [manual] Settled by the owner on 2026-10-10 (in session), each as recommended: the last piece written in full meets either form (1); `c'est` on forms written in full accepted (2); contractions (`au fait` on « à le ») a small change of its own (3). The owner answers the design's open questions: the last piece written in full meets either form (1), `c'est` and the other forms written in full no longer answered (2), contractions left to a change of their own (3). Each answer that departs from the design's recommendation is written into the design, the spec and these tasks before 1.1.
 
 ## 1. The core (crates/lingua-core)
 
@@ -31,5 +31,5 @@
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner approves the re-bless before the pull request merges: `fr-en.golden` and `fr-es.golden`, four phrase probes added and none moved (two of fr-en's recording no expression where the engine today reports `de l'` and `de un`), and the four cards added to `word-card-fr-en.txt` and `word-card-fr-es.txt`.
+- [x] 5.1 [manual] Approved by the owner on 2026-10-10 (in session), before the implementation. The owner approves the re-bless before the pull request merges: `fr-en.golden` and `fr-es.golden`, four phrase probes added and none moved (two of fr-en's recording no expression where the engine today reports `de l'` and `de un`), and the four cards added to `word-card-fr-en.txt` and `word-card-fr-es.txt`.
 - [ ] 5.2 [manual] In change 52's dogfood, the owner checks on a real page in fr-en that « de l'eau » shows `de l'` and « de le faire » no expression.
