@@ -306,6 +306,10 @@ accessors 0.1–0.15; the choice in `match_expressions` 0.15–0.25; review 0.05
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session), each as recommended:** the closest spelling wins
+when none matches the page exactly; Spanish gets a change of its own right after this one, before the
+release that ships 44b's names; two spellings of one expression are two names.
+
 For the owner, none blocking — each with the design's recommendation:
 
 1. **When no dictionary spelling is written exactly as the page (D2).** « Quelle que soit la
