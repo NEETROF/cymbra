@@ -127,12 +127,26 @@ describe("a Spanish Lingua page only once a pair glossed in Spanish ships (D3)",
       expect(html).toContain('<link rel="alternate" hreflang="es" href="https://cymbra.app/es/lingua">');
       expect(html.match(/<nav class="nav-links">(.*?)<\/nav>/s)?.[1]).toContain('<a href="/es/lingua">Lingua</a>');
       expect(html.match(/<footer class="site-footer">(.*?)<\/footer>/s)?.[1]).toContain('<a href="/es/lingua">Lingua</a>');
-      // The first coverage column after the row header is a pair glossed in Spanish: its
-      // header names the studied language, then « → español » when other readers' pairs
-      // follow.
-      const headers = [...html.matchAll(/<th>([^<]*)<\/th>/g)].map((m) => m[1]);
+      // The coverage table leads with a pair glossed in Spanish. While every listed pair is, it is
+      // the first column after the row header and names the studied language alone; once other
+      // readers' pairs are listed, the table has a row per pair (add-lingua-french-listings D8)
+      // and the first row's header reads « <studied> → español ».
       const spanishOnly = Object.keys(coverage.glossed).every((pair) => pair.endsWith("-es"));
-      expect(headers[1]).toMatch(spanishOnly ? /^\p{Lu}\p{Ll}+$/u : /^\p{Lu}\p{Ll}+ → español$/u);
+      if (spanishOnly) {
+        const headers = [...html.matchAll(/<th>([^<]*)<\/th>/g)].map((m) => m[1]);
+        expect(headers[1]).toMatch(/^\p{Lu}\p{Ll}+$/u);
+      } else {
+        const rows = [...html.matchAll(/<th scope="row">([^<]*)<\/th>/g)].map((m) => m[1]);
+        expect(rows[0]).toMatch(/^\p{Lu}\p{Ll}+ → español$/u);
+      }
+      // The click card quotes the Spanish word card's three buttons as the extension labels them
+      // (`apps/lingua-extension/src/i18n/es/card.ts`), in « » without inner spaces.
+      const card = readFileSync(resolve(__dirname, "../../../lingua-extension/src/i18n/es/card.ts"), "utf8");
+      for (const key of ["known", "addToDeck", "ignore"]) {
+        const label = card.match(new RegExp(`^  ${key}: "([^"]+)",$`, "m"))?.[1];
+        expect(label, `es/card.ts ${key}`).toBeTruthy();
+        expect(html, `/es/lingua/: ${key}`).toContain(`«${label}»`);
+      }
     },
   );
 });

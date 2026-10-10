@@ -29,10 +29,12 @@ import { makeFakePort } from "./helpers.ts";
 // The reader chooses their native language (add-lingua-native-language-choice): the rule for the
 // studied languages, the preset, and what the background does with the message (D1, D2, D4).
 
-/** Today's package: French-native pairs alone (packs.json). */
+/** The package before change 34: French-native pairs alone. */
 const TODAY = ["en-fr", "es-fr"];
-/** es-en shipping beside them (change 34): the first second native language. */
+/** es-en shipping beside them, the first second native language: packs.json in change 34. */
 const MIXED = ["en-fr", "es-fr", "es-en"];
+/** en-es shipping beside those, the third native language: packs.json since change 35. */
+const ALL = [...MIXED, "en-es"];
 
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -99,7 +101,6 @@ const stored = (deps: { store: AsyncStorageArea }) =>
 
 describe("the choice exists from two native languages (D1)", () => {
   it("Every reader today: one native language ships, no choice is offered", () => {
-    expect(nativeChoiceOffered()).toBe(false);
     expect(nativeChoiceOffered(TODAY)).toBe(false);
     expect(offeredNatives(TODAY)).toEqual(["fr"]);
   });
@@ -108,6 +109,14 @@ describe("the choice exists from two native languages (D1)", () => {
     expect(nativeChoiceOffered(MIXED)).toBe(true);
     expect(offeredNatives(MIXED)).toEqual(["fr", "en"]);
     expect(offeredNatives(["es-en", "en-fr", "en-es"])).toEqual(["en", "fr", "es"]);
+  });
+
+  it("en-es shipping too offers French, English and Spanish, in listed order (enable-lingua-spanish-speakers)", () => {
+    expect(nativeChoiceOffered(ALL)).toBe(true);
+    expect(offeredNatives(ALL)).toEqual(["fr", "en", "es"]);
+    // The bundle's list since change 35.
+    expect(nativeChoiceOffered()).toBe(true);
+    expect(offeredNatives()).toEqual(["fr", "en", "es"]);
   });
 });
 
@@ -132,6 +141,21 @@ describe("a new install's preset (D4, M3, M13)", () => {
   it("French when no pair is glossed in English", () => {
     expect(presetNative("de", TODAY)).toBe("fr");
     expect(presetNative("es", TODAY)).toBe("fr");
+  });
+
+  it("on change 34's list: English for an English, a German or a Spanish browser, French for a French one", () => {
+    expect(presetNative("en-US", MIXED)).toBe("en");
+    expect(presetNative("de-DE", MIXED)).toBe("en");
+    expect(presetNative("es-ES", MIXED)).toBe("en");
+    expect(presetNative("fr-FR", MIXED)).toBe("fr");
+  });
+
+  it("on the bundle's list since change 35: Spanish for a Spanish browser, English still for a German one (M13)", () => {
+    expect(presetNative("es-ES")).toBe("es");
+    expect(presetNative("es-MX")).toBe("es");
+    expect(presetNative("en-US")).toBe("en");
+    expect(presetNative("de-DE")).toBe("en");
+    expect(presetNative("fr-FR")).toBe("fr");
   });
 });
 

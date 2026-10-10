@@ -25,7 +25,7 @@ import { ownerArea, type StoreChangeReason } from "@/state/store.ts";
 // the onboarding's first question and the popup's first-run call to action.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-/** Today's package: French-native pairs alone. */
+/** The package before change 34: French-native pairs alone. */
 const TODAY = ["en-fr", "es-fr"];
 /** es-en shipping beside them (change 34). */
 const MIXED = ["en-fr", "es-fr", "es-en"];
@@ -114,6 +114,26 @@ describe("the view (D4)", () => {
     // The current language: nothing to confirm, nothing said but what the choice sets.
     expect(visibleNotes(container)).toEqual([esCopy.note]);
     expect(button(container).hidden).toBe(true);
+  });
+
+  it("The bundle's list since change 35 (enable-lingua-spanish-speakers): « Español » offered beside French and English", async () => {
+    const container = document.createElement("div");
+    const view = mountNativeLanguage(container, {
+      language: "fr",
+      copy: frCopy,
+      profile: profile("fr", ["en", "es"]),
+    })!;
+    await view.refresh();
+
+    expect(radios(container)).toEqual([
+      { native: "fr", checked: true, name: "Français", lang: "fr" },
+      { native: "en", checked: false, name: "English", lang: "en" },
+      { native: "es", checked: false, name: "Español", lang: "es" },
+    ]);
+    // Spanish chosen: the reader would then study English, through en-es.
+    pick(container, "es");
+    expect(visibleNotes(container)).toEqual([frCopy.note, "Tu étudieras ensuite l'anglais."]);
+    expect(button(container).hidden).toBe(false);
   });
 
   it("A native language that was the only studied one: the choice says the reader will study Spanish, before confirming", async () => {
@@ -321,7 +341,7 @@ describe("the popup's first run (D4)", () => {
     const preferences = fakeArea();
     const reads = vi.spyOn(preferences, "get");
     const choose = vi.fn();
-    expect(await presetNativeLanguage({ preferences, browserLanguage: "en-US", choose })).toBe(false);
+    expect(await presetNativeLanguage({ preferences, browserLanguage: "en-US", choose, pairs: TODAY })).toBe(false);
     expect(reads).not.toHaveBeenCalled();
     expect(choose).not.toHaveBeenCalled();
 

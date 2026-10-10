@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import coverage from "../src/data/lingua-coverage.json";
 import { type LinguaPair, linguaPairs, shippedPairs, type Coverage, type Routes } from "../src/lib/lingua-pairs";
@@ -21,7 +23,8 @@ import { MATRIX, ROUTES, SIX_PAIRS, TODAY, WITH_FR_EN } from "./support/lingua";
 // the committed pages did; the matrix (es-en and en-es beside them) leads each page with its
 // readers' pairs. The French bytes themselves are pinned on the rendered page by
 // `test/astro/lingua-page.spec.ts` and on the built one by `test/post-build/lingua.spec.ts`.
-// The last block alone reads the live pairs: the handover to change 34.
+// The last block alone reads the live pairs, and the extension's card catalogues: the buttons
+// each page quotes, and the English card change 34 handed over.
 
 /** U+202F, the narrow no-break space: French and Spanish thousands, the Spanish per-cent sign. */
 const NNBSP = "\u202F";
@@ -510,27 +513,42 @@ describe("nothing but the site's own text reaches set:html", () => {
   });
 });
 
-describe("the handover to change 34 (enable-lingua-english-speakers)", () => {
-  // The English table keeps today's page while every pair is glossed in French: the card
-  // quotes the French buttons and says "its French translation". Once a pair glossed in
-  // English ships (es-en, change 34), an English speaker reads that card about their own
-  // pair: change 34's task 1.2 replaces these words in the same pull request.
+describe("the card's buttons, as the extension labels them (change 34, enable-lingua-english-speakers)", () => {
+  // Each table quotes the word card's own labels (`apps/lingua-extension/src/i18n/<lang>/card.ts`)
+  // in the marks its language writes them with (`apps/lingua-extension/src/i18n/README.md`):
+  // « » with inner spaces in French, without in Spanish, “ ” in English.
+  const catalogue = (lang: string) =>
+    readFileSync(resolve(__dirname, `../../lingua-extension/src/i18n/${lang}/card.ts`), "utf8");
+  const label = (lang: string, key: string) => catalogue(lang).match(new RegExp(`^  ${key}: "([^"]+)",$`, "m"))?.[1];
+  const quoted: Record<"fr" | "en" | "es", (text: string) => string> = {
+    fr: (text) => `« ${text} »`,
+    en: (text) => `“${text}”`,
+    es: (text) => `«${text}»`,
+  };
+
+  it.each(["fr", "en", "es"] as const)("%s: the click card names the three buttons as the word card labels them", (lang) => {
+    const body = card(linguaPageText(lang, matrix, noDiscord), "click").body;
+    for (const key of ["known", "addToDeck", "ignore"]) {
+      const text = label(lang, key);
+      expect(text, `${lang}/card.ts ${key}`).toBeTruthy();
+      expect(body, `${lang}: ${key}`).toContain(quoted[lang](text!));
+    }
+  });
+
+  // Until change 34 the English table quoted the French buttons and said "its French
+  // translation": the interface was French for every reader. es-en ships glossed in English,
+  // so an English speaker reads that card about their own pair, in their own interface.
   const FRENCH_WORDING = ["its French translation", "« Je connais »", "« + Deck »", "« Ignorer »"];
   const englishGlossed = linguaPairs(coverage, {})
     .filter((p) => p.native === "en")
     .map((p) => p.pair);
   const left = FRENCH_WORDING.filter((words) => JSON.stringify(LINGUA_TEXT.en).includes(words));
 
-  it("no English-glossed pair ships while the English table speaks of the French interface", () => {
-    if (englishGlossed.length === 0) {
-      // Today: the English page is today's page, French buttons and all (D1).
-      expect(left).toEqual(FRENCH_WORDING);
-      return;
-    }
+  it("the English table speaks of the English interface, an English-glossed pair shipping", () => {
     expect(
-      left,
-      `${englishGlossed.join(", ")} ships glossed in English, but the English table of src/lib/lingua-text.ts still says ${left.join(", ")}: ` +
-        "change 34 (enable-lingua-english-speakers) task 1.2 replaces them with the English card's words",
-    ).toEqual([]);
+      englishGlossed,
+      "the English table quotes the English interface's buttons: it ships only with a pair glossed in English",
+    ).toContain("es-en");
+    expect(left, `the English table of src/lib/lingua-text.ts still says ${left.join(", ")}`).toEqual([]);
   });
 });

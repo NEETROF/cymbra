@@ -108,7 +108,8 @@ class OnePairTest(unittest.TestCase):
 
     def test_spec_scenario_coverage(self) -> None:
         # es-en, on the committed tables, against its floor — es-fr's figures when es-en was
-        # proposed — and published nowhere until it ships.
+        # proposed — and published once it ships (enable-lingua-english-speakers; change 21 D6),
+        # nowhere before.
         self.assertEqual(coverage.FLOORS["es-en"], (87.6, 77.2, 63.7))
         code, out, err = self.run_main(coverage.TABLES, "--pair", "es-en")
         self.assertEqual((code, err), (0, ""))
@@ -116,7 +117,10 @@ class OnePairTest(unittest.TestCase):
         for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["es-en"]):
             self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
         published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
-        self.assertNotIn("es-en", published["glossed"])
+        if "es-en" in coverage.shipped_pairs():
+            self.assertEqual(published["glossed"]["es-en"], measured)
+        else:
+            self.assertNotIn("es-en", published["glossed"])
 
     def test_spec_scenario_the_floor_of_en_es(self) -> None:
         # en-es (add-lingua-pack-en-es D3): held to a floor the owner sets on the pull request —
@@ -144,7 +148,8 @@ class OnePairTest(unittest.TestCase):
                     "en-es: 75.0 % of the 10,000 commonest lemmas are glossed, under the floor of 83.2 %",
                 ],
             )
-        # On the committed tables, when they are there: at least FLOORS' entry, and published nowhere.
+        # On the committed tables, when they are there: at least FLOORS' entry, and published once
+        # en-es ships (enable-lingua-spanish-speakers; change 21 D6), nowhere before.
         if (coverage.TABLES / "en-es" / "gloss.tsv").is_file():
             code, out, err = self.run_main(coverage.TABLES, "--pair", "en-es")
             self.assertEqual((code, err), (0, ""))
@@ -152,7 +157,10 @@ class OnePairTest(unittest.TestCase):
             for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["en-es"]):
                 self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
             published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
-            self.assertNotIn("en-es", published["glossed"])
+            if "en-es" in coverage.shipped_pairs():
+                self.assertEqual(published["glossed"]["en-es"], measured)
+            else:
+                self.assertNotIn("en-es", published["glossed"])
 
     def test_spec_scenario_coverage_of_fr_en(self) -> None:
         # fr-en (add-lingua-pack-fr-en D4): the study's figures less two points, en-es's rule, in
