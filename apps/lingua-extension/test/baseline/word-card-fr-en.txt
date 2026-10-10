@@ -92,6 +92,25 @@ row: grâce à — thanks to
 row: soleil — sun (star)
 ### phrase-gloss aux miennes
 row: les miennes — mine
+### phrase-gloss Ça va ?
+expression: ça va
+page 1/1:
+  [—] how are you? how's it going? how are thing; things are going fine; OK, all right
+### phrase-gloss Ça ira.
+expression: ça ira
+page 1/1:
+  [—] it will be all right, it will be ok; that's enough, that will do nicely, it wil
+### phrase-gloss Allons-y !
+expression: allons-y
+page 1/1:
+  [—] let's go; let's go there; come with me, follow me
+### phrase-gloss les miens
+expression: les miens
+page 1/1:
+  [—] mine
+### phrase-gloss Quelle que soit la distance
+row: quel que soit — whatever, regardless of what, no matter wh
+row: distance — distance (literal physical distance)
 ### phrase-gloss Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.
 row: faire — to do
 row: chien — dog

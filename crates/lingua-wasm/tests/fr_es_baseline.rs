@@ -38,7 +38,10 @@
 //! nine probes and added four), a deliberate analyser change that bumps French's analyser version
 //! (keep-lingua-french-acronyms-in-capitals: the pack line, the 17 page analyses on the version
 //! alone, « Le CA a voté le budget. » showing the acronym, and four probes added), probes the French
-//! scenario gains, or an en-es update (its `beside en-es` line alone) should do that. Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test
+//! scenario gains (with the pack line of a section the builder derives from the committed tables:
+//! pick-lingua-expression-written-as-the-page's five probes and every headword of a key kept), or an
+//! en-es update (its `beside en-es` line alone) should do that.
+//! Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test
 //! fr_es_baseline` — then the extension's snapshot, `yarn vitest run test/word-card-fr-es.spec.ts
 //! -u` — and say why in the pull request; `lingua-pack-update` re-blesses both on its own branch.
 //!

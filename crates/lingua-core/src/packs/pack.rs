@@ -64,6 +64,17 @@ pub mod section {
     /// [`EXPR`]: a core that predates it ignores it and reports keys, as English
     /// does.
     pub const EXPR_NAMES_ZST: &str = "expr.names.zst";
+    /// The other headwords of the keys several reach, for a pack studying French
+    /// (pick-lingua-expression-written-as-the-page D1): `count u32 | count × (key id
+    /// u32, other id u32)`, little-endian, sorted by key id and then in the order the
+    /// builder ranks a key's headwords (add-lingua-french-expression-keys D6). A key id
+    /// is one [`EXPR`] maps to, whose gloss and name are the headword that wins the key;
+    /// an other id is one no key maps to, filed in [`EXPR_ZST`] and [`EXPR_NAMES_ZST`]
+    /// like any expression — a headword of its own, with its gloss and its name.
+    /// Written only for a pack studying French in which a key has other headwords.
+    /// Optional and additive, like [`EXPR_NAMES_ZST`]: a core that predates it ignores
+    /// it, and answers every key with the headword it answered before.
+    pub const EXPR_OTHERS: &str = "expr.others";
     /// The grammar tag pool: one Universal Dependencies tag per line, id =
     /// line index (`add-lingua-word-grammar`). Optional and additive, like
     /// [`LEVELS`]; the two grammar blobs point into it.
@@ -172,6 +183,10 @@ pub struct Pack {
     /// expressions named otherwise than their key. Empty when the pack carries
     /// no names.
     expression_names: BTreeMap<u64, String>,
+    /// (key id, other headword's id) pairs, sorted by key id and then in the
+    /// builder's order ([`section::EXPR_OTHERS`]). Empty when the pack carries no
+    /// such section.
+    expression_others: Vec<(u64, u64)>,
     /// The grammar tables, when the pack carries them.
     grammar: Grammar,
     notice: String,
@@ -241,6 +256,15 @@ impl Pack {
             Some(s) => parse_glosses(&s.data, section::EXPR_NAMES_ZST)?,
             None => BTreeMap::new(),
         };
+        let expression_others = match sections.iter().find(|s| s.name == section::EXPR_OTHERS) {
+            Some(s) => parse_expression_others(
+                &s.data,
+                expressions.as_ref(),
+                &expression_glosses,
+                &expression_names,
+            )?,
+            None => Vec::new(),
+        };
         let notice = sections
             .iter()
             .find(|s| s.name == section::NOTICE)
@@ -259,6 +283,7 @@ impl Pack {
             expressions,
             expression_glosses,
             expression_names,
+            expression_others,
             grammar,
             notice,
         })
@@ -335,6 +360,63 @@ impl Pack {
     pub fn expression_name(&self, key: &str) -> Option<&str> {
         let id = self.expressions.as_ref()?.get(key.as_bytes())?;
         self.expression_names.get(&id).map(String::as_str)
+    }
+
+    /// Every headword filed under `key`, each with its gloss
+    /// (pick-lingua-expression-written-as-the-page D1): the one that wins the key
+    /// first — its name, or the key where the pack names it none — then the key's
+    /// other headwords ([`section::EXPR_OTHERS`]), in the order the builder ranks
+    /// them (add-lingua-french-expression-keys D6): `ça aller` lists `ça ira` and
+    /// `ça va`. One entry for a key one headword reaches, and for every key of a pack
+    /// without the section; none when the pack holds no such key.
+    pub fn expression_headwords<'a>(&'a self, key: &'a str) -> Vec<(&'a str, &'a str)> {
+        let Some(id) = self
+            .expressions
+            .as_ref()
+            .and_then(|map| map.get(key.as_bytes()))
+        else {
+            return Vec::new();
+        };
+        let Some(gloss) = self.expression_glosses.get(&id) else {
+            return Vec::new();
+        };
+        let name = self.expression_names.get(&id).map_or(key, String::as_str);
+        std::iter::once((name, gloss.as_str()))
+            .chain(self.other_headwords(id).filter_map(|other| {
+                Some((
+                    self.expression_names.get(other)?.as_str(),
+                    self.expression_glosses.get(other)?.as_str(),
+                ))
+            }))
+            .collect()
+    }
+
+    /// The gloss of the headword named `name` among those filed under `key`
+    /// ([`Pack::expression_headwords`]), and the key's own gloss where none is so
+    /// named (pick-lingua-expression-written-as-the-page D4): review reads a French
+    /// card at the key its lemma reads as, and the card `ça va` shows `ça va`'s gloss,
+    /// not `ça ira`'s, which wins the key. `None` when the pack holds no such key.
+    pub fn expression_gloss_named(&self, key: &str, name: &str) -> Option<&str> {
+        let id = self.expressions.as_ref()?.get(key.as_bytes())?;
+        let own = self.expression_glosses.get(&id)?;
+        if self.expression_names.get(&id).map_or(key, String::as_str) == name {
+            return Some(own);
+        }
+        let named = self
+            .other_headwords(id)
+            .find(|other| self.expression_names.get(other).is_some_and(|n| n == name))
+            .and_then(|other| self.expression_glosses.get(other));
+        Some(named.unwrap_or(own))
+    }
+
+    /// The ids of the other headwords of the key whose id is `id`, in the builder's
+    /// order: the run of [`section::EXPR_OTHERS`]'s pairs holding that key id.
+    fn other_headwords(&self, id: u64) -> impl Iterator<Item = &u64> {
+        let at = self.expression_others.partition_point(|&(key, _)| key < id);
+        self.expression_others[at..]
+            .iter()
+            .take_while(move |&&(key, _)| key == id)
+            .map(|(_, other)| other)
     }
 
     /// Whether the pack carries an expression table, so a caller can skip the
@@ -625,6 +707,49 @@ fn parse_glosses(zst: &[u8], name: &'static str) -> Result<BTreeMap<u64, String>
 /// Reads the grammar sections. They are additive: each one is optional, and
 /// a pack carrying a blob this core cannot index is refused like any other
 /// malformed section, so a corrupt pack never answers half its grammar.
+/// Reads [`section::EXPR_OTHERS`]: `count u32 | count × (key id u32, other id u32)`,
+/// little-endian, into its (key id, other id) pairs, in the section's order
+/// (pick-lingua-expression-written-as-the-page D1). The builder's ids are dense: a key's
+/// below the number of keys `keys` holds, an other headword's from it. Refused as
+/// malformed when its length is not its count's, when its pairs are not sorted by key id,
+/// or when a pair holds a key id no key has, or an other id a key has or that carries no
+/// gloss or no name: the section then says something the table does not hold, and the
+/// pack is refused rather than misread.
+fn parse_expression_others(
+    bytes: &[u8],
+    keys: Option<&fst::Map<Vec<u8>>>,
+    glosses: &BTreeMap<u64, String>,
+    names: &BTreeMap<u64, String>,
+) -> Result<Vec<(u64, u64)>, PackError> {
+    let bad = || PackError::Malformed(section::EXPR_OTHERS);
+    let word = |at: usize| -> Option<u64> {
+        let slice = bytes.get(at..at.checked_add(4)?)?;
+        Some(u64::from(u32::from_le_bytes(slice.try_into().ok()?)))
+    };
+    let count = usize::try_from(word(0).ok_or_else(bad)?).map_err(|_| bad())?;
+    if count.checked_mul(8).and_then(|n| n.checked_add(4)) != Some(bytes.len()) {
+        return Err(bad());
+    }
+    let key_ids = 0..keys.map_or(0, |map| map.len() as u64);
+    let mut others: Vec<(u64, u64)> = Vec::with_capacity(count);
+    for pair in 0..count {
+        let (key, other) = (
+            word(4 + pair * 8).ok_or_else(bad)?,
+            word(8 + pair * 8).ok_or_else(bad)?,
+        );
+        if !key_ids.contains(&key)
+            || key_ids.contains(&other)
+            || !glosses.contains_key(&other)
+            || !names.contains_key(&other)
+            || others.last().is_some_and(|&(before, _)| before > key)
+        {
+            return Err(bad());
+        }
+        others.push((key, other));
+    }
+    Ok(others)
+}
+
 fn parse_grammar(sections: &[super::format::Section]) -> Result<Grammar, PackError> {
     let find = |name: &str| sections.iter().find(|s| s.name == name);
     let tags = match find(section::TAGS) {
@@ -1390,6 +1515,244 @@ pub(crate) mod tests {
             assert_eq!(older.expression(key), named.expression(key), "{key}");
             assert_eq!(older.expression_name(key), None, "{key}");
         }
+    }
+
+    // — every headword of a shared key (pick-lingua-expression-written-as-the-page D1) —
+
+    /// The `expr.others` section: `count u32 | count × (key id u32, other id u32)`.
+    fn build_expr_others(pairs: &[(u32, u32)]) -> Vec<u8> {
+        let mut raw = (pairs.len() as u32).to_le_bytes().to_vec();
+        for (key, other) in pairs {
+            raw.extend_from_slice(&key.to_le_bytes());
+            raw.extend_from_slice(&other.to_le_bytes());
+        }
+        raw
+    }
+
+    /// A small fr-en pack laid out as the builder lays out a key several headwords reach:
+    /// `tout de suite` (id 0, its own name) and `ça aller` (id 1), won by `ça ira`, whose other
+    /// headword `ça va` is id 2, which no key maps to. `glosses` and `names` replace the
+    /// tables' when given, `others` is the section's bytes when given.
+    fn shared_key_pack(
+        glosses: Option<&[(u32, &str)]>,
+        names: Option<&[(u32, &str)]>,
+        others: Option<&[u8]>,
+    ) -> Vec<u8> {
+        let (forms, pool) =
+            build_lexicon_blobs(&[], &["ça", "aller", "tout", "de", "suite"]).expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let mut keys = fst::MapBuilder::memory();
+        keys.insert("tout de suite", 0).unwrap();
+        keys.insert("ça aller", 1).unwrap();
+        let keys = keys.into_inner().unwrap();
+        let glosses = build_gloss_zst(glosses.unwrap_or(&[
+            (0, "right away"),
+            (1, "it will be all right"),
+            (2, "how are you?"),
+        ]));
+        let names = build_gloss_zst(names.unwrap_or(&[(1, "ça ira"), (2, "ça va")]));
+        let mut sections: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, pool.as_bytes()),
+            (section::FREQ, &freq_bytes),
+            (section::EXPR, &keys),
+            (section::EXPR_ZST, &glosses),
+            (section::EXPR_NAMES_ZST, &names),
+        ];
+        if let Some(others) = others {
+            sections.push((section::EXPR_OTHERS, others));
+        }
+        write_container(
+            &meta_json_with("fr", "en", FRENCH_ANALYZER_VERSION),
+            &sections,
+        )
+    }
+
+    #[test]
+    fn spec_scenario_two_headwords_reach_one_key() {
+        let pack = Pack::load(&shared_key_pack(
+            None,
+            None,
+            Some(&build_expr_others(&[(1, 2)])),
+        ))
+        .unwrap();
+        // The key answers the headword that wins it, its gloss and its name, as before…
+        assert_eq!(pack.expression("ça aller"), Some("it will be all right"));
+        assert_eq!(pack.expression_name("ça aller"), Some("ça ira"));
+        // …and lists the other headword after it, with its own gloss.
+        assert_eq!(
+            pack.expression_headwords("ça aller"),
+            [
+                ("ça ira", "it will be all right"),
+                ("ça va", "how are you?")
+            ]
+        );
+        // A key one headword reaches lists it alone, under its key where the pack names it none;
+        // a headword is no key, nor is what the pack does not hold.
+        assert_eq!(
+            pack.expression_headwords("tout de suite"),
+            [("tout de suite", "right away")]
+        );
+        assert!(pack.expression_headwords("ça va").is_empty());
+        assert!(pack.expression_headwords("au revoir").is_empty());
+    }
+
+    #[test]
+    fn a_gloss_is_read_under_the_headword_it_is_named_by() {
+        let pack = Pack::load(&shared_key_pack(
+            None,
+            None,
+            Some(&build_expr_others(&[(1, 2)])),
+        ))
+        .unwrap();
+        assert_eq!(
+            pack.expression_gloss_named("ça aller", "ça va"),
+            Some("how are you?")
+        );
+        assert_eq!(
+            pack.expression_gloss_named("ça aller", "ça ira"),
+            Some("it will be all right")
+        );
+        // A name no headword of the key carries reads the key's own gloss; a key the pack does not
+        // hold, none.
+        assert_eq!(
+            pack.expression_gloss_named("ça aller", "ça allait"),
+            Some("it will be all right")
+        );
+        assert_eq!(
+            pack.expression_gloss_named("tout de suite", "tout de suite"),
+            Some("right away")
+        );
+        assert_eq!(
+            pack.expression_gloss_named("tout de suite", "ça va"),
+            Some("right away")
+        );
+        assert_eq!(pack.expression_gloss_named("ça va", "ça va"), None);
+        // Without the section, every name reads the key's own gloss.
+        let older = Pack::load(&shared_key_pack(None, None, None)).unwrap();
+        assert_eq!(
+            older.expression_gloss_named("ça aller", "ça va"),
+            Some("it will be all right")
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_core_that_does_not_read_the_section() {
+        // A core that predates the section ignores it (`a_pack_carrying_an_unknown_section_loads_
+        // unchanged`), and the other headword's id is one no key maps to: stripped of the section,
+        // the pack answers every key with the headword, gloss and name it answers with it.
+        let with = Pack::load(&shared_key_pack(
+            None,
+            None,
+            Some(&build_expr_others(&[(1, 2)])),
+        ))
+        .unwrap();
+        let older = Pack::load(&shared_key_pack(None, None, None)).unwrap();
+        for key in ["ça aller", "tout de suite", "ça va", "ça ira"] {
+            assert_eq!(older.expression(key), with.expression(key), "{key}");
+            assert_eq!(
+                older.expression_name(key),
+                with.expression_name(key),
+                "{key}"
+            );
+            assert_eq!(
+                older.expression_headwords(key).first(),
+                with.expression_headwords(key).first(),
+                "{key}"
+            );
+        }
+        assert_eq!(older.expression_headwords("ça aller").len(), 1);
+    }
+
+    #[test]
+    fn a_malformed_others_section_is_refused_under_its_own_name() {
+        let refused = |others: &[u8]| {
+            matches!(
+                Pack::load(&shared_key_pack(None, None, Some(others))),
+                Err(PackError::Malformed(section::EXPR_OTHERS))
+            )
+        };
+        // Truncated: no count, a count announcing a pair it does not carry, a stray byte.
+        assert!(refused(b""));
+        assert!(refused(&build_expr_others(&[(1, 2)])[..8]));
+        let mut longer = build_expr_others(&[(1, 2)]);
+        longer.push(0);
+        assert!(refused(&longer));
+        // A key id no key has, and an other id a key maps to.
+        assert!(refused(&build_expr_others(&[(5, 2)])));
+        assert!(refused(&build_expr_others(&[(1, 0)])));
+        // Pairs out of key order.
+        let unsorted = shared_key_pack(
+            Some(&[
+                (0, "right away"),
+                (1, "it will be all right"),
+                (2, "how are you?"),
+                (3, "in a minute"),
+            ]),
+            Some(&[(1, "ça ira"), (2, "ça va"), (3, "tout à l'heure")]),
+            Some(&build_expr_others(&[(1, 2), (0, 3)])),
+        );
+        assert!(matches!(
+            Pack::load(&unsorted),
+            Err(PackError::Malformed(section::EXPR_OTHERS))
+        ));
+        // In key order, each key lists its own.
+        let two_keys = Pack::load(&shared_key_pack(
+            Some(&[
+                (0, "right away"),
+                (1, "it will be all right"),
+                (2, "how are you?"),
+                (3, "in a minute"),
+            ]),
+            Some(&[(1, "ça ira"), (2, "ça va"), (3, "tout à l'heure")]),
+            Some(&build_expr_others(&[(0, 3), (1, 2)])),
+        ))
+        .unwrap();
+        assert_eq!(
+            two_keys.expression_headwords("tout de suite"),
+            [
+                ("tout de suite", "right away"),
+                ("tout à l'heure", "in a minute")
+            ]
+        );
+        assert_eq!(
+            two_keys.expression_headwords("ça aller"),
+            [
+                ("ça ira", "it will be all right"),
+                ("ça va", "how are you?")
+            ]
+        );
+        // An other id with no gloss, and one with a gloss and no name.
+        assert!(refused(&build_expr_others(&[(1, 7)])));
+        let unnamed = shared_key_pack(
+            None,
+            Some(&[(1, "ça ira")]),
+            Some(&build_expr_others(&[(1, 2)])),
+        );
+        assert!(matches!(
+            Pack::load(&unnamed),
+            Err(PackError::Malformed(section::EXPR_OTHERS))
+        ));
+        // The well-formed section loads, and an empty one too.
+        assert!(!refused(&build_expr_others(&[(1, 2)])));
+        assert!(!refused(&build_expr_others(&[])));
+        // A pack carrying the section without an expression table says something no key holds.
+        let (meta, sections) = read_container(&shared_key_pack(
+            None,
+            None,
+            Some(&build_expr_others(&[(1, 2)])),
+        ))
+        .unwrap();
+        let tableless: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::EXPR)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        assert!(matches!(
+            Pack::load(&write_container(&meta, &tableless)),
+            Err(PackError::Malformed(section::EXPR_OTHERS))
+        ));
     }
 
     /// The sample pack plus whatever grammar sections a test names.

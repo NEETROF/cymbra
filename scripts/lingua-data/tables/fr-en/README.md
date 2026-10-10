@@ -184,8 +184,9 @@ The pack these two tables built — no gloss, reading or level — was 1,241,733
 tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*), and with the readings
 too 1,460,253 B (*The readings*). With the glosses, their runs and the expressions it was 2,527,222 B,
 with fr-en's own rules and French's lexical table 2,537,386 B, with French's unmarked spellings
-2,537,588 B, and with French's acronym table it is **2,535,748 B** (*The glosses*), under the builder's
-5 MiB.
+2,537,588 B, with French's acronym table 2,535,748 B, and keeping every headword of a key several
+reach (pick-lingua-expression-written-as-the-page) it is **2,536,702 B** (*The glosses*), under the
+builder's 5 MiB.
 
 ## Measured
 
@@ -822,7 +823,7 @@ a later update is the owner's question (design, Open Question 1).
 | Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,679 / 8,688 / 15,259 — 93.6 / 86.9 / 76.3 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; settled by the owner) |
 | Expressions | **17,635**: 15,653 headwords with a space and 1,982 words the tokenisation splits |
 | `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,616,694, 512,289 and 833,953 B (625,361, 125,651 and 326,483 B gzipped); `../fr/lexical.tsv` 253,737 B |
-| The pack | **2,537,588 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B, French's unmarked spellings +202 B (the glosses +437, their runs −224, the expressions +106 — `velours côtelé` « corduroy » keyed now that `côtelé` is a lemma —, the forms, lemmas and paradigms −117), French's acronym table −1,840 B (`CA` takes lemma id 0 and every other id moves by one, which the forms map, −746 B, and the paradigms, −750 B, encode slightly tighter; the glosses −348 B, their runs −5 B; the new rows of the lemmas, ranks, levels and dictionary words +9 B) |
+| The pack | **2,536,702 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B, French's unmarked spellings +202 B (the glosses +437, their runs −224, the expressions +106 — `velours côtelé` « corduroy » keyed now that `côtelé` is a lemma —, the forms, lemmas and paradigms −117), French's acronym table −1,840 B (`CA` takes lemma id 0 and every other id moves by one, which the forms map, −746 B, and the paradigms, −750 B, encode slightly tighter; the glosses −348 B, their runs −5 B; the new rows of the lemmas, ranks, levels and dictionary words +9 B), every headword of a key several reach +954 B (pick-lingua-expression-written-as-the-page: the 61 other headwords of 60 keys, their glosses +35 B and names +411 B, and their list, `expr.others`, 492 B) |
 
 **French's unmarked spellings** (read-lingua-french-ca-as-ca-cedilla) took three glosses out — `ca`
 « board of directors » (`CA`'s initialisms, lowercased), `age` « beam (central bar of a plough);

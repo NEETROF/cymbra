@@ -118,12 +118,14 @@ coverage below is unchanged (it counts ranked lemmas).
   D2), the others `quant`, `onu`, `for`, `okay` —, and 8,500 of French's 26,485 dictionary words have
   no Spanish gloss, so the pack carries a lexical section and the vocabulary estimate counts the same
   words for both pairs.
-- **The pack is 1,969,484 B**, 37.6 % of the 5 MiB budget (−2,118 B with fr-es's own rules, −175 B
+- **The pack is 1,971,104 B**, 37.6 % of the 5 MiB budget (−2,118 B with fr-es's own rules, −175 B
   with French's unmarked spellings, −1,630 B with French's acronym table: `CA` takes lemma id 0 and
   every other id moves by one, which the forms map, −746 B, the paradigms, −750 B, and the sense runs,
-  −176 B, encode slightly tighter; the glosses +33 B; the new rows +9 B): gloss 177,269 B, senses
-  56,095 B, expressions 269,008 B (133,017 + 104,785 + their names 31,206: `velours côtelé` « Pana »
-  keyed now that `côtelé` is a lemma), the lexical table 7,501 B, and French's studied sections —
+  −176 B, encode slightly tighter; the glosses +33 B; the new rows +9 B; +1,620 B keeping every
+  headword of a key several reach, pick-lingua-expression-written-as-the-page): gloss 177,269 B,
+  senses 56,095 B, expressions 270,612 B (133,017 + 105,221 + their names 31,858 + the 64 other
+  headwords of 64 keys listed in `expr.others`, 516: `velours côtelé` « Pana » keyed now that `côtelé`
+  is a lemma), the lexical table 7,501 B, and French's studied sections —
   forms, lemmas, ranks, levels, paradigms and the tag pool — byte for byte fr-en's (`cross_native.rs`).
 
 What none of the sources glosses: 850 of the top 5,000 — English words and names in French text

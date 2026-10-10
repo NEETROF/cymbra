@@ -584,6 +584,15 @@ fn expression_for_run(
 /// run whose pieces do not meet does not match at that length, and the shorter
 /// runs are tried as before (« d’un peu plus » answers `un peu`). English and
 /// Spanish runs are matched as before.
+///
+/// A French run that is a key several headwords reach ([`Pack::expression_headwords`]:
+/// `ça va` and `ça ira` both read `ça aller`) is named by the headword written most like
+/// the page ([`written_as_the_page`], pick-lingua-expression-written-as-the-page D2,
+/// D3): each headword is held to the run as above, the ones that meet it weighed, and the
+/// one written as the page at the most places reports its name and its gloss, the status
+/// read on that name — « Ça va ? » answers `ça va`, « Ça ira. » `ça ira`. A run none of
+/// them meets does not match at that length, and the shorter runs are tried. A key one
+/// headword reaches is matched as before, without a reading.
 fn match_expressions(
     tokens: &[PhraseToken],
     shares_span: &[bool],
@@ -609,6 +618,20 @@ fn match_expressions(
         let longest = window.min(tokens.len() - start);
         let hit = (2..=longest).rev().find_map(|len| {
             let (key, gloss) = expression_for_run(&pieces[start..start + len], studied, pack)?;
+            if french {
+                let headwords = pack.expression_headwords(&key);
+                if headwords.len() > 1 {
+                    let run = start..start + len;
+                    let (name, gloss) = written_as_the_page(
+                        &headwords,
+                        &tokens[run.clone()],
+                        &elided[run.clone()],
+                        &shares_span[run],
+                        pack.lexicon(),
+                    )?;
+                    return Some((len, name.to_owned(), gloss.to_owned()));
+                }
+            }
             let name = match pack.expression_name(&key) {
                 Some(name) => name.to_owned(),
                 None => key,
@@ -717,6 +740,53 @@ fn meets_as_written(
             .iter()
             .skip(1)
             .eq(shared_spans(&pieces).iter().skip(1))
+}
+
+/// The headword a French run is named by where several headwords reach the key it matches
+/// (pick-lingua-expression-written-as-the-page D2, D3). `headwords` are the key's, as the
+/// pack lists them ([`Pack::expression_headwords`]: the one that wins the key first, then
+/// the others in the builder's order); `run`, `elided` and `joined` are the run's tokens and
+/// their slices of the selection's flags, as [`meets_as_written`] takes them.
+///
+/// Only the headwords whose pieces meet the run as written are weighed — `ce qui` does not
+/// meet « c'qui », whose `c'` is elided, and `c'qui` does. Each is read by
+/// [`headword_reading`], the reading its key was made from, so its pieces line up with the
+/// run's tokens one for one, and a place counts where a piece's text is its token's, both
+/// lowercased and the typographic apostrophe read as the straight one, as
+/// [`expression_piece`] writes a key; a reading that does not line up counts none. The
+/// headword written as the page at the most places wins, and the first in the pack's order
+/// between equals: « Ça va ? » answers `ça va` (two places, `ça ira` one), « Ça ira. »
+/// `ça ira`, « quelle que soit » `quel que soit` (`que` and `soit`, `quel que fût` `que`
+/// alone), « ça allait » `ça ira`, which wins the key (`ça` in both). `None` when no
+/// headword meets the run: it does not match at that length.
+fn written_as_the_page<'a>(
+    headwords: &[(&'a str, &'a str)],
+    run: &[PhraseToken],
+    elided: &[bool],
+    joined: &[bool],
+    lexicon: &(impl Lexicon + ?Sized),
+) -> Option<(&'a str, &'a str)> {
+    let compared = |text: &str| text.replace('\u{2019}', "'").to_lowercase();
+    let page: Vec<String> = run.iter().map(|token| compared(&token.surface)).collect();
+    let mut best: Option<((&'a str, &'a str), usize)> = None;
+    for &(name, gloss) in headwords {
+        if !meets_as_written(elided, joined, name, lexicon) {
+            continue;
+        }
+        let places = headword_reading(name, StudiedLanguage::French, lexicon)
+            .filter(|reading| reading.len() == page.len())
+            .map_or(0, |reading| {
+                reading
+                    .iter()
+                    .zip(&page)
+                    .filter(|((piece, _), written)| compared(&piece.text) == **written)
+                    .count()
+            });
+        if best.is_none_or(|(_, most)| places > most) {
+            best = Some(((name, gloss), places));
+        }
+    }
+    best.map(|(headword, _)| headword)
 }
 
 /// Whether a French expression's headword holds the word « au » or « aux », in any case
@@ -3300,6 +3370,344 @@ mod tests {
             let found: Vec<&str> = phrase.expressions.iter().map(|m| m.key.as_str()).collect();
             assert_eq!(found, ["al tiempo"], "{text}");
         }
+    }
+
+    // --- the headword written as the page (pick-lingua-expression-written-as-the-page) ---
+
+    /// The words the shared keys below are made of: `ça va`, `ça ira` and `ça allait` read
+    /// `ça aller`, `allez-y`, `allons-y` and `vas-y` `aller y`, `quel que fût`, `quel que soit`
+    /// and « quelle que soit » `quel que être`.
+    const WRITTEN_FORMS: &[(&str, &str)] = &[
+        ("allait", "aller"),
+        ("allez", "aller"),
+        ("allons", "aller"),
+        ("fût", "être"),
+        ("ira", "aller"),
+        ("la", "le"),
+        ("quelle", "quel"),
+        ("soit", "être"),
+        ("va", "aller"),
+        ("vas", "aller"),
+    ];
+
+    const WRITTEN_LEMMAS: &[&str] = &[
+        "ça", "aller", "y", "quel", "que", "être", "le", "distance", "ce", "qui",
+    ];
+
+    /// A pack laid out as the builder lays out a key several headwords reach (D1): `entries`
+    /// are (key, headword, gloss), listed in the builder's order; the first headword of a key
+    /// wins it — its gloss under the key's id, its name where it is not the key — and each other
+    /// is an expression of its own, named, under an id after the keys', listed in `expr.others`.
+    fn pack_with_others(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        entries: &[(&str, &str, &str)],
+    ) -> Pack {
+        let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let mut keys: Vec<&str> = entries.iter().map(|(key, _, _)| *key).collect();
+        keys.sort_unstable();
+        keys.dedup();
+        let mut map = fst::MapBuilder::memory();
+        let (mut glosses, mut names, mut others) = (Vec::new(), Vec::new(), Vec::new());
+        let mut next = keys.len() as u32;
+        for (id, key) in keys.iter().enumerate() {
+            let id = id as u32;
+            map.insert(key, u64::from(id)).expect("sorted, unique keys");
+            let mut headwords = entries.iter().filter(|(k, _, _)| k == key);
+            let (_, winner, gloss) = headwords.next().expect("a headword");
+            glosses.push((id, *gloss));
+            if winner != key {
+                names.push((id, *winner));
+            }
+            for (_, other, gloss) in headwords {
+                glosses.push((next, *gloss));
+                names.push((next, *other));
+                others.push((id, next));
+                next += 1;
+            }
+        }
+        let map = map.into_inner().expect("fst");
+        let (glosses, names) = (build_gloss_zst(&glosses), build_gloss_zst(&names));
+        let mut others_bytes = (others.len() as u32).to_le_bytes().to_vec();
+        for (key, other) in &others {
+            others_bytes.extend_from_slice(&key.to_le_bytes());
+            others_bytes.extend_from_slice(&other.to_le_bytes());
+        }
+        let native = if studied == FR { "en" } else { "fr" };
+        let meta = serde_json::to_vec(&PackMeta {
+            studied: studied.tag().into(),
+            native: native.into(),
+            pack_version: "t".into(),
+            analyzer_version: studied.analyzer_version().into(),
+            levels_estimated: false,
+            licences: vec![],
+        })
+        .unwrap();
+        let sections: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, pool.as_bytes()),
+            (section::FREQ, &freq_bytes),
+            (section::EXPR, &map),
+            (section::EXPR_ZST, &glosses),
+            (section::EXPR_NAMES_ZST, &names),
+            (section::EXPR_OTHERS, &others_bytes),
+        ];
+        Pack::load(&write_container(&meta, &sections)).expect("load")
+    }
+
+    /// A French pack holding `headwords` (headword, gloss), listed in the builder's order and
+    /// keyed as the builder keys them (add-lingua-french-expression-keys D1).
+    fn written_pack(headwords: &[(&str, &str)]) -> Pack {
+        let (bytes, pool) = build_lexicon_blobs(WRITTEN_FORMS, WRITTEN_LEMMAS).expect("build");
+        let lexicon = FstLexicon::from_slices(bytes, &pool).expect("load");
+        let keys: Vec<String> = headwords
+            .iter()
+            .map(|(headword, _)| french_expression_key(headword, &lexicon).expect(headword))
+            .collect();
+        let entries: Vec<(&str, &str, &str)> = keys
+            .iter()
+            .zip(headwords)
+            .map(|(key, (headword, gloss))| (key.as_str(), *headword, *gloss))
+            .collect();
+        pack_with_others(FR, WRITTEN_FORMS, WRITTEN_LEMMAS, &entries)
+    }
+
+    /// The keys several headwords reach, each won by its first as change 44's order ranks
+    /// them: the one written as the key (`ce qui`), else byte order (`ça ira` before `ça va`,
+    /// `allez-y` before `allons-y` and `vas-y`, `quel que fût` before `quel que soit`).
+    const WRITTEN_HEADWORDS: &[(&str, &str)] = &[
+        ("ça ira", "it will be all right"),
+        ("ça va", "how are you?"),
+        ("allez-y", "go ahead"),
+        ("allons-y", "let's go"),
+        ("vas-y", "go on"),
+        ("quel que fût", "whatever it was"),
+        ("quel que soit", "whatever"),
+        ("ce qui", "what, which"),
+        ("c'qui", "what, which (colloquial)"),
+    ];
+
+    /// Each match of `text` on [`WRITTEN_HEADWORDS`]'s pack: the surfaces it covers, its key
+    /// and its gloss.
+    fn written_matches(text: &str) -> Vec<(Vec<String>, String, String)> {
+        let pack = written_pack(WRITTEN_HEADWORDS);
+        let phrase = gloss_phrase(text, FR, &pack, &KnowledgeState::new());
+        phrase
+            .expressions
+            .iter()
+            .map(|m| {
+                let covered = phrase.tokens[m.start..m.end]
+                    .iter()
+                    .map(|token| token.surface.clone())
+                    .collect();
+                (covered, m.key.clone(), m.gloss.clone())
+            })
+            .collect()
+    }
+
+    fn written(surfaces: &[&str], key: &str, gloss: &str) -> (Vec<String>, String, String) {
+        (
+            surfaces.iter().map(|s| (*s).to_owned()).collect(),
+            key.to_owned(),
+            gloss.to_owned(),
+        )
+    }
+
+    #[test]
+    fn the_shared_keys_are_laid_out_as_the_builder_lays_them_out() {
+        let pack = written_pack(WRITTEN_HEADWORDS);
+        let names = |key: &str| -> Vec<String> {
+            pack.expression_headwords(key)
+                .into_iter()
+                .map(|(name, _)| name.to_owned())
+                .collect()
+        };
+        assert_eq!(names("ça aller"), ["ça ira", "ça va"]);
+        assert_eq!(names("aller y"), ["allez-y", "allons-y", "vas-y"]);
+        assert_eq!(names("quel que être"), ["quel que fût", "quel que soit"]);
+        assert_eq!(names("ce qui"), ["ce qui", "c'qui"]);
+    }
+
+    #[test]
+    fn spec_scenario_the_headword_written_as_the_page() {
+        assert_eq!(
+            written_matches("\u{c7}a va\u{202f}?"),
+            [written(&["\u{c7}a", "va"], "ça va", "how are you?")]
+        );
+        assert_eq!(
+            written_matches("Comment ça va ?"),
+            [written(&["ça", "va"], "ça va", "how are you?")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_headword_that_wins_the_key_written_as_the_page() {
+        assert_eq!(
+            written_matches("\u{c7}a ira."),
+            [written(
+                &["\u{c7}a", "ira"],
+                "ça ira",
+                "it will be all right"
+            )]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_one_of_three_headwords() {
+        assert_eq!(
+            written_matches("Allons-y\u{202f}!"),
+            [written(&["Allons", "y"], "allons-y", "let's go")]
+        );
+        assert_eq!(
+            written_matches("vas-y"),
+            [written(&["vas", "y"], "vas-y", "go on")]
+        );
+        assert_eq!(
+            written_matches("Allez-y"),
+            [written(&["Allez", "y"], "allez-y", "go ahead")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_no_headword_written_as_the_page_one_closer() {
+        // « Quelle » is written as neither headword's `quel`: `quel que soit` is written as the
+        // page at two places, `quel que fût` at one.
+        assert_eq!(
+            written_matches("Quelle que soit la distance"),
+            [written(
+                &["Quelle", "que", "soit"],
+                "quel que soit",
+                "whatever"
+            )]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_no_headword_closer_than_another() {
+        // `ça` alone is written as the page in both: the headword that wins the key answers.
+        assert_eq!(
+            written_matches("ça allait"),
+            [written(&["ça", "allait"], "ça ira", "it will be all right")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_headword_that_does_not_meet_the_page() {
+        // `ce qui` and `c'qui` read alike, and only `c'qui` meets the page's elided « c' »
+        // (match-lingua-french-elided-pieces): the winner is no candidate.
+        let found = written_matches("c'qui");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].0.len(), 2);
+        assert_eq!(found[0].1, "c'qui");
+        assert_eq!(found[0].2, "what, which (colloquial)");
+        // Written in full, both meet the page: the one written as it wins.
+        assert_eq!(
+            written_matches("ce qui"),
+            [written(&["ce", "qui"], "ce qui", "what, which")]
+        );
+    }
+
+    #[test]
+    fn a_run_no_headword_meets_does_not_match_at_that_length() {
+        // `ce qui` is written in full, so neither of the key's headwords meets « c'qui » when the
+        // pack holds `ce qui` alone, and no shorter run is a key.
+        let pack = written_pack(&[("ce qui", "what, which"), ("ça va", "how are you?")]);
+        let phrase = gloss_phrase("c'qui", FR, &pack, &KnowledgeState::new());
+        assert!(phrase.expressions.is_empty());
+        let pack = pack_with_others(
+            FR,
+            WRITTEN_FORMS,
+            WRITTEN_LEMMAS,
+            &[
+                ("ce qui", "ce qui", "what, which"),
+                ("ce qui", "ce que", "a headword that reads elsewhere"),
+            ],
+        );
+        let phrase = gloss_phrase("c'qui", FR, &pack, &KnowledgeState::new());
+        assert!(phrase.expressions.is_empty(), "{:?}", phrase.expressions);
+    }
+
+    #[test]
+    fn spec_scenario_a_key_one_headword_reaches() {
+        let pack = written_pack(&[("ça va", "how are you?")]);
+        let phrase = gloss_phrase("\u{c7}a ira.", FR, &pack, &KnowledgeState::new());
+        assert_eq!(spans(&phrase), [(0, 2, "ça va")]);
+        assert_eq!(phrase.expressions[0].gloss, "how are you?");
+    }
+
+    #[test]
+    fn spec_scenario_the_status_follows_the_headword() {
+        let pack = written_pack(WRITTEN_HEADWORDS);
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(FR, "ça va", Status::Known(KnownSource::Manual));
+        let va = gloss_phrase("\u{c7}a va\u{202f}?", FR, &pack, &knowledge);
+        assert_eq!(va.expressions[0].key, "ça va");
+        assert_eq!(va.expressions[0].class, TokenClass::Known);
+        let ira = gloss_phrase("\u{c7}a ira.", FR, &pack, &knowledge);
+        assert_eq!(ira.expressions[0].key, "ça ira");
+        assert_eq!(ira.expressions[0].class, TokenClass::Unknown);
+    }
+
+    #[test]
+    fn a_french_selection_s_tokens_do_not_move_with_the_headwords() {
+        let pack = written_pack(WRITTEN_HEADWORDS);
+        let bare = build_pack_for(FR, WRITTEN_FORMS, WRITTEN_LEMMAS, &[], &[], &[]);
+        let knowledge = KnowledgeState::new();
+        for text in [
+            "\u{c7}a va\u{202f}?",
+            "Allons-y\u{202f}!",
+            "Quelle que soit la distance",
+        ] {
+            assert_eq!(
+                gloss_phrase(text, FR, &pack, &knowledge).tokens,
+                gloss_phrase(text, FR, &bare, &knowledge).tokens,
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn english_and_spanish_runs_are_not_named_by_another_headword() {
+        // D6: the choice is French's. An English or a Spanish pack carrying the section — which
+        // the builder never writes for them — is matched as before, every run named by the
+        // headword that wins its key.
+        let knowledge = KnowledgeState::new();
+        let english = pack_with_others(
+            EN,
+            &[("starting", "start")],
+            &["start", "point"],
+            &[
+                ("start point", "start point", "Point de départ"),
+                ("start point", "starting point", "Point de départ (2)"),
+            ],
+        );
+        let phrase = gloss_phrase("the starting point", EN, &english, &knowledge);
+        assert_eq!(spans(&phrase), [(1, 3, "start point")]);
+        assert_eq!(phrase.expressions[0].gloss, "Point de départ");
+        let spanish = pack_with_others(
+            ES,
+            SPANISH_FORMS,
+            SPANISH_LEMMAS,
+            &[
+                ("ser inglés", "soy inglés", "Je suis anglais"),
+                ("ser inglés", "soy inglesa", "Je suis anglaise"),
+                ("después de", "después de", "Après"),
+            ],
+        );
+        let phrase = gloss_phrase("soy inglesa", ES, &spanish, &knowledge);
+        assert_eq!(spans(&phrase), [(0, 2, "soy inglés")]);
+        assert_eq!(phrase.expressions[0].gloss, "Je suis anglais");
+        let phrase = gloss_phrase("después del", ES, &spanish, &knowledge);
+        assert_eq!(spans(&phrase), [(0, 3, "después de")]);
+        assert_eq!(phrase.expressions[0].gloss, "Après");
+        // And on the packs the scenarios above read, as before.
+        assert_eq!(
+            spanish_spans("después del barrio"),
+            [span(0, 3, "después de")]
+        );
     }
 
     // --- Spanish expression keys (add-lingua-spanish-expression-keys) ---
