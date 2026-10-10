@@ -360,8 +360,8 @@ refine-lingua-fr-en-glosses). No extension package carries the pack: `packs.json
 shared module was edited for it, and an edit of the English edition's rules re-pins es-en and fr-en
 alone. fr-en's own rules (refine-lingua-fr-en-glosses) live in `reduce-fr-en.py` and, for the
 part of speech UD French-GSD reads a word as, in `reduce_french_treebank.py`, a rule module of its own
-that fr-es is to load too (refine-lingua-fr-es-glosses D8): they re-pin fr-en alone while fr-en alone
-loads them.
+that fr-es loads too (refine-lingua-fr-es-glosses D8): an edit of `reduce-fr-en.py` re-pins fr-en
+alone, one of `reduce_french_treebank.py` fr-en and fr-es.
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
@@ -421,15 +421,19 @@ or above the floor fixed before they were measured (below).
 fr-es reads French's tables in `tables/fr/` as committed — fr-en's reduction writes them — and writes
 its native side alone: its lemmas and their ranks are `tables/fr/forms.tsv` and `freq.tsv` (all
 60,000), its readings (which say under which part of speech a Spanish word read backwards is listed),
-levels and dictionary words French's, as fr-en's reduction writes them. Its reducer loads `reduce_common.py` and `reduce_edition_es.py`,
-not fr-en's reducer nor the English edition, so nothing of fr-en moves with it; an edit of the
-Spanish edition re-pins en-es and fr-es (the digest tests say so against every committed pin).
+levels and dictionary words French's, as fr-en's reduction writes them. Its reducer loads `reduce_common.py`, `reduce_edition_es.py`
+and `reduce_french_treebank.py` (UD French-GSD's parts of speech, fr-en's rule module, refine-lingua-fr-es-glosses
+D8), not fr-en's reducer nor the English edition, so nothing of fr-en moves with it; an edit of the
+Spanish edition re-pins en-es and fr-es, one of the treebank's module fr-en and fr-es (the digest
+tests say so against every committed pin). fr-es reads **UD French-GSD**'s training and development
+sections at fr-en's commit (`PINNED["fr-es"]`, the same two files fr-en's pin records; CC BY-SA 4.0,
+read for counts only), for the part of speech a function word's row opens on.
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
-| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's French section (`kaikki-es-Frances.jsonl`); else the Spanish translations the French Wiktionary's French entries list (`kaikki-fr-traductions.jsonl`, the direct table); else the French translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions.jsonl`, the inverted table) — the catalogue's three files, derived from the Spanish and French editions' dumps, no new derivation (`DUMPS["fr-es"]`); es-fr reads the two translation files the other way round | CC BY-SA 4.0 + GFDL | a French headword's typographic apostrophe read as `'` in the section and both tables (`main-d'œuvre`); the section's letters left out, its senses read as the Spanish edition reads en-es's (`read_as_meanings`: obsolete or outdated senses after the others, one typography), then fr-es's own pass (`french_entries`): a surname's or a given name's note left off a word that has an entry of its own in lower case holding a meaning, a possessive or demonstrative adjective — and an adjective whose every sense is a form of one (`mes`) — read as a determiner; then the shared rules, cleaned by the Spanish edition's notes (`reduce_edition_es.ES`): up to eight senses grouped by part of speech. A definition whose every sense is the French headword itself gives way to the direct table's Spanish words when they hold none spelled as the headword (`et` « Et » → « Y, e »). A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, each in the edition's typography; a letter's entry left out of both tables and a one-letter French word read backwards dropped; a Spanish word read backwards listed once, under the first of its parts of speech French's readings name. No pivot, no machine translation. Coverage below |
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's French section (`kaikki-es-Frances.jsonl`); else the Spanish translations the French Wiktionary's French entries list (`kaikki-fr-traductions.jsonl`, the direct table); else the French translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions.jsonl`, the inverted table) — the catalogue's three files, derived from the Spanish and French editions' dumps, no new derivation (`DUMPS["fr-es"]`); es-fr reads the two translation files the other way round | CC BY-SA 4.0 + GFDL | a French headword's typographic apostrophe read as `'` in the section and both tables (`main-d'œuvre`); the section's letters left out, its senses read as the Spanish edition reads en-es's (`read_as_meanings`: obsolete or outdated senses after the others, one typography), then fr-es's own passes (refine-lingua-fr-es-glosses): the sources' slips corrected by name (`CORRECTIONS`: `rien`, `amie`, « il y a », `hall`, `el` left unglossed), `french_entries` — a surname's or a given name's note left off a word that has an entry of its own in lower case holding a meaning, a possessive or demonstrative adjective — and an adjective whose every sense is a form of one (`mes`) — read as a determiner, an infinitive's noun written after its verb (`être`), a contraction of a preposition read as one (`des`, `du`), a note naming the part of speech again taken out (`qui`) —, a function word's entries of the part of speech UD French-GSD reads it as first (`pas` « No; Paso », fr-en's rule), and each sense of a word opening on its register, age and place in the edition's words (« (malsonante) », « (anticuado, Canadá, Bélgica) »); then the shared rules, cleaned by the Spanish edition's notes (`reduce_edition_es.ES`): up to eight senses grouped by part of speech. A definition whose every sense is the French headword itself gives way to the direct table's Spanish words when they hold none spelled as the headword (`et` « Et » → « Y, e »). A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, each in the edition's typography; a letter's entry left out of both tables and a one-letter French word read backwards dropped; a Spanish word read backwards listed once, under the first of its parts of speech French's readings name; a word of the direct table listed once across the French word's parts of speech, and never the French word itself (wordfreq: a hundred times commoner in French) unless Spanish writes it alike (`SPANISH_ALIKE`); read backwards, no language code « fr », no acronym through another word, no saint's name for a first name, no elided article read into a word, and neither table's named other-sense words (`OTHER_SENSES`). « etc » written « etc. ». No pivot, no machine translation. Coverage below |
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; French's readings come from `tables/fr/grammar.tsv` |
-| `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the section's multi-word French entries, then the multi-word headwords the tables give (587, 10,686 and 904); `LOCUTIONS` in the reducer is empty |
+| `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the section's multi-word French entries, each sense opening on its labels after the shared rules cut it, then the multi-word headwords the tables give (587, 10,683 and 904); `LOCUTIONS` in the reducer is empty |
 | `NOTICE` | both sides' sources | — | the studied side as fr-en's notice credits it (the English Wiktionary's French section, wordfreq, UD French-GSD, the estimated levels), and the native side (the Spanish Wiktionary's definitions and French translations, the French Wiktionary's Spanish translations, wordfreq for the Spanish words' order) |
 
 **The floor, fixed before the measurement** (D8, M6). The owner settled on 2026-10-09, before the
@@ -465,6 +469,14 @@ rows whose runs alone move, 11 letters losing a gloss that was the letter, none 
 100 glosses marked by source, and the defects left are in `tables/fr-es/README.md`. The first update
 was dispatched alone on the implementation's branch; `build.sh --reduce fr-es` from the release it
 published, `lingua-pack-sources-fr-es-2026.10.10`, reproduced its tables byte for byte, twice.
+
+**fr-es's own rules** (refine-lingua-fr-es-glosses, before change 52 lists fr-es): reduced again from
+the same release and UD French-GSD's two sections, 912 rows change (371 of the top 10,000), 28
+lemmas lose their gloss (17), none gains one, 66 expressions change and 3 lose theirs; 19,022 lemmas
+glossed (4,559 definitions, 24.0 %; 13,185 direct; 1,278 inverted), 59.7 % of the glossed top 10,000
+from a table, 12,174 expressions; coverage **83.0 / 70.7 / 56.7 %**, above the floor; the pack
+1,971,289 B. Each rule's rows, the three reviewed lists (`SPANISH_ALIKE`, `OTHER_SENSES`,
+`CORRECTIONS` with the pages reported upstream) and the defects left are in `tables/fr-es/README.md`.
 
 ## The editions' dumps
 
@@ -714,10 +726,11 @@ reducer and every `reduce_*.py` module importing it loads, read from `sys.module
 `reduce_edition_fr.py`; es-en's are `reduce-es-en.py`, `reduce_common.py` and
 `reduce_edition_en.py`, and fr-en's `reduce-fr-en.py`, `reduce_common.py`, `reduce_edition_en.py`
 and `reduce_french_treebank.py` (UD French-GSD's parts of speech, refine-lingua-fr-en-glosses D5); en-es's are `reduce-en-es.py`, `reduce_common.py` and
-`reduce_edition_es.py`, and fr-es's `reduce-fr-es.py`, `reduce_common.py` and
-`reduce_edition_es.py`. Editing the English edition re-pins es-en and fr-en alone, the Spanish
-edition en-es and fr-es alone (each pair's own rules, such as en-es's and fr-es's passes over their
-section, live in its reducer); editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
+`reduce_edition_es.py`, and fr-es's `reduce-fr-es.py`, `reduce_common.py`, `reduce_edition_es.py`
+and `reduce_french_treebank.py` (refine-lingua-fr-es-glosses D8). Editing the English edition re-pins
+es-en and fr-en alone, the Spanish edition en-es and fr-es alone, the treebank's module fr-en and
+fr-es alone (each pair's own rules, such as en-es's and fr-es's passes over their section, live in
+its reducer); editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
 reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a
 reducer would make later than at import time, and any module loaded other than by an import
 statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.
