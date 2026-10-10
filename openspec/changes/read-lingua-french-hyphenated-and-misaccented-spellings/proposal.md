@@ -24,8 +24,8 @@ kinds out, which the owner sent to a reviewed list of their own on 2026-10-10 (4
 - **The hyphenated candidates, from data** (design D1). wordfreq cannot count a hyphenated spelling:
   it splits it at the hyphen and answers its rarer piece (`peut-etre` 4.75 is `etre`'s 4.77;
   `c'est-a-dire` 5.86 is `a`'s order). Of the 275 hyphenated forms of `tables/fr/` written with marks,
-  267 have a spelling without them that the French section names nowhere; 227 are forms of dictionary
-  words (39 are names: `ile-de-france`, `jesus-christ`). Their frequency is estimated from the
+  266 have a spelling without them that is no form yet and that the French section names nowhere; 227
+  are forms of dictionary words (39 are names: `ile-de-france`, `jesus-christ`). Their frequency is estimated from the
   accented compound's count in 6.36 M words of French corpora (UD, Tatoeba, Wikipedia, Gutenberg,
   change 39's pages), shifted by the web's measured share of unaccented spellings — the median, over
   43e's rows, of wordfreq's Zipf for the spelling less the corpora's Zipf for its accented word
