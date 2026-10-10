@@ -25,8 +25,8 @@ export type NativeLanguageCopy = typeof frNativeLanguage;
 // language; the current one selected; picking another says, before it is confirmed, which languages
 // the reader will then study; confirming sends `lingua-native-language`, and the background rewrites
 // the profile, after which every page reloads and every reading session is built anew (D2, D3). While
-// one native language ships — today — there is nothing to choose: the view mounts nothing at all, so
-// every host's DOM is what it was before it (M22).
+// one native language ships — French alone, before change 34 shipped es-en — there is nothing to
+// choose: the view mounts nothing at all, so every host's DOM is what it was before it (M22).
 
 /** The reader's profile as the view needs it: their native language and the languages they study. */
 export interface NativeProfile {

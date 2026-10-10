@@ -51,7 +51,8 @@ export function pairsOf(native: string, pairs: readonly string[] = SHIPPED_PAIRS
 
 /**
  * The native languages with at least one shipped pair, in listed order, once each
- * (add-lingua-native-language-choice D1): one today, French (M22). The build reads the same list
+ * (add-lingua-native-language-choice D1): French, then English since change 34 shipped es-en
+ * (enable-lingua-english-speakers); French alone before it (M22). The build reads the same list
  * for the manifest's languages (tool/packs.mjs; test/pairs.spec.ts holds the two equal).
  */
 export function shippedNatives(pairs: readonly string[] = SHIPPED_PAIRS): string[] {

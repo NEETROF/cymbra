@@ -621,7 +621,9 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const committed = parseCatalogue(JSON.parse(readFileSync(join(root, "model-manifest.json"), "utf8")));
   /** The reader's pairs as the background forms them: the shipped pairs of their native language. */
-  const of = (languages: string[], native: string) => readerPairs(languages, native);
+  const of = (languages: string[], native: string, pairs?: readonly string[]) => readerPairs(languages, native, pairs);
+  /** The shipped pairs before change 34 (enable-lingua-english-speakers): French-native only. */
+  const FRENCH_NATIVE = ["en-fr", "es-fr"];
 
   it("Every reader today: English and Spanish, native French — en-fr and es-en are downloaded, 51 993 524 bytes, and nothing of en-es", async () => {
     const { controller, host, setting, downloaded } = setup({
@@ -662,7 +664,8 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
   });
 
   it("A route of a pair not shipped: a reader native in Spanish or in English has no shipped pair — not offered, nothing downloaded", async () => {
-    for (const pairs of [of(["en"], "es"), of(["es"], "en")]) {
+    // The scenario's list: en-fr and es-fr, as before change 34. Since it, es-en ships (below).
+    for (const pairs of [of(["en"], "es", FRENCH_NATIVE), of(["es"], "en", FRENCH_NATIVE), of(["en"], "es")]) {
       expect(pairs).toEqual([]);
       const { controller, host } = setup({ pairs, catalogue: async () => committed });
       expect(await controller.status()).toEqual({ offered: false, host: "none", state: { phase: "absent" } });
@@ -673,7 +676,13 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
   it("A route of a pair studying French: fr-en and fr-es are routed, no reader's pairs need them — nothing of fr-en is downloaded (add-lingua-french-translation D2)", async () => {
     expect(Object.keys(committed.routes)).toEqual(expect.arrayContaining(["fr-en", "fr-es"]));
     // A reader of French whose native language is English or Spanish has no shipped pair until change 52.
-    for (const pairs of [of(["fr"], "en"), of(["fr"], "es"), of(["es", "fr"], "en"), of(["en", "fr"], "es")]) {
+    // The English-native reader of Spanish and French on the list before change 34: es-en alone since it (below).
+    for (const pairs of [
+      of(["fr"], "en"),
+      of(["fr"], "es"),
+      of(["es", "fr"], "en", FRENCH_NATIVE),
+      of(["en", "fr"], "es"),
+    ]) {
       expect(pairs).toEqual([]);
       const { controller, host } = setup({ pairs, catalogue: async () => committed });
       expect(await controller.status()).toEqual({ offered: false, host: "none", state: { phase: "absent" } });
@@ -685,5 +694,22 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
     expect(host.startDownload).toHaveBeenCalledWith([EN_FR, ES_EN]);
     expect(await controller.ready("fr-en")).toBe(false);
     expect(await controller.ready("fr-es")).toBe(false);
+  });
+
+  it("An English-native reader of Spanish, es-en shipping (change 34): the es-en model alone, nothing of en-fr", async () => {
+    // English is never an English-native reader's pair: es-en alone, whatever else they list.
+    for (const languages of [["es"], ["en", "es"], ["es", "en"], ["es", "fr"]]) {
+      const pairs = of(languages, "en");
+      expect(pairs).toEqual(["es-en"]);
+      const { controller, host, setting, downloaded } = setup({ pairs, catalogue: async () => committed });
+      const status = await controller.enable();
+      expect(host.startDownload).toHaveBeenCalledWith([ES_EN]);
+      expect(status.cost).toEqual({ download: 26_241_052, stored: 37_014_089 });
+      await downloaded();
+      expect(setting().state).toEqual({ phase: "ready", models: [ES_EN], pairs: ["es-en"] });
+      expect(await controller.ready("es-en")).toBe(true);
+      expect(await controller.ready("en-fr")).toBe(false);
+      expect(await controller.ready("fr-en")).toBe(false);
+    }
   });
 });

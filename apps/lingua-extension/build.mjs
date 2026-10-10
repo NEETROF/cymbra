@@ -67,7 +67,7 @@ assertWasmMatchesEngine();
 const baseManifest = JSON.parse(readFileSync(join(root, "manifest.json"), "utf8"));
 // The committed `_locales` (localise-lingua-manifest D1): every language's messages, of which a
 // package carries the shipped natives' once a pair glossed in another language than French ships
-// (tool/manifests.mjs decides; none today).
+// (tool/manifests.mjs decides: fr and en since es-en ships, enable-lingua-english-speakers).
 const MESSAGES = readLocales(root);
 // The version has ONE home: package.json, which release-please bumps. It is stamped onto
 // each built manifest here rather than mirrored into manifest.json, because a mirror is a
