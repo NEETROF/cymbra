@@ -26,7 +26,14 @@ name: lingua-pack-update
 #   assets only, and a pair brought along publishes nothing and reads no dump. A pin written before
 #   the dumps — en-fr's, es-fr's and es-en's name kaikki's per-language extracts — is read as it is
 #   recorded, and moves to the dumps at the pair's next update (D5). A pair's first update — its
-#   folder holds no tables yet — proposes the folder whole.
+#   folder holds no tables yet — proposes the folder whole. With `keep` (an edition, or several
+#   comma-separated: `en`), the named pair's update keeps those editions' recorded bytes — each one's
+#   record carried byte for byte, its files read from the release it names, its dump not fetched —
+#   and reads the others anew; the new release holds the files read anew alone
+#   (add-lingua-fr-en-translated-expressions D6). It adds an edition to a pair without reading its
+#   others again: fr-en gaining the French Wiktionary's English translations, its English dump of
+#   2026-10-03 no longer served, without a new French dictionary in the same pull request. It is
+#   never a way to avoid an update: the next update that keeps nothing reads every edition anew.
 # - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
 #   the branch's diff is the rules' effect alone; no dump is read. With pair `all`, every pair with
 #   committed tables is reduced in one run and proposed on one branch,
@@ -76,6 +83,10 @@ on:
         type: choice
         options: [any, identical]
         default: any
+      keep:
+        description: "Editions whose recorded bytes the update keeps, comma-separated (en, fr, es): their dumps are not read, their pinned files are (mode update only). Empty = read every edition anew."
+        type: string
+        default: ""
   schedule:
     - cron: "17 5 3 * *" # the 3rd of every month, 05:17 UTC — dry run of every pair, one job
 
@@ -106,6 +117,7 @@ jobs:
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
       PAIR: ${{ github.event_name == 'schedule' && 'all' || inputs.pair }}
       EXPECT: ${{ inputs.expect || 'any' }}
+      KEEP: ${{ inputs.keep || '' }}
       # A monthly run fails when a table loses more than this share of its rows (D7). A starting
       # value, to set from the first runs.
       MAX_LOSS: "0.2"
@@ -135,6 +147,16 @@ jobs:
           fi
           if [ "$EXPECT" = identical ] && [ "$MODE" != reduce ]; then
             echo "::error::expect=identical checks a change of the rules alone: dispatch it with mode=reduce."
+            exit 1
+          fi
+          # Keeping an edition is an update's alone (add-lingua-fr-en-translated-expressions D6): a
+          # re-reduction reads every record as pinned already, and a dry run checks today's sources.
+          if [ -n "$KEEP" ] && [ "$MODE" != update ]; then
+            echo "::error::keep=$KEEP keeps an edition's recorded bytes through an update: dispatch it with mode=update."
+            exit 1
+          fi
+          if [ -n "$KEEP" ] && ! printf '%s' "$KEEP" | grep -qxE '[a-z]{2}(,[a-z]{2})*'; then
+            echo "::error::keep=$KEEP is no list of editions: write their codes, comma-separated (en, or en,es)."
             exit 1
           fi
 
@@ -190,7 +212,12 @@ jobs:
               fi
               echo "$pair: $(( $(date +%s) - pair_started )) s; disk used, free: $(df -h --output=used,avail / 2>/dev/null | tail -n1)"
             else
-              LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+              # The editions kept are the named pair's (`keep`): a pair brought along is reduced from
+              # its own pin, which keeps every record already.
+              kept=""
+              [ "$mode" = update ] && kept="$KEEP"
+              LINGUA_SNAPSHOT=$snapshot LINGUA_KEEP_EDITIONS="$kept" \
+                scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
             fi
             # What a reducer measures of its own tables and stores in no pack — en-es's and fr-es's
             # translation-table share (add-lingua-pack-en-es D4, add-lingua-pack-fr-es D9) — kept
