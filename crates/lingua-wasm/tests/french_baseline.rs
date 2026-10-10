@@ -59,7 +59,10 @@
 //! added, « LE CA A VOTÉ LE BUDGET », « Il a crié : CA SUFFIT ! », « Ca fait du bien. » and the
 //! card of `CA`; pick-lingua-expression-written-as-the-page: the pack, which keeps every headword of
 //! a key, and five phrase probes, « Ça va ? », « Ça ira. », « Allons-y ! », « les miens » and
-//! « Quelle que soit la distance »).
+//! « Quelle que soit la distance »; read-lingua-french-dictionary-unmarked-spellings: its re-reduced
+//! tables move six probes — the pack, « c'etait » on the `informel` page read as `être`, the two
+//! vocabulary estimates, the deck the levels seed — and four phrase probes, « il etait une fois »,
+//! « un coup d'Etat », « Il faut etre patient. » and « un moteur diesel »).
 //! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
 //! renders this golden's grammar and phrase probes, and is re-blessed with it
 //! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).

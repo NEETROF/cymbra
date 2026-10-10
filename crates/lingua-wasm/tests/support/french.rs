@@ -92,6 +92,13 @@
 //! `age` and `ages` as `âge`, `forcement` as `forcément`. Four phrase probes show it where a reader
 //! meets it: « comme ca », « c'est ca », « à mon age », and « Le CA a voté le budget. », the record
 //! that « CA » in capitals reads as `ça` until an analyser change keeps the acronym.
+//!
+//! It also reads as their word the spellings the dictionary gives only as a marked word written
+//! without its marks, when the marked word is the commoner (read-lingua-french-dictionary-unmarked-
+//! spellings): the `informel` page's « c'etait » reads as `être`. Four phrase probes show it where a
+//! reader meets it: « il etait une fois » and « un coup d'Etat » meet `il était une fois` and `coup
+//! d'état`, « Il faut etre patient. » reads `être`, and « un moteur diesel » records a spelling the
+//! frequency rule keeps, `diesel` being commoner than `diésel`.
 
 use super::{Card, PackSource, Scenario};
 
@@ -164,7 +171,10 @@ const LEMMAS: &[&str] = &[
 /// (keep-lingua-french-acronyms-in-capitals D1, D7): « Le CA a voté le budget. » shows `CA`, the
 /// acronym, and its gloss — it read as `ça` before —, while « LE CA A VOTÉ LE BUDGET » (a headline in
 /// capitals), « Il a crié : CA SUFFIT ! » (a shout, `ça suffit` met) and « Ca fait du bien. » (a
-/// capital initial) read `ça`.
+/// capital initial) read `ça`; and the dictionary's spellings without their marks
+/// (read-lingua-french-dictionary-unmarked-spellings): « il etait une fois » and « un coup d'Etat »
+/// meet `il était une fois` and `coup d'état`, « Il faut etre patient. » reads `être`, and « un moteur
+/// diesel » records a spelling the frequency rule keeps.
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -214,6 +224,10 @@ const PHRASES: &[&str] = &[
     "LE CA A VOTÉ LE BUDGET",
     "Il a crié : CA SUFFIT !",
     "Ca fait du bien.",
+    "il etait une fois",
+    "un coup d'Etat",
+    "Il faut etre patient.",
+    "un moteur diesel",
     // The whole-selection card of a word written as pieces, as a double-click selects it
     // (add-lingua-french-word-card D7).
     "l\u{2019}homme",
