@@ -40,7 +40,7 @@ use crate::analysis::percent::{
 use crate::analysis::pipeline::{
     AnalysedToken, DocumentAnalysis, analyse_document, headword_reading, resolve_lemmas,
 };
-use crate::analysis::tokenize::{tokenize, without_soft_hyphens};
+use crate::analysis::tokenize::{is_elided, tokenize, without_soft_hyphens};
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
 use crate::packs::grammar::Tag;
@@ -546,9 +546,21 @@ fn expression_for_run(
 /// split words (`don't`) stay as they were. And a Spanish expression the reader
 /// settled under the run's lemma chain, and not under its name, keeps that chain
 /// ([`settled_chain`], D6).
+///
+/// `elided[i]` says whether token `i` is an elided piece ([`is_elided`]). A French
+/// run that is a key is kept only where its pieces meet the words as the
+/// expression's headword writes them ([`meets_as_written`],
+/// match-lingua-french-elided-pieces D1): a piece the headword writes elided meets
+/// only an elided token, a piece written in full only a token written in full —
+/// but the last piece written in full meets either, French eliding it or not by
+/// the page's next word —, so « de le faire » no longer answers `de l'`, nor
+/// « d’un » `de un`. A run whose pieces do not meet does not match at that
+/// length, and the shorter runs are tried as before (« d’un peu plus » answers
+/// `un peu`). English and Spanish runs are matched as before.
 fn match_expressions(
     tokens: &[PhraseToken],
     shares_span: &[bool],
+    elided: &[bool],
     studied: StudiedLanguage,
     pack: &Pack,
     knowledge: &KnowledgeState,
@@ -562,21 +574,23 @@ fn match_expressions(
         .collect();
     let window = expression_window(studied);
     let spanish = studied == StudiedLanguage::Spanish;
+    let french = studied == StudiedLanguage::French;
     let whole_words = matches!(studied, StudiedLanguage::Spanish | StudiedLanguage::French);
     let mut matches = Vec::new();
     let mut start = 0;
     while start < tokens.len() {
         let longest = window.min(tokens.len() - start);
         let hit = (2..=longest).rev().find_map(|len| {
-            expression_for_run(&pieces[start..start + len], studied, pack)
-                .map(|(key, gloss)| (len, key, gloss))
+            let (key, gloss) = expression_for_run(&pieces[start..start + len], studied, pack)?;
+            let name = match pack.expression_name(&key) {
+                Some(name) => name.to_owned(),
+                None => key,
+            };
+            (!french || meets_as_written(&elided[start..start + len], &name, pack.lexicon()))
+                .then_some((len, name, gloss))
         });
         match hit {
-            Some((len, key, gloss)) => {
-                let name = match pack.expression_name(&key) {
-                    Some(name) => name.to_owned(),
-                    None => key,
-                };
+            Some((len, name, gloss)) => {
                 let key = if spanish {
                     settled_chain(&tokens[start..start + len], &name, studied, knowledge)
                         .unwrap_or(name)
@@ -603,6 +617,42 @@ fn match_expressions(
         }
     }
     matches
+}
+
+/// Whether a French run's tokens meet, piece by piece, its expression's headword as
+/// the headword writes them (match-lingua-french-elided-pieces D1, D3): `elided` holds
+/// the run's tokens' [`is_elided`], `headword` the expression's name — the pack's, or
+/// its key where it carries none.
+///
+/// A piece the headword writes elided (`l'` of `de l'`, `qu'` of `qu'est-ce que`) meets
+/// only an elided token; a piece it writes in full meets only a token written in full,
+/// except its last, which meets either: French elides a word by the word that follows
+/// it, and after the expression's last piece that word is the page's (« parce qu’il »
+/// answers `parce que`). The headword is read by French's pre-pass
+/// ([`headword_reading`], the reading its key was made from, so its pieces line up with
+/// the run's one for one) and each piece's elision taken from its span — only when it
+/// holds an apostrophe: a name holding none is written in full, and a key the pack does
+/// not name is its own headword, written without an elided piece. A headword whose
+/// reading does not line up with the run is matched as before.
+fn meets_as_written(elided: &[bool], headword: &str, lexicon: &(impl Lexicon + ?Sized)) -> bool {
+    let last = elided.len().saturating_sub(1);
+    if !headword.contains(['\'', '\u{2019}']) {
+        return !elided[..last].contains(&true);
+    }
+    let Some(reading) = headword_reading(headword, StudiedLanguage::French, lexicon) else {
+        return true;
+    };
+    if reading.len() != elided.len() {
+        return true;
+    }
+    reading
+        .iter()
+        .zip(elided)
+        .enumerate()
+        .all(|(i, ((token, _), &on_page))| {
+            let written = is_elided(headword, token);
+            on_page == written || (i == last && !written)
+        })
 }
 
 /// The lemma chain a reader settled a Spanish expression under before it was named
@@ -659,6 +709,9 @@ pub fn gloss_phrase(
             })
         })
         .collect();
+    // Which tokens are elided pieces, read from their spans, which a French match holds
+    // to its headword's (match-lingua-french-elided-pieces D2).
+    let elided: Vec<bool> = read.iter().map(|token| is_elided(text, token)).collect();
     let tokens: Vec<PhraseToken> = read
         .into_iter()
         .map(|token| {
@@ -683,7 +736,7 @@ pub fn gloss_phrase(
             }
         })
         .collect();
-    let expressions = match_expressions(&tokens, &shares_span, studied, pack, knowledge);
+    let expressions = match_expressions(&tokens, &shares_span, &elided, studied, pack, knowledge);
     PhraseGloss {
         tokens,
         expressions,
@@ -2307,6 +2360,246 @@ mod tests {
             );
             let phrase = gloss_phrase("por des", studied, &pack, &KnowledgeState::new());
             assert!(phrase.expressions.is_empty(), "{studied:?}");
+        }
+    }
+
+    // --- French elided pieces (match-lingua-french-elided-pieces) ---
+
+    const ELIDED_FORMS: &[(&str, &str)] = &[
+        ("a", "avoir"),
+        ("amis", "ami"),
+        ("attend", "attendre"),
+        ("décidé", "décider"),
+        ("est", "être"),
+        ("pleut", "pleuvoir"),
+        ("sont", "être"),
+        ("était", "être"),
+    ];
+
+    const ELIDED_LEMMAS: &[&str] = &[
+        "de", "le", "un", "peu", "plus", "parce", "que", "être", "ce", "il", "avoir", "décider",
+        "faire", "eau", "hiver", "pleuvoir", "attendre", "mon", "ami", "je",
+    ];
+
+    /// The delta's expressions: the elided article, fr-en's `de un` (« first, first up »), and
+    /// expressions written in full, ending on a piece French elides, or elided at their head.
+    const ELIDED_EXPRESSIONS: &[(&str, &str)] = &[
+        ("de l'", "some"),
+        ("de un", "first, first up"),
+        ("un peu", "a little"),
+        ("parce que", "because"),
+        ("qu'est-ce que", "what"),
+        ("c'est", "it is"),
+    ];
+
+    fn elided_lexicon() -> FstLexicon<Vec<u8>> {
+        let (bytes, pool) = build_lexicon_blobs(ELIDED_FORMS, ELIDED_LEMMAS).expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    /// A French pack holding [`ELIDED_EXPRESSIONS`], keyed as the builder keys them and named by
+    /// their headwords where the two differ (add-lingua-french-expression-keys D1, D3).
+    fn elided_pieces_pack() -> Pack {
+        let lexicon = elided_lexicon();
+        let keyed: Vec<(String, &str, &str)> = ELIDED_EXPRESSIONS
+            .iter()
+            .map(|&(headword, gloss)| {
+                let key = french_expression_key(headword, &lexicon).expect(headword);
+                (key, headword, gloss)
+            })
+            .collect();
+        let expressions: Vec<(&str, &str)> = keyed
+            .iter()
+            .map(|(key, _, gloss)| (key.as_str(), *gloss))
+            .collect();
+        let names: Vec<(&str, &str)> = keyed
+            .iter()
+            .filter(|(key, headword, _)| key != headword)
+            .map(|(key, headword, _)| (key.as_str(), *headword))
+            .collect();
+        build_pack_with_names(
+            FR,
+            ELIDED_FORMS,
+            ELIDED_LEMMAS,
+            &[],
+            &[],
+            &expressions,
+            &names,
+            None,
+        )
+    }
+
+    /// Each match of `text` on [`elided_pieces_pack`]: the surfaces of the tokens it covers and
+    /// what it reports.
+    fn elided_matches(text: &str) -> Vec<(Vec<String>, String)> {
+        let phrase = gloss_phrase(text, FR, &elided_pieces_pack(), &KnowledgeState::new());
+        phrase
+            .expressions
+            .iter()
+            .map(|m| {
+                let covered = phrase.tokens[m.start..m.end]
+                    .iter()
+                    .map(|token| token.surface.clone())
+                    .collect();
+                (covered, m.key.clone())
+            })
+            .collect()
+    }
+
+    fn covering(surfaces: &[&str], key: &str) -> (Vec<String>, String) {
+        (
+            surfaces.iter().map(|&surface| surface.to_owned()).collect(),
+            key.to_owned(),
+        )
+    }
+
+    #[test]
+    fn the_delta_s_expressions_are_keyed_and_named_as_french_is_read() {
+        let pack = elided_pieces_pack();
+        for (key, name) in [
+            ("de le", Some("de l'")),
+            ("de un", None),
+            ("un peu", None),
+            ("parce que", None),
+            ("que être ce que", Some("qu'est-ce que")),
+            ("ce être", Some("c'est")),
+        ] {
+            assert!(pack.expression(key).is_some(), "{key}");
+            assert_eq!(pack.expression_name(key), name, "{key}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_an_elided_article_is_not_a_pronoun() {
+        // `de le` is `de l'`'s key; « le » here is a pronoun, written in full.
+        assert_eq!(elided_matches("Il a décidé de le faire"), []);
+    }
+
+    #[test]
+    fn spec_scenario_the_elided_article() {
+        assert_eq!(
+            elided_matches("de l\u{2019}eau"),
+            [covering(&["de", "le"], "de l'")]
+        );
+        assert_eq!(
+            elided_matches("de l'eau"),
+            [covering(&["de", "le"], "de l'")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_piece_written_in_full_does_not_meet_its_elision() {
+        assert_eq!(elided_matches("d\u{2019}un hiver"), []);
+        // Written in full, it meets « de un » as before.
+        assert_eq!(
+            elided_matches("de un hiver"),
+            [covering(&["de", "un"], "de un")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_shorter_run_takes_the_place() {
+        assert_eq!(
+            elided_matches("d\u{2019}un peu plus"),
+            [covering(&["un", "peu"], "un peu")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_last_piece_follows_the_page() {
+        assert_eq!(
+            elided_matches("parce qu\u{2019}il pleut"),
+            [covering(&["parce", "que"], "parce que")]
+        );
+        assert_eq!(
+            elided_matches("parce que je"),
+            [covering(&["parce", "que"], "parce que")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_elided_piece_inside_a_question() {
+        assert_eq!(
+            elided_matches("Qu\u{2019}est-ce qu\u{2019}il attend"),
+            [covering(&["Que", "est", "ce", "que"], "qu'est-ce que")]
+        );
+        assert_eq!(
+            elided_matches("Qu'est-ce que je"),
+            [covering(&["Que", "est", "ce", "que"], "qu'est-ce que")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_another_form_written_in_full() {
+        assert_eq!(elided_matches("Ce sont mes amis"), []);
+        assert_eq!(
+            elided_matches("C\u{2019}était l\u{2019}hiver"),
+            [covering(&["Ce", "était"], "c'est")]
+        );
+    }
+
+    #[test]
+    fn a_french_headword_is_read_only_when_it_holds_an_apostrophe() {
+        let lexicon = elided_lexicon();
+        // `de un`, unnamed: its own headword, written in full. Its pieces but the last meet only
+        // tokens written in full; its last meets either.
+        assert!(!meets_as_written(&[true, false], "de un", &lexicon));
+        assert!(meets_as_written(&[false, false], "de un", &lexicon));
+        assert!(meets_as_written(&[false, true], "de un", &lexicon));
+        // A headword holding an apostrophe, straight or typographic, is read: its elided last
+        // piece meets only an elided token.
+        for name in ["de l'", "de l\u{2019}"] {
+            assert!(meets_as_written(&[false, true], name, &lexicon), "{name}");
+            assert!(!meets_as_written(&[false, false], name, &lexicon), "{name}");
+            assert!(!meets_as_written(&[true, true], name, &lexicon), "{name}");
+        }
+        // A reading that does not line up with the run, or none at all — a word the analysis
+        // drops (`t`) —, leaves the run matched as before.
+        assert!(meets_as_written(&[false, false], "de l'eau", &lexicon));
+        assert!(meets_as_written(&[true, true], "qu'il t", &lexicon));
+    }
+
+    #[test]
+    fn the_tokens_do_not_move_with_the_rule() {
+        let bare = build_pack_for(FR, ELIDED_FORMS, ELIDED_LEMMAS, &[], &[], &[]);
+        let knowledge = KnowledgeState::new();
+        for text in [
+            "Il a décidé de le faire",
+            "de l\u{2019}eau",
+            "d\u{2019}un peu plus",
+            "Ce sont mes amis",
+        ] {
+            let with_table = gloss_phrase(text, FR, &elided_pieces_pack(), &knowledge);
+            let without = gloss_phrase(text, FR, &bare, &knowledge);
+            assert_eq!(with_table.tokens, without.tokens, "{text}");
+        }
+    }
+
+    #[test]
+    fn english_and_spanish_runs_are_not_held_to_elision() {
+        // D6: the check is French's. A name holding an apostrophe, which French would read as an
+        // elided piece, leaves an English or Spanish match where it was.
+        for studied in [EN, ES] {
+            let pack = build_pack_with_names(
+                studied,
+                &[],
+                &["de", "un"],
+                &[],
+                &[],
+                &[("de un", "x")],
+                &[("de un", "d'un")],
+                None,
+            );
+            let phrase = gloss_phrase("de un", studied, &pack, &KnowledgeState::new());
+            assert_eq!(
+                phrase
+                    .expressions
+                    .iter()
+                    .map(|m| (m.start, m.end, m.key.as_str()))
+                    .collect::<Vec<_>>(),
+                [(0, 2, "d'un")],
+                "{studied:?}"
+            );
         }
     }
 

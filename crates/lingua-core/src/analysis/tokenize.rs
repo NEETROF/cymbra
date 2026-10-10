@@ -522,6 +522,24 @@ fn apostrophe_ending_a_word(text: &str, end: usize) -> Option<usize> {
     }
 }
 
+/// Whether `token`, read from `text`, is an elided piece — `l’` of « l’homme », `qu'`
+/// of « qu'il », `l’` written alone: its source span ends on a straight or typographic
+/// apostrophe (match-lingua-french-elided-pieces D2). French's pre-pass gives an elided
+/// piece, and it alone, a span holding its apostrophe ([`push_french_elisions`], and
+/// an elided word written on its own). No other token's span can end on one: every
+/// other span is a UAX #29 word's, or a hyphenated run's ending on one, and UAX #29
+/// never ends a word on an apostrophe — it joins one only between two letters
+/// (`aujourd'hui`, `don't`), and an edge apostrophe (`vélib'`, `sailors'`) is outside
+/// the word's span. The token's text cannot say it: an elided piece reads as the word
+/// it stands for (`le`). English and Spanish tokens are never elided.
+///
+/// The phrase gloss reads it on a selection's tokens and on an expression's headword
+/// (`engine::match_expressions`), so the two say it the same way.
+pub fn is_elided(text: &str, token: &Token) -> bool {
+    text.get(token.start..token.end)
+        .is_some_and(|written| written.ends_with(is_apostrophe))
+}
+
 /// One French word written at `start` of `text` — outside a hyphenated run, a
 /// piece of a run holding a digit, or an inversion's first piece: its elisions
 /// (D3); then `au`/`aux`, split into `à` + `le`/`les` sharing the span,
@@ -937,6 +955,58 @@ mod tests {
         assert!(french("d'1").is_empty());
         // A word that is no elided form keeps the shared rules: its apostrophe is trimmed.
         assert_eq!(texts(&french("homme’ ")), ["homme"]);
+    }
+
+    /// Each token's text beside whether it is an elided piece.
+    fn elided(text: &str, language: StudiedLanguage) -> Vec<(String, bool)> {
+        let lexicon = if language == FR {
+            french_lexicon()
+        } else {
+            lexicon()
+        };
+        tokenize(text, language, &lexicon)
+            .iter()
+            .map(|token| (token.text.clone(), is_elided(text, token)))
+            .collect()
+    }
+
+    fn pieces(read: &[(&str, bool)]) -> Vec<(String, bool)> {
+        read.iter()
+            .map(|&(text, elided)| (text.to_owned(), elided))
+            .collect()
+    }
+
+    #[test]
+    fn an_elided_piece_is_told_by_its_span() {
+        // match-lingua-french-elided-pieces D2: the span holds the apostrophe; the text, the word
+        // the piece stands for, does not.
+        assert_eq!(
+            elided("L’homme", FR),
+            pieces(&[("Le", true), ("homme", false)])
+        );
+        assert_eq!(
+            elided("C'était", FR),
+            pieces(&[("Ce", true), ("était", false)])
+        );
+        // Written on its own, the elided piece keeps its apostrophe.
+        assert_eq!(
+            elided("l’ homme", FR),
+            pieces(&[("le", true), ("homme", false)])
+        );
+        // The rule runs again after an elision; the two pieces of `au` share a span, which ends on
+        // no apostrophe.
+        assert_eq!(
+            elided("jusqu'au", FR),
+            pieces(&[("jusque", true), ("à", false), ("le", false)])
+        );
+        // A word whose elision is part of it, an edge apostrophe and English's `n't` end on none.
+        assert_eq!(elided("aujourd'hui", FR), pieces(&[("aujourd'hui", false)]));
+        assert_eq!(elided("presqu'île", FR), pieces(&[("presqu'île", false)]));
+        assert_eq!(elided("vélib' ", FR), pieces(&[("vélib", false)]));
+        assert_eq!(
+            elided("don't", StudiedLanguage::English),
+            pieces(&[("do", false), ("not", false)])
+        );
     }
 
     #[test]
