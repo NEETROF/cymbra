@@ -62,19 +62,13 @@ export interface AccountFlowDeps {
   /** The address of a set-password waiting for its code (D4) — its own key, never the password. */
   pendingPassword: PendingEmailStore;
   /**
-   * The locale sent on the requests that carry one (`AccountLanguage.locale`, D2): the browser's
-   * whole tag until the reader has chosen their language, the account locale once they have, so the
-   * account's e-mails come in the language they chose.
+   * The locale the four requests carry — sign-up, resending the code, requesting a reset, setting a
+   * password (`AccountLanguage.locale`, send-lingua-browser-locale-on-account-emails D1): the
+   * browser's whole tag until the reader has chosen their language, the account locale once they
+   * have. Cymbra ID writes each e-mail in the account's stored language, else this one, and records
+   * this one only on an account that has none, so no request replaces a language the account has.
    */
   locale: string;
-  /**
-   * Whether resending the code and requesting a reset carry no locale (D2): Cymbra ID records the
-   * locale those two requests carry over the account's own, and keeps the account's — writing the
-   * e-mail in it — when they carry none. True until the reader has chosen their language
-   * (`AccountLanguage.keepAccountLocale`), so that this device never writes over a language the
-   * account was given elsewhere; false — `locale` sent, as it always was — when not given.
-   */
-  keepAccountLocale?: boolean;
   /**
    * What the deletion page is chosen by (`AccountLanguage.deletion`, D2): the browser's whole tag
    * until the reader has chosen their language — `locale`, as it always was, when not given — and the
@@ -233,21 +227,12 @@ export class AccountFlow {
     return this.set({ view: "signin", notice: this.copy.verified });
   }
 
-  /**
-   * The locale of a request Cymbra ID records over the account's own — resending the code,
-   * requesting a reset: none while the account's is to be kept (D2). Sign-up records it on an account
-   * that has none yet, and setting a password records nothing: both carry `locale`.
-   */
-  private overwritingLocale(): string {
-    return this.deps.keepAccountLocale ? "" : this.deps.locale;
-  }
-
   async resend(): Promise<AccountViewState> {
     if (!this.s.email) return this.view();
     const reply = await this.run("resend", {
       type: "account:resendVerification",
       email: this.s.email,
-      locale: this.overwritingLocale(),
+      locale: this.deps.locale,
     });
     return reply?.ok ? this.set({ notice: this.copy.newCodeSent }) : this.view();
   }
@@ -259,7 +244,7 @@ export class AccountFlow {
     const reply = await this.run("forgot", {
       type: "account:requestPasswordReset",
       email,
-      locale: this.overwritingLocale(),
+      locale: this.deps.locale,
     });
     if (!reply?.ok) return this.view();
     // Identical whether or not the account exists (no enumeration).

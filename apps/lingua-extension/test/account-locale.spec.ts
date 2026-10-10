@@ -25,15 +25,16 @@ import { LAST_NATIVE_KEY, ownerArea } from "@/state/store.ts";
 import { pageArea, refusingArea } from "./helpers.ts";
 
 // The account's e-mails follow the interface language once the reader has chosen it
-// (localise-lingua-account-onboarding D2, M12, and the owner's choice of D2's second way on
-// 2026-10-10, with its warning about several devices). The account's locale is shared — every device,
-// every Cymbra app — and Cymbra ID records a non-empty one over the one it has. So, until the reader
-// has chosen on this device: the browser's whole tag where nothing is written over (sign-up, setting
-// a password), no locale where the account's would be (resending the code, requesting a reset), and
-// the deletion page by the browser's tag, as before. Once they have — both of
-// add-lingua-native-language-choice's records — a bare primary subtag on all four, the interface
-// language or the browser's when Cymbra speaks it and the extension does not, and the deletion link
-// by the interface language alone. The flow is built as page.ts builds it.
+// (localise-lingua-account-onboarding D2, M12; send-lingua-browser-locale-on-account-emails D1–D5).
+// The account's locale is shared — every device, every Cymbra app — and Cymbra ID
+// (prefer-account-locale-for-emails) writes each account e-mail in the account's stored language,
+// else the request's, else English, and records a request's locale only on an account that has none.
+// So one locale on the four requests: until the reader has chosen on this device, the browser's whole
+// tag, and the deletion page by it, as before; once they have — both of
+// add-lingua-native-language-choice's records — a bare primary subtag, the interface language or the
+// browser's when Cymbra speaks it and the extension does not, and the deletion link by the interface
+// language alone. The flow is built as page.ts builds it; the server is faked as it answers since
+// prefer-account-locale-for-emails, and once as it answered before, for the release order (D4).
 
 const FRENCH_PAGE = "https://cymbra.app/suppression-compte/";
 const ENGLISH_PAGE = "https://cymbra.app/en/delete-account/";
@@ -62,7 +63,6 @@ function flowFor(
     pending: { get: async () => pending, set: async () => {} },
     pendingPassword: { get: async () => null, set: async () => {} },
     locale: said.locale,
-    keepAccountLocale: said.keepAccountLocale,
     deletionLanguage: said.deletion,
     language,
     clearPersistedError: async () => {},
@@ -110,38 +110,35 @@ const FOUR_REQUESTS = [
   "account:setPassword",
 ];
 
+/** The four requests that carry a locale, and the e-mail each one asks for. */
+type LocaleRequest = Extract<AccountMessage, { locale: string }>;
+
+/** A language tag as an e-mail reads it (`SupportedLocale::parse`): by its primary subtag, else English. */
+function mailLanguage(tag: string | null): string {
+  const primary = (tag ?? "").trim().toLowerCase().split(/[-_]/)[0];
+  return ["fr", "es", "it"].includes(primary) ? primary : "en";
+}
+
 /**
- * Cymbra ID as it answers the four requests (backend/auth/src/module.rs, user-locale-preference): a
- * non-empty locale is recorded on the account — at sign-up, on a resend and on a reset request, last
- * writer wins — and an empty one leaves the account's as it was; the e-mail is written in the
- * request's locale, else the account's (resend, reset), else English; setting a password records
- * nothing and writes in the request's locale, else English. A language is read by its primary
- * subtag. Cymbra Music adopts the account's locale only when it is one of its codes, whole
- * (`AppLanguage.fromCode`: `fr` yes, `fr-FR` no).
+ * One account at Cymbra ID, answered by `answer` (one of the servers below), and Cymbra Music beside
+ * it. `requests` is what the pages sent, in order, as [type, locale]; `mails`, the language of each
+ * e-mail. `setLocale(tag)` is Music's language setting (`SetLocale`), the one write over a stored
+ * locale; the extension never calls it. `music()` is the locale Music adopts after a sign-in: the
+ * account's when it is one of Music's codes, whole (`AppLanguage.fromCode`: `fr` yes, `fr-FR` no),
+ * else null — Music keeps its own interface.
  */
-function cymbraId() {
+function cymbraAccount(answer: (account: { locale: string | null }, request: LocaleRequest) => string) {
   const account: { locale: string | null } = { locale: null };
+  const requests: Array<[string, string]> = [];
   const mails: string[] = [];
-  const parse = (tag: string | null): string => {
-    const primary = (tag ?? "").trim().toLowerCase().split(/[-_]/)[0];
-    return ["fr", "es", "it"].includes(primary) ? primary : "en";
-  };
-  const record = (locale: string): void => {
-    if (locale !== "") account.locale = locale;
-  };
   const send: Send = async (message) => {
     switch (message.type) {
       case "account:signUp":
-        record(message.locale);
-        mails.push(parse(message.locale));
-        break;
       case "account:resendVerification":
       case "account:requestPasswordReset":
-        record(message.locale);
-        mails.push(parse(message.locale !== "" ? message.locale : account.locale));
-        break;
       case "account:setPassword":
-        mails.push(parse(message.locale));
+        requests.push([message.type, message.locale]);
+        mails.push(answer(account, message));
         break;
       case "account:state":
         return { ok: true, state: { signedIn: false } };
@@ -152,9 +149,42 @@ function cymbraId() {
     }
     return { ok: true };
   };
+  const setLocale = (tag: string): void => {
+    account.locale = tag;
+  };
   const music = (): string | null =>
     account.locale !== null && CYMBRA_LANGUAGES.includes(account.locale) ? account.locale : null;
-  return { account, mails, send, music };
+  return { account, requests, mails, send, setLocale, music };
+}
+
+/**
+ * Cymbra ID since prefer-account-locale-for-emails (backend/auth/src/module.rs, `email_locale` and
+ * `AuthModule::account_email_locale`): on all four requests, the e-mail in the account's stored
+ * language, else the request's, else English; the request's non-empty locale recorded only when
+ * nothing non-empty is stored. A stored language wins even when the e-mails are not written in it.
+ */
+function cymbraId() {
+  return cymbraAccount((account, request) => {
+    const stored = account.locale !== null && account.locale !== "" ? account.locale : null;
+    if (stored === null && request.locale !== "") account.locale = request.locale;
+    return mailLanguage(stored ?? (request.locale !== "" ? request.locale : null));
+  });
+}
+
+/**
+ * Cymbra ID before prefer-account-locale-for-emails — what change 17 was designed against, and what
+ * production runs until its deploy: a non-empty locale recorded at sign-up, on a resend and on a reset
+ * request, over the stored one, last writer wins; the e-mail in the request's locale, else the
+ * account's (resend, reset), else English; setting a password records nothing and writes in the
+ * request's locale, else English.
+ */
+function cymbraIdBefore17b() {
+  return cymbraAccount((account, request) => {
+    if (request.type === "account:setPassword") return mailLanguage(request.locale);
+    if (request.locale !== "") account.locale = request.locale;
+    if (request.type === "account:signUp") return mailLanguage(request.locale);
+    return mailLanguage(request.locale !== "" ? request.locale : account.locale);
+  });
 }
 
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
@@ -254,46 +284,27 @@ describe("accountLocale, once the reader has chosen", () => {
   });
 });
 
-describe("accountLanguage: until the reader has chosen the language the page is in, nothing written over", () => {
-  it("not chosen: the browser's whole tag as it gives it, the account's own kept, the deletion page by the tag", () => {
-    expect(accountLanguage("fr", "en-GB", null)).toEqual({
-      locale: "en-GB",
-      keepAccountLocale: true,
-      deletion: "en-GB",
-    });
-    expect(accountLanguage("fr", "fr-FR", null)).toEqual({
-      locale: "fr-FR",
-      keepAccountLocale: true,
-      deletion: "fr-FR",
-    });
-    expect(accountLanguage("fr", "it-IT", null)).toEqual({
-      locale: "it-IT",
-      keepAccountLocale: true,
-      deletion: "it-IT",
-    });
-    expect(accountLanguage("en", "de-DE", null)).toEqual({
-      locale: "de-DE",
-      keepAccountLocale: true,
-      deletion: "de-DE",
-    });
+describe("accountLanguage: the browser's whole tag until the reader has chosen the language the page is in", () => {
+  it("not chosen: the browser's whole tag as it gives it, for the requests and the deletion page", () => {
+    expect(accountLanguage("fr", "en-GB", null)).toEqual({ locale: "en-GB", deletion: "en-GB" });
+    expect(accountLanguage("fr", "fr-FR", null)).toEqual({ locale: "fr-FR", deletion: "fr-FR" });
+    expect(accountLanguage("fr", "it-IT", null)).toEqual({ locale: "it-IT", deletion: "it-IT" });
+    // A browser in a language Cymbra does not write still sends its tag (the owner's Q1, 2026-10-10).
+    expect(accountLanguage("en", "de-DE", null)).toEqual({ locale: "de-DE", deletion: "de-DE" });
   });
 
   it('not chosen, a browser that gives no language: `fr`, as `navigator.language || "fr"` always sent', () => {
-    expect(accountLanguage("fr", "", null)).toEqual({ locale: "fr", keepAccountLocale: true, deletion: "fr" });
+    expect(accountLanguage("fr", "", null)).toEqual({ locale: "fr", deletion: "fr" });
   });
 
   it("a choice of another language than the page is in is no choice of it", () => {
-    expect(accountLanguage("fr", "en-GB", "en")).toEqual({
-      locale: "en-GB",
-      keepAccountLocale: true,
-      deletion: "en-GB",
-    });
+    expect(accountLanguage("fr", "en-GB", "en")).toEqual({ locale: "en-GB", deletion: "en-GB" });
   });
 
-  it("chosen: the account locale, written over the account's, and the deletion page by the interface language", () => {
-    expect(accountLanguage("fr", "en-GB", "fr")).toEqual({ locale: "fr", keepAccountLocale: false, deletion: "fr" });
-    expect(accountLanguage("fr", "it-IT", "fr")).toEqual({ locale: "it", keepAccountLocale: false, deletion: "fr" });
-    expect(accountLanguage("en", "", "en")).toEqual({ locale: "en", keepAccountLocale: false, deletion: "en" });
+  it("chosen: the account locale, and the deletion page by the interface language", () => {
+    expect(accountLanguage("fr", "en-GB", "fr")).toEqual({ locale: "fr", deletion: "fr" });
+    expect(accountLanguage("fr", "it-IT", "fr")).toEqual({ locale: "it", deletion: "fr" });
+    expect(accountLanguage("en", "", "en")).toEqual({ locale: "en", deletion: "en" });
   });
 });
 
@@ -396,43 +407,45 @@ describe("chosenLanguage reads what add-lingua-native-language-choice records on
 });
 
 describe("The account's e-mails follow the interface language", () => {
-  it("A reader who has not chosen: the browser's whole tag at sign-up and on a password, no locale on a resend or a reset", async () => {
+  it("A reader who has not chosen: the browser's whole tag on each of the four requests", async () => {
     const english = await sentLocales("fr", "en-GB", null);
     expect(english.types).toEqual(FOUR_REQUESTS);
-    expect(english.locales).toEqual(["en-GB", "", "", "en-GB"]);
+    expect(english.locales).toEqual(["en-GB", "en-GB", "en-GB", "en-GB"]);
     expect(english.deleteAccountUrl).toBe(ENGLISH_PAGE);
 
     const french = await sentLocales("fr", "fr-FR", null);
-    expect(french.locales).toEqual(["fr-FR", "", "", "fr-FR"]);
+    expect(french.types).toEqual(FOUR_REQUESTS);
+    expect(french.locales).toEqual(["fr-FR", "fr-FR", "fr-FR", "fr-FR"]);
     expect(french.deleteAccountUrl).toBe(FRENCH_PAGE);
 
     const italian = await sentLocales("fr", "it-IT", null);
-    expect(italian.locales).toEqual(["it-IT", "", "", "it-IT"]);
+    expect(italian.types).toEqual(FOUR_REQUESTS);
+    expect(italian.locales).toEqual(["it-IT", "it-IT", "it-IT", "it-IT"]);
     expect(italian.deleteAccountUrl).toBe(ENGLISH_PAGE);
   });
 
-  it("A reader who has not chosen, on one device: their e-mails as before, Cymbra Music's language untouched", async () => {
-    // What this device always sent, the browser's tag on all four: the same e-mails, and an account
-    // locale Music, matching whole codes alone, never adopted.
-    const before = cymbraId();
-    const today = flowFor({ locale: "en-GB", keepAccountLocale: false, deletion: "en-GB" }, "fr", before.send);
-    const now = cymbraId();
-    const notChosen = flowFor(accountLanguage("fr", "en-GB", null), "fr", now.send);
-    for (const flow of [today, notChosen]) {
+  it("A reader who has not chosen, on one device: their e-mails in English as before, Cymbra Music's language untouched", async () => {
+    // An English browser where nothing is chosen: sign-up, a new code, a reset, then a password — the
+    // same e-mails from either server, and an account locale Music, matching whole codes alone, never
+    // adopts.
+    for (const id of [cymbraIdBefore17b(), cymbraId()]) {
+      const flow = flowFor(accountLanguage("fr", "en-GB", null), "fr", id.send);
       await flow.signUp("new@example.com", "a long passphrase");
       await flow.resend();
       await flow.requestReset("new@example.com");
       await flow.setPassword("new@example.com", "a long passphrase");
+      expect(id.requests.map(([, locale]) => locale)).toEqual(["en-GB", "en-GB", "en-GB", "en-GB"]);
+      expect(id.mails).toEqual(["en", "en", "en", "en"]);
+      expect(id.account.locale).toBe("en-GB");
+      expect(id.music()).toBeNull();
+      expect(flow.view().deleteAccountUrl).toBe(ENGLISH_PAGE);
     }
-    expect(now.mails).toEqual(before.mails);
-    expect(now.mails).toEqual(["en", "en", "en", "en"]);
-    expect(now.account.locale).toBe("en-GB");
-    expect(now.music()).toBeNull();
   });
 
-  it("A browser that gives no language, not chosen: `fr` at sign-up and the French page, as before", async () => {
+  it("A browser that gives no language, not chosen: `fr` on each of the four requests and the French page, as before", async () => {
     const got = await sentLocales("fr", "", null);
-    expect(got.locales).toEqual(["fr", "", "", "fr"]);
+    expect(got.types).toEqual(FOUR_REQUESTS);
+    expect(got.locales).toEqual(["fr", "fr", "fr", "fr"]);
     expect(got.deleteAccountUrl).toBe(FRENCH_PAGE);
   });
 
@@ -443,11 +456,17 @@ describe("The account's e-mails follow the interface language", () => {
     expect(got.deleteAccountUrl).toBe(FRENCH_PAGE);
   });
 
-  it("A Spanish-native reader, Spanish chosen: `es`, and the English page until the site has a Spanish one", async () => {
+  it("A Spanish-native reader, Spanish chosen: `es`, Spanish e-mails, the page lingua-privacy gives a Spanish interface", async () => {
     const got = await sentLocales("es", "es-ES", "es");
     expect(got.types).toEqual(FOUR_REQUESTS);
     expect(got.locales).toEqual(["es", "es", "es", "es"]);
+    // The English page until the site has a Spanish one (add-site-spanish-locale).
+    expect(got.deleteAccountUrl).toBe(deleteAccountUrl("es"));
     expect(got.deleteAccountUrl).toBe(ENGLISH_PAGE);
+
+    const id = cymbraId();
+    await flowFor(accountLanguage("es", "es-ES", "es"), "es", id.send).signUp("ana@example.com", "a long passphrase");
+    expect(id.mails).toEqual(["es"]);
   });
 
   it("An Italian browser, French chosen: `it`, so Music's Italian e-mails stay Italian; the French page", async () => {
@@ -455,6 +474,12 @@ describe("The account's e-mails follow the interface language", () => {
     expect(got.types).toEqual(FOUR_REQUESTS);
     expect(got.locales).toEqual(["it", "it", "it", "it"]);
     expect(got.deleteAccountUrl).toBe(FRENCH_PAGE);
+
+    const id = cymbraId();
+    id.setLocale("it"); // created in Music, in « Italiano »
+    await flowFor(accountLanguage("fr", "it-IT", "fr"), "fr", id.send).requestReset("ana@example.com");
+    expect(id.mails).toEqual(["it"]);
+    expect(id.account.locale).toBe("it");
   });
 
   it("A browser in a language Cymbra does not speak: English chosen on a German browser sends `en`", async () => {
@@ -465,14 +490,13 @@ describe("The account's e-mails follow the interface language", () => {
   });
 });
 
-describe("A choice made on another device is kept (the owner's warning of 2026-10-10)", () => {
-  it("English chosen on laptop A; laptop B, a French browser where nothing is chosen, resends and resets: English stays", async () => {
+describe("No device moves a language the account has, on Cymbra ID since prefer-account-locale-for-emails (D5)", () => {
+  it("(a) A choice made on another device: English chosen on laptop A; laptop B, a French browser where nothing is chosen, resets and sets a password — English stays", async () => {
     const id = cymbraId();
-    // Laptop A: a French browser, English chosen there.
+    // Laptop A: a French browser, English chosen there. Its sign-up records `en`.
     const a = flowFor(accountLanguage("en", "fr-FR", "en"), "en", id.send);
     await a.signUp("ada@example.com", "a long passphrase");
     expect(id.account.locale).toBe("en");
-    expect(id.music()).toBe("en");
 
     // Laptop B: a French browser, its interface French, nothing chosen on it. The reader forgot
     // their password, then, signed in, sets one.
@@ -480,33 +504,96 @@ describe("A choice made on another device is kept (the owner's warning of 2026-1
     await b.requestReset("ada@example.com");
     await b.setPassword("ada@example.com", "a long passphrase");
 
+    expect(id.requests).toEqual([
+      ["account:signUp", "en"],
+      ["account:requestPasswordReset", "fr-FR"],
+      ["account:setPassword", "fr-FR"],
+    ]);
     expect(id.account.locale).toBe("en");
+    // Every e-mail in the account's English — the set-password's too, the stored language first.
+    expect(id.mails).toEqual(["en", "en", "en"]);
     expect(id.music()).toBe("en");
-    // The reset in the account's English; setting a password records nothing, and writes in this
-    // browser's language, as it always did.
-    expect(id.mails).toEqual(["en", "en", "fr"]);
   });
 
-  it("an account Cymbra Music gave its language keeps it, and Music does not flip, whatever B's browser", async () => {
+  it("(b) an account Cymbra Music gave its language keeps it, and Music does not flip, whatever B's browser", async () => {
     const id = cymbraId();
-    id.account.locale = "es"; // created in Music, in « Español »
+    id.setLocale("es"); // created in Music, in « Español »
     // Laptop B, an American browser where nothing is chosen, on the code step of that account.
     const b = flowFor(accountLanguage("fr", "en-US", null), "fr", id.send, "ada@example.com");
     await b.init("#verify");
     await b.resend();
     await b.requestReset("ada@example.com");
+    expect(id.requests).toEqual([
+      ["account:resendVerification", "en-US"],
+      ["account:requestPasswordReset", "en-US"],
+    ]);
     expect(id.account.locale).toBe("es");
-    expect(id.music()).toBe("es");
     expect(id.mails).toEqual(["es", "es"]);
+    expect(id.music()).toBe("es");
   });
 
-  it("the device where the reader chose writes their choice — and only there", async () => {
+  it("(c) An account with no language: B's reset fills it with the browser's whole tag, in French where it came in English; A's later choice moves nothing", async () => {
+    // The account has no language: created with Google, its password set before the server recorded
+    // one, never opened in Cymbra Music.
     const id = cymbraId();
-    id.account.locale = "en";
+    // Laptop B, a French browser where nothing is chosen, asks for a reset.
+    const b = flowFor(accountLanguage("fr", "fr-FR", null), "fr", id.send);
+    await b.requestReset("ada@example.com");
+    expect(id.requests).toEqual([["account:requestPasswordReset", "fr-FR"]]);
+    expect(id.mails).toEqual(["fr"]);
+    expect(id.account.locale).toBe("fr-FR");
+    // `fr-FR` is not one of Music's codes: its interface does not move.
+    expect(id.music()).toBeNull();
+
+    // What change 17 sent there, no locale, came in English and recorded nothing.
+    const change17 = cymbraId();
+    await change17.send({ type: "account:requestPasswordReset", email: "ada@example.com", locale: "" });
+    expect(change17.mails).toEqual(["en"]);
+    expect(change17.account.locale).toBeNull();
+
+    // Then laptop A, where English is chosen, asks for another reset: the account keeps `fr-FR`.
+    const a = flowFor(accountLanguage("en", "en-GB", "en"), "en", id.send);
+    await a.requestReset("ada@example.com");
+    expect(id.requests.at(-1)).toEqual(["account:requestPasswordReset", "en"]);
+    expect(id.mails).toEqual(["fr", "fr"]);
+    expect(id.account.locale).toBe("fr-FR");
+
+    // Music's language setting is the one write over it.
+    id.setLocale("en");
+    await a.requestReset("ada@example.com");
+    expect(id.mails.at(-1)).toBe("en");
+  });
+
+  it("(d) A choice does not move an account's language: B chose French, its reset carries `fr`, the account keeps `en`", async () => {
+    // Change 17's « the device where the reader chose writes their choice — and only there »,
+    // inverted as the server now answers.
+    const id = cymbraId();
+    id.setLocale("en");
     const b = flowFor(accountLanguage("fr", "fr-FR", "fr"), "fr", id.send);
     await b.requestReset("ada@example.com");
-    expect(id.account.locale).toBe("fr");
-    expect(id.music()).toBe("fr");
+    expect(id.requests).toEqual([["account:requestPasswordReset", "fr"]]);
+    expect(id.account.locale).toBe("en");
+    expect(id.mails).toEqual(["en"]);
+    expect(id.music()).toBe("en");
+  });
+
+  it("(e) why this merges only after the server's deploy: on the server before it, B's reset moves A's English to `fr-FR`", async () => {
+    // (a) against the server before prefer-account-locale-for-emails, last writer wins. Released
+    // before that deploy, a device where nothing is chosen would move the language chosen on another
+    // — task 1.1 holds the merge.
+    const id = cymbraIdBefore17b();
+    const a = flowFor(accountLanguage("en", "fr-FR", "en"), "en", id.send);
+    await a.signUp("ada@example.com", "a long passphrase");
+    expect(id.account.locale).toBe("en");
+    expect(id.music()).toBe("en");
+
+    const b = flowFor(accountLanguage("fr", "fr-FR", null), "fr", id.send);
+    await b.requestReset("ada@example.com");
+    expect(id.requests.at(-1)).toEqual(["account:requestPasswordReset", "fr-FR"]);
+    expect(id.account.locale).toBe("fr-FR");
+    expect(id.mails).toEqual(["en", "fr"]);
+    // Music no longer finds its English there: it keeps its screen, but the account is French.
+    expect(id.music()).toBeNull();
   });
 });
 
@@ -542,13 +629,29 @@ describe("the three lingua-account requirements that carry the locale", () => {
     }
   });
 
-  it("Email verification by code and password reset: the resend and the request carry the locale once chosen, none before", async () => {
-    const chosen = await sentLocales("en", "it-IT", "en");
-    const at = (got: typeof chosen, type: string): string => got.locales[got.types.indexOf(type)];
-    expect(at(chosen, "account:resendVerification")).toBe("it");
-    expect(at(chosen, "account:requestPasswordReset")).toBe("it");
-    const notYet = await sentLocales("fr", "en-US", null);
-    expect(at(notYet, "account:resendVerification")).toBe("");
-    expect(at(notYet, "account:requestPasswordReset")).toBe("");
+  it("Email verification by code and password reset: the resend and the request carry the sign-up's locale, chosen or not", async () => {
+    const at = (got: Awaited<ReturnType<typeof sentLocales>>, type: string): string =>
+      got.locales[got.types.indexOf(type)];
+    for (const [language, browserLanguage, chosen, locale] of [
+      ["en", "it-IT", "en", "it"],
+      ["fr", "en-US", null, "en-US"],
+    ] as const) {
+      const got = await sentLocales(language, browserLanguage, chosen);
+      expect(at(got, "account:signUp")).toBe(locale);
+      expect(at(got, "account:resendVerification")).toBe(locale);
+      expect(at(got, "account:requestPasswordReset")).toBe(locale);
+    }
+  });
+
+  it("which Cymbra ID records only on an account that has none", async () => {
+    const id = cymbraId();
+    const notChosen = flowFor(accountLanguage("fr", "en-US", null), "fr", id.send, "ada@example.com");
+    await notChosen.init("#verify");
+    await notChosen.resend();
+    expect(id.account.locale).toBe("en-US");
+    await flowFor(accountLanguage("es", "es-ES", "es"), "es", id.send).requestReset("ada@example.com");
+    expect(id.requests.at(-1)).toEqual(["account:requestPasswordReset", "es"]);
+    expect(id.account.locale).toBe("en-US");
+    expect(id.mails).toEqual(["en", "en"]);
   });
 });

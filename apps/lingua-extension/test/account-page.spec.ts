@@ -266,7 +266,7 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
     );
   });
 
-  it("an English interface in an Italian browser, nothing chosen on this device: the page in English, what the page always sent", async () => {
+  it("an English interface in an Italian browser, nothing chosen on this device: the page in English, the browser's tag on the requests", async () => {
     const { doc, sent, mounted } = await mount({
       // Marked as chosen by an update, with no choice recorded: no choice (D2).
       area: pageArea({ [INTERFACE_LANGUAGE_KEY]: "en", [NATIVE_CHOSEN_KEY]: true }),
@@ -278,8 +278,9 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
     await mounted!.flow.resend();
     expect(sent.filter((m) => "locale" in m)).toEqual([
       { type: "account:signUp", email: "new@example.com", password: "a long passphrase", locale: "it-IT" },
-      // No locale: Cymbra ID keeps the account's own, whichever device gave it.
-      { type: "account:resendVerification", email: "new@example.com", locale: "" },
+      // The sign-up's locale: Cymbra ID records it only on an account that has none, so the account
+      // keeps its own, whichever device gave it.
+      { type: "account:resendVerification", email: "new@example.com", locale: "it-IT" },
     ]);
     expect(mounted!.flow.view().deleteAccountUrl).toBe("https://cymbra.app/en/delete-account/");
   });
