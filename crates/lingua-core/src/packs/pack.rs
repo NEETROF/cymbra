@@ -183,9 +183,10 @@ pub struct Pack {
     /// expressions named otherwise than their key. Empty when the pack carries
     /// no names.
     expression_names: BTreeMap<u64, String>,
-    /// A key's id → the ids of its other headwords, in the builder's order
-    /// ([`section::EXPR_OTHERS`]). Empty when the pack carries no such section.
-    expression_others: BTreeMap<u64, Vec<u64>>,
+    /// (key id, other headword's id) pairs, sorted by key id and then in the
+    /// builder's order ([`section::EXPR_OTHERS`]). Empty when the pack carries no
+    /// such section.
+    expression_others: Vec<(u64, u64)>,
     /// The grammar tables, when the pack carries them.
     grammar: Grammar,
     notice: String,
@@ -262,7 +263,7 @@ impl Pack {
                 &expression_glosses,
                 &expression_names,
             )?,
-            None => BTreeMap::new(),
+            None => Vec::new(),
         };
         let notice = sections
             .iter()
@@ -381,18 +382,12 @@ impl Pack {
         };
         let name = self.expression_names.get(&id).map_or(key, String::as_str);
         std::iter::once((name, gloss.as_str()))
-            .chain(
-                self.expression_others
-                    .get(&id)
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|other| {
-                        Some((
-                            self.expression_names.get(other)?.as_str(),
-                            self.expression_glosses.get(other)?.as_str(),
-                        ))
-                    }),
-            )
+            .chain(self.other_headwords(id).filter_map(|other| {
+                Some((
+                    self.expression_names.get(other)?.as_str(),
+                    self.expression_glosses.get(other)?.as_str(),
+                ))
+            }))
             .collect()
     }
 
@@ -408,13 +403,20 @@ impl Pack {
             return Some(own);
         }
         let named = self
-            .expression_others
-            .get(&id)
-            .into_iter()
-            .flatten()
+            .other_headwords(id)
             .find(|other| self.expression_names.get(other).is_some_and(|n| n == name))
             .and_then(|other| self.expression_glosses.get(other));
         Some(named.unwrap_or(own))
+    }
+
+    /// The ids of the other headwords of the key whose id is `id`, in the builder's
+    /// order: the run of [`section::EXPR_OTHERS`]'s pairs holding that key id.
+    fn other_headwords(&self, id: u64) -> impl Iterator<Item = &u64> {
+        let at = self.expression_others.partition_point(|&(key, _)| key < id);
+        self.expression_others[at..]
+            .iter()
+            .take_while(move |&&(key, _)| key == id)
+            .map(|(_, other)| other)
     }
 
     /// Whether the pack carries an expression table, so a caller can skip the
@@ -706,17 +708,19 @@ fn parse_glosses(zst: &[u8], name: &'static str) -> Result<BTreeMap<u64, String>
 /// a pack carrying a blob this core cannot index is refused like any other
 /// malformed section, so a corrupt pack never answers half its grammar.
 /// Reads [`section::EXPR_OTHERS`]: `count u32 | count × (key id u32, other id u32)`,
-/// little-endian, into a key's id → its other headwords' ids, in the section's order
-/// (pick-lingua-expression-written-as-the-page D1). Refused as malformed when its length
-/// is not its count's, or when a pair holds a key id no key of `keys` maps to, or an
-/// other id a key maps to or that carries no gloss or no name: the section then says
-/// something the table does not hold, and the pack is refused rather than misread.
+/// little-endian, into its (key id, other id) pairs, in the section's order
+/// (pick-lingua-expression-written-as-the-page D1). The builder's ids are dense: a key's
+/// below the number of keys `keys` holds, an other headword's from it. Refused as
+/// malformed when its length is not its count's, when its pairs are not sorted by key id,
+/// or when a pair holds a key id no key has, or an other id a key has or that carries no
+/// gloss or no name: the section then says something the table does not hold, and the
+/// pack is refused rather than misread.
 fn parse_expression_others(
     bytes: &[u8],
     keys: Option<&fst::Map<Vec<u8>>>,
     glosses: &BTreeMap<u64, String>,
     names: &BTreeMap<u64, String>,
-) -> Result<BTreeMap<u64, Vec<u64>>, PackError> {
+) -> Result<Vec<(u64, u64)>, PackError> {
     let bad = || PackError::Malformed(section::EXPR_OTHERS);
     let word = |at: usize| -> Option<u64> {
         let slice = bytes.get(at..at.checked_add(4)?)?;
@@ -726,12 +730,8 @@ fn parse_expression_others(
     if count.checked_mul(8).and_then(|n| n.checked_add(4)) != Some(bytes.len()) {
         return Err(bad());
     }
-    let key_ids: std::collections::BTreeSet<u64> = keys
-        .map(|map| map.stream().into_values())
-        .unwrap_or_default()
-        .into_iter()
-        .collect();
-    let mut others: BTreeMap<u64, Vec<u64>> = BTreeMap::new();
+    let key_ids = 0..keys.map_or(0, |map| map.len() as u64);
+    let mut others: Vec<(u64, u64)> = Vec::with_capacity(count);
     for pair in 0..count {
         let (key, other) = (
             word(4 + pair * 8).ok_or_else(bad)?,
@@ -741,10 +741,11 @@ fn parse_expression_others(
             || key_ids.contains(&other)
             || !glosses.contains_key(&other)
             || !names.contains_key(&other)
+            || others.last().is_some_and(|&(before, _)| before > key)
         {
             return Err(bad());
         }
-        others.entry(key).or_default().push(other);
+        others.push((key, other));
     }
     Ok(others)
 }
@@ -1681,6 +1682,47 @@ pub(crate) mod tests {
         // A key id no key has, and an other id a key maps to.
         assert!(refused(&build_expr_others(&[(5, 2)])));
         assert!(refused(&build_expr_others(&[(1, 0)])));
+        // Pairs out of key order.
+        let unsorted = shared_key_pack(
+            Some(&[
+                (0, "right away"),
+                (1, "it will be all right"),
+                (2, "how are you?"),
+                (3, "in a minute"),
+            ]),
+            Some(&[(1, "ça ira"), (2, "ça va"), (3, "tout à l'heure")]),
+            Some(&build_expr_others(&[(1, 2), (0, 3)])),
+        );
+        assert!(matches!(
+            Pack::load(&unsorted),
+            Err(PackError::Malformed(section::EXPR_OTHERS))
+        ));
+        // In key order, each key lists its own.
+        let two_keys = Pack::load(&shared_key_pack(
+            Some(&[
+                (0, "right away"),
+                (1, "it will be all right"),
+                (2, "how are you?"),
+                (3, "in a minute"),
+            ]),
+            Some(&[(1, "ça ira"), (2, "ça va"), (3, "tout à l'heure")]),
+            Some(&build_expr_others(&[(0, 3), (1, 2)])),
+        ))
+        .unwrap();
+        assert_eq!(
+            two_keys.expression_headwords("tout de suite"),
+            [
+                ("tout de suite", "right away"),
+                ("tout à l'heure", "in a minute")
+            ]
+        );
+        assert_eq!(
+            two_keys.expression_headwords("ça aller"),
+            [
+                ("ça ira", "it will be all right"),
+                ("ça va", "how are you?")
+            ]
+        );
         // An other id with no gloss, and one with a gloss and no name.
         assert!(refused(&build_expr_others(&[(1, 7)])));
         let unnamed = shared_key_pack(
