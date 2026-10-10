@@ -59,7 +59,7 @@ es-fr, es-en, en-es and fr-en do not move, and fr-es's glosses of words do not m
   inverted table's, is « huile d'olive », the direct table's row).
 - **Measured and left** (D5): no filter by source (the inverted table reads 6 right of 11 sampled,
   but « plus de », « un autre », « se trouver » are among its commonest); no section-key rule (4 keys
-  shared with the section, its headword winning 3); no self-translation rule (Spanish writes « statu
+  shared with the section, its headword winning all four); no self-translation rule (Spanish writes « statu
   quo », « a priori », « foie gras » alike); « en fait » and « de nouveau », wrong in 51 % and 53 %
   of their matches through the forms they are met by (« en faisant », « de nouveaux »), kept — a rule
   of the matcher, not of fr-es's data —, as is « ce que » met inside « est-ce que » (250 of 940).
