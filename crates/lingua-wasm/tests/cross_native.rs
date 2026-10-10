@@ -69,8 +69,8 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 }
 
 /// The studied sections are byte-equal, the tag pool up to the pinned prefix and the
-/// readings' tags; the second pack carries a lexical table, the reference none — or, French's,
-/// the same one.
+/// readings' tags; both packs carry the same lexical table, the reference's dictionary words
+/// (refine-lingua-fr-en-glosses D2, leave-lingua-names-out-of-english-and-spanish-words D2).
 fn assert_studied_sections_alike(pair: &str, reference: &[u8], other: &[u8]) {
     let (a, b) = (sections(reference), sections(other));
     for name in [
@@ -100,15 +100,14 @@ fn assert_studied_sections_alike(pair: &str, reference: &[u8], other: &[u8]) {
         "{pair}: only sense parts of speech follow the pin: {:?}",
         &grown[pinned.len()..]
     );
-    // A reference whose dictionary words are its glossed lemmas carries no lexical table; fr-en's
-    // leave out the lemmas it glosses as names alone (refine-lingua-fr-en-glosses D2), so it carries
-    // French's, the very table the second pack carries.
-    if let Some(table) = section_of(&a, section::LEXICAL) {
-        assert!(
-            Some(table) == section_of(&b, section::LEXICAL),
-            "{pair}: the two packs' dictionary words"
-        );
-    }
+    // Every reference's dictionary words leave out the lemmas it glosses as names alone, so it
+    // carries its studied language's lexical table, the very table the second pack carries.
+    let table = section_of(&a, section::LEXICAL);
+    assert!(table.is_some(), "{pair}: the reference's lexical table");
+    assert!(
+        table == section_of(&b, section::LEXICAL),
+        "{pair}: the two packs' dictionary words"
+    );
     let lemmas = section_of(&a, section::LEMMAS)
         .unwrap()
         .split(|&b| b == b'\n')
@@ -263,7 +262,9 @@ fn spec_scenario_english_through_another_native_language() {
 
     // *A vocabulary size counts dictionary words*: the universe and B1's typical vocabulary.
     let (universe, typical) = sizes(&reference, "en");
-    assert_eq!((universe, typical[2]), (25_372, 3_359), "en-fr, B1");
+    // English's dictionary words hold no names (leave-lingua-names-out-of-english-and-spanish-words
+    // D5): 25,372 and 3,359 before.
+    assert_eq!((universe, typical[2]), (22_337, 3_074), "en-fr, B1");
     assert_eq!(sizes(&other, "en"), (universe, typical));
 
     // *A sense part of speech the first pack never used*: no en-fr run is tagged NUM; en-es tags
@@ -335,8 +336,10 @@ fn spec_scenario_spanish_through_another_native_language() {
         );
     }
     // *Spanish glossed in another language*: the estimate's universe is es-fr's.
-    assert_eq!(sizes(&reference, "es").0, 22_755);
-    assert_eq!(sizes(&other, "es").0, 22_755);
+    // es-fr's glossed lemmas less its names alone: 22,755 before
+    // leave-lingua-names-out-of-english-and-spanish-words.
+    assert_eq!(sizes(&reference, "es").0, 21_062);
+    assert_eq!(sizes(&other, "es").0, 21_062);
 
     // *A pack glossed in English* (names): Augusto and Eugenia are set aside as with es-fr.
     let names = |pack: &[u8]| -> Vec<String> {
