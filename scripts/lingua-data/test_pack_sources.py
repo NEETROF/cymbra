@@ -544,7 +544,7 @@ class Editions(unittest.TestCase):
         self.assertEqual(dumped["url"], "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz")
         self.assertEqual((dumped["fetched"], dumped["last_modified"]), ("2026-10-08", "Sat, 03 Oct 2026 08:24:38 GMT"))
         self.assertIn(f"note: kaikki-en: {len(self.served[ps.EDITIONS['en']['url']]):,} B as served, fetched in ", self.notes)
-        self.assertIn(f"{len(raw):,} B decompressed, its catalogue (4 files) derived in ", self.notes)
+        self.assertIn(f"{len(raw):,} B decompressed, its catalogue (3 files) derived in ", self.notes)
         self.assertEqual(ps.load(self.tables / "es-en" / "pin.json"), record)
 
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
@@ -562,14 +562,14 @@ class Editions(unittest.TestCase):
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_spec_scenario_the_catalogue_derived_whole(self):
         # en-fr reads the French edition's English entries alone: its Spanish entries and its
-        # Spanish and English translations are derived in the same pass, kept for the run, and
-        # nothing of them is en-fr's.
+        # Spanish translations are derived in the same pass, kept for the run, and nothing of them is
+        # en-fr's.
         record = self.update("en-fr")
         folder = self.editions / "fr-2026.10.08"
         self.assertEqual(sorted(p.name for p in folder.iterdir()), sorted([*ps.EDITIONS["fr"]["files"], "dump.json"]))
         self.assertEqual(
-            (folder / "kaikki-fr-traductions-en.jsonl").read_text(encoding="utf-8"),
-            '{"pos": "noun", "translations": [{"word": "house"}], "word": "maison"}\n',
+            (folder / "kaikki-fr-traductions.jsonl").read_text(encoding="utf-8"),
+            '{"pos": "noun", "translations": [{"word": "casa"}], "word": "maison"}\n',
         )
         self.assertEqual(ps.assets(record), ["kaikki-Anglais.jsonl.zst"], "en-fr's release holds its English entries alone")
         self.assertEqual(
@@ -1307,17 +1307,20 @@ class DumpsOnly(unittest.TestCase):
                 ps.check_registered("de-en")
 
     def test_spec_scenario_a_pair_of_stage_3_registers_what_it_reads(self):
-        # fr-en (change 48): the English Wiktionary's French section, its English entries' French
-        # translations, the French Wiktionary's English translations — all three in the catalogue.
+        # fr-en (add-lingua-pack-fr-en D3): the English Wiktionary's French section alone, its
+        # glosses' source too — no translation table, and the two change 38 registered for it are
+        # in no edition's catalogue. fr-es (change 49): its three files, in the catalogue.
         import unittest.mock as mock
 
-        fr_en = {
-            "en": ("kaikki-French.jsonl", "kaikki-en-traductions-fr.jsonl"),
-            "fr": ("kaikki-fr-traductions-en.jsonl",),
-        }
+        self.assertEqual(ps.DUMPS["fr-en"], {"en": ("kaikki-French.jsonl",)})
+        ps.check_registered("fr-en")
+        for gone in ("kaikki-en-traductions-fr.jsonl", "kaikki-fr-traductions-en.jsonl"):
+            self.assertFalse([e for e, spec in ps.EDITIONS.items() if gone in spec["files"]], gone)
+            with mock.patch.dict(ps.DUMPS, {"fr-en": {"en": ("kaikki-French.jsonl", gone)}}):
+                with self.assertRaisesRegex(ps.PinError, r"fr-en reads kaikki-(en|fr)-traductions-(fr|en)\.jsonl"):
+                    ps.check_registered("fr-en")
         fr_es = {"es": ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl"), "fr": ("kaikki-fr-traductions.jsonl",)}
-        with mock.patch.dict(ps.DUMPS, {"fr-en": fr_en, "fr-es": fr_es}):
-            ps.check_registered("fr-en")
+        with mock.patch.dict(ps.DUMPS, {"fr-es": fr_es}):
             ps.check_registered("fr-es")
         self.assertEqual(catalogue("es-fr", "en"), {"kaikki-Spanish.jsonl": ("entries", "es")})
         self.assertEqual(ps.EDITIONS["en"]["files"]["kaikki-French.jsonl"], ("entries", "fr"))
@@ -1550,10 +1553,11 @@ class FrenchReference(unittest.TestCase):
         self.assertEqual(ps.DUMPS["fr-en"], {"en": ("kaikki-French.jsonl",)})
         self.assertEqual(catalogue("fr-en", "en"), {"kaikki-French.jsonl": ("entries", "fr")})
         ps.check_registered("fr-en")
-        # The English edition's catalogue, as change 38 wrote it: fr-en derives nothing new.
+        # The English edition's catalogue: fr-en derives nothing new, and its French translations,
+        # which no pair reads, are no longer derived (add-lingua-pack-fr-en D3).
         self.assertEqual(
             sorted(ps.EDITIONS["en"]["files"]),
-            ["kaikki-French.jsonl", "kaikki-Spanish.jsonl", "kaikki-en-traductions-es.jsonl", "kaikki-en-traductions-fr.jsonl"],
+            ["kaikki-French.jsonl", "kaikki-Spanish.jsonl", "kaikki-en-traductions-es.jsonl"],
         )
         # GSD's training and development sections at a commit — never its test section, which the
         # measurement holds out (D9).

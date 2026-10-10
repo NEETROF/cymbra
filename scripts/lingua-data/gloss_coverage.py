@@ -18,7 +18,8 @@ for like. Stdlib only: it runs on the Python of the lingua-data unit tests.
 `--pair` measures one committed pair whether or not it ships, and prints nothing the site reads;
 it fails under the pair's floor — the share each of the three tops must reach, `FLOORS`, or
 `--floor` given (add-lingua-pack-es-en D6: es-en is held to es-fr's published figures by the reduce
-job, before it ships and is published; add-lingua-pack-en-es D3: en-es to a floor the owner sets).
+job, before it ships and is published; add-lingua-pack-en-es D3: en-es to a floor the owner sets;
+add-lingua-pack-fr-en D4: fr-en likewise).
 """
 
 from __future__ import annotations
@@ -45,7 +46,10 @@ TOPS = (5_000, 10_000, 20_000)
 # en-es (add-lingua-pack-en-es D3, the programme's risk 5): the study's figures less two points —
 # proposed, owner settles (task 5.1) here, the one place: the reduce job passes no `--floor`, and
 # the tests hold the committed tables to this entry.
-FLOORS = {"es-en": (87.6, 77.2, 63.7), "en-es": (91.4, 83.2, 69.9)}
+# fr-en (add-lingua-pack-fr-en D4): en-es's rule, the study's figures (93.9 / 87.1 / 76.4 %, the
+# programme's) less two points — no French pair is published to hold it to; proposed, the owner
+# settles (task 6.1) here, the one place.
+FLOORS = {"es-en": (87.6, 77.2, 63.7), "en-es": (91.4, 83.2, 69.9), "fr-en": (91.9, 85.1, 74.4)}
 
 
 def read_keys(path: Path) -> dict[str, str]:
