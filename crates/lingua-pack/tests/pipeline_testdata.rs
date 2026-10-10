@@ -182,18 +182,19 @@ fn spec_scenario_the_english_and_spanish_fixtures_keep_their_bytes() {
     // da94a82e), and carries no expression name. The Spanish fixtures' bytes moved since with
     // Spanish's analyser version alone, `1.4.0` (refine-lingua-spanish-galician-markers D5), and
     // every fixture's with its language's version alone, English's `1.2.0` and Spanish's `1.5.0`
-    // (ignore-lingua-soft-hyphens D7); the sizes never moved.
+    // (ignore-lingua-soft-hyphens D7), and the English ones' with English's `1.3.0`
+    // (leave-lingua-names-out-of-english-and-spanish-words D4); the sizes never moved.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
             "en-fr",
             1932,
-            "ebb1f3c73848c5aebfa9f0c37b711662f0f23362004c9575b9e103fc2bae62ad",
+            "94e3e29c5548cd0367bdf67334fc29404dd3f476c0ca7503ac32c96afe42a187",
         ),
         (
             "en-es",
             1985,
-            "51066821d8564f54c2a2b5a320e7878aed0263758f14ff15557aa48ffde52c00",
+            "300e0e9b8a05765a7f9f7843c7308c11a50cae5669bda89d4744773fcfdf2e53",
         ),
         (
             "es-fr",
