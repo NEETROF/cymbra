@@ -2193,23 +2193,25 @@ class Record(unittest.TestCase):
         self.assertEqual(ps.pairs(HERE / "tables", after="en-es"), ["en-es"])
 
     def test_the_committed_dictionary_words_are_the_reference_s_glossed_lemmas(self):
-        # English's and Spanish's are their references' glossed lemmas, as `split` writes them;
-        # French's, fr-en's less those it glosses by a proper noun's senses alone, as its reducer
-        # writes them (refine-lingua-fr-en-glosses D2).
-        for language in ("en", "es", "fr"):
+        # Every studied language's are its reference's glossed lemmas less those it glosses by a
+        # proper noun's senses alone, as the reference's reducer writes them: French's by fr-en's
+        # (refine-lingua-fr-en-glosses D2), English's and Spanish's by en-fr's and es-fr's
+        # (leave-lingua-names-out-of-english-and-spanish-words D1, D2). A name keeps its gloss.
+        for language, name, word in (("en", "london", "bill"), ("es", "madrid", "luna"), ("fr", "paris", "marche")):
             studied = HERE / "tables" / language
             reference = ps.reference_of(studied)
             words = (studied / ps.LEXICAL).read_text(encoding="utf-8")
             glossed = ps.glossed_lemmas(HERE / "tables" / reference / "gloss.tsv")
-            if language == "fr":
-                runs = {
-                    line.split("\t")[0]: line.split("\t")[1:]
-                    for line in (HERE / "tables" / reference / "senses.tsv").read_text(encoding="utf-8").splitlines()
-                }
-                names = {w for w in glossed if all(run.startswith("PROPN:") for run in runs[w])}
-                self.assertIn("paris", names)
-                glossed = [w for w in glossed if w not in names]
-            self.assertEqual(words, "".join(f"{w}\n" for w in glossed), language)
+            runs = {
+                line.split("\t")[0]: line.split("\t")[1:]
+                for line in (HERE / "tables" / reference / "senses.tsv").read_text(encoding="utf-8").splitlines()
+            }
+            names = {w for w in glossed if runs.get(w) and all(run.startswith("PROPN:") for run in runs[w])}
+            self.assertIn(name, names, language)
+            self.assertIn(name, glossed, language)
+            self.assertIn(word, glossed, language)
+            self.assertNotIn(word, names, language)
+            self.assertEqual(words, "".join(f"{w}\n" for w in glossed if w not in names), language)
 
     def test_the_pairs_glossed_in_french_read_the_french_wiktionary_s_rules_alone(self):
         for pair in ("en-fr", "es-fr"):
@@ -2332,6 +2334,22 @@ class Split(unittest.TestCase):
         ps.split(self.work, self.tables, "es-fr")
         self.assertEqual((self.tables / "es" / "lexical.tsv").read_text(encoding="utf-8"), "casa\ndios\nárbol\n")
         self.assertEqual((self.tables / "es" / "tags.tsv").read_text(), "NOUN\nVERB\n")
+
+    def test_en_fr_s_and_es_fr_s_own_dictionary_words_are_filed(self):
+        # leave-lingua-names-out-of-english-and-spanish-words D2: en-fr's and es-fr's reducers write
+        # English's and Spanish's dictionary words — their glossed lemmas less their names alone —
+        # and `split` files each into its studied folder as written, never into the pair's.
+        for pair, language, gloss, words in (
+            ("en-fr", "en", "bill\tFacture\nhouse\tMaison\nlondon\tLondres\n", "bill\nhouse\n"),
+            ("es-fr", "es", "casa\tMaison\nluna\tLune\nmadrid\tMadrid\n", "casa\nluna\n"),
+        ):
+            (self.work / "gloss.tsv").write_text(gloss, encoding="utf-8")
+            (self.work / "lexical.tsv").write_text(words, encoding="utf-8")
+            written = ps.split(self.work, self.tables, pair)
+            self.assertIn(f"{language}/lexical.tsv", written)
+            self.assertEqual((self.tables / language / "lexical.tsv").read_text(encoding="utf-8"), words)
+            self.assertFalse((self.tables / pair / "lexical.tsv").exists())
+            self.assertIn("london" if language == "en" else "madrid", (self.tables / pair / "gloss.tsv").read_text(encoding="utf-8"))
 
     def test_a_reference_whose_reducer_writes_its_dictionary_words_has_them_filed(self):
         # refine-lingua-fr-en-glosses D2: fr-en's reducer writes French's dictionary words — its
