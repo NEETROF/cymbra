@@ -19,9 +19,9 @@ const ALL = probes(golden("fr-en"));
 
 describe("the word card of an English-native reader of French, over the fr-en golden", () => {
   it("renders every grammar and phrase probe as the snapshot pins it", async () => {
-    // The reference's 31 grammar probes, the card's 21 and the 40 lemmas; 33 phrases and the reader's.
+    // The reference's 31 grammar probes, the card's 21 and the 40 lemmas; 37 phrases and the reader's.
     expect(ALL.filter((p) => p.kind === "word-grammar")).toHaveLength(92);
-    expect(ALL.filter((p) => p.kind === "phrase-gloss")).toHaveLength(34);
+    expect(ALL.filter((p) => p.kind === "phrase-gloss")).toHaveLength(38);
     await expect(pinned(ALL, UI)).toMatchFileSnapshot("./baseline/word-card-fr-en.txt");
   });
 
