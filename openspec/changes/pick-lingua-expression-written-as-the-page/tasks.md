@@ -23,11 +23,11 @@
 ## 4. The committed tables and the French baseline
 
 - [x] 4.1 `crates/lingua-pack/tests/committed_tables.rs`: for fr-en and fr-es, every key several headwords reach lists all of them, each named and glossed as its `mwe.tsv` row, in change 44's order (measured on the proposal's base: fr-en 60 keys and 61 other headwords, fr-es 64 and 64); no English or Spanish committed pack carries `expr.others`.
-- [x] 4.2 `scripts/lingua-data/tables/fr-en/pin.json` and `tables/fr-es/pin.json`: the pack's sha256 and size (2,538,483 and 1,972,957 B on the proposal's base; 2,538,542 and 1,972,734 B on `main` d02371ac, after change 43b's tables); `pack_version` untouched (D1).
+- [x] 4.2 `scripts/lingua-data/tables/fr-en/pin.json` and `tables/fr-es/pin.json`: the pack's sha256 and size (2,538,483 and 1,972,957 B on the proposal's base; 2,536,702 and 1,971,104 B on `main` ce787922, after changes 43b and 43c); `pack_version` untouched (D1).
 - [x] 4.3 `crates/lingua-wasm/tests/support/french.rs`: `PHRASES` gains « Ça va ? » and « Allons-y ! » (a narrow no-break space before the mark), « Ça ira. », « les miens » and « Quelle que soit la distance », after « aux miennes » (D5).
 - [x] 4.4 `tests/french_baseline.rs`: the doc comment names this change among those that add probes, with its five.
 - [x] 4.5 Re-bless once: `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline --test fr_es_baseline`. Check the diff is D5's — in each golden the `pack` line and 10 lines added, none removed; over fr-en « Ça va ? » `ça va`, « Ça ira. » `ça ira`, « Allons-y ! » `allons-y`, « les miens » `les miens`, « Quelle que soit la distance » `quel que soit`; over fr-es `ça va` twice, none, `les miens`, `quel que soit` — and say so in the pull request, with D2's figures re-measured on the implementation's base.
-- [x] 4.6 `apps/lingua-extension`: `test/word-card-fr-en.spec.ts` and `test/word-card-fr-es.spec.ts` count 43 phrase probes (their comment: 42 phrases and the reader's) — 47 on `main` d02371ac, after change 43b's four (46 phrases and the reader's); `yarn vitest run test/word-card-fr-en.spec.ts test/word-card-fr-es.spec.ts -u` adds the five cards to `test/baseline/word-card-fr-en.txt` (+19 lines) and `word-card-fr-es.txt` (+17), every block before byte for byte.
+- [x] 4.6 `apps/lingua-extension`: `test/word-card-fr-en.spec.ts` and `test/word-card-fr-es.spec.ts` count 43 phrase probes (their comment: 42 phrases and the reader's) — 50 on `main` ce787922, after changes 43b's and 43c's probes (49 phrases and the reader's); `yarn vitest run test/word-card-fr-en.spec.ts test/word-card-fr-es.spec.ts -u` adds the five cards to `test/baseline/word-card-fr-en.txt` (+19 lines) and `word-card-fr-es.txt` (+17), every block before byte for byte.
 
 ## 5. Gates
 
