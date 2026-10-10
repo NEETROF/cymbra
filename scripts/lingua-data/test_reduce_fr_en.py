@@ -700,6 +700,621 @@ class Treebank(unittest.TestCase):
         self.assertAlmostEqual(zipf["peut-être"], 8.39794, places=4)
 
 
+# — French's word grammar (add-lingua-french-grammar-tables) —
+#
+# Each rule on entries shaped as the English dump writes them: a lemma's conjugation or inflection
+# table under `forms`, a form's own entry pointing at its lemma (`form_of`), the head templates the
+# rules read (`fr-noun`'s gender, a past participle's own entry).
+
+
+def headed(word, pos, name, args=None, forms=(), senses=None):
+    """An entry with its head template (`fr-noun`, `fr-past participle`, …)."""
+    e = entry(word, pos=pos, forms=forms, senses=senses)
+    e["head_templates"] = [{"name": name, "args": dict(args or {})}]
+    return e
+
+
+def readings(*entries):
+    r = red.Readings()
+    for e in entries:
+        red.read_readings(e, r)
+    return r
+
+
+def grammar(entries, forms, ranks=None):
+    """`grammar.tsv`'s rows for `forms` (form → its one lemma), as tuples."""
+    ranks = ranks if ranks is not None else {lemma: n for n, lemma in enumerate(sorted(set(forms.values())), 1)}
+    rows = red.grammar_rows(readings(*entries), forms, ranks)
+    return [tuple(row.rstrip("\n").split("\t")) for row in rows]
+
+
+def tags_of(rows, form, lemma=None, mark=None):
+    return sorted(t for f, l, t, m in rows if f == form and (lemma is None or l == lemma) and (mark is None or m == mark))
+
+
+IND, SUB, IMP, CND = "VERB|Mood=Ind", "VERB|Mood=Sub", "VERB|Mood=Imp", "VERB|Mood=Cnd"
+# `parle`'s five readings, in byte order — the pool's (design D7, D8).
+FIVE = [
+    f"{IMP}|Number=Sing|Person=2|VerbForm=Fin",
+    f"{IND}|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin",
+    f"{IND}|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin",
+    f"{SUB}|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin",
+    f"{SUB}|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin",
+]
+# parler's table, as the dump writes it: its bookkeeping, the compound tenses (multi-word
+# constructions), and the simple forms.
+PARLER = headed(
+    "parler",
+    "verb",
+    "fr-verb",
+    forms=[
+        *TABLE_HEAD,
+        ("parler", ["infinitive"]),
+        ("parlant", ["gerund", "participle", "present"]),
+        ("ayant + past participle", ["gerund", "multiword-construction", "participle", "present"]),
+        ("parlé", ["participle", "past"]),
+        ("parle", ["first-person", "indicative", "present", "singular"]),
+        ("parle", ["indicative", "present", "singular", "third-person"]),
+        ("parlez", ["indicative", "plural", "present", "second-person"]),
+        ("parlerait", ["conditional", "singular", "third-person"]),
+        ("present indicative of avoir + past participle", ["indicative", "multiword-construction", "perfect", "present"]),
+        ("parle", ["first-person", "present", "singular", "subjunctive"]),
+        ("parle", ["present", "singular", "subjunctive", "third-person"]),
+        ("parle", ["imperative", "second-person", "singular"]),
+        ("parlez", ["imperative", "plural", "second-person"]),
+        ("simple imperative of avoir + past participle", ["imperative", "multiword-construction", "second-person", "singular"]),
+    ],
+)
+ETRE = headed(
+    "être",
+    "verb",
+    "fr-verb",
+    {"type": "auxiliary"},
+    forms=[
+        ("été", ["participle", "past"]),
+        ("est", ["indicative", "present", "singular", "third-person"]),
+        ("fut", ["historic", "indicative", "past", "singular", "third-person"]),
+        ("future of avoir + past participle", ["future", "indicative", "multiword-construction", "perfect"]),
+    ],
+    senses=[{"glosses": ["to be"], "tags": ["copulative"]}],
+)
+
+
+class VerbReadings(unittest.TestCase):
+    def test_spec_scenario_a_present_of_five_readings_from_the_table(self):
+        rows = grammar([PARLER], {"parle": "parler", "parler": "parler"})
+        self.assertEqual(tags_of(rows, "parle", "parler", "-"), FIVE)
+
+    def test_a_sense_merging_persons_and_moods_reads_as_each(self):
+        # The form's own entry, as the dump writes `parle`'s: « first/third-person singular present
+        # indicative/subjunctive », and « second-person singular imperative ».
+        parle = entry(
+            "parle",
+            pos="verb",
+            senses=[
+                {"glosses": ["inflection of parler"], "tags": ["form-of"], "form_of": [{"word": "parler"}, {"word": "parler"}]},
+                {
+                    "glosses": ["inflection of parler:", "first/third-person singular present indicative/subjunctive"],
+                    "tags": ["first-person", "form-of", "indicative", "present", "singular", "subjunctive", "third-person"],
+                    "form_of": [{"word": "parler"}],
+                },
+                {
+                    "glosses": ["inflection of parler:", "second-person singular imperative"],
+                    "tags": ["form-of", "imperative", "second-person", "singular"],
+                    "form_of": [{"word": "parler"}],
+                },
+            ],
+        )
+        self.assertEqual(sorted(readings(parle).senses[("parle", "parler")]), FIVE)
+        # A sense naming no person gives none: the conditional of `parlerait` needs its person.
+        self.assertEqual(red.verb_features({"conditional", "singular"}), [])
+        # The imperative has no third person: `vive`'s « third-person singular imperative » (vive le
+        # roi) is the subjunctive's, which its other senses give.
+        vive = form_of("vive", "vivre", tags=("form-of", "imperative", "singular", "third-person"))
+        self.assertFalse(readings(vive).senses[("vive", "vivre")])
+
+    def test_spec_scenario_a_verb_form_says_what_it_is(self):
+        rows = grammar(
+            [PARLER, ETRE],
+            {f: "parler" for f in ("parler", "parlant", "parlé", "parlez", "parlerait")} | {"fut": "être", "être": "être"},
+        )
+        # The passé simple is the indicative past.
+        self.assertEqual(tags_of(rows, "fut"), [f"{IND}|Number=Sing|Person=3|Tense=Past|VerbForm=Fin"])
+        # The conditional and the imperative take no tense (D7); the indicative does.
+        self.assertEqual(tags_of(rows, "parlerait"), [f"{CND}|Number=Sing|Person=3|VerbForm=Fin"])
+        self.assertEqual(
+            tags_of(rows, "parlez"),
+            [f"{IMP}|Number=Plur|Person=2|VerbForm=Fin", f"{IND}|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin"],
+        )
+        # The present participle as UD French writes it; the bare past participle is the masculine
+        # singular; the infinitive.
+        self.assertEqual(tags_of(rows, "parlant"), ["VERB|Tense=Pres|VerbForm=Part"])
+        self.assertEqual(tags_of(rows, "parlé"), ["VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part"])
+        self.assertEqual(tags_of(rows, "parler"), ["VERB|VerbForm=Inf"])
+
+    def test_a_compound_tense_and_a_reflexive_row_with_its_pronoun_give_none(self):
+        souvenir = headed(
+            "souvenir",
+            "verb",
+            "fr-verb",
+            forms=[
+                *TABLE_HEAD,
+                ("souviens", ["indicative", "present", "singular", "third-person"]),
+                ("sois-t'en", ["imperative", "reflexive"]),
+                ("t'en souviens", ["indicative", "present", "reflexive", "second-person", "singular"]),
+            ],
+        )
+        got = readings(PARLER, souvenir).pairs()
+        self.assertFalse([pair for pair in got if " " in pair[0] or "+" in pair[0]], "no compound tense")
+        self.assertNotIn(("ayant", "parler"), got)
+        # A reflexive row the pronoun cannot be taken off reads nothing.
+        self.assertNotIn(("sois-t'en", "souvenir"), got)
+        self.assertNotIn(("t'en souviens", "souvenir"), got)
+        self.assertNotIn(("en souviens", "souvenir"), got)
+
+    def test_spec_scenario_a_pronominal_verb(self):
+        # *s'évanouir*'s table, as the dump writes it under `évanouir`: every row with its pronoun.
+        evanouir = headed(
+            "évanouir",
+            "verb",
+            "fr-verb",
+            forms=[
+                *TABLE_HEAD,
+                ("s'évanouir", ["infinitive"]),
+                ("s'évanouissant", ["gerund", "participle", "present"]),
+                ("évanoui", ["participle", "past"]),
+                ("m'évanouis", ["first-person", "indicative", "present", "singular"]),
+                ("s'évanouit", ["indicative", "present", "singular", "third-person"]),
+                ("nous évanouissons", ["first-person", "indicative", "plural", "present"]),
+                ("s'évanouissaient", ["imperfect", "indicative", "plural", "third-person"]),
+                ("nous évanouissions", ["first-person", "imperfect", "indicative", "plural"]),
+                ("s'évanouit", ["historic", "indicative", "past", "singular", "third-person"]),
+                ("s'être + past participle", ["infinitive", "multiword-construction"]),
+                ("évanouis-toi", ["imperative", "second-person", "singular"]),
+                ("évanouissons-nous", ["first-person", "imperative", "plural"]),
+            ],
+            senses=[{"glosses": ["to lose consciousness; to faint"], "tags": ["pronominal"]}],
+        )
+        got = readings(evanouir).pairs()
+        self.assertEqual(
+            sorted(got[("évanouit", "évanouir")]),
+            [f"{IND}|Number=Sing|Person=3|Tense=Past|VerbForm=Fin", f"{IND}|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"],
+        )
+        self.assertEqual(got[("évanouissaient", "évanouir")], {f"{IND}|Number=Plur|Person=3|Tense=Imp|VerbForm=Fin"})
+        self.assertEqual(got[("évanouissions", "évanouir")], {f"{IND}|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin"})
+        self.assertIn(f"{IMP}|Number=Sing|Person=2|VerbForm=Fin", got[("évanouis", "évanouir")])
+        self.assertIn(f"{IMP}|Number=Plur|Person=1|VerbForm=Fin", got[("évanouissons", "évanouir")])
+        self.assertEqual(got[("évanouir", "évanouir")], {"VERB|VerbForm=Inf"})
+        self.assertEqual(got[("évanouissant", "évanouir")], {"VERB|Tense=Pres|VerbForm=Part"})
+        self.assertFalse([pair for pair in got if "'" in pair[0] or " " in pair[0] or "-" in pair[0]])
+        self.assertEqual(red.without_pronoun("vous évanouissez"), "évanouissez")
+        self.assertIsNone(red.without_pronoun("s'en est"))
+        self.assertIsNone(red.without_pronoun("parle"))
+
+    def test_spec_scenario_a_participle_s_agreement_through_its_own_entry(self):
+        diriger = headed("diriger", "verb", "fr-verb", forms=[("dirigé", ["participle", "past"]), ("dirige", PRESENT_3S)])
+        dirige = headed(
+            "dirigé",
+            "verb",
+            "fr-past participle",
+            forms=[("dirigée", ["feminine"]), ("dirigés", ["masculine", "plural"]), ("dirigées", ["feminine", "plural"])],
+            senses=[{"glosses": ["past participle of diriger"], "tags": ["form-of", "participle", "past"], "form_of": [{"word": "diriger"}]}],
+        )
+        dirigee = form_of("dirigée", "dirigé", tags=("feminine", "form-of", "participle", "singular"))
+        forms = {f: "diriger" for f in ("diriger", "dirige", "dirigé", "dirigée", "dirigés", "dirigées")}
+        rows = grammar([diriger, dirige, dirigee], forms, {"diriger": 1})
+        self.assertEqual(tags_of(rows, "dirigée"), ["VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part"])
+        self.assertEqual(tags_of(rows, "dirigées"), ["VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part"])
+        self.assertEqual(tags_of(rows, "dirigés"), ["VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part"])
+        self.assertEqual(tags_of(rows, "dirigé"), ["VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part"])
+        # A participle's own entry is no lemma entry: dirigé is no verb of its own.
+        self.assertNotIn("dirigé", readings(dirige).poses)
+
+    def test_a_form_of_a_form_is_added_only_where_the_form_does_not_already_read_so(self):
+        # `les` is the plural of le, and of la, itself le's feminine: it does not also read
+        # feminine through `la` (design D5).
+        le = headed("le", "article", "head", {"g": "m"}, forms=[("la", ["feminine"]), ("les", ["feminine", "masculine", "plural"])])
+        la = form_of("la", "le", pos="article", tags=("feminine", "form-of", "singular"))
+        les = entry(
+            "les",
+            pos="article",
+            senses=[
+                {"glosses": ["plural of le: the"], "tags": ["form-of", "plural"], "form_of": [{"word": "le", "extra": "the"}]},
+                {"glosses": ["plural of la: the"], "tags": ["form-of", "plural"], "form_of": [{"word": "la", "extra": "the"}]},
+            ],
+        )
+        rows = grammar([le, la, les], {"le": "le", "la": "le", "les": "le"})
+        self.assertEqual(tags_of(rows, "les"), ["DET|Number=Plur"])
+        self.assertEqual(tags_of(rows, "la"), ["DET|Gender=Fem|Number=Sing"])
+        self.assertEqual(red.compose("DET|Gender=Fem|Number=Sing", "DET|Number=Plur"), "DET|Gender=Fem|Number=Plur")
+        # Along one part of speech, and a verb's only through a participle.
+        self.assertIsNone(red.compose("ADJ|Gender=Fem|Number=Sing", "DET|Number=Plur"))
+        self.assertIsNone(red.compose(f"{IND}|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin", "VERB|Number=Plur"))
+        self.assertIsNone(red.compose("VERB|Tense=Past|VerbForm=Part", "VERB|VerbForm=Inf"))
+
+
+class NominalReadings(unittest.TestCase):
+    def test_spec_scenario_a_noun_says_its_gender(self):
+        maison = headed("maison", "noun", "fr-noun", {"1": "f"}, forms=[("maisons", ["plural"]), ("maisonne", ["alternative"])])
+        temps = headed(
+            "temps",
+            "noun",
+            "fr-noun",
+            {"1": "m"},
+            senses=[{"glosses": ["time (in general)"], "tags": ["invariable", "masculine", "uncountable"]}],
+        )
+        bras = headed("bras", "noun", "fr-noun", {"1": "m", "2": "#"}, senses=[{"glosses": ["arm"], "tags": ["masculine"]}])
+        enfant = headed(
+            "enfant",
+            "noun",
+            "fr-noun",
+            {"1": "mfbysense"},
+            forms=[("enfants", ["plural"])],
+            senses=[{"glosses": ["child"], "tags": ["by-personal-gender", "feminine", "masculine"]}],
+        )
+        forms = {"maison": "maison", "maisons": "maison", "enfant": "enfant", "enfants": "enfant", "temps": "temps", "bras": "bras"}
+        rows = grammar([maison, temps, bras, enfant], forms)
+        self.assertEqual(tags_of(rows, "maison"), ["NOUN|Gender=Fem|Number=Sing"])
+        self.assertEqual(tags_of(rows, "maisons"), ["NOUN|Gender=Fem|Number=Plur"])
+        # A noun the dictionary gives one form for reads in both numbers (D4).
+        self.assertEqual(tags_of(rows, "temps"), ["NOUN|Gender=Masc|Number=Plur", "NOUN|Gender=Masc|Number=Sing"])
+        self.assertEqual(tags_of(rows, "bras"), ["NOUN|Gender=Masc|Number=Plur", "NOUN|Gender=Masc|Number=Sing"])
+        # A noun of both genders, a reading per gender.
+        self.assertEqual(tags_of(rows, "enfant"), ["NOUN|Gender=Fem|Number=Sing", "NOUN|Gender=Masc|Number=Sing"])
+        self.assertEqual(tags_of(rows, "enfants"), ["NOUN|Gender=Fem|Number=Plur", "NOUN|Gender=Masc|Number=Plur"])
+        # Without `fr-noun`, the senses' genders.
+        self.assertEqual(red.noun_genders(entry("x", senses=[{"glosses": ["x"], "tags": ["feminine"]}])), (("Fem",), False))
+        self.assertEqual(red.noun_genders(headed("gens", "noun", "fr-noun", {"1": "m-p"})), (("Masc",), True))
+
+    def test_spec_scenario_a_feminine_noun_s_masculine_is_no_form_of_it(self):
+        deesse = headed(
+            "déesse", "noun", "fr-noun", {"1": "f", "m": "dieu"}, forms=[("déesses", ["plural"]), ("dieu", ["masculine"])]
+        )
+        dieu = headed(
+            "dieu", "noun", "fr-noun", {"1": "m", "2": "#x", "f": "déesse"}, forms=[("dieux", ["plural"]), ("déesse", ["feminine"])]
+        )
+        got = readings(deesse, dieu).pairs()
+        self.assertNotIn(("dieu", "déesse"), got)
+        self.assertEqual(got[("déesses", "déesse")], {"NOUN|Gender=Fem|Number=Plur"})
+        # dieu's own table still names its feminine.
+        self.assertEqual(got[("déesse", "dieu")], {"NOUN|Gender=Fem|Number=Sing"})
+
+    def test_an_adjective_agrees_or_takes_one_form_for_both_genders(self):
+        grand = headed(
+            "grand",
+            "adj",
+            "fr-adj",
+            forms=[("grande", ["feminine"]), ("grands", ["masculine", "plural"]), ("grandes", ["feminine", "plural"])],
+        )
+        rapide = headed("rapide", "adj", "fr-adj", forms=[("rapides", ["plural"])])
+        beau = headed(
+            "beau",
+            "adj",
+            "fr-adj",
+            {"mv": "bel"},
+            forms=[("bel", ["before-vowel", "masculine", "singular"]), ("belle", ["feminine"])],
+        )
+        plusieurs = headed(
+            "plusieurs",
+            "adj",
+            "fr-adj",
+            {"inv": "1", "onlyg": "p"},
+            senses=[{"glosses": ["several"], "tags": ["plural", "plural-only"]}],
+        )
+        got = readings(grand, rapide, beau, plusieurs).pairs()
+        self.assertEqual(got[("grand", "grand")], {"ADJ|Gender=Masc|Number=Sing"})
+        self.assertEqual(got[("grande", "grand")], {"ADJ|Gender=Fem|Number=Sing"})
+        self.assertEqual(got[("grandes", "grand")], {"ADJ|Gender=Fem|Number=Plur"})
+        self.assertEqual(got[("rapide", "rapide")], {"ADJ|Number=Sing"})
+        self.assertEqual(got[("rapides", "rapide")], {"ADJ|Number=Plur"})
+        # The masculine before a vowel is a masculine singular.
+        self.assertEqual(got[("bel", "beau")], {"ADJ|Gender=Masc|Number=Sing"})
+        # A comparative or superlative row reads its degree, an adjective's alone.
+        self.assertEqual(red.reading_tags("ADJ", {"comparative"}), ["ADJ|Degree=Cmp|Number=Sing"])
+        self.assertEqual(red.reading_tags("ADJ", {"superlative", "feminine"}), ["ADJ|Degree=Sup|Gender=Fem|Number=Sing"])
+        self.assertEqual(red.reading_tags("NOUN", {"superlative"}), [])
+        # Every sense plural: a plural of its own.
+        self.assertEqual(got[("plusieurs", "plusieurs")], {"ADJ|Number=Plur"})
+
+    def test_determiners_articles_and_pronouns_read_their_agreement(self):
+        le_det = headed("le", "article", "head", {"g": "m"}, forms=[("la", ["feminine"]), ("les", ["feminine", "masculine", "plural"])])
+        le_pron = headed("le", "pron", "head", {"g": "m"}, forms=[("la", ["feminine"]), ("les", ["feminine", "masculine", "plural"])])
+        celui = headed(
+            "celui",
+            "pron",
+            "fr-pron",
+            {"1": "m", "f": "celle"},
+            forms=[("celle", ["feminine"]), ("ceux", ["masculine", "plural"]), ("çui", ["alternative", "colloquial"])],
+        )
+        celle = form_of("celle", "celui", pos="pron", tags=("feminine", "form-of", "singular"))
+        il = headed(
+            "il",
+            "pron",
+            "head",
+            {"g": "m", "5": "plural", "6": "ils"},
+            forms=[("ils", ["plural"]), ("le", ["accusative"]), ("lui", ["dative"]), ("son", ["determiner", "possessive"])],
+            senses=[{"glosses": ["he"], "tags": ["masculine", "singular", "third-person"]}],
+        )
+        tes = headed(
+            "tes",
+            "det",
+            "head",
+            {"g": "p", "3": "masculine", "4": "ton"},
+            forms=[("ton", ["masculine"]), ("ta", ["feminine"])],
+            senses=[{"glosses": ["your (when referring to a plural noun)"], "tags": ["plural"]}],
+        )
+        # `un`'s table lists `de` as its negative (« pas de »): no agreement, no reading.
+        un = headed("un", "article", "head", {"g": "m"}, forms=[("une", ["feminine"]), ("des", ["plural"]), ("de", ["negative"])])
+        got = readings(le_det, le_pron, celui, celle, il, tes, un).pairs()
+        self.assertEqual(got[("une", "un")], {"DET|Gender=Fem|Number=Sing"})
+        self.assertEqual(got[("des", "un")], {"DET|Number=Plur"})
+        self.assertFalse(got.get(("de", "un")))
+        # An article is a determiner; `la` reads as le's both as a determiner and as a pronoun.
+        self.assertEqual(got[("la", "le")], {"DET|Gender=Fem|Number=Sing", "PRON|Gender=Fem|Number=Sing"})
+        self.assertEqual(got[("celle", "celui")], {"PRON|Gender=Fem|Number=Sing"})
+        self.assertEqual(got[("ceux", "celui")], {"PRON|Gender=Masc|Number=Plur"})
+        # A pronoun's other persons and cases are other words, and a row without a gender gives none.
+        for other_word in ("ils", "le", "lui", "son"):
+            self.assertFalse(got.get((other_word, "il")), other_word)
+        # A plural-headed table gives none: `ton` is no « masculine of tes ».
+        self.assertNotIn(("ton", "tes"), got)
+        self.assertNotIn(("ta", "tes"), got)
+        # A determiner's or pronoun's own form names nothing on its card.
+        self.assertNotIn(("le", "le"), got)
+
+
+class WhatGivesNoReading(unittest.TestCase):
+    def test_spec_scenario_what_gives_no_reading(self):
+        # A capitalised headword is another word (`CE`, « works council »).
+        ce = headed("CE", "noun", "fr-noun", {"1": "m", "2": "#"}, senses=[{"glosses": ["works council"], "tags": ["invariable", "masculine"]}])
+        # An archaic spelling's table: `est` would be its form.
+        estre = headed(
+            "estre",
+            "verb",
+            "fr-verb",
+            forms=[("estre", ["infinitive"]), ("est", ["indicative", "present", "singular", "third-person"])],
+            senses=[{"glosses": ["archaic spelling of être"], "tags": ["alt-of", "archaic"], "alt_of": [{"word": "être"}]}],
+        )
+        # A gender-neutral neologism: `les` would be its plural.
+        lea = headed(
+            "lea",
+            "article",
+            "head",
+            {"g": "gneut", "3": "plural", "4": "les"},
+            forms=[("lea gender-neutral", ["canonical"]), ("les", ["plural"])],
+            senses=[{"glosses": ["the"], "tags": ["neologism"]}],
+        )
+        # Louisiana's past participle of aller, on `été`'s own entry.
+        ete = headed(
+            "été",
+            "verb",
+            "fr-past participle",
+            {"intr": "1"},
+            senses=[
+                {"glosses": ["past participle of être"], "tags": ["form-of", "intransitive", "participle", "past"], "form_of": [{"word": "être"}]},
+                {"glosses": ["past participle of aller"], "tags": ["Louisiana", "form-of", "intransitive", "participle", "past"], "form_of": [{"word": "aller"}]},
+            ],
+        )
+        # The letter L's name, beside the pronoun whose plural `elles` is.
+        elle_letter = headed(
+            "elle",
+            "noun",
+            "fr-noun",
+            {"1": "m"},
+            forms=[("elles", ["plural"])],
+            senses=[{"glosses": ["The name of the Latin script letter L/l."], "tags": ["masculine"], "categories": [{"name": "fr:Latin letter names"}]}],
+        )
+        elle_pron = headed(
+            "elle",
+            "pron",
+            "head",
+            {"g": "f", "5": "plural", "6": "elles"},
+            forms=[("elles", ["plural"]), ("la", ["accusative"])],
+            senses=[{"glosses": ["she"], "tags": ["feminine", "singular", "third-person"]}],
+        )
+        elles = headed(
+            "elles",
+            "noun",
+            "head",
+            {"g": "f"},
+            senses=[{"glosses": ["plural of elle"], "tags": ["feminine", "form-of", "plural"], "form_of": [{"word": "elle"}]}],
+        )
+        aller = headed("aller", "verb", "fr-verb", forms=[("allé", ["participle", "past"])])
+        got = readings(ce, estre, lea, ete, elle_letter, elle_pron, elles, ETRE, aller).pairs()
+        self.assertNotIn(("ce", "ce"), got)
+        self.assertNotIn(("est", "estre"), got)
+        self.assertEqual(got[("est", "être")], {f"{IND}|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin"})
+        self.assertNotIn(("les", "lea"), got)
+        self.assertNotIn(("été", "aller"), got)
+        self.assertEqual(got[("été", "être")], {"VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part"})
+        # The letter keeps its own form; its table gives no plural, and the pronoun's table, which
+        # lists `elles` without a gender, states the pair: the plural's own entry adds nothing.
+        self.assertEqual(got[("elle", "elle")], {"NOUN|Gender=Masc|Number=Sing"})
+        self.assertFalse(got.get(("elles", "elle")))
+        rows = grammar([elle_letter, elle_pron, elles], {"elle": "elle", "elles": "elles"}, {"elle": 1, "elles": 2})
+        self.assertEqual(tags_of(rows, "elles"), [])
+        # A doubtful row of a table reads nothing either (`maisonne`, an alternative).
+        maison = headed("maison", "noun", "fr-noun", {"1": "f"}, forms=[("maisonne", ["alternative"])])
+        self.assertNotIn(("maisonne", "maison"), readings(maison).pairs())
+
+    def test_spec_scenario_a_spelling_variant_reads_as_the_word_it_spells(self):
+        coeur = headed(
+            "coeur",
+            "noun",
+            "fr-noun",
+            {"1": "m"},
+            forms=[("coeurs", ["plural"])],
+            senses=[{"glosses": ["nonstandard spelling of cœur"], "tags": ["alt-of", "masculine", "nonstandard"], "alt_of": [{"word": "cœur"}]}],
+        )
+        coeur_ = headed("cœur", "noun", "fr-noun", {"1": "m"}, forms=[("cœurs", ["plural"]), ("coeur", ["alternative"])])
+        rows = grammar([coeur, coeur_], {"coeur": "cœur", "coeurs": "cœur", "cœur": "cœur", "cœurs": "cœur"})
+        self.assertEqual(tags_of(rows, "coeurs", "cœur", "-"), ["NOUN|Gender=Masc|Number=Plur"])
+        self.assertEqual(tags_of(rows, "coeur", "cœur", "-"), ["NOUN|Gender=Masc|Number=Sing"])
+        # The variant is no lemma entry of its own.
+        self.assertNotIn("coeur", readings(coeur).poses)
+
+
+class OtherMarks(unittest.TestCase):
+    def test_spec_scenario_a_homograph_names_its_other_dictionary_form(self):
+        fils = headed("fils", "noun", "fr-noun", {"1": "m"}, senses=[{"glosses": ["son"], "tags": ["invariable", "masculine"]}])
+        fils_form = headed(
+            "fils",
+            "noun",
+            "head",
+            {"g": "m-p"},
+            senses=[{"glosses": ["plural of fil"], "tags": ["form-of", "masculine", "plural"], "form_of": [{"word": "fil"}]}],
+        )
+        fil = headed("fil", "noun", "fr-noun", {"1": "m"}, forms=[("fils", ["plural"])])
+        couver = headed(
+            "couver",
+            "verb",
+            "fr-verb",
+            forms=[
+                ("couvent", ["indicative", "plural", "present", "third-person"]),
+                ("couvent", ["plural", "present", "subjunctive", "third-person"]),
+            ],
+        )
+        couvent = headed("couvent", "noun", "fr-noun", {"1": "m"}, forms=[("couvents", ["plural"])])
+        rows = grammar([fils, fils_form, fil, couver, couvent], {"fils": "fils", "fil": "fil", "couvent": "couvent", "couver": "couver"})
+        self.assertEqual(tags_of(rows, "fils", "fils", "-"), ["NOUN|Gender=Masc|Number=Plur", "NOUN|Gender=Masc|Number=Sing"])
+        self.assertEqual(tags_of(rows, "fils", "fil", "other"), ["NOUN|Gender=Masc|Number=Plur"])
+        self.assertEqual(tags_of(rows, "couvent", "couvent", "-"), ["NOUN|Gender=Masc|Number=Sing"])
+        self.assertEqual(
+            tags_of(rows, "couvent", "couver", "other"),
+            [f"{IND}|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin", f"{SUB}|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin"],
+        )
+
+    def test_another_word_is_named_only_when_it_is_an_entry_not_only_regional(self):
+        # `irait`'s link lists « would go » after aller; `va`'s entry lists *vader*, whose every
+        # sense is a region's (Louisiana, Switzerland).
+        irait = headed(
+            "irait",
+            "verb",
+            "head",
+            senses=[
+                {
+                    "glosses": ["third-person singular conditional of aller, would go."],
+                    "tags": ["conditional", "form-of", "singular", "third-person"],
+                    "form_of": [{"word": "aller"}, {"word": "would go"}],
+                }
+            ],
+        )
+        va = entry(
+            "va",
+            pos="verb",
+            senses=[
+                {"glosses": ["inflection of aller:"], "tags": ["form-of", "imperative", "second-person", "singular"], "form_of": [{"word": "aller"}]},
+                {"glosses": ["inflection of vader:"], "tags": ["form-of", "imperative", "second-person", "singular"], "form_of": [{"word": "vader"}]},
+            ],
+        )
+        aller = headed("aller", "verb", "fr-verb", senses=[{"glosses": ["to go"]}])
+        vader = headed("vader", "verb", "fr-verb", {"type": "defective"}, senses=[{"glosses": ["to go"], "tags": ["Louisiana", "defective"]}])
+        vader_ch = headed(
+            "vader", "verb", "fr-verb", forms=[("va", ["imperative", "second-person", "singular"])], senses=[{"glosses": ["to get away"], "tags": ["Switzerland"]}]
+        )
+        forms = {"irait": "aller", "va": "aller", "aller": "aller", "vader": "vader", "would": "would"}
+        rows = grammar([irait, va, aller, vader, vader_ch], forms, {"aller": 1, "vader": 2, "would": 3})
+        self.assertEqual(tags_of(rows, "irait"), [f"{CND}|Number=Sing|Person=3|VerbForm=Fin"])
+        self.assertEqual({(l, m) for f, l, _, m in rows if f in ("irait", "va")}, {("aller", "-")})
+
+    def test_spec_scenario_a_participle_filed_under_a_noun_s_spelling(self):
+        # A forms table filing `citée` under the noun *cité* (as change 43's prototype did): the
+        # participle reads no verb form of the noun, and names its verb.
+        citer = headed("citer", "verb", "fr-verb", forms=[("cité", ["participle", "past"]), ("cite", PRESENT_3S)])
+        cite_noun = headed("cité", "noun", "fr-noun", {"1": "f"}, forms=[("cités", ["plural"])], senses=[{"glosses": ["city"], "tags": ["feminine"]}])
+        cite_participle = headed(
+            "cité",
+            "verb",
+            "fr-past participle",
+            forms=[("citée", ["feminine"]), ("cités", ["masculine", "plural"]), ("citées", ["feminine", "plural"])],
+            senses=[{"glosses": ["past participle of citer"], "tags": ["form-of", "participle", "past"], "form_of": [{"word": "citer"}]}],
+        )
+        citee = headed(
+            "citée",
+            "verb",
+            "head",
+            {"g": "f-s"},
+            senses=[{"glosses": ["feminine singular of cité"], "tags": ["feminine", "form-of", "participle", "singular"], "form_of": [{"word": "cité"}]}],
+        )
+        entries = [citer, cite_noun, cite_participle, citee]
+        rows = grammar(entries, {"citée": "cité", "cité": "cité", "citer": "citer", "cités": "cité"})
+        self.assertEqual(tags_of(rows, "citée", "cité"), [])
+        self.assertEqual(tags_of(rows, "citée", "citer", "other"), ["VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part"])
+        # The noun keeps its own readings; its plural is the noun's and names the participle's verb.
+        self.assertEqual(tags_of(rows, "cité", "cité", "-"), ["NOUN|Gender=Fem|Number=Sing"])
+        self.assertEqual(tags_of(rows, "cités", "cité", "-"), ["NOUN|Gender=Fem|Number=Plur"])
+        self.assertEqual(tags_of(rows, "cités", "citer", "other"), ["VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part"])
+        # Filed under the verb, as change 43's implementation files it, the participle is its own.
+        rows = grammar(entries, {"citée": "citer", "cité": "cité", "citer": "citer"})
+        self.assertEqual(tags_of(rows, "citée", "citer", "-"), ["VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part"])
+        self.assertEqual(tags_of(rows, "citée", "cité"), [])
+        # A lemma the dictionary holds as none of the parts of speech read keeps its readings.
+        info = entry("infos", pos="noun", senses=[{"glosses": ["plural of info"], "tags": ["form-of", "plural"], "form_of": [{"word": "info"}]}])
+        self.assertEqual(tags_of(grammar([info], {"infos": "info", "info": "info"}), "infos"), ["NOUN|Number=Plur"])
+
+    def test_a_link_toward_a_word_the_dictionary_holds_as_no_verb_gives_no_verb_reading(self):
+        venait = headed(
+            "venait",
+            "verb",
+            "head",
+            senses=[
+                {
+                    "glosses": ["third-person singular imperfect indicative of venir, was coming, came"],
+                    "tags": ["form-of", "imperfect", "indicative", "singular", "third-person"],
+                    "form_of": [{"word": "venir"}, {"word": "was coming"}, {"word": "came"}],
+                }
+            ],
+        )
+        venir = headed("venir", "verb", "fr-verb", forms=[("venait", ["imperfect", "indicative", "singular", "third-person"])])
+        came = headed("came", "noun", "fr-noun", {"1": "f"}, forms=[("cames", ["plural"])])
+        rows = grammar([venait, venir, came], {"venait": "venir", "venir": "venir", "came": "came"})
+        self.assertEqual(tags_of(rows, "venait"), [f"{IND}|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin"])
+        self.assertEqual({l for f, l, _, _ in rows if f == "venait"}, {"venir"})
+
+    def test_a_link_an_override_row_sets_aside_gives_no_reading(self):
+        # `fatiguée`'s verb entry reads « feminine singular of parlé », a copy error change 43's
+        # override row reads past (`fatiguée` → fatiguer): it names no *parler*.
+        entries = [
+            headed("fatiguer", "verb", "fr-verb", forms=[("fatigué", ["participle", "past"])]),
+            headed(
+                "fatigué",
+                "verb",
+                "fr-past participle",
+                forms=[("fatiguée", ["feminine"]), ("fatiguées", ["feminine", "plural"])],
+                senses=[{"tags": ["form-of", "participle", "past"], "form_of": [{"word": "fatiguer"}]}],
+            ),
+            headed("fatigué", "adj", "fr-adj", forms=[("fatiguée", ["feminine"])], senses=[{"glosses": ["tired"]}]),
+            form_of("fatiguée", "fatigué", pos="adj", tags=("feminine", "form-of", "singular")),
+            headed(
+                "fatiguée",
+                "verb",
+                "fr-past participle",
+                forms=[("fatiguées", ["plural"])],
+                senses=[{"glosses": ["feminine singular of parlé"], "tags": ["feminine", "form-of", "participle", "singular"], "form_of": [{"word": "parlé"}]}],
+            ),
+            PARLER,
+            form_of("parlé", "parler", tags=("form-of", "participle", "past")),
+        ]
+        forms = {"fatiguée": "fatiguer", "fatiguer": "fatiguer", "fatigué": "fatigué", "parler": "parler", "parlé": "parler"}
+        ranks = {"parler": 1, "fatiguer": 2, "fatigué": 3}
+        rows = grammar(entries, forms, ranks)
+        self.assertEqual({(l, m) for f, l, _, m in rows if f == "fatiguée"}, {("fatiguer", "-"), ("fatigué", "other")})
+        self.assertEqual(tags_of(rows, "fatiguée", "fatiguer"), ["VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part"])
+        self.assertEqual(red.set_aside(readings(*entries)), {("fatiguée", "parlé")})
+        # Without the row, the copy error names parler.
+        rows = red.grammar_rows(readings(*entries), forms, ranks, overrides={})
+        self.assertIn("fatiguée\tparler\tVERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part\tother\n", rows)
+
+    def test_rows_hold_the_tables_forms_under_kept_lemmas_sorted(self):
+        rows = red.grammar_rows(readings(PARLER, ETRE), {"parle": "parler", "fut": "être", "parlez": "parlez"}, {"parler": 1})
+        # `fut` is not under a kept lemma; `parlez`'s own lemma is not *parler*, which it names.
+        self.assertEqual(rows, sorted(rows))
+        self.assertFalse([row for row in rows if row.startswith("fut\t")])
+        self.assertTrue(all(row.endswith("\tother\n") for row in rows if row.startswith("parlez\t")))
+        self.assertEqual(len([row for row in rows if row.startswith("parle\t")]), 5)
+
+
+
 def fake_wordfreq():
     module = types.ModuleType("wordfreq")
     module.top_n_list = lambda lang, n: top_n(n)
@@ -731,7 +1346,7 @@ class Main(unittest.TestCase):
         self.assertEqual(out["gloss.tsv"], "")
         for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json"):
             self.assertTrue(out[name], name)
-        self.assertNotIn("grammar.tsv", out)
+        self.assertIn("dirigée\tdiriger\tVERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part\t-\n", out["grammar.tsv"])
         # and French's estimated levels (add-lingua-french-levels, `EstimatedLevels` below).
         self.assertIn("de\tA1\n", out["level.tsv"])
         self.assertIn("dirigée\tdiriger\n", out["forms.tsv"])

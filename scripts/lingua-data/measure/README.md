@@ -46,6 +46,13 @@ reduction reads GSD's training and development sections, so a held-out section o
 is the weaker test. Both are fetched at a pinned commit and checked by sha256 into
 `work/measure-fr/`. Neither is committed, and the reduction reads neither.
 
+After the gates it reports French's readings (`fr_readings.py`, add-lingua-french-grammar-tables
+D10) on both treebanks: per part of speech, over the words whose form the committed tables map to the
+treebank's lemma, the share that carry a reading of their own and the share of those whose treebank
+part of speech and features are among them — an auxiliary read as a verb, the conditional's and the
+imperative's tense left aside, a participle without a tense read either way. The figures decide
+nothing.
+
 ```bash
 scripts/lingua-data/measure/fr-ud.sh
 ```

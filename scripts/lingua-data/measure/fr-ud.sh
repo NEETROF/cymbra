@@ -11,7 +11,10 @@
 # French-GSD's test section, reported beside it and not gated — the reduction reads GSD's training
 # and development sections, so a held-out section of the same treebank is the weaker test. Both are
 # fetched at a pinned commit and checked by sha256; neither is committed (PUD is CC BY-SA 3.0), and
-# the reduction never reads them. The exit status is PUD's.
+# the reduction never reads them. The exit status is PUD's. After the gates, French's readings
+# (add-lingua-french-grammar-tables D10, `fr_readings.py`): on both treebanks, per part of speech,
+# the share of the words that carry a reading and of those the treebank agrees with — reported,
+# never deciding the exit status.
 #
 #   scripts/lingua-data/measure/fr-ud.sh
 set -euo pipefail
@@ -59,4 +62,6 @@ echo "UD French-PUD at $PUD_COMMIT (gated):"
 measure "$pud" || status=$?
 echo "UD French-GSD's test section at $GSD_COMMIT (reported, not gated):"
 measure "$gsd" || echo "  (reported only: GSD's test section decides nothing)"
+"${LINGUA_PYTHON:-python3}" "$here/fr_readings.py" --tables "$here/../tables/fr" "$pud" "$gsd" ||
+  echo "  (reported only: the readings' figures decide nothing)"
 exit "$status"

@@ -22,9 +22,9 @@ Inputs, in `--work`:
 - wordfreq `fr` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
   attested at all (D6).
 
-Outputs, in `--work`: `forms.tsv`, `freq.tsv`, `level.tsv` (French's estimated levels,
-add-lingua-french-levels), an empty `gloss.tsv` (fr-en's glosses come with add-lingua-pack-fr-en),
-`NOTICE` and `manifest.json`. The readings (`grammar.tsv`) are a later change's of the same reducer.
+Outputs, in `--work`: `forms.tsv`, `freq.tsv`, the readings `grammar.tsv`
+(add-lingua-french-grammar-tables), `level.tsv` (French's estimated levels, add-lingua-french-levels),
+an empty `gloss.tsv` (fr-en's glosses come with add-lingua-pack-fr-en), `NOTICE` and `manifest.json`.
 
 The tables serve French's tokenisation as add-lingua-french-tokenisation writes it (M21, design
 D4): the pre-pass hands the lookup the word an elided piece stands for (`l'` is read `le`), splits
@@ -34,6 +34,7 @@ keeps `du` and `des` whole, and keeps whole a hyphenated run the pack lists.
 
 import argparse
 import collections
+import itertools
 import json
 import math
 import os
@@ -301,8 +302,9 @@ class Lexicon:
             self.link(form, word, pos)
 
 
-def read_kaikki(path):
-    """The French section, read entry by entry into a `Lexicon`."""
+def read_kaikki(path, readings=None):
+    """The French section, read entry by entry into a `Lexicon` — and, with `readings` (a
+    `Readings`), each entry's grammar in the same pass (`read_readings`)."""
     lexicon = Lexicon()
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -311,6 +313,8 @@ def read_kaikki(path):
             except json.JSONDecodeError:
                 continue
             lexicon.read(entry)
+            if readings is not None:
+                read_readings(entry, readings)
     return lexicon
 
 
@@ -693,6 +697,434 @@ def levels_report(levels, left_out, ranks):
     return f"levels={len(levels)} estimated: {'; '.join(spans)}; left out: {out}"
 
 
+# — French's word grammar (add-lingua-french-grammar-tables) —
+#
+# Every form kaikki lists carries its grammar as tags (`parlions`: first-person, imperfect,
+# indicative, plural). They become Universal Dependencies tags, the vocabulary the pack's grammar
+# sections read (add-lingua-word-grammar D1):
+# `VERB|Mood=Ind|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin`. The rules read the same entries as
+# the forms, in the same pass (`read_kaikki`), and the forms and ranks once chosen (design D1, D2):
+# they choose neither.
+
+# kaikki's parts of speech whose forms carry readings, as UPOS: an article is a determiner, as UD
+# writes it (D4); every verb is `VERB`, `AUX` being a role in a sentence a card cannot see (D3).
+_UPOS = {"verb": "VERB", "noun": "NOUN", "adj": "ADJ", "det": "DET", "article": "DET", "pron": "PRON", "num": "NUM"}
+# kaikki's moods and tenses, in the order they are read; the passé simple is `historic` (D3).
+_MOODS = (("conditional", "Cnd"), ("imperative", "Imp"), ("subjunctive", "Sub"))
+_TENSES = (("historic", "Past"), ("imperfect", "Imp"), ("future", "Fut"), ("present", "Pres"))
+_PERSON = {"first-person": "1", "second-person": "2", "third-person": "3"}
+_GENDER = {"masculine": "Masc", "feminine": "Fem"}
+# `fr-noun`'s gender argument: the genders a noun takes, and whether its headword is a plural.
+_NOUN_GENDER = {
+    "m": (("Masc",), False),
+    "f": (("Fem",), False),
+    "mf": (("Masc", "Fem"), False),
+    "mfbysense": (("Masc", "Fem"), False),
+    "mfequiv": (("Masc", "Fem"), False),
+    "m,f": (("Masc", "Fem"), False),
+    "f,m": (("Masc", "Fem"), False),
+    "m-p": (("Masc",), True),
+    "f-p": (("Fem",), True),
+    "mf-p": (("Masc", "Fem"), True),
+}
+# A determiner's, pronoun's or numeral's row reads only when it says nothing but gender, number and
+# degree: a personal pronoun's head lists its other persons and cases (`il`: dative `lui`, possessive
+# `son`), which are other words, not inflections (D4).
+_NOMINAL_ONLY = frozenset(
+    {"masculine", "feminine", "singular", "plural", "superlative", "comparative", "before-vowel", "form-of"}
+    | {"invariable"}
+)
+# A row or sense that gives no reading (D5): the tables' bookkeeping, the tags change 43 leaves out
+# of the forms (a form a source marks doubtful is no inflection, so no reading either), and what
+# kaikki could not parse.
+_NOT_A_READING = _BOOKKEEPING | _DOUBTFUL | {"error-unrecognized-form"}
+# A form's own sense marked as a region's or a register's reads nothing (D5): `été` is Louisiana's
+# past participle of *aller*, and a standard card would otherwise say so.
+_REGISTERS = frozenset(
+    {
+        "Louisiana", "Quebec", "Canada", "Belgium", "Switzerland", "Africa", "Acadia", "Cajun", "France",
+        "Haiti", "North-America", "Canadian", "regional", "dialectal", "Lorraine", "Provence", "Marseille",
+        "Normandy", "Picardy", "slang", "colloquial", "informal", "Internet", "vulgar", "Jersey", "Guernsey",
+        "Réunion", "Louisiana-French",
+    }
+)
+# The regions a sense may be marked with: a word whose every sense is one region's is named on no
+# standard card (D6: *vader*, a Louisiana verb, would be named on `va`).
+_REGIONS = frozenset(
+    {
+        "Louisiana", "Quebec", "Canada", "Belgium", "Switzerland", "North-America", "regional", "dialectal",
+        "Africa", "Rwanda", "Morocco", "Canadian", "Congo", "Antilles", "Lyon", "Luxembourg", "Vietnam",
+        "Lorraine", "Alsace", "Montreal", "Normandy", "New-England", "Acadia", "Cajun", "Haiti", "Réunion",
+        "Provence", "Marseille", "Picardy", "Jersey", "Guernsey", "Senegal", "Ivory-Coast", "Cameroon",
+        "Algeria", "Tunisia", "Lebanon", "Belgian", "Swiss", "Québec", "Ontario", "Manitoba", "New-Brunswick",
+        "Burundi",
+    }
+)
+# The head template of a past participle's own entry (`dirigé`), whose rows are its agreed forms.
+_PARTICIPLE_HEAD = "fr-past participle"
+# A determiner's or pronoun's head naming a plural headword (`tes`), whose table lists the singular.
+_PLURAL_HEADS = frozenset({"p", "m-p", "f-p", "mf-p"})
+_LETTER_GLOSS = re.compile(r"(?:the )?name of the (?:[\w-]+ )?(?:script )?(?:letter|digraph)\b", re.IGNORECASE)
+# A pronominal verb's row, as its table writes it: the pronoun before (`m'évanouis`, `nous
+# évanouissons`) or after a hyphen in the imperative (`évanouis-toi`).
+_PRONOUN_BEFORE = re.compile(r"^(?:(?:me|te|se|nous|vous) |[mts]')(.+)$")
+_PRONOUN_AFTER = re.compile(r"^(.+?)-(?:toi|nous|vous)$")
+
+
+def ud_tag(upos, features):
+    """A Universal Dependencies tag: the part of speech, then the features sorted by name."""
+    return "|".join([upos, *(f"{name}={value}" for name, value in sorted(features.items()))])
+
+
+def parse_tag(tag):
+    """`ud_tag`'s inverse: the part of speech and the features."""
+    upos, *features = tag.split("|")
+    return upos, dict(feature.split("=", 1) for feature in features)
+
+
+def _agreement(tags):
+    """Gender and number, as a participle's or an adjective's tags state them."""
+    out = {}
+    genders = [_GENDER[tag] for tag in tags if tag in _GENDER]
+    if len(genders) == 1:
+        out["Gender"] = genders[0]
+    if "plural" in tags:
+        out["Number"] = "Plur"
+    elif "singular" in tags:
+        out["Number"] = "Sing"
+    return out
+
+
+def _past_participle(tags):
+    """A past participle's features: in French's tables the bare row is the masculine singular,
+    not a repeat of it (D3)."""
+    agreement = _agreement(tags)
+    return {
+        "VerbForm": "Part",
+        "Tense": "Past",
+        "Gender": agreement.get("Gender", "Masc"),
+        "Number": agreement.get("Number", "Sing"),
+    }
+
+
+def verb_features(tags):
+    """Every reading a verb's row or sense names (D3), as feature sets, none when it names none.
+
+    - The passé simple (`historic past`) is the indicative past; the conditional and the
+      imperative take no tense, as Spanish's tables write them (D7: the moods' merge of the card).
+    - The present participle (`gerund participle present`) is `VerbForm=Part|Tense=Pres`, as UD
+      French writes it; a past participle reads with its agreement, the bare row and a sense that
+      names an agreement without `past` (`feminine singular of dirigé`) as the past one.
+    - A sense merging persons, numbers or moods (`first/third-person singular present
+      indicative/subjunctive`) reads as each of them; a table's row names one.
+    - The imperative has no third person; the subjunctive no future or passé simple.
+    """
+    if "participle" in tags:
+        return [{"VerbForm": "Part", "Tense": "Pres"}] if "present" in tags else [_past_participle(tags)]
+    if "infinitive" in tags:
+        return [{"VerbForm": "Inf"}]
+    moods = [mood for kaikki, mood in _MOODS if kaikki in tags]
+    tense = next((ud for kaikki, ud in _TENSES if kaikki in tags), None)
+    if "indicative" in tags or (not moods and tense):
+        moods.append("Ind")
+    persons = [_PERSON[tag] for tag in tags if tag in _PERSON]
+    numbers = [number for kaikki, number in (("singular", "Sing"), ("plural", "Plur")) if kaikki in tags]
+    out = []
+    for mood, person, number in itertools.product(moods, persons, numbers):
+        features = {"VerbForm": "Fin", "Mood": mood, "Person": person, "Number": number}
+        if mood in ("Ind", "Sub"):
+            if tense is None or (mood == "Sub" and tense not in ("Pres", "Imp")):
+                continue
+            features["Tense"] = tense
+        elif mood == "Imp" and person == "3":
+            continue
+        out.append(features)
+    return out
+
+
+def nominal_features(tags, genders=()):
+    """The features of a noun's, adjective's, determiner's, pronoun's or numeral's form, one set per
+    gender: its number (singular unless kaikki says plural), its degree, and its gender — the form's
+    own, none when it names both, or each of the lemma's for a form kaikki gives none (a noun's
+    plural)."""
+    base = {"Number": "Plur" if "plural" in tags else "Sing"}
+    if "superlative" in tags:
+        base["Degree"] = "Sup"
+    elif "comparative" in tags:
+        base["Degree"] = "Cmp"
+    own = [_GENDER[tag] for tag in tags if tag in _GENDER]
+    if len(own) == 1:
+        return [{**base, "Gender": own[0]}]
+    if own or not genders:
+        return [base]
+    return [{**base, "Gender": gender} for gender in genders]
+
+
+def reading_tags(upos, tags, genders=(), participle=False):
+    """The UD tags kaikki's tags name for a form of `upos`; none when they name no reading.
+
+    A past participle's own entry (`participle`) lists its agreed forms (`dirigée`: feminine), which
+    read as the participle with that agreement. A determiner's, pronoun's or numeral's row reads only
+    when it names agreement alone, and a pronoun's only with a gender (D4)."""
+    if upos == "VERB":
+        if participle and not ({"participle", "infinitive"} & tags) and not (set(_PERSON) & tags):
+            return [ud_tag(upos, _past_participle(tags | ({"singular"} if "plural" not in tags else set())))]
+        return [ud_tag(upos, features) for features in verb_features(tags)]
+    if upos in ("PRON", "DET", "NUM") and not tags <= _NOMINAL_ONLY:
+        return []
+    if upos == "PRON" and not tags & set(_GENDER):
+        return []
+    return [ud_tag(upos, f) for f in nominal_features(tags, genders) if "Degree" not in f or upos == "ADJ"]
+
+
+def noun_genders(entry):
+    """A noun's genders, and whether its headword is a plural: `fr-noun`'s argument, else the
+    genders its senses are tagged with (D4)."""
+    for head in entry.get("head_templates") or ():
+        if head.get("name") == "fr-noun":
+            known = _NOUN_GENDER.get((head.get("args") or {}).get("1"))
+            if known:
+                return known
+    tags = set()
+    for sense in entry.get("senses") or ():
+        tags.update(sense.get("tags") or ())
+    return tuple(_GENDER[tag] for tag in ("masculine", "feminine") if tag in tags), False
+
+
+def invariable_noun(entry):
+    """A noun the dictionary gives one form for (D4): `fr-noun`'s plural `#`, or a sense tagged
+    `invariable` and no plural listed (`temps`, `fois`, `bras`, `vis`)."""
+    args = {}
+    for head in entry.get("head_templates") or ():
+        if head.get("name") == "fr-noun":
+            args = head.get("args") or {}
+    if args.get("2") == "#":
+        return True
+    senses = entry.get("senses") or []
+    return any("invariable" in (sense.get("tags") or ()) for sense in senses) and not any(
+        "plural" in (inflection.get("tags") or ()) for inflection in entry.get("forms") or ()
+    )
+
+
+def adjective_agrees(entry):
+    """Whether an adjective has a feminine of its own (`grande`), unlike `rapide`."""
+    for inflection in entry.get("forms") or ():
+        tags = set(inflection.get("tags") or ())
+        if "feminine" in tags and "masculine" not in tags:
+            return True
+    return False
+
+
+def _names_a_letter(sense):
+    """Whether `sense` is a letter's name (`elle`, the letter L, whose plural `elles` a card would
+    name beside the pronoun's): kaikki says so by its tags, its category or its gloss."""
+    if {"letter", "name"} <= set(sense.get("tags") or ()):
+        return True
+    for category in sense.get("categories") or ():
+        name = category if isinstance(category, str) else category.get("name", "")
+        if "letter names" in str(name):
+            return True
+    return any(_LETTER_GLOSS.search(gloss) for gloss in sense.get("glosses") or ())
+
+
+def _alternative_or_neologism(sense):
+    """A sense that is only an alternative form of another word, or a neologism (D5)."""
+    tags = set(sense.get("tags") or ())
+    return "alt-of" in tags or bool(sense.get("alt_of")) or "neologism" in tags
+
+
+def without_pronoun(form):
+    """A pronominal verb's row as the bare form French's pre-pass leaves (D3): `s'évanouit` →
+    `évanouit`, `nous évanouissons` → `évanouissons`, `évanouis-toi` → `évanouis`; else None."""
+    m = _PRONOUN_BEFORE.match(form) or _PRONOUN_AFTER.match(form)
+    if m and _TOKEN.fullmatch(m.group(1)) and " " not in m.group(1):
+        return m.group(1)
+    return None
+
+
+class Readings:
+    """The readings kaikki states, by (form, lemma), and what the rules need of its entries.
+
+    - `table`: a lemma's table — its own form, its inflections —, and a past participle's own
+      entry's agreed forms; `senses`: a form's own entry's senses, for the pairs no table lists
+      (D5);
+    - `poses`: lemma → the parts of speech of its lemma entries, among those read;
+    - `standard`: the words with a lemma entry that is not only regional (D6).
+    """
+
+    def __init__(self):
+        self.table = collections.defaultdict(set)
+        self.senses = collections.defaultdict(set)
+        self.poses = collections.defaultdict(set)
+        self.standard = set()
+
+    def pairs(self):
+        """`(form, lemma) → tags`: a table's reading of a pair wins over a form entry's senses."""
+        out = {pair: set(tags) for pair, tags in self.senses.items()}
+        out.update((pair, set(tags)) for pair, tags in self.table.items())
+        return out
+
+
+def read_readings(entry, readings):
+    """One entry's readings into `readings`, word and form lowercased and in NFC (D3–D5).
+
+    Never from a capitalised headword (`CE`, `LE` are other words), nor from an entry whose every
+    sense is an alternative form of another word or a neologism (`estre`, archaic spelling of
+    *être*, whose table would make `est` its form). A spelling variant reads as the word it spells
+    (`coeurs` → *cœur*). A form's own entry gives each sense toward its target, but a doubtful,
+    regional or register-marked one; a past participle's entry gives its agreed forms too. A lemma's
+    entry gives a noun's or an adjective's own form, and its table's rows: a pronominal verb's
+    without their pronoun, never a compound tense (a multi-word construction, doubtful), a letter's
+    plural, a feminine noun's masculine (`déesse`: `dieu`), nor a plural-headed determiner's or
+    pronoun's table (`tes`)."""
+    upos = _UPOS.get(entry.get("pos"))
+    word = nfc_lower(entry.get("word"))
+    if upos is None or not _TOKEN.fullmatch(word):
+        return
+    raw = unicodedata.normalize("NFC", (entry.get("word") or "").strip())
+    if raw != raw.lower():
+        return
+    senses = entry.get("senses") or []
+    spelt = [spelling_target(sense, word) for sense in senses]
+    spelt = nfc_lower(spelt[0]) if spelt and all(spelt) and len({nfc_lower(t) for t in spelt}) == 1 else None
+    if spelt is None and senses and all(_alternative_or_neologism(sense) for sense in senses):
+        return
+    heads = entry.get("head_templates") or ()
+    participle = upos == "VERB" and any(head.get("name") == _PARTICIPLE_HEAD for head in heads)
+    home = spelt or word
+    if spelt is None and senses and all(_is_form_of(sense) for sense in senses):
+        for sense in senses:
+            tags = set(sense.get("tags") or ())
+            if tags & _NOT_A_READING or tags & _REGISTERS:
+                continue
+            for target in _form_targets(sense):
+                target = nfc_lower(target)
+                if _TOKEN.fullmatch(target):
+                    readings.senses[(word, target)].update(reading_tags(upos, tags))
+        if not participle:
+            return
+    elif spelt is None:
+        readings.poses[word].add(upos)
+        if not all(set(sense.get("tags") or ()) & _REGIONS for sense in senses):
+            readings.standard.add(word)
+    genders, plural = noun_genders(entry) if upos == "NOUN" else ((), False)
+    if upos == "NOUN":
+        own = {"Number": "Plur" if plural else "Sing"}
+        for features in [{**own, "Gender": gender} for gender in genders] or [own]:
+            readings.table[(word, home)].add(ud_tag(upos, features))
+        # A letter's name keeps its own form, but none of its inflections: `elles` is the pronoun's,
+        # not the plural of the letter L (add-lingua-spanish-word-card D7).
+        if senses and all(_names_a_letter(sense) for sense in senses):
+            return
+        if not plural and invariable_noun(entry):
+            for features in [{"Number": "Plur", "Gender": gender} for gender in genders] or [{"Number": "Plur"}]:
+                readings.table[(word, home)].add(ud_tag(upos, features))
+    elif upos == "ADJ":
+        plural_only = all({"plural", "plural-only"} & set(sense.get("tags") or ()) for sense in senses)
+        own = {"Number": "Plur" if plural_only else "Sing", **({"Gender": "Masc"} if adjective_agrees(entry) else {})}
+        readings.table[(word, home)].add(ud_tag(upos, own))
+    if upos in ("DET", "PRON") and any((head.get("args") or {}).get("g") in _PLURAL_HEADS for head in heads):
+        return
+    inflections = entry.get("forms") or ()
+    pronominal = upos == "VERB" and any(
+        "infinitive" in (inflection.get("tags") or ()) and without_pronoun(nfc_lower(inflection.get("form")))
+        for inflection in inflections
+    )
+    for inflection in inflections:
+        tags = set(inflection.get("tags") or ())
+        form = nfc_lower(inflection.get("form"))
+        if tags & _NOT_A_READING:
+            continue
+        bare = without_pronoun(form) if upos == "VERB" and ("reflexive" in tags or pronominal) else None
+        if bare is not None:
+            form, tags = bare, tags - {"reflexive"}
+        elif not _TOKEN.fullmatch(form) or "reflexive" in tags:
+            continue
+        if upos == "NOUN" and "masculine" in tags and "plural" not in tags:
+            continue
+        readings.table[(form, home)].update(reading_tags(upos, tags, genders, participle))
+
+
+def _kind(tag):
+    """A reading's part of speech and verb form: what a form of a form is not added over (D5)."""
+    upos, features = parse_tag(tag)
+    return upos, features.get("VerbForm")
+
+
+def compose(outer, inner):
+    """A form of a form (D5): the outer reading — of the word the form is a form of — with the inner
+    one's agreement, along one part of speech, a verb's only through a participle; None otherwise."""
+    upos, features = parse_tag(outer)
+    inner_upos, inner_features = parse_tag(inner)
+    if upos != inner_upos:
+        return None
+    if upos == "VERB" and (features.get("VerbForm") != "Part" or inner_features.get("VerbForm") not in (None, "Part")):
+        return None
+    for name in ("Gender", "Number"):
+        if name in inner_features:
+            features[name] = inner_features[name]
+    return ud_tag(upos, features)
+
+
+def set_aside(readings, overrides=OVERRIDES):
+    """The links a reviewed override row sets aside as the source's copy error (D5): an overridden
+    form's own entry linking it to another word than the row's, which no lemma's table lists —
+    `fatiguée`'s verb entry, « feminine singular of parlé », gives no reading toward *parlé*, and so
+    none toward *parler* through it."""
+    return {
+        (form, target)
+        for (form, target) in readings.senses
+        if form in overrides and target != overrides[form][0] and (form, target) not in readings.table
+    }
+
+
+def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
+    """`grammar.tsv`'s rows, sorted: the readings of the forms `forms` holds, under the lemmas
+    `ranks` keeps (D2), a form's of its own lemma marked `-`, another's `other` (D6).
+
+    - A form of a form along one part of speech reads as the word it is a form of reads, with its
+      own agreement (`dirigée` → `dirigé` → *diriger*), through the form's own lemma too — unless
+      the form already reads as that word in that part of speech and verb form (`les` is no
+      feminine through `la`) (D5).
+    - A reading's part of speech is one the dictionary holds its lemma as, when it holds the lemma
+      as one of those read: a participle filed under a noun's spelling names its verb instead
+      (D5), and `venait` names no *came*, which the French section holds as a noun.
+    - `other` only toward an entry of the dictionary that is not only regional (D6): `irait` names
+      no *would*, `va` no *vader*.
+    - Never through a link an override row sets aside (`set_aside`)."""
+    excluded = set_aside(readings, overrides)
+    by_form = collections.defaultdict(dict)
+    for (form, lemma), tags in readings.pairs().items():
+        if tags and (form, lemma) not in excluded:
+            by_form[form][lemma] = tags
+    rows = set()
+    for form, own in forms.items():
+        direct = by_form.get(form, {})
+        options = {lemma: set(tags) for lemma, tags in direct.items()}
+        for inner_word, inner_tags in direct.items():
+            if inner_word == form:
+                continue
+            for lemma, outer_tags in by_form.get(inner_word, {}).items():
+                if lemma in (inner_word, form):
+                    continue
+                kinds = {_kind(tag) for tag in direct.get(lemma, ())}
+                made = {compose(outer, inner) for outer in outer_tags for inner in inner_tags} - {None}
+                made = {tag for tag in made if _kind(tag) not in kinds}
+                if made:
+                    options.setdefault(lemma, set()).update(made)
+        for lemma, tags in options.items():
+            if lemma not in ranks:
+                continue
+            held = readings.poses.get(lemma)
+            if held:
+                tags = {tag for tag in tags if parse_tag(tag)[0] in held}
+            mark = "-" if lemma == own else "other"
+            if mark == "other" and (lemma not in readings.poses or lemma not in readings.standard):
+                continue
+            rows.update((form, lemma, tag, mark) for tag in tags)
+    return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
+
+
 NOTICE = """Cymbra Lingua data pack — FR->EN attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), French section: CC BY-SA 4.0 + GFDL —
@@ -728,7 +1160,8 @@ def main():
             zipf[word] = zipf_frequency(word, "fr")
         return zipf[word]
 
-    lexicon = read_kaikki(os.path.join(a.work, "kaikki-French.jsonl"))
+    readings = Readings()
+    lexicon = read_kaikki(os.path.join(a.work, "kaikki-French.jsonl"), readings)
     counts = read_gsd_counts(
         [os.path.join(a.work, "fr_gsd-ud-train.conllu"), os.path.join(a.work, "fr_gsd-ud-dev.conllu")]
     )
@@ -750,6 +1183,9 @@ def main():
         "freq.tsv",
         "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))),
     )
+    # The readings of the forms and ranks just chosen (add-lingua-french-grammar-tables D1).
+    grammar = grammar_rows(readings, forms, ranks)
+    common.write(a.work, "grammar.tsv", "".join(grammar))
     # French's estimated levels (add-lingua-french-levels): from the ranks and the section's senses,
     # never from the glosses.
     levels, left_out = estimated_levels(ranks, forms, read_level_senses(os.path.join(a.work, "kaikki-French.jsonl")))
@@ -779,7 +1215,7 @@ def main():
         ],
     }
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
-    print(f"reduced fr-en: forms={len(forms)} lemmas={len(ranks)}", file=sys.stderr)
+    print(f"reduced fr-en: forms={len(forms)} lemmas={len(ranks)} readings={len(grammar)}", file=sys.stderr)
     print(f"reduced fr-en: {levels_report(levels, left_out, ranks)}", file=sys.stderr)
 
 
