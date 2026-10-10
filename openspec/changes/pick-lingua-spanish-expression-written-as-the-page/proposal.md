@@ -19,8 +19,8 @@ Measured on es-fr's and es-en's committed tables and change 44d's 464,574 Spanis
 (Tatoeba, Spanish Wikipedia, UD Spanish, five Gutenberg books, change 3's pages: 4,160,681 tokens):
 - **es-fr: 98 keys several headwords reach** (99 other headwords, `echar a perder`, `echado a perder`
   and `echarse a perder` on one), **es-en 138** (141). The other headwords are not in the pack today.
-- **4,418 of es-fr's 205,743 matches fall on such a key, and 584 are named by a headword the page does
-  not write**: `un poco` on « un poquito » 111, `hacer tiempo` on « hace tiempo » 86, `buen día` on
+- **4,418 of es-fr's 205,743 matches fall on such a key, and 584 are named by a headword written less
+  like the page than another the dictionary has**: `un poco` on « un poquito » 111, `hacer tiempo` on « hace tiempo » 86, `buen día` on
   « buenos días » 79, `red social` on « redes sociales » 59. es-en: 12,659 of 236,765 and 1,598
   (`medio de comunicación` on « medios de comunicación » 101, `no ser nada` on « no es nada » 99).
 - 44e's « closest spelling » rule misfires in Spanish where French had no case: es-en's
@@ -40,7 +40,7 @@ Measured on es-fr's and es-en's committed tables and change 44d's 464,574 Spanis
   Spanish guard): `tenerlos puestos`, `hacerse ilusiones`, `puedes ayudarme` are weighed only where
   a clitic pronoun is attached to one of the run's words (« hacerme ilusiones ») or is the page's word
   just before the run (« No te hagas ilusiones »); where no headword of the key qualifies, all are
-  weighed, as today. « tenía puestos unos audífonos » answers `tener puesto`; es-en 6 matches move
+  weighed, as 44e's rule weighs them. « tenía puestos unos audífonos » answers `tener puesto`; es-en 6 matches move
   against 44e's rule alone, es-fr none; no match is gained or lost.
 - **A lemma chain settled before stays a reader's own only where it names no headword** (D4): 44b's
   rule keeping a status set on a lemma chain (`tener en contar`) holds, except where the chain is a

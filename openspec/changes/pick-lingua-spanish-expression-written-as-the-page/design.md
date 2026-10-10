@@ -292,12 +292,16 @@ pack's update », a reason *A French invariance baseline runs beside the English
 names, as 44b's re-bless moved it. The pins `tables/es-fr/pin.json` and `tables/es-en/pin.json` record
 the packs' new sha256 and size; `committed_tables` builds the four other packs to their pins.
 
-**Not moved**, measured on the prototype without re-blessing: `en-fr.golden`, `en-es.golden`,
-`fr-es.golden` (its `beside en-es` line included); `cross_native`, `parity`, `card_gloss_language`,
-`spanish_expression_keys`, `statuses`, `deck`, `english_baseline`, `en_es_baseline`, `fr_es_baseline`.
+**Not moved**, measured on the prototype without re-blessing: `en-fr.golden` and `en-es.golden`;
+`fr-es.golden`, against 44e's own re-bless (its `beside en-es` line included); `fr-en.golden` but its
+`beside es-en` line, against the same; `cross_native`, `parity`, `card_gloss_language`,
+`spanish_expression_keys`, `statuses`, `deck`, `languages`, `soft_hyphens`, `reprofile`,
+`english_baseline`, `en_es_baseline`, `fr_es_baseline`; `committed_tables` fails on the es-fr and
+es-en pins alone (and fr-en's and fr-es's, 44e's), en-fr and en-es building to theirs.
 **`word-card-es-en.txt` does not move**: `word-card-es-en.spec.ts` renders the es-en golden's
 `word-grammar` probes alone, and no `word-grammar` line moves (nor does any `analyse` or `gloss`
-probe); no extension snapshot renders a Spanish phrase probe. **Spanish's analyser version stays**,
+probe); no extension snapshot renders a Spanish phrase probe. Measured: `word-card-es-en.spec.ts` and
+`word-grammar-es.spec.ts` pass without `-u` on the re-blessed `es-en.golden`. **Spanish's analyser version stays**,
 as 44b (its D9) and 44e (its D5) read *An analyser version per studied language*: no token, lemma or
 page analysis moves; the pack gains an additive section, and an older core with the new pack answers
 as before (D1).
@@ -315,6 +319,9 @@ output needs the owner's approval here too (task 6.1), and the pull request says
 - 44e's checks that say « no Spanish pack carries `expr.others` » (its tasks 1.3 and 4.1) become « no
   English pack », and its scenario *English and Spanish packs do not move* is read, for Spanish, as
   this change's *The committed Spanish packs*.
+- Measured on the prototype: every `lingua-core` and `lingua-pack` unit test passes unchanged (507 and
+  79), the English, Spanish and French fixtures byte for byte; `committed_tables` (39 tests) passes
+  once the es-fr and es-en pins move (and fr-en's and fr-es's, 44e's).
 
 ### D8 — Order, and what other changes take from here
 
