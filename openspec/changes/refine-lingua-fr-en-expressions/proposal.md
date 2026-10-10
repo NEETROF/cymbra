@@ -40,7 +40,7 @@ French Wikipedia, Tatoeba and change 39's pages, 51,790 selections:
   they are, 2 colloquial spellings met as standard ones (« m'a » "I'm going", « t'es »): 7,197 of the
   60,361 matches.
 - **A sense that only notes a form is no meaning** (D2): 48b's rule for an expression's senses that
-  only point gains five wordings — « compound of … and … », « (an) interrogative form of », « a form
+  only point gains six wordings — « compound of … and … », « (an) interrogative form of », « a form
   of avoir … in the third-person », « for non-idiomatic uses », « equivalent to “…” », « used only
   in the … ». « j'ai » is glossed "I've, I have"; « a-t-il », « puis-je » and « colin-tampon » keep
   no sense and leave (149 matches).
