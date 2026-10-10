@@ -406,6 +406,61 @@ a reading and 99.60 % of those agree with the treebank, participles 100 % and 99
 99.53 %, nouns 98.65 % and 98.68 % (`tables/fr-en/README.md`, every part of speech). The fr-en pack
 built from forms, ranks, readings and levels is 1,460,253 B (the readings 158,222 B of it).
 
+## FR → ES: French glossed in Spanish
+
+Reduced by `reduce-fr-es.py` (add-lingua-pack-fr-es): French glossed in Spanish, for Spanish speakers
+studying French (`docs/lingua/language-matrix-programme.md`, change 49, decision M6) — a reader pair of
+French, as es-en is of Spanish and en-es of English. No extension package carries the pack:
+`packs.json` does not list it until change 52, which lists it because its committed tables stand at
+or above the floor fixed before they were measured (below).
+
+fr-es reads French's tables in `tables/fr/` as committed — fr-en's reduction writes them — and writes
+its native side alone: its lemmas and their ranks are `tables/fr/forms.tsv` and `freq.tsv` (all
+60,000), its readings (which say under which part of speech a Spanish word read backwards is listed),
+levels and dictionary words fr-en's. Its reducer loads `reduce_common.py` and `reduce_edition_es.py`,
+not fr-en's reducer nor the English edition, so nothing of fr-en moves with it; an edit of the
+Spanish edition re-pins en-es and fr-es (the digest tests say so against every committed pin).
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's French section (`kaikki-es-Frances.jsonl`); else the Spanish translations the French Wiktionary's French entries list (`kaikki-fr-traductions.jsonl`, the direct table); else the French translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions.jsonl`, the inverted table) — the catalogue's three files, derived from the Spanish and French editions' dumps, no new derivation (`DUMPS["fr-es"]`); es-fr reads the two translation files the other way round | CC BY-SA 4.0 + GFDL | a French headword's typographic apostrophe read as `'` in the section and both tables (`main-d'œuvre`); the section's letters left out, its senses read as the Spanish edition reads en-es's (`read_as_meanings`: obsolete or outdated senses after the others, one typography), then fr-es's own pass (`french_entries`): a surname's or a given name's note left off a word that has an entry of its own in lower case holding a meaning, a possessive or demonstrative adjective — and an adjective whose every sense is a form of one (`mes`) — read as a determiner; then the shared rules, cleaned by the Spanish edition's notes (`reduce_edition_es.ES`): up to eight senses grouped by part of speech. A definition whose every sense is the French headword itself gives way to the direct table's Spanish words when they hold none spelled as the headword (`et` « Et » → « Y, e »). A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, each in the edition's typography; a letter's entry left out of both tables and a one-letter French word read backwards dropped; a Spanish word read backwards listed once, under the first of its parts of speech French's readings name. No pivot, no machine translation. Coverage below |
+| `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; French's readings come from `tables/fr/grammar.tsv` |
+| `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the section's multi-word French entries, then the multi-word headwords the tables give (587, 10,686 and 904); `LOCUTIONS` in the reducer is empty |
+| `NOTICE` | both sides' sources | — | the studied side as fr-en's notice credits it (the English Wiktionary's French section, wordfreq, UD French-GSD, the estimated levels), and the native side (the Spanish Wiktionary's definitions and French translations, the French Wiktionary's Spanish translations, wordfreq for the Spanish words' order) |
+
+**The floor, fixed before the measurement** (D8, M6). The owner settled on 2026-10-09, before the
+update whose tables are committed, that fr-es is held to 81.4 / 68.8 / 54.5 % of the 5,000 / 10,000 /
+20,000 commonest lemmas — the study's figures less two points — in `gloss_coverage.py`'s
+`FLOORS["fr-es"]` alone, which the `reduce` job reads (no `--floor`) and the tests hold to the
+requirement's value; and that, measured under it at its first update, fr-es would commit no tables
+and no package would list it, French shipping for English speakers alone. Once committed, a pull
+request that reduces fr-es again under the floor fails. The floor is never lowered after a
+measurement.
+
+**The committed measurement**: the first update (2026-10-10, run
+[38041319531](https://github.com/NEETROF/cymbra/actions/runs/38041319531), 5 min 22 s), on the dumps
+the design's prototype read:
+
+| Lemmas | Spanish Wiktionary alone | the three sources | the floor |
+|---|---|---|---|
+| top 5,000 | 40.0 % | 83.2 % | 81.4 % |
+| top 10,000 | 28.5 % | 70.8 % | 68.8 % |
+| top 20,000 | 18.3 % | 56.8 % | 54.5 % |
+| all 60,000 | 7.6 % | 31.8 % | — |
+
+19,050 lemmas are glossed: 4,560 from the Spanish Wiktionary's definitions (23.9 %), 13,195 from the
+French Wiktionary's Spanish translations and 1,295 from the Spanish Wiktionary's French translations
+read backwards. **The translation-table share** (D9): of the 7,082 glossed lemmas among the 10,000
+commonest, 59.8 % come from a translation table (3,967 direct, 265 inverted), 40.2 % from a
+definition — `work/fr-es/measures.json`, stored in no pack, shown by `pack_report.py --measures`. 544
+glossed lemmas are no dictionary word of French, so the pack carries a lexical section: its
+dictionary words are fr-en's. There are 12,177 expressions. The pack is 1,973,407 B. The rules' rows
+— 149 rows (64 of the top 10,000) and 4 expressions against the three sources read as written, 7 / 7
+rows whose runs alone move, 11 letters losing a gloss that was the letter, none gained — a sample of
+100 glosses marked by source, and the defects left are in `tables/fr-es/README.md`. The first update
+was dispatched alone on the implementation's branch; `build.sh --reduce fr-es` from the release it
+published, `lingua-pack-sources-fr-es-2026.10.10`, reproduced its tables byte for byte, twice.
+
 ## The editions' dumps
 
 kaikki is read at **three addresses, one dump per Wiktionary edition**
@@ -428,7 +483,7 @@ derived from the dumps served on 2026-10-08:
 | | `kaikki-fr-Espagnol.jsonl` | Spanish entries | 212,331,331 B | es-fr |
 | | `kaikki-fr-traductions.jsonl` | French entries' Spanish translations | 6,191,621 B | es-fr (inverted), fr-es (direct) |
 | **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
-| | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (change 49) |
+| | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (definitions) |
 | | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
 | | `kaikki-es-traductions-en.jsonl` | Spanish entries' English translations | 2,200,504 B | es-en (direct), en-es (inverted) |
 
@@ -641,7 +696,7 @@ edition (generalise-lingua-gloss-reducer):
 |---|---|---|---|
 | `reduce_edition_fr.py` | French (frwiktionary) | en-fr, es-fr | Today's rules, unchanged: the form-of wordings (« Pluriel de », « Forme de », also read for en-fr's own forms), « Présent », « Graphie » for expressions, the pointers and placeholders (« → voir », « Définition manquante ou à compléter »), a coordinator left hanging (« ou », « et »), a letter's name; a gloss of translation-table words opens on a capital |
 | `reduce_edition_en.py` | English (enwiktionary) | es-en | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Its senses read as meanings before the shared rules read them (`read_as_meanings`, refine-lingua-es-en-glosses): a sense nested under a label or a pointer by its own gloss; a shortened or respelled form (« apocopic form of », « pronunciation spelling of »…, an untagged one a pointer too) by the meaning it carries or its target's senses, a pronoun's case form by its meaning; a place's name after a function word spelled like it; the edition's descriptions in lower case, one ellipsis, curly double quotes, no numbered sense, nothing after a line break. Two settings, es-en's alone and off until the owner picks them: long parentheses (M20, `LONG_PARENTHESIS` as `EN.long_parenthesis`, 0 keeps them) and the merging of a word's same-part-of-speech etymologies before the round-robin (`MERGE_SAME_POS_ETYMOLOGIES`, a pre-pass `reduce-es-en.py` runs) |
-| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name. Its notes to its readers (refine-lingua-en-es-glosses): a maintenance template (« ^([cita requerida]) »), a disambiguation note (« [sentido del sustantivo] »), a reference to numbered senses (« (definiciones [1,2]) »), the expansion notice, and a usage note after the meaning, a sentence opening on a closed list (« A veces », « Usado », « Se dice »…), a second sentence that carries the meaning kept. Its senses read in their order before the shared rules read them (`read_as_meanings`, a pre-pass en-es runs): the senses it marks obsolete or outdated after the others, nothing left out; one ellipsis « … », straight double quotes paired « » (`typography`, which en-es also applies to the translation tables' words) |
+| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es, fr-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name. Its notes to its readers (refine-lingua-en-es-glosses): a maintenance template (« ^([cita requerida]) »), a disambiguation note (« [sentido del sustantivo] »), a reference to numbered senses (« (definiciones [1,2]) »), the expansion notice, and a usage note after the meaning, a sentence opening on a closed list (« A veces », « Usado », « Se dice »…), a second sentence that carries the meaning kept. Its senses read in their order before the shared rules read them (`read_as_meanings`, a pre-pass en-es and fr-es run): the senses it marks obsolete or outdated after the others, nothing left out; one ellipsis « … », straight double quotes paired « » (`typography`, which en-es and fr-es also apply to the translation tables' words) |
 
 Each module's docstring holds the census its rules come from, measured on the data es-fr pins. The
 French-native pairs' reducers bind the French edition; `reduce_common.py` imports no edition, so a
@@ -651,9 +706,12 @@ shared function is always told which edition it cleans.
 reducer and every `reduce_*.py` module importing it loads, read from `sys.modules`
 (`pack_sources.py rule_files`): en-fr's and es-fr's are `reduce-<pair>.py`, `reduce_common.py` and
 `reduce_edition_fr.py`; es-en's are `reduce-es-en.py`, `reduce_common.py` and
+`reduce_edition_en.py`, and fr-en's `reduce-fr-en.py`, `reduce_common.py` and
 `reduce_edition_en.py`; en-es's are `reduce-en-es.py`, `reduce_common.py` and
-`reduce_edition_es.py`. Editing the English edition re-pins es-en alone, the Spanish edition en-es
-alone; editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
+`reduce_edition_es.py`, and fr-es's `reduce-fr-es.py`, `reduce_common.py` and
+`reduce_edition_es.py`. Editing the English edition re-pins es-en and fr-en alone, the Spanish
+edition en-es and fr-es alone (each pair's own rules, such as en-es's and fr-es's passes over their
+section, live in its reducer); editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
 reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a
 reducer would make later than at import time, and any module loaded other than by an import
 statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.

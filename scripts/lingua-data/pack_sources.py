@@ -239,6 +239,15 @@ DUMPS = {
     # glosses, from the same file alone: no translation table glosses a French word or expression
     # (add-lingua-pack-fr-en D3).
     "fr-en": {"en": ("kaikki-French.jsonl",)},
+    # The Spanish Wiktionary's French section, whose definitions gloss first, and the French
+    # translations its Spanish entries list, read backwards; the Spanish translations the French
+    # Wiktionary's French entries list, the direct fallback (add-lingua-pack-fr-es D3) — the
+    # catalogue's three files, no new derivation. French's studied side is tables/fr/ as committed:
+    # fr-es reads no English dump.
+    "fr-es": {
+        "es": ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl"),
+        "fr": ("kaikki-fr-traductions.jsonl",),
+    },
 }
 # The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as
 # a release asset (D5). Read as recorded, never written again.

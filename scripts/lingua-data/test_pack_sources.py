@@ -1122,7 +1122,7 @@ class Legacy(unittest.TestCase):
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_spec_scenario_the_committed_pairs_reduce_as_before(self):
         # Every committed pin, as committed — en-fr's, es-fr's and es-en's against their extracts,
-        # en-es's against derived files alone. The bytes behind each record are stood in for by a
+        # en-es's, fr-en's and fr-es's against derived files alone. The bytes behind each record are stood in for by a
         # marker naming the sha256 it records (the real ones are the releases' and kaikki's), so
         # the fetch reads every record and each check passes: the pin's bytes are unchanged after
         # `fetch_pinned`, a legacy record is kept, and each raw file is named as its record says.
@@ -1138,7 +1138,7 @@ class Legacy(unittest.TestCase):
             return f"sha256:{digest}\n".encode()
 
         committed = sorted(p.parent.name for p in (HERE / "tables").glob("*/pin.json"))
-        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en"])
+        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es"])
         for pair in committed:
             pin = self.tables / pair / "pin.json"
             pin.parent.mkdir(parents=True)
@@ -1180,8 +1180,8 @@ class Legacy(unittest.TestCase):
             self.assertEqual(
                 sum("releases/download" in url for url in fetched), len(raws), f"{pair}: every asset of its records"
             )
-            # en-es and fr-en were born on the dumps: no extract of their own.
-            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en"), f"{pair}: its legacy extract record")
+            # en-es, fr-en and fr-es were born on the dumps: no extract of their own.
+            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en", "fr-es"), f"{pair}: its legacy extract record")
         self.assertEqual(
             sorted(p.name for p in (self.work / "es-en").iterdir() if p.suffix == ".jsonl"),
             ["kaikki-Spanish.jsonl", "kaikki-es-traductions-en.jsonl"],
@@ -1309,7 +1309,8 @@ class DumpsOnly(unittest.TestCase):
     def test_spec_scenario_a_pair_of_stage_3_registers_what_it_reads(self):
         # fr-en (add-lingua-pack-fr-en D3): the English Wiktionary's French section alone, its
         # glosses' source too — no translation table, and the two change 38 registered for it are
-        # in no edition's catalogue. fr-es (change 49): its three files, in the catalogue.
+        # in no edition's catalogue. fr-es (add-lingua-pack-fr-es D3): its three files, in the
+        # catalogue, registered.
         import unittest.mock as mock
 
         self.assertEqual(ps.DUMPS["fr-en"], {"en": ("kaikki-French.jsonl",)})
@@ -1320,8 +1321,8 @@ class DumpsOnly(unittest.TestCase):
                 with self.assertRaisesRegex(ps.PinError, r"fr-en reads kaikki-(en|fr)-traductions-(fr|en)\.jsonl"):
                     ps.check_registered("fr-en")
         fr_es = {"es": ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl"), "fr": ("kaikki-fr-traductions.jsonl",)}
-        with mock.patch.dict(ps.DUMPS, {"fr-es": fr_es}):
-            ps.check_registered("fr-es")
+        self.assertEqual(ps.DUMPS["fr-es"], fr_es)
+        ps.check_registered("fr-es")
         self.assertEqual(catalogue("es-fr", "en"), {"kaikki-Spanish.jsonl": ("entries", "es")})
         self.assertEqual(ps.EDITIONS["en"]["files"]["kaikki-French.jsonl"], ("entries", "fr"))
         self.assertEqual(ps.EDITIONS["es"]["files"]["kaikki-es-Frances.jsonl"], ("entries", "fr"))
@@ -1618,6 +1619,142 @@ class FrenchReference(unittest.TestCase):
         with self.assertRaisesRegex(ps.PinError, "gsd-dev: fr_gsd-ud-dev.conllu has sha256"):
             with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
                 ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
+
+
+class FrenchGlossedInSpanish(unittest.TestCase):
+    """fr-es (add-lingua-pack-fr-es D3): the catalogue's three files, no new derivation — the Spanish
+    Wiktionary's French section and the French translations its Spanish entries list, from the
+    Spanish edition's dump, and the Spanish translations the French Wiktionary's French entries list,
+    from the French edition's. No English dump: French's studied side is tables/fr/ as committed."""
+
+    # The Spanish Wiktionary's dump: a French entry (fr-es's definitions), a Spanish entry listing a
+    # French and an English translation (fr-es's inverted table, es-fr's direct one; en-es's
+    # inverted one) and an English entry (en-es's definitions).
+    ES = [
+        {"word": "maison", "lang_code": "fr", "pos": "noun", "senses": [{"glosses": ["Casa."]}]},
+        {
+            "word": "través",
+            "lang_code": "es",
+            "pos": "noun",
+            "translations": [{"lang_code": "fr", "word": "travers"}, {"lang_code": "en", "word": "slant"}],
+        },
+        {"word": "house", "lang_code": "en", "pos": "noun", "senses": [{"glosses": ["Casa."]}]},
+    ]
+    # The French Wiktionary's dump: a French entry listing a Spanish and an English translation
+    # (fr-es's direct table, es-fr's inverted one) and a Spanish entry (es-fr's definitions).
+    FR = [
+        {
+            "word": "intérêt",
+            "lang_code": "fr",
+            "pos": "noun",
+            "translations": [{"lang_code": "es", "word": "interés"}, {"lang_code": "en", "word": "interest"}],
+        },
+        {"word": "casa", "lang_code": "es", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
+    ]
+    FILES = ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl", "kaikki-fr-traductions.jsonl")
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.pin = self.root / "tables" / "fr-es" / "pin.json"
+        self.work = self.root / "work" / "fr-es"
+        self.cache = self.root / "work" / "cache"
+        self.released = self.root / "released"
+        self.released.mkdir()
+        self.served = {ps.EDITIONS["es"]["url"]: gz(self.ES), ps.EDITIONS["fr"]["url"]: gz(self.FR)}
+        self.fetched = []
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def fetch(self, url, dest, compressed=False):
+        self.fetched.append(url)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if url in self.served:
+            dest.write_bytes(self.served[url])
+            return {"last-modified": "Fri, 02 Oct 2026 12:12:06 GMT"}
+        tag, asset = url.rsplit("/", 2)[-2:]
+        shutil.copy(self.released / tag / asset, dest)
+        return {}
+
+    def update(self, snapshot="2026.10.10"):
+        import unittest.mock as mock
+
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            with contextlib.redirect_stderr(io.StringIO()):
+                return ps.fetch_live(
+                    self.pin, self.work, snapshot, fetch=self.fetch, today=datetime.date(2026, 10, 10), cache=self.cache
+                )
+
+    def test_fr_es_registers_the_catalogue_s_three_files(self):
+        self.assertEqual(
+            ps.DUMPS["fr-es"],
+            {"es": ("kaikki-es-Frances.jsonl", "kaikki-es-traductions.jsonl"), "fr": ("kaikki-fr-traductions.jsonl",)},
+            "the definitions and the inverted table, then the direct one",
+        )
+        self.assertEqual(
+            catalogue("fr-es", "es"),
+            {"kaikki-es-Frances.jsonl": ("entries", "fr"), "kaikki-es-traductions.jsonl": ("translations", "es", "fr")},
+        )
+        self.assertEqual(catalogue("fr-es", "fr"), {"kaikki-fr-traductions.jsonl": ("translations", "fr", "es")})
+        ps.check_registered("fr-es")
+        self.assertNotIn("en", ps.DUMPS["fr-es"], "no English dump: tables/fr/ is read as committed")
+        # The two translation files are es-fr's, read the other way round: one name, one file.
+        self.assertIn("kaikki-es-traductions.jsonl", ps.DUMPS["es-fr"]["es"])
+        self.assertIn("kaikki-fr-traductions.jsonl", ps.DUMPS["es-fr"]["fr"])
+        self.assertNotIn("fr-es", ps.PINNED)
+        self.assertNotIn("fr-es", ps.ESDB)
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_an_update_of_fr_es(self):
+        # fr-es's first update: its folder holds no pin yet. It fetches the Spanish and the French
+        # editions' dumps alone, derives its three files in one pass of each, records each dump and
+        # publishes the files under its own release; no dump is kept.
+        record = self.update()
+        self.assertEqual(sorted(self.fetched), sorted([ps.EDITIONS["es"]["url"], ps.EDITIONS["fr"]["url"]]))
+        self.assertEqual(list(record["sources"]), ["kaikki-es", "kaikki-fr", "wordfreq"], "no extract, no English dump")
+        own = ps.release_tag("fr-es", "2026.10.10")
+        self.assertEqual(own, "lingua-pack-sources-fr-es-2026.10.10")
+        for edition in ("es", "fr"):
+            dumped = record["sources"][f"kaikki-{edition}"]
+            self.assertEqual(dumped["release"], own)
+            self.assertEqual(dumped["url"], ps.EDITIONS[edition]["url"])
+            self.assertEqual(dumped["last_modified"], "Fri, 02 Oct 2026 12:12:06 GMT")
+            self.assertEqual(set(dumped["dump"]), {"sha256", "size", "compressed_size"})
+        self.assertEqual(list(record["sources"]["kaikki-es"]["files"]), list(self.FILES[:2]))
+        self.assertEqual(list(record["sources"]["kaikki-fr"]["files"]), [self.FILES[2]])
+        self.assertEqual((self.work / "kaikki-es-Frances.jsonl").read_bytes(), plain(self.ES[:1]), "the French section")
+        inverted = json.loads((self.work / "kaikki-es-traductions.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual(inverted, {"pos": "noun", "translations": [{"word": "travers"}], "word": "través"})
+        direct = json.loads((self.work / "kaikki-fr-traductions.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual(direct, {"pos": "noun", "translations": [{"word": "interés"}], "word": "intérêt"})
+        self.assertEqual(ps.assets(record), [f"{name}.zst" for name in self.FILES], "the derived files alone, no dump")
+        self.assertEqual(ps.assets(record, own), ps.assets(record))
+        self.assertEqual([p for p in self.root.rglob("*.jsonl.gz")], [], "a dump is never kept")
+
+    @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
+    def test_spec_scenario_a_re_reduction_fetches_the_three_files_and_no_dump(self):
+        import unittest.mock as mock
+
+        record = self.update()
+        tag = ps.release_tag("fr-es", record["snapshot"])
+        (self.released / tag).mkdir()
+        for asset in ps.assets(record, tag):
+            shutil.copy(self.work / asset, self.released / tag / asset)
+        pinned = self.pin.read_bytes()
+        # On another machine: nothing in the cache, the release read.
+        shutil.rmtree(self.root / "work")
+        self.fetched.clear()
+        with mock.patch.object(ps, "wordfreq_version", return_value=ps.WORDFREQ):
+            ps.fetch_pinned(self.pin, self.work, fetch=self.fetch, cache=self.cache)
+        self.assertEqual(
+            self.fetched,
+            [ps.release_url(tag, f"{name}.zst") for name in self.FILES],
+            "the three derived files from fr-es's own release; no dump",
+        )
+        for name in self.FILES:
+            self.assertTrue((self.work / name).is_file(), name)
+        self.assertEqual(self.pin.read_bytes(), pinned, "the record stands")
 
 
 class ReaderPair(unittest.TestCase):
@@ -2024,9 +2161,11 @@ class Record(unittest.TestCase):
         # The reduce job's order: each reference before the other pairs of its language — es-en,
         # which reads tables/es, after es-fr, which writes it (add-lingua-pack-es-en, *The reduce job*);
         # en-es, which reads tables/en, after en-fr (add-lingua-pack-en-es); fr-en, French's reference,
-        # among the references (add-lingua-french-forms-tables).
-        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "en-es", "es-en"])
-        self.assertEqual(ps.pairs(HERE / "tables", after="fr-en"), ["fr-en"])
+        # among the references (add-lingua-french-forms-tables); fr-es, which reads tables/fr, after
+        # it (add-lingua-pack-fr-es): fr-en's update brings it along.
+        self.assertEqual(ps.pairs(HERE / "tables"), ["en-fr", "es-fr", "fr-en", "en-es", "es-en", "fr-es"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="fr-en"), ["fr-en", "fr-es"])
+        self.assertEqual(ps.pairs(HERE / "tables", after="fr-es"), ["fr-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-fr"), ["es-fr", "es-en"])
         self.assertEqual(ps.pairs(HERE / "tables", after="en-fr"), ["en-fr", "en-es"])
         self.assertEqual(ps.pairs(HERE / "tables", after="es-en"), ["es-en"])

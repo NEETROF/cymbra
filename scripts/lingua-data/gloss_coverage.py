@@ -19,7 +19,8 @@ for like. Stdlib only: it runs on the Python of the lingua-data unit tests.
 it fails under the pair's floor — the share each of the three tops must reach, `FLOORS`, or
 `--floor` given (add-lingua-pack-es-en D6: es-en is held to es-fr's published figures by the reduce
 job, before it ships and is published; add-lingua-pack-en-es D3: en-es to a floor the owner sets;
-add-lingua-pack-fr-en D4: fr-en likewise).
+add-lingua-pack-fr-en D4: fr-en likewise; add-lingua-pack-fr-es D8: fr-es, fixed before it was
+measured).
 """
 
 from __future__ import annotations
@@ -49,7 +50,16 @@ TOPS = (5_000, 10_000, 20_000)
 # fr-en (add-lingua-pack-fr-en D4): en-es's rule, the study's figures (93.9 / 87.1 / 76.4 %, the
 # programme's) less two points — no French pair is published to hold it to; proposed, the owner
 # settles (task 6.1) here, the one place.
-FLOORS = {"es-en": (87.6, 77.2, 63.7), "en-es": (91.4, 83.2, 69.9), "fr-en": (91.9, 85.1, 74.4)}
+# fr-es (add-lingua-pack-fr-es D8, the programme's M6): the same rule, the study's figures (83.4 /
+# 70.8 / 56.5 %, the programme's) less two points — settled by the owner on 2026-10-09, before the
+# measurement whose tables are committed (task 0.1). Never lowered after a measurement: fr-es's first
+# update measured under it commits no tables, and no package lists fr-es.
+FLOORS = {
+    "es-en": (87.6, 77.2, 63.7),
+    "en-es": (91.4, 83.2, 69.9),
+    "fr-en": (91.9, 85.1, 74.4),
+    "fr-es": (81.4, 68.8, 54.5),
+}
 
 
 def read_keys(path: Path) -> dict[str, str]:

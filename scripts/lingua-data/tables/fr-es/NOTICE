@@ -1,0 +1,26 @@
+Cymbra Lingua data pack — FR->ES attributions.
+
+kaikki.org extract of the English Wiktionary (enwiktionary), French section: CC BY-SA 4.0 + GFDL —
+the forms, their lemmas and their grammar (French's tables, reduced by the fr-en pack's reduction
+and read here as committed), and which lemmas fr-en glosses: the dictionary words and which take a
+level.
+
+kaikki.org extract of the Spanish Wiktionary (eswiktionary): CC BY-SA 4.0 + GFDL — the Spanish
+glosses of French words and expressions, from the definitions of its French section, and the
+French translations its Spanish entries list, read backwards where nothing else glosses a word.
+
+kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — the Spanish
+translations its French entries list, where the Spanish Wiktionary has no definition.
+
+wordfreq (French and Spanish frequency lists), by Robyn Speer (https://github.com/rspeer/wordfreq):
+data under CC BY-SA 4.0 — the commonest French lemmas and which forms are attested (French's
+tables, read here as committed), and the order of the Spanish words a translation table lists.
+
+UD French-GSD, the Universal Dependencies French-GSD treebank
+(https://github.com/UniversalDependencies/UD_French-GSD): CC BY-SA 4.0 — how often a form stands
+for each of its lemmas, to choose one, and how often a hyphenated word occurs, to rank it (French's
+tables, read here as committed).
+
+The levels are estimated, not taken from a CEFR list: the fr-en pack's reduction derives them from
+the frequency ranks and the English Wiktionary's French section, and every pack studying French
+reads them as committed.
