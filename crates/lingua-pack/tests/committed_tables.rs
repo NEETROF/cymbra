@@ -31,6 +31,7 @@ use lingua_core::analysis::tokenize::{
 };
 use lingua_core::engine::{french_expression_key, holds_french_contraction, shared_spans};
 use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
+use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::grammar::Tag;
@@ -1432,6 +1433,59 @@ fn spec_scenario_the_contracted_articles() {
     ] {
         assert!(!forms.contains_key(split), "{split} is a form");
     }
+}
+
+#[test]
+fn spec_scenario_a_french_spelling_without_its_marks() {
+    // read-lingua-french-ca-as-ca-cedilla: in both French packs, a spelling fr-en's reviewed table
+    // names reads as its word — `ca` as ça, `age` and `ages` as âge, `forcement` as forcément — and
+    // is no lemma of its own: no gloss (« board of directors », the plough's beam and the fixing
+    // number are gone), and its rank, level and dictionary word, read through the spelling, are its
+    // word's; `forcements`, the lost noun's plural, is no form. The named words keep their
+    // levels, and a word of its own beside a marked word (`ou`, `cote`) reads as itself. The pack
+    // keys its forms in lower case, so « CA » in capitals reads as ça too until an analyser rule
+    // reads a word in capitals apart (D2).
+    for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        for (spelling, word) in [
+            ("ca", "ça"),
+            ("age", "âge"),
+            ("ages", "âge"),
+            ("forcement", "forcément"),
+        ] {
+            assert_eq!(lexicon.lemma_of(spelling), Some(word), "{pair}: {spelling}");
+            assert!(
+                !lexicon.contains_lemma(spelling),
+                "{pair}: {spelling} is a lemma"
+            );
+            assert_eq!(pack.gloss(spelling), None, "{pair}: {spelling}");
+            assert!(pack.is_dictionary_word(spelling), "{pair}: {spelling}");
+            assert_eq!(pack.rank(spelling), pack.rank(word), "{pair}: {spelling}");
+            assert_eq!(pack.level(spelling), pack.level(word), "{pair}: {spelling}");
+        }
+        assert_eq!(lexicon.lemma_of("forcements"), None, "{pair}: forcements");
+        for (word, level) in [
+            ("ça", CefrLevel::A1),
+            ("âge", CefrLevel::A1),
+            ("forcément", CefrLevel::A2),
+        ] {
+            assert_eq!(pack.level(word), Some(level), "{pair}: {word}");
+        }
+        for word in ["ou", "cote"] {
+            assert_eq!(lexicon.lemma_of(word), Some(word), "{pair}: {word}");
+        }
+    }
+    // The named words keep their glosses: fr-en's three, and fr-es's two (it glossed none of the
+    // spellings, nor forcément).
+    let fr_en = Pack::load(fr_en()).unwrap();
+    for word in ["ça", "âge", "forcément"] {
+        assert!(fr_en.gloss(word).is_some(), "fr-en: {word}");
+    }
+    assert_eq!(fr_en.gloss("âge"), Some("age"));
+    let fr_es = Pack::load(fr_es()).unwrap();
+    assert_eq!(fr_es.gloss("ça"), Some("(coloquial) Eso, esto, aquello"));
+    assert_eq!(fr_es.gloss("âge"), Some("Edad"));
 }
 
 #[test]
