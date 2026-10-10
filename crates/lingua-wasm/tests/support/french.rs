@@ -157,9 +157,12 @@ const LEMMAS: &[&str] = &[
 /// (M21 and M8's cost), and the
 /// `fiction` page's `Personne`, not, and the blocks that are not French (English, Spanish,
 /// Catalan, Occitan, Italian), and French written without its marks as fr-en's table reads it
-/// (read-lingua-french-ca-as-ca-cedilla): « comme ca » and « c'est ca » meet `ça`'s expressions,
-/// « à mon age » reads `âge`, and « Le CA a voté le budget. » records that « CA » in capitals reads
-/// as `ça` until an analyser change reads a word in capitals apart, which moves it.
+/// (read-lingua-french-ca-as-ca-cedilla): « comme ca » and « c'est ca » meet `ça`'s expressions and
+/// « à mon age » reads `âge`; and a word standing alone in capitals read as the acronym its pack lists
+/// (keep-lingua-french-acronyms-in-capitals D1, D7): « Le CA a voté le budget. » shows `CA`, the
+/// acronym, and its gloss — it read as `ça` before —, while « LE CA A VOTÉ LE BUDGET » (a headline in
+/// capitals), « Il a crié : CA SUFFIT ! » (a shout, `ça suffit` met) and « Ca fait du bien. » (a
+/// capital initial) read `ça`.
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -201,6 +204,9 @@ const PHRASES: &[&str] = &[
     "c'est ca",
     "Le CA a voté le budget.",
     "à mon age",
+    "LE CA A VOTÉ LE BUDGET",
+    "Il a crié : CA SUFFIT !",
+    "Ca fait du bien.",
     // The whole-selection card of a word written as pieces, as a double-click selects it
     // (add-lingua-french-word-card D7).
     "l\u{2019}homme",
@@ -208,8 +214,10 @@ const PHRASES: &[&str] = &[
 
 /// (word as written, dictionary form) pairs a word card asks the grammar of: each answers its
 /// readings (add-lingua-french-grammar-tables) and its gloss, and the pieces a split word is made
-/// of — an elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`. The
-/// reference's probes, before the card's (`CARD_PROBES`) and the lemmas' (`MORE_LEMMAS`).
+/// of — an elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`; the acronym
+/// `CA`, kept in capitals, answers its own gloss under one noun group
+/// (keep-lingua-french-acronyms-in-capitals D6). The reference's probes, before the card's
+/// (`CARD_PROBES`) and the lemmas' (`MORE_LEMMAS`).
 pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("est", "être"),
     ("sont", "être"),
@@ -242,6 +250,7 @@ pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("l'homme", "homme"),
     ("l\u{2019}", "le"),
     ("au", "à"),
+    ("CA", "CA"),
 ];
 
 /// The French card's probes (add-lingua-french-word-card D9): one for each name the card says or

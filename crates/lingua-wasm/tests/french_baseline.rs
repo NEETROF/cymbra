@@ -19,7 +19,9 @@
 //! `1.0.0`), at analyser `1.1.0` since its detection guard keeps Catalan, Occitan and Romanian
 //! blocks out (add-lingua-french-detection-guard): the `mixte` page's Occitan block is not
 //! analysed, its Catalan block whichlang reads as Italian. At `1.2.0` since a word is read
-//! without its soft hyphens (ignore-lingua-soft-hyphens), which no page of the corpus holds. Its tokenisation pre-pass
+//! without its soft hyphens (ignore-lingua-soft-hyphens), which no page of the corpus holds; at
+//! `1.3.0` since a word standing alone in capitals is read as the acronym its pack lists
+//! (keep-lingua-french-acronyms-in-capitals), which no page of the corpus holds either. Its tokenisation pre-pass
 //! (add-lingua-french-tokenisation) reads the narrow no-break space as a space, splits an elided
 //! word from the word it is joined to and reads it as the word it stands for, each piece with its
 //! own span (`l'homme` → `le` + `homme`; `aujourd'hui` whole), `au`/`aux` as `à` + `le`/`les`
@@ -51,8 +53,11 @@
 //! « Au fait, tu viens ? », « grâce au soleil » and « aux miennes »;
 //! read-lingua-french-ca-as-ca-cedilla: its re-reduced tables move nine probes — the pack, « ca » on
 //! the `informel` page read as `ça`, the two vocabulary estimates, the deck the levels seed — and
-//! four phrase probes, « comme ca », « c'est ca », « Le CA a voté le budget. » and « à mon age »).
-//! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
+//! four phrase probes, « comme ca », « c'est ca », « Le CA a voté le budget. » and « à mon age »;
+//! keep-lingua-french-acronyms-in-capitals: French's version moves the pack line and the 17 page
+//! analyses, « Le CA a voté le budget. » shows the acronym `CA` and its gloss, and four probes are
+//! added, « LE CA A VOTÉ LE BUDGET », « Il a crié : CA SUFFIT ! », « Ca fait du bien. » and the
+//! card of `CA`). `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
 //! renders this golden's grammar and phrase probes, and is re-blessed with it
 //! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).
 //!
@@ -111,7 +116,7 @@ fn the_probes_are_the_references_then_the_cards_then_forty_lemmas() {
     let (reference, rest) = FRENCH.grammar.split_at(REFERENCE_GRAMMAR.len());
     let (card, more) = rest.split_at(CARD_PROBES.len());
     assert_eq!(reference, REFERENCE_GRAMMAR);
-    assert_eq!(reference.len(), 31);
+    assert_eq!(reference.len(), 32);
     assert_eq!(card, CARD_PROBES);
     assert_eq!(card.len(), 21);
     assert_eq!(more.len(), 40);
@@ -510,7 +515,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     let mut manifest: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&manifest_path).expect("manifest"))
             .expect("JSON");
-    assert_eq!(manifest["meta"]["analyzer_version"], "1.2.0");
+    assert_eq!(manifest["meta"]["analyzer_version"], "1.3.0");
     manifest["meta"]["analyzer_version"] = "0.0.9".into();
     std::fs::write(&manifest_path, manifest.to_string()).expect("written");
 
@@ -519,7 +524,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     };
     let message = refused.downcast_ref::<String>().expect("a formatted panic");
     assert!(
-        message.contains("pack built for analyzer 0.0.9 but this core is 1.2.0"),
+        message.contains("pack built for analyzer 0.0.9 but this core is 1.3.0"),
         "{message}"
     );
     assert!(
