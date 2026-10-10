@@ -10,6 +10,8 @@
 #   scripts/lingua-data/build.sh en-fr <out.lingua>            # Build: the committed tables
 #   scripts/lingua-data/build.sh --reduce en-fr <out.lingua>   # Re-reduce: the pinned raw sources
 #   scripts/lingua-data/build.sh --update en-fr <out.lingua>   # Update: today's raw sources
+#   LINGUA_KEEP_EDITIONS=en scripts/lingua-data/build.sh --update fr-en <out.lingua>
+#                                                     # … keeping the English edition's recorded bytes
 #   scripts/lingua-data/build.sh --dry en-fr <out.lingua>      # Update into a scratch folder
 #   scripts/lingua-data/build.sh --testdata en-fr <out>        # the tiny fixture
 #
@@ -108,6 +110,17 @@ cache="${LINGUA_CACHE:-$here/work/cache}"
 # it is there (pack_sources.py read_edition), and work/editions can be removed at any time — the
 # next update fetches the dumps again.
 editions="${LINGUA_EDITIONS:-$here/work/editions}"
+# The editions an update keeps (add-lingua-fr-en-translated-expressions D6), comma-separated
+# (`en`, `en,es`): each one's record of pin.json is carried byte for byte and its files read from the
+# release it names, its dump not read (pack_sources.py fetch-live --keep-edition). For adding an
+# edition to a pair without reading its others anew — fr-en gaining the French Wiktionary's
+# translations, its English dump of 2026-10-03 no longer served —, never for avoiding an update: the
+# next update that keeps nothing reads every edition anew.
+keep=()
+IFS=, read -r -a kept_editions <<<"${LINGUA_KEEP_EDITIONS:-}"
+for edition in ${kept_editions[@]+"${kept_editions[@]}"}; do
+  [[ -z "$edition" ]] || keep+=(--keep-edition "$edition")
+done
 
 case "$mode" in
   testdata)
@@ -164,7 +177,8 @@ case "$mode" in
       pin="$tables/pin.json"
     fi
     rm -rf "$work" && mkdir -p "$work"
-    "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache" --editions "$editions"
+    "$PYTHON" "$here/pack_sources.py" fetch-live --pin "$pin" --work "$work" --snapshot "$snapshot" --cache "$cache" --editions "$editions" \
+      ${keep[@]+"${keep[@]}"}
     version="$("$PYTHON" "$here/pack_sources.py" version --pin "$pin" --reducer "$here/reduce-$pair.py" --live)"
     reduce "$pair" "$work" "$snapshot" "$version"
     file_sides "$work" "$root"

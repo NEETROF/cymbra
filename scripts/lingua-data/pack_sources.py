@@ -35,6 +35,7 @@ Stdlib only: the build mode reads this record too, and needs no Python package.
 
     pack_sources.py fetch-pinned  --pin P --work W [--cache C]     # the recorded bytes, checked, into W
     pack_sources.py fetch-live    --pin P --work W [--snapshot D] [--cache C] [--editions E]  # today's, into P
+                                  [--keep-edition E …]                 # … but these editions' recorded bytes
     pack_sources.py record-build  --pin P --pack F --reducer R     # what the tables build
     pack_sources.py check-pack    --pin P --pack F                 # a pack, against the record
     pack_sources.py check-reducer --pin P --reducer R              # the rules, against the record
@@ -198,6 +199,10 @@ EDITIONS = {
             "kaikki-fr-Espagnol.jsonl": ("entries", "es"),
             # es-fr's inverted fallback, fr-es's direct one (change 49).
             "kaikki-fr-traductions.jsonl": ("translations", "fr", "es"),
+            # fr-en's expressions where the English Wiktionary's French section glosses none
+            # (add-lingua-fr-en-translated-expressions D1, D6): registered again, for expressions
+            # alone — change 48 had removed it, no pair reading it then.
+            "kaikki-fr-traductions-en.jsonl": ("translations", "fr", "en"),
         },
     },
     # The Spanish Wiktionary: 103,226,106 B gzipped (regenerated 2026-10-02 12:12).
@@ -243,9 +248,10 @@ DUMPS = {
     },
     # The English Wiktionary's French section, French's studied side: its forms and their lemmas
     # (add-lingua-french-forms-tables D2) — the catalogue's file, no new derivation — and fr-en's
-    # glosses, from the same file alone: no translation table glosses a French word or expression
-    # (add-lingua-pack-fr-en D3).
-    "fr-en": {"en": ("kaikki-French.jsonl",)},
+    # glosses, from the same file: no translation table glosses a French word (add-lingua-pack-fr-en
+    # D3). The English translations the French Wiktionary's French entries list complete its
+    # expressions (add-lingua-fr-en-translated-expressions D6): the French edition, its own record.
+    "fr-en": {"en": ("kaikki-French.jsonl",), "fr": ("kaikki-fr-traductions-en.jsonl",)},
     # The Spanish Wiktionary's French section, whose definitions gloss first, and the French
     # translations its Spanish entries list, read backwards; the Spanish translations the French
     # Wiktionary's French entries list, the direct fallback (add-lingua-pack-fr-es D3) — the
@@ -837,6 +843,53 @@ def kaikki_records(pair: str, sources: dict) -> list[str]:
     return [name for name in sources if name in named]
 
 
+def fetch_derived(name: str, spec: dict, work: Path, *, fetch=download, cache: Path | None = None) -> None:
+    """A kaikki record's derived files, into `work`, from the release the record names, each checked
+    by the sha256 of its decompressed bytes (`release_asset`, `unpack`): what a re-reduction reads,
+    and what an update keeping the record's edition reads (`fetch_live`, `keep`). Its names were
+    checked first (`check_release_record`)."""
+    for file, entry in spec["files"].items():
+        raw = work / file
+        url = release_url(spec["release"], entry["asset"])
+        packed = release_asset(fetch, url, raw.with_name(entry["asset"]), entry["sha256"], cache)
+        unpack(packed, raw, entry["sha256"], f"{name}: {file}", cached=cache is not None)
+
+
+def kept_editions(pair: str, record: dict, keep) -> dict:
+    """The records an update keeps (add-lingua-fr-en-translated-expressions D6): `{edition: record}`,
+    for each edition named in `keep`, its pin's record as it is — checked before anything is
+    fetched. An edition the pair does not read (`DUMPS`), or one its pin records without derived
+    files under a release (a per-language extract, a pin written before the dumps, or no record at
+    all), cannot be kept: the update fails, naming the pair and the edition. So can a record that
+    lacks a file the pair reads of that edition today: keeping it would reduce without it."""
+    reads = DUMPS[pair]
+    sources = record.get("sources") if isinstance(record.get("sources"), dict) else {}
+    kept = {}
+    for edition in keep:
+        if edition not in reads:
+            raise PinError(
+                f"{pair} reads no {edition!r} edition (DUMPS[{pair!r}] reads {', '.join(map(repr, reads))}): "
+                "there is nothing of it to keep"
+            )
+        name = source_name(edition)
+        spec = sources.get(name)
+        if not isinstance(spec, dict) or not isinstance(spec.get("files"), dict) or "asset" in spec:
+            extract = " (it records kaikki's per-language extract, which is never kept)" if LEGACY_EXTRACT in sources else ""
+            raise PinError(
+                f"{pair}: pin.json records no derived files of the {edition!r} edition ({name}) to keep{extract}: "
+                "update the pair without keeping it"
+            )
+        check_release_record(name, spec)
+        missing = [file for file in reads[edition] if file not in spec["files"]]
+        if missing:
+            raise PinError(
+                f"{pair}: pin.json's {name} does not record {', '.join(missing)}, which {pair} reads of the "
+                f"{edition!r} edition: update the pair without keeping it"
+            )
+        kept[edition] = spec
+    return kept
+
+
 def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cache: Path | None = None) -> None:
     """Every raw source as recorded, into `work`, each checked by sha256 (re-reduce mode). A release
     asset is read from `cache` when an earlier fetch kept it there (`release_asset`). A kaikki
@@ -890,11 +943,7 @@ def fetch_pinned(pin: Path, work: Path, *, fetch=download, build=build_esdb, cac
             packed = release_asset(fetch, url, raw.with_name(spec["asset"]), spec["sha256"], cache)
             unpack(packed, raw, spec["sha256"], f"{name}: the snapshot", cached=cache is not None)
             continue
-        for file, entry in spec["files"].items():
-            raw = work / file
-            url = release_url(spec["release"], entry["asset"])
-            packed = release_asset(fetch, url, raw.with_name(entry["asset"]), entry["sha256"], cache)
-            unpack(packed, raw, entry["sha256"], f"{name}: {file}", cached=cache is not None)
+        fetch_derived(name, spec, work, fetch=fetch, cache=cache)
     installed = wordfreq_version()
     if installed != get(record, "sources.wordfreq.version"):
         raise PinError(f"wordfreq {installed} is installed, pin.json records {get(record, 'sources.wordfreq.version')}")
@@ -985,6 +1034,7 @@ def fetch_live(
     today=None,
     cache: Path | None = None,
     editions: Path | None = None,
+    keep=(),
 ) -> dict:
     """Today's raw sources into `work`, recorded in `pin` as a new snapshot (update mode).
 
@@ -998,10 +1048,20 @@ def fetch_live(
     (add-lingua-pack-es-en D2). No extract is read, and no `kaikki` record is written. A reader
     pair's record of the studied tables it read (`studied`) is carried over until `record-build`
     writes it anew.
+
+    An edition named in `keep` is not read anew (add-lingua-fr-en-translated-expressions D6): its
+    record is carried byte for byte — its release, its dump's identity, its files — and its files
+    fetched from the release it names, checked by sha256, as `fetch_pinned` reads them; its dump is
+    not fetched, and the new release, which `assets --release` lists, holds the files read anew
+    alone. It adds an edition to a pair without reading its other editions anew (fr-en gaining the
+    French Wiktionary's English translations, its English dump of 2026-10-03 no longer served); the
+    next update that keeps nothing reads every edition anew. An edition the pin cannot keep fails
+    before anything is fetched (`kept_editions`).
     """
     record = load(pin)
     pair = pair_of(pin)
     check_registered(pair)
+    kept = kept_editions(pair, record, keep)
     work.mkdir(parents=True, exist_ok=True)
     editions = work / "editions" if editions is None else editions
     sources: dict = {}
@@ -1014,6 +1074,12 @@ def fetch_live(
         sources["esdb"] = {k: esdb[k] for k in ("repository", "tag", "commit")}
         sources["esdb"]["sha256"] = sha256(build(esdb, work))
     for edition, reads in DUMPS[pair].items():
+        if edition in kept:
+            name = source_name(edition)
+            fetch_derived(name, kept[edition], work, fetch=fetch, cache=cache)
+            sources[name] = kept[edition]
+            print(f"note: {pair}: {name} kept as pinned, from {kept[edition]['release']}; its dump is not read", file=sys.stderr)
+            continue
         folder, dumped = read_edition(edition, snapshot, editions, fetch=fetch, today=today)
         files = {}
         for file in reads:
@@ -1332,6 +1398,14 @@ def main(argv: list[str] | None = None) -> int:
                 type=Path,
                 help="derive each edition's catalogue here, once per run (default: WORK/editions)",
             )
+            p.add_argument(
+                "--keep-edition",
+                dest="keep",
+                action="append",
+                default=[],
+                metavar="E",
+                help="keep the pin's record of this edition, and read its files from the release it names (repeatable)",
+            )
         if name in ("assets", "dumps"):
             p.add_argument("--release", help="the records of this release alone (a pair's own)")
         if name in ("record-build", "check-pack"):
@@ -1349,7 +1423,7 @@ def main(argv: list[str] | None = None) -> int:
             fetch_pinned(a.pin, a.work, cache=a.cache)
         elif a.cmd == "fetch-live":
             check_python()
-            fetch_live(a.pin, a.work, a.snapshot, cache=a.cache, editions=a.editions)
+            fetch_live(a.pin, a.work, a.snapshot, cache=a.cache, editions=a.editions, keep=a.keep)
         elif a.cmd == "record-build":
             record_build(a.pin, a.pack, a.reducer)
         elif a.cmd == "check-pack":
