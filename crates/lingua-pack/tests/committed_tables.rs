@@ -731,6 +731,19 @@ fn fr_en() -> &'static [u8] {
     })
 }
 
+/// French's acronym rows as `tables/fr/forms.tsv` holds them (keep-lingua-french-acronyms-in-capitals
+/// D2): the forms holding a capital, each its own lemma — `CA` alone.
+fn french_acronyms() -> BTreeSet<String> {
+    tsv(&tables().join("fr/forms.tsv"))
+        .into_iter()
+        .filter(|(form, _)| form.chars().any(char::is_uppercase))
+        .map(|(form, lemma)| {
+            assert_eq!(form, lemma, "a form in capitals is its own lemma");
+            form
+        })
+        .collect()
+}
+
 /// A committed two-column table, `key → value`, as the builder reads it.
 fn tsv(path: &Path) -> BTreeMap<String, String> {
     std::fs::read_to_string(path)
@@ -839,15 +852,24 @@ fn spec_scenario_the_pack_builds_where_the_others_do() {
     assert_eq!(pack.pair().key(), "fr-en");
     // A vocabulary estimate counts the ranked lemmas that are dictionary words or carry a level
     // (`dictionary_words`): tables/fr/lexical.tsv's, every one of them ranked, since every levelled
-    // lemma is one of them.
+    // lemma is one of them — but French's acronym rows, dictionary words with no rank
+    // (keep-lingua-french-acronyms-in-capitals D5), which it does not count.
     let lexical: BTreeSet<String> = std::fs::read_to_string(tables().join("fr/lexical.tsv"))
         .unwrap()
         .lines()
         .map(str::to_owned)
         .collect();
     let ranks = tsv(&tables().join("fr/freq.tsv"));
-    assert!(lexical.iter().all(|l| ranks.contains_key(l)));
-    assert_eq!(pack.dictionary_words().len(), lexical.len());
+    let unranked: BTreeSet<String> = lexical
+        .iter()
+        .filter(|l| !ranks.contains_key(*l))
+        .cloned()
+        .collect();
+    assert_eq!(unranked, french_acronyms());
+    assert_eq!(
+        pack.dictionary_words().len(),
+        lexical.len() - unranked.len()
+    );
     assert!(pack.is_dictionary_word("maison"));
     assert!(pack.gloss("maison").is_some_and(|g| g.starts_with("house")));
     // A name keeps its gloss but is no word to learn.
@@ -871,15 +893,20 @@ fn spec_scenario_a_gloss_is_its_lemma_s() {
     // Every lemma fr-en glosses is a ranked lemma the forms table reads as itself, so the builder,
     // which files a gloss under the lemma its key reads as, lends no gloss to another word
     // (add-lingua-pack-fr-en D1): the pack answers each lemma with its own row. The prototype, on
-    // tables ranking `venue` (read as venir), glossed venir « coming, arrival ».
+    // tables ranking `venue` (read as venir), glossed venir « coming, arrival ». French's acronym
+    // rows are the one exception to « ranked » (keep-lingua-french-acronyms-in-capitals D5): each
+    // reads as itself, and none is ranked.
     let forms = tsv(&tables().join("fr/forms.tsv"));
     let ranks = tsv(&tables().join("fr/freq.tsv"));
     let glossed = tsv(&tables().join("fr-en/gloss.tsv"));
     let senses = tsv(&tables().join("fr-en/senses.tsv"));
+    let acronyms = french_acronyms();
     let elsewhere: Vec<(&String, Option<&String>)> = glossed
         .keys()
         .map(|lemma| (lemma, forms.get(lemma)))
-        .filter(|(lemma, read)| *read != Some(*lemma) || !ranks.contains_key(*lemma))
+        .filter(|(lemma, read)| {
+            *read != Some(*lemma) || (!ranks.contains_key(*lemma) && !acronyms.contains(*lemma))
+        })
         .take(10)
         .collect();
     assert!(
@@ -1442,9 +1469,10 @@ fn spec_scenario_a_french_spelling_without_its_marks() {
     // is no lemma of its own: no gloss (« board of directors », the plough's beam and the fixing
     // number are gone), and its rank, level and dictionary word, read through the spelling, are its
     // word's; `forcements`, the lost noun's plural, is no form. The named words keep their
-    // levels, and a word of its own beside a marked word (`ou`, `cote`) reads as itself. The pack
-    // keys its forms in lower case, so « CA » in capitals reads as ça too until an analyser rule
-    // reads a word in capitals apart (D2).
+    // levels, and a word of its own beside a marked word (`ou`, `cote`) reads as itself. « CA » in
+    // capitals reads as ça too, unless it stands alone in capitals: the analysis then looks it up
+    // as written, the acronym row `CA` (keep-lingua-french-acronyms-in-capitals,
+    // `spec_scenario_the_acronym_in_both_french_packs`).
     for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
         let pack = Pack::load(bytes).unwrap();
         let lexicon = pack.lexicon();
@@ -1486,6 +1514,75 @@ fn spec_scenario_a_french_spelling_without_its_marks() {
     let fr_es = Pack::load(fr_es()).unwrap();
     assert_eq!(fr_es.gloss("ça"), Some("(coloquial) Eso, esto, aquello"));
     assert_eq!(fr_es.gloss("âge"), Some("Edad"));
+}
+
+#[test]
+fn spec_scenario_the_acronym_in_both_french_packs() {
+    // keep-lingua-french-acronyms-in-capitals D2, D4, D5: in fr-en's and fr-es's packs `CA` reads as
+    // `CA`, as written — its own lemma, the one form holding a capital —, glossed from each pair's
+    // own glosses of its expansions in one noun run of three senses, with no rank and no level,
+    // and one of French's dictionary words the vocabulary estimate does not count; `ca` still
+    // reads as ça.
+    assert_eq!(
+        french_acronyms(),
+        BTreeSet::from(["CA".to_owned()]),
+        "the one form in capitals"
+    );
+    let noun = Tag::parse_strict("NOUN").unwrap();
+    for (pair, bytes, gloss) in [
+        (
+            "fr-en",
+            fr_en(),
+            "board of directors; revenue, turnover, net sales; alternating current",
+        ),
+        (
+            "fr-es",
+            fr_es(),
+            "Administración, consejo de administración; Ingreso, cifra de negocios, facturación; \
+             Corriente alterna",
+        ),
+    ] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        assert_eq!(lexicon.lemma_of("CA"), Some("CA"), "{pair}");
+        assert!(lexicon.contains_lemma("CA"), "{pair}");
+        assert_eq!(lexicon.lemma_of("ca"), Some("ça"), "{pair}");
+        assert_eq!(pack.gloss("CA"), Some(gloss), "{pair}");
+        assert_eq!(pack.sense_runs("CA"), [(Some(&noun), 3)], "{pair}");
+        assert_eq!(pack.rank("CA"), None, "{pair}");
+        assert_eq!(pack.level("CA"), None, "{pair}");
+        assert!(pack.is_dictionary_word("CA"), "{pair}");
+        assert!(
+            pack.dictionary_words()
+                .iter()
+                .all(|(lemma, _)| *lemma != "CA"),
+            "{pair}: the estimate counts ranked words"
+        );
+        // ça keeps its own row, rank and level.
+        assert_ne!(pack.gloss("ça"), Some(gloss), "{pair}");
+        assert_eq!(pack.level("ça"), Some(CefrLevel::A1), "{pair}");
+        // No reading is filed under it.
+        assert!(pack.readings("CA", "ca").is_empty(), "{pair}");
+        assert!(pack.readings("CA", "CA").is_empty(), "{pair}");
+    }
+    // Each gloss is the pair's own expressions' first senses, in the row's order.
+    for pair in ["fr-en", "fr-es"] {
+        let expressions = tsv(&tables().join(pair).join("mwe.tsv"));
+        let first: Vec<&str> = [
+            "conseil d'administration",
+            "chiffre d'affaires",
+            "courant alternatif",
+        ]
+        .iter()
+        .map(|e| expressions[*e].split("; ").next().unwrap())
+        .collect();
+        assert!(!expressions.contains_key("comptable agréé"), "{pair}");
+        assert_eq!(
+            tsv(&tables().join(pair).join("gloss.tsv"))["CA"],
+            first.join("; "),
+            "{pair}"
+        );
+    }
 }
 
 #[test]
