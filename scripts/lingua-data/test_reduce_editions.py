@@ -38,6 +38,7 @@ import reduce_edition_en as english  # noqa: E402
 from reduce_edition_en import EN  # noqa: E402
 import reduce_edition_es as spanish  # noqa: E402
 from reduce_edition_es import ES  # noqa: E402
+import reduce_edition_fr as french  # noqa: E402
 from reduce_edition_fr import FR  # noqa: E402
 
 
@@ -1723,6 +1724,87 @@ class FrEsGlossesRefined(Entries):
             {name: pin["sources"][name]["release"] for name in ("kaikki-es", "kaikki-fr")},
             {"kaikki-es": "lingua-pack-sources-fr-es-2026.10.10", "kaikki-fr": "lingua-pack-sources-fr-es-2026.10.10"},
         )
+
+
+class EnglishAndSpanishDictionaryWords(Entries):
+    """leave-lingua-names-out-of-english-and-spanish-words D1, D2: English's and Spanish's dictionary
+    words are en-fr's and es-fr's glossed lemmas less those they gloss by a proper noun's senses
+    alone, by the French Wiktionary's module, which the two pairs alone load. The runs are the
+    committed `senses.tsv` rows of en-fr and es-fr (2026-09-26 and 2026-10-03 snapshots)."""
+
+    def test_english_s_names(self):
+        glosses = {
+            "london": "Londres; Prénom principalement féminin mais parfois masculin; Nom de famille",
+            "margaret": "Marguerite, satellite naturel de la planète Uranus; Marguerite",
+            "bill": "Facture; Bec (pour les oiseaux par exemple, mais aussi les tortues, ornithorynques, etc.); Facturer",
+        }
+        runs = {
+            "london": [("PROPN", 5)],
+            "margaret": [("PROPN", 2)],
+            "bill": [("NOUN", 4), ("VERB", 3), ("PROPN", 1)],
+        }
+        # A word with a common sense beside a name's stays a word; a name alone is none.
+        self.assertEqual(french.dictionary_words(glosses, runs), ["bill"])
+        self.assertIs(en_fr.french.dictionary_words, french.dictionary_words)
+
+    def test_spanish_s_names(self):
+        glosses = {"madrid": "Madrid", "maría": "Marie; María", "dios": "Dieu", "luna": "Lune, satellite d’une planète; Lune"}
+        runs = {
+            "madrid": [("PROPN", 1)],
+            "maría": [("PROPN", 2)],
+            # es-fr's runs carry the noun's class (add-lingua-spanish-grammar-tables).
+            "dios": [("NOUN|Gender=Masc", 1)],
+            "luna": [("NOUN|Gender=Fem", 3), ("PROPN", 3)],
+        }
+        self.assertEqual(french.dictionary_words(glosses, runs), ["dios", "luna"])
+        self.assertIs(es_fr.french.dictionary_words, french.dictionary_words)
+
+    def test_a_glossed_lemma_with_no_run_is_a_word(self):
+        # Made up: no run says it is a name, so it is not one; a run of a lemma no gloss names says
+        # nothing either.
+        words = french.dictionary_words({"casa": "Maison", "paris": "Paris"}, {"paris": [("PROPN", 1)], "lyon": [("PROPN", 1)]})
+        self.assertEqual(words, ["casa"])
+        self.assertEqual(french.dictionary_words({}, {"paris": [("PROPN", 1)]}), [])
+
+    def test_the_words_are_byte_sorted(self):
+        glosses = {w: "x" for w in ("ñu", "árbol", "zorro", "abeja", "Árbol", "z-a")}
+        words = french.dictionary_words(glosses, {})
+        self.assertEqual(words, sorted(glosses, key=lambda w: w.encode("utf-8")))
+        self.assertEqual(words, ["abeja", "z-a", "zorro", "Árbol", "árbol", "ñu"])
+
+    def test_spec_scenario_only_en_fr_s_and_es_fr_s_rules_move(self):
+        # The rule is in the French Wiktionary's module, in en-fr's and es-fr's rule digests alone
+        # (D2): an edit of it moves those two, and es-en's, en-es's, fr-en's and fr-es's do not —
+        # nor does an edit of either reducer's lexical.tsv line move another pair. Every committed
+        # pin records the rules it was reduced with.
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        loaders = [pair for pair in pairs if "reduce_edition_fr.py" in [p.name for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")]]
+        self.assertEqual(loaders, ["en-fr", "es-fr"])
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for name, old, new, moved in (
+            ("reduce_edition_fr.py", 'all(pos == "PROPN" for pos, _ in runs[w])', 'any(pos == "PROPN" for pos, _ in runs[w])', ("en-fr", "es-fr")),
+            ("reduce-en-fr.py", 'write(a.work, "lexical.tsv", ', 'write(a.work, "lexicon.tsv", ', ("en-fr",)),
+            ("reduce-es-fr.py", 'common.write(a.work, "lexical.tsv", ', 'common.write(a.work, "lexicon.tsv", ', ("es-fr",)),
+        ):
+            reducer = copy / name
+            text = reducer.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            reducer.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            for pair in moved:
+                self.assertNotEqual(after[pair], before[pair], f"{pair}: {new}")
+            self.assertEqual({p: after[p] for p in pairs if p not in moved}, {p: before[p] for p in pairs if p not in moved}, new)
+            before = after
 
 
 class TheSpanishEdition(Entries):

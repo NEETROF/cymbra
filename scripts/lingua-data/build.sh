@@ -30,7 +30,8 @@ PYTHON="${LINGUA_PYTHON:-python3}"
 # A reducer writes both sides of a pair's tables into its work folder; `pack_sources.py split`
 # files them (split-lingua-pack-tables-by-language, M24): the native side into tables/<pair>/, the
 # studied side into tables/<studied>/ only when the pair is that language's reference, with the
-# dictionary words (`lexical.tsv`, the reference's glossed lemmas). The studied folder's inputs no
+# dictionary words (`lexical.tsv`, which every reference's reducer writes: its glossed lemmas less
+# those it glosses as names alone). The studied folder's inputs no
 # reducer writes — the pinned tag pool `tags.tsv` and `studied.json` (pack_sources.py KEPT_INPUTS) —
 # are never touched, so reducing a pair again keeps them; a dry run copies the studied folder into
 # its scratch root.

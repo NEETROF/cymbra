@@ -365,7 +365,7 @@ fn spec_scenario_a_second_language_is_served_by_its_own_pack() {
     );
     let english = engine.analyse(vec![ENGLISH.to_owned()], None).unwrap();
     assert!(
-        english.contains(r#""analyzer_version":"1.2.0""#),
+        english.contains(r#""analyzer_version":"1.3.0""#),
         "{english}"
     );
 

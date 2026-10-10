@@ -46,9 +46,13 @@ pub const MIN_EVIDENCE: usize = 25;
 /// Frozen, so a Spanish ladder shows the same figures whatever packs the engine holds — a
 /// reader whose native language is English never holds the en-fr pack — and whatever the
 /// next English dictionary update does (generalise-lingua-native-language D6). Provenance:
-/// `level_vocabulary` over the en-fr pack `2026.09.26+627146e`, frozen on 2026-10-07.
-/// English's own ladder keeps computing its figures from its pack.
-pub const ENGLISH_TYPICAL_VOCABULARY: [usize; 6] = [0, 1_292, 3_359, 7_988, 16_326, 20_556];
+/// `level_vocabulary` over the en-fr pack `2026.09.26+a7c3bd4`, after
+/// leave-lingua-names-out-of-english-and-spanish-words took the names out of English's
+/// dictionary words (D5), frozen again on 2026-10-10 so that every ladder reads the figures
+/// English's own ladder gives; `[0, 1_292, 3_359, 7_988, 16_326, 20_556]` over
+/// `2026.09.26+627146e` from 2026-10-07, when names still counted. English's own ladder
+/// keeps computing its figures from its pack.
+pub const ENGLISH_TYPICAL_VOCABULARY: [usize; 6] = [0, 1_213, 3_074, 7_155, 14_433, 18_123];
 
 /// What an estimate rests on, so a surface can say so truthfully.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
@@ -232,9 +236,11 @@ mod tests {
     fn english_typical_vocabularies_are_frozen() {
         // Pinned on purpose, and never tied to the live en-fr figures: an English dictionary
         // update must not move another language's ladder (generalise-lingua-native-language D6).
+        // Frozen again when names left English's dictionary words
+        // (leave-lingua-names-out-of-english-and-spanish-words D5).
         assert_eq!(
             ENGLISH_TYPICAL_VOCABULARY,
-            [0, 1_292, 3_359, 7_988, 16_326, 20_556]
+            [0, 1_213, 3_074, 7_155, 14_433, 18_123]
         );
         assert_eq!(ENGLISH_TYPICAL_VOCABULARY.len(), CefrLevel::ALL.len());
     }

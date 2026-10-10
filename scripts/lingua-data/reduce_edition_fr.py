@@ -17,6 +17,10 @@ form-of wording here shapes en-fr's forms too.
 
 A rule module: a pair's reducer that imports it has its sha256 in its rule digest
 (pack_sources.py `rule_files`), and no pair glossed in another language does.
+
+It also holds the rule of English's and Spanish's dictionary words (`dictionary_words`,
+leave-lingua-names-out-of-english-and-spanish-words D2): en-fr and es-fr, the two pairs that load this
+module, are their studied languages' references.
 """
 
 import re
@@ -78,3 +82,26 @@ FR = common.Edition(
     letter=_LETTER,
     dangling=_DANGLING_COORDINATOR,
 )
+
+
+# English's and Spanish's dictionary words (leave-lingua-names-out-of-english-and-spanish-words D1,
+# D2). en-fr is English's reference pair and es-fr Spanish's: the lemmas each glosses are the words
+# its studied language's vocabulary estimate counts and its names rule keeps as words, but not a
+# lemma it glosses by a proper noun's senses alone (`london`, `margaret`, `madrid`, `maría`), which
+# is a name, not a word to learn. « A name » is what the French Wiktionary files as a proper noun
+# (« Nom propre », kaikki's `name`): every sense run of the lemma's row in `senses.tsv` is `PROPN`.
+# The lemma keeps its gloss, and a word with a common sense beside a name's stays a word (`bill`,
+# `mark`, `luna`); a glossed lemma with no run at all is a word too.
+#
+# The rule has three homes, one per reference pair's edition: this module for en-fr and es-fr, the
+# only pairs that load it, and `reduce-fr-en.py` for fr-en (refine-lingua-fr-en-glosses D2). No
+# shared module carries it: `reduce_common.py` is in every pair's rule digest, so es-en's, en-es's,
+# fr-en's and fr-es's `pack_version` would move for nothing, and a module fr-en loaded would move
+# fr-en's pin and pack.
+def dictionary_words(glosses, runs):
+    """English's or Spanish's dictionary words, byte-sorted: the lemmas `glosses` glosses less those
+    that have sense runs (`runs`, `senses.tsv`'s: `lemma → [(pos, count), …]`) and whose every run is
+    a proper noun's (`PROPN`)."""
+    names = {w for w in glosses if runs.get(w) and all(pos == "PROPN" for pos, _ in runs[w])}
+    # Code-point order is UTF-8 byte order.
+    return sorted(set(glosses) - names)

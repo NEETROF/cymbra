@@ -29,6 +29,7 @@ are allowed; the builder additionally enforces the denylist and refuses to build
 | `level.tsv` (`lemma → CEFR`) *(optional)* | **CEFR-J Wordlist v1.5** (A1–B2, Tono Lab / TUFS) + **Octanove Vocabulary Profile C1/C2 v1.0** (C1–C2, Octanove Labs), both from the Open Language Profiles repo | CEFR-J: commercial use allowed with acknowledgement; Octanove: CC BY-SA 4.0 | lowest CEFR level per kept lemma across POS rows; the only pairing that covers A1→C2 with commercial-redistribution rights (Octanove was built to extend CEFR-J past B2) |
 | `mwe.tsv` (`expression → gloss`) *(optional)* | **kaikki.org**: the same English entries of the French Wiktionary (`frwiktionary`), its multi-word ones | CC BY-SA 4.0 + GFDL | the same sense picker and cuts as `gloss.tsv`, over the entries whose headword holds a space; proper-noun-only entries and form-of senses dropped. The **keys are computed by the builder**, not here: each word goes through lingua-core's own lemmatiser against the lexicon that build assembled (`starting point` → `start point`), so a key is what the reader's cascade produces. Python cannot do it — it mirrors the analyser's irregulars but not its morphy rules or its out-of-lexicon plural. |
 | `NOTICE` | all of the above | — | the full attribution stack, embedded in the pack and shown on the extension's Attributions page |
+| `tables/en/lexical.tsv` (English's dictionary words) | none: derived | that of `gloss.tsv` | the lemmas `gloss.tsv` glosses less the 3,046 every sense run of which is a proper noun's (`london`, `margaret`, `june`), which keep their gloss but are names, not words to learn (leave-lingua-names-out-of-english-and-spanish-words): written by `reduce-en-fr.py` (the French Wiktionary's `dictionary_words`), filed by `pack_sources.py split` (21,753); the en-fr pack carries a lexical table. The eleven of them a CEFR list levels (the eight months the French Wiktionary files as proper nouns, `olympics`, `badminton`, `ph`) keep their level, and the vocabulary sizes count them |
 
 ### Words the inflection source gets wrong
 
@@ -144,6 +145,7 @@ Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish 
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs of senses; a fallback gloss has one sense per part of speech. A noun's runs carry its gender, from the `es-noun` heads its readings read (`NOUN\|Gender=Fem`), unless it has both (add-lingua-spanish-word-card) |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer, written by a person, wins (empty so far). The builder keys them through the lexicon |
 | `level.tsv` (`lemma → CEFR`) | none: derived from `freq.tsv` and `gloss.tsv` | that of `freq.tsv` | **estimated**, since no Spanish CEFR list can be shipped (ELELex is NC, the PCIC all rights reserved). The commonest lemmas whose French gloss is not only a proper noun's take, in rank order, English's band sizes (1,020 A1 … 876 C2): 8,302 lemmas. The manifest says `levels_estimated`, and the extension labels the levels « estimé » (add-lingua-spanish-levels) |
+| `lexical.tsv` (Spanish's dictionary words) | none: derived | that of `gloss.tsv` | the lemmas `gloss.tsv` glosses less the 1,693 every sense run of which is a proper noun's (`madrid`, `maría`, `méxico`), which keep their gloss but are names, not words to learn (leave-lingua-names-out-of-english-and-spanish-words): written by `reduce-es-fr.py` (the French Wiktionary's `dictionary_words`), filed by `pack_sources.py split` (21,062); the es-fr pack carries a lexical table. The estimated levels skip the same lemmas, so every levelled lemma is one of them |
 | `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
 
 **Measured on UD Spanish-PUD** (CC BY-SA 3.0), never committed and never read by the reduction.
@@ -170,8 +172,9 @@ from the French Wiktionary's Spanish entries and 12,183 from the translations.
 **Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
 take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
-D1 is not needed. The pack is 2,224,439 B, with the grammar, the glosses, the levels and the
-expressions' names (add-lingua-spanish-expression-keys).
+D1 is not needed. The pack is 2,231,951 B, with the grammar, the glosses, the levels, the
+expressions' names (add-lingua-spanish-expression-keys) and the lexical table its names out of
+Spanish's dictionary words give it (2,224,439 B before).
 
 ## ES → EN
 
@@ -203,9 +206,11 @@ and published nowhere until the pair ships:
 | top 20,000 | 76.3 % | 76.5 % | 63.7 % |
 | all 60,000 | 52.9 % | 53.1 % | 37.9 % |
 
-31,885 lemmas are glossed, 31,756 from the English Wiktionary. 9,928 of them are no dictionary word
-of Spanish (es-fr glosses none of them), and 798 dictionary words have no English gloss, so the pack
-carries a lexical section: its dictionary words are es-fr's. There are 15,515 expressions: 14,803
+31,885 lemmas are glossed, 31,756 from the English Wiktionary. 11,163 of them are no dictionary word
+of Spanish (es-fr glosses none of them, or 1,235 by a proper noun's senses alone), and 340 dictionary
+words have no English gloss (9,928 and 798 before leave-lingua-names-out-of-english-and-spanish-words
+left es-fr's names out of Spanish's dictionary words), so the pack carries a lexical section: its
+dictionary words are es-fr's. There are 15,515 expressions: 14,803
 from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,608,413 B.
 A letter glosses no word: the English edition's letter rule takes « the letter r » and the Spanish
 spelling alphabet's « the letter E in … » (36 glosses ended on one), a pre-pass of
@@ -293,9 +298,11 @@ Spanish Wiktionary's English translations read backwards. **The translation-tabl
 the 8,495 glossed lemmas among the 10,000 commonest, 26.0 % come from a translation
 table rather than from a definition (2,135 direct, 73 inverted) — the reducer
 measures it into `work/en-es/measures.json`, stored in no pack, and `pack_report.py --measures`
-shows it beside the coverage in the update's summary. 2,501 glossed lemmas are no
-dictionary word of English and 5,336 dictionary words have no Spanish gloss, so
-the pack carries a lexical section: its dictionary words are en-fr's. There are 17,094
+shows it beside the coverage in the update's summary. 3,321 glossed lemmas are no
+dictionary word of English (820 of them en-fr glosses by a proper noun's senses alone) and 3,110
+dictionary words have no Spanish gloss (2,501 and 5,336 before
+leave-lingua-names-out-of-english-and-spanish-words left en-fr's names out of English's dictionary
+words), so the pack carries a lexical section: its dictionary words are en-fr's. There are 17,094
 expressions. The pack is 1,688,931 B. A sample of 100 glosses, marked by source, is in
 `tables/en-es/README.md`.
 
@@ -648,8 +655,8 @@ writes every table into its work folder; `pack_sources.py split` then files them
 own into `tables/<pair>/`, and the studied tables into `tables/<studied>/` only when `studied.json`
 names the pair. Any other pair reads the studied folder as committed and never writes it. The
 reference's reduction reads its native side too — the French Wiktionary's form links give English
-forms, French glosses decide which Spanish lemmas take a level, and its glossed lemmas are the
-dictionary words — so its `pin.json` and its rules are the record of its studied language's tables:
+forms, French glosses decide which Spanish lemmas take a level, and its glossed lemmas, less those it
+glosses by a proper noun's senses alone, are the dictionary words — so its `pin.json` and its rules are the record of its studied language's tables:
 one pin per pair, none in a studied folder. Hence:
 - a change to the reference's rules fails `check-reducer` for every pair of its language, naming the
   reference's rule files, until the reference is reduced again;
@@ -675,14 +682,15 @@ it moves when a studied table does.
 Two inputs of a studied folder are **written by no reducer**, so no rule digest moves with them:
 `split` never overwrites them, a dry run copies the studied folder into its scratch root
 (`pack_sources.py keep`, `KEPT_INPUTS`), and `pack_sources.py record-build` refuses tables whose
-studied folder lacks `tags.tsv`. The dictionary words are written by `split`, not by a reducer,
-either — but for French's, which fr-en's reducer writes and `split` files (refine-lingua-fr-en-glosses:
-the rule is in fr-en's digest).
+studied folder lacks `tags.tsv`. The dictionary words are written by every reference's reducer and
+filed by `split`: French's by fr-en's (refine-lingua-fr-en-glosses), English's and Spanish's by
+en-fr's and es-fr's (leave-lingua-names-out-of-english-and-spanish-words), so the rule is in each
+reference's digest.
 
 | File (in `tables/<studied>/`) | What it holds | Who writes it |
 |---|---|---|
 | `tags.tsv` | The studied language's **pinned tag pool**: one canonical Universal Dependencies tag per line, each once. The builder lays the pack's pool out as the pin in its own order, then the readings' tags the pin lacks, then the tags only senses carry, each part sorted, so a form's readings index the same tags whatever parts of speech a native language's senses use (en-es's senses use `NUM`, en-fr's none). English's and Spanish's are the pools en-fr's and es-fr's packs already carried (27 and 106 tags), so both keep their bytes; French's is the 79 tags its readings carry and no other, in byte order, a tag a later reduction adds appended after them (add-lingua-french-grammar-tables D8); every pair of the language reads the same file. A pack built without one (the `testdata/` fixtures, the tests' packs) keeps a single sorted pool. | A person. The checks fail when a studied language's folder lacks it (`lingua_pack::tables`), and when French's holds a tag its readings do not carry or misses one they do, naming it (`crates/lingua-pack/tests/committed_tables.rs`). |
-| `lexical.tsv` | The language's **dictionary words**, one lemma per line, byte-sorted: the lemmas its reference pair glosses — French's less those fr-en glosses by a proper noun's senses alone (refine-lingua-fr-en-glosses). They are what the vocabulary estimate and a CEFR list's typical vocabularies count, and what the Spanish names rule keeps as words. The builder writes them as a `lexical` section, one bit per lemma id, only when they differ from the lemmas the pack glosses; it then refuses, by name, a dictionary word or a glossed lemma that is neither the lemma of a form nor a ranked lemma, so no native language's glosses add a lemma. A pack without the section — or read by a core that predates it — reads its glossed lemmas as its dictionary words. en-fr and es-fr, the references, gloss exactly these, so their packs carry none; fr-en, whose dictionary words leave its names out, and a pair glossed in another native language carry the section. | `pack_sources.py split`, when the reference is reduced: its `gloss.tsv` lemmas, read as the builder reads them (the text before the first tab, trimmed, non-empty), byte-sorted, each once. When the reference's reducer writes its own (`reduce-fr-en.py`), `split` files that. The checks fail, naming the reference and a lemma, when it is neither the reference's glossed lemmas nor all of them but those it glosses by a proper noun's senses alone. |
+| `lexical.tsv` | The language's **dictionary words**, one lemma per line, byte-sorted: the lemmas its reference pair glosses less those it glosses by a proper noun's senses alone — French's since refine-lingua-fr-en-glosses, English's and Spanish's since leave-lingua-names-out-of-english-and-spanish-words. They are what the vocabulary estimate and a CEFR list's typical vocabularies count, and what the names rules keep as words. The builder writes them as a `lexical` section, one bit per lemma id, only when they differ from the lemmas the pack glosses; it then refuses, by name, a dictionary word or a glossed lemma that is neither the lemma of a form nor a ranked lemma, so no native language's glosses add a lemma. A pack without the section — or read by a core that predates it — reads its glossed lemmas as its dictionary words. Every reference's dictionary words leave its names out, so en-fr, es-fr and fr-en carry the section, as every pair glossed in another native language does. | The reference's reducer (`reduce-en-fr.py` and `reduce-es-fr.py` through the French Wiktionary's `dictionary_words`, `reduce-fr-en.py` through its own), filed by `pack_sources.py split` when the reference is reduced. A reference whose reducer writes none — a language's first pair, until it does — has its `gloss.tsv` lemmas written by `split`, read as the builder reads them (the text before the first tab, trimmed, non-empty), byte-sorted, each once. The checks fail, naming the reference and a lemma, when it is neither the reference's glossed lemmas nor all of them but those it glosses by a proper noun's senses alone. |
 | `studied.json` | `{"reference": "<pair>"}`: the pair whose reduction writes the folder, and whose `pin.json` is its provenance. | A person, or `split` for a language's first pair. |
 
 **A noun's gender comes from its readings.** The builder gives a noun's sense runs the gender its

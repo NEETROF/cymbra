@@ -9,11 +9,17 @@
 Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
+import sys
 import tempfile
+import types
 import unittest
+from pathlib import Path
+from unittest import mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _spec = importlib.util.spec_from_file_location("reduce_en_fr", os.path.join(_HERE, "reduce-en-fr.py"))
@@ -1053,3 +1059,43 @@ class Notice(unittest.TestCase):
         self.assertRegex(red.analyser_version(), r"^\d+\.\d+\.\d+$")
         manifest = json.loads(open(os.path.join(_HERE, "tables", "en-fr", "manifest.json"), encoding="utf-8").read())
         self.assertEqual(manifest["meta"]["analyzer_version"], red.analyser_version())
+
+
+# — The reduction, end to end (leave-lingua-names-out-of-english-and-spanish-words) —
+
+
+class Main(TempDir):
+    """`main` over a work folder of recorded-shape inputs: ESDB lines, the French Wiktionary's English
+    entries and a stand-in for wordfreq. Made up, cut to what the reduction reads."""
+
+    ENTRIES = [
+        {"word": "house", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
+        {"word": "London", "pos": "name", "senses": [{"glosses": ["Londres."]}, {"glosses": ["Nom de famille."]}]},
+        {"word": "bill", "pos": "noun", "senses": [{"glosses": ["Facture."]}]},
+        {"word": "bill", "pos": "verb", "senses": [{"glosses": ["Facturer."]}]},
+        {"word": "Bill", "pos": "name", "senses": [{"glosses": ["Prénom masculin."]}]},
+    ]
+
+    def run_main(self):
+        self.file("scowl.txt", "35: house <n>: houses, house's\n\n35: bill <n_v>: billed, billing, bills, bill's\n")
+        self.file("kaikki-Anglais.jsonl", "".join(json.dumps(e, ensure_ascii=False) + "\n" for e in self.ENTRIES))
+        top = ["house", "london", "bill"]
+        wordfreq = types.ModuleType("wordfreq")
+        wordfreq.top_n_list = lambda lang, n: top[:n]
+        wordfreq.zipf_frequency = lambda word, lang: 5.0 if word in top else 0.0
+        argv = ["reduce-en-fr.py", "--work", self.dir, "--built-at", "2026-09-26", "--pack-version", "2026.09.26+abcdef0"]
+        with mock.patch.dict(sys.modules, {"wordfreq": wordfreq}), mock.patch.object(sys, "argv", argv):
+            with contextlib.redirect_stdout(io.StringIO()):
+                red.main()
+        return {path.name: path.read_text(encoding="utf-8") for path in Path(self.dir).iterdir()}
+
+    def test_spec_scenario_english_s_names(self):
+        out = self.run_main()
+        # en-fr glosses all three, `london` by a proper noun's senses alone, `bill` by a noun's and a
+        # verb's beside a name's.
+        self.assertIn("london\tLondres; Nom de famille\n", out["gloss.tsv"])
+        self.assertIn("london\tPROPN:2\n", out["senses.tsv"])
+        self.assertIn("bill\tNOUN:1\tVERB:1\tPROPN:1\n", out["senses.tsv"])
+        # English's dictionary words, written after senses.tsv for `split` to file into tables/en/.
+        self.assertEqual(out["lexical.tsv"], "bill\nhouse\n")
+        self.assertEqual(json.loads(out["manifest.json"])["meta"]["analyzer_version"], red.analyser_version())

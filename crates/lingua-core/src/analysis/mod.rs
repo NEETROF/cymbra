@@ -47,8 +47,10 @@ pub mod tokenize;
 /// ([`language::StudiedLanguage::analyzer_version`]), so a change to one
 /// language's rules never moves another's (generalise-lingua-analysis-by-language).
 /// `1.2.0` since ignore-lingua-soft-hyphens reads a word without its soft hyphens
-/// (U+00AD), a rule every studied language shares.
-pub const ANALYZER_VERSION: &str = "1.2.0";
+/// (U+00AD), a rule every studied language shares; `1.3.0` since
+/// leave-lingua-names-out-of-english-and-spanish-words sets an English document's
+/// names aside (`engine::document_names`).
+pub const ANALYZER_VERSION: &str = "1.3.0";
 
 /// Spanish's analyser version: `1.0.0` when add-lingua-spanish-analysis wrote
 /// its pre-pass (NFC, `al`/`del`) and its cascade (old spellings, enclitics, the

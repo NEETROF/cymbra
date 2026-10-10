@@ -265,12 +265,15 @@ LEGACY_EXTRACT = "kaikki"
 STUDIED_TABLES = ("forms.tsv", "freq.tsv", "grammar.tsv", "level.tsv")
 PAIR_TABLES = ("gloss.tsv", "mwe.tsv", "senses.tsv", "NOTICE", "manifest.json")
 # The file of a studied folder that names its reference pair: the one pair whose reduction writes
-# the folder, and whose glossed lemmas are the language's dictionary words.
+# the folder, and whose glossed lemmas, less those it glosses as names alone, are the language's
+# dictionary words.
 STUDIED_RECORD = "studied.json"
-# The dictionary words (add-lingua-pack-lexical-layer D1, D3): the reference's glossed lemmas,
-# written by `split` beside the studied tables — or, when the reference's reducer wrote its own
-# (fr-en's: its glossed lemmas less those it glosses as names alone, refine-lingua-fr-en-glosses D2),
-# that file, filed as it is. The rule is the reducer's, in its digest; `split` is plumbing.
+# The dictionary words (add-lingua-pack-lexical-layer D1, D3): every reference's reducer writes its
+# own — its glossed lemmas less those it glosses as names alone: fr-en's (refine-lingua-fr-en-glosses
+# D2), en-fr's and es-fr's (leave-lingua-names-out-of-english-and-spanish-words D2) — and `split`
+# files that file as it is beside the studied tables. A reference whose reducer writes none (the
+# first pair of a new language, until it does) has its glossed lemmas written by `split`. The rule is
+# the reducer's, in its digest; `split` is plumbing.
 LEXICAL = "lexical.tsv"
 # The inputs of a studied folder that nothing writes but a person, so that no rule digest moves with
 # them (add-lingua-pack-lexical-layer D4): the pinned tag pool, and the record naming the reference.
@@ -438,8 +441,9 @@ def split(work: Path, tables: Path, pair: str) -> list[str]:
     """File a reduction's tables, left in `work` by the pair's reducer, into `tables`: the native
     side into tables/<pair>/, and — when `pair` is its studied language's reference, or the first
     pair reduced for a language — the studied side into tables/<studied>/, with the dictionary words
-    (`lexical.tsv`: the one the reducer wrote, when it wrote one — fr-en's, which leaves out the
-    lemmas it glosses as names alone —, else the pair's glossed lemmas). Any other pair reads the
+    (`lexical.tsv`: the one the reducer wrote, as every reference's does — fr-en's, en-fr's and
+    es-fr's, which leave out the lemmas they gloss as names alone —, else the pair's glossed
+    lemmas). Any other pair reads the
     studied folder and never writes it: what its reducer wrote of the studied side is left in
     `work`. Answers the files written, as `<folder>/<file>`."""
     lang = studied_of(pair)

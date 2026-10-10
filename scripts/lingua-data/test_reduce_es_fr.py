@@ -10,11 +10,17 @@ Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
 import collections
+import contextlib
+import io
 import json
 import importlib.util
 import os
+import sys
 import tempfile
+import types
 import unittest
+from pathlib import Path
+from unittest import mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _spec = importlib.util.spec_from_file_location("reduce_es_fr", os.path.join(_HERE, "reduce-es-fr.py"))
@@ -581,6 +587,55 @@ class Manifest(unittest.TestCase):
     def test_the_notice_names_every_source_the_manifest_declares(self):
         for name in ["kaikki", "wordfreq", "UD Spanish-GSD"]:
             self.assertIn(name, red.NOTICE)
+
+
+class Main(unittest.TestCase):
+    """`main` over a work folder of recorded-shape inputs: the English Wiktionary's Spanish entries,
+    the French Wiktionary's, empty translation tables and treebank, and a stand-in for wordfreq.
+    Made up, cut to what the reduction reads (leave-lingua-names-out-of-english-and-spanish-words)."""
+
+    SPANISH = [
+        entry("casa", forms=[("casas", ["plural"])]),
+        entry("Madrid", pos="name", senses=[{"glosses": ["Madrid (the capital of Spain)"]}]),
+        entry("luna", forms=[("lunas", ["plural"])]),
+        entry("Luna", pos="name", senses=[{"glosses": ["a female given name"]}]),
+    ]
+    FRENCH = [
+        {"word": "casa", "pos": "noun", "senses": [{"glosses": ["Maison."]}]},
+        {"word": "Madrid", "pos": "name", "senses": [{"glosses": ["Madrid."]}]},
+        {"word": "luna", "pos": "noun", "senses": [{"glosses": ["Lune."]}]},
+        {"word": "Luna", "pos": "name", "senses": [{"glosses": ["Prénom féminin."]}]},
+    ]
+
+    def run_main(self):
+        with tempfile.TemporaryDirectory() as work:
+            for name, entries in (("kaikki-Spanish.jsonl", self.SPANISH), ("kaikki-fr-Espagnol.jsonl", self.FRENCH)):
+                Path(work, name).write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries), encoding="utf-8")
+            for name in ("kaikki-es-traductions.jsonl", "kaikki-fr-traductions.jsonl", "es_gsd-ud-train.conllu", "es_gsd-ud-dev.conllu"):
+                Path(work, name).write_text("", encoding="utf-8")
+            top = ["casa", "madrid", "luna"]
+            wordfreq = types.ModuleType("wordfreq")
+            wordfreq.top_n_list = lambda lang, n: top[:n]
+            wordfreq.zipf_frequency = lambda word, lang: 5.0 if word in top else 0.0
+            argv = ["reduce-es-fr.py", "--work", work, "--built-at", "2026-10-03", "--pack-version", "2026.10.03+abcdef0"]
+            with mock.patch.dict(sys.modules, {"wordfreq": wordfreq}), mock.patch.object(sys, "argv", argv):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    red.main()
+            return {path.name: path.read_text(encoding="utf-8") for path in Path(work).iterdir() if path.suffix != ".jsonl"}
+
+    def test_spec_scenario_spanish_s_names(self):
+        out = self.run_main()
+        # es-fr glosses all three, `madrid` by a proper noun's senses alone, `luna` by a common
+        # noun's beside a name's.
+        self.assertIn("madrid\tMadrid\n", out["gloss.tsv"])
+        self.assertIn("madrid\tPROPN:1\n", out["senses.tsv"])
+        self.assertRegex(out["senses.tsv"], r"(?m)^luna\tNOUN[^\t]*:1\tPROPN:1$")
+        # Spanish's dictionary words, for `split` to file into tables/es/; the estimated levels skip
+        # the same name (D3), so every levelled lemma is one of them.
+        self.assertEqual(out["lexical.tsv"], "casa\nluna\n")
+        levelled = {line.split("\t")[0] for line in out["level.tsv"].splitlines()}
+        self.assertEqual(levelled, {"casa", "luna"})
+        self.assertEqual(json.loads(out["manifest.json"])["meta"]["analyzer_version"], red.analyser_version())
 
 
 if __name__ == "__main__":

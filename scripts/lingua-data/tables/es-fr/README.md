@@ -39,7 +39,7 @@ In `../es/`, Spanish's tables, written by es-fr's reduction:
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
 | `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | kaikki's tags (CC BY-SA 4.0 + GFDL) |
 | `level.tsv` | lemma → estimated CEFR level | derived from `freq.tsv` and `../es-fr/gloss.tsv` (no source of its own) |
-| `lexical.tsv` | Spanish's dictionary words: the lemmas es-fr glosses, byte-sorted, one per line | derived from `../es-fr/gloss.tsv` by `build.sh` (`pack_sources.py split`) |
+| `lexical.tsv` | Spanish's dictionary words: the lemmas es-fr glosses less the 1,693 it glosses by a proper noun's senses alone (21,062; *What is in them*), byte-sorted, one per line | derived from `gloss.tsv` and `senses.tsv` by `reduce-es-fr.py` (the French Wiktionary's `dictionary_words`, `reduce_edition_fr.py`), filed by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | Spanish's pinned tag pool, which every pack studying Spanish lays its pool out from; written by no reducer, kept when the tables are reduced again (`../../SOURCES.md`, *What a pack studies, whatever it glosses*) | this pack's own pool, committed by hand |
 | `studied.json` | the pair whose reduction writes `../es/`: es-fr | committed by hand |
 
@@ -110,6 +110,20 @@ In `../es/`, Spanish's tables, written by es-fr's reduction:
   Measured on English's own CEFR lemmas, this rule agrees with the lists for 39.8 % of them, and
   within one level for 82.6 %. The scale is monotone: each estimated level's mean true level
   rises from 1.67 at A1 to 5.03 at C2.
+- **Names are no dictionary words** (leave-lingua-names-out-of-english-and-spanish-words, the
+  owner's decision of 2026-10-10, as French's since refine-lingua-fr-en-glosses): Spanish's
+  dictionary words leave out the lemmas es-fr glosses by a proper noun's senses alone, every run of
+  their `senses.tsv` row `PROPN`. Of the 22,755 glossed lemmas, 1,693 are names alone — 261, 550 and
+  968 of the 5,000, 10,000 and 20,000 commonest: `méxico` (rank 149), `españa`, `madrid`, `juan`,
+  `josé`, `venezuela`, `europa` — so `../es/lexical.tsv` lists 21,062, the vocabulary estimate's
+  universe. They keep their gloss, and Spanish's names rule sets them aside in a page that never
+  writes them in lowercase (on the baseline's `nombres` page, `Madrid`, `Sevilla`, `María`,
+  `Pedro`…). A word with a common sense beside a name's stays one (`luna`, `don`); `dios` is glossed
+  as a common noun. The estimated levels already skip the same lemmas, so no level moved and every
+  levelled lemma is a dictionary word. `al` « Amérique latine » (rank 16) leaves too: the analyser
+  splits the contraction into `a` + `el` before any lookup, so only the universe sees it. The rule
+  is the French Wiktionary's module's (`reduce_edition_fr.py` `dictionary_words`), which es-fr and
+  en-fr alone load.
 
 ## Measured
 
@@ -127,8 +141,9 @@ PUD itself is not consistent on apocopes: it keeps `gran` as its own lemma but t
 *primero*, which is why reading apocopes as their full words moved the content words from 95.92 %
 to 95.79 %.
 
-The pack is 2,224,439 B, with the grammar, the glosses, the levels and the expressions' names
-(add-lingua-spanish-expression-keys).
+The pack is 2,231,951 B, with the grammar, the glosses, the levels, the expressions' names
+(add-lingua-spanish-expression-keys) and, since its names left Spanish's dictionary words, a lexical
+table (2,224,439 B before).
 
 ## Licences
 
@@ -136,7 +151,7 @@ The repository is Apache-2.0; **these files are not**, nor Spanish's in `../es/`
 from the sources above and carry their licences:
 - `../es/forms.tsv`: CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts);
 - `../es/grammar.tsv`, `gloss.tsv`, `senses.tsv`, `mwe.tsv`, and `../es/lexical.tsv` (derived from
-  `gloss.tsv`): CC BY-SA 4.0 and the GFDL (kaikki);
+  `gloss.tsv` and `senses.tsv`): CC BY-SA 4.0 and the GFDL (kaikki);
 - `../es/level.tsv`: derived from `../es/freq.tsv` (CC BY-SA 4.0) and `gloss.tsv`;
 - `../es/freq.tsv`: CC BY-SA 4.0.
 

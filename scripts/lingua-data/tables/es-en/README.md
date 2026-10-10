@@ -29,7 +29,7 @@ In this folder:
 ## What is in them
 
 On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version`
-`2026.10.08+ee357fe.08034dc`: the snapshot, the rules' digest, and the digest of the studied tables
+`2026.10.08+ee357fe.099b01a`: the snapshot, the rules' digest, and the digest of the studied tables
 `pin.json` records), reduced again from the same sources with the English edition's layout rules
 (below):
 
@@ -50,9 +50,12 @@ On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version`
   | top 20,000 | 76.3 % | 76.5 % | 63.7 % |
   | all 60,000 | 52.9 % | 53.1 % | 37.9 % |
 
-- **Dictionary words are es-fr's**: 9,928 lemmas es-en glosses are no dictionary word of Spanish,
-  and 798 dictionary words have no English gloss, so the pack carries a lexical section, and the
-  vocabulary estimate counts the same 22,755 words for both pairs.
+- **Dictionary words are es-fr's**: 11,163 lemmas es-en glosses are no dictionary word of Spanish,
+  and 340 dictionary words have no English gloss, so the pack carries a lexical section, and the
+  vocabulary estimate counts the same 21,062 words for both pairs. Spanish's dictionary words leave
+  out the 1,693 lemmas es-fr glosses by a proper noun's senses alone
+  (leave-lingua-names-out-of-english-and-spanish-words), 1,235 of which es-en glosses (527 of the
+  10,000 commonest): before, 9,928 and 798.
 - **The pack is 2,608,413 B**, 49.8 % of the 5 MiB budget.
 
 ## Its sources
