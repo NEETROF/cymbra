@@ -52,8 +52,10 @@ describe("the selection card's rows over the committed French glosses", () => {
 // gloss of every pair, the English- and Spanish-glossed ones included: the trailing set gains an
 // opening mark only when a committed row would end on one — none does, the Spanish Wiktionary's ¿
 // and ¡ included (add-lingua-spanish-card-wording D4) — and a closing mark is never stripped. fr-en
-// joins them with its glosses (add-lingua-pack-fr-en D6), before any package lists it.
-const PAIRS = ["en-fr", "es-fr", "es-en", "en-es", "fr-en"];
+// joins them with its glosses (add-lingua-pack-fr-en D6), before any package lists it, and fr-es with
+// its Spanish ones (add-lingua-pack-fr-es D10): none of its 19,050 rows is empty or ends on an opening
+// mark.
+const PAIRS = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
 
 /** The marks a row must not end on, before its ellipsis: the openers of every edition the packs read. */
 const OPENING = /[“‘«([¿¡]…$/u;
