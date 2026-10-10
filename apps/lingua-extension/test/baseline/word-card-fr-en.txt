@@ -82,7 +82,7 @@ row: pleuvoir — to rain
 ### phrase-gloss d’un hiver
 row: hiver — winter
 ### phrase-gloss Il est prêt à le faire
-row: prêt — ready
+row: prêt à — ready, about to
 row: faire — to do
 ### phrase-gloss Au fait, tu viens ?
 row: au fait — au fait

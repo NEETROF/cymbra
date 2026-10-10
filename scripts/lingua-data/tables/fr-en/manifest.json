@@ -2,11 +2,11 @@
   "meta": {
     "studied": "fr",
     "native": "en",
-    "pack_version": "2026.10.09+f63cd9f",
+    "pack_version": "2026.10.10",
     "analyzer_version": "1.2.0",
     "levels_estimated": true,
     "licences": [
-      "kaikki / enwiktionary (CC BY-SA 4.0 + GFDL)",
+      "kaikki / enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)",
       "wordfreq (CC BY-SA 4.0)",
       "UD French-GSD (CC BY-SA 4.0)"
     ]

@@ -1,11 +1,11 @@
 {
-  "snapshot": "2026.10.09",
+  "snapshot": "2026.10.10",
   "pack": {
-    "sha256": "4cdb240c0f88da51efda1e0442cc9a2cb581bacccb1e7bfa698768128a915d21",
-    "size": 2537588
+    "sha256": "393faf700531f2a5a8eeaf2a41ade69b28eef018afee625a7175a5512b5fd3de",
+    "size": 2988698
   },
   "reducer": {
-    "sha256": "f63cd9f64ad541bdf8d32a81d666058755eee95449fa7a367497a43a6383db45",
+    "sha256": "f46bf4b61b66345e86ecd198b3d4368d31eb87ea48cc7dfa83063387e9b12f41",
     "files": [
       "reduce-fr-en.py",
       "reduce_common.py",
@@ -37,6 +37,24 @@
           "asset": "kaikki-French.jsonl.zst",
           "sha256": "2d7bbe5ff054e2edf9af208be5e40b09eba7cc020a0241bbd2aa2bd62ef8561e",
           "size": 510058226
+        }
+      }
+    },
+    "kaikki-fr": {
+      "release": "lingua-pack-sources-fr-en-2026.10.10",
+      "url": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-10",
+      "last_modified": "Fri, 02 Oct 2026 00:10:16 GMT",
+      "dump": {
+        "sha256": "968f7df0c64632ec64444f9cabc4019b4ecad8284407a5e053f85a54b1b21f19",
+        "size": 6865136428,
+        "compressed_size": 736590407
+      },
+      "files": {
+        "kaikki-fr-traductions-en.jsonl": {
+          "asset": "kaikki-fr-traductions-en.jsonl.zst",
+          "sha256": "6f54aedaa6fe2dac31bc4564687de47fbd5f8c33a464ffa9f0e6301520bec2e5",
+          "size": 14573988
         }
       }
     },
