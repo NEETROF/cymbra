@@ -27,8 +27,10 @@ use crate::{BuildError, PackInputs};
 /// `None` when the inputs name no dictionary words, or name exactly the lemmas the pack
 /// glosses — `glossed`, by lemma id — so that a pack whose glosses are its studied
 /// language's reference keeps the bytes it had without the table. A dictionary word is
-/// placed at the id its gloss would be filed under, which is the id the reader looks it up
-/// by. When the table is written, the lexicon must be the studied language's alone: a
+/// placed at its own place in the lemma list (`lemma_id`), where its gloss is filed; every
+/// lemma of a pack that builds reads as itself, so it is also the id the reader's spelling
+/// lookup reads (fix-lingua-lemma-lookup D3, D4), and a word that is no lemma is placed
+/// nowhere. When the table is written, the lexicon must be the studied language's alone: a
 /// dictionary word or a glossed lemma that is neither the lemma of a form nor a ranked lemma
 /// is refused by name, so no native language's glosses can add a lemma.
 pub(crate) fn lexical_table(
@@ -47,7 +49,7 @@ pub(crate) fn lexical_table(
     let mut bits = vec![0u8; glossed_bits.len()];
     let mut placed = true;
     for word in words {
-        match lex.id_of(word) {
+        match lex.lemma_id(word) {
             Some(id) => set(&mut bits, id),
             None => placed = false,
         }

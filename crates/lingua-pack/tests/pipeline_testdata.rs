@@ -246,3 +246,71 @@ fn the_french_fixture_keys_its_expressions_as_french_is_read() {
     assert_eq!(pack.expression("à le"), None, "`à la` is not `au`");
     assert_eq!(pack.meta().pack_version, "0.0.2-fixture");
 }
+
+/// A scratch copy of the en-fr fixture whose `forms.tsv` gains `rows`.
+fn fixture_with_forms(name: &str, rows: &str) -> PathBuf {
+    let scratch = std::env::temp_dir().join(format!("lingua-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    std::fs::create_dir_all(&scratch).unwrap();
+    for entry in std::fs::read_dir(testdata_dir()).unwrap() {
+        let entry = entry.unwrap();
+        std::fs::copy(entry.path(), scratch.join(entry.file_name())).unwrap();
+    }
+    let forms = scratch.join("forms.tsv");
+    let mut text = std::fs::read_to_string(&forms).unwrap();
+    text.push_str(rows);
+    std::fs::write(&forms, text).unwrap();
+    scratch
+}
+
+#[test]
+fn lingua_pack_build_names_the_lexicon_it_refuses() {
+    // fix-lingua-lemma-lookup D4, as `build.sh` shows it: a form listed with two lemmas, and a
+    // glossed lemma (`leaf`) the forms table reads as another, each refused by name, no pack
+    // written.
+    for (name, rows, message) in [
+        (
+            "two-lemmas",
+            "leaves\tleaf\n",
+            "lingua-pack-build: the forms table lists the form \"leaves\" with 2 lemmas: \
+             \"leaf\", \"leave\"",
+        ),
+        (
+            "reads-as-another",
+            "leaf\tleave\n",
+            "lingua-pack-build: the lemma \"leaf\" reads as \"leave\": the forms table lists it \
+             as a form of \"leave\"",
+        ),
+    ] {
+        let dir = fixture_with_forms(name, rows);
+        let out = dir.join("pack.lingua");
+        let run = std::process::Command::new(env!("CARGO_BIN_EXE_lingua-pack-build"))
+            .arg(&dir)
+            .arg(&out)
+            .output()
+            .expect("run lingua-pack-build");
+        assert!(!run.status.success(), "{name}");
+        assert_eq!(
+            String::from_utf8_lossy(&run.stderr).trim_end(),
+            message,
+            "{name}"
+        );
+        assert!(!out.exists(), "{name}: no pack written");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+    // The fixture as committed builds.
+    let dir = fixture_with_forms("as-committed", "");
+    let out = dir.join("pack.lingua");
+    let run = std::process::Command::new(env!("CARGO_BIN_EXE_lingua-pack-build"))
+        .arg(&dir)
+        .arg(&out)
+        .output()
+        .expect("run lingua-pack-build");
+    assert!(
+        run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert!(out.exists());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
