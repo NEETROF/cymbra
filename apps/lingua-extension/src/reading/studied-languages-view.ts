@@ -13,7 +13,7 @@ import type { StudiedLanguagesCopy } from "./settings-copy.ts";
 // listed, and is kept. With one shipped language there is nothing to choose: the block hides.
 // The languages offered are those of the pairs glossed in the reader's native language
 // (generalise-lingua-native-language D7): French until the port says otherwise, so a reader of
-// French sees the boxes from the start, as before. Its two notes are the catalogue's
+// French sees the boxes from the start, as before. Its note is the catalogue's
 // `studied-languages` module, handed by the settings view in the interface language
 // (localise-lingua-settings), which also names the languages (add-lingua-native-language-labels D2).
 // The language has no default: a host that forgot it would name the languages in French to every
@@ -75,11 +75,7 @@ export function mountStudiedLanguages(
   const note = doc.createElement("div");
   note.className = "set-note";
   note.textContent = copy.studiedNote;
-  // The owner's word to readers (enable-lingua-spanish D6): « pour l'instant », never « bêta ».
-  const offer = doc.createElement("div");
-  offer.className = "set-note";
-  offer.textContent = copy.severalLanguagesOffer;
-  block.append(row, note, offer);
+  block.append(row, note);
 
   let studied: StudiedLanguage[] = [];
 

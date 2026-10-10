@@ -568,14 +568,13 @@ describe("the sync block's copy", () => {
 });
 
 describe("the studied languages' block", () => {
-  it("An English-native reader: its notes are English, and so are the languages' names", async () => {
+  it("An English-native reader: its note is English, and so are the languages' names", async () => {
     const { port } = makeFakePort();
     port.nativeLanguage = async () => "fr";
     const block = document.createElement("div");
     const view = mountStudiedLanguages(block, port, async () => {}, ["en-fr", "es-fr"], EN.studiedLanguages, "en");
     await view.refresh();
     expect(block.textContent).toContain("Each page is read in whichever of your languages it holds.");
-    expect(block.textContent).toContain("Several languages at once: free for now.");
     expect([...block.querySelectorAll("label span")].map((s) => s.textContent)).toEqual(["English", "Spanish"]);
   });
 
