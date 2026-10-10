@@ -105,6 +105,17 @@ rows: (none)
 rows: (none)
 ### phrase-gloss Il faro si ergeva
 rows: (none)
+### phrase-gloss comme ca
+rows: (none)
+### phrase-gloss c'est ca
+expression: c'est ça
+page 1/1:
+  [—] Así es o tener la razón, eso es; (irónico) Negación de una afirmación
+### phrase-gloss Le CA a voté le budget.
+row: voter — Votar
+row: budget — Presupuesto
+### phrase-gloss à mon age
+row: âge — Edad
 ### phrase-gloss l’homme
 row: homme — Hombre
 ### word-grammar est être
