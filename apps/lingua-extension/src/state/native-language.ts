@@ -16,8 +16,8 @@ import { type StoreChangeReason, watchStore } from "./store.ts";
 // The reader's choice of native language (add-lingua-native-language-choice): a runtime message to
 // the background, which owns the store, and what it does with it (D2) — kept here, apart from the
 // background's wiring, so it is tested. The choice is offered only while two native languages or
-// more have a shipped pair (D1): French and English since change 34 shipped es-en; French alone
-// before it, when no surface showed it (M22).
+// more have a shipped pair (D1): French and English since change 34 shipped es-en, and Spanish since
+// change 35 shipped en-es; French alone before change 34, when no surface showed it (M22).
 
 /** The runtime message a surface sends when the reader chooses (D2). */
 export const NATIVE_LANGUAGE_MESSAGE = "lingua-native-language";
