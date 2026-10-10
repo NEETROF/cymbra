@@ -18,7 +18,9 @@ import {
   type ResolvedToken,
   resolveTokens,
   type ScanStats,
+  selectWithinWord,
   statsFromAnalysis,
+  type WordSelection,
 } from "./scan.ts";
 import { type HudActions, type HudState, LinguaHud } from "./hud.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
@@ -907,25 +909,47 @@ export class ReadingSession {
    *  Block+tokens come paired from the same analysis, so a since-changed DOM yields a clean
    *  miss (ranges over old nodes), never a wrong-word hit. */
   private reclassifyHit(node: Node, offset: number): ResolvedToken | null {
-    let el: Element | null = isElement(node) ? node : node.parentElement;
-    while (el && !this.clickable.has(el)) el = el.parentElement;
-    const entry = el && this.clickable.get(el);
+    const entry = this.blockTokensAt(node);
     if (!entry) return null;
     return findTokenInBlock(entry.block, entry.tokens, node, offset);
+  }
+
+  /** The analysed block a node sits in, with its tokens; undefined outside every analysed block. */
+  private blockTokensAt(node: Node): BlockTokens | undefined {
+    let el: Element | null = isElement(node) ? node : node.parentElement;
+    while (el && !this.clickable.has(el)) el = el.parentElement;
+    return el ? this.clickable.get(el) : undefined;
   }
 
   /** A settled selection, whatever the pointer that made it. One word resolves through the
    *  same hit-test Alt-click uses, so the popup offers the actions matching its real status
    *  (an already-known word is not offered "Je connais" again); a word the page analysis
    *  never saw is read by the analyser instead; several words open the whole-selection
-   *  card. The cards decide, this only hands them the hit. */
+   *  card. Within an analysed block, a word whose pieces have spans of their own opens the
+   *  piece the reader selected inside it, or the whole-selection card when the selection
+   *  covers several (add-lingua-french-word-card D7). The cards decide, this only hands them
+   *  the hit. */
   private onCapture(kind: CaptureKind, cap: Capture): void {
     if (!this.enabled || !this.host) return;
-    const hit = kind === "word" ? this.hitAt(cap.range.startContainer, cap.range.startOffset, true) : null;
-    this.cards.openForSelection(
-      { text: cap.text, sentence: cap.sentence, selection: cap.selection, rect: this.toSurface(cap.rect) },
-      hit ? this.pageHit(hit) : null,
-    );
+    const sel = { text: cap.text, sentence: cap.sentence, selection: cap.selection, rect: this.toSurface(cap.rect) };
+    const pieces = kind === "word" ? this.pieceSelected(cap) : ({ kind: "word" } as const);
+    if (pieces.kind === "pieces") {
+      this.cards.openForSelection(sel, null, true);
+      return;
+    }
+    const hit =
+      pieces.kind === "piece"
+        ? pieces.hit
+        : kind === "word"
+          ? this.hitAt(cap.range.startContainer, cap.range.startOffset, true)
+          : null;
+    this.cards.openForSelection(sel, hit ? this.pageHit(hit) : null);
+  }
+
+  /** Which piece of a word written as pieces the reader selected (`selectWithinWord`). */
+  private pieceSelected(cap: Capture): WordSelection {
+    const entry = this.blockTokensAt(cap.range.startContainer);
+    return entry ? selectWithinWord(entry.block, entry.tokens, cap.range, cap.selected) : { kind: "word" };
   }
 
   /** The keyboard shortcut: same routing as a pointer selection, so both produce the

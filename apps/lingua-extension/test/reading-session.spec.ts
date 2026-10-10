@@ -449,6 +449,131 @@ describe("a selection that begins", () => {
   });
 });
 
+// add-lingua-french-word-card D7: within an analysed block, a one-word selection over a word whose
+// pieces have spans of their own opens the piece the reader selected, or the whole-selection card
+// when it covers several; a word of one span, or of pieces sharing one, opens as before.
+describe("a selection inside a word written as pieces", () => {
+  const TEXT = "Il voit l\u2019homme, dit-il. D\u2019abord, don't.";
+  const byte = (i: number) => new TextEncoder().encode(TEXT.slice(0, i)).length;
+  const token = (surface: string, lemma: string, at: number, length: number, cls: "Known" | "Unknown") => ({
+    block: 0,
+    start: byte(at),
+    end: byte(at + length),
+    surface,
+    lemma,
+    class: cls,
+    gloss: cls === "Unknown" ? `${lemma}?` : null,
+  });
+  const at = (text: string) => TEXT.indexOf(text);
+  /** The page analysis's reading: elisions and an inversion with spans of their own, `don't` sharing one. */
+  const analysed = (blocks: string[]): PageAnalysis => ({
+    analyzer_version: "1",
+    analysable: true,
+    tokens:
+      blocks[0] === TEXT
+        ? [
+            token("Il", "il", 0, 2, "Known"),
+            token("voit", "voir", at("voit"), 4, "Unknown"),
+            token("le", "le", at("l\u2019homme"), 2, "Known"),
+            token("homme", "homme", at("homme"), 5, "Unknown"),
+            token("dit", "dire", at("dit-il"), 3, "Unknown"),
+            token("il", "il", at("dit-il") + 4, 2, "Known"),
+            token("De", "de", at("D\u2019abord"), 2, "Known"),
+            token("abord", "abord", at("abord"), 5, "Unknown"),
+            token("do", "do", at("don't"), 5, "Unknown"),
+            token("not", "not", at("don't"), 5, "Known"),
+          ]
+        : [],
+    counted: 8,
+    known: 4,
+    percent: 50,
+  });
+
+  async function reading() {
+    const { port } = makeFakePort();
+    port.analyse = async (blocks) => analysed(blocks);
+    const phrases: string[] = [];
+    const grammars: [string, string][] = [];
+    port.phraseGloss = async (text) => {
+      phrases.push(text);
+      return { tokens: [] };
+    };
+    port.wordGrammar = async (written, lemma) => {
+      grammars.push([written, lemma]);
+      return { gloss: null, senses: [], readings: [], others: [], pieces: [] };
+    };
+    const s = new ReadingSession(port, { css: CSS_TEXT, surface: "book" });
+    await s.start(null);
+    const { host } = section(`<p>${TEXT}</p><p>Encore l\u2019homme.</p>`);
+    // jsdom lays nothing out: a range has no box in the section's realm.
+    const box = () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 });
+    Object.assign((host.win as unknown as { Range: { prototype: object } }).Range.prototype, {
+      getBoundingClientRect: box,
+      getClientRects: () => [box()],
+    });
+    await s.attach(host);
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+    /** Select `[from, from + length)` of a paragraph, as the reader made it, and lift. */
+    const select = async (from: number, length: number, paragraph = 0) => {
+      phrases.length = 0;
+      grammars.length = 0;
+      const node = host.doc.querySelectorAll("p")[paragraph]!.firstChild!;
+      const range = host.doc.createRange();
+      range.setStart(node, from);
+      range.setEnd(node, from + length);
+      const sel = host.win.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      host.doc.body.dispatchEvent(new host.win.Event("touchend", { bubbles: true }));
+      await settle();
+      const asked = { phrases: [...phrases], grammars: [...grammars] };
+      // Collapsed again, so no settle timer outlives the test.
+      sel.removeAllRanges();
+      await settle();
+      return asked;
+    };
+    return { s, select };
+  }
+
+  it("A drag over « homme » in « l’homme » opens `homme`, not `le`", async () => {
+    const { s, select } = await reading();
+    expect(await select(at("homme"), 5)).toEqual({ phrases: [], grammars: [["homme", "homme"]] });
+    // Part of it does too.
+    expect((await select(at("homme") + 1, 3)).grammars).toEqual([["homme", "homme"]]);
+    s.detach();
+  });
+
+  it("A drag over « il » in « dit-il » opens `il`, not `dit`", async () => {
+    const { s, select } = await reading();
+    expect(await select(at("dit-il") + 4, 2)).toEqual({ phrases: [], grammars: [["il", "il"]] });
+    expect((await select(at("dit-il"), 3)).grammars).toEqual([["dit", "dire"]]);
+    s.detach();
+  });
+
+  it("« l’homme » selected whole, and « D’abord », open the whole-selection card", async () => {
+    const { s, select } = await reading();
+    expect(await select(at("l\u2019homme"), 7)).toEqual({ phrases: ["l\u2019homme"], grammars: [] });
+    expect(await select(at("D\u2019abord"), 7)).toEqual({ phrases: ["D\u2019abord"], grammars: [] });
+    s.detach();
+  });
+
+  it("A word of one span, and pieces sharing one, open as before", async () => {
+    const { s, select } = await reading();
+    expect(await select(at("voit"), 4)).toEqual({ phrases: [], grammars: [["voit", "voir"]] });
+    // `don't`: its pieces share its span, so the word opens on its first, written whole.
+    expect(await select(at("don't") + 3, 2)).toEqual({ phrases: [], grammars: [["don't", "do"]] });
+    s.detach();
+  });
+
+  it("A block the analysis did not cover keeps the analyser's first token", async () => {
+    const { s, select } = await reading();
+    const second = "Encore l\u2019homme.";
+    const picked = await select(second.indexOf("homme"), 5, 1);
+    expect(picked.phrases).toEqual(["l\u2019homme"]);
+    s.detach();
+  });
+});
+
 describe("the reading session and the studied language", () => {
   it("asks every language-bound question in English", async () => {
     const { s, calls } = session();

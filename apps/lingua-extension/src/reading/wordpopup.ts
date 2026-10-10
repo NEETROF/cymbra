@@ -43,6 +43,12 @@ export interface Gesture {
   expression: boolean;
   /** The answer the card showed, so an expression's gloss reaches the card it creates. */
   gloss: string | null;
+  /**
+   * The card's answer was the pack's expression table's — a whole-selection match — so the gloss
+   * it showed is stored, whatever the name's spelling (`d'abord` holds no space;
+   * add-lingua-french-word-card D8). Absent on every other card.
+   */
+  expressionAnswer?: boolean;
 }
 
 /** One word-by-word row: a dictionary form the reader does not know, with its pack gloss. */
@@ -64,6 +70,11 @@ export interface WordPopupContent {
   sentence: string;
   /** Whether this is a multi-word expression (hides "Je connais"). */
   expression?: boolean;
+  /**
+   * The answer is the pack's expression table's: an expression covering the whole selection,
+   * headed by its name (add-lingua-french-word-card D8). Its gesture says so.
+   */
+  expressionAnswer?: boolean;
   /** The word's current status (drives which actions are offered); null = new/unknown. */
   status?: LemmaStatus | null;
   /** Anchor rectangle in viewport coordinates (the word's box). */
@@ -316,6 +327,7 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
         status,
         expression: !!current.expression,
         gloss: storedGloss ?? current.gloss,
+        ...(current.expressionAnswer ? { expressionAnswer: true } : {}),
       });
       view.hide();
     });

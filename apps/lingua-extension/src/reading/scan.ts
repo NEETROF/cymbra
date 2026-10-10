@@ -169,6 +169,64 @@ export function findTokenInBlock(
   return findTokenAt(resolved, node, offset);
 }
 
+/**
+ * What a one-word selection over a word the page analysis read as pieces opens
+ * (add-lingua-french-word-card D7): `word` — the word has one span, or pieces sharing one
+ * (`don't`, `del`, `au`), or the selection touches no piece: the word card at the widened start,
+ * as before; `piece` — the selection as the reader made it lies inside one piece: that piece's
+ * card (« homme » of « l’homme », « il » of « dit-il »); `pieces` — it covers several: the
+ * whole-selection card (« l’homme » double-clicked whole, « D’abord »).
+ */
+export type WordSelection = { kind: "word" } | { kind: "piece"; hit: ResolvedToken } | { kind: "pieces" };
+
+/** `Range.compareBoundaryPoints`' constants, by value: a book section's ranges belong to another realm. */
+const START_TO_START = 0;
+const START_TO_END = 1;
+const END_TO_END = 2;
+const END_TO_START = 3;
+
+/** Whether `inner` lies within `outer`, its ends included. */
+function within(outer: Range, inner: Range): boolean {
+  try {
+    return (
+      outer.compareBoundaryPoints(START_TO_START, inner) <= 0 && outer.compareBoundaryPoints(END_TO_END, inner) >= 0
+    );
+  } catch {
+    return false; // ranges of another tree
+  }
+}
+
+/** Whether two ranges share at least one character. */
+function overlaps(a: Range, b: Range): boolean {
+  try {
+    return a.compareBoundaryPoints(END_TO_START, b) < 0 && a.compareBoundaryPoints(START_TO_END, b) > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Route a one-word selection inside an analysed block (add-lingua-french-word-card D7): the pieces
+ * of the widened word are the block's tokens inside it, painted or not — as the reclassify hit reads
+ * them —, grouped by span; the selection as the reader made it picks among them. Language-neutral:
+ * only a word whose pieces have spans of their own — French's elisions and inversions, a
+ * hyphenated run holding a digit (`24-year-old`) — routes otherwise than before.
+ */
+export function selectWithinWord(block: Block, tokens: AnalyzedToken[], word: Range, selected: Range): WordSelection {
+  const spans = new Map<string, ResolvedToken>();
+  for (const token of tokens) {
+    const range = rangeForToken(block, token.start, token.end);
+    if (!range || !within(word, range)) continue;
+    // Pieces sharing a span open on the first, as a click does (`findTokenAt`).
+    const span = `${token.start}:${token.end}`;
+    if (!spans.has(span)) spans.set(span, { token, range, container: block.container });
+  }
+  if (spans.size < 2) return { kind: "word" };
+  const touched = [...spans.values()].filter((piece) => overlaps(piece.range, selected));
+  if (touched.length === 0) return { kind: "word" };
+  return touched.length === 1 ? { kind: "piece", hit: touched[0]! } : { kind: "pieces" };
+}
+
 export function resolveTokens(blocks: Block[], a: PageAnalysis): ResolvedToken[] {
   const resolved: ResolvedToken[] = [];
   for (const token of a.tokens) {

@@ -199,10 +199,10 @@ describe("captureSelection", () => {
   });
 
   // add-lingua-french-tokenisation D7, handed to change 51: the word snap widens a selection
-  // inside one piece of a split French word to the whole written word, a « word » resolved at its
-  // start — the first piece (`le` for `homme`, `dit` for `il`). Pinned as it is today, so that
-  // change 51's diff shows it moving.
-  it("widens a selection inside one piece of a split word to the whole written word", () => {
+  // inside one piece of a split French word to the whole written word — what is read, a « word » —
+  // and the capture keeps the selection as the reader made it beside it, which picks the piece the
+  // card opens on (add-lingua-french-word-card D7: `homme`, `il`; the routing is the session's).
+  it("widens a selection inside one piece of a split word to the whole written word, keeping the reader's", () => {
     for (const [full, word, piece] of [
       ["Il voit l’homme.", "l’homme", "homme"],
       ["« Je reviendrai », dit-il en partant.", "dit-il", "il"],
@@ -222,6 +222,11 @@ describe("captureSelection", () => {
       expect(cap.range.startContainer).toBe(textNode);
       expect(cap.range.startOffset).toBe(full.indexOf(word));
       expect(full.charAt(cap.range.startOffset)).toBe(word.charAt(0)); // `l`, `d`
+      // The reader's own selection, untouched: the piece.
+      expect(cap.selected.toString()).toBe(piece);
+      expect(cap.selected.startOffset).toBe(at);
+      expect(cap.selected.endOffset).toBe(at + piece.length);
+      expect(String(window.getSelection())).toBe(piece);
     }
   });
 

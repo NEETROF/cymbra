@@ -120,7 +120,14 @@ export interface Capture {
   /** Where the selection sits in `sentence`, found by position (null when unknown). */
   selection: SentenceSelection["selection"];
   rect: { left: number; top: number; bottom: number };
+  /** The selection widened to whole words: what is read, and where a word is hit-tested. */
   range: Range;
+  /**
+   * The selection as the reader made it, before the widening — a copy; the page's own selection is
+   * never touched. Within a word written as pieces with spans of their own (`l’homme`, `dit-il`), it
+   * says which piece the reader meant (add-lingua-french-word-card D7).
+   */
+  selected: Range;
 }
 
 /** What a settled selection is: one word — a hyphenated compound included — or a bounded
@@ -157,14 +164,15 @@ function snapRangeToWords(range: Range): void {
  */
 export function captureFrom(sel: Selection | null, maxLength: number = MAX_SELECTION_LENGTH): Capture | null {
   if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
-  const range = sel.getRangeAt(0).cloneRange();
+  const selected = sel.getRangeAt(0).cloneRange();
+  const range = selected.cloneRange();
   snapRangeToWords(range);
   const text = range.toString().trim().replace(/\s+/g, " ");
   if (!text || text.length > maxLength) return null;
   const box = typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
   const rect = { left: box?.left ?? 0, top: box?.top ?? 0, bottom: box?.bottom ?? 0 };
   const { sentence, selection } = sentenceAndSelection(range);
-  return { text, sentence, selection, rect, range };
+  return { text, sentence, selection, rect, range, selected };
 }
 
 /** The selection of a window — the page's by default, or a book section's — captured. */
@@ -177,7 +185,9 @@ export function captureSelection(
 
 /** One word, or an expression: whitespace makes a phrase, which is also what the core means
  *  by an expression. A hyphen does not — "repo-wide" is one token to the analyser, so it
- *  opens the word card, from its page token when there is one. */
+ *  opens the word card, from its page token when there is one. A word the page analysis read
+ *  as pieces with spans of their own (`l’homme`, `dit-il`) is routed by the piece the reader
+ *  selected (`selectWithinWord`, add-lingua-french-word-card D7). */
 export function classifySelection(text: string): CaptureKind {
   return /\s/.test(text) ? "phrase" : "word";
 }
