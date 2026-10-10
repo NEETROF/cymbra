@@ -37,15 +37,41 @@ In `../en/`, English's tables, written by en-fr's reduction:
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0) |
 | `level.tsv` | lemma → CEFR level | CEFR-J Wordlist v1.5 (commercial use with citation) + Octanove Vocabulary Profile C1/C2 v1.0 (CC BY-SA 4.0) |
 | `grammar.tsv` | form → its readings: dictionary form, Universal Dependencies tag, and whether it may be named as another word | ESDB's slots (permissive) and kaikki's form links (CC BY-SA 4.0 + GFDL) |
-| `lexical.tsv` | English's dictionary words: the lemmas en-fr glosses, byte-sorted, one per line | derived from `../en-fr/gloss.tsv` by `build.sh` (`pack_sources.py split`) |
+| `lexical.tsv` | English's dictionary words: the lemmas en-fr glosses less the 3,046 it glosses by a proper noun's senses alone (21,753; *Names are no dictionary words*), byte-sorted, one per line | derived from `gloss.tsv` and `senses.tsv` by `reduce-en-fr.py` (the French Wiktionary's `dictionary_words`, `reduce_edition_fr.py`), filed by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | English's pinned tag pool, which every pack studying English lays its pool out from; written by no reducer, kept when the tables are reduced again (`../../SOURCES.md`, *What a pack studies, whatever it glosses*) | this pack's own pool, committed by hand |
 | `studied.json` | the pair whose reduction writes `../en/`: en-fr | committed by hand |
+
+## Names are no dictionary words
+
+English's dictionary words leave out the lemmas en-fr glosses by a proper noun's senses alone
+(leave-lingua-names-out-of-english-and-spanish-words, the owner's decision of 2026-10-10, as French's
+since refine-lingua-fr-en-glosses): every run of their `senses.tsv` row is `PROPN`, the French
+Wiktionary's « Nom propre ». Of en-fr's 24,799 glossed lemmas, 3,046 are names alone — 388, 993 and
+1,868 of the 5,000, 10,000 and 20,000 commonest: `york` (rank 348), `london` (442), `america`,
+`june`, `david`, `england`, `uk` — so `../en/lexical.tsv` lists 21,753. They keep their gloss: a
+reader who selects `London` reads « Londres ». A word with a common sense beside a name's stays one
+(`bill`, `mark`, `will`, `hope`).
+
+The rule is the French Wiktionary's module's (`reduce_edition_fr.py` `dictionary_words`), which en-fr
+and es-fr alone load, so it is in their rule digests and in no other pair's; fr-en keeps its own copy
+(`reduce-fr-en.py`). The levels are CEFR-J's and Octanove's and do not read it: eleven names alone
+carry one and keep it — the eight months the French Wiktionary files as proper nouns (`january`,
+`february`, `april`, `june`, `july`, `september`, `november`, `december`, A1), `olympics` (A1),
+`badminton` (A2) and `ph` (B2) — and the vocabulary sizes still count them: the estimate's universe
+is 22,337 words (25,372 with the names). English's names rule (`crates/lingua-core` `engine.rs`)
+reads a levelled lemma as a word and sets the others aside in a page that never writes them in
+lowercase. Some common words the French Wiktionary files only as names leave too (`easter`,
+`islam`, `hebrew`, `esperanto`, `renaissance`, the mis-filed `unseen`): the owner accepted them
+(the change's Q3).
+
+The pack therefore carries a lexical table: 1,840,736 B (1,835,638 B before), 35.1 % of the 5 MiB
+budget.
 
 ## Licences
 
 The repository is Apache-2.0; **these files are not**, nor English's in `../en/`. They are derived
 from the sources above and carry their licences: the Wiktionary-derived tables (`gloss.tsv`,
-`mwe.tsv`, `senses.tsv`, the dictionary words derived from `gloss.tsv`, and the Wiktionary signals in
+`mwe.tsv`, `senses.tsv`, the dictionary words derived from `gloss.tsv` and `senses.tsv`, and the Wiktionary signals in
 `../en/forms.tsv` and `../en/grammar.tsv`) under CC BY-SA 4.0 and the GFDL, `../en/freq.tsv` under
 CC BY-SA 4.0, `../en/level.tsv` under CEFR-J's terms (commercial use allowed with citation) and
 CC BY-SA 4.0, ESDB's relations under its permissive licence. `NOTICE` gives the full attribution. See
