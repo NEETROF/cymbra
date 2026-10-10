@@ -153,6 +153,23 @@ class OnePairTest(unittest.TestCase):
             published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
             self.assertNotIn("en-es", published["glossed"])
 
+    def test_spec_scenario_coverage_of_fr_en(self) -> None:
+        # fr-en (add-lingua-pack-fr-en D4): the study's figures less two points, en-es's rule, in
+        # FLOORS alone — the reduce job passes no `--floor` —; the committed tables at least that,
+        # and published nowhere until change 52 ships fr-en.
+        self.assertEqual(coverage.FLOORS["fr-en"], (91.9, 85.1, 74.4))
+        job = (coverage.ROOT / ".github/workflows/lingua-extension-check.yml").read_text(encoding="utf-8")
+        self.assertIn("python scripts/lingua-data/gloss_coverage.py --pair fr-en\n", job)
+        self.assertNotIn("--pair fr-en --floor", job)
+        code, out, err = self.run_main(coverage.TABLES, "--pair", "fr-en")
+        self.assertEqual((code, err), (0, ""))
+        measured = json.loads(out)["glossed"]["fr-en"]
+        for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["fr-en"]):
+            self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
+        published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
+        self.assertNotIn("fr-en", published["glossed"])
+        self.assertNotIn("fr-en", coverage.shipped_pairs())
+
 
 class PublishedFiguresTest(unittest.TestCase):
     def test_the_site_reads_what_the_committed_tables_give(self) -> None:

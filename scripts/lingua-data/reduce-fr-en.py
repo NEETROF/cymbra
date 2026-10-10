@@ -15,7 +15,9 @@ with a hyphen cannot be imported, so no other pair loads them, and no shared mod
 Inputs, in `--work`:
 - `kaikki-French.jsonl`: the English Wiktionary's French section, derived from the English
   edition's dump (pack_sources.py EDITIONS). A lemma's entry lists its inflections, each with tags;
-  a form's own entry points at what it is a form of (`form_of`).
+  a form's own entry points at what it is a form of (`form_of`). Its senses are fr-en's glosses
+  too (add-lingua-pack-fr-en): the English glosses of French words and expressions, written by
+  people for French words.
 - `fr_gsd-ud-train.conllu`, `fr_gsd-ud-dev.conllu`: UD French-GSD, read for how often each form
   stands for each lemma (design D5) and how often each hyphenated lemma occurs (D6). Its test
   section is never read: the measurement holds it out (D9).
@@ -24,12 +26,32 @@ Inputs, in `--work`:
 
 Outputs, in `--work`: `forms.tsv`, `freq.tsv`, the readings `grammar.tsv`
 (add-lingua-french-grammar-tables), `level.tsv` (French's estimated levels, add-lingua-french-levels),
-an empty `gloss.tsv` (fr-en's glosses come with add-lingua-pack-fr-en), `NOTICE` and `manifest.json`.
+fr-en's native side — `gloss.tsv`, `senses.tsv` and `mwe.tsv` (add-lingua-pack-fr-en) —, `NOTICE`
+and `manifest.json`.
 
 The tables serve French's tokenisation as add-lingua-french-tokenisation writes it (M21, design
 D4): the pre-pass hands the lookup the word an elided piece stands for (`l'` is read `le`), splits
 `au` and `aux` into `à` + `le`/`les` and an inversion into its words (`dit-il` → `dit` + `il`),
 keeps `du` and `des` whole, and keeps whole a hyphenated run the pack lists.
+
+The native side (add-lingua-pack-fr-en D1–D3, D11) is read from the same section as the forms, after
+the studied side, as es-en's is from the Spanish section: the section cut to what the native side
+reads, a headword's typographic apostrophe read as `'` (`native_fields`); the English edition's
+pre-passes in es-en's order — its letters left out (`reduce_common.without_letter_senses`,
+`english.without_letter_headwords`), its senses read as meanings and in one English typography
+(`english.read_as_meanings`), a word's etymologies merged as the edition's setting says
+(`english.merge_same_pos_etymologies`) —; French's expressions (`expression_senses`, `split_words`);
+then the rules every pair shares (`reduce_common.native_tables`) over the lemmas just ranked. The
+English edition's rules are es-en's and fr-en's alike: editing `reduce_edition_en.py` re-pins both.
+
+No translation table glosses a French word or expression (D3). The section already holds French's
+words: measured, what the French Wiktionary's English translations and the English Wiktionary's
+French translations read backwards would add is 1,988 lemmas, 1,895 of them words the section has no
+entry for — English words (« in », « end »), names, initialisms, unaccented misspellings, 1,193
+listing the word itself as its translation —, and fr-en is French's reference pair, so every lemma it
+glosses becomes a dictionary word of French. Read backwards, an English entry makes French's
+commonest bigrams expressions (« il est » "he's"). A word or an expression the section does not gloss
+has no gloss.
 """
 
 import argparse
@@ -44,6 +66,7 @@ import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
+import reduce_edition_en as english  # noqa: E402 — the English Wiktionary's rules: fr-en's glosses are English
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ANALYSIS_RS = os.path.join(_HERE, "..", "..", "crates", "lingua-core", "src", "analysis", "mod.rs")
@@ -1125,10 +1148,224 @@ def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
     return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
 
 
+# — fr-en's native side (add-lingua-pack-fr-en) —
+#
+# French glossed in English, from the section the forms come from (D1): its senses, read through
+# the English edition's rules as es-en's are (D2), then the rules every pair shares. No translation
+# table (D3, the module's doc). Nothing of the studied side moves: the glosses are keyed by the
+# lemmas the reduction has just ranked, each its own form's lemma (`reduce_forms`), so that the
+# builder, which keys a gloss by looking its lemma up as a form, files no gloss under another word.
+
+# French as the shared native rules read it (D1): a French word, whole — change 43's token pattern
+# — and French's seven coordinating conjunctions, which make kaikki's `conj` a CCONJ in a sense run.
+FR = common.Studied(
+    code="fr",
+    token=_TOKEN,
+    # Not read by the native side; kept for the shared rules' interface.
+    form_of_target=re.compile(rf"([{_LETTERS}]+)\s*\.?$"),
+    coordinators=frozenset({"et", "ou", "mais", "ni", "or", "car", "donc"}),
+)
+
+EDITION = english.EN
+
+# What the native side reads of an entry (`reduce_common._read_entries`, `reduce_expressions`,
+# `without_letter_senses`, `english.read_as_meanings`): the rest — the inflection tables, most of
+# the section's bytes — is the studied side's, read in its own pass.
+_ENTRY_FIELDS = ("word", "pos", "senses")
+_SENSE_FIELDS = ("glosses", "tags", *EDITION.pointer_fields)
+
+
+def native_fields(src, dst):
+    """The section cut down to what the native side reads (`_ENTRY_FIELDS`, `_SENSE_FIELDS`),
+    written to `dst`: the shared rules read the file several times, and the inflection tables are
+    most of its 510 MB. An entry's `pos` is kept as written, and its `word` too but for a
+    typographic apostrophe, read as `'` as French's forms are and as the core reads a page
+    (« nombre d’oxydation »); its case is kept, which the shared rules read an acronym by and the
+    English edition a place's name. A line that is no JSON object is left out, and counted:
+    `(dst, dropped)`."""
+    dropped = 0
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                entry = None
+            if not isinstance(entry, dict):
+                dropped += 1
+                continue
+            cut = {field: entry[field] for field in _ENTRY_FIELDS if field in entry}
+            if isinstance(cut.get("word"), str):
+                cut["word"] = cut["word"].replace("’", "'")
+            cut["senses"] = [
+                {field: sense[field] for field in _SENSE_FIELDS if field in sense}
+                for sense in entry.get("senses") or ()
+                if isinstance(sense, dict)
+            ]
+            out.write(json.dumps(cut, ensure_ascii=False) + "\n")
+    return dst, dropped
+
+
+# French's expressions (D11): what add-lingua-french-expression-keys hands this reducer.
+#
+# An expression's sense that only points (D11, 2): it names another spelling (« post-1990 spelling of
+# crème fraîche »), an inverted form (« subject-inverted form of il y a ») or the pieces the
+# expression is written with (« que + elle », « contraction of que + il »). Pointers the dump tags
+# are the shared rules' already (`reduce_common._is_form_of`).
+_POINTS = re.compile(
+    r"^(?:(?:post-1990 spelling|subject-inverted form) of\b|(?:contraction of )?[^\s+;]+(?: \([^)]*\))? \+ )",
+    re.IGNORECASE,
+)
+# The meaning a spelling or an inversion writes after its target, past a semicolon or a colon
+# (« subject-inverted form of il y a; is there? are there? »): kept.
+_POINTS_THEN = re.compile(
+    r"^(?:post-1990 spelling|subject-inverted form) of [^;:]+[;:]\s*(.+)$", re.IGNORECASE | re.DOTALL
+)
+# Expressions left out by name, each with its reason: a person's decision, as an override row is.
+# Editing this table changes the rules' sha256.
+LEFT_OUT = {
+    "à la": (
+        "its one sense, « in the style or manner of », is met only before a word that completes it, "
+        "and the section writes those uses as entries of their own (« à la carte », « à la maison »); "
+        "as a key it is French's commonest preposition and article, and every « au » before "
+        "add-lingua-french-expression-keys keyed it as `à le`"
+    ),
+}
+
+
+def expression_word(headword):
+    """A headword as the shared rules key an expression: lowercased, single spaces."""
+    return re.sub(r"\s+", " ", (headword or "").strip().lower())
+
+
+def split_word(word, forms):
+    """Whether `word` is a single word French's tokenisation splits (D11, 1): no space, an apostrophe
+    or a hyphen (`d'abord`, `c'est`, `allez-y`), a French token, and no form of the tables — a form
+    is looked up whole (`aujourd'hui`). The builder keys those that read as two tokens or more."""
+    return " " not in word and ("'" in word or "-" in word) and bool(_TOKEN.fullmatch(word)) and word not in forms
+
+
+def is_expression(word, forms):
+    """Whether a headword is one of fr-en's expressions: words of French with a space between them,
+    as the shared rules read them (`reduce_common.reduce_expressions`), or a word the tokenisation
+    splits (`split_word`)."""
+    if " " in word:
+        return all(_TOKEN.fullmatch(part) for part in word.split(" "))
+    return split_word(word, forms)
+
+
+def _meaning_of_pointer(sense):
+    """`sense` with its pointer read out (D11, 2): None when it only points, the sense read as the
+    meaning written after its target when it has one, the sense itself when it does not point."""
+    glosses = sense.get("glosses")
+    if not isinstance(glosses, list) or not glosses or not isinstance(glosses[0], str):
+        return sense
+    gloss = glosses[0].strip()
+    if not gloss or common._is_form_of(sense, gloss, edition=EDITION) or not _POINTS.match(gloss):
+        return sense
+    after = _POINTS_THEN.match(gloss)
+    return {**sense, "glosses": [after.group(1), *glosses[1:]]} if after else None
+
+
+def expression_senses(src, dst, forms):
+    """The section's expressions as fr-en reads them, written to `dst` — a pass before the shared
+    rules read the file (D11, 2 and 3), over the expressions alone (`is_expression`): no lemma's
+    entry is a headword with a space or a word that is no form, so `gloss.tsv` and `senses.tsv` do
+    not move with it.
+
+    - A sense that only points at another spelling, an inverted form or the pieces it is written
+      with goes; a meaning written after its target stays, in its place (« y a-t-il » « is there?
+      are there? »). An expression no sense is left to is none: the traditional spelling, keyed
+      alike, stands alone (« crème fraîche »), and « jusqu'au soir » meets `jusqu'à` « until », not
+      « jusque + au ».
+    - The expressions of `LEFT_OUT` go, each with its reason (`à la`).
+
+    A line this pass cannot read is written as it is, and so is an entry it does not change."""
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                entry = None
+            headword = entry.get("word") if isinstance(entry, dict) else None
+            word = expression_word(headword) if isinstance(headword, str) else None
+            if word is None or not is_expression(word, forms):
+                out.write(line if line.endswith("\n") else line + "\n")
+                continue
+            if word in LEFT_OUT:
+                continue
+            senses = entry.get("senses")
+            if isinstance(senses, list):
+                read = [_meaning_of_pointer(s) if isinstance(s, dict) else s for s in senses]
+                read = [s for s in read if s is not None]
+                if read != senses:
+                    line = json.dumps({**entry, "senses": read}, ensure_ascii=False) + "\n"
+            out.write(line if line.endswith("\n") else line + "\n")
+    return dst
+
+
+def split_words(path, forms, maxlen=common.EXPRESSION_GLOSS_LEN, per_sense=42, max_senses=3):
+    """The words French's tokenisation splits, glossed as expressions (D11, 1): `word → gloss`, read
+    with `reduce_common.reduce_expressions`' sense rules — a name's entry, a pointer and a sense
+    nothing survives of left out, each sense cleaned to `per_sense` characters, `max_senses` joined
+    across the word's entries. The reducer offers every such word; the builder keys those that read
+    as two to seven tokens (add-lingua-french-expression-keys)."""
+    entries = {}
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(entry, dict) or (entry.get("pos") or "") == "name":
+                continue
+            word = expression_word(entry.get("word") if isinstance(entry.get("word"), str) else "")
+            if not split_word(word, forms):
+                continue
+            senses = []
+            for sense in entry.get("senses") or ():
+                glosses = sense.get("glosses") if isinstance(sense, dict) else None
+                texts = isinstance(glosses, list) and glosses and isinstance(glosses[0], str)
+                gloss = glosses[0].strip() if texts else ""
+                if not gloss or common._is_form_of(sense, gloss, edition=EDITION):
+                    continue
+                cleaned = common.clean_gloss(gloss, per_sense, edition=EDITION)
+                if cleaned:
+                    senses.append(cleaned)
+            if senses:
+                entries.setdefault(word, []).append(senses)
+    out = {}
+    for word, per_entry in entries.items():
+        joined = common._join_senses(per_entry, maxlen, max_senses)
+        if joined:
+            out[word] = joined
+    return out
+
+
+def native_side(work, kaikki, ranks, forms):
+    """fr-en's native side over the section in `kaikki` (D1, D2, D11): `(glosses, runs, expressions,
+    stats)`, the glosses and runs keyed by the ranked lemmas (`ranks`), the expressions the section's
+    headwords with a space and the words the tokenisation splits. The intermediate files are written
+    in `work`."""
+    entries, dropped = native_fields(kaikki, os.path.join(work, "kaikki-French-senses.jsonl"))
+    entries = common.without_letter_senses(entries, os.path.join(work, "kaikki-French-words.jsonl"), edition=EDITION)
+    entries = english.without_letter_headwords(entries, os.path.join(work, "kaikki-French-headwords.jsonl"))
+    entries = english.read_as_meanings(entries, os.path.join(work, "kaikki-French-meanings.jsonl"))
+    entries = english.merge_same_pos_etymologies(entries, os.path.join(work, "kaikki-French-merged.jsonl"))
+    entries = expression_senses(entries, os.path.join(work, "kaikki-French-expressions.jsonl"), forms)
+    # No fallback: no translation table glosses a French word or expression (D3).
+    glosses, runs, expressions, primary = common.native_tables(
+        entries, ranks, studied=FR, edition=EDITION, fallbacks=[]
+    )
+    split = split_words(entries, forms)
+    expressions.update(split)
+    return glosses, runs, expressions, {"primary": primary, "split": len(split), "dropped": dropped}
+
+
 NOTICE = """Cymbra Lingua data pack — FR->EN attributions.
 
 kaikki.org extract of the English Wiktionary (enwiktionary), French section: CC BY-SA 4.0 + GFDL —
-the forms and their lemmas.
+the forms and their lemmas, and the English glosses of French words and expressions, from its
+senses.
 
 wordfreq (French frequency list), by Robyn Speer (https://github.com/rspeer/wordfreq): data under
 CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
@@ -1190,9 +1427,19 @@ def main():
     # never from the glosses.
     levels, left_out = estimated_levels(ranks, forms, read_level_senses(os.path.join(a.work, "kaikki-French.jsonl")))
     common.write(a.work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
-    # fr-en glosses nothing yet: the file every pair's folder holds, empty, so French's dictionary
-    # words (tables/fr/lexical.tsv, its glossed lemmas) are none.
-    common.write(a.work, "gloss.tsv", "")
+    # fr-en's native side (add-lingua-pack-fr-en), after the studied side, keyed by the lemmas just
+    # ranked. Its glossed lemmas are French's dictionary words (`pack_sources.py split` writes
+    # tables/fr/lexical.tsv from gloss.tsv).
+    glosses, runs, expressions, native = native_side(a.work, os.path.join(a.work, "kaikki-French.jsonl"), ranks, forms)
+    common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
+    common.write(
+        a.work,
+        "senses.tsv",
+        "".join(
+            f"{w}\t" + "\t".join(f"{pos}:{n}" for pos, n in r) + "\n" for w, r in sorted(runs.items()) if w in glosses
+        ),
+    )
+    common.write(a.work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
     common.write(a.work, "NOTICE", NOTICE)
     manifest = {
         "meta": {
@@ -1217,6 +1464,12 @@ def main():
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     print(f"reduced fr-en: forms={len(forms)} lemmas={len(ranks)} readings={len(grammar)}", file=sys.stderr)
     print(f"reduced fr-en: {levels_report(levels, left_out, ranks)}", file=sys.stderr)
+    print(
+        f"reduced fr-en: glosses={len(glosses)} (English Wiktionary {native['primary']}) "
+        f"expressions={len(expressions)} ({native['split']} words the tokenisation splits) "
+        f"dropped={native['dropped']} (section lines that are no JSON object)",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

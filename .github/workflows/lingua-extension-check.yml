@@ -119,8 +119,9 @@ jobs:
       # re-blesses it (LINGUA_BLESS=1) and says why: a dictionary update, or an analyser change
       # that bumps that language's analyser version. Here too, not only in `rust`, because a
       # tables-only pull request (lingua-pack-update) does not start `rust`. fr-en (change 39,
-      # add-lingua-french-baseline) freezes French's baseline analysis over a fixture pack, beside
-      # the real es-en pack, whose update moves its `beside es-en` line alone.
+      # add-lingua-french-baseline) freezes French's analysis over the pack built from its committed
+      # tables (add-lingua-pack-fr-en: tables/fr/ and tables/fr-en/, whose change re-blesses it),
+      # beside the real es-en pack, whose update moves its `beside es-en` line alone.
       - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en)
         run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):
@@ -265,10 +266,13 @@ jobs:
       # FLOORS). en-es, the thin pair the programme's risk 5 names, is held to a floor the owner
       # sets on its pull request (add-lingua-pack-en-es D3): the study's figures less two points
       # are proposed in FLOORS, the one place the owner settles (task 5.1) before merge — no
-      # `--floor` here, so the job and the `check` job's tests cannot drift apart. The site's
-      # figures (`gloss_coverage.py --write`, the `check` job) list the shipped pairs alone.
-      - name: Gloss coverage of es-en and en-es, against their floors
+      # `--floor` here, so the job and the `check` job's tests cannot drift apart. fr-en
+      # (add-lingua-pack-fr-en D4) is held to en-es's rule, the study's figures less two points,
+      # until change 52 ships it. The site's figures (`gloss_coverage.py --write`, the `check` job)
+      # list the shipped pairs alone.
+      - name: Gloss coverage of es-en, en-es and fr-en, against their floors
         run: |
           set -euo pipefail
           python scripts/lingua-data/gloss_coverage.py --pair es-en
           python scripts/lingua-data/gloss_coverage.py --pair en-es
+          python scripts/lingua-data/gloss_coverage.py --pair fr-en

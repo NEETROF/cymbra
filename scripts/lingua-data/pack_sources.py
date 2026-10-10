@@ -175,12 +175,10 @@ EDITIONS = {
         "files": {
             # Spanish's studied side (forms, readings, the gender of nouns) and es-en's glosses.
             "kaikki-Spanish.jsonl": ("entries", "es"),
-            # French's studied side and fr-en's glosses (changes 43, 45, 48).
+            # French's studied side and fr-en's glosses (changes 43, 45, 46, 48).
             "kaikki-French.jsonl": ("entries", "fr"),
             # en-es's direct fallback (add-lingua-pack-en-es D2).
             "kaikki-en-traductions-es.jsonl": ("translations", "en", "es"),
-            # fr-en's inverted fallback (change 48).
-            "kaikki-en-traductions-fr.jsonl": ("translations", "en", "fr"),
         },
     },
     # The French Wiktionary: 736,590,407 B gzipped (regenerated 2026-10-02 00:10).
@@ -193,8 +191,6 @@ EDITIONS = {
             "kaikki-fr-Espagnol.jsonl": ("entries", "es"),
             # es-fr's inverted fallback, fr-es's direct one (change 49).
             "kaikki-fr-traductions.jsonl": ("translations", "fr", "es"),
-            # fr-en's direct fallback (change 48).
-            "kaikki-fr-traductions-en.jsonl": ("translations", "fr", "en"),
         },
     },
     # The Spanish Wiktionary: 103,226,106 B gzipped (regenerated 2026-10-02 12:12).
@@ -239,8 +235,9 @@ DUMPS = {
         "en": ("kaikki-en-traductions-es.jsonl",),
     },
     # The English Wiktionary's French section, French's studied side: its forms and their lemmas
-    # (add-lingua-french-forms-tables D2) — the catalogue's file, no new derivation. fr-en's glosses
-    # add the translation tables (add-lingua-pack-fr-en).
+    # (add-lingua-french-forms-tables D2) — the catalogue's file, no new derivation — and fr-en's
+    # glosses, from the same file alone: no translation table glosses a French word or expression
+    # (add-lingua-pack-fr-en D3).
     "fr-en": {"en": ("kaikki-French.jsonl",)},
 }
 # The source record of a pin written before the dumps: kaikki's per-language extract, kept whole as

@@ -9,14 +9,17 @@ pack before `enable-lingua-french` (change 52).
 They are in two folders (split-lingua-pack-tables-by-language). fr-en is French's reference pair
 (`../fr/studied.json`): its reduction writes French's own tables in `../fr/`, which every pair
 studying French reads as committed (fr-es, change 49), and this folder's `pin.json` records the
-sources of both. Today fr-en reduces French's forms, ranks, readings and estimated levels: it
-glosses nothing yet.
+sources of both. fr-en reduces French's forms, ranks, readings and estimated levels, and its own
+native side — the English glosses of French words and expressions (add-lingua-pack-fr-en, change 48,
+*The glosses* below) — from the same section; its glossed lemmas are French's dictionary words.
 
 In this folder:
 
 | File | What it maps | From |
 |---|---|---|
-| `gloss.tsv` | lemma → English gloss: **empty** until add-lingua-pack-fr-en (change 48) | — |
+| `gloss.tsv` | lemma → English gloss: up to eight whole senses, grouped by part of speech (*The glosses*) | kaikki.org, the English Wiktionary's French section (CC BY-SA 4.0 + GFDL), read by the English edition's rules |
+| `senses.tsv` | lemma → its gloss's runs: each part of speech and how many senses it holds | the same entries |
+| `mwe.tsv` | expression → English gloss: the section's headwords with a space, and the single words French's tokenisation splits (`d'abord`) | the same section |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata: French glossed in English, French's analyser version (`FRENCH_ANALYZER_VERSION`, read from lingua-core), `levels_estimated` (the levels are estimated, not a CEFR list's), and `pack_version` (the snapshot, and the rules that reduced it) | — |
 | `pin.json` | the raw sources these tables and `../fr/` came from, and the pack they build | — |
@@ -29,7 +32,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by GSD's own frequency too |
 | `grammar.tsv` | form → its readings, as Universal Dependencies tags (`form<TAB>lemma<TAB>tag<TAB>other\|-`) | kaikki.org, the same section (add-lingua-french-grammar-tables, change 45) |
 | `level.tsv` | lemma → estimated CEFR level (*The levels* below) | derived from `freq.tsv` and the English Wiktionary's French section (no source of its own) |
-| `lexical.tsv` | French's dictionary words, the lemmas fr-en glosses: **empty** until change 48 | derived from `gloss.tsv` by `build.sh` (`pack_sources.py split`) |
+| `lexical.tsv` | French's dictionary words, the lemmas fr-en glosses (30,055) | derived from `gloss.tsv` by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | French's pinned tag pool: the 79 tags its readings carry, in byte order; written by no reducer | committed by hand, once, from the first reduction's readings |
 | `studied.json` | the pair whose reduction writes `../fr/`: fr-en | committed by hand |
 
@@ -40,7 +43,8 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   the dump regenerated on 2026-10-03 08:24, read on 2026-10-09, decompressed sha256 `93b79aac…`.
   Its inflections are tagged, a lemma's table lists them and a form's own entry points at what it is
   a form of. A verb's table lists the masculine singular past participle (`dirigé`) and none of its
-  agreed forms: those hang under the participle's own entry.
+  agreed forms: those hang under the participle's own entry. Its senses, written in English for
+  French words, are fr-en's glosses too: the one source of the native side, no translation table.
 - **UD French-GSD**, its training and development sections at `94d5b68e185fc22a9ef292040e84f476d36d9b0e`
   (`pack_sources.py PINNED["fr-en"]`), read for one thing: how often a form stands for each lemma, and
   how often a hyphenated lemma occurs (390,368 words). Its test section is never read: the
@@ -135,8 +139,8 @@ lemma).
 
 The pack these two tables built — no gloss, reading or level — was 1,241,733 B; Spanish's same two
 tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*), and with the readings
-too 1,460,253 B (*The readings*). The builder holds it under 5 MiB; the glosses are measured against
-that budget by the change that adds them.
+too 1,460,253 B (*The readings*). With the glosses, their runs and the expressions it is
+**2,527,222 B** (*The glosses*), under the builder's 5 MiB.
 
 ## Measured
 
@@ -625,6 +629,142 @@ sip »), one of the 40 five-reading forms among the 1,000 commonest lemmas; `mei
 noun *meilleur* only, the adjective being a form entry of *bon*; `quelques-unes`, « feminine of
 quelques-uns » with no number, reads as a feminine singular of *quelqu'un*.
 
+## The glosses (`gloss.tsv`, `senses.tsv`, `mwe.tsv`)
+
+French glossed in English (add-lingua-pack-fr-en, change 48), from the **English Wiktionary's French
+section alone** — the file the forms come from, at the same pinned snapshot: fr-en was reduced again
+from change 43's pin, nothing fetched that it does not record, `../fr/` byte for byte but its
+dictionary words.
+
+**The rules** (`reduce-fr-en.py`, after the forms, ranks, readings and levels; no shared module
+edited):
+1. **The section, cut** (`native_fields`): each entry's word, part of speech and senses (glosses,
+   tags, pointers); a typographic apostrophe in a headword read as `'`, as the forms are
+   (`nombre d’oxydation`), its case kept.
+2. **The English edition's pre-passes**, in es-en's order: a letter's entry and a sense naming a
+   letter left out (`elle`, the letter L), and the words written under a single capital letter
+   (`X` « X-frame stool », `C` « abbreviation of cavalier »); the senses read as meanings and in one
+   English typography (`english.read_as_meanings`, refine-lingua-es-en-glosses); a word's
+   etymologies merged as the edition's setting says (off).
+3. **French's expressions** (`expression_senses`, `split_words`): in an expression, a sense that only
+   names another spelling (« post-1990 spelling of »), an inverted form (« subject-inverted form
+   of ») or the pieces it is written with (« que + elle ») is no gloss, a meaning written after it
+   stays (« y a-t-il » « is there? are there? »); `à la` is left out by name (`LEFT_OUT`): its one
+   sense, « in the style of », needs the word after it, and the section writes those uses as entries
+   of their own (`à la carte`, `à la maison`). The single words French's tokenisation splits — an
+   apostrophe or a hyphen, a French token, no form of `../fr/forms.tsv` and no name (`d'abord`,
+   `c'est`, `allez-y`) — are offered as expressions, read with the shared rules' sense rules; the
+   builder keys those that read as two tokens or more (add-lingua-french-expression-keys).
+4. **The shared rules** (`reduce_common.native_tables`) over the 60,000 ranked lemmas: eight whole
+   senses grouped by part of speech, a form-only lemma lending its base's senses, an acronym's entry
+   sparing the common word; the expressions' three senses. Every glossed lemma is a ranked lemma its
+   own form reads as (`crates/lingua-pack/tests/committed_tables.rs`): the builder files a gloss at
+   the lemma's own place, and no gloss is lent to another word — the design's prototype, on change
+   43's tables before its fix, glossed *venir* « coming, arrival », `venue`'s.
+
+**No translation table** (D3). The French Wiktionary's English translations and the English
+Wiktionary's French translations read backwards were measured on the design's prototype and
+declined: they would add 1,988 lemmas, 1,895 of them words the section has no entry for — English
+words in French text (« in », « end » « NDE, NDI, NDT »), names, initialisms, unaccented misspellings,
+1,193 listing the word itself as its translation — and fr-en, French's reference pair, would make
+them French's dictionary words, counted by every French reader's vocabulary estimate and kept as
+words by the names rule. Read backwards, an English entry makes French's commonest bigrams
+expressions (« il est » "he's", 782 times in UD French's 425,111 words). A word or an expression the
+section does not gloss has no gloss; the two catalogue files change 38 registered for this pair are
+no longer derived. Whether the French Wiktionary's English translations should gloss expressions in
+a later update is the owner's question (design, Open Question 1).
+
+**What they hold**, on the 2026-10-09 tables:
+
+| | |
+|---|---|
+| Glossed lemmas — French's dictionary words (`../fr/lexical.tsv`) | **30,055**, every one from the section's own entries |
+| Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,678 / 8,684 / 15,252 — 93.6 / 86.8 / 76.3 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; the owner settles it) |
+| Expressions | **17,479**: 15,508 headwords with a space and 1,971 words the tokenisation splits |
+| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,617,567, 512,074 and 828,470 B (625,710, 125,586 and 324,639 B gzipped); `../fr/lexical.tsv` 283,562 B |
+| The pack | **2,527,222 B**: the studied side's 1,460,253 B, the glosses and their runs +625,398 B, the expressions +441,571 B (2,384 B of them the split words) |
+
+No figure is published: the site's figures list the shipped pairs alone, and fr-en ships with change
+52.
+
+**French's expressions** (D11), against the shared rules alone: of their 15,526 headwords with a
+space, 18 are left out — `à la` and 17 post-1990 spellings whose one sense points at the
+traditional one, which stands alone (`crème fraiche`, `s'il vous plait`, `boite à gants`, `cout
+d'opportunité`, `plateforme de forage`, `être sur son trente-et-un`…) — and one gloss changes,
+`y a-t-il`'s. Of 2,005 words the tokenisation splits that the section glosses, 34 are left out, every
+sense of theirs a pointer: `qu'elle`, `qu'on`, `qu'un`… (« que + elle »), `s'est`, `s'en`, `jusqu'au`,
+`jusqu'aux`, `qu'au`, `m'en`, `n'en`, `d'avoir`, and post-1990 spellings (`maitre-nageur`,
+`casse-croute`, `bloc-note`); « jusqu'au soir » meets `jusqu'à` « until », not « jusque + au ».
+`m'a` keeps « “I'm going” » and loses « me + a ». `gloss.tsv` and `senses.tsv` are byte for byte
+the same without these rules: they read no lemma's entry.
+
+**23b's rules on fr-en** (`read_as_meanings`), each alone and together, against the section without
+them:
+
+| Rule | Rows / top 10,000 | First sense | Expressions | Examples |
+|---|---|---|---|---|
+| D2, nested senses | 21 / 13 | 12 / 7 | 1 changed, 1 gained | « chambre » « a chamber in its various senses, including » → « a room; a hotel room; a bedroom; a house of a parliament »; « nous » « the plural personal pronoun in the first person » → « we; us, to us; … »; « scène », « champ », « ours », « concevoir », « parrain » |
+| D3, shortened and case forms | 8 / 4; 2 lemmas gained (`eine`, `mam'zelle`) | 3 / 0 | 1 gained | « elle » gains « her, it, à elle = hers, its », « elles », « pus », « fac » |
+| D4, a function word spelled like a place | 0 | 0 | 0 | — |
+| D5, one typography | 243 / 110 | 93 / 30 | 141 | « du » « Forms the partitive article » → « forms the partitive article », « de », « en », « que », « pas » |
+| **Together** | **269 / 125** | **107 / 37** | **142 changed, 2 gained** | no gloss lost |
+
+Before them, 8 rows (6 of the top 10,000) held an ellipsis written `...` and 46 (28) straight
+quotes; after them, none.
+
+**M20 on fr-en** (the English edition's two settings, the owner's, committed at 0 and off): the
+long-parenthesis bound at 40 would change 2,342 rows (902 of the top 10,000), the etymology merging
+304 (168); neither loses a gloss. Either setting re-pins es-en and fr-en together.
+
+**Against the design's figures** (the prototype, on change 43's tables before its fixes): 30,059
+glossed lemmas → 30,055 (`revenue` and `subordonnée`, whose own form reads as a verb, are no ranks
+of these tables; `curial` is) and 86.9 → 86.8 % at 10,000, the design's re-run on 43's first fix
+included; 17,480 expressions → 17,479 (`maitre-nageuse`: what its post-1990 pointer writes after
+the target, « female equivalent of maitre-nageur », is itself a pointer by the English edition's
+rules, so no sense is left); the 23b and M20 figures to the row. The pack, 2,421,321 B in the design
+(on changes 45's and 46's prototype tables), is 2,527,222 B: measured on the committed tables and
+with change 44's builder, which keys French's expressions through the core's reading and names each
+by its headword where its key differs.
+
+**Names glossed by the section are dictionary words.** 3,586 glossed lemmas (914 of the top 10,000)
+are glossed by a name's entries alone — `france`, `paris`, `québec`, `françois`, `lyon`, `durand`
+« a surname » — as the shared rules gloss es-en's. fr-en being French's reference, they are French's
+dictionary words: the vocabulary estimate counts them, and change 41's names rule keeps them as words
+to learn — on the baseline's `noms` page only `Myriel` is set aside. Change 46 levels none of them
+(its rule 1, 1,022 within its span). Listed for the owner, with the defects below.
+
+**Levelled lemmas fr-en does not gloss** (D10, the design's Open Question 5): 40 of the 8,302 —
+`parce` (A1, 103), `x` (A1, 434), `quant` (A1), `to` (A1), `mm` (A1), `for`, `pp`, `tom`, `com`
+(A2), `inter`, `rio`, `av`, `encontre`, `french`, `fur`, `pme`, `po`, `am`, `ong`, `instar`, `ken`
+(B1), `ep`, `bo`, `app`, `cie`, `pass`, `stp`, `burger`, `caf`, `expliquez`, `sp`, `rc`, `ht`,
+`rsa`, `tnt` (B2), `rip`, `tpe`, `dev` (C1), `nc`, `ès` (C2): words met only in an expression
+(`parce que`, `quant à`, `à l'instar de`, `au fur et à mesure`), initialisms the section writes in
+capitals, pointers. A card seeded from their level carries no gloss; whether they keep it is change
+46's rule, and the owner's question. No test asserts it.
+
+**What still reads wrong** (D7), counted on these rows, for `refine-lingua-fr-en-glosses` before
+change 52 ships fr-en, with the owner's reading of the sample:
+
+| Class | Rows / top 10,000 | Examples | Where |
+|---|---|---|---|
+| A borrowed gloss wrong for the word | of the rows glossed from a pointer's target | « des » « of the; some, the feminine partitive article »; « ca » « board of directors » | a rule of fr-en (a pointer's carried meaning); `ca` as a lemma is change 43's |
+| A pointer's own meaning left out | « il y a » and about 50 words | « il y a » « ago »: « there is, there are » is written on a pointer to *y avoir* | with the row above |
+| An expression whose sense needs a context its key does not hold | `et des`, `que de`, `sur ce`, `et si`, `un coup` | « du pain et des œufs » meets `et des` « or thereabouts, and change »; « un coup d’œil » meets `un coup` « used to soften an order » before `coup d'œil` | fr-en, `LEFT_OUT`'s rule, with the owner's sample |
+| A post-1990 spelling keyed apart from its traditional one | 4 expressions | `à priori`, `à postériori`, `et cétéra`, `crème brulée` meet no expression | fr-en: lend the traditional spelling's gloss |
+| A name glossed and a dictionary word | 3,586 / 914 | « paris », « durand » « a surname », « lyon » (above) | the owner; the names rule reads dictionary words |
+| A proper noun's run in a common word's row | first 218 / 108; after another run 484 / 260 | « marche » « Marche (a department of France); march… », « midi », « somme », « réunion »; « le » ending on « a surname from Vietnamese » | 23b's Q3, a case-aware card |
+| The page's own notes | « see usage notes » 5 / 3; « (all senses) » 98 / 30; « in its various senses » 1 / 1; « (Folk etymology: …) » 2 / 2 | « en », « dans », « ne »; « contrôle » « control (all senses) » | the English edition, or fr-en alone |
+| A description in a capital outside 23b's list | — | « que » « Substitutes for… », « il » « Impersonal subject, it », « mon » « Followed by rank… » | the English edition |
+| A citation inside a sense | 2 / 2 | « liberté » « liberty, freedom. 1688, Guy Miège, … » | fr-en, or upstream |
+| A source's numbered sense in another shape | 1 / 1 | « téléphonie » « telephony (2) » | the English edition |
+| « etc » without its period | 116 / 42 | « le », « pas », « possible » | shared, every pair (23b D6) |
+| Labels left out | — | « or », « monde »: an obsolete or archaic sense | 23b's Q1 |
+| The part of speech a row opens on | 2,897 / 1,264 rows hold two or more | — | 23b's Q4 |
+
+**The French baseline** (`crates/lingua-wasm/tests/french_baseline.rs`) runs over the pack these
+tables build from this change on: a pull request that moves `../fr/` or this folder and the French
+golden with them re-blesses `fr-en.golden` and says so.
+
 ## What the later changes add
 
 | Change | Adds |
@@ -632,7 +772,7 @@ quelques-uns » with no number, reads as a feminine singular of *quelqu'un*.
 | 40 tokenisation | French's pre-pass, which these tables serve; its version bump re-reduces fr-en (`manifest.json` alone moves, and the pack and pin with it). The check over these tables (`crates/lingua-pack/tests/committed_tables.rs`) then reads its lists from lingua-core |
 | 41 analysis | the cascade, designed and measured on these tables; its version bump re-reduces fr-en |
 | 44 expression keys | the plain words left out here because they begin with a piece (`d'abord`, `c'est`, `l'on`) |
-| 48 fr-en | the English glosses, expressions and senses; `../fr/lexical.tsv` then holds the glossed lemmas, and the French invariance baseline moves from its fixture to these tables |
+| 48 fr-en | done: the English glosses, expressions and senses (*The glosses*); `../fr/lexical.tsv` holds the glossed lemmas, and the French invariance baseline runs over these tables |
 | 49 fr-es | a reader of `../fr/` as committed, capped at the same 60,000 |
 
 ## Licences
@@ -643,7 +783,9 @@ from the sources above and carry their licences:
 - `../fr/freq.tsv`: CC BY-SA 4.0 (wordfreq, and GSD's counts for the compounds);
 - `../fr/grammar.tsv`: CC BY-SA 4.0 and the GFDL (kaikki);
 - `../fr/level.tsv`: CC BY-SA 4.0 (derived from `freq.tsv`) and CC BY-SA 4.0 and the GFDL (kaikki,
-  which says which lemmas take a level).
+  which says which lemmas take a level);
+- `gloss.tsv`, `senses.tsv`, `mwe.tsv` and `../fr/lexical.tsv` (derived from `gloss.tsv`): CC BY-SA
+  4.0 and the GFDL (kaikki).
 
 `NOTICE` gives the full attribution. See `../../SOURCES.md`.
 
@@ -657,8 +799,9 @@ Never by hand — except `../fr/tags.tsv` and `../fr/studied.json`, which no red
   compressed), records GSD's two sections at their commit, reduces, and pushes the branch
   `lingua-pack/fr-en/<snapshot>`. Its runs are one at a time in the `fr` group, so an update of fr-en
   and of fr-es never propose `../fr/` on two branches.
-- **After editing the reduction rules** — `reduce-fr-en.py`, the override and elision tables
-  included, or `reduce_common.py`, which every pair shares (`pin.json` lists both under
+- **After editing the reduction rules** — `reduce-fr-en.py`, the override, elision and `LEFT_OUT`
+  tables included, `reduce_common.py`, which every pair shares, or `reduce_edition_en.py`, the
+  English Wiktionary's rules, which es-en reads too (`pin.json` lists the three under
   `reducer.files`): the check lane fails until the tables are reduced again from the pinned sources.
   Run `scripts/lingua-data/build.sh --reduce fr-en <out>` (Python 3.12, `requirements-reduce.txt`),
   or `lingua-pack-update` with `mode=reduce`. A bump of `FRENCH_ANALYZER_VERSION` asks the same.

@@ -32,15 +32,18 @@
 //! the French stage shows its effect as the diff of a re-bless. It is not French support: no pair
 //! studying French is listed.
 //!
-//! The pack is the hand-written fr-en fixture (`scripts/lingua-data/testdata/fr-en/`) until the
-//! French tables are committed (change 48); the engine starts on the real es-en pack, built from
-//! the committed tables, as an English-native reader's engine does.
+//! The pack is built from the committed French tables, `tables/fr/` and `tables/fr-en/`
+//! (add-lingua-pack-fr-en, which handed the baseline over from the hand-written fixture,
+//! `scripts/lingua-data/testdata/fr-en/`, kept for the tests that build it); the engine starts on
+//! the real es-en pack, built from the committed tables, as an English-native reader's engine does.
 //!
 //! A pull request that changes `baseline/fr-en.golden` re-blesses it with
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline` and says why: a French rule
-//! that bumps French's analyser version (and the fixture's manifest with it), the fixture
-//! replaced by the committed tables, or an es-en update, which moves the `beside es-en` line
-//! alone. `lingua-pack-update` re-blesses on its own branch.
+//! that bumps French's analyser version (and the fixture's manifest with it), a change to the
+//! committed French tables (`tables/fr/` or `tables/fr-en/`: a dictionary update, a reduction rule,
+//! the readings or the levels), the fixture replaced by the committed tables (done, once), or an
+//! es-en update, which moves the `beside es-en` line alone. `lingua-pack-update` re-blesses on its
+//! own branch.
 //!
 //! Host only: the pack builder is native (C zstd), and the wasm surface is the same methods.
 
@@ -82,8 +85,8 @@ fn french_output_has_not_moved() {
          reason).\n\
          First difference — {}\n\
          If this pull request means to change French output (a French rule that bumps French's \
-         analyser version, the fixture replaced by the committed tables, or an es-en update), \
-         re-bless with\n  \
+         analyser version, a change to the committed French tables, tables/fr/ or tables/fr-en/, \
+         or an es-en update), re-bless with\n  \
          LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline\n\
          and say why in the pull request. Otherwise the change is wrong.",
         first_difference(&expected, actual)
@@ -311,20 +314,26 @@ fn french_has_its_pre_pass_and_its_analysis() {
     assert_eq!(personne.first(), Some(&("personne".to_owned(), false)));
     assert!(personne.iter().any(|(l, flagged)| l == "ne" && *flagged));
 
-    // The names rule (D4) on the `noms` page: Spanish's rule sets `Paris` and `Lot` aside, the
-    // elided `l'` gives `Aube`'s evidence, and the runs are one form each; `Orange` and `Vienne`
-    // are dictionary words (a gloss, `venir`'s), `Mme` only opens its block.
+    // The names rule (D4) on the `noms` page, over the committed tables: a name the English
+    // Wiktionary's French section glosses — `Paris`, `Lot`, `Aube`, `Jean-Pierre`,
+    // `Saint-Étienne` — is one of French's dictionary words, fr-en's glossed lemmas
+    // (add-lingua-pack-fr-en), and stays a word to learn, as Spanish's `Dios` does; `Myriel`, which
+    // the lexicon does not hold, is set aside. The rule's French readings on lemmas that are no
+    // dictionary word are the fixture's (`the_names_rule_reads_french_s_evidence`).
     let noms = analysed(&engine, "noms");
-    for name in ["Paris", "Lot", "Aube", "Jean-Pierre", "Saint-Étienne"] {
-        assert_eq!(
-            classes_of(&noms, name),
-            ["ProperNounOutOfLexicon"],
-            "{name}"
-        );
-    }
-    for word in ["Orange", "Vienne", "Mme"] {
+    for word in [
+        "Paris",
+        "Lot",
+        "Aube",
+        "Jean-Pierre",
+        "Saint-Étienne",
+        "Orange",
+        "Vienne",
+        "Mme",
+    ] {
         assert_eq!(classes_of(&noms, word), ["Unknown"], "{word}");
     }
+    assert_eq!(classes_of(&noms, "Myriel"), ["ProperNounOutOfLexicon"]);
 
     // The detection guard (add-lingua-french-detection-guard): of the `mixte` page's seven
     // blocks, the two French ones alone are analysed — not its English, Spanish and Italian
@@ -359,6 +368,31 @@ fn french_has_its_pre_pass_and_its_analysis() {
 }
 
 #[test]
+fn the_names_rule_reads_french_s_evidence() {
+    // The names rule (add-lingua-french-analysis D4) over the hand-written fixture, whose 70
+    // glosses leave the `noms` page's names out of French's dictionary words: Spanish's rule sets
+    // `Paris` and `Lot` aside, the elided `l'` gives `Aube`'s evidence, and the runs are one form
+    // each; `Orange` and `Vienne` are dictionary words (a gloss, `venir`'s), `Mme` only opens its
+    // block. Over the committed tables, the section glosses those names
+    // (`french_has_its_pre_pass_and_its_analysis`).
+    let engine = support::Scenario::engine(&[
+        ("es-en", PackSource::Tables.pack("es-en")),
+        ("fr-en", PackSource::Testdata.pack("fr-en")),
+    ]);
+    let noms = analysed(&engine, "noms");
+    for name in ["Paris", "Lot", "Aube", "Jean-Pierre", "Saint-Étienne"] {
+        assert_eq!(
+            classes_of(&noms, name),
+            ["ProperNounOutOfLexicon"],
+            "{name}"
+        );
+    }
+    for word in ["Orange", "Vienne", "Mme"] {
+        assert_eq!(classes_of(&noms, word), ["Unknown"], "{word}");
+    }
+}
+
+#[test]
 fn the_fixture_lists_every_word_the_pre_pass_writes() {
     // Each elided form of the pre-pass before a vowel — `s'` before `il`, `m'` and `t'` after a
     // hyphen — and `au` and `aux`, tokenised as French, give only forms of the fixture: no word the
@@ -388,9 +422,10 @@ fn the_fixture_lists_every_word_the_pre_pass_writes() {
 
 #[test]
 fn the_nfd_block_s_memoire_is_glossed_once_french_composes_it() {
-    // The fixture lists `mémoire`, glossed `memory`, a word the corpus has only in its NFD block
-    // (change 39's D5): French's pre-pass reads it in NFC (add-lingua-french-analysis D1), so the
-    // token is the pack's word, glossed, and its span still covers the decomposed bytes.
+    // The committed tables gloss `mémoire` « memory; memo; dissertation, paper; … », a word the
+    // corpus has only in its NFD block (change 39's D5): French's pre-pass reads it in NFC
+    // (add-lingua-french-analysis D1), so the token is the pack's word, glossed, and its span still
+    // covers the decomposed bytes. The decomposed spelling itself is no word of the pack.
     let engine = FRENCH.loaded();
     let technique = analysed(&engine, "technique");
     let decomposed = "me\u{301}moire";
@@ -403,7 +438,8 @@ fn the_nfd_block_s_memoire_is_glossed_once_french_composes_it() {
         .expect("the NFD block's `mémoire`");
     assert_eq!(token["surface"], "m\u{e9}moire", "composed");
     assert_eq!(token["lemma"], "m\u{e9}moire");
-    assert_eq!(token["gloss"], "memory", "{token}");
+    let gloss = token["gloss"].as_str().expect("a gloss");
+    assert!(gloss.starts_with("memory; "), "{token}");
     assert_eq!(token["end"], at + decomposed.len(), "the decomposed bytes");
     // No token of the block is decomposed any more.
     for t in technique["tokens"].as_array().expect("tokens") {
@@ -413,9 +449,17 @@ fn the_nfd_block_s_memoire_is_glossed_once_french_composes_it() {
         }
     }
     assert_eq!(
-        engine.gloss("m\u{e9}moire", fr()).expect("glossed"),
-        Some("memory".to_owned()),
+        engine
+            .gloss("m\u{e9}moire", fr())
+            .expect("glossed")
+            .as_deref(),
+        Some(gloss),
         "the pack glosses the composed form"
+    );
+    assert_eq!(
+        engine.gloss(decomposed, fr()).expect("looked up"),
+        None,
+        "the decomposed spelling has no gloss"
     );
 }
 

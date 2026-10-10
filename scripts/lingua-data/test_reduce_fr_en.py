@@ -1323,11 +1323,16 @@ def fake_wordfreq():
 
 
 class Main(unittest.TestCase):
-    def run_main(self, entries, gsd=GSD):
+    def run_main(self, entries, gsd=GSD, files=None):
+        """`main` over a work folder holding `entries` as the section, GSD's two sections and
+        `files` (name → lines) beside them; every file it leaves there, by name."""
         with tempfile.TemporaryDirectory() as work:
             with open(os.path.join(work, "kaikki-French.jsonl"), "w", encoding="utf-8") as f:
                 f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries))
                 f.write("not json\n")
+            for name, lines in (files or {}).items():
+                with open(os.path.join(work, name), "w", encoding="utf-8") as f:
+                    f.write("".join(json.dumps(line, ensure_ascii=False) + "\n" for line in lines))
             for name in ("fr_gsd-ud-train.conllu", "fr_gsd-ud-dev.conllu"):
                 with open(os.path.join(work, name), "w", encoding="utf-8") as f:
                     f.write(conllu(gsd))
@@ -1337,13 +1342,19 @@ class Main(unittest.TestCase):
                     red.main()
             out = {}
             for name in sorted(os.listdir(work)):
+                if name.endswith(".jsonl"):
+                    continue
                 with open(os.path.join(work, name), encoding="utf-8") as f:
                     out[name] = f.read()
             return out
 
     def test_spec_scenario_the_reference_pair_writes_french_s_folder(self):
         out = self.run_main(ENTRIES)
-        self.assertEqual(out["gloss.tsv"], "")
+        # fr-en's native side (add-lingua-pack-fr-en): the ranked lemmas the section glosses, their
+        # sense runs, and the expressions — `NativeSide` below.
+        self.assertIn("rendez-vous\tappointment\n", out["gloss.tsv"])
+        self.assertIn("rendez-vous\tNOUN:1\n", out["senses.tsv"])
+        self.assertIn("d'abord\ta meaning\n", out["mwe.tsv"])
         for name in ("forms.tsv", "freq.tsv", "NOTICE", "manifest.json"):
             self.assertTrue(out[name], name)
         self.assertIn("dirigée\tdiriger\tVERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part\t-\n", out["grammar.tsv"])
@@ -1393,6 +1404,10 @@ class Manifest(unittest.TestCase):
     def test_the_notice_names_every_source_the_manifest_declares(self):
         for name in ["kaikki", "wordfreq", "UD French-GSD", "French section"]:
             self.assertIn(name, red.NOTICE)
+        # The section is credited for fr-en's glosses too (add-lingua-pack-fr-en D1), and no other
+        # source is added: no translation table is read (D3).
+        self.assertIn("the English glosses of French words and expressions", red.NOTICE.replace("\n", " "))
+        self.assertNotIn("frwiktionary", red.NOTICE)
 
 
 # — The estimated levels (add-lingua-french-levels) —
@@ -1558,6 +1573,369 @@ class EstimatedLevelsReduced(unittest.TestCase):
         self.assertIn("The levels are estimated, not taken from a CEFR list", self.out["NOTICE"])
         self.assertIn("the English Wiktionary's French section saying which lemmas take", self.out["NOTICE"].replace("\n", " "))
         self.assertNotIn("FLELex", self.out["NOTICE"])
+
+
+
+# — fr-en's native side (add-lingua-pack-fr-en) —
+#
+# Recorded from the section fr-en pins (the English Wiktionary's French section derived from the
+# dump of 2026-10-03), as `native_fields` cuts it: word, part of speech, and each sense's glosses,
+# tags and pointers. VENIR and CAVALIER keep their entry's first senses only.
+CHAMBRE = {
+    "word": "chambre",
+    "pos": "noun",
+    "senses": [
+        {"glosses": ["a chamber in its various senses, including:", "a room."], "tags": ["feminine"]},
+        {"glosses": ["a chamber in its various senses, including:", "a hotel room."], "tags": ["feminine"]},
+        {"glosses": ["a chamber in its various senses, including:", "a bedroom."], "tags": ["feminine"]},
+        {"glosses": ["a chamber in its various senses, including:", "a house of a parliament."], "tags": ["feminine"]},
+    ],
+}
+NOUS = [
+    {
+        "word": "nous",
+        "pos": "pron",
+        "senses": [
+            {"glosses": ["the plural personal pronoun in the first person:", "we"], "tags": ["first-person", "plural", "pronoun", "subjective"]},
+            {"glosses": ["the plural personal pronoun in the first person:", "us, to us"], "tags": ["first-person", "plural"]},
+            {"glosses": ["we (as the royal we)"], "tags": ["first-person", "historical", "plural"]},
+        ],
+    },
+    {"word": "nous", "pos": "noun", "senses": [{"glosses": ["the nous, (divine) reason in philosophy"], "tags": ["invariable", "masculine"]}]},
+]
+DU = [
+    {
+        "word": "du",
+        "pos": "contraction",
+        "senses": [
+            {
+                "glosses": ["contraction of de + le, literally “of the”"],
+                "tags": ["abbreviation", "alt-of", "contraction"],
+                "alt_of": [{"word": "de", "extra": "+ le, literally “of the”"}],
+            }
+        ],
+    },
+    {"word": "du", "pos": "article", "senses": [{"glosses": ["Forms the partitive article."], "tags": ["masculine", "singular"]}]},
+]
+# A pronoun's letter homograph: « elle », the letter L.
+ELLE = [
+    {
+        "word": "elle",
+        "pos": "pron",
+        "senses": [
+            {"glosses": ["she"], "tags": ["feminine", "singular", "third-person"]},
+            {"glosses": ["it (feminine gender third-person singular subject pronoun)"], "tags": ["feminine", "singular", "third-person"]},
+            {
+                "glosses": ["disjunctive form of elle; her, it; à elle = hers, its"],
+                "tags": ["disjunctive", "feminine", "form-of", "singular", "third-person"],
+                "form_of": [{"word": "elle", "extra": "her, it; à elle = hers, its"}],
+            },
+        ],
+    },
+    {"word": "elle", "pos": "noun", "senses": [{"glosses": ["The name of the Latin script letter L/l."], "tags": ["masculine"]}]},
+]
+# Letters' entries, and words written under a single capital letter: a stool and a chess piece.
+LETTERS = [
+    {"word": "x", "pos": "character", "senses": [{"glosses": ["The twenty-fourth letter of the French alphabet, written in the Latin script."], "tags": ["letter", "lowercase"]}]},
+    {"word": "X", "pos": "noun", "senses": [{"glosses": ["X-frame stool"], "tags": ["feminine", "invariable", "masculine"]}]},
+    {
+        "word": "C",
+        "pos": "noun",
+        "senses": [
+            {
+                "glosses": ["abbreviation of cavalier (“knight”): N"],
+                "tags": ["abbreviation", "alt-of"],
+                "alt_of": [{"word": "cavalier", "extra": "(“knight”): N"}],
+            }
+        ],
+    },
+    {"word": "cavalier", "pos": "noun", "senses": [{"glosses": ["horseman", "knight"], "tags": ["masculine"]}]},
+]
+NOMBRE_D_OXYDATION = {"word": "nombre d’oxydation", "pos": "noun", "senses": [{"glosses": ["Oxidation number."], "tags": ["masculine"]}]}
+VENIR = {
+    "word": "venir",
+    "pos": "verb",
+    "senses": [{"glosses": ["to come (to move from one place to another that is nearer the speaker)"], "tags": ["intransitive"]}],
+}
+VENUE = [
+    {"word": "venue", "pos": "noun", "senses": [{"glosses": ["coming, arrival"], "tags": ["feminine"]}]},
+    {
+        "word": "venue",
+        "pos": "verb",
+        "senses": [{"glosses": ["feminine singular of venu"], "tags": ["feminine", "form-of", "participle", "singular"], "form_of": [{"word": "venu"}]}],
+    },
+]
+# French's expressions (D11): words the tokenisation splits, a form, a name, the senses that only point.
+SPLIT = [
+    {"word": "d'abord", "pos": "adv", "senses": [{"glosses": ["first, at first, right away"]}, {"glosses": ["primarily"]}, {"glosses": ["for one thing"]}]},
+    {"word": "allez-y", "pos": "phrase", "senses": [{"glosses": ["go ahead; go on"], "tags": ["formal", "plural", "singular"]}]},
+    {"word": "aujourd'hui", "pos": "adv", "senses": [{"glosses": ["today"]}, {"glosses": ["nowadays"]}]},
+    {"word": "Jean-Pierre", "pos": "name", "senses": [{"glosses": ["a male given name, a popular combination of Jean and Pierre."], "tags": ["masculine"]}]},
+    {"word": "jusqu'à", "pos": "prep", "senses": [{"glosses": ["until"]}, {"glosses": ["to (used together with depuis to indicate a time range)"]}, {"glosses": ["up to"]}]},
+    {"word": "jusqu'au", "pos": "contraction", "senses": [{"glosses": ["jusque + au"], "tags": ["contraction"]}]},
+    {"word": "qu'elle", "pos": "contraction", "senses": [{"glosses": ["que + elle"], "tags": ["contraction"]}]},
+    {
+        "word": "m'a",
+        "pos": "contraction",
+        "senses": [
+            {"glosses": ["me + a (third-person singular indicative present form of avoir)"], "tags": ["contraction"]},
+            {"glosses": ["“I'm going”"], "tags": ["contraction"]},
+        ],
+    },
+]
+POINTERS = [
+    {"word": "crème fraiche", "pos": "noun", "senses": [{"glosses": ["post-1990 spelling of crème fraîche"], "tags": ["feminine"]}]},
+    {
+        "word": "crème fraîche",
+        "pos": "noun",
+        "senses": [
+            {"glosses": ["crème fraîche, slightly sour thick soured cream (also called crème fraîche épaisse)"], "tags": ["feminine"]},
+            {"glosses": ["fresh liquid cream (also called crème fraîche liquide or crème fleurette)"], "tags": ["feminine"]},
+        ],
+    },
+    {
+        "word": "y a-t-il",
+        "pos": "verb",
+        "senses": [{"glosses": ["subject-inverted form of il y a; is there? are there?, (after a modal adverb) there is, there are"]}],
+    },
+    {"word": "maitre-nageuse", "pos": "noun", "senses": [{"glosses": ["post-1990 spelling of maître-nageuse; female equivalent of maitre-nageur"], "tags": ["feminine"]}]},
+]
+A_LA = [
+    {
+        "word": "à la",
+        "pos": "prep",
+        "senses": [
+            {"glosses": ["Used other than figuratively or idiomatically: see à, la."]},
+            {"glosses": ["a la, in the style or manner of (with a feminine singular adjective or a proper noun)"]},
+        ],
+    },
+    {
+        "word": "à la carte",
+        "pos": "adv",
+        "senses": [
+            {"glosses": ["à la carte (allowing selection only from a fixed list of options, typically shown on a menu)"]},
+            {"glosses": ["with each dish priced"]},
+        ],
+    },
+]
+NATIVE = [CHAMBRE, *NOUS, *DU, *ELLE, *LETTERS, NOMBRE_D_OXYDATION, VENIR, *VENUE, *SPLIT, *POINTERS, *A_LA]
+# The ranked lemmas, each its own form's lemma, as change 43's ranks are; `venue` reads as venir, and
+# `aujourd'hui` and `jusque` are forms.
+NATIVE_RANKS = {"du": 10, "elle": 28, "nous": 34, "chambre": 324, "venir": 388, "x": 434, "c": 900, "aujourd'hui": 950, "jusque": 1200}
+NATIVE_FORMS = {**{lemma: lemma for lemma in NATIVE_RANKS}, "venue": "venir", "viens": "venir", "jusqu'": "jusque"}
+
+
+class NativeSide(unittest.TestCase):
+    """fr-en's native side (add-lingua-pack-fr-en D1, D2, D11) over recorded entries."""
+
+    def native(self, entries=NATIVE, ranks=NATIVE_RANKS, forms=NATIVE_FORMS):
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "kaikki-French.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries))
+                f.write("not json\n[1, 2]\n")
+            return red.native_side(work, path, ranks, forms)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.glosses, cls.runs, cls.expressions, cls.stats = cls.native(cls)
+
+    def test_spec_scenario_a_sense_group_label(self):
+        gloss = self.glosses["chambre"]
+        self.assertTrue(gloss.startswith("a room; a hotel room"), gloss)
+        self.assertNotIn("in its various senses", gloss)
+        self.assertEqual(self.runs["chambre"], [("NOUN", 4)])
+
+    def test_spec_scenario_a_pronoun_s_senses_under_its_description(self):
+        self.assertTrue(self.glosses["nous"].startswith("we; us, to us"), self.glosses["nous"])
+        self.assertEqual(self.runs["nous"], [("PRON", 3), ("NOUN", 1)])
+
+    def test_spec_scenario_the_edition_s_description_in_lower_case(self):
+        # The contraction's sense is a pointer (tagged alt-of): the article's description glosses alone.
+        self.assertEqual(self.glosses["du"], "forms the partitive article")
+        self.assertEqual(self.runs["du"], [("DET", 1)])
+
+    def test_a_letter_s_sense_and_a_single_capital_headword_gloss_nothing(self):
+        # `elle`, the letter L, is no sense of the pronoun; its case form reads as its meaning (23b's D3).
+        self.assertEqual(self.glosses["elle"], "she; it (feminine gender third-person singular subject pronoun); her, it, à elle = hers, its")
+        self.assertNotIn("letter", self.glosses["elle"])
+        # `X` « X-frame stool » and `C` « abbreviation of cavalier » gloss neither `x` nor `c`, which
+        # would borrow the chess piece's gloss; a letter's entry glosses nothing.
+        for letter in ("x", "c"):
+            self.assertNotIn(letter, self.glosses)
+
+    def test_a_headword_s_typographic_apostrophe_is_keyed_straight(self):
+        self.assertEqual(self.expressions["nombre d'oxydation"], "Oxidation number")
+        self.assertNotIn("nombre d’oxydation", self.expressions)
+        self.assertFalse([w for w in [*self.glosses, *self.expressions] if "’" in w])
+
+    def test_only_ranked_lemmas_are_glossed_each_by_its_own_entries(self):
+        self.assertTrue(set(self.glosses) <= set(NATIVE_RANKS))
+        # `venue` reads as venir: not ranked, its own noun's « coming, arrival » glosses nothing, and
+        # venir is glossed by venir's entries alone — no gloss is lent to another word.
+        self.assertNotIn("venue", self.glosses)
+        self.assertEqual(self.glosses["venir"], "to come (to move from one place to another that is nearer the speaker)")
+        self.assertNotIn("arrival", " ".join(self.glosses.values()))
+
+    def test_spec_scenario_a_word_the_pre_pass_splits(self):
+        self.assertEqual(self.expressions["d'abord"], "first, at first, right away; primarily; for one thing")
+        self.assertEqual(self.expressions["allez-y"], "go ahead; go on")
+        self.assertEqual(self.expressions["jusqu'à"], "until; to (used together with depuis to indicate; up to")
+        # A form is looked up whole, and a name's entry glosses nothing.
+        self.assertNotIn("aujourd'hui", self.expressions)
+        self.assertNotIn("jean-pierre", self.expressions)
+        self.assertEqual(self.glosses["aujourd'hui"], "today; nowadays")
+        self.assertEqual(self.stats["split"], 4)
+
+    def test_spec_scenario_an_expression_that_only_points(self):
+        for pointer in ("crème fraiche", "qu'elle", "jusqu'au"):
+            self.assertNotIn(pointer, self.expressions)
+        self.assertTrue(self.expressions["crème fraîche"].startswith("crème fraîche, slightly sour thick soured"))
+        self.assertEqual(self.expressions["y a-t-il"], "is there? are there?, (after a modal adver")
+        # A sense that only points goes; the word's other senses stay.
+        self.assertEqual(self.expressions["m'a"], "“I'm going”")
+        # What a pointer writes after its target is read by the shared rules: another pointer stays one.
+        self.assertNotIn("maitre-nageuse", self.expressions)
+
+    def test_spec_scenario_a_la(self):
+        self.assertNotIn("à la", self.expressions)
+        self.assertEqual(self.expressions["à la carte"], "à la carte (allowing selection only from a; with each dish priced")
+        self.assertIn("à la", red.LEFT_OUT)
+        self.assertIn("in the style or manner of", red.LEFT_OUT["à la"])
+
+    def test_the_expression_rules_leave_the_glosses_and_runs_as_they_are(self):
+        # Without the pass (D11, 2 and 3) the glosses and their runs are byte for byte the same: it
+        # reads no lemma's entry. The expressions alone move.
+        def unchanged(src, dst, forms):
+            return src
+
+        with mock.patch.object(red, "expression_senses", unchanged):
+            glosses, runs, expressions, _ = self.native()
+        self.assertEqual((glosses, runs), (self.glosses, self.runs))
+        self.assertIn("à la", expressions)
+        self.assertIn("crème fraiche", expressions)
+
+    def test_the_section_is_read_through_the_english_edition_s_pre_passes_in_es_en_s_order(self):
+        calls = []
+
+        def spy(name, real):
+            def call(src, dst, *args, **kwargs):
+                calls.append((name, os.path.basename(src), os.path.basename(dst)))
+                return real(src, dst, *args, **kwargs)
+
+            return call
+
+        with (
+            mock.patch.object(red.common, "without_letter_senses", spy("letters", red.common.without_letter_senses)),
+            mock.patch.object(red.english, "without_letter_headwords", spy("headwords", red.english.without_letter_headwords)),
+            mock.patch.object(red.english, "read_as_meanings", spy("meanings", red.english.read_as_meanings)),
+            mock.patch.object(red.english, "merge_same_pos_etymologies", spy("merge", red.english.merge_same_pos_etymologies)),
+            mock.patch.object(red, "expression_senses", spy("expressions", red.expression_senses)),
+        ):
+            self.native()
+        self.assertEqual(
+            calls,
+            [
+                ("letters", "kaikki-French-senses.jsonl", "kaikki-French-words.jsonl"),
+                ("headwords", "kaikki-French-words.jsonl", "kaikki-French-headwords.jsonl"),
+                ("meanings", "kaikki-French-headwords.jsonl", "kaikki-French-meanings.jsonl"),
+                ("merge", "kaikki-French-meanings.jsonl", "kaikki-French-merged.jsonl"),
+                # The merging is off as committed: it answers its source.
+                ("expressions", "kaikki-French-meanings.jsonl", "kaikki-French-expressions.jsonl"),
+            ],
+        )
+        self.assertEqual(self.stats["dropped"], 2, "the lines that are no JSON object")
+
+    def test_native_fields_keeps_what_the_native_side_reads(self):
+        entry = {
+            "word": "Nombre d’oxydation",
+            "pos": "noun",
+            "forms": [{"form": "nombres d'oxydation", "tags": ["plural"]}],
+            "head_templates": [{"name": "fr-noun"}],
+            "senses": [{"glosses": ["Oxidation number."], "tags": ["masculine"], "examples": [{"text": "…"}], "links": []}, "no sense"],
+        }
+        with tempfile.TemporaryDirectory() as work:
+            src, dst = os.path.join(work, "in.jsonl"), os.path.join(work, "out.jsonl")
+            with open(src, "w", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            _, dropped = red.native_fields(src, dst)
+            with open(dst, encoding="utf-8") as f:
+                cut = json.loads(f.read())
+        self.assertEqual(dropped, 0)
+        # The case is kept; the apostrophe is read as `'`.
+        self.assertEqual(cut, {"word": "Nombre d'oxydation", "pos": "noun", "senses": [{"glosses": ["Oxidation number."], "tags": ["masculine"]}]})
+
+    def test_split_word_and_is_expression(self):
+        forms = {"aujourd'hui": "aujourd'hui", "peut-être": "peut-être"}
+        for word in ("d'abord", "c'est", "allez-y", "qu'elle"):
+            self.assertTrue(red.split_word(word, forms), word)
+        for word in ("aujourd'hui", "peut-être", "abord", "il y a", "c’est", "3-d"):
+            self.assertFalse(red.split_word(word, forms), word)
+        self.assertTrue(red.is_expression("coup d'œil", forms))
+        self.assertFalse(red.is_expression("coup d’œil", forms), "a headword the cut has not read")
+        self.assertFalse(red.is_expression("w3 c", forms))
+
+    def test_a_meaning_after_a_pointer(self):
+        self.assertIsNone(red._meaning_of_pointer({"glosses": ["que + elle"]}))
+        self.assertIsNone(red._meaning_of_pointer({"glosses": ["contraction of que + il"]}))
+        self.assertIsNone(red._meaning_of_pointer({"glosses": ["post-1990 spelling of crème fraîche"]}))
+        self.assertEqual(
+            red._meaning_of_pointer({"glosses": ["subject-inverted form of il y a: is there?"], "tags": ["x"]}),
+            {"glosses": ["is there?"], "tags": ["x"]},
+        )
+        # A meaning, a tagged pointer (the shared rules') and a sense kaikki did not shape are kept.
+        for sense in ({"glosses": ["until"]}, {"glosses": ["que + elle"], "tags": ["form-of"]}, {"glosses": []}, {"tags": []}):
+            self.assertIs(red._meaning_of_pointer(sense), sense)
+
+    def test_spec_scenario_fr_en_s_rule_files(self):
+        sys.path.insert(0, _HERE)
+        import pack_sources as ps
+
+        self.assertEqual(
+            [p.name for p in ps.rule_files(ps.Path(_HERE) / "reduce-fr-en.py")],
+            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py"],
+        )
+
+
+class NativeSideReduced(unittest.TestCase):
+    """`main` over the fixture section, with the translation files change 38's catalogue registered
+    for fr-en beside it: the reducer reads neither (D3)."""
+
+    @classmethod
+    def setUpClass(cls):
+        top = [w for w in sorted({**FREQ, "end": 5.0}, key=lambda w: (-{**FREQ, "end": 5.0}[w], w)) if "-" not in w]
+        files = {
+            # The French Wiktionary's English translations, and the English Wiktionary's French ones.
+            "kaikki-fr-traductions-en.jsonl": [
+                {"word": "END", "pos": "noun", "translations": [{"word": "NDE"}, {"word": "NDI"}, {"word": "NDT"}]},
+                {"word": "rendez-vous", "pos": "noun", "translations": [{"word": "date"}]},
+            ],
+            "kaikki-en-traductions-fr.jsonl": [{"word": "he's", "pos": "contraction", "translations": [{"word": "il est"}]}],
+        }
+        with mock.patch.dict(FREQ, {"end": 5.0}), mock.patch.object(sys.modules[__name__], "TOP", top):
+            cls.out = Main.run_main(cls, ENTRIES, files=files)
+        cls.glossed = dict(line.split("\t") for line in cls.out["gloss.tsv"].splitlines())
+        cls.expressions = dict(line.split("\t") for line in cls.out["mwe.tsv"].splitlines())
+
+    def test_spec_scenario_a_word_only_a_translation_table_glosses(self):
+        self.assertIn("end\t", self.out["freq.tsv"], "ranked")
+        self.assertNotIn("end", self.glossed)
+        # A ranked word the section glosses keeps its own gloss, whatever a table lists.
+        self.assertEqual(self.glossed["rendez-vous"], "appointment")
+
+    def test_spec_scenario_a_bigram_an_english_entry_translates(self):
+        self.assertNotIn("il est", self.expressions)
+
+    def test_every_glossed_lemma_is_ranked_and_its_own_form(self):
+        forms = dict(line.split("\t") for line in self.out["forms.tsv"].splitlines())
+        ranks = dict(line.split("\t") for line in self.out["freq.tsv"].splitlines())
+        for lemma in self.glossed:
+            self.assertIn(lemma, ranks)
+            self.assertEqual(forms[lemma], lemma)
+        self.assertEqual(self.out["senses.tsv"].count("\n"), len(self.glossed))
+        for name in ("gloss.tsv", "senses.tsv", "mwe.tsv"):
+            rows = self.out[name].splitlines()
+            self.assertEqual(rows, sorted(rows), name)
 
 
 if __name__ == "__main__":

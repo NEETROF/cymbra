@@ -184,9 +184,10 @@ describe("the experiment's tables are read only when the pair's gloss table hold
     expect(glossMark("maisons", "The houses by the sea.", tables!, stopWords("en")).marks).toHaveLength(1);
   });
 
-  it("over the committed tables: es-en's experiment is read, fr-en's and fr-es's are not, with no gloss table yet", () => {
+  it("over the committed tables: es-en's and fr-en's experiments are read, fr-es's is not, with no gloss table yet", () => {
     expect(readGlossTables(tables, "es-en", "es")?.gloss.size).toBeGreaterThan(0);
-    expect(readGlossTables(tables, "fr-en", "fr")).toBeNull();
+    // fr-en's glosses are committed (add-lingua-pack-fr-en): a later run fills its experiment.
+    expect(readGlossTables(tables, "fr-en", "fr")?.gloss.size).toBeGreaterThan(30_000);
     expect(readGlossTables(tables, "fr-es", "fr")).toBeNull();
   });
 });

@@ -34,13 +34,17 @@
 //! space (U+00A0) before `:` and after the dialogue dash. The other pages are typed as the web
 //! often has them, with the straight apostrophe. One block of the `technique` page is committed
 //! in NFD on purpose (accents as combining marks); `french_baseline.rs` asserts it still is.
-//! The fixture lists one of its words, `mémoire` (`memory`), which the corpus has nowhere else:
-//! read as it came, the decomposed word is not the pack's, so change 41's NFC shows in the golden
-//! as a gloss that appears, not only as bytes that move.
+//! The tables gloss one of its words, `mémoire` (« memory; memo; dissertation, paper; … »), which
+//! the corpus has nowhere else: read as it came, the decomposed word is not the pack's, so change
+//! 41's NFC shows in the golden as a gloss that appears, not only as bytes that move.
 //!
-//! The pack is the hand-written fr-en fixture, `scripts/lingua-data/testdata/fr-en/`, until
-//! change 48 commits `tables/fr/` and `tables/fr-en/`; the engine starts on the real es-en pack,
-//! as an English-native reader's does.
+//! The pack is built from the committed French tables, `tables/fr/` and `tables/fr-en/`
+//! (add-lingua-pack-fr-en: French's forms, ranks, readings and levels, and fr-en's English glosses,
+//! sense runs and expressions), as the real es-en pack the engine starts on is, as an
+//! English-native reader's does. Until that change it was the hand-written fixture,
+//! `scripts/lingua-data/testdata/fr-en/`, which stays for the tests that build it
+//! (`french_baseline.rs`, `lingua-pack`'s `pipeline_testdata.rs`). A change to the committed French
+//! tables can move the golden, and then re-blesses it.
 //!
 //! At analyser `1.0.0` French has its own analysis (add-lingua-french-analysis). Its tokenisation
 //! pre-pass (add-lingua-french-tokenisation) reads the narrow no-break space as a space, an elided
@@ -51,18 +55,20 @@
 //! form; its closed classes flag a phrase gloss's function words, « pas » among them (M21); its
 //! names rule sets the `noms` page's `Paris`, `Lot`, `Aube`, `Jean-Pierre` and `Saint-Étienne`
 //! aside, and keeps `Orange` and `Vienne` (dictionary words) and `Mme` (at a block's head only).
-//! The fixture lists every word the pre-pass writes (`french_baseline.rs` holds it), the forms
-//! the real tables hold where a gap would mislead the plural rule (`printemps`, `travaux`) or
-//! keep the names rule from meeting a lexicon word (`paris`, `aube`), and expressions holding
-//! `au` and an elision, `au revoir` and `coup d'œil`, a word the pre-pass splits, `d'abord`, an
-//! expression of six tokens, `au fur et à mesure`, and `à la`, its article as written. The pack
-//! keys expressions as French is read — the builder hands each headword to the core's French
+//! The tables hold every word the pre-pass writes (`lingua-pack`'s `committed_tables.rs` holds
+//! it; `french_baseline.rs` holds the fixture to it too), and expressions holding `au` and an
+//! elision, `au revoir` and `coup d'œil`, a word the pre-pass splits, `d'abord` (offered by
+//! fr-en's reducer), an expression of six tokens, `au fur et à mesure`, and no `à la`, which
+//! fr-en's reducer leaves out: its one sense, « in the style of », needs the word after it. The
+//! pack keys expressions as French is read — the builder hands each headword to the core's French
 //! reading, its determiners written as the pre-pass gives them, up to seven tokens — and names
 //! each by its headword where its key differs (add-lingua-french-expression-keys): the probes
-//! « Au revoir », « un coup d’œil », « D’abord », « au fur et à mesure » and « à cause des » find
-//! their expression, « il y a » and « il y avait » answer `il y a`, the Proust sentence
-//! `de bonne heure`, « à la maison » `à la` (the rule, not the sense), and « au marché » and
-//! « jusqu'au soir » no `à la`.
+//! « Au revoir », « D’abord », « au fur et à mesure » and « à cause des » find their expression,
+//! « il y a » and « il y avait » answer `il y a`, the Proust sentence `de bonne heure`,
+//! « jusqu'au soir » `jusqu'à`, « à la maison » the section's own `à la maison`, and « au marché »
+//! nothing. « un coup d’œil » meets `un coup` before `coup d'œil`, and « du pain et des œufs »
+//! `et des`: senses their keys do not hold the context of, listed for
+//! `refine-lingua-fr-en-glosses` (add-lingua-pack-fr-en D7).
 //!
 //! At analyser `1.1.0` French's detection guard (add-lingua-french-detection-guard) refuses the
 //! `mixte` page's Occitan block, which whichlang reads as French; its Catalan block whichlang reads
@@ -159,9 +165,9 @@ const PHRASES: &[&str] = &[
     "Il faro si ergeva",
 ];
 
-/// (word as written, dictionary form) pairs a word card asks the grammar of. The fixture has no
-/// grammar tables: each answers its gloss alone, and the pieces a split word is made of — an
-/// elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`.
+/// (word as written, dictionary form) pairs a word card asks the grammar of: each answers its
+/// readings (add-lingua-french-grammar-tables) and its gloss, and the pieces a split word is made
+/// of — an elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`.
 const GRAMMAR: &[(&str, &str)] = &[
     ("est", "être"),
     ("sont", "être"),
@@ -217,7 +223,7 @@ const PAGE_NAMES: &[&str] = &[
 
 pub const FRENCH: Scenario = Scenario {
     pair: "fr-en",
-    pack: PackSource::Testdata,
+    pack: PackSource::Tables,
     beside: &["es-en"],
     test: "french_baseline",
     pages: "pages-fr.txt",

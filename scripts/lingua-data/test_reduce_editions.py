@@ -513,13 +513,15 @@ class TheEnglishEditionSettings(Entries):
         ])
 
     def test_spec_scenario_a_setting_of_the_english_edition(self):
-        # Either setting changed re-pins es-en alone: it is in es-en's rules and in no French-native
-        # pair's — nor en-es's, glossed by the Spanish edition — and reduce_common.py, which every
-        # pair loads, is not edited for it.
-        self.assertEqual(
-            [p.name for p in ps.rule_files(Path(_HERE) / "reduce-es-en.py")],
-            ["reduce-es-en.py", "reduce_common.py", "reduce_edition_en.py"],
-        )
+        # Either setting changed re-pins es-en and fr-en, the pairs glossed in English
+        # (add-lingua-pack-fr-en: *A rule of the English edition*): it is in their rules and in no
+        # French-native pair's — nor en-es's, glossed by the Spanish edition — and reduce_common.py,
+        # which every pair loads, is not edited for it.
+        for pair in ("es-en", "fr-en"):
+            self.assertEqual(
+                [p.name for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")],
+                [f"reduce-{pair}.py", "reduce_common.py", "reduce_edition_en.py"],
+            )
         self.assertEqual(
             [p.name for p in ps.rule_files(Path(_HERE) / "reduce-en-es.py")],
             ["reduce-en-es.py", "reduce_common.py", "reduce_edition_es.py"],
@@ -528,19 +530,19 @@ class TheEnglishEditionSettings(Entries):
         copy.mkdir()
         for path in Path(_HERE).glob("reduce[-_]*.py"):
             (copy / path.name).write_bytes(path.read_bytes())
-        pairs = ("en-fr", "es-fr", "es-en", "en-es")
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en")
+        others = ("en-fr", "es-fr", "en-es")
         before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
         self.assertEqual(before, {pair: ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py") for pair in pairs})
-        # The committed pairs' digests are the ones their pins record: adding en-es moved none.
-        for pair in ("en-fr", "es-fr", "es-en"):
+        # The committed pairs' digests are the ones their pins record: fr-en's glosses moved no other.
+        for pair in pairs:
             self.assertEqual(before[pair], ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"), pair)
         for name, old, new in (
             ("reduce_edition_en.py", "LONG_PARENTHESIS = 0\n", "LONG_PARENTHESIS = 40\n"),
             ("reduce_edition_en.py", "MERGE_SAME_POS_ETYMOLOGIES = False\n", "MERGE_SAME_POS_ETYMOLOGIES = True\n"),
-            # The letters' rules of add-lingua-pack-es-en, the English edition's and es-en's own.
+            # The letters' rules of add-lingua-pack-es-en, the English edition's.
             ("reduce_edition_en.py", r"|the letter \w\b)", ")"),
             ("reduce_edition_en.py", "len(headword) == 1 and headword.isupper()", "False"),
-            ("reduce-es-en.py", 'if entry.get("pos") == "character":', "if False:"),
         ):
             edition = copy / name
             text = edition.read_text(encoding="utf-8")
@@ -548,16 +550,28 @@ class TheEnglishEditionSettings(Entries):
             edition.write_text(text.replace(old, new), encoding="utf-8")
             after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
             self.assertNotEqual(after["es-en"], before["es-en"], new)
-            self.assertEqual(
-                (after["en-fr"], after["es-fr"], after["en-es"]), (before["en-fr"], before["es-fr"], before["en-es"]), new
-            )
+            self.assertNotEqual(after["fr-en"], before["fr-en"], new)
+            self.assertEqual({p: after[p] for p in others}, {p: before[p] for p in others}, new)
+            before = after
+        # A rule of es-en's own reducer re-pins es-en alone, and one of fr-en's fr-en alone.
+        for pair, old, new in (
+            ("es-en", 'if entry.get("pos") == "character":', "if False:"),
+            ("fr-en", '"à la": (', '"à le": ('),
+        ):
+            reducer = copy / f"reduce-{pair}.py"
+            text = reducer.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            reducer.write_text(text.replace(old, new), encoding="utf-8")
+            after = {p: ps.rules_sha256(copy / f"reduce-{p}.py") for p in pairs}
+            self.assertNotEqual(after[pair], before[pair], new)
+            self.assertEqual({p: after[p] for p in pairs if p != pair}, {p: before[p] for p in pairs if p != pair}, new)
             before = after
         # The Spanish edition's rules are en-es's alone (add-lingua-pack-en-es D1).
         edition = copy / "reduce_edition_es.py"
         edition.write_text(edition.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
         after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
         self.assertNotEqual(after["en-es"], before["en-es"])
-        self.assertEqual({p: after[p] for p in ("en-fr", "es-fr", "es-en")}, {p: before[p] for p in ("en-fr", "es-fr", "es-en")})
+        self.assertEqual({p: after[p] for p in pairs if p != "en-es"}, {p: before[p] for p in pairs if p != "en-es"})
 
 
 # — es-en's glosses read as meanings (refine-lingua-es-en-glosses) —
@@ -1557,11 +1571,12 @@ class EsEnGlossesReadAsMeanings(Entries):
         )
 
     def test_spec_scenario_nothing_else_moves(self):
-        # The rules are the English edition's: es-en's rule digest moves with them and no other
-        # pair's — en-fr's and es-fr's load the French edition, en-es's the Spanish one — and
-        # reduce_common.py, which every pair loads, is not edited. The committed pins record the
-        # rules they were reduced with: es-en's, re-pinned with these rules, and the other three, as
-        # they were.
+        # The rules are the English edition's: es-en's rule digest moves with them — and fr-en's,
+        # glossed by the same edition since add-lingua-pack-fr-en — and no French- or
+        # Spanish-glossed pair's: en-fr's and es-fr's load the French edition, en-es's the Spanish
+        # one — and reduce_common.py, which every pair loads, is not edited. The committed pins
+        # record the rules they were reduced with: es-en's, re-pinned with these rules, and the other
+        # three, as they were.
         pairs = ("en-fr", "es-fr", "es-en", "en-es")
         for pair in pairs:
             self.assertEqual(
