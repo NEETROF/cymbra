@@ -314,10 +314,11 @@ well », « row: façon de parler — façon de parler ».
   files their readings under the accented word itself; D2's check keeps them out of this list. 43d's
   design hands this list five spellings: `tete`, which it leaves (its forms guard), proposed here
   (D1); `sure`, `sures` and `surs`, forms of *sur* « sour » — words of their own, and the forms of the
-  owner's never `sur`/`sûr` —, never rows; `entrainant` (Zipf 2.93), the participle of `entrainer`,
-  a word of the section and below the threshold. The four it says this list could name are no rows: `chouia`
-  (« brochette »), `colon` (« colonist ») and `mercedes` (the car) are words of their own, which D2's
-  check refuses, and `to` (« variant of tô », the terabyte's symbol) is 660 times commoner than *tô*. Both changes edit `reduce-fr-en.py` and re-pin fr-en and fr-es: whichever lands second
+  owner's never `sur`/`sûr` —, never rows; `entrainant` (Zipf 2.93), the participle of `entrainer`, a
+  word of the section and below the threshold. The four it says this list could name are no rows:
+  `chouia` (« brochette »), `colon` (« colonist ») and `mercedes` (the car) are words of their own,
+  which D2's check refuses, and `to` (« variant of tô », the terabyte's symbol) is 660 times commoner
+  than *tô*. Both changes edit `reduce-fr-en.py` and re-pin fr-en and fr-es: whichever lands second
   re-reduces on the other's tables, re-blesses the two French goldens (« c'etait » moves with 43d) and
   holds that no spelling is read by both.
 - **Change 43c** (« CA » in capitals): no interplay. A word wholly in capitals that its acronym table
