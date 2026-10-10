@@ -40,7 +40,7 @@ abnégation	NOUN:1
 aboiement	NOUN:1
 abolir	VERB:1
 abolition	NOUN:1
-abolitionniste	ADJ:1	NOUN:1
+abolitionniste	ADJ:1
 abominable	ADJ:1
 abomination	NOUN:1
 abondamment	ADV:1
@@ -60,7 +60,7 @@ aboutissant	ADJ:1	NOUN:1
 aboutissement	NOUN:1
 aboyer	VERB:1
 abracadabra	NOUN:1
-abrasif	ADJ:1	NOUN:1
+abrasif	ADJ:1
 abrasion	NOUN:1
 abreuver	VERB:2
 abreuvoir	NOUN:1
@@ -80,15 +80,15 @@ abréviation	NOUN:1
 abscisse	NOUN:1
 abscons	ADJ:1
 absence	NOUN:1
-absent	ADJ:1	NOUN:1
+absent	ADJ:1
 absentéisme	NOUN:1
 abside	NOUN:1
 absinthe	NOUN:1
-absolu	ADJ:1	NOUN:1
+absolu	ADJ:1
 absolument	ADV:1
 absolution	NOUN:1
 absolutisme	NOUN:1
-absolutiste	ADJ:1	NOUN:1
+absolutiste	ADJ:1
 absorbant	ADJ:1
 absorber	VERB:1
 absorption	NOUN:1
@@ -99,7 +99,7 @@ abstinence	NOUN:1
 abstraction	NOUN:1
 abstraire	VERB:1
 abstrait	ADJ:1
-absurde	ADJ:1	NOUN:1
+absurde	ADJ:1
 absurdité	NOUN:1
 abus	NOUN:1
 abuser	VERB:1
@@ -138,7 +138,7 @@ acception	NOUN:1
 accessibilité	NOUN:1
 accessible	ADJ:1
 accessit	NOUN:1
-accessoire	ADJ:1	NOUN:1
+accessoire	ADJ:1
 accessoirement	ADV:1
 accident	NOUN:3
 accidentel	ADJ:1
@@ -190,7 +190,7 @@ acculturation	NOUN:1
 accumulation	NOUN:1
 accumuler	VERB:1
 accusateur	NOUN:1
-accusatif	ADJ:1	NOUN:1
+accusatif	ADJ:1
 accusation	NOUN:1
 accuser	VERB:1
 accès	NOUN:1
@@ -210,7 +210,7 @@ acheter	VERB:2
 acheteur	NOUN:1
 achever	VERB:1
 achèvement	NOUN:1
-acide	ADJ:1	NOUN:1
+acide	ADJ:1
 acidification	NOUN:1
 acidité	NOUN:1
 acidose	NOUN:1
@@ -240,7 +240,7 @@ acrylique	ADJ:1
 actant	NOUN:1
 acte	NOUN:1
 acteur	NOUN:1
-actif	ADJ:1	NOUN:1
+actif	ADJ:1
 action	NOUN:1
 actionnaire	NOUN:1
 actionner	VERB:1
@@ -249,7 +249,7 @@ activation	NOUN:1
 activement	ADV:1
 activer	VERB:1
 activisme	NOUN:1
-activiste	ADJ:1	NOUN:1
+activiste	ADJ:1
 activité	NOUN:1
 actrice	NOUN:1
 actualisation	NOUN:1
@@ -266,28 +266,27 @@ acétique	ADJ:1
 acétone	NOUN:1
 acétylcholine	NOUN:1
 acétylène	NOUN:1
-adage	NOUN:1
-adagio	ADV:1	NOUN:1
+adagio	ADV:1
 adaptabilité	NOUN:1
 adaptable	ADJ:1
-adaptateur	ADJ:1	NOUN:1
+adaptateur	ADJ:1
 adaptation	NOUN:1
 adapter	VERB:1
 addendum	NOUN:1
 addictif	ADJ:1
 addiction	NOUN:1
 addictologie	NOUN:1
-additif	ADJ:1	NOUN:1
+additif	ADJ:1
 addition	NOUN:2
 additionnel	ADJ:1
 additionner	VERB:1
 adducteur	ADJ:1
 adduction	NOUN:1
-adepte	ADJ:1	NOUN:1
+adepte	NOUN:1
 adhérence	NOUN:1
 adhérent	ADJ:1
 adhérer	VERB:1
-adhésif	ADJ:1	NOUN:1
+adhésif	ADJ:1
 adhésion	NOUN:1
 adiabatique	ADJ:1
 adieu	INTJ:1	NOUN:1
@@ -329,13 +328,13 @@ adopter	VERB:1
 adoptif	ADJ:1
 adoption	NOUN:1
 adorable	ADJ:1
-adorateur	NOUN:1	ADJ:1
+adorateur	NOUN:1
 adoration	NOUN:1
 adorer	VERB:1
 adosser	VERB:1
 adoubement	NOUN:1
 adoucir	VERB:1
-adoucissant	ADJ:1	NOUN:1
+adoucissant	ADJ:1
 adoucissement	NOUN:1
 adresse	NOUN:3
 adresser	VERB:4
@@ -344,8 +343,8 @@ adroit	ADJ:1
 adrénaline	NOUN:1
 adsl	X:1
 adulation	NOUN:1
-adulte	NOUN:1	ADJ:1
-adultère	ADJ:1	NOUN:1
+adulte	ADJ:1
+adultère	NOUN:1
 advenir	VERB:1
 adventice	ADJ:1
 adventiste	ADJ:1
@@ -361,7 +360,7 @@ adéquatement	ADV:1
 adéquation	NOUN:1
 aec	X:1
 aele	NOUN:1
-afar	ADJ:1	NOUN:1
+afar	ADJ:1
 affable	ADJ:1
 affabulation	NOUN:1
 affaiblir	VERB:1
@@ -414,15 +413,15 @@ affubler	VERB:1
 afférent	ADJ:1
 affût	NOUN:1
 affûter	VERB:1
-afghan	ADJ:1	NOUN:1
+afghan	ADJ:1
 afghanistan	PROPN:1
 afk	NOUN:1
-africain	ADJ:1	NOUN:1
+africain	NOUN:1
 afrikaans	NOUN:1
-afrikaner	ADJ:1	NOUN:1
+afrikaner	ADJ:1
 afrique	PROPN:1
 afro	NOUN:1
-afro-américain	NOUN:1	ADJ:1
+afro-américain	NOUN:1
 agacement	NOUN:1
 agacer	VERB:1
 agate	NOUN:1
@@ -448,11 +447,11 @@ agitation	NOUN:1
 agiter	VERB:1
 agneau	NOUN:1
 agnosticisme	NOUN:1
-agnostique	ADJ:1	NOUN:1
+agnostique	ADJ:1
 agnus	NOUN:1
 agnès	PROPN:1
 agonie	NOUN:1
-agonisant	ADJ:1	NOUN:1
+agonisant	ADJ:1
 agoniser	VERB:1
 agora	NOUN:2
 agoraphobie	NOUN:1
@@ -547,13 +546,13 @@ alambic	NOUN:1
 alaouite	NOUN:1
 alarmant	ADJ:1
 alarme	NOUN:1
-albanais	NOUN:1	ADJ:1
+albanais	NOUN:1
 albanie	PROPN:1
 albatros	NOUN:1
 albe	NOUN:2	ADJ:1
 albert	PROPN:1
-albigeois	NOUN:1	ADJ:1
-albinos	ADJ:1	NOUN:1
+albigeois	NOUN:1
+albinos	ADJ:1
 album	NOUN:1
 albumine	NOUN:1
 albâtre	NOUN:1
@@ -564,7 +563,7 @@ alchimie	NOUN:1
 alchimique	ADJ:1
 alchimiste	NOUN:1
 alcool	NOUN:1
-alcoolique	ADJ:1	NOUN:1
+alcoolique	ADJ:1
 alcoolisme	NOUN:1
 alcoolisé	ADJ:1
 alcoolémie	NOUN:1
@@ -573,26 +572,26 @@ aldéhyde	NOUN:1
 alentour	ADV:1
 alentours	NOUN:1
 aleph	NOUN:1
-alerte	ADJ:1	INTJ:1	NOUN:1
+alerte	ADJ:1
 alerter	VERB:1
 alexandre	PROPN:1
-alexandrin	NOUN:1	ADJ:1
+alexandrin	NOUN:1
 alexandrine	NOUN:1
 alexis	PROPN:1
 alezan	ADJ:1
 alfa	NOUN:1
 alfred	PROPN:1
 alger	PROPN:1
-algonquin	NOUN:1	ADJ:1
+algonquin	NOUN:1
 algorithme	NOUN:1
-algorithmique	NOUN:1	ADJ:1
+algorithmique	ADJ:1
 algue	NOUN:1
 algèbre	NOUN:1
 algébrique	ADJ:1
 algérie	PROPN:1
-algérien	NOUN:1	ADJ:1
+algérien	NOUN:1
 algérois	ADJ:1
-alias	ADV:1	NOUN:1
+alias	ADV:1
 alibi	NOUN:1
 alice	PROPN:1
 alien	ADJ:1
@@ -620,14 +619,14 @@ aller-retour	NOUN:1
 allergie	NOUN:1
 allergique	ADJ:1
 allergologue	NOUN:1
-allergène	ADJ:1	NOUN:1
+allergène	ADJ:1
 alleu	NOUN:1
 alliage	NOUN:1
 alliance	NOUN:1
 allier	VERB:1
 alligator	NOUN:1
 allitération	NOUN:1
-allié	ADJ:1	NOUN:1
+allié	ADJ:1
 allocation	NOUN:1
 allocution	NOUN:1
 allongement	NOUN:1
@@ -650,7 +649,7 @@ allégorie	NOUN:1
 allégorique	ADJ:1
 allégrement	ADV:1
 allégresse	NOUN:1
-alléluia	NOUN:1	INTJ:1
+alléluia	NOUN:1
 allô	INTJ:1
 almanach	NOUN:1
 alopécie	NOUN:1
@@ -668,7 +667,7 @@ alphonse	PROPN:1
 alpin	ADJ:1
 alpinisme	NOUN:1
 alpiniste	NOUN:1
-alsacien	ADJ:1	NOUN:1
+alsacien	ADJ:1
 altercation	NOUN:1
 alternance	NOUN:1
 alternateur	NOUN:1
@@ -681,7 +680,7 @@ altier	ADJ:1
 altitude	NOUN:1
 alto	NOUN:1
 altruisme	NOUN:1
-altruiste	ADJ:1	NOUN:1
+altruiste	ADJ:1
 altération	NOUN:1
 altérer	VERB:1
 altérité	NOUN:1
@@ -693,7 +692,7 @@ alvéolaire	ADJ:1
 alvéole	NOUN:1
 aléa	NOUN:1
 aléatoire	ADJ:1
-alémanique	ADJ:1	NOUN:1
+alémanique	ADJ:1
 amabilité	NOUN:1
 amadou	NOUN:1
 amadouer	VERB:1
@@ -731,7 +730,7 @@ ambré	ADJ:1
 ambulance	NOUN:1
 ambulant	ADJ:1
 ambulatoire	ADJ:1
-amen	ADV:1	NOUN:1
+amen	ADV:1
 amende	NOUN:1
 amendement	NOUN:1
 amender	VERB:1
@@ -747,7 +746,7 @@ amical	ADJ:1
 amicalement	ADV:1
 amide	NOUN:1
 amidon	NOUN:1
-amie	NOUN:1
+amie	NOUN:2
 amigo	NOUN:1
 amine	NOUN:1
 amiral	NOUN:1
@@ -808,7 +807,7 @@ aménorrhée	NOUN:1
 américain	ADJ:1
 américanisation	NOUN:1
 américanisme	NOUN:1
-amérindien	NOUN:1	ADJ:1
+amérindien	ADJ:1
 amérique	PROPN:1
 améthyste	NOUN:1
 an	NOUN:1
@@ -818,7 +817,7 @@ anaconda	NOUN:1
 anagramme	NOUN:1
 anal	ADJ:1
 analgésie	NOUN:1
-analgésique	ADJ:1	NOUN:1
+analgésique	ADJ:1
 analogie	NOUN:1
 analogique	ADJ:1
 analogue	ADJ:1	NOUN:1
@@ -855,19 +854,19 @@ ancrage	NOUN:1
 ancre	NOUN:1
 ancrer	VERB:1
 ancêtre	NOUN:1
-andalou	NOUN:1	ADJ:1
+andalou	NOUN:1
 andalousie	PROPN:1
 andante	NOUN:1
 andin	ADJ:1
 andorre	PROPN:1
 andouille	NOUN:1
 andouillette	NOUN:1
-androgyne	ADJ:1	NOUN:1
+androgyne	NOUN:1
 androïde	NOUN:1
 andré	PROPN:1
 anecdote	NOUN:1
 anecdotique	ADJ:1
-anesthésiant	ADJ:1	NOUN:1
+anesthésiant	ADJ:1
 anesthésie	NOUN:1
 anesthésier	VERB:1
 anesthésique	ADJ:1	NOUN:1
@@ -882,19 +881,19 @@ angiotensine	NOUN:1
 anglais	NOUN:1	ADJ:1
 angle	NOUN:1
 angleterre	PROPN:1
-anglican	ADJ:1	NOUN:1
+anglican	ADJ:1
 anglicisme	NOUN:1
-anglo-américain	ADJ:1	NOUN:1
+anglo-américain	ADJ:1
 anglo-normand	ADJ:1	NOUN:1
 anglo-saxon	NOUN:1
 anglois	NOUN:1	ADJ:1
-anglophone	NOUN:1	ADJ:1
+anglophone	NOUN:1
 angoissant	ADJ:1
 angoisse	NOUN:1
 angoisser	VERB:1
 angola	PROPN:1
-angolais	NOUN:1	ADJ:1
-angora	ADJ:1	NOUN:1
+angolais	NOUN:1
+angora	ADJ:1
 anguille	NOUN:1
 angulaire	ADJ:1
 anguleux	ADJ:1
@@ -956,7 +955,7 @@ anormalité	NOUN:1
 anp	NOUN:1
 anse	NOUN:1
 antagonisme	NOUN:1
-antagoniste	NOUN:1	ADJ:1
+antagoniste	NOUN:1
 antan	ADV:1
 antarctique	ADJ:1
 ante	NOUN:1
@@ -974,7 +973,7 @@ anthropomorphique	ADJ:1
 anthropomorphisme	NOUN:1
 anthroposophie	NOUN:1
 antibactérien	ADJ:1
-antibiotique	ADJ:1	NOUN:1
+antibiotique	ADJ:1
 anticancéreux	ADJ:1
 anticapitalisme	NOUN:1
 anticapitaliste	ADJ:1
@@ -985,9 +984,9 @@ anticlinal	NOUN:1
 anticlérical	ADJ:1
 anticléricalisme	NOUN:1
 anticoagulant	ADJ:1
-anticolonialiste	ADJ:1	NOUN:1
+anticolonialiste	ADJ:1
 anticommunisme	NOUN:1
-anticommuniste	ADJ:1	NOUN:1
+anticommuniste	ADJ:1
 anticonstitutionnel	ADJ:1
 anticorps	NOUN:1
 anticorruption	ADJ:1
@@ -1008,13 +1007,13 @@ antihéros	NOUN:1
 antillais	ADJ:1
 antilope	NOUN:1
 antimatière	NOUN:1
-antimilitariste	ADJ:1	NOUN:1
+antimilitariste	ADJ:1
 antimoine	NOUN:1
 antinomique	ADJ:1
-antinucléaire	ADJ:1	NOUN:1
-antioxydant	ADJ:1	NOUN:1
+antinucléaire	ADJ:1
+antioxydant	ADJ:1
 antipape	NOUN:1
-antiparasitaire	ADJ:1	NOUN:1
+antiparasitaire	ADJ:1
 antipathie	NOUN:1
 antipathique	ADJ:1
 antipersonnel	ADJ:1
@@ -1027,12 +1026,12 @@ antiraciste	ADJ:1
 antiseptique	NOUN:1
 antisocial	ADJ:1
 antisystème	ADJ:1
-antisémite	ADJ:1	NOUN:1
+antisémite	ADJ:1
 antisémitisme	NOUN:1
 antitabac	ADJ:1
-antiterroriste	ADJ:1	NOUN:1
+antiterroriste	ADJ:1
 antithèse	NOUN:1
-antiviral	ADJ:1	NOUN:1
+antiviral	ADJ:1
 antoine	PROPN:1
 antoinette	PROPN:1
 antonyme	NOUN:1
@@ -1067,7 +1066,7 @@ aparté	NOUN:1
 apathie	NOUN:1
 apathique	ADJ:1
 apatite	NOUN:1
-apatride	ADJ:1	NOUN:1
+apatride	ADJ:1
 apennins	PROPN:1
 apercevoir	VERB:4
 aperture	NOUN:1
@@ -1101,7 +1100,7 @@ apologétique	ADJ:1	NOUN:1
 apoplexie	NOUN:1
 apoptose	NOUN:1
 apostasie	NOUN:1
-apostat	NOUN:1	ADJ:1
+apostat	NOUN:1
 apostolat	NOUN:1
 apostolique	ADJ:1
 apostrophe	NOUN:1
@@ -1176,7 +1175,7 @@ après-guerre	NOUN:1
 après-midi	NOUN:1
 apte	ADJ:1
 aptitude	NOUN:1
-apéritif	ADJ:1	NOUN:1
+apéritif	ADJ:1
 apéro	NOUN:1
 apôtre	NOUN:1
 aquaculture	NOUN:1
@@ -1187,9 +1186,9 @@ aquatique	ADJ:1
 aqueduc	NOUN:1
 aqueux	ADJ:1
 aquifère	ADJ:1
-aquitain	NOUN:1	ADJ:1
+aquitain	NOUN:1
 ara	NOUN:1
-arabe	NOUN:1	ADJ:1
+arabe	NOUN:1
 arabesque	NOUN:1
 arabique	ADJ:1
 arable	ADJ:1
@@ -1197,7 +1196,7 @@ arachide	NOUN:1
 aragon	PROPN:2
 aragonais	NOUN:1
 araignée	NOUN:2
-araméen	ADJ:1	NOUN:1
+araméen	ADJ:1
 aran	NOUN:1
 arbalète	NOUN:1
 arbitrage	NOUN:1
@@ -1252,7 +1251,7 @@ ardu	ADJ:1
 are	NOUN:1
 argent	NOUN:2
 argenterie	NOUN:1
-argentin	ADJ:1	NOUN:1
+argentin	ADJ:1
 argentine	PROPN:1
 argentique	ADJ:1
 argenté	ADJ:1
@@ -1297,9 +1296,8 @@ armurerie	NOUN:1
 armurier	NOUN:1
 armée	NOUN:1
 arménie	PROPN:1
-arménien	ADJ:1	NOUN:1
+arménien	ADJ:1
 arn	X:1
-arnaque	NOUN:1
 arnaqueur	NOUN:1
 arnica	NOUN:1
 aromathérapie	NOUN:1
@@ -1389,7 +1387,7 @@ ascétique	ADJ:1
 ascétisme	NOUN:1
 asexué	ADJ:1
 ashanti	ADJ:1
-asiatique	NOUN:1	ADJ:1
+asiatique	NOUN:1
 asie	PROPN:1
 asile	NOUN:1
 asmr	NOUN:1
@@ -1403,7 +1401,7 @@ asphalte	NOUN:1
 asphyxie	NOUN:1
 asphyxier	VERB:1
 aspic	NOUN:1
-aspirant	ADJ:1	NOUN:1
+aspirant	ADJ:1
 aspirateur	NOUN:1
 aspiration	NOUN:1
 aspirer	VERB:1
@@ -1491,7 +1489,7 @@ astuce	NOUN:1
 astucieusement	ADV:1
 astucieux	ADJ:1
 astérisque	NOUN:1
-astéroïde	NOUN:1	ADJ:1
+astéroïde	NOUN:1
 asymptomatique	ADJ:1
 asymptotique	ADJ:1
 asymétrie	NOUN:1
@@ -1507,7 +1505,7 @@ athlétisme	NOUN:1
 athènes	PROPN:1
 athée	ADJ:1	NOUN:1
 athéisme	NOUN:1
-athénien	NOUN:1	ADJ:1
+athénien	NOUN:1
 athénée	NOUN:1
 athérome	NOUN:1
 athérosclérose	NOUN:1
@@ -1562,7 +1560,7 @@ atterrissage	NOUN:1
 atterrisseur	NOUN:1
 attestation	NOUN:1
 attester	VERB:1
-attique	ADJ:1	NOUN:1
+attique	ADJ:1
 attirance	NOUN:1
 attirer	VERB:1
 attiser	VERB:1
@@ -1594,7 +1592,7 @@ aubier	NOUN:1
 aubry	PROPN:1
 auburn	ADJ:1
 aubépine	NOUN:1
-aucun	ADJ:1	PRON:1
+aucun	PRON:1	ADJ:1
 audace	NOUN:1
 audacieux	ADJ:1
 audible	ADJ:1
@@ -1602,7 +1600,7 @@ audience	NOUN:1
 audimat	NOUN:1
 audioguide	NOUN:1
 audiovisuel	ADJ:1
-audit	X:1	NOUN:1
+audit	ADP:1	NOUN:1
 auditer	VERB:1
 auditeur	NOUN:1
 auditif	ADJ:1
@@ -1656,7 +1654,7 @@ authentification	NOUN:1
 authentifier	VERB:1
 authentique	ADJ:1
 autisme	NOUN:1
-autiste	ADJ:1	NOUN:1
+autiste	ADJ:1
 autistique	ADJ:1
 auto	NOUN:1
 autobiographie	NOUN:1	VERB:1
@@ -1666,11 +1664,11 @@ autocar	NOUN:1
 autocensure	NOUN:1
 autochtone	ADJ:1
 autoclave	NOUN:1
-autocollant	ADJ:1	NOUN:1
+autocollant	NOUN:1
 autocrate	NOUN:1
 autocratie	NOUN:1
 autocratique	ADJ:1
-autocritique	ADJ:1	NOUN:1
+autocritique	ADJ:1
 autodafé	NOUN:1
 autodestruction	NOUN:1
 autodidacte	ADJ:1	NOUN:1
@@ -1710,7 +1708,7 @@ autoroute	NOUN:1
 autorégulation	NOUN:1
 autosuffisance	NOUN:1
 autosuffisant	ADJ:1
-autour	NOUN:1	ADV:1
+autour	ADV:1	NOUN:1
 autre	PRON:1
 autrefois	ADV:1
 autrement	ADV:1
@@ -1719,7 +1717,7 @@ autrichien	NOUN:1	ADJ:1
 autruche	NOUN:1
 autrui	PRON:2
 auvent	NOUN:1
-auvergnat	NOUN:1	ADJ:1
+auvergnat	NOUN:1
 auvergne	PROPN:1
 auxiliaire	ADJ:1	NOUN:1
 aval	NOUN:1
@@ -1740,7 +1738,7 @@ avantage	NOUN:1
 avantager	VERB:1
 avantageusement	ADV:1
 avantageux	ADJ:1
-avare	ADJ:1	NOUN:1
+avare	ADJ:1
 avarice	NOUN:1
 avarie	NOUN:1
 avarié	ADJ:1
@@ -1754,7 +1752,7 @@ avent	NOUN:1
 aventure	NOUN:1	VERB:4
 aventurer	VERB:1
 aventureux	ADJ:1
-aventurier	NOUN:1	ADJ:1
+aventurier	NOUN:1
 avenue	NOUN:1
 averse	NOUN:1
 aversion	NOUN:1
@@ -1809,10 +1807,10 @@ azerbaïdjan	PROPN:1
 azerbaïdjanais	ADJ:1
 azimut	NOUN:1
 azote	NOUN:2
-aztèque	NOUN:1	ADJ:1
+aztèque	ADJ:1
 azur	NOUN:1	ADJ:3
 azuré	ADJ:1
-azéri	ADJ:1	NOUN:1
+azéri	ADJ:1
 aération	NOUN:1
 aérer	VERB:1
 aérien	ADJ:1
@@ -1824,7 +1822,7 @@ aérodynamique	ADJ:1	NOUN:1
 aérodynamisme	NOUN:1
 aéroglisseur	NOUN:1
 aéromodélisme	NOUN:1
-aéronautique	ADJ:1	NOUN:1
+aéronautique	ADJ:1
 aéronaval	ADJ:1
 aéronef	NOUN:1
 aéroplane	NOUN:1
@@ -1847,7 +1845,7 @@ babeurre	NOUN:2
 babine	NOUN:2
 babouin	NOUN:1
 baby-sitter	NOUN:1
-babylonien	ADJ:1	NOUN:1
+babylonien	NOUN:1
 bac	NOUN:2
 baccalauréat	NOUN:2
 baccara	NOUN:1
@@ -1886,7 +1884,7 @@ bague	NOUN:1
 baguette	NOUN:1
 bahamas	PROPN:1
 bahreïn	PROPN:1
-bai	ADJ:1	NOUN:1
+bai	ADJ:1
 baie	NOUN:1
 baigner	VERB:1
 baigneur	NOUN:1
@@ -1900,7 +1898,7 @@ baiser	VERB:6	NOUN:1
 baiseur	ADJ:2
 baisse	NOUN:1
 baisser	VERB:1
-baissier	ADJ:1	NOUN:1
+baissier	ADJ:1
 bakchich	NOUN:1
 bakou	PROPN:1
 bal	NOUN:1
@@ -2007,7 +2005,7 @@ barbet	NOUN:1
 barbiche	NOUN:1
 barbier	NOUN:1
 barboter	VERB:1
-barbu	ADJ:1	NOUN:1
+barbu	ADJ:1
 barbue	NOUN:1
 barcelonais	NOUN:1
 barcelone	PROPN:1
@@ -2025,7 +2023,7 @@ baromètre	NOUN:1
 baron	NOUN:1
 baronne	NOUN:1
 baronnie	NOUN:1
-baroque	ADJ:1	NOUN:1
+baroque	ADJ:1
 baroudeur	NOUN:1
 barque	NOUN:1
 barquette	NOUN:1
@@ -2061,7 +2059,7 @@ basiquement	ADV:1
 basket	NOUN:1
 basket-ball	NOUN:1
 basketteur	NOUN:1
-basque	ADJ:1	NOUN:1
+basque	NOUN:1
 basse-cour	NOUN:1
 bassesse	NOUN:2
 bassin	NOUN:1
@@ -2101,7 +2099,7 @@ bauxite	NOUN:1
 bavard	ADJ:1
 bavardage	NOUN:1
 bavarder	VERB:1
-bavarois	ADJ:1	NOUN:1
+bavarois	ADJ:1
 bave	NOUN:1
 baver	VERB:1
 bavette	NOUN:1
@@ -2152,12 +2150,12 @@ belvédère	NOUN:1
 bene	ADV:1
 bengal	NOUN:1
 bengale	NOUN:1
-bengali	ADJ:1	NOUN:1
+bengali	ADJ:1
 benjamin	PROPN:1
 benne	NOUN:1
 benoît	PROPN:1
 benzène	NOUN:1
-berbère	ADJ:1	NOUN:1
+berbère	ADJ:1
 berce	NOUN:1
 berceau	NOUN:1
 bercer	VERB:1
@@ -2197,7 +2195,7 @@ beurrer	VERB:1
 beuverie	NOUN:1
 bhoutan	PROPN:1
 bi	ADJ:1
-biais	ADJ:1	NOUN:1
+biais	ADJ:1
 biathlon	NOUN:1
 bibelot	NOUN:1
 biberon	NOUN:1
@@ -2217,7 +2215,7 @@ bichon	NOUN:1
 bichonner	VERB:1
 bicolore	ADJ:1
 bicoque	NOUN:1
-bicorne	ADJ:1	NOUN:1
+bicorne	ADJ:1
 bicyclette	NOUN:1
 bicéphale	ADJ:1
 bide	NOUN:2
@@ -2232,7 +2230,7 @@ bienfaisance	NOUN:1
 bienfaisant	ADJ:1
 bienfait	NOUN:1
 bienfaiteur	NOUN:1
-bienheureux	ADJ:1	NOUN:1
+bienheureux	NOUN:1
 biennal	ADJ:1
 bienséance	NOUN:1
 bientôt	ADV:1
@@ -2245,7 +2243,7 @@ bifurcation	NOUN:1
 bifurquer	VERB:1
 bigamie	NOUN:1
 bigarré	ADJ:1
-bigot	ADJ:1	NOUN:1
+bigot	ADJ:1
 bigoterie	NOUN:1
 bijou	NOUN:1
 bijouterie	NOUN:1
@@ -2311,7 +2309,7 @@ biscuiterie	NOUN:1
 bise	NOUN:1
 biseau	NOUN:1
 bisexualité	NOUN:1
-bisexuel	ADJ:1	NOUN:1
+bisexuel	ADJ:1
 bismuth	NOUN:1
 bison	NOUN:1
 bisou	NOUN:1
@@ -2328,7 +2326,7 @@ bizarrement	ADV:1
 bizutage	NOUN:1
 bière	NOUN:1
 bièvre	NOUN:1
-biélorusse	ADJ:1	NOUN:1
+biélorusse	NOUN:1
 biélorussie	PROPN:1
 blafard	ADJ:1
 blagounette	NOUN:1
@@ -2342,7 +2340,7 @@ blanchet	ADJ:1
 blancheur	NOUN:1
 blanchiment	NOUN:1
 blanchir	VERB:1
-blanchissant	ADJ:1	NOUN:1
+blanchissant	ADJ:1
 blanchisserie	NOUN:1
 blanchisseuse	NOUN:1
 blanchâtre	ADJ:1
@@ -2393,7 +2391,7 @@ bocal	NOUN:1
 bodhisattva	NOUN:1
 bof	INTJ:1
 bogue	NOUN:1
-bohème	ADJ:1	NOUN:1
+bohème	ADJ:1
 bohémien	NOUN:1
 boire	VERB:1
 bois	NOUN:2
@@ -2401,17 +2399,17 @@ boiserie	NOUN:1
 boisseau	NOUN:1
 boisson	NOUN:2
 boiter	VERB:1
-boiteux	ADJ:1	NOUN:1
+boiteux	ADJ:1
 bol	NOUN:2
 bolchevik	ADJ:1
 bolchevique	ADJ:1
-bolchévique	ADJ:1	NOUN:1
+bolchévique	ADJ:1
 bolchévisme	NOUN:1
 bolduc	NOUN:1
 bolide	NOUN:1
 bolivar	NOUN:1
 bolivie	PROPN:1
-bolivien	NOUN:1	ADJ:1
+bolivien	NOUN:1
 boléro	NOUN:1
 bombarde	NOUN:1
 bombardement	NOUN:1
@@ -2490,7 +2488,7 @@ bouclé	ADJ:1
 bouddha	NOUN:1
 bouddhique	ADJ:1
 bouddhisme	NOUN:1
-bouddhiste	ADJ:1	NOUN:1
+bouddhiste	ADJ:1
 boudin	NOUN:1
 boudoir	NOUN:1
 boue	NOUN:1
@@ -2525,7 +2523,7 @@ boulevard	NOUN:1
 bouleverser	VERB:1
 boulier	NOUN:1
 boulimie	NOUN:1
-boulimique	ADJ:1	NOUN:1
+boulimique	ADJ:1
 boulin	NOUN:1
 boulon	NOUN:1
 boulot	NOUN:1
@@ -2547,7 +2545,7 @@ bourgeoisie	NOUN:1
 bourgeon	NOUN:1
 bourgmestre	NOUN:1
 bourgogne	PROPN:1
-bourguignon	ADJ:1	NOUN:1
+bourguignon	ADJ:1
 bourrache	NOUN:1
 bourrasque	NOUN:1
 bourre	NOUN:1
@@ -2584,7 +2582,7 @@ boyer	PROPN:2
 boîte	NOUN:1
 bpa	X:1
 bpm	X:1
-brabançon	NOUN:1	ADJ:1
+brabançon	NOUN:1
 bracelet	NOUN:1
 braconnier	NOUN:1
 brader	VERB:1
@@ -2592,7 +2590,7 @@ bradycardie	NOUN:1
 braguette	NOUN:1
 brahma	NOUN:1
 brahmane	NOUN:1
-braillard	ADJ:1	NOUN:1
+braillard	ADJ:1
 brailler	VERB:1
 brainstorming	NOUN:1
 braire	VERB:1
@@ -2624,7 +2622,7 @@ brelan	NOUN:1
 breloque	NOUN:1
 bretagne	PROPN:1
 bretelle	NOUN:1
-breton	ADJ:1	NOUN:1
+breton	ADJ:1
 bretzel	NOUN:1
 breuvage	NOUN:1
 brevet	NOUN:1
@@ -2654,7 +2652,7 @@ briquet	NOUN:1
 briqueterie	NOUN:1
 briser	VERB:1
 brisure	NOUN:1
-britannique	ADJ:1	NOUN:1
+britannique	NOUN:1
 brièvement	ADV:1
 brièveté	NOUN:1
 brocanteur	NOUN:1
@@ -2695,7 +2693,7 @@ brulure	NOUN:1
 brumaire	NOUN:1
 brume	NOUN:1
 brumeux	ADJ:1
-brun	ADJ:1	NOUN:1
+brun	ADJ:1
 brune	NOUN:1
 brunei	PROPN:1
 brunet	PROPN:1
@@ -2708,14 +2706,14 @@ brutalement	ADV:1
 brutaliser	VERB:1
 brutalité	NOUN:1
 bruxelles	PROPN:1
-bruxellois	NOUN:1	ADJ:1
+bruxellois	NOUN:1
 bruyant	ADJ:1
 bruyère	NOUN:1
 brèche	NOUN:1
 brème	NOUN:1
 bréchet	NOUN:1
 brésil	PROPN:1
-brésilien	NOUN:1	ADJ:1
+brésilien	NOUN:1
 bréviaire	NOUN:1
 brûlage	NOUN:1
 brûler	VERB:1
@@ -2734,7 +2732,7 @@ bugle	NOUN:1
 buis	NOUN:1
 buisson	NOUN:1
 bulbe	NOUN:1
-bulgare	ADJ:1	NOUN:1
+bulgare	NOUN:1
 bulgarie	PROPN:1
 bulldozer	NOUN:1
 bulle	NOUN:2
@@ -2748,7 +2746,7 @@ bureaucratie	NOUN:1
 bureautique	NOUN:1
 burgonde	NOUN:1
 burin	NOUN:1
-burkinabé	NOUN:1	ADJ:1
+burkinabé	NOUN:1
 burkini	NOUN:1
 burlesque	ADJ:1
 burqa	NOUN:1
@@ -2782,13 +2780,13 @@ bâillon	NOUN:1
 bâillonner	VERB:1
 bâle	PROPN:1
 bât	NOUN:1
-bâtard	ADJ:1	NOUN:1
+bâtard	NOUN:1
 bâtiment	NOUN:3
 bâtir	VERB:3
 bâtisseur	NOUN:1
 bâton	NOUN:2
 bâtonnet	NOUN:1
-bègue	ADJ:1	NOUN:1
+bègue	ADJ:1
 bé	NOUN:1
 béat	ADJ:1
 béatification	NOUN:1
@@ -2805,19 +2803,19 @@ béguin	NOUN:1
 béguinage	NOUN:1
 bélier	PROPN:1	NOUN:2
 béluga	NOUN:1
-bémol	NOUN:1	ADJ:1
+bémol	NOUN:1
 bénin	PROPN:1
 béninois	NOUN:1
 bénir	VERB:1
 bénitier	NOUN:1
 bénédiction	NOUN:1
 bénéfice	NOUN:1
-bénéficiaire	ADJ:1	NOUN:1
+bénéficiaire	ADJ:1
 bénéficier	VERB:1
 bénéfique	ADJ:1
 bénévole	ADJ:1
 béotie	PROPN:1
-béotien	ADJ:1	NOUN:1
+béotien	NOUN:1
 béquille	NOUN:1
 béret	NOUN:1
 béryl	NOUN:1
@@ -2935,7 +2933,7 @@ calibration	NOUN:1
 calice	NOUN:1
 califat	NOUN:1
 calife	NOUN:1
-californien	NOUN:1	ADJ:1
+californien	NOUN:1
 calleux	ADJ:1
 calligraphe	NOUN:1
 calligraphie	NOUN:1
@@ -2947,7 +2945,7 @@ calomnie	NOUN:1
 calomnier	VERB:1
 calorie	NOUN:1
 calorifique	ADJ:1
-calorique	ADJ:1
+calorique	ADJ:1	NOUN:1
 calot	NOUN:1
 calotte	NOUN:1
 calque	NOUN:1
@@ -2962,7 +2960,7 @@ camarade	NOUN:1
 camargue	NOUN:1
 camaïeu	NOUN:1
 cambodge	PROPN:1
-cambodgien	NOUN:1	ADJ:1
+cambodgien	NOUN:1
 cambrien	ADJ:1	NOUN:1
 cambriolage	NOUN:1
 cambrioler	VERB:1
@@ -2971,7 +2969,7 @@ came	NOUN:1
 camelote	NOUN:1
 camembert	NOUN:2
 cameroun	PROPN:1
-camerounais	NOUN:1	ADJ:1
+camerounais	NOUN:1
 camion	NOUN:1
 camionnette	NOUN:1
 camionneur	NOUN:1
@@ -2996,7 +2994,7 @@ caméraman	NOUN:1
 canada	PROPN:1
 canadair	NOUN:1
 canadian	NOUN:1
-canadien	NOUN:1	ADJ:1
+canadien	NOUN:1
 canaille	X:1
 canal	NOUN:1
 canalisation	NOUN:1
@@ -3029,7 +3027,7 @@ cannabis	NOUN:1
 canne	NOUN:1
 canneberge	NOUN:1
 cannelle	ADJ:1	NOUN:1
-cannibale	NOUN:1	ADJ:1
+cannibale	NOUN:1
 cannibalisme	NOUN:1
 canon	NOUN:1
 canonique	ADJ:1
@@ -3044,7 +3042,7 @@ cantatrice	NOUN:1
 cantine	NOUN:1
 cantique	NOUN:1
 canton	NOUN:1
-cantonais	NOUN:1	ADJ:1
+cantonais	NOUN:1
 cantonnement	NOUN:1
 cantonner	VERB:1
 cantonnier	NOUN:1
@@ -3122,7 +3120,7 @@ carcinome	NOUN:1
 cardamome	NOUN:1
 cardan	NOUN:1
 carde	NOUN:1
-cardiaque	ADJ:1	NOUN:1
+cardiaque	NOUN:1
 cardigan	NOUN:1
 cardinal	ADJ:1	NOUN:1
 cardiologie	NOUN:1
@@ -3148,10 +3146,10 @@ carioca	ADJ:1
 cariste	NOUN:1
 caritatif	ADJ:1
 carlin	NOUN:1
-carmin	ADJ:1	NOUN:1
+carmin	ADJ:1
 carmélite	NOUN:1
 carnage	NOUN:1
-carnassier	ADJ:1	NOUN:1
+carnassier	ADJ:1
 carnaval	NOUN:1
 carnet	NOUN:1
 carnivore	ADJ:1
@@ -3169,13 +3167,13 @@ carrick	NOUN:1
 carrière	NOUN:1
 carrosse	NOUN:1
 carrosserie	NOUN:1
-carrossier	ADJ:1	NOUN:1
+carrossier	ADJ:1
 carrousel	NOUN:1
 carré	ADJ:1	NOUN:1
 cartable	NOUN:1
 carte	NOUN:3
 cartel	NOUN:1
-carthaginois	ADJ:1	NOUN:1
+carthaginois	ADJ:1
 cartilage	NOUN:1
 cartographe	NOUN:1
 cartographie	NOUN:1
@@ -3214,7 +3212,7 @@ cassure	NOUN:1
 cassé	ADJ:1
 castagne	NOUN:1
 caste	NOUN:1
-castillan	ADJ:1	NOUN:1
+castillan	ADJ:1
 casting	NOUN:1
 castor	NOUN:1
 castral	ADJ:1
@@ -3242,7 +3240,7 @@ cathode	NOUN:1
 cathodique	ADJ:1
 catholicisme	NOUN:1
 catholicité	NOUN:1
-catholique	ADJ:1	NOUN:1
+catholique	NOUN:1
 cathédrale	NOUN:1
 catin	NOUN:1
 cation	NOUN:1
@@ -3255,7 +3253,6 @@ catégoriser	VERB:1
 caténaire	NOUN:1	ADJ:1
 caucasien	NOUN:1	ADJ:1
 cauchemar	NOUN:1
-cauchois	NOUN:1
 caudal	ADJ:1
 causalité	NOUN:1
 cause	NOUN:1
@@ -3275,7 +3272,6 @@ cavitation	NOUN:1
 cavité	NOUN:1
 caïd	NOUN:1
 caïman	NOUN:1
-cci	X:1
 ccm	NOUN:1
 cd	X:1
 cdi	NOUN:1
@@ -3305,13 +3301,13 @@ censure	NOUN:1
 censurer	VERB:1
 censé	ADJ:1
 censément	ADV:1
-cent	ADJ:1	NOUN:1
+cent	NOUN:1
 centaine	NOUN:1
 centaure	NOUN:1
-centenaire	ADJ:1	NOUN:1
+centenaire	ADJ:1
 centime	NOUN:1
 centimètre	NOUN:1
-centième	ADJ:1	NOUN:1
+centième	NOUN:1
 centrafricain	NOUN:1
 central	ADJ:1
 centralisme	NOUN:1
@@ -3508,7 +3504,7 @@ chauve	ADJ:1
 chauvinisme	NOUN:1
 chaux	NOUN:1
 chavisme	NOUN:1
-chaviste	ADJ:1	NOUN:1
+chaviste	ADJ:1
 chaîne	NOUN:1
 cheeseburger	NOUN:1
 cheesecake	NOUN:1
@@ -3580,10 +3576,10 @@ chiffrer	VERB:1
 chignon	NOUN:1
 chihuahua	NOUN:1
 chiisme	NOUN:1
-chiite	ADJ:1	NOUN:1
+chiite	ADJ:1
 chikungunya	NOUN:1
 chili	PROPN:1
-chilien	ADJ:1	NOUN:1
+chilien	NOUN:1
 chilienne	NOUN:1
 chiller	VERB:1
 chimie	NOUN:1
@@ -3597,7 +3593,7 @@ chimère	NOUN:1
 chimérique	ADJ:1
 chinchilla	NOUN:1
 chine	PROPN:1
-chinois	ADJ:1	NOUN:1
+chinois	NOUN:1
 chinook	NOUN:1
 chiot	NOUN:1
 chiotte	NOUN:1
@@ -3619,7 +3615,7 @@ choc	NOUN:1
 chochotte	NOUN:1
 chocolat	NOUN:2	ADJ:1
 chocolaterie	NOUN:1
-chocolatier	NOUN:1	ADJ:1
+chocolatier	NOUN:1
 choir	VERB:1
 choisir	VERB:1
 choix	NOUN:1
@@ -3678,7 +3674,7 @@ châssis	NOUN:2
 châtaigne	NOUN:1
 châtaigneraie	NOUN:1
 châtaignier	NOUN:1
-châtain	ADJ:1	NOUN:1
+châtain	ADJ:1
 château	NOUN:2
 châtelain	NOUN:1
 chèque	NOUN:1
@@ -3717,11 +3713,11 @@ cimenterie	NOUN:1
 cimeterre	NOUN:1
 cimetière	NOUN:1
 cimier	NOUN:1
-cinabre	NOUN:1	ADJ:1
+cinabre	ADJ:1
 cinglé	ADJ:1
 cinq	NUM:1
 cinquante	NUM:1
-cinquante-six	ADJ:1	NOUN:1
+cinquante-six	ADJ:1
 cinquantenaire	NOUN:1
 cinquantième	ADJ:1
 cinquième	ADJ:1
@@ -3733,13 +3729,13 @@ cinémascope	NOUN:1
 cinématographe	NOUN:1
 cinématographie	NOUN:1
 cinématographique	ADJ:1
-cinéphile	ADJ:1	NOUN:1
+cinéphile	ADJ:1
 cinétique	ADJ:1
 cirage	X:1	NOUN:1
 circadien	ADJ:1
 circoncire	VERB:1
 circoncision	NOUN:1
-circonflexe	ADJ:1	NOUN:1
+circonflexe	ADJ:1
 circonférence	NOUN:1
 circonscription	NOUN:1
 circonscrire	VERB:1
@@ -3747,7 +3743,7 @@ circonspection	NOUN:1
 circonstance	NOUN:1
 circonstanciel	ADJ:1
 circonstancié	ADJ:1
-circulaire	ADJ:1	NOUN:1
+circulaire	ADJ:1
 circulation	NOUN:1
 circulatoire	ADJ:1
 circuler	VERB:1
@@ -3793,7 +3789,7 @@ clamer	VERB:1
 clameur	NOUN:1
 clamser	VERB:1
 clan	NOUN:1
-clandestin	ADJ:1	NOUN:1
+clandestin	ADJ:1
 clandestinement	ADV:1
 clandestinité	NOUN:1
 clanique	ADJ:1
@@ -3814,7 +3810,7 @@ classifier	VERB:1
 classique	ADJ:1	NOUN:1
 claude	PROPN:2
 clause	NOUN:1
-claustrophobe	NOUN:1	ADJ:1
+claustrophobe	NOUN:1
 claustrophobie	NOUN:1
 claveau	NOUN:1
 clavecin	NOUN:1
@@ -3832,7 +3828,7 @@ client	NOUN:1
 clientèle	NOUN:1
 clientéliste	ADJ:1
 cligner	VERB:1
-clignotant	ADJ:1	NOUN:1
+clignotant	NOUN:1
 clignoter	VERB:1
 climat	NOUN:1
 climatisation	NOUN:1
@@ -3950,7 +3946,7 @@ collage	NOUN:1
 collation	NOUN:2
 colle	NOUN:1
 collecter	VERB:1
-collectif	ADJ:1	NOUN:1
+collectif	ADJ:1
 collection	NOUN:1
 collectionner	VERB:1
 collectivement	ADV:1
@@ -3981,7 +3977,7 @@ colonel	NOUN:1
 colonial	ADJ:1
 colonialisme	NOUN:1
 colonie	NOUN:1
-colonisateur	ADJ:1	NOUN:1
+colonisateur	ADJ:1
 colonisation	NOUN:1
 coloniser	VERB:1
 colonnade	NOUN:1
@@ -4003,9 +3999,9 @@ colporteur	NOUN:1
 coltan	NOUN:1
 colza	NOUN:1
 colère	NOUN:2
-coléoptère	ADJ:1	NOUN:1
+coléoptère	ADJ:1
 colérique	ADJ:2
-comanche	ADJ:1	NOUN:1
+comanche	ADJ:1
 comateux	ADJ:1
 combat	NOUN:1
 combatif	ADJ:1
@@ -4065,7 +4061,7 @@ communier	VERB:1
 communion	NOUN:1
 communiquer	VERB:2
 communisme	NOUN:1
-communiste	ADJ:1	NOUN:1
+communiste	ADJ:1
 communément	ADV:1
 commutateur	NOUN:1
 commuter	VERB:1
@@ -4336,7 +4332,7 @@ consommation	NOUN:2
 consommer	VERB:1
 consonance	NOUN:1
 consonne	NOUN:1
-consort	ADJ:1	NOUN:1
+consort	ADJ:1
 consortium	NOUN:1
 conspirateur	ADJ:1
 conspiration	NOUN:1
@@ -4368,11 +4364,11 @@ consultation	NOUN:1
 consulter	VERB:1
 consumer	VERB:1
 consumérisme	NOUN:1
-consumériste	ADJ:1	NOUN:1
+consumériste	ADJ:1
 consécration	NOUN:1
 consécutif	ADJ:1
 conséquence	NOUN:1
-conséquent	ADJ:1	NOUN:1
+conséquent	ADJ:1
 contact	NOUN:1
 contacter	VERB:1
 contagieux	ADJ:1
@@ -4383,15 +4379,15 @@ conte	NOUN:1
 contemplatif	ADJ:1
 contemplation	NOUN:1
 contempler	VERB:1
-contemporain	ADJ:1	NOUN:1
+contemporain	ADJ:1
 contenance	NOUN:1
 conteneur	NOUN:1
 contenir	VERB:1
 content	ADJ:1
 contentement	ADV:1	NOUN:1
 contenter	VERB:1
-contentieux	ADJ:1	NOUN:1
-contenu	ADJ:1	NOUN:1
+contentieux	ADJ:1
+contenu	ADJ:1
 contestataire	ADJ:1
 contestation	NOUN:1
 contester	VERB:1
@@ -4400,7 +4396,7 @@ contexte	NOUN:1
 contextualiser	VERB:1
 contextuel	ADJ:1
 contigu	ADJ:1
-continent	ADJ:1	NOUN:1
+continent	ADJ:1
 continental	ADJ:1
 contingence	NOUN:1
 contingent	ADJ:1
@@ -4415,7 +4411,7 @@ continûment	ADV:1
 contondant	ADJ:1
 contour	NOUN:1
 contournement	NOUN:1
-contraceptif	ADJ:1	NOUN:1
+contraceptif	ADJ:1
 contraception	X:1
 contracter	VERB:1
 contraction	NOUN:1
@@ -4426,7 +4422,7 @@ contradictoire	ADJ:1
 contraignant	ADJ:1
 contraindre	VERB:1
 contrainte	NOUN:1
-contraire	NOUN:1	ADJ:1
+contraire	ADJ:1
 contrairement	ADV:1
 contralto	NOUN:1
 contrarier	VERB:1
@@ -4459,7 +4455,7 @@ contretemps	NOUN:1
 contrevenir	VERB:1
 contribuable	NOUN:1
 contribuer	VERB:1
-contributeur	ADJ:1	NOUN:1
+contributeur	ADJ:1
 contribution	NOUN:1
 contrit	ADJ:1
 contrition	NOUN:1
@@ -4525,7 +4521,7 @@ copiste	NOUN:1
 coppa	NOUN:1
 coproduction	NOUN:1
 copropriété	NOUN:1
-copte	ADJ:1	NOUN:1
+copte	ADJ:1
 copulation	NOUN:1
 copule	NOUN:1
 copuler	VERB:1
@@ -4598,14 +4594,14 @@ corroborer	VERB:1
 corrompre	VERB:1
 corrosif	ADJ:1
 corrosion	NOUN:1
-corrupteur	NOUN:1	ADJ:1
+corrupteur	ADJ:1
 corruption	NOUN:1
 corrélation	NOUN:1
 corrélativement	ADV:1
 corréler	VERB:1
 corsage	NOUN:1
 corsaire	NOUN:1
-corse	ADJ:1	NOUN:1
+corse	ADJ:1
 corset	NOUN:1
 cortex	NOUN:1
 cortical	ADJ:1
@@ -4613,7 +4609,7 @@ cortège	NOUN:1
 coruscant	ADJ:1
 corvette	NOUN:1
 corvée	NOUN:1
-coréen	ADJ:1	NOUN:1
+coréen	ADJ:1
 cosaque	NOUN:1
 cosinus	NOUN:1
 cosmique	ADJ:1
@@ -4623,10 +4619,10 @@ cosmographie	NOUN:1
 cosmologie	NOUN:1
 cosmologique	ADJ:1
 cosmonaute	NOUN:1
-cosmopolite	NOUN:1	ADJ:1
+cosmopolite	NOUN:1
 cosmopolitisme	NOUN:1
 cosmos	NOUN:1
-cosmétique	ADJ:1	NOUN:1
+cosmétique	ADJ:1
 cosplay	NOUN:1
 cosse	NOUN:1
 cossu	ADJ:1
@@ -4704,7 +4700,7 @@ course	NOUN:4
 court	ADJ:2	ADV:2	NOUN:1
 court-circuiter	VERB:1
 courtage	NOUN:1
-courtisan	ADJ:1	NOUN:1
+courtisan	ADJ:1
 courtiser	VERB:1
 courtois	ADJ:1
 courtoisie	NOUN:1
@@ -4720,7 +4716,7 @@ couturière	NOUN:1
 couvent	NOUN:3
 couver	VERB:1
 couvercle	NOUN:1
-couvert	ADJ:1	NOUN:1
+couvert	ADJ:1
 couverture	NOUN:1
 couveuse	NOUN:1
 couvre-feu	NOUN:1
@@ -4743,7 +4739,7 @@ craindre	VERB:1
 crainte	NOUN:1
 craintif	ADJ:1
 cramer	VERB:1
-cramoisi	ADJ:1	NOUN:1
+cramoisi	NOUN:1
 crampe	NOUN:1
 crapaud	NOUN:1
 crapuleux	ADJ:1
@@ -4773,7 +4769,7 @@ crime	NOUN:1
 criminalisation	NOUN:1
 criminaliser	VERB:1
 criminalité	NOUN:1
-criminel	ADJ:1	NOUN:1
+criminel	ADJ:1
 criminellement	ADV:1
 criminologie	NOUN:1
 criminologue	NOUN:1
@@ -4784,15 +4780,15 @@ crise	NOUN:1
 crissement	NOUN:1
 crisser	VERB:1
 cristal	NOUN:1
-cristallin	ADJ:1	NOUN:1
+cristallin	ADJ:1
 cristallisation	NOUN:1
 cristalliser	VERB:1
 cristallographie	NOUN:1
 critiquable	ADJ:1
-critique	ADJ:1	NOUN:1
+critique	NOUN:1
 critiquer	VERB:1
 critère	NOUN:1
-croate	ADJ:1	NOUN:1
+croate	ADJ:1
 croatie	PROPN:1
 croc	NOUN:1
 croche	NOUN:1
@@ -4808,7 +4804,7 @@ croisillon	NOUN:3	ADJ:2
 croisière	NOUN:1
 croissance	NOUN:1
 croissant	ADJ:1	NOUN:1
-croisé	ADJ:1	NOUN:1
+croisé	ADJ:1
 croix	NOUN:1
 croquant	ADJ:1
 croque-monsieur	NOUN:1
@@ -4876,21 +4872,20 @@ crématoire	ADJ:1
 crématorium	NOUN:1
 crémeux	ADJ:1
 créneau	NOUN:1
-créole	NOUN:1	ADJ:1
+créole	NOUN:1
 crépi	NOUN:1
 crépu	ADJ:1
 crépusculaire	ADJ:1
 crépuscule	NOUN:1
 crétacé	NOUN:1
 crétin	ADJ:1
-crétois	ADJ:1	NOUN:1
+crétois	ADJ:1
 crêpe	NOUN:3
-crêperie	NOUN:1
 crête	NOUN:1
 csv	NOUN:1
 cta	X:1
 cuba	PROPN:1
-cubain	ADJ:1	NOUN:1
+cubain	ADJ:1
 cube	NOUN:1
 cubique	ADJ:1
 cubitus	NOUN:1
@@ -4941,7 +4936,7 @@ cumulatif	ADJ:1
 cumulonimbus	NOUN:1
 cumulus	NOUN:1
 cunnilingus	NOUN:1
-cunéiforme	ADJ:1	NOUN:1
+cunéiforme	ADJ:1
 cupcake	NOUN:1
 cupide	ADJ:2
 cupidité	NOUN:1
@@ -5014,7 +5009,7 @@ célestin	ADJ:1
 célestine	NOUN:1
 célia	NOUN:1
 célibat	NOUN:1
-célibataire	NOUN:1	ADJ:1
+célibataire	NOUN:1
 célèbre	ADJ:1
 célébration	NOUN:1
 célébrer	VERB:1
@@ -5057,7 +5052,7 @@ dais	NOUN:1
 dalaï-lama	NOUN:1
 dalle	NOUN:1
 daller	VERB:1
-dalmate	ADJ:1	NOUN:1
+dalmate	NOUN:1
 dalmatien	NOUN:1
 daltonien	ADJ:1
 damas	NOUN:1
@@ -5073,7 +5068,7 @@ dangereux	ADJ:1
 dangerosité	NOUN:1
 daniel	PROPN:1
 danielle	PROPN:1
-danois	ADJ:1	NOUN:1
+danois	ADJ:1
 dans	ADP:1
 danse	NOUN:1
 danser	VERB:1
@@ -5141,7 +5136,7 @@ dernier	ADJ:1
 dernièrement	ADV:1
 derrière	ADV:4	NOUN:2
 derviche	NOUN:1
-des	DET:1	X:1
+des	DET:1	ADP:1
 desbordes	PROPN:1
 descendance	NOUN:1
 descendant	NOUN:1
@@ -5189,7 +5184,7 @@ deviner	VERB:1
 devinette	NOUN:1
 devis	NOUN:1
 devise	NOUN:1
-devoir	NOUN:1
+devoir	VERB:1
 dextre	ADJ:1
 dextérité	NOUN:1
 dharma	NOUN:1
@@ -5308,13 +5303,13 @@ directeur	NOUN:1
 direction	NOUN:1
 directive	NOUN:1
 directrice	NOUN:1
-dirigeable	NOUN:1	ADJ:1
+dirigeable	NOUN:1
 dirigeant	ADJ:1	NOUN:3
 diriger	VERB:1
 dirlo	NOUN:1
 discerner	VERB:1
 disciple	NOUN:1
-disciplinaire	ADJ:1	NOUN:1
+disciplinaire	ADJ:1
 discipline	NOUN:1
 disco	NOUN:1
 discographie	NOUN:1
@@ -5375,7 +5370,7 @@ dissiper	VERB:1
 dissociation	NOUN:1
 dissocier	VERB:1
 dissolution	NOUN:1
-dissolvant	ADJ:1	NOUN:1
+dissolvant	ADJ:1
 dissonance	NOUN:1
 dissoudre	VERB:1
 dissuader	VERB:1
@@ -5438,9 +5433,9 @@ dix-neuf	NUM:1
 dix-neuvième	ADJ:1	NOUN:1
 dix-sept	NUM:1
 dix-septième	ADJ:1	NOUN:1
-dixième	ADJ:1	NOUN:1
+dixième	ADJ:1
 dizaine	NOUN:1
-dièse	NOUN:1	ADJ:1
+dièse	NOUN:1
 diète	NOUN:1
 diététique	ADJ:1	NOUN:1
 dj	NOUN:1
@@ -5448,7 +5443,7 @@ djeddah	PROPN:1
 djellaba	NOUN:1
 djibouti	PROPN:1
 djihad	NOUN:1
-djihadiste	ADJ:1	NOUN:1
+djihadiste	ADJ:1
 djinn	NOUN:1
 dns	X:1
 do	NOUN:1
@@ -5463,7 +5458,7 @@ doctorant	NOUN:1
 doctorat	NOUN:1
 doctrine	NOUN:1
 document	NOUN:1
-documentaire	ADJ:1	NOUN:1
+documentaire	ADJ:1
 documentaliste	NOUN:1
 documentariste	NOUN:1
 documentation	NOUN:1
@@ -5494,7 +5489,7 @@ domicile	NOUN:1
 domicilier	VERB:1
 domination	NOUN:1
 dominer	VERB:1
-dominicain	ADJ:1	NOUN:1
+dominicain	ADJ:1
 dominique	PROPN:3
 domino	NOUN:1
 dommage	NOUN:1	INTJ:1
@@ -5504,7 +5499,7 @@ dompter	VERB:1
 donataire	NOUN:1
 donateur	NOUN:1
 donation	NOUN:1
-donc	CCONJ:1
+donc	ADV:1
 donjon	NOUN:1
 donner	VERB:1
 donneur	NOUN:1
@@ -5533,7 +5528,7 @@ douane	NOUN:1
 douanier	NOUN:1
 douar	NOUN:1
 doublage	NOUN:1
-double	ADJ:1	NOUN:1
+double	ADJ:1
 doublement	ADV:1
 doubler	VERB:1
 doublet	NOUN:1
@@ -5555,7 +5550,7 @@ douve	NOUN:1
 doux	ADJ:2
 douzaine	NOUN:1
 douze	NUM:1
-douzième	ADJ:1	NOUN:1
+douzième	ADJ:1
 doué	ADJ:1
 doxa	NOUN:1
 doyen	NOUN:1
@@ -5604,8 +5599,7 @@ dru	ADJ:1
 druide	NOUN:1
 druidique	ADJ:1
 drôle	ADJ:4
-ds	NOUN:1
-du	X:1
+du	ADP:1
 dub	NOUN:1
 dubitatif	ADJ:1
 dubois	PROPN:1
@@ -5616,7 +5610,7 @@ ducat	NOUN:1
 duchesse	NOUN:1
 duché	NOUN:1
 ducoup	ADV:1
-dudit	X:1
+dudit	ADP:1
 duel	NOUN:1
 dufresne	PROPN:1
 dulcinée	NOUN:1
@@ -5630,7 +5624,7 @@ duplex	NOUN:1
 duplication	NOUN:1
 duplicité	NOUN:1
 dupliquer	VERB:1
-duquel	X:1
+duquel	ADP:1
 dur	ADJ:1
 durable	ADJ:1
 durablement	ADV:1
@@ -5657,7 +5651,7 @@ dysfonction	NOUN:1
 dysfonctionnel	ADJ:1
 dysfonctionnement	NOUN:1
 dyslexie	NOUN:1
-dyslexique	ADJ:1	NOUN:1
+dyslexique	ADJ:1
 dyspepsie	NOUN:1
 dysplasie	NOUN:1
 dyspnée	NOUN:1
@@ -5705,7 +5699,7 @@ décanter	VERB:1
 décapant	ADJ:1
 décapitation	NOUN:1
 décapiter	VERB:1
-décapotable	ADJ:1	NOUN:1
+décapotable	NOUN:1
 décapsuleur	NOUN:1
 décathlon	NOUN:1
 déceler	VERB:1
@@ -5825,7 +5819,7 @@ défaillir	VERB:1
 défaire	VERB:1
 défaite	NOUN:1
 défaitisme	NOUN:1
-défaitiste	ADJ:1	NOUN:1
+défaitiste	ADJ:1
 défausser	VERB:1
 défaut	NOUN:1
 défavorable	ADJ:1
@@ -5916,7 +5910,7 @@ délier	VERB:1
 délimitation	NOUN:1
 délimiter	VERB:1
 délinquance	NOUN:1
-délinquant	ADJ:1	NOUN:1
+délinquant	ADJ:1
 délirant	ADJ:1
 délire	NOUN:1
 délit	NOUN:1
@@ -6039,7 +6033,7 @@ dépouiller	VERB:1
 dépourvu	ADJ:1
 dépravation	NOUN:1
 dépravé	ADJ:1
-dépressif	ADJ:1	NOUN:1
+dépressif	NOUN:1
 dépression	NOUN:1
 dépressurisation	NOUN:1
 déprimant	ADJ:1
@@ -6121,12 +6115,11 @@ désigner	VERB:1
 désillusion	NOUN:1
 désindustrialisation	NOUN:1
 désinence	NOUN:1
-désinfectant	ADJ:1	NOUN:1
+désinfectant	ADJ:1
 désinfecter	VERB:1
 désinfection	NOUN:1
 désinformation	NOUN:1
 désinformer	VERB:1
-désinscrire	VERB:1
 désintoxication	NOUN:1
 désintégration	NOUN:1
 désintégrer	VERB:1
@@ -6237,7 +6230,7 @@ effacement	NOUN:1
 effacer	VERB:1
 effaceur	NOUN:1
 effaroucher	VERB:1
-effectif	ADJ:1	NOUN:1
+effectif	ADJ:1
 effectivement	ADV:1
 effectuer	VERB:1
 effervescence	NOUN:1
@@ -6261,13 +6254,12 @@ effrayer	VERB:1
 effriter	VERB:1
 effroi	NOUN:1
 effronterie	NOUN:1
-effronté	ADJ:1	NOUN:1
+effronté	ADJ:1
 effrontément	ADV:1
 effréné	ADJ:1
 efféminé	ADJ:1
-el	PRON:1
 elfe	NOUN:1
-elfique	ADJ:1	NOUN:1
+elfique	ADJ:1
 elisabeth	PROPN:1
 elle	PRON:1
 elles	PRON:1
@@ -6363,7 +6355,7 @@ encensoir	NOUN:1
 encercler	VERB:1
 enchantement	NOUN:1
 enchanter	VERB:1
-enchanteur	ADJ:1	NOUN:1
+enchanteur	ADJ:1
 enchaîner	VERB:2
 enchevêtrement	NOUN:1
 enchère	NOUN:1
@@ -6466,7 +6458,7 @@ enliser	VERB:1
 enluminure	NOUN:1
 enlèvement	NOUN:2
 enne	NOUN:1
-ennemi	NOUN:1	ADJ:1
+ennemi	NOUN:1
 ennui	NOUN:1
 ennuyer	VERB:1
 ennuyeux	ADJ:1
@@ -6569,14 +6561,14 @@ enveloppe	NOUN:1
 envelopper	VERB:1
 envenimer	VERB:1
 envergure	NOUN:1
-envers	NOUN:2	ADP:2
+envers	ADP:2	NOUN:2
 envie	NOUN:6
 envier	VERB:1
 envieux	ADJ:1
 environ	ADV:1	ADP:1
 environnement	NOUN:1
 environnemental	ADJ:1
-environnementaliste	NOUN:1	ADJ:1
+environnementaliste	NOUN:1
 envisager	VERB:1
 envoi	NOUN:1
 envoler	VERB:1
@@ -6630,7 +6622,7 @@ eschatologique	ADJ:1
 esclandre	NOUN:1
 esclavage	NOUN:1
 esclavagisme	NOUN:1
-esclavagiste	ADJ:1	NOUN:1
+esclavagiste	ADJ:1
 esclave	NOUN:1
 escoffier	VERB:1
 escompte	NOUN:1
@@ -6648,11 +6640,11 @@ espacement	NOUN:1
 espacer	VERB:1
 espadon	NOUN:1
 espagne	PROPN:1
-espagnol	ADJ:1	NOUN:1
+espagnol	NOUN:1
 espion	NOUN:1
 espionnage	NOUN:1
 espionner	VERB:1
-espiègle	ADJ:1	NOUN:1
+espiègle	ADJ:1
 espièglerie	NOUN:1
 esplanade	NOUN:1
 espoir	NOUN:1
@@ -6700,7 +6692,7 @@ estomac	NOUN:1
 estompe	NOUN:1
 estomper	VERB:1
 estonie	PROPN:1
-estonien	ADJ:1	NOUN:1
+estonien	ADJ:1
 estrade	NOUN:1
 estragon	NOUN:1
 estran	NOUN:1
@@ -6732,9 +6724,9 @@ eurasie	PROPN:1
 euro	NOUN:1
 eurodéputé	NOUN:1
 europe	PROPN:1
-européen	ADJ:1	NOUN:1
-européiste	ADJ:1	NOUN:1
-eurosceptique	ADJ:1	NOUN:1
+européen	ADJ:1
+européiste	ADJ:1
+eurosceptique	ADJ:1
 eurêka	INTJ:1
 euthanasie	NOUN:1
 euthanasier	VERB:1
@@ -6766,7 +6758,6 @@ excessivement	ADV:1
 excision	NOUN:1
 excitation	NOUN:1
 exciter	VERB:1
-excité	ADJ:1
 exclamation	NOUN:1
 exclamer	VERB:1
 exclure	VERB:1
@@ -6797,7 +6788,7 @@ exhaustivité	NOUN:1
 exhiber	VERB:1
 exhibition	NOUN:1
 exhibitionnisme	NOUN:1
-exhibitionniste	ADJ:1	NOUN:1
+exhibitionniste	ADJ:1
 exhortation	NOUN:1
 exhorter	VERB:1
 exhumation	NOUN:1
@@ -6851,7 +6842,7 @@ explorateur	NOUN:1
 exploration	NOUN:1
 explorer	VERB:1
 exploser	VERB:1
-explosif	ADJ:1	NOUN:1
+explosif	ADJ:1
 explosion	NOUN:1
 exponentiel	ADJ:1
 exportation	NOUN:1
@@ -6859,7 +6850,7 @@ exporter	VERB:1
 exposer	VERB:1
 exposition	NOUN:1
 expres	ADJ:1
-express	ADJ:1	NOUN:1
+express	ADJ:1
 expressif	ADJ:1
 expression	NOUN:1
 expressionnisme	NOUN:1
@@ -6893,23 +6884,23 @@ extinction	NOUN:1
 extirper	VERB:1
 extorquer	VERB:1
 extorsion	NOUN:1
-extra	ADJ:1	NOUN:1
+extra	ADJ:1
 extraction	NOUN:1
 extradition	NOUN:1
 extraire	VERB:1
 extraordinaire	ADJ:1
 extrapolation	NOUN:1
 extrapoler	VERB:1
-extraterrestre	ADJ:1	NOUN:1
+extraterrestre	NOUN:1
 extravagance	NOUN:1
 extraverti	ADJ:1
 extrémisme	NOUN:1
-extrémiste	ADJ:1	NOUN:1
+extrémiste	ADJ:1
 extrémité	NOUN:1
 extrême	ADJ:1	NOUN:1
 extrême-orient	X:1
 extrêmement	ADV:1
-extérieur	ADJ:1	NOUN:1
+extérieur	ADJ:1
 extérieurement	ADV:1
 extérioriser	VERB:1
 exécrable	ADJ:1
@@ -7031,7 +7022,7 @@ fascinant	ADJ:1
 fascination	NOUN:1
 fasciner	VERB:1
 fascisme	NOUN:1
-fasciste	ADJ:1	NOUN:1
+fasciste	ADJ:1
 faste	NOUN:1
 fastidieux	ADJ:1
 fastueux	ADJ:1
@@ -7086,7 +7077,7 @@ feindre	VERB:1
 feinte	NOUN:1
 feldspath	NOUN:1
 fellation	NOUN:1
-femelle	ADJ:1	NOUN:1
+femelle	ADJ:1
 femme	NOUN:2
 fendre	VERB:1
 fennec	NOUN:1
@@ -7212,7 +7203,7 @@ financement	NOUN:1
 financer	VERB:1
 financeur	NOUN:1
 financiarisation	NOUN:1
-financier	ADJ:1	NOUN:1
+financier	ADJ:1
 financièrement	ADV:1
 finesse	NOUN:1
 finir	VERB:1
@@ -7220,7 +7211,7 @@ finition	NOUN:1
 finitude	NOUN:1
 finlandais	ADJ:1	NOUN:1
 finlande	PROPN:1
-finnois	ADJ:1	NOUN:1
+finnois	NOUN:1
 fiole	NOUN:4
 fioul	NOUN:1
 fir	X:1
@@ -7249,7 +7240,7 @@ flagrance	NOUN:1
 flagrant	ADJ:1
 flair	NOUN:2
 flairer	VERB:1
-flamand	ADJ:1	NOUN:1
+flamand	NOUN:1
 flamant	NOUN:1
 flamber	VERB:1
 flamboyant	ADJ:1	NOUN:1
@@ -7267,10 +7258,10 @@ flashy	ADJ:1
 flasque	ADJ:1
 flatter	VERB:2
 flatterie	NOUN:1
-flatteur	ADJ:1	NOUN:1
-flegmatique	ADJ:3
+flatteur	NOUN:1
+flegmatique	ADJ:4
 flegme	NOUN:1
-flemmard	ADJ:1	NOUN:1
+flemmard	ADJ:1
 flemme	NOUN:1
 fleur	NOUN:2
 fleuret	NOUN:1
@@ -7295,7 +7286,7 @@ floral	ADJ:1
 flore	NOUN:1
 florence	PROPN:2
 florent	PROPN:1
-florentin	ADJ:1	NOUN:1
+florentin	ADJ:1
 florette	PROPN:1
 florilège	NOUN:1
 florin	NOUN:1
@@ -7309,7 +7300,7 @@ fluctuation	NOUN:1
 fluctuer	VERB:1
 fluence	NOUN:1
 fluffy	ADJ:1
-fluide	ADJ:1	NOUN:1
+fluide	ADJ:1
 fluidité	NOUN:1
 fluor	NOUN:1
 fluorure	NOUN:1
@@ -7471,7 +7462,6 @@ foutoir	NOUN:1
 foutre	VERB:2
 foutu	ADJ:1
 foyer	NOUN:4
-fr	NOUN:1
 frac	NOUN:1
 fracas	NOUN:1
 fracasser	VERB:1
@@ -7493,7 +7483,7 @@ frais	ADJ:1	NOUN:1
 fraise	NOUN:1
 fraisier	NOUN:1
 framboise	NOUN:1
-franc	ADJ:1	NOUN:1	ADV:1
+franc	ADJ:1
 franc-maçon	ADJ:1	NOUN:1
 franc-tireur	NOUN:1
 france	PROPN:2
@@ -7503,7 +7493,7 @@ franchise	NOUN:2
 franchissement	NOUN:1
 franchouillard	ADJ:1
 francisation	NOUN:1
-franciscain	ADJ:1	NOUN:1
+franciscain	ADJ:1
 franciser	VERB:1
 franco-provençal	NOUN:1
 francophile	ADJ:1
@@ -7524,7 +7514,7 @@ fraternellement	ADV:1
 fraternisation	NOUN:1
 fraterniser	VERB:1
 fraternité	NOUN:1
-fratricide	ADJ:1	NOUN:1
+fratricide	NOUN:1
 fraude	NOUN:1
 frauder	VERB:1
 frayer	VERB:1
@@ -7559,7 +7549,7 @@ fripouille	NOUN:1
 frire	VERB:1
 frise	NOUN:1
 friser	VERB:1
-frison	ADJ:1	NOUN:1
+frison	ADJ:1
 frisson	NOUN:1
 frissonner	VERB:1
 frite	NOUN:1
@@ -7597,7 +7587,7 @@ fructueux	ADJ:1
 frugal	ADJ:1
 frugalité	NOUN:1
 fruit	NOUN:1
-fruitier	ADJ:1	NOUN:1
+fruitier	ADJ:1
 fruité	ADJ:1
 fruste	ADJ:1
 frustration	NOUN:1
@@ -7617,8 +7607,6 @@ frérot	NOUN:1
 frêle	ADJ:1
 frêne	NOUN:1
 frôler	VERB:1
-fsf	X:1
-fsh	X:1
 ftth	NOUN:1
 fuchsia	NOUN:1
 fugace	ADJ:1
@@ -7651,7 +7639,7 @@ furtivité	NOUN:1
 fusain	NOUN:1
 fuseau	NOUN:1
 fuselage	NOUN:1
-fusible	ADJ:1	NOUN:1
+fusible	NOUN:1
 fusil	NOUN:1
 fusilier	NOUN:1
 fusillade	NOUN:1
@@ -7666,7 +7654,7 @@ futilité	NOUN:1
 futsal	NOUN:1
 futur	ADJ:1	NOUN:1
 futurisme	NOUN:1
-futuriste	ADJ:1	NOUN:1
+futuriste	ADJ:1
 futé	ADJ:1
 fâcher	VERB:2
 fâché	ADJ:1
@@ -7686,13 +7674,13 @@ fée	NOUN:1
 féerique	ADJ:1
 félicitation	NOUN:1
 féliciter	VERB:1
-félin	ADJ:1	NOUN:1
+félin	ADJ:1
 félonie	NOUN:1
 féminin	ADJ:1
 féminisation	NOUN:1
 féminiser	VERB:1
 féminisme	NOUN:1
-féministe	ADJ:1	NOUN:1
+féministe	ADJ:1
 féminité	NOUN:1
 fémoral	ADJ:1
 fémur	NOUN:1
@@ -7718,7 +7706,7 @@ fœtus	NOUN:1
 gabart	PROPN:1
 gabelle	NOUN:1
 gabon	PROPN:1
-gabonais	ADJ:1	NOUN:1
+gabonais	ADJ:1
 gaffe	NOUN:1
 gaga	ADJ:1
 gage	NOUN:1
@@ -7731,7 +7719,7 @@ gaillard	ADJ:1	NOUN:1
 gaillarde	NOUN:1
 gaine	NOUN:1
 gal	NOUN:1
-galactique	ADJ:1	NOUN:1
+galactique	ADJ:1
 galactose	NOUN:1
 galant	ADJ:1
 galanterie	NOUN:1
@@ -7741,7 +7729,7 @@ gale	NOUN:1
 galerie	NOUN:1
 galeriste	NOUN:1
 galet	NOUN:1
-galicien	NOUN:1	ADJ:1
+galicien	NOUN:1
 galilée	NOUN:1
 galiléen	ADJ:1
 galimatias	NOUN:1
@@ -7814,7 +7802,7 @@ gastronomique	ADJ:1
 gaubert	PROPN:1
 gauche	ADJ:4	NOUN:2
 gaucher	ADJ:1
-gauchiste	NOUN:1	ADJ:1
+gauchiste	ADJ:1
 gaucho	NOUN:1
 gaude	NOUN:1
 gaudens	PROPN:1
@@ -7823,8 +7811,8 @@ gaufrier	NOUN:1
 gaule	NOUN:1
 gauler	VERB:1
 gaullisme	NOUN:1
-gaulliste	ADJ:1	NOUN:1
-gaulois	ADJ:1	NOUN:1
+gaulliste	ADJ:1
+gaulois	ADJ:1
 gaver	VERB:1
 gay	ADJ:1
 gaz	NOUN:1
@@ -7838,7 +7826,7 @@ gazoduc	NOUN:1
 gazole	NOUN:1
 gazon	NOUN:1	ADJ:1
 gazéification	NOUN:1
-gaélique	ADJ:1	NOUN:1
+gaélique	ADJ:1
 geai	NOUN:1
 gecko	NOUN:1
 geindre	VERB:1
@@ -7894,7 +7882,7 @@ geyser	NOUN:1
 geôle	NOUN:1
 geôlier	NOUN:1
 ghana	PROPN:1
-ghanéen	ADJ:1	NOUN:1
+ghanéen	NOUN:1
 ghb	NOUN:1
 ghesquière	PROPN:1
 ghetto	NOUN:1
@@ -7968,7 +7956,7 @@ glossaire	NOUN:1
 glotte	NOUN:1
 glou	INTJ:1
 glousser	VERB:1
-glouton	ADJ:1	NOUN:1
+glouton	ADJ:1
 glu	NOUN:1
 glucide	NOUN:1
 glucose	NOUN:1
@@ -8142,7 +8130,7 @@ gravité	NOUN:1
 gravière	NOUN:1
 gravure	NOUN:1
 gray	NOUN:1
-grec	ADJ:1	NOUN:1
+grec	NOUN:1
 gredin	NOUN:1
 greffe	NOUN:1
 greffer	VERB:1
@@ -8181,7 +8169,7 @@ gringo	NOUN:1
 griot	NOUN:1
 griotte	NOUN:1
 grippe	NOUN:1
-gris	ADJ:1	NOUN:1
+gris	ADJ:1
 grisaille	NOUN:1
 griser	VERB:1
 grison	NOUN:1
@@ -8190,7 +8178,7 @@ grisou	NOUN:1
 grisâtre	ADJ:1
 grive	NOUN:1
 grivois	ADJ:1
-groenlandais	NOUN:1	ADJ:1
+groenlandais	NOUN:1
 grog	NOUN:1
 grognement	NOUN:1
 grogner	VERB:1
@@ -8235,7 +8223,7 @@ guadeloupéen	ADJ:1
 guano	NOUN:1
 guarani	NOUN:1
 guatemala	PROPN:1
-guatémaltèque	ADJ:1	NOUN:1
+guatémaltèque	NOUN:1
 guenon	NOUN:1
 guernesey	NOUN:1
 guerre	NOUN:4
@@ -8294,7 +8282,6 @@ gynécologue	NOUN:1
 gypse	NOUN:1
 gyrophare	NOUN:1
 gyroscope	NOUN:1
-gâche	NOUN:1
 gâcher	VERB:1
 gâchette	NOUN:1
 gâchis	NOUN:1
@@ -8303,7 +8290,7 @@ gâter	VERB:2
 gâteux	ADJ:1
 gâté	ADJ:1
 gène	NOUN:1
-géant	ADJ:1	NOUN:1
+géant	ADJ:1
 géhenne	NOUN:1
 gélule	NOUN:1
 gémeaux	PROPN:1
@@ -8317,9 +8304,9 @@ génisse	NOUN:1
 génital	ADJ:1
 géniteur	NOUN:1
 génitif	NOUN:1
-génocidaire	ADJ:1	NOUN:1
+génocidaire	ADJ:1
 génocide	NOUN:1
-génois	NOUN:1	ADJ:1
+génois	NOUN:1
 génome	NOUN:1
 génomique	NOUN:1	ADJ:1
 généalogie	NOUN:1
@@ -8360,7 +8347,7 @@ géométriquement	ADV:1
 géophysique	ADJ:1	NOUN:1
 géopolitique	ADJ:1	NOUN:1
 géorgie	PROPN:1
-géorgien	ADJ:1	NOUN:1
+géorgien	NOUN:1
 gérald	PROPN:1
 géraldine	PROPN:1
 gérance	NOUN:1
@@ -8468,7 +8455,7 @@ harissa	NOUN:1
 harmonica	NOUN:1
 harmonie	NOUN:1
 harmonieux	ADJ:1
-harmonique	ADJ:1	NOUN:1
+harmonique	ADJ:1
 harmonium	NOUN:1
 harnais	NOUN:1
 harpe	NOUN:1
@@ -8485,7 +8472,7 @@ hashtag	NOUN:1
 hausse	NOUN:1
 haussement	NOUN:1
 hausser	VERB:1
-haussier	ADJ:1	NOUN:1
+haussier	ADJ:1
 haut	ADJ:1
 haut-parleur	NOUN:1
 hautain	ADJ:1
@@ -8494,12 +8481,12 @@ hautement	ADV:1
 hauteur	NOUN:1
 havana	NOUN:1
 havane	NOUN:1
-hawaïen	ADJ:1	NOUN:1
+hawaïen	ADJ:1
 hayon	NOUN:1
 haïku	NOUN:1
 haïr	VERB:1
 haïti	PROPN:1
-haïtien	ADJ:1	NOUN:1
+haïtien	NOUN:1
 heaume	NOUN:1
 hebdo	NOUN:1
 hebdomadaire	ADJ:1	NOUN:1
@@ -8562,9 +8549,9 @@ hijab	NOUN:1
 hilarant	ADJ:1
 hilarité	NOUN:1
 hindi	ADJ:1
-hindou	ADJ:1	NOUN:1
+hindou	NOUN:1
 hindouisme	NOUN:1
-hindouiste	ADJ:1	NOUN:1
+hindouiste	ADJ:1
 hippique	ADJ:1
 hippocampe	NOUN:1
 hippodrome	NOUN:1
@@ -8599,7 +8586,7 @@ hiérarchiquement	ADV:1
 hiérarchisation	NOUN:1
 hiérarchiser	VERB:1
 hiératique	ADJ:1
-hiéroglyphe	NOUN:1
+hiéroglyphe	NOUN:2
 hiéroglyphique	ADJ:1
 ho	INTJ:2
 hocher	VERB:1
@@ -8624,7 +8611,7 @@ homogénéité	NOUN:1
 homologation	NOUN:1
 homologue	ADJ:1
 homologuer	VERB:1
-homonyme	NOUN:1	ADJ:1
+homonyme	NOUN:1
 homonymie	NOUN:1
 homophobe	ADJ:1
 homophobie	NOUN:1
@@ -8639,11 +8626,11 @@ homéostasie	NOUN:1
 homérique	ADJ:1
 hon	INTJ:1
 honduras	PROPN:1
-hondurien	NOUN:1	ADJ:1
+hondurien	NOUN:1
 hongkongais	ADJ:1
-hongre	ADJ:1	NOUN:1
+hongre	NOUN:1
 hongrie	PROPN:1
-hongrois	NOUN:1	ADJ:1
+hongrois	NOUN:1
 honneur	NOUN:1
 honnête	ADJ:1
 honnêtement	ADV:1
@@ -8655,7 +8642,7 @@ honte	NOUN:1
 honteux	ADJ:1
 hoquet	NOUN:1
 horace	PROPN:1
-horaire	ADJ:1	NOUN:1
+horaire	ADJ:1
 horde	NOUN:1
 horizon	NOUN:1
 horizontal	ADJ:1
@@ -8706,15 +8693,15 @@ huileux	ADJ:1
 huis	NOUN:1
 huissier	NOUN:1
 huit	NUM:1
-huitième	ADJ:1	NOUN:1
-humain	ADJ:1	NOUN:1
+huitième	ADJ:1
+humain	ADJ:1
 humanisation	NOUN:1
 humaniser	VERB:1
 humanisme	NOUN:1
-humaniste	NOUN:1	ADJ:1
+humaniste	ADJ:1
 humanitaire	ADJ:1
 humanité	NOUN:1
-humanoïde	ADJ:1	NOUN:1
+humanoïde	ADJ:1
 humble	ADJ:1
 humblement	ADV:1
 humeur	NOUN:1
@@ -8789,14 +8776,14 @@ hyperthermie	NOUN:1
 hyperthyroïdie	NOUN:1
 hypertrophie	NOUN:1
 hypnose	NOUN:1
-hypnotique	ADJ:1	NOUN:1
+hypnotique	ADJ:1
 hypnotiser	VERB:1
 hypnotiseur	NOUN:1
 hypnotisme	NOUN:1
 hypocondriaque	NOUN:1
 hypocondrie	NOUN:1
 hypocrisie	NOUN:1
-hypocrite	NOUN:1	ADJ:1
+hypocrite	NOUN:1
 hypocritement	ADV:1
 hypoglycémie	NOUN:1
 hypokhâgne	NOUN:1
@@ -8865,7 +8852,7 @@ hétéroclite	ADJ:1
 hétérodoxe	ADJ:1
 hétérogène	ADJ:1
 hétérosexualité	NOUN:1
-hétérosexuel	ADJ:1	NOUN:1
+hétérosexuel	ADJ:1
 hêtre	NOUN:1
 hôpital	NOUN:1
 hôte	NOUN:2
@@ -8897,7 +8884,7 @@ idolâtre	ADJ:1
 idolâtrer	VERB:1
 idolâtrie	NOUN:1
 idylle	NOUN:1
-idéal	ADJ:1	NOUN:1
+idéal	NOUN:1
 idéaliser	VERB:1
 idéalisme	NOUN:1
 idée	NOUN:1
@@ -8942,7 +8929,7 @@ illégitime	ADJ:1
 ils	PRON:1
 image	NOUN:1
 imagerie	NOUN:1
-imaginaire	ADJ:1	NOUN:1
+imaginaire	ADJ:1
 imaginatif	ADJ:1
 imagination	NOUN:1
 imaginer	VERB:1
@@ -8967,8 +8954,8 @@ immensité	NOUN:1
 immensément	ADV:1
 immerger	VERB:1
 immersion	NOUN:1
-immeuble	NOUN:1	ADJ:1
-immigrant	ADJ:1	NOUN:1
+immeuble	ADJ:1
+immigrant	ADJ:1
 immigration	NOUN:1
 immigrer	VERB:1
 imminence	NOUN:1
@@ -9003,7 +8990,7 @@ impactant	ADJ:1
 impair	ADJ:1
 impala	NOUN:1
 impardonnable	ADJ:1
-imparfait	ADJ:1	NOUN:1
+imparfait	ADJ:1
 impartial	ADJ:1
 impartialité	NOUN:1
 impasse	NOUN:1
@@ -9043,14 +9030,14 @@ imposer	VERB:1
 imposition	NOUN:1
 impossibilité	NOUN:1
 impossible	ADJ:1
-imposteur	ADJ:1	NOUN:1
+imposteur	ADJ:1
 imposture	NOUN:1
 impotent	ADJ:1
 imprenable	ADJ:1
 impression	NOUN:1
 impressionnant	ADJ:1
 impressionnisme	NOUN:1
-impressionniste	ADJ:1	NOUN:1
+impressionniste	ADJ:1
 imprimante	NOUN:1
 imprimer	VERB:1
 imprimerie	NOUN:1
@@ -9156,7 +9143,7 @@ incompétence	NOUN:1
 inconcevable	ADJ:1
 inconfortable	ADJ:1
 incongru	ADJ:1
-inconnu	ADJ:1	NOUN:1
+inconnu	ADJ:1
 inconsciemment	ADV:1
 inconsidéré	ADJ:1
 inconsolable	ADJ:1
@@ -9200,7 +9187,7 @@ indicatif	NOUN:1
 indication	NOUN:1
 indice	NOUN:1
 indicible	ADJ:1
-indien	NOUN:1	ADJ:1
+indien	ADJ:1
 indifféremment	ADV:1
 indifférence	NOUN:1
 indifférent	ADJ:1
@@ -9209,9 +9196,9 @@ indigent	ADJ:1
 indigestion	NOUN:1
 indignation	NOUN:1
 indigner	VERB:1
-indigné	ADJ:1	NOUN:1
-indigo	NOUN:1	ADJ:1
-indigène	ADJ:1	NOUN:1
+indigné	ADJ:1
+indigo	NOUN:1
+indigène	ADJ:1
 indiquer	VERB:1
 indirect	ADJ:1
 indirectement	ADV:1
@@ -9234,7 +9221,7 @@ indonésien	ADJ:1	NOUN:1
 indu	ADJ:1	NOUN:1
 indubitablement	ADV:1
 inductance	NOUN:1
-inducteur	ADJ:1	NOUN:1
+inducteur	ADJ:1
 induction	NOUN:1
 induire	VERB:1
 indulgence	NOUN:1
@@ -9293,7 +9280,7 @@ infidélité	NOUN:1
 infiltration	NOUN:1
 infiltrer	VERB:1
 infime	ADJ:1
-infini	ADJ:1	NOUN:1
+infini	ADJ:1
 infiniment	ADV:1
 infinitif	NOUN:1
 infinité	NOUN:1
@@ -9333,7 +9320,7 @@ inférieur	ADJ:1
 infériorité	NOUN:1
 ingestion	NOUN:1
 ingouvernable	ADJ:1
-ingrat	ADJ:1	NOUN:1
+ingrat	ADJ:1
 ingratitude	NOUN:1
 ingrédient	NOUN:1
 ingénierie	NOUN:1
@@ -9347,7 +9334,7 @@ inhabitable	ADJ:1
 inhabité	ADJ:1
 inhalateur	NOUN:1
 inhiber	VERB:1
-inhibiteur	ADJ:1	NOUN:1
+inhibiteur	ADJ:1
 inhibition	NOUN:1
 inhospitalier	ADJ:1
 inhumanité	NOUN:1
@@ -9377,7 +9364,7 @@ innocence	NOUN:1
 innocent	ADJ:1
 innocuité	NOUN:1
 innombrable	ADJ:1
-innommable	ADJ:1	NOUN:1
+innommable	ADJ:1
 innovateur	ADJ:1
 innovation	NOUN:1
 inné	ADJ:1
@@ -9421,7 +9408,7 @@ insolent	ADJ:1
 insolite	ADJ:1
 insoluble	ADJ:1
 insolvable	ADJ:1
-insomniaque	ADJ:1	NOUN:1
+insomniaque	ADJ:1
 insomnie	NOUN:1
 insondable	ADJ:1
 insouciance	NOUN:1
@@ -9464,7 +9451,7 @@ insuccès	NOUN:1
 insuffisance	NOUN:1
 insuffisant	ADJ:1
 insuffler	VERB:1
-insulaire	ADJ:1	NOUN:1
+insulaire	ADJ:1
 insularité	NOUN:1
 insuline	NOUN:1
 insulte	NOUN:1
@@ -9477,7 +9464,7 @@ insurrection	NOUN:1
 insurrectionnel	ADJ:1
 insécurité	NOUN:1
 insémination	NOUN:1
-inséparable	ADJ:1	NOUN:1
+inséparable	ADJ:1
 insérer	VERB:1
 intact	ADJ:1
 intangible	ADJ:2
@@ -9506,7 +9493,7 @@ interchangeable	ADJ:1
 intercommunalité	NOUN:1
 interconnexion	NOUN:1
 intercontinental	ADJ:1
-interculturel	ADJ:1	NOUN:1
+interculturel	ADJ:1
 intercéder	VERB:1
 interdiction	NOUN:1
 interdire	VERB:2
@@ -9532,9 +9519,9 @@ intermédiation	NOUN:1
 internat	NOUN:1
 international	ADJ:1
 internationalisme	NOUN:1
-internationaliste	ADJ:1	NOUN:1
+internationaliste	ADJ:1
 internaute	NOUN:1
-interne	ADJ:1	NOUN:1
+interne	ADJ:1
 interner	VERB:1
 internet	NOUN:1
 interopérabilité	NOUN:1
@@ -9579,7 +9566,7 @@ intolérable	ADJ:1
 intolérance	NOUN:1
 intolérant	ADJ:1
 intonation	NOUN:1
-intouchable	ADJ:1	NOUN:1
+intouchable	ADJ:1
 intoxiquer	VERB:1
 intra	NOUN:1
 intracellulaire	ADJ:1
@@ -9597,7 +9584,7 @@ introduction	NOUN:1
 introduire	VERB:1
 introspectif	ADJ:1
 introspection	NOUN:1
-intrus	ADJ:1	NOUN:1
+intrus	ADJ:1
 intruse	NOUN:1
 intrusif	ADJ:1
 intrusion	NOUN:1
@@ -9612,7 +9599,7 @@ intégral	ADJ:1
 intégrale	NOUN:1
 intégralement	ADV:1
 intégralité	NOUN:1
-intégrateur	NOUN:1	ADJ:1
+intégrateur	NOUN:1
 intégration	NOUN:1
 intégrer	VERB:1
 intégrité	NOUN:1
@@ -9642,7 +9629,7 @@ inventaire	NOUN:1
 inventer	VERB:1
 inventeur	NOUN:1
 invention	NOUN:1
-inverse	ADJ:1	NOUN:1
+inverse	ADJ:1
 inversement	ADV:1
 inverser	VERB:1
 investigateur	ADJ:1
@@ -9681,12 +9668,12 @@ ionique	ADJ:1
 ionisé	ADJ:1
 iota	NOUN:1
 iran	PROPN:1
-iranien	ADJ:1	NOUN:1
+iranien	ADJ:1
 irascible	ADJ:1
 iridium	NOUN:1
 iris	NOUN:2
 irisé	ADJ:1
-irlandais	ADJ:1	NOUN:1
+irlandais	ADJ:1
 irlande	PROPN:2
 ironie	NOUN:1
 ironique	ADJ:1
@@ -9727,7 +9714,7 @@ islamique	ADJ:1
 islamisation	NOUN:1
 islamophobe	ADJ:1	NOUN:1
 islamophobie	NOUN:1
-islandais	ADJ:1	NOUN:1
+islandais	ADJ:1
 islande	PROPN:1
 isocèle	ADJ:1
 isolant	ADJ:1
@@ -9743,18 +9730,18 @@ isomère	NOUN:1
 isotope	NOUN:1
 isotopique	ADJ:1
 isotrope	ADJ:1
-israélien	ADJ:1	NOUN:1
+israélien	ADJ:1
 israélite	ADJ:1
 israël	PROPN:1
 issu	ADJ:3
 issue	NOUN:2
 isthme	NOUN:1
 italie	PROPN:1
-italien	ADJ:1	NOUN:1
+italien	ADJ:1
 italique	ADJ:1	NOUN:1
 item	ADV:2	NOUN:1
 itinéraire	NOUN:1
-itinérance	NOUN:2
+itinérance	NOUN:3
 itinérant	ADJ:1
 itou	ADV:1
 itératif	ADJ:1
@@ -9762,7 +9749,7 @@ itération	NOUN:1
 ive	NOUN:1
 ivg	NOUN:1
 ivoire	NOUN:1
-ivoirien	ADJ:1	NOUN:1
+ivoirien	ADJ:1
 ivraie	NOUN:1
 ivre	ADJ:1
 ivresse	NOUN:1
@@ -9788,7 +9775,7 @@ jalouser	VERB:1
 jalousie	NOUN:2
 jaloux	ADJ:2
 jamais	ADV:1
-jamaïcain	ADJ:1	NOUN:1
+jamaïcain	ADJ:1
 jamaïque	PROPN:1
 jambe	NOUN:1
 jambon	NOUN:1
@@ -9815,7 +9802,7 @@ jaune	ADJ:1	NOUN:1
 jaunisse	NOUN:1
 jaunâtre	ADJ:1
 java	NOUN:2
-javanais	ADJ:1	NOUN:1
+javanais	NOUN:1
 javelot	NOUN:1
 jazz	NOUN:1
 je	PRON:1
@@ -9834,14 +9821,14 @@ jeton	NOUN:1
 jetée	NOUN:1
 jeu	NOUN:5
 jeudi	NOUN:1
-jeune	ADJ:1	NOUN:1
+jeune	NOUN:1
 jeunesse	NOUN:1
 jeunet	ADJ:1
 jeunette	ADJ:1
 jeunot	NOUN:1
 jeûne	NOUN:1
 jeûner	VERB:1
-jihadiste	ADJ:1	NOUN:1
+jihadiste	ADJ:1
 jo	NOUN:1
 joaillerie	NOUN:1
 joaillier	NOUN:1
@@ -9867,7 +9854,7 @@ jongleur	NOUN:1
 jonquille	NOUN:1
 jordan	PROPN:1
 jordanie	PROPN:1
-jordanien	NOUN:1	ADJ:1
+jordanien	NOUN:1
 joseph	PROPN:1
 jospin	PROPN:1
 josselin	PROPN:1
@@ -9959,7 +9946,7 @@ justifiable	ADJ:1
 justificatif	NOUN:1
 justification	NOUN:1
 justifier	VERB:1
-jute	ADJ:1	NOUN:1
+jute	NOUN:1
 juteux	ADJ:1
 juvénile	ADJ:1
 juxtaposition	NOUN:1
@@ -9988,7 +9975,7 @@ karst	NOUN:1
 katana	NOUN:1
 katia	PROPN:1
 kayak	NOUN:1
-kazakh	ADJ:1	NOUN:1
+kazakh	ADJ:1
 kelvin	NOUN:1
 kermesse	NOUN:1
 ketchup	NOUN:1
@@ -9996,7 +9983,7 @@ keuf	NOUN:1
 keynésianisme	NOUN:1
 keynésien	ADJ:1
 khan	NOUN:1
-khmer	NOUN:1	ADJ:1
+khmer	NOUN:1
 kibboutz	NOUN:1
 kidnapping	NOUN:1
 kif	NOUN:1
@@ -10116,7 +10103,7 @@ lao	NOUN:1
 laos	PROPN:1
 laotien	NOUN:1
 laparotomie	NOUN:1
-lapidaire	ADJ:1	NOUN:1
+lapidaire	NOUN:1
 lapidation	NOUN:1
 lapider	VERB:1
 lapin	NOUN:1
@@ -10147,7 +10134,7 @@ lasso	NOUN:1
 last	NOUN:1
 latent	ADJ:1
 latin	ADJ:1	NOUN:1
-latino-américain	NOUN:1	ADJ:1
+latino-américain	NOUN:1
 latitude	NOUN:1
 latrines	NOUN:1
 latte	NOUN:1
@@ -10168,13 +10155,13 @@ lave	NOUN:1
 lavement	NOUN:1
 laver	VERB:1
 lavoir	NOUN:1
-laxatif	ADJ:1	NOUN:1
+laxatif	ADJ:1
 laxisme	NOUN:1
 laxiste	ADJ:1
 layette	NOUN:1
 lazaret	NOUN:1
 lazy	ADJ:1
-laïc	ADJ:1	NOUN:1
+laïc	NOUN:1
 laïcisme	NOUN:1
 laïcité	NOUN:1
 laïque	ADJ:1
@@ -10196,14 +10183,14 @@ lentement	ADV:1
 lenteur	NOUN:1
 lentille	X:1
 lequel	PRON:2
-lesbien	ADJ:1	NOUN:1
+lesbien	ADJ:1
 lesbienne	NOUN:1
 leslie	PROPN:1
 lessive	NOUN:1
 lessiver	VERB:1
 lest	NOUN:1
 lester	VERB:1
-letton	ADJ:1	NOUN:1
+letton	ADJ:1
 lettonie	PROPN:1
 lettre	NOUN:1
 lettré	ADJ:1
@@ -10226,12 +10213,12 @@ lgbti	X:1
 liaison	NOUN:1
 liane	NOUN:1
 liban	PROPN:1
-libanais	ADJ:1	NOUN:1
+libanais	ADJ:1
 libelle	NOUN:1
 libellule	NOUN:1
 liber	NOUN:1
-libertaire	ADJ:1	NOUN:1
-liberticide	ADJ:1	NOUN:1
+libertaire	NOUN:1
+liberticide	NOUN:1
 libertin	ADJ:1	NOUN:1
 liberté	NOUN:1
 libidineux	ADJ:1
@@ -10243,11 +10230,11 @@ libre-échange	NOUN:1
 librement	ADV:1
 librettiste	NOUN:1
 libye	PROPN:1
-libyen	NOUN:1	ADJ:1
-libéral	ADJ:1	NOUN:1
+libyen	NOUN:1
+libéral	ADJ:1
 libéralisme	NOUN:1
 libéralité	NOUN:1
-libérateur	ADJ:1	NOUN:1
+libérateur	NOUN:1
 libération	NOUN:1
 libérer	VERB:1
 libérien	ADJ:1
@@ -10300,7 +10287,7 @@ limitrophe	ADJ:1
 limoger	VERB:1
 limon	NOUN:1
 limonade	NOUN:1
-limousin	ADJ:1	NOUN:1
+limousin	ADJ:1
 limousine	NOUN:1
 limpide	ADJ:1
 limpidité	NOUN:1
@@ -10313,7 +10300,7 @@ lingerie	NOUN:1
 lingot	NOUN:1
 lingue	NOUN:1
 linguiste	NOUN:1
-linguistique	ADJ:1	NOUN:1
+linguistique	ADJ:1
 linotte	NOUN:1
 linteau	NOUN:1
 linéaire	ADJ:1
@@ -10323,7 +10310,7 @@ lionel	PROPN:1
 liposuccion	NOUN:1
 liqueur	NOUN:1
 liquidation	NOUN:1
-liquide	ADJ:1	NOUN:1
+liquide	NOUN:1
 liquider	VERB:1
 liquidité	NOUN:1
 liquéfaction	NOUN:1
@@ -10358,7 +10345,7 @@ littéralement	ADV:1
 littératie	NOUN:1
 littérature	NOUN:1
 lituanie	PROPN:1
-lituanien	ADJ:1	NOUN:1
+lituanien	ADJ:1
 liturgie	NOUN:1
 livide	ADJ:1
 livonie	NOUN:1
@@ -10412,7 +10399,7 @@ lol	INTJ:1
 lolita	NOUN:1
 lombaire	ADJ:1
 lombard	NOUN:1
-londonien	ADJ:1	NOUN:1
+londonien	ADJ:1
 londres	PROPN:1
 long	ADJ:1
 longer	VERB:1
@@ -10427,7 +10414,6 @@ loque	NOUN:1
 loquet	NOUN:1
 lorgnette	NOUN:1
 lori	NOUN:1
-lorient	NOUN:1
 loriot	NOUN:1
 lorsque	SCONJ:1
 losange	NOUN:1
@@ -10464,9 +10450,7 @@ lubie	NOUN:1
 lubrification	NOUN:1
 lubrifier	VERB:1
 lubrique	ADJ:1
-luc	X:1
 lucarne	NOUN:1
-lucas	X:1
 lucerne	PROPN:2
 lucide	ADJ:1
 lucidité	NOUN:1
@@ -10488,7 +10472,7 @@ lumineux	ADJ:1
 luminosité	NOUN:1
 lumière	NOUN:1
 lunaire	ADJ:1
-lunatique	ADJ:1	NOUN:1
+lunatique	ADJ:1
 lundi	NOUN:1
 lune	NOUN:1	PROPN:1
 lunel	NOUN:1
@@ -10503,7 +10487,7 @@ luth	NOUN:1
 lutherie	NOUN:1
 luthier	NOUN:1
 luthéranisme	NOUN:1
-luthérien	ADJ:1	NOUN:1
+luthérien	ADJ:1
 lutin	NOUN:1
 lutrin	NOUN:1
 lutte	NOUN:1
@@ -10511,7 +10495,7 @@ lutter	VERB:1
 lux	NOUN:1
 luxe	NOUN:1
 luxembourg	PROPN:1
-luxembourgeois	NOUN:1	ADJ:1
+luxembourgeois	NOUN:1
 luxueux	ADJ:1
 luxure	NOUN:1
 luzerne	NOUN:1
@@ -10564,8 +10548,8 @@ légume	NOUN:3
 légèrement	ADV:1
 légèreté	NOUN:1
 léninisme	NOUN:1
-léniniste	ADJ:1	NOUN:1
-léonais	ADJ:1	NOUN:1
+léniniste	ADJ:1
+léonais	ADJ:1
 léopard	NOUN:1
 lépreux	ADJ:1
 léproserie	NOUN:1
@@ -10585,7 +10569,7 @@ lévêque	PROPN:1
 lézard	NOUN:1
 ma	DET:1
 maa	NOUN:1
-maboul	ADJ:1	NOUN:1
+maboul	ADJ:1
 macabre	ADJ:1
 macadam	NOUN:1
 macao	PROPN:1
@@ -10604,7 +10588,7 @@ machinerie	NOUN:1
 machiniste	NOUN:1
 machisme	NOUN:1
 machiste	ADJ:1
-macho	ADJ:1	NOUN:1
+macho	ADJ:1
 macramé	NOUN:1
 macron	NOUN:1
 macronisme	NOUN:1
@@ -10612,7 +10596,7 @@ macroscopique	ADJ:1
 macroéconomie	NOUN:1
 macumba	NOUN:1
 macédoine	PROPN:1
-macédonien	ADJ:1	NOUN:1
+macédonien	ADJ:1
 madagascar	PROPN:1
 madame	NOUN:1
 madeleine	PROPN:1
@@ -10622,7 +10606,7 @@ madrague	NOUN:1
 madras	NOUN:1
 madrid	PROPN:1
 madrigal	NOUN:1
-madrilène	NOUN:1	ADJ:1
+madrilène	NOUN:1
 madère	NOUN:1
 maestro	NOUN:1
 mafia	NOUN:1
@@ -10630,7 +10614,7 @@ magasin	NOUN:1
 magazine	NOUN:1
 mage	NOUN:1
 magenta	NOUN:1
-maghrébin	ADJ:1	NOUN:1
+maghrébin	ADJ:1
 magicien	NOUN:1
 magie	NOUN:1
 magique	ADJ:1
@@ -10694,10 +10678,10 @@ maladif	ADJ:1
 maladresse	NOUN:1
 maladroit	ADJ:1
 maladroitement	ADV:1
-malais	ADJ:1	NOUN:1
+malais	ADJ:1
 malaise	NOUN:1
 malaisie	PROPN:1
-malaisien	NOUN:1	ADJ:1
+malaisien	NOUN:1
 malaisé	ADJ:1
 malaria	NOUN:1
 malawi	PROPN:1
@@ -10710,7 +10694,7 @@ malfaisant	ADJ:1
 malfaiteur	NOUN:1
 malformation	NOUN:1
 malfrat	NOUN:1
-malgache	ADJ:1	NOUN:1
+malgache	ADJ:1
 malgré	ADP:1
 malhabile	ADJ:1
 malheur	NOUN:1
@@ -10730,11 +10714,11 @@ mallette	NOUN:1
 malmener	VERB:1
 malnutrition	NOUN:1
 malotru	NOUN:1
-malouin	ADJ:1	NOUN:1
+malouin	ADJ:1
 malpoli	ADJ:1
 malsain	ADJ:1
 malt	NOUN:1
-maltais	ADJ:1	NOUN:1
+maltais	ADJ:1
 malte	PROPN:1
 malthusianisme	NOUN:1
 maltraitance	NOUN:1
@@ -10766,7 +10750,7 @@ mandataire	NOUN:1
 mandater	VERB:1
 mander	VERB:1
 mandibule	NOUN:1
-mandingue	ADJ:1	NOUN:1
+mandingue	ADJ:1
 mandoline	NOUN:1
 mandragore	NOUN:1
 mandrin	NOUN:1
@@ -10791,7 +10775,7 @@ maniement	NOUN:1
 manier	VERB:1
 manifestante	NOUN:1
 manifestation	NOUN:1
-manifeste	ADJ:1	NOUN:1
+manifeste	ADJ:1
 manifestement	ADV:1
 manifester	VERB:1
 manille	NOUN:1
@@ -10824,14 +10808,14 @@ manuel	ADJ:1	NOUN:1
 manuellement	ADV:1
 manufacture	NOUN:1
 manufacturier	ADJ:1
-manuscrit	ADJ:1	NOUN:1
+manuscrit	ADJ:1
 manutention	NOUN:1
 manège	NOUN:3
 manœuvre	NOUN:2
 manœuvrer	VERB:1
 maori	NOUN:1
 maoïsme	NOUN:1
-maoïste	ADJ:1	NOUN:1
+maoïste	ADJ:1
 mappemonde	NOUN:1
 mapuche	NOUN:1
 maquereau	NOUN:1
@@ -10889,7 +10873,7 @@ marina	NOUN:1
 marinade	NOUN:1
 marine	NOUN:1
 marinette	NOUN:1
-marinier	ADJ:1	NOUN:1
+marinier	ADJ:1
 marion	PROPN:2
 marionette	NOUN:1
 marionnette	NOUN:1
@@ -10921,7 +10905,7 @@ marrant	ADJ:1
 marron	NOUN:1	ADJ:1
 mars	NOUN:2	PROPN:1
 marsault	NOUN:1
-marseillais	ADJ:1	NOUN:1
+marseillais	ADJ:1
 marseille	PROPN:1
 marsouin	NOUN:1
 marteau	NOUN:1
@@ -10988,7 +10972,6 @@ matrice	NOUN:1
 matriciel	ADJ:1
 matricule	NOUN:1
 matrimonial	ADJ:1
-matthieu	X:1
 maturité	NOUN:1
 maté	NOUN:1
 matérialiser	VERB:1
@@ -10998,25 +10981,25 @@ matériau	NOUN:1
 matériel	NOUN:1
 matériellement	ADV:1
 maudire	VERB:1
-maure	ADJ:1	NOUN:1
+maure	ADJ:1
 mauresque	NOUN:1
 maurice	PROPN:1
-mauricien	NOUN:1	ADJ:1
+mauricien	NOUN:1
 mauritanien	NOUN:1
 maurois	PROPN:1
 mauser	NOUN:1
 mausolée	NOUN:1
 maussade	ADJ:1
 mauvais	ADJ:1
-mauve	ADJ:1	NOUN:1
+mauve	ADJ:1
 mauviette	NOUN:1
-maxillaire	ADJ:1	NOUN:1
+maxillaire	ADJ:1
 maximal	ADJ:1
 maxime	NOUN:1
 maximisation	NOUN:1
 maximiser	VERB:1
-maximum	ADJ:1	NOUN:1
-maya	ADJ:1	NOUN:1
+maximum	ADJ:1
+maya	ADJ:1
 mayonnaise	NOUN:1
 maçon	NOUN:1
 maçonnerie	NOUN:1
@@ -11056,7 +11039,7 @@ mental	ADJ:1
 mentalement	ADV:1
 mentaliste	NOUN:1
 mentalité	NOUN:1
-menteur	ADJ:1	NOUN:1
+menteur	ADJ:1
 menthe	NOUN:1
 menthol	NOUN:1
 mention	NOUN:1
@@ -11088,7 +11071,6 @@ meringue	NOUN:1
 merisier	NOUN:1
 merlan	NOUN:1
 merle	ADJ:1	NOUN:1
-merlin	NOUN:1
 merlu	NOUN:1
 mertens	NOUN:1
 merveille	NOUN:1
@@ -11109,7 +11091,7 @@ mesurer	VERB:1
 mesureur	ADJ:1	NOUN:1
 mets	NOUN:1
 mettre	VERB:1
-meuble	ADJ:1	NOUN:1
+meuble	NOUN:1
 meubler	VERB:1
 meuh	INTJ:1
 meule	NOUN:1
@@ -11118,7 +11100,7 @@ meunière	NOUN:1
 meurtre	NOUN:1
 meurtrier	ADJ:1
 meute	NOUN:1
-mexicain	ADJ:1	NOUN:1
+mexicain	NOUN:1
 mexico	PROPN:1
 mexique	PROPN:1
 mezzanine	NOUN:1
@@ -11170,10 +11152,10 @@ milice	NOUN:1
 milicien	NOUN:1
 milieu	NOUN:3
 militaire	ADJ:1	NOUN:1
-militant	ADJ:1	NOUN:1
+militant	ADJ:1
 militantisme	NOUN:1
 militarisme	NOUN:1
-mille	ADJ:1	NOUN:1
+mille	ADJ:1
 millefeuille	NOUN:1
 millet	NOUN:1
 milliard	NOUN:1
@@ -11236,7 +11218,7 @@ misanthropie	NOUN:1
 mise	NOUN:1
 miser	VERB:1
 miso	NOUN:1
-misogyne	NOUN:1	ADJ:1
+misogyne	NOUN:1
 misogynie	NOUN:1
 missel	NOUN:1
 missile	ADJ:1
@@ -11264,7 +11246,7 @@ mlle	X:1
 mme	X:1
 mnémotechnique	NOUN:1
 mobile	ADJ:1
-mobilier	ADJ:1	NOUN:1
+mobilier	ADJ:1
 mobilisateur	ADJ:1
 mobilisation	NOUN:1
 mobiliser	VERB:1
@@ -11336,7 +11318,7 @@ monachisme	NOUN:1
 monaco	PROPN:1
 monarchie	NOUN:1
 monarchique	ADJ:1
-monarchiste	ADJ:1	NOUN:1
+monarchiste	NOUN:1
 monarque	NOUN:1
 monastère	NOUN:1
 monceau	NOUN:1
@@ -11345,7 +11327,7 @@ monde	NOUN:1
 mondial	ADJ:1
 mondialisation	NOUN:1
 mondialiste	ADJ:1	NOUN:1
-mongol	ADJ:1	NOUN:1
+mongol	ADJ:1
 mongolie	PROPN:1
 monique	PROPN:1
 monisme	NOUN:1
@@ -11364,13 +11346,13 @@ monolithe	ADJ:1	NOUN:1
 monolithique	ADJ:1
 monologue	NOUN:1
 mononucléose	NOUN:1
-monoplace	ADJ:1	NOUN:1
+monoplace	ADJ:1
 monopole	NOUN:1
 monopoliser	VERB:1
 monopolistique	ADJ:1
-monorail	ADJ:1	NOUN:1
+monorail	NOUN:1
 monothéisme	NOUN:1
-monothéiste	ADJ:1	NOUN:1
+monothéiste	ADJ:1
 monotone	ADJ:1
 monotonie	NOUN:1
 monoxyde	NOUN:1
@@ -11400,14 +11382,14 @@ monténégrin	ADJ:1
 monténégro	PROPN:1
 monument	NOUN:1
 monumental	ADJ:1
-monégasque	ADJ:1	NOUN:1
+monégasque	ADJ:1
 monétaire	ADJ:1
 moquer	VERB:1
 moquerie	NOUN:1
 moraine	NOUN:1
 moral	ADJ:1	NOUN:2
 moralement	ADV:1
-moralisateur	ADJ:1	NOUN:1
+moralisateur	ADJ:1
 moralisation	NOUN:1
 moraliser	VERB:1
 moralisme	NOUN:1
@@ -11441,8 +11423,8 @@ mortifère	ADJ:1
 mortuaire	ADJ:1
 morue	NOUN:1
 morve	NOUN:1
-morveux	ADJ:1	NOUN:1
-mosaïque	NOUN:1	ADJ:1
+morveux	ADJ:1
+mosaïque	NOUN:1
 moscou	PROPN:1
 moscovite	NOUN:1
 mosquée	NOUN:1
@@ -11479,7 +11461,7 @@ mouillé	ADJ:2
 moule	NOUN:1
 mouler	VERB:1
 moulin	NOUN:1
-moult	ADV:2
+moult	ADV:2	ADJ:1
 mourir	VERB:1
 mousquet	NOUN:1
 mousquetaire	NOUN:1
@@ -11540,7 +11522,7 @@ multirécidiviste	NOUN:1
 multitude	NOUN:1
 multitâche	ADJ:1
 multivers	NOUN:1
-mulâtre	NOUN:1	ADJ:1
+mulâtre	NOUN:1
 munich	PROPN:1
 municipal	ADJ:1
 municipalité	NOUN:1
@@ -11551,7 +11533,7 @@ muqueuse	NOUN:1
 muqueux	ADJ:1
 mur	NOUN:1
 muraille	NOUN:1
-mural	ADJ:1	NOUN:1
+mural	ADJ:1
 muret	NOUN:1
 muriel	PROPN:1
 murmure	NOUN:1
@@ -11576,7 +11558,7 @@ musicologue	NOUN:1
 musique	NOUN:1
 musqué	ADJ:1
 mustang	NOUN:1
-musulman	ADJ:1	NOUN:1
+musulman	ADJ:1
 musée	NOUN:1
 muséologie	NOUN:1
 mutation	NOUN:1
@@ -11675,7 +11657,7 @@ mégère	NOUN:1
 méiose	NOUN:1
 mélamine	NOUN:1
 mélancolie	NOUN:1
-mélancolique	ADJ:1	NOUN:1
+mélancolique	ADJ:2	NOUN:1
 mélange	NOUN:1
 mélanger	VERB:1
 mélangeur	NOUN:1
@@ -11710,7 +11692,7 @@ mépris	NOUN:1
 méprisable	ADJ:1
 mépriser	VERB:1
 méridien	NOUN:1
-méridional	ADJ:1	NOUN:1
+méridional	ADJ:1
 mérinos	NOUN:1
 méritant	ADJ:1
 mérite	NOUN:1
@@ -11746,14 +11728,14 @@ méthanol	NOUN:1
 méthionine	NOUN:1
 méthode	NOUN:3
 méthodique	ADJ:1
-méthodiste	ADJ:1	NOUN:1
+méthodiste	ADJ:1
 méthodologie	NOUN:1
 méthyle	NOUN:1
 méthylène	NOUN:1
 méticuleusement	ADV:1
 méticuleux	ADJ:1
 métier	NOUN:1	ADJ:1
-métis	ADJ:1	NOUN:1
+métis	ADJ:1
 métissage	NOUN:1
 métonymie	NOUN:1
 métrage	NOUN:1
@@ -11762,7 +11744,7 @@ métro	NOUN:1
 métrologie	NOUN:1
 métronome	NOUN:1
 métropole	NOUN:1
-métropolitain	ADJ:1	NOUN:1
+métropolitain	NOUN:1
 métèque	NOUN:2
 météo	NOUN:1
 météore	NOUN:1
@@ -11790,7 +11772,7 @@ nageoire	NOUN:1
 nager	VERB:1
 nageur	ADJ:1
 nahum	PROPN:1
-nain	ADJ:1	NOUN:1
+nain	ADJ:1
 naissance	NOUN:1
 nak	NOUN:1
 namibie	PROPN:1
@@ -11800,7 +11782,7 @@ nanisme	NOUN:1
 nanotechnologie	NOUN:1
 napalm	NOUN:1
 naples	PROPN:1
-napolitain	ADJ:1	NOUN:1
+napolitain	NOUN:1
 napoléon	NOUN:1
 nappe	NOUN:1
 napperon	NOUN:1
@@ -11821,7 +11803,7 @@ narration	NOUN:1
 narrer	VERB:1
 narthex	NOUN:1
 narval	NOUN:1
-nasal	ADJ:1	NOUN:1
+nasal	ADJ:1
 nasse	NOUN:1
 nat	X:1
 nata	NOUN:1
@@ -11835,7 +11817,7 @@ national	ADJ:1
 nationalisation	NOUN:1
 nationaliser	VERB:1
 nationalisme	NOUN:1
-nationaliste	ADJ:1	NOUN:1
+nationaliste	ADJ:1
 nationalité	NOUN:1
 nativité	NOUN:1
 natte	NOUN:1
@@ -11854,7 +11836,7 @@ nauséeux	ADJ:1
 navajo	NOUN:1
 naval	ADJ:1
 navarin	NOUN:1
-navarrais	NOUN:1	ADJ:1
+navarrais	NOUN:1
 navarre	PROPN:1
 navet	NOUN:1
 navette	NOUN:1
@@ -11890,7 +11872,7 @@ netteté	NOUN:1
 nettoyage	NOUN:1
 nettoyant	ADJ:1
 nettoyer	VERB:1
-nettoyeur	ADJ:1	NOUN:1
+nettoyeur	ADJ:1
 neuf	NUM:1	ADJ:1
 neurobiologie	NOUN:1
 neurochirurgie	NOUN:1
@@ -11901,14 +11883,14 @@ neuronal	ADJ:1
 neurone	NOUN:1
 neuropathie	NOUN:1
 neuroscience	NOUN:1
-neurotoxique	ADJ:1	NOUN:1
+neurotoxique	ADJ:1
 neurotransmetteur	NOUN:1
 neutralisation	NOUN:1
 neutralité	NOUN:1
 neutre	ADJ:1
 neutron	NOUN:1
 neuvaine	NOUN:1
-neuvième	ADJ:1	NOUN:1
+neuvième	ADJ:1
 neveu	NOUN:1
 newton	NOUN:1
 nexus	NOUN:1
@@ -11930,9 +11912,9 @@ nier	VERB:1
 niger	PROPN:1
 nigeria	PROPN:1
 nigérian	NOUN:1
-nigérien	ADJ:1	NOUN:1
+nigérien	NOUN:1
 nihilisme	NOUN:1
-nihiliste	NOUN:1	ADJ:1
+nihiliste	NOUN:1
 nine	NOUN:1
 ninette	PROPN:1
 niobium	NOUN:1
@@ -11966,7 +11948,7 @@ noisetier	NOUN:1
 noisette	NOUN:1
 noix	NOUN:1
 nom	NOUN:2
-nomade	ADJ:1	NOUN:1
+nomade	ADJ:1
 nomadisme	NOUN:1
 nombre	NOUN:2
 nombreux	ADJ:1
@@ -12002,12 +11984,12 @@ normal	ADJ:1
 normalement	ADV:1
 normaliser	VERB:1
 normalité	NOUN:1
-normand	ADJ:1	NOUN:1
+normand	NOUN:1
 normandie	PROPN:1
 normatif	ADJ:1
 norme	NOUN:1
 norvège	PROPN:1
-norvégien	ADJ:1	NOUN:1
+norvégien	NOUN:1
 nostalgie	NOUN:1
 nostalgique	ADJ:1
 notable	ADJ:1
@@ -12078,7 +12060,7 @@ nutritif	ADJ:1
 nutrition	NOUN:1
 nylon	NOUN:1
 nymphe	NOUN:1
-nymphomane	ADJ:1	NOUN:1
+nymphomane	ADJ:1
 nègre	NOUN:1
 néanmoins	ADV:1
 néant	NOUN:2
@@ -12093,7 +12075,7 @@ nécromancie	NOUN:1
 nécromancien	ADJ:1
 nécropole	NOUN:1
 nécrose	NOUN:1
-néerlandais	NOUN:1	ADJ:1
+néerlandais	ADJ:1
 néfaste	ADJ:1
 négation	NOUN:1
 négationnisme	NOUN:1
@@ -12102,7 +12084,7 @@ négligeable	ADJ:1
 négligence	NOUN:1
 négligent	ADJ:1
 négliger	VERB:1
-négligé	ADJ:1	NOUN:1
+négligé	ADJ:1
 négoce	NOUN:1
 négociable	ADJ:1
 négociation	NOUN:1
@@ -12112,28 +12094,28 @@ négritude	NOUN:1
 némésis	NOUN:1
 nénuphar	NOUN:1
 néné	NOUN:1
-néo-zélandais	NOUN:1	ADJ:1
+néo-zélandais	NOUN:1
 néocolonialisme	NOUN:1
-néolibéral	ADJ:1	NOUN:1
+néolibéral	ADJ:1
 néolibéralisme	NOUN:1
 néolithique	ADJ:1
 néologisme	NOUN:1
 néon	NOUN:1
-néophyte	ADJ:1	NOUN:1
-népalais	NOUN:1	ADJ:1
+néophyte	NOUN:1
+népalais	NOUN:1
 néphrologie	NOUN:1
 népotisme	NOUN:1
 névralgie	NOUN:1
 névralgique	ADJ:1
 névrose	NOUN:1
-névrotique	ADJ:1	NOUN:1
+névrotique	NOUN:1
 nô	NOUN:1
 nôtre	ADJ:1
 nœud	NOUN:5
 oasis	NOUN:1
 objecter	VERB:1
 objecteur	NOUN:1
-objectif	ADJ:1	NOUN:1
+objectif	ADJ:1
 objection	NOUN:1
 objectivité	NOUN:1
 objet	NOUN:1
@@ -12177,7 +12159,7 @@ obturateur	NOUN:1
 obturation	NOUN:1
 obtus	ADJ:1
 obus	NOUN:1
-obèse	ADJ:1	NOUN:1
+obèse	ADJ:1
 obéir	VERB:1
 obéissance	NOUN:1
 obéissant	ADJ:1
@@ -12193,7 +12175,7 @@ occidental	ADJ:1
 occidentalisation	NOUN:1
 occipital	ADJ:1
 occire	VERB:1
-occitan	ADJ:1	NOUN:1
+occitan	ADJ:1
 occitane	NOUN:1
 occlusion	NOUN:1
 occultation	NOUN:1
@@ -12213,7 +12195,7 @@ octogone	ADJ:1	NOUN:1
 octroi	NOUN:1
 octroyer	VERB:1
 octuple	ADJ:1
-oculaire	ADJ:1	NOUN:1
+oculaire	ADJ:1
 oculus	NOUN:1
 ocytocine	NOUN:1
 océan	NOUN:1
@@ -12290,7 +12272,7 @@ omelette	NOUN:1
 omerta	NOUN:1
 omettre	VERB:1
 omission	NOUN:1
-omnibus	ADJ:3	NOUN:1
+omnibus	ADJ:3	NOUN:2
 omnipotence	NOUN:1
 omnipotent	ADJ:1
 omniprésence	NOUN:1
@@ -12328,13 +12310,12 @@ ontologique	ADJ:1
 onu	X:1
 onyx	NOUN:1
 onze	NOUN:1
-onzième	ADJ:1	NOUN:1
+onzième	ADJ:1
 onéreux	ADJ:1
 opacité	NOUN:1
 opale	NOUN:1
 opaque	ADJ:1
 opercule	NOUN:1
-opex	NOUN:1
 ophtalmique	ADJ:1
 ophtalmologie	NOUN:1
 ophtalmologiste	NOUN:1
@@ -12348,7 +12329,7 @@ opportunisme	NOUN:1
 opportunité	NOUN:1
 opportunément	ADV:1
 opposable	ADJ:1
-opposant	ADJ:1	NOUN:1
+opposant	ADJ:1
 opposer	VERB:1
 opposition	NOUN:1
 oppresseur	NOUN:1
@@ -12425,7 +12406,7 @@ orgueilleux	ADJ:1
 orient	NOUN:1
 oriental	ADJ:2
 orientalisme	NOUN:1
-orientaliste	ADJ:1	NOUN:1
+orientaliste	ADJ:1
 orientation	NOUN:1
 orienter	VERB:1
 orifice	NOUN:1
@@ -12567,14 +12548,13 @@ oye	NOUN:1
 ozone	NOUN:1
 oïdium	NOUN:1
 où	ADV:2
-pa	NOUN:1
 paca	NOUN:1
 pacha	NOUN:1
 pacification	NOUN:1
 pacifier	VERB:1
 pacifique	PROPN:1	ADJ:1
 pacifisme	NOUN:1
-pacifiste	ADJ:1	NOUN:1
+pacifiste	ADJ:1
 pacotille	NOUN:1
 pacte	NOUN:1
 pactiser	VERB:1
@@ -12595,7 +12575,7 @@ paille	NOUN:1
 paillette	NOUN:1
 pain	NOUN:1
 paintball	NOUN:1
-pair	NOUN:1	ADJ:1
+pair	NOUN:1
 paire	NOUN:1
 paisible	ADJ:1
 paisiblement	ADV:1
@@ -12611,7 +12591,7 @@ palan	NOUN:1
 palanquin	NOUN:1
 palefrenier	NOUN:1
 palerme	PROPN:1
-palestinien	NOUN:1	ADJ:1
+palestinien	NOUN:1
 palette	NOUN:1
 palier	NOUN:1
 palimpseste	NOUN:1
@@ -12648,7 +12628,7 @@ panafricain	ADJ:1
 panafricanisme	NOUN:1
 panais	NOUN:1
 panama	PROPN:1
-panaméen	ADJ:1	NOUN:1
+panaméen	NOUN:1
 pancake	NOUN:1
 pancarte	NOUN:1
 pancréas	NOUN:1
@@ -12659,7 +12639,7 @@ paneuropéen	ADJ:1
 pangolin	NOUN:1
 panic	NOUN:1
 panier	NOUN:1
-panique	ADJ:1	NOUN:1
+panique	ADJ:1
 paniquer	VERB:1
 panne	NOUN:1
 panneau	NOUN:1
@@ -12716,8 +12696,8 @@ paradoxe	NOUN:1
 parage	NOUN:1
 paragraphe	NOUN:1
 paraguay	PROPN:1
-paraguayen	ADJ:1	NOUN:1
-parallèle	ADJ:1	NOUN:1
+paraguayen	ADJ:1
+parallèle	ADJ:1
 parallèlement	ADV:1
 parallélisme	NOUN:1
 parallélogramme	NOUN:1
@@ -12728,13 +12708,13 @@ paralysie	NOUN:1
 paramilitaire	ADJ:1
 paramètre	NOUN:1
 parangon	NOUN:1
-paranormal	ADJ:1	NOUN:1
+paranormal	ADJ:1
 parapet	NOUN:1
 paraphe	NOUN:1
 parapher	VERB:1
 paraphraser	VERB:1
 parapluie	NOUN:1
-paraplégique	ADJ:1	NOUN:1
+paraplégique	NOUN:1
 parapsychologie	NOUN:1
 parasitaire	ADJ:1
 parasite	NOUN:1
@@ -12790,7 +12770,7 @@ parlement	NOUN:1
 parlementaire	NOUN:1
 parler	VERB:2
 parleur	ADJ:1
-parmesan	ADJ:1	NOUN:1
+parmesan	ADJ:1
 parmi	ADP:1
 parnasse	NOUN:1
 parodie	NOUN:1
@@ -12808,11 +12788,11 @@ parquer	VERB:4
 parrain	NOUN:1
 parrainage	NOUN:1
 parrainer	VERB:1
-parricide	NOUN:1	ADJ:1
+parricide	NOUN:1
 partager	VERB:3
 partenaire	NOUN:1
 parterre	NOUN:1
-parti	ADJ:1	NOUN:1
+parti	ADJ:1
 partial	ADJ:1
 partialité	NOUN:1
 participation	NOUN:1
@@ -12832,13 +12812,13 @@ partout	ADV:1
 parure	NOUN:1
 parvenir	VERB:4
 parvis	NOUN:1
-pas	NOUN:1	ADV:1
+pas	ADV:1	NOUN:1
 pascal	PROPN:2
 pascaline	NOUN:1
 paseo	NOUN:1
 passablement	ADV:1
 passage	NOUN:1
-passager	ADJ:1	NOUN:1
+passager	ADJ:1
 passeport	NOUN:1
 passer	VERB:1
 passereau	NOUN:1
@@ -12868,7 +12848,7 @@ patchouli	NOUN:1
 patelin	ADJ:1	NOUN:1
 patent	ADJ:1
 paternalisme	NOUN:1
-paternaliste	ADJ:1	NOUN:1
+paternaliste	ADJ:1
 paternel	ADJ:1
 paternité	NOUN:2
 pathologie	NOUN:1
@@ -12890,7 +12870,7 @@ patriarcal	ADJ:1
 patriarcat	NOUN:1
 patriarche	NOUN:1
 patrice	PROPN:1
-patricien	ADJ:1	NOUN:1
+patricien	ADJ:1
 patrie	NOUN:1
 patrimoine	NOUN:1
 patrimonial	ADJ:1
@@ -12932,7 +12912,7 @@ paysager	ADJ:1
 paysagiste	NOUN:1
 paysan	ADJ:1	NOUN:1
 paître	VERB:1
-païen	ADJ:1	NOUN:1
+païen	ADJ:1
 pci	NOUN:1
 peau	NOUN:1
 peaufiner	VERB:1
@@ -12963,7 +12943,7 @@ penalty	NOUN:1
 penchant	NOUN:1
 pencher	VERB:1
 pendaison	NOUN:1
-pendant	ADJ:1	ADP:1	NOUN:1
+pendant	ADP:1	ADJ:1	NOUN:1
 pendentif	NOUN:1
 penderie	NOUN:1
 pendre	VERB:1
@@ -13004,7 +12984,7 @@ perdrix	NOUN:1
 perdurer	VERB:1
 perfection	NOUN:1
 perfectionner	VERB:1
-perfectionniste	ADJ:1	NOUN:1
+perfectionniste	ADJ:1
 perfide	ADJ:1
 perfidie	NOUN:1
 perforer	VERB:1
@@ -13049,7 +13029,7 @@ personnage	NOUN:1
 personnaliser	VERB:1
 personnalité	NOUN:1
 personne	NOUN:1	PRON:1
-personnel	ADJ:1	NOUN:1
+personnel	ADJ:1
 personnellement	ADV:1
 personnification	NOUN:1
 personnifier	VERB:1
@@ -13070,7 +13050,7 @@ perturbateur	NOUN:1
 perturbation	NOUN:1
 perturber	VERB:1
 pervenche	NOUN:1
-pervers	ADJ:1	NOUN:1
+pervers	NOUN:1
 perversion	NOUN:1
 perversité	NOUN:1
 pervertir	VERB:1
@@ -13079,7 +13059,7 @@ pesanteur	NOUN:1
 peser	VERB:1
 peso	NOUN:1
 pessimisme	NOUN:1
-pessimiste	ADJ:1	NOUN:1
+pessimiste	ADJ:1
 peste	NOUN:1
 pester	VERB:1
 pesticide	NOUN:1
@@ -13124,7 +13104,7 @@ philanthropie	NOUN:1
 philharmonique	ADJ:1
 philippe	PROPN:1
 philippiens	NOUN:1
-philippin	ADJ:1	NOUN:1
+philippin	NOUN:1
 philippine	NOUN:1
 philippines	PROPN:1
 philistin	ADJ:1
@@ -13190,7 +13170,7 @@ piano	NOUN:1
 piastre	NOUN:1
 pib	X:1
 pic	NOUN:1
-picaresque	NOUN:1	ADJ:1
+picaresque	ADJ:1
 picart	PROPN:1
 piccolo	NOUN:1
 pichenette	NOUN:1
@@ -13231,7 +13211,6 @@ pilori	NOUN:1
 pilosité	NOUN:1
 pilot	NOUN:1
 pilotage	NOUN:1
-pilote	NOUN:1
 piloter	VERB:1
 pilotis	NOUN:1
 pilule	NOUN:1
@@ -13281,7 +13260,7 @@ piscine	NOUN:1
 pisse	NOUN:1
 pissenlit	NOUN:1
 pisser	VERB:1
-pistache	NOUN:1	ADJ:1
+pistache	NOUN:1
 piste	NOUN:1
 pistil	NOUN:1
 pistolet	NOUN:1
@@ -13375,7 +13354,7 @@ plein	ADJ:1
 pleinement	ADV:1
 pleur	NOUN:1
 pleurer	VERB:2
-pleureur	ADJ:1	NOUN:1
+pleureur	ADJ:1
 pleureuse	NOUN:1
 pleurnicher	VERB:1
 pleuvoir	VERB:1
@@ -13396,7 +13375,7 @@ plongeur	NOUN:1
 plongée	NOUN:1
 plot	NOUN:1
 plouc	NOUN:1
-plouf	NOUN:1	INTJ:1
+plouf	NOUN:1
 ploutocratie	NOUN:1
 pluie	NOUN:1
 plumage	NOUN:1
@@ -13405,7 +13384,7 @@ plumer	VERB:1
 plupart	NOUN:1
 pluralisme	NOUN:1
 pluralité	NOUN:1
-pluriel	ADJ:1	NOUN:1
+pluriel	ADJ:1
 plus	ADV:2	SCONJ:1
 plusieurs	PRON:1	ADJ:1
 pluton	NOUN:1
@@ -13427,7 +13406,6 @@ pléonasme	NOUN:1
 pléthorique	ADJ:1
 pma	NOUN:1
 pme	NOUN:1
-pnb	X:1
 pneu	NOUN:1
 pneumatique	ADJ:1	NOUN:1
 pneumonie	NOUN:1
@@ -13548,7 +13526,7 @@ ponce	NOUN:1	X:1
 ponceau	NOUN:1	ADJ:1
 poncer	VERB:1
 ponceuse	NOUN:1
-poncif	ADJ:1	NOUN:1
+poncif	NOUN:1
 ponction	NOUN:1
 ponctualité	NOUN:1
 ponctuation	NOUN:1
@@ -13582,7 +13560,7 @@ porcin	ADJ:1
 pore	NOUN:1
 poreux	ADJ:1
 porn	NOUN:1
-porno	ADJ:1	NOUN:1
+porno	ADJ:1
 pornographie	NOUN:1
 pornographique	ADJ:1
 porosité	NOUN:1
@@ -13610,7 +13588,7 @@ portoricain	ADJ:1	NOUN:1
 portrait	NOUN:1
 portraitiste	NOUN:1
 portuaire	ADJ:1
-portugais	ADJ:1	NOUN:1
+portugais	NOUN:1
 portugal	PROPN:1
 portée	NOUN:1
 posada	NOUN:1
@@ -13651,7 +13629,7 @@ pote	NOUN:2
 poteau	NOUN:1
 potence	NOUN:1
 potential	ADJ:1
-potentiel	ADJ:1	NOUN:1
+potentiel	ADJ:1
 potentiellement	ADV:1
 poterie	NOUN:1
 poterne	NOUN:1
@@ -13667,7 +13645,7 @@ pouce	NOUN:2
 poudre	NOUN:1
 poudrière	NOUN:1
 pouf	NOUN:1
-pouilleux	ADJ:1	NOUN:1
+pouilleux	NOUN:1
 poulain	NOUN:1
 poule	NOUN:1
 poulet	NOUN:6
@@ -13687,7 +13665,7 @@ pourcentage	NOUN:1
 pourchasser	VERB:3
 pourfendre	VERB:1
 pourpoint	NOUN:1
-pourpre	ADJ:1	NOUN:1
+pourpre	ADJ:1
 pourquoi	ADV:1
 pourri	ADJ:1
 pourrir	VERB:1
@@ -13726,7 +13704,7 @@ premier	NUM:1
 premièrement	ADV:1
 prendre	VERB:3
 presbytère	NOUN:1
-presbytérien	NOUN:1	ADJ:1
+presbytérien	NOUN:1
 prescience	NOUN:1
 prescription	NOUN:1
 prescrire	VERB:1
@@ -13827,7 +13805,7 @@ productiviste	ADJ:1
 productivité	NOUN:1
 produire	VERB:1
 profanation	NOUN:1
-profane	ADJ:1	NOUN:1
+profane	ADJ:1
 profaner	VERB:1
 professer	VERB:1
 professeur	NOUN:1
@@ -13917,10 +13895,10 @@ proposition	NOUN:1
 propre	ADJ:1	NOUN:1
 proprement	ADV:1
 propreté	NOUN:1
-propriétaire	ADJ:1	NOUN:1
+propriétaire	NOUN:1
 propriété	NOUN:1
 propulser	VERB:1
-propulseur	ADJ:1	NOUN:1
+propulseur	ADJ:1
 propulsion	NOUN:1
 propylène	NOUN:1
 propédeutique	NOUN:1
@@ -13936,7 +13914,7 @@ prospère	ADJ:1
 prospérer	VERB:1
 prospérité	NOUN:1
 prostate	NOUN:1
-prostatique	ADJ:1	NOUN:1
+prostatique	ADJ:1
 prosterner	VERB:1
 prostituer	VERB:1
 prostitution	NOUN:1
@@ -13948,9 +13926,9 @@ protagoniste	NOUN:1
 protecteur	NOUN:1
 protection	NOUN:1
 protectionnisme	NOUN:1
-protectionniste	ADJ:1	NOUN:1
+protectionniste	ADJ:1
 protectorat	NOUN:1
-protestant	NOUN:1	ADJ:1
+protestant	NOUN:1
 protestantisme	NOUN:1
 protestation	NOUN:1
 protester	VERB:1
@@ -13973,7 +13951,7 @@ prouver	VERB:2
 provenance	NOUN:1
 provence	PROPN:1
 provenir	VERB:1
-provençal	ADJ:1	NOUN:1
+provençal	ADJ:1
 proverbe	NOUN:1
 providence	NOUN:1
 providentiel	ADJ:1
@@ -13992,7 +13970,7 @@ prude	ADJ:1
 prudemment	ADV:1
 prudence	NOUN:2
 prudent	NOUN:1
-prune	NOUN:1	ADJ:1
+prune	NOUN:1
 pruneau	NOUN:1
 prunelle	NOUN:1
 prunier	NOUN:1
@@ -14029,10 +14007,10 @@ précisément	ADV:1
 précoce	ADJ:1
 préconiser	VERB:1
 précontraint	ADJ:1
-précurseur	ADJ:1	NOUN:1
+précurseur	ADJ:1
 précédent	ADJ:1	NOUN:1
 précéder	VERB:1
-prédateur	NOUN:1	ADJ:1
+prédateur	NOUN:1
 prédation	NOUN:1
 prédestination	NOUN:1
 prédicat	NOUN:1
@@ -14093,7 +14071,7 @@ prérogative	NOUN:1
 présager	VERB:1
 préscolaire	ADJ:1
 présence	NOUN:1
-présent	ADJ:1	NOUN:1
+présent	ADJ:1
 présentateur	NOUN:1
 présentation	NOUN:1
 présenter	VERB:1
@@ -14104,7 +14082,7 @@ préservation	NOUN:1
 préserver	VERB:1
 présidence	NOUN:1
 président	NOUN:1
-présidentiable	ADJ:1	NOUN:1
+présidentiable	ADJ:1
 présidentiel	ADJ:1
 présider	VERB:1
 présomption	NOUN:1
@@ -14136,7 +14114,7 @@ prêtre	NOUN:1
 prêtresse	NOUN:1
 psalmodie	NOUN:1
 psaume	NOUN:1
-pseudonyme	ADJ:1	NOUN:1
+pseudonyme	ADJ:1
 psoriasis	NOUN:1
 psychanalyse	NOUN:1
 psychanalyste	NOUN:1
@@ -14199,7 +14177,7 @@ punch	NOUN:1
 punir	VERB:1
 punitif	ADJ:1
 punition	NOUN:1
-punk	ADJ:1	NOUN:1
+punk	ADJ:1
 pupille	NOUN:1
 pupitre	NOUN:1
 pur	ADJ:1
@@ -14210,7 +14188,7 @@ puri	NOUN:1
 purificateur	ADJ:1	NOUN:1
 purification	NOUN:1
 purifier	VERB:1
-puriste	ADJ:1	NOUN:1
+puriste	ADJ:1
 purée	NOUN:1	INTJ:1
 pus	VERB:1
 putaclic	ADJ:1
@@ -14257,7 +14235,7 @@ père	NOUN:1
 péage	NOUN:1
 péan	ADJ:1
 pécher	VERB:1
-pécheur	ADJ:1	NOUN:1
+pécheur	ADJ:1
 péché	NOUN:1
 pécuniaire	ADJ:1
 pédagogie	NOUN:1
@@ -14267,19 +14245,19 @@ pédalage	NOUN:1
 pédale	NOUN:1
 pédaler	VERB:1
 pédalo	NOUN:1
-pédant	ADJ:1	NOUN:1
+pédant	ADJ:1
 pédiatre	NOUN:1
 pédiatrie	NOUN:1
 pédologie	NOUN:1
 pédoncule	NOUN:1
-pédophile	ADJ:1	NOUN:1
+pédophile	NOUN:1
 pédophilie	NOUN:1
 pédopornographie	NOUN:1
 pédopsychiatre	NOUN:1
 pédopsychiatrie	NOUN:1
 pédé	NOUN:1
 péjoratif	ADJ:1
-pékinois	ADJ:1	NOUN:1
+pékinois	ADJ:1
 pélagique	ADJ:1
 pélican	NOUN:1
 pénal	ADJ:1
@@ -14289,7 +14267,7 @@ pénibilité	NOUN:1
 pénible	ADJ:1
 péniche	NOUN:1
 pénicilline	NOUN:1
-péninsulaire	ADJ:1	NOUN:1
+péninsulaire	ADJ:1
 péninsule	NOUN:1
 pénis	NOUN:1
 pénitence	NOUN:1
@@ -14313,7 +14291,7 @@ périlleux	ADJ:1
 périmètre	NOUN:1
 périnée	NOUN:1
 période	NOUN:1
-périodique	ADJ:1	NOUN:1
+périodique	ADJ:1
 périodiquement	ADV:1
 périphrase	NOUN:1
 périphérie	NOUN:1
@@ -14328,7 +14306,7 @@ péritonite	NOUN:1
 péroné	NOUN:1
 pérorer	VERB:1
 pérou	PROPN:1
-péruvien	ADJ:1	NOUN:1
+péruvien	NOUN:1
 péréquation	NOUN:1
 pétale	NOUN:1
 pétanque	NOUN:1
@@ -14341,14 +14319,14 @@ pétition	NOUN:1
 pétrin	NOUN:1
 pétrir	VERB:2
 pétrochimie	NOUN:1
-pétrole	NOUN:1	ADJ:1
+pétrole	NOUN:1
 pétrolifère	ADJ:1
 pêche	NOUN:1
 pêcher	NOUN:1	VERB:1
 pêcheur	ADJ:1
 pôle	NOUN:1
 qatar	PROPN:1
-qatari	NOUN:1	ADJ:1
+qatari	NOUN:1
 qatarien	ADJ:1
 qi	X:1
 qu'en-dira-t-on	NOUN:1
@@ -14381,9 +14359,9 @@ quantité	NOUN:1
 quantum	NOUN:1
 quarantaine	NOUN:1
 quarante	NOUN:1
-quarante-cinq	ADJ:1	NOUN:1
-quarante-neuf	ADJ:1	NOUN:1
-quarantième	ADJ:1	NOUN:1
+quarante-cinq	ADJ:1
+quarante-neuf	ADJ:1
+quarantième	ADJ:1
 quark	NOUN:1
 quart	NOUN:1
 quarteron	NOUN:1
@@ -14398,14 +14376,14 @@ quatorze	NUM:1
 quatorzième	ADJ:1
 quatrain	NOUN:1
 quatre	NUM:1
-quatre-cents	NOUN:1	ADJ:1
-quatre-vingt-dix	ADJ:1	NOUN:1
-quatre-vingt-quatre	ADJ:1	NOUN:1
+quatre-cents	NOUN:1
+quatre-vingt-dix	ADJ:1
+quatre-vingt-quatre	ADJ:1
 quatrième	ADJ:1
 quatuor	NOUN:1
-que	PRON:2
-quechua	ADJ:1	NOUN:1
-queer	ADJ:1	NOUN:1
+que	SCONJ:1	PRON:1
+quechua	NOUN:1
+queer	ADJ:1
 quel	ADJ:2	PRON:1
 quelconque	ADJ:1
 quelqu'un	PRON:3
@@ -14428,7 +14406,7 @@ quincaillerie	NOUN:1
 quinconce	NOUN:1
 quinine	NOUN:1
 quinoa	NOUN:1
-quinquagénaire	ADJ:1	NOUN:1
+quinquagénaire	ADJ:1
 quinquennal	ADJ:1
 quinquina	NOUN:1
 quintal	NOUN:1
@@ -14478,7 +14456,7 @@ rachis	NOUN:1
 racial	ADJ:1
 racine	NOUN:1
 racisme	NOUN:1
-raciste	ADJ:1	NOUN:1
+raciste	ADJ:1
 racler	VERB:1
 raclure	NOUN:1
 raclée	NOUN:1
@@ -14490,12 +14468,12 @@ rade	NOUN:1
 radeau	NOUN:1
 radiateur	NOUN:1
 radiation	NOUN:1
-radical	ADJ:1	NOUN:1
+radical	ADJ:1
 radicalisation	NOUN:1
 radicalisme	NOUN:1
 radicalité	NOUN:1
 radier	VERB:1
-radin	ADJ:1	NOUN:1
+radin	ADJ:1
 radio	NOUN:1
 radioactif	ADJ:1
 radioactivité	NOUN:1
@@ -14582,8 +14560,7 @@ ranger	VERB:4
 rangée	NOUN:1
 ranimer	VERB:1
 rançon	NOUN:1
-rap	NOUN:1
-rapace	ADJ:1	NOUN:1
+rapace	ADJ:1
 rapacité	NOUN:1
 rapatrier	VERB:1
 rapetisser	VERB:1
@@ -14831,7 +14808,7 @@ remporter	VERB:1
 remuer	VERB:2
 remède	NOUN:1
 remédier	VERB:1
-renaissance	NOUN:1	ADJ:1
+renaissance	NOUN:1
 renard	NOUN:1
 renaître	VERB:1
 renchérissement	NOUN:1
@@ -14991,7 +14968,7 @@ rhum	NOUN:1
 rhumatisme	NOUN:1
 rhumatoïde	ADJ:1
 rhume	NOUN:1
-rhénan	ADJ:1	NOUN:1
+rhénan	ADJ:1
 rhétorique	ADJ:1	NOUN:1
 ria	NOUN:1
 ribambelle	NOUN:1
@@ -15022,7 +14999,7 @@ rime	NOUN:1
 rimer	VERB:1
 rincer	VERB:1
 ring	NOUN:1
-ringard	ADJ:1	NOUN:1
+ringard	ADJ:1
 rinçage	NOUN:1
 rioja	NOUN:1
 riou	PROPN:1
@@ -15067,7 +15044,7 @@ rocard	PROPN:1
 roche	NOUN:1
 rocher	NOUN:1
 rock	NOUN:1
-rococo	ADJ:1	NOUN:1
+rococo	ADJ:1
 roder	VERB:1
 rodolphe	PROPN:1
 roger	PROPN:1
@@ -15084,7 +15061,7 @@ romance	NOUN:3
 romanche	NOUN:1
 romancier	NOUN:1
 romancière	NOUN:1
-romanesque	ADJ:1	NOUN:1
+romanesque	ADJ:1
 romani	NOUN:1
 romanisation	NOUN:1
 romantique	ADJ:1
@@ -15134,7 +15111,7 @@ rotor	NOUN:1
 rotterdam	PROPN:1
 rottweiler	NOUN:1
 rotule	NOUN:1
-roturier	ADJ:1	NOUN:1
+roturier	ADJ:1
 rouage	NOUN:1
 roublard	ADJ:1
 rouble	NOUN:1
@@ -15158,9 +15135,9 @@ roulement	NOUN:1
 rouler	VERB:1
 roulette	NOUN:1
 roulotte	NOUN:1
-roumain	ADJ:1	NOUN:1
+roumain	ADJ:1
 roumanie	PROPN:1
-rouquin	ADJ:1	NOUN:1
+rouquin	ADJ:1
 rous	PROPN:1
 rousseau	PROPN:1
 roussel	PROPN:1
@@ -15219,7 +15196,7 @@ rupestre	ADJ:1
 rupture	NOUN:1
 rural	ADJ:2	NOUN:1
 ruse	NOUN:1
-russe	ADJ:1	NOUN:1
+russe	NOUN:1
 russie	PROPN:1
 russophone	NOUN:1
 rustique	ADJ:1
@@ -15240,7 +15217,7 @@ réa	NOUN:1
 réacteur	NOUN:1
 réactif	NOUN:1
 réaction	NOUN:1
-réactionnaire	ADJ:1	NOUN:1
+réactionnaire	NOUN:1
 réactiver	VERB:1
 réagir	VERB:1
 réajustement	NOUN:1
@@ -15269,7 +15246,7 @@ récession	NOUN:1
 réchaud	NOUN:1
 réchauffer	VERB:1
 récidiver	VERB:1
-récidiviste	ADJ:1	NOUN:1
+récidiviste	NOUN:1
 récif	NOUN:1
 récipiendaire	NOUN:1
 récipient	NOUN:1
@@ -15297,7 +15274,7 @@ récurrence	NOUN:1
 récurrent	ADJ:1
 rédacteur	NOUN:1
 rédaction	NOUN:1
-rédempteur	ADJ:1	NOUN:1
+rédempteur	ADJ:1
 rédemption	NOUN:1
 rédiger	VERB:1
 réductible	ADJ:1
@@ -15373,7 +15350,7 @@ réorientation	NOUN:1
 répandre	VERB:1
 répandu	ADJ:1
 réparable	ADJ:1
-réparateur	ADJ:1	NOUN:1
+réparateur	ADJ:1
 réparation	NOUN:1
 réparer	VERB:1
 répartir	VERB:1
@@ -15390,7 +15367,7 @@ réprimande	NOUN:1
 réprimander	VERB:1
 réprimer	VERB:1
 réprobation	NOUN:1
-républicain	ADJ:1	NOUN:1
+républicain	ADJ:1
 république	NOUN:1
 répudiation	NOUN:1
 répudier	VERB:1
@@ -15474,7 +15451,7 @@ révélateur	NOUN:1
 révélation	NOUN:1
 révéler	VERB:1
 révérence	NOUN:1
-révérend	ADJ:1	NOUN:1
+révérend	ADJ:1
 réécrire	VERB:1
 rééducation	NOUN:1
 rééduquer	VERB:1
@@ -15489,7 +15466,7 @@ rêveur	NOUN:1
 rôder	VERB:1
 rôdeur	ADJ:1
 rôle	NOUN:1
-rôti	ADJ:1	NOUN:1
+rôti	ADJ:1
 rôtir	VERB:1
 sabatier	PROPN:1
 sabbat	NOUN:1
@@ -15590,13 +15567,13 @@ salubrité	NOUN:1
 saluer	VERB:1
 salut	NOUN:2	INTJ:2
 salvador	PROPN:1
-salvadorien	NOUN:1	ADJ:1
+salvadorien	NOUN:1
 salve	NOUN:1
 salé	ADJ:1
 samba	NOUN:1
 samedi	NOUN:1
 samoa	PROPN:1
-samoan	ADJ:1	NOUN:1
+samoan	NOUN:1
 samouraï	NOUN:1
 samovar	NOUN:1
 sampler	NOUN:1
@@ -15620,17 +15597,17 @@ sangloter	VERB:1
 sango	NOUN:1
 sangria	NOUN:1
 sangsue	NOUN:1
-sanguin	ADJ:2
+sanguin	ADJ:3
 sanguinaire	ADJ:1
 sanhédrin	NOUN:1
 sanitaire	ADJ:1
 sans	ADP:1
 sans-abri	NOUN:1
 sanscrit	NOUN:1
-sanskrit	NOUN:1	ADJ:1
+sanskrit	NOUN:1
 santal	NOUN:1
 santé	NOUN:1
-saoudien	NOUN:1	ADJ:1
+saoudien	NOUN:1
 saoudite	ADJ:1
 saoul	ADJ:1
 saouler	VERB:1
@@ -15638,7 +15615,7 @@ sape	NOUN:1
 saper	VERB:1
 sapeur	NOUN:1
 sapeur-pompier	NOUN:1
-saphir	NOUN:1	ADJ:1
+saphir	NOUN:1
 sapin	NOUN:1
 sapristi	INTJ:1
 saquer	VERB:1
@@ -15647,7 +15624,7 @@ sarbacane	NOUN:1
 sarcasme	NOUN:1
 sarcelle	NOUN:1
 sarcophage	NOUN:1
-sarde	ADJ:1	NOUN:1
+sarde	ADJ:1
 sardine	NOUN:1
 sari	NOUN:1
 sarin	NOUN:1
@@ -15709,20 +15686,20 @@ savon	NOUN:1
 savonner	VERB:1
 savourer	VERB:1
 savoureux	ADJ:1
-savoyard	ADJ:1	NOUN:1
-saxon	ADJ:1	NOUN:1
+savoyard	ADJ:1
+saxon	ADJ:1
 saxophone	NOUN:1
 saxophoniste	NOUN:1
 saynète	NOUN:1
 sbire	NOUN:1
 scabreux	ADJ:1
-scalaire	NOUN:1	ADJ:1
+scalaire	NOUN:1
 scalpel	NOUN:1
 scandale	NOUN:1
 scandaleusement	ADV:1
 scandaleux	ADJ:1
 scander	VERB:1
-scandinave	ADJ:1	NOUN:1
+scandinave	ADJ:1
 scapulaire	ADJ:1
 scarabée	NOUN:1
 scare	NOUN:1
@@ -15755,7 +15732,7 @@ sciemment	ADV:1
 science	NOUN:2
 science-fiction	NOUN:1
 scientifique	ADJ:1
-scientiste	ADJ:1	NOUN:1
+scientiste	ADJ:1
 scier	VERB:1
 scierie	NOUN:1
 scinder	VERB:1
@@ -15876,11 +15853,11 @@ septembre	NOUN:1
 septentrional	ADJ:1
 septicémie	NOUN:1
 septique	ADJ:1
-septième	ADJ:1	NOUN:1
+septième	ADJ:1
 septuple	ADJ:1
-serbe	ADJ:1	NOUN:1
+serbe	NOUN:1
 serbie	PROPN:1
-serein	ADJ:1	NOUN:1
+serein	ADJ:1
 serengeti	NOUN:1
 serf	NOUN:1	ADJ:1
 serge	NOUN:1
@@ -15952,7 +15929,7 @@ siamois	NOUN:1
 sibylle	NOUN:1
 sibérien	NOUN:1
 sic	ADV:1
-sicilien	ADJ:1	NOUN:1
+sicilien	NOUN:1
 sida	NOUN:1
 sidéral	ADJ:1
 sidérurgie	NOUN:1
@@ -15974,7 +15951,7 @@ signet	NOUN:1
 signification	NOUN:1
 significativement	ADV:1
 signifier	VERB:1
-sikh	ADJ:1	NOUN:1
+sikh	ADJ:1
 silence	NOUN:1
 silencieusement	ADV:1
 silencieux	ADJ:1	NOUN:1
@@ -16018,7 +15995,7 @@ singe	NOUN:1
 single	NOUN:1
 singleton	NOUN:1
 singularité	NOUN:1
-singulier	ADJ:1	NOUN:1
+singulier	ADJ:1
 singulièrement	ADV:1
 sinistre	ADJ:1
 sinon	SCONJ:1
@@ -16044,7 +16021,7 @@ situation	NOUN:2
 situer	VERB:1
 sitôt	ADV:1
 six	NUM:1
-sixième	ADJ:1	NOUN:1
+sixième	ADJ:1
 siècle	NOUN:1
 siège	NOUN:4
 ska	NOUN:1
@@ -16056,16 +16033,15 @@ skier	VERB:1
 skieur	NOUN:1
 skipper	NOUN:1
 sla	NOUN:1
-slave	ADJ:1	NOUN:1
+slave	NOUN:1
 slip	NOUN:1
 slogan	NOUN:1
 sloop	NOUN:1
-slovaque	ADJ:1	NOUN:1
+slovaque	NOUN:1
 slovaquie	PROPN:1
-slovène	NOUN:1	ADJ:1
+slovène	NOUN:1
 slovénie	PROPN:1
 smack	NOUN:1
-smala	NOUN:1
 smartphone	NOUN:1
 smicard	NOUN:1
 smog	NOUN:1
@@ -16088,7 +16064,7 @@ social-démocrate	ADJ:1
 socialement	ADV:1
 socialisation	NOUN:1
 socialisme	NOUN:1
-socialiste	ADJ:1	NOUN:1
+socialiste	ADJ:1
 socio-économique	ADJ:1
 sociologie	NOUN:1
 sociologue	NOUN:1
@@ -16101,7 +16077,7 @@ sodique	ADJ:1
 sodium	NOUN:1
 sodomie	NOUN:1
 sodomiser	VERB:1
-sodomite	ADJ:1	NOUN:1
+sodomite	ADJ:1
 sofa	NOUN:1
 sofia	PROPN:1
 softball	NOUN:1
@@ -16120,8 +16096,8 @@ soin	NOUN:1
 soir	NOUN:1
 soirée	NOUN:1
 soixante	NUM:1	NOUN:1
-soixante-dix	ADJ:1	NOUN:1
-soixante-dix-neuf	ADJ:1	NOUN:1
+soixante-dix	ADJ:1
+soixante-dix-neuf	ADJ:1
 soixante-neuf	NOUN:1
 soixante-quinze	NOUN:1
 soixantième	NOUN:1
@@ -16138,12 +16114,12 @@ solennité	NOUN:1
 solfège	NOUN:1
 solidaire	ADJ:1
 solidarité	NOUN:1
-solide	ADJ:1	NOUN:1
+solide	ADJ:1
 solidification	NOUN:1
 solidifier	VERB:1
 solidité	NOUN:1
 soliste	NOUN:1
-solitaire	ADJ:1	NOUN:1
+solitaire	ADJ:1
 solitude	NOUN:1
 sollicitation	NOUN:1
 solliciter	VERB:1
@@ -16159,7 +16135,7 @@ solvable	ADJ:1
 solénoïde	NOUN:1
 somali	ADJ:1
 somalie	PROPN:1
-somalien	ADJ:1	NOUN:1
+somalien	ADJ:1
 somatique	ADJ:1
 sombre	ADJ:1
 sombrer	VERB:2
@@ -16172,9 +16148,9 @@ sommelier	NOUN:2
 sommet	NOUN:2
 sommier	NOUN:1
 sommité	NOUN:2
-somnambule	ADJ:1	NOUN:1
+somnambule	ADJ:1
 somnambulisme	NOUN:1
-somnifère	ADJ:1	NOUN:1
+somnifère	ADJ:1
 somnolence	NOUN:1
 somnolent	ADJ:1
 somnoler	VERB:1
@@ -16225,7 +16201,7 @@ soudage	NOUN:1
 soudain	ADJ:1	ADV:1
 soudainement	ADV:1
 soudan	PROPN:1
-soudanais	ADJ:1	NOUN:1
+soudanais	NOUN:1
 soude	NOUN:1
 souder	VERB:1
 soudeur	NOUN:1
@@ -16255,7 +16231,7 @@ souligner	VERB:1
 soumettre	VERB:1
 soumission	NOUN:1
 soupe	NOUN:1
-souper	VERB:1	NOUN:1
+souper	VERB:1
 soupir	NOUN:1
 soupirer	VERB:1
 soupière	NOUN:1
@@ -16304,7 +16280,7 @@ souvent	ADV:1
 souverain	ADJ:1
 souveraineté	NOUN:1
 soviet	NOUN:1
-soviétique	NOUN:1	ADJ:1
+soviétique	NOUN:1
 soyeux	ADJ:1
 soûl	ADJ:1
 spacieux	ADJ:1
@@ -16406,7 +16382,7 @@ stationner	VERB:1
 statique	ADJ:1	NOUN:1
 statistique	NOUN:1	ADJ:1
 stator	NOUN:1
-statuaire	ADJ:1	NOUN:1
+statuaire	NOUN:1
 statue	NOUN:1
 statuette	NOUN:1
 stature	NOUN:1
@@ -16538,12 +16514,12 @@ sucette	NOUN:1
 sucre	NOUN:1
 sucrer	VERB:1
 sucrerie	NOUN:1
-sucrier	ADJ:1	NOUN:1
+sucrier	NOUN:1
 sucré	ADJ:1
 sud	NOUN:1
-sud-africain	NOUN:1	ADJ:1
+sud-africain	NOUN:1
 sud-américain	ADJ:1
-sud-coréen	ADJ:1	NOUN:1
+sud-coréen	ADJ:1
 sud-est	NOUN:1
 sud-occidental	ADJ:1
 sud-ouest	NOUN:1
@@ -16567,7 +16543,7 @@ suffrage	NOUN:1
 suggestif	ADJ:1
 suggestion	NOUN:1
 suggérer	VERB:1
-suicidaire	ADJ:1	NOUN:1
+suicidaire	ADJ:1
 suicide	NOUN:1
 suie	NOUN:1
 suif	NOUN:1
@@ -16583,10 +16559,10 @@ sultan	NOUN:1
 sultanat	NOUN:1
 sumac	NOUN:1
 sumo	NOUN:1
-sumérien	ADJ:1	NOUN:1
+sumérien	ADJ:1
 sundae	NOUN:1
 sunnisme	NOUN:1
-sunnite	ADJ:1	NOUN:1
+sunnite	ADJ:1
 super	ADJ:1
 super-héros	NOUN:1
 superficialité	NOUN:1
@@ -16622,7 +16598,7 @@ suppositoire	NOUN:1
 supposément	ADV:1
 suppression	NOUN:1
 supprimer	VERB:1
-supraconducteur	NOUN:1	ADJ:1
+supraconducteur	NOUN:1
 supranational	ADJ:1
 suprématie	NOUN:1
 suprême	ADJ:1
@@ -16660,7 +16636,7 @@ surprenant	ADJ:1
 surprendre	VERB:1
 surprise	NOUN:1
 surréalisme	NOUN:1
-surréaliste	ADJ:1	NOUN:1
+surréaliste	ADJ:1
 sursaut	NOUN:1
 sursauter	VERB:1
 surseoir	VERB:1
@@ -16689,7 +16665,7 @@ suzanne	PROPN:1
 suzerain	NOUN:1
 suçon	NOUN:1
 suède	PROPN:1
-suédois	ADJ:1	NOUN:1
+suédois	NOUN:1
 svastika	NOUN:1
 svelte	ADJ:1
 swahili	NOUN:1
@@ -16735,7 +16711,7 @@ syndic	NOUN:1
 syndical	ADJ:1
 syndicalisation	NOUN:1
 syndicalisme	NOUN:1
-syndicaliste	ADJ:1	NOUN:1
+syndicaliste	ADJ:1
 syndicat	NOUN:2
 syndiquer	VERB:1
 syndrome	NOUN:1
@@ -16752,9 +16728,9 @@ synthétique	ADJ:1
 synthétiser	VERB:1
 synthétiseur	NOUN:1
 syphilis	NOUN:1
-syriaque	ADJ:1	NOUN:1
+syriaque	ADJ:1
 syrie	PROPN:1
-syrien	NOUN:1	ADJ:1
+syrien	NOUN:1
 système	NOUN:1
 systématique	ADJ:1	NOUN:1
 systématisation	NOUN:1
@@ -16765,7 +16741,7 @@ séance	NOUN:1
 sébastien	PROPN:1
 sécateur	NOUN:1
 sécession	NOUN:1
-sécessionniste	ADJ:1	NOUN:1
+sécessionniste	ADJ:1
 séchage	NOUN:1
 sécher	VERB:1
 sécheresse	NOUN:1
@@ -16776,10 +16752,10 @@ séculaire	ADJ:1
 séculier	ADJ:1
 sécurisé	ADJ:1
 sécurité	NOUN:1
-sédatif	ADJ:1	NOUN:1
+sédatif	ADJ:1
 sédiment	NOUN:1
-séditieux	ADJ:1	NOUN:1
-séducteur	ADJ:1	NOUN:1
+séditieux	ADJ:1
+séducteur	ADJ:1
 séduction	NOUN:1
 séduisant	ADJ:1
 ségrégation	NOUN:1
@@ -16796,7 +16772,7 @@ sémantique	ADJ:1	NOUN:1
 sémaphore	NOUN:1
 séminaire	NOUN:1
 sémiotique	NOUN:1
-sémite	ADJ:1	NOUN:1
+sémite	ADJ:1
 sémitique	ADJ:1
 sénat	NOUN:1
 sénateur	NOUN:1
@@ -16809,7 +16785,7 @@ sénégal	PROPN:1
 sénégalais	ADJ:1
 séparation	NOUN:1
 séparatisme	NOUN:1
-séparatiste	ADJ:1	NOUN:1
+séparatiste	ADJ:1
 séparer	VERB:1
 séparément	ADV:1
 sépia	NOUN:1
@@ -16835,7 +16811,7 @@ sérénissime	ADJ:1
 sérénité	NOUN:1
 sésame	NOUN:1
 sévices	NOUN:1
-sévillan	ADJ:1	NOUN:1
+sévillan	ADJ:1
 sévir	VERB:1
 sévère	ADJ:1
 sévèrement	ADV:1
@@ -16855,7 +16831,7 @@ table	NOUN:5
 tableau	NOUN:1
 tablette	NOUN:1
 tablier	NOUN:1
-tabou	ADJ:1	NOUN:1
+tabou	ADJ:1
 taboulé	NOUN:1
 tabouret	NOUN:1
 tache	NOUN:2
@@ -16869,7 +16845,7 @@ tacot	NOUN:1
 tactile	ADJ:1
 tactique	ADJ:1
 tactiquement	ADV:1
-tadjik	ADJ:1	NOUN:1
+tadjik	NOUN:1
 taf	NOUN:1
 taffer	VERB:1
 taffetas	NOUN:2
@@ -16919,7 +16895,7 @@ tant	ADV:2
 tantale	NOUN:1
 tante	NOUN:1
 tantôt	X:1
-tanzanien	ADJ:1	NOUN:1
+tanzanien	NOUN:1
 taoïsme	NOUN:1
 tapage	NOUN:1
 tape	NOUN:1
@@ -16948,7 +16924,7 @@ tarlouze	NOUN:1
 taro	NOUN:1
 tarot	NOUN:1
 tartan	NOUN:1
-tartare	ADJ:1	NOUN:1
+tartare	NOUN:1
 tarte	NOUN:1
 tartiflette	NOUN:1
 tartine	NOUN:1
@@ -16983,7 +16959,7 @@ taxidermiste	NOUN:1
 taxon	NOUN:1
 taxonomie	NOUN:1
 taïga	NOUN:1
-taïwanais	ADJ:1	NOUN:1
+taïwanais	NOUN:1
 tbilissi	PROPN:1
 tchad	PROPN:1
 tchèque	ADJ:1	NOUN:1
@@ -17006,7 +16982,6 @@ tectonique	ADJ:1
 teigne	NOUN:1
 teigneux	NOUN:1
 teindre	VERB:1
-teint	NOUN:1
 teinte	NOUN:1
 teinture	NOUN:1
 teinturier	NOUN:1
@@ -17051,7 +17026,7 @@ tequila	NOUN:1
 tergiverser	VERB:1
 terme	NOUN:2
 terminaison	NOUN:1
-terminal	ADJ:1	NOUN:1
+terminal	ADJ:1
 terminer	VERB:1
 terminologie	NOUN:1
 terne	ADJ:1
@@ -17092,7 +17067,7 @@ teuton	ADJ:1	NOUN:1
 teutonique	ADJ:1
 texan	NOUN:1
 texte	NOUN:1
-textile	ADJ:1	NOUN:1
+textile	NOUN:1
 texto	ADV:1	NOUN:1
 textuellement	ADV:1
 texture	NOUN:1
@@ -17102,8 +17077,8 @@ thalassothérapie	NOUN:1
 thaler	NOUN:1
 thallium	NOUN:1
 thaumaturge	NOUN:1
-thaï	ADJ:1	NOUN:1
-thaïlandais	ADJ:1	NOUN:1
+thaï	NOUN:1
+thaïlandais	NOUN:1
 thaïlande	PROPN:1
 thermal	ADJ:1
 thermes	NOUN:1
@@ -17237,7 +17212,7 @@ tondre	VERB:1
 toner	NOUN:1
 tong	NOUN:1
 tonga	PROPN:1
-tonique	ADJ:1	NOUN:1
+tonique	ADJ:1
 tonnage	NOUN:1
 tonne	NOUN:1
 tonneau	NOUN:1
@@ -17330,7 +17305,7 @@ tourterelle	NOUN:1
 toussaint	X:1
 tousser	VERB:1
 tout	ADJ:2	ADV:1
-toutefois	SCONJ:1	ADV:1
+toutefois	ADV:1	SCONJ:1
 toutou	NOUN:1
 toux	NOUN:1	PRON:1
 toxicité	NOUN:1
@@ -17352,7 +17327,7 @@ traction	NOUN:1
 tractopelle	NOUN:1
 tractus	NOUN:1
 tradition	NOUN:1
-traditionaliste	ADJ:1	NOUN:1
+traditionaliste	ADJ:1
 traditionnel	ADJ:1
 traditionnellement	ADV:1
 traducteur	NOUN:1
@@ -17428,7 +17403,7 @@ transmutation	NOUN:1
 transnational	ADJ:1
 transparence	NOUN:1
 transparent	ADJ:1	NOUN:1
-transphobe	ADJ:1	NOUN:1
+transphobe	ADJ:1
 transphobie	NOUN:1
 transpirer	VERB:1
 transplant	NOUN:1
@@ -17467,11 +17442,11 @@ traçable	ADJ:1
 traîne	NOUN:1
 traîneau	NOUN:1
 traîner	VERB:1
-traître	NOUN:1	ADJ:1
+traître	ADJ:1
 traîtrise	NOUN:1
 treillis	NOUN:1
 treize	NUM:1
-treizième	NOUN:1	ADJ:1
+treizième	NOUN:1
 tremblant	ADJ:1
 tremblay	PROPN:1
 tremble	NOUN:1
@@ -17482,16 +17457,16 @@ trempette	NOUN:1
 tremplin	NOUN:1
 trempé	ADJ:1
 trente	NUM:1
-trente-cinq	ADJ:1	NOUN:1
-trente-deux	ADJ:1	NOUN:1
-trente-neuf	ADJ:1	NOUN:1
-trente-quatre	ADJ:1	NOUN:1
+trente-cinq	ADJ:1
+trente-deux	ADJ:1
+trente-neuf	ADJ:1
+trente-quatre	ADJ:1
 trente-quatrième	ADJ:1
-trente-sept	ADJ:1	NOUN:1
+trente-sept	ADJ:1
 trente-septième	ADJ:1
-trente-six	ADJ:1	NOUN:1
+trente-six	ADJ:1
 trentenaire	NOUN:1
-trentième	ADJ:1	NOUN:1
+trentième	ADJ:1
 tres	NOUN:1
 tresse	NOUN:1
 tresser	VERB:1
@@ -17504,7 +17479,7 @@ triathlon	NOUN:1
 triathlète	NOUN:1
 tribal	ADJ:1
 tribalisme	NOUN:1
-tribord	ADJ:1	NOUN:1
+tribord	ADJ:1
 tribu	NOUN:1
 tribun	NOUN:1
 tribunal	NOUN:1
@@ -17512,10 +17487,10 @@ tribunat	NOUN:1
 tribune	NOUN:1
 tribut	NOUN:1
 tributaire	ADJ:1
-tricentenaire	ADJ:1	NOUN:1
+tricentenaire	ADJ:1
 tricher	VERB:1
 tricherie	NOUN:1
-tricheur	ADJ:1	NOUN:1
+tricheur	ADJ:1
 tricheuse	NOUN:1
 tricolore	ADJ:1
 tricot	NOUN:1
@@ -17530,7 +17505,7 @@ trilingue	ADJ:1
 trilogie	NOUN:1
 trimaran	NOUN:1
 trimestre	NOUN:1
-trinitaire	ADJ:1	NOUN:1
+trinitaire	ADJ:1
 trinité	NOUN:1
 trinquer	VERB:1
 triolet	NOUN:1
@@ -17554,7 +17529,7 @@ trivial	ADJ:1
 troc	NOUN:1
 troglodyte	NOUN:1
 trois	ADJ:1
-troisième	ADJ:1	NOUN:1
+troisième	ADJ:1
 troll	NOUN:1
 troller	VERB:1
 trolleybus	NOUN:1
@@ -17627,7 +17602,7 @@ tu	PRON:1
 tuba	NOUN:1
 tube	NOUN:1
 tubercule	NOUN:1
-tuberculeux	ADJ:1	NOUN:1
+tuberculeux	ADJ:1
 tuberculose	NOUN:1
 tuer	VERB:1
 tuerie	NOUN:1
@@ -17647,7 +17622,7 @@ tuner	VERB:1
 tungstène	NOUN:1
 tunique	NOUN:1
 tunisie	PROPN:1
-tunisien	NOUN:1	ADJ:1
+tunisien	NOUN:1
 tunnel	NOUN:1
 tunnelier	NOUN:1
 tupperware	NOUN:1
@@ -17655,7 +17630,7 @@ turban	NOUN:1
 turbine	NOUN:1
 turbocompresseur	NOUN:1
 turbot	NOUN:1
-turc	ADJ:1	NOUN:1
+turc	NOUN:1
 turkménistan	PROPN:1
 turpitude	NOUN:1
 turquie	PROPN:1
@@ -17690,7 +17665,7 @@ tyrannique	ADJ:1
 tyrannosaure	NOUN:1
 tyrolienne	NOUN:1
 tyrosine	NOUN:1
-tzigane	NOUN:1	ADJ:1
+tzigane	NOUN:1
 tâche	NOUN:1
 tâcher	VERB:1
 tâter	VERB:1
@@ -17748,7 +17723,7 @@ uberisation	NOUN:1
 ubiquité	NOUN:1
 uchronie	NOUN:1
 ukraine	PROPN:1
-ukrainien	ADJ:1	NOUN:1
+ukrainien	NOUN:1
 ukulélé	NOUN:1
 ulcère	NOUN:1
 ulm	NOUN:1
@@ -17760,14 +17735,14 @@ ultrason	NOUN:1
 ultraviolet	NOUN:1
 ultérieur	ADJ:1
 uma	NOUN:1
-un	NUM:1	DET:1	NOUN:1	PRON:1
+un	DET:1	NUM:1	NOUN:1	PRON:1
 unanime	ADJ:1
 unanimement	ADV:1
 unanimité	NOUN:1
 unicef	NOUN:1
 unicité	NOUN:1
 unification	NOUN:1
-uniforme	ADJ:1	NOUN:1
+uniforme	ADJ:1
 uniformiser	VERB:1
 uniformité	NOUN:1
 unilingue	ADJ:1
@@ -17811,10 +17786,8 @@ urologie	NOUN:1
 ursule	PROPN:1
 urticaire	NOUN:1
 uruguay	PROPN:1
-uruguayen	NOUN:1	ADJ:1
+uruguayen	NOUN:1
 urètre	NOUN:1
-us	X:1
-usa	X:1
 usage	NOUN:1
 usager	NOUN:1
 user	VERB:1
@@ -17826,7 +17799,7 @@ usurier	NOUN:1
 usurpateur	NOUN:1
 usurper	VERB:1
 ut	NOUN:1
-ute	ADJ:1	NOUN:1
+ute	ADJ:1
 utile	ADJ:1
 utilisable	ADJ:1
 utilisateur	NOUN:1
@@ -17836,7 +17809,7 @@ utilitarisme	NOUN:1
 utilité	NOUN:1
 utopie	NOUN:1
 utopique	ADJ:1
-utopiste	ADJ:1	NOUN:1
+utopiste	ADJ:1
 utérin	ADJ:1
 utérus	NOUN:1
 vacance	NOUN:1
@@ -17913,7 +17886,7 @@ vapoter	VERB:1
 varan	NOUN:1
 varech	NOUN:1
 variabilité	NOUN:1
-variable	ADJ:1	NOUN:1
+variable	ADJ:1
 variance	NOUN:1
 variante	NOUN:1
 variateur	NOUN:1
@@ -17996,7 +17969,7 @@ vergue	NOUN:1
 verlan	NOUN:1
 vermeil	ADJ:1
 vermifuge	ADJ:1
-vermillon	NOUN:1	ADJ:1
+vermillon	NOUN:1
 vermine	NOUN:1
 vermouth	NOUN:1
 vernaculaire	ADJ:1
@@ -18047,10 +18020,10 @@ veuf	ADJ:1
 veuve	NOUN:1
 vexer	VERB:1
 vfr	X:1
-via	NOUN:1	ADP:1
+via	NOUN:1
 viable	ADJ:1
 viaduc	NOUN:1
-viager	ADJ:1	NOUN:1
+viager	ADJ:1
 viande	NOUN:1
 viatique	NOUN:1
 vibrant	ADJ:1
@@ -18075,7 +18048,7 @@ victoria	NOUN:1
 victorien	ADJ:1
 victorieusement	ADV:1
 victorieux	ADJ:1
-vide	ADJ:1	NOUN:1
+vide	ADJ:1
 vider	VERB:1
 vidéaste	NOUN:1
 vidéo	NOUN:1	ADJ:1
@@ -18091,11 +18064,11 @@ vieillir	VERB:1
 vieillissement	NOUN:3
 viel	PROPN:1
 vielle	PROPN:1
-viennois	NOUN:1	ADJ:1
+viennois	NOUN:1
 viennoiserie	NOUN:1
 vierge	ADJ:1	PROPN:1
 vietnam	PROPN:1
-vietnamien	NOUN:1	ADJ:1
+vietnamien	NOUN:1
 vieux	ADJ:1
 vif	ADJ:1
 vigilance	NOUN:1
@@ -18131,7 +18104,7 @@ vindicatif	ADJ:1
 vingt	ADJ:1
 vingt-cinq	NUM:1
 vingt-neuf	NUM:1
-vingt-quatre	ADJ:1	NOUN:1
+vingt-quatre	ADJ:1
 vingt-quatrième	NUM:1	ADJ:1
 vingt-sept	NUM:1
 vingt-sixième	NUM:1	ADJ:1
@@ -18148,7 +18121,7 @@ violer	VERB:1
 violet	ADJ:1	NOUN:1
 violette	NOUN:1
 violeur	NOUN:1
-violine	NOUN:1	ADJ:1
+violine	NOUN:1
 violon	NOUN:1
 violoncelle	NOUN:1
 violoncelliste	NOUN:1
@@ -18170,7 +18143,7 @@ virtualisation	NOUN:1
 virtualité	NOUN:1
 virtuel	ADJ:1
 virtuellement	ADV:1
-virtuose	ADJ:1	NOUN:1
+virtuose	NOUN:1
 virulence	NOUN:1
 virulent	ADJ:1
 virus	NOUN:1
@@ -18189,7 +18162,7 @@ visiblement	ADV:1
 visioconférence	NOUN:1
 vision	NOUN:1
 visionnage	NOUN:1
-visionnaire	ADJ:1	NOUN:1
+visionnaire	NOUN:1
 visite	NOUN:1
 visiter	VERB:1
 visiteur	NOUN:1
@@ -18203,7 +18176,7 @@ visuel	ADJ:1
 vital	ADJ:1
 vitalité	NOUN:1
 vitamine	NOUN:1
-vite	ADJ:1	ADV:1
+vite	ADV:1
 vitesse	NOUN:1
 viticole	ADJ:1
 viticulture	NOUN:1
@@ -18236,7 +18209,7 @@ voici	VERB:1
 voie	NOUN:1
 voile	NOUN:1
 voiler	VERB:1
-voilier	ADJ:1	NOUN:1
+voilier	NOUN:1
 voilure	NOUN:1
 voilà	INTJ:2
 voir	VERB:1
@@ -18259,7 +18232,7 @@ volet	NOUN:1
 voleur	ADJ:1
 volière	NOUN:1
 volley-ball	NOUN:1
-volontaire	ADJ:1	NOUN:1
+volontaire	ADJ:1
 volontarisme	NOUN:1
 volontiers	ADV:1
 volonté	NOUN:1
@@ -18312,11 +18285,11 @@ vulgate	NOUN:1
 vulnérabilité	NOUN:1
 vulnérable	ADJ:1
 vulve	NOUN:1
-végan	ADJ:1	NOUN:1
+végan	ADJ:1
 véganisme	NOUN:1
 végétal	ADJ:1	NOUN:1
 végétalisation	NOUN:1
-végétarien	ADJ:1	NOUN:1
+végétarien	ADJ:1
 végétarisme	NOUN:1
 végétation	NOUN:1
 végéter	VERB:1
@@ -18338,7 +18311,7 @@ vénérable	ADJ:1
 vénération	NOUN:1
 vénérer	VERB:1
 vénézuéla	PROPN:1
-vénézuélien	ADJ:1	NOUN:1
+vénézuélien	ADJ:1
 véracité	NOUN:1
 véranda	NOUN:1
 véreux	ADJ:1
@@ -18352,7 +18325,7 @@ véronique	PROPN:1
 vésicule	NOUN:1
 vétusté	NOUN:1
 vétéran	NOUN:1
-vétérinaire	ADJ:1	NOUN:1
+vétérinaire	NOUN:1
 vêtement	NOUN:1
 vêtir	VERB:1
 vœu	NOUN:1
@@ -18385,7 +18358,7 @@ wolfram	NOUN:1
 wolof	ADJ:1
 won	NOUN:1
 xe	NOUN:1
-xhosa	NOUN:1	ADJ:1
+xhosa	NOUN:1
 xml	NOUN:1
 xylophone	NOUN:1
 xénon	NOUN:1
@@ -18403,7 +18376,7 @@ yiddish	NOUN:1
 yoga	NOUN:1
 yole	NOUN:1
 yorkais	ADJ:1
-yoruba	ADJ:1	NOUN:1
+yoruba	ADJ:1
 yougoslave	ADJ:1
 yougoslavie	PROPN:1
 youpi	INTJ:1
@@ -18454,7 +18427,7 @@ zone	NOUN:1
 zoo	NOUN:1
 zoologie	NOUN:1
 zoologiste	NOUN:1
-zoophile	NOUN:1	ADJ:1
+zoophile	ADJ:1
 zoophilie	NOUN:1
 zoulou	ADJ:1
 zut	INTJ:1
@@ -18479,7 +18452,7 @@ zéro	NOUN:1
 ça	PRON:1
 çà	ADV:1	INTJ:1
 ère	NOUN:1
-ès	ADP:1	X:1
+ès	ADP:2
 ève	PROPN:1
 ébahi	ADJ:1
 ébauche	NOUN:1
@@ -18492,10 +18465,10 @@ zéro	NOUN:1
 ébriété	NOUN:1
 ébruiter	VERB:1
 ébullition	NOUN:1
-ébène	NOUN:1	ADJ:1
+ébène	NOUN:1
 ébéniste	NOUN:1
 écaille	NOUN:1
-écarlate	NOUN:1	ADJ:1
+écarlate	NOUN:1
 écart	NOUN:1
 écartelé	ADJ:1
 écarter	VERB:1
@@ -18559,7 +18532,7 @@ zéro	NOUN:1
 écologique	ADJ:1
 écologiquement	ADV:1
 écologisme	NOUN:1
-écologiste	NOUN:1	ADJ:1
+écologiste	NOUN:1
 écomusée	NOUN:1
 économe	ADJ:1	NOUN:1
 économie	NOUN:1
@@ -18570,7 +18543,7 @@ zéro	NOUN:1
 écoper	VERB:1
 écorce	NOUN:2
 écorcher	VERB:1
-écossais	ADJ:1	NOUN:1
+écossais	NOUN:1
 écosse	PROPN:1
 écosystème	NOUN:1
 écotaxe	NOUN:1
@@ -18644,7 +18617,7 @@ zéro	NOUN:1
 égratignure	NOUN:1
 égrener	VERB:1
 égypte	PROPN:1
-égyptien	ADJ:1	NOUN:1
+égyptien	ADJ:1
 égyptologie	NOUN:1
 égyptologue	NOUN:1
 éhonté	NOUN:1
@@ -18771,7 +18744,7 @@ zéro	NOUN:1
 énumération	NOUN:1
 énumérer	VERB:1
 éocène	NOUN:1
-éolien	ADJ:1	NOUN:1
+éolien	ADJ:1
 éon	NOUN:1
 épagneul	NOUN:1
 épais	ADJ:4
@@ -18813,7 +18786,7 @@ zéro	NOUN:1
 épier	VERB:1
 épigramme	NOUN:1
 épigraphe	NOUN:1
-épigénétique	ADJ:1	NOUN:1
+épigénétique	ADJ:1
 épilepsie	NOUN:1
 épileptique	ADJ:1
 épiler	VERB:1
@@ -18861,7 +18834,7 @@ zéro	NOUN:1
 équateur	PROPN:1
 équation	NOUN:1
 équatorial	ADJ:1
-équatorien	ADJ:1	NOUN:1
+équatorien	ADJ:1
 équerre	NOUN:1
 équestre	ADJ:1
 équilatéral	ADJ:1
@@ -18879,7 +18852,7 @@ zéro	NOUN:1
 équité	NOUN:1
 équivalence	NOUN:1
 équivalent	ADJ:1
-équivoque	ADJ:1	NOUN:1
+équivoque	ADJ:1
 érable	NOUN:1
 éradication	NOUN:1
 éradiquer	VERB:1
@@ -18936,7 +18909,7 @@ zéro	NOUN:1
 éthanol	NOUN:1
 éther	NOUN:1
 éthiopie	PROPN:1
-éthiopien	ADJ:1	NOUN:1
+éthiopien	ADJ:1
 éthique	ADJ:1	NOUN:1
 éthologie	NOUN:1
 éthyle	NOUN:1
@@ -18991,7 +18964,6 @@ zéro	NOUN:1
 étuve	NOUN:1
 étymologie	NOUN:1
 étymologiquement	ADV:1
-éu	X:1
 évacuation	NOUN:1
 évacuer	VERB:1
 évaluation	NOUN:1
@@ -19025,13 +18997,13 @@ zéro	NOUN:1
 évolutif	ADJ:1
 évolution	NOUN:1
 évolutionnisme	NOUN:1
-évolutionniste	ADJ:1	NOUN:1
+évolutionniste	ADJ:1
 évoquer	VERB:1
 événement	NOUN:1
 évêché	NOUN:1
 évêque	NOUN:1
 ézéchiel	NOUN:1
-être	NOUN:1	VERB:3
+être	VERB:4
 île	NOUN:1
 îlot	NOUN:1
 ô	PART:1
