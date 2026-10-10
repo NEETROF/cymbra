@@ -35,7 +35,6 @@ row: soir — evening
 ### phrase-gloss Aujourd'hui
 row: aujourd'hui — today
 ### phrase-gloss au marché
-row: à le — to the
 row: marché — market
 ### phrase-gloss du pain et des œufs
 row: pain — bread
@@ -78,7 +77,6 @@ row: voix — voice
 row: rassurer — to reassure
 ### phrase-gloss Personne au village ne se souvenait
 row: personne — person
-row: à le — to the
 row: village — village
 row: se souvenir — remember (to recall one's memory)
 ### phrase-gloss The lighthouse stood
