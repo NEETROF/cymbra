@@ -24,7 +24,11 @@ use std::sync::OnceLock;
 
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lexicon::Lexicon;
-use lingua_core::analysis::tokenize::{FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, tokenize};
+use lingua_core::analysis::pipeline::headword_reading;
+use lingua_core::analysis::tokenize::{
+    FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, is_elided, tokenize,
+};
+use lingua_core::engine::french_expression_key;
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
@@ -1568,4 +1572,52 @@ fn spec_scenario_a_level_written_for_a_lemma_whose_form_reads_as_another() {
         failure,
         "fr-en: 1 level(s) not on the lemma they are written for: donnée (table B1, pack none)"
     );
+}
+
+// The French phrase gloss holds an expression's elided pieces to the page's
+// (match-lingua-french-elided-pieces): it reads them from the expression's name, which only a pack
+// built from these tables can show it carries.
+
+#[test]
+fn every_french_headword_holding_an_elided_piece_is_named() {
+    // D3: a key no longer says how its pieces were written (`de l'` is `de le`), so the matcher
+    // reads them from the headword that won the key, which the pack names wherever the two
+    // differ. Every winning headword holding an elided piece is named, and reads as many pieces
+    // as its key, so the check lines it up with a run; a key the pack does not name is its own
+    // headword, written without an elided piece. Measured on the tables of the proposal: fr-en
+    // 1,541 such headwords, fr-es 869.
+    for (pair, bytes, among) in [
+        ("fr-en", fr_en(), ["de l'", "d'abord", "c'est"].as_slice()),
+        ("fr-es", fr_es(), ["coup d'œil", "qu'est-ce que"].as_slice()),
+    ] {
+        let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}"));
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        let keys: BTreeSet<String> = inputs
+            .expressions
+            .iter()
+            .filter_map(|(headword, _)| french_expression_key(headword, lexicon))
+            .filter(|key| pack.expression(key).is_some())
+            .collect();
+        let mut elided = BTreeSet::new();
+        for key in &keys {
+            let name = pack.expression_name(key);
+            let headword = name.unwrap_or(key);
+            let reading = headword_reading(headword, StudiedLanguage::French, lexicon)
+                .unwrap_or_else(|| panic!("{pair}: {headword} has a key and no reading"));
+            if reading.iter().any(|(token, _)| is_elided(headword, token)) {
+                assert_eq!(name, Some(headword), "{pair}: {key} is not named");
+                elided.insert(headword.to_owned());
+            }
+            assert_eq!(
+                reading.len(),
+                key.split(' ').count(),
+                "{pair}: {headword} does not read as its key {key}"
+            );
+        }
+        for headword in among {
+            assert!(elided.contains(*headword), "{pair}: {headword}");
+        }
+        assert!(elided.len() > 500, "{pair}: {}", elided.len());
+    }
 }
