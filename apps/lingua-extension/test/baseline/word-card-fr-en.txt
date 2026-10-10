@@ -70,6 +70,17 @@ page 1/1:
 expression: à la maison
 page 1/1:
   [—] at home (at one's home); home (towards home)
+### phrase-gloss de l’eau
+row: de l' — some
+row: eau — water, a liquid that is transparent, colorless, odorless, and tasteless in its…
+### phrase-gloss Il a décidé de le faire
+row: décider — to decide
+row: faire — to do
+### phrase-gloss parce qu’il pleut
+row: parce que — because
+row: pleuvoir — to rain
+### phrase-gloss d’un hiver
+row: hiver — winter
 ### phrase-gloss Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.
 row: faire — to do
 row: chien — dog

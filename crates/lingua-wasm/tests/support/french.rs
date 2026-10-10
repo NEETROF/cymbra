@@ -143,7 +143,9 @@ const LEMMAS: &[&str] = &[
 /// Selections a reader glosses: expressions, the Proust sentence, elided, contracted and inverted
 /// selections — one set with the narrow no-break space —, the expressions holding `au` and an
 /// elision, a word the pre-pass splits, six tokens, another tense and an article as written
-/// (add-lingua-french-expression-keys), the `homographes` page's « pas » and `son`, both flagged
+/// (add-lingua-french-expression-keys), an elided article, `le` written in full, an expression
+/// whose last piece is elided by the page and `de un` on « d’un »
+/// (match-lingua-french-elided-pieces), the `homographes` page's « pas » and `son`, both flagged
 /// (M21 and M8's cost), and the
 /// `fiction` page's `Personne`, not, and the blocks that are not French (English, Spanish,
 /// Catalan, Occitan, Italian).
@@ -169,6 +171,10 @@ const PHRASES: &[&str] = &[
     "au fur et à mesure",
     "il y avait",
     "à la maison",
+    "de l\u{2019}eau",
+    "Il a décidé de le faire",
+    "parce qu\u{2019}il pleut",
+    "d\u{2019}un hiver",
     "Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.",
     "Personne au village ne se souvenait",
     "The lighthouse stood",
