@@ -29,7 +29,7 @@
 
 ## 4. Gates and docs
 
-- [ ] 4.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-core -p lingua-pack -p lingua-wasm -p lingua-agent`, and `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`.
+- [x] 4.1 `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p lingua-core -p lingua-pack -p lingua-wasm -p lingua-agent`, and `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`.
 - [x] 4.2 The WASM lane: `wasm-pack test --node crates/lingua-wasm` passes.
 - [x] 4.3 In `apps/lingua-extension`: `yarn gen:wasm`, then `yarn test`, `yarn lint`, `yarn typecheck`, `yarn build` and `yarn check:variants` — no snapshot moves, the catalogue's three entries the only source change.
 - [x] 4.4 `openspec validate seed-lingua-decks-with-glossed-lemmas --strict` passes, and `python3 scripts/openspec_archive_order.py seed-lingua-decks-with-glossed-lemmas` exits 10 naming `add-lingua-pack-fr-es` and `add-lingua-french-levels` (0 once they are archived).
