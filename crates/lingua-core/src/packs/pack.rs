@@ -800,7 +800,7 @@ pub(crate) mod tests {
     fn spec_scenario_loading_the_en_fr_pack_names_english() {
         let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
         assert_eq!(pack.studied(), StudiedLanguage::English);
-        assert_eq!(pack.meta().analyzer_version, "1.1.0");
+        assert_eq!(pack.meta().analyzer_version, "1.2.0");
     }
 
     #[test]
@@ -948,8 +948,9 @@ pub(crate) mod tests {
             .expect("a fr-es pack loads");
         assert_eq!(fr_es.pair().key(), "fr-es");
         // Compared with French's own version, never another language's: a French pack at
-        // Spanish's is refused. English's `1.1.0` is French's own since
-        // add-lingua-french-detection-guard, as it was Spanish's once: the numbers may meet.
+        // Spanish's is refused. English's version is French's own too, as it was Spanish's once
+        // (`1.1.0` since add-lingua-french-detection-guard, `1.2.0` since
+        // ignore-lingua-soft-hyphens): the numbers may meet.
         assert_ne!(SPANISH_ANALYZER_VERSION, FRENCH_ANALYZER_VERSION);
         match Pack::load(&sample_pack_bytes_with(
             "fr",

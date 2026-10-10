@@ -828,9 +828,10 @@ mod tests {
     #[test]
     fn english_keeps_its_analyser_version_and_spanish_has_its_own() {
         // Each language reads its own constant; the numbers may meet (Spanish's was `1.1.0` after
-        // add-lingua-spanish-detection-guard, French's is since add-lingua-french-detection-guard)
+        // add-lingua-spanish-detection-guard, French's is English's since
+        // add-lingua-french-detection-guard, both `1.2.0` since ignore-lingua-soft-hyphens)
         // without a pack of one passing for the other's.
-        assert_eq!(StudiedLanguage::English.analyzer_version(), "1.1.0");
+        assert_eq!(StudiedLanguage::English.analyzer_version(), "1.2.0");
         assert_eq!(
             StudiedLanguage::Spanish.analyzer_version(),
             crate::analysis::SPANISH_ANALYZER_VERSION

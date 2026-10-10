@@ -3115,7 +3115,7 @@ mod tests {
         let knowledge = KnowledgeState::new();
         let a = analyse_page_json(&blocks, EN, &with, &knowledge);
         assert_eq!(a, analyse_page_json(&blocks, EN, &without, &knowledge));
-        assert!(a.contains("\"analyzer_version\":\"1.1.0\""));
+        assert!(a.contains("\"analyzer_version\":\"1.2.0\""));
     }
 
     #[test]
