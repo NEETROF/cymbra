@@ -79,6 +79,22 @@ describe("the word card in English, of an English word", () => {
     expect(lines).toEqual(["third-person singular simple present of leave", "may also be the plural of leaf"]);
   });
 
+  it("A noun used only in the plural keeps its line: « police »; « leaves » still names « leaf » (refine-lingua-card-invariable-plurals D1)", () => {
+    // English's table writes no noun's singular, so no English card reads a plural beside one.
+    expect(shown({ headword: "police", surface: "police", grammar: grammar({ readings: [PLURAL] }) }).lines).toEqual([
+      "may also be the plural of police",
+    ]);
+    const { lines } = shown({
+      headword: "leave",
+      surface: "leaves",
+      grammar: grammar({ readings: [PLURAL, THIRD], others: [{ lemma: "leaf", readings: [PLURAL] }] }),
+    });
+    expect(lines).toEqual([
+      "plural and third-person singular simple present of leave",
+      "may also be the plural of leaf",
+    ]);
+  });
+
   it("A contraction, and an inflected piece of one", () => {
     expect(
       shown({ headword: "do", surface: "do", written: "don't", grammar: grammar({ pieces: ["do", "not"] }) }).lines,
@@ -239,6 +255,23 @@ describe("the word card in English, of a Spanish word", () => {
         [{ lemma: "venir", readings: [fin("Ind", "3", "Sing", "Past")] }],
       ),
     ).toEqual(["may also be the third-person singular preterite indicative of venir"]);
+  });
+
+  it("A plural read in both numbers gives no line; a noun used only in the plural keeps its own (refine-lingua-card-invariable-plurals D1)", () => {
+    const noun = (Gender: string, Number: string): GrammarTag => ({ pos: "NOUN", features: { Gender, Number } });
+    expect(spanish("crisis", "crisis", [noun("Fem", "Plur"), noun("Fem", "Sing")])).toEqual([]);
+    expect(
+      spanish("gafas", "gafas", [noun("Fem", "Plur")], [{ lemma: "gafa", readings: [noun("Fem", "Plur")] }]),
+    ).toEqual(["may also be the feminine plural of gafas", "may also be the feminine plural of gafa"]);
+    const pres = fin("Ind", "1", "Sing", "Pres");
+    expect(
+      spanish(
+        "paso",
+        "paso",
+        [{ pos: "ADJ", features: { Gender: "Masc", Number: "Sing" } }, noun("Fem", "Plur"), noun("Masc", "Sing")],
+        [{ lemma: "pasar", readings: [pres] }],
+      ),
+    ).toEqual(["may also be the first-person singular present indicative of pasar"]);
   });
 
   it("An English-native reader of Spanish: « vino » of « venir », « venir » marked as Spanish", () => {
