@@ -73,7 +73,9 @@ def concurrency_group(workflow: Path, pair: str) -> str:
     raise AssertionError(f"no group for {pair!r}")
 
 
-# build.sh, doubled: it logs its arguments and leaves the raw sources a reduction would — and, for
+# build.sh, doubled: it logs its arguments — and the editions an update keeps, when it is handed any
+# (LINGUA_KEEP_EDITIONS, add-lingua-fr-en-translated-expressions D6) — and leaves the raw sources a
+# reduction would — and, for
 # en-es and fr-es, what its reducer measures of its tables (measures.json, add-lingua-pack-en-es D4,
 # add-lingua-pack-fr-es D9). An
 # update or a dry run reads the run's editions folder (LINGUA_EDITIONS, migrate-lingua-pack-sources-
@@ -86,7 +88,7 @@ set -euo pipefail
 here="$(dirname "$0")"
 pair="$2"
 studied="${pair%%-*}"
-echo "${1#--} $pair" >> "$BUILD_LOG"
+echo "${1#--} $pair${LINGUA_KEEP_EDITIONS:+ keep=$LINGUA_KEEP_EDITIONS}" >> "$BUILD_LOG"
 mkdir -p "$here/work/$pair"
 echo raw > "$here/work/$pair/raw"
 if [ "$pair" = en-es ] || [ "$pair" = fr-es ]; then echo '{"share": 1.0}' > "$here/work/$pair/measures.json"; fi
@@ -616,6 +618,42 @@ class Loops(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in (self.temp / "committed" / "fr-es").iterdir()), ["README.md"])
         self.assertTrue((self.temp / "committed" / "fr").is_dir(), "French's studied folder is reported on")
         self.assertEqual((self.temp / "measures-fr-es.json").read_text(), '{"share": 1.0}\n')
+
+    def test_spec_scenario_fr_en_gains_the_french_edition(self):
+        # add-lingua-fr-en-translated-expressions D6: dispatched for fr-en keeping `en`, the update
+        # hands the kept editions to fr-en's own build alone; fr-es, brought along, is reduced from
+        # its own pin, which keeps every record already.
+        self.french_glossed_in_spanish()
+        (self.tables / "fr-es" / "pin.json").write_text("{}\n")
+        done = self.update("update", "fr-en", KEEP="en")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update fr-en keep=en", "reduce fr-es"])
+        self.assertEqual(self.kept_work(), ["fr-en"], "its raw sources kept for the release step")
+        # Without `keep`, an update reads every edition anew: nothing is handed over.
+        self.log.unlink()
+        done = self.update("update", "fr-en", KEEP="")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.built(), ["update fr-en", "reduce fr-es"])
+
+    def test_keep_is_an_update_s_alone_and_a_list_of_editions(self):
+        for mode, keep, refused in (
+            ("update", "en", False),
+            ("update", "en,es", False),
+            ("update", "", False),
+            ("reduce", "en", True),
+            ("dry", "en", True),
+            ("reduce", "", False),
+            ("update", "english", True),
+            ("update", "en,", True),
+            ("update", "en; rm -rf /", True),
+        ):
+            done = self.run_step("lingua-pack-update.yml", "Check the inputs", MODE=mode, PAIR="fr-en", EXPECT="any", KEEP=keep)
+            self.assertEqual(done.returncode != 0, refused, f"{mode} {keep!r}: {done.stdout}")
+        # The input, and its default: an update keeps nothing unless told.
+        workflow = (WORKFLOWS / "lingua-pack-update.yml").read_text(encoding="utf-8")
+        self.assertIn('      keep:\n        description: "Editions whose recorded bytes the update keeps', workflow)
+        self.assertIn("        type: string\n        default: \"\"\n", workflow)
+        self.assertIn("      KEEP: ${{ inputs.keep || '' }}\n", workflow)
 
     def test_a_french_dispatch_runs_in_the_fr_group(self):
         workflow = WORKFLOWS / "lingua-pack-update.yml"
