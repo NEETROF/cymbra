@@ -534,9 +534,9 @@ class TheEnglishEditionSettings(Entries):
         others = ("en-fr", "es-fr", "en-es", "fr-es")
         before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
         self.assertEqual(before, {pair: ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py") for pair in pairs})
-        # The committed pairs' digests are the ones their pins record: fr-en's glosses moved no other.
-        # fr-es records its digest with its first tables (add-lingua-pack-fr-es, task 3.1).
-        for pair in ("en-fr", "es-fr", "es-en", "en-es", "fr-en"):
+        # The committed pairs' digests are the ones their pins record: fr-en's glosses moved no other,
+        # nor fr-es's (add-lingua-pack-fr-es).
+        for pair in pairs:
             self.assertEqual(before[pair], ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"), pair)
         for name, old, new in (
             ("reduce_edition_en.py", "LONG_PARENTHESIS = 0\n", "LONG_PARENTHESIS = 40\n"),
@@ -3172,7 +3172,7 @@ class EnEsGlossesReadAsMeanings(Entries):
         # rules, and the others, as they were. An edit of en-es's reducer moves en-es's alone, and
         # one of fr-es's fr-es's alone.
         pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es")
-        for pair in ("en-fr", "es-fr", "es-en", "en-es", "fr-en"):
+        for pair in pairs:
             self.assertEqual(
                 ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
                 ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),

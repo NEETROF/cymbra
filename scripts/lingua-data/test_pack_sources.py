@@ -1122,7 +1122,7 @@ class Legacy(unittest.TestCase):
     @unittest.skipUnless(HAS_ZSTD, "zstd not installed")
     def test_spec_scenario_the_committed_pairs_reduce_as_before(self):
         # Every committed pin, as committed — en-fr's, es-fr's and es-en's against their extracts,
-        # en-es's against derived files alone. The bytes behind each record are stood in for by a
+        # en-es's, fr-en's and fr-es's against derived files alone. The bytes behind each record are stood in for by a
         # marker naming the sha256 it records (the real ones are the releases' and kaikki's), so
         # the fetch reads every record and each check passes: the pin's bytes are unchanged after
         # `fetch_pinned`, a legacy record is kept, and each raw file is named as its record says.
@@ -1138,7 +1138,7 @@ class Legacy(unittest.TestCase):
             return f"sha256:{digest}\n".encode()
 
         committed = sorted(p.parent.name for p in (HERE / "tables").glob("*/pin.json"))
-        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en"])
+        self.assertEqual(committed, ["en-es", "en-fr", "es-en", "es-fr", "fr-en", "fr-es"])
         for pair in committed:
             pin = self.tables / pair / "pin.json"
             pin.parent.mkdir(parents=True)
@@ -1180,8 +1180,8 @@ class Legacy(unittest.TestCase):
             self.assertEqual(
                 sum("releases/download" in url for url in fetched), len(raws), f"{pair}: every asset of its records"
             )
-            # en-es and fr-en were born on the dumps: no extract of their own.
-            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en"), f"{pair}: its legacy extract record")
+            # en-es, fr-en and fr-es were born on the dumps: no extract of their own.
+            self.assertEqual("kaikki" in sources, pair not in ("en-es", "fr-en", "fr-es"), f"{pair}: its legacy extract record")
         self.assertEqual(
             sorted(p.name for p in (self.work / "es-en").iterdir() if p.suffix == ".jsonl"),
             ["kaikki-Spanish.jsonl", "kaikki-es-traductions-en.jsonl"],

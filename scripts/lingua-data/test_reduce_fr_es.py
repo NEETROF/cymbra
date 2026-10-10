@@ -725,6 +725,41 @@ class TheReducer(Tables):
         self.assertEqual(len(ranks), ranked)
         self.assertTrue(fr_es.read_readings(str(committed)), "French's committed readings")
 
+    def test_the_committed_tables_read_as_the_scenarios_say(self):
+        # tables/fr-es/ as lingua-pack-update reduced it from lingua-pack-sources-fr-es-2026.10.10:
+        # each scenario's word as its recorded entries give it, and no one-letter lemma glossed by
+        # the letter or its name.
+        committed = Path(_HERE, "tables", "fr-es")
+        glosses = dict(fr_es.read_table(committed / "gloss.tsv"))
+        runs = dict(fr_es.read_table(committed / "senses.tsv"))
+        expressions = dict(fr_es.read_table(committed / "mwe.tsv"))
+        expected = {
+            "maison": "Casa",
+            "intérêt": "Interés",
+            "travers": "Través",
+            "et": "Y, e",
+            "venir": "Venir",
+            "pierre": "Piedra",
+            "françois": "Nombre de pila de varón, equivalente del español Francisco",
+            "mon": "Mi",
+            "mes": "Mi",
+            "ma": "Mi",
+            "cet": "Este",
+            "main-d'œuvre": "Mano de obra",
+            "chapelet": "Rosario; Guirnalda",
+        }
+        self.assertEqual({lemma: glosses.get(lemma) for lemma in expected}, expected)
+        self.assertEqual((runs["mon"], runs["mes"], runs["ma"]), ("DET:1", "DET:1", "DET:1"))
+        self.assertEqual(runs["et"], "CCONJ:1")
+        self.assertEqual(expressions["aller de l'avant"], "Echar para adelante")
+        letters = {lemma: gloss for lemma, gloss in glosses.items() if len(lemma) == 1}
+        self.assertEqual(sorted(letters), ["y", "à", "ô"])
+        for lemma, gloss in letters.items():
+            for sense in gloss.split("; "):
+                self.assertNotEqual(sense.strip().lower(), lemma, f"{lemma!r} glossed by itself")
+                self.assertNotIn("letra", sense.lower(), f"{lemma!r} glossed as a letter: {gloss!r}")
+        self.assertTrue(all("’" not in lemma for lemma in [*glosses, *expressions]), "a typographic apostrophe")
+
     def test_spec_scenario_a_rule_of_the_spanish_edition(self):
         # fr-es's rules are its reducer, the shared rules and the Spanish edition's — no other
         # pair's reducer.
