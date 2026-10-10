@@ -19,8 +19,8 @@ Measured on the French text at hand (design, *Measured*): 23.5 million tokens an
 engine — UD's seven French treebanks, Tatoeba's 727,867 French sentences, the French Wikipedia and
 Gutenberg samples of the earlier changes, change 39's corpus, and the 614,357 French usage examples
 of the French and English Wiktionaries. They write « CA » in capitals 35 times: 31 standing alone among
-lowercase words, none of them « ça », and 4 in shouted text, every one « ça ». A headline
-in capitals writes no « CA » in these corpora; 232 of their lines are wholly in capitals.
+lowercase words, none of them « ça », and 4 in shouted text, every one « ça ». No line written
+in capitals writes the acronym: 2 of their 232 such lines write « CA », both « ça ».
 
 ## What Changes
 
