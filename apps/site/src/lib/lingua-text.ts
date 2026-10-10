@@ -133,8 +133,7 @@ const fr: LinguaTable = {
   ],
   spanishCard: " En espagnol, la carte nomme aussi le temps et le genre.",
   spanishLevels: " Pour l'espagnol, les niveaux sont estimés d'après la fréquence des mots, faute de liste CECR libre de droits.",
-  languagesCard:
-    "Choisissez vos langues dans les Réglages : chaque page est lue dans la sienne. Plusieurs langues à la fois : gratuit pour l'instant.",
+  languagesCard: "Choisissez vos langues dans les Réglages : chaque page est lue dans la sienne.",
   coverageHeading: "Ce que couvre le dictionnaire",
   captionOneNative:
     "La part des mots les plus courants qui ont une définition en {native}, mesurée de la même façon pour chaque langue, sur les dictionnaires livrés avec l'extension.",
@@ -208,7 +207,7 @@ const en: LinguaTable = {
   ],
   spanishCard: " In Spanish, the card also names the tense and the gender.",
   spanishLevels: " For Spanish, the levels are estimated from word frequency, as no CEFR list can be shipped freely.",
-  languagesCard: "Choose your languages in Settings: each page is read in its own. Several languages at once: free for now.",
+  languagesCard: "Choose your languages in Settings: each page is read in its own.",
   coverageHeading: "What the dictionary covers",
   captionOneNative:
     "The share of the commonest words that have a {native} gloss, measured the same way for each language, in the dictionaries the extension ships.",
@@ -283,7 +282,7 @@ const es: LinguaTable = {
   spanishCard: " En español, la tarjeta también indica el tiempo verbal y el género.",
   spanishLevels:
     " Para el español, los niveles se estiman a partir de la frecuencia de las palabras, a falta de una lista MCER de uso libre.",
-  languagesCard: "Elige tus idiomas en los Ajustes: cada página se lee en el suyo. Varios idiomas a la vez: gratis por ahora.",
+  languagesCard: "Elige tus idiomas en los Ajustes: cada página se lee en el suyo.",
   coverageHeading: "Qué cubre el diccionario",
   captionOneNative:
     "La proporción de las palabras más frecuentes que tienen una definición en {native}, medida de la misma manera para cada idioma, en los diccionarios que se entregan con la extensión.",
