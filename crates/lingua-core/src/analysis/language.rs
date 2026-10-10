@@ -142,7 +142,9 @@ const CATALAN_MARKERS: &[&str] = &[
     "però", "segons", "sempre", "seu", "seus", "seva", "seves", "són", "també", "tot", "és",
 ];
 
-/// Function words Galician uses and Spanish does not (sorted for binary search).
+/// Function words Galician uses and Spanish does not (sorted for binary search). Two of them,
+/// [`GALICIAN_MARKERS_SPANISH_WRITES`], count only beside another of them
+/// (refine-lingua-spanish-galician-markers D1).
 const GALICIAN_MARKERS: &[&str] = &[
     "ao", "aos", "aínda", "cando", "coa", "coas", "da", "das", "do", "elas", "eles", "foi", "hai",
     "iso", "isto", "lle", "lles", "moi", "máis", "non", "nun", "nunha", "onde", "pola", "polas",
@@ -307,6 +309,17 @@ const OCCITAN_MARKERS: &[&str] = &[
 /// defend it (add-lingua-spanish-occitan-guard D1).
 const SPANISH_MARKERS_OCCITAN_WRITES: &[&str] = &["las", "lo", "los", "sus"];
 
+/// Galician's markers Spanish writes too: `da` and `das`, Galician's *de* + *a* and *de* + *as*
+/// (« of the »), are Spanish's *da*, « gives » (« ¿Cuánto se da de propina en España? »), and
+/// *das*, « you give » (« ¿Te das cuenta de la hora que es? »). They stay in
+/// [`GALICIAN_MARKERS`] but count for Galician only in a block that holds another of its markers,
+/// and alone count for no one (refine-lingua-spanish-galician-markers D1). Measured on change
+/// 42b's 597,086 blocks (the design's Measurement; none is in the repository): Spanish blocks
+/// refused 852 → 56 of 453,821, every one of the 796 refused for these two words alone given
+/// back; Galician blocks read as Spanish 21.2 → 22.2 %, each of the 91 more a Galician line whose
+/// only Galician markers are these two.
+const GALICIAN_MARKERS_SPANISH_WRITES: &[&str] = &["da", "das"];
+
 /// Occitan's elisions (D4): a word opening on one of them and longer than it (`qu'ei`,
 /// `m'agrada`, `t'agrada`) is an Occitan marker. Spanish writes none of them.
 const OCCITAN_ELISIONS: [&str; 3] = ["qu'", "m'", "t'"];
@@ -316,7 +329,10 @@ const OCCITAN_ELISIONS: [&str; 3] = ["qu'", "m'", "t'"];
 /// (add-lingua-spanish-detection-guard); or Occitan's outnumber the Spanish ones Occitan does
 /// not write, every one but [`SPANISH_MARKERS_OCCITAN_WRITES`] (add-lingua-spanish-occitan-guard
 /// D1). A tie, or no marker at all, stays Spanish; the third comparison only refuses more, so
-/// every block the first two refuse stays refused.
+/// every block the first two refuse stays refused. Galician's `da` and `das`
+/// ([`GALICIAN_MARKERS_SPANISH_WRITES`]) are added to Galician's count only when the block holds
+/// another Galician marker, and otherwise count for no one (refine-lingua-spanish-galician-markers
+/// D1): Galician's count can only fall, so every block kept before is kept.
 ///
 /// A block is split on every character that is neither a letter nor the ASCII apostrophe, and
 /// each word lowercased: a word opening on Catalan's `l'`, `d'`, `s'` or `n'` is Catalan's and
@@ -325,6 +341,8 @@ const OCCITAN_ELISIONS: [&str; 3] = ["qu'", "m'", "t'"];
 fn iberian_neighbour(text: &str) -> bool {
     let (mut catalan, mut galician, mut spanish) = (0usize, 0usize, 0usize);
     let (mut occitan, mut spanish_not_occitan) = (0usize, 0usize);
+    // Galician's `da` and `das`, which Spanish writes too: counted apart.
+    let mut galician_spanish_writes = 0usize;
     for word in text.split(|c: char| !c.is_alphabetic() && c != '\'') {
         let lower = word.to_lowercase();
         // Catalan's elisions (`l'home`, `d'aquesta`) are markers of their own.
@@ -338,13 +356,23 @@ fn iberian_neighbour(text: &str) -> bool {
         let lower = lower.trim_matches('\'');
         occitan += usize::from(occitan_marker(word, lower));
         catalan += usize::from(CATALAN_MARKERS.binary_search(&lower).is_ok());
-        galician += usize::from(GALICIAN_MARKERS.binary_search(&lower).is_ok());
+        if GALICIAN_MARKERS.binary_search(&lower).is_ok() {
+            if GALICIAN_MARKERS_SPANISH_WRITES.contains(&lower) {
+                galician_spanish_writes += 1;
+            } else {
+                galician += 1;
+            }
+        }
         if SPANISH_MARKERS.binary_search(&lower).is_ok() {
             spanish += 1;
             if !SPANISH_MARKERS_OCCITAN_WRITES.contains(&lower) {
                 spanish_not_occitan += 1;
             }
         }
+    }
+    // Beside another Galician marker, `da` and `das` count as Galician's; alone, for no one.
+    if galician > 0 {
+        galician += galician_spanish_writes;
     }
     catalan > spanish || galician > spanish || occitan > spanish_not_occitan
 }
@@ -1168,6 +1196,114 @@ mod tests {
         ] {
             assert!(OCCITAN_MARKERS.binary_search(&word).is_err(), "{word}");
         }
+    }
+
+    // refine-lingua-spanish-galician-markers: Spanish's *gives* is not Galician.
+    const SPANISH_GIVES: [&str; 2] = [
+        "¿Cuánto se da de propina en España?",
+        "¿Te das cuenta de la hora que es?",
+    ];
+    const GALICIAN_WITH_DA: &str =
+        "O profesor Smith é recoñecido por ser un dos máis grandes eruditos da filoloxía inglesa.";
+    const GALICIAN_ONLY_DA: &str = "A esperanza é a razón da vida.";
+
+    #[test]
+    fn spec_scenario_spanish_s_gives_is_not_galician() {
+        for block in SPANISH_GIVES {
+            assert!(block_is_studied(read_as_spanish(block), ES), "{block}");
+            assert!(!iberian_neighbour(block), "{block}");
+        }
+        // A Spanish analysis counts them: both blocks are analysed, `da` and `das` among them.
+        match crate::analysis::pipeline::analyse_document(&SPANISH_GIVES, ES, &spanish_lexicon()) {
+            crate::analysis::pipeline::DocumentAnalysis::Analysed(tokens) => {
+                for (block, word) in [(0, "da"), (1, "das")] {
+                    assert!(
+                        tokens.iter().any(|t| t.block == block && t.surface == word),
+                        "{word}: {tokens:?}"
+                    );
+                }
+            }
+            other => panic!("expected both Spanish blocks analysed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_two_words_spanish_writes_stay_galician_markers() {
+        assert_eq!(GALICIAN_MARKERS.len(), 32);
+        for word in GALICIAN_MARKERS_SPANISH_WRITES {
+            assert!(GALICIAN_MARKERS.binary_search(word).is_ok(), "{word}");
+            assert!(SPANISH_MARKERS.binary_search(word).is_err(), "{word}");
+        }
+        assert_eq!(GALICIAN_MARKERS_SPANISH_WRITES, ["da", "das"]);
+    }
+
+    #[test]
+    fn da_and_das_alone_count_for_no_one() {
+        // Whatever their case (D2): a line opening on the verb, an acronym.
+        for block in [
+            "Da un paso atrás.",
+            "¿Me da una factura?",
+            "No me da tiempo.",
+            "da",
+            "DAS",
+            "da das",
+        ] {
+            assert!(!iberian_neighbour(block), "{block}");
+        }
+        assert!(block_is_studied(read_as_spanish("Da un paso atrás."), ES));
+    }
+
+    #[test]
+    fn spec_scenario_da_beside_another_galician_function_word() {
+        // `máis` and `da` against `por`: two to one.
+        assert!(!block_is_studied(read_as_spanish(GALICIAN_WITH_DA), ES));
+        assert!(iberian_neighbour(GALICIAN_WITH_DA));
+        // Without `da`, `máis` ties `por`, and a tie stays Spanish.
+        assert!(!iberian_neighbour(
+            &GALICIAN_WITH_DA.replace(" da ", " de ")
+        ));
+        // `xa` ties `por`; beside it, `da` counts and outnumbers it, and so does `das`.
+        assert!(!iberian_neighbour("xa por"));
+        assert!(iberian_neighbour("da xa por"));
+        assert!(iberian_neighbour("xa das por"));
+    }
+
+    #[test]
+    fn the_rule_s_limit_a_spanish_line_with_a_galician_word() {
+        // `polo` is Galician's too (« Polo Norte »): beside it, Spanish's `da` counts, as before.
+        let block = "Me da igual: nunca jugué al polo.";
+        assert!(!block_is_studied(read_as_spanish(block), ES));
+        assert!(iberian_neighbour(block));
+    }
+
+    #[test]
+    fn spec_scenario_catalan_and_occitan_are_refused_as_before() {
+        assert!(!block_is_studied(read_as_spanish(CATALAN), ES));
+        for block in OCCITAN_PAGE {
+            assert!(!block_is_studied(read_as_spanish(block), ES), "{block}");
+        }
+        // `da` and `das` alone answer nothing for Galician, but Catalan's and Occitan's
+        // comparisons still refuse the block.
+        for block in [
+            "amb els da",
+            "L'home da",
+            "totjorn dins da",
+            "qu'ei das",
+            "da amb els",
+        ] {
+            assert!(iberian_neighbour(block), "{block}");
+        }
+        // And the Galician paragraph, whose markers are Galician's 30 others.
+        assert!(!block_is_studied(GALICIAN, ES));
+        assert!(iberian_neighbour(GALICIAN));
+        assert!(iberian_neighbour("Os nenos da aldea xa non van á escola."));
+    }
+
+    #[test]
+    fn spec_scenario_a_galician_line_whose_only_function_word_is_da() {
+        // The leak the requirement states: `é`, `a` and `razón` are in no table.
+        assert!(block_is_studied(read_as_spanish(GALICIAN_ONLY_DA), ES));
+        assert!(!iberian_neighbour(GALICIAN_ONLY_DA));
     }
 
     // add-lingua-french-detection-guard: Catalan, Occitan and Romanian are not read as French.
