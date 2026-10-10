@@ -252,7 +252,11 @@ describe("Statistiques — the view", () => {
     other.querySelector<HTMLButtonElement>("#seed-go")?.click();
     await settle();
 
-    expect(other.querySelector("#seed-result")?.textContent).toContain("Aucune carte ajoutée");
+    // The one message for every reason nothing is left to add, words without a translation in the
+    // reader's pack among them (seed-lingua-decks-with-glossed-lemmas D7).
+    expect(other.querySelector("#seed-result")?.textContent).toBe(
+      "Aucune carte ajoutée — ces mots sont déjà suivis, dans ton deck ou sans traduction.",
+    );
   });
 
   it("opens the reader's own decisions and folds the automatic confirmations", async () => {
