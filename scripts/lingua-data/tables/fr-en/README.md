@@ -680,9 +680,10 @@ edited):
    the lemma's own place, and no gloss is lent to another word — the design's prototype, on change
    43's tables before its fix, glossed *venir* « coming, arrival », `venue`'s.
 
-5. **fr-en's own rules** (refine-lingua-fr-en-glosses), every one in `reduce-fr-en.py` — the English
-   edition's and the shared rules read es-en's rows and every pair's too, and are not edited, so
-   only fr-en re-pins (D1):
+5. **fr-en's own rules** (refine-lingua-fr-en-glosses), in `reduce-fr-en.py` and, for the treebank's
+   part of speech, `reduce_french_treebank.py` — a rule module of its own, in fr-en's digest, that
+   fr-es is to read too (refine-lingua-fr-es-glosses D8) — the English edition's and the shared rules
+   read es-en's rows and every pair's too, and are not edited, so only fr-en re-pins (D1):
    - `read_as_french`, a pre-pass after `read_as_meanings` and before the etymology merging:
      **a pointer that carries its meaning** is read as that meaning (D4) — the section's `extra`
      for its target, else its quoted text, else its text past a colon or a semicolon —, for a word

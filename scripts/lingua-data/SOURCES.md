@@ -358,8 +358,10 @@ French's dictionary words (`tables/fr/lexical.tsv`, written by its reducer since
 refine-lingua-fr-en-glosses). No extension package carries the pack: `packs.json` does not list it until change 52. Its reducer loads
 `reduce_common.py` and the English edition's rules, `reduce_edition_en.py`, which es-en loads too: no
 shared module was edited for it, and an edit of the English edition's rules re-pins es-en and fr-en
-alone. fr-en's own rules (refine-lingua-fr-en-glosses) live in `reduce-fr-en.py`: they re-pin fr-en
-alone.
+alone. fr-en's own rules (refine-lingua-fr-en-glosses) live in `reduce-fr-en.py` and, for the
+part of speech UD French-GSD reads a word as, in `reduce_french_treebank.py`, a rule module of its own
+that fr-es is to load too (refine-lingua-fr-es-glosses D8): they re-pin fr-en alone while fr-en alone
+loads them.
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
@@ -710,8 +712,8 @@ shared function is always told which edition it cleans.
 reducer and every `reduce_*.py` module importing it loads, read from `sys.modules`
 (`pack_sources.py rule_files`): en-fr's and es-fr's are `reduce-<pair>.py`, `reduce_common.py` and
 `reduce_edition_fr.py`; es-en's are `reduce-es-en.py`, `reduce_common.py` and
-`reduce_edition_en.py`, and fr-en's `reduce-fr-en.py`, `reduce_common.py` and
-`reduce_edition_en.py`; en-es's are `reduce-en-es.py`, `reduce_common.py` and
+`reduce_edition_en.py`, and fr-en's `reduce-fr-en.py`, `reduce_common.py`, `reduce_edition_en.py`
+and `reduce_french_treebank.py` (UD French-GSD's parts of speech, refine-lingua-fr-en-glosses D5); en-es's are `reduce-en-es.py`, `reduce_common.py` and
 `reduce_edition_es.py`, and fr-es's `reduce-fr-es.py`, `reduce_common.py` and
 `reduce_edition_es.py`. Editing the English edition re-pins es-en and fr-en alone, the Spanish
 edition en-es and fr-es alone (each pair's own rules, such as en-es's and fr-es's passes over their
