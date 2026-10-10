@@ -1588,6 +1588,62 @@ fn spec_scenario_the_acronym_in_both_french_packs() {
 }
 
 #[test]
+fn spec_scenario_a_spelling_the_dictionary_gives_only_as_a_marked_word() {
+    // read-lingua-french-dictionary-unmarked-spellings: in both French packs, a word the dictionary
+    // gives only as a marked word written without its marks reads as that word when wordfreq rates
+    // it the commoner — `etre` and `etait` as être, `etat` and `etats` as état, `repondre` and its
+    // `repond` as répondre, `siecle` as siècle — and is no lemma of its own: no gloss, and its rank
+    // and level, read through the spelling, are its word's. `diesel` and `ego`, commoner than
+    // diésel and égo, read as themselves with their levels; `tete`, a form of `teter` commoner than
+    // téter, keeps `teter` apart (D2); 43b's `ca` still reads as ça; être, état and siècle keep their
+    // levels.
+    for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        for (spelling, word) in [
+            ("etre", "être"),
+            ("etait", "être"),
+            ("etat", "état"),
+            ("etats", "état"),
+            ("repondre", "répondre"),
+            ("repond", "répondre"),
+            ("siecle", "siècle"),
+        ] {
+            assert_eq!(lexicon.lemma_of(spelling), Some(word), "{pair}: {spelling}");
+            assert!(
+                !lexicon.contains_lemma(spelling),
+                "{pair}: {spelling} is a lemma"
+            );
+            assert_eq!(pack.gloss(spelling), None, "{pair}: {spelling}");
+            assert_eq!(pack.rank(spelling), pack.rank(word), "{pair}: {spelling}");
+            assert_eq!(pack.level(spelling), pack.level(word), "{pair}: {spelling}");
+        }
+        for (word, level) in [("diesel", CefrLevel::B1), ("ego", CefrLevel::B2)] {
+            assert_eq!(lexicon.lemma_of(word), Some(word), "{pair}: {word}");
+            assert!(lexicon.contains_lemma(word), "{pair}: {word}");
+            assert_eq!(pack.level(word), Some(level), "{pair}: {word}");
+        }
+        assert_ne!(lexicon.lemma_of("tete"), Some("téter"), "{pair}: tete");
+        assert_ne!(lexicon.lemma_of("teter"), Some("téter"), "{pair}: teter");
+        assert_eq!(lexicon.lemma_of("ca"), Some("ça"), "{pair}: ca");
+        for word in ["être", "état", "siècle"] {
+            assert_eq!(pack.level(word), Some(CefrLevel::A1), "{pair}: {word}");
+        }
+    }
+    // The marked words keep their glosses; fr-es, which glossed none of the spellings but
+    // `uberisation`, now shows état's on « etat ».
+    let fr_en = Pack::load(fr_en()).unwrap();
+    assert_eq!(
+        fr_en.gloss("état"),
+        Some("state, condition; state, nation; government")
+    );
+    assert_eq!(fr_en.gloss("diesel"), Some("diesel"));
+    let fr_es = Pack::load(fr_es()).unwrap();
+    assert_eq!(fr_es.gloss("état"), Some("Estado"));
+    assert_eq!(fr_es.gloss("uberisation"), None);
+}
+
+#[test]
 fn spec_scenario_the_committed_pairs() {
     // fix-lingua-lemma-lookup D4, D6: each committed pair builds — no form of its forms table has
     // two lemmas, every lemma of its pack reads as itself — to the sha256 its pin records, so
@@ -1731,10 +1787,14 @@ fn spec_scenario_the_commonest_words_are_a1() {
     }
     // What a CEFR list leaves out (design D2), all ranked: a name, a word the section does not
     // know, a letter, another word's spelling.
-    for word in ["paris", "france", "the", "b", "e", "etre"] {
+    for word in ["paris", "france", "the", "b", "e", "parceque"] {
         assert!(ranks.contains_key(word), "{word} is no ranked lemma");
         assert!(!levels.contains_key(word), "{word} has a level");
     }
+    // `etre`, read as être since read-lingua-french-dictionary-unmarked-spellings, is no ranked
+    // lemma and has no level of its own.
+    assert!(!ranks.contains_key("etre"), "etre is a ranked lemma");
+    assert!(!levels.contains_key("etre"), "etre has a level");
 }
 
 #[test]
