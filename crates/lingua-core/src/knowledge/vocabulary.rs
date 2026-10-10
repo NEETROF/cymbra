@@ -222,6 +222,7 @@ impl KnowledgeState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::decks::Deck;
     use crate::knowledge::state::MapFrequencyRanks;
     use crate::knowledge::status::KnownSource;
 
@@ -372,6 +373,46 @@ mod tests {
         assert_eq!(level_vocabulary(CefrLevel::B2, words.clone(), &lexis), 50);
         // C1: every listed word known — the whole band.
         assert_eq!(level_vocabulary(CefrLevel::C1, words, &lexis), 100);
+    }
+
+    #[test]
+    fn a_lemma_left_unseeded_keeps_its_presumption_and_its_place_in_the_estimate() {
+        // seed-lingua-decks-with-glossed-lemmas D3: a lemma the pack does not gloss is skipped
+        // by a level's seeding, and stays a word of its language — no status, presumed known
+        // below the declared level, still counted by the estimate, the estimate unmoved.
+        let (words, lexis) = words(100, 40);
+        let state = at_b1();
+        let before = state.vocabulary_estimate(EN, words.clone(), &lexis);
+        // w1 and w2 are A1 (below B1), w21 and w22 B2 (above): w1 and w21 have no gloss.
+        let (a1_bare, a1, b2_bare, b2) = (word(1), word(2), word(21), word(22));
+        let mut deck = Deck::new();
+        let added = deck.seed_lemmas(
+            EN,
+            [
+                (a1_bare, None),
+                (a1, Some("un")),
+                (b2_bare, None),
+                (b2, Some("deux")),
+            ],
+            "fr",
+            &state,
+            4,
+            0,
+        );
+        assert_eq!(added, 2);
+        for lemma in [a1_bare, b2_bare] {
+            assert!(deck.get(EN, lemma).is_none(), "{lemma}");
+            assert_eq!(state.explicit_status(EN, lemma), None, "{lemma}");
+        }
+        assert_eq!(
+            state.resolve_lemma(EN, a1_bare, &lexis),
+            Some(Status::Known(KnownSource::Calibration)),
+            "presumed known below the declared level"
+        );
+        assert_eq!(state.resolve_lemma(EN, b2_bare, &lexis), None, "to learn");
+        let after = state.vocabulary_estimate(EN, words, &lexis);
+        assert_eq!(after, before);
+        assert_eq!(after.universe, 100, "every word counted, glossed or not");
     }
 
     #[test]
