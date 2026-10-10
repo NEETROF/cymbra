@@ -62,9 +62,11 @@ shown here and in the pull request alone.
 
 ## What is in them
 
-On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `2026.10.10+3f293e8.e18e7e8`:
+On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `2026.10.10+3f293e8.1cc934b`:
 the snapshot, the rules' digest, and the digest of the studied tables `pin.json` records),
-reproduced byte for byte, twice, by `build.sh --reduce fr-es` from the pinned release:
+reproduced byte for byte, twice, by `build.sh --reduce fr-es` from the pinned release, and reduced
+again on French's dictionary words and levels of refine-lingua-fr-en-glosses — the glosses, runs
+and expressions byte for byte, the studied record, `pack_version` and the pack's sha256 moved:
 
 - **Spanish glosses for 19,050 lemmas** of French's 60,000: **4,560 from the Spanish Wiktionary's
   French section** (its definitions, by the Spanish edition's rules), **13,195 from the Spanish
@@ -82,10 +84,12 @@ reproduced byte for byte, twice, by `build.sh --reduce fr-es` from the pinned re
   of the top 20,000's (3,648 of 11,359). en-es's share from a table is 26.0 % of its glossed top
   10,000. A translation is a word a person chose for the French word, not a meaning (« répondre »
   « Contestar, responder »), grouped by part of speech like any gloss.
-- **Dictionary words are fr-en's**: 544 lemmas fr-es glosses are no dictionary word of French (12 /
-  40 / 126 of the top 5,000 / 10,000 / 20,000: `quant`, `onu`, `vih`, but also `el`, `for`, `last`,
-  `okay`), and 11,549 of fr-en's 30,055 glossed lemmas have no Spanish gloss, so the pack carries a
-  lexical section and the vocabulary estimate counts the same words for both pairs.
+- **Dictionary words are French's** (`../fr/lexical.tsv`): 1,051 lemmas fr-es glosses are no
+  dictionary word of French (176 / 335 / 544 of the top 5,000 / 10,000 / 20,000) — 510 of them names
+  fr-en glosses by a proper noun's senses alone (`france`, `paris`, `québec`: refine-lingua-fr-en-glosses
+  D2), the others `quant`, `onu`, `vih`, but also `el`, `for`, `last`, `okay` (544 before) —, and
+  8,487 of French's 26,486 dictionary words have no Spanish gloss, so the pack carries a lexical
+  section and the vocabulary estimate counts the same words for both pairs.
 - **The pack is 1,973,407 B**, 37.6 % of the 5 MiB budget: gloss 178,589 B, senses 57,156 B,
   expressions 268,946 B (133,168 + 104,581 + their names 31,197), the lexical table 7,500 B, and
   French's studied sections — forms, lemmas, ranks, levels, paradigms and the tag pool — byte for
@@ -269,7 +273,7 @@ owner's review and a refinement before change 52 if one is wanted:
 | « etc » without its period | 5 / 4 | « avec », « adresse », « cochon » | shared, every pair (24b D8) |
 | A proper noun's run in the row | 596 / 353 rows hold one, 590 / 347 open on it | « france » « Francia; Nombre de pila de mujer », « terre » | the case-aware card, shared |
 | Rows glossed by a name's notes alone | 313 / 167 | « françois », « jacques », « thierry » « Apellido; Nombre de pila de varón… » | kept: they say what the capitalised token is |
-| Lemmas outside French's dictionary words glossed | 544 / 40 | `el` « Ella, ello o él », `for` « Fuero », `last` « Lastre », `okay` « Oquey, oqué » | no dictionary word, no vocabulary count |
+| Lemmas outside French's dictionary words glossed | 1,051 / 335 (544 / 40 before refine-lingua-fr-en-glosses left names out) | `el` « Ella, ello o él », `for` « Fuero », `last` « Lastre », `okay` « Oquey, oqué »; `france`, `paris` | no dictionary word, no vocabulary count |
 
 ## Its sources
 
