@@ -289,6 +289,10 @@ probes, the two re-blesses and the snapshots 0.25, the committed-tables test and
 
 ## Open questions for the owner
 
+**Settled by the owner on 2026-10-10 (in session), each as recommended:** « rebellions » reads as
+*rébellion*; « uberisation » loses its Spanish gloss; `sure`, `surs`, `sures` and `entrainant` go to the
+web's reviewed list (`read-lingua-french-web-unmarked-spellings`).
+
 - **Q1 — « rebellions ».** Written so, it is the verb *se rebeller* correctly spelt (« nous nous
   rebellions ») and the plural of *rébellion* without its accent. The tables now read it as
   *rébellion*, the commoner word. Keep that (recommended), or add a reviewed override row so that it

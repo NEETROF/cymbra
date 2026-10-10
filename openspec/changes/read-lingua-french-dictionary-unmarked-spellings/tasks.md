@@ -2,7 +2,7 @@
 
 ## 0. Owner, before the implementation
 
-- [ ] 0.1 [manual] The owner answers the design's open questions — Q1 (`rebellions`: the noun *rébellion*, recommended, or a reviewed override row keeping the verb *rebeller*), Q2 (`uberisation` without a Spanish gloss in fr-es: accept, recommended, or lend a spelling's gloss to its word), Q3 (`surs`, `sures`, `sure`, `entrainant`: handed to the web's reviewed list, recommended, or read by this rule too) — and the design is written accordingly before the implementation starts.
+- [x] 0.1 [manual] Settled by the owner on 2026-10-10 (in session), each as recommended: « rebellions » read as *rébellion* (1); « uberisation » loses its Spanish gloss (2); `sure`, `surs`, `sures`, `entrainant` handed to the web's reviewed list (3). The owner answers the design's open questions — Q1 (`rebellions`: the noun *rébellion*, recommended, or a reviewed override row keeping the verb *rebeller*), Q2 (`uberisation` without a Spanish gloss in fr-es: accept, recommended, or lend a spelling's gloss to its word), Q3 (`surs`, `sures`, `sure`, `entrainant`: handed to the web's reviewed list, recommended, or read by this rule too) — and the design is written accordingly before the implementation starts.
 
 ## 1. The rule (scripts/lingua-data/reduce-fr-en.py)
 
