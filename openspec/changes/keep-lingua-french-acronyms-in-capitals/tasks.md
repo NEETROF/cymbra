@@ -29,7 +29,7 @@
 ## 4. The goldens (crates/lingua-wasm)
 
 - [ ] 4.1 `tests/support/french.rs`: `PHRASES` gains « LE CA A VOTÉ LE BUDGET », « Il a crié : CA SUFFIT ! » and « Ca fait du bien. » before « l’homme »; `REFERENCE_GRAMMAR` gains (`CA`, `CA`); the doc says what they record (D7) and that « Le CA a voté le budget. » now shows the acronym. `tests/french_baseline.rs`: « this core is 1.3.0 » and 32 reference grammar probes; its and `fr_es_baseline.rs`'s doc comments name this change among those that move or add probes.
-- [ ] 4.2 Re-bless once: `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline --test fr_es_baseline`. Check the diff is D7's — in each golden the pack line, the 17 `analyse` lines on the version alone, « Le CA a voté le budget. » (`CA` read as the acronym with its gloss), and the four probes added with D7's readings; every other probe byte for byte — and say so in the pull request, probe by probe, over `origin/main`'s goldens. If change 44d or another French change re-blessed first, rebase and re-bless; never resolve a golden by hand.
+- [ ] 4.2 Re-bless once: `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline --test fr_es_baseline`. Check the diff is D7's — in each golden the pack line, the 17 `analyse` lines on the version alone, « Le CA a voté le budget. » (`CA` read as the acronym with its gloss), and the four probes added with D7's readings; every other probe byte for byte — and say so in the pull request, probe by probe, over `origin/main`'s goldens. If another French change re-blessed first (44d did, #881, its four probes earlier in the list), rebase and re-bless; never resolve a golden by hand.
 
 ## 5. The extension (apps/lingua-extension)
 

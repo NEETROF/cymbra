@@ -326,7 +326,8 @@ pack lists ». English and Spanish keep theirs. French packs at `1.2.0` are refu
 `fr-en.golden` 376,285 → 381,018 B, `fr-es.golden` 250,296 → 252,967 B (on 43b's prototype).
 Every other probe is byte for byte — the vocabulary estimates and the decks among them — and the
 studied side stays one (`the_golden_is_the_french_one_on_the_studied_side`). The phrases go before
-« l’homme », after 43b's; change 44d adds four there too, and whichever lands second re-blesses once.
+« l’homme », after 43b's four; change 44d's four (merged since, #881) stand earlier in the list, so the
+implementation re-blesses on a `main` holding them, its goldens larger than the prototype's by theirs.
 `french_baseline.rs` follows: « this core is 1.3.0 », and 32 reference grammar probes. The extension's
 `test/word-card-fr-en.spec.ts` and `word-card-fr-es.spec.ts` render every grammar and phrase probe:
 their snapshots gain the four cards and nothing else, their counts one grammar probe (92 → 93) and
