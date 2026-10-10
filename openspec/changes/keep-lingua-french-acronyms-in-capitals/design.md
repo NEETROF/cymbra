@@ -116,7 +116,7 @@ selection, a card and an expression key read « CA » alike.
 
 *Rejected — the block.* The owner's words read literally; measured above, two shouted « ça » of 35
 read as the acronym (« LES RÉSEAUX SOCIAUX CA RENDS LES GENS FOU… », « OUAH CA CHAUFFE…… »), and
-the page and a selection could disagree on every word in capitals.
+a selection holding only words in capitals would read them otherwise than its page.
 *Rejected — a run of at most two words.* It would keep « CA HT » (chiffre d'affaires hors taxes) and
 read « CA VA » as the acronym; neither is written in 23.5 million tokens, and the rule is simpler to
 state with no count. Open question 1.
@@ -216,8 +216,8 @@ before.) **No headline or line in capitals writes the acronym**; the four shoute
 With 43b alone all 31 read as `ça`, « that », a function word: wrong every time. Before 43b they read
 as fr-en's old `ca`, « board of directors »: right for the three boards. With this change the card
 names the right meaning 5 times, a close one 4 times, and the acronym is at least read as a noun to
-learn rather than a pronoun. These corpora are edited text; no business press was in reach, where
-*chiffre d'affaires* is the commonest sense.
+learn rather than a pronoun. These corpora are edited text; no business press, where the shares of
+the meanings may differ, was in reach.
 
 **Its frequency**: 31 in 23.5 million tokens, 1.3 per million (Zipf ≈ 3.1), about the tables' rank
 16,000 (`académicien`, 16,278, has Zipf 3.10). wordfreq cannot tell it apart: it lowercases, and `ca`
@@ -276,11 +276,12 @@ acronym rows are its exception, which this change's requirement states (48 is op
   when the pack holds it as a lemma (`CA`) and lowercases it otherwise, as before — every other lemma
   is lowercase already, so every other answer is byte for byte. The card of « CA » (measured): the
   gloss of D4 under one noun group, no reading, no other dictionary form, no pieces.
-- **The extension.** `reading/session.ts` keys a gesture's status and card by `g.lemma.toLowerCase()`,
-  and `reading/selection-card.ts` asks a word card's gloss for `g.lemma.toLowerCase()`: a word keeps
-  the dictionary form the engine gave, and only an expression's key — built from the selection's
-  text — is lowercased, as before. Every lemma the engine gives today is lowercase, so nothing else
-  moves. The card shows « CA » as its headword, no « forme vue » line (the same letters, case aside),
+- **The extension.** Today `reading/session.ts` keys a gesture's status and card by
+  `g.lemma.toLowerCase()`, and `reading/selection-card.ts` asks a word card's gloss for
+  `g.lemma.toLowerCase()`, which would file `CA` under `ca` and ask the gloss of a lemma the pack does
+  not hold. With this change a word keeps the dictionary form the engine gave, and only an
+  expression's key — built from the selection's text — is lowercased, as before. Every lemma the
+  engine gives today is lowercase, so nothing else moves. The card shows « CA » as its headword, no « forme vue » line (the same letters, case aside),
   one listen button.
 - **Further on.** The knowledge state, the deck, review, sync (cards and statuses are stored as sent)
   and backup v3 carry `CA` as any lemma: no format, proto or field changes. No reader holds a French
@@ -395,8 +396,8 @@ re-blessed files.
 - **Other acronyms.** 43b counted the 60 the section writes in capitals that read as another word in
   lower case: `LE`, `NE`, `SE`, `SA` (*société anonyme*, read as *son*), `SI`, `VA`, `EAU`, `CAS`,
   `MUR`, `BAC`, `TIR`, `ARC`, `CV`, `SVP`, `MDR`… A row each is a person's decision, measured as `CA`
-  was; the owner asked for `CA` alone at first. Of the 549 others, 433 read through their lower case
-  as a word of the tables of their own (`ONU` as `onu`), and the rest are no form of the tables.
+  was; the owner asked for `CA` alone at first. The section's other acronyms read through their lower
+  case as before, as a word of their own where the tables rank one (`ONU` as `onu`).
 - **The expansion on the card** (« CA — conseil d'administration »): a line in French on the card is a
   card change of its own, and a gloss is never in the studied language.
 - **English and Spanish acronyms** (« US » read as `us`): the same mechanism could serve them; it would
