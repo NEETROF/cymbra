@@ -65,6 +65,16 @@ page 1/1:
 ### phrase-gloss à la maison
 row: à la — A la
 row: maison — Casa
+### phrase-gloss de l’eau
+row: eau — Agua
+### phrase-gloss Il a décidé de le faire
+row: décider — Decidir, resolver
+row: faire — Hacer
+### phrase-gloss parce qu’il pleut
+row: parce que — Porque (como causa, explicación o motivaci
+row: pleuvoir — Llover
+### phrase-gloss d’un hiver
+row: hiver — Invierno
 ### phrase-gloss Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.
 row: faire — Hacer
 row: chien — (Canis lupus familiaris) Perro
