@@ -1631,10 +1631,17 @@ class FrEnGlossesReadAsFrench(Entries):
                 pair,
             )
         # The treebank's rule is a module of its own (D5), which fr-es loads too
-        # (refine-lingua-fr-es-glosses D8): in fr-en's and fr-es's rules alone.
+        # (refine-lingua-fr-es-glosses D8): in fr-en's and fr-es's rules alone — beside French's
+        # acronym table (keep-lingua-french-acronyms-in-capitals D2), a module of the two as well.
         self.assertEqual(
             [p.name for p in ps.rule_files(Path(_HERE) / "reduce-fr-en.py")],
-            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py", "reduce_french_treebank.py"],
+            [
+                "reduce-fr-en.py",
+                "reduce_common.py",
+                "reduce_edition_en.py",
+                "reduce_french_acronyms.py",
+                "reduce_french_treebank.py",
+            ],
         )
         self.assertIn("reduce_french_treebank.py", [p.name for p in ps.rule_files(Path(_HERE) / "reduce-fr-es.py")])
         for pair in ("en-fr", "es-fr", "es-en", "en-es"):
@@ -1708,6 +1715,50 @@ class FrenchUnmarkedSpellings(Entries):
         )
 
 
+class FrenchAcronyms(Entries):
+    """keep-lingua-french-acronyms-in-capitals: French's acronym table, a rule module fr-en and fr-es
+    import (D2, D7)."""
+
+    def test_spec_scenario_the_module_moves_fr_en_s_and_fr_es_s_rules_alone(self):
+        # Editing the table or its rules moves fr-en's and fr-es's rule digests, and no other pair's:
+        # en-fr, es-fr, es-en and en-es import it nowhere. Every committed pin records the rules it was
+        # reduced with, and fr-es's the studied tables fr-en wrote, `CA`'s row among them.
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+            loaded = [p.name for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")]
+            self.assertEqual("reduce_french_acronyms.py" in loaded, pair in ("fr-en", "fr-es"), pair)
+        self.assertEqual(
+            ps.load(Path(_HERE) / "tables" / "fr-es" / "pin.json")["studied"],
+            ps.studied_record(Path(_HERE) / "tables" / "fr-es" / "pin.json"),
+        )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for name, old, new, moved in (
+            # The table's row, its gloss and its check: fr-en and fr-es.
+            ("reduce_french_acronyms.py", '"comptable agréé")', '"comptable agréé", "corps d\'armée")', {"fr-en", "fr-es"}),
+            ("reduce_french_acronyms.py", 'SENSE_SEPARATOR = "; "', 'SENSE_SEPARATOR = ", "', {"fr-en", "fr-es"}),
+            ("reduce_french_acronyms.py", "        if missing:\n", "        if False:\n", {"fr-en", "fr-es"}),
+            # Where each reducer writes or reads the rows: its own pair alone.
+            ("reduce-fr-en.py", "written = {**forms, **acronyms.acronym_forms()}", "written = forms", {"fr-en"}),
+            ("reduce-fr-es.py", "and form not in acronyms.ACRONYMS}", "}", {"fr-es"}),
+        ):
+            path = copy / name
+            text = path.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            path.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertEqual({p for p in pairs if after[p] != before[p]}, moved, new)
+            before = after
+
+
 class FrEsGlossesRefined(Entries):
     """refine-lingua-fr-es-glosses: fr-es's own rules, in its reducer and the treebank's module it
     shares with fr-en (D1, D8)."""
@@ -1727,7 +1778,14 @@ class FrEsGlossesRefined(Entries):
             )
         pin = ps.load(Path(_HERE) / "tables" / "fr-es" / "pin.json")
         self.assertEqual(
-            pin["reducer"]["files"], ["reduce-fr-es.py", "reduce_common.py", "reduce_edition_es.py", "reduce_french_treebank.py"]
+            pin["reducer"]["files"],
+            [
+                "reduce-fr-es.py",
+                "reduce_common.py",
+                "reduce_edition_es.py",
+                "reduce_french_acronyms.py",
+                "reduce_french_treebank.py",
+            ],
         )
         copy = self.dir / "rules"
         copy.mkdir()
