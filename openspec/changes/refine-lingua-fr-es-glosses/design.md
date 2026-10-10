@@ -2,8 +2,9 @@
 
 ## Context
 
-See proposal.md (Why). What exists, on `main` at `59867512` (change 49's implementation, #862, and
-48b's proposal, #861):
+See proposal.md (Why). What exists, on `main` at `101b684d` (change 49's implementation, #862, and
+48b's proposal, #861; nothing of `scripts/lingua-data` that fr-es reads has moved since `59867512`,
+where this design was first measured):
 
 | Where | What |
 |---|---|
@@ -13,32 +14,35 @@ See proposal.md (Why). What exists, on `main` at `59867512` (change 49's impleme
 | The translation files | Direct (`kaikki-fr-traductions.jsonl`): per French entry, its Spanish translations' `word` and `sense`, the French headword as written (« DS »). Inverted (`kaikki-es-traductions.jsonl`): per Spanish entry, its `pos` and the French words it lists, as written (« US », « Luc », « lOrient », and « fr », the template's language code, in `calabaza` and `imperial`) |
 | `tables/fr-es/` | 19,050 glossed lemmas (4,560 definitions, 13,195 direct, 1,295 inverted), 12,177 expressions; coverage 83.2 / 70.8 / 56.8 % (4,161 / 7,082 / 11,359) against `FLOORS["fr-es"]` 81.4 / 68.8 / 54.5; pinned at `2026.10.10` from `lingua-pack-sources-fr-es-2026.10.10`, `pack_version` `2026.10.10+3f293e8.e18e7e8`, the pack 1,973,407 B. Its README's *Known data defects* and change 49's Open Questions 2–8 are this change's input |
 | Change 48b | `refine-lingua-fr-en-glosses` (proposed, #861): fr-en's rules in fr-en's reducer; French's dictionary words (`tables/fr/lexical.tsv`) leave out the lemmas fr-en glosses as names alone; a French level only for a dictionary word (`level.tsv`). Both tables are in fr-es's pin's `studied` record |
+| UD French-GSD | Its training and development sections, pinned at commit `94d5b68e…` in `pack_sources.PINNED["fr-en"]` and recorded in fr-en's pin (`gsd-train`, `gsd-dev`, sha256 `4b9a87b1…`, `9221e508…`), read by fr-en's reducer for which lemma a form takes; 48b's D5 reads them again for the part of speech a function word's row opens on. fr-es reads no treebank today |
 | Changes 51 and 52 | 51 (`add-lingua-french-word-card`, proposed) lists fr-es's defects in its *Known data defects* and writes fr-es's golden; 52 (`enable-lingua-french`, proposed) lists fr-es once this change has merged (its Open Question 4, settled 2026-10-09) |
 
 ## Goals / Non-Goals
 
 **Goals:**
-- The owner's four decisions of 2026-10-10 applied to fr-es, each measured on the whole table and on
-  the top 10,000, with what it costs, by rules of fr-es's own reducer.
+- The owner's four decisions of 2026-10-10, and his answers the same day to this proposal's four
+  questions, applied to fr-es, each measured on the whole table and on the top 10,000, with what it
+  costs, by rules of fr-es's own reducer.
 - The defects changes 49, 51 and 52 list for fr-es fixed, or left with their counts and where their
   fix belongs.
-- Each of 48b's decisions read for fr-es: applied, already reaching fr-es through French's tables,
-  or put to the owner.
+- Each of 48b's decisions read for fr-es: applied, or already reaching fr-es through French's
+  tables.
 - fr-es at or above its floor.
 
 **Non-Goals:**
 - Any byte of en-fr, es-fr, es-en, en-es or fr-en, or of `tables/fr/`: no rule of `reduce_common.py`
   or of an edition module, though some of these rules would suit en-es (24b's Q1, Q4).
-- A new source or fetch: fr-es keeps its snapshot and its three files (Open Question 4 would add one).
-- The card's wording (change 51), French's studied side (changes 43–46, 48b), the seeding of levels
-  (Open Question 3).
+- A new fetch beyond UD French-GSD's two pinned files (D8): fr-es keeps its snapshot and its three
+  kaikki files.
+- The card's wording (change 51), French's studied side (changes 43–46, 48b), and the seeding of a
+  review deck by level, settled by the owner as a core change of its own (*For the owner*).
 
 ## Measured
 
 A prototype in the scratchpad (never committed): `reduce-fr-es.py` of `main`, each rule behind a
 switch, its inputs the three files of `lingua-pack-sources-fr-es-2026.10.10` (sha256 `2e724e39…`,
-`bf44ebb4…`, `bd14a5c4…`, the bytes the pin records), `tables/fr/` as committed, wordfreq 3.1.1 under
-Python 3.12. With every switch off it reproduces the committed `gloss.tsv`, `senses.tsv` and `mwe.tsv`
+`bf44ebb4…`, `bd14a5c4…`, the bytes the pin records), UD French-GSD's two sections (the sha256 fr-en's
+pin records), `tables/fr/` as committed, wordfreq 3.1.1 under Python 3.12. With every switch off it reproduces the committed `gloss.tsv`, `senses.tsv` and `mwe.tsv`
 byte for byte. Packs built by this branch's `lingua-pack-build`, which rebuilds the committed pack to
 its pin's sha256. Rows are the lemmas of `gloss.tsv`; « top 10k » those ranked 1–10,000 in
 `tables/fr/freq.tsv`.
@@ -56,18 +60,19 @@ its pin's sha256. Rows are the lemmas of `gloss.tsv`; « top 10k » those ranked
 | 6 | A contraction with no part of speech | 6 / 5 | « des » « [determinante] Algunos…; [—] Contracción de la preposición de y el artículo les… », « du », « duquel », « audit » | A preposition (D6) |
 | 7 | The part of speech named again after the meaning | 2 / 2 | « qui » « Quién. (Pronombre nominativo.); Que. (Pronombre nominativo.) », « quoi » | Out (D6) |
 | 8 | « etc » without its period | 5 / 4 | « avec », « adresse », « regard », « cochon » | « etc. » (D6) |
-| 9 | The source's own text | single rows | « rien » « Pequeño cantidad de algo », « amie » « Amia o lamia » (the fish), « el » « Ella, ello o él », « hall » « Explanada », « il y a » « Hace » | Open Question 2 |
-| 10 | A quantifier or a possessive headed as a pronoun | 3 / 3 | « autre » « Otro », « peu » « Pocos », « leur » « Suyo, suya » | Left (D7) |
-| 11 | A note before the meaning | 46 / 23 (change 49) | « être » « (être + participio) Haber », « chien » « (Canis lupus familiaris) Perro » | Kept (D7) |
-| 12 | A function word's row opening on another part of speech | 7 / 7 by UD French-GSD | « pas » « Paso; No », « pendant » « Pendiente; Durante », « autour » « Halcón; Alrededor » | Open Question 4 |
-| 13 | A French level with no Spanish gloss | 1,188 of French's 8,302 levelled lemmas (22 at A1, 67 at A2) | `parce`, `part`, `lors`, `afin`, `taux` | Open Question 3 |
-| 14 | A labelled sense of an expression | 59 expressions | « fils de pute », « mal aux cheveux » | Open Question 1 |
+| 9 | The sources' own slips | 4 rows and 1 expression, all of the top 10,000 | « rien » « Pequeño cantidad de algo », « amie » « Amia o lamia » (the fish), « el » « Ella, ello o él », « hall » « Explanada », « il y a » « Hace » | Corrected here, reviewed (D7) |
+| 10 | A quantifier or a possessive headed as a pronoun | 3 / 3 | « autre » « Otro », « peu » « Pocos », « leur » « Suyo, suya » | Left (D9) |
+| 11 | A note before the meaning | 46 / 23 (change 49) | « être » « (être + participio) Haber », « chien » « (Canis lupus familiaris) Perro » | Kept (D9) |
+| 12 | A function word's row opening on another part of speech | 9 / 9 by UD French-GSD, as 48b reads it | « pas » « Paso; No », « pendant » « Pendiente; Durante », « autour » « Halcón; Alrededor », « un », « que » | The treebank's order (D8) |
+| 13 | A French level with no Spanish gloss | 1,188 of French's 8,302 levelled lemmas (22 at A1, 67 at A2) | `parce`, `part`, `lors`, `afin`, `taux` | Seeding skips them: a core change of its own, before 52 (*For the owner*) |
+| 14 | A labelled sense of an expression | 59 expressions, 70 senses | « fils de pute », « mal aux cheveux » | Shown, outside the shared cut (D2) |
 
 **Each rule alone, then together** (rows / top 10k):
 
 | Rule | Where | Rows | First sense | Lemmas | Expressions | Examples |
 |---|---|---|---|---|---|---|
 | Labels (D2) | `with_labels` | 202 / 109 | 85 / 42 | — | — | « baiser », « mec », « rien », « ça » « (coloquial) Eso, esto, aquello » |
+| Labels on expressions (D2) | `label_expressions` | — | — | — | 59 changed (70 senses) | « fils de pute » « (vulgar) Hijo de puta, hijoputa o máncer; … » |
 | Listed once (D3) | `listed_once_direct` | 654 / 222 | 113 / 44, 19 / 6 opening on another word | — | 1 changed | « parti » « Partido », « russe » « Ruso, rusa », « critique » « Crítica, crítico » |
 | Names and acronyms read backwards (D4) | `translation_words` | 14 / 8 | 1 / 0 | 13 / 8 lose a gloss | — | « us », « fr », « luc », « pa », « lorient »; « usa » lost |
 | Other senses, by name (D4) | `OTHER_SENSES` | 6 / 6 | — | 6 / 6 lose a gloss | — | « rap », « pilote », « merlin », « teint », « excité », « ds » |
@@ -76,21 +81,23 @@ its pin's sha256. Rows are the lemmas of `gloss.tsv`; « top 10k » those ranked
 | A contraction of a preposition (D6) | `french_entries` | 6 / 5, runs alone | — | — | — | « des », « du », « duquel », « audit », « ès », « dudit » |
 | The part of speech named again (D6) | `french_entries` | 2 / 2 | 2 / 2 | — | — | « qui » « Quién; Que », « quoi » |
 | « etc. » (D6) | `with_etc_period` | 5 / 4 | 1 / 1 | — | — | « cochon » « Cerdo, marrano, guarro, cochino, etc. » |
-| **Together** | | **900 / 359** (7 / 6 runs alone) | **205 / 91** | **27 / 16 lose a gloss, none gained** | **6 changed, 3 lost** | coverage 83.2 / 70.8 / 56.8 → **83.0 / 70.7 / 56.7 %** |
+| The sources' slips (D7) | `CORRECTIONS` | 4 / 4 | 2 / 2 | 1 / 1 loses a gloss (`el`) | 1 changed | « rien », « amie » « Amiga; Amia o lamia », « hall », « il y a » « Hay; Hace » |
+| The treebank's order (D8) | `treebank_order` | 9 / 9 (2 / 2 runs alone) | 7 / 7 | — | — | « pas » « No; Paso », « pendant » « Durante; … », « toutefois » « Todavía; … » (worse) |
+| **Together** | | **912 / 371** (9 / 8 runs alone) | **214 / 100** | **28 / 17 lose a gloss, none gained** | **66 changed, 3 lost** | coverage 83.2 / 70.8 / 56.8 → **83.0 / 70.7 / 56.7 %** |
 
 **Coverage, against the floor:**
 
 | Lemmas | Committed | This design | Floor | Margin |
 |---|---|---|---|---|
-| top 5,000 | 83.2 % (4,161) | **83.0 %** (4,151) | 81.4 % | +1.6 |
-| top 10,000 | 70.8 % (7,082) | **70.7 %** (7,066) | 68.8 % | +1.9 |
-| top 20,000 | 56.8 % (11,359) | **56.7 %** (11,341) | 54.5 % | +2.2 |
-| all 60,000 | 31.8 % (19,050) | 31.7 % (19,023) | — | — |
+| top 5,000 | 83.2 % (4,161) | **83.0 %** (4,150) | 81.4 % | +1.6 |
+| top 10,000 | 70.8 % (7,082) | **70.7 %** (7,065) | 68.8 % | +1.9 |
+| top 20,000 | 56.8 % (11,359) | **56.7 %** (11,340) | 54.5 % | +2.2 |
+| all 60,000 | 31.8 % (19,050) | 31.7 % (19,022) | — | — |
 
-19,023 glossed lemmas: 4,560 definitions (24.0 %), 13,185 direct, 1,278 inverted; of the glossed top
-10,000 (7,066), 2,850 definitions, 3,963 direct, 253 inverted — 59.7 % from a table (59.8 %
-before). 12,174 expressions. The pack: 1,970,716 B (−2,691). No row of the card is empty or ends on an
-opening mark under the row cut (`rowGloss`, measured on the 19,023 rows).
+19,022 glossed lemmas: 4,559 definitions (24.0 %), 13,185 direct, 1,278 inverted; of the glossed top
+10,000 (7,065), 2,849 definitions, 3,963 direct, 253 inverted — 59.7 % from a table (59.8 %
+before). 12,174 expressions. The pack: 1,971,286 B (−2,121). No row of the card is empty or ends on an
+opening mark under the row cut (`rowGloss`, measured on the 19,022 rows).
 
 ## Decisions
 
@@ -104,13 +111,18 @@ The rules run in `reduce-fr-es.py` and nowhere else, as 48b's run in fr-en's:
   inverted table's names and acronyms and the named other-sense words (D4);
 - `read_translated` lists the direct table's words once (D3) and leaves out the French word
   (D5);
-- `with_etc_period`, a post-pass over the reduced glosses and expressions (D6).
+- `with_etc_period`, a post-pass over the reduced glosses and expressions (D6), and
+  `label_expressions`, one over the section's expressions after the shared rules cut them (D2);
+- `CORRECTIONS`, the sources' slips corrected as the section and the direct table are read (D7);
+- `treebank_order`, a pre-pass over the section's entries after `french_entries`, from a module of
+  French's treebank counts, `reduce_french_treebank.py` (D8).
 
 *Why not the Spanish edition.* Labels, the translation tables' words and « etc. » would read better in
 en-es too (24b's Q1 and Q4 are open), but a rule of `reduce_edition_es.py` re-pins en-es, which must
 not move here; where one suits en-es it is named for en-es's own refinement. *Why not
 `reduce_common.py`.* Every pair's digest. fr-es's digest is `reduce-fr-es.py`, `reduce_common.py` and
-`reduce_edition_es.py`: only the first is edited, so only fr-es re-pins.
+`reduce_edition_es.py`, and this change adds `reduce_french_treebank.py`, which no other pair loads:
+only fr-es re-pins.
 
 ### D2 — A sense shows its register, its age and its place, in the edition's words
 
@@ -161,9 +173,25 @@ sense; measured, no:
 The label says what the order cannot. The senses the edition marks outdated or obsolete stay after the
 current ones of their entry (24b's D5, already fr-es's): « rien »'s « Algo » after « Poca cosa ».
 
-**Words only.** An expression's senses are cut at 42 characters by the shared rules; with its label,
-39 of the 59 labelled expression senses would lose words (« mal aux cheveux » « (anticuado) Resaca,
-caña, chaqui, chuchaqu »). Whether expressions take them anyway is Open Question 1.
+**Expressions too, outside the cut** (the owner, 2026-10-10). The cut of an expression is the pack's,
+not the card's: `reduce_common.reduce_expressions` keeps 42 characters of each sense, three senses,
+and 80 characters of the joined gloss; the card shows an expression's gloss whole on its card (pages of
+160 characters, `gloss-pages.ts`) and its first sense as a row (`rowGloss`, 80 characters). Labels
+written into the section before the shared rules read it would count in the 42: measured, 39 of the 59
+labelled expression senses would then lose words (« mal aux cheveux » « (anticuado) Resaca, caña,
+chaqui, chuchaqu »). So the section's expressions are reduced unlabelled, as today, and
+`label_expressions` labels them afterwards: it rebuilds the shared rules' choice of senses — the same
+round-robin, the same 42-character cleaning — and walks the joined gloss by their lengths, opening
+each sense, or the cut remnant of the last, on its source sense's labels. Measured: 59 expressions, 70
+senses labelled; stripped of their labels, all 59 glosses are the committed ones byte for byte, so the
+label costs the meaning no character — « mal aux cheveux » « (anticuado) Resaca, caña, chaqui,
+chuchaqui, cruda, go » keeps the 42 characters it had, « fils de pute » « (vulgar) Hijo de puta,
+hijoputa o máncer; (malsonante, despectivo) Bastardo, hijo de la chingada, hijo de la; (malsonante,
+despectivo) Obje » the 80 it had, « bon sang » « (coloquial) Caramba, diablos, joder, maldición,
+maldit ». The labelled gloss runs past the 80 characters in 13 of the 59 (the longest 139), as 48b's
+« etc. » runs one past: no part of the pack bounds an expression's gloss, none reaches the card's
+160-character page, and no expression's row is cut by the card's 80 characters. The shared 42 and 80
+still cut the meanings they cut before; changing them is every pair's (`reduce_common.py`).
 
 ### D3 — A word of the direct table listed once
 
@@ -229,7 +257,7 @@ source changes it.
 **What is lost**: 19 lemmas / 14 of the top 10,000 are left unglossed, two of them rightly glossed
 before (« usa », « éu »); 0.14 points of the top 10,000's coverage; 8 of them carry a French level
 (`us`, `pilote` A2; `rap`, `pa`, `ds` B1; `teint`, `excité`, `merlin` B2), so a card seeded from them
-carries no gloss (Open Question 3). No gloss is better than another sense's word (M5's « written by a
+would carry no gloss, until the seeding change skips them (D10). No gloss is better than another sense's word (M5's « written by a
 person » holds; « Secuestro » is not what `rap` means).
 
 *Rejected*, measured on the inverted table's 265 rows of the top 10,000 unless said:
@@ -296,76 +324,136 @@ commoner*: 75 rows, about 50 of them words Spanish writes alike (« portable »,
   pre-pass cannot keep it. 5 / 4 rows (« avec », « adresse », « regard », « cochon », « moucher »), no
   expression. The shared fix for every pair stays 24b's D8.
 - **`rien`** shows its labels (« (obsoleto) Algo », « (coloquial, irónico) Muy »); its « Pequeño
-  cantidad de algo » is the Spanish Wiktionary's own agreement slip (Open Question 2).
+  cantidad de algo » is the Spanish Wiktionary's own agreement slip, corrected (D7).
 
-### D7 — Measured and left
+### D7 — The sources' slips, corrected here
 
-- **The sources' own text** (change 49's sample and more): « amie » « Amia o lamia » — the section's
-  `amie` is the fish, the friend only « Forma del femenino singular de ami », a pointer, which the
-  shared rules read only when a word has no meaning of its own (111 / 77 rows hold both, nearly all
-  verb forms beside a noun: « école », « groupe »); « el » « Ella, ello o él », a French pronoun entry
-  of the section (no dictionary word of French, so it counts nowhere; « El » in a Spanish name opens
-  it); « hall » « Explanada », the French Wiktionary's only Spanish word for it; « il y a » « Hace »,
-  the section's one sense (the French Wiktionary's table has « hay » too, but a definition wins);
-  « rien »'s slip. Open Question 2.
+The owner settled on 2026-10-10 that the five rows the sources themselves write wrong are corrected in
+fr-es's reducer, reviewed, each with its reason, and reported upstream. `CORRECTIONS` holds them, each
+keyed by the source's text as the pinned files write it — the entry or the translation it replaces —,
+so that it fires on nothing once the page is corrected:
+
+| Row | The source writes | Read as | Why | Report to |
+|---|---|---|---|---|
+| `rien` (64), the noun | « Pequeño cantidad de algo. » | « Pequeña cantidad de algo. » | an agreement slip | the Spanish Wiktionary's « rien » |
+| `amie` (1,250), the noun | « Amia o lamia. » (the fish) alone; the friend only as « Forma del femenino singular de ami », a pointer the shared rules skip when the word has a meaning | « Amiga. », then « Amia o lamia. » | the commonest meaning missing; « amiga » is the French Wiktionary's own Spanish for `amie` | the Spanish Wiktionary's « amie » |
+| « il y a », the expression | « Hace. » | « Hay. », then « Hace. » | « there is » missing; « hay » is the French Wiktionary's own Spanish for it | the Spanish Wiktionary's « il y a » |
+| `el` (1,033) | the section's pronoun « Ella, ello o él. », and the French Wiktionary's table « elle » | no gloss | no French dictionary word: met in French text as the article of a Spanish or Arabic name (« El Niño »); the table's word is French | both |
+| `hall` (2,973) | the French Wiktionary's one Spanish word, « explanada » | « vestíbulo », « recibidor » | an esplanade is no entrance hall; the one correction no source supplies, its two words written here | the French Wiktionary's « hall » |
+
+4 / 4 rows (`rien`, `amie` « Amiga; Amia o lamia », `hall` « Vestíbulo, recibidor », and `el`, which
+loses its gloss) and one expression (« il y a » « Hay; Hace »). A correction is a gloss written by a
+person and read by the owner (M5's « written by a person »); three take their words from a source
+(the French Wiktionary's « amiga », « hay ») or from the slip itself (« Pequeña »). The pull request
+lists the five pages to correct on the Wiktionaries; once a page is corrected, the update that takes
+it in finds its correction firing on nothing, says so in its summary, and removes it.
+
+*Rejected — a rule.* No measured rule tells these from right glosses: the 111 / 77 rows holding a
+pointer beside a meaning are nearly all verb forms beside a noun (« école », « groupe »), where the
+meaning is right.
+
+### D8 — A function word's row opens on the part of speech UD French-GSD reads it as
+
+The owner settled on 2026-10-10 that fr-es takes 48b's D5. The section enters `pas`'s noun « Paso »
+before its adverb « No », `pendant`'s adjective « Pendiente » before its preposition « Durante »,
+`autour`'s noun « Halcón » (the goshawk) before its adverb « Alrededor ». `treebank_order` applies 48b's
+rule as 48b writes it, threshold and boundary alike: UD French-GSD's training and development sections
+counted — the auxiliary as a verb, a token inside a fixed expression for none, a noun, verb, adjective or
+proper noun under its lemma, any other part of speech under its own form, in lower case and NFC —; a
+headword's entries of its commonest part of speech written first when the treebank reads it **at least
+10 times and twice as often** as the part of speech of its first entry, and that part of speech is a
+**function word's** (`ADP`, `DET`, `PRON`, `CCONJ`, `SCONJ`, `PART`, `ADV`) or the first entry is a
+**proper noun's**; a proper noun never moved first, the other entries in their order.
+
+Measured: **9 / 9 rows**, all of the top 10,000 — the first sense of 7: `un` « Un; Un o uno; … »
+(the article first), `pas` « No; Paso », `pendant` « Durante; Pendiente; Juego… », `aucun` « Ninguno;
+Ninguno, nada », `autour` « Alrededor; Halcón », `envers` « Hacia; Con; El otro lado… », and
+`toutefois` « Todavía; sin embargo, no obstante », **the one that reads worse**: « todavía » means
+« nevertheless » only in a literary use the RAE records, and a reader takes it for « still »; the runs
+alone of 2: `que` « [conjunción] Que; [pronombre] Qué », `donc` « [adverbio] Pues, entonces… ». No row
+opening on a name moves: no section entry of fr-es qualifies. No lemma gains or loses a gloss.
+
+**Shared, without moving fr-en.** 48b's rule is not implemented yet; its design writes it in
+`reduce-fr-en.py`. fr-es cannot load that file — fr-en's every rule would enter fr-es's digest (change
+49 D1) —, and moving it out after 48b would edit fr-en's digest. So the counting and the decision are a
+module of their own, `reduce_french_treebank.py` (`gsd_pos_counts`, `commonest_first`, the thresholds
+and the set as named constants), which fr-es imports now and fr-en does not, so fr-en's digest does not
+move; 48b's implementation is handed the module to import instead of writing the rule again — fr-en is
+re-pinned by 48b anyway, so sharing it then moves nothing more. If 48b's implementation lands first with
+the rule in `reduce-fr-en.py`, this change's module is written from it, and the two copies are named in
+the pull request as one rule for fr-en's next refinement.
+
+**The source.** fr-es's pin records the two treebank files as fr-en's does: `pack_sources.PINNED`
+gains `fr-es` with the same `gsd-train` and `gsd-dev` (URL at the pinned commit, sha256), which the pin's
+`sources` record beside its kaikki files, untouched; a re-reduction fetches them, the reduce job's cache
+holding them once for both pairs. `pack_sources.py` is in no digest.
+
+### D9 — Measured and left
+
 - **A quantifier or a possessive headed as a pronoun**: « autre » « [pronombre] Otro » (the section's
   adjective repeats it and the round-robin keeps the first), « peu » « [pronombre] Pocos » (the section
   has no adverb), « leur » « Suyo, suya ». French's readings name invariable words under no part of
-  speech, so no rule here can tell the commoner heading; 24b's Q3 (quantifiers) is the same question
-  for en-es.
+  speech, and the treebank order reorders entries, not runs the round-robin merged, so no rule here can
+  tell the commoner heading; 24b's Q3 (quantifiers) is the same question for en-es.
 - **A note before the meaning** (46 / 23 rows, change 49): « (être + participio) Haber » says when
   « Haber » translates `être`; without it the sense would read as a wrong meaning. Kept, with change
   24's Q5 for en-es.
-- **48b's other decisions**: D8.
+- **48b's other decisions**: D10.
 
-### D8 — 48b's decisions, read for fr-es
+### D10 — 48b's decisions, read for fr-es
 
 | 48b | For fr-es |
 |---|---|
 | D1 — rules in the pair's reducer | The same: D1 here |
 | D2 — names are no French dictionary words | Reaches fr-es through `tables/fr/lexical.tsv`, which fr-es's pack carries as French's dictionary words: fr-es glosses 511 of the 3,586 lemmas fr-en glosses as names alone (297 of the top 10,000: « françois », « marie »), which stay glossed and stop counting, as in fr-en. Nothing here |
-| D3 — a level only for a dictionary word | French's levels are French's: fr-es reads them as committed. But 1,188 levelled lemmas have no Spanish gloss (1,198 after this change); a Spanish speaker's deck seeded from a level holds cards with none. Not fixable in fr-es's tables without making French's levels depend on a pair that is not French's reference: Open Question 3 |
+| D3 — a level only for a dictionary word | French's levels are French's: fr-es reads them as committed. But 1,188 levelled lemmas have no Spanish gloss (1,198 after this change); a Spanish speaker's deck seeded from a level would hold cards with none. Not fixable in fr-es's tables without making French's levels depend on a pair that is not French's reference: the owner settled on 2026-10-10 that seeding a deck by level skips a lemma the reader's pack does not gloss — a core change of its own, for every pair, not this one, required before change 52 ships French |
 | D4 — a pointer that carries its meaning | The Spanish edition writes few: « mieux » « Comparativo irregular de bien: mejor o más bien », « pis » « Comparativo de mal: peor », superlatives already glossed by the direct table (« rarissime » « Rarísimo »). Read as meanings, 2 rows would move (`mieux` « Mejor » under an adverb rather than the direct table's noun, `pis` gaining « Peor »). Left |
-| D5 — a function word's row opens on UD French-GSD's part of speech | fr-es reads no treebank. Transposed with fr-en's thresholds, 7 / 7 rows: `pas` « No; Paso », `pendant` « Durante; … », `envers` « Hacia; Con; … », `autour` « Alrededor; Halcón », `un`, `aucun` — and `toutefois` opening on « Todavía », worse. Open Question 4 |
+| D5 — a function word's row opens on UD French-GSD's part of speech | Taken, the same threshold and boundary, from a module both pairs can share: D8 |
 | D6 — no name under a function word | Nothing to do: no function word's row of fr-es holds a name's run (`le` « El », `on`) |
 | D7 — expressions left out or lent | None of `et des`, `que de`, `sur ce`, `un coup` is an expression of fr-es; `et si` « Y si » reads right. Of the six post-1990 spellings 48b lends a gloss, fr-es's tables gloss « à postériori », « et cétéra » and « être sur son trente-et-un » already; « à priori » and « sur son trente-et-un » meet nothing (« a priori » reads « A priori »). Lending them is 48b's rule for fr-en; 2 expressions, left |
-| D8 — notes, openers, citations, « etc. » | « etc. »: D6 here. The English edition's notes and openers do not occur in Spanish |
+| D8 — notes, openers, citations, « etc. » | « etc. »: D6 here. The English edition's notes and openers do not occur in Spanish; the Spanish section's « (Pronombre …) » note is D6's |
 
-### D9 — fr-es re-pinned alone, at its snapshot
+### D11 — fr-es re-pinned alone, at its snapshot
 
-`build.sh --reduce fr-es` from `lingua-pack-sources-fr-es-2026.10.10`: the three files, nothing
-fetched. The pin keeps its `snapshot`, its `studied` record and its `sources` byte for byte; its
-`reducer` digest moves (`reduce-fr-es.py`), with `pack_version`
-(`2026.10.10+<digest[:7]>.e18e7e8`, the studied digest unchanged), the pack's sha256 and size.
+`build.sh --reduce fr-es` from `lingua-pack-sources-fr-es-2026.10.10` and UD French-GSD's two pinned
+files (D8), nothing else fetched. The pin keeps its `snapshot`, its `studied` record and its three
+kaikki files' records byte for byte, and its `sources` gain `gsd-train` and `gsd-dev`, as fr-en's
+record them; its `reducer` digest moves (`reduce-fr-es.py`, and `reduce_french_treebank.py` added to its
+`files`), with `pack_version` (`2026.10.10+<digest[:7]>.e18e7e8`, the studied digest unchanged), the
+pack's sha256 and size.
 `gloss_coverage.py --pair fr-es` holds `FLOORS["fr-es"]` (*Measured*: 83.0 / 70.7 / 56.7 %). `tables/fr-es/README.md` —
-the figures, the rules and what each moves, the two lists, *Known data defects* rewritten as fixed and
-left — and `SOURCES.md` follow.
+the figures, the rules and what each moves, the three lists, *Known data defects* rewritten as fixed and
+left — and `SOURCES.md` (fr-es reads UD French-GSD) follow.
 
-### D10 — What moves, what cannot, and in which order
+### D12 — What moves, what cannot, and in which order
 
 - **What moves**: fr-es's `gloss.tsv`, `senses.tsv`, `mwe.tsv`, `manifest.json`, `pin.json`,
-  `README.md`. No golden or snapshot reads fr-es's glosses: `fr-en.golden` is an English-native
+  `README.md`; `pack_sources.PINNED` gains fr-es's treebank files. No golden or snapshot reads fr-es's glosses: `fr-en.golden` is an English-native
   reader's (fr-en beside es-en); change 51's `fr-es.golden` is not written; `selection-rows-fr.txt`
   pins en-fr's and es-fr's rows. `cross_native.rs` (`maison` « Casa », `quant` glossed and no
   dictionary word, the studied sections alike) and `committed_tables.rs` (`maison`, `et` « Y, e »,
   fr-es's pack against its pin) pass with the new pin; `row-gloss-tables.spec.ts` runs as the gate.
 - **What cannot move**: en-fr, es-fr, es-en, en-es and fr-en — no file of their rule digests is
-  edited; `tables/fr/` — fr-es reads it; the builder, the core, the extension.
+  edited, and the new module is in fr-es's alone; `tables/fr/` — fr-es reads it; the builder, the core,
+  the extension.
 - **48b** re-reduces fr-es too (its pin's `studied` record: `lexical.tsv`, `level.tsv`); none of
   this change's rules reads either table, so fr-es's glosses are the same either way, and whichever of
-  the two lands second re-records fr-es's pin and pack on its branch.
+  the two lands second re-records fr-es's pin and pack on its branch. The treebank module: D8.
+- **The seeding change** (the owner, 2026-10-10): a core change of its own, for every pair, before 52
+  ships French; it moves no table of this change.
 - **51**: if its fr-es golden and `word-card-fr-es.txt` land first, they are re-blessed here, each
   moved line with its rule; otherwise 51 draws them from these tables.
 - **52** lists fr-es once this change has merged (its Open Question 4), and its `archiveAfter` gains
   this change.
 
-### D11 — Every moved row read
+### D13 — Every moved row read
 
 The pull request carries the prototype's comparison over the committed tables: every changed row of
-the top 10,000 (359 in the prototype) with its first differing sense and the rule that moved it, the
-changed and lost expressions, the 27 lemmas left unglossed, the rows D2's labels open (85), the rows
-whose heading D3 changes (« jeune », « parti »), and the two lists — `SPANISH_ALIKE` and
-`OTHER_SENSES` — for the owner, who approves the re-pin and reads them.
+the top 10,000 (371 in the prototype) with its first differing sense and the rule that moved it, the
+changed and lost expressions (the 59 labelled ones among them), the 28 lemmas left unglossed, the rows
+D2's labels open (85), the rows whose heading D3 changes (« jeune », « parti »), the treebank's 9 rows
+(« toutefois » named), and the three lists — `SPANISH_ALIKE`, `OTHER_SENSES` and `CORRECTIONS`, with the
+pages to report upstream — for the owner, who approves the re-pin and reads them.
 
 ## For the owner
 
@@ -375,31 +463,20 @@ a rule, what is lost measured (Q4); the French word dropped, loans kept (Q8). Th
 they left open: which labels and where from (D2), no reordering for a label (D2), which run keeps a
 word (D3), the rule and the list (D4), the threshold and the loanwords (D5).
 
-Open:
-1. **Labels on expressions.** Words show their labels; expressions could too — « fils de pute » would
-   read « (vulgar) Hijo de puta, hijoputa o máncer » —, but an expression's senses are cut at 42
-   characters by the rules every pair shares, so 39 of the 59 labelled expression senses would lose
-   words: « mal aux cheveux » would read « (anticuado) Resaca, caña, chaqui, chuchaqu ». Leave
-   expressions unlabelled for now (recommended), or label them anyway?
-2. **What the sources themselves write wrong.** « rien » reads « …; Pequeño cantidad de algo » (should
-   be « Pequeña »), « amie » « Amia o lamia » (a fish; « amiga » is missing), « el » « Ella, ello o
-   él », « hall » « Explanada », « il y a » « Hace » (no « Hay »). No rule can tell these from right
-   glosses. Correct the pages on the Spanish and French Wiktionaries (one edit each) and take them in
-   at fr-es's next update — the floor checked again —, or write the five rows here, reviewed, each
-   falling away once its page is corrected? `rien` is on change 52's list.
-3. **French levels with no Spanish gloss.** 1,198 of French's 8,302 levelled lemmas have no Spanish
-   gloss after this change (22 at A1: `parce`, `part`, `lors`, `afin`): a Spanish speaker seeding a
-   deck from A1 gets cards with no gloss. 48b fixes it for fr-en by taking those levels away; for fr-es
-   that would make French's levels depend on fr-es. Skip a lemma the reader's pack does not gloss when
-   seeding a deck (a change to the core of its own, before change 52 lists fr-es), or accept?
-4. **Function words by the treebank.** 48b opens fr-en's function-word rows on the part of speech UD
-   French-GSD reads most. fr-es could do the same by reading the same two treebank files (its pin
-   would record them as fr-en's does): « pas » would read « No; Paso » instead of « Paso; No »,
-   « pendant » « Durante; … », « autour » « Alrededor; Halcón » — 7 rows, one worse (« toutefois »
-   opening on « Todavía »). In this change, in a later one, or not?
+**This proposal's four questions, answered by the owner the same day:**
+1. **Labels on expressions — yes**, against the recommendation: written after the shared cut, so the
+   meaning keeps every character it had (D2).
+2. **The sources' five slips — corrected here**, reviewed, each with its reason, and reported upstream
+   (D7).
+3. **French levels with no Spanish gloss — seeding a review deck by level skips a lemma the reader's
+   pack does not gloss**: a core change of its own, for every pair, **not this one**, required before
+   change 52 ships French (D10).
+4. **Function words by the treebank — yes, for fr-es too**, 48b's threshold and boundary, from a module
+   fr-en can share without moving (D8).
 
-An answer that is a rule of fr-es's reducer joins this change before it merges, fr-es re-pinned
-again; any other is a follow-up named in the pull request.
+Still the owner's: approving what moves and reading the moved rows (task 5.1), and the three lists
+(5.2). A word moved from one side of a list to the other, or a correction reworded, joins this change
+before it merges, fr-es re-pinned again.
 
 ## Risks / Trade-offs
 
@@ -412,9 +489,15 @@ again; any other is a follow-up named in the pull request.
 - **[A loanword dropped as French]** → the candidates are a closed, measured class (24 rows), every
   one read by the owner, and a new one named in its update's pull request.
 - **[A list ages]** → each entry is keyed by the source's words and fires on nothing once the source
-  changes; the README names both lists.
+  changes; the README names the three lists, and an update names a correction that no longer fires.
+- **[A correction written here is a gloss no source wrote]** (`hall`) → one, read by the owner, its
+  page reported upstream; the others take their words from a source.
+- **[The treebank reorders a row for the worse]** (`toutefois` « Todavía ») → one of nine, named; 48b's
+  threshold and boundary kept, so fr-en and fr-es read their function words alike.
+- **[A labelled expression runs past 80 characters]** → 13 of 59, at most 139; nothing bounds it, the
+  card pages at 160.
 - **[48b, 51 and this change re-record fr-es]** → none reads another's output but through the
-  committed tables; whichever lands second re-reduces fr-es (D10).
+  committed tables; whichever lands second re-reduces fr-es (D12).
 
 ## Migration Plan
 
@@ -423,5 +506,6 @@ No reader holds a French pack before change 52: nothing to migrate. A rollback r
 
 ## Effort
 
-1.5–2.5 ideal days: the rules and their tests 1–1.5; the re-pin, the README and `SOURCES.md` 0.25–0.5;
-the comparison and the owner's sample 0.25–0.5.
+2–3 ideal days: the rules and their tests 1.25–1.75 (the expressions' labels, the corrections and the
+treebank module among them); the treebank's pin and the re-pin, the README and `SOURCES.md` 0.5; the
+comparison and the owner's sample 0.25–0.75.
