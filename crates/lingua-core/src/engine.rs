@@ -40,7 +40,7 @@ use crate::analysis::percent::{
 use crate::analysis::pipeline::{
     AnalysedToken, DocumentAnalysis, analyse_document, headword_reading, resolve_lemmas,
 };
-use crate::analysis::tokenize::tokenize;
+use crate::analysis::tokenize::{tokenize, without_soft_hyphens};
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
 use crate::packs::grammar::Tag;
@@ -751,7 +751,9 @@ pub struct WordGrammar {
 ///
 /// The written word goes through the page's tokeniser and pre-pass; the piece
 /// whose dictionary form is `lemma` — or the first, when none is — is the one
-/// whose readings are answered. The page analysis never calls this, so its
+/// whose readings are answered. A written word that yields no token is read
+/// without its soft hyphens, as the tokeniser reads every word
+/// (ignore-lingua-soft-hyphens D4). The page analysis never calls this, so its
 /// output, and `ANALYZER_VERSION`, stay where they are.
 pub fn word_grammar(
     written: &str,
@@ -767,7 +769,7 @@ pub fn word_grammar(
         .find(|token| resolve_lemmas(token, studied, lexicon).0 == lemma)
         .or_else(|| tokens.first())
         .map(|token| token.text.replace('\u{2019}', "'").to_lowercase())
-        .unwrap_or_else(|| written.trim().to_lowercase());
+        .unwrap_or_else(|| without_soft_hyphens(written).trim().to_lowercase());
     let pieces = if tokens.len() > 1 {
         tokens.into_iter().map(|token| token.text).collect()
     } else {
@@ -3113,7 +3115,7 @@ mod tests {
         let knowledge = KnowledgeState::new();
         let a = analyse_page_json(&blocks, EN, &with, &knowledge);
         assert_eq!(a, analyse_page_json(&blocks, EN, &without, &knowledge));
-        assert!(a.contains("\"analyzer_version\":\"1.1.0\""));
+        assert!(a.contains("\"analyzer_version\":\"1.2.0\""));
     }
 
     #[test]
@@ -3371,5 +3373,172 @@ mod tests {
         assert_eq!(ablativas.gloss, None);
         let phrase = gloss_phrase("ablativas", ES, &pack, &KnowledgeState::new());
         assert_eq!(phrase.tokens[0].gloss, None);
+    }
+
+    // ignore-lingua-soft-hyphens D4: the selection and the card read a word without its soft
+    // hyphens (U+00AD), and a page holding them is read as its clean text, spans aside. `~`
+    // stands for one, as `‧` does in the spec's scenarios.
+
+    fn shy(text: &str) -> String {
+        text.replace('~', "\u{AD}")
+    }
+
+    #[test]
+    fn spec_scenario_a_selection_and_a_card() {
+        const FIRST_PLURAL_IMPERFECT: &str =
+            "VERB|Mood=Ind|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin";
+        let pack = build_pack_with_grammar_for(
+            ES,
+            &[("cantábamos", "cantar")],
+            &["mañana", "cantar"],
+            &[("mañana", 300), ("cantar", 900)],
+            &[("mañana", "Matin; Demain"), ("cantar", "Chanter")],
+            &[("cantábamos", "cantar", FIRST_PLURAL_IMPERFECT)],
+            &[],
+            &[],
+        );
+        let mut knowledge = KnowledgeState::new();
+        for status in [None, Some(Status::Known(KnownSource::Manual))] {
+            if let Some(status) = status {
+                knowledge.set_status(ES, "mañana", status);
+            }
+            let selection = gloss_phrase(&shy("ma~ña~na"), ES, &pack, &knowledge);
+            assert_eq!(selection, gloss_phrase("mañana", ES, &pack, &knowledge));
+            assert_eq!(selection.tokens[0].surface, "mañana");
+            assert_eq!(selection.tokens[0].lemma, "mañana");
+            assert_eq!(selection.tokens[0].gloss.as_deref(), Some("Matin; Demain"));
+        }
+        let card = word_grammar(&shy("can~tá~ba~mos"), "cantar", ES, &pack);
+        assert_eq!(card, word_grammar("cantábamos", "cantar", ES, &pack));
+        assert_eq!(ud(&card.readings), [FIRST_PLURAL_IMPERFECT]);
+        assert!(card.pieces.is_empty());
+    }
+
+    #[test]
+    fn a_written_word_that_yields_no_token_is_read_without_its_soft_hyphens() {
+        // `x` alone is no token (a single letter the lexicon does not hold): the card falls
+        // back on the written word, read as the tokeniser reads every word.
+        let pack = build_pack_with_grammar(
+            &[],
+            &["ex"],
+            &[],
+            &[("x", "ex", "NOUN|Number=Sing")],
+            &[],
+            &[],
+        );
+        assert!(tokenize("x", EN, pack.lexicon()).is_empty());
+        let clean = word_grammar("x", "ex", EN, &pack);
+        assert_eq!(ud(&clean.readings), ["NOUN|Number=Sing"]);
+        assert_eq!(word_grammar(&shy(" x~ "), "ex", EN, &pack), clean);
+    }
+
+    /// `blocks` analysed, voted on and glossed with their soft hyphens as without them: every
+    /// answer the same, spans aside, and each span covering its word as written.
+    fn page_reads_as_clean(blocks: &[&str], studied: StudiedLanguage, pack: &Pack) -> PageAnalysis {
+        let written: Vec<String> = blocks.iter().map(|b| shy(b)).collect();
+        let clean: Vec<String> = blocks.iter().map(|b| b.replace('~', "")).collect();
+        let written: Vec<&str> = written.iter().map(String::as_str).collect();
+        let clean: Vec<&str> = clean.iter().map(String::as_str).collect();
+        assert_ne!(written, clean);
+        let knowledge = KnowledgeState::new();
+        let hyphenated = analyse_page(&written, studied, pack, &knowledge);
+        let plain = analyse_page(&clean, studied, pack, &knowledge);
+        assert!(plain.analysable);
+        let aside = |page: &PageAnalysis| {
+            let mut page = page.clone();
+            for token in &mut page.tokens {
+                (token.start, token.end) = (0, 0);
+            }
+            page
+        };
+        assert_eq!(aside(&hyphenated), aside(&plain));
+        for (h, p) in hyphenated.tokens.iter().zip(&plain.tokens) {
+            assert_eq!(
+                without_soft_hyphens(&written[h.block][h.start..h.end]),
+                &clean[p.block][p.start..p.end]
+            );
+        }
+        assert!(written.iter().any(|b| {
+            hyphenated
+                .tokens
+                .iter()
+                .any(|t| b[t.start..t.end].contains('\u{AD}'))
+        }));
+        for candidates in [
+            &[EN, ES][..],
+            &[ES, FR],
+            &[EN, FR],
+            &[EN, ES, FR],
+            &[FR, ES, EN],
+        ] {
+            assert_eq!(
+                crate::analysis::language::detect_document_language(&written, candidates, None),
+                crate::analysis::language::detect_document_language(&clean, candidates, None),
+            );
+        }
+        for block in blocks {
+            assert_eq!(
+                gloss_phrase(&shy(block), studied, pack, &knowledge),
+                gloss_phrase(&block.replace('~', ""), studied, pack, &knowledge)
+            );
+        }
+        hyphenated
+    }
+
+    #[test]
+    fn spec_scenario_a_page_holding_soft_hyphens() {
+        let english = build_pack(
+            &[("teams", "team"), ("went", "go"), ("couldn't", "could")],
+            &[
+                "the", "team", "go", "home", "early", "and", "code", "could", "not", "answer",
+            ],
+            &[("the", 1), ("go", 50), ("team", 900)],
+            &[("team", "Équipe"), ("answer", "Réponse; Répondre")],
+        );
+        let page = page_reads_as_clean(
+            &[
+                "The teams went ho~me ear~ly and the teams co~de the co~de at ho~me.",
+                "The team could~n't an~swer, and the teams went ho~me ear~ly.",
+            ],
+            EN,
+            &english,
+        );
+        assert_eq!(page.analyzer_version, ANALYZER_VERSION);
+        let spanish = build_pack_for(
+            ES,
+            &[("cosas", "cosa"), ("habrá", "haber")],
+            &[
+                "todo", "el", "mundo", "saber", "que", "mañana", "haber", "mucho", "cosa", "hacer",
+            ],
+            &[("el", 1), ("que", 2), ("mañana", 300)],
+            &[("mañana", "Matin; Demain"), ("cosa", "Chose")],
+            &[],
+        );
+        page_reads_as_clean(
+            &[
+                "To~do el mun~do sa~be que ma~ña~na ha~brá mu~chas co~sas que ha~cer.",
+                "Ma~ña~na ha~brá co~sas que ha~cer, y to~do el mun~do lo sa~be.",
+            ],
+            ES,
+            &spanish,
+        );
+        let french = build_pack_with_names(
+            FR,
+            FRENCH_FORMS,
+            FRENCH_LEMMAS,
+            &[("le", 1), ("de", 2), ("maison", 400)],
+            &[("maison", "house"), ("enfant", "child")],
+            &[],
+            &[],
+            None,
+        );
+        page_reads_as_clean(
+            &[
+                "L’en~fant a vu la mai~son du bou~lan~ger jus~qu’au soir, puis il a man~gé du pain.",
+                "Lors~qu’il est ren~tré à la mai~son, l’en~fant a~vait les mains plei~nes de pain.",
+            ],
+            FR,
+            &french,
+        );
     }
 }

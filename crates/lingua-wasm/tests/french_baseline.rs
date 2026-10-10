@@ -18,7 +18,8 @@
 //! French is a studied language with its own analysis (add-lingua-french-analysis, analyser
 //! `1.0.0`), at analyser `1.1.0` since its detection guard keeps Catalan, Occitan and Romanian
 //! blocks out (add-lingua-french-detection-guard): the `mixte` page's Occitan block is not
-//! analysed, its Catalan block whichlang reads as Italian. Its tokenisation pre-pass
+//! analysed, its Catalan block whichlang reads as Italian. At `1.2.0` since a word is read
+//! without its soft hyphens (ignore-lingua-soft-hyphens), which no page of the corpus holds. Its tokenisation pre-pass
 //! (add-lingua-french-tokenisation) reads the narrow no-break space as a space, splits an elided
 //! word from the word it is joined to and reads it as the word it stands for, each piece with its
 //! own span (`l'homme` → `le` + `homme`; `aujourd'hui` whole), `au`/`aux` as `à` + `le`/`les`
@@ -503,7 +504,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     let mut manifest: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&manifest_path).expect("manifest"))
             .expect("JSON");
-    assert_eq!(manifest["meta"]["analyzer_version"], "1.1.0");
+    assert_eq!(manifest["meta"]["analyzer_version"], "1.2.0");
     manifest["meta"]["analyzer_version"] = "0.0.9".into();
     std::fs::write(&manifest_path, manifest.to_string()).expect("written");
 
@@ -512,7 +513,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     };
     let message = refused.downcast_ref::<String>().expect("a formatted panic");
     assert!(
-        message.contains("pack built for analyzer 0.0.9 but this core is 1.1.0"),
+        message.contains("pack built for analyzer 0.0.9 but this core is 1.2.0"),
         "{message}"
     );
     assert!(

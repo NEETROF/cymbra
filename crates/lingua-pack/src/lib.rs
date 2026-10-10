@@ -2056,7 +2056,8 @@ mod tests {
         assert_eq!(pack.lexicon().lemma_of("l'homme"), Some("homme"));
         assert_eq!(pack.gloss("homme"), Some("man"));
         // Stamped with another language's version, it builds and the core refuses it: Spanish's,
-        // since English's `1.1.0` is French's own too (add-lingua-french-detection-guard).
+        // since English's version is French's own too (add-lingua-french-detection-guard,
+        // ignore-lingua-soft-hyphens).
         inp.meta.analyzer_version = lingua_core::analysis::SPANISH_ANALYZER_VERSION.into();
         let other = build_pack(&inp).expect("the builder does not check the version");
         assert!(Pack::load(&other).is_err());

@@ -257,7 +257,8 @@ question does not arise.
 
 ### D6 — Every analyser version is bumped
 
-English `1.1.0` → `1.2.0`, Spanish `1.3.0` → `1.4.0`, French `1.1.0` → `1.2.0`. On text holding a
+English `1.1.0` → `1.2.0`, Spanish `1.3.0` → `1.4.0` (`1.4.0` → `1.5.0` as implemented: change 42c
+bumped it first), French `1.1.0` → `1.2.0`. On text holding a
 soft hyphen, the change moves each language's tokens, dictionary forms, classes, counts, gate and
 vote (Measurement). The core's rule, *An analyser version per studied language*, bumps the version of
 every language whose output a change can alter, and every pack is compared with its language's
@@ -327,6 +328,16 @@ re-blessed once, and every Lingua Rust test run. What moved is this, and nothing
 
 The programme's rule is that en-fr and es-fr output does not move. Here it moves on the version
 alone, with the owner's approval in this change's pull request (task 6.1).
+
+**As implemented**, on `main` `46450468`, after changes 42c (Spanish at `1.4.0`), 49 (fr-es's tables)
+and 51 (`fr-es.golden`) landed, and again on `cbef3788` after #869 moved en-fr's, en-es's and fr-es's
+goldens (the same lines moving): Spanish moves `1.4.0` → `1.5.0`; the goldens move as above, line for
+line, and `fr-es.golden` on 19 lines (its pack line, its `beside en-es` line and the 17 analyses),
+each by its version alone; the six committed pairs are re-reduced, manifest and pin alone moving and
+sizes unchanged — en-fr `582f7762…`, en-es `a95af250…` and fr-en `d013a548…` as the scratch built them,
+es-fr `6a7ef217…`, es-en `2044e767…` and fr-es `3b015cd2…` (1,973,407 bytes) at the new Spanish and
+French versions —, each re-stamped back to its old version giving its old pin byte for byte; the
+fixtures' digests are en-fr `ebb1f3c7…`, en-es `51066821…`, es-fr `a0f0db9b…`, es-en `6868b62b…`.
 
 ### D8 — Tests
 

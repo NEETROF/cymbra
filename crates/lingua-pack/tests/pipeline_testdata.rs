@@ -180,28 +180,30 @@ fn spec_scenario_the_english_and_spanish_fixtures_keep_their_bytes() {
     // of one key and the names section are French's alone. Each English and Spanish fixture builds,
     // as its manifest stands, to the bytes it built to before them (sha256 recorded on `main` at
     // da94a82e), and carries no expression name. The Spanish fixtures' bytes moved since with
-    // Spanish's analyser version alone, `1.4.0` (refine-lingua-spanish-galician-markers D5).
+    // Spanish's analyser version alone, `1.4.0` (refine-lingua-spanish-galician-markers D5), and
+    // every fixture's with its language's version alone, English's `1.2.0` and Spanish's `1.5.0`
+    // (ignore-lingua-soft-hyphens D7); the sizes never moved.
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
             "en-fr",
             1932,
-            "d5c85ef9d875e6ea179e2e833aa0b760cc104bf3bc12894ef64664d2407384aa",
+            "ebb1f3c73848c5aebfa9f0c37b711662f0f23362004c9575b9e103fc2bae62ad",
         ),
         (
             "en-es",
             1985,
-            "516afb7fc75724353922c8e731aa5398d258dd15a3288127acffc67d40cb8d73",
+            "51066821d8564f54c2a2b5a320e7878aed0263758f14ff15557aa48ffde52c00",
         ),
         (
             "es-fr",
             1342,
-            "652ab1416342b2ca485a89193ebdb4f96481642efab9ae20352bf82337ea31f5",
+            "a0f0db9bb6a1088391e3a7ff086bd07ac2ebf48cd8957ff7412e153f6ffb0c3f",
         ),
         (
             "es-en",
             1356,
-            "636e693eb728c0ef65aed4badf5472f18d00f73eb9e38d89927a7afa6c82e77d",
+            "6868b62b0f3531897c89453a3b612a7f7fafc9eff0cf4c38aa8f873a580800d9",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

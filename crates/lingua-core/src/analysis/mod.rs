@@ -46,7 +46,9 @@ pub mod tokenize;
 /// This is ENGLISH's version: each studied language has its own
 /// ([`language::StudiedLanguage::analyzer_version`]), so a change to one
 /// language's rules never moves another's (generalise-lingua-analysis-by-language).
-pub const ANALYZER_VERSION: &str = "1.1.0";
+/// `1.2.0` since ignore-lingua-soft-hyphens reads a word without its soft hyphens
+/// (U+00AD), a rule every studied language shares.
+pub const ANALYZER_VERSION: &str = "1.2.0";
 
 /// Spanish's analyser version: `1.0.0` when add-lingua-spanish-analysis wrote
 /// its pre-pass (NFC, `al`/`del`) and its cascade (old spellings, enclitics, the
@@ -55,8 +57,9 @@ pub const ANALYZER_VERSION: &str = "1.1.0";
 /// `1.2.0` since add-lingua-spanish-names sets a document's names aside;
 /// `1.3.0` since add-lingua-spanish-occitan-guard keeps Occitan blocks out;
 /// `1.4.0` since refine-lingua-spanish-galician-markers keeps Spanish's *da* and
-/// *das* from reading as Galician.
-pub const SPANISH_ANALYZER_VERSION: &str = "1.4.0";
+/// *das* from reading as Galician; `1.5.0` since ignore-lingua-soft-hyphens
+/// reads a word without its soft hyphens.
+pub const SPANISH_ANALYZER_VERSION: &str = "1.5.0";
 
 /// French's analyser version: `0.1.0` when French was served by the baseline
 /// analysis alone (add-lingua-french-baseline); `0.2.0` since
@@ -71,5 +74,6 @@ pub const SPANISH_ANALYZER_VERSION: &str = "1.4.0";
 /// unlisted singular (`analysis/french.rs`), its six closed classes flag a phrase gloss's
 /// function words, « pas » among them, and a French document's names are set
 /// aside (`engine::document_names`); `1.1.0` since add-lingua-french-detection-guard
-/// keeps Catalan, Occitan and Romanian blocks out (`language::romance_neighbour`).
-pub const FRENCH_ANALYZER_VERSION: &str = "1.1.0";
+/// keeps Catalan, Occitan and Romanian blocks out (`language::romance_neighbour`);
+/// `1.2.0` since ignore-lingua-soft-hyphens reads a word without its soft hyphens.
+pub const FRENCH_ANALYZER_VERSION: &str = "1.2.0";

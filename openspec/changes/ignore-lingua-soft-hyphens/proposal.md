@@ -61,8 +61,8 @@ meaningless percentage, and in Spanish whole paragraphs left unread.
   and the votes over every corpus have the same digests as on `main`, and the 689 tests of
   lingua-core, lingua-pack and lingua-wasm pass without re-blessing, the five goldens among them.
   The cost on such text is within 2 % of today's page analysis, native.
-- **Every analyser version is bumped** (D6): English `1.1.0` → `1.2.0`, Spanish `1.3.0` → `1.4.0`,
-  French `1.1.0` → `1.2.0`. The change alters each language's output on text that holds a soft
+- **Every analyser version is bumped** (D6): English `1.1.0` → `1.2.0`, Spanish `1.3.0` → `1.4.0`
+  (`1.4.0` → `1.5.0` as implemented, change 42c having bumped it first), French `1.1.0` → `1.2.0`. The change alters each language's output on text that holds a soft
   hyphen.
 - **What moves** (D7), measured with the bump: in the five goldens, the version alone, on 16, 16,
   19, 18 and 19 lines (en-fr, en-es, es-fr, es-en, fr-en). Every committed pair's `manifest.json`

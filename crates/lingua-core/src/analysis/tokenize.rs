@@ -29,6 +29,17 @@
 //! writes every token's text composed, each span still the source's
 //! (add-lingua-french-analysis D1). Adding a studied language means adding a
 //! pre-pass, not touching the tokeniser.
+//!
+//! Every language reads a word without the soft hyphens (U+00AD) an e-book or a
+//! page hides inside it to let a line break there (« vi‧da », ‧ standing for the
+//! invisible character): UAX #29 keeps them inside their word, and each rule then
+//! reads the word through [`without_soft_hyphens`] — edge apostrophes, digits,
+//! NFC, `n't`, `al`/`del`, French's elisions, `au`/`aux`, listed runs and
+//! inversions —, so a token's text, and its parts, hold none. Its span stays the
+//! source's, soft hyphens included, as a composed French token's does
+//! (ignore-lingua-soft-hyphens D1–D2).
+
+use std::borrow::Cow;
 
 use serde::Serialize;
 use unicode_normalization::UnicodeNormalization;
@@ -44,11 +55,14 @@ use super::lexicon::Lexicon;
 /// French elision and the words of a French inversion each have their own
 /// (`L'homme` → `Le` [0, 2) + `homme` [2, 7); `a-t-il` → `a` [0, 1) + `il`
 /// [4, 6)), so a click lands on the piece under the pointer
-/// (add-lingua-french-tokenisation D6).
+/// (add-lingua-french-tokenisation D6). The text is the word without its soft
+/// hyphens, the span the source's with them: « vi‧da » is `vida` [0, 6)
+/// (ignore-lingua-soft-hyphens D2).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Token {
     /// Surface text after the pre-pass (e.g. `do`, `not`, `Teams`). For a
     /// hyphenated compound it is the whole run, hyphens included (`repo-wide`).
+    /// It never holds a soft hyphen (U+00AD).
     pub text: String,
     /// Byte offset of the token's source in the analysed text.
     pub start: usize,
@@ -60,6 +74,33 @@ pub struct Token {
     /// as well as its weakest part.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub parts: Vec<String>,
+}
+
+/// U+00AD SOFT HYPHEN: an invisible break point an e-book or a page may hide
+/// inside a word (calibre's *Add soft hyphens*, HTML's `&shy;`).
+pub const SOFT_HYPHEN: char = '\u{AD}';
+
+/// `text` without its soft hyphens (ignore-lingua-soft-hyphens D2): borrowed when
+/// it holds none, which is what every text without them pays; a copy without them
+/// otherwise. The tokeniser reads every word through it, and detection every
+/// block (`language::block_is_studied`, `language::detect_document_language`).
+///
+/// U+00AD is `C2 AD` in UTF-8: a text without the byte `AD` holds none, which one
+/// byte search tells — every English word, and most others — before the
+/// character search confirms one (`í` is `C3 AD`).
+pub fn without_soft_hyphens(text: &str) -> Cow<'_, str> {
+    if text.as_bytes().contains(&0xAD) && text.contains(SOFT_HYPHEN) {
+        Cow::Owned(text.replace(SOFT_HYPHEN, ""))
+    } else {
+        Cow::Borrowed(text)
+    }
+}
+
+/// Whether the text between two words is the single hyphen of a compound, a soft
+/// hyphen UAX #29 glued to it read as nowhere (`-‧` is three bytes; the common
+/// gap, a space, is answered by its length).
+fn is_hyphen(gap: &str) -> bool {
+    gap == "-" || (gap.len() > 1 && without_soft_hyphens(gap) == "-")
 }
 
 /// Contractions whose base changes when `n't` is peeled off. Everything else
@@ -104,11 +145,12 @@ pub fn tokenize(
         // Absorb pieces joined to this one by a single hyphen: `repo-wide`,
         // `state-of-the-art`. Exactly one `-` is the hyphenation mark — a space
         // ends the run, and so does a `--`/`---` run (the ASCII em-dash / range,
-        // not a compound).
+        // not a compound). A soft hyphen UAX #29 glued to the hard one is read
+        // without, as everywhere (ignore-lingua-soft-hyphens D2).
         let mut j = i + 1;
         while j < words.len() {
             let (next_start, next) = words[j];
-            if &text[end..next_start] != "-" {
+            if !is_hyphen(&text[end..next_start]) {
                 break;
             }
             end = next_start + next.len();
@@ -150,7 +192,8 @@ pub fn tokenize(
 /// letter ([`french_cased`]): `à` is two bytes where `A` is one, and the slice
 /// would panic. For French, what reaches this is the word that remains — the
 /// rules every language shares, its text composed; its span stays the source's,
-/// combining marks included.
+/// combining marks included. Every rule reads the word without its soft hyphens,
+/// so « could‧n't » is `could` + `not` (ignore-lingua-soft-hyphens D2).
 fn push_word(
     tokens: &mut Vec<Token>,
     word: &str,
@@ -159,7 +202,7 @@ fn push_word(
     language: StudiedLanguage,
     lexicon: &(impl Lexicon + ?Sized),
 ) {
-    let normalized = word.replace('\u{2019}', "'");
+    let normalized = without_soft_hyphens(word).replace('\u{2019}', "'");
     let trimmed = normalized.trim_matches('\'');
     if trimmed.is_empty() || trimmed.chars().any(|c| c.is_ascii_digit()) {
         return;
@@ -223,7 +266,8 @@ fn nfc_for(word: &str, language: StudiedLanguage) -> String {
 /// word (`utf-8`, `well-being-2`). Rather than drop the whole run — which would
 /// swallow clean neighbours like `well`/`being` — it degrades to per-piece
 /// tokenisation, identical to no fusion: the clean pieces survive, the
-/// digit-bearing ones are dropped by [`push_word`]'s own digit rule.
+/// digit-bearing ones are dropped by [`push_word`]'s own digit rule. The
+/// compound's text and its parts are read without their soft hyphens.
 fn push_compound(
     tokens: &mut Vec<Token>,
     whole: &str,
@@ -247,10 +291,13 @@ fn push_compound(
         return;
     }
     tokens.push(Token {
-        text: nfc_for(whole, language),
+        text: nfc_for(&without_soft_hyphens(whole), language),
         start,
         end,
-        parts: pieces.iter().map(|(_, w)| nfc_for(w, language)).collect(),
+        parts: pieces
+            .iter()
+            .map(|(_, w)| nfc_for(&without_soft_hyphens(w), language))
+            .collect(),
     });
 }
 
@@ -354,11 +401,12 @@ pub const FRENCH_INVERSION_PRONOUNS: &[&str] = &[
 /// The pronouns the euphonic `t` is written before: `a-t-il`, `pense-t-elle`.
 const AFTER_EUPHONIC_T: &[&str] = &["elle", "elles", "il", "ils", "on"];
 
-/// A French written piece as the pre-pass compares it: lowercase and in NFC, so a
-/// decomposed `ç'` is the elided `ç'` and a decomposed `peut-être` the run the
-/// pack lists (add-lingua-french-analysis D1).
+/// A French written piece as the pre-pass compares it: without its soft hyphens,
+/// lowercase and in NFC, so a decomposed `ç'` is the elided `ç'`, a decomposed
+/// `peut-être` the run the pack lists (add-lingua-french-analysis D1) and
+/// « lors‧qu » the elided `lorsqu` (ignore-lingua-soft-hyphens D2).
 fn french_lowercase(written: &str) -> String {
-    written.to_lowercase().nfc().collect()
+    without_soft_hyphens(written).to_lowercase().nfc().collect()
 }
 
 /// The straight and the typographic apostrophe, the two French text is written
@@ -387,10 +435,10 @@ fn french_words(text: &str) -> Vec<(usize, &str)> {
 /// `read` with the capital of `written`'s first letter put on its own first
 /// letter: `L'` → `Le`, `Qu'` → `Que`, `Au` → `À` (D4). [`push_word`]'s casing
 /// slices its base at the written letter's byte length, which `à` under `A`
-/// cannot take.
+/// cannot take. A soft hyphen before that letter is no letter.
 fn french_cased(read: &str, written: &str) -> String {
     let mut letters = read.chars();
-    match (written.chars().next(), letters.next()) {
+    match (written.chars().find(|&c| c != SOFT_HYPHEN), letters.next()) {
         (Some(capital), Some(first)) if capital.is_uppercase() => {
             first.to_uppercase().chain(letters).collect()
         }
@@ -419,7 +467,9 @@ fn french_elided_word(written: &str, next: &str, after_hyphen: bool) -> Option<&
 /// its letters and its apostrophe — a combining mark among them, the written piece
 /// being looked up composed —, and the rule runs again on what follows, as long as
 /// a letter follows the apostrophe. Returns where the rest starts and the rest.
-/// `after_hyphen`: the word is a piece after a hyphen.
+/// `after_hyphen`: the word is a piece after a hyphen. A soft hyphen is read as
+/// nowhere, in the elided piece, in the word after it and right after the
+/// apostrophe (ignore-lingua-soft-hyphens D2).
 fn push_french_elisions<'a>(
     tokens: &mut Vec<Token>,
     word: &'a str,
@@ -431,11 +481,15 @@ fn push_french_elisions<'a>(
     while let Some((i, apostrophe)) = rest.char_indices().find(|&(_, c)| is_apostrophe(c)) {
         let written = &rest[..i];
         let after = &rest[i + apostrophe.len_utf8()..];
-        if !after.starts_with(char::is_alphabetic) {
+        if !after
+            .trim_start_matches(SOFT_HYPHEN)
+            .starts_with(char::is_alphabetic)
+        {
             break;
         }
         let next: String = after
             .chars()
+            .filter(|&c| c != SOFT_HYPHEN)
             .take_while(|c| c.is_alphabetic())
             .flat_map(char::to_lowercase)
             .collect();
@@ -527,18 +581,19 @@ fn listed_whole(run: &str, lexicon: &(impl Lexicon + ?Sized)) -> bool {
 /// Whether the pieces after a run's first are an inversion's (D5): each a
 /// pronoun written in lowercase, or an elided `m'`, `t'` or `l'` before `en` or
 /// `y`, the euphonic `t` allowed right before `il`, `elle`, `on`, `ils` or
-/// `elles`. A capital anywhere is a name or text set in capitals.
+/// `elles`. A capital anywhere is a name or text set in capitals. Each piece is
+/// read without its soft hyphens.
 fn is_french_inversion(tail: &[(usize, &str)]) -> bool {
     !tail.is_empty()
         && tail.iter().enumerate().all(|(k, &(_, piece))| {
             if piece.chars().any(char::is_uppercase) {
                 return false;
             }
-            let piece = piece.replace('\u{2019}', "'");
+            let piece = without_soft_hyphens(piece).replace('\u{2019}', "'");
             match piece.as_str() {
-                "t" => tail
-                    .get(k + 1)
-                    .is_some_and(|&(_, next)| AFTER_EUPHONIC_T.contains(&next)),
+                "t" => tail.get(k + 1).is_some_and(|&(_, next)| {
+                    AFTER_EUPHONIC_T.contains(&without_soft_hyphens(next).as_ref())
+                }),
                 pronoun if FRENCH_INVERSION_PRONOUNS.binary_search(&pronoun).is_ok() => true,
                 elided => matches!(elided.split_once('\''), Some(("m" | "t" | "l", "en" | "y"))),
             }
@@ -583,7 +638,7 @@ fn push_french_run(
     if !listed_whole(whole, lexicon) && is_french_inversion(&rest[1..]) {
         push_french_word(tokens, text, head, head_start, lexicon);
         for &(at, piece) in &rest[1..] {
-            if piece == "t" {
+            if without_soft_hyphens(piece) == "t" {
                 continue;
             }
             let (at, piece) = push_french_elisions(tokens, piece, at, true);
@@ -1359,5 +1414,190 @@ mod tests {
             .expect("compound present");
         assert_eq!(compound.text, "x-ray");
         assert_eq!(compound.parts, ["x", "ray"]);
+    }
+
+    // ignore-lingua-soft-hyphens: a soft hyphen (U+00AD) is not part of a word. In these
+    // tests `~` stands for one, as `‧` does in the spec's scenarios.
+
+    /// `text` with a soft hyphen for each `~`.
+    fn shy(text: &str) -> String {
+        text.replace('~', "\u{AD}")
+    }
+
+    /// `text` tokenised with its soft hyphens and without them: the same texts and parts, and
+    /// each span covering, as written, the word the clean span covers. Returns the hyphenated
+    /// text and its tokens.
+    fn reads_as_clean(
+        text: &str,
+        language: StudiedLanguage,
+        lexicon: &(impl Lexicon + ?Sized),
+    ) -> (String, Vec<Token>) {
+        let written = shy(text);
+        let clean = text.replace('~', "");
+        assert_ne!(written, clean, "{text} holds no soft hyphen");
+        let hyphenated = tokenize(&written, language, lexicon);
+        let plain = tokenize(&clean, language, lexicon);
+        assert_eq!(texts(&hyphenated), texts(&plain), "{text}");
+        for (h, p) in hyphenated.iter().zip(&plain) {
+            assert_eq!(h.parts, p.parts, "{text}");
+            assert!(
+                !h.text.contains(SOFT_HYPHEN) && h.parts.iter().all(|w| !w.contains(SOFT_HYPHEN)),
+                "{text}"
+            );
+            assert_eq!(
+                without_soft_hyphens(&written[h.start..h.end]),
+                &clean[p.start..p.end],
+                "{text}: {}",
+                h.text
+            );
+        }
+        (written, hyphenated)
+    }
+
+    #[test]
+    fn without_soft_hyphens_borrows_when_there_is_nothing_to_strip() {
+        assert!(matches!(
+            without_soft_hyphens("vida"),
+            Cow::Borrowed("vida")
+        ));
+        assert!(matches!(without_soft_hyphens(""), Cow::Borrowed("")));
+        // `í` is `C3 AD`: its byte `AD` is no soft hyphen.
+        assert!(matches!(
+            without_soft_hyphens("aquí"),
+            Cow::Borrowed("aquí")
+        ));
+        assert!(!is_hyphen(" ") && is_hyphen("-") && is_hyphen("-\u{AD}") && !is_hyphen("--"));
+        let stripped = without_soft_hyphens("\u{AD}vi\u{AD}\u{AD}da\u{AD}");
+        assert!(matches!(stripped, Cow::Owned(_)));
+        assert_eq!(stripped, "vida");
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_word_read_whole() {
+        let (written, tokens) = reads_as_clean("vi~da", StudiedLanguage::Spanish, &lexicon());
+        assert_eq!(texts(&tokens), ["vida"]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 6));
+        assert_eq!(&written[0..6], written);
+    }
+
+    #[test]
+    fn spec_scenario_a_french_line_is_read_as_its_words() {
+        let line = "On a chan~té en~semble jus~qu’au ma~tin, per~sonne n’a vou~lu dor~mir.";
+        let (written, tokens) = reads_as_clean(line, FR, &french_lexicon());
+        assert_eq!(
+            texts(&tokens),
+            [
+                "On", "a", "chanté", "ensemble", "jusque", "à", "le", "matin", "personne", "ne",
+                "a", "voulu", "dormir"
+            ]
+        );
+        // `jusque` spans « jus‧qu’ » as written, `à` and `le` the « au » they share.
+        let spans: Vec<&str> = tokens.iter().map(|t| &written[t.start..t.end]).collect();
+        assert_eq!(spans[4], shy("jus~qu’"));
+        assert_eq!((spans[5], spans[6]), ("au", "au"));
+        assert_eq!(spans[2], shy("chan~té"));
+    }
+
+    #[test]
+    fn spec_scenario_english_words_and_a_contraction() {
+        let line = "The gov~ern~ment could~n't an~swer the ques~tion yes~ter~day af~ter~noon.";
+        let (written, tokens) = reads_as_clean(line, StudiedLanguage::English, &lexicon());
+        assert_eq!(
+            texts(&tokens),
+            [
+                "The",
+                "government",
+                "could",
+                "not",
+                "answer",
+                "the",
+                "question",
+                "yesterday",
+                "afternoon"
+            ]
+        );
+        // `could` and `not` share the span of « could‧n't ».
+        assert_eq!(
+            (tokens[2].start, tokens[2].end),
+            (tokens[3].start, tokens[3].end)
+        );
+        assert_eq!(&written[tokens[2].start..tokens[2].end], shy("could~n't"));
+    }
+
+    #[test]
+    fn spec_scenario_a_french_elision() {
+        let (written, tokens) = reads_as_clean("lors~qu’il", FR, &french_lexicon());
+        assert_eq!(texts(&tokens), ["lorsque", "il"]);
+        assert_eq!((tokens[0].start, tokens[0].end), (0, 11));
+        assert_eq!((tokens[1].start, tokens[1].end), (11, 13));
+        assert_eq!(&written[0..11], shy("lors~qu’"));
+    }
+
+    #[test]
+    fn a_soft_hyphen_opening_a_block_ending_a_word_or_doubled() {
+        // UAX #29 gives a soft hyphen opening the text a segment of its own, and glues one after
+        // a space to that space: the word starts after it either way.
+        for language in StudiedLanguage::ALL {
+            let lex = if language == FR {
+                french_lexicon()
+            } else {
+                lexicon()
+            };
+            let (_, tokens) = reads_as_clean("~vida es~ ~bella", language, &lex);
+            assert_eq!(texts(&tokens), ["vida", "es", "bella"], "{language:?}");
+            assert_eq!((tokens[0].start, tokens[0].end), (2, 6));
+            assert_eq!((tokens[1].start, tokens[1].end), (7, 11), "{language:?}");
+            assert_eq!((tokens[2].start, tokens[2].end), (14, 19), "{language:?}");
+            let (_, tokens) = reads_as_clean("vi~~da", language, &lex);
+            assert_eq!(texts(&tokens), ["vida"]);
+            assert_eq!((tokens[0].start, tokens[0].end), (0, 8));
+        }
+    }
+
+    #[test]
+    fn every_rule_reads_the_word_without_its_soft_hyphens() {
+        let lex = lexicon();
+        let fr = french_lexicon();
+        let lines: &[(StudiedLanguage, &str)] = &[
+            // Edge apostrophes, a digit, a single letter, compounds, a digit-bearing run.
+            (
+                StudiedLanguage::English,
+                "'te~am' ab~c123 a~ b~ x-r~ay well-be~ing-2 co~de",
+            ),
+            // The irregular contractions keep their table.
+            (StudiedLanguage::English, "Won~'t can~'t ain~'t Do~n’t"),
+            // A soft hyphen right after a hard one belongs to the hyphen run.
+            (StudiedLanguage::English, "re~po-~wide state-of-~the-art"),
+            // `al`/`del`, NFC, a compound.
+            (
+                StudiedLanguage::Spanish,
+                "De~l mar a~l cen~tro Esta\u{301}~ al-an~da~lus",
+            ),
+            // Elisions, `au`/`aux`, an elided word alone, listed runs, inversions, the
+            // euphonic `t`, an elision before a compound, NFC.
+            (
+                FR,
+                "L’hom~me qu’on Au~x jus~qu’i~ci l’ s’~il ren~dez-vous peut-~être \
+                 dit-~il a-t~-il al~lez-vous-en mets-l’~y l’arc-en-ci~el c\u{327}~'a",
+            ),
+            // A soft hyphen right after the apostrophe of an elision.
+            (FR, "l’~homme d’~abord qu’~on"),
+        ];
+        for &(language, line) in lines {
+            let lexicon: &FstLexicon<Vec<u8>> = if language == FR { &fr } else { &lex };
+            reads_as_clean(line, language, lexicon);
+        }
+        // Spot checks of what those lines read.
+        let (_, tokens) = reads_as_clean("Won~'t", StudiedLanguage::English, &lex);
+        assert_eq!(texts(&tokens), ["Will", "not"]);
+        let (_, tokens) = reads_as_clean("De~l mar", StudiedLanguage::Spanish, &lex);
+        assert_eq!(texts(&tokens), ["De", "el", "mar"]);
+        let (_, tokens) = reads_as_clean("re~po-~wide", StudiedLanguage::English, &lex);
+        assert_eq!(texts(&tokens), ["repo-wide"]);
+        assert_eq!(tokens[0].parts, ["repo", "wide"]);
+        let (_, tokens) = reads_as_clean("peut-~être a-t~-il", FR, &fr);
+        assert_eq!(texts(&tokens), ["peut-être", "a", "il"]);
+        let (_, tokens) = reads_as_clean("l’~homme s’~il", FR, &fr);
+        assert_eq!(texts(&tokens), ["le", "homme", "si", "il"]);
     }
 }

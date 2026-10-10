@@ -3,7 +3,7 @@
     "studied": "en",
     "native": "es",
     "pack_version": "2026.10.08+8ba4a79.e1915ca",
-    "analyzer_version": "1.1.0",
+    "analyzer_version": "1.2.0",
     "licences": [
       "ESDB / SCOWLv2 (permissive, commercial use allowed; WordNet notice)",
       "wordfreq (CC BY-SA 4.0)",

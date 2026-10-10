@@ -281,6 +281,57 @@ describe("a session attached to a book section", () => {
   });
 });
 
+// A word an e-book or a page hides soft hyphens (U+00AD) in (ignore-lingua-soft-hyphens D5): the
+// core is handed the block as written and reads them away, its span covering the word as written;
+// the extension paints that span and hands the cards the word without them.
+describe("a word holding soft hyphens", () => {
+  const SHY = "\u00AD";
+  /** « La vi‧da es bella. », the core's span over « vi‧da »: bytes [3, 9), the hyphen two bytes. */
+  function hyphenated(blocks: string[]): PageAnalysis {
+    return {
+      analyzer_version: "1",
+      analysable: true,
+      tokens: [{ block: 0, start: 3, end: 9, surface: "vida", lemma: "vida", class: "Unknown", gloss: "vie" }],
+      counted: 5,
+      known: 4,
+      percent: blocks[0]?.includes(SHY) ? 80 : null,
+    };
+  }
+
+  it("is painted whole, and its card asks the grammar of the word without them", async () => {
+    const { s, port } = session();
+    const analysed: string[][] = [];
+    port.analyse = async (blocks) => {
+      analysed.push(blocks);
+      return hyphenated(blocks);
+    };
+    const wordGrammar = vi.spyOn(port, "wordGrammar");
+    await s.start(null);
+    const { host, registry } = section("<p>La vi&shy;da es bella.</p>");
+    await s.attach(host);
+    // The core reads the block as written, soft hyphen included…
+    expect(analysed.at(-1)).toEqual([`La vi${SHY}da es bella.`]);
+    // …and its span paints the whole word.
+    expect([...(registry.get(HL_UNKNOWN) ?? [])].map((r) => r.toString())).toEqual([`vi${SHY}da`]);
+
+    // A selection that stops inside the word: « vi ». The lift settles it. (jsdom lays nothing
+    // out: the card is anchored to an empty box.)
+    const box = { left: 0, top: 0, bottom: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) };
+    (host.win as unknown as { Range: typeof Range }).Range.prototype.getBoundingClientRect = () => box;
+    const node = host.doc.querySelector("p")!.firstChild!;
+    const range = host.doc.createRange();
+    range.setStart(node, 3);
+    range.setEnd(node, 5);
+    const sel = host.win.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    host.doc.body.dispatchEvent(new host.win.Event("mouseup", { bubbles: true }));
+    await vi.waitFor(() => expect(wordGrammar).toHaveBeenCalled());
+    expect(wordGrammar).toHaveBeenCalledWith("vida", "vida");
+    s.detach();
+  });
+});
+
 // Content that changes after the first paint (fix-lingua-dynamic-rescan): what reaches the page is
 // read, and a change that leaves every block's text as it was costs no analysis. The section's own
 // MutationObserver runs for real; jsdom has no IntersectionObserver, so every change counts as on

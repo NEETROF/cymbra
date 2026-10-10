@@ -6,7 +6,11 @@ import {
   SelectionWatcher,
   sentenceAndSelection,
   sentenceForRange,
+  withoutSoftHyphens,
 } from "@/reading/selection.ts";
+
+/** U+00AD SOFT HYPHEN, invisible inside an e-book's or a page's word (ignore-lingua-soft-hyphens). */
+const SHY = "\u00AD";
 
 beforeEach(() => {
   document.body.innerHTML = "";
@@ -145,6 +149,40 @@ describe("sentenceAndSelection", () => {
     const r = rangeOver("seldom", "<p>First sentence here. They seldom ship on Friday. A third one.</p>");
     expect(sentenceAndSelection(r).sentence).toBe(sentenceForRange(r));
   });
+
+  // ignore-lingua-soft-hyphens D5: the sentence a card keeps, translates and reads aloud holds no
+  // soft hyphen, and the selection's offsets still mark the word, wherever the hyphens are.
+  it("reads the sentence without its soft hyphens, the selection still marked in it", () => {
+    const html = `<p>Pri${SHY}me${SHY}ro. La vi${SHY}da em${SHY}pie${SHY}za cuan${SHY}do quie${SHY}res. Fin.</p>`;
+    const clean = "La vida empieza cuando quieres.";
+    // Soft hyphens before the selection, inside it, and after it.
+    for (const [selected, word] of [
+      [`cuan${SHY}do`, "cuando"],
+      [`vi${SHY}da em${SHY}pie${SHY}za`, "vida empieza"],
+      ["La", "La"],
+      [`quie${SHY}res`, "quieres"],
+    ] as const) {
+      const got = sentenceAndSelection(rangeOver(selected, html));
+      expect(got.sentence).toBe(clean);
+      expect(got.sentence).not.toContain(SHY);
+      expect(marked(got)).toBe(word);
+    }
+  });
+
+  it("marks a selection that starts or ends inside a hyphenated word by the letters it holds", () => {
+    // The range is not snapped here: it starts after the soft hyphen of « vi‧da ».
+    const r = rangeOver(`da em${SHY}pie`, `<p>La vi${SHY}da em${SHY}pie${SHY}za hoy.</p>`);
+    const got = sentenceAndSelection(r);
+    expect(got.sentence).toBe("La vida empieza hoy.");
+    expect(marked(got)).toBe("da empie");
+  });
+});
+
+describe("withoutSoftHyphens", () => {
+  it("drops every soft hyphen and nothing else", () => {
+    expect(withoutSoftHyphens(`${SHY}vi${SHY}${SHY}da${SHY}`)).toBe("vida");
+    expect(withoutSoftHyphens("repo-wide l’homme  x")).toBe("repo-wide l’homme  x");
+  });
 });
 
 describe("captureSelection", () => {
@@ -228,6 +266,51 @@ describe("captureSelection", () => {
       expect(cap.selected.endOffset).toBe(at + piece.length);
       expect(String(window.getSelection())).toBe(piece);
     }
+  });
+
+  // ignore-lingua-soft-hyphens D5: a selection that stops inside « vi‧da » snaps across the soft
+  // hyphen to the whole word, and the capture's text and sentence hold none.
+  it("snaps across a soft hyphen to the whole word, and captures it without", () => {
+    const full = `La vi${SHY}da em${SHY}pie${SHY}za hoy.`;
+    for (const [from, to] of [
+      ["La ".length, "La vi".length], // « vi »
+      [`La vi${SHY}`.length, `La vi${SHY}da`.length], // « da »
+      [`La vi${SHY}da em`.length, `La vi${SHY}da em${SHY}pi`.length], // inside « em‧pie‧za »
+    ] as const) {
+      document.body.innerHTML = `<p>${full}</p>`;
+      const textNode = document.querySelector("p")!.firstChild!;
+      const range = document.createRange();
+      range.setStart(textNode, from);
+      range.setEnd(textNode, to);
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      const cap = captureSelection()!;
+      const word = from < `La vi${SHY}da `.length ? "vida" : "empieza";
+      expect(cap.text).toBe(word);
+      expect(classifySelection(cap.text)).toBe("word");
+      expect(cap.sentence).toBe("La vida empieza hoy.");
+      expect(cap.selection && cap.sentence.slice(cap.selection.start, cap.selection.end)).toBe(word);
+      // The snapped range is the page's word as written, soft hyphens included.
+      expect(cap.range.toString()).toBe(word === "vida" ? `vi${SHY}da` : `em${SHY}pie${SHY}za`);
+    }
+  });
+
+  it("captures a phrase holding soft hyphens without them", () => {
+    const full = `Tie${SHY}ne que ver con la vi${SHY}da.`;
+    document.body.innerHTML = `<p>${full}</p>`;
+    const textNode = document.querySelector("p")!.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 1);
+    range.setEnd(textNode, full.indexOf("ver") + 1);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const cap = captureSelection()!;
+    expect(cap.text).toBe("Tiene que ver");
+    expect(classifySelection(cap.text)).toBe("phrase");
+    expect(cap.sentence).toBe("Tiene que ver con la vida.");
+    expect(cap.selection).toEqual({ start: 0, end: "Tiene que ver".length });
   });
 
   it("rejects a selection longer than a phrase", () => {
