@@ -25,7 +25,9 @@
 //!
 //! A pull request that changes `baseline/en-fr.golden` changes what English readers see. Only
 //! a dictionary update, or a deliberate analyser change that bumps the English analyser
-//! version, should do that. Re-bless with
+//! version, should do that; probes a change adds move nothing recorded before
+//! (choose-lingua-overlapping-expressions: three phrase probes, its rule for overlapping
+//! expressions approved for en-fr). Re-bless with
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test english_baseline` and say why in the pull
 //! request; `lingua-pack-update` re-blesses on its own branch.
 //!

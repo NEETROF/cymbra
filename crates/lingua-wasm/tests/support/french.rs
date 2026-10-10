@@ -174,7 +174,13 @@ const LEMMAS: &[&str] = &[
 /// capital initial) read `ça`; and the dictionary's spellings without their marks
 /// (read-lingua-french-dictionary-unmarked-spellings): « il etait une fois » and « un coup d'Etat »
 /// meet `il était une fois` and `coup d'état`, « Il faut etre patient. » reads `être`, and « un moteur
-/// diesel » records a spelling the frequency rule keeps.
+/// diesel » records a spelling the frequency rule keeps. And expressions that overlap, an
+/// expression built on a verb giving its last word to a longer one
+/// (choose-lingua-overlapping-expressions D1, D3, D6): « Elles sont au nombre de sept. » answers
+/// `au nombre de`, « Il est à la fois sévère et amical. » `à la fois`, « Il est au courant de
+/// tout. » `au courant`, « Elle se mit au lit. » `se mettre` and `au lit`,
+/// « J'ai besoin de toi. » `avoir besoin de`, while « grâce au travail du monteur » keeps
+/// `grâce à` (no verb) and « C'est ce que tu veux. » never answers `est-ce que` (the hyphen, G1).
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -228,6 +234,13 @@ const PHRASES: &[&str] = &[
     "un coup d'Etat",
     "Il faut etre patient.",
     "un moteur diesel",
+    "Elles sont au nombre de sept.",
+    "Il est à la fois sévère et amical.",
+    "Il est au courant de tout.",
+    "Elle se mit au lit.",
+    "grâce au travail du monteur",
+    "J'ai besoin de toi.",
+    "C'est ce que tu veux.",
     // The whole-selection card of a word written as pieces, as a double-click selects it
     // (add-lingua-french-word-card D7).
     "l\u{2019}homme",
