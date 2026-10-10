@@ -486,3 +486,56 @@ fn a_french_card_is_read_at_its_name_s_key_or_shows_its_own_text() {
         assert_eq!(view(&engine)["gloss"], shown, "{lemma}");
     }
 }
+
+/// add-lingua-french-word-card D8: a French expression named without a space, as « + Deck »
+/// stores it from the whole-selection card « D’abord » answers, is read in the table at the key
+/// its name reads as; the card keeps its text and label.
+#[test]
+fn spec_scenario_an_expression_named_without_a_space() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    // `d'abord` is the card's name, no word of the gloss table; `de abord` is its key.
+    assert_eq!(pack.gloss("d'abord"), None);
+    assert_eq!(pack.expression_name("de abord"), Some("d'abord"));
+    let pack_gloss = pack
+        .expression("de abord")
+        .expect("the pack holds the key")
+        .to_owned();
+
+    let mut engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "d'abord",
+        "D\u{2019}abord",
+        "primero",
+    ));
+    let shown = view(&engine);
+    assert_eq!(shown["headword"], "d'abord");
+    assert_eq!(
+        shown["gloss"], pack_gloss,
+        "the pack's gloss for `de abord`"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("primero".to_owned(), "es".to_owned())
+    );
+    engine.review_grade("good", T + DAY);
+    assert_eq!(
+        text_and_label(&engine),
+        ("primero".to_owned(), "es".to_owned())
+    );
+}
+
+/// A French word written with an apostrophe reads as one token: it is looked up as a word, as
+/// before (add-lingua-french-word-card D8).
+#[test]
+fn spec_scenario_a_word_written_with_an_apostrophe() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    let word = pack
+        .gloss("aujourd'hui")
+        .expect("the pack glosses aujourd'hui")
+        .to_owned();
+    let engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "aujourd'hui",
+        "Aujourd'hui",
+        "hoy",
+    ));
+    assert_eq!(view(&engine)["gloss"], word);
+}
