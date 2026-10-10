@@ -58,9 +58,11 @@ pub mod section {
     /// [`GLOSS_ZST`] uses, keyed by the id [`EXPR`] maps to: the headword as the
     /// dictionary writes it (`au revoir`), for the expressions whose key differs
     /// from it (`à le revoir`) — a key that is its own headword has none
-    /// (add-lingua-french-expression-keys D3). Written for a pack studying French
-    /// only, when one name differs. Optional and additive, like [`EXPR`]: a core
-    /// that predates it ignores it and reports keys, as English and Spanish do.
+    /// (add-lingua-french-expression-keys D3), or `al menos` for `a el menos`
+    /// (add-lingua-spanish-expression-keys D3). Written for a pack studying French
+    /// or Spanish only, when one name differs. Optional and additive, like
+    /// [`EXPR`]: a core that predates it ignores it and reports keys, as English
+    /// does.
     pub const EXPR_NAMES_ZST: &str = "expr.names.zst";
     /// The grammar tag pool: one Universal Dependencies tag per line, id =
     /// line index (`add-lingua-word-grammar`). Optional and additive, like

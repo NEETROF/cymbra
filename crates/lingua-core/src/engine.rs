@@ -320,12 +320,19 @@ pub struct PhraseMatch {
     pub start: usize,
     /// Index just past the last token covered.
     pub end: usize,
-    /// The expression's dictionary form, which is the card's. For English and
-    /// Spanish, the covered tokens' lemmas joined by single spaces, which is the
-    /// pack's key. For French, the expression's name — its headword as the
-    /// dictionary writes it (`au revoir`, `il y a`) — which the pack carries
-    /// wherever it differs from the key (`à le revoir`, `il y avoir`), and the
-    /// key itself where it carries none (add-lingua-french-expression-keys D3).
+    /// The expression's dictionary form, which is the card's. For English, the
+    /// covered tokens' lemmas joined by single spaces, which is the pack's key.
+    /// For French and Spanish, the expression's name — its headword as the
+    /// dictionary writes it (`au revoir`, `il y a`, `tener en cuenta`) — which
+    /// the pack carries wherever it differs from the key (`à le revoir`,
+    /// `il y avoir`, `tener en contar`), and the key itself where it carries none
+    /// (add-lingua-french-expression-keys D3, add-lingua-spanish-expression-keys
+    /// D3). Except that a Spanish expression the reader settled under its lemma
+    /// chain — the covered tokens' lemmas joined, before the article of a
+    /// contraction is covered, the key this field held before Spanish
+    /// expressions were named — and not under its name keeps that chain, so its
+    /// status and deck card are still read and acted on
+    /// (add-lingua-spanish-expression-keys D6).
     pub key: String,
     /// The expression's own status class, read on that dictionary form: the
     /// knowledge model treats an expression as a lemma of its own, so the reader
@@ -347,9 +354,9 @@ pub struct PhraseGloss {
     pub expressions: Vec<PhraseMatch>,
 }
 
-/// How many tokens an English or Spanish expression may span. 98.9 % of the
-/// English table is five words or fewer (`add-lingua-expression-table`, design
-/// D3), and every token of a selection pays for the ones beyond it.
+/// How many tokens an English expression may span. 98.9 % of the English
+/// table is five words or fewer (`add-lingua-expression-table`, design D3), and
+/// every token of a selection pays for the ones beyond it.
 const EXPRESSION_WINDOW: usize = 5;
 
 /// How many tokens a French expression may span: French's pieces lengthen a key
@@ -357,6 +364,13 @@ const EXPRESSION_WINDOW: usize = 5;
 /// 98.8 % of its keys as five hold 98.9 % of English's
 /// (add-lingua-french-expression-keys D4). The builder leaves a longer key out.
 pub const FRENCH_EXPRESSION_WINDOW: usize = 7;
+
+/// How many tokens a Spanish expression may span: `al` and `del` read as two
+/// tokens each lengthen a key (`al fin y al cabo` is five words and seven
+/// tokens), and seven tokens hold 99.3 % of es-fr's keyed headwords and 99.5 %
+/// of es-en's (add-lingua-spanish-expression-keys D4). The builder leaves a
+/// longer key out.
+pub const SPANISH_EXPRESSION_WINDOW: usize = 7;
 
 /// The words a French expression key writes as the pre-pass gives them, in
 /// lowercase, rather than as their dictionary form: the articles, the possessive
@@ -377,38 +391,81 @@ pub const FRENCH_KEY_WRITTEN: &[&str] = &[
     "notre", "sa", "ses", "son", "ta", "tes", "ton", "un", "une", "vos", "votre",
 ];
 
-/// A token's piece of an expression key (add-lingua-french-expression-keys D2):
-/// its dictionary form, except in French a word of [`FRENCH_KEY_WRITTEN`], written
-/// as the pre-pass gives it — lowercased, the typographic apostrophe read as the
-/// straight one — so `à la` is never `au` (`à le`). English and Spanish keys are
-/// their lemmas, as before.
+/// The words a Spanish expression key writes as the pre-pass gives them, in
+/// lowercase, rather than as their dictionary form: the articles, and the
+/// possessive and demonstrative determiners, sorted
+/// (add-lingua-spanish-expression-keys D2) — French's [`FRENCH_KEY_WRITTEN`],
+/// transposed. The `el` the pre-pass writes for « al » and « del » is written
+/// `el`, so `al menos` is `a el menos` and `a la vez` stays `a la vez`.
+///
+/// M8 files `la`, `los` and `las` under `el`, `una`, `unos` and `unas` under
+/// `uno`, `esta`, `estos`… under `este`, `mis` under `mi` and `nuestra`… under
+/// `nuestro`: right for a word, wrong for an expression. The list holds those
+/// and, for completeness, the forms that are their own dictionary form.
+/// Measured on es-fr's and es-en's committed tables and the Spanish baseline's
+/// corpus, every token lemmatised keys `a la`, `a las` and `a los` as one `a el`
+/// and `de las` and `de los` as one `de el`, which then answered « al », « del »
+/// and every other article: with these words written, the keys several
+/// headwords reach fall from 116 to 98 (es-fr) and from 151 to 138 (es-en), and
+/// the matches on the corpus from 44 to 32 and from 43 to 27, the article
+/// entries' answers on another article or a contraction gone. The clitic
+/// pronouns are left out, as French's list leaves out `me`, `te` and `se`: they
+/// change nothing measurable.
+pub const SPANISH_KEY_WRITTEN: &[&str] = &[
+    "aquel", "aquella", "aquellas", "aquellos", "el", "esa", "esas", "ese", "esos", "esta",
+    "estas", "este", "estos", "la", "las", "lo", "los", "mi", "mis", "nuestra", "nuestras",
+    "nuestro", "nuestros", "su", "sus", "tu", "tus", "un", "una", "unas", "unos", "vuestra",
+    "vuestras", "vuestro", "vuestros",
+];
+
+/// A token's piece of an expression key (add-lingua-french-expression-keys D2,
+/// add-lingua-spanish-expression-keys D2): its dictionary form, except a word of
+/// the studied language's written list — [`FRENCH_KEY_WRITTEN`],
+/// [`SPANISH_KEY_WRITTEN`] — written as the pre-pass gives it, lowercased, the
+/// typographic apostrophe read as the straight one: so `à la` is never `au`
+/// (`à le`), nor `a la` « al » (`a el`). English keys are their lemmas, as
+/// before.
 pub fn expression_piece(surface: &str, lemma: &str, studied: StudiedLanguage) -> String {
-    if studied == StudiedLanguage::French {
-        let written = surface.replace('\u{2019}', "'").to_lowercase();
-        if FRENCH_KEY_WRITTEN.binary_search(&written.as_str()).is_ok() {
-            return written;
-        }
+    let listed = match studied {
+        StudiedLanguage::French => FRENCH_KEY_WRITTEN,
+        StudiedLanguage::Spanish => SPANISH_KEY_WRITTEN,
+        StudiedLanguage::English => return lemma.to_owned(),
+    };
+    let written = surface.replace('\u{2019}', "'").to_lowercase();
+    if listed.binary_search(&written.as_str()).is_ok() {
+        return written;
     }
     lemma.to_owned()
 }
 
-/// The key a French expression's headword — or its name, which is the same
-/// thing — is filed under (add-lingua-french-expression-keys D1, D4, D6): what
-/// French's analysis reads in it ([`headword_reading`]), each token written by
-/// [`expression_piece`], joined by single spaces: `au revoir` → `à le revoir`,
-/// `coup d'œil` → `coup de œil`, `d'abord` → `de abord`, `il y a` →
-/// `il y avoir`, `à la` → `à la`.
+/// The key an expression's headword — or its name, which is the same thing — is
+/// filed under in a language read through its reading, French or Spanish
+/// (add-lingua-french-expression-keys D1, D4, D6; add-lingua-spanish-expression-keys
+/// D1, D2, D4): what the studied language's analysis reads in it
+/// ([`headword_reading`]), each token written by [`expression_piece`], joined by
+/// single spaces: `au revoir` → `à le revoir`, `coup d'œil` → `coup de œil`,
+/// `il y a` → `il y avoir`, `à la` → `à la`; `al menos` → `a el menos`,
+/// `tener en cuenta` → `tener en contar`, `a la vez` → `a la vez`.
 ///
-/// `None` unless the headword reads as two to [`FRENCH_EXPRESSION_WINDOW`] tokens,
-/// every word of it giving one, and every token's dictionary form is a lemma of
-/// the lexicon: a key no reading of a page can produce would sit in the pack
-/// unreachable. The one implementation the pack builder keys a French pack with
-/// and review finds a French expression card's gloss through, so the two cannot
-/// drift; it asks the lexicon whether a dictionary form is a lemma, never which
-/// lemma a form files under.
-pub fn french_expression_key(headword: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
-    let reading = headword_reading(headword, StudiedLanguage::French, lexicon)?;
-    if !(2..=FRENCH_EXPRESSION_WINDOW).contains(&reading.len())
+/// `None` for English, which keys its expressions at their spaces, and unless the
+/// headword reads as two to the language's window of tokens
+/// ([`FRENCH_EXPRESSION_WINDOW`], [`SPANISH_EXPRESSION_WINDOW`]), every word of it
+/// giving one, and every token's dictionary form is a lemma of the lexicon: a key
+/// no reading of a page can produce would sit in the pack unreachable. The one
+/// implementation the pack builder keys a French or Spanish pack with and review
+/// finds such an expression card's gloss through, so the two cannot drift; it
+/// asks the lexicon whether a dictionary form is a lemma, never which lemma a form
+/// files under.
+pub fn reading_expression_key(
+    headword: &str,
+    studied: StudiedLanguage,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> Option<String> {
+    if studied == StudiedLanguage::English {
+        return None;
+    }
+    let reading = headword_reading(headword, studied, lexicon)?;
+    if !(2..=expression_window(studied)).contains(&reading.len())
         || !reading
             .iter()
             .all(|(_, lemma)| lexicon.contains_lemma(lemma))
@@ -418,17 +475,25 @@ pub fn french_expression_key(headword: &str, lexicon: &(impl Lexicon + ?Sized)) 
     Some(
         reading
             .iter()
-            .map(|(token, lemma)| expression_piece(&token.text, lemma, StudiedLanguage::French))
+            .map(|(token, lemma)| expression_piece(&token.text, lemma, studied))
             .collect::<Vec<_>>()
             .join(" "),
     )
+}
+
+/// The key a French expression's headword — or its name — is filed under:
+/// [`reading_expression_key`] for French (add-lingua-french-expression-keys D1),
+/// `au revoir` → `à le revoir`, `d'abord` → `de abord`.
+pub fn french_expression_key(headword: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
+    reading_expression_key(headword, StudiedLanguage::French, lexicon)
 }
 
 /// How many tokens an expression may span in the studied language.
 fn expression_window(studied: StudiedLanguage) -> usize {
     match studied {
         StudiedLanguage::French => FRENCH_EXPRESSION_WINDOW,
-        StudiedLanguage::English | StudiedLanguage::Spanish => EXPRESSION_WINDOW,
+        StudiedLanguage::Spanish => SPANISH_EXPRESSION_WINDOW,
+        StudiedLanguage::English => EXPRESSION_WINDOW,
     }
 }
 
@@ -463,15 +528,25 @@ fn expression_for_run(
 
 /// Finds the pack's expressions in an already-glossed selection: from each
 /// token, the longest run whose key pieces ([`expression_piece`]: the dictionary
-/// forms, and in French the determiners as written) are a key of the table
-/// wins, and the next run starts past it, so a token belongs to at most one
+/// forms, and in French and Spanish the determiners as written) are a key of the
+/// table wins, and the next run starts past it, so a token belongs to at most one
 /// match. Runs start at two tokens because every key holds a space — a single
 /// lemma is a word, not an expression, and could never be one — and stop at the
 /// language's window. A match reports the expression's name where the pack
-/// carries one (French), else its key, and the reader's status is read on what
-/// it reports (add-lingua-french-expression-keys D3).
+/// carries one (French, Spanish), else its key, and the reader's status is read
+/// on what it reports (add-lingua-french-expression-keys D3,
+/// add-lingua-spanish-expression-keys D3).
+///
+/// `shares_span[i]` says whether token `i` shares its predecessor's source span —
+/// the second half of a written word the pre-pass split. A Spanish match never
+/// ends inside a written word: one whose last token is followed by such a token,
+/// the article of « al » or « del », covers it too, so « después del » is answered
+/// whole (add-lingua-spanish-expression-keys D5). And a Spanish expression the
+/// reader settled under the run's lemma chain, and not under its name, keeps that
+/// chain ([`settled_chain`], D6).
 fn match_expressions(
     tokens: &[PhraseToken],
+    shares_span: &[bool],
     studied: StudiedLanguage,
     pack: &Pack,
     knowledge: &KnowledgeState,
@@ -484,6 +559,7 @@ fn match_expressions(
         .map(|token| expression_piece(&token.surface, &token.lemma, studied))
         .collect();
     let window = expression_window(studied);
+    let spanish = studied == StudiedLanguage::Spanish;
     let mut matches = Vec::new();
     let mut start = 0;
     while start < tokens.len() {
@@ -494,24 +570,60 @@ fn match_expressions(
         });
         match hit {
             Some((len, key, gloss)) => {
-                let key = match pack.expression_name(&key) {
+                let name = match pack.expression_name(&key) {
                     Some(name) => name.to_owned(),
                     None => key,
                 };
+                let key = if spanish {
+                    settled_chain(&tokens[start..start + len], &name, studied, knowledge)
+                        .unwrap_or(name)
+                } else {
+                    name
+                };
+                let mut end = start + len;
+                if spanish {
+                    while shares_span.get(end).copied().unwrap_or(false) {
+                        end += 1;
+                    }
+                }
                 let class = knowledge.classify(studied, &[key.as_str()], pack);
                 matches.push(PhraseMatch {
                     start,
-                    end: start + len,
+                    end,
                     key,
                     class,
                     gloss,
                 });
-                start += len;
+                start = end;
             }
             None => start += 1,
         }
     }
     matches
+}
+
+/// The lemma chain a reader settled a Spanish expression under before it was named
+/// (add-lingua-spanish-expression-keys D6): the run's dictionary forms joined by
+/// single spaces — taken before the article of a contraction is covered, so it is
+/// exactly the key the phrase gloss reported for those tokens before — when the
+/// reader holds a record on it (a status, or a withdrawn one:
+/// [`KnowledgeState::holds_record`]) and none on the name. `None` otherwise: the
+/// match is then reported under its name.
+fn settled_chain(
+    run: &[PhraseToken],
+    name: &str,
+    studied: StudiedLanguage,
+    knowledge: &KnowledgeState,
+) -> Option<String> {
+    let chain = run
+        .iter()
+        .map(|token| token.lemma.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    (chain != name
+        && knowledge.holds_record(studied, &chain)
+        && !knowledge.holds_record(studied, name))
+    .then_some(chain)
 }
 
 /// Glosses a short text — a reader's selection — the way a page is read:
@@ -530,7 +642,20 @@ pub fn gloss_phrase(
     knowledge: &KnowledgeState,
 ) -> PhraseGloss {
     let lexicon = pack.lexicon();
-    let tokens: Vec<PhraseToken> = tokenize(text, studied, lexicon)
+    let read = tokenize(text, studied, lexicon);
+    // Which tokens share their predecessor's source span: the second half of a word
+    // the pre-pass split (`del` → `de` + `el`), which a Spanish match never leaves
+    // outside (add-lingua-spanish-expression-keys D5).
+    let shares_span: Vec<bool> = read
+        .iter()
+        .enumerate()
+        .map(|(i, token)| {
+            i.checked_sub(1).is_some_and(|before| {
+                (read[before].start, read[before].end) == (token.start, token.end)
+            })
+        })
+        .collect();
+    let tokens: Vec<PhraseToken> = read
         .into_iter()
         .map(|token| {
             let (lemma, parts) = resolve_lemmas(&token, studied, lexicon);
@@ -554,7 +679,7 @@ pub fn gloss_phrase(
             }
         })
         .collect();
-    let expressions = match_expressions(&tokens, studied, pack, knowledge);
+    let expressions = match_expressions(&tokens, &shares_span, studied, pack, knowledge);
     PhraseGloss {
         tokens,
         expressions,
@@ -1941,9 +2066,11 @@ mod tests {
         assert_eq!(expression_piece(&elided[0].text, "le", FR), "le");
         assert_eq!(expression_piece("bonne", "bon", FR), "bon");
         assert_eq!(expression_piece("a", "avoir", FR), "avoir");
-        // English and Spanish keys are their lemmas, a determiner too.
+        // English keys are their lemmas, a determiner too; Spanish writes its own
+        // determiners (add-lingua-spanish-expression-keys D2), never French's.
         assert_eq!(expression_piece("The", "the", EN), "the");
-        assert_eq!(expression_piece("la", "el", ES), "el");
+        assert_eq!(expression_piece("la", "el", ES), "la");
+        assert_eq!(expression_piece("cette", "ce", ES), "ce");
     }
 
     /// A French lexicon for the keys and matches below.
@@ -2175,6 +2302,464 @@ mod tests {
             let phrase = gloss_phrase("por des", studied, &pack, &KnowledgeState::new());
             assert!(phrase.expressions.is_empty(), "{studied:?}");
         }
+    }
+
+    // --- Spanish expression keys (add-lingua-spanish-expression-keys) ---
+
+    #[test]
+    fn the_words_a_spanish_key_writes_are_sorted_and_thirty_five() {
+        assert_eq!(SPANISH_KEY_WRITTEN.len(), 35);
+        assert!(SPANISH_KEY_WRITTEN.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn a_spanish_key_writes_its_determiners_and_lemmatises_the_rest() {
+        // D2: the articles and the possessive and demonstrative determiners as the pre-pass
+        // gives them, lowercased; every other token its dictionary form.
+        assert_eq!(expression_piece("la", "el", ES), "la");
+        assert_eq!(expression_piece("Los", "el", ES), "los");
+        assert_eq!(expression_piece("una", "uno", ES), "una");
+        assert_eq!(expression_piece("mis", "mi", ES), "mis");
+        assert_eq!(expression_piece("Estas", "este", ES), "estas");
+        // The `el` the pre-pass writes for « del » is written `el`.
+        let split = crate::analysis::tokenize::tokenize("Del", ES, &spanish_lexicon());
+        assert_eq!(split[1].text, "el");
+        assert_eq!(expression_piece(&split[1].text, "el", ES), "el");
+        assert_eq!(expression_piece("cuenta", "contar", ES), "contar");
+        // A clitic pronoun is no determiner: its dictionary form.
+        assert_eq!(expression_piece("se", "se", ES), "se");
+        // English keys are their lemmas.
+        assert_eq!(expression_piece("the", "the", EN), "the");
+        assert_eq!(expression_piece("These", "this", EN), "this");
+    }
+
+    /// A Spanish lexicon for the keys and matches below: M8 files `la`, `los` and `las` under
+    /// `el`, `cuenta` under `contar`, and `inglesa` under `inglés`.
+    fn spanish_lexicon() -> FstLexicon<Vec<u8>> {
+        let (bytes, pool) = build_lexicon_blobs(SPANISH_FORMS, SPANISH_LEMMAS).expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    const SPANISH_FORMS: &[(&str, &str)] = &[
+        ("cuenta", "contar"),
+        ("la", "el"),
+        ("las", "el"),
+        ("los", "el"),
+        ("armas", "arma"),
+        ("soy", "ser"),
+        ("inglesa", "inglés"),
+    ];
+
+    const SPANISH_LEMMAS: &[&str] = &[
+        "a", "el", "menos", "tener", "en", "contar", "vez", "fin", "y", "cabo", "de", "barrio",
+        "después", "arma", "ser", "inglés", "casa", "su", "abuela", "ir",
+    ];
+
+    #[test]
+    fn a_spanish_expression_is_keyed_as_spanish_is_read() {
+        let lexicon = spanish_lexicon();
+        let key = |headword: &str| reading_expression_key(headword, ES, &lexicon);
+        // A contraction is read `a` + `el`, its article written `el`.
+        assert_eq!(key("al menos").as_deref(), Some("a el menos"));
+        assert_eq!(key("del barrio").as_deref(), Some("de el barrio"));
+        // An inflected word is its dictionary form.
+        assert_eq!(key("tener en cuenta").as_deref(), Some("tener en contar"));
+        // The determiners are written: `a la vez` is not `a el vez`, nor `a las armas` `al arma`.
+        assert_eq!(key("a la vez").as_deref(), Some("a la vez"));
+        assert_eq!(key("a las armas").as_deref(), Some("a las arma"));
+        assert_eq!(key("al arma").as_deref(), Some("a el arma"));
+        // Five words, seven tokens: within Spanish's window.
+        assert_eq!(
+            key("al fin y al cabo").as_deref(),
+            Some("a el fin y a el cabo")
+        );
+        // A name is read as its headword is, so review finds the key from it.
+        assert_eq!(key("Al menos").as_deref(), Some("a el menos"));
+        // French's function is French's alone, and English has no reading key.
+        assert_eq!(french_expression_key("al menos", &lexicon), None);
+        assert_eq!(reading_expression_key("al menos", EN, &lexicon), None);
+    }
+
+    #[test]
+    fn a_spanish_headword_outside_the_rules_has_no_key() {
+        let lexicon = spanish_lexicon();
+        let key = |headword: &str| reading_expression_key(headword, ES, &lexicon);
+        // Seven tokens are Spanish's window; eight are beyond it (D4).
+        assert_eq!(
+            key(&["vez"; 7].join(" ")).as_deref(),
+            Some(["vez"; 7].join(" ").as_str())
+        );
+        assert_eq!(key(&["vez"; 8].join(" ")), None);
+        assert_eq!(key("al fin y al cabo de"), None, "six words, eight tokens");
+        // One token is a word, not an expression — « al » alone is two tokens, a key; a
+        // dictionary form the lexicon does not hold could never be met.
+        assert_eq!(key("menos"), None);
+        assert_eq!(key("al").as_deref(), Some("a el"));
+        assert_eq!(key("tener en mente"), None);
+        assert_eq!(key(""), None);
+    }
+
+    /// An es-fr pack holding the keys Spanish's reading makes, each named by its headword where
+    /// it differs.
+    fn spanish_expression_pack() -> Pack {
+        build_pack_with_names(
+            ES,
+            SPANISH_FORMS,
+            SPANISH_LEMMAS,
+            &[],
+            &[],
+            &[
+                ("a el menos", "Au moins"),
+                ("tener en contar", "Tenir compte de"),
+                ("a la vez", "À la fois"),
+                ("de las", "Des"),
+                ("de los", "Des"),
+                ("después de", "Après"),
+                ("a el fin y a el cabo", "Après tout"),
+                ("a la", "À la"),
+            ],
+            &[
+                ("a el menos", "al menos"),
+                ("tener en contar", "tener en cuenta"),
+                ("a el fin y a el cabo", "al fin y al cabo"),
+            ],
+            None,
+        )
+    }
+
+    fn spanish_spans_for(text: &str, knowledge: &KnowledgeState) -> Vec<(usize, usize, String)> {
+        gloss_phrase(text, ES, &spanish_expression_pack(), knowledge)
+            .expressions
+            .into_iter()
+            .map(|m| (m.start, m.end, m.key))
+            .collect()
+    }
+
+    fn spanish_spans(text: &str) -> Vec<(usize, usize, String)> {
+        spanish_spans_for(text, &KnowledgeState::new())
+    }
+
+    #[test]
+    fn spec_scenario_a_contraction_read_as_two_words() {
+        let pack = spanish_expression_pack();
+        let phrase = gloss_phrase("al menos", ES, &pack, &KnowledgeState::new());
+        let surfaces: Vec<&str> = phrase.tokens.iter().map(|t| t.surface.as_str()).collect();
+        assert_eq!(surfaces, ["a", "el", "menos"]);
+        assert_eq!(
+            phrase.expressions,
+            [PhraseMatch {
+                start: 0,
+                end: 3,
+                key: "al menos".into(),
+                class: TokenClass::Unknown,
+                gloss: "Au moins".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_name_not_the_lemmas() {
+        assert_eq!(
+            spanish_spans("tener en cuenta"),
+            [span(0, 3, "tener en cuenta")]
+        );
+        // A key that is its own headword carries no name and is reported as itself.
+        assert_eq!(spanish_spans("a la vez"), [span(0, 3, "a la vez")]);
+    }
+
+    #[test]
+    fn spec_scenario_an_article_entry_does_not_answer_another_article() {
+        assert_eq!(spanish_spans("del barrio"), []);
+        // Nor does `a la` answer « al »; the article as written still answers its own entry.
+        assert_eq!(spanish_spans("al barrio"), []);
+        assert_eq!(spanish_spans("a la casa"), [span(0, 2, "a la")]);
+        assert_eq!(spanish_spans("de las armas"), [span(0, 2, "de las")]);
+    }
+
+    #[test]
+    fn spec_scenario_the_article_of_a_contraction_is_covered() {
+        let pack = spanish_expression_pack();
+        let phrase = gloss_phrase("después del", ES, &pack, &KnowledgeState::new());
+        let surfaces: Vec<&str> = phrase.tokens.iter().map(|t| t.surface.as_str()).collect();
+        assert_eq!(surfaces, ["después", "de", "el"]);
+        assert_eq!(
+            phrase.expressions,
+            [PhraseMatch {
+                start: 0,
+                end: 3,
+                key: "después de".into(),
+                class: TokenClass::Unknown,
+                gloss: "Après".into(),
+            }]
+        );
+        // Inside a longer selection too, and the next run starts past the article.
+        assert_eq!(
+            spanish_spans("después del barrio"),
+            [span(0, 3, "después de")]
+        );
+        // A match ending on a word of its own is not extended over the next word.
+        assert_eq!(
+            spanish_spans("después de la casa"),
+            [span(0, 2, "después de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_expression_of_seven_tokens() {
+        let pack = spanish_expression_pack();
+        let phrase = gloss_phrase("al fin y al cabo", ES, &pack, &KnowledgeState::new());
+        let lemmas: Vec<&str> = phrase.tokens.iter().map(|t| t.lemma.as_str()).collect();
+        assert_eq!(lemmas, ["a", "el", "fin", "y", "a", "el", "cabo"]);
+        assert_eq!(
+            spanish_spans("al fin y al cabo"),
+            [span(0, 7, "al fin y al cabo")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_status_follows_a_spanish_name() {
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(ES, "tener en cuenta", Status::Known(KnownSource::Manual));
+        let phrase = gloss_phrase(
+            "tener en cuenta",
+            ES,
+            &spanish_expression_pack(),
+            &knowledge,
+        );
+        assert_eq!(phrase.expressions[0].key, "tener en cuenta");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Known);
+    }
+
+    #[test]
+    fn a_spanish_selection_s_tokens_do_not_move_with_the_table() {
+        // The tokens are what they are without the table; the matches sit beside them.
+        let bare = build_pack_for(ES, SPANISH_FORMS, SPANISH_LEMMAS, &[], &[], &[]);
+        let knowledge = KnowledgeState::new();
+        for text in [
+            "al menos",
+            "después del",
+            "al fin y al cabo",
+            "tener en cuenta",
+        ] {
+            let with_table = gloss_phrase(text, ES, &spanish_expression_pack(), &knowledge);
+            let without = gloss_phrase(text, ES, &bare, &knowledge);
+            assert_eq!(with_table.tokens, without.tokens, "{text}");
+            assert!(without.expressions.is_empty());
+            assert!(!with_table.expressions.is_empty(), "{text}");
+        }
+    }
+
+    #[test]
+    fn a_french_or_english_match_ending_before_a_split_word_s_second_half_is_not_extended() {
+        // D5 is Spanish's: French's « au » shares its span between `à` and `le` as « al » does,
+        // and English's « don't » between `do` and `not`; their matches stop where they stop.
+        let french = build_pack_for(
+            FR,
+            &[],
+            &["face", "à", "le", "mur"],
+            &[],
+            &[],
+            &[("face à", "facing")],
+        );
+        let phrase = gloss_phrase("face au mur", FR, &french, &KnowledgeState::new());
+        let surfaces: Vec<&str> = phrase.tokens.iter().map(|t| t.surface.as_str()).collect();
+        assert_eq!(surfaces, ["face", "à", "le", "mur"]);
+        assert_eq!(spans(&phrase), [(0, 2, "face à")]);
+        let english = build_pack_for(
+            EN,
+            &[],
+            &["i", "do", "not"],
+            &[],
+            &[],
+            &[("i do", "je fais")],
+        );
+        let phrase = gloss_phrase("I don't", EN, &english, &KnowledgeState::new());
+        assert_eq!(phrase.tokens.len(), 3);
+        assert_eq!(spans(&phrase), [(0, 2, "i do")]);
+    }
+
+    // --- A Spanish expression settled under its lemmas keeps that key (D6) ---
+
+    #[test]
+    fn spec_scenario_a_status_set_before() {
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status_at(
+            ES,
+            "tener en contar",
+            Status::Known(KnownSource::Manual),
+            1_000,
+        );
+        let phrase = gloss_phrase(
+            "tener en cuenta",
+            ES,
+            &spanish_expression_pack(),
+            &knowledge,
+        );
+        assert_eq!(phrase.expressions[0].key, "tener en contar");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Known);
+    }
+
+    #[test]
+    fn spec_scenario_a_deck_card_made_before() {
+        // « + Deck » sets « learning » on the key the card was made under.
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status_at(ES, "a el vez", Status::Learning, 1_000);
+        let phrase = gloss_phrase("a la vez", ES, &spanish_expression_pack(), &knowledge);
+        assert_eq!(phrase.expressions[0].key, "a el vez");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Learning);
+        assert_eq!(
+            (phrase.expressions[0].start, phrase.expressions[0].end),
+            (0, 3)
+        );
+    }
+
+    #[test]
+    fn spec_scenario_nothing_settled() {
+        // A record on another chain, or in another language, is not this one's.
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(ES, "tener en mente", Status::Known(KnownSource::Manual));
+        knowledge.set_status(EN, "tener en contar", Status::Known(KnownSource::Manual));
+        assert_eq!(
+            spanish_spans_for("tener en cuenta", &knowledge),
+            [span(0, 3, "tener en cuenta")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_record_on_the_name() {
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status_at(
+            ES,
+            "tener en contar",
+            Status::Known(KnownSource::Manual),
+            1_000,
+        );
+        knowledge.set_status_at(ES, "tener en cuenta", Status::Learning, 2_000);
+        let phrase = gloss_phrase(
+            "tener en cuenta",
+            ES,
+            &spanish_expression_pack(),
+            &knowledge,
+        );
+        assert_eq!(phrase.expressions[0].key, "tener en cuenta");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Learning);
+        // A withdrawn record on the name is one too.
+        let mut withdrawn = knowledge.clone();
+        withdrawn.clear_status_at(ES, "tener en cuenta", 3_000);
+        let phrase = gloss_phrase(
+            "tener en cuenta",
+            ES,
+            &spanish_expression_pack(),
+            &withdrawn,
+        );
+        assert_eq!(phrase.expressions[0].key, "tener en cuenta");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Unknown);
+    }
+
+    #[test]
+    fn a_withdrawn_status_on_the_chain_keeps_the_chain_a_withdrawal_stamped_zero_included() {
+        for at in [0, 5_000] {
+            let mut knowledge = KnowledgeState::new();
+            knowledge.set_status_at(ES, "tener en contar", Status::Learning, at);
+            knowledge.clear_status_at(ES, "tener en contar", at);
+            let phrase = gloss_phrase(
+                "tener en cuenta",
+                ES,
+                &spanish_expression_pack(),
+                &knowledge,
+            );
+            assert_eq!(phrase.expressions[0].key, "tener en contar", "{at}");
+            assert_eq!(phrase.expressions[0].class, TokenClass::Unknown, "{at}");
+        }
+    }
+
+    #[test]
+    fn a_status_pulled_from_another_device_is_read_as_a_local_one() {
+        let mut knowledge = KnowledgeState::new();
+        assert!(knowledge.apply_status_lww(
+            ES,
+            "tener en contar",
+            Some(Status::Known(KnownSource::Manual)),
+            1_000
+        ));
+        let phrase = gloss_phrase(
+            "tener en cuenta",
+            ES,
+            &spanish_expression_pack(),
+            &knowledge,
+        );
+        assert_eq!(phrase.expressions[0].key, "tener en contar");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Known);
+        // A pulled withdrawal too.
+        let mut pulled = KnowledgeState::new();
+        assert!(pulled.apply_status_lww(ES, "a el vez", None, 1_000));
+        assert_eq!(
+            spanish_spans_for("a la vez", &pulled),
+            [span(0, 3, "a el vez")]
+        );
+    }
+
+    #[test]
+    fn the_chain_is_taken_before_the_article_of_a_contraction_is_covered() {
+        // « después del » was reported `después de`, over its first two tokens, before names:
+        // that is the chain, never `después de el`, which no match ever reported.
+        let pack = build_pack_with_names(
+            ES,
+            SPANISH_FORMS,
+            SPANISH_LEMMAS,
+            &[],
+            &[],
+            &[("después de", "Après")],
+            &[("después de", "después de algo")],
+            None,
+        );
+        let mut on_chain = KnowledgeState::new();
+        on_chain.set_status(ES, "después de", Status::Ignored);
+        let phrase = gloss_phrase("después del", ES, &pack, &on_chain);
+        assert_eq!(
+            (phrase.expressions[0].start, phrase.expressions[0].end),
+            (0, 3)
+        );
+        assert_eq!(phrase.expressions[0].key, "después de");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Ignored);
+        let mut covered = KnowledgeState::new();
+        covered.set_status(ES, "después de el", Status::Ignored);
+        let phrase = gloss_phrase("después del", ES, &pack, &covered);
+        assert_eq!(phrase.expressions[0].key, "después de algo");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Unknown);
+        // A contraction inside the run is part of its chain.
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(ES, "a el menos", Status::Learning);
+        assert_eq!(
+            spanish_spans_for("al menos", &knowledge),
+            [span(0, 3, "a el menos")]
+        );
+    }
+
+    #[test]
+    fn french_and_english_matches_never_take_a_chain() {
+        // French: the chain of « il y avait » is `il y avoir`, its key; the name is reported.
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(FR, "il y avoir", Status::Known(KnownSource::Manual));
+        let phrase = gloss_phrase("il y avait", FR, &french_expression_pack(), &knowledge);
+        assert_eq!(phrase.expressions[0].key, "il y a");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Unknown);
+        // English: a pack naming a key otherwise (no shipped one does) still reports the name.
+        let pack = build_pack_with_names(
+            EN,
+            &[("gave", "give")],
+            &["give", "up"],
+            &[],
+            &[],
+            &[("give up", "Abandonner")],
+            &[("give up", "gave up")],
+            None,
+        );
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(EN, "give up", Status::Known(KnownSource::Manual));
+        let phrase = gloss_phrase("gave up", EN, &pack, &knowledge);
+        assert_eq!(phrase.expressions[0].key, "gave up");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Unknown);
     }
 
     // — word grammar (`add-lingua-word-grammar`) —

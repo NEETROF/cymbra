@@ -127,7 +127,8 @@ PUD itself is not consistent on apocopes: it keeps `gran` as its own lemma but t
 *primero*, which is why reading apocopes as their full words moved the content words from 95.92 %
 to 95.79 %.
 
-The pack is 2,190,188 B, with the grammar, the glosses and the levels.
+The pack is 2,224,439 B, with the grammar, the glosses, the levels and the expressions' names
+(add-lingua-spanish-expression-keys).
 
 ## Licences
 

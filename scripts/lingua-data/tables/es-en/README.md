@@ -53,7 +53,7 @@ On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version`
 - **Dictionary words are es-fr's**: 9,928 lemmas es-en glosses are no dictionary word of Spanish,
   and 798 dictionary words have no English gloss, so the pack carries a lexical section, and the
   vocabulary estimate counts the same 22,755 words for both pairs.
-- **The pack is 2,567,804 B**, 49.0 % of the 5 MiB budget.
+- **The pack is 2,608,413 B**, 49.8 % of the 5 MiB budget.
 
 ## Its sources
 

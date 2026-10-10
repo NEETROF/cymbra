@@ -170,7 +170,8 @@ from the French Wiktionary's Spanish entries and 12,183 from the translations.
 **Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
 take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
-D1 is not needed. The pack is 2,190,188 B, with the grammar, the glosses and the levels.
+D1 is not needed. The pack is 2,224,439 B, with the grammar, the glosses, the levels and the
+expressions' names (add-lingua-spanish-expression-keys).
 
 ## ES → EN
 
@@ -205,7 +206,7 @@ and published nowhere until the pair ships:
 31,885 lemmas are glossed, 31,756 from the English Wiktionary. 9,928 of them are no dictionary word
 of Spanish (es-fr glosses none of them), and 798 dictionary words have no English gloss, so the pack
 carries a lexical section: its dictionary words are es-fr's. There are 15,515 expressions: 14,803
-from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,567,804 B.
+from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,608,413 B.
 A letter glosses no word: the English edition's letter rule takes « the letter r » and the Spanish
 spelling alphabet's « the letter E in … » (36 glosses ended on one), a pre-pass of
 `reduce_edition_en.py` drops the entries written under a single capital letter (`A` « bishop », `C`

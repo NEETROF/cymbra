@@ -28,7 +28,10 @@ const LEMMAS: &[&str] = &[
 ];
 
 /// Selections a reader glosses: expressions, locutions, sentences, clitics, and blocks that
-/// are not Spanish (Catalan, English, French).
+/// are not Spanish (Catalan, English, French). The pack keys its expressions as Spanish is read
+/// and names them by their headword (add-lingua-spanish-expression-keys): « al menos » reads its
+/// contraction as two words, « a la vez » writes its article, « después del » covers the
+/// article of the contraction it ends on, and « al fin y al cabo » is seven tokens.
 const PHRASES: &[&str] = &[
     "tener en cuenta",
     "hay que",
@@ -40,6 +43,10 @@ const PHRASES: &[&str] = &[
     "de vez en cuando",
     "a lo mejor",
     "al aire libre",
+    "al menos",
+    "a la vez",
+    "después del",
+    "al fin y al cabo",
     "En un lugar de la Mancha",
     "Fue a la casa de su abuela.",
     "El vino tinto vino de La Rioja.",
