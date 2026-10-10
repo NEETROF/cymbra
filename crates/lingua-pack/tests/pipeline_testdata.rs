@@ -180,7 +180,7 @@ fn spec_scenario_the_english_and_spanish_fixtures_keep_their_bytes() {
     // of one key and the names section are French's alone. Each English and Spanish fixture builds,
     // as its manifest stands, to the bytes it built to before them (sha256 recorded on `main` at
     // da94a82e), and carries no expression name. The Spanish fixtures' bytes moved since with
-    // Spanish's analyser version alone, `1.3.0` (add-lingua-spanish-occitan-guard D7).
+    // Spanish's analyser version alone, `1.4.0` (refine-lingua-spanish-galician-markers D5).
     let root = testdata_dir().parent().unwrap().to_path_buf();
     for (pair, size, sha256) in [
         (
@@ -196,12 +196,12 @@ fn spec_scenario_the_english_and_spanish_fixtures_keep_their_bytes() {
         (
             "es-fr",
             1342,
-            "ac75501f3257453e27cd8db79a833bb636363a4cec04e8b3ec572483e95b8b3e",
+            "652ab1416342b2ca485a89193ebdb4f96481642efab9ae20352bf82337ea31f5",
         ),
         (
             "es-en",
             1356,
-            "d63a846ae8c83d5671804817bdc123eff2d975d49e4d1339823c316ca15cbf83",
+            "636e693eb728c0ef65aed4badf5472f18d00f73eb9e38d89927a7afa6c82e77d",
         ),
     ] {
         let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));

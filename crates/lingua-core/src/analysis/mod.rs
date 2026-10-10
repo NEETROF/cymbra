@@ -53,8 +53,10 @@ pub const ANALYZER_VERSION: &str = "1.1.0";
 /// plural fallback), replacing the `0.1.0` baseline; `1.1.0` since
 /// add-lingua-spanish-detection-guard keeps Catalan and Galician blocks out;
 /// `1.2.0` since add-lingua-spanish-names sets a document's names aside;
-/// `1.3.0` since add-lingua-spanish-occitan-guard keeps Occitan blocks out.
-pub const SPANISH_ANALYZER_VERSION: &str = "1.3.0";
+/// `1.3.0` since add-lingua-spanish-occitan-guard keeps Occitan blocks out;
+/// `1.4.0` since refine-lingua-spanish-galician-markers keeps Spanish's *da* and
+/// *das* from reading as Galician.
+pub const SPANISH_ANALYZER_VERSION: &str = "1.4.0";
 
 /// French's analyser version: `0.1.0` when French was served by the baseline
 /// analysis alone (add-lingua-french-baseline); `0.2.0` since
