@@ -1127,6 +1127,52 @@ class TheReducer(Tables):
         empty = {"entries": set(), "direct": set(), "inverted": set()}
         self.assertEqual((fr_es.translation_share(empty, ranks)["share"], fr_es.definition_share(empty)), (0.0, 0.0))
 
+    def test_spec_scenario_fr_es_glosses_the_acronym_from_its_own_expressions(self):
+        # keep-lingua-french-acronyms-in-capitals D4: `CA`, its own lemma in French's tables and
+        # unranked, glossed in Spanish from fr-es's own glosses of its expansions — the section's
+        # definition, the direct table's words —, each cut to its first sense, `comptable agréé`,
+        # which nothing glosses, passed over; one noun run.
+        work = self.dir / "work"
+        studied = self.studied("CA\tCA\nca\tça\nmaison\tmaison\nça\tça\n", "ça\t1\nmaison\t2\n")
+        courant = {
+            "word": "courant alternatif",
+            "pos": "noun",
+            "senses": [{"glosses": ["Corriente alterna."]}, {"glosses": ["Red eléctrica doméstica."]}],
+        }
+        self.jsonl(MAISON, courant, name="work/kaikki-es-Frances.jsonl")
+        self.jsonl(
+            {"pos": "noun", "translations": [{"word": "consejo de administración"}], "word": "conseil d’administration"},
+            {"pos": "noun", "translations": [{"word": "cifra de negocios"}, {"word": "facturación"}], "word": "chiffre d'affaires"},
+            name="work/kaikki-fr-traductions.jsonl",
+        )
+        self.jsonl(name="work/kaikki-es-traductions.jsonl")
+        self.gsd(work)
+        err = self.reduce(work, studied)
+        self.assertEqual(
+            (work / "mwe.tsv").read_text(encoding="utf-8"),
+            "chiffre d'affaires\tCifra de negocios, facturación\n"
+            "conseil d'administration\tConsejo de administración\n"
+            "courant alternatif\tCorriente alterna; Red eléctrica doméstica\n",
+        )
+        self.assertEqual(
+            (work / "gloss.tsv").read_text(encoding="utf-8"),
+            "CA\tConsejo de administración; Cifra de negocios, facturación; Corriente alterna\nmaison\tCasa\n",
+        )
+        self.assertEqual((work / "senses.tsv").read_text(encoding="utf-8"), "CA\tNOUN:3\nmaison\tNOUN:1\n")
+        self.assertIn(
+            "reduced fr-es: acronyms=1 (1 glossed: CA « Consejo de administración; Cifra de negocios, facturación; "
+            "Corriente alterna »)",
+            err,
+        )
+        # The acronym is no ranked lemma: read as fr-en writes it, never counted among the ranks.
+        self.assertEqual(fr_es.read_studied(str(studied), 60000), {"ça": 1, "maison": 2})
+        # With none of its expansions glossed, it has no gloss.
+        (work / "kaikki-es-Frances.jsonl").write_text(json.dumps(MAISON) + "\n", encoding="utf-8")
+        self.jsonl(name="work/kaikki-fr-traductions.jsonl")
+        err = self.reduce(work, studied)
+        self.assertEqual((work / "gloss.tsv").read_text(encoding="utf-8"), "maison\tCasa\n")
+        self.assertIn("reduced fr-es: acronyms=1 (0 glossed: )", err)
+
     def test_fr_es_s_copy_of_french_is_fr_en_s(self):
         # reduce-fr-es.py repeats fr-en's description of French (the token, the coordinators, the
         # form-of target) because a reducer loads no other pair's: the two must not drift.
@@ -1234,13 +1280,21 @@ class TheReducer(Tables):
         self.assertLessEqual(max(len(gloss) for gloss in expressions.values() if gloss.startswith("(")), 160)
 
     def test_spec_scenario_a_rule_of_the_spanish_edition(self):
-        # fr-es's rules are its reducer, the shared rules, the Spanish edition's and UD French-GSD's
-        # module, which fr-en imports too (refine-lingua-fr-es-glosses D8) — no other pair's reducer.
+        # fr-es's rules are its reducer, the shared rules, the Spanish edition's, UD French-GSD's
+        # module (refine-lingua-fr-es-glosses D8) and French's acronym table
+        # (keep-lingua-french-acronyms-in-capitals D2), both of which fr-en imports too — no other
+        # pair's reducer.
         import pack_sources as ps
 
         self.assertEqual(
             [p.name for p in ps.rule_files(Path(_HERE) / "reduce-fr-es.py")],
-            ["reduce-fr-es.py", "reduce_common.py", "reduce_edition_es.py", "reduce_french_treebank.py"],
+            [
+                "reduce-fr-es.py",
+                "reduce_common.py",
+                "reduce_edition_es.py",
+                "reduce_french_acronyms.py",
+                "reduce_french_treebank.py",
+            ],
         )
 
 

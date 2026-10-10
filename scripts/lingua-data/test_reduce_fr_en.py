@@ -148,6 +148,16 @@ ENTRIES = [
     form_of("bel", "beau used before a masculine noun that starts with a vowel sound", pos="adj"),
     entry("beau", pos="adj"),
     form_of("dabord", "d'abord et avant tout", pos="adv"),
+    # keep-lingua-french-acronyms-in-capitals D2 — the section's entry for the acronym table's row,
+    # pointing at its four expansions, as the pinned dump writes it: every reduction checks the row
+    # against it (`Acronyms` below).
+    entry(
+        "CA",
+        senses=[
+            {"glosses": [f"initialism of {of}"], "tags": ["abbreviation", "alt-of", "initialism"], "alt_of": [{"word": of}]}
+            for of in ("conseil d'administration", "chiffre d'affaires", "courant alternatif", "comptable agréé")
+        ],
+    ),
 ]
 
 # wordfreq's Zipf frequencies, doubled. A hyphenated word's is wordfreq's estimate from its parts.
@@ -809,6 +819,107 @@ class UnmarkedSpellings(unittest.TestCase):
             self.assertNotIn(spelling, levels)
             self.assertNotIn(spelling, _committed("fr-en/gloss.tsv"))
         self.assertNotIn("forcements", _committed("fr/forms.tsv"))
+
+
+# keep-lingua-french-acronyms-in-capitals: the section's entries for the acronym table's row — `CA`,
+# its four initialisms pointing at their expansions, its plural —, `ca` « abbreviation of circa »,
+# `ça`, and three of the expansions, `comptable agréé` having no entry (as in the pinned dump, whose
+# `courant alternatif` has two senses).
+ACRONYM_SECTION = [
+    *(e for e in SPELLINGS_SECTION if e["word"] in ("CA", "CAs", "ca", "ça")),
+    entry("conseil d'administration", senses=[{"glosses": ["board of directors"], "tags": ["masculine"]}]),
+    entry("chiffre d'affaires", senses=[{"glosses": ["revenue, turnover, net sales"], "tags": ["masculine"]}]),
+    entry(
+        "courant alternatif",
+        senses=[{"glosses": ["alternating current"], "tags": ["masculine"]}, {"glosses": ["domestic electricity supply"], "tags": ["masculine"]}],
+    ),
+]
+_ACRONYM_FREQ = {"ça": 6.5, "ca": 5.6}
+_ACRONYM_TOP = [w for w in sorted({**FREQ, **_ACRONYM_FREQ}, key=lambda w: (-{**FREQ, **_ACRONYM_FREQ}[w], w)) if "-" not in w]
+
+
+class Acronyms(unittest.TestCase):
+    """keep-lingua-french-acronyms-in-capitals: the acronym table's rows written into French's
+    tables as their own lemmas, dictionary words with no rank, level or reading (D2, D5), glossed from
+    fr-en's own glosses of their expansions (D4)."""
+
+    @classmethod
+    def run_section(cls, section):
+        with mock.patch.dict(FREQ, _ACRONYM_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _ACRONYM_TOP):
+            return Main.run_main(cls, section)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = cls.run_section([*ENTRIES, *ACRONYM_SECTION])
+        cls.forms = dict(line.split("\t") for line in cls.out["forms.tsv"].splitlines())
+        cls.ranks = dict(line.split("\t") for line in cls.out["freq.tsv"].splitlines())
+        cls.levels = dict(line.split("\t") for line in cls.out["level.tsv"].splitlines())
+        cls.glosses = dict(line.split("\t", 1) for line in cls.out["gloss.tsv"].splitlines())
+        cls.runs = dict(line.split("\t", 1) for line in cls.out["senses.tsv"].splitlines())
+        cls.words = cls.out["lexical.tsv"].splitlines()
+
+    def test_spec_scenario_the_row_in_french_s_tables(self):
+        # `CA` → `CA`, the one form holding a capital, first in byte order; `ca` still `ça`'s.
+        self.assertEqual(self.forms["CA"], "CA")
+        self.assertEqual(self.forms["ca"], "ça")
+        self.assertEqual([f for f in self.forms if f != f.lower()], ["CA"])
+        self.assertTrue(self.out["forms.tsv"].startswith("CA\tCA\n"))
+        # A dictionary word, with no rank, no level and no reading.
+        self.assertIn("CA", self.words)
+        self.assertEqual(self.words, sorted(self.words))
+        self.assertNotIn("CA", self.ranks)
+        self.assertNotIn("CA", self.levels)
+        for row in self.out["grammar.tsv"].splitlines():
+            self.assertNotIn("CA", row.split("\t")[:2], row)
+        # Neither `CA`'s plural nor `ca`'s spelling becomes a form of the acronym.
+        self.assertNotIn("CAs", self.forms)
+        self.assertNotEqual(self.forms.get("cas"), "CA")
+
+    def test_spec_scenario_fr_en_glosses_the_acronym_from_its_expansions(self):
+        # Each expansion's first sense, in the row's order — `courant alternatif`'s second cut —,
+        # `comptable agréé`, which the section does not gloss, passed over; one noun run.
+        self.assertEqual(self.glosses["CA"], "board of directors; revenue, turnover, net sales; alternating current")
+        self.assertEqual(self.runs["CA"], "NOUN:3")
+        # The expressions keep their own glosses: nothing of them moves.
+        self.assertIn("courant alternatif\talternating current; domestic electricity supply\n", self.out["mwe.tsv"])
+        # The one glossed lemma no rank holds.
+        self.assertEqual([lemma for lemma in self.glosses if lemma not in self.ranks], ["CA"])
+
+    def test_spec_scenario_no_expansion_glossed(self):
+        # Without the expansions' entries the row is written all the same, with no gloss.
+        out = self.run_section([*ENTRIES, *(e for e in ACRONYM_SECTION if " " not in e["word"])])
+        self.assertIn("CA\tCA\n", out["forms.tsv"])
+        self.assertIn("CA\n", out["lexical.tsv"])
+        self.assertNotIn("CA\t", out["gloss.tsv"])
+        self.assertNotIn("CA\t", out["senses.tsv"])
+
+    def test_spec_scenario_every_expansion_is_one_the_section_s_entry_points_at(self):
+        # The section's entry stops pointing at an expansion the row names: the reduction stops,
+        # naming both; so does a section with no entry headed `CA`, `ca`'s and `Ca`'s aside.
+        ca = next(e for e in ACRONYM_SECTION if e["word"] == "CA")
+        three = {**ca, "senses": ca["senses"][:3]}
+        section = [e for e in [*ENTRIES, *ACRONYM_SECTION] if e["word"] != "CA"]
+        with self.assertRaisesRegex(SystemExit, "row CA names comptable agréé"):
+            self.run_section([*section, three])
+        with self.assertRaisesRegex(SystemExit, "row CA has no entry headed CA"):
+            self.run_section([*section, {**ca, "word": "Ca"}])
+
+    def test_the_section_s_entry_is_read_for_the_table_and_lowercased_as_before(self):
+        lex = lexicon(*ACRONYM_SECTION)
+        self.assertEqual(lex.acronyms.found, {"CA": set(red.acronyms.ACRONYMS["CA"][0])})
+        # As 43b reads it: `CA`'s entry lowercased into `ca`, read by `UNMARKED_SPELLINGS` alone.
+        self.assertEqual(lex.candidates["ca"], {"ça"})
+        self.assertNotIn("CA", lex.candidates)
+        self.assertNotIn("ca", lex.lemmas)
+
+    def test_the_committed_tables_hold_the_row(self):
+        forms = _committed("fr/forms.tsv")
+        self.assertEqual((forms["CA"], forms["ca"]), ("CA", "ça"))
+        self.assertNotIn("CA", _committed("fr/freq.tsv"))
+        self.assertNotIn("CA", _committed("fr/level.tsv"))
+        self.assertEqual(
+            _committed("fr-en/gloss.tsv")["CA"], "board of directors; revenue, turnover, net sales; alternating current"
+        )
 
 
 class Ranks(unittest.TestCase):
@@ -1750,12 +1861,17 @@ class EstimatedLevelsReduced(unittest.TestCase):
 
     def test_spec_scenario_english_s_sizes(self):
         # Every levelled lemma is one of French's dictionary words, which the reduction writes
-        # (refine-lingua-fr-en-glosses D2, D3): fr-en's glossed lemmas less its names alone.
+        # (refine-lingua-fr-en-glosses D2, D3): fr-en's glossed lemmas less its names alone — and the
+        # acronym rows, glossed or not (keep-lingua-french-acronyms-in-capitals D2): the fixture
+        # section glosses none of `CA`'s expansions.
         words = self.out["lexical.tsv"].splitlines()
         self.assertEqual(words, sorted(words))
         glossed = dict(line.split("\t", 1) for line in self.out["gloss.tsv"].splitlines())
         runs = {line.split("\t")[0]: line.split("\t")[1:] for line in self.out["senses.tsv"].splitlines()}
-        self.assertEqual(words, sorted(w for w in glossed if not all(r.startswith("PROPN:") for r in runs[w])))
+        self.assertNotIn("CA", glossed)
+        self.assertEqual(
+            words, sorted([*(w for w in glossed if not all(r.startswith("PROPN:") for r in runs[w])), "CA"])
+        )
         for lemma in self.levels:
             self.assertIn(lemma, words)
         self.assertEqual(sum(size for _, size in red.ENGLISH_BANDS), 8302)
@@ -2107,11 +2223,18 @@ class NativeSide(unittest.TestCase):
         sys.path.insert(0, _HERE)
         import pack_sources as ps
 
-        # The treebank's rule (refine-lingua-fr-en-glosses D5) is a rule module of its own, in fr-en's
+        # The treebank's rule (refine-lingua-fr-en-glosses D5) and French's acronym table
+        # (keep-lingua-french-acronyms-in-capitals D2) are rule modules of their own, in fr-en's
         # digest.
         self.assertEqual(
             [p.name for p in ps.rule_files(ps.Path(_HERE) / "reduce-fr-en.py")],
-            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py", "reduce_french_treebank.py"],
+            [
+                "reduce-fr-en.py",
+                "reduce_common.py",
+                "reduce_edition_en.py",
+                "reduce_french_acronyms.py",
+                "reduce_french_treebank.py",
+            ],
         )
 
 
