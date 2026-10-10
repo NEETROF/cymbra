@@ -153,10 +153,12 @@ const LEMMAS: &[&str] = &[
 /// whose last piece is elided by the page and `de un` on « d’un »
 /// (match-lingua-french-elided-pieces), `le` a pronoun after `à`, the contraction, a last `à`
 /// before the page's article and a first article after the page's `à`
-/// (match-lingua-french-contracted-pieces), the `homographes` page's « pas » and `son`, both flagged
-/// (M21 and M8's cost), and the
-/// `fiction` page's `Personne`, not, and the blocks that are not French (English, Spanish,
-/// Catalan, Occitan, Italian), and French written without its marks as fr-en's table reads it
+/// (match-lingua-french-contracted-pieces), a key several headwords reach answered by the one
+/// written as the page — `ça va`, `ça ira`, one of three, `les miens` and the closest where none
+/// is (pick-lingua-expression-written-as-the-page) —, the `homographes` page's « pas » and `son`,
+/// both flagged (M21 and M8's cost), and the `fiction` page's `Personne`, not, and the blocks
+/// that are not French (English, Spanish, Catalan, Occitan, Italian), and French written without
+/// its marks as fr-en's table reads it
 /// (read-lingua-french-ca-as-ca-cedilla): « comme ca » and « c'est ca » meet `ça`'s expressions and
 /// « à mon age » reads `âge`; and a word standing alone in capitals read as the acronym its pack lists
 /// (keep-lingua-french-acronyms-in-capitals D1, D7): « Le CA a voté le budget. » shows `CA`, the
@@ -193,6 +195,11 @@ const PHRASES: &[&str] = &[
     "Au fait, tu viens\u{202f}?",
     "grâce au soleil",
     "aux miennes",
+    "\u{c7}a va\u{202f}?",
+    "\u{c7}a ira.",
+    "Allons-y\u{202f}!",
+    "les miens",
+    "Quelle que soit la distance",
     "Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.",
     "Personne au village ne se souvenait",
     "The lighthouse stood",

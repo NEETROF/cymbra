@@ -57,7 +57,10 @@
 //! keep-lingua-french-acronyms-in-capitals: French's version moves the pack line and the 17 page
 //! analyses, « Le CA a voté le budget. » shows the acronym `CA` and its gloss, and four probes are
 //! added, « LE CA A VOTÉ LE BUDGET », « Il a crié : CA SUFFIT ! », « Ca fait du bien. » and the
-//! card of `CA`). `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
+//! card of `CA`; pick-lingua-expression-written-as-the-page: the pack, which keeps every headword of
+//! a key, and five phrase probes, « Ça va ? », « Ça ira. », « Allons-y ! », « les miens » and
+//! « Quelle que soit la distance »).
+//! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
 //! renders this golden's grammar and phrase probes, and is re-blessed with it
 //! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).
 //!
