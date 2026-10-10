@@ -64,10 +64,11 @@ shown here and in the pull request alone.
 
 ## What is in them
 
-On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `2026.10.10+1a849ad.ff4d6e4`:
+On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `@@PACKVERSION@@`:
 the snapshot, the rules' digest, and the digest of the studied tables `pin.json` records), reduced
 again from the pinned release and UD French-GSD's two pinned sections with fr-es's own rules
-(refine-lingua-fr-es-glosses: *fr-es's own rules* below), on French's dictionary words and levels of
+(refine-lingua-fr-es-glosses: *fr-es's own rules* below) and its expressions refined where French text
+meets them (refine-lingua-fr-es-expressions: *fr-es's expressions* below), on French's dictionary words and levels of
 refine-lingua-fr-en-glosses, the forms of read-lingua-french-ca-as-ca-cedilla and
 read-lingua-french-dictionary-unmarked-spellings and French's acronym table of
 keep-lingua-french-acronyms-in-capitals. The first
@@ -113,8 +114,9 @@ fois » and « un coup d'Etat » now meet `il était une fois` « Érase una vez
   French section** (its definitions, by the Spanish edition's rules and fr-es's), **13,189 from the
   Spanish translations the French Wiktionary lists** (the direct table, in its order, each word
   once) and **1,278 from the French translations the Spanish Wiktionary's Spanish entries list, read
-  backwards** (the inverted table, the commonest Spanish word first); **12,174 expressions** — 587
-  from the section, 10,683 from the direct table, 904 from the inverted one. Up to eight senses
+  backwards** (the inverted table, the commonest Spanish word first); **12,108 expressions** — 573
+  from the section, 10,642 from the direct table (3 of them written as French pages write them), 893
+  from the inverted one; 12,174 before refine-lingua-fr-es-expressions (587, 10,683, 904). Up to eight senses
   grouped by part of speech, as every pair's; a table's gloss at most three Spanish words per part
   of speech, as one sense, opening on a capital as the edition's senses do. No pivot through a third
   language, no machine translation.
@@ -134,7 +136,8 @@ fois » and « un coup d'Etat » now meet `il était une fois` « Érase una vez
   D2), the others `quant`, `onu`, `for`, `okay` —, and 8,484 of French's 26,472 dictionary words have
   no Spanish gloss, so the pack carries a lexical section and the vocabulary estimate counts the same
   words for both pairs.
-- **The pack is 1,973,161 B**, 37.6 % of the 5 MiB budget (−2,118 B with fr-es's own rules, −175 B
+- **The pack is @@PACK@@ B**, 37.6 % of the 5 MiB budget (@@DELTA@@ B with fr-es's expressions refined,
+  66 fewer expressions and 62 other headwords of a key where 64 were; −2,118 B with fr-es's own rules, −175 B
   with French's unmarked spellings, −1,630 B with French's acronym table: `CA` takes lemma id 0 and
   every other id moves by one, which the forms map, −746 B, the paradigms, −750 B, and the sense runs,
   −176 B, encode slightly tighter; the glosses +33 B; the new rows +9 B; +1,620 B keeping every
@@ -247,6 +250,67 @@ correction reworded, re-pins fr-es:
   [hall](https://fr.wiktionary.org/wiki/hall) « explanada » → « vestíbulo », « recibidor », the one
   correction no source supplies. A correction that finds nothing — the page corrected — is named on
   the reduction's summary line, and removed.
+
+## fr-es's expressions (refine-lingua-fr-es-expressions)
+
+fr-es's expressions measured where French text meets them, as fr-en's were (change 48c): the engine's
+own phrase gloss (`gloss_phrase`) over UD French-GSD's training and development sentences, Gutenberg,
+French Wikipedia, a Tatoeba sample and the French baseline's pages — 51,790 lines, 1,085,056 tokens.
+On the tables before this change fr-es met **41,549 expressions** there (38.3 per 1,000 tokens), in
+21,086 lines (40.7 %); of 200 drawn at random and read in their sentences, 126 read right, 7 partly,
+67 wrong — « de la » « Algo de, un poco de, una cierta cantidad de », a fifth of all matches, wrong in
+all 41 sampled (« le maire de la ville »). Every expression met five times or more (822, 92.6 % of the
+matches) was read in its sentences. Three rules of fr-es's reducer, run on the expressions of the
+three sources together after they are merged; no shared or edition module is edited, so en-fr, es-fr,
+es-en, en-es and fr-en do not move, and neither do `gloss.tsv`, `senses.tsv` and the coverage:
+
+| Rule | Where | Expressions | Matches on the corpora | Examples |
+|---|---|---|---|---|
+| Written as French pages write them (D4) | `as_the_page_writes` | 3 respelled, 1 merged; 8 kept beside their traditional spelling | « crème brûlée » 2, « huile d'olive » 12 | « crème brulée » → « crème brûlée », « clé de voute » → « clé de voûte », « ognon de roscoff » → « oignon de roscoff » (by `../fr/forms.tsv` and wordfreq); « huile d' olive » (the inverted table's) merged into the direct table's « huile d'olive »; « boite aux lettres », « bruler ses vaisseaux », « chaine de blocs », « chaine de magasins », « chaine latérale », « connaitre comme sa poche », « flute de pan », « flute à bec » kept beside their traditional spelling |
+| A reviewed list left out by name (D2) | `LEFT_OUT` | 65 left out | 11,393 (27.4 %) | « de la », « sur le champ », « être à », « venir de », « de fait »: below |
+| Four slips corrected instead (D3) | `CORRECTIONS` | 4 changed | « se lever » 84, « se réveiller » 18, « grand public » 9, « effet spécial » 5 | below |
+| **Together** | | **12,174 → 12,108** | **41,549 → 30,410** (28.0 per 1,000 tokens), 21,086 → 17,782 lines (34.3 %), 8,052 selections moved | |
+
+By corpus, matches and lines meeting one: UD French-GSD 12,554 → 9,076 and 8,025 → 6,507; Gutenberg
+7,947 → 6,305 and 2,648 → 2,446; Wikipedia 14,841 → 9,702 and 5,180 → 4,240; Tatoeba 6,161 → 5,286
+and 5,201 → 4,559; the baseline's pages 46 → 41 and 32 → 30. 11,533 matches go — the list's 11,393
+and the renamed or corrected ones — and 394 come: 130 renamed or corrected, 264 an expression the
+removed one hid (« Vous étiez à la campagne » meets « à la » where it met « être à », « sur le champ de
+bataille » « champ de bataille »). A fresh sample of 100 matches reads **91 right, 5 partly, 4 wrong**;
+of 50 matches the change newly shows, 48 read better than before and 2 the same.
+
+**The list** (`LEFT_OUT`), each headword with its reason, its matches and a context in the reducer —
+an expression read wrong in at least 60 % of its matches, whatever source glosses it, so that a later
+source cannot bring it back; its words keep their glosses. A headword no source glosses any more is
+named on the reduction's summary line, to be removed:
+
+- **A partitive read where the page means « of the »** (1): « de la » (8,757).
+- **A shorter idiom swallowing a compound noun** (1): « sur le champ » (6, 4 of them « sur le champ de
+  bataille »).
+- **Words met as they are, where the source names one use or a set phrase** (41): « être à », « venir
+  de » (« Il vient de Paris » met as « Acabar de »; about 115 of its 320 matches, before an infinitive,
+  read right and are lost), « histoire de », « être pour », « mais que », « mon cœur », « et bien »,
+  « de qui », « dans l'ensemble », « de rien », « c'est moi », « un tel », « encore que », « laisser
+  tomber », « à plus », « à l'aide », « faire avec », « à d'autres », « de côté », « de laquelle »,
+  « de sable », « au vent », « à suivre », « la ferme », « de force », « avoir raison de », « dire
+  quelque chose », « au mieux », « quatre heures », « convenir de », « à neuf », « on ne peut plus »,
+  « du gâteau », « bon vieux », « à vendre », « à table », « laisser faire » and « laissez faire »
+  (one key), « loin de là », « au goût », « grand pont ».
+- **A form of another word met as the headword** (12): « de fait » (202 of its 223 matches « de
+  faire »), « étant donné », « tenir de », « la tienne », « bien fait », « qui sait », « ayant droit »,
+  « garder de », « à l'anglaise », « à l'ancienne », « en conserve », « de conserve ».
+- **A wrong translation no other source corrects** (9): « se passer » « Pasarse », « en ce moment »,
+  « se reposer », « se moquer », « être défini », « se poser », « parti pris », « être sec »,
+  « plaque tournante ».
+- **A name** (1): « de gaulle » « Apellido ».
+
+**The four corrections** (`CORRECTIONS`, refine-lingua-fr-es-glosses' table), each reported to the
+Wiktionary that wrote it: the Spanish Wiktionary's [se lever](https://es.wiktionary.org/wiki/se_lever)
+« Estar de pie uno » → none, the direct table's « Levantarse » then glossing it; the French
+Wiktionary's [se réveiller](https://fr.wiktionary.org/wiki/se_réveiller) « despedirse » → none, the
+inverted table's « Despertarse » then glossing it; its [grand public](https://fr.wiktionary.org/wiki/grand_public)
+« grande publico » → « gran público »; its [effet spécial](https://fr.wiktionary.org/wiki/effet_spécial)
+« efecto especiale » → « efecto especial ».
 
 ## A sample of 100 glosses
 
@@ -380,6 +444,14 @@ inverted table's names, acronyms and other-sense words (« us » « EEUU », « 
 verb (`être`, `devoir`), a contraction with no part of speech (`des`, `du`), the part of speech named
 again (`qui`, `quoi`), « etc » without its period, a function word's row opening on another part of
 speech (`pas`, `pendant`), and the sources' slips (`rien`, `amie`, `el`, `hall`, « il y a »).
+
+**fr-es's expressions** (refine-lingua-fr-es-expressions) — what its measure leaves: « en fait »
+(100 of 196 matches wrong, met by « en faisant », « en faire », « en font ») and « de nouveau » (122 of
+231, by « de nouveaux », « de nouvelles »), an invariable expression met by its words' other forms,
+and « ce que » « Lo que » met inside « est-ce que » (250 of 940; no source glosses « est-ce que »):
+rules of the matcher, for every pair, kept here. The 1,749 expressions met fewer than five times
+(3,082 matches, 7.4 %) were not read: by the fresh sample, about one match in twenty-five reads wrong.
+Read and kept below the list's line: « comme pour », « à point », « avoir mal », « le même ».
 
 What still reads wrong, measured on the committed tables (rows / of the top 10,000), for the owner's
 review and a later refinement if one is wanted:
