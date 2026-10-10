@@ -932,17 +932,17 @@ export class ReadingSession {
   private onCapture(kind: CaptureKind, cap: Capture): void {
     if (!this.enabled || !this.host) return;
     const sel = { text: cap.text, sentence: cap.sentence, selection: cap.selection, rect: this.toSurface(cap.rect) };
-    const pieces = kind === "word" ? this.pieceSelected(cap) : ({ kind: "word" } as const);
+    if (kind === "phrase") {
+      this.cards.openForSelection(sel, null);
+      return;
+    }
+    const pieces = this.pieceSelected(cap);
     if (pieces.kind === "pieces") {
       this.cards.openForSelection(sel, null, true);
       return;
     }
     const hit =
-      pieces.kind === "piece"
-        ? pieces.hit
-        : kind === "word"
-          ? this.hitAt(cap.range.startContainer, cap.range.startOffset, true)
-          : null;
+      pieces.kind === "piece" ? pieces.hit : this.hitAt(cap.range.startContainer, cap.range.startOffset, true);
     this.cards.openForSelection(sel, hit ? this.pageHit(hit) : null);
   }
 
