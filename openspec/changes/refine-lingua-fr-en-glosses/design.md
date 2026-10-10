@@ -142,10 +142,10 @@ the first is edited, so only fr-en re-pins.
 **Which lemmas.** A lemma fr-en glosses by a proper noun's senses alone: every sense run of its gloss
 (`senses.tsv`) is `PROPN`. It is read off the committed tables, so a check can hold it: 3,578 lemmas
 with D4–D8 (3,586 before them), among them 74 of change 48's borrowed from a name through a pointer
-(`etats-unis`, `egypte`, `ecosse`, an unaccented spelling of a name). A word with a common sense beside a name's stays a word (`lot`,
-`aube`, `nice`, `marche`). A lemma whose common entry repeats the name's gloss word for word is read
-by whichever entry the round-robin meets first: `islam` « Islam » was a name's before D5 and is a
-noun's after it, as the treebank counts it.
+(`etats-unis`, `egypte`, `ecosse`: a name spelled without its accent). A word with a common sense
+beside a name's stays a word (`lot`, `aube`, `nice`, `marche`). A lemma whose common entry repeats
+the name's gloss word for word is read by whichever entry the round-robin meets first: `islam`
+« Islam » was a name's before D5 and is a noun's after it, as the treebank counts it.
 
 **Where** (measured above). Left unglossed, the names would take fr-en under its floor at every cut,
 which the owner's decision 1 forbids. Read by change 41's names rule as names, they would still count
@@ -263,9 +263,10 @@ nothing a reader of `le` or `on` needs, and the card does not read a token's cap
 **Left out** (`LEFT_OUT`, each with its reason, as `à la`): `et des`, `que de`, `sur ce`, `et si`,
 `un coup`. Their one sense needs a context the key does not hold, and the treebank's text never gives
 it: of 204 « et des » none means « or thereabouts » (two follow a year, none a number); of 43
-« que de » none is the exclamative « how much! »; of 25 « sur ce » none is « thereupon » (all « sur ce
-+ noun » or « sur ce qui/que »); of 13 « et si » one at most reads « what if » (« Et si en plus y'a personne »), the others « and if »; of 11
-« un coup » none means « once » or softens an order (7 « un coup de »). « du pain et des œufs » then
+« que de » none is the exclamative « how much! »; of 25 « sur ce » none is « thereupon » (all « sur
+ce » before a noun or « qui »/« que »); of 13 « et si » one at most reads « what if » (« Et si en
+plus y'a personne »), the others « and if »; of 11 « un coup » none means « once » or softens an
+order (7 « un coup de »). « du pain et des œufs » then
 meets no expression, and « un coup d'œil » meets `coup d'œil` alone.
 
 **Lent**: a headword whose every sense is « post-1990 spelling of X », and that the forms table keys
