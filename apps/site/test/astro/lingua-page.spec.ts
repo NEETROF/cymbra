@@ -4,7 +4,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Coverage, Routes } from "../../src/lib/lingua-pairs";
 import takenWith from "../fixtures/lingua/taken-with.json";
-import { MATRIX, ROUTES, TODAY } from "../support/lingua";
+import { MATRIX, ROUTES, SIX_PAIRS, TODAY } from "../support/lingua";
 
 // The Lingua pages rendered as the build renders them, through Astro's Container API, on a
 // committed pair list (change: add-site-lingua-matrix-pages, D1–D3). The test stands in for
@@ -18,7 +18,9 @@ import { MATRIX, ROUTES, TODAY } from "../support/lingua";
 //   English one;
 // - the matrix (es-en and en-es beside them): `/es/lingua/` exists, in Spanish, leads with
 //   the Spanish-glossed pair, and the Spanish nav and footer link it — what the build will do
-//   once change 35 ships en-es.
+//   once change 35 ships en-es;
+// - the six pairs (fr-en and fr-es beside the matrix, change 52): the coverage table has a row
+//   per pair inside a box that scrolls on its own (change: add-lingua-french-listings, D8).
 
 const coverage = vi.hoisted(() => ({ tops: [] as number[], glossed: {} as Record<string, number[]> }));
 const manifest = vi.hoisted(() => ({ routes: {} as Record<string, string[]> }));
@@ -44,6 +46,7 @@ function ship(data: Coverage, routes: Routes): void {
 const shipTheFixtures = () => ship(takenWith.coverage, takenWith.routes);
 const shipToday = () => ship(TODAY, ROUTES);
 const shipTheMatrix = () => ship(MATRIX, ROUTES);
+const shipSixPairs = () => ship(SIX_PAIRS, ROUTES);
 
 const fixture = (lang: string) => readFileSync(resolve(__dirname, `../fixtures/lingua/main.${lang}.html`), "utf8");
 const main = (html: string) => html.match(/<main>(.*?)<\/main>/s)?.[1];
@@ -51,6 +54,7 @@ const navLingua = (html: string) => html.match(/<nav class="nav-links">.*?<a hre
 const footerLingua = (html: string) => html.match(/<footer class="site-footer">.*?<a href="([^"]+)">Lingua<\/a>/s)?.[1];
 const hreflangs = (html: string) => [...html.matchAll(/<link rel="alternate" hreflang="([a-z]+)" href="([^"]+)">/g)].map((m) => [m[1], m[2]]);
 const headers = (html: string) => [...html.matchAll(/<th>([^<]*)<\/th>/g)].map((m) => m[1]);
+const rowHeaders = (html: string) => [...html.matchAll(/<th scope="row">([^<]*)<\/th>/g)].map((m) => m[1]);
 
 let container: AstroContainer;
 beforeAll(async () => {
@@ -98,7 +102,9 @@ describe("the matrix: a pair glossed in Spanish ships", () => {
     const html = await render(localePage, { locale: "es" });
     expect(html).toContain('<html lang="es">');
     expect(html).toContain("<title>Cymbra Lingua — amplía tu vocabulario leyendo la web</title>");
-    expect(headers(html)).toEqual(["Palabras más frecuentes", "Inglés → español", "Inglés → francés", "Español → francés", "Español → inglés"]);
+    // Two native languages listed: one row per pair, its header the pair (D8).
+    expect(headers(html)).toEqual(["Palabras más frecuentes", "5000", "10\u202F000", "20\u202F000"]);
+    expect(rowHeaders(html)).toEqual(["Inglés → español", "Inglés → francés", "Español → francés", "Español → inglés"]);
     expect(main(html)).toContain("Pensada para hispanohablantes que aprenden inglés.");
     expect(navLingua(html)).toBe("/es/lingua");
     expect(footerLingua(html)).toBe("/es/lingua");
@@ -124,7 +130,44 @@ describe("the matrix: a pair glossed in Spanish ships", () => {
   it("/en/lingua/ leads with the English-glossed pair", async () => {
     shipTheMatrix();
     const html = await render(EnglishPage);
-    expect(headers(html)[1]).toBe("Spanish → English");
+    expect(rowHeaders(html)[0]).toBe("Spanish → English");
     expect(main(html)).toContain("Made for English speakers learning Spanish.");
+  });
+});
+
+describe("the six pairs: a row per pair, in a box that scrolls on its own (change: add-lingua-french-listings, D8)", () => {
+  it("/en/lingua/ has six rows, Spanish → English and French → English first, inside the box", async () => {
+    shipSixPairs();
+    const html = await render(EnglishPage);
+    expect(rowHeaders(html)).toEqual([
+      "Spanish → English",
+      "French → English",
+      "English → French",
+      "Spanish → French",
+      "English → Spanish",
+      "French → Spanish",
+    ]);
+    expect(headers(html)).toEqual(["Commonest words", "5,000", "10,000", "20,000"]);
+    expect(main(html)).toContain(
+      '<div class="table-scroll"><table><thead><tr><th>Commonest words</th><th>5,000</th><th>10,000</th><th>20,000</th></tr></thead><tbody><tr><th scope="row">Spanish → English</th><td>90%</td><td>80%</td><td>70%</td></tr>',
+    );
+    expect(main(html)).toContain("In Spanish and French, the card also names the tense and the gender.");
+    expect(main(html)).toContain("For Spanish and French, the levels are estimated from word frequency");
+  });
+
+  it("/es/lingua/ leads with the Spanish speakers' pairs, French among them", async () => {
+    shipSixPairs();
+    const html = await render(localePage, { locale: "es" });
+    expect(rowHeaders(html).slice(0, 2)).toEqual(["Inglés → español", "Francés → español"]);
+    expect(main(html)).toContain("En francés y en español, la tarjeta también indica el tiempo verbal y el género.");
+  });
+
+  it("today's pairs: no box, no row header — the fixtures' table", async () => {
+    shipTheFixtures();
+    for (const page of [FrenchPage, EnglishPage]) {
+      const html = await render(page);
+      expect(html).not.toContain("table-scroll");
+      expect(rowHeaders(html)).toEqual([]);
+    }
   });
 });

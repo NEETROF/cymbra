@@ -17,13 +17,18 @@ export const TODAY: Coverage = {
 
 /**
  * The model catalogue's routes for every pair of the matrix, as committed when change 30
- * was written: en-fr, es-en and en-es direct, es-fr through English.
+ * was written: en-fr, es-en and en-es direct, es-fr through English — and French's, as change 50
+ * committed them: fr-en direct, fr-es through English.
  */
 export const ROUTES: Routes = {
   "en-fr": ["en-fr/base-memory/2.0"],
   "es-fr": ["es-en/base-memory/2.0", "en-fr/base-memory/2.0"],
   "es-en": ["es-en/base-memory/2.0"],
   "en-es": ["en-es/base-memory/2.1"],
+  // French's routes (change 50, add-lingua-french-translation): direct to English, through
+  // English to Spanish. A route of a pair a list does not ship is never read.
+  "fr-en": ["fr-en/base-memory/2.0"],
+  "fr-es": ["fr-en/base-memory/2.0", "en-es/base-memory/2.1"],
 };
 
 /**
@@ -33,4 +38,19 @@ export const ROUTES: Routes = {
 export const MATRIX: Coverage = {
   tops: TODAY.tops,
   glossed: { ...TODAY.glossed, "es-en": [90.0, 80.0, 70.0], "en-es": [96.0, 91.0, 80.0] },
+};
+
+/**
+ * The matrix and the two French pairs change 52 (enable-lingua-french) lists after them: fr-en
+ * (French for English speakers) and fr-es (French for Spanish speakers), with the figures their
+ * committed tables measured (changes 48 and 49). Change 53 (add-lingua-french-listings) writes the
+ * pages for it.
+ */
+export const WITH_FR_EN: Coverage = {
+  tops: TODAY.tops,
+  glossed: { ...MATRIX.glossed, "fr-en": [93.6, 86.9, 76.3] },
+};
+export const SIX_PAIRS: Coverage = {
+  tops: TODAY.tops,
+  glossed: { ...WITH_FR_EN.glossed, "fr-es": [83.2, 70.8, 56.8] },
 };

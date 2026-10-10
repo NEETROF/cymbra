@@ -1,7 +1,9 @@
 // The words of the Lingua page, one table per site language, and the builders that fill
 // them from the shipped pairs (change: add-site-lingua-matrix-pages, D1, D2, D4). Read by
-// `src/components/LinguaPage.astro` — and, for the Lingua card of the Spanish home page,
-// by `src/pages/es/index.astro` (`spanishHomeLinguaCard`, change: extend-site-spanish-locale, D3).
+// `src/components/LinguaPage.astro` — and, for the Lingua card of the Spanish and English home
+// pages, by `src/pages/es/index.astro` and `src/pages/en/index.astro` (`spanishHomeLinguaCard`,
+// change: extend-site-spanish-locale, D3; `englishHomeLinguaCard`, change:
+// add-lingua-french-listings, D9).
 //
 // Every string is the INNER HTML of its slot — inserted with `set:html`, never through an
 // `{expression}`: an expression escapes apostrophes (`'` → `&#39;`) and `&nbsp;`, and the
@@ -18,6 +20,10 @@
 //   {speakers}      a group's readers (fr « francophones », en "French speakers")
 //   {native}        a language name, as the sentence needs it (fr « français », en "French")
 //   {served}        the pairs extended translation serves, a list; {unserved} the others
+//   {inStudied}     the studied languages whose card names tense and gender, after « En » / "In"
+//                   (fr « espagnol et en français », en "Spanish and French", es « español y en francés »)
+//   {theStudied}    the studied languages whose levels are estimated, after « Pour » / "For"
+//                   (fr « l'espagnol et le français », en "Spanish and French", es « el español y el francés »)
 //   {music}         the Music page's address in this language
 // The English table keeps today's page as it is, « Je connais », « + Deck » and "its French
 // translation" included: change 34 (enable-lingua-english-speakers, task 1.2) replaces them
@@ -58,9 +64,13 @@ interface LinguaTable {
   toTalk: string;
   featuresId: string;
   cards: { key: CardKey; title: string; body: string }[];
-  /** Appended to the `click` and `level` cards when a listed pair studies Spanish. */
-  spanishCard: string;
-  spanishLevels: string;
+  /**
+   * Appended to the `click` card when a listed pair studies a language whose card names the
+   * tense and the gender, and to the `level` card when one studies a language whose levels are
+   * estimated (`STUDIED`, change: add-lingua-french-listings, D7).
+   */
+  genderCard: string;
+  estimatedLevels: string;
   /** The 🧭 `languages` card: its title is the groups, « <studied> → <native> »; its body is this. */
   languagesCard: string;
   coverageHeading: string;
@@ -131,8 +141,10 @@ const fr: LinguaTable = {
       body: "Sans compte, tout reste local. Connecté à Cymbra ID, votre deck et vos statuts suivent d'un appareil à l'autre.",
     },
   ],
-  spanishCard: " En espagnol, la carte nomme aussi le temps et le genre.",
-  spanishLevels: " Pour l'espagnol, les niveaux sont estimés d'après la fréquence des mots, faute de liste CECR libre de droits.",
+  genderCard: " En {inStudied}, la carte nomme aussi le temps et le genre.",
+  // « CEFR », as the extension's French interface names the scale (`levelScale`, M19) and as this
+  // page's level card does: one page, one name for the scale (D7).
+  estimatedLevels: " Pour {theStudied}, les niveaux sont estimés d'après la fréquence des mots, faute de liste CEFR libre de droits.",
   languagesCard: "Choisissez vos langues dans les Réglages : chaque page est lue dans la sienne.",
   coverageHeading: "Ce que couvre le dictionnaire",
   captionOneNative:
@@ -205,8 +217,8 @@ const en: LinguaTable = {
       body: "Signed out, everything stays local. Signed in to Cymbra ID, your deck and word statuses follow you across devices.",
     },
   ],
-  spanishCard: " In Spanish, the card also names the tense and the gender.",
-  spanishLevels: " For Spanish, the levels are estimated from word frequency, as no CEFR list can be shipped freely.",
+  genderCard: " In {inStudied}, the card also names the tense and the gender.",
+  estimatedLevels: " For {theStudied}, the levels are estimated from word frequency, as no CEFR list can be shipped freely.",
   languagesCard: "Choose your languages in Settings: each page is read in its own.",
   coverageHeading: "What the dictionary covers",
   captionOneNative:
@@ -279,9 +291,9 @@ const es: LinguaTable = {
       body: "Sin cuenta, todo se queda en tu dispositivo. Con la sesión iniciada en Cymbra ID, tu mazo y tus estados te siguen de un dispositivo a otro.",
     },
   ],
-  spanishCard: " En español, la tarjeta también indica el tiempo verbal y el género.",
-  spanishLevels:
-    " Para el español, los niveles se estiman a partir de la frecuencia de las palabras, a falta de una lista MCER de uso libre.",
+  genderCard: " En {inStudied}, la tarjeta también indica el tiempo verbal y el género.",
+  estimatedLevels:
+    " Para {theStudied}, los niveles se estiman a partir de la frecuencia de las palabras, a falta de una lista MCER de uso libre.",
   languagesCard: "Elige tus idiomas en los Ajustes: cada página se lee en el suyo.",
   coverageHeading: "Qué cubre el diccionario",
   captionOneNative:
@@ -301,6 +313,37 @@ const es: LinguaTable = {
 
 export const LINGUA_TEXT: Record<Lang, LinguaTable> = { fr, en, es };
 
+/** What a studied language's packs are, as the page tells its readers. */
+export interface StudiedLanguage {
+  /** The word card names the tense and the gender (« passé simple », « nom féminin »). */
+  namesTenseAndGender: boolean;
+  /** The levels are estimated from word frequency, for want of a freely licensed CEFR list. */
+  levelsEstimated: boolean;
+}
+
+/**
+ * What each studied language's packs are (change: add-lingua-french-listings, D7), whatever the
+ * language they are glossed in: English's card names no gender and its levels are CEFR-J's and
+ * Octanove's; Spanish's and French's cards name the tense and the gender (the Spanish programme;
+ * change 45) and their levels are estimated from word frequency (`levels_estimated`; change 46).
+ * A shipped pair studying a language not described here fails the build, as one the tables
+ * cannot name does.
+ */
+export const STUDIED: Readonly<Record<string, StudiedLanguage>> = {
+  en: { namesTenseAndGender: false, levelsEstimated: false },
+  es: { namesTenseAndGender: true, levelsEstimated: true },
+  fr: { namesTenseAndGender: true, levelsEstimated: true },
+};
+
+/** `code`'s entry in `STUDIED`, or the build stops, naming the language. */
+export function studiedLanguage(code: string): StudiedLanguage {
+  // `Object.hasOwn`, as for the names: « constructor » describes nothing.
+  if (!Object.hasOwn(STUDIED, code)) {
+    throw new Error(`lingua-text.ts: STUDIED does not describe the studied language "${code}" (its card and its levels)`);
+  }
+  return STUDIED[code];
+}
+
 /** Where each language's page sends its readers for Cymbra Music: its Music page in that language. */
 const MUSIC_HREF: Record<Lang, string> = { fr: "/music", en: "/en/music", es: "/es/music" };
 
@@ -317,6 +360,8 @@ interface Grammar {
   /** A pair named by both languages: « l'anglais vers le français » / "English to French" / « del inglés al francés ». */
   to: (studied: string, native: string) => string;
   and: (items: string[]) => string;
+  /** A list after « En » / "In": « espagnol et en français » / "Spanish and French" / « español y en francés ». */
+  inList: (items: string[]) => string;
   or: (items: string[]) => string;
   count: (n: number) => string;
   percent: (share: number) => string;
@@ -356,6 +401,7 @@ const GRAMMAR: Record<Lang, Grammar> = {
     the: (name) => (frElides(name) ? `l'${name}` : `le ${name}`),
     to: (studied, native) => `${GRAMMAR.fr.the(studied)} vers ${GRAMMAR.fr.the(native)}`,
     and: (items) => joinList(items, "et"),
+    inList: (items) => GRAMMAR.fr.and(items.map((item, i) => (i === 0 ? item : `en ${item}`))),
     or: (items) => joinList(items, "ou"),
     count: (n) => new Intl.NumberFormat("fr-FR").format(n),
     percent: (share) => new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 0 }).format(share / 100),
@@ -366,6 +412,7 @@ const GRAMMAR: Record<Lang, Grammar> = {
     the: (name) => name,
     to: (studied, native) => `${studied} to ${native}`,
     and: (items) => joinList(items, "and"),
+    inList: (items) => GRAMMAR.en.and(items),
     or: (items) => joinList(items, "or"),
     count: (n) => new Intl.NumberFormat("en-US").format(n),
     percent: (share) => new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 0 }).format(share / 100),
@@ -376,6 +423,7 @@ const GRAMMAR: Record<Lang, Grammar> = {
     the: (name) => `el ${name}`,
     to: (studied, native) => `del ${studied} al ${native}`,
     and: esAnd,
+    inList: (items) => esAnd(items.map((item, i) => (i === 0 ? item : `en ${item}`))),
     or: esOr,
     count: esCount,
     percent: esPercent,
@@ -412,7 +460,13 @@ export interface LinguaPageText {
   heroNote: string;
   featuresId: string;
   cards: { key: CardKey; title: string; body: string }[];
-  coverage: { heading: string; caption: string; head: string[]; rows: string[][]; note: string };
+  /**
+   * The coverage table. `perPair` false: one column per pair, `head` the pairs, each row a top
+   * (today's markup). `perPair` true, once pairs of two native languages are listed (D8): one row
+   * per pair, its first cell the pair (a row header), `head` the tops — rendered in a box that
+   * scrolls on its own.
+   */
+  coverage: { heading: string; caption: string; perPair: boolean; head: string[]; rows: string[][]; note: string };
   closing: { heading: string; body: string };
 }
 
@@ -446,7 +500,6 @@ export function linguaPageText(lang: Lang, shipped: ShippedPairs, options: Lingu
   const readers = lead.native === lang ? lead : null;
   const others = readers ? groups.slice(1) : groups;
   const oneNative = groups.length === 1;
-  const studiesSpanish = pairs.some((p) => p.studied === "es");
 
   // The hero note: the platforms, one audience sentence per group of other readers — and
   // the readers' own group, named only beside others (alone, the whole page is theirs, as
@@ -475,7 +528,16 @@ export function linguaPageText(lang: Lang, shipped: ShippedPairs, options: Lingu
   }
 
   const ofStudied = g.or(studiedOf(lead).map(g.of));
-  const appended: Partial<Record<CardKey, string>> = studiesSpanish ? { click: t.spanishCard, level: t.spanishLevels } : {};
+  // The studied languages of the listed pairs, once each, in the page's order (its readers'
+  // first), and what their packs are (D7): one sentence for the cards that name the tense and
+  // the gender, one for the levels that are estimated — never English.
+  const studied: string[] = [];
+  for (const group of groups) for (const p of group.pairs) if (!studied.includes(p.studied)) studied.push(p.studied);
+  const gendered = studied.filter((code) => studiedLanguage(code).namesTenseAndGender).map(name);
+  const estimated = studied.filter((code) => studiedLanguage(code).levelsEstimated).map(name);
+  const appended: Partial<Record<CardKey, string>> = {};
+  if (gendered.length) appended.click = fill(t.genderCard, { inStudied: g.inList(gendered) });
+  if (estimated.length) appended.level = fill(t.estimatedLevels, { theStudied: g.and(estimated.map(g.the)) });
   const cards = t.cards.map((card) => ({ ...card, body: card.body + (appended[card.key] ?? "") }));
   cards.push({
     key: "languages",
@@ -483,14 +545,17 @@ export function linguaPageText(lang: Lang, shipped: ShippedPairs, options: Lingu
     body: t.languagesCard,
   });
 
-  // The coverage table: one column per pair, the readers' first; headers name the studied
-  // language alone while every pair is glossed in one language, both once in two (D4).
+  // The coverage table, the readers' pairs first. While every pair is glossed in one language:
+  // one column per pair, named by its studied language alone (D4). Once in two, a pair is named
+  // by both and has a row of its own, one column per top — six columns of pairs would scroll a
+  // phone's page sideways (change: add-lingua-french-listings, D8).
   const ordered = groups.flatMap((group) => group.pairs);
-  const head = [
-    t.commonestWords,
-    ...ordered.map((p) => (oneNative ? capitalize(name(p.studied), lang) : `${capitalize(name(p.studied), lang)} → ${name(p.native)}`)),
-  ];
-  const rows = tops.map((top, i) => [g.count(top), ...ordered.map((p) => g.percent(p.glossed[i]))]);
+  const pairName = (p: LinguaPair): string =>
+    oneNative ? capitalize(name(p.studied), lang) : `${capitalize(name(p.studied), lang)} → ${name(p.native)}`;
+  const head = oneNative ? [t.commonestWords, ...ordered.map(pairName)] : [t.commonestWords, ...tops.map(g.count)];
+  const rows = oneNative
+    ? tops.map((top, i) => [g.count(top), ...ordered.map((p) => g.percent(p.glossed[i]))])
+    : ordered.map((p) => [pairName(p), ...p.glossed.map(g.percent)]);
   const named = (p: LinguaPair): string => (oneNative ? g.the(name(p.studied)) : g.to(name(p.studied), name(p.native)));
   const served = ordered
     .filter((p) => p.translation !== "none")
@@ -512,6 +577,7 @@ export function linguaPageText(lang: Lang, shipped: ShippedPairs, options: Lingu
     coverage: {
       heading: t.coverageHeading,
       caption: oneNative ? fill(t.captionOneNative, { native: name(lead.native) }) : t.captionPerPair,
+      perPair: !oneNative,
       head,
       rows,
       note,
@@ -521,18 +587,19 @@ export function linguaPageText(lang: Lang, shipped: ShippedPairs, options: Lingu
 }
 
 // The Lingua card of the Spanish home page (change: extend-site-spanish-locale, D3). The
-// French and English homes' cards are literal markup and say « en anglais » / "English": true
-// for their readers. Translated as it stands, the Spanish card would tell Spanish speakers
-// that Lingua explains English words in Spanish before any pair does, so its words come from
-// the shipped pairs, as the Lingua page's do, with the Spanish table's names, speakers and
-// grammar: the languages read with a Spanish gloss once one ships; until then every language
-// read, and one sentence for whom it is made.
+// French home's card is literal markup and says « en anglais »: true for its readers.
+// Translated as it stands, the Spanish card would tell Spanish speakers that Lingua explains
+// English words in Spanish before any pair does, so its words come from the shipped pairs, as
+// the Lingua page's do, with the Spanish table's names, speakers and grammar: the languages
+// read with a Spanish gloss once one ships; until then every language read, and one sentence
+// for whom it is made. The English home's card follows the same rule from the first pair
+// glossed in English (`englishHomeLinguaCard`, below).
 const HOME_ES = {
   read: "Lee la web {ofStudied} con las palabras que aún no conoces resaltadas en la propia página. Un porcentaje honesto por página, un clic para la traducción y tu vocabulario, que se construye solo.",
   audience: " Pensada para {speakers}, con la interfaz y las traducciones en su idioma.",
 };
 
-/** The Lingua card of the Spanish home page: its text, ready for `set:html`, and its button's address. */
+/** The Lingua card of a home page: its text, ready for `set:html`, and its button's address. */
 export interface HomeLinguaCard {
   body: string;
   href: string;
@@ -567,4 +634,34 @@ export function spanishHomeLinguaCard(pairs: LinguaPair[]): HomeLinguaCard {
   let body = fill(HOME_ES.read, { ofStudied: g.or(studied.map((code) => g.of(name(code)))) });
   if (!readers) body += fill(HOME_ES.audience, { speakers: g.and(groups.map((group) => speakers(group.native))) });
   return { body, href: linguaHref("es", pairs) };
+}
+
+// The Lingua card of the English home page (change: add-lingua-french-listings, D9). Written
+// for French speakers, « Read the English web… » is wrong for the English speakers who read
+// `/en/` once a pair glossed in English ships (es-en, change 34), and more so once they read
+// French too (fr-en, change 52). From that pair on, the card names the languages read with an
+// English gloss, as the Spanish home's does with a Spanish one; until then it is today's
+// paragraph, byte for byte as the build renders it.
+const HOME_EN = {
+  read: "Read the web in {studied} with the words you do not know yet highlighted in place. An honest per-page percentage, one click for the meaning, and a vocabulary that builds itself as you read.",
+  before:
+    "Read the English web with the words you do not know yet highlighted in place. An honest per-page percentage, one click for the meaning, and a vocabulary that builds itself as you read.",
+};
+
+/**
+ * The English home page's Lingua card, from the shipped pairs: a pair glossed in English ships
+ * → the languages read with an English gloss, in `packs.json`'s order (« in Spanish », then « in
+ * Spanish or French »); none ships → today's words. The button opens `/en/lingua`, which always
+ * exists (`linguaHref('en')`).
+ */
+export function englishHomeLinguaCard(pairs: LinguaPair[]): HomeLinguaCard {
+  const t = LINGUA_TEXT.en;
+  const name = (code: string): string => {
+    if (!Object.hasOwn(t.names, code)) throw new Error(`lingua-text.ts: the en table has no name for the language "${code}"`);
+    return t.names[code];
+  };
+  const studied: string[] = [];
+  for (const p of pairs) if (p.native === "en" && !studied.includes(p.studied)) studied.push(p.studied);
+  const body = studied.length ? fill(HOME_EN.read, { studied: GRAMMAR.en.or(studied.map(name)) }) : HOME_EN.before;
+  return { body, href: linguaHref("en", pairs) };
 }

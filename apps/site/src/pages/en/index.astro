@@ -1,6 +1,14 @@
 ---
 import Base from '../../layouts/Base.astro';
 import Community from '../../components/Community.astro';
+import { linguaPairs } from '../../lib/lingua-pairs';
+import { englishHomeLinguaCard } from '../../lib/lingua-text';
+
+// The Lingua card alone is built from the shipped pairs (change: add-lingua-french-listings,
+// D9): it names the languages read with an English gloss once such a pair ships, and until
+// then reads as it always has, « Read the English web… », for French speakers. Inserted with
+// `set:html`: the builder escapes what it fills in.
+const lingua = englishHomeLinguaCard(linguaPairs());
 ---
 
 <Base
@@ -31,12 +39,8 @@ import Community from '../../components/Community.astro';
     <article class="product">
       <p class="kicker">Cymbra Lingua · browser extension <span class="badge">beta</span></p>
       <h2>📖 Lingua</h2>
-      <p>
-        Read the English web with the words you do not know yet highlighted in place.
-        An honest per-page percentage, one click for the meaning, and a vocabulary
-        that builds itself as you read.
-      </p>
-      <a class="btn btn-ghost" href="/en/lingua">Discover Lingua</a>
+      <p set:html={lingua.body} />
+      <a class="btn btn-ghost" href={lingua.href}>Discover Lingua</a>
     </article>
   </section>
 
