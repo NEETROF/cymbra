@@ -1559,6 +1559,35 @@ mod tests {
         lexical: Option<&[&str]>,
         levels: &[(&str, CefrLevel)],
     ) -> Pack {
+        build_pack_with_readings(
+            studied,
+            forms,
+            lemmas,
+            ranks,
+            glosses,
+            expressions,
+            names,
+            lexical,
+            levels,
+            &[],
+        )
+    }
+
+    /// [`build_pack_with_levels`] plus, when `readings` holds any, the grammar tables
+    /// ([`grammar_blobs`]), as [`build_pack_with_grammar_for`] lays them out.
+    #[allow(clippy::too_many_arguments)]
+    fn build_pack_with_readings(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        expressions: &[(&str, &str)],
+        names: &[(&str, &str)],
+        lexical: Option<&[&str]>,
+        levels: &[(&str, CefrLevel)],
+        readings: &[Reading],
+    ) -> Pack {
         let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
         let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
         let mut freq = vec![0u32; lex.lemma_count()];
@@ -1639,6 +1668,12 @@ mod tests {
         }
         if !levels.is_empty() {
             sections.push((section::LEVELS, &level_codes));
+        }
+        let [tag_pool, paradigm_zst, runs_zst] = grammar_blobs(&lex, readings, &[], &[]);
+        if !readings.is_empty() {
+            sections.push((section::TAGS, &tag_pool));
+            sections.push((section::PARADIGMS_ZST, &paradigm_zst));
+            sections.push((section::SENSES_ZST, &runs_zst));
         }
         Pack::load(&write_container(&meta, &sections)).expect("load")
     }
@@ -4689,6 +4724,431 @@ mod tests {
         assert_eq!(spans(&phrase), [(0, 2, "i do")]);
     }
 
+    // --- Overlapping expressions (choose-lingua-overlapping-expressions) ---
+
+    /// A pack studying `studied` holding `expressions` (headword, gloss), keyed as the builder
+    /// keys them — English at its spaces, French and Spanish through their reading — and named by
+    /// their headwords where the two differ (add-lingua-french-expression-keys D1, D3,
+    /// add-lingua-spanish-expression-keys D1, D3), with the grammar `readings`.
+    fn overlap_pack(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        expressions: &[(&str, &str)],
+        readings: &[Reading],
+    ) -> Pack {
+        let (bytes, pool) = build_lexicon_blobs(forms, lemmas).expect("build");
+        let lexicon = FstLexicon::from_slices(bytes, &pool).expect("load");
+        let keyed: Vec<(String, &str, &str)> = expressions
+            .iter()
+            .map(|&(headword, gloss)| {
+                let key = if studied == EN {
+                    headword.to_owned()
+                } else {
+                    reading_expression_key(headword, studied, &lexicon).expect(headword)
+                };
+                (key, headword, gloss)
+            })
+            .collect();
+        let table: Vec<(&str, &str)> = keyed
+            .iter()
+            .map(|(key, _, gloss)| (key.as_str(), *gloss))
+            .collect();
+        let names: Vec<(&str, &str)> = keyed
+            .iter()
+            .filter(|(key, headword, _)| key != headword)
+            .map(|(key, headword, _)| (key.as_str(), *headword))
+            .collect();
+        build_pack_with_readings(
+            studied,
+            forms,
+            lemmas,
+            &[],
+            &[],
+            &table,
+            &names,
+            None,
+            &[],
+            readings,
+        )
+    }
+
+    /// Each match of `text` read as `studied` on `pack`: the surfaces of the tokens it covers
+    /// and what it reports.
+    fn overlap_matches(
+        pack: &Pack,
+        studied: StudiedLanguage,
+        text: &str,
+    ) -> Vec<(Vec<String>, String)> {
+        let phrase = gloss_phrase(text, studied, pack, &KnowledgeState::new());
+        phrase
+            .expressions
+            .iter()
+            .map(|m| {
+                let covered = phrase.tokens[m.start..m.end]
+                    .iter()
+                    .map(|token| token.surface.clone())
+                    .collect();
+                (covered, m.key.clone())
+            })
+            .collect()
+    }
+
+    const OVERLAP_FR_FORMS: &[(&str, &str)] = &[
+        ("ai", "avoir"),
+        ("est", "être"),
+        ("mit", "mettre"),
+        ("resta", "rester"),
+        ("sont", "être"),
+        ("venait", "venir"),
+        ("veux", "vouloir"),
+        ("viens", "venir"),
+    ];
+
+    const OVERLAP_FR_LEMMAS: &[&str] = &[
+        "amical",
+        "avoir",
+        "besoin",
+        "cause",
+        "ce",
+        "courant",
+        "de",
+        "début",
+        "elle",
+        "et",
+        "étranger",
+        "être",
+        "fois",
+        "il",
+        "je",
+        "jusque",
+        "la",
+        "le",
+        "lit",
+        "mettre",
+        "nombre",
+        "nuit",
+        "pluie",
+        "que",
+        "rester",
+        "se",
+        "sept",
+        "sévère",
+        "toi",
+        "tout",
+        "tu",
+        "venir",
+        "vouloir",
+        "à",
+    ];
+
+    /// The French verbs of the delta's scenarios, each read by the grammar as a verb.
+    const OVERLAP_FR_READINGS: &[Reading] = &[
+        ("ai", "avoir", "AUX"),
+        ("est", "être", "AUX"),
+        ("mit", "mettre", "VERB"),
+        ("resta", "rester", "VERB"),
+        ("sont", "être", "AUX"),
+        ("venait", "venir", "VERB"),
+        ("veux", "vouloir", "VERB"),
+        ("viens", "venir", "VERB"),
+    ];
+
+    fn french_overlap(expressions: &[(&str, &str)], text: &str) -> Vec<(Vec<String>, String)> {
+        let pack = overlap_pack(
+            FR,
+            OVERLAP_FR_FORMS,
+            OVERLAP_FR_LEMMAS,
+            expressions,
+            OVERLAP_FR_READINGS,
+        );
+        overlap_matches(&pack, FR, text)
+    }
+
+    #[test]
+    fn spec_scenario_a_verb_s_expression_gives_the_au_to_the_expression_starting_on_it() {
+        let expressions = [
+            ("être à", "to belong to"),
+            ("nombre de", "quite a few"),
+            ("au nombre de", "numbering"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "Elles sont au nombre de sept."),
+            [covering(&["à", "le", "nombre", "de"], "au nombre de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_preposition_written_apart_goes_to_a_longer_expression() {
+        let expressions = [("être à", "to belong to"), ("à la fois", "at once")];
+        assert_eq!(
+            french_overlap(&expressions, "Il est à la fois sévère et amical."),
+            [covering(&["à", "la", "fois"], "à la fois")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_giving_expression_is_tried_shorter() {
+        let expressions = [
+            ("se mettre", "to place oneself"),
+            ("se mettre à", "to start"),
+            ("au lit", "in bed"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "Elle se mit au lit."),
+            [
+                covering(&["se", "mit"], "se mettre"),
+                covering(&["à", "le", "lit"], "au lit")
+            ]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_verb_itself_goes_to_a_longer_expression() {
+        let expressions = [("j'ai", "I have"), ("avoir besoin de", "to need")];
+        assert_eq!(
+            french_overlap(&expressions, "J'ai besoin de toi."),
+            [covering(&["ai", "besoin", "de"], "avoir besoin de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_question_marker_needs_its_hyphen_to_take_a_word() {
+        let expressions = [
+            ("c'est", "it is"),
+            ("ce que", "what"),
+            ("est-ce que", "question marker"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "C'est ce que tu veux."),
+            [
+                covering(&["Ce", "est"], "c'est"),
+                covering(&["ce", "que"], "ce que")
+            ]
+        );
+        // Written with its hyphen, the page meets the headword and the verb gives « est » away.
+        assert_eq!(
+            french_overlap(&expressions, "C'est-ce que tu veux ?"),
+            [covering(&["est", "ce", "que"], "est-ce que")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_outside_an_overlap_the_hyphen_is_not_read() {
+        let expressions = [
+            ("c'est", "it is"),
+            ("ce que", "what"),
+            ("est-ce que", "question marker"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "Est ce que tu viens ?"),
+            [covering(&["Est", "ce", "que"], "est-ce que")]
+        );
+        assert_eq!(
+            french_overlap(&expressions, "Est-ce que tu viens ?"),
+            [covering(&["Est", "ce", "que"], "est-ce que")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_compound_preposition_keeps_its_a() {
+        let expressions = [("jusqu'à", "until"), ("au début", "at the beginning")];
+        assert_eq!(
+            french_overlap(&expressions, "Il resta jusqu'au début de la nuit."),
+            [covering(&["jusque", "à", "le"], "jusqu'à")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_expression_no_longer_than_the_verb_s_takes_nothing() {
+        let expressions = [("venir de", "to have just"), ("de l'", "some")];
+        assert_eq!(
+            french_overlap(&expressions, "Il venait de l'étranger."),
+            [covering(&["venait", "de"], "venir de")]
+        );
+    }
+
+    #[test]
+    fn an_expression_next_made_of_function_words_only_may_be_cut() {
+        // G3 keeps a word only for an expression next holding a word that is not a function
+        // word: `de la` is cut, and `être à` gives its `à` to `à cause de`.
+        let expressions = [
+            ("être à", "to belong to"),
+            ("à cause de", "because of"),
+            ("de la", "some"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "Il est à cause de la pluie."),
+            [covering(&["à", "cause", "de"], "à cause de")]
+        );
+    }
+
+    #[test]
+    fn a_pack_without_grammar_keeps_today_s_matches() {
+        let expressions = [
+            ("être à", "to belong to"),
+            ("nombre de", "quite a few"),
+            ("au nombre de", "numbering"),
+        ];
+        let pack = overlap_pack(FR, OVERLAP_FR_FORMS, OVERLAP_FR_LEMMAS, &expressions, &[]);
+        assert_eq!(
+            overlap_matches(&pack, FR, "Elles sont au nombre de sept."),
+            [
+                covering(&["sont", "à", "le"], "être à"),
+                covering(&["nombre", "de"], "nombre de")
+            ]
+        );
+    }
+
+    #[test]
+    fn the_hyphen_join_reads_the_euphonic_t_and_lines_up_with_the_headword() {
+        let pack = overlap_pack(FR, OVERLAP_FR_FORMS, OVERLAP_FR_LEMMAS, &[], &[]);
+        let lexicon = pack.lexicon();
+        // `pense-t-il`: one join, the euphonic `t` between, on the page and in the headword.
+        assert!(meets_hyphens(&[false, true], "pense-t-il", lexicon));
+        assert!(!meets_hyphens(&[false, false], "pense-t-il", lexicon));
+        // A headword without a hyphen, or whose reading does not line up, meets.
+        assert!(meets_hyphens(&[false, false], "ce que", lexicon));
+        assert!(meets_hyphens(&[false, false, false], "est-ce", lexicon));
+        // Only the headword's hyphened places are held to the page.
+        assert!(meets_hyphens(&[false, true, false], "est-ce que", lexicon));
+        assert!(!meets_hyphens(&[false, false, true], "est-ce que", lexicon));
+    }
+
+    const OVERLAP_ES_FORMS: &[(&str, &str)] = &[
+        ("hizo", "hacer"),
+        ("iba", "ir"),
+        ("pese", "pesar"),
+        ("tengo", "tener"),
+    ];
+
+    const OVERLAP_ES_LEMMAS: &[&str] = &[
+        "a",
+        "de",
+        "dinero",
+        "día",
+        "el",
+        "ella",
+        "hacer",
+        "ir",
+        "lo",
+        "mal",
+        "modos",
+        "no",
+        "pesar",
+        "que",
+        "se",
+        "siguiente",
+        "tener",
+        "tiempo",
+        "todos",
+    ];
+
+    const OVERLAP_ES_READINGS: &[Reading] = &[
+        ("hizo", "hacer", "VERB"),
+        ("iba", "ir", "VERB"),
+        ("pesar", "pesar", "VERB"),
+        ("pese", "pesar", "VERB"),
+        ("tengo", "tener", "VERB"),
+    ];
+
+    fn spanish_overlap(expressions: &[(&str, &str)], text: &str) -> Vec<(Vec<String>, String)> {
+        let pack = overlap_pack(
+            ES,
+            OVERLAP_ES_FORMS,
+            OVERLAP_ES_LEMMAS,
+            expressions,
+            OVERLAP_ES_READINGS,
+        );
+        overlap_matches(&pack, ES, text)
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_verb_s_preposition() {
+        let expressions = [("hacer de", "to act as"), ("de todos modos", "anyway")];
+        assert_eq!(
+            spanish_overlap(&expressions, "Lo hizo de todos modos."),
+            [covering(&["de", "todos", "modos"], "de todos modos")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_preposition_followed_by_que_stays() {
+        let expressions = [("pese a", "despite"), ("a que no", "I bet you won't")];
+        assert_eq!(
+            spanish_overlap(&expressions, "Pese a que no tengo dinero"),
+            [covering(&["Pese", "a"], "pese a")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_expression_next_is_not_cut() {
+        let expressions = [
+            ("ir a", "to go to"),
+            ("al día", "up to date"),
+            ("día siguiente", "next day"),
+        ];
+        assert_eq!(
+            spanish_overlap(&expressions, "Ella se iba al día siguiente."),
+            [
+                covering(&["iba", "a", "el"], "ir a"),
+                covering(&["día", "siguiente"], "día siguiente")
+            ]
+        );
+        // Without the expression next, the verb's « al » goes to `al día`.
+        let expressions = [("ir a", "to go to"), ("al día", "up to date")];
+        assert_eq!(
+            spanish_overlap(&expressions, "Ella se iba al día siguiente."),
+            [covering(&["a", "el", "día"], "al día")]
+        );
+    }
+
+    #[test]
+    fn a_run_whose_verb_follows_a_preposition_keeps_its_last_word() {
+        // `a pesar de` is built on a preposition: « pesar » after `a` is not its verb.
+        let expressions = [("a pesar de", "despite"), ("del tiempo", "of the weather")];
+        assert_eq!(
+            spanish_overlap(&expressions, "a pesar del mal tiempo"),
+            [covering(&["a", "pesar", "de", "el"], "a pesar de")]
+        );
+        assert_eq!(
+            spanish_overlap(&expressions, "a pesar del tiempo"),
+            [covering(&["a", "pesar", "de", "el"], "a pesar de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_english_verb_s_particle() {
+        let pack = overlap_pack(
+            EN,
+            &[("went", "go")],
+            &["go", "over", "the", "top", "whole", "thing"],
+            &[("go over", "examiner"), ("over the top", "exagéré")],
+            &[("went", "go", "VERB")],
+        );
+        assert_eq!(
+            overlap_matches(&pack, EN, "The whole thing went over the top."),
+            [covering(&["over", "the", "top"], "over the top")]
+        );
+    }
+
+    #[test]
+    fn an_english_split_word_glosses_as_before() {
+        // « don't » shares its span between `do` and `not`; English never covers a second half,
+        // and `do not` is no longer than `i do`.
+        let pack = overlap_pack(
+            EN,
+            &[],
+            &["i", "do", "not"],
+            &[("i do", "je fais"), ("do not", "ne pas")],
+            &[("do", "do", "AUX")],
+        );
+        assert_eq!(
+            overlap_matches(&pack, EN, "I don't"),
+            [covering(&["I", "do"], "i do")]
+        );
+    }
+
     // --- A Spanish expression settled under its lemmas keeps that key (D6) ---
 
     #[test]
@@ -4897,25 +5357,19 @@ mod tests {
         build_pack_with_grammar_for(EN, forms, lemmas, &[], glosses, readings, also, runs)
     }
 
-    /// [`build_pack_with_grammar`] for any studied language, with ranks.
-    #[allow(clippy::too_many_arguments)]
-    fn build_pack_with_grammar_for(
-        studied: StudiedLanguage,
-        forms: &[(&str, &str)],
-        lemmas: &[&str],
-        ranks: &[(&str, u32)],
-        glosses: &[(&str, &str)],
+    /// The grammar tables of a test pack, laid out as the builder lays them: a sorted tag
+    /// pool, and paradigms and runs keyed by lemma id, each zstd-compressed.
+    fn grammar_blobs(
+        lex: &FstLexicon<Vec<u8>>,
         readings: &[Reading],
         also: &[Also],
         runs: &[Runs],
-    ) -> Pack {
+    ) -> [Vec<u8>; 3] {
         use crate::packs::grammar::{
             FormEdit, ParadigmEntry, SenseRun, encode_indexed, encode_paradigm, encode_runs,
             encode_tag_pool,
         };
         use std::collections::BTreeMap;
-        let (form_bytes, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
-        let lex = FstLexicon::from_slices(form_bytes.clone(), &pool).unwrap();
         let id = |lemma: &str| lex.id_of(lemma).expect("listed") as u32;
         let mut tags: Vec<String> = readings
             .iter()
@@ -4965,6 +5419,29 @@ mod tests {
             })
             .collect();
         run_entries.sort_unstable_by_key(|(id, _)| *id);
+        [
+            encode_tag_pool(&tags),
+            zstd::encode_all(encode_indexed(&paradigms).as_slice(), 19).unwrap(),
+            zstd::encode_all(encode_indexed(&run_entries).as_slice(), 19).unwrap(),
+        ]
+    }
+
+    /// [`build_pack_with_grammar`] for any studied language, with ranks.
+    #[allow(clippy::too_many_arguments)]
+    fn build_pack_with_grammar_for(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        readings: &[Reading],
+        also: &[Also],
+        runs: &[Runs],
+    ) -> Pack {
+        let (form_bytes, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
+        let lex = FstLexicon::from_slices(form_bytes.clone(), &pool).unwrap();
+        let id = |lemma: &str| lex.id_of(lemma).expect("listed") as u32;
+        let [tag_pool, paradigm_zst, runs_zst] = grammar_blobs(&lex, readings, also, runs);
         let gloss_entries: Vec<(u32, &str)> = glosses.iter().map(|(l, g)| (id(l), *g)).collect();
         let mut freq = vec![0u32; lex.lemma_count()];
         for (lemma, rank) in ranks {
@@ -4986,9 +5463,6 @@ mod tests {
         })
         .unwrap();
         let gloss = build_gloss_zst(&gloss_entries);
-        let tag_pool = encode_tag_pool(&tags);
-        let paradigm_zst = zstd::encode_all(encode_indexed(&paradigms).as_slice(), 19).unwrap();
-        let runs_zst = zstd::encode_all(encode_indexed(&run_entries).as_slice(), 19).unwrap();
         let sections: Vec<(&str, &[u8])> = vec![
             (section::FORMS, &form_bytes),
             (section::LEMMAS, pool.as_bytes()),
