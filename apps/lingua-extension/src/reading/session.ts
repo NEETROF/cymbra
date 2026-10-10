@@ -37,7 +37,7 @@ import {
 import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./selection-card.ts";
 import { browserSpeechEngine, createSpeaker, type Speaker } from "./speech.ts";
 import type { SurfaceCss } from "./surface-css.ts";
-import { type Gesture, WordPopup } from "./wordpopup.ts";
+import { type Gesture, WordPopup, gestureKey } from "./wordpopup.ts";
 import { recordReading, recordWordLearned, utcDay } from "../state/dailystats.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import {
@@ -964,7 +964,9 @@ export class ReadingSession {
   }
 
   private async onGesture(g: Gesture): Promise<void> {
-    const key = g.lemma.toLowerCase();
+    // A word's dictionary form as the engine gave it, an expression's name lowercased
+    // (keep-lingua-french-acronyms-in-capitals D6): the acronym `CA` is not `ça`.
+    const key = gestureKey(g);
     if (g.status === "learning") {
       const gloss = await this.cards.cardGloss(g);
       await this.lang.addCard({

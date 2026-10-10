@@ -12,7 +12,7 @@ import { selection as frSelection } from "../i18n/fr/selection.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatNumber, type InterfaceLanguage } from "../i18n/index.ts";
 import type { MarkedTranslation, Span } from "../translate/markup.ts";
 import type { TranslationRequest, TranslatorPort } from "../translate/port.ts";
-import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
+import { type Gesture, type GlossRow, type WordPopupContent, gestureKey } from "./wordpopup.ts";
 
 /** The selection card's copy: the catalogue's `selection` module, in the interface language (its French the default). */
 export type SelectionCopy = typeof frSelection;
@@ -485,7 +485,9 @@ export class SelectionCards {
     // (add-lingua-french-word-card D8). A phrase the pack does not know shows no gloss, so it
     // carries none.
     if (g.lemma.includes(" ") || g.expressionAnswer) return g.gloss ?? null;
-    return (await this.ports.gloss(g.lemma.toLowerCase())) ?? null;
+    // Asked for the key the card is filed under: a word's dictionary form as the engine gave it, the
+    // acronym `CA` in capitals (keep-lingua-french-acronyms-in-capitals D6).
+    return (await this.ports.gloss(gestureKey(g))) ?? null;
   }
 
   /** A pointer went down: whatever a capture opens from here on, the click that follows leaves alone. */
@@ -591,6 +593,8 @@ export class SelectionCards {
       rarity: this.copy.selectionKind,
       sentence: sel.sentence,
       rect: sel.rect,
+      // The text as written, no dictionary form: its gesture is keyed lowercased, as before.
+      asWritten: true,
     };
     const written = sel.text.trim();
     this.request(

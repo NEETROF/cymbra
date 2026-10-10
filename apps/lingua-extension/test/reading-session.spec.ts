@@ -238,6 +238,86 @@ describe("a session attached to a book section", () => {
     });
   });
 
+  // keep-lingua-french-acronyms-in-capitals D6: a word's status and card are keyed by the dictionary
+  // form the engine gave, capitals included; an expression's key is lowercased, as before.
+  describe("the key a gesture is filed under", () => {
+    const CA_GLOSS = "board of directors; revenue, turnover, net sales; alternating current";
+
+    async function gestures() {
+      const { s, port, calls } = session();
+      port.gloss = async (lemma) => (lemma === "CA" ? CA_GLOSS : lemma === "maison" ? "house" : undefined);
+      await s.start(null);
+      await s.attach(section("<p>It was a dark night.</p>").host);
+      const gesture = (g: Partial<Gesture>) =>
+        (s as unknown as { onGesture(g: Gesture): Promise<void> }).onGesture({
+          lemma: "CA",
+          surface: "CA",
+          sentence: "Le CA a voté le budget.",
+          status: "known",
+          expression: false,
+          gloss: CA_GLOSS,
+          ...g,
+        });
+      return { gesture, calls };
+    }
+
+    it("Marking the acronym known: the status is stored under `CA`, `ça` keeps the one it had", async () => {
+      const { gesture, calls } = await gestures();
+      await gesture({});
+      expect(calls.setStatus).toEqual([["CA", "known"]]);
+      expect(calls.setStatus.some(([lemma]) => lemma === "ça" || lemma === "ca")).toBe(false);
+    });
+
+    it("Adding the acronym to the deck: a card under `CA`, with the pack's gloss of `CA` and its sentence", async () => {
+      const { gesture, calls } = await gestures();
+      await gesture({ status: "learning" });
+      expect(calls.addCard).toHaveLength(1);
+      expect(calls.addCard[0]).toMatchObject({
+        lemma: "CA",
+        surface: "CA",
+        gloss: CA_GLOSS,
+        sentence: "Le CA a voté le budget.",
+      });
+    });
+
+    it("A lowercase word, as before", async () => {
+      const { gesture, calls } = await gestures();
+      await gesture({ lemma: "maison", surface: "Maison", sentence: "La maison.", gloss: "house" });
+      await gesture({ lemma: "maison", surface: "maison", sentence: "La maison.", status: "learning", gloss: "house" });
+      expect(calls.setStatus).toEqual([["maison", "known"]]);
+      expect(calls.addCard[0]).toMatchObject({ lemma: "maison", gloss: "house" });
+    });
+
+    it("An expression: its card is keyed by its name in lowercase, as before", async () => {
+      const { gesture, calls } = await gestures();
+      // The expression table's answer to « Au revoir », and a selection of words it does not know.
+      await gesture({
+        lemma: "Au revoir",
+        surface: "Au revoir",
+        status: "learning",
+        gloss: "goodbye",
+        expressionAnswer: true,
+      });
+      await gesture({
+        lemma: "Il Fait Beau",
+        surface: "Il Fait Beau",
+        status: "learning",
+        expression: true,
+        gloss: null,
+      });
+      expect(calls.addCard.map((card) => [card.lemma, card.gloss])).toEqual([
+        ["au revoir", "goodbye"],
+        ["il fait beau", null],
+      ]);
+    });
+
+    it("A headword taken from the selection's text: in lowercase, as before", async () => {
+      const { gesture, calls } = await gestures();
+      await gesture({ lemma: "Jenkins", surface: "Jenkins", status: "ignored", gloss: null, asWritten: true });
+      expect(calls.setStatus).toEqual([["jenkins", "ignored"]]);
+    });
+  });
+
   it("hands a click on nothing to the host, and stops hearing a detached section", async () => {
     const blank = vi.fn();
     const { s } = session({ onBlankClick: blank });
