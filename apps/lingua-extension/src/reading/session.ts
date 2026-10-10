@@ -32,6 +32,7 @@ import {
   classifySelection,
   SelectionWatcher,
   sentenceAndSelection,
+  withoutSoftHyphens,
 } from "./selection.ts";
 import { clickIsOnWord, decideClick, type PageHit, SelectionCards } from "./selection-card.ts";
 import { browserSpeechEngine, createSpeaker, type Speaker } from "./speech.ts";
@@ -895,8 +896,9 @@ export class ReadingSession {
       rect: this.toSurface({ left: rect.left, top: rect.top, bottom: rect.bottom }),
       sentence,
       selection,
-      // The source word, as written: the two halves of `don't` share its range.
-      written: hit.range.toString(),
+      // The source word, as written: the two halves of `don't` share its range. Read without
+      // its soft hyphens, which the core's span covers (ignore-lingua-soft-hyphens D5).
+      written: withoutSoftHyphens(hit.range.toString()),
     };
   }
 
