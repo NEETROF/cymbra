@@ -1871,6 +1871,57 @@ class FrEsGlossesRefined(Entries):
         )
 
 
+class FrEsExpressionsRefined(Entries):
+    """refine-lingua-fr-es-expressions: fr-es's expression rules, in its reducer alone (D1)."""
+
+    def test_spec_scenario_only_fr_es_s_expressions_move(self):
+        # The list, the four corrections and the spelling pass each move fr-es's rule digest, and no
+        # other pair's: no shared or edition module is edited. The committed pins record the rules they
+        # were reduced with, and fr-es keeps its snapshot, its studied record and its sources.
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for old, new in (
+            # D2, D3 and D4, one edit each of fr-es's reducer.
+            ('    "de gaulle": ', '    "de gaule": '),
+            ('("efecto especiale",),', '("efecto especial",),'),
+            ('"ognon" in word', '"oignon" in word'),
+            ('_ELISIONS = ("c", "d",', '_ELISIONS = ("d",'),
+        ):
+            reducer = copy / "reduce-fr-es.py"
+            text = reducer.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            reducer.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertNotEqual(after["fr-es"], before["fr-es"], new)
+            self.assertEqual({p: after[p] for p in pairs if p != "fr-es"}, {p: before[p] for p in pairs if p != "fr-es"}, new)
+            before = after
+        pin = ps.load(Path(_HERE) / "tables" / "fr-es" / "pin.json")
+        self.assertEqual(pin["snapshot"], "2026.10.10")
+        self.assertEqual(pin["studied"]["reference"], "fr-en")
+        self.assertEqual(
+            {name: pin["sources"][name]["release"] for name in ("kaikki-es", "kaikki-fr")},
+            {"kaikki-es": "lingua-pack-sources-fr-es-2026.10.10", "kaikki-fr": "lingua-pack-sources-fr-es-2026.10.10"},
+        )
+        self.assertEqual(
+            pin["sources"]["kaikki-es"]["files"]["kaikki-es-Frances.jsonl"]["sha256"],
+            "2e724e39ff59339f52f86c5a32ee4b84f968df93ce98631fa32aa0c938a31217",
+        )
+        self.assertEqual(
+            pin["sources"]["kaikki-fr"]["files"]["kaikki-fr-traductions.jsonl"]["sha256"],
+            "bd14a5c41693293d3f3e19467ad69212425236266117ca6a780e0ded19c3bf4e",
+        )
+
+
 class EnglishAndSpanishDictionaryWords(Entries):
     """leave-lingua-names-out-of-english-and-spanish-words D1, D2: English's and Spanish's dictionary
     words are en-fr's and es-fr's glossed lemmas less those they gloss by a proper noun's senses
