@@ -612,7 +612,9 @@ mod tests {
     use cymbra_platform::email::FakeEmail;
     use cymbra_platform::token as ptoken;
     use cymbra_user::{FakeUserRepo, UserModule};
+    use cymbra_user_port::MockUserPort;
     use jsonwebtoken::DecodingKey;
+    use mockall::predicate::eq;
     use std::collections::HashMap;
 
     const PRIV: &str = "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIPlT7JHCc7NTTIZVmlCgVeNNEkqsENhAZoscpnG+jSSw\n-----END PRIVATE KEY-----\n";
@@ -1283,8 +1285,7 @@ mod tests {
         h.m.resend_verification("a@x.dev", "it", &ip())
             .await
             .unwrap();
-        let subject = h.email.sent.lock().unwrap()[0].subject.clone();
-        assert_eq!(subject, "Vérifiez votre compte Cymbra");
+        assert_eq!(subjects(&h), vec!["Vérifiez votre compte Cymbra"]);
         let uid = h
             .user
             .resolve_or_provision("local", "a@x.dev")
@@ -1351,6 +1352,360 @@ mod tests {
         assert!(msg.html.contains("https://cymbra.app/cgu/"));
         assert!(msg.html.contains(&code));
         assert!(msg.text.contains(&code));
+    }
+
+    // --- The account's language first (change: prefer-account-locale-for-emails) ------
+
+    #[test]
+    fn email_locale_takes_the_stored_tag_then_the_requests_then_english() {
+        let cases: [(Option<&str>, &str, SupportedLocale); 6] = [
+            (Some("fr"), "it", SupportedLocale::Fr),
+            (None, "it", SupportedLocale::It),
+            (None, "", SupportedLocale::En),
+            (Some(""), "es", SupportedLocale::Es),
+            // A stored tag the e-mails are not written in still wins: English (D1, Q2).
+            (Some("de-DE"), "fr", SupportedLocale::En),
+            (Some("FR_ca"), "", SupportedLocale::Fr),
+        ];
+        for (stored, request, want) in cases {
+            assert_eq!(
+                email_locale(stored, request),
+                want,
+                "stored {stored:?}, request {request:?}"
+            );
+        }
+    }
+
+    /// The address and account the mocked-`UserPort` tests e-mail.
+    const ACCOUNT: &str = "acc@x.dev";
+    const UID: &str = "u-1";
+
+    fn harness_over(user: MockUserPort) -> Harness {
+        harness_with_user(
+            AuthLimits::with_default_ceilings(
+                3,
+                Duration::from_secs(60),
+                5,
+                Duration::from_secs(3600),
+            ),
+            Arc::new(user),
+        )
+    }
+
+    /// A `MockUserPort` that knows one account, [`UID`] behind the local identity
+    /// [`ACCOUNT`], whose stored locale is `stored`, read exactly `reads` times.
+    /// `set_locale` is expected exactly once with `records` when given, never otherwise.
+    /// The mock verifies the counts when the harness drops it.
+    fn account_port(
+        stored: Option<&'static str>,
+        reads: usize,
+        records: Option<&'static str>,
+    ) -> MockUserPort {
+        let mut user = MockUserPort::new();
+        user.expect_resolve_or_provision()
+            .with(eq("local"), eq(ACCOUNT))
+            .returning(|_, _| Ok(UID.into()));
+        user.expect_locale()
+            .with(eq(UID))
+            .times(reads)
+            .returning(move |_| Ok(stored.map(str::to_string)));
+        match records {
+            Some(tag) => {
+                user.expect_set_locale()
+                    .with(eq(UID), eq(tag))
+                    .times(1)
+                    .returning(|_, _| Ok(()));
+            }
+            None => {
+                user.expect_set_locale().never();
+            }
+        }
+        user
+    }
+
+    /// [`account_port`] for a set-password: the account has no password yet.
+    fn set_password_port(
+        stored: Option<&'static str>,
+        reads: usize,
+        records: Option<&'static str>,
+    ) -> MockUserPort {
+        let mut user = account_port(stored, reads, records);
+        user.expect_list_identities()
+            .with(eq(UID))
+            .returning(|_| Ok(vec![]));
+        user
+    }
+
+    /// The two e-mail requests that need nothing but an address.
+    #[derive(Clone, Copy, Debug)]
+    enum AddressRequest {
+        Resend,
+        Reset,
+    }
+
+    impl AddressRequest {
+        const BOTH: [Self; 2] = [Self::Resend, Self::Reset];
+
+        async fn send(self, h: &Harness, email: &str, locale: &str) -> Result<()> {
+            match self {
+                Self::Resend => h.m.resend_verification(email, locale, &ip()).await,
+                Self::Reset => h.m.request_password_reset(email, locale, &ip()).await,
+            }
+        }
+
+        /// The subject of this request's e-mail written in `locale`.
+        fn subject(self, locale: SupportedLocale) -> String {
+            match self {
+                Self::Resend => email_template::verification_email("c", locale, None).subject,
+                Self::Reset => email_template::password_reset_email("c", locale, None).subject,
+            }
+        }
+    }
+
+    fn verification_subject(locale: SupportedLocale) -> String {
+        email_template::verification_email("c", locale, None).subject
+    }
+
+    fn subjects(h: &Harness) -> Vec<String> {
+        h.email
+            .sent
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|m| m.subject.clone())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn a_resend_or_reset_never_replaces_a_stored_locale() {
+        for request in AddressRequest::BOTH {
+            let h = harness_over(account_port(Some("fr"), 1, None));
+            h.creds.insert(ACCOUNT, "hash").await.unwrap(); // unverified: both flows send
+            request.send(&h, ACCOUNT, "it").await.unwrap();
+            assert_eq!(
+                subjects(&h),
+                vec![request.subject(SupportedLocale::Fr)],
+                "{request:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_resend_or_reset_records_its_locale_on_an_account_with_none() {
+        for request in AddressRequest::BOTH {
+            let h = harness_over(account_port(None, 1, Some("fr-FR")));
+            h.creds.insert(ACCOUNT, "hash").await.unwrap();
+            request.send(&h, ACCOUNT, "fr-FR").await.unwrap();
+            assert_eq!(
+                subjects(&h),
+                vec![request.subject(SupportedLocale::Fr)],
+                "{request:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_resend_or_reset_with_no_locale_anywhere_records_nothing_and_is_english() {
+        for request in AddressRequest::BOTH {
+            let h = harness_over(account_port(None, 1, None));
+            h.creds.insert(ACCOUNT, "hash").await.unwrap();
+            request.send(&h, ACCOUNT, "").await.unwrap();
+            assert_eq!(
+                subjects(&h),
+                vec![request.subject(SupportedLocale::En)],
+                "{request:?}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn an_unknown_address_reads_and_writes_no_locale() {
+        // The mock knows only ACCOUNT: resolving any other address would panic, and the
+        // one read and one write it expects are the known account's (D5).
+        for request in AddressRequest::BOTH {
+            let h = harness_over(account_port(None, 1, Some("fr")));
+            h.creds.insert(ACCOUNT, "hash").await.unwrap();
+            let known = request.send(&h, ACCOUNT, "fr").await;
+            let unknown = request.send(&h, "ghost@x.dev", "fr").await;
+            assert!(matches!(known, Ok(())), "{request:?}");
+            assert!(matches!(unknown, Ok(())), "{request:?}");
+            let sent = h.email.sent.lock().unwrap();
+            assert_eq!(sent.len(), 1, "{request:?}");
+            assert_eq!(sent[0].to, ACCOUNT);
+        }
+    }
+
+    #[tokio::test]
+    async fn sign_up_records_the_requests_locale_on_the_new_account() {
+        let h = harness_over(account_port(None, 1, Some("fr")));
+        h.m.sign_up_local(ACCOUNT, PW, "fr", &ip()).await.unwrap();
+        // The job carries the rendered e-mail, as before (D4).
+        let jobs = h.creds.enqueued_jobs();
+        assert_eq!(jobs.len(), 1);
+        assert!(
+            jobs[0]
+                .payload_json
+                .contains(&verification_subject(SupportedLocale::Fr))
+        );
+    }
+
+    #[tokio::test]
+    async fn set_password_follows_the_stored_locale_and_never_replaces_it() {
+        // Case 2 of the proposal: neither no locale nor another one is the account's.
+        let h = harness_over(set_password_port(Some("es"), 2, None));
+        h.m.set_local_credential(UID, ACCOUNT, PW, "")
+            .await
+            .unwrap();
+        h.m.set_local_credential(UID, ACCOUNT, PW, "en")
+            .await
+            .unwrap();
+        let spanish = verification_subject(SupportedLocale::Es);
+        assert_eq!(subjects(&h), vec![spanish.clone(), spanish]);
+    }
+
+    #[tokio::test]
+    async fn set_password_records_its_locale_on_an_account_with_none() {
+        let h = harness_over(set_password_port(None, 1, Some("fr")));
+        h.m.set_local_credential(UID, ACCOUNT, PW, "fr")
+            .await
+            .unwrap();
+        assert_eq!(
+            subjects(&h),
+            vec![verification_subject(SupportedLocale::Fr)]
+        );
+    }
+
+    /// A `MockUserPort` that fails the test if the locale is read or written.
+    fn no_locale_port() -> MockUserPort {
+        let mut user = MockUserPort::new();
+        user.expect_locale().never();
+        user.expect_set_locale().never();
+        user
+    }
+
+    #[tokio::test]
+    async fn a_refused_set_password_reads_and_writes_no_locale() {
+        // A second password: the account already has a local identity.
+        let mut user = no_locale_port();
+        user.expect_list_identities().returning(|_| {
+            Ok(vec![cymbra_user_port::Identity {
+                provider: "local".into(),
+                subject: "old@x.dev".into(),
+                linked_at: 0,
+            }])
+        });
+        let h = harness_over(user);
+        assert!(matches!(
+            h.m.set_local_credential(UID, ACCOUNT, PW, "fr").await,
+            Err(AppError::AlreadyExists(_))
+        ));
+        assert!(h.email.sent.lock().unwrap().is_empty());
+
+        // A weak password.
+        let h = harness_over(no_locale_port());
+        assert!(matches!(
+            h.m.set_local_credential(UID, ACCOUNT, "short", "fr").await,
+            Err(AppError::InvalidArgument(_))
+        ));
+        assert!(h.email.sent.lock().unwrap().is_empty());
+
+        // An address already taken.
+        let mut user = no_locale_port();
+        user.expect_list_identities().returning(|_| Ok(vec![]));
+        let h = harness_over(user);
+        h.creds.insert(ACCOUNT, "hash").await.unwrap();
+        assert!(matches!(
+            h.m.set_local_credential(UID, ACCOUNT, PW, "fr").await,
+            Err(AppError::AlreadyExists(_))
+        ));
+        assert!(h.email.sent.lock().unwrap().is_empty());
+    }
+
+    // End to end, over `UserModule` and `FakeUserRepo`.
+
+    fn last_subject(h: &Harness) -> String {
+        subjects(h).pop().expect("an e-mail was sent")
+    }
+
+    /// Case 1 of the proposal: an account created with Google, its password set and
+    /// verified before it had any locale. Returns its id.
+    async fn google_account_with_a_password(h: &Harness, sub: &str, email: &str) -> String {
+        let g = h.m.sign_in_oidc(sub, "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+        h.m.set_local_credential(&uid, email, PW, "").await.unwrap();
+        h.m.verify_email(&h.pending.only_token()).await.unwrap();
+        assert_eq!(h.user.locale(&uid).await.unwrap(), None);
+        uid
+    }
+
+    #[tokio::test]
+    async fn a_reset_gives_an_account_with_none_its_language_and_later_ones_keep_it() {
+        let h = harness();
+        let uid = google_account_with_a_password(&h, "g-c1", "c1@x.dev").await;
+        let french = "Réinitialisez votre mot de passe Cymbra";
+
+        h.m.request_password_reset("c1@x.dev", "fr-FR", &ip())
+            .await
+            .unwrap();
+        assert_eq!(last_subject(&h), french);
+        assert_eq!(h.user.locale(&uid).await.unwrap().as_deref(), Some("fr-FR"));
+
+        h.m.request_password_reset("c1@x.dev", "en", &ip())
+            .await
+            .unwrap();
+        assert_eq!(last_subject(&h), french);
+        assert_eq!(h.user.locale(&uid).await.unwrap().as_deref(), Some("fr-FR"));
+    }
+
+    #[tokio::test]
+    async fn set_locale_is_the_one_request_that_moves_the_account() {
+        let h = harness();
+        let uid = google_account_with_a_password(&h, "g-c1", "c1@x.dev").await;
+        h.m.request_password_reset("c1@x.dev", "fr", &ip())
+            .await
+            .unwrap();
+        // What `SetLocale` (the account's own language setting) does: `UserGrpc`
+        // writes the caller's account through `UserPort::set_locale`.
+        h.user.set_locale(&uid, "it").await.unwrap();
+        h.m.request_password_reset("c1@x.dev", "fr", &ip())
+            .await
+            .unwrap();
+        assert_eq!(last_subject(&h), "Reimposta la password di Cymbra");
+        assert_eq!(h.user.locale(&uid).await.unwrap().as_deref(), Some("it"));
+    }
+
+    #[tokio::test]
+    async fn set_password_follows_the_account_language() {
+        // Case 2 of the proposal, end to end: an account whose language is Spanish.
+        let h = harness();
+        let g = h.m.sign_in_oidc("g-es", "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+        h.user.set_locale(&uid, "es").await.unwrap();
+        h.m.set_local_credential(&uid, "es@x.dev", PW, "en")
+            .await
+            .unwrap();
+        assert_eq!(last_subject(&h), "Verifica tu cuenta de Cymbra");
+        assert_eq!(h.user.locale(&uid).await.unwrap().as_deref(), Some("es"));
+    }
+
+    #[tokio::test]
+    async fn a_password_set_with_a_locale_gives_later_resets_their_language() {
+        // From the deploy on, a set-password records its locale on an account with none,
+        // so a reset from a device that sends none is written in it (D3).
+        let h = harness();
+        let g = h.m.sign_in_oidc("g-fr", "music").await.unwrap();
+        let uid = sub_of(&g.access_token, "music");
+        h.m.set_local_credential(&uid, "fr@x.dev", PW, "fr")
+            .await
+            .unwrap();
+        assert_eq!(last_subject(&h), "Vérifiez votre compte Cymbra");
+        h.m.verify_email(&h.pending.only_token()).await.unwrap();
+        assert_eq!(h.user.locale(&uid).await.unwrap().as_deref(), Some("fr"));
+
+        h.m.request_password_reset("fr@x.dev", "", &ip())
+            .await
+            .unwrap();
+        assert_eq!(last_subject(&h), "Réinitialisez votre mot de passe Cymbra");
     }
 
     // --- Limits keyed on (email, address) (change: fix-auth-lockout-dos) ---------------
