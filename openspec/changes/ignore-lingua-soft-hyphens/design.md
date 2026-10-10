@@ -330,7 +330,8 @@ The programme's rule is that en-fr and es-fr output does not move. Here it moves
 alone, with the owner's approval in this change's pull request (task 6.1).
 
 **As implemented**, on `main` `46450468`, after changes 42c (Spanish at `1.4.0`), 49 (fr-es's tables)
-and 51 (`fr-es.golden`) landed: Spanish moves `1.4.0` → `1.5.0`; the goldens move as above, line for
+and 51 (`fr-es.golden`) landed, and again on `cbef3788` after #869 moved en-fr's, en-es's and fr-es's
+goldens (the same lines moving): Spanish moves `1.4.0` → `1.5.0`; the goldens move as above, line for
 line, and `fr-es.golden` on 19 lines (its pack line, its `beside en-es` line and the 17 analyses),
 each by its version alone; the six committed pairs are re-reduced, manifest and pin alone moving and
 sizes unchanged — en-fr `582f7762…`, en-es `a95af250…` and fr-en `d013a548…` as the scratch built them,
