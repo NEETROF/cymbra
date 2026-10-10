@@ -39,8 +39,7 @@ at A1), after 48b 1,152 (18 at A1, `parce` no longer levelled).
 - **Seeding skips a lemma the pack does not gloss** (design D1): `Deck::seed_lemmas` passes over a
   candidate without a gloss as it passes over one already carded or holding a status, and writes
   nothing for it; `Card::seeded` takes the gloss itself rather than an option, so a seeded card
-  without one cannot be built. The engine's `seedLevel` keeps its shape; the extension does not
-  change.
+  without one cannot be built. The engine's `seedLevel` keeps its shape.
 - **A skipped lemma's place is taken by the next one** (D2): a skipped lemma takes no place under the
   cap — the core already does so for a tracked lemma, which the spec's scenario said otherwise —,
   so a seeding asked for N adds N while the level holds N glossed untracked lemmas (every level of
@@ -56,13 +55,20 @@ at A1), after 48b 1,152 (18 at A1, `parce` no longer levelled).
   pack's glosses — en-fr and en-es leave out 537 levelled lemmas the other seeds, fr-en and fr-es
   1,158. `cross_native.rs` answers the baselines without the reader's level seeding and checks the
   seeding apart: through each pack, every level, both orders, the cards are that level's lemmas the
-  pack glosses, in that order. The golden-to-golden comparisons of changes 23 and 24 (and 51's when
-  it lands) stop at the seeding.
+  pack glosses, in that order. The golden-to-golden comparisons of changes 23, 24 and 51 stop at the
+  seeding.
+- **The control says when only words without a translation are left** (D7, the owner, 2026-10-10):
+  the message shown when a seeding adds nothing is reworded in French, English and Spanish so that it
+  is also true when the level's remaining words have no translation in the reader's pack — « Aucune
+  carte ajoutée — ces mots sont déjà suivis, dans ton deck ou sans traduction. » One message for both
+  cases, within the two lines the panel gives it today. It moves the French interface by this one
+  message, an owner's decision and an exception to « the French interface byte for byte » (M23).
 - **What moves** (D5): `en-fr.golden` and `en-es.golden`, 9 probes each — the reader's C1 rarest-first
   seeding draws glossed lemmas (`digitalize`, `exhilarate`, `impishly`; `eclectically`, `irately`,
-  `tastebud`) and the review that follows marks another card known. `es-fr.golden`, `es-en.golden`
-  and `fr-en.golden` do not move. No pack byte, pin, analyser version or `pack_version`; no
-  snapshot; no stored format (D6).
+  `tastebud`) and the review that follows marks another card known —, and `fr-es.golden` (change 51,
+  merged), 6 probes (`carreau` « Baldosa » for `cheminement`). `es-fr.golden`, `es-en.golden` and
+  `fr-en.golden` do not move. No pack byte, pin, analyser version or `pack_version`; no snapshot; no
+  stored format (D6).
 
 ## Capabilities
 
@@ -82,31 +88,33 @@ None.
   (`add-lingua-pack-fr-es`, merged, not archived) leaves it — hence `archiveAfter`: the cards a
   level seeds are the one part of a reader's history that follows the native language; the test
   compares the baselines without the reader's level seeding and checks the seeding apart.
-- `lingua-browser-extension`: *Level-targeted deck feeding control* holds as written (« up to 20 B2
-  words are added to the deck and the control reports the number added »).
+- `lingua-browser-extension`: MODIFIED *Level-targeted deck feeding control* (no open change holds
+  it): when a seeding adds nothing, the control says that the level's words are already tracked, in
+  the deck, or without a translation in the reader's pack.
 
 ## Impact
 
 - **Products.** Cymbra Lingua only: `crates/lingua-core` (`decks/review.rs`, `decks/card.rs`),
   `crates/lingua-wasm` (`seedLevel`'s comment; `tests/support/mod.rs`, `cross_native.rs`,
-  `en_es_baseline.rs`, `es_en_baseline.rs`, `baseline/en-fr.golden`, `baseline/en-es.golden`). The
-  extension (Chromium, Firefox, Safari's host app) consumes the rule through its WASM build, with no
-  source change; the agent plugin seeds no level (`add_words` adds the words it is given: outside
-  this change, M17). ID, Music, Live, the back office and the site are untouched; no server, sync or
-  backup format moves.
+  `en_es_baseline.rs`, `es_en_baseline.rs`, `fr_es_baseline.rs`, `baseline/en-fr.golden`,
+  `baseline/en-es.golden`, `baseline/fr-es.golden`), `apps/lingua-extension`
+  (`src/i18n/{fr,en,es}/stats.ts`'s `noCardsAdded`; `test/stats-view.spec.ts` and
+  `test/review-stats-copy.spec.ts` pin the three texts). The extension (Chromium, Firefox, Safari's
+  host app) takes the rule through its WASM build and the message through its catalogue; the agent
+  plugin seeds no level (`add_words` adds the words it is given: outside this change, M17). ID,
+  Music, Live, the back office and the site are untouched; no server, sync or backup format moves.
 - **What does not move**: the six committed packs (sha256 = pin), every analyser version and
   `pack_version`, `es-fr.golden`, `es-en.golden`, `fr-en.golden` (on `main` and on 48b's tables),
-  `word-card-en-es.txt` and `word-card-es-en.txt` (they read the `word-grammar` probes only), every
-  ladder, fresh reader's estimate, `declared-level` and `export-declared-levels` probe.
+  every word-card snapshot (`word-card-en-es.txt`, `word-card-es-en.txt`, `word-card-fr-en.txt`,
+  `word-card-fr-es.txt`: their grammar and phrase probes do not move), every other interface text,
+  every ladder, fresh reader's estimate, `declared-level` and `export-declared-levels` probe.
 - **Order.** Before change 52 lists fr-en or fr-es; it joins 52's `archiveAfter`, as 48b and 49b do
   (52's design, *At or above*), which 52 adds when it next moves. Independent of 48b and 49b: no
   table moves here, and their tables move none of this change's probes (fr-en.golden draws only
-  glossed lemmas on both). With change 51 (`add-lingua-french-word-card`) in either order: whichever
-  lands second has `fr_es_baseline`'s comparison stop at the seeding, and if 51 lands first its
-  `fr-es.golden` moves on 6 probes (C1's `cheminement`, which fr-es does not gloss, gives way to
-  `carreau` « Baldosa »). Row 49c, outside the 57, like rows 41b and 48b.
-- **Owner.** The re-bless of `en-fr.golden` (the programme's rule « en-fr and es-fr output does not
-  move ») and of `en-es.golden`, 9 probes each, approved before the implementation merges; two open
-  questions (design *Open questions*): the message when only words without a translation are left,
-  and the cards without a gloss already in readers' decks. Then the extension's release, before or
-  with French.
+  glossed lemmas on both). After change 51 (merged, #866): its `fr_es_baseline` comparison stops at
+  the seeding here, and its `fr-es.golden` moves. Row 49c, outside the 57, like rows 41b and 48b.
+- **Owner.** Settled on 2026-10-10 (in session): the re-bless of `en-fr.golden` (the programme's rule
+  « en-fr and es-fr output does not move »), `en-es.golden` and `fr-es.golden`, approved before the
+  implementation (task 0.1); the message reworded in the three languages, one message for both cases
+  (Q1, D7); the cards already seeded without a gloss left as they are (Q2). Remains: reading the
+  English and Spanish drafts (M9, task 0.3), then the extension's release, before or with French.
