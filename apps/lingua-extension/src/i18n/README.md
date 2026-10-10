@@ -53,7 +53,7 @@ infinitive, the present participle and the gerund are, whether the indicative an
 one tense are said once — is the description's, one table keyed by studied language (`CARD_NAMES`),
 beside `finiteKey`. The studied languages the renderers name are `StudiedLanguageCode`'s: English,
 Spanish and French (add-lingua-french-word-card D1), French ahead of the extension's `StudiedLanguage`,
-which change 52 widens — until then the renderers' French is reached by tests only. Every renderer
+which change 52 (enable-lingua-french) widened when it listed the French pairs. Every renderer
 has a table for every studied language: the French renderer's French, which no French-native reader
 is shown, serves the interface override M2 reserves and the enumeration of what each renderer names,
 as the English renderer's English and the Spanish renderer's Spanish do. The rule that a draft is typed after the

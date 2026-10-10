@@ -144,10 +144,10 @@ files. en-fr and es-fr were measured on 2026-10-05, judged in French; es-en and 
 | ------------------------------------ | ------------------------ | -------- | ------------------------------------------------ |
 | **es-fr, engine (pivot es→en→fr)**   | **89 / 90 — 98.9 %**     | **10 %** | **First tier: marked**                           |
 | en-fr, engine                        | 96 / 97 — 99.0 %         | 3 %      | (reference; the study found 83 / 87)             |
-| **es-en, engine, judged in English** | **94 / 96 — 97.9 %**     | **4 %**  | **First tier: marked once change 34 ships it**   |
-| **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked once change 35 ships it**   |
-| **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked once change 52 ships it**   |
-| **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked once change 52 ships it**   |
+| **es-en, engine, judged in English** | **94 / 96 — 97.9 %**     | **4 %**  | **First tier: marked (shipped since change 34)** |
+| **en-es, engine, judged in Spanish** | **96 / 96 — 100 %**      | **4 %**  | **First tier: marked (shipped since change 35)** |
+| **fr-en, engine, judged in English** | **95 / 96 — 99.0 %**     | **4 %**  | **First tier: marked (shipped since change 52)** |
+| **fr-es, engine (pivot fr→en→es)**   | **90 / 91 — 98.9 %**     | **9 %**  | **First tier: marked (shipped since change 52)** |
 | es-fr, gloss-located (experiment)    | 76 / 78 — 97.4 %         | 22 %     | —                                                |
 | en-fr, gloss-located (experiment)    | 76 / 79 — 96.2 %         | 21 %     | —                                                |
 | es-en, gloss-located (experiment)    | 75 / 78 — 96.2 %         | 22 %     | —                                                |

@@ -366,7 +366,7 @@ French reads as committed (fr-es, change 49). It writes French's forms, ranks, r
 glosses of French words and expressions (add-lingua-pack-fr-en), all from the English Wiktionary's
 French section; its glossed lemmas, less those it glosses by a proper noun's senses alone, are
 French's dictionary words (`tables/fr/lexical.tsv`, written by its reducer since
-refine-lingua-fr-en-glosses). No extension package carries the pack: `packs.json` does not list it until change 52. Its reducer loads
+refine-lingua-fr-en-glosses). Extension packages carry the pack since change 52 (enable-lingua-french) lists it in `packs.json`. Its reducer loads
 `reduce_common.py` and the English edition's rules, `reduce_edition_en.py`, which es-en loads too: no
 shared module was edited for it, and an edit of the English edition's rules re-pins es-en and fr-en
 alone. fr-en's own rules (refine-lingua-fr-en-glosses) live in `reduce-fr-en.py` and, for the
@@ -440,9 +440,9 @@ built from forms, ranks, readings and levels is 1,460,253 B (the readings 158,22
 
 Reduced by `reduce-fr-es.py` (add-lingua-pack-fr-es): French glossed in Spanish, for Spanish speakers
 studying French (`docs/lingua/language-matrix-programme.md`, change 49, decision M6) — a reader pair of
-French, as es-en is of Spanish and en-es of English. No extension package carries the pack:
-`packs.json` does not list it until change 52, which lists it because its committed tables stand at
-or above the floor fixed before they were measured (below).
+French, as es-en is of Spanish and en-es of English. Extension packages carry the pack since change
+52 (enable-lingua-french) lists it in `packs.json`, which it does because its committed tables stand
+at or above the floor fixed before they were measured (below).
 
 fr-es reads French's tables in `tables/fr/` as committed — fr-en's reduction writes them — and writes
 its native side alone: its lemmas and their ranks are `tables/fr/forms.tsv` and `freq.tsv` (all

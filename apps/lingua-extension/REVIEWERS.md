@@ -57,8 +57,9 @@ same add-on with its sign-in buttons hidden.
 ## The language packs
 
 `assets/packs/<pair>.lingua` — one language pack per pair `packs.json` lists, `<studied>-<native>`:
-`en-fr` (English glossed in French), `es-fr` (Spanish in French), `es-en` (Spanish in English) and
-`en-es` (English in Spanish), each 1.7 to 2.6 MB of frequency and translation data. They are
+`en-fr` (English glossed in French), `es-fr` (Spanish in French), `es-en` (Spanish in English),
+`en-es` (English in Spanish), `fr-en` (French in English) and `fr-es` (French in Spanish), each 1.7
+to 2.6 MB of frequency and translation data. They are
 **generated, not authored**: the built files are not in the archive, but everything they are built
 from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh <pair> assets/packs/<pair>.lingua`
 for each, which builds it from the reduced tables in `scripts/lingua-data/tables/<pair>/` (the
@@ -80,9 +81,10 @@ tables and es-fr's glosses from the English Wiktionary's Spanish entries, UD Spa
 and the French and Spanish Wiktionaries. `reduce-es-en.py` and `reduce-en-es.py` reduce their
 glosses alone, over the studied language's committed tables: Spanish glossed in English from the
 English and Spanish Wiktionaries, English glossed in Spanish from the Spanish and English
-Wiktionaries. `reduce-fr-en.py`, `reduce-fr-es.py`, `tables/fr/`, `tables/fr-en/` and
-`tables/fr-es/` (French's forms, ranks and glosses, which the checks build into packs studying
-French) are in the archive too: they reduce nothing this package carries. Each pair's `pin.json`
+Wiktionaries. `reduce-fr-en.py` reduces French's tables (`tables/fr/`) and fr-en's glosses from the
+English Wiktionary's French section, UD French-GSD and `wordfreq`; `reduce-fr-es.py` reduces fr-es's
+glosses alone, over French's committed tables, from the Spanish Wiktionary's French section and the
+French and Spanish Wiktionaries' translation tables. Each pair's `pin.json`
 names the scripts it was reduced with and each raw source at a fixed commit or snapshot, with its
 sha256, so the tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer
 does not need to.
@@ -135,12 +137,14 @@ Their files come from Mozilla's translation model registry (`sourceBase` in `mod
 not from `mozilla/firefox-translations-models`: each file lists its path there and the sha256 of
 the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks.
 The package downloads none of them until the reader turns « Traduction étendue » on, and then only
-the models its pairs' routes need. This package ships the pairs `en-fr`, `es-fr`, `es-en` and
-`en-es` (`packs.json`), and a reader's pairs are those of their native language, so a reader
-downloads two models at most — a French-speaking reader the models of `en-fr` and `es-fr`
-(`en-fr/base-memory/2.0` and `es-en/base-memory/2.0`), an English-speaking reader `es-en` alone, a
-Spanish-speaking reader `en-es` alone; the `fr-en` and `fr-es` routes serve pairs it does not ship,
-and nothing is downloaded for those pairs — none for French, which no pair of this package studies.
+the models its pairs' routes need. This package ships the pairs `en-fr`, `es-fr`, `es-en`, `en-es`,
+`fr-en` and `fr-es` (`packs.json`), and a reader's pairs are those of their native language, so a
+reader downloads two models at most — a French-speaking reader the models of `en-fr` and `es-fr`
+(`en-fr/base-memory/2.0` and `es-en/base-memory/2.0`), an English-speaking reader those of `es-en`
+and `fr-en` (`es-en/base-memory/2.0` and `fr-en/base-memory/2.0`), a Spanish-speaking reader those
+of `en-es` and `fr-es` (`en-es/base-memory/2.1` and `fr-en/base-memory/2.0`, French going through
+English); a French-speaking reader downloads nothing of `fr-en`, since no pair of this package
+teaches them French.
 
 ## Where the add-on reaches the network
 

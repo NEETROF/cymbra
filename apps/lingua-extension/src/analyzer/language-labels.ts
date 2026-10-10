@@ -17,8 +17,8 @@ const MODULES: Record<InterfaceLanguage, typeof fr> = { fr, en, es };
 
 /**
  * A language the catalogue names: a studied language, or a native one — French among them, whose
- * voices the read-aloud block speaks of before French is a studied language
- * (add-lingua-french-read-aloud D4; the studied type is widened by enable-lingua-french).
+ * voices the read-aloud block spoke of before French was a studied language
+ * (add-lingua-french-read-aloud D4), and a studied one too since enable-lingua-french.
  */
 export type NamedLanguage = StudiedLanguage | NativeLanguage;
 

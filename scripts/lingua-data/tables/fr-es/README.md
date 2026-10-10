@@ -4,10 +4,10 @@ The reduced tables Cymbra Lingua's French→Spanish data pack is built from: Fre
 Spanish, for Spanish speakers studying French (add-lingua-pack-fr-es, change 49 of
 `docs/lingua/language-matrix-programme.md`, decision M6). They are committed so that every build
 makes the same pack with no download, and so that a change to the dictionary is a pull request whose
-diff shows it. No extension package carries the pack: `apps/lingua-extension/packs.json` does not
-list fr-es, and change 52 lists it only because these tables stand at or above the floor below, and
-once their known defects are fixed (refine-lingua-fr-es-glosses, row 49b: *fr-es's own rules*
-below).
+diff shows it. Extension packages carry the pack since `enable-lingua-french` (change 52) lists
+fr-es in `apps/lingua-extension/packs.json`, which it does because these tables stand at or above
+the floor below and their known defects are fixed (refine-lingua-fr-es-glosses, row 49b: *fr-es's
+own rules* below).
 
 This folder holds what belongs to fr-es alone: its Spanish glosses, its expressions, the parts of
 speech of their senses, its notice, manifest and pin. French's own tables — its forms, ranks,
@@ -59,8 +59,8 @@ prototype read — and measured:
 | all 60,000 | 7.6 % | 31.8 % (19,050) | — | — | — |
 
 At or above the floor at every top: the tables are committed, and fr-es ships with change 52, its
-coverage published beside the other pairs' as es-fr's is (87.6 / 77.2 / 63.7 %). Until then it is
-shown here and in the pull request alone.
+coverage on the tables as committed published beside the other pairs' as es-fr's is (87.6 / 77.2 /
+63.7 %), in `apps/site/src/data/lingua-coverage.json`.
 
 ## What is in them
 

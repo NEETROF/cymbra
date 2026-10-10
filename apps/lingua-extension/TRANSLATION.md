@@ -55,8 +55,8 @@ taken again.
 | `es-fr` | `es-en/base-memory/2.0`, then `en-fr/base-memory/2.0` — through English | yes                                     |
 | `es-en` | `es-en/base-memory/2.0`                                                 | yes, since change 34 (English speakers) |
 | `en-es` | `en-es/base-memory/2.1`                                                 | yes, since change 35 (Spanish speakers) |
-| `fr-en` | `fr-en/base-memory/2.0`                                                 | not yet: change 52 (French as studied)  |
-| `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | not yet: change 52 (French as studied)  |
+| `fr-en` | `fr-en/base-memory/2.0`                                                 | yes, since change 52 (French studied)   |
+| `fr-es` | `fr-en/base-memory/2.0`, then `en-es/base-memory/2.1` — through English | yes, since change 52 (French studied)   |
 
 English and Spanish are translated into each other directly, one model each
 (`add-lingua-translation-matrix-models`). Mozilla publishes no fr↔es model. en-es is pinned at
@@ -64,8 +64,9 @@ English and Spanish are translated into each other directly, one model each
 Firefox's Remote Settings publish for en→es 2.1, the model's the registry's `uncompressedHash`.
 A route is needed only by a reader whose pairs include its pair, and a reader's pairs are the
 shipped pairs of their native language (`packs.json`): es-en's route is an English-speaking reader's
-since change 34 ships es-en, en-es's a Spanish-speaking reader's since change 35 ships en-es, and a
-French-speaking reader still holds the es-en model only as es-fr's first model.
+since change 34 ships es-en, en-es's a Spanish-speaking reader's since change 35 ships en-es, fr-en's
+an English-speaking reader's of French and fr-es's a Spanish-speaking reader's since change 52 ships
+them, and a French-speaking reader still holds the es-en model only as es-fr's first model.
 
 French is translated into English directly and into Spanish through English, as Spanish is into
 French (`add-lingua-french-translation`). fr-en is pinned at 2.0, the registry's one fr-en entry
@@ -73,8 +74,9 @@ French (`add-lingua-french-translation`). fr-en is pinned at 2.0, the registry's
 37,200,311 on the device, the decompressed sha256 of its three files those Firefox's Remote
 Settings publish for fr→en 2.0 (`translations-models-v2` lists the same bytes as 3.0, as it relabels
 every model pinned here), the model's the registry's `uncompressedHash`. fr-es downloads fr-en's and
-en-es's files, 51,608,069 bytes. No pair studying French ships until change 52 lists one in
-`packs.json`, so no reader needs either route and no reader fetches fr-en.
+en-es's files, 51,608,069 bytes. Since change 52 lists fr-en and fr-es in `packs.json`, an
+English-speaking reader of French needs fr-en's route and a Spanish-speaking one fr-es's; a
+French-speaking reader, whom no pair teaches French, needs neither and fetches nothing of fr-en.
 
 With the six routes, every native language's pairs need two models together — the engine's bound
 (see [What the engine holds](#what-the-engine-holds)):
@@ -105,8 +107,8 @@ of their native language alone: change 25 lists es-en's and en-es's routes, and 
 ship their pairs. Marks are measured per pair (`MARKED_PAIRS`, `tool/marks/README.md`), each on
 its own route and judged in its native language — es-fr's measurement says nothing of es-en's.
 en-fr, es-fr, es-en, en-es, fr-en and fr-es are measured and listed; es-en and en-es were listed
-ahead of their readers, inert until changes 34 and 35 shipped them, and fr-en and fr-es are, until
-change 52 ships them.
+ahead of their readers, inert until changes 34 and 35 shipped them, and fr-en and fr-es until
+change 52 shipped them.
 
 It is bundled, so the reviewed package decides what is accepted; the host only serves bytes. The
 setting's cost (« Télécharge 25,8 Mo une fois ») is computed from it, and so is what the build, the
@@ -143,7 +145,10 @@ after every build.
 ## What you will see
 
 Réglages → Traduction → « Traduction étendue ». Before ticking it says what it costs (25,8 Mo once,
-about 200 Mo of memory while translating). Ticking it shows the download's progress, with Annuler;
+about 200 Mo of memory while translating). The memory is that of the models the reader's pairs need
+together: « environ 340 Mo » for two — a French-speaking reader of Spanish, whose route goes through
+English, or an English-speaking reader of Spanish and French, two direct routes — « environ 200 Mo »
+for one (enable-lingua-french D6). Ticking it shows the download's progress, with Annuler;
 then « Prête ». A failure says why in French and offers Réessayer; a download whose host was torn
 down says « interrompu » and offers Reprendre; a model the browser removed offers Télécharger à
 nouveau. Nothing restarts on its own.
@@ -222,8 +227,9 @@ changes while the worker lives — French to Spanish deletes en-fr and es-en for
 French to English deletes es-en for fr-en, then en-fr for es-en — and the worker holds two models
 after every load (`test/model-residency.spec.ts`, through the committed routes). Since change 35
 ships en-es it can run in production: a French-native reader who holds en-fr and es-en and chooses
-Spanish needs en-es, a third, and the least recently used of the two is deleted; French's routes
-wait for change 52. A translation goes to the engine at once over a route the worker holds; over
+Spanish needs en-es, a third, and the least recently used of the two is deleted; since change 52
+the same holds of French's routes — an English-native reader of Spanish and French who chooses
+Spanish keeps fr-en, which fr-es goes through, and es-en is deleted for en-es. A translation goes to the engine at once over a route the worker holds; over
 one it deleted since the channel loaded it, the worker answers `reload`, and the channel loads the
 route again — under the start bound — and asks once more.
 
