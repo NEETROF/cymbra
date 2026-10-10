@@ -14,7 +14,8 @@
 
 //! The committed tables are kept once per studied language (split-lingua-pack-tables-by-language,
 //! M24): every pair reads its studied side from `tables/<studied>/`, which pins the language's
-//! tag pool and names its reference pair's glossed lemmas as its dictionary words. Moving the
+//! tag pool and names its reference pair's glossed lemmas as its dictionary words — French's less
+//! those fr-en glosses by a proper noun's senses alone (refine-lingua-fr-en-glosses D2). Moving the
 //! tables there left every shipped pack byte for byte as its pin records.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -553,12 +554,23 @@ fn tsv(path: &Path) -> BTreeMap<String, String> {
         .collect()
 }
 
+/// The lemmas fr-en glosses by a proper noun's senses alone: every run of their `senses.tsv` row
+/// is `PROPN` (refine-lingua-fr-en-glosses D2).
+fn fr_en_names() -> BTreeSet<String> {
+    tsv(&tables().join("fr-en/senses.tsv"))
+        .into_iter()
+        .filter(|(_, runs)| runs.split('\t').all(|run| run.starts_with("PROPN:")))
+        .map(|(lemma, _)| lemma)
+        .collect()
+}
+
 #[test]
 fn spec_scenario_the_reference_pair_writes_french_s_folder() {
     // fr-en (add-lingua-french-forms-tables D1, D10), French's reference pair: tables/fr/ holds
     // French's forms and ranks, its readings and their pinned tag pool
     // (add-lingua-french-grammar-tables), its estimated levels (add-lingua-french-levels), its record
-    // naming fr-en, and the dictionary words, fr-en's glossed lemmas (add-lingua-pack-fr-en).
+    // naming fr-en, and the dictionary words, fr-en's glossed lemmas (add-lingua-pack-fr-en) less
+    // those it glosses by a proper noun's senses alone (refine-lingua-fr-en-glosses D2).
     let fr = tables().join("fr");
     assert_eq!(
         files(&fr),
@@ -589,17 +601,27 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
             "senses.tsv"
         ]
     );
-    // French's dictionary words are exactly the lemmas fr-en glosses, byte-sorted, one per line
-    // (*French's dictionary words*).
+    // French's dictionary words are exactly the lemmas fr-en glosses less its names — `paris`,
+    // `durand` —, byte-sorted, one per line (*French's dictionary words*, *French's names*): a word
+    // with a common sense beside a name's stays one (`lot`, `marche`, `nice`).
     let glossed: Vec<String> = tsv(&fr_en_dir.join("gloss.tsv")).into_keys().collect();
     assert!(glossed.len() > 30_000, "{}", glossed.len());
+    let names = fr_en_names();
+    assert!(names.len() > 3_000, "{}", names.len());
+    for name in ["paris", "durand", "lyon", "france", "coran"] {
+        assert!(names.contains(name), "{name} is glossed as a name alone");
+    }
+    let words: Vec<&String> = glossed.iter().filter(|l| !names.contains(*l)).collect();
     let lexical = std::fs::read_to_string(fr.join("lexical.tsv")).unwrap();
     assert_eq!(
         lexical.lines().collect::<Vec<_>>(),
-        glossed,
+        words,
         "fr/lexical.tsv"
     );
     assert!(lexical.ends_with('\n'));
+    for word in ["lot", "marche", "nice", "le", "des", "maison"] {
+        assert!(lexical.lines().any(|l| l == word), "{word} is a word");
+    }
     let manifest = json(&fr_en_dir.join("manifest.json"));
     assert_eq!(manifest["meta"]["studied"], "fr");
     assert_eq!(manifest["meta"]["native"], "en");
@@ -625,8 +647,9 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
 #[test]
 fn spec_scenario_the_pack_builds_where_the_others_do() {
     // fr-en's pack, built from tables/fr/ and tables/fr-en/, has the sha256 its pin records, carries
-    // no lexical section (its dictionary words are its glossed lemmas), fits the budget, and no
-    // package lists it (add-lingua-pack-fr-en: *The pack is built, not shipped*).
+    // a lexical section (its dictionary words leave out the lemmas it glosses as names alone,
+    // refine-lingua-fr-en-glosses D2), fits the budget, and no package lists it
+    // (add-lingua-pack-fr-en: *The pack is built, not shipped*).
     let bytes = fr_en();
     let pin = json(&tables().join("fr-en/pin.json"));
     assert_eq!(
@@ -636,20 +659,25 @@ fn spec_scenario_the_pack_builds_where_the_others_do() {
     );
     assert_eq!(pin["pack"]["size"], bytes.len());
     assert!(bytes.len() < MAX_PACK_BYTES);
-    assert!(section_of(&sections(bytes), section::LEXICAL).is_none());
+    assert!(section_of(&sections(bytes), section::LEXICAL).is_some());
     let pack = Pack::load(bytes).unwrap();
     assert_eq!(pack.pair().key(), "fr-en");
-    // A vocabulary estimate counts the glossed lemmas and the levelled ones (`dictionary_words`):
-    // fr-en's glosses, and the levelled lemmas it does not gloss (add-lingua-french-levels).
-    let glossed = tsv(&tables().join("fr-en/gloss.tsv"));
-    let levelled = tsv(&tables().join("fr/level.tsv"));
-    let unglossed = levelled
-        .keys()
-        .filter(|l| !glossed.contains_key(*l))
-        .count();
-    assert_eq!(pack.dictionary_words().len(), glossed.len() + unglossed);
+    // A vocabulary estimate counts the ranked lemmas that are dictionary words or carry a level
+    // (`dictionary_words`): tables/fr/lexical.tsv's, every one of them ranked, since every levelled
+    // lemma is one of them.
+    let lexical: BTreeSet<String> = std::fs::read_to_string(tables().join("fr/lexical.tsv"))
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    assert!(lexical.iter().all(|l| ranks.contains_key(l)));
+    assert_eq!(pack.dictionary_words().len(), lexical.len());
     assert!(pack.is_dictionary_word("maison"));
     assert!(pack.gloss("maison").is_some_and(|g| g.starts_with("house")));
+    // A name keeps its gloss but is no word to learn.
+    assert!(!pack.is_dictionary_word("paris"));
+    assert!(pack.gloss("paris").is_some_and(|g| g.starts_with("Paris")));
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
@@ -700,6 +728,52 @@ fn spec_scenario_a_gloss_is_its_lemma_s() {
     assert!(venir.starts_with("to come"), "{venir}");
     assert!(!venir.contains("arrival"), "{venir}");
     assert!(!glossed.contains_key("venue"));
+}
+
+#[test]
+fn spec_scenario_english_s_sizes() {
+    // French's levels keep English's six sizes and go to French's dictionary words alone
+    // (refine-lingua-fr-en-glosses D3, *A French level is given only to a French dictionary word*):
+    // a lemma the dictionary words do not list — `parce`, met only in « parce que », `coran`, glossed
+    // as a name alone — gives its slot to the next one. The checks name a levelled lemma that is no
+    // word (*A level for a word with no gloss*).
+    let levels = tsv(&tables().join("fr/level.tsv"));
+    let lexical: BTreeSet<String> = std::fs::read_to_string(tables().join("fr/lexical.tsv"))
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    let unlisted: Vec<&String> = levels.keys().filter(|l| !lexical.contains(*l)).collect();
+    assert!(
+        unlisted.is_empty(),
+        "levelled, no dictionary word of French: {unlisted:?}"
+    );
+    let mut sizes = BTreeMap::new();
+    for level in levels.values() {
+        *sizes.entry(level.as_str()).or_insert(0) += 1;
+    }
+    assert_eq!(
+        sizes,
+        BTreeMap::from([
+            ("A1", 1020),
+            ("A2", 1158),
+            ("B1", 2015),
+            ("B2", 2347),
+            ("C1", 886),
+            ("C2", 876)
+        ])
+    );
+    for lemma in ["parce", "coran", "quant"] {
+        assert!(!levels.contains_key(lemma), "{lemma} takes no level");
+    }
+    // Every levelled lemma carries a gloss, so a card seeded from a level shows one.
+    let pack = Pack::load(fr_en()).unwrap();
+    let bare: Vec<&String> = levels
+        .keys()
+        .filter(|l| pack.gloss(l).is_none())
+        .take(10)
+        .collect();
+    assert!(bare.is_empty(), "levelled with no gloss: {bare:?}");
 }
 
 /// fr-es's committed pack, built once per test binary.
@@ -785,8 +859,10 @@ fn spec_scenario_french_glossed_in_spanish() {
 #[test]
 fn spec_scenario_french_s_dictionary_words() {
     // fr-es's pack carries a lexical table listing exactly the lemmas tables/fr/lexical.tsv lists —
-    // fr-en's glossed lemmas — so a lemma fr-es glosses and fr-en does not is no dictionary word
-    // (`quant`, glossed by the Spanish Wiktionary; *French's dictionary words*).
+    // French's dictionary words, fr-en's glossed lemmas less its names alone
+    // (refine-lingua-fr-en-glosses D2) — so a lemma fr-es glosses and fr-en does not is no dictionary
+    // word (`quant`, glossed by the Spanish Wiktionary; *French's dictionary words*), nor one fr-en
+    // glosses as a name alone.
     let bytes = fr_es();
     assert!(section_of(&sections(bytes), section::LEXICAL).is_some());
     let (fr_es, fr_en) = (Pack::load(bytes).unwrap(), Pack::load(fr_en()).unwrap());
