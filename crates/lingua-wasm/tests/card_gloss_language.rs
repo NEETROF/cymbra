@@ -32,7 +32,9 @@
 //! and a French word written with an apostrophe (`aujourd'hui`, one token) as a word
 //! (add-lingua-french-word-card D8). Where several headwords reach that key (`ça va` and `ça ira`
 //! read `ça aller`), the card shows the gloss of the headword it is named by, and the key's own
-//! where none is (pick-lingua-expression-written-as-the-page D4).
+//! where none is (pick-lingua-expression-written-as-the-page D4); a Spanish card too, read at the
+//! key its lemma reads as (`hace tiempo` and `hacer tiempo` read `hacer tiempo`:
+//! pick-lingua-spanish-expression-written-as-the-page D5).
 //!
 //! Host only: the pack builder is native (C zstd).
 
@@ -324,6 +326,92 @@ fn a_spanish_card_is_read_at_its_lemma_then_at_its_name_s_key() {
         let engine = french_native_reviewing(&es_fr, &glossed_in_english(&es_en, lemma, text));
         assert_eq!(view(&engine)["gloss"], shown, "{lemma}");
     }
+}
+
+/// pick-lingua-spanish-expression-written-as-the-page D5: several headwords reach `hacer tiempo`
+/// in es-fr's committed pack — `hacer tiempo`, which wins the key, and `hace tiempo` — and the
+/// card `hace tiempo`, made in es-en with the match's name, shows es-fr's `hace tiempo` gloss, not
+/// the key's; the card keeps its English text and label.
+#[test]
+fn spec_scenario_a_spanish_card_on_the_headword_that_does_not_win_the_key() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    assert_eq!(pack.expression("hace tiempo"), None, "no key of the table");
+    let headwords = pack.expression_headwords("hacer tiempo");
+    assert_eq!(
+        headwords[0].0, "hacer tiempo",
+        "the headword that wins the key"
+    );
+    let (_, hace) = *headwords
+        .iter()
+        .find(|(name, _)| *name == "hace tiempo")
+        .expect("es-fr keeps `hace tiempo` beside `hacer tiempo`");
+    assert_ne!(Some(hace), pack.expression("hacer tiempo"));
+    let hace = hace.to_owned();
+
+    let engine = french_native_reviewing(
+        &es_fr,
+        &glossed_in_english(&es_en, "hace tiempo", "a long time ago"),
+    );
+    assert_eq!(view(&engine)["headword"], "hace tiempo");
+    assert_eq!(
+        view(&engine)["gloss"],
+        hace,
+        "es-fr's gloss for `hace tiempo`"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("a long time ago".to_owned(), "en".to_owned())
+    );
+}
+
+/// The card on the headword that wins the key is read at that key, as before (D5).
+#[test]
+fn spec_scenario_a_spanish_card_on_the_headword_that_wins_the_key() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    let own = pack.expression("hacer tiempo").expect("the key").to_owned();
+    let engine = french_native_reviewing(
+        &es_fr,
+        &glossed_in_english(&es_en, "hacer tiempo", "to kill time"),
+    );
+    assert_eq!(
+        view(&engine)["gloss"],
+        own,
+        "es-fr's gloss for `hacer tiempo`"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("to kill time".to_owned(), "en".to_owned())
+    );
+}
+
+/// A card made before expressions were named holds the key it was shown under, `bueno día`, which
+/// no headword is named: it is read at that key, `buen día`'s gloss, as before (D5).
+#[test]
+fn spec_scenario_a_spanish_card_named_by_no_headword_of_the_key() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    let names: Vec<&str> = pack
+        .expression_headwords("bueno día")
+        .iter()
+        .map(|(name, _)| *name)
+        .collect();
+    assert_eq!(names, ["buen día", "buenos días"]);
+    let own = pack.expression("bueno día").expect("the key").to_owned();
+    let engine = french_native_reviewing(
+        &es_fr,
+        &glossed_in_english(&es_en, "bueno día", "good morning"),
+    );
+    assert_eq!(
+        view(&engine)["gloss"],
+        own,
+        "`buen día`'s gloss, the key's own"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("good morning".to_owned(), "en".to_owned())
+    );
 }
 
 #[test]

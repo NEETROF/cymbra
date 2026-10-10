@@ -128,6 +128,12 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// at the key, the gloss of the headword the card is named by — the match's name, its lemma — and
 /// the key's own gloss where no headword is so named ([`Pack::expression_gloss_named`], D4), so the
 /// card `ça va` shows `ça va`'s gloss, not that of `ça ira`, which wins the key.
+///
+/// A Spanish pack keeps them all too (pick-lingua-spanish-expression-written-as-the-page D1), and
+/// the Spanish branch reads, at the key its lemma reads as, the gloss of the headword the card is
+/// named by, the key's own where none is (D5): the card `hace tiempo` shows `hace tiempo`'s gloss,
+/// not that of `hacer tiempo`, which wins the key. A card whose lemma is itself a key — the
+/// winner's name (`hacer tiempo`), a lemma chain (`bueno día`) — is read there, as before.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| {
         if !card.is_expression() {
@@ -144,7 +150,7 @@ fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
                 .and_then(|key| pack.expression_gloss_named(&key, &card.lemma)),
             StudiedLanguage::Spanish => pack.expression(&card.lemma).or_else(|| {
                 reading_expression_key(&card.lemma, StudiedLanguage::Spanish, pack.lexicon())
-                    .and_then(|key| pack.expression(&key))
+                    .and_then(|key| pack.expression_gloss_named(&key, &card.lemma))
             }),
             StudiedLanguage::English => pack.expression(&card.lemma),
         }
