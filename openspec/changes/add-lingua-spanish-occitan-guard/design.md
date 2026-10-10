@@ -397,6 +397,9 @@ Rollback is a revert, the goldens, manifests, pins and fixtures with it.
 
 For the owner, none blocking. Each has a default, which the implementation follows unless the owner
 answers otherwise.
+**Settled by the owner on 2026-10-10 (in session): each as its default** — the nine words kept,
+the single lowercase rule, Asturian and Aragonese left as they are, `da`/`das` and the hidden
+hyphens each in a change of its own.
 
 1. **Words a Spanish sentence can borrow** (D2, Risks) — a few words of the Occitan list can also
    appear in Spanish: French `pas`, `mon`, `quand` and `t'` (« Bailaron un pas de deux », « Me dijo
