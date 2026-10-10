@@ -91,6 +91,24 @@ unglossed; coverage 83.2 / 70.8 / 56.8 → 83.0 / 70.7 / 56.7 %):
   `listed_once_direct`): 654 / 222 rows (« parti » « Partido »).
 - « etc » written « etc. » (D6, `with_etc_period`): 5 / 4 rows.
 
+fr-es's expressions where French text meets them (refine-lingua-fr-es-expressions), measured by the
+engine's own phrase gloss over 1,085,056 tokens of French text (UD French-GSD's training and
+development sections, Gutenberg, French Wikipedia, a Tatoeba sample, the French baseline's pages):
+fr-es met 41,549 expressions there, and of 200 drawn at random 126 read right, 7 partly, 67 wrong.
+Run by `main` on the expressions of the three sources together, after `native_side`:
+- Written as French pages write them (D4, `as_the_page_writes`): a post-1990 spelling listed alone
+  in its traditional spelling, by French's forms table and wordfreq — 3 of the 11 rectified
+  headwords (« crème brulée » → « crème brûlée »), the 8 listed beside their traditional spelling
+  kept —, and an elided piece written apart written against its word — 1, merged into the row it
+  spells (« huile d' olive » → « huile d'olive »).
+- A reviewed list left out by name (D2, `LEFT_OUT`): the 65 expressions read wrong in at least 60 %
+  of their matches, out of the 822 met five times or more — 11,393 matches, « de la » 8,757 of them.
+- Four slips corrected instead, where another source glosses the expression right (D3, four more
+  `CORRECTIONS`): « se lever », « se réveiller », « grand public », « effet spécial ».
+Together `mwe.tsv` 12,174 → 12,108 rows and 41,549 → 30,410 matches on the corpora; a fresh sample of
+100 reads 91 right, 5 partly, 4 wrong. `gloss.tsv` and `senses.tsv` do not move: the rules read the
+expressions alone, and no shared or edition module is edited, so no other pair moves (D1).
+
 Every rule here names a source or is Spanish's: the native side every pair shares
 (`reduce_common`, written out step by step in `native_side` so that the lemmas each source glosses
 are kept) with the Spanish edition's rules, and fr-es's own. No other pair's reducer is loaded — a
@@ -239,7 +257,8 @@ def straight_apostrophes(src, dst):
 # from a source where one has them (the French Wiktionary's « amiga », « hay ») or from the slip
 # itself (« Pequeña »), and is written by a person otherwise (`hall`); `corrected` None leaves the
 # word with no gloss from that source. The owner reads each, and each is reported to the Wiktionary
-# that wrote it (`report`). 4 / 4 rows and 1 expression.
+# that wrote it (`report`). 4 / 4 rows and 1 expression; and four expressions
+# (refine-lingua-fr-es-expressions D3).
 
 Correction = collections.namedtuple("Correction", "source headword pos text corrected reason report")
 
@@ -298,6 +317,46 @@ CORRECTIONS = (
         ("vestíbulo", "recibidor"),
         "an esplanade is no entrance hall; the one correction no source supplies, its two words written here",
         "https://fr.wiktionary.org/wiki/hall",
+    ),
+    # refine-lingua-fr-es-expressions D3: an expression's slip another source glosses right, set aside
+    # or spelled right rather than left out (`LEFT_OUT`) — measured where French text meets it.
+    Correction(
+        "section",
+        "se lever",
+        "verb",
+        ("Estar de pie uno.",),
+        None,
+        "« to stand » is « se tenir debout », not « se lever »: met 84 times on the measured corpora (« Elle "
+        "se leva »), it then reads the direct table's « Levantarse »",
+        "https://es.wiktionary.org/wiki/se_lever",
+    ),
+    Correction(
+        "direct",
+        "se réveiller",
+        "verb",
+        ("despedirse",),
+        None,
+        "« despedirse » is « to take one's leave », not « to wake up »: met 18 times, it then reads the "
+        "inverted table's « Despertarse »",
+        "https://fr.wiktionary.org/wiki/se_réveiller",
+    ),
+    Correction(
+        "direct",
+        "grand public",
+        "noun",
+        ("grande publico",),
+        ("gran público",),
+        "a spelling slip: Spanish apocopates « grande » before a singular noun and accents « público »",
+        "https://fr.wiktionary.org/wiki/grand_public",
+    ),
+    Correction(
+        "direct",
+        "effet spécial",
+        "noun",
+        ("efecto especiale",),
+        ("efecto especial",),
+        "a spelling slip: « especial » is invariable in gender, « especiale » no Spanish word",
+        "https://fr.wiktionary.org/wiki/effet_spécial",
     ),
 )
 
@@ -1147,6 +1206,182 @@ def with_etc_period(text):
     return _ETC.sub("etc.", text)
 
 
+# — fr-es's expressions where French text meets them (refine-lingua-fr-es-expressions) —
+#
+# Measured by the engine's own phrase gloss on French text — UD French-GSD's training and
+# development sections, Gutenberg, French Wikipedia, a Tatoeba sample and the French baseline's
+# pages, 1,085,056 tokens —: fr-es met 41,549 expressions there, and of 200 drawn at random 67 read
+# wrong. Every expression met five times or more (822, 92.6 % of the matches) was read in its
+# sentences. The rules below are fr-es's own (D1): no shared module (`reduce_common.py`) and no
+# edition module (`reduce_edition_es.py`) is edited, so no other pair moves, and fr-en's own list is
+# not imported — a reducer loads no other pair's reducer, and fr-en's names English glosses' faults.
+
+# Expressions left out by name (D2), each with its reason — a person's decision, as a correction is:
+# an expression the engine met on the measured corpora and read wrong in at least 60 % of its matches
+# (not a bare majority, so that « en fait » and « de nouveau », right half the time, stay). It is left
+# out after the three sources are merged and the spelling pass has run, whatever source glosses it, so
+# that a later source cannot gloss what an earlier one was left out for; its words keep their glosses.
+# A name no source glosses any more is named on the summary line, to be removed. The matches on the
+# corpora are in parentheses. Editing this table changes the rules' sha256.
+_PARTITIVE = "a partitive read where the page means « of the »"
+_SWALLOWS = "a shorter idiom swallowing the start of a compound noun"
+_AS_THEY_ARE = "words met as they are, where the source names one use or a set phrase"
+_A_FORM = "a form of another word met as the headword, the key reading the page's word as its lemma"
+_WRONG = "a wrong translation no other source corrects"
+_A_NAME = "a name"
+
+LEFT_OUT = {
+    # A partitive read where the page means « of the » (8,757 matches, all 41 sampled wrong).
+    "de la": f"{_PARTITIVE}: « Algo de, un poco de » (8,757: « le maire de la ville »)",
+    # A shorter idiom swallowing the start of a longer compound noun (6).
+    "sur le champ": f"{_SWALLOWS}: « En el acto » (6, 4 of them « sur le champ de bataille »)",
+    # Words met as they are, where the source names one use or a set phrase (41; 1,984 matches).
+    "être à": f"{_AS_THEY_ARE}: « Ser de, pertenecer » (571: « Il est à Paris »)",
+    "venir de": f"{_AS_THEY_ARE}: « Acabar de » (320: « Il vient de Paris », « venues de la mer »)",
+    "histoire de": f"{_AS_THEY_ARE}: « Con la finalidad de » (262: « l'histoire de la ville »)",
+    "être pour": f"{_AS_THEY_ARE}: « Estar por » (147: « c'est pour ça »)",
+    "mais que": f"{_AS_THEY_ARE}: « (Canadá) Cuando » (55: « mais qu'il entend »)",
+    "mon cœur": f"{_AS_THEY_ARE}: « Amor » (53: « Vois comme mon cœur bat »)",
+    "et bien": f"{_AS_THEY_ARE}: « Pues » (40: « facile et bien écrit »)",
+    "de qui": f"{_AS_THEY_ARE}: « Cuyo » (36: « la constitution de 1991, qui »)",
+    "dans l'ensemble": f"{_AS_THEY_ARE}: « En general » (32: « dans l'ensemble des sites »)",
+    "de rien": f"{_AS_THEY_ARE}: « De nada » (32: « ne me douter de rien »)",
+    "c'est moi": f"{_AS_THEY_ARE}: « A usted » (30: « C'est moi qui ai travaillé dur »)",
+    "un tel": f"{_AS_THEY_ARE}: « Citano, fulano » (27: « dans un tel arbre »)",
+    "encore que": f"{_AS_THEY_ARE}: « Aunque » (26: « n'est encore qu'un village »)",
+    "laisser tomber": f"{_AS_THEY_ARE}: « Dejarlo » (24: « Frilotte se laissa tomber »)",
+    "à plus": f"{_AS_THEY_ARE}: « Hasta luego » (23: « vendu à plus de »)",
+    "à l'aide": f"{_AS_THEY_ARE}: « ¡Auxilio! » (23: « à l'aide d'un théodolite »)",
+    "faire avec": f"{_AS_THEY_ARE}: « Es lo que hay » (22: « fait avec précision »)",
+    "à d'autres": f"{_AS_THEY_ARE}: « ¡a otro con ese asunto! » (20: « à d'autres villes »)",
+    "de côté": f"{_AS_THEY_ARE}: « Soslayo » (20: « laissant de côté »)",
+    "de laquelle": f"{_AS_THEY_ARE}: « Cuyo » (20: « au sein de laquelle »)",
+    "de sable": f"{_AS_THEY_ARE}: « Sable », the heraldic black (17: « rivages de sable »)",
+    "au vent": f"{_AS_THEY_ARE}: « Barlovento » (15: « flottait au vent »)",
+    "à suivre": f"{_AS_THEY_ARE}: « Continuará » (14: « Je t'exhorte à suivre mes conseils »)",
+    "la ferme": f"{_AS_THEY_ARE}: « Cállate el hocico » (14: « devant la ferme »)",
+    "de force": f"{_AS_THEY_ARE}: « Por fuerza » (14: « coup de force »)",
+    "avoir raison de": f"{_AS_THEY_ARE}: « Poder con » (13: « On a raison de dire »)",
+    "dire quelque chose": f"{_AS_THEY_ARE}: « Sonarle » (10: « veut vous dire quelque chose »)",
+    "au mieux": f"{_AS_THEY_ARE}: « A lo sumo » (10: « faire au mieux »)",
+    "quatre heures": f"{_AS_THEY_ARE}: « Merienda » (10: « toutes les quatre heures »)",
+    "convenir de": f"{_AS_THEY_ARE}: « Acordar » (10: « il convient de »)",
+    "à neuf": f"{_AS_THEY_ARE}: « De nuevo » (9: « à neuf heures »)",
+    "on ne peut plus": f"{_AS_THEY_ARE}: « De padre y muy señor mío » (8: « On ne peut plus hésiter »)",
+    "du gâteau": f"{_AS_THEY_ARE}: « Pan comido » (8: « un quart du gâteau »)",
+    "bon vieux": f"{_AS_THEY_ARE}: « De toda la vida » (8: « ses bons vieux »)",
+    "à vendre": f"{_AS_THEY_ARE}: « Se vende » (8: « disposée à vendre »)",
+    "à table": f"{_AS_THEY_ARE}: « A comer » (8: « dont je vous parlais à table »)",
+    "laisser faire": f"{_AS_THEY_ARE}: « Dejarlo » (8 with « laissez faire », one key: « on laisse faire »)",
+    "laissez faire": (
+        f"{_AS_THEY_ARE}: « Laissez faire », the key of « laisser faire », which it would gloss once that "
+        "one is left out (« laisse faire » met as the economic doctrine)"
+    ),
+    "loin de là": f"{_AS_THEY_ARE}: « Ni de lejos » (7: « non loin de là »)",
+    "au goût": f"{_AS_THEY_ARE}: « Al gusto » (5: « remettre au goût du jour »)",
+    "grand pont": f"{_AS_THEY_ARE}: « Autopase » (5: « le grand pont de bois »)",
+    # A form of another word met as the headword: the key reads the page's word as the headword's
+    # lemma (12; 461 matches).
+    "de fait": f"{_A_FORM}: « De hecho » (223, 202 of them « de faire »)",
+    "étant donné": f"{_A_FORM}: « En consideración de » (72: « s'est donné pour mission »)",
+    "tenir de": f"{_A_FORM}: « Tirar de » (52: « compte tenu de »)",
+    "la tienne": f"{_A_FORM}: « La tuya » (26: « la tenue des Jeux »)",
+    "bien fait": f"{_A_FORM}: « Bien hecho » (19: « bien faire »)",
+    "qui sait": f"{_A_FORM}: « Quién sabe » (18: « qui savait »)",
+    "ayant droit": f"{_A_FORM}: « Derechohabiente » (11: « ont droit au véto »)",
+    "garder de": f"{_A_FORM}: « Guardarse de » (11: « gardent des formes »)",
+    "à l'anglaise": f"{_A_FORM}: « A la inglesa » (10: « les emprunts à l'anglais »)",
+    "à l'ancienne": f"{_A_FORM}: « A la antigua » (9: « à l'ancien centre »)",
+    "en conserve": f"{_A_FORM}: « Enlatado » (5: « en conservant »)",
+    "de conserve": f"{_A_FORM}: « De consuno » (5: « de conserver »)",
+    # A wrong translation no other source corrects (9; 178 matches).
+    "se passer": f"{_WRONG}: « Pasarse », where the page means « to happen » (62: « C'est ce qui se passera »)",
+    "en ce moment": f"{_WRONG}: « Al momento, al instante », where the page means « now » (32)",
+    "se reposer": f"{_WRONG}: « Posar », where the page means « to rest » (21: « Elles se reposaient »)",
+    "se moquer": f"{_WRONG}: « Jugar », where the page means « to mock » (15: « on se moque »)",
+    "être défini": f"{_WRONG}: « Estar en definición » (15: « les missions sont définies »)",
+    "se poser": f"{_WRONG}: « Posar », where the page means « to arise » (14: « Se pose alors le problème »)",
+    "parti pris": f"{_WRONG}: « Compromiso », where the page means a bias (7: « un parti pris »)",
+    "être sec": f"{_WRONG}: « Estar en definición » (6: « elle était sèche »)",
+    "plaque tournante": f"{_WRONG}: « Mesa giratoria », where the page means a hub (6: « la plaque tournante du métal »)",
+    # A name (1).
+    "de gaulle": f"{_A_NAME}: « Apellido » (7: « le général de Gaulle »)",
+}
+
+
+def without_left_out(expressions):
+    """`expressions` without those `LEFT_OUT` names (D2), and the names it lists that no source
+    glosses — sorted, for the summary line to name, to be removed: `(expressions, unglossed)`."""
+    kept = {expression: gloss for expression, gloss in expressions.items() if expression not in LEFT_OUT}
+    return kept, sorted(name for name in LEFT_OUT if name not in expressions)
+
+
+# Written as French pages write it (D4). A post-1990 spelling the tables list alone (« crème
+# brulée ») is written in its traditional spelling — a word of it whose circumflex restored on an i
+# or a u, one at a time, or whose « ognon » written « oignon », is a form of French's forms table
+# sharing a lemma with the word (or the word is no form) and is commoner by wordfreq —, which the
+# builder keys alike: the card's name moves, the key does not. A headword listed beside its
+# traditional spelling (« boite aux lettres ») stays as written — change 44e names it where a page
+# writes it so. An elided piece written apart from its word (« huile d' olive », the inverted
+# table's) is written against it, and merged into the row it then spells when there is one.
+# Measured: 11 rectified headwords, 3 alone (« crème brulée », « clé de voute », « ognon de
+# roscoff »), 8 beside their traditional spelling; 1 elided piece written apart, merged.
+_ELISIONS = ("c", "d", "j", "l", "m", "n", "s", "t", "qu", "jusqu", "lorsqu", "puisqu", "quoiqu")
+_ELIDED_APART = re.compile(rf"(?<![{_LETTERS}])({'|'.join(_ELISIONS)})' (?=[{_LETTERS}])")
+_CIRCUMFLEX = {"i": "î", "u": "û"}
+
+
+def read_forms(studied):
+    """French's forms table (`tables/fr/forms.tsv` of `studied`): form → frozenset of its lemmas."""
+    forms = collections.defaultdict(set)
+    for form, lemma in read_table(os.path.join(studied, "forms.tsv")):
+        forms[form].add(lemma)
+    return {form: frozenset(lemmas) for form, lemmas in forms.items()}
+
+
+def traditional_spelling(word, forms, zipf):
+    """The traditional spelling of a post-1990 `word` (D4), None when it has none: of the spellings
+    with one circumflex restored on an i or a u, or with « ognon » written « oignon », those that are a
+    form of `forms` sharing a lemma with `word` (any, when `word` is no form) and that `zipf(word,
+    "fr")` rates commoner than `word` — the commonest."""
+    spellings = {word[:k] + _CIRCUMFLEX[c] + word[k + 1 :] for k, c in enumerate(word) if c in _CIRCUMFLEX}
+    if "ognon" in word:
+        spellings.add(word.replace("ognon", "oignon"))
+    lemmas = forms.get(word)
+    found = [
+        spelling
+        for spelling in spellings
+        if spelling in forms and (lemmas is None or lemmas & forms[spelling]) and zipf(spelling, "fr") > zipf(word, "fr")
+    ]
+    return max(sorted(found), key=lambda spelling: zipf(spelling, "fr"), default=None)
+
+
+def as_the_page_writes(expressions, forms, zipf, stats=None):
+    """`expressions` written as French pages write them (D4): an elided piece written apart from its
+    word written against it, the headword merged into the one it then spells if the tables hold it
+    (its gloss is that one's); then a headword with a post-1990 word (`traditional_spelling`) written
+    in its traditional spelling when the tables hold no such headword, kept as written when they do.
+    `stats` counts `expressions respelled`, `expressions merged` and `expressions beside their
+    traditional spelling`."""
+    stats = collections.Counter() if stats is None else stats
+    out = {}
+    for headword, gloss in expressions.items():
+        joined = _ELIDED_APART.sub(r"\1'", headword)
+        if joined != headword and joined in expressions:
+            stats["expressions merged"] += 1
+            continue
+        words = joined.split(" ")
+        traditional = [traditional_spelling(word, forms, zipf) or word for word in words]
+        written = " ".join(traditional)
+        if written != joined and written in expressions:
+            stats["expressions beside their traditional spelling"] += 1
+            written = joined
+        if written != headword:
+            stats["expressions respelled"] += 1
+        out.setdefault(written, gloss)
+    return out
+
+
 # — The studied word is no definition (D7, M5) —
 
 
@@ -1326,6 +1561,10 @@ def main():
     )
     sources = [(direct, list), (inverted, by_spanish_frequency(frequency))]
     glosses, runs, expressions, steps = native_side(entries, ranks, sources)
+    # fr-es's expressions where French text meets them (refine-lingua-fr-es-expressions D4, D2): written
+    # as French pages write them, then the reviewed list left out, on the three sources together.
+    expressions = as_the_page_writes(expressions, read_forms(a.studied), zipf, stats)
+    expressions, unglossed = without_left_out(expressions)
     # « etc. » after the shared rules, which take a sense's final period off (D6).
     glosses = {lemma: with_etc_period(gloss) for lemma, gloss in glosses.items()}
     expressions = {expression: with_etc_period(gloss) for expression, gloss in expressions.items()}
@@ -1393,6 +1632,14 @@ def main():
         f"the language code, other senses), {stats['translations named as other senses left out']} of the direct "
         f"table named as other senses; {len(CORRECTIONS) - len(missed)} of {len(CORRECTIONS)} corrections fired"
         + (f"; corrections that found nothing, to remove: {', '.join(missed)}" if missed else ""),
+        file=sys.stderr,
+    )
+    print(
+        f"fr-es's expressions: {len(LEFT_OUT) - len(unglossed)} of {len(LEFT_OUT)} left out by name; "
+        f"{stats['expressions respelled']} respelled as French pages write them, {stats['expressions merged']} "
+        f"merged into the headword they spell, {stats['expressions beside their traditional spelling']} kept beside "
+        "their traditional spelling"
+        + (f"; expressions left out that no source glosses, to remove: {', '.join(unglossed)}" if unglossed else ""),
         file=sys.stderr,
     )
 
