@@ -2,14 +2,15 @@
 
 ## Context
 
-See proposal.md (Why). What exists, on `main` at `f3585580` (change 44c's implementation, #873):
+See proposal.md (Why). What exists, on `main` at `ea3d89de` (after change 49b's implementation, which
+re-pinned fr-es):
 
 | Where | What |
 |---|---|
 | `reduce-fr-en.py` | French's reference reducer (change 43): `Lexicon.read` reads each entry of the English Wiktionary's French section, lowercased and in NFC (`nfc_lower`); an elided piece is read by the reviewed table `ELISIONS` alone (form → word, reason) and returns before its entry is read; `OVERRIDES` (three copy errors) is the first rule of `choose_lemma`, which applies a row only among a form's candidates; D7's `spelling_target` reads a post-1990 spelling and an ASCII spelling of a ligature as forms of their word. Then the ranks (wordfreq, D6), the readings (45), fr-en's glosses (48, 48b), French's dictionary words and levels (46, 48b) |
 | `tables/fr/` | 124,096 forms, 60,000 ranked lemmas, 125,177 readings, 26,486 dictionary words, 8,302 levels (English's sizes in rank order: A1 1–1,085 … C2 9,475–10,820); `ca` → *ca* (rank 144, A1, a dictionary word), `ça` → *ça* (rank 26, A1), `ç'` → *ça* (`ELISIONS`); `age` → *age* (2,461, B1), `âge` (407, A1); `forcement` → *forcement* (9,588, C2), `forcément` (1,287, A2) |
 | `tables/fr-en/` | `ca` « board of directors » (`NOUN:1`), `age` « beam (central bar of a plough); shaft », `forcement` « fixing number, cooking the books »; coverage 93.6 / 86.9 / 76.3 % (4,679 / 8,688 / 15,260) against `FLOORS["fr-en"]` 91.9 / 85.1 / 74.4; pinned at snapshot `2026.10.09`, the pack 2,537,386 B; rule digest `reduce-fr-en.py`, `reduce_common.py`, `reduce_edition_en.py`, `reduce_french_treebank.py` |
-| `tables/fr-es/` | no gloss for `ca`, `age` or `forcement`; `ça` « Eso, esto, aquello », `âge` « Edad »; coverage 83.2 / 70.8 / 56.8 % (4,161 / 7,082 / 11,359); its pin records `tables/fr/`'s six files by sha256 (`studied`), and its `pack_version` a digest of them (`2026.10.10+3f293e8.1cc934b`) |
+| `tables/fr-es/` | no gloss for `ca`, `age` or `forcement`; `ça` « (coloquial) Eso, esto, aquello », `âge` « Edad »; coverage 83.0 / 70.7 / 56.7 % (4,150 / 7,065 / 11,340); the pack 1,971,289 B; its pin records `tables/fr/`'s six files by sha256 (`studied`), and its `pack_version` a digest of them (`2026.10.10+4e7aa33.1cc934b`) |
 | Change 41's cascade | `french::lemmatize` looks every token up lowercased and in NFC: `CA`, `Ca` and `ca` are one form to the pack. Its D2 measured and rejected « a capital read without its accent (`Ecole` → `école`) » as a cascade rule |
 | Change 48b | its D9 measured `ca` and left it; its Q4, settled by the owner on 2026-10-10: « `ca` is to read as a spelling of `ça` — a change to French's forms table (change 43's), proposed later as a change of its own » |
 | The number | change 43's design reserved « 43b » for a split it never needed (`refine-lingua-french-forms-tables`); 43 merged whole, so the row is this change's |
@@ -57,7 +58,9 @@ and wordfreq 3.1.1. Switch off, it writes `forms.tsv`, `freq.tsv`, `grammar.tsv`
 `lexical.tsv`, `gloss.tsv`, `senses.tsv`, `mwe.tsv` and `NOTICE` byte for byte as committed; fr-es's
 reducer of `main` over its pinned sources writes `tables/fr-es/` byte for byte, and the packs built
 from both have their pins' sha256. Measured with `ca` alone first, then with the four rows the owner
-settled; the figures below are the four rows'. The goldens were re-blessed in a scratch copy of `main`
+settled; the figures below are the four rows'. fr-es was measured again once change 49b's
+implementation reached `main` (`9eb63300`): its reducer of `ea3d89de`, which reads GSD's two sections
+too, reproduces its committed tables and pin. The goldens were re-blessed in a scratch copy of `main`
 with D5's four phrase probes, on `main`'s tables and on the prototype's.
 
 ## Decisions
@@ -193,11 +196,11 @@ any language code or address the tokeniser takes for a word.
 | `tables/fr-en/mwe.tsv` | byte for byte | no headword holds `ca`, `age` or `forcement`, so no key moves |
 | fr-en's coverage | 93.6 / 86.9 / 76.3 % → the same | 4,679 / 8,688 / 15,260 → 4,679 / 8,688 / 15,259 of the 5,000 / 10,000 / 20,000 commonest |
 | `tables/fr-en/pin.json`, `manifest.json` | `reducer` and `pack` move, `pack_version` with the rule digest | `snapshot` and `sources` byte for byte |
-| `tables/fr-es/gloss.tsv`, `senses.tsv` | 19,050 → 19,051 rows | every row it had byte for byte; `côtelé` « Pana » (`ADJ:1`) gained with the lemma entering the cut; fr-es glossed none of the three spellings |
+| `tables/fr-es/gloss.tsv`, `senses.tsv` | 19,022 → 19,023 rows | every row it had byte for byte; `côtelé` « Pana » (`ADJ:1`) gained with the lemma entering the cut; fr-es glossed none of the three spellings |
 | `tables/fr-es/mwe.tsv`, `NOTICE` | byte for byte | |
-| fr-es's coverage | 83.2 / 70.8 / 56.8 % → 83.2 / 70.8 / 56.8 % | 4,161 / 7,082 / 11,359 → 4,161 / 7,084 / 11,361 (`digérer` and `doublure` enter the glossed top 10,000); against its floor 81.4 / 68.8 / 54.5 % |
+| fr-es's coverage | 83.0 / 70.7 / 56.7 % → 83.0 / 70.7 / 56.7 % | 4,150 / 7,065 / 11,340 → 4,150 / 7,067 / 11,342 (`digérer` and `doublure` enter the glossed top 10,000); against its floor 81.4 / 68.8 / 54.5 % |
 | `tables/fr-es/pin.json`, `manifest.json` | `studied` (`forms.tsv`, `freq.tsv`, `grammar.tsv`, `level.tsv`, `lexical.tsv`) and `pack` move, `pack_version`'s studied digest with them | its reducer digest and sources byte for byte |
-| The packs (today's manifests) | fr-en 2,537,386 → 2,537,588 B; fr-es 1,973,407 → 1,973,150 B | the manifests' new `pack_version` adds or takes a byte or so |
+| The packs (today's manifests) | fr-en 2,537,386 → 2,537,588 B; fr-es 1,971,289 → 1,971,114 B | the manifests' new `pack_version` adds or takes a byte or so |
 | UD French-PUD (gated), GSD's test section (reported) | 99.13 / 96.41 / 99.90 %; 98.89 / 95.86 / 99.72 % — unchanged | the three `ca`/`Ca` of PUD and GSD's test section are pronouns, which resolved before and are no content words; neither section writes `age` or `forcement` |
 
 With `ca` alone the prototype moved `forms.tsv` by one row, `level.tsv` by six (five words up a band,
@@ -223,8 +226,8 @@ nine:
 
 | Probe | fr-en | fr-es |
 |---|---|---|
-| `pack` | 2,537,386 → 2,537,588 B (and the new `pack_version`) | 1,973,407 → 1,973,150 B (and the new `pack_version`) |
-| `analyse new-reader informel` | « ca » *ca* « board of directors » → *ça* « that (distal demonstrative pronoun)… »; its class (Unknown) and the page's count (37) unchanged | *ca*, no gloss → *ça* « Eso, esto, aquello » |
+| `pack` | 2,537,386 → 2,537,588 B (and the new `pack_version`) | 1,971,289 → 1,971,114 B (and the new `pack_version`) |
+| `analyse new-reader informel` | « ca » *ca* « board of directors » → *ça* « that (distal demonstrative pronoun)… »; its class (Unknown) and the page's count (37) unchanged | *ca*, no gloss → *ça* « (coloquial) Eso, esto, aquello » |
 | `vocabulary-estimate new-reader` | universe 26,486 → 26,484 | the same |
 | `vocabulary-estimate reader` | estimated 2,184 → 2,185, universe 26,485 → 26,483 | the same |
 | `review-current first`, `second` | `croissance`, `célèbre` → `célèbre`, `davantage`: `croissance` is A1 now, so the deck seeded from A2's five commonest starts one word later | the same, in Spanish |
@@ -239,11 +242,11 @@ the goldens show the rule where a reader meets it. Blessed on `main`'s tables an
 | Probe | fr-en, today → this change | fr-es, today → this change |
 |---|---|---|
 | « comme ca » | *ca* « board of directors », no expression → *ça*, the expression `comme ça` « like that/this… » | *ca* unglossed → *ça*; fr-es has no `comme ça` |
-| « c'est ca » | `c'est` over two tokens → `c'est ça` « Confirmation of a question: that's right » over three | no expression → `c'est ça` « Así es o tener la razón, eso es… » |
-| « Le CA a voté le budget. » | *ca* « board of directors » → *ça* « that… », flagged a function word — the record of D2, which the acronym change moves | *ca* unglossed → *ça* « Eso, esto, aquello » |
+| « c'est ca » | `c'est` over two tokens → `c'est ça` « Confirmation of a question: that's right » over three | no expression → `c'est ça` « Así es o tener la razón, eso es; (irónico)… » |
+| « Le CA a voté le budget. » | *ca* « board of directors » → *ça* « that… », flagged a function word — the record of D2, which the acronym change moves | *ca* unglossed → *ça* « (coloquial) Eso, esto, aquello » |
 | « à mon age » | *age* « beam (central bar of a plough); shaft » → *âge* « age » | *age* unglossed → *âge* « Edad » |
 
-Each golden gains 8 lines: `fr-en.golden` 370,503 → 376,285 B, `fr-es.golden` 247,772 → 249,742 B.
+Each golden gains 8 lines: `fr-en.golden` 370,503 → 376,285 B, `fr-es.golden` 248,267 → 250,296 B.
 `test/word-card-fr-en.spec.ts` and `word-card-fr-es.spec.ts` render every grammar and phrase probe of
 their golden: none of the probes they render before moves, so their snapshots gain the four cards and
 nothing else, and their count of phrase probes goes 34 → 38.
@@ -317,9 +320,9 @@ Proposed later, with this change's table as its mechanism (e.g.
   as any word the cut leaves out.
 - **[A few rows hide the others]** → D6 records the two follow-ups the owner settled and the words
   that are never rows.
-- **[Change 49b re-reduces fr-es]** (`refine-lingua-fr-es-glosses`, proposed) → whichever of 49b and
-  this change lands second re-reduces fr-es on both and re-blesses `fr-es.golden`; neither edits the
-  other's files.
+- **[fr-es moves again before this lands]** → change 49b's implementation already did, and fr-es was
+  measured again on it (*Measured*); a later fr-es change re-reduces on whichever `tables/fr/` is
+  committed, and the second to land re-blesses `fr-es.golden`.
 - **[wordfreq's next version]** → the rows do not depend on frequencies; an update re-reduces with it
   and the test holds each row's word ranked.
 

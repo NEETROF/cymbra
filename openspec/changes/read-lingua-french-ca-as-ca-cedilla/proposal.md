@@ -62,8 +62,8 @@ dictionary's own unmarked spellings and the web's unglossed ones are changes of 
     (`cussac` and `céphalonie`, names, and `côtelé` « ribbed »); `mwe.tsv` byte for byte; coverage
     93.6 / 86.9 / 76.3 % unchanged (15,260 → 15,259 of the top 20,000); the pin's rules and pack move;
   - fr-es: re-reduced on the new `tables/fr/`, every gloss it had byte for byte and `côtelé` « Pana »
-    gained; coverage 83.2 / 70.8 / 56.8 % (7,082 → 7,084 of the top 10,000); its pin's studied record
-    and pack move;
+    gained; coverage 83.0 / 70.7 / 56.7 % (7,065 → 7,067 of the top 10,000), measured on change
+    49b's implementation; its pin's studied record and pack move;
   - UD French-PUD 99.13 / 96.41 / 99.90 % and GSD's test section 98.89 / 95.86 / 99.72 %, unchanged.
 - **The goldens** (D5): `fr-en.golden` and `fr-es.golden` move 9 of their 213 probes each — the pack
   line, « ca » on the `informel` page read as `ça`, the vocabulary universe 26,486 → 26,484 and the
