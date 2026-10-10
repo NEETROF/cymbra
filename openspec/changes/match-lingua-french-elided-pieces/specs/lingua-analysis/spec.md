@@ -11,7 +11,7 @@ The phrase gloss SHALL match a French expression on a run of a selection only wh
 - **WHEN** « de l’eau » is glossed with a French pack holding `de l'`
 - **THEN** one match covers `de` and `le`, and its key is `de l'`
 
-#### Scenario: A word written in full is not its elision
+#### Scenario: A piece written in full does not meet its elision
 - **WHEN** « d’un hiver » is glossed with a French pack holding `de un`
 - **THEN** no expression is reported
 
@@ -33,7 +33,7 @@ The phrase gloss SHALL match a French expression on a run of a selection only wh
 
 #### Scenario: What the French baseline shows
 - **WHEN** the French invariance baseline is re-blessed with the phrase probes « de l’eau », « Il a décidé de le faire », « parce qu’il pleut » and « d’un hiver »
-- **THEN** over fr-en « de l’eau » answers `de l'`, « parce qu’il pleut » answers `parce que`, « Il a décidé de le faire » and « d’un hiver » answer none, and every probe recorded before is byte for byte
+- **THEN** over fr-en « de l’eau » answers `de l'`, « parce qu’il pleut » answers `parce que`, « Il a décidé de le faire » and « d’un hiver » answer none; over fr-es « parce qu’il pleut » answers `parce que` and the three others none; and every probe recorded before is byte for byte
 
 #### Scenario: English and Spanish do not move
 - **WHEN** the English, Spanish, es-en and en-es invariance baselines run after the rule is added

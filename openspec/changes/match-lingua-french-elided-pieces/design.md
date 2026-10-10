@@ -96,13 +96,19 @@ Measured, of fr-en's 62,803 matches today over the 51,790 selections:
 | fr-en | 62,803 | 2,021 | 57 | 60,839 | 1,774 | 4,547 | 269 |
 | fr-es | 41,568 | 13 | 1 | 41,556 | 13 | 2,013 | 64 |
 
-By corpus, this design (fr-en; fr-es): change 39's 55 matches, 1 lost (`de un` on « d’un hiver »);
-45, none — GSD 18,299, −593 +14; 12,556, −3 — Gutenberg 13,213, −657 +21; 7,952, −4 — Wikipedia
-20,351, −547 +13; 14,846, −3 — Tatoeba 10,885, −223 +9; 6,169, −3 +1.
+By corpus, this design:
 
-fr-en's 2,021 lost are the 2,018 mismatches of the table's rows 2–4 and 3 matches displaced: once
-`c'est` no longer takes « ce sont », the greedy order lets `être à` take « sont au » and `au
-contraire` loses its `à`. The 57 gained are the shorter runs a refused match frees: `un peu` 17
+| Corpus | fr-en today | lost | gained | fr-es today | lost | gained |
+|---|---|---|---|---|---|---|
+| change 39's | 55 | 1 (`de un` on « d’un hiver ») | 0 | 45 | 0 | 0 |
+| UD French-GSD | 18,299 | 593 | 14 | 12,556 | 3 | 0 |
+| Gutenberg | 13,213 | 657 | 21 | 7,952 | 4 | 0 |
+| Wikipedia | 20,351 | 547 | 13 | 14,846 | 3 | 0 |
+| Tatoeba | 10,885 | 223 | 9 | 6,169 | 3 | 1 |
+
+fr-en's 2,021 lost are the 2,018 mismatches of the first table's rows 2–4 and 3 matches displaced:
+once `c'est` no longer takes « ce sont » or « ce sera », `être à` takes the « sont au » or « sera à »
+that follows, and `au contraire`, `à cause de` and `à présent` lose their `à`. The 57 gained are the shorter runs a refused match frees: `un peu` 17
 (« d'un peu plus »), `un autre` 17, `être à` 7, `un tel` 6, `un jour` 4, `être le cas` 3 (« Ce fut le
 cas »), 3 more. fr-es holds neither `de l'` nor `de un`: it loses `c'est clair`, `c'est dire`,
 `c'est du gâteau` on « ce soit », « ce sera » (3), `langue d'oc` on « Langue de Oc », `jaune d'œuf`
@@ -153,8 +159,8 @@ no apostrophe is written in full and is not read. Measured: glossing the 51,790 
 takes 2.75 s today and 2.77–2.82 s with the prototype, which reads every match's name.
 
 *Rejected — keys that spell the elision* (`de l'` keyed `de l'`, `coup d'œil` `coup d' œil`). The
-builder and the matcher would share it through `expression_piece`, but 1,554 of fr-en's keys and 877
-of fr-es's would move, with both packs and their pins; the last piece written in full would need a
+builder and the matcher would share it through `expression_piece`, but the keys of 1,554 of fr-en's
+keyed headwords and 877 of fr-es's would move, with both packs and their pins; the last piece written in full would need a
 retry like change 44's `du`/`des`; and the gain is three keys several headwords of different
 elisions reach in fr-en (`ce qui` and `c'qui`, `ce que` and `c'que`, `putain de` and `putain d'`),
 one match on the corpus (« c'qui »).
@@ -175,9 +181,12 @@ The rule refuses some matches whose meaning was right, measured above:
   enceinte » (1); **a literary or colloquial elision** — « ç'a été » (5), « d'la » (3), « coup
   d'pied », « c'qui »; **a word written in full where the dictionary elides** — « Langue de Oc ».
 
-Against them, the rule removes 1,513 `de un` on « d’un », 165 `de l'` on « de le », and 45 matches
-across a dropped word, an inversion or English. The owner's rule is taken as written for every
-piece but the last (open question 2).
+Against them, the rule removes 1,513 `de un` on « d’un », 165 `de l'` on « de le », and 44 more
+wrong ones: 34 across a dropped number (« de 1278 entre » `d'entre`), 5 across an inversion or a
+markup (« secoue-le un peu » `l'un`, « Pourrais-je avoir » `j'ai`), 3 `c'est …` phrases on another
+form (« ce fut selon eux » `c'est selon`), « That's For Me, a » `m'a` and « en forme de Y » `d'y` —
+the 45th is the right « Langue de Oc ». The owner's rule is taken as written for every piece but the
+last (open question 2).
 
 ### D5 — What moves: four probes, added
 
@@ -221,9 +230,10 @@ test's doc comment (`french_baseline.rs`) lists this change among those that add
   one: 0 elided tokens in 11,768 Spanish selections, and no es-fr or es-en headword holds an elided
   piece. Its contractions « al » and « del » are split into pieces sharing a span — change 44b's
   ground, like French's « au »/« aux » (D7) —: on the same selections, no contracted headword piece
-  met « a el » or « de el » written apart (0 of es-fr's 5,854 matches and es-en's 6,634), and the
-  132 and 123 uncontracted last pieces on a contraction (« después del » for `después de`) are 44b's
-  D5, right.
+  met « a el » or « de el » written apart (0 of es-fr's 5,854 matches and es-en's 6,634). The other
+  way, 132 and 123 matches meet a contraction with pieces written apart: « después del » answering
+  `después de` (44b's D5, right), and 3 in es-fr and 25 in es-en starting on the article of « al » or
+  « del » (« al que » answering `el que`), as French's on « aux » (D7).
 - No builder, key, name or table moves, so `committed_tables` builds the six committed packs to their
   pins, and the four other goldens pass without re-blessing (measured, D5).
 
@@ -234,8 +244,9 @@ faire`, answers « Il est prêt à le faire », `le` a pronoun. Measured on the 
 in fr-en and 10 in fr-es, every one `au fait` on « à le faire ». The owner's rule is about elision;
 a piece written as « au » or « aux » could be held to a contraction on the page by the same reading
 of the name — its two pieces sharing a span — in a change of its own (open question 3). Measured
-alongside: 13 matches in fr-es start on the article of « aux » (`les deux` on « aux deux »), which
-change 51's D12 does not cover since it only extends a match's end.
+alongside: 39 matches in fr-es and 1 in fr-en start on the article of « au » or « aux » (`le même`
+on « au même », `les deux` on « aux deux »), which change 51's D12 does not cover since it only
+extends a match's end; not this change's either.
 
 ### D8 — What later changes take from here
 
@@ -255,8 +266,8 @@ change 51's D12 does not cover since it only extends a match's end.
   was made with; should the two ever differ in length, the run is matched as today. A test on the
   committed tables holds every French headword with an elided piece named.
 - [Tokens joined across a dropped word] → The rule removes those where the headword's piece is
-  elided and the page's is not (34 matches, « de 1278 entre » `d'entre` among them); a run of words written in full joined across a
-  dropped number stays as today (Non-goals).
+  elided and the page's is not (34 matches, « de 1278 entre » `d'entre` among them); a run of words
+  written in full joined across a dropped number stays as today (Non-goals).
 - [Cost] → One reading of a name holding an apostrophe per French match; within 2 % of the corpus's
   gloss time with every name read.
 

@@ -21,8 +21,8 @@ records), four Gutenberg novels, French Wikipedia and Tatoeba, 1,085,056 tokens 
 elided pieces —, of fr-en's 62,803 matches today:
 - **an elided piece meets a word written in full 492 times**: `de l'` on « de le » 165 times (« offert
   de le payer »), `c'est` on « ce sont », « ce fut », « ce soit », « ce sera » 282 times, and 45
-  across a word the tokeniser drops (« de 1278 entre » answers `d'entre`) or an inversion
-  (« Pourrais-je avoir » answers `j'ai`);
+  more, 34 of them across a number the tokeniser drops (« de 1278 entre » answers `d'entre`) and 5
+  across an inversion (« Pourrais-je avoir » answers `j'ai`);
 - **a piece written in full meets an elided word 4,047 times**: 1,526 inside the expression, of which
   1,513 are `de un` (« first, first up ») on every « d'un » (« ne se souvenait d’un hiver » in change
   39's own corpus); and 2,521 on the expression's last piece, all right: `parce que` on « parce
