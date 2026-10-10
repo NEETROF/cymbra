@@ -1542,6 +1542,17 @@ mod tests {
             )]
         );
         assert_eq!(french_pack(&["boîte à gants", "boite à gants"]), first);
+        // The other spelling is kept beside it, with its gloss
+        // (pick-lingua-expression-written-as-the-page D1).
+        assert_eq!(
+            Pack::load(&first)
+                .unwrap()
+                .expression_headwords("boîte à gant"),
+            [
+                ("boîte à gants", "gloss of boîte à gants"),
+                ("boite à gants", "gloss of boite à gants")
+            ]
+        );
         // The headword written as the key still comes first.
         let bytes = french_pack(&["haut les main", "haut les mains"]);
         assert_eq!(
@@ -1599,6 +1610,172 @@ mod tests {
             expressions_of(&bytes),
             vec![("start point".into(), "Point de départ".into())]
         );
+    }
+
+    // — every headword of a shared key (pick-lingua-expression-written-as-the-page) —
+
+    /// `french_inputs` plus the words of `ça va`, `ça ira`, `allez-y`, `allons-y` and `vas-y`.
+    fn shared_key_pack(expressions: &[&str]) -> Vec<u8> {
+        let mut inp = french_inputs();
+        inp.form_lemma.extend(
+            [
+                ("va", "aller"),
+                ("ira", "aller"),
+                ("allez", "aller"),
+                ("allons", "aller"),
+                ("vas", "aller"),
+            ]
+            .iter()
+            .map(|(form, lemma)| ((*form).into(), (*lemma).into())),
+        );
+        inp.ranks
+            .extend([("ça".into(), 100), ("aller".into(), 101)]);
+        inp.expressions = expressions
+            .iter()
+            .map(|headword| ((*headword).into(), format!("gloss of {headword}")))
+            .collect();
+        build_pack(&inp).expect("a French pack builds")
+    }
+
+    fn headwords_of(bytes: &[u8], key: &str) -> Vec<(String, String)> {
+        Pack::load(bytes)
+            .expect("load")
+            .expression_headwords(key)
+            .into_iter()
+            .map(|(name, gloss)| (name.to_owned(), gloss.to_owned()))
+            .collect()
+    }
+
+    fn headword(name: &str) -> (String, String) {
+        (name.to_owned(), format!("gloss of {name}"))
+    }
+
+    #[test]
+    fn spec_scenario_two_headwords_reach_one_key_and_both_are_kept() {
+        let bytes = shared_key_pack(&["ça va", "ça ira", "au revoir"]);
+        // The key answers `ça ira`, which wins it, with its gloss and its name, as before…
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [
+                named("à le revoir", Some("au revoir"), "au revoir"),
+                named("ça aller", Some("ça ira"), "ça ira"),
+            ]
+        );
+        // …and the pack holds `ça va` with its own gloss, listed as the key's other headword.
+        assert_eq!(
+            headwords_of(&bytes, "ça aller"),
+            [headword("ça ira"), headword("ça va")]
+        );
+        // Whichever order the source lists them in.
+        assert_eq!(shared_key_pack(&["au revoir", "ça ira", "ça va"]), bytes);
+    }
+
+    #[test]
+    fn spec_scenario_three_headwords_reach_one_key() {
+        let bytes = shared_key_pack(&["vas-y", "allons-y", "allez-y"]);
+        assert_eq!(
+            headwords_of(&bytes, "aller y"),
+            [headword("allez-y"), headword("allons-y"), headword("vas-y")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_key_one_headword_reaches_lists_nothing() {
+        let bytes = shared_key_pack(&["au revoir", "ça va"]);
+        assert_eq!(headwords_of(&bytes, "à le revoir"), [headword("au revoir")]);
+        assert_eq!(headwords_of(&bytes, "ça aller"), [headword("ça va")]);
+        // No key has others: the pack carries no section, and is the one it was before.
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_OTHERS));
+    }
+
+    #[test]
+    fn the_others_section_lists_each_key_s_other_headwords_in_order() {
+        // The keys sort `aller y` (0), `à le revoir` (1), `ça aller` (2); the other headwords
+        // take the ids after them, in key order and the builder's order within a key.
+        let bytes = shared_key_pack(&[
+            "ça va",
+            "ça ira",
+            "au revoir",
+            "vas-y",
+            "allons-y",
+            "allez-y",
+        ]);
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        let others = sections
+            .iter()
+            .find(|s| s.name == section::EXPR_OTHERS)
+            .map(|s| s.data.clone())
+            .expect("the section");
+        let mut want = 3u32.to_le_bytes().to_vec();
+        for (key, other) in [(0u32, 3u32), (0, 4), (2, 5)] {
+            want.extend_from_slice(&key.to_le_bytes());
+            want.extend_from_slice(&other.to_le_bytes());
+        }
+        assert_eq!(others, want);
+        // No key maps to an other headword's id: the FST holds the three keys alone.
+        assert_eq!(
+            expressions_of(&bytes)
+                .into_iter()
+                .map(|(key, _)| key)
+                .collect::<Vec<_>>(),
+            ["aller y", "à le revoir", "ça aller"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_core_that_does_not_read_the_section() {
+        // Stripped of the section, as a core that predates it reads it, the pack answers every
+        // key as the pack built without the other headwords — what the builder made before.
+        let bytes = shared_key_pack(&[
+            "ça va",
+            "ça ira",
+            "au revoir",
+            "vas-y",
+            "allons-y",
+            "allez-y",
+        ]);
+        let (meta, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        let kept: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::EXPR_OTHERS)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        let older = Pack::load(&write_container(&meta, &kept)).expect("load");
+        let before = Pack::load(&shared_key_pack(&["ça ira", "au revoir", "allez-y"])).unwrap();
+        for key in ["aller y", "à le revoir", "ça aller", "ça va", "allons-y"] {
+            assert_eq!(older.expression(key), before.expression(key), "{key}");
+            assert_eq!(
+                older.expression_name(key),
+                before.expression_name(key),
+                "{key}"
+            );
+            assert_eq!(
+                older.expression_headwords(key),
+                before.expression_headwords(key),
+                "{key}"
+            );
+        }
+    }
+
+    #[test]
+    fn spec_scenario_english_and_spanish_packs_carry_no_others() {
+        // Two English entries and two Spanish headwords reach one key: each pack keeps the first
+        // alone, byte for byte the pack built from it alone, and carries no section.
+        let mut inp = inputs_with_expression_words();
+        inp.expressions = vec![
+            ("breaking point".into(), "Point de rupture".into()),
+            ("break point".into(), "Point d'arrêt".into()),
+        ];
+        let english = build_pack(&inp).expect("build");
+        inp.expressions.remove(0);
+        assert_eq!(english, build_pack(&inp).expect("build"));
+        let spanish = spanish_pack(&["soy inglesa", "soy inglés"]);
+        assert_eq!(spanish, spanish_pack(&["soy inglés"]));
+        for bytes in [english, spanish] {
+            let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+            assert!(sections.iter().all(|s| s.name != section::EXPR_OTHERS));
+        }
     }
 
     // — Spanish expression keys (add-lingua-spanish-expression-keys) —
