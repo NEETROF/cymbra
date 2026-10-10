@@ -16,11 +16,14 @@ read. À_SECTION keeps its entry's first senses only. A case marked « made up �
 Run: python3 -m unittest discover -s scripts/lingua-data -p "test_*.py"
 """
 
+import collections
 import contextlib
 import importlib.util
+import inspect
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import types
@@ -270,6 +273,358 @@ SPANISH_ZIPF = {"preservativo": 3.3, "profiláctico": 1.8, "condón": 3.2, "adie
 def spanish_zipf(word):
     return SPANISH_ZIPF.get(word, 0.0)
 
+# — refine-lingua-fr-es-glosses: the entries its rules read, recorded from the same three files —
+
+_FIGURATIVE_VULGAR = {
+    "categories": ["FR:Términos en sentido figurado", "FR:Términos malsonantes"],
+    "tags": ["figurative", "vulgar"],
+}
+BAISER_TRANSITIVE = {
+    "word": "baiser",
+    "pos": "verb",
+    "tags": ["transitive"],
+    "senses": [
+        {
+            "glosses": ["Besar."],
+            "categories": ["FR:América", "FR:Bélgica", "FR:Canadá", "FR:Términos anticuados"],
+            "tags": ["Canada", "outdated"],
+        },
+        {"glosses": ["Coger (sexualmente)."], **_FIGURATIVE_VULGAR},
+        {"glosses": ["Dominar o joder."], **_FIGURATIVE_VULGAR},
+        {"glosses": ["Quebrar o romper."], **_FIGURATIVE_VULGAR},
+        {
+            "glosses": ["Grapar."],
+            "categories": ["FR:Términos en sentido figurado", "FR:Términos jergales"],
+            "tags": ["figurative", "slang"],
+        },
+    ],
+}
+BAISER_INTRANSITIVE = {
+    "word": "baiser",
+    "pos": "verb",
+    "tags": ["intransitive"],
+    "senses": [{"glosses": ["Culear, follar, fornicar, joder o realizar el coito."], **_FIGURATIVE_VULGAR}],
+}
+BAISER_NOUN = {"word": "baiser", "pos": "noun", "tags": ["masculine"], "senses": [{"glosses": ["Beso, besuqueo u ósculo."]}]}
+OUI_INTJ = {
+    "word": "oui",
+    "pos": "intj",
+    "senses": [
+        {"glosses": ["Afirmativo, así es, bien, ciertamente, correcto."]},
+        {
+            "glosses": ["Ciertamente o en verdad (contra preguntas negativas)."],
+            "categories": ["FR:América", "FR:Quebec"],
+            "tags": ["Quebec"],
+        },
+        {"glosses": ["¿Sí?"]},
+    ],
+}
+AVEC_ADV = {
+    "word": "avec",
+    "pos": "adv",
+    "senses": [
+        {
+            "glosses": ["También."],
+            "categories": ["FR:América", "FR:Bélgica", "FR:Canadá", "FR:Quebec"],
+            "tags": ["Canada", "Quebec"],
+            "raw_tags": ["conjuntivo"],
+        },
+        {"glosses": ["Con este, consigo, con ella etc."]},
+    ],
+}
+_MALSONANTE = {"categories": ["FR:Anatomía", "FR:Términos malsonantes"], "tags": ["vulgar"]}
+CUL_NOUN = {
+    "word": "cul",
+    "pos": "noun",
+    "tags": ["masculine"],
+    "senses": [
+        {"glosses": ["Culo."], **_MALSONANTE},
+        {"glosses": ["Ano, ojete, recto (culo)."], **_MALSONANTE},
+        {"glosses": ["Coito, sexo."], **_FIGURATIVE_VULGAR},
+        {
+            "glosses": ["Pornografía."],
+            "categories": ["FR:Términos jergales", "FR:Términos malsonantes"],
+            "tags": ["slang", "vulgar"],
+        },
+        {"glosses": ["Fundo (de un objeto)."], "categories": ["FR:Términos en sentido figurado"], "tags": ["figurative"]},
+        {
+            "glosses": ["Suerte propicia (ojete)."],
+            "categories": ["FR:Europa", "FR:Francia", "FR:Términos jergales", "FR:Términos malsonantes"],
+            "tags": ["France", "slang", "vulgar"],
+        },
+    ],
+}
+CUL_ADJ = {"word": "cul", "pos": "adj", "senses": [{"glosses": ["Estúpido."], "categories": ["FR:Términos jergales"], "tags": ["slang"]}]}
+# An editor's template that named the wrong language: « ES:Términos anticuados ».
+MAITRESSE = {
+    "word": "maîtresse",
+    "pos": "noun",
+    "tags": ["feminine"],
+    "senses": [{"glosses": ["Amante (femenina)."], "categories": ["ES:Términos anticuados"], "tags": ["outdated"]}],
+}
+RIEN_PRON = {
+    "word": "rien",
+    "pos": "pron",
+    "tags": ["indefinite", "neuter"],
+    "senses": [
+        {"glosses": ["Nada."], "raw_tags": ["en construcciones negativas"]},
+        {"glosses": ["Algo."], "categories": ["FR:Términos obsoletos"], "tags": ["obsolete"]},
+        {"glosses": ["Poca cosa."]},
+    ],
+}
+RIEN_NOUN = {"word": "rien", "pos": "noun", "tags": ["masculine"], "senses": [{"glosses": ["Pequeño cantidad de algo."], "sense_index": "1"}]}
+RIEN_ADV = {
+    "word": "rien",
+    "pos": "adv",
+    "tags": ["quantitative"],
+    "senses": [
+        {
+            "glosses": ["Muy."],
+            "categories": ["FR:Términos coloquiales", "FR:Términos irónicos"],
+            "tags": ["colloquial", "ironic"],
+            "raw_tags": ["antífrasis"],
+        },
+        {"glosses": ["Mucha, muchas, mucho o muchos."]},
+    ],
+}
+MAL_AUX_CHEVEUX = {
+    "word": "mal aux cheveux",
+    "pos": "phrase",
+    "tags": ["substantive"],
+    "senses": [
+        {
+            "glosses": ["Resaca, caña, chaqui, chuchaqui, cruda, goma, guayabo, hachazo, hangover, perseguidora, ratón."],
+            "categories": ["FR:Términos anticuados"],
+            "tags": ["outdated"],
+        }
+    ],
+}
+_VULGAR = {"categories": ["FR:Términos vulgares"], "tags": ["vulgar"]}
+_DESPECTIVO = {
+    "categories": ["FR:Términos despectivos", "FR:Términos en sentido figurado", "FR:Términos malsonantes"],
+    "tags": ["derogatory", "figurative", "vulgar"],
+}
+FILS_DE_PUTE = {
+    "word": "fils de pute",
+    "pos": "noun",
+    "tags": ["masculine"],
+    "senses": [
+        {"glosses": ["Hijo de puta, hijoputa o máncer."], **_VULGAR},
+        {
+            "glosses": [
+                "Bastardo, hijo de la chingada, hijo de la Malinche, hijo de la tiznada, hijo de perra, hijo de puta, "
+                "hijoputa o hijueputa."
+            ],
+            **_DESPECTIVO,
+        },
+        {"glosses": ["Objeto bajo, desgraciado o despreciable o situación incómoda."], **_DESPECTIVO},
+        {"glosses": ["Chingado, desgraciado, maldito, pinche o puto."], **_VULGAR},
+    ],
+}
+ETRE_NOUN = {
+    "word": "être",
+    "pos": "noun",
+    "tags": ["masculine"],
+    "senses": [{"glosses": ["Ser."], "raw_tags": ["Hace referencia a cualquier ser vivo."]}],
+}
+ETRE_VERB = {"word": "être", "pos": "verb", "tags": ["intransitive"], "senses": [{"glosses": ["Ser."]}, {"glosses": ["Estar."]}]}
+ETRE_AUXILIARY = {
+    "word": "être",
+    "pos": "verb",
+    "tags": ["auxiliary"],
+    "senses": [{"glosses": ["(être + participio) Haber."]}, {"glosses": ["(être + participio) ser."]}],
+}
+DEVOIR_NOUN = {"word": "devoir", "pos": "noun", "tags": ["masculine"], "senses": [{"glosses": ["Deber."]}]}
+DEVOIR_VERB = {"word": "devoir", "pos": "verb", "tags": ["transitive"], "senses": [{"glosses": ["Deber."]}]}
+JAUNE_ADJ = {"word": "jaune", "pos": "adj", "senses": [{"glosses": ["Amarillo."], "categories": ["FR:Colores"]}]}
+JAUNE_NOUN = {
+    "word": "jaune",
+    "pos": "noun",
+    "tags": ["masculine"],
+    "senses": [{"glosses": ["Amarillo."], "categories": ["FR:Colores"]}, {"glosses": ["Amarillo (persona asiática)."]}],
+}
+DES_ARTICLE = {"word": "des", "pos": "article", "tags": ["indeterminate"], "senses": [{"glosses": ["Algunos, algunas, unos o unas."]}]}
+DES_CONTRACTION = {
+    "word": "des",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [
+        {
+            "glosses": ["Contracción de la preposición de y el artículo les; de las o de los."],
+            "categories": ["FR:Contracciones", "FR:Contracciones de preposiciones"],
+        }
+    ],
+}
+DU_CONTRACTION = {
+    "word": "du",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [{"glosses": ["Contracción de la preposición de y el articulo le; del."]}],
+}
+DUQUEL_CONTRACTION = {
+    "word": "duquel",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [{"glosses": ["Contracción de la preposición de y el pronombre lequel; de quién; de cuál."]}],
+}
+C_EST = {
+    "word": "c'est",
+    "pos": "contraction",
+    "tags": ["contraction"],
+    "senses": [{"glosses": ["Contracción de el pronombre ce y el verbo est."]}],
+}
+QUI_INTERROGATIVE = {"word": "qui", "pos": "pron", "tags": ["interrogative"], "senses": [{"glosses": ["Quién. (Pronombre nominativo.)"]}]}
+QUI_RELATIVE = {"word": "qui", "pos": "pron", "tags": ["relative"], "senses": [{"glosses": ["Que. (Pronombre nominativo.)"]}]}
+QUOI_INTERROGATIVE = {
+    "word": "quoi",
+    "pos": "pron",
+    "tags": ["interrogative", "neuter"],
+    "senses": [{"glosses": ["Qué. (Pronombre oblicuo.)"]}],
+}
+NOUS_AUTRES = {
+    "word": "nous autres",
+    "pos": "pron",
+    "tags": ["personal"],
+    "senses": [{"glosses": ["Nosotros [y no tú o vosotros]. (Plural exclusivo.)"]}],
+}
+IL_NEUTER = {
+    "word": "il",
+    "pos": "pron",
+    "tags": ["neuter", "personal"],
+    "senses": [{"glosses": ["Pronombre sujeto expletivo impersonal. (No tiene traducción al español. No existe en español.)"]}],
+}
+COCHON = {
+    "word": "cochon",
+    "pos": "noun",
+    "tags": ["feminine", "masculine"],
+    "senses": [{"glosses": ["Cerdo, marrano, guarro, cochino, etc."], "categories": ["FR:Ganadería", "FR:Mamíferos"]}],
+}
+PAS_NOUN = {"word": "pas", "pos": "noun", "tags": ["masculine"], "senses": [{"glosses": ["Paso."]}]}
+PAS_ADV = {"word": "pas", "pos": "adv", "tags": ["negative"], "senses": [{"glosses": ["No."]}]}
+PENDANT_ADJ = {"word": "pendant", "pos": "adj", "senses": [{"glosses": ["Pendiente."]}]}
+PENDANT_NOUN = {
+    "word": "pendant",
+    "pos": "noun",
+    "tags": ["masculine"],
+    "senses": [{"glosses": ["Pendiente."]}, {"glosses": ["Juego (cosas relacionadas entre si)."]}],
+}
+PENDANT_PREP = {"word": "pendant", "pos": "prep", "senses": [{"glosses": ["Durante."]}]}
+IL_Y_A = {"word": "il y a", "pos": "phrase", "tags": ["prepositional"], "senses": [{"glosses": ["Hace."], "sense_index": "1"}]}
+AMIE_ADJ = {
+    "word": "amie",
+    "pos": "adj",
+    "tags": ["adjectival", "form-of"],
+    "senses": [
+        {
+            "glosses": ["Forma del femenino singular de ami."],
+            "categories": ["FR:Formas adjetivas en femenino"],
+            "tags": ["form-of"],
+            "form_of": [{"word": "ami"}],
+        }
+    ],
+}
+AMIE_NOUN = {
+    "word": "amie",
+    "pos": "noun",
+    "tags": ["feminine"],
+    "senses": [{"glosses": ["Amia o lamia."], "categories": ["FR:Peces"], "topics": ["fish"]}],
+}
+EL_PRON = {"word": "el", "pos": "pron", "tags": ["personal"], "senses": [{"glosses": ["Ella, ello o él."]}]}
+
+RUSSE_ADJ_TRANSLATED = {"pos": "adj", "translations": [{"word": "ruso"}], "word": "russe"}
+RUSSE_NOUN_TRANSLATED = {"pos": "noun", "translations": [{"word": "ruso"}, {"word": "rusa"}], "word": "russe"}
+CLAIR_ADJ_TRANSLATED = {
+    "pos": "adj",
+    "translations": [
+        {"word": w}
+        for w in ("claro", "luminoso", "claro", "luminoso", "claro", "límpido", "transparente", "claro", "brillante")
+    ],
+    "word": "clair",
+}
+CLAIR_ADV_TRANSLATED = {"pos": "adv", "translations": [{"word": "claro"}, {"word": "claramente"}], "word": "clair"}
+NET_TRANSLATED = [
+    {
+        "pos": "adj",
+        "translations": [{"word": w} for w in ("puro", "limpio", "puro", "neto", "puro", "claro", "puro", "nítido", "claro")],
+        "word": "net",
+    },
+    {"pos": "adv", "translations": [{"word": "claro"}], "word": "net"},
+    {"pos": "noun", "translations": [{"word": "red"}], "word": "net"},
+    {"pos": "adj", "translations": [{"word": "red"}], "word": "net"},
+]
+ARNAQUE_TRANSLATED = {"pos": "noun", "translations": [{"word": "arnaque"}], "word": "arnaque"}
+RETRAITE_TRANSLATED = {
+    "pos": "noun",
+    "translations": [{"word": w} for w in ("retraite", "jubilación", "retiro", "jubilación", "pensión", "retiro")],
+    "word": "retraite",
+}
+DIAPORAMA_TRANSLATED = {"pos": "noun", "translations": [{"word": "diaporama"}], "word": "diaporama"}
+CLUB_TRANSLATED = {"pos": "noun", "translations": [{"word": "club"}], "word": "club"}
+CONTROLE_CONTINU_TRANSLATED = {"pos": "noun", "translations": [{"word": "contrôle continu"}], "word": "contrôle continu"}
+DS_TRANSLATED = {"pos": "noun", "translations": [{"word": "tiburón"}], "word": "DS"}
+HALL_TRANSLATED = {"pos": "noun", "translations": [{"word": "explanada"}], "word": "hall"}
+EL_TRANSLATED = {"pos": "pron", "translations": [{"sense": "Pronom neutre", "word": "elle"}], "word": "el"}
+
+EEUU_LISTS = {
+    "pos": "abbrev",
+    "translations": [{"word": "USA"}, {"word": "US"}, {"word": "É.-U."}, {"word": "ÉU"}],
+    "word": "EEUU",
+}
+ONU_LISTS = {"pos": "abbrev", "translations": [{"word": "ONU"}], "word": "ONU"}
+AEC_LISTS = {"pos": "abbrev", "translations": [{"word": "AEC"}, {"word": "av. è. c."}], "word": "a. e. c."}
+CALABAZA_LISTS = {
+    "pos": "noun",
+    "translations": [{"word": w} for w in ("fr", "citrouille", "fr", "potiron", "fr", "courge")],
+    "word": "calabaza",
+}
+SAN_LUCAS_LISTS = {"pos": "phrase", "translations": [{"word": "Luc"}, {"word": "Lucas"}], "word": "San Lucas"}
+PASCUA_LISTS = {"pos": "noun", "translations": [{"word": "Pâques"}], "word": "Pascua"}
+SANTO_TOME_LISTS = {"pos": "phrase", "translations": [{"word": "Sao Tomé-et-Principe"}], "word": "Santo Tomé y Príncipe"}
+ORIENTE_LISTS = {"pos": "noun", "translations": [{"word": "lOrient"}], "word": "Oriente"}
+SECUESTRO_LISTS = {
+    "pos": "noun",
+    "translations": [{"word": w} for w in ("enlèvement", "kidnapping", "rap", "Détournement illégal de véhicule", "séquestration")],
+    "word": "secuestro",
+}
+MAR_ROJO_LISTS = {"pos": "phrase", "translations": [{"word": "mer Rouge"}], "word": "mar Rojo"}
+
+# wordfreq's Zipf frequency of the words the French-word rule reads, French then Spanish.
+ZIPF = {
+    "arnaque": (3.93, 0.0),
+    "retraite": (4.8, 1.23),
+    "diaporama": (3.1, 0.0),
+    "club": (5.17, 4.98),
+    "contrôle continu": (4.08, 0.0),
+}
+
+
+def zipf(word, language):
+    french, spanish_ = ZIPF.get(word, (0.0, SPANISH_ZIPF.get(word, 0.0)))
+    return french if language == "fr" else spanish_
+
+
+# UD French-GSD's counts of these words by part of speech (`treebank.gsd_pos_counts` over the two
+# sections fr-en's pin records).
+TREEBANK = collections.Counter(
+    {
+        ("pas", "ADV"): 981,
+        ("pas", "NOUN"): 8,
+        ("pas", "ADP"): 1,
+        ("pendant", "ADP"): 196,
+        ("pendant", "NOUN"): 3,
+        ("pendant", "ADJ"): 1,
+        ("jaune", "ADJ"): 16,
+        ("jaune", "NOUN"): 4,
+        ("jaune", "PROPN"): 1,
+        ("devoir", "NOUN"): 9,
+        ("devoir", "VERB"): 351,
+        ("des", "DET"): 1730,
+        ("des", "ADP"): 3,
+    }
+)
+# French's readings of these words, as tables/fr/grammar.tsv commits them.
+READINGS = {"être": {"NOUN", "VERB"}, "devoir": {"NOUN", "VERB"}, "jaune": {"ADJ", "NOUN"}}
+
 
 class Tables(unittest.TestCase):
     def setUp(self):
@@ -285,28 +640,38 @@ class Tables(unittest.TestCase):
         path.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries), encoding="utf-8")
         return str(path)
 
-    def section(self, *entries):
-        """The section through fr-es's passes, in `main`'s order: the file the shared rules read."""
+    def section(self, *entries, readings=None, counts=None, fired=None):
+        """The section through fr-es's passes, in `main`'s order: the file the shared rules read.
+        `readings` French's parts of speech by lemma, `counts` UD French-GSD's (none by default),
+        `fired` the corrections that fire."""
         src = self.jsonl(*entries, name="section.jsonl")
         src = fr_es.straight_apostrophes(src, str(self.dir / "section-apostrophes.jsonl"))
+        src = fr_es.corrected_section(src, str(self.dir / "section-corrected.jsonl"), fired)
         src = common.without_letter_senses(src, str(self.dir / "section-words.jsonl"), edition=ES)
         src = spanish.read_as_meanings(src, str(self.dir / "section-meanings.jsonl"))
-        return fr_es.french_entries(src, str(self.dir / "section-glossing.jsonl"))
+        src = fr_es.french_entries(src, str(self.dir / "section-glossing.jsonl"), readings or {})
+        src = fr_es.treebank_order(src, str(self.dir / "section-treebank.jsonl"), counts or collections.Counter())
+        return fr_es.with_labels(src, str(self.dir / "section-labels.jsonl"))
 
-    def direct(self, *entries):
+    def direct(self, *entries, fired=None):
         src = self.jsonl(*entries, name="direct.jsonl")
-        return fr_es.read_translated(src, str(self.dir / "direct-words.jsonl"), inverted=False, readings={})
+        return fr_es.read_translated(
+            src, str(self.dir / "direct-words.jsonl"), inverted=False, readings={}, zipf=zipf, fired=fired
+        )
 
     def inverted(self, *entries, readings=None):
         src = self.jsonl(*entries, name="inverted.jsonl")
         return fr_es.read_translated(src, str(self.dir / "inverted-words.jsonl"), inverted=True, readings=readings or {})
 
-    def tables(self, lemmas, *section, direct=(), inverted=()):
+    def tables(self, lemmas, *section, direct=(), inverted=(), readings=None, counts=None, fired=None):
         """fr-es's native side over `lemmas`, ranked in their order: `(glosses, runs, expressions,
         steps)`."""
         ranks = {lemma: rank for rank, lemma in enumerate(lemmas, 1)}
-        sources = [(self.direct(*direct), list), (self.inverted(*inverted), fr_es.by_spanish_frequency(spanish_zipf))]
-        return fr_es.native_side(self.section(*section), ranks, sources)
+        sources = [
+            (self.direct(*direct, fired=fired), list),
+            (self.inverted(*inverted, readings=readings), fr_es.by_spanish_frequency(spanish_zipf)),
+        ]
+        return fr_es.native_side(self.section(*section, readings=readings, counts=counts, fired=fired), ranks, sources)
 
 
 class FrenchGlossedInSpanish(Tables):
@@ -483,8 +848,13 @@ class FrenchGlossedInSpanish(Tables):
         self.assertEqual(fr_es.read_readings(str(studied)), {}, "no readings: an empty mapping")
 
     def test_the_direct_table_keeps_the_french_word_s_parts_of_speech(self):
-        # `parti`, translated as an adjective and as a noun: « Partido; Partido » (Open Question 3).
-        glossed = common.fallback_glosses({"parti"}, {}, [(self.direct(PARTI_ADJ_TRANSLATED, PARTI_NOUN_TRANSLATED), list)], edition=ES)
+        # `parti`, translated as an adjective and as a noun, read « Partido; Partido » (Open Question
+        # 3): `in_typography` keeps both; `listed_once_direct` lists the word once
+        # (refine-lingua-fr-es-glosses D3, `TranslationTables`).
+        with mock.patch.object(fr_es, "listed_once_direct", lambda table: table):
+            glossed = common.fallback_glosses(
+                {"parti"}, {}, [(self.direct(PARTI_ADJ_TRANSLATED, PARTI_NOUN_TRANSLATED), list)], edition=ES
+            )
         self.assertEqual(glossed, {"parti": ("Partido; Partido", [("ADJ", 1), ("NOUN", 1)])})
 
     def test_spec_scenario_a_typographic_apostrophe(self):
@@ -523,7 +893,10 @@ class FrenchGlossedInSpanish(Tables):
         src.write_text(text, encoding="utf-8")
         for name, run in (
             ("apostrophes", lambda dst: fr_es.straight_apostrophes(str(src), dst)),
+            ("corrected", lambda dst: fr_es.corrected_section(str(src), dst)),
             ("glossing", lambda dst: fr_es.french_entries(str(src), dst)),
+            ("treebank", lambda dst: fr_es.treebank_order(str(src), dst, collections.Counter())),
+            ("labels", lambda dst: fr_es.with_labels(str(src), dst)),
             ("direct", lambda dst: fr_es.translation_words(str(src), dst, inverted=False)),
             ("inverted", lambda dst: fr_es.translation_words(str(src), dst, inverted=True)),
         ):
@@ -543,6 +916,14 @@ class TheReducer(Tables):
         if grammar is not None:
             (folder / "grammar.tsv").write_text(grammar, encoding="utf-8")
         return folder
+
+    def gsd(self, work, adverbs=0):
+        """UD French-GSD's two sections in the work folder (made up): `pas` read `adverbs` times as an
+        adverb in the training section, once as a noun in the development one."""
+        work.mkdir(parents=True, exist_ok=True)
+        token = "1\tpas\tpas\t{}\t_\t_\t0\troot\t_\t_\n\n"
+        (work / "fr_gsd-ud-train.conllu").write_text("# made up\n" + token.format("ADV") * adverbs, encoding="utf-8")
+        (work / "fr_gsd-ud-dev.conllu").write_text(token.format("NOUN"), encoding="utf-8")
 
     def reduce(self, work, studied):
         wordfreq = types.ModuleType("wordfreq")
@@ -574,6 +955,7 @@ class TheReducer(Tables):
             name="work/kaikki-fr-traductions.jsonl",
         )
         self.jsonl(TRAVES_LISTS, H_LISTS, *CONDOM_LISTS, name="work/kaikki-es-traductions.jsonl")
+        self.gsd(work)
         err = self.reduce(work, studied)
         self.assertEqual(
             (work / "gloss.tsv").read_text(encoding="utf-8"),
@@ -594,7 +976,7 @@ class TheReducer(Tables):
         )
         self.assertEqual((work / "mwe.tsv").read_text(encoding="utf-8"), "aller de l'avant\tEchar para adelante\n")
         # The native side alone (D1), and what the reducer measured of it (D9).
-        written = sorted(p.name for p in work.iterdir() if not p.name.startswith("kaikki-"))
+        written = sorted(p.name for p in work.iterdir() if not p.name.startswith(("kaikki-", "fr_gsd-")))
         self.assertEqual(written, ["NOTICE", "gloss.tsv", "manifest.json", "measures.json", "mwe.tsv", "senses.tsv"])
         measures = json.loads((work / "measures.json").read_text(encoding="utf-8"))
         self.assertEqual(
@@ -634,6 +1016,7 @@ class TheReducer(Tables):
         self.jsonl(MAISON, name="work/kaikki-es-Frances.jsonl")
         self.jsonl(name="work/kaikki-fr-traductions.jsonl")
         self.jsonl(name="work/kaikki-es-traductions.jsonl")
+        self.gsd(work)
         calls = []
 
         def spy(name, real):
@@ -645,9 +1028,12 @@ class TheReducer(Tables):
 
         with (
             mock.patch.object(fr_es, "straight_apostrophes", spy("straight_apostrophes", fr_es.straight_apostrophes)),
+            mock.patch.object(fr_es, "corrected_section", spy("corrected_section", fr_es.corrected_section)),
             mock.patch.object(common, "without_letter_senses", spy("without_letter_senses", common.without_letter_senses)),
             mock.patch.object(spanish, "read_as_meanings", spy("read_as_meanings", spanish.read_as_meanings)),
             mock.patch.object(fr_es, "french_entries", spy("french_entries", fr_es.french_entries)),
+            mock.patch.object(fr_es, "treebank_order", spy("treebank_order", fr_es.treebank_order)),
+            mock.patch.object(fr_es, "with_labels", spy("with_labels", fr_es.with_labels)),
             mock.patch.object(fr_es, "native_side", spy("native_side", fr_es.native_side)),
         ):
             self.reduce(work, studied)
@@ -655,13 +1041,54 @@ class TheReducer(Tables):
             calls,
             [
                 ("straight_apostrophes", "kaikki-es-Frances.jsonl", "kaikki-es-Frances-apostrophes.jsonl"),
-                ("without_letter_senses", "kaikki-es-Frances-apostrophes.jsonl", "kaikki-es-Frances-words.jsonl"),
+                ("corrected_section", "kaikki-es-Frances-apostrophes.jsonl", "kaikki-es-Frances-corrected.jsonl"),
+                ("without_letter_senses", "kaikki-es-Frances-corrected.jsonl", "kaikki-es-Frances-words.jsonl"),
                 ("read_as_meanings", "kaikki-es-Frances-words.jsonl", "kaikki-es-Frances-meanings.jsonl"),
                 ("french_entries", "kaikki-es-Frances-meanings.jsonl", "kaikki-es-Frances-glossing.jsonl"),
-                ("native_side", "kaikki-es-Frances-glossing.jsonl"),
+                ("treebank_order", "kaikki-es-Frances-glossing.jsonl", "kaikki-es-Frances-treebank.jsonl"),
+                ("with_labels", "kaikki-es-Frances-treebank.jsonl", "kaikki-es-Frances-labels.jsonl"),
+                ("native_side", "kaikki-es-Frances-labels.jsonl"),
             ],
         )
         self.assertEqual((work / "gloss.tsv").read_text(encoding="utf-8"), "maison\tCasa\n")
+
+    def test_fr_es_s_own_rules_through_main(self):
+        # refine-lingua-fr-es-glosses through `main`: UD French-GSD's two sections read from the work
+        # folder, the corrections, the treebank's order, « etc. », the acronym rule; the summary names
+        # the corrections that found nothing.
+        work = self.dir / "work"
+        studied = self.studied(
+            "cochon\tcochon\nhall\thall\npas\tpas\nrien\trien\nus\tus\n", "pas\t1\nrien\t2\nus\t3\nhall\t4\ncochon\t5\n"
+        )
+        self.jsonl(COCHON, PAS_NOUN, PAS_ADV, RIEN_NOUN, name="work/kaikki-es-Frances.jsonl")
+        self.jsonl(HALL_TRANSLATED, name="work/kaikki-fr-traductions.jsonl")
+        self.jsonl(EEUU_LISTS, name="work/kaikki-es-traductions.jsonl")
+        self.gsd(work, adverbs=10)
+        err = self.reduce(work, studied)
+        self.assertEqual(
+            (work / "gloss.tsv").read_text(encoding="utf-8"),
+            "cochon\tCerdo, marrano, guarro, cochino, etc.\nhall\tVestíbulo, recibidor\npas\tNo; Paso\nrien\tPequeña cantidad de algo\n",
+        )
+        self.assertIn(
+            "fr-es's own rules: 0 expression senses labelled; 4 translations read backwards left out (names, acronyms, "
+            "the language code, other senses), 0 of the direct table named as other senses; 2 of 6 corrections fired; "
+            "corrections that found nothing, to remove: amie (section, noun), il y a (section, phrase), el (section, pron), "
+            "el (direct, pron)",
+            err,
+        )
+        # Too little evidence: the section's order.
+        self.gsd(work, adverbs=9)
+        self.reduce(work, studied)
+        self.assertIn("pas\tPaso; No\n", (work / "gloss.tsv").read_text(encoding="utf-8"))
+
+    def test_main_reads_the_treebank_from_the_work_folder(self):
+        work = self.dir / "work"
+        studied = self.studied("maison\tmaison\n", "maison\t1\n")
+        self.jsonl(MAISON, name="work/kaikki-es-Frances.jsonl")
+        self.jsonl(name="work/kaikki-fr-traductions.jsonl")
+        self.jsonl(name="work/kaikki-es-traductions.jsonl")
+        with self.assertRaisesRegex(SystemExit, r"fr_gsd-ud-train\.conllu, .*fr_gsd-ud-dev\.conllu missing"):
+            self.reduce(work, studied)
 
     def test_native_side_gives_the_tables_native_tables_gives(self):
         # The steps written out keep each source's lemmas and change nothing of the tables, when no
@@ -678,7 +1105,13 @@ class TheReducer(Tables):
         self.assertEqual((glosses, runs, expressions), shared[:3])
         self.assertEqual(
             steps,
-            {"entries": {"maison", "pierre", "venir"}, "yielded": set(), "direct": {"intérêt"}, "inverted": {"travers"}},
+            {
+                "entries": {"maison", "pierre", "venir"},
+                "yielded": set(),
+                "direct": {"intérêt"},
+                "inverted": {"travers"},
+                "labelled": 0,
+            },
         )
         self.assertEqual(len(steps["entries"]), shared[3], "`primary`")
 
@@ -761,14 +1194,376 @@ class TheReducer(Tables):
         self.assertTrue(all("’" not in lemma for lemma in [*glosses, *expressions]), "a typographic apostrophe")
 
     def test_spec_scenario_a_rule_of_the_spanish_edition(self):
-        # fr-es's rules are its reducer, the shared rules and the Spanish edition's — no other
-        # pair's reducer.
+        # fr-es's rules are its reducer, the shared rules, the Spanish edition's and UD French-GSD's
+        # module, which fr-en imports too (refine-lingua-fr-es-glosses D8) — no other pair's reducer.
         import pack_sources as ps
 
         self.assertEqual(
             [p.name for p in ps.rule_files(Path(_HERE) / "reduce-fr-es.py")],
-            ["reduce-fr-es.py", "reduce_common.py", "reduce_edition_es.py"],
+            ["reduce-fr-es.py", "reduce_common.py", "reduce_edition_es.py", "reduce_french_treebank.py"],
         )
+
+
+class Labels(Tables):
+    """*fr-es's glosses show a sense's register, age and place in the Spanish Wiktionary's words*
+    (refine-lingua-fr-es-glosses D2)."""
+
+    def test_spec_scenario_a_vulgar_sense_and_an_outdated_one(self):
+        # « Besar », filed outdated, stays after the verb's other senses (the edition's pre-pass);
+        # each labelled sense carries its own labels; the noun's sense has none.
+        glosses, runs, _, _ = self.tables(["baiser"], BAISER_TRANSITIVE, BAISER_INTRANSITIVE, BAISER_NOUN)
+        self.assertEqual(
+            glosses["baiser"],
+            "(malsonante) Coger (sexualmente); (malsonante) Culear, follar, fornicar, joder o realizar el coito; "
+            "(malsonante) Dominar o joder; (malsonante) Quebrar o romper; (jergal) Grapar; "
+            "(anticuado, Canadá, Bélgica) Besar; Beso, besuqueo u ósculo",
+        )
+        self.assertEqual(runs["baiser"], [("VERB", 6), ("NOUN", 1)])
+
+    def test_spec_scenario_a_place_inside_another(self):
+        # « América » and « Quebec »: Quebec alone, inside Canada inside America.
+        glosses, _, _, _ = self.tables(["oui"], OUI_INTJ)
+        self.assertEqual(
+            glosses["oui"], "Afirmativo, así es, bien, ciertamente, correcto; (Quebec) Ciertamente o en verdad (contra preguntas negativas); ¿Sí?"
+        )
+        self.assertEqual(fr_es.labels({"categories": ["FR:Europa", "FR:Francia", "FR:Provenza"]}), ["Provenza"])
+        self.assertEqual(fr_es.labels({"categories": ["FR:Europa", "FR:Suiza", "FR:Bélgica"]}), ["Suiza", "Bélgica"])
+        self.assertEqual(fr_es.labels({"categories": ["FR:África", "FR:Ruanda"]}), ["Ruanda"])
+
+    def test_spec_scenario_a_label_the_english_tags_miss(self):
+        # kaikki's tags say `Canada` and `Quebec`; the categories say Belgium too.
+        glosses, _, _, _ = self.tables(["avec"], AVEC_ADV)
+        self.assertEqual(glosses["avec"], "(Quebec, Bélgica) También; Con este, consigo, con ella etc")
+
+    def test_spec_scenario_no_reordering_for_a_label(self):
+        # The labelled senses keep their place: `cul` opens on « Culo », not on « Fundo (de un
+        # objeto) », its one unlabelled sense — figurative, which is no label.
+        glosses, _, _, _ = self.tables(["cul"], CUL_NOUN, CUL_ADJ)
+        self.assertEqual(
+            glosses["cul"],
+            "(malsonante) Culo; (malsonante) Ano, ojete, recto (culo); (malsonante) Coito, sexo; "
+            "(malsonante, jergal) Pornografía; Fundo (de un objeto); (malsonante, jergal, Francia) Suerte propicia "
+            "(ojete); (jergal) Estúpido",
+        )
+
+    def test_spec_scenario_a_figurative_sense(self):
+        self.assertEqual(fr_es.labels(CUL_NOUN["senses"][4]), [])
+        self.assertEqual(fr_es.labels({"categories": ["FR:Términos infrecuentes"], "tags": ["rare"]}), [])
+        self.assertEqual(fr_es.labels({"glosses": ["Algo."]}), [])
+
+    def test_a_category_filed_under_the_wrong_language_is_read_alike(self):
+        glosses, _, _, _ = self.tables(["maîtresse"], MAITRESSE)
+        self.assertEqual(glosses["maîtresse"], "(anticuado) Amante (femenina)")
+        # Only the section's two prefixes: another language's category is no label of a French sense.
+        self.assertEqual(fr_es.labels({"categories": ["EN:Términos coloquiales", "Términos coloquiales"]}), [])
+
+    def test_a_pointer_is_never_labelled(self):
+        # Made up: a pointer filed as colloquial glosses nothing, and keeps its text.
+        pointer = {
+            "word": "copine",
+            "pos": "noun",
+            "senses": [
+                {"glosses": ["Forma del femenino de copain."], "categories": ["FR:Términos coloquiales"], "form_of": [{"word": "copain"}]}
+            ],
+        }
+        written = Path(self.section(pointer)).read_text(encoding="utf-8")
+        self.assertEqual(json.loads(written)["senses"][0]["glosses"], ["Forma del femenino de copain."])
+
+    def test_rien_shows_its_labels_and_its_correction(self):
+        glosses, runs, _, _ = self.tables(["rien"], RIEN_PRON, RIEN_NOUN, RIEN_ADV)
+        self.assertEqual(
+            glosses["rien"],
+            "Nada; Poca cosa; (obsoleto) Algo; Pequeña cantidad de algo; (coloquial, irónico) Muy; Mucha, muchas, mucho o muchos",
+        )
+        self.assertEqual(runs["rien"], [("PRON", 3), ("NOUN", 1), ("ADV", 2)])
+
+    def test_spec_scenario_an_expression_s_label_outside_its_cut(self):
+        _, _, expressions, steps = self.tables([], MAL_AUX_CHEVEUX)
+        self.assertEqual(expressions["mal aux cheveux"], "(anticuado) Resaca, caña, chaqui, chuchaqui, cruda, go")
+        self.assertEqual(len("Resaca, caña, chaqui, chuchaqui, cruda, go"), fr_es.EXPRESSION_SENSE)
+        self.assertEqual(steps["labelled"], 1)
+
+    def test_an_expression_s_cut_remnant_is_labelled(self):
+        # « fils de pute »: three senses cut to 42 characters each and to 80 together; the third is
+        # the remnant « Obje », labelled as its sense is.
+        _, _, expressions, steps = self.tables([], FILS_DE_PUTE)
+        self.assertEqual(
+            expressions["fils de pute"],
+            "(vulgar) Hijo de puta, hijoputa o máncer; (malsonante, despectivo) Bastardo, hijo de la chingada, hijo "
+            "de la; (malsonante, despectivo) Obje",
+        )
+        self.assertEqual(steps["labelled"], 3)
+
+    def test_every_labelled_expression_is_its_gloss_without_labels(self):
+        # Its labels taken out, each expression reads as the shared rules cut it, character for
+        # character; an expression with no labelled sense is left as it is.
+        entries = self.section(MAL_AUX_CHEVEUX, FILS_DE_PUTE, NOUS_AUTRES, IL_Y_A)
+        bare = common.reduce_expressions(entries, common.EXPRESSION_GLOSS_LEN, studied=fr_es.FR, edition=ES)
+        labelled, count = fr_es.label_expressions(bare, entries)
+        self.assertEqual(count, 4)
+        self.assertEqual(labelled["il y a"], bare["il y a"])
+        vocabulary = [*fr_es.REGISTER.values(), *fr_es.AGE.values(), *fr_es.PLACES]
+        pattern = r"\((?:%s)(?:, (?:%s))*\) " % ("|".join(vocabulary), "|".join(vocabulary))
+        for expression, gloss in labelled.items():
+            self.assertEqual(re.sub(pattern, "", gloss), bare[expression], expression)
+        self.assertTrue(len(labelled["fils de pute"]) > common.EXPRESSION_GLOSS_LEN, "the label is outside the cut")
+
+    def test_a_gloss_the_shared_rules_did_not_cut_so_is_left(self):
+        # An expression whose gloss is not what the shared rules give from the section (a locution, or
+        # a rule of theirs changed) is not walked.
+        entries = self.section(MAL_AUX_CHEVEUX)
+        labelled, count = fr_es.label_expressions({"mal aux cheveux": "Resaca"}, entries)
+        self.assertEqual((labelled, count), ({"mal aux cheveux": "Resaca"}, 0))
+
+    def test_the_expression_budgets_are_the_shared_rules(self):
+        defaults = inspect.signature(common.reduce_expressions).parameters
+        self.assertEqual(
+            (fr_es.EXPRESSION_SENSE, fr_es.EXPRESSION_SENSES), (defaults["per_sense"].default, defaults["max_senses"].default)
+        )
+
+
+class FrenchMeanings(Tables):
+    """*fr-es's definitions read as a French word's meanings* (refine-lingua-fr-es-glosses D6)."""
+
+    def test_spec_scenario_an_infinitive_s_noun_after_its_verb(self):
+        glosses, runs, _, _ = self.tables(["être", "devoir"], ETRE_NOUN, ETRE_VERB, ETRE_AUXILIARY, DEVOIR_NOUN, DEVOIR_VERB, readings=READINGS)
+        self.assertEqual(glosses["être"], "Ser; (être + participio) Haber; Estar; (être + participio) ser")
+        self.assertEqual(runs["être"], [("VERB", 4)])
+        self.assertEqual((glosses["devoir"], runs["devoir"]), ("Deber", [("VERB", 1)]))
+        # Without French's readings naming the word a verb, the section's order.
+        glosses, runs, _, _ = self.tables(["être"], ETRE_NOUN, ETRE_VERB, ETRE_AUXILIARY)
+        self.assertEqual(runs["être"], [("NOUN", 1), ("VERB", 3)])
+        # « jaune », a noun beside an adjective, keeps its order.
+        glosses, runs, _, _ = self.tables(["jaune"], JAUNE_ADJ, JAUNE_NOUN, readings=READINGS)
+        self.assertEqual((glosses["jaune"], runs["jaune"]), ("Amarillo; Amarillo (persona asiática)", [("ADJ", 1), ("NOUN", 1)]))
+
+    def test_a_noun_sharing_some_senses_keeps_its_place(self):
+        # Made up: a noun with a sense of its own stays before the verb.
+        noun = {**ETRE_NOUN, "senses": [{"glosses": ["Ser."]}, {"glosses": ["Criatura."]}]}
+        _, runs, _, _ = self.tables(["être"], noun, ETRE_VERB, readings=READINGS)
+        self.assertEqual(runs["être"], [("NOUN", 2), ("VERB", 1)])
+        self.assertIsNone(fr_es._verb_first("être", [ETRE_VERB, ETRE_NOUN], READINGS), "already after its verb")
+
+    def test_spec_scenario_a_contraction_of_a_preposition(self):
+        glosses, runs, _, _ = self.tables(["des", "du", "duquel"], DES_ARTICLE, DES_CONTRACTION, DU_CONTRACTION, DUQUEL_CONTRACTION)
+        self.assertEqual(
+            glosses["des"], "Algunos, algunas, unos o unas; Contracción de la preposición de y el artículo les, de las o de los"
+        )
+        self.assertEqual(runs["des"], [("DET", 1), ("ADP", 1)])
+        self.assertEqual((runs["du"], runs["duquel"]), ([("ADP", 1)], [("ADP", 1)]))
+        # « c'est » contracts a pronoun and a verb: as written.
+        written = [json.loads(line) for line in Path(self.section(C_EST)).read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(written[0]["pos"], "contraction")
+
+    def test_spec_scenario_the_part_of_speech_named_again(self):
+        glosses, _, expressions, _ = self.tables(["qui", "quoi", "il"], QUI_INTERROGATIVE, QUI_RELATIVE, QUOI_INTERROGATIVE, IL_NEUTER, NOUS_AUTRES)
+        self.assertEqual((glosses["qui"], glosses["quoi"]), ("Quién; Que", "Qué"))
+        # The notes that say what the heading does not stay.
+        self.assertEqual(glosses["il"], "Pronombre sujeto expletivo impersonal. (No tiene traducción al español. No existe en español.)")
+        self.assertEqual(expressions["nous autres"], "Nosotros [y no tú o vosotros]. (Plural exc")
+
+    def test_spec_scenario_etc_with_its_period(self):
+        self.assertEqual(fr_es.with_etc_period("Cerdo, marrano, guarro, cochino, etc"), "Cerdo, marrano, guarro, cochino, etc.")
+        self.assertEqual(fr_es.with_etc_period("La que, lo que (etc.) o cual"), "La que, lo que (etc.) o cual")
+        self.assertEqual(fr_es.with_etc_period("Cual cosa, lo que etc; Algo"), "Cual cosa, lo que etc.; Algo")
+        self.assertEqual(fr_es.with_etc_period("Etcétera"), "Etcétera")
+
+
+class TranslationTables(Tables):
+    """*fr-es's translation-table glosses list each Spanish word once, and never the French word*
+    (refine-lingua-fr-es-glosses D3, D5)."""
+
+    def gloss(self, word, *direct):
+        return common.fallback_glosses({word}, {}, [(self.direct(*direct), list)], edition=ES).get(word)
+
+    def test_spec_scenario_a_word_under_two_parts_of_speech(self):
+        self.assertEqual(self.gloss("parti", PARTI_ADJ_TRANSLATED, PARTI_NOUN_TRANSLATED), ("Partido", [("ADJ", 1)]))
+
+    def test_spec_scenario_a_run_inside_another(self):
+        self.assertEqual(self.gloss("russe", RUSSE_ADJ_TRANSLATED, RUSSE_NOUN_TRANSLATED), ("Ruso, rusa", [("NOUN", 1)]))
+
+    def test_spec_scenario_a_word_shown_twice_in_different_runs(self):
+        self.assertEqual(
+            self.gloss("clair", CLAIR_ADJ_TRANSLATED, CLAIR_ADV_TRANSLATED),
+            ("Claro, luminoso, límpido; Claramente", [("ADJ", 1), ("ADV", 1)]),
+        )
+
+    def test_a_word_listed_fourth_is_not_shown(self):
+        # `net`'s adjective lists « claro » fourth and « red » last: the gloss shows neither there.
+        self.assertEqual(self.gloss("net", *NET_TRANSLATED), ("Puro, limpio, neto; Claro; Red", [("ADJ", 1), ("ADV", 1), ("NOUN", 1)]))
+
+    def test_listed_once_direct_repeats_until_nothing_moves(self):
+        table = {"x": {"ADJ": ["a", "b"], "NOUN": ["b", "c"], "ADV": ["c", "d"]}}
+        self.assertEqual(fr_es.listed_once_direct(table), {"x": {"ADJ": ["a", "b"], "NOUN": ["c"], "ADV": ["d"]}})
+        # Two equal runs: the later goes; a run left with no word goes, and so does a word.
+        self.assertEqual(fr_es.listed_once_direct({"y": {"ADJ": ["a"], "NOUN": ["a"]}}), {"y": {"ADJ": ["a"]}})
+        self.assertEqual(fr_es.listed_once_direct({"z": {"ADJ": []}}), {})
+
+    def test_spec_scenario_the_french_word_given_as_spanish(self):
+        self.assertIsNone(self.gloss("arnaque", ARNAQUE_TRANSLATED))
+        self.assertEqual(self.gloss("retraite", RETRAITE_TRANSLATED), ("Jubilación, retiro, pensión", [("NOUN", 1)]))
+        # The next source glosses a word the table no longer does (made up: `arnaque` read backwards).
+        estafa = {"pos": "noun", "translations": [{"word": "arnaque"}], "word": "estafa"}
+        glosses, _, _, steps = self.tables(["arnaque"], direct=[ARNAQUE_TRANSLATED], inverted=[estafa])
+        self.assertEqual((glosses, steps["inverted"]), ({"arnaque": "Estafa"}, {"arnaque"}))
+
+    def test_spec_scenario_a_loanword_spanish_writes_alike(self):
+        self.assertIn("diaporama", fr_es.SPANISH_ALIKE)
+        self.assertEqual(self.gloss("diaporama", DIAPORAMA_TRANSLATED), ("Diaporama", [("NOUN", 1)]))
+        self.assertEqual(len(fr_es.SPANISH_ALIKE), 12)
+
+    def test_spec_scenario_a_cognate(self):
+        self.assertEqual(self.gloss("club", CLUB_TRANSLATED), ("Club", [("NOUN", 1)]))
+
+    def test_an_expression_takes_no_french_gloss_from_the_table(self):
+        _, _, expressions, _ = self.tables([], direct=[CONTROLE_CONTINU_TRANSLATED])
+        self.assertEqual(expressions, {})
+        self.assertFalse(fr_es.is_the_french_word("contrôle continu", "control continuo", zipf))
+
+
+class Corrections(Tables):
+    """*fr-es corrects, by name, the slips its sources write* (refine-lingua-fr-es-glosses D7)."""
+
+    def test_spec_scenario_an_agreement_slip(self):
+        fired = set()
+        glosses, _, _, _ = self.tables(["rien"], RIEN_NOUN, fired=fired)
+        self.assertEqual(glosses["rien"], "Pequeña cantidad de algo")
+        self.assertEqual([c.headword for c in fired], ["rien"])
+        # The sense's other fields are kept.
+        corrected = fr_es._corrected(RIEN_NOUN, "section")
+        self.assertEqual(corrected["senses"], [{"glosses": ["Pequeña cantidad de algo."], "sense_index": "1"}])
+
+    def test_spec_scenario_a_meaning_the_section_gives_only_as_a_pointer(self):
+        glosses, runs, _, _ = self.tables(["amie"], AMIE_ADJ, AMIE_NOUN)
+        self.assertEqual((glosses["amie"], runs["amie"]), ("Amiga; Amia o lamia", [("NOUN", 2)]))
+        # The fish keeps its sense as written; the friend is a new one.
+        corrected = fr_es._corrected(AMIE_NOUN, "section")
+        self.assertEqual(corrected["senses"], [{"glosses": ["Amiga."]}, AMIE_NOUN["senses"][0]])
+
+    def test_spec_scenario_a_sense_the_section_misses(self):
+        _, _, expressions, _ = self.tables([], IL_Y_A)
+        self.assertEqual(expressions["il y a"], "Hay; Hace")
+
+    def test_spec_scenario_a_word_left_with_no_gloss(self):
+        fired = set()
+        glosses, _, _, _ = self.tables(["el"], EL_PRON, direct=[EL_TRANSLATED], fired=fired)
+        self.assertEqual(glosses, {})
+        self.assertEqual(sorted((c.source, c.headword) for c in fired), [("direct", "el"), ("section", "el")])
+
+    def test_the_direct_table_s_correction(self):
+        self.assertEqual(self.direct(HALL_TRANSLATED)["hall"], {"NOUN": ["vestíbulo", "recibidor"]})
+        glosses, _, _, _ = self.tables(["hall"], direct=[HALL_TRANSLATED])
+        self.assertEqual(glosses["hall"], "Vestíbulo, recibidor")
+
+    def test_spec_scenario_the_page_corrected_upstream(self):
+        # Once the page reads « Pequeña cantidad de algo. », the correction fires on nothing, and the
+        # summary names it — as it names every correction an update finds nothing for.
+        fixed = {**RIEN_NOUN, "senses": [{"glosses": ["Pequeña cantidad de algo."]}]}
+        fired = set()
+        glosses, _, _, _ = self.tables(["rien"], fixed, fired=fired)
+        self.assertEqual((glosses["rien"], fired), ("Pequeña cantidad de algo", set()))
+        self.assertIn("rien (section, noun)", fr_es.unfired(fired))
+        self.assertEqual(len(fr_es.unfired(fired)), len(fr_es.CORRECTIONS))
+        # Another part of speech, or a text with another sense beside it, is not the source's either.
+        adverb = {**RIEN_NOUN, "pos": "adv"}
+        self.assertIs(fr_es._corrected(adverb, "section"), adverb)
+        two = {**RIEN_NOUN, "senses": [*RIEN_NOUN["senses"], {"glosses": ["Nada."]}]}
+        self.assertIs(fr_es._corrected(two, "section"), two)
+
+    def test_every_correction_names_its_reason_and_its_page(self):
+        for correction in fr_es.CORRECTIONS:
+            self.assertIn(correction.source, ("section", "direct"))
+            self.assertTrue(correction.reason)
+            self.assertRegex(correction.report, r"^https://(es|fr)\.wiktionary\.org/wiki/")
+            self.assertTrue(correction.report.startswith("https://es." if correction.source == "section" else "https://fr."))
+
+
+class TreebankOrder(Tables):
+    """*A function word's row in fr-es opens on the part of speech UD French-GSD reads it as*
+    (refine-lingua-fr-es-glosses D8), fr-en's rule read from `reduce_french_treebank.py`."""
+
+    def test_spec_scenario_a_negation_s_adverb_first(self):
+        glosses, runs, _, _ = self.tables(["pas", "pendant"], PAS_NOUN, PAS_ADV, PENDANT_ADJ, PENDANT_NOUN, PENDANT_PREP, counts=TREEBANK)
+        self.assertEqual((glosses["pas"], runs["pas"]), ("No; Paso", [("ADV", 1), ("NOUN", 1)]))
+        self.assertEqual(glosses["pendant"], "Durante; Pendiente; Juego (cosas relacionadas entre si)")
+        # The section's order without the treebank.
+        glosses, _, _, _ = self.tables(["pas"], PAS_NOUN, PAS_ADV)
+        self.assertEqual(glosses["pas"], "Paso; No")
+
+    def test_spec_scenario_too_little_evidence(self):
+        for counts in (
+            collections.Counter({("pas", "ADV"): 9, ("pas", "NOUN"): 0}),  # fewer than 10
+            collections.Counter({("pas", "ADV"): 30, ("pas", "NOUN"): 16}),  # less than twice as often
+        ):
+            glosses, _, _, _ = self.tables(["pas"], PAS_NOUN, PAS_ADV, counts=counts)
+            self.assertEqual(glosses["pas"], "Paso; No", counts)
+
+    def test_spec_scenario_a_content_word_s_row(self):
+        # Made up: a noun first, the treebank reading the word as an adjective — kept.
+        counts = collections.Counter({("jaune", "ADJ"): 160, ("jaune", "NOUN"): 4})
+        glosses, _, _, _ = self.tables(["jaune"], JAUNE_NOUN, JAUNE_ADJ, counts=counts)
+        self.assertEqual(glosses["jaune"], "Amarillo; Amarillo (persona asiática)")
+        self.assertIsNone(fr_es._treebank_first("jaune", [JAUNE_NOUN, JAUNE_ADJ], counts))
+
+    def test_a_proper_noun_is_never_first(self):
+        name = {"word": "Pas", "pos": "name", "senses": [{"glosses": ["Paso de Calais."]}]}
+        counts = collections.Counter({("pas", "PROPN"): 500, ("pas", "NOUN"): 8})
+        self.assertIsNone(fr_es._treebank_first("pas", [PAS_NOUN, name], counts))
+        # A row opening on a name moves its common word first.
+        counts = collections.Counter({("pas", "PROPN"): 1, ("pas", "ADV"): 981})
+        self.assertEqual(fr_es._treebank_first("pas", [name, PAS_ADV], counts), [1, 0])
+
+    def test_an_acronym_s_entry_is_passed_over(self):
+        # Made up: the page opens on an acronym; the part of speech it opens on is the next entry's.
+        acronym = {"word": "PAS", "pos": "noun", "senses": [{"glosses": ["Sigla."]}]}
+        self.assertEqual(fr_es._treebank_first("pas", [acronym, PAS_ADV, PAS_NOUN], TREEBANK), None)
+        self.assertEqual(fr_es._treebank_first("pas", [acronym, PAS_NOUN, PAS_ADV], TREEBANK), [2, 0, 1])
+
+    def test_the_rule_is_fr_en_s(self):
+        self.assertIs(fr_es.treebank, fr_en.treebank)
+        self.assertEqual(fr_es.GSD_FILES, ("fr_gsd-ud-train.conllu", "fr_gsd-ud-dev.conllu"))
+        with self.assertRaisesRegex(SystemExit, "fr-es reads UD French-GSD's two sections"):
+            fr_es.read_treebank(str(self.dir))
+
+
+class NamesAndOtherSenses(Tables):
+    """*fr-es's inverted table glosses no French word through a name, an acronym or another sense*
+    (refine-lingua-fr-es-glosses D4)."""
+
+    def test_spec_scenario_an_acronym_s_other_word(self):
+        inverted = self.inverted(EEUU_LISTS, ONU_LISTS, AEC_LISTS)
+        self.assertEqual(inverted, {"onu": {"X": ["ONU"]}, "aec": {"X": ["a. e. c."]}})
+        self.assertNotIn("us", inverted)
+        self.assertNotIn("usa", inverted)
+
+    def test_spec_scenario_the_language_code(self):
+        self.assertEqual(
+            self.inverted(CALABAZA_LISTS), {"citrouille": {"NOUN": ["calabaza"]}, "potiron": {"NOUN": ["calabaza"]}, "courge": {"NOUN": ["calabaza"]}}
+        )
+
+    def test_spec_scenario_a_saint_for_a_first_name(self):
+        inverted = self.inverted(SAN_LUCAS_LISTS, PASCUA_LISTS, SANTO_TOME_LISTS)
+        self.assertEqual(inverted, {"pâques": {"NOUN": ["Pascua"]}, "sao tomé-et-principe": {"X": ["Santo Tomé y Príncipe"]}})
+
+    def test_an_elided_article_read_into_a_word(self):
+        self.assertEqual(self.inverted(ORIENTE_LISTS), {})
+        self.assertFalse(fr_es.read_backwards("lOrient", "Oriente"))
+
+    def test_spec_scenario_a_word_the_list_names(self):
+        inverted = self.inverted(SECUESTRO_LISTS)
+        self.assertNotIn("rap", inverted)
+        self.assertIn("enlèvement", inverted)
+        self.assertIn("détournement illégal de véhicule", inverted, "an expression of capitalised words read as before")
+        # The direct table's « DS »: `ds` takes no gloss from it.
+        self.assertEqual(self.direct(DS_TRANSLATED), {})
+        glosses, _, _, _ = self.tables(["ds", "rap"], direct=[DS_TRANSLATED], inverted=[SECUESTRO_LISTS])
+        self.assertEqual(glosses, {})
+        self.assertEqual(len(fr_es.OTHER_SENSES), 6)
+        self.assertTrue(all(fr_es.OTHER_SENSES.values()), "each pair with its reason")
+
+    def test_an_expression_of_capitalised_words_reads_as_before(self):
+        _, _, expressions, _ = self.tables([], inverted=[MAR_ROJO_LISTS])
+        self.assertEqual(expressions, {"mer rouge": "Mar Rojo"})
 
 
 if __name__ == "__main__":
