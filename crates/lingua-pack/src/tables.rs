@@ -471,9 +471,15 @@ mod tests {
     fn the_reference_s_glossed_lemmas_or_all_but_its_names_pass() {
         // refine-lingua-fr-en-glosses D2: either set, as the reference's reduction writes it.
         let root = french("names-all", "lot\nlyon\nmaison\nparis\n");
-        assert_eq!(check_committed_tables(&root.0), Ok(vec!["fr-en".to_owned()]));
+        assert_eq!(
+            check_committed_tables(&root.0),
+            Ok(vec!["fr-en".to_owned()])
+        );
         let root = french("names-out", "lot\nmaison\n");
-        assert_eq!(check_committed_tables(&root.0), Ok(vec!["fr-en".to_owned()]));
+        assert_eq!(
+            check_committed_tables(&root.0),
+            Ok(vec!["fr-en".to_owned()])
+        );
     }
 
     #[test]

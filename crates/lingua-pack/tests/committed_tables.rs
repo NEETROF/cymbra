@@ -613,11 +613,7 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
     }
     let words: Vec<&String> = glossed.iter().filter(|l| !names.contains(*l)).collect();
     let lexical = std::fs::read_to_string(fr.join("lexical.tsv")).unwrap();
-    assert_eq!(
-        lexical.lines().collect::<Vec<_>>(),
-        words,
-        "fr/lexical.tsv"
-    );
+    assert_eq!(lexical.lines().collect::<Vec<_>>(), words, "fr/lexical.tsv");
     assert!(lexical.ends_with('\n'));
     for word in ["lot", "marche", "nice", "le", "des", "maison"] {
         assert!(lexical.lines().any(|l| l == word), "{word} is a word");
