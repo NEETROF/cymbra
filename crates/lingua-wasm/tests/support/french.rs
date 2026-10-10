@@ -145,7 +145,9 @@ const LEMMAS: &[&str] = &[
 /// elision, a word the pre-pass splits, six tokens, another tense and an article as written
 /// (add-lingua-french-expression-keys), an elided article, `le` written in full, an expression
 /// whose last piece is elided by the page and `de un` on « d’un »
-/// (match-lingua-french-elided-pieces), the `homographes` page's « pas » and `son`, both flagged
+/// (match-lingua-french-elided-pieces), `le` a pronoun after `à`, the contraction, a last `à`
+/// before the page's article and a first article after the page's `à`
+/// (match-lingua-french-contracted-pieces), the `homographes` page's « pas » and `son`, both flagged
 /// (M21 and M8's cost), and the
 /// `fiction` page's `Personne`, not, and the blocks that are not French (English, Spanish,
 /// Catalan, Occitan, Italian).
@@ -175,6 +177,10 @@ const PHRASES: &[&str] = &[
     "Il a décidé de le faire",
     "parce qu\u{2019}il pleut",
     "d\u{2019}un hiver",
+    "Il est prêt à le faire",
+    "Au fait, tu viens\u{202f}?",
+    "grâce au soleil",
+    "aux miennes",
     "Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.",
     "Personne au village ne se souvenait",
     "The lighthouse stood",
