@@ -6,7 +6,7 @@ import { golden, pinned, pinnedBlock, probes } from "./word-card-french.ts";
 
 // add-lingua-french-word-card D9: the word card of an English-native reader of French, pinned from
 // the fr-en golden and never from the tables. Every `word-grammar` probe of
-// crates/lingua-wasm/tests/baseline/fr-en.golden — the French baseline's 31, the card's 21 and the
+// crates/lingua-wasm/tests/baseline/fr-en.golden — the French baseline's 32, the card's 21 and the
 // 40 lemmas — is rendered with the interface in English through `src/i18n/en/grammar.ts`, French
 // studied, and every `phrase-gloss` probe as the whole-selection card shows it
 // (`word-card-french.ts`); the lines are held in a snapshot. No reader sees them before change 52
@@ -19,9 +19,9 @@ const ALL = probes(golden("fr-en"));
 
 describe("the word card of an English-native reader of French, over the fr-en golden", () => {
   it("renders every grammar and phrase probe as the snapshot pins it", async () => {
-    // The reference's 31 grammar probes, the card's 21 and the 40 lemmas; 41 phrases and the reader's.
-    expect(ALL.filter((p) => p.kind === "word-grammar")).toHaveLength(92);
-    expect(ALL.filter((p) => p.kind === "phrase-gloss")).toHaveLength(42);
+    // The reference's 32 grammar probes, the card's 21 and the 40 lemmas; 44 phrases and the reader's.
+    expect(ALL.filter((p) => p.kind === "word-grammar")).toHaveLength(93);
+    expect(ALL.filter((p) => p.kind === "phrase-gloss")).toHaveLength(45);
     await expect(pinned(ALL, UI)).toMatchFileSnapshot("./baseline/word-card-fr-en.txt");
   });
 

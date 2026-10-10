@@ -112,10 +112,20 @@ expression: c'est ça
 page 1/1:
   [—] Así es o tener la razón, eso es; (irónico) Negación de una afirmación
 ### phrase-gloss Le CA a voté le budget.
+row: CA — Administración, consejo de administración
 row: voter — Votar
 row: budget — Presupuesto
 ### phrase-gloss à mon age
 row: âge — Edad
+### phrase-gloss LE CA A VOTÉ LE BUDGET
+row: voter — Votar
+row: budget — Presupuesto
+### phrase-gloss Il a crié : CA SUFFIT !
+row: crier — Gritar, poner en subasta
+row: ça suffit — (Ya) basta
+### phrase-gloss Ca fait du bien.
+row: faire — Hacer
+row: bien — Bien
 ### phrase-gloss l’homme
 row: homme — Hombre
 ### word-grammar est être
@@ -276,6 +286,10 @@ grammar: «au» = à + le
 page 1/1:
   [preposición] A (un lugar); A, hasta (un tiempo); A (una dirección); A (un tiempo especifico); A (en, dentro de); De (perteneciendo a); Hasta (un tiempo abstracto); Con
 row: A (un lugar)
+### word-grammar CA CA
+page 1/1:
+  [sustantivo] Administración, consejo de administración; Ingreso, cifra de negocios, facturación; Corriente alterna
+row: Administración, consejo de administración
 ### word-grammar parle parler
 grammar: primera y tercera persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del imperativo de parler
 page 1/1:
