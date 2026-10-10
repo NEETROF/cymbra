@@ -69,7 +69,8 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 }
 
 /// The studied sections are byte-equal, the tag pool up to the pinned prefix and the
-/// readings' tags; the second pack carries a lexical table, the reference none.
+/// readings' tags; the second pack carries a lexical table, the reference none — or, French's,
+/// the same one.
 fn assert_studied_sections_alike(pair: &str, reference: &[u8], other: &[u8]) {
     let (a, b) = (sections(reference), sections(other));
     for name in [
@@ -99,7 +100,15 @@ fn assert_studied_sections_alike(pair: &str, reference: &[u8], other: &[u8]) {
         "{pair}: only sense parts of speech follow the pin: {:?}",
         &grown[pinned.len()..]
     );
-    assert!(section_of(&a, section::LEXICAL).is_none(), "{pair}");
+    // A reference whose dictionary words are its glossed lemmas carries no lexical table; fr-en's
+    // leave out the lemmas it glosses as names alone (refine-lingua-fr-en-glosses D2), so it carries
+    // French's, the very table the second pack carries.
+    if let Some(table) = section_of(&a, section::LEXICAL) {
+        assert!(
+            Some(table) == section_of(&b, section::LEXICAL),
+            "{pair}: the two packs' dictionary words"
+        );
+    }
     let lemmas = section_of(&a, section::LEMMAS)
         .unwrap()
         .split(|&b| b == b'\n')

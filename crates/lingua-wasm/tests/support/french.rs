@@ -53,8 +53,10 @@
 //! every word in NFC, so the NFD block's `mémoire` is the pack's. Its cascade reads the pack's
 //! forms, then an unlisted lowercase plural as its singular (`syndicats` → `syndicat`), then the
 //! form; its closed classes flag a phrase gloss's function words, « pas » among them (M21); its
-//! names rule sets the `noms` page's `Paris`, `Lot`, `Aube`, `Jean-Pierre` and `Saint-Étienne`
-//! aside, and keeps `Orange` and `Vienne` (dictionary words) and `Mme` (at a block's head only).
+//! names rule sets the `noms` page's `Paris`, `Lyon`, `Durand`, `Jean-Pierre` and `Saint-Étienne`
+//! aside with `Myriel` — French's dictionary words leave out what fr-en glosses by a proper noun's
+//! senses alone (refine-lingua-fr-en-glosses D2) —, and keeps `Lot`, `Aube`, `Orange` and `Vienne`
+//! (a common word's senses among theirs) and `Mme` (at a block's head only).
 //! The tables hold every word the pre-pass writes (`lingua-pack`'s `committed_tables.rs` holds
 //! it; `french_baseline.rs` holds the fixture to it too), and expressions holding `au` and an
 //! elision, `au revoir` and `coup d'œil`, a word the pre-pass splits, `d'abord` (offered by
@@ -67,9 +69,11 @@
 //! « il y a » and « il y avait » answer `il y a`, the Proust sentence `de bonne heure`,
 //! « jusqu'au soir » `jusqu'à` — the article of « au » covered with it, as a Spanish match covers
 //! the article of « al » (add-lingua-french-word-card D12) —, « à la maison » the section's own
-//! `à la maison`, and « au marché » nothing. « un coup d’œil » meets `un coup` before `coup d'œil`, and « du pain et des œufs »
-//! `et des`: senses their keys do not hold the context of, listed for
-//! `refine-lingua-fr-en-glosses` (add-lingua-pack-fr-en D7).
+//! `à la maison`, and « au marché » `à le` « to the », a Louisiana spelling of « au » whose pointer
+//! fr-en reads as its meaning (refine-lingua-fr-en-glosses D4, in the owner's list). « un coup
+//! d’œil » meets `coup d'œil` alone, and « du pain et des œufs » no expression: fr-en's reducer
+//! leaves `un coup` and `et des` out, their one sense needing a context their keys do not hold
+//! (refine-lingua-fr-en-glosses D7; add-lingua-pack-fr-en D7 listed them).
 //!
 //! The French word card (add-lingua-french-word-card D9) is pinned on this scenario: 21 grammar
 //! probes, one for each name the card says or leaves unsaid on purpose, and 40 lemmas asked as
