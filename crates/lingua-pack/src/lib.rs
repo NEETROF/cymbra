@@ -710,18 +710,19 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
             .then_with(|| b.3.cmp(&a.3))
             .then_with(|| a.1.cmp(b.1))
     });
-    // A pack studying French keeps every headword of a key, not only the one that wins it
-    // (pick-lingua-expression-written-as-the-page D1): each headword after a key's first is an
-    // expression of its own, its gloss and its name filed under an id after the keys' — in key
-    // order, and in the order above within a key — which no key maps to, so a core that does
-    // not read `expr.others` answers every key as before. `ça va` and `ça ira` both read
-    // `ça aller`: the key answers `ça ira`, and `ça va` is kept beside it. English and Spanish
-    // keep the first alone, byte for byte.
+    // A pack studying French or Spanish keeps every headword of a key, not only the one that
+    // wins it (pick-lingua-expression-written-as-the-page D1, opened to Spanish by
+    // pick-lingua-spanish-expression-written-as-the-page D1): each headword after a key's first
+    // is an expression of its own, its gloss and its name filed under an id after the keys' —
+    // in key order, and in the order above within a key — which no key maps to, so a core that
+    // does not read `expr.others` answers every key as before. `ça va` and `ça ira` both read
+    // `ça aller`, `hacer tiempo` and `hace tiempo` both `hacer tiempo`: the key answers its
+    // winner, and the other is kept beside it. English keeps the first alone, byte for byte.
     let mut others: Vec<(u32, &str, &str)> = Vec::new();
     let mut firsts: Vec<(String, &str, &str, usize)> = Vec::with_capacity(keyed.len());
     for entry in keyed {
         if firsts.last().is_some_and(|first| first.0 == entry.0) {
-            if studied == StudiedLanguage::French {
+            if matches!(studied, StudiedLanguage::French | StudiedLanguage::Spanish) {
                 others.push(((firsts.len() - 1) as u32, entry.1, entry.2));
             }
         } else {
@@ -788,8 +789,9 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
 
     // `expr.others`: each key's other headwords, `count u32 | count × (key id u32, other id
     // u32)`, little-endian, sorted by key id and then in the order above — written only where a
-    // key has others, so a French pack without any, and every English or Spanish pack, gains
-    // no byte (pick-lingua-expression-written-as-the-page D1).
+    // key has others, so a French or Spanish pack without any, and every English pack, gains
+    // no byte (pick-lingua-expression-written-as-the-page D1,
+    // pick-lingua-spanish-expression-written-as-the-page D1).
     let expr_others: Vec<u8> = if others.is_empty() {
         Vec::new()
     } else {
@@ -1759,9 +1761,10 @@ mod tests {
     }
 
     #[test]
-    fn spec_scenario_english_and_spanish_packs_carry_no_others() {
-        // Two English entries and two Spanish headwords reach one key: each pack keeps the first
-        // alone, byte for byte the pack built from it alone, and carries no section.
+    fn spec_scenario_english_packs_carry_no_others() {
+        // Two English entries reach one key: the pack keeps the first alone, byte for byte the
+        // pack built from it alone, and carries no section (a Spanish pack keeps both since
+        // pick-lingua-spanish-expression-written-as-the-page D1).
         let mut inp = inputs_with_expression_words();
         inp.expressions = vec![
             ("breaking point".into(), "Point de rupture".into()),
@@ -1770,12 +1773,8 @@ mod tests {
         let english = build_pack(&inp).expect("build");
         inp.expressions.remove(0);
         assert_eq!(english, build_pack(&inp).expect("build"));
-        let spanish = spanish_pack(&["soy inglesa", "soy inglés"]);
-        assert_eq!(spanish, spanish_pack(&["soy inglés"]));
-        for bytes in [english, spanish] {
-            let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
-            assert!(sections.iter().all(|s| s.name != section::EXPR_OTHERS));
-        }
+        let (_, sections) = lingua_core::packs::format::read_container(&english).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_OTHERS));
     }
 
     // — Spanish expression keys (add-lingua-spanish-expression-keys) —
@@ -1904,6 +1903,136 @@ mod tests {
             named_expressions_of(&bytes),
             [named("ser inglés", None, "ser inglés")]
         );
+        // The other is kept beside the winner, with its own gloss
+        // (pick-lingua-spanish-expression-written-as-the-page D1).
+        assert_eq!(
+            headwords_of(&first, "ser inglés"),
+            [headword("soy inglés"), headword("soy inglesa")]
+        );
+    }
+
+    // — every headword of a shared Spanish key (pick-lingua-spanish-expression-written-as-the-page) —
+
+    /// `spanish_inputs` plus the words of `hacer tiempo`, `hace tiempo`, `echar a perder`,
+    /// `echado a perder` and `echarse a perder`, each headword glossed by itself.
+    fn shared_spanish_key_pack(expressions: &[&str]) -> Vec<u8> {
+        let mut inp = spanish_inputs();
+        inp.form_lemma.extend(
+            [("hace", "hacer"), ("echado", "echar")]
+                .iter()
+                .map(|(form, lemma)| ((*form).into(), (*lemma).into())),
+        );
+        inp.ranks.extend([
+            ("hacer".into(), 100),
+            ("tiempo".into(), 101),
+            ("echar".into(), 102),
+            ("perder".into(), 103),
+        ]);
+        inp.expressions = expressions
+            .iter()
+            .map(|headword| ((*headword).into(), format!("gloss of {headword}")))
+            .collect();
+        build_pack(&inp).expect("a Spanish pack builds")
+    }
+
+    #[test]
+    fn spec_scenario_two_headwords_reach_one_spanish_key() {
+        let bytes = shared_spanish_key_pack(&["hace tiempo", "hacer tiempo", "al menos"]);
+        // The key answers `hacer tiempo`, which wins it, with its gloss, as before…
+        let pack = Pack::load(&bytes).unwrap();
+        assert_eq!(
+            pack.expression("hacer tiempo"),
+            Some("gloss of hacer tiempo")
+        );
+        assert_eq!(pack.expression_name("hacer tiempo"), None);
+        // …and the pack holds `hace tiempo` with its own gloss, listed as the key's other headword.
+        assert_eq!(
+            headwords_of(&bytes, "hacer tiempo"),
+            [headword("hacer tiempo"), headword("hace tiempo")]
+        );
+        // Whichever order the source lists them in.
+        assert_eq!(
+            shared_spanish_key_pack(&["al menos", "hacer tiempo", "hace tiempo"]),
+            bytes
+        );
+    }
+
+    #[test]
+    fn spec_scenario_three_headwords_reach_one_spanish_key() {
+        let bytes =
+            shared_spanish_key_pack(&["echarse a perder", "echado a perder", "echar a perder"]);
+        assert_eq!(
+            headwords_of(&bytes, "echar a perder"),
+            [
+                headword("echar a perder"),
+                headword("echado a perder"),
+                headword("echarse a perder")
+            ]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_key_one_headword_reaches_lists_nothing() {
+        let bytes = shared_spanish_key_pack(&["tener en cuenta", "hace tiempo"]);
+        assert_eq!(
+            headwords_of(&bytes, "tener en contar"),
+            [headword("tener en cuenta")]
+        );
+        assert_eq!(
+            headwords_of(&bytes, "hacer tiempo"),
+            [headword("hace tiempo")]
+        );
+        // No key has others: the pack carries no section.
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_OTHERS));
+    }
+
+    #[test]
+    fn spec_scenario_a_core_that_does_not_read_the_spanish_section() {
+        // Stripped of the section, as a core that predates it reads it, the Spanish pack answers
+        // every key as the pack built without the other headwords — what the builder made before.
+        let all = [
+            "hace tiempo",
+            "hacer tiempo",
+            "tener en cuenta",
+            "echarse a perder",
+            "echado a perder",
+            "echar a perder",
+        ];
+        let bytes = shared_spanish_key_pack(&all);
+        let (meta, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().any(|s| s.name == section::EXPR_OTHERS));
+        let kept: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::EXPR_OTHERS)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        let older = Pack::load(&write_container(&meta, &kept)).expect("load");
+        let before = Pack::load(&shared_spanish_key_pack(&[
+            "hacer tiempo",
+            "tener en cuenta",
+            "echar a perder",
+        ]))
+        .unwrap();
+        for key in [
+            "hacer tiempo",
+            "tener en contar",
+            "echar a perder",
+            "hace tiempo",
+            "echado a perder",
+        ] {
+            assert_eq!(older.expression(key), before.expression(key), "{key}");
+            assert_eq!(
+                older.expression_name(key),
+                before.expression_name(key),
+                "{key}"
+            );
+            assert_eq!(
+                older.expression_headwords(key),
+                before.expression_headwords(key),
+                "{key}"
+            );
+        }
     }
 
     #[test]
