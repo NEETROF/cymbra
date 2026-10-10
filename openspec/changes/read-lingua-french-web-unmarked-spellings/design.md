@@ -420,6 +420,8 @@ committed-tables test and the gates 0.25.
 
 ## Open question for the owner
 
+**Q6 settled by the owner on 2026-10-10 (in session): all four rows, as recommended.**
+
 - **Q6 — The four exceptions.** Recommended: all four rows — `sure`, `surs`, `sures` → *sûr*,
   `entrainant` → *entraîner* (D2: 38 of 41 occurrences the accented word; the sour adjective 3). The
   alternative is to keep `surs` as « sour » (its one corpus occurrence), at the cost of one adjective
