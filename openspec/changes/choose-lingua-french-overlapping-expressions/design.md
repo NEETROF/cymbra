@@ -61,8 +61,8 @@ language in [review.md](review.md); and this design's rule is judged on every ch
 - A verb's `de` written « du » or « des » (« venu du côté de l'orient », `venir de` matched by change
   44's retry, `du côté de` starting on « du »): `du` is a word of its own (M21), not a preposition, so
   the expression keeps it, as today; 2 such places in fr-en.
-- Which of two expressions sharing two tokens or more wins: not met on the corpus beside the cases
-  above (rules A and B in D4 cover them, and do worse).
+- Overlaps of two tokens or more, and of a first expression ending on anything but a preposition:
+  they keep today's order (rules A and B in D4 reach them, and do worse).
 - Page highlighting: `analyse_page` is untouched, as in changes 44, 44c and 44d.
 
 ## Decisions
@@ -119,7 +119,7 @@ Wikipedia and 46 in Tatoeba; fr-es 0, 18, 22, 20 and 23. Of change 44d's 92 fr-e
 « au », 47 move (every one built on a verb but `en venir à`, D2) and 45 keep today's reading; of
 fr-es's 32, 31 move and `face à` on « face au vent » keeps it.
 
-**Judged on every change**, by kind (73 kinds in fr-en, 33 in fr-es, each read on its selections):
+**Judged on every change**, by kind (72 kinds in fr-en, 33 in fr-es, each read on its selections):
 - fr-en: **166 better, 6 neither, 1 worse.** The worse: « le blanc l'est au noir » (as white is to
   black) now answers `au noir` (« off the books »). Neither: « le soleil est au plus haut » (`au
   plus` « at most », `être à` both wrong), « nous sommes à moins de la moitié » and « à moins d'un
@@ -149,7 +149,7 @@ Three readings of « built on a verb », measured:
 | the first token a verb | 168 | 83 | loses `se mettre à` (« se mit au lit », a pronoun first) |
 
 The second reads what the words are — a verb's expression is led by its verb, a pronoun before it
-at most — and is the one rule that holds for Spanish too (D6). It costs fr-en the 2 `en venir à`
+at most —, and it is the reading D6 measures Spanish and English with. It costs fr-en the 2 `en venir à`
 moves: `en` is in French's prepositions (as the pronoun « en » is in its pronouns), and « en venant
 au monde » keeps `en venir à`, wrong today and still.
 
@@ -330,11 +330,10 @@ For the owner, none blocking — each with the design's recommendation:
 2. **The wider rule (D4, G).** Letting a verb's expression give any last word, not only a
    preposition, would also show `avoir besoin de` (« to need ») for « j'ai besoin de » instead of
    `j'ai` (« I have »), and `être le cas` for « c'est le cas » — 150 more places in fr-en, 110 better,
-   30 worse — but « C'est ce que tu veux » would show `est-ce que` (the yes-or-no question marker) 23
-   times of those 30, because
-   the matcher does not yet check the hyphen of « est-ce ». Recommended: not now; first a change that
-   holds a hyphen to the headword, as changes 44c and 44d did for the apostrophe and « au », then
-   measure this again.
+   30 worse — but « C'est ce que tu veux » would show `est-ce que` (the yes-or-no question marker),
+   23 of those 30, because the matcher does not yet check the hyphen of « est-ce ». Recommended: not
+   now; first a change that holds a hyphen to the headword, as changes 44c and 44d did for the
+   apostrophe and « au », then measure this again.
 3. **Compound prepositions keep their « à » (D1).** « Il resta jusqu'au début de la nuit » keeps
    `jusqu'à` (« until ») and never shows `au début` (« at first »); likewise `grâce à` on « grâce au
    travail », `par rapport à` on « par rapport au nombre » — 43 places in fr-en. Recommended: keep;
