@@ -1,0 +1,35 @@
+# Tasks
+
+## 0. Owner, before the implementation
+
+- [x] 0.1 [manual] Settled by the owner on 2026-10-10 (in session), each as recommended: the edges are the page's (1); matches on the article of « au »/« aux » kept (2); Spanish left out (3); `être à` over `au nombre de` a change of its own later (4). The owner answers the design's open questions: the expression's edges are the page's (1), the matches starting on the article of « au »/« aux » kept, refused or covered (2), Spanish's « al »/« del » left out (3), `être à` over `au nombre de` left to a change of its own (4). Each answer that departs from the design's recommendation is written into the design, the spec and these tasks before 1.1 (refusing the article starts: the spec's first-token sentence and the scenario « aux miennes » change, and the probe records none).
+
+## 1. The core (crates/lingua-core)
+
+- [ ] 1.1 `engine.rs` `gloss_phrase`: the computation of `shares_span` becomes a function of a token slice, `shared_spans(tokens: &[Token]) -> Vec<bool>` (token `i` shares token `i - 1`'s source span), used on the selection's tokens as before and, in 1.2, on a headword's reading. No `Token`, `PhraseToken` or JSON field (design D2).
+- [ ] 1.2 `engine.rs` `meets_as_written`: takes the run's places beside its elision flags — `joined`, `shares_span[start..start + len]`, whose first entry it ignores (the run's first token meets the article of a contraction whose `à` is the page's) — and reads the headword through `headword_reading` when it holds an apostrophe (change 44c) or the word « au » or « aux » in any case, after an elision too (`jusqu'aux`), one reading for both checks; the run is kept only when its places `1..len` equal the reading's `shared_spans` at the same places and change 44c's elision check holds. A name holding neither joins no pieces: the run's places `1..len` must all be apart, without reading it. A reading that does not line up with the run is matched as today. The function's doc comment states the rule — the run's last token's article is outside the slice, and change 51's D12 covers it — and names this change (D1, D3).
+- [ ] 1.3 `engine.rs` `match_expressions`: hands `meets_as_written` the run's slice of `shares_span` for a French run; its doc comment says what a French run is held to (D1). English and Spanish runs untouched (D6).
+- [ ] 1.4 Host tests in `engine.rs`, one per scenario of the delta, on an inline French pack keyed as the builder keys holding `au fait`, `grâce à`, `les miennes`, `armé jusqu'aux dents` and `jusqu'à`: « Il est prêt à le faire » none; « Au fait, tu viens ? » `au fait` over `À`, `le`, `fait`; « grâce au soleil » `grâce à` over `grâce`, `à`, `le`; « aux miennes » `les miennes` over `les`, `miennes`; « armés jusqu’aux dents » `armé jusqu'aux dents` over its five tokens; « armé jusqu'à les dents » `jusqu'à` (the shorter run). On a pack holding `à le revoir`, written apart: « au revoir » none, « à le revoir » `à le revoir`. And: a name holding neither an apostrophe nor « au »/« aux » is not read; « I don't » and a Spanish selection (« después del », « a El Tiempo » with `al tiempo`) gloss as before (`a_french_match_ending_on_the_a_of_au_or_aux_covers_its_article`, `spanish_spans_for` unchanged).
+
+## 2. The committed tables (crates/lingua-pack)
+
+- [ ] 2.1 `tests/committed_tables.rs`: for fr-en and fr-es, every winning expression whose headword reads, through `headword_reading`, with two pieces sharing a span holds the word « au » or « aux » and is named by the pack (`Pack::expression_name`) — the invariant D3 reads the headword's contractions from (measured: 448 and 157). No builder code changes; the six committed packs still build to their pins.
+
+## 3. The French baseline (crates/lingua-wasm, apps/lingua-extension)
+
+- [ ] 3.1 `tests/support/french.rs`: `PHRASES` gains « Il est prêt à le faire », « Au fait, tu viens ? » (a narrow no-break space before « ? »), « grâce au soleil » and « aux miennes », after « d’un hiver » (D5).
+- [ ] 3.2 `tests/french_baseline.rs`: the doc comment names this change among those that add probes, with its four.
+- [ ] 3.3 Re-bless once: `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline --test fr_es_baseline`. Check the diff is D5's — 8 lines added to each golden, none removed; over fr-en and fr-es « Il est prêt à le faire » none, « Au fait, tu viens ? » `au fait`, « grâce au soleil » `grâce à` ending at 3, « aux miennes » `les miennes` starting at 1 — and say so in the pull request, with D1's figures re-measured on the implementation's base.
+- [ ] 3.4 `apps/lingua-extension`: `test/word-card-fr-en.spec.ts` and `test/word-card-fr-es.spec.ts` count 38 phrase probes (their comment: 37 phrases and the reader's); `yarn vitest run test/word-card-fr-en.spec.ts test/word-card-fr-es.spec.ts -u` adds the four probes' cards to `test/baseline/word-card-fr-en.txt` and `word-card-fr-es.txt`, 11 lines each, every block before byte for byte.
+
+## 4. Gates
+
+- [ ] 4.1 English and Spanish do not move: `cargo test -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test cross_native --test parity --test card_gloss_language --test spanish_expression_keys` passes without re-blessing; `cargo test -p lingua-pack --test committed_tables` builds the six committed packs to their pins; `git diff --stat origin/main -- crates/lingua-wasm/tests/baseline/en-fr.golden crates/lingua-wasm/tests/baseline/es-fr.golden crates/lingua-wasm/tests/baseline/es-en.golden crates/lingua-wasm/tests/baseline/en-es.golden scripts/lingua-data` is empty (D6).
+- [ ] 4.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test -p lingua-core -p lingua-pack -p lingua-wasm`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`; `wasm-pack test --node crates/lingua-wasm`; `cargo test` in `apps/lingua-agent/rust` (it compiles the core).
+- [ ] 4.3 In `apps/lingua-extension`: `yarn gen:wasm`, `yarn typecheck`, `yarn lint`, `yarn test`, `yarn build`, `yarn check:variants`; the bundles grow by the check alone.
+- [ ] 4.4 `openspec validate match-lingua-french-contracted-pieces --strict` passes; `python3 scripts/openspec_archive_order.py match-lingua-french-contracted-pieces` exits 10 naming the changes of `archiveAfter` still open; row 44d is marked done in `docs/lingua/language-matrix-programme.md`.
+
+## 5. Owner
+
+- [x] 5.1 [manual] Approved by the owner on 2026-10-10 (in session), before the implementation. The owner approves the re-bless before the pull request merges: `fr-en.golden` and `fr-es.golden`, four phrase probes added and none moved (« Il est prêt à le faire » recording no expression where the engine today reports `au fait`, in both), and the four cards added to `word-card-fr-en.txt` and `word-card-fr-es.txt`.
+- [ ] 5.2 [manual] In change 52's dogfood, the owner checks on a real page in fr-en that « Il est prêt à le faire » shows no expression and « Au fait » shows `au fait`.
