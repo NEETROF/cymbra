@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-10
+archiveAfter:
+  - migrate-lingua-pack-sources-to-raw-dumps
+  - add-lingua-french-forms-tables
+  - add-lingua-french-expression-keys
+  - add-lingua-pack-fr-en
+  - refine-lingua-fr-en-glosses
