@@ -250,9 +250,14 @@ describe("the description of a form names no language", () => {
     }
   });
 
-  it("orders a studied language's tenses once, from the renderer's table: Spanish's as listed, English's as the pack has them", () => {
-    const tenses = { en: { "Ind/Past": "a", "Ind/Pres": "b" }, es: { "Sub/Pres": "c", "Ind/Pres": "d", "Imp/": "e" } };
+  it("orders a studied language's tenses once, from the renderer's table: Spanish's and French's as listed, English's as the pack has them", () => {
+    const tenses = {
+      en: { "Ind/Past": "a", "Ind/Pres": "b" },
+      es: { "Sub/Pres": "c", "Ind/Pres": "d", "Imp/": "e" },
+      fr: { "Ind/Pres": "f", "Ind|Sub/Pres": "g", "Cnd/": "h", "Imp/": "i" },
+    };
     expect(tenseOrder(tenses, "es")).toEqual(["Sub/Pres", "Ind/Pres", "Imp/"]);
+    expect(tenseOrder(tenses, "fr")).toEqual(["Ind/Pres", "Ind|Sub/Pres", "Cnd/", "Imp/"]);
     expect(tenseOrder(tenses, "en")).toEqual([]);
   });
 
