@@ -24,45 +24,59 @@ web, subtitles and social media, rates `ca` at 12 % of `ça`'s frequency (Zipf 5
 three to six times the share of French's other cedilla-less spellings (`francais`, `facon`, `garcon`,
 `recu`: 2–4 %). No web forum corpus is in the measurements' reach: wordfreq is the web's evidence.
 
+The owner answered this proposal's questions on 2026-10-10 (design, *Settled by the owner*): `age` →
+*âge* and `forcement` → *forcément* join `ca` here; « CA » in capitals is to stay the acronym, through
+an analyser change of its own, and this change reaches readers only with it or after it; the
+dictionary's own unmarked spellings and the web's unglossed ones are changes of their own.
+
 ## What Changes
 
 - **A reviewed table of spellings in fr-en's reducer** (design D1): `UNMARKED_SPELLINGS`, form →
-  (word, reason), one row, `ca` → *ça*, read as change 43 reads its elided pieces (`ELISIONS`): the
-  form is a form of the named word alone; its own entries in the section — `CA`'s four initialisms,
-  `ca` « abbreviation of circa » — make it no lemma and give it no inflection. An override row cannot
-  say it: `OVERRIDES` chooses among a form's candidates, and no entry links `ca` to `ça`; change 43's
-  spelling rule (D7) reads what the dictionary says, and it says nothing of `ca`.
-- **What `ca`'s own words become: lost** (D2). `ca` is no ranked lemma, no dictionary word, no
-  levelled word and no glossed word any more; « board of directors » and circa leave the pack. `CA` in
-  capitals reads as `ça` too: the pack holds lower-case forms and French's cascade looks every token
-  up lowercased (change 41), so no table can keep the acronym for capitals — a core rule could, and is
-  not proposed (open question 1).
+  (word, reason), four rows — `ca` → *ça*, `age` and `ages` → *âge*, `forcement` → *forcément* —, read
+  as change 43 reads its elided pieces (`ELISIONS`): the form is a form of the named word alone; its
+  own entries in the section — `CA`'s four initialisms, `ca` « abbreviation of circa », `age` « beam
+  (central bar of a plough); shaft », `forcement` « fixing number, cooking the books » — make it no
+  lemma and give it no inflection. An override row cannot say it: `OVERRIDES` chooses among a form's
+  candidates, and no entry links these spellings to their word; change 43's spelling rule (D7) reads
+  what the dictionary says, and it says nothing of them. `cote`, `tache`, `pale`, `foret` and `aine`,
+  words a reader can mean, are never rows.
+- **What the spellings' own words become: lost** (D2). `ca`, `age` and `forcement` are no ranked
+  lemma, dictionary word, levelled word or glossed word any more; « board of directors », circa, the
+  plough's beam and the fixing number leave the pack, and `forcements`, the noun's plural, which no
+  word now reaches, is no form.
+- **« CA » in capitals: the acronym, in a change of its own** (D2). The pack holds lower-case forms and
+  French's cascade looks every token up lowercased (change 41), so no table can keep `CA` apart: until
+  an analyser change reads a word written in capitals first in a small reviewed acronym table (the
+  option the design recommends, with the others and their cost), « CA » reads as `ça`. This change
+  reaches readers only together with that change or after it, unless the owner decides otherwise
+  (task 6.4); the probe « Le CA a voté le budget. » records it.
 - **What moves, measured on a prototype that reproduces the committed tables byte for byte** (D4):
-  - `tables/fr/forms.tsv` `ca` → *ça* (124,096 → 124,097 forms: `cussac` enters at the cut's end);
-    `freq.tsv` `ca` (144) out, 59,853 ranks up by one; `lexical.tsv` 26,486 → 26,485 words;
-    `level.tsv` `ca` (A1) out and one word up a band at each boundary (`croissance` A2 → A1,
-    `communiste` B1 → A2, `australien` B2 → B1, `naïveté` C1 → B2, `morphologie` C2 → C1, `crabe` gains
-    C2); `grammar.tsv` and the tag pool byte for byte;
-  - fr-en: `gloss.tsv` and `senses.tsv` lose `ca`'s row and gain `cussac`'s (a name, no dictionary
-    word), `mwe.tsv` byte for byte; coverage 93.6 / 86.9 / 76.3 % unchanged (15,260 → 15,259 of the
-    top 20,000); the pin's rules and pack move, its snapshot and sources do not;
-  - fr-es: re-reduced on the new `tables/fr/`, its glosses, senses and expressions byte for byte;
-    coverage 83.2 / 70.8 / 56.8 % (7,082 → 7,083 of the top 10,000); its pin's studied record and pack
-    move;
+  - `tables/fr/forms.tsv` 124,096 → 124,101 forms (`ca`, `age`, `ages`, `forcement` read as their
+    word; `forcements` out; `cussac`, `céphalonie` and `côtelé`'s four forms in at the cut's end);
+    `freq.tsv` `ca` (144), `age` (2,461) and `forcement` (9,588) out, 59,851 ranks up by one to three;
+    `lexical.tsv` 26,486 → 26,484 words; `level.tsv` `ca` (A1), `age` (B1) and `forcement` (C2) out,
+    eight words up a band (`croissance` A2 → A1 …) and three into C2; `grammar.tsv` 125,177 rows, the
+    readings of `age`, `ages`, `forcement` and `forcements` out and `côtelé`'s in; the tag pool byte for
+    byte;
+  - fr-en: three glosses out (« board of directors », the plough's beam, the fixing number), three in
+    (`cussac` and `céphalonie`, names, and `côtelé` « ribbed »); `mwe.tsv` byte for byte; coverage
+    93.6 / 86.9 / 76.3 % unchanged (15,260 → 15,259 of the top 20,000); the pin's rules and pack move;
+  - fr-es: re-reduced on the new `tables/fr/`, every gloss it had byte for byte and `côtelé` « Pana »
+    gained; coverage 83.2 / 70.8 / 56.8 % (7,082 → 7,084 of the top 10,000); its pin's studied record
+    and pack move;
   - UD French-PUD 99.13 / 96.41 / 99.90 % and GSD's test section 98.89 / 95.86 / 99.72 %, unchanged.
 - **The goldens** (D5): `fr-en.golden` and `fr-es.golden` move 9 of their 213 probes each — the pack
-  line, « ca » on the `informel` page read as `ça` (fr-en « that… » for « board of directors », fr-es
-  « Eso, esto, aquello » where it had none), the vocabulary universe 26,486 → 26,485 and the reader's
-  estimate 2,184 → 2,185, and the deck the levels seed (`croissance` is now A1: `célèbre` and
-  `davantage` lead the review, `exposition` and `morphologie` join the deck) —; three phrase probes are
-  added — « comme ca », « c'est ca » and « Le CA a voté le budget. » —, showing `ça`'s expressions met
-  and the acronym's cost. The word-card snapshots gain those three cards and move nothing else.
-- **What is not generalised** (D6): of the other spellings without their marks, the real words keep
-  their own (`ou`, `a`, `la`, `des`, `du`, `sur`, `mais`, `cote`, `tache`: UD reads `ou` as *où* 8 times
-  in 1,048), and the candidates — the dictionary's own unmarked spellings (`etre`, `etat`, 51 ranked),
-  rare words an unmarked spelling swamps (`age` « beam of a plough », `forcement`), unmarked spellings
-  no entry knows (`meme`, `tres`, `deja`, `francais`, `facon`) — are listed with their figures and left
-  to the owner (open questions 2–4).
+  line, « ca » on the `informel` page read as `ça`, the vocabulary universe 26,486 → 26,484 and the
+  reader's estimate 2,184 → 2,185, and the deck the levels seed —; four phrase probes are added —
+  « comme ca », « c'est ca », « Le CA a voté le budget. » and « à mon age » —, showing `ça`'s
+  expressions met, `age` read as *âge* « age » (« Edad » in fr-es), and the acronym read as `ça` until
+  its change. The word-card snapshots gain those four cards and move nothing else.
+- **Recorded, not done here** (D6): the dictionary's own 186 accent-less spellings (`etre` « obsolete
+  spelling of être », `etat`; 51 ranked), read as their accented word when it is the commoner, and a
+  reviewed list by name of the web's unglossed accent-less spellings (`francais`, `tres`, `deja`,
+  `meme`; 301 of Zipf ≥ 3) — two changes of their own, settled by the owner; the real words (`ou`,
+  `a`, `la`, `des`, `du`, `sur`) never. Found while measuring: fr-en answers « ça va » with `ça ira`
+  (one key for both); the owner will be asked separately.
 - **en-fr, es-fr, es-en and en-es cannot move**: the rule lives in `reduce-fr-en.py`, which only
   fr-en's rule digest names; no shared or edition module, no table of theirs, no core code changes;
   their goldens passed unmoved over the prototype.
@@ -75,36 +89,40 @@ None.
 
 ### Modified Capabilities
 
-- `lingua-data-packs`: ADDED — *A French spelling without its cedilla reads as the word a reviewed
-  table names* (`ca` → *ça*, its own entries giving no lemma, no rank, no level and no gloss; capitals
-  read alike; nothing else moves).
+- `lingua-data-packs`: ADDED — *A French spelling without its marks reads as the word a reviewed
+  table names* (`ca` → *ça*, `age`/`ages` → *âge*, `forcement` → *forcément*; their own entries giving
+  no lemma, rank, level or gloss; read alike whatever their case until a rule of French's analysis
+  reads a word in capitals apart; nothing else moves).
 
 No requirement is modified. The new one narrows how change 43's *French's forms and frequencies*
-reads one form, as its elided pieces' table does, and it moves what changes 46 (*French's estimated
+reads four forms, as its elided pieces' table does, and it moves what changes 46 (*French's estimated
 levels*), 48 and 48b (fr-en's glosses, *A pack's dictionary words do not depend on its glosses*) and
 49 (fr-es on French's committed tables) write from the forms — all open, some held by change 52 too,
 so it says so rather than MODIFY them. Those changes, change 41 (whose cascade reads every token
-lowercased) and change 44 (whose keys a spelling meets) are in `archiveAfter`.
+lowercased) and change 44 (whose keys a spelling meets) are in `archiveAfter`. The acronym change
+will ADD its rule beside this one; the requirement leaves it room.
 
 ## Impact
 
 - **Products.** Cymbra Lingua's data and its tests only:
   - `scripts/lingua-data` — *changed*: `reduce-fr-en.py` (the table, read in `Lexicon.read` and
-    `_inflections`), `test_reduce_fr_en.py`, `tables/fr/` (`forms.tsv`, `freq.tsv`, `level.tsv`,
-    `lexical.tsv`), `tables/fr-en/` (`gloss.tsv`, `senses.tsv`, `manifest.json`, `pin.json`,
-    `README.md`), `tables/fr-es/` (`manifest.json`, `pin.json`, `README.md`), `SOURCES.md`;
-    *consumed*: `reduce_common.py`, `reduce_edition_en.py`, `reduce-fr-es.py`, unchanged.
-  - `crates/lingua-pack` — `tests/committed_tables.rs`: `ca` reads as `ça` in both French packs.
-  - `crates/lingua-wasm` — three phrase probes in the French scenario; `fr-en.golden` and
+    `_inflections`), `test_reduce_fr_en.py`, `test_reduce_editions.py`, `tables/fr/` (`forms.tsv`,
+    `freq.tsv`, `grammar.tsv`, `level.tsv`, `lexical.tsv`), `tables/fr-en/` (`gloss.tsv`, `senses.tsv`,
+    `manifest.json`, `pin.json`, `README.md`), `tables/fr-es/` (`gloss.tsv`, `senses.tsv`,
+    `manifest.json`, `pin.json`, `README.md`), `SOURCES.md`; *consumed*: `reduce_common.py`,
+    `reduce_edition_en.py`, `reduce-fr-es.py`, unchanged.
+  - `crates/lingua-pack` — `tests/committed_tables.rs`: the four spellings read as their words in
+    both French packs.
+  - `crates/lingua-wasm` — four phrase probes in the French scenario; `fr-en.golden` and
     `fr-es.golden` re-blessed.
-  - `apps/lingua-extension` — `word-card-fr-en.txt` and `word-card-fr-es.txt` gain three cards, their
-    specs' count 34 → 37; no code.
+  - `apps/lingua-extension` — `word-card-fr-en.txt` and `word-card-fr-es.txt` gain four cards, their
+    specs' count 34 → 38; no code.
 
   ID, Music, Live, the back office, the site, the backend, lingua-core, the engine, the Apple host app
   and the agent plugin are untouched; French's analyser version does not move.
-- **Release.** Silent: no package lists a French pair. It lands before change 52 lists fr-en, so no
-  reader ever studies `ca` as « board of directors ».
-- **Compatibility.** No reader holds a French pack, so no status, card or level names `ca`; nothing to
-  migrate.
+- **Release.** Silent: no package lists a French pair. It reaches readers only with or after the
+  acronym change (task 6.4) and, like 48b and 49b, before change 52 lists French.
+- **Compatibility.** No reader holds a French pack, so no status, card or level names `ca`, `age` or
+  `forcement`; nothing to migrate.
 - **Effort, against no programme estimate (outside the 57)**: 0.75–1.25 ideal days (design,
   *Effort*).
