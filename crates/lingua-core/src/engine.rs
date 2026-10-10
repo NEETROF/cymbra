@@ -584,6 +584,15 @@ fn expression_for_run(
 /// run whose pieces do not meet does not match at that length, and the shorter
 /// runs are tried as before (« d’un peu plus » answers `un peu`). English and
 /// Spanish runs are matched as before.
+///
+/// A French run that is a key several headwords reach ([`Pack::expression_headwords`]:
+/// `ça va` and `ça ira` both read `ça aller`) is named by the headword written most like
+/// the page ([`written_as_the_page`], pick-lingua-expression-written-as-the-page D2,
+/// D3): each headword is held to the run as above, the ones that meet it weighed, and the
+/// one written as the page at the most places reports its name and its gloss, the status
+/// read on that name — « Ça va ? » answers `ça va`, « Ça ira. » `ça ira`. A run none of
+/// them meets does not match at that length, and the shorter runs are tried. A key one
+/// headword reaches is matched as before, without a reading.
 fn match_expressions(
     tokens: &[PhraseToken],
     shares_span: &[bool],
@@ -609,6 +618,20 @@ fn match_expressions(
         let longest = window.min(tokens.len() - start);
         let hit = (2..=longest).rev().find_map(|len| {
             let (key, gloss) = expression_for_run(&pieces[start..start + len], studied, pack)?;
+            if french {
+                let headwords = pack.expression_headwords(&key);
+                if headwords.len() > 1 {
+                    let run = start..start + len;
+                    let (name, gloss) = written_as_the_page(
+                        &headwords,
+                        &tokens[run.clone()],
+                        &elided[run.clone()],
+                        &shares_span[run],
+                        pack.lexicon(),
+                    )?;
+                    return Some((len, name.to_owned(), gloss.to_owned()));
+                }
+            }
             let name = match pack.expression_name(&key) {
                 Some(name) => name.to_owned(),
                 None => key,
@@ -717,6 +740,53 @@ fn meets_as_written(
             .iter()
             .skip(1)
             .eq(shared_spans(&pieces).iter().skip(1))
+}
+
+/// The headword a French run is named by where several headwords reach the key it matches
+/// (pick-lingua-expression-written-as-the-page D2, D3). `headwords` are the key's, as the
+/// pack lists them ([`Pack::expression_headwords`]: the one that wins the key first, then
+/// the others in the builder's order); `run`, `elided` and `joined` are the run's tokens and
+/// their slices of the selection's flags, as [`meets_as_written`] takes them.
+///
+/// Only the headwords whose pieces meet the run as written are weighed — `ce qui` does not
+/// meet « c'qui », whose `c'` is elided, and `c'qui` does. Each is read by
+/// [`headword_reading`], the reading its key was made from, so its pieces line up with the
+/// run's tokens one for one, and a place counts where a piece's text is its token's, both
+/// lowercased and the typographic apostrophe read as the straight one, as
+/// [`expression_piece`] writes a key; a reading that does not line up counts none. The
+/// headword written as the page at the most places wins, and the first in the pack's order
+/// between equals: « Ça va ? » answers `ça va` (two places, `ça ira` one), « Ça ira. »
+/// `ça ira`, « quelle que soit » `quel que soit` (`que` and `soit`, `quel que fût` `que`
+/// alone), « ça allait » `ça ira`, which wins the key (`ça` in both). `None` when no
+/// headword meets the run: it does not match at that length.
+fn written_as_the_page<'a>(
+    headwords: &[(&'a str, &'a str)],
+    run: &[PhraseToken],
+    elided: &[bool],
+    joined: &[bool],
+    lexicon: &(impl Lexicon + ?Sized),
+) -> Option<(&'a str, &'a str)> {
+    let compared = |text: &str| text.replace('\u{2019}', "'").to_lowercase();
+    let page: Vec<String> = run.iter().map(|token| compared(&token.surface)).collect();
+    let mut best: Option<((&'a str, &'a str), usize)> = None;
+    for &(name, gloss) in headwords {
+        if !meets_as_written(elided, joined, name, lexicon) {
+            continue;
+        }
+        let places = headword_reading(name, StudiedLanguage::French, lexicon)
+            .filter(|reading| reading.len() == page.len())
+            .map_or(0, |reading| {
+                reading
+                    .iter()
+                    .zip(&page)
+                    .filter(|((piece, _), written)| compared(&piece.text) == **written)
+                    .count()
+            });
+        if best.is_none_or(|(_, most)| places > most) {
+            best = Some(((name, gloss), places));
+        }
+    }
+    best.map(|(headword, _)| headword)
 }
 
 /// Whether a French expression's headword holds the word « au » or « aux », in any case

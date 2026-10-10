@@ -122,12 +122,18 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// read in the table at that key (`de abord`), and as a word where the table has nothing there; a
 /// lemma read as one token (`aujourd'hui`) is a word, as before (add-lingua-french-word-card D8).
 /// `Card::is_expression` keeps its meaning for every other caller.
+///
+/// Several French headwords may reach one key (`ça va` and `ça ira` read `ça aller`), and a French
+/// pack keeps them all (pick-lingua-expression-written-as-the-page D1): both French branches read,
+/// at the key, the gloss of the headword the card is named by — the match's name, its lemma — and
+/// the key's own gloss where no headword is so named ([`Pack::expression_gloss_named`], D4), so the
+/// card `ça va` shows `ça va`'s gloss, not that of `ça ira`, which wins the key.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| {
         if !card.is_expression() {
             if pack.studied() == StudiedLanguage::French
                 && let Some(gloss) = french_expression_key(&card.lemma, pack.lexicon())
-                    .and_then(|key| pack.expression(&key))
+                    .and_then(|key| pack.expression_gloss_named(&key, &card.lemma))
             {
                 return Some(gloss);
             }
@@ -135,7 +141,7 @@ fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
         }
         match pack.studied() {
             StudiedLanguage::French => french_expression_key(&card.lemma, pack.lexicon())
-                .and_then(|key| pack.expression(&key)),
+                .and_then(|key| pack.expression_gloss_named(&key, &card.lemma)),
             StudiedLanguage::Spanish => pack.expression(&card.lemma).or_else(|| {
                 reading_expression_key(&card.lemma, StudiedLanguage::Spanish, pack.lexicon())
                     .and_then(|key| pack.expression(&key))

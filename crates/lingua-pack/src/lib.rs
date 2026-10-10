@@ -710,7 +710,26 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
             .then_with(|| b.3.cmp(&a.3))
             .then_with(|| a.1.cmp(b.1))
     });
-    keyed.dedup_by(|a, b| a.0 == b.0);
+    // A pack studying French keeps every headword of a key, not only the one that wins it
+    // (pick-lingua-expression-written-as-the-page D1): each headword after a key's first is an
+    // expression of its own, its gloss and its name filed under an id after the keys' — in key
+    // order, and in the order above within a key — which no key maps to, so a core that does
+    // not read `expr.others` answers every key as before. `ça va` and `ça ira` both read
+    // `ça aller`: the key answers `ça ira`, and `ça va` is kept beside it. English and Spanish
+    // keep the first alone, byte for byte.
+    let mut others: Vec<(u32, &str, &str)> = Vec::new();
+    let mut firsts: Vec<(String, &str, &str, usize)> = Vec::with_capacity(keyed.len());
+    for entry in keyed {
+        if firsts.last().is_some_and(|first| first.0 == entry.0) {
+            if studied == StudiedLanguage::French {
+                others.push(((firsts.len() - 1) as u32, entry.1, entry.2));
+            }
+        } else {
+            firsts.push(entry);
+        }
+    }
+    let keyed = firsts;
+    let other_id = |at: usize| (keyed.len() + at) as u32;
     // A French or Spanish expression is named by the headword that won its key,
     // wherever the two differ (add-lingua-french-expression-keys D3,
     // add-lingua-spanish-expression-keys D3): `au revoir` for `à le revoir`,
@@ -723,6 +742,12 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
             .enumerate()
             .filter(|(_, (key, headword, _, _))| key != headword)
             .map(|(id, (_, headword, _, _))| (id as u32, *headword))
+            .chain(
+                others
+                    .iter()
+                    .enumerate()
+                    .map(|(at, (_, headword, _))| (other_id(at), *headword)),
+            )
             .collect()
     } else {
         Vec::new()
@@ -748,11 +773,33 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
             .iter()
             .enumerate()
             .map(|(id, (_, _, gloss, _))| (id as u32, *gloss))
+            .chain(
+                others
+                    .iter()
+                    .enumerate()
+                    .map(|(at, (_, _, gloss))| (other_id(at), *gloss)),
+            )
             .collect();
         (
             builder.into_inner().expect("in-memory FST"),
             compress_glosses(&entries),
         )
+    };
+
+    // `expr.others`: each key's other headwords, `count u32 | count × (key id u32, other id
+    // u32)`, little-endian, sorted by key id and then in the order above — written only where a
+    // key has others, so a French pack without any, and every English or Spanish pack, gains
+    // no byte (pick-lingua-expression-written-as-the-page D1).
+    let expr_others: Vec<u8> = if others.is_empty() {
+        Vec::new()
+    } else {
+        let mut raw = Vec::with_capacity(4 + others.len() * 8);
+        raw.extend_from_slice(&(others.len() as u32).to_le_bytes());
+        for (at, (key, _, _)) in others.iter().enumerate() {
+            raw.extend_from_slice(&key.to_le_bytes());
+            raw.extend_from_slice(&other_id(at).to_le_bytes());
+        }
+        raw
     };
 
     let grammar = grammar_sections(inputs, studied, &lex)?;
@@ -775,6 +822,9 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     }
     if !expr_names.is_empty() {
         sections.push((section::EXPR_NAMES_ZST, expr_names.as_slice()));
+    }
+    if !expr_others.is_empty() {
+        sections.push((section::EXPR_OTHERS, expr_others.as_slice()));
     }
     if !grammar.tags.is_empty() {
         sections.push((section::TAGS, grammar.tags.as_slice()));

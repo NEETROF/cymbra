@@ -64,6 +64,17 @@ pub mod section {
     /// [`EXPR`]: a core that predates it ignores it and reports keys, as English
     /// does.
     pub const EXPR_NAMES_ZST: &str = "expr.names.zst";
+    /// The other headwords of the keys several reach, for a pack studying French
+    /// (pick-lingua-expression-written-as-the-page D1): `count u32 | count × (key id
+    /// u32, other id u32)`, little-endian, sorted by key id and then in the order the
+    /// builder ranks a key's headwords (add-lingua-french-expression-keys D6). A key id
+    /// is one [`EXPR`] maps to, whose gloss and name are the headword that wins the key;
+    /// an other id is one no key maps to, filed in [`EXPR_ZST`] and [`EXPR_NAMES_ZST`]
+    /// like any expression — a headword of its own, with its gloss and its name.
+    /// Written only for a pack studying French in which a key has other headwords.
+    /// Optional and additive, like [`EXPR_NAMES_ZST`]: a core that predates it ignores
+    /// it, and answers every key with the headword it answered before.
+    pub const EXPR_OTHERS: &str = "expr.others";
     /// The grammar tag pool: one Universal Dependencies tag per line, id =
     /// line index (`add-lingua-word-grammar`). Optional and additive, like
     /// [`LEVELS`]; the two grammar blobs point into it.
@@ -172,6 +183,9 @@ pub struct Pack {
     /// expressions named otherwise than their key. Empty when the pack carries
     /// no names.
     expression_names: BTreeMap<u64, String>,
+    /// A key's id → the ids of its other headwords, in the builder's order
+    /// ([`section::EXPR_OTHERS`]). Empty when the pack carries no such section.
+    expression_others: BTreeMap<u64, Vec<u64>>,
     /// The grammar tables, when the pack carries them.
     grammar: Grammar,
     notice: String,
@@ -241,6 +255,15 @@ impl Pack {
             Some(s) => parse_glosses(&s.data, section::EXPR_NAMES_ZST)?,
             None => BTreeMap::new(),
         };
+        let expression_others = match sections.iter().find(|s| s.name == section::EXPR_OTHERS) {
+            Some(s) => parse_expression_others(
+                &s.data,
+                expressions.as_ref(),
+                &expression_glosses,
+                &expression_names,
+            )?,
+            None => BTreeMap::new(),
+        };
         let notice = sections
             .iter()
             .find(|s| s.name == section::NOTICE)
@@ -259,6 +282,7 @@ impl Pack {
             expressions,
             expression_glosses,
             expression_names,
+            expression_others,
             grammar,
             notice,
         })
@@ -335,6 +359,62 @@ impl Pack {
     pub fn expression_name(&self, key: &str) -> Option<&str> {
         let id = self.expressions.as_ref()?.get(key.as_bytes())?;
         self.expression_names.get(&id).map(String::as_str)
+    }
+
+    /// Every headword filed under `key`, each with its gloss
+    /// (pick-lingua-expression-written-as-the-page D1): the one that wins the key
+    /// first — its name, or the key where the pack names it none — then the key's
+    /// other headwords ([`section::EXPR_OTHERS`]), in the order the builder ranks
+    /// them (add-lingua-french-expression-keys D6): `ça aller` lists `ça ira` and
+    /// `ça va`. One entry for a key one headword reaches, and for every key of a pack
+    /// without the section; none when the pack holds no such key.
+    pub fn expression_headwords<'a>(&'a self, key: &'a str) -> Vec<(&'a str, &'a str)> {
+        let Some(id) = self
+            .expressions
+            .as_ref()
+            .and_then(|map| map.get(key.as_bytes()))
+        else {
+            return Vec::new();
+        };
+        let Some(gloss) = self.expression_glosses.get(&id) else {
+            return Vec::new();
+        };
+        let name = self.expression_names.get(&id).map_or(key, String::as_str);
+        std::iter::once((name, gloss.as_str()))
+            .chain(
+                self.expression_others
+                    .get(&id)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|other| {
+                        Some((
+                            self.expression_names.get(other)?.as_str(),
+                            self.expression_glosses.get(other)?.as_str(),
+                        ))
+                    }),
+            )
+            .collect()
+    }
+
+    /// The gloss of the headword named `name` among those filed under `key`
+    /// ([`Pack::expression_headwords`]), and the key's own gloss where none is so
+    /// named (pick-lingua-expression-written-as-the-page D4): review reads a French
+    /// card at the key its lemma reads as, and the card `ça va` shows `ça va`'s gloss,
+    /// not `ça ira`'s, which wins the key. `None` when the pack holds no such key.
+    pub fn expression_gloss_named(&self, key: &str, name: &str) -> Option<&str> {
+        let id = self.expressions.as_ref()?.get(key.as_bytes())?;
+        let own = self.expression_glosses.get(&id)?;
+        if self.expression_names.get(&id).map_or(key, String::as_str) == name {
+            return Some(own);
+        }
+        let named = self
+            .expression_others
+            .get(&id)
+            .into_iter()
+            .flatten()
+            .find(|other| self.expression_names.get(other).is_some_and(|n| n == name))
+            .and_then(|other| self.expression_glosses.get(other));
+        Some(named.unwrap_or(own))
     }
 
     /// Whether the pack carries an expression table, so a caller can skip the
@@ -625,6 +705,50 @@ fn parse_glosses(zst: &[u8], name: &'static str) -> Result<BTreeMap<u64, String>
 /// Reads the grammar sections. They are additive: each one is optional, and
 /// a pack carrying a blob this core cannot index is refused like any other
 /// malformed section, so a corrupt pack never answers half its grammar.
+/// Reads [`section::EXPR_OTHERS`]: `count u32 | count × (key id u32, other id u32)`,
+/// little-endian, into a key's id → its other headwords' ids, in the section's order
+/// (pick-lingua-expression-written-as-the-page D1). Refused as malformed when its length
+/// is not its count's, or when a pair holds a key id no key of `keys` maps to, or an
+/// other id a key maps to or that carries no gloss or no name: the section then says
+/// something the table does not hold, and the pack is refused rather than misread.
+fn parse_expression_others(
+    bytes: &[u8],
+    keys: Option<&fst::Map<Vec<u8>>>,
+    glosses: &BTreeMap<u64, String>,
+    names: &BTreeMap<u64, String>,
+) -> Result<BTreeMap<u64, Vec<u64>>, PackError> {
+    let bad = || PackError::Malformed(section::EXPR_OTHERS);
+    let word = |at: usize| -> Option<u64> {
+        let slice = bytes.get(at..at.checked_add(4)?)?;
+        Some(u64::from(u32::from_le_bytes(slice.try_into().ok()?)))
+    };
+    let count = usize::try_from(word(0).ok_or_else(bad)?).map_err(|_| bad())?;
+    if count.checked_mul(8).and_then(|n| n.checked_add(4)) != Some(bytes.len()) {
+        return Err(bad());
+    }
+    let key_ids: std::collections::BTreeSet<u64> = keys
+        .map(|map| map.stream().into_values())
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    let mut others: BTreeMap<u64, Vec<u64>> = BTreeMap::new();
+    for pair in 0..count {
+        let (key, other) = (
+            word(4 + pair * 8).ok_or_else(bad)?,
+            word(8 + pair * 8).ok_or_else(bad)?,
+        );
+        if !key_ids.contains(&key)
+            || key_ids.contains(&other)
+            || !glosses.contains_key(&other)
+            || !names.contains_key(&other)
+        {
+            return Err(bad());
+        }
+        others.entry(key).or_default().push(other);
+    }
+    Ok(others)
+}
+
 fn parse_grammar(sections: &[super::format::Section]) -> Result<Grammar, PackError> {
     let find = |name: &str| sections.iter().find(|s| s.name == name);
     let tags = match find(section::TAGS) {
