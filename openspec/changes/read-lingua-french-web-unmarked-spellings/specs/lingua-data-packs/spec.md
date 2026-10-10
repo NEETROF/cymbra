@@ -8,7 +8,7 @@ fr-en's reducer SHALL read a word the web writes without its accents, cedilla or
 - **THEN** `tables/fr/forms.tsv` maps `tres` to *très*, `tres` is in none of `freq.tsv`, `lexical.tsv`, `level.tsv` and fr-en's `gloss.tsv`, and *très* keeps its rank and its level
 
 #### Scenario: The owner's sentence
-- **WHEN** a reader studying French selects « c'etait deja tres bien »
+- **WHEN** a reader studying French through fr-en selects « c'etait deja tres bien »
 - **THEN** `deja` reads as *déjà* « already » and `tres` as *très*, the selection meets the expression `très bien`, and `etait` reads as the tables read it before this change
 
 #### Scenario: A spelling carries its word's readings

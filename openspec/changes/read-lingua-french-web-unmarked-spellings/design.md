@@ -269,12 +269,12 @@ the phrases after « à mon age », the grammar probes at the end of `REFERENCE_
 
 | Probe | fr-en, today → this change | fr-es, today → this change |
 |---|---|---|
-| « c'etait deja tres bien » (the owner's) | `etait`, `deja`, `tres` unknown, no gloss → *déjà* « already… », *très*, and the expression `très bien` « very good, very well »; `etait` unknown until 43d | → *déjà*, *très*, `très bien` in Spanish |
-| « une facon de parler francais » | `facon`, `francais` unknown → *façon*, the expression `façon de parler`, *français* « French » | → *façon*, *français* |
-| « j'ai recu ta reponse » | `recu`, `reponse` unknown → *recevoir* « to receive », *réponse* « response, answer » | → *recevoir*, *réponse* |
-| « L'Ecole est fermée. » | `Ecole` the unknown `ecole` → *école* « school » | → *école* |
+| « c'etait deja tres bien » (the owner's) | `etait`, `deja`, `tres` unknown, no gloss → *déjà* « already… », *très*, and the expression `très bien` « very good, very well »; `etait` unknown until 43d | → *déjà* « Ya », *très*, *bien* (fr-es holds no `très bien`) |
+| « une facon de parler francais » | `facon`, `francais` unknown → *façon*, the expression `façon de parler`, *français* « French » | → *façon* « Manera, forma… », *français* « Francés… » (fr-es holds no `façon de parler`) |
+| « j'ai recu ta reponse » | `recu`, `reponse` unknown → *recevoir* « to receive », *réponse* « response, answer » | → *recevoir* « Recibir… », *réponse* « Respuesta » |
+| « L'Ecole est fermée. » | `Ecole` the unknown `ecole` → *école* « school » | → *école* « Escuela » |
 | « regarde cette video » | `video` unknown, unglossed → the same: left out (the owner's example, Q2) | the same |
-| `word-grammar recu recevoir` | no reading → the masculine singular past participle | the same |
+| `word-grammar recu recevoir` | no reading → the masculine singular past participle | the same (« participio pasado de recevoir ») |
 | `word-grammar arrete arrêter` | no reading → the participle, the present indicative and subjunctive (1, 3 sg) and the imperative (2 sg) | the same |
 
 Each golden grows: `fr-en.golden` 380,843 → 387,318 B, `fr-es.golden` 253,589 → 258,029 B (the probes
