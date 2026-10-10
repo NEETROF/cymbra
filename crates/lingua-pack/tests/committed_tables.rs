@@ -558,7 +558,7 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
     // fr-en (add-lingua-french-forms-tables D1, D10), French's reference pair: tables/fr/ holds
     // French's forms and ranks, its readings and their pinned tag pool
     // (add-lingua-french-grammar-tables), its estimated levels (add-lingua-french-levels), its record
-    // naming fr-en, and the dictionary words, empty until fr-en glosses (48).
+    // naming fr-en, and the dictionary words, fr-en's glossed lemmas (add-lingua-pack-fr-en).
     let fr = tables().join("fr");
     assert_eq!(
         files(&fr),
@@ -573,12 +573,9 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
         ]
     );
     assert_eq!(json(&fr.join(STUDIED_RECORD))["reference"], "fr-en");
-    assert_eq!(
-        std::fs::read(fr.join("lexical.tsv")).unwrap(),
-        b"",
-        "fr/lexical.tsv"
-    );
-    // tables/fr-en/ holds a pair's native side — an empty gloss table — its pin and README.
+    // tables/fr-en/ holds a pair's native side — its glosses, sense runs and expressions — its
+    // notice, manifest, pin and README, and nothing else (add-lingua-pack-fr-en: *The same
+    // snapshot*).
     let fr_en_dir = tables().join("fr-en");
     assert_eq!(
         files(&fr_en_dir),
@@ -587,10 +584,22 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
             "README.md",
             "gloss.tsv",
             "manifest.json",
-            "pin.json"
+            "mwe.tsv",
+            "pin.json",
+            "senses.tsv"
         ]
     );
-    assert_eq!(std::fs::read(fr_en_dir.join("gloss.tsv")).unwrap(), b"");
+    // French's dictionary words are exactly the lemmas fr-en glosses, byte-sorted, one per line
+    // (*French's dictionary words*).
+    let glossed: Vec<String> = tsv(&fr_en_dir.join("gloss.tsv")).into_keys().collect();
+    assert!(glossed.len() > 30_000, "{}", glossed.len());
+    let lexical = std::fs::read_to_string(fr.join("lexical.tsv")).unwrap();
+    assert_eq!(
+        lexical.lines().collect::<Vec<_>>(),
+        glossed,
+        "fr/lexical.tsv"
+    );
+    assert!(lexical.ends_with('\n'));
     let manifest = json(&fr_en_dir.join("manifest.json"));
     assert_eq!(manifest["meta"]["studied"], "fr");
     assert_eq!(manifest["meta"]["native"], "en");
@@ -616,8 +625,8 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
 #[test]
 fn spec_scenario_the_pack_builds_where_the_others_do() {
     // fr-en's pack, built from tables/fr/ and tables/fr-en/, has the sha256 its pin records, carries
-    // no lexical section (its dictionary words are its glossed lemmas: none yet), fits the budget,
-    // and no package lists it.
+    // no lexical section (its dictionary words are its glossed lemmas), fits the budget, and no
+    // package lists it (add-lingua-pack-fr-en: *The pack is built, not shipped*).
     let bytes = fr_en();
     let pin = json(&tables().join("fr-en/pin.json"));
     assert_eq!(
@@ -630,11 +639,17 @@ fn spec_scenario_the_pack_builds_where_the_others_do() {
     assert!(section_of(&sections(bytes), section::LEXICAL).is_none());
     let pack = Pack::load(bytes).unwrap();
     assert_eq!(pack.pair().key(), "fr-en");
-    // No lemma is glossed, so a vocabulary estimate counts the levelled lemmas alone
-    // (add-lingua-french-levels: French's 8,302 estimated levels).
-    assert!(!pack.is_dictionary_word("maison"));
-    assert_eq!(pack.dictionary_words().len(), 8_302);
-    assert!(pack.gloss("porte").is_none());
+    // A vocabulary estimate counts the glossed lemmas and the levelled ones (`dictionary_words`):
+    // fr-en's glosses, and the levelled lemmas it does not gloss (add-lingua-french-levels).
+    let glossed = tsv(&tables().join("fr-en/gloss.tsv"));
+    let levelled = tsv(&tables().join("fr/level.tsv"));
+    let unglossed = levelled
+        .keys()
+        .filter(|l| !glossed.contains_key(*l))
+        .count();
+    assert_eq!(pack.dictionary_words().len(), glossed.len() + unglossed);
+    assert!(pack.is_dictionary_word("maison"));
+    assert!(pack.gloss("maison").is_some_and(|g| g.starts_with("house")));
     let packs = json(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
@@ -646,6 +661,45 @@ fn spec_scenario_the_pack_builds_where_the_others_do() {
             .any(|p| p == "fr-en"),
         "no package lists fr-en"
     );
+}
+
+#[test]
+fn spec_scenario_a_gloss_is_its_lemma_s() {
+    // Every lemma fr-en glosses is a ranked lemma the forms table reads as itself, so the builder,
+    // which files a gloss under the lemma its key reads as, lends no gloss to another word
+    // (add-lingua-pack-fr-en D1): the pack answers each lemma with its own row. The prototype, on
+    // tables ranking `venue` (read as venir), glossed venir « coming, arrival ».
+    let forms = tsv(&tables().join("fr/forms.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    let glossed = tsv(&tables().join("fr-en/gloss.tsv"));
+    let senses = tsv(&tables().join("fr-en/senses.tsv"));
+    let elsewhere: Vec<(&String, Option<&String>)> = glossed
+        .keys()
+        .map(|lemma| (lemma, forms.get(lemma)))
+        .filter(|(lemma, read)| *read != Some(*lemma) || !ranks.contains_key(*lemma))
+        .take(10)
+        .collect();
+    assert!(
+        elsewhere.is_empty(),
+        "glossed, no ranked lemma read as itself: {elsewhere:?}"
+    );
+    // A run per gloss, on the same lemmas.
+    assert!(senses.keys().eq(glossed.keys()), "senses.tsv's lemmas");
+    let pack = Pack::load(fr_en()).unwrap();
+    let lent: Vec<&String> = glossed
+        .iter()
+        .filter(|(lemma, gloss)| pack.gloss(lemma) != Some(gloss.as_str()))
+        .map(|(lemma, _)| lemma)
+        .take(10)
+        .collect();
+    assert!(
+        lent.is_empty(),
+        "a lemma answered with another row: {lent:?}"
+    );
+    let venir = pack.gloss("venir").expect("venir is glossed");
+    assert!(venir.starts_with("to come"), "{venir}");
+    assert!(!venir.contains("arrival"), "{venir}");
+    assert!(!glossed.contains_key("venue"));
 }
 
 #[test]
@@ -734,14 +788,20 @@ fn spec_scenario_the_pin_is_the_readings_tags() {
     let lines: Vec<&str> = pin.lines().collect();
     assert_eq!(lines.len(), 79);
     assert!(lines.is_sorted(), "fr/tags.tsv is not in byte order");
-    // The pack lays its pool out as the pin: fr-en carries no sense tag yet, so the pool is the pin.
+    // The pack lays its pool out as the pin, then the tags only fr-en's sense runs carry
+    // (add-lingua-pack-fr-en: `ADV`, a noun run's `NOUN|Gender=Fem`…), each once, sorted.
     let (_, sections) = read_container(fr_en()).unwrap();
     let pool = sections
         .iter()
         .find(|s| s.name == section::TAGS)
         .map(|s| String::from_utf8(s.data.clone()).unwrap())
         .expect("a tag pool");
-    assert_eq!(pool.split('\n').collect::<Vec<_>>(), lines);
+    let pool: Vec<&str> = pool.split('\n').collect();
+    assert_eq!(pool[..lines.len()], lines[..]);
+    let senses = &pool[lines.len()..];
+    assert!(senses.contains(&"ADV"), "{senses:?}");
+    assert!(senses.is_sorted(), "{senses:?}");
+    assert!(senses.iter().all(|tag| !lines.contains(tag)), "{senses:?}");
 }
 
 #[test]
@@ -772,9 +832,16 @@ fn spec_scenario_a_later_reduction_carries_a_new_tag() {
 fn spec_scenario_senses_another_pack_s_glosses_carry() {
     // A pack studying French, its glosses carrying a sense run tagged INTJ, a tag no reading
     // carries: its readings are stored byte for byte as without it, the pool only grows at its end,
-    // and the core reads the run as INTJ.
-    let build = |runs: bool| {
+    // and the core reads the run as INTJ. French's studied tables, fr-en's own native side left
+    // out — its runs carry INTJ already (add-lingua-pack-fr-en).
+    let studied_only = || {
         let mut inputs = inputs_from_tables(&tables(), "fr-en").expect("fr-en");
+        inputs.glosses.clear();
+        inputs.senses.clear();
+        inputs
+    };
+    let build = |runs: bool| {
+        let mut inputs = studied_only();
         inputs.glosses.push(("ah".into(), "Ah!".into()));
         if runs {
             inputs.senses.push(("ah".into(), vec![("INTJ".into(), 1)]));
@@ -806,7 +873,7 @@ fn spec_scenario_senses_another_pack_s_glosses_carry() {
         .collect();
     assert_eq!(runs, ["INTJ"]);
     // Built without a pin — one sorted pool —, INTJ falls among the readings' tags and moves them.
-    let mut unpinned = inputs_from_tables(&tables(), "fr-en").expect("fr-en");
+    let mut unpinned = studied_only();
     unpinned.glosses.push(("ah".into(), "Ah!".into()));
     unpinned
         .senses

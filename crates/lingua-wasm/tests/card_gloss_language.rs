@@ -24,10 +24,10 @@
 //!
 //! A French expression card is named by its headword (add-lingua-french-expression-keys D3):
 //! reviewed in another language than its gloss's, it is read in the table at the key its name
-//! reads as, on the fr-en fixture until French's tables are committed. A Spanish expression card
-//! is named by its headword too (add-lingua-spanish-expression-keys D3), and one made before was
-//! made under its key: review reads es-fr's table at the card's lemma, then at the key the lemma
-//! reads as (D7).
+//! reads as, in the pack built from the committed French tables (add-lingua-pack-fr-en; the fr-en
+//! fixture before them). A Spanish expression card is named by its headword too
+//! (add-lingua-spanish-expression-keys D3), and one made before was made under its key: review
+//! reads es-fr's table at the card's lemma, then at the key the lemma reads as (D7).
 //!
 //! Host only: the pack builder is native (C zstd).
 
@@ -403,7 +403,7 @@ fn french_card_glossed_in_spanish(lemma: &str, surface: &str, gloss: &str) -> St
     .to_string()
 }
 
-/// An English-native engine holding the fr-en fixture beside es-en, as the French baseline's
+/// An English-native engine holding fr-en's committed pack beside es-en, as the French baseline's
 /// reader does, reviewing the French card the operation creates.
 fn english_native_reviewing_french(op: &str) -> LinguaEngine {
     let mut engine = FRENCH.loaded();
@@ -419,13 +419,13 @@ fn english_native_reviewing_french(op: &str) -> LinguaEngine {
 
 #[test]
 fn spec_scenario_a_french_expression_card_glossed_in_another_language() {
-    let fixture = Pack::load(&PackSource::Testdata.pack("fr-en")).unwrap();
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
     // `au revoir` is the card's name, no key of the table; `à le revoir` is its key.
-    assert_eq!(fixture.expression("au revoir"), None);
-    assert_eq!(fixture.expression_name("à le revoir"), Some("au revoir"));
-    let pack_gloss = fixture
+    assert_eq!(pack.expression("au revoir"), None);
+    assert_eq!(pack.expression_name("à le revoir"), Some("au revoir"));
+    let pack_gloss = pack
         .expression("à le revoir")
-        .expect("the fixture holds the key")
+        .expect("the pack holds the key")
         .to_owned();
 
     let mut engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
@@ -437,7 +437,7 @@ fn spec_scenario_a_french_expression_card_glossed_in_another_language() {
     assert_eq!(shown["headword"], "au revoir");
     assert_eq!(
         shown["gloss"], pack_gloss,
-        "the fixture's gloss for `à le revoir`"
+        "the pack's gloss for `à le revoir`"
     );
     // The card keeps its Spanish text and label, under review and once graded.
     assert_eq!(
@@ -453,8 +453,8 @@ fn spec_scenario_a_french_expression_card_glossed_in_another_language() {
 
 #[test]
 fn a_french_card_is_read_at_its_name_s_key_or_shows_its_own_text() {
-    let fixture = Pack::load(&PackSource::Testdata.pack("fr-en")).unwrap();
-    let gloss_of = |key: &str| fixture.expression(key).expect(key).to_owned();
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    let gloss_of = |key: &str| pack.expression(key).expect(key).to_owned();
     for (lemma, surface, text, shown) in [
         // Named by its headword, read at its key; a name that is its own key.
         ("il y a", "il y avait", "hay", gloss_of("il y avoir")),
@@ -466,19 +466,19 @@ fn a_french_card_is_read_at_its_name_s_key_or_shows_its_own_text() {
         ),
         // A card made under the key itself, a lemma chain, reads as that key too.
         ("à le revoir", "Au revoir", "adiós", gloss_of("à le revoir")),
-        // An expression the fixture does not hold shows the card's own text; a French word is
-        // read as before.
+        // An expression the pack does not hold shows the card's own text; a French word is read
+        // as before.
         (
-            "au bord de",
-            "au bord du",
-            "al borde de",
-            "al borde de".to_owned(),
+            "au bout du quai",
+            "au bout du quai",
+            "al final del muelle",
+            "al final del muelle".to_owned(),
         ),
         (
             "maison",
             "maison",
             "casa",
-            fixture.gloss("maison").expect("maison").to_owned(),
+            pack.gloss("maison").expect("maison").to_owned(),
         ),
     ] {
         let engine =
