@@ -77,5 +77,7 @@ pub const SPANISH_ANALYZER_VERSION: &str = "1.5.0";
 /// function words, « pas » among them, and a French document's names are set
 /// aside (`engine::document_names`); `1.1.0` since add-lingua-french-detection-guard
 /// keeps Catalan, Occitan and Romanian blocks out (`language::romance_neighbour`);
-/// `1.2.0` since ignore-lingua-soft-hyphens reads a word without its soft hyphens.
-pub const FRENCH_ANALYZER_VERSION: &str = "1.2.0";
+/// `1.2.0` since ignore-lingua-soft-hyphens reads a word without its soft hyphens;
+/// `1.3.0` since keep-lingua-french-acronyms-in-capitals reads a word standing alone
+/// in capitals as the acronym its pack lists.
+pub const FRENCH_ANALYZER_VERSION: &str = "1.3.0";
