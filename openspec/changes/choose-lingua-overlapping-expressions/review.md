@@ -1,20 +1,283 @@
-# Sampled review — choose-lingua-french-overlapping-expressions
+# Sampled review — choose-lingua-overlapping-expressions
 
-The 30 sampled changes behind design D4, one table per rule and language. Each rule ran over every
-selection of the corpora (design, *Context*); a change is a selection whose matches moved, counted
-once over the language's two pairs; 30 were drawn from them (seed 20261010) and judged by one
-judge, as the study's marks were: **better** — the rule's reading is the one a reader needs at that
-place; **worse** — today's was; **neither** — both wrong, or both right. « Today » and « Rule » are
-the expressions reported over the overlap (fr-en's, or fr-es's where only fr-es moved; es-fr's or
-es-en's; en-fr's or en-es's). The overlap is between ⟦ ⟧ in the page's words, five words either
-side; not in English, whose corpora are mostly dictionary quotations, some from songs and books under
-copyright: there only the expressions are shown. Indicative: ± 6 points on 30.
+The changes behind design D1, D3 and D5. A change is a selection whose matches moved, counted once
+over the language's two pairs. Sections 1 and 2 are measured on `main` d02371ac with the rule as
+settled; section 3 is the first round, on `main` 9c88442a. Judged by one judge, as the study's
+marks were: **better** — the new reading is the one a reader needs at that place; **worse** — the
+old one was; **neither** — both wrong, or both right. Samples are 30 drawn at random (seed
+20261010), indicative ± 6 points. « Today » and « Rule » are the expressions reported over the
+overlap (fr-en's, or fr-es's where only fr-es moved; es-fr's or es-en's; en-fr's or en-es's); for a
+guard, « Rule » is what the rule would show without the guard and « Today » what it shows with it,
+and **better** means the guard is right to keep today's reading. The overlap is between ⟦ ⟧ in the
+page's words, five words either side — not in English, whose corpora are mostly dictionary
+quotations, some from songs and books under copyright: there only the expressions are shown.
 
-## A — The longer match wins
+## 1. The rule as settled — 30 sampled per language
+
+### French: 346 selections moved; sampled 30: 28 better, 0 worse, 2 neither
+
+| # | Pair | Selection | Today | Rule | |
+|---|---|---|---|---|---|
+| 1 | fr-en | ce spectacle où la nostalgie ⟦sera à l'honneur⟧ . | `être à` | `à l'honneur` | better |
+| 2 | fr-en+fr-es | Il semble qu'il ⟦soit au courant⟧ des faits. | `être à` | `au courant` | better |
+| 3 | fr-en | sont leurs animaux qui les ⟦ont. Il⟧ n'y a pas de _boss_ | `a-t-il` | none | better |
+| 4 | fr-en | le norouâ qui prend: il ⟦va y avoir⟧ une tempête, dit Tit'Sèbe. | `allez-y` | `y avoir` | better |
+| 5 | fr-en | ⟦J'ai besoin d'⟧ informations. | `j'ai` | `avoir besoin de` | better |
+| 6 | fr-es | le catalan et l'espagnol. C' ⟦est à la suite de⟧ cela que l'occitan est une | `être à` | `à la suite de` | better |
+| 7 | fr-en | et témoigne que son caractère ⟦est à la hauteur⟧ de son génie. | `être à` | `à la hauteur` | better |
+| 8 | fr-en | avec ce peuple comme quelqu’un ⟦venu du côté de l’⟧ orient. Ils regardaient profondément la | `venir de`, `de l'` | `du côté de` | better |
+| 9 | fr-en | de Cardiff (Pays de Galles), ⟦était à l'origine⟧ une collection de scripts pouvant | `être à` | `à l'origine` | better |
+| 10 | fr-en | géant turc des télécommunications qui ⟦est, à compter de la⟧ saison 2009-2010, le principal sponsor | `être à`, `de la` | `à compter de` | better |
+| 11 | fr-en | qu'elle passera sur tout. Et ⟦puis je⟧ compte sur l'amitié de Mme | `puis-je` | none | better |
+| 12 | fr-en | moins destinée au dancefloor comme ⟦c'est le cas⟧ pour le Crunk d'Atlanta. | `c'est` | `être le cas` | better |
+| 13 | fr-en+fr-es | 2019, la population de Florence ⟦est à peu près⟧ à 85 % d'origine italienne | `être à` | `à peu près` | better |
+| 14 | fr-en | Le cinéma hispanophone ⟦est à l'honneur⟧ avec, au mois de mars, | `être à` | `à l'honneur` | better |
+| 15 | fr-en | parties ne parviennent pas à ⟦se mettre d'accord⟧ sur la composition du corps | `se mettre`, `d'accord` | `mettre d'accord` | neither |
+| 16 | fr-en | de la prison; les prisonniers ⟦sont au fond⟧ ._) | `être à` | `au fond` | better |
+| 17 | fr-en | ⟦Tous firent la fête⟧ . | `tout fait` | `faire la fête` | better |
+| 18 | fr-en | les activités artistiques et créatives. ⟦C'est le cas⟧ de l'université Harvard, à la | `c'est` | `être le cas` | better |
+| 19 | fr-en+fr-es | J' ⟦étais au milieu de⟧ quelque chose. | `être à` | `au milieu de` | better |
+| 20 | fr-en | de peinture de la Catalogne ⟦sont, au regard de la⟧ fréquentation en 2014, le théâtre-musée | `être à`, `de la` | `au regard de` | better |
+| 21 | fr-en | De fil en aiguille se ⟦tient à la maison⟧ pour tous Mélina Mercouri de | `tenir à` | `à la maison` | neither |
+| 22 | fr-en+fr-es | récession cet hiver, la moins-value ⟦serait au maximum⟧ de quelques centaines de millions | `être à` | `au maximum` | better |
+| 23 | fr-en | bien fini, il en était ⟦quitte à bon compte⟧ . Mais au moment d'atteindre | `quitte à` | `à bon compte` | better |
+| 24 | fr-en | dès le XIe siècle. Elle ⟦est à l'origine⟧ un prieuré de l'abbaye de | `être à` | `à l'origine` | better |
+| 25 | fr-en | J'en ai assez d' ⟦être à la maison⟧ toute la journée. | `être à` | `à la maison` | better |
+| 26 | fr-en | Je crois que ⟦j'ai besoin de⟧ bretelles. | `j'ai` | `avoir besoin de` | better |
+| 27 | fr-en | Cet article ⟦est à l'origine⟧ une traduction tirée de l'Encyclopædia | `être à` | `à l'origine` | better |
+| 28 | fr-es | Ce mot ⟦a au moins⟧ trois différentes significations. | `avoir à` | `au moins` | better |
+| 29 | fr-en | chef en Roussillon, où il ⟦est à l’origine⟧ de grands travaux, du renouveau | `être à` | `à l'origine` | better |
+| 30 | fr-es | CARDINAL--C' ⟦est à peu près⟧ ce qu'on m'a déjà rapporté. | `être à` | `à peu près` | better |
+
+### Spanish: 567 selections moved; sampled 30: 22 better, 2 worse, 6 neither
+
+| # | Pair | Selection | Today | Rule | |
+|---|---|---|---|---|---|
+| 1 | es-fr | ⟦Sabíamos que su madre⟧ no había sido capaz de | `sabiendo que` | `que su madre` | neither |
+| 2 | es-en | habilidades malabarísticas de vuestro hermano ⟦no son nada del otro mundo⟧ . | `no ser nada` | `nada del otro mundo` | better |
+| 3 | es-en | Cálzate ya y ⟦vámonos de una vez⟧ . | `ir de`, `una vez` | `de una vez` | better |
+| 4 | es-en | Los amantes ⟦iban del brazo⟧ . | `ir de` | `del brazo` | better |
+| 5 | es-en | Nuestros descendientes ⟦llegarán tarde o temprano⟧ , como raza, a la | `llegar tarde` | `tarde o temprano` | better |
+| 6 | es-fr | ⟦Tengo dolor de cabeza⟧ . | `tener dolor`, `de cabeza` | `dolor de cabeza` | better |
+| 7 | es-en | No, ⟦es de segunda mano⟧ . | `ser de` | `de segunda mano` | better |
+| 8 | es-fr+es-en | alemán no significa necesariamente no ⟦tener sentido del humor⟧ . | `tener sentido` | `sentido del humor` | better |
+| 9 | es-en | que me contó aquel niño ⟦era de lo más⟧ extraordinario. | `ser de` | `de lo más` | better |
+| 10 | es-en | Estos cuadernos ⟦son del mismo⟧ grosor. | `ser de` | `del mismo` | better |
+| 11 | es-en | Este coñac ⟦tiene, por lo menos⟧ , treinta años. | `tener por` | `por lo menos` | better |
+| 12 | es-en | conseguí un nuevo trabajo, pero ⟦no es nada del otro mundo⟧ . | `no ser nada` | `nada del otro mundo` | better |
+| 13 | es-fr | Tú ⟦sabías que yo sabía⟧ . | `sabiendo que` | `que yo sepa` | neither |
+| 14 | es-en | casa, y nada más. No ⟦tengo, por lo tanto⟧ , le repito por décima | `tener por` | `por lo tanto` | better |
+| 15 | es-en | ¿ ⟦Qué es lo que hay⟧ sobre la cama? | `qué fue`, `lo que` | `es lo que hay` | worse |
+| 16 | es-fr | por una nimiedad que no ⟦iba a ninguna parte⟧ . | `ir a`, `ninguna parte` | `a ninguna parte` | neither |
+| 17 | es-en | Nosotros ⟦vamos de vez en cuando⟧ al zoológico. | `ir de` | `de vez en cuando` | better |
+| 18 | es-fr | Tom nunca ⟦va a ninguna parte⟧ sin su teléfono. | `ir a`, `ninguna parte` | `a ninguna parte` | neither |
+| 19 | es-en | Este sofá no ⟦es de ninguna manera⟧ cómodo para sentarse. | `ser de` | `de ninguna manera` | better |
+| 20 | es-en | Hoy, al llegar al supermercado, ⟦me llamó la atención⟧ un jugo de caja de | `me llamo` | `llamar la atención` | better |
+| 21 | es-fr | Queremos ⟦seguir siendo lo que somos⟧ . | `seguir siendo`, `lo que sea` | `sea lo que sea` | worse |
+| 22 | es-fr | algunos preguntan "¿por qué?", otros ⟦preguntan "¿por qué no⟧ ?". | `preguntar por` | `por qué no` | better |
+| 23 | es-en | No ⟦es de ninguna manera⟧ imposible ganar un millón de | `ser de` | `de ninguna manera` | better |
+| 24 | es-fr | «e» cerrada (Valéncia), lo cual ⟦sigue siendo objeto de⟧ controversia lingüística.​ El 14 de | `seguir siendo` | `ser objeto de` | better |
+| 25 | es-en | El vestido en el aparador ⟦me llamó la atención⟧ . | `me llamo` | `llamar la atención` | better |
+| 26 | es-fr | que tenga más arte, no ⟦voy a ninguna parte⟧ a dejarme machetiar. | `ir a`, `ninguna parte` | `a ninguna parte` | neither |
+| 27 | es-en | El queso no ⟦es del mismo⟧ color que el quesillo. | `ser de` | `del mismo` | better |
+| 28 | es-fr | este ataque a Largo Caballero ⟦contaban con el apoyo de⟧ la fracción socialista de Indalecio | `contar con` | `con el apoyo de` | neither |
+| 29 | es-fr+es-en | No sé qué ⟦hacer de ahora en adelante⟧ . | `hacer de`, `en adelante` | `de ahora en adelante` | better |
+| 30 | es-en | Esta desorganización de la sociedad ⟦iba de día en día⟧ aumentándose como un cáncer y | `ir de` | `de día en día` | better |
+
+### English: 160 selections moved; sampled 30: 22 better, 2 worse, 6 neither
+
+| # | Pair | Selection | Today | Rule | |
+|---|---|---|---|---|---|
+| 1 | en-fr | — | `phase out` | `out of gas` | worse |
+| 2 | en-es | — | `be on` | `on account of` | better |
+| 3 | en-es | — | `come at` | `at the expense of` | better |
+| 4 | en-es | — | `be all` | `all the rage` | better |
+| 5 | en-es | — | `that be`, `use to` | `be use to` | better |
+| 6 | en-es | — | `speak to` | `to the power of` | neither |
+| 7 | en-fr | — | `come out` | `out of the wood` | worse |
+| 8 | en-fr+en-es | — | `stand in` | `in front of` | better |
+| 9 | en-es | — | `be on` | `on the whole` | better |
+| 10 | en-es | — | `stand in` | `in the way` | better |
+| 11 | en-es | — | `be on` | `on all four` | better |
+| 12 | en-fr+en-es | — | `go back` | `back and forth` | better |
+| 13 | en-fr | — | `that be` | `be unable to` | better |
+| 14 | en-es | — | `be born` | `born and breed` | better |
+| 15 | en-fr | — | `get in` | `in the house` | neither |
+| 16 | en-es | — | `be go to`, `get rid of` | `to get rid of` | better |
+| 17 | en-es | — | `fall on` | `on the line` | neither |
+| 18 | en-fr | — | `put in` | `in the middle` | better |
+| 19 | en-fr+en-es | — | `run down` | `down the road` | neither |
+| 20 | en-es | — | `be on`, `cloud nine` | `on cloud nine` | better |
+| 21 | en-fr+en-es | — | `go in`, `out of` | `in and out` | better |
+| 22 | en-es | — | `slip up` | `up and down` | better |
+| 23 | en-fr | — | `come down` | `down the road` | neither |
+| 24 | en-fr+en-es | — | `go over` | `over the top` | better |
+| 25 | en-fr | — | `go on` | `on the right` | better |
+| 26 | en-es | — | `be all` | `all the rage` | better |
+| 27 | en-es | — | `reel in` | `in the red` | neither |
+| 28 | en-fr | — | `get out` | `out of hand` | better |
+| 29 | en-es | — | `speak out` | `out of turn` | better |
+| 30 | en-fr+en-es | — | `act on` | `on behalf of` | better |
+
+## 2. The guards — every selection each one changes
+
+### G1 — a French headword's hyphen, on its own: 53 selections (fr-en 49, fr-es 4); 38 better, 15 worse
+
+What the hyphen check moves on today's order, before any overlap: « Today » is what `main` shows, « With the guard » what the check leaves.
+
+| # | Pair | Selection | Today | With the guard | |
+|---|---|---|---|---|---|
+| 1 | fr-en | Le cours de dessin ⟦est il⟧ pour les débutants ? | `est-il` | none | worse |
+| 2 | fr-en | À l' ⟦Est, il⟧ rencontre des anonymes, des dissidents | `est-il` | none | better |
+| 3 | fr-en | ⟦Est ce que⟧ vous envisagez un retour définitif | `est-ce que` | `ce que` | worse |
+| 4 | fr-en | ⟦Est ce que tout est frais ou n'y aurait il⟧ pas un peu de surgelé | `est-ce que`, `n'y a-t-il` | `ce que`, `y avoir` | worse |
+| 5 | fr-en | même avis que moi, alors ⟦allez y⟧ une fois, 13 euros c'est | `allez-y` | none | worse |
+| 6 | fr-en | (...) Je suis sûr qu'on ⟦va y⟧ arriver, que l'on est en | `allez-y` | none | better |
+| 7 | fr-en | à son capitaine : « ⟦Qu'est ce que⟧ Nelson donnerait pour être ici | `qu'est-ce que` | `ce que` | worse |
+| 8 | fr-en | Nous sommes ⟦allés y⟧ manger avec ma petite famille | `allez-y` | none | better |
+| 9 | fr-en | ⟦Sera t-il⟧ question du retour de Tiger | `est-il` | none | worse |
+| 10 | fr-en | dans son propre habitacle "n' ⟦est il⟧ pas sorti, le Pan American | `est-il` | none | worse |
+| 11 | fr-en | sont leurs animaux qui les ⟦ont. Il⟧ n'y a pas de _boss_ | `a-t-il` | none | better |
+| 12 | fr-en | le norouâ qui prend: il ⟦va y avoir⟧ une tempête, dit Tit'Sèbe. | `allez-y` | `y avoir` | better |
+| 13 | fr-en | j'ai pris ma hache et ⟦puis je⟧ lui ai dit: «Je vas | `puis-je` | none | better |
+| 14 | fr-en | grand manteau_--Vous voyez cette porte, ⟦n'est ce pas⟧ ? | `n'est-ce pas` | none | worse |
+| 15 | fr-en | Mince et long comme il ⟦est, il⟧ ne doit pas faire grande | `est-il` | none | better |
+| 16 | fr-en | grande hauteur de sa tête. ⟦Puis je⟧ lui passai la pierre et | `puis-je` | none | better |
+| 17 | fr-en | là des cerises à l’ ⟦été? Il y aura⟧ des meules de foin tiède | `est-il`, `y avoir` | `il y a` | better |
+| 18 | fr-en | temps à ce jeu et ⟦puis je⟧ m’en allai par le bois. | `puis-je` | none | better |
+| 19 | fr-en | sacré. Je la regardais et ⟦puis je⟧ regardais les grandes roues vermeilles. | `puis-je` | none | better |
+| 20 | fr-en | désert ne les avait pas ⟦eues, il⟧ n’eût pas changé les tigres | `a-t-il` | none | better |
+| 21 | fr-en | limite des hameaux. Quelquefois ils ⟦allaient y⟧ chercher des femmes et s’y | `allez-y` | none | better |
+| 22 | fr-en | -- ⟦Vois tu⟧ , toi aussi je pourrais | `vois-tu` | none | worse |
+| 23 | fr-en | pierre comme il fait et ⟦puis je⟧ te dirai: ceci est la | `puis-je` | none | better |
+| 24 | fr-en | ⟦Qu’est ce qu’il y avait⟧ de commun entre ces gens | `qu'est-ce qu'il y a` | `ce que`, `il y a` | worse |
+| 25 | fr-en | ce hasard. Tout veuf qu'il ⟦soit, il⟧ est marié: il a épousé | `est-il` | none | better |
+| 26 | fr-en | encore plus étonnante qu'admirable. Je ⟦suis ce que⟧ je suis, et je n'ai | `est-ce que` | `ce que` | better |
+| 27 | fr-en | plus de crédit qu'elle n'en ⟦avait. Il⟧ lui arriva quelquefois de les | `a-t-il` | none | better |
+| 28 | fr-en | son principal malheur est d' ⟦être ce qu'⟧ elle est, et ce malheur, | `est-ce que` | `ce que` | better |
+| 29 | fr-en | de santé, et comme elle ⟦allait y⟧ entrer, elle aperçut de loin | `allez-y` | none | better |
+| 30 | fr-en | admiration. Je sais qui vous ⟦êtes, il⟧ n'est question dans ce pays | `est-il` | none | better |
+| 31 | fr-en | et lui; si désintéressé qu'il ⟦soit, il⟧ ne souffre pas qu'on lui | `est-il` | none | better |
+| 32 | fr-en | vous attardez trop. Vous avez ⟦eu, il y a⟧ trois semaines, une amygdalite, qui | `a-t-il`, `y avoir` | `il y a` | better |
+| 33 | fr-en | qu'elle passera sur tout. Et ⟦puis je⟧ compte sur l'amitié de Mme | `puis-je` | none | better |
+| 34 | fr-en | «Elle ⟦est ce qu'⟧ elle est, vous ne la | `est-ce que` | `ce que` | better |
+| 35 | fr-en | perturbées et orageuses en plein ⟦été. Il y a⟧ particulièrement une concentration de la | `est-il`, `y avoir` | `il y a` | better |
+| 36 | fr-en | standard : Je suis, tu ⟦es, il⟧ est, elle est, nous sommes, | `est-il` | none | better |
+| 37 | fr-en | ses travaux antérieurs. Pendant l' ⟦été 1924, il⟧ affine sa schématisation des formes, | `est-il` | none | better |
+| 38 | fr-en | À l’ ⟦est, il⟧ existe une zone de transition | `est-il` | none | better |
+| 39 | fr-en | Nord, des Allemands à l' ⟦Est. » Il⟧ en est de même pour | `est-il` | none | better |
+| 40 | fr-en | suis très content de te ⟦voir. Tu⟧ as mauvaise mine. | `vois-tu` | none | better |
+| 41 | fr-en | comment ne les auriez-vous pas ⟦vus, vous⟧ ? comment ne les aurais-je | `voyez-vous` | none | better |
+| 42 | fr-en | ⟦Qu'est ce qui⟧ est plus lourd : un | `qu'est-ce qui` | `ce qui` | worse |
+| 43 | fr-en | aujourd'hui. Est-ce que je vous ⟦mets en⟧ relation avec le médecin ? | `mets-en` | none | better |
+| 44 | fr-en | Je ⟦vais y⟧ réfléchir avec circonspection. | `allez-y` | none | better |
+| 45 | fr-en | Japon n'est plus ce qu'il ⟦était il y a⟧ 15 ans. | `est-il`, `y avoir` | `il y a` | better |
+| 46 | fr-en | Tu ⟦vas y⟧ réfléchir. | `allez-y` | none | better |
+| 47 | fr-en | On ⟦va y aller⟧ , mais sans toi. | `allez-y` | `y aller` | better |
+| 48 | fr-en | Pauvre comme il ⟦est, il⟧ est tout de même généreux. | `est-il` | none | better |
+| 49 | fr-en | Tu vas ⟦voir, tu⟧ t'y feras très rapidement. | `vois-tu` | none | better |
+| 50 | fr-es | à son capitaine : « ⟦Qu'est ce que⟧ Nelson donnerait pour être ici | `qu'est-ce que` | `ce que` | worse |
+| 51 | fr-es | grand manteau_--Vous voyez cette porte, ⟦n'est ce pas⟧ ? | `n'est-ce pas` | none | worse |
+| 52 | fr-es | ⟦Qu’est ce qu’⟧ il y avait de commun | `qu'est-ce que` | `ce que` | worse |
+| 53 | fr-es | ⟦Qu'est ce qui⟧ est plus lourd : un | `qu'est-ce qui` | `ce qui` | worse |
+
+### G1 — in the overlap rule: 23 selections, all better
+
+Without the guard, `c'est` would give « est » to `est-ce que` (the yes-or-no question marker) on « c'est ce que », 23 times in fr-en (« C'est ce qu'on appelle une campagne », « Je suppose que c'est ce que vous voulez »); the page writes « est » and « ce » apart, so `est-ce que` does not meet it and `c'est` and `ce que` stay.
+
+### G2 — a preposition the page follows with « que » stays: 8 selections (Spanish), 8 better
+
+| # | Pair | Selection | With the guard | Without it | |
+|---|---|---|---|---|---|
+| 1 | es-fr | ⟦Pese a que no⟧ existe un consenso oficial al | as today | `a que no` | better |
+| 2 | es-fr | ⟦Pese a que no⟧ se han encontrado restos fósiles | as today | `a que no` | better |
+| 3 | es-fr | Pasé muchas dificultades en México ⟦debido a que no⟧ podía entender del todo el | as today | `a que no` | better |
+| 4 | es-fr | Tuvo fallos en el examen ⟦debido a que no⟧ había estudiado. | as today | `a que no` | better |
+| 5 | es-fr | línea quien marcó el gol ⟦pese a que no⟧ estaba parado a la altura | as today | `a que no` | better |
+| 6 | es-fr | Las encuestas ⟦apuntan a que no⟧ habrá mayoría para ninguno. | as today | `a que no` | better |
+| 7 | es-fr | ⟦Pese a que no⟧ tengo dinero, volví a comprarme | as today | `a que no` | better |
+| 8 | es-fr | queda toda podrida la fruta ⟦debido a que no⟧ la pusieron en el refrigerador. | as today | `a que no` | better |
+
+### G3 — the expression next is not cut: 7 Spanish selections, 5 better, 1 worse, 1 neither
+
+| # | Pair | Selection | With the guard | Without it | |
+|---|---|---|---|---|---|
+| 1 | es-fr | ¡Y ahora, concluído! Ella se ⟦iba al día siguiente⟧ a Montevideo. ¿Qué le importaba | as today | `al día` | better |
+| 2 | es-fr | ¿Alguna vez has ⟦ido al fin del mundo⟧ ? | as today | `al fin` | better |
+| 3 | es-fr | Ella ⟦sabe que yo sé que⟧ ella sabe. | as today | `que yo sepa` | neither |
+| 4 | es-fr | minuto más en ese lugar ⟦dejado de la mano de Dios⟧ . | as today | `de la mano` | better |
+| 5 | es-fr | Aquel pueblo está ⟦dejado de la mano de Dios⟧ . | as today | `de la mano` | better |
+| 6 | es-fr | él y su esposa se ⟦irían al día siguiente⟧ . | as today | `al día` | better |
+| 7 | es-en | entender que las cosas no ⟦van del todo bien⟧ en su matrimonio. | as today | `del todo` | worse |
+
+### G3 — English: 3 selections, 2 better, 1 worse
+
+| # | Pair | Selection | With the guard | Without it | |
+|---|---|---|---|---|---|
+| 1 | en-es | — | as today | `up and run` | better |
+| 2 | en-es | — | as today | `on the way` | better |
+| 3 | en-es | — | as today | `all in a day's work` | worse |
+
+### Measured and not kept
+
+**S1 — a verb written as the headword writes it, inflected (« pese », « debido »), keeps its words** (Spanish): 36 selections, 10 better, 25 worse, 1 neither — `es más` (« what's more ») would keep « más » from `más o menos` 20 times.
+
+| Selections | The rule without the guard: today → rule | |
+|---|---|---|
+| 20 | `es más` → `más o menos` | worse |
+| 3 | `es que`, `lo que` → `que lo que` | better |
+| 2 | `está claro` → `claro como el agua` | worse |
+| 2 | `debido a` → `al uso` | better |
+| 2 | `puede que`, `lo que` → `que lo que` | better |
+| 1 | `debido a` → `a la vuelta de` | better |
+| 1 | `burlarse de` → `de todo tipo` | neither |
+| 1 | `echarse a dormir` → `dormir a pierna suelta` | worse |
+| 1 | `es más` → `más viejo que matusalén` | worse |
+| 1 | `debido a` → `al tiempo` | better |
+| 1 | `es más` → `más feo que pegar a un padre` | worse |
+| 1 | `debido a` → `a la última` | better |
+
+**S3 — a last `que` stays** (Spanish, French): 18 selections, 6 better, 3 worse, 9 neither.
+
+| Selections | The rule without the guard: today → rule | |
+|---|---|---|
+| 5 | `sabiendo que` → `que yo sepa` | neither |
+| 4 | `es que`, `lo que` → `que lo que` | better |
+| 2 | `sabiendo que` → `que su madre` | neither |
+| 2 | `sabiendo que`, `así sea` → `que así sea` | neither |
+| 2 | `puede que`, `lo que` → `que lo que` | better |
+| 2 | `estar que` → `que te cagas` | worse |
+| 1 | `dire que`, `est-ce que` → `qu'est-ce que` | worse |
+
+
+**G3 without « holding a word that is not a function word »** — cutting any next expression, `de la` and `de l'` included: 14 selections more than G3, 13 worse, 1 neither (French 10: `à cause de` on « c'est à cause de la souris », `au regard de` on « sont, au regard de la fréquentation »; Spanish 1: `de aquí a` on « hay de aquí a la estación »; English 3: `in and out` on « moving in and out of the shops »).
+
+| Selections | The rule without the guard: today → rule | |
+|---|---|---|
+| 1 | `tenir à`, `de la` → `à l'occasion de` | worse |
+| 1 | `être à`, `de la` → `à compter de` | worse |
+| 1 | `venir de`, `de l'` → `du côté de` | worse |
+| 1 | `être à`, `pas de` → `à deux pas`, `de l'` | worse |
+| 1 | `j'ai`, `d'y` → `avoir raison de` | worse |
+| 1 | `être à`, `de la` → `au regard de` | worse |
+| 1 | `être à`, `de l'` → `au temps de` | worse |
+| 1 | `être à`, `de la` → `à l'extérieur de` | worse |
+| 1 | `être à`, `de la` → `à moins de` | neither |
+| 1 | `être à`, `de la` → `à cause de` | worse |
+| 1 | `haber de`, `a la` → `de aquí a` | worse |
+| 2 | `move in`, `out of` → `in and out` | worse |
+| 1 | `go in`, `out of` → `in and out` | worse |
+
+
+## 3. First round — rules A to I, on `main` 9c88442a
+
+The rules design D5 compares, as the first proposal measured them; F there is that proposal's rule — French only, a preposition only, no guard.
+
+### A — The longer match wins
 
 Every run that is a key, from every token, taken longest first (ties to the left), none overlapping one already taken.
 
-### A — French, the rule for French alone: 533 selections moved; sampled 30: 20 better, 7 worse, 3 neither
+#### A — French, the rule for French alone: 533 selections moved; sampled 30: 20 better, 7 worse, 3 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -49,7 +312,7 @@ Every run that is a key, from every token, taken longest first (ties to the left
 | 29 | fr-en | Gondebaud qui incendient la ville. ⟦Jusqu'à la fin⟧ du haut Moyen Âge, on | `jusqu'à` | `à la fin` | worse |
 | 30 | fr-en | Pas ⟦autant que je sache⟧ . | `autant que` | `que je sache` | better |
 
-### A — Spanish, were it shared: 1,361 selections moved; sampled 30: 17 better, 6 worse, 7 neither
+#### A — Spanish, were it shared: 1,361 selections moved; sampled 30: 17 better, 6 worse, 7 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -84,7 +347,7 @@ Every run that is a key, from every token, taken longest first (ties to the left
 | 29 | es-en | de idiomas conecta a personas ⟦de todo el mundo⟧ . | `de todo` | `todo el mundo` | better |
 | 30 | es-en | a casa anoche, los otros ⟦ya estaban en cama⟧ profundamente dormidos. | `ya está`, `en cama` | `estar en cama` | better |
 
-### A — English, were it shared: 320 selections moved; sampled 30: 23 better, 5 worse, 2 neither
+#### A — English, were it shared: 320 selections moved; sampled 30: 23 better, 5 worse, 2 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -119,11 +382,11 @@ Every run that is a key, from every token, taken longest first (ties to the left
 | 29 | en-es | — | `to get` | `get on with` | better |
 | 30 | en-es | — | `i see` | `see you late` | better |
 
-## B — The most words covered
+### B — The most words covered
 
 The set of non-overlapping matches covering the most tokens (ties to the left).
 
-### B — French: 599 selections moved; sampled 30: 13 better, 14 worse, 3 neither
+#### B — French: 599 selections moved; sampled 30: 13 better, 14 worse, 3 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -158,7 +421,7 @@ The set of non-overlapping matches covering the most tokens (ties to the left).
 | 29 | fr-en | Je parle de l'isolement d'un ⟦être au sein de⟧ sa propre famille, où il | `être à` | `au sein de` | better |
 | 30 | fr-en | France, sur l'appartenance ou non ⟦de l'espace d'⟧ oc au français. Alors que | `de l'` | `l'espace de` | neither |
 
-### B — Spanish, were it shared: 2,212 selections moved; sampled 30: 11 better, 18 worse, 1 neither
+#### B — Spanish, were it shared: 2,212 selections moved; sampled 30: 11 better, 18 worse, 1 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -193,7 +456,7 @@ The set of non-overlapping matches covering the most tokens (ties to the left).
 | 29 | es-en | No ⟦es de ninguna manera⟧ imposible ganar un millón de | `ser de` | `de ninguna manera` | better |
 | 30 | es-en | ⟦Si no es para tanto⟧ . | `si no` | `no ser para tanto` | better |
 
-### B — English, were it shared: 386 selections moved; sampled 30: 20 better, 8 worse, 2 neither
+#### B — English, were it shared: 386 selections moved; sampled 30: 20 better, 8 worse, 2 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -228,11 +491,11 @@ The set of non-overlapping matches covering the most tokens (ties to the left).
 | 29 | en-fr | — | `get out` | `out of hand` | better |
 | 30 | en-fr | — | `cotton on` | `on the right` | better |
 
-## C — The « au » whole
+### C — The « au » whole
 
 A match ending on the `à` of « au » or « aux » gives it to any match starting on that `à` (Spanish: « al », « del »).
 
-### C — French: 102 selections moved; sampled 30: 21 better, 9 worse, 0 neither
+#### C — French: 102 selections moved; sampled 30: 21 better, 9 worse, 0 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -267,7 +530,7 @@ A match ending on the `à` of « au » or « aux » gives it to any match starti
 | 29 | fr-es | tout graphe simple planaire connexe, ⟦ayant au moins⟧ trois sommets, vérifie la majoration | `avoir à` | `au moins` | better |
 | 30 | fr-en+fr-es | chuis », voire « je ⟦suis » au lieu de⟧ « chus », etc. Certains | `être à` | `au lieu de` | better |
 
-### C — Spanish, were it shared: 144 selections moved; sampled 30: 17 better, 12 worse, 1 neither
+#### C — Spanish, were it shared: 144 selections moved; sampled 30: 17 better, 12 worse, 1 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -302,11 +565,11 @@ A match ending on the `à` of « au » or « aux » gives it to any match starti
 | 29 | es-en | Ainara logró calcularlo todo ⟦dentro del tiempo⟧ estipulado. | `dentro de` | `del tiempo` | worse |
 | 30 | es-en | Él lleva un paquete ⟦debajo del brazo derecho⟧ . | `debajo de`, `brazo derecho` | `del brazo` | worse |
 
-## D — More written words at the « au »
+### D — More written words at the « au »
 
 As C, only to a match covering more of the page's written words.
 
-### D — French: 39 selections moved; sampled 30: 17 better, 13 worse, 0 neither
+#### D — French: 39 selections moved; sampled 30: 17 better, 13 worse, 0 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -341,11 +604,11 @@ As C, only to a match covering more of the page's written words.
 | 29 | fr-en | Je parle de l'isolement d'un ⟦être au sein de⟧ sa propre famille, où il | `être à` | `au sein de` | better |
 | 30 | fr-en+fr-es | La semaine dernière nous ⟦étions au bord du gouffre⟧ , cette semaine nous avons | `être à` | `au bord du gouffre` | better |
 
-## E — A verb's « au »
+### E — A verb's « au »
 
 As C, only when the giving match holds a verb.
 
-### E — French: 58 selections moved; sampled 30: 28 better, 0 worse, 2 neither
+#### E — French: 58 selections moved; sampled 30: 28 better, 0 worse, 2 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -380,7 +643,7 @@ As C, only when the giving match holds a verb.
 | 29 | fr-en+fr-es | pas sur son sort; je ⟦suis au courant⟧ de ses petites affaires, sa | `être à` | `au courant` | better |
 | 30 | fr-en | Ils ⟦sont au nombre de⟧ 12 en France pour la | `être à`, `nombre de` | `au nombre de` | better |
 
-### E — Spanish, were it shared: 82 selections moved; sampled 30: 25 better, 5 worse, 0 neither
+#### E — Spanish, were it shared: 82 selections moved; sampled 30: 25 better, 5 worse, 0 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -415,11 +678,11 @@ As C, only when the giving match holds a verb.
 | 29 | es-fr | Si no sabes adónde ⟦vas al menos⟧ deberías ser el primero en | `ir a` | `al menos` | better |
 | 30 | es-en | los goces del lujo no ⟦son del todo⟧ incompatibles con este aislamiento; puede | `ser de` | `del todo` | better |
 
-## F — This design (D1)
+### F — This design (D1)
 
 A match built on a verb gives the preposition it ends on to the match starting on it, when that one is longer or the preposition is the `à` of « au »/« aux ».
 
-### F — French: 199 selections moved; sampled 30: 30 better, 0 worse, 0 neither
+#### F — French: 199 selections moved; sampled 30: 30 better, 0 worse, 0 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -454,7 +717,7 @@ A match built on a verb gives the preposition it ends on to the match starting o
 | 29 | fr-es | Ce mot ⟦a au moins⟧ trois différentes significations. | `avoir à` | `au moins` | better |
 | 30 | fr-es | CARDINAL--C' ⟦est à peu près⟧ ce qu'on m'a déjà rapporté. | `être à` | `à peu près` | better |
 
-### F — Spanish, were it shared: 331 selections moved; sampled 30: 25 better, 4 worse, 1 neither
+#### F — Spanish, were it shared: 331 selections moved; sampled 30: 25 better, 4 worse, 1 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -489,7 +752,7 @@ A match built on a verb gives the preposition it ends on to the match starting o
 | 29 | es-fr+es-en | no testificara, pero él lo ⟦hizo de todos modos⟧ . | `hacer de` | `de todos modos` | better |
 | 30 | es-fr | La estación del tren no ⟦está por la izquierda⟧ , entonces está por la | `estar por` | `por la izquierda` | better |
 
-### F — English, were it shared: 135 selections moved; sampled 30: 25 better, 3 worse, 2 neither
+#### F — English, were it shared: 135 selections moved; sampled 30: 25 better, 3 worse, 2 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -524,11 +787,11 @@ A match built on a verb gives the preposition it ends on to the match starting o
 | 29 | en-fr | — | `get out` | `out of control` | better |
 | 30 | en-es | — | `go through` | `through the roof` | better |
 
-## G — A verb's last word, any
+### G — A verb's last word, any
 
 F without « ends on a preposition »: a match built on a verb gives its last token to a longer match starting on it.
 
-### G — French: 353 selections moved; sampled 30: 26 better, 4 worse, 0 neither
+#### G — French: 353 selections moved; sampled 30: 26 better, 4 worse, 0 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -563,11 +826,11 @@ F without « ends on a preposition »: a match built on a verb gives its last to
 | 29 | fr-en | » ⟦C'est ce qu'⟧ aurait déclaré un ophtalmologiste d'Aix-en-Pr | `c'est`, `ce que` | `est-ce que` | worse |
 | 30 | fr-en | la norme parisienne. Dès lors ⟦se mettra en branle⟧ tout un mouvement visant à | `se mettre` | `mettre en branle` | better |
 
-## H — Any last word, the first holding a verb
+### H — Any last word, the first holding a verb
 
 A match holding a verb gives its last token to any match starting on it that reaches further.
 
-### H — French: 1,120 selections moved; sampled 30: 15 better, 14 worse, 1 neither
+#### H — French: 1,120 selections moved; sampled 30: 15 better, 14 worse, 1 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|
@@ -602,11 +865,11 @@ A match holding a verb gives its last token to any match starting on it that rea
 | 29 | fr-en | chaudes, les prix raisonnables et ⟦c'est à⟧ Metz ! | `c'est` | `être à` | worse |
 | 30 | fr-en+fr-es | Maintenant, ⟦c'est à⟧ la télévision que les enfants | `c'est` | `être à` | worse |
 
-## I — Any last word
+### I — Any last word
 
 A match gives its last token to any match starting on it that reaches further.
 
-### I — French: 2,910 selections moved; sampled 30: 7 better, 21 worse, 2 neither
+#### I — French: 2,910 selections moved; sampled 30: 7 better, 21 worse, 2 neither
 
 | # | Pair | Selection | Today | Rule | |
 |---|---|---|---|---|---|

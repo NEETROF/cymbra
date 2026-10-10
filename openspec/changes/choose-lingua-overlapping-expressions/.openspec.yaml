@@ -4,6 +4,7 @@ archiveAfter:
   - add-lingua-expression-table
   - add-lingua-french-baseline
   - add-lingua-french-tokenisation
+  - ignore-lingua-soft-hyphens
   - add-lingua-french-analysis
   - fix-lingua-lemma-lookup
   - add-lingua-french-expression-keys
@@ -11,6 +12,8 @@ archiveAfter:
   - add-lingua-french-grammar-tables
   - add-lingua-pack-fr-en
   - add-lingua-pack-fr-es
+  - add-lingua-pack-es-en
+  - add-lingua-pack-en-es
   - add-lingua-french-word-card
   - match-lingua-french-elided-pieces
   - match-lingua-french-contracted-pieces
