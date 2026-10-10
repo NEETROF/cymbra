@@ -40,7 +40,8 @@ French named wherever a Spanish reader's languages are; without fr-es, change 37
 what English speakers study moves. The owner pastes the variant that matches the release. Should
 change 34 or 35 be released before change 52, its texts are this file's version before
 add-lingua-french-listings. The French texts change only where they say what another reader studies
-(D3). No locale calls the app a beta or a trial, or says anything of price (guidelines 2.2 and
+(D3), and in the fr-FR description's step 3, aligned with the host app's French page by the owner on
+2026-10-10. No locale calls the app a beta or a trial, or says anything of price (guidelines 2.2 and
 2.3.7). Each count is the text's length in characters as App Store Connect counts them — every
 character inside the block or after `> `, line breaks included — and equals the text it heads.
 
@@ -51,7 +52,7 @@ character inside the block or after `> `, line breaks included — and equals th
 | Name | 30 | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) |
 | Subtitle | 30 | `Anglais et espagnol en lisant` (29) | `Spanish and French as you read` (30) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28) |
 | Promotional text | 170 | 154 characters, below | 130 characters, below | with fr-es 146 characters; without, 133 — below |
-| Description | 4000 | 3036 characters, below | 2923 characters, below | with fr-es 3307 characters; without, 2905 — below |
+| Description | 4000 | 3061 characters, below | 2923 characters, below | with fr-es 3307 characters; without, 2905 — below |
 | Keywords | 100 | 92 characters, below | 99 characters, below | with fr-es 99 characters; without, 98 — below |
 | Support URL | — | `https://cymbra.app/support/` | `https://cymbra.app/en/support/` | `https://cymbra.app/es/soporte/` or `https://cymbra.app/en/support/` — the owner chooses, below |
 | Marketing URL | — | `https://cymbra.app/lingua/` | `https://cymbra.app/en/lingua/` | `https://cymbra.app/es/lingua/` |
@@ -101,7 +102,7 @@ anglais,espagnol,vocabulaire,lecture,traduction,extension,apprendre,mots,révisi
 
 French takes the place of « review » in English and of « repaso » in Spanish
 (add-lingua-french-listings, *Measured*): at 99 and 98 of 100, the lists had no room for one more
-word; the owner may prefer another to give way (M9). The French keywords do not move, « CECRL »
+word — confirmed by the owner on 2026-10-10. The French keywords do not move, « CECRL »
 included: a search term no reader sees, the one French learners type (D7).
 
 ### en-US, en-GB (99 / 100)
@@ -126,7 +127,7 @@ inglés,vocabulario,lectura,traducción,extensión,aprender,palabras,repaso,MCER
 
 ## Description
 
-### fr-FR (3036 / 4000)
+### fr-FR (3061 / 4000)
 
 ```
 Cymbra Lingua est une extension Safari qui surligne, sur la page que vous lisez, les mots d'anglais ou d'espagnol que vous ne connaissez pas encore — sans rien changer à la mise en page. Une pastille vous dit quelle part du texte vous est familière, calculée sur ce que vous avez réellement marqué, pas sur une estimation.
@@ -135,7 +136,7 @@ APRÈS L'INSTALLATION
 Cette app installe l'extension ; il reste à l'activer.
 1. Ouvrez Réglages > Apps > Safari > Extensions (sur Mac : Safari > Réglages > Extensions).
 2. Activez Cymbra Lingua, puis autorisez-la sur les sites que vous lisez.
-3. Dans Safari, ouvrez l'extension depuis le menu de la barre d'adresse et choisissez votre niveau — sans lui, l'extension considère que vous ne connaissez aucun mot. Pour l'espagnol, cochez-le dans Réglages › Langue, puis choisissez votre niveau d'espagnol.
+3. Dans Safari, ouvrez l'extension depuis le menu de la barre d'adresse et choisissez votre niveau — sans lui, l'extension considère que vous ne connaissez aucun mot. Pour l'espagnol, cochez-le dans les Réglages de l'extension, onglet Langue, puis choisissez votre niveau d'espagnol.
 Rechargez les onglets déjà ouverts pour qu'ils soient surlignés.
 
 LIRE
@@ -162,11 +163,14 @@ L'interface est en français pour les francophones, qui apprennent l'anglais et 
 ```
 
 Its last line names what the readers of the other texts study, so it moves with them: English
-speakers learn Spanish and French from change 52 (add-lingua-french-listings, D3); it is pasted with
-that release, not before. A French speaker cannot study French, so nothing else in the French texts
-moves: its step 3 already says where a second language is ticked (« cochez-le dans Réglages ›
-Langue »), as the host app's French page does from change 52 in its own words (« coche-le dans les
-Réglages de l'extension, onglet Langue »).
+speakers learn Spanish and French from change 52 (add-lingua-french-listings, D3). Its step 3 says
+where a second language is ticked as the host app's French page does from change 52 (« coche-le
+dans les Réglages de l'extension, onglet Langue », its D7), in the description's own register
+(vous, where the page says tu): « cochez-le dans les Réglages de l'extension, onglet Langue », in
+place of « dans Réglages › Langue » — the owner's decision of 2026-10-10 (+25 characters), which
+keeps the extension's Réglages apart from step 1's, the system's. Both are pasted with change 52's
+release, not before. A French speaker cannot study French, so nothing else in the French texts
+moves.
 
 ### en-US, en-GB (2923 / 4000)
 
@@ -583,8 +587,8 @@ pestaña Idioma, y luego elige tu nivel de francés. »*; and in French, *« …
 d'anglais. Pour l'espagnol, coche-le dans les Réglages de l'extension, onglet Langue, puis choisis
 ton niveau d'espagnol. »* The en-US description's step 3 and the es-ES one with fr-es carry that
 sentence word for word — « of the extension » keeping its Settings apart from step 1's, the
-system's; the fr-FR description already said it in its own words (« cochez-le dans Réglages ›
-Langue »).
+system's —, and the fr-FR one in its own register (« cochez-le dans les Réglages de l'extension,
+onglet Langue »: vous, where the page says tu). The owner settled all three on 2026-10-10.
 
 ## Screenshots — what the slots actually asked for
 
