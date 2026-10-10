@@ -399,6 +399,11 @@ re-reduction, pin, README, `SOURCES.md` and notice 0.25–0.5; the goldens, snap
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session):** the reviewed list of 51 is enough, no finer review
+(1); the expressions are added before change 52 ships French (2); the section's own noisy expressions
+and fr-es's two defects are each a change of their own (3, 4); the two small defaults as recommended —
+every self-translation dropped, glosses kept whole (5).
+
 For the owner, none blocking but the first:
 1. **The list of 51** (D5). Do these read wrong to you, and should any stay — « travailler à » (met
    right in « il travaille à un projet », wrong in « il travaille à Genève »), « sortir avec » "date"
