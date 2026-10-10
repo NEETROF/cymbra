@@ -65,10 +65,19 @@
 //! each by its headword where its key differs (add-lingua-french-expression-keys): the probes
 //! « Au revoir », « D’abord », « au fur et à mesure » and « à cause des » find their expression,
 //! « il y a » and « il y avait » answer `il y a`, the Proust sentence `de bonne heure`,
-//! « jusqu'au soir » `jusqu'à`, « à la maison » the section's own `à la maison`, and « au marché »
-//! nothing. « un coup d’œil » meets `un coup` before `coup d'œil`, and « du pain et des œufs »
+//! « jusqu'au soir » `jusqu'à` — the article of « au » covered with it, as a Spanish match covers
+//! the article of « al » (add-lingua-french-word-card D12) —, « à la maison » the section's own
+//! `à la maison`, and « au marché » nothing. « un coup d’œil » meets `un coup` before `coup d'œil`, and « du pain et des œufs »
 //! `et des`: senses their keys do not hold the context of, listed for
 //! `refine-lingua-fr-en-glosses` (add-lingua-pack-fr-en D7).
+//!
+//! The French word card (add-lingua-french-word-card D9) is pinned on this scenario: 21 grammar
+//! probes, one for each name the card says or leaves unsaid on purpose, and 40 lemmas asked as
+//! themselves, after the reference's 31, and the phrase « l’homme », the whole-selection card of a
+//! word written as pieces. The extension's `test/word-card-fr-en.spec.ts` renders every grammar and
+//! phrase probe of `baseline/fr-en.golden` with the interface in English, and
+//! `test/word-card-fr-es.spec.ts` those of `baseline/fr-es.golden` (`fr_es_baseline.rs`: this
+//! scenario glossed in Spanish) with the interface in Spanish.
 //!
 //! At analyser `1.1.0` French's detection guard (add-lingua-french-detection-guard) refuses the
 //! `mixte` page's Occitan block, which whichlang reads as French; its Catalan block whichlang reads
@@ -163,12 +172,16 @@ const PHRASES: &[&str] = &[
     "El far s'alçava",
     "Lo far se quilhava",
     "Il faro si ergeva",
+    // The whole-selection card of a word written as pieces, as a double-click selects it
+    // (add-lingua-french-word-card D7).
+    "l\u{2019}homme",
 ];
 
 /// (word as written, dictionary form) pairs a word card asks the grammar of: each answers its
 /// readings (add-lingua-french-grammar-tables) and its gloss, and the pieces a split word is made
-/// of — an elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`.
-const GRAMMAR: &[(&str, &str)] = &[
+/// of — an elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`. The
+/// reference's probes, before the card's (`CARD_PROBES`) and the lemmas' (`MORE_LEMMAS`).
+pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("est", "être"),
     ("sont", "être"),
     ("était", "être"),
@@ -202,6 +215,74 @@ const GRAMMAR: &[(&str, &str)] = &[
     ("au", "à"),
 ];
 
+/// The French card's probes (add-lingua-french-word-card D9): one for each name the card says or
+/// leaves unsaid on purpose — every tense of *parler* (the present's five readings, the
+/// indicative and the subjunctive said once), its present and past participles, a feminine past
+/// participle, an imperfect read in two moods, two genders of one number (`sommes` → *somme*),
+/// another word's present (`suis` → *suivre*), a nominal agreement, a determiner's plural without
+/// a gender, a comparative, a numeral, and two plurals spelled like their dictionary form.
+pub const CARD_PROBES: &[(&str, &str)] = &[
+    ("parle", "parler"),
+    ("parles", "parler"),
+    ("parlent", "parler"),
+    ("parlait", "parler"),
+    ("parlera", "parler"),
+    ("parlerait", "parler"),
+    ("parlant", "parler"),
+    ("parlé", "parler"),
+    ("dirigée", "diriger"),
+    ("finissions", "finir"),
+    ("sommes", "être"),
+    ("suis", "être"),
+    ("grandes", "grand"),
+    ("maisons", "maison"),
+    ("cette", "ce"),
+    ("les", "le"),
+    ("meilleures", "meilleur"),
+    ("moindre", "petit"),
+    ("millions", "million"),
+    ("temps", "temps"),
+    ("heureux", "heureux"),
+];
+
+/// 40 more dictionary forms asked as grammar probes, `word-grammar <lemma> <lemma>`, so that their
+/// glosses and sense runs are the engine's answer and not the table's line: the most frequent
+/// lemmas of `tables/fr/freq.tsv` whose fr-en or fr-es gloss has two sense runs or more
+/// (`tables/fr-en/senses.tsv`, `tables/fr-es/senses.tsv`), taken in the frequency order, none of
+/// them a lemma the reference or the card asks as itself (`été`, `porte`, `couvent`, `fils`, `au`,
+/// `du`, `temps`, `heureux`: none ranks among them). Chosen once, on the tables of 2026-10-10 (fr-en
+/// after add-lingua-pack-fr-en, fr-es after add-lingua-pack-fr-es): a re-reduction may give one of
+/// them a single run, which moves nothing but what the goldens say of it.
+pub const MORE_LEMMAS: &[&str] = &[
+    "de", "le", "en", "des", "un", "que", "pas", "qui", "ce", "sur", "par", "on", "plus", "avec",
+    "mais", "ça", "tu", "son", "si", "tout", "nous", "comme", "être", "bien", "même", "aussi",
+    "deux", "leur", "moi", "quand", "après", "avoir", "non", "alors", "peu", "autre", "rien",
+    "dire", "monde", "fois",
+];
+
+const GRAMMAR_LEN: usize = REFERENCE_GRAMMAR.len() + CARD_PROBES.len() + MORE_LEMMAS.len();
+
+/// The reference's grammar probes, then the card's, then the 40 lemmas as themselves.
+const GRAMMAR: [(&str, &str); GRAMMAR_LEN] = {
+    let mut out = [("", ""); GRAMMAR_LEN];
+    let mut i = 0;
+    while i < REFERENCE_GRAMMAR.len() {
+        out[i] = REFERENCE_GRAMMAR[i];
+        i += 1;
+    }
+    let mut j = 0;
+    while j < CARD_PROBES.len() {
+        out[i + j] = CARD_PROBES[j];
+        j += 1;
+    }
+    let mut k = 0;
+    while k < MORE_LEMMAS.len() {
+        out[i + j + k] = (MORE_LEMMAS[k], MORE_LEMMAS[k]);
+        k += 1;
+    }
+    out
+};
+
 /// The pages analysed again for the reader with a history.
 const READER_PAGES: &[&str] = &["actualites", "homographes", "elisions", "mixte"];
 
@@ -230,7 +311,7 @@ pub const FRENCH: Scenario = Scenario {
     page_names: PAGE_NAMES,
     lemmas: LEMMAS,
     phrases: PHRASES,
-    grammar: GRAMMAR,
+    grammar: &GRAMMAR,
     reader_pages: READER_PAGES,
     statuses: &[
         ("phare", "known", 1.0),

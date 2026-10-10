@@ -41,9 +41,12 @@
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline` and says why: a French rule
 //! that bumps French's analyser version (and the fixture's manifest with it), a change to the
 //! committed French tables (`tables/fr/` or `tables/fr-en/`: a dictionary update, a reduction rule,
-//! the readings or the levels), the fixture replaced by the committed tables (done, once), or an
-//! es-en update, which moves the `beside es-en` line alone. `lingua-pack-update` re-blesses on its
-//! own branch.
+//! the readings or the levels), the fixture replaced by the committed tables (done, once), an
+//! es-en update, which moves the `beside es-en` line alone, or probes a change of the French stage
+//! adds, the others unmoved (add-lingua-french-expression-keys, add-lingua-french-word-card: the
+//! card's 21 grammar probes, 40 lemmas and « l’homme »). `lingua-pack-update` re-blesses on its own
+//! branch. The extension's `test/word-card-fr-en.spec.ts` renders this golden's grammar and phrase
+//! probes, and is re-blessed with it (`yarn vitest run test/word-card-fr-en.spec.ts -u`).
 //!
 //! Host only: the pack builder is native (C zstd), and the wasm surface is the same methods.
 
@@ -56,7 +59,7 @@ use std::sync::OnceLock;
 use lingua_core::analysis::FRENCH_ANALYZER_VERSION;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::tokenize::tokenize;
-use support::french::FRENCH;
+use support::french::{CARD_PROBES, FRENCH, MORE_LEMMAS, REFERENCE_GRAMMAR};
 use support::{PackSource, first_difference, testdata_pack};
 use unicode_normalization::UnicodeNormalization;
 
@@ -91,6 +94,27 @@ fn french_output_has_not_moved() {
          and say why in the pull request. Otherwise the change is wrong.",
         first_difference(&expected, actual)
     );
+}
+
+/// The probes are the reference's, then the card's 21, then the 40 lemmas as themselves, each
+/// probe once (add-lingua-french-word-card D9); the phrases end on « l’homme ».
+#[test]
+fn the_probes_are_the_references_then_the_cards_then_forty_lemmas() {
+    let (reference, rest) = FRENCH.grammar.split_at(REFERENCE_GRAMMAR.len());
+    let (card, more) = rest.split_at(CARD_PROBES.len());
+    assert_eq!(reference, REFERENCE_GRAMMAR);
+    assert_eq!(reference.len(), 31);
+    assert_eq!(card, CARD_PROBES);
+    assert_eq!(card.len(), 21);
+    assert_eq!(more.len(), 40);
+    for ((written, lemma), expected) in more.iter().zip(MORE_LEMMAS) {
+        assert_eq!((written, lemma), (expected, expected));
+    }
+    let mut probes = FRENCH.grammar.to_vec();
+    probes.sort_unstable();
+    probes.dedup();
+    assert_eq!(probes.len(), FRENCH.grammar.len(), "each probe once");
+    assert_eq!(FRENCH.phrases.last(), Some(&"l\u{2019}homme"));
 }
 
 #[test]

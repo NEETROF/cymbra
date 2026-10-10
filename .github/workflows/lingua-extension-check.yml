@@ -125,9 +125,12 @@ jobs:
       # tables-only pull request (lingua-pack-update) does not start `rust`. fr-en (change 39,
       # add-lingua-french-baseline) freezes French's analysis over the pack built from its committed
       # tables (add-lingua-pack-fr-en: tables/fr/ and tables/fr-en/, whose change re-blesses it),
-      # beside the real es-en pack, whose update moves its `beside es-en` line alone.
-      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en)
-        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline
+      # beside the real es-en pack, whose update moves its `beside es-en` line alone; fr-es
+      # (change 51, add-lingua-french-word-card: the French scenario glossed in Spanish, beside
+      # en-es) equals it on the studied side. The French card's lines over both are pinned by
+      # test/word-card-fr-en.spec.ts and test/word-card-fr-es.spec.ts.
+      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es)
+        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):
       # a studied language's tables — its pinned tag pool, studied tables and dictionary words —
       # are kept once, in tables/<studied>/, and read by every pair of that language
