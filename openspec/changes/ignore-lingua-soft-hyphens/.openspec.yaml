@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-10
+archiveAfter:
+  - add-lingua-french-analysis
+  - add-lingua-french-detection-guard
+  - add-lingua-spanish-occitan-guard
