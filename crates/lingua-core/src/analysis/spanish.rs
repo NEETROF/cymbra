@@ -96,6 +96,26 @@ fn is_strong(c: char) -> bool {
     matches!(unaccented(c), 'a' | 'e' | 'o')
 }
 
+/// Whether `word` is a verb carrying one or two clitic pronouns, as Spanish's
+/// enclitic rule reads it (pick-lingua-spanish-expression-written-as-the-page D3):
+/// [`enclitic_lemma`] reads it, lowercased and in NFC, as a verb form with its
+/// clitics — `tenerlos`, `hacerme`, `tócate`, `dámelo` —, and the lexicon files the
+/// word, and its unaccented spelling, under no other lemma: `parte` is no `par` +
+/// `te` (the forms table files it under `partir`), while `darse`, which the forms
+/// table files under `dar` itself, is `dar` + `se`. The phrase gloss reads a
+/// Spanish expression's headwords and the page's tokens with it, choosing among the
+/// headwords of a key several reach.
+pub(crate) fn carries_enclitic(word: &str, lexicon: &(impl Lexicon + ?Sized)) -> bool {
+    let lower: String = word.replace('\u{2019}', "'").to_lowercase().nfc().collect();
+    let Some(lemma) = enclitic_lemma(&lower, lexicon) else {
+        return false;
+    };
+    let plain = without_acute_accents(&lower);
+    [lower.as_str(), plain.as_str()]
+        .iter()
+        .all(|written| lexicon.lemma_of(written).is_none_or(|filed| filed == lemma))
+}
+
 /// The lemma of a verb form carrying one or two enclitic pronouns, or none.
 /// One clitic is tried before two; within each, longer clitics first.
 fn enclitic_lemma(lower: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
@@ -324,6 +344,46 @@ mod tests {
                 "reír", "escribir", "solo",
             ],
         )
+    }
+
+    #[test]
+    fn a_word_carrying_a_clitic_pronoun() {
+        // pick-lingua-spanish-expression-written-as-the-page D3: the enclitic rule reads the
+        // word as a verb with its clitics, and the lexicon files it under no other lemma.
+        let lex = lexicon(
+            &[
+                ("darse", "dar"),
+                ("toca", "tocar"),
+                ("da", "dar"),
+                ("parte", "partir"),
+                ("hablan", "hablar"),
+                ("puestos", "puesto"),
+                ("cuenta", "contar"),
+            ],
+            &[
+                "tener", "dar", "hacer", "tocar", "partir", "par", "hablar", "hablante", "puesto",
+                "contar",
+            ],
+        );
+        for word in [
+            "tenerlos", "darse", "hacerme", "tócate", "dámelo", "Hacerme", "TENERLOS",
+        ] {
+            assert!(carries_enclitic(word, &lex), "{word}");
+        }
+        // `parte` reads `par` + `te` and `hablante` `hablan` + `te`, but the lexicon files each
+        // under another lemma; `puestos` and `cuenta` end in no clitic the rule takes.
+        for word in [
+            "parte", "hablante", "puestos", "cuenta", "dar", "se", "me", "",
+        ] {
+            assert!(!carries_enclitic(word, &lex), "{word}");
+        }
+        // A word whose unaccented spelling the lexicon files elsewhere is not one either.
+        let filed_unaccented = lexicon(&[("da", "dar"), ("damelo", "damelo")], &["dar", "damelo"]);
+        assert!(!carries_enclitic("dámelo", &filed_unaccented));
+        assert!(carries_enclitic(
+            "dámelo",
+            &lexicon(&[("da", "dar")], &["dar"])
+        ));
     }
 
     #[test]

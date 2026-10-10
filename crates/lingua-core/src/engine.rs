@@ -31,6 +31,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
 
+use crate::analysis::carries_enclitic;
 use crate::analysis::function_words::is_function_word;
 use crate::analysis::language::StudiedLanguage;
 use crate::analysis::lexicon::Lexicon;
@@ -439,6 +440,16 @@ pub const SPANISH_KEY_WRITTEN: &[&str] = &[
     "vuestras", "vuestro", "vuestros",
 ];
 
+/// The clitic pronouns a Spanish page may write just before an expression's run
+/// (pick-lingua-spanish-expression-written-as-the-page D3): where the page's word
+/// before the run is one of them, lowercased — « No te hagas ilusiones », « Los tenía
+/// puestos » —, the page writes a clitic pronoun for the run, and a headword written
+/// with one is weighed. The same eleven words Spanish's enclitic rule strips. Sorted
+/// for binary search (a test enforces it).
+pub const SPANISH_CLITIC_PRONOUNS: &[&str] = &[
+    "la", "las", "le", "les", "lo", "los", "me", "nos", "os", "se", "te",
+];
+
 /// A token's piece of an expression key (add-lingua-french-expression-keys D2,
 /// add-lingua-spanish-expression-keys D2): its dictionary form, except a word of
 /// the studied language's written list — [`FRENCH_KEY_WRITTEN`],
@@ -593,6 +604,16 @@ fn expression_for_run(
 /// read on that name — « Ça va ? » answers `ça va`, « Ça ira. » `ça ira`. A run none of
 /// them meets does not match at that length, and the shorter runs are tried. A key one
 /// headword reaches is matched as before, without a reading.
+///
+/// A Spanish run that is a key several headwords reach (`hacer tiempo` and `hace tiempo`
+/// both read `hacer tiempo`) is named the same way (pick-lingua-spanish-expression-written-
+/// as-the-page D2, D3): every headword is weighed, there being no Spanish counterpart of
+/// [`meets_as_written`], except that one written with a clitic pronoun (`tenerlos puestos`,
+/// `hacerse ilusiones`) is weighed only where the page writes one for the run
+/// ([`spanish_weighed`]); where none is weighed so, all are. So « hace tiempo » answers
+/// `hace tiempo`, and « tenía puestos » `tener puesto`, not `tenerlos puestos`. No run
+/// matches, or stops matching, for it. The lemma chain a reader settled before is then
+/// reported only where it is no headword's name ([`settled_chain`], D4).
 fn match_expressions(
     tokens: &[PhraseToken],
     shares_span: &[bool],
@@ -618,18 +639,35 @@ fn match_expressions(
         let longest = window.min(tokens.len() - start);
         let hit = (2..=longest).rev().find_map(|len| {
             let (key, gloss) = expression_for_run(&pieces[start..start + len], studied, pack)?;
-            if french {
+            if whole_words {
                 let headwords = pack.expression_headwords(&key);
                 if headwords.len() > 1 {
                     let run = start..start + len;
-                    let (name, gloss) = written_as_the_page(
-                        &headwords,
-                        &tokens[run.clone()],
-                        &elided[run.clone()],
-                        &shares_span[run],
-                        pack.lexicon(),
-                    )?;
-                    return Some((len, name.to_owned(), gloss.to_owned()));
+                    let lexicon = pack.lexicon();
+                    let (name, gloss) = if french {
+                        written_as_the_page(
+                            &headwords,
+                            &tokens[run.clone()],
+                            studied,
+                            lexicon,
+                            |name| {
+                                meets_as_written(
+                                    &elided[run.clone()],
+                                    &shares_span[run.clone()],
+                                    name,
+                                    lexicon,
+                                )
+                            },
+                        )?
+                    } else {
+                        let weighed = spanish_weighed(&headwords, tokens, run.clone(), lexicon);
+                        written_as_the_page(&weighed, &tokens[run], studied, lexicon, |_| true)?
+                    };
+                    let names = headwords
+                        .iter()
+                        .map(|(name, _)| (*name).to_owned())
+                        .collect();
+                    return Some((len, name.to_owned(), gloss.to_owned(), names));
                 }
             }
             let name = match pack.expression_name(&key) {
@@ -643,13 +681,19 @@ fn match_expressions(
                     &name,
                     pack.lexicon(),
                 ))
-            .then_some((len, name, gloss))
+            .then(|| (len, name.clone(), gloss, vec![name]))
         });
         match hit {
-            Some((len, name, gloss)) => {
+            Some((len, name, gloss, headwords)) => {
                 let key = if spanish {
-                    settled_chain(&tokens[start..start + len], &name, studied, knowledge)
-                        .unwrap_or(name)
+                    settled_chain(
+                        &tokens[start..start + len],
+                        &name,
+                        &headwords,
+                        studied,
+                        knowledge,
+                    )
+                    .unwrap_or(name)
                 } else {
                     name
                 };
@@ -742,14 +786,16 @@ fn meets_as_written(
             .eq(shared_spans(&pieces).iter().skip(1))
 }
 
-/// The headword a French run is named by where several headwords reach the key it matches
-/// (pick-lingua-expression-written-as-the-page D2, D3). `headwords` are the key's, as the
-/// pack lists them ([`Pack::expression_headwords`]: the one that wins the key first, then
-/// the others in the builder's order); `run`, `elided` and `joined` are the run's tokens and
-/// their slices of the selection's flags, as [`meets_as_written`] takes them.
+/// The headword a French or Spanish run is named by where several headwords reach the key
+/// it matches (pick-lingua-expression-written-as-the-page D2, D3;
+/// pick-lingua-spanish-expression-written-as-the-page D2). `headwords` are the key's, as
+/// the pack lists them ([`Pack::expression_headwords`]: the one that wins the key first,
+/// then the others in the builder's order) — for Spanish, those [`spanish_weighed`] keeps
+/// —; `run` is the run's tokens, `studied` its language.
 ///
-/// Only the headwords whose pieces meet the run as written are weighed — `ce qui` does not
-/// meet « c'qui », whose `c'` is elided, and `c'qui` does. Each is read by
+/// Only the headwords `weighed` accepts are weighed — in French those whose pieces meet the
+/// run as written ([`meets_as_written`]): `ce qui` does not meet « c'qui », whose `c'` is
+/// elided, and `c'qui` does; in Spanish every one. Each is read by
 /// [`headword_reading`], the reading its key was made from, so its pieces line up with the
 /// run's tokens one for one, and a place counts where a piece's text is its token's, both
 /// lowercased and the typographic apostrophe read as the straight one, as
@@ -757,23 +803,24 @@ fn meets_as_written(
 /// headword written as the page at the most places wins, and the first in the pack's order
 /// between equals: « Ça va ? » answers `ça va` (two places, `ça ira` one), « Ça ira. »
 /// `ça ira`, « quelle que soit » `quel que soit` (`que` and `soit`, `quel que fût` `que`
-/// alone), « ça allait » `ça ira`, which wins the key (`ça` in both). `None` when no
-/// headword meets the run: it does not match at that length.
-fn written_as_the_page<'a>(
+/// alone), « ça allait » `ça ira`, which wins the key (`ça` in both); « hace tiempo »
+/// `hace tiempo`, « dando vueltas » `dar vueltas` (`vueltas`). `None` when no headword is
+/// weighed: it does not match at that length.
+fn written_as_the_page<'a, L: Lexicon + ?Sized>(
     headwords: &[(&'a str, &'a str)],
     run: &[PhraseToken],
-    elided: &[bool],
-    joined: &[bool],
-    lexicon: &(impl Lexicon + ?Sized),
+    studied: StudiedLanguage,
+    lexicon: &L,
+    weighed: impl Fn(&str) -> bool,
 ) -> Option<(&'a str, &'a str)> {
     let compared = |text: &str| text.replace('\u{2019}', "'").to_lowercase();
     let page: Vec<String> = run.iter().map(|token| compared(&token.surface)).collect();
     let mut best: Option<((&'a str, &'a str), usize)> = None;
     for &(name, gloss) in headwords {
-        if !meets_as_written(elided, joined, name, lexicon) {
+        if !weighed(name) {
             continue;
         }
-        let places = headword_reading(name, StudiedLanguage::French, lexicon)
+        let places = headword_reading(name, studied, lexicon)
             .filter(|reading| reading.len() == page.len())
             .map_or(0, |reading| {
                 reading
@@ -787,6 +834,56 @@ fn written_as_the_page<'a>(
         }
     }
     best.map(|(headword, _)| headword)
+}
+
+/// The headwords of a Spanish key several reach that are weighed for a run
+/// (pick-lingua-spanish-expression-written-as-the-page D3): a headword one of whose
+/// words carries a clitic pronoun ([`carries_enclitic`]: `tenerlos puestos`, `hacerse
+/// ilusiones`, `puedes ayudarme`) only where the page writes a clitic pronoun for the run
+/// — attached to one of the run's tokens (« hacerme ilusiones ») or as the page's token
+/// just before the run, lowercased, one of [`SPANISH_CLITIC_PRONOUNS`] (« No te hagas
+/// ilusiones ») —, every other headword always; and every headword where none is weighed
+/// so, so the guard chooses among the headwords and never makes a run match or stop
+/// matching. `tokens` are the selection's, `run` the run's range in them. A headword
+/// written as the page writes its pronoun, so the guard only acts on the closest
+/// spelling: « tenía puestos unos audífonos » answers `tener puesto`, not `tenerlos
+/// puestos`, whose `puestos` is written as the page.
+fn spanish_weighed<'a>(
+    headwords: &[(&'a str, &'a str)],
+    tokens: &[PhraseToken],
+    run: std::ops::Range<usize>,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> Vec<(&'a str, &'a str)> {
+    let before = run
+        .start
+        .checked_sub(1)
+        .map(|at| tokens[at].surface.to_lowercase());
+    let page_writes_one = before.is_some_and(|word| {
+        SPANISH_CLITIC_PRONOUNS
+            .binary_search(&word.as_str())
+            .is_ok()
+    }) || tokens[run]
+        .iter()
+        .any(|token| carries_enclitic(&token.surface, lexicon));
+    if page_writes_one {
+        return headwords.to_vec();
+    }
+    let bare: Vec<(&'a str, &'a str)> = headwords
+        .iter()
+        .filter(|(name, _)| {
+            !headword_reading(name, StudiedLanguage::Spanish, lexicon).is_some_and(|reading| {
+                reading
+                    .iter()
+                    .any(|(piece, _)| carries_enclitic(&piece.text, lexicon))
+            })
+        })
+        .copied()
+        .collect();
+    if bare.is_empty() {
+        headwords.to_vec()
+    } else {
+        bare
+    }
 }
 
 /// Whether a French expression's headword holds the word « au » or « aux », in any case
@@ -828,9 +925,18 @@ pub fn shared_spans(tokens: &[Token]) -> Vec<bool> {
 /// reader holds a record on it (a status, or a withdrawn one:
 /// [`KnowledgeState::holds_record`]) and none on the name. `None` otherwise: the
 /// match is then reported under its name.
+///
+/// `headwords` are the names of every headword of the run's key
+/// ([`Pack::expression_headwords`], whether the guard weighed it or not; the name alone
+/// for a key one headword reaches). A chain that is one of them is never reported
+/// (pick-lingua-spanish-expression-written-as-the-page D4): a record on `hacer tiempo`,
+/// `un poco` or `red social` is that headword's, so « hace tiempo » answers `hace tiempo`
+/// and « un poquito » `un poquito`, not the record set on the other spelling. A chain no
+/// headword is named (`tener en contar`, `bueno día`) is reported as before.
 fn settled_chain(
     run: &[PhraseToken],
     name: &str,
+    headwords: &[String],
     studied: StudiedLanguage,
     knowledge: &KnowledgeState,
 ) -> Option<String> {
@@ -840,6 +946,7 @@ fn settled_chain(
         .collect::<Vec<_>>()
         .join(" ");
     (chain != name
+        && !headwords.contains(&chain)
         && knowledge.holds_record(studied, &chain)
         && !knowledge.holds_record(studied, name))
     .then_some(chain)
@@ -3670,10 +3777,10 @@ mod tests {
     }
 
     #[test]
-    fn english_and_spanish_runs_are_not_named_by_another_headword() {
-        // D6: the choice is French's. An English or a Spanish pack carrying the section — which
-        // the builder never writes for them — is matched as before, every run named by the
-        // headword that wins its key.
+    fn english_runs_are_not_named_by_another_headword_and_spanish_ones_are() {
+        // The choice is French's and Spanish's (pick-lingua-spanish-expression-written-as-the-
+        // page D2, D7). An English pack carrying the section — which the builder never writes for
+        // it — is matched as before, every run named by the headword that wins its key.
         let knowledge = KnowledgeState::new();
         let english = pack_with_others(
             EN,
@@ -3687,6 +3794,7 @@ mod tests {
         let phrase = gloss_phrase("the starting point", EN, &english, &knowledge);
         assert_eq!(spans(&phrase), [(1, 3, "start point")]);
         assert_eq!(phrase.expressions[0].gloss, "Point de départ");
+        // A Spanish run is named by the headword written as the page.
         let spanish = pack_with_others(
             ES,
             SPANISH_FORMS,
@@ -3698,6 +3806,9 @@ mod tests {
             ],
         );
         let phrase = gloss_phrase("soy inglesa", ES, &spanish, &knowledge);
+        assert_eq!(spans(&phrase), [(0, 2, "soy inglesa")]);
+        assert_eq!(phrase.expressions[0].gloss, "Je suis anglaise");
+        let phrase = gloss_phrase("soy inglés", ES, &spanish, &knowledge);
         assert_eq!(spans(&phrase), [(0, 2, "soy inglés")]);
         assert_eq!(phrase.expressions[0].gloss, "Je suis anglais");
         let phrase = gloss_phrase("después del", ES, &spanish, &knowledge);
@@ -3708,6 +3819,346 @@ mod tests {
             spanish_spans("después del barrio"),
             [span(0, 3, "después de")]
         );
+    }
+
+    // --- the Spanish headword written as the page (pick-lingua-spanish-expression-written-as-the-page) ---
+
+    /// The words the shared Spanish keys below are made of: `hace tiempo` reads `hacer tiempo`,
+    /// `dar vueltas` `dar vuelta`, `tenerlos puestos` `tener puesto` (the enclitic rule reading
+    /// `tenerlos`), `hacerse ilusiones` `hacer ilusión`, `puede ayudarme` and `puedes ayudarme`
+    /// `poder ayudar`, `buen día` and `buenos días` `bueno día`, « un poquito » `un poco`.
+    const ES_WRITTEN_FORMS: &[(&str, &str)] = &[
+        ("buen", "bueno"),
+        ("buenos", "bueno"),
+        ("dando", "dar"),
+        ("días", "día"),
+        ("hace", "hacer"),
+        ("hacerse", "hacer"),
+        ("hagas", "hacer"),
+        ("ilusiones", "ilusión"),
+        ("poquito", "poco"),
+        ("puede", "poder"),
+        ("puedes", "poder"),
+        ("puestos", "puesto"),
+        ("tenía", "tener"),
+        ("vueltas", "vuelta"),
+    ];
+
+    const ES_WRITTEN_LEMMAS: &[&str] = &[
+        "hacer", "tiempo", "dar", "vuelta", "tener", "puesto", "ilusión", "poder", "ayudar",
+        "bueno", "día", "un", "poco",
+    ];
+
+    /// The keys several Spanish headwords reach, each won by its first as change 44's order
+    /// ranks them (add-lingua-spanish-expression-keys D3): the one written as the key
+    /// (`hacer tiempo`, `dar vuelta`, `tener puesto`, `hacer ilusión`), else the most written
+    /// (`buen día`), else byte order (`puede ayudarme`).
+    const ES_WRITTEN_HEADWORDS: &[(&str, &str)] = &[
+        ("hacer tiempo", "Atermoyer"),
+        ("hace tiempo", "Jadis, belle lurette"),
+        ("dar vuelta", "to turn"),
+        ("dar vueltas", "to go round in circles"),
+        ("tener puesto", "to have on; to wear"),
+        ("tenerlos puestos", "to have balls"),
+        ("hacer ilusión", "to cause to get excited about something"),
+        ("hacerse ilusiones", "to get one's hopes up"),
+        ("puede ayudarme", "can you help me? (formal)"),
+        ("puedes ayudarme", "can you help me?"),
+        ("buen día", "Bonjour"),
+        ("buenos días", "Bonjour (pluriel)"),
+    ];
+
+    /// A Spanish pack holding `headwords` (headword, gloss), listed in the builder's order and
+    /// keyed as the builder keys them (add-lingua-spanish-expression-keys D1).
+    fn es_written_pack(headwords: &[(&str, &str)]) -> Pack {
+        let (bytes, pool) =
+            build_lexicon_blobs(ES_WRITTEN_FORMS, ES_WRITTEN_LEMMAS).expect("build");
+        let lexicon = FstLexicon::from_slices(bytes, &pool).expect("load");
+        let keys: Vec<String> = headwords
+            .iter()
+            .map(|(headword, _)| reading_expression_key(headword, ES, &lexicon).expect(headword))
+            .collect();
+        let entries: Vec<(&str, &str, &str)> = keys
+            .iter()
+            .zip(headwords)
+            .map(|(key, (headword, gloss))| (key.as_str(), *headword, *gloss))
+            .collect();
+        pack_with_others(ES, ES_WRITTEN_FORMS, ES_WRITTEN_LEMMAS, &entries)
+    }
+
+    /// Each match of `text` on `pack`, for `knowledge`: the surfaces it covers, its key and its
+    /// gloss.
+    fn es_matches_on(
+        text: &str,
+        pack: &Pack,
+        knowledge: &KnowledgeState,
+    ) -> Vec<(Vec<String>, String, String)> {
+        let phrase = gloss_phrase(text, ES, pack, knowledge);
+        phrase
+            .expressions
+            .iter()
+            .map(|m| {
+                let covered = phrase.tokens[m.start..m.end]
+                    .iter()
+                    .map(|token| token.surface.clone())
+                    .collect();
+                (covered, m.key.clone(), m.gloss.clone())
+            })
+            .collect()
+    }
+
+    fn es_matches(text: &str) -> Vec<(Vec<String>, String, String)> {
+        es_matches_on(
+            text,
+            &es_written_pack(ES_WRITTEN_HEADWORDS),
+            &KnowledgeState::new(),
+        )
+    }
+
+    #[test]
+    fn the_spanish_clitic_pronouns_are_sorted_and_eleven() {
+        assert_eq!(SPANISH_CLITIC_PRONOUNS.len(), 11);
+        assert!(
+            SPANISH_CLITIC_PRONOUNS
+                .windows(2)
+                .all(|pair| pair[0] < pair[1])
+        );
+    }
+
+    #[test]
+    fn the_shared_spanish_keys_are_laid_out_as_the_builder_lays_them_out() {
+        let pack = es_written_pack(ES_WRITTEN_HEADWORDS);
+        let names = |key: &str| -> Vec<String> {
+            pack.expression_headwords(key)
+                .into_iter()
+                .map(|(name, _)| name.to_owned())
+                .collect()
+        };
+        assert_eq!(names("hacer tiempo"), ["hacer tiempo", "hace tiempo"]);
+        assert_eq!(names("dar vuelta"), ["dar vuelta", "dar vueltas"]);
+        assert_eq!(names("tener puesto"), ["tener puesto", "tenerlos puestos"]);
+        assert_eq!(
+            names("hacer ilusión"),
+            ["hacer ilusión", "hacerse ilusiones"]
+        );
+        assert_eq!(names("poder ayudar"), ["puede ayudarme", "puedes ayudarme"]);
+        assert_eq!(names("bueno día"), ["buen día", "buenos días"]);
+    }
+
+    #[test]
+    fn spec_scenario_the_spanish_headword_written_as_the_page() {
+        assert_eq!(
+            es_matches("hace tiempo"),
+            [written(
+                &["hace", "tiempo"],
+                "hace tiempo",
+                "Jadis, belle lurette"
+            )]
+        );
+        assert_eq!(
+            es_matches("Hace tiempo que no te veo."),
+            [written(
+                &["Hace", "tiempo"],
+                "hace tiempo",
+                "Jadis, belle lurette"
+            )]
+        );
+        assert_eq!(
+            es_matches("buenos días"),
+            [written(
+                &["buenos", "días"],
+                "buenos días",
+                "Bonjour (pluriel)"
+            )]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_spanish_headword_that_wins_the_key_written_as_the_page() {
+        assert_eq!(
+            es_matches("hacer tiempo"),
+            [written(&["hacer", "tiempo"], "hacer tiempo", "Atermoyer")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_no_spanish_headword_written_as_the_page_one_closer() {
+        assert_eq!(
+            es_matches("dando vueltas"),
+            [written(
+                &["dando", "vueltas"],
+                "dar vueltas",
+                "to go round in circles"
+            )]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_clitic_pronoun_the_page_does_not_write() {
+        // `tenerlos puestos` is written as the page at `puestos`, `tener puesto` nowhere: the
+        // guard keeps the headword written with a pronoun away from a page that writes none.
+        assert_eq!(
+            es_matches("El guardaespaldas tenía puestos unos audífonos."),
+            [written(
+                &["tenía", "puestos"],
+                "tener puesto",
+                "to have on; to wear"
+            )]
+        );
+        // Without the guard — a pronoun on the page before the run — the closest spelling wins.
+        assert_eq!(
+            es_matches("Los tenía puestos."),
+            [written(
+                &["tenía", "puestos"],
+                "tenerlos puestos",
+                "to have balls"
+            )]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_clitic_pronoun_before_the_verb() {
+        assert_eq!(
+            es_matches("No te hagas ilusiones."),
+            [written(
+                &["hagas", "ilusiones"],
+                "hacerse ilusiones",
+                "to get one's hopes up"
+            )]
+        );
+        // The same run, no pronoun before it: the headword written without one.
+        assert_eq!(
+            es_matches("No hagas ilusiones."),
+            [written(
+                &["hagas", "ilusiones"],
+                "hacer ilusión",
+                "to cause to get excited about something"
+            )]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_clitic_pronoun_attached_to_the_verb() {
+        assert_eq!(
+            es_matches("Me encanta hacerme ilusiones."),
+            [written(
+                &["hacerme", "ilusiones"],
+                "hacerse ilusiones",
+                "to get one's hopes up"
+            )]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_every_headword_writes_a_clitic_pronoun_the_page_none() {
+        let text = "Ahora no puedes ayudar a Tom.";
+        assert_eq!(
+            es_matches(text),
+            [written(
+                &["puedes", "ayudar"],
+                "puedes ayudarme",
+                "can you help me?"
+            )]
+        );
+        // Over the same tokens as the pack holding the key's winner alone.
+        let alone = es_written_pack(&[("puede ayudarme", "can you help me? (formal)")]);
+        let before = es_matches_on(text, &alone, &KnowledgeState::new());
+        assert_eq!(before.len(), 1);
+        assert_eq!(before[0].0, ["puedes", "ayudar"]);
+        assert_eq!(before[0].1, "puede ayudarme");
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_key_one_headword_reaches() {
+        let pack = es_written_pack(&[("un poco", "Un peu")]);
+        assert_eq!(
+            es_matches_on("un poquito", &pack, &KnowledgeState::new()),
+            [written(&["un", "poquito"], "un poco", "Un peu")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_spanish_status_follows_the_headword() {
+        // A record on `hacer tiempo` is that headword's: the lemma chain of « hace tiempo » is
+        // the name of a headword of its key, so it is no chain settled before (D4).
+        let pack = es_written_pack(ES_WRITTEN_HEADWORDS);
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status_at(
+            ES,
+            "hacer tiempo",
+            Status::Known(KnownSource::Manual),
+            1_000,
+        );
+        let hacer = gloss_phrase("hacer tiempo", ES, &pack, &knowledge);
+        assert_eq!(hacer.expressions[0].key, "hacer tiempo");
+        assert_eq!(hacer.expressions[0].class, TokenClass::Known);
+        let hace = gloss_phrase("hace tiempo", ES, &pack, &knowledge);
+        assert_eq!(hace.expressions[0].key, "hace tiempo");
+        assert_ne!(hace.expressions[0].class, TokenClass::Known);
+        assert_eq!(hace.expressions[0].gloss, "Jadis, belle lurette");
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_lemma_chain_settled_before() {
+        // `bueno día` is no headword's name: a record on it is a chain settled before (44b's D6),
+        // reported with the gloss of the headword the page writes.
+        let pack = es_written_pack(ES_WRITTEN_HEADWORDS);
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status_at(ES, "bueno día", Status::Learning, 1_000);
+        assert_eq!(
+            es_matches_on("buenos días", &pack, &knowledge),
+            [written(
+                &["buenos", "días"],
+                "bueno día",
+                "Bonjour (pluriel)"
+            )]
+        );
+        let phrase = gloss_phrase("buenos días", ES, &pack, &knowledge);
+        assert_eq!(phrase.expressions[0].class, TokenClass::Learning);
+        // A record on the name the page writes wins over the chain, as before.
+        knowledge.set_status_at(ES, "buenos días", Status::Ignored, 2_000);
+        let phrase = gloss_phrase("buenos días", ES, &pack, &knowledge);
+        assert_eq!(phrase.expressions[0].key, "buenos días");
+        assert_eq!(phrase.expressions[0].class, TokenClass::Ignored);
+    }
+
+    #[test]
+    fn a_spanish_selection_s_tokens_do_not_move_with_the_headwords() {
+        let pack = es_written_pack(ES_WRITTEN_HEADWORDS);
+        let bare = build_pack_for(ES, ES_WRITTEN_FORMS, ES_WRITTEN_LEMMAS, &[], &[], &[]);
+        let knowledge = KnowledgeState::new();
+        for text in [
+            "hace tiempo",
+            "No te hagas ilusiones.",
+            "El guardaespaldas tenía puestos unos audífonos.",
+        ] {
+            assert_eq!(
+                gloss_phrase(text, ES, &pack, &knowledge).tokens,
+                gloss_phrase(text, ES, &bare, &knowledge).tokens,
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn english_and_french_selections_gloss_as_before_beside_the_spanish_rule() {
+        // A French selection on 44e's inline pack is named as 44e names it.
+        assert_eq!(
+            written_matches("\u{c7}a va\u{202f}?"),
+            [written(&["\u{c7}a", "va"], "ça va", "how are you?")]
+        );
+        // An English selection with a section a builder never writes for it, as before.
+        let english = pack_with_others(
+            EN,
+            &[("starting", "start")],
+            &["start", "point"],
+            &[
+                ("start point", "start point", "Point de départ"),
+                ("start point", "starting point", "Point de départ (2)"),
+            ],
+        );
+        let phrase = gloss_phrase("I'm starting", EN, &english, &KnowledgeState::new());
+        assert!(phrase.expressions.is_empty());
     }
 
     // --- Spanish expression keys (add-lingua-spanish-expression-keys) ---

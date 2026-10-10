@@ -33,6 +33,8 @@ pub mod lexicon;
 pub mod percent;
 pub mod pipeline;
 mod spanish;
+
+pub(crate) use spanish::carries_enclitic;
 pub mod tokenize;
 
 /// Version of the analysis pipeline.
