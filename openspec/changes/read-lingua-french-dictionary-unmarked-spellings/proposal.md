@@ -12,7 +12,8 @@ accents, cedilla or diaeresis: `etre` « obsolete spelling of être », `etat` �
 is a French word of its own: `etat` is ranked 489th, a dictionary word glossed « state, condition… »
 with no level; `etait` (rank 1,995) and `etats` (867) are words with no gloss at all; a reader of
 « merci bcp pour hier soir, c'etait vraiment genial !! » (change 39's own corpus) is shown `etait`,
-unknown and unglossed, where the page says *être*. In fr-es none of them has a Spanish gloss. And
+unknown and unglossed, where the page says *être*. In fr-es only `uberisation` among them has a
+Spanish gloss. And
 none meets its word's expressions: « il etait une fois » is not `il était une fois`, « un coup
 d'Etat » not `coup d'état`.
 
@@ -92,8 +93,10 @@ None.
   frequency condition over the spelling and its forms; the spelling's own entries giving no lemma,
   rank, level or gloss; a word with an entry of its own, 43b's table and every other pair untouched).
 
-No requirement is modified. The new one widens the last sentence of change 43's *French's forms and
-frequencies* (held by change 52 too) as 43b's narrowed it, and sits beside 43b's *A French spelling
+No requirement is modified. The new one widens the spelling sentence of change 43's *French's forms
+and frequencies* (held by change 52 too) — « a word the dictionary gives only as another word's ASCII
+spelling of a ligature or post-1990 spelling » — by a third kind, as 43b's narrows how it reads four
+forms, and sits beside 43b's *A French spelling
 without its marks reads as the word a reviewed table names*, whose « only when a reviewed table names
 it » speaks of the spellings no entry links to their word, as it already did of change 43's post-1990
 spellings. It moves what changes 45 (readings), 46 (*French's estimated levels*: its scenario's `etre`
