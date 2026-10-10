@@ -73,7 +73,7 @@ people" (310), « les deux » "the two, both" (305), « autour de » "around" (2
 | The section glosses the headword (the shared fallback's rule) | 7,434 | 1,151 | « par exemple »: the section's « for example, for instance; on the other hand, by the way » |
 | `LEFT_OUT`, as committed | 4 | 0 | « à la » "a la, à la", « sur ce » "on that note", « et si », « point d'inflexion » |
 | The section's rules leave it out as only pointing | 2 | 3 | « boite à gants », « crème brulée »; `appuie-tête` |
-| A key the section reaches (D2) | 133 | 0 | « crème brulée » (`brulée` read as *brûler*, as `brûlée`); « feux de croisement »; « agente secrète » |
+| A key the section reaches (D2) | 133 | 0 | « fondu enchainé » "cross fading" (`enchainé` read as *enchaîner*, as `enchaîné`); « feu de croisement »; « agente secrète » |
 | Only repeats the headword (D3) | 783 | 265 | « à deux » "à deux", « in situ », « panna cotta » |
 | Reviewed: wrong where met (D5) | 49 | 2 | « les autres » "other people", « d'argent » "argent" |
 | **Kept** | **23,141** | **2,766** | « il existe » "there exists", « s'asseoir » "sit, sit down, sit up" |
@@ -86,8 +86,9 @@ two table rows, settled by the builder's order.
 **The section's key.** Without D2's key rule, 126 keys are reached by a section headword and a table
 headword, and the builder's order gives 36 to the table's: a singular over the section's plural
 (« feu de croisement » over « feux de croisement », harmless), but also « crème brulée » "creme
-brulee, crème brulée, crème brûlée" over the section's « crème brûlée », « tête brulée », « fondu
-enchainé », « couteau à huitres », « à coup de » "through" over « à coups de ». With it — each word
+brulee, crème brulée, crème brûlée" over the section's « crème brûlée », « fondu enchainé » "cross
+fading" over « fondu enchaîné » "lap dissolve" (« par un fondu enchaîné » met as "cross fading"),
+« tête brulée », « couteau à huitres », « à coup de » "through" over « à coups de ». With it — each word
 read through `tables/fr/forms.tsv`, an elided piece through `ELISIONS` — the harness finds no key
 both reach.
 
@@ -121,13 +122,13 @@ the tail is no cleaner than the head.
 
 **The reviewed list.** The 307 expressions with a space met at least five times (78 % of their
 matches; the 130 most met are 64 %) and the 55 split words met as often were each read in three or
-four of their contexts; 51 of them read wrong in most (D5). On the two samples, the list and D3 remove 33 of the 38 wrong matches
-and 10 of the 16, for 3 of the 149 right ones and none of the 77 (in sample: the list was read from
-the same corpora). A fresh sample drawn after them (100 matches, seed 4849) reads **85 right, 6
-partly, 9 wrong** (« premières sorties de l'eau » "roll-out", « prendre pour garantir » "take for",
-« oreilles d'âne » "bunny ears", « quantité de matières premières » "amount of substance"). The
-section's own expressions, 100 matches sampled the same way (seed 4800), read **73 right, 1 partly,
-26 wrong** (*Found while measuring*).
+four of their contexts; 51 of them read wrong in most (D5). On the two samples, the list and D3
+remove 33 of the 38 wrong matches and 10 of the 16, for 3 of the 149 right ones and none of the 77
+(in sample: the list was read from the same corpora). A fresh sample drawn after them (100 matches,
+seed 4849) reads **85 right, 6 partly, 9 wrong** (« premières sorties de l'eau » "roll-out", «
+prendre pour garantir » "take for", « oreilles d'âne » "bunny ears", « quantité de matières
+premières » "amount of substance"). The section's own expressions, 100 matches sampled the same way
+(seed 4800), read **73 right, 1 partly, 26 wrong** (*Found while measuring*).
 
 **The result** (all rules), on the corpora:
 
@@ -162,15 +163,16 @@ section's « champ de bataille », not « sur le champ » "on the spot". `fr-es.
 five probes (fr-es's own answers) and nothing else of it moves. Every other test of `lingua-wasm`
 passes as committed, the English, Spanish, es-en, en-es and cross-native baselines among them.
 
-**Found while measuring** (not this change's; Open Questions 3 and 4). The section's expressions read
-wrong as often as the raw table: « de la » and « de l' » glossed as a partitive where they mean "of
-the" (« la tête de l'équipe »), « m'a » "“I'm going”" on « il m'a sauvé », « en être » on « qui en
-sont membres », « dire que » "to think that" on « ont dit qu'ils », « en fait » "actually" met by
+**Found while measuring** (not this change's; Open Questions 3 and 4). The section's expressions
+read wrong as often as the raw table: « de la » and « de l' » glossed as a partitive where they mean
+"of the" (« la tête de l'équipe »), « m'a » "“I'm going”" on « il m'a sauvé », « en être » on « qui
+en sont membres », « dire que » "to think that" on « ont dit qu'ils », « en fait » "actually" met by
 « en faisant » (33 of its 175 matches), « en tenue » by « s'en tenir », « sa mère » "(so) fucking"
-on « sa mère favorise », « espèce de » "you" on « une espèce d'amphibien », « grand pont » "kick/pass
-around a player's legs" on « le grand pont de bois », « au fait » glossed "au fait". fr-es, which reads the French Wiktionary's Spanish translations as its direct fallback,
-meets « sur le champ » "En el acto" in « sur le champ de bataille » and gives the key of « crème
-brûlée » to its table's « crème brulée ».
+on « sa mère favorise », « espèce de » "you" on « une espèce d'amphibien », « grand pont »
+"kick/pass around a player's legs" on « le grand pont de bois », « au fait » glossed "au fait".
+fr-es, which reads the French Wiktionary's Spanish translations as its direct fallback, meets « sur
+le champ » "En el acto" in « sur le champ de bataille » and gives the key of « crème brûlée » to its
+table's « crème brulée ».
 
 ## Decisions
 
@@ -183,10 +185,10 @@ proper noun's entry left out —, and offers, after the section's expressions ar
 headword of the table in change 48's two shapes: a headword with a space, and a single word that
 `split_word` accepts (no form of `tables/fr/forms.tsv`, an apostrophe or a hyphen, a French token).
 Its gloss is `common.translation_gloss`'s: up to three English translations, in the table's order,
-as one sense, their case kept; « etc » takes its period as the section's (`with_etc_period`). 55
-of them run over the section's 80 characters, as es-en's direct table's do (Open Question 5). The table is read for expressions alone: no word of
-`gloss.tsv` comes from it, so French's dictionary words, the levels and the coverage cannot move
-with it.
+as one sense, their case kept; « etc » takes its period as the section's (`with_etc_period`). 55 of
+them run over the section's 80 characters, as es-en's direct table's do (Open Question 5). The table
+is read for expressions alone: no word of `gloss.tsv` comes from it, so French's dictionary words,
+the levels and the coverage cannot move with it.
 
 `common.fallback_expressions` reads a headword with a space alone; the split words go through the
 same steps in `reduce-fr-en.py` (« s'asseoir », « s'installer »: without them the table would gloss
@@ -211,13 +213,13 @@ read wrong (D5).
    sense only points (change 48 D11) are not read from the table: « à la » would otherwise be met
    2,173 times as "a la, à la", « boite à gants » would come back beside « boîte à gants ».
 
-A section entry that leaves no gloss for another reason — a proper noun's entry (« Moyen Âge »,
-« Seconde Guerre mondiale »), a pointer the dump tags (« tout d'abord ») — lets the table gloss it:
-« au Moyen Âge » meets « moyen âge » "Middle Ages" (88 matches), « tout d'abord » "first of all,
-mainly". *Rejected — every headword the section has an entry for*: 117 more rows out, 368 matches with them,
-nearly all right (« moyen âge » 88, « seconde guerre mondiale » 66, « tout d'abord » 17). *Rejected — a source rank in the
-builder*: a new column of `mwe.tsv` and a rule every pair's builder reads, for what the reducer
-settles alone.
+A section entry that leaves no gloss for another reason — a proper noun's entry (« Moyen Âge », «
+Seconde Guerre mondiale »), a pointer the dump tags (« tout d'abord ») — lets the table gloss it: «
+au Moyen Âge » meets « moyen âge » "Middle Ages" (88 matches), « tout d'abord » "first of all,
+mainly". *Rejected — every headword the section has an entry for*: 117 more rows out, 368 matches
+with them, nearly all right (« moyen âge » 88, « seconde guerre mondiale » 66, « tout d'abord » 17).
+*Rejected — a source rank in the builder*: a new column of `mwe.tsv` and a rule every pair's builder
+reads, for what the reducer settles alone.
 
 ### D3 — A translation that repeats the headword is no gloss
 
@@ -243,7 +245,8 @@ does.
 `LEFT_OUT` gains the table expressions read wrong in most of the contexts they are met in, each with
 its reason, as change 48b's are: a person's decision, as an override row is. The review read every
 expression met at least five times on the corpora in three or four of its sentences: 307 with a
-space (78 % of their matches) and 55 split words. The 51, by reason (matches on the corpora in parentheses):
+space (78 % of their matches) and 55 split words. The 51, by reason (matches on the corpora in
+parentheses):
 
 - **Words met as they are, where the table names a set phrase or a field's sense** (33): « les
   autres » "other people" (310), « le grand » "the Great" (173), « d'argent » "argent" (79), « d'azur »
@@ -367,7 +370,8 @@ English Wiktionary's French section and the French Wiktionary's English translat
 - **[One judge]** → every figure of *Measured* is one reader's, ± 7 % on 100; the samples and the
   list are given to the owner (task 6.2), the list with its contexts.
 - **[The list is read on the corpora it is measured on]** → the confirmation sample was drawn after
-  it; the tail below five matches is not reviewed, measured at 16 % wrong before the list.
+  it; the expressions met fewer than five times are not read one by one (outside the 130 most met,
+  16 wrong of 100 before the list, 6 of 90 after it).
 - **[The approximate key]** → it can miss a key the core reads otherwise; the pull request runs the
   harness, and a residual table row winning a section key is left out by name.
 - **[A section expression displaced]** → 882 of 60,359, of which 2 in 50 read worse; a worse one met
@@ -399,8 +403,9 @@ For the owner, none blocking but the first:
 1. **The list of 51** (D5). Do these read wrong to you, and should any stay — « travailler à » (met
    right in « il travaille à un projet », wrong in « il travaille à Genève »), « sortir avec » "date"
    (« il sortit avec elle »), « d'argent » "argent" (the heraldic silver, met as money)? And is
-   reading down to five matches enough, or should the review go further (the 1,285 expressions met
-   fewer than five times read, by the sample, about 16 % wrong)?
+   reading down to five matches enough, or should the review go further? The 1,285 expressions met
+   fewer than five times are not read one by one; by the samples, about one match in ten of the
+   result still reads wrong.
 2. **Before or after French ships** (change 52). Before: English speakers meet « il existe », « plus
    tard », « au Moyen Âge » from the first release, and 52 waits for this change as it waits for 48b.
    After: a later update of fr-en, released on its own. Recommended: before.

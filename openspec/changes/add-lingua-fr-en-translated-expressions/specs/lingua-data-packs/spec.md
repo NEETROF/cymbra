@@ -21,7 +21,7 @@ dictionary words, and the coverage its floor holds, are the section's alone.
 - **THEN** « au Moyen Âge » meets « moyen âge » « Middle Ages »
 
 #### Scenario: A word the tokenisation splits
-- **WHEN** the section has no « s'asseoir » and the French Wiktionary's lists « sit, sit down, sit up »
+- **WHEN** the section has no « s'asseoir », and the French Wiktionary's entry « s'asseoir » lists « sit, sit down, sit up »
 - **THEN** fr-en offers « s'asseoir » as an expression, and « Elle s'assit » meets it
 
 #### Scenario: The section's headword wins
@@ -29,8 +29,8 @@ dictionary words, and the coverage its floor holds, are the section's alone.
 - **THEN** fr-en glosses « par exemple » with the section's gloss
 
 #### Scenario: The section's key wins
-- **WHEN** the table lists « crème brulée », whose words the forms table reads as the section's « crème brûlée »
-- **THEN** fr-en has no « crème brulée », and « une crème brûlée » meets « crème brûlée » with the section's gloss
+- **WHEN** the table lists « fondu enchainé » « cross fading », whose words the forms table reads as the section's « fondu enchaîné » « lap dissolve; … »
+- **THEN** fr-en has no « fondu enchainé », and « par un fondu enchaîné » meets « fondu enchaîné » with the section's gloss
 
 #### Scenario: What the section leaves out stays out
 - **WHEN** the table lists « à la » « a la, à la » and « sur ce » « on that note », which fr-en leaves out by name, and « boite à gants », a post-1990 spelling whose section entry only points
@@ -57,7 +57,7 @@ An update of a pair SHALL keep, for each edition it is asked to keep among those
 An edition to keep that the pair does not read, or that its pin records without derived files, fails
 the update before anything is fetched, naming the pair and the edition. A re-reduction reads each
 record's files from the release it names, so a pin whose records name two releases reduces as one
-naming one. Keeping an edition adds a source to a pair without a new snapshot of the others; the
+naming one. Keeping an edition adds a source to a pair without reading its other editions anew; the
 next update that keeps nothing reads every edition anew.
 
 #### Scenario: fr-en gains the French edition
@@ -102,4 +102,4 @@ en-fr's, es-fr's, es-en's and en-es's tables, pins, packs and goldens SHALL NOT 
 
 #### Scenario: The French goldens
 - **WHEN** fr-en's expressions are committed
-- **THEN** `fr-en.golden` is re-blessed — its pack, notice, licences and the phrase probes that meet a new expression move, and phrase probes that meet a table expression, one left out by name and two the section wins are added —, `fr-es.golden` gains the same probes and nothing else of it moves, and the English, Spanish, es-en and en-es baselines pass as committed
+- **THEN** `fr-en.golden` is re-blessed — its pack, notice, licences and the phrase probes that meet a new expression move, and phrase probes are added that meet a table expression, that meet none where the table's was left out by name, and that meet the section's expression where the table's would have taken its key or cut it —, `fr-es.golden` gains the same probes and nothing else of it moves, and the English, Spanish, es-en and en-es baselines pass as committed
