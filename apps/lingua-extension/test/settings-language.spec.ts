@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountState } from "@/account/messages.ts";
+import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
 import { drawer as esDrawer } from "@/i18n/es/drawer.ts";
 import { sync as esSync } from "@/i18n/es/sync.ts";
 import { sync as enSync } from "@/i18n/en/sync.ts";
@@ -43,6 +44,8 @@ const MINUTE = 60_000;
 const DAY = 86_400_000;
 /** What the en-fr model costs, as the background reads it from the catalogue. */
 const COST = { download: 25_752_472, stored: 36_749_127 };
+/** The six pairs, French last: packs.json since enable-lingua-french. */
+const SIX = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
 /** A language the reader added, whose model is still to download. */
 const missing = (total: number): ModelState => ({
   phase: "missing",
@@ -641,6 +644,61 @@ describe("the level blocks name the language in the interface language", () => {
     expect(r.block("Nivel de español estimado").querySelector(".set-estimate")?.textContent).toBe(
       "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el español.",
     );
+  });
+
+  /** Réglages of a reader of `native` studying `studied` on the six pairs, every level estimated but English's. */
+  async function mountWithFrench(
+    interfaceLanguage: InterfaceLanguage,
+    native: NativeLanguage,
+    studied: StudiedLanguage[],
+  ) {
+    const fake = makeFakePort();
+    fake.port.nativeLanguage = async () => native;
+    await fake.port.setStudiedLanguages(studied);
+    fake.port.hasLevels = async () => true;
+    fake.port.levelsEstimated = async function (this: { language: string }) {
+      return this.language !== "en";
+    };
+    const r = await mountReglages(interfaceLanguage, { pairs: SIX }, fake);
+    await vi.waitFor(() => expect(r.container.querySelectorAll(".set-levels .set-block").length).toBe(studied.length));
+    await settle();
+    const titles = [...r.container.querySelectorAll<HTMLElement>(".set-levels .set-block > .set-label")].map(
+      (l) => l.textContent,
+    );
+    const offered = [...r.container.querySelectorAll<HTMLInputElement>(".set-languages input[data-language]")].map(
+      (b) => [b.dataset.language, b.checked],
+    );
+    return { ...r, levelTitles: titles, offered };
+  }
+
+  it("An English-native reader of Spanish and French: Spanish then French offered and ticked, « Estimated French level » and its note (enable-lingua-french D3)", async () => {
+    const r = await mountWithFrench("en", "en", ["es", "fr"]);
+    expect(r.offered).toEqual([
+      ["es", true],
+      ["fr", true],
+    ]);
+    expect(r.levelTitles).toEqual(["Estimated Spanish level", "Estimated French level"]);
+    expect(r.block("Estimated French level").querySelector(".set-estimate")?.textContent).toBe(
+      "Levels estimated from word frequency, as no freely licensed CEFR list exists for French.",
+    );
+  });
+
+  it("A Spanish-native reader of English and French: English then French, « Nivel de francés estimado » and its note (enable-lingua-french D3)", async () => {
+    const r = await mountWithFrench("es", "es", ["en", "fr"]);
+    expect(r.offered).toEqual([
+      ["en", true],
+      ["fr", true],
+    ]);
+    expect(r.levelTitles).toEqual(["Nivel de inglés", "Nivel de francés estimado"]);
+    expect(r.block("Nivel de francés estimado").querySelector(".set-estimate")?.textContent).toBe(
+      "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el francés.",
+    );
+  });
+
+  it("A French-native reader on the six pairs: English and Spanish, never French, as before", async () => {
+    const r = await mountWithFrench("fr", "fr", ["en", "es"]);
+    expect(r.offered.map(([language]) => language)).toEqual(["en", "es"]);
+    expect(r.levelTitles).toEqual(["Niveau d'anglais", "Niveau d'espagnol estimé"]);
   });
 
   it("Every reader today: the French titles and note, byte for byte", async () => {

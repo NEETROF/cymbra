@@ -186,6 +186,62 @@ describe("every message, in every interface language, for every studied language
   });
 });
 
+describe("French studied by readers of English and Spanish (enable-lingua-french D3)", () => {
+  // Every message of a surface that names French, asks or shows its level or says its levels are
+  // estimated — the labels of the change's design (*Measured*), which the catalogue held before it.
+  const PREVIEW = "Voici comment sonneront tes pages quand Lingua les lira à voix haute.";
+
+  it("an English-native reader reads every message in English: the estimated level, the note, the borrowed sizes", () => {
+    expect(every("en", "fr")).toEqual({
+      languageName: "French",
+      levelScale: "CEFR",
+      levelTitle: "French level",
+      levelTitleEstimated: "Estimated French level",
+      myLevelTitle: "My French level",
+      myLevelTitleEstimated: "My estimated French level",
+      estimatedLevelsNote: "Levels estimated from word frequency, as no freely licensed CEFR list exists for French.",
+      borrowedTypicalNote: "taken from English, whose level sizes French borrows.",
+      levelName: "B1",
+      levelNameEstimated: "B1 (estimated)",
+      chooseLevelPrompt: "Choose your French level",
+      noTextDetected: "No French text found on this page.",
+      noTextInYourLanguages: "No text in your languages found on this page.",
+      noVoiceInstalled: "No French voice is installed on this device. ",
+      windowsVoiceLanguage: "French (France)",
+      previewSentence: PREVIEW,
+      levelQuestion: "What's your French level?",
+    });
+  });
+
+  it("a Spanish-native reader reads every message in Spanish: « de francés », « el francés », the MCER", () => {
+    expect(every("es", "fr")).toEqual({
+      languageName: "Francés",
+      levelScale: "MCER",
+      levelTitle: "Nivel de francés",
+      levelTitleEstimated: "Nivel de francés estimado",
+      myLevelTitle: "Mi nivel de francés",
+      myLevelTitleEstimated: "Mi nivel de francés estimado",
+      estimatedLevelsNote:
+        "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el francés.",
+      borrowedTypicalNote: "tomado del inglés, cuyos tamaños de nivel retoma el francés.",
+      levelName: "B1",
+      levelNameEstimated: "B1 (estimado)",
+      chooseLevelPrompt: "Elige tu nivel de francés",
+      noTextDetected: "No se detectó texto en francés en esta página.",
+      noTextInYourLanguages: "No se detectó texto en tus idiomas en esta página.",
+      noVoiceInstalled: "No hay ninguna voz francesa instalada en este dispositivo. ",
+      windowsVoiceLanguage: "Francés (Francia)",
+      previewSentence: PREVIEW,
+      levelQuestion: "¿Cuál es tu nivel de francés?",
+    });
+  });
+
+  it("a reader of Spanish and French, or English and French, is told of their languages, neutral", () => {
+    expect(noTextDetected("en", ["es", "fr"])).toBe("No text in your languages found on this page.");
+    expect(noTextDetected("es", ["en", "fr"])).toBe("No se detectó texto en tus idiomas en esta página.");
+  });
+});
+
 describe("French, for its voices (add-lingua-french-read-aloud D4)", () => {
   /** The four messages the read-aloud block calls, for a speaker reading French. */
   const voiceMessages = (language: InterfaceLanguage): Record<string, string> => ({

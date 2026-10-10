@@ -224,6 +224,24 @@ describe("the popup's page, filled from the catalogue", () => {
     expect(r.text("level-line")).toBe("Estimated Spanish level: Beginner");
   });
 
+  it("A reader of French, English- or Spanish-native: the panel names French in their language (enable-lingua-french D3)", async () => {
+    const french = { language: "fr" as const, languages: ["fr" as const], levelsEstimated: true };
+    let r = await rendered("en", stats({ ...french, analysable: false }));
+    expect(r.text("note")).toBe("No French text found on this page.");
+    r = await rendered("en", stats({ ...french, needsLevel: true }));
+    expect(r.text("level-cta")).toBe("Choose your French level");
+    r = await rendered("en", stats(french));
+    expect(r.text("level-line")).toBe("Estimated French level: B1");
+    r = await rendered("en", stats({ ...french, analysable: false, languages: ["es", "fr"] }));
+    expect(r.text("note")).toBe("No text in your languages found on this page.");
+    r = await rendered("es", stats({ ...french, analysable: false }));
+    expect(r.text("note")).toBe("No se detectó texto en francés en esta página.");
+    r = await rendered("es", stats({ ...french, needsLevel: true }));
+    expect(r.text("level-cta")).toBe("Elige tu nivel de francés");
+    r = await rendered("es", stats(french));
+    expect(r.text("level-line")).toBe("Nivel de francés estimado: B1");
+  });
+
   it("A Spanish-native reader: the panel names the page's language in Spanish", async () => {
     let r = await rendered("es", stats({ analysable: false }));
     expect(r.text("note")).toBe("No se detectó texto en inglés en esta página.");

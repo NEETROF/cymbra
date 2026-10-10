@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { SHIPPED_PAIRS } from "@/analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
+import type { InterfaceLanguage } from "@/i18n/index.ts";
 import { studiedLanguages as frStudiedLanguages } from "@/i18n/fr/studied-languages.ts";
 import { settingsCopy } from "@/reading/settings-copy.ts";
 import { mountStudiedLanguages, shippedLanguages } from "@/reading/studied-languages-view.ts";
@@ -10,17 +12,27 @@ import { makeFakePort } from "./helpers.ts";
 // French, handed explicitly: the view has no default language (add-lingua-native-language-labels).
 
 const BOTH = ["en-fr", "es-fr"];
+/** The six pairs, French last: packs.json since enable-lingua-french. */
+const SIX = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
+/** fr-es under its floor: the list ending with fr-en (enable-lingua-french D2). */
+const FR_EN_ALONE = ["en-fr", "es-fr", "es-en", "en-es", "fr-en"];
 const settle = async (): Promise<void> => {
   for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
-async function mount(studied: StudiedLanguage[], pairs: readonly string[] = BOTH, native: NativeLanguage = "fr") {
+async function mount(
+  studied: StudiedLanguage[],
+  pairs: readonly string[] = BOTH,
+  native: NativeLanguage = "fr",
+  language: InterfaceLanguage = "fr",
+) {
   const { port } = makeFakePort();
   port.nativeLanguage = async () => native;
   await port.setStudiedLanguages(studied);
   const block = document.createElement("div");
   const persist = vi.fn(async () => {});
-  const view = mountStudiedLanguages(block, port, persist, pairs, frStudiedLanguages, "fr");
+  const copy = language === "fr" ? frStudiedLanguages : settingsCopy(language).studiedLanguages;
+  const view = mountStudiedLanguages(block, port, persist, pairs, copy, language);
   await view.refresh();
   const box = (language: string): HTMLInputElement =>
     block.querySelector<HTMLInputElement>(`input[data-language="${language}"]`)!;
@@ -100,6 +112,59 @@ describe("« Langues étudiées »", () => {
     expect([...s.block.querySelectorAll<HTMLInputElement>("input")].map((b) => b.dataset.language)).toEqual(["es"]);
     // One language glossed in English: nothing to choose, though two are listed in French.
     expect(s.block.hidden).toBe(true);
+  });
+
+  // enable-lingua-french D3: French offered after a native language's default, never to a French speaker.
+  const offered = (block: HTMLElement) =>
+    [...block.querySelectorAll<HTMLInputElement>("input")].map((b) => [b.dataset.language, b.nextSibling?.textContent]);
+
+  it("offers an English speaker Spanish then French, and ticking French adds it after Spanish (enable-lingua-french)", async () => {
+    const s = await mount(["es"], SIX, "en", "en");
+    expect(s.block.hidden).toBe(false);
+    expect(offered(s.block)).toEqual([
+      ["es", "Spanish"],
+      ["fr", "French"],
+    ]);
+    expect(s.box("es").checked).toBe(true);
+    expect(s.box("fr").checked).toBe(false);
+    s.box("fr").checked = true;
+    s.box("fr").dispatchEvent(new Event("change"));
+    await settle();
+    expect(await s.port.studiedLanguages()).toEqual(["es", "fr"]);
+    expect(s.persist).toHaveBeenCalledOnce();
+  });
+
+  it("offers a Spanish speaker English then French, and English alone, hidden, without fr-es (enable-lingua-french D2)", async () => {
+    const s = await mount(["en"], SIX, "es", "es");
+    expect(offered(s.block)).toEqual([
+      ["en", "Inglés"],
+      ["fr", "Francés"],
+    ]);
+    s.box("fr").checked = true;
+    s.box("fr").dispatchEvent(new Event("change"));
+    await settle();
+    expect(await s.port.studiedLanguages()).toEqual(["en", "fr"]);
+    const under = await mount(["en"], FR_EN_ALONE, "es", "es");
+    expect(offered(under.block)).toEqual([["en", "Inglés"]]);
+    expect(under.block.hidden).toBe(true);
+  });
+
+  it("offers a French speaker English and Spanish, never French (enable-lingua-french)", async () => {
+    const s = await mount(["en", "es"], SIX);
+    expect(offered(s.block)).toEqual([
+      ["en", "Anglais"],
+      ["es", "Espagnol"],
+    ]);
+    expect(s.block.querySelector('input[data-language="fr"]')).toBeNull();
+  });
+
+  it("offers on the bundle's list what each native language's pairs study (enable-lingua-french)", async () => {
+    expect(SHIPPED_PAIRS).toEqual(SIX);
+    const languages = async (native: NativeLanguage) =>
+      offered((await mount(["en"], SHIPPED_PAIRS, native)).block).map(([language]) => language);
+    expect(await languages("fr")).toEqual(["en", "es"]);
+    expect(await languages("en")).toEqual(["es", "fr"]);
+    expect(await languages("es")).toEqual(["en", "fr"]);
   });
 
   it("shows a French reader's boxes before the port answers, as before", () => {

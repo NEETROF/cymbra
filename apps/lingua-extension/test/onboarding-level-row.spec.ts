@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { StudiedLanguage } from "@/analyzer/types.ts";
 import type { InterfaceLanguage } from "@/i18n/index.ts";
 import { levelRow } from "@/onboarding/level-row.ts";
 
 /** A level row over a view that records nothing; `estimated` as the pack says; handed French, unless told otherwise. */
-function mount(language: "en" | "es", estimated: boolean, interfaceLanguage: InterfaceLanguage = "fr"): HTMLElement {
+function mount(
+  language: StudiedLanguage,
+  estimated: boolean,
+  interfaceLanguage: InterfaceLanguage = "fr",
+): HTMLElement {
   const view = { setDeclaredLevelAt: async () => {}, setCalibration: async () => {} };
   const row = levelRow(language, view, null, estimated, async () => {}, interfaceLanguage);
   document.body.replaceChildren(row);
@@ -52,6 +57,25 @@ describe("onboarding — a language's level (add-lingua-spanish-levels)", () => 
     expect(spanish.querySelector("h2")?.textContent).toBe("¿Cuál es tu nivel de inglés?");
     expect(spanish.querySelector(".note")?.textContent).toBe(
       "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el inglés.",
+    );
+  });
+
+  it("asks French's level in English and in Spanish, its levels estimated (enable-lingua-french D3)", async () => {
+    const english = mount("fr", true, "en");
+    expect(english.querySelector("h2")?.textContent).toBe("What's your French level?");
+    expect(english.querySelector(".note")?.textContent).toBe(
+      "Levels estimated from word frequency, as no freely licensed CEFR list exists for French.",
+    );
+    english.querySelector<HTMLButtonElement>('button[data-lvl="B1"]')!.click();
+    await settle();
+    expect(english.querySelector(".confirm")?.textContent).toBe(
+      "Level saved: B1 (estimated). You can close this tab and start reading.",
+    );
+
+    const spanish = mount("fr", true, "es");
+    expect(spanish.querySelector("h2")?.textContent).toBe("¿Cuál es tu nivel de francés?");
+    expect(spanish.querySelector(".note")?.textContent).toBe(
+      "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el francés.",
     );
   });
 });

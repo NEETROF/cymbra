@@ -519,6 +519,37 @@ describe("WasmAnalyzerPort packs", () => {
       expect(glue.calls).toEqual([["analyse", ["es"]]]);
     });
 
+    it("reads French through the reader's pair: fr-en beside es-en, fr-es beside en-es, none for a French reader (enable-lingua-french D3)", async () => {
+      const SIX = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
+      const pack = (pair: string) => `ext://assets/packs/${pair}.lingua`;
+
+      const english = packGlue();
+      const en = new WasmAnalyzerPort(english.load, SIX, async () => "en");
+      await en.for("fr").analyse(["Le phare"]);
+      await en.for("es").analyse(["El faro"]);
+      expect(packs()).toEqual([pack("es-en"), pack("fr-en")]);
+      expect(english.calls).toEqual([
+        ["addPack", ["fr"]],
+        ["analyse", ["fr"]],
+        ["analyse", ["es"]],
+      ]);
+
+      fetched.length = 0;
+      const spanish = packGlue();
+      const es = new WasmAnalyzerPort(spanish.load, SIX, async () => "es");
+      await es.for("fr").analyse(["Le phare"]);
+      expect(packs()).toEqual([pack("en-es"), pack("fr-es")]);
+
+      fetched.length = 0;
+      const french = packGlue();
+      const fr = new WasmAnalyzerPort(french.load, SIX, async () => "fr");
+      await expect(fr.for("fr").analyse(["Le phare"])).rejects.toThrow(
+        'no shipped pack studies "fr" (shipped pairs: en-fr, es-fr)',
+      );
+      expect(packs()).toEqual([]);
+      expect(french.calls).toEqual([]);
+    });
+
     it("answers the native language without fetching a pack", async () => {
       const glue = packGlue();
       const port = new WasmAnalyzerPort(glue.load, MIXED, async () => "en");
