@@ -132,6 +132,35 @@ fn the_french_fixture_studies_french_at_its_analyser_version() {
 }
 
 #[test]
+fn the_fr_es_fixture_is_the_french_fixture_glossed_in_spanish() {
+    // enable-lingua-french D10: hand-written in the fr-en fixture's layout, its French forms, ranks
+    // and levels byte for byte, its words and expressions glossed in Spanish, stamped with French's
+    // analyser version as committed, so that `yarn gen:pack` builds fr-es once the list names it.
+    let root = testdata_dir().parent().unwrap().to_path_buf();
+    let french = inputs_from_dir(&root.join("fr-en")).expect("read the fr-en fixture");
+    let inputs = inputs_from_dir(&root.join("fr-es")).expect("read the fr-es fixture");
+    assert_eq!(inputs.form_lemma, french.form_lemma);
+    assert_eq!(inputs.ranks, french.ranks);
+    assert_eq!(inputs.levels, french.levels);
+    let lemmas =
+        |glosses: &[(String, String)]| glosses.iter().map(|(l, _)| l.clone()).collect::<Vec<_>>();
+    assert_eq!(lemmas(&inputs.glosses), lemmas(&french.glosses));
+    assert_eq!(lemmas(&inputs.expressions), lemmas(&french.expressions));
+    assert!(inputs.readings.is_empty() && inputs.senses.is_empty());
+    assert!(inputs.meta.pack_version.contains("fixture"));
+    let bytes = build_pack(&inputs).expect("build");
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    let pack = Pack::load(&bytes).expect("the core loads it at French's version");
+    assert_eq!(pack.studied(), StudiedLanguage::French);
+    assert_eq!(pack.meta().analyzer_version, FRENCH_ANALYZER_VERSION);
+    assert_eq!(pack.meta().pair_key(), "fr-es");
+    assert_eq!(pack.lexicon().lemma_of("est"), Some("être"));
+    assert_eq!(pack.gloss("maison"), Some("casa"));
+    assert_eq!(pack.gloss("être"), Some("ser, estar"));
+    assert!(pack.notice().contains("hand-written"));
+}
+
+#[test]
 fn pipeline_reads_the_optional_expression_table() {
     let inputs = inputs_from_dir(&testdata_dir()).expect("read testdata");
     // `mwe.tsv` reaches the builder as the reducer wrote it, spellings and all:

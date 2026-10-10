@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { pairOf } from "@/analyzer/pairs.ts";
+import { pairOf, SHIPPED_PAIRS } from "@/analyzer/pairs.ts";
 import type { EngineAccess, EngineReply } from "@/translate/host/engine.ts";
 import { type AnswerDeps, answerTranslation, answerWarm, relayTranslation, relayWarm } from "@/translate/host/relay.ts";
 import { MARKED_PAIRS } from "@/translate/markup.ts";
@@ -121,8 +121,9 @@ describe("relayTranslation", () => {
       selection: { start: 2, end: 9 }, // « travers »
       language: "fr",
     };
-    // Listed on its own figures (95 of 96, 4 % withheld), inert until change 52 ships fr-en.
+    // Listed on its own figures (95 of 96, 4 % withheld), and shipped since change 52 lists fr-en.
     expect(MARKED_PAIRS).toContain("fr-en");
+    expect(SHIPPED_PAIRS).toContain("fr-en");
     const result = await relayTranslation(access, request, pairOf(request.language, "en"));
     expect(pairs).toEqual(["fr-en", "fr-en"]);
     expect(seen).toEqual(["A <b>travers</b> l'histoire, le marché du cheveu a toujours été politique.", "travers"]);
@@ -145,6 +146,7 @@ describe("relayTranslation", () => {
       language: "fr",
     };
     expect(MARKED_PAIRS).toContain("fr-es"); // 90 of 91, 9 % withheld
+    expect(SHIPPED_PAIRS).toContain("fr-es"); // since change 52 (enable-lingua-french D5)
     const result = await relayTranslation(access, request, pairOf(request.language, "es"));
     expect(pairs).toEqual(["fr-es", "fr-es"]);
     expect(seen[0]).toBe("Suivant la <b>chute</b> de la dynastie Qing en 1911, la Mongolie proclama son indépendance.");
