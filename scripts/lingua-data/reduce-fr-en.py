@@ -19,15 +19,18 @@ Inputs, in `--work`:
   too (add-lingua-pack-fr-en): the English glosses of French words and expressions, written by
   people for French words.
 - `fr_gsd-ud-train.conllu`, `fr_gsd-ud-dev.conllu`: UD French-GSD, read for how often each form
-  stands for each lemma (design D5) and how often each hyphenated lemma occurs (D6). Its test
-  section is never read: the measurement holds it out (D9).
+  stands for each lemma (design D5) and how often each hyphenated lemma occurs (D6) — and, for
+  fr-en's glosses, how often it reads each word under each part of speech
+  (refine-lingua-fr-en-glosses D5). Its test section is never read: the measurement holds it out
+  (D9).
 - wordfreq `fr` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
   attested at all (D6).
 
 Outputs, in `--work`: `forms.tsv`, `freq.tsv`, the readings `grammar.tsv`
-(add-lingua-french-grammar-tables), `level.tsv` (French's estimated levels, add-lingua-french-levels),
-fr-en's native side — `gloss.tsv`, `senses.tsv` and `mwe.tsv` (add-lingua-pack-fr-en) —, `NOTICE`
-and `manifest.json`.
+(add-lingua-french-grammar-tables), fr-en's native side — `gloss.tsv`, `senses.tsv` and `mwe.tsv`
+(add-lingua-pack-fr-en) —, French's dictionary words `lexical.tsv` and `level.tsv` (French's
+estimated levels, add-lingua-french-levels, given to the dictionary words alone), `NOTICE` and
+`manifest.json`.
 
 The tables serve French's tokenisation as add-lingua-french-tokenisation writes it (M21, design
 D4): the pre-pass hands the lookup the word an elided piece stands for (`l'` is read `le`), splits
@@ -49,9 +52,22 @@ words: measured, what the French Wiktionary's English translations and the Engli
 French translations read backwards would add is 1,988 lemmas, 1,895 of them words the section has no
 entry for — English words (« in », « end »), names, initialisms, unaccented misspellings, 1,193
 listing the word itself as its translation —, and fr-en is French's reference pair, so every lemma it
-glosses becomes a dictionary word of French. Read backwards, an English entry makes French's
-commonest bigrams expressions (« il est » "he's"). A word or an expression the section does not gloss
-has no gloss.
+glosses but a name becomes a dictionary word of French. Read backwards, an English entry makes
+French's commonest bigrams expressions (« il est » "he's"). A word or an expression the section does
+not gloss has no gloss.
+
+fr-en reads the section as French (refine-lingua-fr-en-glosses), by rules of this reducer alone — the
+English edition's and the shared ones read es-en's rows and every pair's too, and are not edited, so
+only fr-en re-pins (D1): `read_as_french`, a pre-pass after the English edition's meanings, reads a
+pointer that carries its meaning as that meaning (D4), opens a function word's row on the part of
+speech UD French-GSD reads it as (D5), leaves a name out of a function word's row (D6) and takes the
+page's notes out (D8); five expressions whose sense needs a context are left out and six post-1990
+spellings lend their traditional spelling's gloss (D7); « etc » takes its period back (D8). Measured
+on the pinned section (its design's *Measured*): 291 rows change, 117 of the 10,000 commonest, 12
+lemmas gain a gloss and none loses one; 26 expressions change, 172 are gained and 5 left out. French's
+dictionary words are fr-en's glossed lemmas less the 3,581 it glosses by a proper noun's senses alone
+(`paris`, `durand`: D2, `dictionary_words`), written here so that the levels can read them: a French
+level goes to a dictionary word alone (D3).
 """
 
 import argparse
