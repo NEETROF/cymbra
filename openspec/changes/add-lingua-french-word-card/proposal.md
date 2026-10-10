@@ -66,8 +66,10 @@ Three hand-overs land here too:
 - **The present participle named** (D4): "present participle of parler", « participio presente de
   parler »; the past participle « participio pasado » in Spanish beside it. French has no gerund.
 - **What stays unnamed on a French card** (D5): a plural spelled like the card's own dictionary
-  form (« temps », « un »); a numeral's form and a plural determiner or pronoun without a gender, as
-  a Spanish card's are. A comparative is named as such, its agreement said by the form's own line.
+  form (« temps », « un ») — as implemented, `refine-lingua-card-invariable-plurals`' rule, on `main`
+  first and the same for every studied language (its D3) —; a numeral's form and a plural determiner
+  or pronoun without a gender, as a Spanish card's are. A comparative is named as such, its agreement
+  said by the form's own line.
 - **The Spanish card names two genders of one number once** (D6), as the English card does since
   change 23: « el masculino y femenino plural de somme », 951 French forms; no English reading has
   a gender, so en-es does not move.
@@ -86,10 +88,15 @@ Three hand-overs land here too:
   and `-fr-es.spec.ts` render every grammar and phrase probe of each golden and pin the lines in
   `test/baseline/word-card-fr-{en,es}.txt`, run and re-blessed where the others are. What the
   snapshots show wrong in the data is listed for the pairs' refinements.
+- **A French match covers the article of « au » and « aux »** (D12, the owner's decision of
+  2026-10-09 answering change 44b's open question 3): as a Spanish match covers the article of « al »
+  and « del », a French expression match ending on the `à` of « au » or « aux » covers the `le` or
+  `les` sharing its span, so « jusqu'au » is answered by `jusqu'à` whole (`crates/lingua-core`
+  `match_expressions`).
 - **Nothing else moves** (D10): every form of the en-fr, es-fr, es-en and en-es packs renders byte
   for byte (measured: 440,534 forms), `test/word-grammar.spec.ts` is unchanged, the four other
   goldens and the three committed snapshots pass as committed; `fr-en.golden` gains 62 probes and
-  moves none.
+  moves one, « jusqu'au soir » (D12).
 
 ## Capabilities
 
@@ -108,6 +115,8 @@ None.
     over a word written as pieces with spans of their own; its text and scenarios kept.
 - `lingua-decks-review`: ADDED — *Review finds a French expression card named without a space*,
   beside change 44's *Review finds a French expression card by its name*.
+- `lingua-analysis`: ADDED — *A French match never ends inside a written word* (D12), beside change
+  44's *French expressions are found on French's reading of a selection*, held by that open change.
 
 ## Impact
 
@@ -115,23 +124,29 @@ None.
   - `apps/lingua-extension` — *changed*: `src/i18n/index.ts` (`StudiedLanguageCode`),
     `src/reading/grammar-description.ts` (what French names, the moods' merge, the order),
     `src/i18n/{en,es,fr}/grammar.ts` (French's tables, the present participle, Spanish's genders),
-    `src/i18n/README.md`, `src/reading/selection.ts` (the reader's range), `src/reading/session.ts`
-    and `selection-card.ts` (the routing, `cardGloss`); *new*: `test/word-card-fr-en.spec.ts`,
-    `test/word-card-fr-es.spec.ts` and their snapshots; *moving*: `test/word-grammar-en.spec.ts`,
-    `-es.spec.ts`, `grammar-description.spec.ts`, `selection.spec.ts` (change 40's pinned case),
-    `session.spec.ts`/`reading-session.spec.ts`; `test/word-grammar.spec.ts` unchanged; *consumed*:
+    `src/i18n/README.md`, `src/reading/selection.ts` (the reader's range), `src/reading/session.ts`,
+    `scan.ts` (the pieces of a word, `selectWithinWord`), `selection-card.ts` and `wordpopup.ts` (the
+    routing, `cardGloss` and the gesture's `expressionAnswer`); *new*: `test/word-card-fr-en.spec.ts`,
+    `test/word-card-fr-es.spec.ts`, their shared `test/word-card-french.ts` and their snapshots;
+    *moving*: `test/word-grammar-en.spec.ts`, `-es.spec.ts`, `grammar-description.spec.ts`,
+    `i18n.spec.ts`, `selection.spec.ts` (change 40's pinned case), `reading-session.spec.ts`,
+    `scan.spec.ts`, `selection-card.spec.ts`, `wordpopup.spec.ts`; `test/word-grammar.spec.ts`
+    unchanged; *consumed*:
     the description and the renderers' API (change 18), the click's hit test (40), the closed classes
     the rows leave out (41), the expressions' names (44), the readings (45), `rowGloss` and the
     snapshots' harness (23, 24).
   - `crates/lingua-wasm` — `src/lib.rs` `readable_gloss` (French's arm, over change 44's
     `french_expression_key`, *consumed*); `tests/support/french.rs`
     (the card's probes), `tests/fr_es_baseline.rs` and `baseline/fr-es.golden` (new),
-    `baseline/fr-en.golden` (probes added).
+    `baseline/fr-en.golden` (probes added, « jusqu'au soir » moved by D12),
+    `tests/card_gloss_language.rs`.
+  - `crates/lingua-core` — `src/engine.rs` `match_expressions` (D12: a French match covers the
+    article of « au »/« aux »), its test rewritten; no analyser version, table or pack moves.
   - `.github/workflows/lingua-extension-check.yml` and `lingua-pack-update.yml` — `fr_es_baseline`
     and the two snapshots beside the others.
 
-  ID, Music, Live, the back office, the site, the backend, the packs, the reducers, lingua-core,
-  the Apple host app and the agent plugin are untouched.
+  ID, Music, Live, the back office, the site, the backend, the packs, the reducers, the core's
+  analysis, the Apple host app and the agent plugin are untouched.
 - **Release.** Silent: no listed pair studies French, `StudiedLanguage` has no `fr` until change 52.
   English and Spanish selections move only over a hyphenated run holding a digit, of which the
   English and Spanish corpora hold none (D7).

@@ -430,6 +430,12 @@ describe("the word card in Spanish, of a French word", () => {
     ).toEqual(["también puede ser el masculino plural de fil"]);
   });
 
+  it("A noun used only in the plural keeps its line (« gens », refine-lingua-card-invariable-plurals D3)", () => {
+    expect(
+      french("gens", "gens", [noun("Masc", "Plur")], [{ lemma: "gent", readings: [noun("Fem", "Plur")] }]),
+    ).toEqual(["también puede ser el masculino plural de gens", "también puede ser el femenino plural de gent"]);
+  });
+
   it("Two genders of one number named once (add-lingua-french-word-card D6: « sommes »)", () => {
     expect(
       french(

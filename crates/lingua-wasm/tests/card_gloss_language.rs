@@ -27,7 +27,10 @@
 //! reads as, in the pack built from the committed French tables (add-lingua-pack-fr-en; the fr-en
 //! fixture before them). A Spanish expression card is named by its headword too
 //! (add-lingua-spanish-expression-keys D3), and one made before was made under its key: review
-//! reads es-fr's table at the card's lemma, then at the key the lemma reads as (D7).
+//! reads es-fr's table at the card's lemma, then at the key the lemma reads as (D7). A French
+//! expression named without a space (`d'abord`) is read at the key its name reads as (`de abord`),
+//! and a French word written with an apostrophe (`aujourd'hui`, one token) as a word
+//! (add-lingua-french-word-card D8).
 //!
 //! Host only: the pack builder is native (C zstd).
 
