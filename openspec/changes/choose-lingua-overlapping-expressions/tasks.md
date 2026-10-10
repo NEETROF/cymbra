@@ -28,10 +28,10 @@
 
 ## 3. Gates
 
-- [ ] 3.1 Nothing else moves: `cargo test -p lingua-wasm --test cross_native --test parity --test card_gloss_language --test spanish_expression_keys --test soft_hyphens --test languages --test deck --test statuses --test reprofile` passes without re-blessing; `cargo test -p lingua-pack --test committed_tables` builds the six committed packs to their pins; `git diff --stat origin/main -- scripts/lingua-data` is empty.
-- [ ] 3.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test -p lingua-core -p lingua-pack -p lingua-wasm`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`; `wasm-pack test --node crates/lingua-wasm`; `cargo test` in `apps/lingua-agent/rust` (it compiles the core).
-- [ ] 3.3 In `apps/lingua-extension`: `yarn gen:wasm`, `yarn typecheck`, `yarn lint`, `yarn test`, `yarn build`, `yarn check:variants`; the bundles grow by the rule alone.
-- [ ] 3.4 `openspec validate choose-lingua-overlapping-expressions --strict` passes; `python3 scripts/openspec_archive_order.py choose-lingua-overlapping-expressions` exits 10 naming the changes of `archiveAfter` still open; row 44f is marked done in `docs/lingua/language-matrix-programme.md`.
+- [x] 3.1 Nothing else moves: `cargo test -p lingua-wasm --test cross_native --test parity --test card_gloss_language --test spanish_expression_keys --test soft_hyphens --test languages --test deck --test statuses --test reprofile` passes without re-blessing; `cargo test -p lingua-pack --test committed_tables` builds the six committed packs to their pins; `git diff --stat origin/main -- scripts/lingua-data` is empty.
+- [x] 3.2 `cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo test -p lingua-core -p lingua-pack -p lingua-wasm`; `cargo llvm-cov --workspace --fail-under-lines 80 --ignore-filename-regex "$(cat .github/coverage-ignore-regex.txt)"`; `wasm-pack test --node crates/lingua-wasm`; `cargo test` in `apps/lingua-agent/rust` (it compiles the core).
+- [x] 3.3 In `apps/lingua-extension`: `yarn gen:wasm`, `yarn typecheck`, `yarn lint`, `yarn test`, `yarn build`, `yarn check:variants`; the bundles grow by the rule alone.
+- [x] 3.4 `openspec validate choose-lingua-overlapping-expressions --strict` passes; `python3 scripts/openspec_archive_order.py choose-lingua-overlapping-expressions` exits 10 naming the changes of `archiveAfter` still open; row 44f is marked done in `docs/lingua/language-matrix-programme.md`.
 
 ## 4. Owner
 
