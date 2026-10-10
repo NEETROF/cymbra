@@ -24,10 +24,13 @@
 //! `baseline/fr-es.golden` and pins the Spanish lines the card renders from them; nothing there
 //! reads the tables.
 //!
-//! On every probe, this golden and fr-en's differ only in the native side — glosses, senses,
-//! expressions, the lines naming the packs, the notice, the licences and the backup's profile:
-//! `the_golden_is_the_french_one_on_the_studied_side` compares the two committed goldens through
-//! `support::studied_side`, as `es_en_baseline.rs` compares es-en's with es-fr's.
+//! On every probe up to the reader's level seeding, this golden and fr-en's differ only in the
+//! native side — glosses, senses, expressions, the lines naming the packs, the notice, the licences
+//! and the backup's profile: `the_golden_is_the_french_one_on_the_studied_side` compares the two
+//! committed goldens through `support::studied_side`, as `es_en_baseline.rs` compares es-en's with
+//! es-fr's. The probes from `start-review` on follow the deck the seeding left, whose cards are the
+//! lemmas each pack glosses (seed-lingua-decks-with-glossed-lemmas D4): `cross_native.rs` compares
+//! them through engines, the reader answered without the seeding, and checks the seeding apart.
 //!
 //! A pull request that changes `baseline/fr-es.golden` changes what Spanish-native readers of
 //! French will see, once a package lists fr-es (change 52). Only a dictionary update of fr-es or
@@ -44,7 +47,7 @@
 mod support;
 
 use support::french::FRENCH;
-use support::{Scenario, first_difference, probes, studied_side};
+use support::{Scenario, first_difference, follows_seeding, probes, studied_side};
 
 /// The French scenario, glossed in Spanish: fr-es beside the real en-es pack the engine starts on.
 pub const FRENCH_IN_SPANISH: Scenario = Scenario {
@@ -113,9 +116,11 @@ fn fr_es_levels_are_french_s() {
 }
 
 /// The committed fr-es golden is the committed fr-en golden on the studied side (D9): on every
-/// probe, the two differ only in the native side — glosses, senses, expressions —, the lines naming
-/// the packs (fr-en's engine holds es-en beside it, this one en-es), the notice, the licences and
-/// the backup's profile. They ask the same probes.
+/// probe before `start-review`, both seeding counts included, the two differ only in the native
+/// side — glosses, senses, expressions —, the lines naming the packs (fr-en's engine holds es-en
+/// beside it, this one en-es), the notice, the licences and the backup's profile. They ask the same
+/// probes. The probes after the seeding are `cross_native.rs`'s, through engines: the cards a level
+/// seeds are those each pack glosses (seed-lingua-decks-with-glossed-lemmas D4).
 #[test]
 fn the_golden_is_the_french_one_on_the_studied_side() {
     // The goldens are being rewritten by the baseline tests, in this binary and in
@@ -135,6 +140,11 @@ fn the_golden_is_the_french_one_on_the_studied_side() {
             .collect()
     };
     assert_eq!(names(&fr_en), names(&fr_es), "the same probes, in order");
+    let shared = names(&fr_en);
+    let after = shared
+        .iter()
+        .filter(|name| follows_seeding(&shared, name))
+        .count();
     let mut compared = 0;
     for ((name, body), (_, other)) in fr_en
         .iter()
@@ -145,8 +155,9 @@ fn the_golden_is_the_french_one_on_the_studied_side() {
                 .filter(|(name, _)| !name.starts_with("beside ")),
         )
     {
-        // The `about` line names the test that generated the golden.
-        if name == "about" {
+        // The `about` line names the test that generated the golden; the probes that follow the
+        // reader's level seeding are compared through engines (cross_native.rs).
+        if name == "about" || follows_seeding(&shared, name) {
             continue;
         }
         let (Some(x), Some(y)) = (studied_side(name, body), studied_side(name, other)) else {
@@ -168,11 +179,12 @@ fn the_golden_is_the_french_one_on_the_studied_side() {
                 .collect::<String>(),
         );
     }
-    // Every probe but the `about`, pack and beside lines, the cards' glosses, the notice and the
-    // licences.
+    // Every probe but the `about`, pack and beside lines, the cards' glosses, the notice, the
+    // licences and the probes that follow the seeding.
+    assert!(after > 0, "the reader's probes from `start-review` on");
     assert_eq!(
         compared,
-        fr_en.len() - 3 - 2 - FRENCH.lemmas.len(),
+        fr_en.len() - 3 - 2 - FRENCH.lemmas.len() - after,
         "probes compared"
     );
 }

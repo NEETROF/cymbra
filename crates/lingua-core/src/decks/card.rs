@@ -178,8 +178,10 @@ impl Card {
     /// not from a real reading encounter. There is no originating sentence, so
     /// it is empty, and the source is [`EncounterSource::Import`] rather than a
     /// fabricated URL or agent session. The encountered form is the lemma
-    /// itself. The gloss is the pack's, written in `gloss_language`.
-    pub fn seeded(lemma: &str, gloss: Option<String>, gloss_language: &str, at: i64) -> Self {
+    /// itself. The gloss is the pack's, written in `gloss_language`, and is
+    /// required: a seeded card without one cannot be built, as it would have
+    /// nothing behind its answer (seed-lingua-decks-with-glossed-lemmas D1).
+    pub fn seeded(lemma: &str, gloss: String, gloss_language: &str, at: i64) -> Self {
         Card::new(
             lemma,
             lemma,
@@ -188,7 +190,7 @@ impl Card {
                 source: EncounterSource::Import,
                 captured_at: at,
             },
-            gloss,
+            Some(gloss),
             gloss_language,
         )
     }
@@ -253,9 +255,10 @@ mod tests {
 
     #[test]
     fn seeded_card_uses_import_and_has_no_sentence() {
-        let card = Card::seeded("nuance", Some("nuance".to_owned()), "fr", 1_700_000_000);
+        let card = Card::seeded("nuance", "nuance".to_owned(), "fr", 1_700_000_000);
         assert_eq!(card.lemma, "nuance");
         assert_eq!(card.encountered_form, "nuance");
+        assert_eq!(card.gloss.as_deref(), Some("nuance"));
         assert_eq!(card.gloss_language, "fr");
         assert_eq!(card.provenance.source, EncounterSource::Import);
         assert!(card.provenance.sentence.is_empty());

@@ -407,9 +407,9 @@ reads them as committed.
 ### start-review
 10
 ### review-current first
-{"gloss":"Cavidad","headword":"cavité","remaining":10,"revealed":false,"sentence":"","source":"","surface":"cavité"}
+{"gloss":"Baldosa","headword":"carreau","remaining":10,"revealed":false,"sentence":"","source":"","surface":"carreau"}
 ### review-current second
-{"gloss":"Ciertamente, sin duda, seguramente","headword":"certainement","remaining":9,"revealed":false,"sentence":"","source":"","surface":"certainement"}
+{"gloss":"Cavidad","headword":"cavité","remaining":9,"revealed":false,"sentence":"","source":"","surface":"cavité"}
 ### review-remaining
 8
 ### calibration
@@ -433,11 +433,11 @@ B1
 ### phrase-gloss reader Le vieux marin ferma les fenêtres du phare
 {"tokens":[{"surface":"Le","lemma":"le","class":"Known","gloss":"El","function_word":true},{"surface":"vieux","lemma":"vieux","class":"Known","gloss":"Viejo","function_word":false},{"surface":"marin","lemma":"marin","class":"Learning","gloss":"Marinero","function_word":false},{"surface":"ferma","lemma":"fermer","class":"Known","gloss":"Cerrar, cerrar con llave","function_word":false},{"surface":"les","lemma":"le","class":"Known","gloss":"El","function_word":true},{"surface":"fenêtres","lemma":"fenêtre","class":"Known","gloss":"Ventana","function_word":false},{"surface":"du","lemma":"du","class":"Known","gloss":"Contracción de la preposición de y el articulo le, del","function_word":true},{"surface":"phare","lemma":"phare","class":"Known","gloss":"Faro, almenara, reflector","function_word":false}]}
 ### vocabulary-estimate reader
-{"estimated":2304,"confirmed":6,"universe":30094,"basis":"level"}
+{"estimated":2305,"confirmed":6,"universe":30094,"basis":"level"}
 ### export-status-ops
-[{"language":"fr","lemma":"certainement","provenance":"srs","status":"known","updated_at":1790086400000},{"language":"fr","lemma":"fenêtre","provenance":"manual","status":"known","updated_at":1790000000004},{"language":"fr","lemma":"horizon","provenance":"manual","status":"learning","updated_at":1790000000000},{"language":"fr","lemma":"lumière","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"fr","lemma":"marin","provenance":"manual","status":"learning","updated_at":1790000000002},{"language":"fr","lemma":"mdr","provenance":"manual","status":"ignored","updated_at":1790000000003},{"language":"fr","lemma":"mer","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"fr","lemma":"phare","provenance":"manual","status":"known","updated_at":1790000000001},{"language":"fr","lemma":"rassurer","provenance":"manual","status":"learning","updated_at":1790000120000},{"language":"fr","lemma":"récolte","provenance":"manual","status":"learning","updated_at":1790000060000},{"language":"fr","lemma":"vague","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"fr","lemma":"village","provenance":"manual","status":"cleared","updated_at":1790000000006}]
+[{"language":"fr","lemma":"cavité","provenance":"srs","status":"known","updated_at":1790086400000},{"language":"fr","lemma":"fenêtre","provenance":"manual","status":"known","updated_at":1790000000004},{"language":"fr","lemma":"horizon","provenance":"manual","status":"learning","updated_at":1790000000000},{"language":"fr","lemma":"lumière","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"fr","lemma":"marin","provenance":"manual","status":"learning","updated_at":1790000000002},{"language":"fr","lemma":"mdr","provenance":"manual","status":"ignored","updated_at":1790000000003},{"language":"fr","lemma":"mer","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"fr","lemma":"phare","provenance":"manual","status":"known","updated_at":1790000000001},{"language":"fr","lemma":"rassurer","provenance":"manual","status":"learning","updated_at":1790000120000},{"language":"fr","lemma":"récolte","provenance":"manual","status":"learning","updated_at":1790000060000},{"language":"fr","lemma":"vague","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"fr","lemma":"village","provenance":"manual","status":"cleared","updated_at":1790000000006}]
 ### export-card-ops
-[{"client_id":"cavité","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":{\"stability\":3.173,\"difficulty\":5.282434422319005},\"due\":1790345600,\"last_review\":1790086400,\"reps\":1,\"lapses\":0}","gloss":"Cavidad","gloss_language":"es","language":"fr","lemma":"cavité","source":"","source_sentence":"","surface_form":"cavité"},{"client_id":"certainement","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Ciertamente, sin duda, seguramente","gloss_language":"es","language":"fr","lemma":"certainement","source":"","source_sentence":"","surface_form":"certainement"},{"client_id":"cheminement","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"fr","lemma":"cheminement","source":"","source_sentence":"","surface_form":"cheminement"},{"client_id":"cheveu","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Cabello, pelo","gloss_language":"es","language":"fr","lemma":"cheveu","source":"","source_sentence":"","surface_form":"cheveu"},{"client_id":"clairement","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Claramente","gloss_language":"es","language":"fr","lemma":"clairement","source":"","source_sentence":"","surface_form":"clairement"},{"client_id":"collection","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Colección","gloss_language":"es","language":"fr","lemma":"collection","source":"","source_sentence":"","surface_form":"collection"},{"client_id":"conscience","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Conciencia","gloss_language":"es","language":"fr","lemma":"conscience","source":"","source_sentence":"","surface_form":"conscience"},{"client_id":"content","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Contento","gloss_language":"es","language":"fr","lemma":"content","source":"","source_sentence":"","surface_form":"content"},{"client_id":"horizon","client_ts":1790000000000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"horizon","gloss_language":"es","language":"fr","lemma":"horizon","source":"","source_sentence":"Il resta à regarder l’horizon.","surface_form":"horizon"},{"client_id":"rassurer","client_ts":1790000120000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"fr","lemma":"rassurer","source":"","source_sentence":"Le son de sa voix le rassure.","surface_form":"rassure"},{"client_id":"récolte","client_ts":1790000300000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"fr","lemma":"récolte","source":"","source_sentence":"Le prix du pain a augmenté à cause des mauvaises récoltes.","surface_form":"récoltes"}]
+[{"client_id":"carreau","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":{\"stability\":3.173,\"difficulty\":5.282434422319005},\"due\":1790345600,\"last_review\":1790086400,\"reps\":1,\"lapses\":0}","gloss":"Baldosa","gloss_language":"es","language":"fr","lemma":"carreau","source":"","source_sentence":"","surface_form":"carreau"},{"client_id":"cavité","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Cavidad","gloss_language":"es","language":"fr","lemma":"cavité","source":"","source_sentence":"","surface_form":"cavité"},{"client_id":"certainement","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Ciertamente, sin duda, seguramente","gloss_language":"es","language":"fr","lemma":"certainement","source":"","source_sentence":"","surface_form":"certainement"},{"client_id":"cheveu","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Cabello, pelo","gloss_language":"es","language":"fr","lemma":"cheveu","source":"","source_sentence":"","surface_form":"cheveu"},{"client_id":"clairement","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Claramente","gloss_language":"es","language":"fr","lemma":"clairement","source":"","source_sentence":"","surface_form":"clairement"},{"client_id":"collection","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Colección","gloss_language":"es","language":"fr","lemma":"collection","source":"","source_sentence":"","surface_form":"collection"},{"client_id":"conscience","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Conciencia","gloss_language":"es","language":"fr","lemma":"conscience","source":"","source_sentence":"","surface_form":"conscience"},{"client_id":"content","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Contento","gloss_language":"es","language":"fr","lemma":"content","source":"","source_sentence":"","surface_form":"content"},{"client_id":"horizon","client_ts":1790000000000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"horizon","gloss_language":"es","language":"fr","lemma":"horizon","source":"","source_sentence":"Il resta à regarder l’horizon.","surface_form":"horizon"},{"client_id":"rassurer","client_ts":1790000120000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"fr","lemma":"rassurer","source":"","source_sentence":"Le son de sa voix le rassure.","surface_form":"rassure"},{"client_id":"récolte","client_ts":1790000300000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"es","language":"fr","lemma":"récolte","source":"","source_sentence":"Le prix du pain a augmenté à cause des mauvaises récoltes.","surface_form":"récoltes"}]
 ### export-declared-levels
 [{"language":"fr","level":"B1","updated_at":1790000000000}]
 ### backup
@@ -446,7 +446,7 @@ B1
   "knowledge": {
     "statuses": {
       "French": {
-        "certainement": {
+        "cavité": {
           "Known": "Srs"
         },
         "fenêtre": {
@@ -482,7 +482,7 @@ B1
     },
     "updated": {
       "French": {
-        "certainement": 1790086400000,
+        "cavité": 1790086400000,
         "fenêtre": 1790000000004,
         "horizon": 1790000000000,
         "lumière": 1790259200000,
@@ -527,6 +527,29 @@ B1
   "deck": {
     "cards": {
       "French": {
+        "carreau": {
+          "lemma": "carreau",
+          "encountered_form": "carreau",
+          "provenance": {
+            "sentence": "",
+            "source": "Import",
+            "captured_at": 1790000240
+          },
+          "gloss": "Baldosa",
+          "gloss_language": "es",
+          "media": null,
+          "review": {
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1790345600,
+            "last_review": 1790086400,
+            "reps": 1,
+            "lapses": 0
+          },
+          "updated_at": 1790086400
+        },
         "cavité": {
           "lemma": "cavité",
           "encountered_form": "cavité",
@@ -539,13 +562,10 @@ B1
           "gloss_language": "es",
           "media": null,
           "review": {
-            "memory": {
-              "stability": 3.173,
-              "difficulty": 5.282434422319005
-            },
-            "due": 1790345600,
-            "last_review": 1790086400,
-            "reps": 1,
+            "memory": null,
+            "due": 9223372036854775807,
+            "last_review": null,
+            "reps": 0,
             "lapses": 0
           },
           "updated_at": 1790086400
@@ -563,32 +583,12 @@ B1
           "media": null,
           "review": {
             "memory": null,
-            "due": 9223372036854775807,
-            "last_review": null,
-            "reps": 0,
-            "lapses": 0
-          },
-          "updated_at": 1790086400
-        },
-        "cheminement": {
-          "lemma": "cheminement",
-          "encountered_form": "cheminement",
-          "provenance": {
-            "sentence": "",
-            "source": "Import",
-            "captured_at": 1790000240
-          },
-          "gloss": null,
-          "gloss_language": "es",
-          "media": null,
-          "review": {
-            "memory": null,
             "due": null,
             "last_review": null,
             "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790000240
+          "updated_at": 1790000180
         },
         "cheveu": {
           "lemma": "cheveu",

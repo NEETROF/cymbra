@@ -67,11 +67,17 @@ impl Deck {
 
     /// Seeds cards for a chosen set of `(lemma, gloss)` — typically the lemmas
     /// of a selected CEFR level, in the caller's order (commonest-first by
-    /// default) — for level-targeted feeding (`add-lingua-cefr-levels`). Skips
-    /// any lemma that already has a card or an explicit status in `knowledge`
-    /// (idempotent), stops after `cap` new cards, and stamps each with the
-    /// reserved `Import` source. The glosses are the pack's, written in
-    /// `gloss_language`. Returns the number actually added.
+    /// default) — for level-targeted feeding (`add-lingua-cefr-levels`). The
+    /// glosses are the pack's, written in `gloss_language`; each card is stamped
+    /// with the reserved `Import` source.
+    ///
+    /// A lemma is skipped, with no card and no status written for it, for three
+    /// reasons: it already has a card, it holds an explicit status in
+    /// `knowledge` (so seeding is idempotent), or the pack gives it no gloss —
+    /// a card without one would have nothing behind its answer
+    /// (seed-lingua-decks-with-glossed-lemmas D1). A skipped lemma takes no
+    /// place under `cap`: the next lemma, in the caller's order, takes it (D2).
+    /// Stops after `cap` new cards. Returns the number actually added.
     pub fn seed_lemmas<'a>(
         &mut self,
         lang: StudiedLanguage,
@@ -86,12 +92,15 @@ impl Deck {
             if added >= cap {
                 break;
             }
+            let Some(gloss) = gloss else {
+                continue;
+            };
             if self.get(lang, lemma).is_some() || knowledge.explicit_status(lang, lemma).is_some() {
                 continue;
             }
             self.upsert(
                 lang,
-                Card::seeded(lemma, gloss.map(str::to_owned), gloss_language, at),
+                Card::seeded(lemma, gloss.to_owned(), gloss_language, at),
             );
             added += 1;
         }
@@ -431,22 +440,76 @@ mod tests {
         let mut knowledge = KnowledgeState::new();
         knowledge.set_status(EN, "city", Status::Learning); // `city` has an explicit status
         let candidates = [
-            ("run", Some("courir")),    // already carded → skip
-            ("city", Some("ville")),    // explicit status → skip
-            ("nuance", Some("nuance")), // new → add
-            ("quixotic", None),         // new → add
-            ("arcane", None),           // would add, but the cap stops us first
+            ("run", Some("courir")),          // already carded → skip
+            ("city", Some("ville")),          // explicit status → skip
+            ("nuance", Some("nuance")),       // new → add
+            ("quixotic", Some("chimérique")), // new → add
+            ("arcane", Some("ésotérique")),   // would add, but the cap stops us first
         ];
         let added = deck.seed_lemmas(EN, candidates, "fr", &knowledge, 2, 5 * DAY);
         assert_eq!(added, 2);
         assert!(deck.get(EN, "nuance").is_some());
-        assert!(deck.get(EN, "quixotic").is_some());
+        assert_eq!(
+            deck.get(EN, "quixotic").unwrap().gloss.as_deref(),
+            Some("chimérique")
+        );
         assert!(deck.get(EN, "arcane").is_none()); // capped
         assert_eq!(
             deck.get(EN, "nuance").unwrap().provenance.source,
             EncounterSource::Import
         );
         assert_eq!(deck.get(EN, "nuance").unwrap().updated_at, 5 * DAY);
+    }
+
+    #[test]
+    fn seed_lemmas_skips_a_lemma_without_a_gloss_and_takes_the_next() {
+        // *The rarest words of a level have no gloss* (seed-lingua-decks-with-glossed-lemmas
+        // D1, D2): a lemma the pack does not gloss gets no card and no status, and takes no
+        // place under the cap — the next glossed lemma, in the caller's order, takes it.
+        let mut deck = Deck::new();
+        let knowledge = KnowledgeState::new();
+        let candidates = [
+            ("quixotic", None),         // no gloss → skip
+            ("nuance", Some("nuance")), // add
+            ("arcane", None),           // no gloss → skip
+            ("lucid", Some("lucide")),  // add
+            ("zeal", Some("zèle")),     // would add, but the cap stops us first
+        ];
+        let added = deck.seed_lemmas(EN, candidates, "fr", &knowledge, 2, 5 * DAY);
+        assert_eq!(added, 2);
+        let carded: Vec<&str> = deck.iter().map(|(_, card)| card.lemma.as_str()).collect();
+        assert_eq!(carded, ["lucid", "nuance"]);
+        assert_eq!(
+            deck.get(EN, "lucid").unwrap().gloss.as_deref(),
+            Some("lucide")
+        );
+        assert!(deck.get(EN, "zeal").is_none()); // capped
+        for lemma in ["quixotic", "arcane"] {
+            assert!(deck.get(EN, lemma).is_none(), "{lemma}");
+            assert_eq!(knowledge.explicit_status(EN, lemma), None, "{lemma}");
+        }
+    }
+
+    #[test]
+    fn a_level_whose_glossed_lemmas_are_tracked_seeds_nothing() {
+        // *Only lemmas without a gloss are left*: every glossed lemma already has a card or a
+        // status, so seeding adds nothing and writes nothing.
+        let mut deck = deck_of(&["run"]);
+        let mut knowledge = KnowledgeState::new();
+        knowledge.set_status(EN, "city", Status::Learning);
+        let (deck_before, knowledge_before) = (deck.clone(), knowledge.clone());
+        let candidates = [
+            ("run", Some("courir")),
+            ("quixotic", None),
+            ("city", Some("ville")),
+            ("arcane", None),
+        ];
+        assert_eq!(
+            deck.seed_lemmas(EN, candidates, "fr", &knowledge, 20, 5 * DAY),
+            0
+        );
+        assert_eq!(deck, deck_before);
+        assert_eq!(knowledge, knowledge_before);
     }
 
     #[test]

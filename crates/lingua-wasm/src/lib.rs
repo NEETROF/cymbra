@@ -989,7 +989,10 @@ impl LinguaEngine {
 
     /// Seeds up to `count` deck cards from a CEFR level's lemmas. `order` is
     /// `"common"` (commonest-first, the default) or `"rare"`; unranked lemmas
-    /// always sort last. Skips lemmas already carded or with an explicit status.
+    /// always sort last. Skips lemmas already carded or with an explicit status,
+    /// and lemmas the pack does not gloss — every seeded card carries the pack's
+    /// gloss, in the engine's native language —, the next lemma of the level
+    /// taking a skipped one's place (seed-lingua-decks-with-glossed-lemmas D1, D2).
     /// `at` is Unix-epoch seconds. Returns the number actually added; a no-op (0)
     /// for an unknown level or a pack with no CEFR data.
     #[wasm_bindgen(js_name = seedLevel)]

@@ -408,7 +408,8 @@ describe("A Spanish-native reader's statistics", () => {
     expect(results).toEqual([
       "5 tarjetas añadidas al mazo (nivel A2).",
       "1 tarjeta añadida al mazo (nivel A2).",
-      esStats.noCardsAdded,
+      // Written out, so that a catalogue edit shows (seed-lingua-decks-with-glossed-lemmas D7).
+      "No se ha añadido ninguna tarjeta: estas palabras ya están seguidas, en tu mazo o sin traducción.",
     ]);
 
     expect(text(root, ".marked .mlabel")).toBe("Palabras marcadas");
@@ -457,6 +458,23 @@ describe("A Spanish-native reader's statistics", () => {
     await mountStats(root, levelledPort(), fakeArea(), undefined, "es");
     expect(text(root, ".scope")).toBe("Todos tus dispositivos");
     expect(total("Palabras leídas")).toBe(`20${NNBSP}000`);
+  });
+});
+
+describe("An English-native reader's seeding control", () => {
+  it("says, in English, that nothing was added when only tracked or untranslated words are left", async () => {
+    // seed-lingua-decks-with-glossed-lemmas D7: one message for every reason, written out so that a
+    // catalogue edit shows.
+    const root = document.createElement("div");
+    document.body.append(root);
+    await mountStats(root, levelledPort({ seedLevel: async () => 0 }), fakeArea(), undefined, "en");
+
+    button(root, "Add to the deck").click();
+    await settle();
+
+    expect(text(root, "#seed-result")).toBe(
+      "No cards added — these words are already tracked or in your deck, or have no translation.",
+    );
   });
 });
 

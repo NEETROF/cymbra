@@ -36,7 +36,7 @@ export const stats: typeof fr = {
     many: (n) => `${n} tarjetas añadidas al mazo (nivel ${level}).`,
     other: (n) => `${n} tarjetas añadidas al mazo (nivel ${level}).`,
   }),
-  noCardsAdded: "No se ha añadido ninguna tarjeta: estas palabras ya están seguidas o en tu mazo.",
+  noCardsAdded: "No se ha añadido ninguna tarjeta: estas palabras ya están seguidas, en tu mazo o sin traducción.",
   known: "conocida",
   ignored: "ignorada",
   relearn: "Volver a aprender",
