@@ -1,8 +1,8 @@
 {
   "snapshot": "2026.10.08",
   "pack": {
-    "sha256": "3c11acf7f15d656faaeb526ed1c259e5a30f7d9657a4d0e953ec1fde15a8da34",
-    "size": 2608413
+    "sha256": "acaff30db316bb74cbe9d5e0d5c94f035e4f7ffe7f55011ec9277bdb29eae40e",
+    "size": 2612075
   },
   "reducer": {
     "sha256": "ee357febd0f8bcdccb135dddd563a0c49dee7558961996675a14c5a416bb35de",
