@@ -1584,8 +1584,8 @@ fn every_french_headword_holding_an_elided_piece_is_named() {
     // reads them from the headword that won the key, which the pack names wherever the two
     // differ. Every winning headword holding an elided piece is named, and reads as many pieces
     // as its key, so the check lines it up with a run; a key the pack does not name is its own
-    // headword, written without an elided piece. Measured on the tables of the proposal: fr-en
-    // 1,541 such headwords, fr-es 869.
+    // headword, written without an elided piece. Measured: fr-en 1,552 such headwords (1,541 before
+    // refine-lingua-fr-en-glosses), fr-es 869.
     for (pair, bytes, among) in [
         ("fr-en", fr_en(), ["de l'", "d'abord", "c'est"].as_slice()),
         ("fr-es", fr_es(), ["coup d'œil", "qu'est-ce que"].as_slice()),
