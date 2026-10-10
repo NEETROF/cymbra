@@ -64,12 +64,13 @@ shown here and in the pull request alone.
 
 ## What is in them
 
-On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `2026.10.10+1a849ad.918455d`:
+On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `2026.10.10+1a849ad.ff4d6e4`:
 the snapshot, the rules' digest, and the digest of the studied tables `pin.json` records), reduced
 again from the pinned release and UD French-GSD's two pinned sections with fr-es's own rules
 (refine-lingua-fr-es-glosses: *fr-es's own rules* below), on French's dictionary words and levels of
-refine-lingua-fr-en-glosses, the forms of read-lingua-french-ca-as-ca-cedilla and French's acronym
-table of keep-lingua-french-acronyms-in-capitals. The first
+refine-lingua-fr-en-glosses, the forms of read-lingua-french-ca-as-ca-cedilla and
+read-lingua-french-dictionary-unmarked-spellings and French's acronym table of
+keep-lingua-french-acronyms-in-capitals. The first
 committed measurement, before those rules, read 19,050 glossed lemmas, 12,177 expressions, 83.2 /
 70.8 / 56.8 % and a pack of 1,973,407 B.
 
@@ -92,9 +93,24 @@ facturación; Corriente alterna », `NOUN:3`. It is the one lemma fr-es glosses 
 Every other row of `gloss.tsv` and `senses.tsv`, `mwe.tsv` and `NOTICE` are byte for byte, and the
 coverage below is unchanged (it counts ranked lemmas).
 
-- **Spanish glosses for 19,023 lemmas** of French's 60,000, and for the acronym `CA` (19,024 rows):
+**The dictionary's unmarked spellings** (read-lingua-french-dictionary-unmarked-spellings) re-reduced
+fr-es on the `../fr/` fr-en now writes, where 81 words the dictionary gives only as a marked word
+written without its marks read as that word (`etat` → *état*, `etre` and `etait` → *être*,
+`siecle` → *siècle*, `repondre` → *répondre*): every other gloss, sense run and expression row is byte
+for byte. `uberisation` « Uberización », the one of those spellings fr-es glossed, has no gloss now:
+its word *ubérisation* has none in fr-es, as the owner accepted (Q2, 2026-10-10). Four lemmas
+entering the cut bring theirs — `doctrinaire` « Doctrinario », `débaptiser` « Desbautizar »,
+`déjection` « Deyección », `désarçonner` « Desarzonar, desconcertar, confundir » —, and `désossé`,
+another, which fr-es does not gloss, no longer reads as *désosser* « Deshuesar, desosar,
+desmontar ». 85 forms gain a Spanish gloss through their marked word (`etat` « Estado », `etre` « Ser;
+(être + participio) Haber; Estar… », `siecle` « Siglo », `repondre` « Contestar, responder »), and the
+glossed top 5,000 / 10,000 / 20,000 go 4,150 / 7,067 / 11,342 → 4,153 / 7,071 / 11,347. « il etait une
+fois » and « un coup d'Etat » now meet `il était une fois` « Érase una vez, había una vez » and
+`coup d'état` « Golpe de estado ».
+
+- **Spanish glosses for 19,026 lemmas** of French's 60,000, and for the acronym `CA` (19,027 rows):
   **4,559 from the Spanish Wiktionary's
-  French section** (its definitions, by the Spanish edition's rules and fr-es's), **13,186 from the
+  French section** (its definitions, by the Spanish edition's rules and fr-es's), **13,189 from the
   Spanish translations the French Wiktionary lists** (the direct table, in its order, each word
   once) and **1,278 from the French translations the Spanish Wiktionary's Spanish entries list, read
   backwards** (the inverted table, the commonest Spanish word first); **12,174 expressions** — 587
@@ -102,39 +118,45 @@ coverage below is unchanged (it counts ranked lemmas).
   grouped by part of speech, as every pair's; a table's gloss at most three Spanish words per part
   of speech, as one sense, opening on a capital as the edition's senses do. No pivot through a third
   language, no machine translation.
-- **Coverage**: **83.0 / 70.7 / 56.7 %** of the 5,000 / 10,000 / 20,000 commonest lemmas (4,150 /
-  7,067 / 11,342), **+1.6 / +1.9 / +2.2** points above the floor; 31.7 % of all 60,000.
+- **Coverage**: **83.1 / 70.7 / 56.7 %** of the 5,000 / 10,000 / 20,000 commonest lemmas (4,153 /
+  7,071 / 11,347), **+1.7 / +1.9 / +2.2** points above the floor; 31.7 % of all 60,000.
 - **The share of definitions** (D9): **24.0 %** of all glossed lemmas come from a definition (4,559
-  of 19,023 — the programme's « 24 % »); among the glossed lemmas of the 10,000 commonest, **40.3 %**
-  (2,849 of 7,067) and **59.7 % from a translation table** (3,965 direct, 253 inverted:
+  of 19,026 — the programme's « 24 % »); among the glossed lemmas of the 10,000 commonest, **40.3 %**
+  (2,850 of 7,071) and **59.7 % from a translation table** (3,968 direct, 253 inverted:
   `measures.json`, which the reducer writes beside its tables and no pack stores; `pack_report.py
-  --measures` shows it in the update's summary); 48.2 % of the top 5,000's (1,999 of 4,150), 32.2 %
-  of the top 20,000's (3,647 of 11,342). en-es's share from a table is 26.0 % of its glossed top
+  --measures` shows it in the update's summary); 48.2 % of the top 5,000's (2,000 of 4,153), 32.1 %
+  of the top 20,000's (3,647 of 11,347). en-es's share from a table is 26.0 % of its glossed top
   10,000. A translation is a word a person chose for the French word, not a meaning (« répondre »
   « Contestar, responder »), grouped by part of speech like any gloss.
 - **Dictionary words are French's** (`../fr/lexical.tsv`): 1,039 lemmas fr-es glosses are no
   dictionary word of French (172 / 329 / 537 of the top 5,000 / 10,000 / 20,000) — 506 of them names
   fr-en glosses by a proper noun's senses alone (`france`, `paris`, `québec`: refine-lingua-fr-en-glosses
-  D2), the others `quant`, `onu`, `for`, `okay` —, and 8,500 of French's 26,485 dictionary words have
+  D2), the others `quant`, `onu`, `for`, `okay` —, and 8,484 of French's 26,472 dictionary words have
   no Spanish gloss, so the pack carries a lexical section and the vocabulary estimate counts the same
   words for both pairs.
-- **The pack is 1,971,104 B**, 37.6 % of the 5 MiB budget (−2,118 B with fr-es's own rules, −175 B
+- **The pack is 1,973,161 B**, 37.6 % of the 5 MiB budget (−2,118 B with fr-es's own rules, −175 B
   with French's unmarked spellings, −1,630 B with French's acronym table: `CA` takes lemma id 0 and
   every other id moves by one, which the forms map, −746 B, the paradigms, −750 B, and the sense runs,
   −176 B, encode slightly tighter; the glosses +33 B; the new rows +9 B; +1,620 B keeping every
-  headword of a key several reach, pick-lingua-expression-written-as-the-page): gloss 177,269 B,
-  senses 56,095 B, expressions 270,612 B (133,017 + 105,221 + their names 31,858 + the 64 other
-  headwords of 64 keys listed in `expr.others`, 516: `velours côtelé` « Pana » keyed now that `côtelé`
-  is a lemma), the lexical table 7,501 B, and French's studied sections —
+  headword of a key several reach, pick-lingua-expression-written-as-the-page; +2,057 B with the
+  dictionary's unmarked spellings: the forms map +1,097 B, the paradigms +944 B, the lemmas +7 B, the
+  glosses +93 B, the sense runs −153 B, the expressions +69 B): gloss 177,362 B, senses 55,942 B,
+  expressions 270,681 B (132,994 + 105,296 + their names 31,875 + the 64 other headwords of 64 keys
+  listed in `expr.others`, 516: `velours côtelé` « Pana » keyed now that `côtelé` is a lemma,
+  `cône de déjection` « Abanico aluvial » now that `déjection` is one), the lexical table 7,501 B, and
+  French's studied sections —
   forms, lemmas, ranks, levels, paradigms and the tag pool — byte for byte fr-en's (`cross_native.rs`).
 
-What none of the sources glosses: 850 of the top 5,000 — English words and names in French text
-(`the`, `of`, `york`, `david`), initialisms (`km`, `tv`), unaccented spellings (`etat`, `meme`),
-common French words neither edition translates into Spanish (`part`, `lors`, `afin`, `taux`,
-`retrouver`, `tandis`, `classement`, `réellement`), and the 11 of the top 5,000 fr-es's own rules
-leave out rather than gloss wrongly (`el`, `us`, `rap`: *fr-es's own rules*). fr-en glosses 539 of
-them. 1,160 of French's 8,302 levelled lemmas have no Spanish gloss (17 at A1: `part`, `lors`,
-`afin`) — 1,162 before French's unmarked spellings, which took `ca`, `age` and `forcement` out of the
+What none of the sources glosses: 847 of the top 5,000 — English words and names in French text
+(`the`, `of`, `york`, `david`), initialisms (`km`, `tv`), unaccented spellings the dictionary does not
+name (`meme`, `francais`, `deja`: the web's reviewed list's, change 43e), common French words neither
+edition translates into Spanish (`part`, `lors`, `afin`, `taux`, `retrouver`, `tandis`, `classement`,
+`réellement`), and the 11 of the top 5,000 fr-es's own rules leave out rather than gloss wrongly
+(`el`, `us`, `rap`: *fr-es's own rules*). fr-en glosses 538 of them; `etat`, `etre` and `etait`, which
+were among them, read as their word since the dictionary's unmarked spellings. 1,159 of French's 8,302
+levelled lemmas have no Spanish gloss (17 at A1: `part`, `lors`, `afin`) — 1,160 before the
+dictionary's unmarked spellings, which took `benoit` (B2, unglossed) out of the levels and gave C2
+`digestif` « Digestivo »; 1,162 before French's unmarked spellings, which took `ca`, `age` and `forcement` out of the
 levels and gave C2 `dar`, unglossed; 1,152 before fr-es's own rules, which leave ten levelled lemmas
 unglossed: seeding a review
 deck by level skips them — a core change of its own, for every pair, required before change 52 ships
@@ -376,7 +398,8 @@ review and a later refinement if one is wanted:
 | A proper noun's run in the row | 596 / 353 rows hold one, 590 / 347 open on it | « france » « Francia; Nombre de pila de mujer », « terre » | the case-aware card, shared |
 | Rows glossed by a name's notes alone | 313 / 167 | « françois », « jacques », « thierry » « Apellido; Nombre de pila de varón… » | kept: they say what the capitalised token is |
 | Lemmas outside French's dictionary words glossed | 1,039 / 329 | `for` « Fuero », `last` « Lastre », `okay` « Oquey, oqué »; `france`, `paris` | no dictionary word, no vocabulary count |
-| A French level with no Spanish gloss | 1,162 of 8,302 levelled lemmas (18 at A1), 1,152 before these rules | `part`, `lors`, `afin`, and the ten levelled lemmas these rules leave unglossed (`us`, `pilote` A2; `rap`, `pa`, `ds`, `arnaque` B1; `teint`, `excité`, `merlin` B2; `gâche` C1) | seeding a deck by level skips them: a core change of its own, before change 52 |
+| A word whose spelling had the Spanish gloss | 1 / 0 | `uberisation` « Uberización », which read-lingua-french-dictionary-unmarked-spellings reads as *ubérisation*, unglossed in fr-es | accepted by the owner (its Q2, 2026-10-10); fr-es may lend a spelling's gloss to its word later |
+| A French level with no Spanish gloss | 1,159 of 8,302 levelled lemmas (17 at A1); 1,162 (18) when these rules were measured, 1,152 before them | `part`, `lors`, `afin`, and the ten levelled lemmas these rules leave unglossed (`us`, `pilote` A2; `rap`, `pa`, `ds`, `arnaque` B1; `teint`, `excité`, `merlin` B2; `gâche` C1) | seeding a deck by level skips them: a core change of its own, before change 52 |
 
 ## Its sources
 
