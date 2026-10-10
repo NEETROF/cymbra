@@ -418,6 +418,9 @@ release. Rollback is a revert, with the goldens, manifests, pins and fixtures.
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session), each as its default:** words already saved with
+the hidden hyphen are left as they are, and the word joiner and U+FEFF are left alone.
+
 For the owner, none blocking. Each has a default, which the implementation follows unless the owner
 answers otherwise.
 
