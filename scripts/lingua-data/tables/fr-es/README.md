@@ -64,11 +64,12 @@ shown here and in the pull request alone.
 
 ## What is in them
 
-On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `2026.10.10+4e7aa33.0b928a6`:
+On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `2026.10.10+1a849ad.918455d`:
 the snapshot, the rules' digest, and the digest of the studied tables `pin.json` records), reduced
 again from the pinned release and UD French-GSD's two pinned sections with fr-es's own rules
 (refine-lingua-fr-es-glosses: *fr-es's own rules* below), on French's dictionary words and levels of
-refine-lingua-fr-en-glosses and the forms of read-lingua-french-ca-as-ca-cedilla. The first
+refine-lingua-fr-en-glosses, the forms of read-lingua-french-ca-as-ca-cedilla and French's acronym
+table of keep-lingua-french-acronyms-in-capitals. The first
 committed measurement, before those rules, read 19,050 glossed lemmas, 12,177 expressions, 83.2 /
 70.8 / 56.8 % and a pack of 1,973,407 B.
 
@@ -80,7 +81,19 @@ and `doublure` enter the glossed top 10,000 (7,065 → 7,067), `déchargement` a
 top 20,000 (11,340 → 11,342), as the ranks after `ca` move up. *ça* still reads « (coloquial) Eso,
 esto, aquello » and *âge* « Edad », so « ca va » and « à mon age » now show them.
 
-- **Spanish glosses for 19,023 lemmas** of French's 60,000: **4,559 from the Spanish Wiktionary's
+**French's acronym table** (keep-lingua-french-acronyms-in-capitals D4) re-reduced fr-es on the
+`../fr/` fr-en now writes — `CA` → `CA`, a form in capitals that is its own lemma, a dictionary word
+with no rank (`read_studied` reads it as no ranked lemma) — and glosses `CA` from fr-es's own glosses
+of its expansions, each cut to its first sense, in the row's order: `conseil d'administration`
+« Administración, consejo de administración », `chiffre d'affaires` « Ingreso, cifra de negocios,
+facturación », `courant alternatif` « Corriente alterna »; `comptable agréé`, which fr-es does not
+gloss, passed over: « Administración, consejo de administración; Ingreso, cifra de negocios,
+facturación; Corriente alterna », `NOUN:3`. It is the one lemma fr-es glosses that is not ranked.
+Every other row of `gloss.tsv` and `senses.tsv`, `mwe.tsv` and `NOTICE` are byte for byte, and the
+coverage below is unchanged (it counts ranked lemmas).
+
+- **Spanish glosses for 19,023 lemmas** of French's 60,000, and for the acronym `CA` (19,024 rows):
+  **4,559 from the Spanish Wiktionary's
   French section** (its definitions, by the Spanish edition's rules and fr-es's), **13,186 from the
   Spanish translations the French Wiktionary lists** (the direct table, in its order, each word
   once) and **1,278 from the French translations the Spanish Wiktionary's Spanish entries list, read
@@ -102,14 +115,16 @@ esto, aquello » and *âge* « Edad », so « ca va » and « à mon age » now 
 - **Dictionary words are French's** (`../fr/lexical.tsv`): 1,039 lemmas fr-es glosses are no
   dictionary word of French (172 / 329 / 537 of the top 5,000 / 10,000 / 20,000) — 506 of them names
   fr-en glosses by a proper noun's senses alone (`france`, `paris`, `québec`: refine-lingua-fr-en-glosses
-  D2), the others `quant`, `onu`, `for`, `okay` —, and 8,500 of French's 26,484 dictionary words have
+  D2), the others `quant`, `onu`, `for`, `okay` —, and 8,500 of French's 26,485 dictionary words have
   no Spanish gloss, so the pack carries a lexical section and the vocabulary estimate counts the same
   words for both pairs.
-- **The pack is 1,971,114 B**, 37.6 % of the 5 MiB budget (−2,118 B with fr-es's own rules, −175 B
-  with French's unmarked spellings): gloss 177,236 B, senses 56,271 B, expressions 269,008 B
-  (133,017 + 104,785 + their names 31,206: `velours côtelé` « Pana » keyed now that `côtelé` is a
-  lemma), the lexical table 7,500 B, and French's studied sections — forms, lemmas, ranks, levels,
-  paradigms and the tag pool — byte for byte fr-en's (`cross_native.rs`).
+- **The pack is 1,969,484 B**, 37.6 % of the 5 MiB budget (−2,118 B with fr-es's own rules, −175 B
+  with French's unmarked spellings, −1,630 B with French's acronym table: `CA` takes lemma id 0 and
+  every other id moves by one, which the forms map, −746 B, the paradigms, −750 B, and the sense runs,
+  −176 B, encode slightly tighter; the glosses +33 B; the new rows +9 B): gloss 177,269 B, senses
+  56,095 B, expressions 269,008 B (133,017 + 104,785 + their names 31,206: `velours côtelé` « Pana »
+  keyed now that `côtelé` is a lemma), the lexical table 7,501 B, and French's studied sections —
+  forms, lemmas, ranks, levels, paradigms and the tag pool — byte for byte fr-en's (`cross_native.rs`).
 
 What none of the sources glosses: 850 of the top 5,000 — English words and names in French text
 (`the`, `of`, `york`, `david`), initialisms (`km`, `tv`), unaccented spellings (`etat`, `meme`),
@@ -354,6 +369,7 @@ review and a later refinement if one is wanted:
 | refine-lingua-fr-en-glosses' pointers read as meanings, not ported | 2 / 2 | `mieux` « Mejor » under the direct table's noun, `pis` without « Peor » (D10) | fr-es's next refinement |
 | A row the treebank's order reads worse | 1 / 1 | « toutefois » « Todavía; sin embargo, no obstante »: « todavía » reads « still » (D8) | the treebank rule, fr-en's and fr-es's alike |
 | Right glosses lost to the acronym rule | 2 / 1 | « usa », « éu » « EEUU » (D4) | a list of acronyms Spanish translates, if wanted |
+| The acronym `CA`'s other meanings (keep-lingua-french-acronyms-in-capitals D3) | `CA` alone | of 31 « CA » standing alone in 23.5 million tokens of French, the gloss names the right meaning 5 times and a close one 4 (Geneva's Conseil administratif); sports clubs (« CA Brive »), army corps, Canadian dollars and codes read with it — still a noun to learn, never « Eso » | kept by the owner, knowing it (2026-10-10); a row of its own per further acronym |
 | Upstream wording | single rows | « siège » « …; Local, stilla », « pieux » « …, pièsa », « porcelaine » « Porcelana, planta madre perla, planta fantasma » | upstream |
 | A proper noun's run in the row | 596 / 353 rows hold one, 590 / 347 open on it | « france » « Francia; Nombre de pila de mujer », « terre » | the case-aware card, shared |
 | Rows glossed by a name's notes alone | 313 / 167 | « françois », « jacques », « thierry » « Apellido; Nombre de pila de varón… » | kept: they say what the capitalised token is |

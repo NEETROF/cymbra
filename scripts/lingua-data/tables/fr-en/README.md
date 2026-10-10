@@ -29,11 +29,11 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 
 | File | What it maps | From |
 |---|---|---|
-| `forms.tsv` | form → lemma | kaikki.org, the English Wiktionary's French section (CC BY-SA 4.0 + GFDL), with UD French-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
+| `forms.tsv` | form → lemma; French's acronym rows in capitals, each its own lemma (`CA` → `CA`, *The rules*) | kaikki.org, the English Wiktionary's French section (CC BY-SA 4.0 + GFDL), with UD French-GSD's counts to choose between lemmas (CC BY-SA 4.0) |
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by GSD's own frequency too |
 | `grammar.tsv` | form → its readings, as Universal Dependencies tags (`form<TAB>lemma<TAB>tag<TAB>other\|-`) | kaikki.org, the same section (add-lingua-french-grammar-tables, change 45) |
 | `level.tsv` | lemma → estimated CEFR level (*The levels* below) | derived from `freq.tsv`, the English Wiktionary's French section and French's dictionary words (no source of its own) |
-| `lexical.tsv` | French's dictionary words: the lemmas fr-en glosses less those it glosses by a proper noun's senses alone (26,484; *The glosses*) | derived from `gloss.tsv` and `senses.tsv` by `reduce-fr-en.py` (`dictionary_words`), filed by `build.sh` (`pack_sources.py split`) |
+| `lexical.tsv` | French's dictionary words: the lemmas fr-en glosses less those it glosses by a proper noun's senses alone, and French's acronym rows (26,485, `CA` among them; *The glosses*) | derived from `gloss.tsv` and `senses.tsv` by `reduce-fr-en.py` (`dictionary_words`), filed by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | French's pinned tag pool: the 79 tags its readings carry, in byte order; written by no reducer | committed by hand, once, from the first reduction's readings |
 | `studied.json` | the pair whose reduction writes `../fr/`: fr-en | committed by hand |
 
@@ -113,8 +113,21 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   (« rating »), `tache` (« stain »), `pale` (« blade »), `foret` (« drill bit ») and `aine`
   (« groin ») are words a reader can mean and never rows; `ou`, `a`, `la`, `des`, `du` and `sur` are
   words of their own. French's analysis looks every token up lowercased, so « CA » in capitals reads as
-  *ça* too (*What still reads wrong*). The dictionary's own unmarked spellings (`etre`, `etat`) and the
-  web's unglossed ones (`francais`, `tres`) are changes of their own, settled by the owner.
+  *ça* too — unless it stands alone in capitals, when the analysis reads it as the acronym row below
+  (*What still reads wrong*). The dictionary's own unmarked spellings (`etre`, `etat`) and the web's
+  unglossed ones (`francais`, `tres`) are changes of their own, settled by the owner.
+- **An acronym in capitals is a row of a reviewed table** (keep-lingua-french-acronyms-in-capitals, the
+  owner's decision of 2026-10-10, option A of read-lingua-french-ca-as-ca-cedilla D2): `ACRONYMS` in
+  `reduce_french_acronyms.py`, a rule module fr-es's reducer imports too, each row the acronym as
+  written, its expansions as the section's own entry names them, its part of speech and its reason —
+  one row, `CA`: `conseil d'administration`, `chiffre d'affaires`, `courant alternatif`, `comptable
+  agréé`, a noun. The section's entry headed exactly `CA` is read for the table alone, and must point
+  at every expansion the row names, or the reduction stops naming the row. The row is written as a form
+  that is its own lemma, capitals kept — `CA` → `CA`, the one form holding a capital, which only
+  French's analysis reaches, looking a word standing alone in capitals up as written (« Le CA a voté le
+  budget. »; a headline or a shout in capitals, and « Ca », read *ça*) — and as a dictionary word
+  (`lexical.tsv`), with no rank, level or reading: wordfreq lowercases, and its `ca` is mostly *ça*.
+  `ca` → *ça* is unchanged. The builder accepts a capital nowhere else.
 - **One lemma per form (M8).** A form that is a proper name and a commoner word's keeps the word
   (`cette` → *ce*; `paris` stays the city), then the first rule that decides wins:
   1. `OVERRIDES` in `reduce-fr-en.py`, each row with its reason — no homograph; three rows correct
@@ -145,7 +158,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 
 ## What is in them
 
-On the 2026-10-09 tables: **60,000 lemmas** and **124,101 forms** (`forms.tsv` 2,257,195 B,
+On the 2026-10-09 tables: **60,000 lemmas** and **124,102 forms** (`forms.tsv` 2,257,201 B,
 `freq.tsv` 844,908 B). 3,592 forms keep more than one ranked candidate: GSD's counts decide 1,381,
 the form's own entry 1,312, frequency or the alphabet 899. 7,156 forms take their lemma through a
 form of a form. 474 hyphenated words are ranked — 471 by GSD's evidence and the 3 nouns ending in a
@@ -163,11 +176,16 @@ it, and may be one to three higher than these tables'. Every ranked lemma's own 
 (`crates/lingua-pack/tests/committed_tables.rs` checks every pair's pack holds each rank on its own
 lemma).
 
+**French's acronym table** (keep-lingua-french-acronyms-in-capitals) adds one form, `CA` → `CA`, the
+first in byte order, and no rank, level or reading: `freq.tsv`, `level.tsv` and `grammar.tsv` are byte
+for byte.
+
 The pack these two tables built — no gloss, reading or level — was 1,241,733 B; Spanish's same two
 tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*), and with the readings
 too 1,460,253 B (*The readings*). With the glosses, their runs and the expressions it was 2,527,222 B,
-with fr-en's own rules and French's lexical table 2,537,386 B, and with French's unmarked spellings it
-is **2,537,588 B** (*The glosses*), under the builder's 5 MiB.
+with fr-en's own rules and French's lexical table 2,537,386 B, with French's unmarked spellings
+2,537,588 B, and with French's acronym table it is **2,535,748 B** (*The glosses*), under the builder's
+5 MiB.
 
 ## Measured
 
@@ -799,12 +817,12 @@ a later update is the owner's question (design, Open Question 1).
 
 | | |
 |---|---|
-| Glossed lemmas | **30,067**, every one from the section's own entries |
-| French's dictionary words (`../fr/lexical.tsv`) | **26,484**: the glossed lemmas less the 3,583 glossed by a proper noun's senses alone (361 / 912 / 1,763 of the 5,000 / 10,000 / 20,000 commonest) |
+| Glossed lemmas | **30,068**, every one from the section's own entries: 30,067 ranked lemmas and the acronym `CA`, the one lemma glossed and unranked |
+| French's dictionary words (`../fr/lexical.tsv`) | **26,485**: the glossed lemmas less the 3,583 glossed by a proper noun's senses alone (361 / 912 / 1,763 of the 5,000 / 10,000 / 20,000 commonest); `CA` among them, unranked, which the vocabulary estimate does not count |
 | Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,679 / 8,688 / 15,259 — 93.6 / 86.9 / 76.3 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; settled by the owner) |
 | Expressions | **17,635**: 15,653 headwords with a space and 1,982 words the tokenisation splits |
-| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,616,621, 512,279 and 833,953 B (625,313, 125,644 and 326,483 B gzipped); `../fr/lexical.tsv` 253,734 B |
-| The pack | **2,537,588 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B, French's unmarked spellings +202 B (the glosses +437, their runs −224, the expressions +106 — `velours côtelé` « corduroy » keyed now that `côtelé` is a lemma —, the forms, lemmas and paradigms −117) |
+| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,616,694, 512,289 and 833,953 B (625,361, 125,651 and 326,483 B gzipped); `../fr/lexical.tsv` 253,737 B |
+| The pack | **2,537,588 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B, French's unmarked spellings +202 B (the glosses +437, their runs −224, the expressions +106 — `velours côtelé` « corduroy » keyed now that `côtelé` is a lemma —, the forms, lemmas and paradigms −117), French's acronym table −1,840 B (`CA` takes lemma id 0 and every other id moves by one, which the forms map, −746 B, and the paradigms, −750 B, encode slightly tighter; the glosses −348 B, their runs −5 B; the new rows of the lemmas, ranks, levels and dictionary words +9 B) |
 
 **French's unmarked spellings** (read-lingua-french-ca-as-ca-cedilla) took three glosses out — `ca`
 « board of directors » (`CA`'s initialisms, lowercased), `age` « beam (central bar of a plough);
@@ -812,6 +830,14 @@ shaft », `forcement` « fixing number, cooking the books » — and three lemma
 theirs: `cussac` « a surname from Occitan » and `céphalonie` « Cephalonia… », names, and `côtelé`
 « ribbed », a dictionary word. `mwe.tsv` is byte for byte: no headword holds `ca`, `age` or
 `forcement`; `velours côtelé`, which had no key while `côtelé` was no lemma, enters the pack.
+
+**French's acronym table** (keep-lingua-french-acronyms-in-capitals D4) glosses `CA` from fr-en's own
+glosses of its expansions, each cut to its first sense, in the row's order — `conseil
+d'administration` « board of directors », `chiffre d'affaires` « revenue, turnover, net sales »,
+`courant alternatif` « alternating current » (« domestic electricity supply » cut); `comptable agréé`,
+which fr-en does not gloss, passed over —: « board of directors; revenue, turnover, net sales;
+alternating current », `NOUN:3`. Every other row of `gloss.tsv` and `senses.tsv`, and `mwe.tsv`, is
+byte for byte; coverage is unchanged (it counts ranked lemmas).
 
 No figure is published: the site's figures list the shipped pairs alone, and fr-en ships with change
 52.
@@ -895,7 +921,8 @@ which fixed or left each class (its design's D9), the owner settling Q1–Q5 on 
 | Labels left out | « or », « monde »: an obsolete or archaic sense | 23b's Q1 |
 | The part of speech a row opens on | 2,897 / 1,264 rows hold two or more | 13 move (D5); a noun, verb or adjective ahead of another stays (Q2) |
 | An acronym's pointers lending to a word with an entry of its own | `ca`, `svp`, `jsp`, `cv` | left (D9): dropping them would cost `svp` and `jsp` their gloss; `ca` is no lemma since read-lingua-french-ca-as-ca-cedilla |
-| « CA » in capitals (read-lingua-french-ca-as-ca-cedilla D2) | « Le CA a voté le budget. » | reads as *ça* « that… », as « ca » and « Ca » do: the pack keys its forms in lower case and French's analysis looks every token up lowercased. Kept the acronym by an analyser change of its own, `keep-lingua-french-acronyms-in-capitals` (change 43c, D2's option A: a word written wholly in capitals looked up first in a small reviewed acronym table); this change reaches readers only with it or after it (its task 6.4). A language code or an address the tokeniser keeps (« (ca) », `.ca`) read « board of directors » before and reads as *ça* now: wrong both ways |
+| « CA » in capitals (read-lingua-french-ca-as-ca-cedilla D2) | « Le CA a voté le budget. » | read as *ça* « that… » until keep-lingua-french-acronyms-in-capitals (change 43c): « CA » standing alone in capitals — its nearest words not in capitals — is now the acronym `CA` « board of directors; revenue, turnover, net sales; alternating current », a noun to learn; in a headline or a shout in capitals (« LE CA A VOTÉ », « CA SUFFIT ! ») and as « Ca » it reads *ça*. A language code or an address the tokeniser keeps (« (ca) », `.ca`) read « board of directors » before 43b and reads as *ça* now: wrong both ways |
+| The acronym's other meanings (keep-lingua-french-acronyms-in-capitals D3) | of 31 « CA » standing alone in 23.5 million tokens: 3 boards, 2 turnovers, 1 chartered accountant, 4 Geneva's Conseil administratif, 6 sports clubs (« CA Brive »), 2 army corps, 2 Canadian dollars, 2 certificate authorities, 2 Latin syllables, 2 geometry segments, 3 codes, 1 activated carbon, 1 unclear | the gloss names the right meaning 5 times and a close one 4 (the owner kept the table knowing it, 2026-10-10); still a noun to learn, never « that ». « CA » beside another word in capitals (« CA HT ») reads *ça* (none in the corpora). The French Wiktionary's *corps d'armée* is no row (open question 2, settled as designed) |
 | An unmarked spelling outside the table | `etre`, `etat` (the dictionary's own, 51 ranked); `francais`, `tres`, `deja` (the web's, unglossed) | read-lingua-french-ca-as-ca-cedilla D6: two changes of their own, settled by the owner — the first reads the dictionary's when the marked word is the commoner, the second a reviewed list by name; `ou`, `a`, `la`, `des`, `du`, `sur` and `cote` never |
 | Two expressions under one key | `ça va` « how are you? … » and `ça ira` « it will be all right », both keyed *ça aller* | the key answers `ça ira`, so « ça va » — and « ca va » now — shows « it will be all right… »; the choice between headwords sharing a key is change 44's, asked of the owner separately |
 
@@ -916,6 +943,7 @@ golden with them re-blesses `fr-en.golden` and says so.
 | 48 fr-en | done: the English glosses, expressions and senses (*The glosses*); `../fr/lexical.tsv` holds the glossed lemmas, and the French invariance baseline runs over these tables |
 | 48b refine-lingua-fr-en-glosses | done: fr-en's own rules (*The glosses*); French's dictionary words leave out the names fr-en glosses alone, and only they take a level |
 | 43b read-lingua-french-ca-as-ca-cedilla | done: French's unmarked spellings (`ca` → *ça*, `age`/`ages` → *âge*, `forcement` → *forcément*; *The rules*); « CA » in capitals waits for the acronym change (43c, `keep-lingua-french-acronyms-in-capitals`), and so does this change's release |
+| 43c keep-lingua-french-acronyms-in-capitals | done: French's acronym table, `CA` alone — a form in capitals that is its own lemma, a dictionary word with no rank or level, glossed from fr-en's expressions (*The rules*, *The glosses*); French's analyser `1.3.0` |
 | 49 fr-es | a reader of `../fr/` as committed, capped at the same 60,000 |
 
 ## Licences
