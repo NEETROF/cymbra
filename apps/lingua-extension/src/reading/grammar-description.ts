@@ -471,7 +471,9 @@ export function nameReadings(readings: readonly Reading[], studied: StudiedLangu
   // A key the order lacks ranks with its first — which never happens while the order lists every
   // named tense (Spanish, French) or none at all (English: the pack's order), as the tables do.
   const rank = (key: string): number => Math.max(0, order.indexOf(key));
-  const places = groups.map((g) => g.at);
+  // The places the groups fill, in the pack's order: a merge of moods may have moved a group to an
+  // earlier one (`mergeMoods`).
+  const places = groups.map((g) => g.at).sort((a, b) => a - b);
   groups.sort((a, b) => rank(a.key) - rank(b.key) || words.numbers.indexOf(a.number) - words.numbers.indexOf(b.number));
   groups.forEach(({ number, tense, persons }, i) => {
     out[places[i]!] = words.persons([...persons].sort(), number, tense);

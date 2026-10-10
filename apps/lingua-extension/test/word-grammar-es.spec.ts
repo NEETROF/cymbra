@@ -337,3 +337,152 @@ describe("the word card in Spanish, of a Spanish word", () => {
     ).toEqual([]);
   });
 });
+
+// add-lingua-french-word-card: the card of a French word, which no reader sees before change 52 lists
+// a French pack — `StudiedLanguage` stays `en | es` until then, so the content says `fr` through a
+// cast, as change 52's widening will. The readings are change 45's, as `tables/fr/grammar.tsv` writes
+// them; the probes the snapshots pin read the golden (`word-card-fr-*.spec.ts`).
+const FRENCH = "fr" as unknown as NonNullable<WordPopupContent["language"]>;
+const noun = (Gender: string, Number: string): GrammarTag => ({ pos: "NOUN", features: { Gender, Number } });
+const PARLE: GrammarTag[] = [
+  fin("Imp", "2", "Sing"),
+  fin("Ind", "1", "Sing", "Pres"),
+  fin("Ind", "3", "Sing", "Pres"),
+  fin("Sub", "1", "Sing", "Pres"),
+  fin("Sub", "3", "Sing", "Pres"),
+];
+
+describe("the word card in Spanish, of a French word", () => {
+  const french = (headword: string, surface: string, readings: GrammarTag[], others: WordGrammar["others"] = []) =>
+    renderer.grammarLines(grammar({ readings, others }), headword, surface, surface, "fr").map(lineText);
+
+  it("A form of five readings: the moods said once, « parler » marked as French", () => {
+    const { lines, card } = shown({
+      language: FRENCH,
+      headword: "parler",
+      surface: "parle",
+      grammar: grammar({ readings: PARLE }),
+    });
+    expect(lines).toEqual([
+      "primera y tercera persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del imperativo de parler",
+    ]);
+    expect(card.el.querySelector(".grammar-line em")!.getAttribute("lang")).toBe("fr");
+    expect(french("parler", "parlent", [fin("Ind", "3", "Plur", "Pres"), fin("Sub", "3", "Plur", "Pres")])).toEqual([
+      "tercera persona del plural del presente de indicativo o de subjuntivo de parler",
+    ]);
+  });
+
+  it("The passé simple, and the indicative before the subjunctive", () => {
+    expect(french("être", "fut", [fin("Ind", "3", "Sing", "Past")])).toEqual([
+      "tercera persona del singular del pretérito perfecto simple de indicativo de être",
+    ]);
+    expect(
+      french("finir", "finissions", [
+        fin("Ind", "1", "Plur", "Imp"),
+        fin("Sub", "1", "Plur", "Imp"),
+        fin("Sub", "1", "Plur", "Pres"),
+      ]),
+    ).toEqual([
+      "primera persona del plural del pretérito imperfecto de indicativo o de subjuntivo y primera persona del plural del presente de subjuntivo de finir",
+    ]);
+  });
+
+  it("names every tense of French in the RAE's terms", () => {
+    const name = (tag: GrammarTag) => renderer.readingName(tag, "fr")?.name;
+    expect(name(fin("Ind", "1", "Sing", "Pres"))).toBe("primera persona del singular del presente de indicativo");
+    expect(name(fin("Ind", "1", "Sing", "Imp"))).toBe(
+      "primera persona del singular del pretérito imperfecto de indicativo",
+    );
+    expect(name(fin("Ind", "1", "Sing", "Past"))).toBe(
+      "primera persona del singular del pretérito perfecto simple de indicativo",
+    );
+    expect(name(fin("Ind", "1", "Sing", "Fut"))).toBe("primera persona del singular del futuro simple de indicativo");
+    expect(name(fin("Cnd", "1", "Sing"))).toBe("primera persona del singular del condicional simple");
+    expect(name(fin("Sub", "1", "Sing", "Pres"))).toBe("primera persona del singular del presente de subjuntivo");
+    expect(name(fin("Sub", "1", "Sing", "Imp"))).toBe(
+      "primera persona del singular del pretérito imperfecto de subjuntivo",
+    );
+    expect(name(fin("Imp", "2", "Sing"))).toBe("segunda persona del singular del imperativo");
+    expect(name(fin("Sub", "1", "Sing", "Fut"))).toBeUndefined(); // French has no future subjunctive
+    expect(name(verb({ VerbForm: "Inf" }))).toBe("infinitivo");
+    expect(name(verb({ VerbForm: "Ger" }))).toBeUndefined(); // nor a gerundio
+  });
+
+  it("The participles: « participio presente » beside « participio pasado »", () => {
+    expect(french("parler", "parlant", [verb({ Tense: "Pres", VerbForm: "Part" })])).toEqual([
+      "participio presente de parler",
+    ]);
+    const past = (Gender: string, Number: string) => verb({ Gender, Number, Tense: "Past", VerbForm: "Part" });
+    expect(french("parler", "parlé", [past("Masc", "Sing")])).toEqual(["participio pasado de parler"]);
+    expect(french("diriger", "dirigée", [past("Fem", "Sing")])).toEqual(["participio pasado femenino de diriger"]);
+  });
+
+  it("A plural spelled like its dictionary form gives no line; another word's still does", () => {
+    expect(french("temps", "temps", [noun("Masc", "Plur"), noun("Masc", "Sing")])).toEqual([]);
+    expect(french("un", "un", [noun("Masc", "Plur"), noun("Masc", "Sing")])).toEqual([]);
+    expect(
+      french(
+        "fils",
+        "fils",
+        [noun("Masc", "Plur"), noun("Masc", "Sing")],
+        [{ lemma: "fil", readings: [noun("Masc", "Plur")] }],
+      ),
+    ).toEqual(["también puede ser el masculino plural de fil"]);
+  });
+
+  it("Two genders of one number named once (add-lingua-french-word-card D6: « sommes »)", () => {
+    expect(
+      french(
+        "être",
+        "sommes",
+        [fin("Ind", "1", "Plur", "Pres")],
+        [
+          { lemma: "somme", readings: [noun("Fem", "Plur"), noun("Masc", "Plur")] },
+          { lemma: "sommer", readings: [fin("Ind", "2", "Sing", "Pres"), fin("Sub", "2", "Sing", "Pres")] },
+        ],
+      ),
+    ).toEqual([
+      "primera persona del plural del presente de indicativo de être",
+      "también puede ser el masculino y femenino plural de somme",
+      "también puede ser la segunda persona del singular del presente de indicativo o de subjuntivo de sommer",
+    ]);
+    // The French card names each, as before.
+    expect(
+      fr
+        .grammarLines(
+          grammar({
+            readings: [],
+            others: [{ lemma: "somme", readings: [noun("Fem", "Plur"), noun("Masc", "Plur")] }],
+          }),
+          "être",
+          "sommes",
+          "sommes",
+          "fr",
+        )
+        .map(lineText),
+    ).toEqual(["peut aussi être le féminin pluriel et le masculin pluriel de somme"]);
+  });
+
+  it("A numeral and a plural determiner without a gender are unnamed; a comparative is named", () => {
+    expect(french("million", "millions", [{ pos: "NUM", features: { Number: "Plur" } }])).toEqual([]);
+    expect(
+      french("le", "les", [
+        { pos: "DET", features: { Number: "Plur" } },
+        { pos: "PRON", features: { Number: "Plur" } },
+      ]),
+    ).toEqual([]);
+    const comparative = (features: Record<string, string>): GrammarTag => ({
+      pos: "ADJ",
+      features: { Degree: "Cmp", ...features },
+    });
+    expect(
+      french(
+        "meilleur",
+        "meilleures",
+        [noun("Fem", "Plur")],
+        [{ lemma: "bon", readings: [comparative({ Gender: "Fem", Number: "Plur" })] }],
+      ),
+    ).toEqual(["femenino plural de meilleur", "también puede ser el comparativo de bon"]);
+    expect(french("petit", "moindre", [comparative({ Number: "Sing" })])).toEqual(["comparativo de petit"]);
+  });
+});
