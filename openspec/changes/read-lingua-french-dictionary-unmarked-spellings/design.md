@@ -2,8 +2,8 @@
 
 ## Context
 
-See proposal.md (Why). What exists, on `main` at `9c88442a` with change 43b's implementation (#884,
-head `4604cdd9`) applied — the tables this change starts from:
+See proposal.md (Why). What exists, on `main` at `8ef47870`, change 43b's implementation (#884)
+merged — the tables this change starts from:
 
 | Where | What |
 |---|---|
@@ -47,7 +47,7 @@ What the French section says, read in the pinned `kaikki-French.jsonl` (sha256 `
 
 ## Measured
 
-A prototype in the scratchpad (never committed): `reduce-fr-en.py` of #884 with D1's rule behind a
+A prototype in the scratchpad (never committed): `reduce-fr-en.py` of `8ef47870` with D1's rule behind a
 switch, its inputs the pinned release's `kaikki-French.jsonl` (sha256 `2d7bbe5f…`), GSD's training and
 development sections at the pinned commit (sha256 `4b9a87b1…`, `9221e508…`) and wordfreq 3.1.1.
 Switch off, it writes `forms.tsv`, `freq.tsv`, `grammar.tsv`, `level.tsv`, `lexical.tsv`, `gloss.tsv`,
