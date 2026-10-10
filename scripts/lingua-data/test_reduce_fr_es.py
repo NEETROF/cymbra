@@ -1193,6 +1193,46 @@ class TheReducer(Tables):
                 self.assertNotIn("letra", sense.lower(), f"{lemma!r} glossed as a letter: {gloss!r}")
         self.assertTrue(all("’" not in lemma for lemma in [*glosses, *expressions]), "a typographic apostrophe")
 
+    def test_the_committed_tables_read_as_refine_lingua_fr_es_glosses_says(self):
+        # tables/fr-es/ reduced again from lingua-pack-sources-fr-es-2026.10.10 with fr-es's own rules:
+        # each scenario's word as its recorded entries give it.
+        committed = Path(_HERE, "tables", "fr-es")
+        glosses = dict(fr_es.read_table(committed / "gloss.tsv"))
+        runs = dict(fr_es.read_table(committed / "senses.tsv"))
+        expressions = dict(fr_es.read_table(committed / "mwe.tsv"))
+        expected = {
+            "baiser": "(malsonante) Coger (sexualmente); (malsonante) Culear, follar, fornicar, joder o realizar el coito; "
+            "(malsonante) Dominar o joder; (malsonante) Quebrar o romper; (jergal) Grapar; (anticuado, Canadá, Bélgica) "
+            "Besar; Beso, besuqueo u ósculo",
+            "maîtresse": "(anticuado) Amante (femenina)",
+            "rien": "Nada; Poca cosa; (obsoleto) Algo; Pequeña cantidad de algo; (coloquial, irónico) Muy; Mucha, muchas, "
+            "mucho o muchos",
+            "être": "Ser; (être + participio) Haber; Estar; (être + participio) ser",
+            "qui": "Quién; Que",
+            "cochon": "Cerdo, marrano, guarro, cochino, etc.",
+            "pas": "No; Paso",
+            "pendant": "Durante; Pendiente; Juego (cosas relacionadas entre si)",
+            "parti": "Partido",
+            "russe": "Ruso, rusa",
+            "jeune": "Joven, chaval, muchacho",
+            "clair": "Claro, luminoso, límpido; Claramente",
+            "retraite": "Jubilación, retiro, pensión",
+            "diaporama": "Diaporama",
+            "amie": "Amiga; Amia o lamia",
+            "hall": "Vestíbulo, recibidor",
+            "onu": "ONU",
+            "pâques": "Pascua",
+        }
+        self.assertEqual({lemma: glosses.get(lemma) for lemma in expected}, expected)
+        self.assertEqual((runs["être"], runs["des"], runs["pas"]), ("VERB:4", "DET:1\tADP:1", "ADV:1\tNOUN:1"))
+        for lemma in ("us", "usa", "fr", "luc", "lorient", "rap", "pilote", "ds", "arnaque", "el"):
+            self.assertNotIn(lemma, glosses)
+        self.assertEqual(expressions["mal aux cheveux"], "(anticuado) Resaca, caña, chaqui, chuchaqui, cruda, go")
+        self.assertEqual(expressions["il y a"], "Hay; Hace")
+        self.assertNotIn("contrôle continu", expressions)
+        # A labelled expression stays within the card's page.
+        self.assertLessEqual(max(len(gloss) for gloss in expressions.values() if gloss.startswith("(")), 160)
+
     def test_spec_scenario_a_rule_of_the_spanish_edition(self):
         # fr-es's rules are its reducer, the shared rules, the Spanish edition's and UD French-GSD's
         # module, which fr-en imports too (refine-lingua-fr-es-glosses D8) — no other pair's reducer.

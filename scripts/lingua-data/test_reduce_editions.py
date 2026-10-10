@@ -1629,38 +1629,100 @@ class FrEnGlossesReadAsFrench(Entries):
                 ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
                 pair,
             )
-        # The treebank's rule is a module of its own (D5), which fr-es is to load too
-        # (refine-lingua-fr-es-glosses D8): today in fr-en's rules alone.
+        # The treebank's rule is a module of its own (D5), which fr-es loads too
+        # (refine-lingua-fr-es-glosses D8): in fr-en's and fr-es's rules alone.
         self.assertEqual(
             [p.name for p in ps.rule_files(Path(_HERE) / "reduce-fr-en.py")],
             ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py", "reduce_french_treebank.py"],
         )
-        for pair in ("en-fr", "es-fr", "es-en", "en-es", "fr-es"):
+        self.assertIn("reduce_french_treebank.py", [p.name for p in ps.rule_files(Path(_HERE) / "reduce-fr-es.py")])
+        for pair in ("en-fr", "es-fr", "es-en", "en-es"):
             self.assertNotIn("reduce_french_treebank.py", [p.name for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")], pair)
         copy = self.dir / "rules"
         copy.mkdir()
         for path in Path(_HERE).glob("reduce[-_]*.py"):
             (copy / path.name).write_bytes(path.read_bytes())
         before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
-        for name, old, new in (
-            # D4, D5 (in its module), D7, D8 and D2/D3, one edit each.
-            ("reduce-fr-en.py", "^(?:comparative degree|superlative degree|synonym|plural|contraction) of", "^(?:synonym) of"),
-            ("reduce_french_treebank.py", "TREEBANK_MIN = 10\n", "TREEBANK_MIN = 5\n"),
-            ("reduce-fr-en.py", '"un coup": (', '"un coups": ('),
-            ("reduce-fr-en.py", "Exclamation|Found) (?=[a-z(])", "Exclamation) (?=[a-z(])"),
-            ("reduce-fr-en.py", '_ETC = re.compile(r"\\betc\\b(?!\\.)")', '_ETC = re.compile(r"\\betcetera\\b")'),
-            ("reduce-fr-en.py", 'return "unlisted"', "return None"),
+        for name, old, new, moved in (
+            # D4, D5 (in its module, fr-es's too: refine-lingua-fr-es-glosses D8), D7, D8 and D2/D3,
+            # one edit each.
+            ("reduce-fr-en.py", "^(?:comparative degree|superlative degree|synonym|plural|contraction) of", "^(?:synonym) of", ("fr-en",)),
+            ("reduce_french_treebank.py", "TREEBANK_MIN = 10\n", "TREEBANK_MIN = 5\n", ("fr-en", "fr-es")),
+            ("reduce-fr-en.py", '"un coup": (', '"un coups": (', ("fr-en",)),
+            ("reduce-fr-en.py", "Exclamation|Found) (?=[a-z(])", "Exclamation) (?=[a-z(])", ("fr-en",)),
+            ("reduce-fr-en.py", '_ETC = re.compile(r"\\betc\\b(?!\\.)")', '_ETC = re.compile(r"\\betcetera\\b")', ("fr-en",)),
+            ("reduce-fr-en.py", 'return "unlisted"', "return None", ("fr-en",)),
         ):
             reducer = copy / name
             text = reducer.read_text(encoding="utf-8")
             self.assertIn(old, text)
             reducer.write_text(text.replace(old, new), encoding="utf-8")
             after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
-            self.assertNotEqual(after["fr-en"], before["fr-en"], new)
-            self.assertEqual({p: after[p] for p in pairs if p != "fr-en"}, {p: before[p] for p in pairs if p != "fr-en"}, new)
+            for pair in moved:
+                self.assertNotEqual(after[pair], before[pair], f"{pair}: {new}")
+            self.assertEqual({p: after[p] for p in pairs if p not in moved}, {p: before[p] for p in pairs if p not in moved}, new)
             before = after
         # `split` files a reducer's own dictionary words, and lives in no digest.
         self.assertNotIn("pack_sources.py", [p.name for pair in pairs for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")])
+
+
+class FrEsGlossesRefined(Entries):
+    """refine-lingua-fr-es-glosses: fr-es's own rules, in its reducer and the treebank's module it
+    shares with fr-en (D1, D8)."""
+
+    def test_spec_scenario_nothing_else_moves_and_the_floor_holds(self):
+        # fr-es's rule digest moves with each of its rules and names the treebank's module; en-fr's,
+        # es-fr's, es-en's, en-es's and fr-en's do not — no shared or edition module is edited, and the
+        # treebank's is fr-en's already. Every committed pin records the rules it was reduced with.
+        import gloss_coverage
+
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        pin = ps.load(Path(_HERE) / "tables" / "fr-es" / "pin.json")
+        self.assertEqual(
+            pin["reducer"]["files"], ["reduce-fr-es.py", "reduce_common.py", "reduce_edition_es.py", "reduce_french_treebank.py"]
+        )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for old, new in (
+            # D2, D3, D4, D5, D6, D7 and D8, one edit each of fr-es's reducer.
+            ('"Términos coloquiales": "coloquial",', '"Términos coloquiales": "coloquio",'),
+            ("if seen & show[upos]:", "if False:"),
+            ('("rap", "secuestro"): ', '("rap", "secuestros"): '),
+            ("FRENCH_GAP = 2.0", "FRENCH_GAP = 1.0"),
+            ('_CONTRACTION_OF_A_PREPOSITION = re.compile(r"^Contracción de la preposición\\b")', '_CONTRACTION_OF_A_PREPOSITION = re.compile(r"^$")'),
+            ('("Pequeña cantidad de algo.",),', '("Pequeña cantidad.",),'),
+            ("entries = treebank_order(", "entries = (lambda src, dst, counts: src)("),
+        ):
+            reducer = copy / "reduce-fr-es.py"
+            text = reducer.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            reducer.write_text(text.replace(old, new), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertNotEqual(after["fr-es"], before["fr-es"], new)
+            self.assertEqual({p: after[p] for p in pairs if p != "fr-es"}, {p: before[p] for p in pairs if p != "fr-es"}, new)
+            before = after
+        # The floor holds on the committed tables (add-lingua-pack-fr-es D8).
+        shares = gloss_coverage.measure(Path(_HERE) / "tables" / "fr-es", studied=Path(_HERE) / "tables" / "fr")
+        self.assertEqual(gloss_coverage.under_floor("fr-es", shares, gloss_coverage.FLOORS["fr-es"]), [], shares)
+        # Its snapshot, studied record and kaikki sources are the snapshot's; GSD's two files, fr-en's.
+        self.assertEqual(pin["snapshot"], "2026.10.10")
+        self.assertEqual(
+            {name: pin["sources"][name] for name in ("gsd-train", "gsd-dev")},
+            {name: ps.load(Path(_HERE) / "tables" / "fr-en" / "pin.json")["sources"][name] for name in ("gsd-train", "gsd-dev")},
+        )
+        self.assertEqual(
+            {name: pin["sources"][name]["release"] for name in ("kaikki-es", "kaikki-fr")},
+            {"kaikki-es": "lingua-pack-sources-fr-es-2026.10.10", "kaikki-fr": "lingua-pack-sources-fr-es-2026.10.10"},
+        )
 
 
 class TheSpanishEdition(Entries):
