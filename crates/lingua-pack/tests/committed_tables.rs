@@ -98,7 +98,7 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 #[test]
 fn every_committed_pair_holds_to_its_studied_language() {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
-    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en"] {
+    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"] {
         assert!(pairs.iter().any(|p| p == pair), "{pair} is read");
     }
 }
@@ -702,6 +702,206 @@ fn spec_scenario_a_gloss_is_its_lemma_s() {
     assert!(!glossed.contains_key("venue"));
 }
 
+/// fr-es's committed pack, built once per test binary.
+fn fr_es() -> &'static [u8] {
+    static FR_ES: OnceLock<Vec<u8>> = OnceLock::new();
+    FR_ES.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "fr-es").unwrap_or_else(|e| panic!("fr-es: {e}"));
+        build_pack(&inputs).unwrap_or_else(|e| panic!("build fr-es: {e}"))
+    })
+}
+
+#[test]
+fn spec_scenario_french_glossed_in_spanish() {
+    // fr-es (add-lingua-pack-fr-es D1, D10), a reader pair of French: its folder holds exactly a
+    // pair's file set, its manifest studies French glossed in Spanish with French's analyser and
+    // estimated levels, and its studied side is tables/fr, which fr-en writes.
+    let dir = tables().join("fr-es");
+    assert_eq!(
+        files(&dir),
+        [
+            "NOTICE",
+            "README.md",
+            "gloss.tsv",
+            "manifest.json",
+            "mwe.tsv",
+            "pin.json",
+            "senses.tsv"
+        ]
+    );
+    let manifest = json(&dir.join("manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "fr");
+    assert_eq!(manifest["meta"]["native"], "es");
+    assert_eq!(
+        manifest["meta"]["analyzer_version"],
+        lingua_core::analysis::FRENCH_ANALYZER_VERSION
+    );
+    assert_eq!(manifest["meta"]["levels_estimated"], true);
+
+    // Its pin records its own pack and, a reader pair's record (add-lingua-pack-es-en D3), fr-en
+    // as the reference and the sha256 of each of the six studied tables it was built on, as
+    // committed; its pack_version names their digest.
+    let pin = json(&dir.join("pin.json"));
+    assert_eq!(pin["studied"]["reference"], "fr-en");
+    let recorded = pin["studied"]["tables"].as_object().unwrap();
+    assert_eq!(recorded.len(), 6, "{recorded:?}");
+    for name in STUDIED_SIDE {
+        let committed = std::fs::read(tables().join("fr").join(name)).unwrap();
+        assert_eq!(
+            recorded[name],
+            sha256_hex(&committed).as_str(),
+            "fr-es: fr/{name}"
+        );
+    }
+    let version = manifest["meta"]["pack_version"].as_str().unwrap();
+    assert!(
+        version.starts_with(&format!("{}+", pin["snapshot"].as_str().unwrap()))
+            && version.matches('.').count() == 3,
+        "a reader pair's pack_version names its snapshot, rules and studied tables: {version}"
+    );
+    // Its sources are dumps alone, the three derived files under its own release (D3): the Spanish
+    // edition's French section and French translations, the French edition's Spanish ones. No
+    // English dump: tables/fr is read as committed.
+    assert!(pin["sources"].get("kaikki").is_none(), "no extract");
+    assert!(pin["sources"].get("kaikki-en").is_none(), "no English dump");
+    let release = pin["sources"]["kaikki-es"]["release"].as_str().unwrap();
+    assert!(
+        release.starts_with("lingua-pack-sources-fr-es-"),
+        "{release}"
+    );
+    assert_eq!(pin["sources"]["kaikki-fr"]["release"], release);
+    assert!(pin["sources"]["kaikki-es"]["files"]["kaikki-es-Frances.jsonl"].is_object());
+    assert!(pin["sources"]["kaikki-es"]["files"]["kaikki-es-traductions.jsonl"].is_object());
+    assert!(pin["sources"]["kaikki-fr"]["files"]["kaikki-fr-traductions.jsonl"].is_object());
+    assert!(
+        json(&tables().join("fr-en/pin.json"))
+            .get("studied")
+            .is_none(),
+        "the reference's pin records nothing of its readers"
+    );
+}
+
+#[test]
+fn spec_scenario_french_s_dictionary_words() {
+    // fr-es's pack carries a lexical table listing exactly the lemmas tables/fr/lexical.tsv lists —
+    // fr-en's glossed lemmas — so a lemma fr-es glosses and fr-en does not is no dictionary word
+    // (`quant`, glossed by the Spanish Wiktionary; *French's dictionary words*).
+    let bytes = fr_es();
+    assert!(section_of(&sections(bytes), section::LEXICAL).is_some());
+    let (fr_es, fr_en) = (Pack::load(bytes).unwrap(), Pack::load(fr_en()).unwrap());
+    assert_eq!(fr_es.pair().key(), "fr-es");
+    assert_eq!(
+        fr_es.dictionary_words(),
+        fr_en.dictionary_words(),
+        "fr-es's dictionary words are fr-en's"
+    );
+    let lexical: BTreeSet<String> =
+        std::fs::read_to_string(tables().join("fr").join("lexical.tsv"))
+            .unwrap()
+            .lines()
+            .map(str::to_owned)
+            .collect();
+    let glossed = tsv(&tables().join("fr-es/gloss.tsv"));
+    let only_here: Vec<&String> = glossed
+        .keys()
+        .filter(|lemma| !lexical.contains(*lemma))
+        .collect();
+    assert!(only_here.iter().any(|l| *l == "quant"), "quant");
+    for lemma in &only_here {
+        assert!(
+            fr_es.gloss(lemma).is_some() && !fr_es.is_dictionary_word(lemma),
+            "{lemma}"
+        );
+    }
+    assert!(fr_en.gloss("quant").is_none());
+    // Every row answers its own lemma (the builder files a gloss under the lemma its key reads
+    // as), with a run per gloss.
+    let senses = tsv(&tables().join("fr-es/senses.tsv"));
+    assert!(senses.keys().eq(glossed.keys()), "senses.tsv's lemmas");
+    let lent: Vec<&String> = glossed
+        .iter()
+        .filter(|(lemma, gloss)| fr_es.gloss(lemma) != Some(gloss.as_str()))
+        .map(|(lemma, _)| lemma)
+        .take(10)
+        .collect();
+    assert!(
+        lent.is_empty(),
+        "a lemma answered with another row: {lent:?}"
+    );
+    assert_eq!(fr_es.gloss("maison"), Some("Casa"));
+    assert_eq!(fr_es.gloss("et"), Some("Y, e"));
+}
+
+#[test]
+fn spec_scenario_the_pack_is_built_not_shipped() {
+    // fr-es's pack, built from tables/fr/ and tables/fr-es/, has the sha256 its pin records, fits
+    // the budget, and no package lists it: change 52 decides, by the floor (add-lingua-pack-fr-es
+    // D8).
+    let bytes = fr_es();
+    let pin = json(&tables().join("fr-es/pin.json"));
+    assert_eq!(
+        pin["pack"]["sha256"],
+        sha256_hex(bytes).as_str(),
+        "fr-es: pin.json"
+    );
+    assert_eq!(pin["pack"]["size"], bytes.len());
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    let packs = json(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
+    );
+    assert!(
+        !packs["pairs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p == "fr-es"),
+        "no package lists fr-es"
+    );
+}
+
+#[test]
+fn spec_scenario_the_credits_of_fr_es() {
+    // fr-es's notice credits both sides: French's tables and dictionary words as fr-en's notice
+    // credits them (the English Wiktionary's French section, wordfreq, UD French-GSD), the Spanish
+    // Wiktionary's definitions and French translations, the French Wiktionary's Spanish
+    // translations, wordfreq for the Spanish words' order. The pack carries it.
+    let notice = std::fs::read_to_string(tables().join("fr-es/NOTICE")).unwrap();
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
+    for credit in [
+        "English Wiktionary (enwiktionary), French section",
+        "which lemmas fr-en glosses: the dictionary words and which take a level",
+        "Spanish Wiktionary (eswiktionary)",
+        "French translations its Spanish entries list",
+        "French Wiktionary (frwiktionary)",
+        "Spanish translations its French entries list",
+        "wordfreq (French and Spanish frequency lists)",
+        "Robyn Speer",
+        "UD French-GSD",
+        "The levels are estimated, not taken from a CEFR list",
+    ] {
+        assert!(notice.contains(credit), "fr-es/NOTICE names {credit:?}");
+    }
+    let manifest = json(&tables().join("fr-es/manifest.json"));
+    assert_eq!(
+        manifest["meta"]["licences"][0],
+        "kaikki / enwiktionary, eswiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)"
+    );
+    let pack = Pack::load(fr_es()).unwrap();
+    assert!(pack.meta().levels_estimated);
+    for credit in [
+        "enwiktionary",
+        "eswiktionary",
+        "frwiktionary",
+        "UD French-GSD",
+    ] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
+}
+
 #[test]
 fn spec_scenario_the_reduction_never_reads_the_treebanks_it_is_measured_on() {
     // fr-en's pin records the English Wiktionary's French section, derived from the edition's dump
@@ -995,6 +1195,7 @@ fn spec_scenario_the_committed_pairs() {
         ("es-en", es_en()),
         ("en-es", en_es()),
         ("fr-en", fr_en()),
+        ("fr-es", fr_es()),
     ] {
         let pin = json(&tables().join(pair).join("pin.json"));
         assert_eq!(pin["pack"]["sha256"], sha256_hex(bytes).as_str(), "{pair}");
@@ -1161,7 +1362,7 @@ fn spec_scenario_every_french_pack_says_so() {
     }
 }
 
-/// A committed pair's pack, built once per test binary for the five pairs the tests above build.
+/// A committed pair's pack, built once per test binary for the six pairs the tests above build.
 fn committed_pack(pair: &str) -> std::borrow::Cow<'static, [u8]> {
     use std::borrow::Cow;
     match pair {
@@ -1169,6 +1370,7 @@ fn committed_pack(pair: &str) -> std::borrow::Cow<'static, [u8]> {
         "es-en" => Cow::Borrowed(es_en()),
         "en-es" => Cow::Borrowed(en_es()),
         "fr-en" => Cow::Borrowed(fr_en()),
+        "fr-es" => Cow::Borrowed(fr_es()),
         _ => Cow::Owned(
             build_pack(&inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}")))
                 .unwrap_or_else(|e| panic!("build {pair}: {e}")),
@@ -1248,7 +1450,7 @@ fn spec_scenario_the_committed_pairs_give_each_level_to_its_own_lemma() {
             .unwrap_or_else(|e| panic!("{e}"));
         assert_eq!(carried, table.len(), "{pair}");
     }
-    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en"] {
+    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"] {
         assert_eq!(
             level_table(&tables().join(studied_of(pair))).len(),
             8_302,

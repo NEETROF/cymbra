@@ -15,11 +15,12 @@
 //! Cross-native invariance (add-lingua-pack-lexical-layer D6): an analysis does not depend
 //! on the native language its pack is glossed in.
 //!
-//! For English and for Spanish, the reference pack (en-fr, es-fr) is built from its committed
-//! tables, and the second pack is the real one over the same studied tables: en-es, the committed
-//! pair glossed in Spanish (add-lingua-pack-en-es), built from `tables/en/` and `tables/en-es/`;
-//! es-en, the committed pair glossed in English (add-lingua-pack-es-en), built from `tables/es/`
-//! and `tables/es-en/`.
+//! For English, Spanish and French, the reference pack (en-fr, es-fr, fr-en) is built from its
+//! committed tables, and the second pack is the real one over the same studied tables: en-es, the
+//! committed pair glossed in Spanish (add-lingua-pack-en-es), built from `tables/en/` and
+//! `tables/en-es/`; es-en, the committed pair glossed in English (add-lingua-pack-es-en), built
+//! from `tables/es/` and `tables/es-en/`; fr-es, French glossed in Spanish
+//! (add-lingua-pack-fr-es), built from `tables/fr/` and `tables/fr-es/`.
 //!
 //! Every probe of the language's invariance baseline is answered through both packs, and must
 //! be byte for byte alike once glosses, senses and expressions — the native side — are removed
@@ -38,6 +39,7 @@ use lingua_core::packs::format::read_container;
 use lingua_core::packs::pack::section;
 use lingua_pack::{build_pack, inputs_from_tables};
 use support::english::ENGLISH;
+use support::french::FRENCH;
 use support::spanish::SPANISH;
 use support::{Scenario, probes, studied_side};
 
@@ -96,21 +98,26 @@ fn assert_studied_sections_alike(pair: &str, reference: &[u8], other: &[u8]) {
     );
 }
 
-/// The exported card operations say the language of their glosses before it is stripped: the
-/// reference's, French, carry no label; the other pack's every one carry its native's
+/// The exported card operations say the language of their glosses before it is stripped: a
+/// French gloss carries no label — en-fr's and es-fr's, the references' —, every other carries
+/// its native's: fr-en's `en` (`reference_native`), the other pack's `native`
 /// (add-lingua-card-gloss-language D2) — so a label astray elsewhere is not hidden by the
 /// strip.
-fn assert_card_ops_labelled(reference: &str, other: &str, native: &str) {
+fn assert_card_ops_labelled(reference: &str, other: &str, reference_native: &str, native: &str) {
     let ops = |body: &str| -> Vec<serde_json::Value> {
         serde_json::from_str(body).expect("an array of card operations")
     };
     let (a, b) = (ops(reference), ops(other));
     assert!(!a.is_empty() && a.len() == b.len(), "the same cards");
     for op in &a {
-        assert!(
-            op.get("gloss_language").is_none(),
-            "a French gloss carries no label: {op}"
-        );
+        if reference_native == "fr" {
+            assert!(
+                op.get("gloss_language").is_none(),
+                "a French gloss carries no label: {op}"
+            );
+        } else {
+            assert_eq!(op["gloss_language"], reference_native, "{op}");
+        }
     }
     for op in &b {
         assert_eq!(op["gloss_language"], native, "{op}");
@@ -118,13 +125,14 @@ fn assert_card_ops_labelled(reference: &str, other: &str, native: &str) {
 }
 
 /// Every probe of `scenario`, through `reference` and through `other`: alike once the native
-/// side is removed — the other pack's own credits included. `native` is the other pack's native
-/// language, which labels its cards.
+/// side is removed — the other pack's own credits included. `reference_native` and `native` are
+/// the two packs' native languages, which label their cards.
 fn assert_probes_alike(
     scenario: &Scenario,
     language: Option<&str>,
     reference: &[u8],
     other: &[u8],
+    reference_native: &str,
     native: &str,
 ) {
     let render = |pack: &[u8]| {
@@ -140,7 +148,7 @@ fn assert_probes_alike(
     let mut compared = 0;
     for ((name, x), (_, y)) in a.iter().zip(&b) {
         if name == "export-card-ops" {
-            assert_card_ops_labelled(x, y, native);
+            assert_card_ops_labelled(x, y, reference_native, native);
         }
         let (Some(x), Some(y)) = (studied_side(name, x), studied_side(name, y)) else {
             continue;
@@ -210,7 +218,7 @@ fn spec_scenario_english_through_another_native_language() {
     let (en_fr, en_es) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
     assert_eq!(en_es.pair().key(), "en-es", "glossed in Spanish");
     assert_studied_sections_alike("en-fr", &reference, &other);
-    assert_probes_alike(&ENGLISH, None, &reference, &other, "es");
+    assert_probes_alike(&ENGLISH, None, &reference, &other, "fr", "es");
     // Fewer glosses, yet glosses of its own: a lemma this pack glosses and en-fr does not is no
     // dictionary word — the dictionary words are en-fr's, read from tables/en (the lexical
     // section `assert_studied_sections_alike` found).
@@ -276,7 +284,7 @@ fn spec_scenario_spanish_through_another_native_language() {
         build_pack(&other_inputs).expect("es-en"),
     );
     assert_studied_sections_alike("es-fr", &reference, &other);
-    assert_probes_alike(&SPANISH, Some("es"), &reference, &other, "en");
+    assert_probes_alike(&SPANISH, Some("es"), &reference, &other, "fr", "en");
 
     let (es_fr, es_en) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
     assert_eq!(es_en.pair().key(), "es-en");
@@ -357,4 +365,51 @@ fn spec_scenario_spanish_through_another_native_language() {
         runs.iter()
             .all(|(tag, _)| tag.chars().all(|c| c.is_ascii_uppercase()))
     }));
+}
+
+#[test]
+fn spec_scenario_french_through_another_native_language() {
+    // fr-en, French's reference, and fr-es: the committed pair glossed in Spanish
+    // (add-lingua-pack-fr-es D10), both built from tables/fr/ — the real second pack. The scenario's
+    // engine holds the one pack, so its native language is the pack's (`render_with`): fr-en's
+    // cards are labelled `en`, fr-es's `es`.
+    let root = Scenario::tables_root();
+    let (reference_inputs, other_inputs) = (
+        inputs_from_tables(&root, "fr-en").expect("read fr-en"),
+        inputs_from_tables(&root, "fr-es").expect("read fr-es"),
+    );
+    assert_eq!(
+        other_inputs.meta.native, "es",
+        "fr-es is glossed in Spanish"
+    );
+    // *Glossed in Spanish with fewer glosses*.
+    assert!(other_inputs.glosses.len() < reference_inputs.glosses.len());
+    let (reference, other) = (
+        build_pack(&reference_inputs).expect("fr-en"),
+        build_pack(&other_inputs).expect("fr-es"),
+    );
+    let (fr_en, fr_es) = (Pack::load(&reference).unwrap(), Pack::load(&other).unwrap());
+    assert_eq!(fr_es.pair().key(), "fr-es", "glossed in Spanish");
+    // French's levels (add-lingua-french-levels) and paradigms (add-lingua-french-grammar-tables)
+    // are among the sections compared: both have landed.
+    assert_studied_sections_alike("fr-en", &reference, &other);
+    assert_probes_alike(&FRENCH, Some("fr"), &reference, &other, "en", "es");
+    // A lemma fr-es glosses and fr-en does not is no dictionary word: the dictionary words are
+    // fr-en's, read from tables/fr (`quant`, which the Spanish Wiktionary glosses).
+    assert!(fr_en.gloss("quant").is_none());
+    assert!(fr_es.gloss("quant").is_some() && !fr_es.is_dictionary_word("quant"));
+    let only_here: Vec<&str> = other_inputs
+        .glosses
+        .iter()
+        .map(|(lemma, _)| lemma.as_str())
+        .filter(|lemma| fr_en.gloss(lemma).is_none())
+        .collect();
+    assert!(only_here.len() > 100, "{}", only_here.len());
+    for lemma in &only_here {
+        assert!(!fr_es.is_dictionary_word(lemma), "{lemma}");
+    }
+    assert_eq!(fr_es.gloss("maison"), Some("Casa"));
+    assert!(fr_es.is_dictionary_word("maison"));
+    // *A vocabulary size counts dictionary words*: the universe and the ladder are fr-en's.
+    assert_eq!(sizes(&other, "fr"), sizes(&reference, "fr"));
 }
