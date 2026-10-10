@@ -5458,6 +5458,7 @@ docte	ADJ:1
 docteur	NOUN:1
 doctorant	NOUN:1
 doctorat	NOUN:1
+doctrinaire	NOUN:1
 doctrine	NOUN:1
 document	NOUN:1
 documentaire	ADJ:1
@@ -5663,6 +5664,7 @@ dé	NOUN:3
 déambulateur	NOUN:1
 déambulatoire	NOUN:1
 déballer	VERB:1
+débaptiser	VERB:1
 débarcadère	NOUN:1
 débardeur	NOUN:1
 débarquer	VERB:1
@@ -5886,6 +5888,7 @@ dégénérer	VERB:1
 dégénérescence	NOUN:1
 déhancher	VERB:1
 déité	NOUN:1
+déjection	NOUN:1
 déjeuner	NOUN:1	VERB:1
 déjeûner	NOUN:1
 déjouer	VERB:1
@@ -6088,6 +6091,7 @@ désamour	NOUN:1
 désarmement	NOUN:1
 désarmer	VERB:1
 désarroi	NOUN:1
+désarçonner	VERB:1
 désastre	NOUN:1
 désastreux	ADJ:1
 désavantage	NOUN:1	VERB:4
@@ -17721,7 +17725,6 @@ têtu	ADJ:1
 tôle	NOUN:1
 tôt	ADV:2
 ua	NOUN:1
-uberisation	NOUN:1
 ubiquité	NOUN:1
 uchronie	NOUN:1
 ukraine	PROPN:1
