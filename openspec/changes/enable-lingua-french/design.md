@@ -520,7 +520,8 @@ Total 4–7.5.
 
 For the owner:
 1. **The descriptions** (D7): change 53's drafts, « Read Spanish and French on the web: … » and « Lee
-   inglés y francés en la web: … » — or other words (M9), read once for both changes.
+   inglés y francés en la web: … » — or other words (M9), read once for both changes — *settled on
+   2026-10-10*: approved as drafted, for both changes.
 2. **The host app's activation page** (D7) — *settled on 2026-10-09*: every language the reader
    can study is named, in every language, the French page included; the drafts are read with the
    descriptions (M9, task 6.2).
@@ -534,4 +535,5 @@ For the owner:
    floor, and changes 51 and 53, which name it in `archiveAfter`, wait with it — and this change,
    archived after 51. Recommended: under the floor, 51 and 53 drop 49 from `archiveAfter`, as this
    change does — none of the three MODIFIES a requirement of 49 then —, so that each archives once
-   implemented; or all three wait for fr-es.
+   implemented; or all three wait for fr-es. — *settled on 2026-10-10*: under the floor, 51 and 53
+   drop 49 from `archiveAfter`, as recommended.

@@ -38,7 +38,7 @@ French change, `refine-lingua-fr-en-glosses` — and change 49's first committed
 ## 6. Dogfood (owner, with Claude where a session can drive the browser)
 
 - [ ] 6.1 [manual] Chrome (macOS), Firefox (macOS), Firefox for Android, Safari (macOS), Safari (iOS): the pass of design D12, on test accounts, with the English interface and (with fr-es) the Spanish one; it carries change 47's task 6.2 and change 51's task 6.2, whose findings go to this pull request; the owner ticks those two tasks once their findings are in.
-- [ ] 6.2 [manual] The owner reads the activation page's drafts (design D7) with the descriptions (M9, Open Question 1), in French, English and Spanish.
+- [ ] 6.2 [manual] The owner reads the activation page's drafts (design D7) with the descriptions (M9, Open Question 1), in French, English and Spanish. The descriptions were approved by the owner on 2026-10-10 (in session); the activation page's drafts remain.
 
 ## 7. Release (owner)
 
