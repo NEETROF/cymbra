@@ -142,7 +142,7 @@ lemma).
 The pack these two tables built — no gloss, reading or level — was 1,241,733 B; Spanish's same two
 tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*), and with the readings
 too 1,460,253 B (*The readings*). With the glosses, their runs and the expressions it was 2,527,222 B,
-and with fr-en's own rules and French's lexical table it is **2,537,587 B** (*The glosses*), under
+and with fr-en's own rules and French's lexical table it is **2,537,386 B** (*The glosses*), under
 the builder's 5 MiB.
 
 ## Measured
@@ -710,6 +710,14 @@ edited):
      si`, `un coup`), and six post-1990 spellings keyed apart from their traditional spelling lend
      its gloss (`traditional_spellings`: `à priori`, `à postériori`, `et cétéra`, `sur son
      trente-et-un` and two verbs on it) (D7).
+   - Eleven expressions D4 would make of no meaning are left out by name too (`LEFT_OUT`, settled by
+     the owner on 2026-10-10 after the implementation found them): the Louisiana spellings `à le`,
+     `à les` « to the », which every « au »/« aux » would meet once the pre-pass reads it `à` +
+     `le`/`les`, and `de le`, `de les` « “of the”, some », which « décidé de le faire » would meet;
+     `j'suis` and `ç'a`, which every « je suis » and « ça a » would meet; `l'a` « him/her/it » and
+     `n'ai` « not », one piece's meaning; `j't'à` « the 't' is epenthetic » and `poser des lapins`
+     « frequentative or plural », grammatical notes; `point d'inflexion`, half a definition. `t'as`
+     « you've » and `t'es` « you're », met only where they are written so, stay.
    - « etc » takes its period back after the shared rules (`with_etc_period`, D8).
    - **French's dictionary words** (`dictionary_words`, D2): the glossed lemmas less the 3,581 every
      sense run of which is a proper noun's, written to `../fr/lexical.tsv`; the levels read them
@@ -721,7 +729,7 @@ before them byte for byte):
 
 | Rule | Rows / top 10,000 | First sense / top 10,000 | Lemmas gained | Expressions changed / gained / left out |
 |---|---|---|---|---|
-| D4, a pointer's meaning | 40 / 18 | 13 / 10 | 12 (4 of the top 10,000) | 15 / 166 / 0 |
+| D4, a pointer's meaning (the eleven of its expressions left out by name) | 40 / 18 | 13 / 10 | 12 (4 of the top 10,000) | 15 / 155 / 0 |
 | D5, the treebank's part of speech | 13 / 13 | 13 / 13 | — | — |
 | D6, no name under a function word | 2 / 2 | 0 / 0 | — | — |
 | D7, left out by name | — | — | — | 0 / 0 / 5 |
@@ -730,17 +738,15 @@ before them byte for byte):
 | D8, openers | 14 / 8 | 8 / 2 | — | 1 / 0 / 0 |
 | D8, citations and sense numbers | 4 / 3 | 2 / 2 | — | — |
 | D8, « etc. » | 117 / 42 | 59 / 10 | — | 7 / 0 / 0 |
-| **Together** | **291 / 117** | **190 / 64** | **12, none lost** | **26 / 172 / 5** |
+| **Together** | **291 / 117** | **190 / 64** | **12, none lost** | **26 / 161 / 5** |
 
 The 12 lemmas gained are words whose only senses were pointers of D4's wordings: `french`, `burger`,
 `dev`, `ès` (four of change 48's levelled lemmas with no gloss, which keep their level), `ive`,
-`because`, `blockchain`, `chui`, `sherry`, `axis`, `loix`, `broyeuse`. Every figure is the design's.
-A few read oddly and are in the owner's sample (task 6.2): « matelas » gains « French tacos »,
-« bercy » « drunkard », « j't'à » « the 't' is epenthetic ». D4 also makes expressions of the
-section's Louisiana spellings `à le`, `à les` « to the » and `de le`, `de les` « “of the”, some »:
-every « au » and « aux », which the pre-pass reads as `à` + `le`/`les`, meets the first two, and a
-pronoun after « de » the last two (« décidé de le faire » shows `de le` « “of the”, some ») — found
-while implementing, in the owner's sample, not left out here (the design's figures hold them).
+`because`, `blockchain`, `chui`, `sherry`, `axis`, `loix`, `broyeuse`. Every figure is the design's,
+its expressions gained as amended when the owner left the eleven out (166 → 155 by D4, 172 → 161
+together). A few read oddly and are in the owner's sample (task 6.2): « matelas » gains
+« French tacos », « bercy » « drunkard ». « au marché », « Personne au village » and « Il a décidé de
+le faire » meet none of the eleven (« de le faire » meets `de l'`, which `main` already glossed).
 
 **No translation table** (D3). The French Wiktionary's English translations and the English
 Wiktionary's French translations read backwards were measured on the design's prototype and
@@ -761,9 +767,9 @@ a later update is the owner's question (design, Open Question 1).
 | Glossed lemmas | **30,067**, every one from the section's own entries |
 | French's dictionary words (`../fr/lexical.tsv`) | **26,486**: the glossed lemmas less the 3,581 glossed by a proper noun's senses alone (359 / 912 / 1,763 of the 5,000 / 10,000 / 20,000 commonest) |
 | Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,679 / 8,688 / 15,260 — 93.6 / 86.9 / 76.3 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; settled by the owner) |
-| Expressions | **17,646**: 15,659 headwords with a space and 1,987 words the tokenisation splits |
-| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,616,576, 512,267 and 834,225 B (625,308, 125,636 and 326,607 B gzipped); `../fr/lexical.tsv` 253,742 B |
-| The pack | **2,537,587 B**: change 48's 2,527,222 B, fr-en's own rules +2,853 B (the glosses −96, their runs +315, the expressions +2,634), French's lexical table +7,512 B |
+| Expressions | **17,635**: 15,653 headwords with a space and 1,982 words the tokenisation splits |
+| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,616,576, 512,267 and 833,953 B (625,308, 125,636 and 326,483 B gzipped); `../fr/lexical.tsv` 253,742 B |
+| The pack | **2,537,386 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B |
 
 No figure is published: the site's figures list the shipped pairs alone, and fr-en ships with change
 52.

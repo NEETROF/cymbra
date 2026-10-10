@@ -69,11 +69,11 @@
 //! « il y a » and « il y avait » answer `il y a`, the Proust sentence `de bonne heure`,
 //! « jusqu'au soir » `jusqu'à` — the article of « au » covered with it, as a Spanish match covers
 //! the article of « al » (add-lingua-french-word-card D12) —, « à la maison » the section's own
-//! `à la maison`, and « au marché » `à le` « to the », a Louisiana spelling of « au » whose pointer
-//! fr-en reads as its meaning (refine-lingua-fr-en-glosses D4, in the owner's list). « un coup
-//! d’œil » meets `coup d'œil` alone, and « du pain et des œufs » no expression: fr-en's reducer
-//! leaves `un coup` and `et des` out, their one sense needing a context their keys do not hold
-//! (refine-lingua-fr-en-glosses D7; add-lingua-pack-fr-en D7 listed them).
+//! `à la maison`, and « au marché » nothing — fr-en's reducer leaves out `à le`, a Louisiana
+//! spelling of « au » every « au » would meet (refine-lingua-fr-en-glosses, settled by the owner on
+//! 2026-10-10). « un coup d’œil » meets `coup d'œil` alone, and « du pain et des œufs » no
+//! expression: fr-en's reducer leaves `un coup` and `et des` out, their one sense needing a context
+//! their keys do not hold (refine-lingua-fr-en-glosses D7; add-lingua-pack-fr-en D7 listed them).
 //!
 //! The French word card (add-lingua-french-word-card D9) is pinned on this scenario: 21 grammar
 //! probes, one for each name the card says or leaves unsaid on purpose, and 40 lemmas asked as
