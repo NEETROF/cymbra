@@ -24,6 +24,8 @@ use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
 
+use super::tokenize::without_soft_hyphens;
+
 /// Languages the pipeline can study. Extended change by change; each variant
 /// carries its own tokenisation pre-pass, lemmatisation cascade and analyser
 /// version (generalise-lingua-analysis-by-language).
@@ -103,8 +105,13 @@ pub const MIN_BLOCK_BYTES: usize = 12;
 pub const MIN_ANALYSABLE_TOKENS: usize = 10;
 
 /// Whether one block of text is in the studied language.
+///
+/// The block is read without its soft hyphens (U+00AD) before it is trimmed, so
+/// the minimum length, whichlang and the guards all read « vi‧da » as `vida`, and
+/// never its syllables (ignore-lingua-soft-hyphens D3).
 pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
-    let trimmed = text.trim();
+    let read = without_soft_hyphens(text);
+    let trimmed = read.trim();
     if trimmed.len() < MIN_BLOCK_BYTES {
         return false;
     }
@@ -120,7 +127,9 @@ pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
 /// language is asked about: a reader of English pays for neither, a reader of Spanish for
 /// Spanish's alone. `None` when whichlang finds none of
 /// `languages`, or the guard refuses the block, which is then excluded as any other language's
-/// is. The gate and the vote both ask here, so they never disagree.
+/// is. The gate and the vote both ask here, so they never disagree. Both hand it the block
+/// without its soft hyphens (ignore-lingua-soft-hyphens D3): the guards' own word readings
+/// ([`iberian_neighbour`], [`guard_words`]) never see one.
 fn detect(trimmed: &str, languages: &[StudiedLanguage]) -> Option<StudiedLanguage> {
     let detected = whichlang::detect_language(trimmed);
     let language = languages
@@ -652,7 +661,9 @@ fn guard_words(text: &str, mut f: impl FnMut(&str)) {
 /// a page's short chrome cannot outvote its text, nor a Catalan paragraph vote French. The most weight wins. A tie goes to `hint` (the document's declared
 /// language) when it is among the tied, else to the earlier candidate. With no vote, `hint`
 /// wins if it is a candidate, else the first candidate. A single candidate is returned without
-/// detecting anything. `None` only when there is no candidate.
+/// detecting anything. `None` only when there is no candidate. Each block is read without its
+/// soft hyphens before it is trimmed and weighed, as [`block_is_studied`] reads it
+/// (ignore-lingua-soft-hyphens D3).
 pub fn detect_document_language(
     blocks: &[&str],
     candidates: &[StudiedLanguage],
@@ -664,7 +675,8 @@ pub fn detect_document_language(
     }
     let mut weight = vec![0usize; candidates.len()];
     for block in blocks {
-        let trimmed = block.trim();
+        let read = without_soft_hyphens(block);
+        let trimmed = read.trim();
         if trimmed.len() < MIN_BLOCK_BYTES {
             continue;
         }
@@ -1628,5 +1640,104 @@ mod tests {
     fn tiny_blocks_are_excluded_not_guessed() {
         assert!(!block_is_studied("OK", StudiedLanguage::English));
         assert!(!block_is_studied("  the  ", StudiedLanguage::English));
+    }
+
+    // ignore-lingua-soft-hyphens D3: detection reads a block without its soft hyphens (U+00AD).
+    // `~` stands for one, as `‧` does in the spec's scenarios.
+
+    /// `line` as written, with a soft hyphen for each `~`; without them; and with a space for
+    /// each, the syllables today's reading counted.
+    fn three_readings(line: &str) -> (String, String, String) {
+        (
+            line.replace('~', "\u{AD}"),
+            line.replace('~', ""),
+            line.replace('~', " "),
+        )
+    }
+
+    const SPANISH_HYPHENATED: &str =
+        "To~do el mun~do sa~be que ma~ña~na ha~brá mu~chas co~sas que ha~cer.";
+    const FRENCH_HYPHENATED: &str =
+        "On a chan~té en~semble jus~qu’au ma~tin, per~sonne n’a vou~lu dor~mir.";
+    const ENGLISH_HYPHENATED: &str =
+        "The gov~ern~ment could~n't an~swer the ques~tion yes~ter~day af~ter~noon.";
+
+    #[test]
+    fn spec_scenario_a_spanish_line_is_not_cut_into_syllables() {
+        let (written, clean, syllables) = three_readings(SPANISH_HYPHENATED);
+        assert!(block_is_studied(&clean, ES));
+        assert!(block_is_studied(&written, ES));
+        // Read as syllables, the line is still Spanish to the detector, and the guard refuses
+        // it: `do`, `ma` and `sas` would count for Galician and Occitan.
+        assert_eq!(
+            whichlang::detect_language(syllables.trim()),
+            whichlang::Lang::Spa
+        );
+        assert!(iberian_neighbour(&syllables));
+        assert!(!block_is_studied(&syllables, ES));
+        assert_eq!(
+            detect_document_language(&[written.as_str()], &[EN, ES, FR], None),
+            Some(ES)
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_french_line_is_not_cut_into_syllables() {
+        let (written, clean, syllables) = three_readings(FRENCH_HYPHENATED);
+        assert!(block_is_studied(&clean, FR));
+        assert!(block_is_studied(&written, FR));
+        // Read as syllables, the detector still reads French, and the guard refuses the line:
+        // `té` and `per` count for Catalan and Occitan, against French's `au` alone.
+        assert_eq!(
+            whichlang::detect_language(syllables.trim()),
+            whichlang::Lang::Fra
+        );
+        assert!(romance_neighbour(&syllables));
+        assert!(!block_is_studied(&syllables, FR));
+        assert_eq!(
+            detect_document_language(&[written.as_str()], &[EN, ES, FR], None),
+            Some(FR)
+        );
+    }
+
+    #[test]
+    fn an_english_line_holding_soft_hyphens_is_english() {
+        let (written, clean, _) = three_readings(ENGLISH_HYPHENATED);
+        assert!(block_is_studied(&clean, EN));
+        assert!(block_is_studied(&written, EN));
+        assert_eq!(
+            detect_document_language(&[written.as_str()], &[ES, FR, EN], None),
+            Some(EN)
+        );
+    }
+
+    #[test]
+    fn a_block_s_length_and_weight_are_its_clean_text_s() {
+        // 13 bytes as written, 11 without: too short, as its clean text is.
+        let (written, clean, _) = three_readings("lors~qu’il");
+        assert!(written.trim().len() >= MIN_BLOCK_BYTES);
+        assert!(clean.trim().len() < MIN_BLOCK_BYTES);
+        assert!(!block_is_studied(&written, FR));
+        // A Spanish block heavier than an English one only by its soft hyphens weighs its clean
+        // text, and the English block wins the vote, as it does without them.
+        let spanish = "Mi~ra~ba ca~da ma~ña~na la ca~lle va~cí~a.";
+        let english = "The street was empty every single morning.";
+        let (written, clean, _) = three_readings(spanish);
+        assert!(written.len() > english.len() && clean.len() < english.len());
+        for blocks in [[written.as_str(), english], [clean.as_str(), english]] {
+            assert_eq!(detect_document_language(&blocks, &[ES, EN], None), Some(EN));
+        }
+    }
+
+    #[test]
+    fn a_soft_hyphen_opening_a_block_or_doubled_is_read_as_nowhere() {
+        for line in [
+            "~La vi~da em~pie~za cuan~do te das cuen~ta de quién eres.",
+            "La vi~~da em~~pie~za cuan~do te das cuen~ta de quién eres.~",
+        ] {
+            let (written, clean, _) = three_readings(line);
+            assert!(block_is_studied(&clean, ES), "{line}");
+            assert!(block_is_studied(&written, ES), "{line}");
+        }
     }
 }
