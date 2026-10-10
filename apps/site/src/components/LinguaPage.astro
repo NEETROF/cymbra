@@ -11,6 +11,11 @@
 // escaped by `lingua-text.ts`'s `fill`. A test renders this page on its own pair list by
 // standing in for the data files (`test/astro/lingua-page.spec.ts`), so the layout's
 // Spanish links read the same list.
+//
+// The coverage table has two layouts (change: add-lingua-french-listings, D8): while every
+// pair is glossed in one language, one column per pair — today's markup, untouched; once in
+// two, one row per pair, the pair its row's header, inside a box that scrolls on its own
+// (`.table-scroll`, `global.css`) so that a phone's page never scrolls sideways.
 import Base from '../layouts/Base.astro';
 import Community from './Community.astro';
 import StoreButtons from './StoreButtons.astro';
@@ -50,16 +55,34 @@ const t = linguaPageText(lang, shipped, { discordUrl: config.discordUrl });
   <section id="couverture" class="container prose coverage">
     <h2 set:html={t.coverage.heading} />
     <p set:html={t.coverage.caption} />
-    <table>
-      <thead>
-        <tr>{t.coverage.head.map((cell) => <th set:html={cell} />)}</tr>
-      </thead>
-      <tbody>
-        {t.coverage.rows.map((row) => (
-          <tr>{row.map((cell) => <td set:html={cell} />)}</tr>
-        ))}
-      </tbody>
-    </table>
+    {t.coverage.perPair ? (
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>{t.coverage.head.map((cell) => <th set:html={cell} />)}</tr>
+          </thead>
+          <tbody>
+            {t.coverage.rows.map(([pair, ...cells]) => (
+              <tr>
+                <th scope="row" set:html={pair} />
+                {cells.map((cell) => <td set:html={cell} />)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <table>
+        <thead>
+          <tr>{t.coverage.head.map((cell) => <th set:html={cell} />)}</tr>
+        </thead>
+        <tbody>
+          {t.coverage.rows.map((row) => (
+            <tr>{row.map((cell) => <td set:html={cell} />)}</tr>
+          ))}
+        </tbody>
+      </table>
+    )}
     <p class="muted small" set:html={t.coverage.note} />
   </section>
 

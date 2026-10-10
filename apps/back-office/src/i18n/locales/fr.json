@@ -119,7 +119,8 @@
     "anyLanguage": "Toutes les langues",
     "languages": {
       "en": "Anglais",
-      "es": "Espagnol"
+      "es": "Espagnol",
+      "fr": "Français"
     },
     "apply": "Appliquer",
     "loading": "Chargement de l’usage Lingua…",
