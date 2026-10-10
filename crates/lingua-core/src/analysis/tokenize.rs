@@ -80,17 +80,27 @@ pub struct Token {
 /// inside a word (calibre's *Add soft hyphens*, HTML's `&shy;`).
 pub const SOFT_HYPHEN: char = '\u{AD}';
 
-/// `text` without its soft hyphens (ignore-lingua-soft-hyphens D2): borrowed, at
-/// no cost, when it holds none, which is what every text without them pays; a
-/// copy without them otherwise. The tokeniser reads every word through it, and
-/// detection every block (`language::block_is_studied`,
-/// `language::detect_document_language`).
+/// `text` without its soft hyphens (ignore-lingua-soft-hyphens D2): borrowed when
+/// it holds none, which is what every text without them pays; a copy without them
+/// otherwise. The tokeniser reads every word through it, and detection every
+/// block (`language::block_is_studied`, `language::detect_document_language`).
+///
+/// U+00AD is `C2 AD` in UTF-8: a text without the byte `AD` holds none, which one
+/// byte search tells — every English word, and most others — before the
+/// character search confirms one (`í` is `C3 AD`).
 pub fn without_soft_hyphens(text: &str) -> Cow<'_, str> {
-    if text.contains(SOFT_HYPHEN) {
+    if text.as_bytes().contains(&0xAD) && text.contains(SOFT_HYPHEN) {
         Cow::Owned(text.replace(SOFT_HYPHEN, ""))
     } else {
         Cow::Borrowed(text)
     }
+}
+
+/// Whether the text between two words is the single hyphen of a compound, a soft
+/// hyphen UAX #29 glued to it read as nowhere (`-‧` is three bytes; the common
+/// gap, a space, is answered by its length).
+fn is_hyphen(gap: &str) -> bool {
+    gap == "-" || (gap.len() > 1 && without_soft_hyphens(gap) == "-")
 }
 
 /// Contractions whose base changes when `n't` is peeled off. Everything else
@@ -140,7 +150,7 @@ pub fn tokenize(
         let mut j = i + 1;
         while j < words.len() {
             let (next_start, next) = words[j];
-            if without_soft_hyphens(&text[end..next_start]) != "-" {
+            if !is_hyphen(&text[end..next_start]) {
                 break;
             }
             end = next_start + next.len();
@@ -1451,6 +1461,12 @@ mod tests {
             Cow::Borrowed("vida")
         ));
         assert!(matches!(without_soft_hyphens(""), Cow::Borrowed("")));
+        // `í` is `C3 AD`: its byte `AD` is no soft hyphen.
+        assert!(matches!(
+            without_soft_hyphens("aquí"),
+            Cow::Borrowed("aquí")
+        ));
+        assert!(!is_hyphen(" ") && is_hyphen("-") && is_hyphen("-\u{AD}") && !is_hyphen("--"));
         let stripped = without_soft_hyphens("\u{AD}vi\u{AD}\u{AD}da\u{AD}");
         assert!(matches!(stripped, Cow::Owned(_)));
         assert_eq!(stripped, "vida");
