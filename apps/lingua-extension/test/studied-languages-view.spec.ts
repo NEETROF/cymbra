@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NativeLanguage, StudiedLanguage } from "@/analyzer/types.ts";
 import { studiedLanguages as frStudiedLanguages } from "@/i18n/fr/studied-languages.ts";
+import { settingsCopy } from "@/reading/settings-copy.ts";
 import { mountStudiedLanguages, shippedLanguages } from "@/reading/studied-languages-view.ts";
 import { makeFakePort } from "./helpers.ts";
 
@@ -109,8 +110,25 @@ describe("« Langues étudiées »", () => {
     expect(block.querySelectorAll("input")).toHaveLength(2);
   });
 
-  it("says that several languages at once are free for now", async () => {
-    const s = await mount(["en"]);
-    expect(s.block.textContent).toContain("Plusieurs langues à la fois : gratuit pour l'instant.");
+  // The choice says nothing of price (remove-lingua-several-languages-offer D1): the boxes, then
+  // their one note, in every interface language, whether one language is studied or both.
+  it.each(["fr", "en", "es"] as const)("says nothing of price, in its one note (%s)", async (language) => {
+    const { port } = makeFakePort();
+    port.nativeLanguage = async () => "fr";
+    await port.setStudiedLanguages(["en"]);
+    const block = document.createElement("div");
+    const copy = settingsCopy(language).studiedLanguages;
+    const view = mountStudiedLanguages(block, port, async () => {}, BOTH, copy, language);
+    await view.refresh();
+    const notes = (): (string | null)[] => [...block.querySelectorAll(".set-note")].map((n) => n.textContent);
+    expect(block.hidden).toBe(false);
+    expect([...block.children].map((child) => child.className)).toEqual(["set-languages", "set-note"]);
+    expect(notes()).toEqual([copy.studiedNote]);
+    const spanish = block.querySelector<HTMLInputElement>('input[data-language="es"]')!;
+    spanish.checked = true;
+    spanish.dispatchEvent(new Event("change"));
+    await settle();
+    expect(await port.studiedLanguages()).toEqual(["en", "es"]);
+    expect(notes()).toEqual([copy.studiedNote]);
   });
 });

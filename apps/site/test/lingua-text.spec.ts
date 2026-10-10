@@ -48,7 +48,7 @@ describe("today's pairs: the pages read as before", () => {
     expect(card(t, "languages")).toEqual({
       key: "languages",
       title: "🧭 Anglais et espagnol → français",
-      body: "Choisissez vos langues dans les Réglages : chaque page est lue dans la sienne. Plusieurs langues à la fois : gratuit pour l'instant.",
+      body: "Choisissez vos langues dans les Réglages : chaque page est lue dans la sienne.",
     });
     // The Spanish pack's card and levels sentences, since a listed pair studies Spanish.
     expect(card(t, "click").body).toMatch(/« Ignorer »\. En espagnol, la carte nomme aussi le temps et le genre\.$/);
@@ -80,6 +80,7 @@ describe("today's pairs: the pages read as before", () => {
       'Available on Chrome, Edge and other Chromium browsers, on Firefox (desktop) and on Safari (iPhone, iPad, Mac). Made for French speakers learning English or Spanish: the interface and the translations are in French. <a href="https://discord.gg/example" rel="noopener">Join the community</a> to talk about it.',
     );
     expect(card(t, "languages").title).toBe("🧭 English and Spanish → French");
+    expect(card(t, "languages").body).toBe("Choose your languages in Settings: each page is read in its own.");
     expect(t.coverage.caption).toMatch(/^The share of the commonest words that have a French gloss, measured the same way for each language/);
     expect(t.coverage.head).toEqual(["Commonest words", "English", "Spanish"]);
     expect(t.coverage.rows[0]).toEqual(["5,000", "95%", "88%"]);
@@ -124,6 +125,7 @@ describe("the matrix: each page leads with its readers' pairs (D2)", () => {
       'Disponible en Chrome, Edge y otros navegadores Chromium, en Firefox (escritorio) y en Safari (iPhone, iPad, Mac). Pensada para hispanohablantes que aprenden inglés. También para francohablantes que aprenden inglés o español: la interfaz y las traducciones están en francés. También para anglohablantes que aprenden español: la interfaz y las traducciones están en inglés. <a href="https://discord.gg/example" rel="noopener">Únete a la comunidad</a> para hablar de ello.',
     );
     expect(card(t, "languages").title).toBe("🧭 Inglés → español · Inglés y español → francés · Español → inglés");
+    expect(card(t, "languages").body).toBe("Elige tus idiomas en los Ajustes: cada página se lee en el suyo.");
     // es-fr and es-en study Spanish: the card's and the levels' sentences, in the extension's words.
     expect(card(t, "click").body).toMatch(/e «Ignorar»\. En español, la tarjeta también indica el tiempo verbal y el género\.$/);
     expect(card(t, "level").body).toMatch(/a falta de una lista MCER de uso libre\.$/);
