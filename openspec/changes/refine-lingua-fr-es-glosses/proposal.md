@@ -75,7 +75,7 @@ so en-fr, es-fr, es-en, en-es and fr-en do not move (design D1).
   its snapshot, studied record and sources byte for byte; 900 rows change (359 of the top 10,000),
   27 lemmas lose their gloss (16), none gains one; coverage **83.0 / 70.7 / 56.7 %**, held to the
   floor (+1.6 / +1.9 / +2.2).
-- **Every moved row read** (D10): no golden or snapshot reads fr-es's glosses yet; the owner reads
+- **Every moved row read** (D10, D11): no golden or snapshot reads fr-es's glosses yet; the owner reads
   every changed row of the top 10,000 and the two lists.
 
 ## Capabilities

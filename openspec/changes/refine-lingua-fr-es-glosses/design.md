@@ -337,7 +337,7 @@ commoner*: 75 rows, about 50 of them words Spanish writes alike (« portable »,
 fetched. The pin keeps its `snapshot`, its `studied` record and its `sources` byte for byte; its
 `reducer` digest moves (`reduce-fr-es.py`), with `pack_version`
 (`2026.10.10+<digest[:7]>.e18e7e8`, the studied digest unchanged), the pack's sha256 and size.
-`gloss_coverage.py --pair fr-es` holds `FLOORS["fr-es"]` (D10's figures). `tables/fr-es/README.md` —
+`gloss_coverage.py --pair fr-es` holds `FLOORS["fr-es"]` (*Measured*: 83.0 / 70.7 / 56.7 %). `tables/fr-es/README.md` —
 the figures, the rules and what each moves, the two lists, *Known data defects* rewritten as fixed and
 left — and `SOURCES.md` follow.
 
