@@ -966,6 +966,79 @@ describe("a word card asks its word's grammar (add-lingua-word-grammar)", () => 
   });
 });
 
+// add-lingua-french-word-card D7, D8: a word whose pieces the selection covers several of opens the
+// whole-selection card, read by the phrase gloss as any selection is; an expression it answers is
+// stored with its gloss whatever its name's spelling.
+describe("a selection over the pieces of one word", () => {
+  /** « D’abord », as the analyser and a French pack answer it: `de` + `abord`, the expression `d'abord`. */
+  const dAbord: PhraseGloss = {
+    tokens: [
+      tok({ surface: "De", lemma: "de", class: "Unknown", gloss: "of, from", function_word: true }),
+      tok({ surface: "abord", lemma: "abord", class: "Unknown", gloss: "approach" }),
+    ],
+    expressions: [match({ start: 0, end: 2, key: "d'abord", gloss: "first, at first" })],
+  };
+
+  it("« l’homme » selected whole: the whole-selection card, with a row for `homme`", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("l\u2019homme"), null, true);
+    expect(h.phraseGloss.map((c) => c.text)).toEqual(["l\u2019homme"]);
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "le", lemma: "le", class: "Unknown", gloss: "the", function_word: true }),
+        tok({ surface: "homme", lemma: "homme", class: "Unknown", gloss: "man" }),
+      ],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({
+      headword: "l\u2019homme",
+      expression: true,
+      rows: [{ form: "homme", gloss: "man" }],
+    });
+    expect(h.wordGrammar).toHaveLength(0);
+  });
+
+  it("« D’abord »: the expression `d'abord` is the answer, and « + Deck » stores its gloss", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("D\u2019abord"), null, true);
+    h.phraseGloss[0]!.resolve(dAbord);
+    await settle();
+    expect(h.last()).toMatchObject({
+      headword: "d'abord",
+      gloss: "first, at first",
+      expression: false,
+      expressionAnswer: true,
+    });
+    const stored = await h.cards.cardGloss({ ...gesture(h.last()), status: "learning", expressionAnswer: true });
+    expect(stored).toBe("first, at first");
+    expect(h.gloss).toHaveLength(0); // the single-lemma port, which knows no `d'abord`, is not asked
+  });
+
+  it("An expression named with a space, and a word, store as before", async () => {
+    const h = harness();
+    expect(
+      await h.cards.cardGloss({
+        lemma: "au revoir",
+        surface: "Au revoir",
+        sentence: "s",
+        status: "learning",
+        expression: false,
+        gloss: "goodbye",
+      }),
+    ).toBe("goodbye");
+    expect(h.gloss).toHaveLength(0);
+    void h.cards.cardGloss({
+      lemma: "Maison",
+      surface: "maison",
+      sentence: "s",
+      status: "learning",
+      expression: false,
+      gloss: "house",
+    });
+    expect(h.gloss.map((c) => c.lemma)).toEqual(["maison"]); // a word card still asks the pack
+  });
+});
+
 describe("an expression is the card's answer", () => {
   /** `gave up`, as the analyser and the pack answer it. */
   const gaveUp: PhraseGloss = {

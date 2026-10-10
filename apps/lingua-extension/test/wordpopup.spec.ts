@@ -138,6 +138,19 @@ describe("word popup card", () => {
     expect(onGesture).toHaveBeenCalledWith(expect.objectContaining({ lemma: "give up", gloss: "Abandonner" }));
   });
 
+  it("says on the gesture that the expression table answered, whatever the name's spelling (add-lingua-french-word-card D8)", () => {
+    const onGesture = vi.fn();
+    const view = createCard();
+    view.show(
+      content({ headword: "d'abord", surface: "D\u2019abord", gloss: "first, at first", expressionAnswer: true }),
+      onGesture,
+    );
+    button(view.el, "+ Deck").click();
+    expect(onGesture).toHaveBeenCalledWith(
+      expect.objectContaining({ lemma: "d'abord", gloss: "first, at first", expressionAnswer: true }),
+    );
+  });
+
   it("emits a null status (clear → 'à apprendre') on 'Remettre à apprendre'", () => {
     const card = createCard();
     const spy = vi.fn<(g: Gesture) => void>();
