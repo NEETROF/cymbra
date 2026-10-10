@@ -82,7 +82,7 @@ row: pleuvoir — to rain
 ### phrase-gloss d’un hiver
 row: hiver — winter
 ### phrase-gloss Il est prêt à le faire
-row: prêt — ready
+row: prêt à — ready, about to
 row: faire — to do
 ### phrase-gloss Au fait, tu viens ?
 row: au fait — au fait
@@ -120,6 +120,15 @@ row: rassurer — to reassure
 row: personne — person
 row: village — village
 row: se souvenir — remember (to recall one's memory)
+### phrase-gloss Il existe plusieurs solutions.
+row: il existe — there exists
+row: solution — solution
+### phrase-gloss Les autres enfants jouent dehors.
+row: enfant — child (someone who is not yet an adult)
+row: jouer — to play (engage in games or play)
+row: dehors — outside
+### phrase-gloss au Moyen Âge
+row: moyen âge — Middle Ages
 ### phrase-gloss The lighthouse stood
 rows: (none)
 ### phrase-gloss El faro se alzaba
@@ -178,8 +187,7 @@ row: coup d'état — coup d'état
 row: falloir — to need, have to, to be necessary (that)
 row: patient — patient
 ### phrase-gloss un moteur diesel
-row: moteur — motor, engine
-row: diesel — diesel
+row: moteur diesel — diesel engine, Diesel engine, Diesel motor
 ### phrase-gloss Elles sont au nombre de sept.
 row: au nombre de — numbering
 row: sept — seven
@@ -188,7 +196,7 @@ row: à la fois — at a time, at the same time, at once
 row: sévère — severe, harsh
 row: amical — friendly, amicable
 ### phrase-gloss Il est au courant de tout.
-row: au courant — up to date, abreast
+row: être au courant — aware, know, in the know
 ### phrase-gloss Elle se mit au lit.
 row: se mettre — to place oneself in a place
 row: au lit — in bed
@@ -211,7 +219,7 @@ row: maire — mayor
 row: de la — of the
 row: ville — town, city
 ### phrase-gloss Elle se leva.
-row: lever — to raise, lift
+row: se lever — get up, stand up
 ### phrase-gloss Il vient de Paris.
 row: venir de — to come from, to be from, to originate fro
 row: paris — Paris (the capital and largest city of France)
