@@ -476,6 +476,13 @@ checks 0.5–1; the sample, the spec and the programme 0.25–0.5.
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session):** questions 2, 3, 4 and 8 are fixed before fr-es
+ships, by `refine-lingua-fr-es-glosses` (change 52's open question 4): a sense's register, outdated or
+regional label shown (2); a direct-table word listed once (3); the inverted table's other-sense words
+left out by a rule, measured (4); the French words given as their own gloss dropped, true loanwords
+kept (8). Question 7 was settled with change 53 (its open question 3): the share of definitions in
+fr-es's README alone. Questions 5 and 6 stay notes for the archives and a later follow-up.
+
 For the owner:
 1. **The floor and its consequence** (D8): 81.4 / 68.8 / 54.5 %, and *Below it* as written. **Settled
    by the owner on 2026-10-09** (task 0.1), as asked: on this proposal, before the implementation dispatches the update it measures — the
