@@ -746,7 +746,9 @@ The 12 lemmas gained are words whose only senses were pointers of D4's wordings:
 its expressions gained as amended when the owner left the eleven out (166 → 155 by D4, 172 → 161
 together). A few read oddly and are in the owner's sample (task 6.2): « matelas » gains
 « French tacos », « bercy » « drunkard ». « au marché », « Personne au village » and « Il a décidé de
-le faire » meet none of the eleven (« de le faire » meets `de l'`, which `main` already glossed).
+le faire » meet none of the eleven (« de le faire » meets `de l'`, which `main` already glossed: a
+separate change makes an elided expression piece match an elided token only, the owner decided on
+2026-10-10).
 
 **No translation table** (D3). The French Wiktionary's English translations and the English
 Wiktionary's French translations read backwards were measured on the design's prototype and
