@@ -351,10 +351,13 @@ each other*). en-es's first update was dispatched alone on its pull request bran
 Reduced by `reduce-fr-en.py` (add-lingua-french-forms-tables): fr-en is **French's reference pair**,
 whose reduction writes `tables/fr/` (`tables/fr/studied.json`), and which every later pair studying
 French reads as committed (fr-es, change 49). It writes French's forms, ranks, readings
-(add-lingua-french-grammar-tables) and estimated levels today: its glosses are change 48's, so
-`tables/fr-en/gloss.tsv` and `tables/fr/lexical.tsv` are committed empty. No extension
-package carries the pack: `packs.json` does not list it until change 52. Its reducer loads
-`reduce_common.py` alone; no shared module was edited for it, so no other pair's rule digest moved.
+(add-lingua-french-grammar-tables) and estimated levels, and its own native side, the English
+glosses of French words and expressions (add-lingua-pack-fr-en), all from the English Wiktionary's
+French section; its glossed lemmas are French's dictionary words (`tables/fr/lexical.tsv`). No
+extension package carries the pack: `packs.json` does not list it until change 52. Its reducer loads
+`reduce_common.py` and the English edition's rules, `reduce_edition_en.py`, which es-en loads too: no
+shared module was edited for it, and an edit of the English edition's rules re-pins es-en and fr-en
+alone.
 
 | Table | Upstream source | Licence | Reduction |
 |---|---|---|---|
@@ -363,7 +366,8 @@ package carries the pack: `packs.json` does not list it until change 52. Its red
 | `tables/fr/grammar.tsv` (`form → readings`) | **kaikki.org**, the same section: the tags of each form | CC BY-SA 4.0 + GFDL | the readings of the forms `forms.tsv` holds, under its ranked lemmas, as Universal Dependencies tags (add-lingua-french-grammar-tables), in the same pass as the forms. A verb form takes its mood, tense, person and number — the passé simple as `Tense=Past`, the conditional and the imperative with no tense —, or its form: the infinitive, the present participle (`VerbForm=Part\|Tense=Pres`), the past participle with its gender and number, the agreed ones through the participle's own entry. A sense merging persons or moods reads as each; a pronominal verb's rows without their pronoun; no compound tense. A noun takes its gender (`fr-noun`'s argument, else its senses') on its own form and its plural, both numbers when the dictionary gives one form (`temps`); an adjective, determiner (articles among them), pronoun or numeral its agreement, a pronoun's row only with a gender. A form of a form reads along one part of speech with its own agreement (`dirigée` → *diriger*); a reading's part of speech is one its lemma's entries hold (`cités`, the noun *cité*'s plural, names *citer*). None from a doubtful row or sense, a regional or register-marked sense of a form's own entry, a capitalised headword, an alternative-only or neologism entry, a feminine noun's masculine, a letter's plural, a plural-headed determiner's or pronoun's table, or a link an override row sets aside as a copy error. A reading of another ranked lemma is marked `other`, toward an entry of the dictionary that is not only regional; the form keeps its one lemma (M8). 125,177 readings of 88,666 forms, in 79 tags; measured on UD French-PUD and GSD's test section, below |
 | `tables/fr/tags.tsv` | French's pinned tag pool: the 79 tags its readings carry, in byte order | — | written once by a person from the first reduction's readings, kept by every reduction; a tag a later one adds is appended (`tables/fr-en/README.md`) |
 | `tables/fr/level.tsv` (`lemma → CEFR`) | none: derived from `freq.tsv` and the English Wiktionary's French section | that of `freq.tsv` and kaikki's | **estimated**, since no French CEFR list can be shipped (FLELex is non-commercial; M7) and no FLELex data is read. In rank order, the ranked lemmas a CEFR list would hold take English's band sizes (1,020 A1 … 876 C2, es-fr's `ENGLISH_BANDS`): 8,302 lemmas, A1 ranks 1–1,080 … C2 9,413–10,762. Read from the section, never from a pair's glosses, a lemma takes none when the section gives it no sense that is not a form of another word or only a name's (`the`, `paris`: 1,389 and 1,022), when it is a single character whose every sense is a letter's, a symbol's, a name's or an abbreviation (`b`, `e`: 16; `à` and `y` are A1), when every sense only spells another word (`etre`, `parceque`: 33), or when its own form reads as another lemma (`donnée` → *donner*: none on these ranks). `du` and `des` are A1. The manifest says `levels_estimated`, the NOTICE that the levels are estimated (add-lingua-french-levels; `tables/fr-en/README.md`, *The levels*) |
-| `tables/fr-en/gloss.tsv` | none yet | — | empty: the glosses are change 48's |
+| `tables/fr-en/gloss.tsv` (`lemma → English gloss`), `senses.tsv` (its runs), `mwe.tsv` (`expression → English gloss`) | **kaikki.org**: the same section, its senses — the file French's forms come from, at the same pinned snapshot; **no translation table** | CC BY-SA 4.0 + GFDL | through the English edition's rules, as es-en's glosses are (add-lingua-pack-fr-en): the section cut to what the native side reads, a headword's typographic apostrophe read as `'`; its letters and the single-capital headwords left out; its senses read as meanings and in one English typography (`read_as_meanings`: « chambre » « a room; a hotel room… », not « a chamber in its various senses, including »; « nous » « we; us, to us »; « du » « forms the partitive article »); the long-parenthesis bound and the etymology merging as the edition sets them (0, off); then the shared rules over the 60,000 ranked lemmas: eight whole senses grouped by part of speech, each glossed lemma one the forms table reads as itself. Expressions: the headwords with a space, and the single words French's tokenisation splits (`d'abord`, `c'est`, `allez-y`) that are no form and no name; a sense that only names another spelling, an inverted form or its pieces (« post-1990 spelling of », « que + elle ») left out, a meaning after it kept (« y a-t-il » « is there? are there? »); `à la` left out by name (`LEFT_OUT`). 30,055 glossed lemmas — 93.6 / 86.8 / 76.3 % of the 5,000 / 10,000 / 20,000 commonest, against a floor of 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`) — and 17,479 expressions (`tables/fr-en/README.md`, *The glosses*) |
+| `tables/fr/lexical.tsv` (French's dictionary words) | none: derived | that of `gloss.tsv` | the lemmas `tables/fr-en/gloss.tsv` glosses, written by `pack_sources.py split` (30,055); the fr-en pack carries no lexical table, its dictionary words being its glosses |
 | `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
 
 **The sources pinned** (`tables/fr-en/pin.json`): the French section derived on 2026-10-08 from the
@@ -418,13 +422,11 @@ derived from the dumps served on 2026-10-08:
 | Edition: the dump, as served on 2026-10-08 | File | Kind | Derived | Read by |
 |---|---|---|---|---|
 | **English** (`kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz`): 2,981,058,381 B gzipped, 25,614,284,530 B decompressed, regenerated 2026-10-03 08:24 | `kaikki-Spanish.jsonl` | Spanish entries | 928,737,891 B | es-fr (forms, readings, genders), es-en (glosses) |
-| | `kaikki-French.jsonl` | French entries | 510,058,226 B | fr-en (change 48) |
+| | `kaikki-French.jsonl` | French entries | 510,058,226 B | fr-en (French's forms, readings and levels, and fr-en's glosses) |
 | | `kaikki-en-traductions-es.jsonl` | English entries' Spanish translations | 13,762,773 B | en-es (direct) |
-| | `kaikki-en-traductions-fr.jsonl` | English entries' French translations | 13,003,913 B | fr-en (inverted) |
 | **French** (`kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz`): 736,590,407 B gzipped, 6,865,136,428 B decompressed, regenerated 2026-10-02 00:10 | `kaikki-Anglais.jsonl` | English entries | 145,705,523 B | en-fr |
 | | `kaikki-fr-Espagnol.jsonl` | Spanish entries | 212,331,331 B | es-fr |
 | | `kaikki-fr-traductions.jsonl` | French entries' Spanish translations | 6,191,621 B | es-fr (inverted), fr-es (direct) |
-| | `kaikki-fr-traductions-en.jsonl` | French entries' English translations | 14,573,988 B | fr-en (direct) |
 | **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
 | | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (change 49) |
 | | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
@@ -433,7 +435,13 @@ derived from the dumps served on 2026-10-08:
 The existing names are kept — a name is a reducer's input — and the new ones carry their edition,
 in ASCII alone: GitHub renames a release asset whose name holds another character on upload
 (`kaikki-es-Frances.jsonl`, not kaikki's « Francés »). fr-en and fr-es register what they read and
-derive nothing new.
+derive nothing new. Two files change 38 registered for fr-en — the English edition's English
+entries' French translations and the French edition's French entries' English translations — are no
+longer derived: measured, they would add 1,988 lemmas, 1,895 of them words the French section has no
+entry for (English words, names, initialisms, 1,193 listing the word itself), which fr-en, French's
+reference, would make French's dictionary words, and the English entries read backwards make
+French's commonest bigrams expressions (« il est » "he's"); no pair reads them
+(add-lingua-pack-fr-en D3).
 
 **A dump is recorded, never kept.** It is fetched into `work/dumps/`, read once and deleted; the
 English edition's alone is above the 2 GiB a release asset may weigh. A pair's derived files are
