@@ -210,8 +210,8 @@ puestos` writes its pronoun —, so the owner's rule is untouched; it acts only 
 | the guard on every key, a one-headword key included | 759 selections | 763 selections | es-fr 768 (140 gained), es-en 760 (119) |
 | the pronoun also counted as a place written as the page | 312 renamed | 141 renamed (the 6 included) | 0 |
 
-The « same place » variant is the narrower reading and loses the proclitic, which Spanish writes
-before every conjugated verb. The « no match » variant removes 125 wrong es-en matches (« Puedo ayudar »
+The « same place » variant is the narrower reading and loses the proclitic, the place Spanish writes
+the pronoun before a conjugated verb. The « no match » variant removes 125 wrong es-en matches (« Puedo ayudar »
 is no « can you help me? »), but only on keys two pronoun-bearing headwords share: the same run on a
 key one such headword reaches keeps matching, and the rule would read differently from one key to the
 next. The guard on every key is that rule made consistent — the Spanish counterpart of 44c's French
@@ -250,8 +250,8 @@ The cost falls on a record set **before the release** that brings 44b's names: s
 lemma chain, and where the page wrote another headword of the key (« hace tiempo », shown `hacer
 tiempo` « Atermoyer » until then), the reader now finds it under `hacer tiempo` only, and sees `hace
 tiempo` unsettled. That is why this change lands before that release (44b's 6.4): from it on, every
-record on such a chain is a record on a headword. The number of readers concerned is not known; es-fr
-has been read since change 3 shipped (open question 2).
+record on such a chain is a record on a headword. The number of readers concerned is not known: es-fr is
+read, and no record is visible to the project (open question 2).
 
 *Rejected — 44b's D6 as it stands*: every pre-release record kept on every spelling, at the price of a
 leak no later change could tell from a reader's choice.
