@@ -42,10 +42,10 @@ headword writes « au », the key `à le`): the contraction is the first word in
 revoir`, `aux aguets`) and inside in 268 (`aller au lit`, `tirer au sort`, `armé jusqu'aux dents`);
 none ends on one. **No headword writes « à le » or « à les » apart**: the 154 keys holding `à le` or
 `à les` without a contraction are all elided (`mal à l'aise`, `d'un jour à l'autre`), change 44c's
-ground; and no key is reached both by a headword holding « au » and by one writing it otherwise. 104
+ground; and no key is reached both by a headword holding « au » and by one writing it otherwise. 72
 keys start on `le`/`les` written alone (`le même`, `les miennes`) and 29 end on `à` (`grâce à`,
 `jusqu'à`). 805 hold `du` or `des`, words of their own. fr-es: 9,410 keys, 157 holding a contraction
-(first 57, inside 100), all named, none written apart; 56 start on `le`/`les`, 24 end on `à`; 557
+(first 57, inside 100), all named, none written apart; 37 start on `le`/`les`, 24 end on `à`; 557
 hold `du` or `des`.
 
 **The exposure.** 24 of fr-en's 448 (7 of fr-es's 157) are keyed `à le`/`à les` before a verb's
@@ -111,7 +111,7 @@ Today's matches, by how they meet:
 |---|---|---|---|---|---|
 | joined where the headword is | 59,850 | 41,173 | « Au revoir », « au fur et à mesure », « aller au lit » | stays | stays |
 | « au » on `à` and `le` written apart | 10 | 10 | `au fait` on « Elle n'arrive pas à le faire », « qui commençait à le faire souffrir », « continueront à le faire » | gone | **gone** |
-| the last `à` on the `à` of « au », « aux » | 505 | 334 | 18 and 12 expressions: `jusqu'à` 180, `être à` 91 and 120, `grâce à` 62 and 63, `face à` 42, `par rapport à` 34 and 35, `quant à` 26 | **gone** | stays |
+| the last `à` on the `à` of « au », « aux » | 505 | 334 | 18 and 12 expressions: `jusqu'à` 180 (fr-en), `être à` 91 and 120, `grâce à` 62 and 63, `face à` 42, `par rapport à` 34 and 35, `quant à` 26 | **gone** | stays |
 | the first `le`, `les` on the article of « au », « aux » | 4 | 39 | `les miennes` « Compare tes réponses aux miennes », `le sien` « en comparant leur sort au sien »; `le même` « au même titre que » 21, `les deux` « aux deux ministres » 13 | **gone** | stays |
 | a place inside the run, joined on one side only, anything else | 0 | 0 | | | |
 
