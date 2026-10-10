@@ -220,13 +220,16 @@ pub trait UserPort: Send + Sync {
 
     /// Persist `user_id`'s preferred locale, last-writer-wins (change:
     /// persist-user-locale). A **no-op when `locale` is empty**, so a call that
-    /// carries no language never clears a stored preference. Written by the auth
-    /// module after resolving the user on any locale-carrying call.
+    /// carries no language never clears a stored preference. Two callers, two rules
+    /// (change: prefer-account-locale-for-emails): `SetLocale`, the account's own
+    /// language setting, replaces a stored locale; the auth module's e-mail requests
+    /// (sign-up, resend, password reset, set-password) record their locale only on an
+    /// account that has none, so they never replace one.
     async fn set_locale(&self, user_id: &str, locale: &str) -> Result<()>;
 
-    /// Read `user_id`'s stored preferred locale, if any (`None` = never recorded,
-    /// treated as English by the caller). Consulted as the email-localization
-    /// fallback when a request carries no locale.
+    /// Read `user_id`'s stored preferred locale, if any (`None` = never recorded).
+    /// The account e-mails' **first** choice (change: prefer-account-locale-for-emails):
+    /// the stored locale, else the request's, else English.
     async fn locale(&self, user_id: &str) -> Result<Option<String>>;
 
     /// Update profile/preferences with optimistic concurrency on `expected_version`.
