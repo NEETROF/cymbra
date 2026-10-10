@@ -28,7 +28,7 @@ use lingua_core::analysis::pipeline::headword_reading;
 use lingua_core::analysis::tokenize::{
     FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, is_elided, tokenize,
 };
-use lingua_core::engine::french_expression_key;
+use lingua_core::engine::{french_expression_key, holds_french_contraction, shared_spans};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
@@ -1619,5 +1619,65 @@ fn every_french_headword_holding_an_elided_piece_is_named() {
             assert!(elided.contains(*headword), "{pair}: {headword}");
         }
         assert!(elided.len() > 500, "{pair}: {}", elided.len());
+    }
+}
+
+// The French phrase gloss holds an expression's contractions to the page's
+// (match-lingua-french-contracted-pieces): it reads them from the expression's name, only when the
+// name holds the word « au » or « aux », which only a pack built from these tables can show is
+// every name that joins two pieces.
+
+#[test]
+fn every_french_headword_holding_a_contraction_holds_au_or_aux_and_is_named() {
+    // D3: a key no longer says two of its pieces were one written word (`au fait` is `à le
+    // faire`), so the matcher reads them from the headword that won the key, which the pack names
+    // wherever the two differ, and reads it only when it holds the word « au » or « aux »
+    // (`holds_french_contraction`). Every winning headword whose reading joins two pieces — the
+    // halves of « au » or « aux », sharing a span — holds that word and is named; a key the pack
+    // does not name is its own headword, every piece apart. Measured: fr-en 448 such headwords,
+    // fr-es 157.
+    for (pair, bytes, among) in [
+        (
+            "fr-en",
+            fr_en(),
+            [
+                "au fait",
+                "au revoir",
+                "tirer au sort",
+                "armé jusqu'aux dents",
+            ]
+            .as_slice(),
+        ),
+        ("fr-es", fr_es(), ["au fait", "au revoir"].as_slice()),
+    ] {
+        let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}"));
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        let keys: BTreeSet<String> = inputs
+            .expressions
+            .iter()
+            .filter_map(|(headword, _)| french_expression_key(headword, lexicon))
+            .filter(|key| pack.expression(key).is_some())
+            .collect();
+        let mut contracted = BTreeSet::new();
+        for key in &keys {
+            let name = pack.expression_name(key);
+            let headword = name.unwrap_or(key);
+            let reading = headword_reading(headword, StudiedLanguage::French, lexicon)
+                .unwrap_or_else(|| panic!("{pair}: {headword} has a key and no reading"));
+            let pieces: Vec<_> = reading.into_iter().map(|(token, _)| token).collect();
+            if shared_spans(&pieces).contains(&true) {
+                assert!(
+                    holds_french_contraction(headword),
+                    "{pair}: {headword} joins two pieces without « au » or « aux »"
+                );
+                assert_eq!(name, Some(headword), "{pair}: {key} is not named");
+                contracted.insert(headword.to_owned());
+            }
+        }
+        for headword in among {
+            assert!(contracted.contains(*headword), "{pair}: {headword}");
+        }
+        assert!(contracted.len() > 100, "{pair}: {}", contracted.len());
     }
 }
