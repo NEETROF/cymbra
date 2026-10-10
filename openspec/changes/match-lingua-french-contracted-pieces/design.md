@@ -290,6 +290,11 @@ the two snapshots re-blessed 0.05–0.15; spec and programme 0.05.
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session), each as recommended:** the edges are the page's;
+matches on the article of « au »/« aux » kept; Spanish left out; `être à` winning over `au nombre de`
+is a change of its own, later.
+
+
 For the owner, none blocking — each with the design's recommendation:
 1. **The expression's edges (D1).** Your rule, word for word, would also stop « jusqu'au soir »
    answering `jusqu'à` (180 times on the corpus in fr-en), « grâce au soleil » `grâce à` and « face

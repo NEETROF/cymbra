@@ -2,7 +2,7 @@
 
 ## 0. Owner, before the implementation
 
-- [ ] 0.1 [manual] The owner answers the design's open questions: the expression's edges are the page's (1), the matches starting on the article of « au »/« aux » kept, refused or covered (2), Spanish's « al »/« del » left out (3), `être à` over `au nombre de` left to a change of its own (4). Each answer that departs from the design's recommendation is written into the design, the spec and these tasks before 1.1 (refusing the article starts: the spec's first-token sentence and the scenario « aux miennes » change, and the probe records none).
+- [x] 0.1 [manual] Settled by the owner on 2026-10-10 (in session), each as recommended: the edges are the page's (1); matches on the article of « au »/« aux » kept (2); Spanish left out (3); `être à` over `au nombre de` a change of its own later (4). The owner answers the design's open questions: the expression's edges are the page's (1), the matches starting on the article of « au »/« aux » kept, refused or covered (2), Spanish's « al »/« del » left out (3), `être à` over `au nombre de` left to a change of its own (4). Each answer that departs from the design's recommendation is written into the design, the spec and these tasks before 1.1 (refusing the article starts: the spec's first-token sentence and the scenario « aux miennes » change, and the probe records none).
 
 ## 1. The core (crates/lingua-core)
 
@@ -31,5 +31,5 @@
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner approves the re-bless before the pull request merges: `fr-en.golden` and `fr-es.golden`, four phrase probes added and none moved (« Il est prêt à le faire » recording no expression where the engine today reports `au fait`, in both), and the four cards added to `word-card-fr-en.txt` and `word-card-fr-es.txt`.
+- [x] 5.1 [manual] Approved by the owner on 2026-10-10 (in session), before the implementation. The owner approves the re-bless before the pull request merges: `fr-en.golden` and `fr-es.golden`, four phrase probes added and none moved (« Il est prêt à le faire » recording no expression where the engine today reports `au fait`, in both), and the four cards added to `word-card-fr-en.txt` and `word-card-fr-es.txt`.
 - [ ] 5.2 [manual] In change 52's dogfood, the owner checks on a real page in fr-en that « Il est prêt à le faire » shows no expression and « Au fait » shows `au fait`.
