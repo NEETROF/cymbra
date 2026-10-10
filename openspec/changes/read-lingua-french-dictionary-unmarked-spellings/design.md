@@ -68,7 +68,7 @@ GSD's test section were measured on packs built from both.
 written without its marks:
 
 ```python
-def unmarked_spellings(path, frequency):
+def dictionary_unmarked_spellings(path, frequency):
     """`spelling → marked word`: each word every sense of every entry of which is an alternative,
     obsolete, archaic, nonstandard or misspelt spelling or form (`alt_of`) of one word that, written
     without its accents, cedillas, diaereses and circumflexes (`_unmarked`), is it — and which wordfreq
@@ -146,7 +146,7 @@ ranked:
 | `etre`, `etait`, `etaient` | 1,014 « to be… » (a pointer meaning, 48b), 1,995 and 9,434 unglossed; no level | *être* (36, A1) |
 | `etats-unis`, `ecosse`, `chloe`, `equateur` | names, 1,354 … 14,881 | *états-unis*, *écosse*, *chloé*, *équateur* (« Ecuador…; equator… », C1) |
 | `benoit` | 5,557, **B2**, « blessed, fortunate; sanctimonious… » | *benoît* (2,684, B1), whose gloss opens with « a male given name… », then the same senses |
-| `derniere`, `arreter`, `repondre`, `siecle`, `matiere`, `methode`, `colere`, `cooperation`, `scenario`, `referendum`, `rebellion`, `ecossais`, `egyptien`, `icone`, `electro`, `poele`, `gacher`, `experimental`, `cameraman`, `haiku`, `pecho`, `comparaitre`, `uberisation` | 7,841 … 52,474, no level; all but `derniere` glossed, the same senses as their word | their marked word (*dernier* A1 … *gâcher* B2, *ubérisation* unlevelled) |
+| `derniere`, `arreter`, `repondre`, `siecle`, `matiere`, `methode`, `colere`, `cooperation`, `scenario`, `referendum`, `rebellion`, `ecossais`, `egyptien`, `icone`, `electro`, `poele`, `gacher`, `experimental`, `cameraman`, `haiku`, `pecho`, `comparaitre`, `uberisation` | 7,841 … 52,474, no level; all but `derniere` glossed, with their word's senses or some of them (`ecossais` lacks « Scottish ») | their marked word (*dernier* A1 … *gâcher* B2, *ubérisation* unlevelled) |
 
 Only `benoit` had a level; 25 dictionary words leave French's dictionary words; fr-en's 29 glosses of
 the 33 leave its tables. **No form loses its fr-en gloss**: each marked word has one, and 34 forms
@@ -170,12 +170,12 @@ commoner, *rébellion* (Zipf 3.91) (Q1).
 |---|---|---|
 | `tables/fr/forms.tsv` | 124,101 → 124,184 rows | 100 forms now read as a marked word: 69 that read as one of the 33 spellings, 30 that were no form (`critere`, `criteres`, `babord`, `pylone`, `melancolie`, `chome` …), and `rebellions` (*rebeller* → *rébellion*); 53 forms of the 33 lemmas entering the cut; `désossé`, a lemma entering it, reads as itself, no longer as *désosser* |
 | `tables/fr/freq.tsv` | 60,000 rows | the 33 spellings out; every rank after each up by one to 33 (59,476 rows); `dagon` … `eamon` in at 59,965–59,997 (wordfreq's next words at the cut's frequency: `dashboard`, `depth`, `déboîter`, `désarçonner`, `dînette` …), before the three nouns ending in a pronoun |
-| `tables/fr/grammar.tsv` | 125,177 → 125,303 rows | out: the 28 readings filed under the spellings' own words and `rebellions`' as *rebeller*'s; in: the moved forms' readings under their marked words (`siecles` under *siècle*, fourteen of *répondre*'s, nine of *gâcher*'s) and the entering lemmas' |
+| `tables/fr/grammar.tsv` | 125,177 → 125,303 rows | out: the 28 readings filed under the spellings' own words, `rebellions`' as *rebeller*'s and `désossé`'s as *désosser*'s; in: the moved forms' readings under their marked words (`siecles` under *siècle*, fourteen of *répondre*'s, nine of *gâcher*'s) and the entering lemmas' |
 | `tables/fr/tags.tsv`, `studied.json` | byte for byte | every new reading's tag is in the pinned pool (the packs build) |
 | `tables/fr/lexical.tsv` | 26,484 → 26,471 words | out: `arreter`, `benoit`, `cameraman`, `colere`, `comparaitre`, `cooperation`, `ecossais`, `egyptien`, `electro`, `etat`, `etre`, `experimental`, `gacher`, `haiku`, `icone`, `matiere`, `methode`, `pecho`, `poele`, `rebellion`, `referendum`, `repondre`, `scenario`, `siecle`, `uberisation`; in: `dilapidation`, `doctrinaire`, `drette`, `débaptiser`, `déboîter`, `décalque`, `dég`, `déjection`, `déplétion`, `désarçonner`, `désossé`, `dînette` |
 | `tables/fr/level.tsv` | 8,302 rows, English's sizes | `benoit` (B2) out; `patriotique` C1 → B2, `opter` C2 → C1, `digestif` into C2; the spans A1 1–1,082, A2 1,083–2,380, B1 2,381–4,827, B2 4,831–8,132, C1 8,134–9,465, C2 9,466–10,812; rule 3 (« spelling ») leaves out 26 instead of 33 (`parceque`, `okay`, `hazard`, `isle` …) |
 | `tables/fr-en/gloss.tsv`, `senses.tsv` | 30,067 → 30,050 rows | out: the 25 dictionary words above and four names (`chloe`, `ecosse`, `equateur`, `etats-unis`); in: the 12 entering dictionary words |
-| `tables/fr-en/mwe.tsv` | byte for byte (17,635) | no headword's words are forms the rule moves |
+| `tables/fr-en/mwe.tsv` | byte for byte (17,635) | no headword is gained or lost; a key is the builder's (change 44), so `il était une fois` is met through the new forms |
 | fr-en's coverage | 93.6 / 86.9 / 76.3 % → the same | 4,679 / 8,688 / 15,259 → 4,681 / 8,688 / 15,254 of the 5,000 / 10,000 / 20,000 commonest |
 | `tables/fr-en/pin.json`, `manifest.json` | `reducer` and `pack` move, `pack_version` with the rule digest | `snapshot` and `sources` byte for byte |
 | `tables/fr-es/gloss.tsv`, `senses.tsv` | 19,023 → 19,026 rows | every other row byte for byte; out `uberisation` « Uberización »; in `doctrinaire` « Doctrinario », `débaptiser` « Desbautizar », `déjection` « Deyección », `désarçonner` « Desarzonar, desconcertar, confundir » |
