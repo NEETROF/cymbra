@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -169,6 +170,74 @@ class OnePairTest(unittest.TestCase):
         published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
         self.assertNotIn("fr-en", published["glossed"])
         self.assertNotIn("fr-en", coverage.shipped_pairs())
+
+    # fr-es (add-lingua-pack-fr-es D8, the programme's M6): its floor was fixed before the
+    # measurement whose tables are committed, in the requirement *fr-es is held to a coverage floor
+    # fixed before its first committed measurement* — read here where it stands, the change's delta
+    # until it is archived, the capability's spec after.
+    FR_ES_REQUIREMENT = re.compile(r"fr-es SHALL gloss at least ([\d.]+), ([\d.]+) and ([\d.]+) % of the 5,000")
+
+    def fr_es_requirement(self) -> tuple[float, ...]:
+        specs = [
+            coverage.ROOT / "openspec/changes/add-lingua-pack-fr-es/specs/lingua-data-packs/spec.md",
+            coverage.ROOT / "openspec/specs/lingua-data-packs/spec.md",
+        ]
+        for spec in specs:
+            if spec.is_file():
+                found = self.FR_ES_REQUIREMENT.search(spec.read_text(encoding="utf-8"))
+                if found:
+                    return tuple(float(share) for share in found.groups())
+        self.fail("no requirement states fr-es's floor")
+
+    def test_spec_scenario_not_lowered_after_measuring(self) -> None:
+        # The entry is the requirement's value: a pull request that lowers FLOORS["fr-es"] and leaves
+        # the requirement as it is fails here — a lower floor is the owner's decision, recorded
+        # before the measurement it applies to.
+        self.assertEqual(self.fr_es_requirement(), (81.4, 68.8, 54.5))
+        self.assertEqual(coverage.FLOORS["fr-es"], self.fr_es_requirement())
+        with mock.patch.dict(coverage.FLOORS, {"fr-es": (81.0, 68.8, 54.5)}):
+            self.assertNotEqual(coverage.FLOORS["fr-es"], self.fr_es_requirement())
+
+    def test_spec_scenario_one_place(self) -> None:
+        # The reduce job measures fr-es after fr-en against FLOORS alone: it passes no `--floor`.
+        job = (coverage.ROOT / ".github/workflows/lingua-extension-check.yml").read_text(encoding="utf-8")
+        self.assertIn("python scripts/lingua-data/gloss_coverage.py --pair fr-es\n", job)
+        self.assertNotIn("--pair fr-es --floor", job)
+        self.assertLess(job.index("--pair fr-en\n"), job.index("--pair fr-es\n"))
+
+    def test_spec_scenario_a_later_pull_request_under_the_floor(self) -> None:
+        # French's studied tables moved under a committed fr-es (made up): the checks fail, naming
+        # the pair, each top it falls short at and the figure.
+        with tempfile.TemporaryDirectory() as tmp:
+            tables = Path(tmp)
+            (tables / "fr").mkdir()
+            (tables / "fr-es").mkdir()
+            write_table(tables / "fr" / "freq.tsv", [(w, str(r)) for r, w in enumerate("abcdefghij", 1)])
+            write_table(tables / "fr-es" / "gloss.tsv", [(w, w.upper()) for w in "abcdefgh"])
+            code, out, err = self.run_main(tables, "--pair", "fr-es")
+            self.assertEqual(json.loads(out)["glossed"]["fr-es"], [80.0, 80.0, 80.0])
+            self.assertEqual(code, 1)
+            self.assertEqual(
+                err.splitlines(),
+                ["fr-es: 80.0 % of the 5,000 commonest lemmas are glossed, under the floor of 81.4 %"],
+            )
+            write_table(tables / "fr-es" / "gloss.tsv", [(w, w.upper()) for w in "abcdefghi"])
+            code, _, err = self.run_main(tables, "--pair", "fr-es")
+            self.assertEqual((code, err), (0, ""), "90.0 % holds it")
+
+    def test_spec_scenario_the_floor(self) -> None:
+        # On the committed tables, when they are there: at least FLOORS' entry at every top, and
+        # published nowhere while no package lists fr-es (change 52 decides, by the floor).
+        self.assertNotIn("fr-es", coverage.shipped_pairs())
+        published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
+        self.assertNotIn("fr-es", published["glossed"])
+        if not (coverage.TABLES / "fr-es" / "gloss.tsv").is_file():
+            return
+        code, out, err = self.run_main(coverage.TABLES, "--pair", "fr-es")
+        self.assertEqual((code, err), (0, ""))
+        measured = json.loads(out)["glossed"]["fr-es"]
+        for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["fr-es"]):
+            self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
 
 
 class PublishedFiguresTest(unittest.TestCase):

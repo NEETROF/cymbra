@@ -244,7 +244,8 @@ jobs:
             scripts/lingua-data/build.sh --reduce "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
             # The raw sources weigh about 1.5 GB per pair; the next pair needs the room. Each pair
             # is reduced from its own pin, after the references: es-en after es-fr, en-es after
-            # en-fr (add-lingua-pack-en-es); the release assets fetched stay in work/cache/<sha256>
+            # en-fr (add-lingua-pack-en-es), fr-es after fr-en (add-lingua-pack-fr-es); the release
+            # assets fetched stay in work/cache/<sha256>
             # (build.sh), so an asset two pins name is fetched once per job (add-lingua-pack-es-en
             # D2).
             rm -rf "scripts/lingua-data/work/$pair"
@@ -272,11 +273,15 @@ jobs:
       # are proposed in FLOORS, the one place the owner settles (task 5.1) before merge — no
       # `--floor` here, so the job and the `check` job's tests cannot drift apart. fr-en
       # (add-lingua-pack-fr-en D4) is held to en-es's rule, the study's figures less two points,
-      # until change 52 ships it. The site's figures (`gloss_coverage.py --write`, the `check` job)
-      # list the shipped pairs alone.
-      - name: Gloss coverage of es-en, en-es and fr-en, against their floors
+      # until change 52 ships it. fr-es (add-lingua-pack-fr-es D8, the programme's M6), reduced
+      # after fr-en, to the same rule, fixed before its first committed measurement: a pull request
+      # that reduces it under its floor — its sources, its rules, the Spanish edition's or French's
+      # studied tables moved — fails here, naming the pair, the top and the figure. The site's
+      # figures (`gloss_coverage.py --write`, the `check` job) list the shipped pairs alone.
+      - name: Gloss coverage of es-en, en-es, fr-en and fr-es, against their floors
         run: |
           set -euo pipefail
           python scripts/lingua-data/gloss_coverage.py --pair es-en
           python scripts/lingua-data/gloss_coverage.py --pair en-es
           python scripts/lingua-data/gloss_coverage.py --pair fr-en
+          python scripts/lingua-data/gloss_coverage.py --pair fr-es
