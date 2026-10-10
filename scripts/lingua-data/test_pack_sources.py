@@ -2172,14 +2172,23 @@ class Record(unittest.TestCase):
         self.assertEqual(ps.pairs(HERE / "tables", after="en-es"), ["en-es"])
 
     def test_the_committed_dictionary_words_are_the_reference_s_glossed_lemmas(self):
-        # French's are none: fr-en glosses nothing yet.
+        # English's and Spanish's are their references' glossed lemmas, as `split` writes them;
+        # French's, fr-en's less those it glosses by a proper noun's senses alone, as its reducer
+        # writes them (refine-lingua-fr-en-glosses D2).
         for language in ("en", "es", "fr"):
             studied = HERE / "tables" / language
             reference = ps.reference_of(studied)
             words = (studied / ps.LEXICAL).read_text(encoding="utf-8")
-            self.assertEqual(
-                words, "".join(f"{w}\n" for w in ps.glossed_lemmas(HERE / "tables" / reference / "gloss.tsv")), language
-            )
+            glossed = ps.glossed_lemmas(HERE / "tables" / reference / "gloss.tsv")
+            if language == "fr":
+                runs = {
+                    line.split("\t")[0]: line.split("\t")[1:]
+                    for line in (HERE / "tables" / reference / "senses.tsv").read_text(encoding="utf-8").splitlines()
+                }
+                names = {w for w in glossed if all(run.startswith("PROPN:") for run in runs[w])}
+                self.assertIn("paris", names)
+                glossed = [w for w in glossed if w not in names]
+            self.assertEqual(words, "".join(f"{w}\n" for w in glossed), language)
 
     def test_the_pairs_glossed_in_french_read_the_french_wiktionary_s_rules_alone(self):
         for pair in ("en-fr", "es-fr"):
