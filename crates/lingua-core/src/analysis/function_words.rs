@@ -535,9 +535,64 @@ pub fn is_function_word(lemma: &str, studied: StudiedLanguage) -> bool {
         .any(|table| table.binary_search(&lemma).is_ok())
 }
 
+/// Whether a dictionary form is a preposition of the studied language: English's
+/// prepositions and particles, Spanish's prepositions, French's — one class of the
+/// tables [`is_function_word`] reads, each language read by its own. `du`, `des`,
+/// `al` and `del` are contractions, not prepositions. The phrase gloss reads it to
+/// tell an expression built on a verb from one built on a preposition
+/// (choose-lingua-overlapping-expressions D2).
+pub fn is_preposition(lemma: &str, studied: StudiedLanguage) -> bool {
+    let table = match studied {
+        StudiedLanguage::English => PREPOSITIONS_AND_PARTICLES,
+        StudiedLanguage::Spanish => ES_PREPOSITIONS,
+        StudiedLanguage::French => FR_PREPOSITIONS,
+    };
+    table.binary_search(&lemma).is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_language_reads_its_own_prepositions() {
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        for lemma in ["à", "de", "jusque"] {
+            assert!(
+                is_preposition(lemma, FR),
+                "{lemma:?} is a French preposition"
+            );
+        }
+        for lemma in ["du", "des", "le", "être", "que"] {
+            assert!(
+                !is_preposition(lemma, FR),
+                "{lemma:?} is no French preposition"
+            );
+        }
+        for lemma in ["a", "de"] {
+            assert!(
+                is_preposition(lemma, ES),
+                "{lemma:?} is a Spanish preposition"
+            );
+        }
+        for lemma in ["al", "del", "el", "que"] {
+            assert!(
+                !is_preposition(lemma, ES),
+                "{lemma:?} is no Spanish preposition"
+            );
+        }
+        for lemma in ["off", "in", "up", "over"] {
+            assert!(
+                is_preposition(lemma, EN),
+                "{lemma:?} is an English preposition"
+            );
+        }
+        // Each language reads its own table: `à` is French, `off` English, `a` Spanish only.
+        assert!(!is_preposition("à", EN) && !is_preposition("à", ES));
+        assert!(!is_preposition("off", FR) && !is_preposition("off", ES));
+        assert!(!is_preposition("a", FR) && !is_preposition("a", EN));
+        assert!(!is_preposition("the", EN) && !is_preposition("go", EN));
+    }
 
     const EN: StudiedLanguage = StudiedLanguage::English;
 

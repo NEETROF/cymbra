@@ -32,7 +32,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::analysis::carries_enclitic;
-use crate::analysis::function_words::is_function_word;
+use crate::analysis::function_words::{is_function_word, is_preposition};
 use crate::analysis::language::StudiedLanguage;
 use crate::analysis::lexicon::Lexicon;
 use crate::analysis::percent::{
@@ -42,7 +42,7 @@ use crate::analysis::pipeline::{
     AnalysedToken, DocumentAnalysis, alone_in_capitals, analyse_document, headword_reading,
     resolve_lemmas,
 };
-use crate::analysis::tokenize::{Token, is_elided, tokenize, without_soft_hyphens};
+use crate::analysis::tokenize::{Token, is_elided, is_hyphen_join, tokenize, without_soft_hyphens};
 use crate::knowledge::level::CefrLevels;
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
@@ -614,10 +614,20 @@ fn expression_for_run(
 /// `hace tiempo`, and « tenía puestos » `tener puesto`, not `tenerlos puestos`. No run
 /// matches, or stops matching, for it. The lemma chain a reader settled before is then
 /// reported only where it is no headword's name ([`settled_chain`], D4).
+///
+/// And in the three languages, a run that is a key and meets its headword gives
+/// its last token to a longer expression when it is built on a verb
+/// (choose-lingua-overlapping-expressions D1, D2): [`ExpressionScan::gives_last_word`].
+/// It then does not match at that length, exactly as a run that does not meet its
+/// headword: the shorter runs are tried, else the next token, where the scan finds
+/// the expression as it finds any — « Elles sont au nombre de sept » answers
+/// `au nombre de` and not `être à`, « Lo hizo de todos modos » `de todos modos`,
+/// « went over the top » `over the top`. `hyphened[i]` says whether token `i` is
+/// joined to token `i - 1` by a hyphen on the page ([`is_hyphen_join`]), read only
+/// by the rule's French guard (G1).
 fn match_expressions(
     tokens: &[PhraseToken],
-    shares_span: &[bool],
-    elided: &[bool],
+    joins: &PageJoins,
     studied: StudiedLanguage,
     pack: &Pack,
     knowledge: &KnowledgeState,
@@ -625,67 +635,18 @@ fn match_expressions(
     if !pack.has_expressions() {
         return Vec::new();
     }
-    let pieces: Vec<String> = tokens
-        .iter()
-        .map(|token| expression_piece(&token.surface, &token.lemma, studied))
-        .collect();
-    let window = expression_window(studied);
-    let spanish = studied == StudiedLanguage::Spanish;
-    let french = studied == StudiedLanguage::French;
-    let whole_words = matches!(studied, StudiedLanguage::Spanish | StudiedLanguage::French);
+    let scan = ExpressionScan::new(tokens, joins, studied, pack);
     let mut matches = Vec::new();
     let mut start = 0;
     while start < tokens.len() {
-        let longest = window.min(tokens.len() - start);
+        let longest = scan.window.min(tokens.len() - start);
         let hit = (2..=longest).rev().find_map(|len| {
-            let (key, gloss) = expression_for_run(&pieces[start..start + len], studied, pack)?;
-            if whole_words {
-                let headwords = pack.expression_headwords(&key);
-                if headwords.len() > 1 {
-                    let run = start..start + len;
-                    let lexicon = pack.lexicon();
-                    let (name, gloss) = if french {
-                        written_as_the_page(
-                            &headwords,
-                            &tokens[run.clone()],
-                            studied,
-                            lexicon,
-                            |name| {
-                                meets_as_written(
-                                    &elided[run.clone()],
-                                    &shares_span[run.clone()],
-                                    name,
-                                    lexicon,
-                                )
-                            },
-                        )?
-                    } else {
-                        let weighed = spanish_weighed(&headwords, tokens, run.clone(), lexicon);
-                        written_as_the_page(&weighed, &tokens[run], studied, lexicon, |_| true)?
-                    };
-                    let names = headwords
-                        .iter()
-                        .map(|(name, _)| (*name).to_owned())
-                        .collect();
-                    return Some((len, name.to_owned(), gloss.to_owned(), names));
-                }
-            }
-            let name = match pack.expression_name(&key) {
-                Some(name) => name.to_owned(),
-                None => key,
-            };
-            (!french
-                || meets_as_written(
-                    &elided[start..start + len],
-                    &shares_span[start..start + len],
-                    &name,
-                    pack.lexicon(),
-                ))
-            .then(|| (len, name.clone(), gloss, vec![name]))
+            let (name, gloss, headwords) = scan.run(start, len)?;
+            (!scan.gives_last_word(start, len)).then_some((len, name, gloss, headwords))
         });
         match hit {
             Some((len, name, gloss, headwords)) => {
-                let key = if spanish {
+                let key = if studied == StudiedLanguage::Spanish {
                     settled_chain(
                         &tokens[start..start + len],
                         &name,
@@ -697,12 +658,7 @@ fn match_expressions(
                 } else {
                     name
                 };
-                let mut end = start + len;
-                if whole_words {
-                    while shares_span.get(end).copied().unwrap_or(false) {
-                        end += 1;
-                    }
-                }
+                let end = scan.covered_end(start, len);
                 let class = knowledge.classify(studied, &[key.as_str()], pack);
                 matches.push(PhraseMatch {
                     start,
@@ -717,6 +673,268 @@ fn match_expressions(
         }
     }
     matches
+}
+
+/// What the phrase gloss reads between a selection's tokens on the page, one entry
+/// per token, entry `i` about token `i` and the token before it.
+struct PageJoins {
+    /// [`shared_spans`]: the second half of a written word the pre-pass split.
+    shares_span: Vec<bool>,
+    /// [`is_elided`]: an elided piece.
+    elided: Vec<bool>,
+    /// [`is_hyphen_join`] over the text between the two tokens' spans
+    /// (choose-lingua-overlapping-expressions D3, G1); never the first token.
+    hyphened: Vec<bool>,
+}
+
+impl PageJoins {
+    /// The joins of `read`, the selection `text`'s tokens.
+    fn of(text: &str, read: &[Token]) -> Self {
+        let hyphened = (0..read.len())
+            .map(|i| {
+                i.checked_sub(1).is_some_and(|before| {
+                    read[before].end <= read[i].start
+                        && is_hyphen_join(&text[read[before].end..read[i].start])
+                })
+            })
+            .collect();
+        Self {
+            shares_span: shared_spans(read),
+            elided: read.iter().map(|token| is_elided(text, token)).collect(),
+            hyphened,
+        }
+    }
+}
+
+/// One selection's expression lookup, as [`match_expressions`] scans it.
+struct ExpressionScan<'a> {
+    tokens: &'a [PhraseToken],
+    joins: &'a PageJoins,
+    /// Each token's key piece ([`expression_piece`]).
+    pieces: Vec<String>,
+    studied: StudiedLanguage,
+    pack: &'a Pack,
+    window: usize,
+}
+
+impl<'a> ExpressionScan<'a> {
+    fn new(
+        tokens: &'a [PhraseToken],
+        joins: &'a PageJoins,
+        studied: StudiedLanguage,
+        pack: &'a Pack,
+    ) -> Self {
+        Self {
+            pieces: tokens
+                .iter()
+                .map(|token| expression_piece(&token.surface, &token.lemma, studied))
+                .collect(),
+            tokens,
+            joins,
+            studied,
+            pack,
+            window: expression_window(studied),
+        }
+    }
+
+    fn french(&self) -> bool {
+        self.studied == StudiedLanguage::French
+    }
+
+    /// French and Spanish, whose matches never end inside a written word.
+    fn whole_words(&self) -> bool {
+        matches!(
+            self.studied,
+            StudiedLanguage::Spanish | StudiedLanguage::French
+        )
+    }
+
+    /// The run of `len` tokens from `start` as an expression — its name (the pack's,
+    /// else its key) and its gloss — when it is a key and, in French, meets its
+    /// headword as written ([`meets_as_written`]); a French or Spanish key several
+    /// headwords reach is named by the one written most like the page
+    /// ([`written_as_the_page`]), and every headword's name comes with it, which the
+    /// settled chain reads ([`settled_chain`]).
+    fn run(&self, start: usize, len: usize) -> Option<(String, String, Vec<String>)> {
+        let (key, gloss) =
+            expression_for_run(&self.pieces[start..start + len], self.studied, self.pack)?;
+        let (tokens, elided, shares_span) =
+            (self.tokens, &self.joins.elided, &self.joins.shares_span);
+        if self.whole_words() {
+            let headwords = self.pack.expression_headwords(&key);
+            if headwords.len() > 1 {
+                let run = start..start + len;
+                let lexicon = self.pack.lexicon();
+                let (name, gloss) = if self.french() {
+                    written_as_the_page(
+                        &headwords,
+                        &tokens[run.clone()],
+                        self.studied,
+                        lexicon,
+                        |name| {
+                            meets_as_written(
+                                &elided[run.clone()],
+                                &shares_span[run.clone()],
+                                name,
+                                lexicon,
+                            )
+                        },
+                    )?
+                } else {
+                    let weighed = spanish_weighed(&headwords, tokens, run.clone(), lexicon);
+                    written_as_the_page(&weighed, &tokens[run], self.studied, lexicon, |_| true)?
+                };
+                let names = headwords
+                    .iter()
+                    .map(|(name, _)| (*name).to_owned())
+                    .collect();
+                return Some((name.to_owned(), gloss.to_owned(), names));
+            }
+        }
+        let name = match self.pack.expression_name(&key) {
+            Some(name) => name.to_owned(),
+            None => key,
+        };
+        (!self.french()
+            || meets_as_written(
+                &elided[start..start + len],
+                &shares_span[start..start + len],
+                &name,
+                self.pack.lexicon(),
+            ))
+        .then(|| (name.clone(), gloss, vec![name]))
+    }
+
+    /// The longest run from `start` that is an expression ([`ExpressionScan::run`]),
+    /// its length and name: the one the scan looks up at a start, without asking
+    /// whether it would give its own last word away.
+    fn longest_at(&self, start: usize) -> Option<(usize, String)> {
+        let longest = self.window.min(self.tokens.len().saturating_sub(start));
+        (2..=longest)
+            .rev()
+            .find_map(|len| self.run(start, len).map(|(name, _, _)| (len, name)))
+    }
+
+    /// Where a match of `len` tokens from `start` ends: past its last token, and in
+    /// French and Spanish past the article of a written « au », « aux », « al » or
+    /// « del » it would otherwise end inside.
+    fn covered_end(&self, start: usize, len: usize) -> usize {
+        let mut end = start + len;
+        if self.whole_words() {
+            while self.joins.shares_span.get(end).copied().unwrap_or(false) {
+                end += 1;
+            }
+        }
+        end
+    }
+
+    /// Whether the expression of `len` tokens from `start` gives its last token to
+    /// the expression starting on it (choose-lingua-overlapping-expressions D1):
+    /// that expression, the longest run that is a key and meets its headword there
+    /// ([`ExpressionScan::longest_at`]), holds more tokens than the run, or (French,
+    /// Spanish) starts on the `à` of « au »/« aux » or the `a`/`de` of « al »/« del »
+    /// the run ends on; the run is built on a verb ([`built_on_verb`]); and no guard
+    /// of D3 holds — G1 (French): the expression taking the word meets its
+    /// headword's hyphens on the page ([`meets_hyphens`]); G2 (French, Spanish): the
+    /// last token is a preposition the selection's next token, `que`, follows
+    /// (« pese a que »); G3: the run the scan would take next after this one ends
+    /// past the expression taking the word and holds a word that is not a function
+    /// word (« iba al día siguiente » keeps `ir a` and `día siguiente`). The
+    /// checks run cheapest first.
+    fn gives_last_word(&self, start: usize, len: usize) -> bool {
+        let end = start + len;
+        let last = end - 1;
+        let Some((taker_len, taker)) = self.longest_at(last) else {
+            return false;
+        };
+        let on_contraction =
+            self.whole_words() && self.joins.shares_span.get(end).copied().unwrap_or(false);
+        if !(on_contraction || taker_len > len) {
+            return false;
+        }
+        // G2: a preposition the page follows with « que » stays.
+        if self.whole_words()
+            && self.tokens.get(end).is_some_and(|next| next.lemma == "que")
+            && is_preposition(&self.tokens[last].lemma, self.studied)
+        {
+            return false;
+        }
+        // G1: the expression taking the word meets its headword's hyphens.
+        if self.french()
+            && !meets_hyphens(
+                &self.joins.hyphened[last..last + taker_len],
+                &taker,
+                self.pack.lexicon(),
+            )
+        {
+            return false;
+        }
+        if !built_on_verb(&self.tokens[start..end], self.studied, self.pack) {
+            return false;
+        }
+        // G3: the expression next is not cut.
+        let taker_end = self.covered_end(last, taker_len);
+        let next = (self.covered_end(start, len)..taker_end)
+            .find_map(|at| self.longest_at(at).map(|(len, _)| (at, len)));
+        !next.is_some_and(|(at, next_len)| {
+            let next_end = self.covered_end(at, next_len);
+            next_end > taker_end
+                && self.tokens[at..next_end]
+                    .iter()
+                    .any(|token| !token.function_word)
+        })
+    }
+}
+
+/// Whether a run is built on a verb (choose-lingua-overlapping-expressions D2): one of
+/// its tokens, its last included, has a reading in the pack's grammar
+/// ([`Pack::readings`] on its dictionary form and lowercased surface) as a verb or an
+/// auxiliary, and no token before that one is a preposition of the studied language
+/// ([`is_preposition`]: `à partir de`, `a pesar de` are built on a preposition). A pack
+/// without grammar reads no verb.
+fn built_on_verb(run: &[PhraseToken], studied: StudiedLanguage, pack: &Pack) -> bool {
+    for token in run {
+        let verb = pack
+            .readings(&token.lemma, &token.surface.to_lowercase())
+            .iter()
+            .any(|tag| matches!(tag.pos, "VERB" | "AUX"));
+        if verb {
+            return true;
+        }
+        if is_preposition(&token.lemma, studied) {
+            return false;
+        }
+    }
+    false
+}
+
+/// Whether a French run meets its expression's headword's hyphens
+/// (choose-lingua-overlapping-expressions D3, G1): `hyphened` holds the run's tokens'
+/// [`PageJoins::hyphened`], `headword` the expression's name. Every place the headword,
+/// read by French's pre-pass ([`headword_reading`]), joins two pieces with a hyphen —
+/// the euphonic `t` between counted as one ([`is_hyphen_join`]) — the page joins the
+/// run's two tokens with one too: `est-ce que` meets « Est-ce que » and not « c'est ce
+/// que ». A headword without a hyphen, or whose reading does not line up with the run,
+/// meets. Asked only of the expression that would take a word: an expression matched on
+/// its own meets the page as before (« Est ce que tu viens ? » answers `est-ce que`).
+fn meets_hyphens(hyphened: &[bool], headword: &str, lexicon: &(impl Lexicon + ?Sized)) -> bool {
+    if !headword.contains('-') {
+        return true;
+    }
+    let Some(reading) = headword_reading(headword, StudiedLanguage::French, lexicon)
+        .filter(|reading| reading.len() == hyphened.len())
+    else {
+        return true;
+    };
+    reading
+        .windows(2)
+        .zip(&hyphened[1..])
+        .all(|(pair, &on_page)| {
+            let (before, piece) = (&pair[0].0, &pair[1].0);
+            on_page
+                || before.end > piece.start
+                || !is_hyphen_join(&headword[before.end..piece.start])
+        })
 }
 
 /// Whether a French run's tokens meet, piece by piece, its expression's headword as
@@ -974,10 +1192,11 @@ pub fn gloss_phrase(
     // French match never leaves outside (add-lingua-spanish-expression-keys D5,
     // add-lingua-french-word-card D12), and a French match meets only where its
     // headword writes the contraction (match-lingua-french-contracted-pieces D2).
-    let shares_span = shared_spans(&read);
     // Which tokens are elided pieces, read from their spans, which a French match holds
-    // to its headword's (match-lingua-french-elided-pieces D2).
-    let elided: Vec<bool> = read.iter().map(|token| is_elided(text, token)).collect();
+    // to its headword's (match-lingua-french-elided-pieces D2). And which are joined to
+    // the token before by a hyphen, which a French expression taking a word from another
+    // meets as its headword writes it (choose-lingua-overlapping-expressions D3, G1).
+    let joins = PageJoins::of(text, &read);
     // Which tokens stand alone in capitals, read in the selection as a page reads its block
     // (keep-lingua-french-acronyms-in-capitals D1).
     let alone = alone_in_capitals(text, &read, studied);
@@ -1006,7 +1225,7 @@ pub fn gloss_phrase(
             }
         })
         .collect();
-    let expressions = match_expressions(&tokens, &shares_span, &elided, studied, pack, knowledge);
+    let expressions = match_expressions(&tokens, &joins, studied, pack, knowledge);
     PhraseGloss {
         tokens,
         expressions,

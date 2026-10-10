@@ -103,6 +103,17 @@ fn is_hyphen(gap: &str) -> bool {
     gap == "-" || (gap.len() > 1 && without_soft_hyphens(gap) == "-")
 }
 
+/// Whether the text between two tokens joins them with a hyphen as French's pre-pass
+/// splits a hyphenated inversion: one hyphen (soft hyphens read as nowhere, as
+/// [`is_hyphen`] reads them), or a hyphen, the euphonic `t` and a hyphen (`-t-`, any
+/// case), which the pre-pass drops (« a-t-il » → `a` + `il`). The phrase gloss reads it
+/// on a page and on a French expression's headword, holding the headword's hyphens to
+/// the page where its expression would take a word (choose-lingua-overlapping-expressions
+/// D3, G1).
+pub fn is_hyphen_join(gap: &str) -> bool {
+    is_hyphen(gap) || without_soft_hyphens(gap).eq_ignore_ascii_case("-t-")
+}
+
 /// Contractions whose base changes when `n't` is peeled off. Everything else
 /// follows the regular rule `Xn't` → `X` + `not`.
 const IRREGULAR_CONTRACTIONS: &[(&str, &str)] = &[
@@ -1540,6 +1551,16 @@ mod tests {
         let stripped = without_soft_hyphens("\u{AD}vi\u{AD}\u{AD}da\u{AD}");
         assert!(matches!(stripped, Cow::Owned(_)));
         assert_eq!(stripped, "vida");
+    }
+
+    #[test]
+    fn a_hyphen_or_a_euphonic_t_joins_two_tokens() {
+        for gap in ["-", "-\u{AD}", "\u{AD}-", "-t-", "-T-", "-\u{AD}t-"] {
+            assert!(is_hyphen_join(gap), "{gap:?} joins");
+        }
+        for gap in [" ", "--", ", ", "", "t", "-t", "- ", " -t- "] {
+            assert!(!is_hyphen_join(gap), "{gap:?} does not join");
+        }
     }
 
     #[test]
