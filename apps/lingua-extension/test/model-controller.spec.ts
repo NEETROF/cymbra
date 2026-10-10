@@ -41,8 +41,9 @@ const WITH_EN_ES: ModelCatalogue = {
 
 /** What en-fr costs, from the catalogue: its files as served, and decompressed. */
 const COST = { download: 1000, stored: 1350 };
-/** What en-fr and es-fr together cost: en-fr once, and es-en; es-fr's route pivots through English. */
-const BOTH = { download: 2000, stored: 2700, pivot: true };
+/** What en-fr and es-fr together cost: en-fr once, and es-en; es-fr's route pivots through English, so
+ *  two models translate together (enable-lingua-french D6). */
+const BOTH = { download: 2000, stored: 2700, twoModels: true };
 
 function memoryArea(seed: Record<string, unknown> = {}): SettingArea & { store: Record<string, unknown> } {
   const store: Record<string, unknown> = { ...seed };
@@ -634,7 +635,7 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
     });
     const status = await controller.enable();
     expect(host.startDownload).toHaveBeenCalledWith([EN_FR, ES_EN]);
-    expect(status.cost).toEqual({ download: 51_993_524, stored: 73_763_216, pivot: true });
+    expect(status.cost).toEqual({ download: 51_993_524, stored: 73_763_216, twoModels: true });
     await downloaded();
     expect(setting().state).toEqual({ phase: "ready", models: [EN_FR, ES_EN], pairs: ["en-fr", "es-fr"] });
     // The routes it loads are en-fr's and es-fr's; es-en and en-es are no pair of this reader's.
@@ -698,7 +699,7 @@ describe("the committed catalogue: a reader of French downloads, keeps and loads
     }
     // A reader of French who also reads French pages downloads en-fr and es-en, as before.
     const { controller, host } = setup({ pairs: of(["en", "es", "fr"], "fr"), catalogue: async () => committed });
-    expect((await controller.enable()).cost).toEqual({ download: 51_993_524, stored: 73_763_216, pivot: true });
+    expect((await controller.enable()).cost).toEqual({ download: 51_993_524, stored: 73_763_216, twoModels: true });
     expect(host.startDownload).toHaveBeenCalledWith([EN_FR, ES_EN]);
     expect(await controller.ready("fr-en")).toBe(false);
     expect(await controller.ready("fr-es")).toBe(false);

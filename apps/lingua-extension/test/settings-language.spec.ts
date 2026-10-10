@@ -483,7 +483,12 @@ describe("the translation setting", () => {
       "Traduce tus frases en este dispositivo, sin enviar nada. Descarga 25,8 MB una vez y luego usa " +
         "unos 200 MB de memoria durante la traducción. Ajuste propio de este dispositivo.",
     );
-    expect(costText({ ...COST, pivot: true }, "es", ES.translation)).toContain("unos 340 MB de memoria");
+    expect(costText({ ...COST, twoModels: true }, "es", ES.translation)).toContain("unos 340 MB de memoria");
+    // A Spanish-native reader of French: fr-es's route, fr-en then en-es (enable-lingua-french D6).
+    expect(costText({ download: 51_608_069, stored: 73_776_588, twoModels: true }, "es", ES.translation)).toBe(
+      "Traduce tus frases en este dispositivo, sin enviar nada. Descarga 51,6 MB una vez y luego usa " +
+        "unos 340 MB de memoria durante la traducción. Ajuste propio de este dispositivo.",
+    );
     expect(costText(undefined, "es", ES.translation)).toContain("Descarga el modelo una vez");
     expect(megabytes(12_345_600_000, "es", ES.translation)).toBe(`12${NNBSP}345,6 MB`);
     expect(stateText({ phase: "failed", reason: "storage" }, COST, "es", ES.translation)).toBe(
@@ -514,6 +519,18 @@ describe("the translation setting", () => {
     expect(block.querySelector("label")?.textContent).toBe("Extended translation");
     expect(block.querySelector("button")?.textContent).toBe("Download");
     expect(block.textContent).toContain("Downloads 25.8 MB once");
+  });
+
+  it("An English-native reader of French: one model alone, of Spanish and French two (enable-lingua-french D6)", () => {
+    // fr-en alone: one model's memory, as es-en alone.
+    const french = costText({ download: 26_234_715, stored: 37_200_311 }, "en", EN.translation);
+    expect(french).toContain("Downloads 26.2 MB once");
+    expect(french).toContain("about 200 MB of memory");
+    // es-en and fr-en: two direct routes, no pivot, yet two models together — the memory of two.
+    const both = costText({ download: 52_475_767, stored: 74_214_400, twoModels: true }, "en", EN.translation);
+    expect(both).toContain("Downloads 52.5 MB once");
+    expect(both).toContain("about 340 MB of memory");
+    expect(both).not.toContain("about 200 MB");
   });
 });
 

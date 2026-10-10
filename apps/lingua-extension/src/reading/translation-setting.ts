@@ -76,9 +76,10 @@ export function costText(
   copy: TranslationCopy = frTranslation,
 ): string {
   const download = cost ? megabytes(cost.download, language, copy) : copy.theModel;
-  // One model works in about 200 MB; through the pivot two do, the study's 322 MiB
-  // (add-lingua-spanish-translation-pivot D4).
-  const memory = cost?.pivot ? copy.memoryPivot : copy.memorySingle;
+  // One model works in about 200 MB; two together, through the pivot or two direct routes, the
+  // study's 322 MiB (add-lingua-spanish-translation-pivot D4, enable-lingua-french D6). The keys keep
+  // their names: `memoryPivot` is the sentence of two models.
+  const memory = cost?.twoModels ? copy.memoryPivot : copy.memorySingle;
   return copy.cost(download, memory);
 }
 

@@ -29,12 +29,18 @@ describe("model messages", () => {
 
   it("keeps the cost the catalogue gives, and drops one it cannot read", () => {
     const off = { offered: true, host: "none", state: { phase: "absent" } };
-    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, pivot: true } }).cost).toEqual({
+    // Two models together, as the background counts them (enable-lingua-french D6).
+    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, twoModels: true } }).cost).toEqual({
       download: 1,
       stored: 2,
-      pivot: true,
+      twoModels: true,
     });
-    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, pivot: "yes" } }).cost).toEqual({
+    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, twoModels: "yes" } }).cost).toEqual({
+      download: 1,
+      stored: 2,
+    });
+    // The flag's name before it counted models is no longer read.
+    expect(asModelStatus({ ...off, cost: { download: 1, stored: 2, pivot: true } }).cost).toEqual({
       download: 1,
       stored: 2,
     });

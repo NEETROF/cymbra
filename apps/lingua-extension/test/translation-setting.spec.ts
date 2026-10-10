@@ -253,8 +253,9 @@ describe("helpers", () => {
     expect(costText(COST)).toContain("Télécharge 25,8 Mo une fois");
     expect(costText(COST)).toContain("environ 200 Mo de mémoire");
     expect(costText()).toContain("Télécharge le modèle une fois");
-    // A reader of Spanish: both models of its route, and the pivot's memory (add-lingua-spanish-translation-pivot D4).
-    const spanish = { download: 51_993_524, stored: 74_762_516, pivot: true };
+    // A reader of Spanish: both models of its route, two models' memory (add-lingua-spanish-translation-pivot D4,
+    // enable-lingua-french D6).
+    const spanish = { download: 51_993_524, stored: 74_762_516, twoModels: true };
     expect(costText(spanish)).toContain("Télécharge 52,0 Mo une fois");
     expect(costText(spanish)).toContain("environ 340 Mo de mémoire");
     expect(stateText({ phase: "failed", reason: "storage" }, COST)).toContain("(36,7 Mo)");
