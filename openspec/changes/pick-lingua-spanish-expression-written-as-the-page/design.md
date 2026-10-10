@@ -366,6 +366,10 @@ goldens, the pins and the READMEs 0.1; spec and programme 0.05.
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session), each as recommended:** the pronoun guard; marks stay
+on the expression they were set on; the pronoun as a hint left out. The owner also approved es-fr's
+moved and added probes.
+
 For the owner, none blocking — each with the design's recommendation:
 
 1. **The guard on pronouns (D3).** Without it, « El guardaespaldas tenía puestos unos audífonos »
