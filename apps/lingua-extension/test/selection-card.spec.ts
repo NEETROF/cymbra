@@ -28,7 +28,7 @@ import {
   TRANSLATION_WAIT_MS,
 } from "@/reading/selection-card.ts";
 import type { TranslationRequest, TranslationResult, TranslatorPort } from "@/translate/port.ts";
-import type { WordPopupContent } from "@/reading/wordpopup.ts";
+import { type WordPopupContent, gestureKey } from "@/reading/wordpopup.ts";
 
 // The scenarios of specs/lingua-browser-extension/spec.md, driven through fakes: a card
 // surface that records every show and lets a test bump the generation (a close, a scroll,
@@ -168,6 +168,7 @@ function gesture(content: WordPopupContent) {
     status: null,
     expression: !!content.expression,
     gloss: content.gloss,
+    ...(content.asWritten ? { asWritten: true } : {}),
   };
 }
 
@@ -258,9 +259,13 @@ describe("a selected word resolves to its dictionary form", () => {
       rarity: "Sélection.",
       sentence: "They Jenkins on Friday.",
       rect: RECT,
+      // The text as written, no dictionary form: a gesture on it is keyed in lowercase, as before
+      // (keep-lingua-french-acronyms-in-capitals D6).
+      asWritten: true,
     });
     expect(h.last().expression).toBeFalsy();
     expect(h.last().noActions).toBeFalsy();
+    expect(gestureKey(gesture(h.last()))).toBe("jenkins");
   });
 
   it("A name: no token at all gives the same card", async () => {
@@ -681,6 +686,7 @@ describe("a card that waits for the engine", () => {
       sentence: "They endeavors on Friday.",
       rect: RECT,
       noActions: true,
+      asWritten: true,
     });
 
     const failed = harness();
@@ -1028,8 +1034,8 @@ describe("a selection over the pieces of one word", () => {
     ).toBe("goodbye");
     expect(h.gloss).toHaveLength(0);
     void h.cards.cardGloss({
-      lemma: "Maison",
-      surface: "maison",
+      lemma: "maison",
+      surface: "Maison",
       sentence: "s",
       status: "learning",
       expression: false,
@@ -1427,10 +1433,10 @@ describe("decideClick", () => {
 });
 
 describe("cardGloss", () => {
-  it("asks the pack for a word's gloss by its lowercased dictionary form", async () => {
+  it("asks the pack for a word's gloss by its dictionary form as the engine gave it", async () => {
     const h = harness();
     const pending = h.cards.cardGloss({
-      lemma: "Seldom",
+      lemma: "seldom",
       surface: "Seldom",
       sentence: "s",
       status: "learning",
@@ -1440,6 +1446,37 @@ describe("cardGloss", () => {
     expect(h.gloss[0]!.lemma).toBe("seldom");
     h.gloss[0]!.resolve("rarement");
     expect(await pending).toBe("rarement");
+  });
+
+  it("Adding the acronym to the deck: the created card's gloss is asked for `CA`", async () => {
+    // keep-lingua-french-acronyms-in-capitals D6: the engine reads « CA » standing alone in capitals
+    // as the acronym `CA`; its card's gloss is the pack's for `CA`, never `ca`'s or `ça`'s.
+    const h = harness();
+    const pending = h.cards.cardGloss({
+      lemma: "CA",
+      surface: "CA",
+      sentence: "Le CA a voté le budget.",
+      status: "learning",
+      expression: false,
+      gloss: "board of directors; revenue, turnover, net sales; alternating current",
+    });
+    expect(h.gloss.map((c) => c.lemma)).toEqual(["CA"]);
+    h.gloss[0]!.resolve("board of directors; revenue, turnover, net sales; alternating current");
+    expect(await pending).toBe("board of directors; revenue, turnover, net sales; alternating current");
+  });
+
+  it("A headword taken from the selection's text is asked in lowercase, as before", async () => {
+    const h = harness();
+    void h.cards.cardGloss({
+      lemma: "Jenkins",
+      surface: "Jenkins",
+      sentence: "s",
+      status: "learning",
+      expression: false,
+      gloss: null,
+      asWritten: true,
+    });
+    expect(h.gloss.map((c) => c.lemma)).toEqual(["jenkins"]);
   });
 
   it("gives null for a word the pack does not gloss", async () => {

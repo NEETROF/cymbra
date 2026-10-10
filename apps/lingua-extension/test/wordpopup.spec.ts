@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createCard, type Gesture, WordPopup, type WordPopupContent } from "@/reading/wordpopup.ts";
+import { createCard, type Gesture, gestureKey, WordPopup, type WordPopupContent } from "@/reading/wordpopup.ts";
 import { createSpeaker, type VoiceInfo } from "@/reading/speech.ts";
 import { makeFakeSpeech } from "./helpers.ts";
 
@@ -149,6 +149,20 @@ describe("word popup card", () => {
     expect(onGesture).toHaveBeenCalledWith(
       expect.objectContaining({ lemma: "d'abord", gloss: "first, at first", expressionAnswer: true }),
     );
+  });
+
+  it("says on the gesture that its headword is the text as written (keep-lingua-french-acronyms-in-capitals D6)", () => {
+    const onGesture = vi.fn();
+    const view = createCard();
+    view.show(content({ headword: "Jenkins", surface: "Jenkins", gloss: null, asWritten: true }), onGesture);
+    button(view.el, "+ Deck").click();
+    expect(onGesture).toHaveBeenCalledWith(expect.objectContaining({ lemma: "Jenkins", asWritten: true }));
+    // A card whose headword is the engine's dictionary form says nothing of it.
+    const plain = vi.fn();
+    view.show(content({ headword: "CA", surface: "CA" }), plain);
+    button(view.el, "+ Deck").click();
+    expect(plain.mock.calls[0]![0]).not.toHaveProperty("asWritten");
+    expect(plain.mock.calls[0]![0]).toMatchObject({ lemma: "CA" });
   });
 
   it("emits a null status (clear → 'à apprendre') on 'Remettre à apprendre'", () => {
@@ -1133,5 +1147,29 @@ describe("an elided French word, heard with the word it leans on (add-lingua-fre
         expect(row(withPlace.card, withPlace.fake)[0]).toEqual(["▶ Word", "de"]);
       });
     }
+  });
+});
+
+describe("gestureKey (keep-lingua-french-acronyms-in-capitals D6)", () => {
+  const g = (over: Partial<Gesture>): Gesture => ({
+    lemma: "CA",
+    surface: "CA",
+    sentence: "Le CA a voté le budget.",
+    status: "known",
+    expression: false,
+    gloss: null,
+    ...over,
+  });
+
+  it("keys a word by the dictionary form the engine gave, capitals included", () => {
+    expect(gestureKey(g({}))).toBe("CA");
+    expect(gestureKey(g({ lemma: "ça", surface: "Ca" }))).toBe("ça");
+    expect(gestureKey(g({ lemma: "maison", surface: "Maison" }))).toBe("maison");
+  });
+
+  it("lowercases an expression's name and a headword taken from the selection's text, as before", () => {
+    expect(gestureKey(g({ lemma: "Au revoir", expressionAnswer: true }))).toBe("au revoir");
+    expect(gestureKey(g({ lemma: "Il Fait Beau", expression: true }))).toBe("il fait beau");
+    expect(gestureKey(g({ lemma: "Jenkins", asWritten: true }))).toBe("jenkins");
   });
 });

@@ -27,6 +27,11 @@
 //! (each class, each word left out) and the names rule, through `analyse_page`
 //! on a small synthetic pack (each branch of its design's D4).
 //!
+//! A word standing alone in capitals (keep-lingua-french-acronyms-in-capitals): read
+//! as the acronym its pack lists — `CA` among lowercase words —, and as before in a line
+//! or a run of capitals, with a capital initial, as a hyphenated run's part, or when the
+//! pack does not list it as written; through the phrase gloss, a page and a card.
+//!
 //! Any change to a fixture's expectation is a behavioural change of the French
 //! analyser and demands a `FRENCH_ANALYZER_VERSION` bump; English's and
 //! Spanish's fixtures and baselines do not move.
@@ -41,7 +46,7 @@ use lingua_core::analysis::lemmatize::lemmatize;
 use lingua_core::analysis::lexicon::{FstLexicon, build_lexicon_blobs};
 use lingua_core::analysis::percent::TokenClass;
 use lingua_core::analysis::tokenize::{Token, tokenize};
-use lingua_core::engine::{analyse_page, word_grammar};
+use lingua_core::engine::{analyse_page, gloss_phrase, word_grammar};
 use lingua_core::knowledge::{KnowledgeState, KnownSource, Status};
 use lingua_core::packs::pack::section;
 use lingua_core::packs::{Pack, PackMeta, write_container};
@@ -967,4 +972,137 @@ fn the_new_rules_hold_at_least_seventy_cases() {
         cases >= 70,
         "task 6.1 asks for at least 70 cases, got {cases}"
     );
+}
+
+// --- keep-lingua-french-acronyms-in-capitals ---
+
+/// The acronym pack's forms: `CA` its own lemma, `ca` a form of `ça` (read-lingua-french-ca-as-ca-cedilla).
+const ACRONYM_FORMS: &[(&str, &str)] = &[
+    ("CA", "CA"),
+    ("ca", "ça"),
+    ("a", "avoir"),
+    ("voté", "voter"),
+    ("crié", "crier"),
+    ("suffit", "suffire"),
+    ("fait", "faire"),
+];
+
+const ACRONYM_LEMMAS: &[&str] = &[
+    "le", "ça", "avoir", "voter", "budget", "il", "crier", "suffire", "faire", "du", "bien", "w",
+    "à", "marché", "chicago", "ls", "onu", "de", "un", "comme",
+];
+
+const CA_GLOSS: &str = "board of directors; revenue, turnover, net sales; alternating current";
+
+/// A French pack holding the acronym `CA`, glossed and a dictionary word, at French's analyser
+/// version.
+fn acronym_pack() -> Pack {
+    let (forms, pool) = build_lexicon_blobs(ACRONYM_FORMS, ACRONYM_LEMMAS).expect("lexicon");
+    let lex = FstLexicon::from_slices(forms.clone(), &pool).expect("load");
+    let freq = vec![0u8; lex.lemma_count() * 4];
+    let ca = lex.id_of("CA").expect("CA is a lemma") as u32;
+    assert_eq!(
+        ca, 0,
+        "a lemma in capitals sorts before every lowercase one"
+    );
+    let mut raw = Vec::new();
+    raw.extend_from_slice(&1u32.to_le_bytes());
+    raw.extend_from_slice(&ca.to_le_bytes());
+    raw.extend_from_slice(&0u32.to_le_bytes());
+    raw.extend_from_slice(&(CA_GLOSS.len() as u32).to_le_bytes());
+    raw.extend_from_slice(CA_GLOSS.as_bytes());
+    let gloss = zstd::encode_all(raw.as_slice(), 19).expect("zstd");
+    let meta = serde_json::to_vec(&PackMeta {
+        studied: "fr".into(),
+        native: "en".into(),
+        pack_version: "fixture".into(),
+        analyzer_version: FRENCH_ANALYZER_VERSION.into(),
+        licences: vec![],
+        levels_estimated: false,
+    })
+    .expect("meta");
+    let sections: [(&str, &[u8]); 4] = [
+        (section::FORMS, &forms),
+        (section::LEMMAS, pool.as_bytes()),
+        (section::FREQ, &freq),
+        (section::GLOSS_ZST, &gloss),
+    ];
+    Pack::load(&write_container(&meta, &sections)).expect("the acronym pack loads")
+}
+
+/// (French text, a token's surface, its dictionary form).
+const ACRONYM_CASES: &[(&str, &str, &str)] = &[
+    // Standing alone among lowercase words: the acronym.
+    ("Le CA a voté le budget.", "CA", "CA"),
+    ("tendu comme un CA de l'Asso", "CA", "CA"),
+    ("« CA », dit-il.", "CA", "CA"),
+    // With no neighbour at all: a one-word block, a selection, a card's written word.
+    ("CA", "CA", "CA"),
+    // A single letter and a number are passed over; a run holding a digit is read piece by piece.
+    ("le CA W 02 du dossier", "CA", "CA"),
+    ("le croiseur Chicago (CA-14)", "CA", "CA"),
+    // A soft hyphen is no letter.
+    ("le C\u{AD}A a voté", "CA", "CA"),
+    // In a line of capitals, beside a word in capitals or a contraction in capitals: `ça`.
+    ("LE CA A VOTÉ LE BUDGET", "CA", "ça"),
+    ("Il a crié : CA SUFFIT !", "CA", "ça"),
+    ("OUAH CA chauffe", "CA", "ça"),
+    ("le CA AU marché", "CA", "ça"),
+    // A capital initial, and the lowercase spelling: `ça`, as 43b reads them.
+    ("Ca fait du bien.", "Ca", "ça"),
+    ("ca va", "ca", "ça"),
+    // A hyphenated run is read as before, by its parts.
+    ("le LS-CA de série", "LS-CA", "ls-ca"),
+    // A word in capitals the pack does not list as written: the cascade.
+    ("L'ONU a voté", "ONU", "onu"),
+];
+
+#[test]
+fn french_acronym_fixtures() {
+    let pack = acronym_pack();
+    let knowledge = KnowledgeState::new();
+    let wrong: Vec<String> = ACRONYM_CASES
+        .iter()
+        .filter_map(|(text, surface, expected)| {
+            let phrase = gloss_phrase(text, FR, &pack, &knowledge);
+            let got = phrase
+                .tokens
+                .iter()
+                .find(|token| token.surface == *surface)
+                .map(|token| token.lemma.clone());
+            (got.as_deref() != Some(*expected))
+                .then(|| format!("{surface:?} in {text:?}: expected {expected:?}, got {got:?}"))
+        })
+        .collect();
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+}
+
+#[test]
+fn the_acronym_reads_alike_on_a_page_and_on_its_card() {
+    let pack = acronym_pack();
+    let blocks = [
+        "Le CA a voté le budget, puis il a crié dans le marché du bien de Chicago.",
+        "Ca fait du bien : le budget du CA a voté comme un marché de Chicago.",
+    ];
+    let page = analyse_page(&blocks, FR, &pack, &KnowledgeState::new());
+    assert!(page.analysable);
+    let read: Vec<(&str, &str)> = page
+        .tokens
+        .iter()
+        .filter(|token| token.surface.eq_ignore_ascii_case("ca"))
+        .map(|token| (token.surface.as_str(), token.lemma.as_str()))
+        .collect();
+    assert_eq!(read, [("CA", "CA"), ("Ca", "ça"), ("CA", "CA")]);
+    // A dictionary word of a pack without a lexical section (it is glossed): no name.
+    assert!(
+        page.tokens
+            .iter()
+            .filter(|token| token.lemma == "CA")
+            .all(|token| token.class == TokenClass::Unknown)
+    );
+    let card = word_grammar("CA", "CA", FR, &pack);
+    assert_eq!(card.gloss.as_deref(), Some(CA_GLOSS));
+    assert!(card.pieces.is_empty());
+    // `ça`'s card, asked for « ca », is not the acronym's.
+    assert_eq!(word_grammar("ca", "ça", FR, &pack).gloss, None);
 }

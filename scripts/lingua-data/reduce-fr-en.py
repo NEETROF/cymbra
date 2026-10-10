@@ -44,6 +44,17 @@ initialisms, `ca` « abbreviation of circa », the plough's beam, the fixing num
 The analysis looks every token up lowercased, so « CA » in capitals reads as *ça* until a rule of
 French's analysis reads a word in capitals apart (D2).
 
+French's acronyms (keep-lingua-french-acronyms-in-capitals D2, D4): that rule is French's analysis
+reading a word standing alone in capitals as written, and the reviewed table `ACRONYMS` of
+`reduce_french_acronyms.py`, a rule module fr-es imports too, is what it finds — `CA` alone. The
+section's entry headed exactly as a row is read for the table and nowhere else: it must point at
+every expansion the row names (`check_rows`). Each row is written into French's studied side as a
+form that is its own lemma, capitals kept (`forms.tsv`), and a dictionary word (`lexical.tsv`), with
+no rank, level or reading; 43b's `ca` row is unchanged. fr-en glosses it from its own glosses of the
+expansions, each cut to its first sense, one run of the row's part of speech (`acronym_glosses`):
+« board of directors; revenue, turnover, net sales; alternating current ». It is the one lemma fr-en
+glosses that is not ranked.
+
 The native side (add-lingua-pack-fr-en D1–D3, D11) is read from the same section as the forms, after
 the studied side, as es-en's is from the Spanish section: the section cut to what the native side
 reads, a headword's typographic apostrophe read as `'` (`native_fields`); the English edition's
@@ -94,6 +105,7 @@ import unicodedata
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
 import reduce_edition_en as english  # noqa: E402 — the English Wiktionary's rules: fr-en's glosses are English
+import reduce_french_acronyms as acronyms  # noqa: E402 — French's acronym table (keep-lingua-french-acronyms-in-capitals)
 import reduce_french_treebank as treebank  # noqa: E402 — UD French-GSD's parts of speech (refine-lingua-fr-en-glosses D5)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -319,7 +331,9 @@ class Lexicon:
       a form follows (D3);
     - `lemmas`: the words with an entry that is not only a form of another;
     - `poses`: lemma → the parts of speech of its lemma entries;
-    - `names`: the words whose only lemma entries are proper names.
+    - `names`: the words whose only lemma entries are proper names;
+    - `acronyms`: what the entries headed exactly as a row of French's acronym table point at
+      (keep-lingua-french-acronyms-in-capitals D2), read for the table alone.
     """
 
     def __init__(self):
@@ -328,6 +342,7 @@ class Lexicon:
         self.lemmas = set()
         self.poses = collections.defaultdict(set)
         self._kinds = collections.defaultdict(set)
+        self.acronyms = acronyms.Pointers()
 
     @property
     def names(self):
@@ -346,8 +361,10 @@ class Lexicon:
         inflections forms of it. Otherwise: an entry with a sense that is not a form-of is a lemma
         and its own candidate; the inflections it lists are its forms, but the bookkeeping, the
         doubtful ones and the multi-word constructions; its form-of senses make it a form of
-        their targets.
+        their targets. An entry headed exactly as an acronym row is read for the table too
+        (`acronyms`), and lowercased as any other.
         """
+        self.acronyms.read(entry)
         word = nfc_lower(entry.get("word"))
         if word in ELISIONS:
             self.candidates[word].add(ELISIONS[word][0])
@@ -1891,6 +1908,8 @@ def main():
     counts = read_gsd_counts(
         [os.path.join(a.work, "fr_gsd-ud-train.conllu"), os.path.join(a.work, "fr_gsd-ud-dev.conllu")]
     )
+    # French's acronym rows, each backed by the section's own entry (keep-lingua-french-acronyms-in-capitals D2).
+    acronyms.check_rows(lexicon.acronyms)
     name_or_word(lexicon.candidates, lexicon.names, frequency)
     own_words(lexicon)
     unmarked_spellings(lexicon)
@@ -1904,7 +1923,10 @@ def main():
             f"them: {', '.join(unlisted[:10])}"
         )
 
-    common.write(a.work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(forms.items())))
+    # The acronym rows, each its own lemma, capitals kept: written to the forms alone, read by no rule
+    # of the studied or the native side (keep-lingua-french-acronyms-in-capitals D2).
+    written = {**forms, **acronyms.acronym_forms()}
+    common.write(a.work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(written.items())))
     common.write(
         a.work,
         "freq.tsv",
@@ -1922,6 +1944,11 @@ def main():
     glosses, runs, expressions, native = native_side(
         a.work, os.path.join(a.work, "kaikki-French.jsonl"), ranks, forms, pos_counts
     )
+    # Each acronym row glossed from fr-en's own glosses of its expansions, the one unranked lemma it
+    # glosses (keep-lingua-french-acronyms-in-capitals D4, D5).
+    glossed_acronyms = acronyms.acronym_glosses(glosses, expressions)
+    for acronym, (gloss, gloss_runs) in glossed_acronyms.items():
+        glosses[acronym], runs[acronym] = gloss, gloss_runs
     common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
     common.write(
         a.work,
@@ -1933,7 +1960,8 @@ def main():
     common.write(a.work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
     # French's dictionary words (refine-lingua-fr-en-glosses D2): fr-en's glossed lemmas less those it
     # glosses by a proper noun's senses alone. `pack_sources.py split` files them into tables/fr/.
-    words = dictionary_words(glosses, runs)
+    # Every acronym row is one, glossed or not (keep-lingua-french-acronyms-in-capitals D2).
+    words = sorted(set(dictionary_words(glosses, runs)) | set(acronyms.ACRONYMS))
     common.write(a.work, "lexical.tsv", "".join(f"{w}\n" for w in words))
     # French's estimated levels (add-lingua-french-levels): from the ranks and the section's senses,
     # given only to French's dictionary words (refine-lingua-fr-en-glosses D3), so computed after them.
@@ -1963,7 +1991,13 @@ def main():
         ],
     }
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
-    print(f"reduced fr-en: forms={len(forms)} lemmas={len(ranks)} readings={len(grammar)}", file=sys.stderr)
+    print(f"reduced fr-en: forms={len(written)} lemmas={len(ranks)} readings={len(grammar)}", file=sys.stderr)
+    print(
+        f"reduced fr-en: acronyms={len(acronyms.ACRONYMS)} ({len(glossed_acronyms)} glossed: "
+        + ", ".join(f"{a} « {g} »" for a, (g, _) in glossed_acronyms.items())
+        + ")",
+        file=sys.stderr,
+    )
     print(f"reduced fr-en: {levels_report(levels, left_out, ranks)}", file=sys.stderr)
     print(
         f"reduced fr-en: glosses={len(glosses)} (English Wiktionary {native['primary']}) "

@@ -14,7 +14,17 @@
 
 //! French's lemmatisation cascade (add-lingua-french-analysis D2).
 //!
-//! For each token, lowercased (`’` read as `'`) and in NFC:
+//! **Before it, an acronym** (keep-lingua-french-acronyms-in-capitals D1): a word
+//! standing alone in capitals (`pipeline::alone_in_capitals`) is looked up as written,
+//! in NFC and not lowercased ([`acronym`]); a hit is the acronym its pack lists — `CA`
+//! in « Le CA a voté le budget. » —, its capitals kept, and the cascade does not run.
+//! The pack's forms hold a form holding a capital only for a row of French's acronym
+//! table, as its own lemma (the builder refuses any other), and every other lookup
+//! lowercases first: only this step ever reaches one. Anything else — `CA` in a line
+//! or a run of capitals, `Ca`, a word in capitals the pack does not list as written —
+//! goes to the cascade.
+//!
+//! The cascade, for each token, lowercased (`’` read as `'`) and in NFC:
 //! 1. **the pack's forms** — the one lemma the forms tables chose for the form
 //!    (add-lingua-french-forms-tables, M8: one form, one lemma);
 //! 2. **an unlisted plural** — only for a form written in lowercase that the pack
@@ -62,6 +72,18 @@ const PASSE_SIMPLE_ENDINGS: &[&str] = &["âmes", "îmes", "ûmes", "âtes", "ît
 /// The endings of a singular already ending in `-s`: `campus`, `souris`,
 /// `succès`, `repos`, `bras`/`os`… and `-ss` (`stress`).
 const SINGULAR_S_ENDINGS: &[&str] = &["ss", "us", "is", "ès", "os"];
+
+/// The acronym a French word standing alone in capitals is, when the pack lists it
+/// as written (keep-lingua-french-acronyms-in-capitals D1, step 3): the token's text in
+/// NFC, not lowercased, looked up in the pack's forms, a hit that is its own lemma
+/// returned, capitals kept. `None` sends the token to the cascade ([`lemmatize`]).
+pub(crate) fn acronym(form: &str, lexicon: &(impl Lexicon + ?Sized)) -> Option<String> {
+    let written: String = form.nfc().collect();
+    lexicon
+        .lemma_of(&written)
+        .filter(|lemma| *lemma == written)
+        .map(str::to_owned)
+}
 
 /// Lemmatises one French token; the result is lowercase and in NFC.
 pub(crate) fn lemmatize(form: &str, lexicon: &(impl Lexicon + ?Sized)) -> String {
@@ -118,6 +140,24 @@ mod tests {
 
     fn empty() -> FstLexicon<Vec<u8>> {
         lexicon(&[], &[])
+    }
+
+    #[test]
+    fn an_acronym_is_the_form_the_pack_lists_as_written_and_its_own_lemma() {
+        // keep-lingua-french-acronyms-in-capitals D1, step 3: `CA` → `CA` beside `ca` → `ça`.
+        let lex = lexicon(&[("CA", "CA"), ("ca", "ça"), ("ÉTÉ", "ÉTÉ")], &["ça"]);
+        assert_eq!(acronym("CA", &lex).as_deref(), Some("CA"));
+        // Read composed, never lowercased: `Ca`, `ca` and a word the pack does not list as
+        // written are no acronym, and go to the cascade.
+        assert_eq!(acronym("E\u{301}TE\u{301}", &lex).as_deref(), Some("ÉTÉ"));
+        assert_eq!(acronym("Ca", &lex), None);
+        assert_eq!(acronym("ca", &lex), None);
+        assert_eq!(acronym("ONU", &lex), None);
+        // A form in capitals the pack reads as another word is no acronym either.
+        let other = lexicon(&[("CA", "ça")], &["ça"]);
+        assert_eq!(acronym("CA", &other), None);
+        // The cascade itself never reaches a form in capitals: it lowercases first.
+        assert_eq!(lemmatize("CA", &lex), "ça");
     }
 
     #[test]

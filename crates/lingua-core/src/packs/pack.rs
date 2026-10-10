@@ -951,7 +951,8 @@ pub(crate) mod tests {
         // Spanish's is refused. English's version was French's own too, as it was Spanish's once
         // (`1.1.0` since add-lingua-french-detection-guard, `1.2.0` since
         // ignore-lingua-soft-hyphens, until leave-lingua-names-out-of-english-and-spanish-words
-        // moved English to `1.3.0`): the numbers may meet.
+        // moved English to `1.3.0`), and is again since keep-lingua-french-acronyms-in-capitals
+        // moved French to `1.3.0`: the numbers may meet.
         assert_ne!(SPANISH_ANALYZER_VERSION, FRENCH_ANALYZER_VERSION);
         match Pack::load(&sample_pack_bytes_with(
             "fr",
@@ -965,10 +966,10 @@ pub(crate) mod tests {
             Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
             Ok(_) => panic!("a French pack at Spanish's version loaded"),
         }
-        // A pack built at `1.0.0`, before French's detection guard, at `0.2.0`, the version French
-        // had before its own analysis, or at the baseline's `0.1.0`, read French otherwise: each
-        // is refused.
-        for before in ["1.0.0", "0.2.0", "0.1.0"] {
+        // A pack built at `1.2.0`, before French's acronyms, at `1.0.0`, before its detection
+        // guard, at `0.2.0`, the version French had before its own analysis, or at the baseline's
+        // `0.1.0`, read French otherwise: each is refused.
+        for before in ["1.2.0", "1.0.0", "0.2.0", "0.1.0"] {
             match Pack::load(&sample_pack_bytes_with("fr", "en", before)) {
                 Err(PackError::IncompatibleAnalyzer { pack, core }) => {
                     assert_eq!(pack, before);

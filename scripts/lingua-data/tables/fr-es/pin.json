@@ -1,26 +1,27 @@
 {
   "snapshot": "2026.10.10",
   "pack": {
-    "sha256": "c9924f8fc4e3a98f26b2089a0f1d1566e627bb6b6bd7ec10cab816d5b2e9b9f3",
-    "size": 1971114
+    "sha256": "c32b23fdf22329da342ad0783c3925cbf3dfdf4eb2a060d5f7d2fcd21e125a75",
+    "size": 1969484
   },
   "reducer": {
-    "sha256": "4e7aa33c1fc0ff1d6f92741a39349116886a0fbb08349da2d0d4e4b5304bc382",
+    "sha256": "1a849adf78922709fbada7bab387f601e448e32d9b9434fffb55b970ec124c2f",
     "files": [
       "reduce-fr-es.py",
       "reduce_common.py",
       "reduce_edition_es.py",
+      "reduce_french_acronyms.py",
       "reduce_french_treebank.py"
     ]
   },
   "studied": {
     "reference": "fr-en",
     "tables": {
-      "forms.tsv": "0f088fb24273d9e3d3fbbe6ab83091663200bb46b56a6c4ecbfad388235b1554",
+      "forms.tsv": "8811052f2795d2ade2e8afa53da63b87eecfe508701f9b1cdc0b7c6193149eb6",
       "freq.tsv": "12b6efb17818fde23d8677025086ee3c461bd2dd38d82d7f9f4b39a01455f3bd",
       "grammar.tsv": "c6a29c7423907c6b58f6aacc6dcb7e7836e6ff16c65e28bf121aa401ecc421a3",
       "level.tsv": "00a558fe1212491469dc4cab30d34699d59bc8b132cd96a277fefa3b4539f0c0",
-      "lexical.tsv": "33e55fc3b50bf36d4087ba7a79e4cb6184f1faab83bb55a770e8040f088bd116",
+      "lexical.tsv": "5bf64e11ab5717c5204271d7147632ed87b4114624fc3f024999785f5ced2fb5",
       "tags.tsv": "bcefe71fe32b221624943c6b5c63f77a88f2bf48dd2e9e4ede5c47e4738479b7"
     }
   },

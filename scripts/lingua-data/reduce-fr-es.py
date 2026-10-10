@@ -95,12 +95,20 @@ Every rule here names a source or is Spanish's: the native side every pair share
 (`reduce_common`, written out step by step in `native_side` so that the lemmas each source glosses
 are kept) with the Spanish edition's rules, and fr-es's own. No other pair's reducer is loaded — a
 reducer loads code by import statements alone, and nothing of fr-en, en-es or es-fr may move with
-this pair — so the pair's rule digest is this file, `reduce_common.py`, `reduce_edition_es.py` and
+this pair — so the pair's rule digest is this file, `reduce_common.py`, `reduce_edition_es.py`,
 `reduce_french_treebank.py` (UD French-GSD's parts of speech, a rule module of its own that fr-en
-imports too, refine-lingua-fr-es-glosses D8): an edit of the Spanish edition re-pins en-es and fr-es,
-one of the treebank's module fr-en and fr-es. A change to fr-en's rules reaches this pair through
-the committed tables: when a studied table moves, fr-es's pack moves and its checks name the table
-(`pack_sources.py check-reducer`, add-lingua-pack-es-en D3).
+imports too, refine-lingua-fr-es-glosses D8) and `reduce_french_acronyms.py` (French's acronym table,
+fr-en's too, keep-lingua-french-acronyms-in-capitals): an edit of the Spanish edition re-pins en-es
+and fr-es, one of either French module fr-en and fr-es. A change to fr-en's rules reaches this pair
+through the committed tables: when a studied table moves, fr-es's pack moves and its checks name the
+table (`pack_sources.py check-reducer`, add-lingua-pack-es-en D3).
+
+French's acronyms (keep-lingua-french-acronyms-in-capitals D4): each row of the reviewed table
+`reduce_french_acronyms.ACRONYMS` — `CA` alone —, which fr-en writes into French's tables as a form
+that is its own lemma, unranked, is glossed here from fr-es's own glosses of its expansions, each cut
+to its first sense, one run of the row's part of speech: « Administración, consejo de administración;
+Ingreso, cifra de negocios, facturación; Corriente alterna ». `read_studied` reads such a row as no
+ranked lemma. Nothing else is read differently.
 """
 
 import argparse
@@ -114,6 +122,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
 import reduce_edition_es as spanish  # noqa: E402 — the Spanish Wiktionary's rules: fr-es's glosses are Spanish
+import reduce_french_acronyms as acronyms  # noqa: E402 — French's acronym table (keep-lingua-french-acronyms-in-capitals)
 import reduce_french_treebank as treebank  # noqa: E402 — UD French-GSD's parts of speech (refine-lingua-fr-es-glosses D8)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -164,14 +173,15 @@ def read_table(path):
 def read_studied(studied, max_lemmas):
     """The committed lemmas and their ranks (D1): `lemma → rank` from `freq.tsv`, the lemmas being
     the forms `forms.tsv` maps to themselves, capped at `max_lemmas` by rank. The two tables must
-    agree — a lemma is ranked exactly when it is its own form — or the folder is not what fr-en's
-    reduction writes, and it is refused, naming both."""
+    agree — a lemma is ranked exactly when it is its own form, an acronym row of French's table aside,
+    which is its own form and never ranked (keep-lingua-french-acronyms-in-capitals D5) — or the folder
+    is not what fr-en's reduction writes, and it is refused, naming both."""
     forms = os.path.join(studied, "forms.tsv")
     freq = os.path.join(studied, "freq.tsv")
     for path in (forms, freq):
         if not os.path.isfile(path):
             raise SystemExit(f"error: {path} is missing: fr-es reads French's committed tables (tables/fr/, fr-en's)")
-    lemmas = {form for form, lemma in read_table(forms) if form == lemma}
+    lemmas = {form for form, lemma in read_table(forms) if form == lemma and form not in acronyms.ACRONYMS}
     ranks = {lemma: int(rank) for lemma, rank in read_table(freq)}
     if set(ranks) != lemmas:
         only_ranked = sorted(set(ranks) - lemmas)[:3]
@@ -1319,6 +1329,11 @@ def main():
     # « etc. » after the shared rules, which take a sense's final period off (D6).
     glosses = {lemma: with_etc_period(gloss) for lemma, gloss in glosses.items()}
     expressions = {expression: with_etc_period(gloss) for expression, gloss in expressions.items()}
+    # Each acronym row of French's table glossed from fr-es's own glosses of its expansions, in Spanish
+    # (keep-lingua-french-acronyms-in-capitals D4): the one unranked lemma it glosses.
+    glossed_acronyms = acronyms.acronym_glosses(glosses, expressions)
+    for acronym, (gloss, gloss_runs) in glossed_acronyms.items():
+        glosses[acronym], runs[acronym] = gloss, gloss_runs
     # The runs' parts of speech are the Spanish Wiktionary's; French's readings come from the
     # tables the builder reads in tables/fr, not from here.
     common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
@@ -1363,6 +1378,12 @@ def main():
         f"their headword set aside) expressions={len(expressions)}; of the {measures['glossed']} glossed "
         f"lemmas among the {measures['top']:,} commonest, {measures['share']} % come from a translation "
         f"table (direct {len(measures['direct'])}, inverted {len(measures['inverted'])})",
+        file=sys.stderr,
+    )
+    print(
+        f"reduced fr-es: acronyms={len(acronyms.ACRONYMS)} ({len(glossed_acronyms)} glossed: "
+        + ", ".join(f"{a} « {g} »" for a, (g, _) in glossed_acronyms.items())
+        + ")",
         file=sys.stderr,
     )
     missed = unfired(fired)
