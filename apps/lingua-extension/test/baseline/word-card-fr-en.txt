@@ -81,6 +81,17 @@ row: parce que — because
 row: pleuvoir — to rain
 ### phrase-gloss d’un hiver
 row: hiver — winter
+### phrase-gloss Il est prêt à le faire
+row: prêt — ready
+row: faire — to do
+### phrase-gloss Au fait, tu viens ?
+row: au fait — au fait
+row: venir — to come (to move from one place to another that is nearer the speaker)
+### phrase-gloss grâce au soleil
+row: grâce à — thanks to
+row: soleil — sun (star)
+### phrase-gloss aux miennes
+row: les miennes — mine
 ### phrase-gloss Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.
 row: faire — to do
 row: chien — dog
