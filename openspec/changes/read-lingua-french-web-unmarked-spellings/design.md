@@ -62,9 +62,8 @@ what the French section and the tables make of it:
 | Step | At Zipf ≥ 3 | Examples |
 |---|---|---|
 | Spellings of an accented form, attested by wordfreq | 2,441 | |
-| — named by the French section: a word of its own | 1,840 | `ou`, `a`, `la`, `sur`, `du`, `des`, `cote`, `tache`, `pale`, `foret`, `aine`, `mais`, `marche`; forms change 43's D7 already reads (`connait`, `boite`); real verb forms (`publie`, `oblige`) |
-| — named by the section: only a spelling of the accented word | 21 | `etat`, `etats`, `etre`, `etait`, `derniere`, `arreter`, `etaient`, `siecle` — change 43d's |
-| — named by the section: an inflection another entry lists | 13 | `male` (under `mal`), `preparer`, `surcroit`, `protege`, `vegan` |
+| — the section gives it a meaning of its own: a word, a form of a word, or an inflection a word's entry lists | 1,847 | `ou`, `a`, `la`, `sur`, `du`, `des`, `cote`, `tache`, `pale`, `foret`, `aine`, `mais`, `marche`; real verb forms (`publie`, `oblige`); `sure`, `surs` (*sur* « sour »); `male` (under *mal*) |
+| — the section gives it only as a spelling, or as a form of a spelling | 27 | 7 pass this change's tests and change 43d's rule reads them (`etre`, `etait`, `etats`, `derniere`, `arreter`, `etaient`, `egyptiens`); 1 passes and 43d's rule leaves it — `tete`, listed only as an inflection of `teter` « alternative form of téter », which 43d's forms guard keeps out because `tete` is how the web writes *tête* —: proposed here; 19 fail the tests (`to`, `diesel`, `ecosse`) |
 | — change 43b's rows | 4 | `ca`, `age`, `ages`, `forcement` |
 | **Named nowhere by the section** | **563** | |
 | — hyphenated: wordfreq cannot count them | 95 | `peut-etre`, `c'est-a-dire`, `lui-meme` (D7) |
@@ -73,11 +72,15 @@ what the French section and the tables make of it:
 | — English writes it more often than French does | 103 | `video`, `hotel`, `general`, `education`, `these` |
 | — two French words could be meant | 6 | `ecoute` (*écoute*, or *écouté* of *écouter*), `pate` (*pâte* or *pâté*) |
 | — the rest | 151 | `meme`, `tres`, `apres`, `francais`, `deja` |
-| **Proposed rows**: the rest but 2 doubtful (`dela`, `nes`), and the 6 read as the commoner word | **155** | |
+| **Proposed rows**: the rest but 2 doubtful (`dela`, `nes`), the 6 read as the commoner word, and `tete` | **156** | |
 
 The tests, each a number a person can check:
-- *Named nowhere*: no headword of the section and no inflection an entry lists is the spelling
-  (lowercased, in NFC). This is the boundary with change 43d, which reads what the dictionary says.
+- *No meaning of its own, and not the dictionary's spelling*: the section gives the spelling
+  (lowercased, in NFC) no sense that is neither a form nor a spelling of another word — as a headword,
+  a form of such a word, or an inflection such a word's entry lists —, and does not give it only as a
+  spelling of its accented word. This is the boundary with change 43d, which reads what the
+  dictionary says; `tete`, named only as a form of a spelling 43d's rule leaves, is the one spelling
+  at Zipf ≥ 3 between the two, and 43d hands it to this list.
 - *A dictionary word*: the accented form's lemma in `forms.tsv` is in `lexical.tsv` (fr-en glosses
   it, and not as a name alone). Names are no words to learn, and a capital in mid-sentence whose lemma
   is no dictionary word is set aside already.
@@ -93,7 +96,7 @@ The tests, each a number a person can check:
 
 Each row names the word its accented form reads as in `forms.tsv` today — `tres` → *très*, `etais` →
 *être* (`étais`), `recu` → *recevoir* (`reçu`), `epargne` → *épargner* (`épargne`, M8) — so a row
-follows change 43's choices and never makes one. 43 of the 155 are an inflected form (`ete`,
+follows change 43's choices and never makes one. 43 of the 156 are an inflected form (`ete`,
 `francaise`, `problemes`, `recu`), the rest their word's own form.
 
 **The threshold, measured.** Over the 2,340 spellings that pass every test down to Zipf 1.5, the
@@ -104,14 +107,14 @@ share of their frequency the rows above each threshold carry, and how often a re
 |---|---|---|---|
 | 4.0 | 9 | 22.0 % | 1.92 |
 | 3.5 | 35 | 37.3 % | 3.24 |
-| **3.0** | **157** (155 proposed) | **60.5 %** | **5.27** |
+| **3.0** | **157** (155 proposed, `tete` beside them) | **60.5 %** | **5.27** |
 | 2.5 | 464 | 79.0 % | 6.88 |
 | 2.0 | 1,118 | 92.2 % | 8.02 |
 
 Zipf 3 is proposed: a list one person reads in a sitting, each row met at least once per million
 words; the band from 2.5 adds 307 rows to read for 1.6 occurrences per 10,000 words (Q1). Change
 43b's figure, 301, counted every unglossed spelling of its 475 — the dictionary's own, English words
-and names among them; the 155 proposed rows are all among those 301.
+and names among them; the 156 proposed rows are all among those 301.
 
 **The proposed rows**, by Zipf band: `spelling` → accented form (and its word when another) — the
 spelling's Zipf / the accented form's.
@@ -119,7 +122,7 @@ spelling's Zipf / the accented form's.
 | Zipf | Rows | Spellings |
 |---|---|---|
 | 4.00– | 9 | `meme` → même 4.77/6.32, `tres` → très 4.52/6.12, `apres` → après 4.33/6.12, `ecole` → école 4.21/5.29, `eglise` → église 4.14/4.98, `etes` → êtes, *être* 4.12/5.37, `francais` → français 4.07/5.78, `economie` → économie 4.07/5.05, `deja` → déjà 4.06/5.84 |
-| 3.50–4.00 | 26 | `evidemment` → évidemment 3.93/4.81, `ete` → été, *être* 3.92/6.22, `ecoute` → écoute 3.90/4.88, `equipe` → équipe 3.85/5.48, `plutot` → plutôt 3.84/5.35, `probleme` → problème 3.82/5.41, `etant` → étant, *être* 3.81/5.29, `noel` → noël 3.79/4.78, `serie` → série 3.77/5.24, `energie` → énergie 3.74/4.99, `etais` → étais, *être* 3.74/5.38, `etudes` → études, *étude* 3.72/5.09, `etude` → étude 3.71/5.09, `pres` → près 3.66/5.45, `facon` → façon 3.65/5.39, `ecoutez` → écoutez, *écouter* 3.61/4.10, `serieux` → sérieux 3.60/4.98, `espere` → espère, *espérer* 3.58/5.13, `arrete` → arrête, *arrêter* 3.56/4.98, `ame` → âme 3.54/4.74, `idee` → idée 3.53/5.38, `tot` → tôt 3.51/4.96, `controle` → contrôle 3.50/5.07, `francaise` → française, *français* 3.50/5.31, `frere` → frère 3.50/5.18, `pret` → prêt 3.50/4.99 |
+| 3.50–4.00 | 27 | `evidemment` → évidemment 3.93/4.81, `ete` → été, *être* 3.92/6.22, `ecoute` → écoute 3.90/4.88, `equipe` → équipe 3.85/5.48, `plutot` → plutôt 3.84/5.35, `tete` → tête 3.83/5.53, `probleme` → problème 3.82/5.41, `etant` → étant, *être* 3.81/5.29, `noel` → noël 3.79/4.78, `serie` → série 3.77/5.24, `energie` → énergie 3.74/4.99, `etais` → étais, *être* 3.74/5.38, `etudes` → études, *étude* 3.72/5.09, `etude` → étude 3.71/5.09, `pres` → près 3.66/5.45, `facon` → façon 3.65/5.39, `ecoutez` → écoutez, *écouter* 3.61/4.10, `serieux` → sérieux 3.60/4.98, `espere` → espère, *espérer* 3.58/5.13, `arrete` → arrête, *arrêter* 3.56/4.98, `ame` → âme 3.54/4.74, `idee` → idée 3.53/5.38, `tot` → tôt 3.51/4.96, `controle` → contrôle 3.50/5.07, `francaise` → française, *français* 3.50/5.31, `frere` → frère 3.50/5.18, `pret` → prêt 3.50/4.99 |
 | 3.25–3.50 | 35 | `bebe` → bébé 3.49/4.81, `bientot` → bientôt 3.48/5.05, `drole` → drôle 3.48/4.84, `medias` → médias, *média* 3.47/4.94, `derriere` → derrière 3.46/5.16, `hopital` → hôpital 3.45/4.85, `chateau` → château 3.44/4.72, `maniere` → manière 3.43/5.28, `numero` → numéro 3.43/5.03, `annee` → année 3.41/5.66, `ecologie` → écologie 3.41/4.16, `economique` → économique 3.41/5.07, `ecrire` → écrire 3.41/4.87, `ecrit` → écrit, *écrire* 3.41/5.22, `epoque` → époque 3.40/5.23, `etoile` → étoile 3.40/4.38, `egalement` → également 3.39/5.59, `completement` → complètement 3.37/4.93, `societe` → société 3.36/5.51, `systeme` → système 3.36/5.40, `enorme` → énorme 3.36/4.74, `reponse` → réponse 3.35/5.08, `sante` → santé 3.35/5.22, `problemes` → problèmes, *problème* 3.33/5.09, `ecoles` → écoles, *école* 3.33/4.81, `deuxieme` → deuxième 3.32/5.24, `eviter` → éviter 3.32/4.99, `gateau` → gâteau 3.30/4.22, `medecin` → médecin 3.30/4.88, `etranger` → étranger 3.30/4.86, `echos` → échos, *écho* 3.29/3.64, `ecran` → écran 3.28/4.72, `epargne` → épargne, *épargner* 3.26/4.21, `eternel` → éternel 3.26/4.02, `garcon` → garçon 3.25/4.64 |
 | 3.00–3.25 | 85 | `lache` → lâche, *lâcher* 3.24/4.40, `recu` → reçu, *recevoir* 3.24/5.01, `achete` → acheté, *acheter* 3.23/4.64, `interieur` → intérieur 3.23/5.13, `lumiere` → lumière 3.23/4.94, `prefere` → préfère, *préférer* 3.23/4.76, `republique` → république 3.23/5.07, `interet` → intérêt 3.22/5.13, `velo` → vélo 3.22/4.56, `resultat` → résultat 3.21/5.00, `annees` → années, *année* 3.20/5.63, `espece` → espèce 3.20/4.91, `fete` → fête 3.20/4.95, `interessant` → intéressant 3.20/4.76, `memoire` → mémoire 3.20/4.89, `batiment` → bâtiment 3.19/4.68, `chere` → chère, *cher* 3.19/4.46, `tele` → télé 3.19/4.78, `arret` → arrêt 3.18/4.80, `journee` → journée 3.18/5.30, `echange` → échange 3.18/4.74, `elu` → élu, *élire* 3.18/4.74, `etrange` → étrange 3.18/4.51, `americain` → américain 3.17/5.06, `exterieur` → extérieur 3.17/4.79, `interesse` → intéresse, *intéresser* 3.17/4.63, `presente` → présente, *présenter* 3.17/5.13, `regles` → règles, *règle* 3.17/4.92, `etudiant` → étudiant 3.17/4.54, `chomage` → chômage 3.16/4.62, `reve` → rêve 3.16/4.84, `serieusement` → sérieusement 3.16/4.57, `ecouter` → écouter 3.16/4.71, `electrique` → électrique 3.16/4.65, `serieuse` → sérieuse, *sérieux* 3.15/4.38, `etudiants` → étudiants, *étudiant* 3.15/4.84, `arriere` → arrière 3.13/4.93, `creer` → créer 3.13/4.97, `debat` → débat 3.13/4.84, `empeche` → empêche, *empêcher* 3.13/4.59, `regle` → règle 3.13/4.72, `etape` → étape 3.13/4.71, `evangile` → évangile 3.13/3.71, `cle` → clé 3.12/4.62, `generale` → générale, *général* 3.12/5.03, `modele` → modèle 3.12/4.97, `planete` → planète 3.12/4.75, `echec` → échec 3.12/4.56, `reseau` → réseau 3.11/5.08, `ecris` → écris, *écrire* 3.11/4.30, `acces` → accès 3.10/5.03, `freres` → frères, *frère* 3.10/4.82, `lacher` → lâcher 3.10/4.20, `peres` → pères, *père* 3.10/4.11, `resultats` → résultats, *résultat* 3.10/5.15, `desole` → désolé 3.09/4.78, `periode` → période 3.09/5.16, `etoiles` → étoiles, *étoile* 3.09/4.59, `decembre` → décembre 3.08/5.15, `eglises` → églises, *église* 3.08/4.27, `dernieres` → dernières, *dernier* 3.07/4.95, `developpement` → développement 3.07/5.21, `fevrier` → février 3.07/5.12, `reussi` → réussi, *réussir* 3.07/4.90, `ecriture` → écriture 3.07/4.59, `fenetre` → fenêtre 3.06/4.52, `pate` → pâte 3.05/4.10, `etablissement` → établissement 3.05/4.77, `americains` → américains, *américain* 3.04/4.85, `arretez` → arrêtez, *arrêter* 3.04/4.54, `medecine` → médecine 3.04/4.62, `securite` → sécurité 3.04/5.24, `impots` → impôts, *impôt* 3.03/4.54, `merite` → mérite 3.03/4.78, `troisieme` → troisième 3.03/5.10, `idees` → idées, *idée* 3.02/5.01, `necessaire` → nécessaire 3.02/4.98, `soiree` → soirée 3.02/5.00, `telecharger` → télécharger 3.02/4.02, `echelle` → échelle 3.01/4.64, `armee` → armée 3.00/5.15, `entierement` → entièrement 3.00/4.73, `genial` → génial 3.00/4.51, `economiques` → économiques, *économique* 3.00/4.71, `evite` → évite, *éviter* 3.00/4.16 |
 
@@ -149,18 +152,22 @@ that pass every test and 16 of two words; the first 40:
 
 `reduce-fr-en.py` gains one literal, `WEB_SPELLINGS`, spelling → word, the owner's rows in
 alphabetical order, merged into `UNMARKED_SPELLINGS` with one shared reason (« written on the web
-without its marks; the owner's reviewed list, 2026-10-10 »): one row a line would be 155 reasons
+without its marks; the owner's reviewed list, 2026-10-10 »): one row a line would be 156 reasons
 saying the same thing. Each row is then read exactly as 43b's rows are — the named word its one
 candidate, its own entries (none) and any entry's inflection never making it another word's form,
 seeded whether or not an entry names it. 43b's test holds for every row; its never-list grows by the
 owner's: `ou`, `a`, `la`, `sur`, `du`, `des`, beside `cote`, `tache`, `pale`, `foret`, `aine`.
 
-**The boundary is checked at each reduction.** Once the section is read, the reduction fails when
-any spelling of `WEB_SPELLINGS` is a headword of the section or an inflection an entry lists, naming
-them — as it fails on a word ending in a pronoun the forms table does not list. So no row ever
-shadows a word of its own (`cote`) or a spelling the dictionary gives (change 43d's `etait`), and a
-dictionary update that names a row's spelling stops for a person to decide: delete the row, or leave
-the spelling to 43d's rule. 43b's four rows are not checked: their entries are what they replace.
+**The boundary is checked at each reduction.** Once the section is read, the reduction fails,
+naming them, on any spelling of `WEB_SPELLINGS` the section gives a meaning of its own (a headword
+with a sense that is neither a form nor a spelling of another word, a form of such a word, or an
+inflection such a word's entry lists) or gives only as a spelling of its accented word (an entry
+every sense of which is an alternative, obsolete or misspelt spelling of that word) — as it fails on
+a word ending in a pronoun the forms table does not list. So no row ever shadows a word of its own
+(`cote`, `sure`) or a spelling the dictionary gives (change 43d's `etait`), and a dictionary update
+that names a row's spelling so stops for a person to decide: delete the row, or leave the spelling
+to 43d's rule. A spelling named only as a form of such a spelling passes (`tete`, under `teter`): its
+entry says nothing of *tête*. 43b's four rows are not checked: their entries are what they replace.
 
 *Rejected — a rule by marks alone* (any unaccented word retried with its marks): the owner's
 decision; it would read `video`, `hotel` and `these` as French words, and `ou`, `a`, `la`, `sur` as
@@ -180,7 +187,8 @@ of `lâche` and `lâché`; `etais` the imperfect of *être* and, as `étais` doe
 (`other`); `ecoute` those `écoute` carries — the noun, and *écouter*'s present as `other`. A spelling
 writes both forms alike, so it carries both readings, as `parle` carries five.
 
-Measured: 278 readings for 144 of the 155 rows; the 11 others are adverbs (`tres`, `deja`, `apres`,
+Measured: 279 readings for 145 of the 156 rows (`tete` the feminine singular noun *tête* carries);
+the 11 others are adverbs (`tres`, `deja`, `apres`,
 `plutot`, `bientot`), whose words carry none either. 43b's rows gain theirs: `age` (masculine
 singular noun), `ages` (masculine plural) and `ca` (`ça`'s noun reading, as `ça` itself carries) —
 three; `forcement` none. 43b's D1 wrote no reading for its rows; this change supersedes that for one
@@ -198,9 +206,9 @@ which form; 43 rows are inflected forms. *Rejected — the commonest accented fo
 
 | File | Before → after | What |
 |---|---|---|
-| `tables/fr/forms.tsv` | 124,101 → 124,297 rows | the 155 spellings read as their words (each was its own lemma); `désossé`, a form of *désosser*, its own lemma as it enters the cut; 196 forms of the entering lemmas |
+| `tables/fr/forms.tsv` | 124,101 → 124,298 rows | the 155 spellings the section names nowhere read as their words (each was its own lemma); `tete`, no form today (its entry's word, `teter`, is unranked), a form of *tête*; `désossé`, a form of *désosser*, its own lemma as it enters the cut; 196 forms of the entering lemmas |
 | `tables/fr/freq.tsv` | 60,000 rows | the 155 out (12 in the top 5,000: `meme` 1,018, `tres` 1,697, `apres` 2,343, `ecole` 2,908 …; 42 in the top 10,000; all in the top 20,000, the last `genial` 18,731); 155 lemmas in at 59,843–59,997 (`dilapidation`, `désarçonner`, `enceint`, and web words such as `depui`, `embete`); 58,825 ranks up by 1 to 155. The words keep their ranks (`même` 40, `très` 50, `déjà` 84, `français` 97) |
-| `tables/fr/grammar.tsv` | 125,177 → 125,575 rows | the spellings' 278 readings, 43b's rows' 3, the entering lemmas' 118; out one, `désossé`'s reading under *désosser* |
+| `tables/fr/grammar.tsv` | 125,177 → 125,576 rows | the spellings' 279 readings, 43b's rows' 3, the entering lemmas' 118; out one, `désossé`'s reading under *désosser* |
 | `tables/fr/level.tsv` | byte for byte | no spelling was a levelled word (46's rule 1, « unknown »); the reduction's report moves alone: 1,395 → 1,346 unknown lemmas passed over, the spans one to 49 ranks earlier (A1 1–1,084, C2 9,437–10,771) |
 | `tables/fr/lexical.tsv` | 26,484 → 26,517 words | 33 entering lemmas fr-en glosses; none out |
 | `tables/fr/tags.tsv`, `studied.json` | byte for byte | |
@@ -212,7 +220,7 @@ which form; 43 rows are inflected forms. *Rejected — the commonest accented fo
 | `tables/fr-es/mwe.tsv`, `NOTICE` | byte for byte | |
 | fr-es's coverage | 83.0 / 70.7 / 56.7 → 83.1 / 70.8 / 57.0 % | 4,150 / 7,067 / 11,342 → 4,156 / 7,083 / 11,401; floor 81.4 / 68.8 / 54.5 |
 | `tables/fr-es/pin.json`, `manifest.json` | `studied` (`forms.tsv`, `freq.tsv`, `grammar.tsv`, `lexical.tsv`), `pack`, `pack_version`'s studied digest | its reducer digest and sources byte for byte; `level.tsv`'s record unchanged |
-| The packs | fr-en 2,537,588 → 2,540,267 B; fr-es 1,971,114 → 1,972,773 B | at today's manifests' lengths |
+| The packs | fr-en 2,537,588 → 2,540,636 B; fr-es 1,971,114 → 1,973,142 B | at today's manifests' lengths |
 | UD French-PUD (gated) | 99.13 / 96.41 / 99.90 → 99.13 / 96.40 / 100.00 % | « Etant » (AUX) now *être*; « Evidemment », which PUD lemmatises as written (`evidemment`), now *évidemment* — the row is right, the treebank keeps the unaccented lemma; the gates are 98.5 / 93.5 / 97 |
 | UD French-GSD, test (reported) | 98.89 / 95.86 / 99.72 → 98.91 / 95.94 / 99.72 % | « Eglise » twice and « Equipe », now *église* and *équipe* |
 | Readings on the treebanks (reported) | PUD participles 973 → 974 words read, pronouns 16.60 → 16.98 %; GSD nouns 1,772 → 1,776 | |
@@ -256,7 +264,7 @@ same four:
 
 | Probe | fr-en | fr-es |
 |---|---|---|
-| `pack` | 2,537,588 → 2,540,267 B (and the new `pack_version`) | 1,971,114 → 1,972,773 B (and the new `pack_version`) |
+| `pack` | 2,537,588 → 2,540,636 B (and the new `pack_version`) | 1,971,114 → 1,973,142 B (and the new `pack_version`) |
 | `analyse new-reader informel` | « apres » *apres*, no gloss → *après* « after… »; « genial » → *génial* « ingenious…; great, fantastic »; the page's count (37) and every other token unchanged — « la » in « chuis pas la » stays *le*, « etait » stays itself (43d) | « apres » → *après* « Después de… », « genial » → *génial* « Genial… » |
 | `vocabulary-estimate new-reader` | universe 26,484 → 26,517 | the same |
 | `vocabulary-estimate reader` | universe 26,483 → 26,516, estimated 2,185 unchanged | the same |
@@ -300,15 +308,18 @@ well », « row: façon de parler — façon de parler ».
   `étre` 3.23, `oú` 3.22, `electricité` 3.21, `mére` 3.15, `eté` 3.14, `théatre` 3.09, `verité` 3.08,
   `pêle` 3.01, `agé` 3.00. The owner's decision names spellings without accents; these are another
   kind, and `á`, `oú` and `pêle` need care.
-- **The dictionary's own spellings — change 43d.** The 21 entries at Zipf ≥ 3 (`etat`, `etre`,
-  `etait`, `derniere`, `arreter`, `etaient`, `repondre`, `siecle`) and the inflections they list
-  (`repond`, `repondu`) are 43d's, and D2's check keeps them out of this list. Both changes edit
-  `reduce-fr-en.py` and re-pin fr-en and fr-es: whichever lands second re-reduces on the other's
-  tables and re-blesses the two French goldens (« c'etait » moves with 43d). D3's readings serve 43d's
-  spellings too if 43d reads them through this table; otherwise 43d decides its own.
-- **Spellings named only as another entry's inflection** (13 at Zipf ≥ 3: `male` under `mal`,
-  `preparer` under *préparer*, `surcroit`, `protege`, `vegan`): the dictionary names them, so neither
-  this list nor the web's; recorded for 43d.
+- **The dictionary's own spellings — change 43d.** The spellings the section gives only as their
+  accented word (`etat`, `etre`, `etait`, `derniere`, `arreter`, `etaient`, `repondre`, `siecle`) and
+  the inflections they list (`repond`, `repondu`) are 43d's, read by change 43's spelling rule, which
+  files their readings under the accented word itself; D2's check keeps them out of this list. 43d's
+  design hands this list five spellings: `tete`, which it leaves (its forms guard), proposed here
+  (D1); `sure`, `sures` and `surs`, forms of *sur* « sour » — words of their own, and the forms of the
+  owner's never `sur`/`sûr` —, never rows; `entrainant` (Zipf 2.93), the participle of `entrainer`,
+  a word of the section and below the threshold. The four it says this list could name are no rows: `chouia`
+  (« brochette »), `colon` (« colonist ») and `mercedes` (the car) are words of their own, which D2's
+  check refuses, and `to` (« variant of tô », the terabyte's symbol) is 660 times commoner than *tô*. Both changes edit `reduce-fr-en.py` and re-pin fr-en and fr-es: whichever lands second
+  re-reduces on the other's tables, re-blesses the two French goldens (« c'etait » moves with 43d) and
+  holds that no spelling is read by both.
 - **Change 43c** (« CA » in capitals): no interplay. A word wholly in capitals that its acronym table
   does not hold falls through to the cascade, so « ECOLE » among lowercase words reads as *école*.
   43c also edits `reduce-fr-en.py` and re-pins both French pairs: the second to land re-reduces.
@@ -349,7 +360,7 @@ test and the gates 0.25. The owner's reading of the list (task 0.1) comes before
 
 Each settled before the implementation (task 0.1); the recommendation first.
 
-- **Q1 — How common must a spelling be?** Zipf ≥ 3, once per million words: 155 rows (recommended).
+- **Q1 — How common must a spelling be?** Zipf ≥ 3, once per million words: 156 rows (recommended).
   Lowering to 2.5 adds 307 rows to read (`deteste`, `vetements`, `appele`, `leger`, `metier`,
   `biere`, `peche`…) for 1.6 more occurrences per 10,000 words.
 - **Q2 — Spellings English also writes, more often than French** (103: `video`, `hotel`, `these`,
