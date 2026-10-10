@@ -174,6 +174,12 @@ queued before the deploy keeps the language it was rendered in.
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session), each as recommended:** Q1 yes, as a small Lingua
+follow-up released after this deploy (not folded into change 17, whose release may come first); Q2
+English, one language per account (D1); Q3 kept so, a Lingua choice does not move the account's
+language.
+
+
 - **Q1 — Should Lingua send the browser's language again on a resend and a reset, before the reader
   has chosen?** Change 17 sends none there so as not to overwrite the account; after this change a
   request cannot overwrite it, and a locale is used only when the account has none. *Example:* Léa's
