@@ -1,5 +1,56 @@
 # Changelog
 
+## [1.8.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.7.0...lingua-extension-v1.8.0) (2026-10-10)
+
+
+### Features
+
+* **lingua:** _locales for the manifest, shipped with a non-French pair ([#790](https://github.com/NEETROF/cymbra/issues/790)) ([d196c80](https://github.com/NEETROF/cymbra/commit/d196c80faf992f1ea2bf8920b13527475d451d07))
+* **lingua-apple:** host app speaks the extension's language ([#798](https://github.com/NEETROF/cymbra/issues/798)) ([ce8abdd](https://github.com/NEETROF/cymbra/commit/ce8abdda05fe7322f6e34597f5276292e748d2ae))
+* **lingua:** a card says the language of its gloss, and review shows one the reader can read ([#762](https://github.com/NEETROF/cymbra/issues/762)) ([a5a8fab](https://github.com/NEETROF/cymbra/commit/a5a8fab11c71c9873732c8c912ad0666df796860))
+* **lingua:** a card seeded from a level always carries its gloss ([#869](https://github.com/NEETROF/cymbra/issues/869)) ([cbef378](https://github.com/NEETROF/cymbra/commit/cbef3788c59cf72a17f896e8194ba224da4a1c0c))
+* **lingua:** a French expression's elided pieces meet elided words ([#873](https://github.com/NEETROF/cymbra/issues/873)) ([f358558](https://github.com/NEETROF/cymbra/commit/f3585580ed26cb6c78d4f2ad77d3718408a26a01))
+* **lingua:** a soft hyphen is not part of a word ([#870](https://github.com/NEETROF/cymbra/issues/870)) ([4f6b8cb](https://github.com/NEETROF/cymbra/commit/4f6b8cb80707f10c5225f7781e468cd87ef43fc6))
+* **lingua:** a studied language's tables, kept once ([#745](https://github.com/NEETROF/cymbra/issues/745)) ([8da987b](https://github.com/NEETROF/cymbra/commit/8da987b9698bec3de8ed480c0e580262ab7b8284))
+* **lingua:** a translation route per pair, on the three hosts ([#757](https://github.com/NEETROF/cymbra/issues/757)) ([a4c547d](https://github.com/NEETROF/cymbra/commit/a4c547d35524e49a49465e1e546c9824aeb2cc54))
+* **lingua:** account page and onboarding speak the interface language ([#786](https://github.com/NEETROF/cymbra/issues/786)) ([c64d085](https://github.com/NEETROF/cymbra/commit/c64d085baf0cca6ab3d69c74ba59d040c54a1629))
+* **lingua:** en-es's glosses read as meanings, in one typography ([#811](https://github.com/NEETROF/cymbra/issues/811)) ([d7ae2f6](https://github.com/NEETROF/cymbra/commit/d7ae2f62798bdd5ddd1fef623d7efc4b1c424c67))
+* **lingua:** es-en and en-es translation marks measured and judged ([#793](https://github.com/NEETROF/cymbra/issues/793)) ([8a9c94e](https://github.com/NEETROF/cymbra/commit/8a9c94e6a3d593a21a8decaecc49129dd65103d0))
+* **lingua:** es-en's glosses read as meanings, not the page's layout ([#809](https://github.com/NEETROF/cymbra/issues/809)) ([e3dec06](https://github.com/NEETROF/cymbra/commit/e3dec064b1f6adb1b425d7720849627cf222ff75))
+* **lingua:** fr-en glossed from the English Wiktionary's French section ([#855](https://github.com/NEETROF/cymbra/issues/855)) ([34fa74b](https://github.com/NEETROF/cymbra/commit/34fa74b2191fbf6d789aa9f20968275ae5e0d8f0))
+* **lingua:** fr-en pinned, French routed and its marks measured ([#837](https://github.com/NEETROF/cymbra/issues/837)) ([24c44d4](https://github.com/NEETROF/cymbra/commit/24c44d4f607c7871e86fbe20cc000f0ca79d6eb1))
+* **lingua:** fr-en's glosses read as French, names out of its words ([#872](https://github.com/NEETROF/cymbra/issues/872)) ([917877c](https://github.com/NEETROF/cymbra/commit/917877cde3566694a6ed978f5d219e9fdb51fb9b))
+* **lingua:** fr-es, French glossed in Spanish ([#862](https://github.com/NEETROF/cymbra/issues/862)) ([c8ddbf5](https://github.com/NEETROF/cymbra/commit/c8ddbf568059ca3106998219253e838f49d57c42))
+* **lingua:** fr-es's glosses labelled, listed once and corrected ([#875](https://github.com/NEETROF/cymbra/issues/875)) ([9eb6330](https://github.com/NEETROF/cymbra/commit/9eb63300180002151f5a2c7a946c9cb474c4aacf))
+* **lingua:** French analysis at analyser 1.0.0 ([#832](https://github.com/NEETROF/cymbra/issues/832)) ([12ed28c](https://github.com/NEETROF/cymbra/commit/12ed28ce7f621a534cbd2f77bd9ddace281f916b))
+* **lingua:** French as a studied language, its baseline and backup v3 ([#803](https://github.com/NEETROF/cymbra/issues/803)) ([9fde7bb](https://github.com/NEETROF/cymbra/commit/9fde7bb1612117f10009cb10a01ad0d2c7cfac55))
+* **lingua:** French tokenisation pre-pass at analyser 0.2.0 ([#821](https://github.com/NEETROF/cymbra/issues/821)) ([35faf77](https://github.com/NEETROF/cymbra/commit/35faf77424937baf34bce4a392170c33555aa440))
+* **lingua:** French's forms and ranks, reduced by fr-en ([#829](https://github.com/NEETROF/cymbra/issues/829)) ([24bcbcd](https://github.com/NEETROF/cymbra/commit/24bcbcd5c2811f496c9c5315edf842d1012fe548))
+* **lingua:** languages named in the interface language (CEFR / MCER) ([#796](https://github.com/NEETROF/cymbra/issues/796)) ([b736e6c](https://github.com/NEETROF/cymbra/commit/b736e6c161d5efe51585fbab9e06401f3885b314))
+* **lingua:** no card line for a plural read beside its singular ([#851](https://github.com/NEETROF/cymbra/issues/851)) ([5e82f55](https://github.com/NEETROF/cymbra/commit/5e82f55554dc0427533ac47f2bf8ed92b9416448))
+* **lingua:** one native language per engine, the reader's ([#733](https://github.com/NEETROF/cymbra/issues/733)) ([9a1b69d](https://github.com/NEETROF/cymbra/commit/9a1b69d515c4f7901fe64b775b9514f075fdf43c))
+* **lingua:** one reducer for the French, English and Spanish Wiktionaries ([#738](https://github.com/NEETROF/cymbra/issues/738)) ([2cb7128](https://github.com/NEETROF/cymbra/commit/2cb712835dca595d4acc621ea6781bfb2d08d0de))
+* **lingua:** pin en-es 2.1 and route es-en and en-es ([#783](https://github.com/NEETROF/cymbra/issues/783)) ([8900eed](https://github.com/NEETROF/cymbra/commit/8900eedccd0b553e2764b972d547bfa350f4895e))
+* **lingua:** read-aloud ready for French as a studied language ([#820](https://github.com/NEETROF/cymbra/issues/820)) ([3e14957](https://github.com/NEETROF/cymbra/commit/3e14957777a123f561a6dd91f9bb69d139247023))
+* **lingua:** Réglages reads its copy from the catalogue ([#784](https://github.com/NEETROF/cymbra/issues/784)) ([c6e9440](https://github.com/NEETROF/cymbra/commit/c6e9440a1bd9fb5360250c0cb8146f7235cb1859))
+* **lingua:** review and statistics speak the interface language ([#787](https://github.com/NEETROF/cymbra/issues/787)) ([ada576d](https://github.com/NEETROF/cymbra/commit/ada576d6ee6f5b630aa4d7785b945dfe3cd05e19))
+* **lingua:** Spanish → English reading pack (es-en) ([#785](https://github.com/NEETROF/cymbra/issues/785)) ([23fb409](https://github.com/NEETROF/cymbra/commit/23fb40989755a1ac3e57a422d1002a124b650d3c))
+* **lingua:** the device sends the language of a gloss and of a day ([#766](https://github.com/NEETROF/cymbra/issues/766)) ([14fce62](https://github.com/NEETROF/cymbra/commit/14fce6205760fa1262e5a111e3db324e7a3561f7))
+* **lingua:** the engine worker survives a trap and holds two models at most ([#765](https://github.com/NEETROF/cymbra/issues/765)) ([1776efc](https://github.com/NEETROF/cymbra/commit/1776efca47bffd9edaa0c5378be788dbb5d6628e))
+* **lingua:** the interface's copy in a catalogue, under an interface-language key ([#767](https://github.com/NEETROF/cymbra/issues/767)) ([1f19f70](https://github.com/NEETROF/cymbra/commit/1f19f70a74972cb4ac9bf3e2b00e075a9feab10c))
+* **lingua:** the language choice and Lingua page say nothing of price ([#854](https://github.com/NEETROF/cymbra/issues/854)) ([f2a485e](https://github.com/NEETROF/cymbra/commit/f2a485eed82f37f2b2c62eede919c5833bb8943a))
+* **lingua:** the listings and the site, for the readers who study French ([#868](https://github.com/NEETROF/cymbra/issues/868)) ([2550a6e](https://github.com/NEETROF/cymbra/commit/2550a6e7ab3c8a2b43f6cea5535c5b2bc2e9eac2))
+* **lingua:** the native language's choice, hidden while one native ships ([#807](https://github.com/NEETROF/cymbra/issues/807)) ([f2e0b43](https://github.com/NEETROF/cymbra/commit/f2e0b4309199f9756c9220ea034f372af07f6626))
+* **lingua:** the reading surfaces read their copy from the catalogue ([#782](https://github.com/NEETROF/cymbra/issues/782)) ([6acecef](https://github.com/NEETROF/cymbra/commit/6acecef0914249f2a1cb9da96ea3f3be0e268afc))
+* **lingua:** the word card describes a form once, rendered per language ([#791](https://github.com/NEETROF/cymbra/issues/791)) ([9764fb9](https://github.com/NEETROF/cymbra/commit/9764fb9b487812d9174440f9f6304210c615b041))
+* **lingua:** the word card names French's forms in English and Spanish ([#866](https://github.com/NEETROF/cymbra/issues/866)) ([900f07c](https://github.com/NEETROF/cymbra/commit/900f07c833e591bb155dc4cefc992b25f7517f3a))
+
+
+### Bug Fixes
+
+* **lingua:** a dictionary form reads its own entry ([#848](https://github.com/NEETROF/cymbra/issues/848)) ([725eb6f](https://github.com/NEETROF/cymbra/commit/725eb6fa79c3f5385b28f198bbdfd10cfe5666be))
+* **lingua:** remember the chosen native language, not for 30 s ([#812](https://github.com/NEETROF/cymbra/issues/812)) ([e627586](https://github.com/NEETROF/cymbra/commit/e6275865ac521e38f3071f6f5924514ac356a3fb))
+
 ## [1.7.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.6.0...lingua-extension-v1.7.0) (2026-10-06)
 
 

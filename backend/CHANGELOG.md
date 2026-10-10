@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.37.0](https://github.com/NEETROF/cymbra/compare/backend-v0.36.0...backend-v0.37.0) (2026-10-10)
+
+
+### Features
+
+* **auth:** write account e-mails in the account's stored language ([#859](https://github.com/NEETROF/cymbra/issues/859)) ([02a94a6](https://github.com/NEETROF/cymbra/commit/02a94a6013b75828b19cffd430cb436942ed4874))
+* **lingua:** the server records the language of a gloss and of a day ([#753](https://github.com/NEETROF/cymbra/issues/753)) ([4fa24f8](https://github.com/NEETROF/cymbra/commit/4fa24f88a4a9be4a4c046d6a6b3652fff7013406))
+* **platform:** Cymbra ID e-mails link the legal pages in their language ([#794](https://github.com/NEETROF/cymbra/issues/794)) ([5c7a6c5](https://github.com/NEETROF/cymbra/commit/5c7a6c5a3de8df35b845a3586d600a47004614ed))
+
 ## [0.36.0](https://github.com/NEETROF/cymbra/compare/backend-v0.35.0...backend-v0.36.0) (2026-10-03)
 
 

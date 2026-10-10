@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.24.0...back-office-v0.25.0) (2026-10-10)
+
+
+### Features
+
+* **lingua:** the listings and the site, for the readers who study French ([#868](https://github.com/NEETROF/cymbra/issues/868)) ([2550a6e](https://github.com/NEETROF/cymbra/commit/2550a6e7ab3c8a2b43f6cea5535c5b2bc2e9eac2))
+
 ## [0.24.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.23.0...back-office-v0.24.0) (2026-10-04)
 
 
