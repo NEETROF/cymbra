@@ -545,7 +545,6 @@ agathe	PROPN:1
 agave	NOUN:1
 agaçant	ADJ:1
 agde	PROPN:1
-age	NOUN:2
 agen	PROPN:1
 agence	NOUN:1
 agencement	NOUN:1
@@ -4130,7 +4129,6 @@ bûcher	NOUN:4	VERB:2
 bûcheron	NOUN:2
 bœuf	NOUN:5
 c'est-à-dire	X:1
-ca	NOUN:1
 cab	ADJ:1
 cabale	NOUN:1
 caban	NOUN:1
@@ -7410,6 +7408,7 @@ cursus	NOUN:1
 curviligne	ADJ:1
 curé	NOUN:2
 curée	NOUN:3
+cussac	PROPN:1
 custode	NOUN:4
 customisation	NOUN:1
 customiser	VERB:1
@@ -7509,6 +7508,7 @@ cénacle	NOUN:1
 cénotaphe	NOUN:1
 cépage	NOUN:1
 céphalique	ADJ:1
+céphalonie	PROPN:1
 céphalée	NOUN:1
 céramique	ADJ:1	NOUN:2
 céramiste	NOUN:1
@@ -7538,6 +7538,7 @@ cône	NOUN:1
 côte	NOUN:3
 côte-d'or	PROPN:1
 côtelette	NOUN:1
+côtelé	ADJ:1
 côtes-d'armor	PROPN:1
 côtier	ADJ:1
 côtoyer	VERB:3
@@ -11197,7 +11198,6 @@ forage	NOUN:1
 forain	NOUN:2	ADJ:1
 forcalquier	PROPN:1
 force	NOUN:3	ADJ:1
-forcement	NOUN:1
 forcené	ADJ:1	NOUN:1
 forceps	NOUN:1
 forcer	VERB:1
