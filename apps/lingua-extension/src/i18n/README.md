@@ -2,16 +2,19 @@
 
 Every text the extension shows lives here, once per language: `fr/<surface>.ts`, `en/<surface>.ts`,
 `es/<surface>.ts`, one module per surface (`popup`, `hud`, `drawer`, `card`, `selection`,
-`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `native-language`, `colours`, `display`, `translation`,
-`account-setting`, `account`, `onboarding`, `reader`, `sync`, `languages`, `grammar`). The French module is the source;
+`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `native-language`, `colours`,
+`display`, `translation`, `account-setting`, `account`, `account-errors`, `onboarding`, `reader`,
+`sync`, `languages`, `grammar`). The French module is the source;
 the English and Spanish ones are typed after it (`export const popup: typeof fr = { … }`), so a key
 missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts` checks the rest at
 runtime: no empty entry, every slot taken, nothing left in French outside the texts that are the same
 in every language. `test/lint-copy.spec.ts` refuses a French literal in `src/` outside this
 directory, except in the files its baseline names — the surfaces still holding their copy, which the
-changes moving them take off the list: `localise-lingua-reading-surfaces` (14),
+changes moving them took off the list: `localise-lingua-reading-surfaces` (14),
 `localise-lingua-settings` (15), `localise-lingua-review-stats` (16),
-`localise-lingua-account-onboarding` (17).
+`localise-lingua-account-onboarding` (17), `generalise-lingua-card-wording` (18,
+`reading/grammar-labels.ts`) and `add-lingua-native-language-labels` (19,
+`analyzer/language-labels.ts`). The baseline is empty since.
 
 A language's name — « anglais », "Spanish", « español » and their inflections, in any interface language — is
 named in `<language>/languages.ts` alone, and the surfaces ask `src/analyzer/language-labels.ts` for it in the

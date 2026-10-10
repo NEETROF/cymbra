@@ -1,4 +1,13 @@
+import {
+  DEFAULT_INTERFACE_LANGUAGE,
+  formatCount,
+  formatDate,
+  type InterfaceLanguage,
+  NODE_SLOT,
+  renderAround,
+} from "../i18n/index.ts";
 import type { Provider } from "../state/oidc.ts";
+import { type AccountCopy, accountCopy } from "./copy.ts";
 import { type AccountView, type AccountViewState, providerName } from "./flow.ts";
 import { HANDLE_MAX_LENGTH, type HandleStatus } from "./handle.ts";
 import type { LinkedIdentity } from "./messages.ts";
@@ -6,7 +15,8 @@ import type { LinkedIdentity } from "./messages.ts";
 // DOM for the account page (add-lingua-account-parity). Pure rendering from the
 // controller's state into a host element, wired to actions — unit-tested with jsdom like
 // review/view.ts. Every reader-provided value (the email, the handle) goes through
-// textContent/value, never innerHTML.
+// textContent/value, never innerHTML. Its copy is the catalogue's `account` module in the
+// interface language (localise-lingua-account-onboarding D3), French when none is given.
 
 export interface AccountActions {
   signInEmail(email: string, password: string): void;
@@ -39,14 +49,25 @@ export interface AccountActions {
   confirmPassword(code: string): void;
 }
 
-const HANDLE_HELP: Record<HandleStatus, string> = {
-  empty: `1 à ${HANDLE_MAX_LENGTH} lettres ou chiffres.`,
-  invalid: `1 à ${HANDLE_MAX_LENGTH} lettres ou chiffres uniquement (sans espaces ni symboles).`,
-  checking: "Vérification…",
-  available: "Disponible !",
-  taken: "Ce pseudo est pris — essaies-en un autre.",
-  error: "Impossible de vérifier pour l'instant — tu peux quand même valider.",
-};
+/** The handle field's help, by availability. */
+function handleHelp(status: HandleStatus, c: AccountCopy, language: InterfaceLanguage): string {
+  const max = formatCount(language, HANDLE_MAX_LENGTH);
+  const help: Record<HandleStatus, string> = {
+    empty: c.handleEmpty(max),
+    invalid: c.handleInvalid(max),
+    checking: c.handleChecking,
+    available: c.handleAvailable,
+    taken: c.handleTaken,
+    error: c.handleUnchecked,
+  };
+  return help[status];
+}
+
+/** What every part of the page is rendered with: the interface language and its copy. */
+interface Words {
+  language: InterfaceLanguage;
+  c: AccountCopy;
+}
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -99,7 +120,7 @@ function links(items: [string, () => void][]): HTMLElement {
   return row;
 }
 
-function providerButtons(s: AccountViewState, a: AccountActions): HTMLElement[] {
+function providerButtons(s: AccountViewState, a: AccountActions, { c }: Words): HTMLElement[] {
   const out: HTMLElement[] = [];
   const add = (provider: Provider, label: string): void => {
     const b = h("button", "account-provider", label);
@@ -109,9 +130,9 @@ function providerButtons(s: AccountViewState, a: AccountActions): HTMLElement[] 
     b.addEventListener("click", () => a.signInWith(provider));
     out.push(b);
   };
-  if (s.providers.google) add("google", "Continuer avec Google");
-  if (s.providers.apple) add("apple", "Continuer avec Apple");
-  if (out.length > 0) out.push(h("div", "account-sep", "ou avec ton email"));
+  if (s.providers.google) add("google", c.continueWithGoogle);
+  if (s.providers.apple) add("apple", c.continueWithApple);
+  if (out.length > 0) out.push(h("div", "account-sep", c.orWithEmail));
   return out;
 }
 
@@ -142,38 +163,26 @@ function button(cls: string, label: string, disabled: boolean, onClick: () => vo
  * « Tes données » (add-lingua-privacy-controls): erase Lingua only, after an explicit
  * confirmation, or leave for the site to delete the whole Cymbra account.
  */
-function dataSection(s: AccountViewState, a: AccountActions): HTMLElement {
+function dataSection(s: AccountViewState, a: AccountActions, { c }: Words): HTMLElement {
   const section = h("section", "account-data");
   section.id = "data";
-  section.append(h("h3", "account-subtitle", "Tes données"));
+  section.append(h("h3", "account-subtitle", c.yourData));
   if (s.confirmingErase) {
-    const warning = h(
-      "p",
-      "account-warning",
-      "Tes mots, ton niveau, ton deck et tes statistiques Lingua seront effacés sur le serveur et sur tous " +
-        "tes appareils. C'est définitif. Ton compte Cymbra et Cymbra Music ne sont pas touchés.",
-    );
+    const warning = h("p", "account-warning", c.eraseWarning);
     warning.setAttribute("role", "alert");
     section.append(
       warning,
-      button("account-danger", "Oui, effacer mes données Lingua", s.busy, () => a.eraseLinguaData()),
-      button("account-secondary", "Annuler", s.busy, () => a.cancelErase()),
+      button("account-danger", c.eraseYes, s.busy, () => a.eraseLinguaData()),
+      button("account-secondary", c.cancel, s.busy, () => a.cancelErase()),
     );
   } else {
     section.append(
-      h("p", "account-lead", "Efface ce que Lingua a enregistré pour ce compte, sans supprimer le compte."),
-      button("account-secondary", "Effacer mes données Lingua…", s.busy, () => a.askErase()),
+      h("p", "account-lead", c.eraseLead),
+      button("account-secondary", c.erase, s.busy, () => a.askErase()),
     );
   }
-  section.append(
-    h(
-      "p",
-      "account-footnote",
-      "Supprimer ton compte Cymbra le supprime pour toutes les apps Cymbra, Music compris. " +
-        "Pour ne retirer que Lingua, utilise « Effacer mes données Lingua ».",
-    ),
-  );
-  const del = h("a", "account-link", "Supprimer mon compte Cymbra");
+  section.append(h("p", "account-footnote", c.deleteFootnote));
+  const del = h("a", "account-link", c.deleteAccount);
   del.href = s.deleteAccountUrl;
   del.target = "_blank";
   del.rel = "noopener";
@@ -181,80 +190,76 @@ function dataSection(s: AccountViewState, a: AccountActions): HTMLElement {
   return section;
 }
 
-/** « Lié le 4 octobre 2026 », from Unix seconds. */
-export function linkedOn(linkedAt: number): string {
-  const date = new Date(linkedAt * 1000).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  return `Lié le ${date}`;
+/**
+ * « Lié le 4 octobre 2026 », from Unix seconds: the day, the month and the year as the interface
+ * language writes a date (`fr-FR` for the French, as before).
+ */
+export function linkedOn(linkedAt: number, language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE): string {
+  const date = formatDate(language, new Date(linkedAt * 1000), { day: "numeric", month: "long", year: "numeric" });
+  return accountCopy(language).linkedOn(date);
 }
 
 /** One linked method: its name, its address for email and password, when, and « Retirer ». */
-function identityRow(s: AccountViewState, a: AccountActions, i: LinkedIdentity, only: boolean): HTMLElement {
+function identityRow(s: AccountViewState, a: AccountActions, i: LinkedIdentity, only: boolean, w: Words): HTMLElement {
+  const { c, language } = w;
   const row = h("li", "account-identity");
   row.dataset.provider = i.provider;
-  const name = h("div", "account-identity-name", providerName(i.provider));
+  const name = h("div", "account-identity-name", providerName(i.provider, language));
   row.append(name);
   if (i.provider === "local") row.append(h("div", "account-identity-detail", i.subject));
-  row.append(h("div", "account-identity-detail", linkedOn(i.linkedAt)));
+  row.append(h("div", "account-identity-detail", linkedOn(i.linkedAt, language)));
   const confirming = s.removing?.provider === i.provider && s.removing.subject === i.subject;
   if (confirming) {
-    const ask = h("p", "account-warning", `Retirer ${providerName(i.provider)} de ton compte ?`);
+    const ask = h("p", "account-warning", c.removeAsk(providerName(i.provider, language)));
     ask.setAttribute("role", "alert");
     row.append(
       ask,
-      button("account-danger", "Retirer", s.busy, () => a.remove()),
-      button("account-secondary", "Annuler", s.busy, () => a.cancelRemove()),
+      button("account-danger", c.remove, s.busy, () => a.remove()),
+      button("account-secondary", c.cancel, s.busy, () => a.cancelRemove()),
     );
   } else if (only) {
-    row.append(h("p", "account-footnote", "Tu ne peux pas retirer ta seule méthode de connexion."));
+    row.append(h("p", "account-footnote", c.onlyMethod));
   } else {
-    row.append(button("account-secondary", "Retirer", s.busy, () => a.askRemove(i)));
+    row.append(button("account-secondary", c.remove, s.busy, () => a.askRemove(i)));
   }
   return row;
 }
 
+/** « Saisis le code envoyé à <b>email</b> »: the message rendered around the address, in bold. */
+function codeSentTo(c: AccountCopy, email: string): HTMLElement {
+  const to = h("p", "account-lead");
+  renderAround(to, c.codeSentTo(NODE_SLOT), h("b", undefined, email));
+  return to;
+}
+
 /** « Définir un mot de passe »: the offer, its form, or its code step (design D4). */
-function passwordSection(s: AccountViewState, a: AccountActions): HTMLElement {
+function passwordSection(s: AccountViewState, a: AccountActions, { c }: Words): HTMLElement {
   const section = h("section", "account-password");
   switch (s.passwordStep) {
     case "closed":
-      section.append(button("account-secondary", "Définir un mot de passe", s.busy, () => a.showPasswordForm()));
+      section.append(button("account-secondary", c.setPassword, s.busy, () => a.showPasswordForm()));
       break;
     case "form": {
+      section.append(h("h3", "account-subtitle", c.setPassword), h("p", "account-lead", c.setPasswordLead));
+      const email = field("email", c.email, "email", "username", s.passwordEmail);
+      const password = field("password", c.password, "password", "new-password");
       section.append(
-        h("h3", "account-subtitle", "Définir un mot de passe"),
-        h(
-          "p",
-          "account-lead",
-          "Ajoute un email et un mot de passe pour aussi te connecter par email — sur un navigateur sans " +
-            "Google ni Apple, par exemple. Nous t'enverrons un code pour vérifier l'adresse.",
-        ),
-      );
-      const email = field("email", "Email", "email", "username", s.passwordEmail);
-      const password = field("password", "Mot de passe", "password", "new-password");
-      section.append(
-        form([email, password], "Définir le mot de passe", s.busy, () =>
+        form([email, password], c.setPasswordSubmit, s.busy, () =>
           a.setPassword(email.input.value, password.input.value),
         ),
-        links([["Annuler", () => a.cancelPassword()]]),
+        links([[c.cancel, () => a.cancelPassword()]]),
       );
       break;
     }
     case "code": {
-      section.append(h("h3", "account-subtitle", "Vérifie ton adresse email"));
-      const to = h("p", "account-lead", "Saisis le code envoyé à ");
-      to.append(h("b", undefined, s.passwordEmail));
-      section.append(to);
-      const code = field("code", "Code de vérification", "text", "one-time-code");
+      section.append(h("h3", "account-subtitle", c.verifyEmail), codeSentTo(c, s.passwordEmail));
+      const code = field("code", c.verificationCode, "text", "one-time-code");
       code.input.inputMode = "numeric";
       section.append(
-        form([code], "Valider", s.busy, () => a.confirmPassword(code.input.value)),
+        form([code], c.validate, s.busy, () => a.confirmPassword(code.input.value)),
         links([
-          ["Recommencer", () => a.restartPassword()],
-          ["Annuler", () => a.cancelPassword()],
+          [c.restart, () => a.restartPassword()],
+          [c.cancel, () => a.cancelPassword()],
         ]),
       );
       break;
@@ -264,32 +269,39 @@ function passwordSection(s: AccountViewState, a: AccountActions): HTMLElement {
 }
 
 /** Comptes connectés (add-lingua-connected-accounts): the methods, and what can be added. */
-function connectedCard(card: HTMLElement, s: AccountViewState, a: AccountActions): void {
-  card.append(
-    h("p", "account-lead", "Les méthodes de connexion liées à ton compte Cymbra — les mêmes que dans Cymbra Music."),
-  );
+function connectedCard(card: HTMLElement, s: AccountViewState, a: AccountActions, w: Words): void {
+  const { c } = w;
+  card.append(h("p", "account-lead", c.connectedLead));
   if (s.identities == null) {
-    if (!s.busy) card.append(button("account-secondary", "Réessayer", false, () => a.retryIdentities()));
-    card.append(links([["Retour", () => a.leaveConnected()]]));
+    if (!s.busy) card.append(button("account-secondary", c.retry, false, () => a.retryIdentities()));
+    card.append(links([[c.back, () => a.leaveConnected()]]));
     return;
   }
   const list = h("ul", "account-identities");
-  for (const i of s.identities) list.append(identityRow(s, a, i, s.identities.length === 1));
+  for (const i of s.identities) list.append(identityRow(s, a, i, s.identities.length === 1, w));
   card.append(list);
   const has = (provider: string): boolean => s.identities?.some((i) => i.provider === provider) ?? false;
   const offers: [Provider, string][] = [];
-  if (s.linkable.google && !has("google")) offers.push(["google", "Lier Google"]);
-  if (s.linkable.apple && !has("apple")) offers.push(["apple", "Lier Apple"]);
+  if (s.linkable.google && !has("google")) offers.push(["google", c.linkGoogle]);
+  if (s.linkable.apple && !has("apple")) offers.push(["apple", c.linkApple]);
   for (const [provider, label] of offers) {
     const b = button("account-provider", label, s.busy, () => a.link(provider));
     b.dataset.provider = provider;
     card.append(b);
   }
-  if (!has("local")) card.append(passwordSection(s, a));
-  card.append(links([["Retour", () => a.leaveConnected()]]));
+  if (!has("local")) card.append(passwordSection(s, a, w));
+  card.append(links([[c.back, () => a.leaveConnected()]]));
 }
 
-export function renderAccount(root: HTMLElement, s: AccountViewState, a: AccountActions): void {
+/** Render the page's card for `s`, in the interface language (French when none is given). */
+export function renderAccount(
+  root: HTMLElement,
+  s: AccountViewState,
+  a: AccountActions,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+): void {
+  const w: Words = { language, c: accountCopy(language) };
+  const { c } = w;
   const card = h("section", "account-card");
   const title = (text: string): void => {
     card.append(h("h2", "account-title", text), ...messages(s));
@@ -297,132 +309,114 @@ export function renderAccount(root: HTMLElement, s: AccountViewState, a: Account
 
   switch (s.view) {
     case "signin": {
-      title("Se connecter");
-      card.append(...providerButtons(s, a));
-      const email = field("email", "Email", "email", "username", s.email);
-      const password = field("password", "Mot de passe", "password", "current-password");
+      title(c.signIn);
+      card.append(...providerButtons(s, a, w));
+      const email = field("email", c.email, "email", "username", s.email);
+      const password = field("password", c.password, "password", "current-password");
       card.append(
-        form([email, password], "Se connecter", s.busy, () => a.signInEmail(email.input.value, password.input.value)),
+        form([email, password], c.signIn, s.busy, () => a.signInEmail(email.input.value, password.input.value)),
         links([
-          ["Mot de passe oublié ?", () => a.go("forgot")],
-          ["Créer un compte", () => a.go("signup")],
+          [c.forgotPassword, () => a.go("forgot")],
+          [c.createAccount, () => a.go("signup")],
         ]),
       );
       break;
     }
     case "signup": {
-      title("Créer un compte Cymbra");
-      card.append(h("p", "account-lead", "Retrouve tes mots, ton deck et tes statistiques sur tous tes appareils."));
-      card.append(...providerButtons(s, a));
-      const email = field("email", "Email", "email", "username", s.email);
-      const password = field("password", "Mot de passe", "password", "new-password");
+      title(c.createAccountTitle);
+      card.append(h("p", "account-lead", c.signUpLead));
+      card.append(...providerButtons(s, a, w));
+      const email = field("email", c.email, "email", "username", s.email);
+      const password = field("password", c.password, "password", "new-password");
       card.append(
-        form([email, password], "Créer mon compte", s.busy, () => a.signUp(email.input.value, password.input.value)),
+        form([email, password], c.createMyAccount, s.busy, () => a.signUp(email.input.value, password.input.value)),
       );
       card.append(
         s.errorKind === "alreadyExists"
           ? links([
-              ["Se connecter", () => a.go("signin")],
-              ["Mot de passe oublié ?", () => a.go("forgot")],
+              [c.signIn, () => a.go("signin")],
+              [c.forgotPassword, () => a.go("forgot")],
             ])
-          : links([["J'ai déjà un compte", () => a.go("signin")]]),
+          : links([[c.haveAccount, () => a.go("signin")]]),
       );
       break;
     }
     case "verify": {
-      title("Vérifie ton adresse email");
-      const to = h("p", "account-lead", "Saisis le code envoyé à ");
-      to.append(h("b", undefined, s.email));
-      card.append(to);
-      const code = field("code", "Code de vérification", "text", "one-time-code");
+      title(c.verifyEmail);
+      card.append(codeSentTo(c, s.email));
+      const code = field("code", c.verificationCode, "text", "one-time-code");
       code.input.inputMode = "numeric";
       card.append(
-        form([code], "Vérifier", s.busy, () => a.verify(code.input.value)),
+        form([code], c.verify, s.busy, () => a.verify(code.input.value)),
         links([
-          ["Renvoyer le code", () => a.resend()],
-          ["Utiliser un autre email", () => a.go("signup")],
+          [c.resendCode, () => a.resend()],
+          [c.useAnotherEmail, () => a.go("signup")],
         ]),
       );
       break;
     }
     case "forgot": {
-      title("Mot de passe oublié");
+      title(c.forgotTitle);
+      card.append(h("p", "account-lead", c.forgotLead));
+      const email = field("email", c.email, "email", "username", s.email);
       card.append(
-        h("p", "account-lead", "Indique ton email : on t'envoie un code pour choisir un nouveau mot de passe."),
-      );
-      const email = field("email", "Email", "email", "username", s.email);
-      card.append(
-        form([email], "Envoyer un code", s.busy, () => a.requestReset(email.input.value)),
-        links([["Retour à la connexion", () => a.go("signin")]]),
+        form([email], c.sendCode, s.busy, () => a.requestReset(email.input.value)),
+        links([[c.backToSignIn, () => a.go("signin")]]),
       );
       break;
     }
     case "reset": {
-      title("Nouveau mot de passe");
-      const code = field("code", "Code reçu par email", "text", "one-time-code");
+      title(c.newPasswordTitle);
+      const code = field("code", c.codeByEmail, "text", "one-time-code");
       code.input.inputMode = "numeric";
-      const password = field("password", "Nouveau mot de passe", "password", "new-password");
+      const password = field("password", c.newPassword, "password", "new-password");
       card.append(
-        form([code, password], "Modifier le mot de passe", s.busy, () =>
-          a.resetPassword(code.input.value, password.input.value),
-        ),
+        form([code, password], c.changePassword, s.busy, () => a.resetPassword(code.input.value, password.input.value)),
         links([
-          ["Renvoyer un code", () => a.requestReset(s.email)],
-          ["Retour à la connexion", () => a.go("signin")],
+          [c.resendACode, () => a.requestReset(s.email)],
+          [c.backToSignIn, () => a.go("signin")],
         ]),
       );
       break;
     }
     case "handle": {
-      title("Choisis ton pseudo");
-      card.append(
-        h(
-          "p",
-          "account-lead",
-          "Ton pseudo identifie ton compte Cymbra — le même que dans Cymbra Music. Tu pourras le retrouver partout.",
-        ),
-      );
-      const handle = field("handle", "Pseudo", "text", "nickname", s.candidate);
+      title(c.chooseHandle);
+      card.append(h("p", "account-lead", c.handleLead));
+      const handle = field("handle", c.handle, "text", "nickname", s.candidate);
       handle.input.maxLength = HANDLE_MAX_LENGTH;
       handle.input.spellcheck = false;
       handle.input.setAttribute("autocapitalize", "off");
       handle.input.addEventListener("input", () => a.editHandle(handle.input.value));
-      const help = h("span", `account-help account-help-${s.handleStatus}`, HANDLE_HELP[s.handleStatus]);
+      const help = h("span", `account-help account-help-${s.handleStatus}`, handleHelp(s.handleStatus, c, language));
       help.setAttribute("aria-live", "polite");
       handle.wrap.append(help);
       const blocked =
         s.busy || s.handleStatus === "empty" || s.handleStatus === "invalid" || s.handleStatus === "taken";
       card.append(
-        form([handle], "Continuer", blocked, () => a.commitHandle()),
-        h("p", "account-footnote", "Sans pseudo, ce compte n'est pas conservé."),
-        links([["Utiliser un autre compte", () => a.abandonHandle()]]),
+        form([handle], c.continue, blocked, () => a.commitHandle()),
+        h("p", "account-footnote", c.handleFootnote),
+        links([[c.useAnotherAccount, () => a.abandonHandle()]]),
       );
       break;
     }
     case "signedin": {
-      title("Tu es connecté");
-      if (s.handle) card.append(h("p", "account-handle", `@${s.handle}`));
-      card.append(
-        h(
-          "p",
-          "account-lead",
-          "Tes mots, ton deck et tes statistiques se synchronisent entre tes appareils. Tu peux fermer cet onglet.",
-        ),
-      );
-      const out = h("button", "account-secondary", "Se déconnecter");
+      title(c.signedInTitle);
+      if (s.handle) card.append(h("p", "account-handle", c.handleAt(s.handle)));
+      card.append(h("p", "account-lead", c.signedInLead));
+      const out = h("button", "account-secondary", c.signOut);
       out.type = "button";
       out.disabled = s.busy;
       out.addEventListener("click", () => a.signOut());
       card.append(
-        button("account-secondary", "Comptes connectés", s.busy, () => a.openConnected()),
+        button("account-secondary", c.connectedAccounts, s.busy, () => a.openConnected()),
         out,
-        dataSection(s, a),
+        dataSection(s, a, w),
       );
       break;
     }
     case "connected": {
-      title("Comptes connectés");
-      connectedCard(card, s, a);
+      title(c.connectedAccounts);
+      connectedCard(card, s, a, w);
       break;
     }
   }

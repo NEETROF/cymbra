@@ -158,4 +158,4 @@ There are four origins, all of them in the source:
   provider's token through the redirect and exchanges it with the backend; it never sees a
   password.
 - `https://cymbra.app` — a link in the account screen to the account-deletion page
-  (`src/account/flow.ts`). A link, not a request.
+  (`src/account/locale.ts`). A link, not a request.

@@ -51,6 +51,10 @@ jobs:
               - '.github/workflows/lingua-extension-check.yml'
               # Its Reduce step's script is run by test_reduce_loops.py, in the `check` job.
               - '.github/workflows/lingua-pack-update.yml'
+              # Music's locales: test/account-locale.spec.ts holds the languages Cymbra speaks (the
+              # account locale the extension sends, localise-lingua-account-onboarding D2) against
+              # these files, so a language added to Music fails here.
+              - 'apps/music/lib/l10n/app_*.arb'
             # The pairs' tables, their pinned sources and the rules and tools that reduce them: the
             # `reduce` job re-reduces every pair from its pinned sources. The workflow itself too: a
             # pull request that edits the job runs it.

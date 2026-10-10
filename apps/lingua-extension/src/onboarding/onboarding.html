@@ -1,51 +1,45 @@
 <!doctype html>
-<html lang="fr">
+<!-- No text of its own: every node carries a data-copy key, filled by onboarding.ts from the
+     catalogue's module for the interface language (src/i18n/README.md, Pages); data-copy-pending
+     hides the body until then, and lang is set by the script. -->
+<html data-copy-pending>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
-    <title>Bienvenue — Cymbra Lingua</title>
+    <title data-copy="pageTitle"></title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="onboarding.css" />
   </head>
   <body class="onboarding">
     <main>
-      <h1>Bienvenue dans Cymbra Lingua</h1>
-      <p class="lead">
-        Surligne les mots que tu ne connais pas encore pendant que tu lis, puis révise-les au bon moment — sans quitter
-        ta page.
-      </p>
+      <h1 data-copy="heading"></h1>
+      <p class="lead" data-copy="lead"></p>
 
       <section id="languages-section" hidden>
-        <h2>Quelles langues apprends-tu ?</h2>
+        <h2 data-copy="whichLanguages"></h2>
       </section>
 
       <section id="level-section" hidden>
-        <p class="muted">
-          Les mots en dessous de ton niveau ne seront pas surlignés. Rien n'est présumé tant que tu n'as pas choisi — et
-          tu pourras changer ça à tout moment dans les réglages.
-        </p>
+        <p class="muted" data-copy="levelNote"></p>
         <div id="level-rows"></div>
       </section>
 
       <section class="start">
-        <h2>Pour commencer</h2>
+        <h2 data-copy="toStart"></h2>
         <ol>
-          <li>Épingle l'icône Cymbra Lingua dans la barre du navigateur.</li>
-          <li>Ouvre une page dans la langue que tu apprends et clique l'icône pour l'analyser.</li>
-          <li>Clique un mot surligné pour le traduire ou l'ajouter à ton deck.</li>
+          <li data-copy="stepPin"></li>
+          <li data-copy="stepOpen"></li>
+          <li data-copy="stepClick"></li>
         </ol>
       </section>
 
       <section id="account-section" hidden>
-        <h2>Retrouve tes mots partout (facultatif)</h2>
-        <p class="muted">
-          Avec un compte Cymbra — le même que dans Cymbra Music — tes mots, ton deck et tes statistiques se
-          synchronisent entre tes appareils. Sans compte, tout reste sur cet appareil.
-        </p>
+        <h2 data-copy="accountTitle"></h2>
+        <p class="muted" data-copy="accountLead"></p>
         <div class="chips">
-          <button class="lvl" id="account-create" type="button">Créer un compte</button>
-          <button class="lvl" id="account-later" type="button">Plus tard</button>
+          <button class="lvl" id="account-create" type="button" data-copy="createAccount"></button>
+          <button class="lvl" id="account-later" type="button" data-copy="later"></button>
         </div>
       </section>
     </main>
