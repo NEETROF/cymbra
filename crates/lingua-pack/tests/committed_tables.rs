@@ -14,9 +14,10 @@
 
 //! The committed tables are kept once per studied language (split-lingua-pack-tables-by-language,
 //! M24): every pair reads its studied side from `tables/<studied>/`, which pins the language's
-//! tag pool and names its reference pair's glossed lemmas as its dictionary words — French's less
-//! those fr-en glosses by a proper noun's senses alone (refine-lingua-fr-en-glosses D2). Moving the
-//! tables there left every shipped pack byte for byte as its pin records.
+//! tag pool and names its reference pair's glossed lemmas as its dictionary words, less those the
+//! reference glosses by a proper noun's senses alone — French's since refine-lingua-fr-en-glosses
+//! (D2), English's and Spanish's since leave-lingua-names-out-of-english-and-spanish-words (D1).
+//! Moving the tables there left every shipped pack byte for byte as its pin records.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -29,7 +30,7 @@ use lingua_core::analysis::tokenize::{
     FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, is_elided, tokenize,
 };
 use lingua_core::engine::{french_expression_key, holds_french_contraction, shared_spans};
-use lingua_core::knowledge::level::CefrLevel;
+use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
 use lingua_core::packs::grammar::Tag;
@@ -134,7 +135,7 @@ fn spec_scenario_one_copy_per_studied_language() {
 
 #[test]
 fn spec_scenario_the_shipped_packs_keep_their_bytes() {
-    for pair in ["en-fr", "es-fr"] {
+    for (pair, language) in [("en-fr", "en"), ("es-fr", "es")] {
         let bytes = shipped(pair);
         let pin: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(tables().join(pair).join("pin.json")).unwrap(),
@@ -146,12 +147,193 @@ fn spec_scenario_the_shipped_packs_keep_their_bytes() {
             "{pair}: pin.json"
         );
         assert_eq!(pin["pack"]["size"], bytes.len(), "{pair}: pin.json");
-        // A reference's dictionary words are its glossed lemmas: no lexical section.
-        assert!(
-            section_of(&sections(bytes), section::LEXICAL).is_none(),
-            "{pair} carries no lexical table"
-        );
+        // Its dictionary words leave out the lemmas it glosses as names alone
+        // (leave-lingua-names-out-of-english-and-spanish-words D2): it carries a lexical table
+        // listing its language's.
+        assert_lexical_table_lists(pair, bytes, language);
     }
+}
+
+/// The lines of a studied language's committed `lexical.tsv`: its dictionary words.
+fn dictionary_words_of(language: &str) -> Vec<String> {
+    std::fs::read_to_string(tables().join(language).join("lexical.tsv"))
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect()
+}
+
+/// `bytes` carries a lexical table, and it marks exactly `language`'s committed dictionary
+/// words.
+fn assert_lexical_table_lists(pair: &str, bytes: &[u8], language: &str) {
+    let table = section_of(&sections(bytes), section::LEXICAL)
+        .unwrap_or_else(|| panic!("{pair} carries a lexical table"))
+        .to_vec();
+    let words = dictionary_words_of(language);
+    let marked: u32 = table.iter().map(|byte| byte.count_ones()).sum();
+    assert_eq!(marked as usize, words.len(), "{pair}: its lexical table");
+    let pack = Pack::load(bytes).unwrap();
+    assert!(
+        words.iter().all(|word| pack.is_dictionary_word(word)),
+        "{pair}: {language}/lexical.tsv"
+    );
+}
+
+#[test]
+fn spec_scenario_the_reference_packs_carry_a_lexical_table() {
+    // en-fr, es-fr and fr-en, built from their committed tables, each carry a lexical table
+    // listing its studied language's dictionary words, at the sha256 its pin records.
+    for (pair, language, bytes) in [
+        ("en-fr", "en", shipped("en-fr")),
+        ("es-fr", "es", shipped("es-fr")),
+        ("fr-en", "fr", fr_en()),
+    ] {
+        assert_eq!(
+            json(&tables().join(pair).join("pin.json"))["pack"]["sha256"],
+            sha256_hex(bytes).as_str(),
+            "{pair}: pin.json"
+        );
+        assert_lexical_table_lists(pair, bytes, language);
+    }
+}
+
+/// The lemmas `pair` glosses by a proper noun's senses alone: every run of their `senses.tsv`
+/// row is `PROPN` (refine-lingua-fr-en-glosses D2,
+/// leave-lingua-names-out-of-english-and-spanish-words D1).
+fn names_of(pair: &str) -> BTreeSet<String> {
+    tsv(&tables().join(pair).join("senses.tsv"))
+        .into_iter()
+        .filter(|(_, runs)| runs.split('\t').all(|run| run.starts_with("PROPN:")))
+        .map(|(lemma, _)| lemma)
+        .collect()
+}
+
+/// A studied language's dictionary words are its reference's glossed lemmas less its names, and
+/// its reader pair holds the same ones: each `name` is glossed and no dictionary word, each
+/// `word` a dictionary word.
+fn assert_names_left_out(
+    (language, reference, reader): (&str, &str, &[u8]),
+    names: &[&str],
+    words: &[&str],
+    count: usize,
+) {
+    let glossed: Vec<String> = tsv(&tables().join(reference).join("gloss.tsv"))
+        .into_keys()
+        .collect();
+    let left_out = names_of(reference);
+    assert_eq!(left_out.len(), count, "{reference}: its names alone");
+    let expected: Vec<&String> = glossed.iter().filter(|l| !left_out.contains(*l)).collect();
+    let committed = dictionary_words_of(language);
+    assert_eq!(
+        committed.iter().collect::<Vec<_>>(),
+        expected,
+        "{language}/lexical.tsv"
+    );
+    let pack = Pack::load(shipped(reference)).unwrap();
+    for name in names {
+        assert!(left_out.contains(*name), "{name}: a name alone");
+        assert!(pack.gloss(name).is_some(), "{name} keeps its gloss");
+        assert!(!pack.is_dictionary_word(name), "{name} is no word");
+    }
+    for word in words {
+        assert!(pack.is_dictionary_word(word), "{word} is a word");
+    }
+    assert_eq!(
+        Pack::load(reader).unwrap().dictionary_words(),
+        pack.dictionary_words(),
+        "{language}: the reader pair's dictionary words are {reference}'s"
+    );
+}
+
+#[test]
+fn spec_scenario_english_s_names() {
+    // en-fr glosses `london` « Londres; … » and `margaret` « Marguerite, … » by proper nouns'
+    // senses alone, `bill` by common nouns' and verbs' beside a name's: 24,799 glossed lemmas,
+    // 3,046 names, 21,753 dictionary words.
+    assert_names_left_out(
+        ("en", "en-fr", en_es()),
+        &["london", "margaret", "york", "england"],
+        &["bill", "mark", "will", "hope", "english"],
+        3_046,
+    );
+    assert_eq!(dictionary_words_of("en").len(), 21_753);
+    let bill = tsv(&tables().join("en-fr/senses.tsv"))["bill"].clone();
+    assert!(bill.contains("PROPN:") && bill.contains("NOUN:"), "{bill}");
+}
+
+#[test]
+fn spec_scenario_spanish_s_names() {
+    // es-fr glosses `madrid` « Madrid » and `maría` « Marie; María » by proper nouns' senses
+    // alone, `dios` « Dieu » by a common noun's and `luna` by a common noun's beside a name's:
+    // 22,755 glossed lemmas, 1,693 names, 21,062 dictionary words.
+    assert_names_left_out(
+        ("es", "es-fr", es_en()),
+        &["madrid", "maría", "méxico", "españa"],
+        &["dios", "luna", "casa", "argentina"],
+        1_693,
+    );
+    assert_eq!(dictionary_words_of("es").len(), 21_062);
+}
+
+#[test]
+fn spec_scenario_a_month_a_cefr_list_levels() {
+    // en-fr glosses `june` « Juin; Prénom épicène… » by proper nouns' senses alone, and CEFR-J
+    // gives it A1: it is no dictionary word of English, keeps its level, and the vocabulary
+    // estimate's universe counts it — as it counts every one of English's eleven levelled names
+    // (leave-lingua-names-out-of-english-and-spanish-words D3).
+    let pack = Pack::load(shipped("en-fr")).unwrap();
+    let levels = tsv(&tables().join("en/level.tsv"));
+    let levelled_names: Vec<(String, String)> = names_of("en-fr")
+        .into_iter()
+        .filter_map(|lemma| levels.get(&lemma).map(|level| (lemma, level.clone())))
+        .collect();
+    let expected = [
+        ("april", "A1"),
+        ("badminton", "A2"),
+        ("december", "A1"),
+        ("february", "A1"),
+        ("january", "A1"),
+        ("july", "A1"),
+        ("june", "A1"),
+        ("november", "A1"),
+        ("olympics", "A1"),
+        ("ph", "B2"),
+        ("september", "A1"),
+    ];
+    assert_eq!(
+        levelled_names,
+        expected.map(|(l, v)| (l.to_owned(), v.to_owned()))
+    );
+    let universe: BTreeSet<&str> = pack
+        .dictionary_words()
+        .into_iter()
+        .map(|(l, _)| l)
+        .collect();
+    for (lemma, level) in expected {
+        assert!(
+            !pack.is_dictionary_word(lemma),
+            "{lemma} is no dictionary word"
+        );
+        assert_eq!(
+            CefrLevels::level(&pack, lemma).map(CefrLevel::label),
+            Some(level),
+            "{lemma}"
+        );
+        assert!(universe.contains(lemma), "{lemma} is counted");
+    }
+    // The universe: the ranked lemmas that are dictionary words or carry a level.
+    assert_eq!(universe.len(), 22_337);
+}
+
+#[test]
+fn every_spanish_levelled_lemma_is_a_dictionary_word() {
+    // Spanish's estimated levels go only to lemmas es-fr glosses as more than a name
+    // (`estimated_levels`), the same set the names rule leaves (D3): no Spanish level moved.
+    let levels = tsv(&tables().join("es/level.tsv"));
+    let words: BTreeSet<String> = dictionary_words_of("es").into_iter().collect();
+    assert_eq!(levels.len(), 8_302);
+    let stray: Vec<&String> = levels.keys().filter(|l| !words.contains(*l)).collect();
+    assert!(stray.is_empty(), "levelled, no dictionary word: {stray:?}");
 }
 
 /// es-en's committed pack, built once per test binary.
@@ -475,8 +657,9 @@ fn spec_scenario_a_pair_left_behind() {
     // test_build_sh_names_a_pair_left_behind_by_its_studied_tables).
     let scratch = std::env::temp_dir().join(format!("lingua-left-behind-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&scratch);
-    // es-fr's glosses, read as another native language's: its dictionary words are its own
-    // glossed lemmas, so it carries no lexical section until tables/es names others.
+    // es-fr's glosses, read as another native language's: its dictionary words are tables/es's,
+    // es-fr's glossed lemmas less its names alone (leave-lingua-names-out-of-english-and-spanish-words
+    // D1), so it carries a lexical section.
     let es_en = scratch.join("es-en");
     std::fs::create_dir_all(&es_en).unwrap();
     let es_fr = tables().join("es-fr");
@@ -492,7 +675,8 @@ fn spec_scenario_a_pair_left_behind() {
         build_pack(&inputs_from_dirs(studied, &es_en).expect("read es-en")).expect("build es-en")
     };
     let recorded = build(&tables().join("es"));
-    assert!(section_of(&sections(&recorded), section::LEXICAL).is_none());
+    assert!(section_of(&sections(&recorded), section::LEXICAL).is_some());
+    assert!(!Pack::load(&recorded).unwrap().is_dictionary_word("madrid"));
 
     // One level: `a`, A1 → A2.
     let es = studied_copy(&scratch, "es");
@@ -558,16 +742,6 @@ fn tsv(path: &Path) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// The lemmas fr-en glosses by a proper noun's senses alone: every run of their `senses.tsv` row
-/// is `PROPN` (refine-lingua-fr-en-glosses D2).
-fn fr_en_names() -> BTreeSet<String> {
-    tsv(&tables().join("fr-en/senses.tsv"))
-        .into_iter()
-        .filter(|(_, runs)| runs.split('\t').all(|run| run.starts_with("PROPN:")))
-        .map(|(lemma, _)| lemma)
-        .collect()
-}
-
 #[test]
 fn spec_scenario_the_reference_pair_writes_french_s_folder() {
     // fr-en (add-lingua-french-forms-tables D1, D10), French's reference pair: tables/fr/ holds
@@ -610,7 +784,7 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
     // with a common sense beside a name's stays one (`lot`, `marche`, `nice`).
     let glossed: Vec<String> = tsv(&fr_en_dir.join("gloss.tsv")).into_keys().collect();
     assert!(glossed.len() > 30_000, "{}", glossed.len());
-    let names = fr_en_names();
+    let names = names_of("fr-en");
     assert!(names.len() > 3_000, "{}", names.len());
     for name in ["paris", "durand", "lyon", "france", "coran"] {
         assert!(names.contains(name), "{name} is glossed as a name alone");
