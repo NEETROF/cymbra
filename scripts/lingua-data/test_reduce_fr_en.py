@@ -922,6 +922,262 @@ class Acronyms(unittest.TestCase):
         )
 
 
+# read-lingua-french-dictionary-unmarked-spellings: the section's entries for words it gives only as
+# a marked word written without its marks, as the pinned dump writes them — `etre`, `etait`, `Etat`
+# and its plural `Etats`, `repondre` and its conjugation, `diesel`, `teter` and its `tete` —, beside
+# a word with an entry of its own (`surs`, the plural of *sur* « sour »), one with a second sense of
+# its own (`cordeliere`), and a spelling neither form of which wordfreq attests (`ypreau`).
+def _spells(word, of, gloss, pos="noun", forms=(), tags=("alt-of", "alternative")):
+    return entry(word, pos=pos, forms=forms, senses=[{"glosses": [f"{gloss} {of}"], "tags": list(tags), "alt_of": [{"word": of}]}])
+
+
+DICTIONARY_SPELLINGS_SECTION = [
+    _spells("etre", "être", "obsolete spelling of", pos="verb", tags=("Internet", "alt-of", "colloquial", "obsolete")),
+    form_of("était", "être", tags=("form-of", "imperfect", "indicative", "singular", "third-person")),
+    _spells("etait", "était", "obsolete spelling of", pos="verb", tags=("alt-of", "obsolete")),
+    _spells("Etat", "État", "alternative spelling of", forms=[("Etats", ["plural"])]),
+    _spells("Etats", "États", "alternative spelling of"),
+    entry("état", forms=[("états", ["plural"])], senses=[{"glosses": ["state, condition"], "tags": ["masculine"]}]),
+    form_of("états", "état", pos="noun", tags=("form-of", "masculine", "plural")),
+    _spells(
+        "repondre",
+        "répondre",
+        "obsolete spelling of",
+        pos="verb",
+        forms=[*TABLE_HEAD, ("repondre", ["infinitive"]), ("repond", PRESENT_3S), ("repondu", PARTICIPLE)],
+        tags=("alt-of", "obsolete"),
+    ),
+    entry("répondre", pos="verb", forms=[*TABLE_HEAD, ("répond", PRESENT_3S), ("répondu", PARTICIPLE)], senses=[{"glosses": ["to answer"]}]),
+    _spells("diesel", "diésel", "alternative form of", forms=[("diesels", ["plural"])]),
+    entry("diésel", forms=[("diésels", ["plural"])], senses=[{"glosses": ["diesel"], "tags": ["masculine"]}]),
+    _spells("teter", "téter", "alternative form of", pos="verb", forms=[*TABLE_HEAD, ("tete", PRESENT_3S)], tags=("alt-of", "alternative", "obsolete")),
+    form_of("tete", "teter", tags=("first-person", "form-of", "indicative", "present", "singular")),
+    entry("téter", pos="verb", forms=[*TABLE_HEAD, ("tète", PRESENT_3S)], senses=[{"glosses": ["to suckle"]}]),
+    entry("sur", pos="adj", forms=[("surs", ["masculine", "plural"])], senses=[{"glosses": ["sour"]}]),
+    form_of("surs", "sur", pos="adj", tags=("form-of", "masculine", "plural")),
+    _spells("surs", "sûrs", "alternative spelling of", pos="adj"),
+    form_of("sûrs", "sûr", pos="adj", tags=("form-of", "masculine", "plural")),
+    entry(
+        "cordeliere",
+        forms=[("cordelieres", ["plural"])],
+        senses=[
+            {"glosses": ["obsolete spelling of cordelière"], "tags": ["alt-of", "obsolete"], "alt_of": [{"word": "cordelière"}]},
+            {"glosses": ["obsolete form of cordillère"], "tags": ["alt-of", "obsolete"], "alt_of": [{"word": "cordillère"}]},
+        ],
+    ),
+    entry("cordelière", senses=[{"glosses": ["cord"], "tags": ["feminine"]}]),
+    entry("cordillère", senses=[{"glosses": ["mountain range"], "tags": ["feminine"]}]),
+    _spells("ypreau", "ypréau", "alternative spelling of"),
+    entry("ypréau", senses=[{"glosses": ["white poplar"], "tags": ["masculine"]}]),
+]
+# wordfreq's Zipf values for them (3.1.1, rounded): each marked word is commoner than its spelling
+# but *diésel*, which `diesel` is 78 times commoner than, and *téter*, rarer than `tete` (how the web
+# writes *tête*); wordfreq attests neither `ypreau` nor *ypréau*.
+DICTIONARY_SPELLINGS_FREQ = {
+    "etre": 4.8, "était": 6.2, "etait": 4.4, "etat": 5.1, "état": 5.6, "etats": 4.8, "états": 5.2,
+    "repondre": 3.2, "répondre": 5.0, "repond": 2.8, "répond": 4.7, "repondu": 2.7, "répondu": 4.6,
+    "diesel": 4.1, "diésel": 2.2, "diesels": 2.7, "teter": 1.6, "téter": 2.5, "tete": 3.8, "tète": 3.0,
+    "surs": 2.7, "sûrs": 4.0, "cordelière": 1.9, "cordillère": 2.8,
+}
+_DICTIONARY_SPELLINGS_ENTRIES = [*ENTRIES, *SPELLINGS_SECTION, *DICTIONARY_SPELLINGS_SECTION]
+_DICTIONARY_SPELLINGS_FREQ = {**SPELLINGS_FREQ, **DICTIONARY_SPELLINGS_FREQ}
+_DICTIONARY_SPELLINGS_TOP = [
+    w
+    for w in sorted({**FREQ, **_DICTIONARY_SPELLINGS_FREQ}, key=lambda w: (-{**FREQ, **_DICTIONARY_SPELLINGS_FREQ}[w], w))
+    if "-" not in w
+]
+# The words the rule reads in the section above, and the ones it keeps apart.
+_READ = {"etre": "être", "etait": "était", "etat": "état", "etats": "états", "repondre": "répondre"}
+
+
+def _section_file(d, entries):
+    path = os.path.join(d, "kaikki-French.jsonl")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries))
+        f.write("not json\n")
+    return path
+
+
+def _tsv(text):
+    return dict(line.split("\t", 1) for line in text.splitlines())
+
+
+class DictionaryUnmarkedSpellings(unittest.TestCase):
+    """read-lingua-french-dictionary-unmarked-spellings: a word the dictionary gives only as a marked
+    word written without its marks reads as that word when the marked word is the commoner (D1, D2),
+    its own word lost (D3)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with mock.patch.dict(FREQ, _DICTIONARY_SPELLINGS_FREQ), mock.patch.object(
+            sys.modules[__name__], "TOP", _DICTIONARY_SPELLINGS_TOP
+        ):
+            cls.out = Main.run_main(cls, _DICTIONARY_SPELLINGS_ENTRIES)
+            # The same section without the rule: what change 43's rules alone make of it.
+            with mock.patch.object(red, "dictionary_unmarked_spellings", lambda path, frequency, kept=None: {}):
+                cls.before = Main.run_main(cls, _DICTIONARY_SPELLINGS_ENTRIES)
+        cls.forms, cls.ranks = _tsv(cls.out["forms.tsv"]), _tsv(cls.out["freq.tsv"])
+        cls.levels, cls.glosses = _tsv(cls.out["level.tsv"]), _tsv(cls.out["gloss.tsv"])
+        cls.words = set(cls.out["lexical.tsv"].splitlines())
+        cls.grammar = [row.split("\t") for row in cls.out["grammar.tsv"].splitlines()]
+
+    def table(self, entries, freq=None, kept=None):
+        with tempfile.TemporaryDirectory() as d:
+            values = {**FREQ, **_DICTIONARY_SPELLINGS_FREQ, **(freq or {})}
+            return red.dictionary_unmarked_spellings(_section_file(d, entries), lambda w: values.get(w, 0.0), kept)
+
+    def test_the_table_names_each_spelling_read_and_why_the_others_are_kept(self):
+        kept = {}
+        self.assertEqual(self.table(_DICTIONARY_SPELLINGS_ENTRIES, kept=kept), _READ)
+        # `diesel` is the commoner, `ypreau` and *ypréau* tie at nothing, and `teter`'s form `tete`
+        # is commoner than *téter*; `surs` and `cordeliere`, a spelling beside a word or a sense of
+        # their own, are no spelling at all, nor `coeur` (change 43's ligature, read whatever the
+        # frequency) or 43b's `ca`.
+        self.assertEqual(kept, {"diesel": red.KEPT_COMMONER, "ypreau": red.KEPT_COMMONER, "teter": red.KEPT_FORM})
+        self.assertEqual(
+            red.unmarked_report(_READ, kept),
+            "spellings without their marks read as their word=5, kept apart=3 (2 the spelling as common as its "
+            "word or commoner, 1 a form of the spelling as common as its word or commoner, 0 no word form)",
+        )
+
+    def test_a_tie_reads_nothing_and_strictly_commoner_reads(self):
+        kept = {}
+        self.assertEqual(self.table([_spells("etre", "être", "obsolete spelling of", pos="verb")], {"etre": 6.4}, kept), {})
+        self.assertEqual(kept, {"etre": red.KEPT_COMMONER})
+        # The forms' half too: a form as common as the marked word keeps the spelling apart.
+        kept = {}
+        self.assertEqual(self.table(DICTIONARY_SPELLINGS_SECTION[11:14], {"tete": 2.5}, kept), {})
+        self.assertEqual(kept, {"teter": red.KEPT_FORM})
+        self.assertEqual(self.table(DICTIONARY_SPELLINGS_SECTION[11:14], {"tete": 2.4, "tète": 2.4}), {"teter": "téter"})
+
+    def test_a_form_of_sense_pointing_at_the_spelling_is_one_of_its_forms(self):
+        # `tete` reaches `teter` by its own entry alone: still one of its forms.
+        teter = _spells("teter", "téter", "alternative form of", pos="verb")
+        self.assertEqual(self.table([teter, DICTIONARY_SPELLINGS_SECTION[12]]), {})
+        self.assertEqual(self.table([teter]), {"teter": "téter"})
+
+    def test_per_word_not_per_entry(self):
+        # `Etat` and an `etat` of its own are one word: an entry of its own keeps it a word.
+        own = entry("etat", senses=[{"glosses": ["a meaning of its own"]}])
+        self.assertNotIn("etat", self.table([*DICTIONARY_SPELLINGS_SECTION, own]))
+        # An entry with no sense is no spelling either.
+        self.assertNotIn("etre", self.table([DICTIONARY_SPELLINGS_SECTION[0], entry("etre", pos="verb", senses=[])]))
+        # Nor a word whose entries spell two words.
+        two = [_spells("eleve", "élève", "alternative spelling of"), _spells("eleve", "élevé", "alternative spelling of", pos="adj")]
+        self.assertEqual(self.table(two, {"eleve": 1.0, "élève": 5.0, "élevé": 5.0}), {})
+
+    def test_another_table_s_spellings_are_not_this_rule_s(self):
+        # 43b's row reads `ca` first, an ASCII spelling of a ligature is change 43's — whatever the
+        # frequency —, and a word that is no form is kept apart.
+        kept = {}
+        section = [
+            _spells("ca", "ça", "alternative spelling of", pos="pron"),
+            _spells("coeur", "cœur", "nonstandard spelling of"),
+            _spells("de main de maitre", "de main de maître", "alternative form of", pos="phrase"),
+        ]
+        freq = {"ça": 6.5, "ca": 5.6, "cœur": 5.3, "coeur": 4.0, "de main de maître": 4.8, "de main de maitre": 3.9}
+        self.assertEqual(self.table(section, freq, kept), {})
+        self.assertEqual(kept, {"de main de maitre": red.KEPT_NO_FORM})
+        self.assertEqual(lexicon(*section).candidates["ca"], {"ça"})
+
+    def test_the_third_kind_of_spelling(self):
+        sense = {"glosses": ["obsolete spelling of être"], "alt_of": [{"word": "être"}]}
+        self.assertEqual(red.spelling_target(sense, "etre", {"etre": "être"}), "être")
+        self.assertEqual(red.spelling_target({**sense, "alt_of": [{"word": "État"}]}, "etat", {"etat": "état"}), "État")
+        # Only for the word the table names, toward the word it names.
+        self.assertIsNone(red.spelling_target(sense, "etre"))
+        self.assertIsNone(red.spelling_target(sense, "etre", {"etat": "état"}))
+        self.assertIsNone(red.spelling_target(sense, "etre", {"etre": "êtres"}))
+        self.assertEqual({w: red._unmarked(w) for w in ("état", "chloé", "cœur", "haïku", "maître")}, {
+            "état": "etat", "chloé": "chloe", "cœur": "coeur", "haïku": "haiku", "maître": "maitre"
+        })
+        # The lexicon reads it: without the table `etre` is a lemma of its own, as before.
+        self.assertIn("etre", lexicon(*DICTIONARY_SPELLINGS_SECTION).lemmas)
+        lex = red.Lexicon(_READ)
+        for e in DICTIONARY_SPELLINGS_SECTION:
+            lex.read(e)
+        self.assertEqual(lex.candidates["etre"], {"être"})
+        self.assertNotIn("etre", lex.lemmas)
+        self.assertEqual(lex.candidates["repond"], {"repondre"})
+
+    def test_spec_scenario_etre_reads_as_etre(self):
+        self.assertEqual(self.forms["etre"], "être")
+        self.assertEqual(_tsv(self.before["forms.tsv"])["etre"], "etre", "without the rule, a word of its own")
+        for spelling in ("etre", "etait", "etat", "etats", "repondre"):
+            self.assertNotIn(spelling, self.ranks, spelling)
+            self.assertNotIn(spelling, self.levels, spelling)
+            self.assertNotIn(spelling, self.words, spelling)
+            self.assertNotIn(spelling, self.glosses, spelling)
+        # The marked words keep their rank, level and gloss.
+        for word in ("être", "état", "répondre"):
+            self.assertIn(word, self.ranks, word)
+            self.assertIn(word, self.levels, word)
+        self.assertEqual(self.glosses["état"], "state, condition")
+
+    def test_spec_scenario_a_spelling_s_forms_follow_it(self):
+        for form in ("repondre", "repond", "repondu"):
+            self.assertEqual(self.forms[form], "répondre", form)
+        # Their readings are filed under the marked word; none under a spelling's own word.
+        rows = {(form, lemma) for form, lemma, *_ in self.grammar}
+        for form in ("repondre", "repond", "repondu"):
+            self.assertIn((form, "répondre"), rows, form)
+        for form, lemma, *_ in self.grammar:
+            self.assertNotIn(lemma, _READ, (form, lemma))
+
+    def test_spec_scenario_a_spelling_of_a_form_reaches_its_lemma(self):
+        self.assertEqual(self.forms["etait"], "être")
+        self.assertEqual(self.forms["etat"], "état")
+        self.assertEqual(self.forms["etats"], "état")
+
+    def test_spec_scenario_the_commoner_spelling_keeps_its_own_word(self):
+        before = _tsv(self.before["forms.tsv"])
+        self.assertEqual(self.forms["diesel"], "diesel")
+        self.assertIn("diesel", self.ranks)
+        self.assertEqual(self.levels.get("diesel"), _tsv(self.before["level.tsv"]).get("diesel"))
+        self.assertEqual(self.glosses.get("diesel"), _tsv(self.before["gloss.tsv"]).get("diesel"))
+        # Every word the rule keeps apart reads as change 43's rules alone read it.
+        for word in ("diesel", "diesels", "teter", "tete", "surs", "cordeliere", "cordelieres", "ypreau"):
+            self.assertEqual(self.forms.get(word), before.get(word), word)
+
+    def test_spec_scenario_a_form_commoner_than_the_marked_word_keeps_the_spelling_apart(self):
+        self.assertNotEqual(self.forms.get("teter"), "téter")
+        self.assertNotEqual(self.forms.get("tete"), "téter")
+
+    def test_spec_scenario_a_word_with_an_entry_of_its_own(self):
+        self.assertNotEqual(self.forms.get("surs"), "sûr")
+        self.assertEqual(self.forms.get("surs"), _tsv(self.before["forms.tsv"]).get("surs"))
+        self.assertNotEqual(self.forms.get("cordeliere"), "cordelière")
+
+    def test_spec_scenario_the_reviewed_table_is_not_this_rule(self):
+        for form, word in (("ca", "ça"), ("age", "âge"), ("ages", "âge"), ("forcement", "forcément"), ("ou", "ou"), ("a", "avoir"), ("sur", "sur"), ("cote", "cote")):
+            self.assertEqual(self.forms[form], word, form)
+        # Only fr-en's `tables/fr/` moves: everything else the reduction writes but the forms, ranks,
+        # readings, levels, dictionary words and glosses the spellings take is as before.
+        self.assertEqual(self.out["mwe.tsv"], self.before["mwe.tsv"])
+        self.assertEqual(self.out["NOTICE"], self.before["NOTICE"])
+
+    def test_the_committed_tables(self):
+        # fr-en reduced with the rule (D3, D4, D6): the spellings read as their word, the ones it keeps
+        # as themselves, and the marked words keep their levels.
+        forms, ranks, levels = _committed("fr/forms.tsv"), _committed("fr/freq.tsv"), _committed("fr/level.tsv")
+        glosses = _committed("fr-en/gloss.tsv")
+        read = {
+            "etre": "être", "etait": "être", "etaient": "être", "etat": "état", "etats": "état", "siecle": "siècle",
+            "siecles": "siècle", "repondre": "répondre", "repond": "répondre", "repondu": "répondre",
+            "rebellions": "rébellion", "benoit": "benoît",
+        }
+        self.assertEqual({form: forms.get(form) for form in read}, read)
+        for spelling in ("etre", "etait", "etat", "etats", "siecle", "repondre", "benoit", "uberisation"):
+            self.assertNotIn(spelling, ranks, spelling)
+            self.assertNotIn(spelling, levels, spelling)
+            self.assertNotIn(spelling, glosses, spelling)
+        self.assertEqual({w: levels.get(w) for w in ("être", "état", "diesel", "ego")}, {"être": "A1", "état": "A1", "diesel": "B1", "ego": "B2"})
+        for kept in ("diesel", "ego", "egypte", "etienne", "teter"):
+            self.assertEqual(forms.get(kept, kept), kept, kept)
+        self.assertNotEqual(forms.get("tete"), "téter")
+        self.assertEqual({w: forms.get(w) for w in ("surs", "sures", "entrainant")}, {"surs": "surs", "sures": "sures", "entrainant": "entrainant"})
+
+
 class Ranks(unittest.TestCase):
     def ranks(self, compounds, lemmas, want=10, inflected=(), poses=None, freq=frequency):
         return red.ranks_for(set(inflected), want, set(lemmas), poses or {}, compounds, freq, top_n)
@@ -1837,7 +2093,7 @@ class EstimatedLevels(unittest.TestCase):
 class EstimatedLevelsReduced(unittest.TestCase):
     """The reduction of the fixture section, the levels' entries added and wordfreq ranking them."""
 
-    LEVEL_FREQ = {"y": 6.3, "the": 5.0, "france": 5.8, "b": 4.8, "e": 4.9, "etre": 3.6, "maison": 5.4}
+    LEVEL_FREQ = {"y": 6.3, "the": 5.0, "france": 5.8, "b": 4.8, "e": 4.9, "etre": 3.6, "parceque": 3.5, "maison": 5.4}
 
     @classmethod
     def setUpClass(cls):
@@ -1855,9 +2111,13 @@ class EstimatedLevelsReduced(unittest.TestCase):
             self.assertNotIn(word, self.levels)
 
     def test_what_a_cefr_list_leaves_out_takes_no_level(self):
-        for word in ["paris", "france", "the", "b", "e", "etre"]:
+        for word in ["paris", "france", "the", "b", "e", "parceque"]:
             self.assertIn(word, self.ranks, word)
             self.assertNotIn(word, self.levels, word)
+        # `etre`, which the dictionary gives only as *être* without its circumflex, reads as *être*
+        # (read-lingua-french-dictionary-unmarked-spellings): no ranked lemma, so no level either.
+        self.assertNotIn("etre", self.ranks)
+        self.assertNotIn("etre", self.levels)
 
     def test_spec_scenario_english_s_sizes(self):
         # Every levelled lemma is one of French's dictionary words, which the reduction writes
