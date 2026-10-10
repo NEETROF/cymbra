@@ -893,6 +893,20 @@ class Acronyms(unittest.TestCase):
         # The one glossed lemma no rank holds.
         self.assertEqual([lemma for lemma in self.glosses if lemma not in self.ranks], ["CA"])
 
+    def test_the_french_wiktionary_s_translations_gloss_no_acronym(self):
+        # add-lingua-fr-en-translated-expressions D1: the table glosses expressions alone, and an
+        # acronym's gloss is a word's — read from the section's expressions, never from the table's.
+        # The table's « comptable agréé » is an expression of fr-en; `CA` keeps the section's three
+        # senses.
+        table = [{"pos": "noun", "translations": [{"word": "chartered accountant"}], "word": "comptable agréé"}]
+        with mock.patch.dict(FREQ, _ACRONYM_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _ACRONYM_TOP):
+            out = Main.run_main(self, [*ENTRIES, *ACRONYM_SECTION], files={red.TRANSLATIONS: table})
+        self.assertIn("comptable agréé\tchartered accountant\n", out["mwe.tsv"])
+        self.assertIn("CA\tboard of directors; revenue, turnover, net sales; alternating current\n", out["gloss.tsv"])
+        self.assertIn("CA\tNOUN:3\n", out["senses.tsv"])
+        for name in ("gloss.tsv", "senses.tsv", "lexical.tsv", "forms.tsv"):
+            self.assertEqual(out[name], self.out[name], name)
+
     def test_spec_scenario_no_expansion_glossed(self):
         # Without the expansions' entries the row is written all the same, with no gloss.
         out = self.run_section([*ENTRIES, *(e for e in ACRONYM_SECTION if " " not in e["word"])])
@@ -3018,7 +3032,7 @@ class TranslatedExpressions(unittest.TestCase):
                 ("split", "kept"): 1,
             },
         )
-        self.assertEqual(self.stats["translated"], 4)
+        self.assertEqual(self.stats["translated"], {"il existe", "moyen âge", "à la diable", "s'asseoir"})
         self.assertEqual(
             red.translation_report(self.stats["table"]),
             "the section glosses the headword 1/0; left out by name 4/0; the section's senses only point 1/0; "

@@ -2622,7 +2622,7 @@ def native_side(work, kaikki, ranks, forms, pos_counts, translations):
         "split": len(split),
         "dropped": dropped,
         "lent": len(lent),
-        "translated": len(translated),
+        "translated": set(translated),
         "table": table_counts,
         **french,
     }
@@ -2731,8 +2731,11 @@ def main():
         a.work, os.path.join(a.work, "kaikki-French.jsonl"), ranks, forms, pos_counts, translations
     )
     # Each acronym row glossed from fr-en's own glosses of its expansions, the one unranked lemma it
-    # glosses (keep-lingua-french-acronyms-in-capitals D4, D5).
-    glossed_acronyms = acronyms.acronym_glosses(glosses, expressions)
+    # glosses (keep-lingua-french-acronyms-in-capitals D4, D5) — the section's expressions alone: a
+    # word's gloss never comes from the French Wiktionary's translations, which gloss expressions
+    # alone (add-lingua-fr-en-translated-expressions D1).
+    section_expressions = {w: g for w, g in expressions.items() if w not in native["translated"]}
+    glossed_acronyms = acronyms.acronym_glosses(glosses, section_expressions)
     for acronym, (gloss, gloss_runs) in glossed_acronyms.items():
         glosses[acronym], runs[acronym] = gloss, gloss_runs
     common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
@@ -2790,7 +2793,7 @@ def main():
         f"reduced fr-en: glosses={len(glosses)} (English Wiktionary {native['primary']}) "
         f"expressions={len(expressions)} ({native['split']} words the tokenisation splits, "
         f"{native['lent']} post-1990 spellings lent their traditional spelling's gloss, "
-        f"{native['translated']} the French Wiktionary's English translations) "
+        f"{len(native['translated'])} the French Wiktionary's English translations) "
         f"dropped={native['dropped']} (section lines that are no JSON object)",
         file=sys.stderr,
     )
