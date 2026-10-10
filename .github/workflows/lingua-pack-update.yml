@@ -151,11 +151,11 @@ jobs:
           fi
           # Keeping an edition is an update's alone (add-lingua-fr-en-translated-expressions D6): a
           # re-reduction reads every record as pinned already, and a dry run checks today's sources.
-          if [ -n "$KEEP" ] && [ "$MODE" != update ]; then
+          if [ -n "${KEEP:-}" ] && [ "$MODE" != update ]; then
             echo "::error::keep=$KEEP keeps an edition's recorded bytes through an update: dispatch it with mode=update."
             exit 1
           fi
-          if [ -n "$KEEP" ] && ! printf '%s' "$KEEP" | grep -qxE '[a-z]{2}(,[a-z]{2})*'; then
+          if [ -n "${KEEP:-}" ] && ! printf '%s' "$KEEP" | grep -qxE '[a-z]{2}(,[a-z]{2})*'; then
             echo "::error::keep=$KEEP is no list of editions: write their codes, comma-separated (en, or en,es)."
             exit 1
           fi
@@ -215,7 +215,7 @@ jobs:
               # The editions kept are the named pair's (`keep`): a pair brought along is reduced from
               # its own pin, which keeps every record already.
               kept=""
-              [ "$mode" = update ] && kept="$KEEP"
+              [ "$mode" = update ] && kept="${KEEP:-}"
               LINGUA_SNAPSHOT=$snapshot LINGUA_KEEP_EDITIONS="$kept" \
                 scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
             fi
