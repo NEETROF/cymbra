@@ -1936,9 +1936,11 @@ class NativeSide(unittest.TestCase):
         sys.path.insert(0, _HERE)
         import pack_sources as ps
 
+        # The treebank's rule (refine-lingua-fr-en-glosses D5) is a rule module of its own, in fr-en's
+        # digest.
         self.assertEqual(
             [p.name for p in ps.rule_files(ps.Path(_HERE) / "reduce-fr-en.py")],
-            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py"],
+            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py", "reduce_french_treebank.py"],
         )
 
 
@@ -2248,8 +2250,14 @@ class ReadAsFrench(unittest.TestCase):
         for adverbs, nouns, moved in ((10, 5, True), (9, 1, False), (19, 10, False), (20, 10, True)):
             counts = collections.Counter({("pas", "ADV"): adverbs, ("pas", "NOUN"): nouns})
             self.assertEqual(red._treebank_order("pas", items, counts) is not None, moved, (adverbs, nouns))
-        self.assertEqual((red.TREEBANK_MIN, red.TREEBANK_RATIO), (10, 2))
-        self.assertEqual(red.TREEBANK_FIRST, frozenset({"ADP", "DET", "PRON", "CCONJ", "SCONJ", "PART", "ADV"}))
+        self.assertEqual((red.treebank.TREEBANK_MIN, red.treebank.TREEBANK_RATIO), (10, 2))
+        self.assertEqual(red.treebank.TREEBANK_FIRST, frozenset({"ADP", "DET", "PRON", "CCONJ", "SCONJ", "PART", "ADV"}))
+        # The module decides on parts of speech alone, whatever dictionary names them: what fr-es
+        # reads it for (refine-lingua-fr-es-glosses D8).
+        self.assertEqual(red.treebank.commonest_first("pas", ["NOUN", "ADV"], "NOUN", TREEBANK), [1, 0])
+        self.assertIsNone(red.treebank.commonest_first("pas", ["ADV", "NOUN"], "ADV", TREEBANK))
+        self.assertIsNone(red.treebank.commonest_first("jean", ["PROPN", "PROPN"], "PROPN", TREEBANK))
+        self.assertEqual(red.treebank.word_key(" L’Homme "), "l'homme")
         # One part of speech, or a proper noun alone besides the first: nothing to order.
         self.assertIsNone(red._treebank_order("pas", [(0, "adv", "pas"), (1, "adv", "pas")], TREEBANK))
         self.assertIsNone(red._treebank_order("jean", [(0, "name", "Jean"), (1, "name", "Jean")], TREEBANK))
@@ -2277,7 +2285,7 @@ class ReadAsFrench(unittest.TestCase):
                     "8\tle\tle\tDET\t_\t_\t6\tobj\t_\t_\n"
                     "8.1\tx\tx\tX\t_\t_\t_\t_\t_\t_\n"
                 )
-            counts = red.gsd_pos_counts([path])
+            counts = red.treebank.gsd_pos_counts([path])
         # A fixed expression's word counts for none (« par conséquent »); a closed class by its own
         # form (UD lemmatises « leur » as « son »), an open one by its lemma; the auxiliary as a verb.
         self.assertEqual(

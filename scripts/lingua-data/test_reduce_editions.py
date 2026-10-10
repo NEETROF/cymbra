@@ -519,7 +519,7 @@ class TheEnglishEditionSettings(Entries):
         # which every pair loads, is not edited for it.
         for pair in ("es-en", "fr-en"):
             self.assertEqual(
-                [p.name for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")],
+                [p.name for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")][:3],
                 [f"reduce-{pair}.py", "reduce_common.py", "reduce_edition_en.py"],
             )
         self.assertEqual(
@@ -1629,25 +1629,29 @@ class FrEnGlossesReadAsFrench(Entries):
                 ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
                 pair,
             )
+        # The treebank's rule is a module of its own (D5), which fr-es is to load too
+        # (refine-lingua-fr-es-glosses D8): today in fr-en's rules alone.
         self.assertEqual(
             [p.name for p in ps.rule_files(Path(_HERE) / "reduce-fr-en.py")],
-            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py"],
+            ["reduce-fr-en.py", "reduce_common.py", "reduce_edition_en.py", "reduce_french_treebank.py"],
         )
+        for pair in ("en-fr", "es-fr", "es-en", "en-es", "fr-es"):
+            self.assertNotIn("reduce_french_treebank.py", [p.name for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")], pair)
         copy = self.dir / "rules"
         copy.mkdir()
         for path in Path(_HERE).glob("reduce[-_]*.py"):
             (copy / path.name).write_bytes(path.read_bytes())
         before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
-        reducer = copy / "reduce-fr-en.py"
-        for old, new in (
-            # D4, D5, D7, D8 and D2/D3, one edit each.
-            ("^(?:comparative degree|superlative degree|synonym|plural|contraction) of", "^(?:synonym) of"),
-            ("TREEBANK_MIN = 10\n", "TREEBANK_MIN = 5\n"),
-            ('"un coup": (', '"un coups": ('),
-            ("Exclamation|Found) (?=[a-z(])", "Exclamation) (?=[a-z(])"),
-            ('_ETC = re.compile(r"\\betc\\b(?!\\.)")', '_ETC = re.compile(r"\\betcetera\\b")'),
-            ('return "unlisted"', "return None"),
+        for name, old, new in (
+            # D4, D5 (in its module), D7, D8 and D2/D3, one edit each.
+            ("reduce-fr-en.py", "^(?:comparative degree|superlative degree|synonym|plural|contraction) of", "^(?:synonym) of"),
+            ("reduce_french_treebank.py", "TREEBANK_MIN = 10\n", "TREEBANK_MIN = 5\n"),
+            ("reduce-fr-en.py", '"un coup": (', '"un coups": ('),
+            ("reduce-fr-en.py", "Exclamation|Found) (?=[a-z(])", "Exclamation) (?=[a-z(])"),
+            ("reduce-fr-en.py", '_ETC = re.compile(r"\\betc\\b(?!\\.)")', '_ETC = re.compile(r"\\betcetera\\b")'),
+            ("reduce-fr-en.py", 'return "unlisted"', "return None"),
         ):
+            reducer = copy / name
             text = reducer.read_text(encoding="utf-8")
             self.assertIn(old, text)
             reducer.write_text(text.replace(old, new), encoding="utf-8")

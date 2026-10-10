@@ -56,11 +56,12 @@ glosses but a name becomes a dictionary word of French. Read backwards, an Engli
 French's commonest bigrams expressions (« il est » "he's"). A word or an expression the section does
 not gloss has no gloss.
 
-fr-en reads the section as French (refine-lingua-fr-en-glosses), by rules of this reducer alone — the
-English edition's and the shared ones read es-en's rows and every pair's too, and are not edited, so
-only fr-en re-pins (D1): `read_as_french`, a pre-pass after the English edition's meanings, reads a
-pointer that carries its meaning as that meaning (D4), opens a function word's row on the part of
-speech UD French-GSD reads it as (D5), leaves a name out of a function word's row (D6) and takes the
+fr-en reads the section as French (refine-lingua-fr-en-glosses), by rules of this reducer and of
+`reduce_french_treebank.py` alone — the English edition's and the shared ones read es-en's rows and
+every pair's too, and are not edited, so only fr-en re-pins (D1): `read_as_french`, a pre-pass after
+the English edition's meanings, reads a pointer that carries its meaning as that meaning (D4), opens a
+function word's row on the part of speech UD French-GSD reads it as (D5, the treebank's module, which
+fr-es is to read too), leaves a name out of a function word's row (D6) and takes the
 page's notes out (D8); five expressions whose sense needs a context are left out and six post-1990
 spellings lend their traditional spelling's gloss (D7); « etc » takes its period back (D8). Measured
 on the pinned section (its design's *Measured*): 291 rows change, 117 of the 10,000 commonest, 12
@@ -83,6 +84,7 @@ import unicodedata
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import reduce_common as common  # noqa: E402 — the rules every pair shares
 import reduce_edition_en as english  # noqa: E402 — the English Wiktionary's rules: fr-en's glosses are English
+import reduce_french_treebank as treebank  # noqa: E402 — UD French-GSD's parts of speech (refine-lingua-fr-en-glosses D5)
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ANALYSIS_RS = os.path.join(_HERE, "..", "..", "crates", "lingua-core", "src", "analysis", "mod.rs")
@@ -1528,62 +1530,17 @@ def french_text(gloss):
 # left out (`Le` « a surname from Vietnamese » under `le`).
 _FUNCTION_POS = frozenset({"prep", "conj", "pron", "det", "article", "particle"})
 
-# D5 — when UD French-GSD may say which part of speech a word's gloss opens on (settled by the owner,
-# 2026-10-10, Q2): the treebank reads that part of speech at least `TREEBANK_MIN` times and at least
-# `TREEBANK_RATIO` times as often as the part of speech the page opens on, and it is a function
-# word's (`TREEBANK_FIRST`, `ADV` measured in: `pas`, `bien`, `juste`) — or the page opens on a proper
-# noun's. A proper noun is never moved first, and a noun, a verb or an adjective moving ahead of
-# another stays as the page writes it (`ferme` « firm », `mort` « dead », `devoir` « duty »).
-TREEBANK_MIN = 10
-TREEBANK_RATIO = 2
-TREEBANK_FIRST = frozenset({"ADP", "DET", "PRON", "CCONJ", "SCONJ", "PART", "ADV"})
-# The parts of speech UD and the section lemmatise alike, counted under their lemma; any other is
-# counted under its own form (UD reads « ton », « leur », « mon » as forms of « son »).
-_OPEN_CLASSES = frozenset({"NOUN", "VERB", "ADJ", "PROPN"})
-
-
-def gsd_pos_counts(paths):
-    """How often UD French-GSD reads each word under each part of speech (D5): `(word, UPOS) →
-    count`, the word lowercased in NFC — a noun, verb, adjective or proper noun under its lemma, any
-    other part of speech under its own form; the auxiliary counted as a verb (kaikki's verbs are
-    `VERB`); a token inside a fixed expression (relation `fixed`: « conséquent » in « par
-    conséquent ») counted for none. Multi-word tokens and empty nodes carry no part of speech."""
-    counts = collections.Counter()
-    for path in paths:
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                if not line.strip() or line.startswith("#"):
-                    continue
-                cols = line.rstrip("\n").split("\t")
-                if len(cols) < 4 or "-" in cols[0] or "." in cols[0]:
-                    continue
-                if len(cols) > 7 and cols[7] == "fixed":
-                    continue
-                upos = "VERB" if cols[3] == "AUX" else cols[3]
-                counts[(nfc_lower(cols[2] if upos in _OPEN_CLASSES else cols[1]), upos)] += 1
-    return counts
-
-
+# D5 — the part of speech UD French-GSD reads a word as opens a function word's row, or one the page
+# opens on a name: `reduce_french_treebank.py`, a rule module of its own so that fr-es reads the same
+# rule (refine-lingua-fr-es-glosses D8) without loading this reducer.
 def _treebank_order(word, items, counts):
     """The order of a headword's entries the treebank asks for (D5), as indexes into `items`
-    (`(line, pos, headword)` in the section's order), or None to keep the page's."""
+    (`(line, pos, headword)` in the section's order), or None to keep the page's: each entry's part of
+    speech as the shared rules read kaikki's, the page's first that of its first entry that is no
+    acronym's (`treebank.commonest_first`)."""
     upos = [common.kaikki_upos(pos, word, studied=FR) for _, pos, _ in items]
-    if len(set(upos)) < 2:
-        return None
     first = next((u for (_, _, headword), u in zip(items, upos) if not common._acronym(headword)), upos[0])
-    # Ties go to the part of speech the page writes first: the order never depends on a set's.
-    candidates = [u for u in dict.fromkeys(upos) if u != "PROPN"]
-    if not candidates:
-        return None
-    best = max(candidates, key=lambda u: counts.get((word, u), 0))
-    if best == first:
-        return None
-    n_best, n_first = counts.get((word, best), 0), counts.get((word, first), 0)
-    if n_best < TREEBANK_MIN or n_best < TREEBANK_RATIO * n_first:
-        return None
-    if first != "PROPN" and best not in TREEBANK_FIRST:
-        return None
-    return [k for k, u in enumerate(upos) if u == best] + [k for k, u in enumerate(upos) if u != best]
+    return treebank.commonest_first(word, upos, first, counts)
 
 
 def _as_french(entry, function_words, stats):
@@ -1624,8 +1581,9 @@ def read_as_french(src, dst, counts):
     - A pointer that carries its meaning is read as that meaning, in its place (D4,
       `carried_meaning`): never in a name's or an acronym's entry.
     - A headword's entries — every case of it, written where its first line stood — open on the
-      part of speech UD French-GSD (`counts`, `gsd_pos_counts`) reads it as, when the treebank
-      says so for a function word or a row the page opens on a name (D5, `_treebank_order`).
+      part of speech UD French-GSD (`counts`, `treebank.gsd_pos_counts`) reads it as, when the
+      treebank says so for a function word or a row the page opens on a name (D5,
+      `_treebank_order`, `reduce_french_treebank.py`).
     - A name's entry under a capitalised headword that is no acronym is left out when every entry
       of the lower-case headword with senses is a function word's (D6).
     - Every sense's text loses the page's notes and typography (D8, `french_text`).
@@ -1756,7 +1714,8 @@ def native_side(work, kaikki, ranks, forms, pos_counts):
     """fr-en's native side over the section in `kaikki` (D1, D2, D11): `(glosses, runs, expressions,
     stats)`, the glosses and runs keyed by the ranked lemmas (`ranks`), the expressions the section's
     headwords with a space and the words the tokenisation splits. `pos_counts` are UD French-GSD's
-    parts of speech (`gsd_pos_counts`), which `read_as_french` orders a function word's entries by.
+    parts of speech (`treebank.gsd_pos_counts`), which `read_as_french` orders a function word's
+    entries by.
     The intermediate files are written in `work`.
 
     The pipeline (refine-lingua-fr-en-glosses D1): the English edition's pre-passes in es-en's order,
@@ -1852,7 +1811,7 @@ def main():
     # fr-en's native side (add-lingua-pack-fr-en), after the studied side, keyed by the lemmas just
     # ranked, UD French-GSD's parts of speech ordering a function word's senses
     # (refine-lingua-fr-en-glosses D5).
-    pos_counts = gsd_pos_counts(
+    pos_counts = treebank.gsd_pos_counts(
         [os.path.join(a.work, "fr_gsd-ud-train.conllu"), os.path.join(a.work, "fr_gsd-ud-dev.conllu")]
     )
     glosses, runs, expressions, native = native_side(
