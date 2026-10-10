@@ -1,20 +1,28 @@
 import { fillPageInLanguage, type InterfaceLanguage, type InterfaceLanguageArea } from "../i18n/index.ts";
 import { accountCopy } from "./copy.ts";
 import { AccountFlow, type AccountFlowDeps, type AccountView, viewFromHash, wantsConnected } from "./flow.ts";
-import { accountLocale } from "./locale.ts";
+import { accountLanguage, chosenLanguage } from "./locale.ts";
 import { type AccountActions, renderAccount } from "./view.ts";
 
 // The account page's mount (localise-lingua-account-onboarding D1, D2), apart from the Chrome wiring
 // of account.ts so that it is tested: the interface language read first, the page filled in it, the
-// flow told the account locale and the language, the view rendered in it, the step a reload left
-// resumed.
+// flow told the locale to send and the language — the browser's until the reader has chosen theirs —,
+// the view rendered in it, the step a reload left resumed.
 
 export interface AccountPageDeps extends Pick<
   AccountFlowDeps,
   "send" | "pending" | "pendingPassword" | "clearPersistedError"
 > {
-  /** The preferences area the interface language is read from: chrome.storage.local. */
+  /**
+   * The preferences area the interface language is read from: chrome.storage.local, which also holds
+   * whether the choice of native language was made on this device (change 20's marker).
+   */
   area: InterfaceLanguageArea;
+  /**
+   * The reader's data, the background's (`messagedArea`): where its owner records the native language
+   * the reader last chose (change 20) — read with the marker, never written.
+   */
+  store: InterfaceLanguageArea;
   /** The browser's language, `navigator.language` — whole tag or empty. */
   browserLanguage: string;
   /** The page's `#hash` now, and how the page replaces it once a view is rendered. */
@@ -36,7 +44,16 @@ export async function mountAccountPage(doc: Document, deps: AccountPageDeps): Pr
   // The interface language first, with this page's first read of its own (the colours' read and the
   // pending e-mails' are other things): the page's static copy is filled from the catalogue and its
   // lang said before anything shows — the body is hidden until then. A read that fails or hangs is French.
-  const { language } = await fillPageInLanguage(doc, deps.area, accountCopy);
+  const filled = fillPageInLanguage(doc, deps.area, accountCopy);
+  // Then, alongside, whether the reader chose their language: it decides only what the requests carry
+  // and where the deletion link goes (D2), so nothing waits for it before the page is filled. A read
+  // that fails is no choice.
+  const chosen = chosenLanguage(deps.area, deps.store);
+  const { language } = await filled;
+  // Until the reader has chosen the language the page is in, nothing written over the account's
+  // language and the deletion page by the browser's tag; the account locale and the interface
+  // language's page once they have (D2).
+  const said = accountLanguage(language, deps.browserLanguage, await chosen);
   const root = doc.getElementById("account-root");
   if (!root) return null;
   // The popup's « Gérer mes données » opens #data; the hash is replaced by the view once
@@ -86,9 +103,10 @@ export async function mountAccountPage(doc: Document, deps: AccountPageDeps): Pr
       send: deps.send,
       pending: deps.pending,
       pendingPassword: deps.pendingPassword,
-      // What Cymbra ID writes to the reader in: the interface language, or the browser's own when
-      // Cymbra speaks it and the extension does not (D2).
-      locale: accountLocale(language, deps.browserLanguage),
+      // What Cymbra ID writes to the reader in, and the deletion page (D2).
+      locale: said.locale,
+      keepAccountLocale: said.keepAccountLocale,
+      deletionLanguage: said.deletion,
       language,
       clearPersistedError: deps.clearPersistedError,
     },

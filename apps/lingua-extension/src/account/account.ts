@@ -5,21 +5,18 @@ import { mountAccountPage } from "./page.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
 import { DEFAULT_INTERFACE_LANGUAGE } from "../i18n/language.ts";
 import { reloadOnNativeLanguageChange } from "../state/native-language.ts";
+import { messagedArea } from "../state/store.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
-// Another native language chosen anywhere: the page reloads in it (add-lingua-native-language-choice
-// D3), compared with the language it shows — French, its markup's, until
-// localise-lingua-account-onboarding (change 17) fills it in the interface language it reads; that
-// change hands this hook the language it fills with.
-reloadOnNativeLanguageChange(DEFAULT_INTERFACE_LANGUAGE);
 
 // Account page bootstrap (add-lingua-account-parity, design D1): a tab — unlike the popup
 // it survives the reader switching to their mailbox for the code. Wires the controller to
 // the background (runtime messages), chrome.storage.session (pending email only) and the
 // URL hash (so a reload resumes the same step). `mountAccountPage` (page.ts, tested) reads the
-// interface language first (localise-lingua-account-onboarding D1) and tells the server the account
-// locale (D2). Excluded from coverage (Chrome wiring only).
+// interface language first (localise-lingua-account-onboarding D1) and tells the server the locale
+// to write in — the browser's until the reader has chosen their language, which it reads from
+// chrome.storage.local and the background's store (D2). Excluded from coverage (Chrome wiring only).
 
 async function send(message: AccountMessage): Promise<AccountReply | null> {
   try {
@@ -62,8 +59,9 @@ async function clearPersistedError(): Promise<void> {
   }
 }
 
-void mountAccountPage(document, {
+const mounted = mountAccountPage(document, {
   area: { get: (key) => chrome.storage.local.get(key) },
+  store: messagedArea(),
   browserLanguage: navigator.language || "",
   send,
   pending,
@@ -72,3 +70,12 @@ void mountAccountPage(document, {
   hash: () => location.hash,
   replaceHash: (hash) => history.replaceState(null, "", hash),
 });
+
+// Another native language chosen anywhere: the page reloads in it (add-lingua-native-language-choice
+// D3), compared with the language it was filled in — French when it could not be mounted.
+reloadOnNativeLanguageChange(
+  mounted.then(
+    (page) => page?.language ?? DEFAULT_INTERFACE_LANGUAGE,
+    () => DEFAULT_INTERFACE_LANGUAGE,
+  ),
+);

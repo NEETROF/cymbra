@@ -62,15 +62,26 @@ export interface AccountFlowDeps {
   /** The address of a set-password waiting for its code (D4) — its own key, never the password. */
   pendingPassword: PendingEmailStore;
   /**
-   * The account locale (`accountLocale`, D2), sent on the four requests that carry one, so the
-   * account's e-mails come in the reader's language.
+   * The locale sent on the requests that carry one (`AccountLanguage.locale`, D2): the browser's
+   * whole tag until the reader has chosen their language, the account locale once they have, so the
+   * account's e-mails come in the language they chose.
    */
   locale: string;
   /**
-   * The interface language: the notices, the errors and the deletion page; French when not given.
-   * Callers pass the interface language, never the account locale (`locale` above): the deletion
-   * page is read by the reader, and follows what the reader reads (D2).
+   * Whether resending the code and requesting a reset carry no locale (D2): Cymbra ID records the
+   * locale those two requests carry over the account's own, and keeps the account's — writing the
+   * e-mail in it — when they carry none. True until the reader has chosen their language
+   * (`AccountLanguage.keepAccountLocale`), so that this device never writes over a language the
+   * account was given elsewhere; false — `locale` sent, as it always was — when not given.
    */
+  keepAccountLocale?: boolean;
+  /**
+   * What the deletion page is chosen by (`AccountLanguage.deletion`, D2): the browser's whole tag
+   * until the reader has chosen their language — `locale`, as it always was, when not given — and the
+   * interface language once they have, never the account locale, which may be the browser's `it`.
+   */
+  deletionLanguage?: string;
+  /** The interface language: the notices and the errors; French when not given. */
   language?: InterfaceLanguage;
   /** Drop the background's persisted provider failure once it was shown live. */
   clearPersistedError: () => Promise<void>;
@@ -132,8 +143,8 @@ export class AccountFlow {
   ) {
     this.language = deps.language ?? DEFAULT_INTERFACE_LANGUAGE;
     this.copy = accountCopy(this.language);
-    // The interface language alone, not the account locale: a page the reader reads (D2).
-    this.s.deleteAccountUrl = deleteAccountUrl(this.language);
+    // A page the reader reads: by the language they chose, or by the browser's until then (D2).
+    this.s.deleteAccountUrl = deleteAccountUrl(deps.deletionLanguage ?? deps.locale);
   }
 
   view(): AccountViewState {
@@ -222,12 +233,21 @@ export class AccountFlow {
     return this.set({ view: "signin", notice: this.copy.verified });
   }
 
+  /**
+   * The locale of a request Cymbra ID records over the account's own — resending the code,
+   * requesting a reset: none while the account's is to be kept (D2). Sign-up records it on an account
+   * that has none yet, and setting a password records nothing: both carry `locale`.
+   */
+  private overwritingLocale(): string {
+    return this.deps.keepAccountLocale ? "" : this.deps.locale;
+  }
+
   async resend(): Promise<AccountViewState> {
     if (!this.s.email) return this.view();
     const reply = await this.run("resend", {
       type: "account:resendVerification",
       email: this.s.email,
-      locale: this.deps.locale,
+      locale: this.overwritingLocale(),
     });
     return reply?.ok ? this.set({ notice: this.copy.newCodeSent }) : this.view();
   }
@@ -239,7 +259,7 @@ export class AccountFlow {
     const reply = await this.run("forgot", {
       type: "account:requestPasswordReset",
       email,
-      locale: this.deps.locale,
+      locale: this.overwritingLocale(),
     });
     if (!reply?.ok) return this.view();
     // Identical whether or not the account exists (no enumeration).

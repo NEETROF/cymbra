@@ -8,6 +8,8 @@ import type { AccountMessage, AccountReply } from "@/account/messages.ts";
 import { mountAccountPage } from "@/account/page.ts";
 import { type AccountActions, linkedOn, renderAccount } from "@/account/view.ts";
 import { COPY_PENDING_ATTR, fillPageInLanguage, INTERFACE_LANGUAGE_KEY } from "@/i18n/index.ts";
+import { NATIVE_CHOSEN_KEY } from "@/state/native-language.ts";
+import { LAST_NATIVE_KEY } from "@/state/store.ts";
 import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helpers.ts";
 
 // The account page (localise-lingua-account-onboarding D1, D3): its skeleton holds no text; opened as
@@ -205,6 +207,8 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
 
   async function mount(options: {
     area: { get(key: string): Promise<Record<string, unknown>> };
+    /** The background's store; nothing recorded in it unless given. */
+    store?: { get(key: string): Promise<Record<string, unknown>> };
     browserLanguage: string;
     hash?: string;
     signedIn?: boolean;
@@ -221,6 +225,7 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
     };
     const mounted = await mountAccountPage(doc, {
       area: options.area,
+      store: options.store ?? pageArea(),
       browserLanguage: options.browserLanguage,
       send: async (message) => {
         sent.push(message);
@@ -238,9 +243,10 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
     return { doc, sent, hashes, mounted };
   }
 
-  it("an English interface in an Italian browser: the page in English, `it` sent to the server", async () => {
+  it("English chosen in an Italian browser: the page in English, `it` sent to the server", async () => {
     const { doc, sent, mounted } = await mount({
-      area: pageArea({ [INTERFACE_LANGUAGE_KEY]: "en" }),
+      area: pageArea({ [INTERFACE_LANGUAGE_KEY]: "en", [NATIVE_CHOSEN_KEY]: true }),
+      store: pageArea({ [LAST_NATIVE_KEY]: "en" }),
       browserLanguage: "it-IT",
       hash: "#signup",
     });
@@ -260,13 +266,57 @@ describe("the entry's wiring: mountAccountPage (localise-lingua-account-onboardi
     );
   });
 
-  it("a storage that refuses, signed in: French, the signed-in step resumed, the French deletion page", async () => {
+  it("an English interface in an Italian browser, nothing chosen on this device: the page in English, what the page always sent", async () => {
+    const { doc, sent, mounted } = await mount({
+      // Marked as chosen by an update, with no choice recorded: no choice (D2).
+      area: pageArea({ [INTERFACE_LANGUAGE_KEY]: "en", [NATIVE_CHOSEN_KEY]: true }),
+      browserLanguage: "it-IT",
+      hash: "#signup",
+    });
+    expect(doc.documentElement.lang).toBe("en");
+    await mounted!.flow.signUp("new@example.com", "a long passphrase");
+    await mounted!.flow.resend();
+    expect(sent.filter((m) => "locale" in m)).toEqual([
+      { type: "account:signUp", email: "new@example.com", password: "a long passphrase", locale: "it-IT" },
+      // No locale: Cymbra ID keeps the account's own, whichever device gave it.
+      { type: "account:resendVerification", email: "new@example.com", locale: "" },
+    ]);
+    expect(mounted!.flow.view().deleteAccountUrl).toBe("https://cymbra.app/en/delete-account/");
+  });
+
+  it("reads the interface language first, then whether the reader chose", async () => {
+    const keys: string[] = [];
+    const area = {
+      get: async (key: string): Promise<Record<string, unknown>> => {
+        keys.push(key);
+        return {};
+      },
+    };
+    await mount({ area, browserLanguage: "fr-FR" });
+    expect(keys).toEqual([INTERFACE_LANGUAGE_KEY, NATIVE_CHOSEN_KEY]);
+  });
+
+  it("a storage that refuses, signed in: French, the signed-in step resumed, the deletion page by the browser as before", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const { doc, hashes } = await mount({ area: refusingArea(), browserLanguage: "en-GB", signedIn: true });
     expect(doc.documentElement.lang).toBe("fr");
     expect(doc.title).toBe("Compte — Cymbra Lingua");
     expect(doc.querySelector("#account-root h2")?.textContent).toBe("Tu es connecté");
     expect(hashes.at(-1)).toBe("#signedin");
+    const deletion = [...doc.querySelectorAll<HTMLAnchorElement>("#account-root a")].find(
+      (a) => a.textContent === "Supprimer mon compte Cymbra",
+    );
+    // A read that fails is no choice: the deletion page by the browser's tag, English for `en-GB`.
+    expect(deletion?.getAttribute("href")).toBe("https://cymbra.app/en/delete-account/");
+  });
+
+  it("French chosen in an English browser, signed in: the French deletion page", async () => {
+    const { doc } = await mount({
+      area: pageArea({ [INTERFACE_LANGUAGE_KEY]: "fr", [NATIVE_CHOSEN_KEY]: true }),
+      store: pageArea({ [LAST_NATIVE_KEY]: "fr" }),
+      browserLanguage: "en-GB",
+      signedIn: true,
+    });
     const deletion = [...doc.querySelectorAll<HTMLAnchorElement>("#account-root a")].find(
       (a) => a.textContent === "Supprimer mon compte Cymbra",
     );
