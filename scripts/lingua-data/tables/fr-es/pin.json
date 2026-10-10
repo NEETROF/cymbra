@@ -1,0 +1,72 @@
+{
+  "snapshot": "2026.10.10",
+  "pack": {
+    "sha256": "9f502efb9a05dd71ea9bb47c9eebbc4786063f76f857a31b48f713317c6e5723",
+    "size": 1973407
+  },
+  "reducer": {
+    "sha256": "3f293e883e0efe30edf0ea13ab0b71f1c63fe1b2d632bd1d3195e8ebce78dea9",
+    "files": [
+      "reduce-fr-es.py",
+      "reduce_common.py",
+      "reduce_edition_es.py"
+    ]
+  },
+  "studied": {
+    "reference": "fr-en",
+    "tables": {
+      "forms.tsv": "b013fac8d5099627c55e32b727dcdf9f6c19602d8b57dccb2528a80077a488d1",
+      "freq.tsv": "6f6c3595a9b62fc61f0033bbb8cb753e97d87c6c173ead052f095e3fd2efed30",
+      "grammar.tsv": "79a41a7b91ec637fedcbd24785efcd674f5f0d1668a8ffdbd8a280129aaa082c",
+      "level.tsv": "dace859891faa71798b343e90809ac72d6244bb22b661e5194dc98f12bff6e63",
+      "lexical.tsv": "93cce0699b165dfb323ebf077f6aabf22353fa48b7ce670000a07096db08082e",
+      "tags.tsv": "bcefe71fe32b221624943c6b5c63f77a88f2bf48dd2e9e4ede5c47e4738479b7"
+    }
+  },
+  "sources": {
+    "kaikki-es": {
+      "release": "lingua-pack-sources-fr-es-2026.10.10",
+      "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-10",
+      "last_modified": "Fri, 02 Oct 2026 12:12:06 GMT",
+      "dump": {
+        "sha256": "46e1f04f4354fc81708f0397961723fa28e512d7c4b45b551b6fb4bb36ff8ddb",
+        "size": 1233016167,
+        "compressed_size": 103226106
+      },
+      "files": {
+        "kaikki-es-Frances.jsonl": {
+          "asset": "kaikki-es-Frances.jsonl.zst",
+          "sha256": "2e724e39ff59339f52f86c5a32ee4b84f968df93ce98631fa32aa0c938a31217",
+          "size": 7438610
+        },
+        "kaikki-es-traductions.jsonl": {
+          "asset": "kaikki-es-traductions.jsonl.zst",
+          "sha256": "bf44ebb4255ecde3d396bc877adcd9e306974403988089f5b774f5526a500f32",
+          "size": 1537580
+        }
+      }
+    },
+    "kaikki-fr": {
+      "release": "lingua-pack-sources-fr-es-2026.10.10",
+      "url": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-10",
+      "last_modified": "Fri, 02 Oct 2026 00:10:16 GMT",
+      "dump": {
+        "sha256": "968f7df0c64632ec64444f9cabc4019b4ecad8284407a5e053f85a54b1b21f19",
+        "size": 6865136428,
+        "compressed_size": 736590407
+      },
+      "files": {
+        "kaikki-fr-traductions.jsonl": {
+          "asset": "kaikki-fr-traductions.jsonl.zst",
+          "sha256": "bd14a5c41693293d3f3e19467ad69212425236266117ca6a780e0ded19c3bf4e",
+          "size": 6191621
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}
