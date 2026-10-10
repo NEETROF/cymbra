@@ -288,6 +288,9 @@ Rollback is a revert, the goldens, manifests, pins and fixtures with it.
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session), each as its default:** the rule of D1 (`da` and
+`das` count only beside another Galician word), and Galician's `é` left out of this change.
+
 For the owner, none blocking. Each has a default, which the implementation follows unless the owner
 answers otherwise.
 
