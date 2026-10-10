@@ -1,16 +1,20 @@
 ## ADDED Requirements
 
 ### Requirement: fr-en's glosses read a French word's meanings in the order French uses them
-The fr-en reduction SHALL read a pointer sense that carries its meaning as that meaning — in a word's gloss when the pointer names a degree of comparison, a synonym, a female equivalent, a plural or a contraction, in an expression's whatever it names —, SHALL open a word's gloss on the part of speech UD French-GSD's training and development sections read the word as at least ten times and at least twice as often as the part of speech the page opens on, never on a proper noun's, SHALL leave a name's senses out of a word whose every other entry is a function word's, SHALL leave out an expression whose one sense needs a context its key does not hold, and SHALL gloss a post-1990 spelling that is keyed apart from its traditional spelling with that spelling's gloss.
+The fr-en reduction SHALL read a pointer sense that carries its meaning as that meaning — in a word's gloss when the pointer names a degree of comparison, a synonym, a plural or a contraction, in an expression's whatever it names —, SHALL open a word's gloss on the part of speech UD French-GSD's training and development sections read the word as at least ten times and at least twice as often as the part of speech the page opens on, never on a proper noun's, when that part of speech is a function word's or the page opens the gloss on a proper noun's, SHALL leave a name's senses out of a word whose every other entry is a function word's, SHALL leave out an expression whose one sense needs a context its key does not hold, and SHALL gloss a post-1990 spelling that is keyed apart from its traditional spelling with that spelling's gloss.
 A pointer's meaning is the one the section records for its target, or writes after it in quotation
 marks or past a colon or a semicolon; a pointer that carries none, a name's, an acronym's and a
-meaning written only in capitals stay pointers, as before. A word's other pointers — an alternative
-form, a spelling, a feminine singular, an ellipsis, a clipping — stay pointers. The treebank's
+meaning written only in capitals stay pointers, as before. A word's other pointers — a female
+equivalent, an alternative form, a spelling, a feminine singular, an ellipsis, a clipping — stay
+pointers. The treebank's
 counts are the ones fr-en's pin already records; a word inside a fixed expression of the treebank
 counts for none, a noun, a verb, an adjective or a proper noun counts under its lemma and any other
 part of speech under its own form; the entries of the commonest part of speech come first, the
-others keep their order, and a word the treebank meets less often keeps the page's order. A
-function word is a preposition, a conjunction, a pronoun, a determiner, an article or a particle.
+others keep their order, and a word the treebank meets less often keeps the page's order. The
+function words' parts of speech the treebank may move first are `ADP`, `DET`, `PRON`, `CCONJ`,
+`SCONJ`, `PART` and `ADV`; a noun, a verb or an adjective that the treebank reads more often than
+the noun, verb or adjective the page opens on does not move. A word's name is left out under a
+preposition, a conjunction, a pronoun, a determiner, an article or a particle.
 The expressions left out are listed by name, each with its reason, as `à la` is. These are rules
 of fr-en's own reducer, which no other pair loads: they re-pin fr-en alone, and its coverage stays
 at least its floor.
@@ -32,8 +36,8 @@ at least its floor.
 - **THEN** fr-en glosses « il y a » « there is, there are; ago »
 
 #### Scenario: Another pointer of a word stays a pointer
-- **WHEN** the section glosses `y` « alternative form of il; he » beside « there (at a place) »
-- **THEN** `y`'s gloss holds « there (at a place) » and no « he », as before
+- **WHEN** the section glosses `y` « alternative form of il; he » beside « there (at a place) », and `directrice` only pointers, the first « female equivalent of directeur: directress »
+- **THEN** `y`'s gloss holds « there (at a place) » and no « he », and `directrice`'s is `directeur`'s « director; school principal », as before
 
 #### Scenario: A function word's commonest part of speech
 - **WHEN** the page opens `pas` on its noun « step, pace, footstep », `son` on its noun « sound » and `leur` on its pronoun « (to) them », and the treebank reads `pas` 981 times as an adverb against 8 as a noun, `son` 1,506 times as a determiner against 19, `leur` 440 times against 50 as a pronoun
@@ -42,6 +46,10 @@ at least its floor.
 #### Scenario: A common word before a place's name
 - **WHEN** the page opens `marche` on « Marche (a department of France) » before its noun's « march », and the treebank reads `marche` 19 times as a noun and never as a proper noun
 - **THEN** `marche`'s gloss opens on « march (formal, rhythmic way of walking) », and the department comes after the noun's senses
+
+#### Scenario: A noun, a verb and an adjective keep the page's order
+- **WHEN** the page opens `ferme` on its adjective « firm » and `devoir` on its noun « duty », and the treebank reads `ferme` more often as a noun and `devoir` as a verb
+- **THEN** `ferme`'s gloss opens on « firm » and `devoir`'s on « duty », as before
 
 #### Scenario: Too little evidence
 - **WHEN** the treebank reads `même` 262 times as an adjective and 173 as an adverb, not twice as often, and the noun `phare` 8 times, fewer than ten

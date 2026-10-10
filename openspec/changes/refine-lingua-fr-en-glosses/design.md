@@ -14,7 +14,7 @@ See proposal.md (Why). What exists, on `main` at `34fa74b2` (change 48's impleme
 | Change 41's names rule | `document_names` (`engine.rs`): a form never written in lowercase, capitalised in mid-sentence (or after an elided piece), whose lemma is no dictionary word of the pack, is set aside. On the committed tables only `Myriel` is (`french_baseline.rs`: `Paris`, `Lot`, `Aube`, `Jean-Pierre`, `Saint-Étienne` are Unknown words) |
 | The vocabulary estimate | `Pack::dictionary_words`: the ranked lemmas that are dictionary words or carry a level — 30,095 for fr-en (30,055 glossed and 40 levelled unglossed) |
 | `fr-en.golden` | 147 probes, 336,433 B, over the pack built from the committed tables since 48's hand-over; a change to `tables/fr/` or `tables/fr-en/` that moves it re-blesses it and says so |
-| The owner's decisions (2026-10-10) | The floor stays; names are no French dictionary words; no level without a gloss; no translation table for expressions here (proposal, Why) |
+| The owner's decisions (2026-10-10) | The floor stays; names are no French dictionary words; no level without a gloss; no translation table for expressions here (proposal, Why); then, on this proposal, Q1–Q5 settled and the golden's re-bless approved (*Settled by the owner*) |
 
 ## Goals / Non-Goals
 
@@ -31,8 +31,9 @@ See proposal.md (Why). What exists, on `main` at `34fa74b2` (change 48's impleme
 - The French Wiktionary's English translations for expressions (the owner's decision 4).
 - M20 (the English edition's two settings) and 23b's Q1–Q4, which answer for es-en and fr-en
   together.
-- French's studied side beyond `lexical.tsv` and `level.tsv`: forms, ranks and readings
-  (`ca`, read by wordfreq as an unaccented `ça`, is change 43's lemma).
+- French's studied side beyond `lexical.tsv` and `level.tsv`: forms, ranks and readings (`ca`, read
+  by wordfreq as an unaccented `ça`, is to become a spelling of `ça` in a forms-table change of its
+  own, Q4).
 - A new source or fetch: fr-en keeps its snapshot.
 
 ## Measured
@@ -51,10 +52,10 @@ baseline re-blessed in a scratch copy of `main` over the prototype's tables.
 |---|---|---|---|---|
 | 1 | A name glossed and a dictionary word | 3,586 / 914 | `france`, `paris`, `lyon`, `durand` « a surname » | Out of the dictionary words (D2) |
 | 2 | A level with no gloss | 40 levelled lemmas | `parce` (A1, 103), `quant`, `x`, `pme`, `stp`, `rsa` | No level (D3) |
-| 3 | A borrowed gloss wrong for the word | `des` (6); `ca` (144) | « des » « of the; some, the feminine partitive article », borrowed from `de la`; « ca » « board of directors », from `CA` | `des`: D4. `ca`: left (D9) |
+| 3 | A borrowed gloss wrong for the word | `des` (6); `ca` (144) | « des » « of the; some, the feminine partitive article », borrowed from `de la`; « ca » « board of directors », from `CA` | `des`: D4. `ca`: a forms-table change of its own (Q4) |
 | 4 | A pointer's own meaning left out | 680 pointer senses with a meaning in 579 ranked words, 101 in expressions | `mieux` without « better », `moins` without « less », `ouais` without « yeah »; « il y a » « ago » without « there is » | D4, on a closed list of wordings for a word |
-| 5 | The part of speech a row opens on | 2,897 / 1,264 rows hold two runs or more | `pas` « step », `son` « sound », `leur` « (to) them », `phare` « leading, flagship » | D5, where UD French-GSD says so |
-| 6 | A proper noun's run in a common word's row | first 218 / 108; after another run 484 / 260 | « marche » « Marche (a department of France); march… », « réunion », « somme »; « le » ending on « a surname from Vietnamese », « on » on « a village in Luxembourg » | D5 and D6 for these; the rest left (D9) |
+| 5 | The part of speech a row opens on | 2,897 / 1,264 rows hold two runs or more | `pas` « step », `son` « sound », `leur` « (to) them », `phare` « leading, flagship » | D5, a function word's row where UD French-GSD says so |
+| 6 | A proper noun's run in a common word's row | first 218 / 108; after another run 484 / 260 | « marche » « Marche (a department of France); march… », « réunion », « somme »; « le » ending on « a surname from Vietnamese », « on » on « a village in Luxembourg » | D5 and D6 for these; the rest accepted for now (Q5) |
 | 7 | An expression whose sense needs a context | 5 expressions | `et des` « or thereabouts », `que de` « how (modifier) », `sur ce` « thereupon », `et si` « what if », `un coup` « used to soften an order; once » | Left out (D7) |
 | 8 | A post-1990 spelling keyed apart | 6 expressions | `à priori`, `à postériori`, `et cétéra`, `sur son trente-et-un` and two verbs on it | Lend the traditional spelling's gloss (D7) |
 | 9 | The page's own notes | « see usage notes » 5 / 3; « (all senses) » 98 / 30; « in its various senses » 1 / 1; « (Folk etymology: …) » 2 / 2 | `en`, `dans`, `ne`; `contrôle` « control (all senses) »; `consul`; `mon`, `ma` | Out (D8) |
@@ -68,33 +69,34 @@ baseline re-blessed in a scratch copy of `main` over the prototype's tables.
 
 | Rule | Rows / top 10k | First sense | Lemmas gained | Expressions | Examples |
 |---|---|---|---|---|---|
-| D4, a pointer's meaning | 70 / 24 | 32 / 15 | 12 (4 of the top 10,000) | 15 changed, 168 gained | « des » « some; of the, from the, some », « du » « forms the partitive article; of the », « mieux » « better; best; … », « ouais »; « il y a » « there is, there are; ago » |
-| D5, UD French-GSD's part of speech | 68 / 65 | 68 / 65 | — | — | « pas » opens on its negation, « son » « his, her… », « leur » « their », « bien » « well », « devoir » « must »; « marche », « réunion », « somme » on the common noun |
+| D4, a pointer's meaning | 40 / 18 | 13 / 10 | 12 (4 of the top 10,000) | 15 changed, 166 gained | « des » « some; of the, from the, some », « du » « forms the partitive article; of the », « mieux » « better; best; … », « ouais »; « il y a » « there is, there are; ago » |
+| D5, UD French-GSD's part of speech, function words and names | 13 / 13 | 13 / 13 | — | — | « pas » opens on its negation, « son » « his, her… », « leur » « their », « bien » « well »; « marche », « réunion », « somme » on the common noun |
 | D6, no name under a function word | 2 / 2 | — | — | — | « le », « on » |
 | D7, expressions | — | — | — | 5 left out, 6 gained | `et des`…; `à priori` |
 | D8, notes | 106 / 36 | 96 / 28 | — | 3 changed | « en », « dans », « ne », « contrôle », « consul », « mon » |
 | D8, openers | 14 / 8 | 8 / 2 | — | 1 changed | « que », « il », « mon », « ma », « soi », « wesh » |
 | D8, citations, numbers | 4 / 3 | 2 / 2 | — | — | « liberté », « office », « téléphonie », « proscription » |
 | D8, « etc. » | 117 / 42 | 59 / 10 | — | 7 changed | « le », « pas », « possible » |
-| **Together** | **375 / 174** | **264 / 121** | **12, none lost** | **26 changed, 174 gained, 5 left out** | coverage 93.6 / 86.9 / 76.3 % (4,679 / 8,688 / 15,260), the floor 91.9 / 85.1 / 74.4 |
+| **Together** | **291 / 117** | **190 / 64** | **12, none lost** | **26 changed, 172 gained, 5 left out** | coverage 93.6 / 86.9 / 76.3 % (4,679 / 8,688 / 15,260), the floor 91.9 / 85.1 / 74.4 |
 
 The 12 lemmas gained are words whose only senses were pointers of D4's wordings: `french`
 « French », `burger`, `dev`, `ès` « in the » (four of change 48's 40 levelled lemmas with no
 gloss, which therefore keep their level), `because` « because; because of », `chui` « I'm »,
-`blockchain`, `broyeuse`, `axis`, `ive`, `loix`, `sherry`. Expressions: 17,479 → 17,648.
+`blockchain`, `broyeuse`, `axis`, `ive`, `loix`, `sherry`. Expressions: 17,479 → 17,646.
 
-**Names** (D2). Of the 30,067 lemmas glossed with these rules, 3,578 are glossed by a proper noun's
-senses alone — every run of `senses.tsv` `PROPN` — 359 / 911 / 1,762 of the 5,000 / 10,000 / 20,000
+**Names** (D2). Of the 30,067 lemmas glossed with these rules, 3,581 are glossed by a proper noun's
+senses alone — every run of `senses.tsv` `PROPN` — 359 / 912 / 1,763 of the 5,000 / 10,000 / 20,000
 commonest. Measured three ways:
 
 | Where | Coverage 5k / 10k / 20k | Dictionary words | What else |
 |---|---|---|---|
-| fr-en leaves them unglossed | 86.4 / 77.8 / 67.5 % — under the floor at every cut | 26,489 | a reader who opens `Paris` at a sentence's head gets no gloss |
-| **Out of `tables/fr/lexical.tsv`, still glossed (this design)** | **93.6 / 86.9 / 76.3 %** | **26,489** | fr-en's pack carries a lexical table |
+| fr-en leaves them unglossed | 86.4 / 77.8 / 67.5 % — under the floor at every cut | 26,486 | a reader who opens `Paris` at a sentence's head gets no gloss |
+| **Out of `tables/fr/lexical.tsv`, still glossed (this design)** | **93.6 / 86.9 / 76.3 %** | **26,486** | fr-en's pack carries a lexical table |
 | Change 41's names rule sets them aside by a name test | unchanged | 30,067 | the vocabulary estimate still counts them, and the pack would need to say which lemmas are names |
 
 English's and Spanish's dictionary words keep theirs: 3,046 of en-fr's glossed lemmas (993 of the
-top 10,000) and 1,693 of es-fr's (550) are glossed by a proper noun's senses alone (Q1).
+top 10,000) and 1,693 of es-fr's (550) are glossed by a proper noun's senses alone: the same rule
+for them is a change of its own (Q1).
 
 **The `noms` page** then: `Durand`, `Lefèvre`, `Jean-Pierre`, `Saint-Étienne`, `Rhône`, `Garonne`,
 `Paris`, `Renault`, `François`, `Lyon` and `Grenoble` are set aside with `Myriel` (the page counts
@@ -111,7 +113,7 @@ words, a common word's senses among theirs; `Mme` and `Marie-Claire` open their 
 B2 → B1, 40 C1 → B2, 44 C2 → C1). The spans become A1 1–1,085, A2 1,086–2,385, B1 2,386–4,832, B2
 4,833–8,139, C1 8,140–9,474, C2 9,475–10,820; 8,302 levels, as many at each level as before.
 
-**The pack**: 2,527,222 → 2,538,159 B (+10,937: the glosses +3,425, the lexical table and the levels
+**The pack**: 2,527,222 → 2,537,587 B (+10,365: the glosses +2,853, the lexical table and the levels
 +7,512), under the 5 MiB budget.
 
 **The golden**: 47 of 147 probes move, 336,433 → 331,322 B (D11).
@@ -140,18 +142,19 @@ the first is edited, so only fr-en re-pins.
 ### D2 — Names are no French dictionary words
 
 **Which lemmas.** A lemma fr-en glosses by a proper noun's senses alone: every sense run of its gloss
-(`senses.tsv`) is `PROPN`. It is read off the committed tables, so a check can hold it: 3,578 lemmas
+(`senses.tsv`) is `PROPN`. It is read off the committed tables, so a check can hold it: 3,581 lemmas
 with D4–D8 (3,586 before them), among them 74 of change 48's borrowed from a name through a pointer
 (`etats-unis`, `egypte`, `ecosse`: a name spelled without its accent). A word with a common sense
 beside a name's stays a word (`lot`, `aube`, `nice`, `marche`). A lemma whose common entry repeats
 the name's gloss word for word is read by whichever entry the round-robin meets first: `islam`
-« Islam » was a name's before D5 and is a noun's after it, as the treebank counts it.
+« Islam » was a name's before D5 and is a noun's after it: D5 moves a row the page opens on a name,
+and the treebank reads `islam` 14 times as a noun.
 
 **Where** (measured above). Left unglossed, the names would take fr-en under its floor at every cut,
 which the owner's decision 1 forbids. Read by change 41's names rule as names, they would still count
 in the vocabulary estimate, and the core would need data the pack does not carry. Left out of
 `tables/fr/lexical.tsv` and still glossed, they are no dictionary words — the vocabulary estimate's
-universe falls from 30,095 to 26,489, the names rule sets them aside as written (its scenario *A
+universe falls from 30,095 to 26,486, the names rule sets them aside as written (its scenario *A
 city* is this case: « `paris` is a lemma of the pack but not one of its dictionary words ») — and a
 reader who opens `Paris` at a sentence's head, or a lowercase `lyon`, still reads its gloss.
 
@@ -177,7 +180,7 @@ its slot to the next one in rank order, as change 46's other rules do, so the si
 English's sizes and *French's estimated levels* holds (*Six levels of English's sizes*: 8,302).
 Measured: 45 lose their level, 45 gain one, 122 move one band up (*Measured*). Every levelled lemma
 is a dictionary word, so the vocabulary estimate's universe is French's dictionary words alone
-(26,489), and a card seeded from a level carries a gloss.
+(26,486), and a card seeded from a level carries a gloss.
 
 The requirement is ADDED beside change 46's, which is implemented but not archived: its words « never
 from a pair's glosses » and its scenario *The table does not wait for the glosses* were true when
@@ -203,52 +206,70 @@ lent here):
   text read past its last colon or semicolon — else the gloss's quoted text after the target, else
   its text after a colon or a semicolon;
 - **a word's pointers**: those whose wording opens on « comparative degree of », « superlative
-  degree of », « synonym of », « female equivalent of », « plural of » or « contraction of »;
+  degree of », « synonym of », « plural of » or « contraction of »;
 - **an expression's pointers**: any wording (« il y a » « there is, there are »; « sais pas »
   « dunno »; « la vôtre » « yours (the one belonging to you) »; « chou rave » « kohlrabi »);
 - **never**: a name's entry, an acronym's, a meaning written only in capitals (« NE », « SE »).
 
-Measured: 70 rows (24 of the top 10,000); 12 lemmas gained; 15 expressions changed and 168 gained,
+Measured: 40 rows (18 of the top 10,000); 12 lemmas gained; 15 expressions changed and 166 gained,
 none lost. `des` borrows nothing any more and reads « some; of the, from the, some »; `du` « forms the
 partitive article; of the » (the contraction's run is `X`, as kaikki's `contraction` is everywhere).
-Some read oddly and are in the owner's sample: « directrice » « directress » where it borrowed
-« director; school principal », « fiancée » « fiancé », « matelas » gains « French tacos » (a synonym
-the page gives), « j't'à » « the 't' is epenthetic ».
+A few read oddly and are in the owner's sample: « matelas » gains « French tacos » and « bercy »
+« drunkard » (synonyms the page gives), « j't'à » « the 't' is epenthetic ».
 
+*Rejected — « female equivalent of » among a word's wordings* (the owner, 2026-10-10, Q3): it moved
+30 more rows (6 of the top 10,000) — « directrice » read « directress » instead of `directeur`'s
+« director; school principal », « fiancée » « fiancé », « tigresse » « tiger » —, so a female
+equivalent stays a pointer: `directrice` keeps the gloss it borrows, `fiancée` its own.
 *Rejected — every pointer wording for a word* (109 rows, 35 of the top 10,000): `y` (30) gains
 « he; they (male) » from its dialectal « alternative form of il », `fol` reads « used only when the
 following noun starts with a vowel… » instead of « mad, crazy », `click` « especially of a computer
 mouse », `electro` « music genre; électroménager ». An alternative form, a spelling, a feminine
-singular, an ellipsis or a clipping of a word stays a pointer.
+singular, an ellipsis or a clipping of a word stays a pointer too.
 
-### D5 — A row opens on the part of speech UD French-GSD reads the word as
+### D5 — A function word's row, or a row opening on a name, opens on the part of speech UD French-GSD reads it as
 
 The round-robin groups a gloss's senses by part of speech in the order the page's entries come, so
-`pas` opens on « step » and `son` on « sound ». fr-en's pin already holds GSD's training and
-development sections (390,368 words), read today for which lemma a form takes. `read_as_french`
-counts each word under each part of speech — the auxiliary as a verb; a word inside a fixed expression
-for none (UD tags « conséquent » in « par conséquent » a noun); a noun, verb, adjective or proper noun
-under its lemma, any other part of speech under its own form (UD lemmatises « ton », « leur »,
-« mon » as « son ») — and writes the entries of a headword's commonest part of speech first when the
-treebank reads it at least **10** times and at least **twice** as often as the part of speech the page
-opens on. A proper noun is never moved first; the other entries keep their order.
+`pas` opens on « step », `son` on « sound » and `marche` on a department of France. fr-en's pin
+already holds GSD's training and development sections (390,368 words), read today for which lemma a
+form takes. `read_as_french` counts each word under each part of speech — the auxiliary as a verb; a
+word inside a fixed expression for none (UD tags « conséquent » in « par conséquent » a noun); a
+noun, verb, adjective or proper noun under its lemma, any other part of speech under its own form
+(UD lemmatises « ton », « leur », « mon » as « son ») — and writes the entries of a headword's
+commonest part of speech first when:
+- the treebank reads it at least **10** times and at least **twice** as often as the part of speech
+  the page opens on; and
+- it is a **function word's** part of speech — `ADP`, `DET`, `PRON`, `CCONJ`, `SCONJ`, `PART` or
+  `ADV` —, or the page opens the row on a **proper noun's** (`PROPN`).
+A proper noun is never moved first; the other entries keep their order. A noun, a verb or an
+adjective moving ahead of another noun, verb or adjective is left as the page writes it (the owner,
+2026-10-10, Q2): `ferme` keeps « firm » first, `mort` « dead », `devoir` « duty », `ensemble`
+« together », `nul` « no, none ». (`AUX` is no part of speech of a sense run: kaikki's verbs are
+`VERB` and the treebank's auxiliaries are counted as verbs.)
 
-Measured: 68 rows, 65 of the top 10,000. Function words open on their function (`pas` 981 adverbs
-against 8 nouns, `son` 1,506 determiners against 19 nouns, `leur`, `bien`, `quand`, `pendant`,
-`juste`, `outre`, `envers`); four common nouns no longer open on a place (`marche`, `réunion`,
-`somme`, `restauration`); verbs open on the verb (`devoir`, `devenir`, `toucher`, `tendre`); 47 are an
-adjective and a noun swapped (`allemand`, `chinois`, `critique`, `objectif`, `ferme` « roof truss;
-farm » before « firm », `mort` « dead person; death » before « dead »), where both are the word's and
-the treebank says which is commoner in text.
+**`ADV`, measured.** With the six other function parts of speech alone, 10 rows move; `ADV` adds
+exactly three, each a word whose adverb is its commonest use and reads first: `pas` (981 adverbs
+against 8 nouns: « the most common adverb of negation… » before « step »), `bien` (« well » before
+« good, all right ») and `juste` (« exactly, precisely; just, only » before « fair, just »). No
+adverb is moved behind a noun or an adjective (that is the plain swap left alone). `ADV` is in.
 
+Measured: **13 rows, all of the top 10,000**: `pas`, `son` (1,506 determiners against 19 nouns),
+`bien`, `leur` (440 determiners against 50 pronouns: « their » before « (to) them »), `quand`,
+`juste`, `pendant`, `outre`, `envers`, and four common nouns that no longer open on a place:
+`marche`, `réunion`, `somme`, `restauration`. `islam`, whose noun entry repeats the name's « Islam »,
+is read by its noun's entry (D2).
+
+*Rejected — the commonest part of speech whatever it is* (68 rows, 65 of the top 10,000): 47 of them
+swap an adjective and a noun (`ferme` « roof truss; farm » before « firm », `mort` « dead person;
+death » before « dead »), others put a content word first (`ensemble` « set » before « together »,
+`devoir` « must » before « duty ») — measured, the owner kept the page's order for them (Q2).
 *Rejected — no threshold, every word by lemma* (553 rows, 313 of the top 10,000): `le`'s surname
 before its pronoun (30 « Le » in names), `ton` « tone » before « your » (UD's lemma « son »), `salut`
-« wave » before « hi » (3 against 1), `bonjour`, `sinon`, `dessus`. *Rejected — a minimum of 5*
-(115 rows): it adds `phare` « lighthouse » and `midi` « noon » first, and opens `sinon` on « also,
-additionally » (7 adverbs against 5 conjunctions, UD's adverb being the page's « otherwise ») — the
-owner's call (Q2). *Rejected — names last wherever no count decides*: 23b measured it on es-en
-(« Brazil », « China » after « brazilwood », « pebble »); `jean` (91 « Jean » in GSD) keeps « a pair
-of jeans » first, `pierre` « stone ».
+« wave » before « hi » (3 against 1), `bonjour`, `sinon`, `dessus`. *Rejected — a minimum of 5*: it
+would add `phare` « lighthouse » and `midi` « noon », and open `sinon` on « also, additionally » (7
+adverbs against 5 conjunctions, UD's adverb being the page's « otherwise »). *Rejected — names last
+wherever no count decides*: 23b measured it on es-en (« Brazil », « China » after « brazilwood »,
+« pebble »); `jean` (91 « Jean » in GSD) keeps « a pair of jeans » first, `pierre` « stone ».
 
 ### D6 — A function word's row holds no name
 
@@ -306,13 +327,14 @@ loading ») stay (D9).
 
 - **An acronym's pointers lending to a word with an entry of its own**: dropping them changes `ca`
   to « approximately, about » but leaves `svp` and `jsp` with no gloss (« please », from `SVP`) and
-  makes `cv` read « how are you? » — worse. `ca` keeps « board of directors »: wordfreq's `ca` is
-  mostly an unaccented `ça`, change 43's lemma to decide (Q4).
-- **Proper nouns still opening a row**: 219 rows (105 of the top 10,000: `louis`, `midi`,
-  `belgique`, `jacques`, `noël`, `bordeaux`, `japon`), and 488 / 263 ending on one — 23b's Q3, a
-  card that reads the token's capital (Q5).
-- **Parts of speech the treebank does not decide**: 2,905 rows hold two runs, 68 move; `phare` and
-  `midi` are met fewer than ten times (Q2).
+  makes `cv` read « how are you? » — worse. `ca` keeps « board of directors » here: wordfreq's `ca`
+  is mostly an unaccented `ça`, and reading it as a spelling of `ça` is a forms-table change of its
+  own (Q4).
+- **Proper nouns still opening a row**: 217 rows (104 of the top 10,000: `louis`, `midi`,
+  `belgique`, `jacques`, `noël`, `bordeaux`, `japon`), and 487 / 263 ending on one — accepted until a
+  card reads the token's capital (23b's Q3; Q5).
+- **Parts of speech left as the page orders them**: 2,905 rows hold two runs, 13 move; a noun, verb
+  or adjective ahead of another stays (Q2), and `phare` and `midi` are met fewer than ten times.
 - **Sentence-case definitions** (« Military rank… »), **labels** (23b's Q1), « (In various senses,
   such as …) » under `stand`.
 - **es-en**: its own « (all senses) » (15 rows), its « etc » (35), its descriptions: a later
@@ -326,7 +348,7 @@ loading ») stay (D9).
 release's asset and GSD's two pinned files. The pin keeps its `snapshot` and `sources` byte for byte;
 its `reducer` digest moves (`reduce-fr-en.py`), with `pack_version` (`2026.10.09+<digest[:7]>`), the
 pack's sha256 and size. `gloss_coverage.py --pair fr-en` passes. `tables/fr/` moves in `lexical.tsv`
-(30,055 → 26,489) and `level.tsv` (212 rows) alone: forms, ranks, readings, tag pool and record byte
+(30,055 → 26,486) and `level.tsv` (212 rows) alone: forms, ranks, readings, tag pool and record byte
 for byte.
 
 **en-fr, es-fr, es-en, en-es cannot move**: no file of their rule digests is edited
@@ -341,26 +363,26 @@ French interface: no extension source changes, `packs.json` does not list fr-en.
 
 ### D11 — The golden, read probe by probe
 
-`LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline` once. Measured over the
-prototype's tables, 47 of 147 probes move, by cause:
+`LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline` once; the owner approved the
+re-bless on 2026-10-10, before the implementation (task 6.1). Measured over the prototype's tables
+on `main` at `eddaf712`, 47 of 147 probes move (336,433 → 331,322 B), by cause:
 - **the gloss rules alone** (42): `pack`; the 13 `analyse new-reader` pages, in their tokens' glosses
-  only (`le`, `que`, `ne`, `pas`, `des`, `du`, `en`…); the `gloss` probes of `pas`, `son`, `du`, `des`
-  and `le`; 19 `phrase-gloss` probes, among them « du pain et des œufs » and « un coup d'œil »
+  only (`le`, `que`, `ne`, `pas`, `des`, `du`, `en`…; 37 tokens on `homographes`); the `gloss`
+  probes of `pas`, `son`, `du`, `des` and `le`; 19 `phrase-gloss` probes, among them « du pain et des œufs » and « un coup d'œil »
   (no `et des`, no `un coup`), « il y a » (« there is, there are; ago ») and every one holding `il`,
   `le` or `du`; `word-grammar du du` (a run `X` « of the ») and `l’ le`; the vocabulary estimate's
   universe (30,095 → 30,103, the gloss rules' 12 lemmas less the 4 levelled ones they gloss);
 - **the dictionary words and levels alone** (10): `pack`; `analyse new-reader noms` (11 names set
   aside, 70 → 59 counted words) and `proust` (`François`, `Charles`, 119 → 117); the two vocabulary
-  estimates (universe 26,489; the reader's estimate 2,304 → 2,184); `review-current` ×2, the deck
+  estimates (universe 26,486; the reader's estimate 2,304 → 2,184); `review-current` ×2, the deck
   seeded from the levels drawing `croissance` and `célèbre` instead of `cavité` and `certainement`
   (the C1 band moved); `export-status-ops`, `export-card-ops`, `backup`.
 The 100 others are byte for byte: `about`, `beside es-en`, `notice`, `licences`, `has-levels`,
 `level-ladder`, both `seed-level`, `start-review`, `review-remaining`, `calibration`,
 `declared-level`, `export-declared-levels`, `promote-by-exposure`, the three counts, the four
-`analyse reader` pages, 40 `gloss`,
-29 `word-grammar` and 10 `phrase-gloss` probes. The pull request runs change 48's comparison script —
-the same probe names in order, the unmoved lines, every `gloss <word>` probe equal to its lemma's row
-— and lists each moved probe with its cause.
+`analyse reader` pages, 40 `gloss`, 29 `word-grammar` and 10 `phrase-gloss` probes. The pull
+request runs change 48's comparison script — the same probe names in order, the unmoved lines, every
+`gloss <word>` probe equal to its lemma's row — and lists each moved probe with its cause.
 
 `french_baseline.rs`'s `french_has_its_pre_pass_and_its_analysis` follows D2: on the committed
 tables `Paris`, `Jean-Pierre` and `Saint-Étienne` are set aside with `Myriel`, `Lot`, `Aube`,
@@ -378,50 +400,53 @@ fixture) is unchanged. `support/french.rs`'s doc follows D2 and D7.
 | 52 enable | after: fr-en ships with these glosses; 52's `archiveAfter` gains this change, as its design says |
 | M20, 23b's Q1–Q4 | either side: the English edition's, re-pinning es-en and fr-en; whichever lands second re-reduces fr-en on both |
 
-## For the owner
+## Settled by the owner (2026-10-10, in session)
 
-- **Q1 — Names in English and Spanish.** French's dictionary words now leave out the 3,578 lemmas
+- **Q1 — Names in English and Spanish.** French's dictionary words now leave out the 3,581 lemmas
   glossed only as names (`paris`, `lyon`, `durand`); English's still count 3,046 (`london` read in an
-  English text is a word to learn) and Spanish's 1,693. The same rule for them moves en-fr's and
-  es-fr's dictionary words, packs and goldens: a later change of its own, or keep the difference?
-- **Q2 — How much the treebank must say.** A row's part of speech moves when GSD reads the word at
-  least 10 times and twice as often (68 rows). At 5 it would also open `phare` on « lighthouse » and
-  `midi` on « noon », but `sinon` on « also, additionally ». And 47 of the 68 swap an adjective and a
-  noun (`ferme` « roof truss; farm » before « firm », `mort` « dead person; death » before « dead »),
-  and two put a content word first (`ensemble` « set » before « together », `nul` « of poor quality »
-  before « no, none »): keep them, or move only a function word's or a name's row?
-- **Q3 — A pointer's meaning, as the page writes it.** `directrice` reads « directress » instead of
-  `directeur`'s « director; school principal », `fiancée` « fiancé », `matelas` gains « French tacos »:
-  keep D4's wordings as they are, or leave « female equivalent of » out (30 rows)?
-- **Q4 — `ca`.** « board of directors » stays (an initialism's meaning, lent); wordfreq's `ca` is
-  mostly an unaccented `ça`. Read `ca` as a spelling of `ça` (change 43's forms), or leave it?
-- **Q5 — Names opening a common word's row** (219 rows: `jean` « John » after « a pair of jeans » is
-  right, `midi` « the Midi » before « noon » is not): accepted until a card that reads the token's
-  capital (23b's Q3)?
-- **Q6 — Sentences true of their time**, to amend when each change is archived, so that no two specs
-  say opposite things: 48's « fr-en being French's reference pair, its glossed lemmas are French's
-  dictionary words » and its scenario *French's dictionary words* (« lists exactly the lemmas
-  `gloss.tsv` glosses, and fr-en's pack carries no lexical table ») → « less those it glosses by a
-  proper noun's senses alone », « carries a lexical table »; 46's « never from a pair's glosses » and
-  *The table does not wait for the glosses* → « and French's dictionary words », « when fr-en's
-  glosses add or remove no dictionary word »; 49's and 52's « French's dictionary words, fr-en's
-  glossed lemmas » → « French's dictionary words ». Not edited here.
+  English text is a word to learn) and Spanish's 1,693. *Settled*: the same rule for English and
+  Spanish, later, in a change of its own — it moves en-fr's and es-fr's dictionary words, packs and
+  goldens, which this change may not.
+- **Q2 — Which rows the treebank may reorder.** *Settled*: only a function word's row and a row the
+  page opens on a name (D5: 13 rows); a noun, verb or adjective moving ahead of another stays as the
+  page writes it (`ferme` « firm », `mort` « dead », `devoir` « duty »), the threshold kept at 10 and
+  twice.
+- **Q3 — « female equivalent of ».** *Settled*: dropped from a word's wordings (D4): `directrice`
+  keeps « director; school principal », `fiancée` its own gloss.
+- **Q4 — `ca`.** *Settled*: `ca` is to read as a spelling of `ça` — a change to French's forms
+  table (change 43's), proposed later as a change of its own; not here, so `ca` keeps « board of
+  directors » until then.
+- **Q5 — Names opening a common word's row** (217 rows: `jean` « John » after « a pair of jeans » is
+  right, `midi` « the Midi » before « noon » is not). *Settled*: accepted for now, until a card reads
+  the token's capital (23b's Q3).
+- **Q6 — Sentences true of their time** (a note for the archives, nothing to decide): 48's « fr-en
+  being French's reference pair, its glossed lemmas are French's dictionary words » and its scenario
+  *French's dictionary words* (« lists exactly the lemmas `gloss.tsv` glosses, and fr-en's pack
+  carries no lexical table ») → « less those it glosses by a proper noun's senses alone », « carries
+  a lexical table »; 46's « never from a pair's glosses » and *The table does not wait for the
+  glosses* → « and French's dictionary words », « when fr-en's glosses add or remove no dictionary
+  word »; 49's and 52's « French's dictionary words, fr-en's glossed lemmas » → « French's dictionary
+  words ». Each is amended when its change is archived; not edited here.
+
+The re-bless of `fr-en.golden` was approved on the same day, before the implementation (task 6.1),
+for the count the implementation re-measures.
 
 ## Risks / Trade-offs
 
 - **[A rule reads a meaning wrong]** → each rule is measured alone on the whole table; every changed
-  row of the top 10,000 (174) is in the owner's sample, with the odd ones named (D4, D5).
+  row of the top 10,000 (117) is in the owner's sample, with the odd ones named (D4).
 - **[A name a reader wants as a word]** → the lemma keeps its gloss; only the vocabulary estimate and
   the names rule read it differently, and a name read at a sentence's head or in lowercase is a word
   as before. `islam`, `coran`: names or words by the section's entries (D2), listed.
 - **[Levels move]** → 212 rows, measured; English's sizes kept; the seeded deck in the golden moves,
   said in the pull request (D11).
 - **[The treebank's register]** → GSD is news and encyclopaedic text: `salut`, `bonjour` and `sinon`
-  were worse at no threshold, and stay at 10 and twice; the owner settles the threshold (Q2).
+  were worse with no threshold; at 10 and twice, and on function words' and names' rows alone, none
+  of them moves (D5).
 - **[es-en keeps defects fr-en loses]** → named for es-en's next refinement (D9); es-en does not move
   here by the owner's rule.
-- **[A golden that moves]** → re-blessed once, each moved probe with its cause; the owner approves the
-  re-bless.
+- **[A golden that moves]** → re-blessed once, each moved probe with its cause; approved by the owner
+  before the implementation (task 6.1).
 
 ## Migration Plan
 
