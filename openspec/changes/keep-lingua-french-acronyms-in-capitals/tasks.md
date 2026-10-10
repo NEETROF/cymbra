@@ -2,7 +2,7 @@
 
 ## 0. Owner, before the implementation
 
-- [ ] 0.1 [manual] Settle the design's open questions before the implementation starts: where « a line not in capitals » stops (1: the word's neighbours, recommended), what the card says « CA » means (2: the four expansions as designed, « corps d'armée » added, « courant alternatif » dropped), and « CA » left without a rank (3). Another answer to 1 changes `alone_in_capitals` (1.1), its tests and D7's probes, and the measurement is re-run; another answer to 2 changes the row (2.1) and the glosses of D4; a rank (3) changes 2.2 and moves every rank after it, measured again before the re-reduction.
+- [x] 0.1 [manual] Settled by the owner on 2026-10-10 (in session): the table kept, knowing the gloss is right about one time in six on the corpora (5 of 31); « a line not in capitals » read at the word's neighbours (1); the four expansions and no rank kept as designed (2, 3). Settle the design's open questions before the implementation starts: where « a line not in capitals » stops (1: the word's neighbours, recommended), what the card says « CA » means (2: the four expansions as designed, « corps d'armée » added, « courant alternatif » dropped), and « CA » left without a rank (3). Another answer to 1 changes `alone_in_capitals` (1.1), its tests and D7's probes, and the measurement is re-run; another answer to 2 changes the row (2.1) and the glosses of D4; a rank (3) changes 2.2 and moves every rank after it, measured again before the re-reduction.
 
 ## 1. The rule (crates/lingua-core)
 

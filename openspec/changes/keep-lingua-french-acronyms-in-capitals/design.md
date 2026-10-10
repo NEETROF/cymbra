@@ -414,6 +414,10 @@ probes, the re-blesses, the snapshots and the gates 0.5–0.75.
 
 ## Open questions for the owner
 
+**Settled by the owner on 2026-10-10 (in session):** the table is kept (shown the measurement: the
+gloss right 5 times of 31); the line is read at the word's neighbours; the expansions and the absence
+of a rank as designed.
+
 1. **Where does « a line not in capitals » stop?** Recommended: at the word's neighbours — « CA »
    reads as the acronym when the words right before and after it are not in capitals. So « Il a crié :
    CA SUFFIT ! » reads « ça » (the shout), and « Le CA a voté » the acronym. The price: « un CA HT de
