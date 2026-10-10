@@ -3,7 +3,7 @@
 ## 1. The order (the owner)
 
 - [ ] 1.1 [manual] Release order (D4): the owner deploys `prefer-account-locale-for-emails`'s backend (`backend-deploy`) and runs its check from outside (its task 3.6) before this change's implementation pull request merges. Merged only then, no Lingua release — the extension's or the Apple host app's, this change's or an unrelated one — carries it to a server that records a resend's or a reset's locale over the account's; released before, a device where nothing is chosen would move a language chosen on another device again.
-- [ ] 1.2 [manual] The owner settles Q1 (a browser language Cymbra's e-mails are not written in) and Q2 (the whole tag or a bare code) before the implementation merges; the design follows each recommendation.
+- [x] 1.2 [manual] Settled by the owner on 2026-10-10 (in session), each as recommended: the browser's tag is sent even when Cymbra writes no e-mail in its language (Q1); the whole tag, not a bare code (Q2). The owner settles Q1 (a browser language Cymbra's e-mails are not written in) and Q2 (the whole tag or a bare code) before the implementation merges; the design follows each recommendation.
 
 ## 2. The extension (apps/lingua-extension/src/account)
 

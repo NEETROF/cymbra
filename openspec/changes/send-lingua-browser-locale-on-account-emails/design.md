@@ -247,6 +247,10 @@ locale back, harmless on either server.
 
 ## Open Questions
 
+**Settled by the owner on 2026-10-10 (in session), each as recommended:** the browser's tag is sent
+even in a language Cymbra writes no e-mail in, and as the whole tag.
+
+
 The design follows each recommendation; the owner settles both before the implementation merges
 (task 1.2).
 
