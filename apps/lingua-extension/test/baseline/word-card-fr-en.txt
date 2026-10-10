@@ -1,0 +1,706 @@
+### phrase-gloss pommes de terre
+expression: pomme de terre
+page 1/1:
+  [—] potato (Solanum tuberosum)
+### phrase-gloss il y a
+expression: il y a
+page 1/1:
+  [—] ago
+### phrase-gloss tout de suite
+expression: tout de suite
+page 1/1:
+  [—] immediately, right away; without interruption
+### phrase-gloss à cause des
+expression: à cause de
+page 1/1:
+  [—] because of
+### phrase-gloss mettre à jour
+expression: mettre à jour
+page 1/1:
+  [—] to update
+### phrase-gloss tout le monde
+expression: tout le monde
+page 1/1:
+  [—] everyone, everybody
+### phrase-gloss Longtemps, je me suis couché de bonne heure.
+row: longtemps — for a long time, over a long period
+row: couché — in bed
+row: de bonne heure — in advance
+### phrase-gloss l'homme qu'il attendait
+row: homme — man (adult male human)
+row: attendre — to wait for, to await
+### phrase-gloss jusqu'au soir
+row: jusqu'à — until
+row: soir — evening
+### phrase-gloss Aujourd'hui
+row: aujourd'hui — today
+### phrase-gloss au marché
+row: marché — market
+### phrase-gloss du pain et des œufs
+row: pain — bread
+row: et des — or thereabouts, and change, and a bit over
+row: œuf — egg
+### phrase-gloss dit-il
+row: dire — to say, to tell (to express through speech)
+### phrase-gloss Y a-t-il encore du café
+row: y a-t-il — is there? are there?, (after a modal adver
+row: encore — still
+row: café — coffee (drink)
+### phrase-gloss S’il pleut, viendras-tu ?
+row: pleuvoir — to rain
+row: venir — to come (to move from one place to another that is nearer the speaker)
+### phrase-gloss Au revoir
+expression: au revoir
+page 1/1:
+  [—] goodbye
+### phrase-gloss un coup d’œil
+row: un coup — used to soften an order
+row: œil — eye, organ that is sensitive to light, helping organisms to see
+### phrase-gloss D’abord
+expression: d'abord
+page 1/1:
+  [—] first, at first, right away; primarily; for one thing
+### phrase-gloss au fur et à mesure
+expression: au fur et à mesure
+page 1/1:
+  [—] in keeping with (progressively, in sequenc; bit by bit, gradually; as one goes a
+### phrase-gloss il y avait
+expression: il y a
+page 1/1:
+  [—] ago
+### phrase-gloss à la maison
+expression: à la maison
+page 1/1:
+  [—] at home (at one's home); home (towards home)
+### phrase-gloss Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.
+row: faire — to do
+row: chien — dog
+row: voix — voice
+row: rassurer — to reassure
+### phrase-gloss Personne au village ne se souvenait
+row: personne — person
+row: village — village
+row: se souvenir — remember (to recall one's memory)
+### phrase-gloss The lighthouse stood
+rows: (none)
+### phrase-gloss El faro se alzaba
+rows: (none)
+### phrase-gloss El far s'alçava
+row: far — far breton
+### phrase-gloss Lo far se quilhava
+row: far — far breton
+### phrase-gloss Il faro si ergeva
+rows: (none)
+### phrase-gloss l’homme
+row: homme — man (adult male human)
+### word-grammar est être
+grammar: third-person singular present indicative of être
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar sont être
+grammar: third-person plural present indicative of être
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar était être
+grammar: third-person singular imperfect indicative of être
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar fut être
+grammar: third-person singular past historic (passé simple) of être
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar soyez être
+grammar: second-person plural present subjunctive and second-person plural imperative of être
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar été être
+grammar: past participle of être
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar été été
+gloss: (none)
+### word-grammar a avoir
+grammar: third-person singular present indicative of avoir
+page 1/3:
+  [verb] to have, to own, to possess, to get; to have (to experience or suffer from a state or condition); to have (an age)
+page 2/3:
+  [verb] used to form the compound tenses of most verbs, such as the perfect and pluperfect; to have (to), must; (chiefly in se faire avoir) to have (to trick, to con)
+page 3/3:
+  [masculine noun] asset, possession
+row: to have, to own, to possess, to get
+### word-grammar ai avoir
+grammar: first-person singular present indicative of avoir
+page 1/3:
+  [verb] to have, to own, to possess, to get; to have (to experience or suffer from a state or condition); to have (an age)
+page 2/3:
+  [verb] used to form the compound tenses of most verbs, such as the perfect and pluperfect; to have (to), must; (chiefly in se faire avoir) to have (to trick, to con)
+page 3/3:
+  [masculine noun] asset, possession
+row: to have, to own, to possess, to get
+### word-grammar as avoir
+grammar: second-person singular present indicative of avoir
+page 1/3:
+  [verb] to have, to own, to possess, to get; to have (to experience or suffer from a state or condition); to have (an age)
+page 2/3:
+  [verb] used to form the compound tenses of most verbs, such as the perfect and pluperfect; to have (to), must; (chiefly in se faire avoir) to have (to trick, to con)
+page 3/3:
+  [masculine noun] asset, possession
+row: to have, to own, to possess, to get
+### word-grammar eût avoir
+grammar: third-person singular imperfect subjunctive of avoir
+page 1/3:
+  [verb] to have, to own, to possess, to get; to have (to experience or suffer from a state or condition); to have (an age)
+page 2/3:
+  [verb] used to form the compound tenses of most verbs, such as the perfect and pluperfect; to have (to), must; (chiefly in se faire avoir) to have (to trick, to con)
+page 3/3:
+  [masculine noun] asset, possession
+row: to have, to own, to possess, to get
+### word-grammar va aller
+grammar: third-person singular present indicative and second-person singular imperative of aller
+page 1/2:
+  [verb] to go; to attend (school, church regularly); to be going (to), will soon, forms a near-future tense; to be (feeling); to go well; to suit
+page 2/2:
+  [verb] to be X-proof (to be suitable for use in an appliance without running the risk of being damaged in the process)
+  [masculine noun] outward trip, journey out, trip away
+row: to go
+### word-grammar allez aller
+grammar: second-person plural present indicative and second-person plural imperative of aller
+page 1/2:
+  [verb] to go; to attend (school, church regularly); to be going (to), will soon, forms a near-future tense; to be (feeling); to go well; to suit
+page 2/2:
+  [verb] to be X-proof (to be suitable for use in an appliance without running the risk of being damaged in the process)
+  [masculine noun] outward trip, journey out, trip away
+row: to go
+### word-grammar fait faire
+grammar: past participle and third-person singular present indicative of faire
+page 1/2:
+  [verb] to do; to make; to say (of a person), to go (of an animal or device); to make (cause someone or something to do something); to act like (something)
+page 2/2:
+  [verb] to be (of the weather or various situations); to do, to make (oneself); to be, to get (used for a passive action)
+row: to do
+### word-grammar faites faire
+grammar: feminine plural past participle, second-person plural present indicative and second-person plural imperative of faire
+page 1/2:
+  [verb] to do; to make; to say (of a person), to go (of an animal or device); to make (cause someone or something to do something); to act like (something)
+page 2/2:
+  [verb] to be (of the weather or various situations); to do, to make (oneself); to be, to get (used for a passive action)
+row: to do
+### word-grammar pût pouvoir
+grammar: third-person singular imperfect subjunctive of pouvoir
+page 1/2:
+  [verb] can, to be able to; may (of a choice); to be possible, may, could be; to have the right (to); to have the power, the authority or the talent (to do something)
+page 2/2:
+  [masculine noun] power; authority; power of attorney
+row: can, to be able to
+### word-grammar dit dire
+grammar: past participle, third-person singular present indicative and third-person singular past historic (passé simple) of dire
+page 1/3:
+  [verb] to say, to tell (to express through speech); to tell (to order, to advise); to say, to tell (to set out in writing)
+page 2/3:
+  [verb] to say (often used in the sense of responding to an objection); to say, to tell of (to celebrate, to sing, to narrate); to say, to tell (to deliver, to recite)
+page 3/3:
+  [masculine noun] saying (that which is said); belief, opinion
+row: to say, to tell (to express through speech)
+### word-grammar vînmes venir
+page 1/2:
+  [verb] to come (to move from one place to another that is nearer the speaker); used in venir de with the meaning of “originate from” or “have just done”
+page 2/2:
+  [verb] to cum, to come, to orgasm
+row: to come (to move from one place to another that is nearer the speaker)
+### word-grammar prenez prendre
+grammar: second-person plural present indicative and second-person plural imperative of prendre
+page 1/2:
+  [verb] to take; to eat, to drink; to get, to buy; to rob, to deprive; to make; to catch, to work, to start; to get (something) caught (in), to jam
+page 2/2:
+  [verb] to get into, to come over (to cause to behave uncharacteristically, to affect in a surprising manner, to possess)
+row: to take
+### word-grammar porte porter
+grammar: first- and third-person singular present indicative or subjunctive and second-person singular imperative of porter
+page 1/1:
+  [verb] to carry; to support, to bear; to wear; to be about, to concern; to feel, to be in good/bad health
+  [masculine noun] porter (beer)
+  [proper noun] a surname, Porter, from English
+row: to carry
+### word-grammar porte porte
+gloss: (none)
+### word-grammar vis vivre
+grammar: first- and second-person singular present indicative and second-person singular imperative of vivre
+page 1/1:
+  [verb] to live; to experience
+row: to live
+### word-grammar vis voir
+grammar: first- and second-person singular past historic (passé simple) of voir
+page 1/1:
+  [verb] to see (visually); to see (to understand); to see (to visit, to go and see)
+  [adverb] please (used to mark the imperative)
+row: to see (visually)
+### word-grammar couvent couver
+grammar: third-person plural present indicative or subjunctive of couver
+page 1/1:
+  [verb] to brood (an egg); to coddle, pamper, mollycoddle; to plot, hatch, scheme
+row: to brood (an egg)
+### word-grammar couvent couvent
+grammar: may also be the third-person plural present indicative or subjunctive of couver
+page 1/1:
+  [masculine noun] convent, nunnery
+row: convent, nunnery
+### word-grammar fils fils
+grammar: may also be the masculine plural of fil
+page 1/2:
+  [masculine noun] son; any male descendant; any direct descendant, male or female; Jr. (postnominal designator indicating a son with the same name as the father)
+page 2/2:
+  [masculine noun] darling, dear (term of affection for a male beloved)
+  [proper noun] Son, person of the Holy Trinity
+row: son
+### word-grammar au au
+grammar: “au” = à + le
+gloss: (none)
+### word-grammar du du
+page 1/1:
+  [determiner] forms the partitive article
+row: forms the partitive article
+### word-grammar l'homme homme
+grammar: “l'homme” = le + homme
+page 1/1:
+  [masculine noun] man (adult male human); man, Man (species); man (employee); husband; boyfriend
+  [proper noun] Man (genus Homo)
+row: man (adult male human)
+### word-grammar l’ le
+page 1/2:
+  [determiner] the (definite article); the, my, your, etc; a, an, per; on
+  [pronoun] him, her, it, them
+page 2/2:
+  [pronoun] replaces the argument of a copular verb, especially être, often not translated in English
+  [proper noun] a surname from Vietnamese
+row: the (definite article)
+### word-grammar au à
+grammar: “au” = à + le
+page 1/2:
+  [preposition] to (destination); at, in, on (said of a particular place); at (said of a particular time); to (until); on the, to (some directions); from (origin)
+page 2/2:
+  [preposition] of (belonging to); by
+row: to (destination)
+### word-grammar parle parler
+grammar: first- and third-person singular present indicative or subjunctive and second-person singular imperative of parler
+page 1/2:
+  [verb] to speak, talk; to be able to communicate in a language, to speak; to cant, (of a coat of arms) to make a pun of its bearer's name
+  [masculine noun] parlance
+page 2/2:
+  [masculine noun] vernacular, dialect
+row: to speak, talk
+### word-grammar parles parler
+grammar: second-person singular present indicative or subjunctive of parler
+page 1/2:
+  [verb] to speak, talk; to be able to communicate in a language, to speak; to cant, (of a coat of arms) to make a pun of its bearer's name
+  [masculine noun] parlance
+page 2/2:
+  [masculine noun] vernacular, dialect
+row: to speak, talk
+### word-grammar parlent parler
+grammar: third-person plural present indicative or subjunctive of parler
+page 1/2:
+  [verb] to speak, talk; to be able to communicate in a language, to speak; to cant, (of a coat of arms) to make a pun of its bearer's name
+  [masculine noun] parlance
+page 2/2:
+  [masculine noun] vernacular, dialect
+row: to speak, talk
+### word-grammar parlait parler
+grammar: third-person singular imperfect indicative of parler
+page 1/2:
+  [verb] to speak, talk; to be able to communicate in a language, to speak; to cant, (of a coat of arms) to make a pun of its bearer's name
+  [masculine noun] parlance
+page 2/2:
+  [masculine noun] vernacular, dialect
+row: to speak, talk
+### word-grammar parlera parler
+grammar: third-person singular simple future of parler
+page 1/2:
+  [verb] to speak, talk; to be able to communicate in a language, to speak; to cant, (of a coat of arms) to make a pun of its bearer's name
+  [masculine noun] parlance
+page 2/2:
+  [masculine noun] vernacular, dialect
+row: to speak, talk
+### word-grammar parlerait parler
+grammar: third-person singular conditional of parler
+page 1/2:
+  [verb] to speak, talk; to be able to communicate in a language, to speak; to cant, (of a coat of arms) to make a pun of its bearer's name
+  [masculine noun] parlance
+page 2/2:
+  [masculine noun] vernacular, dialect
+row: to speak, talk
+### word-grammar parlant parler
+grammar: present participle of parler
+page 1/2:
+  [verb] to speak, talk; to be able to communicate in a language, to speak; to cant, (of a coat of arms) to make a pun of its bearer's name
+  [masculine noun] parlance
+page 2/2:
+  [masculine noun] vernacular, dialect
+row: to speak, talk
+### word-grammar parlé parler
+grammar: past participle of parler
+page 1/2:
+  [verb] to speak, talk; to be able to communicate in a language, to speak; to cant, (of a coat of arms) to make a pun of its bearer's name
+  [masculine noun] parlance
+page 2/2:
+  [masculine noun] vernacular, dialect
+row: to speak, talk
+### word-grammar dirigée diriger
+grammar: feminine past participle of diriger
+page 1/1:
+  [verb] to run, to direct (be the director of); to supervise, to oversee; to steer (vehicles); to aim, to direct; to direct (a film); to go towards, to head (for)
+row: to run, to direct (be the director of)
+### word-grammar finissions finir
+grammar: first-person plural imperfect indicative or subjunctive and first-person plural present subjunctive of finir
+page 1/1:
+  [verb] to finish, end, complete; to end up
+row: to finish, end, complete
+### word-grammar sommes être
+grammar: first-person plural present indicative of être
+grammar: may also be the masculine and feminine plural of somme
+grammar: may also be the second-person singular present indicative or subjunctive of sommer
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar suis être
+grammar: first-person singular present indicative of être
+grammar: may also be the first- and second-person singular present indicative and second-person singular imperative of suivre
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar grandes grand
+grammar: feminine plural of grand
+page 1/2:
+  [adjective] big; tall; grown up, big; great (i.e. important, outstanding, noble, fine, renowned); grand; big fat, great big (an intensifier)
+page 2/2:
+  [adjective] greater (together with the surrounding area pertaining to it)
+  [masculine noun] grown-up
+row: big
+### word-grammar maisons maison
+grammar: feminine plural of maison
+page 1/1:
+  [feminine noun] house
+  [adjective] homemade; in-house; first-rate, top-notch
+  [proper noun] a surname, Maison
+row: house
+### word-grammar cette ce
+grammar: feminine singular of ce
+page 1/1:
+  [determiner] this, that
+  [pronoun] it, this, that (see § Usage notes); he, she, it, they; it
+row: this, that
+### word-grammar les le
+page 1/2:
+  [determiner] the (definite article); the, my, your, etc; a, an, per; on
+  [pronoun] him, her, it, them
+page 2/2:
+  [pronoun] replaces the argument of a copular verb, especially être, often not translated in English
+  [proper noun] a surname from Vietnamese
+row: the (definite article)
+### word-grammar meilleures meilleur
+grammar: feminine plural of meilleur
+grammar: may also be the comparative of bien
+grammar: may also be the comparative of bon
+page 1/1:
+  [masculine noun] best
+row: best
+### word-grammar moindre petit
+grammar: comparative of petit
+page 1/2:
+  [adjective] small; little; petty
+  [masculine noun] small one (anything that is small); little one (anything that is little); little one, child (of humans or other animals)
+page 2/2:
+  [masculine noun] the young (of a species)
+  [proper noun] a surname
+row: small
+### word-grammar millions million
+page 1/1:
+  [numeral] million (10⁶)
+row: million (10⁶)
+### word-grammar temps temps
+page 1/1:
+  [masculine noun] time (in general); weather; tense
+row: time (in general)
+### word-grammar heureux heureux
+page 1/1:
+  [adjective] happy; glad; lucky, fortunate; good, excellent
+  [masculine noun] happy person
+row: happy
+### word-grammar de de
+page 1/3:
+  [preposition] from (used to indicate origin); of (indicates possession, association or relationship); of (used to indicate cause); of (indicates an amount)
+page 2/3:
+  [preposition] used attributively, often translated into English as a compound word; from (used to indicate the start of a time or range)
+page 3/3:
+  [determiner] used in the plural with prepositioned adjectives; used in negated sentences with the grammatical object
+row: from (used to indicate origin)
+### word-grammar le le
+page 1/2:
+  [determiner] the (definite article); the, my, your, etc; a, an, per; on
+  [pronoun] him, her, it, them
+page 2/2:
+  [pronoun] replaces the argument of a copular verb, especially être, often not translated in English
+  [proper noun] a surname from Vietnamese
+row: the (definite article)
+### word-grammar en en
+page 1/4:
+  [preposition] in (used to indicate space, also see usage notes); to (indicates direction towards certain very large locations, see usage notes); by (used to indicate means)
+page 2/4:
+  [preposition] as; at (used to describe an ability); of, made of (used to describe composition)
+page 3/4:
+  [pronoun] used as the object of a verb to indicate an indefinite quantity, of it, of them. Replaces the partitive article (du, de la, etc.)
+page 4/4:
+  [pronoun] Adverbial preposition indicating movement away from a place already mentioned, from there, from it. Replaces the phrase de là or d’ici
+row: in (used to indicate space, also see usage notes)
+### word-grammar des des
+page 1/1:
+  [determiner] of the; some, the feminine partitive article
+row: of the
+### word-grammar un un
+page 1/1:
+  [determiner] an, a
+  [numeral] one
+  [pronoun] one, someone
+  [masculine noun] one (the number or figure)
+row: an, a
+### word-grammar que que
+page 1/4:
+  [conjunction] that (introduces a subordinate noun clause and connects it to its parent clause); introduces a comparison
+page 2/4:
+  [conjunction] Substitutes for another, previously stated conjunction; when, no sooner; only, just, but, nothing but
+page 3/4:
+  [pronoun] the inanimate direct-object or predicative interrogative pronoun: what; the direct object relative pronoun
+page 4/4:
+  [pronoun] the inanimate subject interrogative pronoun in impersonal constructions
+row: that (introduces a subordinate noun clause and connects it to its parent clause)
+### word-grammar pas pas
+page 1/3:
+  [masculine noun] step, pace, footstep; strait, pass; thread, pitch (of a screw or nut)
+page 2/3:
+  [adverb] the most common adverb of negation in French, typically translating into English as not, don't, doesn't, etc
+page 3/3:
+  [adverb] used as an intensifier in underlying rhetorical questions, mostly with voilà
+row: step, pace, footstep
+### word-grammar qui qui
+page 1/1:
+  [pronoun] who, whom; who, which, that; whom (after a preposition); he who, who(m)ever; what
+  [conjunction] if
+  [interjection] used to indicate the cry of a bird
+row: who, whom
+### word-grammar ce ce
+page 1/1:
+  [determiner] this, that
+  [pronoun] it, this, that (see § Usage notes); he, she, it, they; it
+row: this, that
+### word-grammar sur sur
+page 1/1:
+  [preposition] on, upon; on top of; from on top of; above; out of; in the case of; about, concerning
+  [adjective] sour
+row: on, upon
+### word-grammar par par
+page 1/3:
+  [preposition] through; by (used to introduce a means, used to introduce an agent in a passive construction); over (used to express direction)
+page 2/3:
+  [preposition] from (used to describe the origin of something, especially a view or movement); around, round (inside of); on (situated on, used in certain phrases)
+page 3/3:
+  [preposition] on, at, in (used to denote a time when something occurs)
+  [masculine noun] par
+row: through
+### word-grammar on on
+page 1/1:
+  [pronoun] one, people, you, someone (an unspecified individual); we
+  [proper noun] a village in Luxembourg, Belgium
+row: one, people, you, someone (an unspecified individual)
+### word-grammar plus plus
+grammar: may also be the masculine plural past participle and first- and second-person singular past historic (passé simple) of plaire
+grammar: may also be the masculine plural past participle of pleuvoir
+page 1/2:
+  [adverb] used to express the comparative and superlative of a following adjective or adverb; more, most (to a greater / the greatest extent); more (a greater amount)
+page 2/2:
+  [adverb] plus; in negated sentences
+  [masculine noun] plus, the symbol +
+row: used to express the comparative and superlative of a following adjective or…
+### word-grammar avec avec
+page 1/1:
+  [preposition] with
+  [adverb] too, also
+row: with
+### word-grammar mais mais
+grammar: may also be the masculine plural of mai
+page 1/1:
+  [conjunction] but, although
+  [interjection] an expression of surprise, disbelief, or frustration roughly equivalent to the English well, or sometimes yeah, compare Spanish pero
+row: but, although
+### word-grammar ça ça
+page 1/5:
+  [pronoun] that (distal demonstrative pronoun); this (proximal demonstrative pronoun)
+page 2/5:
+  [pronoun] it (alternative form of ce as a subject of être in tenses other than the present and imperfect indicative)
+page 3/5:
+  [pronoun] it, that, they, them (reduplicated pronoun referring to an indefinite or generic noun phrase); it (dummy pronoun)
+page 4/5:
+  [pronoun] used to indicate actions happening generally without specifying an agent, like on but with a greater suggestion of mass, generalized, unattributable, or confused action, people
+page 5/5:
+  [pronoun] creates isolated emphatic forms of the interrogatives qui, où, quand, comment and pourquoi
+  [masculine noun] id
+row: that (distal demonstrative pronoun)
+### word-grammar tu tu
+grammar: may also be the past participle of taire
+page 1/1:
+  [pronoun] you (singular)
+  [particle] question marker
+row: you (singular)
+### word-grammar son son
+page 1/1:
+  [masculine noun] sound; bran; a piece (of music), a (musical) work, an opus
+  [determiner] his, her, their, its (used to qualify masculine nouns and before a vowel)
+row: sound
+### word-grammar si si
+page 1/2:
+  [conjunction] if, whether; if (assuming that); even if; although, while
+  [interjection] yes (used to contradict a negative statement)
+  [adverb] so, such (intensifier)
+page 2/2:
+  [adverb] however (to whatever extent or degree)
+  [masculine noun] si, the note 'B'
+row: if, whether
+### word-grammar tout tout
+page 1/1:
+  [adverb] all; totally, completely; however, no matter how
+  [masculine noun] whole, entirety, total
+  [pronoun] everything
+row: all
+### word-grammar nous nous
+page 1/1:
+  [pronoun] we; us, to us; we (as the royal we)
+  [masculine noun] the nous, (divine) reason in philosophy
+row: we
+### word-grammar comme comme
+page 1/1:
+  [conjunction] as (in the role of, by way of); like, as; such as; how; because, as, since
+  [particle] like
+row: as (in the role of, by way of)
+### word-grammar être être
+page 1/2:
+  [verb] to be; to be located, to be situated; to denote time, day, or date; used to form compound tenses and structures, such as the perfect and pluperfect
+page 2/2:
+  [masculine noun] being, thing, creature; being, the state or fact of existence
+row: to be
+### word-grammar bien bien
+page 1/1:
+  [adjective] good, all right, great; good looking, nice
+  [adverb] well; indeed, so; a lot (of)
+  [masculine noun] good as opposed to evil; a commodity, a good; a possession
+row: good, all right, great
+### word-grammar même même
+page 1/1:
+  [adverb] even
+  [adjective] same; very
+row: even
+### word-grammar aussi aussi
+page 1/1:
+  [adverb] too, also, as well; as (used for equal comparisons)
+  [conjunction] therefore
+row: too, also, as well
+### word-grammar deux deux
+page 1/1:
+  [numeral] two
+row: two
+### word-grammar leur leur
+page 1/1:
+  [pronoun] (to) them
+  [determiner] their
+row: (to) them
+### word-grammar moi moi
+page 1/1:
+  [pronoun] me (first-person singular disjunctive pronoun); me (first-person singular object pronoun of imperative verbs)
+  [masculine noun] the ego, the me
+row: me (first-person singular disjunctive pronoun)
+### word-grammar quand quand
+page 1/1:
+  [adverb] when (at what time)
+  [conjunction] when (at the time that); whenever
+row: when (at what time)
+### word-grammar après après
+page 1/1:
+  [preposition] after, later than in time; after, coming for, trying to get (someone)
+  [adverb] afterwards; that being said; indicates the continuous aspect
+row: after, later than in time
+### word-grammar avoir avoir
+page 1/3:
+  [verb] to have, to own, to possess, to get; to have (to experience or suffer from a state or condition); to have (an age)
+page 2/3:
+  [verb] used to form the compound tenses of most verbs, such as the perfect and pluperfect; to have (to), must; (chiefly in se faire avoir) to have (to trick, to con)
+page 3/3:
+  [masculine noun] asset, possession
+row: to have, to own, to possess, to get
+### word-grammar non non
+page 1/1:
+  [adverb] no
+  [conjunction] not
+  [masculine noun] a no, a negative response
+  [interjection] no!
+row: no
+### word-grammar alors alors
+page 1/1:
+  [adverb] then (at that time); so, hence (as a consequence)
+  [interjection] so, well, well then
+row: then (at that time)
+### word-grammar peu peu
+page 1/1:
+  [adverb] little, not very much/many
+  [masculine noun] few; little
+row: little, not very much/many
+### word-grammar autre autre
+page 1/1:
+  [adjective] other; used to express the equivalence or resemblance between two or more things, second
+  [pronoun] another
+row: other
+### word-grammar rien rien
+page 1/1:
+  [pronoun] nothing; anything
+  [masculine noun] a nothing
+row: nothing
+### word-grammar dire dire
+page 1/3:
+  [verb] to say, to tell (to express through speech); to tell (to order, to advise); to say, to tell (to set out in writing)
+page 2/3:
+  [verb] to say (often used in the sense of responding to an objection); to say, to tell of (to celebrate, to sing, to narrate); to say, to tell (to deliver, to recite)
+page 3/3:
+  [masculine noun] saying (that which is said); belief, opinion
+row: to say, to tell (to express through speech)
+### word-grammar monde monde
+page 1/1:
+  [masculine noun] world; people
+  [interjection] good heavens
+  [adjective] pure, clean
+row: world
+### word-grammar fois fois
+grammar: may also be the feminine plural of foi
+page 1/1:
+  [feminine noun] time (an instance or repetition of something happening)
+  [preposition] times, multiplied by
+row: time (an instance or repetition of something happening)
+### phrase-gloss reader Le vieux marin ferma les fenêtres du phare
+row: marin — maritime
