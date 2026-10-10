@@ -346,6 +346,10 @@ knowledge model's and the extension's figures are MODIFIED.
 
 ## Open questions for the owner
 
+**Settled by the owner on 2026-10-10 (in session):** Q1 English's names rule in this change; Q2 every
+ladder follows; Q3 the French Wiktionary's name-only words accepted; Q4 both English readings, as
+recommended; Q5 no mention in the release notes.
+
 - **Q1. English's names rule, here or later?** Without it, this change takes `london` out of the words
   English counts, but an English page still underlines `London`, `Margaret` and `Sam` as unknown words.
   With it (recommended), they are set aside as `Madrid` is in Spanish. The price: English's analyser
