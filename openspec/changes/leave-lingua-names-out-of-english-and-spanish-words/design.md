@@ -335,8 +335,10 @@ the figures named here.
 
 The specs: *A pack's dictionary words do not depend on its glosses* and *A studied language's tables
 are kept once* (48b's) and *Only the reference pair's reduction writes its studied language's tables*
-state the one rule. The scenario *The shipped packs carry no lexical table* is renamed *The reference
-packs carry a lexical table*, because its old name no longer holds; its test is renamed with it.
+state the one rule. A MODIFIED requirement keeps every scenario it had (the validator refuses to drop
+one), so *The shipped packs carry no lexical table* stays, saying what it always meant: a pack whose
+dictionary words are its glossed lemmas carries none, as en-fr's and es-fr's did. *The reference packs
+carry a lexical table* is added beside it.
 *An English document's names are set aside* is ADDED beside Spanish's and French's. Spanish's loses
 its « The English analysis SHALL NOT change », and French's its « and English's analysis ». The
 knowledge model's and the extension's figures are MODIFIED.
