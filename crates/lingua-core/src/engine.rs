@@ -40,7 +40,7 @@ use crate::analysis::percent::{
 use crate::analysis::pipeline::{
     AnalysedToken, DocumentAnalysis, analyse_document, headword_reading, resolve_lemmas,
 };
-use crate::analysis::tokenize::{is_elided, tokenize, without_soft_hyphens};
+use crate::analysis::tokenize::{Token, is_elided, tokenize, without_soft_hyphens};
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
 use crate::packs::grammar::Tag;
@@ -550,13 +550,19 @@ fn expression_for_run(
 /// `elided[i]` says whether token `i` is an elided piece ([`is_elided`]). A French
 /// run that is a key is kept only where its pieces meet the words as the
 /// expression's headword writes them ([`meets_as_written`],
-/// match-lingua-french-elided-pieces D1): a piece the headword writes elided meets
-/// only an elided token, a piece written in full only a token written in full —
-/// but the last piece written in full meets either, French eliding it or not by
-/// the page's next word —, so « de le faire » no longer answers `de l'`, nor
-/// « d’un » `de un`. A run whose pieces do not meet does not match at that
-/// length, and the shorter runs are tried as before (« d’un peu plus » answers
-/// `un peu`). English and Spanish runs are matched as before.
+/// match-lingua-french-elided-pieces D1, match-lingua-french-contracted-pieces D1):
+/// a piece the headword writes elided meets only an elided token, a piece written
+/// in full only a token written in full — but the last piece written in full meets
+/// either, French eliding it or not by the page's next word —, so « de le faire »
+/// no longer answers `de l'`, nor « d’un » `de un`; and two pieces the headword
+/// writes as one word, « au » or « aux », meet only two tokens sharing a span
+/// (`shares_span`), two pieces it writes apart only tokens with spans of their
+/// own — the run's edges being the page's: its first token may be the article of
+/// a « au » whose `à` is before the run, its last the `à` of one whose article
+/// is covered as above —, so « prêt à le faire » no longer answers `au fait`. A
+/// run whose pieces do not meet does not match at that length, and the shorter
+/// runs are tried as before (« d’un peu plus » answers `un peu`). English and
+/// Spanish runs are matched as before.
 fn match_expressions(
     tokens: &[PhraseToken],
     shares_span: &[bool],
@@ -586,8 +592,14 @@ fn match_expressions(
                 Some(name) => name.to_owned(),
                 None => key,
             };
-            (!french || meets_as_written(&elided[start..start + len], &name, pack.lexicon()))
-                .then_some((len, name, gloss))
+            (!french
+                || meets_as_written(
+                    &elided[start..start + len],
+                    &shares_span[start..start + len],
+                    &name,
+                    pack.lexicon(),
+                ))
+            .then_some((len, name, gloss))
         });
         match hit {
             Some((len, name, gloss)) => {
@@ -620,39 +632,102 @@ fn match_expressions(
 }
 
 /// Whether a French run's tokens meet, piece by piece, its expression's headword as
-/// the headword writes them (match-lingua-french-elided-pieces D1, D3): `elided` holds
-/// the run's tokens' [`is_elided`], `headword` the expression's name — the pack's, or
-/// its key where it carries none.
+/// the headword writes them (match-lingua-french-elided-pieces D1, D3;
+/// match-lingua-french-contracted-pieces D1, D3): `elided` holds the run's tokens'
+/// [`is_elided`], `joined` their [`shared_spans`] as the selection's tokens give them
+/// (entry 0 says whether the run's first token shares its span with the token before
+/// the run), `headword` the expression's name — the pack's, or its key where it carries
+/// none.
 ///
 /// A piece the headword writes elided (`l'` of `de l'`, `qu'` of `qu'est-ce que`) meets
 /// only an elided token; a piece it writes in full meets only a token written in full,
 /// except its last, which meets either: French elides a word by the word that follows
 /// it, and after the expression's last piece that word is the page's (« parce qu’il »
-/// answers `parce que`). The headword is read by French's pre-pass
-/// ([`headword_reading`], the reading its key was made from, so its pieces line up with
-/// the run's one for one) and each piece's elision taken from its span — only when it
-/// holds an apostrophe: a name holding none is written in full, and a key the pack does
-/// not name is its own headword, written without an elided piece. A headword whose
-/// reading does not line up with the run is matched as before.
-fn meets_as_written(elided: &[bool], headword: &str, lexicon: &(impl Lexicon + ?Sized)) -> bool {
+/// answers `parce que`).
+///
+/// Between two adjacent tokens of the run, the tokens are one written word exactly where
+/// the headword writes its two pieces at that place as one: two pieces it writes « au »
+/// or « aux » (`à` + `le`, `à` + `les`) meet only a written « au » or « aux », the two
+/// tokens sharing a span — `au fait` meets « Au fait » and not « prêt à le faire » —, and
+/// two pieces it writes apart only tokens with spans of their own (a headword written
+/// `à le revoir` does not meet « au revoir »). The run's edges are the page's: `joined[0]`
+/// is not compared, so the run's first token may be the article of a « au » or « aux »
+/// whose `à` is the page's word before the run (`les miennes` on « aux miennes »); and the
+/// run's last token may be the `à` of one whose article, the page's next word, is outside
+/// the slice — `match_expressions` then covers it (add-lingua-french-word-card D12:
+/// `grâce à` on « grâce au soleil », `jusqu'à` on « jusqu'au soir »).
+///
+/// The headword is read by French's pre-pass ([`headword_reading`], the reading its key
+/// was made from, so its pieces line up with the run's one for one), each piece's
+/// elision taken from its span and its contractions from the reading's
+/// [`shared_spans`] — one reading for both, made only when the headword holds an
+/// apostrophe or the word « au » or « aux » ([`holds_french_contraction`]): a name
+/// holding neither is written in full, every piece apart, and a key the pack does not
+/// name is its own headword, written so. A headword whose reading does not line up with
+/// the run, or that reads as none, is matched as match-lingua-french-elided-pieces matched
+/// it, its contractions unchecked.
+fn meets_as_written(
+    elided: &[bool],
+    joined: &[bool],
+    headword: &str,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> bool {
     let last = elided.len().saturating_sub(1);
-    if !headword.contains(['\'', '\u{2019}']) {
-        return !elided[..last].contains(&true);
+    let apostrophe = headword.contains(['\'', '\u{2019}']);
+    if !apostrophe && !holds_french_contraction(headword) {
+        return !elided[..last].contains(&true) && !joined.iter().skip(1).any(|&on_page| on_page);
     }
-    let Some(reading) = headword_reading(headword, StudiedLanguage::French, lexicon) else {
-        return true;
+    let Some(reading) = headword_reading(headword, StudiedLanguage::French, lexicon)
+        .filter(|reading| reading.len() == elided.len())
+    else {
+        return apostrophe || !elided[..last].contains(&true);
     };
-    if reading.len() != elided.len() {
-        return true;
-    }
-    reading
+    let pieces: Vec<Token> = reading.into_iter().map(|(token, _)| token).collect();
+    let elisions_meet = pieces
         .iter()
         .zip(elided)
         .enumerate()
-        .all(|(i, ((token, _), &on_page))| {
-            let written = is_elided(headword, token);
+        .all(|(i, (piece, &on_page))| {
+            let written = is_elided(headword, piece);
             on_page == written || (i == last && !written)
+        });
+    elisions_meet
+        && joined
+            .iter()
+            .skip(1)
+            .eq(shared_spans(&pieces).iter().skip(1))
+}
+
+/// Whether a French expression's headword holds the word « au » or « aux », in any case
+/// and after an elision too (`jusqu'aux`), read without its soft hyphens: the words French's
+/// pre-pass splits into two tokens sharing a span, and the only ones
+/// (match-lingua-french-contracted-pieces D2, D3). [`meets_as_written`] reads a headword's
+/// contractions only where it holds one; `committed_tables.rs` checks that every committed
+/// French headword whose reading joins two pieces does.
+pub fn holds_french_contraction(headword: &str) -> bool {
+    without_soft_hyphens(headword)
+        .split(|c: char| !c.is_alphanumeric())
+        .any(|word| word.eq_ignore_ascii_case("au") || word.eq_ignore_ascii_case("aux"))
+}
+
+/// Which of `tokens` share their predecessor's source span: entry `i` says whether token
+/// `i` is the second half of a written word the pre-pass split (`del` → `de` + `el`,
+/// `au` → `à` + `le`, `don't` → `do` + `not`); entry 0 never does. The phrase gloss reads
+/// it on a selection's tokens — a Spanish or French match never leaves such a half outside
+/// (add-lingua-spanish-expression-keys D5, add-lingua-french-word-card D12) — and on a
+/// French expression's headword, whose contractions a French run meets as written
+/// ([`meets_as_written`], match-lingua-french-contracted-pieces D2, D3). In French only
+/// the halves of « au » and « aux » share a span.
+pub fn shared_spans(tokens: &[Token]) -> Vec<bool> {
+    tokens
+        .iter()
+        .enumerate()
+        .map(|(i, token)| {
+            i.checked_sub(1).is_some_and(|before| {
+                (tokens[before].start, tokens[before].end) == (token.start, token.end)
+            })
         })
+        .collect()
 }
 
 /// The lemma chain a reader settled a Spanish expression under before it was named
@@ -699,16 +774,9 @@ pub fn gloss_phrase(
     // Which tokens share their predecessor's source span: the second half of a word
     // the pre-pass split (`del` → `de` + `el`, `au` → `à` + `le`), which a Spanish or
     // French match never leaves outside (add-lingua-spanish-expression-keys D5,
-    // add-lingua-french-word-card D12).
-    let shares_span: Vec<bool> = read
-        .iter()
-        .enumerate()
-        .map(|(i, token)| {
-            i.checked_sub(1).is_some_and(|before| {
-                (read[before].start, read[before].end) == (token.start, token.end)
-            })
-        })
-        .collect();
+    // add-lingua-french-word-card D12), and a French match meets only where its
+    // headword writes the contraction (match-lingua-french-contracted-pieces D2).
+    let shares_span = shared_spans(&read);
     // Which tokens are elided pieces, read from their spans, which a French match holds
     // to its headword's (match-lingua-french-elided-pieces D2).
     let elided: Vec<bool> = read.iter().map(|token| is_elided(text, token)).collect();
@@ -2543,20 +2611,54 @@ mod tests {
         let lexicon = elided_lexicon();
         // `de un`, unnamed: its own headword, written in full. Its pieces but the last meet only
         // tokens written in full; its last meets either.
-        assert!(!meets_as_written(&[true, false], "de un", &lexicon));
-        assert!(meets_as_written(&[false, false], "de un", &lexicon));
-        assert!(meets_as_written(&[false, true], "de un", &lexicon));
+        assert!(!meets_as_written(
+            &[true, false],
+            &[false, false],
+            "de un",
+            &lexicon
+        ));
+        assert!(meets_as_written(
+            &[false, false],
+            &[false, false],
+            "de un",
+            &lexicon
+        ));
+        assert!(meets_as_written(
+            &[false, true],
+            &[false, false],
+            "de un",
+            &lexicon
+        ));
         // A headword holding an apostrophe, straight or typographic, is read: its elided last
         // piece meets only an elided token.
         for name in ["de l'", "de l\u{2019}"] {
-            assert!(meets_as_written(&[false, true], name, &lexicon), "{name}");
-            assert!(!meets_as_written(&[false, false], name, &lexicon), "{name}");
-            assert!(!meets_as_written(&[true, true], name, &lexicon), "{name}");
+            assert!(
+                meets_as_written(&[false, true], &[false, false], name, &lexicon),
+                "{name}"
+            );
+            assert!(
+                !meets_as_written(&[false, false], &[false, false], name, &lexicon),
+                "{name}"
+            );
+            assert!(
+                !meets_as_written(&[true, true], &[false, false], name, &lexicon),
+                "{name}"
+            );
         }
         // A reading that does not line up with the run, or none at all — a word the analysis
         // drops (`t`) —, leaves the run matched as before.
-        assert!(meets_as_written(&[false, false], "de l'eau", &lexicon));
-        assert!(meets_as_written(&[true, true], "qu'il t", &lexicon));
+        assert!(meets_as_written(
+            &[false, false],
+            &[false, false],
+            "de l'eau",
+            &lexicon
+        ));
+        assert!(meets_as_written(
+            &[true, true],
+            &[false, false],
+            "qu'il t",
+            &lexicon
+        ));
     }
 
     #[test]
@@ -2600,6 +2702,344 @@ mod tests {
                 [(0, 2, "d'un")],
                 "{studied:?}"
             );
+        }
+    }
+
+    // --- French contracted pieces (match-lingua-french-contracted-pieces) ---
+
+    const CONTRACTED_FORMS: &[(&str, &str)] = &[
+        ("armé", "armer"),
+        ("armés", "armer"),
+        ("dents", "dent"),
+        ("est", "être"),
+        ("fait", "faire"),
+        ("les", "le"),
+        ("miennes", "mien"),
+        ("viens", "venir"),
+    ];
+
+    const CONTRACTED_LEMMAS: &[&str] = &[
+        "il", "être", "prêt", "à", "le", "faire", "tu", "venir", "grâce", "soleil", "mien",
+        "armer", "jusque", "dent", "revoir",
+    ];
+
+    /// The delta's expressions, as fr-en's tables write them: « au » at the head (`au fait`, keyed
+    /// `à le faire` as « prêt à le faire » reads), « aux » after an elision (`armé jusqu'aux
+    /// dents`), a last `à` (`grâce à`, `jusqu'à`) and a first article (`les miennes`).
+    const CONTRACTED_EXPRESSIONS: &[(&str, &str)] = &[
+        ("au fait", "by the way; informed"),
+        ("grâce à", "thanks to"),
+        ("les miennes", "mine"),
+        ("armé jusqu'aux dents", "armed to the teeth"),
+        ("jusqu'à", "until, up to"),
+    ];
+
+    fn contracted_lexicon() -> FstLexicon<Vec<u8>> {
+        let (bytes, pool) =
+            build_lexicon_blobs(CONTRACTED_FORMS, CONTRACTED_LEMMAS).expect("build");
+        FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    /// A French pack holding `expressions`, keyed as the builder keys them and named by their
+    /// headwords where the two differ (add-lingua-french-expression-keys D1, D3).
+    fn contracted_pieces_pack(expressions: &[(&str, &str)]) -> Pack {
+        let lexicon = contracted_lexicon();
+        let keyed: Vec<(String, &str, &str)> = expressions
+            .iter()
+            .map(|&(headword, gloss)| {
+                let key = french_expression_key(headword, &lexicon).expect(headword);
+                (key, headword, gloss)
+            })
+            .collect();
+        let table: Vec<(&str, &str)> = keyed
+            .iter()
+            .map(|(key, _, gloss)| (key.as_str(), *gloss))
+            .collect();
+        let names: Vec<(&str, &str)> = keyed
+            .iter()
+            .filter(|(key, headword, _)| key != headword)
+            .map(|(key, headword, _)| (key.as_str(), *headword))
+            .collect();
+        build_pack_with_names(
+            FR,
+            CONTRACTED_FORMS,
+            CONTRACTED_LEMMAS,
+            &[],
+            &[],
+            &table,
+            &names,
+            None,
+        )
+    }
+
+    /// Each match of `text` on `pack`: the surfaces of the tokens it covers and what it reports.
+    fn matches_on(pack: &Pack, text: &str) -> Vec<(Vec<String>, String)> {
+        let phrase = gloss_phrase(text, FR, pack, &KnowledgeState::new());
+        phrase
+            .expressions
+            .iter()
+            .map(|m| {
+                let covered = phrase.tokens[m.start..m.end]
+                    .iter()
+                    .map(|token| token.surface.clone())
+                    .collect();
+                (covered, m.key.clone())
+            })
+            .collect()
+    }
+
+    fn contracted_matches(text: &str) -> Vec<(Vec<String>, String)> {
+        matches_on(&contracted_pieces_pack(CONTRACTED_EXPRESSIONS), text)
+    }
+
+    #[test]
+    fn the_contracted_expressions_are_keyed_and_named_as_french_is_read() {
+        let pack = contracted_pieces_pack(CONTRACTED_EXPRESSIONS);
+        for (key, name) in [
+            ("à le faire", Some("au fait")),
+            ("grâce à", None),
+            ("les mien", Some("les miennes")),
+            ("armer jusque à les dent", Some("armé jusqu'aux dents")),
+            ("jusque à", Some("jusqu'à")),
+        ] {
+            assert!(pack.expression(key).is_some(), "{key}");
+            assert_eq!(pack.expression_name(key), name, "{key}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_pronoun_after_a_is_not_a_contraction() {
+        // `à le faire` is `au fait`'s key; « le » here is a pronoun, written apart from « à ».
+        assert_eq!(contracted_matches("Il est prêt à le faire"), []);
+    }
+
+    #[test]
+    fn spec_scenario_the_contraction() {
+        assert_eq!(
+            contracted_matches("Au fait, tu viens\u{202f}?"),
+            [covering(&["À", "le", "fait"], "au fait")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_pieces_written_apart_do_not_meet_a_contraction() {
+        // A headword written `à le` apart, which no committed table holds, and no `au revoir`.
+        let pack = contracted_pieces_pack(&[("à le revoir", "x")]);
+        assert_eq!(pack.expression_name("à le revoir"), None);
+        assert_eq!(matches_on(&pack, "au revoir"), []);
+        assert_eq!(
+            matches_on(&pack, "à le revoir"),
+            [covering(&["à", "le", "revoir"], "à le revoir")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_last_a_before_the_page_s_article() {
+        // The run ends on the `à` of « au »; its article is the page's, then covered
+        // (add-lingua-french-word-card D12).
+        assert_eq!(
+            contracted_matches("grâce au soleil"),
+            [covering(&["grâce", "à", "le"], "grâce à")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_first_article_after_the_page_s_a() {
+        // The run starts on the article of « aux »; its `à` is the page's.
+        assert_eq!(
+            contracted_matches("aux miennes"),
+            [covering(&["les", "miennes"], "les miennes")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_elision_and_a_contraction_in_one_headword() {
+        assert_eq!(
+            contracted_matches("armés jusqu\u{2019}aux dents"),
+            [covering(
+                &["armés", "jusque", "à", "les", "dents"],
+                "armé jusqu'aux dents"
+            )]
+        );
+        // Written apart, the five tokens do not meet it, and the shorter run takes the place.
+        assert_eq!(
+            contracted_matches("armé jusqu'à les dents"),
+            [covering(&["jusque", "à"], "jusqu'à")]
+        );
+    }
+
+    #[test]
+    fn the_spans_a_written_word_shares() {
+        let lexicon = contracted_lexicon();
+        let shared = |text: &str, studied| {
+            shared_spans(&crate::analysis::tokenize::tokenize(
+                text, studied, &lexicon,
+            ))
+        };
+        assert_eq!(shared("jusqu'au soir", FR), [false, false, true, false]);
+        assert_eq!(shared("Au fait", FR), [false, true, false]);
+        assert_eq!(shared("prêt à le faire", FR), [false; 4]);
+        assert_eq!(shared("aux miennes", FR), [false, true, false]);
+        assert_eq!(shared("we don't", EN), [false, false, true]);
+        assert_eq!(shared("después del", ES), [false, false, true]);
+        assert!(shared("", FR).is_empty());
+    }
+
+    #[test]
+    fn a_french_headword_holds_au_or_aux_as_a_word() {
+        for headword in [
+            "au fait",
+            "Au revoir",
+            "AUX AGUETS",
+            "armé jusqu'aux dents",
+            "jusqu\u{2019}au",
+            "tirer au sort",
+            "a\u{ad}u fait",
+        ] {
+            assert!(holds_french_contraction(headword), "{headword}");
+        }
+        for headword in [
+            "à le revoir",
+            "les miennes",
+            "aucun",
+            "tuyau",
+            "de l'eau",
+            "eaux",
+            "",
+        ] {
+            assert!(!holds_french_contraction(headword), "{headword}");
+        }
+    }
+
+    #[test]
+    fn a_french_headword_s_contractions_are_read_only_when_it_holds_au_or_aux() {
+        let lexicon = contracted_lexicon();
+        // `grâce à`, unnamed: its own headword, every piece apart. It is not read: a run of three
+        // that a reading would not line up with still meets only tokens written apart.
+        assert!(meets_as_written(
+            &[false; 2],
+            &[false, false],
+            "grâce à",
+            &lexicon
+        ));
+        assert!(!meets_as_written(
+            &[false; 2],
+            &[false, true],
+            "grâce à",
+            &lexicon
+        ));
+        assert!(!meets_as_written(
+            &[false; 3],
+            &[false, false, true],
+            "grâce à",
+            &lexicon
+        ));
+        // The run's first place is the page's: its first token may share the span of the token
+        // before the run.
+        assert!(meets_as_written(
+            &[false; 2],
+            &[true, false],
+            "les miennes",
+            &lexicon
+        ));
+        // A headword holding « au », in any case, is read: its two pieces meet only a contraction.
+        for name in ["au fait", "Au fait", "AU FAIT"] {
+            assert!(
+                meets_as_written(&[false; 3], &[false, true, false], name, &lexicon),
+                "{name}"
+            );
+            assert!(
+                !meets_as_written(&[false; 3], &[false; 3], name, &lexicon),
+                "{name}"
+            );
+            assert!(
+                !meets_as_written(&[false; 3], &[false, true, true], name, &lexicon),
+                "{name}"
+            );
+        }
+        // One reading holds both rules: an elided piece and a contraction.
+        let name = "armé jusqu'aux dents";
+        let elided = [false, true, false, false, false];
+        assert!(meets_as_written(
+            &elided,
+            &[false, false, false, true, false],
+            name,
+            &lexicon
+        ));
+        assert!(!meets_as_written(&elided, &[false; 5], name, &lexicon));
+        assert!(!meets_as_written(
+            &[false; 5],
+            &[false, false, false, true, false],
+            name,
+            &lexicon
+        ));
+        // A reading that does not line up with the run is matched as before, its contractions
+        // unchecked; one holding no apostrophe still holds its pieces but the last written in
+        // full.
+        assert!(meets_as_written(
+            &[false; 2],
+            &[false, false],
+            name,
+            &lexicon
+        ));
+        assert!(meets_as_written(
+            &[false; 2],
+            &[false, false],
+            "au fait",
+            &lexicon
+        ));
+        assert!(!meets_as_written(
+            &[true, false],
+            &[false, false],
+            "au fait",
+            &lexicon
+        ));
+    }
+
+    #[test]
+    fn a_french_selection_s_tokens_do_not_move_with_the_contraction_rule() {
+        let bare = build_pack_for(FR, CONTRACTED_FORMS, CONTRACTED_LEMMAS, &[], &[], &[]);
+        let pack = contracted_pieces_pack(CONTRACTED_EXPRESSIONS);
+        let knowledge = KnowledgeState::new();
+        for text in [
+            "Il est prêt à le faire",
+            "Au fait, tu viens\u{202f}?",
+            "grâce au soleil",
+            "aux miennes",
+            "armés jusqu\u{2019}aux dents",
+        ] {
+            let with_table = gloss_phrase(text, FR, &pack, &knowledge);
+            let without = gloss_phrase(text, FR, &bare, &knowledge);
+            assert_eq!(with_table.tokens, without.tokens, "{text}");
+        }
+    }
+
+    #[test]
+    fn english_and_spanish_runs_are_not_held_to_contractions() {
+        // D6: the check is French's. English's « don't » shares its span between `do` and `not`,
+        // and a key holding neither « au » nor « aux » meets it as before.
+        let english = build_pack_for(EN, &[], &["i", "do", "not"], &[], &[], &[("do not", "x")]);
+        let knowledge = KnowledgeState::new();
+        for text in ["I don't", "I do not"] {
+            let phrase = gloss_phrase(text, EN, &english, &knowledge);
+            assert_eq!(spans(&phrase), [(1, 3, "do not")], "{text}");
+        }
+        // Spanish's « al », named, still meets « a el » written apart (« a El Tiempo »), and
+        // « al » as before.
+        let spanish = build_pack_with_names(
+            ES,
+            &[],
+            &["a", "el", "tiempo"],
+            &[],
+            &[],
+            &[("a el tiempo", "en même temps")],
+            &[("a el tiempo", "al tiempo")],
+            None,
+        );
+        for text in ["una entrevista a El Tiempo", "al tiempo"] {
+            let phrase = gloss_phrase(text, ES, &spanish, &knowledge);
+            let found: Vec<&str> = phrase.expressions.iter().map(|m| m.key.as_str()).collect();
+            assert_eq!(found, ["al tiempo"], "{text}");
         }
     }
 

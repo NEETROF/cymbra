@@ -75,6 +75,17 @@ row: parce que — Porque (como causa, explicación o motivaci
 row: pleuvoir — Llover
 ### phrase-gloss d’un hiver
 row: hiver — Invierno
+### phrase-gloss Il est prêt à le faire
+row: prêt — Dispuesto, listo, presto o preparado
+row: faire — Hacer
+### phrase-gloss Au fait, tu viens ?
+row: au fait — Dicho sea de paso, de paso, por cierto
+row: venir — Venir
+### phrase-gloss grâce au soleil
+row: grâce à — Gracias a
+row: soleil — Sol
+### phrase-gloss aux miennes
+row: les miennes — Las mías
 ### phrase-gloss Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.
 row: faire — Hacer
 row: chien — (Canis lupus familiaris) Perro
