@@ -11,10 +11,12 @@ would repaint text already gone and count every rewrite as a new exposure.
 - **THEN** no word of the native caption line is highlighted and no exposure is recorded from it, while the comments are highlighted as usual
 
 ### Requirement: The caption mode is offered where it can read English captions
-The extension SHALL offer the caption mode only on a desktop YouTube watch page (`/watch`) whose video has an English caption track, whatever other languages the reader studies, and SHALL NOT offer it anywhere else.
-Spanish captions are out of this change's scope (the Spanish programme's decision D7,
-`docs/lingua/spanish-programme.md`): a reader who studies Spanish is offered the mode on English
-captions only.
+The extension SHALL offer the caption mode only to a reader who studies English, on a desktop YouTube watch page (`/watch`) whose video has an English caption track, whatever other languages the reader studies and whatever their native language, and SHALL NOT offer it anywhere else.
+Spanish and French captions are out of this change's scope (the Spanish programme's decision D7,
+`docs/lingua/spanish-programme.md`, carried by the language matrix programme,
+`docs/lingua/language-matrix-programme.md`): a reader who studies Spanish or French as well as
+English is offered the mode on English captions only, and a reader who does not study English (an
+English speaker reading Spanish or French) is not offered it.
 Shorts, live streams and premieres in progress, and players embedded in other sites SHALL NOT be
 offered it. A video with no such track SHALL leave the player untouched, and the popup SHALL say
 that the video has no English captions. Moving to another video inside YouTube
@@ -28,6 +30,18 @@ over.
 #### Scenario: A Spanish video for a reader of Spanish
 - **WHEN** a reader who studies English and Spanish opens a video whose only captions are Spanish
 - **THEN** the caption mode is not offered on it, and the popup says it reads English captions only
+
+#### Scenario: A French video for a reader of French
+- **WHEN** a reader who studies English and French opens a video whose only captions are French
+- **THEN** the caption mode is not offered on it, and the popup says it reads English captions only
+
+#### Scenario: A Spanish-speaking reader of English
+- **WHEN** a reader whose native language is Spanish and who studies English opens a video with an English caption track
+- **THEN** the caption mode is offered, as it is to a French-speaking reader of English
+
+#### Scenario: An English-speaking reader
+- **WHEN** a reader whose native language is English, who studies Spanish or French and not English, opens a video with an English caption track
+- **THEN** the caption mode is not offered, and the popup says it reads English captions for a reader who studies English
 
 #### Scenario: A live stream
 - **WHEN** the reader opens a live stream in progress
@@ -167,6 +181,10 @@ stored on a card or sent anywhere.
 #### Scenario: No engine
 - **WHEN** a reader with no engine shows the translation line on a video
 - **THEN** the line shows YouTube's automatic translation, labelled as such, and no model is downloaded
+
+#### Scenario: No engine, for a Spanish-speaking reader
+- **WHEN** a reader whose native language is Spanish, with no engine, shows the translation line on a video with English captions
+- **THEN** the line shows YouTube's automatic translation into Spanish, labelled as YouTube's automatic translation in the reader's interface language
 
 #### Scenario: An engine chosen
 - **WHEN** a reader with an engine chosen opens a word from the caption line

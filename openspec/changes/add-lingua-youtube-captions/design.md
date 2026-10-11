@@ -50,8 +50,13 @@ honest source is the request the player makes for the video the reader is watchi
 - Audio. Nothing is transcribed and nothing heard is counted.
 - Other video sites (Netflix, Vimeo, embedded players on third-party pages).
 - Tracks in a studied language other than English. The Spanish programme keeps Spanish out of this
-  change (`docs/lingua/spanish-programme.md`, decision D7), none of whose tasks is built yet. The
-  mode reads English tracks, whatever languages the reader studies.
+  change (`docs/lingua/spanish-programme.md`, decision D7), none of whose tasks is built yet; the
+  language matrix programme keeps French out the same way (`docs/lingua/language-matrix-programme.md`,
+  Scope). The mode reads English tracks for a reader who studies English, whatever other languages
+  the reader studies and whatever their native language (French or Spanish). An English speaker,
+  who studies Spanish or French and not English, is not offered it. The YouTube translation line
+  (D6) goes into the language of the reader's glosses, so French or Spanish, and its label follows
+  the interface language: nothing new is built for the matrix.
 
 ## Decisions
 
@@ -158,7 +163,7 @@ promotion rule — a video watched once in a day is one day of exposure, as a pa
 
 | Engine | Caption line translation | Word popup |
 |---|---|---|
-| none (setting off, or model not ready) | YouTube's automatic translation of the line (`tlang=<gloss language>`), fetched once per video when the track is translatable, labelled "Traduction automatique YouTube", shown whole-line | pack gloss, as today |
+| none (setting off, or model not ready) | YouTube's automatic translation of the line (`tlang=<gloss language>`), fetched once per video when the track is translatable, labelled as YouTube's automatic translation in the interface language ("Traduction automatique YouTube" in French), shown whole-line | pack gloss, as today |
 | on the device | engine translation of the sentence, computed ahead in reading order | engine sentence + mark, as on a page |
 | remote (if #535 ships) | same as device, remote host | same as device |
 

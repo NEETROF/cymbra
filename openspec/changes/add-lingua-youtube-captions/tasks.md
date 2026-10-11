@@ -42,7 +42,7 @@
 
 ## 7. Translation
 
-- [ ] 7.1 No engine (`createTranslatorPort()` is `null`): fetch the `tlang=<gloss language>` track once per video when the track is translatable, map by cue, show whole-line labelled "Traduction automatique YouTube", never mark a word, never on another site, not in degraded mode; tests
+- [ ] 7.1 No engine (`createTranslatorPort()` is `null`): fetch the `tlang=<gloss language>` track once per video when the track is translatable, map by cue, show whole-line labelled as YouTube's automatic translation in the interface language ("Traduction automatique YouTube" in French), never mark a word, never on another site, not in degraded mode; tests
 - [ ] 7.2 Engine chosen (device, and remote when it exists): pre-translate the next few sentences ahead of the playhead, paced so a click is never queued behind them; popup shows the sentence with the word marked by the page rule; tests with a mocked `TranslatorPort`
 - [ ] 7.3 Translation line hidden by default, visibility kept per device; tests
 - [ ] 7.4 No translation of either source stored or sent; test on card creation
@@ -54,7 +54,7 @@
 
 ## 9. Activation, variants, permissions
 
-- [ ] 9.1 Offer the mode (control near the player + popup); start on click; per-device "start automatically on YouTube" preference, off by default; the every-site grant alone never starts it; inject the main-world script only when the mode starts; popup states "no English captions" when applicable, and that it reads English captions only for a reader of Spanish (D7)
+- [ ] 9.1 Offer the mode (control near the player + popup); start on click; per-device "start automatically on YouTube" preference, off by default; the every-site grant alone never starts it; inject the main-world script only when the mode starts; popup states "no English captions" when applicable, and that it reads English captions only for a reader of Spanish or French (D7, carried by the language matrix programme); offered only to a reader who studies English, whatever their native language — an English speaker is not offered it
 - [ ] 9.2 Registration per variant in `build.mjs` (Chromium dynamic, Firefox desktop, Safari)
 - [ ] 9.3 Manual pass per variant: written track, automatic track, seek, rate ×1.5, theatre, full-screen, advertisement, next video, phrase capture, card source opens at the moment, mode off restores captions
 
