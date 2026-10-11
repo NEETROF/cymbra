@@ -152,6 +152,18 @@ row: crier — to cry out
 row: ça suffit — that does it, that's torn it, that's enoug
 ### phrase-gloss Ca fait du bien.
 row: faire du bien — to do someone good, to feel good (to someo
+### phrase-gloss il etait une fois
+expression: il était une fois
+page 1/1:
+  [—] there was once…; once upon a time, there w
+### phrase-gloss un coup d'Etat
+row: coup d'état — coup d'état
+### phrase-gloss Il faut etre patient.
+row: falloir — to need, have to, to be necessary (that)
+row: patient — patient
+### phrase-gloss un moteur diesel
+row: moteur — motor, engine
+row: diesel — diesel
 ### phrase-gloss l’homme
 row: homme — man (adult male human)
 ### word-grammar est être

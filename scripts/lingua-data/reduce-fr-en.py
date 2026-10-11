@@ -55,6 +55,20 @@ expansions, each cut to its first sense, one run of the row's part of speech (`a
 « board of directors; revenue, turnover, net sales; alternating current ». It is the one lemma fr-en
 glosses that is not ranked.
 
+The dictionary's own spellings without their marks (read-lingua-french-dictionary-unmarked-spellings
+D1, D2) are change 43's spelling rule's third kind, beside a post-1990 spelling and an ASCII spelling
+of a ligature: a word the section gives only as one marked word written without its accents,
+cedillas, diaereses or circumflexes — every sense of every entry of it an `alt_of` of that word,
+`etre` « obsolete spelling of être », `Etat` « alternative spelling of État » — is a form of that word
+when wordfreq rates the marked word strictly commoner than the spelling and than each of the
+spelling's forms (`dictionary_unmarked_spellings`, read in a pass of its own before the forms): `etre`
+and `etait` read as *être*, `repond` as *répondre*, and the spellings leave the ranks, the levels, the
+dictionary words and the glosses; `diesel`, 78 times commoner than *diésel*, stays itself, and `teter`,
+whose form `tete` is how the web writes *tête*, is kept apart. A word with an entry or a sense of its
+own beside the spelling (`surs`, « sour »; `entrainant`) is not read by it, and the web's spellings
+the dictionary does not name (`tete`, `francais`) are a reviewed list's, as `UNMARKED_SPELLINGS` is,
+whose rows are read first.
+
 The native side (add-lingua-pack-fr-en D1–D3, D11) is read from the same section as the forms, after
 the studied side, as es-en's is from the Spanish section: the section cut to what the native side
 reads, a headword's typographic apostrophe read as `'` (`native_fields`); the English edition's
@@ -308,19 +322,122 @@ def _is_form_of(sense):
 _POST_1990 = re.compile(r"^post-1990 spelling of (\S+)")
 
 
-def spelling_target(sense, word):
+def _alt_target(sense):
+    """The word a sense's `alt_of` names first, as the section writes it, or an empty string."""
+    alt = sense.get("alt_of") or ()
+    return (alt[0].get("word") or "") if alt and isinstance(alt[0], dict) else ""
+
+
+def _unmarked(word):
+    """A word written without its marks (read-lingua-french-dictionary-unmarked-spellings D1): its
+    NFD's combining marks dropped — accents, cedillas, diaereses, circumflexes —, `œ` and `æ` read as
+    `oe` and `ae`: `état` → `etat`, `chloé` → `chloe`, `cœur` → `coeur`."""
+    bare = "".join(c for c in unicodedata.normalize("NFD", word) if unicodedata.category(c) != "Mn")
+    return unicodedata.normalize("NFC", bare).replace("œ", "oe").replace("æ", "ae")
+
+
+def spelling_target(sense, word, unmarked=None):
     """The word a sense says its entry only spells (D7), or None: a post-1990 spelling (`connait`,
-    « post-1990 spelling of connaît »), or an ASCII spelling of a ligature (`coeur`, whose
-    `alt_of` is *cœur*)."""
+    « post-1990 spelling of connaît »), an ASCII spelling of a ligature (`coeur`, whose `alt_of` is
+    *cœur*), or — the third kind (read-lingua-french-dictionary-unmarked-spellings D1) — a word the
+    dictionary gives only as a marked word written without its marks, when `unmarked`
+    (`dictionary_unmarked_spellings`) names that word for it (`etre`, whose `alt_of` is *être*)."""
     glosses = sense.get("glosses") or [""]
     m = _POST_1990.match(glosses[0] or "")
     if m:
         return m.group(1).strip(".,;")
-    alt = sense.get("alt_of") or ()
-    target = (alt[0].get("word") or "") if alt and isinstance(alt[0], dict) else ""
+    target = _alt_target(sense)
     if target and target.lower() != word and target.lower().replace("œ", "oe").replace("æ", "ae") == word:
         return target
+    if target and unmarked and unmarked.get(word) == nfc_lower(target):
+        return target
     return None
+
+
+def _listed_inflections(entry, word):
+    """The inflections an entry lists that `Lexicon` links to its word: never the bookkeeping, the
+    doubtful ones (D3), a word that is no form, an elided piece, a row of `UNMARKED_SPELLINGS`, nor a
+    gender or number marker (`_MARKERS`) but the word's own."""
+    for inflection in entry.get("forms") or ():
+        tags = set(inflection.get("tags") or ())
+        form = nfc_lower(inflection.get("form"))
+        if tags & _BOOKKEEPING or tags & _DOUBTFUL or not is_form(form) or form in ELISIONS:
+            continue
+        if form in UNMARKED_SPELLINGS:
+            continue
+        if form in _MARKERS and form != word:
+            continue
+        yield form
+
+
+# Why `dictionary_unmarked_spellings` keeps a spelling apart, as the reduction reports it.
+KEPT_COMMONER = "the spelling as common as its word or commoner"
+KEPT_FORM = "a form of the spelling as common as its word or commoner"
+KEPT_NO_FORM = "no word form"
+
+
+def dictionary_unmarked_spellings(path, frequency, kept=None):
+    """`spelling → marked word`: each word every sense of every entry of which is an alternative,
+    obsolete, archaic, nonstandard or misspelt spelling or form (`alt_of`) of one word that, written
+    without its accents, cedillas, diaereses and circumflexes (`_unmarked`), is it — and which wordfreq
+    rates commoner than the spelling and than each of the spelling's forms
+    (read-lingua-french-dictionary-unmarked-spellings D1, D2).
+
+    Read per word, in a pass of its own over the section before the forms, each word lowercased and in
+    NFC (`Etat` and `etat` are one word): a word with an entry or a sense of its own beside the
+    spelling (`surs`, the plural of *sur* « sour »; `entrainant`; `clef`, the musical clef) is no
+    spelling, nor one whose senses spell two words. An ASCII spelling of a ligature (`coeur`) is
+    change 43's kind, read whatever the frequency; a row of `UNMARKED_SPELLINGS` or an elided piece is
+    its table's. The marked word, as the section names it (`État` → `état`), must be strictly
+    commoner than the spelling — `diesel`, 78 times commoner than *diésel*, and a spelling wordfreq
+    attests no more than its word are kept — and than each of the spelling's forms: the inflections
+    its entries list that `Lexicon` links (`_listed_inflections`) and the words a form-of sense of
+    which points at it — `teter` is kept, its form `tete` being how the web writes *tête*. The web's
+    spellings the dictionary does not name (`tete`, `francais`, `tres`) are no word of this rule:
+    they are a reviewed list's, as `UNMARKED_SPELLINGS` is. With `kept` (a dict), each spelling kept
+    apart is recorded there with its reason (`KEPT_*`)."""
+    marked = {}
+    forms = collections.defaultdict(set)
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            word = nfc_lower(entry.get("word"))
+            senses = entry.get("senses") or []
+            targets = set()
+            for sense in senses:
+                target = nfc_lower(_alt_target(sense))
+                targets.add(target if target and target != word and _unmarked(target) == word else None)
+            if not senses or None in targets:
+                marked[word] = None
+            elif marked.get(word, set()) is not None:
+                marked[word] = marked.get(word, set()) | targets
+                forms[word].update(_listed_inflections(entry, word))
+            if is_form(word) and word not in ELISIONS and word not in UNMARKED_SPELLINGS:
+                for sense in senses:
+                    for target in _form_targets(sense):
+                        forms[nfc_lower(target)].add(word)
+    table = {}
+    for word, targets in sorted(marked.items()):
+        if not targets or len(targets) != 1 or word in ELISIONS or word in UNMARKED_SPELLINGS:
+            continue
+        (target,) = targets
+        if target.replace("œ", "oe").replace("æ", "ae") == word:
+            continue
+        if not frequency(target) > frequency(word):
+            why = KEPT_COMMONER
+        elif not is_form(word):
+            why = KEPT_NO_FORM
+        elif any(frequency(form) >= frequency(target) for form in forms[word] - {word, target}):
+            why = KEPT_FORM
+        else:
+            table[word] = target
+            continue
+        if kept is not None:
+            kept[word] = why
+    return table
 
 
 class Lexicon:
@@ -334,9 +451,13 @@ class Lexicon:
     - `names`: the words whose only lemma entries are proper names;
     - `acronyms`: what the entries headed exactly as a row of French's acronym table point at
       (keep-lingua-french-acronyms-in-capitals D2), read for the table alone.
+
+    `unmarked` is `dictionary_unmarked_spellings`' table, the spellings without their marks
+    `spelling_target` reads as their word (read-lingua-french-dictionary-unmarked-spellings D1).
     """
 
-    def __init__(self):
+    def __init__(self, unmarked=None):
+        self.unmarked = dict(unmarked or {})
         self.candidates = collections.defaultdict(set)
         self.links = collections.defaultdict(lambda: collections.defaultdict(set))
         self.lemmas = set()
@@ -357,12 +478,14 @@ class Lexicon:
 
         An elided piece is read by `ELISIONS` alone, a spelling without its marks by
         `UNMARKED_SPELLINGS` alone — no entry pointing at it makes another word its form —, and a
-        gender or number marker is no inflection (`_MARKERS`). A word that is no form (`is_form`) is skipped whole. An entry whose every sense only spells another word is a form of that word, its
-        inflections forms of it. Otherwise: an entry with a sense that is not a form-of is a lemma
-        and its own candidate; the inflections it lists are its forms, but the bookkeeping, the
-        doubtful ones and the multi-word constructions; its form-of senses make it a form of
-        their targets. An entry headed exactly as an acronym row is read for the table too
-        (`acronyms`), and lowercased as any other.
+        gender or number marker is no inflection (`_MARKERS`). A word that is no form (`is_form`) is
+        skipped whole. An entry whose every sense only spells another word is a form of that word, its
+        inflections forms of it — a spelling `self.unmarked` names among them (`etre` → *être*;
+        `repondre`, whose `repond` follows it to *répondre*). Otherwise: an entry with a sense that
+        is not a form-of is a lemma and its own candidate; the inflections it lists are its forms,
+        but the bookkeeping, the doubtful ones and the multi-word constructions; its form-of senses
+        make it a form of their targets. An entry headed exactly as an acronym row is read for the
+        table too (`acronyms`), and lowercased as any other.
         """
         self.acronyms.read(entry)
         word = nfc_lower(entry.get("word"))
@@ -376,7 +499,7 @@ class Lexicon:
             return
         pos = entry.get("pos")
         senses = entry.get("senses") or []
-        spelt = [spelling_target(sense, word) for sense in senses]
+        spelt = [spelling_target(sense, word, self.unmarked) for sense in senses]
         if spelt and all(spelt):
             for target in spelt:
                 self.link(word, nfc_lower(target), pos)
@@ -395,22 +518,23 @@ class Lexicon:
                     self.link(word, target, pos)
 
     def _inflections(self, entry, word, pos):
-        for inflection in entry.get("forms") or ():
-            tags = set(inflection.get("tags") or ())
-            form = nfc_lower(inflection.get("form"))
-            if tags & _BOOKKEEPING or tags & _DOUBTFUL or not is_form(form) or form in ELISIONS:
-                continue
-            if form in UNMARKED_SPELLINGS:
-                continue
-            if form in _MARKERS and form != word:
-                continue
+        for form in _listed_inflections(entry, word):
             self.link(form, word, pos)
 
 
-def read_kaikki(path, readings=None):
+def unmarked_report(unmarked, kept):
+    """The reduction's line on the dictionary's spellings without their marks: how many are read as
+    their word, how many kept apart, and why (read-lingua-french-dictionary-unmarked-spellings)."""
+    why = collections.Counter(kept.values())
+    reasons = ", ".join(f"{why[reason]} {reason}" for reason in (KEPT_COMMONER, KEPT_FORM, KEPT_NO_FORM))
+    return f"spellings without their marks read as their word={len(unmarked)}, kept apart={len(kept)} ({reasons})"
+
+
+def read_kaikki(path, readings=None, unmarked=None):
     """The French section, read entry by entry into a `Lexicon` — and, with `readings` (a
-    `Readings`), each entry's grammar in the same pass (`read_readings`)."""
-    lexicon = Lexicon()
+    `Readings`), each entry's grammar in the same pass (`read_readings`) —, the spellings without
+    their marks `unmarked` names read as their word (`dictionary_unmarked_spellings`)."""
+    lexicon = Lexicon(unmarked)
     with open(path, encoding="utf-8") as f:
         for line in f:
             try:
@@ -419,7 +543,7 @@ def read_kaikki(path, readings=None):
                 continue
             lexicon.read(entry)
             if readings is not None:
-                read_readings(entry, readings)
+                read_readings(entry, readings, unmarked)
     return lexicon
 
 
@@ -1088,18 +1212,19 @@ class Readings:
         return out
 
 
-def read_readings(entry, readings):
+def read_readings(entry, readings, unmarked=None):
     """One entry's readings into `readings`, word and form lowercased and in NFC (D3–D5).
 
     Never from a capitalised headword (`CE`, `LE` are other words), nor from an entry whose every
     sense is an alternative form of another word or a neologism (`estre`, archaic spelling of
     *être*, whose table would make `est` its form). A spelling variant reads as the word it spells
-    (`coeurs` → *cœur*). A form's own entry gives each sense toward its target, but a doubtful,
-    regional or register-marked one; a past participle's entry gives its agreed forms too. A lemma's
-    entry gives a noun's or an adjective's own form, and its table's rows: a pronominal verb's
-    without their pronoun, never a compound tense (a multi-word construction, doubtful), a letter's
-    plural, a feminine noun's masculine (`déesse`: `dieu`), nor a plural-headed determiner's or
-    pronoun's table (`tes`)."""
+    (`coeurs` → *cœur*), and so does a spelling without its marks `unmarked` names (`repond` →
+    *répondre*, read-lingua-french-dictionary-unmarked-spellings D1). A form's own entry gives each
+    sense toward its target, but a doubtful, regional or register-marked one; a past participle's
+    entry gives its agreed forms too. A lemma's entry gives a noun's or an adjective's own form, and
+    its table's rows: a pronominal verb's without their pronoun, never a compound tense (a multi-word
+    construction, doubtful), a letter's plural, a feminine noun's masculine (`déesse`: `dieu`), nor a
+    plural-headed determiner's or pronoun's table (`tes`)."""
     upos = _UPOS.get(entry.get("pos"))
     word = nfc_lower(entry.get("word"))
     if upos is None or not _TOKEN.fullmatch(word):
@@ -1108,7 +1233,7 @@ def read_readings(entry, readings):
     if raw != raw.lower():
         return
     senses = entry.get("senses") or []
-    spelt = [spelling_target(sense, word) for sense in senses]
+    spelt = [spelling_target(sense, word, unmarked) for sense in senses]
     spelt = nfc_lower(spelt[0]) if spelt and all(spelt) and len({nfc_lower(t) for t in spelt}) == 1 else None
     if spelt is None and senses and all(_alternative_or_neologism(sense) for sense in senses):
         return
@@ -1904,7 +2029,11 @@ def main():
         return zipf[word]
 
     readings = Readings()
-    lexicon = read_kaikki(os.path.join(a.work, "kaikki-French.jsonl"), readings)
+    # The dictionary's spellings without their marks, read as their word when it is the commoner
+    # (read-lingua-french-dictionary-unmarked-spellings D1, D2): a pass of its own before the forms.
+    kept = {}
+    unmarked = dictionary_unmarked_spellings(os.path.join(a.work, "kaikki-French.jsonl"), frequency, kept)
+    lexicon = read_kaikki(os.path.join(a.work, "kaikki-French.jsonl"), readings, unmarked)
     counts = read_gsd_counts(
         [os.path.join(a.work, "fr_gsd-ud-train.conllu"), os.path.join(a.work, "fr_gsd-ud-dev.conllu")]
     )
@@ -1992,6 +2121,7 @@ def main():
     }
     common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     print(f"reduced fr-en: forms={len(written)} lemmas={len(ranks)} readings={len(grammar)}", file=sys.stderr)
+    print(f"reduced fr-en: {unmarked_report(unmarked, kept)}", file=sys.stderr)
     print(
         f"reduced fr-en: acronyms={len(acronyms.ACRONYMS)} ({len(glossed_acronyms)} glossed: "
         + ", ".join(f"{a} « {g} »" for a, (g, _) in glossed_acronyms.items())

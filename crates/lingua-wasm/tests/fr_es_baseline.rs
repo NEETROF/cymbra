@@ -35,7 +35,8 @@
 //! A pull request that changes `baseline/fr-es.golden` changes what Spanish-native readers of
 //! French will see, once a package lists fr-es (change 52). Only a dictionary update of fr-es or
 //! of fr-en (which moves the studied tables: read-lingua-french-ca-as-ca-cedilla's spellings moved
-//! nine probes and added four), a deliberate analyser change that bumps French's analyser version
+//! nine probes and added four, read-lingua-french-dictionary-unmarked-spellings' moved six and added
+//! four), a deliberate analyser change that bumps French's analyser version
 //! (keep-lingua-french-acronyms-in-capitals: the pack line, the 17 page analyses on the version
 //! alone, « Le CA a voté le budget. » showing the acronym, and four probes added), probes the French
 //! scenario gains (with the pack line of a section the builder derives from the committed tables:

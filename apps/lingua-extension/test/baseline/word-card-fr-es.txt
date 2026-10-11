@@ -143,6 +143,17 @@ row: ça suffit — (Ya) basta
 ### phrase-gloss Ca fait du bien.
 row: faire — Hacer
 row: bien — Bien
+### phrase-gloss il etait une fois
+expression: il était une fois
+page 1/1:
+  [—] Érase una vez, había una vez
+### phrase-gloss un coup d'Etat
+row: coup d'état — Golpe de estado
+### phrase-gloss Il faut etre patient.
+row: falloir — Haber que, necesitarse, hacer falta
+row: patient — Paciente
+### phrase-gloss un moteur diesel
+row: moteur diesel — Motor diésel, motor diesel, motor Diesel
 ### phrase-gloss l’homme
 row: homme — Hombre
 ### word-grammar est être

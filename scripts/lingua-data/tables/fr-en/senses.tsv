@@ -1743,7 +1743,6 @@ arrangement	NOUN:1
 arranger	VERB:8
 arrangeur	NOUN:2
 arrestation	NOUN:1
-arreter	VERB:6
 arrhes	NOUN:1
 arrimage	NOUN:1
 arrimer	VERB:1
@@ -2936,7 +2935,6 @@ bengali	ADJ:1	NOUN:1
 benjamin	NOUN:4	PROPN:2
 benne	NOUN:4
 benoist	PROPN:1
-benoit	ADJ:3
 benoît	PROPN:2	ADJ:3
 benzène	NOUN:1
 benêt	NOUN:1
@@ -4337,7 +4335,6 @@ came	NOUN:3
 camelot	PROPN:1	NOUN:2
 camelote	NOUN:1
 camembert	NOUN:2	PROPN:1
-cameraman	NOUN:1
 cameroun	PROPN:1
 camerounais	ADJ:1	NOUN:1
 camille	PROPN:1
@@ -5335,7 +5332,6 @@ chirurgien	NOUN:1
 chitine	NOUN:1
 chiée	NOUN:1
 chlef	PROPN:1
-chloe	PROPN:1
 chlordécone	NOUN:1
 chlore	NOUN:1
 chlorhydrate	NOUN:1
@@ -5868,7 +5864,6 @@ col	NOUN:4
 cola	NOUN:1
 colchicine	NOUN:1
 colchide	PROPN:1
-colere	NOUN:2
 colette	PROPN:1
 colibri	NOUN:1
 colimaçon	NOUN:3
@@ -6082,7 +6077,6 @@ compagnon	NOUN:4
 compagnonnage	NOUN:2
 comparable	ADJ:1
 comparaison	NOUN:2
-comparaitre	VERB:1
 comparateur	NOUN:1
 comparatif	ADJ:1	NOUN:2
 comparativement	ADV:1
@@ -6694,7 +6688,6 @@ convoyeur	NOUN:3
 convulsion	NOUN:1
 cookie	NOUN:2
 cool	ADJ:1	INTJ:1
-cooperation	NOUN:1
 cooptation	NOUN:1
 coopérant	NOUN:1
 coopératif	ADJ:3
@@ -7931,6 +7924,7 @@ dihydrogène	NOUN:1
 dijon	PROPN:1
 dijonnais	NOUN:1	ADJ:1
 diktat	NOUN:1
+dilapidation	NOUN:2
 dilapider	VERB:1
 dilatation	NOUN:1
 dilater	VERB:1
@@ -8206,6 +8200,7 @@ docteur	NOUN:2
 doctoral	ADJ:1
 doctorant	NOUN:1
 doctorat	NOUN:1
+doctrinaire	NOUN:1	ADJ:1
 doctrinal	ADJ:1
 doctrine	NOUN:1
 docu	NOUN:1
@@ -8402,6 +8397,7 @@ dresseur	NOUN:2
 dresseuse	NOUN:1
 dressing	NOUN:2
 dressé	ADJ:2
+drette	ADJ:2	ADV:1
 dreux	PROPN:1
 dreyfus	PROPN:1
 dribble	NOUN:1
@@ -8566,6 +8562,7 @@ déambuler	VERB:1
 déballage	NOUN:1
 déballer	VERB:1
 débandade	NOUN:3
+débaptiser	VERB:2
 débarasser	VERB:4
 débarcadère	NOUN:1
 débardeur	NOUN:4
@@ -8604,6 +8601,7 @@ déboulonner	VERB:2
 débours	NOUN:1
 débourser	VERB:1
 déboussolé	ADJ:1
+déboîter	VERB:3
 débraillé	ADJ:1
 débrancher	VERB:3
 débrayage	NOUN:2
@@ -8629,6 +8627,7 @@ décaissement	NOUN:1
 décalage	NOUN:4
 décaler	VERB:6
 décalogue	PROPN:1
+décalque	NOUN:2
 décalé	ADJ:1
 décamper	VERB:2
 décan	NOUN:1
@@ -8887,6 +8886,7 @@ défécation	NOUN:1
 déféquer	VERB:1
 déférence	NOUN:1
 déférer	VERB:3
+dég	ADJ:3
 dégagement	NOUN:5
 dégager	VERB:8
 dégaine	NOUN:2
@@ -8938,6 +8938,7 @@ déhanché	NOUN:4	ADJ:1
 déiste	ADJ:1
 déité	NOUN:1
 déjanté	ADJ:2
+déjection	NOUN:1
 déjeuner	VERB:2	NOUN:2
 déjeûner	VERB:2
 déjouer	VERB:1
@@ -9153,6 +9154,7 @@ déploiement	NOUN:1
 déplorable	ADJ:1
 déplorer	VERB:1
 déployer	VERB:2
+déplétion	NOUN:1
 dépoli	ADJ:1
 dépolitisation	NOUN:1
 dépolluer	VERB:1
@@ -9257,6 +9259,7 @@ désarmant	ADJ:1
 désarmement	NOUN:1
 désarmer	VERB:1
 désarroi	NOUN:2
+désarçonner	VERB:2
 désastre	NOUN:2
 désastreux	ADJ:1
 désavantage	NOUN:1
@@ -9353,6 +9356,7 @@ désorientation	NOUN:2
 désorienter	VERB:2
 désormais	ADV:1
 désosser	VERB:2
+désossé	ADJ:4
 déstabilisant	ADJ:1
 déstabilisation	NOUN:1
 déstabiliser	VERB:1
@@ -9458,6 +9462,7 @@ dîme	NOUN:1
 dîn	NOUN:2
 dînatoire	ADJ:1
 dîner	VERB:1	NOUN:2
+dînette	NOUN:1
 dôme	NOUN:2
 dûment	ADV:2
 e-mail	NOUN:1
@@ -9469,8 +9474,6 @@ ecchymose	NOUN:1
 ecclésial	ADJ:1
 ecclésiaste	PROPN:1
 ecclésiastique	ADJ:1
-ecossais	NOUN:3
-ecosse	PROPN:1
 ectoplasme	NOUN:1
 ecu	NOUN:1
 eczéma	NOUN:1
@@ -9528,7 +9531,6 @@ efféminé	ADJ:1
 egbert	PROPN:1
 ego	NOUN:1
 egypte	PROPN:1
-egyptien	NOUN:2
 egée	PROPN:1
 eh	INTJ:1
 ehpad	NOUN:1
@@ -9540,7 +9542,6 @@ eisenberg	PROPN:1
 eisenstein	PROPN:1
 elbe	PROPN:2
 eldorado	NOUN:1	PROPN:2
-electro	NOUN:1
 elfe	NOUN:2
 elfique	ADJ:1	NOUN:1
 elle	PRON:3
@@ -10024,7 +10025,6 @@ epernay	PROPN:1
 ephraïm	PROPN:2
 eps	NOUN:1
 epsilon	NOUN:1
-equateur	PROPN:1
 erdogan	PROPN:2
 erdre	PROPN:1
 erevan	PROPN:1
@@ -10192,8 +10192,6 @@ estuaire	NOUN:1
 esturgeon	NOUN:1
 estée	PROPN:1
 et	CCONJ:1
-etat	NOUN:3
-etats-unis	PROPN:1
 ethiopie	PROPN:1
 ethnicité	NOUN:1
 ethnie	NOUN:1
@@ -10206,7 +10204,6 @@ ethnologie	NOUN:1
 ethnologique	ADJ:1
 ethnologue	NOUN:1
 etienne	PROPN:2
-etre	VERB:4
 etterbeek	PROPN:1
 eubée	PROPN:1
 eucalyptus	NOUN:1
@@ -10367,7 +10364,6 @@ expansionniste	ADJ:1
 expatriation	NOUN:1
 expatrier	VERB:2
 expatrié	ADJ:1	NOUN:1
-experimental	ADJ:1
 expert	ADJ:1
 expert-comptable	NOUN:1
 expertise	NOUN:3
@@ -11726,7 +11722,6 @@ gabriel	PROPN:1
 gabrielle	PROPN:1
 gaby	PROPN:2
 gabès	PROPN:1
-gacher	VERB:2
 gadget	NOUN:1
 gadoue	NOUN:3
 gafam	PROPN:1
@@ -12819,7 +12814,6 @@ hagiographie	NOUN:2
 hagiographique	ADJ:1
 haha	INTJ:1	NOUN:1
 haie	NOUN:3
-haiku	NOUN:1
 hainaut	PROPN:1
 haine	NOUN:1
 haineux	ADJ:1
@@ -13537,7 +13531,6 @@ icare	PROPN:1
 iceberg	NOUN:1
 ici	ADV:1
 icitte	ADV:1
-icone	NOUN:3
 iconique	ADJ:2
 iconoclaste	ADJ:1	NOUN:1
 iconographie	NOUN:1
@@ -17078,7 +17071,6 @@ mathématicien	NOUN:1
 mathématique	ADJ:1
 mathématiquement	ADV:1
 mathéo	PROPN:1
-matiere	NOUN:6
 matignon	PROPN:3
 matin	NOUN:1
 matinal	ADJ:2
@@ -17292,7 +17284,6 @@ mesurage	NOUN:1
 mesure	NOUN:2
 mesurer	VERB:1
 metal	NOUN:1
-methode	NOUN:2
 mets	NOUN:1
 metteur	NOUN:2
 mettre	VERB:6
@@ -20173,7 +20164,6 @@ peaufiner	VERB:1
 peb	NOUN:1
 pec	NOUN:1
 pecheur	PROPN:1
-pecho	VERB:5
 pectine	NOUN:1
 pectoral	NOUN:1
 pedigree	NOUN:1
@@ -20988,7 +20978,6 @@ pochon	PROPN:1	NOUN:4
 podcast	NOUN:1
 podium	NOUN:1
 podologue	NOUN:1
-poele	NOUN:4
 pogba	PROPN:1
 pogne	NOUN:2
 pogner	VERB:8
@@ -22861,7 +22850,6 @@ rebattu	ADJ:1
 rebecca	PROPN:2
 rebelle	ADJ:1	NOUN:1
 rebeller	VERB:1
-rebellion	NOUN:1
 reblochon	NOUN:1
 reboisement	NOUN:1
 rebond	NOUN:3
@@ -23028,7 +23016,6 @@ redémarrer	VERB:1
 redéploiement	NOUN:1
 redéployer	VERB:1
 refaire	VERB:5
-referendum	NOUN:1
 refermer	VERB:2
 refiler	VERB:2
 refinancement	NOUN:1
@@ -23295,7 +23282,6 @@ repli	NOUN:2
 repliement	NOUN:2
 replier	VERB:4
 replonger	VERB:2
-repondre	VERB:2
 report	NOUN:2
 reportage	NOUN:1
 reporter	VERB:7	NOUN:1
@@ -24803,7 +24789,6 @@ scat	NOUN:1
 sceau	NOUN:1
 scellement	NOUN:2
 sceller	VERB:6
-scenario	NOUN:3
 scepticisme	NOUN:1
 sceptique	NOUN:1	ADJ:1
 sceptre	NOUN:1
@@ -25186,7 +25171,6 @@ sidération	NOUN:2
 sidérurgie	NOUN:1
 sidérurgique	ADJ:1
 sidéré	ADJ:1
-siecle	NOUN:1
 siemens	NOUN:1
 sien	ADJ:1
 sienne	PROPN:2
@@ -28104,7 +28088,6 @@ tôlerie	NOUN:2
 tôt	ADV:1
 ua	NOUN:1
 ubaye	PROPN:1
-uberisation	NOUN:1
 ubiquité	NOUN:1
 ubuesque	ADJ:1
 ubérisation	NOUN:1
