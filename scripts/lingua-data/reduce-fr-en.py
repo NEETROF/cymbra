@@ -123,6 +123,21 @@ section's (D5). Measured on the French Wiktionary's dump of 2026-10-02 (its desi
 words of French text. The rules are fr-en's, in this reducer: no shared module is edited, so no other
 pair re-pins.
 
+The section's own expressions are read where they are met (refine-lingua-fr-en-expressions, the
+owner's decision of 2026-10-10), by three rules over its expressions alone (`is_expression`), so
+fr-en's word glosses, sense runs and dictionary words do not move with them: a reviewed list, the
+section's expressions met ten times or more on the corpora and read wrong in most of their contexts,
+left out by name in `LEFT_OUT` with their reasons — a labelled sense met as plain words, a headword
+met through another word's form, words met as they are where the headword names a set phrase or a
+cry, a colloquial spelling met as the standard one (D1); a sense, or a piece of it between
+semicolons, that only notes a form or a usage is no meaning (`_FORM_NOTE`, D2: « j'ai » "I've, I
+have", « puis-je » none); and « de l' » opens on « de la »'s first sense, "of the" (`LENT_SENSES`,
+D3). Measured on the tables of add-lingua-fr-en-translated-expressions: 116 names (the design's 111
+and five read on those tables), 119 rows out of `mwe.tsv`, 68,361 → 61,780 matches on 1,060,904
+words. A name left out and an expression that only points are not read from the French Wiktionary's
+table either (`translated_expressions`). The rules are this reducer's, for the same reason as the
+table's: a shared module edited would re-pin every pair.
+
 fr-en reads the section as French (refine-lingua-fr-en-glosses), by rules of this reducer and of
 `reduce_french_treebank.py` alone — the English edition's and the shared ones read es-en's rows and
 every pair's too, and are not edited, so only fr-en re-pins (D1): `read_as_french`, a pre-pass after
@@ -1812,6 +1827,22 @@ _POINTS = re.compile(
 _POINTS_THEN = re.compile(
     r"^(?:post-1990 spelling|subject-inverted form) of [^;:]+[;:]\s*(.+)$", re.IGNORECASE | re.DOTALL
 )
+# A sense that only notes a form or a usage (refine-lingua-fr-en-expressions D2): a compound's pieces
+# (« j'ai » « I've, I have; compound of je and ai »), an interrogative or inflected form of a verb in
+# a person (« a-t-il », « puis-je »), a pointer to the non-idiomatic uses (« à moi »), an equivalent
+# written in French (« m'as » « Equivalent to “je vais” … »), the one construction it is used in
+# (« colin-tampon »). Grammar the reader does not read as English (M5): the pieces' own rows say it.
+# Read on a sense and on each piece of it between semicolons; never « a form of » alone, which opens
+# meanings (« pain d'épice » « a form of French gingerbread »).
+_FORM_NOTE = re.compile(
+    r"^(?:compound of \S+ and \S+"
+    r"|(?:the |an? )?(?:interrogative )?form of \S+(?: \([^)]*\))? in the (?:first|second|third)-person"
+    r"|an interrogative form of\b"
+    r"|for non-idiomatic uses\b"
+    r"|used only in the\b"
+    r"|equivalent to “)",
+    re.IGNORECASE,
+)
 # Expressions left out by name, each with its reason: a person's decision, as an override row is.
 # Editing this table changes the rules' sha256.
 LEFT_OUT = {
@@ -2109,6 +2140,399 @@ LEFT_OUT = {
         "the table's « clench »: it means « squeeze together, tighten », as its 5 matches do (« Elle se "
         "serra contre moi », « ils se serrent la main »)"
     ),
+    # refine-lingua-fr-en-expressions D1: the English Wiktionary's French section's own expressions a
+    # person read wrong in most of the contexts they are met in. Every section expression met ten times
+    # or more on the five corpora of add-lingua-fr-en-translated-expressions' design (1,060,904 words)
+    # was read in three or four of its sentences; each row gives the section's gloss, its matches there
+    # on that change's tables, how they are met and one example. « ça va », « à la base » and « en
+    # série » came to ten matches on those tables, and « de poids » and « de plus belle » once these
+    # rows left out « de plus » (their matches then): each was read in all its sentences (this change's
+    # task 1.1).
+    #
+    # A labelled sense met as plain words: every sense of the entry carries a register or a region
+    # (informal, slang, Quebec, Internet, derogatory, literary…) the plain words do not.
+    "pas de": (
+        "the section's « without », a Quebec sense: of 607 matches, met in « ne … pas de » (« il n'a pas "
+        "d'enfants »)"
+    ),
+    "dire que": (
+        "the section's « to think that », an informal exclamation: of 324 matches, met as « dire » + « que » "
+        "(« ils ont dit qu'ils »)"
+    ),
+    "histoire de": (
+        "the section's « in order to », informal: of 256 matches, met as the noun (« l'histoire du canton »)"
+    ),
+    "j'aime": (
+        "the section's « a like », the Internet noun: of 183 matches, met as « I like » (« J'aime les "
+        "bonbons »)"
+    ),
+    "à toute": (
+        "the section's « see you », informal: of 145 matches, met in « à tout », « à toutes les »"
+    ),
+    "fait que": (
+        "the section's « so, therefore », a Quebec sense: of 121 matches, met in « le fait que », « n'a fait "
+        "que »"
+    ),
+    "sa mère": (
+        "the section's « (so) fucking », slang: of 119 matches, met as « his/her mother »"
+    ),
+    "de deux": (
+        "the section's « next, secondly », informal: of 116 matches, met before a noun (« de deux poèmes »)"
+    ),
+    "pas que": (
+        "the section's « not that », informal: of 108 matches, met in « ne … pas que » (« je ne veux pas "
+        "que »)"
+    ),
+    "t'a": (
+        "the section's « tu as », a gloss in French: of 108 matches, met as « te » + « a » (« on ne t'a pas "
+        "dit »)"
+    ),
+    "sais pas": (
+        "the section's « dunno », informal: of 102 matches, met in « ne sait pas »"
+    ),
+    "espèce de": (
+        "the section's « you », derogatory: of 95 matches, met as « a species of »"
+    ),
+    "m'as": (
+        "the section's « je vais », a Quebec sense written in French: of 36 matches, met as « me » + « as » (« "
+        "tu m'as donné »)"
+    ),
+    "vu que": (
+        "the section's « given that », colloquial: of 35 matches, met as « voir que » (« content de voir "
+        "que »)"
+    ),
+    "de couleur": (
+        "the section's « of color (of skin) », dated: of 32 matches, met before a colour (« de couleur "
+        "noire »)"
+    ),
+    "encore que": (
+        "the section's « although », dated: of 28 matches, met as « encore » + « que » (« n'était encore "
+        "qu'une »)"
+    ),
+    "la faire": (
+        "the section's « to fool », informal: of 26 matches, met as the pronoun and the verb (« la ferait "
+        "partir »)"
+    ),
+    "du reste": (
+        "the section's « besides », literary: of 25 matches, met as « of the rest » (« du reste du monde »)"
+    ),
+    "au plus": (
+        "the section's « at most », informal: of 24 matches, met in « au plus près », « au plus fort »"
+    ),
+    "comme tout": (
+        "the section's « very, extremely », informal: of 24 matches, met in « comme toutes les autres »"
+    ),
+    "et quelques": (
+        "the section's « or thereabouts », informal: of 24 matches, met as « and some » (« et quelques "
+        "groupes »)"
+    ),
+    "de première": (
+        "the section's « bigtime », informal: of 23 matches, met before a noun (« de première ligne »)"
+    ),
+    "du vent": (
+        "the section's « shoo! », informal: of 23 matches, met as « of the wind »"
+    ),
+    "à plus": (
+        "the section's « see you », informal: of 22 matches, met in « à plus de »"
+    ),
+    "qui parle": (
+        "the section's « look who's talking! », informal: of 21 matches, met as « who speaks »"
+    ),
+    "à la place": (
+        "the section's « instead », informal: of 21 matches, met in « à la place Saint-François »"
+    ),
+    "la ferme": (
+        "the section's « shut up », vulgar: of 19 matches, met as « the farm »"
+    ),
+    "à d'autres": (
+        "the section's « tell it to the marines », informal: of 19 matches, met as « to other »"
+    ),
+    "tu parles": (
+        "the section's « you must be joking! », informal: of 18 matches, met as « you speak »"
+    ),
+    "d'aucuns": (
+        "the section's « certain people », literary: of 16 matches, met in « d'aucun », « d'aucune »"
+    ),
+    "des familles": (
+        "the section's « good old », informal: of 16 matches, met as « of the families »"
+    ),
+    "et encore": (
+        "the section's « if that », informal: of 16 matches, met in « et encore une fois »"
+    ),
+    "faire avec": (
+        "the section's « to make do », informal: of 16 matches, met in « faite avec », « fait avec »"
+    ),
+    "en fait de": (
+        "the section's « with respect to », literary: of 15 matches, met in « en faisant de », across a year"
+    ),
+    "y passer": (
+        "the section's « to kick the bucket », informal: of 15 matches, met in « y passer la nuit »"
+    ),
+    "à la limite": (
+        "the section's « in a pinch », informal: of 15 matches, met in « à la limite entre »"
+    ),
+    "rapport à": (
+        "the section's « about », colloquial: of 14 matches, met in « par rapport à »"
+    ),
+    "bande de": (
+        "the section's « you (bunch of) », derogatory: of 13 matches, met in « bande de terre »"
+    ),
+    "faire bien": (
+        "the section's « to look stylish », informal: of 13 matches, met in « fait bien », « fais bien »"
+    ),
+    "s'en être": (
+        "the section's « used only in the simple past… », a note: of 13 matches, met in « s'en est »"
+    ),
+    "se prendre": (
+        "the section's « to get (something negative) », informal: of 13 matches, met in « se prend pour »"
+    ),
+    "c'est cela": (
+        "the section's « yeah, right! », informal: of 12 matches, met as « that's it »"
+    ),
+    "du diable": (
+        "the section's « a hell of a », informal: of 12 matches, met as « of the devil »"
+    ),
+    "quoi faire": (
+        "the section's « why, how come », a Louisiana sense: of 12 matches, met as « what to do »"
+    ),
+    "de un": (
+        "the section's « first, first up », informal: of 10 matches, met before a number or a noun"
+    ),
+    "faire sans": (
+        "the section's « to do without », informal: of 10 matches, met in « fait sans plaisir »"
+    ),
+    "y rester": (
+        "the section's « to kick the bucket », informal: of 10 matches, met as « stay there »"
+    ),
+    #
+    # A headword met through another word's form: its key reads a word through its dictionary form,
+    # and the page writes another.
+    "d'autre": (
+        "the section's « else »: of 461 matches, met as « d'autres », « others »"
+    ),
+    "en être": (
+        "the section's « to have arrived at something; to be game »: of 345 matches, met in « en est », « en "
+        "sont », « en 1966, est »"
+    ),
+    "de nouveau": (
+        "the section's « again »: of 227 matches, met as « de nouveaux », « de nouvelles » (« new »)"
+    ),
+    "de fait": (
+        "the section's « de facto; indeed »: of 213 matches, met as « de faire »"
+    ),
+    "en fait": (
+        "the section's « actually »: of 171 matches, met as « en faisant », « en font », « ce qui en fait »"
+    ),
+    "étant donné": (
+        "the section's « given »: of 62 matches, met as « est donné », « fut donné »"
+    ),
+    "en tout": (
+        "the section's « in total »: of 45 matches, met in « en toute saison », « en toutes circonstances »"
+    ),
+    "n'eût été": (
+        "the section's « if not for »: of 35 matches, met as « n'avait été », « n'a été »"
+    ),
+    "tenir de": (
+        "the section's « to take after »: of 35 matches, met in « tenant du titre », « se tient du »"
+    ),
+    "il ne fallait pas": (
+        "the section's « you shouldn't have »: of 34 matches, met as « il ne faut pas »"
+    ),
+    "ceci étant": (
+        "the section's « that being so »: of 32 matches, met as « ceci est », « ceci fut »"
+    ),
+    "la tienne": (
+        "the section's « yours »: of 26 matches, met as « la tenait », « la tenir »"
+    ),
+    "cela étant": (
+        "the section's « that being so »: of 22 matches, met as « cela est »"
+    ),
+    "la majeur": (
+        "the section's « A major »: of 22 matches, met in « la majeure partie »"
+    ),
+    "attendu que": (
+        "the section's « given that »: of 21 matches, met as « attendait que », « attendu que » (waited)"
+    ),
+    "en tenue": (
+        "the section's « dressed »: of 18 matches, met as « en tienne », « en tenant compte »"
+    ),
+    "en devenir": (
+        "the section's « in the making »: of 13 matches, met as « en devient »"
+    ),
+    "se passer de": (
+        "the section's « to do without »: of 11 matches, met in « se passe de », « il se passe des choses »"
+    ),
+    "avoir lieu de": (
+        "the section's « have reason to »: of 10 matches, met in « ont lieu de juillet »"
+    ),
+    "à découvert": (
+        "the section's « in the open; overdrawn »: of 10 matches, met as « à découvrir »"
+    ),
+    "à l'anglaise": (
+        "the section's « the English way »: of 9 matches, met as « à l'anglais »"
+    ),
+    "de plus belle": (
+        "the section's « even more, even harder than before »: of 10 matches, met as « de plus beau » (« rien "
+        "de plus beau que la messe »)"
+    ),
+    #
+    # Words met as they are, where the headword names a set phrase, a field's sense or a cry.
+    "être à": (
+        "the section's « to belong to »: of 293 matches, met as « être » + « à » (« je suis au bout », « sont "
+        "à trouver »)"
+    ),
+    "de plus": (
+        "the section's « moreover »: of 209 matches, met in « de plus près », « une fois de plus », « de plus "
+        "de 500 km »"
+    ),
+    "nombre de": (
+        "the section's « quite a few »: of 208 matches, met in « le nombre de », « un certain nombre de »"
+    ),
+    "première fois": (
+        "the section's « first time (the first instance of sexual intercourse) »: of 146 matches, met as « the "
+        "first time »"
+    ),
+    "à moi": (
+        "the section's « help! »: of 48 matches, met as « to me »"
+    ),
+    "d'y": (
+        "the section's « thence, from there »: of 46 matches, met in « d'y aller »"
+    ),
+    "le temps de": (
+        "the section's « by the time that »: of 46 matches, met as « time to », « the time of »"
+    ),
+    "au pied": (
+        "the section's « to heel! »: of 41 matches, met in « au pied de »"
+    ),
+    "de droit": (
+        "the section's « de jure »: of 39 matches, met in « prive de droits », « peu de droits »"
+    ),
+    "bon dieu": (
+        "the section's « for God's sake »: of 34 matches, met as « the good Lord »"
+    ),
+    "de rien": (
+        "the section's « you're welcome »: of 34 matches, met in « ne … de rien »"
+    ),
+    "au travail": (
+        "the section's « get to work! »: of 32 matches, met as « at work »"
+    ),
+    "c'est moi": (
+        "the section's « used in a phone call for identification »: of 30 matches, met in « c'est moi qui »"
+    ),
+    "un tel": (
+        "the section's « so-and-so »: of 27 matches, met as « such a »"
+    ),
+    "de service": (
+        "the section's « on duty »: of 25 matches, met as « of service(s) »"
+    ),
+    "de jour": (
+        "the section's « by day »: of 23 matches, met in « peu de jours », « combien de jours »"
+    ),
+    "du siècle": (
+        "the section's « of the century (biggest) »: of 22 matches, met in « au début du siècle »"
+    ),
+    "de confiance": (
+        "the section's « trustworthy »: of 18 matches, met in « question de confiance », « niveau de "
+        "confiance »"
+    ),
+    "qui sait": (
+        "the section's « who knows? »: of 18 matches, met as « who knows how », « qui savent »"
+    ),
+    "tout fait": (
+        "the section's « ready-made »: of 18 matches, met in « tout fait peur », « j'ai tout fait »"
+    ),
+    "ça va": (
+        "the section's « how are you? how's it going? », a greeting: of 18 matches, met as « ça » + « va » "
+        "before an infinitive, the near future (« Ça va être difficile pour vous »)"
+    ),
+    "de grâce": (
+        "the section's « please »: of 17 matches, met in « pleine de grâce »"
+    ),
+    "avoir mal": (
+        "the section's « to have a pain »: of 16 matches, met in « avoir mal parlé », « mal payée »"
+    ),
+    "d'esprit": (
+        "the section's « witty »: of 16 matches, met in « maturité d'esprit »"
+    ),
+    "de cœur": (
+        "the section's « kindhearted »: of 14 matches, met in « as de cœur », « maladie de cœur »"
+    ),
+    "le chercher": (
+        "the section's « to have it coming »: of 14 matches, met as « fetch it »"
+    ),
+    "au reste": (
+        "the section's « besides »: of 13 matches, met in « au reste de l'Europe »"
+    ),
+    "avoir raison de": (
+        "the section's « to get the better of »: of 13 matches, met in « eut raison d'effectuer », across a "
+        "comma"
+    ),
+    "au feu": (
+        "the section's « fire! »: of 12 matches, met as « to the fire »"
+    ),
+    "bien fait": (
+        "the section's « good-looking; serves you right »: of 12 matches, met in « bien faire »"
+    ),
+    "de force": (
+        "the section's « by force »: of 12 matches, met in « chevaux de force », across a number"
+    ),
+    "de tête": (
+        "the section's « off the top of one's head »: of 12 matches, met in « de têtes », « bouillon de tête »"
+    ),
+    "pauvre de": (
+        "the section's « poor old »: of 12 matches, met in « les plus pauvres du monde »"
+    ),
+    "à la base": (
+        "the section's « originally, initially »: of 12 matches, met as « at the base of » (« à la base du "
+        "tronc », « à la base secrète »)"
+    ),
+    "à suivre": (
+        "the section's « to be continued »: of 12 matches, met in « difficile à suivre »"
+    ),
+    "d'un coup": (
+        "the section's « suddenly »: of 11 matches, met in « d'un coup de pied »"
+    ),
+    "de concert": (
+        "the section's « together »: of 11 matches, met in « de concerts »"
+    ),
+    "du temps de": (
+        "the section's « in someone's day »: of 11 matches, met in « du temps d'exposition », across a full "
+        "stop"
+    ),
+    "en série": (
+        "the section's « in series; serially »: of 11 matches, met in a league's name or the playoffs (« en "
+        "Serie A », « en séries éliminatoires »)"
+    ),
+    "à l'horizon": (
+        "the section's « in the offing »: of 11 matches, met in « à l'horizon 2030 », « le soleil à "
+        "l'horizon »"
+    ),
+    "à la pointe": (
+        "the section's « at the cutting edge »: of 11 matches, met in « à la pointe des dunes »"
+    ),
+    "au courant": (
+        "the section's « up to date »: of 10 matches, met in « au courant hygiéniste »"
+    ),
+    "le leur": (
+        "the section's « theirs »: of 10 matches, met as the pronouns (« elle le leur a rendu »)"
+    ),
+    "de poids": (
+        "the section's « weighty, that carries weight »: of 11 matches, met as a weight (« catégories de "
+        "poids », « perdre un peu de poids », « au lancer de poids »)"
+    ),
+    "au point": (
+        "the section's « ready, functional »: of 6 matches, met in « au point correspondant », « au point "
+        "que »"
+    ),
+    #
+    # A colloquial spelling met as the standard one.
+    "m'a": (
+        "the section's « I'm going », a Quebec spelling of « m'as »: of 455 matches, met as « me » + « a » (« "
+        "il m'a sauvé »)"
+    ),
+    "t'es": (
+        "the section's « you're », a colloquial spelling: of 50 matches, met in « tu t'es », « t'est »"
+    ),
 }
 
 
@@ -2133,33 +2557,60 @@ def is_expression(word, forms):
     return split_word(word, forms)
 
 
+def without_form_notes(gloss):
+    """`gloss` without its pieces between semicolons that only note a form or a usage (`_FORM_NOTE`,
+    refine-lingua-fr-en-expressions D2), the others joined by « ; »: None when no piece is left,
+    `gloss` itself when no piece is a note."""
+    pieces = gloss.split(";")
+    kept = [piece.strip() for piece in pieces if not _FORM_NOTE.match(piece.strip())]
+    if len(kept) == len(pieces):
+        return gloss
+    kept = [piece for piece in kept if piece]
+    return "; ".join(kept) if kept else None
+
+
 def _meaning_of_pointer(sense):
-    """`sense` with its pointer read out (D11, 2): None when it only points, the sense read as the
-    meaning written after its target when it has one, the sense itself when it does not point."""
+    """`sense` with its pointer and its form notes read out (D11, 2; refine-lingua-fr-en-expressions
+    D2): None when it only points or only notes a form, the sense read as the meaning written after
+    its target, or as its pieces that are no note, when it has some, the sense itself when it neither
+    points nor notes a form."""
     glosses = sense.get("glosses")
     if not isinstance(glosses, list) or not glosses or not isinstance(glosses[0], str):
         return sense
     gloss = glosses[0].strip()
-    if not gloss or common._is_form_of(sense, gloss, edition=EDITION) or not _POINTS.match(gloss):
+    if not gloss or common._is_form_of(sense, gloss, edition=EDITION):
         return sense
-    after = _POINTS_THEN.match(gloss)
-    return {**sense, "glosses": [after.group(1), *glosses[1:]]} if after else None
+    read = gloss
+    if _POINTS.match(gloss):
+        after = _POINTS_THEN.match(gloss)
+        if not after:
+            return None
+        read = after.group(1)
+    noted = without_form_notes(read)
+    if noted is None:
+        return None
+    if noted is gloss:
+        return sense
+    return {**sense, "glosses": [noted, *glosses[1:]]}
 
 
-def expression_senses(src, dst, forms, pointers=None):
+def expression_senses(src, dst, forms, pointers=None, left_out=None):
     """The section's expressions as fr-en reads them, written to `dst` — a pass before the shared
     rules read the file (D11, 2 and 3), over the expressions alone (`is_expression`): no lemma's
     entry is a headword with a space or a word that is no form, so `gloss.tsv` and `senses.tsv` do
     not move with it.
 
     - A sense that only points at another spelling, an inverted form or the pieces it is written
-      with goes; a meaning written after its target stays, in its place (« y a-t-il » « is there?
+      with goes, and so does a sense, or a piece of it between semicolons, that only notes a form or
+      a usage (`_FORM_NOTE`, refine-lingua-fr-en-expressions D2: « j'ai » "I've, I have", « puis-je »
+      none); a meaning written after its target stays, in its place (« y a-t-il » « is there?
       are there? »). An expression no sense is left to is none: the traditional spelling, keyed
       alike, stands alone (« crème fraîche »), and « jusqu'au soir » meets `jusqu'à` « until », not
       « jusque + au ». Its headword is added to `pointers`, when given: the French Wiktionary's
       translations do not gloss what the section's rules leave out (add-lingua-fr-en-translated-
       expressions D2, `translated_expressions`).
-    - The expressions of `LEFT_OUT` go, each with its reason (`à la`).
+    - The expressions of `LEFT_OUT` go, each with its reason (`à la`). Their headwords are added to
+      `left_out`, when given, for the summary line.
 
     A line this pass cannot read is written as it is, and so is an entry it does not change."""
     with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
@@ -2174,6 +2625,8 @@ def expression_senses(src, dst, forms, pointers=None):
                 out.write(line if line.endswith("\n") else line + "\n")
                 continue
             if word in LEFT_OUT:
+                if left_out is not None:
+                    left_out.add(word)
                 continue
             senses = entry.get("senses")
             if isinstance(senses, list):
@@ -2528,6 +2981,45 @@ def with_etc_period(text):
     return _ETC.sub("etc.", text)
 
 
+# refine-lingua-fr-en-expressions D3 — an expression lent another's first sense, each row with its
+# reason: a person's decision, as `LEFT_OUT`'s rows are. Editing this table changes the rules' sha256.
+LENT_SENSES = {
+    "de l'": (
+        "de la",
+        "the section glosses « de l' » by the partitive alone, « some; the singular prevocalic partitive "
+        "article », where it is « de la » or « du » before a vowel and both are glossed « of the » first: of "
+        "30 sampled matches 29 mean « of the » (« l'appui de l'Arabie Saoudite », « à la tête de "
+        "l'équipe ») and one the partitive; lent « de la »'s first sense, « de l'eau » keeps its partitive",
+    ),
+}
+
+
+def lent_senses(expressions):
+    """`expressions` with each `LENT_SENSES` headword's gloss opening on its lender's first sense — its
+    gloss up to the first « ; » — when its own gloss lacks it (refine-lingua-fr-en-expressions D3),
+    the whole cut to `reduce_common.EXPRESSION_GLOSS_LEN` as the shared rules cut a gloss: the
+    headwords whose gloss changed. A headword the section does not gloss has nothing to open; a
+    lender it does not gloss, beside a headword it does, fails the reduction, naming it."""
+    lent = []
+    for word, (lender, _) in LENT_SENSES.items():
+        if word not in expressions:
+            continue
+        if lender not in expressions:
+            raise SystemExit(
+                f"fr-en: LENT_SENSES lends « {lender} »'s first sense to « {word} », but no expression is « {lender} »"
+            )
+        first = expressions[lender].split(";")[0].strip()
+        own = expressions[word]
+        if first in (piece.strip() for piece in own.split(";")):
+            continue
+        joined = f"{first}; {own}"
+        if len(joined) > common.EXPRESSION_GLOSS_LEN:
+            joined = joined[: common.EXPRESSION_GLOSS_LEN].rstrip().rstrip(";").strip()
+        expressions[word] = joined
+        lent.append(word)
+    return lent
+
+
 # — The French Wiktionary's English translations (add-lingua-fr-en-translated-expressions) —
 #
 # The English translations the French Wiktionary's French entries list complete fr-en's expressions,
@@ -2538,7 +3030,10 @@ def with_etc_period(text):
 # 7,434 / 1,151 the section glosses; 53 / 2 `LEFT_OUT` names — 4 of the section's rows (« à la »,
 # « sur ce », « et si », « point d'inflexion ») and the 51 the table's review added (D5); 2 / 3 the
 # section leaves out as only pointing; 133 / 0 a key the section reaches; 783 / 265 only repeat
-# their headword; 23,141 / 2,766 kept, the builder keying 17,014 / 117 of them.
+# their headword; 23,141 / 2,766 kept, the builder keying 17,014 / 117 of them. With the section's
+# own names of refine-lingua-fr-en-expressions D1 in `LEFT_OUT`, 51 headwords the section glossed
+# count as left out by name instead (7,385 / 1,149 the section glosses, 102 / 4 `LEFT_OUT` names),
+# and none of the table's comes in: the kept rows are the same.
 # `reduce_common.fallback_expressions` reads a headword with a space alone, and every pair's rows go
 # through it: the steps are written here, fr-en's own, so that no shared module is edited and no
 # other pair re-pins.
@@ -2680,10 +3175,16 @@ def native_side(work, kaikki, ranks, forms, pos_counts, translations):
     The pipeline (refine-lingua-fr-en-glosses D1): the English edition's pre-passes in es-en's order,
     then fr-en's own `read_as_french` before the etymology merging; French's expressions; the shared
     rules; then fr-en's post-passes — a post-1990 spelling keyed apart lends its traditional
-    spelling's gloss (`traditional_spellings`, D7), the French Wiktionary's translations gloss the
-    expressions the section leaves (`translated_expressions`), and « etc » takes its period back
-    (`with_etc_period`, D8). The glosses and their runs are the section's alone: the table is read
-    after them, for expressions."""
+    spelling's gloss (`traditional_spellings`, D7), an expression lent another's first sense opens on
+    it (`lent_senses`: « de l' » "of the", refine-lingua-fr-en-expressions D3), the French
+    Wiktionary's translations gloss the expressions the section leaves (`translated_expressions`),
+    and « etc » takes its period back (`with_etc_period`, D8). The glosses and their runs are the
+    section's alone: the table is read after them, for expressions. French's expressions are read by
+    `expression_senses`, which leaves out `LEFT_OUT`'s names (the section's expressions a person read
+    wrong where they are met among them, refine-lingua-fr-en-expressions D1) and the senses that only
+    point or only note a form (D2); `stats` counts the names left out, the expressions left only
+    pointing and the lent senses for the summary line. No shared module is edited: every pair would
+    re-pin."""
     entries, dropped = native_fields(kaikki, os.path.join(work, "kaikki-French-senses.jsonl"))
     entries = common.without_letter_senses(entries, os.path.join(work, "kaikki-French-words.jsonl"), edition=EDITION)
     entries = english.without_letter_headwords(entries, os.path.join(work, "kaikki-French-headwords.jsonl"))
@@ -2691,8 +3192,10 @@ def native_side(work, kaikki, ranks, forms, pos_counts, translations):
     entries, french = read_as_french(entries, os.path.join(work, "kaikki-French-french.jsonl"), pos_counts)
     entries = english.merge_same_pos_etymologies(entries, os.path.join(work, "kaikki-French-merged.jsonl"))
     section = entries
-    pointers = set()
-    entries = expression_senses(entries, os.path.join(work, "kaikki-French-expressions.jsonl"), forms, pointers)
+    pointers, left_out = set(), set()
+    entries = expression_senses(
+        entries, os.path.join(work, "kaikki-French-expressions.jsonl"), forms, pointers, left_out
+    )
     # No fallback: no translation table glosses a French word (D3); the French Wiktionary's English
     # translations complete the expressions below.
     glosses, runs, expressions, primary = common.native_tables(
@@ -2703,6 +3206,7 @@ def native_side(work, kaikki, ranks, forms, pos_counts, translations):
     lent = traditional_spellings(section, expressions, forms)
     for spelling, traditional in lent.items():
         expressions[spelling] = expressions[traditional]
+    borrowed = lent_senses(expressions)
     table = straight_translations(translations, os.path.join(work, "kaikki-fr-traductions-en-apostrophes.jsonl"))
     translated, table_counts = translated_expressions(table, expressions, forms, pointers)
     expressions.update(translated)
@@ -2713,6 +3217,9 @@ def native_side(work, kaikki, ranks, forms, pos_counts, translations):
         "split": len(split),
         "dropped": dropped,
         "lent": len(lent),
+        "left out by name": len(left_out),
+        "pointer-only": len(pointers),
+        "lent senses": len(borrowed),
         "translated": set(translated),
         "table": table_counts,
         **french,
@@ -2888,6 +3395,12 @@ def main():
         f"{native['lent']} post-1990 spellings lent their traditional spelling's gloss, "
         f"{len(native['translated'])} the French Wiktionary's English translations) "
         f"dropped={native['dropped']} (section lines that are no JSON object)",
+        file=sys.stderr,
+    )
+    print(
+        f"reduced fr-en: the section's expressions: {native['left out by name']} left out by name, "
+        f"{native['pointer-only']} only pointing or noting a form, {native['lent senses']} lent another's "
+        "first sense",
         file=sys.stderr,
     )
     print(
