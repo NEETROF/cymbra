@@ -52,8 +52,8 @@ character inside the block or after `> `, line breaks included — and equals th
 | Name | 30 | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) | `Cymbra Lingua` (13) |
 | Subtitle | 30 | `Anglais et espagnol en lisant` (29) | `Spanish and French as you read` (30) | with fr-es `Inglés y francés mientras lees` (30); without, `Aprende inglés mientras lees` (28) |
 | Promotional text | 170 | 154 characters, below | 130 characters, below | with fr-es 146 characters; without, 133 — below |
-| Description | 4000 | 3061 characters, below | 2923 characters, below | with fr-es 3307 characters; without, 2905 — below |
-| Keywords | 100 | 92 characters, below | 99 characters, below | with fr-es 99 characters; without, 98 — below |
+| Description | 4000 | 3061 characters, below | 2923 characters, below | with fr-es 3317 characters; without, 2905 — below |
+| Keywords | 100 | 92 characters, below | 99 characters, below | with fr-es 90 characters (94 bytes); without, 89 (92 bytes) — below |
 | Support URL | — | `https://cymbra.app/support/` | `https://cymbra.app/en/support/` | `https://cymbra.app/es/soporte/` or `https://cymbra.app/en/support/` — the owner chooses, below |
 | Marketing URL | — | `https://cymbra.app/lingua/` | `https://cymbra.app/en/lingua/` | `https://cymbra.app/es/lingua/` |
 | Privacy policy | — | `https://cymbra.app/confidentialite/` | `https://cymbra.app/en/privacy/` | `https://cymbra.app/es/privacidad/` |
@@ -111,18 +111,21 @@ included: a search term no reader sees, the one French learners type (D7).
 spanish,french,vocabulary,reading,translation,extension,learn,words,CEFR,deck,flashcards,dictionary
 ```
 
-### es-ES, es-MX, with fr-es (99 / 100)
+### es-ES, es-MX, with fr-es (90 / 100; 94 bytes)
 
-MCER is the CEFR's Spanish name, the one the interface uses (M19).
-
-```
-inglés,francés,vocabulario,lectura,traducción,extensión,aprender,palabras,MCER,tarjetas,diccionario
-```
-
-### es-ES, es-MX, without fr-es (98 / 100)
+MCER is the CEFR's Spanish name, the one the interface uses (M19). Apple counts this field in
+bytes, and an accented letter takes two: at 99 and 98 characters the Spanish lists were 103 and
+101 bytes, over the limit, so « palabras » (which « vocabulario » already covers) left both on
+2026-10-11, in the AI review of the Spanish drafts made on the owner's instruction.
 
 ```
-inglés,vocabulario,lectura,traducción,extensión,aprender,palabras,repaso,MCER,tarjetas,diccionario
+inglés,francés,vocabulario,lectura,traducción,extensión,aprender,MCER,tarjetas,diccionario
+```
+
+### es-ES, es-MX, without fr-es (89 / 100; 92 bytes)
+
+```
+inglés,vocabulario,lectura,traducción,extensión,aprender,repaso,MCER,tarjetas,diccionario
 ```
 
 ## Description
@@ -223,7 +226,7 @@ language is ticked, never a line about price — and that line has left the exte
 M15 is settled: extended translation opens with each pair. Should change 52 not offer fr-en's, its
 clause goes from each text and every count only falls; recount before pasting.
 
-### es-ES, es-MX, with fr-es (3307 / 4000)
+### es-ES, es-MX, with fr-es (3317 / 4000)
 
 The same plan again, written for a reader of Spanish who studies English and French. Its steps
 follow the host app's Spanish page as change 52 rewrites it with fr-es (`copy.js`, `es.step1` to
@@ -262,7 +265,7 @@ LEER TUS LIBROS
 Importa tus libros EPUB sin DRM a la biblioteca de la extensión y léelos sin conexión, con el mismo resaltado. Se quedan en tu dispositivo.
 
 TRADUCCIÓN AMPLIADA (OPCIONAL)
-Tu selección se traduce al español dentro de su frase, directamente desde el inglés y pasando por el inglés desde el francés, en tu dispositivo, con el motor de Firefox Translations, incluido en la app. Al activarla se descargan una vez los modelos de traducción desde Cymbra (25,4 MB para el inglés, 51,6 MB con el francés); el texto de las páginas que lees sigue sin salir de tu dispositivo. Al desactivarla se eliminan los modelos.
+Tu selección se traduce al español dentro de su frase, directamente desde el inglés y, desde el francés, pasando por el inglés, en tu dispositivo, con el motor de Firefox Translations, incluido en la app. Al activarla se descargan una vez los modelos de traducción desde Cymbra (25,4 MB para el inglés, 51,6 MB con el francés); el texto de las páginas que lees sigue sin salir de tu dispositivo. Al desactivarla se eliminan los modelos.
 
 TU LECTURA ES SOLO TUYA
 Los diccionarios y los motores de análisis y de traducción están en la app. Ninguna de las páginas que lees se envía a ningún sitio, y todo funciona sin conexión. Sin cuenta ni traducción ampliada, la extensión no hace ninguna solicitud de red.
@@ -270,7 +273,7 @@ Los diccionarios y los motores de análisis y de traducción están en la app. N
 UNA CUENTA, SI LA QUIERES
 Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros dispositivos. Es lo único que sale de tu dispositivo, y puedes borrar esos datos desde los ajustes sin eliminar tu cuenta.
 
-Para el francés, el diccionario español es algo menos completo que para el inglés: nuestras cifras están en cymbra.app/es/lingua.
+Para el francés, nuestro diccionario en español es algo menos completo que para el inglés: nuestras cifras están en cymbra.app/es/lingua.
 
 La interfaz está en español para los hispanohablantes, que aprenden inglés y francés; en francés para los francohablantes, que aprenden inglés y español; y en inglés para los anglohablantes, que aprenden español y francés.
 ```

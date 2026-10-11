@@ -222,7 +222,7 @@ Cymbra Lingua is available on Chrome, on Firefox for desktop and as a Safari app
 Mac).
 
 **ES, with fr-es** — for Spanish speakers, who study English (en-es, from change 35) and French
-(fr-es, from change 52) (3,045 / 16,000 characters)
+(fr-es, from change 52) (3,062 / 16,000 characters)
 
 Cymbra Lingua resalta, en la misma página que estás leyendo, las palabras en inglés o en francés que
 todavía no conoces, sin cambiar el diseño de la página. Un porcentaje te dice qué parte del texto te
@@ -252,14 +252,15 @@ páginas que lees se envía a ningún sitio, y la extensión funciona sin conexi
 traducción ampliada, no hace ninguna solicitud de red.
 
 **Traducción ampliada** (opcional, desactivada por defecto, en Chrome, Firefox para escritorio y
-Safari): tu selección se traduce al español dentro de su frase, directamente desde el inglés y
-pasando por el inglés desde el francés, en tu dispositivo, con el motor de Firefox Translations. Al
+Safari): tu selección se traduce al español dentro de su frase, directamente desde el inglés y,
+desde el francés, pasando por el inglés, en tu dispositivo, con el motor de Firefox Translations. Al
 activarla se descargan una vez los modelos de traducción desde Cymbra (25,4 MB para el inglés, 51,6
 MB con el francés); el texto de las páginas que lees sigue sin salir de tu dispositivo. Al
 desactivarla se eliminan los modelos.
 
 Cuántas palabras inglesas y francesas explica nuestro diccionario en español: nuestras cifras están
-publicadas en cymbra.app/es/lingua. Para el francés, es algo menos completo que para el inglés.
+publicadas en cymbra.app/es/lingua. Para el francés, el diccionario es algo menos completo que para
+el inglés.
 
 Crea una cuenta de Cymbra si —y solo si— quieres recuperar tus palabras y tus tarjetas en tus otros
 dispositivos. Es lo único que sale de tu dispositivo, y puedes borrar esos datos desde los Ajustes
@@ -342,7 +343,7 @@ do — each claim and the file that makes it true once change 52 lists fr-en (an
 | Directly from English, through English from French: « 25,4 MB para el inglés, 51,6 MB con el francés »                                                                | ES with fr-es     | route `en-es` = `en-es/base-memory/2.1`, 22,698,792 + 2,265,250 + 409,312 = 25,373,354 B; route `fr-es` = fr-en 2.0 then en-es 2.1, 26,234,715 + 25,373,354 = 51,608,069 B — French needs both models whether or not English is studied, as Spanish does for a French speaker (« 52,0 Mo avec l'espagnol »)                                                                                                                                                                   |
 | Extended translation on Chrome, Firefox for desktop and Safari; the models deleted when off                                                                           | EN, ES            | « Traducción ampliada » / "Extended translation" (`toggle`, `src/i18n/{en,es}/translation.ts`); the platforms are the French text's, the owner's wording                                                                                                                                                                                                                                                                                                                      |
 | The coverage figures at cymbra.app/en/lingua and cymbra.app/es/lingua                                                                                                 | EN, ES            | change 52 writes fr-en's (and fr-es's) figures into `apps/site/src/data/lingua-coverage.json` (`gloss_coverage.py --write`); change 30's pages lead with the reader's pairs                                                                                                                                                                                                                                                                                                   |
-| « Para el francés, es algo menos completo que para el inglés » (M6)                                                                                                   | ES with fr-es     | fr-es 83.2 / 70.8 / 56.8 % of the 5,000 / 10,000 / 20,000 commonest lemmas glossed (change 49) against en-es's 93.0 / 85.0 / 71.7 % (change 22), re-measured at change 52's commit — the French text's sentence about Spanish (es-fr 87.6 / 77.2 / 63.7 against en-fr 95.1 / 90.1 / 78.9), transposed. fr-en (93.6 / 86.9 / 76.3, change 48) stands beside es-en's 93.0 / 86.5 / 76.5: the English text says nothing of it                                                    |
+| « Para el francés, el diccionario es algo menos completo que para el inglés » (M6)                                                                                    | ES with fr-es     | fr-es 83.2 / 70.8 / 56.8 % of the 5,000 / 10,000 / 20,000 commonest lemmas glossed (change 49) against en-es's 93.0 / 85.0 / 71.7 % (change 22), re-measured at change 52's commit — the French text's sentence about Spanish (es-fr 87.6 / 77.2 / 63.7 against en-fr 95.1 / 90.1 / 78.9), transposed. fr-en (93.6 / 86.9 / 76.3, change 48) stands beside es-en's 93.0 / 86.5 / 76.5: the English text says nothing of it                                                    |
 | The account: optional, erasable from Settings without deleting it                                                                                                     | EN, ES            | "Manage my data" / « Gestionar mis datos » (`manageData`, `src/i18n/{en,es}/settings.ts`), "Erase my Lingua data…" / « Borrar mis datos de Lingua… » (`erase`, `src/i18n/{en,es}/account.ts`)                                                                                                                                                                                                                                                                                 |
 | Who learns what: French speakers English and Spanish; English speakers Spanish and French; Spanish speakers English (and French)                                      | EN, ES            | `packs.json` after change 52: en-fr, es-fr, es-en, en-es, fr-en (, fr-es)                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Spanish stays the language an English reader starts in, English a Spanish reader's                                                                                    | EN, ES            | `defaultPair` is a native's first listed pair: change 52 lists fr-en after es-en and fr-es after en-es (add-lingua-french-listings, D12)                                                                                                                                                                                                                                                                                                                                      |
