@@ -120,6 +120,8 @@ pub struct NewCampaign {
     pub key: String,
     pub name: String,
     pub kind: CampaignKind,
+    /// The product the campaign belongs to (`music` | `lingua`), already validated.
+    pub product: String,
     pub created_by: String,
 }
 

@@ -14,6 +14,26 @@ import type {
 export type PlanFilter = "any" | "premium" | "trial";
 export type CampaignKind = "premium_trial" | "feature";
 
+/** The products a campaign can belong to (change: add-lingua-feature-betas). The server
+ *  stores Music for an empty value, so an unknown wire value reads as Music. */
+export const CAMPAIGN_PRODUCTS = ["music", "lingua"] as const;
+export type CampaignProduct = (typeof CAMPAIGN_PRODUCTS)[number];
+
+/** A wire product as a known one: anything unrecognised is Music, the server's default. */
+export function campaignProduct(wire: string | undefined): CampaignProduct {
+  return wire === "lingua" ? "lingua" : "music";
+}
+
+/** i18n key naming a campaign's product. */
+export function productLabelKey(wire: string | undefined): string {
+  return `plans.product.${campaignProduct(wire)}`;
+}
+
+/** The kinds a product's campaign may take: a trial grants a plan, and only Music has one. */
+export function kindsFor(product: CampaignProduct): CampaignKind[] {
+  return product === "music" ? ["premium_trial", "feature"] : ["feature"];
+}
+
 /** A target account: by id when known (directory rows), else by handle (console lookup). */
 export type AccountRef = { userId: string; handle?: undefined } | { handle: string; userId?: undefined };
 
@@ -195,7 +215,13 @@ export const usePlansStore = defineStore("plans", () => {
     );
   }
 
-  function createCampaign(p: { key: string; name: string; kind: CampaignKind; durationDays?: number }) {
+  function createCampaign(p: {
+    key: string;
+    name: string;
+    kind: CampaignKind;
+    durationDays?: number;
+    product: CampaignProduct;
+  }) {
     return mutate(
       () =>
         api().plans.createCampaign({
@@ -203,6 +229,7 @@ export const usePlansStore = defineStore("plans", () => {
           name: p.name,
           kind: p.kind,
           durationDays: p.kind === "premium_trial" ? p.durationDays : undefined,
+          product: p.product,
         }),
       reloadCampaigns,
     );

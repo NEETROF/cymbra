@@ -467,9 +467,18 @@ impl FlagService {
         if scope_changes && let RolloutScope::Beta(campaign) = &rollout {
             match self.campaigns.get() {
                 None => return Err(Self::unverifiable(campaign)),
-                Some(dir) => match dir.campaign_exists(campaign).await {
-                    Ok(true) => {}
-                    Ok(false) => {
+                Some(dir) => match dir.campaign_product(campaign).await {
+                    // A flag shared by every app may name any product's campaign;
+                    // an app's flag only its own (change: add-lingua-feature-betas).
+                    Ok(Some(product))
+                        if def.app == crate::context::APP_ALL || product == def.app => {}
+                    Ok(Some(product)) => {
+                        return Err(AppError::FailedPrecondition(format!(
+                            "foreign_campaign: rollout scope `beta:{campaign}` names a {product} campaign, not a {} one",
+                            def.app
+                        )));
+                    }
+                    Ok(None) => {
                         return Err(AppError::FailedPrecondition(format!(
                             "unknown_campaign: rollout scope `beta:{campaign}` names no campaign"
                         )));
@@ -1322,11 +1331,21 @@ mod tests {
 
     // --- campaign integrity at the write boundary (add-flag-campaign-integrity)
 
-    /// A directory whose every lookup answers `answer` (`Err(...)` = outage).
+    /// A directory whose every lookup answers `answer` (`Ok(true)` = a Music
+    /// campaign exists, `Ok(false)` = none does, `Err(...)` = outage).
     fn directory(answer: std::result::Result<bool, ()>) -> Arc<MockCampaignDirectory> {
+        directory_of(answer.map(|exists| exists.then_some(APP_MUSIC)))
+    }
+
+    /// A directory whose every lookup names `product` as the campaign's product.
+    fn directory_of(
+        answer: std::result::Result<Option<&'static str>, ()>,
+    ) -> Arc<MockCampaignDirectory> {
         let mut d = MockCampaignDirectory::new();
-        d.expect_campaign_exists().returning(move |_| {
-            answer.map_err(|_| AppError::Internal(anyhow::anyhow!("plans store unreachable")))
+        d.expect_campaign_product().returning(move |_| {
+            answer
+                .map(|p| p.map(str::to_string))
+                .map_err(|_| AppError::Internal(anyhow::anyhow!("plans store unreachable")))
         });
         Arc::new(d)
     }
@@ -1334,7 +1353,7 @@ mod tests {
     /// A directory that must never be consulted.
     fn untouched_directory() -> Arc<MockCampaignDirectory> {
         let mut d = MockCampaignDirectory::new();
-        d.expect_campaign_exists().times(0);
+        d.expect_campaign_product().times(0);
         Arc::new(d)
     }
 
@@ -1376,6 +1395,29 @@ mod tests {
         )
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn beta_scope_naming_another_products_campaign_is_refused() {
+        // A Music flag scoped to a Lingua campaign would match nobody in a Music
+        // evaluation: refused with its own cause (change: add-lingua-feature-betas).
+        let svc = read_only_service(vec![]);
+        svc.set_campaign_directory(directory_of(Ok(Some("lingua"))));
+        let err = svc
+            .set_value(
+                &actor(APP_MUSIC, true),
+                APP_MUSIC,
+                registry::DRUMS_ENABLED,
+                FlagValue::Bool(true),
+                beta("online-translation"),
+                false,
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(&err, AppError::FailedPrecondition(m) if m.starts_with("foreign_campaign")),
+            "got {err:?}"
+        );
     }
 
     #[tokio::test]

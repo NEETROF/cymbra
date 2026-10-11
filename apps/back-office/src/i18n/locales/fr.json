@@ -416,7 +416,10 @@
     "scopeUnverifiable": "L’annuaire des campagnes est injoignable : la portée n’a pas pu être vérifiée. Rien n’a été enregistré — réessayez plus tard.",
     "planTag": "plan",
     "betaTag": "bêta",
-    "staffTag": "staff"
+    "staffTag": "staff",
+    "betaOf": "bêta : {name} ({product})",
+    "betaForeign": "{scope} — campagne {product}, pas de cette app",
+    "scopeForeignCampaign": "Cette campagne appartient à un autre produit que l'app de ce réglage. Choisissez une campagne de la même app."
   },
   "sessions": {
     "revokeAccount": "Révoquer les sessions",
@@ -719,7 +722,12 @@
     "sandboxAccountClearTitle": "Ne plus accepter les achats sandbox ?",
     "sandboxAccountSet": "Achats sandbox acceptés",
     "sandboxAccountCleared": "Achats sandbox refusés",
-    "sandboxAccountFilter": "Achats sandbox"
+    "sandboxAccountFilter": "Achats sandbox",
+    "colProduct": "Produit",
+    "product": {
+      "music": "Music",
+      "lingua": "Lingua"
+    }
   },
   "campaigns": {
     "title": "Campagnes",

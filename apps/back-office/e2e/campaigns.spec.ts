@@ -173,11 +173,31 @@ test.describe("flags console: plan / beta rollout", () => {
     expect(values).toContain("beta:spring-trial");
     expect(values).not.toContain("beta:old-beta");
     // Labels come from the campaign names, never free text.
-    await expect(select.locator("option[value='beta:midi-drums']")).toHaveText("beta: MIDI drums");
+    await expect(select.locator("option[value='beta:midi-drums']")).toHaveText("beta: MIDI drums (Music)");
 
     // Save with a beta scope: the row is marked as beta-scoped.
     await select.selectOption("beta:midi-drums");
     await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("row", { name: /rating\.enabled/ })).toContainText("beta");
+  });
+});
+
+test.describe("Lingua feature betas (change: add-lingua-feature-betas)", () => {
+  test("a Lingua admin creates a Lingua feature campaign on Lingua's own page", async ({ page }) => {
+    await seed(page, { loginAs: "lingua-admin", data });
+    await page.goto("/lingua/campaigns");
+    // Music's campaigns are not on Lingua's page.
+    await expect(page.getByTestId("campaigns")).not.toContainText("midi-drums");
+
+    await page.getByRole("button", { name: "Create campaign" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByTestId("campaign-product").locator("option")).toHaveText(["Lingua"]);
+    await expect(dialog.getByTestId("campaign-kind").locator("option")).toHaveText(["feature beta"]);
+    await dialog.getByLabel("Key").fill("online-translation");
+    await dialog.getByLabel("Name").fill("Online translation");
+    await dialog.getByRole("button", { name: "Create campaign" }).click();
+
+    const row = page.getByTestId("campaigns").getByRole("row", { name: /online-translation/ });
+    await expect(row).toContainText("Lingua");
   });
 });

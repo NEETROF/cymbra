@@ -416,7 +416,10 @@
     "scopeUnverifiable": "The campaign directory can’t be reached, so the scope couldn’t be checked. Nothing was saved — try again later.",
     "planTag": "plan",
     "betaTag": "beta",
-    "staffTag": "staff"
+    "staffTag": "staff",
+    "betaOf": "beta: {name} ({product})",
+    "betaForeign": "{scope} — a {product} campaign, not of this app",
+    "scopeForeignCampaign": "This campaign belongs to another product than this flag's app. Choose a campaign of the same app."
   },
   "sessions": {
     "revokeAccount": "Revoke sessions",
@@ -719,7 +722,12 @@
     "sandboxAccountClearTitle": "Stop accepting sandbox purchases?",
     "sandboxAccountSet": "Sandbox purchases accepted",
     "sandboxAccountCleared": "Sandbox purchases refused",
-    "sandboxAccountFilter": "Sandbox purchases"
+    "sandboxAccountFilter": "Sandbox purchases",
+    "colProduct": "Product",
+    "product": {
+      "music": "Music",
+      "lingua": "Lingua"
+    }
   },
   "campaigns": {
     "title": "Campaigns",

@@ -83,7 +83,7 @@ export interface FakeState {
   revokeEntitlementCalls: { entitlementId: string; reason: string }[];
   enrolCalls: { userId: string; handle: string; campaignKey: string; reason: string }[];
   revokeMembershipCalls: { userId: string; handle: string; campaignKey: string; reason: string }[];
-  createCampaignCalls: { key: string; name: string; kind: string; durationDays?: number }[];
+  createCampaignCalls: { key: string; name: string; kind: string; durationDays?: number; product?: string }[];
   closeEnrollmentCalls: string[];
   closeCampaignCalls: string[];
   reopenCampaignCalls: string[];

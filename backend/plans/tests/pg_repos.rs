@@ -184,6 +184,7 @@ async fn enrolment_is_transactional_single_use_and_one_per_account_per_campaign(
             key: key.clone(),
             name: "IT trial".into(),
             kind: CampaignKind::PremiumTrial { duration_days: 90 },
+            product: "music".into(),
             created_by: admin.to_string(),
         })
         .await
@@ -194,6 +195,7 @@ async fn enrolment_is_transactional_single_use_and_one_per_account_per_campaign(
                 key: key.clone(),
                 name: "dup".into(),
                 kind: CampaignKind::Feature,
+                product: "music".into(),
                 created_by: admin.to_string(),
             })
             .await,
@@ -501,4 +503,25 @@ async fn sandbox_account_marks_are_set_read_in_batch_and_cleared() {
 
     repo.purge_user(&b.to_string()).await.unwrap();
     assert!(!repo.is_sandbox_account(&b.to_string()).await.unwrap());
+}
+
+#[tokio::test]
+#[ignore = "needs docker compose (Postgres) up with per-module roles"]
+async fn a_campaign_keeps_the_product_it_was_created_for() {
+    let pool = pool().await;
+    let campaigns = PgCampaignRepo::new(pool.clone());
+    let key = format!("it-lingua-{}", &Uuid::now_v7().simple().to_string()[24..]);
+    let created = campaigns
+        .create(NewCampaign {
+            key: key.clone(),
+            name: "IT lingua".into(),
+            kind: CampaignKind::Feature,
+            product: "lingua".into(),
+            created_by: Uuid::now_v7().to_string(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(created.product, "lingua");
+    let read = campaigns.get_by_key(&key).await.unwrap().unwrap();
+    assert_eq!(read.product, "lingua");
 }

@@ -2,7 +2,18 @@
 import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
-import { type CampaignKind, membersCsv, usePlansStore } from "@/stores/plans";
+import { useRoute } from "vue-router";
+import {
+  CAMPAIGN_PRODUCTS,
+  type CampaignKind,
+  type CampaignProduct,
+  campaignProduct,
+  kindsFor,
+  membersCsv,
+  productLabelKey,
+  usePlansStore,
+} from "@/stores/plans";
+import { useAuthStore } from "@/stores/auth";
 import { useRolesStore } from "@/stores/roles";
 import { useToastsStore } from "@/stores/toasts";
 import { saveTextAsFile } from "@/lib/download";
@@ -20,6 +31,17 @@ import IdBadge from "@/components/IdBadge.vue";
 // never a raw error).
 const store = usePlansStore();
 const roles = useRolesStore();
+const auth = useAuthStore();
+const route = useRoute();
+
+/** The product this page lists: one Campaigns page per product section, the same view
+ *  behind `/music/campaigns` and `/lingua/campaigns` (change: add-lingua-feature-betas). */
+// `route` is absent when the view is mounted without a router (unit tests): Music.
+const pageProduct = computed<CampaignProduct>(() => (route?.name === "lingua-campaigns" ? "lingua" : "music"));
+/** The products the operator may create a campaign for: the ones they administer. */
+const creatableProducts = computed<CampaignProduct[]>(() =>
+  CAMPAIGN_PRODUCTS.filter((p) => (auth.adminScopes as string[]).includes(p)),
+);
 const toasts = useToastsStore();
 const { t } = useI18n();
 
@@ -71,22 +93,44 @@ watch(modal, async (open) => {
   dialogEl.value?.focus();
 });
 const mintForm = ref({ campaignKey: "", count: 10, hint: "" });
-const createForm = ref<{ key: string; name: string; kind: CampaignKind; durationDays: number }>({
+const createForm = ref<{
+  key: string;
+  name: string;
+  kind: CampaignKind;
+  durationDays: number;
+  product: CampaignProduct;
+}>({
   key: "",
   name: "",
   kind: "premium_trial",
   durationDays: 90,
+  product: "music",
 });
+/** The kinds the chosen product offers; switching to Lingua drops a trial choice. */
+const createKinds = computed(() => kindsFor(createForm.value.product));
+watch(
+  () => createForm.value.product,
+  () => {
+    if (!createKinds.value.includes(createForm.value.kind)) createForm.value.kind = createKinds.value[0];
+  },
+);
 
 // ---- (b) campaigns ----
 const campaignsVm = computed(() =>
   match(store.campaigns)
-    .with({ status: "success" }, ({ data }) => ({ loading: false, error: null as string | null, rows: data }))
+    .with({ status: "success" }, ({ data }) => ({
+      loading: false,
+      error: null as string | null,
+      rows: data.filter((c) => campaignProduct(c.product) === pageProduct.value),
+    }))
     .with({ status: "error" }, ({ error }) => ({ loading: false, error, rows: [] as CampaignMsg[] }))
     .otherwise(() => ({ loading: true, error: null as string | null, rows: [] as CampaignMsg[] })),
 );
 function openCreate() {
-  createForm.value = { key: "", name: "", kind: "premium_trial", durationDays: 90 };
+  const product = creatableProducts.value.includes(pageProduct.value)
+    ? pageProduct.value
+    : (creatableProducts.value[0] ?? pageProduct.value);
+  createForm.value = { key: "", name: "", kind: kindsFor(product)[0], durationDays: 90, product };
   modal.value = "create";
 }
 const createValid = computed(() => {
@@ -101,6 +145,7 @@ async function submitCreate() {
       name: f.name.trim(),
       kind: f.kind,
       durationDays: f.kind === "premium_trial" ? f.durationDays : undefined,
+      product: f.product,
     }),
     t("plans.created"),
   );
@@ -232,6 +277,7 @@ onMounted(() => void store.loadCampaigns(true));
           <tr>
             <th>{{ t("plans.colKey") }}</th>
             <th>{{ t("plans.colName") }}</th>
+            <th>{{ t("plans.colProduct") }}</th>
             <th>{{ t("plans.colKind") }}</th>
             <th>{{ t("plans.colDuration") }}</th>
             <th>{{ t("plans.colEnrolment") }}</th>
@@ -245,6 +291,7 @@ onMounted(() => void store.loadCampaigns(true));
               <code>{{ c.key }}</code>
             </td>
             <td>{{ c.name }}</td>
+            <td>{{ t(productLabelKey(c.product)) }}</td>
             <td>{{ t(`plans.kind.${c.kind}`) }}</td>
             <td>{{ c.durationDays ? t("plans.days", { n: c.durationDays }) : "—" }}</td>
             <td>
@@ -294,7 +341,7 @@ onMounted(() => void store.loadCampaigns(true));
             </td>
           </tr>
           <tr v-if="campaignsVm.rows.length === 0">
-            <td colspan="7" class="empty">{{ campaignsVm.loading ? t("common.loading") : t("plans.noCampaigns") }}</td>
+            <td colspan="8" class="empty">{{ campaignsVm.loading ? t("common.loading") : t("plans.noCampaigns") }}</td>
           </tr>
         </tbody>
       </table>
@@ -369,10 +416,15 @@ onMounted(() => void store.loadCampaigns(true));
           <input v-model="createForm.name" :placeholder="t('plans.namePlaceholder')" :aria-label="t('plans.colName')" />
         </label>
         <label>
+          {{ t("plans.colProduct") }}
+          <select v-model="createForm.product" :aria-label="t('plans.colProduct')" data-testid="campaign-product">
+            <option v-for="p in creatableProducts" :key="p" :value="p">{{ t(`plans.product.${p}`) }}</option>
+          </select>
+        </label>
+        <label>
           {{ t("plans.colKind") }}
-          <select v-model="createForm.kind" :aria-label="t('plans.colKind')">
-            <option value="premium_trial">{{ t("plans.kind.premium_trial") }}</option>
-            <option value="feature">{{ t("plans.kind.feature") }}</option>
+          <select v-model="createForm.kind" :aria-label="t('plans.colKind')" data-testid="campaign-kind">
+            <option v-for="k in createKinds" :key="k" :value="k">{{ t(`plans.kind.${k}`) }}</option>
           </select>
         </label>
         <label v-if="createForm.kind === 'premium_trial'">

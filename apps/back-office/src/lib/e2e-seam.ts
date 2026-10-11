@@ -179,6 +179,8 @@ export interface E2ECampaign {
   acceptsEnrolment?: boolean;
   enrollmentClosesAt?: string;
   closedAt?: string;
+  /** `music` (the default, as the server stores an empty one) or `lingua`. */
+  product?: "music" | "lingua";
 }
 
 /** One account's plan data: entitlement rows + memberships; the effective plan is
@@ -999,7 +1001,13 @@ export function installE2EClients(): void {
         recordPlanAudit(uid, "revoke_membership", req.campaignKey, req.reason);
         return {};
       },
-      createCampaign: async (req: { key: string; name: string; kind: string; durationDays?: number }) => {
+      createCampaign: async (req: {
+        key: string;
+        name: string;
+        kind: string;
+        durationDays?: number;
+        product?: string;
+      }) => {
         failIfSet("createCampaign");
         if (campaignByKey(req.key)) throw new ConnectError("key taken", Code.AlreadyExists);
         const c: E2ECampaign = {
@@ -1008,6 +1016,7 @@ export function installE2EClients(): void {
           kind: req.kind as E2ECampaign["kind"],
           durationDays: req.durationDays,
           acceptsEnrolment: true,
+          product: req.product === "lingua" ? "lingua" : "music",
         };
         campaigns.push(c);
         return { campaign: { ...c, id: c.key, createdBy: "u1", createdAt: nowIso() } };
@@ -1017,7 +1026,7 @@ export function installE2EClients(): void {
         return {
           campaigns: campaigns
             .filter((c) => req.includeClosed || !c.closedAt)
-            .map((c) => ({ ...c, id: c.key, createdBy: "u1", createdAt: "2026-01-01T00:00:00Z" })),
+            .map((c) => ({ product: "music", ...c, id: c.key, createdBy: "u1", createdAt: "2026-01-01T00:00:00Z" })),
         };
       },
       closeEnrollment: async (req: { campaignKey: string }) => {

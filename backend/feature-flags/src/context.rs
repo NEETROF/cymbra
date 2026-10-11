@@ -81,13 +81,17 @@ impl RolloutScope {
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 #[async_trait::async_trait]
 pub trait PlanContextSource: Send + Sync {
-    /// `(premium, beta campaign keys)` for `user_id`.
+    /// `(premium, beta campaign keys)` for `user_id`, as seen by `app`: the plan and
+    /// the memberships of that app's product, so a Lingua evaluation never carries a
+    /// Music membership (change: add-lingua-feature-betas). An app with no product
+    /// (the site, the back office) carries no plan and no beta.
     ///
     /// `Err`: the plan could not be determined — never defaulted, so an outage
     /// is never presented to a member as "you are in no beta".
     async fn plan_context(
         &self,
         user_id: &str,
+        app: &str,
     ) -> cymbra_platform::error::Result<(bool, Vec<String>)>;
 }
 
@@ -100,6 +104,7 @@ impl PlanContextSource for NoPlanContext {
     async fn plan_context(
         &self,
         _user_id: &str,
+        _app: &str,
     ) -> cymbra_platform::error::Result<(bool, Vec<String>)> {
         Ok((false, Vec::new()))
     }
@@ -117,10 +122,12 @@ impl PlanContextSource for NoPlanContext {
 #[cfg_attr(any(test, feature = "mock"), mockall::automock)]
 #[async_trait::async_trait]
 pub trait CampaignDirectory: Send + Sync {
-    /// `Ok(true)`: a campaign with `key` exists, open or closed. `Ok(false)`:
-    /// none does. `Err`: existence could not be determined — never defaulted,
-    /// so a directory outage is never presented as a missing campaign.
-    async fn campaign_exists(&self, key: &str) -> cymbra_platform::error::Result<bool>;
+    /// `Ok(Some(product))`: a campaign with `key` exists, open or closed, and
+    /// belongs to `product` — a `beta:` scope on a flag of another app is refused
+    /// (change: add-lingua-feature-betas). `Ok(None)`: none does. `Err`: it could
+    /// not be determined — never defaulted, so a directory outage is never
+    /// presented as a missing campaign.
+    async fn campaign_product(&self, key: &str) -> cymbra_platform::error::Result<Option<String>>;
 }
 
 /// The caller context an evaluation resolves against.

@@ -20,7 +20,7 @@ describe("api()", () => {
   it("hands back the clients initApi built", () => {
     api.initApi(() => "tok");
     const clients = api.api();
-    expect(Object.keys(clients).sort()).toEqual(["auth", "data", "deck", "knownWords", "stats", "user"]);
+    expect(Object.keys(clients).sort()).toEqual(["auth", "data", "deck", "flags", "knownWords", "stats", "user"]);
     expect(api.api()).toBe(clients); // the same instance: it is a singleton, not a factory
   });
 

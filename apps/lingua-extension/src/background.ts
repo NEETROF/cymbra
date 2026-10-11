@@ -70,6 +70,8 @@ import {
   watchStore,
 } from "./state/store.ts";
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
+import { accountOfToken, FlagStore } from "./flags/store.ts";
+import { isFlagsMessage } from "./flags/messages.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
@@ -537,6 +539,15 @@ if (__TRANSLATION_HOST__ !== "none") {
   });
   initApi(() => session.token());
   setTokenRefresher(() => session.refresh());
+  // The account's effective server flags (add-lingua-feature-betas): fetched on sign-in, on
+  // wake and when a surface opens or a page loads (throttled), read locally by every surface.
+  // The account is the access token's subject; until the session resumes there is none, and
+  // nothing is asked.
+  const flags = new FlagStore({
+    fetch: (knownVersion) => api().flags.getEffectiveFlags({ knownVersion, app: "lingua" }),
+    area: localStore,
+    account: () => accountOfToken(session.token()),
+  });
   // A terminal 401 (refresh already failed and purged) needs no extra work here; the
   // popup re-reads state on open. Left as a hook for the §2 sync-state indicator.
   setUnauthenticatedHandler(() => {});
@@ -625,7 +636,10 @@ if (__TRANSLATION_HOST__ !== "none") {
         : availableProviders({ google: __GOOGLE_CLIENT_ID__, apple: __APPLE_CLIENT_ID__ }, chrome.identity),
     handOff,
     eraseLinguaData,
-    onSignedIn: () => scheduler.schedule(0),
+    onSignedIn: () => {
+      scheduler.schedule(0);
+      void flags.refresh({ force: true });
+    },
   };
 
   // One collection at a time: the wake below and a surface opening can ask together, and the
@@ -639,7 +653,9 @@ if (__TRANSLATION_HOST__ !== "none") {
   // Restore a session on wake and sync if one was resumed (unless one ran within the minute:
   // an event page restarts often). On Safari, also collect an id_token the host app handed
   // back while the event page was asleep.
-  void session.resume().then(async (ok) => {
+  const resumed = session.resume();
+  void resumed.then(async (ok) => {
+    if (ok) void flags.refresh();
     if (ok) await scheduler.onOpen(SURFACE_INTERVAL_MS);
     if (handOff) await collectHandedToken();
   });
@@ -655,13 +671,27 @@ if (__TRANSLATION_HOST__ !== "none") {
         message.type === "account:collectHandedToken"
           ? collectHandedToken()
           : handleAccountMessage(message, accountDeps);
+      // Signed out: no flag of this account may apply to the next one (add-lingua-feature-betas).
+      if (message.type === "account:signOut") void reply.then(() => flags.clear());
       void reply.then(sendResponse);
       return true;
     }
     // A surface opened or a page loaded (throttled), or « Synchroniser maintenant » (forced).
     // Both answer only once the exchange is over: the pending response is what keeps Safari's
     // event page alive until then.
+    // A surface reads the flags: from the stored snapshot once the session has resumed (a
+    // woken event page has no access token before that), then a throttled refresh.
+    if (isFlagsMessage(message)) {
+      void resumed
+        .catch(() => false)
+        .then(async () => {
+          sendResponse({ values: await flags.read() });
+          void flags.refresh();
+        });
+      return true;
+    }
     if (isSyncMessage(message)) {
+      void flags.refresh();
       if (!message.force) {
         const interval = message.reason === "page" ? PAGE_INTERVAL_MS : SURFACE_INTERVAL_MS;
         void scheduler.onOpen(interval).then(() => sendResponse({ ok: true } satisfies SyncReply));

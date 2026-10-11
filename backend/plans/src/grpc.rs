@@ -1,6 +1,6 @@
 //! gRPC adapter (`cymbra.plans.v1.PlanService`) over [`PlanService`]: the app
-//! surface (my plan, redeem, store plan sync, web checkout) and the music-admin
-//! console surface. Thin: auth + rate limit + proto mapping; every decision is in
+//! surface (my plan, redeem, store plan sync, web checkout) and the admin console
+//! surface: plan rows for a Music admin, a campaign for an admin of its product. Thin: auth + rate limit + proto mapping; every decision is in
 //! the service / core. Coverage-excluded like the other `grpc.rs` adapters.
 
 // `tonic::Status` is large by design; every adapter in the workspace allows this.
@@ -88,10 +88,39 @@ impl PlanGrpc {
         PlanServiceServer::new(self)
     }
 
+    /// The Music-admin gate: plan rows, grants, codes by id, audit.
     fn admin<T>(&self, req: &Request<T>) -> Result<AuthIdentity, Status> {
         let id = identity(req)?;
         guard::require_admin_in_scope(&id, "music").map_err(|e| e.to_status())?;
         Ok(id)
+    }
+
+    /// An admin of at least one campaign product: the gate for campaign reads that span
+    /// products (the list, then filtered to what the caller administers).
+    fn campaign_admin<T>(&self, req: &Request<T>) -> Result<AuthIdentity, Status> {
+        let id = identity(req)?;
+        if administered_products(&id).is_empty() {
+            return Err(Status::permission_denied(
+                "requires `admin` in a campaign product",
+            ));
+        }
+        Ok(id)
+    }
+
+    /// The campaign named `key`, once the caller is known to administer its product
+    /// (change: add-lingua-feature-betas).
+    async fn administered_campaign(
+        &self,
+        id: &AuthIdentity,
+        key: &str,
+    ) -> Result<Campaign, Status> {
+        let c = self
+            .svc
+            .campaign_by_key(key)
+            .await
+            .map_err(|e| e.to_status())?;
+        require_product_admin(id, &c.product)?;
+        Ok(c)
     }
 
     /// Resolve `user_id` | `handle` to an account id (admin RPCs).
@@ -185,6 +214,20 @@ fn identity<T>(req: &Request<T>) -> Result<AuthIdentity, Status> {
         .ok_or_else(|| Status::unauthenticated("missing identity"))
 }
 
+/// The campaign products `id` holds `admin` in (a `global` admin holds them all).
+fn administered_products(id: &AuthIdentity) -> Vec<&'static str> {
+    crate::core::CAMPAIGN_PRODUCTS
+        .into_iter()
+        .filter(|p| id.has_role_in_scope(p, "admin"))
+        .collect()
+}
+
+/// A campaign is administered by an admin of its product, never by the Music gate
+/// alone (change: add-lingua-feature-betas).
+fn require_product_admin(id: &AuthIdentity, product: &str) -> Result<(), Status> {
+    guard::require_admin_in_scope(id, product).map_err(|e| e.to_status())
+}
+
 fn rfc3339(t: DateTime<Utc>) -> String {
     t.to_rfc3339()
 }
@@ -243,6 +286,7 @@ fn membership_row_msg(row: &MembershipRow, c: &Campaign) -> proto::MembershipMsg
         ends_at: row.ends_at.map(rfc3339),
         revoked_at: row.revoked_at.map(rfc3339),
         source: row.source.as_str().to_string(),
+        product: c.product.clone(),
     }
 }
 
@@ -261,6 +305,7 @@ fn campaign_msg(c: &Campaign, now: DateTime<Utc>) -> proto::CampaignMsg {
         created_by: c.created_by.clone(),
         created_at: rfc3339(c.created_at),
         accepts_enrolment: c.accepts_enrolment(now),
+        product: c.product.clone(),
     }
 }
 
@@ -403,14 +448,32 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::LookupAccountPlanRequest>,
     ) -> Result<Response<proto::LookupAccountPlanResponse>, Status> {
-        self.admin(&req)?;
+        // A Lingua admin opens the same page to enrol a reader in a Lingua beta: they see
+        // that account's memberships of the products they administer, and no plan rows
+        // (change: add-lingua-feature-betas).
+        let admin = self.campaign_admin(&req)?;
+        let products = administered_products(&admin);
+        let music_admin = products.contains(&cymbra_platform::MUSIC_SCOPE);
         let r = req.into_inner();
         let user_id = self.target(&r.user_id, &r.handle).await?;
-        let ap = self
+        let mut ap = self
             .svc
             .account_plan(&user_id)
             .await
             .map_err(|e| e.to_status())?;
+        ap.memberships
+            .retain(|m| products.contains(&m.campaign.product.as_str()));
+        if !music_admin {
+            let memberships = ap.memberships.iter().map(membership_msg).collect();
+            return Ok(Response::new(proto::LookupAccountPlanResponse {
+                user_id,
+                snapshot: None,
+                rows: Vec::new(),
+                memberships,
+                aggregator_customer_url: String::new(),
+                sandbox_account: false,
+            }));
+        }
         let aggregator_customer_url = crate::billing::revenuecat::customer_dashboard_url(
             self.aggregator_project.as_deref(),
             &user_id,
@@ -542,17 +605,13 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::EnrolHandleRequest>,
     ) -> Result<Response<proto::EnrolHandleResponse>, Status> {
-        let admin = self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let r = req.into_inner();
+        let campaign = self.administered_campaign(&admin, &r.campaign_key).await?;
         let user_id = self.target(&r.user_id, &r.handle).await?;
         let out = self
             .svc
             .enrol_by_admin(&user_id, &r.campaign_key, &admin.user_id, &r.reason)
-            .await
-            .map_err(|e| e.to_status())?;
-        let campaign = self
-            .svc
-            .campaign_by_key(&r.campaign_key)
             .await
             .map_err(|e| e.to_status())?;
         let row = MembershipRow {
@@ -612,8 +671,9 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::RevokeMembershipRequest>,
     ) -> Result<Response<proto::RevokeMembershipResponse>, Status> {
-        let admin = self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let r = req.into_inner();
+        self.administered_campaign(&admin, &r.campaign_key).await?;
         let user_id = self.target(&r.user_id, &r.handle).await?;
         self.svc
             .revoke_membership(&r.campaign_key, &user_id, &admin.user_id, &r.reason)
@@ -626,12 +686,15 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::CreateCampaignRequest>,
     ) -> Result<Response<proto::CreateCampaignResponse>, Status> {
-        let admin = self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let r = req.into_inner();
         let kind = parse_kind(&r.kind, r.duration_days)?;
+        let product =
+            crate::core::campaign_product(&r.product, kind).map_err(Status::invalid_argument)?;
+        require_product_admin(&admin, product)?;
         let c = self
             .svc
-            .create_campaign(&r.key, &r.name, kind, &admin.user_id)
+            .create_campaign(&r.key, &r.name, kind, product, &admin.user_id)
             .await
             .map_err(|e| e.to_status())?;
         Ok(Response::new(proto::CreateCampaignResponse {
@@ -643,7 +706,8 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::ListCampaignsRequest>,
     ) -> Result<Response<proto::ListCampaignsResponse>, Status> {
-        self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
+        let products = administered_products(&admin);
         let include_closed = req.into_inner().include_closed;
         let now = Utc::now();
         let campaigns = self
@@ -652,6 +716,7 @@ impl PlanServiceTrait for PlanGrpc {
             .await
             .map_err(|e| e.to_status())?
             .iter()
+            .filter(|c| products.contains(&c.product.as_str()))
             .map(|c| campaign_msg(c, now))
             .collect();
         Ok(Response::new(proto::ListCampaignsResponse { campaigns }))
@@ -661,8 +726,9 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::CloseEnrollmentRequest>,
     ) -> Result<Response<proto::CloseEnrollmentResponse>, Status> {
-        let admin = self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let key = req.into_inner().campaign_key;
+        self.administered_campaign(&admin, &key).await?;
         self.svc
             .close_enrollment(&key, &admin.user_id)
             .await
@@ -674,8 +740,9 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::ReopenCampaignRequest>,
     ) -> Result<Response<proto::ReopenCampaignResponse>, Status> {
-        let admin = self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let key = req.into_inner().campaign_key;
+        self.administered_campaign(&admin, &key).await?;
         // Counted BEFORE the reopen so the number describes what the action
         // did, not what a concurrent enrolment made of it afterwards.
         let reactivated = self
@@ -694,8 +761,9 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::PreviewReopenCampaignRequest>,
     ) -> Result<Response<proto::PreviewReopenCampaignResponse>, Status> {
-        self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let key = req.into_inner().campaign_key;
+        self.administered_campaign(&admin, &key).await?;
         let reactivated = self
             .svc
             .reactivatable_members(&key)
@@ -710,8 +778,9 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::ReopenEnrollmentRequest>,
     ) -> Result<Response<proto::ReopenEnrollmentResponse>, Status> {
-        let admin = self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let key = req.into_inner().campaign_key;
+        self.administered_campaign(&admin, &key).await?;
         self.svc
             .reopen_enrollment(&key, &admin.user_id)
             .await
@@ -723,8 +792,9 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::CloseCampaignRequest>,
     ) -> Result<Response<proto::CloseCampaignResponse>, Status> {
-        let admin = self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let key = req.into_inner().campaign_key;
+        self.administered_campaign(&admin, &key).await?;
         self.svc
             .close_campaign(&key, &admin.user_id)
             .await
@@ -736,8 +806,9 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::MintCodesRequest>,
     ) -> Result<Response<proto::MintCodesResponse>, Status> {
-        let admin = self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let r = req.into_inner();
+        self.administered_campaign(&admin, &r.campaign_key).await?;
         let hint =
             (!r.issued_to_hint.trim().is_empty()).then(|| r.issued_to_hint.trim().to_string());
         let codes = self
@@ -784,13 +855,9 @@ impl PlanServiceTrait for PlanGrpc {
         &self,
         req: Request<proto::ListMembersRequest>,
     ) -> Result<Response<proto::ListMembersResponse>, Status> {
-        self.admin(&req)?;
+        let admin = self.campaign_admin(&req)?;
         let key = req.into_inner().campaign_key;
-        let campaign = self
-            .svc
-            .campaign_by_key(&key)
-            .await
-            .map_err(|e| e.to_status())?;
+        let campaign = self.administered_campaign(&admin, &key).await?;
         let members = self
             .svc
             .list_members(&key)
@@ -813,6 +880,63 @@ fn status(e: AppError) -> Status {
 mod tests {
     use super::*;
     use crate::model::Plan;
+
+    fn admin_of(scopes: &[&str]) -> AuthIdentity {
+        AuthIdentity {
+            user_id: "adm".into(),
+            audience: "back-office".into(),
+            roles: vec!["admin".into()],
+            roles_by_scope: scopes
+                .iter()
+                .map(|s| (s.to_string(), vec!["admin".to_string()]))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn a_campaign_is_administered_by_an_admin_of_its_product() {
+        let music = admin_of(&["music"]);
+        let lingua = admin_of(&["lingua"]);
+        let global = admin_of(&["global"]);
+        let live = admin_of(&["live"]);
+        assert_eq!(administered_products(&music), vec!["music"]);
+        assert_eq!(administered_products(&lingua), vec!["lingua"]);
+        assert_eq!(administered_products(&global), vec!["music", "lingua"]);
+        assert!(administered_products(&live).is_empty());
+        // A Music-only admin cannot touch a Lingua campaign, and the reverse.
+        assert_eq!(
+            require_product_admin(&music, "lingua").unwrap_err().code(),
+            tonic::Code::PermissionDenied
+        );
+        assert!(require_product_admin(&lingua, "lingua").is_ok());
+        assert!(require_product_admin(&lingua, "music").is_err());
+        assert!(require_product_admin(&global, "lingua").is_ok());
+    }
+
+    #[test]
+    fn campaign_and_membership_messages_carry_the_product() {
+        let c = Campaign {
+            id: Uuid::nil(),
+            key: "online-translation".into(),
+            name: "Online".into(),
+            kind: CampaignKind::Feature,
+            enrollment_closes_at: None,
+            closed_at: None,
+            created_by: "adm".into(),
+            created_at: Utc::now(),
+            product: "lingua".into(),
+        };
+        assert_eq!(campaign_msg(&c, Utc::now()).product, "lingua");
+        let row = MembershipRow {
+            campaign_id: c.id,
+            user_id: "u".into(),
+            enrolled_at: Utc::now(),
+            ends_at: None,
+            revoked_at: None,
+            source: crate::model::MembershipSource::Admin,
+        };
+        assert_eq!(membership_row_msg(&row, &c).product, "lingua");
+    }
 
     #[test]
     fn platform_channel_mapping_and_proto_round_trip() {
