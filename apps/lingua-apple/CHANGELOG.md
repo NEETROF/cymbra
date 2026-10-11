@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.5.0...lingua-apple-v1.6.0) (2026-10-11)
+
+
+### Features
+
+* **lingua:** _locales for the manifest, shipped with a non-French pair ([#790](https://github.com/NEETROF/cymbra/issues/790)) ([d196c80](https://github.com/NEETROF/cymbra/commit/d196c80faf992f1ea2bf8920b13527475d451d07))
+* **lingua-apple:** host app speaks the extension's language ([#798](https://github.com/NEETROF/cymbra/issues/798)) ([ce8abdd](https://github.com/NEETROF/cymbra/commit/ce8abdda05fe7322f6e34597f5276292e748d2ae))
+* **lingua:** ship en-es for Spanish speakers learning English ([#814](https://github.com/NEETROF/cymbra/issues/814)) ([eec0ff2](https://github.com/NEETROF/cymbra/commit/eec0ff2430d75da7c2c12a1ef3785dd205fde789))
+* **lingua:** ship fr-en and fr-es for English and Spanish speakers ([#880](https://github.com/NEETROF/cymbra/issues/880)) ([ddb041d](https://github.com/NEETROF/cymbra/commit/ddb041dc45896d883e8ede3ae64615db20cc5f2d))
+* **lingua:** the device sends the language of a gloss and of a day ([#766](https://github.com/NEETROF/cymbra/issues/766)) ([14fce62](https://github.com/NEETROF/cymbra/commit/14fce6205760fa1262e5a111e3db324e7a3561f7))
+* **lingua:** the listings and the site, for the readers who study French ([#868](https://github.com/NEETROF/cymbra/issues/868)) ([2550a6e](https://github.com/NEETROF/cymbra/commit/2550a6e7ab3c8a2b43f6cea5535c5b2bc2e9eac2))
+* **site:** privacy annex names the languages Lingua stores ([#797](https://github.com/NEETROF/cymbra/issues/797)) ([4741b7a](https://github.com/NEETROF/cymbra/commit/4741b7a4bdbcc379d9ccf08b2d5036d312954ba0))
+
 ## [1.5.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.4.0...lingua-apple-v1.5.0) (2026-10-06)
 
 
