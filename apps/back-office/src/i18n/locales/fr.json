@@ -731,7 +731,7 @@
   },
   "campaigns": {
     "title": "Campagnes",
-    "intro": "Anime les campagnes bêta et les essais premium, frappe des codes d'accès et exporte leurs membres. Réservé aux admins music ; chaque changement est audité."
+    "intro": "Anime les campagnes bêta et les essais premium, frappe des codes d'accès et exporte leurs membres. Chaque campagne appartient à un produit et se gère par les admins de ce produit ; chaque changement est audité."
   },
   "errors": {
     "unauthenticated": "Identifiants invalides ou session expirée.",

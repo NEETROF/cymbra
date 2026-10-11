@@ -731,7 +731,7 @@
   },
   "campaigns": {
     "title": "Campaigns",
-    "intro": "Run beta campaigns and premium trials, mint access codes and export their members. Music admins only; every change is audited."
+    "intro": "Run beta campaigns and premium trials, mint access codes and export their members. Each campaign belongs to a product and is managed by that product's admins; every change is audited."
   },
   "errors": {
     "unauthenticated": "Invalid credentials or expired session.",

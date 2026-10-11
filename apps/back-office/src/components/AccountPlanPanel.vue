@@ -322,7 +322,7 @@ onMounted(() => {
                aggregator (change: swap-store-billing-to-revenuecat, D5): one link
                to the customer page; hidden when the project id is not configured. -->
           <a
-            v-if="revenueCatUrl"
+            v-if="musicAdmin && revenueCatUrl"
             :href="revenueCatUrl"
             target="_blank"
             rel="noopener noreferrer"
