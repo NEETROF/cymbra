@@ -1758,6 +1758,39 @@ fn spec_scenario_the_web_s_spellings_without_their_marks() {
 }
 
 #[test]
+fn spec_scenario_the_web_s_hyphenated_words_and_wrong_accents() {
+    // read-lingua-french-hyphenated-and-misaccented-spellings: in both French packs, a hyphenated word
+    // the web writes without its marks reads, as a whole run the pack lists, as its word —
+    // `peut-etre`, `c'est-a-dire`, `grand-mere` as peut-être, c'est-à-dire, grand-mère — and a word
+    // written with wrong marks as the word whose marks it keeps — `trés`, `déja`, `agé` as très,
+    // déjà, âgé —; none is a lemma of its own. `élève` and `élevé`, the words a wrong accent may
+    // stand for, read as they did, and `á`, Portuguese's, is no form.
+    for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        for (spelling, word) in [
+            ("peut-etre", "peut-être"),
+            ("c'est-a-dire", "c'est-à-dire"),
+            ("grand-mere", "grand-mère"),
+            ("trés", "très"),
+            ("déja", "déjà"),
+            ("agé", "âgé"),
+        ] {
+            assert_eq!(lexicon.lemma_of(spelling), Some(word), "{pair}: {spelling}");
+            assert!(
+                !lexicon.contains_lemma(spelling),
+                "{pair}: {spelling} is a lemma"
+            );
+            assert_eq!(pack.gloss(spelling), None, "{pair}: {spelling}");
+            assert_eq!(pack.rank(spelling), pack.rank(word), "{pair}: {spelling}");
+        }
+        assert_eq!(lexicon.lemma_of("élève"), Some("élever"), "{pair}");
+        assert_eq!(lexicon.lemma_of("élevé"), Some("élevé"), "{pair}");
+        assert_eq!(lexicon.lemma_of("á"), None, "{pair}");
+    }
+}
+
+#[test]
 fn spec_scenario_the_committed_pairs() {
     // fix-lingua-lemma-lookup D4, D6: each committed pair builds — no form of its forms table has
     // two lemmas, every lemma of its pack reads as itself — to the sha256 its pin records, so
