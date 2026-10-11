@@ -715,7 +715,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--work", required=True)
     ap.add_argument("--max-lemmas", type=int, default=40000)
-    ap.add_argument("--max-gloss-len", type=int, default=80, help="an expression's gloss")
     # A word's gloss is paged on its card, one line per part of speech (add-lingua-word-grammar):
     # room for eight whole senses, 91 KB of pack for 8 x 300 / 800 against 3 x 80 / 160.
     ap.add_argument("--max-word-gloss-len", type=int, default=800)
@@ -772,7 +771,6 @@ def main():
         edition=EDITION,
         locutions=LOCUTIONS,
         word_gloss={"maxlen": a.max_word_gloss_len, "per_sense": a.max_word_sense_len, "max_senses": a.max_word_senses},
-        expression_len=a.max_gloss_len,
     )
     forms = resolve_forms(pairs, ranks, targets, set(glosses))
     levels = reduce_levels(cefr, lemmas)

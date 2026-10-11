@@ -81,8 +81,8 @@ unglossed; coverage 83.2 / 70.8 / 56.8 → 83.0 / 70.7 / 56.7 %):
   the part of speech named again after the meaning taken out (D6, `french_entries`): `être`,
   `devoir`; `des`, `du`; `qui`, `quoi` — 10 / 9 rows.
 - A sense's register, age and place, in the edition's words (D2, `with_labels`,
-  `label_expressions`): 202 / 109 rows, and 59 expressions labelled after the shared cut, their
-  meaning unshortened.
+  `label_expressions`): 202 / 109 rows, and the expressions labelled after the shared rules read
+  them, their meaning unshortened.
 - The inverted table's names, acronyms and language code, and the named other-sense words of both
   tables (D4, `translation_words`, `OTHER_SENSES`): 20 / 14 rows, 19 / 14 lemmas left unglossed.
 - The French word given as its own Spanish gloss left out, the loanwords Spanish writes alike kept
@@ -1112,7 +1112,7 @@ def with_labels(src, dst):
     """The section's entries with each sense of a word that holds a meaning opening on its labels
     (`labels`, D2), written to `dst` — a pre-pass `main` runs after `treebank_order`: « baiser »
     « (malsonante) Coger (sexualmente) ». An expression's senses are labelled after the shared rules
-    cut them (`label_expressions`). An entry it does not change, and a line it cannot read, are
+    read them (`label_expressions`). An entry it does not change, and a line it cannot read, are
     written as they are."""
 
     def read(entry):
@@ -1130,23 +1130,26 @@ def with_labels(src, dst):
     return spanish.rewrite_entries(src, dst, read)
 
 
-# What the shared rules keep of an expression (`reduce_common.reduce_expressions`' defaults): 42
-# characters of each sense and three senses.
-EXPRESSION_SENSE = 42
+# What the shared rules keep of an expression (`reduce_common.reduce_expressions`' defaults): each
+# sense whole but past 300 characters, three senses (keep-lingua-expression-glosses-whole).
+EXPRESSION_SENSE = common.EXPRESSION_SENSE_LEN
 EXPRESSION_SENSES = 3
 
 
-def label_expressions(expressions, src, maxlen=common.EXPRESSION_GLOSS_LEN):
+def label_expressions(expressions, src):
     """The section's expressions (`expressions`, as `common.reduce_expressions` gives them from
-    `src`, cut to `maxlen`) with each sense opening on its labels (D2), written after the shared
-    rules cut them so that the meaning keeps every character it had: the shared rules' choice of
-    senses rebuilt — the same round-robin over the same entries, each sense cleaned as they clean it —,
-    the joined gloss walked by those senses' lengths, each sense, or the cut remnant of the last,
-    opening on its source sense's labels. Measured: 59 expressions, 70 senses — « mal aux cheveux »
-    « (anticuado) Resaca, caña, chaqui, chuchaqui, cruda, go », the 42 characters it had; 13 run past
-    80 characters (the longest 139), none past the card's 160-character page. An expression the
-    section does not gloss, or whose rebuilt gloss is not the shared rules' (a rule of theirs changed),
-    is left as it is. Answers `(expressions, labelled senses)`."""
+    `src`) with each sense opening on its labels (D2), written after the shared rules read them so
+    that the meaning keeps every character they keep — each sense whole, but past 300 characters
+    (keep-lingua-expression-glosses-whole) —, the label outside that bound: the shared rules' choice
+    of senses rebuilt — the same round-robin over the same entries, each sense cleaned as they clean
+    it —, the joined gloss walked by those senses' lengths, each sense opening on its source sense's
+    labels. Measured: 70 senses labelled; in the committed table 58 expressions and 68 senses carry
+    a label (the others are left out or respelled after) — « mal aux cheveux » « (anticuado) Resaca,
+    caña, chaqui, chuchaqui, cruda, goma, guayabo, hachazo, hangover, perseguidora, ratón », whole; 23
+    run past 80 characters and 2 past the card's 160-character page, which pages them (the longest,
+    « fils de pute », 275). An expression the section does not gloss, or whose rebuilt gloss is not
+    the shared rules' (a rule of theirs changed), is left as it is. Answers `(expressions, labelled
+    senses)`."""
     per_entry = collections.defaultdict(list)
     with open(src, encoding="utf-8") as f:
         for line in f:
@@ -1177,7 +1180,7 @@ def label_expressions(expressions, src, maxlen=common.EXPRESSION_GLOSS_LEN):
         joined = expressions[word]
         if not any(words for senses in entries for _, words in senses):
             continue
-        if common._join_senses([[text for text, _ in senses] for senses in entries], maxlen, EXPRESSION_SENSES) != joined:
+        if common._join_senses([[text for text, _ in senses] for senses in entries], EXPRESSION_SENSES) != joined:
             continue
         picked = []
         for depth in range(max(len(senses) for senses in entries)):
@@ -1420,7 +1423,7 @@ def native_side(entries, ranks, sources):
     Spanish Wiktionary's entries gloss first, a definition that only repeats its headword giving way
     (`no_self_definition`, against the first source, the direct table); then each `(source, order)`
     of `sources` in turn — the direct table, then the inverted one — glosses what the steps before
-    left out; the expressions the same way, the section's labelled after the shared rules cut them
+    left out; the expressions the same way, the section's labelled after the shared rules read them
     (`label_expressions`, refine-lingua-fr-es-glosses D2), the locutions winning. `(glosses, runs,
     expressions, steps)`, the steps `{"entries": lemmas, "direct": lemmas, "inverted": lemmas,
     "yielded": lemmas, "labelled": senses}`, each the set a step glossed (`yielded` the definitions D7
@@ -1429,7 +1432,7 @@ def native_side(entries, ranks, sources):
     edited."""
     runs = {}
     glosses = common.reduce_gloss(entries, set(ranks), **common.WORD_GLOSS, runs=runs, studied=FR, edition=EDITION)
-    expressions = common.reduce_expressions(entries, common.EXPRESSION_GLOSS_LEN, studied=FR, edition=EDITION)
+    expressions = common.reduce_expressions(entries, studied=FR, edition=EDITION)
     expressions, labelled = label_expressions(expressions, entries)
     yielded = no_self_definition(glosses, runs, sources[0][0]) if sources else []
     steps = {"entries": frozenset(glosses), "yielded": frozenset(yielded), "labelled": labelled}

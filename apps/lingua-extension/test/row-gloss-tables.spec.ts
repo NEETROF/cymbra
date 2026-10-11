@@ -15,9 +15,10 @@ import { rowGloss } from "@/reading/selection-card.ts";
 
 const TABLES = join(dirname(fileURLToPath(import.meta.url)), "../../../scripts/lingua-data/tables");
 
-/** The committed glosses of a pair, `(lemma, gloss)`, in the table's order. */
-function glosses(pair: string): [string, string][] {
-  return readFileSync(join(TABLES, pair, "gloss.tsv"), "utf8")
+/** The committed glosses of a pair, `(lemma, gloss)`, in the table's order: its words' (`gloss.tsv`) or its
+ * expressions' (`mwe.tsv`). */
+function glosses(pair: string, table = "gloss.tsv"): [string, string][] {
+  return readFileSync(join(TABLES, pair, table), "utf8")
     .split("\n")
     .filter((line) => line.length > 0)
     .map((line) => {
@@ -54,8 +55,11 @@ describe("the selection card's rows over the committed French glosses", () => {
 // and ¡ included (add-lingua-spanish-card-wording D4) — and a closing mark is never stripped. fr-en
 // joins them with its glosses (add-lingua-pack-fr-en D6), before any package lists it, and fr-es with
 // its Spanish ones (add-lingua-pack-fr-es D10): none of its 19,050 rows is empty or ends on an opening
-// mark.
+// mark. Since an expression's gloss keeps its senses whole (keep-lingua-expression-glosses-whole), its
+// row is cut as a word's is: the checks read every pair's expressions too — measured, none empty, none
+// ending on an opening mark.
 const PAIRS = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
+const TABLES_READ = ["gloss.tsv", "mwe.tsv"];
 
 /** The marks a row must not end on, before its ellipsis: the openers of every edition the packs read. */
 const OPENING = /[“‘«([¿¡]…$/u;
@@ -66,8 +70,10 @@ describe("the row cut over every committed gloss", () => {
   it("skips no sense: the empty-sense pattern matches no gloss of any edition the packs read", () => {
     const offending: string[] = [];
     for (const pair of PAIRS) {
-      for (const [lemma, gloss] of glosses(pair)) {
-        if (/définition manquante/i.test(gloss) || rowGloss(gloss) === null) offending.push(`${pair} ${lemma}`);
+      for (const table of TABLES_READ) {
+        for (const [lemma, gloss] of glosses(pair, table)) {
+          if (/définition manquante/i.test(gloss) || rowGloss(gloss) === null) offending.push(`${pair} ${lemma}`);
+        }
       }
     }
     expect(offending).toEqual([]);
@@ -76,8 +82,10 @@ describe("the row cut over every committed gloss", () => {
   it("ends no row on an opening mark", () => {
     const offending: string[] = [];
     for (const pair of PAIRS) {
-      for (const [lemma, gloss] of glosses(pair)) {
-        if (OPENING.test(rowGloss(gloss) ?? "")) offending.push(`${pair} ${lemma}`);
+      for (const table of TABLES_READ) {
+        for (const [lemma, gloss] of glosses(pair, table)) {
+          if (OPENING.test(rowGloss(gloss) ?? "")) offending.push(`${pair} ${lemma}`);
+        }
       }
     }
     expect(offending).toEqual([]);

@@ -561,7 +561,7 @@ def grammar_rows(readings, forms, ranks):
 EDITION = french.FR
 
 WORD_GLOSS = common.WORD_GLOSS
-EXPRESSION_GLOSS_LEN = common.EXPRESSION_GLOSS_LEN
+EXPRESSION_SENSE_LEN = common.EXPRESSION_SENSE_LEN
 FALLBACK_WORDS = common.FALLBACK_WORDS
 
 # Verbal locutions no source glosses (« hay que »), each with its French gloss, written and

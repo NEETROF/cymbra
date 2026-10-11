@@ -265,12 +265,13 @@ def _long_parenthesis(length):
     return re.compile(r"\s*\([^()]{%d,}\)" % length)
 
 
-def clean_gloss(text, maxlen, whole_words=False, *, edition):
+def clean_gloss(text, maxlen, *, edition):
     """A sense, tidied by the rules of the edition that wrote it and held within `maxlen` characters.
 
-    The expressions keep the plain cut. A word's senses (`whole_words`) are cut at a word
-    boundary and end with an ellipsis (`cut_at_word`), since the word card shows them in full.
-    A sense that is nothing but a pointer or a placeholder comes out empty, and is left out.
+    A sense past `maxlen` — a word's or an expression's — is cut at a word boundary and ends with
+    an ellipsis (`cut_at_word`), since the card shows it in full (keep-lingua-expression-glosses-whole
+    D2: no gloss is cut mid-word any more). A sense that is nothing but a pointer or a placeholder
+    comes out empty, and is left out.
     """
     text = strip_wiki_notes(text, edition=edition)
     if edition.long_parenthesis:
@@ -279,7 +280,7 @@ def clean_gloss(text, maxlen, whole_words=False, *, edition):
     if edition.dangling is not None:
         g = edition.dangling.sub("", g)
     if len(g) > maxlen:
-        g = cut_at_word(g, maxlen) if whole_words else g[:maxlen].rstrip()
+        g = cut_at_word(g, maxlen)
     return g
 
 
@@ -302,12 +303,13 @@ def cut_at_word(text, maxlen):
     return cut.rstrip(_CUT_TRAIL) + "…"
 
 
-def _join_senses(per_entry, maxlen, max_senses):
-    """One gloss out of a headword's per-entry sense lists, cut to `maxlen`.
+def _join_senses(per_entry, max_senses):
+    """One gloss out of a headword's per-entry sense lists: up to `max_senses` whole senses.
 
     Senses are taken one-per-entry, round-robin ACROSS the headword's POS entries, so a
     verb meaning appears beside the noun (run -> "Course; Courir") rather than being
-    crowded out by the first entry's three.
+    crowded out by the first entry's three. The joined gloss is not cut: each sense is held
+    within its own bound already (keep-lingua-expression-glosses-whole D1), and the card pages it.
     """
     picked = []
     depth = 0
@@ -319,10 +321,7 @@ def _join_senses(per_entry, maxlen, max_senses):
                 if len(picked) >= max_senses:
                     break
         depth += 1
-    joined = "; ".join(picked)
-    if len(joined) > maxlen:
-        joined = joined[:maxlen].rstrip().rstrip(";").strip()
-    return joined
+    return "; ".join(picked)
 
 
 # kaikki's `pos` in Universal Dependencies parts of speech (design D4). A conjunction is
@@ -441,7 +440,7 @@ def _read_entries(path, words, per_sense, pointers=None, *, studied, edition):
                 if not gg:
                     continue
                 if not _is_form_of(sense, gg[0].strip(), edition=edition):
-                    g = clean_gloss(gg[0], per_sense, whole_words=True, edition=edition)
+                    g = clean_gloss(gg[0], per_sense, edition=edition)
                     if g:
                         senses.append(g)
                 elif pointers is not None:
@@ -504,8 +503,19 @@ def reduce_gloss(path, lemmas, maxlen, per_sense=80, max_senses=3, runs=None, *,
     return glosses
 
 
-def reduce_expressions(path, maxlen, per_sense=42, max_senses=3, *, studied, edition):
-    """Up to `max_senses` short glosses per MULTI-WORD headword ("give up"), in the edition's language.
+# A word's gloss is paged on its card (add-lingua-word-grammar): eight whole senses.
+WORD_GLOSS = {"maxlen": 800, "per_sense": 300, "max_senses": 8}
+# An expression's sense is whole but past a word's sense bound, cut after a whole word with « … »; its
+# joined gloss is not cut (keep-lingua-expression-glosses-whole D1, D2).
+EXPRESSION_SENSE_LEN = WORD_GLOSS["per_sense"]
+
+
+def reduce_expressions(path, per_sense=EXPRESSION_SENSE_LEN, max_senses=3, *, studied, edition):
+    """Up to `max_senses` whole glosses per MULTI-WORD headword ("give up"), in the edition's language.
+
+    Each sense is whole but past `per_sense` characters, where it is cut after a whole word with
+    « … », as a word's sense is; the joined gloss is not cut (keep-lingua-expression-glosses-whole
+    D1, D2).
 
     `reduce_gloss`'s reduction over the entries it can never reach: it is scoped to the
     kept lemmas, a lemma is one word, so the 33 404 multi-word entries of the source were
@@ -544,7 +554,7 @@ def reduce_expressions(path, maxlen, per_sense=42, max_senses=3, *, studied, edi
 
     expressions = {}
     for word, per_entry in entries.items():
-        joined = _join_senses(per_entry, maxlen, max_senses)
+        joined = _join_senses(per_entry, max_senses)
         if joined:
             expressions[word] = joined
     return expressions
@@ -579,9 +589,6 @@ def write(work, name, text):
 # never in a third language, never machine-translated and never pivoted through a third language
 # (lingua-data-packs, *A gloss is in the reader's language, written by a person*).
 
-# A word's gloss is paged on its card (add-lingua-word-grammar): eight whole senses.
-WORD_GLOSS = {"maxlen": 800, "per_sense": 300, "max_senses": 8}
-EXPRESSION_GLOSS_LEN = 80
 # Native words a fallback gloss keeps per part of speech.
 FALLBACK_WORDS = 3
 
@@ -714,7 +721,6 @@ def native_tables(
     fallbacks=(),
     locutions=None,
     word_gloss=None,
-    expression_len=EXPRESSION_GLOSS_LEN,
 ):
     """A pair's native side: `(glosses, runs, expressions, primary)`.
 
@@ -726,7 +732,7 @@ def native_tables(
     runs = {}
     word_gloss = word_gloss or WORD_GLOSS
     glosses = reduce_gloss(entries, set(lemmas), **word_gloss, runs=runs, studied=studied, edition=edition)
-    expressions = reduce_expressions(entries, expression_len, studied=studied, edition=edition)
+    expressions = reduce_expressions(entries, studied=studied, edition=edition)
     primary = len(glosses)
     for lemma, (gloss, gloss_runs) in fallback_glosses(lemmas, glosses, fallbacks, edition=edition).items():
         glosses[lemma], runs[lemma] = gloss, gloss_runs

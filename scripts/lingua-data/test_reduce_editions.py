@@ -429,9 +429,9 @@ class TheEnglishEdition(Entries):
 
     def test_long_parentheses_stay_until_m20_is_settled(self):
         grave = SEPULTURA["senses"][1]["glosses"][0]
-        self.assertEqual(common.clean_gloss(grave, 300, whole_words=True, edition=EN), grave)
+        self.assertEqual(common.clean_gloss(grave, 300, edition=EN), grave)
         m20 = dataclasses.replace(EN, long_parenthesis=40)
-        self.assertEqual(common.clean_gloss(grave, 300, whole_words=True, edition=m20), "grave")
+        self.assertEqual(common.clean_gloss(grave, 300, edition=m20), "grave")
         self.assertEqual(
             common.clean_gloss("quorum (minimum number of votes)", 300, edition=m20), "quorum (minimum number of votes)"
         )
@@ -1513,7 +1513,7 @@ class EsEnGlossesReadAsMeanings(Entries):
 
     def test_an_expression_gets_the_same_rules(self):
         # Recorded: « a la mierda » « screw this; to hell with... », which lost its ellipsis.
-        written = common.reduce_expressions(self.jsonl(A_LA_MIERDA), 80, studied=SPANISH, edition=EN)
+        written = common.reduce_expressions(self.jsonl(A_LA_MIERDA), studied=SPANISH, edition=EN)
         self.assertEqual(written["a la mierda"], "screw this; to hell with")
         _, _, expressions = self.tables([], A_LA_MIERDA)
         self.assertEqual(expressions["a la mierda"], "screw this; to hell with…")
@@ -2092,6 +2092,83 @@ class FrEsExpressionsRefined(Entries):
         )
 
 
+# Recorded: es-en's « sin embargo » in the section es-en pins, and es-fr's « sistema cardiovascular »,
+# whose second sense is a quotation of 1,132 characters (keep-lingua-expression-glosses-whole).
+SIN_EMBARGO = {
+    "word": "sin embargo",
+    "pos": "adv",
+    "senses": [{"glosses": ["however, notwithstanding, nevertheless, in spite of, nonetheless"]}],
+}
+SISTEMA_CARDIOVASCULAR_QUOTE = (
+        "Las vitaminas son básicas para el cuerpo humano. La naturaleza las ofrece en muchas formas"
+        ", y cada una de ellas tiene su efecto en determinadas funciones. Hay una que cuida el sist"
+        "ema cardiovascular y el inmunológico, además del nervioso y el ocular. Es la vitamina E, q"
+        "ue favorece la producción de glóbulos rojos y la integridad de los vasos sanguíneos. Esta "
+        "vitamina, también conocida como tocoferol o alfa-tocoferol, es un nutriente que se encuent"
+        "ra en cada célula del cuerpo — (Heraldo, La vitamina que ayuda a la producción de glóbulos"
+        " rojos y mantiene la piel firme, 01-03-2025)\n#*: Traduction : « Les vitamines sont essenti"
+        "elles pour le corps humain. La nature les offre sous de nombreuses formes, et chacune d'el"
+        "les a un effet sur des fonctions spécifiques. Il en existe une qui protège le système card"
+        "iovasculaire et immunitaire, ainsi que le système nerveux et la santé oculaire. C'est la v"
+        "itamine E, qui favorise la production de globules rouges et l'intégrité des vaisseaux sang"
+        "uins. Cette vitamine, également connue sous le nom de tocophérol ou alpha-tocophérol, est "
+        "un nutriment présent dans chaque cellule du corps. »"
+)
+SISTEMA_CARDIOVASCULAR = {
+    "word": "sistema cardiovascular",
+    "pos": "noun",
+    "senses": [{"glosses": ["Système cardiovasculaire."]}, {"glosses": [SISTEMA_CARDIOVASCULAR_QUOTE]}],
+}
+
+
+class ExpressionGlossesKeepTheirSensesWhole(Entries):
+    """keep-lingua-expression-glosses-whole: an expression's senses whole, the joined gloss uncut, a
+    sense bounded only past 300 characters, cut after a whole word with « … » (D1, D2)."""
+
+    def test_the_bound_is_a_word_s_sense_bound(self):
+        self.assertEqual(common.EXPRESSION_SENSE_LEN, common.WORD_GLOSS["per_sense"])
+        self.assertEqual(common.EXPRESSION_SENSE_LEN, 300)
+        self.assertFalse(hasattr(common, "EXPRESSION_GLOSS_LEN"))
+
+    def test_spec_scenario_a_sense_longer_than_the_old_cut(self):
+        out = english.read_as_meanings(self.jsonl(SIN_EMBARGO), str(self.dir / "meanings.jsonl"))
+        _, _, expressions, _ = common.native_tables(out, {}, studied=es_en.ES, edition=EN)
+        self.assertEqual(expressions["sin embargo"], "however, notwithstanding, nevertheless, in spite of, nonetheless")
+
+    def test_spec_scenario_senses_longer_than_80_characters_together(self):
+        # Made up: three entries of one sense each, 50 characters a sense, picked one per entry.
+        senses = [(letter * 49) + "." for letter in "abc"]
+        entries = [{"word": "tener en cuenta", "pos": pos, "senses": [{"glosses": [sense]}]} for pos, sense in zip(("verb", "phrase", "adv"), senses)]
+        written = common.reduce_expressions(self.jsonl(*entries), studied=SPANISH, edition=EN)
+        self.assertEqual(written["tener en cuenta"], "; ".join(sense.rstrip(".") for sense in senses))
+        self.assertEqual(len(written["tener en cuenta"]), 151)
+
+    def test_spec_scenario_a_sense_past_the_bound(self):
+        self.assertEqual(len(SISTEMA_CARDIOVASCULAR_QUOTE), 1132)
+        written = common.reduce_expressions(self.jsonl(SISTEMA_CARDIOVASCULAR), studied=SPANISH, edition=FR)
+        first, second = written["sistema cardiovascular"].split("; ")
+        self.assertEqual(first, "Système cardiovasculaire")
+        self.assertLessEqual(len(second), 300)
+        self.assertTrue(second.endswith(" de…"), second[-12:])
+        self.assertTrue(SISTEMA_CARDIOVASCULAR_QUOTE.startswith(second[:-1]))
+        self.assertEqual(second, common.cut_at_word(SISTEMA_CARDIOVASCULAR_QUOTE, 300))
+
+    def test_spec_scenario_senses_the_cut_made_alike(self):
+        # Made up: two senses sharing their first 42 characters, which the old cut read as one.
+        shared = "of or relating to Saint-Cyr, in the depart"
+        self.assertEqual(len(shared), 42)
+        entry = {
+            "word": "de saint cyr",
+            "pos": "adj",
+            "senses": [{"glosses": [shared + "ment of Ardèche"]}, {"glosses": [shared + "ment of Manche"]}],
+        }
+        written = common.reduce_expressions(self.jsonl(entry), studied=SPANISH, edition=EN)
+        self.assertEqual(
+            written["de saint cyr"],
+            "of or relating to Saint-Cyr, in the department of Ardèche; of or relating to Saint-Cyr, in the department of Manche",
+        )
+
+
 class EnglishAndSpanishDictionaryWords(Entries):
     """leave-lingua-names-out-of-english-and-spanish-words D1, D2: English's and Spanish's dictionary
     words are en-fr's and es-fr's glossed lemmas less those they gloss by a proper noun's senses
@@ -2221,12 +2298,12 @@ class TheSpanishEdition(Entries):
             # Made up: in a sense that goes on, the period closing the sentence stays.
             ("Golpe.₃ Choque.", "Golpe. Choque"),
         ):
-            self.assertEqual(common.clean_gloss(gloss, 300, whole_words=True, edition=ES), cleaned, gloss)
+            self.assertEqual(common.clean_gloss(gloss, 300, edition=ES), cleaned, gloss)
 
     def test_a_subscript_after_a_preposition_is_the_sentence_s_word(self):
         # Recorded: it names one of the entry's own senses; without it, the sense reads « similar a en ».
         for gloss in ("Cualquier parte similar a ₁ en un animal.", "Disparar como en ₁."):
-            self.assertEqual(common.clean_gloss(gloss, 300, whole_words=True, edition=ES), gloss.rstrip("."))
+            self.assertEqual(common.clean_gloss(gloss, 300, edition=ES), gloss.rstrip("."))
 
     def test_a_see_also_note_goes(self):
         self.assertEqual(common.clean_gloss(BLOW["senses"][0]["glosses"][0], 80, edition=ES), "Golpe")

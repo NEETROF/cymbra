@@ -1380,6 +1380,38 @@ and « de l'huile d'olive » meet « de l' » "of the; some; …", and « j'ai r
 | 48d refine-lingua-fr-en-expressions | done: the section's own expressions read where they are met — a reviewed list, the form notes, « de l' » "of the" (*The section's expressions read where they are met*) |
 | 49 fr-es | a reader of `../fr/` as committed, capped at the same 60,000 |
 
+## An expression's gloss keeps its senses whole (keep-lingua-expression-glosses-whole)
+
+The owner decided on 2026-10-11 that an expression's gloss is no longer cut: its senses were cut at 42
+characters, mid-word, and the joined gloss at 80. Each sense the shared rules pick — up to three, one
+per entry in turn, a repeat left out — is now whole; only a sense past 300 characters, a word's sense
+bound (`reduce_common.EXPRESSION_SENSE_LEN`), is cut after a whole word and ends with « … ». The joined
+gloss is not cut: the card pages it as it pages a word's (160 characters a page), and the selection
+card's row still shows its first sense within 80 characters. The rule lives in `reduce_common.py`, so
+every pair re-pinned, reduced again from its pinned release assets: only `mwe.tsv`, `manifest.json` and
+`pin.json` moved; `gloss.tsv`, `senses.tsv`, `NOTICE`, the studied tables and the coverage are byte for
+byte.
+
+| | Cut (42 / 80) | Whole |
+|---|---|---|
+| Expressions | 43,424 | 43,424: none added or left out, 5,178 changed |
+| Longest gloss | 142 | 408 (« mardi gras ») |
+| Glosses past 80 / 160 / 300 characters | — | 2,215 / 315 / 9 |
+| Longest sense | — | 299 (« maladie du sommeil », the bound) |
+| Senses the 300 bound cuts | — | 3 rows (« maladie du sommeil » 363 characters, « arc-boutement » 332, « légende noire » 328) |
+| `mwe.tsv` | 1,904,546 B | 2,099,112 B |
+| The pack | 3,003,601 B | 3,052,887 B, 58.2 % of the 5 MiB budget |
+| Expression cards that page | 0 | 171, three pages at most |
+| Rows whose first sense changes | — | 4,393 |
+
+Every changed row holds the old row's senses, each a prefix of its new one, but for 40 — the cut had fallen inside a sense holding its own `;`.
+
+The rule reads every path an expression's senses take here: the section's headwords with a space, the words French's tokenisation splits (`split_words`), and the sense « de la » lends « de l' » (`lent_senses`: « of the; some; the singular prevocalic partitive article », uncut). One row picks another sense: `saint-cyrien`, whose first two senses read alike when cut at 42 characters (« of or relating to Saint-Cyr, in the depart »), so the second was dropped as a repeat; whole, all three are kept. « etc. » keeps its period after the rule, as before; no gloss runs past a cut any more.
+
+**Known data defects** the whole text shows, left as the source writes them (each for fr-en's own refinement):
+
+- A « ; » inside a sense, French typography's: 1 expression gloss, none before. Left as it is (design D4).
+
 ## Licences
 
 The repository is Apache-2.0; **these files are not**, nor French's in `../fr/`. They are derived
