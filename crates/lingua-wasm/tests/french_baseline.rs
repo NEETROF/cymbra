@@ -62,7 +62,11 @@
 //! « Quelle que soit la distance »; read-lingua-french-dictionary-unmarked-spellings: its re-reduced
 //! tables move six probes — the pack, « c'etait » on the `informel` page read as `être`, the two
 //! vocabulary estimates, the deck the levels seed — and four phrase probes, « il etait une fois »,
-//! « un coup d'Etat », « Il faut etre patient. » and « un moteur diesel »).
+//! « un coup d'Etat », « Il faut etre patient. » and « un moteur diesel »;
+//! choose-lingua-overlapping-expressions: seven phrase probes,
+//! « Elles sont au nombre de sept. », « Il est à la fois sévère et amical. », « Il est au courant
+//! de tout. », « Elle se mit au lit. », « grâce au travail du monteur », « J'ai besoin de toi. »
+//! and « C'est ce que tu veux. »).
 //! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
 //! renders this golden's grammar and phrase probes, and is re-blessed with it
 //! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).

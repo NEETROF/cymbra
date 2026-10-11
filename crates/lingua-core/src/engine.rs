@@ -32,7 +32,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::analysis::carries_enclitic;
-use crate::analysis::function_words::is_function_word;
+use crate::analysis::function_words::{is_function_word, is_preposition};
 use crate::analysis::language::StudiedLanguage;
 use crate::analysis::lexicon::Lexicon;
 use crate::analysis::percent::{
@@ -42,7 +42,7 @@ use crate::analysis::pipeline::{
     AnalysedToken, DocumentAnalysis, alone_in_capitals, analyse_document, headword_reading,
     resolve_lemmas,
 };
-use crate::analysis::tokenize::{Token, is_elided, tokenize, without_soft_hyphens};
+use crate::analysis::tokenize::{Token, is_elided, is_hyphen_join, tokenize, without_soft_hyphens};
 use crate::knowledge::level::CefrLevels;
 use crate::knowledge::state::KnowledgeState;
 use crate::packs::Pack;
@@ -569,8 +569,9 @@ fn expression_for_run(
 /// on what it reports (add-lingua-french-expression-keys D3,
 /// add-lingua-spanish-expression-keys D3).
 ///
-/// `shares_span[i]` says whether token `i` shares its predecessor's source span —
-/// the second half of a written word the pre-pass split. A Spanish or French match
+/// `joins.shares_span[i]` ([`PageJoins`]) says whether token `i` shares its
+/// predecessor's source span — the second half of a written word the pre-pass
+/// split. A Spanish or French match
 /// never ends inside a written word: one whose last token is followed by such a
 /// token, the article of « al » or « del », of « au » or « aux », covers it too, so
 /// « después del » and « jusqu'au » are answered whole
@@ -579,8 +580,8 @@ fn expression_for_run(
 /// settled under the run's lemma chain, and not under its name, keeps that chain
 /// ([`settled_chain`], D6).
 ///
-/// `elided[i]` says whether token `i` is an elided piece ([`is_elided`]). A French
-/// run that is a key is kept only where its pieces meet the words as the
+/// `joins.elided[i]` says whether token `i` is an elided piece ([`is_elided`]). A
+/// French run that is a key is kept only where its pieces meet the words as the
 /// expression's headword writes them ([`meets_as_written`],
 /// match-lingua-french-elided-pieces D1, match-lingua-french-contracted-pieces D1):
 /// a piece the headword writes elided meets only an elided token, a piece written
@@ -614,10 +615,20 @@ fn expression_for_run(
 /// `hace tiempo`, and « tenía puestos » `tener puesto`, not `tenerlos puestos`. No run
 /// matches, or stops matching, for it. The lemma chain a reader settled before is then
 /// reported only where it is no headword's name ([`settled_chain`], D4).
+///
+/// And in the three languages, a run that is a key and meets its headword gives
+/// its last token to a longer expression when it is built on a verb
+/// (choose-lingua-overlapping-expressions D1, D2): [`ExpressionScan::gives_last_word`].
+/// It then does not match at that length, exactly as a run that does not meet its
+/// headword: the shorter runs are tried, else the next token, where the scan finds
+/// the expression as it finds any — « Elles sont au nombre de sept » answers
+/// `au nombre de` and not `être à`, « Lo hizo de todos modos » `de todos modos`,
+/// « went over the top » `over the top`. `joins.hyphened[i]` says whether token `i`
+/// is joined to token `i - 1` by a hyphen on the page ([`is_hyphen_join`]), read only
+/// by the rule's French guard (G1).
 fn match_expressions(
     tokens: &[PhraseToken],
-    shares_span: &[bool],
-    elided: &[bool],
+    joins: &PageJoins,
     studied: StudiedLanguage,
     pack: &Pack,
     knowledge: &KnowledgeState,
@@ -625,67 +636,18 @@ fn match_expressions(
     if !pack.has_expressions() {
         return Vec::new();
     }
-    let pieces: Vec<String> = tokens
-        .iter()
-        .map(|token| expression_piece(&token.surface, &token.lemma, studied))
-        .collect();
-    let window = expression_window(studied);
-    let spanish = studied == StudiedLanguage::Spanish;
-    let french = studied == StudiedLanguage::French;
-    let whole_words = matches!(studied, StudiedLanguage::Spanish | StudiedLanguage::French);
+    let scan = ExpressionScan::new(tokens, joins, studied, pack);
     let mut matches = Vec::new();
     let mut start = 0;
     while start < tokens.len() {
-        let longest = window.min(tokens.len() - start);
+        let longest = scan.window.min(tokens.len() - start);
         let hit = (2..=longest).rev().find_map(|len| {
-            let (key, gloss) = expression_for_run(&pieces[start..start + len], studied, pack)?;
-            if whole_words {
-                let headwords = pack.expression_headwords(&key);
-                if headwords.len() > 1 {
-                    let run = start..start + len;
-                    let lexicon = pack.lexicon();
-                    let (name, gloss) = if french {
-                        written_as_the_page(
-                            &headwords,
-                            &tokens[run.clone()],
-                            studied,
-                            lexicon,
-                            |name| {
-                                meets_as_written(
-                                    &elided[run.clone()],
-                                    &shares_span[run.clone()],
-                                    name,
-                                    lexicon,
-                                )
-                            },
-                        )?
-                    } else {
-                        let weighed = spanish_weighed(&headwords, tokens, run.clone(), lexicon);
-                        written_as_the_page(&weighed, &tokens[run], studied, lexicon, |_| true)?
-                    };
-                    let names = headwords
-                        .iter()
-                        .map(|(name, _)| (*name).to_owned())
-                        .collect();
-                    return Some((len, name.to_owned(), gloss.to_owned(), names));
-                }
-            }
-            let name = match pack.expression_name(&key) {
-                Some(name) => name.to_owned(),
-                None => key,
-            };
-            (!french
-                || meets_as_written(
-                    &elided[start..start + len],
-                    &shares_span[start..start + len],
-                    &name,
-                    pack.lexicon(),
-                ))
-            .then(|| (len, name.clone(), gloss, vec![name]))
+            let (name, gloss, headwords) = scan.run(start, len)?;
+            (!scan.gives_last_word(start, len)).then_some((len, name, gloss, headwords))
         });
         match hit {
             Some((len, name, gloss, headwords)) => {
-                let key = if spanish {
+                let key = if studied == StudiedLanguage::Spanish {
                     settled_chain(
                         &tokens[start..start + len],
                         &name,
@@ -697,12 +659,7 @@ fn match_expressions(
                 } else {
                     name
                 };
-                let mut end = start + len;
-                if whole_words {
-                    while shares_span.get(end).copied().unwrap_or(false) {
-                        end += 1;
-                    }
-                }
+                let end = scan.covered_end(start, len);
                 let class = knowledge.classify(studied, &[key.as_str()], pack);
                 matches.push(PhraseMatch {
                     start,
@@ -717,6 +674,268 @@ fn match_expressions(
         }
     }
     matches
+}
+
+/// What the phrase gloss reads between a selection's tokens on the page, one entry
+/// per token, entry `i` about token `i` and the token before it.
+struct PageJoins {
+    /// [`shared_spans`]: the second half of a written word the pre-pass split.
+    shares_span: Vec<bool>,
+    /// [`is_elided`]: an elided piece.
+    elided: Vec<bool>,
+    /// [`is_hyphen_join`] over the text between the two tokens' spans
+    /// (choose-lingua-overlapping-expressions D3, G1); never the first token.
+    hyphened: Vec<bool>,
+}
+
+impl PageJoins {
+    /// The joins of `read`, the selection `text`'s tokens.
+    fn of(text: &str, read: &[Token]) -> Self {
+        let hyphened = (0..read.len())
+            .map(|i| {
+                i.checked_sub(1).is_some_and(|before| {
+                    read[before].end <= read[i].start
+                        && is_hyphen_join(&text[read[before].end..read[i].start])
+                })
+            })
+            .collect();
+        Self {
+            shares_span: shared_spans(read),
+            elided: read.iter().map(|token| is_elided(text, token)).collect(),
+            hyphened,
+        }
+    }
+}
+
+/// One selection's expression lookup, as [`match_expressions`] scans it.
+struct ExpressionScan<'a> {
+    tokens: &'a [PhraseToken],
+    joins: &'a PageJoins,
+    /// Each token's key piece ([`expression_piece`]).
+    pieces: Vec<String>,
+    studied: StudiedLanguage,
+    pack: &'a Pack,
+    window: usize,
+}
+
+impl<'a> ExpressionScan<'a> {
+    fn new(
+        tokens: &'a [PhraseToken],
+        joins: &'a PageJoins,
+        studied: StudiedLanguage,
+        pack: &'a Pack,
+    ) -> Self {
+        Self {
+            pieces: tokens
+                .iter()
+                .map(|token| expression_piece(&token.surface, &token.lemma, studied))
+                .collect(),
+            tokens,
+            joins,
+            studied,
+            pack,
+            window: expression_window(studied),
+        }
+    }
+
+    fn french(&self) -> bool {
+        self.studied == StudiedLanguage::French
+    }
+
+    /// French and Spanish, whose matches never end inside a written word.
+    fn whole_words(&self) -> bool {
+        matches!(
+            self.studied,
+            StudiedLanguage::Spanish | StudiedLanguage::French
+        )
+    }
+
+    /// The run of `len` tokens from `start` as an expression — its name (the pack's,
+    /// else its key) and its gloss — when it is a key and, in French, meets its
+    /// headword as written ([`meets_as_written`]); a French or Spanish key several
+    /// headwords reach is named by the one written most like the page
+    /// ([`written_as_the_page`]), and every headword's name comes with it, which the
+    /// settled chain reads ([`settled_chain`]).
+    fn run(&self, start: usize, len: usize) -> Option<(String, String, Vec<String>)> {
+        let (key, gloss) =
+            expression_for_run(&self.pieces[start..start + len], self.studied, self.pack)?;
+        let (tokens, elided, shares_span) =
+            (self.tokens, &self.joins.elided, &self.joins.shares_span);
+        if self.whole_words() {
+            let headwords = self.pack.expression_headwords(&key);
+            if headwords.len() > 1 {
+                let run = start..start + len;
+                let lexicon = self.pack.lexicon();
+                let (name, gloss) = if self.french() {
+                    written_as_the_page(
+                        &headwords,
+                        &tokens[run.clone()],
+                        self.studied,
+                        lexicon,
+                        |name| {
+                            meets_as_written(
+                                &elided[run.clone()],
+                                &shares_span[run.clone()],
+                                name,
+                                lexicon,
+                            )
+                        },
+                    )?
+                } else {
+                    let weighed = spanish_weighed(&headwords, tokens, run.clone(), lexicon);
+                    written_as_the_page(&weighed, &tokens[run], self.studied, lexicon, |_| true)?
+                };
+                let names = headwords
+                    .iter()
+                    .map(|(name, _)| (*name).to_owned())
+                    .collect();
+                return Some((name.to_owned(), gloss.to_owned(), names));
+            }
+        }
+        let name = match self.pack.expression_name(&key) {
+            Some(name) => name.to_owned(),
+            None => key,
+        };
+        (!self.french()
+            || meets_as_written(
+                &elided[start..start + len],
+                &shares_span[start..start + len],
+                &name,
+                self.pack.lexicon(),
+            ))
+        .then(|| (name.clone(), gloss, vec![name]))
+    }
+
+    /// The longest run from `start` that is an expression ([`ExpressionScan::run`]),
+    /// its length and name: the one the scan looks up at a start, without asking
+    /// whether it would give its own last word away.
+    fn longest_at(&self, start: usize) -> Option<(usize, String)> {
+        let longest = self.window.min(self.tokens.len().saturating_sub(start));
+        (2..=longest)
+            .rev()
+            .find_map(|len| self.run(start, len).map(|(name, _, _)| (len, name)))
+    }
+
+    /// Where a match of `len` tokens from `start` ends: past its last token, and in
+    /// French and Spanish past the article of a written « au », « aux », « al » or
+    /// « del » it would otherwise end inside.
+    fn covered_end(&self, start: usize, len: usize) -> usize {
+        let mut end = start + len;
+        if self.whole_words() {
+            while self.joins.shares_span.get(end).copied().unwrap_or(false) {
+                end += 1;
+            }
+        }
+        end
+    }
+
+    /// Whether the expression of `len` tokens from `start` gives its last token to
+    /// the expression starting on it (choose-lingua-overlapping-expressions D1):
+    /// that expression, the longest run that is a key and meets its headword there
+    /// ([`ExpressionScan::longest_at`]), holds more tokens than the run, or (French,
+    /// Spanish) starts on the `à` of « au »/« aux » or the `a`/`de` of « al »/« del »
+    /// the run ends on; the run is built on a verb ([`built_on_verb`]); and no guard
+    /// of D3 holds — G1 (French): the expression taking the word meets its
+    /// headword's hyphens on the page ([`meets_hyphens`]); G2 (French, Spanish): the
+    /// last token is a preposition the selection's next token, `que`, follows
+    /// (« pese a que »); G3: the run the scan would take next after this one ends
+    /// past the expression taking the word and holds a word that is not a function
+    /// word (« iba al día siguiente » keeps `ir a` and `día siguiente`). The
+    /// checks run cheapest first.
+    fn gives_last_word(&self, start: usize, len: usize) -> bool {
+        let end = start + len;
+        let last = end - 1;
+        let Some((taker_len, taker)) = self.longest_at(last) else {
+            return false;
+        };
+        let on_contraction =
+            self.whole_words() && self.joins.shares_span.get(end).copied().unwrap_or(false);
+        if !(on_contraction || taker_len > len) {
+            return false;
+        }
+        // G2: a preposition the page follows with « que » stays.
+        if self.whole_words()
+            && self.tokens.get(end).is_some_and(|next| next.lemma == "que")
+            && is_preposition(&self.tokens[last].lemma, self.studied)
+        {
+            return false;
+        }
+        // G1: the expression taking the word meets its headword's hyphens.
+        if self.french()
+            && !meets_hyphens(
+                &self.joins.hyphened[last..last + taker_len],
+                &taker,
+                self.pack.lexicon(),
+            )
+        {
+            return false;
+        }
+        if !built_on_verb(&self.tokens[start..end], self.studied, self.pack) {
+            return false;
+        }
+        // G3: the expression next is not cut.
+        let taker_end = self.covered_end(last, taker_len);
+        let next = (self.covered_end(start, len)..taker_end)
+            .find_map(|at| self.longest_at(at).map(|(len, _)| (at, len)));
+        !next.is_some_and(|(at, next_len)| {
+            let next_end = self.covered_end(at, next_len);
+            next_end > taker_end
+                && self.tokens[at..next_end]
+                    .iter()
+                    .any(|token| !token.function_word)
+        })
+    }
+}
+
+/// Whether a run is built on a verb (choose-lingua-overlapping-expressions D2): one of
+/// its tokens, its last included, has a reading in the pack's grammar
+/// ([`Pack::readings`] on its dictionary form and lowercased surface) as a verb or an
+/// auxiliary, and no token before that one is a preposition of the studied language
+/// ([`is_preposition`]: `à partir de`, `a pesar de` are built on a preposition). A pack
+/// without grammar reads no verb.
+fn built_on_verb(run: &[PhraseToken], studied: StudiedLanguage, pack: &Pack) -> bool {
+    for token in run {
+        let verb = pack
+            .readings(&token.lemma, &token.surface.to_lowercase())
+            .iter()
+            .any(|tag| matches!(tag.pos, "VERB" | "AUX"));
+        if verb {
+            return true;
+        }
+        if is_preposition(&token.lemma, studied) {
+            return false;
+        }
+    }
+    false
+}
+
+/// Whether a French run meets its expression's headword's hyphens
+/// (choose-lingua-overlapping-expressions D3, G1): `hyphened` holds the run's tokens'
+/// [`PageJoins::hyphened`], `headword` the expression's name. Every place the headword,
+/// read by French's pre-pass ([`headword_reading`]), joins two pieces with a hyphen —
+/// the euphonic `t` between counted as one ([`is_hyphen_join`]) — the page joins the
+/// run's two tokens with one too: `est-ce que` meets « Est-ce que » and not « c'est ce
+/// que ». A headword without a hyphen, or whose reading does not line up with the run,
+/// meets. Asked only of the expression that would take a word: an expression matched on
+/// its own meets the page as before (« Est ce que tu viens ? » answers `est-ce que`).
+fn meets_hyphens(hyphened: &[bool], headword: &str, lexicon: &(impl Lexicon + ?Sized)) -> bool {
+    if !headword.contains('-') {
+        return true;
+    }
+    let Some(reading) = headword_reading(headword, StudiedLanguage::French, lexicon)
+        .filter(|reading| reading.len() == hyphened.len())
+    else {
+        return true;
+    };
+    reading
+        .windows(2)
+        .zip(&hyphened[1..])
+        .all(|(pair, &on_page)| {
+            let (before, piece) = (&pair[0].0, &pair[1].0);
+            on_page
+                || before.end > piece.start
+                || !is_hyphen_join(&headword[before.end..piece.start])
+        })
 }
 
 /// Whether a French run's tokens meet, piece by piece, its expression's headword as
@@ -974,10 +1193,11 @@ pub fn gloss_phrase(
     // French match never leaves outside (add-lingua-spanish-expression-keys D5,
     // add-lingua-french-word-card D12), and a French match meets only where its
     // headword writes the contraction (match-lingua-french-contracted-pieces D2).
-    let shares_span = shared_spans(&read);
     // Which tokens are elided pieces, read from their spans, which a French match holds
-    // to its headword's (match-lingua-french-elided-pieces D2).
-    let elided: Vec<bool> = read.iter().map(|token| is_elided(text, token)).collect();
+    // to its headword's (match-lingua-french-elided-pieces D2). And which are joined to
+    // the token before by a hyphen, which a French expression taking a word from another
+    // meets as its headword writes it (choose-lingua-overlapping-expressions D3, G1).
+    let joins = PageJoins::of(text, &read);
     // Which tokens stand alone in capitals, read in the selection as a page reads its block
     // (keep-lingua-french-acronyms-in-capitals D1).
     let alone = alone_in_capitals(text, &read, studied);
@@ -1006,7 +1226,7 @@ pub fn gloss_phrase(
             }
         })
         .collect();
-    let expressions = match_expressions(&tokens, &shares_span, &elided, studied, pack, knowledge);
+    let expressions = match_expressions(&tokens, &joins, studied, pack, knowledge);
     PhraseGloss {
         tokens,
         expressions,
@@ -1340,6 +1560,35 @@ mod tests {
         lexical: Option<&[&str]>,
         levels: &[(&str, CefrLevel)],
     ) -> Pack {
+        build_pack_with_readings(
+            studied,
+            forms,
+            lemmas,
+            ranks,
+            glosses,
+            expressions,
+            names,
+            lexical,
+            levels,
+            &[],
+        )
+    }
+
+    /// [`build_pack_with_levels`] plus, when `readings` holds any, the grammar tables
+    /// ([`grammar_blobs`]), as [`build_pack_with_grammar_for`] lays them out.
+    #[allow(clippy::too_many_arguments)]
+    fn build_pack_with_readings(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        expressions: &[(&str, &str)],
+        names: &[(&str, &str)],
+        lexical: Option<&[&str]>,
+        levels: &[(&str, CefrLevel)],
+        readings: &[Reading],
+    ) -> Pack {
         let (forms, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
         let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
         let mut freq = vec![0u32; lex.lemma_count()];
@@ -1420,6 +1669,12 @@ mod tests {
         }
         if !levels.is_empty() {
             sections.push((section::LEVELS, &level_codes));
+        }
+        let [tag_pool, paradigm_zst, runs_zst] = grammar_blobs(&lex, readings, &[], &[]);
+        if !readings.is_empty() {
+            sections.push((section::TAGS, &tag_pool));
+            sections.push((section::PARADIGMS_ZST, &paradigm_zst));
+            sections.push((section::SENSES_ZST, &runs_zst));
         }
         Pack::load(&write_container(&meta, &sections)).expect("load")
     }
@@ -4470,6 +4725,431 @@ mod tests {
         assert_eq!(spans(&phrase), [(0, 2, "i do")]);
     }
 
+    // --- Overlapping expressions (choose-lingua-overlapping-expressions) ---
+
+    /// A pack studying `studied` holding `expressions` (headword, gloss), keyed as the builder
+    /// keys them — English at its spaces, French and Spanish through their reading — and named by
+    /// their headwords where the two differ (add-lingua-french-expression-keys D1, D3,
+    /// add-lingua-spanish-expression-keys D1, D3), with the grammar `readings`.
+    fn overlap_pack(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        expressions: &[(&str, &str)],
+        readings: &[Reading],
+    ) -> Pack {
+        let (bytes, pool) = build_lexicon_blobs(forms, lemmas).expect("build");
+        let lexicon = FstLexicon::from_slices(bytes, &pool).expect("load");
+        let keyed: Vec<(String, &str, &str)> = expressions
+            .iter()
+            .map(|&(headword, gloss)| {
+                let key = if studied == EN {
+                    headword.to_owned()
+                } else {
+                    reading_expression_key(headword, studied, &lexicon).expect(headword)
+                };
+                (key, headword, gloss)
+            })
+            .collect();
+        let table: Vec<(&str, &str)> = keyed
+            .iter()
+            .map(|(key, _, gloss)| (key.as_str(), *gloss))
+            .collect();
+        let names: Vec<(&str, &str)> = keyed
+            .iter()
+            .filter(|(key, headword, _)| key != headword)
+            .map(|(key, headword, _)| (key.as_str(), *headword))
+            .collect();
+        build_pack_with_readings(
+            studied,
+            forms,
+            lemmas,
+            &[],
+            &[],
+            &table,
+            &names,
+            None,
+            &[],
+            readings,
+        )
+    }
+
+    /// Each match of `text` read as `studied` on `pack`: the surfaces of the tokens it covers
+    /// and what it reports.
+    fn overlap_matches(
+        pack: &Pack,
+        studied: StudiedLanguage,
+        text: &str,
+    ) -> Vec<(Vec<String>, String)> {
+        let phrase = gloss_phrase(text, studied, pack, &KnowledgeState::new());
+        phrase
+            .expressions
+            .iter()
+            .map(|m| {
+                let covered = phrase.tokens[m.start..m.end]
+                    .iter()
+                    .map(|token| token.surface.clone())
+                    .collect();
+                (covered, m.key.clone())
+            })
+            .collect()
+    }
+
+    const OVERLAP_FR_FORMS: &[(&str, &str)] = &[
+        ("ai", "avoir"),
+        ("est", "être"),
+        ("mit", "mettre"),
+        ("resta", "rester"),
+        ("sont", "être"),
+        ("venait", "venir"),
+        ("veux", "vouloir"),
+        ("viens", "venir"),
+    ];
+
+    const OVERLAP_FR_LEMMAS: &[&str] = &[
+        "amical",
+        "avoir",
+        "besoin",
+        "cause",
+        "ce",
+        "courant",
+        "de",
+        "début",
+        "elle",
+        "et",
+        "étranger",
+        "être",
+        "fois",
+        "il",
+        "je",
+        "jusque",
+        "la",
+        "le",
+        "lit",
+        "mettre",
+        "nombre",
+        "nuit",
+        "pluie",
+        "que",
+        "rester",
+        "se",
+        "sept",
+        "sévère",
+        "toi",
+        "tout",
+        "tu",
+        "venir",
+        "vouloir",
+        "à",
+    ];
+
+    /// The French verbs of the delta's scenarios, each read by the grammar as a verb.
+    const OVERLAP_FR_READINGS: &[Reading] = &[
+        ("ai", "avoir", "AUX"),
+        ("est", "être", "AUX"),
+        ("mit", "mettre", "VERB"),
+        ("resta", "rester", "VERB"),
+        ("sont", "être", "AUX"),
+        ("venait", "venir", "VERB"),
+        ("veux", "vouloir", "VERB"),
+        ("viens", "venir", "VERB"),
+    ];
+
+    fn french_overlap(expressions: &[(&str, &str)], text: &str) -> Vec<(Vec<String>, String)> {
+        let pack = overlap_pack(
+            FR,
+            OVERLAP_FR_FORMS,
+            OVERLAP_FR_LEMMAS,
+            expressions,
+            OVERLAP_FR_READINGS,
+        );
+        overlap_matches(&pack, FR, text)
+    }
+
+    #[test]
+    fn spec_scenario_a_verb_s_expression_gives_the_au_to_the_expression_starting_on_it() {
+        let expressions = [
+            ("être à", "to belong to"),
+            ("nombre de", "quite a few"),
+            ("au nombre de", "numbering"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "Elles sont au nombre de sept."),
+            [covering(&["à", "le", "nombre", "de"], "au nombre de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_preposition_written_apart_goes_to_a_longer_expression() {
+        let expressions = [("être à", "to belong to"), ("à la fois", "at once")];
+        assert_eq!(
+            french_overlap(&expressions, "Il est à la fois sévère et amical."),
+            [covering(&["à", "la", "fois"], "à la fois")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_giving_expression_is_tried_shorter() {
+        let expressions = [
+            ("se mettre", "to place oneself"),
+            ("se mettre à", "to start"),
+            ("au lit", "in bed"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "Elle se mit au lit."),
+            [
+                covering(&["se", "mit"], "se mettre"),
+                covering(&["à", "le", "lit"], "au lit")
+            ]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_verb_itself_goes_to_a_longer_expression() {
+        let expressions = [("j'ai", "I have"), ("avoir besoin de", "to need")];
+        assert_eq!(
+            french_overlap(&expressions, "J'ai besoin de toi."),
+            [covering(&["ai", "besoin", "de"], "avoir besoin de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_question_marker_needs_its_hyphen_to_take_a_word() {
+        let expressions = [
+            ("c'est", "it is"),
+            ("ce que", "what"),
+            ("est-ce que", "question marker"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "C'est ce que tu veux."),
+            [
+                covering(&["Ce", "est"], "c'est"),
+                covering(&["ce", "que"], "ce que")
+            ]
+        );
+        // Written with its hyphen, the page meets the headword and the verb gives « est » away.
+        assert_eq!(
+            french_overlap(&expressions, "C'est-ce que tu veux ?"),
+            [covering(&["est", "ce", "que"], "est-ce que")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_outside_an_overlap_the_hyphen_is_not_read() {
+        let expressions = [
+            ("c'est", "it is"),
+            ("ce que", "what"),
+            ("est-ce que", "question marker"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "Est ce que tu viens ?"),
+            [covering(&["Est", "ce", "que"], "est-ce que")]
+        );
+        assert_eq!(
+            french_overlap(&expressions, "Est-ce que tu viens ?"),
+            [covering(&["Est", "ce", "que"], "est-ce que")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_compound_preposition_keeps_its_a() {
+        let expressions = [("jusqu'à", "until"), ("au début", "at the beginning")];
+        assert_eq!(
+            french_overlap(&expressions, "Il resta jusqu'au début de la nuit."),
+            [covering(&["jusque", "à", "le"], "jusqu'à")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_expression_no_longer_than_the_verb_s_takes_nothing() {
+        let expressions = [("venir de", "to have just"), ("de l'", "some")];
+        assert_eq!(
+            french_overlap(&expressions, "Il venait de l'étranger."),
+            [covering(&["venait", "de"], "venir de")]
+        );
+    }
+
+    #[test]
+    fn an_expression_next_made_of_function_words_only_may_be_cut() {
+        // G3 keeps a word only for an expression next holding a word that is not a function
+        // word: `de la` is cut, and `être à` gives its `à` to `à cause de`.
+        let expressions = [
+            ("être à", "to belong to"),
+            ("à cause de", "because of"),
+            ("de la", "some"),
+        ];
+        assert_eq!(
+            french_overlap(&expressions, "Il est à cause de la pluie."),
+            [covering(&["à", "cause", "de"], "à cause de")]
+        );
+    }
+
+    #[test]
+    fn a_pack_without_grammar_keeps_today_s_matches() {
+        let expressions = [
+            ("être à", "to belong to"),
+            ("nombre de", "quite a few"),
+            ("au nombre de", "numbering"),
+        ];
+        let pack = overlap_pack(FR, OVERLAP_FR_FORMS, OVERLAP_FR_LEMMAS, &expressions, &[]);
+        assert_eq!(
+            overlap_matches(&pack, FR, "Elles sont au nombre de sept."),
+            [
+                covering(&["sont", "à", "le"], "être à"),
+                covering(&["nombre", "de"], "nombre de")
+            ]
+        );
+    }
+
+    #[test]
+    fn the_hyphen_join_reads_the_euphonic_t_and_lines_up_with_the_headword() {
+        let pack = overlap_pack(FR, OVERLAP_FR_FORMS, OVERLAP_FR_LEMMAS, &[], &[]);
+        let lexicon = pack.lexicon();
+        // `pense-t-il`: one join, the euphonic `t` between, on the page and in the headword.
+        assert!(meets_hyphens(&[false, true], "pense-t-il", lexicon));
+        assert!(!meets_hyphens(&[false, false], "pense-t-il", lexicon));
+        // A headword without a hyphen, or whose reading does not line up, meets.
+        assert!(meets_hyphens(&[false, false], "ce que", lexicon));
+        assert!(meets_hyphens(&[false, false, false], "est-ce", lexicon));
+        // Only the headword's hyphened places are held to the page.
+        assert!(meets_hyphens(&[false, true, false], "est-ce que", lexicon));
+        assert!(!meets_hyphens(&[false, false, true], "est-ce que", lexicon));
+    }
+
+    const OVERLAP_ES_FORMS: &[(&str, &str)] = &[
+        ("hizo", "hacer"),
+        ("iba", "ir"),
+        ("pese", "pesar"),
+        ("tengo", "tener"),
+    ];
+
+    const OVERLAP_ES_LEMMAS: &[&str] = &[
+        "a",
+        "de",
+        "dinero",
+        "día",
+        "el",
+        "ella",
+        "hacer",
+        "ir",
+        "lo",
+        "mal",
+        "modos",
+        "no",
+        "pesar",
+        "que",
+        "se",
+        "siguiente",
+        "tener",
+        "tiempo",
+        "todos",
+    ];
+
+    const OVERLAP_ES_READINGS: &[Reading] = &[
+        ("hizo", "hacer", "VERB"),
+        ("iba", "ir", "VERB"),
+        ("pesar", "pesar", "VERB"),
+        ("pese", "pesar", "VERB"),
+        ("tengo", "tener", "VERB"),
+    ];
+
+    fn spanish_overlap(expressions: &[(&str, &str)], text: &str) -> Vec<(Vec<String>, String)> {
+        let pack = overlap_pack(
+            ES,
+            OVERLAP_ES_FORMS,
+            OVERLAP_ES_LEMMAS,
+            expressions,
+            OVERLAP_ES_READINGS,
+        );
+        overlap_matches(&pack, ES, text)
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_verb_s_preposition() {
+        let expressions = [("hacer de", "to act as"), ("de todos modos", "anyway")];
+        assert_eq!(
+            spanish_overlap(&expressions, "Lo hizo de todos modos."),
+            [covering(&["de", "todos", "modos"], "de todos modos")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_preposition_followed_by_que_stays() {
+        let expressions = [("pese a", "despite"), ("a que no", "I bet you won't")];
+        assert_eq!(
+            spanish_overlap(&expressions, "Pese a que no tengo dinero"),
+            [covering(&["Pese", "a"], "pese a")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_expression_next_is_not_cut() {
+        let expressions = [
+            ("ir a", "to go to"),
+            ("al día", "up to date"),
+            ("día siguiente", "next day"),
+        ];
+        assert_eq!(
+            spanish_overlap(&expressions, "Ella se iba al día siguiente."),
+            [
+                covering(&["iba", "a", "el"], "ir a"),
+                covering(&["día", "siguiente"], "día siguiente")
+            ]
+        );
+        // Without the expression next, the verb's « al » goes to `al día`.
+        let expressions = [("ir a", "to go to"), ("al día", "up to date")];
+        assert_eq!(
+            spanish_overlap(&expressions, "Ella se iba al día siguiente."),
+            [covering(&["a", "el", "día"], "al día")]
+        );
+    }
+
+    #[test]
+    fn a_run_whose_verb_follows_a_preposition_keeps_its_last_word() {
+        // `a pesar de` is built on a preposition: « pesar » after `a` is not its verb.
+        let expressions = [("a pesar de", "despite"), ("del tiempo", "of the weather")];
+        assert_eq!(
+            spanish_overlap(&expressions, "a pesar del mal tiempo"),
+            [covering(&["a", "pesar", "de", "el"], "a pesar de")]
+        );
+        assert_eq!(
+            spanish_overlap(&expressions, "a pesar del tiempo"),
+            [covering(&["a", "pesar", "de", "el"], "a pesar de")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_english_verb_s_particle() {
+        let pack = overlap_pack(
+            EN,
+            &[("went", "go")],
+            &["go", "over", "the", "top", "whole", "thing"],
+            &[("go over", "examiner"), ("over the top", "exagéré")],
+            &[("went", "go", "VERB")],
+        );
+        assert_eq!(
+            overlap_matches(&pack, EN, "The whole thing went over the top."),
+            [covering(&["over", "the", "top"], "over the top")]
+        );
+    }
+
+    #[test]
+    fn an_english_split_word_glosses_as_before() {
+        // « don't » shares its span between `do` and `not`; English never covers a second half,
+        // and `do not` is no longer than `i do`.
+        let pack = overlap_pack(
+            EN,
+            &[],
+            &["i", "do", "not"],
+            &[("i do", "je fais"), ("do not", "ne pas")],
+            &[("do", "do", "AUX")],
+        );
+        assert_eq!(
+            overlap_matches(&pack, EN, "I don't"),
+            [covering(&["I", "do"], "i do")]
+        );
+    }
+
     // --- A Spanish expression settled under its lemmas keeps that key (D6) ---
 
     #[test]
@@ -4678,25 +5358,19 @@ mod tests {
         build_pack_with_grammar_for(EN, forms, lemmas, &[], glosses, readings, also, runs)
     }
 
-    /// [`build_pack_with_grammar`] for any studied language, with ranks.
-    #[allow(clippy::too_many_arguments)]
-    fn build_pack_with_grammar_for(
-        studied: StudiedLanguage,
-        forms: &[(&str, &str)],
-        lemmas: &[&str],
-        ranks: &[(&str, u32)],
-        glosses: &[(&str, &str)],
+    /// The grammar tables of a test pack, laid out as the builder lays them: a sorted tag
+    /// pool, and paradigms and runs keyed by lemma id, each zstd-compressed.
+    fn grammar_blobs(
+        lex: &FstLexicon<Vec<u8>>,
         readings: &[Reading],
         also: &[Also],
         runs: &[Runs],
-    ) -> Pack {
+    ) -> [Vec<u8>; 3] {
         use crate::packs::grammar::{
             FormEdit, ParadigmEntry, SenseRun, encode_indexed, encode_paradigm, encode_runs,
             encode_tag_pool,
         };
         use std::collections::BTreeMap;
-        let (form_bytes, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
-        let lex = FstLexicon::from_slices(form_bytes.clone(), &pool).unwrap();
         let id = |lemma: &str| lex.id_of(lemma).expect("listed") as u32;
         let mut tags: Vec<String> = readings
             .iter()
@@ -4746,6 +5420,29 @@ mod tests {
             })
             .collect();
         run_entries.sort_unstable_by_key(|(id, _)| *id);
+        [
+            encode_tag_pool(&tags),
+            zstd::encode_all(encode_indexed(&paradigms).as_slice(), 19).unwrap(),
+            zstd::encode_all(encode_indexed(&run_entries).as_slice(), 19).unwrap(),
+        ]
+    }
+
+    /// [`build_pack_with_grammar`] for any studied language, with ranks.
+    #[allow(clippy::too_many_arguments)]
+    fn build_pack_with_grammar_for(
+        studied: StudiedLanguage,
+        forms: &[(&str, &str)],
+        lemmas: &[&str],
+        ranks: &[(&str, u32)],
+        glosses: &[(&str, &str)],
+        readings: &[Reading],
+        also: &[Also],
+        runs: &[Runs],
+    ) -> Pack {
+        let (form_bytes, pool) = build_lexicon_blobs(forms, lemmas).expect("lexicon");
+        let lex = FstLexicon::from_slices(form_bytes.clone(), &pool).unwrap();
+        let id = |lemma: &str| lex.id_of(lemma).expect("listed") as u32;
+        let [tag_pool, paradigm_zst, runs_zst] = grammar_blobs(&lex, readings, also, runs);
         let gloss_entries: Vec<(u32, &str)> = glosses.iter().map(|(l, g)| (id(l), *g)).collect();
         let mut freq = vec![0u32; lex.lemma_count()];
         for (lemma, rank) in ranks {
@@ -4767,9 +5464,6 @@ mod tests {
         })
         .unwrap();
         let gloss = build_gloss_zst(&gloss_entries);
-        let tag_pool = encode_tag_pool(&tags);
-        let paradigm_zst = zstd::encode_all(encode_indexed(&paradigms).as_slice(), 19).unwrap();
-        let runs_zst = zstd::encode_all(encode_indexed(&run_entries).as_slice(), 19).unwrap();
         let sections: Vec<(&str, &[u8])> = vec![
             (section::FORMS, &form_bytes),
             (section::LEMMAS, pool.as_bytes()),

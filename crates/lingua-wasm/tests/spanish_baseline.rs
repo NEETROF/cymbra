@@ -34,7 +34,9 @@
 //! owner's approval (pick-lingua-spanish-expression-written-as-the-page: the pack, which keeps
 //! every headword of a key, « darse cuenta » answering `darse cuenta`, and five phrase probes,
 //! « hace tiempo », « buenos días », « un poquito », « No te hagas ilusiones. » and « El
-//! guardaespaldas tenía puestos unos audífonos. »).
+//! guardaespaldas tenía puestos unos audífonos. »;
+//! choose-lingua-overlapping-expressions: five phrase probes, its rule for overlapping
+//! expressions approved for es-fr).
 //! Re-bless with
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test spanish_baseline` and say why in the pull
 //! request; `lingua-pack-update` re-blesses on its own branch.

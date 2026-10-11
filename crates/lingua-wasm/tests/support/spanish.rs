@@ -36,7 +36,12 @@ const LEMMAS: &[&str] = &[
 /// (pick-lingua-spanish-expression-written-as-the-page): « hace tiempo », « buenos días » and
 /// « un poquito » where the pack holds the page's spelling, a clitic pronoun before the verb
 /// (« No te hagas ilusiones. ») and none the page writes (« El guardaespaldas tenía puestos unos
-/// audífonos. »).
+/// audífonos. »). And expressions that overlap, an expression built on a verb giving its last
+/// word to a longer one
+/// (choose-lingua-overlapping-expressions D1, D3, D6): « Lo hizo de todos modos. » answers
+/// `de todos modos`, « Van al final del álbum. » the expression starting on « al », while « Pese a
+/// que no tengo dinero » keeps `pese a` (G2) and « Ella se iba al día siguiente. » `ir a` and
+/// `día siguiente` (G3).
 const PHRASES: &[&str] = &[
     "tener en cuenta",
     "hay que",
@@ -65,6 +70,11 @@ const PHRASES: &[&str] = &[
     "The lighthouse stood",
     "Le phare se dressait",
     "La ciutat de Barcelona",
+    "Lo hizo de todos modos.",
+    "No es del todo cierto.",
+    "Pese a que no tengo dinero, compré el libro.",
+    "Van al final del álbum.",
+    "Ella se iba al día siguiente.",
 ];
 
 /// (word as written, dictionary form) pairs a word card asks the grammar of.

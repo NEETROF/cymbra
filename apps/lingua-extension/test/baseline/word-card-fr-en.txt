@@ -164,6 +164,28 @@ row: patient — patient
 ### phrase-gloss un moteur diesel
 row: moteur — motor, engine
 row: diesel — diesel
+### phrase-gloss Elles sont au nombre de sept.
+row: au nombre de — numbering
+row: sept — seven
+### phrase-gloss Il est à la fois sévère et amical.
+row: à la fois — at a time, at the same time, at once
+row: sévère — severe, harsh
+row: amical — friendly, amicable
+### phrase-gloss Il est au courant de tout.
+row: au courant — up to date, abreast
+### phrase-gloss Elle se mit au lit.
+row: se mettre — to place oneself in a place
+row: au lit — in bed
+### phrase-gloss grâce au travail du monteur
+row: grâce à — thanks to
+row: travail — work, labor
+row: monteur — editor (film, TV, etc.)
+### phrase-gloss J'ai besoin de toi.
+row: avoir besoin de — to need
+### phrase-gloss C'est ce que tu veux.
+row: c'est — it is (used to define the preceding word)
+row: ce que — what (relative pronoun - direct object)
+row: vouloir — to want, wish, desire
 ### phrase-gloss l’homme
 row: homme — man (adult male human)
 ### word-grammar est être
