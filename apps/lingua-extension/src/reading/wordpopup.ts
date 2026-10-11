@@ -388,6 +388,7 @@ export function createCard(
 
   /** The speakers whose changes redraw the listen row: the card's own, and those of the languages a word was read in. */
   const followed = new Set<Speaker>();
+  const byLanguage = new Map<StudiedLanguage, Speaker>();
   function follow(voice: Speaker | undefined): void {
     if (!voice || followed.has(voice)) return;
     followed.add(voice);
@@ -402,8 +403,14 @@ export function createCard(
    * D4); the card's own otherwise. Its sentence is always the document's, so the card's own.
    */
   function wordSpeakerOf(content: WordPopupContent): Speaker | undefined {
-    const voice = content.readIn && speakerFor ? speakerFor(content.readIn) : speaker;
-    follow(voice);
+    if (!content.readIn || !speakerFor) return speaker;
+    // Asked once per language: the card follows the speaker it was given, whatever `speakerFor` returns next.
+    let voice = byLanguage.get(content.readIn);
+    if (!voice) {
+      voice = speakerFor(content.readIn);
+      byLanguage.set(content.readIn, voice);
+      follow(voice);
+    }
     return voice;
   }
 
