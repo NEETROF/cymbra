@@ -1,11 +1,11 @@
 {
   "snapshot": "2026.10.08",
   "pack": {
-    "sha256": "acaff30db316bb74cbe9d5e0d5c94f035e4f7ffe7f55011ec9277bdb29eae40e",
-    "size": 2612075
+    "sha256": "666248e2bd862f5b87adb23a81fcf72255f0d89b294c02bd54f482039deb9e3f",
+    "size": 2626743
   },
   "reducer": {
-    "sha256": "ee357febd0f8bcdccb135dddd563a0c49dee7558961996675a14c5a416bb35de",
+    "sha256": "685ebaae1597e8588d0e9db72fb7ce55e13fedd63140435e2d21aad0e4bd8c0b",
     "files": [
       "reduce-es-en.py",
       "reduce_common.py",
