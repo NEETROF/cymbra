@@ -38,7 +38,10 @@ kind of fact that should be on the record before the platform moves again.
 - **Not in scope**: mobile (see Impact), Shorts, live streams, embedded players, transcribing audio
   ourselves, other video sites, and captions in a language other than English: Spanish, which
   Lingua now studies too, is left out by the Spanish programme's decision D7
-  (`docs/lingua/spanish-programme.md`).
+  (`docs/lingua/spanish-programme.md`), and French by the language matrix programme, which carries
+  D7 (`docs/lingua/language-matrix-programme.md`). The mode reads English captions for a reader who
+  studies English, whatever their native language (French or Spanish); an English speaker, who
+  does not study English, is not offered it.
 
 ## Capabilities
 

@@ -223,7 +223,7 @@ in ideal days, min–max, after the verifiers' corrections; it measures size, no
 | 4 Agent and wording | 54 | `refine-lingua-language-wording` (Spanish change 33, carried) | 1.5–3 | Not started; waits on archives |
 | 4 | 55 | `add-lingua-agent-native-language` (M17) | 2–4 | Dropped: the owner keeps the agent plugin out of this programme (M17, 2026-10-09) |
 | 4 | 56 | `refine-lingua-matrix-wording` | 0.5–4 | Not started |
-| 4 | 57 | `amend-lingua-youtube-captions-matrix` | 0.5–1 | Not started |
+| 4 | 57 | `amend-lingua-youtube-captions-matrix` | 0.5–1 | Done: the open change reads English captions only, for a reader who studies English whatever their native language; scenarios for a reader of French on a French video, a Spanish-speaking reader of English, and an English speaker (not offered) |
 
 Optional, outside the counts: `guard-lingua-translation-source-language` (1–2),
 `add-admin-lingua-pair-usage` (3–5.5), `add-lingua-new-device-language-offer` (1.5–3),
