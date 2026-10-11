@@ -307,9 +307,28 @@ describe("a Spanish word on a French page, for an English speaker who studies Sp
     session.detach();
   });
 
-  it("is stopped with every voice it opened", async () => {
+  it("speaks a word read in another language with one speaker per language, stopped with the session", async () => {
     const { session } = await opened();
+    const voices = session as unknown as { speakerFor(l: StudiedLanguage): { lang: string; stop(): void } };
+    const spanish = voices.speakerFor("es");
+    expect(spanish.lang).toBe("es");
+    expect(voices.speakerFor("es")).toBe(spanish);
+    const stop = vi.spyOn(spanish, "stop");
     session.stop();
+    expect(stop).toHaveBeenCalled();
+  });
+
+  it("paints a remembered word by the analysis when its language cannot answer", async () => {
+    const { session, page, card, port } = await opened();
+    const driven = session as unknown as Driven;
+    await driven.onGesture(gestureOn(card, "known"));
+    expect(page.painted(HL_UNKNOWN)).toEqual([]);
+    port.phraseGloss = async () => {
+      throw new Error("engine down");
+    };
+    await driven.repaint();
+    expect(page.painted(HL_UNKNOWN)).toEqual(["hablaba"]);
+    session.detach();
   });
 });
 
