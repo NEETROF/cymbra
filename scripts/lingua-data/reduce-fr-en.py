@@ -132,8 +132,8 @@ met through another word's form, words met as they are where the headword names 
 cry, a colloquial spelling met as the standard one (D1); a sense, or a piece of it between
 semicolons, that only notes a form or a usage is no meaning (`_FORM_NOTE`, D2: « j'ai » "I've, I
 have", « puis-je » none); and « de l' » opens on « de la »'s first sense, "of the" (`LENT_SENSES`,
-D3). Measured on the tables of add-lingua-fr-en-translated-expressions: 116 names (the design's 111
-and five read on those tables), 119 rows out of `mwe.tsv`, 68,361 → 61,780 matches on 1,060,904
+D3). Measured on the tables of add-lingua-fr-en-translated-expressions: 115 names (the design's 111
+and four read on those tables), 118 rows out of `mwe.tsv`, 68,361 → 61,780 matches on 1,060,904
 words. A name left out and an expression that only points are not read from the French Wiktionary's
 table either (`translated_expressions`). The rules are this reducer's, for the same reason as the
 table's: a shared module edited would re-pin every pair.
@@ -2144,10 +2144,11 @@ LEFT_OUT = {
     # person read wrong in most of the contexts they are met in. Every section expression met ten times
     # or more on the five corpora of add-lingua-fr-en-translated-expressions' design (1,060,904 words)
     # was read in three or four of its sentences; each row gives the section's gloss, its matches there
-    # on that change's tables, how they are met and one example. « ça va », « à la base » and « en
-    # série » came to ten matches on those tables, and « de poids » and « de plus belle » once these
-    # rows left out « de plus » (their matches then): each was read in all its sentences (this change's
-    # task 1.1).
+    # on that change's tables, how they are met and one example. « à la base » and « en série » came to
+    # ten matches on those tables, and « de poids » and « de plus belle » once these rows left out « de
+    # plus » (their matches then): each was read in all its sentences (this change's task 1.1). « ça va »
+    # came to ten too, read « it's going to » in 11 of 18, but stays: its key is « ça ira »'s, which
+    # would then meet every « ça va » (« Ça va ? » « it will be all right »).
     #
     # A labelled sense met as plain words: every sense of the entry carries a register or a region
     # (informal, slang, Quebec, Internet, derogatory, literary…) the plain words do not.
@@ -2440,10 +2441,6 @@ LEFT_OUT = {
     ),
     "tout fait": (
         "the section's « ready-made »: of 18 matches, met in « tout fait peur », « j'ai tout fait »"
-    ),
-    "ça va": (
-        "the section's « how are you? how's it going? », a greeting: of 18 matches, met as « ça » + « va » "
-        "before an infinitive, the near future (« Ça va être difficile pour vous »)"
     ),
     "de grâce": (
         "the section's « please »: of 17 matches, met in « pleine de grâce »"
@@ -3031,8 +3028,8 @@ def lent_senses(expressions):
 # « sur ce », « et si », « point d'inflexion ») and the 51 the table's review added (D5); 2 / 3 the
 # section leaves out as only pointing; 133 / 0 a key the section reaches; 783 / 265 only repeat
 # their headword; 23,141 / 2,766 kept, the builder keying 17,014 / 117 of them. With the section's
-# own names of refine-lingua-fr-en-expressions D1 in `LEFT_OUT`, 51 headwords the section glossed
-# count as left out by name instead (7,385 / 1,149 the section glosses, 102 / 4 `LEFT_OUT` names),
+# own names of refine-lingua-fr-en-expressions D1 in `LEFT_OUT`, 50 headwords the section glossed
+# count as left out by name instead (7,386 / 1,149 the section glosses, 101 / 4 `LEFT_OUT` names),
 # and none of the table's comes in: the kept rows are the same.
 # `reduce_common.fallback_expressions` reads a headword with a space alone, and every pair's rows go
 # through it: the steps are written here, fr-en's own, so that no shared module is edited and no

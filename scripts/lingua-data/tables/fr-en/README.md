@@ -1267,7 +1267,8 @@ match in ten of the result still reads wrong, « premières sorties de l'eau » 
 owner reads a sample of 100 drawn from these tables (task 6.2). The section's own expressions read
 wrong as often (« de l'équipe » met as the partitive "some", « il m'a sauvé » as "“I'm going”", « en
 faisant » as « en fait » "actually", « sur le champ de bataille »'s « champ » in fr-es's « sur le
-champ » "En el acto"): a refinement of their own (the design's Open Questions 3 and 4).
+champ » "En el acto"): a refinement of their own (the design's Open Questions 3 and 4), fr-en's
+done by refine-lingua-fr-en-expressions (*The section's expressions read where they are met*).
 
 **The French baseline**: `fr-en.golden` moves in its pack, notice and licences and in four phrase
 probes that now meet a table expression — « Il est prêt à le faire » « prêt à » "ready, about to",
@@ -1278,6 +1279,88 @@ both French goldens — « Il existe plusieurs solutions. » meets « il existe 
 autres enfants jouent dehors. » none, « au Moyen Âge » « moyen âge » "Middle Ages". « une crème
 brûlée » and « sur le champ de bataille », probes of refine-lingua-fr-es-expressions, still meet the
 section's « crème brûlée » and « champ de bataille », not « sur le champ ».
+
+## The section's expressions read where they are met (`mwe.tsv`)
+
+refine-lingua-fr-en-expressions, the owner's decision of 2026-10-10: the English Wiktionary's French
+section's own expressions are offered only where their gloss says what the words mean where a reader
+meets them. Three rules of `reduce-fr-en.py`, over the section's expressions alone (`is_expression`):
+`gloss.tsv`, `senses.tsv`, `../fr/`, French's dictionary words, levels and coverage do not move, and
+no shared module is edited, so no other pair re-pins.
+
+1. **A reviewed list** (D1). Every section expression met ten times or more on the corpora of *The
+   French Wiktionary's expressions* was read in three or four of its sentences (734 on the tables
+   before add-lingua-fr-en-translated-expressions; on its tables, the 13 that came to ten and the 3 that
+   came to ten once the list was applied were read in all their sentences). **115 read wrong in most
+   of their contexts are left out by name**, in `LEFT_OUT` with their reasons — the section's gloss,
+   their matches on those tables, how they are met and one example:
+   - a labelled sense met as plain words (47; 2,945 matches): every sense carries a register or a
+     region the plain words do not — « pas de » "without", Quebec (607: « il n'a pas d'enfants »),
+     « dire que » "to think that", « histoire de » "in order to", « j'aime » "a like", « à toute » "see
+     you", « fait que », « sa mère » "(so) fucking", « de deux », « pas que », « t'a », « sais pas »,
+     « espèce de », « m'as », « vu que », « de couleur », « encore que », « la faire », « du reste »,
+     « au plus », « comme tout », « et quelques », « de première », « du vent », « à plus », « qui
+     parle », « à la place », « la ferme », « à d'autres », « tu parles », « d'aucuns », « des
+     familles », « et encore », « faire avec », « en fait de », « y passer », « à la limite »,
+     « rapport à », « bande de », « faire bien », « s'en être », « se prendre », « c'est cela », « du
+     diable », « quoi faire », « de un », « faire sans », « y rester »;
+   - a headword met through another word's form (22; 1,830): its key reads a word through its
+     dictionary form, and the page writes another — « d'autre » "else" on « d'autres » (461), « en
+     être » on « en est », « de nouveau » "again" on « de nouveaux », « de fait » on « de faire »,
+     « en fait » "actually" on « en faisant », « étant donné », « en tout », « n'eût été », « tenir
+     de », « il ne fallait pas », « ceci étant », « la tienne », « cela étant », « la majeur »,
+     « attendu que », « en tenue », « en devenir », « se passer de », « avoir lieu de », « à
+     découvert », « de plus belle » on « de plus beau », « à l'anglaise »;
+   - words met as they are, where the headword names a set phrase, a field's sense or a cry (44;
+     1,645): « être à » "to belong to" (293), « de plus » "moreover", « nombre de » "quite a few",
+     « première fois » "first time (the first instance of sexual intercourse)", « à moi » "help!",
+     « d'y », « le temps de », « au pied » "to heel!", « de droit », « bon dieu », « de rien » "you're
+     welcome" (« ne … de rien »), « au travail », « c'est moi », « un tel », « de service », « de
+     jour », « du siècle », « de confiance », « qui sait », « tout fait », « de grâce », « avoir mal »,
+     « d'esprit », « de cœur », « le chercher », « au reste », « avoir raison de », « au feu », « bien
+     fait », « de force », « de tête », « pauvre de », « à suivre », « à la base » "originally", « en
+     série » (« en Serie A »), « de poids » (« perdre un peu de poids »), « d'un coup », « de concert »,
+     « du temps de », « à l'horizon », « à la pointe », « au courant », « le leur », « au point »;
+   - a colloquial spelling met as the standard one (2; 505): « m'a » "I'm going" (455: « il m'a
+     sauvé »), « t'es » "you're".
+
+   Read and kept: « ça va » reads « it's going to » in 11 of its 18 matches, but its key is « ça
+   ira »'s, which would then meet every « ça va » (« Ça va ? » "it will be all right"); « la leur »
+   reads « theirs » in 5 of 10. The French Wiktionary's table does not bring a name back: 50 of its
+   headwords the section glossed count as left out by name instead (7,386 / 1,149 headwords the
+   section glosses, 101 / 4 left out by name), and the kept rows are the same 23,141 / 2,766.
+2. **A sense that only notes a form or a usage is no meaning** (D2, `_FORM_NOTE`). A sense, or a
+   piece of it between semicolons, opening on « compound of X and Y », « (the|an|a) (interrogative)
+   form of X … in the first|second|third-person », « an interrogative form of », « for non-idiomatic
+   uses », « used only in the » or « equivalent to “ » goes, and an expression left with none is
+   none and counts as only pointing, so the table leaves it out too: « j'ai » "I've, I have", « ne
+   faire que » "only, merely, just; …", and « a-t-il », « puis-je », « colin-tampon » out (148
+   matches); « à moi », « m'as » and « s'en être » are on the list as well. « a form of » alone opens
+   meanings and stays (« pain d'épice » "a form of French gingerbread").
+3. **« de l' » reads "of the" first** (D3, `LENT_SENSES`). The section glosses it by the partitive
+   alone, where it is « de la » or « du » before a vowel and both are glossed "of the" first (29 of 30
+   sampled matches): it opens on « de la »'s first sense, "of the; some; the singular prevocalic
+   partitive ar". « de l'eau » keeps its partitive.
+
+**Measured** with the design's harness on 1,060,904 words (the tables of
+add-lingua-fr-en-translated-expressions → these): `mwe.tsv` 43,542 → 43,424 rows (the section's
+17,635 → 17,517, three glosses changed); the pack 3,004,986 → 3,002,217 B; **68,361 → 61,780
+expression matches**, 64.4 → 58.2 per 1,000 words, 55.7 → 52.5 % of lines meeting one (GSD 19,903 →
+18,339, Gutenberg 14,283 → 12,375, Wikipedia 22,286 → 20,783, Tatoeba 11,829 → 10,232, the
+baseline's pages 60 → 51). 7,100 matches go — 6,925 of the list, 148 of the expressions left with no
+sense, 27 displaced — and 519 come, a shorter or later expression a listed one hid (465 of the
+section, 54 of the table: « en faisant du bruit » meets « faire du bruit » "to make a lot of noise").
+The design's samples (one judge): of 300 matches before, 221 right, 13 partly, 66 wrong; of 100
+drawn from its prototype's result, 95 right, 2 partly, 3 wrong.
+
+**What is left**: the expressions met fewer than ten times are not read one by one (about one wrong
+in ten, sampled); the matcher's runs across a number or a punctuation mark the tokeniser drops (« en
+2007 est » meets « en être », 0.9 % of the matches) and a split word keyed by its verb's dictionary
+form met in another tense (« j'ai » on « j'avais ») are the engine's, which moves fr-es too.
+
+**The French baseline**: `fr-en.golden` moves in its pack and in three phrase probes — « de l’eau »
+and « de l'huile d'olive » meet « de l' » "of the; some; …", and « j'ai recu ta reponse » « j'ai »
+"I've, I have"; no other probe answers differently, fr-es's golden not at all.
 
 ## What the later changes add
 
@@ -1292,6 +1375,7 @@ section's « crème brûlée » and « champ de bataille », not « sur le champ
 | 43c keep-lingua-french-acronyms-in-capitals | done: French's acronym table, `CA` alone — a form in capitals that is its own lemma, a dictionary word with no rank or level, glossed from fr-en's expressions (*The rules*, *The glosses*); French's analyser `1.3.0` |
 | 43d read-lingua-french-dictionary-unmarked-spellings | done: the dictionary's own unmarked spellings read as their word when it is the commoner (`etre` → *être*, `etat` → *état*, `repond` → *répondre*; *The rules*); it ships with or after 43b |
 | 48c add-lingua-fr-en-translated-expressions | done: the French Wiktionary's English translations complete the expressions (*The French Wiktionary's expressions*); the pin records two editions under two releases |
+| 48d refine-lingua-fr-en-expressions | done: the section's own expressions read where they are met — a reviewed list, the form notes, « de l' » "of the" (*The section's expressions read where they are met*) |
 | 49 fr-es | a reader of `../fr/` as committed, capped at the same 60,000 |
 
 ## Licences

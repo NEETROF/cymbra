@@ -3483,7 +3483,7 @@ class SectionExpressionsReadWhereMet(unittest.TestCase):
             self.assertNotEqual(word, lender)
 
     def test_the_reviewed_list(self):
-        # D1: the 111 names of the design, grouped by reason, and the five task 1.1 read on
+        # D1: the 111 names of the design, grouped by reason, and the four task 1.1 read on
         # add-lingua-fr-en-translated-expressions' tables; each row gives the section's gloss and its
         # matches on the corpora.
         design = [
@@ -3508,10 +3508,12 @@ class SectionExpressionsReadWhereMet(unittest.TestCase):
             # A colloquial spelling met as the standard one (2).
             "m'a", "t'es",
         ]
-        task_1_1 = ["ça va", "à la base", "en série", "de poids", "de plus belle"]
+        task_1_1 = ["à la base", "en série", "de poids", "de plus belle"]
         self.assertEqual(len(design), 111)
         rows = list(red.LEFT_OUT)[68:]
-        self.assertEqual(len(rows), 116)
+        self.assertEqual(len(rows), 115)
+        # « ça va » stays: its key is « ça ira »'s, which would then meet every « ça va ».
+        self.assertNotIn("ça va", red.LEFT_OUT)
         self.assertEqual(set(rows), set(design) | set(task_1_1))
         for word in rows:
             self.assertRegex(red.LEFT_OUT[word], r"^the section's « .+ »", word)
