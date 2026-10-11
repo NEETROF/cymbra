@@ -2,16 +2,17 @@ import { INTERFACE_LANGUAGES, type InterfaceLanguage } from "../i18n/index.ts";
 import { nativeLanguageChosen } from "../state/native-language.ts";
 import { LAST_NATIVE_KEY } from "../state/store.ts";
 
-// Which language Cymbra ID writes to the reader in, and which deletion page the account page links
-// to (localise-lingua-account-onboarding D2, decision M12 of the language matrix programme, and the
-// owner's choice of D2's second way on 2026-10-10). The account's locale is shared: Cymbra ID stores
-// a non-empty one as sent, last writer wins, and Cymbra Music adopts it — so what the extension sends
-// moves the e-mails of every Cymbra app, on every device. Hence: the interface language only once the
-// reader has chosen it on this device (the choice is a device's, never synced); until then the
-// browser's whole tag where nothing is written over (sign-up, a new account; setting a password,
-// which records nothing), and no locale at all where the account's would be written over (resending
-// the code, requesting a reset), so the server keeps what the account has — a language the reader
-// chose on another device, or Music's — and writes the e-mail in it.
+// Which locale the account page sends Cymbra ID, and which deletion page it links to
+// (localise-lingua-account-onboarding D2, decision M12 of the language matrix programme;
+// send-lingua-browser-locale-on-account-emails D1–D3). The account's locale is shared — Cymbra Music
+// adopts it, its reminders read it — and Cymbra ID (prefer-account-locale-for-emails) writes every
+// account e-mail in the account's stored language, else the request's, else English, and records a
+// request's locale only on an account that has none: only `SetLocale`, which the extension never
+// calls, replaces a stored one. So no request this page sends, from any device, moves a language the
+// account has, and the locale it carries decides the e-mail only for an account that has none. Hence
+// one locale on the four requests (sign-up, resending the code, requesting a reset, setting a
+// password): the browser's whole tag until the reader has chosen their language on this device (the
+// choice is a device's, never synced), and the interface language once they have.
 
 /**
  * The languages Cymbra speaks: Cymbra Music's locales (`apps/music/lib/l10n/app_<code>.arb`), the
@@ -71,29 +72,25 @@ export async function chosenLanguage(preferences: KeyArea, store: KeyArea): Prom
   }
 }
 
-/** What the account page tells Cymbra ID, and what its deletion link is chosen by (D2). */
+/** What the account page tells Cymbra ID, and what its deletion link is chosen by (D1). */
 export interface AccountLanguage {
-  /** The locale the requests carry: sign-up, setting a password, and the other two unless kept. */
+  /** The locale the four requests carry: sign-up, the code resent, a reset requested, a password set. */
   locale: string;
-  /**
-   * Whether resending the code and requesting a reset carry no locale, so Cymbra ID keeps the
-   * account's own and writes the e-mail in it (`user-locale-preference`: an empty locale does not
-   * overwrite; the stored one is used when the request carries none).
-   */
-  keepAccountLocale: boolean;
   /** The tag `deleteAccountUrl` reads. */
   deletion: string;
 }
 
 /**
- * The account page's languages (D2, the second way, the owner's of 2026-10-10). Until the reader has
- * chosen the language the page is in (`chosen`, `chosenLanguage`): the browser's whole tag (`en-GB`,
- * `fr-FR`) as the page always sent it, French when the browser gives none, at sign-up and when
- * setting a password; no locale when resending the code or requesting a reset, so the account keeps
- * its own, whichever device or app gave it; and the deletion page by the browser's tag, as before. A
- * device where the reader never chose thus writes over no account's language — Cymbra Music's
- * included. Once they have: the account locale (`accountLocale`) on all four, and the deletion page
- * by the interface language alone — a page the reader reads, where the account locale may be the
+ * The account page's languages (D1). Until the reader has chosen the language the page is in
+ * (`chosen`, `chosenLanguage`): the browser's whole tag (`en-GB`, `fr-FR`) on the four requests, as
+ * the page always sent it at sign-up and when setting a password, French when the browser gives none,
+ * and the deletion page by that tag, as before. Cymbra ID records it only on an account that has no
+ * language, so a device where the reader never chose writes over no account's language — one chosen
+ * on another device or given by Cymbra Music — and an account without one gets its e-mails in the
+ * browser's language rather than English. The whole tag, not a bare code (D3): Music adopts only a
+ * whole code of its own, so its screen is not moved from a device where the reader chose nothing.
+ * Once they have chosen: the account locale (`accountLocale`) on all four, and the deletion page by
+ * the interface language alone — a page the reader reads, where the account locale may be the
  * browser's `it`.
  */
 export function accountLanguage(
@@ -103,13 +100,9 @@ export function accountLanguage(
 ): AccountLanguage {
   if (chosen !== interfaceLanguage) {
     const tag = browserLanguage || NO_BROWSER_LANGUAGE;
-    return { locale: tag, keepAccountLocale: true, deletion: tag };
+    return { locale: tag, deletion: tag };
   }
-  return {
-    locale: accountLocale(interfaceLanguage, browserLanguage),
-    keepAccountLocale: false,
-    deletion: interfaceLanguage,
-  };
+  return { locale: accountLocale(interfaceLanguage, browserLanguage), deletion: interfaceLanguage };
 }
 
 /**

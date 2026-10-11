@@ -50,9 +50,10 @@ export async function mountAccountPage(doc: Document, deps: AccountPageDeps): Pr
   // that fails is no choice.
   const chosen = chosenLanguage(deps.area, deps.store);
   const { language } = await filled;
-  // Until the reader has chosen the language the page is in, nothing written over the account's
-  // language and the deletion page by the browser's tag; the account locale and the interface
-  // language's page once they have (D2).
+  // Until the reader has chosen the language the page is in, the browser's tag on the four requests
+  // — Cymbra ID records it only on an account that has no language — and the deletion page by that
+  // tag; the account locale and the interface language's page once they have
+  // (send-lingua-browser-locale-on-account-emails D1).
   const said = accountLanguage(language, deps.browserLanguage, await chosen);
   const root = doc.getElementById("account-root");
   if (!root) return null;
@@ -103,9 +104,8 @@ export async function mountAccountPage(doc: Document, deps: AccountPageDeps): Pr
       send: deps.send,
       pending: deps.pending,
       pendingPassword: deps.pendingPassword,
-      // What Cymbra ID writes to the reader in, and the deletion page (D2).
+      // The locale the four requests carry, and the deletion page (D1).
       locale: said.locale,
-      keepAccountLocale: said.keepAccountLocale,
       deletionLanguage: said.deletion,
       language,
       clearPersistedError: deps.clearPersistedError,
