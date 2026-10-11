@@ -1268,12 +1268,21 @@ _WEB_TOP = [w for w in sorted(_WEB_FREQ_ALL, key=lambda w: (-_WEB_FREQ_ALL[w], w
 # Change 43b's four rows alone: the tables without the web's list.
 _CA_ROWS = {form: row for form, row in red.UNMARKED_SPELLINGS.items() if form in ("ca", "age", "ages", "forcement")}
 
+# The rows as change 43e left them: 43b's, the web's list and the owner's exceptions.
+_WEB_ROWS = {
+    form: row
+    for form, row in red.UNMARKED_SPELLINGS.items()
+    if form not in red.WEB_HYPHENATED and form not in red.WEB_MISACCENTED
+}
+
 
 def _without_the_web_list():
     """The reducer as change 43b left it: its four rows, no list, no exceptions."""
     return [
         mock.patch.dict(red.UNMARKED_SPELLINGS, _CA_ROWS, clear=True),
         mock.patch.dict(red.WEB_SPELLINGS, {}, clear=True),
+        mock.patch.dict(red.WEB_HYPHENATED, {}, clear=True),
+        mock.patch.dict(red.WEB_MISACCENTED, {}, clear=True),
         mock.patch.object(red, "_FOLLOWED_ROWS", frozenset()),
     ]
 
@@ -1310,7 +1319,9 @@ class WebUnmarkedSpellings(unittest.TestCase):
             self.assertNotIn(spelling, red.WEB_SPELLINGS)
             self.assertEqual(red.UNMARKED_SPELLINGS[spelling][0], word)
             self.assertNotEqual(red.UNMARKED_SPELLINGS[spelling][1], red.WEB_REASON)
-        self.assertEqual(len(red.UNMARKED_SPELLINGS), 4 + 4 + 464)
+        # read-lingua-french-hyphenated-and-misaccented-spellings' two lists beside it
+        # (`HyphenatedAndMisaccentedSpellings` below).
+        self.assertEqual(len(red.UNMARKED_SPELLINGS), 4 + 4 + 464 + 19 + 65)
         # Never an elided piece, `du` or `des`, nor a word a reader can mean, nor a spelling English writes
         # more often but the exception `sure`.
         never = ("ou", "a", "la", "sur", "du", "des", "cote", "tache", "pale", "foret", "aine")
@@ -1320,12 +1331,13 @@ class WebUnmarkedSpellings(unittest.TestCase):
             self.assertNotIn(spelling, red.ELISIONS)
             self.assertNotIn(spelling, red.OWN_WORDS)
             self.assertNotIn(spelling, red.OVERRIDES)
-            self.assertTrue(red.is_form(spelling), spelling)
+            # But `oú`, whose `ú` is no letter of French's forms (`HyphenatedAndMisaccentedSpellings`).
+            self.assertTrue(red.is_form(spelling) or spelling == "oú", spelling)
 
     def test_every_row_names_a_ranked_lemma_whose_form_it_writes_without_marks(self):
         # In the committed tables (43b's test, over every row): the word is a ranked lemma reading as
         # itself, the spelling reads as it and is no rank, and it is the word, or one of its forms,
-        # written without its marks.
+        # written without its marks — or, for a misaccented row, with other marks on its letters.
         forms, ranks = _committed("fr/forms.tsv"), _committed("fr/freq.tsv")
         by_word = collections.defaultdict(set)
         for form, lemma in forms.items():
@@ -1335,7 +1347,7 @@ class WebUnmarkedSpellings(unittest.TestCase):
             self.assertEqual(forms[word], word, word)
             self.assertEqual(forms[spelling], word, spelling)
             self.assertNotIn(spelling, ranks, spelling)
-            self.assertIn(spelling, by_word[word], spelling)
+            self.assertIn(red._marks_dropped(spelling), by_word[word], spelling)
 
     def test_spec_scenario_a_spelling_no_entry_names_reads_as_its_word(self):
         # `tres` no entry names, `arrete` whose verb lists `arrête` and `arrêté`: their word alone.
@@ -1475,6 +1487,203 @@ class WebUnmarkedSpellings(unittest.TestCase):
         grammar = [line.split("\t") for line in open(os.path.join(_TABLES, "fr", "grammar.tsv"), encoding="utf-8").read().splitlines()]
         self.assertIn(["recu", "recevoir", "VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part", "-"], grammar)
         self.assertEqual(len([row for row in grammar if row[0] == "arrete"]), 6)
+
+
+# read-lingua-french-hyphenated-and-misaccented-spellings: the section's entries for `celui-là` and its
+# forms (`celle-là` among them), `règle` and `régler` (whose `règle` and `réglé` a wrong accent may
+# write), `âge` and `âgé`, and `problême` « alternative form of problème », a misaccented spelling the
+# dictionary itself gives; `peut-être`, `c'est-à-dire`, `arrêter` (`arrête`, `arrêté`) are the fixtures'
+# already.
+HM_SECTION = [
+    entry(
+        "celui-là",
+        pos="pron",
+        forms=[("celle-là", ["feminine", "singular"]), ("ceux-là", ["masculine", "plural"]), ("celles-là", ["feminine", "plural"])],
+        senses=[{"glosses": ["that one"]}],
+    ),
+    form_of("celle-là", "celui-là", pos="pron", tags=("feminine", "form-of", "singular")),
+    entry("règle", forms=[("règles", ["plural"])], senses=[{"glosses": ["rule"], "tags": ["feminine"]}]),
+    entry("régler", pos="verb", forms=[*TABLE_HEAD, ("règle", PRESENT_3S), ("réglé", PARTICIPLE)], senses=[{"glosses": ["to settle"]}]),
+    entry("âge", forms=[("âges", ["plural"])], senses=[{"glosses": ["age"], "tags": ["masculine"]}]),
+    entry("âgé", pos="adj", forms=[("âgée", ["feminine", "singular"])], senses=[{"glosses": ["old"]}]),
+    entry("problème", forms=[("problèmes", ["plural"])], senses=[{"glosses": ["problem"], "tags": ["masculine"]}]),
+    _spells("problême", "problème", "alternative form of"),
+]
+# wordfreq's Zipf values for them (3.1.1, rounded), and for the misaccented spellings it ranks today;
+# a hyphenated spelling's is wordfreq's estimate from its pieces (`peut-etre` is `etre`'s).
+HM_FREQ = {
+    **WEB_FREQ, "celui-là": 4.6, "celle-là": 4.4, "peut-etre": 4.75, "c'est-a-dire": 5.86, "celle-la": 4.0, "règle": 4.7, "règles": 4.9, "régler": 4.5, "réglé": 3.9, "âge": 5.0, "âgé": 4.2,
+    "âgée": 4.0, "problème": 5.4, "problèmes": 5.0, "problême": 2.3, "trés": 3.9, "déja": 4.0, "agé": 3.0,
+    "arreté": 2.9, "régle": 2.7,
+}
+_HM_ENTRIES = [*_WEB_ENTRIES, *HM_SECTION]
+_HM_FREQ_ALL = {**FREQ, **HM_FREQ}
+_HM_TOP = [w for w in sorted(_HM_FREQ_ALL, key=lambda w: (-_HM_FREQ_ALL[w], w)) if "-" not in w]
+# GSD attests `celui-là` as a lemma: change 43 ranks a hyphenated lemma so.
+_HM_GSD = [*GSD, ("celui-là", "celui-là", 4), ("celle-là", "celui-là", 2)]
+
+
+class HyphenatedAndMisaccentedSpellings(unittest.TestCase):
+    """read-lingua-french-hyphenated-and-misaccented-spellings: the web's hyphenated words without
+    their marks and its words with wrong marks read as the word a reviewed list names (D1–D3), each
+    carrying the readings of the forms whose marks it keeps (D4)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with mock.patch.dict(FREQ, HM_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _HM_TOP):
+            cls.out = Main.run_main(cls, _HM_ENTRIES, gsd=_HM_GSD)
+            with mock.patch.dict(red.WEB_HYPHENATED, {}, clear=True), mock.patch.dict(red.WEB_MISACCENTED, {}, clear=True):
+                with mock.patch.dict(red.UNMARKED_SPELLINGS, _WEB_ROWS, clear=True):
+                    cls.before = Main.run_main(cls, _HM_ENTRIES, gsd=_HM_GSD)
+        cls.forms, cls.ranks = _tsv(cls.out["forms.tsv"]), _tsv(cls.out["freq.tsv"])
+        cls.grammar = [row.split("\t") for row in cls.out["grammar.tsv"].splitlines()]
+
+    def readings(self, form):
+        return sorted((lemma, tag, mark) for f, lemma, tag, mark in self.grammar if f == form)
+
+    def test_spec_scenario_every_row_is_a_decision(self):
+        # The owner's two lists, alphabetical, merged with one reason each; never an elided piece,
+        # 43e's never-list, nor another language's word or the two left out by name.
+        self.assertEqual((len(red.WEB_HYPHENATED), len(red.WEB_MISACCENTED)), (19, 65))
+        for literal, reason in ((red.WEB_HYPHENATED, red.HYPHENATED_REASON), (red.WEB_MISACCENTED, red.MISACCENTED_REASON)):
+            self.assertEqual(list(literal), sorted(literal))
+            for spelling, word in literal.items():
+                self.assertEqual(red.UNMARKED_SPELLINGS[spelling], (word, reason), spelling)
+                self.assertNotIn(spelling, red.WEB_SPELLINGS)
+                self.assertNotIn(spelling, red.ELISIONS)
+                self.assertNotIn(spelling, red.OWN_WORDS)
+                self.assertNotIn(spelling, red.OVERRIDES)
+                # `oú`'s `ú` is no letter of French's forms: no entry's inflection names it, the row
+                # alone seeds it, and the analysis, which reads any letter, looks it up.
+                self.assertEqual(red.is_form(spelling), spelling != "oú", spelling)
+        self.assertNotEqual(red.HYPHENATED_REASON, red.MISACCENTED_REASON)
+        never = ("ou", "a", "la", "sur", "du", "des", "cote", "tache", "pale", "foret", "aine")
+        others = ("á", "lá", "ã", "cà", "accés", "procés", "succés", "çe", "abbès", "problême", "réglement", "elle-meme")
+        for spelling in (*never, *others):
+            self.assertNotIn(spelling, red.UNMARKED_SPELLINGS, spelling)
+        # A hyphenated row is its word's form with every mark dropped; a misaccented row carries a mark
+        # and has the letters of a form of its word (committed tables).
+        forms = _committed("fr/forms.tsv")
+        of_word = collections.defaultdict(set)
+        for form, lemma in forms.items():
+            of_word[lemma].add(form)
+        for spelling, word in red.WEB_HYPHENATED.items():
+            self.assertIn("-", spelling)
+            self.assertEqual(red._marks_dropped(spelling), spelling)
+            self.assertIn(spelling, {red._marks_dropped(f) for f in of_word[word] if f != spelling}, spelling)
+        for spelling, word in red.WEB_MISACCENTED.items():
+            self.assertNotEqual(red._marks_dropped(spelling), spelling, spelling)
+            letters = {red._marks_dropped(f) for f in of_word[word] if f != spelling and red._marks_at(f)}
+            self.assertIn(red._marks_dropped(spelling), letters, spelling)
+
+    def test_spec_scenario_a_hyphenated_row_is_the_whole_run(self):
+        # `peut-etre` and `celle-la` read as *peut-être* and *celui-là*, a form of its word alone, and
+        # `celle-la` carries `celle-là`'s reading.
+        self.assertEqual(self.forms["peut-etre"], "peut-être")
+        self.assertEqual(self.forms["c'est-a-dire"], "c'est-à-dire")
+        self.assertEqual(self.forms["celle-la"], "celui-là")
+        self.assertEqual(self.readings("celle-la"), self.readings("celle-là"))
+        self.assertEqual(self.readings("celle-la"), [("celui-là", "PRON|Gender=Fem|Number=Sing", "-")])
+        # Without the lists, no form: the pre-pass would read an unknown compound.
+        before = _tsv(self.before["forms.tsv"])
+        for spelling in ("peut-etre", "celle-la"):
+            self.assertNotIn(spelling, before, spelling)
+
+    def test_spec_scenario_a_misaccented_row_reads_as_the_form_whose_marks_it_keeps(self):
+        # `arreté` keeps `arrêté`'s final mark: *arrêter*, with that participle's reading alone, not
+        # `arrête`'s present, which `arrete` carries too.
+        self.assertEqual(self.forms["arreté"], "arrêter")
+        self.assertEqual(self.readings("arreté"), [("arrêter", "VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part", "-")])
+        self.assertGreater(len(self.readings("arrete")), len(self.readings("arreté")))
+        # `agé` → *âgé*, not *âge*; `régle` → *règle*, with *régler*'s present as `other`, as `règle`.
+        self.assertEqual(self.forms["agé"], "âgé")
+        self.assertEqual(self.readings("agé"), self.readings("âgé"))
+        self.assertEqual(self.forms["régle"], "règle")
+        self.assertEqual(self.readings("régle"), self.readings("règle"))
+        self.assertIn(("régler", "VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin", "other"), self.readings("régle"))
+        # None is a lemma or a rank; those wordfreq ranked were words of their own before.
+        before = _tsv(self.before["forms.tsv"])
+        for spelling in ("peut-etre", "c'est-a-dire", "celle-la", "arreté", "agé", "régle", "trés", "déja"):
+            self.assertNotIn(spelling, self.ranks, spelling)
+            self.assertNotEqual(self.forms[spelling], spelling, spelling)
+        for spelling in ("trés", "déja", "agé"):
+            self.assertEqual(before.get(spelling), spelling, spelling)
+        self.assertEqual(self.out["grammar.tsv"], "".join(sorted(set(self.out["grammar.tsv"].splitlines(True)))))
+
+    def test_the_readings_rule_for_a_spelling_with_marks(self):
+        rows = [
+            "arrête\tarrêter\tVERB|Mood=Ind\t-\n",
+            "arrêté\tarrêter\tVERB|VerbForm=Part\t-\n",
+            "règle\trègle\tNOUN|Gender=Fem\t-\n",
+            "règle\trégler\tVERB|Mood=Ind\tother\n",
+            "réglé\trégler\tVERB|VerbForm=Part\t-\n",
+        ]
+        forms = {"arrête": "arrêter", "arrêté": "arrêter", "arreté": "arrêter", "règle": "règle", "réglé": "régler", "régle": "règle", "ârrete": "arrêter"}
+        out = red.spelling_readings(rows, forms, {"arreté": None, "régle": None, "ârrete": None})
+        self.assertEqual([row for row in out if row.startswith("arreté\t")], ["arreté\tarrêter\tVERB|VerbForm=Part\t-\n"])
+        # `régle` reads *règle*: `réglé` is *régler*'s, another word.
+        self.assertEqual(
+            [row for row in out if row.startswith("régle\t")],
+            ["régle\trègle\tNOUN|Gender=Fem\t-\n", "régle\trégler\tVERB|Mood=Ind\tother\n"],
+        )
+        # A spelling keeping no mark of any form in place carries them all, as one without marks does.
+        self.assertEqual(
+            [row for row in out if row.startswith("ârrete\t")],
+            ["ârrete\tarrêter\tVERB|Mood=Ind\t-\n", "ârrete\tarrêter\tVERB|VerbForm=Part\t-\n"],
+        )
+        self.assertEqual(red._marks_at("agé"), {2})
+        self.assertEqual(red._marks_at("âgé"), {0, 2})
+        # A marked letter at the same place, whichever its mark: `espére` keeps a mark of `espère` and
+        # of `espéré` alike, and carries both.
+        out = red.spelling_readings(
+            ["espère\tespérer\tVERB|Mood=Ind\t-\n", "espéré\tespérer\tVERB|VerbForm=Part\t-\n"],
+            {"espère": "espérer", "espéré": "espérer", "espére": "espérer"},
+            {"espére": None},
+        )
+        self.assertEqual(
+            [row for row in out if row.startswith("espére\t")],
+            ["espére\tespérer\tVERB|Mood=Ind\t-\n", "espére\tespérer\tVERB|VerbForm=Part\t-\n"],
+        )
+        self.assertEqual(red._marks_at("grand-mere"), set())
+
+    def test_spec_scenario_a_row_the_section_names_stops_the_reduction(self):
+        # A row naming `problême`, which the section gives only as problème's spelling, fails, naming it.
+        with mock.patch.dict(red.WEB_MISACCENTED, {"problême": "problème"}), mock.patch.dict(
+            red.UNMARKED_SPELLINGS, {"problême": ("problème", red.MISACCENTED_REASON)}
+        ), mock.patch.dict(FREQ, HM_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _HM_TOP):
+            with self.assertRaises(SystemExit) as stop:
+                Main.run_main(self, _HM_ENTRIES, gsd=_HM_GSD)
+        self.assertIn("WEB_MISACCENTED", str(stop.exception))
+        self.assertTrue(str(stop.exception).endswith(": problême"), stop.exception)
+        # The boundary reads the two lists as it reads 43e's.
+        with mock.patch.dict(red.WEB_MISACCENTED, {"problême": "problème", "élève": "élever"}), mock.patch.dict(
+            red.WEB_HYPHENATED, {"peut-etre": "peut-être"}
+        ):
+            lex = lexicon(_spells("problême", "problème", "alternative form of"), entry("élève"), entry("peut-etre"))
+            self.assertEqual(lex.web_boundary(), ["peut-etre", "problême", "élève"])
+        self.assertTrue(red._spells_as("problême", "alt", "problème"))
+        self.assertFalse(red._spells_as("problême", "alt", "souci"))
+
+    def test_the_committed_tables(self):
+        forms, ranks, levels = _committed("fr/forms.tsv"), _committed("fr/freq.tsv"), _committed("fr/level.tsv")
+        read = {
+            "peut-etre": "peut-être", "c'est-a-dire": "c'est-à-dire", "grand-mere": "grand-mère", "celle-la": "celui-là",
+            "trés": "très", "déja": "déjà", "agé": "âgé", "arreté": "arrêter", "elève": "élever", "elevé": "élevé",
+        }
+        self.assertEqual({form: forms.get(form) for form in read}, read)
+        for spelling in read:
+            self.assertNotIn(spelling, ranks, spelling)
+            self.assertNotIn(spelling, levels, spelling)
+        # The words a wrong accent may stand for read as they did.
+        self.assertEqual({w: forms.get(w) for w in ("élève", "élevé")}, {"élève": "élever", "élevé": "élevé"})
+        for kept in ("á", "lá", "accés", "çe", "problême", "elle-meme"):
+            self.assertNotEqual(forms.get(kept), "à", kept)
+        with open(os.path.join(_TABLES, "fr", "grammar.tsv"), encoding="utf-8") as f:
+            grammar = [line.split("\t") for line in f.read().splitlines()]
+        self.assertEqual(
+            [row for row in grammar if row[0] == "arreté"], [["arreté", "arrêter", "VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part", "-"]]
+        )
+        self.assertIn(["grand-mere", "grand-mère", "NOUN|Gender=Fem|Number=Sing", "-"], grammar)
 
 
 class Ranks(unittest.TestCase):
