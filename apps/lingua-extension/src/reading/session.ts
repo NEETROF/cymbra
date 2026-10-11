@@ -1,7 +1,7 @@
 import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
 import { acceptedLanguages, DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
-import type { CefrLevel, NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
+import type { CefrLevel, NativeLanguage, StudiedLanguage, TokenClass } from "../analyzer/types.ts";
 import { type Block, isElement, mergeBlocks } from "./blocks.ts";
 import { Drawer, type DrawerView } from "./drawer.ts";
 import { colourCss } from "./colours.ts";
@@ -190,8 +190,80 @@ const storageArea: AsyncStorageArea = {
 
 const nowSeconds = (): number => Math.floor(Date.now() / 1000);
 
-/** The three-letter codes (ISO 639-2) some packages declare for the shipped languages. */
-const THREE_LETTER: Record<string, string> = { eng: "en", spa: "es" };
+/**
+ * The three-letter codes (ISO 639-2) some packages declare for the shipped languages, and for the
+ * neighbours the detection guards keep out of them (`GUARDED`, read-lingua-card-in-another-studied-language D7).
+ */
+const THREE_LETTER: Record<string, string> = {
+  eng: "en",
+  spa: "es",
+  cat: "ca",
+  glg: "gl",
+  oci: "oc",
+  ron: "ro",
+  rum: "ro",
+};
+
+/**
+ * The languages a studied language's detection guard keeps out of it, as the document declares them
+ * (read-lingua-card-in-another-studied-language D7): a word card on a page declaring one of them is
+ * never read in that studied language. Each entry mirrors its guard's list.
+ */
+export const GUARDED: Readonly<Partial<Record<StudiedLanguage, readonly string[]>>> = {
+  // lingua-analysis « Catalan and Galician are not read as Spanish »; Occitan with
+  // add-lingua-spanish-occitan-guard (change 42b).
+  es: ["ca", "gl", "oc"],
+  // add-lingua-french-detection-guard (change 42): Catalan, Occitan and Romanian are not read as French.
+  fr: ["ca", "oc", "ro"],
+};
+
+/** What decides which other languages a word card may be read in (`otherStudiedLanguages`). */
+export interface RereadContext {
+  /** The reader's accepted languages, in the profile's order. */
+  languages: readonly StudiedLanguage[];
+  /** The document's language. */
+  language: StudiedLanguage;
+  /** Whether the document was read in a studied language: the analysis found one in it. */
+  analysable: boolean;
+  /** The languages the document declares (primary subtags), absent ones as null. */
+  declared: readonly (string | null)[];
+  /** The reader's native language. */
+  native: NativeLanguage;
+}
+
+/**
+ * The reader's other studied languages a word card the document's language does not know is read in,
+ * in the profile's order (read-lingua-card-in-another-studied-language D1, D2, D7): none on a document
+ * not read in a studied language or declaring the reader's native language — a French speaker's French
+ * page keeps today's cards — and never a language whose guard keeps a declared language out.
+ */
+export function otherStudiedLanguages(context: RereadContext): StudiedLanguage[] {
+  if (!context.analysable) return [];
+  const declared = context.declared.filter((tag): tag is string => !!tag);
+  if (declared.includes(context.native)) return [];
+  return context.languages.filter(
+    (other) => other !== context.language && !declared.some((tag) => GUARDED[other]?.includes(tag)),
+  );
+}
+
+/**
+ * The paint of a document's tokens, with the words a card read in another language painted by the
+ * reader's status there (read-lingua-card-in-another-studied-language D6): none when known or ignored,
+ * as being learnt when learning, as unknown otherwise. `classes`: those words, lowercased, with their
+ * class in the language they were read in. Every other token is painted as the analysis gave it.
+ */
+export function paintReread(resolved: ResolvedToken[], classes: ReadonlyMap<string, TokenClass>): ResolvedToken[] {
+  if (classes.size === 0) return resolved;
+  const painted: ResolvedToken[] = [];
+  for (const r of resolved) {
+    const cls = classes.get(r.token.surface.toLowerCase());
+    if (cls === undefined) painted.push(r);
+    else if (cls !== "Known" && cls !== "Ignored") {
+      painted.push({ ...r, token: { ...r.token, class: cls === "Learning" ? "Learning" : "Unknown" } });
+    }
+  }
+  return painted;
+}
 
 /** A language tag as its primary subtag (`es-ES` → `es`, `spa` → `es`), or null when empty. */
 export function primaryLanguage(tag: string | null | undefined): string | null {
@@ -292,6 +364,18 @@ export class ReadingSession {
     storedVoicePreference(storageArea),
     this.lifetime.signal,
   );
+  /**
+   * The speakers of the studied languages a card's word was read in, other than the document's
+   * (read-lingua-card-in-another-studied-language D4): created on first use with that language's
+   * voice preference, stopped with the session.
+   */
+  private readonly speakers = new Map<StudiedLanguage, Speaker>();
+  /**
+   * The words of the open document a card read in another language — the form seen, lowercased, with
+   * the language it was read in and its dictionary form there — painted by their status in that
+   * language; forgotten with the document (D6).
+   */
+  private readonly rereadWords = new Map<string, { language: StudiedLanguage; lemma: string }>();
   /** What a selection or a click opens — every decision lives there, tested; this class only wires it. */
   private readonly cards: SelectionCards;
   /** The translator for this selection, or none: « Traduction étendue » off or its model not ready. */
@@ -344,6 +428,7 @@ export class ReadingSession {
       followLook: true,
       // Its copy and its grammar renderer are the catalogue's for this one language.
       language: interfaceLanguage,
+      speakerFor: (studied) => this.speakerFor(studied),
     });
     this.cards = new SelectionCards(
       // Asked at each call, so a card follows the session's language.
@@ -361,6 +446,11 @@ export class ReadingSession {
         language: () => this.language,
         interfaceLanguage,
         copy: copy.selection,
+        // A word the document's language does not know is read in the reader's other studied
+        // languages (read-lingua-card-in-another-studied-language D1, D2, D7).
+        otherLanguages: () => this.otherLanguages(),
+        portsFor: (language) => this.port.for(language),
+        onReadElsewhere: (form, language, lemma) => this.rereadWords.set(form.toLowerCase(), { language, lemma }),
       },
     );
     this.drawer = new Drawer({
@@ -404,6 +494,53 @@ export class ReadingSession {
    *  (generalise-lingua-extension-port). A view holds nothing, so asking for it is free. */
   private get lang(): LanguagePort {
     return this.port.for(this.language);
+  }
+
+  /** The speaker of `studied`, created on first use (read-lingua-card-in-another-studied-language D4). */
+  private speakerFor(studied: StudiedLanguage): Speaker {
+    let speaker = this.speakers.get(studied);
+    if (!speaker) {
+      speaker = createSpeaker(browserSpeechEngine(), studied, storedVoicePreference(storageArea), this.lifetime.signal);
+      this.speakers.set(studied, speaker);
+    }
+    return speaker;
+  }
+
+  /** Stop every voice this session speaks with. */
+  private stopSpeaking(): void {
+    this.speaker.stop();
+    for (const speaker of this.speakers.values()) speaker.stop();
+  }
+
+  /** The other studied languages a word card of this document may be read in (`otherStudiedLanguages`). */
+  private otherLanguages(): StudiedLanguage[] {
+    const host = this.host;
+    if (!host) return [];
+    return otherStudiedLanguages({
+      languages: this.languages,
+      language: this.language,
+      analysable: this.stats.analysable,
+      declared: [languageHint(host.doc), primaryLanguage(host.declaredLanguage)],
+      native: this.native,
+    });
+  }
+
+  /**
+   * The document's tokens as painted: the words a card read in another language by their status
+   * there, asked once per word (D6). Nothing is asked when no such word is remembered.
+   */
+  private async withRereadWords(resolved: ResolvedToken[]): Promise<ResolvedToken[]> {
+    if (this.rereadWords.size === 0) return resolved;
+    const classes = new Map<string, TokenClass>();
+    for (const [form, { language }] of this.rereadWords) {
+      const answer = await this.port
+        .for(language)
+        .phraseGloss(form)
+        .catch(() => null);
+      const token = answer?.tokens.length === 1 ? answer.tokens[0] : undefined;
+      if (token) classes.set(form, token.class);
+    }
+    return paintReread(resolved, classes);
   }
 
   /** Restore the engine, wire the surfaces, then read `host` (none: the reader's library). */
@@ -453,7 +590,7 @@ export class ReadingSession {
       () => {
         if (surface.visibilityState === "hidden" && this.hasPendingExposure()) void this.flushExposure();
         // Nothing keeps talking in a tab the reader left.
-        if (surface.visibilityState === "hidden") this.speaker.stop();
+        if (surface.visibilityState === "hidden") this.stopSpeaking();
         // Back on the tab (possibly after reading on another device): ask for a sync too.
         if (surface.visibilityState === "visible" && this.enabled) void requestSync("page");
       },
@@ -564,6 +701,8 @@ export class ReadingSession {
     this.blocksByContainer.clear();
     this.resolved = [];
     this.clickable.clear();
+    // The words read in another language were this document's (D6).
+    this.rereadWords.clear();
     this.stats = NOT_ANALYSABLE;
     this.updateHud();
   }
@@ -586,7 +725,7 @@ export class ReadingSession {
     this.flushReading();
     this.detach();
     this.selection.cancel();
-    this.speaker.stop();
+    this.stopSpeaking();
     this.lifetime.abort();
     for (const unhook of this.unhooks.splice(0)) unhook();
     this.popup.destroy();
@@ -777,7 +916,11 @@ export class ReadingSession {
     const analysis = await this.lang.analyse(texts);
     // Another document replaced this one while the engine answered: its figures are stale.
     if (this.host !== host) return;
-    this.resolved = resolveTokens(blocks, analysis);
+    // The words a card read in another language are painted by their status there; the figures,
+    // the exposures and the hit-test of every other word stay the analysis's (D6).
+    const resolved = await this.withRereadWords(resolveTokens(blocks, analysis));
+    if (this.host !== host) return;
+    this.resolved = resolved;
     this.clickable = clickableByContainer(blocks, analysis);
     this.stats = statsFromAnalysis(analysis);
     // Track which blocks the reader actually sees, to confirm below-level words by reading.
@@ -891,8 +1034,11 @@ export class ReadingSession {
   private pageHit(hit: ResolvedToken): PageHit {
     const rect = hit.range.getBoundingClientRect();
     const { sentence, selection } = sentenceAndSelection(hit.range);
+    // A word painted by its status in another language is still, to the document, a word it does not
+    // know: its card is read again in that language (D6).
+    const reread = this.rereadWords.has(hit.token.surface.toLowerCase());
     return {
-      token: hit.token,
+      token: reread ? { ...hit.token, class: "Unknown" } : hit.token,
       rect: this.toSurface({ left: rect.left, top: rect.top, bottom: rect.bottom }),
       sentence,
       selection,
@@ -971,9 +1117,13 @@ export class ReadingSession {
     // A word's dictionary form as the engine gave it, an expression's name lowercased
     // (keep-lingua-french-acronyms-in-capitals D6): the acronym `CA` is not `ça`.
     const key = gestureKey(g);
+    // Recorded in the language the card was read in: the document's, or the other studied language
+    // a word it does not know was read in (read-lingua-card-in-another-studied-language D5).
+    const language = g.readIn ?? this.language;
+    const lang = this.port.for(language);
     if (g.status === "learning") {
       const gloss = await this.cards.cardGloss(g);
-      await this.lang.addCard({
+      await lang.addCard({
         lemma: key,
         surface: g.surface,
         sentence: g.sentence,
@@ -983,12 +1133,12 @@ export class ReadingSession {
       });
     } else {
       // Stamp the change so it orders correctly in cross-device sync (LWW).
-      await this.lang.setStatusAt(key, g.status, Date.now());
-      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()), this.language, this.native);
+      await lang.setStatusAt(key, g.status, Date.now());
+      if (g.status === "known") void recordWordLearned(store, utcDay(Date.now()), language, this.native);
       // Promoting a word that was in the deck (learning) to known/ignored must retire its
       // card so it stops coming due — a word you now treat as known/ignored shouldn't keep
       // being reviewed. No-op when there is no card. (Clearing → "à apprendre" keeps it.)
-      if (g.status === "known" || g.status === "ignored") await this.lang.retireCard(key, nowSeconds());
+      if (g.status === "known" || g.status === "ignored") await lang.retireCard(key, nowSeconds());
     }
     await this.persist();
     await this.repaint();

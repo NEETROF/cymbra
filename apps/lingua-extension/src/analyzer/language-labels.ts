@@ -41,6 +41,25 @@ function words(language: InterfaceLanguage, named: NamedLanguage): LanguageWords
   return entries[named];
 }
 
+/**
+ * The gender of the noun the word card's language line puts the language after, by interface
+ * language — the catalogue's `selection.readAs`: « mot » is masculine, « palabra » feminine, and
+ * English agrees in nothing (read-lingua-card-in-another-studied-language D4).
+ */
+const READ_AS_NOUN: Record<InterfaceLanguage, "masculine" | "feminine"> = {
+  fr: "masculine",
+  en: "masculine",
+  es: "feminine",
+};
+
+/**
+ * A language in the form `selection.readAs` takes, in the interface language: « espagnol » for
+ * « Mot espagnol », "Spanish" for "Spanish word", « española » for « Palabra española » (D4).
+ */
+export function readAsForm(language: InterfaceLanguage, named: NamedLanguage): string {
+  return words(language, named)[READ_AS_NOUN[language] ?? "masculine"];
+}
+
 /** « Anglais » — "English", « Inglés ». */
 export function languageName(language: InterfaceLanguage, studied: NamedLanguage): string {
   return words(language, studied).name;

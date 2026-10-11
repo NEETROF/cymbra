@@ -12,4 +12,5 @@ export const selection: typeof fr = {
   common: (n) => `Corriente: entre las ${n} palabras más frecuentes.`,
   veryCommon: (n) => `Muy corriente: entre las ${n} palabras más frecuentes.`,
   truncated: (text) => `${text}…`,
+  readAs: (language) => `Palabra ${language}`,
 };

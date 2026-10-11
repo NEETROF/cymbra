@@ -99,6 +99,29 @@ export function rarityText(
   return copy.veryCommon(count(100));
 }
 
+/**
+ * Whether the document's language does not know a word at all
+ * (read-lingua-card-in-another-studied-language D1): an unknown word, no gloss, and a grammar answer
+ * with no gloss, no reading, no other dictionary form and no frequency rank — the pack's lexicon holds
+ * it as nothing. An absent answer (the engine failed or stayed silent) is not an empty one: such a card
+ * is left as it is. A word the reader marked, a name, a word the pack ranks or reads is not this.
+ */
+export function unknownToDocument(
+  cls: TokenClass,
+  gloss: string | null | undefined,
+  grammar: WordGrammar | null | undefined,
+): boolean {
+  if (cls !== "Unknown" || gloss || !grammar) return false;
+  return !grammar.gloss && grammar.readings.length === 0 && grammar.others.length === 0 && grammar.rank === null;
+}
+
+/** A word read in another studied language: that language, its one token, and its grammar (D2). */
+export interface ReadElsewhere {
+  language: StudiedLanguage;
+  token: PhraseToken;
+  grammar: WordGrammar | null;
+}
+
 /** The engine calls a card may need. */
 export interface SelectionCardPorts {
   phraseGloss(text: string): Promise<PhraseGloss>;
@@ -340,6 +363,21 @@ export class SelectionCards {
       interfaceLanguage?: InterfaceLanguage;
       /** The cards' copy in that language; the French module when not given. */
       copy?: SelectionCopy;
+      /**
+       * The reader's other studied languages a word the document's language does not know may be
+       * read in, in the profile's order (read-lingua-card-in-another-studied-language D1, D2, D7):
+       * already empty where no word is re-read — one accepted language, a document not read in a
+       * studied language, one declaring the reader's native language — and without the languages
+       * whose guard keeps the document's declared language out. None when not given.
+       */
+      otherLanguages?: () => StudiedLanguage[];
+      /** The engine calls in another studied language: that language's view. */
+      portsFor?: (language: StudiedLanguage) => SelectionCardPorts;
+      /**
+       * A card read in another language was shown (D6): the form seen, the language it was read in
+       * and its dictionary form, which the session remembers for the open document.
+       */
+      onReadElsewhere?: (form: string, language: StudiedLanguage, lemma: string) => void;
     },
   ) {
     this.clock = opts.clock ?? DEFAULT_CLOCK;
@@ -485,6 +523,12 @@ export class SelectionCards {
    * Complete a card that holds its gloss with its word's grammar: once the grammar arrives, or
    * once GRAMMAR_WAIT_MS has passed without it — whichever comes first — and never drawn pending
    * meanwhile. Nothing is shown if another card was shown, or this one hidden, in between.
+   *
+   * When that answer says the document's language does not know the word and the reader studies
+   * another language, the card waits for its re-read one more GRAMMAR_WAIT_MS: in time, the other
+   * language's card is shown and the document's never is; past it, the document's card is shown,
+   * and the re-read replaces it on arrival while it is still the card shown
+   * (read-lingua-card-in-another-studied-language D3).
    */
   private completeWithGrammar(
     card: WordPopupContent,
@@ -494,10 +538,104 @@ export class SelectionCards {
     finish: (card: WordPopupContent) => PendingCard,
   ): void {
     const asked = this.surface.generation();
-    void this.grammarBounded(written, lemma).then((grammar) => {
+    void this.grammarBounded(written, lemma).then(async (grammar) => {
       if (this.surface.generation() !== asked) return;
-      this.show(finish({ ...card, rarity: this.rarity(cls, grammar?.rank), ...grammarOf(grammar) }));
+      const documentCard = (): PendingCard =>
+        finish({ ...card, rarity: this.rarity(cls, grammar?.rank), ...grammarOf(grammar) });
+      if (!this.mayReadElsewhere(cls, card.gloss, grammar)) {
+        this.show(documentCard());
+        return;
+      }
+      const reread = await this.elsewhereBounded(written);
+      if (this.surface.generation() !== asked) return;
+      if (reread.inTime) this.show(this.elsewhereCard(card, written, reread.inTime));
+      else this.show({ ...documentCard(), elsewhere: this.lateCard(card, written, reread.late) });
     });
+  }
+
+  /** Whether a word card's answer sends it to another studied language (D1). */
+  private mayReadElsewhere(cls: TokenClass, gloss: string | null, grammar: WordGrammar | null): boolean {
+    return unknownToDocument(cls, gloss, grammar) && this.otherLanguages().length > 0;
+  }
+
+  private otherLanguages(): StudiedLanguage[] {
+    return this.opts.otherLanguages?.() ?? [];
+  }
+
+  /**
+   * A word read in the reader's other studied languages, in the profile's order: the first whose
+   * pack reads it as one word, not a name, with a gloss answers, with its grammar and rank; null when
+   * none does (D2). Never rejects — a language whose engine fails is passed over.
+   */
+  async readElsewhere(written: string): Promise<ReadElsewhere | null> {
+    const word = written.trim();
+    if (!word || /\s/.test(word)) return null;
+    for (const language of this.otherLanguages()) {
+      const ports = this.opts.portsFor?.(language);
+      if (!ports) continue;
+      const answer = await attempt(() => ports.phraseGloss(word));
+      const token = answer?.tokens.length === 1 ? answer.tokens[0] : undefined;
+      if (!token || token.class === "ProperNounOutOfLexicon" || !token.gloss) continue;
+      const grammar = await attempt(() => ports.wordGrammar(word, token.lemma));
+      return { language, token, grammar };
+    }
+    return null;
+  }
+
+  /**
+   * The re-read within one more GRAMMAR_WAIT_MS (D3): its answer when it came in time, else the
+   * re-read still on its way.
+   */
+  private elsewhereBounded(
+    written: string,
+  ): Promise<{ inTime: ReadElsewhere | null; late: Promise<ReadElsewhere | null> | null }> {
+    return new Promise((resolve) => {
+      const whole = this.readElsewhere(written);
+      let done = false;
+      const timer = this.clock.setTimeout(() => {
+        if (done) return;
+        done = true;
+        resolve({ inTime: null, late: whole });
+      }, GRAMMAR_WAIT_MS);
+      void whole.then((reread) => {
+        if (done) return;
+        done = true;
+        this.clock.clearTimeout(timer);
+        resolve({ inTime: reread, late: null });
+      });
+    });
+  }
+
+  /** The card a late re-read replaces the document's with, or none. */
+  private lateCard(
+    base: WordPopupContent,
+    written: string,
+    late: Promise<ReadElsewhere | null> | null,
+  ): Promise<WordPopupContent | null> | null {
+    return late ? late.then((reread) => (reread ? this.elsewhereCard(base, written, reread) : null)) : null;
+  }
+
+  /**
+   * The card of a word read in another language (D4): that language's card of it — its dictionary
+   * form, the form seen, its gloss, its readings named as that language's forms, its band from that
+   * pack — saying the language it was read in. No translation is asked: it has a gloss.
+   */
+  private elsewhereCard(base: WordPopupContent, written: string, reread: ReadElsewhere): WordPopupContent {
+    const { language, token, grammar } = reread;
+    return {
+      headword: token.lemma,
+      surface: token.surface,
+      gloss: token.gloss,
+      rarity: this.rarity(token.class, grammar?.rank),
+      sentence: base.sentence,
+      status: statusOfClass(token.class),
+      rect: base.rect,
+      ...(language === "en" ? {} : { language }),
+      readIn: language,
+      ...(written !== token.surface ? { written } : {}),
+      ...placeInSentence(base.selection),
+      ...grammarOf(grammar),
+    };
   }
 
   /** The word's grammar, or null when the engine fails or stays silent past GRAMMAR_WAIT_MS. */
@@ -524,8 +662,10 @@ export class SelectionCards {
     // carries none.
     if (g.lemma.includes(" ") || g.expressionAnswer) return g.gloss ?? null;
     // Asked for the key the card is filed under: a word's dictionary form as the engine gave it, the
-    // acronym `CA` in capitals (keep-lingua-french-acronyms-in-capitals D6).
-    return (await this.ports.gloss(gestureKey(g))) ?? null;
+    // acronym `CA` in capitals (keep-lingua-french-acronyms-in-capitals D6) — of the language the card
+    // was read in (read-lingua-card-in-another-studied-language D5).
+    const ports = (g.readIn && this.opts.portsFor?.(g.readIn)) || this.ports;
+    return (await ports.gloss(gestureKey(g))) ?? null;
   }
 
   /** A pointer went down: whatever a capture opens from here on, the click that follows leaves alone. */
@@ -653,31 +793,40 @@ export class SelectionCards {
         this.ports.phraseGloss(sel.text).then(async (answer) => {
           const t = answer.tokens[0];
           const named = t && t.class !== "ProperNounOutOfLexicon";
-          return { answer, grammar: named ? await this.grammarBounded(written, t.lemma) : null };
+          const grammar = named ? await this.grammarBounded(written, t.lemma) : null;
+          // The document's language does not know it: the reader's other languages are asked (D1, D3).
+          const reread =
+            t && this.mayReadElsewhere(t.class, t.gloss, grammar) ? await this.elsewhereBounded(written) : null;
+          return { answer, grammar, reread };
         }),
       (reply) => {
         if (!reply) return { ...raw, noActions: true };
         const { answer } = reply;
         const t = answer.tokens[0];
         if (!t || t.class === "ProperNounOutOfLexicon") return raw;
-        return this.wordEngine(
-          {
-            headword: t.lemma,
-            surface: t.surface,
-            gloss: t.gloss,
-            rarity: this.rarity(t.class, reply.grammar?.rank),
+        const card: WordPopupContent = {
+          headword: t.lemma,
+          surface: t.surface,
+          gloss: t.gloss,
+          rarity: this.rarity(t.class, reply.grammar?.rank),
+          sentence: sel.sentence,
+          status: statusOfClass(t.class),
+          rect: sel.rect,
+          ...this.languageOfCard(),
+          rows: t.parts?.length ? rowsFor([t], answer.expressions, this.copy) : undefined,
+          ...(written !== t.surface ? { written } : {}),
+          ...placeInSentence(sel.selection),
+          ...grammarOf(reply.grammar),
+        };
+        if (reply.reread?.inTime) return this.elsewhereCard(card, written, reply.reread.inTime);
+        return {
+          ...this.wordEngine(card, t.class, {
             sentence: sel.sentence,
-            status: statusOfClass(t.class),
-            rect: sel.rect,
-            ...this.languageOfCard(),
-            rows: t.parts?.length ? rowsFor([t], answer.expressions, this.copy) : undefined,
-            ...(written !== t.surface ? { written } : {}),
-            ...placeInSentence(sel.selection),
-            ...grammarOf(reply.grammar),
-          },
-          t.class,
-          { sentence: sel.sentence, selection: sel.selection ?? null, language: this.language() },
-        );
+            selection: sel.selection ?? null,
+            language: this.language(),
+          }),
+          ...(reply.reread ? { elsewhere: this.lateCard(card, written, reply.reread.late) } : {}),
+        };
       },
     );
   }
@@ -714,8 +863,16 @@ export class SelectionCards {
    * once it is known there is none. Showing bumps the generation: the upgrade is measured against
    * THIS card, so a card the reader has since replaced, closed or acted on is never written over.
    */
-  private show({ later, ...card }: PendingCard): void {
+  private show({ later, elsewhere, ...card }: PendingCard): void {
     const shown = this.surface.show(card);
+    // A card read in another language: the session remembers its word for the open document (D6).
+    if (card.readIn) this.opts.onReadElsewhere?.(card.surface, card.readIn, card.headword);
+    // A re-read that came past its bound replaces this card, only while it is the one shown (D3).
+    if (elsewhere) {
+      void elsewhere.then((next) => {
+        if (next && this.surface.generation() === shown) this.show(next);
+      });
+    }
     if (!later) return;
     void later.then(
       (translation) => {
@@ -731,8 +888,22 @@ export class SelectionCards {
   }
 }
 
-/** A completed card, and the translation that will upgrade it, when one was asked. */
-type PendingCard = WordPopupContent & { later?: Promise<MarkedTranslation | null> | null };
+/**
+ * A completed card, the translation that will upgrade it when one was asked, and the card of its word
+ * read in another studied language when that re-read is still on its way.
+ */
+type PendingCard = WordPopupContent & {
+  later?: Promise<MarkedTranslation | null> | null;
+  elsewhere?: Promise<WordPopupContent | null> | null;
+};
+
+/** An engine call's answer, or null when it throws or rejects. */
+function attempt<T>(ask: () => Promise<T>): Promise<T | null> {
+  return new Promise<T>((resolve) => resolve(ask())).then(
+    (answer) => answer,
+    () => null,
+  );
+}
 
 /**
  * The grammar a card shows, as a spreadable field: nothing at all without an answer, or with one
