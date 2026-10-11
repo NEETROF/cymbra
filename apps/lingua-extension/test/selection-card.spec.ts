@@ -985,21 +985,21 @@ describe("a selection over the pieces of one word", () => {
     expressions: [match({ start: 0, end: 2, key: "d'abord", gloss: "first, at first" })],
   };
 
-  it("« l’homme » selected whole: the whole-selection card, with a row for `homme`", async () => {
+  it("« dit-il » selected whole, no word named: the whole-selection card, with a row for `dire`", async () => {
     const h = harness();
-    h.cards.openForSelection(selection("l\u2019homme"), null, true);
-    expect(h.phraseGloss.map((c) => c.text)).toEqual(["l\u2019homme"]);
+    h.cards.openForSelection(selection("dit-il"), null, true);
+    expect(h.phraseGloss.map((c) => c.text)).toEqual(["dit-il"]);
     h.phraseGloss[0]!.resolve({
       tokens: [
-        tok({ surface: "le", lemma: "le", class: "Unknown", gloss: "the", function_word: true }),
-        tok({ surface: "homme", lemma: "homme", class: "Unknown", gloss: "man" }),
+        tok({ surface: "dit", lemma: "dire", class: "Unknown", gloss: "to say" }),
+        tok({ surface: "il", lemma: "il", class: "Unknown", gloss: "he", function_word: true }),
       ],
     });
     await settle();
     expect(h.last()).toMatchObject({
-      headword: "l\u2019homme",
+      headword: "dit-il",
       expression: true,
-      rows: [{ form: "homme", gloss: "man" }],
+      rows: [{ form: "dire", gloss: "to say" }],
     });
     expect(h.wordGrammar).toHaveLength(0);
   });
@@ -1018,6 +1018,82 @@ describe("a selection over the pieces of one word", () => {
     const stored = await h.cards.cardGloss({ ...gesture(h.last()), status: "learning", expressionAnswer: true });
     expect(stored).toBe("first, at first");
     expect(h.gloss).toHaveLength(0); // the single-lemma port, which knows no `d'abord`, is not asked
+  });
+
+  // enable-lingua-french D15 (the owner's dogfood decision of 2026-10-11): elided pieces and the one
+  // word they lean on, selected whole, open that word's card unless the pack holds the selection as
+  // an expression.
+  const homme = pageToken({ surface: "homme", lemma: "homme", class: "Unknown", gloss: "man" });
+  const lHomme: PhraseGloss = {
+    tokens: [
+      tok({ surface: "le", lemma: "le", class: "Unknown", gloss: "the", function_word: true }),
+      tok({ surface: "homme", lemma: "homme", class: "Unknown", gloss: "man" }),
+    ],
+  };
+
+  it("« l’homme » selected whole: the card of `homme`, with its gloss and a word's actions", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("l\u2019homme"), hitOf(homme), true);
+    // Pending under the word while the pack says whether « l’homme » is an expression.
+    expect(h.last()).toMatchObject({ headword: "homme", pending: true });
+    expect(h.last().expression).toBeUndefined();
+    expect(h.phraseGloss.map((c) => c.text)).toEqual(["l\u2019homme"]);
+    h.phraseGloss[0]!.resolve(lHomme);
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "homme", surface: "homme", gloss: "man", status: null });
+    expect(h.last().expression).toBeUndefined();
+    expect(h.last().pending).toBeUndefined();
+    expect(h.wordGrammar.map((c) => [c.written, c.lemma])).toEqual([["homme", "homme"]]);
+  });
+
+  it("A known word under elided pieces opens its own card too, its gloss asked", async () => {
+    const h = harness({ grammar: "manual" });
+    const known = pageToken({ surface: "homme", lemma: "homme", class: "Known" });
+    h.cards.openForSelection(selection("l\u2019homme"), hitOf(known), true);
+    h.phraseGloss[0]!.resolve(lHomme);
+    await settle();
+    h.wordGrammar[0]!.resolve(grammarOf({ gloss: "man" }));
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "homme", gloss: "man", status: "known" });
+  });
+
+  it("« D’abord » with its word named: the expression `d'abord` stays the answer", async () => {
+    const h = harness();
+    const abord = pageToken({ surface: "abord", lemma: "abord", class: "Unknown", gloss: "approach" });
+    h.cards.openForSelection(selection("D\u2019abord"), hitOf(abord), true);
+    h.phraseGloss[0]!.resolve(dAbord);
+    await settle();
+    expect(h.phraseGloss).toHaveLength(1); // the pack's answer is used, not asked twice
+    expect(h.last()).toMatchObject({ headword: "d'abord", gloss: "first, at first", expressionAnswer: true });
+    expect(h.wordGrammar).toHaveLength(0);
+  });
+
+  it("No answer in time, or a failing pack: the word's card", async () => {
+    const late = harness();
+    late.cards.openForSelection(selection("l\u2019homme"), hitOf(homme), true);
+    late.elapseOnly(ANSWER_TIMEOUT_MS);
+    await settle();
+    expect(late.last()).toMatchObject({ headword: "homme", gloss: "man" });
+    // The answer arriving after lands nowhere.
+    const shown = late.shows.length;
+    late.phraseGloss[0]!.resolve(dAbord);
+    await settle();
+    expect(late.shows).toHaveLength(shown);
+
+    const failing = harness();
+    failing.cards.openForSelection(selection("l\u2019homme"), hitOf(homme), true);
+    failing.phraseGloss[0]!.reject(new Error("engine"));
+    await settle();
+    expect(failing.last()).toMatchObject({ headword: "homme", gloss: "man" });
+  });
+
+  it("A card closed while the pack is asked stays closed", async () => {
+    const h = harness();
+    h.cards.openForSelection(selection("l\u2019homme"), hitOf(homme), true);
+    h.hide();
+    h.phraseGloss[0]!.resolve(lHomme);
+    await settle();
+    expect(h.shows).toHaveLength(1);
   });
 
   it("An expression named with a space, and a word, store as before", async () => {

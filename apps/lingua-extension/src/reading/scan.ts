@@ -175,9 +175,22 @@ export function findTokenInBlock(
  * (`don't`, `del`, `au`), or the selection touches no piece: the word card at the widened start,
  * as before; `piece` — the selection as the reader made it lies inside one piece: that piece's
  * card (« homme » of « l’homme », « il » of « dit-il »); `pieces` — it covers several: the
- * whole-selection card (« l’homme » double-clicked whole, « D’abord »).
+ * whole-selection card when the pack holds the selection as an expression (« D’abord »), and
+ * otherwise, when every piece it covers but one is elided, the word card of that one — `word`
+ * (« l’homme » double-clicked whole opens `homme`; enable-lingua-french D15, the owner's
+ * dogfood decision of 2026-10-11). `word` is null when no single word remains (« dit-il »).
  */
-export type WordSelection = { kind: "word" } | { kind: "piece"; hit: ResolvedToken } | { kind: "pieces" };
+export type WordSelection =
+  { kind: "word" } | { kind: "piece"; hit: ResolvedToken } | { kind: "pieces"; word: ResolvedToken | null };
+
+/**
+ * Whether a piece is a French elided piece — `l’` of « l’homme », `qu'` of « qu'il »: its span, and
+ * it alone, ends on its apostrophe (match-lingua-french-elided-pieces D2). Soft hyphens are read
+ * as nowhere. No English or Spanish piece ends on one.
+ */
+function isElidedPiece(piece: ResolvedToken): boolean {
+  return /['\u2019]$/u.test(piece.range.toString().replace(/\u00AD/g, ""));
+}
 
 /** `Range.compareBoundaryPoints`' constants, by value: a book section's ranges belong to another realm. */
 const START_TO_START = 0;
@@ -224,7 +237,9 @@ export function selectWithinWord(block: Block, tokens: AnalyzedToken[], word: Ra
   if (spans.size < 2) return { kind: "word" };
   const touched = [...spans.values()].filter((piece) => overlaps(piece.range, selected));
   if (touched.length === 0) return { kind: "word" };
-  return touched.length === 1 ? { kind: "piece", hit: touched[0]! } : { kind: "pieces" };
+  if (touched.length === 1) return { kind: "piece", hit: touched[0]! };
+  const words = touched.filter((piece) => !isElidedPiece(piece));
+  return { kind: "pieces", word: words.length === 1 ? words[0]! : null };
 }
 
 export function resolveTokens(blocks: Block[], a: PageAnalysis): ResolvedToken[] {

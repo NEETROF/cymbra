@@ -929,7 +929,8 @@ export class ReadingSession {
    *  never saw is read by the analyser instead; several words open the whole-selection
    *  card. Within an analysed block, a word whose pieces have spans of their own opens the
    *  piece the reader selected inside it, or the whole-selection card when the selection
-   *  covers several (add-lingua-french-word-card D7). The cards decide, this only hands them
+   *  covers several (add-lingua-french-word-card D7) — the card of the word, when they are
+   *  elided pieces and that word and the pack holds no such expression (enable-lingua-french D15). The cards decide, this only hands them
    *  the hit. */
   private onCapture(kind: CaptureKind, cap: Capture): void {
     if (!this.enabled || !this.host) return;
@@ -940,7 +941,9 @@ export class ReadingSession {
     }
     const pieces = this.pieceSelected(cap);
     if (pieces.kind === "pieces") {
-      this.cards.openForSelection(sel, null, true);
+      // The one word its elided pieces lean on, when there is one: its card, unless the pack holds
+      // the selection as an expression (enable-lingua-french D15).
+      this.cards.openForSelection(sel, pieces.word ? this.pageHit(pieces.word) : null, true);
       return;
     }
     const hit =

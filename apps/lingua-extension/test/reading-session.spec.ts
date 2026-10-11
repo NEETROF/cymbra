@@ -627,7 +627,16 @@ describe("a selection inside a word written as pieces", () => {
     const grammars: [string, string][] = [];
     port.phraseGloss = async (text) => {
       phrases.push(text);
-      return { tokens: [] };
+      // The pack holds `d'abord` as an expression, and `l'homme` as none.
+      return text === "D\u2019abord"
+        ? {
+            tokens: [
+              { surface: "De", lemma: "de", class: "Known", gloss: "of", function_word: true },
+              { surface: "abord", lemma: "abord", class: "Unknown", gloss: "approach", function_word: false },
+            ],
+            expressions: [{ start: 0, end: 2, key: "d'abord", class: "Unknown", gloss: "first" }],
+          }
+        : { tokens: [] };
     };
     port.wordGrammar = async (written, lemma) => {
       grammars.push([written, lemma]);
@@ -681,10 +690,17 @@ describe("a selection inside a word written as pieces", () => {
     s.detach();
   });
 
-  it("« l’homme » selected whole, and « D’abord », open the whole-selection card", async () => {
+  // enable-lingua-french D15 (the owner's dogfood decision of 2026-10-11).
+  it("« l’homme » selected whole opens `homme`; « D’abord », an expression, the expression card", async () => {
     const { s, select } = await reading();
-    expect(await select(at("l\u2019homme"), 7)).toEqual({ phrases: ["l\u2019homme"], grammars: [] });
+    expect(await select(at("l\u2019homme"), 7)).toEqual({ phrases: ["l\u2019homme"], grammars: [["homme", "homme"]] });
     expect(await select(at("D\u2019abord"), 7)).toEqual({ phrases: ["D\u2019abord"], grammars: [] });
+    s.detach();
+  });
+
+  it("« dit-il » selected whole, no piece elided, opens the whole-selection card", async () => {
+    const { s, select } = await reading();
+    expect(await select(at("dit-il"), 6)).toEqual({ phrases: ["dit-il"], grammars: [] });
     s.detach();
   });
 

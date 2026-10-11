@@ -303,7 +303,7 @@ describe("readingByContainer", () => {
 // add-lingua-french-word-card D7: a one-word selection inside an analysed block, routed by the piece
 // the reader selected.
 describe("selectWithinWord", () => {
-  const TEXT = "Il dit-il, l\u2019homme, don't, 24-year-old.";
+  const TEXT = "Il dit-il, l\u2019homme, don't, 24-year-old, qu'il, qu\u2019aujourd\u2019hui.";
   const byte = (i: number) => new TextEncoder().encode(TEXT.slice(0, i)).length;
   const piece = (surface: string, at: number, length = surface.length) =>
     tok({ start: byte(at), end: byte(at + length), surface, lemma: surface, class: "Unknown" });
@@ -319,6 +319,10 @@ describe("selectWithinWord", () => {
     piece("24", at("24")),
     piece("year", at("year")),
     piece("old", at("old")),
+    piece("que", at("qu'il"), 3),
+    piece("il", at("qu'il") + 3),
+    piece("que", at("qu\u2019aujourd"), 3),
+    piece("aujourd'hui", at("aujourd"), 11),
   ];
 
   function setUp() {
@@ -347,11 +351,25 @@ describe("selectWithinWord", () => {
     expect(old.kind === "piece" && old.hit.token.surface).toBe("old");
   });
 
-  it("opens the whole-selection card over several pieces", () => {
+  /** The piece a selection over several pieces names as its word, or null. */
+  const wordOf = (routed: ReturnType<typeof selectWithinWord>) =>
+    routed.kind === "pieces" ? (routed.word?.token.surface ?? null) : routed.kind;
+
+  it("over several pieces, names the one word elided pieces lean on (enable-lingua-french D15)", () => {
     const { route } = setUp();
-    expect(route("l\u2019homme", at("l\u2019homme"), 7)).toEqual({ kind: "pieces" });
+    expect(wordOf(route("l\u2019homme", at("l\u2019homme"), 7))).toBe("homme");
     // The apostrophe is the elided piece's: a drag from it covers both.
-    expect(route("l\u2019homme", at("\u2019homme"), 6)).toEqual({ kind: "pieces" });
+    expect(wordOf(route("l\u2019homme", at("\u2019homme"), 6))).toBe("homme");
+    // A straight apostrophe, and a word that is itself a function word.
+    expect(wordOf(route("qu'il", at("qu'il"), 5))).toBe("il");
+    // A word written with an apostrophe of its own is no elided piece.
+    expect(wordOf(route("qu\u2019aujourd\u2019hui", at("qu\u2019aujourd"), 15))).toBe("aujourd'hui");
+  });
+
+  it("over several pieces none of them elided, names no word: the whole-selection card", () => {
+    const { route } = setUp();
+    expect(route("dit-il", at("dit-il"), 6)).toEqual({ kind: "pieces", word: null });
+    expect(route("24-year-old", at("24-year-old"), 11)).toEqual({ kind: "pieces", word: null });
   });
 
   it("opens the word as before: one span, pieces sharing one, or no piece touched", () => {
