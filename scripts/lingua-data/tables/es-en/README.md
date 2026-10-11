@@ -56,7 +56,9 @@ On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version`
   out the 1,693 lemmas es-fr glosses by a proper noun's senses alone
   (leave-lingua-names-out-of-english-and-spanish-words), 1,235 of which es-en glosses (527 of the
   10,000 commonest): before, 9,928 and 798.
-- **The pack is 2,608,413 B**, 49.8 % of the 5 MiB budget.
+- **The pack is 2,612,075 B**, 49.8 % of the 5 MiB budget (2,608,413 B before it kept every headword
+  of a key several reach — 141 other headwords on 138 keys, listed in `expr.others`:
+  pick-lingua-spanish-expression-written-as-the-page).
 
 ## Its sources
 

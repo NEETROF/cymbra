@@ -30,7 +30,8 @@ use lingua_core::analysis::tokenize::{
     FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, is_elided, tokenize,
 };
 use lingua_core::engine::{
-    expression_piece, french_expression_key, holds_french_contraction, shared_spans,
+    expression_piece, french_expression_key, holds_french_contraction, reading_expression_key,
+    shared_spans,
 };
 use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
 use lingua_core::knowledge::state::FrequencyRanks;
@@ -2077,13 +2078,17 @@ fn every_french_headword_holding_a_contraction_holds_au_or_aux_and_is_named() {
 /// How many of a headword's tokens its key writes as the headword does — the builder's measure
 /// between two headwords of one key (add-lingua-french-expression-keys D6), written again here
 /// from the core's public reading so the order below is checked, not copied.
-fn written_as_key_pieces(headword: &str, lexicon: &(impl Lexicon + ?Sized)) -> usize {
-    headword_reading(headword, StudiedLanguage::French, lexicon)
+fn written_as_key_pieces(
+    headword: &str,
+    studied: StudiedLanguage,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> usize {
+    headword_reading(headword, studied, lexicon)
         .unwrap_or_default()
         .iter()
         .filter(|(token, lemma)| {
             token.text.replace('\u{2019}', "'").to_lowercase()
-                == expression_piece(&token.text, lemma, StudiedLanguage::French)
+                == expression_piece(&token.text, lemma, studied)
         })
         .count()
 }
@@ -2124,7 +2129,7 @@ fn every_headword_of_a_shared_french_key_is_kept_in_change_44_s_order() {
         let mut by_key: BTreeMap<String, Vec<(usize, &str, &str)>> = BTreeMap::new();
         for (headword, gloss) in &inputs.expressions {
             if let Some(key) = french_expression_key(headword, lexicon) {
-                let written = written_as_key_pieces(headword, lexicon);
+                let written = written_as_key_pieces(headword, StudiedLanguage::French, lexicon);
                 by_key
                     .entry(key)
                     .or_default()
@@ -2164,11 +2169,101 @@ fn every_headword_of_a_shared_french_key_is_kept_in_change_44_s_order() {
             "{pair} carries the section"
         );
     }
-    // No English or Spanish committed pack carries it.
-    for pair in ["en-fr", "es-fr", "es-en", "en-es"] {
+    // No English committed pack carries it (a Spanish one does since
+    // pick-lingua-spanish-expression-written-as-the-page D1).
+    for pair in ["en-fr", "en-es"] {
         assert!(
             section_of(&sections(&committed_pack(pair)), section::EXPR_OTHERS).is_none(),
             "{pair}"
+        );
+    }
+}
+
+// A Spanish pack keeps every headword of a key several reach too
+// (pick-lingua-spanish-expression-written-as-the-page D1): the matcher names a run by the one
+// written as the page, and review reads a card under its own.
+
+#[test]
+fn every_headword_of_a_shared_spanish_key_is_kept_in_change_44_s_order() {
+    // Measured: es-fr 98 keys several headwords reach and 99 other headwords (`echar a perder`
+    // holds three), es-en 138 and 141 (`ir y venir`, `necesitar ayuda` and `primero plano` three).
+    let es = StudiedLanguage::Spanish;
+    for (pair, shared_keys, other_headwords, among) in [
+        (
+            "es-fr",
+            98,
+            99,
+            [
+                ("hacer tiempo", ["hacer tiempo", "hace tiempo"].as_slice()),
+                (
+                    "echar a perder",
+                    ["echar a perder", "echado a perder", "echarse a perder"].as_slice(),
+                ),
+                ("bueno día", ["buen día", "buenos días"].as_slice()),
+            ]
+            .as_slice(),
+        ),
+        (
+            "es-en",
+            138,
+            141,
+            [
+                ("bueno día", ["buen día", "buenos días"].as_slice()),
+                (
+                    "poder ayudar",
+                    ["puede ayudarme", "puedes ayudarme"].as_slice(),
+                ),
+            ]
+            .as_slice(),
+        ),
+    ] {
+        let bytes = committed_pack(pair);
+        let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}"));
+        let pack = Pack::load(&bytes).unwrap();
+        let lexicon = pack.lexicon();
+        // Each key's headwords, as `mwe.tsv` lists them, in change 44's order: the one written as
+        // the key, then the most pieces written as their key piece, then byte order.
+        let mut by_key: BTreeMap<String, Vec<(usize, &str, &str)>> = BTreeMap::new();
+        for (headword, gloss) in &inputs.expressions {
+            if let Some(key) = reading_expression_key(headword, es, lexicon) {
+                let written = written_as_key_pieces(headword, es, lexicon);
+                by_key
+                    .entry(key)
+                    .or_default()
+                    .push((written, headword, gloss));
+            }
+        }
+        let (mut shared, mut others) = (0, 0);
+        for (key, headwords) in &mut by_key {
+            headwords.sort_by(|a, b| {
+                (a.1 != key)
+                    .cmp(&(b.1 != key))
+                    .then_with(|| b.0.cmp(&a.0))
+                    .then_with(|| a.1.cmp(b.1))
+            });
+            let want: Vec<(&str, &str)> = headwords
+                .iter()
+                .map(|(_, headword, gloss)| (*headword, *gloss))
+                .collect();
+            // Every headword, its gloss its `mwe.tsv` row's, named by itself.
+            assert_eq!(pack.expression_headwords(key), want, "{pair}: {key}");
+            if want.len() > 1 {
+                shared += 1;
+                others += want.len() - 1;
+            }
+        }
+        assert_eq!((shared, others), (shared_keys, other_headwords), "{pair}");
+        for (key, names) in among {
+            let got: Vec<&str> = pack
+                .expression_headwords(key)
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect();
+            assert_eq!(got, *names, "{pair}: {key}");
+        }
+        assert!(
+            section_of(&sections(&bytes), section::EXPR_OTHERS).is_some(),
+            "{pair} carries the section"
         );
     }
 }

@@ -172,9 +172,11 @@ from the French Wiktionary's Spanish entries and 12,183 from the translations.
 **Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
 take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
-D1 is not needed. The pack is 2,231,951 B, with the grammar, the glosses, the levels, the
-expressions' names (add-lingua-spanish-expression-keys) and the lexical table its names out of
-Spanish's dictionary words give it (2,224,439 B before).
+D1 is not needed. The pack is 2,234,330 B, with the grammar, the glosses, the levels, the
+expressions' names (add-lingua-spanish-expression-keys), the lexical table its names out of
+Spanish's dictionary words give it, and every headword of a key several reach
+(pick-lingua-spanish-expression-written-as-the-page; 2,231,951 B before, 2,224,439 B before the
+lexical table).
 
 ## ES → EN
 
@@ -211,7 +213,9 @@ of Spanish (es-fr glosses none of them, or 1,235 by a proper noun's senses alone
 words have no English gloss (9,928 and 798 before leave-lingua-names-out-of-english-and-spanish-words
 left es-fr's names out of Spanish's dictionary words), so the pack carries a lexical section: its
 dictionary words are es-fr's. There are 15,515 expressions: 14,803
-from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,608,413 B.
+from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,612,075 B,
+keeping every headword of a key several reach (pick-lingua-spanish-expression-written-as-the-page;
+2,608,413 B before).
 A letter glosses no word: the English edition's letter rule takes « the letter r » and the Spanish
 spelling alphabet's « the letter E in … » (36 glosses ended on one), a pre-pass of
 `reduce_edition_en.py` drops the entries written under a single capital letter (`A` « bishop », `C`
@@ -513,7 +517,10 @@ studied tables.
 **Every headword of a shared key** (pick-lingua-expression-written-as-the-page): no table moves; a
 French pack keeps the other headwords of the keys several reach (`ça va` beside `ça ira` on `ça
 aller`) and lists them in `expr.others` — fr-en 61 headwords on 60 keys, 2,536,702 B, fr-es 64 on
-64, 1,971,104 B —, `pack_version` unchanged, their pins alone moving.
+64, 1,971,104 B —, `pack_version` unchanged, their pins alone moving. A Spanish pack does too
+(pick-lingua-spanish-expression-written-as-the-page: `hace tiempo` beside `hacer tiempo`) — es-fr 99
+headwords on 98 keys, 2,231,951 → 2,234,330 B, es-en 141 on 138, 2,608,413 → 2,612,075 B —, their
+pins alone moving.
 
 **The dictionary's unmarked spellings** (read-lingua-french-dictionary-unmarked-spellings): fr-en
 reduced again at its pin with `dictionary_unmarked_spellings` — 81 spellings read as their word (33

@@ -36,7 +36,9 @@
 //! A pull request that changes `baseline/es-en.golden` changes what English-native readers of
 //! Spanish will see. Only a dictionary update of es-en or of es-fr (which moves the studied
 //! tables), or a deliberate analyser change that bumps the Spanish analyser version, should do
-//! that. Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test es_en_baseline` — then
+//! that — or a builder change that moves the pack, and the probes a change adds, with the owner's
+//! approval (pick-lingua-spanish-expression-written-as-the-page: the pack, which keeps every
+//! headword of a key, and the five phrase probes es-fr's golden adds). Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test es_en_baseline` — then
 //! the extension's snapshot, `yarn vitest run test/word-card-es-en.spec.ts -u` — and say why in
 //! the pull request; `lingua-pack-update` re-blesses both on its own branch.
 //!

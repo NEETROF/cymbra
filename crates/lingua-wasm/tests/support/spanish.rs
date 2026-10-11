@@ -31,7 +31,12 @@ const LEMMAS: &[&str] = &[
 /// are not Spanish (Catalan, English, French). The pack keys its expressions as Spanish is read
 /// and names them by their headword (add-lingua-spanish-expression-keys): « al menos » reads its
 /// contraction as two words, « a la vez » writes its article, « después del » covers the
-/// article of the contraction it ends on, and « al fin y al cabo » is seven tokens.
+/// article of the contraction it ends on, and « al fin y al cabo » is seven tokens. A key several
+/// headwords reach is answered by the one written as the page
+/// (pick-lingua-spanish-expression-written-as-the-page): « hace tiempo », « buenos días » and
+/// « un poquito » where the pack holds the page's spelling, a clitic pronoun before the verb
+/// (« No te hagas ilusiones. ») and none the page writes (« El guardaespaldas tenía puestos unos
+/// audífonos. »).
 const PHRASES: &[&str] = &[
     "tener en cuenta",
     "hay que",
@@ -47,6 +52,11 @@ const PHRASES: &[&str] = &[
     "a la vez",
     "después del",
     "al fin y al cabo",
+    "hace tiempo",
+    "buenos días",
+    "un poquito",
+    "No te hagas ilusiones.",
+    "El guardaespaldas tenía puestos unos audífonos.",
     "En un lugar de la Mancha",
     "Fue a la casa de su abuela.",
     "El vino tinto vino de La Rioja.",

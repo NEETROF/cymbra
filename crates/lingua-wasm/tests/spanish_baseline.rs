@@ -29,7 +29,12 @@
 //!
 //! A pull request that changes `baseline/es-fr.golden` changes what readers of Spanish see.
 //! Only a dictionary update of es-fr, or a deliberate analyser change that bumps the Spanish
-//! analyser version, should do that; an en-fr update moves the `beside en-fr` line alone.
+//! analyser version, should do that; an en-fr update moves the `beside en-fr` line alone. A
+//! builder change that moves the pack, and the probes a change adds, are re-blessed with the
+//! owner's approval (pick-lingua-spanish-expression-written-as-the-page: the pack, which keeps
+//! every headword of a key, « darse cuenta » answering `darse cuenta`, and five phrase probes,
+//! « hace tiempo », « buenos días », « un poquito », « No te hagas ilusiones. » and « El
+//! guardaespaldas tenía puestos unos audífonos. »).
 //! Re-bless with
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test spanish_baseline` and say why in the pull
 //! request; `lingua-pack-update` re-blesses on its own branch.
