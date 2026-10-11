@@ -321,7 +321,7 @@ with fr-en's own rules and French's lexical table 2,537,386 B, with French's unm
 (pick-lingua-expression-written-as-the-page) 2,536,702 B, with the dictionary's unmarked spellings
 2,538,572 B, with the web's unmarked spellings 2,550,510 B (*The glosses*), with the French
 Wiktionary's expressions 3,004,986 B (*The French Wiktionary's expressions*), and with the web's
-hyphenated words and wrong accents it is **@@FRENPACK@@ B**, 57 % of the builder's 5 MiB.
+hyphenated words and wrong accents it is **3,006,129 B**, 57 % of the builder's 5 MiB.
 
 ## Measured
 

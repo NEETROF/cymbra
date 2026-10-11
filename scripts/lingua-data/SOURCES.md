@@ -575,7 +575,7 @@ fr-en reduced again at its pin with the owner's two reviewed lists `WEB_HYPHENAT
 leaving the ranks (`déja` 4,120, `trés` 4,720), `uterus` … `airelle` in at 59,934–59,997; forms
 124,742 → 124,847, readings 126,389 → 126,554 (109 the rows carry), French's dictionary words 26,555
 → 26,569, `level.tsv` byte for byte; 16 glosses in and none out, coverage 93.9 / 87.2 / 76.8 % (4,695
-/ 8,718 / 15,355), the pack 2,551,270 B; UD French-PUD unmoved, GSD's test section 98.91 / 96.10 /
+/ 8,718 / 15,355), the pack 3,004,986 → 3,006,129 B (on add-lingua-fr-en-translated-expressions' tables); UD French-PUD unmoved, GSD's test section 98.91 / 96.10 /
 99.72 % (« trés » ×3) —, then fr-es on the new `tables/fr/`: `trève` « Tregua » out, 8 entering
 lemmas glossed, every other row byte for byte (19,070 lemmas and `CA`, 13,227 direct), 83.2 / 70.9 /
 57.1 % (7,087 of the top 10,000), `mwe.tsv` byte for byte, the pack 1,982,362 → 1,983,054 B. Only
