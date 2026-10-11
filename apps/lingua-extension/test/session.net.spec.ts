@@ -2,8 +2,14 @@ import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { Code, ConnectError, type Client } from "@connectrpc/connect";
 import type { AuthService } from "@/gen/auth_pb";
 import { AccountError } from "@/state/auth-errors.ts";
-import { accessExpiry, isPersistedSignInError, Session, SIGNIN_ERROR_KEY } from "@/state/session.ts";
-import { type AsyncStorageArea, SESSION_LOST_KEY } from "@/state/storage.ts";
+import {
+  accessExpiry,
+  isPersistedSignInError,
+  type RefreshFailure,
+  Session,
+  SIGNIN_ERROR_KEY,
+} from "@/state/session.ts";
+import { type AsyncStorageArea, REFRESH_FAILURES_KEY, SESSION_LOST_KEY } from "@/state/storage.ts";
 
 // A store-backed storage area (mirrors the one in storage.spec).
 function fakeArea(seed: Record<string, unknown> = {}): AsyncStorageArea & { store: Record<string, unknown> } {
@@ -331,6 +337,44 @@ describe("Session", () => {
     expect(session.state().signedIn).toBe(true); // …but the session is still there
     expect(localArea.store[REFRESH_KEY]).toBe("R");
     expect(localArea.store[SESSION_LOST_KEY]).not.toBe(true);
+  });
+
+  it("records each failed refresh — kept or purged, with the server's reason — and no token", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fail: Partial<Record<Method, Code>> = { refresh: Code.Unavailable };
+    const { client } = fakeAuth({}, fail);
+    const { session, localArea } = makeSession(client, { localSeed: { [REFRESH_KEY]: "R" } });
+    await session.resume(); // unreachable: kept
+
+    fail.refresh = Code.Unauthenticated;
+    await session.refresh(); // refused: purged
+
+    const log = localArea.store[REFRESH_FAILURES_KEY] as RefreshFailure[];
+    expect(log.map((f) => [f.outcome, f.kind, f.reason])).toEqual([
+      ["kept", "unavailable", "refresh failed"],
+      ["purged", "unauthenticated", "refresh failed"],
+    ]);
+    expect(log.every((f) => typeof f.at === "number")).toBe(true);
+    expect(JSON.stringify(log)).not.toContain('"R"');
+  });
+
+  it("keeps only the last ten failures, and never fails the refresh over its diagnostics", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { client } = fakeAuth({ refresh: "fail" });
+    const old = Array.from({ length: 10 }, (_, i) => ({ at: i, outcome: "kept", kind: "unknown", reason: `r${i}` }));
+    const { session, localArea } = makeSession(client, {
+      localSeed: { [REFRESH_KEY]: "R", [REFRESH_FAILURES_KEY]: old },
+    });
+    await session.resume();
+
+    const log = localArea.store[REFRESH_FAILURES_KEY] as RefreshFailure[];
+    expect(log).toHaveLength(10);
+    expect(log[0]?.reason).toBe("r1");
+    expect(log[9]).toMatchObject({ outcome: "kept", kind: "unknown", reason: "refresh rejected" });
+
+    localArea.get = () => Promise.reject(new Error("storage gone"));
+    expect(await session.refresh()).toBe(false);
+    expect(session.state().signedIn).toBe(true);
   });
 
   it("refreshes once for concurrent callers, so a rotated token is never replayed", async () => {

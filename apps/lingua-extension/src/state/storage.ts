@@ -59,6 +59,15 @@ export const DEFAULT_HUD_POSITION: HudPosition = { side: "right", y: 1 };
 export const SESSION_LOST_KEY = "cymbra-lingua-session-lost";
 
 /**
+ * The last few refreshes that failed, newest last, in chrome.storage.local: when, whether the
+ * session was kept or purged, the category and the server's own reason ("refresh token reuse
+ * detected", "invalid refresh token"). Diagnostics only — no surface reads it; a sign-out that
+ * happened while reading can be traced afterwards from the background's devtools. Never holds
+ * a token.
+ */
+export const REFRESH_FAILURES_KEY = "cymbra-lingua-refresh-failures";
+
+/**
  * The voice the reader chose to hear read aloud, as its `voiceURI`; absent or null means the
  * automatic choice. A preference, not the reader's data: voice identifiers are per platform, so
  * it is never synchronised.
