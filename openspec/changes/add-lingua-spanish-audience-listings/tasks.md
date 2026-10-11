@@ -13,5 +13,5 @@
 
 ## 3. Owner
 
-- [ ] 3.1 [manual] The owner reviews the drafts (M9), chooses the Support URL, captures the screenshots and pastes the listings with change 35's release, after the site deploy that follows it; change 37 is marked done in `docs/lingua/language-matrix-programme.md`.
+- [ ] 3.1 [manual] The owner reviews the drafts (M9), chooses the Support URL, captures the screenshots and pastes the listings with change 35's release, after the site deploy that follows it; change 37 is marked done in `docs/lingua/language-matrix-programme.md`. Spanish drafts: reviewed by AI on the owner's instruction (2026-10-11); corrections listed in the PR.
 - [ ] 3.2 [manual] The first package carrying `_locales/es` is uploaded to the Chrome Web Store without publishing, the Spanish listing filled under `es`, then submitted; addons.mozilla.org's Spanish summary checked after submission; both results recorded in `STORE-LISTING.md` (D5).
