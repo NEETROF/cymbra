@@ -13,6 +13,6 @@
 
 - [x] 3.1 `test/lint-copy.spec.ts`: the files leave the baseline (*Off the baseline*).
 - [x] 3.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`.
-- [ ] 3.3 [manual] The owner reviews the English and Spanish entries (M9).
+- [x] 3.3 [manual] The owner reviews the English and Spanish entries (M9). Reviewed, no correction (the owner, 2026-10-11, change 33).
 - [x] 3.4 `openspec validate localise-lingua-review-stats --strict` passes, and `python3 scripts/openspec_archive_order.py localise-lingua-review-stats` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived); change 16 is marked done in `docs/lingua/language-matrix-programme.md`.
 - [ ] 3.5 [manual] By eye on the targets: the statistics tab shows no flash of empty copy (change 14's pending rule), and review and statistics in English and Spanish, in the side panel and the drawer, hold their longer drafts.

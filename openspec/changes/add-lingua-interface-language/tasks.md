@@ -22,4 +22,4 @@
 
 ## 5. Review (owner)
 
-- [ ] 5.1 [manual] The owner reviews the English and the Spanish drafts in the pull request (M9); corrections land in it.
+- [x] 5.1 [manual] The owner reviews the English and the Spanish drafts in the pull request (M9); corrections land in it. Reviewed, no correction (the owner, 2026-10-11, change 33).

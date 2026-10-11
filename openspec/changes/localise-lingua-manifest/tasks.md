@@ -16,5 +16,5 @@
 
 - [x] 3.1 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`, `yarn check:version`; the three built manifests byte for byte today's.
 - [x] 3.2 `STORE-LISTING.md`: the summary comes from `_locales` once a non-French native ships (D2); `README.md`'s release notes.
-- [ ] 3.3 [manual] The owner reviews the English and Spanish descriptions (M9).
+- [x] 3.3 [manual] The owner reviews the English and Spanish descriptions (M9). Reviewed, no correction (the owner, 2026-10-11, change 33).
 - [x] 3.4 `openspec validate localise-lingua-manifest --strict` passes, and `python3 scripts/openspec_archive_order.py localise-lingua-manifest` exits 0; change 27 is marked done in `docs/lingua/language-matrix-programme.md`.
