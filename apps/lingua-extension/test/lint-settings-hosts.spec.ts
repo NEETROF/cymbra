@@ -22,8 +22,9 @@ import { settings } from "@/i18n/fr/settings.ts";
 // to every reader, and no French assertion would notice. The same for the two views that name the
 // studied languages on their own, `mountStudiedLanguages` and `levelRow`: their language parameter
 // has no default (add-lingua-native-language-labels), so the compiler refuses a call without one —
-// what this lint adds is that the one call still handing the default, the onboarding page's, says
-// which change takes it over, rather than reading as a choice.
+// what this lint adds is that no call hands them the default instead, which would compile and read
+// as a choice. The onboarding page, the last to hand it, reads its own since
+// localise-lingua-account-onboarding.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const src = join(root, "src");
@@ -140,8 +141,6 @@ const NAMING_VIEWS: Record<string, string> = {
   mountStudiedLanguages: "src/reading/studied-languages-view.ts",
   levelRow: "src/onboarding/level-row.ts",
 };
-/** The one host still handing `DEFAULT_INTERFACE_LANGUAGE`, and the change that takes it over. */
-const DEFAULT_UNTIL = { host: "src/onboarding/onboarding.ts", change: "localise-lingua-account-onboarding" };
 
 describe("the views that name languages, handed the interface language", () => {
   const modules = files(src, ".ts").map((path): [string, string] => [rel(path), readFileSync(path, "utf8")]);
@@ -153,10 +152,8 @@ describe("the views that name languages, handed the interface language", () => {
         .flatMap(([path, code]) => callsOf(code, view).map((call) => ({ path, call })));
       expect(sites.length, `no call of ${view} outside ${definer}`).toBeGreaterThan(0);
       for (const { path, call } of sites) {
-        // The language is an identifier naming it, or the default said out loud — never a bare code.
-        expect(call, `${path}: hand ${view} the interface language — ${call}`).toMatch(
-          /\b(interfaceLanguage|DEFAULT_INTERFACE_LANGUAGE)\b/,
-        );
+        // The language is the identifier naming it — never a bare code, nor the default (below).
+        expect(call, `${path}: hand ${view} the interface language — ${call}`).toMatch(/\binterfaceLanguage\b/);
         expect(call, `${path}: a language code is a default in disguise — ${call}`).not.toMatch(
           /["'](fr|en|es)["']\s*,?\s*\)$/,
         );
@@ -164,21 +161,16 @@ describe("the views that name languages, handed the interface language", () => {
     });
   }
 
-  it(`${DEFAULT_UNTIL.host} alone hands the default, and says ${DEFAULT_UNTIL.change} replaces it`, () => {
+  it("no host hands them the default interface language", () => {
     for (const [path, code] of modules) {
       if (Object.values(NAMING_VIEWS).includes(path) || path.startsWith("src/i18n/")) continue;
-      // The default handed in the call, or bound to the name the call hands (the onboarding's shape).
+      // The default handed in the call, or bound to the name the call hands.
       const calls = Object.keys(NAMING_VIEWS).flatMap((view) => callsOf(code, view));
       const handsDefault =
         calls.length > 0 &&
         (calls.some((call) => /\bDEFAULT_INTERFACE_LANGUAGE\b/.test(call)) ||
           /\bconst interfaceLanguage = DEFAULT_INTERFACE_LANGUAGE\b/.test(code));
-      if (path === DEFAULT_UNTIL.host) {
-        expect(handsDefault, `${path} no longer hands the default: retire DEFAULT_UNTIL`).toBe(true);
-        expect(code, `${path}: say that ${DEFAULT_UNTIL.change} replaces the default`).toContain(DEFAULT_UNTIL.change);
-      } else {
-        expect(handsDefault, `${path} hands a naming view the default interface language`).toBe(false);
-      }
+      expect(handsDefault, `${path} hands a naming view the default interface language`).toBe(false);
     }
   });
 });

@@ -14,18 +14,36 @@
 
 //! The committed tables are kept once per studied language (split-lingua-pack-tables-by-language,
 //! M24): every pair reads its studied side from `tables/<studied>/`, which pins the language's
-//! tag pool and names its reference pair's glossed lemmas as its dictionary words. Moving the
-//! tables there left every shipped pack byte for byte as its pin records.
+//! tag pool and names its reference pair's glossed lemmas as its dictionary words, less those the
+//! reference glosses by a proper noun's senses alone — French's since refine-lingua-fr-en-glosses
+//! (D2), English's and Spanish's since leave-lingua-names-out-of-english-and-spanish-words (D1).
+//! Moving the tables there left every shipped pack byte for byte as its pin records.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use lingua_core::analysis::language::StudiedLanguage;
+use lingua_core::analysis::lexicon::Lexicon;
+use lingua_core::analysis::pipeline::headword_reading;
+use lingua_core::analysis::tokenize::{
+    FRENCH_ELISIONS, FRENCH_INVERSION_PRONOUNS, is_elided, tokenize,
+};
+use lingua_core::engine::{
+    expression_piece, french_expression_key, holds_french_contraction, reading_expression_key,
+    shared_spans,
+};
+use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
+use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
 use lingua_core::packs::format::read_container;
+use lingua_core::packs::grammar::Tag;
 use lingua_core::packs::pack::section;
+use lingua_pack::studied_of;
 use lingua_pack::tables::{STUDIED_RECORD, check_committed_tables};
-use lingua_pack::{PAIR_SIDE, STUDIED_SIDE, build_pack, inputs_from_dirs, inputs_from_tables};
+use lingua_pack::{
+    MAX_PACK_BYTES, PAIR_SIDE, STUDIED_SIDE, build_pack, inputs_from_dirs, inputs_from_tables,
+};
 use sha2::{Digest, Sha256};
 
 fn tables() -> PathBuf {
@@ -90,7 +108,7 @@ fn section_of<'a>(sections: &'a [(String, Vec<u8>)], name: &str) -> Option<&'a [
 #[test]
 fn every_committed_pair_holds_to_its_studied_language() {
     let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
-    for pair in ["en-fr", "es-fr", "es-en", "en-es"] {
+    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"] {
         assert!(pairs.iter().any(|p| p == pair), "{pair} is read");
     }
 }
@@ -121,7 +139,7 @@ fn spec_scenario_one_copy_per_studied_language() {
 
 #[test]
 fn spec_scenario_the_shipped_packs_keep_their_bytes() {
-    for pair in ["en-fr", "es-fr"] {
+    for (pair, language) in [("en-fr", "en"), ("es-fr", "es")] {
         let bytes = shipped(pair);
         let pin: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(tables().join(pair).join("pin.json")).unwrap(),
@@ -133,12 +151,193 @@ fn spec_scenario_the_shipped_packs_keep_their_bytes() {
             "{pair}: pin.json"
         );
         assert_eq!(pin["pack"]["size"], bytes.len(), "{pair}: pin.json");
-        // A reference's dictionary words are its glossed lemmas: no lexical section.
-        assert!(
-            section_of(&sections(bytes), section::LEXICAL).is_none(),
-            "{pair} carries no lexical table"
-        );
+        // Its dictionary words leave out the lemmas it glosses as names alone
+        // (leave-lingua-names-out-of-english-and-spanish-words D2): it carries a lexical table
+        // listing its language's.
+        assert_lexical_table_lists(pair, bytes, language);
     }
+}
+
+/// The lines of a studied language's committed `lexical.tsv`: its dictionary words.
+fn dictionary_words_of(language: &str) -> Vec<String> {
+    std::fs::read_to_string(tables().join(language).join("lexical.tsv"))
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect()
+}
+
+/// `bytes` carries a lexical table, and it marks exactly `language`'s committed dictionary
+/// words.
+fn assert_lexical_table_lists(pair: &str, bytes: &[u8], language: &str) {
+    let table = section_of(&sections(bytes), section::LEXICAL)
+        .unwrap_or_else(|| panic!("{pair} carries a lexical table"))
+        .to_vec();
+    let words = dictionary_words_of(language);
+    let marked: u32 = table.iter().map(|byte| byte.count_ones()).sum();
+    assert_eq!(marked as usize, words.len(), "{pair}: its lexical table");
+    let pack = Pack::load(bytes).unwrap();
+    assert!(
+        words.iter().all(|word| pack.is_dictionary_word(word)),
+        "{pair}: {language}/lexical.tsv"
+    );
+}
+
+#[test]
+fn spec_scenario_the_reference_packs_carry_a_lexical_table() {
+    // en-fr, es-fr and fr-en, built from their committed tables, each carry a lexical table
+    // listing its studied language's dictionary words, at the sha256 its pin records.
+    for (pair, language, bytes) in [
+        ("en-fr", "en", shipped("en-fr")),
+        ("es-fr", "es", shipped("es-fr")),
+        ("fr-en", "fr", fr_en()),
+    ] {
+        assert_eq!(
+            json(&tables().join(pair).join("pin.json"))["pack"]["sha256"],
+            sha256_hex(bytes).as_str(),
+            "{pair}: pin.json"
+        );
+        assert_lexical_table_lists(pair, bytes, language);
+    }
+}
+
+/// The lemmas `pair` glosses by a proper noun's senses alone: every run of their `senses.tsv`
+/// row is `PROPN` (refine-lingua-fr-en-glosses D2,
+/// leave-lingua-names-out-of-english-and-spanish-words D1).
+fn names_of(pair: &str) -> BTreeSet<String> {
+    tsv(&tables().join(pair).join("senses.tsv"))
+        .into_iter()
+        .filter(|(_, runs)| runs.split('\t').all(|run| run.starts_with("PROPN:")))
+        .map(|(lemma, _)| lemma)
+        .collect()
+}
+
+/// A studied language's dictionary words are its reference's glossed lemmas less its names, and
+/// its reader pair holds the same ones: each `name` is glossed and no dictionary word, each
+/// `word` a dictionary word.
+fn assert_names_left_out(
+    (language, reference, reader): (&str, &str, &[u8]),
+    names: &[&str],
+    words: &[&str],
+    count: usize,
+) {
+    let glossed: Vec<String> = tsv(&tables().join(reference).join("gloss.tsv"))
+        .into_keys()
+        .collect();
+    let left_out = names_of(reference);
+    assert_eq!(left_out.len(), count, "{reference}: its names alone");
+    let expected: Vec<&String> = glossed.iter().filter(|l| !left_out.contains(*l)).collect();
+    let committed = dictionary_words_of(language);
+    assert_eq!(
+        committed.iter().collect::<Vec<_>>(),
+        expected,
+        "{language}/lexical.tsv"
+    );
+    let pack = Pack::load(shipped(reference)).unwrap();
+    for name in names {
+        assert!(left_out.contains(*name), "{name}: a name alone");
+        assert!(pack.gloss(name).is_some(), "{name} keeps its gloss");
+        assert!(!pack.is_dictionary_word(name), "{name} is no word");
+    }
+    for word in words {
+        assert!(pack.is_dictionary_word(word), "{word} is a word");
+    }
+    assert_eq!(
+        Pack::load(reader).unwrap().dictionary_words(),
+        pack.dictionary_words(),
+        "{language}: the reader pair's dictionary words are {reference}'s"
+    );
+}
+
+#[test]
+fn spec_scenario_english_s_names() {
+    // en-fr glosses `london` « Londres; … » and `margaret` « Marguerite, … » by proper nouns'
+    // senses alone, `bill` by common nouns' and verbs' beside a name's: 24,799 glossed lemmas,
+    // 3,046 names, 21,753 dictionary words.
+    assert_names_left_out(
+        ("en", "en-fr", en_es()),
+        &["london", "margaret", "york", "england"],
+        &["bill", "mark", "will", "hope", "english"],
+        3_046,
+    );
+    assert_eq!(dictionary_words_of("en").len(), 21_753);
+    let bill = tsv(&tables().join("en-fr/senses.tsv"))["bill"].clone();
+    assert!(bill.contains("PROPN:") && bill.contains("NOUN:"), "{bill}");
+}
+
+#[test]
+fn spec_scenario_spanish_s_names() {
+    // es-fr glosses `madrid` « Madrid » and `maría` « Marie; María » by proper nouns' senses
+    // alone, `dios` « Dieu » by a common noun's and `luna` by a common noun's beside a name's:
+    // 22,755 glossed lemmas, 1,693 names, 21,062 dictionary words.
+    assert_names_left_out(
+        ("es", "es-fr", es_en()),
+        &["madrid", "maría", "méxico", "españa"],
+        &["dios", "luna", "casa", "argentina"],
+        1_693,
+    );
+    assert_eq!(dictionary_words_of("es").len(), 21_062);
+}
+
+#[test]
+fn spec_scenario_a_month_a_cefr_list_levels() {
+    // en-fr glosses `june` « Juin; Prénom épicène… » by proper nouns' senses alone, and CEFR-J
+    // gives it A1: it is no dictionary word of English, keeps its level, and the vocabulary
+    // estimate's universe counts it — as it counts every one of English's eleven levelled names
+    // (leave-lingua-names-out-of-english-and-spanish-words D3).
+    let pack = Pack::load(shipped("en-fr")).unwrap();
+    let levels = tsv(&tables().join("en/level.tsv"));
+    let levelled_names: Vec<(String, String)> = names_of("en-fr")
+        .into_iter()
+        .filter_map(|lemma| levels.get(&lemma).map(|level| (lemma, level.clone())))
+        .collect();
+    let expected = [
+        ("april", "A1"),
+        ("badminton", "A2"),
+        ("december", "A1"),
+        ("february", "A1"),
+        ("january", "A1"),
+        ("july", "A1"),
+        ("june", "A1"),
+        ("november", "A1"),
+        ("olympics", "A1"),
+        ("ph", "B2"),
+        ("september", "A1"),
+    ];
+    assert_eq!(
+        levelled_names,
+        expected.map(|(l, v)| (l.to_owned(), v.to_owned()))
+    );
+    let universe: BTreeSet<&str> = pack
+        .dictionary_words()
+        .into_iter()
+        .map(|(l, _)| l)
+        .collect();
+    for (lemma, level) in expected {
+        assert!(
+            !pack.is_dictionary_word(lemma),
+            "{lemma} is no dictionary word"
+        );
+        assert_eq!(
+            CefrLevels::level(&pack, lemma).map(CefrLevel::label),
+            Some(level),
+            "{lemma}"
+        );
+        assert!(universe.contains(lemma), "{lemma} is counted");
+    }
+    // The universe: the ranked lemmas that are dictionary words or carry a level.
+    assert_eq!(universe.len(), 22_337);
+}
+
+#[test]
+fn every_spanish_levelled_lemma_is_a_dictionary_word() {
+    // Spanish's estimated levels go only to lemmas es-fr glosses as more than a name
+    // (`estimated_levels`), the same set the names rule leaves (D3): no Spanish level moved.
+    let levels = tsv(&tables().join("es/level.tsv"));
+    let words: BTreeSet<String> = dictionary_words_of("es").into_iter().collect();
+    assert_eq!(levels.len(), 8_302);
+    let stray: Vec<&String> = levels.keys().filter(|l| !words.contains(*l)).collect();
+    assert!(stray.is_empty(), "levelled, no dictionary word: {stray:?}");
 }
 
 /// es-en's committed pack, built once per test binary.
@@ -462,8 +661,9 @@ fn spec_scenario_a_pair_left_behind() {
     // test_build_sh_names_a_pair_left_behind_by_its_studied_tables).
     let scratch = std::env::temp_dir().join(format!("lingua-left-behind-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&scratch);
-    // es-fr's glosses, read as another native language's: its dictionary words are its own
-    // glossed lemmas, so it carries no lexical section until tables/es names others.
+    // es-fr's glosses, read as another native language's: its dictionary words are tables/es's,
+    // es-fr's glossed lemmas less its names alone (leave-lingua-names-out-of-english-and-spanish-words
+    // D1), so it carries a lexical section.
     let es_en = scratch.join("es-en");
     std::fs::create_dir_all(&es_en).unwrap();
     let es_fr = tables().join("es-fr");
@@ -479,7 +679,8 @@ fn spec_scenario_a_pair_left_behind() {
         build_pack(&inputs_from_dirs(studied, &es_en).expect("read es-en")).expect("build es-en")
     };
     let recorded = build(&tables().join("es"));
-    assert!(section_of(&sections(&recorded), section::LEXICAL).is_none());
+    assert!(section_of(&sections(&recorded), section::LEXICAL).is_some());
+    assert!(!Pack::load(&recorded).unwrap().is_dictionary_word("madrid"));
 
     // One level: `a`, A1 → A2.
     let es = studied_copy(&scratch, "es");
@@ -521,4 +722,1697 @@ fn spec_scenario_a_pair_left_behind() {
     );
     assert!(Pack::load(&gained).unwrap().is_dictionary_word("augusto"));
     assert!(!Pack::load(&recorded).unwrap().is_dictionary_word("augusto"));
+}
+
+/// fr-en's committed pack, built once per test binary.
+fn fr_en() -> &'static [u8] {
+    static FR_EN: OnceLock<Vec<u8>> = OnceLock::new();
+    FR_EN.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "fr-en").unwrap_or_else(|e| panic!("fr-en: {e}"));
+        build_pack(&inputs).unwrap_or_else(|e| panic!("build fr-en: {e}"))
+    })
+}
+
+/// French's acronym rows as `tables/fr/forms.tsv` holds them (keep-lingua-french-acronyms-in-capitals
+/// D2): the forms holding a capital, each its own lemma — `CA` alone.
+fn french_acronyms() -> BTreeSet<String> {
+    tsv(&tables().join("fr/forms.tsv"))
+        .into_iter()
+        .filter(|(form, _)| form.chars().any(char::is_uppercase))
+        .map(|(form, lemma)| {
+            assert_eq!(form, lemma, "a form in capitals is its own lemma");
+            form
+        })
+        .collect()
+}
+
+/// A committed two-column table, `key → value`, as the builder reads it.
+fn tsv(path: &Path) -> BTreeMap<String, String> {
+    std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+        .lines()
+        .map(|line| {
+            let (key, value) = line.split_once('\t').unwrap_or_else(|| panic!("{line:?}"));
+            (key.to_owned(), value.to_owned())
+        })
+        .collect()
+}
+
+#[test]
+fn spec_scenario_the_reference_pair_writes_french_s_folder() {
+    // fr-en (add-lingua-french-forms-tables D1, D10), French's reference pair: tables/fr/ holds
+    // French's forms and ranks, its readings and their pinned tag pool
+    // (add-lingua-french-grammar-tables), its estimated levels (add-lingua-french-levels), its record
+    // naming fr-en, and the dictionary words, fr-en's glossed lemmas (add-lingua-pack-fr-en) less
+    // those it glosses by a proper noun's senses alone (refine-lingua-fr-en-glosses D2).
+    let fr = tables().join("fr");
+    assert_eq!(
+        files(&fr),
+        [
+            "forms.tsv",
+            "freq.tsv",
+            "grammar.tsv",
+            "level.tsv",
+            "lexical.tsv",
+            "studied.json",
+            "tags.tsv"
+        ]
+    );
+    assert_eq!(json(&fr.join(STUDIED_RECORD))["reference"], "fr-en");
+    // tables/fr-en/ holds a pair's native side — its glosses, sense runs and expressions — its
+    // notice, manifest, pin and README, and nothing else (add-lingua-pack-fr-en: *The same
+    // snapshot*).
+    let fr_en_dir = tables().join("fr-en");
+    assert_eq!(
+        files(&fr_en_dir),
+        [
+            "NOTICE",
+            "README.md",
+            "gloss.tsv",
+            "manifest.json",
+            "mwe.tsv",
+            "pin.json",
+            "senses.tsv"
+        ]
+    );
+    // French's dictionary words are exactly the lemmas fr-en glosses less its names — `paris`,
+    // `durand` —, byte-sorted, one per line (*French's dictionary words*, *French's names*): a word
+    // with a common sense beside a name's stays one (`lot`, `marche`, `nice`).
+    let glossed: Vec<String> = tsv(&fr_en_dir.join("gloss.tsv")).into_keys().collect();
+    assert!(glossed.len() > 30_000, "{}", glossed.len());
+    let names = names_of("fr-en");
+    assert!(names.len() > 3_000, "{}", names.len());
+    for name in ["paris", "durand", "lyon", "france", "coran"] {
+        assert!(names.contains(name), "{name} is glossed as a name alone");
+    }
+    let words: Vec<&String> = glossed.iter().filter(|l| !names.contains(*l)).collect();
+    let lexical = std::fs::read_to_string(fr.join("lexical.tsv")).unwrap();
+    assert_eq!(lexical.lines().collect::<Vec<_>>(), words, "fr/lexical.tsv");
+    assert!(lexical.ends_with('\n'));
+    for word in ["lot", "marche", "nice", "le", "des", "maison"] {
+        assert!(lexical.lines().any(|l| l == word), "{word} is a word");
+    }
+    let manifest = json(&fr_en_dir.join("manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "fr");
+    assert_eq!(manifest["meta"]["native"], "en");
+    assert_eq!(
+        manifest["meta"]["analyzer_version"],
+        lingua_core::analysis::FRENCH_ANALYZER_VERSION
+    );
+    // Every ranked lemma is the lemma of at least one form.
+    let forms = tsv(&fr.join("forms.tsv"));
+    let lemmas: BTreeSet<&String> = forms.values().collect();
+    let ranks = tsv(&fr.join("freq.tsv"));
+    assert_eq!(ranks.len(), 60_000);
+    let unreached: Vec<&String> = ranks.keys().filter(|l| !lemmas.contains(l)).collect();
+    assert!(
+        unreached.is_empty(),
+        "ranked, no form's lemma: {unreached:?}"
+    );
+    // The reference's pin records its sources and pack, and nothing of a studied record.
+    let pin = json(&fr_en_dir.join("pin.json"));
+    assert!(pin.get("studied").is_none());
+}
+
+#[test]
+fn spec_scenario_the_pack_builds_where_the_others_do() {
+    // fr-en's pack, built from tables/fr/ and tables/fr-en/, has the sha256 its pin records, carries
+    // a lexical section (its dictionary words leave out the lemmas it glosses as names alone,
+    // refine-lingua-fr-en-glosses D2), fits the budget, and no package lists it
+    // (add-lingua-pack-fr-en: *The pack is built, not shipped*).
+    let bytes = fr_en();
+    let pin = json(&tables().join("fr-en/pin.json"));
+    assert_eq!(
+        pin["pack"]["sha256"],
+        sha256_hex(bytes).as_str(),
+        "fr-en: pin.json"
+    );
+    assert_eq!(pin["pack"]["size"], bytes.len());
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    assert!(section_of(&sections(bytes), section::LEXICAL).is_some());
+    let pack = Pack::load(bytes).unwrap();
+    assert_eq!(pack.pair().key(), "fr-en");
+    // A vocabulary estimate counts the ranked lemmas that are dictionary words or carry a level
+    // (`dictionary_words`): tables/fr/lexical.tsv's, every one of them ranked, since every levelled
+    // lemma is one of them — but French's acronym rows, dictionary words with no rank
+    // (keep-lingua-french-acronyms-in-capitals D5), which it does not count.
+    let lexical: BTreeSet<String> = std::fs::read_to_string(tables().join("fr/lexical.tsv"))
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    let unranked: BTreeSet<String> = lexical
+        .iter()
+        .filter(|l| !ranks.contains_key(*l))
+        .cloned()
+        .collect();
+    assert_eq!(unranked, french_acronyms());
+    assert_eq!(
+        pack.dictionary_words().len(),
+        lexical.len() - unranked.len()
+    );
+    assert!(pack.is_dictionary_word("maison"));
+    assert!(pack.gloss("maison").is_some_and(|g| g.starts_with("house")));
+    // A name keeps its gloss but is no word to learn.
+    assert!(!pack.is_dictionary_word("paris"));
+    assert!(pack.gloss("paris").is_some_and(|g| g.starts_with("Paris")));
+    let packs = json(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
+    );
+    assert!(
+        !packs["pairs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p == "fr-en"),
+        "no package lists fr-en"
+    );
+}
+
+#[test]
+fn spec_scenario_fr_en_s_two_editions() {
+    // add-lingua-fr-en-translated-expressions D6, *Two editions in fr-en's pin* and *The credit*: its
+    // pin records the English Wiktionary's French section and the French Wiktionary's English
+    // translations, each under the release that holds it — the English one kept from the update
+    // before, byte for byte —, its notice and manifest credit both editions, and the pack carries
+    // the notice.
+    let pin = json(&tables().join("fr-en/pin.json"));
+    let sources = pin["sources"].as_object().unwrap();
+    // serde_json's map is sorted by key.
+    assert_eq!(
+        sources.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["gsd-dev", "gsd-train", "kaikki-en", "kaikki-fr", "wordfreq"]
+    );
+    let english = &sources["kaikki-en"];
+    let french = &sources["kaikki-fr"];
+    assert_eq!(english["release"], "lingua-pack-sources-fr-en-2026.10.09");
+    assert!(english["files"]["kaikki-French.jsonl"].is_object());
+    assert_eq!(english["files"].as_object().unwrap().len(), 1);
+    assert_eq!(
+        french["release"],
+        format!(
+            "lingua-pack-sources-fr-en-{}",
+            pin["snapshot"].as_str().unwrap()
+        ),
+        "the French edition under the snapshot's own release"
+    );
+    assert_eq!(
+        french["url"],
+        "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz"
+    );
+    assert!(french["files"]["kaikki-fr-traductions-en.jsonl"].is_object());
+    assert_eq!(french["files"].as_object().unwrap().len(), 1);
+    let notice = std::fs::read_to_string(tables().join("fr-en/NOTICE")).unwrap();
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
+    for credit in [
+        "English Wiktionary (enwiktionary), French section",
+        "the English glosses of French words and expressions",
+        "French Wiktionary (frwiktionary)",
+        "the English translations its French entries list, for the expressions the English \
+         Wiktionary's French section does not gloss",
+    ] {
+        assert!(notice.contains(credit), "fr-en/NOTICE names {credit:?}");
+    }
+    let manifest = json(&tables().join("fr-en/manifest.json"));
+    assert_eq!(
+        manifest["meta"]["licences"][0],
+        "kaikki / enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)"
+    );
+    let pack = Pack::load(fr_en()).unwrap();
+    for credit in ["enwiktionary", "frwiktionary", "UD French-GSD"] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
+    // The table glosses expressions alone (D1): every glossed lemma is ranked, but the acronym rows.
+    let glossed = tsv(&tables().join("fr-en/gloss.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    let acronyms = french_acronyms();
+    assert!(
+        glossed
+            .keys()
+            .all(|l| ranks.contains_key(l) || acronyms.contains(l))
+    );
+}
+
+#[test]
+fn spec_scenario_a_gloss_is_its_lemma_s() {
+    // Every lemma fr-en glosses is a ranked lemma the forms table reads as itself, so the builder,
+    // which files a gloss under the lemma its key reads as, lends no gloss to another word
+    // (add-lingua-pack-fr-en D1): the pack answers each lemma with its own row. The prototype, on
+    // tables ranking `venue` (read as venir), glossed venir « coming, arrival ». French's acronym
+    // rows are the one exception to « ranked » (keep-lingua-french-acronyms-in-capitals D5): each
+    // reads as itself, and none is ranked.
+    let forms = tsv(&tables().join("fr/forms.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    let glossed = tsv(&tables().join("fr-en/gloss.tsv"));
+    let senses = tsv(&tables().join("fr-en/senses.tsv"));
+    let acronyms = french_acronyms();
+    let elsewhere: Vec<(&String, Option<&String>)> = glossed
+        .keys()
+        .map(|lemma| (lemma, forms.get(lemma)))
+        .filter(|(lemma, read)| {
+            *read != Some(*lemma) || (!ranks.contains_key(*lemma) && !acronyms.contains(*lemma))
+        })
+        .take(10)
+        .collect();
+    assert!(
+        elsewhere.is_empty(),
+        "glossed, no ranked lemma read as itself: {elsewhere:?}"
+    );
+    // A run per gloss, on the same lemmas.
+    assert!(senses.keys().eq(glossed.keys()), "senses.tsv's lemmas");
+    let pack = Pack::load(fr_en()).unwrap();
+    let lent: Vec<&String> = glossed
+        .iter()
+        .filter(|(lemma, gloss)| pack.gloss(lemma) != Some(gloss.as_str()))
+        .map(|(lemma, _)| lemma)
+        .take(10)
+        .collect();
+    assert!(
+        lent.is_empty(),
+        "a lemma answered with another row: {lent:?}"
+    );
+    let venir = pack.gloss("venir").expect("venir is glossed");
+    assert!(venir.starts_with("to come"), "{venir}");
+    assert!(!venir.contains("arrival"), "{venir}");
+    assert!(!glossed.contains_key("venue"));
+}
+
+#[test]
+fn spec_scenario_english_s_sizes() {
+    // French's levels keep English's six sizes and go to French's dictionary words alone
+    // (refine-lingua-fr-en-glosses D3, *A French level is given only to a French dictionary word*):
+    // a lemma the dictionary words do not list — `parce`, met only in « parce que », `coran`, glossed
+    // as a name alone — gives its slot to the next one. The checks name a levelled lemma that is no
+    // word (*A level for a word with no gloss*).
+    let levels = tsv(&tables().join("fr/level.tsv"));
+    let lexical: BTreeSet<String> = std::fs::read_to_string(tables().join("fr/lexical.tsv"))
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    let unlisted: Vec<&String> = levels.keys().filter(|l| !lexical.contains(*l)).collect();
+    assert!(
+        unlisted.is_empty(),
+        "levelled, no dictionary word of French: {unlisted:?}"
+    );
+    let mut sizes = BTreeMap::new();
+    for level in levels.values() {
+        *sizes.entry(level.as_str()).or_insert(0) += 1;
+    }
+    assert_eq!(
+        sizes,
+        BTreeMap::from([
+            ("A1", 1020),
+            ("A2", 1158),
+            ("B1", 2015),
+            ("B2", 2347),
+            ("C1", 886),
+            ("C2", 876)
+        ])
+    );
+    for lemma in ["parce", "coran", "quant"] {
+        assert!(!levels.contains_key(lemma), "{lemma} takes no level");
+    }
+    // Every levelled lemma carries a gloss, so a card seeded from a level shows one.
+    let pack = Pack::load(fr_en()).unwrap();
+    let bare: Vec<&String> = levels
+        .keys()
+        .filter(|l| pack.gloss(l).is_none())
+        .take(10)
+        .collect();
+    assert!(bare.is_empty(), "levelled with no gloss: {bare:?}");
+}
+
+/// fr-es's committed pack, built once per test binary.
+fn fr_es() -> &'static [u8] {
+    static FR_ES: OnceLock<Vec<u8>> = OnceLock::new();
+    FR_ES.get_or_init(|| {
+        let inputs =
+            inputs_from_tables(&tables(), "fr-es").unwrap_or_else(|e| panic!("fr-es: {e}"));
+        build_pack(&inputs).unwrap_or_else(|e| panic!("build fr-es: {e}"))
+    })
+}
+
+#[test]
+fn spec_scenario_french_glossed_in_spanish() {
+    // fr-es (add-lingua-pack-fr-es D1, D10), a reader pair of French: its folder holds exactly a
+    // pair's file set, its manifest studies French glossed in Spanish with French's analyser and
+    // estimated levels, and its studied side is tables/fr, which fr-en writes.
+    let dir = tables().join("fr-es");
+    assert_eq!(
+        files(&dir),
+        [
+            "NOTICE",
+            "README.md",
+            "gloss.tsv",
+            "manifest.json",
+            "mwe.tsv",
+            "pin.json",
+            "senses.tsv"
+        ]
+    );
+    let manifest = json(&dir.join("manifest.json"));
+    assert_eq!(manifest["meta"]["studied"], "fr");
+    assert_eq!(manifest["meta"]["native"], "es");
+    assert_eq!(
+        manifest["meta"]["analyzer_version"],
+        lingua_core::analysis::FRENCH_ANALYZER_VERSION
+    );
+    assert_eq!(manifest["meta"]["levels_estimated"], true);
+
+    // Its pin records its own pack and, a reader pair's record (add-lingua-pack-es-en D3), fr-en
+    // as the reference and the sha256 of each of the six studied tables it was built on, as
+    // committed; its pack_version names their digest.
+    let pin = json(&dir.join("pin.json"));
+    assert_eq!(pin["studied"]["reference"], "fr-en");
+    let recorded = pin["studied"]["tables"].as_object().unwrap();
+    assert_eq!(recorded.len(), 6, "{recorded:?}");
+    for name in STUDIED_SIDE {
+        let committed = std::fs::read(tables().join("fr").join(name)).unwrap();
+        assert_eq!(
+            recorded[name],
+            sha256_hex(&committed).as_str(),
+            "fr-es: fr/{name}"
+        );
+    }
+    let version = manifest["meta"]["pack_version"].as_str().unwrap();
+    assert!(
+        version.starts_with(&format!("{}+", pin["snapshot"].as_str().unwrap()))
+            && version.matches('.').count() == 3,
+        "a reader pair's pack_version names its snapshot, rules and studied tables: {version}"
+    );
+    // Its sources are dumps alone, the three derived files under its own release (D3): the Spanish
+    // edition's French section and French translations, the French edition's Spanish ones. No
+    // English dump: tables/fr is read as committed.
+    assert!(pin["sources"].get("kaikki").is_none(), "no extract");
+    assert!(pin["sources"].get("kaikki-en").is_none(), "no English dump");
+    let release = pin["sources"]["kaikki-es"]["release"].as_str().unwrap();
+    assert!(
+        release.starts_with("lingua-pack-sources-fr-es-"),
+        "{release}"
+    );
+    assert_eq!(pin["sources"]["kaikki-fr"]["release"], release);
+    assert!(pin["sources"]["kaikki-es"]["files"]["kaikki-es-Frances.jsonl"].is_object());
+    assert!(pin["sources"]["kaikki-es"]["files"]["kaikki-es-traductions.jsonl"].is_object());
+    assert!(pin["sources"]["kaikki-fr"]["files"]["kaikki-fr-traductions.jsonl"].is_object());
+    assert!(
+        json(&tables().join("fr-en/pin.json"))
+            .get("studied")
+            .is_none(),
+        "the reference's pin records nothing of its readers"
+    );
+}
+
+#[test]
+fn spec_scenario_french_s_dictionary_words() {
+    // fr-es's pack carries a lexical table listing exactly the lemmas tables/fr/lexical.tsv lists —
+    // French's dictionary words, fr-en's glossed lemmas less its names alone
+    // (refine-lingua-fr-en-glosses D2) — so a lemma fr-es glosses and fr-en does not is no dictionary
+    // word (`quant`, glossed by the Spanish Wiktionary; *French's dictionary words*), nor one fr-en
+    // glosses as a name alone.
+    let bytes = fr_es();
+    assert!(section_of(&sections(bytes), section::LEXICAL).is_some());
+    let (fr_es, fr_en) = (Pack::load(bytes).unwrap(), Pack::load(fr_en()).unwrap());
+    assert_eq!(fr_es.pair().key(), "fr-es");
+    assert_eq!(
+        fr_es.dictionary_words(),
+        fr_en.dictionary_words(),
+        "fr-es's dictionary words are fr-en's"
+    );
+    let lexical: BTreeSet<String> =
+        std::fs::read_to_string(tables().join("fr").join("lexical.tsv"))
+            .unwrap()
+            .lines()
+            .map(str::to_owned)
+            .collect();
+    let glossed = tsv(&tables().join("fr-es/gloss.tsv"));
+    let only_here: Vec<&String> = glossed
+        .keys()
+        .filter(|lemma| !lexical.contains(*lemma))
+        .collect();
+    assert!(only_here.iter().any(|l| *l == "quant"), "quant");
+    for lemma in &only_here {
+        assert!(
+            fr_es.gloss(lemma).is_some() && !fr_es.is_dictionary_word(lemma),
+            "{lemma}"
+        );
+    }
+    assert!(fr_en.gloss("quant").is_none());
+    // Every row answers its own lemma (the builder files a gloss under the lemma its key reads
+    // as), with a run per gloss.
+    let senses = tsv(&tables().join("fr-es/senses.tsv"));
+    assert!(senses.keys().eq(glossed.keys()), "senses.tsv's lemmas");
+    let lent: Vec<&String> = glossed
+        .iter()
+        .filter(|(lemma, gloss)| fr_es.gloss(lemma) != Some(gloss.as_str()))
+        .map(|(lemma, _)| lemma)
+        .take(10)
+        .collect();
+    assert!(
+        lent.is_empty(),
+        "a lemma answered with another row: {lent:?}"
+    );
+    assert_eq!(fr_es.gloss("maison"), Some("Casa"));
+    assert_eq!(fr_es.gloss("et"), Some("Y, e"));
+}
+
+#[test]
+fn spec_scenario_the_pack_is_built_not_shipped() {
+    // fr-es's pack, built from tables/fr/ and tables/fr-es/, has the sha256 its pin records, fits
+    // the budget, and no package lists it: change 52 decides, by the floor (add-lingua-pack-fr-es
+    // D8).
+    let bytes = fr_es();
+    let pin = json(&tables().join("fr-es/pin.json"));
+    assert_eq!(
+        pin["pack"]["sha256"],
+        sha256_hex(bytes).as_str(),
+        "fr-es: pin.json"
+    );
+    assert_eq!(pin["pack"]["size"], bytes.len());
+    assert!(bytes.len() < MAX_PACK_BYTES);
+    let packs = json(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
+    );
+    assert!(
+        !packs["pairs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p == "fr-es"),
+        "no package lists fr-es"
+    );
+}
+
+#[test]
+fn spec_scenario_the_credits_of_fr_es() {
+    // fr-es's notice credits both sides: French's tables and dictionary words as fr-en's notice
+    // credits them (the English Wiktionary's French section, wordfreq, UD French-GSD), the Spanish
+    // Wiktionary's definitions and French translations, the French Wiktionary's Spanish
+    // translations, wordfreq for the Spanish words' order. The pack carries it.
+    let notice = std::fs::read_to_string(tables().join("fr-es/NOTICE")).unwrap();
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
+    for credit in [
+        "English Wiktionary (enwiktionary), French section",
+        "which lemmas fr-en glosses: the dictionary words and which take a level",
+        "Spanish Wiktionary (eswiktionary)",
+        "French translations its Spanish entries list",
+        "French Wiktionary (frwiktionary)",
+        "Spanish translations its French entries list",
+        "wordfreq (French and Spanish frequency lists)",
+        "Robyn Speer",
+        "UD French-GSD",
+        "The levels are estimated, not taken from a CEFR list",
+    ] {
+        assert!(notice.contains(credit), "fr-es/NOTICE names {credit:?}");
+    }
+    let manifest = json(&tables().join("fr-es/manifest.json"));
+    assert_eq!(
+        manifest["meta"]["licences"][0],
+        "kaikki / enwiktionary, eswiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)"
+    );
+    let pack = Pack::load(fr_es()).unwrap();
+    assert!(pack.meta().levels_estimated);
+    for credit in [
+        "enwiktionary",
+        "eswiktionary",
+        "frwiktionary",
+        "UD French-GSD",
+    ] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_the_reduction_never_reads_the_treebanks_it_is_measured_on() {
+    // fr-en's pin records the English Wiktionary's French section, derived from the edition's dump
+    // under fr-en's own release, the French Wiktionary's English translations of expressions
+    // (add-lingua-fr-en-translated-expressions D6), GSD's training and development sections at a
+    // commit, and wordfreq — never GSD's test section nor PUD, which measure/fr-ud.sh holds out.
+    let pin = json(&tables().join("fr-en/pin.json"));
+    let sources: Vec<&String> = pin["sources"].as_object().unwrap().keys().collect();
+    // serde_json's map is sorted by key.
+    assert_eq!(
+        sources,
+        ["gsd-dev", "gsd-train", "kaikki-en", "kaikki-fr", "wordfreq"]
+    );
+    for (name, file) in [
+        ("gsd-train", "fr_gsd-ud-train.conllu"),
+        ("gsd-dev", "fr_gsd-ud-dev.conllu"),
+    ] {
+        let url = pin["sources"][name]["url"].as_str().unwrap();
+        assert!(
+            url.starts_with(
+                "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/"
+            ) && url.ends_with(&format!("/{file}")),
+            "{name}: {url}"
+        );
+    }
+    let kaikki = &pin["sources"]["kaikki-en"];
+    let release = kaikki["release"].as_str().unwrap();
+    assert!(
+        release.starts_with("lingua-pack-sources-fr-en-"),
+        "{release}"
+    );
+    assert_eq!(
+        kaikki["url"],
+        "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz"
+    );
+    let derived: Vec<&String> = kaikki["files"].as_object().unwrap().keys().collect();
+    assert_eq!(derived, ["kaikki-French.jsonl"]);
+    let text = pin.to_string();
+    for held_out in ["fr_gsd-ud-test", "fr_pud", "UD_French-PUD"] {
+        assert!(!text.contains(held_out), "fr-en's pin names {held_out}");
+    }
+}
+
+// French's pinned tag pool (add-lingua-french-grammar-tables D8): the tags French's readings carry,
+// each once, written by a person — no reducer writes it — and held to the readings here.
+
+/// Where a pin and the readings' tags part: the canonical, distinct lines of `pin` against the
+/// third column of `grammar` (`grammar.tsv`), each difference named.
+fn pin_against_readings(pin: &str, grammar: &str) -> Result<(), String> {
+    let mut pinned = BTreeSet::new();
+    for line in pin.lines() {
+        let canonical = Tag::parse_strict(line)
+            .map_err(|e| format!("tags.tsv: {line:?} is no tag ({e})"))?
+            .to_ud();
+        if canonical != line {
+            return Err(format!(
+                "tags.tsv: {line:?} is not written as {canonical:?}"
+            ));
+        }
+        if !pinned.insert(line) {
+            return Err(format!("tags.tsv: {line:?} is listed twice"));
+        }
+    }
+    let read: BTreeSet<&str> = grammar
+        .lines()
+        .map(|row| row.split('\t').nth(2).unwrap_or_else(|| panic!("{row:?}")))
+        .collect();
+    let missing: Vec<&&str> = read.difference(&pinned).collect();
+    if !missing.is_empty() {
+        return Err(format!(
+            "a reading carries {missing:?}, which tags.tsv does not pin: append it, after the pinned tags"
+        ));
+    }
+    let left: Vec<&&str> = pinned.difference(&read).collect();
+    if !left.is_empty() {
+        return Err(format!("tags.tsv pins {left:?}, which no reading carries"));
+    }
+    Ok(())
+}
+
+#[test]
+fn spec_scenario_the_pin_is_the_readings_tags() {
+    let fr = tables().join("fr");
+    let pin = std::fs::read_to_string(fr.join("tags.tsv")).unwrap();
+    let grammar = std::fs::read_to_string(fr.join("grammar.tsv")).unwrap();
+    pin_against_readings(&pin, &grammar).unwrap_or_else(|e| panic!("fr/{e}"));
+    // The first reduction's tags, in byte order: 79, as the design counted them.
+    let lines: Vec<&str> = pin.lines().collect();
+    assert_eq!(lines.len(), 79);
+    assert!(lines.is_sorted(), "fr/tags.tsv is not in byte order");
+    // The pack lays its pool out as the pin, then the tags only fr-en's sense runs carry
+    // (add-lingua-pack-fr-en: `ADV`, a noun run's `NOUN|Gender=Fem`…), each once, sorted.
+    let (_, sections) = read_container(fr_en()).unwrap();
+    let pool = sections
+        .iter()
+        .find(|s| s.name == section::TAGS)
+        .map(|s| String::from_utf8(s.data.clone()).unwrap())
+        .expect("a tag pool");
+    let pool: Vec<&str> = pool.split('\n').collect();
+    assert_eq!(pool[..lines.len()], lines[..]);
+    let senses = &pool[lines.len()..];
+    assert!(senses.contains(&"ADV"), "{senses:?}");
+    assert!(senses.is_sorted(), "{senses:?}");
+    assert!(senses.iter().all(|tag| !lines.contains(tag)), "{senses:?}");
+}
+
+#[test]
+fn spec_scenario_a_later_reduction_carries_a_new_tag() {
+    let pin = "NOUN|Gender=Fem|Number=Sing\nVERB|VerbForm=Inf\n";
+    let grammar =
+        "maison\tmaison\tNOUN|Gender=Fem|Number=Sing\t-\nparler\tparler\tVERB|VerbForm=Inf\t-\n";
+    assert_eq!(pin_against_readings(pin, grammar), Ok(()));
+    // A reading's new tag fails, named, until it is appended after the pinned ones.
+    let newer = format!("{grammar}parlant\tparler\tVERB|Tense=Pres|VerbForm=Part\t-\n");
+    let err = pin_against_readings(pin, &newer).unwrap_err();
+    assert!(err.contains("VERB|Tense=Pres|VerbForm=Part"), "{err}");
+    let appended = format!("{pin}VERB|Tense=Pres|VerbForm=Part\n");
+    assert_eq!(pin_against_readings(&appended, &newer), Ok(()));
+    // A pinned tag no reading carries any more fails, named.
+    let err = pin_against_readings(&appended, grammar).unwrap_err();
+    assert!(err.contains("which no reading carries"), "{err}");
+    assert!(err.contains("VERB|Tense=Pres|VerbForm=Part"), "{err}");
+    // A line not written as the vocabulary writes it, or listed twice, fails, named.
+    let err = pin_against_readings("NOUN|Number=Sing|Gender=Fem\n", "").unwrap_err();
+    assert!(err.contains("is not written as"), "{err}");
+    let err = pin_against_readings("VERB|VerbForm=Inf\nVERB|VerbForm=Inf\n", "").unwrap_err();
+    assert!(err.contains("listed twice"), "{err}");
+    assert!(pin_against_readings("Gender=Fem\n", "").is_err());
+}
+
+#[test]
+fn spec_scenario_senses_another_pack_s_glosses_carry() {
+    // A pack studying French, its glosses carrying a sense run tagged INTJ, a tag no reading
+    // carries: its readings are stored byte for byte as without it, the pool only grows at its end,
+    // and the core reads the run as INTJ. French's studied tables, fr-en's own native side left
+    // out — its runs carry INTJ already (add-lingua-pack-fr-en).
+    let studied_only = || {
+        let mut inputs = inputs_from_tables(&tables(), "fr-en").expect("fr-en");
+        inputs.glosses.clear();
+        inputs.senses.clear();
+        inputs
+    };
+    let build = |runs: bool| {
+        let mut inputs = studied_only();
+        inputs.glosses.push(("ah".into(), "Ah!".into()));
+        if runs {
+            inputs.senses.push(("ah".into(), vec![("INTJ".into(), 1)]));
+        }
+        build_pack(&inputs).expect("build fr-en")
+    };
+    let (without, with) = (build(false), build(true));
+    let (a, b) = (sections(&without), sections(&with));
+    assert!(section_of(&a, section::PARADIGMS_ZST).is_some());
+    assert!(
+        section_of(&a, section::PARADIGMS_ZST) == section_of(&b, section::PARADIGMS_ZST),
+        "the INTJ run moved the readings"
+    );
+    let pool = |s: &[(String, Vec<u8>)]| -> Vec<String> {
+        String::from_utf8(section_of(s, section::TAGS).unwrap().to_vec())
+            .unwrap()
+            .split('\n')
+            .map(str::to_owned)
+            .collect()
+    };
+    let (pool_a, pool_b) = (pool(&a), pool(&b));
+    assert_eq!(pool_b[..pool_a.len()], pool_a[..]);
+    assert_eq!(pool_b[pool_a.len()..], ["INTJ"]);
+    let pack = Pack::load(&with).unwrap();
+    let runs: Vec<String> = pack
+        .sense_runs("ah")
+        .into_iter()
+        .map(|(tag, _)| tag.unwrap().to_ud())
+        .collect();
+    assert_eq!(runs, ["INTJ"]);
+    // Built without a pin — one sorted pool —, INTJ falls among the readings' tags and moves them.
+    let mut unpinned = studied_only();
+    unpinned.glosses.push(("ah".into(), "Ah!".into()));
+    unpinned
+        .senses
+        .push(("ah".into(), vec![("INTJ".into(), 1)]));
+    unpinned.tag_pool = None;
+    let moved = sections(&build_pack(&unpinned).unwrap());
+    assert!(section_of(&moved, section::PARADIGMS_ZST) != section_of(&a, section::PARADIGMS_ZST));
+}
+
+#[test]
+fn the_pin_moves_no_byte_of_today_s_pack() {
+    // The readings' tags in byte order are what the empty pin laid out too: fr-en built with an
+    // empty pin is the pack its pin records (design D8).
+    let mut empty = inputs_from_tables(&tables(), "fr-en").expect("fr-en");
+    assert_eq!(empty.tag_pool.as_ref().map(Vec::len), Some(79));
+    empty.tag_pool = Some(vec![]);
+    assert!(
+        build_pack(&empty).unwrap() == fr_en(),
+        "the pin moved fr-en's bytes"
+    );
+}
+
+// French's pre-pass (add-lingua-french-tokenisation D3–D5): the tables must hold every word it
+// hands the lookup (add-lingua-french-forms-tables D4). Its lists are read from lingua-core, and the
+// words it writes from its own tokeniser, so a pull request that moves them moves this check.
+
+/// The words French's pre-pass writes, read by lingua-core's tokeniser with fr-en's lexicon: each
+/// elided piece before a word, and in its special cases (`s'il`, `donne-m'en`, `va-t'en`); `au` and
+/// `aux`; and an inversion with each of its pronouns, the euphonic `t` too. The words they are
+/// written beside (`avoir`, `dit`, …) left out.
+fn pre_pass_words(lexicon: &(impl Lexicon + ?Sized)) -> BTreeSet<String> {
+    let mut text: Vec<String> = FRENCH_ELISIONS
+        .iter()
+        .map(|(written, _)| format!("{written}'avoir"))
+        .collect();
+    text.extend(["s'il", "donne-m'en", "va-t'en", "au", "aux", "a-t-il"].map(String::from));
+    text.extend(FRENCH_INVERSION_PRONOUNS.iter().map(|p| format!("dit-{p}")));
+    tokenize(&text.join(" "), StudiedLanguage::French, lexicon)
+        .into_iter()
+        .map(|token| token.text.to_lowercase())
+        .filter(|word| !["avoir", "donne", "va", "a", "dit"].contains(&word.as_str()))
+        .collect()
+}
+
+#[test]
+fn spec_scenario_every_word_the_pre_pass_writes_is_a_form() {
+    let forms = tsv(&tables().join("fr/forms.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    let pack = Pack::load(fr_en()).unwrap();
+    let written = pre_pass_words(pack.lexicon());
+    // The 17 words of the elisions, `à`, `le`, `les` and the inversion's pronouns: 32, as the
+    // design counted them — a word the tokeniser dropped would be missing here.
+    assert_eq!(written.len(), 32, "{written:?}");
+    for word in &written {
+        let lemma = forms
+            .get(word)
+            .unwrap_or_else(|| panic!("{word}: the pre-pass writes it, and fr/forms.tsv lacks it"));
+        assert!(
+            ranks.contains_key(lemma),
+            "{word} → {lemma}: no ranked lemma"
+        );
+    }
+    // Each elided piece maps to the word the pre-pass reads it as outside its special cases.
+    for (written, read) in FRENCH_ELISIONS {
+        let piece = format!("{written}'");
+        assert_eq!(
+            forms.get(&piece).map(String::as_str),
+            Some(*read),
+            "{piece}"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_the_contracted_articles() {
+    // `au` and `aux`, which the pre-pass always splits, are neither forms nor ranks; `du` and `des`,
+    // which it keeps whole, are words of their own.
+    let forms = tsv(&tables().join("fr/forms.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    for contraction in ["au", "aux"] {
+        assert!(!forms.contains_key(contraction), "{contraction} is a form");
+        assert!(!ranks.contains_key(contraction), "{contraction} is ranked");
+    }
+    for word in ["du", "des"] {
+        assert_eq!(forms.get(word).map(String::as_str), Some(word));
+        assert!(ranks.contains_key(word), "{word} is no ranked lemma");
+    }
+    // A noun ending in a pronoun is listed whole, so the inversion rule never splits it; a verb and
+    // its pronoun is not, and no plain word beginning with a piece is a form.
+    for whole in [
+        "rendez-vous",
+        "qu'en-dira-t-on",
+        "c'est-à-dire",
+        "aujourd'hui",
+    ] {
+        assert!(forms.contains_key(whole), "{whole} is no form");
+    }
+    for split in [
+        "est-il",
+        "allez-y",
+        "souviens-toi",
+        "c'est",
+        "d'abord",
+        "l'on",
+        "jusqu'à",
+    ] {
+        assert!(!forms.contains_key(split), "{split} is a form");
+    }
+}
+
+#[test]
+fn spec_scenario_a_french_spelling_without_its_marks() {
+    // read-lingua-french-ca-as-ca-cedilla: in both French packs, a spelling fr-en's reviewed table
+    // names reads as its word — `ca` as ça, `age` and `ages` as âge, `forcement` as forcément — and
+    // is no lemma of its own: no gloss (« board of directors », the plough's beam and the fixing
+    // number are gone), and its rank, level and dictionary word, read through the spelling, are its
+    // word's; `forcements`, the lost noun's plural, is no form. The named words keep their
+    // levels, and a word of its own beside a marked word (`ou`, `cote`) reads as itself. « CA » in
+    // capitals reads as ça too, unless it stands alone in capitals: the analysis then looks it up
+    // as written, the acronym row `CA` (keep-lingua-french-acronyms-in-capitals,
+    // `spec_scenario_the_acronym_in_both_french_packs`).
+    for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        for (spelling, word) in [
+            ("ca", "ça"),
+            ("age", "âge"),
+            ("ages", "âge"),
+            ("forcement", "forcément"),
+        ] {
+            assert_eq!(lexicon.lemma_of(spelling), Some(word), "{pair}: {spelling}");
+            assert!(
+                !lexicon.contains_lemma(spelling),
+                "{pair}: {spelling} is a lemma"
+            );
+            assert_eq!(pack.gloss(spelling), None, "{pair}: {spelling}");
+            assert!(pack.is_dictionary_word(spelling), "{pair}: {spelling}");
+            assert_eq!(pack.rank(spelling), pack.rank(word), "{pair}: {spelling}");
+            assert_eq!(pack.level(spelling), pack.level(word), "{pair}: {spelling}");
+        }
+        assert_eq!(lexicon.lemma_of("forcements"), None, "{pair}: forcements");
+        for (word, level) in [
+            ("ça", CefrLevel::A1),
+            ("âge", CefrLevel::A1),
+            ("forcément", CefrLevel::A2),
+        ] {
+            assert_eq!(pack.level(word), Some(level), "{pair}: {word}");
+        }
+        for word in ["ou", "cote"] {
+            assert_eq!(lexicon.lemma_of(word), Some(word), "{pair}: {word}");
+        }
+    }
+    // The named words keep their glosses: fr-en's three, and fr-es's two (it glossed none of the
+    // spellings, nor forcément).
+    let fr_en = Pack::load(fr_en()).unwrap();
+    for word in ["ça", "âge", "forcément"] {
+        assert!(fr_en.gloss(word).is_some(), "fr-en: {word}");
+    }
+    assert_eq!(fr_en.gloss("âge"), Some("age"));
+    let fr_es = Pack::load(fr_es()).unwrap();
+    assert_eq!(fr_es.gloss("ça"), Some("(coloquial) Eso, esto, aquello"));
+    assert_eq!(fr_es.gloss("âge"), Some("Edad"));
+}
+
+#[test]
+fn spec_scenario_the_acronym_in_both_french_packs() {
+    // keep-lingua-french-acronyms-in-capitals D2, D4, D5: in fr-en's and fr-es's packs `CA` reads as
+    // `CA`, as written — its own lemma, the one form holding a capital —, glossed from each pair's
+    // own glosses of its expansions in one noun run of three senses, with no rank and no level,
+    // and one of French's dictionary words the vocabulary estimate does not count; `ca` still
+    // reads as ça.
+    assert_eq!(
+        french_acronyms(),
+        BTreeSet::from(["CA".to_owned()]),
+        "the one form in capitals"
+    );
+    let noun = Tag::parse_strict("NOUN").unwrap();
+    for (pair, bytes, gloss) in [
+        (
+            "fr-en",
+            fr_en(),
+            "board of directors; revenue, turnover, net sales; alternating current",
+        ),
+        (
+            "fr-es",
+            fr_es(),
+            "Administración, consejo de administración; Ingreso, cifra de negocios, facturación; \
+             Corriente alterna",
+        ),
+    ] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        assert_eq!(lexicon.lemma_of("CA"), Some("CA"), "{pair}");
+        assert!(lexicon.contains_lemma("CA"), "{pair}");
+        assert_eq!(lexicon.lemma_of("ca"), Some("ça"), "{pair}");
+        assert_eq!(pack.gloss("CA"), Some(gloss), "{pair}");
+        assert_eq!(pack.sense_runs("CA"), [(Some(&noun), 3)], "{pair}");
+        assert_eq!(pack.rank("CA"), None, "{pair}");
+        assert_eq!(pack.level("CA"), None, "{pair}");
+        assert!(pack.is_dictionary_word("CA"), "{pair}");
+        assert!(
+            pack.dictionary_words()
+                .iter()
+                .all(|(lemma, _)| *lemma != "CA"),
+            "{pair}: the estimate counts ranked words"
+        );
+        // ça keeps its own row, rank and level.
+        assert_ne!(pack.gloss("ça"), Some(gloss), "{pair}");
+        assert_eq!(pack.level("ça"), Some(CefrLevel::A1), "{pair}");
+        // No reading is filed under it.
+        assert!(pack.readings("CA", "ca").is_empty(), "{pair}");
+        assert!(pack.readings("CA", "CA").is_empty(), "{pair}");
+    }
+    // Each gloss is the pair's own expressions' first senses, in the row's order.
+    for pair in ["fr-en", "fr-es"] {
+        let expressions = tsv(&tables().join(pair).join("mwe.tsv"));
+        let first: Vec<&str> = [
+            "conseil d'administration",
+            "chiffre d'affaires",
+            "courant alternatif",
+        ]
+        .iter()
+        .map(|e| expressions[*e].split("; ").next().unwrap())
+        .collect();
+        assert!(!expressions.contains_key("comptable agréé"), "{pair}");
+        assert_eq!(
+            tsv(&tables().join(pair).join("gloss.tsv"))["CA"],
+            first.join("; "),
+            "{pair}"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_a_spelling_the_dictionary_gives_only_as_a_marked_word() {
+    // read-lingua-french-dictionary-unmarked-spellings: in both French packs, a word the dictionary
+    // gives only as a marked word written without its marks reads as that word when wordfreq rates
+    // it the commoner — `etre` and `etait` as être, `etat` and `etats` as état, `repondre` and its
+    // `repond` as répondre, `siecle` as siècle — and is no lemma of its own: no gloss, and its rank
+    // and level, read through the spelling, are its word's. `diesel` and `ego`, commoner than
+    // diésel and égo, read as themselves with their levels; `tete`, a form of `teter` commoner than
+    // téter, keeps `teter` apart (D2); 43b's `ca` still reads as ça; être, état and siècle keep their
+    // levels.
+    for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        for (spelling, word) in [
+            ("etre", "être"),
+            ("etait", "être"),
+            ("etat", "état"),
+            ("etats", "état"),
+            ("repondre", "répondre"),
+            ("repond", "répondre"),
+            ("siecle", "siècle"),
+        ] {
+            assert_eq!(lexicon.lemma_of(spelling), Some(word), "{pair}: {spelling}");
+            assert!(
+                !lexicon.contains_lemma(spelling),
+                "{pair}: {spelling} is a lemma"
+            );
+            assert_eq!(pack.gloss(spelling), None, "{pair}: {spelling}");
+            assert_eq!(pack.rank(spelling), pack.rank(word), "{pair}: {spelling}");
+            assert_eq!(pack.level(spelling), pack.level(word), "{pair}: {spelling}");
+        }
+        for (word, level) in [("diesel", CefrLevel::B1), ("ego", CefrLevel::B2)] {
+            assert_eq!(lexicon.lemma_of(word), Some(word), "{pair}: {word}");
+            assert!(lexicon.contains_lemma(word), "{pair}: {word}");
+            assert_eq!(pack.level(word), Some(level), "{pair}: {word}");
+        }
+        assert_ne!(lexicon.lemma_of("tete"), Some("téter"), "{pair}: tete");
+        assert_ne!(lexicon.lemma_of("teter"), Some("téter"), "{pair}: teter");
+        assert_eq!(lexicon.lemma_of("ca"), Some("ça"), "{pair}: ca");
+        for word in ["être", "état", "siècle"] {
+            assert_eq!(pack.level(word), Some(CefrLevel::A1), "{pair}: {word}");
+        }
+    }
+    // The marked words keep their glosses; fr-es, which glossed none of the spellings but
+    // `uberisation`, now shows état's on « etat ».
+    let fr_en = Pack::load(fr_en()).unwrap();
+    assert_eq!(
+        fr_en.gloss("état"),
+        Some("state, condition; state, nation; government")
+    );
+    assert_eq!(fr_en.gloss("diesel"), Some("diesel"));
+    let fr_es = Pack::load(fr_es()).unwrap();
+    assert_eq!(fr_es.gloss("état"), Some("Estado"));
+    assert_eq!(fr_es.gloss("uberisation"), None);
+}
+
+#[test]
+fn spec_scenario_the_web_s_spellings_without_their_marks() {
+    // read-lingua-french-web-unmarked-spellings: in both French packs, a spelling the web writes
+    // without its marks and a reviewed list names reads as its word — `tres`, `deja`, `francais`,
+    // `recu`, `leger` as très, déjà, français, recevoir, léger, and the owner's exception `sure` as
+    // sûr — and is no lemma of its own: no gloss, its rank and level read through the spelling.
+    // très, déjà and français keep their levels; `ou` and `cote`, words a reader means as written,
+    // and `video`, which English writes more often and the list leaves out, read as themselves.
+    for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        for (spelling, word) in [
+            ("tres", "très"),
+            ("deja", "déjà"),
+            ("francais", "français"),
+            ("recu", "recevoir"),
+            ("leger", "léger"),
+            ("sure", "sûr"),
+        ] {
+            assert_eq!(lexicon.lemma_of(spelling), Some(word), "{pair}: {spelling}");
+            assert!(
+                !lexicon.contains_lemma(spelling),
+                "{pair}: {spelling} is a lemma"
+            );
+            assert_eq!(pack.gloss(spelling), None, "{pair}: {spelling}");
+            assert_eq!(pack.rank(spelling), pack.rank(word), "{pair}: {spelling}");
+            assert_eq!(pack.level(spelling), pack.level(word), "{pair}: {spelling}");
+        }
+        for word in ["très", "déjà", "français"] {
+            assert_eq!(pack.level(word), Some(CefrLevel::A1), "{pair}: {word}");
+        }
+        for word in ["ou", "cote", "video"] {
+            assert_eq!(lexicon.lemma_of(word), Some(word), "{pair}: {word}");
+            assert!(lexicon.contains_lemma(word), "{pair}: {word}");
+        }
+    }
+    // fr-es no longer shows the French Wiktionary's Cuban guitar for « tres ».
+    let fr_es = Pack::load(fr_es()).unwrap();
+    assert_eq!(fr_es.gloss("tres"), None);
+    assert!(fr_es.gloss("très").is_some());
+}
+
+#[test]
+fn spec_scenario_the_web_s_hyphenated_words_and_wrong_accents() {
+    // read-lingua-french-hyphenated-and-misaccented-spellings: in both French packs, a hyphenated word
+    // the web writes without its marks reads, as a whole run the pack lists, as its word —
+    // `peut-etre`, `c'est-a-dire`, `grand-mere` as peut-être, c'est-à-dire, grand-mère — and a word
+    // written with wrong marks as the word whose marks it keeps — `trés`, `déja`, `agé` as très,
+    // déjà, âgé —; none is a lemma of its own. `élève` and `élevé`, the words a wrong accent may
+    // stand for, read as they did, and `á`, Portuguese's, is no form.
+    for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        for (spelling, word) in [
+            ("peut-etre", "peut-être"),
+            ("c'est-a-dire", "c'est-à-dire"),
+            ("grand-mere", "grand-mère"),
+            ("trés", "très"),
+            ("déja", "déjà"),
+            ("agé", "âgé"),
+        ] {
+            assert_eq!(lexicon.lemma_of(spelling), Some(word), "{pair}: {spelling}");
+            assert!(
+                !lexicon.contains_lemma(spelling),
+                "{pair}: {spelling} is a lemma"
+            );
+            assert_eq!(pack.gloss(spelling), None, "{pair}: {spelling}");
+            assert_eq!(pack.rank(spelling), pack.rank(word), "{pair}: {spelling}");
+        }
+        assert_eq!(lexicon.lemma_of("élève"), Some("élever"), "{pair}");
+        assert_eq!(lexicon.lemma_of("élevé"), Some("élevé"), "{pair}");
+        assert_eq!(lexicon.lemma_of("á"), None, "{pair}");
+    }
+}
+
+#[test]
+fn spec_scenario_the_committed_pairs() {
+    // fix-lingua-lemma-lookup D4, D6: each committed pair builds — no form of its forms table has
+    // two lemmas, every lemma of its pack reads as itself — to the sha256 its pin records, so
+    // filing every section at the lemma's own place moved no byte.
+    for (pair, bytes) in [
+        ("en-fr", shipped("en-fr")),
+        ("es-fr", shipped("es-fr")),
+        ("es-en", es_en()),
+        ("en-es", en_es()),
+        ("fr-en", fr_en()),
+        ("fr-es", fr_es()),
+    ] {
+        let pin = json(&tables().join(pair).join("pin.json"));
+        assert_eq!(pin["pack"]["sha256"], sha256_hex(bytes).as_str(), "{pair}");
+        let pack = Pack::load(bytes).unwrap();
+        let sections = sections(bytes);
+        let pool = std::str::from_utf8(section_of(&sections, section::LEMMAS).unwrap()).unwrap();
+        let elsewhere: Vec<(&str, Option<&str>)> = pool
+            .lines()
+            .map(|lemma| (lemma, pack.lexicon().lemma_of(lemma)))
+            .filter(|(lemma, read)| *read != Some(*lemma))
+            .take(10)
+            .collect();
+        assert!(
+            elsewhere.is_empty(),
+            "{pair}: lemmas read as another: {elsewhere:?}"
+        );
+    }
+}
+
+#[test]
+fn every_rank_lands_on_its_own_lemma_in_the_built_pack() {
+    // A ranked lemma whose own form reads as another word kept no rank of its own and lent it to
+    // that word while the builder filed a rank through the form lookup
+    // (add-lingua-french-forms-tables: `donnée`, read as donner, gave donner its 1,711). The
+    // builder now files it at the lemma's own place and refuses such a lemma
+    // (fix-lingua-lemma-lookup D4); this holds the result on the packs as built: every committed
+    // pair's pack holds each rank of its studied language's freq.tsv on that very lemma, and no
+    // other.
+    for (pair, bytes) in [
+        ("en-fr", shipped("en-fr")),
+        ("es-fr", shipped("es-fr")),
+        ("es-en", es_en()),
+        ("en-es", en_es()),
+        ("fr-en", fr_en()),
+    ] {
+        let pack = Pack::load(bytes).unwrap();
+        let ranks: BTreeMap<String, u32> = tsv(&tables().join(studied_of(pair)).join("freq.tsv"))
+            .into_iter()
+            .map(|(lemma, rank)| (lemma, rank.parse().unwrap()))
+            .collect();
+        let elsewhere: Vec<(&String, Option<&str>)> = ranks
+            .keys()
+            .map(|lemma| (lemma, pack.lexicon().lemma_of(lemma)))
+            .filter(|(lemma, read)| *read != Some(lemma.as_str()))
+            .take(10)
+            .collect();
+        assert!(
+            elsewhere.is_empty(),
+            "{pair}: ranked lemmas whose own form reads elsewhere: {elsewhere:?}"
+        );
+        // Band by band, the pack's ranked lemmas are exactly freq.tsv's.
+        let top = ranks.values().copied().max().unwrap();
+        for lo in (1..=top).step_by(1000) {
+            let hi = lo + 999;
+            let got: BTreeSet<&str> = pack
+                .lemmas_in_rank_band(lo, hi)
+                .into_iter()
+                .map(|(lemma, _)| lemma)
+                .collect();
+            let want: BTreeSet<&str> = ranks
+                .iter()
+                .filter(|(_, rank)| (lo..=hi).contains(*rank))
+                .map(|(lemma, _)| lemma.as_str())
+                .collect();
+            assert_eq!(got, want, "{pair}: ranks {lo}–{hi}");
+        }
+    }
+}
+
+// French's estimated levels (add-lingua-french-levels, M7): fr-en's reduction writes
+// `tables/fr/level.tsv`, English's level sizes given to French's commonest lemmas in rank order,
+// which lemmas take one read from the English Wiktionary's French section.
+
+/// English's CEFR level sizes, which French's estimated levels borrow, as Spanish's do
+/// (`ENGLISH_BANDS` in reduce-fr-en.py and reduce-es-fr.py).
+const ENGLISH_LEVEL_SIZES: [(&str, usize); 6] = [
+    ("A1", 1_020),
+    ("A2", 1_158),
+    ("B1", 2_015),
+    ("B2", 2_347),
+    ("C1", 886),
+    ("C2", 876),
+];
+
+#[test]
+fn spec_scenario_six_levels_of_english_s_sizes() {
+    let fr = tables().join("fr");
+    let levels = tsv(&fr.join("level.tsv"));
+    let ranks = tsv(&fr.join("freq.tsv"));
+    let forms = tsv(&fr.join("forms.tsv"));
+    assert_eq!(levels.len(), 8_302);
+    // Each a ranked lemma whose own form reads as itself: a pack finds a lemma by its own form.
+    for lemma in levels.keys() {
+        assert!(ranks.contains_key(lemma), "{lemma}: levelled, not ranked");
+        assert_eq!(
+            forms.get(lemma),
+            Some(lemma),
+            "{lemma}: its own form reads elsewhere"
+        );
+    }
+    // As many at each level as English's lists hold, given in rank order: each level's ranks come
+    // after the level below's.
+    let mut below = 0;
+    for (label, size) in ENGLISH_LEVEL_SIZES {
+        let at: Vec<u32> = levels
+            .iter()
+            .filter(|(_, level)| *level == label)
+            .map(|(lemma, _)| ranks[lemma].parse().unwrap())
+            .collect();
+        assert_eq!(at.len(), size, "fr/level.tsv: {label}");
+        let (first, last) = (*at.iter().min().unwrap(), *at.iter().max().unwrap());
+        assert!(
+            first > below,
+            "{label} starts at rank {first}, the level below ends at {below}"
+        );
+        below = last;
+    }
+}
+
+#[test]
+fn spec_scenario_the_commonest_words_are_a1() {
+    let levels = tsv(&tables().join("fr/level.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    for word in ["de", "le", "et", "à", "être", "avoir", "du", "des", "y"] {
+        assert_eq!(levels.get(word).map(String::as_str), Some("A1"), "{word}");
+    }
+    // `au` and `aux` are no words of French's tables.
+    for word in ["au", "aux"] {
+        assert!(!levels.contains_key(word), "{word} has a level");
+    }
+    // What a CEFR list leaves out (design D2), all ranked: a name, a word the section does not
+    // know, a letter, another word's spelling.
+    for word in ["paris", "france", "the", "b", "e", "parceque"] {
+        assert!(ranks.contains_key(word), "{word} is no ranked lemma");
+        assert!(!levels.contains_key(word), "{word} has a level");
+    }
+    // `etre`, read as être since read-lingua-french-dictionary-unmarked-spellings, is no ranked
+    // lemma and has no level of its own.
+    assert!(!ranks.contains_key("etre"), "etre is a ranked lemma");
+    assert!(!levels.contains_key("etre"), "etre has a level");
+}
+
+#[test]
+fn spec_scenario_every_french_pack_says_so() {
+    // Every pack studying French built from the committed tables — fr-en today — says its levels
+    // are estimated, in its manifest and its pack, and its NOTICE says so, citing no CEFR list.
+    let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
+    let french: Vec<&String> = pairs.iter().filter(|p| studied_of(p) == "fr").collect();
+    assert!(french.iter().any(|p| *p == "fr-en"), "{french:?}");
+    for pair in french {
+        let dir = tables().join(pair);
+        assert_eq!(
+            json(&dir.join("manifest.json"))["meta"]["levels_estimated"],
+            true,
+            "{pair}/manifest.json"
+        );
+        let pack = Pack::load(&committed_pack(pair)).unwrap();
+        assert!(pack.has_levels(), "{pair}");
+        assert!(pack.levels_estimated(), "{pair}");
+        let notice = std::fs::read_to_string(dir.join("NOTICE")).unwrap();
+        assert!(
+            notice.contains("The levels are estimated, not taken from a CEFR list"),
+            "{pair}/NOTICE"
+        );
+        for list in ["FLELex", "CEFRLex", "CEFR-J", "Octanove"] {
+            assert!(!notice.contains(list), "{pair}/NOTICE names {list}");
+        }
+    }
+}
+
+/// A committed pair's pack, built once per test binary for the six pairs the tests above build.
+fn committed_pack(pair: &str) -> std::borrow::Cow<'static, [u8]> {
+    use std::borrow::Cow;
+    match pair {
+        "en-fr" | "es-fr" => Cow::Borrowed(shipped(pair)),
+        "es-en" => Cow::Borrowed(es_en()),
+        "en-es" => Cow::Borrowed(en_es()),
+        "fr-en" => Cow::Borrowed(fr_en()),
+        "fr-es" => Cow::Borrowed(fr_es()),
+        _ => Cow::Owned(
+            build_pack(&inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}")))
+                .unwrap_or_else(|e| panic!("build {pair}: {e}")),
+        ),
+    }
+}
+
+/// A studied language's level table, `lemma → level`; empty when it has none.
+fn level_table(studied: &Path) -> BTreeMap<String, String> {
+    let path = studied.join("level.tsv");
+    if path.exists() {
+        tsv(&path)
+    } else {
+        BTreeMap::new()
+    }
+}
+
+/// Each level of a studied language's `level.tsv` on the lemma it is written for, in a pair's
+/// pack (add-lingua-french-levels D3). The builder keyed a level by looking the lemma up as a form
+/// (`FstLexicon::id_of`), so a lemma whose own form reads as another handed that other lemma its
+/// level; it now files a level at the lemma's own place and a level written for a string that is
+/// no lemma under none (fix-lingua-lemma-lookup D4), which this check sees as a level the pack
+/// does not carry. Every lemma of the table must carry the table's level in the pack, and every
+/// lemma the pack gives a level the table's — the second half catches a level landing on a lemma
+/// the table leaves without one. The levels carried, or the pair and each lemma off, with both
+/// levels.
+fn levels_on_their_lemmas(
+    pair: &str,
+    bytes: &[u8],
+    table: &BTreeMap<String, String>,
+) -> Result<usize, String> {
+    let pack = Pack::load(bytes).map_err(|e| format!("{pair}: {e}"))?;
+    let mut carried: BTreeMap<&str, &str> = BTreeMap::new();
+    for level in CefrLevel::ALL {
+        for (lemma, _) in pack.lemmas_at_level(level) {
+            carried.insert(lemma, level.label());
+        }
+    }
+    let lemmas: BTreeSet<&str> = table
+        .keys()
+        .map(String::as_str)
+        .chain(carried.keys().copied())
+        .collect();
+    let off: Vec<String> = lemmas
+        .into_iter()
+        .filter_map(|lemma| {
+            let written = table.get(lemma).map(String::as_str);
+            let landed = carried.get(lemma).copied();
+            (written != landed).then(|| {
+                format!(
+                    "{lemma} (table {}, pack {})",
+                    written.unwrap_or("none"),
+                    landed.unwrap_or("none")
+                )
+            })
+        })
+        .collect();
+    if off.is_empty() {
+        Ok(carried.len())
+    } else {
+        Err(format!(
+            "{pair}: {} level(s) not on the lemma they are written for: {}",
+            off.len(),
+            off.join(", ")
+        ))
+    }
+}
+
+#[test]
+fn spec_scenario_the_committed_pairs_give_each_level_to_its_own_lemma() {
+    // Every committed pair's pack gives every lemma of its studied language's level.tsv exactly
+    // that level, and no other lemma one: 8,302 levels each.
+    let pairs = check_committed_tables(&tables()).unwrap_or_else(|e| panic!("{e}"));
+    for pair in &pairs {
+        let table = level_table(&tables().join(studied_of(pair)));
+        let carried = levels_on_their_lemmas(pair, &committed_pack(pair), &table)
+            .unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(carried, table.len(), "{pair}");
+    }
+    for pair in ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"] {
+        assert_eq!(
+            level_table(&tables().join(studied_of(pair))).len(),
+            8_302,
+            "{pair}"
+        );
+    }
+}
+
+#[test]
+fn spec_scenario_a_level_written_for_a_lemma_whose_form_reads_as_another() {
+    // French's forms table maps the form `donnée` to *donner* (change 43: the noun leaves the
+    // pack). A level table giving `donnée` B1 and `donner` A1 — sorted, as a reducer writes it —
+    // builds a pack in which donner keeps its A1 and the level written for `donnée`, no lemma of
+    // the pack, lands on no lemma (fix-lingua-lemma-lookup D4; the builder looked `donnée` up as a
+    // form and gave donner its B1): the check fails, naming the pair and donnée.
+    assert_eq!(
+        tsv(&tables().join("fr/forms.tsv"))
+            .get("donnée")
+            .map(String::as_str),
+        Some("donner")
+    );
+    let scratch = std::env::temp_dir().join(format!("lingua-levels-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    let fr = studied_copy(&scratch, "fr");
+    std::fs::write(fr.join("level.tsv"), "donner\tA1\ndonnée\tB1\n").unwrap();
+    let inputs = inputs_from_dirs(&fr, &tables().join("fr-en")).unwrap_or_else(|e| panic!("{e}"));
+    let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build fr-en: {e}"));
+    let table = level_table(&fr);
+    std::fs::remove_dir_all(&scratch).unwrap();
+    let pack = Pack::load(&bytes).unwrap();
+    assert!(!pack.lexicon().contains_lemma("donnée"));
+    let at = |level: CefrLevel| -> Vec<&str> {
+        pack.lemmas_at_level(level)
+            .into_iter()
+            .map(|(lemma, _)| lemma)
+            .filter(|lemma| lemma.starts_with("donn"))
+            .collect()
+    };
+    assert_eq!(at(CefrLevel::A1), ["donner"]);
+    assert!(at(CefrLevel::B1).is_empty());
+    let failure = levels_on_their_lemmas("fr-en", &bytes, &table).unwrap_err();
+    assert_eq!(
+        failure,
+        "fr-en: 1 level(s) not on the lemma they are written for: donnée (table B1, pack none)"
+    );
+}
+
+// The French phrase gloss holds an expression's elided pieces to the page's
+// (match-lingua-french-elided-pieces): it reads them from the expression's name, which only a pack
+// built from these tables can show it carries.
+
+#[test]
+fn every_french_headword_holding_an_elided_piece_is_named() {
+    // D3: a key no longer says how its pieces were written (`de l'` is `de le`), so the matcher
+    // reads them from the headword that won the key, which the pack names wherever the two
+    // differ. Every winning headword holding an elided piece is named, and reads as many pieces
+    // as its key, so the check lines it up with a run; a key the pack does not name is its own
+    // headword, written without an elided piece. Measured: fr-en 1,552 such headwords (1,541 before
+    // refine-lingua-fr-en-glosses), fr-es 869.
+    for (pair, bytes, among) in [
+        ("fr-en", fr_en(), ["de l'", "d'abord", "c'est"].as_slice()),
+        ("fr-es", fr_es(), ["coup d'œil", "qu'est-ce que"].as_slice()),
+    ] {
+        let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}"));
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        let keys: BTreeSet<String> = inputs
+            .expressions
+            .iter()
+            .filter_map(|(headword, _)| french_expression_key(headword, lexicon))
+            .filter(|key| pack.expression(key).is_some())
+            .collect();
+        let mut elided = BTreeSet::new();
+        for key in &keys {
+            let name = pack.expression_name(key);
+            let headword = name.unwrap_or(key);
+            let reading = headword_reading(headword, StudiedLanguage::French, lexicon)
+                .unwrap_or_else(|| panic!("{pair}: {headword} has a key and no reading"));
+            if reading.iter().any(|(token, _)| is_elided(headword, token)) {
+                assert_eq!(name, Some(headword), "{pair}: {key} is not named");
+                elided.insert(headword.to_owned());
+            }
+            assert_eq!(
+                reading.len(),
+                key.split(' ').count(),
+                "{pair}: {headword} does not read as its key {key}"
+            );
+        }
+        for headword in among {
+            assert!(elided.contains(*headword), "{pair}: {headword}");
+        }
+        assert!(elided.len() > 500, "{pair}: {}", elided.len());
+    }
+}
+
+// The French phrase gloss holds an expression's contractions to the page's
+// (match-lingua-french-contracted-pieces): it reads them from the expression's name, only when the
+// name holds the word « au » or « aux », which only a pack built from these tables can show is
+// every name that joins two pieces.
+
+#[test]
+fn every_french_headword_holding_a_contraction_holds_au_or_aux_and_is_named() {
+    // D3: a key no longer says two of its pieces were one written word (`au fait` is `à le
+    // faire`), so the matcher reads them from the headword that won the key, which the pack names
+    // wherever the two differ, and reads it only when it holds the word « au » or « aux »
+    // (`holds_french_contraction`). Every winning headword whose reading joins two pieces — the
+    // halves of « au » or « aux », sharing a span — holds that word and is named; a key the pack
+    // does not name is its own headword, every piece apart. Measured: fr-en 448 such headwords,
+    // fr-es 157.
+    for (pair, bytes, among) in [
+        (
+            "fr-en",
+            fr_en(),
+            [
+                "au fait",
+                "au revoir",
+                "tirer au sort",
+                "armé jusqu'aux dents",
+            ]
+            .as_slice(),
+        ),
+        ("fr-es", fr_es(), ["au fait", "au revoir"].as_slice()),
+    ] {
+        let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}"));
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        let keys: BTreeSet<String> = inputs
+            .expressions
+            .iter()
+            .filter_map(|(headword, _)| french_expression_key(headword, lexicon))
+            .filter(|key| pack.expression(key).is_some())
+            .collect();
+        let mut contracted = BTreeSet::new();
+        for key in &keys {
+            let name = pack.expression_name(key);
+            let headword = name.unwrap_or(key);
+            let reading = headword_reading(headword, StudiedLanguage::French, lexicon)
+                .unwrap_or_else(|| panic!("{pair}: {headword} has a key and no reading"));
+            let pieces: Vec<_> = reading.into_iter().map(|(token, _)| token).collect();
+            if shared_spans(&pieces).contains(&true) {
+                assert!(
+                    holds_french_contraction(headword),
+                    "{pair}: {headword} joins two pieces without « au » or « aux »"
+                );
+                assert_eq!(name, Some(headword), "{pair}: {key} is not named");
+                contracted.insert(headword.to_owned());
+            }
+        }
+        for headword in among {
+            assert!(contracted.contains(*headword), "{pair}: {headword}");
+        }
+        assert!(contracted.len() > 100, "{pair}: {}", contracted.len());
+    }
+}
+
+// A French pack keeps every headword of a key several reach
+// (pick-lingua-expression-written-as-the-page D1): the matcher names a run by the one written as
+// the page, and review reads a card under its own, which only a pack built from these tables can
+// show it holds.
+
+/// How many of a headword's tokens its key writes as the headword does — the builder's measure
+/// between two headwords of one key (add-lingua-french-expression-keys D6), written again here
+/// from the core's public reading so the order below is checked, not copied.
+fn written_as_key_pieces(
+    headword: &str,
+    studied: StudiedLanguage,
+    lexicon: &(impl Lexicon + ?Sized),
+) -> usize {
+    headword_reading(headword, studied, lexicon)
+        .unwrap_or_default()
+        .iter()
+        .filter(|(token, lemma)| {
+            token.text.replace('\u{2019}', "'").to_lowercase()
+                == expression_piece(&token.text, lemma, studied)
+        })
+        .count()
+}
+
+#[test]
+fn every_headword_of_a_shared_french_key_is_kept_in_change_44_s_order() {
+    // Measured: fr-en 202 keys several headwords reach and 204 other headwords (`aller y` holds
+    // three) — 60 and 61 before add-lingua-fr-en-translated-expressions, whose table rows share 142
+    // keys among themselves and none with the section's —, fr-es 62 and 62 — 64 and 64 before
+    // refine-lingua-fr-es-expressions left out « laisser faire » and « laissez faire » and merged
+    // « huile d' olive » into « huile d'olive ».
+    for (pair, bytes, shared_keys, other_headwords, among) in [
+        (
+            "fr-en",
+            fr_en(),
+            202,
+            204,
+            [
+                ("ça aller", ["ça ira", "ça va"].as_slice()),
+                ("aller y", ["allez-y", "allons-y", "vas-y"].as_slice()),
+                (
+                    "quel que être",
+                    ["quel que fût", "quel que soit"].as_slice(),
+                ),
+            ]
+            .as_slice(),
+        ),
+        (
+            "fr-es",
+            fr_es(),
+            62,
+            62,
+            [("les mien", ["les miennes", "les miens"].as_slice())].as_slice(),
+        ),
+    ] {
+        let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}"));
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        // Each key's headwords, as `mwe.tsv` lists them, in change 44's order: the one written as
+        // the key, then the most pieces written as their key piece, then byte order.
+        let mut by_key: BTreeMap<String, Vec<(usize, &str, &str)>> = BTreeMap::new();
+        for (headword, gloss) in &inputs.expressions {
+            if let Some(key) = french_expression_key(headword, lexicon) {
+                let written = written_as_key_pieces(headword, StudiedLanguage::French, lexicon);
+                by_key
+                    .entry(key)
+                    .or_default()
+                    .push((written, headword, gloss));
+            }
+        }
+        let (mut shared, mut others) = (0, 0);
+        for (key, headwords) in &mut by_key {
+            headwords.sort_by(|a, b| {
+                (a.1 != key)
+                    .cmp(&(b.1 != key))
+                    .then_with(|| b.0.cmp(&a.0))
+                    .then_with(|| a.1.cmp(b.1))
+            });
+            let want: Vec<(&str, &str)> = headwords
+                .iter()
+                .map(|(_, headword, gloss)| (*headword, *gloss))
+                .collect();
+            // Every headword, its gloss its `mwe.tsv` row's, named by itself.
+            assert_eq!(pack.expression_headwords(key), want, "{pair}: {key}");
+            if want.len() > 1 {
+                shared += 1;
+                others += want.len() - 1;
+            }
+        }
+        assert_eq!((shared, others), (shared_keys, other_headwords), "{pair}");
+        for (key, names) in among {
+            let got: Vec<&str> = pack
+                .expression_headwords(key)
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect();
+            assert_eq!(got, *names, "{pair}: {key}");
+        }
+        assert!(
+            section_of(&sections(bytes), section::EXPR_OTHERS).is_some(),
+            "{pair} carries the section"
+        );
+    }
+    // No English committed pack carries it (a Spanish one does since
+    // pick-lingua-spanish-expression-written-as-the-page D1).
+    for pair in ["en-fr", "en-es"] {
+        assert!(
+            section_of(&sections(&committed_pack(pair)), section::EXPR_OTHERS).is_none(),
+            "{pair}"
+        );
+    }
+}
+
+// A Spanish pack keeps every headword of a key several reach too
+// (pick-lingua-spanish-expression-written-as-the-page D1): the matcher names a run by the one
+// written as the page, and review reads a card under its own.
+
+#[test]
+fn every_headword_of_a_shared_spanish_key_is_kept_in_change_44_s_order() {
+    // Measured: es-fr 98 keys several headwords reach and 99 other headwords (`echar a perder`
+    // holds three), es-en 138 and 141 (`ir y venir`, `necesitar ayuda` and `primero plano` three).
+    let es = StudiedLanguage::Spanish;
+    for (pair, shared_keys, other_headwords, among) in [
+        (
+            "es-fr",
+            98,
+            99,
+            [
+                ("hacer tiempo", ["hacer tiempo", "hace tiempo"].as_slice()),
+                (
+                    "echar a perder",
+                    ["echar a perder", "echado a perder", "echarse a perder"].as_slice(),
+                ),
+                ("bueno día", ["buen día", "buenos días"].as_slice()),
+            ]
+            .as_slice(),
+        ),
+        (
+            "es-en",
+            138,
+            141,
+            [
+                ("bueno día", ["buen día", "buenos días"].as_slice()),
+                (
+                    "poder ayudar",
+                    ["puede ayudarme", "puedes ayudarme"].as_slice(),
+                ),
+            ]
+            .as_slice(),
+        ),
+    ] {
+        let bytes = committed_pack(pair);
+        let inputs = inputs_from_tables(&tables(), pair).unwrap_or_else(|e| panic!("{e}"));
+        let pack = Pack::load(&bytes).unwrap();
+        let lexicon = pack.lexicon();
+        // Each key's headwords, as `mwe.tsv` lists them, in change 44's order: the one written as
+        // the key, then the most pieces written as their key piece, then byte order.
+        let mut by_key: BTreeMap<String, Vec<(usize, &str, &str)>> = BTreeMap::new();
+        for (headword, gloss) in &inputs.expressions {
+            if let Some(key) = reading_expression_key(headword, es, lexicon) {
+                let written = written_as_key_pieces(headword, es, lexicon);
+                by_key
+                    .entry(key)
+                    .or_default()
+                    .push((written, headword, gloss));
+            }
+        }
+        let (mut shared, mut others) = (0, 0);
+        for (key, headwords) in &mut by_key {
+            headwords.sort_by(|a, b| {
+                (a.1 != key)
+                    .cmp(&(b.1 != key))
+                    .then_with(|| b.0.cmp(&a.0))
+                    .then_with(|| a.1.cmp(b.1))
+            });
+            let want: Vec<(&str, &str)> = headwords
+                .iter()
+                .map(|(_, headword, gloss)| (*headword, *gloss))
+                .collect();
+            // Every headword, its gloss its `mwe.tsv` row's, named by itself.
+            assert_eq!(pack.expression_headwords(key), want, "{pair}: {key}");
+            if want.len() > 1 {
+                shared += 1;
+                others += want.len() - 1;
+            }
+        }
+        assert_eq!((shared, others), (shared_keys, other_headwords), "{pair}");
+        for (key, names) in among {
+            let got: Vec<&str> = pack
+                .expression_headwords(key)
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect();
+            assert_eq!(got, *names, "{pair}: {key}");
+        }
+        assert!(
+            section_of(&sections(&bytes), section::EXPR_OTHERS).is_some(),
+            "{pair} carries the section"
+        );
+    }
 }

@@ -68,7 +68,10 @@ const LEMMAS: &[&str] = &[
 ];
 
 /// Selections a reader glosses: expressions, phrasal verbs, sentences, clitics, and blocks
-/// that are not English.
+/// that are not English; and expressions that overlap, an expression built on a verb giving its
+/// last word to a longer one (choose-lingua-overlapping-expressions D1, D3, D6): « The whole thing
+/// went over the top. » answers `over the top`, « He was standing in front of the house. »
+/// `in front of`, and « They were picking up and running off. » shows G3 where `run off` is a key.
 const PHRASES: &[&str] = &[
     "give up",
     "look forward to",
@@ -94,6 +97,9 @@ const PHRASES: &[&str] = &[
     "state-of-the-art",
     "Le phare se dressait",
     "El faro se alzaba",
+    "The whole thing went over the top.",
+    "He was standing in front of the house.",
+    "They were picking up and running off.",
 ];
 
 /// (word as written, dictionary form) pairs a word card asks the grammar of.

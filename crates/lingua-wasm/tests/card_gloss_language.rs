@@ -22,6 +22,20 @@
 //! the pack's expression table; and the card's own text when es-fr has none. The card keeps its
 //! English text and label. The baselines pin the view of every French card.
 //!
+//! A French expression card is named by its headword (add-lingua-french-expression-keys D3):
+//! reviewed in another language than its gloss's, it is read in the table at the key its name
+//! reads as, in the pack built from the committed French tables (add-lingua-pack-fr-en; the fr-en
+//! fixture before them). A Spanish expression card is named by its headword too
+//! (add-lingua-spanish-expression-keys D3), and one made before was made under its key: review
+//! reads es-fr's table at the card's lemma, then at the key the lemma reads as (D7). A French
+//! expression named without a space (`d'abord`) is read at the key its name reads as (`de abord`),
+//! and a French word written with an apostrophe (`aujourd'hui`, one token) as a word
+//! (add-lingua-french-word-card D8). Where several headwords reach that key (`ça va` and `ça ira`
+//! read `ça aller`), the card shows the gloss of the headword it is named by, and the key's own
+//! where none is (pick-lingua-expression-written-as-the-page D4); a Spanish card too, read at the
+//! key its lemma reads as (`hace tiempo` and `hacer tiempo` read `hacer tiempo`:
+//! pick-lingua-spanish-expression-written-as-the-page D5).
+//!
 //! Host only: the pack builder is native (C zstd).
 
 #![cfg(not(target_arch = "wasm32"))]
@@ -30,9 +44,10 @@ mod support;
 
 use lingua_core::packs::Pack;
 use lingua_wasm::LinguaEngine;
-use support::Scenario;
 use support::english::ENGLISH;
+use support::french::FRENCH;
 use support::spanish::SPANISH;
+use support::{PackSource, Scenario};
 
 /// 2026-09-21T13:46:40Z, in epoch seconds: the deck bindings' unit.
 const T: f64 = 1_790_000_000.0;
@@ -225,8 +240,10 @@ fn spec_scenario_a_word_glossed_in_another_native_language() {
 #[test]
 fn spec_scenario_an_expression_glossed_in_another_native_language() {
     let (es_fr, es_en) = packs();
-    // The expression table is keyed by the words' lemmas — `tener en cuenta` is held as `tener
-    // en contar` — and that key is the lemma the surface creates the card with.
+    // The expression table is keyed by Spanish's reading — `tener en cuenta` is held as `tener
+    // en contar` —, the lemma the surface created the card with before Spanish expressions were
+    // named: a card made before (add-lingua-spanish-expression-keys D7). The surface now creates
+    // it with the name, `tener en cuenta` (the next scenario).
     let key = "tener en contar";
     let pack_gloss = Pack::load(&es_fr)
         .unwrap()
@@ -248,6 +265,152 @@ fn spec_scenario_an_expression_glossed_in_another_native_language() {
     assert_eq!(
         text_and_label(&engine),
         ("to take into account".to_owned(), "en".to_owned())
+    );
+}
+
+#[test]
+fn spec_scenario_a_named_spanish_expression_card_glossed_in_another_language() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    // `tener en cuenta` is the card's name, no key of the table; `tener en contar` is its key.
+    assert_eq!(pack.expression("tener en cuenta"), None);
+    assert_eq!(
+        pack.expression_name("tener en contar"),
+        Some("tener en cuenta")
+    );
+    let pack_gloss = pack
+        .expression("tener en contar")
+        .expect("es-fr holds the key")
+        .to_owned();
+
+    let mut engine = french_native_reviewing(
+        &es_fr,
+        &glossed_in_english(&es_en, "tener en cuenta", "to take into account"),
+    );
+    let shown = view(&engine);
+    assert_eq!(shown["headword"], "tener en cuenta");
+    assert_eq!(
+        shown["gloss"], pack_gloss,
+        "es-fr's gloss for `tener en contar`"
+    );
+    // The card keeps its English text and label, under review and once graded.
+    assert_eq!(
+        text_and_label(&engine),
+        ("to take into account".to_owned(), "en".to_owned())
+    );
+    engine.review_grade("good", T + DAY);
+    assert_eq!(
+        text_and_label(&engine),
+        ("to take into account".to_owned(), "en".to_owned())
+    );
+}
+
+#[test]
+fn a_spanish_card_is_read_at_its_lemma_then_at_its_name_s_key() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    let gloss_of = |key: &str| pack.expression(key).expect(key).to_owned();
+    // `al menos` is read at `a el menos`, `a la vez` is its own key; a card made before on a
+    // chain the determiners now split (`a el vez`, D2) is no key any more and shows its own text,
+    // as a gloss the pack has not.
+    assert_eq!(pack.expression("a el vez"), None);
+    for (lemma, text, shown) in [
+        ("al menos", "at least", gloss_of("a el menos")),
+        ("a la vez", "at the same time", gloss_of("a la vez")),
+        (
+            "a el vez",
+            "at the same time",
+            "at the same time".to_owned(),
+        ),
+    ] {
+        let engine = french_native_reviewing(&es_fr, &glossed_in_english(&es_en, lemma, text));
+        assert_eq!(view(&engine)["gloss"], shown, "{lemma}");
+    }
+}
+
+/// pick-lingua-spanish-expression-written-as-the-page D5: several headwords reach `hacer tiempo`
+/// in es-fr's committed pack — `hacer tiempo`, which wins the key, and `hace tiempo` — and the
+/// card `hace tiempo`, made in es-en with the match's name, shows es-fr's `hace tiempo` gloss, not
+/// the key's; the card keeps its English text and label.
+#[test]
+fn spec_scenario_a_spanish_card_on_the_headword_that_does_not_win_the_key() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    assert_eq!(pack.expression("hace tiempo"), None, "no key of the table");
+    let headwords = pack.expression_headwords("hacer tiempo");
+    assert_eq!(
+        headwords[0].0, "hacer tiempo",
+        "the headword that wins the key"
+    );
+    let (_, hace) = *headwords
+        .iter()
+        .find(|(name, _)| *name == "hace tiempo")
+        .expect("es-fr keeps `hace tiempo` beside `hacer tiempo`");
+    assert_ne!(Some(hace), pack.expression("hacer tiempo"));
+    let hace = hace.to_owned();
+
+    let engine = french_native_reviewing(
+        &es_fr,
+        &glossed_in_english(&es_en, "hace tiempo", "a long time ago"),
+    );
+    assert_eq!(view(&engine)["headword"], "hace tiempo");
+    assert_eq!(
+        view(&engine)["gloss"],
+        hace,
+        "es-fr's gloss for `hace tiempo`"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("a long time ago".to_owned(), "en".to_owned())
+    );
+}
+
+/// The card on the headword that wins the key is read at that key, as before (D5).
+#[test]
+fn spec_scenario_a_spanish_card_on_the_headword_that_wins_the_key() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    let own = pack.expression("hacer tiempo").expect("the key").to_owned();
+    let engine = french_native_reviewing(
+        &es_fr,
+        &glossed_in_english(&es_en, "hacer tiempo", "to kill time"),
+    );
+    assert_eq!(
+        view(&engine)["gloss"],
+        own,
+        "es-fr's gloss for `hacer tiempo`"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("to kill time".to_owned(), "en".to_owned())
+    );
+}
+
+/// A card made before expressions were named holds the key it was shown under, `bueno día`, which
+/// no headword is named: it is read at that key, `buen día`'s gloss, as before (D5).
+#[test]
+fn spec_scenario_a_spanish_card_named_by_no_headword_of_the_key() {
+    let (es_fr, es_en) = packs();
+    let pack = Pack::load(&es_fr).unwrap();
+    let names: Vec<&str> = pack
+        .expression_headwords("bueno día")
+        .iter()
+        .map(|(name, _)| *name)
+        .collect();
+    assert_eq!(names, ["buen día", "buenos días"]);
+    let own = pack.expression("bueno día").expect("the key").to_owned();
+    let engine = french_native_reviewing(
+        &es_fr,
+        &glossed_in_english(&es_en, "bueno día", "good morning"),
+    );
+    assert_eq!(
+        view(&engine)["gloss"],
+        own,
+        "`buen día`'s gloss, the key's own"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("good morning".to_owned(), "en".to_owned())
     );
 }
 
@@ -310,4 +473,242 @@ fn a_card_of_a_language_the_engine_holds_no_pack_for_keeps_its_text() {
     assert_eq!(engine.start_review(T + DAY, None), 1);
     assert_eq!(engine.review_current_language().as_deref(), Some("es"));
     assert_eq!(view(&engine)["gloss"], "house");
+}
+
+/// A French card glossed in Spanish, as a Spanish-native engine creates it, written as the card
+/// operation it syncs as: no pack glossed in Spanish studies French before change 49, so the
+/// operation is the wire's.
+fn french_card_glossed_in_spanish(lemma: &str, surface: &str, gloss: &str) -> String {
+    serde_json::json!([{
+        "client_id": lemma,
+        "language": "fr",
+        "lemma": lemma,
+        "surface_form": surface,
+        "source_sentence": "Au revoir, et à demain.",
+        "source": "",
+        "gloss": gloss,
+        "gloss_language": "es",
+        "fsrs_state": "",
+        "deleted": false,
+        "client_ts": (T as i64) * 1000,
+        "device_id": "",
+    }])
+    .to_string()
+}
+
+/// An English-native engine holding fr-en's committed pack beside es-en, as the French baseline's
+/// reader does, reviewing the French card the operation creates.
+fn english_native_reviewing_french(op: &str) -> LinguaEngine {
+    let mut engine = FRENCH.loaded();
+    assert_eq!(engine.native_language(), "en");
+    match engine.apply_card_ops(op) {
+        Ok(changed) => assert_eq!(changed, 1),
+        Err(_) => panic!("the French card applies"),
+    }
+    assert_eq!(engine.start_review(T + DAY, None), 1);
+    assert_eq!(engine.review_current_language().as_deref(), Some("fr"));
+    engine
+}
+
+#[test]
+fn spec_scenario_a_french_expression_card_glossed_in_another_language() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    // `au revoir` is the card's name, no key of the table; `à le revoir` is its key.
+    assert_eq!(pack.expression("au revoir"), None);
+    assert_eq!(pack.expression_name("à le revoir"), Some("au revoir"));
+    let pack_gloss = pack
+        .expression("à le revoir")
+        .expect("the pack holds the key")
+        .to_owned();
+
+    let mut engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "au revoir",
+        "Au revoir",
+        "adiós",
+    ));
+    let shown = view(&engine);
+    assert_eq!(shown["headword"], "au revoir");
+    assert_eq!(
+        shown["gloss"], pack_gloss,
+        "the pack's gloss for `à le revoir`"
+    );
+    // The card keeps its Spanish text and label, under review and once graded.
+    assert_eq!(
+        text_and_label(&engine),
+        ("adiós".to_owned(), "es".to_owned())
+    );
+    engine.review_grade("good", T + DAY);
+    assert_eq!(
+        text_and_label(&engine),
+        ("adiós".to_owned(), "es".to_owned())
+    );
+}
+
+#[test]
+fn a_french_card_is_read_at_its_name_s_key_or_shows_its_own_text() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    let gloss_of = |key: &str| pack.expression(key).expect(key).to_owned();
+    for (lemma, surface, text, shown) in [
+        // Named by its headword, read at its key; a name that is its own key.
+        ("il y a", "il y avait", "hay", gloss_of("il y avoir")),
+        (
+            "tout de suite",
+            "tout de suite",
+            "enseguida",
+            gloss_of("tout de suite"),
+        ),
+        // A card made under the key itself, a lemma chain, reads as that key too.
+        ("à le revoir", "Au revoir", "adiós", gloss_of("à le revoir")),
+        // An expression the pack does not hold shows the card's own text; a French word is read
+        // as before.
+        (
+            "au bout du quai",
+            "au bout du quai",
+            "al final del muelle",
+            "al final del muelle".to_owned(),
+        ),
+        (
+            "maison",
+            "maison",
+            "casa",
+            pack.gloss("maison").expect("maison").to_owned(),
+        ),
+    ] {
+        let engine =
+            english_native_reviewing_french(&french_card_glossed_in_spanish(lemma, surface, text));
+        assert_eq!(view(&engine)["gloss"], shown, "{lemma}");
+    }
+}
+
+/// add-lingua-french-word-card D8: a French expression named without a space, as « + Deck »
+/// stores it from the whole-selection card « D’abord » answers, is read in the table at the key
+/// its name reads as; the card keeps its text and label.
+#[test]
+fn spec_scenario_an_expression_named_without_a_space() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    // `d'abord` is the card's name, no word of the gloss table; `de abord` is its key.
+    assert_eq!(pack.gloss("d'abord"), None);
+    assert_eq!(pack.expression_name("de abord"), Some("d'abord"));
+    let pack_gloss = pack
+        .expression("de abord")
+        .expect("the pack holds the key")
+        .to_owned();
+
+    let mut engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "d'abord",
+        "D\u{2019}abord",
+        "primero",
+    ));
+    let shown = view(&engine);
+    assert_eq!(shown["headword"], "d'abord");
+    assert_eq!(
+        shown["gloss"], pack_gloss,
+        "the pack's gloss for `de abord`"
+    );
+    assert_eq!(
+        text_and_label(&engine),
+        ("primero".to_owned(), "es".to_owned())
+    );
+    engine.review_grade("good", T + DAY);
+    assert_eq!(
+        text_and_label(&engine),
+        ("primero".to_owned(), "es".to_owned())
+    );
+}
+
+/// pick-lingua-expression-written-as-the-page D4: several headwords reach `ça aller` in fr-en's
+/// committed pack — `ça ira`, which wins the key, and `ça va` — and the card `ça va`, created
+/// with the match's name, shows `ça va`'s gloss, not the key's; the card keeps its text and label.
+#[test]
+fn spec_scenario_a_card_on_the_headword_that_does_not_win_the_key() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    assert_eq!(pack.expression_name("ça aller"), Some("ça ira"));
+    let headwords = pack.expression_headwords("ça aller");
+    let (_, va) = *headwords
+        .iter()
+        .find(|(name, _)| *name == "ça va")
+        .expect("fr-en keeps `ça va` beside `ça ira`");
+    assert_ne!(Some(va), pack.expression("ça aller"));
+    let va = va.to_owned();
+
+    let mut engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "ça va",
+        "Ça va",
+        "¿Cómo estás?",
+    ));
+    let shown = view(&engine);
+    assert_eq!(shown["headword"], "ça va");
+    assert_eq!(shown["gloss"], va, "the pack's gloss for `ça va`");
+    assert_eq!(
+        text_and_label(&engine),
+        ("¿Cómo estás?".to_owned(), "es".to_owned())
+    );
+    engine.review_grade("good", T + DAY);
+    assert_eq!(
+        text_and_label(&engine),
+        ("¿Cómo estás?".to_owned(), "es".to_owned())
+    );
+}
+
+/// A French expression named without a space (add-lingua-french-word-card D8) whose key several
+/// headwords reach: `allons-y` reads `aller y`, which `allez-y` wins; the card shows `allons-y`'s
+/// gloss (pick-lingua-expression-written-as-the-page D4).
+#[test]
+fn spec_scenario_a_card_named_without_a_space() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    let names: Vec<&str> = pack
+        .expression_headwords("aller y")
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
+    assert_eq!(names, ["allez-y", "allons-y", "vas-y"]);
+    let allons = pack
+        .expression_gloss_named("aller y", "allons-y")
+        .expect("the key")
+        .to_owned();
+    assert_ne!(Some(allons.as_str()), pack.expression("aller y"));
+
+    let engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "allons-y", "Allons-y", "vamos",
+    ));
+    assert_eq!(
+        view(&engine)["gloss"],
+        allons,
+        "the pack's gloss for `allons-y`"
+    );
+}
+
+/// A card whose lemma reads as a key several headwords reach and is named by none of them shows
+/// the key's own gloss, as before (pick-lingua-expression-written-as-the-page D4).
+#[test]
+fn spec_scenario_a_card_named_by_no_headword_of_the_key() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    let own = pack.expression("ça aller").expect("the key").to_owned();
+    let engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "ça allait",
+        "ça allait",
+        "iba",
+    ));
+    assert_eq!(
+        view(&engine)["gloss"],
+        own,
+        "`ça ira`'s gloss, the key's own"
+    );
+}
+
+/// A French word written with an apostrophe reads as one token: it is looked up as a word, as
+/// before (add-lingua-french-word-card D8).
+#[test]
+fn spec_scenario_a_word_written_with_an_apostrophe() {
+    let pack = Pack::load(&PackSource::Tables.pack("fr-en")).unwrap();
+    let word = pack
+        .gloss("aujourd'hui")
+        .expect("the pack glosses aujourd'hui")
+        .to_owned();
+    let engine = english_native_reviewing_french(&french_card_glossed_in_spanish(
+        "aujourd'hui",
+        "Aujourd'hui",
+        "hoy",
+    ));
+    assert_eq!(view(&engine)["gloss"], word);
 }

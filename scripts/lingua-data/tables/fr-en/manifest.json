@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "studied": "fr",
+    "native": "en",
+    "pack_version": "2026.10.10+68ed58c",
+    "analyzer_version": "1.3.0",
+    "levels_estimated": true,
+    "licences": [
+      "kaikki / enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)",
+      "wordfreq (CC BY-SA 4.0)",
+      "UD French-GSD (CC BY-SA 4.0)"
+    ]
+  },
+  "sources": [
+    {
+      "name": "kaikki",
+      "licence": "CcBySa"
+    },
+    {
+      "name": "wordfreq",
+      "licence": "CcBySa"
+    },
+    {
+      "name": "UD French-GSD",
+      "licence": "CcBySa"
+    }
+  ]
+}

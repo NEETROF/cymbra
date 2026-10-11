@@ -108,12 +108,7 @@ page 1/1:
   [verbo] Comer, tomar; Comer, almorzar, cenar
 row: Comer, tomar
 ### word-grammar more more
-grammar: también puede ser el comparativo de more
-page 1/1:
-  [adjetivo] Mucho
-  [pronombre] Muchos, muchas
-  [sustantivo] Mayoría; Una gran cantidad
-row: Mucho
+gloss: (none)
 ### word-grammar thought think
 grammar: pasado simple y participio pasado de think
 page 1/1:
@@ -122,11 +117,7 @@ page 1/1:
   [sustantivo] Meditación
 row: Pensar
 ### word-grammar thought thought
-page 1/1:
-  [verbo] Pensar; Creer
-  [adjetivo] Perteneciente o relacionado con el pensamiento
-  [sustantivo] Meditación
-row: Pensar
+gloss: (none)
 ### word-grammar running run
 grammar: forma en -ing de run
 page 1/1:
@@ -157,11 +148,7 @@ page 1/1:
   [sustantivo] Mentira
 row: Yacer, estar acostado, estar tumbado
 ### word-grammar lay lay
-grammar: también puede ser el pasado simple de lay
-page 1/1:
-  [verbo] Yacer, estar acostado, estar tumbado; Mentir; Residir, encontrarse, ubicarse, estar colocado o ubicado
-  [sustantivo] Mentira
-row: Yacer, estar acostado, estar tumbado
+gloss: (none)
 ### word-grammar saw see
 grammar: pasado simple de see
 page 1/1:
@@ -169,11 +156,7 @@ page 1/1:
   [sustantivo] Sede (de un obispo o arzobispo); Diócesis
 row: Ver
 ### word-grammar saw saw
-grammar: también puede ser el pasado simple de saw
-page 1/1:
-  [verbo] Ver; Entender
-  [sustantivo] Sede (de un obispo o arzobispo); Diócesis
-row: Ver
+gloss: (none)
 ### word-grammar don't do
 grammar: «don't» = do + not
 page 1/2:

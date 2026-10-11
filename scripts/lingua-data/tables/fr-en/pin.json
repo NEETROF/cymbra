@@ -1,0 +1,66 @@
+{
+  "snapshot": "2026.10.10",
+  "pack": {
+    "sha256": "137d682ccd134c3a8484b95c689a5a66e533adb24773324a19ae123e74e14f5d",
+    "size": 3003601
+  },
+  "reducer": {
+    "sha256": "68ed58c0f42921dc39fe8b5da0c79659c1effcfba08e3d810b038c9ba8dce280",
+    "files": [
+      "reduce-fr-en.py",
+      "reduce_common.py",
+      "reduce_edition_en.py",
+      "reduce_french_acronyms.py",
+      "reduce_french_treebank.py"
+    ]
+  },
+  "sources": {
+    "gsd-train": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-train.conllu",
+      "sha256": "4b9a87b1b7e6e7003219df1d3ccca87ffaca0f00a6055b12b1857df5373589d2"
+    },
+    "gsd-dev": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-dev.conllu",
+      "sha256": "9221e5084cc6a1b1540671cfbd2fc0456efc223b2fe8dd2146c2bad921be02d4"
+    },
+    "kaikki-en": {
+      "release": "lingua-pack-sources-fr-en-2026.10.09",
+      "url": "https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-09",
+      "last_modified": "Sat, 03 Oct 2026 08:24:38 GMT",
+      "dump": {
+        "sha256": "93b79aac5d7ce404f1b38441639609caa4e9194b7444c2d3c9f26ec7f24c7632",
+        "size": 25614284530,
+        "compressed_size": 2981058381
+      },
+      "files": {
+        "kaikki-French.jsonl": {
+          "asset": "kaikki-French.jsonl.zst",
+          "sha256": "2d7bbe5ff054e2edf9af208be5e40b09eba7cc020a0241bbd2aa2bd62ef8561e",
+          "size": 510058226
+        }
+      }
+    },
+    "kaikki-fr": {
+      "release": "lingua-pack-sources-fr-en-2026.10.10",
+      "url": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-10",
+      "last_modified": "Fri, 02 Oct 2026 00:10:16 GMT",
+      "dump": {
+        "sha256": "968f7df0c64632ec64444f9cabc4019b4ecad8284407a5e053f85a54b1b21f19",
+        "size": 6865136428,
+        "compressed_size": 736590407
+      },
+      "files": {
+        "kaikki-fr-traductions-en.jsonl": {
+          "asset": "kaikki-fr-traductions-en.jsonl.zst",
+          "sha256": "6f54aedaa6fe2dac31bc4564687de47fbd5f8c33a464ffa9f0e6301520bec2e5",
+          "size": 14573988
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

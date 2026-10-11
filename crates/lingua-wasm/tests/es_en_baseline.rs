@@ -25,15 +25,21 @@
 //! every grammar probe of `baseline/es-en.golden` and pins the English lines the card renders from
 //! them; nothing there reads the tables.
 //!
-//! On the probes they share, this golden and es-fr's differ only in the native side — glosses,
-//! senses, expressions, the lines naming the packs, the notice, the licences and the backup's
-//! profile: `the_golden_is_the_spanish_one_on_the_studied_side` compares the two committed goldens
-//! through `support::studied_side`, as `cross_native.rs` compares the engines.
+//! On the probes they share, up to the reader's level seeding, this golden and es-fr's differ only
+//! in the native side — glosses, senses, expressions, the lines naming the packs, the notice, the
+//! licences and the backup's profile: `the_golden_is_the_spanish_one_on_the_studied_side` compares
+//! the two committed goldens through `support::studied_side`, as `cross_native.rs` compares the
+//! engines. The probes from `start-review` on follow the deck the seeding left, whose cards are the
+//! lemmas each pack glosses (seed-lingua-decks-with-glossed-lemmas D4): `cross_native.rs` compares
+//! them through engines, the reader answered without the seeding, and checks the seeding apart.
 //!
 //! A pull request that changes `baseline/es-en.golden` changes what English-native readers of
 //! Spanish will see. Only a dictionary update of es-en or of es-fr (which moves the studied
 //! tables), or a deliberate analyser change that bumps the Spanish analyser version, should do
-//! that. Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test es_en_baseline` — then
+//! that — or a builder change that moves the pack, and the probes a change adds, with the owner's
+//! approval (pick-lingua-spanish-expression-written-as-the-page: the pack, which keeps every
+//! headword of a key, and the five phrase probes es-fr's golden adds;
+//! choose-lingua-overlapping-expressions: five phrase probes). Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test es_en_baseline` — then
 //! the extension's snapshot, `yarn vitest run test/word-card-es-en.spec.ts -u` — and say why in
 //! the pull request; `lingua-pack-update` re-blesses both on its own branch.
 //!
@@ -44,7 +50,7 @@
 mod support;
 
 use support::spanish::SPANISH;
-use support::{Card, Scenario, first_difference, probes, studied_side};
+use support::{Card, Scenario, first_difference, follows_seeding, probes, studied_side};
 
 /// 40 more dictionary forms asked as grammar probes, `word-grammar <lemma> <lemma>`: the most
 /// frequent lemmas of `tables/es/freq.tsv` whose es-en gloss has two sense runs or more
@@ -221,9 +227,14 @@ fn the_golden_is_the_spanish_one_on_the_studied_side() {
         .collect();
     assert_eq!(own, more, "es-en's own probes are the 40 lemmas");
     let mut compared = 0;
+    let after = shared
+        .iter()
+        .filter(|name| follows_seeding(&shared, name))
+        .count();
     for (name, body) in &es_fr {
-        // The `about` line names the test that generated the golden.
-        if name == "about" {
+        // The `about` line names the test that generated the golden; the probes that follow the
+        // reader's level seeding are compared through engines (cross_native.rs).
+        if name == "about" || follows_seeding(&shared, name) {
             continue;
         }
         let Some((_, other)) = es_en.iter().find(|(n, _)| n == name) else {
@@ -249,11 +260,12 @@ fn the_golden_is_the_spanish_one_on_the_studied_side() {
                 .collect::<String>(),
         );
     }
-    // Every shared probe but the `about` and pack lines, the cards' glosses, the notice and the
-    // licences.
+    // Every shared probe but the `about` and pack lines, the cards' glosses, the notice, the
+    // licences and the probes that follow the seeding.
+    assert!(after > 0, "the reader's probes from `start-review` on");
     assert_eq!(
         compared,
-        shared.len() - 2 - 2 - SPANISH.lemmas.len(),
+        shared.len() - 2 - 2 - SPANISH.lemmas.len() - after,
         "probes compared"
     );
 }

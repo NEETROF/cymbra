@@ -9,19 +9,20 @@
 // there as the extension answers it (measure-lingua-translation-matrix-marks D2).
 //
 // Usage: node --experimental-strip-types tool/measure_marks.mjs --pair <pair> [--models <assembled-site-dir>]
-//   The pair is one the catalogue routes (en-fr, es-fr, es-en, en-es); the corpus is its studied
-//   language's, and the gloss experiment's stop words are its native language's, read from the
-//   route's last model (tool/marks/stop-words.mjs). The models come from that directory
-//   (tool/assemble_model_site.mjs) or, without it, from the catalogue's host; every file is checked
-//   against the catalogue's sha256 before use. The engine itself is loaded by tool/marks/engine.mjs,
-//   shared with the soak (tool/soak_engine.mjs); a request that traps it is asked once more on a
-//   fresh one.
+//   The pair is one the catalogue routes (en-fr, es-fr, es-en, en-es, fr-en, and fr-es through
+//   English); the corpus is its studied language's, and the gloss experiment's stop words are its
+//   native language's, read from the route's last model (tool/marks/stop-words.mjs). The experiment
+//   reads the pair's gloss table only when it holds a gloss (add-lingua-french-translation D6). The
+//   models come from that directory (tool/assemble_model_site.mjs) or, without it, from the
+//   catalogue's host; every file is checked against the catalogue's sha256 before use. The engine
+//   itself is loaded by tool/marks/engine.mjs, shared with the soak (tool/soak_engine.mjs); a
+//   request that traps it is asked once more on a fresh one.
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { catalogue, engine } from "./marks/engine.mjs";
-import { glossMark, measureSelections, nativeOfRoute } from "./marks/measure.mjs";
+import { glossMark, measureSelections, nativeOfRoute, readGlossTables } from "./marks/measure.mjs";
 import { parseConllu, pudText } from "./marks/pud.mjs";
 import { stopWords } from "./marks/stop-words.mjs";
 import { studiedOf } from "./packs.mjs";
@@ -30,16 +31,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const APP = join(here, "..");
 const TABLES = join(APP, "../../scripts/lingua-data/tables");
 const corpus = JSON.parse(readFileSync(join(here, "marks/corpus.json"), "utf8"));
-
-/** A pack table under tables/<folder>/: the first value of every key. */
-function table(folder, name) {
-  const rows = new Map();
-  for (const line of readFileSync(join(TABLES, folder, name), "utf8").split("\n")) {
-    const tab = line.indexOf("\t");
-    if (tab > 0 && !rows.has(line.slice(0, tab))) rows.set(line.slice(0, tab), line.slice(tab + 1));
-  }
-  return rows;
-}
 
 /** The value after `--name`, or null. */
 function arg(name) {
@@ -66,15 +57,14 @@ async function main() {
   const modelsDir = arg("--models");
   const sentences = new Map(parseConllu(await pudText(studied)).map((s) => [s.id, s.text]));
   // The experiment reads the pair's glosses, kept in tables/<pair>/ once the pair's pack is built
-  // (D3): without them its columns stay empty, and the engine's are measured all the same. The
-  // forms are the studied language's, kept once in tables/<studied>/ (split-lingua-pack-tables-by-language).
+  // (D3): without a gloss — no table, or an empty one — its columns stay empty, and the engine's are
+  // measured all the same. The forms are the studied language's, kept once in tables/<studied>/
+  // (split-lingua-pack-tables-by-language).
   const glossTable = join(TABLES, pair, "gloss.tsv");
-  const tables = existsSync(glossTable)
-    ? { forms: table(studied, "forms.tsv"), gloss: table(pair, "gloss.tsv") }
-    : null;
+  const tables = readGlossTables(TABLES, pair, studied);
   const gloss = tables ? (word, translation) => glossMark(word, translation, tables, stop) : null;
   console.log(
-    `${pair}: ${studied} selections, ${native} stop words, the gloss experiment ${tables ? "from " + glossTable : "left empty (no " + glossTable + ")"}`,
+    `${pair}: ${studied} selections, ${native} stop words, the gloss experiment ${tables ? "from " + glossTable : "left empty (no gloss in " + glossTable + ")"}`,
   );
   const selections = corpus.items
     .filter((i) => i.lang === studied)

@@ -75,7 +75,9 @@ at another word, and the notes it writes for its own readers, taken out of a glo
 `reduce_edition_en.py` and `reduce_edition_es.py`, the English and Spanish Wiktionaries' rules, are
 in the archive too, with `reduce-es-en.py` and `tables/es-en/` (Spanish glossed in English, which
 reads Spanish's tables in `tables/es/` and loads the English Wiktionary's rules); they reduce no
-table this package ships, and `packs.json` lists no pack built from them.
+table this package ships, and `packs.json` lists no pack built from them. So are `reduce-fr-en.py`,
+`tables/fr/` and `tables/fr-en/` (French's forms and ranks, which the checks build into a pack
+studying French): they reduce nothing this package carries either.
 `pin.json` names each raw source at a fixed commit or snapshot, with its sha256, so the
 tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer does not
 need to.
@@ -114,22 +116,24 @@ network's weights, which are data: each model's three files, listed in `model-ma
 the sha256 of their contents, checked before anything uses them (`src/translate/host/model-download.ts`).
 Nothing in a model is executed; it is read by the engine as a parameter file.
 
-`model-manifest.json` lists three models, Mozilla's `base-memory` models, under the Mozilla Public
+`model-manifest.json` lists four models, Mozilla's `base-memory` models, under the Mozilla Public
 License 2.0 and redistributed unmodified:
 
-| Model                   | Translates | Route it serves                                            |
+| Model                   | Translates | Routes it serves                                           |
 | ----------------------- | ---------- | ---------------------------------------------------------- |
 | `en-fr/base-memory/2.0` | `en→fr`    | `en-fr`; and `es-fr`, second                               |
 | `es-en/base-memory/2.0` | `es→en`    | `es-fr`, first (Spanish goes through English); and `es-en` |
-| `en-es/base-memory/2.1` | `en→es`    | `en-es`                                                    |
+| `en-es/base-memory/2.1` | `en→es`    | `en-es`; and `fr-es`, second                               |
+| `fr-en/base-memory/2.0` | `fr→en`    | `fr-en`; and `fr-es`, first (French goes through English)  |
 
 Their files come from Mozilla's translation model registry (`sourceBase` in `model-manifest.json`),
 not from `mozilla/firefox-translations-models`: each file lists its path there and the sha256 of
 the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks.
-The package downloads none of them until the reader turns « Traduction étendue » on, and then only the models its pairs' routes need. This
-package ships the pairs `en-fr` and `es-fr` (`packs.json`), so it downloads at most `en-fr` and
-`es-en`; the `es-en` and `en-es` routes serve pairs it does not ship, and nothing is downloaded for
-those pairs.
+The package downloads none of them until the reader turns « Traduction étendue » on, and then only
+the models its pairs' routes need. This package ships the pairs `en-fr` and `es-fr` (`packs.json`),
+so it downloads at most `en-fr` and `es-en`; the `es-en`, `en-es`, `fr-en` and `fr-es` routes serve
+pairs it does not ship, and nothing is downloaded for those pairs — none for French, which no pair
+of this package studies.
 
 ## Where the add-on reaches the network
 
@@ -154,4 +158,4 @@ There are four origins, all of them in the source:
   provider's token through the redirect and exchanges it with the backend; it never sees a
   password.
 - `https://cymbra.app` — a link in the account screen to the account-deletion page
-  (`src/account/flow.ts`). A link, not a request.
+  (`src/account/locale.ts`). A link, not a request.

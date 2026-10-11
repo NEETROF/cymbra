@@ -38,7 +38,10 @@ use lingua_core::decks::card::{
 };
 use lingua_core::decks::fsrs::{Rating, ReviewState};
 use lingua_core::decks::review::ReviewSession;
-use lingua_core::engine::{analyse_page_json, gloss_phrase_json, word_grammar_json};
+use lingua_core::engine::{
+    analyse_page_json, french_expression_key, gloss_phrase_json, reading_expression_key,
+    word_grammar_json,
+};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::knowledge::profile::{NativeLanguage, Profile};
 use lingua_core::knowledge::state::{FrequencyRanks, KnowledgeState};
@@ -105,12 +108,51 @@ fn fresh_state(packs: &PackSet) -> LinguaState {
 /// lemma — a word's gloss, or an expression's (a lemma with spaces) from the pack's expression
 /// table — and the card's own text when the pack has none, or when no pack is held for the
 /// card's language. The card is not rewritten.
+///
+/// A French expression card is created with the expression's name, its headword as the
+/// dictionary writes it (`au revoir`), which is no key of the table: review reads the table at
+/// the key that name reads as (`à le revoir`), through the function the builder keyed the pack
+/// with (add-lingua-french-expression-keys D3). A Spanish expression card is read at its lemma
+/// first — a card made before Spanish expressions were named holds the key it was shown under
+/// (`tener en contar`) — then at the key its lemma, a name (`tener en cuenta`), reads as
+/// (add-lingua-spanish-expression-keys D7).
+///
+/// A French expression may be named without a space (`d'abord`, `allez-y`): a French card whose
+/// lemma holds none but reads, through French's reading, as two tokens or more, each a lemma, is
+/// read in the table at that key (`de abord`), and as a word where the table has nothing there; a
+/// lemma read as one token (`aujourd'hui`) is a word, as before (add-lingua-french-word-card D8).
+/// `Card::is_expression` keeps its meaning for every other caller.
+///
+/// Several French headwords may reach one key (`ça va` and `ça ira` read `ça aller`), and a French
+/// pack keeps them all (pick-lingua-expression-written-as-the-page D1): both French branches read,
+/// at the key, the gloss of the headword the card is named by — the match's name, its lemma — and
+/// the key's own gloss where no headword is so named ([`Pack::expression_gloss_named`], D4), so the
+/// card `ça va` shows `ça va`'s gloss, not that of `ça ira`, which wins the key.
+///
+/// A Spanish pack keeps them all too (pick-lingua-spanish-expression-written-as-the-page D1), and
+/// the Spanish branch reads, at the key its lemma reads as, the gloss of the headword the card is
+/// named by, the key's own where none is (D5): the card `hace tiempo` shows `hace tiempo`'s gloss,
+/// not that of `hacer tiempo`, which wins the key. A card whose lemma is itself a key — the
+/// winner's name (`hacer tiempo`), a lemma chain (`bueno día`) — is read there, as before.
 fn readable_gloss(pack: Option<&Pack>, card: &Card) -> Option<String> {
     pack.and_then(|pack| {
-        if card.is_expression() {
-            pack.expression(&card.lemma)
-        } else {
-            pack.gloss(&card.lemma)
+        if !card.is_expression() {
+            if pack.studied() == StudiedLanguage::French
+                && let Some(gloss) = french_expression_key(&card.lemma, pack.lexicon())
+                    .and_then(|key| pack.expression_gloss_named(&key, &card.lemma))
+            {
+                return Some(gloss);
+            }
+            return pack.gloss(&card.lemma);
+        }
+        match pack.studied() {
+            StudiedLanguage::French => french_expression_key(&card.lemma, pack.lexicon())
+                .and_then(|key| pack.expression_gloss_named(&key, &card.lemma)),
+            StudiedLanguage::Spanish => pack.expression(&card.lemma).or_else(|| {
+                reading_expression_key(&card.lemma, StudiedLanguage::Spanish, pack.lexicon())
+                    .and_then(|key| pack.expression_gloss_named(&key, &card.lemma))
+            }),
+            StudiedLanguage::English => pack.expression(&card.lemma),
         }
     })
     .map(str::to_owned)
@@ -959,7 +1001,10 @@ impl LinguaEngine {
 
     /// Seeds up to `count` deck cards from a CEFR level's lemmas. `order` is
     /// `"common"` (commonest-first, the default) or `"rare"`; unranked lemmas
-    /// always sort last. Skips lemmas already carded or with an explicit status.
+    /// always sort last. Skips lemmas already carded or with an explicit status,
+    /// and lemmas the pack does not gloss — every seeded card carries the pack's
+    /// gloss, in the engine's native language —, the next lemma of the level
+    /// taking a skipped one's place (seed-lingua-decks-with-glossed-lemmas D1, D2).
     /// `at` is Unix-epoch seconds. Returns the number actually added; a no-op (0)
     /// for an unknown level or a pack with no CEFR data.
     #[wasm_bindgen(js_name = seedLevel)]

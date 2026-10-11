@@ -51,6 +51,10 @@ jobs:
               - '.github/workflows/lingua-extension-check.yml'
               # Its Reduce step's script is run by test_reduce_loops.py, in the `check` job.
               - '.github/workflows/lingua-pack-update.yml'
+              # Music's locales: test/account-locale.spec.ts holds the languages Cymbra speaks (the
+              # account locale the extension sends, localise-lingua-account-onboarding D2) against
+              # these files, so a language added to Music fails here.
+              - 'apps/music/lib/l10n/app_*.arb'
             # The pairs' tables, their pinned sources and the rules and tools that reduce them: the
             # `reduce` job re-reduces every pair from its pinned sources. The workflow itself too: a
             # pull request that edits the job runs it.
@@ -119,10 +123,14 @@ jobs:
       # re-blesses it (LINGUA_BLESS=1) and says why: a dictionary update, or an analyser change
       # that bumps that language's analyser version. Here too, not only in `rust`, because a
       # tables-only pull request (lingua-pack-update) does not start `rust`. fr-en (change 39,
-      # add-lingua-french-baseline) freezes French's baseline analysis over a fixture pack, beside
-      # the real es-en pack, whose update moves its `beside es-en` line alone.
-      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en)
-        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline
+      # add-lingua-french-baseline) freezes French's analysis over the pack built from its committed
+      # tables (add-lingua-pack-fr-en: tables/fr/ and tables/fr-en/, whose change re-blesses it),
+      # beside the real es-en pack, whose update moves its `beside es-en` line alone; fr-es
+      # (change 51, add-lingua-french-word-card: the French scenario glossed in Spanish, beside
+      # en-es) equals it on the studied side. The French card's lines over both are pinned by
+      # test/word-card-fr-en.spec.ts and test/word-card-fr-es.spec.ts.
+      - name: Invariance baselines (en-fr, es-fr, es-en, en-es, fr-en, fr-es)
+        run: cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline
       # What a pack studies does not depend on how it glosses (add-lingua-pack-lexical-layer):
       # a studied language's tables — its pinned tag pool, studied tables and dictionary words —
       # are kept once, in tables/<studied>/, and read by every pair of that language
@@ -239,7 +247,8 @@ jobs:
             scripts/lingua-data/build.sh --reduce "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
             # The raw sources weigh about 1.5 GB per pair; the next pair needs the room. Each pair
             # is reduced from its own pin, after the references: es-en after es-fr, en-es after
-            # en-fr (add-lingua-pack-en-es); the release assets fetched stay in work/cache/<sha256>
+            # en-fr (add-lingua-pack-en-es), fr-es after fr-en (add-lingua-pack-fr-es); the release
+            # assets fetched stay in work/cache/<sha256>
             # (build.sh), so an asset two pins name is fetched once per job (add-lingua-pack-es-en
             # D2).
             rm -rf "scripts/lingua-data/work/$pair"
@@ -265,10 +274,17 @@ jobs:
       # FLOORS). en-es, the thin pair the programme's risk 5 names, is held to a floor the owner
       # sets on its pull request (add-lingua-pack-en-es D3): the study's figures less two points
       # are proposed in FLOORS, the one place the owner settles (task 5.1) before merge — no
-      # `--floor` here, so the job and the `check` job's tests cannot drift apart. The site's
+      # `--floor` here, so the job and the `check` job's tests cannot drift apart. fr-en
+      # (add-lingua-pack-fr-en D4) is held to en-es's rule, the study's figures less two points,
+      # until change 52 ships it. fr-es (add-lingua-pack-fr-es D8, the programme's M6), reduced
+      # after fr-en, to the same rule, fixed before its first committed measurement: a pull request
+      # that reduces it under its floor — its sources, its rules, the Spanish edition's or French's
+      # studied tables moved — fails here, naming the pair, the top and the figure. The site's
       # figures (`gloss_coverage.py --write`, the `check` job) list the shipped pairs alone.
-      - name: Gloss coverage of es-en and en-es, against their floors
+      - name: Gloss coverage of es-en, en-es, fr-en and fr-es, against their floors
         run: |
           set -euo pipefail
           python scripts/lingua-data/gloss_coverage.py --pair es-en
           python scripts/lingua-data/gloss_coverage.py --pair en-es
+          python scripts/lingua-data/gloss_coverage.py --pair fr-en
+          python scripts/lingua-data/gloss_coverage.py --pair fr-es

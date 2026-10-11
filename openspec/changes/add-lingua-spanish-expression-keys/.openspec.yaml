@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - add-lingua-expression-table
+  - add-lingua-french-expression-keys
+  - add-lingua-pack-es-en
+  - add-lingua-english-card-wording

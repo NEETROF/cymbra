@@ -21,7 +21,13 @@ Inputs, in `--work`:
 
 Outputs, in `--work`: `forms.tsv`, `freq.tsv`, `grammar.tsv` (add-lingua-spanish-grammar-tables),
 `gloss.tsv`, `senses.tsv` and `mwe.tsv` (add-lingua-spanish-gloss-tables), `level.tsv`
-(add-lingua-spanish-levels), `NOTICE` and `manifest.json`.
+(add-lingua-spanish-levels), `lexical.tsv`, `NOTICE` and `manifest.json`.
+
+es-fr is Spanish's reference pair: its glossed lemmas, less those it glosses by a proper noun's
+senses alone (`madrid`, `maría`), are Spanish's dictionary words (`lexical.tsv`, the French
+Wiktionary's `dictionary_words`, leave-lingua-names-out-of-english-and-spanish-words D1, D2), which
+`pack_sources.py split` files into tables/es/. The estimated levels already skip the same lemmas
+(`estimated_levels`), so every levelled lemma is a dictionary word.
 
 Every rule here is Spanish, or names a source: the forms and their grammar are read from the English
 Wiktionary's Spanish section by the rules below; the glosses from the French Wiktionary and the
@@ -708,6 +714,10 @@ def main():
         ),
     )
     common.write(a.work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
+    # Spanish's dictionary words (leave-lingua-names-out-of-english-and-spanish-words D2): es-fr's
+    # glossed lemmas less those it glosses by a proper noun's senses alone. `pack_sources.py split`
+    # files them into tables/es/.
+    common.write(a.work, "lexical.tsv", "".join(f"{w}\n" for w in french.dictionary_words(glosses, runs)))
     levels = estimated_levels(ranks, glosses, runs)
     common.write(a.work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
     common.write(a.work, "NOTICE", NOTICE)

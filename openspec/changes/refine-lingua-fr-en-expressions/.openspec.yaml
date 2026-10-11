@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-10
+archiveAfter:
+  - add-lingua-french-expression-keys
+  - add-lingua-pack-fr-en
+  - refine-lingua-fr-en-glosses
+  - add-lingua-fr-en-translated-expressions

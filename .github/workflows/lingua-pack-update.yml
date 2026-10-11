@@ -2,7 +2,9 @@ name: lingua-pack-update
 
 # Proposes new tables for one of Cymbra Lingua's data packs — the `pair` input, en→fr by default; the
 # monthly run checks every pair (pin-lingua-pack-sources D6, D7; the pair since
-# generalise-lingua-pack-reducer, es→fr since add-lingua-spanish-forms-tables).
+# generalise-lingua-pack-reducer, es→fr since add-lingua-spanish-forms-tables, fr→en — French's
+# reference pair, which writes tables/fr/ — since add-lingua-french-forms-tables, fr→es — which reads
+# tables/fr/ as committed — since add-lingua-pack-fr-es).
 #
 # Releases never read upstream: they build the pack from the tables committed under
 # scripts/lingua-data/tables/<pair>/ and its studied language's tables/<studied>/, and check it
@@ -10,7 +12,7 @@ name: lingua-pack-update
 # nothing it produces reaches a release without a person:
 #
 # - dispatch, mode `update`: today's sources (CEFR-J, Octanove, ESDB, UD Spanish-GSD at their pinned
-#   commits; kaikki live), kept as a new snapshot, reduced, and pushed to the branch
+#   commits, UD French-GSD too; kaikki live), kept as a new snapshot, reduced, and pushed to the branch
 #   lingua-pack/<pair>/<snapshot>. kaikki is read as its dumps of whole Wiktionary editions alone —
 #   the English, French and Spanish Wiktionaries', one address each (pack_sources.py EDITIONS,
 #   migrate-lingua-pack-sources-to-raw-dumps D1): the files the pair reads are derived from them in
@@ -24,7 +26,14 @@ name: lingua-pack-update
 #   assets only, and a pair brought along publishes nothing and reads no dump. A pin written before
 #   the dumps — en-fr's, es-fr's and es-en's name kaikki's per-language extracts — is read as it is
 #   recorded, and moves to the dumps at the pair's next update (D5). A pair's first update — its
-#   folder holds no tables yet — proposes the folder whole.
+#   folder holds no tables yet — proposes the folder whole. With `keep` (an edition, or several
+#   comma-separated: `en`), the named pair's update keeps those editions' recorded bytes — each one's
+#   record carried byte for byte, its files read from the release it names, its dump not fetched —
+#   and reads the others anew; the new release holds the files read anew alone
+#   (add-lingua-fr-en-translated-expressions D6). It adds an edition to a pair without reading its
+#   others again: fr-en gaining the French Wiktionary's English translations, its English dump of
+#   2026-10-03 no longer served, without a new French dictionary in the same pull request. It is
+#   never a way to avoid an update: the next update that keeps nothing reads every edition anew.
 # - dispatch, mode `reduce`: the PINNED sources reduced again, after the reduction rules changed —
 #   the branch's diff is the rules' effect alone; no dump is read. With pair `all`, every pair with
 #   committed tables is reduced in one run and proposed on one branch,
@@ -67,13 +76,17 @@ on:
       pair:
         description: "The language pair whose tables to propose (a <studied>-<native> folder of scripts/lingua-data/tables); a studied language's reference brings the pairs that read it; all = every pair, mode reduce or dry."
         type: choice
-        options: [en-fr, es-fr, es-en, en-es, all]
+        options: [en-fr, es-fr, es-en, en-es, fr-en, fr-es, all]
         default: en-fr
       expect:
         description: "any = report what moved; identical = fail on any byte the rules were not meant to move (mode reduce only)."
         type: choice
         options: [any, identical]
         default: any
+      keep:
+        description: "Editions whose recorded bytes the update keeps, comma-separated (en, fr, es): their dumps are not read, their pinned files are (mode update only). Empty = read every edition anew."
+        type: string
+        default: ""
   schedule:
     - cron: "17 5 3 * *" # the 3rd of every month, 05:17 UTC — dry run of every pair, one job
 
@@ -85,10 +98,11 @@ permissions:
 # again, en-fr writes tables/en/ and reduces en-es again (add-lingua-pack-en-es D1: en-es reads
 # tables/en/ as committed and pins its digest) — so a reference's and its reader's dispatches
 # never propose the reader's folder on two branches at once: the `es` group for es-fr and es-en,
-# the `en` group for en-fr and en-es. `all` (modes reduce and dry) and the monthly dry run have a
-# group each.
+# the `en` group for en-fr and en-es, the `fr` group for fr-en and fr-es, which reads tables/fr/
+# (add-lingua-french-forms-tables D10, add-lingua-pack-fr-es D10). `all` (modes reduce and dry) and
+# the monthly dry run have a group each.
 concurrency:
-  group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || inputs.pair || 'monthly' }}
+  group: lingua-pack-update-${{ startsWith(inputs.pair, 'es-') && 'es' || startsWith(inputs.pair, 'en-') && 'en' || startsWith(inputs.pair, 'fr-') && 'fr' || inputs.pair || 'monthly' }}
   cancel-in-progress: false
 
 jobs:
@@ -103,6 +117,7 @@ jobs:
       MODE: ${{ github.event_name == 'schedule' && 'dry' || inputs.mode }}
       PAIR: ${{ github.event_name == 'schedule' && 'all' || inputs.pair }}
       EXPECT: ${{ inputs.expect || 'any' }}
+      KEEP: ${{ inputs.keep || '' }}
       # A monthly run fails when a table loses more than this share of its rows (D7). A starting
       # value, to set from the first runs.
       MAX_LOSS: "0.2"
@@ -132,6 +147,16 @@ jobs:
           fi
           if [ "$EXPECT" = identical ] && [ "$MODE" != reduce ]; then
             echo "::error::expect=identical checks a change of the rules alone: dispatch it with mode=reduce."
+            exit 1
+          fi
+          # Keeping an edition is an update's alone (add-lingua-fr-en-translated-expressions D6): a
+          # re-reduction reads every record as pinned already, and a dry run checks today's sources.
+          if [ -n "${KEEP:-}" ] && [ "$MODE" != update ]; then
+            echo "::error::keep=$KEEP keeps an edition's recorded bytes through an update: dispatch it with mode=update."
+            exit 1
+          fi
+          if [ -n "${KEEP:-}" ] && ! printf '%s' "$KEEP" | grep -qxE '[a-z]{2}(,[a-z]{2})*'; then
+            echo "::error::keep=$KEEP is no list of editions: write their codes, comma-separated (en, or en,es)."
             exit 1
           fi
 
@@ -187,10 +212,16 @@ jobs:
               fi
               echo "$pair: $(( $(date +%s) - pair_started )) s; disk used, free: $(df -h --output=used,avail / 2>/dev/null | tail -n1)"
             else
-              LINGUA_SNAPSHOT=$snapshot scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
+              # The editions kept are the named pair's (`keep`): a pair brought along is reduced from
+              # its own pin, which keeps every record already.
+              kept=""
+              [ "$mode" = update ] && kept="${KEEP:-}"
+              LINGUA_SNAPSHOT=$snapshot LINGUA_KEEP_EDITIONS="$kept" \
+                scripts/lingua-data/build.sh --"$mode" "$pair" "$RUNNER_TEMP/pack-$pair.lingua"
             fi
-            # What a reducer measures of its own tables and stores in no pack — en-es's
-            # translation-table share (add-lingua-pack-en-es D4) — kept for the report.
+            # What a reducer measures of its own tables and stores in no pack — en-es's and fr-es's
+            # translation-table share (add-lingua-pack-en-es D4, add-lingua-pack-fr-es D9) — kept
+            # for the report.
             if [ -f "$work/$pair/measures.json" ]; then
               cp "$work/$pair/measures.json" "$RUNNER_TEMP/measures-$pair.json"
             fi
@@ -339,15 +370,19 @@ jobs:
           # moves with es-fr's studied tables (change 23) and en-es's with en-fr's (change 24).
           # Once, whatever the pairs.
           # The French one too: its engine holds the real es-en pack beside the fr-en fixture
-          # (add-lingua-french-baseline D5), so an es-en update moves its `beside es-en` line.
-          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline
+          # (add-lingua-french-baseline D5), so an es-en update moves its `beside es-en` line;
+          # and fr-es's (change 51), which moves with fr-es, with French's studied tables and
+          # with en-es (its `beside en-es` line).
+          LINGUA_BLESS=1 cargo test -q -p lingua-wasm --test english_baseline --test spanish_baseline --test es_en_baseline --test en_es_baseline --test french_baseline --test fr_es_baseline
           # The extension's snapshots follow them (add-lingua-english-card-wording D2, D4,
           # add-lingua-spanish-card-wording D2): the English card's lines over the es-en golden's
-          # grammar probes, the Spanish card's over the en-es golden's, and the selection card's
-          # rows over the committed French glosses. `-u` after the files: vitest's `-u, --update
-          # [type]` takes an optional value, so `-u <file>` would read the first file as that value
-          # and run the others alone, leaving the first snapshot as it was.
-          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/row-gloss-tables.spec.ts -u)
+          # grammar probes, the Spanish card's over the en-es golden's, the French card's in
+          # English and in Spanish over the fr-en and fr-es goldens' grammar and phrase probes
+          # (add-lingua-french-word-card D9), and the selection card's rows over the committed
+          # French glosses. `-u` after the files: vitest's `-u, --update [type]` takes an optional
+          # value, so `-u <file>` would read the first file as that value and run the others
+          # alone, leaving the first snapshot as it was.
+          (cd apps/lingua-extension && yarn vitest run test/word-card-es-en.spec.ts test/word-card-en-es.spec.ts test/word-card-fr-en.spec.ts test/word-card-fr-es.spec.ts test/row-gloss-tables.spec.ts -u)
           # The site's coverage figures follow the tables (add-site-lingua-spanish-pages D3).
           python scripts/lingua-data/gloss_coverage.py --write
           if [ "$EXPECT" = identical ]; then

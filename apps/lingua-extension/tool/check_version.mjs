@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { messagesFile, readLocales } from "./locales.mjs";
 import { COMMAND_MESSAGES, DESCRIPTION_MESSAGE, LITERAL_NATIVE } from "./manifests.mjs";
+import { nativeOf, shippedNatives, shippedPairs, studiedOf } from "./packs.mjs";
 
 const MAX_PART = 65535;
 
@@ -101,23 +102,103 @@ export function localeProblems(manifest, locales) {
   return problems;
 }
 
+/**
+ * How each native language names the languages a pair may study, as the interface's catalogue
+ * names them (`name` in src/i18n/{fr,en,es}/languages.ts; test/check-version.spec.ts holds the two
+ * equal). The description is read in its own language: « anglais » is English in French, "English"
+ * in English, « inglés » in Spanish.
+ */
+export const LANGUAGE_NAMES = Object.freeze({
+  fr: Object.freeze({ en: "Anglais", es: "Espagnol", fr: "Français" }),
+  en: Object.freeze({ en: "English", es: "Spanish", fr: "French" }),
+  es: Object.freeze({ en: "Inglés", es: "Español", fr: "Francés" }),
+});
+
+/**
+ * The languages `text` names in `native`'s words, as codes in the table's order: each name matched
+ * whole — no letter on either side, so « l'anglais » names English and "Spanishness" names nothing —
+ * and whatever its case.
+ */
+export function namedLanguages(native, text) {
+  const names = LANGUAGE_NAMES[native] ?? {};
+  return Object.entries(names)
+    .filter(([, name]) => new RegExp(`(?<!\\p{L})${name}(?!\\p{L})`, "iu").test(text))
+    .map(([code]) => code);
+}
+
+/**
+ * Everything wrong with what the stores' summaries name (add-lingua-french-listings D6), as
+ * sentences. For each native language a shipped pair is glossed in, its description — the one a
+ * browser in that language shows and both stores list as the summary: `_locales/<native>`, and for
+ * French manifest.json's literal too — names every language its shipped pairs study, and no other.
+ * A package that lists fr-en under "Read Spanish on the web" fails here, and so does a summary that
+ * names French before a pair glossed in its language studies it. A language no shipped pair is glossed
+ * in is not read: its readers are not offered the package's languages yet.
+ */
+export function summaryProblems(manifest, locales, pairs) {
+  const problems = [];
+  for (const native of shippedNatives(pairs)) {
+    const names = LANGUAGE_NAMES[native];
+    const glossed = pairs.filter((pair) => nativeOf(pair) === native);
+    if (!names) {
+      problems.push(
+        `${glossed.join(", ")} ship glossed in "${native}", whose names for the studied languages tool/check_version.mjs does not hold (LANGUAGE_NAMES): add them, as the interface's catalogue names them.`,
+      );
+      continue;
+    }
+    const studied = [...new Set(glossed.map(studiedOf))];
+    const listed = (codes) =>
+      codes.length === 0 ? "no language" : joinNames(codes.map((code) => names[code] ?? `"${code}"`));
+    const descriptions = [[messagesFile(native), locales[native]?.[DESCRIPTION_MESSAGE]?.message]];
+    if (native === LITERAL_NATIVE) descriptions.push(["manifest.json", manifest.description]);
+    for (const [file, description] of descriptions) {
+      if (typeof description !== "string") {
+        problems.push(
+          `the ${native} description (${file}) is missing, yet ${glossed.join(", ")} ship glossed in ${native}: it is the summary both stores list, and must name ${listed(studied)}.`,
+        );
+        continue;
+      }
+      const found = namedLanguages(native, description);
+      const missing = studied.filter((code) => !found.includes(code));
+      const extra = found.filter((code) => !studied.includes(code));
+      if (missing.length === 0 && extra.length === 0) continue;
+      const why = [
+        ...(missing.length ? [`it does not name ${listed(missing)}`] : []),
+        ...(extra.length ? [`it names ${listed(extra)}, which no shipped pair glossed in ${native} studies`] : []),
+      ].join("; ");
+      problems.push(
+        `the ${native} description (${file}) names ${listed(found)} while the shipped pairs glossed in ${native} (${glossed.join(", ")}) study ${listed(studied)}: ${why}. It is the summary both stores list; change it with the pairs (add-lingua-french-listings D6).`,
+      );
+    }
+  }
+  return problems;
+}
+
+/** "A", "A and B", "A, B and C". */
+function joinNames(names) {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 function main() {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const read = (file) => JSON.parse(readFileSync(join(root, file), "utf8"));
   const version = read("package.json").version;
   const manifest = read("manifest.json");
   const locales = readLocales(root);
+  const pairs = shippedPairs(root);
   const problems = [
     versionProblem(version),
     ...manifestProblems(manifest),
     ...localeProblems(manifest, locales),
+    ...summaryProblems(manifest, locales, pairs),
   ].filter(Boolean);
   if (problems.length > 0) {
     for (const problem of problems) console.error(`error: ${problem}`);
     process.exit(1);
   }
   console.log(
-    `Version ${version} is publishable, and manifest.json is one both stores accept, in ${Object.keys(locales).join(", ")}.`,
+    `Version ${version} is publishable, and manifest.json is one both stores accept, in ${Object.keys(locales).join(", ")}; ` +
+      `the summary of each shipped native language (${shippedNatives(pairs).join(", ")}) names what its pairs study.`,
   );
 }
 

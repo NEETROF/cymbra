@@ -71,9 +71,14 @@ pub enum RevocationScope {
 #[cfg_attr(feature = "mock", mockall::automock)]
 #[async_trait]
 pub trait AuthPort: Send + Sync {
-    /// `locale` (optional; empty string = unset) selects the transactional-email
-    /// language, falling back to English (change: template-backend-emails). `client` is
-    /// the address the email-send budget is charged to (change: fix-auth-lockout-dos).
+    /// `locale` (optional; empty string = unset) is the client's interface language. An
+    /// account e-mail is written in the account's stored locale, else in this one, else
+    /// in English, and this one is recorded only on an account that has none — on
+    /// sign-up the account is new, so it is the first (change:
+    /// prefer-account-locale-for-emails). The `locale` of `resend_verification`,
+    /// `request_password_reset` and `set_local_credential` is weighed the same way.
+    /// `client` is the address the email-send budget is charged to (change:
+    /// fix-auth-lockout-dos).
     async fn sign_up_local(
         &self,
         email: &str,

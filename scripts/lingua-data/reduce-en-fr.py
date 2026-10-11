@@ -20,7 +20,13 @@ Outputs (into <work>/, consumed by lingua-pack-build):
   forms.tsv  (form<TAB>lemma) / freq.tsv (lemma<TAB>rank) / gloss.tsv (lemma<TAB>gloss)
   / level.tsv (lemma<TAB>A1..C2) / mwe.tsv (expression<TAB>gloss)
   / grammar.tsv (form<TAB>lemma<TAB>tag<TAB>other|-) / senses.tsv (lemma<TAB>tag:count…)
-  / NOTICE / manifest.json
+  / lexical.tsv (lemma: English's dictionary words) / NOTICE / manifest.json
+
+en-fr is English's reference pair: its glossed lemmas, less those it glosses by a proper noun's
+senses alone (`london`, `margaret`), are English's dictionary words (`lexical.tsv`, the French
+Wiktionary's `dictionary_words`, leave-lingua-names-out-of-english-and-spanish-words D1, D2), which
+`pack_sources.py split` files into tables/en/. English's levels are the CEFR lists' and do not read
+them (D3): a levelled name (`june`) keeps its level.
 
 Key rules:
 1. Only CANONICAL LEMMAS (base forms) are ever treated as lemmas. An inflected form (e.g.
@@ -789,6 +795,10 @@ def main():
             f"{w}\t" + "\t".join(f"{pos}:{n}" for pos, n in r) + "\n" for w, r in sorted(runs.items()) if w in glosses
         ),
     )
+    # English's dictionary words (leave-lingua-names-out-of-english-and-spanish-words D2): en-fr's
+    # glossed lemmas less those it glosses by a proper noun's senses alone. `pack_sources.py split`
+    # files them into tables/en/.
+    write(a.work, "lexical.tsv", "".join(f"{w}\n" for w in french.dictionary_words(glosses, runs)))
     write(a.work, "NOTICE", NOTICE)
     manifest = {
         "meta": {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { InterfaceLanguage } from "@/i18n/index.ts";
 import { levelRow } from "@/onboarding/level-row.ts";
 
-/** A level row over a view that records nothing; `estimated` as the pack says; handed French as the page hands it, unless told otherwise. */
+/** A level row over a view that records nothing; `estimated` as the pack says; handed French, unless told otherwise. */
 function mount(language: "en" | "es", estimated: boolean, interfaceLanguage: InterfaceLanguage = "fr"): HTMLElement {
   const view = { setDeclaredLevelAt: async () => {}, setCalibration: async () => {} };
   const row = levelRow(language, view, null, estimated, async () => {}, interfaceLanguage);
@@ -35,8 +35,8 @@ describe("onboarding — a language's level (add-lingua-spanish-levels)", () => 
   });
 
   it("asks, names an estimated level and notes it in the interface language (add-lingua-native-language-labels)", async () => {
-    // The confirmation's own sentence is still the page's French until localise-lingua-account-onboarding
-    // (change 17) hands it the catalogue's; the level it quotes is already named in the interface language.
+    // The confirmation's sentence is the catalogue's (localise-lingua-account-onboarding), the level
+    // it quotes the labels module's: both in the interface language.
     const row = mount("es", true, "en");
     expect(row.querySelector("h2")?.textContent).toBe("What's your Spanish level?");
     expect(row.querySelector(".note")?.textContent).toBe(
@@ -44,7 +44,9 @@ describe("onboarding — a language's level (add-lingua-spanish-levels)", () => 
     );
     row.querySelector<HTMLButtonElement>('button[data-lvl="B1"]')!.click();
     await settle();
-    expect(row.querySelector(".confirm")?.textContent).toContain("B1 (estimated).");
+    expect(row.querySelector(".confirm")?.textContent).toBe(
+      "Level saved: B1 (estimated). You can close this tab and start reading.",
+    );
 
     const spanish = mount("en", true, "es");
     expect(spanish.querySelector("h2")?.textContent).toBe("¿Cuál es tu nivel de inglés?");

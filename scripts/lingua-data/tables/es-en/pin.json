@@ -1,8 +1,8 @@
 {
   "snapshot": "2026.10.08",
   "pack": {
-    "sha256": "34d1e74abeaa2356fcb0fe6f08b5c99d74e2ebd2ad1c9520aa4d1c03175c79cf",
-    "size": 2567804
+    "sha256": "acaff30db316bb74cbe9d5e0d5c94f035e4f7ffe7f55011ec9277bdb29eae40e",
+    "size": 2612075
   },
   "reducer": {
     "sha256": "ee357febd0f8bcdccb135dddd563a0c49dee7558961996675a14c5a416bb35de",
@@ -19,7 +19,7 @@
       "freq.tsv": "063aafa1676cf95ce1def1dc60f28025407914cdebb158b59414ec77bad08add",
       "grammar.tsv": "d99cf26e854dacef2829cf79ccc42ea35655ccb69a56e2efbae308df15b8e6e5",
       "level.tsv": "f63bde9c292cb98cecf8e8c7640042652aef318407c03119d144704ef5c493e3",
-      "lexical.tsv": "862d21ca13e22904f4d5e543d2a65983d92d004364f1431e93420cf79778080d",
+      "lexical.tsv": "25a0caf844611c21a747098a0ee50aaa6e410dfacee6d54ce1bd36011d4d2a1c",
       "tags.tsv": "8f508e408605022d1b268d3470e980f723f17e73eaaea125bbdf6afe3dbd0d92"
     }
   },

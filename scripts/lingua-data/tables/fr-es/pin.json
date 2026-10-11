@@ -1,0 +1,82 @@
+{
+  "snapshot": "2026.10.10",
+  "pack": {
+    "sha256": "ab330af1f7dd0f2bf368e35115f799ed90089b8b13d18578e4cd959ed3b6e810",
+    "size": 1983054
+  },
+  "reducer": {
+    "sha256": "141e14519d2c7502d93ce5810d435c5487bf8a4f24b9247a7b514c0098a853bf",
+    "files": [
+      "reduce-fr-es.py",
+      "reduce_common.py",
+      "reduce_edition_es.py",
+      "reduce_french_acronyms.py",
+      "reduce_french_treebank.py"
+    ]
+  },
+  "studied": {
+    "reference": "fr-en",
+    "tables": {
+      "forms.tsv": "1d0967bf41e9d8520b933d271d70087bbe5dba6810d23701a4d9ee987a55a690",
+      "freq.tsv": "337ceaedfb28a5a2ac473c2dfc7e344cfde4fd71577525a02a0d0e4b12fa7da4",
+      "grammar.tsv": "14e0a93948648b7982634f18f3198da36e3cbf8c1c7fc8c3a1f65be57f6f7a4f",
+      "level.tsv": "9eb3e89d3472cf761e42e0f35ecabca3e5b9bd563d3f2bda19c5a92284bc007f",
+      "lexical.tsv": "ea71c311114afbd31b26d69a5266363b78e8c0363c2d5e670f4f11e2a92cfabf",
+      "tags.tsv": "bcefe71fe32b221624943c6b5c63f77a88f2bf48dd2e9e4ede5c47e4738479b7"
+    }
+  },
+  "sources": {
+    "gsd-train": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-train.conllu",
+      "sha256": "4b9a87b1b7e6e7003219df1d3ccca87ffaca0f00a6055b12b1857df5373589d2"
+    },
+    "gsd-dev": {
+      "url": "https://raw.githubusercontent.com/UniversalDependencies/UD_French-GSD/94d5b68e185fc22a9ef292040e84f476d36d9b0e/fr_gsd-ud-dev.conllu",
+      "sha256": "9221e5084cc6a1b1540671cfbd2fc0456efc223b2fe8dd2146c2bad921be02d4"
+    },
+    "kaikki-es": {
+      "release": "lingua-pack-sources-fr-es-2026.10.10",
+      "url": "https://kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-10",
+      "last_modified": "Fri, 02 Oct 2026 12:12:06 GMT",
+      "dump": {
+        "sha256": "46e1f04f4354fc81708f0397961723fa28e512d7c4b45b551b6fb4bb36ff8ddb",
+        "size": 1233016167,
+        "compressed_size": 103226106
+      },
+      "files": {
+        "kaikki-es-Frances.jsonl": {
+          "asset": "kaikki-es-Frances.jsonl.zst",
+          "sha256": "2e724e39ff59339f52f86c5a32ee4b84f968df93ce98631fa32aa0c938a31217",
+          "size": 7438610
+        },
+        "kaikki-es-traductions.jsonl": {
+          "asset": "kaikki-es-traductions.jsonl.zst",
+          "sha256": "bf44ebb4255ecde3d396bc877adcd9e306974403988089f5b774f5526a500f32",
+          "size": 1537580
+        }
+      }
+    },
+    "kaikki-fr": {
+      "release": "lingua-pack-sources-fr-es-2026.10.10",
+      "url": "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz",
+      "fetched": "2026-10-10",
+      "last_modified": "Fri, 02 Oct 2026 00:10:16 GMT",
+      "dump": {
+        "sha256": "968f7df0c64632ec64444f9cabc4019b4ecad8284407a5e053f85a54b1b21f19",
+        "size": 6865136428,
+        "compressed_size": 736590407
+      },
+      "files": {
+        "kaikki-fr-traductions.jsonl": {
+          "asset": "kaikki-fr-traductions.jsonl.zst",
+          "sha256": "bd14a5c41693293d3f3e19467ad69212425236266117ca6a780e0ded19c3bf4e",
+          "size": 6191621
+        }
+      }
+    },
+    "wordfreq": {
+      "version": "3.1.1"
+    }
+  }
+}

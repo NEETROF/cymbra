@@ -39,7 +39,7 @@ export const stats = {
       one: (n) => `${n} carte ajoutée au deck (niveau ${level}).`,
       other: (n) => `${n} cartes ajoutées au deck (niveau ${level}).`,
     }),
-  noCardsAdded: "Aucune carte ajoutée — ces mots sont déjà suivis ou dans ton deck.",
+  noCardsAdded: "Aucune carte ajoutée — ces mots sont déjà suivis, dans ton deck ou sans traduction.",
   known: "connu",
   ignored: "ignoré",
   relearn: "Remettre à apprendre",

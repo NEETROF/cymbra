@@ -1,8 +1,49 @@
+import { accountErrors as enErrors } from "../i18n/en/account-errors.ts";
+import { account as enAccount } from "../i18n/en/account.ts";
+import { accountErrors as esErrors } from "../i18n/es/account-errors.ts";
+import { account as esAccount } from "../i18n/es/account.ts";
+import { accountErrors as frErrors } from "../i18n/fr/account-errors.ts";
+import { account as frAccount } from "../i18n/fr/account.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, formatCount, type InterfaceLanguage } from "../i18n/index.ts";
 import type { AuthErrorKind } from "../state/auth-errors.ts";
+import { HANDLE_MAX_LENGTH } from "./handle.ts";
 
 // Reader-facing copy for account failures, chosen by flow context × category
-// (add-lingua-account-parity, design D7). French, like the rest of the extension. A
-// provider failure is never worded as a password error.
+// (add-lingua-account-parity, design D7), in the interface language: the catalogue's
+// `account-errors` module (localise-lingua-account-onboarding D3). A provider failure is never worded
+// as a password error. The errors are a module of their own because the reading surfaces' account
+// setting imports `errorCopy`: the account page's whole copy stays out of the content script, the
+// popup, the side panel and the reader.
+
+/** The account's errors in plain words: the catalogue's `account-errors` module. */
+export type AccountErrors = typeof frErrors;
+
+/** The account page's copy: its errors and the catalogue's `account` module, in the interface language. */
+export type AccountCopy = AccountErrors & typeof frAccount;
+
+const ERRORS: Record<InterfaceLanguage, AccountErrors> = { fr: frErrors, en: enErrors, es: esErrors };
+
+const ACCOUNT: Record<InterfaceLanguage, typeof frAccount> = { fr: frAccount, en: enAccount, es: esAccount };
+
+/** The errors' module for the interface language. */
+function errorsOf(language: InterfaceLanguage): AccountErrors {
+  return ERRORS[language];
+}
+
+const merged = new Map<InterfaceLanguage, AccountCopy>();
+
+/**
+ * The account page's copy for the interface language (French when none is given): the errors and the
+ * page's own module, one object for the page (`fillPage`), the flow and the view.
+ */
+export function accountCopy(language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE): AccountCopy {
+  let copy = merged.get(language);
+  if (!copy) {
+    copy = { ...ERRORS[language], ...ACCOUNT[language] };
+    merged.set(language, copy);
+  }
+  return copy;
+}
 
 export type FlowContext =
   | "signInEmail"
@@ -23,80 +64,79 @@ export type FlowContext =
   | "setPassword"
   | "verifyPassword";
 
-const UNAVAILABLE = "Impossible de joindre Cymbra. Vérifie ta connexion et réessaie.";
-const RATE_LIMITED = "Trop de tentatives. Réessaie dans quelques minutes.";
-const GENERIC = "Une erreur est survenue. Réessaie.";
-const STORAGE_FULL =
-  "La mémoire de l’extension est pleine sur cet appareil. Réinitialise tes données locales dans Réglages, puis réessaie.";
-const BAD_CODE = "Code invalide ou expiré. Demande un nouveau code.";
-const SESSION_EXPIRED = "Ta session a expiré. Reconnecte-toi.";
-
 /** Linking Google or Apple: the provider's own words, never a password error. */
-function linkCopy(provider: string, kind: AuthErrorKind): string {
-  if (kind === "alreadyExists") return `Ce compte ${provider} est déjà lié à un autre compte Cymbra.`;
+function linkCopy(
+  provider: string,
+  kind: AuthErrorKind,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+): string {
+  const c = errorsOf(language);
+  if (kind === "alreadyExists") return c.linkAlreadyLinked(provider);
   // A rejected bearer or a rejected id_token: both say so the same way, and retrying settles it.
-  if (kind === "unauthenticated")
-    return `La liaison avec ${provider} n'a pas abouti. Réessaie — si ça continue, reconnecte-toi.`;
-  return `Impossible de lier ${provider}. Réessaie.`;
+  if (kind === "unauthenticated") return c.linkUnauthenticated(provider);
+  return c.linkFailed(provider);
 }
 
-export function errorCopy(context: FlowContext, kind: AuthErrorKind): string {
-  if (kind === "storageFull") return STORAGE_FULL;
-  if (kind === "unavailable") return UNAVAILABLE;
-  if (kind === "rateLimited") return RATE_LIMITED;
+export function errorCopy(
+  context: FlowContext,
+  kind: AuthErrorKind,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+): string {
+  const c = errorsOf(language);
+  if (kind === "storageFull") return c.storageFull;
+  if (kind === "unavailable") return c.unavailable;
+  if (kind === "rateLimited") return c.rateLimited;
   switch (context) {
     case "signInEmail":
-      if (kind === "unauthenticated") return "Email ou mot de passe incorrect.";
-      if (kind === "failedPrecondition") return "Ton adresse email n'est pas encore vérifiée.";
-      if (kind === "invalidArgument") return "Vérifie l'email et le mot de passe saisis.";
-      return GENERIC;
+      if (kind === "unauthenticated") return c.wrongCredentials;
+      if (kind === "failedPrecondition") return c.emailNotVerified;
+      if (kind === "invalidArgument") return c.checkCredentials;
+      return c.generic;
     case "signInGoogle":
-      return "La connexion avec Google a échoué. Réessaie.";
+      return c.googleFailed;
     case "signInApple":
-      return "La connexion avec Apple a échoué. Réessaie.";
+      return c.appleFailed;
     case "signUp":
-      if (kind === "alreadyExists") return "Un compte utilise déjà cet email.";
-      if (kind === "invalidArgument") return "Email invalide ou mot de passe trop faible : choisis-en un plus long.";
-      return GENERIC;
+      if (kind === "alreadyExists") return c.emailTaken;
+      if (kind === "invalidArgument") return c.weakPassword;
+      return c.generic;
     case "verify":
-      if (kind === "invalidArgument" || kind === "notFound" || kind === "unauthenticated") return BAD_CODE;
-      return GENERIC;
+      if (kind === "invalidArgument" || kind === "notFound" || kind === "unauthenticated") return c.badCode;
+      return c.generic;
     case "reset":
       if (kind === "invalidArgument" || kind === "notFound" || kind === "unauthenticated")
-        return "Code invalide ou expiré, ou mot de passe trop faible.";
-      return GENERIC;
+        return c.badCodeOrWeakPassword;
+      return c.generic;
     case "handle":
-      if (kind === "alreadyExists" || kind === "conflict") return "Ce pseudo vient d'être pris — choisis-en un autre.";
-      if (kind === "invalidArgument") return "1 à 15 lettres ou chiffres uniquement (sans espaces ni symboles).";
-      if (kind === "unauthenticated") return "Ta session a expiré. Reconnecte-toi.";
-      return GENERIC;
+      if (kind === "alreadyExists" || kind === "conflict") return c.handleJustTaken;
+      if (kind === "invalidArgument") return c.handleInvalid(formatCount(language, HANDLE_MAX_LENGTH));
+      if (kind === "unauthenticated") return c.sessionExpired;
+      return c.generic;
     case "eraseData":
-      if (kind === "unauthenticated") return "Ta session a expiré. Reconnecte-toi pour effacer tes données.";
-      return "L'effacement n'a pas abouti. Tes données sont intactes : réessaie.";
+      if (kind === "unauthenticated") return c.sessionExpiredErase;
+      return c.eraseFailed;
     case "connected":
-      if (kind === "unauthenticated") return SESSION_EXPIRED;
-      return "Impossible de charger tes méthodes de connexion. Réessaie.";
+      if (kind === "unauthenticated") return c.sessionExpired;
+      return c.identitiesFailed;
     case "linkGoogle":
-      return linkCopy("Google", kind);
+      return linkCopy(c.providerGoogle, kind, language);
     case "linkApple":
-      return linkCopy("Apple", kind);
+      return linkCopy(c.providerApple, kind, language);
     case "unlink":
-      if (kind === "failedPrecondition") return "Tu ne peux pas retirer ta seule méthode de connexion.";
-      if (kind === "unauthenticated") return SESSION_EXPIRED;
-      return "Impossible de retirer cette méthode. Réessaie.";
+      if (kind === "failedPrecondition") return c.onlyMethod;
+      if (kind === "unauthenticated") return c.sessionExpired;
+      return c.unlinkFailed;
     case "setPassword":
-      if (kind === "invalidArgument") return "Email invalide ou mot de passe trop faible : choisis-en un plus long.";
-      if (kind === "alreadyExists")
-        return "Cette adresse est déjà utilisée par un compte Cymbra, ou ton compte a déjà un mot de passe.";
-      if (kind === "unauthenticated") return SESSION_EXPIRED;
-      return GENERIC;
+      if (kind === "invalidArgument") return c.weakPassword;
+      if (kind === "alreadyExists") return c.addressTakenOrHasPassword;
+      if (kind === "unauthenticated") return c.sessionExpired;
+      return c.generic;
     case "verifyPassword":
-      if (kind === "alreadyExists")
-        return "Cette adresse vient d'être prise par un autre compte. Recommence avec une autre.";
-      if (kind === "invalidArgument" || kind === "notFound" || kind === "unauthenticated") return BAD_CODE;
-      return GENERIC;
+      if (kind === "alreadyExists") return c.addressJustTaken;
+      if (kind === "invalidArgument" || kind === "notFound" || kind === "unauthenticated") return c.badCode;
+      return c.generic;
     case "resend":
     case "forgot":
-      return GENERIC;
+      return c.generic;
   }
 }

@@ -21,6 +21,10 @@
 //! is *not analysable* rather than misleadingly scored.
 
 use serde::{Deserialize, Serialize};
+use unicode_normalization::UnicodeNormalization;
+use unicode_normalization::char::is_combining_mark;
+
+use super::tokenize::without_soft_hyphens;
 
 /// Languages the pipeline can study. Extended change by change; each variant
 /// carries its own tokenisation pre-pass, lemmatisation cascade and analyser
@@ -39,9 +43,9 @@ pub enum StudiedLanguage {
     /// Spanish. Its analyser is a baseline until its own pre-pass and cascade
     /// land (add-lingua-spanish-analysis): no English rule ever runs on it.
     Spanish,
-    /// French. Served by the baseline analysis until its own rules land
-    /// (add-lingua-french-baseline): the rules that belong to no language and
-    /// the pack's forms, nothing of English's or Spanish's.
+    /// French (add-lingua-french-baseline), served by its own analysis since
+    /// add-lingua-french-analysis: its tokenisation pre-pass, NFC, its cascade,
+    /// its closed classes and its names rule — nothing of English's or Spanish's.
     French,
 }
 
@@ -101,25 +105,43 @@ pub const MIN_BLOCK_BYTES: usize = 12;
 pub const MIN_ANALYSABLE_TOKENS: usize = 10;
 
 /// Whether one block of text is in the studied language.
+///
+/// The block is read without its soft hyphens (U+00AD) before it is trimmed, so
+/// the minimum length, whichlang and the guards all read « vi‧da » as `vida`, and
+/// never its syllables (ignore-lingua-soft-hyphens D3).
 pub fn block_is_studied(text: &str, studied: StudiedLanguage) -> bool {
-    let trimmed = text.trim();
+    let read = without_soft_hyphens(text);
+    let trimmed = read.trim();
     if trimmed.len() < MIN_BLOCK_BYTES {
         return false;
     }
-    detect(trimmed) == studied.whichlang_target()
+    detect(trimmed, &[studied]).is_some()
 }
 
-/// whichlang's language for a trimmed block, with Spanish's guard: whichlang has no Catalan or
-/// Galician class and reads many of their blocks as Spanish, so a block it reads as Spanish whose
-/// Catalan or Galician function words outnumber its Spanish ones is not Spanish
-/// (add-lingua-spanish-detection-guard).
-fn detect(trimmed: &str) -> whichlang::Lang {
+/// The language among `languages` whichlang finds in a trimmed block, unless that language's
+/// guard refuses the block as a neighbour's (add-lingua-french-detection-guard D5). whichlang has
+/// no class for Catalan, Galician, Occitan or Romanian and reads many of their blocks as Spanish
+/// or French: Spanish's guard refuses Catalan and Galician (add-lingua-spanish-detection-guard)
+/// and Occitan (add-lingua-spanish-occitan-guard), French's Catalan, Occitan and Romanian;
+/// English has none. A guard runs only for the language it protects, and only when that
+/// language is asked about: a reader of English pays for neither, a reader of Spanish for
+/// Spanish's alone. `None` when whichlang finds none of
+/// `languages`, or the guard refuses the block, which is then excluded as any other language's
+/// is. The gate and the vote both ask here, so they never disagree. Both hand it the block
+/// without its soft hyphens (ignore-lingua-soft-hyphens D3): the guards' own word readings
+/// ([`iberian_neighbour`], [`guard_words`]) never see one.
+fn detect(trimmed: &str, languages: &[StudiedLanguage]) -> Option<StudiedLanguage> {
     let detected = whichlang::detect_language(trimmed);
-    if detected == whichlang::Lang::Spa && iberian_neighbour(trimmed) {
-        // Neither studied language: the block is excluded, as any other language's is.
-        return whichlang::Lang::Por;
-    }
-    detected
+    let language = languages
+        .iter()
+        .copied()
+        .find(|language| language.whichlang_target() == detected)?;
+    let neighbour = match language {
+        StudiedLanguage::English => false,
+        StudiedLanguage::Spanish => iberian_neighbour(trimmed),
+        StudiedLanguage::French => romance_neighbour(trimmed),
+    };
+    (!neighbour).then_some(language)
 }
 
 /// Function words Catalan uses and Spanish does not (sorted for binary search).
@@ -129,7 +151,9 @@ const CATALAN_MARKERS: &[&str] = &[
     "però", "segons", "sempre", "seu", "seus", "seva", "seves", "són", "també", "tot", "és",
 ];
 
-/// Function words Galician uses and Spanish does not (sorted for binary search).
+/// Function words Galician uses and Spanish does not (sorted for binary search). Two of them,
+/// [`GALICIAN_MARKERS_SPANISH_WRITES`], count only beside another of them
+/// (refine-lingua-spanish-galician-markers D1).
 const GALICIAN_MARKERS: &[&str] = &[
     "ao", "aos", "aínda", "cando", "coa", "coas", "da", "das", "do", "elas", "eles", "foi", "hai",
     "iso", "isto", "lle", "lles", "moi", "máis", "non", "nun", "nunha", "onde", "pola", "polas",
@@ -142,10 +166,192 @@ const SPANISH_MARKERS: &[&str] = &[
     "más", "por", "su", "sus", "también", "y",
 ];
 
-/// Whether a block whichlang reads as Spanish is more likely Catalan or Galician: either's
-/// function words outnumber Spanish's. A tie, or no marker at all, stays Spanish.
+/// Function words Occitan writes and Spanish does not, sorted by bytes for binary search
+/// (add-lingua-spanish-occitan-guard D2): 121 of Languedocien, Provençal, Gascon and Aranese —
+/// adverbs and negation (`pas`, `totjorn`, `tanben`, `fòrça`, `puèi`…), pronouns and determiners
+/// (`ieu`, `aquò`, `çò`, `degun`, `nòstre`…), articles and their contractions (Gascon and
+/// Aranese `eth`, `dera`, `ua`, `deu`, Languedocien `dau`, `sul`…), prepositions and conjunctions
+/// (`dins`, `sens`, `damb`, `entà`, `quand`…), the copula, the auxiliaries and the modals
+/// (`èsser`, `èra`, `siá`, `avèm`, `pòt`, `vòl`…). Counted only where written in lowercase
+/// (D3): `Pas de la Casa` is a name. `aquestes` is Catalan's too, and counts for both.
+///
+/// Each word is kept as measured, one by one, on 597,086 blocks fetched on 2026-10-09 (the
+/// design's Measurement names them; none is in the repository): change 42's corpus, Tatoeba's
+/// whole Spanish export, UD Spanish with COSER's rural, Canary and Colombian speech, 58 Spanish
+/// Wikipedia articles on Spain, Catalan and Occitan subjects, Latin America and the Canaries,
+/// five Argentine, Peruvian and Uruguayan books, ten Aranese and Gascon articles. Each is written
+/// by Occitan blocks whichlang reads as Spanish, and by no Spanish block as Spanish. Left out,
+/// each measured, among others: the words the Spanish corpora write as Spanish — `e`
+/// (« geografía e historia »), `fa` (« fa mayor »), `res` (« carne de res »), `cal`, `pus`,
+/// `ara`, `per` (« per cápita »), `cap`, `as`, `fan`, `ton`, `ta` —, the regional spellings
+/// they hold — `mai` (Caribbean « mi mai »), `mos` (rural « ya mos »), `soi` (Chilean voseo),
+/// `ai` (an old *hay*), `ei`, `dei` and `aquelas` (*Martín Fierro*), `vos`, `sos` —, and the
+/// English words a Spanish text quotes (`an`, `far`, `car`). Kept though a Spanish line could
+/// borrow them where the corpora never do, as the owner settled on 2026-10-10: French `pas`,
+/// `mon` and `quand`, Latin `deus`, colloquial `ma` (*mamá*) and `tas` (*estás*), the old
+/// `aqueste` and `aquestas`.
+const OCCITAN_MARKERS: &[&str] = &[
+    "abans",
+    "ací",
+    "aicí",
+    "alara",
+    "als",
+    "ambe",
+    "aqueles",
+    "aquera",
+    "aqueras",
+    "aquestas",
+    "aqueste",
+    "aquestes",
+    "aqueth",
+    "aquò",
+    "aquò's",
+    "atau",
+    "aviá",
+    "avèm",
+    "avètz",
+    "cossí",
+    "dab",
+    "damb",
+    "dambe",
+    "darrièr",
+    "dau",
+    "davant",
+    "defòra",
+    "degun",
+    "deman",
+    "dempuèi",
+    "dens",
+    "dera",
+    "deras",
+    "deth",
+    "deu",
+    "deus",
+    "dinc",
+    "dins",
+    "doncas",
+    "ena",
+    "entrò",
+    "entà",
+    "eth",
+    "foguèron",
+    "foguèt",
+    "fòrça",
+    "ieu",
+    "ièr",
+    "jamai",
+    "jos",
+    "li",
+    "lor",
+    "lors",
+    "lèu",
+    "ma",
+    "meu",
+    "mon",
+    "mès",
+    "nosautres",
+    "nòstra",
+    "nòstras",
+    "nòstre",
+    "nòstres",
+    "ongan",
+    "pas",
+    "pasmens",
+    "perque",
+    "perqué",
+    "peu",
+    "peus",
+    "pr'amor",
+    "puèi",
+    "pòdes",
+    "pòdi",
+    "pòdon",
+    "pòt",
+    "qual",
+    "quan",
+    "quand",
+    "quicòm",
+    "quin",
+    "quora",
+    "sas",
+    "sens",
+    "seriá",
+    "sia",
+    "siá",
+    "siás",
+    "sonque",
+    "sovent",
+    "sul",
+    "sèm",
+    "sètz",
+    "tanben",
+    "tas",
+    "tota",
+    "totas",
+    "totes",
+    "totis",
+    "totjorn",
+    "tròp",
+    "tà",
+    "ua",
+    "ues",
+    "uèi",
+    "vaquí",
+    "vèrs",
+    "vòl",
+    "vòli",
+    "vòlon",
+    "vòls",
+    "vòstra",
+    "vòstras",
+    "vòstre",
+    "vòstres",
+    "çò",
+    "èi",
+    "èra",
+    "èran",
+    "èsser",
+    "èstre",
+];
+
+/// Spanish's markers Occitan writes too: its articles `lo`, `los`, `las` and its `sus` (*on*). Occitan's comparison leaves them out, or an Occitan sentence's own articles would
+/// defend it (add-lingua-spanish-occitan-guard D1).
+const SPANISH_MARKERS_OCCITAN_WRITES: &[&str] = &["las", "lo", "los", "sus"];
+
+/// Galician's markers Spanish writes too: `da` and `das`, Galician's *de* + *a* and *de* + *as*
+/// (« of the »), are Spanish's *da*, « gives » (« ¿Cuánto se da de propina en España? »), and
+/// *das*, « you give » (« ¿Te das cuenta de la hora que es? »). They stay in
+/// [`GALICIAN_MARKERS`] but count for Galician only in a block that holds another of its markers,
+/// and alone count for no one (refine-lingua-spanish-galician-markers D1). Measured on change
+/// 42b's 597,086 blocks (the design's Measurement; none is in the repository): Spanish blocks
+/// refused 852 → 56 of 453,821, every one of the 796 refused for these two words alone given
+/// back; Galician blocks read as Spanish 21.2 → 22.2 %, each of the 91 more a Galician line whose
+/// only Galician markers are these two.
+const GALICIAN_MARKERS_SPANISH_WRITES: &[&str] = &["da", "das"];
+
+/// Occitan's elisions (D4): a word opening on one of them and longer than it (`qu'ei`,
+/// `m'agrada`, `t'agrada`) is an Occitan marker. Spanish writes none of them.
+const OCCITAN_ELISIONS: [&str; 3] = ["qu'", "m'", "t'"];
+
+/// Whether a block whichlang reads as Spanish is more likely Catalan, Galician or Occitan:
+/// Catalan's function words, or Galician's, outnumber Spanish's
+/// (add-lingua-spanish-detection-guard); or Occitan's outnumber the Spanish ones Occitan does
+/// not write, every one but [`SPANISH_MARKERS_OCCITAN_WRITES`] (add-lingua-spanish-occitan-guard
+/// D1). A tie, or no marker at all, stays Spanish; the third comparison only refuses more, so
+/// every block the first two refuse stays refused. Galician's `da` and `das`
+/// ([`GALICIAN_MARKERS_SPANISH_WRITES`]) are added to Galician's count only when the block holds
+/// another Galician marker, and otherwise count for no one (refine-lingua-spanish-galician-markers
+/// D1): Galician's count can only fall, so every block kept before is kept.
+///
+/// A block is split on every character that is neither a letter nor the ASCII apostrophe, and
+/// each word lowercased: a word opening on Catalan's `l'`, `d'`, `s'` or `n'` is Catalan's and
+/// nothing else; any other is looked up in each table. An Occitan word, or one opening on
+/// Occitan's elisions, counts only where it is written in lowercase (D3).
 fn iberian_neighbour(text: &str) -> bool {
     let (mut catalan, mut galician, mut spanish) = (0usize, 0usize, 0usize);
+    let (mut occitan, mut spanish_not_occitan) = (0usize, 0usize);
+    // Galician's `da` and `das`, which Spanish writes too: counted apart.
+    let mut galician_spanish_writes = 0usize;
     for word in text.split(|c: char| !c.is_alphabetic() && c != '\'') {
         let lower = word.to_lowercase();
         // Catalan's elisions (`l'home`, `d'aquesta`) are markers of their own.
@@ -157,21 +363,307 @@ fn iberian_neighbour(text: &str) -> bool {
             continue;
         }
         let lower = lower.trim_matches('\'');
+        occitan += usize::from(occitan_marker(word, lower));
         catalan += usize::from(CATALAN_MARKERS.binary_search(&lower).is_ok());
-        galician += usize::from(GALICIAN_MARKERS.binary_search(&lower).is_ok());
-        spanish += usize::from(SPANISH_MARKERS.binary_search(&lower).is_ok());
+        if GALICIAN_MARKERS.binary_search(&lower).is_ok() {
+            if GALICIAN_MARKERS_SPANISH_WRITES.contains(&lower) {
+                galician_spanish_writes += 1;
+            } else {
+                galician += 1;
+            }
+        }
+        if SPANISH_MARKERS.binary_search(&lower).is_ok() {
+            spanish += 1;
+            if !SPANISH_MARKERS_OCCITAN_WRITES.contains(&lower) {
+                spanish_not_occitan += 1;
+            }
+        }
     }
-    catalan > spanish || galician > spanish
+    // Beside another Galician marker, `da` and `das` count as Galician's; alone, for no one.
+    if galician > 0 {
+        galician += galician_spanish_writes;
+    }
+    catalan > spanish || galician > spanish || occitan > spanish_not_occitan
+}
+
+/// Whether `word`, read by [`iberian_neighbour`] as `lower`, is an Occitan marker: in
+/// [`OCCITAN_MARKERS`], or opening on one of [`OCCITAN_ELISIONS`] and longer than it — and
+/// written in lowercase, since a capital makes a name (add-lingua-spanish-occitan-guard D3).
+fn occitan_marker(word: &str, lower: &str) -> bool {
+    (OCCITAN_MARKERS.binary_search(&lower).is_ok()
+        || OCCITAN_ELISIONS
+            .iter()
+            .any(|elision| lower.starts_with(elision) && lower.len() > elision.len()))
+        && !word.chars().any(char::is_uppercase)
+}
+
+/// Function words Catalan, Occitan and Romanian write and French rarely does, sorted for binary
+/// search (add-lingua-french-detection-guard D3): 152 — Catalan's (`amb`, `els`, `és`, `molt`,
+/// `també`, `vaig`…), Occitan's (`lo`, `los`, `las`, `e`, `dins`, `èra`, `degun`, `çò`…), seven
+/// both write (`al`, `amb`, `aquesta`, `aquestes`, `del`, `dels`, `una`), and Romanian's (`în`,
+/// `să`, `și` and `şi`, `cu`, `pe`, `pentru`, `fost`…). Counted only where written in lowercase:
+/// `El Niño`, `Los Angeles` and `Lo Pont de Montvert` are names.
+///
+/// Each word is kept as measured, one by one, on 148,267 blocks of Universal Dependencies,
+/// Tatoeba, Wikipedia and Project Gutenberg text fetched on 2026-10-09 (the design's
+/// Measurement names them; none is in the repository): it catches its language's blocks read as
+/// French without refusing French. Left out, each measured: `es` (« tu es »), `on` (« on y
+/// trouve »), `i` (Québécois « qu'i »), `mai` (the month), `ha` (hectares), `fou`, `o`, `pot`,
+/// `uns` and `unes` (« les uns »), and French words or chat and Québécois spellings (`soi`, `com`,
+/// `pus`, `jamai`, `hi`, `han`, `van`, `fins`). Franco-Provençal, Picard and Walloon have no
+/// words here: they write French's own function words.
+const ROMANCE_NEIGHBOUR_MARKERS: &[&str] = &[
+    "această",
+    "acest",
+    "ahir",
+    "aici",
+    "això",
+    "al",
+    "allò",
+    "als",
+    "amb",
+    "ansin",
+    "aquel",
+    "aquela",
+    "aqueles",
+    "aquell",
+    "aquella",
+    "aquelles",
+    "aquells",
+    "aquest",
+    "aquesta",
+    "aqueste",
+    "aquestes",
+    "aquests",
+    "aquí",
+    "aquò",
+    "atât",
+    "avui",
+    "avètz",
+    "care",
+    "cel",
+    "ceva",
+    "coma",
+    "cu",
+    "când",
+    "cât",
+    "că",
+    "dacă",
+    "dambe",
+    "dar",
+    "dau",
+    "decât",
+    "degun",
+    "dei",
+    "deis",
+    "del",
+    "dels",
+    "demà",
+    "despre",
+    "després",
+    "deu",
+    "din",
+    "dins",
+    "dintre",
+    "după",
+    "e",
+    "ei",
+    "el",
+    "ella",
+    "ells",
+    "els",
+    "em",
+    "encara",
+    "enqüèra",
+    "ens",
+    "eren",
+    "estan",
+    "este",
+    "estic",
+    "està",
+    "estàs",
+    "ets",
+    "fi",
+    "foarte",
+    "foguèron",
+    "foguèt",
+    "foren",
+    "fost",
+    "fòrça",
+    "havia",
+    "havien",
+    "ieu",
+    "ja",
+    "las",
+    "lei",
+    "leis",
+    "lo",
+    "los",
+    "mas",
+    "mateix",
+    "mateixa",
+    "meva",
+    "meves",
+    "molt",
+    "més",
+    "mă",
+    "només",
+    "nosaltres",
+    "nòstra",
+    "nòstre",
+    "pasmens",
+    "pe",
+    "pel",
+    "pels",
+    "pentru",
+    "per",
+    "perquè",
+    "perqué",
+    "però",
+    "puèi",
+    "qual",
+    "quan",
+    "quin",
+    "quina",
+    "quora",
+    "què",
+    "res",
+    "sau",
+    "segons",
+    "ser",
+    "seus",
+    "seva",
+    "seves",
+    "siá",
+    "siás",
+    "sunt",
+    "sus",
+    "sèm",
+    "sètz",
+    "són",
+    "să",
+    "també",
+    "tampoc",
+    "tanben",
+    "teva",
+    "tinc",
+    "totjorn",
+    "té",
+    "ua",
+    "una",
+    "unde",
+    "uèi",
+    "vaig",
+    "vòstra",
+    "vòstre",
+    "çò",
+    "èi",
+    "èra",
+    "èran",
+    "èsser",
+    "és",
+    "în",
+    "şi",
+    "și",
+];
+
+/// French function words Catalan, Occitan and Romanian rarely write, sorted for binary search
+/// (add-lingua-french-detection-guard D3): 69, counted however they are written. Left out, each
+/// measured: `les` (Catalan's article), `pas`, `son`, `mon`, `qui`, `on` and `ont` (Occitan
+/// writes them), `ce` and `lui` (Romanian's *what* and *his*). The guard's own words, not the
+/// closed classes of `function_words.rs`: they answer what French does not share with its
+/// neighbours, not what a reader is not shown.
+const FRENCH_MARKERS: &[&str] = &[
+    "alors", "au", "aussi", "aux", "avait", "avant", "avec", "beaucoup", "bien", "cela", "ces",
+    "cette", "chez", "comme", "dans", "depuis", "des", "donc", "dont", "du", "déjà", "elle",
+    "elles", "encore", "est", "et", "fait", "ici", "il", "ils", "j", "jamais", "je", "le", "leur",
+    "leurs", "là", "mais", "moi", "nous", "ou", "où", "parce", "pendant", "plus", "pour", "puis",
+    "quoi", "rien", "sans", "sont", "sous", "suis", "sur", "toi", "toujours", "tous", "tout",
+    "toute", "toutes", "trop", "très", "une", "vous", "à", "ça", "était", "été", "être",
+];
+
+/// The longest marker of either table, in bytes: a longer word is not looked up.
+const LONGEST_MARKER_BYTES: usize = 9;
+
+/// Whether a block whichlang reads as French is more likely Catalan, Occitan or Romanian: their
+/// function words, counted together, outnumber French's own. A tie, or no marker at all, stays
+/// French — a short line cannot be judged, and French comes first. A neighbour's word counts
+/// only where it is written in lowercase; a French one however it is written.
+///
+/// The block is read as [`guard_words`] reads it; a word holding a combining mark is composed
+/// (NFC) before it is looked up, so a decomposed `és` is Catalan's and a decomposed `été` is not
+/// `e` + `te`.
+fn romance_neighbour(text: &str) -> bool {
+    let (mut neighbour, mut french) = (0usize, 0usize);
+    let mut buf = String::new();
+    guard_words(text, |word| {
+        let decomposed = !word.is_ascii() && word.chars().any(is_combining_mark);
+        if word.len() > LONGEST_MARKER_BYTES && !decomposed {
+            return;
+        }
+        let lowercase = !word.chars().any(char::is_uppercase);
+        let lower = if lowercase && !decomposed {
+            word
+        } else {
+            buf.clear();
+            buf.extend(word.nfc().flat_map(char::to_lowercase));
+            buf.as_str()
+        };
+        if lowercase && ROMANCE_NEIGHBOUR_MARKERS.binary_search(&lower).is_ok() {
+            neighbour += 1;
+        } else if FRENCH_MARKERS.binary_search(&lower).is_ok() {
+            french += 1;
+        }
+    });
+    neighbour > french
+}
+
+/// Calls `f` with each word of `text` as French's guard reads it (add-lingua-french-detection-guard
+/// D4): a run of letters and combining marks, joined across a hyphen, a middle dot (U+00B7), a
+/// non-breaking hyphen (U+2011) or a full stop between two letters (`e-mail`, `étudiant·e·s`,
+/// `col·lecció`); an apostrophe, a space or any other character ends it (`l'`, `qu'`), and a run
+/// holding a digit is not a word (`2e`, `1re`). Splitting on every non-letter instead, as Spanish's
+/// guard does, read `e` — Occitan's *and* — in `2e`, `e-mail` and `ingénieur-e-s`.
+fn guard_words(text: &str, mut f: impl FnMut(&str)) {
+    let mut start: Option<usize> = None;
+    let mut digit = false;
+    let mut chars = text.char_indices().peekable();
+    while let Some((i, c)) = chars.next() {
+        if c.is_alphabetic() || (!c.is_ascii() && is_combining_mark(c)) || c.is_numeric() {
+            digit |= c.is_numeric();
+            start.get_or_insert(i);
+            continue;
+        }
+        let joins = matches!(c, '-' | '.' | '\u{00B7}' | '\u{2011}')
+            && start.is_some()
+            && chars.peek().is_some_and(|&(_, next)| next.is_alphabetic());
+        if joins {
+            continue;
+        }
+        if let Some(s) = start.take()
+            && !digit
+        {
+            f(&text[s..i]);
+        }
+        digit = false;
+    }
+    if let Some(s) = start
+        && !digit
+    {
+        f(&text[s..]);
+    }
 }
 
 /// The language of a document, chosen among `candidates` (add-lingua-language-routing D1).
 ///
 /// Each block long enough to be detected votes, weighted by its trimmed length, for the
-/// language whichlang finds in it, when that language is a candidate: a page's short chrome
-/// cannot outvote its text. The most weight wins. A tie goes to `hint` (the document's declared
+/// candidate whichlang finds in it, unless that candidate's guard refuses the block (`detect`):
+/// a page's short chrome cannot outvote its text, nor a Catalan paragraph vote French. The most weight wins. A tie goes to `hint` (the document's declared
 /// language) when it is among the tied, else to the earlier candidate. With no vote, `hint`
 /// wins if it is a candidate, else the first candidate. A single candidate is returned without
-/// detecting anything. `None` only when there is no candidate.
+/// detecting anything. `None` only when there is no candidate. Each block is read without its
+/// soft hyphens before it is trimmed and weighed, as [`block_is_studied`] reads it
+/// (ignore-lingua-soft-hyphens D3).
 pub fn detect_document_language(
     blocks: &[&str],
     candidates: &[StudiedLanguage],
@@ -183,14 +675,13 @@ pub fn detect_document_language(
     }
     let mut weight = vec![0usize; candidates.len()];
     for block in blocks {
-        let trimmed = block.trim();
+        let read = without_soft_hyphens(block);
+        let trimmed = read.trim();
         if trimmed.len() < MIN_BLOCK_BYTES {
             continue;
         }
-        let detected = detect(trimmed);
-        if let Some(i) = candidates
-            .iter()
-            .position(|c| c.whichlang_target() == detected)
+        if let Some(language) = detect(trimmed, candidates)
+            && let Some(i) = candidates.iter().position(|c| *c == language)
         {
             weight[i] += trimmed.len();
         }
@@ -336,19 +827,26 @@ mod tests {
 
     #[test]
     fn english_keeps_its_analyser_version_and_spanish_has_its_own() {
-        // Each language reads its own constant; the numbers may meet (both were `1.1.0` after
-        // add-lingua-spanish-detection-guard) without a pack of one passing for the other's.
-        assert_eq!(StudiedLanguage::English.analyzer_version(), "1.1.0");
+        // Each language reads its own constant; the numbers may meet (Spanish's was `1.1.0` after
+        // add-lingua-spanish-detection-guard, French's was English's from
+        // add-lingua-french-detection-guard, both `1.2.0` since ignore-lingua-soft-hyphens, until
+        // leave-lingua-names-out-of-english-and-spanish-words moved English to `1.3.0`) without a
+        // pack of one passing for the other's.
+        assert_eq!(StudiedLanguage::English.analyzer_version(), "1.3.0");
         assert_eq!(
             StudiedLanguage::Spanish.analyzer_version(),
             crate::analysis::SPANISH_ANALYZER_VERSION
         );
-        // French has its own tokenisation pre-pass and the baseline's lemmas
-        // (add-lingua-french-tokenisation D9); its cascade makes it `1.0.0`.
-        assert_eq!(StudiedLanguage::French.analyzer_version(), "0.2.0");
+        // French has its own analysis (add-lingua-french-analysis D5): its own constant, no
+        // longer one of the baseline's `0.x` versions.
         assert_eq!(
             StudiedLanguage::French.analyzer_version(),
             crate::analysis::FRENCH_ANALYZER_VERSION
+        );
+        assert!(
+            !StudiedLanguage::French.analyzer_version().starts_with("0."),
+            "{}",
+            StudiedLanguage::French.analyzer_version()
         );
     }
 
@@ -389,8 +887,8 @@ mod tests {
     fn the_spanish_guard_leaves_french_detection_alone() {
         // `l'` and `d'` count as Catalan in the guard, which only judges a block read as Spanish.
         let elided = "L'homme d'aujourd'hui n'a plus le temps de lire, dit-elle.";
-        assert_eq!(detect(elided), whichlang::detect_language(elided));
-        assert_eq!(detect(elided), whichlang::Lang::Fra);
+        assert_eq!(whichlang::detect_language(elided), whichlang::Lang::Fra);
+        assert_eq!(detect(elided, &[ES, FR]), Some(FR));
         assert!(block_is_studied(elided, FR));
         assert_eq!(
             detect_document_language(&[FRENCH, elided], &[ES, FR], None),
@@ -457,7 +955,8 @@ mod tests {
     #[test]
     fn the_guard_leaves_english_detection_alone() {
         let english = "Teams don't ship code on Friday, and they never will without review.";
-        assert_eq!(detect(english), whichlang::detect_language(english));
+        assert_eq!(whichlang::detect_language(english), whichlang::Lang::Eng);
+        assert_eq!(detect(english, &[EN, ES, FR]), Some(EN));
         assert!(block_is_studied(english, EN));
     }
 
@@ -475,9 +974,772 @@ mod tests {
         }
     }
 
+    // add-lingua-spanish-occitan-guard: Occitan is not read as Spanish.
+    const OCCITAN: &str = "Los dròlles son totjorn dins lo jardin.";
+    const ARANESE: &str = "Era hemna qu'ei arribada damb eth tren de Tolosa.";
+    const OCCITAN_PAGE: [&str; 3] = [
+        OCCITAN,
+        ARANESE,
+        "Aquò es pas lo meu problèma, mas lo tieu.",
+    ];
+
+    /// Each sentence a test of Occitan's comparison offers as Spanish is one whichlang reads as
+    /// Spanish, so that a whichlang update that stops reading it so fails here rather than
+    /// letting the test pass for the wrong reason (add-lingua-spanish-occitan-guard D8).
+    fn read_as_spanish(block: &str) -> &str {
+        assert_eq!(
+            whichlang::detect_language(block),
+            whichlang::Lang::Spa,
+            "{block}"
+        );
+        block
+    }
+
+    /// A small Spanish lexicon: a few words of [`SPANISH_PROSE`].
+    fn spanish_lexicon() -> crate::analysis::lexicon::FstLexicon<Vec<u8>> {
+        let (bytes, pool) = crate::analysis::lexicon::build_lexicon_blobs(
+            &[("aprobó", "aprobar"), ("grupos", "grupo")],
+            &["el", "gobierno", "presupuesto", "con", "de", "pero"],
+        )
+        .expect("build");
+        crate::analysis::lexicon::FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    #[test]
+    fn spec_scenario_an_occitan_sentence_whose_articles_are_spanish() {
+        assert!(!block_is_studied(read_as_spanish(OCCITAN), ES));
+        // A Spanish analysis excludes it: only the Spanish block's tokens are analysed.
+        let blocks = [SPANISH_PROSE, OCCITAN];
+        match crate::analysis::pipeline::analyse_document(&blocks, ES, &spanish_lexicon()) {
+            crate::analysis::pipeline::DocumentAnalysis::Analysed(tokens) => {
+                assert!(tokens.len() >= MIN_ANALYSABLE_TOKENS);
+                assert!(tokens.iter().all(|t| t.block == 0), "{tokens:?}");
+            }
+            other => panic!("expected the Spanish block analysed, got {other:?}"),
+        }
+        assert_eq!(
+            crate::analysis::pipeline::analyse_document(
+                &[OCCITAN, OCCITAN, OCCITAN],
+                ES,
+                &spanish_lexicon()
+            ),
+            crate::analysis::pipeline::DocumentAnalysis::NotAnalysable
+        );
+    }
+
+    #[test]
+    fn occitan_articles_do_not_defend_it() {
+        // `totjorn` and `dins` against `los` and `lo`: a tie against Spanish's whole table, which
+        // kept the block Spanish; against the Spanish markers Occitan does not write, two to none.
+        // Neither Catalan's nor Galician's comparison refuses it.
+        assert!(iberian_neighbour(OCCITAN));
+        // Two Spanish markers Occitan does not write tie it, and a tie stays Spanish.
+        assert!(!iberian_neighbour(
+            "Los dròlles son totjorn dins lo jardin y también la casa."
+        ));
+        for word in ["los", "lo"] {
+            assert!(SPANISH_MARKERS_OCCITAN_WRITES.contains(&word));
+        }
+    }
+
+    #[test]
+    fn spec_scenario_an_aranese_sentence() {
+        assert!(!block_is_studied(read_as_spanish(ARANESE), ES));
+    }
+
+    #[test]
+    fn spec_scenario_regional_spanish_is_kept() {
+        for block in [
+            // Rioplatense: `vos` and `sos` are voseo, no marker (D2).
+            "Vos sos de Buenos Aires, ¿no? Che, ¿querés tomar unos mates?",
+            // Canary.
+            "Los chiquillos se fueron a la playa en la guagua y comieron papas arrugadas con mojo.",
+            // Caribbean: `mai` (*mamá*) is no marker (D2).
+            "Mi mai cocinó yautía con salami frito.",
+        ] {
+            assert!(block_is_studied(read_as_spanish(block), ES), "{block}");
+            assert!(!iberian_neighbour(block), "{block}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_spanish_naming_occitan_and_catalan_places_is_kept() {
+        for block in [
+            // `e` is no marker (D2), and `Vielha` and `Mijaran` are names.
+            "El ayuntamiento de Vielha e Mijaran aprobó el presupuesto de las pistas de Baqueira.",
+            // `pel` is Catalan's, and in no table; Catalan's comparison is untouched.
+            "La candidatura de Junts pel Sí ganó las elecciones.",
+        ] {
+            assert!(block_is_studied(read_as_spanish(block), ES), "{block}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_capital_makes_a_name_in_spanish() {
+        let block = "Los comercios de Pas de la Casa abren los domingos.";
+        assert!(block_is_studied(read_as_spanish(block), ES));
+        // In lowercase, `pas` would count against no Spanish marker Occitan does not write.
+        assert!(iberian_neighbour(&block.to_lowercase()));
+        assert!(!iberian_neighbour("Pas"));
+        assert!(iberian_neighbour("pas"));
+        // Any capital, not only the first letter's.
+        assert!(!iberian_neighbour("DINS los"));
+    }
+
+    #[test]
+    fn occitan_elisions_count_in_lowercase() {
+        for elided in ["qu'ei", "m'agrada", "t'agrada"] {
+            assert!(iberian_neighbour(elided), "{elided}");
+            // A capital makes it a name's, as any Occitan word.
+            let capital = elided[..1].to_uppercase() + &elided[1..];
+            assert!(!iberian_neighbour(&capital), "{capital}");
+        }
+        // The elision alone is no word, and one Spanish marker Occitan does not write ties it.
+        assert!(!iberian_neighbour("qu' m' t'"));
+        assert!(!iberian_neighbour("qu'ei y"));
+        // Catalan's elisions stay Catalan's alone.
+        assert!(iberian_neighbour("l'ostal"));
+        assert!(!iberian_neighbour("l'ostal y"));
+    }
+
+    #[test]
+    fn spec_scenario_catalan_and_galician_are_refused_as_before() {
+        assert!(!block_is_studied(read_as_spanish(CATALAN), ES));
+        // whichlang reads the Galician sentence as Italian; the guard refuses it all the same.
+        assert!(!block_is_studied(GALICIAN, ES));
+        for block in [CATALAN, GALICIAN] {
+            assert!(iberian_neighbour(block), "{block}");
+        }
+        assert!(iberian_neighbour(
+            "L'home d'aquesta ciutat va arribar ahir."
+        ));
+        assert!(iberian_neighbour("amb els"));
+        // A Catalan or Galician word written with a capital still counts, as before.
+        assert!(iberian_neighbour("Amb els"));
+        assert!(iberian_neighbour("Xa non"));
+    }
+
+    #[test]
+    fn spec_scenario_an_occitan_page_gives_spanish_no_vote() {
+        for block in OCCITAN_PAGE {
+            assert!(!block_is_studied(read_as_spanish(block), ES), "{block}");
+        }
+        // Nothing votes, so the reader's first candidate wins: never Spanish by Occitan's weight.
+        assert_eq!(
+            detect_document_language(&OCCITAN_PAGE, &[EN, ES], None),
+            Some(EN)
+        );
+        // A shorter English line than the page's blocks outweighs them, whatever the order.
+        let english = "The lighthouse stood at the edge of the cliff.";
+        assert!(english.len() < OCCITAN_PAGE.iter().map(|b| b.len()).sum());
+        let page = [OCCITAN_PAGE[0], OCCITAN_PAGE[1], OCCITAN_PAGE[2], english];
+        assert_eq!(detect_document_language(&page, &[ES, EN], None), Some(EN));
+        // A Spanish page still votes Spanish.
+        assert_eq!(
+            detect_document_language(&[SPANISH_PROSE, english], &[EN, ES], None),
+            Some(ES)
+        );
+    }
+
+    #[test]
+    fn the_occitan_comparison_leaves_english_and_french_alone() {
+        // Spanish's guard runs for Spanish alone: French writing `pas`, `mon` and `quand` is
+        // French.
+        let french = "Quand mon frère ne vient pas, je reste seul à la maison.";
+        assert_eq!(whichlang::detect_language(french), whichlang::Lang::Fra);
+        assert_eq!(detect(french, &[ES, FR]), Some(FR));
+        assert_eq!(detect(ENGLISH, &[ES, EN]), Some(EN));
+        // An Occitan block read as Spanish answers nothing for a reader of English and French.
+        assert_eq!(detect(OCCITAN, &[EN, FR]), None);
+        assert_eq!(detect(OCCITAN, &[EN, ES, FR]), None);
+    }
+
+    #[test]
+    fn spec_scenario_the_leak_the_occitan_comparison_leaves() {
+        // No Occitan function word: `es`, `sus` and `la` are no Occitan marker of the table.
+        let block = "Lo libre es sus la taula.";
+        assert!(!iberian_neighbour(block));
+        assert!(block_is_studied(read_as_spanish(block), ES));
+    }
+
+    #[test]
+    fn a_spanish_marker_occitan_does_not_write_keeps_a_borrowed_word() {
+        // The words a Spanish line can borrow, kept by the owner (open question 1, 2026-10-10):
+        // alone against Spanish's articles, they refuse it; one other Spanish marker keeps it.
+        assert!(iberian_neighbour(read_as_spanish(
+            "Bailaron un pas de deux en el último acto."
+        )));
+        for block in [
+            "Por aquestas montañas anduve solo.",
+            "Le dijo mon amour y se fue sin mirar atrás.",
+        ] {
+            assert!(block_is_studied(read_as_spanish(block), ES), "{block}");
+        }
+    }
+
+    #[test]
+    fn the_occitan_table_is_sorted_and_disjoint_from_spanish() {
+        assert_eq!(OCCITAN_MARKERS.len(), 121);
+        for pair in OCCITAN_MARKERS.windows(2) {
+            assert!(
+                pair[0] < pair[1],
+                "{:?} must sort before {:?}",
+                pair[0],
+                pair[1]
+            );
+        }
+        for word in OCCITAN_MARKERS {
+            // Looked up as the guard writes them: in lowercase.
+            assert_eq!(word.to_lowercase(), *word);
+            assert!(SPANISH_MARKERS.binary_search(word).is_err(), "{word}");
+            assert!(GALICIAN_MARKERS.binary_search(word).is_err(), "{word}");
+        }
+        let shared_with_catalan: Vec<&str> = OCCITAN_MARKERS
+            .iter()
+            .copied()
+            .filter(|word| CATALAN_MARKERS.binary_search(word).is_ok())
+            .collect();
+        assert_eq!(shared_with_catalan, ["aquestes"]);
+        for word in SPANISH_MARKERS_OCCITAN_WRITES {
+            assert!(SPANISH_MARKERS.binary_search(word).is_ok(), "{word}");
+        }
+        // Left out after measuring (D2): Spanish writes them, or a regional Spanish does.
+        for word in [
+            "e", "fa", "res", "cal", "pus", "ara", "per", "cap", "mai", "mos", "soi", "ai", "ei",
+            "dei", "aquelas", "vos", "sos", "ta",
+        ] {
+            assert!(OCCITAN_MARKERS.binary_search(&word).is_err(), "{word}");
+        }
+    }
+
+    // refine-lingua-spanish-galician-markers: Spanish's *gives* is not Galician.
+    const SPANISH_GIVES: [&str; 2] = [
+        "¿Cuánto se da de propina en España?",
+        "¿Te das cuenta de la hora que es?",
+    ];
+    const GALICIAN_WITH_DA: &str =
+        "O profesor Smith é recoñecido por ser un dos máis grandes eruditos da filoloxía inglesa.";
+    const GALICIAN_ONLY_DA: &str = "A esperanza é a razón da vida.";
+
+    #[test]
+    fn spec_scenario_spanish_s_gives_is_not_galician() {
+        for block in SPANISH_GIVES {
+            assert!(block_is_studied(read_as_spanish(block), ES), "{block}");
+            assert!(!iberian_neighbour(block), "{block}");
+        }
+        // A Spanish analysis counts them: both blocks are analysed, `da` and `das` among them.
+        match crate::analysis::pipeline::analyse_document(&SPANISH_GIVES, ES, &spanish_lexicon()) {
+            crate::analysis::pipeline::DocumentAnalysis::Analysed(tokens) => {
+                for (block, word) in [(0, "da"), (1, "das")] {
+                    assert!(
+                        tokens.iter().any(|t| t.block == block && t.surface == word),
+                        "{word}: {tokens:?}"
+                    );
+                }
+            }
+            other => panic!("expected both Spanish blocks analysed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_two_words_spanish_writes_stay_galician_markers() {
+        assert_eq!(GALICIAN_MARKERS.len(), 32);
+        for word in GALICIAN_MARKERS_SPANISH_WRITES {
+            assert!(GALICIAN_MARKERS.binary_search(word).is_ok(), "{word}");
+            assert!(SPANISH_MARKERS.binary_search(word).is_err(), "{word}");
+        }
+        assert_eq!(GALICIAN_MARKERS_SPANISH_WRITES, ["da", "das"]);
+    }
+
+    #[test]
+    fn da_and_das_alone_count_for_no_one() {
+        // Whatever their case (D2): a line opening on the verb, an acronym.
+        for block in [
+            "Da un paso atrás.",
+            "¿Me da una factura?",
+            "No me da tiempo.",
+            "da",
+            "DAS",
+            "da das",
+        ] {
+            assert!(!iberian_neighbour(block), "{block}");
+        }
+        assert!(block_is_studied(read_as_spanish("Da un paso atrás."), ES));
+    }
+
+    #[test]
+    fn spec_scenario_da_beside_another_galician_function_word() {
+        // `máis` and `da` against `por`: two to one.
+        assert!(!block_is_studied(read_as_spanish(GALICIAN_WITH_DA), ES));
+        assert!(iberian_neighbour(GALICIAN_WITH_DA));
+        // Without `da`, `máis` ties `por`, and a tie stays Spanish.
+        assert!(!iberian_neighbour(
+            &GALICIAN_WITH_DA.replace(" da ", " de ")
+        ));
+        // `xa` ties `por`; beside it, `da` counts and outnumbers it, and so does `das`.
+        assert!(!iberian_neighbour("xa por"));
+        assert!(iberian_neighbour("da xa por"));
+        assert!(iberian_neighbour("xa das por"));
+    }
+
+    #[test]
+    fn the_rule_s_limit_a_spanish_line_with_a_galician_word() {
+        // `polo` is Galician's too (« Polo Norte »): beside it, Spanish's `da` counts, as before.
+        let block = "Me da igual: nunca jugué al polo.";
+        assert!(!block_is_studied(read_as_spanish(block), ES));
+        assert!(iberian_neighbour(block));
+    }
+
+    #[test]
+    fn spec_scenario_catalan_and_occitan_are_refused_as_before() {
+        assert!(!block_is_studied(read_as_spanish(CATALAN), ES));
+        for block in OCCITAN_PAGE {
+            assert!(!block_is_studied(read_as_spanish(block), ES), "{block}");
+        }
+        // `da` and `das` alone answer nothing for Galician, but Catalan's and Occitan's
+        // comparisons still refuse the block.
+        for block in [
+            "amb els da",
+            "L'home da",
+            "totjorn dins da",
+            "qu'ei das",
+            "da amb els",
+        ] {
+            assert!(iberian_neighbour(block), "{block}");
+        }
+        // And the Galician paragraph, whose markers are Galician's 30 others.
+        assert!(!block_is_studied(GALICIAN, ES));
+        assert!(iberian_neighbour(GALICIAN));
+        assert!(iberian_neighbour("Os nenos da aldea xa non van á escola."));
+    }
+
+    #[test]
+    fn spec_scenario_a_galician_line_whose_only_function_word_is_da() {
+        // The leak the requirement states: `é`, `a` and `razón` are in no table.
+        assert!(block_is_studied(read_as_spanish(GALICIAN_ONLY_DA), ES));
+        assert!(!iberian_neighbour(GALICIAN_ONLY_DA));
+    }
+
+    // add-lingua-french-detection-guard: Catalan, Occitan and Romanian are not read as French.
+    const CATALAN_AS_FRENCH: &str =
+        "Les tradicions de la ciutat són molt antigues i el carrer principal és ple de gent.";
+    const OCCITAN_AS_FRENCH: &str =
+        "Dins la vila, los carrièrs son estrechs e las ostals son vièlhas.";
+    const ROMANIAN_AS_FRENCH: &str =
+        "Guvernul a aprobat bugetul cu sprijinul grupurilor, dar și cu critici.";
+    /// The French corpus's Occitan block (`pages-fr.txt`, the `mixte` page).
+    const CORPUS_OCCITAN: &str = "Lo far se quilhava a la broa de la falèsa, e degun se remembrava pas de qual l'aviá bastit.";
+
+    /// Each sentence a French guard's test offers as French is one whichlang reads as French, so
+    /// that a whichlang update that stops reading it so fails here rather than letting the test
+    /// pass for the wrong reason.
+    fn read_as_french(block: &str) -> &str {
+        assert_eq!(
+            whichlang::detect_language(block),
+            whichlang::Lang::Fra,
+            "{block}"
+        );
+        block
+    }
+
+    /// A small French lexicon: the words of [`FRENCH`] the tokeniser keeps.
+    fn french_lexicon() -> crate::analysis::lexicon::FstLexicon<Vec<u8>> {
+        let (bytes, pool) = crate::analysis::lexicon::build_lexicon_blobs(
+            &[("équipes", "équipe"), ("livrent", "livrer")],
+            &[
+                "le", "ne", "jamais", "vendredi", "soir", "ce", "être", "un", "règle",
+            ],
+        )
+        .expect("build");
+        crate::analysis::lexicon::FstLexicon::from_slices(bytes, &pool).expect("load")
+    }
+
+    #[test]
+    fn spec_scenario_a_catalan_paragraph_is_not_french() {
+        assert!(!block_is_studied(read_as_french(CATALAN_AS_FRENCH), FR));
+        assert!(romance_neighbour(CATALAN_AS_FRENCH));
+        // A French analysis excludes it: only the French block's tokens are analysed.
+        let blocks = [FRENCH, CATALAN_AS_FRENCH];
+        match crate::analysis::pipeline::analyse_document(&blocks, FR, &french_lexicon()) {
+            crate::analysis::pipeline::DocumentAnalysis::Analysed(tokens) => {
+                assert!(tokens.len() >= MIN_ANALYSABLE_TOKENS);
+                assert!(tokens.iter().all(|t| t.block == 0), "{tokens:?}");
+            }
+            other => panic!("expected the French block analysed, got {other:?}"),
+        }
+        // Without its French block, the page has nothing to analyse.
+        assert_eq!(
+            crate::analysis::pipeline::analyse_document(
+                &[CATALAN_AS_FRENCH, CATALAN_AS_FRENCH],
+                FR,
+                &french_lexicon()
+            ),
+            crate::analysis::pipeline::DocumentAnalysis::NotAnalysable
+        );
+    }
+
+    #[test]
+    fn spec_scenario_an_occitan_paragraph_is_not_french() {
+        assert!(!block_is_studied(read_as_french(OCCITAN_AS_FRENCH), FR));
+        // The corpus's own: `e`, `degun` and `qual` against no French word; its `Lo` is a capital.
+        assert!(!block_is_studied(read_as_french(CORPUS_OCCITAN), FR));
+    }
+
+    #[test]
+    fn spec_scenario_a_romanian_paragraph_is_not_french() {
+        assert!(!block_is_studied(read_as_french(ROMANIAN_AS_FRENCH), FR));
+    }
+
+    #[test]
+    fn spec_scenario_french_naming_catalan_and_occitan_places_is_kept() {
+        let places = "Nous avons visité Sant Joan de les Abadesses, puis Vilafranca del Penedès et Lo Pont de Montvert.";
+        for block in [FRENCH, places] {
+            assert!(block_is_studied(read_as_french(block), FR), "{block}");
+        }
+        // `del` is Catalan's, but `nous`, `puis` and `et` are French's.
+        assert!(!romance_neighbour(places));
+    }
+
+    #[test]
+    fn spec_scenario_regional_french_is_kept() {
+        for block in [
+            // Québécois: `i` is *il* there, and is no marker; `pus` neither.
+            "Pis là, i m'a dit qu'y avait pus de place pantoute.",
+            // Belgian.
+            "Septante personnes sont venues, savez-vous, une fois.",
+        ] {
+            assert!(block_is_studied(read_as_french(block), FR), "{block}");
+        }
+    }
+
+    #[test]
+    fn spec_scenario_a_capital_makes_a_name() {
+        // A neighbour's word written with a capital is a name's; in lowercase, each would be
+        // refused (D4: counting capitals refused 47 French blocks of the measurement, not 26).
+        for block in [
+            "Que signifie \"El Niño\" en espagnol ?",
+            "Que signifie \"E pluribus unum\" ?",
+            "Quand eurent lieu les émeutes de Los Angeles ?",
+        ] {
+            assert!(block_is_studied(read_as_french(block), FR), "{block}");
+            assert!(romance_neighbour(&block.to_lowercase()), "{block}");
+        }
+        assert!(!romance_neighbour("Los Angeles"));
+        assert!(romance_neighbour("los carrièrs"));
+        // French's own words count however they are written.
+        assert!(!romance_neighbour("DANS los"));
+    }
+
+    #[test]
+    fn spec_scenario_a_catalan_page_gives_french_no_vote() {
+        // Nothing votes, so the reader's first candidate wins: never French by Catalan's weight.
+        let page = [CATALAN_AS_FRENCH, OCCITAN_AS_FRENCH];
+        assert_eq!(detect_document_language(&page, &[EN, FR], None), Some(EN));
+        // A shorter English line than the two paragraphs outweighs them: they give French no
+        // vote, whatever the reader's order.
+        let english = "The lighthouse stood at the edge of the cliff.";
+        assert!(english.len() < CATALAN_AS_FRENCH.len() + OCCITAN_AS_FRENCH.len());
+        let page = [CATALAN_AS_FRENCH, OCCITAN_AS_FRENCH, english];
+        assert_eq!(detect_document_language(&page, &[FR, EN], None), Some(EN));
+        // A French page still votes French.
+        assert_eq!(
+            detect_document_language(&[FRENCH, english], &[EN, FR], None),
+            Some(FR)
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_leak_the_french_guard_leaves() {
+        // Occitan read as French, without a function word of either table: the guard cannot judge
+        // it, and does not refuse it.
+        let block = "Soi plan content de te tornar veire.";
+        assert!(!romance_neighbour(block));
+        assert!(block_is_studied(read_as_french(block), FR));
+    }
+
+    #[test]
+    fn a_tie_or_no_marker_stays_french() {
+        assert!(!romance_neighbour("amb nous"));
+        assert!(!romance_neighbour("la casa"));
+        assert!(!romance_neighbour(""));
+        assert!(romance_neighbour("amb els"));
+        // French's own « les uns », « les autres »: `uns` is no marker (D3).
+        let uns = "Les uns disent oui, les autres non.";
+        assert!(!romance_neighbour(uns));
+        assert!(block_is_studied(read_as_french(uns), FR));
+    }
+
+    #[test]
+    fn a_decomposed_block_is_read_as_composed() {
+        let catalan: String = CATALAN_AS_FRENCH.nfd().collect();
+        assert_ne!(catalan, CATALAN_AS_FRENCH);
+        assert!(romance_neighbour(&catalan));
+        // Read with its marks as separators, `été` would be `e` + `te`, and `e` is Occitan's *and*.
+        let french: String = "La réunion a été reportée à la semaine prochaine."
+            .nfd()
+            .collect();
+        assert_ne!(french, "La réunion a été reportée à la semaine prochaine.");
+        assert!(!romance_neighbour(&french));
+        // A decomposed word longer than any marker is composed before its length is judged.
+        let long: String = "Vérifiez que la mémoire disponible suffit avant de télécharger."
+            .nfd()
+            .collect();
+        assert!(!romance_neighbour(&long));
+    }
+
+    #[test]
+    fn the_french_guard_reads_words_as_its_doc_says() {
+        let words = |text: &str| {
+            let mut words = Vec::new();
+            guard_words(text, |w| words.push(w.to_owned()));
+            words
+        };
+        assert_eq!(
+            words("L'e-mail des étudiant·e·s, 2e cycle, XIIe — qu'i vient."),
+            [
+                "L",
+                "e-mail",
+                "des",
+                "étudiant·e·s",
+                "cycle",
+                "XIIe",
+                "qu",
+                "i",
+                "vient"
+            ]
+        );
+        // A non-breaking hyphen and a full stop join between letters; a joiner at either end, or
+        // before a digit, does not (`-e`, `e-`, `e-2` each give `e`), and `1-e` is one run, which
+        // holds a digit.
+        assert_eq!(
+            words("col·lecció e\u{2011}mail U.S.A. -e e- 1-e A4 e-2"),
+            ["col·lecció", "e\u{2011}mail", "U.S.A", "e", "e", "e"]
+        );
+        // A run holding a digit is dropped whole, wherever the digit is.
+        assert_eq!(words("1re 2e XIIe x2y"), ["XIIe"]);
+        // Combining marks stay in the word they follow.
+        assert_eq!(words("e\u{301}te\u{301}"), ["e\u{301}te\u{301}"]);
+        assert!(words("").is_empty() && words(" — ").is_empty());
+    }
+
+    #[test]
+    fn the_french_tables_are_sorted_disjoint_and_short() {
+        assert_eq!(ROMANCE_NEIGHBOUR_MARKERS.len(), 152);
+        assert_eq!(FRENCH_MARKERS.len(), 69);
+        for table in [ROMANCE_NEIGHBOUR_MARKERS, FRENCH_MARKERS] {
+            for pair in table.windows(2) {
+                assert!(
+                    pair[0] < pair[1],
+                    "{:?} must sort before {:?}",
+                    pair[0],
+                    pair[1]
+                );
+            }
+            for word in table {
+                // Looked up as the guard writes them: composed and in lowercase.
+                assert_eq!(word.nfc().collect::<String>(), *word);
+                assert_eq!(word.to_lowercase(), *word);
+            }
+        }
+        for word in ROMANCE_NEIGHBOUR_MARKERS {
+            assert!(FRENCH_MARKERS.binary_search(word).is_err(), "{word}");
+        }
+        let longest = ROMANCE_NEIGHBOUR_MARKERS
+            .iter()
+            .chain(FRENCH_MARKERS)
+            .map(|w| w.len())
+            .max();
+        assert_eq!(longest, Some(LONGEST_MARKER_BYTES));
+        // Left out after measuring (D3): French's own « les uns », Romanian's `ce` and `lui`.
+        for word in ["uns", "unes", "es", "on", "i", "mai"] {
+            assert!(
+                ROMANCE_NEIGHBOUR_MARKERS.binary_search(&word).is_err(),
+                "{word}"
+            );
+        }
+        for word in ["ce", "lui", "les", "pas", "qui"] {
+            assert!(FRENCH_MARKERS.binary_search(&word).is_err(), "{word}");
+        }
+    }
+
+    #[test]
+    fn whichlang_reads_the_neighbours_as_french() {
+        // The guard's reason to exist: without it, each of these is French.
+        for block in [
+            CATALAN_AS_FRENCH,
+            OCCITAN_AS_FRENCH,
+            ROMANIAN_AS_FRENCH,
+            CORPUS_OCCITAN,
+        ] {
+            read_as_french(block);
+        }
+    }
+
+    /// Detection as it was before the French guard: whichlang's answer, a block read as Spanish
+    /// that Spanish's guard refuses rewritten as Portuguese, and the candidate of that class.
+    fn detect_before(trimmed: &str, languages: &[StudiedLanguage]) -> Option<StudiedLanguage> {
+        let mut detected = whichlang::detect_language(trimmed);
+        if detected == whichlang::Lang::Spa && iberian_neighbour(trimmed) {
+            detected = whichlang::Lang::Por;
+        }
+        languages
+            .iter()
+            .copied()
+            .find(|l| l.whichlang_target() == detected)
+    }
+
+    #[test]
+    fn the_french_guard_leaves_english_and_spanish_alone() {
+        // `detect` answers English and Spanish as before, for any candidates in any order; French
+        // differs only where its guard refuses the block.
+        let blocks = [
+            ENGLISH,
+            SPANISH,
+            SPANISH_PROSE,
+            CATALAN,
+            GALICIAN,
+            FRENCH,
+            CATALAN_AS_FRENCH,
+            OCCITAN_AS_FRENCH,
+            ROMANIAN_AS_FRENCH,
+            CORPUS_OCCITAN,
+            "Il faro si ergeva sul bordo della scogliera, e nessuno ricordava chi l'avesse costruito.",
+        ];
+        let orders: [&[StudiedLanguage]; 11] = [
+            &[EN],
+            &[ES],
+            &[FR],
+            &[EN, ES],
+            &[ES, EN],
+            &[EN, FR],
+            &[FR, EN],
+            &[ES, FR],
+            &[FR, ES],
+            &[EN, ES, FR],
+            &[FR, ES, EN],
+        ];
+        for block in blocks {
+            for languages in orders {
+                let before = detect_before(block, languages);
+                let now = detect(block, languages);
+                if before == Some(FR) && romance_neighbour(block) {
+                    assert_eq!(now, None, "{block} {languages:?}");
+                } else {
+                    assert_eq!(now, before, "{block} {languages:?}");
+                }
+            }
+        }
+        // A Catalan block read as French answers nothing for a reader of English and Spanish.
+        assert_eq!(detect(CATALAN_AS_FRENCH, &[EN, ES]), None);
+        assert_eq!(detect(CATALAN_AS_FRENCH, &[EN, ES, FR]), None);
+        assert_eq!(detect(SPANISH_PROSE, &[EN, ES, FR]), Some(ES));
+        assert_eq!(detect(CATALAN, &[EN, ES, FR]), None);
+        assert_eq!(detect(ENGLISH, &[FR, ES, EN]), Some(EN));
+        assert_eq!(detect(FRENCH, &[EN, ES]), None);
+    }
+
     #[test]
     fn tiny_blocks_are_excluded_not_guessed() {
         assert!(!block_is_studied("OK", StudiedLanguage::English));
         assert!(!block_is_studied("  the  ", StudiedLanguage::English));
+    }
+
+    // ignore-lingua-soft-hyphens D3: detection reads a block without its soft hyphens (U+00AD).
+    // `~` stands for one, as `‧` does in the spec's scenarios.
+
+    /// `line` as written, with a soft hyphen for each `~`; without them; and with a space for
+    /// each, the syllables today's reading counted.
+    fn three_readings(line: &str) -> (String, String, String) {
+        (
+            line.replace('~', "\u{AD}"),
+            line.replace('~', ""),
+            line.replace('~', " "),
+        )
+    }
+
+    const SPANISH_HYPHENATED: &str =
+        "To~do el mun~do sa~be que ma~ña~na ha~brá mu~chas co~sas que ha~cer.";
+    const FRENCH_HYPHENATED: &str =
+        "On a chan~té en~semble jus~qu’au ma~tin, per~sonne n’a vou~lu dor~mir.";
+    const ENGLISH_HYPHENATED: &str =
+        "The gov~ern~ment could~n't an~swer the ques~tion yes~ter~day af~ter~noon.";
+
+    #[test]
+    fn spec_scenario_a_spanish_line_is_not_cut_into_syllables() {
+        let (written, clean, syllables) = three_readings(SPANISH_HYPHENATED);
+        assert!(block_is_studied(&clean, ES));
+        assert!(block_is_studied(&written, ES));
+        // Read as syllables, the line is still Spanish to the detector, and the guard refuses
+        // it: `do`, `ma` and `sas` would count for Galician and Occitan.
+        assert_eq!(
+            whichlang::detect_language(syllables.trim()),
+            whichlang::Lang::Spa
+        );
+        assert!(iberian_neighbour(&syllables));
+        assert!(!block_is_studied(&syllables, ES));
+        assert_eq!(
+            detect_document_language(&[written.as_str()], &[EN, ES, FR], None),
+            Some(ES)
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_french_line_is_not_cut_into_syllables() {
+        let (written, clean, syllables) = three_readings(FRENCH_HYPHENATED);
+        assert!(block_is_studied(&clean, FR));
+        assert!(block_is_studied(&written, FR));
+        // Read as syllables, the detector still reads French, and the guard refuses the line:
+        // `té` and `per` count for Catalan and Occitan, against French's `au` alone.
+        assert_eq!(
+            whichlang::detect_language(syllables.trim()),
+            whichlang::Lang::Fra
+        );
+        assert!(romance_neighbour(&syllables));
+        assert!(!block_is_studied(&syllables, FR));
+        assert_eq!(
+            detect_document_language(&[written.as_str()], &[EN, ES, FR], None),
+            Some(FR)
+        );
+    }
+
+    #[test]
+    fn an_english_line_holding_soft_hyphens_is_english() {
+        let (written, clean, _) = three_readings(ENGLISH_HYPHENATED);
+        assert!(block_is_studied(&clean, EN));
+        assert!(block_is_studied(&written, EN));
+        assert_eq!(
+            detect_document_language(&[written.as_str()], &[ES, FR, EN], None),
+            Some(EN)
+        );
+    }
+
+    #[test]
+    fn a_block_s_length_and_weight_are_its_clean_text_s() {
+        // 13 bytes as written, 11 without: too short, as its clean text is.
+        let (written, clean, _) = three_readings("lors~qu’il");
+        assert!(written.trim().len() >= MIN_BLOCK_BYTES);
+        assert!(clean.trim().len() < MIN_BLOCK_BYTES);
+        assert!(!block_is_studied(&written, FR));
+        // A Spanish block heavier than an English one only by its soft hyphens weighs its clean
+        // text, and the English block wins the vote, as it does without them.
+        let spanish = "Mi~ra~ba ca~da ma~ña~na la ca~lle va~cí~a.";
+        let english = "The street was empty every single morning.";
+        let (written, clean, _) = three_readings(spanish);
+        assert!(written.len() > english.len() && clean.len() < english.len());
+        for blocks in [[written.as_str(), english], [clean.as_str(), english]] {
+            assert_eq!(detect_document_language(&blocks, &[ES, EN], None), Some(EN));
+        }
+    }
+
+    #[test]
+    fn a_soft_hyphen_opening_a_block_or_doubled_is_read_as_nowhere() {
+        for line in [
+            "~La vi~da em~pie~za cuan~do te das cuen~ta de quién eres.",
+            "La vi~~da em~~pie~za cuan~do te das cuen~ta de quién eres.~",
+        ] {
+            let (written, clean, _) = three_readings(line);
+            assert!(block_is_studied(&clean, ES), "{line}");
+            assert!(block_is_studied(&written, ES), "{line}");
+        }
     }
 }

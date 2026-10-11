@@ -25,7 +25,9 @@ use lingua_core::analysis::lexicon::Lexicon;
 use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
 use lingua_core::knowledge::state::FrequencyRanks;
 use lingua_core::packs::Pack;
+use lingua_core::packs::pack::section;
 use lingua_pack::{MAX_PACK_BYTES, build_pack, inputs_from_dir};
+use sha2::{Digest, Sha256};
 
 fn testdata_dir() -> PathBuf {
     // crates/lingua-pack/ -> ../../scripts/lingua-data/testdata/en-fr
@@ -163,4 +165,156 @@ fn pipeline_reads_the_optional_grammar_tables() {
     assert_eq!(others.len(), 1);
     assert_eq!(others[0].0, "leaf");
     assert_eq!(pack.sense_runs("can").len(), 2);
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+#[test]
+fn spec_scenario_the_english_and_spanish_fixtures_keep_their_bytes() {
+    // add-lingua-french-expression-keys D7: the French arm of the keys, the order among headwords
+    // of one key and the names section are French's alone. Each English and Spanish fixture builds,
+    // as its manifest stands, to the bytes it built to before them (sha256 recorded on `main` at
+    // da94a82e), and carries no expression name. The Spanish fixtures' bytes moved since with
+    // Spanish's analyser version alone, `1.4.0` (refine-lingua-spanish-galician-markers D5), and
+    // every fixture's with its language's version alone, English's `1.2.0` and Spanish's `1.5.0`
+    // (ignore-lingua-soft-hyphens D7), and the English ones' with English's `1.3.0`
+    // (leave-lingua-names-out-of-english-and-spanish-words D4); the sizes never moved.
+    let root = testdata_dir().parent().unwrap().to_path_buf();
+    for (pair, size, sha256) in [
+        (
+            "en-fr",
+            1932,
+            "94e3e29c5548cd0367bdf67334fc29404dd3f476c0ca7503ac32c96afe42a187",
+        ),
+        (
+            "en-es",
+            1985,
+            "300e0e9b8a05765a7f9f7843c7308c11a50cae5669bda89d4744773fcfdf2e53",
+        ),
+        (
+            "es-fr",
+            1342,
+            "a0f0db9bb6a1088391e3a7ff086bd07ac2ebf48cd8957ff7412e153f6ffb0c3f",
+        ),
+        (
+            "es-en",
+            1356,
+            "6868b62b0f3531897c89453a3b612a7f7fafc9eff0cf4c38aa8f873a580800d9",
+        ),
+    ] {
+        let inputs = inputs_from_dir(&root.join(pair)).unwrap_or_else(|e| panic!("{pair}: {e}"));
+        let bytes = build_pack(&inputs).unwrap_or_else(|e| panic!("build {pair}: {e}"));
+        assert_eq!(
+            (bytes.len(), sha256_hex(&bytes).as_str()),
+            (size, sha256),
+            "{pair}"
+        );
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(
+            sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST),
+            "{pair}"
+        );
+    }
+}
+
+#[test]
+fn the_french_fixture_keys_its_expressions_as_french_is_read() {
+    // add-lingua-french-expression-keys: each of the fixture's expressions keyed by French's
+    // reading and named by its headword where the two differ (D1, D2, D3); `au fur et à mesure`
+    // within French's window (D4); `d'abord`, a word the pre-pass splits, an expression (D6).
+    let dir = testdata_dir().parent().unwrap().join("fr-en");
+    let pack = Pack::load(&build_pack(&inputs_from_dir(&dir).expect("read")).expect("build"))
+        .expect("load");
+    for (key, name) in [
+        ("pomme de terre", None),
+        ("il y avoir", Some("il y a")),
+        ("tout de suite", None),
+        ("à cause de", None),
+        ("de bon heure", Some("de bonne heure")),
+        ("mettre à jour", None),
+        ("tout le monde", None),
+        ("à le revoir", Some("au revoir")),
+        ("coup de œil", Some("coup d'œil")),
+        ("à la", None),
+        ("de abord", Some("d'abord")),
+        ("à le fur et à mesure", Some("au fur et à mesure")),
+    ] {
+        assert!(pack.expression(key).is_some(), "{key}");
+        assert_eq!(pack.expression_name(key), name, "{key}");
+    }
+    assert_eq!(pack.expression("à le"), None, "`à la` is not `au`");
+    assert_eq!(pack.meta().pack_version, "0.0.2-fixture");
+}
+
+/// A scratch copy of the en-fr fixture whose `forms.tsv` gains `rows`.
+fn fixture_with_forms(name: &str, rows: &str) -> PathBuf {
+    let scratch = std::env::temp_dir().join(format!("lingua-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    std::fs::create_dir_all(&scratch).unwrap();
+    for entry in std::fs::read_dir(testdata_dir()).unwrap() {
+        let entry = entry.unwrap();
+        std::fs::copy(entry.path(), scratch.join(entry.file_name())).unwrap();
+    }
+    let forms = scratch.join("forms.tsv");
+    let mut text = std::fs::read_to_string(&forms).unwrap();
+    text.push_str(rows);
+    std::fs::write(&forms, text).unwrap();
+    scratch
+}
+
+#[test]
+fn lingua_pack_build_names_the_lexicon_it_refuses() {
+    // fix-lingua-lemma-lookup D4, as `build.sh` shows it: a form listed with two lemmas, and a
+    // glossed lemma (`leaf`) the forms table reads as another, each refused by name, no pack
+    // written.
+    for (name, rows, message) in [
+        (
+            "two-lemmas",
+            "leaves\tleaf\n",
+            "lingua-pack-build: the forms table lists the form \"leaves\" with 2 lemmas: \
+             \"leaf\", \"leave\"",
+        ),
+        (
+            "reads-as-another",
+            "leaf\tleave\n",
+            "lingua-pack-build: the lemma \"leaf\" reads as \"leave\": the forms table lists it \
+             as a form of \"leave\"",
+        ),
+    ] {
+        let dir = fixture_with_forms(name, rows);
+        let out = dir.join("pack.lingua");
+        let run = std::process::Command::new(env!("CARGO_BIN_EXE_lingua-pack-build"))
+            .arg(&dir)
+            .arg(&out)
+            .output()
+            .expect("run lingua-pack-build");
+        assert!(!run.status.success(), "{name}");
+        assert_eq!(
+            String::from_utf8_lossy(&run.stderr).trim_end(),
+            message,
+            "{name}"
+        );
+        assert!(!out.exists(), "{name}: no pack written");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+    // The fixture as committed builds.
+    let dir = fixture_with_forms("as-committed", "");
+    let out = dir.join("pack.lingua");
+    let run = std::process::Command::new(env!("CARGO_BIN_EXE_lingua-pack-build"))
+        .arg(&dir)
+        .arg(&out)
+        .output()
+        .expect("run lingua-pack-build");
+    assert!(
+        run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert!(out.exists());
+    std::fs::remove_dir_all(&dir).unwrap();
 }

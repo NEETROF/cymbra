@@ -420,7 +420,6 @@ page 1/1:
   [pronoun] someone else, another person; something else, another one
 row: other, another
 ### word-grammar menos menos
-grammar: may also be the masculine plural of menos
 page 1/1:
   [adverb] less; least
   [determiner] less, fewer; least, fewest

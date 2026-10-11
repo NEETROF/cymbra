@@ -2,16 +2,19 @@
 
 Every text the extension shows lives here, once per language: `fr/<surface>.ts`, `en/<surface>.ts`,
 `es/<surface>.ts`, one module per surface (`popup`, `hud`, `drawer`, `card`, `selection`,
-`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `native-language`, `colours`, `display`, `translation`,
-`account-setting`, `account`, `onboarding`, `reader`, `sync`, `languages`, `grammar`). The French module is the source;
+`sidepanel`, `review`, `stats`, `settings`, `studied-languages`, `native-language`, `colours`,
+`display`, `translation`, `account-setting`, `account`, `account-errors`, `onboarding`, `reader`,
+`sync`, `languages`, `grammar`). The French module is the source;
 the English and Spanish ones are typed after it (`export const popup: typeof fr = { … }`), so a key
 missing in a translation does not compile (`yarn typecheck`). `test/i18n.spec.ts` checks the rest at
 runtime: no empty entry, every slot taken, nothing left in French outside the texts that are the same
 in every language. `test/lint-copy.spec.ts` refuses a French literal in `src/` outside this
 directory, except in the files its baseline names — the surfaces still holding their copy, which the
-changes moving them take off the list: `localise-lingua-reading-surfaces` (14),
+changes moving them took off the list: `localise-lingua-reading-surfaces` (14),
 `localise-lingua-settings` (15), `localise-lingua-review-stats` (16),
-`localise-lingua-account-onboarding` (17).
+`localise-lingua-account-onboarding` (17), `generalise-lingua-card-wording` (18,
+`reading/grammar-labels.ts`) and `add-lingua-native-language-labels` (19,
+`analyzer/language-labels.ts`). The baseline is empty since.
 
 A language's name — « anglais », "Spanish", « español » and their inflections, in any interface language — is
 named in `<language>/languages.ts` alone, and the surfaces ask `src/analyzer/language-labels.ts` for it in the
@@ -46,7 +49,14 @@ no language (the readings as the engine's tags, merged by tag; what a card names
 is composed), and each language's `grammar.ts` exports `grammar: GrammarRenderer` (`index.ts`) that
 words it — its tables private to it, keyed by studied language where a name depends on it (`TENSES`,
 listed in the order the card names them, and the gerund's name); what is named at all — whether the
-infinitive is, which moods are — is the description's, beside `finiteKey`. The rule that a draft is typed after the
+infinitive, the present participle and the gerund are, whether the indicative and the subjunctive of
+one tense are said once — is the description's, one table keyed by studied language (`CARD_NAMES`),
+beside `finiteKey`. The studied languages the renderers name are `StudiedLanguageCode`'s: English,
+Spanish and French (add-lingua-french-word-card D1), French ahead of the extension's `StudiedLanguage`,
+which change 52 widens — until then the renderers' French is reached by tests only. Every renderer
+has a table for every studied language: the French renderer's French, which no French-native reader
+is shown, serves the interface override M2 reserves and the enumeration of what each renderer names,
+as the English renderer's English and the Spanish renderer's Spanish do. The rule that a draft is typed after the
 French covers code here: `en/grammar.ts` and `es/grammar.ts` are `typeof fr`, so the compiler checks
 the functions; `test/grammar-description.spec.ts` checks that every renderer names what the French
 names, no more, and `test/i18n.spec.ts` checks the drafts as renderers rather than as texts. The

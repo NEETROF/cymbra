@@ -25,6 +25,15 @@
 //! probe by probe and remove the native side.
 //! A golden is re-blessed with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test <test>`, and the
 //! pull request says why (docs/lingua/language-matrix-programme.md: en-fr and es-fr do not move).
+//!
+//! The seeded deck is the native side (seed-lingua-decks-with-glossed-lemmas D4). The reader seeds
+//! two levels (`seed-level A2 5 common`, `seed-level C1 3 rare`), and a level seeds only the
+//! lemmas its pack glosses: two packs of one language, glossed in two native languages, seed two
+//! decks — en-fr's C1 rarest-first cards are not en-es's —, and every probe answered from that
+//! deck, from `start-review` on ([`follows_seeding`]), follows. So the goldens keep the reader's
+//! seeding ([`Scenario::render_with`]), the cross-native comparison answers the scenario without it
+//! ([`Scenario::render_unseeded`]) and `cross_native.rs` checks the seeding apart, every level in
+//! both orders; the golden-to-golden comparisons stop at the seeding.
 
 #![allow(dead_code)]
 
@@ -293,6 +302,24 @@ impl Scenario {
     /// [`Scenario::render`] through the packs given, the pair's last: every probe of the
     /// scenario, answered by an engine holding them (the cross-native invariance test).
     pub fn render_with(&self, packs: Vec<(&str, Vec<u8>)>, language: Option<&str>) -> String {
+        self.render_seeded(packs, language, true)
+    }
+
+    /// [`Scenario::render_with`] without the reader's level seeding: the two `seed-level` probes
+    /// and their seedings are left out, and the deck holds the scenario's three cards. The cards a
+    /// level seeds are those the pack glosses, so they follow the native language
+    /// (seed-lingua-decks-with-glossed-lemmas D4); every other probe is answered as before.
+    pub fn render_unseeded(&self, packs: Vec<(&str, Vec<u8>)>, language: Option<&str>) -> String {
+        self.render_seeded(packs, language, false)
+    }
+
+    /// Every probe of the scenario, the reader's level seeding included when `seeded`.
+    fn render_seeded(
+        &self,
+        packs: Vec<(&str, Vec<u8>)>,
+        language: Option<&str>,
+        seeded: bool,
+    ) -> String {
         let lang = || language.map(str::to_owned);
         let pages = self.pages();
         let mut g = Golden::default();
@@ -386,18 +413,20 @@ impl Scenario {
                 )
                 .unwrap();
         }
-        g.probe(
-            "seed-level A2 5 common",
-            reader
-                .seed_level("A2", 5, "common", T_SECS + 180.0, lang())
-                .unwrap(),
-        );
-        g.probe(
-            "seed-level C1 3 rare",
-            reader
-                .seed_level("C1", 3, "rare", T_SECS + 240.0, lang())
-                .unwrap(),
-        );
+        if seeded {
+            g.probe(
+                "seed-level A2 5 common",
+                reader
+                    .seed_level("A2", 5, "common", T_SECS + 180.0, lang())
+                    .unwrap(),
+            );
+            g.probe(
+                "seed-level C1 3 rare",
+                reader
+                    .seed_level("C1", 3, "rare", T_SECS + 240.0, lang())
+                    .unwrap(),
+            );
+        }
         reader
             .retire_card(self.cards[1].lemma, T_SECS + 300.0, lang())
             .unwrap();
@@ -550,4 +579,13 @@ pub fn first_difference(expected: &str, actual: &str) -> String {
         );
     }
     "no probe differs, but the files do (trailing bytes)".to_owned()
+}
+
+/// Whether the probe `name`, among a rendered scenario's probes `names` (in order), is answered
+/// from the deck the reader's level seeding left: the probes from `start-review` on, which follow
+/// the pack's glosses (seed-lingua-decks-with-glossed-lemmas D4). The two `seed-level` counts come
+/// before it.
+pub fn follows_seeding(names: &[impl AsRef<str>], name: &str) -> bool {
+    let at = |wanted: &str| names.iter().position(|n| n.as_ref() == wanted);
+    matches!((at("start-review"), at(name)), (Some(start), Some(i)) if i >= start)
 }

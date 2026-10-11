@@ -60,9 +60,9 @@ describe("each pack against its own language's analyser", () => {
     expect(coreAnalyzerVersion("pt", spanishFirst)).toBeNull();
     expect(coreAnalyzerVersion("en", modRs)).toMatch(/^\d+\.\d+\.\d+$/);
     expect(coreAnalyzerVersion("es", modRs)).toMatch(/^\d+\.\d+\.\d+$/);
-    // French has its tokenisation pre-pass (add-lingua-french-tokenisation): `0.2.0`, read beside
-    // the two others'.
-    expect(coreAnalyzerVersion("fr", modRs)).toBe("0.2.0");
+    // French has its own analysis (add-lingua-french-analysis): its own version, no longer one of
+    // the baseline's `0.x`, read beside the two others'.
+    expect(coreAnalyzerVersion("fr", modRs)).toMatch(/^[1-9]\d*\.\d+\.\d+$/);
   });
 
   it("reads a pack's studied language, native language and analyser version from its metadata", () => {

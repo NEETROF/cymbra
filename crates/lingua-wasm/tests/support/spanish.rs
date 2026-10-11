@@ -28,7 +28,20 @@ const LEMMAS: &[&str] = &[
 ];
 
 /// Selections a reader glosses: expressions, locutions, sentences, clitics, and blocks that
-/// are not Spanish (Catalan, English, French).
+/// are not Spanish (Catalan, English, French). The pack keys its expressions as Spanish is read
+/// and names them by their headword (add-lingua-spanish-expression-keys): « al menos » reads its
+/// contraction as two words, « a la vez » writes its article, « después del » covers the
+/// article of the contraction it ends on, and « al fin y al cabo » is seven tokens. A key several
+/// headwords reach is answered by the one written as the page
+/// (pick-lingua-spanish-expression-written-as-the-page): « hace tiempo », « buenos días » and
+/// « un poquito » where the pack holds the page's spelling, a clitic pronoun before the verb
+/// (« No te hagas ilusiones. ») and none the page writes (« El guardaespaldas tenía puestos unos
+/// audífonos. »). And expressions that overlap, an expression built on a verb giving its last
+/// word to a longer one
+/// (choose-lingua-overlapping-expressions D1, D3, D6): « Lo hizo de todos modos. » answers
+/// `de todos modos`, « Van al final del álbum. » the expression starting on « al », while « Pese a
+/// que no tengo dinero » keeps `pese a` (G2) and « Ella se iba al día siguiente. » `ir a` and
+/// `día siguiente` (G3).
 const PHRASES: &[&str] = &[
     "tener en cuenta",
     "hay que",
@@ -40,6 +53,15 @@ const PHRASES: &[&str] = &[
     "de vez en cuando",
     "a lo mejor",
     "al aire libre",
+    "al menos",
+    "a la vez",
+    "después del",
+    "al fin y al cabo",
+    "hace tiempo",
+    "buenos días",
+    "un poquito",
+    "No te hagas ilusiones.",
+    "El guardaespaldas tenía puestos unos audífonos.",
     "En un lugar de la Mancha",
     "Fue a la casa de su abuela.",
     "El vino tinto vino de La Rioja.",
@@ -48,6 +70,11 @@ const PHRASES: &[&str] = &[
     "The lighthouse stood",
     "Le phare se dressait",
     "La ciutat de Barcelona",
+    "Lo hizo de todos modos.",
+    "No es del todo cierto.",
+    "Pese a que no tengo dinero, compré el libro.",
+    "Van al final del álbum.",
+    "Ella se iba al día siguiente.",
 ];
 
 /// (word as written, dictionary form) pairs a word card asks the grammar of.

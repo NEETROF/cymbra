@@ -1,0 +1,3418 @@
+#!/usr/bin/env python3
+# Copyright 2026 NEETROF
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+# this file except in compliance with the License. You may obtain a copy of the
+# License at http://www.apache.org/licenses/LICENSE-2.0
+
+"""Reduce the raw sources of the fr-en pack into its tables (add-lingua-french-forms-tables).
+
+fr-en is French's reference pair (design D1): its reduction writes French's studied side, which
+`pack_sources.py split` files into tables/fr/, and every other pair studying French reads it as
+committed. French's studied rules live here, as Spanish's live in reduce-es-fr.py: a reducer named
+with a hyphen cannot be imported, so no other pair loads them, and no shared module is edited.
+
+Inputs, in `--work`:
+- `kaikki-French.jsonl`: the English Wiktionary's French section, derived from the English
+  edition's dump (pack_sources.py EDITIONS). A lemma's entry lists its inflections, each with tags;
+  a form's own entry points at what it is a form of (`form_of`). Its senses are fr-en's glosses
+  too (add-lingua-pack-fr-en): the English glosses of French words and expressions, written by
+  people for French words.
+- `fr_gsd-ud-train.conllu`, `fr_gsd-ud-dev.conllu`: UD French-GSD, read for how often each form
+  stands for each lemma (design D5) and how often each hyphenated lemma occurs (D6) — and, for
+  fr-en's glosses, how often it reads each word under each part of speech
+  (refine-lingua-fr-en-glosses D5). Its test section is never read: the measurement holds it out
+  (D9).
+- wordfreq `fr` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
+  attested at all (D6).
+- `kaikki-fr-traductions-en.jsonl`: the English translations the French Wiktionary's French entries
+  list, derived from that edition's dump (pack_sources.py EDITIONS) — fr-en's expressions where the
+  section glosses none (add-lingua-fr-en-translated-expressions). A reduction without it fails,
+  naming it.
+
+Outputs, in `--work`: `forms.tsv`, `freq.tsv`, the readings `grammar.tsv`
+(add-lingua-french-grammar-tables), fr-en's native side — `gloss.tsv`, `senses.tsv` and `mwe.tsv`
+(add-lingua-pack-fr-en) —, French's dictionary words `lexical.tsv` and `level.tsv` (French's
+estimated levels, add-lingua-french-levels, given to the dictionary words alone), `NOTICE` and
+`manifest.json`.
+
+The tables serve French's tokenisation as add-lingua-french-tokenisation writes it (M21, design
+D4): the pre-pass hands the lookup the word an elided piece stands for (`l'` is read `le`), splits
+`au` and `aux` into `à` + `le`/`les` and an inversion into its words (`dit-il` → `dit` + `il`),
+keeps `du` and `des` whole, and keeps whole a hyphenated run the pack lists.
+
+French written without its marks (read-lingua-french-ca-as-ca-cedilla D1): the reviewed table
+`UNMARKED_SPELLINGS` reads four spellings as their word alone, as `ELISIONS` reads an elided piece —
+`ca` as *ça*, `age` and `ages` as *âge*, `forcement` as *forcément* —, and their own entries (`CA`'s
+initialisms, `ca` « abbreviation of circa », the plough's beam, the fixing number) leave the tables.
+The analysis looks every token up lowercased, so « CA » in capitals reads as *ça* until a rule of
+French's analysis reads a word in capitals apart (D2).
+
+French's acronyms (keep-lingua-french-acronyms-in-capitals D2, D4): that rule is French's analysis
+reading a word standing alone in capitals as written, and the reviewed table `ACRONYMS` of
+`reduce_french_acronyms.py`, a rule module fr-es imports too, is what it finds — `CA` alone. The
+section's entry headed exactly as a row is read for the table and nowhere else: it must point at
+every expansion the row names (`check_rows`). Each row is written into French's studied side as a
+form that is its own lemma, capitals kept (`forms.tsv`), and a dictionary word (`lexical.tsv`), with
+no rank, level or reading; 43b's `ca` row is unchanged. fr-en glosses it from its own glosses of the
+expansions, each cut to its first sense, one run of the row's part of speech (`acronym_glosses`):
+« board of directors; revenue, turnover, net sales; alternating current ». It is the one lemma fr-en
+glosses that is not ranked.
+
+The dictionary's own spellings without their marks (read-lingua-french-dictionary-unmarked-spellings
+D1, D2) are change 43's spelling rule's third kind, beside a post-1990 spelling and an ASCII spelling
+of a ligature: a word the section gives only as one marked word written without its accents,
+cedillas, diaereses or circumflexes — every sense of every entry of it an `alt_of` of that word,
+`etre` « obsolete spelling of être », `Etat` « alternative spelling of État » — is a form of that word
+when wordfreq rates the marked word strictly commoner than the spelling and than each of the
+spelling's forms (`dictionary_unmarked_spellings`, read in a pass of its own before the forms): `etre`
+and `etait` read as *être*, `repond` as *répondre*, and the spellings leave the ranks, the levels, the
+dictionary words and the glosses; `diesel`, 78 times commoner than *diésel*, stays itself, and `teter`,
+whose form `tete` is how the web writes *tête*, is kept apart. A word with an entry or a sense of its
+own beside the spelling (`surs`, « sour »; `entrainant`) is not read by it, and the web's spellings
+the dictionary does not name (`tete`, `francais`) are a reviewed list's, as `UNMARKED_SPELLINGS` is,
+whose rows are read first.
+
+The web's spellings without their marks (read-lingua-french-web-unmarked-spellings D1–D3): the reviewed
+list `WEB_SPELLINGS`, 464 spellings the dictionary names nowhere that the web writes for a French word
+(`tres`, `deja`, `francais`, `recu`), merged into `UNMARKED_SPELLINGS` with one shared reason, beside
+the owner's four exceptions (`sure`, `surs`, `sures` → *sûr*, `entrainant` → *entraîner*). Each row is
+read as 43b's are, a form of its word alone; an entry pointing at a row's spelling follows the row
+(`patisseries` → *pâtisserie*); the reduction fails on a row the section gives a meaning of its own or
+gives as its accented word's spelling (`Lexicon.web_boundary`); and each spelling carries the readings
+of the forms of its word it writes without their marks (`spelling_readings`: `recu` the past
+participle of *recevoir*).
+
+The web's hyphenated words without their marks and its wrong accents
+(read-lingua-french-hyphenated-and-misaccented-spellings D1–D4): two more reviewed lists,
+`WEB_HYPHENATED` (19 runs, `peut-etre` → *peut-être*, `c'est-a-dire` → *c'est-à-dire*) and
+`WEB_MISACCENTED` (65 words, `trés` → *très*, `agé` → *âgé*), merged into `UNMARKED_SPELLINGS` with a
+reason each and read as `WEB_SPELLINGS` is, under the same boundary; a hyphenated row is the whole run,
+so the pack lists it and the pre-pass reads it whole, and a misaccented one carries the readings of the
+forms of its word whose marks it keeps in place (`spelling_readings`: `arreté` the past participle of
+*arrêter*, not its present).
+
+The native side (add-lingua-pack-fr-en D1–D3, D11) is read from the same section as the forms, after
+the studied side, as es-en's is from the Spanish section: the section cut to what the native side
+reads, a headword's typographic apostrophe read as `'` (`native_fields`); the English edition's
+pre-passes in es-en's order — its letters left out (`reduce_common.without_letter_senses`,
+`english.without_letter_headwords`), its senses read as meanings and in one English typography
+(`english.read_as_meanings`), a word's etymologies merged as the edition's setting says
+(`english.merge_same_pos_etymologies`) —; French's expressions (`expression_senses`, `split_words`);
+then the rules every pair shares (`reduce_common.native_tables`) over the lemmas just ranked. The
+English edition's rules are es-en's and fr-en's alike: editing `reduce_edition_en.py` re-pins both.
+
+No translation table glosses a French word (D3). The section already holds French's words: measured,
+what the French Wiktionary's English translations and the English Wiktionary's French translations
+read backwards would add is 1,988 lemmas, 1,895 of them words the section has no entry for — English
+words (« in », « end »), names, initialisms, unaccented misspellings, 1,193 listing the word itself
+as its translation —, and fr-en is French's reference pair, so every lemma it glosses but a name
+becomes a dictionary word of French. Read backwards, an English entry makes French's commonest bigrams
+expressions (« il est » "he's"): no table is read backwards. A word the section does not gloss has no
+gloss.
+
+French's expressions are completed by the French Wiktionary's English translations
+(add-lingua-fr-en-translated-expressions, the owner's decision of 2026-10-10): `translated_expressions`
+reads the table forwards, as es-en reads its direct one, for expressions alone — a headword with a
+space or a word the tokenisation splits, up to three translations in the table's order, one sense
+(D1) — where the section's own expression wins: its headword, its key and what its rules leave out
+(D2); a translation that repeats its headword is no gloss (D3); and the table's expressions a person
+read wrong in most of the contexts they are met in are left out by name, in `LEFT_OUT` beside the
+section's (D5). Measured on the French Wiktionary's dump of 2026-10-02 (its design's *Measured*):
+25,907 expressions offered, 17,131 of them keyed by the builder, 60,359 → 68,382 matches on 1,060,904
+words of French text. The rules are fr-en's, in this reducer: no shared module is edited, so no other
+pair re-pins.
+
+The section's own expressions are read where they are met (refine-lingua-fr-en-expressions, the
+owner's decision of 2026-10-10), by three rules over its expressions alone (`is_expression`), so
+fr-en's word glosses, sense runs and dictionary words do not move with them: a reviewed list, the
+section's expressions met ten times or more on the corpora and read wrong in most of their contexts,
+left out by name in `LEFT_OUT` with their reasons — a labelled sense met as plain words, a headword
+met through another word's form, words met as they are where the headword names a set phrase or a
+cry, a colloquial spelling met as the standard one (D1); a sense, or a piece of it between
+semicolons, that only notes a form or a usage is no meaning (`_FORM_NOTE`, D2: « j'ai » "I've, I
+have", « puis-je » none); and « de l' » opens on « de la »'s first sense, "of the" (`LENT_SENSES`,
+D3). Measured on the tables of add-lingua-fr-en-translated-expressions: 115 names (the design's 111
+and four read on those tables), 118 rows out of `mwe.tsv`, 68,361 → 61,780 matches on 1,060,904
+words. A name left out and an expression that only points are not read from the French Wiktionary's
+table either (`translated_expressions`). The rules are this reducer's, for the same reason as the
+table's: a shared module edited would re-pin every pair.
+
+fr-en reads the section as French (refine-lingua-fr-en-glosses), by rules of this reducer and of
+`reduce_french_treebank.py` alone — the English edition's and the shared ones read es-en's rows and
+every pair's too, and are not edited, so only fr-en re-pins (D1): `read_as_french`, a pre-pass after
+the English edition's meanings, reads a pointer that carries its meaning as that meaning (D4), opens a
+function word's row on the part of speech UD French-GSD reads it as (D5, the treebank's module, which
+fr-es is to read too), leaves a name out of a function word's row (D6) and takes the
+page's notes out (D8); five expressions whose sense needs a context are left out and six post-1990
+spellings lend their traditional spelling's gloss (D7), and eleven expressions D4 would make — a
+contraction's spelling met wherever its plain words are written, one piece's meaning, a grammatical
+note — are left out by the owner's decision of 2026-10-10; « etc » takes its period back (D8).
+Measured on the pinned section (its design's *Measured*): 291 rows change, 117 of the 10,000
+commonest, 12 lemmas gain a gloss and none loses one; 26 expressions change, 161 are gained and 5
+left out. French's
+dictionary words are fr-en's glossed lemmas less the 3,581 it glosses by a proper noun's senses alone
+(`paris`, `durand`: D2, `dictionary_words`), written here so that the levels can read them: a French
+level goes to a dictionary word alone (D3).
+"""
+
+import argparse
+import collections
+import itertools
+import json
+import math
+import os
+import re
+import sys
+import unicodedata
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import reduce_common as common  # noqa: E402 — the rules every pair shares
+import reduce_edition_en as english  # noqa: E402 — the English Wiktionary's rules: fr-en's glosses are English
+import reduce_french_acronyms as acronyms  # noqa: E402 — French's acronym table (keep-lingua-french-acronyms-in-capitals)
+import reduce_french_treebank as treebank  # noqa: E402 — UD French-GSD's parts of speech (refine-lingua-fr-en-glosses D5)
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ANALYSIS_RS = os.path.join(_HERE, "..", "..", "crates", "lingua-core", "src", "analysis", "mod.rs")
+
+# French letters, lowercased.
+_LETTERS = "a-zàâäçéèêëîïôöùûüÿœæ"
+# A French form (D3): letters, words joined by hyphens or by an inner apostrophe (`aujourd'hui`,
+# `presqu'île`), and the elided pieces' final apostrophe (`l'`).
+_TOKEN = re.compile(rf"[{_LETTERS}]+(?:['-][{_LETTERS}]+)*'?")
+
+# The bookkeeping of kaikki's inflection tables, never forms: the class, the template, the table's
+# own tags, the headword repeated.
+_BOOKKEEPING = frozenset({"table-tags", "inflection-template", "class", "romanization", "canonical"})
+# An inflection a source marks archaic, rarer or doubtful is no inflection (D3): an alternative or
+# a misspelling of the form, an obsolete or rare one, an abbreviation or a clipping, a
+# pronunciation spelling, what kaikki could not tag — and a multi-word construction
+# (`avoir dirigé`, the compound tenses), no form of one word.
+_DOUBTFUL = frozenset(
+    {
+        "alternative",
+        "obsolete",
+        "archaic",
+        "rare",
+        "dated",
+        "uncommon",
+        "misspelling",
+        "nonstandard",
+        "proscribed",
+        "misconstruction",
+        "abbreviation",
+        "clipping",
+        "pronunciation-spelling",
+        "error-unknown-tag",
+        "multiword-construction",
+    }
+)
+
+# The gender and number markers a head template writes (`m`, `f`, `p` for plural, …). The dump
+# leaves a few among an entry's forms, untagged or tagged by number: `m` under *Paris*, `f` under
+# *Angora* and *Chambord*, `p` under *Socceroos* and *Saintes* — and `m` → *paris* would read « M. »
+# (Monsieur) as Paris. A marker is no form of another word; a letter's entry listing its own other
+# case (`M` lists `m`) is the word itself.
+_MARKERS = frozenset({"m", "f", "n", "c", "p", "s", "mf", "pl", "sg", "mpl", "fpl", "inv"})
+
+# The elided pieces (D4), each a form of the word the French pre-pass reads it as outside its
+# special cases: piece → (lemma, reason). The pre-pass never looks a piece up — it hands the lookup
+# the word — but a treebank writes the piece as the word (UD: `l'`, lemma `le`), and a card can be
+# opened on one alone. The dictionary cannot decide them: it lists `l'` as an alternative of *le*
+# and *la*, `s'` and `n'` with no pointer, `qu'` under *que* and *qui*. Editing this table changes
+# the rules' sha256, as for any rule.
+ELISIONS = {
+    "l'": ("le", "the article and the pronoun; `la`, which elides to it too, is a form of le"),
+    "d'": ("de", "the preposition, and the article it also is"),
+    "j'": ("je", "the pronoun"),
+    "m'": ("me", "the pronoun; the pre-pass reads `moi` right after a hyphen alone (donne-m'en)"),
+    "t'": ("te", "the pronoun; the pre-pass reads `toi` right after a hyphen alone (va-t'en)"),
+    "s'": ("se", "the pronoun; the pre-pass reads `si` before il and ils alone (s'il)"),
+    "n'": ("ne", "the negation"),
+    "c'": ("ce", "the pronoun"),
+    "ç'": ("ça", "the pronoun"),
+    "qu'": ("que", "the conjunction and the pronoun; the dictionary's reading as qui is Louisiana French's"),
+    "jusqu'": ("jusque", "the preposition"),
+    "lorsqu'": ("lorsque", "the conjunction"),
+    "puisqu'": ("puisque", "the conjunction"),
+    "quoiqu'": ("quoique", "the conjunction"),
+}
+# French written without its marks (read-lingua-french-ca-as-ca-cedilla D1): a spelling a reviewed row
+# names is a form of that word alone, read as an elided piece is — form → (word, reason). Each row is
+# a person's decision, its reason part of it, and it says what the dictionary does not: no entry links
+# these spellings to their word, so it is no override (`OVERRIDES` chooses among a form's candidates
+# only) and no spelling rule (`spelling_target` reads what an entry says it spells). The spelling's
+# own entries — `CA`'s initialisms, `ca` « abbreviation of circa », the plough's beam, the fixing
+# number — make it no lemma and list no inflection of it, and an entry pointing at it points at a word
+# the tables no longer hold; whatever its case, the analysis looks it up lowercased, so « CA » in
+# capitals reads as ça until a rule of French's analysis reads a word in capitals apart (D2). `cote`
+# (« rating »), `tache` (« stain »), `pale` (« blade »), `foret` (« drill bit ») and `aine` (« groin »)
+# are words a reader can mean, and never rows. Editing this table changes the rules' sha256, as for
+# any rule.
+UNMARKED_SPELLINGS = {
+    "ca": (
+        "ça",
+        "ça written without its cedilla (the owner's decision of 2026-10-10): UD's treebanks read every "
+        "« ca » and « Ca » as ça; the section's own entries — CA's initialisms, ca « abbreviation of "
+        "circa » — leave the tables",
+    ),
+    "age": (
+        "âge",
+        "âge written without its accent (the owner, 2026-10-10): UD reads both « age » as âge; the "
+        "section's « beam (central bar of a plough); shaft » leaves the tables",
+    ),
+    "ages": ("âge", "âges written without its accent, age's row's plural (the owner, 2026-10-10)"),
+    "forcement": (
+        "forcément",
+        "forcément written without its accent (the owner, 2026-10-10); the section's « fixing number, "
+        "cooking the books » leaves the tables",
+    ),
+    # The owner's four exceptions (read-lingua-french-web-unmarked-spellings D2, 2026-10-10, on change
+    # 43d's handover): spellings the section gives a sense of their own that the web writes for a
+    # commoner word. Rows of their own, never checked by `Lexicon.web_boundary`, as 43b's are not.
+    "sure": (
+        "sûr",
+        "sûre written without its circumflex (the owner, 2026-10-10): 31 of the corpora's 33 « sure » "
+        "are sûre, 2 the feminine of sur « sour », which sur keeps; English's « sure » means sûr's too",
+    ),
+    "surs": (
+        "sûr",
+        "sûrs written without its circumflex (the owner, 2026-10-10), with sure and sures: one "
+        "adjective's agreement; « ils sont surs » is far likelier sûrs than the plural of sur « sour »",
+    ),
+    "sures": (
+        "sûr",
+        "sûres written without its circumflex (the owner, 2026-10-10): the corpora's 3 « sures » are "
+        "sûres; a row by name with its siblings, under the list's threshold (Zipf 2.45)",
+    ),
+    "entrainant": (
+        "entraîner",
+        "entraînant written without its circumflex (the owner, 2026-10-10): both its senses, the "
+        "participle of the post-1990 entrainer and « alternative form of entraînant », are entraîner's",
+    ),
+}
+# The owner's four exceptions above: an entry pointing at one follows its row, as for `WEB_SPELLINGS`.
+OWNER_EXCEPTIONS = ("sure", "surs", "sures", "entrainant")
+# The web's French written without its marks (read-lingua-french-web-unmarked-spellings D1, D2):
+# spelling → word, each row the owner's decision by name (2026-10-10), never a rule on marks — a rule
+# would read `video`, `hotel` and `these` as French words, and `ou`, `a`, `la`, `sur` as words they
+# are not. A row is a spelling wordfreq attests at Zipf 2.5 or more that the French section names
+# nowhere, whose accented word is a dictionary word at least twice as common, and that English does
+# not write more often; a spelling two words share reads as the commoner. Its word is the lemma the
+# tables give the accented form (`etais` → *être*, `recu` → *recevoir*): a row follows change 43's
+# choices and never makes one. A spelling the section gives a meaning of its own (a word, a form of a
+# word, an inflection a word's entry lists) is a word of its own, and one it gives only as its accented
+# word's spelling is change 43d's (`dictionary_unmarked_spellings`): neither is ever a row, and the
+# reduction fails, naming it, when the section names a row so (`Lexicon.web_boundary`). `ou`, `a`,
+# `la`, `sur`, `du`, `des`, `cote`, `tache`, `pale`, `foret` and `aine` are never rows, nor a spelling
+# English writes more often (`video`, `hotel`, `these`, `mere`, `premiere`) but the exception `sure`.
+# Hyphenated words and wrong accents (`peut-etre`, `trés`) are a reviewed list of their own each
+# (`WEB_HYPHENATED`, `WEB_MISACCENTED`, below). Merged into `UNMARKED_SPELLINGS` with one shared reason; editing it changes the rules'
+# sha256, as for any rule.
+WEB_SPELLINGS = {
+    "academie": "académie", "acceder": "accéder", "acces": "accès", "achete": "acheter", "achetent": "acheter",
+    "activite": "activité", "actualite": "actualité", "actualites": "actualité", "aeroport": "aéroport",
+    "agreable": "agréable", "aigue": "aigu", "algerien": "algérien", "allee": "aller", "alleluia": "alléluia",
+    "alles": "aller", "ame": "âme", "ameliorer": "améliorer", "amene": "amener", "americain": "américain",
+    "americaine": "américain", "americains": "américain", "amitie": "amitié", "ane": "âne", "annee": "année",
+    "annees": "année", "appele": "appeler", "apprecie": "apprécier", "apres": "après", "armee": "armée",
+    "arret": "arrêt", "arrete": "arrêter", "arretes": "arrêter", "arretez": "arrêter", "arriere": "arrière",
+    "arrivee": "arrivée", "aupres": "auprès", "batard": "bâtard", "batards": "bâtard", "batiment": "bâtiment",
+    "batiments": "bâtiment", "beaute": "beauté", "bebe": "bébé", "bete": "bête", "beton": "béton",
+    "bibliotheque": "bibliothèque", "bientot": "bientôt", "biere": "bière", "ble": "blé", "bresil": "brésil",
+    "calin": "câlin", "calins": "câlin", "canape": "canapé", "caractere": "caractère", "carrement": "carrément",
+    "carriere": "carrière", "categorie": "catégorie", "celebre": "célèbre", "celibataire": "célibataire",
+    "chateau": "château", "chateaux": "château", "chatelet": "châtelet", "chere": "cher", "cheri": "chéri",
+    "cherie": "chéri", "chomage": "chômage", "chretien": "chrétien", "chretiens": "chrétien", "cine": "ciné",
+    "cle": "clé", "cles": "clé", "cloture": "clôture", "collegue": "collègue", "collegues": "collègue",
+    "comedie": "comédie", "comite": "comité", "communaute": "communauté", "completement": "complètement",
+    "considere": "considérer", "controle": "contrôle", "controler": "contrôler", "controles": "contrôle",
+    "creer": "créer", "debat": "débat", "debats": "débat", "debile": "débile", "decembre": "décembre",
+    "decouvert": "découvrir", "decouverte": "découverte", "decouvrir": "découvrir", "defaut": "défaut",
+    "defendre": "défendre", "defi": "défi", "degueulasse": "dégueulasse", "deja": "déjà", "dejeuner": "déjeuner",
+    "delire": "délire", "democratie": "démocratie", "departement": "département", "depasse": "dépasser",
+    "depeche": "dépêche", "depenses": "dépense", "derange": "déranger", "dernieres": "dernier", "derriere": "derrière",
+    "desir": "désir", "desole": "désolé", "desormais": "désormais", "deteste": "détester", "detruire": "détruire",
+    "detruit": "détruire", "deuxieme": "deuxième", "developpement": "développement", "developper": "développer",
+    "differente": "différent", "differentes": "différent", "differents": "différent", "diplome": "diplôme",
+    "donnees": "donner", "drole": "drôle", "duree": "durée", "ecart": "écart", "echange": "échange",
+    "echanges": "échange", "echec": "échec", "echecs": "échec", "echelle": "échelle", "echos": "écho",
+    "eclair": "éclair", "eclairage": "éclairage", "ecole": "école", "ecoles": "école", "ecologie": "écologie",
+    "ecologique": "écologique", "economie": "économie", "economique": "économique", "economiques": "économique",
+    "economiste": "économiste", "ecoute": "écoute", "ecouter": "écouter", "ecoutes": "écoute", "ecoutez": "écouter",
+    "ecoutons": "écouter", "ecran": "écran", "ecrire": "écrire", "ecris": "écrire", "ecrit": "écrire",
+    "ecriture": "écriture", "ecritures": "écriture", "ecrivain": "écrivain", "ecrivez": "écrire", "editeur": "éditeur",
+    "edito": "édito", "egalement": "également", "eglise": "église", "eglises": "église", "electeurs": "électeur",
+    "electricien": "électricien", "electricite": "électricité", "electrique": "électrique", "electriques": "électrique",
+    "electronique": "électronique", "elevage": "élevage", "eleve": "élevé", "eleves": "élever", "eliminer": "éliminer",
+    "eloigne": "éloigner", "elu": "élire", "elus": "élire", "emmene": "emmener", "empeche": "empêcher",
+    "empecher": "empêcher", "energie": "énergie", "enerve": "énerver", "enleve": "enlever", "enorme": "énorme",
+    "enormement": "énormément", "enormes": "énorme", "enquete": "enquête", "entiere": "entier",
+    "entierement": "entièrement", "entree": "entrée", "epargne": "épargner", "epicerie": "épicerie", "epoque": "époque",
+    "epouse": "épouse", "epreuve": "épreuve", "epreuves": "épreuve", "equilibre": "équilibre", "equipe": "équipe",
+    "equipement": "équipement", "equipes": "équipe", "equitation": "équitation", "erotique": "érotique",
+    "espece": "espèce", "esperance": "espérance", "esperant": "espérer", "espere": "espérer", "esperer": "espérer",
+    "esperons": "espérer", "etablir": "établir", "etablissement": "établissement", "etablissements": "établissement",
+    "etage": "étage", "etais": "être", "etang": "étang", "etant": "être", "etape": "étape", "ete": "être",
+    "eternel": "éternel", "etes": "être", "ethique": "éthique", "etiez": "être", "etoile": "étoile",
+    "etoiles": "étoile", "etonnant": "étonnant", "etrange": "étrange", "etrangement": "étrangement",
+    "etranger": "étranger", "etrangers": "étranger", "etres": "être", "etude": "étude", "etudes": "étude",
+    "etudiant": "étudiant", "etudiante": "étudiant", "etudiants": "étudiant", "etudie": "étudier", "etudier": "étudier",
+    "europeen": "européen", "europeenne": "européen", "europeens": "européen", "evangile": "évangile",
+    "evenement": "événement", "evenements": "événement", "eventuellement": "éventuellement", "evidemment": "évidemment",
+    "evite": "éviter", "eviter": "éviter", "evitez": "éviter", "expres": "exprès", "exterieur": "extérieur",
+    "extremement": "extrêmement", "facon": "façon", "facons": "façon", "felicitations": "félicitation",
+    "feminin": "féminin", "feminisme": "féminisme", "fenetre": "fenêtre", "fete": "fête", "fetes": "fête",
+    "fevrier": "février", "fidele": "fidèle", "francais": "français", "francaise": "français", "francaises": "français",
+    "frere": "frère", "freres": "frère", "frontiere": "frontière", "frontieres": "frontière", "galere": "galère",
+    "garcon": "garçon", "garcons": "garçon", "gateau": "gâteau", "gateaux": "gâteau", "geant": "géant",
+    "generale": "général", "generalement": "généralement", "generales": "général", "generique": "générique",
+    "genial": "génial", "gere": "gérer", "gerer": "gérer", "greve": "grève", "gue": "gué", "harcelement": "harcèlement",
+    "helas": "hélas", "hesite": "hésiter", "honnete": "honnête", "honnetement": "honnêtement", "hopital": "hôpital",
+    "hopitaux": "hôpital", "idee": "idée", "idees": "idée", "immediatement": "immédiatement", "impot": "impôt",
+    "impots": "impôt", "independance": "indépendance", "independant": "indépendant", "ingenieur": "ingénieur",
+    "inquiete": "inquiéter", "integrer": "intégrer", "interessant": "intéressant", "interessante": "intéressant",
+    "interesse": "intéresser", "interesser": "intéresser", "interet": "intérêt", "interets": "intérêt",
+    "interieur": "intérieur", "journee": "journée", "lache": "lâcher", "lacher": "lâcher", "lachez": "lâcher",
+    "leche": "lèche", "lecon": "leçon", "legende": "légende", "leger": "léger", "leve": "lever", "liberte": "liberté",
+    "litterature": "littérature", "lumiere": "lumière", "lumieres": "lumière", "lycee": "lycée", "machoire": "mâchoire",
+    "majorite": "majorité", "malgre": "malgré", "maniere": "manière", "mariee": "mariée", "materiel": "matériel",
+    "mechant": "méchant", "medecin": "médecin", "medecine": "médecine", "medecins": "médecin", "medias": "média",
+    "melange": "mélange", "meme": "même", "memoire": "mémoire", "menage": "ménage", "mene": "mener", "meres": "mère",
+    "merite": "mérite", "meteo": "météo", "metier": "métier", "ministere": "ministère", "misere": "misère",
+    "modele": "modèle", "modeles": "modèle", "moitie": "moitié", "musee": "musée", "mystere": "mystère", "naif": "naïf",
+    "necessaire": "nécessaire", "negatif": "négatif", "noel": "noël", "notres": "nôtre", "nucleaire": "nucléaire",
+    "numerique": "numérique", "numero": "numéro", "particulierement": "particulièrement", "pate": "pâte",
+    "pates": "pâtes", "patisserie": "pâtisserie", "peche": "pêche", "pekin": "pékin", "pensee": "pensée",
+    "pepin": "pépin", "peres": "père", "periode": "période", "petrole": "pétrole", "planete": "planète",
+    "plutot": "plutôt", "poesie": "poésie", "possede": "posséder", "pref": "préf", "prefere": "préférer",
+    "prenom": "prénom", "prepa": "prépa", "pres": "près", "presente": "présenter", "presidente": "président",
+    "pret": "prêt", "prete": "prêter", "pretexte": "prétexte", "prets": "prêt", "prevenir": "prévenir",
+    "prevu": "prévoir", "priere": "prière", "privee": "privé", "probleme": "problème", "problemes": "problème",
+    "proces": "procès", "progres": "progrès", "proprietaire": "propriétaire", "proteger": "protéger",
+    "qualite": "qualité", "rale": "râler", "ramene": "ramener", "rateau": "râteau", "realiser": "réaliser",
+    "realite": "réalité", "recemment": "récemment", "recois": "recevoir", "recoit": "recevoir", "recu": "recevoir",
+    "recuperer": "récupérer", "reduire": "réduire", "reduit": "réduire", "reflechir": "réfléchir",
+    "reflexion": "réflexion", "reflexions": "réflexion", "regle": "règle", "reglement": "règlement", "regler": "régler",
+    "regles": "règle", "reparer": "réparer", "repete": "répéter", "reponse": "réponse", "reponses": "réponse",
+    "represente": "représenter", "republique": "république", "reseau": "réseau", "reseaux": "réseau",
+    "resultat": "résultat", "resultats": "résultat", "reussi": "réussir", "reussir": "réussir", "reve": "rêve",
+    "reveil": "réveil", "reveille": "réveiller", "reveiller": "réveiller", "rever": "rêver", "reves": "rêve",
+    "reviser": "réviser", "riviere": "rivière", "sante": "santé", "seance": "séance", "seche": "sec",
+    "secretaire": "secrétaire", "secu": "sécu", "securite": "sécurité", "sejour": "séjour", "senat": "sénat",
+    "serie": "série", "serieuse": "sérieux", "serieusement": "sérieusement", "serieux": "sérieux",
+    "sincerement": "sincèrement", "societe": "société", "societes": "société", "soiree": "soirée",
+    "speciale": "spécial", "strategie": "stratégie", "succes": "succès", "superieur": "supérieur",
+    "symptomes": "symptôme", "systeme": "système", "systemes": "système", "tele": "télé",
+    "telechargement": "téléchargement", "telecharger": "télécharger", "tete": "tête", "tetes": "tête",
+    "theorie": "théorie", "tot": "tôt", "tres": "très", "tresor": "trésor", "troisieme": "troisième",
+    "universite": "université", "vecu": "vivre", "vehicule": "véhicule", "vehicules": "véhicule", "velo": "vélo",
+    "verifier": "vérifier", "verite": "vérité", "vetement": "vêtement", "vetements": "vêtement",
+}
+WEB_REASON = "written on the web without its marks; the owner's reviewed list, 2026-10-10"
+UNMARKED_SPELLINGS.update((spelling, (word, WEB_REASON)) for spelling, word in WEB_SPELLINGS.items())
+# The web's hyphenated words written without their marks and its words written with marks not their
+# own (read-lingua-french-hyphenated-and-misaccented-spellings D1–D3): spelling → word, each row the
+# owner's decision by name, never a rule on marks — a rule would read `élève` as *élevé*, `pâté` as
+# *pâte*, and other languages' words as French ones. Each row's word is the lemma the tables give its
+# form (`celle-la` → *celui-là*, `arreté` → *arrêter*), so a row follows change 43's choices and makes
+# none; read as `WEB_SPELLINGS` is, under its boundary (`Lexicon.web_boundary`).
+#
+# A hyphenated row is the whole run, the accented compound less its marks: the pack lists it, and the
+# pre-pass reads it whole as it reads `peut-être` — a row for a piece cannot, the compound keeping its
+# written lemma and `a`, `la` being words of their own. Wordfreq cannot count a hyphenated spelling (it
+# answers its rarer piece), so a row is a form of a dictionary word whose accented compound, counted in
+# the corpora and shifted by the web's measured share of unaccented spellings (−1.59), stands at Zipf
+# 2.5 or more (D1), and `celles-la` with its paradigm.
+WEB_HYPHENATED = {
+    "apres-demain": "après-demain", "apres-midi": "après-midi", "au-dela": "au-delà",
+    "belle-mere": "belle-mère", "c'est-a-dire": "c'est-à-dire", "celle-la": "celui-là",
+    "celles-la": "celui-là", "celui-la": "celui-là", "ceux-la": "celui-là", "eux-memes": "eux-mêmes",
+    "grand-mere": "grand-mère", "grand-pere": "grand-père", "la-bas": "là-bas", "la-dessus": "là-dessus",
+    "lui-meme": "lui-même", "moi-meme": "moi-même", "petit-dejeuner": "petit-déjeuner",
+    "peut-etre": "peut-être", "soi-meme": "soi-même",
+}
+# A misaccented row is a word wordfreq rates at Zipf 2.5 or more whose letters are a form's of the
+# tables and whose marks are not (`déja`, `trés`, `agé`), that the section names nowhere (D2). It reads
+# as the form whose marks it keeps in place, then the commoner: `agé` → *âgé*, not *âge*; `elève` →
+# *élève*, *élever*'s, and `elevé` → *élevé*. Never rows: `á`, `lá`, `ã`, `cà`, `accés`, `procés`,
+# `succés` (words other languages write more often: Portuguese, Italian, Catalan), `çe` (its letters
+# are `ce`'s; a row would read `cé`) and `abbès` (« Sidi Bel Abbès »); nor a spelling the section gives
+# only as its word's (`problême`, `réglement`), which the boundary refuses.
+WEB_MISACCENTED = {
+    "agé": "âgé", "agée": "âgé", "agées": "âgé", "agés": "âgé", "aprés": "après", "arreté": "arrêter",
+    "arréter": "arrêter", "arrété": "arrêter", "béta": "bêta", "crême": "crème", "decidé": "décider",
+    "dejà": "déjà", "desolé": "désolé", "dégats": "dégât", "déja": "déjà", "dépot": "dépôt",
+    "egalité": "égalité", "electricité": "électricité", "elevé": "élevé", "elève": "élever",
+    "elèves": "élever", "eléments": "élément", "epée": "épée", "espére": "espérer", "etrangères": "étranger",
+    "eté": "être", "evénement": "événement", "evêque": "évêque", "extrème": "extrême",
+    "extrèmement": "extrêmement", "faché": "fâché", "frére": "frère", "génant": "gênant", "géné": "gêné",
+    "interessé": "intéresser", "interêt": "intérêt", "intéret": "intérêt", "laché": "lâcher", "lâ": "là",
+    "méme": "même", "mére": "mère", "oú": "où", "oû": "où", "premiére": "premier", "probléme": "problème",
+    "préfére": "préférer", "pére": "père", "realité": "réalité", "reservé": "réserver",
+    "récuperer": "récupérer", "régle": "règle", "régles": "règle", "securité": "sécurité",
+    "societé": "société", "systéme": "système", "théatre": "théâtre", "trève": "trêve", "trés": "très",
+    "verité": "vérité", "ètre": "être", "énormement": "énormément", "éspère": "espérer", "étes": "être",
+    "étre": "être", "évenement": "événement",
+}
+HYPHENATED_REASON = "a hyphenated word written on the web without its marks; the owner's reviewed list"
+MISACCENTED_REASON = "a word written with marks not its own; the owner's reviewed list"
+UNMARKED_SPELLINGS.update((spelling, (word, HYPHENATED_REASON)) for spelling, word in WEB_HYPHENATED.items())
+UNMARKED_SPELLINGS.update((spelling, (word, MISACCENTED_REASON)) for spelling, word in WEB_MISACCENTED.items())
+# The rows an entry pointing at their spelling follows (D2); change 43b's own rows drop the link.
+_FOLLOWED_ROWS = frozenset(WEB_SPELLINGS).union(WEB_HYPHENATED, WEB_MISACCENTED, OWNER_EXCEPTIONS)
+# Change 43b's rows, the ones `dictionary_unmarked_spellings`' forms guard reads past.
+_CA_ROWS = frozenset(UNMARKED_SPELLINGS) - _FOLLOWED_ROWS
+# A plain word beginning with a piece (`c'est`, `d'abord`, `l'on`, `jusqu'à`): the pre-pass always
+# splits it there, so the whole string is never looked up. Longest piece first: `qu'` is the end
+# of `jusqu'`.
+_ELIDED_START = re.compile(
+    "(?:" + "|".join(re.escape(piece) for piece in sorted(ELISIONS, key=len, reverse=True)) + rf")[{_LETTERS}]"
+)
+# wordfreq's tokeniser splits `l'homme` into `l` and `homme`: its list counts each elided piece as
+# the bare letters before the apostrophe (`l`, `d`, `qu`, `jusqu`, `ç`, …), at the pieces'
+# frequency — ranked, the letter `l` would be French's fourth commonest word (D6). They are no
+# words; the pieces are forms of theirs. Every piece's stem, so that no piece's frequency is ranked
+# as a word.
+WORDFREQ_STEMS = frozenset(piece[:-1] for piece in ELISIONS)
+# M21: the pre-pass always splits these into `à` + `le` and `à` + `les`, so no page token is ever
+# one: neither a form nor a rank.
+SPLIT_CONTRACTIONS = frozenset({"au", "aux"})
+# M21 keeps these whole, each a word of its own: `du` (the partitive article's own entry) and `des`
+# (every sense of which points elsewhere — the plural of un, une and du, de + les — and which GSD's
+# counts would read as un). A reader meeting « des » meets « des ». The one place the counts are
+# overridden (D4).
+OWN_WORDS = ("du", "des")
+# The pronouns of an inversion, as the pre-pass reads them (add-lingua-french-tokenisation D5): a
+# hyphenated run whose pieces after the first are among them is split into words, unless the pack
+# lists the run whole.
+INVERSION_PRONOUNS = frozenset(
+    {"je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "ce", "le", "la", "les", "lui", "leur"}
+    | {"moi", "toi", "y", "en"}
+)
+# The pieces a verb form is joined to by hyphens in a reflexive or imperative conjugation
+# (`souviens-toi`, `allons-nous-en`, `sois-t'en`): the pronouns, the euphonic `t` (`a-t-il`), and
+# an elided pronoun before `en` or `y`.
+_CLITIC_PIECES = INVERSION_PRONOUNS | {"t"} | {f"{p}{w}" for p in ("m'", "t'", "l'") for w in ("en", "y")}
+# The parts of speech of a word ending in a pronoun that the dictionary lists as a word of its own
+# (`rendez-vous`, `qu'en-dira-t-on`), which the tables keep whole so the inversion rule never splits
+# it. A verb, phrase or interjection made of a verb and its pronouns (`est-il`, `allez-y`,
+# `excusez-moi`) is read by that rule as words, and stays out (D4).
+_WORD_POS = frozenset({"noun", "adj", "adv", "pron", "prep"})
+# How far a form of a form is followed (D3): `dirigée` → `dirigé` → *diriger* is one step. The
+# dictionary's chains take two at most; a pair of entries pointing at each other (`pourparler` and
+# `pourparlers`) stops here.
+_FOLLOW_STEPS = 3
+# wordfreq's list is read this many times the lemmas kept: enough past the cut for its words of
+# the cut's frequency, and for the inflected forms it skips.
+_WORDFREQ_DEPTH = 6
+
+# Homographs a person decided (design D5), checked before any count: form → (lemma, reason). The
+# reason is part of the rule: a row without one is not a decision. Editing this table changes the
+# rules' sha256, so the tables must be reduced again, as for any rule.
+#
+# A row costs the other lemma its place in the pack: a lemma's own form always reads as itself, so
+# keeping the noun `porte` would read « il porte » as the door. No homograph has a row, as in
+# Spanish's; M8's cost — the dictionary nouns a verb's form takes — is listed in
+# tables/fr-en/README.md. The rows below correct the source's copy errors, which no rule can tell
+# from a meaning.
+OVERRIDES = {
+    "fatiguée": (
+        "fatiguer",
+        "a copy error: the English Wiktionary's verb entry reads « feminine singular of parlé »; its "
+        "adjective entry and fatigué's tables make it fatigué's feminine, which reads as fatiguer",
+    ),
+    "bridée": (
+        "bridé",
+        "a copy error: the noun's form-of targets are « bridé » and « female slant », whose first word "
+        "is English (« female equivalent of bridé, female slant »)",
+    ),
+    "quis": (
+        "quérir",
+        "a copy error: a sense of the verb entry reads « masculine plural of qui », a word with no verb "
+        "entry; its other senses make quis quérir's past participle and past historic",
+    ),
+}
+
+
+def nfc_lower(text):
+    """A word lowercased and in NFC, the typographic apostrophe read as `'`."""
+    return unicodedata.normalize("NFC", (text or "").strip().lower()).replace("’", "'")
+
+
+def is_form(word):
+    """Whether a word may be a form of the tables (D3, D4): a French token, and no plain word
+    beginning with an elided piece — the pre-pass splits it whatever the pack lists. A hyphenated
+    run beginning with one is read whole first, so it may be (`c'est-à-dire`)."""
+    if not _TOKEN.fullmatch(word):
+        return False
+    return "-" in word or not _ELIDED_START.match(word)
+
+
+def _form_targets(sense):
+    """The words a sense makes its entry a form of: each `form_of` target's first word (kaikki
+    writes `bel`'s as « beau used before a masculine noun… »)."""
+    out = []
+    for ref in sense.get("form_of") or ():
+        words = (ref.get("word") if isinstance(ref, dict) else "") or ""
+        if words.split():
+            out.append(words.split()[0])
+    return out
+
+
+def _is_form_of(sense):
+    return "form-of" in (sense.get("tags") or ()) or bool(_form_targets(sense))
+
+
+_POST_1990 = re.compile(r"^post-1990 spelling of (\S+)")
+
+
+def _alt_target(sense):
+    """The word a sense's `alt_of` names first, as the section writes it, or an empty string."""
+    alt = sense.get("alt_of") or ()
+    return (alt[0].get("word") or "") if alt and isinstance(alt[0], dict) else ""
+
+
+def _marks_dropped(word):
+    """A word's NFD's combining marks dropped — accents, cedillas, diaereses, circumflexes —, in NFC:
+    `reçu` → `recu`, `cœur` stays `cœur` (read-lingua-french-web-unmarked-spellings D3)."""
+    bare = "".join(c for c in unicodedata.normalize("NFD", word) if unicodedata.category(c) != "Mn")
+    return unicodedata.normalize("NFC", bare)
+
+
+def _unmarked(word):
+    """A word written without its marks (read-lingua-french-dictionary-unmarked-spellings D1): its
+    marks dropped (`_marks_dropped`), `œ` and `æ` read as `oe` and `ae`: `état` → `etat`, `chloé` →
+    `chloe`, `cœur` → `coeur`."""
+    return _marks_dropped(word).replace("œ", "oe").replace("æ", "ae")
+
+
+def spelling_target(sense, word, unmarked=None):
+    """The word a sense says its entry only spells (D7), or None: a post-1990 spelling (`connait`,
+    « post-1990 spelling of connaît »), an ASCII spelling of a ligature (`coeur`, whose `alt_of` is
+    *cœur*), or — the third kind (read-lingua-french-dictionary-unmarked-spellings D1) — a word the
+    dictionary gives only as a marked word written without its marks, when `unmarked`
+    (`dictionary_unmarked_spellings`) names that word for it (`etre`, whose `alt_of` is *être*)."""
+    glosses = sense.get("glosses") or [""]
+    m = _POST_1990.match(glosses[0] or "")
+    if m:
+        return m.group(1).strip(".,;")
+    target = _alt_target(sense)
+    if target and target.lower() != word and target.lower().replace("œ", "oe").replace("æ", "ae") == word:
+        return target
+    if target and unmarked and unmarked.get(word) == nfc_lower(target):
+        return target
+    return None
+
+
+def _listed_inflections(entry, word, rows=None):
+    """The inflections an entry lists that `Lexicon` links to its word: never the bookkeeping, the
+    doubtful ones (D3), a word that is no form, an elided piece, a row of `UNMARKED_SPELLINGS` (or of
+    `rows`, when given), nor a gender or number marker (`_MARKERS`) but the word's own."""
+    rows = UNMARKED_SPELLINGS if rows is None else rows
+    for inflection in entry.get("forms") or ():
+        tags = set(inflection.get("tags") or ())
+        form = nfc_lower(inflection.get("form"))
+        if tags & _BOOKKEEPING or tags & _DOUBTFUL or not is_form(form) or form in ELISIONS:
+            continue
+        if form in rows:
+            continue
+        if form in _MARKERS and form != word:
+            continue
+        yield form
+
+
+# Why `dictionary_unmarked_spellings` keeps a spelling apart, as the reduction reports it.
+KEPT_COMMONER = "the spelling as common as its word or commoner"
+KEPT_FORM = "a form of the spelling as common as its word or commoner"
+KEPT_NO_FORM = "no word form"
+
+
+def dictionary_unmarked_spellings(path, frequency, kept=None):
+    """`spelling → marked word`: each word every sense of every entry of which is an alternative,
+    obsolete, archaic, nonstandard or misspelt spelling or form (`alt_of`) of one word that, written
+    without its accents, cedillas, diaereses and circumflexes (`_unmarked`), is it — and which wordfreq
+    rates commoner than the spelling and than each of the spelling's forms
+    (read-lingua-french-dictionary-unmarked-spellings D1, D2).
+
+    Read per word, in a pass of its own over the section before the forms, each word lowercased and in
+    NFC (`Etat` and `etat` are one word): a word with an entry or a sense of its own beside the
+    spelling (`surs`, the plural of *sur* « sour »; `entrainant`; `clef`, the musical clef) is no
+    spelling, nor one whose senses spell two words. An ASCII spelling of a ligature (`coeur`) is
+    change 43's kind, read whatever the frequency; a row of `UNMARKED_SPELLINGS` or an elided piece is
+    its table's. The marked word, as the section names it (`État` → `état`), must be strictly
+    commoner than the spelling — `diesel`, 78 times commoner than *diésel*, and a spelling wordfreq
+    attests no more than its word are kept — and than each of the spelling's forms: the inflections
+    its entries list that `Lexicon` links (`_listed_inflections`) and the words a form-of sense of
+    which points at it — `teter` is kept, its form `tete` being how the web writes *tête*. The web's
+    spellings the dictionary does not name (`tete`, `francais`, `tres`) are no word of this rule:
+    they are a reviewed list's, as `UNMARKED_SPELLINGS` is. The forms guard reads the dictionary as it
+    lists them: a row of the web's list or an exception (`tete`, `tetes`, read as *tête* by
+    read-lingua-french-web-unmarked-spellings) still counts among the spelling's forms, so the list
+    moves nothing this rule reads (`teter` stays apart). With `kept` (a dict), each spelling kept apart
+    is recorded there with its reason (`KEPT_*`)."""
+    marked = {}
+    forms = collections.defaultdict(set)
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            word = nfc_lower(entry.get("word"))
+            senses = entry.get("senses") or []
+            targets = set()
+            for sense in senses:
+                target = nfc_lower(_alt_target(sense))
+                targets.add(target if target and target != word and _unmarked(target) == word else None)
+            if not senses or None in targets:
+                marked[word] = None
+            elif marked.get(word, set()) is not None:
+                marked[word] = marked.get(word, set()) | targets
+                forms[word].update(_listed_inflections(entry, word, _CA_ROWS))
+            if is_form(word) and word not in ELISIONS and word not in _CA_ROWS:
+                for sense in senses:
+                    for target in _form_targets(sense):
+                        forms[nfc_lower(target)].add(word)
+    table = {}
+    for word, targets in sorted(marked.items()):
+        if not targets or len(targets) != 1 or word in ELISIONS or word in UNMARKED_SPELLINGS:
+            continue
+        (target,) = targets
+        if target.replace("œ", "oe").replace("æ", "ae") == word:
+            continue
+        if not frequency(target) > frequency(word):
+            why = KEPT_COMMONER
+        elif not is_form(word):
+            why = KEPT_NO_FORM
+        elif any(frequency(form) >= frequency(target) for form in forms[word] - {word, target}):
+            why = KEPT_FORM
+        else:
+            table[word] = target
+            continue
+        if kept is not None:
+            kept[word] = why
+    return table
+
+
+class Lexicon:
+    """What the French section says of its words.
+
+    - `candidates`: form → the words it may be a form of (its own word when it is a lemma);
+    - `links`: form → candidate → the parts of speech of the entries linking them, which a form of
+      a form follows (D3);
+    - `lemmas`: the words with an entry that is not only a form of another;
+    - `poses`: lemma → the parts of speech of its lemma entries;
+    - `names`: the words whose only lemma entries are proper names;
+    - `acronyms`: what the entries headed exactly as a row of French's acronym table point at
+      (keep-lingua-french-acronyms-in-capitals D2), read for the table alone.
+
+    `unmarked` is `dictionary_unmarked_spellings`' table, the spellings without their marks
+    `spelling_target` reads as their word (read-lingua-french-dictionary-unmarked-spellings D1).
+
+    For the boundary of `WEB_SPELLINGS` (read-lingua-french-web-unmarked-spellings D2), and of
+    `WEB_HYPHENATED` and `WEB_MISACCENTED` (read-lingua-french-hyphenated-and-misaccented-spellings
+    D3), it records, for every headword it reads, whether the section gives it a meaning of its own,
+    and, for every spelling of the lists, its entries' senses and the entries listing it among their
+    inflections (`web_boundary`).
+    """
+
+    def __init__(self, unmarked=None):
+        self.unmarked = dict(unmarked or {})
+        self.candidates = collections.defaultdict(set)
+        self.links = collections.defaultdict(lambda: collections.defaultdict(set))
+        self.lemmas = set()
+        self.poses = collections.defaultdict(set)
+        self._kinds = collections.defaultdict(set)
+        self.acronyms = acronyms.Pointers()
+        self._meaning = set()
+        self._web_entries = collections.defaultdict(list)
+        self._web_listed = collections.defaultdict(list)
+
+    @property
+    def names(self):
+        return {word for word, kinds in self._kinds.items() if kinds == {True}}
+
+    def link(self, form, word, pos):
+        self.candidates[form].add(word)
+        self.links[form][word].add(pos)
+
+    def read(self, entry):
+        """One kaikki entry (D3, D4, D7).
+
+        An elided piece is read by `ELISIONS` alone, a spelling without its marks by
+        `UNMARKED_SPELLINGS` alone — no entry pointing at it makes another word its form —, and a
+        gender or number marker is no inflection (`_MARKERS`). A word that is no form (`is_form`) is
+        skipped whole. An entry whose every sense only spells another word is a form of that word, its
+        inflections forms of it — a spelling `self.unmarked` names among them (`etre` → *être*;
+        `repondre`, whose `repond` follows it to *répondre*). Otherwise: an entry with a sense that
+        is not a form-of is a lemma and its own candidate; the inflections it lists are its forms,
+        but the bookkeeping, the doubtful ones and the multi-word constructions; its form-of senses
+        make it a form of their targets. An entry headed exactly as an acronym row is read for the
+        table too (`acronyms`), and lowercased as any other.
+        """
+        self.acronyms.read(entry)
+        word = nfc_lower(entry.get("word"))
+        self._record_boundary(entry, word)
+        if word in ELISIONS:
+            self.candidates[word].add(ELISIONS[word][0])
+            return
+        if word in UNMARKED_SPELLINGS:
+            self.candidates[word].add(UNMARKED_SPELLINGS[word][0])
+            return
+        if not is_form(word):
+            return
+        pos = entry.get("pos")
+        senses = entry.get("senses") or []
+        spelt = [spelling_target(sense, word, self.unmarked) for sense in senses]
+        if spelt and all(spelt):
+            for target in spelt:
+                self.link(word, nfc_lower(target), pos)
+            self._inflections(entry, word, pos)
+            return
+        if not (senses and all(_is_form_of(sense) for sense in senses)):
+            self.lemmas.add(word)
+            self.link(word, word, pos)
+            self.poses[word].add(pos)
+            self._kinds[word].add(pos == "name")
+        self._inflections(entry, word, pos)
+        for sense in senses:
+            for target in _form_targets(sense):
+                target = nfc_lower(target)
+                if target in _FOLLOWED_ROWS:
+                    # An entry pointing at a row of the web's list follows the row
+                    # (read-lingua-french-web-unmarked-spellings D2): `patisseries` → *pâtisserie*.
+                    self.link(word, UNMARKED_SPELLINGS[target][0], pos)
+                elif is_form(target) and target not in UNMARKED_SPELLINGS:
+                    self.link(word, target, pos)
+
+    def _inflections(self, entry, word, pos):
+        for form in _listed_inflections(entry, word):
+            self.link(form, word, pos)
+
+    def _record_boundary(self, entry, word):
+        """What `web_boundary` needs of one entry: each sense's kind — a spelling (`alt_of`), a form
+        (`form_of`, or the `form-of` tag) or a meaning —, whether the entry gives its word a meaning,
+        and, for a spelling of the reviewed lists (`_reviewed`), its senses and the entries listing it."""
+        kinds = [_sense_kind(sense) for sense in entry.get("senses") or ()]
+        meaning = any(kind == "meaning" for kind, _ in kinds)
+        if meaning:
+            self._meaning.add(word)
+        if _reviewed(word):
+            self._web_entries[word].append(kinds)
+        targets = tuple(target for kind, target in kinds if kind == "form" and target)
+        for inflection in entry.get("forms") or ():
+            form = nfc_lower(inflection.get("form"))
+            if form != word and _reviewed(form):
+                self._web_listed[form].append((meaning, targets))
+
+    def web_boundary(self):
+        """The spellings of the reviewed lists (`WEB_SPELLINGS`, `WEB_HYPHENATED`, `WEB_MISACCENTED`)
+        the section gives a meaning of its own — a headword with a sense that is neither a form nor a
+        spelling of another word, a form of such a word, or an inflection such a word's entry lists —
+        or gives only as a spelling of another word written with the same letters (an entry every
+        sense of which is a spelling whose target, its marks dropped, is the spelling's letters:
+        change 43d's kind, and `problême` « alternative form of problème »), sorted
+        (read-lingua-french-web-unmarked-spellings D2,
+        read-lingua-french-hyphenated-and-misaccented-spellings D3). Read after the
+        section: the reduction fails on any, as on a word ending in a pronoun the forms table does
+        not list. A spelling named only as a form of such a spelling passes (`tete`, under `teter`);
+        43b's rows and the owner's exceptions are not checked."""
+        crossed = []
+        for spelling in sorted(set(self._web_entries) | set(self._web_listed)):
+            entries = self._web_entries.get(spelling, [])
+            word = any(
+                kind == "meaning" or (kind == "form" and target in self._meaning)
+                for kinds in entries
+                for kind, target in kinds
+            ) or any(
+                meaning or any(target in self._meaning for target in targets)
+                for meaning, targets in self._web_listed.get(spelling, [])
+            )
+            spelt = bool(entries) and all(
+                kinds and all(_spells_as(spelling, kind, target) for kind, target in kinds) for kinds in entries
+            )
+            if word or spelt:
+                crossed.append(spelling)
+        return crossed
+
+
+def _reviewed(word):
+    """Whether a word is a row of the reviewed lists `Lexicon.web_boundary` checks: `WEB_SPELLINGS`
+    (read-lingua-french-web-unmarked-spellings D2), `WEB_HYPHENATED` and `WEB_MISACCENTED`
+    (read-lingua-french-hyphenated-and-misaccented-spellings D3)."""
+    return word in WEB_SPELLINGS or word in WEB_HYPHENATED or word in WEB_MISACCENTED
+
+
+def _spells_as(spelling, kind, target):
+    """Whether a sense of `spelling`'s entry gives it as the spelling of a word written with the same
+    letters and other marks (change 43d's kind, `etat` → *état*; `problême` → *problème*)."""
+    return kind == "alt" and target != spelling and _unmarked(target) == _unmarked(spelling)
+
+
+def _sense_kind(sense):
+    """A sense's kind for `Lexicon.web_boundary`: (`alt`, the word it spells), (`form`, the word it is
+    a form of — empty when only its tag says so —) or (`meaning`, None)."""
+    alt = nfc_lower(_alt_target(sense))
+    if alt:
+        return "alt", alt
+    targets = _form_targets(sense)
+    if targets:
+        return "form", nfc_lower(targets[0])
+    if "form-of" in (sense.get("tags") or ()):
+        return "form", ""
+    return "meaning", None
+
+
+def unmarked_report(unmarked, kept):
+    """The reduction's line on the dictionary's spellings without their marks: how many are read as
+    their word, how many kept apart, and why (read-lingua-french-dictionary-unmarked-spellings)."""
+    why = collections.Counter(kept.values())
+    reasons = ", ".join(f"{why[reason]} {reason}" for reason in (KEPT_COMMONER, KEPT_FORM, KEPT_NO_FORM))
+    return f"spellings without their marks read as their word={len(unmarked)}, kept apart={len(kept)} ({reasons})"
+
+
+def read_kaikki(path, readings=None, unmarked=None):
+    """The French section, read entry by entry into a `Lexicon` — and, with `readings` (a
+    `Readings`), each entry's grammar in the same pass (`read_readings`) —, the spellings without
+    their marks `unmarked` names read as their word (`dictionary_unmarked_spellings`)."""
+    lexicon = Lexicon(unmarked)
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            lexicon.read(entry)
+            if readings is not None:
+                read_readings(entry, readings, unmarked)
+    return lexicon
+
+
+def read_gsd_counts(paths):
+    """How often each (form, lemma) pair stands in the treebank, lowercased, in NFC, the typographic
+    apostrophe read as `'`."""
+    counts = collections.Counter()
+    for path in paths:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip() or line.startswith("#"):
+                    continue
+                cols = line.rstrip("\n").split("\t")
+                # Multi-word tokens (`du` = 1-2) and empty nodes (8.1) carry no lemma of their own.
+                if len(cols) < 4 or "-" in cols[0] or "." in cols[0]:
+                    continue
+                counts[(nfc_lower(cols[1]), nfc_lower(cols[2]))] += 1
+    return counts
+
+
+def gsd_zipf(counts):
+    """Each hyphenated lemma the treebank attests, by its own frequency there, as a Zipf value (its
+    count per billion words, in log10) — the evidence a compound is ranked by (D6)."""
+    total = sum(counts.values())
+    per_lemma = collections.Counter()
+    for (_, lemma), n in counts.items():
+        if "-" in lemma:
+            per_lemma[lemma] += n
+    return {lemma: math.log10(n / total * 1e9) for lemma, n in per_lemma.items()}
+
+
+def name_or_word(candidates, names, frequency):
+    """The candidates, a form that is a proper name and also another word's keeping only the commoner
+    reading, as Spanish's (fix-lingua-spanish-card-noise D1): `cette` reads as *ce*, not the town,
+    `claire` as *clair*, while `paris` stays the city (5.71 against *pari*'s 4.12)."""
+    for form, opts in candidates.items():
+        words = opts - names
+        if form in opts & names and words:
+            opts.intersection_update({form} if frequency(form) > max(frequency(w) for w in words) else words)
+    return candidates
+
+
+def own_words(lexicon):
+    """`du` and `des`, each a lemma of its own whatever its entries point at (M21, D4)."""
+    for word in OWN_WORDS:
+        lexicon.candidates[word] = {word}
+        lexicon.lemmas.add(word)
+
+
+def unmarked_spellings(lexicon):
+    """Each spelling `UNMARKED_SPELLINGS` names, a form of its word alone whether or not an entry
+    names it (read-lingua-french-ca-as-ca-cedilla D1), as `own_words` seeds `du` and `des`."""
+    for form, (word, _) in UNMARKED_SPELLINGS.items():
+        lexicon.candidates[form] = {word}
+        lexicon.lemmas.discard(form)
+
+
+def choose_lemma(form, options, counts, lemmas, frequency, overrides=OVERRIDES):
+    """The one lemma a form maps to (D5, M8), among `options`.
+
+    An override first, then the treebank's counts, then the form's own entry, then the lemma's
+    frequency, then alphabetical order — so the result never depends on the source's order.
+    """
+    if not options:
+        return None
+    override = overrides.get(form)
+    if override and override[0] in options:
+        return override[0]
+    return min(
+        options,
+        key=lambda lemma: (
+            -counts.get((form, lemma), 0),
+            not (lemma == form and form in lemmas),
+            -frequency(lemma),
+            lemma,
+        ),
+    )
+
+
+def ends_in_pronoun(word, poses):
+    """A hyphenated word of the dictionary whose last piece is a pronoun of the inversion rule, and
+    which is a noun, an adjective, an adverb, a pronoun or a preposition (D4): `rendez-vous`,
+    `qu'en-dira-t-on` — not `est-il` or `allez-y`, a verb and its pronouns."""
+    return "-" in word and word.rsplit("-", 1)[1] in INVERSION_PRONOUNS and bool(poses.get(word, set()) & _WORD_POS)
+
+
+def clitic_compound(form, lemma):
+    """A verb form and the pronouns it is joined to by hyphens (`souviens-toi`, `allons-nous-en`,
+    `sois-t'en`), of a lemma without a hyphen: the pre-pass reads them as words, which listing the
+    run whole would stop (D4)."""
+    if "-" not in form or "-" in lemma:
+        return False
+    return all(piece in _CLITIC_PIECES for piece in form.split("-")[1:])
+
+
+def follow(word, pos, links, poses, choose, overrides=OVERRIDES):
+    """What `word` reads as along one part of speech (D3): an override's lemma when a person decided
+    the word (`fatiguée`, whose verb entry is a copy error, reads as *fatiguer* wherever a chain
+    passes through it); otherwise the first choice (D5) among itself, when one of its lemma entries
+    is of that part of speech, and the words its entries of that part of speech link it to — but a
+    word whose entries are all of other parts of speech, which a chain along this one cannot reach.
+    `word` itself when nothing of that part of speech is left: a participle's own inflections
+    (`compromis`, invariable, lists itself) are no lemma entry."""
+    if word in overrides:
+        return overrides[word][0]
+    along = {
+        w
+        for w, of in links.get(word, {}).items()
+        if pos in of and w != word and (not links.get(w) or any(pos in p for p in links[w].values()))
+    }
+    if pos in poses.get(word, ()):
+        along.add(word)
+    return choose(word, along) if along else word
+
+
+def reach(form, options, links, step):
+    """A form's lemmas (D3): each candidate followed along the part of speech of the entry linking
+    the form to it. A candidate that part of speech reads as a form of another word (`follow`)
+    stands for that word instead, and the chain goes on along the same part of speech; one it reads
+    as itself is a lemma the form reaches. `dirigée`, the feminine of the participle `dirigé` (a
+    verb entry), itself the past participle of *diriger*, reaches *diriger*; `citée`, the feminine
+    of the participle `cité`, reaches *citer*, not the noun *cité* (the city) the participle is
+    spelt like; `étés`, the plural of the noun `été`, reaches the noun, not *être*, which `été`
+    reads as through a verb entry. The form's own entry, and a candidate no entry links it to (an
+    elided piece, `du`, `des`), stand as they are. `step(word, pos)` is `follow` over the lexicon."""
+    reached = set()
+    for candidate in options:
+        linked = links.get(form, {}).get(candidate, set())
+        if candidate == form or not linked:
+            reached.add(candidate)
+            continue
+        for pos in linked:
+            word = candidate
+            for _ in range(_FOLLOW_STEPS):
+                nxt = step(word, pos)
+                if nxt == word:
+                    break
+                word = nxt
+            reached.add(word)
+    return reached
+
+
+def ranks_for(inflected, want, lemmas, poses, compounds_zipf, frequency, top_n):
+    """`lemma → rank`, dense, the `want` first kept (D6).
+
+    wordfreq's order over its words that are French forms, neither its elision stems nor the split
+    contractions nor a word `inflected` reads as another's. A hyphenated lemma wordfreq cannot rank
+    — it answers a combination of the parts — is ranked when GSD attests it (`compounds_zipf`), at
+    the lower of wordfreq's estimate and GSD's own frequency, after wordfreq's words of the same
+    frequency and alphabetically among compounds; a word ending in a pronoun (`ends_in_pronoun`)
+    GSD never meets takes the cut's last ranks, so the inversion rule never splits it.
+    """
+    order, seen = [], set()
+    for word in top_n(want * _WORDFREQ_DEPTH):
+        word = word.strip().lower()
+        if word in WORDFREQ_STEMS or word in SPLIT_CONTRACTIONS or word in seen:
+            continue
+        if not is_form(word) or word in inflected:
+            continue
+        seen.add(word)
+        order.append((frequency(word), word))
+    floor = order[min(len(order), want) - 1][0] if order else 0
+    tail = []
+    for lemma in sorted(lemmas):
+        if "-" not in lemma or lemma in seen or lemma in inflected:
+            continue
+        if lemma in compounds_zipf:
+            estimate = min(frequency(lemma), compounds_zipf[lemma])
+            if estimate >= floor:
+                order.append((estimate, lemma))
+        elif ends_in_pronoun(lemma, poses):
+            tail.append(lemma)
+    # A stable sort: wordfreq's own order among its words, the compounds after them at a tie.
+    order.sort(key=lambda kept: -kept[0])
+    kept = [word for _, word in order[: want - len(tail)]] + tail
+    return {word: rank for rank, word in enumerate(kept, 1)}
+
+
+def forms_for(lexicon, step, ranks, counts, frequency, overrides=OVERRIDES):
+    """`form → lemma` over the ranked lemmas (D3–D6): each form's choice among the ranked lemmas it
+    reaches; the split contractions and a verb joined to its pronouns left out; a form kept when it
+    is its lemma's own, an elided piece, or attested by wordfreq; and each ranked lemma's own form."""
+    forms = {}
+    for form, options in lexicon.candidates.items():
+        options = reach(form, options, lexicon.links, step)
+        lemma = choose_lemma(form, {o for o in options if o in ranks}, counts, lexicon.lemmas, frequency, overrides)
+        if lemma is None or form in SPLIT_CONTRACTIONS or clitic_compound(form, lemma):
+            continue
+        if lemma == form or form in ELISIONS or frequency(form) > 0:
+            forms[form] = lemma
+    for lemma in ranks:
+        forms.setdefault(lemma, lemma)
+    return forms
+
+
+def reduce_forms(lexicon, counts, compounds_zipf, frequency, top_n, max_lemmas, overrides=OVERRIDES):
+    """The forms table and the ranks: `form → lemma` over the kept lemmas, and `lemma → rank`.
+
+    A first choice among every candidate says which forms are only inflected: they are never
+    ranked. The ranks follow; a ranked word whose own form reads as another word once the forms of
+    forms are followed (`reach`, whose chains choose as the first choice does) gives its rank to the
+    next, until every ranked lemma's own form reads as itself (D6). A pack finds a lemma by its own
+    form — the builder keys its rank, and later its gloss and level, by looking the lemma up as a
+    form — so a lemma whose form reads elsewhere would lend its rank to that word. Every form of the
+    noun *tenue*, `tenue` and `tenues`, reads as *tenir*; `donnée` reads as *donner*, and the noun
+    *donnée*, which `données` alone still reaches, leaves the pack with it, as M8's nouns do (D5).
+    """
+    first = {
+        form: choose_lemma(form, opts, counts, lexicon.lemmas, frequency, overrides)
+        for form, opts in lexicon.candidates.items()
+    }
+    inflected = {form for form, lemma in first.items() if lemma != form}
+    steps = {}
+
+    def choose(word, options):
+        return choose_lemma(word, options, counts, lexicon.lemmas, frequency, overrides)
+
+    def step(word, pos):
+        if (word, pos) not in steps:
+            steps[(word, pos)] = follow(word, pos, lexicon.links, lexicon.poses, choose, overrides)
+        return steps[(word, pos)]
+
+    unreached = set()
+    while True:
+        ranks = ranks_for(inflected | unreached, max_lemmas, lexicon.lemmas, lexicon.poses, compounds_zipf, frequency, top_n)
+        forms = forms_for(lexicon, step, ranks, counts, frequency, overrides)
+        lost = {lemma for lemma in ranks if forms.get(lemma) != lemma}
+        if not lost:
+            return forms, ranks
+        unreached |= lost
+
+
+def unlisted_pronoun_tails(lexicon, forms):
+    """The dictionary's words ending in a pronoun (`ends_in_pronoun`) that the forms table does not
+    list: the inversion rule would split them. A reduction that leaves one out fails (D4)."""
+    return sorted(word for word in lexicon.lemmas if ends_in_pronoun(word, lexicon.poses) and word not in forms)
+
+
+def analyser_version(path=_ANALYSIS_RS):
+    """French's analyser version, read from lingua-core so a bump cannot leave the manifest behind
+    (the pack would be refused at load, `Pack::load`)."""
+    with open(path, encoding="utf-8") as f:
+        m = re.search(r'pub const FRENCH_ANALYZER_VERSION: &str = "([^"]+)";', f.read())
+    if not m:
+        raise SystemExit(f"no FRENCH_ANALYZER_VERSION in {path}")
+    return m.group(1)
+
+
+# — The estimated levels (add-lingua-french-levels) —
+#
+# No French CEFR list can be shipped (FLELex is non-commercial), so French's levels are estimated
+# from frequency, as Spanish's are (the programme's M7), and the pack says so. The commonest lemmas,
+# in rank order, take the sizes of English's CEFR levels: measured on English, giving its 8,302 CEFR
+# lemmas their levels this way by their own ranks agrees with the lists for 39.8 % of them, and
+# within one level for 82.6 % (design D1). The sizes are es-fr's (`reduce-es-fr.py`, measured on
+# en-fr's 2026-09-26 tables), kept here: an English update must not move French's levels
+# unannounced, and moving them into reduce_common.py would move every pair's rule digest.
+ENGLISH_BANDS = (("A1", 1020), ("A2", 1158), ("B1", 2015), ("B2", 2347), ("C1", 886), ("C2", 876))
+
+# Which lemmas a CEFR list would hold is read from the English Wiktionary's French section, the
+# source of the forms, never from a pair's glosses (design D2) — and, since
+# refine-lingua-fr-en-glosses (D3), from French's dictionary words: a lemma they do not list takes no
+# level, so that a card seeded from a level always carries a gloss. The table moves with fr-en's
+# glosses only when they add or remove a dictionary word.
+#
+# A single character takes a level only as a word (D2, rule 2): a sense of another part of speech
+# than a letter's, a symbol's or a name's that is no abbreviation — `à`, a preposition, and `y`, a
+# pronoun; not `b` or `e`, a letter's name, a symbol or an abbreviation.
+_LETTER_POS = frozenset({"character", "symbol", "name"})
+_NOT_A_WORD_TAGS = frozenset({"abbreviation", "initialism", "acronym", "letter"})
+# A sense that only spells another word (D2, rule 3), as the section's glosses open: a reader learns
+# the word it spells (`etre` → *être*, `parceque`, `hazard` → *hasard*).
+_SPELLING_OF = (
+    "alternative spelling of",
+    "obsolete spelling of",
+    "archaic spelling of",
+    "dated spelling of",
+    "misspelling of",
+    "alternative letter-case form of",
+    "pronunciation spelling of",
+    "nonstandard spelling of",
+    "eye dialect spelling of",
+    "obsolete form of",
+    "archaic form of",
+    "dated form of",
+    "rare spelling of",
+    "uncommon spelling of",
+    "informal spelling of",
+)
+# Why a ranked lemma takes no level, in the order the rules are read (D2, D3): the section does not
+# know it as a word, or knows it only as a name; its own form reads as another lemma; it is a letter
+# that is no word; it only spells another word; French's dictionary words do not list it — fr-en
+# glosses it not at all (`parce`, met only in « parce que »), or by a name's senses alone (`coran`)
+# (refine-lingua-fr-en-glosses D3, read last).
+LEVEL_RULES = ("unknown", "name", "elsewhere", "letter", "spelling", "unlisted")
+
+
+def word_senses(entry):
+    """`(word, [(part of speech, first gloss, tags)])`: the senses of a kaikki entry that are not a
+    form of another word (`_is_form_of`), its word as the tables write it."""
+    pos = entry.get("pos")
+    return nfc_lower(entry.get("word")), [
+        (pos, (sense.get("glosses") or [""])[0] or "", frozenset(sense.get("tags") or ()))
+        for sense in entry.get("senses") or ()
+        if not _is_form_of(sense)
+    ]
+
+
+def read_level_senses(path):
+    """`word → senses`, over the French section: each word the section gives a sense that is not a
+    form of another word, with those senses (`word_senses`). Its own pass, so the forms' reading is
+    not edited for it."""
+    senses = collections.defaultdict(list)
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            word, own = word_senses(entry)
+            if own:
+                senses[word].extend(own)
+    return senses
+
+
+def _a_word(word, senses):
+    """Whether a single character is a word (rule 2); a longer word always is."""
+    if len(word) != 1:
+        return True
+    return any(
+        pos not in _LETTER_POS and not tags & _NOT_A_WORD_TAGS and not gloss.lower().startswith("abbreviation of")
+        for pos, gloss, tags in senses
+    )
+
+
+def _only_spells_another(senses):
+    """Whether every sense but a name's only spells another word (rule 3)."""
+    own = [(gloss, tags) for pos, gloss, tags in senses if pos != "name"]
+    return bool(own) and all(gloss.lower().startswith(_SPELLING_OF) or "misspelling" in tags for gloss, tags in own)
+
+
+def no_level(lemma, forms, senses, words=None):
+    """Why a ranked lemma takes no level (`LEVEL_RULES`), or None when a CEFR list would hold it
+    (design D2):
+    1. the section gives it no sense that is not a form of another word (`the`, `etc`, `km`), or
+       only a name's (`paris`, `france`) — but `du` and `des`, words of their own (M21);
+    4. its own form reads as another lemma in the forms table: the builder keys a level by looking
+       the lemma up as a form, so `donnée`, read as *donner*, would give *donner* its level (D3);
+    2. it is a single character the section gives no word's sense (`b`, `e`);
+    3. every sense it is given only spells another word (`etre`, `parceque`);
+    5. French's dictionary words (`words`, `dictionary_words`) do not list it
+       (refine-lingua-fr-en-glosses D3), read last: a level is given only to a word a card can
+       gloss. Without `words` the rule is not read."""
+    own = senses.get(lemma, ())
+    if lemma not in OWN_WORDS:
+        if not own:
+            return "unknown"
+        if {pos for pos, _, _ in own} == {"name"}:
+            return "name"
+    if forms.get(lemma, lemma) != lemma:
+        return "elsewhere"
+    if not _a_word(lemma, own):
+        return "letter"
+    if _only_spells_another(own):
+        return "spelling"
+    if words is not None and lemma not in words:
+        return "unlisted"
+    return None
+
+
+def estimated_levels(ranks, forms, senses, words=None, bands=ENGLISH_BANDS):
+    """`(lemma → level, rule → lemmas)`: in rank order then lemma, each band's size to the ranked
+    lemmas a CEFR list would hold (`no_level`) among French's dictionary words (`words`, when
+    given), and the lemmas each rule left out before the last level was given. A lemma left out
+    gives its slot to the next one, so the bands keep their sizes."""
+    slots = [level for level, size in bands for _ in range(size)]
+    levels, left_out = {}, {rule: [] for rule in LEVEL_RULES}
+    for lemma in sorted(ranks, key=lambda lemma: (ranks[lemma], lemma)):
+        if len(levels) == len(slots):
+            break
+        why = no_level(lemma, forms, senses, words)
+        if why:
+            left_out[why].append(lemma)
+        else:
+            levels[lemma] = slots[len(levels)]
+    return levels, left_out
+
+
+def levels_report(levels, left_out, ranks):
+    """The reduction's line on the levels: each level's rank span, and how many lemmas each rule
+    left out."""
+    spans = []
+    for level, _ in ENGLISH_BANDS:
+        at = [ranks[lemma] for lemma, lvl in levels.items() if lvl == level]
+        if at:
+            spans.append(f"{level} {len(at)} ({min(at)}–{max(at)})")
+    out = ", ".join(f"{rule} {len(lemmas)}" for rule, lemmas in left_out.items())
+    return f"levels={len(levels)} estimated: {'; '.join(spans)}; left out: {out}"
+
+
+# — French's word grammar (add-lingua-french-grammar-tables) —
+#
+# Every form kaikki lists carries its grammar as tags (`parlions`: first-person, imperfect,
+# indicative, plural). They become Universal Dependencies tags, the vocabulary the pack's grammar
+# sections read (add-lingua-word-grammar D1):
+# `VERB|Mood=Ind|Number=Plur|Person=1|Tense=Imp|VerbForm=Fin`. The rules read the same entries as
+# the forms, in the same pass (`read_kaikki`), and the forms and ranks once chosen (design D1, D2):
+# they choose neither.
+
+# kaikki's parts of speech whose forms carry readings, as UPOS: an article is a determiner, as UD
+# writes it (D4); every verb is `VERB`, `AUX` being a role in a sentence a card cannot see (D3).
+_UPOS = {"verb": "VERB", "noun": "NOUN", "adj": "ADJ", "det": "DET", "article": "DET", "pron": "PRON", "num": "NUM"}
+# kaikki's moods and tenses, in the order they are read; the passé simple is `historic` (D3).
+_MOODS = (("conditional", "Cnd"), ("imperative", "Imp"), ("subjunctive", "Sub"))
+_TENSES = (("historic", "Past"), ("imperfect", "Imp"), ("future", "Fut"), ("present", "Pres"))
+_PERSON = {"first-person": "1", "second-person": "2", "third-person": "3"}
+_GENDER = {"masculine": "Masc", "feminine": "Fem"}
+# `fr-noun`'s gender argument: the genders a noun takes, and whether its headword is a plural.
+_NOUN_GENDER = {
+    "m": (("Masc",), False),
+    "f": (("Fem",), False),
+    "mf": (("Masc", "Fem"), False),
+    "mfbysense": (("Masc", "Fem"), False),
+    "mfequiv": (("Masc", "Fem"), False),
+    "m,f": (("Masc", "Fem"), False),
+    "f,m": (("Masc", "Fem"), False),
+    "m-p": (("Masc",), True),
+    "f-p": (("Fem",), True),
+    "mf-p": (("Masc", "Fem"), True),
+}
+# A determiner's, pronoun's or numeral's row reads only when it says nothing but gender, number and
+# degree: a personal pronoun's head lists its other persons and cases (`il`: dative `lui`, possessive
+# `son`), which are other words, not inflections (D4).
+_NOMINAL_ONLY = frozenset(
+    {"masculine", "feminine", "singular", "plural", "superlative", "comparative", "before-vowel", "form-of"}
+    | {"invariable"}
+)
+# A row or sense that gives no reading (D5): the tables' bookkeeping, the tags change 43 leaves out
+# of the forms (a form a source marks doubtful is no inflection, so no reading either), and what
+# kaikki could not parse.
+_NOT_A_READING = _BOOKKEEPING | _DOUBTFUL | {"error-unrecognized-form"}
+# A form's own sense marked as a region's or a register's reads nothing (D5): `été` is Louisiana's
+# past participle of *aller*, and a standard card would otherwise say so.
+_REGISTERS = frozenset(
+    {
+        "Louisiana", "Quebec", "Canada", "Belgium", "Switzerland", "Africa", "Acadia", "Cajun", "France",
+        "Haiti", "North-America", "Canadian", "regional", "dialectal", "Lorraine", "Provence", "Marseille",
+        "Normandy", "Picardy", "slang", "colloquial", "informal", "Internet", "vulgar", "Jersey", "Guernsey",
+        "Réunion", "Louisiana-French",
+    }
+)
+# The regions a sense may be marked with: a word whose every sense is one region's is named on no
+# standard card (D6: *vader*, a Louisiana verb, would be named on `va`).
+_REGIONS = frozenset(
+    {
+        "Louisiana", "Quebec", "Canada", "Belgium", "Switzerland", "North-America", "regional", "dialectal",
+        "Africa", "Rwanda", "Morocco", "Canadian", "Congo", "Antilles", "Lyon", "Luxembourg", "Vietnam",
+        "Lorraine", "Alsace", "Montreal", "Normandy", "New-England", "Acadia", "Cajun", "Haiti", "Réunion",
+        "Provence", "Marseille", "Picardy", "Jersey", "Guernsey", "Senegal", "Ivory-Coast", "Cameroon",
+        "Algeria", "Tunisia", "Lebanon", "Belgian", "Swiss", "Québec", "Ontario", "Manitoba", "New-Brunswick",
+        "Burundi",
+    }
+)
+# The head template of a past participle's own entry (`dirigé`), whose rows are its agreed forms.
+_PARTICIPLE_HEAD = "fr-past participle"
+# A determiner's or pronoun's head naming a plural headword (`tes`), whose table lists the singular.
+_PLURAL_HEADS = frozenset({"p", "m-p", "f-p", "mf-p"})
+_LETTER_GLOSS = re.compile(r"(?:the )?name of the (?:[\w-]+ )?(?:script )?(?:letter|digraph)\b", re.IGNORECASE)
+# A pronominal verb's row, as its table writes it: the pronoun before (`m'évanouis`, `nous
+# évanouissons`) or after a hyphen in the imperative (`évanouis-toi`).
+_PRONOUN_BEFORE = re.compile(r"^(?:(?:me|te|se|nous|vous) |[mts]')(.+)$")
+_PRONOUN_AFTER = re.compile(r"^(.+?)-(?:toi|nous|vous)$")
+
+
+def ud_tag(upos, features):
+    """A Universal Dependencies tag: the part of speech, then the features sorted by name."""
+    return "|".join([upos, *(f"{name}={value}" for name, value in sorted(features.items()))])
+
+
+def parse_tag(tag):
+    """`ud_tag`'s inverse: the part of speech and the features."""
+    upos, *features = tag.split("|")
+    return upos, dict(feature.split("=", 1) for feature in features)
+
+
+def _agreement(tags):
+    """Gender and number, as a participle's or an adjective's tags state them."""
+    out = {}
+    genders = [_GENDER[tag] for tag in tags if tag in _GENDER]
+    if len(genders) == 1:
+        out["Gender"] = genders[0]
+    if "plural" in tags:
+        out["Number"] = "Plur"
+    elif "singular" in tags:
+        out["Number"] = "Sing"
+    return out
+
+
+def _past_participle(tags):
+    """A past participle's features: in French's tables the bare row is the masculine singular,
+    not a repeat of it (D3)."""
+    agreement = _agreement(tags)
+    return {
+        "VerbForm": "Part",
+        "Tense": "Past",
+        "Gender": agreement.get("Gender", "Masc"),
+        "Number": agreement.get("Number", "Sing"),
+    }
+
+
+def verb_features(tags):
+    """Every reading a verb's row or sense names (D3), as feature sets, none when it names none.
+
+    - The passé simple (`historic past`) is the indicative past; the conditional and the
+      imperative take no tense, as Spanish's tables write them (D7: the moods' merge of the card).
+    - The present participle (`gerund participle present`) is `VerbForm=Part|Tense=Pres`, as UD
+      French writes it; a past participle reads with its agreement, the bare row and a sense that
+      names an agreement without `past` (`feminine singular of dirigé`) as the past one.
+    - A sense merging persons, numbers or moods (`first/third-person singular present
+      indicative/subjunctive`) reads as each of them; a table's row names one.
+    - The imperative has no third person; the subjunctive no future or passé simple.
+    """
+    if "participle" in tags:
+        return [{"VerbForm": "Part", "Tense": "Pres"}] if "present" in tags else [_past_participle(tags)]
+    if "infinitive" in tags:
+        return [{"VerbForm": "Inf"}]
+    moods = [mood for kaikki, mood in _MOODS if kaikki in tags]
+    tense = next((ud for kaikki, ud in _TENSES if kaikki in tags), None)
+    if "indicative" in tags or (not moods and tense):
+        moods.append("Ind")
+    persons = [_PERSON[tag] for tag in tags if tag in _PERSON]
+    numbers = [number for kaikki, number in (("singular", "Sing"), ("plural", "Plur")) if kaikki in tags]
+    out = []
+    for mood, person, number in itertools.product(moods, persons, numbers):
+        features = {"VerbForm": "Fin", "Mood": mood, "Person": person, "Number": number}
+        if mood in ("Ind", "Sub"):
+            if tense is None or (mood == "Sub" and tense not in ("Pres", "Imp")):
+                continue
+            features["Tense"] = tense
+        elif mood == "Imp" and person == "3":
+            continue
+        out.append(features)
+    return out
+
+
+def nominal_features(tags, genders=()):
+    """The features of a noun's, adjective's, determiner's, pronoun's or numeral's form, one set per
+    gender: its number (singular unless kaikki says plural), its degree, and its gender — the form's
+    own, none when it names both, or each of the lemma's for a form kaikki gives none (a noun's
+    plural)."""
+    base = {"Number": "Plur" if "plural" in tags else "Sing"}
+    if "superlative" in tags:
+        base["Degree"] = "Sup"
+    elif "comparative" in tags:
+        base["Degree"] = "Cmp"
+    own = [_GENDER[tag] for tag in tags if tag in _GENDER]
+    if len(own) == 1:
+        return [{**base, "Gender": own[0]}]
+    if own or not genders:
+        return [base]
+    return [{**base, "Gender": gender} for gender in genders]
+
+
+def reading_tags(upos, tags, genders=(), participle=False):
+    """The UD tags kaikki's tags name for a form of `upos`; none when they name no reading.
+
+    A past participle's own entry (`participle`) lists its agreed forms (`dirigée`: feminine), which
+    read as the participle with that agreement. A determiner's, pronoun's or numeral's row reads only
+    when it names agreement alone, and a pronoun's only with a gender (D4)."""
+    if upos == "VERB":
+        if participle and not ({"participle", "infinitive"} & tags) and not (set(_PERSON) & tags):
+            return [ud_tag(upos, _past_participle(tags | ({"singular"} if "plural" not in tags else set())))]
+        return [ud_tag(upos, features) for features in verb_features(tags)]
+    if upos in ("PRON", "DET", "NUM") and not tags <= _NOMINAL_ONLY:
+        return []
+    if upos == "PRON" and not tags & set(_GENDER):
+        return []
+    return [ud_tag(upos, f) for f in nominal_features(tags, genders) if "Degree" not in f or upos == "ADJ"]
+
+
+def noun_genders(entry):
+    """A noun's genders, and whether its headword is a plural: `fr-noun`'s argument, else the
+    genders its senses are tagged with (D4)."""
+    for head in entry.get("head_templates") or ():
+        if head.get("name") == "fr-noun":
+            known = _NOUN_GENDER.get((head.get("args") or {}).get("1"))
+            if known:
+                return known
+    tags = set()
+    for sense in entry.get("senses") or ():
+        tags.update(sense.get("tags") or ())
+    return tuple(_GENDER[tag] for tag in ("masculine", "feminine") if tag in tags), False
+
+
+def invariable_noun(entry):
+    """A noun the dictionary gives one form for (D4): `fr-noun`'s plural `#`, or a sense tagged
+    `invariable` and no plural listed (`temps`, `fois`, `bras`, `vis`)."""
+    args = {}
+    for head in entry.get("head_templates") or ():
+        if head.get("name") == "fr-noun":
+            args = head.get("args") or {}
+    if args.get("2") == "#":
+        return True
+    senses = entry.get("senses") or []
+    return any("invariable" in (sense.get("tags") or ()) for sense in senses) and not any(
+        "plural" in (inflection.get("tags") or ()) for inflection in entry.get("forms") or ()
+    )
+
+
+def adjective_agrees(entry):
+    """Whether an adjective has a feminine of its own (`grande`), unlike `rapide`."""
+    for inflection in entry.get("forms") or ():
+        tags = set(inflection.get("tags") or ())
+        if "feminine" in tags and "masculine" not in tags:
+            return True
+    return False
+
+
+def _names_a_letter(sense):
+    """Whether `sense` is a letter's name (`elle`, the letter L, whose plural `elles` a card would
+    name beside the pronoun's): kaikki says so by its tags, its category or its gloss."""
+    if {"letter", "name"} <= set(sense.get("tags") or ()):
+        return True
+    for category in sense.get("categories") or ():
+        name = category if isinstance(category, str) else category.get("name", "")
+        if "letter names" in str(name):
+            return True
+    return any(_LETTER_GLOSS.search(gloss) for gloss in sense.get("glosses") or ())
+
+
+def _alternative_or_neologism(sense):
+    """A sense that is only an alternative form of another word, or a neologism (D5)."""
+    tags = set(sense.get("tags") or ())
+    return "alt-of" in tags or bool(sense.get("alt_of")) or "neologism" in tags
+
+
+def without_pronoun(form):
+    """A pronominal verb's row as the bare form French's pre-pass leaves (D3): `s'évanouit` →
+    `évanouit`, `nous évanouissons` → `évanouissons`, `évanouis-toi` → `évanouis`; else None."""
+    m = _PRONOUN_BEFORE.match(form) or _PRONOUN_AFTER.match(form)
+    if m and _TOKEN.fullmatch(m.group(1)) and " " not in m.group(1):
+        return m.group(1)
+    return None
+
+
+class Readings:
+    """The readings kaikki states, by (form, lemma), and what the rules need of its entries.
+
+    - `table`: a lemma's table — its own form, its inflections —, and a past participle's own
+      entry's agreed forms; `senses`: a form's own entry's senses, for the pairs no table lists
+      (D5);
+    - `poses`: lemma → the parts of speech of its lemma entries, among those read;
+    - `standard`: the words with a lemma entry that is not only regional (D6).
+    """
+
+    def __init__(self):
+        self.table = collections.defaultdict(set)
+        self.senses = collections.defaultdict(set)
+        self.poses = collections.defaultdict(set)
+        self.standard = set()
+
+    def pairs(self):
+        """`(form, lemma) → tags`: a table's reading of a pair wins over a form entry's senses."""
+        out = {pair: set(tags) for pair, tags in self.senses.items()}
+        out.update((pair, set(tags)) for pair, tags in self.table.items())
+        return out
+
+
+def read_readings(entry, readings, unmarked=None):
+    """One entry's readings into `readings`, word and form lowercased and in NFC (D3–D5).
+
+    Never from a capitalised headword (`CE`, `LE` are other words), nor from an entry whose every
+    sense is an alternative form of another word or a neologism (`estre`, archaic spelling of
+    *être*, whose table would make `est` its form). A spelling variant reads as the word it spells
+    (`coeurs` → *cœur*), and so does a spelling without its marks `unmarked` names (`repond` →
+    *répondre*, read-lingua-french-dictionary-unmarked-spellings D1). A form's own entry gives each
+    sense toward its target, but a doubtful, regional or register-marked one; a past participle's
+    entry gives its agreed forms too. A lemma's entry gives a noun's or an adjective's own form, and
+    its table's rows: a pronominal verb's without their pronoun, never a compound tense (a multi-word
+    construction, doubtful), a letter's plural, a feminine noun's masculine (`déesse`: `dieu`), nor a
+    plural-headed determiner's or pronoun's table (`tes`)."""
+    upos = _UPOS.get(entry.get("pos"))
+    word = nfc_lower(entry.get("word"))
+    if upos is None or not _TOKEN.fullmatch(word):
+        return
+    raw = unicodedata.normalize("NFC", (entry.get("word") or "").strip())
+    if raw != raw.lower():
+        return
+    senses = entry.get("senses") or []
+    spelt = [spelling_target(sense, word, unmarked) for sense in senses]
+    spelt = nfc_lower(spelt[0]) if spelt and all(spelt) and len({nfc_lower(t) for t in spelt}) == 1 else None
+    if spelt is None and senses and all(_alternative_or_neologism(sense) for sense in senses):
+        return
+    heads = entry.get("head_templates") or ()
+    participle = upos == "VERB" and any(head.get("name") == _PARTICIPLE_HEAD for head in heads)
+    home = spelt or word
+    if spelt is None and senses and all(_is_form_of(sense) for sense in senses):
+        for sense in senses:
+            tags = set(sense.get("tags") or ())
+            if tags & _NOT_A_READING or tags & _REGISTERS:
+                continue
+            for target in _form_targets(sense):
+                target = nfc_lower(target)
+                if _TOKEN.fullmatch(target):
+                    readings.senses[(word, target)].update(reading_tags(upos, tags))
+        if not participle:
+            return
+    elif spelt is None:
+        readings.poses[word].add(upos)
+        if not all(set(sense.get("tags") or ()) & _REGIONS for sense in senses):
+            readings.standard.add(word)
+    genders, plural = noun_genders(entry) if upos == "NOUN" else ((), False)
+    if upos == "NOUN":
+        own = {"Number": "Plur" if plural else "Sing"}
+        for features in [{**own, "Gender": gender} for gender in genders] or [own]:
+            readings.table[(word, home)].add(ud_tag(upos, features))
+        # A letter's name keeps its own form, but none of its inflections: `elles` is the pronoun's,
+        # not the plural of the letter L (add-lingua-spanish-word-card D7).
+        if senses and all(_names_a_letter(sense) for sense in senses):
+            return
+        if not plural and invariable_noun(entry):
+            for features in [{"Number": "Plur", "Gender": gender} for gender in genders] or [{"Number": "Plur"}]:
+                readings.table[(word, home)].add(ud_tag(upos, features))
+    elif upos == "ADJ":
+        plural_only = all({"plural", "plural-only"} & set(sense.get("tags") or ()) for sense in senses)
+        own = {"Number": "Plur" if plural_only else "Sing", **({"Gender": "Masc"} if adjective_agrees(entry) else {})}
+        readings.table[(word, home)].add(ud_tag(upos, own))
+    if upos in ("DET", "PRON") and any((head.get("args") or {}).get("g") in _PLURAL_HEADS for head in heads):
+        return
+    inflections = entry.get("forms") or ()
+    pronominal = upos == "VERB" and any(
+        "infinitive" in (inflection.get("tags") or ()) and without_pronoun(nfc_lower(inflection.get("form")))
+        for inflection in inflections
+    )
+    for inflection in inflections:
+        tags = set(inflection.get("tags") or ())
+        form = nfc_lower(inflection.get("form"))
+        if tags & _NOT_A_READING:
+            continue
+        bare = without_pronoun(form) if upos == "VERB" and ("reflexive" in tags or pronominal) else None
+        if bare is not None:
+            form, tags = bare, tags - {"reflexive"}
+        elif not _TOKEN.fullmatch(form) or "reflexive" in tags:
+            continue
+        if upos == "NOUN" and "masculine" in tags and "plural" not in tags:
+            continue
+        readings.table[(form, home)].update(reading_tags(upos, tags, genders, participle))
+
+
+def _kind(tag):
+    """A reading's part of speech and verb form: what a form of a form is not added over (D5)."""
+    upos, features = parse_tag(tag)
+    return upos, features.get("VerbForm")
+
+
+def compose(outer, inner):
+    """A form of a form (D5): the outer reading — of the word the form is a form of — with the inner
+    one's agreement, along one part of speech, a verb's only through a participle; None otherwise."""
+    upos, features = parse_tag(outer)
+    inner_upos, inner_features = parse_tag(inner)
+    if upos != inner_upos:
+        return None
+    if upos == "VERB" and (features.get("VerbForm") != "Part" or inner_features.get("VerbForm") not in (None, "Part")):
+        return None
+    for name in ("Gender", "Number"):
+        if name in inner_features:
+            features[name] = inner_features[name]
+    return ud_tag(upos, features)
+
+
+def set_aside(readings, overrides=OVERRIDES):
+    """The links a reviewed override row sets aside as the source's copy error (D5): an overridden
+    form's own entry linking it to another word than the row's, which no lemma's table lists —
+    `fatiguée`'s verb entry, « feminine singular of parlé », gives no reading toward *parlé*, and so
+    none toward *parler* through it."""
+    return {
+        (form, target)
+        for (form, target) in readings.senses
+        if form in overrides and target != overrides[form][0] and (form, target) not in readings.table
+    }
+
+
+def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
+    """`grammar.tsv`'s rows, sorted: the readings of the forms `forms` holds, under the lemmas
+    `ranks` keeps (D2), a form's of its own lemma marked `-`, another's `other` (D6).
+
+    - A form of a form along one part of speech reads as the word it is a form of reads, with its
+      own agreement (`dirigée` → `dirigé` → *diriger*), through the form's own lemma too — unless
+      the form already reads as that word in that part of speech and verb form (`les` is no
+      feminine through `la`) (D5).
+    - A reading's part of speech is one the dictionary holds its lemma as, when it holds the lemma
+      as one of those read: a participle filed under a noun's spelling names its verb instead
+      (D5), and `venait` names no *came*, which the French section holds as a noun.
+    - `other` only toward an entry of the dictionary that is not only regional (D6): `irait` names
+      no *would*, `va` no *vader*.
+    - Never through a link an override row sets aside (`set_aside`)."""
+    excluded = set_aside(readings, overrides)
+    by_form = collections.defaultdict(dict)
+    for (form, lemma), tags in readings.pairs().items():
+        if tags and (form, lemma) not in excluded:
+            by_form[form][lemma] = tags
+    rows = set()
+    for form, own in forms.items():
+        direct = by_form.get(form, {})
+        options = {lemma: set(tags) for lemma, tags in direct.items()}
+        for inner_word, inner_tags in direct.items():
+            if inner_word == form:
+                continue
+            for lemma, outer_tags in by_form.get(inner_word, {}).items():
+                if lemma in (inner_word, form):
+                    continue
+                kinds = {_kind(tag) for tag in direct.get(lemma, ())}
+                made = {compose(outer, inner) for outer in outer_tags for inner in inner_tags} - {None}
+                made = {tag for tag in made if _kind(tag) not in kinds}
+                if made:
+                    options.setdefault(lemma, set()).update(made)
+        for lemma, tags in options.items():
+            if lemma not in ranks:
+                continue
+            held = readings.poses.get(lemma)
+            if held:
+                tags = {tag for tag in tags if parse_tag(tag)[0] in held}
+            mark = "-" if lemma == own else "other"
+            if mark == "other" and (lemma not in readings.poses or lemma not in readings.standard):
+                continue
+            rows.update((form, lemma, tag, mark) for tag in tags)
+    return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
+
+
+def _marks_at(word):
+    """The places of a word's marked letters: `agé` → {2}, `âgé` → {0, 2}. A word and its marks
+    dropped (`_marks_dropped`) have as many letters, so the places of two words with the same letters
+    line up; a mark kept in place is a marked letter at the same place, whichever its mark
+    (read-lingua-french-hyphenated-and-misaccented-spellings D2, D4: `espére` keeps *espère*'s and
+    *espéré*'s)."""
+    return {i for i, letter in enumerate(word) if _marks_dropped(letter) != letter}
+
+
+def spelling_readings(rows, forms, spellings=None):
+    """`grammar.tsv`'s rows with each spelling of `UNMARKED_SPELLINGS` (or `spellings`) carrying the
+    readings of every form of its word it writes with the same letters, marks dropped
+    (`_marks_dropped`), the form re-keyed, its mark kept (read-lingua-french-web-unmarked-spellings
+    D3): `recu` those of `reçu`, `arrete` those of `arrête` and `arrêté` together, `etais` the
+    imperfect of *être* and, as `étais` does, the plural of *étai* (`other`). A spelling carrying
+    marks (read-lingua-french-hyphenated-and-misaccented-spellings D4) takes, when some of those
+    forms keep one of its marks in place, only those keeping the most: `arreté` the past participle
+    `arrêté`'s, not the present `arrête`'s; `agé` `âgé`'s. Sorted, each row once."""
+    spellings = UNMARKED_SPELLINGS if spellings is None else spellings
+    by_form = collections.defaultdict(list)
+    for row in rows:
+        by_form[row.split("\t", 1)[0]].append(row)
+    of_letters = collections.defaultdict(list)
+    for form, lemma in forms.items():
+        of_letters[(_marks_dropped(form), lemma)].append(form)
+    out = set(rows)
+    for spelling in spellings:
+        lemma = forms.get(spelling)
+        if lemma is None:
+            continue
+        same = [form for form in of_letters[(_marks_dropped(spelling), lemma)] if form != spelling]
+        marks = _marks_at(spelling)
+        kept = {form: len(_marks_at(form) & marks) for form in same}
+        if any(kept.values()):
+            same = [form for form in same if kept[form] == max(kept.values())]
+        for form in same:
+            out.update(spelling + row[len(form) :] for row in by_form.get(form, ()))
+    return sorted(out)
+
+
+# — fr-en's native side (add-lingua-pack-fr-en) —
+#
+# French glossed in English, from the section the forms come from (D1): its senses, read through
+# the English edition's rules as es-en's are (D2), then the rules every pair shares. No translation
+# table (D3, the module's doc). Nothing of the studied side moves: the glosses are keyed by the
+# lemmas the reduction has just ranked, each its own form's lemma (`reduce_forms`), so that the
+# builder, which keys a gloss by looking its lemma up as a form, files no gloss under another word.
+
+# French as the shared native rules read it (D1): a French word, whole — change 43's token pattern
+# — and French's seven coordinating conjunctions, which make kaikki's `conj` a CCONJ in a sense run.
+FR = common.Studied(
+    code="fr",
+    token=_TOKEN,
+    # Not read by the native side; kept for the shared rules' interface.
+    form_of_target=re.compile(rf"([{_LETTERS}]+)\s*\.?$"),
+    coordinators=frozenset({"et", "ou", "mais", "ni", "or", "car", "donc"}),
+)
+
+EDITION = english.EN
+
+# What the native side reads of an entry (`reduce_common._read_entries`, `reduce_expressions`,
+# `without_letter_senses`, `english.read_as_meanings`): the rest — the inflection tables, most of
+# the section's bytes — is the studied side's, read in its own pass.
+_ENTRY_FIELDS = ("word", "pos", "senses")
+_SENSE_FIELDS = ("glosses", "tags", *EDITION.pointer_fields)
+
+
+def native_fields(src, dst):
+    """The section cut down to what the native side reads (`_ENTRY_FIELDS`, `_SENSE_FIELDS`),
+    written to `dst`: the shared rules read the file several times, and the inflection tables are
+    most of its 510 MB. An entry's `pos` is kept as written, and its `word` too but for a
+    typographic apostrophe, read as `'` as French's forms are and as the core reads a page
+    (« nombre d’oxydation »); its case is kept, which the shared rules read an acronym by and the
+    English edition a place's name. A line that is no JSON object is left out, and counted:
+    `(dst, dropped)`."""
+    dropped = 0
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                entry = None
+            if not isinstance(entry, dict):
+                dropped += 1
+                continue
+            cut = {field: entry[field] for field in _ENTRY_FIELDS if field in entry}
+            if isinstance(cut.get("word"), str):
+                cut["word"] = cut["word"].replace("’", "'")
+            cut["senses"] = [
+                {field: sense[field] for field in _SENSE_FIELDS if field in sense}
+                for sense in entry.get("senses") or ()
+                if isinstance(sense, dict)
+            ]
+            out.write(json.dumps(cut, ensure_ascii=False) + "\n")
+    return dst, dropped
+
+
+# French's expressions (D11): what add-lingua-french-expression-keys hands this reducer.
+#
+# An expression's sense that only points (D11, 2): it names another spelling (« post-1990 spelling of
+# crème fraîche »), an inverted form (« subject-inverted form of il y a ») or the pieces the
+# expression is written with (« que + elle », « contraction of que + il »). Pointers the dump tags
+# are the shared rules' already (`reduce_common._is_form_of`).
+_POINTS = re.compile(
+    r"^(?:(?:post-1990 spelling|subject-inverted form) of\b|(?:contraction of )?[^\s+;]+(?: \([^)]*\))? \+ )",
+    re.IGNORECASE,
+)
+# The meaning a spelling or an inversion writes after its target, past a semicolon or a colon
+# (« subject-inverted form of il y a; is there? are there? »): kept.
+_POINTS_THEN = re.compile(
+    r"^(?:post-1990 spelling|subject-inverted form) of [^;:]+[;:]\s*(.+)$", re.IGNORECASE | re.DOTALL
+)
+# A sense that only notes a form or a usage (refine-lingua-fr-en-expressions D2): a compound's pieces
+# (« j'ai » « I've, I have; compound of je and ai »), an interrogative or inflected form of a verb in
+# a person (« a-t-il », « puis-je »), a pointer to the non-idiomatic uses (« à moi »), an equivalent
+# written in French (« m'as » « Equivalent to “je vais” … »), the one construction it is used in
+# (« colin-tampon »). Grammar the reader does not read as English (M5): the pieces' own rows say it.
+# Read on a sense and on each piece of it between semicolons; never « a form of » alone, which opens
+# meanings (« pain d'épice » « a form of French gingerbread »).
+_FORM_NOTE = re.compile(
+    r"^(?:compound of \S+ and \S+"
+    r"|(?:the |an? )?(?:interrogative )?form of \S+(?: \([^)]*\))? in the (?:first|second|third)-person"
+    r"|an interrogative form of\b"
+    r"|for non-idiomatic uses\b"
+    r"|used only in the\b"
+    r"|equivalent to “)",
+    re.IGNORECASE,
+)
+# Expressions left out by name, each with its reason: a person's decision, as an override row is.
+# Editing this table changes the rules' sha256.
+LEFT_OUT = {
+    "à la": (
+        "its one sense, « in the style or manner of », is met only before a word that completes it, "
+        "and the section writes those uses as entries of their own (« à la carte », « à la maison »); "
+        "as a key it is French's commonest preposition and article, and every « au » before "
+        "add-lingua-french-expression-keys keyed it as `à le`"
+    ),
+    # refine-lingua-fr-en-glosses D7: an expression whose one sense needs a context its key does not
+    # hold, counted in UD French-GSD's training and development sections, the text fr-en's pin reads.
+    "et des": (
+        "its one sense, « or thereabouts, and change, and a bit over », follows a number, which the key "
+        "does not hold: of 204 « et des » in UD French-GSD none means it (two follow a year, none a "
+        "number), and « du pain et des œufs » would meet it"
+    ),
+    "que de": (
+        "its one sense, « how (modifier) », is the exclamative « que de monde ! », which the key cannot "
+        "tell from « que » + « de »: of 43 « que de » in UD French-GSD none is exclamative"
+    ),
+    "sur ce": (
+        "its one sense, « thereupon, with this, on that note », closes a clause, which the key does not "
+        "hold: of 25 « sur ce » in UD French-GSD none means it, all before a noun or « qui »/« que »"
+    ),
+    "et si": (
+        "its one sense, « what if », opens a question the key does not hold: of 13 « et si » in UD "
+        "French-GSD one at most reads « what if » (« Et si en plus y'a personne »), the others « and if »"
+    ),
+    "un coup": (
+        "its senses, « used to soften an order » and « once, one time », are colloquial uses the key "
+        "cannot tell from the noun's: of 11 « un coup » in UD French-GSD none means either (7 are « un "
+        "coup de »), and « un coup d'œil » would meet it beside `coup d'œil`"
+    ),
+    # Settled by the owner on 2026-10-10, after the implementation found them: expressions D4 would
+    # make of a pointer (an expression's pointer is read whatever it names) whose « meaning » is no
+    # meaning of the expression a reader meets — the pre-pass's own reading of a contraction met
+    # wherever the plain words are written, one piece's meaning, or a grammatical note.
+    "à le": (
+        "a Louisiana spelling of « au » (« alternative form of au (“to the”) »): the pre-pass writes "
+        "every « au » as `à` + `le`, so every « au » would meet a spelling no reader writes"
+    ),
+    "à les": (
+        "a Louisiana spelling of « aux » (« alternative form of aux (“to the”) »): the pre-pass writes "
+        "every « aux » as `à` + `les`, so every « aux » would meet a spelling no reader writes"
+    ),
+    "de le": (
+        "a Louisiana spelling of « du » (« of the, some »): « de » before the pronoun « le » would meet "
+        "it — « décidé de le faire » would read « of the, some »"
+    ),
+    "de les": (
+        "a Louisiana spelling of « des » (« of the, some »): « de » before the pronoun « les » would "
+        "meet it — « parle de les voir » would read « of the, some »"
+    ),
+    "l'a": (
+        "a contraction of « le »/« la » and « a » whose pointer carries the pronoun's meaning alone, "
+        "« him/her/it »: every « l'a » (« il l'a vu ») would meet it"
+    ),
+    "n'ai": (
+        "a contraction of « ne » and « ai » whose pointer carries the negation's meaning alone, « not »: "
+        "every « je n'ai » would meet it"
+    ),
+    "j'suis": (
+        "a contraction of « je » and « suis »: the pre-pass reads « j' » as `je`, so every « je suis » "
+        "would meet a colloquial spelling it does not write, as every « au » would meet `à le`"
+    ),
+    "ç'a": (
+        "a contraction of « ce » and « a »: the pre-pass reads « ç' » as `ça`, so every « ça a » would "
+        "meet a spelling it does not write, as every « au » would meet `à le`"
+    ),
+    "j't'à": (
+        "a contraction whose pointer carries a grammatical note, « the 't' is epenthetic », not a meaning"
+    ),
+    "poser des lapins": (
+        "its one sense points at « poser un lapin » with a grammatical note, « frequentative or "
+        "plural », not a meaning"
+    ),
+    "point d'inflexion": (
+        "its one sense is a definition the English edition's rules read as a pointer (« inflection "
+        "point, point of inflection (…; at this point the second derivative of… »), and an expression's "
+        "pointer read past its semicolon leaves half a sentence, « at this point the second derivative "
+        "of the »"
+    ),
+    # add-lingua-fr-en-translated-expressions D5: the French Wiktionary's English translations of
+    # expressions a person read wrong in most of the contexts they are met in. Every expression of the
+    # table met at least five times on the five corpora of its design (1,060,904 words: UD French-GSD's
+    # training and development sections, Gutenberg, French Wikipedia, Tatoeba and the baseline's pages)
+    # was read in three or four of its sentences; each row gives the table's gloss, its matches there
+    # before the list, and what they are. Named here, the section's expression of that name would go
+    # too, should a later update gloss one.
+    #
+    # Words met as they are, where the table names a set phrase or a field's sense.
+    "les autres": (
+        "the table's « other people », a set phrase: of 310 matches, nearly all are the article and « autres » "
+        "before a noun, or the pronoun « the others » (« toutes les autres lignes du réseau »)"
+    ),
+    "le grand": (
+        "the table's « the Great », a ruler's epithet: of 173 matches, nearly all are the article and the "
+        "adjective (« le grand pont de bois », « le Grand Prix de Saint-Marin »)"
+    ),
+    "d'argent": (
+        "the table's « argent », heraldry's silver: of 79 matches, nearly all are money (« beaucoup "
+        "d'argent », « une petite somme d'argent »)"
+    ),
+    "d'azur": (
+        "the table's « azure », heraldry's blue: of 75 matches, nearly all are the region's name "
+        "(« Provence-Alpes-Côte d'Azur »)"
+    ),
+    "plus haut": (
+        "the table's « above », a reference to an earlier page: of 65 matches, nearly all are the "
+        "superlative (« le plus haut bâtiment d'Espagne », « son plus haut niveau »)"
+    ),
+    "de haut": (
+        "the table's « haughtily »: of 51 matches, nearly all are a height or a level (« 3 m de haut », "
+        "« de haut niveau », « de hauts fonctionnaires »)"
+    ),
+    "travailler à": (
+        "the table's « work towards, strive to, strive for »: of 45 matches, most are a place or « à "
+        "cause » (« travaillent à Genève », « cessé de travailler à cause du salaire »)"
+    ),
+    "un temps": (
+        "the table's « once »: of 39 matches, most are a while or the weather (« pendant un temps », "
+        "« un temps nuageux », « un temps d'attente »)"
+    ),
+    "une étoile": (
+        "the table's « one stars, one-star », a hotel's rating: of 25 matches, most are a star (« frappé "
+        "d'une étoile blanche », « une étoile de mer »)"
+    ),
+    "en premier": (
+        "the table's « first »: of 25 matches, half are « en première » (« en première division », « en "
+        "première mondiale »)"
+    ),
+    "se mêler": (
+        "the table's « get involved in, get mixed up in »: of 21 matches, most are « mingle » (« à leur "
+        "musique suraiguë se mêlait le bourdonnement »)"
+    ),
+    "il se trouve": (
+        "the table's « it happens, it so happens »: of 19 matches, most are « it is (somewhere) » (« il se "
+        "trouve juste au sud de Kivik », « Il se trouve à son bureau »)"
+    ),
+    "la peau": (
+        "the table's « like hell », the exclamation: its 18 matches are skin (« la peau rugueuse », « la "
+        "peau d'un serpent »)"
+    ),
+    "sortir avec": (
+        "the table's « date »: of 15 matches, most are « leave with » or « come out of it with » (« Il sort "
+        "avec Camel », « en sortir avec honneur »)"
+    ),
+    "au vent": (
+        "the table's « windward, upwind », a sailor's word: of 15 matches, most are « in the wind » "
+        "(« flottait au vent », « le nez au vent »)"
+    ),
+    "bien du": (
+        "the table's « many, a lot of »: of 14 matches, most are other words side by side (« démêler le "
+        "bien du mal », « les biens du Saint-Siège »)"
+    ),
+    "première ligne": (
+        "the table's « front line, front row »: of 12 matches, most are a first line (« la première ligne "
+        "ferroviaire », « inscrit sur la première ligne »)"
+    ),
+    "ombre de": (
+        "the table's « in umbra », the astronomer's: its 11 matches are a shade or a shadow (« l'ombre du "
+        "taillis », « l'ombre de son grand-père »)"
+    ),
+    "quatre heures": (
+        "the table's « afternoon snack »: its 10 matches are the hour or four hours (« vers quatre heures "
+        "du matin », « voilà quatre heures que »)"
+    ),
+    "grand homme": (
+        "the table's « big man »: of 9 matches, most are « great man » (« un si grand homme »)"
+    ),
+    "la mettre": (
+        "the table's « trick » (« se la mettre »): its 8 matches are the pronoun and « mettre » (« pour la "
+        "mettre à l'aise », « Où la mettre ? »)"
+    ),
+    "première partie": (
+        "the table's « opening act »: of 7 matches, most are a first part (« la première partie du XXe "
+        "siècle », « la première partie de Faust »)"
+    ),
+    "bon vieux": (
+        "the table's « trusty »: its 7 matches are old people, a noun (« ses bons vieux et ses bonnes "
+        "vieilles »)"
+    ),
+    "c'est une chose": (
+        "the table's « is one thing »: of 7 matches, most are « it is a thing » (« C'est une chose "
+        "impossible », « C'est une chose courante ? »)"
+    ),
+    "du gâteau": (
+        "the table's « piece of cake, easy as pie, chip shot »: its 7 matches are cake (« manger du gâteau »)"
+    ),
+    "la barbe": (
+        "the table's « bother », the exclamation: its 7 matches are a beard (« Je me fais pousser la "
+        "barbe »)"
+    ),
+    "au temps": (
+        "the table's « as you were », the drill command: its 7 matches are a time or the weather (« au "
+        "temps où les feuilles… », « habitué au temps froid »)"
+    ),
+    "petite bête": (
+        "the table's « bug »: its 6 matches are a small creature (« une petite bête singulière », « les "
+        "petites bêtes du hallier »)"
+    ),
+    "à la ligne": (
+        "the table's « new line, line break, new paragraph »: its 6 matches are a railway or metro line "
+        "(« se raccorde à la ligne historique », « à la ligne B du métro »)"
+    ),
+    "à ses yeux": (
+        "the table's « in my view », another person than the page's: its 6 matches are « in his/her eyes » "
+        "(« trop populaire à ses yeux »)"
+    ),
+    "sur le champ": (
+        "the table's « on the spot, right away »: of 6 matches, 5 are « sur le champ de bataille », where "
+        "it would take « champ » from the section's « champ de bataille »"
+    ),
+    "avoir l'œil": (
+        "the table's « keep an eye on »: its 5 matches describe an eye (« elle avait l'œil clair et "
+        "riant », « Elle a l'œil pour la peinture »)"
+    ),
+    "graine de": (
+        "the table's « in the making, budding, -in-waiting »: of 5 matches, most are seeds (« les graines de "
+        "jatropha », « de la graine de semence »)"
+    ),
+    # An address or an interjection met as plain words.
+    "à vous": (
+        "the table's « over », the radio call: its 64 matches are the preposition and the pronoun (« C'est à "
+        "vous de la persuader », « j'ai quelque chose à vous dire »)"
+    ),
+    "mon cœur": (
+        "the table's « honey, darling », an address: of 53 matches, nearly all are the heart (« Mon cœur "
+        "battait avec force »)"
+    ),
+    "et bien": (
+        "the table's « well, so », « eh bien » misspelt: its 41 matches are « and » before « bien » (« bel et "
+        "bien », « et bien plus extravagante », « et bien sûr »)"
+    ),
+    "tu vois": (
+        "the table's « you know, y’know », a filler: of 31 matches, most are « voir » meaning « see », in "
+        "any tense its key reads (« As-tu vu Marie ? », « Est-ce que tu vois la reine ? »)"
+    ),
+    # A name met as itself.
+    "côte d'azur": (
+        "the table's « blue band », a heraldic sense: its 38 matches are the region (« seule la Côte d'Azur "
+        "bénéficie… »)"
+    ),
+    "louis xiv": (
+        "the table's « Louis XIV-style », a style of furniture: its 23 matches are the king (« Le 10 avril "
+        "1660, Louis XIV fait son entrée à Perpignan »)"
+    ),
+    "henri iv": (
+        "the table's « Henri IV style »: its 10 matches are the king or a street (« le roi Henri IV », "
+        "« Boulevard Henri IV »)"
+    ),
+    "de gaulle": (
+        "the table's « winged corkscrew »: its 7 matches are the general (« le général de Gaulle »)"
+    ),
+    # A number met as itself.
+    "à neuf": (
+        "the table's « anew » (« remettre à neuf »): of 9 matches, most are the number (« à neuf heures », "
+        "« le liant à neuf films »)"
+    ),
+    # A verb's form met as a noun's headword: the key reads the noun's word as the verb (M8).
+    "être cher": (
+        "the table's « loved one, significant other », a noun: its 12 matches are « be expensive » or « be "
+        "dear » (« Les logements sont chers », « Les bouteilles sont chères »)"
+    ),
+    "groupe a": (
+        "the table's « blood type A, type A »: its 8 matches are « groupe » before « avoir » (« le groupe a "
+        "recruté 9.000 personnes », « Ces groupes auraient érigé… »)"
+    ),
+    "en laisse": (
+        "the table's « on a leash, on a lead, leashed »: of 7 matches, most are « en » before « laisser » "
+        "(« en laissant s'échapper », « elle en laissa tomber un »)"
+    ),
+    "en joue": (
+        "the table's « aim » (« mettre en joue »): its 6 matches are « en jouant » (« en jouant de la "
+        "flûte »)"
+    ),
+    "en conserve": (
+        "the table's « canned, tinned »: its 5 matches are « en conservant » (« tout en conservant une "
+        "grande convergence »)"
+    ),
+    # A wrong translation.
+    "se mettre d'accord": (
+        "the table's « pull together »: it means « agree », as its 5 matches do (« finirent par se mettre "
+        "d'accord »)"
+    ),
+    "voie navigable": (
+        "the table's « thoroughfare »: it is a waterway, as its 5 matches are (« le réseau bolivien des voies "
+        "navigables »)"
+    ),
+    "se heurter": (
+        "the table's « blunder »: it means « collide with, come up against », as its 5 matches do (« il se "
+        "heurte surtout au fait que… », « Il se heurta contre une branche »)"
+    ),
+    "se serrer": (
+        "the table's « clench »: it means « squeeze together, tighten », as its 5 matches do (« Elle se "
+        "serra contre moi », « ils se serrent la main »)"
+    ),
+    # refine-lingua-fr-en-expressions D1: the English Wiktionary's French section's own expressions a
+    # person read wrong in most of the contexts they are met in. Every section expression met ten times
+    # or more on the five corpora of add-lingua-fr-en-translated-expressions' design (1,060,904 words)
+    # was read in three or four of its sentences; each row gives the section's gloss, its matches there
+    # on that change's tables, how they are met and one example. « à la base » and « en série » came to
+    # ten matches on those tables, and « de poids » and « de plus belle » once these rows left out « de
+    # plus » (their matches then): each was read in all its sentences (this change's task 1.1). « ça va »
+    # came to ten too, read « it's going to » in 11 of 18, but stays: its key is « ça ira »'s, which
+    # would then meet every « ça va » (« Ça va ? » « it will be all right »).
+    #
+    # A labelled sense met as plain words: every sense of the entry carries a register or a region
+    # (informal, slang, Quebec, Internet, derogatory, literary…) the plain words do not.
+    "pas de": (
+        "the section's « without », a Quebec sense: of 607 matches, met in « ne … pas de » (« il n'a pas "
+        "d'enfants »)"
+    ),
+    "dire que": (
+        "the section's « to think that », an informal exclamation: of 324 matches, met as « dire » + « que » "
+        "(« ils ont dit qu'ils »)"
+    ),
+    "histoire de": (
+        "the section's « in order to », informal: of 256 matches, met as the noun (« l'histoire du canton »)"
+    ),
+    "j'aime": (
+        "the section's « a like », the Internet noun: of 183 matches, met as « I like » (« J'aime les "
+        "bonbons »)"
+    ),
+    "à toute": (
+        "the section's « see you », informal: of 145 matches, met in « à tout », « à toutes les »"
+    ),
+    "fait que": (
+        "the section's « so, therefore », a Quebec sense: of 121 matches, met in « le fait que », « n'a fait "
+        "que »"
+    ),
+    "sa mère": (
+        "the section's « (so) fucking », slang: of 119 matches, met as « his/her mother »"
+    ),
+    "de deux": (
+        "the section's « next, secondly », informal: of 116 matches, met before a noun (« de deux poèmes »)"
+    ),
+    "pas que": (
+        "the section's « not that », informal: of 108 matches, met in « ne … pas que » (« je ne veux pas "
+        "que »)"
+    ),
+    "t'a": (
+        "the section's « tu as », a gloss in French: of 108 matches, met as « te » + « a » (« on ne t'a pas "
+        "dit »)"
+    ),
+    "sais pas": (
+        "the section's « dunno », informal: of 102 matches, met in « ne sait pas »"
+    ),
+    "espèce de": (
+        "the section's « you », derogatory: of 95 matches, met as « a species of »"
+    ),
+    "m'as": (
+        "the section's « je vais », a Quebec sense written in French: of 36 matches, met as « me » + « as » (« "
+        "tu m'as donné »)"
+    ),
+    "vu que": (
+        "the section's « given that », colloquial: of 35 matches, met as « voir que » (« content de voir "
+        "que »)"
+    ),
+    "de couleur": (
+        "the section's « of color (of skin) », dated: of 32 matches, met before a colour (« de couleur "
+        "noire »)"
+    ),
+    "encore que": (
+        "the section's « although », dated: of 28 matches, met as « encore » + « que » (« n'était encore "
+        "qu'une »)"
+    ),
+    "la faire": (
+        "the section's « to fool », informal: of 26 matches, met as the pronoun and the verb (« la ferait "
+        "partir »)"
+    ),
+    "du reste": (
+        "the section's « besides », literary: of 25 matches, met as « of the rest » (« du reste du monde »)"
+    ),
+    "au plus": (
+        "the section's « at most », informal: of 24 matches, met in « au plus près », « au plus fort »"
+    ),
+    "comme tout": (
+        "the section's « very, extremely », informal: of 24 matches, met in « comme toutes les autres »"
+    ),
+    "et quelques": (
+        "the section's « or thereabouts », informal: of 24 matches, met as « and some » (« et quelques "
+        "groupes »)"
+    ),
+    "de première": (
+        "the section's « bigtime », informal: of 23 matches, met before a noun (« de première ligne »)"
+    ),
+    "du vent": (
+        "the section's « shoo! », informal: of 23 matches, met as « of the wind »"
+    ),
+    "à plus": (
+        "the section's « see you », informal: of 22 matches, met in « à plus de »"
+    ),
+    "qui parle": (
+        "the section's « look who's talking! », informal: of 21 matches, met as « who speaks »"
+    ),
+    "à la place": (
+        "the section's « instead », informal: of 21 matches, met in « à la place Saint-François »"
+    ),
+    "la ferme": (
+        "the section's « shut up », vulgar: of 19 matches, met as « the farm »"
+    ),
+    "à d'autres": (
+        "the section's « tell it to the marines », informal: of 19 matches, met as « to other »"
+    ),
+    "tu parles": (
+        "the section's « you must be joking! », informal: of 18 matches, met as « you speak »"
+    ),
+    "d'aucuns": (
+        "the section's « certain people », literary: of 16 matches, met in « d'aucun », « d'aucune »"
+    ),
+    "des familles": (
+        "the section's « good old », informal: of 16 matches, met as « of the families »"
+    ),
+    "et encore": (
+        "the section's « if that », informal: of 16 matches, met in « et encore une fois »"
+    ),
+    "faire avec": (
+        "the section's « to make do », informal: of 16 matches, met in « faite avec », « fait avec »"
+    ),
+    "en fait de": (
+        "the section's « with respect to », literary: of 15 matches, met in « en faisant de », across a year"
+    ),
+    "y passer": (
+        "the section's « to kick the bucket », informal: of 15 matches, met in « y passer la nuit »"
+    ),
+    "à la limite": (
+        "the section's « in a pinch », informal: of 15 matches, met in « à la limite entre »"
+    ),
+    "rapport à": (
+        "the section's « about », colloquial: of 14 matches, met in « par rapport à »"
+    ),
+    "bande de": (
+        "the section's « you (bunch of) », derogatory: of 13 matches, met in « bande de terre »"
+    ),
+    "faire bien": (
+        "the section's « to look stylish », informal: of 13 matches, met in « fait bien », « fais bien »"
+    ),
+    "s'en être": (
+        "the section's « used only in the simple past… », a note: of 13 matches, met in « s'en est »"
+    ),
+    "se prendre": (
+        "the section's « to get (something negative) », informal: of 13 matches, met in « se prend pour »"
+    ),
+    "c'est cela": (
+        "the section's « yeah, right! », informal: of 12 matches, met as « that's it »"
+    ),
+    "du diable": (
+        "the section's « a hell of a », informal: of 12 matches, met as « of the devil »"
+    ),
+    "quoi faire": (
+        "the section's « why, how come », a Louisiana sense: of 12 matches, met as « what to do »"
+    ),
+    "de un": (
+        "the section's « first, first up », informal: of 10 matches, met before a number or a noun"
+    ),
+    "faire sans": (
+        "the section's « to do without », informal: of 10 matches, met in « fait sans plaisir »"
+    ),
+    "y rester": (
+        "the section's « to kick the bucket », informal: of 10 matches, met as « stay there »"
+    ),
+    #
+    # A headword met through another word's form: its key reads a word through its dictionary form,
+    # and the page writes another.
+    "d'autre": (
+        "the section's « else »: of 461 matches, met as « d'autres », « others »"
+    ),
+    "en être": (
+        "the section's « to have arrived at something; to be game »: of 345 matches, met in « en est », « en "
+        "sont », « en 1966, est »"
+    ),
+    "de nouveau": (
+        "the section's « again »: of 227 matches, met as « de nouveaux », « de nouvelles » (« new »)"
+    ),
+    "de fait": (
+        "the section's « de facto; indeed »: of 213 matches, met as « de faire »"
+    ),
+    "en fait": (
+        "the section's « actually »: of 171 matches, met as « en faisant », « en font », « ce qui en fait »"
+    ),
+    "étant donné": (
+        "the section's « given »: of 62 matches, met as « est donné », « fut donné »"
+    ),
+    "en tout": (
+        "the section's « in total »: of 45 matches, met in « en toute saison », « en toutes circonstances »"
+    ),
+    "n'eût été": (
+        "the section's « if not for »: of 35 matches, met as « n'avait été », « n'a été »"
+    ),
+    "tenir de": (
+        "the section's « to take after »: of 35 matches, met in « tenant du titre », « se tient du »"
+    ),
+    "il ne fallait pas": (
+        "the section's « you shouldn't have »: of 34 matches, met as « il ne faut pas »"
+    ),
+    "ceci étant": (
+        "the section's « that being so »: of 32 matches, met as « ceci est », « ceci fut »"
+    ),
+    "la tienne": (
+        "the section's « yours »: of 26 matches, met as « la tenait », « la tenir »"
+    ),
+    "cela étant": (
+        "the section's « that being so »: of 22 matches, met as « cela est »"
+    ),
+    "la majeur": (
+        "the section's « A major »: of 22 matches, met in « la majeure partie »"
+    ),
+    "attendu que": (
+        "the section's « given that »: of 21 matches, met as « attendait que », « attendu que » (waited)"
+    ),
+    "en tenue": (
+        "the section's « dressed »: of 18 matches, met as « en tienne », « en tenant compte »"
+    ),
+    "en devenir": (
+        "the section's « in the making »: of 13 matches, met as « en devient »"
+    ),
+    "se passer de": (
+        "the section's « to do without »: of 11 matches, met in « se passe de », « il se passe des choses »"
+    ),
+    "avoir lieu de": (
+        "the section's « have reason to »: of 10 matches, met in « ont lieu de juillet »"
+    ),
+    "à découvert": (
+        "the section's « in the open; overdrawn »: of 10 matches, met as « à découvrir »"
+    ),
+    "à l'anglaise": (
+        "the section's « the English way »: of 9 matches, met as « à l'anglais »"
+    ),
+    "de plus belle": (
+        "the section's « even more, even harder than before »: of 10 matches, met as « de plus beau » (« rien "
+        "de plus beau que la messe »)"
+    ),
+    #
+    # Words met as they are, where the headword names a set phrase, a field's sense or a cry.
+    "être à": (
+        "the section's « to belong to »: of 293 matches, met as « être » + « à » (« je suis au bout », « sont "
+        "à trouver »)"
+    ),
+    "de plus": (
+        "the section's « moreover »: of 209 matches, met in « de plus près », « une fois de plus », « de plus "
+        "de 500 km »"
+    ),
+    "nombre de": (
+        "the section's « quite a few »: of 208 matches, met in « le nombre de », « un certain nombre de »"
+    ),
+    "première fois": (
+        "the section's « first time (the first instance of sexual intercourse) »: of 146 matches, met as « the "
+        "first time »"
+    ),
+    "à moi": (
+        "the section's « help! »: of 48 matches, met as « to me »"
+    ),
+    "d'y": (
+        "the section's « thence, from there »: of 46 matches, met in « d'y aller »"
+    ),
+    "le temps de": (
+        "the section's « by the time that »: of 46 matches, met as « time to », « the time of »"
+    ),
+    "au pied": (
+        "the section's « to heel! »: of 41 matches, met in « au pied de »"
+    ),
+    "de droit": (
+        "the section's « de jure »: of 39 matches, met in « prive de droits », « peu de droits »"
+    ),
+    "bon dieu": (
+        "the section's « for God's sake »: of 34 matches, met as « the good Lord »"
+    ),
+    "de rien": (
+        "the section's « you're welcome »: of 34 matches, met in « ne … de rien »"
+    ),
+    "au travail": (
+        "the section's « get to work! »: of 32 matches, met as « at work »"
+    ),
+    "c'est moi": (
+        "the section's « used in a phone call for identification »: of 30 matches, met in « c'est moi qui »"
+    ),
+    "un tel": (
+        "the section's « so-and-so »: of 27 matches, met as « such a »"
+    ),
+    "de service": (
+        "the section's « on duty »: of 25 matches, met as « of service(s) »"
+    ),
+    "de jour": (
+        "the section's « by day »: of 23 matches, met in « peu de jours », « combien de jours »"
+    ),
+    "du siècle": (
+        "the section's « of the century (biggest) »: of 22 matches, met in « au début du siècle »"
+    ),
+    "de confiance": (
+        "the section's « trustworthy »: of 18 matches, met in « question de confiance », « niveau de "
+        "confiance »"
+    ),
+    "qui sait": (
+        "the section's « who knows? »: of 18 matches, met as « who knows how », « qui savent »"
+    ),
+    "tout fait": (
+        "the section's « ready-made »: of 18 matches, met in « tout fait peur », « j'ai tout fait »"
+    ),
+    "de grâce": (
+        "the section's « please »: of 17 matches, met in « pleine de grâce »"
+    ),
+    "avoir mal": (
+        "the section's « to have a pain »: of 16 matches, met in « avoir mal parlé », « mal payée »"
+    ),
+    "d'esprit": (
+        "the section's « witty »: of 16 matches, met in « maturité d'esprit »"
+    ),
+    "de cœur": (
+        "the section's « kindhearted »: of 14 matches, met in « as de cœur », « maladie de cœur »"
+    ),
+    "le chercher": (
+        "the section's « to have it coming »: of 14 matches, met as « fetch it »"
+    ),
+    "au reste": (
+        "the section's « besides »: of 13 matches, met in « au reste de l'Europe »"
+    ),
+    "avoir raison de": (
+        "the section's « to get the better of »: of 13 matches, met in « eut raison d'effectuer », across a "
+        "comma"
+    ),
+    "au feu": (
+        "the section's « fire! »: of 12 matches, met as « to the fire »"
+    ),
+    "bien fait": (
+        "the section's « good-looking; serves you right »: of 12 matches, met in « bien faire »"
+    ),
+    "de force": (
+        "the section's « by force »: of 12 matches, met in « chevaux de force », across a number"
+    ),
+    "de tête": (
+        "the section's « off the top of one's head »: of 12 matches, met in « de têtes », « bouillon de tête »"
+    ),
+    "pauvre de": (
+        "the section's « poor old »: of 12 matches, met in « les plus pauvres du monde »"
+    ),
+    "à la base": (
+        "the section's « originally, initially »: of 12 matches, met as « at the base of » (« à la base du "
+        "tronc », « à la base secrète »)"
+    ),
+    "à suivre": (
+        "the section's « to be continued »: of 12 matches, met in « difficile à suivre »"
+    ),
+    "d'un coup": (
+        "the section's « suddenly »: of 11 matches, met in « d'un coup de pied »"
+    ),
+    "de concert": (
+        "the section's « together »: of 11 matches, met in « de concerts »"
+    ),
+    "du temps de": (
+        "the section's « in someone's day »: of 11 matches, met in « du temps d'exposition », across a full "
+        "stop"
+    ),
+    "en série": (
+        "the section's « in series; serially »: of 11 matches, met in a league's name or the playoffs (« en "
+        "Serie A », « en séries éliminatoires »)"
+    ),
+    "à l'horizon": (
+        "the section's « in the offing »: of 11 matches, met in « à l'horizon 2030 », « le soleil à "
+        "l'horizon »"
+    ),
+    "à la pointe": (
+        "the section's « at the cutting edge »: of 11 matches, met in « à la pointe des dunes »"
+    ),
+    "au courant": (
+        "the section's « up to date »: of 10 matches, met in « au courant hygiéniste »"
+    ),
+    "le leur": (
+        "the section's « theirs »: of 10 matches, met as the pronouns (« elle le leur a rendu »)"
+    ),
+    "de poids": (
+        "the section's « weighty, that carries weight »: of 11 matches, met as a weight (« catégories de "
+        "poids », « perdre un peu de poids », « au lancer de poids »)"
+    ),
+    "au point": (
+        "the section's « ready, functional »: of 6 matches, met in « au point correspondant », « au point "
+        "que »"
+    ),
+    #
+    # A colloquial spelling met as the standard one.
+    "m'a": (
+        "the section's « I'm going », a Quebec spelling of « m'as »: of 455 matches, met as « me » + « a » (« "
+        "il m'a sauvé »)"
+    ),
+    "t'es": (
+        "the section's « you're », a colloquial spelling: of 50 matches, met in « tu t'es », « t'est »"
+    ),
+}
+
+
+def expression_word(headword):
+    """A headword as the shared rules key an expression: lowercased, single spaces."""
+    return re.sub(r"\s+", " ", (headword or "").strip().lower())
+
+
+def split_word(word, forms):
+    """Whether `word` is a single word French's tokenisation splits (D11, 1): no space, an apostrophe
+    or a hyphen (`d'abord`, `c'est`, `allez-y`), a French token, and no form of the tables — a form
+    is looked up whole (`aujourd'hui`). The builder keys those that read as two tokens or more."""
+    return " " not in word and ("'" in word or "-" in word) and bool(_TOKEN.fullmatch(word)) and word not in forms
+
+
+def is_expression(word, forms):
+    """Whether a headword is one of fr-en's expressions: words of French with a space between them,
+    as the shared rules read them (`reduce_common.reduce_expressions`), or a word the tokenisation
+    splits (`split_word`)."""
+    if " " in word:
+        return all(_TOKEN.fullmatch(part) for part in word.split(" "))
+    return split_word(word, forms)
+
+
+def without_form_notes(gloss):
+    """`gloss` without its pieces between semicolons that only note a form or a usage (`_FORM_NOTE`,
+    refine-lingua-fr-en-expressions D2), the others joined by « ; »: None when no piece is left,
+    `gloss` itself when no piece is a note."""
+    pieces = gloss.split(";")
+    kept = [piece.strip() for piece in pieces if not _FORM_NOTE.match(piece.strip())]
+    if len(kept) == len(pieces):
+        return gloss
+    kept = [piece for piece in kept if piece]
+    return "; ".join(kept) if kept else None
+
+
+def _meaning_of_pointer(sense):
+    """`sense` with its pointer and its form notes read out (D11, 2; refine-lingua-fr-en-expressions
+    D2): None when it only points or only notes a form, the sense read as the meaning written after
+    its target, or as its pieces that are no note, when it has some, the sense itself when it neither
+    points nor notes a form."""
+    glosses = sense.get("glosses")
+    if not isinstance(glosses, list) or not glosses or not isinstance(glosses[0], str):
+        return sense
+    gloss = glosses[0].strip()
+    if not gloss or common._is_form_of(sense, gloss, edition=EDITION):
+        return sense
+    read = gloss
+    if _POINTS.match(gloss):
+        after = _POINTS_THEN.match(gloss)
+        if not after:
+            return None
+        read = after.group(1)
+    noted = without_form_notes(read)
+    if noted is None:
+        return None
+    if noted is gloss:
+        return sense
+    return {**sense, "glosses": [noted, *glosses[1:]]}
+
+
+def expression_senses(src, dst, forms, pointers=None, left_out=None):
+    """The section's expressions as fr-en reads them, written to `dst` — a pass before the shared
+    rules read the file (D11, 2 and 3), over the expressions alone (`is_expression`): no lemma's
+    entry is a headword with a space or a word that is no form, so `gloss.tsv` and `senses.tsv` do
+    not move with it.
+
+    - A sense that only points at another spelling, an inverted form or the pieces it is written
+      with goes, and so does a sense, or a piece of it between semicolons, that only notes a form or
+      a usage (`_FORM_NOTE`, refine-lingua-fr-en-expressions D2: « j'ai » "I've, I have", « puis-je »
+      none); a meaning written after its target stays, in its place (« y a-t-il » « is there?
+      are there? »). An expression no sense is left to is none: the traditional spelling, keyed
+      alike, stands alone (« crème fraîche »), and « jusqu'au soir » meets `jusqu'à` « until », not
+      « jusque + au ». Its headword is added to `pointers`, when given: the French Wiktionary's
+      translations do not gloss what the section's rules leave out (add-lingua-fr-en-translated-
+      expressions D2, `translated_expressions`).
+    - The expressions of `LEFT_OUT` go, each with its reason (`à la`). Their headwords are added to
+      `left_out`, when given, for the summary line.
+
+    A line this pass cannot read is written as it is, and so is an entry it does not change."""
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                entry = None
+            headword = entry.get("word") if isinstance(entry, dict) else None
+            word = expression_word(headword) if isinstance(headword, str) else None
+            if word is None or not is_expression(word, forms):
+                out.write(line if line.endswith("\n") else line + "\n")
+                continue
+            if word in LEFT_OUT:
+                if left_out is not None:
+                    left_out.add(word)
+                continue
+            senses = entry.get("senses")
+            if isinstance(senses, list):
+                read = [_meaning_of_pointer(s) if isinstance(s, dict) else s for s in senses]
+                read = [s for s in read if s is not None]
+                if senses and not read and pointers is not None:
+                    pointers.add(word)
+                if read != senses:
+                    line = json.dumps({**entry, "senses": read}, ensure_ascii=False) + "\n"
+            out.write(line if line.endswith("\n") else line + "\n")
+    return dst
+
+
+def split_words(path, forms, maxlen=common.EXPRESSION_GLOSS_LEN, per_sense=42, max_senses=3):
+    """The words French's tokenisation splits, glossed as expressions (D11, 1): `word → gloss`, read
+    with `reduce_common.reduce_expressions`' sense rules — a name's entry, a pointer and a sense
+    nothing survives of left out, each sense cleaned to `per_sense` characters, `max_senses` joined
+    across the word's entries. The reducer offers every such word; the builder keys those that read
+    as two to seven tokens (add-lingua-french-expression-keys)."""
+    entries = {}
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(entry, dict) or (entry.get("pos") or "") == "name":
+                continue
+            word = expression_word(entry.get("word") if isinstance(entry.get("word"), str) else "")
+            if not split_word(word, forms):
+                continue
+            senses = []
+            for sense in entry.get("senses") or ():
+                glosses = sense.get("glosses") if isinstance(sense, dict) else None
+                texts = isinstance(glosses, list) and glosses and isinstance(glosses[0], str)
+                gloss = glosses[0].strip() if texts else ""
+                if not gloss or common._is_form_of(sense, gloss, edition=EDITION):
+                    continue
+                cleaned = common.clean_gloss(gloss, per_sense, edition=EDITION)
+                if cleaned:
+                    senses.append(cleaned)
+            if senses:
+                entries.setdefault(word, []).append(senses)
+    out = {}
+    for word, per_entry in entries.items():
+        joined = common._join_senses(per_entry, maxlen, max_senses)
+        if joined:
+            out[word] = joined
+    return out
+
+
+# — fr-en's own reading of the section (refine-lingua-fr-en-glosses) —
+#
+# The English edition's rules (`reduce_edition_en.py`) and the shared ones (`reduce_common.py`) read
+# es-en's and every pair's rows too: editing either re-pins es-en at least. The rules below are
+# fr-en's alone, in its reducer, so only fr-en re-pins (design D1). Each was measured alone on the
+# whole table and on the 10,000 commonest lemmas, over the pinned section (design *Measured*): with
+# all of them, 291 rows change (117 of the top 10,000), 12 lemmas gain a gloss and none loses one,
+# 26 expressions change, 161 are gained and 5 left out. Several would read es-en's rows right too
+# (« (all senses) », « etc »): es-en's next refinement of the English edition (D9).
+
+# D4 — a pointer that carries its meaning. A word's pointer is read as its meaning only for these
+# wordings (« comparative degree of bien; better », « synonym of oui; yeah, yep », « plural of un
+# (“some”) », « contraction of de + les, literally “of the, from the, some” »); never « female
+# equivalent of » (the owner, 2026-10-10: `directrice` keeps `directeur`'s « director; school
+# principal »), nor an alternative form, a spelling, a feminine singular, an ellipsis or a clipping,
+# measured worse (`y` would read « he », `fol` « used only when the following noun… »). An
+# expression's pointer is read whatever it names (« il y a » « there is, there are »).
+_CARRYING_POINTER = re.compile(
+    r"^(?:comparative degree|superlative degree|synonym|plural|contraction) of\b", re.IGNORECASE
+)
+# A meaning in quotation marks (« plural of un (“some”, …) »), and the one written after a pointer's
+# target past a colon or a semicolon (« impersonal … of y avoir: there is, there are »).
+_QUOTED_MEANING = re.compile(r"“(.+?)”")
+_MEANING_AFTER = re.compile(r"^[^:;]*?\bof\s+(.+?)\s*[:;]\s*(.+)$", re.DOTALL)
+# A pointer's own text inside a carried meaning (« plural of la leur; theirs »): read past it.
+_POINTER_WORDING = re.compile(r"^\w[\w -]* of ")
+_PAST_POINTER = re.compile(r"^.*?\bof\b.*?[;:]\s*(.+)$", re.DOTALL)
+# An initialism the section writes after a colon (« abbreviation of cavalier (“knight”): N »).
+_INITIALISM = re.compile(r"\s*:\s*[A-Z0-9.]+$")
+# A meaning written only in capitals is an abbreviation's expansion, not a meaning (« NE », « SE »).
+_CAPITALS = re.compile(r"[A-Z0-9 .,/&-]+")
+
+
+def _past_pointer(text):
+    """`text` read past a pointer's own wording, or as it is when it holds none; None when nothing
+    follows the pointer."""
+    if common._is_form_of({}, text, edition=EDITION) or _POINTER_WORDING.match(text):
+        after = _PAST_POINTER.match(text)
+        return after.group(1).strip() if after else None
+    return text
+
+
+def _meaning_of_extra(extra):
+    """The meaning kaikki's `extra` records for a pointer's target, or None: its first quoted text,
+    else the text itself, an initialism after a colon and its own parentheses dropped, read past a
+    pointer's wording. A pointer's pieces (« + le », « (= …) ») are no meaning."""
+    extra = extra.strip()
+    if not extra or extra.startswith("(=") or (extra.startswith("+") and "“" not in extra):
+        return None
+    quoted = _QUOTED_MEANING.search(extra)
+    if quoted:
+        return quoted.group(1).strip() or None
+    extra = _INITIALISM.sub("", extra).strip()
+    if extra.startswith("(") and extra.endswith(")") and extra.count("(") == 1:
+        extra = extra[1:-1].strip()
+    return _past_pointer(extra) or None
+
+
+def carried_meaning(sense, headword):
+    """The meaning a pointer sense carries (D4), or None: for a word (`headword` without a space),
+    only for the wordings of `_CARRYING_POINTER`; for an expression, for any pointer. The meaning is
+    the section's `extra` for the target, else the gloss's quoted text, else its text after the
+    target past a colon or a semicolon; a meaning in capitals only is none."""
+    glosses = sense.get("glosses")
+    if not isinstance(glosses, list) or not glosses or not isinstance(glosses[0], str):
+        return None
+    gloss = glosses[0].strip()
+    if not gloss or not common._is_form_of(sense, gloss, edition=EDITION):
+        return None
+    if " " not in headword and not _CARRYING_POINTER.match(gloss):
+        return None
+    meaning = None
+    for ref in common._pointers(sense, EDITION):
+        if isinstance(ref, dict) and isinstance(ref.get("extra"), str):
+            meaning = _meaning_of_extra(ref["extra"])
+            if meaning:
+                break
+    if meaning is None:
+        _, _, quoted = gloss.partition("“")
+        if quoted and "”" in quoted:
+            meaning = quoted.split("”", 1)[0].strip() or None
+        else:
+            after = _MEANING_AFTER.match(gloss)
+            if after:
+                meaning = after.group(2).strip().rstrip(".").strip() or None
+    if meaning is None or _CAPITALS.fullmatch(meaning):
+        return None
+    return meaning
+
+
+# D8 — the page's notes to its reader, taken out wherever they sit, an emptied parenthesis with them:
+# « see usage notes » (with « also », the comma or semicolon before it, or its own parenthesis),
+# « (all senses) », « in its various senses » (with « all » and « , including »), « (Folk etymology:
+# …) », one level of parentheses inside it.
+_NOTES = (
+    re.compile(r"[,;]?\s*(?:also )?see usage notes(?=\))"),
+    re.compile(r"\s*\((?:also )?see usage notes\)"),
+    re.compile(r",?\s*(?:also )?see usage notes$"),
+    re.compile(r"\s*\(all senses\)"),
+    re.compile(r",?\s*in (?:all )?its various senses(?:, including)?"),
+    re.compile(r"\s*\(Folk etymology:[^()]*(?:\([^()]*\)[^()]*)*\)\.?"),
+)
+_EMPTY_PARENTHESIS = re.compile(r"\(\s*\)")
+# fr-en's description openers, measured in its capitalised senses that describe a use rather than
+# translate: written in lower case before a space and a lower-case letter or a parenthesis. Any other
+# capital stays — a proper adjective, a language, a demonym, a definition the page writes in sentence
+# case (« Military rank equivalent to corporal »).
+_FRENCH_OPENERS = re.compile(
+    r"^(Substitutes|Impersonal|Followed|Adverbial|Designating|Stresses|Representing|Indicating|Names|"
+    r"Describing|Exclamation|Found) (?=[a-z(])"
+)
+# A quotation's citation inside a sense: from a period followed by a year and a comma (« liberty,
+# freedom. 1688, Guy Miège, … »).
+_CITATION = re.compile(r"\.\s+(?:1[0-9]|20)\d\d,\s.*$", re.DOTALL)
+# A source's numbered sense: one digit in parentheses (« telephony (2) »).
+_SENSE_NUMBER = re.compile(r"\s*\(\d\)")
+
+
+def french_text(gloss):
+    """A sense's text without the page's notes and typography (D8), in this order: the notes out
+    (`_NOTES`) and an emptied parenthesis with them; a description opener of fr-en's in lower case
+    (`_FRENCH_OPENERS`); a citation cut; a sense number out."""
+    text = gloss
+    for note in _NOTES:
+        text = note.sub("", text)
+    text = _EMPTY_PARENTHESIS.sub("", text).strip()
+    opener = _FRENCH_OPENERS.match(text)
+    if opener:
+        text = opener.group(1).lower() + text[opener.end(1) :]
+    text = _CITATION.sub("", text)
+    return _SENSE_NUMBER.sub("", text)
+
+
+# D6 — the parts of speech of a function word, under which a name's entry spelled with a capital is
+# left out (`Le` « a surname from Vietnamese » under `le`).
+_FUNCTION_POS = frozenset({"prep", "conj", "pron", "det", "article", "particle"})
+
+# D5 — the part of speech UD French-GSD reads a word as opens a function word's row, or one the page
+# opens on a name: `reduce_french_treebank.py`, a rule module of its own so that fr-es reads the same
+# rule (refine-lingua-fr-es-glosses D8) without loading this reducer.
+def _treebank_order(word, items, counts):
+    """The order of a headword's entries the treebank asks for (D5), as indexes into `items`
+    (`(line, pos, headword)` in the section's order), or None to keep the page's: each entry's part of
+    speech as the shared rules read kaikki's, the page's first that of its first entry that is no
+    acronym's (`treebank.commonest_first`)."""
+    upos = [common.kaikki_upos(pos, word, studied=FR) for _, pos, _ in items]
+    first = next((u for (_, _, headword), u in zip(items, upos) if not common._acronym(headword)), upos[0])
+    return treebank.commonest_first(word, upos, first, counts)
+
+
+def _as_french(entry, function_words, stats):
+    """One entry read as French (D4, D6, D8), or None when it is left out (D6)."""
+    headword = entry.get("word").strip() if isinstance(entry.get("word"), str) else ""
+    word = headword.lower()
+    pos = entry.get("pos")
+    if pos == "name" and headword != word and not common._acronym(headword) and function_words.get(word):
+        stats["names under a function word"] += 1
+        return None
+    senses = entry.get("senses")
+    if not isinstance(senses, list):
+        return entry
+    read = []
+    for sense in senses:
+        if not isinstance(sense, dict):
+            read.append(sense)
+            continue
+        if pos != "name" and not common._acronym(headword):
+            meaning = carried_meaning(sense, word)
+            if meaning:
+                sense = english._as_meaning(sense, english.english_typography(meaning))
+                stats["pointers read as their meaning"] += 1
+        glosses = sense.get("glosses")
+        if isinstance(glosses, list) and glosses and all(isinstance(g, str) for g in glosses):
+            texts = [french_text(g) for g in glosses]
+            if texts != glosses:
+                sense = {**sense, "glosses": texts}
+        read.append(sense)
+    return {**entry, "senses": read} if read != senses else entry
+
+
+def read_as_french(src, dst, counts):
+    """The section as fr-en reads a French word (refine-lingua-fr-en-glosses D4–D6, D8), written to
+    `dst`: a pre-pass after the English edition's `read_as_meanings` and before its etymology
+    merging, which reuses 23b's `_as_meaning` and `english_typography` and edits neither.
+
+    - A pointer that carries its meaning is read as that meaning, in its place (D4,
+      `carried_meaning`): never in a name's or an acronym's entry.
+    - A headword's entries — every case of it, written where its first line stood — open on the
+      part of speech UD French-GSD (`counts`, `treebank.gsd_pos_counts`) reads it as, when the
+      treebank says so for a function word or a row the page opens on a name (D5,
+      `_treebank_order`, `reduce_french_treebank.py`).
+    - A name's entry under a capitalised headword that is no acronym is left out when every entry
+      of the lower-case headword with senses is a function word's (D6).
+    - Every sense's text loses the page's notes and typography (D8, `french_text`).
+
+    `(dst, stats)`: how many senses, headwords and entries each rule moved. A line this pass cannot
+    read is written as it is, and so is an entry it does not change."""
+    stats = collections.Counter()
+    function_words = {}
+    headwords = collections.defaultdict(list)
+    with open(src, encoding="utf-8") as f:
+        for i, line in enumerate(f):
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            headword = entry.get("word") if isinstance(entry, dict) else None
+            headword = headword.strip() if isinstance(headword, str) else ""
+            if not headword or " " in headword:
+                continue
+            word, pos = headword.lower(), entry.get("pos") or ""
+            headwords[word].append((i, pos, headword))
+            if headword == word and pos != "name" and entry.get("senses"):
+                function_words[word] = function_words.get(word, True) and pos in _FUNCTION_POS
+    moved = {}
+    for word, items in headwords.items():
+        order = _treebank_order(word, items, counts)
+        if order is not None:
+            moved[word] = [items[k][0] for k in order]
+    held = {line for lines in moved.values() for line in lines}
+    at = {min(lines): word for word, lines in moved.items()}
+    lines = {}
+    if held:
+        with open(src, encoding="utf-8") as f:
+            lines = {i: line for i, line in enumerate(f) if i in held}
+
+    def written(line):
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            entry = None
+        if not isinstance(entry, dict):
+            return line if line.endswith("\n") else line + "\n"
+        read = _as_french(entry, function_words, stats)
+        if read is None:
+            return ""
+        if read is entry:
+            return line if line.endswith("\n") else line + "\n"
+        return json.dumps(read, ensure_ascii=False) + "\n"
+
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for i, line in enumerate(f):
+            if i in held:
+                if i in at:
+                    out.write("".join(written(lines[j]) for j in moved[at[i]]))
+                    stats["headwords reordered by the treebank"] += 1
+                continue
+            out.write(written(line))
+    return dst, stats
+
+
+# D7 — a post-1990 spelling keyed apart from its traditional spelling (`à priori`, read `à` +
+# `priori`, beside `a priori`; `sur son trente-et-un`, a hyphenated run, beside `sur son trente et
+# un`) meets no expression of its own: its only senses point, and `expression_senses` leaves them
+# out. It lends its traditional spelling's gloss. One keyed alike (`crème fraiche`, `boite à gants`)
+# meets its traditional spelling already, and stays out.
+_TRADITIONAL_SPELLING = re.compile(r"^post-1990 spelling of (.+?)\s*$", re.IGNORECASE)
+
+
+def traditional_spellings(path, expressions, forms):
+    """`{spelling: traditional}` (D7): each headword with a space in the section at `path` whose
+    every sense is « post-1990 spelling of X », that fr-en does not gloss, keyed apart from X — some
+    word of it read as another lemma by `forms`, or split otherwise — and X glossed in
+    `expressions`."""
+    def key(words):
+        return tuple(forms.get(w, w) for w in words.split(" "))
+
+    lent = {}
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            headword = entry.get("word") if isinstance(entry, dict) else None
+            word = expression_word(headword) if isinstance(headword, str) else ""
+            if " " not in word or word in expressions:
+                continue
+            targets = []
+            for sense in entry.get("senses") or ():
+                glosses = sense.get("glosses") if isinstance(sense, dict) else None
+                gloss = glosses[0] if isinstance(glosses, list) and glosses and isinstance(glosses[0], str) else ""
+                spelled = _TRADITIONAL_SPELLING.match(gloss.strip())
+                if not spelled:
+                    targets = []
+                    break
+                targets.append(expression_word(spelled.group(1)))
+            if targets and targets[0] in expressions and key(targets[0]) != key(word):
+                lent[word] = targets[0]
+    return lent
+
+
+# D8 — « etc » with its period. The shared rules take a sense's final period off (« the, my, your,
+# etc »): a pass after them writes it back, in the glosses and the expressions alike. An expression's
+# gloss may then run one character over the shared rules' 80.
+_ETC = re.compile(r"\betc\b(?!\.)")
+
+
+def with_etc_period(text):
+    """`text` with every « etc » not followed by a period written « etc. »."""
+    return _ETC.sub("etc.", text)
+
+
+# refine-lingua-fr-en-expressions D3 — an expression lent another's first sense, each row with its
+# reason: a person's decision, as `LEFT_OUT`'s rows are. Editing this table changes the rules' sha256.
+LENT_SENSES = {
+    "de l'": (
+        "de la",
+        "the section glosses « de l' » by the partitive alone, « some; the singular prevocalic partitive "
+        "article », where it is « de la » or « du » before a vowel and both are glossed « of the » first: of "
+        "30 sampled matches 29 mean « of the » (« l'appui de l'Arabie Saoudite », « à la tête de "
+        "l'équipe ») and one the partitive; lent « de la »'s first sense, « de l'eau » keeps its partitive",
+    ),
+}
+
+
+def lent_senses(expressions):
+    """`expressions` with each `LENT_SENSES` headword's gloss opening on its lender's first sense — its
+    gloss up to the first « ; » — when its own gloss lacks it (refine-lingua-fr-en-expressions D3),
+    the whole cut to `reduce_common.EXPRESSION_GLOSS_LEN` as the shared rules cut a gloss: the
+    headwords whose gloss changed. A headword the section does not gloss has nothing to open; a
+    lender it does not gloss, beside a headword it does, fails the reduction, naming it."""
+    lent = []
+    for word, (lender, _) in LENT_SENSES.items():
+        if word not in expressions:
+            continue
+        if lender not in expressions:
+            raise SystemExit(
+                f"fr-en: LENT_SENSES lends « {lender} »'s first sense to « {word} », but no expression is « {lender} »"
+            )
+        first = expressions[lender].split(";")[0].strip()
+        own = expressions[word]
+        if first in (piece.strip() for piece in own.split(";")):
+            continue
+        joined = f"{first}; {own}"
+        if len(joined) > common.EXPRESSION_GLOSS_LEN:
+            joined = joined[: common.EXPRESSION_GLOSS_LEN].rstrip().rstrip(";").strip()
+        expressions[word] = joined
+        lent.append(word)
+    return lent
+
+
+# — The French Wiktionary's English translations (add-lingua-fr-en-translated-expressions) —
+#
+# The English translations the French Wiktionary's French entries list complete fr-en's expressions,
+# and gloss no word (D1): read forwards as es-en reads its direct table (`reduce_common.read_translations`,
+# a proper noun's entry left out), a headword's typographic apostrophe read as `'` first, as
+# `native_fields` reads the section's. Measured on the dump of 2026-10-02 00:10 (its design's
+# *Measured*), of the table's 31,546 headwords with a space and 4,187 split words that are no word:
+# 7,434 / 1,151 the section glosses; 53 / 2 `LEFT_OUT` names — 4 of the section's rows (« à la »,
+# « sur ce », « et si », « point d'inflexion ») and the 51 the table's review added (D5); 2 / 3 the
+# section leaves out as only pointing; 133 / 0 a key the section reaches; 783 / 265 only repeat
+# their headword; 23,141 / 2,766 kept, the builder keying 17,014 / 117 of them. With the section's
+# own names of refine-lingua-fr-en-expressions D1 in `LEFT_OUT`, 50 headwords the section glossed
+# count as left out by name instead (7,386 / 1,149 the section glosses, 101 / 4 `LEFT_OUT` names),
+# and none of the table's comes in: the kept rows are the same.
+# `reduce_common.fallback_expressions` reads a headword with a space alone, and every pair's rows go
+# through it: the steps are written here, fr-en's own, so that no shared module is edited and no
+# other pair re-pins.
+TRANSLATIONS = "kaikki-fr-traductions-en.jsonl"
+# A word's elided first piece (`d'` of `d'achats`): read as the word `ELISIONS` names.
+_ELIDED_PIECE = re.compile(rf"^([{_LETTERS}]+')(.+)$")
+
+
+def straight_translations(src, dst):
+    """The table at `src` with each headword's typographic apostrophe read as `'` (D1), written to
+    `dst`: « s’asseoir » is the split word `s'asseoir`, « coup d’œil » words French's tokens key. The
+    translations are kept as written (« y’know »), and a line this pass cannot read is written as it
+    is: `read_translations` decides."""
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                entry = None
+            word = entry.get("word") if isinstance(entry, dict) else None
+            if isinstance(word, str) and "’" in word:
+                line = json.dumps({**entry, "word": word.replace("’", "'")}, ensure_ascii=False) + "\n"
+            out.write(line if line.endswith("\n") else line + "\n")
+    return dst
+
+
+def expression_key(word, forms):
+    """A headword's key as this reducer approximates the builder's (D2, 2): each word read through
+    the forms table, an elided first piece through `ELISIONS` (`d'achats` → `de`, `achat`).
+    `fondu enchainé` and `fondu enchaîné` read alike. The builder's own reading is the core's (change
+    44 D1 rejects a copy of it); the pull request's harness shows that no key is reached by both."""
+    pieces = []
+    for part in word.split(" "):
+        elided = _ELIDED_PIECE.match(part)
+        if elided and elided.group(1) in ELISIONS:
+            pieces.append(ELISIONS[elided.group(1)][0])
+            part = elided.group(2)
+        pieces.append(part)
+    return tuple(forms.get(piece, piece) for piece in pieces)
+
+
+def repeats(translation, headword):
+    """Whether a translation only writes its headword again (D3): the studied language, not the
+    reader's (M5) — « à deux » for « à deux », case aside and `’` read as `'`."""
+    return nfc_lower(translation) == headword
+
+
+# The table's rules, in the order `translated_expressions` reads them, as its summary counts them.
+TRANSLATION_RULES = (
+    "the section glosses the headword",
+    "left out by name",
+    "the section's senses only point",
+    "a key the section reaches",
+    "only repeats the headword",
+    "kept",
+)
+
+
+def translated_expressions(path, expressions, forms, pointers):
+    """The table's expressions (D1–D3, D5): `(glosses, counts)`, `glosses` headword → gloss, for each
+    headword of the table at `path` (its apostrophes read straight, `straight_translations`) that has
+    a space or is a word the tokenisation splits (`split_word`): a word is never glossed by it.
+    `counts` are `{(shape, rule): n}`, the rule each headword stopped at, in `TRANSLATION_RULES`'
+    order, its shape `space` or `split`, and `(shape, "a repeating translation dropped")` the kept
+    headwords that lost one.
+
+    The section's expression wins (D2): a headword the section glosses (`expressions`, the section's
+    whole — its split words and lent spellings too), a `LEFT_OUT` name, one whose every sense the
+    section leaves out as only pointing (`pointers`, from `expression_senses`), and one whose words
+    read as a section expression's (`expression_key`) are not read from the table. A translation
+    that repeats its headword is dropped, and a headword left with none is no expression (D3). A
+    kept headword's gloss is `reduce_common.translation_gloss`'s: up to `FALLBACK_WORDS`
+    translations in the table's order, one sense, their case kept."""
+    table = common.read_translations(path, inverted=False, studied=FR)
+    keys = {expression_key(word, forms) for word in expressions}
+    glosses, counts = {}, collections.Counter()
+    for headword, by_pos in sorted(table.items()):
+        if " " in headword:
+            shape = "space"
+        elif split_word(headword, forms):
+            shape = "split"
+        else:
+            continue
+        words = []
+        for found in by_pos.values():
+            words.extend(w for w in found if w not in words)
+        own = [w for w in words if not repeats(w, headword)]
+        if headword in expressions:
+            rule = TRANSLATION_RULES[0]
+        elif headword in LEFT_OUT:
+            rule = TRANSLATION_RULES[1]
+        elif headword in pointers:
+            rule = TRANSLATION_RULES[2]
+        elif expression_key(headword, forms) in keys:
+            rule = TRANSLATION_RULES[3]
+        elif not own:
+            rule = TRANSLATION_RULES[4]
+        else:
+            rule = TRANSLATION_RULES[5]
+            glosses[headword], _ = common.translation_gloss({"X": own}, list, edition=EDITION)
+            if len(own) < len(words):
+                counts[(shape, "a repeating translation dropped")] += 1
+        counts[(shape, rule)] += 1
+    return glosses, counts
+
+
+def translation_report(counts):
+    """The summary line's account of the table (`translated_expressions`' counts): each rule's
+    headwords with a space and split words."""
+    parts = [f"{rule} {counts[('space', rule)]}/{counts[('split', rule)]}" for rule in TRANSLATION_RULES]
+    dropped = "a repeating translation dropped"
+    parts.append(f"{dropped}, others kept {counts[('space', dropped)]}/{counts[('split', dropped)]}")
+    return "; ".join(parts)
+
+
+# D2 — French's dictionary words. fr-en is French's reference pair: the lemmas it glosses are the
+# words French's vocabulary estimate counts and its names rule keeps as words — but not a lemma it
+# glosses by a proper noun's senses alone (`paris`, `lyon`, `durand` « a surname »), which is a name,
+# not a word to learn. It keeps its gloss: a reader who opens `Paris` at a sentence's head, or a
+# lowercase `lyon`, still reads it. A word with a common sense beside a name's stays a word (`lot`,
+# `marche`, `nice`). English's and Spanish's dictionary words keep their names: a change of its own
+# (the owner, 2026-10-10, Q1).
+def dictionary_words(glosses, runs):
+    """French's dictionary words (D2), byte-sorted: the lemmas `glosses` glosses less those every
+    sense run of which (`runs`, `senses.tsv`'s) is a proper noun's."""
+    names = {w for w in glosses if runs.get(w) and all(pos == "PROPN" for pos, _ in runs[w])}
+    return sorted(set(glosses) - names)
+
+
+def native_side(work, kaikki, ranks, forms, pos_counts, translations):
+    """fr-en's native side over the section in `kaikki` (D1, D2, D11): `(glosses, runs, expressions,
+    stats)`, the glosses and runs keyed by the ranked lemmas (`ranks`), the expressions the section's
+    headwords with a space and the words the tokenisation splits, completed by the French
+    Wiktionary's English translations in `translations` (add-lingua-fr-en-translated-expressions).
+    `pos_counts` are UD French-GSD's parts of speech (`treebank.gsd_pos_counts`), which
+    `read_as_french` orders a function word's entries by. The intermediate files are written in
+    `work`.
+
+    The pipeline (refine-lingua-fr-en-glosses D1): the English edition's pre-passes in es-en's order,
+    then fr-en's own `read_as_french` before the etymology merging; French's expressions; the shared
+    rules; then fr-en's post-passes — a post-1990 spelling keyed apart lends its traditional
+    spelling's gloss (`traditional_spellings`, D7), an expression lent another's first sense opens on
+    it (`lent_senses`: « de l' » "of the", refine-lingua-fr-en-expressions D3), the French
+    Wiktionary's translations gloss the expressions the section leaves (`translated_expressions`),
+    and « etc » takes its period back (`with_etc_period`, D8). The glosses and their runs are the
+    section's alone: the table is read after them, for expressions. French's expressions are read by
+    `expression_senses`, which leaves out `LEFT_OUT`'s names (the section's expressions a person read
+    wrong where they are met among them, refine-lingua-fr-en-expressions D1) and the senses that only
+    point or only note a form (D2); `stats` counts the names left out, the expressions left only
+    pointing and the lent senses for the summary line. No shared module is edited: every pair would
+    re-pin."""
+    entries, dropped = native_fields(kaikki, os.path.join(work, "kaikki-French-senses.jsonl"))
+    entries = common.without_letter_senses(entries, os.path.join(work, "kaikki-French-words.jsonl"), edition=EDITION)
+    entries = english.without_letter_headwords(entries, os.path.join(work, "kaikki-French-headwords.jsonl"))
+    entries = english.read_as_meanings(entries, os.path.join(work, "kaikki-French-meanings.jsonl"))
+    entries, french = read_as_french(entries, os.path.join(work, "kaikki-French-french.jsonl"), pos_counts)
+    entries = english.merge_same_pos_etymologies(entries, os.path.join(work, "kaikki-French-merged.jsonl"))
+    section = entries
+    pointers, left_out = set(), set()
+    entries = expression_senses(
+        entries, os.path.join(work, "kaikki-French-expressions.jsonl"), forms, pointers, left_out
+    )
+    # No fallback: no translation table glosses a French word (D3); the French Wiktionary's English
+    # translations complete the expressions below.
+    glosses, runs, expressions, primary = common.native_tables(
+        entries, ranks, studied=FR, edition=EDITION, fallbacks=[]
+    )
+    split = split_words(entries, forms)
+    expressions.update(split)
+    lent = traditional_spellings(section, expressions, forms)
+    for spelling, traditional in lent.items():
+        expressions[spelling] = expressions[traditional]
+    borrowed = lent_senses(expressions)
+    table = straight_translations(translations, os.path.join(work, "kaikki-fr-traductions-en-apostrophes.jsonl"))
+    translated, table_counts = translated_expressions(table, expressions, forms, pointers)
+    expressions.update(translated)
+    glosses = {lemma: with_etc_period(gloss) for lemma, gloss in glosses.items()}
+    expressions = {word: with_etc_period(gloss) for word, gloss in expressions.items()}
+    stats = {
+        "primary": primary,
+        "split": len(split),
+        "dropped": dropped,
+        "lent": len(lent),
+        "left out by name": len(left_out),
+        "pointer-only": len(pointers),
+        "lent senses": len(borrowed),
+        "translated": set(translated),
+        "table": table_counts,
+        **french,
+    }
+    return glosses, runs, expressions, stats
+
+
+NOTICE = """Cymbra Lingua data pack — FR->EN attributions.
+
+kaikki.org extract of the English Wiktionary (enwiktionary), French section: CC BY-SA 4.0 + GFDL —
+the forms and their lemmas, and the English glosses of French words and expressions, from its
+senses.
+
+kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — the English
+translations its French entries list, for the expressions the English Wiktionary's French section
+does not gloss.
+
+wordfreq (French frequency list), by Robyn Speer (https://github.com/rspeer/wordfreq): data under
+CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
+
+UD French-GSD, the Universal Dependencies French-GSD treebank
+(https://github.com/UniversalDependencies/UD_French-GSD): CC BY-SA 4.0 — how often a form stands
+for each of its lemmas, to choose one, and how often a hyphenated word occurs, to rank it.
+
+The levels are estimated, not taken from a CEFR list: the commonest lemmas by wordfreq's ranks take
+the sizes of English's CEFR levels, the English Wiktionary's French section saying which lemmas take
+one, and every pack studying French reads them as committed.
+"""
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--work", required=True)
+    ap.add_argument("--max-lemmas", type=int, default=60000)
+    ap.add_argument("--built-at", required=True, help="yyyy-mm-dd (source snapshot date)")
+    ap.add_argument("--pack-version", required=True)
+    a = ap.parse_args()
+
+    from wordfreq import top_n_list, zipf_frequency
+
+    zipf = {}
+
+    def frequency(word):
+        if word not in zipf:
+            zipf[word] = zipf_frequency(word, "fr")
+        return zipf[word]
+
+    readings = Readings()
+    # The dictionary's spellings without their marks, read as their word when it is the commoner
+    # (read-lingua-french-dictionary-unmarked-spellings D1, D2): a pass of its own before the forms.
+    kept = {}
+    unmarked = dictionary_unmarked_spellings(os.path.join(a.work, "kaikki-French.jsonl"), frequency, kept)
+    lexicon = read_kaikki(os.path.join(a.work, "kaikki-French.jsonl"), readings, unmarked)
+    counts = read_gsd_counts(
+        [os.path.join(a.work, "fr_gsd-ud-train.conllu"), os.path.join(a.work, "fr_gsd-ud-dev.conllu")]
+    )
+    # French's acronym rows, each backed by the section's own entry (keep-lingua-french-acronyms-in-capitals D2).
+    acronyms.check_rows(lexicon.acronyms)
+    # The web's lists keep apart from the section's words and its own spellings
+    # (read-lingua-french-web-unmarked-spellings D2,
+    # read-lingua-french-hyphenated-and-misaccented-spellings D3): a row the section names so stops for
+    # a person.
+    crossed = lexicon.web_boundary()
+    if crossed:
+        raise SystemExit(
+            f"fr-en: {len(crossed)} spelling(s) of WEB_SPELLINGS, WEB_HYPHENATED or WEB_MISACCENTED the "
+            f"section gives a meaning of its own or gives as another word's spelling: {', '.join(crossed)}"
+        )
+    name_or_word(lexicon.candidates, lexicon.names, frequency)
+    own_words(lexicon)
+    unmarked_spellings(lexicon)
+    forms, ranks = reduce_forms(
+        lexicon, counts, gsd_zipf(counts), frequency, lambda n: top_n_list("fr", n), a.max_lemmas
+    )
+    unlisted = unlisted_pronoun_tails(lexicon, forms)
+    if unlisted:
+        raise SystemExit(
+            f"fr-en: {len(unlisted)} word(s) ending in a pronoun are no form, and the inversion rule would split "
+            f"them: {', '.join(unlisted[:10])}"
+        )
+
+    # The acronym rows, each its own lemma, capitals kept: written to the forms alone, read by no rule
+    # of the studied or the native side (keep-lingua-french-acronyms-in-capitals D2).
+    written = {**forms, **acronyms.acronym_forms()}
+    common.write(a.work, "forms.tsv", "".join(f"{f}\t{l}\n" for f, l in sorted(written.items())))
+    common.write(
+        a.work,
+        "freq.tsv",
+        "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))),
+    )
+    # The readings of the forms and ranks just chosen (add-lingua-french-grammar-tables D1).
+    grammar = spelling_readings(grammar_rows(readings, forms, ranks), forms)
+    common.write(a.work, "grammar.tsv", "".join(grammar))
+    # fr-en's native side (add-lingua-pack-fr-en), after the studied side, keyed by the lemmas just
+    # ranked, UD French-GSD's parts of speech ordering a function word's senses
+    # (refine-lingua-fr-en-glosses D5).
+    pos_counts = treebank.gsd_pos_counts(
+        [os.path.join(a.work, "fr_gsd-ud-train.conllu"), os.path.join(a.work, "fr_gsd-ud-dev.conllu")]
+    )
+    # The French Wiktionary's English translations (add-lingua-fr-en-translated-expressions): a
+    # reduction without them would write a fr-en with the section's expressions alone, so it stops.
+    translations = os.path.join(a.work, TRANSLATIONS)
+    if not os.path.isfile(translations):
+        raise SystemExit(
+            f"fr-en: {translations} is missing: fr-en's expressions read the French Wiktionary's English "
+            "translations (pack_sources.py DUMPS['fr-en'])"
+        )
+    glosses, runs, expressions, native = native_side(
+        a.work, os.path.join(a.work, "kaikki-French.jsonl"), ranks, forms, pos_counts, translations
+    )
+    # Each acronym row glossed from fr-en's own glosses of its expansions, the one unranked lemma it
+    # glosses (keep-lingua-french-acronyms-in-capitals D4, D5) — the section's expressions alone: a
+    # word's gloss never comes from the French Wiktionary's translations, which gloss expressions
+    # alone (add-lingua-fr-en-translated-expressions D1).
+    section_expressions = {w: g for w, g in expressions.items() if w not in native["translated"]}
+    glossed_acronyms = acronyms.acronym_glosses(glosses, section_expressions)
+    for acronym, (gloss, gloss_runs) in glossed_acronyms.items():
+        glosses[acronym], runs[acronym] = gloss, gloss_runs
+    common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
+    common.write(
+        a.work,
+        "senses.tsv",
+        "".join(
+            f"{w}\t" + "\t".join(f"{pos}:{n}" for pos, n in r) + "\n" for w, r in sorted(runs.items()) if w in glosses
+        ),
+    )
+    common.write(a.work, "mwe.tsv", "".join(f"{w}\t{g}\n" for w, g in sorted(expressions.items())))
+    # French's dictionary words (refine-lingua-fr-en-glosses D2): fr-en's glossed lemmas less those it
+    # glosses by a proper noun's senses alone. `pack_sources.py split` files them into tables/fr/.
+    # Every acronym row is one, glossed or not (keep-lingua-french-acronyms-in-capitals D2).
+    words = sorted(set(dictionary_words(glosses, runs)) | set(acronyms.ACRONYMS))
+    common.write(a.work, "lexical.tsv", "".join(f"{w}\n" for w in words))
+    # French's estimated levels (add-lingua-french-levels): from the ranks and the section's senses,
+    # given only to French's dictionary words (refine-lingua-fr-en-glosses D3), so computed after them.
+    levels, left_out = estimated_levels(
+        ranks, forms, read_level_senses(os.path.join(a.work, "kaikki-French.jsonl")), set(words)
+    )
+    common.write(a.work, "level.tsv", "".join(f"{l}\t{lvl}\n" for l, lvl in sorted(levels.items())))
+    common.write(a.work, "NOTICE", NOTICE)
+    manifest = {
+        "meta": {
+            "studied": "fr",
+            "native": "en",
+            "pack_version": a.pack_version,
+            "analyzer_version": analyser_version(),
+            # Derived from frequency, not taken from a CEFR list: the extension says so.
+            "levels_estimated": True,
+            "licences": [
+                "kaikki / enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)",
+                "wordfreq (CC BY-SA 4.0)",
+                "UD French-GSD (CC BY-SA 4.0)",
+            ],
+        },
+        "sources": [
+            {"name": "kaikki", "licence": "CcBySa"},
+            {"name": "wordfreq", "licence": "CcBySa"},
+            {"name": "UD French-GSD", "licence": "CcBySa"},
+        ],
+    }
+    common.write(a.work, "manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+    print(f"reduced fr-en: forms={len(written)} lemmas={len(ranks)} readings={len(grammar)}", file=sys.stderr)
+    print(f"reduced fr-en: {unmarked_report(unmarked, kept)}", file=sys.stderr)
+    print(
+        f"reduced fr-en: acronyms={len(acronyms.ACRONYMS)} ({len(glossed_acronyms)} glossed: "
+        + ", ".join(f"{a} « {g} »" for a, (g, _) in glossed_acronyms.items())
+        + ")",
+        file=sys.stderr,
+    )
+    print(f"reduced fr-en: {levels_report(levels, left_out, ranks)}", file=sys.stderr)
+    print(
+        f"reduced fr-en: glosses={len(glosses)} (English Wiktionary {native['primary']}) "
+        f"expressions={len(expressions)} ({native['split']} words the tokenisation splits, "
+        f"{native['lent']} post-1990 spellings lent their traditional spelling's gloss, "
+        f"{len(native['translated'])} the French Wiktionary's English translations) "
+        f"dropped={native['dropped']} (section lines that are no JSON object)",
+        file=sys.stderr,
+    )
+    print(
+        f"reduced fr-en: the section's expressions: {native['left out by name']} left out by name, "
+        f"{native['pointer-only']} only pointing or noting a form, {native['lent senses']} lent another's "
+        "first sense",
+        file=sys.stderr,
+    )
+    print(
+        f"reduced fr-en: the French Wiktionary's translations, headwords with a space/split words: "
+        f"{translation_report(native['table'])}",
+        file=sys.stderr,
+    )
+    print(
+        f"reduced fr-en: read as French: {native.get('pointers read as their meaning', 0)} pointers read as "
+        f"their meaning, {native.get('headwords reordered by the treebank', 0)} headwords reordered by the "
+        f"treebank, {native.get('names under a function word', 0)} names under a function word left out; "
+        f"dictionary words={len(words)} ({len(glosses) - len(words)} glossed as names alone)",
+        file=sys.stderr,
+    )
+
+
+if __name__ == "__main__":
+    main()

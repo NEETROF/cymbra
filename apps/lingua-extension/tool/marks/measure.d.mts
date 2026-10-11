@@ -68,6 +68,12 @@ export interface MeasureOptions {
  */
 export declare function nativeOfRoute(catalogue: Pick<ModelCatalogue, "models" | "routes">, pair: string): string;
 
+/**
+ * The experiment's tables for `pair` under `dir`: the studied language's forms and the pair's glosses,
+ * or null when the pair's gloss table is missing or holds no gloss.
+ */
+export declare function readGlossTables(dir: string, pair: string, studied: string): GlossTables | null;
+
 /** The experiment's mark for `word` in `translation`, from the pack's gloss. */
 export declare function glossMark(word: string, translation: string, tables: GlossTables, stop: Set<string>): GlossMark;
 

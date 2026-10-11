@@ -28,8 +28,20 @@ export const SELECTION_SETTLE_MS = 350;
  *  selection-handle drag may never send the lift at all. */
 export const SELECTION_HELD_MS = 1200;
 
-/** Collapse runs of whitespace WITHOUT trimming: every offset below counts on this text. */
-const collapse = (text: string): string => text.replace(/\s+/g, " ");
+/** U+00AD SOFT HYPHEN, every one in a text: an invisible break point an e-book or a page may
+ *  hide inside a word (« vi‧da », ‧ standing for it). */
+const SOFT_HYPHENS = /\u00AD/g;
+
+/** A text taken from the page, read without its soft hyphens: what a card is headed and keyed
+ *  by, what the deck stores, what translation is sent and read-aloud speaks
+ *  (ignore-lingua-soft-hyphens D5). The page itself, and the blocks handed to the core, keep
+ *  them: the core reads them away and its spans index the text as written. */
+export const withoutSoftHyphens = (text: string): string => text.replace(SOFT_HYPHENS, "");
+
+/** Collapse runs of whitespace WITHOUT trimming, the soft hyphens dropped first: every offset
+ *  below counts on this text, and the block, the text before the range and the range are all
+ *  read this way, so the selection's offsets stay right in a sentence holding none. */
+const collapse = (text: string): string => withoutSoftHyphens(text).replace(/\s+/g, " ");
 
 /** The block a node belongs to — the unit a sentence is looked for in. */
 function blockOf(node: Node | null): Element | null {
@@ -120,16 +132,24 @@ export interface Capture {
   /** Where the selection sits in `sentence`, found by position (null when unknown). */
   selection: SentenceSelection["selection"];
   rect: { left: number; top: number; bottom: number };
+  /** The selection widened to whole words: what is read, and where a word is hit-tested. */
   range: Range;
+  /**
+   * The selection as the reader made it, before the widening — a copy; the page's own selection is
+   * never touched. Within a word written as pieces with spans of their own (`l’homme`, `dit-il`), it
+   * says which piece the reader meant (add-lingua-french-word-card D7).
+   */
+  selected: Range;
 }
 
 /** What a settled selection is: one word — a hyphenated compound included — or a bounded
  *  multi-word expression. */
 export type CaptureKind = "word" | "phrase";
 
-/** A "word" character for snapping: letters, digits, apostrophes, hyphens — so a
- *  selection that stops mid-word ("the parity pro|of") extends to the whole word. */
-const WORD_CHAR = /[\p{L}\p{N}'’-]/u;
+/** A "word" character for snapping: letters, digits, apostrophes, hyphens and the soft hyphen
+ *  — so a selection that stops mid-word ("the parity pro|of", « vi|‧da ») extends to the whole
+ *  word (ignore-lingua-soft-hyphens D5). */
+const WORD_CHAR = /[\p{L}\p{N}'’\u00AD-]/u;
 
 /** Extend a range outward so both ends land on whole-word boundaries. Each endpoint is
  *  snapped within its own text node — enough for the common in-paragraph selection. */
@@ -152,19 +172,21 @@ function snapRangeToWords(range: Range): void {
 
 /**
  * Read a selection into a Capture, or null when there is nothing usable (empty, or longer
- * than a phrase). Whitespace is collapsed and both ends are snapped to whole words. The
- * snap stays internal: the page's own selection is left exactly as the reader made it.
+ * than a phrase). Whitespace is collapsed, soft hyphens dropped and both ends are snapped to
+ * whole words. The snap stays internal: the page's own selection is left exactly as the reader
+ * made it.
  */
 export function captureFrom(sel: Selection | null, maxLength: number = MAX_SELECTION_LENGTH): Capture | null {
   if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
-  const range = sel.getRangeAt(0).cloneRange();
+  const selected = sel.getRangeAt(0).cloneRange();
+  const range = selected.cloneRange();
   snapRangeToWords(range);
-  const text = range.toString().trim().replace(/\s+/g, " ");
+  const text = withoutSoftHyphens(range.toString()).trim().replace(/\s+/g, " ");
   if (!text || text.length > maxLength) return null;
   const box = typeof range.getBoundingClientRect === "function" ? range.getBoundingClientRect() : null;
   const rect = { left: box?.left ?? 0, top: box?.top ?? 0, bottom: box?.bottom ?? 0 };
   const { sentence, selection } = sentenceAndSelection(range);
-  return { text, sentence, selection, rect, range };
+  return { text, sentence, selection, rect, range, selected };
 }
 
 /** The selection of a window — the page's by default, or a book section's — captured. */
@@ -177,7 +199,9 @@ export function captureSelection(
 
 /** One word, or an expression: whitespace makes a phrase, which is also what the core means
  *  by an expression. A hyphen does not — "repo-wide" is one token to the analyser, so it
- *  opens the word card, from its page token when there is one. */
+ *  opens the word card, from its page token when there is one. A word the page analysis read
+ *  as pieces with spans of their own (`l’homme`, `dit-il`) is routed by the piece the reader
+ *  selected (`selectWithinWord`, add-lingua-french-word-card D7). */
 export function classifySelection(text: string): CaptureKind {
   return /\s/.test(text) ? "phrase" : "word";
 }

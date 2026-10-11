@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-10-10
+archiveAfter:
+  - add-lingua-account-parity
+  - localise-lingua-account-onboarding
+  - prefer-account-locale-for-emails
+  - add-site-spanish-locale

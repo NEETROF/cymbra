@@ -2,12 +2,13 @@ import { estimatedLevelsNote, levelName, levelQuestion } from "../analyzer/langu
 import type { LanguagePort } from "../analyzer/port.ts";
 import { CEFR_LEVELS, type CefrLevel, type StudiedLanguage } from "../analyzer/types.ts";
 import type { InterfaceLanguage } from "../i18n/index.ts";
+import { onboardingCopy } from "./copy.ts";
 
 // Onboarding's level question for one language, apart from the page's wiring so a test mounts it
 // alone (onboarding.ts starts the page when imported). Its question, a level's « (estimé) » and the
-// estimated levels' note are the labels module's, in the interface language it is handed
-// (add-lingua-native-language-labels D2) — with no default: the page hands it French explicitly,
-// until localise-lingua-account-onboarding hands it the one it reads.
+// estimated levels' note are the labels module's (add-lingua-native-language-labels D2), its chips
+// and confirmations the catalogue's (localise-lingua-account-onboarding D1), all in the interface
+// language it is handed — with no default: the page hands it the one it reads.
 
 /**
  * One language's level question and chips; a chip is saved at once. Levels estimated from word
@@ -21,6 +22,7 @@ export function levelRow(
   persist: () => Promise<void>,
   interfaceLanguage: InterfaceLanguage,
 ): HTMLElement {
+  const copy = onboardingCopy(interfaceLanguage);
   const row = document.createElement("div");
   const title = document.createElement("h2");
   title.textContent = levelQuestion(interfaceLanguage, language);
@@ -29,10 +31,7 @@ export function levelRow(
   const confirm = document.createElement("p");
   confirm.className = "confirm";
   confirm.hidden = true;
-  const choices: [string, string][] = [
-    ...CEFR_LEVELS.map((l): [string, string] => [l, l]),
-    ["", "Débutant — je pars de zéro"],
-  ];
+  const choices: [string, string][] = [...CEFR_LEVELS.map((l): [string, string] => [l, l]), ["", copy.beginnerChip]];
   const buttons = choices.map(([value, label]) => {
     const b = document.createElement("button");
     b.className = value === "" ? "lvl beginner" : "lvl";
@@ -55,8 +54,8 @@ export function levelRow(
       mark(level);
       confirm.hidden = false;
       confirm.textContent = level
-        ? `Niveau enregistré : ${levelName(interfaceLanguage, level, estimated)}. Tu peux fermer cet onglet et commencer à lire.`
-        : "C'est noté — on part de zéro. Tu peux fermer cet onglet et commencer à lire.";
+        ? copy.levelSaved(levelName(interfaceLanguage, level, estimated))
+        : copy.beginnerSaved;
     });
   }
   row.append(title, chips);

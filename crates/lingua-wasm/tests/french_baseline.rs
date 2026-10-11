@@ -15,27 +15,79 @@
 //! French invariance baseline (`docs/lingua/language-matrix-programme.md`, change 39,
 //! add-lingua-french-baseline).
 //!
-//! French is a studied language with its own tokenisation pre-pass (analyser `0.2.0`,
-//! add-lingua-french-tokenisation) and, for its lemmas, the baseline analysis: the narrow no-break
-//! space is a space, an elided word is split from the word it is joined to and read as the word it
-//! stands for, each piece with its own span (`l'homme` → `le` + `homme`; `aujourd'hui` whole),
-//! `au`/`aux` are `à` + `le`/`les` sharing a span, `du`/`des` stay whole, a hyphenated inversion
-//! is read as words (`dit-il` → `dit` + `il`); then the rules that belong to no language and the
-//! pack's forms — nothing is a function word, there is no names rule and no NFC.
+//! French is a studied language with its own analysis (add-lingua-french-analysis, analyser
+//! `1.0.0`), at analyser `1.1.0` since its detection guard keeps Catalan, Occitan and Romanian
+//! blocks out (add-lingua-french-detection-guard): the `mixte` page's Occitan block is not
+//! analysed, its Catalan block whichlang reads as Italian. At `1.2.0` since a word is read
+//! without its soft hyphens (ignore-lingua-soft-hyphens), which no page of the corpus holds; at
+//! `1.3.0` since a word standing alone in capitals is read as the acronym its pack lists
+//! (keep-lingua-french-acronyms-in-capitals), which no page of the corpus holds either. Its tokenisation pre-pass
+//! (add-lingua-french-tokenisation) reads the narrow no-break space as a space, splits an elided
+//! word from the word it is joined to and reads it as the word it stands for, each piece with its
+//! own span (`l'homme` → `le` + `homme`; `aujourd'hui` whole), `au`/`aux` as `à` + `le`/`les`
+//! sharing a span, `du`/`des` whole, a hyphenated inversion as words (`dit-il` → `dit` + `il`), and
+//! every word in NFC, its span the source's. Its cascade reads the pack's forms, then an unlisted
+//! lowercase plural as its unlisted singular, then the form; its closed classes flag a phrase
+//! gloss's function words, « pas » among them (M21); a document's names are set aside — Spanish's
+//! rule, a capital after an elided piece, a hyphenated run as one form.
 //! This freezes what the engine makes of raw French text today, over a thirteen-page corpus
 //! (`baseline/pages-fr.txt`, its sources in `support/french.rs`), so that each later change of
 //! the French stage shows its effect as the diff of a re-bless. It is not French support: no pair
 //! studying French is listed.
 //!
-//! The pack is the hand-written fr-en fixture (`scripts/lingua-data/testdata/fr-en/`) until the
-//! French tables are committed (change 48); the engine starts on the real es-en pack, built from
-//! the committed tables, as an English-native reader's engine does.
+//! The pack is built from the committed French tables, `tables/fr/` and `tables/fr-en/`
+//! (add-lingua-pack-fr-en, which handed the baseline over from the hand-written fixture,
+//! `scripts/lingua-data/testdata/fr-en/`, kept for the tests that build it); the engine starts on
+//! the real es-en pack, built from the committed tables, as an English-native reader's engine does.
 //!
 //! A pull request that changes `baseline/fr-en.golden` re-blesses it with
 //! `LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline` and says why: a French rule
-//! that bumps French's analyser version (and the fixture's manifest with it), the fixture
-//! replaced by the committed tables, or an es-en update, which moves the `beside es-en` line
-//! alone. `lingua-pack-update` re-blesses on its own branch.
+//! that bumps French's analyser version (and the fixture's manifest with it), a change to the
+//! committed French tables (`tables/fr/` or `tables/fr-en/`: a dictionary update, a reduction rule,
+//! the readings or the levels), the fixture replaced by the committed tables (done, once), an
+//! es-en update, which moves the `beside es-en` line alone, or probes a change of the French stage
+//! adds, the others unmoved (add-lingua-french-expression-keys, add-lingua-french-word-card: the
+//! card's 21 grammar probes, 40 lemmas and « l’homme »; match-lingua-french-elided-pieces: four
+//! phrase probes, « de l’eau », « Il a décidé de le faire », « parce qu’il pleut » and « d’un
+//! hiver »; match-lingua-french-contracted-pieces: four phrase probes, « Il est prêt à le faire »,
+//! « Au fait, tu viens ? », « grâce au soleil » and « aux miennes »;
+//! read-lingua-french-ca-as-ca-cedilla: its re-reduced tables move nine probes — the pack, « ca » on
+//! the `informel` page read as `ça`, the two vocabulary estimates, the deck the levels seed — and
+//! four phrase probes, « comme ca », « c'est ca », « Le CA a voté le budget. » and « à mon age »;
+//! keep-lingua-french-acronyms-in-capitals: French's version moves the pack line and the 17 page
+//! analyses, « Le CA a voté le budget. » shows the acronym `CA` and its gloss, and four probes are
+//! added, « LE CA A VOTÉ LE BUDGET », « Il a crié : CA SUFFIT ! », « Ca fait du bien. » and the
+//! card of `CA`; pick-lingua-expression-written-as-the-page: the pack, which keeps every headword of
+//! a key, and five phrase probes, « Ça va ? », « Ça ira. », « Allons-y ! », « les miens » and
+//! « Quelle que soit la distance »; read-lingua-french-dictionary-unmarked-spellings: its re-reduced
+//! tables move six probes — the pack, « c'etait » on the `informel` page read as `être`, the two
+//! vocabulary estimates, the deck the levels seed — and four phrase probes, « il etait une fois »,
+//! « un coup d'Etat », « Il faut etre patient. » and « un moteur diesel »;
+//! choose-lingua-overlapping-expressions: seven phrase probes,
+//! « Elles sont au nombre de sept. », « Il est à la fois sévère et amical. », « Il est au courant
+//! de tout. », « Elle se mit au lit. », « grâce au travail du monteur », « J'ai besoin de toi. »
+//! and « C'est ce que tu veux. »; refine-lingua-fr-es-expressions: six phrase probes, « sur le
+//! champ de bataille », « une crème brûlée », « le maire de la ville », « Elle se leva. », « Il vient
+//! de Paris. » and « de l'huile d'olive », none of fr-en's other lines moving;
+//! read-lingua-french-web-unmarked-spellings: its re-reduced tables move four probes — the pack,
+//! « apres » and « genial » on the `informel` page read as `après` and `génial`, the two vocabulary
+//! estimates — and five phrase probes, « c'etait deja tres bien », « une facon de parler francais »,
+//! « j'ai recu ta reponse », « L'Ecole est fermée. » and « regarde cette video », and two grammar
+//! probes, `recu` and `arrete`, are added; add-lingua-fr-en-translated-expressions: fr-en's
+//! expressions completed by the French Wiktionary's English translations move the pack, notice and
+//! licences lines and four phrase probes that now meet one of its expressions — « Il est prêt à le
+//! faire » « prêt à », « un moteur diesel » « moteur diesel », « Il est au courant de tout. » « être
+//! au courant », longer than « au courant », and « Elle se leva. » « se lever » —, and three phrase
+//! probes are added, « Il existe plusieurs solutions. », « Les autres enfants jouent dehors. » and
+//! « au Moyen Âge »;
+//! read-lingua-french-hyphenated-and-misaccented-spellings:
+//! its re-reduced tables move three probes — the pack and the two vocabulary estimates — and six
+//! phrase probes, « peut-etre qu'il viendra », « il l'a fait lui-meme », « c'est-a-dire demain »,
+//! « ma grand-mere habite la-bas », « c'est trés bien, je l'ai déja vu » and « elle l'a fait
+//! elle-meme », and two grammar probes, `arreté` and `grand-mere`, are added).
+//! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
+//! renders this golden's grammar and phrase probes, and is re-blessed with it
+//! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).
 //!
 //! Host only: the pack builder is native (C zstd), and the wasm surface is the same methods.
 
@@ -45,9 +97,10 @@ mod support;
 
 use std::sync::OnceLock;
 
+use lingua_core::analysis::FRENCH_ANALYZER_VERSION;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::tokenize::tokenize;
-use support::french::FRENCH;
+use support::french::{CARD_PROBES, FRENCH, MORE_LEMMAS, REFERENCE_GRAMMAR};
 use support::{PackSource, first_difference, testdata_pack};
 use unicode_normalization::UnicodeNormalization;
 
@@ -76,12 +129,33 @@ fn french_output_has_not_moved() {
          reason).\n\
          First difference — {}\n\
          If this pull request means to change French output (a French rule that bumps French's \
-         analyser version, the fixture replaced by the committed tables, or an es-en update), \
-         re-bless with\n  \
+         analyser version, a change to the committed French tables, tables/fr/ or tables/fr-en/, \
+         or an es-en update), re-bless with\n  \
          LINGUA_BLESS=1 cargo test -p lingua-wasm --test french_baseline\n\
          and say why in the pull request. Otherwise the change is wrong.",
         first_difference(&expected, actual)
     );
+}
+
+/// The probes are the reference's, then the card's 21, then the 40 lemmas as themselves, each
+/// probe once (add-lingua-french-word-card D9); the phrases end on « l’homme ».
+#[test]
+fn the_probes_are_the_references_then_the_cards_then_forty_lemmas() {
+    let (reference, rest) = FRENCH.grammar.split_at(REFERENCE_GRAMMAR.len());
+    let (card, more) = rest.split_at(CARD_PROBES.len());
+    assert_eq!(reference, REFERENCE_GRAMMAR);
+    assert_eq!(reference.len(), 36);
+    assert_eq!(card, CARD_PROBES);
+    assert_eq!(card.len(), 21);
+    assert_eq!(more.len(), 40);
+    for ((written, lemma), expected) in more.iter().zip(MORE_LEMMAS) {
+        assert_eq!((written, lemma), (expected, expected));
+    }
+    let mut probes = FRENCH.grammar.to_vec();
+    probes.sort_unstable();
+    probes.dedup();
+    assert_eq!(probes.len(), FRENCH.grammar.len(), "each probe once");
+    assert_eq!(FRENCH.phrases.last(), Some(&"l\u{2019}homme"));
 }
 
 #[test]
@@ -180,21 +254,53 @@ fn offset_in(page: &str, block: usize, word: &str) -> usize {
         .unwrap_or_else(|| panic!("{word:?} in {page}[{block}]"))
 }
 
+/// The classes of a page's tokens written `surface`.
+fn classes_of(page: &serde_json::Value, surface: &str) -> Vec<String> {
+    page["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .filter(|t| t["surface"] == surface)
+        .map(|t| t["class"].as_str().expect("class").to_owned())
+        .collect()
+}
+
+/// A phrase gloss's (lemma, function word) pairs.
+fn function_words(engine: &lingua_wasm::LinguaEngine, text: &str) -> Vec<(String, bool)> {
+    let glossed: serde_json::Value =
+        serde_json::from_str(&engine.phrase_gloss(text, fr()).expect("glossed")).expect("JSON");
+    glossed["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .map(|t| {
+            (
+                t["lemma"].as_str().expect("lemma").to_owned(),
+                t["function_word"].as_bool().expect("function_word"),
+            )
+        })
+        .collect()
+}
+
 #[test]
-fn french_has_its_pre_pass_and_the_baseline_s_lemmas() {
+fn french_has_its_pre_pass_and_its_analysis() {
     let mut engine = FRENCH.loaded();
     assert_eq!(engine.languages(), r#"["es","fr"]"#, "es-en beside fr-en");
     assert_eq!(engine.native_language(), "en");
 
-    // An elision is two pieces, each with its own span, the elided one read as `le`.
+    // An elision is two pieces, each with its own span, the elided one read as `le`. French
+    // reports its own version, no longer one of the baseline's `0.x` (add-lingua-french-analysis
+    // D5).
     let elisions = analysed(&engine, "elisions");
-    assert_eq!(elisions["analyzer_version"], "0.2.0");
+    let version = elisions["analyzer_version"].as_str().expect("version");
+    assert_eq!(version, FRENCH_ANALYZER_VERSION);
+    assert!(!version.starts_with("0."), "{version}");
     assert_eq!(tokens_at(&elisions, 0, 0), [token("Le", "le", 2)]);
     assert_eq!(tokens_at(&elisions, 0, 2), [token("homme", "homme", 7)]);
 
     // `au` is `à` + `le` sharing its span; `du` is whole.
     let contractions = analysed(&engine, "contractions");
-    assert_eq!(contractions["analyzer_version"], "0.2.0");
+    assert_eq!(contractions["analyzer_version"], FRENCH_ANALYZER_VERSION);
     let au = offset_in("contractions", 0, "au");
     assert_eq!(
         tokens_at(&contractions, 0, au),
@@ -234,16 +340,76 @@ fn french_has_its_pre_pass_and_the_baseline_s_lemmas() {
         }
     }
 
-    // No word of any page is a function word: French has no table yet.
-    for (name, blocks) in FRENCH.pages() {
-        for block in blocks {
-            let glossed = engine.phrase_gloss(&block, fr()).expect("glossed");
-            assert!(
-                !glossed.contains(r#""function_word":true"#),
-                "{name}: {glossed}"
-            );
-        }
+    // The closed classes (D3): the `homographes` page's negation, « pas » both times (M21), and
+    // its `le`, flagged; the `fiction` page's `Personne` is not.
+    let (_, homographes) = FRENCH
+        .pages()
+        .into_iter()
+        .find(|(n, _)| n == "homographes")
+        .expect("homographes");
+    let negation = homographes
+        .iter()
+        .find(|block| block.starts_with("Il ne fait pas un pas"))
+        .expect("the negation's block");
+    let flags = function_words(&engine, negation);
+    for lemma in ["ne", "pas", "le", "il", "un", "son"] {
+        assert!(
+            flags.iter().any(|(l, flagged)| l == lemma && *flagged),
+            "{lemma}: {flags:?}"
+        );
     }
+    assert_eq!(
+        flags
+            .iter()
+            .filter(|(l, flagged)| l == "pas" && *flagged)
+            .count(),
+        2,
+        "{flags:?}"
+    );
+    assert!(
+        flags.iter().all(|(l, flagged)| !*flagged || l != "faire"),
+        "{flags:?}"
+    );
+    let (_, fiction) = FRENCH
+        .pages()
+        .into_iter()
+        .find(|(n, _)| n == "fiction")
+        .expect("fiction");
+    let personne = function_words(&engine, &fiction[1]);
+    assert_eq!(personne.first(), Some(&("personne".to_owned(), false)));
+    assert!(personne.iter().any(|(l, flagged)| l == "ne" && *flagged));
+
+    // The names rule (D4) on the `noms` page, over the committed tables. French's dictionary words
+    // hold no names (refine-lingua-fr-en-glosses D2): a lemma fr-en glosses by a proper noun's
+    // senses alone — `Paris`, `Jean-Pierre`, `Saint-Étienne` — is no dictionary word, so the rule
+    // sets it aside, as it sets `Myriel`, which the lexicon does not hold; a name with a common
+    // word's senses among its own — `Lot`, `Aube`, `Orange`, `Vienne` — stays a word to learn, and
+    // `Mme` opens its block. The rule's French readings on the fixture are
+    // `the_names_rule_reads_french_s_evidence`'s.
+    let noms = analysed(&engine, "noms");
+    for name in ["Paris", "Jean-Pierre", "Saint-Étienne", "Myriel"] {
+        assert_eq!(
+            classes_of(&noms, name),
+            ["ProperNounOutOfLexicon"],
+            "{name}"
+        );
+    }
+    for word in ["Lot", "Aube", "Orange", "Vienne", "Mme"] {
+        assert_eq!(classes_of(&noms, word), ["Unknown"], "{word}");
+    }
+
+    // The detection guard (add-lingua-french-detection-guard): of the `mixte` page's seven
+    // blocks, the two French ones alone are analysed — not its English, Spanish and Italian
+    // blocks, nor its Catalan one (whichlang reads it as Italian) or its Occitan one (read as
+    // French, refused by the guard).
+    let mixte = analysed(&engine, "mixte");
+    let mixte_blocks: std::collections::BTreeSet<u64> = mixte["tokens"]
+        .as_array()
+        .expect("tokens")
+        .iter()
+        .map(|t| t["block"].as_u64().expect("block"))
+        .collect();
+    assert_eq!(mixte_blocks.into_iter().collect::<Vec<_>>(), [0, 6]);
 
     // The reader's records are French, under the profile the engine started with (Spanish,
     // English native): the backup names French, so it is schema version 3, and the golden's
@@ -262,6 +428,32 @@ fn french_has_its_pre_pass_and_the_baseline_s_lemmas() {
         backup.starts_with("{\n  \"schema_version\": 3,"),
         "{backup}"
     );
+}
+
+#[test]
+fn the_names_rule_reads_french_s_evidence() {
+    // The names rule (add-lingua-french-analysis D4) over the hand-written fixture, whose 70
+    // glosses leave the `noms` page's names out of French's dictionary words: Spanish's rule sets
+    // `Paris` and `Lot` aside, the elided `l'` gives `Aube`'s evidence, and the runs are one form
+    // each; `Orange` and `Vienne` are dictionary words (a gloss, `venir`'s), `Mme` only opens its
+    // block. Over the committed tables, French's dictionary words leave out the names fr-en
+    // glosses alone, and `Lot` and `Aube` are words, a common sense among theirs
+    // (`french_has_its_pre_pass_and_its_analysis`).
+    let engine = support::Scenario::engine(&[
+        ("es-en", PackSource::Tables.pack("es-en")),
+        ("fr-en", PackSource::Testdata.pack("fr-en")),
+    ]);
+    let noms = analysed(&engine, "noms");
+    for name in ["Paris", "Lot", "Aube", "Jean-Pierre", "Saint-Étienne"] {
+        assert_eq!(
+            classes_of(&noms, name),
+            ["ProperNounOutOfLexicon"],
+            "{name}"
+        );
+    }
+    for word in ["Orange", "Vienne", "Mme"] {
+        assert_eq!(classes_of(&noms, word), ["Unknown"], "{word}");
+    }
 }
 
 #[test]
@@ -294,24 +486,44 @@ fn the_fixture_lists_every_word_the_pre_pass_writes() {
 
 #[test]
 fn the_nfd_block_s_memoire_is_glossed_once_french_composes_it() {
-    // The fixture lists `mémoire`, glossed `memory`, a word the corpus has only in its NFD block
-    // (D5): read as it came, decomposed, the word is not the pack's and has no gloss; change 41's
-    // NFC makes the gloss appear in the golden, not only bytes no one sees move.
+    // The committed tables gloss `mémoire` « memory; memo; dissertation, paper; … », a word the
+    // corpus has only in its NFD block (change 39's D5): French's pre-pass reads it in NFC
+    // (add-lingua-french-analysis D1), so the token is the pack's word, glossed, and its span still
+    // covers the decomposed bytes. The decomposed spelling itself is no word of the pack.
     let engine = FRENCH.loaded();
     let technique = analysed(&engine, "technique");
     let decomposed = "me\u{301}moire";
+    let at = offset_in("technique", NFD_BLOCK, decomposed);
     let token = technique["tokens"]
         .as_array()
         .expect("tokens")
         .iter()
-        .find(|t| t["block"] == NFD_BLOCK && t["surface"] == decomposed)
-        .expect("the NFD block's `mémoire`, as it came");
-    assert_eq!(token["lemma"], decomposed, "lowercased, not composed");
-    assert!(token["gloss"].is_null(), "{token}");
+        .find(|t| t["block"] == NFD_BLOCK && t["start"] == at)
+        .expect("the NFD block's `mémoire`");
+    assert_eq!(token["surface"], "m\u{e9}moire", "composed");
+    assert_eq!(token["lemma"], "m\u{e9}moire");
+    let gloss = token["gloss"].as_str().expect("a gloss");
+    assert!(gloss.starts_with("memory; "), "{token}");
+    assert_eq!(token["end"], at + decomposed.len(), "the decomposed bytes");
+    // No token of the block is decomposed any more.
+    for t in technique["tokens"].as_array().expect("tokens") {
+        if t["block"] == NFD_BLOCK {
+            let surface = t["surface"].as_str().expect("surface");
+            assert_eq!(surface.nfc().collect::<String>(), surface, "{t}");
+        }
+    }
     assert_eq!(
-        engine.gloss("m\u{e9}moire", fr()).expect("glossed"),
-        Some("memory".to_owned()),
+        engine
+            .gloss("m\u{e9}moire", fr())
+            .expect("glossed")
+            .as_deref(),
+        Some(gloss),
         "the pack glosses the composed form"
+    );
+    assert_eq!(
+        engine.gloss(decomposed, fr()).expect("looked up"),
+        None,
+        "the decomposed spelling has no gloss"
     );
 }
 
@@ -331,7 +543,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     let mut manifest: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&manifest_path).expect("manifest"))
             .expect("JSON");
-    assert_eq!(manifest["meta"]["analyzer_version"], "0.2.0");
+    assert_eq!(manifest["meta"]["analyzer_version"], "1.3.0");
     manifest["meta"]["analyzer_version"] = "0.0.9".into();
     std::fs::write(&manifest_path, manifest.to_string()).expect("written");
 
@@ -340,7 +552,7 @@ fn a_fixture_left_behind_its_analyser_names_its_manifest() {
     };
     let message = refused.downcast_ref::<String>().expect("a formatted panic");
     assert!(
-        message.contains("pack built for analyzer 0.0.9 but this core is 0.2.0"),
+        message.contains("pack built for analyzer 0.0.9 but this core is 1.3.0"),
         "{message}"
     );
     assert!(

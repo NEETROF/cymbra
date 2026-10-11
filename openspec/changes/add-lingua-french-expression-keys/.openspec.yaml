@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - add-lingua-expression-table
+  - add-lingua-french-baseline
+  - add-lingua-french-tokenisation
+  - add-lingua-french-analysis
+  - add-lingua-french-forms-tables

@@ -41,6 +41,7 @@ export type Surface =
   | "translation"
   | "account-setting"
   | "account"
+  | "account-errors"
   | "onboarding"
   | "reader"
   | "sync"
@@ -64,6 +65,7 @@ export const SURFACES: readonly Surface[] = [
   "translation",
   "account-setting",
   "account",
+  "account-errors",
   "onboarding",
   "reader",
   "sync",
@@ -91,8 +93,13 @@ export function pluralForms(forms: PluralForms): PluralForms {
   return forms;
 }
 
-/** The studied languages whose forms a card's grammar renderer names. */
-export type StudiedLanguageCode = "en" | "es";
+/**
+ * The studied languages whose forms a card's grammar renderer names: French since
+ * add-lingua-french-word-card (D1), ahead of the extension's `StudiedLanguage`, which change 52
+ * widens — until then no content a page builds says `fr`, and the renderers' French is reached by
+ * tests only.
+ */
+export type StudiedLanguageCode = "en" | "es" | "fr";
 
 /** A name, with the article its language gives it (« le prétérit », « la forma en -ing »). */
 export interface Named {

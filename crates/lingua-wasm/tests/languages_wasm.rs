@@ -231,7 +231,13 @@ fn spec_scenario_french_pieces_keep_the_host_s_spans_on_wasm() {
             Some("fr".to_owned()),
         )
         .unwrap();
-    assert!(page.contains(r#""analyzer_version":"0.2.0""#), "{page}");
+    // French's own version, no longer one of the baseline's `0.x` (add-lingua-french-analysis).
+    let french = StudiedLanguage::French.analyzer_version();
+    assert!(!french.starts_with("0."), "{french}");
+    assert!(
+        page.contains(&format!(r#""analyzer_version":"{french}""#)),
+        "{page}"
+    );
     assert_eq!(
         french_spans::surfaces_and_spans(&page),
         french_spans::expected()

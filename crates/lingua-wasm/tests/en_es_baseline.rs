@@ -25,15 +25,19 @@
 //! of `baseline/en-es.golden` and pins the Spanish lines the card renders from them; nothing there
 //! reads the tables.
 //!
-//! On the probes they share, this golden and en-fr's differ only in the native side — glosses,
-//! senses, expressions, the line naming the pack, the notice, the licences and the backup's
-//! profile: `the_golden_is_the_english_one_on_the_studied_side` compares the two committed goldens
-//! through `support::studied_side`, as `cross_native.rs` compares the engines.
+//! On the probes they share, up to the reader's level seeding, this golden and en-fr's differ only
+//! in the native side — glosses, senses, expressions, the line naming the pack, the notice, the
+//! licences and the backup's profile: `the_golden_is_the_english_one_on_the_studied_side` compares
+//! the two committed goldens through `support::studied_side`, as `cross_native.rs` compares the
+//! engines. The probes from `start-review` on follow the deck the seeding left, whose cards are the
+//! lemmas each pack glosses (seed-lingua-decks-with-glossed-lemmas D4): `cross_native.rs` compares
+//! them through engines, the reader answered without the seeding, and checks the seeding apart.
 //!
 //! A pull request that changes `baseline/en-es.golden` changes what Spanish-native readers of
 //! English will see. Only a dictionary update of en-es or of en-fr (which moves the studied
 //! tables), or a deliberate analyser change that bumps the English analyser version, should do
-//! that. Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test en_es_baseline` — then
+//! that; probes the English scenario gains move nothing recorded before
+//! (choose-lingua-overlapping-expressions: three phrase probes). Re-bless with `LINGUA_BLESS=1 cargo test -p lingua-wasm --test en_es_baseline` — then
 //! the extension's snapshot, `yarn vitest run test/word-card-en-es.spec.ts -u` — and say why in
 //! the pull request; `lingua-pack-update` re-blesses both on its own branch.
 //!
@@ -44,7 +48,7 @@
 mod support;
 
 use support::english::ENGLISH;
-use support::{Card, Scenario, first_difference, probes, studied_side};
+use support::{Card, Scenario, first_difference, follows_seeding, probes, studied_side};
 
 /// 40 more dictionary forms asked as grammar probes, `word-grammar <lemma> <lemma>`: the most
 /// frequent lemmas of `tables/en/freq.tsv` whose en-es gloss has two sense runs or more
@@ -194,9 +198,11 @@ fn en_es_levels_are_not_estimated() {
 }
 
 /// The committed en-es golden is the committed en-fr golden on the studied side (D1): on every
-/// probe they share, the two differ only in the native side — glosses, senses, expressions —
-/// the line naming the pack, the notice, the licences and the backup's profile. Both engines hold
-/// their pair alone. The 40 more probes are en-es's alone.
+/// probe they share before `start-review`, both seeding counts included, the two differ only in
+/// the native side — glosses, senses, expressions — the line naming the pack, the notice, the
+/// licences and the backup's profile. Both engines hold their pair alone. The 40 more probes are
+/// en-es's alone. The probes after the seeding are `cross_native.rs`'s, through engines: the cards
+/// a level seeds are those each pack glosses (seed-lingua-decks-with-glossed-lemmas D4).
 #[test]
 fn the_golden_is_the_english_one_on_the_studied_side() {
     // The goldens are being rewritten by the baseline tests, in this binary and in
@@ -220,9 +226,14 @@ fn the_golden_is_the_english_one_on_the_studied_side() {
         .collect();
     assert_eq!(own, more, "en-es's own probes are the 40 lemmas");
     let mut compared = 0;
+    let after = shared
+        .iter()
+        .filter(|name| follows_seeding(&shared, name))
+        .count();
     for (name, body) in &en_fr {
-        // The `about` line names the test that generated the golden.
-        if name == "about" {
+        // The `about` line names the test that generated the golden; the probes that follow the
+        // reader's level seeding are compared through engines (cross_native.rs).
+        if name == "about" || follows_seeding(&shared, name) {
             continue;
         }
         let (_, other) = en_es
@@ -248,11 +259,12 @@ fn the_golden_is_the_english_one_on_the_studied_side() {
                 .collect::<String>(),
         );
     }
-    // Every shared probe but the `about` and pack lines, the cards' glosses, the notice and the
-    // licences.
+    // Every shared probe but the `about` and pack lines, the cards' glosses, the notice, the
+    // licences and the probes that follow the seeding.
+    assert!(after > 0, "the reader's probes from `start-review` on");
     assert_eq!(
         compared,
-        shared.len() - 2 - 2 - ENGLISH.lemmas.len(),
+        shared.len() - 2 - 2 - ENGLISH.lemmas.len() - after,
         "probes compared"
     );
 }

@@ -12,7 +12,7 @@ import { selection as frSelection } from "../i18n/fr/selection.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatNumber, type InterfaceLanguage } from "../i18n/index.ts";
 import type { MarkedTranslation, Span } from "../translate/markup.ts";
 import type { TranslationRequest, TranslatorPort } from "../translate/port.ts";
-import type { Gesture, GlossRow, WordPopupContent } from "./wordpopup.ts";
+import { type Gesture, type GlossRow, type WordPopupContent, gestureKey } from "./wordpopup.ts";
 
 /** The selection card's copy: the catalogue's `selection` module, in the interface language (its French the default). */
 export type SelectionCopy = typeof frSelection;
@@ -352,10 +352,15 @@ export class SelectionCards {
     return rarityText(cls, rank, this.copy, this.interfaceLanguage);
   }
 
-  /** A settled selection: the expression card, the page token's word card, or the analyser's. */
-  openForSelection(sel: SelectionInput, hit: PageHit | null): void {
+  /**
+   * A settled selection: the whole-selection card, the page token's word card, or the analyser's.
+   * Text holding whitespace opens the whole-selection card, and so does one word whose pieces the
+   * selection covers several of (`whole`: « l’homme » double-clicked whole, « D’abord »,
+   * add-lingua-french-word-card D7), read by the phrase gloss as any selection is.
+   */
+  openForSelection(sel: SelectionInput, hit: PageHit | null, whole = false): void {
     this.openedByCapture = true;
-    if (/\s/.test(sel.text)) this.openExpression(sel);
+    if (whole || /\s/.test(sel.text)) this.openExpression(sel);
     else if (hit) this.openForToken(hit);
     else this.openLooseWord(sel);
   }
@@ -472,13 +477,17 @@ export class SelectionCards {
     });
   }
 
-  /** The gloss a created card carries: none for an expression, the pack's for a word. */
+  /** The gloss a created card carries: the one an expression's card showed, the pack's for a word. */
   async cardGloss(g: Gesture): Promise<string | null> {
-    // A key holding a space is an expression, which the single-lemma port cannot answer:
-    // its gloss is the one the card showed, dictionary data worth keeping. A phrase the
-    // pack does not know shows no gloss, so it carries none.
-    if (g.lemma.includes(" ")) return g.gloss ?? null;
-    return (await this.ports.gloss(g.lemma.toLowerCase())) ?? null;
+    // A key holding a space is an expression, which the single-lemma port cannot answer: its
+    // gloss is the one the card showed, dictionary data worth keeping. So is a card the
+    // expression table answered, whatever its name's spelling — `d'abord` holds no space
+    // (add-lingua-french-word-card D8). A phrase the pack does not know shows no gloss, so it
+    // carries none.
+    if (g.lemma.includes(" ") || g.expressionAnswer) return g.gloss ?? null;
+    // Asked for the key the card is filed under: a word's dictionary form as the engine gave it, the
+    // acronym `CA` in capitals (keep-lingua-french-acronyms-in-capitals D6).
+    return (await this.ports.gloss(gestureKey(g))) ?? null;
   }
 
   /** A pointer went down: whatever a capture opens from here on, the click that follows leaves alone. */
@@ -584,6 +593,8 @@ export class SelectionCards {
       rarity: this.copy.selectionKind,
       sentence: sel.sentence,
       rect: sel.rect,
+      // The text as written, no dictionary form: its gesture is keyed lowercased, as before.
+      asWritten: true,
     };
     const written = sel.text.trim();
     this.request(
@@ -711,6 +722,8 @@ function expressionCard(base: WordPopupContent, answer: PhraseGloss | null, copy
       headword: whole.key,
       gloss: whole.gloss,
       status: statusOfClass(whole.class),
+      // The expression table's answer: « + Deck » stores it whatever the name's spelling (D8).
+      expressionAnswer: true,
     };
   }
   return { ...base, rows: rowsFor(answer.tokens, answer.expressions, copy) };

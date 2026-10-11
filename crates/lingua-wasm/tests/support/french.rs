@@ -34,22 +34,88 @@
 //! space (U+00A0) before `:` and after the dialogue dash. The other pages are typed as the web
 //! often has them, with the straight apostrophe. One block of the `technique` page is committed
 //! in NFD on purpose (accents as combining marks); `french_baseline.rs` asserts it still is.
-//! The fixture lists one of its words, `mémoire` (`memory`), which the corpus has nowhere else:
-//! read as it came, the decomposed word is not the pack's, so change 41's NFC shows in the golden
-//! as a gloss that appears, not only as bytes that move.
+//! The tables gloss one of its words, `mémoire` (« memory; memo; dissertation, paper; … »), which
+//! the corpus has nowhere else: read as it came, the decomposed word is not the pack's, so change
+//! 41's NFC shows in the golden as a gloss that appears, not only as bytes that move.
 //!
-//! The pack is the hand-written fr-en fixture, `scripts/lingua-data/testdata/fr-en/`, until
-//! change 48 commits `tables/fr/` and `tables/fr-en/`; the engine starts on the real es-en pack,
-//! as an English-native reader's does.
+//! The pack is built from the committed French tables, `tables/fr/` and `tables/fr-en/`
+//! (add-lingua-pack-fr-en: French's forms, ranks, readings and levels, and fr-en's English glosses,
+//! sense runs and expressions), as the real es-en pack the engine starts on is, as an
+//! English-native reader's does. Until that change it was the hand-written fixture,
+//! `scripts/lingua-data/testdata/fr-en/`, which stays for the tests that build it
+//! (`french_baseline.rs`, `lingua-pack`'s `pipeline_testdata.rs`). A change to the committed French
+//! tables can move the golden, and then re-blesses it.
 //!
-//! At analyser `0.2.0` French reads its text through its own tokenisation pre-pass
-//! (add-lingua-french-tokenisation): the narrow no-break space is a space, an elided word is a
-//! piece of its own read as the word it stands for (`l'homme` → `le` + `homme`), `au`/`aux` are
-//! `à` + `le`/`les`, a hyphenated inversion is read as words (`dit-il` → `dit` + `il`); the
-//! pieces keep the baseline's lemmas. The fixture lists every word the pre-pass writes
-//! (`french_baseline.rs` holds it), and two expressions holding `au` and an elision, `au revoir`
-//! and `coup d'œil`, which no selection reaches until the pack keys expressions through the
-//! analyser: the probes « Au revoir » and « un coup d’œil » show them appear then.
+//! At analyser `1.0.0` French has its own analysis (add-lingua-french-analysis). Its tokenisation
+//! pre-pass (add-lingua-french-tokenisation) reads the narrow no-break space as a space, an elided
+//! word as a piece of its own read as the word it stands for (`l'homme` → `le` + `homme`),
+//! `au`/`aux` as `à` + `le`/`les`, a hyphenated inversion as words (`dit-il` → `dit` + `il`), and
+//! every word in NFC, so the NFD block's `mémoire` is the pack's. Its cascade reads the pack's
+//! forms, then an unlisted lowercase plural as its singular (`syndicats` → `syndicat`), then the
+//! form; its closed classes flag a phrase gloss's function words, « pas » among them (M21); its
+//! names rule sets the `noms` page's `Paris`, `Lyon`, `Durand`, `Jean-Pierre` and `Saint-Étienne`
+//! aside with `Myriel` — French's dictionary words leave out what fr-en glosses by a proper noun's
+//! senses alone (refine-lingua-fr-en-glosses D2) —, and keeps `Lot`, `Aube`, `Orange` and `Vienne`
+//! (a common word's senses among theirs) and `Mme` (at a block's head only).
+//! The tables hold every word the pre-pass writes (`lingua-pack`'s `committed_tables.rs` holds
+//! it; `french_baseline.rs` holds the fixture to it too), and expressions holding `au` and an
+//! elision, `au revoir` and `coup d'œil`, a word the pre-pass splits, `d'abord` (offered by
+//! fr-en's reducer), an expression of six tokens, `au fur et à mesure`, and no `à la`, which
+//! fr-en's reducer leaves out: its one sense, « in the style of », needs the word after it. The
+//! pack keys expressions as French is read — the builder hands each headword to the core's French
+//! reading, its determiners written as the pre-pass gives them, up to seven tokens — and names
+//! each by its headword where its key differs (add-lingua-french-expression-keys): the probes
+//! « Au revoir », « D’abord », « au fur et à mesure » and « à cause des » find their expression,
+//! « il y a » and « il y avait » answer `il y a`, the Proust sentence `de bonne heure`,
+//! « jusqu'au soir » `jusqu'à` — the article of « au » covered with it, as a Spanish match covers
+//! the article of « al » (add-lingua-french-word-card D12) —, « à la maison » the section's own
+//! `à la maison`, and « au marché » nothing — fr-en's reducer leaves out `à le`, a Louisiana
+//! spelling of « au » every « au » would meet (refine-lingua-fr-en-glosses, settled by the owner on
+//! 2026-10-10). « un coup d’œil » meets `coup d'œil` alone, and « du pain et des œufs » no
+//! expression: fr-en's reducer leaves `un coup` and `et des` out, their one sense needing a context
+//! their keys do not hold (refine-lingua-fr-en-glosses D7; add-lingua-pack-fr-en D7 listed them).
+//!
+//! The French word card (add-lingua-french-word-card D9) is pinned on this scenario: 21 grammar
+//! probes, one for each name the card says or leaves unsaid on purpose, and 40 lemmas asked as
+//! themselves, after the reference's 31, and the phrase « l’homme », the whole-selection card of a
+//! word written as pieces. The extension's `test/word-card-fr-en.spec.ts` renders every grammar and
+//! phrase probe of `baseline/fr-en.golden` with the interface in English, and
+//! `test/word-card-fr-es.spec.ts` those of `baseline/fr-es.golden` (`fr_es_baseline.rs`: this
+//! scenario glossed in Spanish) with the interface in Spanish.
+//!
+//! At analyser `1.1.0` French's detection guard (add-lingua-french-detection-guard) refuses the
+//! `mixte` page's Occitan block, which whichlang reads as French; its Catalan block whichlang reads
+//! as Italian, guard or not.
+//!
+//! fr-en's reducer reads four spellings without their marks as their word
+//! (read-lingua-french-ca-as-ca-cedilla): `ca` as `ça` — the `informel` page's « ca va aller » —,
+//! `age` and `ages` as `âge`, `forcement` as `forcément`. Four phrase probes show it where a reader
+//! meets it: « comme ca », « c'est ca », « à mon age », and « Le CA a voté le budget. », the record
+//! that « CA » in capitals reads as `ça` until an analyser change keeps the acronym.
+//!
+//! It also reads as their word the spellings the dictionary gives only as a marked word written
+//! without its marks, when the marked word is the commoner (read-lingua-french-dictionary-unmarked-
+//! spellings): the `informel` page's « c'etait » reads as `être`. Four phrase probes show it where a
+//! reader meets it: « il etait une fois » and « un coup d'Etat » meet `il était une fois` and `coup
+//! d'état`, « Il faut etre patient. » reads `être`, and « un moteur diesel » records a spelling the
+//! frequency rule keeps, `diesel` being commoner than `diésel`.
+//!
+//! And it reads as their word the web's spellings without their marks that a reviewed list names
+//! (read-lingua-french-web-unmarked-spellings): the `informel` page's « apres » and « genial » read
+//! as `après` and `génial`. Five phrase probes show it where a reader meets it: « c'etait deja tres
+//! bien » (`déjà`, `très` and `très bien`), « une facon de parler francais » (`façon de parler`,
+//! `français`), « j'ai recu ta reponse » (`recevoir`, `réponse`), « L'Ecole est fermée. » (`école`),
+//! and « regarde cette video », which records a spelling the list leaves out (English writes `video`
+//! more often); and two grammar probes, `recu` (the past participle of `recevoir`) and `arrete`
+//! (`arrêter`'s participle and present), the readings a spelling carries.
+//!
+//! And the web's hyphenated words without their marks and its wrong accents, two more reviewed lists
+//! (read-lingua-french-hyphenated-and-misaccented-spellings): six phrase probes — « peut-etre qu'il
+//! viendra », « il l'a fait lui-meme », « c'est-a-dire demain » and « ma grand-mere habite la-bas »,
+//! each hyphenated run read whole as its word, « c'est trés bien, je l'ai déja vu » (`très`, `déjà`),
+//! and « elle l'a fait elle-meme », which records a spelling no row can name (`elle-même` is no form
+//! of the tables) —, and two grammar probes, `arreté` (only `arrêter`'s past participle, the form
+//! whose marks it keeps) and `grand-mere` (`grand-mère`'s feminine singular).
 
 use super::{Card, PackSource, Scenario};
 
@@ -106,7 +172,46 @@ const LEMMAS: &[&str] = &[
 
 /// Selections a reader glosses: expressions, the Proust sentence, elided, contracted and inverted
 /// selections — one set with the narrow no-break space —, the expressions holding `au` and an
-/// elision, and the blocks that are not French (English, Spanish, Catalan, Occitan, Italian).
+/// elision, a word the pre-pass splits, six tokens, another tense and an article as written
+/// (add-lingua-french-expression-keys), an elided article, `le` written in full, an expression
+/// whose last piece is elided by the page and `de un` on « d’un »
+/// (match-lingua-french-elided-pieces), `le` a pronoun after `à`, the contraction, a last `à`
+/// before the page's article and a first article after the page's `à`
+/// (match-lingua-french-contracted-pieces), a key several headwords reach answered by the one
+/// written as the page — `ça va`, `ça ira`, one of three, `les miens` and the closest where none
+/// is (pick-lingua-expression-written-as-the-page) —, the `homographes` page's « pas » and `son`,
+/// both flagged (M21 and M8's cost), and the `fiction` page's `Personne`, not, and the blocks
+/// that are not French (English, Spanish, Catalan, Occitan, Italian), and French written without
+/// its marks as fr-en's table reads it
+/// (read-lingua-french-ca-as-ca-cedilla): « comme ca » and « c'est ca » meet `ça`'s expressions and
+/// « à mon age » reads `âge`; and a word standing alone in capitals read as the acronym its pack lists
+/// (keep-lingua-french-acronyms-in-capitals D1, D7): « Le CA a voté le budget. » shows `CA`, the
+/// acronym, and its gloss — it read as `ça` before —, while « LE CA A VOTÉ LE BUDGET » (a headline in
+/// capitals), « Il a crié : CA SUFFIT ! » (a shout, `ça suffit` met) and « Ca fait du bien. » (a
+/// capital initial) read `ça`; and the dictionary's spellings without their marks
+/// (read-lingua-french-dictionary-unmarked-spellings): « il etait une fois » and « un coup d'Etat »
+/// meet `il était une fois` and `coup d'état`, « Il faut etre patient. » reads `être`, and « un moteur
+/// diesel » records a spelling the frequency rule keeps. And expressions that overlap, an
+/// expression built on a verb giving its last word to a longer one
+/// (choose-lingua-overlapping-expressions D1, D3, D6): « Elles sont au nombre de sept. » answers
+/// `au nombre de`, « Il est à la fois sévère et amical. » `à la fois`, « Il est au courant de
+/// tout. » `au courant`, « Elle se mit au lit. » `se mettre` and `au lit`,
+/// « J'ai besoin de toi. » `avoir besoin de`, while « grâce au travail du monteur » keeps
+/// `grâce à` (no verb) and « C'est ce que tu veux. » never answers `est-ce que` (the hyphen, G1).
+/// And six selections fr-es read wrong before its expressions were measured where French text
+/// meets them (refine-lingua-fr-es-expressions D7):
+/// « sur le champ de bataille » (a shorter idiom swallowing a compound noun) and « une crème
+/// brûlée » (a post-1990 spelling keyed alone), add-lingua-fr-en-translated-expressions' too, « le
+/// maire de la ville » (a partitive met as « of the »), « Elle se leva. » (a wrong sense another
+/// source glosses right), « Il vient de Paris. » (words met as they are) and « de l'huile d'olive »
+/// (an elided piece written apart). And the web's spellings a reviewed list names
+/// (read-lingua-french-web-unmarked-spellings): « c'etait deja tres bien », « une facon de
+/// parler francais », « j'ai recu ta reponse » and « L'Ecole est fermée. » read their words, and
+/// « regarde cette video » records a spelling the list leaves out. And the two reviewed lists of
+/// read-lingua-french-hyphenated-and-misaccented-spellings: « peut-etre qu'il viendra », « il l'a
+/// fait lui-meme », « c'est-a-dire demain », « ma grand-mere habite la-bas » and « c'est trés bien,
+/// je l'ai déja vu » read their words, and « elle l'a fait elle-meme » records a spelling no row can
+/// name.
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -125,17 +230,90 @@ const PHRASES: &[&str] = &[
     "S\u{2019}il pleut, viendras-tu\u{202f}?",
     "Au revoir",
     "un coup d\u{2019}œil",
+    "D\u{2019}abord",
+    "au fur et à mesure",
+    "il y avait",
+    "à la maison",
+    "de l\u{2019}eau",
+    "Il a décidé de le faire",
+    "parce qu\u{2019}il pleut",
+    "d\u{2019}un hiver",
+    "Il est prêt à le faire",
+    "Au fait, tu viens\u{202f}?",
+    "grâce au soleil",
+    "aux miennes",
+    "\u{c7}a va\u{202f}?",
+    "\u{c7}a ira.",
+    "Allons-y\u{202f}!",
+    "les miens",
+    "Quelle que soit la distance",
+    "Il ne fait pas un pas sans son chien, et le son de sa voix le rassure.",
+    "Personne au village ne se souvenait",
+    // add-lingua-fr-en-translated-expressions D8: a table expression met (« il existe »), none where
+    // the table's was left out by name (« les autres »), and a proper noun's entry the table glosses
+    // (« moyen âge »); the section's expression where the table's would have taken its key
+    // (« une crème brûlée ») or cut it (« sur le champ de bataille ») are refine-lingua-fr-es-expressions'
+    // probes, below.
+    "Il existe plusieurs solutions.",
+    "Les autres enfants jouent dehors.",
+    "au Moyen Âge",
     "The lighthouse stood",
     "El faro se alzaba",
     "El far s'alçava",
     "Lo far se quilhava",
     "Il faro si ergeva",
+    "comme ca",
+    "c'est ca",
+    "Le CA a voté le budget.",
+    "à mon age",
+    "c'etait deja tres bien",
+    "une facon de parler francais",
+    "j'ai recu ta reponse",
+    "L'Ecole est fermée.",
+    "regarde cette video",
+    "peut-etre qu'il viendra",
+    "il l'a fait lui-meme",
+    "c'est-a-dire demain",
+    "ma grand-mere habite la-bas",
+    "c'est trés bien, je l'ai déja vu",
+    "elle l'a fait elle-meme",
+    "LE CA A VOTÉ LE BUDGET",
+    "Il a crié : CA SUFFIT !",
+    "Ca fait du bien.",
+    "il etait une fois",
+    "un coup d'Etat",
+    "Il faut etre patient.",
+    "un moteur diesel",
+    "Elles sont au nombre de sept.",
+    "Il est à la fois sévère et amical.",
+    "Il est au courant de tout.",
+    "Elle se mit au lit.",
+    "grâce au travail du monteur",
+    "J'ai besoin de toi.",
+    "C'est ce que tu veux.",
+    "sur le champ de bataille",
+    "une crème brûlée",
+    "le maire de la ville",
+    "Elle se leva.",
+    "Il vient de Paris.",
+    "de l'huile d'olive",
+    // The whole-selection card of a word written as pieces, as a double-click selects it
+    // (add-lingua-french-word-card D7).
+    "l\u{2019}homme",
 ];
 
-/// (word as written, dictionary form) pairs a word card asks the grammar of. The fixture has no
-/// grammar tables: each answers its gloss alone, and the pieces a split word is made of — an
-/// elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`.
-const GRAMMAR: &[(&str, &str)] = &[
+/// (word as written, dictionary form) pairs a word card asks the grammar of: each answers its
+/// readings (add-lingua-french-grammar-tables) and its gloss, and the pieces a split word is made
+/// of — an elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`; the acronym
+/// `CA`, kept in capitals, answers its own gloss under one noun group
+/// (keep-lingua-french-acronyms-in-capitals D6); a spelling without its marks a reviewed list reads
+/// as its word carries the readings of its word's forms it writes so: `recu` (`reçu`), `arrete`
+/// (`arrête` and `arrêté`) (read-lingua-french-web-unmarked-spellings D3); a misaccented spelling
+/// those of the forms whose marks it keeps, `arreté` (`arrêté`), and a hyphenated one its form's,
+/// `grand-mere` (`grand-mère`) (read-lingua-french-hyphenated-and-misaccented-spellings D4). The
+/// reference's probes,
+/// before the card's (`CARD_PROBES`) and the lemmas' (`MORE_LEMMAS`).
+pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("est", "être"),
     ("sont", "être"),
     ("était", "être"),
@@ -167,7 +345,80 @@ const GRAMMAR: &[(&str, &str)] = &[
     ("l'homme", "homme"),
     ("l\u{2019}", "le"),
     ("au", "à"),
+    ("CA", "CA"),
+    ("recu", "recevoir"),
+    ("arrete", "arrêter"),
+    ("arreté", "arrêter"),
+    ("grand-mere", "grand-mère"),
 ];
+
+/// The French card's probes (add-lingua-french-word-card D9): one for each name the card says or
+/// leaves unsaid on purpose — every tense of *parler* (the present's five readings, the
+/// indicative and the subjunctive said once), its present and past participles, a feminine past
+/// participle, an imperfect read in two moods, two genders of one number (`sommes` → *somme*),
+/// another word's present (`suis` → *suivre*), a nominal agreement, a determiner's plural without
+/// a gender, a comparative, a numeral, and two plurals spelled like their dictionary form.
+pub const CARD_PROBES: &[(&str, &str)] = &[
+    ("parle", "parler"),
+    ("parles", "parler"),
+    ("parlent", "parler"),
+    ("parlait", "parler"),
+    ("parlera", "parler"),
+    ("parlerait", "parler"),
+    ("parlant", "parler"),
+    ("parlé", "parler"),
+    ("dirigée", "diriger"),
+    ("finissions", "finir"),
+    ("sommes", "être"),
+    ("suis", "être"),
+    ("grandes", "grand"),
+    ("maisons", "maison"),
+    ("cette", "ce"),
+    ("les", "le"),
+    ("meilleures", "meilleur"),
+    ("moindre", "petit"),
+    ("millions", "million"),
+    ("temps", "temps"),
+    ("heureux", "heureux"),
+];
+
+/// 40 more dictionary forms asked as grammar probes, `word-grammar <lemma> <lemma>`, so that their
+/// glosses and sense runs are the engine's answer and not the table's line: the most frequent
+/// lemmas of `tables/fr/freq.tsv` whose fr-en or fr-es gloss has two sense runs or more
+/// (`tables/fr-en/senses.tsv`, `tables/fr-es/senses.tsv`), taken in the frequency order, none of
+/// them a lemma the reference or the card asks as itself (`été`, `porte`, `couvent`, `fils`, `au`,
+/// `du`, `temps`, `heureux`: none ranks among them). Chosen once, on the tables of 2026-10-10 (fr-en
+/// after add-lingua-pack-fr-en, fr-es after add-lingua-pack-fr-es): a re-reduction may give one of
+/// them a single run, which moves nothing but what the goldens say of it.
+pub const MORE_LEMMAS: &[&str] = &[
+    "de", "le", "en", "des", "un", "que", "pas", "qui", "ce", "sur", "par", "on", "plus", "avec",
+    "mais", "ça", "tu", "son", "si", "tout", "nous", "comme", "être", "bien", "même", "aussi",
+    "deux", "leur", "moi", "quand", "après", "avoir", "non", "alors", "peu", "autre", "rien",
+    "dire", "monde", "fois",
+];
+
+const GRAMMAR_LEN: usize = REFERENCE_GRAMMAR.len() + CARD_PROBES.len() + MORE_LEMMAS.len();
+
+/// The reference's grammar probes, then the card's, then the 40 lemmas as themselves.
+const GRAMMAR: [(&str, &str); GRAMMAR_LEN] = {
+    let mut out = [("", ""); GRAMMAR_LEN];
+    let mut i = 0;
+    while i < REFERENCE_GRAMMAR.len() {
+        out[i] = REFERENCE_GRAMMAR[i];
+        i += 1;
+    }
+    let mut j = 0;
+    while j < CARD_PROBES.len() {
+        out[i + j] = CARD_PROBES[j];
+        j += 1;
+    }
+    let mut k = 0;
+    while k < MORE_LEMMAS.len() {
+        out[i + j + k] = (MORE_LEMMAS[k], MORE_LEMMAS[k]);
+        k += 1;
+    }
+    out
+};
 
 /// The pages analysed again for the reader with a history.
 const READER_PAGES: &[&str] = &["actualites", "homographes", "elisions", "mixte"];
@@ -190,14 +441,14 @@ const PAGE_NAMES: &[&str] = &[
 
 pub const FRENCH: Scenario = Scenario {
     pair: "fr-en",
-    pack: PackSource::Testdata,
+    pack: PackSource::Tables,
     beside: &["es-en"],
     test: "french_baseline",
     pages: "pages-fr.txt",
     page_names: PAGE_NAMES,
     lemmas: LEMMAS,
     phrases: PHRASES,
-    grammar: GRAMMAR,
+    grammar: &GRAMMAR,
     reader_pages: READER_PAGES,
     statuses: &[
         ("phare", "known", 1.0),

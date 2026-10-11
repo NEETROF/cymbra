@@ -46,9 +46,13 @@ pub const MIN_EVIDENCE: usize = 25;
 /// Frozen, so a Spanish ladder shows the same figures whatever packs the engine holds — a
 /// reader whose native language is English never holds the en-fr pack — and whatever the
 /// next English dictionary update does (generalise-lingua-native-language D6). Provenance:
-/// `level_vocabulary` over the en-fr pack `2026.09.26+627146e`, frozen on 2026-10-07.
-/// English's own ladder keeps computing its figures from its pack.
-pub const ENGLISH_TYPICAL_VOCABULARY: [usize; 6] = [0, 1_292, 3_359, 7_988, 16_326, 20_556];
+/// `level_vocabulary` over the en-fr pack `2026.09.26+a7c3bd4`, after
+/// leave-lingua-names-out-of-english-and-spanish-words took the names out of English's
+/// dictionary words (D5), frozen again on 2026-10-10 so that every ladder reads the figures
+/// English's own ladder gives; `[0, 1_292, 3_359, 7_988, 16_326, 20_556]` over
+/// `2026.09.26+627146e` from 2026-10-07, when names still counted. English's own ladder
+/// keeps computing its figures from its pack.
+pub const ENGLISH_TYPICAL_VOCABULARY: [usize; 6] = [0, 1_213, 3_074, 7_155, 14_433, 18_123];
 
 /// What an estimate rests on, so a surface can say so truthfully.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
@@ -222,6 +226,7 @@ impl KnowledgeState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::decks::Deck;
     use crate::knowledge::state::MapFrequencyRanks;
     use crate::knowledge::status::KnownSource;
 
@@ -231,9 +236,11 @@ mod tests {
     fn english_typical_vocabularies_are_frozen() {
         // Pinned on purpose, and never tied to the live en-fr figures: an English dictionary
         // update must not move another language's ladder (generalise-lingua-native-language D6).
+        // Frozen again when names left English's dictionary words
+        // (leave-lingua-names-out-of-english-and-spanish-words D5).
         assert_eq!(
             ENGLISH_TYPICAL_VOCABULARY,
-            [0, 1_292, 3_359, 7_988, 16_326, 20_556]
+            [0, 1_213, 3_074, 7_155, 14_433, 18_123]
         );
         assert_eq!(ENGLISH_TYPICAL_VOCABULARY.len(), CefrLevel::ALL.len());
     }
@@ -372,6 +379,46 @@ mod tests {
         assert_eq!(level_vocabulary(CefrLevel::B2, words.clone(), &lexis), 50);
         // C1: every listed word known — the whole band.
         assert_eq!(level_vocabulary(CefrLevel::C1, words, &lexis), 100);
+    }
+
+    #[test]
+    fn a_lemma_left_unseeded_keeps_its_presumption_and_its_place_in_the_estimate() {
+        // seed-lingua-decks-with-glossed-lemmas D3: a lemma the pack does not gloss is skipped
+        // by a level's seeding, and stays a word of its language — no status, presumed known
+        // below the declared level, still counted by the estimate, the estimate unmoved.
+        let (words, lexis) = words(100, 40);
+        let state = at_b1();
+        let before = state.vocabulary_estimate(EN, words.clone(), &lexis);
+        // w1 and w2 are A1 (below B1), w21 and w22 B2 (above): w1 and w21 have no gloss.
+        let (a1_bare, a1, b2_bare, b2) = (word(1), word(2), word(21), word(22));
+        let mut deck = Deck::new();
+        let added = deck.seed_lemmas(
+            EN,
+            [
+                (a1_bare, None),
+                (a1, Some("un")),
+                (b2_bare, None),
+                (b2, Some("deux")),
+            ],
+            "fr",
+            &state,
+            4,
+            0,
+        );
+        assert_eq!(added, 2);
+        for lemma in [a1_bare, b2_bare] {
+            assert!(deck.get(EN, lemma).is_none(), "{lemma}");
+            assert_eq!(state.explicit_status(EN, lemma), None, "{lemma}");
+        }
+        assert_eq!(
+            state.resolve_lemma(EN, a1_bare, &lexis),
+            Some(Status::Known(KnownSource::Calibration)),
+            "presumed known below the declared level"
+        );
+        assert_eq!(state.resolve_lemma(EN, b2_bare, &lexis), None, "to learn");
+        let after = state.vocabulary_estimate(EN, words, &lexis);
+        assert_eq!(after, before);
+        assert_eq!(after.universe, 100, "every word counted, glossed or not");
     }
 
     #[test]

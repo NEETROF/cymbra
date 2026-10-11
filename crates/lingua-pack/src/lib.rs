@@ -34,6 +34,8 @@ use std::path::Path;
 use lingua_core::analysis::language::StudiedLanguage;
 use lingua_core::analysis::lemmatize::lemmatize;
 use lingua_core::analysis::lexicon::{FstLexicon, Lexicon, build_lexicon_blobs};
+use lingua_core::analysis::pipeline::headword_reading;
+use lingua_core::engine::{expression_piece, reading_expression_key};
 use lingua_core::knowledge::level::CefrLevel;
 use lingua_core::knowledge::profile::NativeLanguage;
 use lingua_core::packs::format::write_container;
@@ -135,6 +137,29 @@ pub enum BuildError {
     /// neither the lemma of a form nor a ranked lemma: no native language's glosses may
     /// add a lemma to the studied language's lexicon (add-lingua-pack-lexical-layer D3).
     Lexical(String),
+    /// The forms table lists one form with two lemmas or more: the core reads a form as
+    /// one lemma (M8), and which one would be the byte-wise first, which no table decides
+    /// (fix-lingua-lemma-lookup D4). `more` counts the other forms listed so.
+    FormWithTwoLemmas {
+        form: String,
+        lemmas: Vec<String>,
+        more: usize,
+    },
+    /// A lemma of the pack — of the forms table, the ranks or the glosses — whose own
+    /// spelling the forms table reads as another lemma (`venue` as *venir*): what the pack
+    /// files under it would never be read by its spelling, and its spelling would read the
+    /// other word's (fix-lingua-lemma-lookup D4). `more` counts the other lemmas read so.
+    LemmaReadsAsAnother {
+        lemma: String,
+        reads_as: String,
+        more: usize,
+    },
+    /// A form or a lemma holding a capital that is no acronym of French's table
+    /// (keep-lingua-french-acronyms-in-capitals D2): only a pack studying French holds
+    /// one, written wholly in capitals, two letters or more, and its own lemma (`CA` →
+    /// `CA`). Every other lookup of the core lowercases first, so any other capital
+    /// would be a form no reader reaches — a stray capital is an error.
+    StrayCapital(String),
     /// The pack studies a language the core has no analyser for: no core
     /// could load it (`Pack::load` refuses it too).
     UnknownLanguage(String),
@@ -172,6 +197,31 @@ impl std::fmt::Display for BuildError {
             BuildError::Fst(e) => write!(f, "could not build the forms FST: {e}"),
             BuildError::Grammar(e) => write!(f, "grammar tables: {e}"),
             BuildError::Lexical(e) => write!(f, "lexical table: {e}"),
+            BuildError::FormWithTwoLemmas { form, lemmas, more } => {
+                let lemmas: Vec<String> = lemmas.iter().map(|l| format!("{l:?}")).collect();
+                write!(
+                    f,
+                    "the forms table lists the form {form:?} with {} lemmas: {}{}",
+                    lemmas.len(),
+                    lemmas.join(", "),
+                    and_more(*more, "form")
+                )
+            }
+            BuildError::LemmaReadsAsAnother {
+                lemma,
+                reads_as,
+                more,
+            } => write!(
+                f,
+                "the lemma {lemma:?} reads as {reads_as:?}: the forms table lists it as a form of \
+                 {reads_as:?}{}",
+                and_more(*more, "lemma")
+            ),
+            BuildError::StrayCapital(form) => write!(
+                f,
+                "the form {form:?} holds a capital: only a pack studying French holds one, an \
+                 acronym written wholly in capitals, two letters or more, that is its own lemma"
+            ),
             BuildError::UnknownLanguage(tag) => write!(
                 f,
                 "the pack studies {tag:?}, a language the core cannot analyse"
@@ -196,6 +246,48 @@ impl std::fmt::Display for BuildError {
 }
 
 impl std::error::Error for BuildError {}
+
+/// Whether `word` is written as an acronym row of French's table is: two letters or
+/// more, none of them lowercase (keep-lingua-french-acronyms-in-capitals D2).
+fn is_acronym(word: &str) -> bool {
+    let mut letters = word.chars().filter(|c| c.is_alphabetic());
+    letters.clone().count() >= 2 && !letters.any(char::is_lowercase)
+}
+
+/// Refuses a capital outside an acronym row (keep-lingua-french-acronyms-in-capitals D2):
+/// a form or a lemma holding one is accepted only in a pack studying French, written as an
+/// acronym is, and its own lemma — a pair's form and lemma the same string, a ranked or
+/// glossed lemma being its own form. The first string holding a stray capital is named.
+fn check_capitals<'a>(
+    studied: StudiedLanguage,
+    pairs: &[(&'a str, &'a str)],
+    lemmas: impl IntoIterator<Item = &'a str>,
+) -> Result<(), BuildError> {
+    let capital = |word: &str| word.chars().any(char::is_uppercase);
+    let acronym = |word: &str| studied == StudiedLanguage::French && is_acronym(word);
+    for (form, lemma) in pairs {
+        if (capital(form) || capital(lemma)) && !(form == lemma && acronym(form)) {
+            let named = if capital(form) { form } else { lemma };
+            return Err(BuildError::StrayCapital((*named).to_owned()));
+        }
+    }
+    match lemmas
+        .into_iter()
+        .find(|lemma| capital(lemma) && !acronym(lemma))
+    {
+        Some(lemma) => Err(BuildError::StrayCapital(lemma.to_owned())),
+        None => Ok(()),
+    }
+}
+
+/// `, and 3 more forms` when a refusal stands for others: empty when it names them all.
+fn and_more(more: usize, what: &str) -> String {
+    match more {
+        0 => String::new(),
+        1 => format!(", and 1 more {what}"),
+        n => format!(", and {n} more {what}s"),
+    }
+}
 
 /// Loads a pack's inputs from one directory holding both sides: `manifest.json`,
 /// `forms.tsv`, `freq.tsv`, `gloss.tsv` and `NOTICE`, and the optional tables
@@ -491,6 +583,20 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         .iter()
         .map(|(f, l)| (f.as_str(), l.as_str()))
         .collect();
+    // One form, one lemma (M8): a form listed with two lemmas would be read as the byte-wise
+    // first, which no table decides (fix-lingua-lemma-lookup D4).
+    let mut lemmas_of: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for (form, lemma) in &pairs {
+        lemmas_of.entry(form).or_default().insert(lemma);
+    }
+    let mut ambiguous = lemmas_of.iter().filter(|(_, lemmas)| lemmas.len() > 1);
+    if let Some((form, lemmas)) = ambiguous.next() {
+        return Err(BuildError::FormWithTwoLemmas {
+            form: (*form).to_owned(),
+            lemmas: lemmas.iter().map(|l| (*l).to_owned()).collect(),
+            more: ambiguous.count(),
+        });
+    }
     let mut extra: Vec<&str> = inputs
         .ranks
         .iter()
@@ -499,15 +605,36 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         .collect();
     extra.sort_unstable();
     extra.dedup();
+    // A capital only in an acronym row of a pack studying French, its own lemma
+    // (keep-lingua-french-acronyms-in-capitals D2).
+    check_capitals(studied, &pairs, extra.iter().copied())?;
     let (forms, pool) =
         build_lexicon_blobs(&pairs, &extra).map_err(|e| BuildError::Fst(e.to_string()))?;
     let lex = FstLexicon::from_slices(forms.as_slice(), &pool)
         .map_err(|e| BuildError::Fst(e.to_string()))?;
+    // Every lemma of the pack reads as itself (fix-lingua-lemma-lookup D4): a lemma whose own
+    // spelling the forms read as another would keep what is filed under it out of the reader's
+    // reach, its spelling reading the other word's estimates. Checked on the lexicon written,
+    // where a form the pairs map reads as their lemma whatever the byte order (D5). After it,
+    // a lemma's own place (`lemma_id`) is the id its spelling reads (`id_of`).
+    let mut elsewhere = pool.lines().filter_map(|lemma| {
+        let reads_as = lex.lemma_of(lemma)?;
+        (reads_as != lemma).then_some((lemma, reads_as))
+    });
+    if let Some((lemma, reads_as)) = elsewhere.next() {
+        return Err(BuildError::LemmaReadsAsAnother {
+            lemma: lemma.to_owned(),
+            reads_as: reads_as.to_owned(),
+            more: elsewhere.count(),
+        });
+    }
 
+    // Every lemma-keyed section is filed at the lemma's own place in the lemma list, the id
+    // the core reads it by (fix-lingua-lemma-lookup D4).
     // Ranks by lemma id (0 = unranked).
     let mut freq = vec![0u32; lex.lemma_count()];
     for (lemma, rank) in &inputs.ranks {
-        if let Some(id) = lex.id_of(lemma) {
+        if let Some(id) = lex.lemma_id(lemma) {
             freq[id as usize] = *rank;
         }
     }
@@ -520,7 +647,7 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     let mut entries: Vec<(u32, &str)> = inputs
         .glosses
         .iter()
-        .filter_map(|(l, g)| lex.id_of(l).map(|id| (id as u32, g.as_str())))
+        .filter_map(|(l, g)| lex.lemma_id(l).map(|id| (id as u32, g.as_str())))
         .collect();
     entries.sort_unstable_by_key(|(id, _)| *id);
     let gloss_zst = compress_glosses(&entries);
@@ -530,13 +657,15 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
 
     // CEFR level code per lemma id (0 = no level). Emitted as an optional
     // section ONLY when the pair has CEFR data, so a level-less pack stays
-    // byte-for-byte identical to before this feature.
+    // byte-for-byte identical to before this feature. A level written for a
+    // string that is no lemma of the pack is filed under no lemma — never under
+    // the lemma that string is a form of (fix-lingua-lemma-lookup D4).
     let levels_bytes: Vec<u8> = if inputs.levels.is_empty() {
         Vec::new()
     } else {
         let mut levels = vec![0u8; lex.lemma_count()];
         for (lemma, level) in &inputs.levels {
-            if let Some(id) = lex.id_of(lemma) {
+            if let Some(id) = lex.lemma_id(lemma) {
                 levels[id as usize] = level.to_code();
             }
         }
@@ -549,29 +678,91 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     // ids, and the zstd-compressed glosses those ids index. Emitted ONLY when
     // an entry survives, so a pack for a pair without expressions — or one whose
     // entries the lexicon cannot reach — stays byte-for-byte what it was.
-    let mut keyed: Vec<(String, &str, &str)> = inputs
+    // French and Spanish are keyed through their reading and named by their
+    // headwords (add-lingua-french-expression-keys, add-lingua-spanish-expression-keys);
+    // English at its spaces, with no names.
+    let read = matches!(studied, StudiedLanguage::French | StudiedLanguage::Spanish);
+    let mut keyed: Vec<(String, &str, &str, usize)> = inputs
         .expressions
         .iter()
         .filter_map(|(headword, gloss)| {
-            expression_key(headword, studied, &lex)
-                .map(|key| (key, headword.as_str(), gloss.as_str()))
+            let key = expression_key(headword, studied, &lex)?;
+            let written = if read {
+                written_pieces(headword, studied, &lex)
+            } else {
+                0
+            };
+            Some((key, headword.as_str(), gloss.as_str(), written))
         })
         .collect();
     // Sorted by key for the FST, and within a key by "is the key itself" first:
     // `break point` keeps the key `breaking point` also reaches, so the gloss
-    // that survives is the dictionary spelling's (design D2). Alphabetical order
-    // settles the rest, so the winner never depends on the input's order.
+    // that survives is the dictionary spelling's (design D2). For French and
+    // Spanish, the headword with the most tokens written as their key piece comes
+    // next — `boîte à gants` over `boite à gants`, whose `boite` is read `boîte`
+    // (add-lingua-french-expression-keys D6), `soy inglés` over `soy inglesa`
+    // (add-lingua-spanish-expression-keys D3); English counts none, so its order
+    // is as before. Alphabetical order settles the rest, so the winner never
+    // depends on the input's order.
     keyed.sort_unstable_by(|a, b| {
         a.0.cmp(&b.0)
             .then_with(|| (a.1 != a.0).cmp(&(b.1 != b.0)))
+            .then_with(|| b.3.cmp(&a.3))
             .then_with(|| a.1.cmp(b.1))
     });
-    keyed.dedup_by(|a, b| a.0 == b.0);
+    // A pack studying French or Spanish keeps every headword of a key, not only the one that
+    // wins it (pick-lingua-expression-written-as-the-page D1, opened to Spanish by
+    // pick-lingua-spanish-expression-written-as-the-page D1): each headword after a key's first
+    // is an expression of its own, its gloss and its name filed under an id after the keys' —
+    // in key order, and in the order above within a key — which no key maps to, so a core that
+    // does not read `expr.others` answers every key as before. `ça va` and `ça ira` both read
+    // `ça aller`, `hacer tiempo` and `hace tiempo` both `hacer tiempo`: the key answers its
+    // winner, and the other is kept beside it. English keeps the first alone, byte for byte.
+    let mut others: Vec<(u32, &str, &str)> = Vec::new();
+    let mut firsts: Vec<(String, &str, &str, usize)> = Vec::with_capacity(keyed.len());
+    for entry in keyed {
+        if firsts.last().is_some_and(|first| first.0 == entry.0) {
+            if matches!(studied, StudiedLanguage::French | StudiedLanguage::Spanish) {
+                others.push(((firsts.len() - 1) as u32, entry.1, entry.2));
+            }
+        } else {
+            firsts.push(entry);
+        }
+    }
+    let keyed = firsts;
+    let other_id = |at: usize| (keyed.len() + at) as u32;
+    // A French or Spanish expression is named by the headword that won its key,
+    // wherever the two differ (add-lingua-french-expression-keys D3,
+    // add-lingua-spanish-expression-keys D3): `au revoir` for `à le revoir`,
+    // `al menos` for `a el menos`. Same layout as the glosses, by the same ids;
+    // written only for a pack studying French or Spanish that names one, so an
+    // English pack gains no byte.
+    let names: Vec<(u32, &str)> = if read {
+        keyed
+            .iter()
+            .enumerate()
+            .filter(|(_, (key, headword, _, _))| key != headword)
+            .map(|(id, (_, headword, _, _))| (id as u32, *headword))
+            .chain(
+                others
+                    .iter()
+                    .enumerate()
+                    .map(|(at, (_, headword, _))| (other_id(at), *headword)),
+            )
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let expr_names = if names.is_empty() {
+        Vec::new()
+    } else {
+        compress_glosses(&names)
+    };
     let (expr_fst, expr_zst) = if keyed.is_empty() {
         (Vec::new(), Vec::new())
     } else {
         let mut builder = fst::MapBuilder::memory();
-        for (id, (key, _, _)) in keyed.iter().enumerate() {
+        for (id, (key, _, _, _)) in keyed.iter().enumerate() {
             // Byte-wise sorted and unique is all a `MapBuilder` asks of its
             // input, and the sort above has just made the keys both. Unlike the
             // forms FST, whose pairs come from a file, nothing here can fail.
@@ -582,12 +773,35 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
         let entries: Vec<(u32, &str)> = keyed
             .iter()
             .enumerate()
-            .map(|(id, (_, _, gloss))| (id as u32, *gloss))
+            .map(|(id, (_, _, gloss, _))| (id as u32, *gloss))
+            .chain(
+                others
+                    .iter()
+                    .enumerate()
+                    .map(|(at, (_, _, gloss))| (other_id(at), *gloss)),
+            )
             .collect();
         (
             builder.into_inner().expect("in-memory FST"),
             compress_glosses(&entries),
         )
+    };
+
+    // `expr.others`: each key's other headwords, `count u32 | count × (key id u32, other id
+    // u32)`, little-endian, sorted by key id and then in the order above — written only where a
+    // key has others, so a French or Spanish pack without any, and every English pack, gains
+    // no byte (pick-lingua-expression-written-as-the-page D1,
+    // pick-lingua-spanish-expression-written-as-the-page D1).
+    let expr_others: Vec<u8> = if others.is_empty() {
+        Vec::new()
+    } else {
+        let mut raw = Vec::with_capacity(4 + others.len() * 8);
+        raw.extend_from_slice(&(others.len() as u32).to_le_bytes());
+        for (at, (key, _, _)) in others.iter().enumerate() {
+            raw.extend_from_slice(&key.to_le_bytes());
+            raw.extend_from_slice(&other_id(at).to_le_bytes());
+        }
+        raw
     };
 
     let grammar = grammar_sections(inputs, studied, &lex)?;
@@ -607,6 +821,12 @@ pub fn build_pack(inputs: &PackInputs) -> Result<Vec<u8>, BuildError> {
     if !expr_fst.is_empty() {
         sections.push((section::EXPR, expr_fst.as_slice()));
         sections.push((section::EXPR_ZST, expr_zst.as_slice()));
+    }
+    if !expr_names.is_empty() {
+        sections.push((section::EXPR_NAMES_ZST, expr_names.as_slice()));
+    }
+    if !expr_others.is_empty() {
+        sections.push((section::EXPR_OTHERS, expr_others.as_slice()));
     }
     if !grammar.tags.is_empty() {
         sections.push((section::TAGS, grammar.tags.as_slice()));
@@ -652,9 +872,12 @@ struct GrammarSections {
 /// build by name. A reading is filed under its own dictionary form; a
 /// believable reading of another dictionary form is also filed, as such,
 /// under the one the core's own cascade reads the form as — which is what the
-/// card will be keyed by. Readings whose dictionary form the lexicon does not
-/// hold are dropped. Each run must cover exactly its word's gloss, and a noun's
-/// runs carry the gender its readings give it ([`tags::noun_runs`]).
+/// card will be keyed by. Each is filed at its dictionary form's own place in
+/// the lemma list (`lemma_id`), where the core reads it
+/// (fix-lingua-lemma-lookup D4): readings and runs whose dictionary form the
+/// lexicon does not hold as a lemma are dropped, never filed under the lemma
+/// that string is a form of. Each run must cover exactly its word's gloss, and
+/// a noun's runs carry the gender its readings give it ([`tags::noun_runs`]).
 fn grammar_sections(
     inputs: &PackInputs,
     studied: StudiedLanguage,
@@ -698,12 +921,8 @@ fn grammar_sections(
         let ud = canonical(text)?;
         Ok(*index.get(ud.as_str()).expect("pooled above"))
     };
-    let lemma_id = |lemma: &str| -> Option<u32> {
-        if !lex.contains_lemma(lemma) {
-            return None;
-        }
-        lex.id_of(lemma).and_then(|id| u32::try_from(id).ok())
-    };
+    let lemma_id =
+        |lemma: &str| -> Option<u32> { lex.lemma_id(lemma).and_then(|id| u32::try_from(id).ok()) };
     let edit = |base: &str, form: &str| {
         FormEdit::between(base, form)
             .ok_or_else(|| fail(format!("form {form:?} is too far from {base:?} to store")))
@@ -812,7 +1031,18 @@ fn grammar_sections(
 /// fails — its last resort is the lowercased word itself — so this is not a
 /// failure to catch but the membership test the requirement asks for: a key no
 /// reading can produce would sit in the pack unreachable for ever.
+///
+/// A French or Spanish headword is keyed by the core's own reading of its
+/// language, [`reading_expression_key`] — its pre-pass and cascade, its
+/// determiners as written, two to seven tokens (`au revoir` → `à le revoir`,
+/// add-lingua-french-expression-keys D1, D2, D4, D6; `al menos` → `a el menos`,
+/// `tener en cuenta` → `tener en contar`, add-lingua-spanish-expression-keys D1,
+/// D2, D4) —, the function review finds such an expression card's gloss through.
+/// English keeps the split at spaces.
 fn expression_key(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) -> Option<String> {
+    if studied != StudiedLanguage::English {
+        return reading_expression_key(headword, studied, lex);
+    }
     let mut words: Vec<String> = Vec::new();
     for word in headword.split_whitespace() {
         let lemma = lemmatize(word, studied, lex);
@@ -824,10 +1054,27 @@ fn expression_key(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) 
     (!words.is_empty()).then(|| words.join(" "))
 }
 
+/// How many of a French or Spanish headword's tokens its key writes as the
+/// headword does — each token's lowercased text equal to its key piece — which
+/// decides between two headwords of one key (add-lingua-french-expression-keys
+/// D6, add-lingua-spanish-expression-keys D3): `boîte à gants` writes more than
+/// `boite à gants`, its `boite` keyed `boîte`; `soy inglés` more than
+/// `soy inglesa`, its `inglesa` keyed `inglés`.
+fn written_pieces(headword: &str, studied: StudiedLanguage, lex: &impl Lexicon) -> usize {
+    headword_reading(headword, studied, lex)
+        .unwrap_or_default()
+        .iter()
+        .filter(|(token, lemma)| {
+            token.text.replace('\u{2019}', "'").to_lowercase()
+                == expression_piece(&token.text, lemma, studied)
+        })
+        .count()
+}
+
 /// Encodes a gloss index + payload and zstd-compresses it. Layout matches the
 /// reader: `count u32 | count*(id u32, off u32, len u32) | utf8`. Shared by the
-/// per-lemma glosses and the expression table, which is the same shape keyed by
-/// expression id.
+/// per-lemma glosses, the expression table and a French or Spanish pack's expression names,
+/// which are the same shape keyed by expression id.
 fn compress_glosses(entries: &[(u32, &str)]) -> Vec<u8> {
     let mut payload = Vec::new();
     let mut index = Vec::new();
@@ -852,7 +1099,10 @@ fn compress_glosses(entries: &[(u32, &str)]) -> Vec<u8> {
 mod tests {
     use super::*;
     use lingua_core::analysis::lexicon::Lexicon;
-    use lingua_core::analysis::{ANALYZER_VERSION, FRENCH_ANALYZER_VERSION};
+    use lingua_core::analysis::{
+        ANALYZER_VERSION, FRENCH_ANALYZER_VERSION, SPANISH_ANALYZER_VERSION,
+    };
+    use lingua_core::engine::french_expression_key;
     use lingua_core::knowledge::state::FrequencyRanks;
     use lingua_core::packs::Pack;
 
@@ -1142,6 +1392,662 @@ mod tests {
         }
     }
 
+    // — French expression keys (add-lingua-french-expression-keys) —
+
+    /// A fr-en pack's inputs: the words the French headwords below are made of, `t` left out,
+    /// `peut-être` listed whole and `boite` a spelling filed under `boîte`; no expression yet.
+    fn french_inputs() -> PackInputs {
+        let mut inp = inputs();
+        inp.meta.studied = "fr".into();
+        inp.meta.native = "en".into();
+        inp.meta.analyzer_version = FRENCH_ANALYZER_VERSION.into();
+        inp.form_lemma = [
+            ("a", "avoir"),
+            ("la", "le"),
+            ("les", "le"),
+            ("mains", "main"),
+            ("gants", "gant"),
+            ("boite", "boîte"),
+            ("peut-être", "peut-être"),
+        ]
+        .iter()
+        .map(|(form, lemma)| ((*form).into(), (*lemma).into()))
+        .collect();
+        inp.ranks = [
+            "à",
+            "le",
+            "revoir",
+            "coup",
+            "de",
+            "œil",
+            "abord",
+            "il",
+            "y",
+            "avoir",
+            "haut",
+            "main",
+            "tout",
+            "suite",
+            "compte",
+            "en",
+            "boîte",
+            "gant",
+            "peut-être",
+        ]
+        .iter()
+        .zip(1..)
+        .map(|(lemma, rank)| ((*lemma).into(), rank))
+        .collect();
+        inp.glosses = vec![("revoir".into(), "to see again".into())];
+        inp
+    }
+
+    /// `french_inputs` holding `expressions`, each glossed by its own headword.
+    fn french_pack(expressions: &[&str]) -> Vec<u8> {
+        let mut inp = french_inputs();
+        inp.expressions = expressions
+            .iter()
+            .map(|headword| ((*headword).into(), format!("gloss of {headword}")))
+            .collect();
+        build_pack(&inp).expect("a French pack builds")
+    }
+
+    /// A built pack's expressions as (key, name, gloss), the name `None` where the pack
+    /// carries none for the key.
+    fn named_expressions_of(bytes: &[u8]) -> Vec<(String, Option<String>, String)> {
+        let pack = Pack::load(bytes).expect("load");
+        expressions_of(bytes)
+            .into_iter()
+            .map(|(key, gloss)| {
+                let name = pack.expression_name(&key).map(str::to_owned);
+                (key, name, gloss)
+            })
+            .collect()
+    }
+
+    fn named(key: &str, name: Option<&str>, headword: &str) -> (String, Option<String>, String) {
+        (
+            key.into(),
+            name.map(str::to_owned),
+            format!("gloss of {headword}"),
+        )
+    }
+
+    #[test]
+    fn spec_scenario_french_expressions_are_keyed_as_french_is_read() {
+        // A contracted article, an elision, an inflected word, and a headword that is its key.
+        let bytes = french_pack(&["au revoir", "coup d'œil", "il y a", "tout de suite"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [
+                named("coup de œil", Some("coup d'œil"), "coup d'œil"),
+                named("il y avoir", Some("il y a"), "il y a"),
+                named("tout de suite", None, "tout de suite"),
+                named("à le revoir", Some("au revoir"), "au revoir"),
+            ]
+        );
+        // The key is what review finds the card's gloss through.
+        let pack = Pack::load(&bytes).unwrap();
+        let key = french_expression_key("au revoir", pack.lexicon()).expect("a key");
+        assert_eq!(pack.expression(&key), Some("gloss of au revoir"));
+    }
+
+    #[test]
+    fn spec_scenario_a_word_the_pre_pass_splits_is_an_expression() {
+        // `d'abord` reads as two tokens; `peut-être`, listed whole, as one.
+        let bytes = french_pack(&["d'abord", "peut-être"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [named("de abord", Some("d'abord"), "d'abord")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_determiners_keep_their_written_form() {
+        let bytes = french_pack(&["à la", "haut la main", "haut les mains"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [
+                named("haut la main", None, "haut la main"),
+                named("haut les main", Some("haut les mains"), "haut les mains"),
+                named("à la", None, "à la"),
+            ]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_french_key_longer_than_the_window_or_missing_a_word_is_left_out() {
+        // Eight tokens are beyond French's window, seven within it; `compte en t` would key
+        // `compte en` without its `t`, which the lexicon does not list.
+        let seven = ["coup"; 7].join(" ");
+        let eight = ["coup"; 8].join(" ");
+        let bytes = french_pack(&[&seven, &eight, "compte en t"]);
+        assert_eq!(named_expressions_of(&bytes), [named(&seven, None, &seven)]);
+        assert_eq!(
+            french_pack(&["compte en t"]),
+            build_pack(&french_inputs()).unwrap(),
+            "an entry nothing can reach leaves no trace in the pack"
+        );
+    }
+
+    #[test]
+    fn spec_scenario_two_spellings_reach_one_key() {
+        // `boite` is read `boîte`: both headwords reach `boîte à gant`, and the one writing more
+        // of its tokens as the key does keeps it, whichever order the source lists them in.
+        let first = french_pack(&["boite à gants", "boîte à gants"]);
+        assert_eq!(
+            named_expressions_of(&first),
+            [named(
+                "boîte à gant",
+                Some("boîte à gants"),
+                "boîte à gants"
+            )]
+        );
+        assert_eq!(french_pack(&["boîte à gants", "boite à gants"]), first);
+        // The other spelling is kept beside it, with its gloss
+        // (pick-lingua-expression-written-as-the-page D1).
+        assert_eq!(
+            Pack::load(&first)
+                .unwrap()
+                .expression_headwords("boîte à gant"),
+            [
+                ("boîte à gants", "gloss of boîte à gants"),
+                ("boite à gants", "gloss of boite à gants")
+            ]
+        );
+        // The headword written as the key still comes first.
+        let bytes = french_pack(&["haut les main", "haut les mains"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [named("haut les main", None, "haut les main")]
+        );
+        // `boîte` and `à` are written as their key pieces; `boite` and `gants` are not.
+        let fr = StudiedLanguage::French;
+        assert_eq!(written_pieces("boîte à gants", fr, &lex_of(&first)), 2);
+        assert_eq!(written_pieces("boite à gants", fr, &lex_of(&first)), 1);
+        // Then byte order, between headwords writing as many: the straight apostrophe first.
+        let bytes = french_pack(&["coup d\u{2019}œil", "coup d'œil"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [named("coup de œil", Some("coup d'œil"), "coup d'œil")]
+        );
+    }
+
+    /// A built pack's lexicon, for the builder's own helpers.
+    fn lex_of(bytes: &[u8]) -> FstLexicon<Vec<u8>> {
+        let (_, sections) = lingua_core::packs::format::read_container(bytes).expect("decode");
+        let find = |name: &str| {
+            sections
+                .iter()
+                .find(|s| s.name == name)
+                .map(|s| s.data.clone())
+                .expect(name)
+        };
+        let pool = String::from_utf8(find(section::LEMMAS)).expect("utf-8 pool");
+        FstLexicon::from_slices(find(section::FORMS), &pool).expect("lexicon")
+    }
+
+    #[test]
+    fn a_french_pack_whose_every_headword_is_its_key_carries_no_names() {
+        let bytes = french_pack(&["tout de suite", "haut la main"]);
+        assert_eq!(expressions_of(&bytes).len(), 2);
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST));
+        // Nor does one with no expression at all.
+        let (_, sections) =
+            lingua_core::packs::format::read_container(&french_pack(&[])).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST));
+    }
+
+    #[test]
+    fn an_english_pack_carries_no_names() {
+        // `starting point` is keyed `start point`, yet named nothing: English packs carry no
+        // names, so they keep their bytes.
+        let mut inp = inputs_with_expression_words();
+        inp.expressions = vec![("starting point".into(), "Point de départ".into())];
+        let bytes = build_pack(&inp).expect("build");
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST));
+        assert_eq!(
+            expressions_of(&bytes),
+            vec![("start point".into(), "Point de départ".into())]
+        );
+    }
+
+    // — every headword of a shared key (pick-lingua-expression-written-as-the-page) —
+
+    /// `french_inputs` plus the words of `ça va`, `ça ira`, `allez-y`, `allons-y` and `vas-y`.
+    fn shared_key_pack(expressions: &[&str]) -> Vec<u8> {
+        let mut inp = french_inputs();
+        inp.form_lemma.extend(
+            [
+                ("va", "aller"),
+                ("ira", "aller"),
+                ("allez", "aller"),
+                ("allons", "aller"),
+                ("vas", "aller"),
+            ]
+            .iter()
+            .map(|(form, lemma)| ((*form).into(), (*lemma).into())),
+        );
+        inp.ranks
+            .extend([("ça".into(), 100), ("aller".into(), 101)]);
+        inp.expressions = expressions
+            .iter()
+            .map(|headword| ((*headword).into(), format!("gloss of {headword}")))
+            .collect();
+        build_pack(&inp).expect("a French pack builds")
+    }
+
+    fn headwords_of(bytes: &[u8], key: &str) -> Vec<(String, String)> {
+        Pack::load(bytes)
+            .expect("load")
+            .expression_headwords(key)
+            .into_iter()
+            .map(|(name, gloss)| (name.to_owned(), gloss.to_owned()))
+            .collect()
+    }
+
+    fn headword(name: &str) -> (String, String) {
+        (name.to_owned(), format!("gloss of {name}"))
+    }
+
+    #[test]
+    fn spec_scenario_two_headwords_reach_one_key_and_both_are_kept() {
+        let bytes = shared_key_pack(&["ça va", "ça ira", "au revoir"]);
+        // The key answers `ça ira`, which wins it, with its gloss and its name, as before…
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [
+                named("à le revoir", Some("au revoir"), "au revoir"),
+                named("ça aller", Some("ça ira"), "ça ira"),
+            ]
+        );
+        // …and the pack holds `ça va` with its own gloss, listed as the key's other headword.
+        assert_eq!(
+            headwords_of(&bytes, "ça aller"),
+            [headword("ça ira"), headword("ça va")]
+        );
+        // Whichever order the source lists them in.
+        assert_eq!(shared_key_pack(&["au revoir", "ça ira", "ça va"]), bytes);
+    }
+
+    #[test]
+    fn spec_scenario_three_headwords_reach_one_key() {
+        let bytes = shared_key_pack(&["vas-y", "allons-y", "allez-y"]);
+        assert_eq!(
+            headwords_of(&bytes, "aller y"),
+            [headword("allez-y"), headword("allons-y"), headword("vas-y")]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_key_one_headword_reaches_lists_nothing() {
+        let bytes = shared_key_pack(&["au revoir", "ça va"]);
+        assert_eq!(headwords_of(&bytes, "à le revoir"), [headword("au revoir")]);
+        assert_eq!(headwords_of(&bytes, "ça aller"), [headword("ça va")]);
+        // No key has others: the pack carries no section, and is the one it was before.
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_OTHERS));
+    }
+
+    #[test]
+    fn the_others_section_lists_each_key_s_other_headwords_in_order() {
+        // The keys sort `aller y` (0), `à le revoir` (1), `ça aller` (2); the other headwords
+        // take the ids after them, in key order and the builder's order within a key.
+        let bytes = shared_key_pack(&[
+            "ça va",
+            "ça ira",
+            "au revoir",
+            "vas-y",
+            "allons-y",
+            "allez-y",
+        ]);
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        let others = sections
+            .iter()
+            .find(|s| s.name == section::EXPR_OTHERS)
+            .map(|s| s.data.clone())
+            .expect("the section");
+        let mut want = 3u32.to_le_bytes().to_vec();
+        for (key, other) in [(0u32, 3u32), (0, 4), (2, 5)] {
+            want.extend_from_slice(&key.to_le_bytes());
+            want.extend_from_slice(&other.to_le_bytes());
+        }
+        assert_eq!(others, want);
+        // No key maps to an other headword's id: the FST holds the three keys alone.
+        assert_eq!(
+            expressions_of(&bytes)
+                .into_iter()
+                .map(|(key, _)| key)
+                .collect::<Vec<_>>(),
+            ["aller y", "à le revoir", "ça aller"]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_core_that_does_not_read_the_section() {
+        // Stripped of the section, as a core that predates it reads it, the pack answers every
+        // key as the pack built without the other headwords — what the builder made before.
+        let bytes = shared_key_pack(&[
+            "ça va",
+            "ça ira",
+            "au revoir",
+            "vas-y",
+            "allons-y",
+            "allez-y",
+        ]);
+        let (meta, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        let kept: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::EXPR_OTHERS)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        let older = Pack::load(&write_container(&meta, &kept)).expect("load");
+        let before = Pack::load(&shared_key_pack(&["ça ira", "au revoir", "allez-y"])).unwrap();
+        for key in ["aller y", "à le revoir", "ça aller", "ça va", "allons-y"] {
+            assert_eq!(older.expression(key), before.expression(key), "{key}");
+            assert_eq!(
+                older.expression_name(key),
+                before.expression_name(key),
+                "{key}"
+            );
+            assert_eq!(
+                older.expression_headwords(key),
+                before.expression_headwords(key),
+                "{key}"
+            );
+        }
+    }
+
+    #[test]
+    fn spec_scenario_english_packs_carry_no_others() {
+        // Two English entries reach one key: the pack keeps the first alone, byte for byte the
+        // pack built from it alone, and carries no section (a Spanish pack keeps both since
+        // pick-lingua-spanish-expression-written-as-the-page D1).
+        let mut inp = inputs_with_expression_words();
+        inp.expressions = vec![
+            ("breaking point".into(), "Point de rupture".into()),
+            ("break point".into(), "Point d'arrêt".into()),
+        ];
+        let english = build_pack(&inp).expect("build");
+        inp.expressions.remove(0);
+        assert_eq!(english, build_pack(&inp).expect("build"));
+        let (_, sections) = lingua_core::packs::format::read_container(&english).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_OTHERS));
+    }
+
+    // — Spanish expression keys (add-lingua-spanish-expression-keys) —
+
+    /// An es-fr pack's inputs: the words the Spanish headwords below are made of, M8 filing
+    /// `la`, `las` and `los` under `el`, `cuenta` under `contar` and `inglesa` under `inglés`;
+    /// no expression yet.
+    fn spanish_inputs() -> PackInputs {
+        let mut inp = inputs();
+        inp.meta.studied = "es".into();
+        inp.meta.native = "fr".into();
+        inp.meta.analyzer_version = SPANISH_ANALYZER_VERSION.into();
+        inp.form_lemma = [
+            ("la", "el"),
+            ("las", "el"),
+            ("los", "el"),
+            ("cuenta", "contar"),
+            ("armas", "arma"),
+            ("soy", "ser"),
+            ("inglesa", "inglés"),
+        ]
+        .iter()
+        .map(|(form, lemma)| ((*form).into(), (*lemma).into()))
+        .collect();
+        inp.ranks = [
+            "a", "el", "menos", "tener", "en", "contar", "vez", "arma", "fin", "y", "cabo", "de",
+            "ser", "inglés", "después",
+        ]
+        .iter()
+        .zip(1..)
+        .map(|(lemma, rank)| ((*lemma).into(), rank))
+        .collect();
+        inp.glosses = vec![("menos".into(), "moins".into())];
+        inp
+    }
+
+    /// `spanish_inputs` holding `expressions`, each glossed by its own headword.
+    fn spanish_pack(expressions: &[&str]) -> Vec<u8> {
+        let mut inp = spanish_inputs();
+        inp.expressions = expressions
+            .iter()
+            .map(|headword| ((*headword).into(), format!("gloss of {headword}")))
+            .collect();
+        build_pack(&inp).expect("a Spanish pack builds")
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_contraction_and_an_inflected_word() {
+        let bytes = spanish_pack(&["al menos", "tener en cuenta", "después de"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [
+                named("a el menos", Some("al menos"), "al menos"),
+                named("después de", None, "después de"),
+                named(
+                    "tener en contar",
+                    Some("tener en cuenta"),
+                    "tener en cuenta"
+                ),
+            ]
+        );
+        // The key is what review finds a named card's gloss through.
+        let pack = Pack::load(&bytes).unwrap();
+        let key =
+            reading_expression_key("tener en cuenta", StudiedLanguage::Spanish, pack.lexicon())
+                .expect("a key");
+        assert_eq!(pack.expression(&key), Some("gloss of tener en cuenta"));
+    }
+
+    #[test]
+    fn spec_scenario_spanish_determiners_keep_their_written_form() {
+        let bytes = spanish_pack(&["a la vez", "a las armas", "al arma"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [
+                named("a el arma", Some("al arma"), "al arma"),
+                named("a la vez", None, "a la vez"),
+                named("a las arma", Some("a las armas"), "a las armas"),
+            ]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_seven_tokens_and_a_key_longer_than_the_window() {
+        // « al fin y al cabo » is five words and seven tokens: kept. Eight tokens are beyond
+        // Spanish's window; a word the lexicon does not hold leaves the entry out too.
+        let eight = ["vez"; 8].join(" ");
+        let bytes = spanish_pack(&[
+            "al fin y al cabo",
+            &eight,
+            "al fin y al cabo de",
+            "en mente",
+        ]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [named(
+                "a el fin y a el cabo",
+                Some("al fin y al cabo"),
+                "al fin y al cabo"
+            )]
+        );
+        assert_eq!(
+            spanish_pack(&[&eight, "en mente"]),
+            build_pack(&spanish_inputs()).unwrap(),
+            "an entry nothing can reach leaves no trace in the pack"
+        );
+    }
+
+    #[test]
+    fn spec_scenario_two_spanish_headwords_reach_one_key() {
+        // `inglesa` is filed under `inglés`: both headwords reach `ser inglés`, and the one
+        // writing more of its tokens as the key does keeps it, whichever order the source
+        // lists them in. Byte order alone would name the key by the feminine.
+        let first = spanish_pack(&["soy inglesa", "soy inglés"]);
+        assert_eq!(
+            named_expressions_of(&first),
+            [named("ser inglés", Some("soy inglés"), "soy inglés")]
+        );
+        assert_eq!(spanish_pack(&["soy inglés", "soy inglesa"]), first);
+        let es = StudiedLanguage::Spanish;
+        assert_eq!(written_pieces("soy inglés", es, &lex_of(&first)), 1);
+        assert_eq!(written_pieces("soy inglesa", es, &lex_of(&first)), 0);
+        // The headword written as the key still comes first.
+        let bytes = spanish_pack(&["ser inglesa", "ser inglés"]);
+        assert_eq!(
+            named_expressions_of(&bytes),
+            [named("ser inglés", None, "ser inglés")]
+        );
+        // The other is kept beside the winner, with its own gloss
+        // (pick-lingua-spanish-expression-written-as-the-page D1).
+        assert_eq!(
+            headwords_of(&first, "ser inglés"),
+            [headword("soy inglés"), headword("soy inglesa")]
+        );
+    }
+
+    // — every headword of a shared Spanish key (pick-lingua-spanish-expression-written-as-the-page) —
+
+    /// `spanish_inputs` plus the words of `hacer tiempo`, `hace tiempo`, `echar a perder`,
+    /// `echado a perder` and `echarse a perder`, each headword glossed by itself.
+    fn shared_spanish_key_pack(expressions: &[&str]) -> Vec<u8> {
+        let mut inp = spanish_inputs();
+        inp.form_lemma.extend(
+            [("hace", "hacer"), ("echado", "echar")]
+                .iter()
+                .map(|(form, lemma)| ((*form).into(), (*lemma).into())),
+        );
+        inp.ranks.extend([
+            ("hacer".into(), 100),
+            ("tiempo".into(), 101),
+            ("echar".into(), 102),
+            ("perder".into(), 103),
+        ]);
+        inp.expressions = expressions
+            .iter()
+            .map(|headword| ((*headword).into(), format!("gloss of {headword}")))
+            .collect();
+        build_pack(&inp).expect("a Spanish pack builds")
+    }
+
+    #[test]
+    fn spec_scenario_two_headwords_reach_one_spanish_key() {
+        let bytes = shared_spanish_key_pack(&["hace tiempo", "hacer tiempo", "al menos"]);
+        // The key answers `hacer tiempo`, which wins it, with its gloss, as before…
+        let pack = Pack::load(&bytes).unwrap();
+        assert_eq!(
+            pack.expression("hacer tiempo"),
+            Some("gloss of hacer tiempo")
+        );
+        assert_eq!(pack.expression_name("hacer tiempo"), None);
+        // …and the pack holds `hace tiempo` with its own gloss, listed as the key's other headword.
+        assert_eq!(
+            headwords_of(&bytes, "hacer tiempo"),
+            [headword("hacer tiempo"), headword("hace tiempo")]
+        );
+        // Whichever order the source lists them in.
+        assert_eq!(
+            shared_spanish_key_pack(&["al menos", "hacer tiempo", "hace tiempo"]),
+            bytes
+        );
+    }
+
+    #[test]
+    fn spec_scenario_three_headwords_reach_one_spanish_key() {
+        let bytes =
+            shared_spanish_key_pack(&["echarse a perder", "echado a perder", "echar a perder"]);
+        assert_eq!(
+            headwords_of(&bytes, "echar a perder"),
+            [
+                headword("echar a perder"),
+                headword("echado a perder"),
+                headword("echarse a perder")
+            ]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_spanish_key_one_headword_reaches_lists_nothing() {
+        let bytes = shared_spanish_key_pack(&["tener en cuenta", "hace tiempo"]);
+        assert_eq!(
+            headwords_of(&bytes, "tener en contar"),
+            [headword("tener en cuenta")]
+        );
+        assert_eq!(
+            headwords_of(&bytes, "hacer tiempo"),
+            [headword("hace tiempo")]
+        );
+        // No key has others: the pack carries no section.
+        let (_, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_OTHERS));
+    }
+
+    #[test]
+    fn spec_scenario_a_core_that_does_not_read_the_spanish_section() {
+        // Stripped of the section, as a core that predates it reads it, the Spanish pack answers
+        // every key as the pack built without the other headwords — what the builder made before.
+        let all = [
+            "hace tiempo",
+            "hacer tiempo",
+            "tener en cuenta",
+            "echarse a perder",
+            "echado a perder",
+            "echar a perder",
+        ];
+        let bytes = shared_spanish_key_pack(&all);
+        let (meta, sections) = lingua_core::packs::format::read_container(&bytes).expect("decode");
+        assert!(sections.iter().any(|s| s.name == section::EXPR_OTHERS));
+        let kept: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::EXPR_OTHERS)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        let older = Pack::load(&write_container(&meta, &kept)).expect("load");
+        let before = Pack::load(&shared_spanish_key_pack(&[
+            "hacer tiempo",
+            "tener en cuenta",
+            "echar a perder",
+        ]))
+        .unwrap();
+        for key in [
+            "hacer tiempo",
+            "tener en contar",
+            "echar a perder",
+            "hace tiempo",
+            "echado a perder",
+        ] {
+            assert_eq!(older.expression(key), before.expression(key), "{key}");
+            assert_eq!(
+                older.expression_name(key),
+                before.expression_name(key),
+                "{key}"
+            );
+            assert_eq!(
+                older.expression_headwords(key),
+                before.expression_headwords(key),
+                "{key}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_spanish_pack_carries_names_only_where_a_key_is_not_its_headword() {
+        let bytes = spanish_pack(&["al menos", "a la vez"]);
+        let pack = Pack::load(&bytes).unwrap();
+        assert_eq!(pack.expression_name("a el menos"), Some("al menos"));
+        assert_eq!(pack.expression_name("a la vez"), None);
+        // A Spanish pack whose every headword is its key carries no names section.
+        let (_, sections) =
+            lingua_core::packs::format::read_container(&spanish_pack(&["a la vez"]))
+                .expect("decode");
+        assert!(sections.iter().all(|s| s.name != section::EXPR_NAMES_ZST));
+    }
+
     #[test]
     fn over_budget_names_the_expression_table_when_the_pack_carries_one() {
         let mut inp = inputs();
@@ -1155,6 +2061,234 @@ mod tests {
             }
             other => panic!("expected OverBudget, got {other:?}"),
         }
+    }
+
+    // — every lemma read as itself (fix-lingua-lemma-lookup D4) —
+
+    fn pairs(rows: &[(&str, &str)]) -> Vec<(String, String)> {
+        rows.iter()
+            .map(|(a, b)| ((*a).to_owned(), (*b).to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn spec_scenario_a_lemma_whose_own_spelling_reads_as_another() {
+        // `venue` ranked, the forms table reading the form `venue` as venir.
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("venue", "venir"), ("viens", "venir")]));
+        inp.ranks
+            .extend([("venir".into(), 60), ("venue".into(), 1_900)]);
+        let err = build_pack(&inp).expect_err("a ranked lemma read as another");
+        assert_eq!(
+            err,
+            BuildError::LemmaReadsAsAnother {
+                lemma: "venue".into(),
+                reads_as: "venir".into(),
+                more: 0,
+            }
+        );
+        assert_eq!(
+            err.to_string(),
+            "the lemma \"venue\" reads as \"venir\": the forms table lists it as a form of \"venir\""
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_acronym_is_a_form_in_capitals_its_own_lemma() {
+        // keep-lingua-french-acronyms-in-capitals D2: `CA` → `CA`, a dictionary word glossed and
+        // unranked, beside `ca` → `ça`; read back as written, `ca` as before.
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("CA", "CA"), ("ca", "ça"), ("ça", "ça")]));
+        inp.ranks.push(("ça".into(), 40));
+        inp.glosses.extend(pairs(&[
+            ("CA", "board of directors; revenue, turnover, net sales"),
+            ("ça", "that"),
+        ]));
+        let bytes = build_pack(&inp).expect("an acronym row builds");
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(pack.lexicon().lemma_of("CA"), Some("CA"));
+        assert_eq!(pack.lexicon().lemma_of("ca"), Some("ça"));
+        assert_eq!(
+            pack.gloss("CA"),
+            Some("board of directors; revenue, turnover, net sales")
+        );
+        assert_eq!(pack.gloss("ca"), None);
+        assert_eq!(pack.rank("CA"), None);
+        // Glossed with no form listed, the acronym is its own form all the same.
+        let mut inp = french_inputs();
+        inp.glosses.push(("ÉTÉ".into(), "a gloss".into()));
+        let pack = Pack::load(&build_pack(&inp).expect("builds")).expect("load");
+        assert_eq!(pack.lexicon().lemma_of("ÉTÉ"), Some("ÉTÉ"));
+    }
+
+    #[test]
+    fn spec_scenario_a_stray_capital() {
+        // Any other capital fails the build and names the form: `Paris`, `Ca`, `CA` read as `ça`,
+        // `ca` read as `CA`, a single letter in capitals, a capital glossed or ranked.
+        let refused = |inp: &PackInputs, named: &str| {
+            let err = build_pack(inp).expect_err("a stray capital");
+            assert_eq!(err, BuildError::StrayCapital(named.into()));
+            assert!(err.to_string().contains(&format!("{named:?}")), "{err}");
+            assert!(err.to_string().contains("holds a capital"), "{err}");
+        };
+        for (form, lemma, named) in [
+            ("Paris", "paris", "Paris"),
+            ("Paris", "Paris", "Paris"),
+            ("Ca", "Ca", "Ca"),
+            ("CA", "ça", "CA"),
+            ("ca", "CA", "CA"),
+            ("A", "A", "A"),
+        ] {
+            let mut inp = french_inputs();
+            inp.form_lemma.push((form.into(), lemma.into()));
+            refused(&inp, named);
+        }
+        let mut inp = french_inputs();
+        inp.glosses.push(("Ca".into(), "that".into()));
+        refused(&inp, "Ca");
+        let mut inp = french_inputs();
+        inp.ranks.push(("Paris".into(), 900));
+        refused(&inp, "Paris");
+        // A pack studying English or Spanish holds no form in capitals, an acronym's shape or not.
+        let mut inp = inputs();
+        inp.form_lemma.push(("US".into(), "US".into()));
+        refused(&inp, "US");
+        let mut inp = spanish_inputs();
+        inp.form_lemma.push(("CA".into(), "CA".into()));
+        refused(&inp, "CA");
+        // The guard runs before the forms are read: the pack studying French builds without them.
+        assert!(build_pack(&french_inputs()).is_ok());
+    }
+
+    #[test]
+    fn a_glossed_lemma_or_a_forms_table_lemma_read_as_another_is_refused_too() {
+        // Glossed, not ranked.
+        let mut inp = french_inputs();
+        inp.form_lemma.push(("venue".into(), "venir".into()));
+        inp.ranks.push(("venir".into(), 60));
+        inp.glosses.push(("venue".into(), "coming, arrival".into()));
+        assert!(matches!(
+            build_pack(&inp),
+            Err(BuildError::LemmaReadsAsAnother { lemma, reads_as, .. })
+                if lemma == "venue" && reads_as == "venir"
+        ));
+        // The lemma of another form of the table.
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("venue", "venir"), ("venues", "venue")]));
+        assert!(matches!(
+            build_pack(&inp),
+            Err(BuildError::LemmaReadsAsAnother { lemma, .. }) if lemma == "venue"
+        ));
+        // Whatever the byte order: `donnée` sorts before `donner`, whose form the table says it
+        // is (`build_lexicon_blobs` lets the pairs win, D5). The first is named, the rest counted.
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("donnée", "donner"), ("venue", "venir")]));
+        inp.ranks.extend([
+            ("donner".into(), 70),
+            ("donnée".into(), 1_711),
+            ("venir".into(), 60),
+            ("venue".into(), 1_900),
+        ]);
+        let err = build_pack(&inp).expect_err("two ranked lemmas read as others");
+        assert_eq!(
+            err,
+            BuildError::LemmaReadsAsAnother {
+                lemma: "donnée".into(),
+                reads_as: "donner".into(),
+                more: 1,
+            }
+        );
+        assert!(err.to_string().ends_with(", and 1 more lemma"), "{err}");
+    }
+
+    #[test]
+    fn spec_scenario_a_form_listed_with_two_lemmas() {
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("porte", "porte"), ("porte", "porter")]));
+        let err = build_pack(&inp).expect_err("a form with two lemmas");
+        assert_eq!(
+            err,
+            BuildError::FormWithTwoLemmas {
+                form: "porte".into(),
+                lemmas: vec!["porte".into(), "porter".into()],
+                more: 0,
+            }
+        );
+        assert_eq!(
+            err.to_string(),
+            "the forms table lists the form \"porte\" with 2 lemmas: \"porte\", \"porter\""
+        );
+        // Two of them: the first form byte-wise is named, the other counted.
+        inp.form_lemma
+            .extend(pairs(&[("lu", "lire"), ("lu", "luire")]));
+        let err = build_pack(&inp).expect_err("two forms with two lemmas");
+        assert!(
+            matches!(&err, BuildError::FormWithTwoLemmas { form, more: 1, .. } if form == "lu"),
+            "{err:?}"
+        );
+        assert!(err.to_string().ends_with(", and 1 more form"), "{err}");
+    }
+
+    #[test]
+    fn a_form_listed_twice_with_one_lemma_builds() {
+        let mut inp = french_inputs();
+        inp.form_lemma
+            .extend(pairs(&[("portes", "porte"), ("portes", "porte")]));
+        let pack = Pack::load(&build_pack(&inp).expect("one lemma, listed twice")).unwrap();
+        assert_eq!(pack.lexicon().lemma_of("portes"), Some("porte"));
+    }
+
+    #[test]
+    fn spec_scenario_a_level_written_for_a_form() {
+        use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
+        // `donnée` no lemma of the pack, the forms table reading it as donner: its B1, written
+        // after donner's A1, is filed under no lemma — where it overwrote donner's.
+        let mut inp = french_inputs();
+        inp.form_lemma.push(("donnée".into(), "donner".into()));
+        inp.ranks.push(("donner".into(), 70));
+        inp.levels = vec![
+            ("donner".into(), CefrLevel::A1),
+            ("donnée".into(), CefrLevel::B1),
+        ];
+        let pack = Pack::load(&build_pack(&inp).expect("build")).expect("load");
+        assert!(!pack.lexicon().contains_lemma("donnée"));
+        assert_eq!(pack.level("donner"), Some(CefrLevel::A1));
+        assert!(pack.lemmas_at_level(CefrLevel::B1).is_empty());
+        assert_eq!(pack.lemmas_at_level(CefrLevel::A1), vec![("donner", None)]);
+        // The spelling's estimate is donner's, the lemma the forms read it as (D3).
+        assert_eq!(pack.level("donnée"), Some(CefrLevel::A1));
+    }
+
+    #[test]
+    fn what_is_filed_under_a_lemma_is_what_the_core_reads_for_it() {
+        // Every lemma-keyed section at the lemma's own place: rank, gloss, level, lexical bit,
+        // readings and runs of a lemma of a built pack are read back by its own spelling.
+        use lingua_core::knowledge::level::{CefrLevel, CefrLevels};
+        let mut inp = inputs_with_grammar();
+        inp.levels = vec![("leave".into(), CefrLevel::A2)];
+        // A lexical table naming `leaf` (unglossed) and not `run` (glossed): it is written.
+        inp.lexical = Some(vec!["leave".into(), "leaf".into()]);
+        let bytes = build_pack(&inp).expect("build");
+        assert!(section_of(&bytes, section::LEXICAL).is_some());
+        let pack = Pack::load(&bytes).expect("load");
+        assert_eq!(pack.rank("leave"), Some(371));
+        assert_eq!(pack.gloss("leave"), Some("Partir; Congé"));
+        assert_eq!(pack.level("leave"), Some(CefrLevel::A2));
+        assert!(pack.is_dictionary_word("leave"));
+        assert!(pack.is_dictionary_word("leaf"));
+        assert!(!pack.is_dictionary_word("run"));
+        assert_eq!(ud(&pack.readings("leave", "leaves")), [THIRD_SINGULAR]);
+        assert_eq!(pack.sense_runs("leave").len(), 2);
+        // A form of a lemma reads the lemma's estimates and nothing of its entry.
+        assert_eq!(pack.rank("running"), Some(500));
+        assert_eq!(pack.gloss("running"), None);
+        assert!(pack.readings("running", "running").is_empty());
+        assert!(pack.sense_runs("running").is_empty());
     }
 
     // — grammar tables (`add-lingua-word-grammar`) —
@@ -1392,8 +2526,10 @@ mod tests {
         assert_eq!(pack.meta().analyzer_version, FRENCH_ANALYZER_VERSION);
         assert_eq!(pack.lexicon().lemma_of("l'homme"), Some("homme"));
         assert_eq!(pack.gloss("homme"), Some("man"));
-        // Stamped with another language's version, it builds and the core refuses it.
-        inp.meta.analyzer_version = ANALYZER_VERSION.into();
+        // Stamped with another language's version, it builds and the core refuses it: Spanish's,
+        // since English's version is French's own too (add-lingua-french-detection-guard,
+        // ignore-lingua-soft-hyphens).
+        inp.meta.analyzer_version = lingua_core::analysis::SPANISH_ANALYZER_VERSION.into();
         let other = build_pack(&inp).expect("the builder does not check the version");
         assert!(Pack::load(&other).is_err());
     }

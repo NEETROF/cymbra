@@ -82,8 +82,8 @@ describe("relayTranslation", () => {
     expect(marks.map((m) => fr.slice(m.start, m.end))).toEqual(["maison"]);
   });
 
-  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en and en-es are listed ahead of their readers (routes-by-pair D4, matrix-marks D5)", () => {
-    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es"]);
+  it("The shipped pairs today: en-fr and es-fr are marked, as before; es-en, en-es, fr-en and fr-es are listed ahead of their readers (routes-by-pair D4, matrix-marks D5, french-translation D7)", () => {
+    expect(MARKED_PAIRS).toEqual(["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"]);
     // Keyed by pair, never by studied language: a language alone is not in the list.
     expect(MARKED_PAIRS).not.toContain("en");
     expect(MARKED_PAIRS).not.toContain("es");
@@ -109,6 +109,48 @@ describe("relayTranslation", () => {
     if (result.kind !== "translated") throw new Error("not translated");
     const { sentence: en, marks } = result.translation;
     expect(marks.map((m) => en.slice(m.start, m.end))).toEqual(["house"]);
+  });
+
+  it("A French selection, judged in English: a reader of English on a French page goes through fr-en, and the selection is marked in the English sentence (french-translation D7)", async () => {
+    const { access, seen, pairs } = engine((markup) => ({
+      ok: true,
+      html: markup === "travers" ? "through" : "<b>Throughout</b> history, the hair market has always been political.",
+    }));
+    const request = {
+      sentence: "A travers l'histoire, le marché du cheveu a toujours été politique.",
+      selection: { start: 2, end: 9 }, // « travers »
+      language: "fr",
+    };
+    // Listed on its own figures (95 of 96, 4 % withheld), inert until change 52 ships fr-en.
+    expect(MARKED_PAIRS).toContain("fr-en");
+    const result = await relayTranslation(access, request, pairOf(request.language, "en"));
+    expect(pairs).toEqual(["fr-en", "fr-en"]);
+    expect(seen).toEqual(["A <b>travers</b> l'histoire, le marché du cheveu a toujours été politique.", "travers"]);
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: en, marks } = result.translation;
+    expect(marks.map((m) => en.slice(m.start, m.end))).toEqual(["Throughout"]);
+  });
+
+  it("French through English, judged in Spanish: a reader of Spanish on a French page goes through fr-es, marked in the Spanish sentence on fr-es's own figures", async () => {
+    const { access, seen, pairs } = engine((markup) => ({
+      ok: true,
+      html:
+        markup === "chute"
+          ? "caída"
+          : "Tras la <b>caída</b> de la dinastía Qing en 1911, Mongolia proclamó su independencia.",
+    }));
+    const request = {
+      sentence: "Suivant la chute de la dynastie Qing en 1911, la Mongolie proclama son indépendance.",
+      selection: { start: 11, end: 16 }, // « chute »
+      language: "fr",
+    };
+    expect(MARKED_PAIRS).toContain("fr-es"); // 90 of 91, 9 % withheld
+    const result = await relayTranslation(access, request, pairOf(request.language, "es"));
+    expect(pairs).toEqual(["fr-es", "fr-es"]);
+    expect(seen[0]).toBe("Suivant la <b>chute</b> de la dynastie Qing en 1911, la Mongolie proclama son indépendance.");
+    if (result.kind !== "translated") throw new Error("not translated");
+    const { sentence: es, marks } = result.translation;
+    expect(marks.map((m) => es.slice(m.start, m.end))).toEqual(["caída"]);
   });
 
   it("translates a sentence through an unmeasured pair untagged, once, without a mark (pivot D3)", async () => {

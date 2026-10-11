@@ -31,7 +31,10 @@ import { followSurfaceLook } from "./surface-look.ts";
 
 /** A gesture the user made on a word or phrase. */
 export interface Gesture {
-  /** The dictionary form (single word) or the lowercased phrase (expression). */
+  /**
+   * The dictionary form the engine gave (single word), capitals included — `CA`, the acronym — or the
+   * phrase (expression), which the key lowercases (`gestureKey`).
+   */
   lemma: string;
   /** The surface text as seen. */
   surface: string;
@@ -43,6 +46,29 @@ export interface Gesture {
   expression: boolean;
   /** The answer the card showed, so an expression's gloss reaches the card it creates. */
   gloss: string | null;
+  /**
+   * The card's answer was the pack's expression table's — a whole-selection match — so the gloss
+   * it showed is stored, whatever the name's spelling (`d'abord` holds no space;
+   * add-lingua-french-word-card D8). Absent on every other card.
+   */
+  expressionAnswer?: boolean;
+  /**
+   * The card's headword is the selection's text as written, not a dictionary form the engine gave —
+   * the raw-text card of a word no analysis names: its key is lowercased, as an expression's. Absent
+   * on every other card.
+   */
+  asWritten?: boolean;
+}
+
+/**
+ * The key a gesture's status and card are filed under (keep-lingua-french-acronyms-in-capitals D6): a
+ * word's dictionary form as the engine gave it, capitals included, so the acronym `CA` keeps a status
+ * and a card of its own apart from `ça`; an expression's name, and a headword taken from the
+ * selection's text, lowercased as before. Every dictionary form the engine gives today but the
+ * acronym's is lowercase, so every other key is the one it was.
+ */
+export function gestureKey(g: Gesture): string {
+  return g.expression || g.expressionAnswer || g.asWritten ? g.lemma.toLowerCase() : g.lemma;
 }
 
 /** One word-by-word row: a dictionary form the reader does not know, with its pack gloss. */
@@ -64,6 +90,16 @@ export interface WordPopupContent {
   sentence: string;
   /** Whether this is a multi-word expression (hides "Je connais"). */
   expression?: boolean;
+  /**
+   * The answer is the pack's expression table's: an expression covering the whole selection,
+   * headed by its name (add-lingua-french-word-card D8). Its gesture says so.
+   */
+  expressionAnswer?: boolean;
+  /**
+   * The headword is the selection's text as written — no dictionary form the engine gave: its
+   * gesture says so, and is keyed lowercased (`gestureKey`).
+   */
+  asWritten?: boolean;
   /** The word's current status (drives which actions are offered); null = new/unknown. */
   status?: LemmaStatus | null;
   /** Anchor rectangle in viewport coordinates (the word's box). */
@@ -316,6 +352,8 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
         status,
         expression: !!current.expression,
         gloss: storedGloss ?? current.gloss,
+        ...(current.expressionAnswer ? { expressionAnswer: true } : {}),
+        ...(current.asWritten ? { asWritten: true } : {}),
       });
       view.hide();
     });

@@ -45,13 +45,36 @@ pub mod section {
     /// core that simply ignores the section.
     pub const LEVELS: &str = "levels";
     /// Multi-word expressions: an FST mapping a key — the words' dictionary
-    /// forms, lowercase, joined by single spaces — to an expression id.
+    /// forms, lowercase, joined by single spaces; for French, the pieces French's
+    /// analysis reads in the headword, its determiners as written
+    /// (add-lingua-french-expression-keys) — to an expression id.
     /// Optional and additive, like [`LEVELS`]: written only when the pair's
     /// sources hold expressions, ignored by a core that does not read it.
     pub const EXPR: &str = "expr";
     /// zstd-compressed, offset-indexed expression glosses, in the layout
     /// [`GLOSS_ZST`] uses, keyed by the id [`EXPR`] maps to.
     pub const EXPR_ZST: &str = "expr.zst";
+    /// zstd-compressed, offset-indexed expression names, in the layout
+    /// [`GLOSS_ZST`] uses, keyed by the id [`EXPR`] maps to: the headword as the
+    /// dictionary writes it (`au revoir`), for the expressions whose key differs
+    /// from it (`à le revoir`) — a key that is its own headword has none
+    /// (add-lingua-french-expression-keys D3), or `al menos` for `a el menos`
+    /// (add-lingua-spanish-expression-keys D3). Written for a pack studying French
+    /// or Spanish only, when one name differs. Optional and additive, like
+    /// [`EXPR`]: a core that predates it ignores it and reports keys, as English
+    /// does.
+    pub const EXPR_NAMES_ZST: &str = "expr.names.zst";
+    /// The other headwords of the keys several reach, for a pack studying French
+    /// (pick-lingua-expression-written-as-the-page D1): `count u32 | count × (key id
+    /// u32, other id u32)`, little-endian, sorted by key id and then in the order the
+    /// builder ranks a key's headwords (add-lingua-french-expression-keys D6). A key id
+    /// is one [`EXPR`] maps to, whose gloss and name are the headword that wins the key;
+    /// an other id is one no key maps to, filed in [`EXPR_ZST`] and [`EXPR_NAMES_ZST`]
+    /// like any expression — a headword of its own, with its gloss and its name.
+    /// Written only for a pack studying French in which a key has other headwords.
+    /// Optional and additive, like [`EXPR_NAMES_ZST`]: a core that predates it ignores
+    /// it, and answers every key with the headword it answered before.
+    pub const EXPR_OTHERS: &str = "expr.others";
     /// The grammar tag pool: one Universal Dependencies tag per line, id =
     /// line index (`add-lingua-word-grammar`). Optional and additive, like
     /// [`LEVELS`]; the two grammar blobs point into it.
@@ -156,6 +179,14 @@ pub struct Pack {
     /// Gloss per expression id, in the same layout as `glosses`. Empty when
     /// the pack carries no expression table.
     expression_glosses: BTreeMap<u64, String>,
+    /// Name per expression id, in the same layout as `glosses`, for the
+    /// expressions named otherwise than their key. Empty when the pack carries
+    /// no names.
+    expression_names: BTreeMap<u64, String>,
+    /// (key id, other headword's id) pairs, sorted by key id and then in the
+    /// builder's order ([`section::EXPR_OTHERS`]). Empty when the pack carries no
+    /// such section.
+    expression_others: Vec<(u64, u64)>,
     /// The grammar tables, when the pack carries them.
     grammar: Grammar,
     notice: String,
@@ -221,6 +252,19 @@ impl Pack {
             Some(s) => parse_glosses(&s.data, section::EXPR_ZST)?,
             None => BTreeMap::new(),
         };
+        let expression_names = match sections.iter().find(|s| s.name == section::EXPR_NAMES_ZST) {
+            Some(s) => parse_glosses(&s.data, section::EXPR_NAMES_ZST)?,
+            None => BTreeMap::new(),
+        };
+        let expression_others = match sections.iter().find(|s| s.name == section::EXPR_OTHERS) {
+            Some(s) => parse_expression_others(
+                &s.data,
+                expressions.as_ref(),
+                &expression_glosses,
+                &expression_names,
+            )?,
+            None => Vec::new(),
+        };
         let notice = sections
             .iter()
             .find(|s| s.name == section::NOTICE)
@@ -238,6 +282,8 @@ impl Pack {
             lexical,
             expressions,
             expression_glosses,
+            expression_names,
+            expression_others,
             grammar,
             notice,
         })
@@ -285,19 +331,92 @@ impl Pack {
         &self.lexicon
     }
 
-    /// The native-language gloss for a lemma, if the pack carries one.
+    /// The native-language gloss of the dictionary form `lemma`, if the pack
+    /// carries one: its own, found among the pack's lemmas. A string the pack
+    /// holds as no lemma — a form of another word (`saw`, of *see*) or a word it
+    /// does not hold — has none, never the gloss of the word its spelling is a
+    /// form of (fix-lingua-lemma-lookup D2).
     pub fn gloss(&self, lemma: &str) -> Option<&str> {
-        let id = self.lexicon.id_of(lemma)?;
+        let id = self.lexicon.lemma_id(lemma)?;
         self.glosses.get(&id).map(String::as_str)
     }
 
     /// The native-language gloss of a multi-word expression, keyed by its
     /// dictionary form: the words' lemmas, lowercase, joined by single spaces
-    /// (`starting point` is looked up as `start point`). `None` when the pack
-    /// carries no expression table, or holds no such key.
+    /// (`starting point` is looked up as `start point`); for a pack studying
+    /// French, the key [`french_expression_key`](crate::engine::french_expression_key)
+    /// makes of its headword (`au revoir` is looked up as `à le revoir`). `None`
+    /// when the pack carries no expression table, or holds no such key.
     pub fn expression(&self, key: &str) -> Option<&str> {
         let id = self.expressions.as_ref()?.get(key.as_bytes())?;
         self.expression_glosses.get(&id).map(String::as_str)
+    }
+
+    /// The name of the expression filed under `key` — its headword as the
+    /// dictionary writes it (`au revoir` for `à le revoir`) — when the pack names
+    /// it otherwise than its key; `None` when the key is its own name, the pack
+    /// holds no such key, or carries no names (add-lingua-french-expression-keys
+    /// D3).
+    pub fn expression_name(&self, key: &str) -> Option<&str> {
+        let id = self.expressions.as_ref()?.get(key.as_bytes())?;
+        self.expression_names.get(&id).map(String::as_str)
+    }
+
+    /// Every headword filed under `key`, each with its gloss
+    /// (pick-lingua-expression-written-as-the-page D1): the one that wins the key
+    /// first — its name, or the key where the pack names it none — then the key's
+    /// other headwords ([`section::EXPR_OTHERS`]), in the order the builder ranks
+    /// them (add-lingua-french-expression-keys D6): `ça aller` lists `ça ira` and
+    /// `ça va`. One entry for a key one headword reaches, and for every key of a pack
+    /// without the section; none when the pack holds no such key.
+    pub fn expression_headwords<'a>(&'a self, key: &'a str) -> Vec<(&'a str, &'a str)> {
+        let Some(id) = self
+            .expressions
+            .as_ref()
+            .and_then(|map| map.get(key.as_bytes()))
+        else {
+            return Vec::new();
+        };
+        let Some(gloss) = self.expression_glosses.get(&id) else {
+            return Vec::new();
+        };
+        let name = self.expression_names.get(&id).map_or(key, String::as_str);
+        std::iter::once((name, gloss.as_str()))
+            .chain(self.other_headwords(id).filter_map(|other| {
+                Some((
+                    self.expression_names.get(other)?.as_str(),
+                    self.expression_glosses.get(other)?.as_str(),
+                ))
+            }))
+            .collect()
+    }
+
+    /// The gloss of the headword named `name` among those filed under `key`
+    /// ([`Pack::expression_headwords`]), and the key's own gloss where none is so
+    /// named (pick-lingua-expression-written-as-the-page D4): review reads a French
+    /// card at the key its lemma reads as, and the card `ça va` shows `ça va`'s gloss,
+    /// not `ça ira`'s, which wins the key. `None` when the pack holds no such key.
+    pub fn expression_gloss_named(&self, key: &str, name: &str) -> Option<&str> {
+        let id = self.expressions.as_ref()?.get(key.as_bytes())?;
+        let own = self.expression_glosses.get(&id)?;
+        if self.expression_names.get(&id).map_or(key, String::as_str) == name {
+            return Some(own);
+        }
+        let named = self
+            .other_headwords(id)
+            .find(|other| self.expression_names.get(other).is_some_and(|n| n == name))
+            .and_then(|other| self.expression_glosses.get(other));
+        Some(named.unwrap_or(own))
+    }
+
+    /// The ids of the other headwords of the key whose id is `id`, in the builder's
+    /// order: the run of [`section::EXPR_OTHERS`]'s pairs holding that key id.
+    fn other_headwords(&self, id: u64) -> impl Iterator<Item = &u64> {
+        let at = self.expression_others.partition_point(|&(key, _)| key < id);
+        self.expression_others[at..]
+            .iter()
+            .take_while(move |&&(key, _)| key == id)
+            .map(|(_, other)| other)
     }
 
     /// Whether the pack carries an expression table, so a caller can skip the
@@ -316,14 +435,16 @@ impl Pack {
         self.grammar.paradigms.is_some() || self.grammar.senses.is_some()
     }
 
-    /// The paradigm filed under a dictionary form, decoded; empty when the
-    /// pack has none for it.
+    /// The paradigm filed under a dictionary form, found among the pack's
+    /// lemmas, decoded; empty when the pack has none for it, or holds no such
+    /// lemma — a form of another word reads no other word's paradigm
+    /// (fix-lingua-lemma-lookup D2).
     fn paradigm(&self, lemma: &str) -> Vec<ParadigmEntry> {
         let Some(blob) = &self.grammar.paradigms else {
             return Vec::new();
         };
         self.lexicon
-            .id_of(lemma)
+            .lemma_id(lemma)
             .and_then(|id| blob.get(u32::try_from(id).ok()?))
             .and_then(decode_paradigm)
             .unwrap_or_default()
@@ -335,7 +456,8 @@ impl Pack {
 
     /// The readings of `form` (lowercase) as the dictionary form `lemma`, in
     /// the pack's order. Empty when the pack carries no grammar, holds no
-    /// such form, or reads none of its tags.
+    /// such form, holds `lemma` as no lemma of its own, or reads none of its
+    /// tags.
     pub fn readings(&self, lemma: &str, form: &str) -> Vec<Tag> {
         self.paradigm(lemma)
             .into_iter()
@@ -369,13 +491,14 @@ impl Pack {
     /// The runs of a dictionary form's gloss: consecutive senses sharing a
     /// part of speech, each with its tag (`None` when this core cannot read
     /// it) and the number of senses it covers. Empty when the pack carries
-    /// no runs for the word.
+    /// no runs for the word, or holds it as no lemma of its own: the runs
+    /// follow [`Pack::gloss`] (fix-lingua-lemma-lookup D2).
     pub fn sense_runs(&self, lemma: &str) -> Vec<(Option<&Tag>, usize)> {
         let Some(blob) = &self.grammar.senses else {
             return Vec::new();
         };
         self.lexicon
-            .id_of(lemma)
+            .lemma_id(lemma)
             .and_then(|id| blob.get(u32::try_from(id).ok()?))
             .and_then(decode_runs)
             .unwrap_or_default()
@@ -456,8 +579,14 @@ impl Pack {
     /// Whether `lemma` is one of the pack's dictionary words — a word of its studied
     /// language rather than a name or noise (add-lingua-pack-lexical-layer D2). The
     /// lexical table says so when the pack carries one; a pack without one reads its
-    /// glossed lemmas as its dictionary words, which is exactly
-    /// `self.gloss(lemma).is_some()`. A lemma the lexicon does not hold is none.
+    /// glossed lemmas as its dictionary words, which for a lemma of the pack is exactly
+    /// `self.gloss(lemma).is_some()`. A string the lexicon does not hold is none.
+    ///
+    /// An estimate, like [`FrequencyRanks::rank`] and [`CefrLevels::level`]: it reads
+    /// through the spelling, for the lemma the pack's forms read `lemma` as, so that a
+    /// string the analysis returns as a form of a dictionary word is no name
+    /// (fix-lingua-lemma-lookup D3). Every lemma of a pack the builder writes reads as
+    /// itself, so for a lemma it is that lemma's own mark.
     pub fn is_dictionary_word(&self, lemma: &str) -> bool {
         self.lexicon
             .id_of(lemma)
@@ -476,6 +605,11 @@ impl Pack {
 }
 
 impl FrequencyRanks for Pack {
+    /// The frequency rank of `lemma`, an estimate: read through the spelling, for the
+    /// lemma the pack's forms read `lemma` as (fix-lingua-lemma-lookup D3) — a reader
+    /// who knows *strange* is estimated to know `strangers`, which the analysis reads
+    /// as `stranger`, a form of *strange*. A lemma of a pack the builder writes reads as
+    /// itself, so its rank is its own.
     fn rank(&self, lemma: &str) -> Option<u32> {
         let id = self.lexicon.id_of(lemma)? as usize;
         match self.freq.get(id).copied() {
@@ -486,6 +620,8 @@ impl FrequencyRanks for Pack {
 }
 
 impl CefrLevels for Pack {
+    /// The CEFR level of `lemma`, an estimate read through the spelling like
+    /// [`FrequencyRanks::rank`] (fix-lingua-lemma-lookup D3).
     fn level(&self, lemma: &str) -> Option<CefrLevel> {
         let id = self.lexicon.id_of(lemma)? as usize;
         CefrLevel::from_code(self.levels.get(id).copied()?)
@@ -535,7 +671,8 @@ fn parse_lexical(bytes: &[u8], lemma_count: usize) -> Result<Vec<u8>, PackError>
 /// `count u32 | count*(id u32, off u32, len u32) | utf8 bytes`, offsets
 /// relative to the start of the utf8 payload. The lemma glosses
 /// ([`section::GLOSS_ZST`]) and the expression glosses
-/// ([`section::EXPR_ZST`]) share it; `name` is the section a malformed blob
+/// ([`section::EXPR_ZST`]) share it, and so do the expression names
+/// ([`section::EXPR_NAMES_ZST`]); `name` is the section a malformed blob
 /// is reported under, so the error names the table actually at fault.
 fn parse_glosses(zst: &[u8], name: &'static str) -> Result<BTreeMap<u64, String>, PackError> {
     let raw = zstd_decode(zst)?;
@@ -570,6 +707,49 @@ fn parse_glosses(zst: &[u8], name: &'static str) -> Result<BTreeMap<u64, String>
 /// Reads the grammar sections. They are additive: each one is optional, and
 /// a pack carrying a blob this core cannot index is refused like any other
 /// malformed section, so a corrupt pack never answers half its grammar.
+/// Reads [`section::EXPR_OTHERS`]: `count u32 | count × (key id u32, other id u32)`,
+/// little-endian, into its (key id, other id) pairs, in the section's order
+/// (pick-lingua-expression-written-as-the-page D1). The builder's ids are dense: a key's
+/// below the number of keys `keys` holds, an other headword's from it. Refused as
+/// malformed when its length is not its count's, when its pairs are not sorted by key id,
+/// or when a pair holds a key id no key has, or an other id a key has or that carries no
+/// gloss or no name: the section then says something the table does not hold, and the
+/// pack is refused rather than misread.
+fn parse_expression_others(
+    bytes: &[u8],
+    keys: Option<&fst::Map<Vec<u8>>>,
+    glosses: &BTreeMap<u64, String>,
+    names: &BTreeMap<u64, String>,
+) -> Result<Vec<(u64, u64)>, PackError> {
+    let bad = || PackError::Malformed(section::EXPR_OTHERS);
+    let word = |at: usize| -> Option<u64> {
+        let slice = bytes.get(at..at.checked_add(4)?)?;
+        Some(u64::from(u32::from_le_bytes(slice.try_into().ok()?)))
+    };
+    let count = usize::try_from(word(0).ok_or_else(bad)?).map_err(|_| bad())?;
+    if count.checked_mul(8).and_then(|n| n.checked_add(4)) != Some(bytes.len()) {
+        return Err(bad());
+    }
+    let key_ids = 0..keys.map_or(0, |map| map.len() as u64);
+    let mut others: Vec<(u64, u64)> = Vec::with_capacity(count);
+    for pair in 0..count {
+        let (key, other) = (
+            word(4 + pair * 8).ok_or_else(bad)?,
+            word(8 + pair * 8).ok_or_else(bad)?,
+        );
+        if !key_ids.contains(&key)
+            || key_ids.contains(&other)
+            || !glosses.contains_key(&other)
+            || !names.contains_key(&other)
+            || others.last().is_some_and(|&(before, _)| before > key)
+        {
+            return Err(bad());
+        }
+        others.push((key, other));
+    }
+    Ok(others)
+}
+
 fn parse_grammar(sections: &[super::format::Section]) -> Result<Grammar, PackError> {
     let find = |name: &str| sections.iter().find(|s| s.name == name);
     let tags = match find(section::TAGS) {
@@ -745,7 +925,7 @@ pub(crate) mod tests {
     fn spec_scenario_loading_the_en_fr_pack_names_english() {
         let pack = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
         assert_eq!(pack.studied(), StudiedLanguage::English);
-        assert_eq!(pack.meta().analyzer_version, "1.1.0");
+        assert_eq!(pack.meta().analyzer_version, "1.3.0");
     }
 
     #[test]
@@ -880,33 +1060,49 @@ pub(crate) mod tests {
     #[test]
     fn spec_scenario_a_french_pack_at_french_s_analyser_version() {
         // add-lingua-french-baseline: a pack studying French loads against French's own version,
-        // whatever English's is, and is glossed in English or Spanish. Its pre-pass made it
-        // `0.2.0` (add-lingua-french-tokenisation D9).
+        // whatever English's is, and is glossed in English or Spanish. Its own analysis left the
+        // baseline's `0.x` versions (add-lingua-french-analysis D5).
+        assert!(!FRENCH_ANALYZER_VERSION.starts_with("0."));
         let bytes = sample_pack_bytes_with("fr", "en", FRENCH_ANALYZER_VERSION);
-        let french = Pack::load(&bytes).expect("a French pack at 0.2.0 loads");
+        let french = Pack::load(&bytes).expect("a French pack at French's version loads");
         assert_eq!(french.studied(), StudiedLanguage::French);
-        assert_eq!(french.meta().analyzer_version, "0.2.0");
+        assert_eq!(french.meta().analyzer_version, FRENCH_ANALYZER_VERSION);
         assert_eq!(french.pair().key(), "fr-en");
         assert_eq!(Pack::studied_in(&bytes).unwrap(), StudiedLanguage::French);
         let fr_es = Pack::load(&sample_pack_bytes_with("fr", "es", FRENCH_ANALYZER_VERSION))
             .expect("a fr-es pack loads");
         assert_eq!(fr_es.pair().key(), "fr-es");
-        match Pack::load(&sample_pack_bytes_with("fr", "en", ANALYZER_VERSION)) {
+        // Compared with French's own version, never another language's: a French pack at
+        // Spanish's is refused. English's version was French's own too, as it was Spanish's once
+        // (`1.1.0` since add-lingua-french-detection-guard, `1.2.0` since
+        // ignore-lingua-soft-hyphens, until leave-lingua-names-out-of-english-and-spanish-words
+        // moved English to `1.3.0`), and is again since keep-lingua-french-acronyms-in-capitals
+        // moved French to `1.3.0`: the numbers may meet.
+        assert_ne!(SPANISH_ANALYZER_VERSION, FRENCH_ANALYZER_VERSION);
+        match Pack::load(&sample_pack_bytes_with(
+            "fr",
+            "en",
+            SPANISH_ANALYZER_VERSION,
+        )) {
             Err(PackError::IncompatibleAnalyzer { pack, core }) => {
-                assert_eq!(pack, "1.1.0");
-                assert_eq!(core, "0.2.0");
+                assert_eq!(pack, SPANISH_ANALYZER_VERSION);
+                assert_eq!(core, FRENCH_ANALYZER_VERSION);
             }
             Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
-            Ok(_) => panic!("a French pack at English's version loaded"),
+            Ok(_) => panic!("a French pack at Spanish's version loaded"),
         }
-        // A pack built at the baseline's `0.1.0` tokenised French otherwise: it is refused.
-        match Pack::load(&sample_pack_bytes_with("fr", "en", "0.1.0")) {
-            Err(PackError::IncompatibleAnalyzer { pack, core }) => {
-                assert_eq!(pack, "0.1.0");
-                assert_eq!(core, "0.2.0");
+        // A pack built at `1.2.0`, before French's acronyms, at `1.0.0`, before its detection
+        // guard, at `0.2.0`, the version French had before its own analysis, or at the baseline's
+        // `0.1.0`, read French otherwise: each is refused.
+        for before in ["1.2.0", "1.0.0", "0.2.0", "0.1.0"] {
+            match Pack::load(&sample_pack_bytes_with("fr", "en", before)) {
+                Err(PackError::IncompatibleAnalyzer { pack, core }) => {
+                    assert_eq!(pack, before);
+                    assert_eq!(core, FRENCH_ANALYZER_VERSION);
+                }
+                Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
+                Ok(_) => panic!("a French pack at {before} loaded"),
             }
-            Err(other) => panic!("expected IncompatibleAnalyzer, got {other}"),
-            Ok(_) => panic!("a French pack at the baseline's version loaded"),
         }
         // Portuguese still has no analyser.
         assert!(matches!(
@@ -1219,6 +1415,346 @@ pub(crate) mod tests {
         ));
     }
 
+    // — expression names (add-lingua-french-expression-keys D3) —
+
+    /// The name section for a table built by [`build_expr_sections`] from `keys`: each
+    /// (key, name) pair filed under the id the key's sorted position gives it.
+    fn build_expr_names(keys: &[&str], names: &[(&str, &str)]) -> Vec<u8> {
+        let mut sorted = keys.to_vec();
+        sorted.sort_unstable();
+        let mut entries: Vec<(u32, &str)> = names
+            .iter()
+            .map(|(key, name)| {
+                let id = sorted.binary_search(key).expect("a key of the table");
+                (id as u32, *name)
+            })
+            .collect();
+        entries.sort_unstable();
+        build_gloss_zst(&entries)
+    }
+
+    /// A small fr-en pack holding `à le revoir` (named `au revoir`) and `tout de suite` (its
+    /// own name), with the names section when `names` is given.
+    fn french_expression_pack(names: Option<&[u8]>) -> Vec<u8> {
+        let (forms, pool) = build_lexicon_blobs(&[], &["à", "le", "revoir", "tout", "de", "suite"])
+            .expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let (keys, glosses) =
+            build_expr_sections(&[("à le revoir", "goodbye"), ("tout de suite", "right away")]);
+        let mut sections: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, pool.as_bytes()),
+            (section::FREQ, &freq_bytes),
+            (section::EXPR, &keys),
+            (section::EXPR_ZST, &glosses),
+        ];
+        if let Some(names) = names {
+            sections.push((section::EXPR_NAMES_ZST, names));
+        }
+        write_container(
+            &meta_json_with("fr", "en", FRENCH_ANALYZER_VERSION),
+            &sections,
+        )
+    }
+
+    fn french_names() -> Vec<u8> {
+        build_expr_names(
+            &["à le revoir", "tout de suite"],
+            &[("à le revoir", "au revoir")],
+        )
+    }
+
+    #[test]
+    fn a_pack_without_the_names_section_names_no_expression_and_loads_as_before() {
+        let pack = Pack::load(&french_expression_pack(None)).expect("load");
+        assert_eq!(pack.expression("à le revoir"), Some("goodbye"));
+        assert_eq!(pack.expression_name("à le revoir"), None);
+        // Nor does a pack without an expression table at all.
+        let bare = Pack::load(&sample_pack_bytes(ANALYZER_VERSION)).expect("load");
+        assert_eq!(bare.expression_name("give up"), None);
+    }
+
+    #[test]
+    fn a_pack_with_the_names_section_names_its_expressions() {
+        let pack = Pack::load(&french_expression_pack(Some(&french_names()))).expect("load");
+        assert_eq!(pack.expression_name("à le revoir"), Some("au revoir"));
+        // A key that is its own name carries none; a name is no key; a key the table does not
+        // hold has no name.
+        assert_eq!(pack.expression_name("tout de suite"), None);
+        assert_eq!(pack.expression("tout de suite"), Some("right away"));
+        assert_eq!(pack.expression_name("au revoir"), None);
+        assert_eq!(pack.expression("au revoir"), None);
+        assert_eq!(pack.expression_name("à le soir"), None);
+    }
+
+    #[test]
+    fn a_malformed_names_section_is_refused_under_its_own_name() {
+        let truncated = zstd::encode_all(&1u32.to_le_bytes()[..], 19).expect("zstd encode");
+        assert!(matches!(
+            Pack::load(&french_expression_pack(Some(&truncated))),
+            Err(PackError::Malformed(section::EXPR_NAMES_ZST))
+        ));
+    }
+
+    #[test]
+    fn a_core_ignoring_the_names_section_reads_the_same_table() {
+        // A core that predates the section ignores it, as it ignores any section it does not
+        // know (`a_pack_carrying_an_unknown_section_loads_unchanged`): stripped of its names,
+        // the pack answers every key with the same gloss — only the names are missing.
+        let named = Pack::load(&french_expression_pack(Some(&french_names()))).expect("load");
+        let (meta, sections) =
+            read_container(&french_expression_pack(Some(&french_names()))).expect("read");
+        let unnamed: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::EXPR_NAMES_ZST)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        let older = Pack::load(&write_container(&meta, &unnamed)).expect("load");
+        for key in ["à le revoir", "tout de suite", "au revoir"] {
+            assert_eq!(older.expression(key), named.expression(key), "{key}");
+            assert_eq!(older.expression_name(key), None, "{key}");
+        }
+    }
+
+    // — every headword of a shared key (pick-lingua-expression-written-as-the-page D1) —
+
+    /// The `expr.others` section: `count u32 | count × (key id u32, other id u32)`.
+    fn build_expr_others(pairs: &[(u32, u32)]) -> Vec<u8> {
+        let mut raw = (pairs.len() as u32).to_le_bytes().to_vec();
+        for (key, other) in pairs {
+            raw.extend_from_slice(&key.to_le_bytes());
+            raw.extend_from_slice(&other.to_le_bytes());
+        }
+        raw
+    }
+
+    /// A small fr-en pack laid out as the builder lays out a key several headwords reach:
+    /// `tout de suite` (id 0, its own name) and `ça aller` (id 1), won by `ça ira`, whose other
+    /// headword `ça va` is id 2, which no key maps to. `glosses` and `names` replace the
+    /// tables' when given, `others` is the section's bytes when given.
+    fn shared_key_pack(
+        glosses: Option<&[(u32, &str)]>,
+        names: Option<&[(u32, &str)]>,
+        others: Option<&[u8]>,
+    ) -> Vec<u8> {
+        let (forms, pool) =
+            build_lexicon_blobs(&[], &["ça", "aller", "tout", "de", "suite"]).expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let freq_bytes = vec![0u8; lex.lemma_count() * 4];
+        let mut keys = fst::MapBuilder::memory();
+        keys.insert("tout de suite", 0).unwrap();
+        keys.insert("ça aller", 1).unwrap();
+        let keys = keys.into_inner().unwrap();
+        let glosses = build_gloss_zst(glosses.unwrap_or(&[
+            (0, "right away"),
+            (1, "it will be all right"),
+            (2, "how are you?"),
+        ]));
+        let names = build_gloss_zst(names.unwrap_or(&[(1, "ça ira"), (2, "ça va")]));
+        let mut sections: Vec<(&str, &[u8])> = vec![
+            (section::FORMS, &forms),
+            (section::LEMMAS, pool.as_bytes()),
+            (section::FREQ, &freq_bytes),
+            (section::EXPR, &keys),
+            (section::EXPR_ZST, &glosses),
+            (section::EXPR_NAMES_ZST, &names),
+        ];
+        if let Some(others) = others {
+            sections.push((section::EXPR_OTHERS, others));
+        }
+        write_container(
+            &meta_json_with("fr", "en", FRENCH_ANALYZER_VERSION),
+            &sections,
+        )
+    }
+
+    #[test]
+    fn spec_scenario_two_headwords_reach_one_key() {
+        let pack = Pack::load(&shared_key_pack(
+            None,
+            None,
+            Some(&build_expr_others(&[(1, 2)])),
+        ))
+        .unwrap();
+        // The key answers the headword that wins it, its gloss and its name, as before…
+        assert_eq!(pack.expression("ça aller"), Some("it will be all right"));
+        assert_eq!(pack.expression_name("ça aller"), Some("ça ira"));
+        // …and lists the other headword after it, with its own gloss.
+        assert_eq!(
+            pack.expression_headwords("ça aller"),
+            [
+                ("ça ira", "it will be all right"),
+                ("ça va", "how are you?")
+            ]
+        );
+        // A key one headword reaches lists it alone, under its key where the pack names it none;
+        // a headword is no key, nor is what the pack does not hold.
+        assert_eq!(
+            pack.expression_headwords("tout de suite"),
+            [("tout de suite", "right away")]
+        );
+        assert!(pack.expression_headwords("ça va").is_empty());
+        assert!(pack.expression_headwords("au revoir").is_empty());
+    }
+
+    #[test]
+    fn a_gloss_is_read_under_the_headword_it_is_named_by() {
+        let pack = Pack::load(&shared_key_pack(
+            None,
+            None,
+            Some(&build_expr_others(&[(1, 2)])),
+        ))
+        .unwrap();
+        assert_eq!(
+            pack.expression_gloss_named("ça aller", "ça va"),
+            Some("how are you?")
+        );
+        assert_eq!(
+            pack.expression_gloss_named("ça aller", "ça ira"),
+            Some("it will be all right")
+        );
+        // A name no headword of the key carries reads the key's own gloss; a key the pack does not
+        // hold, none.
+        assert_eq!(
+            pack.expression_gloss_named("ça aller", "ça allait"),
+            Some("it will be all right")
+        );
+        assert_eq!(
+            pack.expression_gloss_named("tout de suite", "tout de suite"),
+            Some("right away")
+        );
+        assert_eq!(
+            pack.expression_gloss_named("tout de suite", "ça va"),
+            Some("right away")
+        );
+        assert_eq!(pack.expression_gloss_named("ça va", "ça va"), None);
+        // Without the section, every name reads the key's own gloss.
+        let older = Pack::load(&shared_key_pack(None, None, None)).unwrap();
+        assert_eq!(
+            older.expression_gloss_named("ça aller", "ça va"),
+            Some("it will be all right")
+        );
+    }
+
+    #[test]
+    fn spec_scenario_a_core_that_does_not_read_the_section() {
+        // A core that predates the section ignores it (`a_pack_carrying_an_unknown_section_loads_
+        // unchanged`), and the other headword's id is one no key maps to: stripped of the section,
+        // the pack answers every key with the headword, gloss and name it answers with it.
+        let with = Pack::load(&shared_key_pack(
+            None,
+            None,
+            Some(&build_expr_others(&[(1, 2)])),
+        ))
+        .unwrap();
+        let older = Pack::load(&shared_key_pack(None, None, None)).unwrap();
+        for key in ["ça aller", "tout de suite", "ça va", "ça ira"] {
+            assert_eq!(older.expression(key), with.expression(key), "{key}");
+            assert_eq!(
+                older.expression_name(key),
+                with.expression_name(key),
+                "{key}"
+            );
+            assert_eq!(
+                older.expression_headwords(key).first(),
+                with.expression_headwords(key).first(),
+                "{key}"
+            );
+        }
+        assert_eq!(older.expression_headwords("ça aller").len(), 1);
+    }
+
+    #[test]
+    fn a_malformed_others_section_is_refused_under_its_own_name() {
+        let refused = |others: &[u8]| {
+            matches!(
+                Pack::load(&shared_key_pack(None, None, Some(others))),
+                Err(PackError::Malformed(section::EXPR_OTHERS))
+            )
+        };
+        // Truncated: no count, a count announcing a pair it does not carry, a stray byte.
+        assert!(refused(b""));
+        assert!(refused(&build_expr_others(&[(1, 2)])[..8]));
+        let mut longer = build_expr_others(&[(1, 2)]);
+        longer.push(0);
+        assert!(refused(&longer));
+        // A key id no key has, and an other id a key maps to.
+        assert!(refused(&build_expr_others(&[(5, 2)])));
+        assert!(refused(&build_expr_others(&[(1, 0)])));
+        // Pairs out of key order.
+        let unsorted = shared_key_pack(
+            Some(&[
+                (0, "right away"),
+                (1, "it will be all right"),
+                (2, "how are you?"),
+                (3, "in a minute"),
+            ]),
+            Some(&[(1, "ça ira"), (2, "ça va"), (3, "tout à l'heure")]),
+            Some(&build_expr_others(&[(1, 2), (0, 3)])),
+        );
+        assert!(matches!(
+            Pack::load(&unsorted),
+            Err(PackError::Malformed(section::EXPR_OTHERS))
+        ));
+        // In key order, each key lists its own.
+        let two_keys = Pack::load(&shared_key_pack(
+            Some(&[
+                (0, "right away"),
+                (1, "it will be all right"),
+                (2, "how are you?"),
+                (3, "in a minute"),
+            ]),
+            Some(&[(1, "ça ira"), (2, "ça va"), (3, "tout à l'heure")]),
+            Some(&build_expr_others(&[(0, 3), (1, 2)])),
+        ))
+        .unwrap();
+        assert_eq!(
+            two_keys.expression_headwords("tout de suite"),
+            [
+                ("tout de suite", "right away"),
+                ("tout à l'heure", "in a minute")
+            ]
+        );
+        assert_eq!(
+            two_keys.expression_headwords("ça aller"),
+            [
+                ("ça ira", "it will be all right"),
+                ("ça va", "how are you?")
+            ]
+        );
+        // An other id with no gloss, and one with a gloss and no name.
+        assert!(refused(&build_expr_others(&[(1, 7)])));
+        let unnamed = shared_key_pack(
+            None,
+            Some(&[(1, "ça ira")]),
+            Some(&build_expr_others(&[(1, 2)])),
+        );
+        assert!(matches!(
+            Pack::load(&unnamed),
+            Err(PackError::Malformed(section::EXPR_OTHERS))
+        ));
+        // The well-formed section loads, and an empty one too.
+        assert!(!refused(&build_expr_others(&[(1, 2)])));
+        assert!(!refused(&build_expr_others(&[])));
+        // A pack carrying the section without an expression table says something no key holds.
+        let (meta, sections) = read_container(&shared_key_pack(
+            None,
+            None,
+            Some(&build_expr_others(&[(1, 2)])),
+        ))
+        .unwrap();
+        let tableless: Vec<(&str, &[u8])> = sections
+            .iter()
+            .filter(|s| s.name != section::EXPR)
+            .map(|s| (s.name.as_str(), s.data.as_slice()))
+            .collect();
+        assert!(matches!(
+            Pack::load(&write_container(&meta, &tableless)),
+            Err(PackError::Malformed(section::EXPR_OTHERS))
+        ));
+    }
+
     /// The sample pack plus whatever grammar sections a test names.
     fn sample_pack_with(extra: &[(&str, &[u8])]) -> Vec<u8> {
         let (meta, mut sections) = read_container(&sample_pack_bytes(ANALYZER_VERSION)).unwrap();
@@ -1288,6 +1824,143 @@ pub(crate) mod tests {
             .collect();
         assert_eq!(runs, [(Some("VERB".to_owned()), 1)]);
         assert!(pack.sense_runs("unlisted").is_empty());
+    }
+
+    // — a dictionary form is read as itself (fix-lingua-lemma-lookup) —
+
+    const PAST: &str = "VERB|Mood=Ind|Tense=Past|VerbForm=Fin";
+
+    /// A pack whose forms read `saw` and `seen` as *see*, and `are` and `is` as *be*: *see*
+    /// ranked 200 and A1, glossed with a verb's sense and a noun's, its runs saying so and its
+    /// paradigm naming `saw` its past tense; *be* ranked 2 and glossed. Neither `saw` nor `are`
+    /// is a lemma of the pack.
+    fn see_pack() -> Vec<u8> {
+        use super::super::grammar::{
+            FormEdit, ParadigmEntry, SenseRun, encode_indexed, encode_paradigm, encode_runs,
+            encode_tag_pool,
+        };
+        use crate::knowledge::level::CefrLevel;
+        let (forms, pool) = build_lexicon_blobs(
+            &[("saw", "see"), ("seen", "see"), ("are", "be"), ("is", "be")],
+            &[],
+        )
+        .expect("lexicon");
+        let lex = FstLexicon::from_slices(forms.clone(), &pool).unwrap();
+        let id = |lemma: &str| lex.lemma_id(lemma).expect("a lemma of the pack") as u32;
+        let mut freq = vec![0u32; lex.lemma_count()];
+        freq[id("see") as usize] = 200;
+        freq[id("be") as usize] = 2;
+        let freq_bytes: Vec<u8> = freq.iter().flat_map(|r| r.to_le_bytes()).collect();
+        let mut levels = vec![0u8; lex.lemma_count()];
+        levels[id("see") as usize] = CefrLevel::A1.to_code();
+        let gloss = build_gloss_zst(&[(id("be"), "Être"), (id("see"), "Voir; Siège")]);
+        let tags = encode_tag_pool(&["NOUN".into(), "VERB".into(), PAST.into()]);
+        let paradigm = encode_paradigm(&[ParadigmEntry::Reading {
+            form: FormEdit::between("see", "saw").unwrap(),
+            tag: 2,
+        }]);
+        let paradigms =
+            zstd::encode_all(encode_indexed(&[(id("see"), paradigm)]).as_slice(), 19).unwrap();
+        let runs = encode_runs(&[SenseRun { tag: 1, count: 1 }, SenseRun { tag: 0, count: 1 }]);
+        let senses = zstd::encode_all(encode_indexed(&[(id("see"), runs)]).as_slice(), 19).unwrap();
+        write_container(
+            &meta_json(ANALYZER_VERSION),
+            &[
+                (section::FORMS, &forms),
+                (section::LEMMAS, pool.as_bytes()),
+                (section::FREQ, &freq_bytes),
+                (section::LEVELS, &levels),
+                (section::GLOSS_ZST, &gloss),
+                (section::TAGS, &tags),
+                (section::PARADIGMS_ZST, &paradigms),
+                (section::SENSES_ZST, &senses),
+                (section::NOTICE, b"kaikki: CC BY-SA."),
+            ],
+        )
+    }
+
+    fn uds(tags: &[Tag]) -> Vec<String> {
+        tags.iter().map(Tag::to_ud).collect()
+    }
+
+    #[test]
+    fn spec_scenario_a_form_asked_about_as_its_own_dictionary_form() {
+        let pack = Pack::load(&see_pack()).expect("load");
+        // `saw` is held only as a form of see: nothing of see's entry is read for it.
+        assert_eq!(pack.gloss("saw"), None);
+        assert!(pack.sense_runs("saw").is_empty());
+        assert!(pack.readings("saw", "saw").is_empty());
+        assert!(pack.other_readings("saw", "saw").is_empty());
+        // see's own entry, read as before.
+        assert_eq!(pack.gloss("see"), Some("Voir; Siège"));
+        assert_eq!(uds(&pack.readings("see", "saw")), [PAST]);
+        let runs: Vec<(Option<String>, usize)> = pack
+            .sense_runs("see")
+            .into_iter()
+            .map(|(tag, count)| (tag.map(Tag::to_ud), count))
+            .collect();
+        assert_eq!(
+            runs,
+            [(Some("VERB".to_owned()), 1), (Some("NOUN".to_owned()), 1)]
+        );
+    }
+
+    #[test]
+    fn spec_scenario_the_gloss_of_a_form() {
+        let pack = Pack::load(&see_pack()).expect("load");
+        assert_eq!(pack.gloss("are"), None);
+        assert_eq!(pack.gloss("be"), Some("Être"));
+        // A word the pack does not hold has none either.
+        assert_eq!(pack.gloss("absent"), None);
+    }
+
+    #[test]
+    fn the_estimates_keep_reading_through_the_spelling() {
+        use crate::knowledge::level::CefrLevel;
+        let pack = Pack::load(&see_pack()).expect("load");
+        // Rank, level and dictionary-word mark: see's, for the form the pack reads as see.
+        assert_eq!(pack.rank("saw"), Some(200));
+        assert_eq!(pack.rank("saw"), pack.rank("see"));
+        assert_eq!(pack.level("saw"), Some(CefrLevel::A1));
+        assert!(pack.is_dictionary_word("saw"));
+        assert_eq!(pack.rank("are"), Some(2));
+        // Its gloss does not follow them.
+        assert_eq!(pack.gloss("saw"), None);
+        // A word the pack does not hold has none of them.
+        assert_eq!(pack.rank("absent"), None);
+        assert_eq!(pack.level("absent"), None);
+        assert!(!pack.is_dictionary_word("absent"));
+    }
+
+    #[test]
+    fn spec_scenario_a_lemma_list_out_of_order() {
+        let (meta, sections) = read_container(&see_pack()).unwrap();
+        for (pool, named) in [
+            ("see\nbe", "\"be\" after \"see\""),
+            ("be\nbe\nsee", "\"be\" twice"),
+        ] {
+            let rewritten: Vec<(&str, &[u8])> = sections
+                .iter()
+                .map(|s| {
+                    let data: &[u8] = if s.name == section::LEMMAS {
+                        pool.as_bytes()
+                    } else {
+                        &s.data
+                    };
+                    (s.name.as_str(), data)
+                })
+                .collect();
+            match Pack::load(&write_container(&meta, &rewritten)) {
+                Err(err @ PackError::Lexicon(LexiconError::LemmaPoolOutOfOrder { .. })) => {
+                    assert!(err.to_string().contains(named), "{err}");
+                    assert!(err.to_string().starts_with("pack lexicon: "), "{err}");
+                }
+                Err(other) => panic!("{pool:?}: expected LemmaPoolOutOfOrder, got {other}"),
+                Ok(_) => panic!("{pool:?}: a pack whose lemma list is out of order loaded"),
+            }
+        }
+        // The pack as built loads.
+        assert!(Pack::load(&see_pack()).is_ok());
     }
 
     #[test]

@@ -1,0 +1,11 @@
+schema: spec-driven
+created: 2026-10-10
+archiveAfter:
+  - add-lingua-expression-table
+  - add-lingua-french-baseline
+  - add-lingua-french-tokenisation
+  - add-lingua-french-expression-keys
+  - add-lingua-spanish-expression-keys
+  - add-lingua-pack-fr-en
+  - add-lingua-pack-fr-es
+  - add-lingua-french-word-card

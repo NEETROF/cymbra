@@ -3,12 +3,18 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { GrammarTag, StudiedLanguage, WordGrammar } from "@/analyzer/types.ts";
 import {
+  CARD_NAMES,
   describeForm,
   FEATURES,
   finiteKey,
   formKind,
   isDictionaryForm,
+  isInvariablePlural,
+  mergedMoodsKey,
+  mergeGenders,
+  nameReadings,
   PARTS_OF_SPEECH,
+  type ReadingWords,
   readingOf,
   tagsOf,
   tenseOrder,
@@ -17,12 +23,14 @@ import type { GrammarRenderer, StudiedLanguageCode } from "@/i18n/index.ts";
 import { grammar as en } from "@/i18n/en/grammar.ts";
 import { grammar as es } from "@/i18n/es/grammar.ts";
 import { grammar as fr } from "@/i18n/fr/grammar.ts";
+import { lineText } from "@/reading/grammar-description.ts";
 import { createCard } from "@/reading/wordpopup.ts";
 
 // generalise-lingua-card-wording D1: a form described once, in no language — the readings as the
 // engine's tags, merged and deduplicated by tag, the dictionary form left out on its own card — and
 // "What each renderer names": the closed vocabulary enumerated, every renderer naming what the
-// French card names, no more.
+// French card names, no more. refine-lingua-card-invariable-plurals D1, D7: on that card, a plural
+// read beside a singular of its part of speech is left out too, in every studied language.
 
 const grammar = (over: Partial<WordGrammar> = {}): WordGrammar => ({
   gloss: null,
@@ -103,6 +111,107 @@ describe("the description of a form names no language", () => {
     expect(isDictionaryForm({ pos: "VERB", features: { Number: "Sing" } })).toBe(false);
   });
 
+  it("knows a plural read beside its singular: a nominal plural without a degree, a singular of its part of speech among the card's tags", () => {
+    const tag = (pos: string, features: Record<string, string>): GrammarTag => ({ pos, features });
+    const plural = tag("NOUN", { Gender: "Fem", Number: "Plur" });
+    expect(isInvariablePlural(plural, [plural, tag("NOUN", { Gender: "Fem", Number: "Sing" })])).toBe(true);
+    // Whatever the singular's gender: the part of speech decides (« paso »).
+    expect(isInvariablePlural(plural, [tag("NOUN", { Gender: "Masc", Number: "Sing" })])).toBe(true);
+    // A plural alone, or beside another part of speech's singular only (« frais »).
+    expect(isInvariablePlural(plural, [plural])).toBe(false);
+    expect(isInvariablePlural(plural, [plural, tag("ADJ", { Number: "Sing" })])).toBe(false);
+    // A degree, a verb's or a numeral's plural, a singular: never.
+    const comparative = tag("ADJ", { Degree: "Cmp", Number: "Plur" });
+    expect(isInvariablePlural(comparative, [comparative, tag("ADJ", { Number: "Sing" })])).toBe(false);
+    for (const pos of ["VERB", "NUM"]) {
+      expect(isInvariablePlural(tag(pos, { Number: "Plur" }), [tag(pos, { Number: "Sing" })]), pos).toBe(false);
+    }
+    expect(isInvariablePlural(tag("NOUN", { Number: "Sing" }), [tag("NOUN", { Number: "Sing" })])).toBe(false);
+    expect(isInvariablePlural({ pos: "NOUN" }, [{ pos: "NOUN" }])).toBe(false);
+  });
+
+  it("leaves out, on the dictionary form's own card, a plural read beside a singular of its part of speech", () => {
+    const tag = (pos: string, Number: string, Gender?: string): GrammarTag => ({
+      pos,
+      features: Gender ? { Gender, Number } : { Number },
+    });
+    // A noun's plural of each gender, a proper noun's, an adjective's, a pronoun's and a
+    // determiner's, beside a singular of their part of speech (« crisis », « lunes », « nadie »).
+    for (const pos of ["NOUN", "PROPN", "ADJ", "PRON", "DET"]) {
+      for (const gender of [undefined, ...FEATURES.Gender!]) {
+        const own = describeForm(
+          grammar({ readings: [tag(pos, "Plur", gender), tag(pos, "Sing")] }),
+          "x",
+          "X",
+          "X",
+        ).own;
+        expect(own, `${pos} ${gender}`).toEqual([]);
+      }
+    }
+    // Every gender of the plural on one card, the singular's gender aside (« nadie »).
+    const nadie = describeForm(
+      grammar({
+        readings: [
+          tag("NOUN", "Plur", "Fem"),
+          tag("NOUN", "Sing", "Fem"),
+          tag("NOUN", "Plur", "Masc"),
+          tag("NOUN", "Sing", "Masc"),
+        ],
+      }),
+      "nadie",
+      "nadie",
+      "nadie",
+    );
+    expect(nadie.own).toEqual([]);
+    // A feminine plural beside a masculine singular, and a verb's reading beside it kept, as is
+    // the other dictionary form's (« paso » → « pasar »).
+    const pres = fin("Ind", "1", "Sing", "Pres");
+    const paso = describeForm(
+      grammar({
+        readings: [tag("ADJ", "Sing", "Masc"), tag("NOUN", "Plur", "Fem"), tag("NOUN", "Sing", "Masc"), pres],
+        others: [{ lemma: "pasar", readings: [pres] }],
+      }),
+      "paso",
+      "paso",
+      "paso",
+    );
+    expect(paso.own).toEqual([readingOf(pres)]);
+    expect(paso.others).toEqual([{ lemma: "pasar", readings: [readingOf(pres)] }]);
+  });
+
+  it("keeps a plural with no singular of its part of speech, and every plural off the dictionary form's own card", () => {
+    const tag = (pos: string, Number: string, Gender?: string): GrammarTag => ({
+      pos,
+      features: Gender ? { Gender, Number } : { Number },
+    });
+    const own = (headword: string, surface: string, readings: GrammarTag[], others: WordGrammar["others"] = []) =>
+      describeForm(grammar({ readings, others }), headword, surface, surface);
+    // A noun's plural alone (« gafas », "police"), and a noun's plural beside an adjective's
+    // singular only (« frais »: the adjective's plural goes, the noun's stays).
+    expect(own("gafas", "gafas", [tag("NOUN", "Plur", "Fem")]).own).toEqual([readingOf(tag("NOUN", "Plur", "Fem"))]);
+    expect(own("police", "police", [tag("NOUN", "Plur")]).own).toEqual([readingOf(tag("NOUN", "Plur"))]);
+    expect(
+      own("frais", "frais", [tag("ADJ", "Sing", "Masc"), tag("ADJ", "Plur", "Masc"), tag("NOUN", "Plur", "Masc")]).own,
+    ).toEqual([readingOf(tag("NOUN", "Plur", "Masc"))]);
+    // The form differs from its dictionary form: a plural of it, as before (« rápidas », « casas »).
+    expect(own("rápido", "rápidas", [tag("ADJ", "Plur", "Fem")]).own).toHaveLength(1);
+    expect(own("casa", "casas", [tag("NOUN", "Plur", "Fem")]).own).toHaveLength(1);
+    expect(own("crisis", "crises", [tag("NOUN", "Plur", "Fem"), tag("NOUN", "Sing", "Fem")]).own).toHaveLength(2);
+    // Another dictionary form's plural, even one read beside its singular ("leaves" → "leaf").
+    const leaves = own(
+      "leave",
+      "leaves",
+      [tag("NOUN", "Plur"), fin("Ind", "3", "Sing", "Pres")],
+      [{ lemma: "leaf", readings: [tag("NOUN", "Plur")] }],
+    );
+    expect(leaves.others[0]!.readings).toEqual([readingOf(tag("NOUN", "Plur"))]);
+    const both = [tag("NOUN", "Plur", "Fem"), tag("NOUN", "Sing", "Fem")];
+    expect(own("x", "x", [], [{ lemma: "y", readings: both }]).others[0]!.readings).toHaveLength(2);
+    // A comparative plural is named as such.
+    const comparative: GrammarTag = { pos: "ADJ", features: { Degree: "Cmp", Number: "Plur" } };
+    expect(own("x", "x", [comparative, tag("ADJ", "Sing")]).own).toEqual([readingOf(comparative)]);
+  });
+
   it("keeps the pieces of a split word only, and the senses' headings as tags", () => {
     const split = describeForm(
       grammar({
@@ -147,9 +256,14 @@ describe("the description of a form names no language", () => {
     }
   });
 
-  it("orders a studied language's tenses once, from the renderer's table: Spanish's as listed, English's as the pack has them", () => {
-    const tenses = { en: { "Ind/Past": "a", "Ind/Pres": "b" }, es: { "Sub/Pres": "c", "Ind/Pres": "d", "Imp/": "e" } };
+  it("orders a studied language's tenses once, from the renderer's table: Spanish's and French's as listed, English's as the pack has them", () => {
+    const tenses = {
+      en: { "Ind/Past": "a", "Ind/Pres": "b" },
+      es: { "Sub/Pres": "c", "Ind/Pres": "d", "Imp/": "e" },
+      fr: { "Ind/Pres": "f", "Ind|Sub/Pres": "g", "Cnd/": "h", "Imp/": "i" },
+    };
     expect(tenseOrder(tenses, "es")).toEqual(["Sub/Pres", "Ind/Pres", "Imp/"]);
+    expect(tenseOrder(tenses, "fr")).toEqual(["Ind/Pres", "Ind|Sub/Pres", "Cnd/", "Imp/"]);
     expect(tenseOrder(tenses, "en")).toEqual([]);
   });
 
@@ -162,6 +276,193 @@ describe("the description of a form names no language", () => {
     expect(finiteKey(r({ Mood: "Cnd", Tense: "Pres" }), "es")).toBe("Cnd/");
     expect(finiteKey(r({ Mood: "Sub", Tense: "Imp" }), "es")).toBe("Sub/Imp");
     expect(formKind(r({ Mood: "Sub" }), "en")).toBeNull();
+    // French keyed as Spanish (add-lingua-french-word-card D2): the conditional and the imperative
+    // without a tense, as change 45 stores them; the passé simple is `Ind/Past`.
+    for (const [features, key] of [
+      [{ Mood: "Ind", Tense: "Past" }, "Ind/Past"],
+      [{ Mood: "Cnd" }, "Cnd/"],
+      [{ Mood: "Imp" }, "Imp/"],
+      [{ Mood: "Sub", Tense: "Imp" }, "Sub/Imp"],
+    ] as const) {
+      expect(finiteKey(r(features), "fr")).toBe(key);
+      expect(finiteKey(r(features), "es")).toBe(key);
+    }
+  });
+});
+
+// add-lingua-french-word-card D1, D3, D4: what a French card names, decided in the description once
+// for every renderer, tested here without a word of any language.
+describe("what a French card names", () => {
+  const r = (features: Record<string, string>) => readingOf({ pos: "VERB", features });
+
+  it("is one table, English's and Spanish's values today's", () => {
+    expect(CARD_NAMES).toEqual({
+      en: { infinitive: false, presentParticiple: false, gerund: true, moods: false },
+      es: { infinitive: true, presentParticiple: false, gerund: true, moods: false },
+      fr: { infinitive: true, presentParticiple: true, gerund: false, moods: true },
+    });
+  });
+
+  it("names French's infinitive and present participle, never a gerund", () => {
+    expect(formKind(r({ VerbForm: "Inf" }), "fr")).toEqual({ kind: "infinitive" });
+    expect(formKind(r({ Tense: "Pres", VerbForm: "Part" }), "fr")).toEqual({ kind: "presentParticiple" });
+    expect(formKind(r({ VerbForm: "Ger" }), "fr")).toBeNull();
+    expect(formKind(r({ Gender: "Fem", Number: "Sing", Tense: "Past", VerbForm: "Part" }), "fr")).toEqual({
+      kind: "participle",
+      gender: "Fem",
+      number: "Sing",
+    });
+    // English and Spanish as before: no present participle, a gerund.
+    for (const studied of ["en", "es"] as const) {
+      expect(formKind(r({ Tense: "Pres", VerbForm: "Part" }), studied)).toBeNull();
+      expect(formKind(r({ VerbForm: "Ger" }), studied)).toEqual({ kind: "gerund" });
+    }
+    expect(formKind(r({ VerbForm: "Part" }), "fr")).toBeNull();
+  });
+
+  it("keys the indicative and the subjunctive of one tense said once", () => {
+    expect(mergedMoodsKey("Ind/Pres")).toBe("Ind|Sub/Pres");
+    expect(mergedMoodsKey("Ind/Imp")).toBe("Ind|Sub/Imp");
+    for (const key of ["Sub/Pres", "Cnd/", "Imp/", "Ind/", "Ind|Sub/Pres"]) expect(mergedMoodsKey(key)).toBeUndefined();
+  });
+
+  /** Words that are the keys themselves: a group reads `<persons> <number> <key>`. */
+  const words = (studied: StudiedLanguageCode, keys: string[]): ReadingWords => ({
+    tenses: {
+      en: {},
+      es: {},
+      fr: {},
+      [studied]: Object.fromEntries(keys.map((k) => [k, k])),
+    } as ReadingWords["tenses"],
+    name: (kind) => ({ article: "", name: kind.kind }),
+    persons: (persons, number, tense) => ({ article: "", name: `${persons.join("+")} ${number} ${tense}` }),
+    numbers: ["Sing", "Plur"],
+    mergeBy: "key",
+  });
+  const FRENCH_KEYS = [
+    "Ind/Pres",
+    "Ind|Sub/Pres",
+    "Ind/Imp",
+    "Ind|Sub/Imp",
+    "Ind/Past",
+    "Ind/Fut",
+    "Cnd/",
+    "Sub/Pres",
+    "Sub/Imp",
+    "Imp/",
+  ];
+  const names = (tags: GrammarTag[], studied: StudiedLanguageCode, keys = FRENCH_KEYS) =>
+    nameReadings(
+      describeForm(grammar({ readings: tags }), "lemma", "form", "form").own,
+      studied,
+      words(studied, keys),
+    ).map((n) => n.name);
+
+  it("says the moods of « parle » once, the imperative after them", () => {
+    const parle = [
+      fin("Imp", "2", "Sing"),
+      fin("Ind", "1", "Sing", "Pres"),
+      fin("Ind", "3", "Sing", "Pres"),
+      fin("Sub", "1", "Sing", "Pres"),
+      fin("Sub", "3", "Sing", "Pres"),
+    ];
+    expect(names(parle, "fr")).toEqual(["1+3 Sing Ind|Sub/Pres", "2 Sing Imp/"]);
+    expect(names([fin("Ind", "3", "Plur", "Pres"), fin("Sub", "3", "Plur", "Pres")], "fr")).toEqual([
+      "3 Plur Ind|Sub/Pres",
+    ]);
+    // The subjunctive first in the pack's order: the merge takes its place.
+    expect(names([fin("Sub", "2", "Sing", "Pres"), fin("Ind", "2", "Sing", "Pres")], "fr")).toEqual([
+      "2 Sing Ind|Sub/Pres",
+    ]);
+  });
+
+  it("merges an imperfect read in both moods, before the present subjunctive (« finissions »)", () => {
+    const finissions = [
+      fin("Ind", "1", "Plur", "Imp"),
+      fin("Sub", "1", "Plur", "Imp"),
+      fin("Sub", "1", "Plur", "Pres"),
+    ];
+    expect(names(finissions, "fr")).toEqual(["1 Plur Ind|Sub/Imp", "1 Plur Sub/Pres"]);
+  });
+
+  it("keeps apart what differs otherwise: persons, number, tense, or a mood not merged", () => {
+    // « soyez »: the subjunctive and the imperative; « vis »: the present and the past historic.
+    expect(names([fin("Sub", "2", "Plur", "Pres"), fin("Imp", "2", "Plur")], "fr")).toEqual([
+      "2 Plur Sub/Pres",
+      "2 Plur Imp/",
+    ]);
+    expect(names([fin("Ind", "1", "Sing", "Pres"), fin("Ind", "1", "Sing", "Past")], "fr")).toEqual([
+      "1 Sing Ind/Pres",
+      "1 Sing Ind/Past",
+    ]);
+    expect(names([fin("Ind", "1", "Sing", "Pres"), fin("Sub", "3", "Sing", "Pres")], "fr")).toEqual([
+      "1 Sing Ind/Pres",
+      "3 Sing Sub/Pres",
+    ]);
+    expect(names([fin("Ind", "1", "Sing", "Pres"), fin("Sub", "1", "Plur", "Pres")], "fr")).toEqual([
+      "1 Sing Ind/Pres",
+      "1 Plur Sub/Pres",
+    ]);
+    expect(names([fin("Ind", "3", "Sing", "Imp"), fin("Sub", "3", "Sing", "Pres")], "fr")).toEqual([
+      "3 Sing Ind/Imp",
+      "3 Sing Sub/Pres",
+    ]);
+  });
+
+  it("merges only where the studied language does and the renderer names the merged key", () => {
+    const both = [fin("Ind", "3", "Plur", "Pres"), fin("Sub", "3", "Plur", "Pres")];
+    expect(names(both, "fr", ["Ind/Pres", "Sub/Pres"])).toEqual(["3 Plur Ind/Pres", "3 Plur Sub/Pres"]);
+    expect(names(both, "es", FRENCH_KEYS)).toEqual(["3 Plur Ind/Pres", "3 Plur Sub/Pres"]);
+  });
+
+  it("orders French's tenses as its table lists them: indicative, conditional, subjunctive, imperative", () => {
+    const all = [
+      fin("Imp", "2", "Sing"),
+      fin("Sub", "3", "Sing", "Imp"),
+      fin("Sub", "3", "Sing", "Pres"),
+      fin("Cnd", "1", "Sing"),
+      fin("Ind", "1", "Sing", "Fut"),
+      fin("Ind", "2", "Sing", "Past"),
+      fin("Ind", "1", "Sing", "Imp"),
+      fin("Ind", "1", "Sing", "Pres"),
+    ];
+    expect(names(all, "fr")).toEqual([
+      "1 Sing Ind/Pres",
+      "1 Sing Ind/Imp",
+      "2 Sing Ind/Past",
+      "1 Sing Ind/Fut",
+      "1 Sing Cnd/",
+      "3 Sing Sub/Pres",
+      "3 Sing Sub/Imp",
+      "2 Sing Imp/",
+    ]);
+    // A merge moved to the place of its subjunctive keeps the order of tenses.
+    const merged = [fin("Imp", "2", "Sing"), fin("Sub", "1", "Sing", "Imp"), fin("Ind", "1", "Sing", "Pres")];
+    expect(names([...merged, fin("Ind", "1", "Sing", "Imp")], "fr")).toEqual([
+      "1 Sing Ind/Pres",
+      "1 Sing Ind|Sub/Imp",
+      "2 Sing Imp/",
+    ]);
+  });
+
+  it("names the genders of one number once, in the renderer's order, where the first stood", () => {
+    const agreed = new Map([
+      ["F.Sing", { gender: "Fem", number: "Sing" as const }],
+      ["M.Sing", { gender: "Masc", number: "Sing" as const }],
+      ["F.Plur", { gender: "Fem", number: "Plur" as const }],
+      ["M.Plur", { gender: "Masc", number: "Plur" as const }],
+    ]);
+    const n = (name: string) => ({ article: "", name });
+    const merged = (list: string[]) =>
+      mergeGenders(
+        list.map(n),
+        (x) => agreed.get(x.name),
+        (genders, number) => n(`${genders.join("&")}.${number}`),
+        ["Masc", "Fem"],
+      ).map((x) => x.name);
+    expect(merged(["F.Plur", "x", "M.Plur", "F.Plur"])).toEqual(["Masc&Fem.Plur", "x"]);
+    expect(merged(["F.Sing", "M.Plur"])).toEqual(["F.Sing", "M.Plur"]);
+    expect(merged(["F.Plur", "M.Sing", "M.Plur"])).toEqual(["Masc&Fem.Plur", "M.Sing"]);
   });
 });
 
@@ -242,7 +543,8 @@ describe("What each renderer names", () => {
     expect(tags.length).toBeGreaterThan(2000);
   });
 
-  for (const studied of ["en", "es"] as StudiedLanguageCode[]) {
+  // French studied too (add-lingua-french-word-card D10): every renderer has its table.
+  for (const studied of ["en", "es", "fr"] as StudiedLanguageCode[]) {
     for (const [language, renderer] of renderers) {
       it(`${language}, of ${studied}: names what the French names, and leaves unnamed what it leaves unnamed`, () => {
         let named = 0;
@@ -272,6 +574,55 @@ describe("What each renderer names", () => {
       expect(renderer.senseHeading(undefined)).toBeNull();
     });
   }
+
+  it("a plural read beside its singular gets no line in any language, a plural alone keeps the French card's", () => {
+    let named = 0;
+    for (const studied of ["en", "es", "fr"] as StudiedLanguageCode[]) {
+      for (const pos of ["NOUN", "PROPN", "ADJ", "DET", "PRON"]) {
+        for (const Gender of [undefined, ...FEATURES.Gender!]) {
+          const plural: GrammarTag = { pos, features: Gender ? { Gender, Number: "Plur" } : { Number: "Plur" } };
+          const singular: GrammarTag = { pos, features: { Number: "Sing" } };
+          const french = fr.readingName(plural, studied);
+          if (french) named++;
+          for (const renderer of [fr, en, es]) {
+            const lines = (readings: GrammarTag[]) =>
+              renderer.grammarLines(grammar({ readings }), "lemma", "lemma", "lemma", studied);
+            expect(lines([plural, singular]), `${studied} ${JSON.stringify(plural)}`).toEqual([]);
+            expect(lines([singular, plural]), `${studied} ${JSON.stringify(plural)}`).toEqual([]);
+            expect(lines([plural]).length, `${studied} ${JSON.stringify(plural)}`).toBe(french ? 1 : 0);
+          }
+        }
+      }
+    }
+    expect(named).toBeGreaterThan(20);
+  });
+
+  it("the indicative and the subjunctive of a French tense said once by every renderer, never for English or Spanish", () => {
+    const parle = grammar({
+      readings: [
+        fin("Imp", "2", "Sing"),
+        fin("Ind", "1", "Sing", "Pres"),
+        fin("Ind", "3", "Sing", "Pres"),
+        fin("Sub", "1", "Sing", "Pres"),
+        fin("Sub", "3", "Sing", "Pres"),
+      ],
+    });
+    const said = (renderer: GrammarRenderer, studied: StudiedLanguageCode) =>
+      renderer.grammarLines(parle, "parler", "parle", "parle", studied).map(lineText);
+    expect(said(en, "fr")).toEqual([
+      "first- and third-person singular present indicative or subjunctive and second-person singular imperative of parler",
+    ]);
+    expect(said(es, "fr")).toEqual([
+      "primera y tercera persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del imperativo de parler",
+    ]);
+    expect(said(fr, "fr")).toEqual([
+      "1re et 3e personnes du singulier du présent de l’indicatif ou du subjonctif et 2e personne du singulier de l’impératif de parler",
+    ]);
+    // Spanish's « hable » keeps its subjunctive and its imperative apart, and never merges moods.
+    expect(said(en, "es")).toEqual([
+      "first- and third-person singular present indicative, first- and third-person singular present subjunctive and second-person singular imperative of parler",
+    ]);
+  });
 
   it("a form the French card says nothing about gets no line in any language", () => {
     const silent = grammar({

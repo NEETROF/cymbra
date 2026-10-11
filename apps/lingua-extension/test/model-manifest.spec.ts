@@ -30,6 +30,7 @@ const PINNED = {
 const EN_FR = "en-fr/base-memory/2.0";
 const ES_EN = "es-en/base-memory/2.0";
 const EN_ES = "en-es/base-memory/2.1";
+const FR_EN = "fr-en/base-memory/2.0";
 
 // en-es 2.1 as Mozilla publishes it (add-lingua-translation-matrix-models D1): the sha256 of each
 // file's decompressed bytes, read from the files downloaded from the registry and equal to Firefox's
@@ -40,16 +41,28 @@ const EN_ES_PINNED = {
   vocab: "5ae254fa9b15aa182e70fd2a6186b1333c63a29a48043a9224c6aa4fcac058ad",
 };
 
+// fr-en 2.0 as Mozilla publishes it (add-lingua-french-translation D1): the sha256 of each file's
+// decompressed bytes, read from the files downloaded from the registry and equal to Firefox's Remote
+// Settings for fr→en 2.0 (`translations-models-v2` calls the same bytes 3.0); the model's is the
+// registry's `uncompressedHash`, and the vocabulary's is en-fr 2.0's.
+const FR_EN_PINNED = {
+  model: "15f997bc0d13808b0b0fbd0786e684a3c8a52adcd8071844b76123fdacbf2b90",
+  lex: "87c6752ea908f5f0347c10ac0cf7d80d9c2f4f20c81c90168f3e8230b56d4440",
+  vocab: "783abf3abe075afdf8d85d233994bef2c3a064e935ab1bed946820aff6ac002a",
+};
+
 describe("the committed catalogue", () => {
-  it("Every reader today: three models, en-fr's and es-fr's routes as before, es-en and en-es one model each, and nothing else is listed (matrix-models D2)", () => {
+  it("Every reader today: four models, en-fr's and es-fr's routes as before, es-en, en-es and fr-en one model each, fr-es through English, and nothing else is listed (matrix-models D2, french-translation D2)", () => {
     const c = parseCatalogue(committed);
     // In the order they were pinned.
-    expect(Object.keys(c.models)).toEqual([EN_FR, ES_EN, EN_ES]);
+    expect(Object.keys(c.models)).toEqual([EN_FR, ES_EN, EN_ES, FR_EN]);
     expect(c.routes).toEqual({
       "en-fr": [EN_FR],
       "es-fr": [ES_EN, EN_FR],
       "es-en": [ES_EN],
       "en-es": [EN_ES],
+      "fr-en": [FR_EN],
+      "fr-es": [FR_EN, EN_ES],
     });
     // The same models in the same order as the routes keyed by studied language gave.
     expect(routeOf(c, "en-fr").map((m) => m.version)).toEqual([EN_FR]);
@@ -142,10 +155,96 @@ describe("the committed catalogue", () => {
     expect(modelsFor(c, ["es-en", "en-es"]).reduce((sum, m) => sum + totalSize(m), 0)).toBe(26_241_052 + 25_373_354);
   });
 
+  it("Pinned against Mozilla's publications: fr-en 2.0's files, their digests, 26 234 715 bytes to download and 37 200 311 on the device (french-translation D1)", () => {
+    const [model, ...rest] = routeOf(parseCatalogue(committed), "fr-en");
+    expect(rest).toEqual([]);
+    expect([model!.from, model!.to]).toEqual(["fr", "en"]);
+    expect(Object.fromEntries(Object.entries(model!.files).map(([role, f]) => [role, f.sha256]))).toEqual(FR_EN_PINNED);
+    expect(Object.fromEntries(Object.entries(model!.files).map(([role, f]) => [role, [f.size, f.unpacked]]))).toEqual({
+      model: [23_175_075, 31_561_787],
+      lex: [2_649_934, 4_824_120],
+      vocab: [409_706, 814_404],
+    });
+    expect(totalSize(model!)).toBe(26_234_715);
+    expect(unpackedSize(model!)).toBe(37_200_311);
+    // Named as the other models' files, under the id and the decompressed sha256.
+    expect(Object.values(model!.files).map((f) => f.path)).toEqual([
+      `${FR_EN}/${FR_EN_PINNED.model}/model.bin.gz`,
+      `${FR_EN}/${FR_EN_PINNED.lex}/lex.bin.gz`,
+      `${FR_EN}/${FR_EN_PINNED.vocab}/vocab.spm.gz`,
+    ]);
+    // Where Mozilla's registry publishes them — the run of its one fr-en entry — with the sha256 of the
+    // gzip file it serves, its mirror release and its licence.
+    const raw = committed.models[FR_EN];
+    expect(raw.licence).toBe("MPL-2.0");
+    expect(raw.mirror).toBe("https://github.com/NEETROF/cymbra/releases/download/lingua-model-fr-en-base-memory-2.0/");
+    expect(
+      Object.values(raw.files).map((f) => {
+        const { source } = f as { source: { path: string; sha256: string } };
+        return [source.path, source.sha256];
+      }),
+    ).toEqual([
+      [
+        "models/fr-en/retrain_hr_EFgIftH_RrCyzl5gjemVNg/exported/model.fren.intgemm.alphas.bin.gz",
+        "06b1eeedd3944260d00a393d12ec7192490c5b7c930b97212faf4d5f5c90a2ee",
+      ],
+      [
+        "models/fr-en/retrain_hr_EFgIftH_RrCyzl5gjemVNg/exported/lex.50.50.fren.s2t.bin.gz",
+        "395aa7767220e1bcfc085f2b2787ff98005d0075e55451f1e0832885e3d9642a",
+      ],
+      [
+        "models/fr-en/retrain_hr_EFgIftH_RrCyzl5gjemVNg/exported/vocab.fren.spm.gz",
+        "8d15b219ffd32327b4cabf0d94a05a4fecb8923a4f386badbcbe5e86ede453a7",
+      ],
+    ]);
+  });
+
+  it("translates French into English directly, and into Spanish through English: fr-en then en-es, 51 608 069 bytes (french-translation D2)", () => {
+    const c = parseCatalogue(committed);
+    expect(routeOf(c, "fr-en").map((m) => [m.version, m.from, m.to])).toEqual([[FR_EN, "fr", "en"]]);
+    const route = routeOf(c, "fr-es");
+    expect(route.map((m) => [m.version, m.from, m.to])).toEqual([
+      [FR_EN, "fr", "en"],
+      [EN_ES, "en", "es"],
+    ]);
+    // Mozilla publishes no French–Spanish model: the pivot downloads both, as es-fr does.
+    expect(route.reduce((sum, m) => sum + totalSize(m), 0)).toBe(51_608_069);
+  });
+
+  it("A vocabulary fr-en shares with en-fr: the same bytes once decompressed, from two gzip files (french-translation D3)", () => {
+    const c = parseCatalogue(committed);
+    const [enFr] = routeOf(c, "en-fr");
+    const [frEn] = routeOf(c, "fr-en");
+    // The device stores a file by its decompressed sha256: one held for en-fr is kept, and not fetched
+    // again, for fr-en.
+    expect(frEn!.files.vocab.sha256).toBe(enFr!.files.vocab.sha256);
+    expect(frEn!.files.vocab.unpacked).toBe(enFr!.files.vocab.unpacked);
+    expect(committed.models[FR_EN].files.vocab.source.sha256).not.toBe(
+      committed.models[EN_FR].files.vocab.source.sha256,
+    );
+    // Nothing else is shared: the model and the lexicon are fr-en's own.
+    for (const role of ["model", "lex"] as const) expect(frEn!.files[role].sha256).not.toBe(enFr!.files[role].sha256);
+  });
+
+  it("Every native language's pairs: the routes keyed by each need two models together — en-fr and es-en for French, es-en and fr-en for English, en-es and fr-en for Spanish (french-translation D3)", () => {
+    const c = parseCatalogue(committed);
+    const routesInto = (native: string) => Object.keys(c.routes).filter((pair) => nativeOf(pair) === native);
+    expect(routesInto("fr")).toEqual(["en-fr", "es-fr"]);
+    expect(routesInto("en")).toEqual(["es-en", "fr-en"]);
+    expect(routesInto("es")).toEqual(["en-es", "fr-es"]);
+    const needs = (native: string) => modelsFor(c, routesInto(native));
+    expect(needs("fr").map((m) => m.version)).toEqual([EN_FR, ES_EN]);
+    expect(needs("en").map((m) => m.version)).toEqual([ES_EN, FR_EN]);
+    expect(needs("es").map((m) => m.version)).toEqual([EN_ES, FR_EN]);
+    // Two each, so a reader who keeps their native language stays within the engine's bound of two.
+    const download = (native: string) => needs(native).reduce((sum, m) => sum + totalSize(m), 0);
+    expect(download("fr")).toBe(51_993_524);
+    expect(download("en")).toBe(52_475_767);
+    expect(download("es")).toBe(51_608_069);
+  });
+
   it("has no route for a pair nothing translates yet — nor for a studied language asked alone", () => {
     expect(routeOf(parseCatalogue(committed), "de-fr")).toEqual([]);
-    expect(routeOf(parseCatalogue(committed), "fr-en")).toEqual([]);
-    expect(routeOf(parseCatalogue(committed), "fr-es")).toEqual([]);
     expect(routeOf(parseCatalogue(committed), "en")).toEqual([]);
   });
 
@@ -172,6 +271,25 @@ describe("the committed catalogue", () => {
         if (needed.includes(ES_EN)) expect(pairs).toContain("es-fr");
       }
     }
+  });
+
+  it("A route of a pair studying French: no reader's pairs need fr-en or fr-es, and no reader fetches the fr-en model (french-translation D2)", () => {
+    const c = parseCatalogue(committed);
+    // Routed, but no shipped pair studies French until change 52 lists one.
+    expect(Object.keys(c.routes)).toEqual(expect.arrayContaining(["fr-en", "fr-es"]));
+    expect(SHIPPED_PAIRS.some((pair) => studiedOf(pair) === "fr")).toBe(false);
+    for (const native of ["fr", "en", "es"]) {
+      for (const languages of [["fr"], ["en", "fr"], ["es", "fr"], ["fr", "en", "es"]]) {
+        const pairs = readerPairs(languages, native);
+        expect(pairs).not.toContain("fr-en");
+        expect(pairs).not.toContain("fr-es");
+        expect(modelsFor(c, pairs).map((m) => m.version)).not.toContain(FR_EN);
+      }
+    }
+    // A reader of French downloads what they did before French was routed.
+    expect(modelsFor(c, readerPairs(["en", "es", "fr"], "fr")).map((m) => m.version)).toEqual([EN_FR, ES_EN]);
+    expect(readerPairs(["fr"], "en")).toEqual([]);
+    expect(readerPairs(["fr"], "es")).toEqual([]);
   });
 });
 
@@ -276,7 +394,7 @@ describe("loading the package's catalogue", () => {
     const fetchFn = vi.fn(async () => new Response(JSON.stringify(committed)));
     const c = await loadBundledCatalogue(fetchFn as unknown as typeof fetch);
     expect(fetchFn).toHaveBeenCalledWith(MANIFEST_PATH);
-    expect(Object.keys(c.models)).toEqual([EN_FR, ES_EN, EN_ES]);
+    expect(Object.keys(c.models)).toEqual([EN_FR, ES_EN, EN_ES, FR_EN]);
   });
 
   it("fails on a missing file rather than guess", async () => {
@@ -301,13 +419,18 @@ describe("the models a device needs (generalise-lingua-translation-model-state D
 
   it("needs nothing for a pair without a route", () => {
     expect(modelsFor(parseCatalogue(committed), ["de-fr"])).toEqual([]);
-    expect(modelsFor(parseCatalogue(committed), ["fr-es"])).toEqual([]);
     expect(modelsFor(parseCatalogue(committed), ["en-fr", "de-fr"]).map((m) => m.version)).toEqual([EN_FR]);
   });
 
   it("needs the one model of es-en's and en-es's routes, for the pairs that will ship them (changes 34, 35)", () => {
     expect(modelsFor(parseCatalogue(committed), ["es-en"]).map((m) => m.version)).toEqual([ES_EN]);
     expect(modelsFor(parseCatalogue(committed), ["en-es"]).map((m) => m.version)).toEqual([EN_ES]);
+  });
+
+  it("needs fr-en's model for fr-en, and fr-en's and en-es's for fr-es, each once — for the pairs change 52 will ship", () => {
+    expect(modelsFor(parseCatalogue(committed), ["fr-en"]).map((m) => m.version)).toEqual([FR_EN]);
+    expect(modelsFor(parseCatalogue(committed), ["fr-es"]).map((m) => m.version)).toEqual([FR_EN, EN_ES]);
+    expect(modelsFor(parseCatalogue(committed), ["en-es", "fr-es"]).map((m) => m.version)).toEqual([EN_ES, FR_EN]);
   });
 
   it("needs both models of the committed es-fr route, en-fr once", () => {

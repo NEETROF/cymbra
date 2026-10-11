@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-10-09
+archiveAfter:
+  - add-lingua-french-baseline
+  - add-lingua-french-forms-tables

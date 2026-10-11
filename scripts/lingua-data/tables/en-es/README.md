@@ -29,7 +29,7 @@ In this folder:
 
 ## What is in them
 
-On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version` `2026.10.08+8ba4a79.e1915ca`: the
+On the 2026-10-08 tables (pinned snapshot `2026.10.08`, `pack_version` `2026.10.08+8ba4a79.fb7962e`: the
 snapshot, the rules' digest, and the digest of the studied tables `pin.json` records), reduced again
 from the same sources with the rules that read the glosses as meanings (below,
 refine-lingua-en-es-glosses):
@@ -66,10 +66,13 @@ refine-lingua-en-es-glosses):
   from the direct table, 73 from the inverted one (`measures.json`, which the reducer
   writes beside its tables and no pack stores; `pack_report.py --measures` shows it in the update's
   summary).
-- **Dictionary words are en-fr's**: 2,501 lemmas en-es glosses are no dictionary word
-  of English, and 5,336 dictionary words have no Spanish gloss, so the pack
-  carries a lexical section, and the vocabulary estimate counts the same 24,799 words for
-  both pairs.
+- **Dictionary words are en-fr's**: 3,321 lemmas en-es glosses are no dictionary word
+  of English, and 3,110 dictionary words have no Spanish gloss, so the pack
+  carries a lexical section, and the vocabulary estimate counts the same 21,753 dictionary words
+  for both pairs (a universe of 22,337 with the levelled lemmas). English's dictionary words leave
+  out the 3,046 lemmas en-fr glosses by a proper noun's senses alone
+  (leave-lingua-names-out-of-english-and-spanish-words), 820 of which en-es glosses (545 of the
+  10,000 commonest): before, 2,501 and 5,336.
 - **The pack is 1,688,931 B**, 32.2 % of the 5 MiB budget.
 
 ## A sample of 100 glosses

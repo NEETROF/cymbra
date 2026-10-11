@@ -29,6 +29,7 @@ are allowed; the builder additionally enforces the denylist and refuses to build
 | `level.tsv` (`lemma → CEFR`) *(optional)* | **CEFR-J Wordlist v1.5** (A1–B2, Tono Lab / TUFS) + **Octanove Vocabulary Profile C1/C2 v1.0** (C1–C2, Octanove Labs), both from the Open Language Profiles repo | CEFR-J: commercial use allowed with acknowledgement; Octanove: CC BY-SA 4.0 | lowest CEFR level per kept lemma across POS rows; the only pairing that covers A1→C2 with commercial-redistribution rights (Octanove was built to extend CEFR-J past B2) |
 | `mwe.tsv` (`expression → gloss`) *(optional)* | **kaikki.org**: the same English entries of the French Wiktionary (`frwiktionary`), its multi-word ones | CC BY-SA 4.0 + GFDL | the same sense picker and cuts as `gloss.tsv`, over the entries whose headword holds a space; proper-noun-only entries and form-of senses dropped. The **keys are computed by the builder**, not here: each word goes through lingua-core's own lemmatiser against the lexicon that build assembled (`starting point` → `start point`), so a key is what the reader's cascade produces. Python cannot do it — it mirrors the analyser's irregulars but not its morphy rules or its out-of-lexicon plural. |
 | `NOTICE` | all of the above | — | the full attribution stack, embedded in the pack and shown on the extension's Attributions page |
+| `tables/en/lexical.tsv` (English's dictionary words) | none: derived | that of `gloss.tsv` | the lemmas `gloss.tsv` glosses less the 3,046 every sense run of which is a proper noun's (`london`, `margaret`, `june`), which keep their gloss but are names, not words to learn (leave-lingua-names-out-of-english-and-spanish-words): written by `reduce-en-fr.py` (the French Wiktionary's `dictionary_words`), filed by `pack_sources.py split` (21,753); the en-fr pack carries a lexical table. The eleven of them a CEFR list levels (the eight months the French Wiktionary files as proper nouns, `olympics`, `badminton`, `ph`) keep their level, and the vocabulary sizes count them |
 
 ### Words the inflection source gets wrong
 
@@ -144,6 +145,7 @@ Reduced by `reduce-es-fr.py` (add-lingua-spanish-forms-tables), for the Spanish 
 | `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs of senses; a fallback gloss has one sense per part of speech. A noun's runs carry its gender, from the `es-noun` heads its readings read (`NOUN\|Gender=Fem`), unless it has both (add-lingua-spanish-word-card) |
 | `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the Spanish multi-word entries, then the multi-word headwords the translations give; `LOCUTIONS` in the reducer, written by a person, wins (empty so far). The builder keys them through the lexicon |
 | `level.tsv` (`lemma → CEFR`) | none: derived from `freq.tsv` and `gloss.tsv` | that of `freq.tsv` | **estimated**, since no Spanish CEFR list can be shipped (ELELex is NC, the PCIC all rights reserved). The commonest lemmas whose French gloss is not only a proper noun's take, in rank order, English's band sizes (1,020 A1 … 876 C2): 8,302 lemmas. The manifest says `levels_estimated`, and the extension labels the levels « estimé » (add-lingua-spanish-levels) |
+| `lexical.tsv` (Spanish's dictionary words) | none: derived | that of `gloss.tsv` | the lemmas `gloss.tsv` glosses less the 1,693 every sense run of which is a proper noun's (`madrid`, `maría`, `méxico`), which keep their gloss but are names, not words to learn (leave-lingua-names-out-of-english-and-spanish-words): written by `reduce-es-fr.py` (the French Wiktionary's `dictionary_words`), filed by `pack_sources.py split` (21,062); the es-fr pack carries a lexical table. The estimated levels skip the same lemmas, so every levelled lemma is one of them |
 | `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
 
 **Measured on UD Spanish-PUD** (CC BY-SA 3.0), never committed and never read by the reduction.
@@ -170,7 +172,11 @@ from the French Wiktionary's Spanish entries and 12,183 from the translations.
 **Estimated levels**, the rule measured on English's 8,302 CEFR lemmas, ranked the same way: 39.8 %
 take their list's level, and 82.6 % are within one level of it. The scale is monotone (the mean true
 level rises from 1.67 at A1 to 5.03 at C2), so the three-band fallback of the programme's decision
-D1 is not needed. The pack is 2,190,188 B, with the grammar, the glosses and the levels.
+D1 is not needed. The pack is 2,234,330 B, with the grammar, the glosses, the levels, the
+expressions' names (add-lingua-spanish-expression-keys), the lexical table its names out of
+Spanish's dictionary words give it, and every headword of a key several reach
+(pick-lingua-spanish-expression-written-as-the-page; 2,231,951 B before, 2,224,439 B before the
+lexical table).
 
 ## ES → EN
 
@@ -202,10 +208,14 @@ and published nowhere until the pair ships:
 | top 20,000 | 76.3 % | 76.5 % | 63.7 % |
 | all 60,000 | 52.9 % | 53.1 % | 37.9 % |
 
-31,885 lemmas are glossed, 31,756 from the English Wiktionary. 9,928 of them are no dictionary word
-of Spanish (es-fr glosses none of them), and 798 dictionary words have no English gloss, so the pack
-carries a lexical section: its dictionary words are es-fr's. There are 15,515 expressions: 14,803
-from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,567,804 B.
+31,885 lemmas are glossed, 31,756 from the English Wiktionary. 11,163 of them are no dictionary word
+of Spanish (es-fr glosses none of them, or 1,235 by a proper noun's senses alone), and 340 dictionary
+words have no English gloss (9,928 and 798 before leave-lingua-names-out-of-english-and-spanish-words
+left es-fr's names out of Spanish's dictionary words), so the pack carries a lexical section: its
+dictionary words are es-fr's. There are 15,515 expressions: 14,803
+from the English Wiktionary's Spanish entries and 712 from the translations. The pack is 2,612,075 B,
+keeping every headword of a key several reach (pick-lingua-spanish-expression-written-as-the-page;
+2,608,413 B before).
 A letter glosses no word: the English edition's letter rule takes « the letter r » and the Spanish
 spelling alphabet's « the letter E in … » (36 glosses ended on one), a pre-pass of
 `reduce_edition_en.py` drops the entries written under a single capital letter (`A` « bishop », `C`
@@ -292,9 +302,11 @@ Spanish Wiktionary's English translations read backwards. **The translation-tabl
 the 8,495 glossed lemmas among the 10,000 commonest, 26.0 % come from a translation
 table rather than from a definition (2,135 direct, 73 inverted) — the reducer
 measures it into `work/en-es/measures.json`, stored in no pack, and `pack_report.py --measures`
-shows it beside the coverage in the update's summary. 2,501 glossed lemmas are no
-dictionary word of English and 5,336 dictionary words have no Spanish gloss, so
-the pack carries a lexical section: its dictionary words are en-fr's. There are 17,094
+shows it beside the coverage in the update's summary. 3,321 glossed lemmas are no
+dictionary word of English (820 of them en-fr glosses by a proper noun's senses alone) and 3,110
+dictionary words have no Spanish gloss (2,501 and 5,336 before
+leave-lingua-names-out-of-english-and-spanish-words left en-fr's names out of English's dictionary
+words), so the pack carries a lexical section: its dictionary words are en-fr's. There are 17,094
 expressions. The pack is 1,688,931 B. A sample of 100 glosses, marked by source, is in
 `tables/en-es/README.md`.
 
@@ -345,6 +357,230 @@ each other*). en-es's first update was dispatched alone on its pull request bran
 `lingua-pack-sources-en-es-2026.10.08`, and the pinned reduction that committed the tables followed on the same branch
 (`build.sh --reduce en-es`, about 6 s on a laptop, fetch and pack build included).
 
+## FR → EN: French studied
+
+Reduced by `reduce-fr-en.py` (add-lingua-french-forms-tables): fr-en is **French's reference pair**,
+whose reduction writes `tables/fr/` (`tables/fr/studied.json`), and which every later pair studying
+French reads as committed (fr-es, change 49). It writes French's forms, ranks, readings
+(add-lingua-french-grammar-tables) and estimated levels, and its own native side, the English
+glosses of French words and expressions (add-lingua-pack-fr-en), all from the English Wiktionary's
+French section; its glossed lemmas, less those it glosses by a proper noun's senses alone, are
+French's dictionary words (`tables/fr/lexical.tsv`, written by its reducer since
+refine-lingua-fr-en-glosses). No extension package carries the pack: `packs.json` does not list it until change 52. Its reducer loads
+`reduce_common.py` and the English edition's rules, `reduce_edition_en.py`, which es-en loads too: no
+shared module was edited for it, and an edit of the English edition's rules re-pins es-en and fr-en
+alone. fr-en's own rules (refine-lingua-fr-en-glosses) live in `reduce-fr-en.py` and, for the
+part of speech UD French-GSD reads a word as, in `reduce_french_treebank.py`, a rule module of its own
+that fr-es loads too (refine-lingua-fr-es-glosses D8): an edit of `reduce-fr-en.py` re-pins fr-en
+alone, one of `reduce_french_treebank.py` fr-en and fr-es. French's acronym table
+(keep-lingua-french-acronyms-in-capitals) is `reduce_french_acronyms.py`, another rule module the two
+load: an edit of it re-pins fr-en and fr-es alone.
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `tables/fr/forms.tsv` (`form → lemma`) | **kaikki.org**: the English Wiktionary's (`enwiktionary`) French section (`kaikki-French.jsonl`, `DUMPS["fr-en"]`), derived from the English edition's dump — the catalogue's file, no new derivation; **UD French-GSD**'s training and development sections at a commit (`PINNED["fr-en"]`), for homographs | kaikki: CC BY-SA 4.0 + GFDL; GSD: CC BY-SA 4.0, read for counts only | the inflections a lemma's entry lists and the first word of each form-of target of a form's own entry: lowercased, NFC, the typographic apostrophe read as `'`; never kaikki's bookkeeping, a multi-word construction, an inflection tagged alternative, obsolete, archaic, rare, dated, uncommon, misspelt, nonstandard, proscribed, abbreviated, clipped or a pronunciation spelling, nor a gender or number marker a head left among the forms (`m` under *Paris*). **A form of a form along one part of speech** (`dirigée` → `dirigé` → *diriger*; `citée` → `cité` → *citer*, past the noun *cité* the participle is spelt like; `étés`, a noun's plural, not to *être*). **French's tokenisation** (M21): the fourteen elided pieces by a reviewed table (`ELISIONS`, `l'` → *le*); no plain word beginning with a piece (`c'est`, `d'abord`, `l'on`), a hyphenated run may be one (`c'est-à-dire`); the dictionary's nouns, adjectives, adverbs, pronouns and prepositions ending in a pronoun listed whole (`rendez-vous`, `qu'en-dira-t-on`), the reduction failing if one is not; `au` and `aux` no form; `du` and `des` words of their own; a verb joined to its pronouns by hyphens (`souviens-toi`) no form. **A spelling variant** (`coeur`, `connait`) reads as the word it spells. **A spelling without its marks** reads as the word a reviewed table names (`UNMARKED_SPELLINGS`, read-lingua-french-ca-as-ca-cedilla, the owner's rows: `ca` → *ça*, `age` and `ages` → *âge*, `forcement` → *forcément*), its own entries — `CA`'s initialisms, circa, the plough's beam, the fixing number — making it no lemma; `cote`, `tache`, `pale`, `foret` and `aine` are never rows, and « CA » in capitals reads as *ça* but where it stands alone in capitals. **A spelling the dictionary gives only as a marked word** reads as that word when wordfreq rates the marked word strictly commoner than the spelling and than each of its forms (read-lingua-french-dictionary-unmarked-spellings, the owner's rule: every sense of every entry of the word an `alt_of` of one word it is without its accents, cedillas, diaereses and circumflexes — `etre` → *être*, `etat` → *état*, `repondre` and its `repond` → *répondre*, `etait` → *être*): 81 of the section's 141 accent-less spellings, 33 of them ranked before; `diesel`, `ego` and 54 others whose spelling is as common or commoner keep their reading, `teter` too (its form `tete` is commoner than *téter*), and a word with an entry or a sense of its own (`surs`, `sures`, `sure`, `entrainant`) is not read — the web's reviewed list takes those. **The web's spellings without their marks** read as the word a reviewed list names (`WEB_SPELLINGS`, read-lingua-french-web-unmarked-spellings, the owner's list of 2026-10-10: 464 spellings the section names nowhere, wordfreq Zipf ≥ 2.5, their accented word a dictionary word at least twice as common, English not writing them more often — `tres`, `deja`, `francais`, `recu`, `tete` —, merged into `UNMARKED_SPELLINGS`, and the owner's four exceptions `sure`, `surs`, `sures` → *sûr*, `entrainant` → *entraîner*), each a form of its word alone carrying the readings of its word's forms it writes without marks; an entry pointing at a row follows it (`patisseries` → *pâtisserie*), and the reduction fails on a row the section gives a meaning of its own or gives as its accented word's spelling. **The web's hyphenated words without their marks and its wrong accents** read as the word two more reviewed lists name (`WEB_HYPHENATED` and `WEB_MISACCENTED`, read-lingua-french-hyphenated-and-misaccented-spellings: 19 whole runs, `peut-etre` → *peut-être*, `c'est-a-dire`, `celle-la` → *celui-là*, chosen by the accented compound's count in the corpora shifted by the web's measured share of unaccented spellings, Zipf ≥ 2.5; 65 words wordfreq rates at Zipf ≥ 2.5 whose letters are a form's and whose marks are not, `trés` → *très*, `agé` → *âgé*, `arreté` → *arrêter*, read as the form whose marks they keep in place), merged into `UNMARKED_SPELLINGS` under the same boundary (which refuses a row the section gives only as another word's spelling, `problême`); a hyphenated row is listed whole, so the pre-pass reads it as one token, and a misaccented one carries the readings of its word's forms keeping its marks in the most places. **An acronym** is a row of a reviewed table (`reduce_french_acronyms.ACRONYMS`, keep-lingua-french-acronyms-in-capitals, the owner's one row: `CA`, its four expansions as the section's own entry `CA` names them, which must point at each): written as a form in capitals that is its own lemma (`CA` → `CA`, the one form holding a capital), which only French's analysis reaches, looking a word standing alone in capitals up as written; no rank, level or reading. **One lemma per form**: a name and a commoner word keep the word, then a reviewed override (`OVERRIDES`: no homograph; three rows mend the source's copy errors, `fatiguée` « feminine singular of parlé », `bridée` and `quis` « masculine plural of qui »), GSD's counts, the form's own entry, the lemma's frequency, the alphabet. Only the forms of kept lemmas that wordfreq attests, every lemma's own form, and the pieces |
+| `tables/fr/freq.tsv` (`lemma → rank`) | **wordfreq** French list; **UD French-GSD**'s frequency of a hyphenated lemma | CC BY-SA 4.0 | the top 60,000 lemmas, dense rank: wordfreq's order, inflected forms skipped, and its elision stems (`l`, `d`, `qu`, `jusqu`, …), which carry the pieces' frequency, and `au`/`aux`. A word whose own form reads as another gives its rank to the next (`tenue`, whose every form reads as *tenir*; `donnée`, read as *donner*): a pack finds a lemma by its own form, so the builder would key its rank on the other word. A hyphenated word only when GSD attests it, at the lower of wordfreq's estimate and GSD's own frequency, after wordfreq's words of the same frequency (`peut-être`, 941; never an inversion such as `est-il`); the nouns ending in a pronoun GSD never meets at the cut's last ranks |
+| `tables/fr/grammar.tsv` (`form → readings`) | **kaikki.org**, the same section: the tags of each form | CC BY-SA 4.0 + GFDL | the readings of the forms `forms.tsv` holds, under its ranked lemmas, as Universal Dependencies tags (add-lingua-french-grammar-tables), in the same pass as the forms. A verb form takes its mood, tense, person and number — the passé simple as `Tense=Past`, the conditional and the imperative with no tense —, or its form: the infinitive, the present participle (`VerbForm=Part\|Tense=Pres`), the past participle with its gender and number, the agreed ones through the participle's own entry. A sense merging persons or moods reads as each; a pronominal verb's rows without their pronoun; no compound tense. A noun takes its gender (`fr-noun`'s argument, else its senses') on its own form and its plural, both numbers when the dictionary gives one form (`temps`); an adjective, determiner (articles among them), pronoun or numeral its agreement, a pronoun's row only with a gender. A form of a form reads along one part of speech with its own agreement (`dirigée` → *diriger*); a reading's part of speech is one its lemma's entries hold (`cités`, the noun *cité*'s plural, names *citer*). None from a doubtful row or sense, a regional or register-marked sense of a form's own entry, a capitalised headword, an alternative-only or neologism entry, a feminine noun's masculine, a letter's plural, a plural-headed determiner's or pronoun's table, or a link an override row sets aside as a copy error. A reading of another ranked lemma is marked `other`, toward an entry of the dictionary that is not only regional; the form keeps its one lemma (M8). 125,303 readings of 88,752 forms, in 79 tags; measured on UD French-PUD and GSD's test section, below |
+| `tables/fr/tags.tsv` | French's pinned tag pool: the 79 tags its readings carry, in byte order | — | written once by a person from the first reduction's readings, kept by every reduction; a tag a later one adds is appended (`tables/fr-en/README.md`) |
+| `tables/fr/level.tsv` (`lemma → CEFR`) | none: derived from `freq.tsv` and the English Wiktionary's French section | that of `freq.tsv` and kaikki's | **estimated**, since no French CEFR list can be shipped (FLELex is non-commercial; M7) and no FLELex data is read. In rank order, the ranked lemmas a CEFR list would hold take English's band sizes (1,020 A1 … 876 C2, es-fr's `ENGLISH_BANDS`): 8,302 lemmas, A1 ranks 1–1,082 … C2 9,466–10,812. Read from the section, never from a pair's glosses, a lemma takes none when the section gives it no sense that is not a form of another word or only a name's (`the`, `paris`: 1,396 and 1,026), when it is a single character whose every sense is a letter's, a symbol's, a name's or an abbreviation (`b`, `e`: 16; `à` and `y` are A1), when every sense only spells another word (`parceque`, `okay`: 26 — `etre` reads as *être* since read-lingua-french-dictionary-unmarked-spellings), when its own form reads as another lemma (`donnée` → *donner*: none on these ranks), or — read last, since refine-lingua-fr-en-glosses — when French's dictionary words do not list it (`parce`, `quant`, `coran`: 46), so a card seeded from a level always carries a gloss; the levels are therefore computed after fr-en's glosses. `du` and `des` are A1. The manifest says `levels_estimated`, the NOTICE that the levels are estimated (add-lingua-french-levels; `tables/fr-en/README.md`, *The levels*) |
+| `tables/fr-en/gloss.tsv` (`lemma → English gloss`), `senses.tsv` (its runs), `mwe.tsv` (`expression → English gloss`) | **kaikki.org**: the same section, its senses — the file French's forms come from, at the same pinned snapshot; for the expressions it does not gloss, the English translations the French Wiktionary's (`frwiktionary`) French entries list (`kaikki-fr-traductions-en.jsonl`, derived from the French edition's dump, `DUMPS["fr-en"]`); **no translation table glosses a word** | CC BY-SA 4.0 + GFDL | through the English edition's rules, as es-en's glosses are (add-lingua-pack-fr-en): the section cut to what the native side reads, a headword's typographic apostrophe read as `'`; its letters and the single-capital headwords left out; its senses read as meanings and in one English typography (`read_as_meanings`: « chambre » « a room; a hotel room… », not « a chamber in its various senses, including »; « nous » « we; us, to us »; « du » « forms the partitive article »); the long-parenthesis bound and the etymology merging as the edition sets them (0, off); then the shared rules over the 60,000 ranked lemmas: eight whole senses grouped by part of speech, each glossed lemma one the forms table reads as itself. Expressions: the headwords with a space, and the single words French's tokenisation splits (`d'abord`, `c'est`, `allez-y`) that are no form and no name; a sense that only names another spelling, an inverted form or its pieces (« post-1990 spelling of », « que + elle ») left out, a meaning after it kept (« y a-t-il » « is there? are there? »); `à la` left out by name (`LEFT_OUT`). Then fr-en's own rules (refine-lingua-fr-en-glosses, in `reduce-fr-en.py` alone): `read_as_french`, after `read_as_meanings`, reads a pointer that carries its meaning as that meaning (a word's comparative, superlative, synonym, plural or contraction — « des » « some; of the, from the, some », « mieux » « better » —, never a female equivalent; an expression's whatever it names: « il y a » « there is, there are »), opens a function word's row, or one the page opens on a name, on the part of speech **UD French-GSD**'s same two sections read it as (at least ten times, twice as often: `pas` on its negation, `son` « his, her… »; `ferme`, `mort`, `devoir` as the page writes them), leaves a name out of a function word's row (`le`, `on`) and the page's notes out (« see usage notes », « (all senses) », a folk etymology, a citation, a sense number), fr-en's description openers in lower case; five expressions whose sense needs a context are left out by name (`et des`, `un coup`…), and eleven a pointer would make of no meaning (`à le`, `de le`, `l'a`, `j'suis`…: the owner, 2026-10-10), six post-1990 spellings keyed apart lend their traditional spelling's gloss (`à priori`), « etc » keeps its period. **The French Wiktionary's English translations complete the expressions** (add-lingua-fr-en-translated-expressions, in `reduce-fr-en.py` alone): read forwards, a headword's typographic apostrophe read as `'`, a proper noun's entry left out, for a headword with a space or a word the tokenisation splits alone — up to three translations in the table's order, one sense —, the section's expression winning on its headword, on its key (each word read through `forms.tsv`, an elided piece through `ELISIONS`: « fondu enchainé » stays out beside « fondu enchaîné ») and on what its rules leave out (`LEFT_OUT`, the senses that only point: « à la », « boite à gants »); a translation repeating its headword dropped (« à deux » « à deux »), and 51 table expressions a person read wrong in most of the contexts they are met in left out by name, each with its reason (« les autres » "other people", « le grand » "the Great"). 30,050 glossed lemmas — 93.6 / 86.9 / 76.3 % of the 5,000 / 10,000 / 20,000 commonest, against a floor of 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`) — and 43,542 expressions: the section's 17,635 and the French Wiktionary's 25,907, 17,167 of them keyed by the builder, 56.9 → 64.4 expressions met per 1,000 words of French text (`tables/fr-en/README.md`, *The glosses*, *The French Wiktionary's expressions*) |
+| `tables/fr/lexical.tsv` (French's dictionary words) | none: derived | that of `gloss.tsv` | the lemmas `tables/fr-en/gloss.tsv` glosses less the 3,592 every sense run of which is a proper noun's (`paris`, `durand`), which keep their gloss but are names, not words to learn (refine-lingua-fr-en-glosses): written by `reduce-fr-en.py` (`dictionary_words`), filed by `pack_sources.py split` — and French's acronym rows, glossed or not (`CA`, keep-lingua-french-acronyms-in-capitals; 26,555); the fr-en pack carries a lexical table |
+| `NOTICE` | all of the above | — | the attribution stack, embedded in the pack |
+
+**The sources pinned** (`tables/fr-en/pin.json`): the French section derived on 2026-10-08 from the
+English edition's dump regenerated on 2026-10-03 08:24 (decompressed sha256 `93b79aac…`,
+25,614,284,530 B; 2,981,058,381 B gzipped) — 403,269 entries, 510,058,226 B, sha256 `2d7bbe5f…`,
+26,410,463 B as its zstd level-19 asset `kaikki-French.jsonl.zst`, under fr-en's own release
+`lingua-pack-sources-fr-en-2026.10.09`; the French entries' English translations derived on
+2026-10-10 from the French edition's dump regenerated on 2026-10-02 00:10 (decompressed sha256
+`968f7df0…`, 6,865,136,428 B; 736,590,407 B gzipped — the regeneration fr-es's pin records) —
+129,366 entries, 14,573,988 B, sha256 `6f54aeda…`, 1,914,447 B as its asset
+`kaikki-fr-traductions-en.jsonl.zst`, under `lingua-pack-sources-fr-en-2026.10.10`, published by
+`lingua-pack-update` run 38085007726, an update of fr-en keeping the English edition's record byte for
+byte (add-lingua-fr-en-translated-expressions D6); the pin names the two releases, each record's own,
+and the reduce job reads both; GSD's `fr_gsd-ud-train.conllu` and `fr_gsd-ud-dev.conllu` at
+`94d5b68e185fc22a9ef292040e84f476d36d9b0e` (25,555,018 and 2,573,677 B), the default branch's head of
+2026-05-06; wordfreq 3.1.1. The pack, built from `tables/fr/` and `tables/fr-en/`, is 3,004,986 B (57 %
+of the 5 MiB budget). An update reads the English and French editions' dumps, which es-fr reads
+already: the monthly dry run derives the French section and the French entries' English translations
+in the passes it makes anyway, one more reduction and no more download.
+
+**The cut**: 60,000 lemmas and their attested forms, as Spanish — 124,742 forms, `forms.tsv`
+2,268,777 B and `freq.tsv` 844,834 B (124,096 before French's unmarked spellings, which read `ca`,
+`age`, `ages` and `forcement` as their words and let `cussac`, `céphalonie` and `côtelé` into the
+cut; 124,101 before French's acronym table, which adds `CA` → `CA`; 124,102 before the dictionary's
+unmarked spellings, which read 81 spellings as their word and let `dagon` … `eamon` into the cut;
+124,185 before the web's unmarked spellings, which read 468 spellings as their word and let `ears` …
+`uruk` into the cut). On the design's prototype tables, 40,000 lemmas passed the
+gates too, 0.16 points of resolution lower on PUD, and every form nobody writes would have added
+88,678 rows for 0.02 points. The pack built from the two tables alone was 1,241,733 B, 1,302,031 B
+with the levels (`tables/fr-en/README.md`, with M8's cost — the 135 dictionary nouns among wordfreq's 5,000 commonest
+words that read as a verb — and the twelve determiners and pronouns ranked on their own).
+
+**Measured on UD French-PUD and on GSD's test section** (`measure/fr-ud.sh`), neither committed nor
+read by the reduction, each fetched at a commit and checked by sha256 — PUD
+(`db260db10fe728853c549760801229ef4e7b16e1`, sha256 `4dfed37b…`, CC BY-SA 3.0) held to Spanish's
+gates, GSD's test section reported:
+- PUD: 99.13 % of 20,232 words resolve (gate 98.5 %), 96.41 % of 9,573 content words and 99.90 % of
+  1,030 auxiliaries take PUD's lemma (gates 93.5 % and 97 %);
+- GSD's test section: 98.89 % of 8,049 words resolve, 95.86 % of 3,791 content words and 99.72 % of
+  359 auxiliaries take its lemma.
+
+French's analyser at `1.0.0` (change 41's cascade); at `0.2.0`, the pack's lookup alone, the content
+words read 96.30 % and 95.70 %, the rest alike.
+
+**French's readings**, reported after the gates (`measure/fr_readings.py`, never gating), over the
+words whose form the tables map to the treebank's lemma: on PUD, 99.94 % of 1,742 finite verbs carry
+a reading and 99.60 % of those agree with the treebank, participles 100 % and 99.38 %, nouns
+99.09 % and 98.85 %, adjectives 98.85 % and 96.43 %; on GSD's test section, finite verbs 100 % and
+99.53 %, nouns 98.65 % and 98.68 % (`tables/fr-en/README.md`, every part of speech). The fr-en pack
+built from forms, ranks, readings and levels is 1,460,253 B (the readings 158,222 B of it).
+
+## FR → ES: French glossed in Spanish
+
+Reduced by `reduce-fr-es.py` (add-lingua-pack-fr-es): French glossed in Spanish, for Spanish speakers
+studying French (`docs/lingua/language-matrix-programme.md`, change 49, decision M6) — a reader pair of
+French, as es-en is of Spanish and en-es of English. No extension package carries the pack:
+`packs.json` does not list it until change 52, which lists it because its committed tables stand at
+or above the floor fixed before they were measured (below).
+
+fr-es reads French's tables in `tables/fr/` as committed — fr-en's reduction writes them — and writes
+its native side alone: its lemmas and their ranks are `tables/fr/forms.tsv` and `freq.tsv` (all
+60,000), its readings (which say under which part of speech a Spanish word read backwards is listed),
+levels and dictionary words French's, as fr-en's reduction writes them. Its reducer loads `reduce_common.py`, `reduce_edition_es.py`
+and `reduce_french_treebank.py` (UD French-GSD's parts of speech, fr-en's rule module, refine-lingua-fr-es-glosses
+D8) and `reduce_french_acronyms.py` (French's acronym table, keep-lingua-french-acronyms-in-capitals),
+not fr-en's reducer nor the English edition, so nothing of fr-en moves with it; an edit of the
+Spanish edition re-pins en-es and fr-es, one of either French module fr-en and fr-es (the digest
+tests say so against every committed pin). fr-es reads **UD French-GSD**'s training and development
+sections at fr-en's commit (`PINNED["fr-es"]`, the same two files fr-en's pin records; CC BY-SA 4.0,
+read for counts only), for the part of speech a function word's row opens on.
+
+| Table | Upstream source | Licence | Reduction |
+|---|---|---|---|
+| `gloss.tsv` (`lemma → gloss`) | **kaikki.org**: the Spanish Wiktionary's French section (`kaikki-es-Frances.jsonl`); else the Spanish translations the French Wiktionary's French entries list (`kaikki-fr-traductions.jsonl`, the direct table); else the French translations the Spanish Wiktionary's Spanish entries list, read backwards (`kaikki-es-traductions.jsonl`, the inverted table) — the catalogue's three files, derived from the Spanish and French editions' dumps, no new derivation (`DUMPS["fr-es"]`); es-fr reads the two translation files the other way round | CC BY-SA 4.0 + GFDL | a French headword's typographic apostrophe read as `'` in the section and both tables (`main-d'œuvre`); the section's letters left out, its senses read as the Spanish edition reads en-es's (`read_as_meanings`: obsolete or outdated senses after the others, one typography), then fr-es's own passes (refine-lingua-fr-es-glosses): the sources' slips corrected by name (`CORRECTIONS`: `rien`, `amie`, « il y a », `hall`, `el` left unglossed), `french_entries` — a surname's or a given name's note left off a word that has an entry of its own in lower case holding a meaning, a possessive or demonstrative adjective — and an adjective whose every sense is a form of one (`mes`) — read as a determiner, an infinitive's noun written after its verb (`être`), a contraction of a preposition read as one (`des`, `du`), a note naming the part of speech again taken out (`qui`) —, a function word's entries of the part of speech UD French-GSD reads it as first (`pas` « No; Paso », fr-en's rule), and each sense of a word opening on its register, age and place in the edition's words (« (malsonante) », « (anticuado, Canadá, Bélgica) »); then the shared rules, cleaned by the Spanish edition's notes (`reduce_edition_es.ES`): up to eight senses grouped by part of speech. A definition whose every sense is the French headword itself gives way to the direct table's Spanish words when they hold none spelled as the headword (`et` « Et » → « Y, e »). A fallback gloss is up to three Spanish words per part of speech — in the table's order from the direct table, the commonest Spanish word first (wordfreq) from the inverted one, each in the edition's typography; a letter's entry left out of both tables and a one-letter French word read backwards dropped; a Spanish word read backwards listed once, under the first of its parts of speech French's readings name; a word of the direct table listed once across the French word's parts of speech, and never the French word itself (wordfreq: a hundred times commoner in French) unless Spanish writes it alike (`SPANISH_ALIKE`); read backwards, no language code « fr », no acronym through another word, no saint's name for a first name, no elided article read into a word, and neither table's named other-sense words (`OTHER_SENSES`). « etc » written « etc. ». No pivot, no machine translation. Coverage below |
+| `senses.tsv` (`lemma → runs`) | the same | CC BY-SA 4.0 + GFDL | the parts of speech of each gloss's runs; French's readings come from `tables/fr/grammar.tsv` |
+| `mwe.tsv` (`expression → gloss`) | the same | CC BY-SA 4.0 + GFDL | the section's multi-word French entries, each sense opening on its labels after the shared rules cut it, then the multi-word headwords the tables give (573, 10,642 and 893); then fr-es's expression rules (refine-lingua-fr-es-expressions), on the three together: a post-1990 spelling listed alone written in its traditional spelling by `tables/fr/forms.tsv` and wordfreq (« crème brulée » → « crème brûlée »), an elided piece written apart written against its word (« huile d' olive » merged into « huile d'olive »), and the 65 expressions of the reviewed list `LEFT_OUT` left out by name, each with its reason (« de la », « sur le champ », « être à »); `LOCUTIONS` in the reducer is empty |
+| `NOTICE` | both sides' sources | — | the studied side as fr-en's notice credits it (the English Wiktionary's French section, wordfreq, UD French-GSD, the estimated levels), and the native side (the Spanish Wiktionary's definitions and French translations, the French Wiktionary's Spanish translations, wordfreq for the Spanish words' order) |
+
+**The floor, fixed before the measurement** (D8, M6). The owner settled on 2026-10-09, before the
+update whose tables are committed, that fr-es is held to 81.4 / 68.8 / 54.5 % of the 5,000 / 10,000 /
+20,000 commonest lemmas — the study's figures less two points — in `gloss_coverage.py`'s
+`FLOORS["fr-es"]` alone, which the `reduce` job reads (no `--floor`) and the tests hold to the
+requirement's value; and that, measured under it at its first update, fr-es would commit no tables
+and no package would list it, French shipping for English speakers alone. Once committed, a pull
+request that reduces fr-es again under the floor fails. The floor is never lowered after a
+measurement.
+
+**The committed measurement**: the first update (2026-10-10, run
+[38041319531](https://github.com/NEETROF/cymbra/actions/runs/38041319531), 5 min 22 s), on the dumps
+the design's prototype read:
+
+| Lemmas | Spanish Wiktionary alone | the three sources | the floor |
+|---|---|---|---|
+| top 5,000 | 40.0 % | 83.2 % | 81.4 % |
+| top 10,000 | 28.5 % | 70.8 % | 68.8 % |
+| top 20,000 | 18.3 % | 56.8 % | 54.5 % |
+| all 60,000 | 7.6 % | 31.8 % | — |
+
+19,050 lemmas are glossed: 4,560 from the Spanish Wiktionary's definitions (23.9 %), 13,195 from the
+French Wiktionary's Spanish translations and 1,295 from the Spanish Wiktionary's French translations
+read backwards. **The translation-table share** (D9): of the 7,082 glossed lemmas among the 10,000
+commonest, 59.8 % come from a translation table (3,967 direct, 265 inverted), 40.2 % from a
+definition — `work/fr-es/measures.json`, stored in no pack, shown by `pack_report.py --measures`.
+1,051 glossed lemmas are no dictionary word of French (544 before refine-lingua-fr-en-glosses left
+fr-en's names out of French's dictionary words, which re-reduced fr-es on them, its glosses byte
+for byte), so the pack carries a lexical section: its dictionary words are French's. There are 12,177 expressions. The pack is 1,973,407 B. The rules' rows
+— 149 rows (64 of the top 10,000) and 4 expressions against the three sources read as written, 7 / 7
+rows whose runs alone move, 11 letters losing a gloss that was the letter, none gained — a sample of
+100 glosses marked by source, and the defects left are in `tables/fr-es/README.md`. The first update
+was dispatched alone on the implementation's branch; `build.sh --reduce fr-es` from the release it
+published, `lingua-pack-sources-fr-es-2026.10.10`, reproduced its tables byte for byte, twice.
+
+**fr-es's own rules** (refine-lingua-fr-es-glosses, before change 52 lists fr-es): reduced again from
+the same release and UD French-GSD's two sections, 912 rows change (371 of the top 10,000), 28
+lemmas lose their gloss (17), none gains one, 66 expressions change and 3 lose theirs; 19,022 lemmas
+glossed (4,559 definitions, 24.0 %; 13,185 direct; 1,278 inverted), 59.7 % of the glossed top 10,000
+from a table, 12,174 expressions; coverage **83.0 / 70.7 / 56.7 %**, above the floor; the pack
+1,971,289 B. Each rule's rows, the three reviewed lists (`SPANISH_ALIKE`, `OTHER_SENSES`,
+`CORRECTIONS` with the pages reported upstream) and the defects left are in `tables/fr-es/README.md`.
+
+**French's unmarked spellings** (read-lingua-french-ca-as-ca-cedilla): fr-en reduced again at its pin
+with `UNMARKED_SPELLINGS` — forms 124,096 → 124,101, French's dictionary words 26,486 → 26,484, three
+glosses out (`ca` « board of directors », the plough's beam, the fixing number) and three in
+(`cussac`, `céphalonie`, `côtelé` « ribbed »), coverage 93.6 / 86.9 / 76.3 % unchanged, the pack
+2,537,588 B, UD French-PUD and GSD's test section unchanged —, then fr-es on the new `tables/fr/`:
+every row byte for byte, `côtelé` « Pana » gained (19,023 lemmas, 13,186 direct), 83.0 / 70.7 /
+56.7 % (7,067 of the top 10,000), the pack 1,971,114 B. Only fr-en's rule digest moves; fr-es's pin
+records the new studied tables.
+
+**French's acronym table** (keep-lingua-french-acronyms-in-capitals): fr-en reduced again at its pin
+with `reduce_french_acronyms.py` — `CA` → `CA` in the forms (124,101 → 124,102) and the dictionary
+words (26,484 → 26,485), glossed « board of directors; revenue, turnover, net sales; alternating
+current » from fr-en's own expressions, one noun run; ranks, levels, readings, expressions and
+coverage unchanged; the pack 2,535,748 B; UD French-PUD and GSD's test section unchanged —, then
+fr-es on the new `tables/fr/`: `CA` glossed « Administración, consejo de administración; Ingreso,
+cifra de negocios, facturación; Corriente alterna » from its own expressions, every other row byte for
+byte, the pack 1,969,484 B. fr-en's and fr-es's rule digests move, and fr-es's pin records the new
+studied tables.
+
+**Every headword of a shared key** (pick-lingua-expression-written-as-the-page): no table moves; a
+French pack keeps the other headwords of the keys several reach (`ça va` beside `ça ira` on `ça
+aller`) and lists them in `expr.others` — fr-en 61 headwords on 60 keys, 2,536,702 B, fr-es 64 on
+64, 1,971,104 B —, `pack_version` unchanged, their pins alone moving. A Spanish pack does too
+(pick-lingua-spanish-expression-written-as-the-page: `hace tiempo` beside `hacer tiempo`) — es-fr 99
+headwords on 98 keys, 2,231,951 → 2,234,330 B, es-en 141 on 138, 2,608,413 → 2,612,075 B —, their
+pins alone moving.
+
+**The dictionary's unmarked spellings** (read-lingua-french-dictionary-unmarked-spellings): fr-en
+reduced again at its pin with `dictionary_unmarked_spellings` — 81 spellings read as their word (33
+of them ranked before: `etat`, `etre`, `etait`, `siecle`, `repondre`), 56 kept as the commoner
+spelling (`diesel`, `ego`), `teter` kept by its form `tete`; forms 124,102 → 124,185, readings
+125,177 → 125,303, French's dictionary words 26,485 → 26,472 (25 out, 12 in), `benoit` out of the
+levels and three lemmas a band up; 29 glosses out and 12 in, none lost on a form, coverage 93.6 /
+86.9 / 76.3 % (4,681 / 8,688 / 15,254), the pack 2,538,572 B; UD French-PUD 99.13 / 96.36 / 99.90 %
+(its four « Etats-Unis », lemmatised as written), GSD's test section 98.91 / 95.94 / 99.72 % —, then
+fr-es on the new `tables/fr/`: every other row byte for byte, `uberisation` « Uberización » out (the
+owner's Q2), four entering lemmas glossed (19,026 lemmas and `CA`, 13,189 direct), 85 forms glossed
+through their word, 83.1 / 70.7 / 56.7 % (7,071 of the top 10,000), the pack 1,973,161 B. Only
+fr-en's rule digest moves; fr-es's pin records the new studied tables.
+
+**fr-es's expressions** (refine-lingua-fr-es-expressions, before change 52 lists fr-es): measured by the
+engine's phrase gloss on 1,085,056 tokens of French text, fr-es met 41,549 expressions, 67 of 200
+sampled read wrong. Reduced again from the same release and UD French-GSD's two sections with three
+rules of `reduce-fr-es.py` alone — 65 expressions left out by name (`LEFT_OUT`, each with its reason),
+four more `CORRECTIONS` (« se lever », « se réveiller », « grand public », « effet spécial »), the
+expressions written as French pages write them (3 respelled, 1 merged) —: `mwe.tsv` 12,174 → 12,108,
+41,549 → 30,410 matches on the same text, a fresh sample of 100 reading 91 right; `gloss.tsv`,
+`senses.tsv`, `NOTICE` and the coverage byte for byte; the pack 1,972,069 B (−1,092 B, on read-lingua-french-dictionary-unmarked-spellings' French tables). fr-es's rule digest alone
+moves. The list, the corrections and what the measure leaves are in `tables/fr-es/README.md`.
+
+**The web's unmarked spellings** (read-lingua-french-web-unmarked-spellings): fr-en reduced again at
+its pin with the owner's reviewed list `WEB_SPELLINGS` (464 rows) and four exceptions — 468
+spellings read as their word, 465 of them ranked before (`meme` 1,015, `tres` 1,693, `apres` 2,338),
+`ears` … `uruk` in at 59,533–59,997; forms 124,185 → 124,742, readings 125,303 → 126,389 (870 the
+spellings carry), French's dictionary words 26,472 → 26,555 (86 in; `surs`, `sures`, `entrainant`
+out), `level.tsv` byte for byte; 3 glosses out and 99 in, coverage 93.9 / 87.2 / 76.7 % (4,693 /
+8,716 / 15,348), the pack 2,550,510 B; UD French-PUD 99.13 / 96.36 / 100.00 % (« Etant » read as
+*être*), GSD's test section 98.91 / 96.02 / 99.72 % (« Eglise », « Equipe ») —, then fr-es on the
+new `tables/fr/`: `tres` « Tres », `comite` « Cómitre », `expres` and `reviser` out, 41 entering
+lemmas glossed, every other row byte for byte (19,063 lemmas and `CA`, 13,221 direct), 83.2 / 70.9 /
+57.0 % (7,087 of the top 10,000), `mwe.tsv` refine-lingua-fr-es-expressions' byte for byte, the pack
+1,972,069 → 1,982,362 B. Only fr-en's rule digest moves; fr-es's pin
+records the new studied tables.
+
+**The web's hyphenated words and wrong accents** (read-lingua-french-hyphenated-and-misaccented-spellings):
+fr-en reduced again at its pin with the owner's two reviewed lists `WEB_HYPHENATED` (19 rows) and
+`WEB_MISACCENTED` (65) — the 84 spellings read as their word, the 64 misaccented ones wordfreq ranked
+leaving the ranks (`déja` 4,120, `trés` 4,720), `uterus` … `airelle` in at 59,934–59,997; forms
+124,742 → 124,847, readings 126,389 → 126,554 (109 the rows carry), French's dictionary words 26,555
+→ 26,569, `level.tsv` byte for byte; 16 glosses in and none out, coverage 93.9 / 87.2 / 76.8 % (4,695
+/ 8,718 / 15,355), the pack 3,004,986 → 3,006,129 B (on add-lingua-fr-en-translated-expressions' tables); UD French-PUD unmoved, GSD's test section 98.91 / 96.10 /
+99.72 % (« trés » ×3) —, then fr-es on the new `tables/fr/`: `trève` « Tregua » out, 8 entering
+lemmas glossed, every other row byte for byte (19,070 lemmas and `CA`, 13,227 direct), 83.2 / 70.9 /
+57.1 % (7,087 of the top 10,000), `mwe.tsv` byte for byte, the pack 1,982,362 → 1,983,054 B. Only
+fr-en's rule digest moves; fr-es's pin records the new studied tables.
+
 ## The editions' dumps
 
 kaikki is read at **three addresses, one dump per Wiktionary edition**
@@ -361,22 +597,45 @@ derived from the dumps served on 2026-10-08:
 | Edition: the dump, as served on 2026-10-08 | File | Kind | Derived | Read by |
 |---|---|---|---|---|
 | **English** (`kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz`): 2,981,058,381 B gzipped, 25,614,284,530 B decompressed, regenerated 2026-10-03 08:24 | `kaikki-Spanish.jsonl` | Spanish entries | 928,737,891 B | es-fr (forms, readings, genders), es-en (glosses) |
-| | `kaikki-French.jsonl` | French entries | 510,058,226 B | fr-en (change 48) |
+| | `kaikki-French.jsonl` | French entries | 510,058,226 B | fr-en (French's forms, readings and levels, and fr-en's glosses) |
 | | `kaikki-en-traductions-es.jsonl` | English entries' Spanish translations | 13,762,773 B | en-es (direct) |
-| | `kaikki-en-traductions-fr.jsonl` | English entries' French translations | 13,003,913 B | fr-en (inverted) |
 | **French** (`kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz`): 736,590,407 B gzipped, 6,865,136,428 B decompressed, regenerated 2026-10-02 00:10 | `kaikki-Anglais.jsonl` | English entries | 145,705,523 B | en-fr |
 | | `kaikki-fr-Espagnol.jsonl` | Spanish entries | 212,331,331 B | es-fr |
 | | `kaikki-fr-traductions.jsonl` | French entries' Spanish translations | 6,191,621 B | es-fr (inverted), fr-es (direct) |
-| | `kaikki-fr-traductions-en.jsonl` | French entries' English translations | 14,573,988 B | fr-en (direct) |
+| | `kaikki-fr-traductions-en.jsonl` | French entries' English translations | 14,573,988 B | fr-en (expressions; registered again by add-lingua-fr-en-translated-expressions, measured on this dump) |
 | **Spanish** (`kaikki.org/eswiktionary/raw-wiktextract-data.jsonl.gz`): 103,226,106 B gzipped, 1,233,016,167 B decompressed, regenerated 2026-10-02 12:12 | `kaikki-es-English.jsonl` | English entries | 36,426,539 B | en-es |
-| | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (change 49) |
+| | `kaikki-es-Frances.jsonl` | French entries | 7,438,610 B | fr-es (definitions) |
 | | `kaikki-es-traductions.jsonl` | Spanish entries' French translations | 1,537,580 B | es-fr (direct), fr-es (inverted) |
 | | `kaikki-es-traductions-en.jsonl` | Spanish entries' English translations | 2,200,504 B | es-en (direct), en-es (inverted) |
 
 The existing names are kept — a name is a reducer's input — and the new ones carry their edition,
 in ASCII alone: GitHub renames a release asset whose name holds another character on upload
-(`kaikki-es-Frances.jsonl`, not kaikki's « Francés »). fr-en and fr-es register what they read and
-derive nothing new.
+(`kaikki-es-Frances.jsonl`, not kaikki's « Francés »). fr-es registers what it reads and derives
+nothing new. Of the two files change 38 registered for fr-en, the English edition's English entries'
+French translations are no longer derived: read backwards, they make French's commonest bigrams
+expressions (« il est » "he's"), and with the other they would add 1,988 lemmas, 1,895 of them words
+the French section has no entry for (English words, names, initialisms, 1,193 listing the word
+itself), which fr-en, French's reference, would make French's dictionary words (add-lingua-pack-fr-en
+D3). The French edition's French entries' English translations (`kaikki-fr-traductions-en.jsonl`)
+are registered again, for fr-en's expressions alone — no word is glossed from them
+(add-lingua-fr-en-translated-expressions D1, D6): the French edition's catalogue derives four files
+in its one pass, and `DUMPS["fr-en"]` reads two editions, each its own record of fr-en's pin.
+
+**An update can keep an edition** (add-lingua-fr-en-translated-expressions D6).
+`pack_sources.py fetch-live --keep-edition E` (repeatable; `build.sh` passes `LINGUA_KEEP_EDITIONS`,
+comma-separated, and `lingua-pack-update` its `keep` input, in mode `update` alone and for the named
+pair alone) carries the pin's record of each named edition byte for byte — its release, its dump's
+identity, its files — and fetches its files from the release it names, checked by sha256, as
+`fetch-pinned` does; its dump is not fetched. The other editions are read from today's dumps under the
+new snapshot, whose release holds the files read anew alone (`assets --release`, `dumps --release`),
+so the pin then names two releases, which `fetch-pinned` and the reduce job follow record by record.
+An edition the pair does not read, one its pin records as kaikki's per-language extract or not at
+all, or a record lacking a file the pair reads of that edition today, fails the update before
+anything is fetched, naming the pair and the edition. It is for adding an edition to a pair without
+reading its others anew — fr-en gaining the French Wiktionary's English translations while the
+English dump of 2026-10-03 its pin records is no longer served, so that a new French dictionary,
+`tables/fr/` and fr-es do not move in the same pull request as the expressions —, never for avoiding
+an update: the next update that keeps nothing reads every edition anew.
 
 **A dump is recorded, never kept.** It is fetched into `work/dumps/`, read once and deleted; the
 English edition's alone is above the 2 GiB a release asset may weigh. A pair's derived files are
@@ -488,7 +747,7 @@ after each pair — far more room than the 14 GB the design assumed.
 Two packs of one studied language must analyse it alike whatever native language they are glossed
 in (add-lingua-pack-lexical-layer). So **a studied language's tables are kept once**
 (split-lingua-pack-tables-by-language, the language matrix programme's M24), in `tables/<studied>/`
-— `tables/en/`, `tables/es/` — and every pair studying that language is built from that folder
+— `tables/en/`, `tables/es/`, `tables/fr/` — and every pair studying that language is built from that folder
 together with its own:
 
 | Folder | Holds |
@@ -506,13 +765,13 @@ in a studied folder, and a pair whose studied language has no folder; they hold 
 packs, built from the two folders, to the sha256 their pins record.
 
 **Only the reference pair's reduction writes a studied language's tables** — en-fr for English,
-es-fr for Spanish, and for a language studied later the first pair reduced for it. A reducer still
+es-fr for Spanish, fr-en for French: for a language studied later, the first pair reduced for it. A reducer still
 writes every table into its work folder; `pack_sources.py split` then files them by side: the pair's
 own into `tables/<pair>/`, and the studied tables into `tables/<studied>/` only when `studied.json`
 names the pair. Any other pair reads the studied folder as committed and never writes it. The
 reference's reduction reads its native side too — the French Wiktionary's form links give English
-forms, French glosses decide which Spanish lemmas take a level, and its glossed lemmas are the
-dictionary words — so its `pin.json` and its rules are the record of its studied language's tables:
+forms, French glosses decide which Spanish lemmas take a level, and its glossed lemmas, less those it
+glosses by a proper noun's senses alone, are the dictionary words — so its `pin.json` and its rules are the record of its studied language's tables:
 one pin per pair, none in a studied folder. Hence:
 - a change to the reference's rules fails `check-reducer` for every pair of its language, naming the
   reference's rule files, until the reference is reduced again;
@@ -538,13 +797,15 @@ it moves when a studied table does.
 Two inputs of a studied folder are **written by no reducer**, so no rule digest moves with them:
 `split` never overwrites them, a dry run copies the studied folder into its scratch root
 (`pack_sources.py keep`, `KEPT_INPUTS`), and `pack_sources.py record-build` refuses tables whose
-studied folder lacks `tags.tsv`. The dictionary words are written by `split`, not by a reducer,
-either.
+studied folder lacks `tags.tsv`. The dictionary words are written by every reference's reducer and
+filed by `split`: French's by fr-en's (refine-lingua-fr-en-glosses), English's and Spanish's by
+en-fr's and es-fr's (leave-lingua-names-out-of-english-and-spanish-words), so the rule is in each
+reference's digest.
 
 | File (in `tables/<studied>/`) | What it holds | Who writes it |
 |---|---|---|
-| `tags.tsv` | The studied language's **pinned tag pool**: one canonical Universal Dependencies tag per line, each once. The builder lays the pack's pool out as the pin in its own order, then the readings' tags the pin lacks, then the tags only senses carry, each part sorted, so a form's readings index the same tags whatever parts of speech a native language's senses use (en-es's senses use `NUM`, en-fr's none). English's and Spanish's are the pools en-fr's and es-fr's packs already carried (27 and 106 tags), so both keep their bytes; every pair of the language reads the same file. A pack built without one (the `testdata/` fixtures, the tests' packs) keeps a single sorted pool. | A person. The checks fail when a studied language's folder lacks it (`lingua_pack::tables`). |
-| `lexical.tsv` | The language's **dictionary words**, one lemma per line, byte-sorted: the lemmas its reference pair glosses. They are what the vocabulary estimate and a CEFR list's typical vocabularies count, and what the Spanish names rule keeps as words. The builder writes them as a `lexical` section, one bit per lemma id, only when they differ from the lemmas the pack glosses; it then refuses, by name, a dictionary word or a glossed lemma that is neither the lemma of a form nor a ranked lemma, so no native language's glosses add a lemma. A pack without the section — or read by a core that predates it — reads its glossed lemmas as its dictionary words. en-fr and es-fr, the references, gloss exactly these, so their packs carry none; a pair glossed in another native language carries the section. | `pack_sources.py split`, when the reference is reduced: its `gloss.tsv` lemmas, read as the builder reads them (the text before the first tab, trimmed, non-empty), byte-sorted, each once. The checks fail, naming the reference and a lemma, when it is not the reference's glossed lemmas. |
+| `tags.tsv` | The studied language's **pinned tag pool**: one canonical Universal Dependencies tag per line, each once. The builder lays the pack's pool out as the pin in its own order, then the readings' tags the pin lacks, then the tags only senses carry, each part sorted, so a form's readings index the same tags whatever parts of speech a native language's senses use (en-es's senses use `NUM`, en-fr's none). English's and Spanish's are the pools en-fr's and es-fr's packs already carried (27 and 106 tags), so both keep their bytes; French's is the 79 tags its readings carry and no other, in byte order, a tag a later reduction adds appended after them (add-lingua-french-grammar-tables D8); every pair of the language reads the same file. A pack built without one (the `testdata/` fixtures, the tests' packs) keeps a single sorted pool. | A person. The checks fail when a studied language's folder lacks it (`lingua_pack::tables`), and when French's holds a tag its readings do not carry or misses one they do, naming it (`crates/lingua-pack/tests/committed_tables.rs`). |
+| `lexical.tsv` | The language's **dictionary words**, one lemma per line, byte-sorted: the lemmas its reference pair glosses less those it glosses by a proper noun's senses alone — French's since refine-lingua-fr-en-glosses, English's and Spanish's since leave-lingua-names-out-of-english-and-spanish-words. They are what the vocabulary estimate and a CEFR list's typical vocabularies count, and what the names rules keep as words. The builder writes them as a `lexical` section, one bit per lemma id, only when they differ from the lemmas the pack glosses; it then refuses, by name, a dictionary word or a glossed lemma that is neither the lemma of a form nor a ranked lemma, so no native language's glosses add a lemma. A pack without the section — or read by a core that predates it — reads its glossed lemmas as its dictionary words. Every reference's dictionary words leave its names out, so en-fr, es-fr and fr-en carry the section, as every pair glossed in another native language does. | The reference's reducer (`reduce-en-fr.py` and `reduce-es-fr.py` through the French Wiktionary's `dictionary_words`, `reduce-fr-en.py` through its own), filed by `pack_sources.py split` when the reference is reduced. A reference whose reducer writes none — a language's first pair, until it does — has its `gloss.tsv` lemmas written by `split`, read as the builder reads them (the text before the first tab, trimmed, non-empty), byte-sorted, each once. The checks fail, naming the reference and a lemma, when it is neither the reference's glossed lemmas nor all of them but those it glosses by a proper noun's senses alone. |
 | `studied.json` | `{"reference": "<pair>"}`: the pair whose reduction writes the folder, and whose `pin.json` is its provenance. | A person, or `split` for a language's first pair. |
 
 **A noun's gender comes from its readings.** The builder gives a noun's sense runs the gender its
@@ -576,7 +837,7 @@ edition (generalise-lingua-gloss-reducer):
 |---|---|---|---|
 | `reduce_edition_fr.py` | French (frwiktionary) | en-fr, es-fr | Today's rules, unchanged: the form-of wordings (« Pluriel de », « Forme de », also read for en-fr's own forms), « Présent », « Graphie » for expressions, the pointers and placeholders (« → voir », « Définition manquante ou à compléter »), a coordinator left hanging (« ou », « et »), a letter's name; a gloss of translation-table words opens on a capital |
 | `reduce_edition_en.py` | English (enwiktionary) | es-en | Senses tagged `form-of` or `alt-of`, naming their word in `form_of` or `alt_of`; untagged « plural of », « inflection of », « alternative form of », « synonym of », « only used in », « see »; no placeholder (an undefined sense has no gloss, tagged `no-gloss`, and is left out); a letter's name; glosses stay in lower case, as the edition writes a foreign word's senses. Its senses read as meanings before the shared rules read them (`read_as_meanings`, refine-lingua-es-en-glosses): a sense nested under a label or a pointer by its own gloss; a shortened or respelled form (« apocopic form of », « pronunciation spelling of »…, an untagged one a pointer too) by the meaning it carries or its target's senses, a pronoun's case form by its meaning; a place's name after a function word spelled like it; the edition's descriptions in lower case, one ellipsis, curly double quotes, no numbered sense, nothing after a line break. Two settings, es-en's alone and off until the owner picks them: long parentheses (M20, `LONG_PARENTHESIS` as `EN.long_parenthesis`, 0 keeps them) and the merging of a word's same-part-of-speech etymologies before the round-robin (`MERGE_SAME_POS_ETYMOLOGIES`, a pre-pass `reduce-es-en.py` runs) |
-| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name. Its notes to its readers (refine-lingua-en-es-glosses): a maintenance template (« ^([cita requerida]) »), a disambiguation note (« [sentido del sustantivo] »), a reference to numbered senses (« (definiciones [1,2]) »), the expansion notice, and a usage note after the meaning, a sentence opening on a closed list (« A veces », « Usado », « Se dice »…), a second sentence that carries the meaning kept. Its senses read in their order before the shared rules read them (`read_as_meanings`, a pre-pass en-es runs): the senses it marks obsolete or outdated after the others, nothing left out; one ellipsis « … », straight double quotes paired « » (`typography`, which en-es also applies to the translation tables' words) |
+| `reduce_edition_es.py` | Spanish (eswiktionary) | en-es, fr-es | Untagged « Forma del plural de », « Grafía obsoleta de », « Participio pasado del verbo (to) read », a tense or a person followed by « de » or « del » — the « de » is required, so « Femenino. » stays a meaning; sense-link subscripts taken out whole — one, a range or two (« dejar₉ », « Madrid₁₋₂ », « bottom₉ o ₁₀ »), after a lower-case letter, the word's period or a stray space, never after a capital (« C₄H₁₀ » keeps its digits) nor a preposition (« similar a ₁ » names one of the entry's senses) — and « Véase también »; a letter's name. Its notes to its readers (refine-lingua-en-es-glosses): a maintenance template (« ^([cita requerida]) »), a disambiguation note (« [sentido del sustantivo] »), a reference to numbered senses (« (definiciones [1,2]) »), the expansion notice, and a usage note after the meaning, a sentence opening on a closed list (« A veces », « Usado », « Se dice »…), a second sentence that carries the meaning kept. Its senses read in their order before the shared rules read them (`read_as_meanings`, a pre-pass en-es and fr-es run): the senses it marks obsolete or outdated after the others, nothing left out; one ellipsis « … », straight double quotes paired « » (`typography`, which en-es and fr-es also apply to the translation tables' words) |
 
 Each module's docstring holds the census its rules come from, measured on the data es-fr pins. The
 French-native pairs' reducers bind the French edition; `reduce_common.py` imports no edition, so a
@@ -586,9 +847,14 @@ shared function is always told which edition it cleans.
 reducer and every `reduce_*.py` module importing it loads, read from `sys.modules`
 (`pack_sources.py rule_files`): en-fr's and es-fr's are `reduce-<pair>.py`, `reduce_common.py` and
 `reduce_edition_fr.py`; es-en's are `reduce-es-en.py`, `reduce_common.py` and
-`reduce_edition_en.py`; en-es's are `reduce-en-es.py`, `reduce_common.py` and
-`reduce_edition_es.py`. Editing the English edition re-pins es-en alone, the Spanish edition en-es
-alone; editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
+`reduce_edition_en.py`, and fr-en's `reduce-fr-en.py`, `reduce_common.py`, `reduce_edition_en.py`,
+`reduce_french_acronyms.py` (French's acronym table, keep-lingua-french-acronyms-in-capitals) and
+`reduce_french_treebank.py` (UD French-GSD's parts of speech, refine-lingua-fr-en-glosses D5); en-es's are `reduce-en-es.py`, `reduce_common.py` and
+`reduce_edition_es.py`, and fr-es's `reduce-fr-es.py`, `reduce_common.py`, `reduce_edition_es.py`,
+`reduce_french_acronyms.py` and `reduce_french_treebank.py` (refine-lingua-fr-es-glosses D8). Editing the English edition re-pins
+es-en and fr-en alone, the Spanish edition en-es and fr-es alone, either French module (the treebank's,
+the acronyms') fr-en and fr-es alone (each pair's own rules, such as en-es's and fr-es's passes over their section, live in
+its reducer); editing `reduce_common.py` re-pins every pair. `check-reducer` fails, naming the module, when a
 reducer loads a rule module its record does not name, and tests refuse a `reduce_*` import a
 reducer would make later than at import time, and any module loaded other than by an import
 statement (`importlib`, `__import__`, `exec`) in a reducer or a rule module.

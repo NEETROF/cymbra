@@ -33,7 +33,7 @@ export const stats: typeof fr = {
     one: (n) => `${n} card added to the deck (level ${level}).`,
     other: (n) => `${n} cards added to the deck (level ${level}).`,
   }),
-  noCardsAdded: "No cards added — these words are already tracked or in your deck.",
+  noCardsAdded: "No cards added — these words are already tracked or in your deck, or have no translation.",
   known: "known",
   ignored: "ignored",
   relearn: "Learn again",

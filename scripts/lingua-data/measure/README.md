@@ -36,3 +36,23 @@ never reads it.
 ```bash
 scripts/lingua-data/measure/es-pud.sh
 ```
+
+## French forms on two treebanks
+
+`fr-ud.sh` measures the fr-en pack, built from the committed tables, with the same harness
+(add-lingua-french-forms-tables D9): on UD French-PUD, held to Spanish's gates above (its exit
+status the script's), and on UD French-GSD's test section, reported beside it and not gated — the
+reduction reads GSD's training and development sections, so a held-out section of the same treebank
+is the weaker test. Both are fetched at a pinned commit and checked by sha256 into
+`work/measure-fr/`. Neither is committed, and the reduction reads neither.
+
+After the gates it reports French's readings (`fr_readings.py`, add-lingua-french-grammar-tables
+D10) on both treebanks: per part of speech, over the words whose form the committed tables map to the
+treebank's lemma, the share that carry a reading of their own and the share of those whose treebank
+part of speech and features are among them — an auxiliary read as a verb, the conditional's and the
+imperative's tense left aside, a participle without a tense read either way. The figures decide
+nothing.
+
+```bash
+scripts/lingua-data/measure/fr-ud.sh
+```
