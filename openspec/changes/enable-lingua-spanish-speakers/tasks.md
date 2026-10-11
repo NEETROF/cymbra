@@ -12,7 +12,8 @@
 
 ## 3. Dogfood (owner, with Claude where a session can drive the browser)
 
-- [ ] 3.1 Chrome (macOS), Firefox (macOS), Firefox for Android, Safari (macOS), Safari (iOS): the pass of D3, on test accounts.
+- [x] 3.1 Chrome (macOS), Firefox (macOS), Firefox for Android, Safari (macOS), Safari (iOS): the pass of D3, on test accounts.
+  - Passed (the owner, 2026-10-11), with change 34's pass: cross-language and cross-device sync work; the native-language choice's findings (« Español » beside French and English included) fixed in `add-lingua-native-language-choice` 5.1–5.3; expression glosses and a card read in another studied language left to #905 and #906.
 
 ## 4. Release (owner)
 
