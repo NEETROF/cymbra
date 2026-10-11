@@ -14,11 +14,11 @@ import { shippedNatives, shippedPairs } from "../tool/packs.mjs";
 
 const app = join(__dirname, "..");
 const TARGETS = ["chromium", "firefox", "safari"] as const;
-/** Today's list: every pair French-native (M22). */
+/** The list before change 34: every pair French-native (M22). */
 const TODAY = ["en-fr", "es-fr"];
-/** Today's list beside the first English-glossed pair (change 34). */
+/** That list beside the first English-glossed pair: packs.json since change 34. */
 const WITH_ES_EN = [...TODAY, "es-en"];
-/** Today's list beside the first Spanish-glossed pair alone (change 35 before 34). */
+/** That list beside the first Spanish-glossed pair alone (change 35 before 34). */
 const WITH_EN_ES = [...TODAY, "en-es"];
 
 type Manifest = Record<string, unknown> & {
@@ -84,7 +84,8 @@ describe("the shipped natives decide the manifest's languages (D2)", () => {
     expect(localised(["fr"])).toBe(false);
     expect(localised(["fr", "en"])).toBe(true);
     expect(localised(["es"])).toBe(true);
-    expect(localised(shippedNatives(shippedPairs()))).toBe(false); // today
+    // packs.json since change 34 (enable-lingua-english-speakers): es-en ships beside French.
+    expect(localised(shippedNatives(shippedPairs()))).toBe(true);
   });
 
   it("default to English when an English-glossed pair ships (M13), to French otherwise", () => {
@@ -104,11 +105,6 @@ describe("the manifest step while every shipped pair is French-native", () => {
     expect("default_locale" in manifest).toBe(false);
     expect(text(manifest)).not.toContain("__MSG_");
     expect(text(manifest)).not.toContain("_locales");
-  });
-
-  it("runs on today's packs.json", () => {
-    expect(shippedPairs()).toEqual(TODAY);
-    for (const target of TARGETS) expect(step(target, shippedPairs()).locales).toEqual([]);
   });
 
   it.each(TARGETS)("%s: keeps the variant's own shape", (target) => {
@@ -173,6 +169,15 @@ describe("the manifest step while every shipped pair is French-native", () => {
 });
 
 describe("the manifest step once es-en ships (the scenario *An English-glossed pair ships*)", () => {
+  it("runs on packs.json, which lists es-en since change 34 (enable-lingua-english-speakers)", () => {
+    expect(shippedPairs()).toEqual(WITH_ES_EN);
+    for (const target of TARGETS) {
+      const { manifest, locales } = step(target, shippedPairs());
+      expect(locales).toEqual(["fr", "en"]);
+      expect(manifest.default_locale).toBe("en");
+    }
+  });
+
   it.each(TARGETS)("%s: reads the description and the commands from `_locales`, defaults to English", (target) => {
     const { manifest, locales } = step(target, WITH_ES_EN);
     expect(locales).toEqual(["fr", "en"]); // the shipped natives in listed order; Spanish's folder stays home

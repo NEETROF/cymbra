@@ -25,13 +25,15 @@
 //   {theStudied}    the studied languages whose levels are estimated, after « Pour » / "For"
 //                   (fr « l'espagnol et le français », en "Spanish and French", es « el español y el francés »)
 //   {music}         the Music page's address in this language
-// The English table keeps today's page as it is, « Je connais », « + Deck » and "its French
-// translation" included: change 34 (enable-lingua-english-speakers, task 1.2) replaces them
-// when it ships the English interface, and `test/lingua-text.spec.ts` fails if an
-// English-glossed pair ships first. The Spanish table follows the extension's conventions
-// (`apps/lingua-extension/src/i18n/README.md`: tú, neutral, no vosotros; RAE numbers, « 20 000 »
-// and « 96 % » with a narrow no-break space) and quotes its Spanish labels
-// (`apps/lingua-extension/src/i18n/es/card.ts`).
+// The English table quotes the English card's labels (`apps/lingua-extension/src/i18n/en/card.ts`,
+// curly quotes where the French has « », as `apps/lingua-extension/src/i18n/README.md` writes
+// English) and says "its translation", which is in the reader's language: change 34
+// (enable-lingua-english-speakers, task 1.2) replaced the French buttons it quoted while every
+// shipped pair was glossed in French.
+// The Spanish table follows the extension's conventions (`apps/lingua-extension/src/i18n/README.md`:
+// tú, neutral, no vosotros; RAE numbers, « 20 000 » and « 96 % » with a narrow no-break space) and
+// quotes its Spanish labels (`apps/lingua-extension/src/i18n/es/card.ts`). `test/lingua-text.spec.ts`
+// holds each table's three buttons to its catalogue.
 
 import type { Lang } from "./i18n";
 import { type LinguaPair, linguaHref, type NativeGroup, pairsByNative, type ShippedPairs } from "./lingua-pairs";
@@ -194,7 +196,7 @@ const en: LinguaTable = {
     {
       key: "click",
       title: "👆 One click to understand",
-      body: "Click a highlighted word: its dictionary form, its French translation, its frequency in plain language, and three buttons to mark it known, add it to your deck, or ignore it — « Je connais », « + Deck », « Ignorer ».",
+      body: "Click a highlighted word: its dictionary form, its translation, its frequency in plain language, and three buttons — “I know it”, “+ Deck”, “Ignore”.",
     },
     {
       key: "deck",

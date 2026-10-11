@@ -1,6 +1,7 @@
 import type { GrammarTag, WordGrammar } from "../../analyzer/types.ts";
 import {
   type Agreement,
+  composeBlocks,
   composeLines,
   describeForm,
   type FormKind,
@@ -201,6 +202,9 @@ const lineWords: LineWords = {
 export const grammar: typeof fr = {
   grammarLines(grammar: WordGrammar, headword, surface, written, studied: StudiedLanguageCode = "en") {
     return composeLines(describeForm(grammar, headword, surface, written), studied, lineWords);
+  },
+  grammarBlocks(grammar: WordGrammar, headword, surface, written, studied: StudiedLanguageCode = "en") {
+    return composeBlocks(describeForm(grammar, headword, surface, written), studied, lineWords);
   },
   readingName(tag: GrammarTag, studied: StudiedLanguageCode = "en") {
     const kind = formKind(readingOf(tag), studied);

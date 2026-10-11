@@ -25,7 +25,7 @@ import { ownerArea, type StoreChangeReason } from "@/state/store.ts";
 // the onboarding's first question and the popup's first-run call to action.
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-/** Today's package: French-native pairs alone. */
+/** The package before change 34: French-native pairs alone. */
 const TODAY = ["en-fr", "es-fr"];
 /** es-en shipping beside them (change 34). */
 const MIXED = ["en-fr", "es-fr", "es-en"];
@@ -116,7 +116,7 @@ describe("the view (D4)", () => {
     expect(button(container).hidden).toBe(true);
   });
 
-  it("A native language that was the only studied one: the choice says the reader will study Spanish, before confirming", async () => {
+  it("A native language that was the only studied one: the choice offers to confirm, naming no studied language", async () => {
     const container = document.createElement("div");
     const choose = vi.fn(async (): Promise<NativeLanguageReply> => ({ ok: true, changed: true }));
     const chosen = vi.fn();
@@ -131,7 +131,8 @@ describe("the view (D4)", () => {
     await view.refresh();
 
     pick(container, "en");
-    expect(visibleNotes(container)).toEqual([frCopy.note, "Tu étudieras ensuite l'espagnol."]);
+    // No line names the language studied next: the owner removed it on 2026-10-11 (D4).
+    expect(visibleNotes(container)).toEqual([frCopy.note]);
     expect(button(container).hidden).toBe(false);
     expect(button(container).textContent).toBe("Confirmer");
     expect(choose).not.toHaveBeenCalled();
@@ -148,37 +149,27 @@ describe("the view (D4)", () => {
     expect(chosen).toHaveBeenCalledWith("en", { ok: true, changed: true });
   });
 
-  it("Changing the native language: a reader of English and Spanish is told they keep Spanish alone, in English", async () => {
-    const container = document.createElement("div");
-    const view = mountNativeLanguage(container, {
-      language: "en",
-      copy: enCopy,
-      profile: profile("fr", ["en", "es"]),
-      choose: async () => ({ ok: true, changed: true }),
-      pairs: MIXED,
-    })!;
-    await view.refresh();
-    pick(container, "en");
-    expect(visibleNotes(container)).toEqual([enCopy.note, "You'll then study Spanish."]);
-  });
-
-  it("names the language the reader will study with its article, in each interface language", async () => {
-    const consequence = async (language: "fr" | "en" | "es", copy: typeof frCopy) => {
+  it.each([
+    ["fr", frCopy, "La langue de l'interface et des traductions de mots sera modifiée."],
+    ["en", enCopy, "The language of the interface and of word translations will change."],
+    ["es", esCopy, "Se cambiará el idioma de la interfaz y de las traducciones de palabras."],
+  ] as const)(
+    "Changing the native language, in %s: the note says what changes, and no line names the studied languages",
+    async (language, copy, note) => {
       const container = document.createElement("div");
       const view = mountNativeLanguage(container, {
         language,
         copy,
-        profile: profile("fr", ["en"]),
+        profile: profile("fr", ["en", "es"]),
+        choose: async () => ({ ok: true, changed: true }),
         pairs: MIXED,
       })!;
       await view.refresh();
       pick(container, "en");
-      return visibleNotes(container)[1];
-    };
-    expect(await consequence("fr", frCopy)).toBe("Tu étudieras ensuite l'espagnol.");
-    expect(await consequence("en", enCopy)).toBe("You'll then study Spanish.");
-    expect(await consequence("es", esCopy)).toBe("Luego estudiarás el español.");
-  });
+      expect(visibleNotes(container)).toEqual([note]);
+      expect(button(container).hidden).toBe(false);
+    },
+  );
 
   it("is styled where it is mounted, its hidden parts hidden: Réglages' sheet, and the onboarding's own", () => {
     const container = document.createElement("div");
@@ -206,7 +197,7 @@ describe("the view (D4)", () => {
     pick(container, "en");
     button(container).click();
     await settle();
-    expect(visibleNotes(container)).toEqual([frCopy.note, "Tu étudieras ensuite l'espagnol.", frCopy.failed]);
+    expect(visibleNotes(container)).toEqual([frCopy.note, frCopy.failed]);
     expect(radios(container).find((r) => r.checked)?.native).toBe("en");
     expect(button(container).disabled).toBe(false);
   });
@@ -321,7 +312,7 @@ describe("the popup's first run (D4)", () => {
     const preferences = fakeArea();
     const reads = vi.spyOn(preferences, "get");
     const choose = vi.fn();
-    expect(await presetNativeLanguage({ preferences, browserLanguage: "en-US", choose })).toBe(false);
+    expect(await presetNativeLanguage({ preferences, browserLanguage: "en-US", choose, pairs: TODAY })).toBe(false);
     expect(reads).not.toHaveBeenCalled();
     expect(choose).not.toHaveBeenCalled();
 

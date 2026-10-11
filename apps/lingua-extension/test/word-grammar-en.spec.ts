@@ -95,6 +95,23 @@ describe("the word card in English, of an English word", () => {
     ]);
   });
 
+  it("« casa »: what else it may be shows under its meaning (owner, 2026-10-11)", () => {
+    const { lines, card } = shown({
+      headword: "casa",
+      surface: "casa",
+      language: "es",
+      gloss: "house",
+      grammar: grammar({ others: [{ lemma: "casar", readings: [THIRD] }] }),
+    });
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(/^may also be the third-person singular .* of casar$/u);
+    const order = [...card.el.children].map((el) => el.className);
+    expect((card.el.querySelector(".grammar:not(.also)") as HTMLElement).hidden).toBe(true);
+    expect(order.indexOf("gloss")).toBeLessThan(order.indexOf("grammar also"));
+    expect(order.indexOf("grammar also")).toBeLessThan(order.indexOf("actions"));
+    expect(card.el.querySelector(".grammar.also em")!.getAttribute("lang")).toBe("es");
+  });
+
   it("A contraction, and an inflected piece of one", () => {
     expect(
       shown({ headword: "do", surface: "do", written: "don't", grammar: grammar({ pieces: ["do", "not"] }) }).lines,

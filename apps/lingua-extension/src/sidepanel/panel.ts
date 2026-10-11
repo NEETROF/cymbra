@@ -66,3 +66,31 @@ export function start(document: Document, deps: PanelDeps): PanelViews {
     },
   };
 }
+
+/** The panel's three views, its tabs: Révision, Statistiques, Réglages. */
+export type PanelView = "review" | "stats" | "settings";
+
+/** The hash a reload carries to come back on the tab the reader was on (`#view=settings`). */
+const VIEW_HASH = /^#view=(review|stats|settings)$/;
+
+/**
+ * The tab a reload after a change of native language comes back on (add-lingua-native-language-choice,
+ * the owner's finding of 2026-10-11: the panel reloaded on « Révision » whatever the reader was on).
+ * The view rides on the page's hash, read once and cleared at once, so a fresh opening — which carries
+ * none — lands on Révision, the default.
+ */
+export function viewToRestore(
+  location: Pick<Location, "hash" | "pathname" | "search">,
+  history: Pick<History, "replaceState">,
+): PanelView {
+  const match = VIEW_HASH.exec(location.hash);
+  if (!match) return "review";
+  history.replaceState(null, "", location.pathname + location.search);
+  return match[1] as PanelView;
+}
+
+/** Reload the panel, on `view` once reloaded (`viewToRestore`). */
+export function reloadOnView(view: PanelView, history: Pick<History, "replaceState">, reload: () => void): void {
+  history.replaceState(null, "", `#view=${view}`);
+  reload();
+}

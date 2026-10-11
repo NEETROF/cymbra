@@ -45,7 +45,7 @@ yarn install --immutable
 yarn gen:wasm     # compiles crates/lingua-wasm → src/wasm/pkg
 yarn gen:proto    # generates the gRPC-web client stubs from the .proto files
 pip install wordfreq
-yarn gen:pack:real  # builds assets/packs/en-fr.lingua from public corpora — see the next section
+yarn gen:pack:real  # builds assets/packs/<pair>.lingua for each pair packs.json lists — see the next section
 tool/build_engine.sh  # builds engine/ from mozilla/translations — Linux only, see below
 LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:firefox
 ```
@@ -54,33 +54,38 @@ The result is `dist-firefox/`, which is what was submitted. The archive's copy o
 ends with the sign-in client ids the package was built with; without them the build is the
 same add-on with its sign-in buttons hidden.
 
-## The language pack
+## The language packs
 
-`assets/packs/en-fr.lingua` — the English→French language pack, about 1.5 MB of frequency and
-translation data, the one pair `packs.json` lists. It is **generated, not authored**: the built
-file is not in the archive, but everything it is built from is. `yarn gen:pack:real` runs
-`scripts/lingua-data/build.sh en-fr assets/packs/en-fr.lingua` for it, which builds it from the
-reduced tables in `scripts/lingua-data/tables/en-fr/` (the French glosses) and
-`scripts/lingua-data/tables/en/` (English's forms, frequencies, levels, readings, pinned tag pool
-and dictionary words, kept once for every pack studying English) — **offline, with no download and no Python** — and checks the
-result against the sha256 recorded in `tables/en-fr/pin.json` (also printed at the end of this
-README): the build fails unless it produces the very bytes the package carries.
+`assets/packs/<pair>.lingua` — one language pack per pair `packs.json` lists, `<studied>-<native>`:
+`en-fr` (English glossed in French), `es-fr` (Spanish in French) and `es-en` (Spanish in English),
+each 1.8 to 2.6 MB of frequency and translation data. They are **generated, not authored**: the
+built files are not in the archive, but everything they are built from is. `yarn gen:pack:real`
+runs `scripts/lingua-data/build.sh <pair> assets/packs/<pair>.lingua` for each, which builds it from
+the reduced tables in `scripts/lingua-data/tables/<pair>/` (the glosses, in the native language) and
+`scripts/lingua-data/tables/<studied>/` (the studied language's forms, frequencies, levels,
+readings, pinned tag pool and dictionary words, kept once for every pack studying it) — **offline,
+with no download and no Python** — and checks the result against the sha256 recorded in
+`tables/<pair>/pin.json` (also printed at the end of this README): the build fails unless it
+produces the very bytes the package carries.
 
-Those tables were reduced from public corpora — Kaikki's French Wiktionary extract of English
-entries, the `wordfreq` distribution, ESDB's inflections (SCOWLv2), and the CEFR-J and Octanove
-vocabulary profiles — by `scripts/lingua-data/reduce-en-fr.py` and the rule modules it imports,
-all in this archive: `scripts/lingua-data/reduce_common.py`, the rules every pair shares, and
-`scripts/lingua-data/reduce_edition_fr.py`, the French Wiktionary's — which of its senses only point
-at another word, and the notes it writes for its own readers, taken out of a gloss.
-`reduce_edition_en.py` and `reduce_edition_es.py`, the English and Spanish Wiktionaries' rules, are
-in the archive too, with `reduce-es-en.py` and `tables/es-en/` (Spanish glossed in English, which
-reads Spanish's tables in `tables/es/` and loads the English Wiktionary's rules); they reduce no
-table this package ships, and `packs.json` lists no pack built from them. So are `reduce-fr-en.py`,
-`tables/fr/` and `tables/fr-en/` (French's forms and ranks, which the checks build into a pack
-studying French): they reduce nothing this package carries either.
-`pin.json` names each raw source at a fixed commit or snapshot, with its sha256, so the
-tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer does not
-need to.
+Those tables were reduced from public corpora by one script per pair and the rule modules it
+imports, all in this archive: `scripts/lingua-data/reduce_common.py`, the rules every pair shares,
+and one Wiktionary edition's rules per native language — `reduce_edition_fr.py`, the French
+Wiktionary's (which of its senses only point at another word, and the notes it writes for its own
+readers, taken out of a gloss), and `reduce_edition_en.py`, the English Wiktionary's.
+`reduce-en-fr.py` reduces English's tables and en-fr's glosses from Kaikki's French Wiktionary
+extract of English entries, the `wordfreq` distribution, ESDB's inflections (SCOWLv2) and the CEFR-J
+and Octanove vocabulary profiles; `reduce-es-fr.py` reduces Spanish's tables and es-fr's glosses
+from the English Wiktionary's Spanish entries, UD Spanish-GSD, `wordfreq` and the French and Spanish
+Wiktionaries. `reduce-es-en.py` reduces its glosses alone, over Spanish's committed tables: Spanish
+glossed in English from the English and Spanish Wiktionaries. `reduce-en-es.py`,
+`reduce_edition_es.py` and `tables/en-es/` (English glossed in Spanish, with the Spanish
+Wiktionary's rules), and `reduce-fr-en.py`, `reduce-fr-es.py`, `tables/fr/`, `tables/fr-en/` and
+`tables/fr-es/` (French's forms, ranks and glosses, which the checks build into packs studying
+French) are in the archive too: they reduce nothing this package carries. Each pair's `pin.json`
+names the scripts it was reduced with and each raw source at a fixed commit or snapshot, with its
+sha256, so the tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer
+does not need to.
 
 `yarn gen:pack` builds a small test pack instead, which is enough to load the add-on and
 exercise it.
@@ -130,10 +135,11 @@ Their files come from Mozilla's translation model registry (`sourceBase` in `mod
 not from `mozilla/firefox-translations-models`: each file lists its path there and the sha256 of
 the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks.
 The package downloads none of them until the reader turns « Traduction étendue » on, and then only
-the models its pairs' routes need. This package ships the pairs `en-fr` and `es-fr` (`packs.json`),
-so it downloads at most `en-fr` and `es-en`; the `es-en`, `en-es`, `fr-en` and `fr-es` routes serve
-pairs it does not ship, and nothing is downloaded for those pairs — none for French, which no pair
-of this package studies.
+the models its pairs' routes need. This package ships the pairs `en-fr`, `es-fr` and `es-en`
+(`packs.json`), so it downloads at most `en-fr` and `es-en` — a French-speaking reader the models of
+`en-fr` and `es-fr`, an English-speaking reader `es-en` alone; the `en-es`, `fr-en` and `fr-es`
+routes serve pairs it does not ship, and nothing is downloaded for those pairs — none for French,
+which no pair of this package studies.
 
 ## Where the add-on reaches the network
 

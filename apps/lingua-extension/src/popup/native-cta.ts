@@ -12,7 +12,8 @@ import type { AsyncStorageArea } from "../state/storage.ts";
 // (`#setup`, `#controls`), before the level's. The preset is no answer: a popover closed before the
 // reader confirmed asks again at its next opening. Confirming the preset, or another language, is
 // the answer: the background marks the choice as made, and the block goes, or the page reloads in
-// the language chosen — and asks no more. Nothing is mounted while one native language ships — today.
+// the language chosen — and asks no more. Nothing is mounted while one native language ships (French
+// alone, before change 34 shipped es-en).
 
 export interface NativeCtaOptions {
   /** The bundle's pairs, unless a spec offers others. */

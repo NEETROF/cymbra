@@ -1,4 +1,4 @@
-import { languageWithArticle, nativeLanguageName } from "../analyzer/language-labels.ts";
+import { nativeLanguageName } from "../analyzer/language-labels.ts";
 import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import type { NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
 import { nativeLanguage as enNativeLanguage } from "../i18n/en/native-language.ts";
@@ -10,7 +10,6 @@ import {
   type NativeLanguageReply,
   nativeChoiceOffered,
   offeredNatives,
-  studiedForNative,
 } from "../state/native-language.ts";
 
 /**
@@ -22,11 +21,10 @@ export type NativeLanguageCopy = typeof frNativeLanguage;
 // The reader's choice of native language (add-lingua-native-language-choice D4): one view, mounted
 // in Réglages (« Langue », above the studied languages), in the onboarding (its first question) and
 // in the popup's first run. The native languages a shipped pair is glossed in, each named in its own
-// language; the current one selected; picking another says, before it is confirmed, which languages
-// the reader will then study; confirming sends `lingua-native-language`, and the background rewrites
+// language; the current one selected; picking another offers to confirm it; confirming sends `lingua-native-language`, and the background rewrites
 // the profile, after which every page reloads and every reading session is built anew (D2, D3). While
-// one native language ships — today — there is nothing to choose: the view mounts nothing at all, so
-// every host's DOM is what it was before it (M22).
+// one native language ships — French alone, before change 34 shipped es-en — there is nothing to
+// choose: the view mounts nothing at all, so every host's DOM is what it was before it (M22).
 
 /** The reader's profile as the view needs it: their native language and the languages they study. */
 export interface NativeProfile {
@@ -113,8 +111,6 @@ export function mountNativeLanguage(container: HTMLElement, opts: NativeLanguage
   });
   row.append(...radios.map(({ radio }) => radio.parentElement as HTMLElement));
   const note = el("div", "set-note", copy.note);
-  const consequence = el("div", "set-note");
-  consequence.hidden = true;
   const confirm = el("button", "set-reset", copy.confirm);
   confirm.type = "button";
   confirm.hidden = true;
@@ -122,23 +118,22 @@ export function mountNativeLanguage(container: HTMLElement, opts: NativeLanguage
   failed.hidden = true;
   // Its notes and its button come and go: `.set-native` keeps `hidden` hiding them (settings.css).
   container.classList.add("set-native");
-  container.append(row, note, consequence, confirm, failed);
+  container.append(row, note, confirm, failed);
 
   let current: NativeProfile | null = null;
   let picked: NativeLanguage | null = null;
   /** The language shown was confirmed: the question is answered, its button goes. */
   let answered = false;
 
-  /** Select `native`, and say what confirming it does. */
+  /**
+   * Select `native`, and offer to confirm it. No line names the studied languages that follow: the
+   * owner removed it on 2026-10-11 (D4) — it named one language where a reader may study several.
+   */
   function pick(native: NativeLanguage): void {
     picked = native;
     for (const { native: n, radio } of radios) radio.checked = n === native;
     failed.hidden = true;
     const changes = current !== null && native !== current.native;
-    const studied = current ? studiedForNative(current.studied, native, pairs) : null;
-    consequence.hidden = !changes || studied === null;
-    consequence.textContent =
-      changes && studied ? copy.studiesAfter(studied.map((l) => languageWithArticle(language, l)).join(", ")) : "";
     confirm.hidden = !(changes || (opts.confirmCurrent && !answered));
   }
 

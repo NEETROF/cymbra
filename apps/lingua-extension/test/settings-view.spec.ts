@@ -33,8 +33,15 @@ const samantha: VoiceInfo = {
 };
 
 const opened: string[] = [];
+/** The shipped pairs before change 34 (enable-lingua-english-speakers): French-native only. */
+const FRENCH_NATIVE = ["en-fr", "es-fr"];
 
-function mount(overrides: Partial<SyncControls> = {}, port?: LinguaPort, store: AsyncStorageArea = fakeArea()) {
+function mount(
+  overrides: Partial<SyncControls> = {},
+  port?: LinguaPort,
+  store: AsyncStorageArea = fakeArea(),
+  pairs?: readonly string[],
+) {
   const container = document.createElement("div");
   document.body.replaceChildren(container);
   const watchers: (() => void)[] = [];
@@ -52,6 +59,7 @@ function mount(overrides: Partial<SyncControls> = {}, port?: LinguaPort, store: 
     store,
     sync,
     openPage: (url) => opened.push(url),
+    pairs,
   });
   const block = [...container.querySelectorAll<HTMLElement>(".set-block")].find((b) =>
     b.textContent?.startsWith("Synchronisation"),
@@ -726,7 +734,8 @@ describe("Réglages — sub-tabs", () => {
   ];
 
   it("groups the blocks by specialisation, each tab over its own panel", async () => {
-    const { container } = mount();
+    // French-native pairs alone, as before change 34: no « Langue maternelle » (shown below).
+    const { container } = mount({}, undefined, undefined, FRENCH_NATIVE);
     await settle();
     expect(tabs(container).map((t) => t.textContent)).toEqual(["Langue", "Apparence", "Pages & livres", "Données"]);
     const panels = [...container.querySelectorAll<HTMLElement>('[role="tabpanel"]')];
@@ -754,7 +763,7 @@ describe("Réglages — sub-tabs", () => {
   });
 
   it("opens on Langue, and a click shows that tab's panel alone", async () => {
-    const { container } = mount();
+    const { container } = mount({}, undefined, undefined, FRENCH_NATIVE);
     await settle();
     expect(shown(container).map(titles)).toEqual([
       ["Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute"],
@@ -767,6 +776,14 @@ describe("Réglages — sub-tabs", () => {
     expect(tabs(container)[0].classList.contains("active")).toBe(false);
     // One tab stop: the selected tab; the arrows reach the others.
     expect(tabs(container).map((t) => t.tabIndex)).toEqual([-1, -1, -1, 0]);
+  });
+
+  it("opens Langue on « Langue maternelle » with the bundle's list, es-en shipping (enable-lingua-english-speakers)", async () => {
+    const { container } = mount();
+    await settle();
+    expect(shown(container).map(titles)).toEqual([
+      ["Langue maternelle", "Langues étudiées", "Niveau d'anglais", "Traduction", "Lecture à voix haute"],
+    ]);
   });
 
   it("keeps the chosen tab across a refresh", async () => {

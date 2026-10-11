@@ -81,6 +81,12 @@ the content script tears its `ReadingSession` down and builds a new one, reading
 language's with their hosts' `lang`. The reading session's `onExternalChange` keeps handling a
 synced backup as today; a native change is the one case that rebuilds.
 
+**Owner's finding of 2026-10-11 (dogfood).** The side panel reloaded on « Révision », its default
+tab, whatever tab the reader changed the language from (Réglages, usually). Its reload now carries
+the tab in the page's hash (`#view=settings`, `src/sidepanel/panel.ts` `reloadOnView`); the reloaded
+page reads it once and clears it (`viewToRestore`), so it comes back on that tab while a fresh
+opening, which carries no hash, still lands on Révision.
+
 A context that started before the change — a session taken down while its engine answered, a page
 about to reload, a port not restored yet, a tab the browser restores from its back/forward cache,
 which heard nothing while it was frozen — may still save the backup its engine holds, at any time,
@@ -103,7 +109,8 @@ a change starts the reader over in the language they chose.
 `src/reading/native-language-view.ts` mounts the choice: the native languages of
 `shippedNatives()` named each in its own language (« Français », "English", « Español » — the
 same in every interface language, on change 13's same-in-every-language list), the current one
-selected, the consequence for the studied languages stated before confirming, a change sending
+selected, a confirm button once another is picked (no line names the studied languages that follow — see
+*Owner's decision of 2026-10-11* below), a change sending
 `lingua-native-language` and then rebuilding the host's port. Mounted:
 - in Réglages, « Langue », above « Langues étudiées », its title a catalogue entry like the others
   (change 15 moved them; `lint-settings-hosts` reads the catalogue);
@@ -141,12 +148,24 @@ The French strings of the three places (« Langue maternelle », « Je lis en…
 action) are catalogue entries (change 13) with their English and Spanish; the native names are
 on the same-in-every-language list.
 
+**Owner's decision of 2026-10-11 (dogfood).** The line that named the studied languages after a
+change (« Tu étudieras ensuite l'espagnol. », the `studiesAfter` entry) is removed in every
+interface language: it named one language where a reader may study several (an English speaker
+studies Spanish and French once French ships), and it showed even when the studied languages did
+not change. The automatic replacement of a studied language that becomes the native one is
+unchanged; only the sentence goes. No flags beside the native names (considered and declined). The
+note under the choice says that confirming changes the interface and the word translations, in
+the owner's wording: « La langue de l'interface et des traductions de mots sera modifiée. » —
+"The language of the interface and of word translations will change." — « Se cambiará el idioma
+de la interfaz y de las traducciones de palabras. »
+
 ## Risks / Trade-offs
 
 - **An engine rebuilt under a page being read** → the content script tears its session down and
   builds a new one on the announced change (D3), as a synced backup restores today.
 - **A reader who studies only the language they choose as native** → the studied list is set to
-  the native's first shipped pair's studied language, and said so in the choice.
+  the native's first shipped pair's studied language; the choice no longer says so (owner's
+  decision of 2026-10-11, D6) — the studied languages are shown in Réglages.
 - **Safari never opening the onboarding** → the popup's first-run call to action, while the
   marker is unset.
 - **A device whose browser is German** → the preset is English when English ships, French

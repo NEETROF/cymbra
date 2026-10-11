@@ -137,6 +137,53 @@ describe("the word card says what the form is", () => {
     const order = [...card.el.children].map((el) => el.className);
     expect(order.indexOf("grammar")).toBeGreaterThan(order.indexOf("listen"));
     expect(order.indexOf("grammar")).toBeLessThan(order.indexOf("actions"));
+    expect(order.indexOf("grammar also")).toBeLessThan(order.indexOf("actions"));
+    expect((card.el.querySelector(".grammar.also") as HTMLElement).hidden).toBe(true);
+  });
+
+  it("what the form may also be sits under the meaning, what it is above it (owner, 2026-10-11)", () => {
+    const { lines, card } = shown({
+      headword: "leave",
+      surface: "leaves",
+      gloss: "Partir",
+      grammar: grammar({ readings: [THIRD], others: [{ lemma: "leaf", readings: [PLURAL] }] }),
+    });
+    expect(lines).toEqual(["3e personne du singulier du présent de leave", "peut aussi être le pluriel de leaf"]);
+    const blocks = [...card.el.children].map((el) => ({ cls: el.className, text: el.textContent }));
+    const at = (cls: string) => blocks.findIndex((b) => b.cls === cls);
+    expect(blocks[at("grammar")]!.text).toBe("3e personne du singulier du présent de leave");
+    expect(blocks[at("grammar also")]!.text).toBe("peut aussi être le pluriel de leaf");
+    expect(at("listen")).toBeLessThan(at("grammar"));
+    expect(at("grammar")).toBeLessThan(at("gloss"));
+    expect(at("gloss")).toBeLessThan(at("grammar also"));
+    expect(at("grammar also")).toBeLessThan(at("translation"));
+    expect(at("translation")).toBeLessThan(at("actions"));
+  });
+
+  it("a form that is its own dictionary form: the whole grammar sits under the meaning", () => {
+    const { card } = shown({
+      headword: "put",
+      surface: "put",
+      gloss: "Mettre",
+      grammar: grammar({ readings: [PAST, PARTICIPLE] }),
+    });
+    expect((card.el.querySelector(".grammar:not(.also)") as HTMLElement).hidden).toBe(true);
+    const also = card.el.querySelector(".grammar.also") as HTMLElement;
+    expect(also.hidden).toBe(false);
+    expect(also.textContent).toBe("peut aussi être le prétérit et le participe passé de put");
+    const order = [...card.el.children].map((el) => el.className);
+    expect(order.indexOf("gloss")).toBeLessThan(order.indexOf("grammar also"));
+  });
+
+  it("the pieces of a split word stay above the meaning, and nothing sits under it", () => {
+    const { card } = shown({
+      headword: "do",
+      surface: "do",
+      written: "don't",
+      grammar: grammar({ pieces: ["do", "not"] }),
+    });
+    expect(card.el.querySelector(".grammar:not(.also)")!.textContent).toBe("« don't » = do + not");
+    expect((card.el.querySelector(".grammar.also") as HTMLElement).hidden).toBe(true);
   });
 
   it("an expression card has no grammar block", () => {
