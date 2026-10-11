@@ -2,7 +2,7 @@
 
 ## 0. Before the implementation
 
-- [ ] 0.1 [manual] The owner approves what moves (design D7): fr-es's `mwe.tsv` (12,174 → 12,108 rows in the prototype: 65 left out, 3 respelled, 1 merged, 4 corrected), its `manifest.json` and `pin.json` re-pinned at its snapshot, `fr-es.golden`'s `pack` line, and the six phrase probes added to the French scenario — added lines in `fr-es.golden`, `fr-en.golden`, `word-card-fr-es.txt` and `word-card-fr-en.txt`, none of their existing lines moving.
+- [x] 0.1 [manual] The owner approves what moves (design D7): fr-es's `mwe.tsv` (12,174 → 12,108 rows in the prototype: 65 left out, 3 respelled, 1 merged, 4 corrected), its `manifest.json` and `pin.json` re-pinned at its snapshot, `fr-es.golden`'s `pack` line, and the six phrase probes added to the French scenario — added lines in `fr-es.golden`, `fr-en.golden`, `word-card-fr-es.txt` and `word-card-fr-en.txt`, none of their existing lines moving. Approved (the owner, 2026-10-11).
 
 ## 1. The rules (scripts/lingua-data/reduce-fr-es.py)
 
@@ -31,5 +31,5 @@
 
 ## 5. Owner
 
-- [ ] 5.1 [manual] The owner approves what moves, at the implementation's figures (0.1, design D7), and the pull request's comparison: every expression removed, respelled, merged or corrected, the probes' answers, `fr-es.golden`'s `pack` line.
+- [x] 5.1 [manual] The owner approves what moves, at the implementation's figures (0.1, design D7), and the pull request's comparison: every expression removed, respelled, merged or corrected, the probes' answers, `fr-es.golden`'s `pack` line. Approved (the owner, 2026-10-11).
 - [x] 5.2 [manual] The owner reads the list (D2: the 65 with their reasons, two or three contexts each, « venir de » and its right matches named) and the four corrections (D3); a headword moved off or onto the list, or a correction reworded, joins this change before it merges, fr-es re-pinned again. The 65 headwords of `LEFT_OUT`, « venir de » among them, and the four `CORRECTIONS` rows read by the owner on 2026-10-11 as they are on `main`, none moved or reworded (the owner, 2026-10-11: nothing removed).
