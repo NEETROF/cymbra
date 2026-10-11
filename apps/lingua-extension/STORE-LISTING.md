@@ -505,7 +505,7 @@ is injected into it. `tool/check_variants.mjs` fails a build whose manifest asks
 **`activeTab`** — The reader is injected only into the tab the user is looking at, when they click
 "Analyze this page" (« Analizar esta página » in Spanish, « Analyser cette page » in French) in the
 toolbar popup. This is the extension's default mode on Chrome: without it, the extension cannot read
-the page it was asked to analyse. `src/popup/popup.ts` (`activeTabId`, then the injection below).
+the page it was asked to analyze. `src/popup/popup.ts` (`activeTabId`, then the injection below).
 
 **`scripting`** — To inject that reader. Two paths: `chrome.scripting.executeScript` on the
 popup's explicit request (`analyseCurrentPage`, `src/popup/popup.ts`), and
@@ -542,7 +542,7 @@ each time. It is requested by `chrome.permissions.request` from a user gesture, 
 (`src/popup/popup.ts`), and can be revoked at any time. The extension is fully usable without it.
 
 **`https://api.cymbra.app/*` (host permission)** — Only for the optional account: signing in,
-then what a signed-in reader synchronises across their own devices — word statuses, declared levels, cards
+then what a signed-in reader synchronizes across their own devices — word statuses, declared levels, cards
 with their review history, and daily learning statistics (`SyncEngine`, `src/sync/sync.ts`).
 The origin is set at build time (`LINGUA_GRPC_WEB_URL`, `src/net/transport.ts`) and
 granted by the build (`tool/manifests.mjs`, `hostPattern`). A reader who does not sign in never
@@ -582,7 +582,7 @@ account, and the reader's own vocabulary state (word statuses, cards, review his
 history are **not** collected — the analysis never leaves the browser. Nor are the books a
 reader imports, their text or where the reader is in them: they stay on the device. Turning on
 « Traduction étendue » downloads models from Cymbra; those requests carry nothing of the
-reader's (no cookie, no identifier, no page text) and is not tied to an account.
+reader's (no cookie, no identifier, no page text) and are not tied to an account.
 
 Tick the three certifications: the data is not sold to third parties, it is not used or
 transferred for a purpose unrelated to the item's single purpose, and it is not used or
