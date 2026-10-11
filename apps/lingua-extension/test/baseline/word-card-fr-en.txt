@@ -144,22 +144,6 @@ row: voter — to vote
 row: budget — a budget
 ### phrase-gloss à mon age
 row: âge — age
-### phrase-gloss c'etait deja tres bien
-row: c'est — it is (used to define the preceding word)
-row: déjà — already, before
-row: très bien — very good, very well
-### phrase-gloss une facon de parler francais
-row: façon de parler — façon de parler
-row: français — French
-### phrase-gloss j'ai recu ta reponse
-row: j'ai — I've, I have
-row: recevoir — to receive
-row: réponse — response, answer, reply (a communication)
-### phrase-gloss L'Ecole est fermée.
-row: école — school
-row: fermer — to shut
-### phrase-gloss regarde cette video
-row: regarder — to look at
 ### phrase-gloss LE CA A VOTÉ LE BUDGET
 row: voter — to vote
 row: budget — a budget
@@ -429,18 +413,6 @@ row: to (destination)
 page 1/1:
   [noun] board of directors; revenue, turnover, net sales; alternating current
 row: board of directors
-### word-grammar recu recevoir
-grammar: past participle of recevoir
-page 1/1:
-  [verb] to receive; to entertain (to welcome guests)
-row: to receive
-### word-grammar arrete arrêter
-grammar: past participle, first- and third-person singular present indicative or subjunctive and second-person singular imperative of arrêter
-page 1/2:
-  [verb] to stop, to come to a standstill, to halt, to stop from moving; to arrest (someone, a criminal, etc.); to stop, to cease (an activity); to come to a stop
-page 2/2:
-  [verb] to settle, to conclude, to agree (upon); to wait
-row: to stop, to come to a standstill, to halt, to stop from moving
 ### word-grammar parle parler
 grammar: first- and third-person singular present indicative or subjunctive and second-person singular imperative of parler
 page 1/2:
