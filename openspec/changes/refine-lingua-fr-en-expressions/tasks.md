@@ -23,7 +23,7 @@
 
 ## 4. Owner
 
-- [ ] 4.1 [manual] Approve what moves, before the implementation: the 111 names of design D1 (each with its contexts), the pointer notes of D2, « de l' » lent "of the" (D3), fr-en's `mwe.tsv` (17,635 → 17,521 rows in the prototype, re-measured on 48c's tables), its pin and pack, `fr-en.golden` (`pack`, « de l’eau ») and `word-card-fr-en.txt` (« de l' — of the »); the figures task 1.1 records are the ones approved.
+- [ ] 4.1 [manual] Approve what moves, before the implementation: the 111 names of design D1 (each with its contexts), the pointer notes of D2, « de l' » lent "of the" (D3), fr-en's `mwe.tsv` (17,635 → 17,521 rows in the prototype, re-measured on 48c's tables), its pin and pack, `fr-en.golden` (`pack`, « de l’eau ») and `word-card-fr-en.txt` (« de l' — of the »); the figures task 1.1 records are the ones approved. The 115 names `LEFT_OUT` gains on `main` (the design's 111 and task 1.1's four), « ça va » kept, read by the owner on 2026-10-11 (the owner, 2026-10-11: nothing removed); the pointer notes (D2), « de l' » (D3), `mwe.tsv`, its pin and pack, `fr-en.golden` and `word-card-fr-en.txt` remain to approve.
 
 ## 5. Gates
 
