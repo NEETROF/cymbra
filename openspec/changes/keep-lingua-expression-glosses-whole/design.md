@@ -154,8 +154,8 @@ has no maximum height and keeps the size of its largest page, so a 1,132-charact
 card taller than a phone's screen, its actions out of reach. 300 is the longest sense a word's card
 already shows, so the card's tested range does not grow. It touches 29 rows (26 senses), all of them
 encyclopaedic definitions, and no row the owner met; the joined gloss is not bounded (three senses,
-904 characters at most, three pages). The owner's question 1 asks whether to keep it; dropping it is
-one constant, and the figures without it are in *Measured*.
+904 characters at most, three pages). The owner kept it on 2026-10-11 (*Open Questions*, 1); the figures
+without it stay in *Measured*.
 
 ### D3 — One rule, read everywhere an expression is glossed
 
@@ -235,7 +235,9 @@ the card test and the row spec 0.25–0.5; the READMEs 0.25.
 
 ## Open Questions
 
+None. The owner answered the one this proposal asked:
+
 1. **The 300-character bound (D2).** 29 rows of 120,690 hold a sense past 300 characters (« sistema
-   cardiovascular » 1,132, « machete order » 458, « maladie du sommeil » 363): with the bound they end
-   after a whole word with « … », without it the card grows past a phone's screen for them. Keep the
-   bound, or show them whole too? The proposal keeps it.
+   cardiovascular » 1,132, « machete order » 458, « maladie du sommeil » 363). **Answered by the owner
+   on 2026-10-11: keep the bound** — a sense past 300 characters is cut after a whole word and ends
+   with « … », as D2 proposes.

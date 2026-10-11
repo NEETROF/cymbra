@@ -2,7 +2,7 @@
 
 ## 0. Before the implementation
 
-- [ ] 0.1 [manual] The owner answers open question 1 (design D2): keep the 300-character bound on an expression's sense (29 rows), or none. Without the bound, task 1.1's constant is `None` and the figures are design *Measured*'s « without it ».
+- [x] 0.1 [manual] The owner answers open question 1 (design D2): answered on 2026-10-11 — the 300-character bound on an expression's sense (29 rows) is kept, cut after a whole word with « … ».
 
 ## 1. The rules (scripts/lingua-data/)
 

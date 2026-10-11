@@ -34,7 +34,7 @@ programme's 57.
   a whole word and ends with « … », as a word's is. It touches 29 rows of the 120,690 (en-fr 19, es-fr 7,
   fr-en 3, none in es-en, en-es or fr-es): encyclopaedic definitions of 301 to 1,132 characters
   (« sistema cardiovascular », « machete order », « maladie du sommeil ») that no card page can show.
-  The owner's question 1 asks whether to keep it.
+  The owner kept it on 2026-10-11.
 - **Every path reads the same rule** (D3): `reduce_common.reduce_expressions` and `_join_senses`,
   fr-en's `split_words` and `lent_senses`, fr-es's `label_expressions` (its labels still lie outside
   the bound) and en-fr's `--max-gloss-len`, which goes. `EXPRESSION_GLOSS_LEN` goes too.
