@@ -79,7 +79,12 @@
 //! faire » « prêt à », « un moteur diesel » « moteur diesel », « Il est au courant de tout. » « être
 //! au courant », longer than « au courant », and « Elle se leva. » « se lever » —, and three phrase
 //! probes are added, « Il existe plusieurs solutions. », « Les autres enfants jouent dehors. » and
-//! « au Moyen Âge »).
+//! « au Moyen Âge »;
+//! read-lingua-french-hyphenated-and-misaccented-spellings:
+//! its re-reduced tables move three probes — the pack and the two vocabulary estimates — and six
+//! phrase probes, « peut-etre qu'il viendra », « il l'a fait lui-meme », « c'est-a-dire demain »,
+//! « ma grand-mere habite la-bas », « c'est trés bien, je l'ai déja vu » and « elle l'a fait
+//! elle-meme », and two grammar probes, `arreté` and `grand-mere`, are added).
 //! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
 //! renders this golden's grammar and phrase probes, and is re-blessed with it
 //! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).
@@ -139,7 +144,7 @@ fn the_probes_are_the_references_then_the_cards_then_forty_lemmas() {
     let (reference, rest) = FRENCH.grammar.split_at(REFERENCE_GRAMMAR.len());
     let (card, more) = rest.split_at(CARD_PROBES.len());
     assert_eq!(reference, REFERENCE_GRAMMAR);
-    assert_eq!(reference.len(), 34);
+    assert_eq!(reference.len(), 36);
     assert_eq!(card, CARD_PROBES);
     assert_eq!(card.len(), 21);
     assert_eq!(more.len(), 40);
