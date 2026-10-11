@@ -1645,6 +1645,48 @@ fn spec_scenario_a_spelling_the_dictionary_gives_only_as_a_marked_word() {
 }
 
 #[test]
+fn spec_scenario_the_web_s_spellings_without_their_marks() {
+    // read-lingua-french-web-unmarked-spellings: in both French packs, a spelling the web writes
+    // without its marks and a reviewed list names reads as its word — `tres`, `deja`, `francais`,
+    // `recu`, `leger` as très, déjà, français, recevoir, léger, and the owner's exception `sure` as
+    // sûr — and is no lemma of its own: no gloss, its rank and level read through the spelling.
+    // très, déjà and français keep their levels; `ou` and `cote`, words a reader means as written,
+    // and `video`, which English writes more often and the list leaves out, read as themselves.
+    for (pair, bytes) in [("fr-en", fr_en()), ("fr-es", fr_es())] {
+        let pack = Pack::load(bytes).unwrap();
+        let lexicon = pack.lexicon();
+        for (spelling, word) in [
+            ("tres", "très"),
+            ("deja", "déjà"),
+            ("francais", "français"),
+            ("recu", "recevoir"),
+            ("leger", "léger"),
+            ("sure", "sûr"),
+        ] {
+            assert_eq!(lexicon.lemma_of(spelling), Some(word), "{pair}: {spelling}");
+            assert!(
+                !lexicon.contains_lemma(spelling),
+                "{pair}: {spelling} is a lemma"
+            );
+            assert_eq!(pack.gloss(spelling), None, "{pair}: {spelling}");
+            assert_eq!(pack.rank(spelling), pack.rank(word), "{pair}: {spelling}");
+            assert_eq!(pack.level(spelling), pack.level(word), "{pair}: {spelling}");
+        }
+        for word in ["très", "déjà", "français"] {
+            assert_eq!(pack.level(word), Some(CefrLevel::A1), "{pair}: {word}");
+        }
+        for word in ["ou", "cote", "video"] {
+            assert_eq!(lexicon.lemma_of(word), Some(word), "{pair}: {word}");
+            assert!(lexicon.contains_lemma(word), "{pair}: {word}");
+        }
+    }
+    // fr-es no longer shows the French Wiktionary's Cuban guitar for « tres ».
+    let fr_es = Pack::load(fr_es()).unwrap();
+    assert_eq!(fr_es.gloss("tres"), None);
+    assert!(fr_es.gloss("très").is_some());
+}
+
+#[test]
 fn spec_scenario_the_committed_pairs() {
     // fix-lingua-lemma-lookup D4, D6: each committed pair builds — no form of its forms table has
     // two lemmas, every lemma of its pack reads as itself — to the sha256 its pin records, so
