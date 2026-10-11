@@ -22,13 +22,18 @@ See proposal.md for why. What exists today, and what this design leans on:
 - **`backend/lingua/tests/privacy_allow_list.rs`** checks that no proto field names a browsing
   signal. Its list of protos is written by hand.
 
-Measured on 2026-10-09/11 (twelve sentences, en→fr, es→fr, es→en, each selection tagged):
+Measured on 2026-10-11 with the prompt and answer shape of D3 and D4: 22 sentences covering the
+six pairs of the language matrix (en→fr, en→es, es→fr, es→en, fr→en, fr→es), each selection an
+idiom, a phrasal verb or a precise verb:
 
-| Provider | Median latency | Selection found | Cost / sentence |
+| Provider | Median latency | Selection marked | Cost / sentence |
 |---|---|---|---|
-| Claude Haiku 5.5 | 1.7 s | 24/24 | ≈ $0.00009 |
-| Gemini 3.1 Flash-Lite | 0.9 s | 23/24 (a split rendering) | ≈ $0.00013 |
+| Claude Haiku 5.5 | 1.8 s | 22/22 | ≈ $0.00011 |
+| Gemini 3.1 Flash-Lite | 0.8 s | 22/22, including the split « remettait … à plus tard » | ≈ $0.00014 |
 | Bergamot (on device, today) | — | — | 0 |
+
+Grammar slips seen on the corpus, every run: Haiku « Bien qu'il pleuvait » (subjunctive) and « le
+immense » (elision); none from Gemini.
 
 ## Goals / Non-Goals
 
@@ -60,14 +65,17 @@ The extension calls a new Lingua RPC; the server calls the provider.
 Primary Claude Haiku 5.5 (Anthropic), secondary Gemini 3.1 Flash-Lite (Google), behind one port
 trait with one adapter each.
 - **Why:** both translate idioms Bergamot misses; two providers mean one outage does not take the
-  button down. Haiku is primary because its selection marks were the most reliable; Gemini is
-  faster and was correct on the subjunctive where Haiku was not, which makes it a sound fallback.
+  button down. Both marked every selection on the corpus. Haiku is primary because its cost is
+  covered by API credits Cymbra already has; Gemini is faster and made none of Haiku's grammar
+  slips. Which one is primary is configuration (D2's last point), so the order can be swapped by a
+  deploy if quality or cost says so.
 - **Alternative — a dedicated machine-translation API (Google Translate, DeepL, Azure):** priced
   per character at roughly 100× the cost measured here, and none returns which words render the
   selection.
 - **Alternative — an open model self-hosted (Hy-MT2 7B, measured at 0.6 s on an M2 Max):** good
   marks, weaker idioms, and a machine to keep running. Not now.
-- The model identifiers are configuration, not code, so a newer model is a deploy, not a change.
+- The model identifiers and which provider is primary are configuration, not code, so a newer
+  model or a swapped order is a deploy, not a change.
 
 ### D3. The provider names the words; the server places the marks
 The provider is asked for structured output: `{ translation: string, highlighted: string[] }`,
@@ -75,8 +83,9 @@ where each entry is a substring of `translation`, in order. The server finds eac
 translation after the previous one and turns it into a mark; if any entry is missing, the answer
 carries no marks.
 - **Why:** asking a model to keep `<b>` tags lost or misplaced the mark in 1–2 sentences out of
-  12; naming the words separately found them in 24/24 (Haiku). A list, not a string, because a
-  French rendering is often split ("remettait … à plus tard").
+  12; naming the words separately, as a list, marked 22/22 for both providers across the six
+  pairs. A list, not a string, because a rendering is often split ("remettait … à plus tard"):
+  with a single string, Gemini missed exactly those.
 - **Why server-side:** the wire answer is the `MarkedTranslation` the card already renders. The
   extension needs no new rendering code and never parses model output.
 - **Alternative — reuse `reconcileMarks` with a second request for the fragment alone:** doubles
@@ -90,9 +99,12 @@ required: disabling thinking made the model write its own corrections into the a
 need to apply the tags…"), which structured output prevents.
 
 ### D5. The pair is the document's language and the reader's language
-The request names both, as the engine's request does (`translate/host/relay.ts` forms the pair from the
-document's studied language and the native language). There is no pivot: the provider translates
-directly.
+The request names both, as the engine's request does (`translate/host/relay.ts` forms the pair
+from the document's language and the native language). The service accepts any two different
+languages among Lingua's (en, fr, es today) — the six pairs of the matrix — and refuses the rest.
+There is no pivot: where the engine goes es→en→fr, the provider translates es→fr directly. The
+button does not depend on `MARKED_PAIRS` either: the provider marks its own answer, so a pair the
+engine translates without a mark still gets one online.
 
 ### D6. Limit and switch are runtime flags
 - `lingua.online_translation.enabled` — default **false**. Off: every request is answered
@@ -126,7 +138,10 @@ A new `online_translation.proto` in `cymbra.lingua.v1`:
 - The card shows the button when the setting is ticked and `account:state` says signed in. On
   press: a "translating online" line, then `show()` replaces the translation through the same
   generation guard the engine uses. The button is disabled once pressed on that card.
-- Strings in `i18n/{fr,en,es}/card.ts` and `settings.ts`. The setting's note links to the annex.
+- Strings in `i18n/{fr,en,es}/card.ts` and `settings.ts`, in the reader's interface language
+  (« Traduction en ligne », "Online translation", « Traducción en línea »). The setting's note
+  links to the annex in the same language (`/confidentialite/`, `/en/privacy/`,
+  `/es/privacidad/`).
 
 ### D9. Keeping nothing
 The relay logs per request: account id, pair, provider, outcome, latency, token counts. A test

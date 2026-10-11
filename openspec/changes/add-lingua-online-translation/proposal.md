@@ -3,8 +3,9 @@
 The on-device engine (Bergamot) answers a selection without anything leaving the device, and it
 should stay the default. It is also a small model: measured on a twelve-sentence corpus, it misses
 idioms a reader stops on precisely because they are idioms. A hosted language model renders them
-well — "four-poster bed" becomes « lit à baldaquin », "remendaba" becomes « raccommodait » — at a
-cost measured in hundredths of a cent per sentence.
+well — "four-poster bed" becomes « lit à baldaquin », « prendre la poudre d'escampette » becomes
+"took to his heels" and « salió pitando » — in each of the six pairs of the language matrix
+(en-fr, es-fr, es-en, en-es, fr-en, fr-es), at a cost measured in hundredths of a cent per sentence.
 
 The reader should be able to ask for that better answer, on purpose, one selection at a time, and
 only after choosing in the settings that a sentence may leave the device to get it.
@@ -62,7 +63,7 @@ None. Online translation is a second source for an existing capability, `lingua-
 - **Backend (`backend/lingua`)** — new: a translation service and its RPC, two outbound provider
   adapters, a daily per-account limit. Consumed: the auth interceptor, the platform rate limiter,
   runtime feature flags, configuration from the environment.
-- **Site (`apps/site`)** — the French and English privacy annex for Lingua changes.
+- **Site (`apps/site`)** — the Lingua privacy annex changes in French, English and Spanish.
 - **Store listings and App Store privacy answers** for Lingua are corrected.
 - **ID, Music, Live, back office** — untouched.
 
@@ -78,6 +79,6 @@ designs and are left as written.
 **Dependencies.** Two external translation providers, reached over HTTPS with keys held by the
 server. No new client dependency.
 
-**Cost.** Measured on the corpus: about $0.0001 per sentence with the primary provider and about
-$0.00013 with the secondary. The daily limit bounds it per account; the kill switch bounds it
+**Cost.** Measured on the corpus: about $0.00011 per sentence with the primary provider and about
+$0.00014 with the secondary. The daily limit bounds it per account; the kill switch bounds it
 globally.

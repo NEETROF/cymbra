@@ -103,6 +103,20 @@ extension SHALL NOT send one.
 - **WHEN** the service's switch is off and a signed-in reader presses the button
 - **THEN** the card says online translation is unavailable for now
 
+### Requirement: Online translation goes straight from the document's language to the reader's
+The card SHALL ask for a translation from the language of the selection's document into the reader's native language, and the service SHALL translate directly between them, without a pivot language.
+The service SHALL accept a pair whose two languages are among Lingua's languages and differ, and
+SHALL refuse any other pair. The button SHALL be offered on every pair the reader reads, including
+a pair the on-device engine translates through English or does not mark.
+
+#### Scenario: A French reader of a Spanish book
+- **WHEN** a reader whose native language is French presses the button on a Spanish sentence
+- **THEN** the sentence is translated from Spanish into French directly, with the selection marked
+
+#### Scenario: An English reader of a French book
+- **WHEN** a reader whose native language is English presses the button on a French sentence
+- **THEN** the sentence is translated from French into English, and the card's copy is in English
+
 ### Requirement: The online translation service tries a second provider before giving up
 The service SHALL ask a primary provider and, when it fails, times out or answers something it cannot read, a secondary provider, and SHALL answer unavailable only when both fail.
 The reader SHALL see the same card whichever provider answered.
