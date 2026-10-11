@@ -2637,11 +2637,12 @@ def expression_senses(src, dst, forms, pointers=None, left_out=None):
     return dst
 
 
-def split_words(path, forms, maxlen=common.EXPRESSION_GLOSS_LEN, per_sense=42, max_senses=3):
+def split_words(path, forms, per_sense=common.EXPRESSION_SENSE_LEN, max_senses=3):
     """The words French's tokenisation splits, glossed as expressions (D11, 1): `word → gloss`, read
     with `reduce_common.reduce_expressions`' sense rules — a name's entry, a pointer and a sense
-    nothing survives of left out, each sense cleaned to `per_sense` characters, `max_senses` joined
-    across the word's entries. The reducer offers every such word; the builder keys those that read
+    nothing survives of left out, each sense whole but past `per_sense` characters (cut after a whole
+    word with « … »), `max_senses` joined across the word's entries with no cut
+    (keep-lingua-expression-glosses-whole). The reducer offers every such word; the builder keys those that read
     as two to seven tokens (add-lingua-french-expression-keys)."""
     entries = {}
     with open(path, encoding="utf-8", errors="replace") as f:
@@ -2669,7 +2670,7 @@ def split_words(path, forms, maxlen=common.EXPRESSION_GLOSS_LEN, per_sense=42, m
                 entries.setdefault(word, []).append(senses)
     out = {}
     for word, per_entry in entries.items():
-        joined = common._join_senses(per_entry, maxlen, max_senses)
+        joined = common._join_senses(per_entry, max_senses)
         if joined:
             out[word] = joined
     return out
@@ -2968,8 +2969,7 @@ def traditional_spellings(path, expressions, forms):
 
 
 # D8 — « etc » with its period. The shared rules take a sense's final period off (« the, my, your,
-# etc »): a pass after them writes it back, in the glosses and the expressions alike. An expression's
-# gloss may then run one character over the shared rules' 80.
+# etc »): a pass after them writes it back, in the glosses and the expressions alike.
 _ETC = re.compile(r"\betc\b(?!\.)")
 
 
@@ -2994,8 +2994,8 @@ LENT_SENSES = {
 def lent_senses(expressions):
     """`expressions` with each `LENT_SENSES` headword's gloss opening on its lender's first sense — its
     gloss up to the first « ; » — when its own gloss lacks it (refine-lingua-fr-en-expressions D3),
-    the whole cut to `reduce_common.EXPRESSION_GLOSS_LEN` as the shared rules cut a gloss: the
-    headwords whose gloss changed. A headword the section does not gloss has nothing to open; a
+    joined with no cut, as the shared rules join an expression's senses (keep-lingua-expression-glosses-whole):
+    the headwords whose gloss changed. A headword the section does not gloss has nothing to open; a
     lender it does not gloss, beside a headword it does, fails the reduction, naming it."""
     lent = []
     for word, (lender, _) in LENT_SENSES.items():
@@ -3009,10 +3009,7 @@ def lent_senses(expressions):
         own = expressions[word]
         if first in (piece.strip() for piece in own.split(";")):
             continue
-        joined = f"{first}; {own}"
-        if len(joined) > common.EXPRESSION_GLOSS_LEN:
-            joined = joined[: common.EXPRESSION_GLOSS_LEN].rstrip().rstrip(";").strip()
-        expressions[word] = joined
+        expressions[word] = f"{first}; {own}"
         lent.append(word)
     return lent
 

@@ -1130,13 +1130,13 @@ def with_labels(src, dst):
     return spanish.rewrite_entries(src, dst, read)
 
 
-# What the shared rules keep of an expression (`reduce_common.reduce_expressions`' defaults): 42
-# characters of each sense and three senses.
-EXPRESSION_SENSE = 42
+# What the shared rules keep of an expression (`reduce_common.reduce_expressions`' defaults): each
+# sense whole but past 300 characters, three senses (keep-lingua-expression-glosses-whole).
+EXPRESSION_SENSE = common.EXPRESSION_SENSE_LEN
 EXPRESSION_SENSES = 3
 
 
-def label_expressions(expressions, src, maxlen=common.EXPRESSION_GLOSS_LEN):
+def label_expressions(expressions, src):
     """The section's expressions (`expressions`, as `common.reduce_expressions` gives them from
     `src`, cut to `maxlen`) with each sense opening on its labels (D2), written after the shared
     rules cut them so that the meaning keeps every character it had: the shared rules' choice of
@@ -1177,7 +1177,7 @@ def label_expressions(expressions, src, maxlen=common.EXPRESSION_GLOSS_LEN):
         joined = expressions[word]
         if not any(words for senses in entries for _, words in senses):
             continue
-        if common._join_senses([[text for text, _ in senses] for senses in entries], maxlen, EXPRESSION_SENSES) != joined:
+        if common._join_senses([[text for text, _ in senses] for senses in entries], EXPRESSION_SENSES) != joined:
             continue
         picked = []
         for depth in range(max(len(senses) for senses in entries)):
@@ -1429,7 +1429,7 @@ def native_side(entries, ranks, sources):
     edited."""
     runs = {}
     glosses = common.reduce_gloss(entries, set(ranks), **common.WORD_GLOSS, runs=runs, studied=FR, edition=EDITION)
-    expressions = common.reduce_expressions(entries, common.EXPRESSION_GLOSS_LEN, studied=FR, edition=EDITION)
+    expressions = common.reduce_expressions(entries, studied=FR, edition=EDITION)
     expressions, labelled = label_expressions(expressions, entries)
     yielded = no_self_definition(glosses, runs, sources[0][0]) if sources else []
     steps = {"entries": frozenset(glosses), "yielded": frozenset(yielded), "labelled": labelled}

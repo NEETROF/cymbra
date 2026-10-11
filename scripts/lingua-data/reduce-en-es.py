@@ -435,7 +435,7 @@ def native_side(entries, ranks, sources):
     the measure (lingua-data-packs, *A shared rule changes*)."""
     runs = {}
     glosses = common.reduce_gloss(entries, set(ranks), **common.WORD_GLOSS, runs=runs, studied=EN, edition=EDITION)
-    expressions = common.reduce_expressions(entries, common.EXPRESSION_GLOSS_LEN, studied=EN, edition=EDITION)
+    expressions = common.reduce_expressions(entries, studied=EN, edition=EDITION)
     steps = {"entries": frozenset(glosses)}
     for name, source in zip(("direct", "inverted"), sources):
         found = common.fallback_glosses(ranks, glosses, [source], edition=EDITION)
