@@ -69,6 +69,16 @@ own beside the spelling (`surs`, « sour »; `entrainant`) is not read by it, an
 the dictionary does not name (`tete`, `francais`) are a reviewed list's, as `UNMARKED_SPELLINGS` is,
 whose rows are read first.
 
+The web's spellings without their marks (read-lingua-french-web-unmarked-spellings D1–D3): the reviewed
+list `WEB_SPELLINGS`, 464 spellings the dictionary names nowhere that the web writes for a French word
+(`tres`, `deja`, `francais`, `recu`), merged into `UNMARKED_SPELLINGS` with one shared reason, beside
+the owner's four exceptions (`sure`, `surs`, `sures` → *sûr*, `entrainant` → *entraîner*). Each row is
+read as 43b's are, a form of its word alone; an entry pointing at a row's spelling follows the row
+(`patisseries` → *pâtisserie*); the reduction fails on a row the section gives a meaning of its own or
+gives as its accented word's spelling (`Lexicon.web_boundary`); and each spelling carries the readings
+of the forms of its word it writes without their marks (`spelling_readings`: `recu` the past
+participle of *recevoir*).
+
 The native side (add-lingua-pack-fr-en D1–D3, D11) is read from the same section as the forms, after
 the studied side, as es-en's is from the Spanish section: the section cut to what the native side
 reads, a headword's typographic apostrophe read as `'` (`native_fields`); the English edition's
@@ -217,7 +227,154 @@ UNMARKED_SPELLINGS = {
         "forcément written without its accent (the owner, 2026-10-10); the section's « fixing number, "
         "cooking the books » leaves the tables",
     ),
+    # The owner's four exceptions (read-lingua-french-web-unmarked-spellings D2, 2026-10-10, on change
+    # 43d's handover): spellings the section gives a sense of their own that the web writes for a
+    # commoner word. Rows of their own, never checked by `Lexicon.web_boundary`, as 43b's are not.
+    "sure": (
+        "sûr",
+        "sûre written without its circumflex (the owner, 2026-10-10): 31 of the corpora's 33 « sure » "
+        "are sûre, 2 the feminine of sur « sour », which sur keeps; English's « sure » means sûr's too",
+    ),
+    "surs": (
+        "sûr",
+        "sûrs written without its circumflex (the owner, 2026-10-10), with sure and sures: one "
+        "adjective's agreement; « ils sont surs » is far likelier sûrs than the plural of sur « sour »",
+    ),
+    "sures": (
+        "sûr",
+        "sûres written without its circumflex (the owner, 2026-10-10): the corpora's 3 « sures » are "
+        "sûres; a row by name with its siblings, under the list's threshold (Zipf 2.45)",
+    ),
+    "entrainant": (
+        "entraîner",
+        "entraînant written without its circumflex (the owner, 2026-10-10): both its senses, the "
+        "participle of the post-1990 entrainer and « alternative form of entraînant », are entraîner's",
+    ),
 }
+# The owner's four exceptions above: an entry pointing at one follows its row, as for `WEB_SPELLINGS`.
+OWNER_EXCEPTIONS = ("sure", "surs", "sures", "entrainant")
+# The web's French written without its marks (read-lingua-french-web-unmarked-spellings D1, D2):
+# spelling → word, each row the owner's decision by name (2026-10-10), never a rule on marks — a rule
+# would read `video`, `hotel` and `these` as French words, and `ou`, `a`, `la`, `sur` as words they
+# are not. A row is a spelling wordfreq attests at Zipf 2.5 or more that the French section names
+# nowhere, whose accented word is a dictionary word at least twice as common, and that English does
+# not write more often; a spelling two words share reads as the commoner. Its word is the lemma the
+# tables give the accented form (`etais` → *être*, `recu` → *recevoir*): a row follows change 43's
+# choices and never makes one. A spelling the section gives a meaning of its own (a word, a form of a
+# word, an inflection a word's entry lists) is a word of its own, and one it gives only as its accented
+# word's spelling is change 43d's (`dictionary_unmarked_spellings`): neither is ever a row, and the
+# reduction fails, naming it, when the section names a row so (`Lexicon.web_boundary`). `ou`, `a`,
+# `la`, `sur`, `du`, `des`, `cote`, `tache`, `pale`, `foret` and `aine` are never rows, nor a spelling
+# English writes more often (`video`, `hotel`, `these`, `mere`, `premiere`) but the exception `sure`.
+# Hyphenated words and wrong accents (`peut-etre`, `trés`) are a reviewed list of their own each,
+# later (D7). Merged into `UNMARKED_SPELLINGS` with one shared reason; editing it changes the rules'
+# sha256, as for any rule.
+WEB_SPELLINGS = {
+    "academie": "académie", "acceder": "accéder", "acces": "accès", "achete": "acheter", "achetent": "acheter",
+    "activite": "activité", "actualite": "actualité", "actualites": "actualité", "aeroport": "aéroport",
+    "agreable": "agréable", "aigue": "aigu", "algerien": "algérien", "allee": "aller", "alleluia": "alléluia",
+    "alles": "aller", "ame": "âme", "ameliorer": "améliorer", "amene": "amener", "americain": "américain",
+    "americaine": "américain", "americains": "américain", "amitie": "amitié", "ane": "âne", "annee": "année",
+    "annees": "année", "appele": "appeler", "apprecie": "apprécier", "apres": "après", "armee": "armée",
+    "arret": "arrêt", "arrete": "arrêter", "arretes": "arrêter", "arretez": "arrêter", "arriere": "arrière",
+    "arrivee": "arrivée", "aupres": "auprès", "batard": "bâtard", "batards": "bâtard", "batiment": "bâtiment",
+    "batiments": "bâtiment", "beaute": "beauté", "bebe": "bébé", "bete": "bête", "beton": "béton",
+    "bibliotheque": "bibliothèque", "bientot": "bientôt", "biere": "bière", "ble": "blé", "bresil": "brésil",
+    "calin": "câlin", "calins": "câlin", "canape": "canapé", "caractere": "caractère", "carrement": "carrément",
+    "carriere": "carrière", "categorie": "catégorie", "celebre": "célèbre", "celibataire": "célibataire",
+    "chateau": "château", "chateaux": "château", "chatelet": "châtelet", "chere": "cher", "cheri": "chéri",
+    "cherie": "chéri", "chomage": "chômage", "chretien": "chrétien", "chretiens": "chrétien", "cine": "ciné",
+    "cle": "clé", "cles": "clé", "cloture": "clôture", "collegue": "collègue", "collegues": "collègue",
+    "comedie": "comédie", "comite": "comité", "communaute": "communauté", "completement": "complètement",
+    "considere": "considérer", "controle": "contrôle", "controler": "contrôler", "controles": "contrôle",
+    "creer": "créer", "debat": "débat", "debats": "débat", "debile": "débile", "decembre": "décembre",
+    "decouvert": "découvrir", "decouverte": "découverte", "decouvrir": "découvrir", "defaut": "défaut",
+    "defendre": "défendre", "defi": "défi", "degueulasse": "dégueulasse", "deja": "déjà", "dejeuner": "déjeuner",
+    "delire": "délire", "democratie": "démocratie", "departement": "département", "depasse": "dépasser",
+    "depeche": "dépêche", "depenses": "dépense", "derange": "déranger", "dernieres": "dernier", "derriere": "derrière",
+    "desir": "désir", "desole": "désolé", "desormais": "désormais", "deteste": "détester", "detruire": "détruire",
+    "detruit": "détruire", "deuxieme": "deuxième", "developpement": "développement", "developper": "développer",
+    "differente": "différent", "differentes": "différent", "differents": "différent", "diplome": "diplôme",
+    "donnees": "donner", "drole": "drôle", "duree": "durée", "ecart": "écart", "echange": "échange",
+    "echanges": "échange", "echec": "échec", "echecs": "échec", "echelle": "échelle", "echos": "écho",
+    "eclair": "éclair", "eclairage": "éclairage", "ecole": "école", "ecoles": "école", "ecologie": "écologie",
+    "ecologique": "écologique", "economie": "économie", "economique": "économique", "economiques": "économique",
+    "economiste": "économiste", "ecoute": "écoute", "ecouter": "écouter", "ecoutes": "écoute", "ecoutez": "écouter",
+    "ecoutons": "écouter", "ecran": "écran", "ecrire": "écrire", "ecris": "écrire", "ecrit": "écrire",
+    "ecriture": "écriture", "ecritures": "écriture", "ecrivain": "écrivain", "ecrivez": "écrire", "editeur": "éditeur",
+    "edito": "édito", "egalement": "également", "eglise": "église", "eglises": "église", "electeurs": "électeur",
+    "electricien": "électricien", "electricite": "électricité", "electrique": "électrique", "electriques": "électrique",
+    "electronique": "électronique", "elevage": "élevage", "eleve": "élevé", "eleves": "élever", "eliminer": "éliminer",
+    "eloigne": "éloigner", "elu": "élire", "elus": "élire", "emmene": "emmener", "empeche": "empêcher",
+    "empecher": "empêcher", "energie": "énergie", "enerve": "énerver", "enleve": "enlever", "enorme": "énorme",
+    "enormement": "énormément", "enormes": "énorme", "enquete": "enquête", "entiere": "entier",
+    "entierement": "entièrement", "entree": "entrée", "epargne": "épargner", "epicerie": "épicerie", "epoque": "époque",
+    "epouse": "épouse", "epreuve": "épreuve", "epreuves": "épreuve", "equilibre": "équilibre", "equipe": "équipe",
+    "equipement": "équipement", "equipes": "équipe", "equitation": "équitation", "erotique": "érotique",
+    "espece": "espèce", "esperance": "espérance", "esperant": "espérer", "espere": "espérer", "esperer": "espérer",
+    "esperons": "espérer", "etablir": "établir", "etablissement": "établissement", "etablissements": "établissement",
+    "etage": "étage", "etais": "être", "etang": "étang", "etant": "être", "etape": "étape", "ete": "être",
+    "eternel": "éternel", "etes": "être", "ethique": "éthique", "etiez": "être", "etoile": "étoile",
+    "etoiles": "étoile", "etonnant": "étonnant", "etrange": "étrange", "etrangement": "étrangement",
+    "etranger": "étranger", "etrangers": "étranger", "etres": "être", "etude": "étude", "etudes": "étude",
+    "etudiant": "étudiant", "etudiante": "étudiant", "etudiants": "étudiant", "etudie": "étudier", "etudier": "étudier",
+    "europeen": "européen", "europeenne": "européen", "europeens": "européen", "evangile": "évangile",
+    "evenement": "événement", "evenements": "événement", "eventuellement": "éventuellement", "evidemment": "évidemment",
+    "evite": "éviter", "eviter": "éviter", "evitez": "éviter", "expres": "exprès", "exterieur": "extérieur",
+    "extremement": "extrêmement", "facon": "façon", "facons": "façon", "felicitations": "félicitation",
+    "feminin": "féminin", "feminisme": "féminisme", "fenetre": "fenêtre", "fete": "fête", "fetes": "fête",
+    "fevrier": "février", "fidele": "fidèle", "francais": "français", "francaise": "français", "francaises": "français",
+    "frere": "frère", "freres": "frère", "frontiere": "frontière", "frontieres": "frontière", "galere": "galère",
+    "garcon": "garçon", "garcons": "garçon", "gateau": "gâteau", "gateaux": "gâteau", "geant": "géant",
+    "generale": "général", "generalement": "généralement", "generales": "général", "generique": "générique",
+    "genial": "génial", "gere": "gérer", "gerer": "gérer", "greve": "grève", "gue": "gué", "harcelement": "harcèlement",
+    "helas": "hélas", "hesite": "hésiter", "honnete": "honnête", "honnetement": "honnêtement", "hopital": "hôpital",
+    "hopitaux": "hôpital", "idee": "idée", "idees": "idée", "immediatement": "immédiatement", "impot": "impôt",
+    "impots": "impôt", "independance": "indépendance", "independant": "indépendant", "ingenieur": "ingénieur",
+    "inquiete": "inquiéter", "integrer": "intégrer", "interessant": "intéressant", "interessante": "intéressant",
+    "interesse": "intéresser", "interesser": "intéresser", "interet": "intérêt", "interets": "intérêt",
+    "interieur": "intérieur", "journee": "journée", "lache": "lâcher", "lacher": "lâcher", "lachez": "lâcher",
+    "leche": "lèche", "lecon": "leçon", "legende": "légende", "leger": "léger", "leve": "lever", "liberte": "liberté",
+    "litterature": "littérature", "lumiere": "lumière", "lumieres": "lumière", "lycee": "lycée", "machoire": "mâchoire",
+    "majorite": "majorité", "malgre": "malgré", "maniere": "manière", "mariee": "mariée", "materiel": "matériel",
+    "mechant": "méchant", "medecin": "médecin", "medecine": "médecine", "medecins": "médecin", "medias": "média",
+    "melange": "mélange", "meme": "même", "memoire": "mémoire", "menage": "ménage", "mene": "mener", "meres": "mère",
+    "merite": "mérite", "meteo": "météo", "metier": "métier", "ministere": "ministère", "misere": "misère",
+    "modele": "modèle", "modeles": "modèle", "moitie": "moitié", "musee": "musée", "mystere": "mystère", "naif": "naïf",
+    "necessaire": "nécessaire", "negatif": "négatif", "noel": "noël", "notres": "nôtre", "nucleaire": "nucléaire",
+    "numerique": "numérique", "numero": "numéro", "particulierement": "particulièrement", "pate": "pâte",
+    "pates": "pâtes", "patisserie": "pâtisserie", "peche": "pêche", "pekin": "pékin", "pensee": "pensée",
+    "pepin": "pépin", "peres": "père", "periode": "période", "petrole": "pétrole", "planete": "planète",
+    "plutot": "plutôt", "poesie": "poésie", "possede": "posséder", "pref": "préf", "prefere": "préférer",
+    "prenom": "prénom", "prepa": "prépa", "pres": "près", "presente": "présenter", "presidente": "président",
+    "pret": "prêt", "prete": "prêter", "pretexte": "prétexte", "prets": "prêt", "prevenir": "prévenir",
+    "prevu": "prévoir", "priere": "prière", "privee": "privé", "probleme": "problème", "problemes": "problème",
+    "proces": "procès", "progres": "progrès", "proprietaire": "propriétaire", "proteger": "protéger",
+    "qualite": "qualité", "rale": "râler", "ramene": "ramener", "rateau": "râteau", "realiser": "réaliser",
+    "realite": "réalité", "recemment": "récemment", "recois": "recevoir", "recoit": "recevoir", "recu": "recevoir",
+    "recuperer": "récupérer", "reduire": "réduire", "reduit": "réduire", "reflechir": "réfléchir",
+    "reflexion": "réflexion", "reflexions": "réflexion", "regle": "règle", "reglement": "règlement", "regler": "régler",
+    "regles": "règle", "reparer": "réparer", "repete": "répéter", "reponse": "réponse", "reponses": "réponse",
+    "represente": "représenter", "republique": "république", "reseau": "réseau", "reseaux": "réseau",
+    "resultat": "résultat", "resultats": "résultat", "reussi": "réussir", "reussir": "réussir", "reve": "rêve",
+    "reveil": "réveil", "reveille": "réveiller", "reveiller": "réveiller", "rever": "rêver", "reves": "rêve",
+    "reviser": "réviser", "riviere": "rivière", "sante": "santé", "seance": "séance", "seche": "sec",
+    "secretaire": "secrétaire", "secu": "sécu", "securite": "sécurité", "sejour": "séjour", "senat": "sénat",
+    "serie": "série", "serieuse": "sérieux", "serieusement": "sérieusement", "serieux": "sérieux",
+    "sincerement": "sincèrement", "societe": "société", "societes": "société", "soiree": "soirée",
+    "speciale": "spécial", "strategie": "stratégie", "succes": "succès", "superieur": "supérieur",
+    "symptomes": "symptôme", "systeme": "système", "systemes": "système", "tele": "télé",
+    "telechargement": "téléchargement", "telecharger": "télécharger", "tete": "tête", "tetes": "tête",
+    "theorie": "théorie", "tot": "tôt", "tres": "très", "tresor": "trésor", "troisieme": "troisième",
+    "universite": "université", "vecu": "vivre", "vehicule": "véhicule", "vehicules": "véhicule", "velo": "vélo",
+    "verifier": "vérifier", "verite": "vérité", "vetement": "vêtement", "vetements": "vêtement",
+}
+WEB_REASON = "written on the web without its marks; the owner's reviewed list, 2026-10-10"
+UNMARKED_SPELLINGS.update((spelling, (word, WEB_REASON)) for spelling, word in WEB_SPELLINGS.items())
+# The rows an entry pointing at their spelling follows (D2); change 43b's own rows drop the link.
+_FOLLOWED_ROWS = frozenset(WEB_SPELLINGS).union(OWNER_EXCEPTIONS)
+# Change 43b's rows, the ones `dictionary_unmarked_spellings`' forms guard reads past.
+_CA_ROWS = frozenset(UNMARKED_SPELLINGS) - _FOLLOWED_ROWS
 # A plain word beginning with a piece (`c'est`, `d'abord`, `l'on`, `jusqu'à`): the pre-pass always
 # splits it there, so the whole string is never looked up. Longest piece first: `qu'` is the end
 # of `jusqu'`.
@@ -328,12 +485,18 @@ def _alt_target(sense):
     return (alt[0].get("word") or "") if alt and isinstance(alt[0], dict) else ""
 
 
+def _marks_dropped(word):
+    """A word's NFD's combining marks dropped — accents, cedillas, diaereses, circumflexes —, in NFC:
+    `reçu` → `recu`, `cœur` stays `cœur` (read-lingua-french-web-unmarked-spellings D3)."""
+    bare = "".join(c for c in unicodedata.normalize("NFD", word) if unicodedata.category(c) != "Mn")
+    return unicodedata.normalize("NFC", bare)
+
+
 def _unmarked(word):
     """A word written without its marks (read-lingua-french-dictionary-unmarked-spellings D1): its
-    NFD's combining marks dropped — accents, cedillas, diaereses, circumflexes —, `œ` and `æ` read as
-    `oe` and `ae`: `état` → `etat`, `chloé` → `chloe`, `cœur` → `coeur`."""
-    bare = "".join(c for c in unicodedata.normalize("NFD", word) if unicodedata.category(c) != "Mn")
-    return unicodedata.normalize("NFC", bare).replace("œ", "oe").replace("æ", "ae")
+    marks dropped (`_marks_dropped`), `œ` and `æ` read as `oe` and `ae`: `état` → `etat`, `chloé` →
+    `chloe`, `cœur` → `coeur`."""
+    return _marks_dropped(word).replace("œ", "oe").replace("æ", "ae")
 
 
 def spelling_target(sense, word, unmarked=None):
@@ -354,16 +517,17 @@ def spelling_target(sense, word, unmarked=None):
     return None
 
 
-def _listed_inflections(entry, word):
+def _listed_inflections(entry, word, rows=None):
     """The inflections an entry lists that `Lexicon` links to its word: never the bookkeeping, the
-    doubtful ones (D3), a word that is no form, an elided piece, a row of `UNMARKED_SPELLINGS`, nor a
-    gender or number marker (`_MARKERS`) but the word's own."""
+    doubtful ones (D3), a word that is no form, an elided piece, a row of `UNMARKED_SPELLINGS` (or of
+    `rows`, when given), nor a gender or number marker (`_MARKERS`) but the word's own."""
+    rows = UNMARKED_SPELLINGS if rows is None else rows
     for inflection in entry.get("forms") or ():
         tags = set(inflection.get("tags") or ())
         form = nfc_lower(inflection.get("form"))
         if tags & _BOOKKEEPING or tags & _DOUBTFUL or not is_form(form) or form in ELISIONS:
             continue
-        if form in UNMARKED_SPELLINGS:
+        if form in rows:
             continue
         if form in _MARKERS and form != word:
             continue
@@ -394,8 +558,11 @@ def dictionary_unmarked_spellings(path, frequency, kept=None):
     its entries list that `Lexicon` links (`_listed_inflections`) and the words a form-of sense of
     which points at it — `teter` is kept, its form `tete` being how the web writes *tête*. The web's
     spellings the dictionary does not name (`tete`, `francais`, `tres`) are no word of this rule:
-    they are a reviewed list's, as `UNMARKED_SPELLINGS` is. With `kept` (a dict), each spelling kept
-    apart is recorded there with its reason (`KEPT_*`)."""
+    they are a reviewed list's, as `UNMARKED_SPELLINGS` is. The forms guard reads the dictionary as it
+    lists them: a row of the web's list or an exception (`tete`, `tetes`, read as *tête* by
+    read-lingua-french-web-unmarked-spellings) still counts among the spelling's forms, so the list
+    moves nothing this rule reads (`teter` stays apart). With `kept` (a dict), each spelling kept apart
+    is recorded there with its reason (`KEPT_*`)."""
     marked = {}
     forms = collections.defaultdict(set)
     with open(path, encoding="utf-8") as f:
@@ -414,8 +581,8 @@ def dictionary_unmarked_spellings(path, frequency, kept=None):
                 marked[word] = None
             elif marked.get(word, set()) is not None:
                 marked[word] = marked.get(word, set()) | targets
-                forms[word].update(_listed_inflections(entry, word))
-            if is_form(word) and word not in ELISIONS and word not in UNMARKED_SPELLINGS:
+                forms[word].update(_listed_inflections(entry, word, _CA_ROWS))
+            if is_form(word) and word not in ELISIONS and word not in _CA_ROWS:
                 for sense in senses:
                     for target in _form_targets(sense):
                         forms[nfc_lower(target)].add(word)
@@ -454,6 +621,11 @@ class Lexicon:
 
     `unmarked` is `dictionary_unmarked_spellings`' table, the spellings without their marks
     `spelling_target` reads as their word (read-lingua-french-dictionary-unmarked-spellings D1).
+
+    For the boundary of `WEB_SPELLINGS` (read-lingua-french-web-unmarked-spellings D2), it records, for
+    every headword it reads, whether the section gives it a meaning of its own, and, for every spelling
+    of the list, its entries' senses and the entries listing it among their inflections
+    (`web_boundary`).
     """
 
     def __init__(self, unmarked=None):
@@ -464,6 +636,9 @@ class Lexicon:
         self.poses = collections.defaultdict(set)
         self._kinds = collections.defaultdict(set)
         self.acronyms = acronyms.Pointers()
+        self._meaning = set()
+        self._web_entries = collections.defaultdict(list)
+        self._web_listed = collections.defaultdict(list)
 
     @property
     def names(self):
@@ -489,6 +664,7 @@ class Lexicon:
         """
         self.acronyms.read(entry)
         word = nfc_lower(entry.get("word"))
+        self._record_boundary(entry, word)
         if word in ELISIONS:
             self.candidates[word].add(ELISIONS[word][0])
             return
@@ -514,12 +690,78 @@ class Lexicon:
         for sense in senses:
             for target in _form_targets(sense):
                 target = nfc_lower(target)
-                if is_form(target) and target not in UNMARKED_SPELLINGS:
+                if target in _FOLLOWED_ROWS:
+                    # An entry pointing at a row of the web's list follows the row
+                    # (read-lingua-french-web-unmarked-spellings D2): `patisseries` → *pâtisserie*.
+                    self.link(word, UNMARKED_SPELLINGS[target][0], pos)
+                elif is_form(target) and target not in UNMARKED_SPELLINGS:
                     self.link(word, target, pos)
 
     def _inflections(self, entry, word, pos):
         for form in _listed_inflections(entry, word):
             self.link(form, word, pos)
+
+    def _record_boundary(self, entry, word):
+        """What `web_boundary` needs of one entry: each sense's kind — a spelling (`alt_of`), a form
+        (`form_of`, or the `form-of` tag) or a meaning —, whether the entry gives its word a meaning,
+        and, for a spelling of `WEB_SPELLINGS`, its senses and the entries listing it."""
+        kinds = [_sense_kind(sense) for sense in entry.get("senses") or ()]
+        meaning = any(kind == "meaning" for kind, _ in kinds)
+        if meaning:
+            self._meaning.add(word)
+        if word in WEB_SPELLINGS:
+            self._web_entries[word].append(kinds)
+        targets = tuple(target for kind, target in kinds if kind == "form" and target)
+        for inflection in entry.get("forms") or ():
+            form = nfc_lower(inflection.get("form"))
+            if form != word and form in WEB_SPELLINGS:
+                self._web_listed[form].append((meaning, targets))
+
+    def web_boundary(self):
+        """The spellings of `WEB_SPELLINGS` the section gives a meaning of its own — a headword with a
+        sense that is neither a form nor a spelling of another word, a form of such a word, or an
+        inflection such a word's entry lists — or gives only as a spelling of its accented word (an
+        entry every sense of which is a spelling whose target, its marks dropped, is the spelling:
+        change 43d's kind), sorted (read-lingua-french-web-unmarked-spellings D2). Read after the
+        section: the reduction fails on any, as on a word ending in a pronoun the forms table does
+        not list. A spelling named only as a form of such a spelling passes (`tete`, under `teter`);
+        43b's rows and the owner's exceptions are not checked."""
+        crossed = []
+        for spelling in sorted(set(self._web_entries) | set(self._web_listed)):
+            entries = self._web_entries.get(spelling, [])
+            word = any(
+                kind == "meaning" or (kind == "form" and target in self._meaning)
+                for kinds in entries
+                for kind, target in kinds
+            ) or any(
+                meaning or any(target in self._meaning for target in targets)
+                for meaning, targets in self._web_listed.get(spelling, [])
+            )
+            spelt = bool(entries) and all(
+                kinds and all(_spells_as(spelling, kind, target) for kind, target in kinds) for kinds in entries
+            )
+            if word or spelt:
+                crossed.append(spelling)
+        return crossed
+
+
+def _spells_as(spelling, kind, target):
+    """Whether a sense of `spelling`'s entry gives it as its accented word's spelling (change 43d's kind)."""
+    return kind == "alt" and target != spelling and _unmarked(target) == spelling
+
+
+def _sense_kind(sense):
+    """A sense's kind for `Lexicon.web_boundary`: (`alt`, the word it spells), (`form`, the word it is
+    a form of — empty when only its tag says so —) or (`meaning`, None)."""
+    alt = nfc_lower(_alt_target(sense))
+    if alt:
+        return "alt", alt
+    targets = _form_targets(sense)
+    if targets:
+        return "form", nfc_lower(targets[0])
+    if "form-of" in (sense.get("tags") or ()):
+        return "form", ""
+    return "meaning", None
 
 
 def unmarked_report(unmarked, kept):
@@ -1373,6 +1615,24 @@ def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
     return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
 
 
+def spelling_readings(rows, forms, spellings=None):
+    """`grammar.tsv`'s rows with each spelling of `UNMARKED_SPELLINGS` (or `spellings`) carrying the
+    readings of every form of its word it writes without their marks (`_marks_dropped`), the form
+    re-keyed, its mark kept (read-lingua-french-web-unmarked-spellings D3): `recu` those of `reçu`,
+    `arrete` those of `arrête` and `arrêté` together, `etais` the imperfect of *être* and, as `étais`
+    does, the plural of *étai* (`other`). Sorted, each row once."""
+    spellings = UNMARKED_SPELLINGS if spellings is None else spellings
+    by_form = collections.defaultdict(list)
+    for row in rows:
+        by_form[row.split("\t", 1)[0]].append(row)
+    out = set(rows)
+    for form, lemma in forms.items():
+        spelling = _marks_dropped(form)
+        if spelling != form and spelling in spellings and forms.get(spelling) == lemma:
+            out.update(spelling + row[len(form) :] for row in by_form.get(form, ()))
+    return sorted(out)
+
+
 # — fr-en's native side (add-lingua-pack-fr-en) —
 #
 # French glossed in English, from the section the forms come from (D1): its senses, read through
@@ -2039,6 +2299,14 @@ def main():
     )
     # French's acronym rows, each backed by the section's own entry (keep-lingua-french-acronyms-in-capitals D2).
     acronyms.check_rows(lexicon.acronyms)
+    # The web's list keeps apart from the section's words and its own spellings
+    # (read-lingua-french-web-unmarked-spellings D2): a row the section names so stops for a person.
+    crossed = lexicon.web_boundary()
+    if crossed:
+        raise SystemExit(
+            f"fr-en: {len(crossed)} spelling(s) of WEB_SPELLINGS the section gives a meaning of its own or "
+            f"gives as its accented word's spelling: {', '.join(crossed)}"
+        )
     name_or_word(lexicon.candidates, lexicon.names, frequency)
     own_words(lexicon)
     unmarked_spellings(lexicon)
@@ -2062,7 +2330,7 @@ def main():
         "".join(f"{l}\t{r}\n" for l, r in sorted(ranks.items(), key=lambda kv: (kv[1], kv[0]))),
     )
     # The readings of the forms and ranks just chosen (add-lingua-french-grammar-tables D1).
-    grammar = grammar_rows(readings, forms, ranks)
+    grammar = spelling_readings(grammar_rows(readings, forms, ranks), forms)
     common.write(a.work, "grammar.tsv", "".join(grammar))
     # fr-en's native side (add-lingua-pack-fr-en), after the studied side, keyed by the lemmas just
     # ranked, UD French-GSD's parts of speech ordering a function word's senses
