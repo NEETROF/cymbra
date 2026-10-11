@@ -698,9 +698,9 @@ describe("a selection inside a word written as pieces", () => {
     s.detach();
   });
 
-  it("« dit-il » selected whole, no piece elided, opens the whole-selection card", async () => {
+  it("« dit-il » selected whole opens the verb `dit`, the pronoun set aside", async () => {
     const { s, select } = await reading();
-    expect(await select(at("dit-il"), 6)).toEqual({ phrases: ["dit-il"], grammars: [] });
+    expect(await select(at("dit-il"), 6)).toEqual({ phrases: ["dit-il"], grammars: [["dit", "dire"]] });
     s.detach();
   });
 

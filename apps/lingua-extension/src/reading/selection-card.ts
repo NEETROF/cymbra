@@ -356,8 +356,8 @@ export class SelectionCards {
    * A settled selection: the whole-selection card, the page token's word card, or the analyser's.
    * Text holding whitespace opens the whole-selection card. So does one word whose pieces the
    * selection covers several of (`whole`: « D’abord », add-lingua-french-word-card D7), read by the
-   * phrase gloss as any selection is — unless `hit` names the one word its elided pieces lean on
-   * (« l’homme »): then the pack is asked whether the selection is an expression, and when it is not,
+   * phrase gloss as any selection is — unless `hit` names the one word its pieces lean on
+   * (« l’homme »'s `homme`, « dit-il »'s verb `dit`): then the pack is asked whether the selection is an expression, and when it is not,
    * that word's card opens (enable-lingua-french D15, the owner's decision of 2026-10-11).
    */
   openForSelection(sel: SelectionInput, hit: PageHit | null, whole = false): void {
@@ -369,9 +369,10 @@ export class SelectionCards {
   }
 
   /**
-   * One word and the elided pieces before it, selected whole (« l’homme », « qu'il »): the
+   * One word and the pieces leaning on it, selected whole — elided pieces (« l’homme », « qu'il »),
+   * an inversion's pronouns (« dit-il », « a-t-il »): the
    * expression card when the pack holds the selection as an expression (« d'abord »), the word's
-   * own card otherwise — « homme », with its gloss, its grammar and a word's actions, never the
+   * own card otherwise — « homme », « dit », with its gloss, its grammar and a word's actions, never the
    * whole-selection card of a text that is one word (enable-lingua-french D15). The word's card
    * opens pending while the pack is asked, and the answer is acted on only if that card is still
    * shown; without an answer in time, the word's card opens.

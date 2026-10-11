@@ -176,9 +176,10 @@ export function findTokenInBlock(
  * as before; `piece` — the selection as the reader made it lies inside one piece: that piece's
  * card (« homme » of « l’homme », « il » of « dit-il »); `pieces` — it covers several: the
  * whole-selection card when the pack holds the selection as an expression (« D’abord »), and
- * otherwise, when every piece it covers but one is elided, the word card of that one — `word`
- * (« l’homme » double-clicked whole opens `homme`; enable-lingua-french D15, the owner's
- * dogfood decision of 2026-10-11). `word` is null when no single word remains (« dit-il »).
+ * otherwise the word card of the one word the pieces lean on — `word`: the one piece left once the
+ * elided ones are set aside (« l’homme » double-clicked whole opens `homme`), or an inversion's
+ * verb, its pronouns set aside too (« dit-il » opens `dit`); enable-lingua-french D15, the owner's
+ * dogfood decisions of 2026-10-11. `word` is null when no single word remains (`24-year-old`).
  */
 export type WordSelection =
   { kind: "word" } | { kind: "piece"; hit: ResolvedToken } | { kind: "pieces"; word: ResolvedToken | null };
@@ -189,7 +190,33 @@ export type WordSelection =
  * as nowhere. No English or Spanish piece ends on one.
  */
 function isElidedPiece(piece: ResolvedToken): boolean {
-  return /['\u2019]$/u.test(piece.range.toString().replace(/\u00AD/g, ""));
+  return /['\u2019]$/u.test(written(piece));
+}
+
+/** A piece as the page writes it, its soft hyphens read as nowhere. */
+function written(piece: ResolvedToken): string {
+  return piece.range.toString().replace(/\u00AD/g, "");
+}
+
+/**
+ * The pronouns a French inversion's pieces after its verb are, as the core's pre-pass reads them
+ * (`FRENCH_INVERSION_PRONOUNS`, add-lingua-french-tokenisation D5): `dit-il`, `dis-le-moi`. The
+ * euphonic `t` of « a-t-il » has no span of its own, and an elided `m'`, `t'` or `l'` is elided.
+ */
+const INVERSION_PRONOUN = /^(?:ce|elles?|en|ils?|je|la|les?|leur|lui|moi|nous|on|toi|tu|vous|y)$/u;
+
+/**
+ * The one word the pieces a selection covers lean on (enable-lingua-french D15), or null: with the
+ * elided pieces set aside, the one piece left, or — over a French inversion (« dit-il »,
+ * « va-t-on ») — its verb, the first piece, every one after it a pronoun written in lowercase. A
+ * run holding a digit (`24-year-old`), whose pieces are words, names none.
+ */
+function wordOfPieces(pieces: ResolvedToken[], word: Range): ResolvedToken | null {
+  const words = pieces.filter((piece) => !isElidedPiece(piece));
+  if (words.length === 1) return words[0]!;
+  if (words.length === 0 || /\d/u.test(word.toString())) return null;
+  const inversion = words.slice(1).every((piece) => INVERSION_PRONOUN.test(written(piece)));
+  return inversion ? words[0]! : null;
 }
 
 /** `Range.compareBoundaryPoints`' constants, by value: a book section's ranges belong to another realm. */
@@ -238,8 +265,7 @@ export function selectWithinWord(block: Block, tokens: AnalyzedToken[], word: Ra
   const touched = [...spans.values()].filter((piece) => overlaps(piece.range, selected));
   if (touched.length === 0) return { kind: "word" };
   if (touched.length === 1) return { kind: "piece", hit: touched[0]! };
-  const words = touched.filter((piece) => !isElidedPiece(piece));
-  return { kind: "pieces", word: words.length === 1 ? words[0]! : null };
+  return { kind: "pieces", word: wordOfPieces(touched, word) };
 }
 
 export function resolveTokens(blocks: Block[], a: PageAnalysis): ResolvedToken[] {

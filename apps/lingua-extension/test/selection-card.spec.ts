@@ -985,21 +985,25 @@ describe("a selection over the pieces of one word", () => {
     expressions: [match({ start: 0, end: 2, key: "d'abord", gloss: "first, at first" })],
   };
 
-  it("« dit-il » selected whole, no word named: the whole-selection card, with a row for `dire`", async () => {
+  it("Pieces naming no word (`24-year-old`): the whole-selection card, with its rows", async () => {
     const h = harness();
-    h.cards.openForSelection(selection("dit-il"), null, true);
-    expect(h.phraseGloss.map((c) => c.text)).toEqual(["dit-il"]);
+    h.cards.openForSelection(selection("24-year-old"), null, true);
+    expect(h.phraseGloss.map((c) => c.text)).toEqual(["24-year-old"]);
     h.phraseGloss[0]!.resolve({
       tokens: [
-        tok({ surface: "dit", lemma: "dire", class: "Unknown", gloss: "to say" }),
-        tok({ surface: "il", lemma: "il", class: "Unknown", gloss: "he", function_word: true }),
+        tok({ surface: "24", lemma: "24", class: "Unknown" }),
+        tok({ surface: "year", lemma: "year", class: "Unknown", gloss: "an" }),
+        tok({ surface: "old", lemma: "old", class: "Unknown", gloss: "vieux" }),
       ],
     });
     await settle();
     expect(h.last()).toMatchObject({
-      headword: "dit-il",
+      headword: "24-year-old",
       expression: true,
-      rows: [{ form: "dire", gloss: "to say" }],
+      rows: [
+        { form: "year", gloss: "an" },
+        { form: "old", gloss: "vieux" },
+      ],
     });
     expect(h.wordGrammar).toHaveLength(0);
   });
@@ -1065,6 +1069,39 @@ describe("a selection over the pieces of one word", () => {
     await settle();
     expect(h.phraseGloss).toHaveLength(1); // the pack's answer is used, not asked twice
     expect(h.last()).toMatchObject({ headword: "d'abord", gloss: "first, at first", expressionAnswer: true });
+    expect(h.wordGrammar).toHaveLength(0);
+  });
+
+  it("« dit-il » selected whole: the card of the verb `dit`, the pronoun set aside", async () => {
+    const h = harness();
+    const dit = pageToken({ surface: "dit", lemma: "dire", class: "Unknown", gloss: "to say" });
+    h.cards.openForSelection(selection("dit-il"), hitOf(dit), true);
+    expect(h.phraseGloss.map((c) => c.text)).toEqual(["dit-il"]);
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "dit", lemma: "dire", class: "Unknown", gloss: "to say" }),
+        tok({ surface: "il", lemma: "il", class: "Unknown", gloss: "he", function_word: true }),
+      ],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "dire", surface: "dit", gloss: "to say", status: null });
+    expect(h.last().expression).toBeUndefined();
+    expect(h.wordGrammar.map((c) => [c.written, c.lemma])).toEqual([["dit", "dire"]]);
+  });
+
+  it("An inversion the pack holds as an expression keeps the expression card", async () => {
+    const h = harness();
+    const a = pageToken({ surface: "a", lemma: "avoir", class: "Known" });
+    h.cards.openForSelection(selection("a-t-il"), hitOf(a), true);
+    h.phraseGloss[0]!.resolve({
+      tokens: [
+        tok({ surface: "a", lemma: "avoir", class: "Known", function_word: true }),
+        tok({ surface: "il", lemma: "il", class: "Known", function_word: true }),
+      ],
+      expressions: [match({ start: 0, end: 2, key: "avoir il", gloss: "is there" })],
+    });
+    await settle();
+    expect(h.last()).toMatchObject({ headword: "avoir il", gloss: "is there", expressionAnswer: true });
     expect(h.wordGrammar).toHaveLength(0);
   });
 

@@ -303,7 +303,8 @@ describe("readingByContainer", () => {
 // add-lingua-french-word-card D7: a one-word selection inside an analysed block, routed by the piece
 // the reader selected.
 describe("selectWithinWord", () => {
-  const TEXT = "Il dit-il, l\u2019homme, don't, 24-year-old, qu'il, qu\u2019aujourd\u2019hui.";
+  const TEXT =
+    "Il dit-il, l\u2019homme, don't, 24-year-old, qu'il, qu\u2019aujourd\u2019hui, a-t-il, l'a-t-elle, va-t'en, dis-le-moi, Paris-Nice.";
   const byte = (i: number) => new TextEncoder().encode(TEXT.slice(0, i)).length;
   const piece = (surface: string, at: number, length = surface.length) =>
     tok({ start: byte(at), end: byte(at + length), surface, lemma: surface, class: "Unknown" });
@@ -323,6 +324,21 @@ describe("selectWithinWord", () => {
     piece("il", at("qu'il") + 3),
     piece("que", at("qu\u2019aujourd"), 3),
     piece("aujourd'hui", at("aujourd"), 11),
+    // The euphonic `t` has no span of its own.
+    piece("a", at("a-t-il")),
+    piece("il", at("a-t-il") + 4),
+    piece("le", at("l'a-t-elle"), 2),
+    piece("a", at("l'a-t-elle") + 2),
+    piece("elle", at("l'a-t-elle") + 6),
+    piece("va", at("va-t'en")),
+    piece("te", at("t'en"), 2),
+    piece("en", at("t'en") + 2),
+    piece("dis", at("dis-le-moi")),
+    piece("le", at("le-moi")),
+    piece("moi", at("-moi") + 1),
+    // Not an inversion: its second piece is no pronoun written in lowercase.
+    piece("Paris", at("Paris")),
+    piece("Nice", at("Nice")),
   ];
 
   function setUp() {
@@ -366,10 +382,19 @@ describe("selectWithinWord", () => {
     expect(wordOf(route("qu\u2019aujourd\u2019hui", at("qu\u2019aujourd"), 15))).toBe("aujourd'hui");
   });
 
-  it("over several pieces none of them elided, names no word: the whole-selection card", () => {
+  it("over an inversion, names its verb, the pronouns set aside (the owner's answer of 2026-10-11)", () => {
     const { route } = setUp();
-    expect(route("dit-il", at("dit-il"), 6)).toEqual({ kind: "pieces", word: null });
+    expect(wordOf(route("dit-il", at("dit-il"), 6))).toBe("dit");
+    expect(wordOf(route("a-t-il", at("a-t-il"), 6))).toBe("a");
+    expect(wordOf(route("l'a-t-elle", at("l'a-t-elle"), 10))).toBe("a");
+    expect(wordOf(route("va-t'en", at("va-t'en"), 7))).toBe("va");
+    expect(wordOf(route("dis-le-moi", at("dis-le-moi"), 10))).toBe("dis");
+  });
+
+  it("over pieces that are words, names none: the whole-selection card", () => {
+    const { route } = setUp();
     expect(route("24-year-old", at("24-year-old"), 11)).toEqual({ kind: "pieces", word: null });
+    expect(route("Paris-Nice", at("Paris-Nice"), 10)).toEqual({ kind: "pieces", word: null });
   });
 
   it("opens the word as before: one span, pieces sharing one, or no piece touched", () => {
