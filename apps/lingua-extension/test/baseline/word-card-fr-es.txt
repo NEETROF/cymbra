@@ -154,6 +154,27 @@ row: falloir — Haber que, necesitarse, hacer falta
 row: patient — Paciente
 ### phrase-gloss un moteur diesel
 row: moteur diesel — Motor diésel, motor diesel, motor Diesel
+### phrase-gloss Elles sont au nombre de sept.
+row: être à — Ser de, pertenecer, pertenecer a o ser suy
+row: nombre — Número
+row: sept — Siete
+### phrase-gloss Il est à la fois sévère et amical.
+row: à la fois — A la vez, al mismo tiempo, a un tiempo, de
+row: sévère — Severo
+row: amical — Amistoso
+### phrase-gloss Il est au courant de tout.
+row: au courant — Al corriente
+### phrase-gloss Elle se mit au lit.
+row: se mettre — Ponerse
+row: lit — Cama
+### phrase-gloss grâce au travail du monteur
+row: grâce à — Gracias a
+row: travail — Trabajo
+### phrase-gloss J'ai besoin de toi.
+row: avoir besoin de — Necesitar
+### phrase-gloss C'est ce que tu veux.
+row: ce que — Lo que (pronombre del objeto inanimado que
+row: vouloir — Querer
 ### phrase-gloss l’homme
 row: homme — Hombre
 ### word-grammar est être
