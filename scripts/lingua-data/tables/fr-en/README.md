@@ -1347,7 +1347,9 @@ add-lingua-fr-en-translated-expressions → these): `mwe.tsv` 43,542 → 43,424 
 17,635 → 17,517, three glosses changed); the pack 3,004,986 → 3,002,217 B; **68,361 → 61,780
 expression matches**, 64.4 → 58.2 per 1,000 words, 55.7 → 52.5 % of lines meeting one (GSD 19,903 →
 18,339, Gutenberg 14,283 → 12,375, Wikipedia 22,286 → 20,783, Tatoeba 11,829 → 10,232, the
-baseline's pages 60 → 51). 7,100 matches go — 6,925 of the list, 148 of the expressions left with no
+baseline's pages 60 → 51). Re-reduced on read-lingua-french-hyphenated-and-misaccented-spellings'
+tables (43f): the pack 3,006,129 → 3,003,601 B, GSD 19,907 → 18,343 and 68,365 → 61,784
+matches (four more on each side), every other figure the same. 7,100 matches go — 6,925 of the list, 148 of the expressions left with no
 sense, 27 displaced — and 519 come, a shorter or later expression a listed one hid (465 of the
 section, 54 of the table: « en faisant du bruit » meets « faire du bruit » "to make a lot of noise").
 The design's samples (one judge): of 300 matches before, 221 right, 13 partly, 66 wrong; of 100
