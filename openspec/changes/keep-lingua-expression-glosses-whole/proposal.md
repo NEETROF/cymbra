@@ -27,9 +27,9 @@ programme's 57.
 ## What Changes
 
 - **Whole senses** (design D1): an expression's senses are no longer cut at 42 characters, and the
-  joined gloss no longer at 80. The same senses are picked as before — up to three, one per entry in
-  turn —, so no expression gains or loses a sense and no row is added or left out: only the text the
-  cuts took comes back.
+  joined gloss no longer at 80. The senses are picked by the same rule — up to three, one per entry in
+  turn —, so no row is added or left out and, but for one row whose cut had made two senses read alike
+  (fr-en « saint-cyrien »), the same senses come back whole.
 - **One safety bound** (D2): a sense longer than 300 characters — a word's sense bound — is cut after
   a whole word and ends with « … », as a word's is. It touches 29 rows of the 120,690 (en-fr 19, es-fr 7,
   fr-en 3, none in es-en, en-es or fr-es): encyclopaedic definitions of 301 to 1,132 characters
