@@ -13,6 +13,6 @@
 
 - [x] 3.1 `test/lint-settings-hosts.spec.ts` imports the eleven titles from `src/i18n/fr/settings.ts` and keeps change 13's exclusion of `src/i18n/` (D2; *The titles live once*); `test/lint-copy.spec.ts`: the files leave the baseline (*Off the baseline*).
 - [x] 3.2 In `apps/lingua-extension`: `yarn lint`, `yarn format:check`, `yarn typecheck`, `yarn test`, `yarn build`, `yarn check:variants`; bundle sizes per host in the pull request.
-- [ ] 3.3 [manual] The owner reviews the English and Spanish entries of Réglages (M9).
+- [x] 3.3 [manual] The owner reviews the English and Spanish entries of Réglages (M9). Reviewed, no correction (the owner, 2026-10-11, change 33).
 - [x] 3.4 `openspec validate localise-lingua-settings --strict` passes, and `python3 scripts/openspec_archive_order.py localise-lingua-settings` exits 10 naming only the changes of `.openspec.yaml`'s `archiveAfter` (0 once they are archived); change 15 is marked done in `docs/lingua/language-matrix-programme.md`.
 - [ ] 3.5 [manual] Réglages in English and Spanish opened by eye in the popup (Safari's popover included), the side panel, the drawer and the reader's "Aa" panel — tab row, segmented rows (`.set-segmented` is `overflow: hidden`), shortcut lines.

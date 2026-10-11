@@ -45,7 +45,7 @@ French change, `refine-lingua-fr-en-glosses` — and change 49's first committed
 
 - [x] 6.1 [manual] Chrome (macOS), Firefox (macOS), Firefox for Android, Safari (macOS), Safari (iOS): the pass of design D12, on test accounts, with the English interface and (with fr-es) the Spanish one; it carries change 47's task 6.2 and change 51's task 6.2, whose findings go to this pull request; the owner ticks those two tasks once their findings are in.
   - Passed (the owner, 2026-10-11): the level choice per studied language works across languages and devices; « l'homme » selected whole opened an expression card without a gloss, and « dit-il » and other inversions selected whole — fixed in 2.3 (D15, this pull request) to open the noun's or the verb's card, then verified on device (« l'homme », « L'Homme », « dit-il », « A-t-il », « va-t'en », « l'a-t-elle », « Dis-le-moi »); otherwise read as correct. Changes 47's and 51's tasks 6.2 are left for the owner to tick.
-- [ ] 6.2 [manual] The owner reads the activation page's drafts (design D7) with the descriptions (M9, Open Question 1), in French, English and Spanish. The descriptions were approved by the owner on 2026-10-10 (in session); the activation page's drafts remain.
+- [x] 6.2 [manual] The owner reads the activation page's drafts (design D7) with the descriptions (M9, Open Question 1), in French, English and Spanish. The descriptions were approved by the owner on 2026-10-10 (in session); the activation page's drafts remain. The activation page approved as drafted in the three languages (the owner, 2026-10-11).
 
 ## 7. Release (owner)
 

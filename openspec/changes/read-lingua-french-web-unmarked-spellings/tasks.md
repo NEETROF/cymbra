@@ -3,7 +3,7 @@
 ## 0. Owner, before the implementation
 
 - [x] 0.1 [manual] Settled by the owner on 2026-10-10 (in session), the design written accordingly (*Settled by the owner*): the longer list, Zipf ≥ 2.5 (Q1); every spelling English writes more often left out, `mere`, `premiere` and `memes` too (Q2); rows that are also names or other languages' words kept, `dela` and `nes` out (Q3); a spelling two words share read as the commoner (Q4); hyphenated words and wrong accents a reviewed list of their own each, later (Q5); and, on change 43d, `sure`, `surs`, `sures` and `entrainant` sent to this list's review (D2).
-- [ ] 0.2 [manual] The owner reads the 468 rows (design D1, *The rows*, and D2's exceptions), striking any by name, and confirms Q6 (the four exceptions, all recommended). Q6 confirmed by the owner on 2026-10-10 (in session): all four; the reading of the 468 rows remains. A row struck changes D4's and D6's counts, which the implementation measures again (2.1, 4.2).
+- [x] 0.2 [manual] The owner reads the 468 rows (design D1, *The rows*, and D2's exceptions), striking any by name, and confirms Q6 (the four exceptions, all recommended). Q6 confirmed by the owner on 2026-10-10 (in session): all four; the reading of the 468 rows remains. A row struck changes D4's and D6's counts, which the implementation measures again (2.1, 4.2). The 468 rows read by the owner on 2026-10-11 as they are on `main` — `WEB_SPELLINGS`' 464 and the four exceptions —, none struck (the owner, 2026-10-11: nothing removed).
 
 ## 1. The rows, the check and the readings (scripts/lingua-data/reduce-fr-en.py)
 

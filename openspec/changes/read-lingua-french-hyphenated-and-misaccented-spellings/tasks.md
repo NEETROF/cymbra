@@ -2,7 +2,7 @@
 
 ## 0. Owner, before the implementation
 
-- [ ] 0.1 [manual] The owner reads the 84 rows — D1's 19 hyphenated, D2's 65 misaccented — and the groups left out, striking any row by name. A row struck changes D5's and D7's counts, which the implementation measures again (2.1, 4.2).
+- [x] 0.1 [manual] The owner reads the 84 rows — D1's 19 hyphenated, D2's 65 misaccented — and the groups left out, striking any row by name. A row struck changes D5's and D7's counts, which the implementation measures again (2.1, 4.2). The 84 rows read by the owner on 2026-10-11 as they are on `main` — `WEB_HYPHENATED`'s 19 and `WEB_MISACCENTED`'s 65 —, none struck (the owner, 2026-10-11: nothing removed).
 
 ## 1. The rows, the check and the readings (scripts/lingua-data/reduce-fr-en.py)
 

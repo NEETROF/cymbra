@@ -42,6 +42,6 @@ stacked on them (design D9). The owner answered the design's three questions on 
 
 ## 6. Owner
 
-- [ ] 6.1 [manual] The owner's wording review of the language line's drafts (« Mot espagnol », "Spanish word", « Palabra española ») (M9).
-- [ ] 6.2 [manual] Dogfood: the owner's case (es-en and fr-en, the French *Grammaire de la langue espagnole*: « hablaba », « Je connais », « + Deck », a second device), a French speaker on the English *Spanish verbs* and on a French page (today's card), a page declaring `ca`; Chromium, Firefox and Safari.
+- [x] 6.1 [manual] The owner's wording review of the language line's drafts (« Mot espagnol », "Spanish word", « Palabra española ») (M9). Approved as drafted (the owner, 2026-10-11).
+- [x] 6.2 [manual] Dogfood: the owner's case (es-en and fr-en, the French *Grammaire de la langue espagnole*: « hablaba », « Je connais », « + Deck », a second device), a French speaker on the English *Spanish verbs* and on a French page (today's card), a page declaring `ca`; Chromium, Firefox and Safari. Passed (the owner, 2026-10-11: Chrome, then Firefox and Safari).
 - [ ] 6.3 [manual] The owner releases the extension with the change (M18).
