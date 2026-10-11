@@ -108,8 +108,9 @@ None.
   extension's own French: the stored profile, the offer per native language and never to a French
   speaker, the labels and the card's studied words. MODIFIED *Selection capture on any pointer*
   (held by `add-lingua-french-word-card`, which `archiveAfter` names), a dogfood fix the owner
-  decided on 2026-10-11 (D15): elided pieces and the one word they lean on, selected whole
-  (« l’homme »), open that word's popup unless the pack holds the selection as an expression;
+  decided on 2026-10-11 (D15): elided pieces and the one word they lean on (« l’homme »), or a
+  French inversion (« dit-il »), selected whole, open that word's — the verb's — popup unless the
+  pack holds the selection as an expression;
   every scenario kept, one rewritten, one added.
 - `lingua-translation`: ADDED *The setting's memory follows the models the reader's pairs need* —
   the sentence counts the models the reader's pairs need together, not the pivots. *The setting's

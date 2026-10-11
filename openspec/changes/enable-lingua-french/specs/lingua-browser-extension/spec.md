@@ -40,9 +40,10 @@ bound SHALL capture nothing. Within an analysed block, a selection of one word w
 the studied language's pre-pass gave spans of their own SHALL open the popup of the piece
 the selection lies inside, as the reader made it, and SHALL open the whole-selection card
 when it covers several of those pieces; a word whose pieces share one span SHALL open as a
-word of one piece does. When the pieces it covers are elided pieces and one word, the
-selection SHALL open that word's popup, with its gloss and the actions matching its status,
-unless the pack holds the selection as an expression, whose card it SHALL then open.
+word of one piece does. When the pieces it covers are one word and elided pieces, or a French
+inversion's verb and its pronouns, the selection SHALL open that word's popup — the verb's, for
+an inversion — with its gloss and the actions matching its status, unless the pack holds the
+selection as an expression, whose card it SHALL then open.
 
 #### Scenario: Capturing a phrase on a phone
 - **WHEN** the reader selects three words on a touch device and lifts the finger
@@ -77,8 +78,8 @@ unless the pack holds the selection as an expression, whose card it SHALL then o
 - **THEN** the popup of `homme` opens, with its gloss and the actions "I know it", "+ Deck" and "Ignore", not the whole-selection card
 
 #### Scenario: A selection over an inversion's pieces
-- **WHEN** the reader selects « dit-il » whole, whose pieces `dit` and `il` have spans of their own and neither is elided
-- **THEN** the whole-selection card opens, with a row for `dire`
+- **WHEN** the reader selects « dit-il » whole, whose pieces `dit` and `il` have spans of their own, and the pack holds no expression for it
+- **THEN** the popup of `dit` opens, with its gloss of `dire` and a word's actions, the pronoun `il` set aside
 
 #### Scenario: An expression written as one word
 - **WHEN** the reader double-clicks « D’abord » and the pack holds the expression `d'abord`
