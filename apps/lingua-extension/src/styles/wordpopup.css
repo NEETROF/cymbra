@@ -50,6 +50,7 @@
 }
 
 .seen,
+.read-in,
 .rarity {
   margin-top: 2px;
   color: var(--cymbra-lingua-muted);

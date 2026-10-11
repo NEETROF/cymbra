@@ -13,4 +13,7 @@ export const selection = {
   veryCommon: (n: string) => `Très courant — parmi les ${n} mots les plus fréquents.`,
   /** A sentence cut short, ending on a whole word. */
   truncated: (text: string) => `${text}…`,
+  /** The line naming the language a word card's word was read in: « Mot espagnol », the language
+   *  in the form `readAsForm` gives (read-lingua-card-in-another-studied-language D4). */
+  readAs: (language: string) => `Mot ${language}`,
 };

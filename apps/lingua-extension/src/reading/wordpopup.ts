@@ -9,6 +9,7 @@ import {
   NODE_SLOT,
   renderAround,
 } from "../i18n/index.ts";
+import { readAsForm } from "../analyzer/language-labels.ts";
 import { glossPages, pageText, type GlossPage } from "./gloss-pages.ts";
 import { readingCopy } from "./reading-copy.ts";
 import { isTouchPrimary } from "../state/platform.ts";
@@ -59,6 +60,12 @@ export interface Gesture {
    * on every other card.
    */
   asWritten?: boolean;
+  /**
+   * The card was read in another studied language than the document's
+   * (read-lingua-card-in-another-studied-language D5): what the gesture records lands in it. Absent
+   * on every other card.
+   */
+  readIn?: StudiedLanguage;
 }
 
 /**
@@ -144,6 +151,12 @@ export interface WordPopupContent {
    * (localise-lingua-reading-surfaces); a card without one names English forms, as every card did.
    */
   language?: StudiedLanguage;
+  /**
+   * The language the card's word was read in when it is not the document's
+   * (read-lingua-card-in-another-studied-language D4): the card says so in one line, its word is
+   * heard with that language's voice and its gesture carries it. Absent on every other card.
+   */
+  readIn?: StudiedLanguage;
 }
 
 /** A card view: a detached element tree plus show/hide, independent of any shadow root. */
@@ -306,8 +319,12 @@ function listensFor(content: WordPopupContent, copy: CardCopy, speakerLanguage: 
  *  grammar renderer of that one language (localise-lingua-reading-surfaces D1,
  *  generalise-lingua-card-wording D2), so they cannot disagree; without one, or with a language the
  *  catalogue lacks, the French. */
-export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE): CardView {
-  const { card: copy, grammar } = readingCopy(language);
+export function createCard(
+  speaker?: Speaker,
+  language: InterfaceLanguage = DEFAULT_INTERFACE_LANGUAGE,
+  speakerFor?: (studied: StudiedLanguage) => Speaker,
+): CardView {
+  const { card: copy, grammar, selection } = readingCopy(language);
   const el = div("card");
   el.hidden = true;
   el.addEventListener("click", (e) => e.stopPropagation());
@@ -315,6 +332,9 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
   const headwordEl = div("headword");
   const seenEl = div("seen");
   const rarityEl = div("rarity");
+  // The language a word read in another language was read in, before its frequency line: inserted
+  // only on such a card, so every other card is the tree it was (read-lingua-card-in-another-studied-language D4).
+  const readInEl = div("read-in");
   const listenEl = div("listen");
   listenEl.hidden = true;
   // Below the listen row and above the actions: a pending card offers the listen buttons, and
@@ -359,24 +379,52 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
         gloss: storedGloss ?? current.gloss,
         ...(current.expressionAnswer ? { expressionAnswer: true } : {}),
         ...(current.asWritten ? { asWritten: true } : {}),
+        ...(current.readIn ? { readIn: current.readIn } : {}),
       });
       view.hide();
     });
     return b;
   }
 
+  /** The speakers whose changes redraw the listen row: the card's own, and those of the languages a word was read in. */
+  const followed = new Set<Speaker>();
+  function follow(voice: Speaker | undefined): void {
+    if (!voice || followed.has(voice)) return;
+    followed.add(voice);
+    voice.subscribe(() => {
+      if (!el.hidden) renderListen();
+    });
+  }
+
   /**
-   * The listen row, from the speaker's state: rebuilt on every show and on every change of the
+   * Who speaks a card's word and its dictionary form: the voice of the language it was read in, when
+   * it was read in another language than the document's (read-lingua-card-in-another-studied-language
+   * D4); the card's own otherwise. Its sentence is always the document's, so the card's own.
+   */
+  function wordSpeakerOf(content: WordPopupContent): Speaker | undefined {
+    const voice = content.readIn && speakerFor ? speakerFor(content.readIn) : speaker;
+    follow(voice);
+    return voice;
+  }
+
+  /**
+   * The listen row, from the speakers' state: rebuilt on every show and on every change of a
    * speaker — a voice list announced late, an utterance ending — so the card on screen always
    * says what pressing does. It does not wait for the engine: a pending card offers it too.
    */
   function renderListen(): void {
     listenEl.replaceChildren();
-    const listens = speaker && current && speaker.available() ? listensFor(current, copy, speaker.lang) : [];
+    const wordSpeaker = current ? wordSpeakerOf(current) : undefined;
+    const speakerOf = (listen: Listen): Speaker | undefined => (listen.key === "sentence" ? speaker : wordSpeaker);
+    const listens =
+      speaker && current && wordSpeaker
+        ? listensFor(current, copy, wordSpeaker.lang).filter((listen) => speakerOf(listen)?.available())
+        : [];
     listenEl.hidden = listens.length === 0;
     if (!speaker) return;
-    const playing = speaker.speaking();
     for (const listen of listens) {
+      const voice = speakerOf(listen)!;
+      const playing = voice.speaking();
       const on = playing?.key === listen.key && playing.text === listen.text;
       const b = document.createElement("button");
       b.type = "button";
@@ -388,22 +436,39 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
       b.addEventListener("pointerdown", (e) => e.preventDefault());
       b.addEventListener("mousedown", (e) => e.preventDefault());
       b.addEventListener("click", () => {
-        if (on) speaker.stop();
-        else speaker.speak(listen.key, listen.text);
+        if (on) {
+          voice.stop();
+          return;
+        }
+        // One utterance at a time, whichever voice speaks it.
+        for (const other of followed) if (other !== voice) other.stop();
+        voice.speak(listen.key, listen.text);
       });
       listenEl.append(b);
     }
   }
 
-  /** Whether the speaker is reading one of this card's texts (a settings preview is not). */
-  function cardSpeaking(): Speaking | null {
-    const playing = speaker?.speaking() ?? null;
-    return playing && CARD_KEYS.has(playing.key) ? playing : null;
+  /** The speakers reading one of this card's texts (a settings preview is not), with what they read. */
+  function cardSpeaking(): { voice: Speaker; playing: Speaking }[] {
+    const speaking: { voice: Speaker; playing: Speaking }[] = [];
+    for (const voice of followed) {
+      const playing = voice.speaking();
+      if (playing && CARD_KEYS.has(playing.key)) speaking.push({ voice, playing });
+    }
+    return speaking;
   }
 
-  speaker?.subscribe(() => {
-    if (!el.hidden) renderListen();
-  });
+  follow(speaker);
+
+  /** The line naming the language a card's word was read in, before its frequency line (D4). */
+  function renderReadIn(content: WordPopupContent): void {
+    if (!content.readIn) {
+      readInEl.remove();
+      return;
+    }
+    readInEl.textContent = selection.readAs(readAsForm(language, content.readIn));
+    rarityEl.before(readInEl);
+  }
 
   /**
    * The answer slot: the waiting line, the labelled rows, the gloss, or the no-gloss note. A
@@ -640,15 +705,15 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
       el.hidden = true;
       current = null;
       // No speech outlives the control that stops it.
-      if (cardSpeaking()) speaker?.stop();
+      for (const { voice } of cardSpeaking()) voice.stop();
     },
     show(content, onGesture) {
       generation++;
       el.style.minWidth = "";
       // Another word silences the card; the same selection completing with its answer does not.
-      const playing = cardSpeaking();
-      if (playing && !listensFor(content, copy, speaker?.lang ?? "").some((l) => l.text === playing.text)) {
-        speaker?.stop();
+      const wordLang = wordSpeakerOf(content)?.lang ?? "";
+      for (const { voice, playing } of cardSpeaking()) {
+        if (!listensFor(content, copy, wordLang).some((l) => l.text === playing.text)) voice.stop();
       }
       current = content;
       const studied = studiedLanguageOf(content);
@@ -660,6 +725,7 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
       else seenEl.replaceChildren();
       seenEl.hidden = !differs;
 
+      renderReadIn(content);
       rarityEl.textContent = content.rarity;
       // No rank yet, no line (add-lingua-card-frequency D4).
       rarityEl.hidden = !content.rarity;
@@ -718,6 +784,11 @@ export interface WordPopupOptions {
    * `card` module and grammar renderer the card reads (`reading-copy.ts`); French when not given.
    */
   language?: InterfaceLanguage;
+  /**
+   * The speaker of a studied language, for a card whose word was read in another language than the
+   * document's (read-lingua-card-in-another-studied-language D4); without one, `speaker` reads it.
+   */
+  speakerFor?: (studied: StudiedLanguage) => Speaker;
 }
 
 export class WordPopup {
@@ -728,7 +799,7 @@ export class WordPopup {
   private readonly unfollowLook: () => void = () => {};
 
   constructor(private readonly opts: WordPopupOptions) {
-    this.view = createCard(opts.speaker, opts.language);
+    this.view = createCard(opts.speaker, opts.language, opts.speakerFor);
     this.host = document.createElement("div");
     this.host.id = "cymbra-lingua-host";
     this.host.setAttribute("data-cymbra-lingua-skip", "");
