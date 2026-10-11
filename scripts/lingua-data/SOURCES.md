@@ -557,7 +557,8 @@ out), `level.tsv` byte for byte; 3 glosses out and 99 in, coverage 93.9 / 87.2 /
 *être*), GSD's test section 98.91 / 96.02 / 99.72 % (« Eglise », « Equipe ») —, then fr-es on the
 new `tables/fr/`: `tres` « Tres », `comite` « Cómitre », `expres` and `reviser` out, 41 entering
 lemmas glossed, every other row byte for byte (19,063 lemmas and `CA`, 13,221 direct), 83.2 / 70.9 /
-57.0 % (7,087 of the top 10,000), the pack 1,983,198 B. Only fr-en's rule digest moves; fr-es's pin
+57.0 % (7,087 of the top 10,000), `mwe.tsv` refine-lingua-fr-es-expressions' byte for byte, the pack
+1,972,069 → 1,982,362 B. Only fr-en's rule digest moves; fr-es's pin
 records the new studied tables.
 
 ## The editions' dumps

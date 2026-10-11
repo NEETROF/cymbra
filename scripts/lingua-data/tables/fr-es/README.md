@@ -150,18 +150,18 @@ the cut bring theirs (`enceint` « Embarazada, preñada… », `estudiantin` « 
   D2), the others `quant`, `onu`, `for`, `okay` —, and 8,534 of French's 26,555 dictionary words have
   no Spanish gloss, so the pack carries a lexical section and the vocabulary estimate counts the same
   words for both pairs.
-- **The pack is PACKFRES B**, 37.8 % of the 5 MiB budget (−1,092 B with fr-es's expressions refined,
+- **The pack is 1,982,362 B**, 37.8 % of the 5 MiB budget (−1,092 B with fr-es's expressions refined,
   66 fewer expressions and 62 other headwords of a key where 64 were; −2,118 B with fr-es's own rules, −175 B
   with French's unmarked spellings, −1,630 B with French's acronym table: `CA` takes lemma id 0 and
   every other id moves by one, which the forms map, −746 B, the paradigms, −750 B, and the sense runs,
   −176 B, encode slightly tighter; the glosses +33 B; the new rows +9 B; +1,620 B keeping every
   headword of a key several reach, pick-lingua-expression-written-as-the-page; +2,057 B with the
   dictionary's unmarked spellings: the forms map +1,097 B, the paradigms +944 B, the lemmas +7 B, the
-  glosses +93 B, the sense runs −153 B, the expressions +69 B; +10,037 B with the web's unmarked
+  glosses +93 B, the sense runs −153 B, the expressions +69 B; +10,293 B with the web's unmarked
   spellings: the forms map +5,115 B, the paradigms +4,510 B, the glosses +378 B, the sense runs
-  +113 B, the expressions +2 B, the lemmas −81 B): gloss 177,740 B, senses 56,055 B,
-  expressions 270,683 B (132,845 + 105,387 + their names 31,935 + the 64 other headwords of 64 keys
-  listed in `expr.others`, 516: `velours côtelé` « Pana » keyed now that `côtelé` is a lemma,
+  +113 B, the expressions +258 B, the lemmas −81 B): gloss 177,740 B, senses 56,055 B,
+  expressions 269,847 B (132,738 + 104,857 + their names 31,752 + the 62 other headwords listed in
+  `expr.others`, 500: `velours côtelé` « Pana » keyed now that `côtelé` is a lemma,
   `cône de déjection` « Abanico aluvial » now that `déjection` is one), the lexical table 7,501 B, and
   French's studied sections —
   forms, lemmas, ranks, levels, paradigms and the tag pool — byte for byte fr-en's (`cross_native.rs`).
