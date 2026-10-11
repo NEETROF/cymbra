@@ -57,7 +57,7 @@ kind of fact that should be on the record before the platform moves again.
 - `lingua-privacy`: one requirement is **added** — the caption request carries nothing of the
   reader's: it goes to YouTube, for the video being watched, with no page text and no Cymbra
   data, and the Lingua annex says so. Added rather than modified because
-  `add-lingua-remote-translation` already modifies **Lingua's privacy disclosures match what it
+  `add-lingua-online-translation` already modifies **Lingua's privacy disclosures match what it
   collects**; two changes rewriting the same block would overwrite each other at archive.
 
 ## Impact

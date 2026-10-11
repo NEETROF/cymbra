@@ -72,7 +72,7 @@ None.
   other sentence and scenario kept. Held by no open change (`refine-lingua-review-session` holds
   two other requirements of this capability).
 - `lingua-privacy`: ADDED *The disclosures name the languages a card and a day carry*. *Lingua's
-  privacy disclosures match what it collects* is held by the parked `add-lingua-remote-translation`
+  privacy disclosures match what it collects* is held by `add-lingua-online-translation`
   and is not modified; the new requirement stands beside it.
 
 ## Impact

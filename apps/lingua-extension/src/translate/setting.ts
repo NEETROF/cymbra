@@ -10,8 +10,9 @@
 import { DEFAULT_NATIVE, pairOf, studiedOf } from "../analyzer/pairs.ts";
 
 /**
- * Where the engine runs. Stored as a HOST, shown as one checkbox: add-lingua-remote-translation
- * widens this union with its third place, and no stored value has to migrate.
+ * Where the engine runs. Stored as a HOST, shown as one checkbox, so a further place could be added
+ * without migrating a stored value. Online translation (add-lingua-online-translation) is not one:
+ * it is a separate setting and a button, not a host for this engine.
  */
 export type TranslationHost = "none" | "local";
 

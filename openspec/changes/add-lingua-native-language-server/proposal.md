@@ -73,7 +73,7 @@ None.
 *The backup records the reader's language profile* (`lingua-decks-review`) says the profile is
 never sent; a day's native language is a value the client will send with its statistics
 (change 12), which rewords that requirement then. *Lingua's privacy disclosures match what it
-collects* (`lingua-privacy`) is held by the parked `add-lingua-remote-translation`; the
+collects* (`lingua-privacy`) is held by `add-lingua-online-translation`; the
 disclosures move with the release that sends (change 12, with change 31), not with this server
 release, which collects nothing new from any client.
 
