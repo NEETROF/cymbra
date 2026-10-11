@@ -155,7 +155,6 @@ row: patient — Paciente
 ### phrase-gloss un moteur diesel
 row: moteur diesel — Motor diésel, motor diesel, motor Diesel
 ### phrase-gloss Elles sont au nombre de sept.
-row: être à — Ser de, pertenecer, pertenecer a o ser suy
 row: nombre — Número
 row: sept — Siete
 ### phrase-gloss Il est à la fois sévère et amical.
@@ -175,6 +174,20 @@ row: avoir besoin de — Necesitar
 ### phrase-gloss C'est ce que tu veux.
 row: ce que — Lo que (pronombre del objeto inanimado que
 row: vouloir — Querer
+### phrase-gloss sur le champ de bataille
+row: champ de bataille — Campo de batalla
+### phrase-gloss une crème brûlée
+row: crème brûlée — Crème brûlée
+### phrase-gloss le maire de la ville
+row: maire — Alcalde, intendente, regente
+row: ville — Ciudad, población, urbe
+### phrase-gloss Elle se leva.
+row: se lever — Levantarse
+### phrase-gloss Il vient de Paris.
+row: venir — Venir
+row: paris — París
+### phrase-gloss de l'huile d'olive
+row: huile d'olive — Aceite de oliva
 ### phrase-gloss l’homme
 row: homme — Hombre
 ### word-grammar est être

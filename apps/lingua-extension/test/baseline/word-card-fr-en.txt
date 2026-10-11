@@ -186,6 +186,22 @@ row: avoir besoin de — to need
 row: c'est — it is (used to define the preceding word)
 row: ce que — what (relative pronoun - direct object)
 row: vouloir — to want, wish, desire
+### phrase-gloss sur le champ de bataille
+row: champ de bataille — battlefield
+### phrase-gloss une crème brûlée
+row: crème brûlée — crème brûlée
+### phrase-gloss le maire de la ville
+row: maire — mayor
+row: de la — of the
+row: ville — town, city
+### phrase-gloss Elle se leva.
+row: lever — to raise, lift
+### phrase-gloss Il vient de Paris.
+row: venir de — to come from, to be from, to originate fro
+row: paris — Paris (the capital and largest city of France)
+### phrase-gloss de l'huile d'olive
+row: de l' — some
+row: huile d'olive — olive oil
 ### phrase-gloss l’homme
 row: homme — man (adult male human)
 ### word-grammar est être
