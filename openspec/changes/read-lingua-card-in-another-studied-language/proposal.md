@@ -21,8 +21,16 @@ hablar — to talk, to speak ». This is that change (row 52b of the
 
 It is not only a stage-3 case. A French speaker who studies English and Spanish meets it today on an
 English page about Spanish (`Spanish verbs` on the English Wikipedia: **451 highlighted tokens**
-the English pack does not know and the Spanish pack glosses, 2 of them wrong), and on a French page
-about Spanish, which is not analysed at all for them, through a selected word.
+the English pack does not know and the Spanish pack glosses, 2 of them wrong). On a French page —
+their own language — they keep today's card (the owner's answer of 2026-10-11, below).
+
+**The owner's answers (2026-10-11)** to the design's three questions: **(1)** a word marked from a
+re-read card loses its highlight on the page where it was marked; on another page it is highlighted
+again until its card is opened (D6 as proposed); **(2)** one word only — a selection of several words
+keeps its card (D8 as proposed); **(3)** no re-read on a page written in the reader's native
+language — a French speaker selecting a word on a French page gets today's card, never a Spanish
+false friend (« demande » → *demandar* « poursuivre en justice »); the re-read applies only on a page
+read in a language the reader studies (D1).
 
 ## What Changes
 
@@ -33,8 +41,10 @@ about Spanish, which is not analysed at all for them, through a selected word.
   frequency rank), the card asks the reader's other accepted languages, in the profile's order, and
   the first whose pack glosses the word as one token answers. A word the reader marked in the
   document's language, a name, a word the document's pack ranks or reads without a gloss, and a
-  selection of several words keep their card (D1, D8). A reader who studies one language sees
-  nothing new.
+  selection of several words keep their card (D1, D8). **Only on a page read in a language the
+  reader studies** (D1, the owner's answer 3): a page with no text in a studied language, or one
+  that declares the reader's native language, keeps today's cards. A reader who studies one
+  language sees nothing new.
 - **The card says what it is** (D4): headed by that language's dictionary form, with its gloss, its
   grammar named as that language's forms (the renderers changes 18, 23, 24 and 51 wrote), its
   frequency from that pack, and one line naming the language — « Mot espagnol », "Spanish word",
@@ -54,7 +64,7 @@ about Spanish, which is not analysed at all for them, through a selected word.
 - **The page stays read in its language** (D6): its analysis, highlights, figures and exposures are
   unchanged — no golden and no snapshot moves. A word re-read on the open document is remembered for
   that document and painted by its status in the language it was read in, so « Je connais » takes its
-  highlight off at once; leaving the document forgets it (open question 1).
+  highlight off at once; leaving the document forgets it (the owner's answer 1).
 - **Never into a language whose guard keeps the page's declared language out** (D7): a document
   that declares Catalan, Galician or Occitan gets no Spanish re-read, and one that declares Catalan,
   Occitan or Romanian no French one, the guards' own lists (changes 42 and 42b). Measured on the

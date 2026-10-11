@@ -49,8 +49,8 @@ level, so the trigger does not depend on the reader's level. Each re-read was re
 **Non-Goals**
 
 - Re-reading at paint: the page's analysis, highlights, percentage and exposures stay the document
-  language's (D6; open question 1).
-- Several words: an expression or a selection of several words keeps its card (D8; open question 2).
+  language's (D6; the owner's answer 1).
+- Several words: an expression or a selection of several words keeps its card (D8; the owner's answer 2).
 - Reading a block in a second language, or splitting a page into languages: detection is unchanged.
 - A setting: the re-read follows the languages the reader studies, nothing else.
 
@@ -70,7 +70,13 @@ Left alone, each with its card of today:
 - a name (`ProperNounOutOfLexicon`): a name is not a word of another language;
 - a word the document's pack ranks or reads, with or without a gloss (a French word missing from
   fr-en's glosses is still French, and its card keeps « Peu fréquent… »);
-- a selection of several words (D8).
+- a selection of several words (D8);
+- **any word on a page not read in a language the reader studies** (the owner's answer 3,
+  2026-10-11): a page the analysis finds not analysable — no block in a studied language, which is
+  what a page in the reader's native language is — or a page that declares the reader's native
+  language. A French speaker who studies English and Spanish, selecting a word on a French page, gets
+  today's card. A selected word on an analysed page (a block the analysis left out, such as an English
+  quotation in a French page read by an English speaker who studies French and English) is re-read.
 
 The condition is computed in the extension from answers the card already asks — the token, then
 `wordGrammar` and the rank — so the engine gains no call and no Rust file moves.
@@ -159,7 +165,8 @@ highlighted until the reader opens it. Re-reading at paint was weighed and left 
 on every repaint, every word the document's pack does not know — 89 distinct forms on the French
 *Révolution française*, 327 on *Espagnol*, 373 on *Spanish verbs* — load the other pack in every
 tab of every reader who studies two languages, and need a batched engine call so the messaging
-port of a page that refuses WebAssembly does not carry hundreds of requests; it is open question 1.
+port of a page that refuses WebAssembly does not carry hundreds of requests. The owner chose this
+change's behaviour on 2026-10-11 (answer 1).
 
 What this change does instead: the session remembers, for the open document, each form a card
 re-read (the form as written, lowercased → its language and dictionary form). At each repaint it
@@ -204,7 +211,7 @@ A selection holding whitespace keeps the whole-selection card in the document's 
 word-by-word rows, its expressions and its translation all read the document's language, and mixing
 languages row by row would show a French « la » beside a Spanish *casa*. A word written as pieces
 (French elision, change 51's D7) is one word when one piece is selected, and that piece is re-read
-like any word. Whether « yo hablaba » should be read whole in Spanish is open question 2.
+like any word. The owner settled it on 2026-10-11 (answer 2): « yo hablaba » keeps its card.
 
 ### D9 — Order
 
@@ -256,12 +263,13 @@ in 12,000–17,000 (≤ 0.08 %), each a word the document's pack lacks — a Fre
 list, or a third language's word quoted (French *tiers* in Spanish read as English *tier*) — and only
 when the reader opens that word's card. The baseline corpora give none.
 
-On a page in the reader's own language, which is not analysed, a selected word is read in the first
-studied language and, when that does not know it, in the other: a French speaker selecting « hablaba »
-on a French page gets *hablar*. Selecting a French word there can give a false friend — every word of
-*Révolution française* selected, 303 of 15,429 (2.0 %) are read as Spanish (« demande » →
-*demandar* « poursuivre en justice », « crée » → *creer* « croire ») — words of the reader's own
-language, where today's card is empty anyway.
+**Why no re-read on a page in the reader's native language** (the owner's answer 3). Such a page is
+not analysed; a word selected there is read in the first studied language. Re-reading it in the other
+would turn the reader's own words into false friends: every word of the French *Révolution
+française* selected by a French speaker who studies English and Spanish, 303 of 15,429 (2.0 %, 156
+distinct) would be read as Spanish — « demande » → *demandar* « poursuivre en justice », « crée » →
+*creer* « croire », « curé » → *curar*. With the rule, none is: the card stays today's. The cost is a
+French speaker's « hablaba » on a French page, which keeps today's card.
 
 ## Risks / Trade-offs
 
@@ -272,8 +280,10 @@ language, where today's card is empty anyway.
   declared language; a Catalan quotation in a French page stays exposed.
 - **A first re-read on a cold pack** misses the bound on a slow device and shows today's card first,
   then the re-read (D3).
-- **The highlight comes back on the next visit** until the reader opens the word again (D6; open
-  question 1).
+- **The highlight comes back on the next visit** until the reader opens the word again (D6; the
+  owner's answer 1).
+- **No re-read on a page in the reader's own language** (D1, the owner's answer 3): a Spanish word
+  on a French page keeps today's card for a French speaker.
 - **The French interface moves** for French speakers on those cards, by the owner's decision (D10).
 
 ## Migration Plan
@@ -286,18 +296,16 @@ leaves statuses and cards recorded in Spanish, which every version reads.
 2–3.5 ideal days: the cards' re-read and its bound (1–1.5), the session's gesture, memory and guard
 table (0.5–1), the card's line, voice and copy (0.25–0.5), tests and the dogfood record (0.25–0.5).
 
-## Open Questions
+## The owner's answers (2026-10-11)
 
-1. **Should a word you marked in Spanish lose its highlight on every French page, or only on the page
-   where you marked it?** Example: on Monday you read a French page about Spanish, open « hablaba »,
-   press « Je connais » — its highlight goes (this change). On Tuesday another French page writes
-   « hablaba »: with this change it is highlighted again until you open it, and its card says you
-   know *hablar*. Removing it on every page means re-reading, at every paint, each word the page's
-   language does not know (up to 373 distinct forms on a long page), loading the other language's
-   dictionary in every tab, and one new engine call — about 1.5 more ideal days, in a change of its
-   own.
-2. **Should a selection of several words that the page's language does not know at all be read
-   whole in the other language?** Example: on a French page you select « yo hablaba »: today, and
-   with this change, the card lists « yo » and « hablaba » word by word with no gloss; read in
-   Spanish it would show both Spanish words glossed, and « Traduction étendue » would translate it
-   from Spanish. A rule is needed for a mixed selection (« la casa » holds the French « la »).
+1. **Highlight.** A word marked from a re-read card loses its highlight on the page where it was
+   marked; on another page it is highlighted again until its card is opened (D6 as proposed).
+   Removing it on every page — re-reading at each paint up to 373 distinct forms, the other
+   dictionary in every tab, one new engine call, about 1.5 more ideal days — is not done.
+2. **Several words.** One word only: « yo hablaba » on a French page keeps its whole-selection card
+   (D8 as proposed).
+3. **The reader's native language.** No re-read on a page written in the reader's native language:
+   the re-read applies only on a page read in a language the reader studies (D1, D10's 2.0 %).
+
+Open for the owner's wording review (M9, task 6.1): the language line's drafts « Mot espagnol »,
+"Spanish word", « Palabra española ».

@@ -22,7 +22,7 @@ When the reader accepts several languages, the reading session SHALL choose each
 ## ADDED Requirements
 
 ### Requirement: A word the document's language does not know is read in another studied language
-A word card SHALL be read in another language the reader accepts when, read in the document's language, its word is unknown, has no gloss, no reading, no other dictionary form and no frequency rank. This SHALL apply to the card of a highlighted word the reader clicks, of a one-word selection over a page word, and of a one-word selection no page word covers. The other languages SHALL be asked in the order of the reader's studied languages, and the first whose pack reads the word as one word, not a name, with a gloss SHALL answer; when none does, the card SHALL be the one it was before this requirement. The card SHALL then be that language's card of the word: its dictionary form, the form seen, its gloss, its readings named as that language's forms, its frequency band from that language's pack, and one line naming the language, the name taken from the labels module. Its listen buttons for the word and its dictionary form SHALL use that language's voice, and its sentence button the document's. No translation SHALL be asked for it. A word the reader marked in the document's language, a name, a word the document's pack ranks or reads, and a selection of several words SHALL keep their card. The re-read SHALL be asked only once the document's answer is known, and only for that card; past one more grammar bound, the card SHALL be shown as before, and the re-read SHALL replace it when it arrives if that card is still shown. A reader who accepts one language SHALL see no change.
+A word card SHALL be read in another language the reader accepts when, read in the document's language, its word is unknown, has no gloss, no reading, no other dictionary form and no frequency rank. This SHALL apply to the card of a highlighted word the reader clicks, of a one-word selection over a page word, and of a one-word selection no page word covers. The other languages SHALL be asked in the order of the reader's studied languages, and the first whose pack reads the word as one word, not a name, with a gloss SHALL answer; when none does, the card SHALL be the one it was before this requirement. The card SHALL then be that language's card of the word: its dictionary form, the form seen, its gloss, its readings named as that language's forms, its frequency band from that language's pack, and one line naming the language, the name taken from the labels module. Its listen buttons for the word and its dictionary form SHALL use that language's voice, and its sentence button the document's. No translation SHALL be asked for it. A word the reader marked in the document's language, a name, a word the document's pack ranks or reads, and a selection of several words SHALL keep their card, and so SHALL every word of a document not read in a language the reader studies: a document with no text in a studied language, or one that declares the reader's native language. The re-read SHALL be asked only once the document's answer is known, and only for that card; past one more grammar bound, the card SHALL be shown as before, and the re-read SHALL replace it when it arrives if that card is still shown. A reader who accepts one language SHALL see no change.
 
 #### Scenario: A Spanish word on a French page
 - **WHEN** a reader whose native language is English, who studies Spanish and French, opens the card of `hablaba`, highlighted on a French page, which the French pack does not know
@@ -32,9 +32,9 @@ A word card SHALL be read in another language the reader accepts when, read in t
 - **WHEN** a reader whose native language is French, who studies English and Spanish, clicks `hablaba` on an English page
 - **THEN** the card is the Spanish card of `hablar`, glossed in French, and says « Mot espagnol »
 
-#### Scenario: A selection on a page in the reader's own language
-- **WHEN** a reader whose native language is French, who studies English and Spanish, selects `hablaba` on a French page, which is not analysed for them
-- **THEN** the card is the Spanish card of `hablar`
+#### Scenario: A page in the reader's native language
+- **WHEN** a reader whose native language is French, who studies English and Spanish, selects « demande » or `hablaba` on a French page
+- **THEN** the card is the one it was before this requirement, and no Spanish card is shown
 
 #### Scenario: A word the document's pack knows without a gloss
 - **WHEN** the reader opens the card of a French word the French pack ranks but does not gloss
@@ -99,5 +99,5 @@ A word card SHALL NOT be read in Spanish when the document declares Catalan, Gal
 - **THEN** the card is not read in Spanish
 
 #### Scenario: A French page
-- **WHEN** a reader who studies Spanish and French opens the card of `hablaba` on a page that declares `fr`
+- **WHEN** a reader whose native language is English, who studies Spanish and French, opens the card of `hablaba` on a page that declares `fr`
 - **THEN** the card is read in Spanish
