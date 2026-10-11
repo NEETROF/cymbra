@@ -1520,6 +1520,8 @@ accusateurs	accusateur	NOUN|Gender=Masc|Number=Plur	-
 accusatif	accusatif	NOUN|Gender=Masc|Number=Sing	-
 accusation	accusation	NOUN|Gender=Fem|Number=Sing	-
 accusations	accusation	NOUN|Gender=Fem|Number=Plur	-
+accusatoire	accusatoire	ADJ|Number=Sing	-
+accusatoires	accusatoire	ADJ|Number=Plur	-
 accusatrice	accusateur	ADJ|Gender=Fem|Number=Sing	-
 accusatrice	accusateur	NOUN|Gender=Fem|Number=Sing	-
 accusatrices	accusateur	ADJ|Gender=Fem|Number=Plur	-
@@ -2037,6 +2039,7 @@ actualite	actualité	NOUN|Gender=Fem|Number=Sing	-
 actualites	actualité	NOUN|Gender=Fem|Number=Plur	-
 actualité	actualité	NOUN|Gender=Fem|Number=Sing	-
 actualités	actualité	NOUN|Gender=Fem|Number=Plur	-
+actuariat	actuariat	NOUN|Gender=Masc|Number=Sing	-
 actuel	actuel	ADJ|Gender=Masc|Number=Sing	-
 actuelle	actuel	ADJ|Gender=Fem|Number=Sing	-
 actuelles	actuel	ADJ|Gender=Fem|Number=Plur	-
@@ -2843,6 +2846,7 @@ affecté	affecter	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 affectée	affecter	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
 affectées	affecter	VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part	-
 affectés	affecter	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
+affermage	affermage	NOUN|Gender=Masc|Number=Sing	-
 affermi	affermir	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 affermie	affermir	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
 affermir	affermir	VERB|VerbForm=Inf	-
@@ -3289,6 +3293,7 @@ agentes	agent	NOUN|Gender=Fem|Number=Plur	-
 agents	agent	NOUN|Gender=Masc|Number=Plur	-
 agençant	agencer	VERB|Tense=Pres|VerbForm=Part	-
 ages	âge	NOUN|Gender=Masc|Number=Plur	-
+aggiornamento	aggiornamento	NOUN|Gender=Masc|Number=Sing	-
 agglo	agglo	NOUN|Gender=Masc|Number=Sing	-
 agglomération	agglomération	NOUN|Gender=Fem|Number=Sing	-
 agglomérations	agglomération	NOUN|Gender=Fem|Number=Plur	-
@@ -3637,6 +3642,10 @@ aguerris	aguerrir	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Past|VerbForm=Fin	oth
 aguerris	aguerrir	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	other
 aguerrit	aguerrir	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 aguerrit	aguerrir	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+agé	âgé	ADJ|Gender=Masc|Number=Sing	-
+agée	âgé	ADJ|Gender=Fem|Number=Sing	-
+agées	âgé	ADJ|Gender=Fem|Number=Plur	-
+agés	âgé	ADJ|Gender=Masc|Number=Plur	-
 agît	agir	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin	-
 ahuri	ahuri	ADJ|Gender=Masc|Number=Sing	-
 ahurie	ahuri	ADJ|Gender=Fem|Number=Sing	-
@@ -3846,6 +3855,8 @@ airain	airain	NOUN|Gender=Masc|Number=Sing	-
 airbag	airbag	NOUN|Gender=Masc|Number=Sing	-
 airbags	airbag	NOUN|Gender=Masc|Number=Plur	-
 aire	aire	NOUN|Gender=Fem|Number=Sing	-
+airelle	airelle	NOUN|Gender=Fem|Number=Sing	-
+airelles	airelle	NOUN|Gender=Fem|Number=Plur	-
 aires	aire	NOUN|Gender=Fem|Number=Plur	-
 airs	air	NOUN|Gender=Masc|Number=Plur	-
 ais	ais	NOUN|Gender=Masc|Number=Plur	-
@@ -7294,6 +7305,10 @@ appétissantes	appétissant	ADJ|Gender=Fem|Number=Plur	-
 appétissants	appétissant	ADJ|Gender=Masc|Number=Plur	-
 appétit	appétit	NOUN|Gender=Masc|Number=Sing	-
 appétits	appétit	NOUN|Gender=Masc|Number=Plur	-
+apres-midi	après-midi	NOUN|Gender=Fem|Number=Plur	-
+apres-midi	après-midi	NOUN|Gender=Fem|Number=Sing	-
+apres-midi	après-midi	NOUN|Gender=Masc|Number=Plur	-
+apres-midi	après-midi	NOUN|Gender=Masc|Number=Sing	-
 aprèm	aprèm	NOUN|Gender=Fem|Number=Sing	-
 aprèm	aprèm	NOUN|Gender=Masc|Number=Sing	-
 après-guerre	après-guerre	NOUN|Gender=Fem|Number=Plur	-
@@ -7930,6 +7945,7 @@ arretes	arrêter	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
 arretes	arrêter	VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
 arretez	arrêter	VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin	-
 arretez	arrêter	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin	-
+arreté	arrêter	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 arrhes	arrhes	NOUN|Gender=Fem|Number=Plur	-
 arriere	arrière	ADJ|Number=Sing	-
 arriere	arrière	NOUN|Gender=Masc|Number=Sing	-
@@ -8102,6 +8118,8 @@ arrosés	arroser	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
 arroyo	arroyo	NOUN|Gender=Masc|Number=Sing	-
 arroyos	arroyo	NOUN|Gender=Masc|Number=Plur	-
 arrérages	arrérages	NOUN|Gender=Masc|Number=Plur	-
+arréter	arrêter	VERB|VerbForm=Inf	-
+arrété	arrêter	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 arrêt	arrêt	NOUN|Gender=Masc|Number=Sing	-
 arrêt-court	arrêt-court	NOUN|Gender=Masc|Number=Sing	-
 arrêta	arrêter	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
@@ -9822,6 +9840,7 @@ atténuées	atténuer	VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part	-
 atténués	atténuer	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
 atypique	atypique	ADJ|Number=Sing	-
 atypiques	atypique	ADJ|Number=Plur	-
+au-dela	au-delà	NOUN|Gender=Masc|Number=Sing	-
 au-delà	au-delà	NOUN|Gender=Masc|Number=Sing	-
 aubade	aubade	NOUN|Gender=Fem|Number=Sing	-
 aubades	aubade	NOUN|Gender=Fem|Number=Plur	-
@@ -12566,6 +12585,7 @@ belgique	belgique	ADJ|Number=Sing	-
 belgiques	belgique	ADJ|Number=Plur	-
 belladone	belladone	NOUN|Gender=Fem|Number=Sing	-
 belle	beau	ADJ|Gender=Fem|Number=Sing	-
+belle-mere	belle-mère	NOUN|Gender=Fem|Number=Sing	-
 belle-mère	belle-mère	NOUN|Gender=Fem|Number=Sing	-
 belle-soeur	beau-frère	NOUN|Gender=Fem|Number=Sing	other
 belle-soeur	belle-sœur	NOUN|Gender=Fem|Number=Sing	-
@@ -16513,6 +16533,10 @@ béryl	béryl	NOUN|Gender=Masc|Number=Sing	-
 béryllium	béryllium	NOUN|Gender=Masc|Number=Sing	-
 béryls	béryl	NOUN|Gender=Masc|Number=Plur	-
 bérézina	bérézina	NOUN|Gender=Fem|Number=Sing	-
+béta	bêta	ADJ|Gender=Masc|Number=Sing	-
+béta	bêta	ADJ|Number=Sing	-
+béta	bêta	NOUN|Gender=Masc|Number=Plur	-
+béta	bêta	NOUN|Gender=Masc|Number=Sing	-
 bétail	bétail	NOUN|Gender=Masc|Number=Sing	-
 bétails	bétail	NOUN|Gender=Masc|Number=Plur	-
 béton	béton	NOUN|Gender=Masc|Number=Sing	-
@@ -18749,9 +18773,11 @@ cell	cell	NOUN|Gender=Masc|Number=Sing	-
 cella	cella	NOUN|Gender=Fem|Number=Sing	-
 celle	celui	PRON|Gender=Fem|Number=Sing	-
 celle-ci	celui-ci	PRON|Gender=Fem|Number=Sing	-
+celle-la	celui-là	PRON|Gender=Fem|Number=Sing	-
 celle-là	celui-là	PRON|Gender=Fem|Number=Sing	-
 celles	celui	PRON|Gender=Fem|Number=Plur	-
 celles-ci	celui-ci	PRON|Gender=Fem|Number=Plur	-
+celles-la	celui-là	PRON|Gender=Fem|Number=Plur	-
 celles-là	celui-là	PRON|Gender=Fem|Number=Plur	-
 cellier	cellier	NOUN|Gender=Masc|Number=Sing	-
 celliers	cellier	NOUN|Gender=Masc|Number=Plur	-
@@ -19080,6 +19106,7 @@ ceste	ceste	NOUN|Gender=Masc|Number=Sing	-
 cette	ce	DET|Gender=Fem|Number=Sing	-
 ceux	celui	PRON|Gender=Masc|Number=Plur	-
 ceux-ci	celui-ci	PRON|Gender=Masc|Number=Plur	-
+ceux-la	celui-là	PRON|Gender=Masc|Number=Plur	-
 ceux-là	celui-là	PRON|Gender=Masc|Number=Plur	-
 ceviche	ceviche	NOUN|Gender=Masc|Number=Sing	-
 ch'tis	ch'ti	NOUN|Gender=Masc|Number=Plur	-
@@ -29893,6 +29920,8 @@ créé	créer	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 créée	créer	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
 créées	créer	VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part	-
 créés	créer	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
+crême	crème	ADJ|Number=Sing	-
+crême	crème	NOUN|Gender=Fem|Number=Sing	-
 crêpe	crêpe	NOUN|Gender=Fem|Number=Sing	-
 crêpe	crêpe	NOUN|Gender=Masc|Number=Sing	-
 crêperie	crêperie	NOUN|Gender=Fem|Number=Sing	-
@@ -30978,6 +31007,7 @@ debile	débile	ADJ|Number=Sing	-
 debile	débile	NOUN|Gender=Fem|Number=Sing	-
 debile	débile	NOUN|Gender=Masc|Number=Sing	-
 decembre	décembre	NOUN|Gender=Masc|Number=Sing	-
+decidé	décider	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 deck	deck	NOUN|Gender=Masc|Number=Sing	-
 decks	deck	NOUN|Gender=Masc|Number=Plur	-
 decouvert	découvrir	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
@@ -31323,6 +31353,8 @@ designés	designer	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
 desir	désir	NOUN|Gender=Masc|Number=Sing	-
 desole	désoler	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	other
 desole	désolé	ADJ|Gender=Masc|Number=Sing	-
+desolé	désoler	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	other
+desolé	désolé	ADJ|Gender=Masc|Number=Sing	-
 despote	despote	NOUN|Gender=Fem|Number=Sing	-
 despote	despote	NOUN|Gender=Masc|Number=Sing	-
 despotes	despote	NOUN|Gender=Fem|Number=Plur	-
@@ -37374,6 +37406,7 @@ dégarni	dégarni	ADJ|Gender=Masc|Number=Sing	-
 dégarnie	dégarni	ADJ|Gender=Fem|Number=Sing	-
 dégarnies	dégarni	ADJ|Gender=Fem|Number=Plur	-
 dégarnis	dégarni	ADJ|Gender=Masc|Number=Plur	-
+dégats	dégât	NOUN|Gender=Masc|Number=Plur	-
 dégazage	dégazage	NOUN|Gender=Masc|Number=Sing	-
 dégazages	dégazage	NOUN|Gender=Masc|Number=Plur	-
 dégel	dégel	NOUN|Gender=Masc|Number=Sing	-
@@ -39359,6 +39392,7 @@ déposé	déposer	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 déposée	déposer	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
 déposées	déposer	VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part	-
 déposés	déposer	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
+dépot	dépôt	NOUN|Gender=Masc|Number=Sing	-
 dépotoir	dépotoir	NOUN|Gender=Masc|Number=Sing	-
 dépotoirs	dépotoir	NOUN|Gender=Masc|Number=Plur	-
 dépouilla	dépouiller	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
@@ -41807,6 +41841,7 @@ efféminé	efféminé	ADJ|Gender=Masc|Number=Sing	-
 efféminée	efféminé	ADJ|Gender=Fem|Number=Sing	-
 efféminées	efféminé	ADJ|Gender=Fem|Number=Plur	-
 efféminés	efféminé	ADJ|Gender=Masc|Number=Plur	-
+egalité	égalité	NOUN|Gender=Fem|Number=Sing	-
 eglise	église	NOUN|Gender=Fem|Number=Sing	-
 eglises	église	NOUN|Gender=Fem|Number=Plur	-
 egos	ego	NOUN|Number=Plur	-
@@ -41816,6 +41851,7 @@ eldorados	eldorado	NOUN|Gender=Masc|Number=Plur	-
 electeurs	électeur	NOUN|Gender=Masc|Number=Plur	-
 electricien	électricien	NOUN|Gender=Masc|Number=Sing	-
 electricite	électricité	NOUN|Gender=Fem|Number=Sing	-
+electricité	électricité	NOUN|Gender=Fem|Number=Sing	-
 electrique	électrique	ADJ|Number=Sing	-
 electriques	électrique	ADJ|Number=Plur	-
 electro	électro	NOUN|Gender=Fem|Number=Sing	-
@@ -41826,6 +41862,8 @@ eleve	élever	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	other
 eleve	élevé	ADJ|Gender=Masc|Number=Sing	-
 eleves	élever	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
 eleves	élever	VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
+elevé	élever	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	other
+elevé	élevé	ADJ|Gender=Masc|Number=Sing	-
 elfe	elfe	NOUN|Gender=Masc|Number=Sing	-
 elfes	elfe	NOUN|Gender=Masc|Number=Plur	-
 elfique	elfique	ADJ|Number=Sing	-
@@ -41851,6 +41889,14 @@ elu	élire	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 elus	élire	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
 elus	élire	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Past|VerbForm=Fin	-
 elus	élire	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Past|VerbForm=Fin	-
+elève	élever	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
+elève	élever	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+elève	élever	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+elève	élever	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+elève	élever	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+elèves	élever	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
+elèves	élever	VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
+eléments	élément	NOUN|Gender=Masc|Number=Plur	-
 email	email	NOUN|Gender=Masc|Number=Sing	-
 emails	email	NOUN|Gender=Masc|Number=Plur	-
 emballa	emballer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
@@ -45659,6 +45705,7 @@ epouse	époux	NOUN|Gender=Fem|Number=Sing	other
 epreuve	épreuve	NOUN|Gender=Fem|Number=Sing	-
 epreuves	épreuve	NOUN|Gender=Fem|Number=Plur	-
 epsilon	epsilon	NOUN|Gender=Masc|Number=Sing	-
+epée	épée	NOUN|Gender=Fem|Number=Sing	-
 equilibre	équilibre	NOUN|Gender=Masc|Number=Sing	-
 equilibre	équilibrer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	other
 equilibre	équilibrer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
@@ -46025,6 +46072,12 @@ espérance	espérance	NOUN|Gender=Fem|Number=Sing	-
 espérances	espérance	NOUN|Gender=Fem|Number=Plur	-
 espérant	espérer	VERB|Tense=Pres|VerbForm=Part	-
 espéranto	espéranto	NOUN|Gender=Masc|Number=Sing	-
+espére	espérer	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
+espére	espérer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
+espére	espérer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+espére	espérer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+espére	espérer	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+espére	espérer	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 espérer	espérer	VERB|VerbForm=Inf	-
 espérera	espérer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Fut|VerbForm=Fin	-
 espérerais	espérer	VERB|Mood=Cnd|Number=Sing|Person=1|VerbForm=Fin	-
@@ -46440,6 +46493,8 @@ etranger	étranger	ADJ|Gender=Masc|Number=Sing	-
 etranger	étranger	NOUN|Gender=Masc|Number=Sing	-
 etrangers	étranger	ADJ|Gender=Masc|Number=Plur	-
 etrangers	étranger	NOUN|Gender=Masc|Number=Plur	-
+etrangères	étranger	ADJ|Gender=Fem|Number=Plur	-
+etrangères	étranger	NOUN|Gender=Fem|Number=Plur	-
 etres	être	NOUN|Gender=Masc|Number=Plur	-
 etude	étude	NOUN|Gender=Fem|Number=Sing	-
 etudes	étude	NOUN|Gender=Fem|Number=Plur	-
@@ -46457,6 +46512,7 @@ etudie	étudier	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 etudie	étudier	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
 etudie	étudier	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 etudier	étudier	VERB|VerbForm=Inf	-
+eté	être	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 eu	avoir	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 eucalyptus	eucalyptus	NOUN|Gender=Masc|Number=Plur	-
 eucalyptus	eucalyptus	NOUN|Gender=Masc|Number=Sing	-
@@ -46545,6 +46601,9 @@ evite	éviter	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 eviter	éviter	VERB|VerbForm=Inf	-
 evitez	éviter	VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin	-
 evitez	éviter	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin	-
+evénement	événement	NOUN|Gender=Masc|Number=Sing	-
+evêque	évêque	NOUN|Gender=Fem|Number=Sing	-
+evêque	évêque	NOUN|Gender=Masc|Number=Sing	-
 ex	ex	NOUN|Gender=Fem|Number=Plur	-
 ex	ex	NOUN|Gender=Fem|Number=Sing	-
 ex	ex	NOUN|Gender=Masc|Number=Plur	-
@@ -48066,6 +48125,8 @@ extrayons	extraire	VERB|Mood=Imp|Number=Plur|Person=1|VerbForm=Fin	-
 extrayons	extraire	VERB|Mood=Ind|Number=Plur|Person=1|Tense=Pres|VerbForm=Fin	-
 extrusion	extrusion	NOUN|Gender=Fem|Number=Sing	-
 extrusions	extrusion	NOUN|Gender=Fem|Number=Plur	-
+extrème	extrême	ADJ|Number=Sing	-
+extrème	extrême	NOUN|Gender=Masc|Number=Sing	-
 extrémisme	extrémisme	NOUN|Gender=Masc|Number=Sing	-
 extrémiste	extrémiste	ADJ|Number=Sing	-
 extrémiste	extrémiste	NOUN|Gender=Fem|Number=Sing	-
@@ -48239,6 +48300,8 @@ fachos	facho	ADJ|Number=Plur	-
 fachos	facho	NOUN|Gender=Fem|Number=Plur	-
 fachos	facho	NOUN|Gender=Masc|Number=Plur	-
 fachosphère	fachosphère	NOUN|Gender=Fem|Number=Sing	-
+faché	fâcher	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	other
+faché	fâché	ADJ|Gender=Masc|Number=Sing	-
 facial	facial	ADJ|Gender=Masc|Number=Sing	-
 faciale	facial	ADJ|Gender=Fem|Number=Sing	-
 faciales	facial	ADJ|Gender=Fem|Number=Plur	-
@@ -52744,6 +52807,7 @@ fréquenté	fréquenter	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 fréquentée	fréquenter	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
 fréquentées	fréquenter	VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part	-
 fréquentés	fréquenter	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
+frére	frère	NOUN|Gender=Masc|Number=Sing	-
 frérot	frérot	NOUN|Gender=Masc|Number=Sing	-
 frérots	frérot	NOUN|Gender=Masc|Number=Plur	-
 frêle	frêle	ADJ|Number=Sing	-
@@ -55286,8 +55350,10 @@ grand	grand	ADJ|Gender=Masc|Number=Sing	-
 grand	grand	NOUN|Gender=Masc|Number=Sing	-
 grand-duc	grand-duc	NOUN|Gender=Masc|Number=Sing	-
 grand-duché	grand-duché	NOUN|Gender=Masc|Number=Sing	-
+grand-mere	grand-mère	NOUN|Gender=Fem|Number=Sing	-
 grand-mère	grand-mère	NOUN|Gender=Fem|Number=Sing	-
 grand-mères	grand-mère	NOUN|Gender=Fem|Number=Plur	-
+grand-pere	grand-père	NOUN|Gender=Masc|Number=Sing	-
 grand-père	grand-père	NOUN|Gender=Masc|Number=Sing	-
 grand-tante	grand-tante	NOUN|Gender=Fem|Number=Sing	-
 grand-tantes	grand-tante	NOUN|Gender=Fem|Number=Plur	-
@@ -56604,6 +56670,8 @@ gémissons	gémir	VERB|Mood=Ind|Number=Plur|Person=1|Tense=Pres|VerbForm=Fin	-
 gémit	gémir	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 gémit	gémir	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 gémonies	gémonies	NOUN|Gender=Fem|Number=Plur	-
+génant	gênant	ADJ|Gender=Masc|Number=Sing	-
+génant	gêner	VERB|Tense=Pres|VerbForm=Part	other
 génial	génial	ADJ|Gender=Masc|Number=Sing	-
 géniale	génial	ADJ|Gender=Fem|Number=Sing	-
 géniales	génial	ADJ|Gender=Fem|Number=Plur	-
@@ -56657,6 +56725,8 @@ génèrerait	générer	VERB|Mood=Cnd|Number=Sing|Person=3|VerbForm=Fin	-
 génèreront	générer	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Fut|VerbForm=Fin	-
 génères	générer	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
 génères	générer	VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
+géné	gêner	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	other
+géné	gêné	ADJ|Gender=Masc|Number=Sing	-
 généalogie	généalogie	NOUN|Gender=Fem|Number=Sing	-
 généalogies	généalogie	NOUN|Gender=Fem|Number=Plur	-
 généalogique	généalogique	ADJ|Number=Sing	-
@@ -63400,6 +63470,7 @@ interesse	intéresser	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin
 interesse	intéresser	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
 interesse	intéresser	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 interesser	intéresser	VERB|VerbForm=Inf	-
+interessé	intéresser	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 interet	intérêt	NOUN|Gender=Masc|Number=Sing	-
 interets	intérêt	NOUN|Gender=Masc|Number=Plur	-
 interface	interface	NOUN|Gender=Fem|Number=Sing	-
@@ -63841,6 +63912,7 @@ interviewés	interviewer	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
 intervinrent	intervenir	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Past|VerbForm=Fin	-
 intervint	intervenir	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 intervînt	intervenir	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin	-
+interêt	intérêt	NOUN|Gender=Masc|Number=Sing	-
 intestin	intestin	ADJ|Gender=Masc|Number=Sing	-
 intestin	intestin	NOUN|Gender=Masc|Number=Sing	-
 intestinal	intestinal	ADJ|Gender=Masc|Number=Sing	-
@@ -64168,6 +64240,7 @@ intéressé	intéresser	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 intéressée	intéresser	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
 intéressées	intéresser	VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part	-
 intéressés	intéresser	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
+intéret	intérêt	NOUN|Gender=Masc|Number=Sing	-
 intérieur	intérieur	ADJ|Gender=Masc|Number=Sing	-
 intérieur	intérieur	NOUN|Gender=Masc|Number=Sing	-
 intérieure	intérieur	ADJ|Gender=Fem|Number=Sing	-
@@ -66300,6 +66373,7 @@ lacher	lâcher	NOUN|Gender=Masc|Number=Sing	-
 lacher	lâcher	VERB|VerbForm=Inf	-
 lachez	lâcher	VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin	-
 lachez	lâcher	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin	-
+laché	lâcher	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 laconique	laconique	ADJ|Number=Sing	-
 laconiques	laconique	ADJ|Number=Plur	-
 lacrosse	lacrosse	NOUN|Gender=Masc|Number=Sing	-
@@ -75075,6 +75149,7 @@ mélopées	mélopée	NOUN|Gender=Fem|Number=Plur	-
 mélos	mélo	NOUN|Gender=Masc|Number=Plur	-
 mélèze	mélèze	NOUN|Gender=Masc|Number=Sing	-
 mélèzes	mélèze	NOUN|Gender=Masc|Number=Plur	-
+méme	même	ADJ|Number=Sing	-
 mémento	mémento	NOUN|Gender=Masc|Number=Sing	-
 mémentos	mémento	NOUN|Gender=Masc|Number=Plur	-
 mémo	mémo	NOUN|Gender=Masc|Number=Sing	-
@@ -75230,6 +75305,7 @@ méprisée	mépriser	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
 méprisées	mépriser	VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part	-
 méprisés	mépriser	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
 méprit	méprendre	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
+mére	mère	NOUN|Gender=Fem|Number=Sing	-
 méridien	méridien	ADJ|Gender=Masc|Number=Sing	-
 méridien	méridien	NOUN|Gender=Masc|Number=Sing	-
 méridienne	méridien	ADJ|Gender=Fem|Number=Sing	other
@@ -86599,6 +86675,8 @@ première	premier	ADJ|Gender=Fem|Number=Sing	-
 première	premier	NOUN|Gender=Fem|Number=Sing	-
 premières	premier	ADJ|Gender=Fem|Number=Plur	-
 premières	premier	NOUN|Gender=Fem|Number=Plur	-
+premiére	premier	ADJ|Gender=Fem|Number=Sing	-
+premiére	premier	NOUN|Gender=Fem|Number=Sing	-
 prenable	prenable	ADJ|Number=Sing	-
 prenables	prenable	ADJ|Number=Plur	-
 prenaient	prendre	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Imp|VerbForm=Fin	-
@@ -87144,6 +87222,7 @@ problématique	problématique	ADJ|Number=Sing	-
 problématique	problématique	NOUN|Gender=Fem|Number=Sing	-
 problématiques	problématique	ADJ|Number=Plur	-
 problématiques	problématique	NOUN|Gender=Fem|Number=Plur	-
+probléme	problème	NOUN|Gender=Masc|Number=Sing	-
 problêmes	problême	NOUN|Gender=Masc|Number=Plur	-
 proces	procès	NOUN|Gender=Masc|Number=Plur	-
 proces	procès	NOUN|Gender=Masc|Number=Sing	-
@@ -88962,6 +89041,12 @@ préférais	préférer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Imp|VerbForm=Fin
 préférais	préférer	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Imp|VerbForm=Fin	-
 préférait	préférer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin	-
 préférant	préférer	VERB|Tense=Pres|VerbForm=Part	-
+préfére	préférer	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
+préfére	préférer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
+préfére	préférer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+préfére	préférer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+préfére	préférer	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+préfére	préférer	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 préférence	préférence	NOUN|Gender=Fem|Number=Sing	-
 préférences	préférence	NOUN|Gender=Fem|Number=Plur	other
 préférences	préférences	NOUN|Gender=Fem|Number=Plur	-
@@ -90637,6 +90722,7 @@ péquiste	péquiste	NOUN|Gender=Masc|Number=Sing	-
 péquistes	péquiste	ADJ|Number=Plur	-
 péquistes	péquiste	NOUN|Gender=Fem|Number=Plur	-
 péquistes	péquiste	NOUN|Gender=Masc|Number=Plur	-
+pére	père	NOUN|Gender=Masc|Number=Sing	-
 péremption	péremption	NOUN|Gender=Fem|Number=Sing	-
 péremptoire	péremptoire	ADJ|Number=Sing	-
 péremptoires	péremptoire	ADJ|Number=Plur	-
@@ -93400,6 +93486,7 @@ raïs	raïs	NOUN|Gender=Masc|Number=Plur	-
 raïs	raïs	NOUN|Gender=Masc|Number=Sing	-
 realiser	réaliser	VERB|VerbForm=Inf	-
 realite	réalité	NOUN|Gender=Fem|Number=Sing	-
+realité	réalité	NOUN|Gender=Fem|Number=Sing	-
 realpolitik	realpolitik	NOUN|Gender=Fem|Number=Sing	-
 rebaptisa	rebaptiser	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 rebaptisant	rebaptiser	VERB|Tense=Pres|VerbForm=Part	-
@@ -98041,6 +98128,7 @@ rescrit	rescrit	NOUN|Gender=Masc|Number=Sing	-
 rescrits	rescrit	NOUN|Gender=Masc|Number=Plur	-
 reseau	réseau	NOUN|Gender=Masc|Number=Sing	-
 reseaux	réseau	NOUN|Gender=Masc|Number=Plur	-
+reservé	réserver	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 resituant	resituer	VERB|Tense=Pres|VerbForm=Part	-
 resitue	resituer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
 resitue	resituer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
@@ -101690,6 +101778,7 @@ récréative	récréatif	ADJ|Gender=Fem|Number=Sing	-
 récréatives	récréatif	ADJ|Gender=Fem|Number=Plur	-
 récrés	récré	NOUN|Gender=Fem|Number=Plur	-
 récup	récup	NOUN|Gender=Fem|Number=Sing	-
+récuperer	récupérer	VERB|VerbForm=Inf	-
 récupère	récupérer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
 récupère	récupérer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
 récupère	récupérer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
@@ -102267,6 +102356,12 @@ réglais	régler	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Imp|VerbForm=Fin	-
 réglais	régler	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Imp|VerbForm=Fin	-
 réglait	régler	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin	-
 réglant	régler	VERB|Tense=Pres|VerbForm=Part	-
+régle	règle	NOUN|Gender=Fem|Number=Sing	-
+régle	régler	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	other
+régle	régler	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
+régle	régler	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	other
+régle	régler	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	other
+régle	régler	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	other
 réglementa	réglementer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 réglementaire	réglementaire	ADJ|Number=Sing	-
 réglementaires	réglementaire	ADJ|Number=Plur	-
@@ -102297,6 +102392,9 @@ réglerait	régler	VERB|Mood=Cnd|Number=Sing|Person=3|VerbForm=Fin	-
 réglerez	régler	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Fut|VerbForm=Fin	-
 réglerons	régler	VERB|Mood=Ind|Number=Plur|Person=1|Tense=Fut|VerbForm=Fin	-
 régleront	régler	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Fut|VerbForm=Fin	-
+régles	règle	NOUN|Gender=Fem|Number=Plur	-
+régles	régler	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	other
+régles	régler	VERB|Mood=Sub|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	other
 réglez	régler	VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin	-
 réglez	régler	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin	-
 régliez	régler	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Imp|VerbForm=Fin	-
@@ -106158,6 +106256,7 @@ sectorielles	sectoriel	ADJ|Gender=Fem|Number=Plur	-
 sectoriels	sectoriel	ADJ|Gender=Masc|Number=Plur	-
 secu	sécu	NOUN|Gender=Fem|Number=Sing	-
 securite	sécurité	NOUN|Gender=Fem|Number=Sing	-
+securité	sécurité	NOUN|Gender=Fem|Number=Sing	-
 segment	segment	NOUN|Gender=Masc|Number=Sing	-
 segmentant	segmenter	VERB|Tense=Pres|VerbForm=Part	-
 segmentation	segmentation	NOUN|Gender=Fem|Number=Sing	-
@@ -107604,6 +107703,7 @@ sociaux-démocrates	social-démocrate	ADJ|Gender=Masc|Number=Plur	-
 sociaux-démocrates	social-démocrate	NOUN|Gender=Masc|Number=Plur	-
 societe	société	NOUN|Gender=Fem|Number=Sing	-
 societes	société	NOUN|Gender=Fem|Number=Plur	-
+societé	société	NOUN|Gender=Fem|Number=Sing	-
 socio	socio	NOUN|Gender=Masc|Number=Sing	-
 socio-économique	socio-économique	ADJ|Number=Sing	-
 socio-économiques	socio-économique	ADJ|Number=Plur	-
@@ -112388,6 +112488,7 @@ systématisé	systématiser	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Par
 systématisée	systématiser	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
 systématisées	systématiser	VERB|Gender=Fem|Number=Plur|Tense=Past|VerbForm=Part	-
 systématisés	systématiser	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
+systéme	système	NOUN|Gender=Masc|Number=Sing	-
 systémique	systémique	ADJ|Number=Sing	-
 systémiques	systémique	ADJ|Number=Plur	-
 sèche	sec	ADJ|Gender=Fem|Number=Sing	-
@@ -114566,6 +114667,7 @@ thèmes	thème	NOUN|Gender=Masc|Number=Plur	-
 thèse	thèse	NOUN|Gender=Fem|Number=Sing	-
 thèses	thèse	NOUN|Gender=Fem|Number=Plur	-
 thé	thé	NOUN|Gender=Masc|Number=Sing	-
+théatre	théâtre	NOUN|Gender=Masc|Number=Sing	-
 thébaïde	thébaïde	NOUN|Gender=Fem|Number=Sing	-
 théisme	théisme	NOUN|Gender=Masc|Number=Sing	-
 théière	théière	NOUN|Gender=Fem|Number=Sing	-
@@ -117729,6 +117831,7 @@ trusts	trust	NOUN|Gender=Masc|Number=Plur	-
 tryptophane	tryptophane	NOUN|Gender=Masc|Number=Sing	-
 trèfle	trèfle	NOUN|Gender=Masc|Number=Sing	-
 trèfles	trèfle	NOUN|Gender=Masc|Number=Plur	-
+trève	trêve	NOUN|Gender=Fem|Number=Sing	-
 trébucha	trébucher	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 trébuchait	trébucher	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin	-
 trébuchant	trébuchant	ADJ|Gender=Masc|Number=Sing	-
@@ -119232,6 +119335,8 @@ valus	valoir	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Past|VerbForm=Fin	-
 valut	valoir	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Past|VerbForm=Fin	-
 valve	valve	NOUN|Gender=Fem|Number=Sing	-
 valves	valve	NOUN|Gender=Fem|Number=Plur	-
+valvulaire	valvulaire	ADJ|Number=Sing	-
+valvulaires	valvulaire	ADJ|Number=Plur	-
 valériane	valériane	NOUN|Gender=Fem|Number=Sing	-
 vamp	vamp	NOUN|Gender=Fem|Number=Sing	-
 vampire	vampire	NOUN|Gender=Masc|Number=Sing	-
@@ -119911,6 +120016,7 @@ vergées	vergé	ADJ|Gender=Fem|Number=Plur	-
 vergés	vergé	ADJ|Gender=Masc|Number=Plur	-
 verifier	vérifier	VERB|VerbForm=Inf	-
 verite	vérité	NOUN|Gender=Fem|Number=Sing	-
+verité	vérité	NOUN|Gender=Fem|Number=Sing	-
 verlan	verlan	NOUN|Gender=Masc|Number=Sing	-
 vermeil	vermeil	ADJ|Gender=Masc|Number=Sing	-
 vermeil	vermeil	NOUN|Gender=Masc|Number=Sing	-
@@ -120098,6 +120204,8 @@ vertébral	vertébral	ADJ|Gender=Masc|Number=Sing	-
 vertébrale	vertébral	ADJ|Gender=Fem|Number=Sing	-
 vertébrales	vertébral	ADJ|Gender=Fem|Number=Plur	-
 vertébraux	vertébral	ADJ|Gender=Masc|Number=Plur	-
+vertébré	vertébré	NOUN|Gender=Masc|Number=Sing	-
+vertébrés	vertébré	NOUN|Gender=Masc|Number=Plur	-
 verve	verve	NOUN|Gender=Fem|Number=Sing	-
 verveine	verveine	NOUN|Gender=Fem|Number=Sing	-
 verveines	verveine	NOUN|Gender=Fem|Number=Plur	-
@@ -121668,6 +121776,7 @@ végétaliennes	végétalien	ADJ|Gender=Fem|Number=Plur	-
 végétaliens	végétalien	ADJ|Gender=Masc|Number=Plur	-
 végétaliens	végétalien	NOUN|Gender=Masc|Number=Plur	-
 végétalisation	végétalisation	NOUN|Gender=Fem|Number=Sing	-
+végétalisme	végétalisme	NOUN|Gender=Masc|Number=Sing	-
 végétant	végéter	VERB|Tense=Pres|VerbForm=Part	-
 végétarien	végétarien	ADJ|Gender=Masc|Number=Sing	-
 végétarien	végétarien	NOUN|Gender=Masc|Number=Sing	-
@@ -121988,6 +122097,7 @@ yen	yen	NOUN|Gender=Masc|Number=Sing	-
 yens	yen	NOUN|Gender=Masc|Number=Plur	-
 yers	yer	NOUN|Gender=Masc|Number=Plur	-
 yeshiva	yeshiva	NOUN|Gender=Fem|Number=Sing	-
+yeule	yeule	NOUN|Gender=Fem|Number=Sing	-
 yeux	œil	NOUN|Gender=Masc|Number=Plur	-
 yiddish	yiddish	ADJ|Number=Sing	-
 yin	yin	NOUN|Gender=Masc|Number=Sing	-
@@ -122250,6 +122360,8 @@ zététique	zététique	ADJ|Number=Sing	-
 ça	ça	NOUN|Gender=Masc|Number=Sing	-
 ère	ère	NOUN|Gender=Fem|Number=Sing	-
 ères	ère	NOUN|Gender=Fem|Number=Plur	-
+ètre	être	NOUN|Gender=Masc|Number=Sing	-
+ètre	être	VERB|VerbForm=Inf	-
 ébahi	ébahi	ADJ|Gender=Masc|Number=Sing	-
 ébahie	ébahi	ADJ|Gender=Fem|Number=Sing	-
 ébahies	ébahi	ADJ|Gender=Fem|Number=Plur	-
@@ -122821,9 +122933,21 @@ zététique	zététique	ADJ|Number=Sing	-
 écluses	écluse	NOUN|Gender=Fem|Number=Plur	-
 éclôt	éclore	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 écoeurant	écœurant	ADJ|Gender=Masc|Number=Sing	-
+écoeurant	écœurer	VERB|Tense=Pres|VerbForm=Part	other
 écoeurante	écœurant	ADJ|Gender=Fem|Number=Sing	-
 écoeurantes	écœurant	ADJ|Gender=Fem|Number=Plur	-
 écoeurants	écœurant	ADJ|Gender=Masc|Number=Plur	-
+écoeure	écœurer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
+écoeure	écœurer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+écoeure	écœurer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+écoeure	écœurer	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+écoeure	écœurer	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+écoeurent	écœurer	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
+écoeurent	écœurer	VERB|Mood=Sub|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
+écoeurer	écœurer	VERB|VerbForm=Inf	other
+écoeuré	écœurer	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
+écoeurée	écœurer	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
+écoeurés	écœurer	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
 école	école	NOUN|Gender=Fem|Number=Sing	-
 écoles	école	NOUN|Gender=Fem|Number=Plur	-
 écolier	écolier	NOUN|Gender=Masc|Number=Sing	-
@@ -123212,12 +123336,26 @@ zététique	zététique	ADJ|Number=Sing	-
 écuyère	écuyer	NOUN|Gender=Fem|Number=Sing	-
 écœurant	écœurant	ADJ|Gender=Masc|Number=Sing	-
 écœurant	écœurant	NOUN|Gender=Masc|Number=Sing	-
+écœurant	écœurer	VERB|Tense=Pres|VerbForm=Part	other
 écœurante	écœurant	ADJ|Gender=Fem|Number=Sing	-
 écœurante	écœurant	NOUN|Gender=Fem|Number=Sing	-
 écœurantes	écœurant	ADJ|Gender=Fem|Number=Plur	-
 écœurants	écœurant	ADJ|Gender=Masc|Number=Plur	-
 écœurants	écœurant	NOUN|Gender=Masc|Number=Plur	-
+écœure	écœurer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
+écœure	écœurer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+écœure	écœurer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+écœure	écœurer	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+écœure	écœurer	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 écœurement	écœurement	NOUN|Gender=Masc|Number=Sing	-
+écœurent	écœurer	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
+écœurent	écœurer	VERB|Mood=Sub|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
+écœurer	écœurer	VERB|VerbForm=Inf	-
+écœurez	écœurer	VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin	-
+écœurez	écœurer	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin	-
+écœuré	écœurer	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
+écœurée	écœurer	VERB|Gender=Fem|Number=Sing|Tense=Past|VerbForm=Part	-
+écœurés	écœurer	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	-
 éden	éden	NOUN|Gender=Masc|Number=Sing	-
 édenté	édenté	ADJ|Gender=Masc|Number=Sing	-
 édentée	édenté	ADJ|Gender=Fem|Number=Sing	-
@@ -124482,7 +124620,9 @@ zététique	zététique	ADJ|Number=Sing	-
 épaissis	épaissir	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Past|VerbForm=Fin	-
 épaissis	épaissir	VERB|Mood=Ind|Number=Sing|Person=2|Tense=Pres|VerbForm=Fin	-
 épaississait	épaissir	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin	-
-épaississant	épaissir	VERB|Tense=Pres|VerbForm=Part	-
+épaississant	épaissir	VERB|Tense=Pres|VerbForm=Part	other
+épaississant	épaississant	ADJ|Gender=Masc|Number=Sing	-
+épaississants	épaississant	ADJ|Gender=Masc|Number=Plur	-
 épaississe	épaissir	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Imp|VerbForm=Fin	-
 épaississe	épaissir	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
 épaississe	épaissir	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
@@ -124720,6 +124860,8 @@ zététique	zététique	ADJ|Number=Sing	-
 épicuriens	épicurien	ADJ|Gender=Masc|Number=Plur	-
 épicuriens	épicurien	NOUN|Gender=Masc|Number=Plur	-
 épicurisme	épicurisme	NOUN|Gender=Masc|Number=Sing	-
+épicène	épicène	ADJ|Number=Sing	-
+épicènes	épicène	ADJ|Number=Plur	-
 épicé	épicé	ADJ|Gender=Masc|Number=Sing	-
 épicéa	épicéa	NOUN|Gender=Masc|Number=Sing	-
 épicéas	épicéa	NOUN|Gender=Masc|Number=Plur	-
@@ -125283,9 +125425,19 @@ zététique	zététique	ADJ|Number=Sing	-
 érythrée	érythrée	ADJ|Number=Sing	-
 érythème	érythème	NOUN|Gender=Masc|Number=Sing	-
 érythèmes	érythème	NOUN|Gender=Masc|Number=Plur	-
+érythémateuse	érythémateux	ADJ|Gender=Fem|Number=Sing	-
+érythémateuses	érythémateux	ADJ|Gender=Fem|Number=Plur	-
+érythémateux	érythémateux	ADJ|Gender=Masc|Number=Plur	-
+érythémateux	érythémateux	ADJ|Gender=Masc|Number=Sing	-
 ésotérique	ésotérique	ADJ|Number=Sing	-
 ésotériques	ésotérique	ADJ|Number=Plur	-
 ésotérisme	ésotérisme	NOUN|Gender=Masc|Number=Sing	-
+éspère	espérer	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
+éspère	espérer	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
+éspère	espérer	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+éspère	espérer	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+éspère	espérer	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+éspère	espérer	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
 étable	étable	NOUN|Gender=Fem|Number=Sing	-
 étables	étable	NOUN|Gender=Fem|Number=Plur	-
 établi	établir	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
@@ -125554,6 +125706,7 @@ zététique	zététique	ADJ|Number=Sing	-
 éternuez	éternuer	VERB|Mood=Imp|Number=Plur|Person=2|VerbForm=Fin	-
 éternuez	éternuer	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin	-
 éternué	éternuer	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
+étes	être	VERB|Mood=Ind|Number=Plur|Person=2|Tense=Pres|VerbForm=Fin	-
 éthane	éthane	NOUN|Gender=Masc|Number=Sing	-
 éthanol	éthanol	NOUN|Gender=Masc|Number=Sing	-
 éther	éther	NOUN|Gender=Masc|Number=Sing	-
@@ -125813,6 +125966,8 @@ zététique	zététique	ADJ|Number=Sing	-
 étrangères	étranger	NOUN|Gender=Fem|Number=Plur	-
 étrave	étrave	NOUN|Gender=Fem|Number=Sing	-
 étraves	étrave	NOUN|Gender=Fem|Number=Plur	-
+étre	être	NOUN|Gender=Masc|Number=Sing	-
+étre	être	VERB|VerbForm=Inf	-
 étreignaient	étreindre	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Imp|VerbForm=Fin	-
 étreignait	étreindre	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Imp|VerbForm=Fin	-
 étreignant	étreindre	VERB|Tense=Pres|VerbForm=Part	-
@@ -125835,6 +125990,15 @@ zététique	zététique	ADJ|Number=Sing	-
 étriers	étrier	NOUN|Gender=Masc|Number=Plur	-
 étrille	étrille	NOUN|Gender=Fem|Number=Sing	-
 étrilles	étrille	NOUN|Gender=Fem|Number=Plur	-
+étripe	étriper	VERB|Mood=Imp|Number=Sing|Person=2|VerbForm=Fin	-
+étripe	étriper	VERB|Mood=Ind|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+étripe	étriper	VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+étripe	étriper	VERB|Mood=Sub|Number=Sing|Person=1|Tense=Pres|VerbForm=Fin	-
+étripe	étriper	VERB|Mood=Sub|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin	-
+étripent	étriper	VERB|Mood=Ind|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
+étripent	étriper	VERB|Mood=Sub|Number=Plur|Person=3|Tense=Pres|VerbForm=Fin	-
+étriper	étriper	VERB|VerbForm=Inf	-
+étripé	étriper	VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part	-
 étroit	étroit	ADJ|Gender=Masc|Number=Sing	-
 étroite	étroit	ADJ|Gender=Fem|Number=Sing	-
 étroites	étroit	ADJ|Gender=Fem|Number=Plur	-
@@ -126099,6 +126263,7 @@ zététique	zététique	ADJ|Number=Sing	-
 éveillés	éveiller	VERB|Gender=Masc|Number=Plur|Tense=Past|VerbForm=Part	other
 éveillés	éveillé	ADJ|Gender=Masc|Number=Plur	-
 éveils	éveil	NOUN|Gender=Masc|Number=Plur	-
+évenement	événement	NOUN|Gender=Masc|Number=Sing	-
 évent	évent	NOUN|Gender=Masc|Number=Sing	-
 éventail	éventail	NOUN|Gender=Masc|Number=Sing	-
 éventails	éventail	NOUN|Gender=Masc|Number=Plur	-

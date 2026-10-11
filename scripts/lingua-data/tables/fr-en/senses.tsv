@@ -253,6 +253,7 @@ accumuler	VERB:1
 accusateur	ADJ:1	NOUN:1
 accusatif	NOUN:1
 accusation	NOUN:1
+accusatoire	ADJ:1
 accuser	VERB:4
 accès	NOUN:2
 accédant	NOUN:1
@@ -285,6 +286,7 @@ achoppement	NOUN:1
 achour	NOUN:2	PROPN:1
 achoura	PROPN:1
 achèvement	NOUN:1
+achéron	PROPN:2
 acide	ADJ:2	NOUN:2
 acidification	NOUN:1
 acidité	NOUN:1
@@ -339,6 +341,7 @@ actuaire	NOUN:1
 actualisation	NOUN:2
 actualiser	VERB:2
 actualité	NOUN:3
+actuariat	NOUN:3
 actuel	ADJ:1
 actuellement	ADV:2
 actée	NOUN:1
@@ -485,6 +488,7 @@ affectivement	ADV:2
 affectivité	NOUN:1
 affectueusement	ADV:1
 affectueux	ADJ:1
+affermage	NOUN:3
 affermir	VERB:4
 affichage	NOUN:2
 afficher	VERB:5
@@ -554,6 +558,7 @@ agencé	ADJ:2
 agenda	NOUN:1
 agenouiller	VERB:1
 agent	NOUN:1
+aggiornamento	NOUN:1
 agglo	NOUN:1
 agglomération	NOUN:2
 aggloméré	NOUN:1
@@ -656,6 +661,7 @@ air	NOUN:4
 airain	NOUN:2
 airbag	NOUN:2
 aire	NOUN:6
+airelle	NOUN:1
 ais	NOUN:1
 aisance	NOUN:1
 aise	NOUN:3	ADJ:1
@@ -28403,6 +28409,7 @@ valoriser	VERB:1
 valse	NOUN:1
 valser	VERB:2
 valve	NOUN:1
+valvulaire	ADJ:1
 valère	PROPN:1
 valériane	NOUN:1
 valérie	PROPN:1
@@ -28630,6 +28637,7 @@ vertu	NOUN:1
 vertueux	ADJ:1
 vertèbre	NOUN:1
 vertébral	ADJ:1
+vertébré	NOUN:1
 verve	NOUN:2
 verveine	NOUN:2
 verville	PROPN:1
@@ -29020,6 +29028,7 @@ vrille	NOUN:5
 vrm	ADV:2
 vrombissement	NOUN:1
 vs	ADP:1
+vsl	PROPN:1
 vtt	NOUN:1
 vue	NOUN:4
 vuillermoz	PROPN:1
@@ -29043,6 +29052,7 @@ végé	NOUN:1	ADJ:1
 végétal	NOUN:1
 végétalien	ADJ:1	NOUN:1
 végétalisation	NOUN:1
+végétalisme	NOUN:1
 végétarien	ADJ:2	NOUN:1
 végétarisme	NOUN:1
 végétatif	ADJ:1
@@ -29223,6 +29233,7 @@ yen	NOUN:1
 yerres	PROPN:1
 yes	INTJ:1
 yeshiva	NOUN:1
+yeule	NOUN:1
 yiddish	ADJ:1	PROPN:1
 yin	NOUN:1
 yo	NOUN:1
@@ -29531,6 +29542,7 @@ zététique	ADJ:1
 écuyer	NOUN:2
 écœurant	ADJ:2	NOUN:1
 écœurement	NOUN:2
+écœurer	VERB:3
 éden	PROPN:1	NOUN:1
 édenté	ADJ:1
 édicter	VERB:1
@@ -29788,6 +29800,7 @@ zététique	ADJ:1
 épaisseur	NOUN:1
 épaissi	ADJ:1
 épaissir	VERB:1
+épaississant	ADJ:1
 épaississement	NOUN:1
 épanchement	NOUN:1
 épancher	VERB:7
@@ -29827,6 +29840,7 @@ zététique	ADJ:1
 épicure	PROPN:1
 épicurien	ADJ:1	NOUN:1
 épicurisme	NOUN:1
+épicène	ADJ:1
 épicé	ADJ:1
 épicéa	NOUN:1
 épiderme	NOUN:1
@@ -29952,6 +29966,7 @@ zététique	ADJ:1
 éruption	NOUN:2
 érythrée	PROPN:2
 érythème	NOUN:1
+érythémateux	ADJ:1
 ésaïe	PROPN:2
 ésope	PROPN:1
 ésotérique	ADJ:1
@@ -30052,6 +30067,7 @@ zététique	ADJ:1
 étrennes	NOUN:1
 étrier	NOUN:4
 étrille	NOUN:1
+étriper	VERB:2
 étroit	ADJ:1
 étroitement	ADV:1
 étroitesse	NOUN:1
