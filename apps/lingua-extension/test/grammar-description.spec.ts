@@ -677,3 +677,58 @@ describe("Every reader today", () => {
     );
   });
 });
+
+describe("the card's two blocks (enable-lingua-english-speakers D6)", () => {
+  const THIRD_SING: GrammarTag = {
+    pos: "VERB",
+    features: { Mood: "Ind", Number: "Sing", Person: "3", Tense: "Pres", VerbForm: "Fin" },
+  };
+  const PAST_TAG: GrammarTag = { pos: "VERB", features: { Mood: "Ind", Tense: "Past", VerbForm: "Fin" } };
+  const PLURAL_TAG: GrammarTag = { pos: "NOUN", features: { Number: "Plur" } };
+  const g = (over: Partial<WordGrammar>): WordGrammar => ({
+    gloss: null,
+    senses: [],
+    readings: [],
+    others: [],
+    pieces: [],
+    ...over,
+  });
+  const cases: [string, string, string, WordGrammar][] = [
+    ["leave", "leaves", "leaves", g({ readings: [THIRD_SING], others: [{ lemma: "leaf", readings: [PLURAL_TAG] }] })],
+    ["put", "put", "put", g({ readings: [PAST_TAG] })],
+    ["do", "does", "doesn't", g({ pieces: ["does", "not"], readings: [THIRD_SING] })],
+  ];
+  const renderers: [string, GrammarRenderer][] = [
+    ["fr", fr],
+    ["en", en],
+    ["es", es],
+  ];
+
+  for (const [name, renderer] of renderers) {
+    it(`${name}: the blocks, read in order, are the card's lines`, () => {
+      for (const [headword, surface, written, grammar] of cases) {
+        const { form, alternatives } = renderer.grammarBlocks(grammar, headword, surface, written, "en");
+        expect([...form, ...alternatives].map(lineText)).toEqual(
+          renderer.grammarLines(grammar, headword, surface, written, "en").map(lineText),
+        );
+      }
+    });
+  }
+
+  it("what the form is goes first; what it may also be, second", () => {
+    const blocks = (i: number) => {
+      const [headword, surface, written, grammar] = cases[i]!;
+      const { form, alternatives } = en.grammarBlocks(grammar, headword, surface, written, "en");
+      return { form: form.map(lineText), alternatives: alternatives.map(lineText) };
+    };
+    expect(blocks(0)).toEqual({
+      form: ["third-person singular simple present of leave"],
+      alternatives: ["may also be the plural of leaf"],
+    });
+    expect(blocks(1)).toEqual({ form: [], alternatives: ["may also be the simple past of put"] });
+    expect(blocks(2)).toEqual({
+      form: ["“doesn't” = does + not", "third-person singular simple present of do"],
+      alternatives: [],
+    });
+  });
+});

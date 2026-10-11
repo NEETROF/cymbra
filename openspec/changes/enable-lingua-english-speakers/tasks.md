@@ -18,6 +18,7 @@
 
 - [ ] 3.1 Chrome (macOS), Firefox (macOS), Firefox for Android, Safari (macOS), Safari (iOS): the pass of D3, on test accounts.
 - [x] 3.2 The owner's findings of 2026-10-11 on the native-language choice, fixed in `add-lingua-native-language-choice` (its tasks 5.1–5.3): no line naming the studied languages that follow, the note in the owner's wording, the side panel back on the reader's tab after the reload.
+- [x] 3.3 The owner's finding of 2026-10-11 on the word card (D6): what a form may also be shows under its meaning, what it is above it, for every language — `grammarBlocks` in the three grammar renderers, the card's `.grammar.also` block after the gloss; tests in `test/word-grammar.spec.ts`, `test/word-grammar-en.spec.ts` (« casa »), `test/grammar-description.spec.ts`.
 
 ## 4. Release (owner)
 

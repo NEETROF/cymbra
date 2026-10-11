@@ -1,5 +1,5 @@
 import type { GrammarTag, WordGrammar } from "../analyzer/types.ts";
-import type { GrammarLine, Named, StudiedLanguageCode } from "../i18n/index.ts";
+import type { GrammarBlocks, GrammarLine, Named, StudiedLanguageCode } from "../i18n/index.ts";
 
 // What a word card knows about a form, in no language (generalise-lingua-card-wording D1): the
 // readings as the engine's Universal Dependencies tags, merged and deduplicated by tag, the
@@ -538,30 +538,36 @@ export interface LineWords {
   piecesSeparator: string;
 }
 
-/**
- * The lines a card shows about a form, or none: the pieces of a split word; what the form is — or,
- * for a form spelled like its dictionary form, what it may also be; what else it may be, one line
- * per dictionary form.
- */
-export function composeLines(form: FormDescription, studied: StudiedLanguageCode, words: LineWords): GrammarLine[] {
-  const lines: GrammarLine[] = [];
+/** The lines of a card about a form, as its two blocks (see `GrammarBlocks`). */
+export function composeBlocks(form: FormDescription, studied: StudiedLanguageCode, words: LineWords): GrammarBlocks {
+  const blocks: GrammarBlocks = { form: [], alternatives: [] };
   if (form.pieces.length > 0) {
     const pieces: GrammarLine = [words.pieces(form.written)];
     form.pieces.forEach((piece, i) => {
       if (i > 0) pieces.push(words.piecesSeparator);
       pieces.push({ word: piece });
     });
-    lines.push(pieces);
+    blocks.form.push(pieces);
   }
   const own = words.names(form.own, studied);
   if (own.length > 0) {
-    lines.push([form.sameAsHeadword ? words.mayAlsoBe(own) : words.formOf(own), ...words.of(form.headword)]);
+    if (form.sameAsHeadword) blocks.alternatives.push([words.mayAlsoBe(own), ...words.of(form.headword)]);
+    else blocks.form.push([words.formOf(own), ...words.of(form.headword)]);
   }
   for (const other of form.others) {
     const named = words.names(other.readings, studied);
-    if (named.length > 0) lines.push([words.mayAlsoBe(named), ...words.of(other.lemma)]);
+    if (named.length > 0) blocks.alternatives.push([words.mayAlsoBe(named), ...words.of(other.lemma)]);
   }
-  return lines;
+  return blocks;
+}
+
+/**
+ * The lines a card shows about a form, or none, in one list: what the form is, then what it may
+ * also be — the two blocks of `composeBlocks`, in that order.
+ */
+export function composeLines(form: FormDescription, studied: StudiedLanguageCode, words: LineWords): GrammarLine[] {
+  const { form: lines, alternatives } = composeBlocks(form, studied, words);
+  return [...lines, ...alternatives];
 }
 
 /** A line as plain text — what a test or an accessibility label reads. */

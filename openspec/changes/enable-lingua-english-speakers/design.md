@@ -84,6 +84,32 @@ translation, marked or not as change 26 measured. If the owner settles under M15
 the route is removed (the model stays, as es-fr's pivot), so the pair is unavailable as *A pair
 without a route* says; nothing else moves.
 
+### D6 — What a word may also be, under its meaning (owner, 2026-10-11)
+
+Dogfood finding: on the card of « casa » (es-en, and es-fr the same), « may also be the
+third-person singular present indicative … of *casar* » showed above « feminine noun house » — a
+possibility read before what the word means. **The owner's decision of 2026-10-11:** the lines
+saying what a form may also be go under the word's meaning, for every language.
+
+- **What moves.** Only the possibility lines: a form spelled like its dictionary form read as
+  something else (« may also be the simple past of *put* »), and each other dictionary form
+  (« may also be the plural of *leaf* »). What the form is — the pieces of a split word, and its
+  readings as the card's dictionary form (« imperfect of *hablar* ») — stays above the meaning,
+  where add-lingua-word-grammar put it: it says which word the meaning is the meaning of. A form
+  that is its own dictionary form (« casa ») has only possibility lines, so its whole grammar
+  shows under the meaning.
+- **Where.** The card lays out: listen controls, what the form is, the meaning, what it may also
+  be, the machine translation, the actions. Both blocks stay between the listen controls and the
+  actions, as *The word card says what the form is* requires, and both are drawn with the answer
+  (add-lingua-word-grammar D6), so nothing the reader can press moves.
+- **How.** The grammar renderer of each interface language gives the card its lines in two blocks
+  (`grammarBlocks`: `form`, `alternatives`); `grammarLines` stays their concatenation, in the same
+  order as before, so every snapshot of the cards' wording is unchanged. There is one card view;
+  the selection card, the reader and every page fill it, so all show the same order.
+- **Spec.** No requirement fixes the grammar's place relative to the meaning — only between the
+  listen controls and the actions, which still holds — so no requirement changes (and
+  refine-lingua-card-invariable-plurals, which holds that requirement, is not touched).
+
 ## Risks / Trade-offs
 
 - **A server that does not store the labels** → change 12 holds non-French labels until it does;

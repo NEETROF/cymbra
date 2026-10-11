@@ -4,6 +4,7 @@ import type { card as frCard } from "../i18n/fr/card.ts";
 import {
   DEFAULT_INTERFACE_LANGUAGE,
   formatCount,
+  type GrammarLine,
   type InterfaceLanguage,
   NODE_SLOT,
   renderAround,
@@ -318,12 +319,16 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
   listenEl.hidden = true;
   // Below the listen row and above the actions: a pending card offers the listen buttons, and
   // what its answer adds here moves nothing the reader can press (add-lingua-word-grammar D6).
+  // What the form is sits above its meaning; what it may also be, under it — a possibility never
+  // comes before what the word means (enable-lingua-english-speakers D6, the owner's 2026-10-11).
   const grammarEl = div("grammar");
   grammarEl.hidden = true;
   const glossEl = div("gloss");
+  const alsoEl = div("grammar also");
+  alsoEl.hidden = true;
   const translationEl = div("translation");
   const actionsEl = div("actions");
-  el.append(headwordEl, seenEl, rarityEl, listenEl, grammarEl, glossEl, translationEl, actionsEl);
+  el.append(headwordEl, seenEl, rarityEl, listenEl, grammarEl, glossEl, alsoEl, translationEl, actionsEl);
 
   let current: WordPopupContent | null = null;
   let generation = 0;
@@ -432,23 +437,29 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
   }
 
   /**
-   * What the form is, what else it may be, and the pieces of a split word — one line each, the
-   * words of the studied language set apart. Built from text nodes only.
+   * What the form is — the pieces of a split word, its readings as the dictionary form — above the
+   * meaning, and what else it may be under it; one line each, the words of the studied language set
+   * apart. Built from text nodes only.
    */
   function renderGrammar(content: WordPopupContent): void {
-    grammarEl.replaceChildren();
     const studied = studiedLanguageOf(content);
-    const lines =
+    const blocks =
       content.grammar && !content.pending && !content.expression
-        ? grammar.grammarLines(
+        ? grammar.grammarBlocks(
             content.grammar,
             content.headword,
             content.surface,
             content.written ?? content.surface,
             studied,
           )
-        : [];
-    grammarEl.hidden = lines.length === 0;
+        : { form: [], alternatives: [] };
+    renderLines(grammarEl, blocks.form, studied);
+    renderLines(alsoEl, blocks.alternatives, studied);
+  }
+
+  function renderLines(blockEl: HTMLElement, lines: readonly GrammarLine[], studied: StudiedLanguage): void {
+    blockEl.replaceChildren();
+    blockEl.hidden = lines.length === 0;
     for (const line of lines) {
       const lineEl = div("grammar-line");
       for (const segment of line) {
@@ -462,7 +473,7 @@ export function createCard(speaker?: Speaker, language: InterfaceLanguage = DEFA
           lineEl.append(word);
         }
       }
-      grammarEl.append(lineEl);
+      blockEl.append(lineEl);
     }
   }
 

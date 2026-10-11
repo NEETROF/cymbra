@@ -91,7 +91,8 @@
 }
 
 /* What the form is (add-lingua-word-grammar): quiet lines between the listen row and the gloss,
-   the studied language's words set apart. */
+   the studied language's words set apart; what it may also be (`.grammar.also`), the same lines
+   under the gloss (enable-lingua-english-speakers D6). */
 .grammar {
   margin-top: 8px;
   color: var(--cymbra-lingua-muted);

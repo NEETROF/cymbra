@@ -114,6 +114,21 @@ export type LineSegment = string | { word: string };
 export type GrammarLine = LineSegment[];
 
 /**
+ * The lines a card shows about a form, in two blocks. What the form is: the pieces of a split word,
+ * then what its readings make of the dictionary form. What it may also be: for a form spelled like
+ * its dictionary form, its own readings as a possibility, then one line per other dictionary form.
+ * The card shows the first block above the word's meaning and the second under it (the owner's
+ * dogfood decision of 2026-10-11, enable-lingua-english-speakers D6): a possibility never comes
+ * before what the word means.
+ */
+export interface GrammarBlocks {
+  /** What the form is: the pieces of a split word, and its readings as the dictionary form. */
+  form: GrammarLine[];
+  /** What the form may also be: a possibility of its own dictionary form, and each other one. */
+  alternatives: GrammarLine[];
+}
+
+/**
  * The `grammar` surface (generalise-lingua-card-wording D2): not texts but a renderer — the one
  * module of the catalogue where the rule that a draft is typed after the French covers code. Each
  * language's module turns the description of a form (`reading/grammar-description.ts`) into lines
@@ -130,6 +145,14 @@ export interface GrammarRenderer {
     written: string,
     studied?: StudiedLanguageCode,
   ): GrammarLine[];
+  /** The same lines as the card lays them out: what the form is, and what it may also be. */
+  grammarBlocks(
+    grammar: WordGrammar,
+    headword: string,
+    surface: string,
+    written: string,
+    studied?: StudiedLanguageCode,
+  ): GrammarBlocks;
   /** What a reading makes of a form, in words; null when the card says nothing of it. */
   readingName(tag: GrammarTag, studied?: StudiedLanguageCode): Named | null;
   /** The heading of a group of senses: its part of speech, with the word's gender; null for none. */
