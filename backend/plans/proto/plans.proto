@@ -4,8 +4,10 @@ syntax = "proto3";
 // add-premium-subscription; store channels through the aggregator since
 // swap-store-billing-to-revenuecat). One service, two audiences: the app (read
 // its own plan, redeem a code, sync its store subscriptions after a purchase /
-// restore, start a web checkout) and the music-scope admin console (lookup,
-// grants, campaigns, codes, members).
+// restore, start a web checkout) and the admin console (lookup, grants, campaigns,
+// codes, members). Plan rows are Music-admin only; a campaign and its memberships,
+// codes and members are administered by an admin of the campaign's product
+// (change: add-lingua-feature-betas).
 // Identifiers only — no personal billing data ever crosses this surface.
 package cymbra.plans.v1;
 
@@ -40,11 +42,12 @@ service PlanService {
   rpc GrantPremium(GrantPremiumRequest) returns (GrantPremiumResponse);
   // Admin: revoke a `code`/`admin` row (store/web rows are read-only here).
   rpc RevokeEntitlement(RevokeEntitlementRequest) returns (RevokeEntitlementResponse);
-  // Admin: nominative enrolment of a handle in a campaign (no code).
+  // Admin of the campaign's product: nominative enrolment of a handle (no code).
   rpc EnrolHandle(EnrolHandleRequest) returns (EnrolHandleResponse);
-  // Admin: end a membership (and its trial row) now.
+  // Admin of the campaign's product: end a membership (and its trial row) now.
   rpc RevokeMembership(RevokeMembershipRequest) returns (RevokeMembershipResponse);
-  // Admin: campaigns.
+  // Admin of the campaign's product: campaigns. The list holds the campaigns of the
+  // products the caller administers.
   rpc CreateCampaign(CreateCampaignRequest) returns (CreateCampaignResponse);
   rpc ListCampaigns(ListCampaignsRequest) returns (ListCampaignsResponse);
   rpc CloseEnrollment(CloseEnrollmentRequest) returns (CloseEnrollmentResponse);
@@ -168,6 +171,8 @@ message MembershipMsg {
   optional string ends_at = 6;
   optional string revoked_at = 7;
   string source = 8;            // code | admin
+  // The product of the membership's campaign (`music` | `lingua`).
+  string product = 9;
 }
 
 message LookupAccountPlanRequest {
@@ -270,6 +275,8 @@ message CampaignMsg {
   string created_by = 8;
   string created_at = 9;
   bool accepts_enrolment = 10;
+  // The product the campaign belongs to (`music` | `lingua`), fixed at creation.
+  string product = 11;
 }
 
 message CreateCampaignRequest {
@@ -277,6 +284,9 @@ message CreateCampaignRequest {
   string name = 2;
   string kind = 3;                     // premium_trial | feature
   optional uint32 duration_days = 4;   // trials; default 90
+  // The product the campaign belongs to: `music` (also when empty, so an older back
+  // office keeps creating Music campaigns) or `lingua`, which accepts `feature` only.
+  string product = 5;
 }
 message CreateCampaignResponse {
   CampaignMsg campaign = 1;

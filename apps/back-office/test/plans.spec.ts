@@ -5,7 +5,17 @@ import { i18n } from "@/i18n";
 import CampaignsView from "@/views/CampaignsView.vue";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { setClientsForTest } from "@/lib/api";
-import { accountRef, isRevocableSource, membersCsv, usePlansStore } from "@/stores/plans";
+import {
+  accountRef,
+  campaignProduct,
+  isRevocableSource,
+  kindsFor,
+  membersCsv,
+  productLabelKey,
+  usePlansStore,
+} from "@/stores/plans";
+import { useAuthStore } from "@/stores/auth";
+import { makeJwt } from "./fakes";
 import { makeFakeClients } from "./fakes";
 
 const UUID = "019f60be-6cd9-74e2-a600-9893bd2aaa3a";
@@ -244,14 +254,14 @@ describe("plans store", () => {
     setClientsForTest(clients);
     const store = usePlansStore();
 
-    await store.createCampaign({ key: "t", name: "T", kind: "premium_trial", durationDays: 30 });
-    await store.createCampaign({ key: "f", name: "F", kind: "feature", durationDays: 30 });
+    await store.createCampaign({ key: "t", name: "T", kind: "premium_trial", durationDays: 30, product: "music" });
+    await store.createCampaign({ key: "f", name: "F", kind: "feature", durationDays: 30, product: "lingua" });
     await store.closeEnrollment("midi-drums");
     await store.closeCampaign("midi-drums");
 
     expect(state.createCampaignCalls).toEqual([
-      { key: "t", name: "T", kind: "premium_trial", durationDays: 30 },
-      { key: "f", name: "F", kind: "feature", durationDays: undefined },
+      { key: "t", name: "T", kind: "premium_trial", durationDays: 30, product: "music" },
+      { key: "f", name: "F", kind: "feature", durationDays: undefined, product: "lingua" },
     ]);
     expect(state.closeEnrollmentCalls).toEqual(["midi-drums"]);
     expect(state.closeCampaignCalls).toEqual(["midi-drums"]);
@@ -464,5 +474,96 @@ describe("campaigns view — the reopen controls", () => {
     const featureDialog = await clickRowAction(w, "midi-drums", "Close campaign");
     expect(featureDialog.text()).toContain("PAUSE");
     await answer(featureDialog, "Cancel");
+  });
+});
+
+describe("campaign products (change: add-lingua-feature-betas)", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it("reads an unknown or empty wire product as Music and keeps Lingua to features", () => {
+    expect(campaignProduct(undefined)).toBe("music");
+    expect(campaignProduct("")).toBe("music");
+    expect(campaignProduct("lingua")).toBe("lingua");
+    expect(productLabelKey("lingua")).toBe("plans.product.lingua");
+    expect(kindsFor("music")).toEqual(["premium_trial", "feature"]);
+    expect(kindsFor("lingua")).toEqual(["feature"]);
+  });
+
+  async function mountAs(scopes: Record<string, string[]>, campaigns: unknown[]) {
+    const { clients, state } = makeFakeClients({ campaigns });
+    setClientsForTest(clients);
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    useAuthStore().setToken(makeJwt({ sub: "adm", roles: ["admin"], roles_by_scope: scopes, exp: 4102444800 }));
+    const w = mount(CampaignsView, { global: { plugins: [i18n, pinia], stubs: { RouterLink: RouterLinkStub } } });
+    await flushPromises();
+    return { w, state };
+  }
+
+  it("lists the page product's campaigns, each with its product", async () => {
+    const { w } = await mountAs({ music: ["admin"], lingua: ["admin"] }, [
+      { ...featureCampaign, product: "music" },
+      {
+        id: "l1",
+        key: "online-translation",
+        name: "Online",
+        kind: "feature",
+        acceptsEnrolment: true,
+        product: "lingua",
+      },
+    ]);
+    const table = w.get('[data-testid="campaigns"]').text();
+    expect(table).toContain("midi-drums");
+    expect(table).toContain("Music");
+    // Mounted without a router: the Music page, so the Lingua campaign is not on it.
+    expect(table).not.toContain("online-translation");
+  });
+
+  it("a Lingua-only admin creates a Lingua feature campaign — no product or kind to get wrong", async () => {
+    const { w, state } = await mountAs({ lingua: ["admin"] }, []);
+    await w
+      .findAll("button")
+      .find((b) => b.text() === "Create campaign")!
+      .trigger("click");
+    const products = w
+      .get('[data-testid="campaign-product"]')
+      .findAll("option")
+      .map((o) => o.attributes("value"));
+    expect(products).toEqual(["lingua"]);
+    const kinds = w
+      .get('[data-testid="campaign-kind"]')
+      .findAll("option")
+      .map((o) => o.attributes("value"));
+    expect(kinds).toEqual(["feature"]);
+    await w.get('input[aria-label="Key"]').setValue("online-translation");
+    await w.get('input[aria-label="Name"]').setValue("Online translation");
+    await w
+      .findAll(".modal button")
+      .find((b) => b.text() === "Create campaign")!
+      .trigger("click");
+    await flushPromises();
+    expect(state.createCampaignCalls).toEqual([
+      {
+        key: "online-translation",
+        name: "Online translation",
+        kind: "feature",
+        durationDays: undefined,
+        product: "lingua",
+      },
+    ]);
+  });
+
+  it("switching the product to Lingua drops a trial choice", async () => {
+    const { w } = await mountAs({ music: ["admin"], lingua: ["admin"] }, []);
+    await w
+      .findAll("button")
+      .find((b) => b.text() === "Create campaign")!
+      .trigger("click");
+    expect((w.get('[data-testid="campaign-kind"]').element as HTMLSelectElement).value).toBe("premium_trial");
+    await w.get('[data-testid="campaign-product"]').setValue("lingua");
+    await flushPromises();
+    expect((w.get('[data-testid="campaign-kind"]').element as HTMLSelectElement).value).toBe("feature");
   });
 });

@@ -261,7 +261,7 @@ describe("createTransport", () => {
 describe("createClients", () => {
   it("exposes one client per backend service the extension calls", () => {
     const clients = createClients(createTransport(() => null));
-    expect(Object.keys(clients).sort()).toEqual(["auth", "data", "deck", "knownWords", "stats", "user"]);
+    expect(Object.keys(clients).sort()).toEqual(["auth", "data", "deck", "flags", "knownWords", "stats", "user"]);
     // A client is the service's RPCs, so a renamed or dropped RPC shows up here.
     expect(typeof clients.auth.refresh).toBe("function");
     expect(typeof clients.deck.pullCards).toBe("function");

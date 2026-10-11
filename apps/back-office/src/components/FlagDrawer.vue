@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { match } from "ts-pattern";
 import type { AuditRow, FlagRow } from "@/stores/flags";
-import { usePlansStore } from "@/stores/plans";
+import { campaignProduct, productLabelKey, usePlansStore } from "@/stores/plans";
 import { flagDescription } from "@/i18n/flag-descriptions";
 import { appLabel } from "@/i18n/app-label";
 import AuditTimeline from "./AuditTimeline.vue";
@@ -30,7 +30,18 @@ const { t, locale } = useI18n();
 // — never free text. The list is (re)loaded through the store each time the drawer
 // opens, so a campaign closed in the plans console disappears from the selector.
 const plans = usePlansStore();
-const betaOptions = computed(() => plans.openCampaigns.map((c) => ({ value: `beta:${c.key}`, name: c.name })));
+// Only the campaigns of the flag's own app, so a Lingua flag cannot be scoped to a Music
+// beta (the server refuses it too); a flag shared by every app may take any product's
+// campaign. Each option names its product (change: add-lingua-feature-betas).
+const ofFlagApp = (product: string): boolean => {
+  const app = props.row?.app ?? "";
+  return app === "all" || campaignProduct(product) === app;
+};
+const betaOptions = computed(() =>
+  plans.openCampaigns
+    .filter((c) => ofFlagApp(c.product))
+    .map((c) => ({ value: `beta:${c.key}`, name: c.name, product: t(productLabelKey(c.product)) })),
+);
 // A stored scope no longer offered stays selectable so the select never silently
 // rewrites it — but the reasons read differently (change: add-flag-campaign-integrity):
 // a CLOSED campaign still legitimately gates and is merely suffixed, while a beta
@@ -40,6 +51,7 @@ const betaOptions = computed(() => plans.openCampaigns.map((c) => ({ value: `bet
 type StaleScope =
   | { readonly kind: "plain"; readonly scope: string }
   | { readonly kind: "closed"; readonly scope: string; readonly name: string }
+  | { readonly kind: "foreign"; readonly scope: string; readonly product: string }
   | { readonly kind: "dangling"; readonly scope: string };
 const staleScope = computed<StaleScope | null>(() => {
   const cur = props.row?.rolloutScope ?? "";
@@ -47,8 +59,12 @@ const staleScope = computed<StaleScope | null>(() => {
   if (known.includes(cur)) return null;
   if (!cur.startsWith("beta:") || plans.campaigns.status !== "success") return { kind: "plain", scope: cur };
   const campaign = plans.campaigns.data.find((c) => `beta:${c.key}` === cur);
-  // Found here but not offered means closed (the open ones are already `known`).
-  return campaign ? { kind: "closed", scope: cur, name: campaign.name } : { kind: "dangling", scope: cur };
+  if (!campaign) return { kind: "dangling", scope: cur };
+  // Another product's campaign: it gates nobody in this app's evaluation.
+  if (!ofFlagApp(campaign.product))
+    return { kind: "foreign", scope: cur, product: t(productLabelKey(campaign.product)) };
+  // Found here, of this app, but not offered means closed (the open ones are `known`).
+  return { kind: "closed", scope: cur, name: campaign.name };
 });
 // Template-safe fold: the option's label, and whether to show the defect hint.
 const staleVm = computed(() =>
@@ -60,6 +76,11 @@ const staleVm = computed(() =>
           scope,
           label: t("flags.betaClosed", { name }),
           dangling: false,
+        }))
+        .with({ kind: "foreign" }, ({ scope, product }) => ({
+          scope,
+          label: t("flags.betaForeign", { scope, product }),
+          dangling: true,
         }))
         .with({ kind: "dangling" }, ({ scope }) => ({
           scope,
@@ -263,7 +284,7 @@ const desc = computed(() => (props.row ? flagDescription(props.row.key, props.ro
           <option value="staff_only">{{ t("flags.staffOnly") }}</option>
           <option value="premium_only">{{ t("flags.premiumOnly") }}</option>
           <option v-for="o in betaOptions" :key="o.value" :value="o.value">
-            {{ t("flags.beta", { name: o.name }) }}
+            {{ t("flags.betaOf", { name: o.name, product: o.product }) }}
           </option>
           <option v-if="staleVm" :value="staleVm.scope" :class="{ dangling: staleVm.dangling }">
             {{ staleVm.label }}

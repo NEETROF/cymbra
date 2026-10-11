@@ -471,8 +471,9 @@ impl cymbra_music::ScoreQuotaSource for FlagScoreQuotas {
     }
 }
 
-/// The plans → flags bridge: the caller's effective plan + active beta keys, so a
-/// `premium_only` / `beta:<key>` rollout can be evaluated. Read errors ⇒ free.
+/// The plans → flags bridge: the caller's effective plan + active beta keys for the
+/// product of the app being evaluated, so a `premium_only` / `beta:<key>` rollout can
+/// be evaluated. Read errors propagate (see `plan_context`).
 pub struct PlanContext {
     plans: Arc<dyn cymbra_plans::PlanSource>,
 }
@@ -488,17 +489,30 @@ impl cymbra_feature_flags::PlanContextSource for PlanContext {
     async fn plan_context(
         &self,
         user_id: &str,
+        app: &str,
     ) -> cymbra_platform::error::Result<(bool, Vec<String>)> {
+        // The app being evaluated picks which product's snapshot is relevant; the
+        // product itself stays carried by each campaign (change:
+        // add-lingua-feature-betas). An app with no product has no plan and no beta.
+        let Some(product) = product_of_app(app) else {
+            return Ok((false, Vec::new()));
+        };
         // Propagated, never defaulted (change: add-drum-input-mapping — beta fix):
         // answering "free, no betas" on a failed read is a silent entitlement
         // downgrade the caller cannot detect and will cache. The plans kill-switch
         // being off is a different thing entirely — that resolves successfully to
         // an empty beta set, and still does.
-        let s = self.plans.snapshot(user_id, cymbra_platform::MUSIC_SCOPE).await.inspect_err(|e| {
+        let s = self.plans.snapshot(user_id, product).await.inspect_err(|e| {
             tracing::warn!(error = %e, "plan snapshot failed; flag read refused rather than downgraded");
         })?;
         Ok((s.plan == cymbra_plans::Plan::Premium, s.beta_keys()))
     }
+}
+
+/// The product whose plan and betas a flag evaluation for `app` reads: each app scope
+/// is its own product; anything else (the site's `web`, the back office) has none.
+pub(crate) fn product_of_app(app: &str) -> Option<&'static str> {
+    cymbra_platform::APP_SCOPES.into_iter().find(|p| *p == app)
 }
 
 /// The plans → flags campaign-existence bridge (change:
@@ -518,10 +532,10 @@ impl CampaignExistence {
 
 #[async_trait]
 impl cymbra_feature_flags::CampaignDirectory for CampaignExistence {
-    async fn campaign_exists(&self, key: &str) -> Result<bool> {
+    async fn campaign_product(&self, key: &str) -> Result<Option<String>> {
         // `get_by_key` does not filter on `closed_at`: existence includes
         // closed campaigns, which is exactly the contract.
-        Ok(self.campaigns.get_by_key(key).await?.is_some())
+        Ok(self.campaigns.get_by_key(key).await?.map(|c| c.product))
     }
 }
 
@@ -674,6 +688,65 @@ mod tests {
                     .collect())
             });
         Arc::new(m)
+    }
+
+    /// A flag evaluation for an app reads that app's product snapshot, and an app
+    /// with no product reads none (change: add-lingua-feature-betas).
+    #[tokio::test]
+    async fn the_plan_context_reads_the_snapshot_of_the_evaluated_apps_product() {
+        use cymbra_feature_flags::PlanContextSource;
+        let mut plans = cymbra_plans::ports::MockPlanSource::new();
+        plans.expect_snapshot().returning(|_, product| {
+            let mut s = cymbra_plans::PlanSnapshot::free();
+            s.betas.push(cymbra_plans::BetaInfo {
+                campaign_key: format!("{product}-beta"),
+                campaign_name: "b".into(),
+                kind: cymbra_plans::CampaignKind::Feature,
+                joined_at: chrono::Utc::now(),
+                ends_at: None,
+            });
+            Ok(s)
+        });
+        let ctx = PlanContext::new(Arc::new(plans));
+        let (_, lingua) = ctx.plan_context("u1", "lingua").await.unwrap();
+        assert_eq!(lingua, vec!["lingua-beta".to_string()]);
+        let (_, music) = ctx.plan_context("u1", "music").await.unwrap();
+        assert_eq!(music, vec!["music-beta".to_string()]);
+        // The site and the back office have no product: no plan, no beta, no read.
+        assert_eq!(
+            ctx.plan_context("u1", "web").await.unwrap(),
+            (false, vec![])
+        );
+        assert_eq!(product_of_app("back-office"), None);
+    }
+
+    /// The directory answers a campaign's product, so a scope write can be checked
+    /// against the flag's app; a missing campaign is `None`.
+    #[tokio::test]
+    async fn the_campaign_directory_answers_the_campaigns_product() {
+        use cymbra_feature_flags::CampaignDirectory;
+        let mut repo = cymbra_plans::ports::MockCampaignRepo::new();
+        repo.expect_get_by_key().returning(|key| {
+            Ok(
+                (key == "online-translation").then(|| cymbra_plans::Campaign {
+                    id: uuid::Uuid::nil(),
+                    key: key.to_string(),
+                    name: "Online".into(),
+                    kind: cymbra_plans::CampaignKind::Feature,
+                    enrollment_closes_at: None,
+                    closed_at: None,
+                    created_by: "adm".into(),
+                    created_at: chrono::Utc::now(),
+                    product: "lingua".into(),
+                }),
+            )
+        });
+        let dir = CampaignExistence::new(Arc::new(repo));
+        assert_eq!(
+            dir.campaign_product("online-translation").await.unwrap(),
+            Some("lingua".to_string())
+        );
+        assert_eq!(dir.campaign_product("nope").await.unwrap(), None);
     }
 
     /// "Platform admin" is `admin` in the **global** scope, and the answer now comes

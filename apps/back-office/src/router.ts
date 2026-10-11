@@ -43,7 +43,7 @@ const pages: RouteRecordRaw[] = [
   // their own use, never in the catalog. Its lookup criteria ride in the query.
   page("/music/private-scores", "music-private-scores", () => import("@/views/PrivateScoresView.vue"), MUSIC_ADMIN),
   page("/music/soundfonts", "music-soundfonts", () => import("@/views/SoundFontsView.vue"), MUSIC_ADMIN),
-  // Plan RPCs are music-admin gated (`require_admin_in_scope("music")`).
+  // Music's campaigns; a campaign is administered by an admin of its product.
   page("/music/campaigns", "music-campaigns", () => import("@/views/CampaignsView.vue"), MUSIC_ADMIN),
   // Usage analytics come from the Music app and are music-admin gated server-side.
   page("/music/usage", "music-usage", () => import("@/views/UsageView.vue"), MUSIC_ADMIN),
@@ -51,6 +51,10 @@ const pages: RouteRecordRaw[] = [
   // Lingua — aggregates + the pack registry, never a per-account view
   // (change: add-lingua-back-office).
   page("/lingua/overview", "lingua-overview", () => import("@/views/LinguaView.vue"), LINGUA_ADMIN),
+  // Lingua feature betas — the same campaigns view, listing Lingua's campaigns; every
+  // campaign RPC is gated by an admin of the campaign's product (change:
+  // add-lingua-feature-betas).
+  page("/lingua/campaigns", "lingua-campaigns", () => import("@/views/CampaignsView.vue"), LINGUA_ADMIN),
 
   // Administration — cross-product. One account = one address: the directory finds an
   // account, the detail page acts on it (change: restructure-back-office-users-console).

@@ -120,6 +120,7 @@ function toAuditRow(c: FlagChange): AuditRow {
  *  the generic localized message. */
 export type FlagOpError =
   | { readonly kind: "unknownCampaign" }
+  | { readonly kind: "foreignCampaign" }
   | { readonly kind: "campaignUnverifiable" }
   | { readonly kind: "other"; readonly message: string };
 
@@ -133,6 +134,11 @@ function toOpError(e: unknown): FlagOpError {
     if (e.code === Code.FailedPrecondition && e.rawMessage.startsWith("unknown_campaign:")) {
       console.error("flag write refused:", e); // cause logged; the UI shows a localized reason
       return { kind: "unknownCampaign" };
+    }
+    // A campaign of another product than the flag's app (change: add-lingua-feature-betas).
+    if (e.code === Code.FailedPrecondition && e.rawMessage.startsWith("foreign_campaign:")) {
+      console.error("flag write refused:", e);
+      return { kind: "foreignCampaign" };
     }
     if (e.code === Code.Aborted && e.rawMessage.startsWith("campaign_unverifiable:")) {
       console.error("flag write refused:", e);

@@ -6,6 +6,7 @@ import { KnownWordsService } from "@/gen/known_words_pb";
 import { LinguaDataService } from "@/gen/lingua_data_pb";
 import { StatsService } from "@/gen/stats_pb";
 import { UserService } from "@/gen/user_pb";
+import { FlagService } from "@/gen/flags_pb";
 
 // gRPC-web bearer transport for the extension, cloned from the back office
 // (apps/back-office/src/lib/transport.ts). Design D1 (add-lingua-connected-clients):
@@ -105,6 +106,8 @@ export interface Clients {
   data: Client<typeof LinguaDataService>;
   /** The Cymbra ID account (handle) — add-lingua-account-parity. */
   user: Client<typeof UserService>;
+  /** The caller's effective flags — add-lingua-feature-betas. */
+  flags: Client<typeof FlagService>;
 }
 
 export function createClients(transport: Transport): Clients {
@@ -115,5 +118,6 @@ export function createClients(transport: Transport): Clients {
     stats: createClient(StatsService, transport),
     data: createClient(LinguaDataService, transport),
     user: createClient(UserService, transport),
+    flags: createClient(FlagService, transport),
   };
 }

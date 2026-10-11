@@ -107,8 +107,9 @@ describe("sidebar", () => {
   });
 
   it("a lingua-only admin is offered no Music page — not sound fonts, campaigns or usage", () => {
+    // Lingua's own campaigns page, yes (change: add-lingua-feature-betas).
     expect(sidebar(PROFILES.linguaAdmin)).toEqual([
-      ["lingua", ["lingua-overview"]],
+      ["lingua", ["lingua-overview", "lingua-campaigns"]],
       ["admin", ["admin-users", "admin-flags", "admin-notifications"]],
     ]);
   });
