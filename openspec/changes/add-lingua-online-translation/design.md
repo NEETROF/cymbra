@@ -62,13 +62,16 @@ The extension calls a new Lingua RPC; the server calls the provider.
   is meant to be one press. Refused.
 
 ### D2. A hosted language model, with a second provider as fallback
-Primary Claude Haiku 5.5 (Anthropic), secondary Gemini 3.1 Flash-Lite (Google), behind one port
+Primary Gemini 3.1 Flash-Lite (Google), secondary Claude Haiku 5.5 (Anthropic), behind one port
 trait with one adapter each.
 - **Why:** both translate idioms Bergamot misses; two providers mean one outage does not take the
-  button down. Both marked every selection on the corpus. Haiku is primary because its cost is
-  covered by API credits Cymbra already has; Gemini is faster and made none of Haiku's grammar
-  slips. Which one is primary is configuration (D2's last point), so the order can be swapped by a
-  deploy if quality or cost says so.
+  button down. Both marked every selection on the corpus. Gemini is primary because it was twice
+  as fast and made none of Haiku's grammar slips; raising Haiku's effort did not remove them (at
+  `high`, the subjunctive was avoided by rephrasing, the elision slip stayed, and the model began
+  copying the selection's tag into its answer and cutting the sentence short), while doubling its
+  cost. Haiku stays as the fallback because its cost is covered by API credits Cymbra already has.
+- **Alternative — Claude Opus 5.5:** the best answers on the corpus, at about $0.004 per sentence
+  (≈ 40× Haiku) and 2.2 s. Not for a button pressed per sentence.
 - **Alternative — a dedicated machine-translation API (Google Translate, DeepL, Azure):** priced
   per character at roughly 100× the cost measured here, and none returns which words render the
   selection.
@@ -106,9 +109,21 @@ There is no pivot: where the engine goes es→en→fr, the provider translates e
 button does not depend on `MARKED_PAIRS` either: the provider marks its own answer, so a pair the
 engine translates without a mark still gets one online.
 
-### D6. Limit and switch are runtime flags
-- `lingua.online_translation.enabled` — default **false**. Off: every request is answered
-  unavailable without asking a provider.
+### D6. Access, limit and switch are runtime flags
+- `lingua.online_translation.enabled` — default **false**, rolled out with the scope
+  `beta:online-translation`: the members of the Lingua feature beta of that key (and staff) get
+  `true`, everyone else `false`. It is at once the grant and the kill switch: setting it back to
+  off withdraws access from everyone without a release. The same evaluation answers the extension
+  (should it show the setting?) and the service (may it ask a provider?).
+- Granting access is enrolling an account in the campaign from the back office (`EnrolHandle`);
+  withdrawing it from one account is `RevokeMembership`. A reader asks, for example on Discord;
+  an operator enrols them. Nothing here is new: feature-beta campaigns, enrolment by handle and
+  `beta:<key>` scopes exist for Music.
+- **Prerequisite — `add-lingua-feature-betas`.** Today a campaign belongs to Music (no product on
+  `CreateCampaign`), the server reads beta keys from the Music snapshot only
+  (`server/src/flags.rs`, `plan_context`), and the extension reads no flags. That change gives a
+  campaign a product, evaluates a Lingua caller's flags against Lingua's betas, and lets the
+  extension read its effective flags. This change only consumes it.
 - `lingua.online_translation.daily_limit` — default 100 answered requests per account per rolling
   day, in the platform cache under `rl:lingua_online_translation:{account}`.
 - A request is counted when a provider answered, not when it was refused or failed, so an outage
@@ -135,7 +150,9 @@ A new `online_translation.proto` in `cymbra.lingua.v1`:
 - Storage key `cymbra-lingua-online-translation` (boolean, `chrome.storage.local`, per device).
 - The background owns the client call (as for every RPC) and answers a new runtime message; the
   card never touches the network.
-- The card shows the button when the setting is ticked and `account:state` says signed in. On
+- The settings and the card read access from the effective flags the extension holds
+  (`lingua.online_translation.enabled`, from `add-lingua-feature-betas`). The card shows the
+  button when the setting is ticked and access is true. On
   press: a "translating online" line, then `show()` replaces the translation through the same
   generation guard the engine uses. The button is disabled once pressed on that card.
 - Strings in `i18n/{fr,en,es}/card.ts` and `settings.ts`, in the reader's interface language
@@ -160,23 +177,26 @@ apps serving EEA, Swiss or UK users).
   over it (1.2.0). `websiteContent` is already declared optional in `tool/manifests.mjs` (for the
   deck's source sentence), so no new category is needed; its comment and `REVIEWERS.md` ("Where
   the add-on reaches the network") must name the new request, and reviewers will read it.
-- **[Cost runs away]** A script with one account could press the button all day. → Daily limit per
-  account, global kill switch, and a spend cap on each provider account.
+- **[Cost runs away]** A script with one account could press the button all day. → Access only by
+  grant, daily limit per account, the flag as a kill switch, and a spend cap on each provider
+  account.
 - **[Provider output is wrong or partial]** → Structured output validated server-side; an
   unreadable answer counts as a failure and moves to the next provider; marks are dropped rather
   than misplaced.
-- **[Grammar slips]** Haiku missed the subjunctive twice on the corpus. → Labelled as a machine
-  translation, like the engine's; measured again before switching the flag on (task 5.3).
-- **[Taking the feature back later is felt as a loss]** It is open to every signed-in reader. → A
-  later change that narrows access must carry over the readers who already use it.
+- **[Grammar slips]** Haiku, the fallback, missed the subjunctive and an elision on the corpus. →
+  Labelled as a machine translation, like the engine's; it answers only when Gemini fails.
+- **[Granted readers expect to keep it]** → A beta can be closed; when the feature opens more
+  widely, widen the flag's scope first and close the campaign after, as was done for the drums.
 
 ## Migration Plan
 
-1. Ship the disclosure (annex fr/en, listings) — group 1.
-2. Deploy the backend with the flag **off**; set the provider keys in the server environment.
-3. Release the extension: the setting appears, the button answers "unavailable" while the flag is
-   off.
-4. Turn the flag on.
+1. `add-lingua-feature-betas` is deployed.
+2. Ship the disclosure (annex fr/en/es, listings) — group 1.
+3. Deploy the backend with the flag **off**; set the provider keys in the server environment.
+4. Release the extension: nobody sees the setting while the flag is off.
+5. Create the Lingua feature campaign `online-translation`, set the flag's scope to
+   `beta:online-translation`, and enrol the first readers.
 
-Rollback: turn `lingua.online_translation.enabled` off. Every press then answers "unavailable" and
-nothing is sent to a provider; the RPC stays, so no installed client breaks.
+Rollback: turn `lingua.online_translation.enabled` off. Every press then answers "unavailable",
+the setting disappears at the extension's next flag read, nothing is sent to a provider, and the
+RPC stays, so no installed client breaks.

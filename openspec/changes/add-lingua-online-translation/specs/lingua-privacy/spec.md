@@ -3,7 +3,7 @@
 ### Requirement: Lingua's privacy disclosures match what it collects
 Cymbra's published privacy policy (French, English and Spanish) SHALL describe Lingua in its own annex:
 - **Stays on the device:** page text and its analysis, reading exposures, and a card's page address — except the sentence a reader sends with « Traduction en ligne ».
-- **Sent only on request:** with « Traduction en ligne » ticked, the sentence holding a selection is sent, when the reader presses the button, to Cymbra and from Cymbra to Anthropic, or to Google when Anthropic is unavailable, to be translated; neither Cymbra nor the providers keep it, and the providers do not train on it. The setting is off by default and chosen per device.
+- **Sent only on request:** with « Traduction en ligne » ticked, the sentence holding a selection is sent, when the reader presses the button, to Cymbra and from Cymbra to Google, or to Anthropic when Google is unavailable, to be translated; neither Cymbra nor the providers keep it, and the providers do not train on it. The setting is off by default and chosen per device.
 - **Synced for a signed-in reader:** statuses, level, deck without addresses, daily stats, and a random installation identifier.
 - **Removal:** the Lingua-only erasure and account deletion.
 
@@ -15,7 +15,7 @@ The site's account deletion page SHALL state that the account serves every Cymbr
 
 #### Scenario: Reading what online translation sends
 - **WHEN** a reader follows the link in the setting's note to the annex
-- **THEN** it states that the selected sentence is sent only when the button is pressed, names Anthropic and Google as the providers, says nobody keeps it, and says the setting is off by default
+- **THEN** it states that the selected sentence is sent only when the button is pressed, names Google and Anthropic as the providers, says nobody keeps it, and says the setting is off by default
 
 #### Scenario: Filling the App Store privacy form
 - **WHEN** the App Store Connect privacy form for Cymbra Lingua is filled from the recorded answers

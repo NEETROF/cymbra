@@ -17,8 +17,8 @@ The question it answered is no longer the one being asked, so it is withdrawn ra
 
 ## What Changes
 
-- **A setting, « Traduction en ligne », off by default**, per device, shown only to a signed-in
-  reader. Its note says that the selected sentence is sent to an external translation service to
+- **A setting, « Traduction en ligne », off by default**, per device, shown only to a reader
+  whose account was given access. Its note says that the selected sentence is sent to an external translation service to
   be translated, and is kept by no one. It does not name the service; the privacy policy does.
 - **A button, « Traduction en ligne », on a card that shows a translation of several words**,
   present only when the setting is ticked. Pressing it asks for the sentence once and, when the
@@ -31,7 +31,11 @@ The question it answered is no longer the one being asked, so it is withdrawn ra
   a hosted model, then to a second provider if the first fails, and otherwise answers
   "unavailable". It asks the model for the translation and for the words that render the
   selection, and returns the sentence with marks, in the shape the card already renders.
-- **A per-account daily limit**, tunable at runtime, and a kill switch that defaults off.
+- **Access by grant, as a feature beta.** An operator gives access to one account at a time from the
+  back office — for example to a reader who asked on Discord — and can withdraw it from one account
+  or from everyone at once, without a release. Nobody has access until granted. This consumes
+  Lingua feature betas, introduced by `add-lingua-feature-betas`, which must land first.
+- **A per-account daily limit**, tunable at runtime.
 - **The service keeps nothing**: no sentence in a log, a store, a metric or a trace.
 - **BREAKING (promise).** The Lingua privacy annex says page text **stays on the device**,
   unconditionally, and the store listings repeat it. Both become conditional: page text leaves the
@@ -79,6 +83,6 @@ designs and are left as written.
 **Dependencies.** Two external translation providers, reached over HTTPS with keys held by the
 server. No new client dependency.
 
-**Cost.** Measured on the corpus: about $0.00011 per sentence with the primary provider and about
-$0.00014 with the secondary. The daily limit bounds it per account; the kill switch bounds it
+**Cost.** Measured on the corpus: about $0.00014 per sentence with the primary provider and about
+$0.00011 with the secondary. The daily limit bounds it per account; access by grant bounds it
 globally.

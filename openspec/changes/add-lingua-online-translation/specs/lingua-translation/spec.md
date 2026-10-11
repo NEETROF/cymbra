@@ -1,16 +1,22 @@
 ## ADDED Requirements
 
 ### Requirement: Online translation is chosen in the settings, off by default
-The settings SHALL offer « Traduction en ligne » to a signed-in reader as a choice made on each device, unticked until the reader ticks it.
-Its note SHALL say that the selected sentence is sent to an external translation service to be
-translated and is kept by no one, and SHALL link to the privacy policy. It SHALL NOT name the
-service. A reader who is not signed in SHALL NOT be offered the setting, and a ticked setting SHALL
-have no effect while the reader is signed out. The setting SHALL be independent of « Traduction
-étendue »: either may be ticked without the other.
+The settings SHALL offer « Traduction en ligne » only to a signed-in reader whose account has access to online translation, as a choice made on each device, unticked until the reader ticks it.
+Access SHALL be granted to an account by an operator, one account at a time, and SHALL be read from
+the server, never decided by the extension alone. Its note SHALL say that the selected sentence is
+sent to an external translation service to be translated and is kept by no one, and SHALL link to
+the privacy policy. It SHALL NOT name the service. A reader without access, signed in or not,
+SHALL NOT be offered the setting, and a ticked setting SHALL have no effect while the reader has no
+access. The setting SHALL be independent of « Traduction étendue »: either may be ticked without
+the other.
 
-#### Scenario: A new reader
-- **WHEN** a signed-in reader opens the settings for the first time on a device
+#### Scenario: A reader who was given access
+- **WHEN** a reader whose account was given access opens the settings for the first time on a device
 - **THEN** « Traduction en ligne » is shown unticked, with a note saying the sentence leaves the device and is kept by no one
+
+#### Scenario: A signed-in reader without access
+- **WHEN** a signed-in reader whose account was not given access opens the settings
+- **THEN** « Traduction en ligne » is not shown
 
 #### Scenario: A signed-out reader
 - **WHEN** a reader who is not signed in opens the settings
@@ -21,13 +27,13 @@ have no effect while the reader is signed out. The setting SHALL be independent 
 - **THEN** it is unticked on the other device
 
 ### Requirement: The online translation button appears only when chosen
-A card that shows a selection of several words SHALL show a « Traduction en ligne » button if and only if the setting is ticked and the reader is signed in.
+A card that shows a selection of several words SHALL show a « Traduction en ligne » button if and only if the setting is ticked and the reader has access.
 The button SHALL NOT depend on the on-device engine: it SHALL be shown whether or not a model is
 present, and whether or not the engine has answered. A single word SHALL keep its dictionary card,
 without the button. No text SHALL leave the device until the reader presses the button.
 
 #### Scenario: Setting ticked, a phrase selected
-- **WHEN** a signed-in reader who ticked the setting selects several words
+- **WHEN** a reader with access who ticked the setting selects several words
 - **THEN** the card shows the pack's answer, then the engine's translation if any, and a « Traduction en ligne » button
 
 #### Scenario: Setting not ticked
@@ -89,19 +95,24 @@ reached SHALL say so and SHALL say when it resets.
 - **THEN** the card says the daily limit is reached and when it resets, and no provider is asked
 
 ### Requirement: Online translation is limited per account
-The service SHALL serve only a signed-in reader, identified by their access token, and SHALL count each answered request against a per-account limit over a rolling day.
-The limit SHALL be tunable at runtime without a redeploy. A server-side switch, off by default,
-SHALL disable the service, in which case every request SHALL be answered as unavailable without
-asking any provider. The service SHALL refuse a sentence longer than a fixed bound, and the
-extension SHALL NOT send one.
+The service SHALL serve only a signed-in reader whose account has access, identified by their access token, and SHALL count each answered request against a per-account limit over a rolling day.
+The limit SHALL be tunable at runtime without a redeploy. An operator SHALL be able to grant access
+to an account, withdraw it from an account, and withdraw it from every account at once, all without
+a release; access is withdrawn from everyone until granted. A request from an account without
+access SHALL be answered as unavailable without asking any provider. The service SHALL refuse a
+sentence longer than a fixed bound, and the extension SHALL NOT send one.
 
 #### Scenario: A request without an account
 - **WHEN** a request reaches the service without a valid access token
 - **THEN** it is refused as unauthenticated and no provider is asked
 
-#### Scenario: The switch is off
-- **WHEN** the service's switch is off and a signed-in reader presses the button
-- **THEN** the card says online translation is unavailable for now
+#### Scenario: Access withdrawn from everyone
+- **WHEN** the operator withdraws access from every account and a reader who had it presses the button on a card already open
+- **THEN** the card says online translation is unavailable for now, no provider is asked, and the setting is no longer shown once the extension next reads its access
+
+#### Scenario: Access granted on request
+- **WHEN** the operator grants access to one reader's account
+- **THEN** that reader is offered the setting once the extension next reads its access, and no other reader is
 
 ### Requirement: Online translation goes straight from the document's language to the reader's
 The card SHALL ask for a translation from the language of the selection's document into the reader's native language, and the service SHALL translate directly between them, without a pivot language.
