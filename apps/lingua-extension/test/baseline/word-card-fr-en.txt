@@ -71,7 +71,7 @@ expression: à la maison
 page 1/1:
   [—] at home (at one's home); home (towards home)
 ### phrase-gloss de l’eau
-row: de l' — some
+row: de l' — of the
 row: eau — water, a liquid that is transparent, colorless, odorless, and tasteless in its…
 ### phrase-gloss Il a décidé de le faire
 row: décider — to decide
@@ -244,7 +244,7 @@ row: se lever — get up, stand up
 row: venir de — to come from, to be from, to originate fro
 row: paris — Paris (the capital and largest city of France)
 ### phrase-gloss de l'huile d'olive
-row: de l' — some
+row: de l' — of the
 row: huile d'olive — olive oil
 ### phrase-gloss l’homme
 row: homme — man (adult male human)

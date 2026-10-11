@@ -2908,15 +2908,21 @@ class NativeSide(unittest.TestCase):
         self.assertNotIn("aujourd'hui", self.expressions)
         self.assertNotIn("jean-pierre", self.expressions)
         self.assertEqual(self.glosses["aujourd'hui"], "today; nowadays")
-        self.assertEqual(self.stats["split"], 4)
+        # `m'a` is a split word too, left out by name (refine-lingua-fr-en-expressions D1).
+        self.assertEqual(self.stats["split"], 3)
 
     def test_spec_scenario_an_expression_that_only_points(self):
         for pointer in ("crème fraiche", "qu'elle", "jusqu'au"):
             self.assertNotIn(pointer, self.expressions)
         self.assertTrue(self.expressions["crème fraîche"].startswith("crème fraîche, slightly sour thick soured"))
         self.assertEqual(self.expressions["y a-t-il"], "is there? are there?, (after a modal adver")
-        # A sense that only points goes; the word's other senses stay.
-        self.assertEqual(self.expressions["m'a"], "“I'm going”")
+        # A sense that only points goes; the word's other senses stay — read without `m'a`'s row, which
+        # leaves it out by name (refine-lingua-fr-en-expressions D1: « il m'a sauvé » is no « I'm going »).
+        self.assertNotIn("m'a", self.expressions)
+        with mock.patch.dict(red.LEFT_OUT, clear=False):
+            del red.LEFT_OUT["m'a"]
+            _, _, expressions, _ = self.native()
+        self.assertEqual(expressions["m'a"], "“I'm going”")
         # What a pointer writes after its target is read by the shared rules: another pointer stays one.
         self.assertNotIn("maitre-nageuse", self.expressions)
 
@@ -2929,7 +2935,7 @@ class NativeSide(unittest.TestCase):
     def test_the_expression_rules_leave_the_glosses_and_runs_as_they_are(self):
         # Without the pass (D11, 2 and 3) the glosses and their runs are byte for byte the same: it
         # reads no lemma's entry. The expressions alone move.
-        def unchanged(src, dst, forms, pointers=None):
+        def unchanged(src, dst, forms, pointers=None, left_out=None):
             return src
 
         with mock.patch.object(red, "expression_senses", unchanged):
@@ -3333,11 +3339,237 @@ class TranslatedExpressions(unittest.TestCase):
             "en conserve", "se mettre d'accord", "voie navigable", "se heurter", "se serrer",
         ]
         self.assertEqual(len(reviewed), 51)
-        self.assertEqual(list(red.LEFT_OUT)[17:], reviewed)
+        self.assertEqual(list(red.LEFT_OUT)[17:68], reviewed)
         for word in reviewed:
             self.assertRegex(red.LEFT_OUT[word], r"^the table's « .+ »", word)
             self.assertRegex(red.LEFT_OUT[word], r"\b\d+ matches\b", word)
             self.assertTrue(red.is_expression(word, {}), word)
+
+
+# — fr-en's own expressions read where they are met (refine-lingua-fr-en-expressions) —
+#
+# Recorded from the pinned section (`kaikki-French.jsonl`, the English Wiktionary's French section)
+# and the French Wiktionary's table (`kaikki-fr-traductions-en.jsonl`) fr-en's pin reads.
+CLEANUP_SECTION = [
+    {"word": "pas de", "pos": "prep", "senses": [{"glosses": ["without"], "tags": ["Quebec", "informal"]}]},
+    {"word": "sa mère", "pos": "adv", "senses": [{"glosses": ["(so) fucking"], "tags": ["slang"]}]},
+    {"word": "sa mère", "pos": "intj", "senses": [{"glosses": ["fuck!"], "tags": ["slang"]}]},
+    {"word": "m'a", "pos": "contraction", "senses": [{"glosses": ["“I'm going”"], "tags": ["contraction"]}]},
+    {"word": "en fait", "pos": "adv", "senses": [{"glosses": ["actually; in fact (really)"], "tags": ["modal"]}]},
+    {
+        "word": "en fait de",
+        "pos": "prep",
+        "senses": [{"glosses": ["with respect to, in regard to, in respect of, as regards, regarding, when it comes to"], "tags": ["formal", "literary"]}],
+    },
+    {"word": "faire du bruit", "pos": "verb", "senses": [{"glosses": ["to make a lot of noise, to be noisy"]}, {"glosses": ["to make waves, to cause a stir"], "tags": ["figuratively"]}]},
+    {"word": "première fois", "pos": "noun", "senses": [{"glosses": ["first time (the first instance of sexual intercourse)"], "tags": ["feminine", "uncountable", "usually"]}]},
+    {"word": "de rien", "pos": "phrase", "senses": [{"glosses": ["you're welcome, it's nothing"]}]},
+    {"word": "de rien", "pos": "prep_phrase", "senses": [{"glosses": ["insignificant, unimportant, of little account"]}]},
+    {"word": "puis-je", "pos": "verb", "senses": [{"glosses": ["an interrogative form of je peux"]}]},
+    {"word": "j'ai", "pos": "phrase", "senses": [{"glosses": ["I've, I have; compound of je and ai"]}]},
+    {
+        "word": "a-t-il",
+        "pos": "verb",
+        "senses": [
+            {"glosses": ["the interrogative form of avoir in the third-person singular masculine."]},
+            {"glosses": ["a form of avoir (when used as a past auxiliary verb) in the third-person singular masculine, used after reporting direct speech."]},
+        ],
+    },
+    {"word": "colin-tampon", "pos": "noun", "senses": [{"glosses": ["used only in the expression comme de colin-tampon (“completely”)"], "tags": ["masculine", "uncountable"]}]},
+    {
+        "word": "ne faire que",
+        "pos": "verb",
+        "senses": [
+            {"glosses": ["For non-idiomatic uses: see faire (“do”) and ne … que (“nothing but”)"]},
+            {"glosses": ["only, merely, just"]},
+            {"glosses": ["indicates a continued or repeated action, especially if excessive or undesirable: keep"], "tags": ["informal"]},
+        ],
+    },
+    {"word": "pain d'épice", "pos": "noun", "senses": [{"glosses": ["a form of French gingerbread"], "tags": ["masculine", "uncountable", "usually"]}]},
+    {"word": "de l'", "pos": "article", "senses": [{"glosses": ["some; the singular prevocalic partitive article"]}]},
+    {"word": "de la", "pos": "article", "senses": [{"glosses": ["of the"], "tags": ["feminine"]}, {"glosses": ["some; the feminine partitive article"], "tags": ["feminine"]}]},
+]
+CLEANUP_TABLE = [
+    {"pos": "adv", "translations": [{"word": "in fact"}, {"word": "actually"}, {"word": "as a matter of fact"}], "word": "en fait"},
+    {"pos": "intj", "translations": [{"word": "you're welcome"}, {"word": "my pleasure"}, {"word": "don't mention it"}], "word": "de rien"},
+    {"pos": "verb", "translations": [{"word": "may I"}, {"word": "can I"}], "word": "puis-je"},
+    {"pos": "noun", "translations": [{"word": "first time"}], "word": "première fois"},
+]
+
+
+class SectionExpressionsReadWhereMet(unittest.TestCase):
+    """refine-lingua-fr-en-expressions D1–D3, D6: fr-en's own expressions are read where they are met."""
+
+    @classmethod
+    def setUpClass(cls):
+        _, _, cls.expressions, cls.stats = translated_native(CLEANUP_TABLE, CLEANUP_SECTION, {})
+
+    def test_spec_scenario_a_labelled_sense_met_as_plain_words(self):
+        # « Il n'a pas d'enfants. » meets no « pas de », « Sa mère est venue. » no « sa mère ».
+        for word, label in (("pas de", "a Quebec sense"), ("sa mère", "slang")):
+            self.assertNotIn(word, self.expressions)
+            self.assertIn(label, red.LEFT_OUT[word])
+
+    def test_spec_scenario_a_colloquial_spelling_met_as_the_standard_one(self):
+        # « Il m'a sauvé la vie. » meets no « m'a ».
+        self.assertNotIn("m'a", self.expressions)
+        self.assertIn("« il m'a sauvé »", red.LEFT_OUT["m'a"])
+
+    def test_spec_scenario_a_headword_met_through_another_word_s_form(self):
+        # « Il est arrivé en faisant du bruit. » meets « faire du bruit », not « en fait » nor « en fait de ».
+        for word in ("en fait", "en fait de"):
+            self.assertNotIn(word, self.expressions)
+            self.assertIn("en faisant", red.LEFT_OUT[word])
+        self.assertTrue(self.expressions["faire du bruit"].startswith("to make a lot of noise"))
+
+    def test_spec_scenario_words_met_as_they_are(self):
+        # « Pour la première fois, elle a souri. » meets no « première fois ».
+        self.assertNotIn("première fois", self.expressions)
+        self.assertIn("the first instance of sexual intercourse", red.LEFT_OUT["première fois"])
+
+    def test_spec_scenario_a_sense_that_only_notes_a_form(self):
+        self.assertNotIn("puis-je", self.expressions)
+        self.assertEqual(self.expressions["j'ai"], "I've, I have")
+        # Never « a form of » alone: it opens a meaning.
+        self.assertEqual(self.expressions["pain d'épice"], "a form of French gingerbread")
+        for word in ("a-t-il", "colin-tampon"):
+            self.assertNotIn(word, self.expressions)
+        self.assertEqual(self.expressions["ne faire que"], "only, merely, just; indicates a continued or repeated action,")
+
+    def test_spec_scenario_de_l_reads_of_the_first(self):
+        # « Il est à la tête de l'équipe. » and « Je bois de l'eau. » meet « de l' », its gloss
+        # opening "of the; some".
+        self.assertEqual(self.expressions["de l'"], "of the; some; the singular prevocalic partitive ar")
+        self.assertEqual(self.expressions["de la"], "of the; some; the feminine partitive article")
+        self.assertEqual(self.stats["lent senses"], 1)
+
+    def test_spec_scenario_the_table_does_not_bring_them_back(self):
+        # The table glosses « en fait » "in fact" and « de rien » "you're welcome", both left out by
+        # name; « puis-je » "may I", left with no sense, counts as only pointing (D6).
+        for word in ("en fait", "de rien", "première fois", "puis-je"):
+            self.assertNotIn(word, self.expressions)
+        self.assertEqual(self.stats["translated"], set())
+        self.assertEqual(
+            self.stats["table"],
+            {
+                ("space", "left out by name"): 3,
+                ("split", "the section's senses only point"): 1,
+            },
+        )
+
+    def test_the_summary_counts(self):
+        # Every name of `CLEANUP_SECTION` the list holds; « puis-je », « a-t-il », « colin-tampon »
+        # left with no sense.
+        self.assertEqual(self.stats["left out by name"], 7)
+        self.assertEqual(self.stats["pointer-only"], 3)
+
+    def test_without_the_rules_the_section_would_offer_them(self):
+        with mock.patch.dict(red.LEFT_OUT, clear=False), mock.patch.dict(red.LENT_SENSES, clear=True):
+            for word in ("pas de", "en fait", "m'a"):
+                del red.LEFT_OUT[word]
+            _, _, expressions, stats = translated_native(CLEANUP_TABLE, CLEANUP_SECTION, {})
+        self.assertEqual(expressions["pas de"], "without")
+        self.assertEqual(expressions["en fait"], "actually; in fact (really)")
+        self.assertEqual(expressions["m'a"], "“I'm going”")
+        self.assertEqual(expressions["de l'"], "some; the singular prevocalic partitive ar")
+        self.assertEqual(stats["lent senses"], 0)
+
+    def test_every_left_out_row_carries_a_reason(self):
+        for word, reason in red.LEFT_OUT.items():
+            self.assertIsInstance(reason, str, word)
+            self.assertGreater(len(reason), 20, word)
+        for word, (lender, reason) in red.LENT_SENSES.items():
+            self.assertGreater(len(reason), 20, word)
+            self.assertNotEqual(word, lender)
+
+    def test_the_reviewed_list(self):
+        # D1: the 111 names of the design, grouped by reason, and the four task 1.1 read on
+        # add-lingua-fr-en-translated-expressions' tables; each row gives the section's gloss and its
+        # matches on the corpora.
+        design = [
+            # A labelled sense met as plain words (47).
+            "pas de", "dire que", "histoire de", "j'aime", "à toute", "fait que", "sa mère", "de deux", "pas que",
+            "t'a", "sais pas", "espèce de", "m'as", "vu que", "de couleur", "encore que", "la faire", "comme tout",
+            "du reste", "au plus", "et quelques", "de première", "du vent", "à plus", "qui parle", "à la place",
+            "à d'autres", "la ferme", "tu parles", "faire avec", "des familles", "bande de", "d'aucuns", "se prendre",
+            "y passer", "et encore", "en fait de", "à la limite", "rapport à", "faire bien", "s'en être", "du diable",
+            "c'est cela", "quoi faire", "y rester", "faire sans", "de un",
+            # A headword met through another word's form (21).
+            "d'autre", "en être", "de nouveau", "de fait", "en fait", "étant donné", "en tout", "tenir de",
+            "n'eût été", "il ne fallait pas", "ceci étant", "la tienne", "cela étant", "la majeur", "attendu que",
+            "en tenue", "en devenir", "se passer de", "à découvert", "avoir lieu de", "à l'anglaise",
+            # Words met as they are (41).
+            "être à", "nombre de", "de plus", "première fois", "à moi", "d'y", "le temps de", "de droit", "au pied",
+            "de rien", "bon dieu", "au travail", "c'est moi", "un tel", "de service", "du siècle", "de jour",
+            "tout fait", "de confiance", "qui sait", "de cœur", "d'esprit", "de grâce", "avoir mal", "bien fait",
+            "le chercher", "à suivre", "de force", "au reste", "du temps de", "au feu", "avoir raison de",
+            "pauvre de", "de tête", "d'un coup", "au point", "à la pointe", "de concert", "à l'horizon",
+            "au courant", "le leur",
+            # A colloquial spelling met as the standard one (2).
+            "m'a", "t'es",
+        ]
+        task_1_1 = ["à la base", "en série", "de poids", "de plus belle"]
+        self.assertEqual(len(design), 111)
+        rows = list(red.LEFT_OUT)[68:]
+        self.assertEqual(len(rows), 115)
+        # « ça va » stays: its key is « ça ira »'s, which would then meet every « ça va ».
+        self.assertNotIn("ça va", red.LEFT_OUT)
+        self.assertEqual(set(rows), set(design) | set(task_1_1))
+        for word in rows:
+            self.assertRegex(red.LEFT_OUT[word], r"^the section's « .+ »", word)
+            self.assertRegex(red.LEFT_OUT[word], r"\bof \d+ matches\b", word)
+            self.assertTrue(red.is_expression(word, {}), word)
+
+    def test_without_form_notes(self):
+        self.assertEqual(red.without_form_notes("I've, I have; compound of je and ai"), "I've, I have")
+        self.assertIsNone(red.without_form_notes("an interrogative form of je peux"))
+        self.assertIsNone(red.without_form_notes("Equivalent to “je vais” when used as a near-future tense."))
+        self.assertIsNone(red.without_form_notes("For non-idiomatic uses see à and moi"))
+        self.assertIsNone(red.without_form_notes("used only in the simple past tense for s'en aller"))
+        self.assertIsNone(red.without_form_notes("a form of avoir (when used as a past auxiliary verb) in the third-person singular"))
+        self.assertIsNone(red.without_form_notes("the interrogative form of avoir in the third-person singular masculine."))
+        # A gloss with no note is returned as it is; « a form of » alone is a meaning.
+        gloss = "a form of honey biscuit; a cake"
+        self.assertIs(red.without_form_notes(gloss), gloss)
+        self.assertEqual(red.without_form_notes("you; compound of tu and es; yours"), "you; yours")
+
+    def test_a_pointer_s_meaning_then_its_notes(self):
+        # A spelling's pointer read past its target (D11, 2), then its notes (D2).
+        sense = {"glosses": ["subject-inverted form of il y a; is there?; compound of y and a"]}
+        self.assertEqual(red._meaning_of_pointer(sense), {"glosses": ["is there?"]})
+        self.assertIsNone(red._meaning_of_pointer({"glosses": ["subject-inverted form of il y a; compound of y and a"]}))
+        plain = {"glosses": ["glove box"]}
+        self.assertIs(red._meaning_of_pointer(plain), plain)
+
+    def test_lent_senses(self):
+        expressions = {"de l'": "some; the singular prevocalic partitive ar", "de la": "of the; some"}
+        self.assertEqual(red.lent_senses(expressions), ["de l'"])
+        self.assertEqual(expressions["de l'"], "of the; some; the singular prevocalic partitive ar")
+        # Its own senses holding the lender's first: nothing lent.
+        expressions = {"de l'": "of the; some", "de la": "of the; some"}
+        self.assertEqual(red.lent_senses(expressions), [])
+        # Cut to the expression gloss length, as the shared rules cut one.
+        expressions = {"de l'": "x" * 79, "de la": "of the"}
+        red.lent_senses(expressions)
+        self.assertEqual(len(expressions["de l'"]), 80)
+        self.assertTrue(expressions["de l'"].startswith("of the; x"))
+        # No borrower: nothing to open; a borrower with no lender fails, naming it.
+        self.assertEqual(red.lent_senses({"de la": "of the"}), [])
+        with self.assertRaises(SystemExit) as raised:
+            red.lent_senses({"de l'": "some"})
+        self.assertIn("« de la »", str(raised.exception))
+
+    def test_the_committed_table(self):
+        # Task 2.2: over the committed tables/fr-en/mwe.tsv.
+        rows = _committed("fr-en/mwe.tsv")
+        self.assertFalse([word for word in red.LEFT_OUT if word in rows])
+        self.assertTrue(rows["de l'"].startswith("of the; "), rows["de l'"])
+        self.assertEqual(rows["j'ai"], "I've, I have")
+        for word in ("puis-je", "a-t-il", "colin-tampon"):
+            self.assertNotIn(word, rows)
+        noted = [word for word, gloss in rows.items() if any(red._FORM_NOTE.match(p.strip()) for p in gloss.split(";"))]
+        self.assertEqual(noted, [])
+        self.assertEqual(rows["pain d'épice"], "a form of French gingerbread")
 
 
 # — fr-en read as French (refine-lingua-fr-en-glosses) —
@@ -3753,7 +3985,8 @@ class ReadAsFrench(unittest.TestCase):
             self.assertNotIn(word, self.expressions, word)
         # A contraction met only where it is written so, read whole, stays: « t'as » « you've ».
         self.assertEqual(self.expressions["t'as"], "you've")
-        self.assertEqual(self.expressions["t'es"], "you're")
+        # « t'es » « you're » is met in « tu t'es », and left out by name (refine-lingua-fr-en-expressions D1).
+        self.assertNotIn("t'es", self.expressions)
         # Without the rows, D4 would have read them.
         with mock.patch.dict(red.LEFT_OUT, clear=False):
             for word in ("à le", "de le", "l'a", "poser des lapins"):
