@@ -319,7 +319,7 @@ class ReduceExpressions(TempDir):
         )
         # One line per headword: the two spellings of "give up" are one entry, the
         # single word is not an expression, and a headword `_TOKEN` rejects is dropped.
-        self.assertEqual(red.reduce_expressions(path, 80), {"give up": "Abandonner; Abandon"})
+        self.assertEqual(red.reduce_expressions(path), {"give up": "Abandonner; Abandon"})
 
     def test_the_four_wordings_the_shared_filter_lacks_are_dropped(self):
         entries = [
@@ -331,7 +331,7 @@ class ReduceExpressions(TempDir):
             {"word": "gave up", "pos": "verb", "senses": [{"glosses": ["Prétérit de give up."]}]},
             {"word": "given up", "pos": "verb", "senses": [{"glosses": ["Participe passé de give up."]}]},
         ]
-        self.assertEqual(red.reduce_expressions(self.kaikki(entries), 80), {})
+        self.assertEqual(red.reduce_expressions(self.kaikki(entries)), {})
 
     def test_the_shared_filter_is_untouched(self):
         # The four extra wordings are dropped in the multi-word path ONLY: the same
@@ -348,7 +348,7 @@ class ReduceExpressions(TempDir):
             {"word": "big apple", "pos": "name", "senses": [{"glosses": ["New York."]}]},
             {"word": "big apple", "pos": "noun", "senses": [{"glosses": ["Grosse pomme."]}]},
         ]
-        self.assertEqual(red.reduce_expressions(self.kaikki(entries), 80), {"big apple": "Grosse pomme"})
+        self.assertEqual(red.reduce_expressions(self.kaikki(entries)), {"big apple": "Grosse pomme"})
 
     def test_two_spellings_stay_two_lines(self):
         # The builder resolves the collision — it is the one holding the lexicon that
@@ -358,11 +358,11 @@ class ReduceExpressions(TempDir):
             {"word": "breaking point", "pos": "noun", "senses": [{"glosses": ["Point de rupture."]}]},
         ]
         self.assertEqual(
-            red.reduce_expressions(self.kaikki(entries), 80),
+            red.reduce_expressions(self.kaikki(entries)),
             {"break point": "Point d'arrêt", "breaking point": "Point de rupture"},
         )
 
-    def test_senses_are_cut_per_sense_then_on_the_joined_string(self):
+    def test_senses_are_whole_three_at_most_and_the_joined_gloss_is_not_cut(self):
         entries = [
             {
                 "word": "starting point",
@@ -376,14 +376,14 @@ class ReduceExpressions(TempDir):
             },
         ]
         path = self.kaikki(entries)
-        # 42 characters per sense, then three senses at most, then the joined cut.
+        # Whole senses, three at most, the joined gloss past 80 characters left whole
+        # (keep-lingua-expression-glosses-whole D1); a sense past `per_sense` is cut after a whole word.
+        whole = "Point de départ, origine, commencement, amorce, prémisse; Base de discussion; Repère"
+        self.assertGreater(len(whole), 80)
+        self.assertEqual(red.reduce_expressions(path), {"starting point": whole})
         self.assertEqual(
-            red.reduce_expressions(path, 80),
-            {"starting point": "Point de départ, origine, commencement, am; Base de discussion; Repère"},
-        )
-        self.assertEqual(
-            red.reduce_expressions(path, 40),
-            {"starting point": "Point de départ, origine, commencement,"},
+            red.reduce_expressions(path, 40)["starting point"],
+            "Point de départ, origine, commencement…; Base de discussion; Repère",
         )
 
     def test_the_curated_locutions_are_written_by_a_person_each_with_its_gloss(self):
@@ -430,7 +430,7 @@ class DanglingCoordinator(unittest.TestCase):
 
     def test_cuts_to_length_after_stripping(self):
         # The cut counts the text the reader sees, not the coordinator that went.
-        self.assertEqual(red.clean_gloss("ou " + "a" * 50, 10), "a" * 10)
+        self.assertEqual(red.clean_gloss("ou " + "a" * 50, 10), "a" * 9 + "…")
 
 
 if __name__ == "__main__":
@@ -794,7 +794,7 @@ class SensesByPartOfSpeech(unittest.TestCase):
     def test_the_same_senses_are_picked_as_before(self):
         per_entry = [["Course", "Parcours"], ["Courir"]]
         joined, runs = red._join_senses_by_pos(per_entry, ["NOUN", "VERB"], 80, 3)
-        self.assertEqual(sorted(joined.split("; ")), sorted(red._join_senses(per_entry, 80, 3).split("; ")))
+        self.assertEqual(sorted(joined.split("; ")), sorted(red._join_senses(per_entry, 3).split("; ")))
         self.assertEqual(runs, [("NOUN", 2), ("VERB", 1)])
 
     def test_a_separator_inside_a_sense_becomes_a_comma(self):
@@ -1011,14 +1011,14 @@ class CutAtWord(unittest.TestCase):
             ("Homme élevant des chiens. Étymologie manquante ou incomplète. Si vous la connaissez, vous pouvez l’ajouter en cliquant ici.", "Homme élevant des chiens"),
             ("Définition manquante ou à compléter. (Ajouter)…", ""),
         ):
-            self.assertEqual(red.clean_gloss(raw, 300, whole_words=True), want, raw)
+            self.assertEqual(red.clean_gloss(raw, 300), want, raw)
 
     def test_an_arrow_that_is_no_pointer_stays(self):
         self.assertEqual(red.clean_gloss("Le plus. Ex. hard → hardest.", 80), "Le plus. Ex. hard → hardest")
 
-    def test_an_expression_keeps_the_plain_cut(self):
-        self.assertEqual(red.clean_gloss("Initiales de Automobile Association", 15), "Initiales de Au")
-        self.assertEqual(red.clean_gloss("Initiales de Automobile Association", 15, whole_words=True), "Initiales de…")
+    def test_every_sense_is_cut_after_a_whole_word(self):
+        # The raw cut is gone (keep-lingua-expression-glosses-whole): an expression's sense is cut as a word's.
+        self.assertEqual(red.clean_gloss("Initiales de Automobile Association", 15), "Initiales de…")
 
 
 class GrammarRows(unittest.TestCase):

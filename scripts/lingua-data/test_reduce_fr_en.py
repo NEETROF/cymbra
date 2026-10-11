@@ -2903,7 +2903,7 @@ class NativeSide(unittest.TestCase):
     def test_spec_scenario_a_word_the_pre_pass_splits(self):
         self.assertEqual(self.expressions["d'abord"], "first, at first, right away; primarily; for one thing")
         self.assertEqual(self.expressions["allez-y"], "go ahead; go on")
-        self.assertEqual(self.expressions["jusqu'à"], "until; to (used together with depuis to indicate; up to")
+        self.assertEqual(self.expressions["jusqu'à"], "until; to (used together with depuis to indicate a time range); up to")
         # A form is looked up whole, and a name's entry glosses nothing.
         self.assertNotIn("aujourd'hui", self.expressions)
         self.assertNotIn("jean-pierre", self.expressions)
@@ -2915,7 +2915,7 @@ class NativeSide(unittest.TestCase):
         for pointer in ("crème fraiche", "qu'elle", "jusqu'au"):
             self.assertNotIn(pointer, self.expressions)
         self.assertTrue(self.expressions["crème fraîche"].startswith("crème fraîche, slightly sour thick soured"))
-        self.assertEqual(self.expressions["y a-t-il"], "is there? are there?, (after a modal adver")
+        self.assertEqual(self.expressions["y a-t-il"], "is there? are there?, (after a modal adverb) there is, there are")
         # A sense that only points goes; the word's other senses stay — read without `m'a`'s row, which
         # leaves it out by name (refine-lingua-fr-en-expressions D1: « il m'a sauvé » is no « I'm going »).
         self.assertNotIn("m'a", self.expressions)
@@ -2928,7 +2928,10 @@ class NativeSide(unittest.TestCase):
 
     def test_spec_scenario_a_la(self):
         self.assertNotIn("à la", self.expressions)
-        self.assertEqual(self.expressions["à la carte"], "à la carte (allowing selection only from a; with each dish priced")
+        self.assertEqual(self.expressions["à la carte"], (
+            "à la carte (allowing selection only from a fixed list of options, typically shown on a menu); "
+            "with each dish priced"
+        ))
         self.assertIn("à la", red.LEFT_OUT)
         self.assertIn("in the style or manner of", red.LEFT_OUT["à la"])
 
@@ -3006,6 +3009,55 @@ class NativeSide(unittest.TestCase):
         self.assertTrue(red.is_expression("coup d'œil", forms))
         self.assertFalse(red.is_expression("coup d’œil", forms), "a headword the cut has not read")
         self.assertFalse(red.is_expression("w3 c", forms))
+
+    def test_split_words_keep_their_senses_whole(self):
+        # keep-lingua-expression-glosses-whole: a split word's senses are read as the shared rules read
+        # an expression's — whole, past 42 characters and past 80 together; past 300, cut at a word.
+        sense = "first of all, before anything else, in the first place"  # 54 characters
+        long = "a " * 200 + "end"
+        section = [
+            {"word": "d'abord", "pos": "adv", "senses": [{"glosses": [sense]}, {"glosses": ["at first"]}]},
+            {"word": "d'abord", "pos": "intj", "senses": [{"glosses": ["right away, straight off the bat"]}]},
+            {"word": "c'est", "pos": "phrase", "senses": [{"glosses": [long]}]},
+        ]
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "section.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in section))
+            out = red.split_words(path, {})
+        whole = f"{sense}; right away, straight off the bat; at first"
+        self.assertGreater(len(whole), 80)
+        self.assertEqual(out["d'abord"], whole)
+        self.assertLessEqual(len(out["c'est"]), 300)
+        self.assertTrue(out["c'est"].endswith("a…"), out["c'est"][-5:])
+
+    def test_senses_the_cut_made_alike_are_both_kept(self):
+        # Spec scenario « Senses the cut made alike »: recorded, saint-cyrien's first three senses in the
+        # section fr-en pins, as the English edition's pre-pass reads them (each by its own gloss). Cut at
+        # 42 characters the first two read alike and the second was dropped as a repeat; whole, all three.
+        parent = "Of or relating to several French communes containing Saint-Cyr in their names:"
+        section = [
+            {
+                "word": "saint-cyrien",
+                "pos": "adj",
+                "senses": [
+                    {"glosses": [parent, f"Of or relating to Saint-Cyr, in the department of {place}."]}
+                    for place in ("Ardèche", "Manche", "Saône-et-Loire")
+                ],
+            }
+        ]
+        with tempfile.TemporaryDirectory() as work:
+            src = os.path.join(work, "section.jsonl")
+            with open(src, "w", encoding="utf-8") as f:
+                f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in section))
+            meanings = red.english.read_as_meanings(src, os.path.join(work, "meanings.jsonl"))
+            expressions = red.split_words(meanings, {})
+        self.assertEqual(
+            expressions["saint-cyrien"],
+            "of or relating to Saint-Cyr, in the department of Ardèche; "
+            "of or relating to Saint-Cyr, in the department of Manche; "
+            "of or relating to Saint-Cyr, in the department of Saône-et-Loire",
+        )
 
     def test_a_meaning_after_a_pointer(self):
         self.assertIsNone(red._meaning_of_pointer({"glosses": ["que + elle"]}))
@@ -3207,7 +3259,7 @@ class TranslatedExpressions(unittest.TestCase):
     def test_spec_scenario_the_section_s_key_wins(self):
         # `enchainé` and `enchaîné` read alike, `feux` as feu: the section's spelling keeps its key.
         self.assertNotIn("fondu enchainé", self.expressions)
-        self.assertEqual(self.expressions["fondu enchaîné"], "lap dissolve; A dissolve between two image")
+        self.assertEqual(self.expressions["fondu enchaîné"], "lap dissolve; A dissolve between two images")
         self.assertNotIn("feu de croisement", self.expressions)
         self.assertIn("feux de croisement", self.expressions)
 
@@ -3434,12 +3486,14 @@ class SectionExpressionsReadWhereMet(unittest.TestCase):
         self.assertEqual(self.expressions["pain d'épice"], "a form of French gingerbread")
         for word in ("a-t-il", "colin-tampon"):
             self.assertNotIn(word, self.expressions)
-        self.assertEqual(self.expressions["ne faire que"], "only, merely, just; indicates a continued or repeated action,")
+        self.assertEqual(self.expressions["ne faire que"], (
+            "only, merely, just; indicates a continued or repeated action, especially if excessive or undesirable: keep"
+        ))
 
     def test_spec_scenario_de_l_reads_of_the_first(self):
         # « Il est à la tête de l'équipe. » and « Je bois de l'eau. » meet « de l' », its gloss
         # opening "of the; some".
-        self.assertEqual(self.expressions["de l'"], "of the; some; the singular prevocalic partitive ar")
+        self.assertEqual(self.expressions["de l'"], "of the; some; the singular prevocalic partitive article")
         self.assertEqual(self.expressions["de la"], "of the; some; the feminine partitive article")
         self.assertEqual(self.stats["lent senses"], 1)
 
@@ -3471,7 +3525,7 @@ class SectionExpressionsReadWhereMet(unittest.TestCase):
         self.assertEqual(expressions["pas de"], "without")
         self.assertEqual(expressions["en fait"], "actually; in fact (really)")
         self.assertEqual(expressions["m'a"], "“I'm going”")
-        self.assertEqual(expressions["de l'"], "some; the singular prevocalic partitive ar")
+        self.assertEqual(expressions["de l'"], "some; the singular prevocalic partitive article")
         self.assertEqual(stats["lent senses"], 0)
 
     def test_every_left_out_row_carries_a_reason(self):
@@ -3542,17 +3596,17 @@ class SectionExpressionsReadWhereMet(unittest.TestCase):
         self.assertIs(red._meaning_of_pointer(plain), plain)
 
     def test_lent_senses(self):
-        expressions = {"de l'": "some; the singular prevocalic partitive ar", "de la": "of the; some"}
+        # Spec scenario « A lent sense » (keep-lingua-expression-glosses-whole): uncut.
+        expressions = {"de l'": "some; the singular prevocalic partitive article", "de la": "of the; some"}
         self.assertEqual(red.lent_senses(expressions), ["de l'"])
-        self.assertEqual(expressions["de l'"], "of the; some; the singular prevocalic partitive ar")
+        self.assertEqual(expressions["de l'"], "of the; some; the singular prevocalic partitive article")
         # Its own senses holding the lender's first: nothing lent.
         expressions = {"de l'": "of the; some", "de la": "of the; some"}
         self.assertEqual(red.lent_senses(expressions), [])
-        # Cut to the expression gloss length, as the shared rules cut one.
+        # Not cut, as the shared rules no longer cut an expression's joined gloss.
         expressions = {"de l'": "x" * 79, "de la": "of the"}
         red.lent_senses(expressions)
-        self.assertEqual(len(expressions["de l'"]), 80)
-        self.assertTrue(expressions["de l'"].startswith("of the; x"))
+        self.assertEqual(expressions["de l'"], "of the; " + "x" * 79)
         # No borrower: nothing to open; a borrower with no lender fails, naming it.
         self.assertEqual(red.lent_senses({"de la": "of the"}), [])
         with self.assertRaises(SystemExit) as raised:

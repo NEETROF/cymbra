@@ -1392,11 +1392,18 @@ class TheReducer(Tables):
         self.assertEqual((runs["être"], runs["des"], runs["pas"]), ("VERB:4", "DET:1\tADP:1", "ADV:1\tNOUN:1"))
         for lemma in ("us", "usa", "fr", "luc", "lorient", "rap", "pilote", "ds", "arnaque", "el"):
             self.assertNotIn(lemma, glosses)
-        self.assertEqual(expressions["mal aux cheveux"], "(anticuado) Resaca, caña, chaqui, chuchaqui, cruda, go")
+        self.assertEqual(
+            expressions["mal aux cheveux"],
+            "(anticuado) Resaca, caña, chaqui, chuchaqui, cruda, goma, guayabo, hachazo, hangover, perseguidora, ratón",
+        )
         self.assertEqual(expressions["il y a"], "Hay; Hace")
         self.assertNotIn("contrôle continu", expressions)
-        # A labelled expression stays within the card's page.
-        self.assertLessEqual(max(len(gloss) for gloss in expressions.values() if gloss.startswith("(")), 160)
+        # A labelled expression's senses keep the shared rules' bound, the label outside it; the card
+        # pages a gloss past 160 characters (keep-lingua-expression-glosses-whole).
+        for gloss in expressions.values():
+            for sense in gloss.split("; "):
+                self.assertLessEqual(len(re.sub(r"^\([^)]*\) ", "", sense)), common.EXPRESSION_SENSE_LEN, gloss)
+        self.assertEqual(len(expressions["fils de pute"]), 275)
 
     def test_spec_scenario_a_rule_of_the_spanish_edition(self):
         # fr-es's rules are its reducer, the shared rules, the Spanish edition's, UD French-GSD's
@@ -1492,26 +1499,31 @@ class Labels(Tables):
 
     def test_spec_scenario_an_expression_s_label_outside_its_cut(self):
         _, _, expressions, steps = self.tables([], MAL_AUX_CHEVEUX)
-        self.assertEqual(expressions["mal aux cheveux"], "(anticuado) Resaca, caña, chaqui, chuchaqui, cruda, go")
-        self.assertEqual(len("Resaca, caña, chaqui, chuchaqui, cruda, go"), fr_es.EXPRESSION_SENSE)
+        # The whole sense with its label (keep-lingua-expression-glosses-whole): no cut any more.
+        self.assertEqual(
+            expressions["mal aux cheveux"],
+            "(anticuado) Resaca, caña, chaqui, chuchaqui, cruda, goma, guayabo, hachazo, hangover, perseguidora, ratón",
+        )
         self.assertEqual(steps["labelled"], 1)
 
-    def test_an_expression_s_cut_remnant_is_labelled(self):
-        # « fils de pute »: three senses cut to 42 characters each and to 80 together; the third is
-        # the remnant « Obje », labelled as its sense is.
+    def test_each_of_an_expression_s_whole_senses_is_labelled(self):
+        # « fils de pute »: three senses, each whole (keep-lingua-expression-glosses-whole; they were
+        # cut to 42 characters each and to 80 together), each opening on its own labels.
         _, _, expressions, steps = self.tables([], FILS_DE_PUTE)
         self.assertEqual(
             expressions["fils de pute"],
             "(vulgar) Hijo de puta, hijoputa o máncer; (malsonante, despectivo) Bastardo, hijo de la chingada, hijo "
-            "de la; (malsonante, despectivo) Obje",
+            "de la Malinche, hijo de la tiznada, hijo de perra, hijo de puta, hijoputa o hijueputa; (malsonante, "
+            "despectivo) Objeto bajo, desgraciado o despreciable o situación incómoda",
         )
+        self.assertEqual(len(expressions["fils de pute"]), 275)
         self.assertEqual(steps["labelled"], 3)
 
     def test_every_labelled_expression_is_its_gloss_without_labels(self):
-        # Its labels taken out, each expression reads as the shared rules cut it, character for
+        # Its labels taken out, each expression reads as the shared rules write it, character for
         # character; an expression with no labelled sense is left as it is.
         entries = self.section(MAL_AUX_CHEVEUX, FILS_DE_PUTE, NOUS_AUTRES, IL_Y_A)
-        bare = common.reduce_expressions(entries, common.EXPRESSION_GLOSS_LEN, studied=fr_es.FR, edition=ES)
+        bare = common.reduce_expressions(entries, studied=fr_es.FR, edition=ES)
         labelled, count = fr_es.label_expressions(bare, entries)
         self.assertEqual(count, 4)
         self.assertEqual(labelled["il y a"], bare["il y a"])
@@ -1519,7 +1531,7 @@ class Labels(Tables):
         pattern = r"\((?:%s)(?:, (?:%s))*\) " % ("|".join(vocabulary), "|".join(vocabulary))
         for expression, gloss in labelled.items():
             self.assertEqual(re.sub(pattern, "", gloss), bare[expression], expression)
-        self.assertTrue(len(labelled["fils de pute"]) > common.EXPRESSION_GLOSS_LEN, "the label is outside the cut")
+        self.assertGreater(len(labelled["fils de pute"]), len(bare["fils de pute"]), "the label is outside the bound")
 
     def test_a_gloss_the_shared_rules_did_not_cut_so_is_left(self):
         # An expression whose gloss is not what the shared rules give from the section (a locution, or
@@ -1530,6 +1542,7 @@ class Labels(Tables):
 
     def test_the_expression_budgets_are_the_shared_rules(self):
         defaults = inspect.signature(common.reduce_expressions).parameters
+        self.assertEqual(fr_es.EXPRESSION_SENSE, common.EXPRESSION_SENSE_LEN)
         self.assertEqual(
             (fr_es.EXPRESSION_SENSE, fr_es.EXPRESSION_SENSES), (defaults["per_sense"].default, defaults["max_senses"].default)
         )
@@ -1573,7 +1586,7 @@ class FrenchMeanings(Tables):
         self.assertEqual((glosses["qui"], glosses["quoi"]), ("Quién; Que", "Qué"))
         # The notes that say what the heading does not stay.
         self.assertEqual(glosses["il"], "Pronombre sujeto expletivo impersonal. (No tiene traducción al español. No existe en español.)")
-        self.assertEqual(expressions["nous autres"], "Nosotros [y no tú o vosotros]. (Plural exc")
+        self.assertEqual(expressions["nous autres"], "Nosotros [y no tú o vosotros]. (Plural exclusivo.)")
 
     def test_spec_scenario_etc_with_its_period(self):
         self.assertEqual(fr_es.with_etc_period("Cerdo, marrano, guarro, cochino, etc"), "Cerdo, marrano, guarro, cochino, etc.")
@@ -1795,7 +1808,7 @@ class ExpressionsWhereFrenchTextMeetsThem(Tables):
 
     def test_spec_scenario_a_partitive_met_as_of_the(self):
         glosses, runs, expressions, _ = self.tables(["maison"], DE_LA, MAISON)
-        self.assertEqual(expressions, {"de la": "Algo de, un poco de, una cierta cantidad d"})
+        self.assertEqual(expressions, {"de la": "Algo de, un poco de, una cierta cantidad de"})
         kept, unglossed = fr_es.without_left_out(expressions)
         self.assertEqual(kept, {})
         self.assertNotIn("de la", unglossed)
