@@ -42,6 +42,67 @@ export function comprehension(wordsRead: number, newWordsSeen: number): number |
   return Math.min(1, Math.max(0, 1 - newWordsSeen / wordsRead));
 }
 
+/** « Traduction en ligne » over the window, per provider and pair (change:
+ *  add-lingua-online-translation). Daily totals the service keeps — no account, no text. The cost
+ *  is an estimate in micro-dollars, priced at request time. */
+export interface OnlineUsageLine {
+  provider: string;
+  pair: string;
+  answered: number;
+  failed: number;
+  limited: number;
+  inputTokens: number;
+  outputTokens: number;
+  costMicroUsd: number;
+}
+export interface OnlineUsage {
+  answered: number;
+  failed: number;
+  limited: number;
+  costMicroUsd: number;
+  lines: OnlineUsageLine[];
+}
+
+/** Fold the per-day rows into one line per provider × pair, busiest first. */
+export function foldOnlineUsage(rows: readonly OnlineUsageLine[]): OnlineUsageLine[] {
+  const by = new Map<string, OnlineUsageLine>();
+  for (const r of rows) {
+    const k = `${r.provider}|${r.pair}`;
+    const cur = by.get(k) ?? {
+      ...r,
+      answered: 0,
+      failed: 0,
+      limited: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      costMicroUsd: 0,
+    };
+    by.set(k, {
+      ...cur,
+      answered: cur.answered + r.answered,
+      failed: cur.failed + r.failed,
+      limited: cur.limited + r.limited,
+      inputTokens: cur.inputTokens + r.inputTokens,
+      outputTokens: cur.outputTokens + r.outputTokens,
+      costMicroUsd: cur.costMicroUsd + r.costMicroUsd,
+    });
+  }
+  return [...by.values()].sort(
+    (a, b) => b.answered - a.answered || a.provider.localeCompare(b.provider) || a.pair.localeCompare(b.pair),
+  );
+}
+
+/** An estimated cost in micro-dollars, as dollars in the console's locale. */
+export function formatUsd(microUsd: number, locale: string): string {
+  return (microUsd / 1_000_000).toLocaleString(locale, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    // Under a dollar, cents alone would read as nothing: a sentence costs about $0.0001.
+    maximumFractionDigits: microUsd < 1_000_000 ? 4 : 2,
+  });
+}
+
 /** One point of a per-day time series. */
 export interface SeriesPoint {
   day: string; // ISO yyyy-mm-dd
@@ -90,6 +151,8 @@ export function defaultFilters(): LinguaFilters {
 export const useLinguaStore = defineStore("lingua", () => {
   const report = ref<Async<LinguaReport>>(idle);
   const series = ref<Async<LinguaSeries>>(idle);
+  /** Its own union: a failed online-usage read leaves the rest of the console standing. */
+  const online = ref<Async<OnlineUsage>>(idle);
   const filters = reactive<LinguaFilters>(defaultFilters());
 
   function currentWindow() {
@@ -137,8 +200,29 @@ export const useLinguaStore = defineStore("lingua", () => {
           newWordsSeen: mapPoints(fresh.points),
         } satisfies LinguaSeries;
       }),
+      run(online, async () => {
+        const r = await api().lingua.adminGetOnlineTranslationUsage({ window: currentWindow() });
+        return {
+          answered: Number(r.answered),
+          failed: Number(r.failed),
+          limited: Number(r.limited),
+          costMicroUsd: Number(r.costMicroUsd),
+          lines: foldOnlineUsage(
+            r.rows.map((x) => ({
+              provider: x.provider,
+              pair: x.pair,
+              answered: Number(x.answered),
+              failed: Number(x.failed),
+              limited: Number(x.limited),
+              inputTokens: Number(x.inputTokens),
+              outputTokens: Number(x.outputTokens),
+              costMicroUsd: Number(x.costMicroUsd),
+            })),
+          ),
+        } satisfies OnlineUsage;
+      }),
     ]);
   }
 
-  return { report, series, filters, load };
+  return { report, series, online, filters, load };
 });

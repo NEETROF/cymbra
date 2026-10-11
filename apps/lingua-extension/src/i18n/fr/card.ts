@@ -3,6 +3,14 @@
 export const card = {
   rowsLabel: "Mot à mot — ce n'est pas une traduction de l'expression.",
   translationLabel: "Dans votre phrase — traduction automatique",
+  /** « Traduction en ligne » (add-lingua-online-translation): the button, never naming the service. */
+  onlineTranslate: "Traduction en ligne",
+  onlineTranslating: "Traduction en ligne…",
+  /** The label of a translation the online service gave. */
+  onlineTranslationLabel: "Dans votre phrase — traduction automatique en ligne",
+  onlineUnavailable: "Traduction en ligne indisponible pour le moment.",
+  /** `time` is the hour the limit resets, as the interface language writes it (« 14:05 »). */
+  onlineLimit: (time: string) => `Limite quotidienne atteinte — de nouveau disponible à ${time}.`,
   waiting: "Recherche dans le pack…",
   translating: "Traduction en cours…",
   noGloss: "Pas de traduction dans le pack.",

@@ -132,7 +132,19 @@
     "comprehension": "Comprehension",
     "unavailable": "—",
     "byLanguage": "By studied language",
-    "noData": "No data for this period"
+    "noData": "No data for this period",
+    "online": {
+      "title": "Online translation",
+      "answered": "Translations",
+      "failed": "Provider failures",
+      "limited": "Refused at the daily limit",
+      "cost": "Estimated cost",
+      "provider": "Provider",
+      "pair": "Pair",
+      "tokens": "Tokens in / out",
+      "noProvider": "— (refused before any provider)",
+      "note": "Daily totals per provider and language pair, with no account and no text. The cost is an estimate at the configured prices (lingua.online_translation.price.*), in US dollars."
+    }
   },
   "jobs": {
     "title": "Jobs",

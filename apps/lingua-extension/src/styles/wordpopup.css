@@ -261,6 +261,48 @@
   display: none;
 }
 
+/* « Traduction en ligne » (add-lingua-online-translation): a quiet button under the translation,
+   as the listen row's, and a line saying where its request stands. Disabled once pressed. */
+.online {
+  margin-top: 8px;
+}
+
+.online[hidden] {
+  display: none;
+}
+
+.online button {
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: transparent;
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.online button:hover:enabled {
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+}
+
+.online button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.online-note {
+  margin-top: 4px;
+  color: var(--cymbra-lingua-faint);
+  font-style: italic;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.online-note[hidden] {
+  display: none;
+}
+
 .actions {
   display: flex;
   gap: 6px;

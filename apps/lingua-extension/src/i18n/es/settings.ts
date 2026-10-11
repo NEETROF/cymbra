@@ -37,6 +37,10 @@ export const settings: typeof fr = {
     "El texto de los libros y toda la interfaz: tarjetas, panel, menús. El tema vale también para la interfaz; un preajuste de tinta electrónica la mantiene en negro sobre blanco.",
   colours: "Colores",
   translation: "Traducción",
+  onlineTranslation: "Traducción en línea",
+  onlineTranslationNote:
+    "A petición, desde la tarjeta de una selección de varias palabras: la frase seleccionada se envía a un servicio de traducción externo para traducirla, y nadie la conserva. Ajuste propio de este dispositivo.",
+  privacyPolicy: "Política de privacidad",
   shortcuts: "Atajos y gestos",
   keyAlt: "Alt",
   keyShift: "Mayús",

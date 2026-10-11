@@ -55,6 +55,13 @@ fn no_proto_field_names_a_browsing_signal() {
         ("deck", include_str!("../proto/deck.proto")),
         ("stats", include_str!("../proto/stats.proto")),
         ("lingua_data", include_str!("../proto/lingua_data.proto")),
+        // The one RPC that carries page text, by the reader's own press — the sentence and
+        // its translation, never where they came from (add-lingua-online-translation).
+        (
+            "online_translation",
+            include_str!("../proto/online_translation.proto"),
+        ),
+        ("lingua_admin", include_str!("../proto/lingua_admin.proto")),
     ];
     let mut checked = 0usize;
     for (name, proto) in protos {

@@ -64,7 +64,8 @@ export function firefoxManifest(base) {
   // everything here is OPTIONAL because signing in is optional (offline/anonymous use sends
   // nothing at all — see REVIEWERS.md, "Where the add-on reaches the network"). Once signed in
   // and syncing: authenticationInfo (the Cymbra account/session), personallyIdentifyingInfo (its
-  // email), websiteContent (the deck's stored source sentence — no URL, but still page text), and
+  // email), websiteContent (the deck's stored source sentence — no URL, but still page text — and
+  // the one sentence « Traduction en ligne » sends when the reader presses its button), and
   // technicalAndInteraction (daily stats, the random install id; Mozilla requires this one to be
   // optional regardless). No location/health/financial/communications/search/bookmarks data, and
   // no browsingActivity — the page address never leaves the device (Annex B). Firefox only shows

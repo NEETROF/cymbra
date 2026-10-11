@@ -786,10 +786,14 @@ async fn main() -> anyhow::Result<()> {
     // --- lingua module (Cymbra Lingua sync: statuses, cards, daily stats; change:
     // add-lingua-backend). Owns the `lingua` schema via `lingua_svc`. Inert without
     // CYMBRA_LINGUA_DATABASE_URL. Identity comes from the token, so no UserPort here.
-    let (known_words_svc, deck_svc, stats_svc, lingua_admin_svc, lingua_data_svc) = match cfg
-        .lingua_database_url
-        .as_deref()
-    {
+    let (
+        known_words_svc,
+        deck_svc,
+        stats_svc,
+        lingua_admin_svc,
+        lingua_data_svc,
+        online_translation_svc,
+    ) = match cfg.lingua_database_url.as_deref() {
         Some(db_url) => {
             let pool = db::connect(db_url, 5).await?;
             cymbra_lingua::MIGRATOR.run(&pool).await?;
@@ -815,6 +819,35 @@ async fn main() -> anyhow::Result<()> {
             let admin = std::sync::Arc::new(cymbra_lingua::LinguaAdminModule::new(
                 std::sync::Arc::new(cymbra_lingua::PgLinguaAdminRepo::new(pool.clone())),
             ));
+            // « Traduction en ligne » (change: add-lingua-online-translation): providers from
+            // the environment (primary first), access/limit/prices from runtime flags with the
+            // caller's Lingua betas, the day's count in the cache, daily totals in `lingua`.
+            let providers = cymbra_lingua::providers::http::HttpProvider::all(
+                cymbra_lingua::providers::from_env(|k| std::env::var(k).ok()),
+            )?;
+            if providers.is_empty() {
+                tracing::info!(
+                    "online translation: no provider key set, every request answers unavailable"
+                );
+            }
+            let online_translation = std::sync::Arc::new(
+                cymbra_lingua::online_translation::OnlineTranslationModule::new(
+                    providers,
+                    std::sync::Arc::new(cymbra_server::FlagOnlineTranslationPolicy::new(
+                        flag_service.clone(),
+                        plan_source.clone().map(|p| {
+                            std::sync::Arc::new(cymbra_server::PlanContext::new(p))
+                                as std::sync::Arc<dyn cymbra_feature_flags::PlanContextSource>
+                        }),
+                    )),
+                    std::sync::Arc::new(cymbra_lingua::online_translation::CacheDailyCounter::new(
+                        cache.clone(),
+                    )),
+                    std::sync::Arc::new(cymbra_lingua::pg_online_usage::PgOnlineUsageRepo::new(
+                        pool.clone(),
+                    )),
+                ),
+            );
             (
                 Some(cymbra_lingua::proto::known_words_service_server::KnownWordsServiceServer::with_interceptor(
                     cymbra_lingua::KnownWordsGrpc::new(known_words),
@@ -836,11 +869,15 @@ async fn main() -> anyhow::Result<()> {
                     cymbra_lingua::DataGrpc::new(data),
                     strict.clone(),
                 )),
+                Some(cymbra_lingua::proto::online_translation_service_server::OnlineTranslationServiceServer::with_interceptor(
+                    cymbra_lingua::online_translation_grpc::OnlineTranslationGrpc::new(online_translation),
+                    strict.clone(),
+                )),
             )
         }
         None => {
             tracing::info!("lingua services disabled (CYMBRA_LINGUA_DATABASE_URL unset)");
-            (None, None, None, None, None)
+            (None, None, None, None, None, None)
         }
     };
 
@@ -913,6 +950,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(lingua_data_svc) = lingua_data_svc {
         router = router.add_service(lingua_data_svc);
+    }
+    if let Some(online_translation_svc) = online_translation_svc {
+        router = router.add_service(online_translation_svc);
     }
     if let Some(jobs_admin_svc) = jobs_admin_svc {
         router = router.add_service(jobs_admin_svc);

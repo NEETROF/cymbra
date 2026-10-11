@@ -18,11 +18,14 @@ use tonic::{Request, Response, Status};
 
 use crate::admin::LinguaAdminModule;
 use crate::admin_core::SeriesMetric;
+use crate::admin_core::iso_day;
 use crate::grpc_util::identity;
 use crate::proto::lingua_admin_service_server::LinguaAdminService;
 use crate::proto::{
     AdminGetLinguaUsageRequest, AdminGetLinguaUsageResponse, AdminGetLinguaUsageSeriesRequest,
-    AdminGetLinguaUsageSeriesResponse, LinguaLanguageUsage, LinguaSeriesPoint,
+    AdminGetLinguaUsageSeriesResponse, AdminGetOnlineTranslationUsageRequest,
+    AdminGetOnlineTranslationUsageResponse, LinguaLanguageUsage, LinguaSeriesPoint,
+    OnlineTranslationUsageRow,
 };
 
 pub struct LinguaAdminGrpc {
@@ -108,6 +111,35 @@ impl LinguaAdminService for LinguaAdminGrpc {
                 .collect(),
         }))
     }
+
+    async fn admin_get_online_translation_usage(
+        &self,
+        req: Request<AdminGetOnlineTranslationUsageRequest>,
+    ) -> Result<Response<AdminGetOnlineTranslationUsageResponse>, Status> {
+        require_admin_in_scope(&identity(&req)?, LINGUA_SCOPE)?;
+        let (from, to) = window(req.into_inner().window)?;
+        let (rows, totals) = self.module.get_online_translation_usage(&from, &to).await?;
+        Ok(Response::new(AdminGetOnlineTranslationUsageResponse {
+            rows: rows
+                .into_iter()
+                .map(|r| OnlineTranslationUsageRow {
+                    day: iso_day(r.day),
+                    provider: r.provider,
+                    pair: r.pair,
+                    answered: r.answered,
+                    failed: r.failed,
+                    limited: r.limited,
+                    input_tokens: r.input_tokens,
+                    output_tokens: r.output_tokens,
+                    cost_micro_usd: r.cost_micro_usd,
+                })
+                .collect(),
+            answered: totals.answered,
+            failed: totals.failed,
+            limited: totals.limited,
+            cost_micro_usd: totals.cost_micro_usd,
+        }))
+    }
 }
 
 #[cfg(test)]
@@ -135,6 +167,13 @@ mod tests {
             _metric: SeriesMetric,
             _language: Option<&str>,
         ) -> Result<Vec<(i32, i64)>> {
+            Ok(vec![])
+        }
+        async fn online_translation_usage(
+            &self,
+            _from: i32,
+            _to: i32,
+        ) -> Result<Vec<crate::admin_core::OnlineUsageRow>> {
             Ok(vec![])
         }
     }

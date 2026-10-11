@@ -42,6 +42,11 @@ export const settings = {
     "Le texte des livres et toute l'interface : cartes, tiroir, menus. Le thème vaut aussi pour l'interface ; un préréglage e-ink la garde en noir sur blanc.",
   colours: "Couleurs",
   translation: "Traduction",
+  /** « Traduction en ligne » (add-lingua-online-translation): never names the service. */
+  onlineTranslation: "Traduction en ligne",
+  onlineTranslationNote:
+    "Sur demande, depuis la carte d'une sélection de plusieurs mots : la phrase sélectionnée est envoyée à un service de traduction externe pour être traduite, et n'est conservée par personne. Réglage propre à cet appareil.",
+  privacyPolicy: "Politique de confidentialité",
   shortcuts: "Raccourcis & gestes",
   /** The keys, as the interface names them. */
   keyAlt: "Alt",

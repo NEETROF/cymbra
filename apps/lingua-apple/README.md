@@ -171,6 +171,13 @@ French page for a French browser and the English one otherwise, next to « Effac
 Lingua ». `/es/eliminar-cuenta/` is not linked from the extension yet: that link waits for
 `add-site-spanish-locale`'s task 3.2.
 
+Reviewed for « Traduction en ligne » (add-lingua-online-translation, 2026-10-11): **no new data
+type**. The sentence a reader sends with its button goes to Cymbra and on to the translation
+provider, is translated and kept by no one: Apple counts as collected only data accessible for
+longer than it takes to service the request in real time, which this is not. The per-account
+count of the day's online translations (erased after a day) and the daily totals per provider
+and pair (no account) fall under Usage Data → Product Interaction, already declared.
+
 ## Known issue — popup title on iOS 27
 
 On iOS 27 in light mode, Safari draws the extension popup sheet's native title

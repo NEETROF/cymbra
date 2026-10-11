@@ -4,6 +4,7 @@ import { AuthService } from "@/gen/auth_pb";
 import { DeckService } from "@/gen/deck_pb";
 import { KnownWordsService } from "@/gen/known_words_pb";
 import { LinguaDataService } from "@/gen/lingua_data_pb";
+import { OnlineTranslationService } from "@/gen/online_translation_pb";
 import { StatsService } from "@/gen/stats_pb";
 import { UserService } from "@/gen/user_pb";
 import { FlagService } from "@/gen/flags_pb";
@@ -108,6 +109,8 @@ export interface Clients {
   user: Client<typeof UserService>;
   /** The caller's effective flags — add-lingua-feature-betas. */
   flags: Client<typeof FlagService>;
+  /** « Traduction en ligne », the one RPC that carries page text — add-lingua-online-translation. */
+  onlineTranslation: Client<typeof OnlineTranslationService>;
 }
 
 export function createClients(transport: Transport): Clients {
@@ -119,5 +122,6 @@ export function createClients(transport: Transport): Clients {
     data: createClient(LinguaDataService, transport),
     user: createClient(UserService, transport),
     flags: createClient(FlagService, transport),
+    onlineTranslation: createClient(OnlineTranslationService, transport),
   };
 }

@@ -109,6 +109,18 @@ const FR: Record<string, string> = {
   "billing.web.enabled": "Canal d’achat web (marchand officiel) : checkout hébergé + webhook.",
   "lingua.sync.enabled":
     "Coupe-circuit de la synchronisation Cymbra Lingua (activé par défaut ; désactiver coupe le push/pull pour tous les appareils connectés sans livrer de client). Le mode local n’est pas affecté.",
+  "lingua.online_translation.enabled":
+    "Traduction en ligne de Lingua : qui peut envoyer une phrase au service de traduction. Désactivée pour tous par défaut ; la limiter à la bêta Lingua `online-translation` la donne compte par compte, la désactiver la retire à tous.",
+  "lingua.online_translation.daily_limit":
+    "Traductions en ligne accordées à un compte Lingua par période de 24 h (le personnel Lingua n’est pas limité).",
+  "lingua.online_translation.price.gemini.input_usd_per_mtok":
+    "Prix d’entrée de Gemini, en dollars par million de jetons, pour l’estimation du coût de la traduction en ligne.",
+  "lingua.online_translation.price.gemini.output_usd_per_mtok":
+    "Prix de sortie de Gemini, en dollars par million de jetons, pour l’estimation du coût de la traduction en ligne.",
+  "lingua.online_translation.price.anthropic.input_usd_per_mtok":
+    "Prix d’entrée d’Anthropic, en dollars par million de jetons, pour l’estimation du coût de la traduction en ligne.",
+  "lingua.online_translation.price.anthropic.output_usd_per_mtok":
+    "Prix de sortie d’Anthropic, en dollars par million de jetons, pour l’estimation du coût de la traduction en ligne.",
 };
 
 const BY_LOCALE: Record<string, Record<string, string>> = { fr: FR };
