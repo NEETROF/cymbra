@@ -64,7 +64,7 @@ shown here and in the pull request alone.
 
 ## What is in them
 
-On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `@@PACKVERSION@@`:
+On the 2026-10-10 tables (pinned snapshot `2026.10.10`, `pack_version` `2026.10.10+141e145.ff4d6e4`:
 the snapshot, the rules' digest, and the digest of the studied tables `pin.json` records), reduced
 again from the pinned release and UD French-GSD's two pinned sections with fr-es's own rules
 (refine-lingua-fr-es-glosses: *fr-es's own rules* below) and its expressions refined where French text
@@ -136,7 +136,7 @@ fois » and « un coup d'Etat » now meet `il était une fois` « Érase una vez
   D2), the others `quant`, `onu`, `for`, `okay` —, and 8,484 of French's 26,472 dictionary words have
   no Spanish gloss, so the pack carries a lexical section and the vocabulary estimate counts the same
   words for both pairs.
-- **The pack is @@PACK@@ B**, 37.6 % of the 5 MiB budget (@@DELTA@@ B with fr-es's expressions refined,
+- **The pack is 1,972,069 B**, 37.6 % of the 5 MiB budget (−1,092 B with fr-es's expressions refined,
   66 fewer expressions and 62 other headwords of a key where 64 were; −2,118 B with fr-es's own rules, −175 B
   with French's unmarked spellings, −1,630 B with French's acronym table: `CA` takes lemma id 0 and
   every other id moves by one, which the forms map, −746 B, the paradigms, −750 B, and the sense runs,

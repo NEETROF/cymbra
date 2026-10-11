@@ -542,7 +542,7 @@ rules of `reduce-fr-es.py` alone — 65 expressions left out by name (`LEFT_OUT`
 four more `CORRECTIONS` (« se lever », « se réveiller », « grand public », « effet spécial »), the
 expressions written as French pages write them (3 respelled, 1 merged) —: `mwe.tsv` 12,174 → 12,108,
 41,549 → 30,410 matches on the same text, a fresh sample of 100 reading 91 right; `gloss.tsv`,
-`senses.tsv`, `NOTICE` and the coverage byte for byte; the pack 1,969,942 B. fr-es's rule digest alone
+`senses.tsv`, `NOTICE` and the coverage byte for byte; the pack 1,972,069 B (−1,092 B, on read-lingua-french-dictionary-unmarked-spellings' French tables). fr-es's rule digest alone
 moves. The list, the corrections and what the measure leaves are in `tables/fr-es/README.md`.
 
 ## The editions' dumps
