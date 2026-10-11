@@ -317,9 +317,10 @@ for (const target of ["chromium", "firefox", "safari"]) {
 // The packs a package ships (generalise-lingua-pack-build): exactly the pairs packs.json lists,
 // each exposed to the contexts that fetch it — English, the default, then Spanish since
 // enable-lingua-spanish, then Spanish glossed in English for English speakers since
-// enable-lingua-english-speakers. The list and this constant agree on purpose: shipping another
+// enable-lingua-english-speakers, then English glossed in Spanish for Spanish speakers since
+// enable-lingua-spanish-speakers. The list and this constant agree on purpose: shipping another
 // language, or dropping one, takes two edits in one pull request, one of them in this gate.
-const SHIPPED_PAIRS = ["en-fr", "es-fr", "es-en"];
+const SHIPPED_PAIRS = ["en-fr", "es-fr", "es-en", "en-es"];
 const pairs = shippedPairs();
 expect(
   JSON.stringify(pairs) === JSON.stringify(SHIPPED_PAIRS),

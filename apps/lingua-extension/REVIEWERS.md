@@ -57,30 +57,30 @@ same add-on with its sign-in buttons hidden.
 ## The language packs
 
 `assets/packs/<pair>.lingua` — one language pack per pair `packs.json` lists, `<studied>-<native>`:
-`en-fr` (English glossed in French), `es-fr` (Spanish in French) and `es-en` (Spanish in English),
-each 1.8 to 2.6 MB of frequency and translation data. They are **generated, not authored**: the
-built files are not in the archive, but everything they are built from is. `yarn gen:pack:real`
-runs `scripts/lingua-data/build.sh <pair> assets/packs/<pair>.lingua` for each, which builds it from
-the reduced tables in `scripts/lingua-data/tables/<pair>/` (the glosses, in the native language) and
-`scripts/lingua-data/tables/<studied>/` (the studied language's forms, frequencies, levels,
-readings, pinned tag pool and dictionary words, kept once for every pack studying it) — **offline,
-with no download and no Python** — and checks the result against the sha256 recorded in
-`tables/<pair>/pin.json` (also printed at the end of this README): the build fails unless it
-produces the very bytes the package carries.
+`en-fr` (English glossed in French), `es-fr` (Spanish in French), `es-en` (Spanish in English) and
+`en-es` (English in Spanish), each 1.7 to 2.6 MB of frequency and translation data. They are
+**generated, not authored**: the built files are not in the archive, but everything they are built
+from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh <pair> assets/packs/<pair>.lingua`
+for each, which builds it from the reduced tables in `scripts/lingua-data/tables/<pair>/` (the
+glosses, in the native language) and `scripts/lingua-data/tables/<studied>/` (the studied language's
+forms, frequencies, levels, readings, pinned tag pool and dictionary words, kept once for every pack
+studying it) — **offline, with no download and no Python** — and checks the result against the
+sha256 recorded in `tables/<pair>/pin.json` (also printed at the end of this README): the build
+fails unless it produces the very bytes the package carries.
 
 Those tables were reduced from public corpora by one script per pair and the rule modules it
 imports, all in this archive: `scripts/lingua-data/reduce_common.py`, the rules every pair shares,
 and one Wiktionary edition's rules per native language — `reduce_edition_fr.py`, the French
 Wiktionary's (which of its senses only point at another word, and the notes it writes for its own
-readers, taken out of a gloss), and `reduce_edition_en.py`, the English Wiktionary's.
-`reduce-en-fr.py` reduces English's tables and en-fr's glosses from Kaikki's French Wiktionary
-extract of English entries, the `wordfreq` distribution, ESDB's inflections (SCOWLv2) and the CEFR-J
-and Octanove vocabulary profiles; `reduce-es-fr.py` reduces Spanish's tables and es-fr's glosses
-from the English Wiktionary's Spanish entries, UD Spanish-GSD, `wordfreq` and the French and Spanish
-Wiktionaries. `reduce-es-en.py` reduces its glosses alone, over Spanish's committed tables: Spanish
-glossed in English from the English and Spanish Wiktionaries. `reduce-en-es.py`,
-`reduce_edition_es.py` and `tables/en-es/` (English glossed in Spanish, with the Spanish
-Wiktionary's rules), and `reduce-fr-en.py`, `reduce-fr-es.py`, `tables/fr/`, `tables/fr-en/` and
+readers, taken out of a gloss), `reduce_edition_en.py` and `reduce_edition_es.py`, the English and
+Spanish Wiktionaries'. `reduce-en-fr.py` reduces English's tables and en-fr's glosses from Kaikki's
+French Wiktionary extract of English entries, the `wordfreq` distribution, ESDB's inflections
+(SCOWLv2) and the CEFR-J and Octanove vocabulary profiles; `reduce-es-fr.py` reduces Spanish's
+tables and es-fr's glosses from the English Wiktionary's Spanish entries, UD Spanish-GSD, `wordfreq`
+and the French and Spanish Wiktionaries. `reduce-es-en.py` and `reduce-en-es.py` reduce their
+glosses alone, over the studied language's committed tables: Spanish glossed in English from the
+English and Spanish Wiktionaries, English glossed in Spanish from the Spanish and English
+Wiktionaries. `reduce-fr-en.py`, `reduce-fr-es.py`, `tables/fr/`, `tables/fr-en/` and
 `tables/fr-es/` (French's forms, ranks and glosses, which the checks build into packs studying
 French) are in the archive too: they reduce nothing this package carries. Each pair's `pin.json`
 names the scripts it was reduced with and each raw source at a fixed commit or snapshot, with its
@@ -135,11 +135,12 @@ Their files come from Mozilla's translation model registry (`sourceBase` in `mod
 not from `mozilla/firefox-translations-models`: each file lists its path there and the sha256 of
 the gzip file Mozilla serves, beside the sha256 of its decompressed bytes that the add-on checks.
 The package downloads none of them until the reader turns « Traduction étendue » on, and then only
-the models its pairs' routes need. This package ships the pairs `en-fr`, `es-fr` and `es-en`
-(`packs.json`), so it downloads at most `en-fr` and `es-en` — a French-speaking reader the models of
-`en-fr` and `es-fr`, an English-speaking reader `es-en` alone; the `en-es`, `fr-en` and `fr-es`
-routes serve pairs it does not ship, and nothing is downloaded for those pairs — none for French,
-which no pair of this package studies.
+the models its pairs' routes need. This package ships the pairs `en-fr`, `es-fr`, `es-en` and
+`en-es` (`packs.json`), and a reader's pairs are those of their native language, so a reader
+downloads two models at most — a French-speaking reader the models of `en-fr` and `es-fr`
+(`en-fr/base-memory/2.0` and `es-en/base-memory/2.0`), an English-speaking reader `es-en` alone, a
+Spanish-speaking reader `en-es` alone; the `fr-en` and `fr-es` routes serve pairs it does not ship,
+and nothing is downloaded for those pairs — none for French, which no pair of this package studies.
 
 ## Where the add-on reaches the network
 

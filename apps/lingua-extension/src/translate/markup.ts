@@ -17,8 +17,8 @@
  * en-es, 96 of 96, 4 % withheld. French the same way: fr-en 95 of 96, 4 % withheld; fr-es, through
  * English, 90 of 91, 9 % withheld. A pair outside the list is translated without a mark
  * (add-lingua-spanish-translation-pivot D3, generalise-lingua-translation-routes-by-pair D4); a
- * listed pair no reader has yet — es-en and en-es until changes 34 and 35 ship them, fr-en and
- * fr-es until change 52 does — is inert.
+ * listed pair no reader has yet — fr-en and fr-es until change 52 ships them — is inert, as es-en
+ * and en-es were until changes 34 and 35 shipped them.
  */
 export const MARKED_PAIRS: readonly string[] = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
 
