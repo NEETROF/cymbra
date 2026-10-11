@@ -29,7 +29,7 @@ The reader SHALL be able to choose their native language among those a shipped p
 
 #### Scenario: A native language that was the only studied one
 - **WHEN** a French-native reader of English alone chooses English, es-en shipping
-- **THEN** the reader studies Spanish, and the choice said so before confirming
+- **THEN** the reader studies Spanish, and the choice, before confirming, named no studied language and said only that the interface and the word translations will change
 
 #### Scenario: A full reset keeps the native language
 - **WHEN** an English-native reader erases their data

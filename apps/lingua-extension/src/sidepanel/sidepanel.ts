@@ -9,7 +9,7 @@ import { reloadOnNativeLanguageChange } from "../state/native-language.ts";
 import { messagedArea, watchBackup } from "../state/store.ts";
 import { requestSync } from "../sync/messages.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
-import { start } from "./panel.ts";
+import { type PanelView, reloadOnView, start, viewToRestore } from "./panel.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
@@ -82,8 +82,6 @@ async function persist(): Promise<void> {
   await saveBackup(store, lastBackup);
 }
 
-type PanelView = "review" | "stats" | "settings";
-
 let review: ReviewPage | null = null;
 let settings: SettingsView | null = null;
 let current: PanelView = "review";
@@ -122,12 +120,16 @@ async function main(): Promise<void> {
   // filled from the catalogue before anything shows (the body is hidden until then — D2). A read
   // that fails is French: the page shows.
   await panel.interfaceLanguage;
-  // Another native language chosen anywhere: the panel reloads in it (add-lingua-native-language-choice D3).
-  reloadOnNativeLanguageChange(panel.interfaceLanguage);
+  // Another native language chosen anywhere: the panel reloads in it (add-lingua-native-language-choice D3),
+  // back on the tab the reader was on (the owner's finding of 2026-10-11).
+  reloadOnNativeLanguageChange(panel.interfaceLanguage, undefined, () =>
+    reloadOnView(current, history, () => location.reload()),
+  );
+  const restored = viewToRestore(location, history);
 
   await hydrateEngine(port, store);
   language = await readingLanguage(port);
-  await showView("review");
+  await showView(restored);
 
   for (const b of document.querySelectorAll<HTMLButtonElement>("#views button")) {
     b.addEventListener("click", () => void showView((b.dataset.view as PanelView) ?? "review"));

@@ -4,8 +4,7 @@ import type { nativeLanguage as fr } from "../fr/native-language.ts";
 
 export const nativeLanguage: typeof fr = {
   question: "I read in…",
-  note: "The language of the interface and of word translations.",
-  studiesAfter: (languages) => `You'll then study ${languages}.`,
+  note: "The language of the interface and of word translations will change.",
   confirm: "Confirm",
   failed: "The change couldn't be made. Try again.",
 };

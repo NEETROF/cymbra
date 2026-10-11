@@ -6,6 +6,7 @@ import { sidepanel as enSidepanel } from "@/i18n/en/sidepanel.ts";
 import { sidepanel as esSidepanel } from "@/i18n/es/sidepanel.ts";
 import { sidepanel as frSidepanel } from "@/i18n/fr/sidepanel.ts";
 import { COPY_PENDING_ATTR, fillPageInLanguage, INTERFACE_LANGUAGE_KEY, type InterfaceLanguage } from "@/i18n/index.ts";
+import { reloadOnView, viewToRestore } from "@/sidepanel/panel.ts";
 import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helpers.ts";
 
 // The side panel's page (localise-lingua-reading-surfaces D2, D5): its skeleton holds no text;
@@ -79,5 +80,40 @@ describe("the side panel's page, filled from the catalogue", () => {
     expect(doc.querySelector("#views [data-view=settings]")?.textContent).toBe("Settings");
     expect(doc.documentElement.lang).toBe("en");
     expect(doc.documentElement.hasAttribute(COPY_PENDING_ATTR)).toBe(false);
+  });
+});
+
+describe("the tab a change of native language comes back on (the owner's finding of 2026-10-11)", () => {
+  /** A page's location and history, its hash written by `replaceState` as the browser does. */
+  function pageUrl(hash = "") {
+    const location = { pathname: "/sidepanel.html", search: "", hash };
+    const history = {
+      replaceState: vi.fn((_data: unknown, _unused: string, url?: string | URL | null) => {
+        const text = String(url ?? "");
+        location.hash =
+          text.includes("#") && text.slice(text.indexOf("#")) !== "#" ? text.slice(text.indexOf("#")) : "";
+      }),
+    };
+    return { location, history };
+  }
+
+  it.each(["review", "stats", "settings"] as const)("the reload keeps the tab: on %s before, on it after", (view) => {
+    const { location, history } = pageUrl();
+    const reload = vi.fn();
+    reloadOnView(view, history, reload);
+    expect(reload).toHaveBeenCalledOnce();
+    expect(location.hash).toBe(`#view=${view}`);
+    // The reloaded page reads it once, and clears it: another reload would land on the default.
+    expect(viewToRestore(location, history)).toBe(view);
+    expect(location.hash).toBe("");
+    expect(history.replaceState).toHaveBeenLastCalledWith(null, "", "/sidepanel.html");
+    expect(viewToRestore(location, history)).toBe("review");
+  });
+
+  it("a fresh opening still lands on Révision, the default, and touches no history", () => {
+    const { location, history } = pageUrl();
+    expect(viewToRestore(location, history)).toBe("review");
+    expect(viewToRestore(pageUrl("#view=elsewhere").location, history)).toBe("review");
+    expect(history.replaceState).not.toHaveBeenCalled();
   });
 });

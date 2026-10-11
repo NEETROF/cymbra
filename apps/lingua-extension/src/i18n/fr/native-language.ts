@@ -7,13 +7,8 @@
 export const nativeLanguage = {
   /** The question heading the choice in the onboarding and in the popup's first run. */
   question: "Je lis en…",
-  /** What the choice sets, under the native languages. */
-  note: "La langue de l'interface et des traductions de mots.",
-  /**
-   * The consequence, said before confirming: `languages`, the studied languages after the change,
-   * each with its article (`languages.ts`'s `the`) — « Tu étudieras ensuite l'espagnol. »
-   */
-  studiesAfter: (languages: string) => `Tu étudieras ensuite ${languages}.`,
+  /** What changing it changes, under the native languages — the owner's wording (2026-10-11). */
+  note: "La langue de l'interface et des traductions de mots sera modifiée.",
   confirm: "Confirmer",
   failed: "Le changement n'a pas pu être fait. Réessaie.",
 };
