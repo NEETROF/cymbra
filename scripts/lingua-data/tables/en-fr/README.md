@@ -67,6 +67,37 @@ lowercase. Some common words the French Wiktionary files only as names leave too
 The pack therefore carries a lexical table: 1,840,736 B (1,835,638 B before), 35.1 % of the 5 MiB
 budget.
 
+## An expression's gloss keeps its senses whole (keep-lingua-expression-glosses-whole)
+
+The owner decided on 2026-10-11 that an expression's gloss is no longer cut: its senses were cut at 42
+characters, mid-word, and the joined gloss at 80. Each sense the shared rules pick — up to three, one
+per entry in turn, a repeat left out — is now whole; only a sense past 300 characters, a word's sense
+bound (`reduce_common.EXPRESSION_SENSE_LEN`), is cut after a whole word and ends with « … ». The joined
+gloss is not cut: the card pages it as it pages a word's (160 characters a page), and the selection
+card's row still shows its first sense within 80 characters. The rule lives in `reduce_common.py`, so
+every pair re-pinned, reduced again from its pinned release assets: only `mwe.tsv`, `manifest.json` and
+`pin.json` moved; `gloss.tsv`, `senses.tsv`, `NOTICE`, the studied tables and the coverage are byte for
+byte.
+
+| | Cut (42 / 80) | Whole |
+|---|---|---|
+| Expressions | 17,416 | 17,416: none added or left out, 2,878 changed |
+| Longest gloss | 80 | 537 (« situation awareness ») |
+| Glosses past 80 / 160 / 300 characters | — | 1,352 / 312 / 30 |
+| Longest sense | — | 300 (the bound) |
+| Senses the 300 bound cuts | — | 19 rows (« machete order » 458 characters, « lumped element » 412, « penis fencing » 411, « comic strip » 410, « machine learning » 357…) |
+| `mwe.tsv` | 744,353 B | 883,153 B |
+| The pack | 1,840,736 B | 1,876,816 B, 35.8 % of the 5 MiB budget |
+| Expression cards that page | 0 | 175, three pages at most |
+| Rows whose first sense changes | — | 2,522 |
+
+Every changed row holds the old row's senses, each a prefix of its new one, but for 25 — the cut had fallen inside a sense holding its own `;`.
+
+**Known data defects** the whole text shows, left as the source writes them (each for en-fr's own refinement):
+
+- « look forward to »: « Attendre (avec plaisir, avec intérêt, avec impatience) ; se réjouir (d’avance) de. Note d’usage : Suivi par un nom ou un gérondif en -ing » — a note to the edition's readers inside the sense, which the cut hid.
+- A « ; » inside a sense, French typography's (« Attendre (…) ; se réjouir (d'avance) de »): 201 expression glosses, 138 before. The card's pages and the row read `;` as a sense separator, so such a sense shows as several. Left as it is (design D4): a word's sense has it written « , » because its sense runs count it; an expression has no sense runs.
+
 ## Licences
 
 The repository is Apache-2.0; **these files are not**, nor English's in `../en/`. They are derived

@@ -139,6 +139,38 @@ Reduced both ways over the top 10,000 lemmas, the bound at 40 changes 1,057 glos
 247. Both are committed at their defaults; the owner picks them on two samples of 100 of those
 glosses, and a value chosen re-pins es-en alone.
 
+## An expression's gloss keeps its senses whole (keep-lingua-expression-glosses-whole)
+
+The owner decided on 2026-10-11 that an expression's gloss is no longer cut: its senses were cut at 42
+characters, mid-word, and the joined gloss at 80. Each sense the shared rules pick — up to three, one
+per entry in turn, a repeat left out — is now whole; only a sense past 300 characters, a word's sense
+bound (`reduce_common.EXPRESSION_SENSE_LEN`), is cut after a whole word and ends with « … ». The joined
+gloss is not cut: the card pages it as it pages a word's (160 characters a page), and the selection
+card's row still shows its first sense within 80 characters. The rule lives in `reduce_common.py`, so
+every pair re-pinned, reduced again from its pinned release assets: only `mwe.tsv`, `manifest.json` and
+`pin.json` moved; `gloss.tsv`, `senses.tsv`, `NOTICE`, the studied tables and the coverage are byte for
+byte.
+
+| | Cut (42 / 80) | Whole |
+|---|---|---|
+| Expressions | 15,515 | 15,515: none added or left out, 1,793 changed |
+| Longest gloss | 80 | 337 (« lo barato sale caro ») |
+| Glosses past 80 / 160 / 300 characters | — | 519 / 73 / 4 |
+| Longest sense | — | 260 (« pupusa loca ») |
+| Senses the 300 bound cuts | — | none |
+| `mwe.tsv` | 623,946 B | 673,438 B |
+| The pack | 2,612,075 B | 2,626,743 B, 50.1 % of the 5 MiB budget |
+| Expression cards that page | 0 | 53, three pages at most |
+| Rows whose first sense changes | — | 1,300 |
+
+Every changed row holds the old row's senses, each a prefix of its new one, but for 20 — the cut had fallen inside a sense holding its own `;`.
+
+« sin embargo », the gloss the owner met dogfooding es-en, reads "however, notwithstanding, nevertheless, in spite of, nonetheless" where it read "however, notwithstanding, nevertheless, in".
+
+**Known data defects** the whole text shows, left as the source writes them (each for es-en's own refinement):
+
+- A `;` inside a sense, the English edition's own: « a contramano » "in the other direction; in the wrong way; against the grain" is one sense, which the card's pages and the row read as three. Left as it is (design D4).
+
 ## Licences
 
 The repository is Apache-2.0; **these files are not**. They are derived from the sources above and

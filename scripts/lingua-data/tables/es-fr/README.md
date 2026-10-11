@@ -147,6 +147,37 @@ table (2,224,439 B before), and every headword of a key several reach — 99 oth
 keys, listed in `expr.others` (pick-lingua-spanish-expression-written-as-the-page; 2,231,951 B
 before).
 
+## An expression's gloss keeps its senses whole (keep-lingua-expression-glosses-whole)
+
+The owner decided on 2026-10-11 that an expression's gloss is no longer cut: its senses were cut at 42
+characters, mid-word, and the joined gloss at 80. Each sense the shared rules pick — up to three, one
+per entry in turn, a repeat left out — is now whole; only a sense past 300 characters, a word's sense
+bound (`reduce_common.EXPRESSION_SENSE_LEN`), is cut after a whole word and ends with « … ». The joined
+gloss is not cut: the card pages it as it pages a word's (160 characters a page), and the selection
+card's row still shows its first sense within 80 characters. The rule lives in `reduce_common.py`, so
+every pair re-pinned, reduced again from its pinned release assets: only `mwe.tsv`, `manifest.json` and
+`pin.json` moved; `gloss.tsv`, `senses.tsv`, `NOTICE`, the studied tables and the coverage are byte for
+byte.
+
+| | Cut (42 / 80) | Whole |
+|---|---|---|
+| Expressions | 15,133 | 15,133: none added or left out, 525 changed |
+| Longest gloss | 95 | 476 (« palo bobo ») |
+| Glosses past 80 / 160 / 300 characters | — | 273 / 89 / 12 |
+| Longest sense | — | 300 (the bound) |
+| Senses the 300 bound cuts | — | 7 rows (« sistema cardiovascular » 1,132 characters, « violencia sexual » 421, five « palo … » trees of 322 to 362) |
+| `mwe.tsv` | 574,640 B | 607,181 B |
+| The pack | 2,234,330 B | 2,242,425 B, 42.8 % of the 5 MiB budget |
+| Expression cards that page | 0 | 25, three pages at most |
+| Rows whose first sense changes | — | 496 |
+
+Every changed row holds the old row's senses, each a prefix of its new one, but for 1 — the cut had fallen inside a sense holding its own `;`.
+
+**Known data defects** the whole text shows, left as the source writes them (each for es-fr's own refinement):
+
+- « sistema cardiovascular »: its second sense is a Spanish quotation (« Las vitaminas son básicas para el cuerpo humano… »), a gloss in the studied language; the cut showed its first 42 characters, the bound now shows 300.
+- A « ; » inside a sense, French typography's: 9 expression glosses, 5 before. The card's pages and the row read `;` as a sense separator, so such a sense shows as several. Left as it is (design D4).
+
 ## Licences
 
 The repository is Apache-2.0; **these files are not**, nor Spanish's in `../es/`. They are derived

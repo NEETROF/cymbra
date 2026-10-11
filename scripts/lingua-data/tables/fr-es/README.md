@@ -238,7 +238,7 @@ together; rows / of the top 10,000:
 
 | Rule | Where | Rows | First sense | Lemmas | Expressions | Examples |
 |---|---|---|---|---|---|---|
-| A sense's register, age and place, in the edition's words (D2) | `with_labels`, `label_expressions` | 202 / 109 — register 137 / 78 (210 senses), age 59 / 26 (66), place 32 / 18 (39) | 85 / 42 open on a label | — | 59 labelled (70 senses), their meaning unshortened; 13 past 80 characters, the longest 139 | « baiser » « (malsonante) Coger (sexualmente); …; (anticuado, Canadá, Bélgica) Besar; Beso, besuqueo u ósculo », « vous » « Vosotros, ustedes; (formal) Usted », « mal aux cheveux » « (anticuado) Resaca, caña, chaqui, chuchaqui, cruda, go » |
+| A sense's register, age and place, in the edition's words (D2) | `with_labels`, `label_expressions` | 202 / 109 — register 137 / 78 (210 senses), age 59 / 26 (66), place 32 / 18 (39) | 85 / 42 open on a label | — | 59 labelled (70 senses), their meaning unshortened; 13 past 80 characters, the longest 139 — whole since keep-lingua-expression-glosses-whole: 23 past 80, the longest 275 (*An expression's gloss keeps its senses whole*) | « baiser » « (malsonante) Coger (sexualmente); …; (anticuado, Canadá, Bélgica) Besar; Beso, besuqueo u ósculo », « vous » « Vosotros, ustedes; (formal) Usted », « mal aux cheveux » « (anticuado) Resaca, caña, chaqui, chuchaqui, cruda, go », whole since « (anticuado) Resaca, caña, chaqui, chuchaqui, cruda, goma, guayabo, hachazo, hangover, perseguidora, ratón » |
 | A word of the direct table listed once (D3) | `listed_once_direct` | 654 / 222 | 113 / 44 (the first heading), 19 / 6 (the opening word) | — | 1 | « parti » « Partido », « russe » « Ruso, rusa », « jeune » « [sustantivo] Joven, chaval, muchacho », « clair » « Claro, luminoso, límpido; Claramente » |
 | The inverted table's names, acronyms and language code (D4) | `translation_words` (`read_backwards`) | 14 / 8 | 1 / 0 | 13 / 8 lose a gloss | — | « us » « EEUU », « fr » « Imperial, calabaza », « luc » « San Lucas », « pa » « Autopiloto », « lorient » « Oriente »; « usa » and « éu » « EEUU » lost, though right |
 | The other-sense words, by name (D4) | `OTHER_SENSES` | 6 / 6 | — | 6 / 6 lose a gloss | — | « rap » « Secuestro », « pilote » « Controlador », « ds » « Tiburón » |
@@ -534,6 +534,34 @@ asset cache fetches each once.
   UD_French-GSD, the files fr-en's pin records (`pack_sources.PINNED["fr-es"]`, refine-lingua-fr-es-glosses
   D8): read for the part of speech a function word's row opens on, counted as fr-en counts them
   (`reduce_french_treebank.py`). Fetched from their address, never published as an asset.
+
+## An expression's gloss keeps its senses whole (keep-lingua-expression-glosses-whole)
+
+The owner decided on 2026-10-11 that an expression's gloss is no longer cut: its senses were cut at 42
+characters, mid-word, and the joined gloss at 80. Each sense the shared rules pick — up to three, one
+per entry in turn, a repeat left out — is now whole; only a sense past 300 characters, a word's sense
+bound (`reduce_common.EXPRESSION_SENSE_LEN`), is cut after a whole word and ends with « … ». The joined
+gloss is not cut: the card pages it as it pages a word's (160 characters a page), and the selection
+card's row still shows its first sense within 80 characters. The rule lives in `reduce_common.py`, so
+every pair re-pinned, reduced again from its pinned release assets: only `mwe.tsv`, `manifest.json` and
+`pin.json` moved; `gloss.tsv`, `senses.tsv`, `NOTICE`, the studied tables and the coverage are byte for
+byte.
+
+| | Cut (42 / 80) | Whole |
+|---|---|---|
+| Expressions | 12,108 | 12,108: none added or left out, 109 changed |
+| Longest gloss | 160 | 275 (« fils de pute ») |
+| Glosses past 80 / 160 / 300 characters | — | 87 / 6 / 0 |
+| Longest sense | — | 242 (« maïs éclaté ») |
+| Senses the 300 bound cuts | — | none |
+| `mwe.tsv` | 487,122 B | 490,922 B |
+| The pack | 1,983,054 B | 1,984,066 B, 37.8 % of the 5 MiB budget |
+| Expression cards that page | 0 | 3, three pages at most |
+| Rows whose first sense changes | — | 101 |
+
+Every changed row holds the old row's senses, each a prefix of its new one, but for 0.
+
+fr-es's labels (`label_expressions`) stay outside the bound, as they stayed outside the cut: the shared rules' senses are rebuilt whole, each opening on its source sense's labels — « mal aux cheveux » « (anticuado) Resaca, caña, chaqui, chuchaqui, cruda, goma, guayabo, hachazo, hangover, perseguidora, ratón », « fils de pute » 275 characters with its three labels. 70 senses are labelled, as before; of the labelled rows of the committed table, 23 run past 80 characters and 2 past 160, which the card pages.
 
 ## Licences
 

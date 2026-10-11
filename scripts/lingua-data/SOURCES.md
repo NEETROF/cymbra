@@ -96,7 +96,8 @@ the reducer lowercases them into when that word has an entry of its own — the 
 « verbe Faire le ET de » — and keep glossing it when they are its only entries (`nato` « OTAN »).
 A word's gloss holds up to eight senses, each within 300 characters and all of them within 800 —
 the card pages it — and a cut falls on a word boundary with an ellipsis, never mid-word
-(`cut_at_word`); expressions keep 42 / 80. The Wiktionary's notes to its own readers — a pointer
+(`cut_at_word`); an expression's senses are whole, up to three, its joined gloss not cut, a sense
+past 300 characters cut after a whole word with « … » (keep-lingua-expression-glosses-whole). The Wiktionary's notes to its own readers — a pointer
 « → voir … » and the placeholder « Définition manquante ou à compléter. (Ajouter) » — are taken out
 of every sense (`strip_wiki_notes`), and a sense made of nothing else is left out. A kept word
 whose every sense only says which word it is a form of (`catacombs`, « Pluriel de catacomb ») takes
