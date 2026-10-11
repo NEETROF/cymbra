@@ -83,6 +83,15 @@ gives as its accented word's spelling (`Lexicon.web_boundary`); and each spellin
 of the forms of its word it writes without their marks (`spelling_readings`: `recu` the past
 participle of *recevoir*).
 
+The web's hyphenated words without their marks and its wrong accents
+(read-lingua-french-hyphenated-and-misaccented-spellings D1–D4): two more reviewed lists,
+`WEB_HYPHENATED` (19 runs, `peut-etre` → *peut-être*, `c'est-a-dire` → *c'est-à-dire*) and
+`WEB_MISACCENTED` (65 words, `trés` → *très*, `agé` → *âgé*), merged into `UNMARKED_SPELLINGS` with a
+reason each and read as `WEB_SPELLINGS` is, under the same boundary; a hyphenated row is the whole run,
+so the pack lists it and the pre-pass reads it whole, and a misaccented one carries the readings of the
+forms of its word whose marks it keeps in place (`spelling_readings`: `arreté` the past participle of
+*arrêter*, not its present).
+
 The native side (add-lingua-pack-fr-en D1–D3, D11) is read from the same section as the forms, after
 the studied side, as es-en's is from the Spanish section: the section cut to what the native side
 reads, a headword's typographic apostrophe read as `'` (`native_fields`); the English edition's
@@ -282,8 +291,8 @@ OWNER_EXCEPTIONS = ("sure", "surs", "sures", "entrainant")
 # reduction fails, naming it, when the section names a row so (`Lexicon.web_boundary`). `ou`, `a`,
 # `la`, `sur`, `du`, `des`, `cote`, `tache`, `pale`, `foret` and `aine` are never rows, nor a spelling
 # English writes more often (`video`, `hotel`, `these`, `mere`, `premiere`) but the exception `sure`.
-# Hyphenated words and wrong accents (`peut-etre`, `trés`) are a reviewed list of their own each,
-# later (D7). Merged into `UNMARKED_SPELLINGS` with one shared reason; editing it changes the rules'
+# Hyphenated words and wrong accents (`peut-etre`, `trés`) are a reviewed list of their own each
+# (`WEB_HYPHENATED`, `WEB_MISACCENTED`, below). Merged into `UNMARKED_SPELLINGS` with one shared reason; editing it changes the rules'
 # sha256, as for any rule.
 WEB_SPELLINGS = {
     "academie": "académie", "acceder": "accéder", "acces": "accès", "achete": "acheter", "achetent": "acheter",
@@ -387,8 +396,56 @@ WEB_SPELLINGS = {
 }
 WEB_REASON = "written on the web without its marks; the owner's reviewed list, 2026-10-10"
 UNMARKED_SPELLINGS.update((spelling, (word, WEB_REASON)) for spelling, word in WEB_SPELLINGS.items())
+# The web's hyphenated words written without their marks and its words written with marks not their
+# own (read-lingua-french-hyphenated-and-misaccented-spellings D1–D3): spelling → word, each row the
+# owner's decision by name, never a rule on marks — a rule would read `élève` as *élevé*, `pâté` as
+# *pâte*, and other languages' words as French ones. Each row's word is the lemma the tables give its
+# form (`celle-la` → *celui-là*, `arreté` → *arrêter*), so a row follows change 43's choices and makes
+# none; read as `WEB_SPELLINGS` is, under its boundary (`Lexicon.web_boundary`).
+#
+# A hyphenated row is the whole run, the accented compound less its marks: the pack lists it, and the
+# pre-pass reads it whole as it reads `peut-être` — a row for a piece cannot, the compound keeping its
+# written lemma and `a`, `la` being words of their own. Wordfreq cannot count a hyphenated spelling (it
+# answers its rarer piece), so a row is a form of a dictionary word whose accented compound, counted in
+# the corpora and shifted by the web's measured share of unaccented spellings (−1.59), stands at Zipf
+# 2.5 or more (D1), and `celles-la` with its paradigm.
+WEB_HYPHENATED = {
+    "apres-demain": "après-demain", "apres-midi": "après-midi", "au-dela": "au-delà",
+    "belle-mere": "belle-mère", "c'est-a-dire": "c'est-à-dire", "celle-la": "celui-là",
+    "celles-la": "celui-là", "celui-la": "celui-là", "ceux-la": "celui-là", "eux-memes": "eux-mêmes",
+    "grand-mere": "grand-mère", "grand-pere": "grand-père", "la-bas": "là-bas", "la-dessus": "là-dessus",
+    "lui-meme": "lui-même", "moi-meme": "moi-même", "petit-dejeuner": "petit-déjeuner",
+    "peut-etre": "peut-être", "soi-meme": "soi-même",
+}
+# A misaccented row is a word wordfreq rates at Zipf 2.5 or more whose letters are a form's of the
+# tables and whose marks are not (`déja`, `trés`, `agé`), that the section names nowhere (D2). It reads
+# as the form whose marks it keeps in place, then the commoner: `agé` → *âgé*, not *âge*; `elève` →
+# *élève*, *élever*'s, and `elevé` → *élevé*. Never rows: `á`, `lá`, `ã`, `cà`, `accés`, `procés`,
+# `succés` (words other languages write more often: Portuguese, Italian, Catalan), `çe` (its letters
+# are `ce`'s; a row would read `cé`) and `abbès` (« Sidi Bel Abbès »); nor a spelling the section gives
+# only as its word's (`problême`, `réglement`), which the boundary refuses.
+WEB_MISACCENTED = {
+    "agé": "âgé", "agée": "âgé", "agées": "âgé", "agés": "âgé", "aprés": "après", "arreté": "arrêter",
+    "arréter": "arrêter", "arrété": "arrêter", "béta": "bêta", "crême": "crème", "decidé": "décider",
+    "dejà": "déjà", "desolé": "désolé", "dégats": "dégât", "déja": "déjà", "dépot": "dépôt",
+    "egalité": "égalité", "electricité": "électricité", "elevé": "élevé", "elève": "élever",
+    "elèves": "élever", "eléments": "élément", "epée": "épée", "espére": "espérer", "etrangères": "étranger",
+    "eté": "être", "evénement": "événement", "evêque": "évêque", "extrème": "extrême",
+    "extrèmement": "extrêmement", "faché": "fâché", "frére": "frère", "génant": "gênant", "géné": "gêné",
+    "interessé": "intéresser", "interêt": "intérêt", "intéret": "intérêt", "laché": "lâcher", "lâ": "là",
+    "méme": "même", "mére": "mère", "oú": "où", "oû": "où", "premiére": "premier", "probléme": "problème",
+    "préfére": "préférer", "pére": "père", "realité": "réalité", "reservé": "réserver",
+    "récuperer": "récupérer", "régle": "règle", "régles": "règle", "securité": "sécurité",
+    "societé": "société", "systéme": "système", "théatre": "théâtre", "trève": "trêve", "trés": "très",
+    "verité": "vérité", "ètre": "être", "énormement": "énormément", "éspère": "espérer", "étes": "être",
+    "étre": "être", "évenement": "événement",
+}
+HYPHENATED_REASON = "a hyphenated word written on the web without its marks; the owner's reviewed list"
+MISACCENTED_REASON = "a word written with marks not its own; the owner's reviewed list"
+UNMARKED_SPELLINGS.update((spelling, (word, HYPHENATED_REASON)) for spelling, word in WEB_HYPHENATED.items())
+UNMARKED_SPELLINGS.update((spelling, (word, MISACCENTED_REASON)) for spelling, word in WEB_MISACCENTED.items())
 # The rows an entry pointing at their spelling follows (D2); change 43b's own rows drop the link.
-_FOLLOWED_ROWS = frozenset(WEB_SPELLINGS).union(OWNER_EXCEPTIONS)
+_FOLLOWED_ROWS = frozenset(WEB_SPELLINGS).union(WEB_HYPHENATED, WEB_MISACCENTED, OWNER_EXCEPTIONS)
 # Change 43b's rows, the ones `dictionary_unmarked_spellings`' forms guard reads past.
 _CA_ROWS = frozenset(UNMARKED_SPELLINGS) - _FOLLOWED_ROWS
 # A plain word beginning with a piece (`c'est`, `d'abord`, `l'on`, `jusqu'à`): the pre-pass always
@@ -638,10 +695,11 @@ class Lexicon:
     `unmarked` is `dictionary_unmarked_spellings`' table, the spellings without their marks
     `spelling_target` reads as their word (read-lingua-french-dictionary-unmarked-spellings D1).
 
-    For the boundary of `WEB_SPELLINGS` (read-lingua-french-web-unmarked-spellings D2), it records, for
-    every headword it reads, whether the section gives it a meaning of its own, and, for every spelling
-    of the list, its entries' senses and the entries listing it among their inflections
-    (`web_boundary`).
+    For the boundary of `WEB_SPELLINGS` (read-lingua-french-web-unmarked-spellings D2), and of
+    `WEB_HYPHENATED` and `WEB_MISACCENTED` (read-lingua-french-hyphenated-and-misaccented-spellings
+    D3), it records, for every headword it reads, whether the section gives it a meaning of its own,
+    and, for every spelling of the lists, its entries' senses and the entries listing it among their
+    inflections (`web_boundary`).
     """
 
     def __init__(self, unmarked=None):
@@ -720,25 +778,28 @@ class Lexicon:
     def _record_boundary(self, entry, word):
         """What `web_boundary` needs of one entry: each sense's kind — a spelling (`alt_of`), a form
         (`form_of`, or the `form-of` tag) or a meaning —, whether the entry gives its word a meaning,
-        and, for a spelling of `WEB_SPELLINGS`, its senses and the entries listing it."""
+        and, for a spelling of the reviewed lists (`_reviewed`), its senses and the entries listing it."""
         kinds = [_sense_kind(sense) for sense in entry.get("senses") or ()]
         meaning = any(kind == "meaning" for kind, _ in kinds)
         if meaning:
             self._meaning.add(word)
-        if word in WEB_SPELLINGS:
+        if _reviewed(word):
             self._web_entries[word].append(kinds)
         targets = tuple(target for kind, target in kinds if kind == "form" and target)
         for inflection in entry.get("forms") or ():
             form = nfc_lower(inflection.get("form"))
-            if form != word and form in WEB_SPELLINGS:
+            if form != word and _reviewed(form):
                 self._web_listed[form].append((meaning, targets))
 
     def web_boundary(self):
-        """The spellings of `WEB_SPELLINGS` the section gives a meaning of its own — a headword with a
-        sense that is neither a form nor a spelling of another word, a form of such a word, or an
-        inflection such a word's entry lists — or gives only as a spelling of its accented word (an
-        entry every sense of which is a spelling whose target, its marks dropped, is the spelling:
-        change 43d's kind), sorted (read-lingua-french-web-unmarked-spellings D2). Read after the
+        """The spellings of the reviewed lists (`WEB_SPELLINGS`, `WEB_HYPHENATED`, `WEB_MISACCENTED`)
+        the section gives a meaning of its own — a headword with a sense that is neither a form nor a
+        spelling of another word, a form of such a word, or an inflection such a word's entry lists —
+        or gives only as a spelling of another word written with the same letters (an entry every
+        sense of which is a spelling whose target, its marks dropped, is the spelling's letters:
+        change 43d's kind, and `problême` « alternative form of problème »), sorted
+        (read-lingua-french-web-unmarked-spellings D2,
+        read-lingua-french-hyphenated-and-misaccented-spellings D3). Read after the
         section: the reduction fails on any, as on a word ending in a pronoun the forms table does
         not list. A spelling named only as a form of such a spelling passes (`tete`, under `teter`);
         43b's rows and the owner's exceptions are not checked."""
@@ -761,9 +822,17 @@ class Lexicon:
         return crossed
 
 
+def _reviewed(word):
+    """Whether a word is a row of the reviewed lists `Lexicon.web_boundary` checks: `WEB_SPELLINGS`
+    (read-lingua-french-web-unmarked-spellings D2), `WEB_HYPHENATED` and `WEB_MISACCENTED`
+    (read-lingua-french-hyphenated-and-misaccented-spellings D3)."""
+    return word in WEB_SPELLINGS or word in WEB_HYPHENATED or word in WEB_MISACCENTED
+
+
 def _spells_as(spelling, kind, target):
-    """Whether a sense of `spelling`'s entry gives it as its accented word's spelling (change 43d's kind)."""
-    return kind == "alt" and target != spelling and _unmarked(target) == spelling
+    """Whether a sense of `spelling`'s entry gives it as the spelling of a word written with the same
+    letters and other marks (change 43d's kind, `etat` → *état*; `problême` → *problème*)."""
+    return kind == "alt" and target != spelling and _unmarked(target) == _unmarked(spelling)
 
 
 def _sense_kind(sense):
@@ -1631,20 +1700,42 @@ def grammar_rows(readings, forms, ranks, overrides=OVERRIDES):
     return sorted(f"{form}\t{lemma}\t{tag}\t{mark}\n" for form, lemma, tag, mark in rows)
 
 
+def _marks_at(word):
+    """The places of a word's marked letters: `agé` → {2}, `âgé` → {0, 2}. A word and its marks
+    dropped (`_marks_dropped`) have as many letters, so the places of two words with the same letters
+    line up; a mark kept in place is a marked letter at the same place, whichever its mark
+    (read-lingua-french-hyphenated-and-misaccented-spellings D2, D4: `espére` keeps *espère*'s and
+    *espéré*'s)."""
+    return {i for i, letter in enumerate(word) if _marks_dropped(letter) != letter}
+
+
 def spelling_readings(rows, forms, spellings=None):
     """`grammar.tsv`'s rows with each spelling of `UNMARKED_SPELLINGS` (or `spellings`) carrying the
-    readings of every form of its word it writes without their marks (`_marks_dropped`), the form
-    re-keyed, its mark kept (read-lingua-french-web-unmarked-spellings D3): `recu` those of `reçu`,
-    `arrete` those of `arrête` and `arrêté` together, `etais` the imperfect of *être* and, as `étais`
-    does, the plural of *étai* (`other`). Sorted, each row once."""
+    readings of every form of its word it writes with the same letters, marks dropped
+    (`_marks_dropped`), the form re-keyed, its mark kept (read-lingua-french-web-unmarked-spellings
+    D3): `recu` those of `reçu`, `arrete` those of `arrête` and `arrêté` together, `etais` the
+    imperfect of *être* and, as `étais` does, the plural of *étai* (`other`). A spelling carrying
+    marks (read-lingua-french-hyphenated-and-misaccented-spellings D4) takes, when some of those
+    forms keep one of its marks in place, only those keeping the most: `arreté` the past participle
+    `arrêté`'s, not the present `arrête`'s; `agé` `âgé`'s. Sorted, each row once."""
     spellings = UNMARKED_SPELLINGS if spellings is None else spellings
     by_form = collections.defaultdict(list)
     for row in rows:
         by_form[row.split("\t", 1)[0]].append(row)
-    out = set(rows)
+    of_letters = collections.defaultdict(list)
     for form, lemma in forms.items():
-        spelling = _marks_dropped(form)
-        if spelling != form and spelling in spellings and forms.get(spelling) == lemma:
+        of_letters[(_marks_dropped(form), lemma)].append(form)
+    out = set(rows)
+    for spelling in spellings:
+        lemma = forms.get(spelling)
+        if lemma is None:
+            continue
+        same = [form for form in of_letters[(_marks_dropped(spelling), lemma)] if form != spelling]
+        marks = _marks_at(spelling)
+        kept = {form: len(_marks_at(form) & marks) for form in same}
+        if any(kept.values()):
+            same = [form for form in same if kept[form] == max(kept.values())]
+        for form in same:
             out.update(spelling + row[len(form) :] for row in by_form.get(form, ()))
     return sorted(out)
 
@@ -2680,13 +2771,15 @@ def main():
     )
     # French's acronym rows, each backed by the section's own entry (keep-lingua-french-acronyms-in-capitals D2).
     acronyms.check_rows(lexicon.acronyms)
-    # The web's list keeps apart from the section's words and its own spellings
-    # (read-lingua-french-web-unmarked-spellings D2): a row the section names so stops for a person.
+    # The web's lists keep apart from the section's words and its own spellings
+    # (read-lingua-french-web-unmarked-spellings D2,
+    # read-lingua-french-hyphenated-and-misaccented-spellings D3): a row the section names so stops for
+    # a person.
     crossed = lexicon.web_boundary()
     if crossed:
         raise SystemExit(
-            f"fr-en: {len(crossed)} spelling(s) of WEB_SPELLINGS the section gives a meaning of its own or "
-            f"gives as its accented word's spelling: {', '.join(crossed)}"
+            f"fr-en: {len(crossed)} spelling(s) of WEB_SPELLINGS, WEB_HYPHENATED or WEB_MISACCENTED the "
+            f"section gives a meaning of its own or gives as another word's spelling: {', '.join(crossed)}"
         )
     name_or_word(lexicon.candidates, lexicon.names, frequency)
     own_words(lexicon)

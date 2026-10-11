@@ -108,6 +108,14 @@
 //! and « regarde cette video », which records a spelling the list leaves out (English writes `video`
 //! more often); and two grammar probes, `recu` (the past participle of `recevoir`) and `arrete`
 //! (`arrêter`'s participle and present), the readings a spelling carries.
+//!
+//! And the web's hyphenated words without their marks and its wrong accents, two more reviewed lists
+//! (read-lingua-french-hyphenated-and-misaccented-spellings): six phrase probes — « peut-etre qu'il
+//! viendra », « il l'a fait lui-meme », « c'est-a-dire demain » and « ma grand-mere habite la-bas »,
+//! each hyphenated run read whole as its word, « c'est trés bien, je l'ai déja vu » (`très`, `déjà`),
+//! and « elle l'a fait elle-meme », which records a spelling no row can name (`elle-même` is no form
+//! of the tables) —, and two grammar probes, `arreté` (only `arrêter`'s past participle, the form
+//! whose marks it keeps) and `grand-mere` (`grand-mère`'s feminine singular).
 
 use super::{Card, PackSource, Scenario};
 
@@ -199,7 +207,11 @@ const LEMMAS: &[&str] = &[
 /// (an elided piece written apart). And the web's spellings a reviewed list names
 /// (read-lingua-french-web-unmarked-spellings): « c'etait deja tres bien », « une facon de
 /// parler francais », « j'ai recu ta reponse » and « L'Ecole est fermée. » read their words, and
-/// « regarde cette video » records a spelling the list leaves out.
+/// « regarde cette video » records a spelling the list leaves out. And the two reviewed lists of
+/// read-lingua-french-hyphenated-and-misaccented-spellings: « peut-etre qu'il viendra », « il l'a
+/// fait lui-meme », « c'est-a-dire demain », « ma grand-mere habite la-bas » and « c'est trés bien,
+/// je l'ai déja vu » read their words, and « elle l'a fait elle-meme » records a spelling no row can
+/// name.
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -259,6 +271,12 @@ const PHRASES: &[&str] = &[
     "j'ai recu ta reponse",
     "L'Ecole est fermée.",
     "regarde cette video",
+    "peut-etre qu'il viendra",
+    "il l'a fait lui-meme",
+    "c'est-a-dire demain",
+    "ma grand-mere habite la-bas",
+    "c'est trés bien, je l'ai déja vu",
+    "elle l'a fait elle-meme",
     "LE CA A VOTÉ LE BUDGET",
     "Il a crié : CA SUFFIT !",
     "Ca fait du bien.",
@@ -290,7 +308,10 @@ const PHRASES: &[&str] = &[
 /// `CA`, kept in capitals, answers its own gloss under one noun group
 /// (keep-lingua-french-acronyms-in-capitals D6); a spelling without its marks a reviewed list reads
 /// as its word carries the readings of its word's forms it writes so: `recu` (`reçu`), `arrete`
-/// (`arrête` and `arrêté`) (read-lingua-french-web-unmarked-spellings D3). The reference's probes,
+/// (`arrête` and `arrêté`) (read-lingua-french-web-unmarked-spellings D3); a misaccented spelling
+/// those of the forms whose marks it keeps, `arreté` (`arrêté`), and a hyphenated one its form's,
+/// `grand-mere` (`grand-mère`) (read-lingua-french-hyphenated-and-misaccented-spellings D4). The
+/// reference's probes,
 /// before the card's (`CARD_PROBES`) and the lemmas' (`MORE_LEMMAS`).
 pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("est", "être"),
@@ -327,6 +348,8 @@ pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("CA", "CA"),
     ("recu", "recevoir"),
     ("arrete", "arrêter"),
+    ("arreté", "arrêter"),
+    ("grand-mere", "grand-mère"),
 ];
 
 /// The French card's probes (add-lingua-french-word-card D9): one for each name the card says or

@@ -169,6 +169,26 @@ row: école — school
 row: fermer — to shut
 ### phrase-gloss regarde cette video
 row: regarder — to look at
+### phrase-gloss peut-etre qu'il viendra
+row: peut-être — maybe, perhaps
+row: venir — to come (to move from one place to another that is nearer the speaker)
+### phrase-gloss il l'a fait lui-meme
+row: faire — to do
+row: lui-même — himself, itself
+### phrase-gloss c'est-a-dire demain
+row: c'est-à-dire — that is to say
+row: demain — tomorrow
+### phrase-gloss ma grand-mere habite la-bas
+row: grand-mère — grandmother
+row: habiter — to live in, to occupy (to have as a home.)
+row: là-bas — there, over there
+### phrase-gloss c'est trés bien, je l'ai déja vu
+row: c'est — it is (used to define the preceding word)
+row: très bien — very good, very well
+row: déjà — already, before
+row: voir — to see (visually)
+### phrase-gloss elle l'a fait elle-meme
+row: faire — to do
 ### phrase-gloss LE CA A VOTÉ LE BUDGET
 row: voter — to vote
 row: budget — a budget
@@ -449,6 +469,18 @@ page 1/2:
 page 2/2:
   [verb] to settle, to conclude, to agree (upon); to wait
 row: to stop, to come to a standstill, to halt, to stop from moving
+### word-grammar arreté arrêter
+grammar: past participle of arrêter
+page 1/2:
+  [verb] to stop, to come to a standstill, to halt, to stop from moving; to arrest (someone, a criminal, etc.); to stop, to cease (an activity); to come to a stop
+page 2/2:
+  [verb] to settle, to conclude, to agree (upon); to wait
+row: to stop, to come to a standstill, to halt, to stop from moving
+### word-grammar grand-mere grand-mère
+grammar: feminine singular of grand-mère
+page 1/1:
+  [feminine noun] grandmother
+row: grandmother
 ### word-grammar parle parler
 grammar: first- and third-person singular present indicative or subjunctive and second-person singular imperative of parler
 page 1/2:

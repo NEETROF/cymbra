@@ -193,6 +193,7 @@ accumuler	VERB:1
 accusateur	NOUN:1
 accusatif	ADJ:1
 accusation	NOUN:1
+accusatoire	ADJ:1
 accuser	VERB:1
 accès	NOUN:1
 accéder	VERB:1
@@ -256,6 +257,7 @@ actrice	NOUN:1
 actualisation	NOUN:1
 actualiser	VERB:1
 actualité	NOUN:2
+actuariat	NOUN:1
 actuel	ADJ:1
 actuellement	ADV:1
 acuité	NOUN:1
@@ -524,6 +526,7 @@ air	NOUN:1
 airain	NOUN:1
 airbag	NOUN:1
 aire	NOUN:4
+airelle	NOUN:1
 airsoft	NOUN:1
 ais	NOUN:1
 aisance	NOUN:1
@@ -17623,7 +17626,6 @@ truite	NOUN:1
 truquer	VERB:1
 trèfle	NOUN:1
 très	ADV:1
-trève	NOUN:1
 trébucher	VERB:1
 trébuchet	NOUN:1
 tréma	NOUN:1
@@ -18048,6 +18050,7 @@ vertu	NOUN:1
 vertueux	ADJ:1
 vertèbre	NOUN:1
 vertébral	ADJ:1
+vertébré	ADJ:1
 verve	NOUN:2
 verveine	NOUN:1
 vessie	NOUN:1
@@ -18617,6 +18620,7 @@ zéro	NOUN:1
 écusson	NOUN:1
 écuyer	NOUN:1
 écœurant	ADJ:1
+écœurer	VERB:2
 éden	NOUN:1
 édicter	VERB:1
 édicule	NOUN:1
@@ -18817,6 +18821,7 @@ zéro	NOUN:1
 épicier	NOUN:1
 épicurien	ADJ:1
 épicurisme	NOUN:1
+épicène	ADJ:1
 épicé	ADJ:1
 épicéa	NOUN:1
 épiderme	NOUN:1
@@ -18911,6 +18916,7 @@ zéro	NOUN:1
 éruption	NOUN:1
 érythrée	PROPN:1
 érythème	NOUN:1
+érythémateux	ADJ:1
 ésope	PROPN:1
 ésotérique	ADJ:1
 ésotérisme	NOUN:1
@@ -18995,6 +19001,7 @@ zéro	NOUN:1
 étreinte	NOUN:1
 étrier	NOUN:1
 étrille	NOUN:1
+étriper	VERB:1
 étroit	ADJ:2
 étroitement	ADV:1
 étroitesse	NOUN:1

@@ -70,8 +70,8 @@ again from the pinned release and UD French-GSD's two pinned sections with fr-es
 (refine-lingua-fr-es-glosses: *fr-es's own rules* below) and its expressions refined where French text
 meets them (refine-lingua-fr-es-expressions: *fr-es's expressions* below), on French's dictionary words and levels of
 refine-lingua-fr-en-glosses, the forms of read-lingua-french-ca-as-ca-cedilla and
-read-lingua-french-dictionary-unmarked-spellings and read-lingua-french-web-unmarked-spellings and
-French's acronym table of
+read-lingua-french-dictionary-unmarked-spellings, read-lingua-french-web-unmarked-spellings and
+read-lingua-french-hyphenated-and-misaccented-spellings and French's acronym table of
 keep-lingua-french-acronyms-in-capitals. The first
 committed measurement, before those rules, read 19,050 glossed lemmas, 12,177 expressions, 83.2 /
 70.8 / 56.8 % and a pack of 1,973,407 B.
@@ -123,9 +123,22 @@ the cut bring theirs (`enceint` « Embarazada, preñada… », `estudiantin` « 
 (« deja » « Ya », « francais » « Francés… », « recu » « Recibir… »), and the glossed top 5,000 /
 10,000 / 20,000 go 4,153 / 7,071 / 11,347 → 4,160 / 7,087 / 11,409.
 
-- **Spanish glosses for 19,063 lemmas** of French's 60,000, and for the acronym `CA` (19,064 rows):
-  **4,560 from the Spanish Wiktionary's
-  French section** (its definitions, by the Spanish edition's rules and fr-es's), **13,221 from the
+**The web's hyphenated words and wrong accents** (read-lingua-french-hyphenated-and-misaccented-spellings)
+re-reduced fr-es on the `../fr/` fr-en now writes, where the owner's two reviewed lists read 19
+hyphenated runs without their marks and 65 words with wrong marks as their word (`peut-etre` →
+*peut-être*, `grand-mere` → *grand-mère*, `trés` → *très*, `déja` → *déjà*): every other gloss, sense
+run and expression row is byte for byte. One gloss is gone: `trève` « Tregua », the French
+Wiktionary's old spelling, now read through *trêve* « Tregua ». Eight lemmas entering the cut bring
+theirs (`accusatoire` « Acusatorio », `actuariat` « Actuaría », `airelle` « Arándano », `vertébré`
+« Vertebrado », `écœurer` « Asquear; Dar náuseas », `épicène` « Epiceno », `érythémateux`
+« Eritematoso », `étriper` « Destripar »): 19,064 → 19,071 rows. The spellings show their word's gloss
+(« peut-etre » « Quizá, tal vez, quizás, a lo mejor », « grand-mere » « Abuela », « déja » « Ya »;
+`lui-même`, which fr-es does not gloss, none), and the glossed top 5,000 / 10,000 / 20,000 go 4,160 /
+7,087 / 11,409 → 4,161 / 7,087 / 11,415.
+
+- **Spanish glosses for 19,070 lemmas** of French's 60,000, and for the acronym `CA` (19,071 rows):
+  **4,561 from the Spanish Wiktionary's
+  French section** (its definitions, by the Spanish edition's rules and fr-es's), **13,227 from the
   Spanish translations the French Wiktionary lists** (the direct table, in its order, each word
   once) and **1,282 from the French translations the Spanish Wiktionary's Spanish entries list, read
   backwards** (the inverted table, the commonest Spanish word first); **12,108 expressions** — 573
@@ -134,23 +147,23 @@ the cut bring theirs (`enceint` « Embarazada, preñada… », `estudiantin` « 
   grouped by part of speech, as every pair's; a table's gloss at most three Spanish words per part
   of speech, as one sense, opening on a capital as the edition's senses do. No pivot through a third
   language, no machine translation.
-- **Coverage**: **83.2 / 70.9 / 57.0 %** of the 5,000 / 10,000 / 20,000 commonest lemmas (4,160 /
-  7,087 / 11,409), **+1.8 / +2.1 / +2.5** points above the floor; 31.8 % of all 60,000.
-- **The share of definitions** (D9): **23.9 %** of all glossed lemmas come from a definition (4,560
-  of 19,063 — the programme's « 24 % »); among the glossed lemmas of the 10,000 commonest, **40.3 %**
+- **Coverage**: **83.2 / 70.9 / 57.1 %** of the 5,000 / 10,000 / 20,000 commonest lemmas (4,161 /
+  7,087 / 11,415), **+1.8 / +2.1 / +2.6** points above the floor; 31.8 % of all 60,000.
+- **The share of definitions** (D9): **23.9 %** of all glossed lemmas come from a definition (4,561
+  of 19,070 — the programme's « 24 % »); among the glossed lemmas of the 10,000 commonest, **40.3 %**
   (2,853 of 7,087) and **59.7 % from a translation table** (3,981 direct, 253 inverted:
   `measures.json`, which the reducer writes beside its tables and no pack stores; `pack_report.py
   --measures` shows it in the update's summary); 48.1 % of the top 5,000's (1,999 of 4,160), 32.1 %
   of the top 20,000's (3,658 of 11,409). en-es's share from a table is 26.0 % of its glossed top
   10,000. A translation is a word a person chose for the French word, not a meaning (« répondre »
   « Contestar, responder »), grouped by part of speech like any gloss.
-- **Dictionary words are French's** (`../fr/lexical.tsv`): 1,043 lemmas fr-es glosses are no
+- **Dictionary words are French's** (`../fr/lexical.tsv`): 1,042 lemmas fr-es glosses are no
   dictionary word of French (172 / 331 / 540 of the top 5,000 / 10,000 / 20,000) — 506 of them names
   fr-en glosses by a proper noun's senses alone (`france`, `paris`, `québec`: refine-lingua-fr-en-glosses
-  D2), the others `quant`, `onu`, `for`, `okay` —, and 8,534 of French's 26,555 dictionary words have
+  D2), the others `quant`, `onu`, `for`, `okay` —, and 8,540 of French's 26,569 dictionary words have
   no Spanish gloss, so the pack carries a lexical section and the vocabulary estimate counts the same
   words for both pairs.
-- **The pack is 1,982,362 B**, 37.8 % of the 5 MiB budget (−1,092 B with fr-es's expressions refined,
+- **The pack is 1,983,054 B**, 37.8 % of the 5 MiB budget (−1,092 B with fr-es's expressions refined,
   66 fewer expressions and 62 other headwords of a key where 64 were; −2,118 B with fr-es's own rules, −175 B
   with French's unmarked spellings, −1,630 B with French's acronym table: `CA` takes lemma id 0 and
   every other id moves by one, which the forms map, −746 B, the paradigms, −750 B, and the sense runs,
@@ -159,7 +172,9 @@ the cut bring theirs (`enceint` « Embarazada, preñada… », `estudiantin` « 
   dictionary's unmarked spellings: the forms map +1,097 B, the paradigms +944 B, the lemmas +7 B, the
   glosses +93 B, the sense runs −153 B, the expressions +69 B; +10,293 B with the web's unmarked
   spellings: the forms map +5,115 B, the paradigms +4,510 B, the glosses +378 B, the sense runs
-  +113 B, the expressions +258 B, the lemmas −81 B): gloss 177,740 B, senses 56,055 B,
+  +113 B, the expressions +258 B, the lemmas −81 B; +692 B with the web's hyphenated words and wrong
+  accents, the 84 rows' forms and readings and the eight glosses in; the section sizes that follow
+  were measured before it): gloss 177,740 B, senses 56,055 B,
   expressions 269,847 B (132,738 + 104,857 + their names 31,752 + the 62 other headwords listed in
   `expr.others`, 500: `velours côtelé` « Pana » keyed now that `côtelé` is a lemma,
   `cône de déjection` « Abanico aluvial » now that `déjection` is one), the lexical table 7,501 B, and

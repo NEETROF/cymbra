@@ -159,6 +159,25 @@ row: école — Escuela
 row: fermer — Cerrar, cerrar con llave
 ### phrase-gloss regarde cette video
 row: regarder — Mirar
+### phrase-gloss peut-etre qu'il viendra
+row: peut-être — Quizá, tal vez, quizás, a lo mejor
+row: venir — Venir
+### phrase-gloss il l'a fait lui-meme
+row: faire — Hacer
+### phrase-gloss c'est-a-dire demain
+row: c'est-à-dire — A saber, en otras palabras, es decir, esto es u o sea
+row: demain — Mañana
+### phrase-gloss ma grand-mere habite la-bas
+row: grand-mère — Abuela
+row: habiter — Habitar, morar, residir
+row: là-bas — Allí, allá
+### phrase-gloss c'est trés bien, je l'ai déja vu
+row: très — Bien, mucho o muy (muda adjetivos en superlativos absolutos)
+row: bien — Bien
+row: déjà — Ya
+row: voir — Ver
+### phrase-gloss elle l'a fait elle-meme
+row: faire — Hacer
 ### phrase-gloss LE CA A VOTÉ LE BUDGET
 row: voter — Votar
 row: budget — Presupuesto
@@ -387,6 +406,16 @@ grammar: participio pasado, primera y tercera persona del singular del presente 
 page 1/1:
   [verbo] Arrestar, detener; Arrestarse, detenerse
 row: Arrestar, detener
+### word-grammar arreté arrêter
+grammar: participio pasado de arrêter
+page 1/1:
+  [verbo] Arrestar, detener; Arrestarse, detenerse
+row: Arrestar, detener
+### word-grammar grand-mere grand-mère
+grammar: femenino singular de grand-mère
+page 1/1:
+  [sustantivo femenino] Abuela
+row: Abuela
 ### word-grammar parle parler
 grammar: primera y tercera persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del imperativo de parler
 page 1/1:

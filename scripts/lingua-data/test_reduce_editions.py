@@ -1832,7 +1832,7 @@ class FrenchWebUnmarkedSpellings(Entries):
             ('OWNER_EXCEPTIONS = ("sure", "surs", "sures", "entrainant")', 'OWNER_EXCEPTIONS = ("sure", "surs", "sures")'),
             ("            if word or spelt:\n", "            if word:\n"),
             ("                if target in _FOLLOWED_ROWS:\n", "                if False:\n"),
-            ("        if spelling != form and spelling in spellings and forms.get(spelling) == lemma:\n", "        if False:\n"),
+            ("        for form in same:\n            out.update(", "        for form in same[:0]:\n            out.update("),
         ):
             reducer = copy / "reduce-fr-en.py"
             text = reducer.read_text(encoding="utf-8")
@@ -1894,6 +1894,50 @@ class FrEnTranslatedExpressions(Entries):
         named = {p.name for pair in pairs for p in ps.rule_files(Path(_HERE) / f"reduce-{pair}.py")}
         self.assertNotIn("pack_sources.py", named)
         self.assertFalse(named & {"build.sh", "lingua-pack-update.yml"})
+
+
+class FrenchHyphenatedAndMisaccentedSpellings(Entries):
+    """read-lingua-french-hyphenated-and-misaccented-spellings: the web's hyphenated words without
+    their marks and its wrong accents, two reviewed lists read by fr-en's reducer (D3, D4)."""
+
+    def test_spec_scenario_nothing_else_moves(self):
+        # The two lists, their reasons, the boundary over them and the readings rule live in
+        # reduce-fr-en.py: editing any moves fr-en's rule digest alone — es-en's, en-fr's, es-fr's,
+        # en-es's and fr-es's do not. fr-es moves only through the tables/fr/ fr-en writes, which its
+        # pin records apart (`studied`).
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for old, new in (
+            # A hyphenated row, a misaccented row, a reason, the boundary and the readings rule.
+            ('"peut-etre": "peut-être",', ""),
+            ('"trés": "très",', ""),
+            ('MISACCENTED_REASON = "a word', 'MISACCENTED_REASON = "one word'),
+            ("    return word in WEB_SPELLINGS or word in WEB_HYPHENATED or word in WEB_MISACCENTED\n", "    return word in WEB_SPELLINGS\n"),
+            ("        if any(kept.values()):\n", "        if False:\n"),
+        ):
+            reducer = copy / "reduce-fr-en.py"
+            text = reducer.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            reducer.write_text(text.replace(old, new, 1), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertNotEqual(after["fr-en"], before["fr-en"], new)
+            self.assertEqual({p: after[p] for p in pairs if p != "fr-en"}, {p: before[p] for p in pairs if p != "fr-en"}, new)
+            before = after
+        # fr-es's pin records the studied tables fr-en wrote, file by file.
+        self.assertEqual(
+            ps.load(Path(_HERE) / "tables" / "fr-es" / "pin.json")["studied"],
+            ps.studied_record(Path(_HERE) / "tables" / "fr-es" / "pin.json"),
+        )
 
 
 class FrEsGlossesRefined(Entries):
