@@ -1,0 +1,8 @@
+schema: spec-driven
+created: 2026-10-11
+archiveAfter:
+  - enable-lingua-english-speakers
+  - enable-lingua-spanish-speakers
+  - enable-lingua-french
+  - add-lingua-french-detection-guard
+  - add-lingua-spanish-occitan-guard
