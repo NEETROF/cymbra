@@ -892,6 +892,73 @@ fn spec_scenario_the_pack_builds_where_the_others_do() {
 }
 
 #[test]
+fn spec_scenario_fr_en_s_two_editions() {
+    // add-lingua-fr-en-translated-expressions D6, *Two editions in fr-en's pin* and *The credit*: its
+    // pin records the English Wiktionary's French section and the French Wiktionary's English
+    // translations, each under the release that holds it — the English one kept from the update
+    // before, byte for byte —, its notice and manifest credit both editions, and the pack carries
+    // the notice.
+    let pin = json(&tables().join("fr-en/pin.json"));
+    let sources = pin["sources"].as_object().unwrap();
+    // serde_json's map is sorted by key.
+    assert_eq!(
+        sources.keys().map(String::as_str).collect::<Vec<_>>(),
+        ["gsd-dev", "gsd-train", "kaikki-en", "kaikki-fr", "wordfreq"]
+    );
+    let english = &sources["kaikki-en"];
+    let french = &sources["kaikki-fr"];
+    assert_eq!(english["release"], "lingua-pack-sources-fr-en-2026.10.09");
+    assert!(english["files"]["kaikki-French.jsonl"].is_object());
+    assert_eq!(english["files"].as_object().unwrap().len(), 1);
+    assert_eq!(
+        french["release"],
+        format!(
+            "lingua-pack-sources-fr-en-{}",
+            pin["snapshot"].as_str().unwrap()
+        ),
+        "the French edition under the snapshot's own release"
+    );
+    assert_eq!(
+        french["url"],
+        "https://kaikki.org/frwiktionary/raw-wiktextract-data.jsonl.gz"
+    );
+    assert!(french["files"]["kaikki-fr-traductions-en.jsonl"].is_object());
+    assert_eq!(french["files"].as_object().unwrap().len(), 1);
+    let notice = std::fs::read_to_string(tables().join("fr-en/NOTICE")).unwrap();
+    let notice = notice.split_whitespace().collect::<Vec<_>>().join(" ");
+    for credit in [
+        "English Wiktionary (enwiktionary), French section",
+        "the English glosses of French words and expressions",
+        "French Wiktionary (frwiktionary)",
+        "the English translations its French entries list, for the expressions the English \
+         Wiktionary's French section does not gloss",
+    ] {
+        assert!(notice.contains(credit), "fr-en/NOTICE names {credit:?}");
+    }
+    let manifest = json(&tables().join("fr-en/manifest.json"));
+    assert_eq!(
+        manifest["meta"]["licences"][0],
+        "kaikki / enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)"
+    );
+    let pack = Pack::load(fr_en()).unwrap();
+    for credit in ["enwiktionary", "frwiktionary", "UD French-GSD"] {
+        assert!(
+            pack.notice().contains(credit),
+            "the pack's notice names {credit:?}"
+        );
+    }
+    // The table glosses expressions alone (D1): every glossed lemma is ranked, but the acronym rows.
+    let glossed = tsv(&tables().join("fr-en/gloss.tsv"));
+    let ranks = tsv(&tables().join("fr/freq.tsv"));
+    let acronyms = french_acronyms();
+    assert!(
+        glossed
+            .keys()
+            .all(|l| ranks.contains_key(l) || acronyms.contains(l))
+    );
+}
+
+#[test]
 fn spec_scenario_a_gloss_is_its_lemma_s() {
     // Every lemma fr-en glosses is a ranked lemma the forms table reads as itself, so the builder,
     // which files a gloss under the lemma its key reads as, lends no gloss to another word
@@ -1186,12 +1253,16 @@ fn spec_scenario_the_credits_of_fr_es() {
 #[test]
 fn spec_scenario_the_reduction_never_reads_the_treebanks_it_is_measured_on() {
     // fr-en's pin records the English Wiktionary's French section, derived from the edition's dump
-    // under fr-en's own release, GSD's training and development sections at a commit, and wordfreq —
-    // never GSD's test section nor PUD, which measure/fr-ud.sh holds out.
+    // under fr-en's own release, the French Wiktionary's English translations of expressions
+    // (add-lingua-fr-en-translated-expressions D6), GSD's training and development sections at a
+    // commit, and wordfreq — never GSD's test section nor PUD, which measure/fr-ud.sh holds out.
     let pin = json(&tables().join("fr-en/pin.json"));
     let sources: Vec<&String> = pin["sources"].as_object().unwrap().keys().collect();
     // serde_json's map is sorted by key.
-    assert_eq!(sources, ["gsd-dev", "gsd-train", "kaikki-en", "wordfreq"]);
+    assert_eq!(
+        sources,
+        ["gsd-dev", "gsd-train", "kaikki-en", "kaikki-fr", "wordfreq"]
+    );
     for (name, file) in [
         ("gsd-train", "fr_gsd-ud-train.conllu"),
         ("gsd-dev", "fr_gsd-ud-dev.conllu"),
@@ -2137,15 +2208,17 @@ fn written_as_key_pieces(
 
 #[test]
 fn every_headword_of_a_shared_french_key_is_kept_in_change_44_s_order() {
-    // Measured: fr-en 60 keys several headwords reach and 61 other headwords (`aller y` holds
-    // three), fr-es 62 and 62 — 64 and 64 before refine-lingua-fr-es-expressions left out
-    // « laisser faire » and « laissez faire » and merged « huile d' olive » into « huile d'olive ».
+    // Measured: fr-en 202 keys several headwords reach and 204 other headwords (`aller y` holds
+    // three) — 60 and 61 before add-lingua-fr-en-translated-expressions, whose table rows share 142
+    // keys among themselves and none with the section's —, fr-es 62 and 62 — 64 and 64 before
+    // refine-lingua-fr-es-expressions left out « laisser faire » and « laissez faire » and merged
+    // « huile d' olive » into « huile d'olive ».
     for (pair, bytes, shared_keys, other_headwords, among) in [
         (
             "fr-en",
             fr_en(),
-            60,
-            61,
+            202,
+            204,
             [
                 ("ça aller", ["ça ira", "ça va"].as_slice()),
                 ("aller y", ["allez-y", "allons-y", "vas-y"].as_slice()),

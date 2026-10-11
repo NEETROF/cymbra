@@ -112,6 +112,15 @@ row: rassurer — Calmar, sosegar
 row: personne — Persona
 row: village — Pueblo, aldea
 row: se souvenir — Recordar, acordarse
+### phrase-gloss Il existe plusieurs solutions.
+row: exister — Existir
+row: solution — Solución
+### phrase-gloss Les autres enfants jouent dehors.
+row: enfant — Niño, niña
+row: jouer — Jugar
+row: dehors — Fuera
+### phrase-gloss au Moyen Âge
+row: moyen âge — Edad Media, Medievo, Medioevo
 ### phrase-gloss The lighthouse stood
 rows: (none)
 ### phrase-gloss El faro se alzaba

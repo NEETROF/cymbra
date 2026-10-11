@@ -12,7 +12,9 @@ studying French reads as committed (fr-es, change 49), and this folder's `pin.js
 sources of both. fr-en reduces French's forms, ranks, readings and estimated levels, and its own
 native side — the English glosses of French words and expressions (add-lingua-pack-fr-en, change 48,
 *The glosses* below) — from the same section; its glossed lemmas, less those it glosses by a proper
-noun's senses alone, are French's dictionary words (refine-lingua-fr-en-glosses).
+noun's senses alone, are French's dictionary words (refine-lingua-fr-en-glosses). Its expressions
+are completed by the French Wiktionary's English translations where the section glosses none
+(add-lingua-fr-en-translated-expressions, *The French Wiktionary's expressions* below).
 
 In this folder:
 
@@ -20,7 +22,7 @@ In this folder:
 |---|---|---|
 | `gloss.tsv` | lemma → English gloss: up to eight whole senses, grouped by part of speech (*The glosses*) | kaikki.org, the English Wiktionary's French section (CC BY-SA 4.0 + GFDL), read by the English edition's rules |
 | `senses.tsv` | lemma → its gloss's runs: each part of speech and how many senses it holds | the same entries |
-| `mwe.tsv` | expression → English gloss: the section's headwords with a space, and the single words French's tokenisation splits (`d'abord`) | the same section |
+| `mwe.tsv` | expression → English gloss: the section's headwords with a space, and the single words French's tokenisation splits (`d'abord`); then the French Wiktionary's French expressions the section does not gloss (`il existe`, `s'asseoir`; *The French Wiktionary's expressions*) | the same section; the English translations the French Wiktionary's French entries list (kaikki.org, `frwiktionary`, CC BY-SA 4.0 + GFDL) |
 | `NOTICE` | the attribution stack, embedded in the pack | — |
 | `manifest.json` | the pack's metadata: French glossed in English, French's analyser version (`FRENCH_ANALYZER_VERSION`, read from lingua-core), `levels_estimated` (the levels are estimated, not a CEFR list's), and `pack_version` (the snapshot, and the rules that reduced it) | — |
 | `pin.json` | the raw sources these tables and `../fr/` came from, and the pack they build | — |
@@ -45,7 +47,16 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   Its inflections are tagged, a lemma's table lists them and a form's own entry points at what it is
   a form of. A verb's table lists the masculine singular past participle (`dirigé`) and none of its
   agreed forms: those hang under the participle's own entry. Its senses, written in English for
-  French words, are fr-en's glosses too: the one source of the native side, no translation table.
+  French words, are fr-en's glosses too: the one source of the glosses, no translation table. Kept
+  byte for byte by the update of 2026-10-10 (`keep=en`), its record names the release
+  `lingua-pack-sources-fr-en-2026.10.09`, which holds it.
+- **kaikki.org, the French Wiktionary's English translations** (`kaikki-fr-traductions-en.jsonl`,
+  129,366 French entries listing English translations, 14,573,988 B, sha256 `6f54aeda…`, 1,914,447 B
+  as its zstd asset), derived from the French edition's dump (`DUMPS["fr-en"]`): the dump regenerated
+  on 2026-10-02 00:10, read on 2026-10-10, decompressed sha256 `968f7df0…` (the regeneration fr-es's
+  pin records), published as `lingua-pack-sources-fr-en-2026.10.10` by `lingua-pack-update` run
+  38085007726 — an update keeping the English edition (add-lingua-fr-en-translated-expressions D6).
+  Read for expressions alone (*The French Wiktionary's expressions*).
 - **UD French-GSD**, its training and development sections at `94d5b68e185fc22a9ef292040e84f476d36d9b0e`
   (`pack_sources.py PINNED["fr-en"]`), read for how often a form stands for each lemma and how often
   a hyphenated lemma occurs (390,368 words) — and, for the glosses, how often it reads each word
@@ -273,7 +284,8 @@ too 1,460,253 B (*The readings*). With the glosses, their runs and the expressio
 with fr-en's own rules and French's lexical table 2,537,386 B, with French's unmarked spellings
 2,537,588 B, with French's acronym table 2,535,748 B, keeping every headword of a key several reach
 (pick-lingua-expression-written-as-the-page) 2,536,702 B, with the dictionary's unmarked spellings
-2,538,572 B, and with the web's unmarked spellings it is **2,550,510 B** (*The glosses*), under the
+2,538,572 B, with the web's unmarked spellings 2,550,510 B (*The glosses*), and with the French
+Wiktionary's expressions it is **3,004,986 B** (*The French Wiktionary's expressions*), 57 % of the
 builder's 5 MiB.
 
 ## Measured
@@ -947,28 +959,29 @@ le faire » meet none of the eleven (« de le faire » meets `de l'`, which `mai
 separate change makes an elided expression piece match an elided token only, the owner decided on
 2026-10-10).
 
-**No translation table** (D3). The French Wiktionary's English translations and the English
-Wiktionary's French translations read backwards were measured on the design's prototype and
-declined: they would add 1,988 lemmas, 1,895 of them words the section has no entry for — English
+**No translation table glosses a word** (D3). The French Wiktionary's English translations and the
+English Wiktionary's French translations read backwards were measured on the design's prototype and
+declined for words: they would add 1,988 lemmas, 1,895 of them words the section has no entry for — English
 words in French text (« in », « end » « NDE, NDI, NDT »), names, initialisms, unaccented misspellings,
 1,193 listing the word itself as its translation — and fr-en, French's reference pair, would make
 them French's dictionary words, counted by every French reader's vocabulary estimate and kept as
 words by the names rule. Read backwards, an English entry makes French's commonest bigrams
-expressions (« il est » "he's", 782 times in UD French's 425,111 words). A word or an expression the
-section does not gloss has no gloss; the two catalogue files change 38 registered for this pair are
-no longer derived. Whether the French Wiktionary's English translations should gloss expressions in
-a later update is the owner's question (design, Open Question 1).
+expressions (« il est » "he's", 782 times in UD French's 425,111 words): the English Wiktionary's
+French translations are no longer derived. A word the section does not gloss has no gloss. The
+French Wiktionary's English translations complete the expressions since
+add-lingua-fr-en-translated-expressions, the owner's decision of 2026-10-10 on that design's Open
+Question 1 (*The French Wiktionary's expressions*).
 
-**What they hold**, on the 2026-10-09 tables:
+**What they hold**, on the 2026-10-10 tables:
 
 | | |
 |---|---|
 | Glossed lemmas | **30,147**, every one from the section's own entries: 30,146 ranked lemmas and the acronym `CA`, the one lemma glossed and unranked |
 | French's dictionary words (`../fr/lexical.tsv`) | **26,555**: the glossed lemmas less the 3,592 glossed by a proper noun's senses alone (367 / 916 / 1,775 of the 5,000 / 10,000 / 20,000 commonest); `CA` among them, unranked, which the vocabulary estimate does not count |
 | Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,693 / 8,716 / 15,348 — 93.9 / 87.2 / 76.7 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; settled by the owner) |
-| Expressions | **17,635**: 15,653 headwords with a space and 1,982 words the tokenisation splits |
-| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,619,095, 513,722 and 833,953 B (626,644, 125,999 and 326,483 B gzipped); `../fr/lexical.tsv` 254,526 B |
-| The pack | **2,550,510 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B, French's unmarked spellings +202 B (the glosses +437, their runs −224, the expressions +106 — `velours côtelé` « corduroy » keyed now that `côtelé` is a lemma —, the forms, lemmas and paradigms −117), French's acronym table −1,840 B (`CA` takes lemma id 0 and every other id moves by one, which the forms map, −746 B, and the paradigms, −750 B, encode slightly tighter; the glosses −348 B, their runs −5 B; the new rows of the lemmas, ranks, levels and dictionary words +9 B), every headword of a key several reach +954 B (pick-lingua-expression-written-as-the-page: the 61 other headwords of 60 keys, their glosses +35 B and names +411 B, and their list, `expr.others`, 492 B), the dictionary's unmarked spellings +1,870 B (the forms map +1,097, the paradigms +944, the lemmas +7, the glosses −89, their runs −89), the web's unmarked spellings +11,938 B (the forms map +5,115, the paradigms +4,510, the glosses +1,226, their runs +582, the expressions +586 — keyed on the new lemmas, no headword gained or lost —, the lemmas −81) |
+| Expressions | **43,542**: the section's 17,635 — 15,653 headwords with a space and 1,982 words the tokenisation splits — and the French Wiktionary's 25,907 — 23,141 and 2,766 (*The French Wiktionary's expressions*) |
+| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,619,095, 513,722 and 1,909,492 B (626,644, 125,999 and 701,450 B gzipped; the section's expressions alone 833,953 B); `../fr/lexical.tsv` 254,526 B |
+| The pack | **3,004,986 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B, French's unmarked spellings +202 B (the glosses +437, their runs −224, the expressions +106 — `velours côtelé` « corduroy » keyed now that `côtelé` is a lemma —, the forms, lemmas and paradigms −117), French's acronym table −1,840 B (`CA` takes lemma id 0 and every other id moves by one, which the forms map, −746 B, and the paradigms, −750 B, encode slightly tighter; the glosses −348 B, their runs −5 B; the new rows of the lemmas, ranks, levels and dictionary words +9 B), every headword of a key several reach +954 B (pick-lingua-expression-written-as-the-page: the 61 other headwords of 60 keys, their glosses +35 B and names +411 B, and their list, `expr.others`, 492 B), the dictionary's unmarked spellings +1,870 B (the forms map +1,097, the paradigms +944, the lemmas +7, the glosses −89, their runs −89), the web's unmarked spellings +11,938 B (the forms map +5,115, the paradigms +4,510, the glosses +1,226, their runs +582, the expressions +586 — keyed on the new lemmas, no headword gained or lost —, the lemmas −81); the French Wiktionary's expressions +454,476 B (`mwe.tsv`'s 25,907 rows, the notice's paragraph) |
 
 **French's unmarked spellings** (read-lingua-french-ca-as-ca-cedilla) took three glosses out — `ca`
 « board of directors » (`CA`'s initialisms, lowercased), `age` « beam (central bar of a plough);
@@ -1107,6 +1120,97 @@ The rules fr-en adds would read es-en's rows right too (« (all senses) » in 15
 tables build from this change on: a pull request that moves `../fr/` or this folder and the French
 golden with them re-blesses `fr-en.golden` and says so.
 
+## The French Wiktionary's expressions (`mwe.tsv`)
+
+add-lingua-fr-en-translated-expressions, the owner's decision of 2026-10-10: fr-en's expressions are
+completed by the English translations the French Wiktionary's French entries list
+(`kaikki-fr-traductions-en.jsonl`, *The sources*), where the English Wiktionary's French section
+glosses none. They gloss **no word**: `gloss.tsv`, `senses.tsv`, `../fr/` and the coverage are the
+section's alone, `CA`'s gloss too (read from the section's expressions alone).
+
+**The rules** (`reduce-fr-en.py`, `translated_expressions`; no shared module edited):
+1. **The table, for expressions** (D1): each French headword's typographic apostrophe read as `'`
+   (`straight_translations`: « s’asseoir » is `s'asseoir`), read forwards as es-en reads its direct
+   table (`reduce_common.read_translations`, a proper noun's entry left out), a headword with a space
+   or a word the tokenisation splits (`split_word`) alone; its gloss up to three translations in the
+   table's order, one sense, their case kept, « etc » with its period.
+2. **The section's expression wins** (D2): on its headword (the section glosses it: « par exemple »),
+   on its key (a headword whose words, each read through `../fr/forms.tsv` and an elided piece
+   through `ELISIONS`, are a section expression's: « fondu enchainé » "cross fading" beside « fondu
+   enchaîné », « feu de croisement » beside « feux de croisement »), and on what its rules leave out
+   (`LEFT_OUT`'s names and the section's expressions whose every sense only points: « à la », « sur
+   ce », « boite à gants »). A section entry that leaves no gloss otherwise — a proper noun's — lets
+   the table gloss it: « au Moyen Âge » meets « moyen âge » "Middle Ages".
+3. **A translation that repeats its headword is no gloss** (D3): « à deux » "à deux", « in situ »,
+   « panna cotta » are no expressions; a headword keeps its other translations (« à la diable »
+   "devilled").
+4. **A reviewed list** (D5): 51 table expressions a person read wrong in most of the contexts they
+   are met in are left out by name, in `LEFT_OUT` beside the section's 17, each with its reason — the
+   table's gloss, its matches on the corpora and what they are:
+   - words met as they are where the table names a set phrase or a field's sense (33): « les
+     autres » "other people", « le grand » "the Great", « d'argent » "argent", « d'azur », « plus
+     haut », « de haut », « travailler à », « un temps », « une étoile », « en premier », « se mêler »,
+     « il se trouve », « la peau », « sortir avec », « au vent », « bien du », « première ligne »,
+     « ombre de », « quatre heures », « grand homme », « la mettre », « première partie », « bon
+     vieux », « c'est une chose », « du gâteau », « la barbe », « au temps », « petite bête », « à la
+     ligne », « à ses yeux », « sur le champ », « avoir l'œil », « graine de »;
+   - an address or an interjection met as plain words (4): « à vous » "over", « mon cœur », « et
+     bien », « tu vois »;
+   - a name met as itself (4): « côte d'azur » "blue band", « louis xiv », « henri iv », « de gaulle »;
+   - a number met as itself (1): « à neuf » "anew" (« à neuf heures »);
+   - a verb's form met as a noun's headword (5; M8): « être cher », « groupe a », « en laisse », « en
+     joue », « en conserve » (« en conservant »);
+   - a wrong translation (4): « se mettre d'accord » "pull together", « voie navigable »
+     "thoroughfare", « se heurter » "blunder", « se serrer » "clench".
+
+**What the rules count** on the table of 2026-10-02 (headwords with a space / split words, each
+counted at the first rule it stops at, as the reduction's summary line prints them):
+
+| Rule | With a space | Split words |
+|---|---|---|
+| The section glosses the headword | 7,434 | 1,151 |
+| Left out by name (`LEFT_OUT`: 4 of the section's names, the 51 of the review) | 53 | 2 |
+| The section's senses only point | 2 | 3 |
+| A key the section reaches | 133 | 0 |
+| Only repeats the headword | 783 | 265 |
+| **Kept** | **23,141** | **2,766** |
+
+210 kept headwords lost a translation that repeated them. 55 glosses run past 80 characters (the
+longest, « même une horloge arrêtée donne l'heure juste deux fois par jour », 142), kept whole as
+es-en's direct table's are (the owner, 2026-10-10). No row is empty or ends on an opening mark.
+
+**Measured on the committed tables** with the design's harness (`build_pack`, the core's
+`reading_expression_key` and `gloss_phrase` over 1,060,904 words of French text — UD French-GSD's
+training and development sentences, Gutenberg, French Wikipedia, a Tatoeba sample and the
+baseline's pages): the builder keys 17,050 of the kept headwords with a space and 117 split words
+(the rest hold a word the lexicon does not, run past seven tokens, or are one hyphenated token); **no
+key is reached by both a section and a table headword**, and 142 keys by two table rows, settled by
+the builder's order. On the corpora, 60,340 → 68,361 expression matches, **56.9 → 64.4 per 1,000
+words**, 52.2 → 55.7 % of lines meeting one (GSD 54.3 → 61.6, Gutenberg 58.9 → 67.9, Wikipedia
+51.6 → 58.8, Tatoeba 73.1 → 80.4, the baseline's pages 56.9 → 59.9); 8,890 matches are the table's
+(1,606 expressions; 7,653 with a space, 1,237 split words, most of them a reflexive verb before a
+vowel: « s'étend », « s'installer »), and 875 of the section's (1.5 %) are displaced by a longer or an
+earlier table expression — of 50 sampled in the design, 37 read better, 11 the same, 2 worse. The
+design's samples, read by one judge: 85 right, 6 partly, 9 wrong in 100 matches drawn after the list;
+the section's own expressions, sampled the same way, 73 right, 1 partly, 26 wrong.
+
+**What is left**: the 1,285 expressions met fewer than five times are not read one by one (about one
+match in ten of the result still reads wrong, « premières sorties de l'eau » "roll-out"); the
+owner reads a sample of 100 drawn from these tables (task 6.2). The section's own expressions read
+wrong as often (« de l'équipe » met as the partitive "some", « il m'a sauvé » as "“I'm going”", « en
+faisant » as « en fait » "actually", « sur le champ de bataille »'s « champ » in fr-es's « sur le
+champ » "En el acto"): a refinement of their own (the design's Open Questions 3 and 4).
+
+**The French baseline**: `fr-en.golden` moves in its pack, notice and licences and in four phrase
+probes that now meet a table expression — « Il est prêt à le faire » « prêt à » "ready, about to",
+« un moteur diesel » « moteur diesel » "diesel engine, Diesel engine, Diesel motor", « Il est au
+courant de tout. » « être au courant » "aware, know, in the know", longer than the section's « au
+courant », and « Elle se leva. » « se lever » "get up, stand up"; three phrase probes are added to
+both French goldens — « Il existe plusieurs solutions. » meets « il existe » "there exists", « Les
+autres enfants jouent dehors. » none, « au Moyen Âge » « moyen âge » "Middle Ages". « une crème
+brûlée » and « sur le champ de bataille », probes of refine-lingua-fr-es-expressions, still meet the
+section's « crème brûlée » and « champ de bataille », not « sur le champ ».
+
 ## What the later changes add
 
 | Change | Adds |
@@ -1119,6 +1223,7 @@ golden with them re-blesses `fr-en.golden` and says so.
 | 43b read-lingua-french-ca-as-ca-cedilla | done: French's unmarked spellings (`ca` → *ça*, `age`/`ages` → *âge*, `forcement` → *forcément*; *The rules*); « CA » in capitals waits for the acronym change (43c, `keep-lingua-french-acronyms-in-capitals`), and so does this change's release |
 | 43c keep-lingua-french-acronyms-in-capitals | done: French's acronym table, `CA` alone — a form in capitals that is its own lemma, a dictionary word with no rank or level, glossed from fr-en's expressions (*The rules*, *The glosses*); French's analyser `1.3.0` |
 | 43d read-lingua-french-dictionary-unmarked-spellings | done: the dictionary's own unmarked spellings read as their word when it is the commoner (`etre` → *être*, `etat` → *état*, `repond` → *répondre*; *The rules*); it ships with or after 43b |
+| 48c add-lingua-fr-en-translated-expressions | done: the French Wiktionary's English translations complete the expressions (*The French Wiktionary's expressions*); the pin records two editions under two releases |
 | 49 fr-es | a reader of `../fr/` as committed, capped at the same 60,000 |
 
 ## Licences
@@ -1131,8 +1236,9 @@ from the sources above and carry their licences:
 - `../fr/level.tsv`: CC BY-SA 4.0 (derived from `freq.tsv`) and CC BY-SA 4.0 and the GFDL (kaikki,
   which says which lemmas take a level);
 - `gloss.tsv`, `senses.tsv`, `mwe.tsv` and `../fr/lexical.tsv` (derived from `gloss.tsv` and
-  `senses.tsv`): CC BY-SA 4.0 and the GFDL (kaikki), and CC BY-SA 4.0 (GSD's counts, which order a
-  function word's senses).
+  `senses.tsv`): CC BY-SA 4.0 and the GFDL (kaikki: the English Wiktionary, and the French
+  Wiktionary for `mwe.tsv`'s expressions the section does not gloss), and CC BY-SA 4.0 (GSD's counts,
+  which order a function word's senses).
 
 `NOTICE` gives the full attribution. See `../../SOURCES.md`.
 
@@ -1141,10 +1247,13 @@ from the sources above and carry their licences:
 Never by hand — except `../fr/tags.tsv` and `../fr/studied.json`, which no reducer writes.
 
 - **Take in upstream changes**: dispatch `lingua-pack-update` with `pair=fr-en` and `mode=update`.
-  It reads the English edition's dump once (about 3 GB gzipped), derives the French section from
-  it, keeps its bytes as the release `lingua-pack-sources-fr-en-<snapshot>` (about 26 MB
-  compressed), records GSD's two sections at their commit, reduces, and pushes the branch
-  `lingua-pack/fr-en/<snapshot>`. Its runs are one at a time in the `fr` group, so an update of fr-en
+  It reads the English and the French editions' dumps once each (about 3 GB and 0.74 GB gzipped),
+  derives the French section and the French entries' English translations from them, keeps their
+  bytes as the release `lingua-pack-sources-fr-en-<snapshot>` (about 26 MB and 1.9 MB compressed),
+  records GSD's two sections at their commit, reduces, and pushes the branch
+  `lingua-pack/fr-en/<snapshot>`. With `keep=en` (or `fr`) it keeps that edition's recorded bytes
+  and reads the other alone — how the French edition was added on 2026-10-10 without a new French
+  dictionary; never a way to avoid an update (`../../SOURCES.md`, *An update can keep an edition*). Its runs are one at a time in the `fr` group, so an update of fr-en
   and of fr-es never propose `../fr/` on two branches.
 - **After editing the reduction rules** — `reduce-fr-en.py`, the override, elision and `LEFT_OUT`
   tables included, `reduce_common.py`, which every pair shares, or `reduce_edition_en.py`, the

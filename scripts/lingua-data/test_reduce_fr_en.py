@@ -893,6 +893,20 @@ class Acronyms(unittest.TestCase):
         # The one glossed lemma no rank holds.
         self.assertEqual([lemma for lemma in self.glosses if lemma not in self.ranks], ["CA"])
 
+    def test_the_french_wiktionary_s_translations_gloss_no_acronym(self):
+        # add-lingua-fr-en-translated-expressions D1: the table glosses expressions alone, and an
+        # acronym's gloss is a word's — read from the section's expressions, never from the table's.
+        # The table's « comptable agréé » is an expression of fr-en; `CA` keeps the section's three
+        # senses.
+        table = [{"pos": "noun", "translations": [{"word": "chartered accountant"}], "word": "comptable agréé"}]
+        with mock.patch.dict(FREQ, _ACRONYM_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _ACRONYM_TOP):
+            out = Main.run_main(self, [*ENTRIES, *ACRONYM_SECTION], files={red.TRANSLATIONS: table})
+        self.assertIn("comptable agréé\tchartered accountant\n", out["mwe.tsv"])
+        self.assertIn("CA\tboard of directors; revenue, turnover, net sales; alternating current\n", out["gloss.tsv"])
+        self.assertIn("CA\tNOUN:3\n", out["senses.tsv"])
+        for name in ("gloss.tsv", "senses.tsv", "lexical.tsv", "forms.tsv"):
+            self.assertEqual(out[name], self.out[name], name)
+
     def test_spec_scenario_no_expansion_glossed(self):
         # Without the expansions' entries the row is written all the same, with no gloss.
         out = self.run_section([*ENTRIES, *(e for e in ACRONYM_SECTION if " " not in e["word"])])
@@ -2151,12 +2165,16 @@ def fake_wordfreq():
 class Main(unittest.TestCase):
     def run_main(self, entries, gsd=GSD, files=None):
         """`main` over a work folder holding `entries` as the section, GSD's two sections and
-        `files` (name → lines) beside them; every file it leaves there, by name."""
+        `files` (name → lines, or None for no file) beside them — the French Wiktionary's English
+        translations empty unless `files` names them; every file it leaves there, by name."""
+        files = {red.TRANSLATIONS: [], **(files or {})}
         with tempfile.TemporaryDirectory() as work:
             with open(os.path.join(work, "kaikki-French.jsonl"), "w", encoding="utf-8") as f:
                 f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries))
                 f.write("not json\n")
-            for name, lines in (files or {}).items():
+            for name, lines in files.items():
+                if lines is None:
+                    continue
                 with open(os.path.join(work, name), "w", encoding="utf-8") as f:
                     f.write("".join(json.dumps(line, ensure_ascii=False) + "\n" for line in lines))
             for name in ("fr_gsd-ud-train.conllu", "fr_gsd-ud-dev.conllu"):
@@ -2202,6 +2220,17 @@ class Main(unittest.TestCase):
         for source in manifest["sources"]:
             self.assertIn(source["name"], out["NOTICE"])
         self.assertEqual([s["name"] for s in manifest["sources"]], ["kaikki", "wordfreq", "UD French-GSD"])
+        # The French Wiktionary beside the English one (add-lingua-fr-en-translated-expressions D6).
+        self.assertEqual(
+            manifest["meta"]["licences"],
+            ["kaikki / enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)", "wordfreq (CC BY-SA 4.0)", "UD French-GSD (CC BY-SA 4.0)"],
+        )
+
+    def test_a_reduction_without_the_french_wiktionary_s_translations_fails_naming_them(self):
+        # fr-en's expressions read them (add-lingua-fr-en-translated-expressions): a work folder
+        # without the file is no fr-en with fewer expressions, it is an error.
+        with self.assertRaisesRegex(SystemExit, r"fr-en: .*kaikki-fr-traductions-en\.jsonl is missing"):
+            self.run_main(ENTRIES, files={red.TRANSLATIONS: None})
 
     def test_a_reduction_leaving_a_noun_ending_in_a_pronoun_out_fails(self):
         # `malgré-nous` read as the form of a verb no rank keeps: no form, so the inversion rule
@@ -2232,10 +2261,18 @@ class Manifest(unittest.TestCase):
     def test_the_notice_names_every_source_the_manifest_declares(self):
         for name in ["kaikki", "wordfreq", "UD French-GSD", "French section"]:
             self.assertIn(name, red.NOTICE)
-        # The section is credited for fr-en's glosses too (add-lingua-pack-fr-en D1), and no other
-        # source is added: no translation table is read (D3).
-        self.assertIn("the English glosses of French words and expressions", red.NOTICE.replace("\n", " "))
-        self.assertNotIn("frwiktionary", red.NOTICE)
+        # The section is credited for fr-en's glosses too (add-lingua-pack-fr-en D1), and the French
+        # Wiktionary for the English translations of the expressions the section does not gloss
+        # (add-lingua-fr-en-translated-expressions D6) — a paragraph of its own, after the section's.
+        notice = red.NOTICE.replace("\n", " ")
+        self.assertIn("the English glosses of French words and expressions", notice)
+        self.assertIn(
+            "kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — the English "
+            "translations its French entries list, for the expressions the English Wiktionary's French section "
+            "does not gloss.",
+            notice,
+        )
+        self.assertLess(red.NOTICE.index("enwiktionary"), red.NOTICE.index("frwiktionary"))
 
 
 # — The estimated levels (add-lingua-french-levels) —
@@ -2605,8 +2642,11 @@ class NativeSide(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as f:
                 f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries))
                 f.write("not json\n[1, 2]\n")
+            # No translation: the section's own expressions (`TranslatedExpressions` reads them).
+            table = os.path.join(work, red.TRANSLATIONS)
+            open(table, "w", encoding="utf-8").close()
             # No treebank count: the parts of speech stay in the page's order (`ReadAsFrench` below).
-            return red.native_side(work, path, ranks, forms, collections.Counter())
+            return red.native_side(work, path, ranks, forms, collections.Counter(), table)
 
     @classmethod
     def setUpClass(cls):
@@ -2680,7 +2720,7 @@ class NativeSide(unittest.TestCase):
     def test_the_expression_rules_leave_the_glosses_and_runs_as_they_are(self):
         # Without the pass (D11, 2 and 3) the glosses and their runs are byte for byte the same: it
         # reads no lemma's entry. The expressions alone move.
-        def unchanged(src, dst, forms):
+        def unchanged(src, dst, forms, pointers=None):
             return src
 
         with mock.patch.object(red, "expression_senses", unchanged):
@@ -2785,21 +2825,31 @@ class NativeSide(unittest.TestCase):
 
 class NativeSideReduced(unittest.TestCase):
     """`main` over the fixture section, with the translation files change 38's catalogue registered
-    for fr-en beside it: the reducer reads neither (D3)."""
+    for fr-en beside it: the reducer reads the French Wiktionary's English translations for
+    expressions alone (add-lingua-fr-en-translated-expressions D1), and the English Wiktionary's
+    French ones not at all (add-lingua-pack-fr-en D3)."""
+
+    # The French Wiktionary's English translations: a word the section has no entry for, a word it
+    # glosses, and an expression it does not.
+    TABLE = [
+        {"word": "END", "pos": "noun", "translations": [{"word": "NDE"}, {"word": "NDI"}, {"word": "NDT"}]},
+        {"word": "rendez-vous", "pos": "noun", "translations": [{"word": "date"}]},
+        {"pos": "verb", "translations": [{"word": "there exists"}], "word": "il existe"},
+    ]
 
     @classmethod
-    def setUpClass(cls):
+    def reduce(cls, table):
         top = [w for w in sorted({**FREQ, "end": 5.0}, key=lambda w: (-{**FREQ, "end": 5.0}[w], w)) if "-" not in w]
         files = {
-            # The French Wiktionary's English translations, and the English Wiktionary's French ones.
-            "kaikki-fr-traductions-en.jsonl": [
-                {"word": "END", "pos": "noun", "translations": [{"word": "NDE"}, {"word": "NDI"}, {"word": "NDT"}]},
-                {"word": "rendez-vous", "pos": "noun", "translations": [{"word": "date"}]},
-            ],
+            red.TRANSLATIONS: table,
             "kaikki-en-traductions-fr.jsonl": [{"word": "he's", "pos": "contraction", "translations": [{"word": "il est"}]}],
         }
         with mock.patch.dict(FREQ, {"end": 5.0}), mock.patch.object(sys.modules[__name__], "TOP", top):
-            cls.out = Main.run_main(cls, ENTRIES, files=files)
+            return Main.run_main(cls, ENTRIES, files=files)
+
+    @classmethod
+    def setUpClass(cls):
+        cls.out = cls.reduce(cls.TABLE)
         cls.glossed = dict(line.split("\t") for line in cls.out["gloss.tsv"].splitlines())
         cls.expressions = dict(line.split("\t") for line in cls.out["mwe.tsv"].splitlines())
 
@@ -2808,6 +2858,21 @@ class NativeSideReduced(unittest.TestCase):
         self.assertNotIn("end", self.glossed)
         # A ranked word the section glosses keeps its own gloss, whatever a table lists.
         self.assertEqual(self.glossed["rendez-vous"], "appointment")
+
+    def test_spec_scenario_the_table_glosses_no_word(self):
+        # add-lingua-fr-en-translated-expressions, *The table glosses no word*: `END` « NDE, NDI,
+        # NDT » glosses no `end`, and the glosses, their runs, French's dictionary words and every
+        # studied table are byte for byte what the section's rules write without the table — the
+        # expressions alone gain its row.
+        alone = self.reduce([])
+        for name in ("gloss.tsv", "senses.tsv", "lexical.tsv", "level.tsv", "forms.tsv", "freq.tsv", "grammar.tsv"):
+            self.assertEqual(self.out[name], alone[name], name)
+        self.assertNotIn("end", self.expressions)
+        self.assertEqual(self.expressions["il existe"], "there exists")
+        self.assertNotIn("il existe", alone["mwe.tsv"])
+        self.assertEqual(
+            set(self.out["mwe.tsv"].splitlines()) - set(alone["mwe.tsv"].splitlines()), {"il existe\tthere exists"}
+        )
 
     def test_spec_scenario_a_bigram_an_english_entry_translates(self):
         self.assertNotIn("il est", self.expressions)
@@ -2822,6 +2887,248 @@ class NativeSideReduced(unittest.TestCase):
         for name in ("gloss.tsv", "senses.tsv", "mwe.tsv"):
             rows = self.out[name].splitlines()
             self.assertEqual(rows, sorted(rows), name)
+
+
+# — The French Wiktionary's English translations (add-lingua-fr-en-translated-expressions) —
+#
+# Recorded from the French Wiktionary's dump of 2026-10-02 00:10 (`kaikki-fr-traductions-en.jsonl`
+# as `pack_sources.derive` writes it: word, part of speech, translations) and from the section fr-en
+# pins (as `native_fields` cuts it).
+TRANSLATED_TABLE = [
+    {"pos": "verb", "translations": [{"word": "there exists"}], "word": "il existe"},
+    {
+        "pos": "noun",
+        "translations": [{"sense": "Période historique située entre l’Antiquité et la Renaissance", "word": "Middle Ages"}],
+        "word": "Moyen Âge",
+    },
+    {
+        "pos": "verb",
+        "translations": [
+            {"sense": "Se mettre sur son séant", "word": "sit"},
+            {"sense": "Se mettre sur son séant", "word": "sit down"},
+            {"sense": "Se mettre sur son séant", "word": "sit up"},
+        ],
+        "word": "s’asseoir",
+    },
+    {"pos": "adv", "translations": [{"word": "for example"}, {"word": "for instance"}], "word": "par exemple"},
+    {"pos": "noun", "translations": [{"word": "cross fading"}], "word": "fondu enchainé"},
+    {
+        "pos": "noun",
+        "translations": [{"word": "passing beam"}, {"word": "dimmed headlight"}, {"word": "dipped headlight"}, {"word": "low beam headlight"}],
+        "word": "feu de croisement",
+    },
+    {"pos": "prep", "translations": [{"word": "a la"}, {"word": "à la"}], "word": "à la"},
+    {"pos": "adv", "translations": [{"word": "on that note"}], "word": "sur ce"},
+    {"pos": "noun", "translations": [{"word": "glove box"}, {"word": "glovebox"}, {"word": "glove compartment"}], "word": "boite à gants"},
+    {"pos": "adv", "translations": [{"word": "à deux"}], "word": "à deux"},
+    {"pos": "adv", "translations": [{"word": "à la diable"}, {"word": "devilled"}], "word": "à la diable"},
+    {"pos": "pron", "translations": [{"word": "other people"}], "word": "les autres"},
+    {"pos": "adj", "translations": [{"word": "the Great"}], "word": "le Grand"},
+    {"pos": "noun", "translations": [{"word": "NDE"}, {"word": "NDI"}, {"word": "NDT"}], "word": "END"},
+    {"pos": "name", "translations": [{"word": "Black Sea"}], "word": "mer Noire"},
+]
+TRANSLATED_SECTION = [
+    {"word": "par exemple", "pos": "adv", "senses": [{"glosses": ["for example, for instance"]}, {"glosses": ["on the other hand, by the way"], "tags": ["Quebec"]}]},
+    {"word": "fondu enchaîné", "pos": "noun", "senses": [{"glosses": ["lap dissolve; A dissolve between two images"], "tags": ["masculine"]}]},
+    {
+        "word": "feux de croisement",
+        "pos": "noun",
+        "senses": [{"glosses": ["low-beam, dipped headlights (main light on a motor vehicle, with the beam in a lower angle position, to enable oncoming traffic to see)"], "tags": ["masculine", "plural", "plural-only"]}],
+    },
+    {"word": "boîte à gants", "pos": "noun", "senses": [{"glosses": ["glove box"], "tags": ["feminine"]}]},
+    {"word": "boite à gants", "pos": "noun", "senses": [{"glosses": ["post-1990 spelling of boîte à gants"], "tags": ["feminine"]}]},
+    {"word": "Moyen Âge", "pos": "name", "senses": [{"glosses": ["the Middle Ages"]}]},
+    {"word": "sur ce", "pos": "adv", "senses": [{"glosses": ["thereupon, with this, on that note"]}]},
+    *A_LA,
+]
+# As the committed tables/fr/forms.tsv reads the expressions' words: `enchainé` and `enchaîné` are
+# both enchaîner's, `feux` feu's, `boite` boîte's; `s'asseoir` is no form.
+TRANSLATED_FORMS = {
+    "fondu": "fondu", "enchaîné": "enchaîner", "enchainé": "enchaîner", "feux": "feu", "feu": "feu", "de": "de",
+    "croisement": "croisement", "boite": "boîte", "boîte": "boîte", "à": "à", "gants": "gant", "moyen": "moyen",
+    "âge": "âge", "existe": "exister", "il": "il", "les": "le", "autres": "autre", "le": "le", "la": "le",
+    "grand": "grand", "deux": "deux", "diable": "diable", "par": "par", "exemple": "exemple", "sur": "sur", "ce": "ce",
+    "asseoir": "asseoir",
+}
+
+
+def translated_native(table=TRANSLATED_TABLE, section=TRANSLATED_SECTION, forms=TRANSLATED_FORMS):
+    """fr-en's native side over `section`, completed by the French Wiktionary's `table`."""
+    with tempfile.TemporaryDirectory() as work:
+        path = os.path.join(work, "kaikki-French.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in section))
+        translations = os.path.join(work, red.TRANSLATIONS)
+        with open(translations, "w", encoding="utf-8") as f:
+            f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in table))
+            f.write("not json\n")
+        return red.native_side(work, path, {}, forms, collections.Counter(), translations)
+
+
+class TranslatedExpressions(unittest.TestCase):
+    """add-lingua-fr-en-translated-expressions D1–D3, D5: the French Wiktionary's English
+    translations complete fr-en's expressions, the section's expression winning."""
+
+    @classmethod
+    def setUpClass(cls):
+        _, _, cls.expressions, cls.stats = translated_native()
+
+    def test_spec_scenario_an_expression_only_the_table_glosses(self):
+        self.assertEqual(self.expressions["il existe"], "there exists")
+
+    def test_spec_scenario_a_proper_noun_s_entry_in_the_section(self):
+        # The section's « Moyen Âge » is a proper noun's entry, which glosses nothing: the table's
+        # common noun glosses it (D2, *Rejected — every headword the section has an entry for*).
+        self.assertEqual(self.expressions["moyen âge"], "Middle Ages")
+
+    def test_spec_scenario_a_word_the_tokenisation_splits(self):
+        # Its typographic apostrophe read as `'` (D1): the split word `s'asseoir`, no form.
+        self.assertEqual(self.expressions["s'asseoir"], "sit, sit down, sit up")
+        self.assertFalse([w for w in self.expressions if "’" in w])
+
+    def test_spec_scenario_the_section_s_headword_wins(self):
+        self.assertEqual(self.expressions["par exemple"], "for example, for instance; on the other hand, by the way")
+
+    def test_spec_scenario_the_section_s_key_wins(self):
+        # `enchainé` and `enchaîné` read alike, `feux` as feu: the section's spelling keeps its key.
+        self.assertNotIn("fondu enchainé", self.expressions)
+        self.assertEqual(self.expressions["fondu enchaîné"], "lap dissolve; A dissolve between two image")
+        self.assertNotIn("feu de croisement", self.expressions)
+        self.assertIn("feux de croisement", self.expressions)
+
+    def test_spec_scenario_what_the_section_leaves_out_stays_out(self):
+        # « à la » and « sur ce » by name (`LEFT_OUT`), « boite à gants » because the section's entry
+        # only points at the traditional spelling (`expression_senses`).
+        for word in ("à la", "sur ce", "boite à gants"):
+            self.assertNotIn(word, self.expressions)
+        self.assertEqual(self.expressions["boîte à gants"], "glove box")
+
+    def test_spec_scenario_a_translation_that_repeats_its_headword(self):
+        self.assertNotIn("à deux", self.expressions)
+        # A headword keeps its other translations.
+        self.assertEqual(self.expressions["à la diable"], "devilled")
+
+    def test_spec_scenario_an_expression_read_wrong_where_it_is_met(self):
+        for word, gloss in (("les autres", "other people"), ("le grand", "the Great")):
+            self.assertNotIn(word, self.expressions)
+            self.assertIn(f"the table's « {gloss} »", red.LEFT_OUT[word])
+
+    def test_a_word_and_a_proper_noun_s_entry_of_the_table_gloss_nothing(self):
+        self.assertNotIn("end", self.expressions)
+        self.assertNotIn("mer noire", self.expressions)
+
+    def test_the_rules_are_counted_in_their_order(self):
+        # `END` is a word, `mer Noire` a proper noun's entry: neither is a candidate.
+        self.assertEqual(
+            self.stats["table"],
+            {
+                ("space", "the section glosses the headword"): 1,
+                ("space", "left out by name"): 4,
+                ("space", "the section's senses only point"): 1,
+                ("space", "a key the section reaches"): 2,
+                ("space", "only repeats the headword"): 1,
+                ("space", "kept"): 3,
+                ("space", "a repeating translation dropped"): 1,
+                ("split", "kept"): 1,
+            },
+        )
+        self.assertEqual(self.stats["translated"], {"il existe", "moyen âge", "à la diable", "s'asseoir"})
+        self.assertEqual(
+            red.translation_report(self.stats["table"]),
+            "the section glosses the headword 1/0; left out by name 4/0; the section's senses only point 1/0; "
+            "a key the section reaches 2/0; only repeats the headword 1/0; kept 3/1; "
+            "a repeating translation dropped, others kept 1/0",
+        )
+
+    def test_the_section_s_whole_wins_its_split_words_and_lent_spellings_too(self):
+        # A word the tokenisation splits that the section glosses, and a split word keyed as one of
+        # the section's (`jusqu'à`, read `jusque` `à`): the section's alone.
+        section = [*TRANSLATED_SECTION, {"word": "d'abord", "pos": "adv", "senses": [{"glosses": ["first, at first, right away"]}]}]
+        table = [
+            {"pos": "adv", "translations": [{"word": "first"}], "word": "d’abord"},
+            {"pos": "adv", "translations": [{"word": "firstly"}], "word": "tout d'abord"},
+        ]
+        _, _, expressions, stats = translated_native(table, section)
+        self.assertEqual(expressions["d'abord"], "first, at first, right away")
+        self.assertEqual(expressions["tout d'abord"], "firstly")
+        self.assertEqual(stats["table"][("split", "the section glosses the headword")], 1)
+
+    def test_a_gloss_is_three_translations_in_the_table_s_order_etc_with_its_period(self):
+        table = [
+            {"pos": "noun", "translations": [{"word": "a"}, {"word": "b"}, {"word": "c"}, {"word": "d"}], "word": "une chose"},
+            {"pos": "verb", "translations": [{"word": "and so on"}], "word": "et ainsi de suite"},
+            {"pos": "phrase", "translations": [{"word": "etc"}], "word": "et cetera"},
+            {"pos": "noun", "translations": [{"word": "cat"}], "word": "chat"},
+        ]
+        _, _, expressions, _ = translated_native(table, [])
+        self.assertEqual(expressions["une chose"], "a, b, c")
+        self.assertEqual(expressions["et ainsi de suite"], "and so on")
+        self.assertEqual(expressions["et cetera"], "etc.")
+        self.assertNotIn("chat", expressions, "a word")
+
+    def test_the_section_s_rules_leave_its_glosses_as_they_are(self):
+        # D1: the table is read for expressions alone, after the glosses — with or without it, the
+        # glosses and their runs are the same.
+        ranks = {"chambre": 1, "venir": 2}
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "kaikki-French.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in [CHAMBRE, VENIR]))
+            table = os.path.join(work, red.TRANSLATIONS)
+            with open(table, "w", encoding="utf-8") as f:
+                f.write(json.dumps({"pos": "noun", "translations": [{"word": "chamber"}], "word": "chambre"}) + "\n")
+            with_table = red.native_side(work, path, ranks, {"chambre": "chambre", "venir": "venir"}, collections.Counter(), table)
+            open(table, "w", encoding="utf-8").close()
+            without = red.native_side(work, path, ranks, {"chambre": "chambre", "venir": "venir"}, collections.Counter(), table)
+        self.assertEqual(with_table[:3], without[:3])
+        self.assertNotIn("chamber", with_table[0]["chambre"])
+
+    def test_expression_key(self):
+        forms = {"achats": "achat", "enchainé": "enchaîner", "enchaîné": "enchaîner", "jusqu'": "jusque"}
+        self.assertEqual(red.expression_key("d'achats", forms), ("de", "achat"))
+        self.assertEqual(red.expression_key("fondu enchainé", forms), red.expression_key("fondu enchaîné", forms))
+        self.assertEqual(red.expression_key("jusqu'à la fin", forms), ("jusque", "à", "la", "fin"))
+        # A word whose apostrophe is no elided piece stays whole.
+        self.assertEqual(red.expression_key("aujourd'hui même", forms), ("aujourd'hui", "même"))
+
+    def test_repeats(self):
+        self.assertTrue(red.repeats("À Deux", "à deux"))
+        self.assertTrue(red.repeats("c’est la vie", "c'est la vie"))
+        self.assertFalse(red.repeats("a la", "à la"))
+        self.assertFalse(red.repeats("devilled", "à la diable"))
+
+    def test_straight_translations_reads_the_headword_s_apostrophe_alone(self):
+        with tempfile.TemporaryDirectory() as work:
+            src, dst = os.path.join(work, "in.jsonl"), os.path.join(work, "out.jsonl")
+            with open(src, "w", encoding="utf-8") as f:
+                f.write(json.dumps({"pos": "verb", "translations": [{"word": "you know, y’know"}], "word": "tu vois’"}, ensure_ascii=False) + "\n")
+                f.write(json.dumps({"pos": "noun", "translations": [{"word": "cat"}], "word": "chat"}) + "\n")
+                f.write("not json")
+            red.straight_translations(src, dst)
+            with open(dst, encoding="utf-8") as f:
+                lines = f.read().splitlines()
+        self.assertEqual(json.loads(lines[0]), {"pos": "verb", "translations": [{"word": "you know, y’know"}], "word": "tu vois'"})
+        self.assertEqual(json.loads(lines[1]), {"pos": "noun", "translations": [{"word": "cat"}], "word": "chat"})
+        self.assertEqual(lines[2], "not json", "a line it cannot read is written as it is")
+
+    def test_the_reviewed_list(self):
+        # D5: the 51 table expressions a person read wrong in most of their contexts, each with its
+        # reason — the table's gloss, its matches on the corpora — beside the section's 17.
+        reviewed = [
+            "les autres", "le grand", "d'argent", "d'azur", "plus haut", "de haut", "travailler à", "un temps",
+            "une étoile", "en premier", "se mêler", "il se trouve", "la peau", "sortir avec", "au vent", "bien du",
+            "première ligne", "ombre de", "quatre heures", "grand homme", "la mettre", "première partie", "bon vieux",
+            "c'est une chose", "du gâteau", "la barbe", "au temps", "petite bête", "à la ligne", "à ses yeux",
+            "sur le champ", "avoir l'œil", "graine de", "à vous", "mon cœur", "et bien", "tu vois", "côte d'azur",
+            "louis xiv", "henri iv", "de gaulle", "à neuf", "être cher", "groupe a", "en laisse", "en joue",
+            "en conserve", "se mettre d'accord", "voie navigable", "se heurter", "se serrer",
+        ]
+        self.assertEqual(len(reviewed), 51)
+        self.assertEqual(list(red.LEFT_OUT)[17:], reviewed)
+        for word in reviewed:
+            self.assertRegex(red.LEFT_OUT[word], r"^the table's « .+ »", word)
+            self.assertRegex(red.LEFT_OUT[word], r"\b\d+ matches\b", word)
+            self.assertTrue(red.is_expression(word, {}), word)
 
 
 # — fr-en read as French (refine-lingua-fr-en-glosses) —
@@ -2985,12 +3292,14 @@ TREEBANK = collections.Counter({
 
 
 def french_native(entries=None, counts=TREEBANK):
-    """fr-en's native side over the recorded entries (`FRENCH_SECTION`)."""
+    """fr-en's native side over the recorded entries (`FRENCH_SECTION`), no translation read."""
     with tempfile.TemporaryDirectory() as work:
         path = os.path.join(work, "kaikki-French.jsonl")
         with open(path, "w", encoding="utf-8") as f:
             f.write("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in entries or FRENCH_SECTION))
-        return red.native_side(work, path, FRENCH_RANKS, FRENCH_FORMS, counts)
+        table = os.path.join(work, red.TRANSLATIONS)
+        open(table, "w", encoding="utf-8").close()
+        return red.native_side(work, path, FRENCH_RANKS, FRENCH_FORMS, counts, table)
 
 
 class ReadAsFrench(unittest.TestCase):

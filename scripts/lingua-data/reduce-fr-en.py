@@ -25,6 +25,10 @@ Inputs, in `--work`:
   (D9).
 - wordfreq `fr` (the installed, pinned package): the 60,000 commonest lemmas and which forms are
   attested at all (D6).
+- `kaikki-fr-traductions-en.jsonl`: the English translations the French Wiktionary's French entries
+  list, derived from that edition's dump (pack_sources.py EDITIONS) — fr-en's expressions where the
+  section glosses none (add-lingua-fr-en-translated-expressions). A reduction without it fails,
+  naming it.
 
 Outputs, in `--work`: `forms.tsv`, `freq.tsv`, the readings `grammar.tsv`
 (add-lingua-french-grammar-tables), fr-en's native side — `gloss.tsv`, `senses.tsv` and `mwe.tsv`
@@ -89,14 +93,26 @@ pre-passes in es-en's order — its letters left out (`reduce_common.without_let
 then the rules every pair shares (`reduce_common.native_tables`) over the lemmas just ranked. The
 English edition's rules are es-en's and fr-en's alike: editing `reduce_edition_en.py` re-pins both.
 
-No translation table glosses a French word or expression (D3). The section already holds French's
-words: measured, what the French Wiktionary's English translations and the English Wiktionary's
-French translations read backwards would add is 1,988 lemmas, 1,895 of them words the section has no
-entry for — English words (« in », « end »), names, initialisms, unaccented misspellings, 1,193
-listing the word itself as its translation —, and fr-en is French's reference pair, so every lemma it
-glosses but a name becomes a dictionary word of French. Read backwards, an English entry makes
-French's commonest bigrams expressions (« il est » "he's"). A word or an expression the section does
-not gloss has no gloss.
+No translation table glosses a French word (D3). The section already holds French's words: measured,
+what the French Wiktionary's English translations and the English Wiktionary's French translations
+read backwards would add is 1,988 lemmas, 1,895 of them words the section has no entry for — English
+words (« in », « end »), names, initialisms, unaccented misspellings, 1,193 listing the word itself
+as its translation —, and fr-en is French's reference pair, so every lemma it glosses but a name
+becomes a dictionary word of French. Read backwards, an English entry makes French's commonest bigrams
+expressions (« il est » "he's"): no table is read backwards. A word the section does not gloss has no
+gloss.
+
+French's expressions are completed by the French Wiktionary's English translations
+(add-lingua-fr-en-translated-expressions, the owner's decision of 2026-10-10): `translated_expressions`
+reads the table forwards, as es-en reads its direct one, for expressions alone — a headword with a
+space or a word the tokenisation splits, up to three translations in the table's order, one sense
+(D1) — where the section's own expression wins: its headword, its key and what its rules leave out
+(D2); a translation that repeats its headword is no gloss (D3); and the table's expressions a person
+read wrong in most of the contexts they are met in are left out by name, in `LEFT_OUT` beside the
+section's (D5). Measured on the French Wiktionary's dump of 2026-10-02 (its design's *Measured*):
+25,907 expressions offered, 17,131 of them keyed by the builder, 60,359 → 68,382 matches on 1,060,904
+words of French text. The rules are fr-en's, in this reducer: no shared module is edited, so no other
+pair re-pins.
 
 fr-en reads the section as French (refine-lingua-fr-en-glosses), by rules of this reducer and of
 `reduce_french_treebank.py` alone — the English edition's and the shared ones read es-en's rows and
@@ -1787,6 +1803,221 @@ LEFT_OUT = {
         "pointer read past its semicolon leaves half a sentence, « at this point the second derivative "
         "of the »"
     ),
+    # add-lingua-fr-en-translated-expressions D5: the French Wiktionary's English translations of
+    # expressions a person read wrong in most of the contexts they are met in. Every expression of the
+    # table met at least five times on the five corpora of its design (1,060,904 words: UD French-GSD's
+    # training and development sections, Gutenberg, French Wikipedia, Tatoeba and the baseline's pages)
+    # was read in three or four of its sentences; each row gives the table's gloss, its matches there
+    # before the list, and what they are. Named here, the section's expression of that name would go
+    # too, should a later update gloss one.
+    #
+    # Words met as they are, where the table names a set phrase or a field's sense.
+    "les autres": (
+        "the table's « other people », a set phrase: of 310 matches, nearly all are the article and « autres » "
+        "before a noun, or the pronoun « the others » (« toutes les autres lignes du réseau »)"
+    ),
+    "le grand": (
+        "the table's « the Great », a ruler's epithet: of 173 matches, nearly all are the article and the "
+        "adjective (« le grand pont de bois », « le Grand Prix de Saint-Marin »)"
+    ),
+    "d'argent": (
+        "the table's « argent », heraldry's silver: of 79 matches, nearly all are money (« beaucoup "
+        "d'argent », « une petite somme d'argent »)"
+    ),
+    "d'azur": (
+        "the table's « azure », heraldry's blue: of 75 matches, nearly all are the region's name "
+        "(« Provence-Alpes-Côte d'Azur »)"
+    ),
+    "plus haut": (
+        "the table's « above », a reference to an earlier page: of 65 matches, nearly all are the "
+        "superlative (« le plus haut bâtiment d'Espagne », « son plus haut niveau »)"
+    ),
+    "de haut": (
+        "the table's « haughtily »: of 51 matches, nearly all are a height or a level (« 3 m de haut », "
+        "« de haut niveau », « de hauts fonctionnaires »)"
+    ),
+    "travailler à": (
+        "the table's « work towards, strive to, strive for »: of 45 matches, most are a place or « à "
+        "cause » (« travaillent à Genève », « cessé de travailler à cause du salaire »)"
+    ),
+    "un temps": (
+        "the table's « once »: of 39 matches, most are a while or the weather (« pendant un temps », "
+        "« un temps nuageux », « un temps d'attente »)"
+    ),
+    "une étoile": (
+        "the table's « one stars, one-star », a hotel's rating: of 25 matches, most are a star (« frappé "
+        "d'une étoile blanche », « une étoile de mer »)"
+    ),
+    "en premier": (
+        "the table's « first »: of 25 matches, half are « en première » (« en première division », « en "
+        "première mondiale »)"
+    ),
+    "se mêler": (
+        "the table's « get involved in, get mixed up in »: of 21 matches, most are « mingle » (« à leur "
+        "musique suraiguë se mêlait le bourdonnement »)"
+    ),
+    "il se trouve": (
+        "the table's « it happens, it so happens »: of 19 matches, most are « it is (somewhere) » (« il se "
+        "trouve juste au sud de Kivik », « Il se trouve à son bureau »)"
+    ),
+    "la peau": (
+        "the table's « like hell », the exclamation: its 18 matches are skin (« la peau rugueuse », « la "
+        "peau d'un serpent »)"
+    ),
+    "sortir avec": (
+        "the table's « date »: of 15 matches, most are « leave with » or « come out of it with » (« Il sort "
+        "avec Camel », « en sortir avec honneur »)"
+    ),
+    "au vent": (
+        "the table's « windward, upwind », a sailor's word: of 15 matches, most are « in the wind » "
+        "(« flottait au vent », « le nez au vent »)"
+    ),
+    "bien du": (
+        "the table's « many, a lot of »: of 14 matches, most are other words side by side (« démêler le "
+        "bien du mal », « les biens du Saint-Siège »)"
+    ),
+    "première ligne": (
+        "the table's « front line, front row »: of 12 matches, most are a first line (« la première ligne "
+        "ferroviaire », « inscrit sur la première ligne »)"
+    ),
+    "ombre de": (
+        "the table's « in umbra », the astronomer's: its 11 matches are a shade or a shadow (« l'ombre du "
+        "taillis », « l'ombre de son grand-père »)"
+    ),
+    "quatre heures": (
+        "the table's « afternoon snack »: its 10 matches are the hour or four hours (« vers quatre heures "
+        "du matin », « voilà quatre heures que »)"
+    ),
+    "grand homme": (
+        "the table's « big man »: of 9 matches, most are « great man » (« un si grand homme »)"
+    ),
+    "la mettre": (
+        "the table's « trick » (« se la mettre »): its 8 matches are the pronoun and « mettre » (« pour la "
+        "mettre à l'aise », « Où la mettre ? »)"
+    ),
+    "première partie": (
+        "the table's « opening act »: of 7 matches, most are a first part (« la première partie du XXe "
+        "siècle », « la première partie de Faust »)"
+    ),
+    "bon vieux": (
+        "the table's « trusty »: its 7 matches are old people, a noun (« ses bons vieux et ses bonnes "
+        "vieilles »)"
+    ),
+    "c'est une chose": (
+        "the table's « is one thing »: of 7 matches, most are « it is a thing » (« C'est une chose "
+        "impossible », « C'est une chose courante ? »)"
+    ),
+    "du gâteau": (
+        "the table's « piece of cake, easy as pie, chip shot »: its 7 matches are cake (« manger du gâteau »)"
+    ),
+    "la barbe": (
+        "the table's « bother », the exclamation: its 7 matches are a beard (« Je me fais pousser la "
+        "barbe »)"
+    ),
+    "au temps": (
+        "the table's « as you were », the drill command: its 7 matches are a time or the weather (« au "
+        "temps où les feuilles… », « habitué au temps froid »)"
+    ),
+    "petite bête": (
+        "the table's « bug »: its 6 matches are a small creature (« une petite bête singulière », « les "
+        "petites bêtes du hallier »)"
+    ),
+    "à la ligne": (
+        "the table's « new line, line break, new paragraph »: its 6 matches are a railway or metro line "
+        "(« se raccorde à la ligne historique », « à la ligne B du métro »)"
+    ),
+    "à ses yeux": (
+        "the table's « in my view », another person than the page's: its 6 matches are « in his/her eyes » "
+        "(« trop populaire à ses yeux »)"
+    ),
+    "sur le champ": (
+        "the table's « on the spot, right away »: of 6 matches, 5 are « sur le champ de bataille », where "
+        "it would take « champ » from the section's « champ de bataille »"
+    ),
+    "avoir l'œil": (
+        "the table's « keep an eye on »: its 5 matches describe an eye (« elle avait l'œil clair et "
+        "riant », « Elle a l'œil pour la peinture »)"
+    ),
+    "graine de": (
+        "the table's « in the making, budding, -in-waiting »: of 5 matches, most are seeds (« les graines de "
+        "jatropha », « de la graine de semence »)"
+    ),
+    # An address or an interjection met as plain words.
+    "à vous": (
+        "the table's « over », the radio call: its 64 matches are the preposition and the pronoun (« C'est à "
+        "vous de la persuader », « j'ai quelque chose à vous dire »)"
+    ),
+    "mon cœur": (
+        "the table's « honey, darling », an address: of 53 matches, nearly all are the heart (« Mon cœur "
+        "battait avec force »)"
+    ),
+    "et bien": (
+        "the table's « well, so », « eh bien » misspelt: its 41 matches are « and » before « bien » (« bel et "
+        "bien », « et bien plus extravagante », « et bien sûr »)"
+    ),
+    "tu vois": (
+        "the table's « you know, y’know », a filler: of 31 matches, most are « voir » meaning « see », in "
+        "any tense its key reads (« As-tu vu Marie ? », « Est-ce que tu vois la reine ? »)"
+    ),
+    # A name met as itself.
+    "côte d'azur": (
+        "the table's « blue band », a heraldic sense: its 38 matches are the region (« seule la Côte d'Azur "
+        "bénéficie… »)"
+    ),
+    "louis xiv": (
+        "the table's « Louis XIV-style », a style of furniture: its 23 matches are the king (« Le 10 avril "
+        "1660, Louis XIV fait son entrée à Perpignan »)"
+    ),
+    "henri iv": (
+        "the table's « Henri IV style »: its 10 matches are the king or a street (« le roi Henri IV », "
+        "« Boulevard Henri IV »)"
+    ),
+    "de gaulle": (
+        "the table's « winged corkscrew »: its 7 matches are the general (« le général de Gaulle »)"
+    ),
+    # A number met as itself.
+    "à neuf": (
+        "the table's « anew » (« remettre à neuf »): of 9 matches, most are the number (« à neuf heures », "
+        "« le liant à neuf films »)"
+    ),
+    # A verb's form met as a noun's headword: the key reads the noun's word as the verb (M8).
+    "être cher": (
+        "the table's « loved one, significant other », a noun: its 12 matches are « be expensive » or « be "
+        "dear » (« Les logements sont chers », « Les bouteilles sont chères »)"
+    ),
+    "groupe a": (
+        "the table's « blood type A, type A »: its 8 matches are « groupe » before « avoir » (« le groupe a "
+        "recruté 9.000 personnes », « Ces groupes auraient érigé… »)"
+    ),
+    "en laisse": (
+        "the table's « on a leash, on a lead, leashed »: of 7 matches, most are « en » before « laisser » "
+        "(« en laissant s'échapper », « elle en laissa tomber un »)"
+    ),
+    "en joue": (
+        "the table's « aim » (« mettre en joue »): its 6 matches are « en jouant » (« en jouant de la "
+        "flûte »)"
+    ),
+    "en conserve": (
+        "the table's « canned, tinned »: its 5 matches are « en conservant » (« tout en conservant une "
+        "grande convergence »)"
+    ),
+    # A wrong translation.
+    "se mettre d'accord": (
+        "the table's « pull together »: it means « agree », as its 5 matches do (« finirent par se mettre "
+        "d'accord »)"
+    ),
+    "voie navigable": (
+        "the table's « thoroughfare »: it is a waterway, as its 5 matches are (« le réseau bolivien des voies "
+        "navigables »)"
+    ),
+    "se heurter": (
+        "the table's « blunder »: it means « collide with, come up against », as its 5 matches do (« il se "
+        "heurte surtout au fait que… », « Il se heurta contre une branche »)"
+    ),
+    "se serrer": (
+        "the table's « clench »: it means « squeeze together, tighten », as its 5 matches do (« Elle se "
+        "serra contre moi », « ils se serrent la main »)"
+    ),
 }
 
 
@@ -1824,7 +2055,7 @@ def _meaning_of_pointer(sense):
     return {**sense, "glosses": [after.group(1), *glosses[1:]]} if after else None
 
 
-def expression_senses(src, dst, forms):
+def expression_senses(src, dst, forms, pointers=None):
     """The section's expressions as fr-en reads them, written to `dst` — a pass before the shared
     rules read the file (D11, 2 and 3), over the expressions alone (`is_expression`): no lemma's
     entry is a headword with a space or a word that is no form, so `gloss.tsv` and `senses.tsv` do
@@ -1834,7 +2065,9 @@ def expression_senses(src, dst, forms):
       with goes; a meaning written after its target stays, in its place (« y a-t-il » « is there?
       are there? »). An expression no sense is left to is none: the traditional spelling, keyed
       alike, stands alone (« crème fraîche »), and « jusqu'au soir » meets `jusqu'à` « until », not
-      « jusque + au ».
+      « jusque + au ». Its headword is added to `pointers`, when given: the French Wiktionary's
+      translations do not gloss what the section's rules leave out (add-lingua-fr-en-translated-
+      expressions D2, `translated_expressions`).
     - The expressions of `LEFT_OUT` go, each with its reason (`à la`).
 
     A line this pass cannot read is written as it is, and so is an entry it does not change."""
@@ -1855,6 +2088,8 @@ def expression_senses(src, dst, forms):
             if isinstance(senses, list):
                 read = [_meaning_of_pointer(s) if isinstance(s, dict) else s for s in senses]
                 read = [s for s in read if s is not None]
+                if senses and not read and pointers is not None:
+                    pointers.add(word)
                 if read != senses:
                     line = json.dumps({**entry, "senses": read}, ensure_ascii=False) + "\n"
             out.write(line if line.endswith("\n") else line + "\n")
@@ -2202,6 +2437,132 @@ def with_etc_period(text):
     return _ETC.sub("etc.", text)
 
 
+# — The French Wiktionary's English translations (add-lingua-fr-en-translated-expressions) —
+#
+# The English translations the French Wiktionary's French entries list complete fr-en's expressions,
+# and gloss no word (D1): read forwards as es-en reads its direct table (`reduce_common.read_translations`,
+# a proper noun's entry left out), a headword's typographic apostrophe read as `'` first, as
+# `native_fields` reads the section's. Measured on the dump of 2026-10-02 00:10 (its design's
+# *Measured*), of the table's 31,546 headwords with a space and 4,187 split words that are no word:
+# 7,434 / 1,151 the section glosses; 53 / 2 `LEFT_OUT` names — 4 of the section's rows (« à la »,
+# « sur ce », « et si », « point d'inflexion ») and the 51 the table's review added (D5); 2 / 3 the
+# section leaves out as only pointing; 133 / 0 a key the section reaches; 783 / 265 only repeat
+# their headword; 23,141 / 2,766 kept, the builder keying 17,014 / 117 of them.
+# `reduce_common.fallback_expressions` reads a headword with a space alone, and every pair's rows go
+# through it: the steps are written here, fr-en's own, so that no shared module is edited and no
+# other pair re-pins.
+TRANSLATIONS = "kaikki-fr-traductions-en.jsonl"
+# A word's elided first piece (`d'` of `d'achats`): read as the word `ELISIONS` names.
+_ELIDED_PIECE = re.compile(rf"^([{_LETTERS}]+')(.+)$")
+
+
+def straight_translations(src, dst):
+    """The table at `src` with each headword's typographic apostrophe read as `'` (D1), written to
+    `dst`: « s’asseoir » is the split word `s'asseoir`, « coup d’œil » words French's tokens key. The
+    translations are kept as written (« y’know »), and a line this pass cannot read is written as it
+    is: `read_translations` decides."""
+    with open(src, encoding="utf-8") as f, open(dst, "w", encoding="utf-8") as out:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                entry = None
+            word = entry.get("word") if isinstance(entry, dict) else None
+            if isinstance(word, str) and "’" in word:
+                line = json.dumps({**entry, "word": word.replace("’", "'")}, ensure_ascii=False) + "\n"
+            out.write(line if line.endswith("\n") else line + "\n")
+    return dst
+
+
+def expression_key(word, forms):
+    """A headword's key as this reducer approximates the builder's (D2, 2): each word read through
+    the forms table, an elided first piece through `ELISIONS` (`d'achats` → `de`, `achat`).
+    `fondu enchainé` and `fondu enchaîné` read alike. The builder's own reading is the core's (change
+    44 D1 rejects a copy of it); the pull request's harness shows that no key is reached by both."""
+    pieces = []
+    for part in word.split(" "):
+        elided = _ELIDED_PIECE.match(part)
+        if elided and elided.group(1) in ELISIONS:
+            pieces.append(ELISIONS[elided.group(1)][0])
+            part = elided.group(2)
+        pieces.append(part)
+    return tuple(forms.get(piece, piece) for piece in pieces)
+
+
+def repeats(translation, headword):
+    """Whether a translation only writes its headword again (D3): the studied language, not the
+    reader's (M5) — « à deux » for « à deux », case aside and `’` read as `'`."""
+    return nfc_lower(translation) == headword
+
+
+# The table's rules, in the order `translated_expressions` reads them, as its summary counts them.
+TRANSLATION_RULES = (
+    "the section glosses the headword",
+    "left out by name",
+    "the section's senses only point",
+    "a key the section reaches",
+    "only repeats the headword",
+    "kept",
+)
+
+
+def translated_expressions(path, expressions, forms, pointers):
+    """The table's expressions (D1–D3, D5): `(glosses, counts)`, `glosses` headword → gloss, for each
+    headword of the table at `path` (its apostrophes read straight, `straight_translations`) that has
+    a space or is a word the tokenisation splits (`split_word`): a word is never glossed by it.
+    `counts` are `{(shape, rule): n}`, the rule each headword stopped at, in `TRANSLATION_RULES`'
+    order, its shape `space` or `split`, and `(shape, "a repeating translation dropped")` the kept
+    headwords that lost one.
+
+    The section's expression wins (D2): a headword the section glosses (`expressions`, the section's
+    whole — its split words and lent spellings too), a `LEFT_OUT` name, one whose every sense the
+    section leaves out as only pointing (`pointers`, from `expression_senses`), and one whose words
+    read as a section expression's (`expression_key`) are not read from the table. A translation
+    that repeats its headword is dropped, and a headword left with none is no expression (D3). A
+    kept headword's gloss is `reduce_common.translation_gloss`'s: up to `FALLBACK_WORDS`
+    translations in the table's order, one sense, their case kept."""
+    table = common.read_translations(path, inverted=False, studied=FR)
+    keys = {expression_key(word, forms) for word in expressions}
+    glosses, counts = {}, collections.Counter()
+    for headword, by_pos in sorted(table.items()):
+        if " " in headword:
+            shape = "space"
+        elif split_word(headword, forms):
+            shape = "split"
+        else:
+            continue
+        words = []
+        for found in by_pos.values():
+            words.extend(w for w in found if w not in words)
+        own = [w for w in words if not repeats(w, headword)]
+        if headword in expressions:
+            rule = TRANSLATION_RULES[0]
+        elif headword in LEFT_OUT:
+            rule = TRANSLATION_RULES[1]
+        elif headword in pointers:
+            rule = TRANSLATION_RULES[2]
+        elif expression_key(headword, forms) in keys:
+            rule = TRANSLATION_RULES[3]
+        elif not own:
+            rule = TRANSLATION_RULES[4]
+        else:
+            rule = TRANSLATION_RULES[5]
+            glosses[headword], _ = common.translation_gloss({"X": own}, list, edition=EDITION)
+            if len(own) < len(words):
+                counts[(shape, "a repeating translation dropped")] += 1
+        counts[(shape, rule)] += 1
+    return glosses, counts
+
+
+def translation_report(counts):
+    """The summary line's account of the table (`translated_expressions`' counts): each rule's
+    headwords with a space and split words."""
+    parts = [f"{rule} {counts[('space', rule)]}/{counts[('split', rule)]}" for rule in TRANSLATION_RULES]
+    dropped = "a repeating translation dropped"
+    parts.append(f"{dropped}, others kept {counts[('space', dropped)]}/{counts[('split', dropped)]}")
+    return "; ".join(parts)
+
+
 # D2 — French's dictionary words. fr-en is French's reference pair: the lemmas it glosses are the
 # words French's vocabulary estimate counts and its names rule keeps as words — but not a lemma it
 # glosses by a proper noun's senses alone (`paris`, `lyon`, `durand` « a surname »), which is a name,
@@ -2216,19 +2577,22 @@ def dictionary_words(glosses, runs):
     return sorted(set(glosses) - names)
 
 
-def native_side(work, kaikki, ranks, forms, pos_counts):
+def native_side(work, kaikki, ranks, forms, pos_counts, translations):
     """fr-en's native side over the section in `kaikki` (D1, D2, D11): `(glosses, runs, expressions,
     stats)`, the glosses and runs keyed by the ranked lemmas (`ranks`), the expressions the section's
-    headwords with a space and the words the tokenisation splits. `pos_counts` are UD French-GSD's
-    parts of speech (`treebank.gsd_pos_counts`), which `read_as_french` orders a function word's
-    entries by.
-    The intermediate files are written in `work`.
+    headwords with a space and the words the tokenisation splits, completed by the French
+    Wiktionary's English translations in `translations` (add-lingua-fr-en-translated-expressions).
+    `pos_counts` are UD French-GSD's parts of speech (`treebank.gsd_pos_counts`), which
+    `read_as_french` orders a function word's entries by. The intermediate files are written in
+    `work`.
 
     The pipeline (refine-lingua-fr-en-glosses D1): the English edition's pre-passes in es-en's order,
     then fr-en's own `read_as_french` before the etymology merging; French's expressions; the shared
     rules; then fr-en's post-passes — a post-1990 spelling keyed apart lends its traditional
-    spelling's gloss (`traditional_spellings`, D7), and « etc » takes its period back
-    (`with_etc_period`, D8)."""
+    spelling's gloss (`traditional_spellings`, D7), the French Wiktionary's translations gloss the
+    expressions the section leaves (`translated_expressions`), and « etc » takes its period back
+    (`with_etc_period`, D8). The glosses and their runs are the section's alone: the table is read
+    after them, for expressions."""
     entries, dropped = native_fields(kaikki, os.path.join(work, "kaikki-French-senses.jsonl"))
     entries = common.without_letter_senses(entries, os.path.join(work, "kaikki-French-words.jsonl"), edition=EDITION)
     entries = english.without_letter_headwords(entries, os.path.join(work, "kaikki-French-headwords.jsonl"))
@@ -2236,8 +2600,10 @@ def native_side(work, kaikki, ranks, forms, pos_counts):
     entries, french = read_as_french(entries, os.path.join(work, "kaikki-French-french.jsonl"), pos_counts)
     entries = english.merge_same_pos_etymologies(entries, os.path.join(work, "kaikki-French-merged.jsonl"))
     section = entries
-    entries = expression_senses(entries, os.path.join(work, "kaikki-French-expressions.jsonl"), forms)
-    # No fallback: no translation table glosses a French word or expression (D3).
+    pointers = set()
+    entries = expression_senses(entries, os.path.join(work, "kaikki-French-expressions.jsonl"), forms, pointers)
+    # No fallback: no translation table glosses a French word (D3); the French Wiktionary's English
+    # translations complete the expressions below.
     glosses, runs, expressions, primary = common.native_tables(
         entries, ranks, studied=FR, edition=EDITION, fallbacks=[]
     )
@@ -2246,9 +2612,20 @@ def native_side(work, kaikki, ranks, forms, pos_counts):
     lent = traditional_spellings(section, expressions, forms)
     for spelling, traditional in lent.items():
         expressions[spelling] = expressions[traditional]
+    table = straight_translations(translations, os.path.join(work, "kaikki-fr-traductions-en-apostrophes.jsonl"))
+    translated, table_counts = translated_expressions(table, expressions, forms, pointers)
+    expressions.update(translated)
     glosses = {lemma: with_etc_period(gloss) for lemma, gloss in glosses.items()}
     expressions = {word: with_etc_period(gloss) for word, gloss in expressions.items()}
-    stats = {"primary": primary, "split": len(split), "dropped": dropped, "lent": len(lent), **french}
+    stats = {
+        "primary": primary,
+        "split": len(split),
+        "dropped": dropped,
+        "lent": len(lent),
+        "translated": set(translated),
+        "table": table_counts,
+        **french,
+    }
     return glosses, runs, expressions, stats
 
 
@@ -2257,6 +2634,10 @@ NOTICE = """Cymbra Lingua data pack — FR->EN attributions.
 kaikki.org extract of the English Wiktionary (enwiktionary), French section: CC BY-SA 4.0 + GFDL —
 the forms and their lemmas, and the English glosses of French words and expressions, from its
 senses.
+
+kaikki.org extract of the French Wiktionary (frwiktionary): CC BY-SA 4.0 + GFDL — the English
+translations its French entries list, for the expressions the English Wiktionary's French section
+does not gloss.
 
 wordfreq (French frequency list), by Robyn Speer (https://github.com/rspeer/wordfreq): data under
 CC BY-SA 4.0 — the commonest lemmas and which forms are attested.
@@ -2338,12 +2719,23 @@ def main():
     pos_counts = treebank.gsd_pos_counts(
         [os.path.join(a.work, "fr_gsd-ud-train.conllu"), os.path.join(a.work, "fr_gsd-ud-dev.conllu")]
     )
+    # The French Wiktionary's English translations (add-lingua-fr-en-translated-expressions): a
+    # reduction without them would write a fr-en with the section's expressions alone, so it stops.
+    translations = os.path.join(a.work, TRANSLATIONS)
+    if not os.path.isfile(translations):
+        raise SystemExit(
+            f"fr-en: {translations} is missing: fr-en's expressions read the French Wiktionary's English "
+            "translations (pack_sources.py DUMPS['fr-en'])"
+        )
     glosses, runs, expressions, native = native_side(
-        a.work, os.path.join(a.work, "kaikki-French.jsonl"), ranks, forms, pos_counts
+        a.work, os.path.join(a.work, "kaikki-French.jsonl"), ranks, forms, pos_counts, translations
     )
     # Each acronym row glossed from fr-en's own glosses of its expansions, the one unranked lemma it
-    # glosses (keep-lingua-french-acronyms-in-capitals D4, D5).
-    glossed_acronyms = acronyms.acronym_glosses(glosses, expressions)
+    # glosses (keep-lingua-french-acronyms-in-capitals D4, D5) — the section's expressions alone: a
+    # word's gloss never comes from the French Wiktionary's translations, which gloss expressions
+    # alone (add-lingua-fr-en-translated-expressions D1).
+    section_expressions = {w: g for w, g in expressions.items() if w not in native["translated"]}
+    glossed_acronyms = acronyms.acronym_glosses(glosses, section_expressions)
     for acronym, (gloss, gloss_runs) in glossed_acronyms.items():
         glosses[acronym], runs[acronym] = gloss, gloss_runs
     common.write(a.work, "gloss.tsv", "".join(f"{l}\t{g}\n" for l, g in sorted(glosses.items())))
@@ -2376,7 +2768,7 @@ def main():
             # Derived from frequency, not taken from a CEFR list: the extension says so.
             "levels_estimated": True,
             "licences": [
-                "kaikki / enwiktionary (CC BY-SA 4.0 + GFDL)",
+                "kaikki / enwiktionary, frwiktionary (CC BY-SA 4.0 + GFDL)",
                 "wordfreq (CC BY-SA 4.0)",
                 "UD French-GSD (CC BY-SA 4.0)",
             ],
@@ -2400,8 +2792,14 @@ def main():
     print(
         f"reduced fr-en: glosses={len(glosses)} (English Wiktionary {native['primary']}) "
         f"expressions={len(expressions)} ({native['split']} words the tokenisation splits, "
-        f"{native['lent']} post-1990 spellings lent their traditional spelling's gloss) "
+        f"{native['lent']} post-1990 spellings lent their traditional spelling's gloss, "
+        f"{len(native['translated'])} the French Wiktionary's English translations) "
         f"dropped={native['dropped']} (section lines that are no JSON object)",
+        file=sys.stderr,
+    )
+    print(
+        f"reduced fr-en: the French Wiktionary's translations, headwords with a space/split words: "
+        f"{translation_report(native['table'])}",
         file=sys.stderr,
     )
     print(
