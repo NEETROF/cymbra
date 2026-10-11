@@ -366,13 +366,23 @@ translation, its last sentence goes.
 Cymbra Lingua ahora habla español, para los hispanohablantes que aprenden inglés: la interfaz, la tarjeta, el repaso y las estadísticas están en español, y las palabras inglesas llegan con su significado en español, escrito por personas. La traducción ampliada traduce tu selección en inglés directamente al español, en tu dispositivo.
 ```
 
-## What's New — the release that ships Spanish
+## What's New — 1.5.0 (696 / 4000)
 
-The Spanish paragraph (add-lingua-spanish-listings). The rest of the notes is written with the
-release, like every « What's New ».
+Submitted on 2026-10-07: iOS build 210, macOS build 211. The app now ships the Spanish → French
+pair beside the English one (`apps/lingua-extension/packs.json`). The first paragraph is the
+Spanish paragraph of add-lingua-spanish-listings; the rest is what a Safari reader sees change
+since 1.4.0.
 
 ```
 Espagnol : lisez aussi l'espagnol. Cochez-le dans Réglages › Langue : mots surlignés, carte avec le temps et le genre, niveaux estimés, une voix d'Espagne pour la lecture à voix haute, et la traduction étendue en passant par l'anglais.
+
+Révision : elle se fait dans la langue de la page ou du livre ouvert, et ses compteurs suivent cette langue.
+
+Carte de mot : la fréquence réelle du mot dans l'usage courant, et un bouton pour écouter aussi sa forme du dictionnaire.
+
+Traduction étendue : votre sélection est mise en gras dans la phrase traduite, en espagnol comme en anglais, et les appels de note des pages sont ignorés.
+
+Corrections, dont les statistiques qui restent dans la langue choisie.
 ```
 
 ## What's New — 1.4.0 (830 / 4000)
@@ -509,6 +519,37 @@ External services: none by default - highlighting, lookup, the level estimate an
 Regional differences: none. The interface follows the device's language (French, Spanish, else English); Settings > Language switches. A device in Spanish runs steps 2-5 on an English page: "Elige tu nivel de inglés", "La conozco", "+ Mazo", "Ignorar", "Repaso", "Ajustes".
 
 Third-party material: the bundled dictionaries combine sources licensed for commercial use - ESDB (SCOWL) inflections, CEFR-J and Octanove level lists for English; the UD Spanish-GSD and French-GSD treebanks; wordfreq frequency lists; kaikki.org extracts of the English, French and Spanish Wiktionaries (definitions and translation tables) for the glosses - credited in the extension's "Sources & privacy" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
+```
+
+### As submitted with 1.5.0 (3950 / 4000)
+
+Pasted on 2026-10-07 for iOS build 210 and macOS build 211, before the English interface: the
+labels are the French ones, and Spanish is the one new path.
+
+```
+No account is needed to review this app: every feature works signed out. The optional Cymbra account saves the learner's progress (known words, deck, level, statistics) so that it survives reinstalling the app or changing device, on iPhone, iPad and Mac alike; without one, it stays on this device and is lost with the app. To test it: panel > Réglages > Données > Compte, Sign in with Apple or Google - no invitation is needed.
+
+IMPORTANT - this app is a Safari extension host. Installing it shows only a short explanatory screen: the extension must be enabled in Safari before anything happens.
+
+1. Settings > Apps > Safari > Extensions (macOS: Safari > Settings > Extensions): enable "Cymbra Lingua", then set "Other Websites" to Allow.
+2. In SAFARI (not in the app), open the extension from the address-bar menu and pick an English level (B1 is a good default). With none, the engine assumes zero known words: every word is highlighted and the pill reads 0%, which looks broken.
+3. Open any English-language page. A tab opened BEFORE the extension was enabled, or before the level was picked, must be reloaded.
+4. Words above your level are highlighted and the pill shows the share of the page you already know. Tap a highlighted word: a card gives its translation, dictionary form and frequency, with "Je connais" (I know this), "+ Deck" (add to deck), "Ignorer" (ignore).
+5. Tap the pill to open the panel: Révision (review), Stats (estimated vocabulary, A1 to C2), Réglages (settings).
+
+NEW IN 1.5.0 - Spanish: in Réglages > Langue, tick "Espagnol" and pick a Spanish level, then open a Spanish-language page (e.g. es.wikipedia.org).
+
+Account deletion: panel > Réglages > Données, signed in > "Gérer mes données" opens the account page. "Effacer mes données Lingua" erases the Lingua data on the server and every device, keeping the account. "Supprimer mon compte Cymbra" opens https://cymbra.app/suppression-compte/, where the account (shared by Cymbra's apps) is deleted after signing in.
+
+OPTIONAL - "Traduction étendue" (Settings, off by default). The translation engine (Mozilla's Firefox Translations, WebAssembly) ships inside the app; nothing executable is downloaded. Turning it on downloads only the translation models - 25.8 MB, 52.0 MB with Spanish - from https://models.cymbra.app, checked against pinned sha256. The sentence is translated on the device; no page text, account or device identifier is sent. Turning it off deletes the models.
+
+Purpose & audience: Cymbra Lingua helps French speakers learn English and Spanish by reading real web pages and their own DRM-free EPUB books: unknown words are highlighted in place, looked up offline, captured into a deck reviewed with spaced repetition, and the reader's CEFR level (A1-C2) is estimated from the words they marked.
+
+External services: none by default - highlighting, lookup, the level estimate and translation run on the device (bundled engines and dictionaries). No AI/LLM API, no analytics, no ads. Only on the reader's action: https://models.cymbra.app serves the translation models (Traduction étendue); https://api.cymbra.app (our backend) syncs the word list when signed in; Sign in with Apple / Google authenticate (the app never sees a password). No payment processor: the app is free, with no in-app purchase.
+
+Regional differences: none - the app behaves identically everywhere it is available. The interface is in French: it teaches English and Spanish to French speakers.
+
+Third-party material: the bundled dictionaries combine sources licensed for commercial use - kaikki.org extracts of the French, English and Spanish Wiktionaries, wordfreq frequencies, ESDB (SCOWL) for English inflections, the Universal Dependencies Spanish-GSD treebank, and the CEFR-J and Octanove vocabulary-level lists - credited in the extension's "Sources & confidentialité" panel. The translation models are Mozilla's (MPL 2.0). The app does not operate in a regulated industry.
 ```
 
 ## Screenshots
