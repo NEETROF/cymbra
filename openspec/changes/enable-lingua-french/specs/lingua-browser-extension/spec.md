@@ -26,3 +26,64 @@ The extension SHALL know French as a studied language, as it knows English and S
 #### Scenario: A French word on the card
 - **WHEN** a reader whose native language is English opens the card of a French word
 - **THEN** the card's lines are English, and the French words in them are marked as French for the voices, the hyphenation and the spell-check
+
+## MODIFIED Requirements
+
+### Requirement: Selection capture on any pointer
+Selecting text SHALL capture that selection on every pointer — mouse, touch and keyboard shortcut alike — and open the panel with the source sentence extracted automatically.
+The capture SHALL fire once the selection has settled, not on a particular input event, so
+that a touch selection adjusted with the platform's own handles is captured like a mouse
+drag. A selection of one word SHALL open that word's popup with the actions matching its
+current status; a selection of several words, bounded in length, SHALL open the
+whole-selection card, which "+ Deck" adds as a phrase card. A selection longer than the
+bound SHALL capture nothing. Within an analysed block, a selection of one word whose pieces
+the studied language's pre-pass gave spans of their own SHALL open the popup of the piece
+the selection lies inside, as the reader made it, and SHALL open the whole-selection card
+when it covers several of those pieces; a word whose pieces share one span SHALL open as a
+word of one piece does. When the pieces it covers are elided pieces and one word, the
+selection SHALL open that word's popup, with its gloss and the actions matching its status,
+unless the pack holds the selection as an expression, whose card it SHALL then open.
+
+#### Scenario: Capturing a phrase on a phone
+- **WHEN** the reader selects three words on a touch device and lifts the finger
+- **THEN** the panel shows the phrase and its source sentence, and "+ Deck" creates the card
+
+#### Scenario: Adjusting a touch selection with the native handles
+- **WHEN** the reader drags a selection handle to extend a one-word selection to three words
+- **THEN** the panel follows the selection and ends on the three-word phrase, without any further gesture
+
+#### Scenario: Capturing a phrase with the keyboard shortcut
+- **WHEN** the user selects three words and presses the shortcut
+- **THEN** the panel shows the phrase and its source sentence, and "+ Deck" creates the card
+
+#### Scenario: Selecting a single already-known word
+- **WHEN** the reader selects one word whose status is "known"
+- **THEN** the popup opens for that word and does not offer "Je connais" again
+
+#### Scenario: An over-long selection captures nothing
+- **WHEN** the reader selects a passage longer than the phrase bound
+- **THEN** no panel opens and the page keeps its selection
+
+#### Scenario: A selection inside an elided word
+- **WHEN** the reader drags over « homme » in « l’homme », whose pieces `le` and `homme` have spans of their own
+- **THEN** the popup of `homme` opens, not the popup of `le`
+
+#### Scenario: A selection inside an inversion
+- **WHEN** the reader drags over « il » in « dit-il »
+- **THEN** the popup of `il` opens, not the popup of `dit`
+
+#### Scenario: A selection over the pieces of one word
+- **WHEN** the reader double-clicks « l’homme », which the browser selects whole, and the pack holds no expression `l'homme`
+- **THEN** the popup of `homme` opens, with its gloss and the actions "I know it", "+ Deck" and "Ignore", not the whole-selection card
+
+#### Scenario: A selection over an inversion's pieces
+- **WHEN** the reader selects « dit-il » whole, whose pieces `dit` and `il` have spans of their own and neither is elided
+- **THEN** the whole-selection card opens, with a row for `dire`
+
+#### Scenario: An expression written as one word
+- **WHEN** the reader double-clicks « D’abord » and the pack holds the expression `d'abord`
+- **THEN** the card is headed `d'abord` with its gloss as the answer, and "+ Deck" creates a card that stores that gloss
+
+#### Scenario: Pieces sharing one span
+- **WHEN** the reader selects « don't », whose pieces `do` and `not` share its span
+- **THEN** the popup of `do` opens, as before
