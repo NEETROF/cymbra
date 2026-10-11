@@ -59,7 +59,7 @@ same add-on with its sign-in buttons hidden.
 `assets/packs/<pair>.lingua` — one language pack per pair `packs.json` lists, `<studied>-<native>`:
 `en-fr` (English glossed in French), `es-fr` (Spanish in French), `es-en` (Spanish in English),
 `en-es` (English in Spanish), `fr-en` (French in English) and `fr-es` (French in Spanish), each 1.7
-to 2.6 MB of frequency and translation data. They are
+to 3.0 MB of frequency and translation data. They are
 **generated, not authored**: the built files are not in the archive, but everything they are built
 from is. `yarn gen:pack:real` runs `scripts/lingua-data/build.sh <pair> assets/packs/<pair>.lingua`
 for each, which builds it from the reduced tables in `scripts/lingua-data/tables/<pair>/` (the
@@ -84,7 +84,9 @@ English and Spanish Wiktionaries, English glossed in Spanish from the Spanish an
 Wiktionaries. `reduce-fr-en.py` reduces French's tables (`tables/fr/`) and fr-en's glosses from the
 English Wiktionary's French section, UD French-GSD and `wordfreq`; `reduce-fr-es.py` reduces fr-es's
 glosses alone, over French's committed tables, from the Spanish Wiktionary's French section and the
-French and Spanish Wiktionaries' translation tables. Each pair's `pin.json`
+French and Spanish Wiktionaries' translation tables. Both French scripts import French's own rule
+modules, `reduce_french_treebank.py` (UD French-GSD's parts of speech) and
+`reduce_french_acronyms.py` (French's reviewed acronym table). Each pair's `pin.json`
 names the scripts it was reduced with and each raw source at a fixed commit or snapshot, with its
 sha256, so the tables can be reduced again from the same bytes (`build.sh --reduce`); the reviewer
 does not need to.
