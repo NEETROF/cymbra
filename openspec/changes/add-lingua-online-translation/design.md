@@ -160,7 +160,22 @@ A new `online_translation.proto` in `cymbra.lingua.v1`:
   links to the annex in the same language (`/confidentialite/`, `/en/privacy/`,
   `/es/privacidad/`).
 
-### D9. Keeping nothing
+### D9. Usage and cost in the back office
+- The service upserts one row per day × provider × pair × outcome (`answered`, `failed`,
+  `limited`) with request, input-token and output-token counts and the estimated cost in micro-
+  dollars. No account, no text: the rows extend the console's aggregates-only rule
+  (`lingua_admin.proto`), and the per-account counter of the daily limit stays in the cache only.
+- The cost is computed at request time from runtime config
+  `lingua.online_translation.price.<provider>.{input,output}_usd_per_mtok` (seeded with the
+  published prices: Gemini 3.1 Flash-Lite 0.25 / 1.50, Haiku 5.5 0.10 / 0.50), so a price change
+  is not a deploy and does not rewrite history. It is an estimate: Gemini prepaid credit is billed
+  in euros, and provider-side rounding differs.
+- `LinguaAdminService` gains an RPC (or extends `AdminGetLinguaUsage`) returning these totals over
+  the console's window; the Lingua console page shows tiles (answered, failed, limited, estimated
+  cost) and a breakdown by provider and pair, with the existing day-series chart.
+- Staff are exempt from the daily limit (`is_staff_in_scope(id, "lingua")`) but counted here.
+
+### D10. Keeping nothing
 The relay logs per request: account id, pair, provider, outcome, latency, token counts. A test
 captures the tracing output of a full request, including a provider error path, and asserts that
 the sentence and the translation appear nowhere. Provider errors are mapped without their body,

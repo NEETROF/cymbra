@@ -100,7 +100,9 @@ The limit SHALL be tunable at runtime without a redeploy. An operator SHALL be a
 to an account, withdraw it from an account, and withdraw it from every account at once, all without
 a release; access is withdrawn from everyone until granted. A request from an account without
 access SHALL be answered as unavailable without asking any provider. The service SHALL refuse a
-sentence longer than a fixed bound, and the extension SHALL NOT send one.
+sentence longer than a fixed bound, and the extension SHALL NOT send one. The daily limit SHALL NOT
+apply to Lingua staff (admins and moderators of Lingua), whose requests are still recorded in the
+usage figures.
 
 #### Scenario: A request without an account
 - **WHEN** a request reaches the service without a valid access token
@@ -109,6 +111,10 @@ sentence longer than a fixed bound, and the extension SHALL NOT send one.
 #### Scenario: Access withdrawn from everyone
 - **WHEN** the operator withdraws access from every account and a reader who had it presses the button on a card already open
 - **THEN** the card says online translation is unavailable for now, no provider is asked, and the setting is no longer shown once the extension next reads its access
+
+#### Scenario: An admin past the limit
+- **WHEN** an admin of Lingua presses the button after more answered requests than the daily limit
+- **THEN** the translation is shown, and the request is counted in the usage figures
 
 #### Scenario: Access granted on request
 - **WHEN** the operator grants access to one reader's account
@@ -138,8 +144,9 @@ The reader SHALL see the same card whichever provider answered.
 
 ### Requirement: The online translation service keeps nothing it is given
 The service SHALL NOT write a sentence it receives, or a translation it returns, to a log, a store, a metric, a trace or an error report.
-It MAY record, per request, the account, the time, the pair, the provider that answered, the
-latency, and the token counts. A provider SHALL be used only under terms that exclude training on
+It MAY log, per request, the account, the time, the pair, the provider that answered, the
+latency, and the token counts. What it stores for the usage figures SHALL be daily totals with no
+account and no text. A provider SHALL be used only under terms that exclude training on
 the request.
 
 #### Scenario: A provider error

@@ -35,7 +35,11 @@ The question it answered is no longer the one being asked, so it is withdrawn ra
   back office — for example to a reader who asked on Discord — and can withdraw it from one account
   or from everyone at once, without a release. Nobody has access until granted. This consumes
   Lingua feature betas, introduced by `add-lingua-feature-betas`, which must land first.
-- **A per-account daily limit**, tunable at runtime.
+- **A per-account daily limit**, tunable at runtime (100 by default), that does not apply to Lingua
+  staff.
+- **Usage and estimated cost in the back office**: the Lingua console shows online translations
+  answered, failed and refused, and their estimated cost, per day, provider and pair. Daily totals
+  only, with no account and no text, like the rest of that console.
 - **The service keeps nothing**: no sentence in a log, a store, a metric or a trace.
 - **BREAKING (promise).** The Lingua privacy annex says page text **stays on the device**,
   unconditionally, and the store listings repeat it. Both become conditional: page text leaves the
@@ -54,6 +58,7 @@ None. Online translation is a second source for an existing capability, `lingua-
 - `lingua-translation`: adds the setting, the button, the service's answer and its limits, and
   amends **A machine translation is never stored** so that a sentence may be sent once, when the
   reader presses the button.
+- `admin-lingua-console`: adds the online translation usage and estimated cost.
 - `lingua-privacy`: **Lingua's privacy disclosures match what it collects** stops saying page text
   stays on the device unconditionally, names the one case where it does not, and names who
   translates it.
@@ -69,7 +74,9 @@ None. Online translation is a second source for an existing capability, `lingua-
   runtime feature flags, configuration from the environment.
 - **Site (`apps/site`)** — the Lingua privacy annex changes in French, English and Spanish.
 - **Store listings and App Store privacy answers** for Lingua are corrected.
-- **ID, Music, Live, back office** — untouched.
+- **Back office** — new: online translation usage and cost in the Lingua console. Consumed: the
+  console's window, tiles and day-series chart.
+- **ID, Music, Live** — untouched.
 
 **Contract.** A new RPC in a new `.proto` under `backend/lingua/proto/`. Nothing existing changes
 shape, so no installed client breaks. It is the first Lingua RPC that carries page text; the
