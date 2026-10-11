@@ -20,8 +20,10 @@ const TODAY = ["en-fr", "es-fr"];
 const WITH_ES_EN = [...TODAY, "es-en"];
 /** That list beside the first Spanish-glossed pair alone (change 35 before 34). */
 const WITH_EN_ES = [...TODAY, "en-es"];
-/** Change 34's list beside the first Spanish-glossed pair: packs.json since change 35. */
+/** Change 34's list beside the first Spanish-glossed pair: packs.json in change 35. */
 const WITH_BOTH = [...WITH_ES_EN, "en-es"];
+/** That list beside the pairs studying French, last: packs.json since change 52 (enable-lingua-french). */
+const WITH_FRENCH = [...WITH_BOTH, "fr-en", "fr-es"];
 
 type Manifest = Record<string, unknown> & {
   description: string;
@@ -231,8 +233,8 @@ describe("the manifest step once es-en ships (the scenario *An English-glossed p
     expect(manifest.default_locale).toBe("en");
   });
 
-  it("runs on packs.json, which lists es-en since change 34 and en-es since change 35 (enable-lingua-spanish-speakers)", () => {
-    expect(shippedPairs()).toEqual(WITH_BOTH);
+  it("runs on packs.json, which lists es-en since change 34, en-es since change 35, then fr-en and fr-es since change 52 (enable-lingua-french)", () => {
+    expect(shippedPairs()).toEqual(WITH_FRENCH);
     for (const target of TARGETS) {
       const { manifest, locales } = step(target, shippedPairs());
       expect(locales).toEqual(["fr", "en", "es"]); // the shipped natives in listed order
@@ -249,6 +251,24 @@ describe("the manifest step once es-en ships (the scenario *An English-glossed p
     exposed.resources = exposed.resources.filter((r) => r !== "assets/packs/en-es.lingua");
     expect(text(manifest)).toBe(text(before));
   });
+
+  it.each(TARGETS)(
+    "%s: change 52 adds fr-en's and fr-es's packs and moves nothing else of change 35's manifest",
+    (target) => {
+      // The French pairs add no native language (enable-lingua-french D7): the same _locales, the same default.
+      const before = step(target, WITH_BOTH);
+      const after = step(target, WITH_FRENCH);
+      expect(after.locales).toEqual(before.locales);
+      const exposed = (after.manifest.web_accessible_resources as { resources: string[] }[])[0]!;
+      expect(exposed.resources).toEqual(
+        expect.arrayContaining(["assets/packs/fr-en.lingua", "assets/packs/fr-es.lingua"]),
+      );
+      exposed.resources = exposed.resources.filter(
+        (r) => r !== "assets/packs/fr-en.lingua" && r !== "assets/packs/fr-es.lingua",
+      );
+      expect(text(after.manifest)).toBe(text(before.manifest));
+    },
+  );
 
   it("refuses a list whose default the package would not carry (no French-native pair, M22)", () => {
     // en-es alone: Spanish the only native, French the default, and no _locales/fr to read it from.

@@ -206,6 +206,55 @@ describe("word popup card", () => {
   });
 });
 
+describe("a French word's card, for readers of English and Spanish (enable-lingua-french D3)", () => {
+  /** The card of « parle » (parler), seen apart from its dictionary form, in the interface language given. */
+  const french = (language: "en" | "es") => {
+    const card = createCard(undefined, language);
+    card.show(
+      content({
+        language: "fr",
+        headword: "parler",
+        surface: "parle",
+        gloss: language === "en" ? "to speak, to talk" : "hablar",
+        sentence: "Il parle trop vite.",
+        grammar: {
+          gloss: null,
+          senses: [],
+          readings: [
+            { pos: "VERB", features: { Mood: "Ind", Person: "3", Number: "Sing", Tense: "Pres", VerbForm: "Fin" } },
+          ],
+          others: [],
+          pieces: [],
+        },
+      }),
+      () => {},
+    );
+    return card.el;
+  };
+
+  for (const language of ["en", "es"] as const) {
+    it(`${language}: the lines are the interface's, and every French word in them says it is French`, () => {
+      const el = french(language);
+      expect(el.querySelector(".headword")?.getAttribute("lang")).toBe("fr");
+      const marked = [...el.querySelectorAll("[lang]")].filter((node) => node !== el);
+      expect(marked.length).toBeGreaterThan(1);
+      expect(marked.map((node) => [node.textContent, node.getAttribute("lang")])).toEqual(
+        expect.arrayContaining([
+          ["parler", "fr"],
+          ["parle", "fr"],
+        ]),
+      );
+      expect(marked.every((node) => node.getAttribute("lang") === "fr")).toBe(true);
+      const line = el.querySelector(".grammar-line")?.textContent ?? "";
+      expect(line).toBe(
+        language === "en"
+          ? "third-person singular present indicative of parler"
+          : "tercera persona del singular del presente de indicativo de parler",
+      );
+    });
+  }
+});
+
 describe("a card that waits for the engine", () => {
   it("shows a pending card with the headword, the kind line and a waiting line, but no action", () => {
     const card = createCard();

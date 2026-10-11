@@ -14,6 +14,19 @@ describe("the studied languages of a stored backup", () => {
     expect(studiedLanguagesOf(version2(["Spanish", "English"]))).toEqual(["es", "en"]);
   });
 
+  it("reads French, which a reader of English or Spanish studies since enable-lingua-french", () => {
+    // A version 3 backup — the engine writes 3 once the profile names French (add-lingua-french-baseline D7) —
+    // of an English-native reader who studies Spanish then French: read as both, in their order.
+    const version3 = JSON.stringify(
+      { schema_version: 3, profile: { native_language: "English", studied_languages: ["Spanish", "French"] } },
+      null,
+      2,
+    );
+    expect(studiedLanguagesOf(version3)).toEqual(["es", "fr"]);
+    expect(nativeLanguageOf(version3, ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"])).toBe("en");
+    expect(studiedLanguagesOf(version2(["French"]))).toEqual(["fr"]);
+  });
+
   it("reads a backup without a profile as English — every reader of English alone", () => {
     expect(studiedLanguagesOf(JSON.stringify({ schema_version: 1, knowledge: {} }))).toEqual(["en"]);
   });

@@ -275,7 +275,7 @@ export interface CardNames {
 /**
  * What a card names of each studied language's forms, decided here once for every renderer
  * (add-lingua-french-word-card D1) — keyed by the renderers' `StudiedLanguageCode`, not by
- * `profile.ts`'s `NAMES` (the backup's language names, which change 52 widens with
+ * `profile.ts`'s `NAMES` (the backup's language names, French among them since change 52 widened
  * `StudiedLanguage`). A renderer only words what is named:
  * - the infinitive: Spanish's and French's are named (« infinitif de hablar »; a French infinitive
  *   spelled otherwise than its dictionary form is mostly a 1990 spelling, `abimer`), English's never

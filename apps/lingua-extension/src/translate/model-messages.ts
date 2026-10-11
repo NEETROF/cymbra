@@ -22,8 +22,11 @@ export interface ModelCost {
   download: number;
   /** Kept on the device: its files decompressed. */
   stored: number;
-  /** A needed route goes through another language, so two models translate at once (add-lingua-spanish-translation-pivot D4). */
-  pivot?: boolean;
+  /**
+   * The reader's pairs need two models together — a route through English, or two direct routes —
+   * so two translate at once (enable-lingua-french D6, after add-lingua-spanish-translation-pivot D4).
+   */
+  twoModels?: boolean;
 }
 
 export interface ModelStatus {
@@ -48,7 +51,7 @@ const positive = (n: unknown): n is number => typeof n === "number" && Number.is
 function asCost(raw: unknown): ModelCost | undefined {
   const c = raw as Partial<ModelCost> | null | undefined;
   if (!c || !positive(c.download) || !positive(c.stored)) return undefined;
-  return { download: c.download, stored: c.stored, ...(c.pivot === true ? { pivot: true } : {}) };
+  return { download: c.download, stored: c.stored, ...(c.twoModels === true ? { twoModels: true } : {}) };
 }
 
 /** A reply, read defensively: anything unreadable means the setting is not offered here. */

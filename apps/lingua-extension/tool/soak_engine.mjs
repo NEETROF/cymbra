@@ -2,7 +2,7 @@
 // over the committed corpus of the pair's studied language — every selection's sentence tagged as
 // the extension tags it (relay.ts), then the fragment alone — and a report of what trapped, by
 // corpus id, how long a sentence took and how much memory the run reached. It is how a model is
-// tried before it ships (en-es, change 35; fr-en and fr-es, change 52), and it never runs in CI:
+// tried before it ships (en-es before change 35; fr-en and fr-es before change 52), and it never runs in CI:
 // the programme's M25 says a manual tool, and a run costs ≈ 100 MB of models and about a minute.
 //
 // Usage: node --experimental-strip-types tool/soak_engine.mjs --pair <pair> --models <dir> [--limit N] [--isolate]

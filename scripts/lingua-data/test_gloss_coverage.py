@@ -165,7 +165,7 @@ class OnePairTest(unittest.TestCase):
     def test_spec_scenario_coverage_of_fr_en(self) -> None:
         # fr-en (add-lingua-pack-fr-en D4): the study's figures less two points, en-es's rule, in
         # FLOORS alone — the reduce job passes no `--floor` —; the committed tables at least that,
-        # and published nowhere until change 52 ships fr-en.
+        # and published once it ships (enable-lingua-french D8), nowhere before.
         self.assertEqual(coverage.FLOORS["fr-en"], (91.9, 85.1, 74.4))
         job = (coverage.ROOT / ".github/workflows/lingua-extension-check.yml").read_text(encoding="utf-8")
         self.assertIn("python scripts/lingua-data/gloss_coverage.py --pair fr-en\n", job)
@@ -176,8 +176,10 @@ class OnePairTest(unittest.TestCase):
         for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["fr-en"]):
             self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
         published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
-        self.assertNotIn("fr-en", published["glossed"])
-        self.assertNotIn("fr-en", coverage.shipped_pairs())
+        if "fr-en" in coverage.shipped_pairs():
+            self.assertEqual(published["glossed"]["fr-en"], measured)
+        else:
+            self.assertNotIn("fr-en", published["glossed"])
 
     # fr-es (add-lingua-pack-fr-es D8, the programme's M6): its floor was fixed before the
     # measurement whose tables are committed, in the requirement *fr-es is held to a coverage floor
@@ -235,17 +237,62 @@ class OnePairTest(unittest.TestCase):
 
     def test_spec_scenario_the_floor(self) -> None:
         # On the committed tables, when they are there: at least FLOORS' entry at every top, and
-        # published nowhere while no package lists fr-es (change 52 decides, by the floor).
-        self.assertNotIn("fr-es", coverage.shipped_pairs())
+        # published once a package lists fr-es — enable-lingua-french lists it, its tables at or
+        # above the floor (its D2, D8) —, nowhere before.
         published = json.loads(coverage.SITE_DATA.read_text(encoding="utf-8"))
-        self.assertNotIn("fr-es", published["glossed"])
         if not (coverage.TABLES / "fr-es" / "gloss.tsv").is_file():
+            self.assertNotIn("fr-es", coverage.shipped_pairs())
+            self.assertNotIn("fr-es", published["glossed"])
             return
         code, out, err = self.run_main(coverage.TABLES, "--pair", "fr-es")
         self.assertEqual((code, err), (0, ""))
         measured = json.loads(out)["glossed"]["fr-es"]
         for top, share, floor in zip(coverage.TOPS, measured, coverage.FLOORS["fr-es"]):
             self.assertGreaterEqual(share, floor, f"the {top:,} commonest lemmas")
+        if "fr-es" in coverage.shipped_pairs():
+            self.assertEqual(published["glossed"]["fr-es"], measured)
+        else:
+            self.assertNotIn("fr-es", published["glossed"])
+
+
+class ListedFloorsTest(unittest.TestCase):
+    """enable-lingua-french D2: a listed pair held to a floor measures at or above it on its committed
+    tables (the scenario *A listed pair under its floor*), whatever the reduce job let through."""
+
+    @staticmethod
+    def under_floors(tables: Path, packs: Path) -> list[str]:
+        """What falls short, for every listed pair with a `FLOORS` entry: the pair, the top, the figure."""
+        short: list[str] = []
+        for pair in coverage.shipped_pairs(packs):
+            if pair in coverage.FLOORS:
+                shares = coverage.pair_figures(pair, tables)["glossed"][pair]
+                short += coverage.under_floor(pair, shares, list(coverage.FLOORS[pair]))
+        return short
+
+    def test_every_listed_pair_with_a_floor_stands_at_or_above_it(self) -> None:
+        listed = [pair for pair in coverage.shipped_pairs() if pair in coverage.FLOORS]
+        # es-en, en-es, fr-en and fr-es each have a floor; en-fr and es-fr, published before floors, none.
+        self.assertEqual(listed, [pair for pair in ["es-en", "en-es", "fr-en", "fr-es"] if pair in coverage.shipped_pairs()])
+        self.assertEqual(self.under_floors(coverage.TABLES, coverage.PACKS), [])
+
+    def test_spec_scenario_a_listed_pair_under_its_floor(self) -> None:
+        # Made-up tables under fr-es's floor at one top, the pair listed: the test names the pair, the top
+        # and the figure; unlisted, the pair is not held here (the reduce job holds it, OnePairTest).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "tables" / "fr").mkdir(parents=True)
+            (root / "tables" / "fr-es").mkdir()
+            write_table(root / "tables" / "fr" / "freq.tsv", [(w, str(r)) for r, w in enumerate("abcdefghij", 1)])
+            write_table(root / "tables" / "fr-es" / "gloss.tsv", [(w, w.upper()) for w in "abcdefgh"])
+            # Ten ranked lemmas, eight glossed: 80.0 % at every top, under 81.4 at the 5,000 alone.
+            packs = root / "packs.json"
+            packs.write_text(json.dumps({"pairs": ["fr-es"]}), encoding="utf-8")
+            self.assertEqual(
+                self.under_floors(root / "tables", packs),
+                ["fr-es: 80.0 % of the 5,000 commonest lemmas are glossed, under the floor of 81.4 %"],
+            )
+            packs.write_text(json.dumps({"pairs": ["en-fr"]}), encoding="utf-8")
+            self.assertEqual(self.under_floors(root / "tables", packs), [])
 
 
 class PublishedFiguresTest(unittest.TestCase):

@@ -839,8 +839,9 @@ fn spec_scenario_the_reference_pair_writes_french_s_folder() {
 fn spec_scenario_the_pack_builds_where_the_others_do() {
     // fr-en's pack, built from tables/fr/ and tables/fr-en/, has the sha256 its pin records, carries
     // a lexical section (its dictionary words leave out the lemmas it glosses as names alone,
-    // refine-lingua-fr-en-glosses D2), fits the budget, and no package lists it
-    // (add-lingua-pack-fr-en: *The pack is built, not shipped*).
+    // refine-lingua-fr-en-glosses D2), fits the budget, and the extension's list of shipped pairs
+    // names it since enable-lingua-french (its D11 and D14: this scenario, as that change modifies
+    // it; add-lingua-pack-fr-en's *The pack is built, not shipped* holds while the list does not).
     let bytes = fr_en();
     let pin = json(&tables().join("fr-en/pin.json"));
     assert_eq!(
@@ -882,12 +883,12 @@ fn spec_scenario_the_pack_builds_where_the_others_do() {
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
     );
     assert!(
-        !packs["pairs"]
+        packs["pairs"]
             .as_array()
             .unwrap()
             .iter()
             .any(|p| p == "fr-en"),
-        "no package lists fr-en"
+        "packs.json lists fr-en"
     );
 }
 
@@ -1183,9 +1184,10 @@ fn spec_scenario_french_s_dictionary_words() {
 
 #[test]
 fn spec_scenario_the_pack_is_built_not_shipped() {
-    // fr-es's pack, built from tables/fr/ and tables/fr-es/, has the sha256 its pin records, fits
-    // the budget, and no package lists it: change 52 decides, by the floor (add-lingua-pack-fr-es
-    // D8).
+    // fr-es's pack, built from tables/fr/ and tables/fr-es/, has the sha256 its pin records and
+    // fits the budget. That no package carries it held while the list of shipped pairs did not name
+    // fr-es: enable-lingua-french lists it, its tables at or above the floor (add-lingua-pack-fr-es
+    // D8; enable-lingua-french D11 and D14), so the scenario no longer asserts the list.
     let bytes = fr_es();
     let pin = json(&tables().join("fr-es/pin.json"));
     assert_eq!(
@@ -1195,17 +1197,6 @@ fn spec_scenario_the_pack_is_built_not_shipped() {
     );
     assert_eq!(pin["pack"]["size"], bytes.len());
     assert!(bytes.len() < MAX_PACK_BYTES);
-    let packs = json(
-        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../apps/lingua-extension/packs.json"),
-    );
-    assert!(
-        !packs["pairs"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|p| p == "fr-es"),
-        "no package lists fr-es"
-    );
 }
 
 #[test]

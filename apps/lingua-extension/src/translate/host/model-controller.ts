@@ -84,9 +84,15 @@ interface Needs {
   needed: ModelManifest[];
 }
 
-/** Whether a route the reader's pairs need goes through another language (add-lingua-spanish-translation-pivot D4). */
-function pivots({ catalogue, pairs }: Needs): boolean {
-  return pairs.some((pair) => routeOf(catalogue, pair).length > 1);
+/**
+ * Whether the reader's pairs need two models together — one route through English, or two direct
+ * routes, as an English-native reader of Spanish and French holds es-en and fr-en — so that two
+ * translate at once (enable-lingua-french D6). It counts the models, never the pivots
+ * (add-lingua-spanish-translation-pivot D4 asked whether a route had two models, which said the same
+ * as long as no native language had two direct routes).
+ */
+function needsTwoModels({ needed }: Needs): boolean {
+  return needed.length > 1;
 }
 
 /**
@@ -316,7 +322,7 @@ export class ModelController {
         ? {
             download: sum(needs.needed, totalSize),
             stored: sum(needs.needed, unpackedSize),
-            ...(pivots(needs) ? { pivot: true } : {}),
+            ...(needsTwoModels(needs) ? { twoModels: true } : {}),
           }
         : undefined;
     return { offered, host, state, ...(cost ? { cost } : {}) };

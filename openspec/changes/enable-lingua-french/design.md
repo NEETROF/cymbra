@@ -461,6 +461,51 @@ with only these clauses differing (task 5.4). And under the floor, change 49 sta
 unlisted, its scenario true as written: the implementation removes 49's block and
 `add-lingua-pack-fr-es` from `archiveAfter` (Open Question 5).
 
+### D15 — An elided piece or an inversion, selected whole, opens its word (dogfood, 2026-10-11)
+
+Found by the owner on 2026-10-11 in the dogfood pass (D12, step 3), on fr-en and fr-es alike:
+« l’homme » selected whole — a drag over both pieces, a double-click, a long press — opened change
+51's whole-selection card (its D7, rule 4): « Expression — the card will keep its original
+sentence », no gloss of `homme` (a known word gives no row) and no « I know it ». The text is one
+word to the reader. **The owner's decision (2026-10-11):** elided pieces and one word, selected
+whole — « l'homme », « qu'il », « s'il », « j'ai », « d'abord » where it is no expression — open
+the word card of that word (« homme — masculine noun — man », with « I know it », « + Deck »,
+« Ignore », and the sentence's translation as a word card has it); a selection the pack holds as an
+expression (« d'abord » in fr-en's table) keeps the expression card.
+
+**The owner's second answer (2026-10-11), to this decision's open question:** a French inversion
+selected whole — « dit-il », « pensait-elle », « va-t-on », « a-t-il » — opens the VERB's card
+(« dit », its readings of *dire*, with « I know it », « + Deck », « Ignore »); its pronouns (and
+the euphonic `t`, which has no span) are set aside like the elided article of « l'homme ». An
+expression the pack holds for the whole selection still wins (« y a-t-il » if it is one,
+« peut-être », which the pre-pass reads whole anyway).
+
+**How.** `selectWithinWord` (`scan.ts`) still answers `pieces` over several pieces, and names
+their `word`: the one piece left once the elided ones are set aside; or, when several are left
+and the word holds no digit, the first of them when every one after it is one of the core's
+inversion pronouns (`FRENCH_INVERSION_PRONOUNS`, change 40's D5, mirrored in `scan.ts`) written in
+lowercase — the verb of « dit-il », « l'a-t-elle », « va-t'en », « dis-le-moi »; none otherwise
+(`24-year-old`, « Paris-Nice »). A piece is elided
+when its range ends on an apostrophe, straight or typographic: change 44c's D2 gives an elided
+piece, and it alone, a span holding its apostrophe, so `aujourd’hui` in « qu’aujourd’hui » is the
+word. `SelectionCards.openForSelection` gets that word's hit with `whole`: it shows the word's card
+pending, asks the phrase gloss of the selection, and opens the expression card (with the answer in
+hand) when an expression covers the whole selection, the word's card (`openForToken`, exactly as a
+click opens it) otherwise — and after `ANSWER_TIMEOUT_MS`, or when the pack fails. A card replaced
+or closed meanwhile is left alone.
+
+**What does not move.** A drag inside one piece opens that piece (D7, rule 3: « il » of « dit-il »).
+English and Spanish have no equivalent: `don't`, `al`, `del` (and French's `au`)
+are pieces sharing one span, which open the word card already (D7, rule 2); English's
+`24-year-old` holds no apostrophe. A selection in a block the page analysis did not cover keeps
+the analyser's first token (D7), unchanged. No pack, golden or pin moves; the extension's French
+interface strings are unchanged.
+
+**The spec.** *Selection capture on any pointer* is held by change 51 (in `archiveAfter`); it is
+MODIFIED here, change 51's block re-copied with one sentence added, *A selection over the pieces
+of one word* rewritten to the word's popup and *A selection over an inversion's pieces* added (the
+verb's popup).
+
 ## What moves, and what cannot
 
 Nothing in `crates/` but the assertions of `committed_tables.rs` that read the list (D11), nothing in

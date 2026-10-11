@@ -142,15 +142,26 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
     "Read Spanish and French on the web: unknown words highlighted, an honest percentage. Offline and private.";
   const ES_DRAFT =
     "Lee inglés y francés en la web: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión y privado.";
+  // The descriptions changes 34 and 35 shipped, before change 52 named French.
+  const EN_STAGE_2 = "Read Spanish on the web: unknown words highlighted, an honest percentage. Offline and private.";
+  const ES_STAGE_2 =
+    "Lee inglés en la web: palabras desconocidas resaltadas, porcentaje honesto. Sin conexión y privado.";
   const TODAY = ["en-fr", "es-fr"];
   // Stage 2 as changes 34 and 35 list it: es-en, then en-es.
   const STAGE_2 = [...TODAY, "es-en", "en-es"];
   // Change 52 lists French last: fr-en, then fr-es if it ships.
   const WITH_FR_EN = [...STAGE_2, "fr-en"];
   const WITH_FR_ES = [...WITH_FR_EN, "fr-es"];
-  const reading = (language: string, message: string) => ({
-    ...locales,
-    [language]: { ...locales[language], extensionDescription: { message } },
+  const reading = (language: string, message: string, from = locales) => ({
+    ...from,
+    [language]: { ...from[language], extensionDescription: { message } },
+  });
+  /** The locales as change 35 shipped them: English and Spanish naming no French. */
+  const stage2 = reading("es", ES_STAGE_2, reading("en", EN_STAGE_2));
+
+  it("commits the drafts with the French pairs (enable-lingua-french D7)", () => {
+    expect(locales.en?.extensionDescription?.message).toBe(EN_DRAFT);
+    expect(locales.es?.extensionDescription?.message).toBe(ES_DRAFT);
   });
 
   it("holds the drafts within Apple's limit, as the committed descriptions are", () => {
@@ -166,13 +177,13 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
     expect(summaryProblems(manifest, reading("en", "Read French on the web."), TODAY)).toEqual([]);
   });
 
-  it("es-en and en-es listed pass with the committed descriptions", () => {
-    expect(summaryProblems(manifest, locales, [...TODAY, "es-en"])).toEqual([]);
-    expect(summaryProblems(manifest, locales, STAGE_2)).toEqual([]);
+  it("es-en and en-es listed pass with change 35's descriptions", () => {
+    expect(summaryProblems(manifest, stage2, [...TODAY, "es-en"])).toEqual([]);
+    expect(summaryProblems(manifest, stage2, STAGE_2)).toEqual([]);
   });
 
-  it("fr-en listed with the committed English description fails for English, naming Spanish and the pairs' Spanish and French", () => {
-    const problems = summaryProblems(manifest, locales, WITH_FR_EN);
+  it("fr-en listed with change 35's English description fails for English, naming Spanish and the pairs' Spanish and French", () => {
+    const problems = summaryProblems(manifest, stage2, WITH_FR_EN);
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain("the en description (_locales/en/messages.json) names Spanish while");
     expect(problems[0]).toContain("(es-en, fr-en) study Spanish and French");
@@ -180,19 +191,19 @@ describe("the stores' summary names what its readers can study (add-lingua-frenc
   });
 
   it("fr-en listed with the English draft passes", () => {
-    expect(summaryProblems(manifest, reading("en", EN_DRAFT), WITH_FR_EN)).toEqual([]);
+    expect(summaryProblems(manifest, reading("en", EN_DRAFT, stage2), WITH_FR_EN)).toEqual([]);
   });
 
   it("the English draft before fr-en is listed fails for English: it names French, which no English-glossed pair studies", () => {
-    const problems = summaryProblems(manifest, reading("en", EN_DRAFT), STAGE_2);
+    const problems = summaryProblems(manifest, reading("en", EN_DRAFT, stage2), STAGE_2);
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain("the en description (_locales/en/messages.json) names Spanish and French while");
     expect(problems[0]).toContain("(es-en) study Spanish");
     expect(problems[0]).toContain("it names French, which no shipped pair glossed in en studies");
   });
 
-  it("fr-es listed with the committed Spanish description fails for Spanish; with the Spanish draft it passes", () => {
-    const committedSpanish = summaryProblems(manifest, reading("en", EN_DRAFT), WITH_FR_ES);
+  it("fr-es listed with change 35's Spanish description fails for Spanish; with the Spanish draft it passes", () => {
+    const committedSpanish = summaryProblems(manifest, reading("en", EN_DRAFT, stage2), WITH_FR_ES);
     expect(committedSpanish).toHaveLength(1);
     expect(committedSpanish[0]).toContain("the es description (_locales/es/messages.json) names Inglés while");
     expect(committedSpanish[0]).toContain("(en-es, fr-es) study Inglés and Francés");

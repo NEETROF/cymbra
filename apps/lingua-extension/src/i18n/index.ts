@@ -96,8 +96,7 @@ export function pluralForms(forms: PluralForms): PluralForms {
 /**
  * The studied languages whose forms a card's grammar renderer names: French since
  * add-lingua-french-word-card (D1), ahead of the extension's `StudiedLanguage`, which change 52
- * widens — until then no content a page builds says `fr`, and the renderers' French is reached by
- * tests only.
+ * (enable-lingua-french) widened: a French page's content says `fr` since.
  */
 export type StudiedLanguageCode = "en" | "es" | "fr";
 

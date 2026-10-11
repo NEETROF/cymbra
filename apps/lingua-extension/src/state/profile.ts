@@ -13,8 +13,9 @@ import type { NativeLanguage, StudiedLanguage } from "../analyzer/types.ts";
 // backup without a profile — version 1, every reader of English alone — is English studied,
 // French native.
 
-/** The engine's names for the studied languages (crates/lingua-core/src/analysis/language.rs). */
-const NAMES: Readonly<Record<string, StudiedLanguage>> = { English: "en", Spanish: "es" };
+/** The engine's names for the studied languages (crates/lingua-core/src/analysis/language.rs): French
+ *  read since enable-lingua-french, so a profile studying it keeps it here as in the engine. */
+const NAMES: Readonly<Record<string, StudiedLanguage>> = { English: "en", Spanish: "es", French: "fr" };
 
 /** The engine's names for the native languages (crates/lingua-core/src/knowledge/profile.rs). */
 const NATIVE_NAMES: ReadonlyMap<unknown, NativeLanguage> = new Map<unknown, NativeLanguage>([

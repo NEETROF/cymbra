@@ -1,0 +1,6 @@
+Cymbra Lingua data pack — attributions (test fixture).
+
+Cymbra Lingua test fixture: every table of this fr-es pack (forms, ranks, glosses,
+expressions, levels) is hand-written for the tests that build every listed pair
+(enable-lingua-french). Its forms, ranks and levels are the fr-en fixture's, glossed in
+Spanish. No third-party data. The ranks and the levels are a fixture's: they decide nothing.

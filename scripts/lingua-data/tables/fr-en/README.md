@@ -3,8 +3,8 @@
 The reduced tables of Cymbra Lingua's French→English data pack, committed so that every build makes
 the same pack with no download, and so that a change to the dictionary is a pull request whose diff
 shows it (add-lingua-french-forms-tables, change 43 of `docs/lingua/language-matrix-programme.md`).
-No extension package carries the pack: `packs.json` does not list it, and no reader holds a French
-pack before `enable-lingua-french` (change 52).
+Extension packages carry the pack since `enable-lingua-french` (change 52) lists it in `packs.json`,
+for English speakers studying French.
 
 They are in two folders (split-lingua-pack-tables-by-language). fr-en is French's reference pair
 (`../fr/studied.json`): its reduction writes French's own tables in `../fr/`, which every pair

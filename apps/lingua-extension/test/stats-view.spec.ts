@@ -556,3 +556,47 @@ describe("stats for a reader of several languages", () => {
     );
   });
 });
+
+describe("stats for a reader of French, English- or Spanish-native (enable-lingua-french D3)", () => {
+  /** A reader of `native` studying `studied` on the six pairs, French's levels estimated and its sizes English's. */
+  async function readerOf(native: "en" | "es", studied: StudiedLanguage[]): Promise<FakePort> {
+    packs.shipped = ["en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es"];
+    const port = levelledPort({
+      levelsEstimated: async function (this: { language: StudiedLanguage }) {
+        return this.language !== "en";
+      },
+      levelLadder: async function (this: { language: StudiedLanguage }) {
+        return ladder(10).map((row) => (this.language === "fr" ? { ...row, typicalFrom: "en" as const } : row));
+      },
+    });
+    port.nativeLanguage = async () => native;
+    await port.setStudiedLanguages(studied);
+    return port;
+  }
+
+  const languages = (): string[] =>
+    [...root.querySelectorAll(".stats-languages button")].map((b) => b.textContent ?? "");
+
+  it("an English-native reader of Spanish and French: French named, its levels estimated and its sizes English's, in English", async () => {
+    await mountStats(root, await readerOf("en", ["es", "fr"]), fakeArea(), "fr", "en");
+
+    expect(languages()).toEqual(["Spanish", "French"]);
+    expect(root.querySelector(".stats-languages button.active")?.textContent).toBe("French");
+    expect(pick(".ladder-head .mlabel").textContent).toBe("My estimated French level");
+    expect(pick(".ladder-estimate").textContent).toBe(
+      "Levels estimated from word frequency, as no freely licensed CEFR list exists for French.",
+    );
+    expect(pick(".ladder-scope").textContent).toContain("taken from English, whose level sizes French borrows.");
+  });
+
+  it("a Spanish-native reader of English and French: « Mi nivel de francés estimado », in Spanish", async () => {
+    await mountStats(root, await readerOf("es", ["en", "fr"]), fakeArea(), "fr", "es");
+
+    expect(languages()).toEqual(["Inglés", "Francés"]);
+    expect(pick(".ladder-head .mlabel").textContent).toBe("Mi nivel de francés estimado");
+    expect(pick(".ladder-estimate").textContent).toBe(
+      "Niveles estimados según la frecuencia de las palabras, a falta de una lista MCER de uso libre para el francés.",
+    );
+    expect(pick(".ladder-scope").textContent).toContain("tomado del inglés, cuyos tamaños de nivel retoma el francés.");
+  });
+});

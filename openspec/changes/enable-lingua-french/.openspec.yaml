@@ -20,3 +20,7 @@ archiveAfter:
   - add-lingua-pack-fr-es
   - add-lingua-french-translation
   - add-lingua-french-word-card
+  - refine-lingua-fr-en-glosses
+  - refine-lingua-fr-es-glosses
+  - seed-lingua-decks-with-glossed-lemmas
+  - match-lingua-french-elided-pieces

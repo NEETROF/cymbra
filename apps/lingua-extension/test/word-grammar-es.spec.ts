@@ -338,11 +338,11 @@ describe("the word card in Spanish, of a Spanish word", () => {
   });
 });
 
-// add-lingua-french-word-card: the card of a French word, which no reader sees before change 52 lists
-// a French pack — `StudiedLanguage` stays `en | es` until then, so the content says `fr` through a
-// cast, as change 52's widening will. The readings are change 45's, as `tables/fr/grammar.tsv` writes
+// add-lingua-french-word-card: the card of a French word, which readers of English and Spanish see
+// since change 52 (enable-lingua-french) lists the French pairs and widens `StudiedLanguage`, so the
+// content says `fr` without a cast. The readings are change 45's, as `tables/fr/grammar.tsv` writes
 // them; the probes the snapshots pin read the golden (`word-card-fr-*.spec.ts`).
-const FRENCH = "fr" as unknown as NonNullable<WordPopupContent["language"]>;
+const FRENCH: NonNullable<WordPopupContent["language"]> = "fr";
 const noun = (Gender: string, Number: string): GrammarTag => ({ pos: "NOUN", features: { Gender, Number } });
 const PARLE: GrammarTag[] = [
   fin("Imp", "2", "Sing"),
