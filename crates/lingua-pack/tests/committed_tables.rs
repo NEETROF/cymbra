@@ -2096,7 +2096,8 @@ fn written_as_key_pieces(
 #[test]
 fn every_headword_of_a_shared_french_key_is_kept_in_change_44_s_order() {
     // Measured: fr-en 60 keys several headwords reach and 61 other headwords (`aller y` holds
-    // three), fr-es 64 and 64.
+    // three), fr-es 62 and 62 — 64 and 64 before refine-lingua-fr-es-expressions left out
+    // « laisser faire » and « laissez faire » and merged « huile d' olive » into « huile d'olive ».
     for (pair, bytes, shared_keys, other_headwords, among) in [
         (
             "fr-en",
@@ -2116,8 +2117,8 @@ fn every_headword_of_a_shared_french_key_is_kept_in_change_44_s_order() {
         (
             "fr-es",
             fr_es(),
-            64,
-            64,
+            62,
+            62,
             [("les mien", ["les miennes", "les miens"].as_slice())].as_slice(),
         ),
     ] {

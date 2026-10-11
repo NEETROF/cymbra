@@ -181,6 +181,13 @@ const LEMMAS: &[&str] = &[
 /// tout. » `au courant`, « Elle se mit au lit. » `se mettre` and `au lit`,
 /// « J'ai besoin de toi. » `avoir besoin de`, while « grâce au travail du monteur » keeps
 /// `grâce à` (no verb) and « C'est ce que tu veux. » never answers `est-ce que` (the hyphen, G1).
+/// And six selections fr-es read wrong before its expressions were measured where French text
+/// meets them (refine-lingua-fr-es-expressions D7):
+/// « sur le champ de bataille » (a shorter idiom swallowing a compound noun) and « une crème
+/// brûlée » (a post-1990 spelling keyed alone), add-lingua-fr-en-translated-expressions' too, « le
+/// maire de la ville » (a partitive met as « of the »), « Elle se leva. » (a wrong sense another
+/// source glosses right), « Il vient de Paris. » (words met as they are) and « de l'huile d'olive »
+/// (an elided piece written apart).
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -241,6 +248,12 @@ const PHRASES: &[&str] = &[
     "grâce au travail du monteur",
     "J'ai besoin de toi.",
     "C'est ce que tu veux.",
+    "sur le champ de bataille",
+    "une crème brûlée",
+    "le maire de la ville",
+    "Elle se leva.",
+    "Il vient de Paris.",
+    "de l'huile d'olive",
     // The whole-selection card of a word written as pieces, as a double-click selects it
     // (add-lingua-french-word-card D7).
     "l\u{2019}homme",

@@ -66,7 +66,9 @@
 //! choose-lingua-overlapping-expressions: seven phrase probes,
 //! « Elles sont au nombre de sept. », « Il est à la fois sévère et amical. », « Il est au courant
 //! de tout. », « Elle se mit au lit. », « grâce au travail du monteur », « J'ai besoin de toi. »
-//! and « C'est ce que tu veux. »).
+//! and « C'est ce que tu veux. »; refine-lingua-fr-es-expressions: six phrase probes, « sur le
+//! champ de bataille », « une crème brûlée », « le maire de la ville », « Elle se leva. », « Il vient
+//! de Paris. » and « de l'huile d'olive », none of fr-en's other lines moving).
 //! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
 //! renders this golden's grammar and phrase probes, and is re-blessed with it
 //! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).

@@ -588,6 +588,87 @@ SECUESTRO_LISTS = {
 }
 MAR_ROJO_LISTS = {"pos": "phrase", "translations": [{"word": "mer Rouge"}], "word": "mar Rojo"}
 
+# — refine-lingua-fr-es-expressions: expressions where French text meets them —
+#
+# Recorded from the same three files: the section's « de la » and « se lever »; the direct table's
+# French entries; the inverted table's Spanish entries listing the French expression.
+DE_LA = {"word": "de la", "pos": "phrase", "senses": [{"glosses": ["Algo de, un poco de, una cierta cantidad de."], "sense_index": "1"}]}
+SE_LEVER = {"word": "se lever", "pos": "verb", "tags": ["pronominal"], "senses": [{"glosses": ["Estar de pie uno."], "sense_index": "1"}]}
+SUR_LE_CHAMP_TRANSLATED = {
+    "pos": "adv",
+    "translations": [{"sense": "Sur l’heure même, sans délai", "word": "en el acto"}],
+    "word": "sur le champ",
+}
+CHAMP_DE_BATAILLE_TRANSLATED = {
+    "pos": "noun",
+    "translations": [{"sense": "Lieu d’un combat militaire.", "word": "campo de batalla"}],
+    "word": "champ de bataille",
+}
+DE_FAIT_TRANSLATED = {"pos": "adv", "translations": [{"word": "de hecho"}], "word": "de fait"}
+LAISSER_FAIRE_TRANSLATED = {
+    "pos": "verb",
+    "translations": [{"sense": "Abandonner, ne pas insister", "word": "dejarlo"}],
+    "word": "laisser faire",
+}
+LAISSEZ_FAIRE_LISTS = {"pos": "phrase", "translations": [{"word": "laissez faire"}], "word": "laissez faire"}
+SE_LEVER_TRANSLATED = {"pos": "verb", "translations": [{"word": "levantarse"}], "word": "se lever"}
+SE_REVEILLER_TRANSLATED = {"pos": "verb", "translations": [{"word": "despedirse"}], "word": "se réveiller"}
+DESPERTARSE_LISTS = {"pos": "verb", "translations": [{"word": "se réveiller"}], "word": "despertarse"}
+GRAND_PUBLIC_TRANSLATED = {"pos": "noun", "translations": [{"word": "grande publico"}], "word": "grand public"}
+EFFET_SPECIAL_TRANSLATED = {"pos": "noun", "translations": [{"word": "efecto especiale"}], "word": "effet spécial"}
+CREME_BRULEE_TRANSLATED = {"pos": "noun", "translations": [{"word": "crème brûlée"}], "word": "crème brulée"}
+BOITE_AUX_LETTRES_TRANSLATED = [
+    {
+        "pos": "noun",
+        "translations": [
+            {
+                "sense": "Coffret où le public met les lettres que la poste se charge de faire parvenir à leur adresse",
+                "word": "buzón",
+            },
+            {"sense": f"{box} où le facteur dépose le courrier d’un individu", "word": "buzón"},
+        ],
+        "word": word,
+    }
+    for word, box in (("boite aux lettres", "Boite"), ("boîte aux lettres", "Boîte"))
+]
+HUILE_D_OLIVE_TRANSLATED = {"pos": "noun", "translations": [{"word": "aceite de oliva"}], "word": "huile d’olive"}
+ACEITE_DE_OLIVA_LISTS = {"pos": "phrase", "translations": [{"word": "huile d’ olive"}], "word": "aceite de oliva"}
+
+# French's forms table (tables/fr/forms.tsv) for the spelling pass: form → its lemmas, as committed.
+SPELLING_FORMS = {
+    "crème": {"crème"},
+    "brulée": {"brûler"},
+    "brûlée": {"brûler"},
+    "boite": {"boîte"},
+    "boîte": {"boîte"},
+    "voute": {"voûte"},
+    "voûte": {"voûte"},
+    "ognon": {"oignon"},
+    "oignon": {"oignon"},
+    "huile": {"huile"},
+    "olive": {"olive"},
+    # Made up: a circumflexed spelling that is another lemma's form.
+    "du": {"de"},
+    "dû": {"devoir"},
+}
+# wordfreq 3.1.1's French Zipf frequency of those words.
+SPELLING_ZIPF = {
+    "brulée": 2.6,
+    "brûlée": 3.61,
+    "voute": 2.56,
+    "voûte": 3.72,
+    "ognon": 2.38,
+    "oignon": 3.59,
+    "boite": 4.37,
+    "boîte": 4.7,
+    "du": 7.0,
+    "dû": 4.9,
+}
+
+
+def spelling_zipf(word, language):
+    return SPELLING_ZIPF.get(word, 0.0) if language == "fr" else spanish_zipf(word)
+
 # wordfreq's Zipf frequency of the words the French-word rule reads, French then Spanish.
 ZIPF = {
     "arnaque": (3.93, 0.0),
@@ -925,9 +1006,10 @@ class TheReducer(Tables):
         (work / "fr_gsd-ud-train.conllu").write_text("# made up\n" + token.format("ADV") * adverbs, encoding="utf-8")
         (work / "fr_gsd-ud-dev.conllu").write_text(token.format("NOUN"), encoding="utf-8")
 
-    def reduce(self, work, studied):
+    def reduce(self, work, studied, french=None):
+        """`main()` over `work`, wordfreq's French frequency `french(word)` (none by default)."""
         wordfreq = types.ModuleType("wordfreq")
-        wordfreq.zipf_frequency = lambda word, lang: spanish_zipf(word) if lang == "es" else 0.0
+        wordfreq.zipf_frequency = lambda word, lang: spanish_zipf(word) if lang == "es" else (french or (lambda w: 0.0))(word)
         argv = [
             "reduce-fr-es.py",
             *("--work", str(work), "--studied", str(studied)),
@@ -1071,15 +1153,52 @@ class TheReducer(Tables):
         )
         self.assertIn(
             "fr-es's own rules: 0 expression senses labelled; 4 translations read backwards left out (names, acronyms, "
-            "the language code, other senses), 0 of the direct table named as other senses; 2 of 6 corrections fired; "
+            "the language code, other senses), 0 of the direct table named as other senses; 2 of 10 corrections fired; "
             "corrections that found nothing, to remove: amie (section, noun), il y a (section, phrase), el (section, pron), "
-            "el (direct, pron)",
+            "el (direct, pron), se lever (section, verb), se réveiller (direct, verb), grand public (direct, noun), "
+            "effet spécial (direct, noun)",
+            err,
+        )
+        self.assertIn(
+            "fr-es's expressions: 0 of 65 left out by name; 0 respelled as French pages write them, 0 merged into the "
+            "headword they spell, 0 kept beside their traditional spelling; expressions left out that no source glosses, "
+            "to remove: au goût, au mieux,",
             err,
         )
         # Too little evidence: the section's order.
         self.gsd(work, adverbs=9)
         self.reduce(work, studied)
         self.assertIn("pas\tPaso; No\n", (work / "gloss.tsv").read_text(encoding="utf-8"))
+
+    def test_fr_es_s_expressions_through_main(self):
+        # refine-lingua-fr-es-expressions through `main`: French's forms read from the studied folder,
+        # the spelling pass, the list and the corrections on the three sources together; `gloss.tsv`
+        # the same as without them.
+        work = self.dir / "work"
+        studied = self.studied("brulée\tbrûler\nbrûlée\tbrûler\nmaison\tmaison\n", "maison\t1\n")
+        self.jsonl(MAISON, DE_LA, SE_LEVER, name="work/kaikki-es-Frances.jsonl")
+        self.jsonl(
+            CREME_BRULEE_TRANSLATED, HUILE_D_OLIVE_TRANSLATED, SE_LEVER_TRANSLATED, *BOITE_AUX_LETTRES_TRANSLATED,
+            name="work/kaikki-fr-traductions.jsonl",
+        )
+        self.jsonl(ACEITE_DE_OLIVA_LISTS, name="work/kaikki-es-traductions.jsonl")
+        self.gsd(work)
+        err = self.reduce(work, studied, french=lambda word: SPELLING_ZIPF.get(word, 0.0))
+        self.assertEqual(
+            (work / "mwe.tsv").read_text(encoding="utf-8"),
+            "boite aux lettres\tBuzón\n"
+            "boîte aux lettres\tBuzón\n"
+            "crème brûlée\tCrème brûlée\n"
+            "huile d'olive\tAceite de oliva\n"
+            "se lever\tLevantarse\n",
+        )
+        self.assertEqual((work / "gloss.tsv").read_text(encoding="utf-8"), "maison\tCasa\n")
+        self.assertIn(
+            "fr-es's expressions: 1 of 65 left out by name; 1 respelled as French pages write them, 1 merged into the "
+            "headword they spell, 0 kept beside their traditional spelling; expressions left out that no source glosses, "
+            "to remove: au goût,",
+            err,
+        )
 
     def test_main_reads_the_treebank_from_the_work_folder(self):
         work = self.dir / "work"
@@ -1658,6 +1777,168 @@ class NamesAndOtherSenses(Tables):
     def test_an_expression_of_capitalised_words_reads_as_before(self):
         _, _, expressions, _ = self.tables([], inverted=[MAR_ROJO_LISTS])
         self.assertEqual(expressions, {"mer rouge": "Mar Rojo"})
+
+
+class ExpressionsWhereFrenchTextMeetsThem(Tables):
+    """refine-lingua-fr-es-expressions: *fr-es leaves out, by name, the expressions read wrong where
+    French text meets them* (D2, D3) and *fr-es writes its expressions as French pages write them*
+    (D4), scenario by scenario, on recorded entries."""
+
+    def merged(self, *section, direct=(), inverted=(), fired=None):
+        """The expressions as `main` writes them: the three sources merged, written as the page
+        writes them, the list left out — `(expressions, unglossed, stats)`."""
+        _, _, expressions, _ = self.tables([], *section, direct=direct, inverted=inverted, fired=fired)
+        stats = collections.Counter()
+        expressions = fr_es.as_the_page_writes(expressions, SPELLING_FORMS, spelling_zipf, stats)
+        expressions, unglossed = fr_es.without_left_out(expressions)
+        return expressions, unglossed, stats
+
+    def test_spec_scenario_a_partitive_met_as_of_the(self):
+        glosses, runs, expressions, _ = self.tables(["maison"], DE_LA, MAISON)
+        self.assertEqual(expressions, {"de la": "Algo de, un poco de, una cierta cantidad d"})
+        kept, unglossed = fr_es.without_left_out(expressions)
+        self.assertEqual(kept, {})
+        self.assertNotIn("de la", unglossed)
+        # The list reads expressions alone: the words' glosses are the tables'.
+        self.assertEqual((glosses, runs), ({"maison": "Casa"}, {"maison": [("NOUN", 1)]}))
+        self.assertIn("partitive", fr_es.LEFT_OUT["de la"])
+
+    def test_spec_scenario_a_shorter_idiom_before_a_compound_noun(self):
+        expressions, _, _ = self.merged(direct=[SUR_LE_CHAMP_TRANSLATED, CHAMP_DE_BATAILLE_TRANSLATED])
+        self.assertEqual(expressions, {"champ de bataille": "Campo de batalla"})
+
+    def test_spec_scenario_a_form_of_another_word(self):
+        expressions, _, _ = self.merged(direct=[DE_FAIT_TRANSLATED, HUILE_D_OLIVE_TRANSLATED])
+        self.assertEqual(expressions, {"huile d'olive": "Aceite de oliva"})
+
+    def test_spec_scenario_every_headword_of_one_key(self):
+        _, _, before, _ = self.tables([], direct=[LAISSER_FAIRE_TRANSLATED], inverted=[LAISSEZ_FAIRE_LISTS])
+        self.assertEqual(before, {"laisser faire": "Dejarlo", "laissez faire": "Laissez faire"})
+        expressions, _, _ = self.merged(direct=[LAISSER_FAIRE_TRANSLATED], inverted=[LAISSEZ_FAIRE_LISTS])
+        self.assertEqual(expressions, {})
+
+    def test_a_listed_headword_two_sources_gloss_stays_out(self):
+        # The section glosses « de la » and a made-up direct row too: no fallback brings it back.
+        made_up = {"pos": "phrase", "translations": [{"word": "de la"}], "word": "de la"}
+        _, _, before, _ = self.tables([], direct=[made_up])
+        self.assertEqual(before, {"de la": "De la"})
+        expressions, _, _ = self.merged(DE_LA, direct=[made_up])
+        self.assertEqual(expressions, {})
+
+    def test_spec_scenario_a_wrong_sense_another_source_glosses_right(self):
+        fired = set()
+        expressions, _, _ = self.merged(
+            SE_LEVER,
+            direct=[SE_LEVER_TRANSLATED, SE_REVEILLER_TRANSLATED],
+            inverted=[DESPERTARSE_LISTS],
+            fired=fired,
+        )
+        self.assertEqual(expressions, {"se lever": "Levantarse", "se réveiller": "Despertarse"})
+        self.assertEqual(sorted((c.source, c.headword) for c in fired), [("direct", "se réveiller"), ("section", "se lever")])
+        # Without the corrections, the section's and the direct table's texts.
+        with mock.patch.object(fr_es, "CORRECTIONS", ()):
+            expressions, _, _ = self.merged(
+                SE_LEVER, direct=[SE_LEVER_TRANSLATED, SE_REVEILLER_TRANSLATED], inverted=[DESPERTARSE_LISTS]
+            )
+        self.assertEqual(expressions, {"se lever": "Estar de pie uno", "se réveiller": "Despedirse"})
+
+    def test_the_two_spellings_corrected(self):
+        fired = set()
+        expressions, _, _ = self.merged(direct=[GRAND_PUBLIC_TRANSLATED, EFFET_SPECIAL_TRANSLATED], fired=fired)
+        self.assertEqual(expressions, {"effet spécial": "Efecto especial", "grand public": "Gran público"})
+        self.assertEqual(len(fired), 2)
+
+    def test_spec_scenario_a_listed_expression_no_source_glosses(self):
+        expressions, unglossed, _ = self.merged(DE_LA)
+        self.assertEqual(expressions, {})
+        self.assertEqual(unglossed, sorted(name for name in fr_es.LEFT_OUT if name != "de la"))
+        self.assertEqual(fr_es.without_left_out({})[1], sorted(fr_es.LEFT_OUT))
+
+    def test_the_list_is_reviewed(self):
+        # 65 headwords by the design's six reasons, each with its matches and a context; each
+        # written as the shared rules key an expression.
+        self.assertEqual(len(fr_es.LEFT_OUT), 65)
+        reasons = collections.Counter(reason.split(":")[0] for reason in fr_es.LEFT_OUT.values())
+        self.assertEqual(sorted(reasons.values()), [1, 1, 1, 9, 12, 41], reasons)
+        for headword, reason in fr_es.LEFT_OUT.items():
+            self.assertEqual(headword, fr_en.expression_word(headword))
+            self.assertIn(" ", headword)
+            self.assertRegex(reason, r"«.+»", headword)
+
+    def test_spec_scenario_a_rectified_spelling_alone(self):
+        expressions, _, stats = self.merged(direct=[CREME_BRULEE_TRANSLATED])
+        self.assertEqual(expressions, {"crème brûlée": "Crème brûlée"})
+        self.assertEqual(stats["expressions respelled"], 1)
+        # « voute » and « ognon » the same way.
+        self.assertEqual(fr_es.traditional_spelling("voute", SPELLING_FORMS, spelling_zipf), "voûte")
+        self.assertEqual(fr_es.traditional_spelling("ognon", SPELLING_FORMS, spelling_zipf), "oignon")
+        self.assertEqual(
+            fr_es.as_the_page_writes({"clé de voute": "Clave", "ognon de roscoff": "Cebolla"}, SPELLING_FORMS, spelling_zipf),
+            {"clé de voûte": "Clave", "oignon de roscoff": "Cebolla"},
+        )
+
+    def test_spec_scenario_both_spellings_listed(self):
+        expressions, _, stats = self.merged(direct=BOITE_AUX_LETTRES_TRANSLATED)
+        self.assertEqual(expressions, {"boite aux lettres": "Buzón", "boîte aux lettres": "Buzón"})
+        self.assertEqual((stats["expressions respelled"], stats["expressions beside their traditional spelling"]), (0, 1))
+
+    def test_spec_scenario_an_elided_piece_written_apart(self):
+        _, _, before, _ = self.tables([], direct=[HUILE_D_OLIVE_TRANSLATED], inverted=[ACEITE_DE_OLIVA_LISTS])
+        self.assertEqual(before, {"huile d'olive": "Aceite de oliva", "huile d' olive": "Aceite de oliva"})
+        expressions, _, stats = self.merged(direct=[HUILE_D_OLIVE_TRANSLATED], inverted=[ACEITE_DE_OLIVA_LISTS])
+        self.assertEqual(expressions, {"huile d'olive": "Aceite de oliva"})
+        self.assertEqual(stats["expressions merged"], 1)
+        # Alone, it is written against its word; « jusqu' » and « qu' » are elisions too.
+        self.assertEqual(
+            fr_es.as_the_page_writes({"huile d' olive": "Aceite", "jusqu' à": "Hasta", "parce qu' il": "Porque"}, {}, spelling_zipf),
+            {"huile d'olive": "Aceite", "jusqu'à": "Hasta", "parce qu'il": "Porque"},
+        )
+
+    def test_a_circumflexed_spelling_of_another_lemma_is_left(self):
+        # « dû » is a form of `devoir`, not of `de` that « du » reads as: no spelling of « du »'s.
+        self.assertIsNone(fr_es.traditional_spelling("du", SPELLING_FORMS, spelling_zipf))
+        self.assertEqual(fr_es.as_the_page_writes({"du coup": "De repente"}, SPELLING_FORMS, spelling_zipf), {"du coup": "De repente"})
+        # A rarer spelling is none either, and a word no form takes the commoner one.
+        rarer = {**SPELLING_ZIPF, "brûlée": 1.0}
+        self.assertIsNone(fr_es.traditional_spelling("brulée", SPELLING_FORMS, lambda w, _: rarer.get(w, 0.0)))
+        self.assertEqual(fr_es.traditional_spelling("voute", {"voûte": {"voûte"}}, spelling_zipf), "voûte")
+
+    def test_read_forms_reads_every_lemma_of_a_form(self):
+        folder = self.dir / "fr"
+        folder.mkdir()
+        (folder / "forms.tsv").write_text("brulée\tbrûler\nbrûlée\tbrûler\nest\test\nest\têtre\n", encoding="utf-8")
+        self.assertEqual(
+            fr_es.read_forms(str(folder)),
+            {"brulée": frozenset({"brûler"}), "brûlée": frozenset({"brûler"}), "est": frozenset({"est", "être"})},
+        )
+
+    def test_the_committed_tables_read_as_refine_lingua_fr_es_expressions_says(self):
+        # tables/fr-es/ reduced again from lingua-pack-sources-fr-es-2026.10.10 with the list, the
+        # four corrections and the spelling pass (D6, D7).
+        committed = Path(_HERE, "tables", "fr-es")
+        glosses = dict(fr_es.read_table(committed / "gloss.tsv"))
+        expressions = dict(fr_es.read_table(committed / "mwe.tsv"))
+        self.assertEqual(len(expressions), 12108)
+        self.assertEqual(set(fr_es.LEFT_OUT) & set(expressions), set())
+        expected = {
+            "champ de bataille": "Campo de batalla",
+            "crème brûlée": "Crème brûlée",
+            "clé de voûte": "Clave",
+            "oignon de roscoff": "Cebolla de Roscoff",
+            "huile d'olive": "Aceite de oliva",
+            "se lever": "Levantarse",
+            "se réveiller": "Despertarse",
+            "grand public": "Gran público",
+            "effet spécial": "Efecto especial",
+            "boite aux lettres": "Buzón",
+            "boîte aux lettres": "Buzón",
+        }
+        self.assertEqual({e: expressions.get(e) for e in expected}, expected)
+        for gone in ("crème brulée", "clé de voute", "ognon de roscoff", "huile d' olive"):
+            self.assertNotIn(gone, expressions)
+        # The words of a listed expression keep their glosses.
+        for lemma in ("de", "le", "venir", "être", "champ"):
+            self.assertIn(lemma, glosses)
 
 
 if __name__ == "__main__":
