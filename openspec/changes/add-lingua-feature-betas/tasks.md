@@ -28,5 +28,5 @@
 
 ## 5. Integration
 
-- [ ] 5.1 Run `openspec validate add-lingua-feature-betas --strict`. Verify: it passes.
-- [ ] 5.2 On a local stack: create a Lingua feature campaign `lingua-smoke`, scope a test Lingua flag to it, enrol a **non-staff** account, open the extension. Verify: the flag reads `true` for that account and `false` for a non-enrolled non-staff account; closing the campaign turns it `false` at the next fetch; the Music app's flags are unchanged.
+- [x] 5.1 Run `openspec validate add-lingua-feature-betas --strict`. Verify: it passes.
+- [x] 5.2 On a local stack: create a Lingua feature campaign `lingua-smoke`, scope a test Lingua flag to it, enrol a **non-staff** account, open the extension. Verify: the flag reads `true` for that account and `false` for a non-enrolled non-staff account; closing the campaign turns it `false` at the next fetch; the Music app's flags are unchanged. — Done on the local stack through the RPCs the back office and the extension call (sign-up, Lingua-admin role, CreateCampaign, SetFlag, EnrolHandle, GetEffectiveFlags with a `lingua` token, CloseCampaign), with the test flag `lingua.sync.enabled` (on by default, so the beta turned it OFF for members): enrolled non-staff → the beta's value, non-enrolled non-staff → the default, closed campaign → the default again; a Music campaign refused for the Lingua flag (`foreign_campaign`), a Lingua trial and a Music campaign refused to a Lingua-only admin. The extension UI itself was not opened.
