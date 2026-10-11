@@ -573,7 +573,7 @@ export class SelectionCards {
       this.show(complete(known));
       return;
     }
-    this.request(
+    this.request<PhraseGloss | null>(
       { ...base, pending: true, translating: !!later },
       () => this.ports.phraseGloss(sel.text).catch(() => null),
       complete,
