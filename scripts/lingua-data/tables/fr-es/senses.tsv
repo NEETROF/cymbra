@@ -4020,7 +4020,6 @@ combustion	NOUN:1
 comeback	NOUN:1
 comestible	ADJ:1	NOUN:1
 comique	ADJ:1
-comite	NOUN:1
 comité	NOUN:1
 commandant	NOUN:1
 commandement	NOUN:1
@@ -6354,6 +6353,7 @@ en-cas	NOUN:1
 encadrement	NOUN:1
 encadrer	VERB:1
 encaisser	VERB:1
+enceint	ADJ:1
 enceinte	ADJ:1	NOUN:6
 encens	NOUN:1
 encenser	VERB:1
@@ -6703,6 +6703,7 @@ estrade	NOUN:1
 estragon	NOUN:1
 estran	NOUN:1
 estuaire	NOUN:1
+estudiantin	ADJ:1
 esturgeon	NOUN:1
 et	CCONJ:1
 ethernet	NOUN:1
@@ -6855,7 +6856,6 @@ exportation	NOUN:1
 exporter	VERB:1
 exposer	VERB:1
 exposition	NOUN:1
-expres	ADJ:1
 express	ADJ:1
 expressif	ADJ:1
 expression	NOUN:1
@@ -7957,6 +7957,7 @@ glorieusement	ADV:1
 glorieux	ADJ:1
 glorifier	VERB:1
 glose	NOUN:1
+gloser	VERB:1
 gloss	NOUN:1
 glossaire	NOUN:1
 glotte	NOUN:1
@@ -8177,6 +8178,7 @@ griotte	NOUN:1
 grippe	NOUN:1
 gris	ADJ:1
 grisaille	NOUN:1
+grisbi	NOUN:1
 griser	VERB:1
 grison	NOUN:1
 grisons	NOUN:1
@@ -8781,6 +8783,7 @@ hypertexte	NOUN:1
 hyperthermie	NOUN:1
 hyperthyroïdie	NOUN:1
 hypertrophie	NOUN:1
+hyperventilation	NOUN:1
 hypnose	NOUN:1
 hypnotique	ADJ:1
 hypnotiser	VERB:1
@@ -9172,6 +9175,7 @@ incruster	VERB:1
 incrédulité	NOUN:1
 incubateur	NOUN:1
 incubation	NOUN:1
+incube	NOUN:1
 inculpation	NOUN:1
 inculper	VERB:1
 inculquer	VERB:1
@@ -9213,6 +9217,7 @@ indiscipliné	ADJ:1
 indiscrétion	NOUN:1
 indiscutable	ADJ:1
 indispensable	ADJ:1
+indisposer	VERB:1
 indium	NOUN:1
 individu	NOUN:1
 individualisme	NOUN:1
@@ -9963,6 +9968,7 @@ ka	NOUN:1
 kabbale	NOUN:1
 kaboul	PROPN:1
 kabuki	NOUN:1
+kabuto	NOUN:1
 kabyle	ADJ:1	NOUN:1
 kaiser	NOUN:1
 kaki	NOUN:1
@@ -9990,6 +9996,7 @@ keynésianisme	NOUN:1
 keynésien	ADJ:1
 khan	NOUN:1
 khmer	NOUN:1
+khédive	NOUN:1
 kibboutz	NOUN:1
 kidnapping	NOUN:1
 kif	NOUN:1
@@ -10036,6 +10043,7 @@ labbé	PROPN:1
 label	NOUN:4
 labelle	PROPN:1
 labeur	NOUN:1
+labial	ADJ:1
 labonté	PROPN:1
 laboratoire	NOUN:1
 laborieux	ADJ:1
@@ -10057,6 +10065,7 @@ lacunaire	ADJ:1
 lacune	NOUN:1
 lacustre	ADJ:1
 lagon	NOUN:1
+lagunaire	ADJ:1
 lagune	NOUN:1
 lahore	NOUN:1
 lai	NOUN:1
@@ -10089,6 +10098,7 @@ lamé	NOUN:1
 lance-grenade	NOUN:1
 lancement	NOUN:1
 lancer	VERB:1
+lancier	NOUN:1
 lancinant	ADJ:1
 landau	NOUN:1
 lande	NOUN:1
@@ -10340,6 +10350,7 @@ lithique	ADJ:1
 lithium	NOUN:1
 lithographe	NOUN:1
 lithographie	NOUN:1
+lithosphère	NOUN:1
 litige	NOUN:1
 litière	NOUN:1
 litote	NOUN:1
@@ -10486,6 +10497,7 @@ lunette	NOUN:1
 lupanar	NOUN:1
 lupin	NOUN:1	ADJ:1
 lupus	NOUN:1
+lusitanien	ADJ:1	NOUN:1
 lusophone	ADJ:1
 lustre	NOUN:1
 lustrer	VERB:1
@@ -10576,6 +10588,7 @@ lézard	NOUN:1
 ma	DET:1
 maa	NOUN:1
 maboul	ADJ:1
+maca	NOUN:1
 macabre	ADJ:1
 macadam	NOUN:1
 macao	PROPN:1
@@ -10867,6 +10880,7 @@ margot	PROPN:1
 marguerite	PROPN:1
 mari	NOUN:1
 maria	PROPN:1
+mariachi	NOUN:1
 mariage	NOUN:1
 marian	PROPN:1
 marianne	PROPN:1
@@ -11164,6 +11178,7 @@ militarisme	NOUN:1
 mille	ADJ:1
 millefeuille	NOUN:1
 millet	NOUN:1
+milliaire	ADJ:1
 milliard	NOUN:1
 millier	NOUN:1
 milligramme	NOUN:1
@@ -11172,6 +11187,7 @@ million	NOUN:1
 millionaire	ADJ:1
 millionième	NOUN:1
 millionnaire	NOUN:1
+milliseconde	NOUN:1
 millième	NOUN:1
 millénaire	NOUN:1
 millénium	NOUN:1
@@ -11257,6 +11273,7 @@ mobilisateur	ADJ:1
 mobilisation	NOUN:1
 mobiliser	VERB:1
 mobilité	NOUN:1
+mocassin	NOUN:1
 moche	ADJ:1
 modalité	NOUN:1
 mode	NOUN:1
@@ -11268,6 +11285,7 @@ modernisme	NOUN:1
 modernité	NOUN:1
 modeste	ADJ:1
 modestie	NOUN:1
+modificateur	ADJ:1
 modification	NOUN:1
 modifier	VERB:1
 modique	ADJ:1
@@ -11567,6 +11585,7 @@ mustang	NOUN:1
 musulman	ADJ:1
 musée	NOUN:1
 muséologie	NOUN:1
+mutagène	ADJ:1
 mutation	NOUN:1
 mutilation	NOUN:1
 mutiler	VERB:1
@@ -11589,6 +11608,7 @@ myrte	NOUN:1
 myrtille	NOUN:1
 mysticisme	NOUN:1
 mystification	NOUN:1
+mystifier	VERB:1
 mystique	ADJ:1	NOUN:1
 mystère	NOUN:1
 mystérieusement	ADV:1
@@ -12012,6 +12032,7 @@ notoriété	NOUN:1
 notre	DET:1
 nouer	VERB:1
 nougat	NOUN:1
+nougatine	NOUN:1
 nouille	NOUN:1
 nounou	NOUN:1
 nounours	NOUN:1
@@ -12895,6 +12916,7 @@ paul	PROPN:1
 paulette	PROPN:1
 pauline	PROPN:1
 paume	NOUN:1
+paumer	VERB:1
 paupière	NOUN:1
 paupérisation	NOUN:1
 pause	NOUN:1
@@ -13185,6 +13207,7 @@ pickpocket	NOUN:1
 picoler	VERB:1
 picorer	VERB:1
 picotement	NOUN:1
+picquart	PROPN:1
 pictogramme	NOUN:1
 pictural	ADJ:1
 pie	NOUN:1	ADJ:1
@@ -13232,6 +13255,7 @@ pincement	NOUN:1
 pincer	VERB:1
 pincée	NOUN:1
 pingouin	NOUN:2
+pingre	ADJ:1
 pinochet	PROPN:1
 pinson	NOUN:1
 pintade	NOUN:1
@@ -14025,6 +14049,7 @@ prédiction	NOUN:1
 prédilection	NOUN:1
 prédire	VERB:1
 prédécesseur	NOUN:1
+préfabrication	NOUN:1
 préfabriqué	ADJ:1
 préface	NOUN:1
 préfecture	NOUN:1
@@ -14205,6 +14230,7 @@ putride	ADJ:1
 putréfaction	NOUN:1
 putschiste	NOUN:1
 puzzle	NOUN:1
+puéricultrice	NOUN:1
 puériculture	NOUN:1
 puéril	ADJ:1
 pygmée	NOUN:1
@@ -14398,6 +14424,7 @@ quelquefois	ADV:1
 quenouille	NOUN:1
 querelle	NOUN:1
 quereller	VERB:1
+querelleur	ADJ:1
 questeur	NOUN:1
 question	NOUN:4
 questionnaire	NOUN:1
@@ -14951,7 +14978,6 @@ revendiquer	VERB:1
 revenir	VERB:6
 revenu	NOUN:1
 revers	NOUN:1
-reviser	VERB:1
 revisiter	VERB:1
 revitalisation	NOUN:1
 revitaliser	VERB:1
@@ -15418,6 +15444,7 @@ résurrection	NOUN:1
 rétablissement	NOUN:1
 réticence	NOUN:1
 réticent	ADJ:1
+réticule	NOUN:1
 réticulum	NOUN:1
 rétine	NOUN:1
 rétorquer	VERB:1
@@ -15651,6 +15678,7 @@ satisfactions	NOUN:1
 satisfaire	VERB:1
 satisfaisant	ADJ:1
 satisfait	ADJ:1
+satisfecit	NOUN:1
 saturation	NOUN:1
 saturer	VERB:1
 saturne	X:1
@@ -16492,6 +16520,7 @@ subordonner	VERB:1
 subordonné	ADJ:1
 subside	NOUN:1
 subsister	VERB:1
+subsonique	ADJ:1
 substance	NOUN:1
 substantif	NOUN:1
 substituer	VERB:1
@@ -16635,6 +16664,7 @@ surmortalité	NOUN:1
 surnom	NOUN:1
 surnommer	VERB:1
 surnuméraire	ADJ:1
+suroît	NOUN:1
 surpasser	VERB:1
 surplus	NOUN:2
 surpoids	NOUN:1
@@ -16764,6 +16794,7 @@ séditieux	ADJ:1
 séducteur	ADJ:1
 séduction	NOUN:1
 séduisant	ADJ:1
+séfarade	ADJ:1
 ségrégation	NOUN:1
 ségrégationniste	ADJ:1
 séisme	NOUN:1
@@ -16871,6 +16902,7 @@ talion	NOUN:1
 talisman	NOUN:1
 talmud	NOUN:1
 talmudique	ADJ:1
+taloche	NOUN:1
 talon	NOUN:1
 talus	NOUN:1
 tamarin	NOUN:1
@@ -17121,6 +17153,7 @@ théorie	NOUN:1
 théorique	ADJ:1
 théoriser	VERB:1
 théorème	NOUN:1
+théosophie	NOUN:1
 thérapeutique	ADJ:1
 thérapie	NOUN:1
 thérèse	PROPN:1
@@ -17141,6 +17174,7 @@ tignasse	NOUN:1
 tigre	NOUN:1
 tigresse	NOUN:1
 tigré	ADJ:1
+tilapia	NOUN:1
 tilde	NOUN:1
 tiller	VERB:1
 tilleul	NOUN:1
@@ -17207,6 +17241,7 @@ tolérer	VERB:1
 tomate	NOUN:1
 tombeau	NOUN:1
 tomber	VERB:1	NOUN:1
+tombereau	NOUN:1
 tombeur	NOUN:1
 tombola	NOUN:1
 tome	NOUN:1
@@ -17424,6 +17459,7 @@ transversal	ADJ:1
 trapp	NOUN:1
 trappe	NOUN:1
 trapèze	NOUN:1
+trapéziste	NOUN:1
 traque	NOUN:1
 traquer	VERB:1
 trauma	NOUN:1
@@ -17473,7 +17509,6 @@ trente-septième	ADJ:1
 trente-six	ADJ:1
 trentenaire	NOUN:1
 trentième	ADJ:1
-tres	NOUN:1
 tresse	NOUN:1
 tresser	VERB:1
 treuil	NOUN:1
@@ -17508,6 +17543,7 @@ trier	VERB:1
 trigonométrie	NOUN:1
 trigonométrique	ADJ:1
 trilingue	ADJ:1
+trille	NOUN:1
 trilogie	NOUN:1
 trimaran	NOUN:1
 trimestre	NOUN:1
@@ -17675,6 +17711,7 @@ tzigane	NOUN:1
 tâche	NOUN:1
 tâcher	VERB:1
 tâter	VERB:1
+tâtonner	VERB:1
 té	NOUN:1
 tégument	NOUN:1
 télescope	NOUN:1

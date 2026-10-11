@@ -33,7 +33,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
 | `freq.tsv` | lemma → frequency rank | wordfreq 3.1.1 (CC BY-SA 4.0); a hyphenated word by GSD's own frequency too |
 | `grammar.tsv` | form → its readings, as Universal Dependencies tags (`form<TAB>lemma<TAB>tag<TAB>other\|-`) | kaikki.org, the same section (add-lingua-french-grammar-tables, change 45) |
 | `level.tsv` | lemma → estimated CEFR level (*The levels* below) | derived from `freq.tsv`, the English Wiktionary's French section and French's dictionary words (no source of its own) |
-| `lexical.tsv` | French's dictionary words: the lemmas fr-en glosses less those it glosses by a proper noun's senses alone, and French's acronym rows (26,472, `CA` among them; *The glosses*) | derived from `gloss.tsv` and `senses.tsv` by `reduce-fr-en.py` (`dictionary_words`), filed by `build.sh` (`pack_sources.py split`) |
+| `lexical.tsv` | French's dictionary words: the lemmas fr-en glosses less those it glosses by a proper noun's senses alone, and French's acronym rows (26,555, `CA` among them; *The glosses*) | derived from `gloss.tsv` and `senses.tsv` by `reduce-fr-en.py` (`dictionary_words`), filed by `build.sh` (`pack_sources.py split`) |
 | `tags.tsv` | French's pinned tag pool: the 79 tags its readings carry, in byte order; written by no reducer | committed by hand, once, from the first reduction's readings |
 | `studied.json` | the pair whose reduction writes `../fr/`: fr-en | committed by hand |
 
@@ -79,7 +79,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   `marchée` → *marché*); one remains (`shaka` → *shaker*, whose verb has no entry in the section).
 - **French's tokenisation (M21)**, as add-lingua-french-tokenisation's pre-pass reads it:
   - every word the pre-pass writes is a form: the words the elided pieces stand for, `à`, `le`,
-    `les` and the inversion's pronouns (32 words; the rarest, `quoique`, is rank 3,312);
+    `les` and the inversion's pronouns (32 words; the rarest, `quoique`, is rank 3,307);
   - the fourteen elided pieces are forms of the word the pre-pass reads them as outside its special
     cases, by a reviewed table (`ELISIONS`: `l'` → *le*, `s'` → *se*, `qu'` → *que*, `jusqu'` →
     *jusque*, …): the treebanks write them as words, and the dictionary cannot decide them;
@@ -87,7 +87,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
     pre-pass splits it whatever the pack lists. A hyphenated run is read whole first, so it may be one
     (`c'est-à-dire`, rank 459);
   - the dictionary's hyphenated nouns, adjectives, adverbs, pronouns and prepositions ending in a
-    pronoun are listed whole, or the inversion rule would split them: `rendez-vous` (rank 1,581),
+    pronoun are listed whole, or the inversion rule would split them: `rendez-vous` (rank 1,580),
     and `qu'en-dira-t-on`, `malgré-nous` and `non-moi`, which GSD never meets, at the cut's last
     ranks. A reduction that leaves one out fails. The verbs, phrases and interjections made of a verb
     and its pronouns (`est-il`, `a-t-il`, `allez-y`, `excusez-moi`) stay out: the split reads them;
@@ -115,8 +115,7 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   words of their own. French's analysis looks every token up lowercased, so « CA » in capitals reads as
   *ça* too — unless it stands alone in capitals, when the analysis reads it as the acronym row below
   (*What still reads wrong*). The dictionary's own unmarked spellings (`etre`, `etat`) are read by the
-  rule after the acronyms'; the web's unglossed ones (`tete`, `francais`, `tres`) are a reviewed list of
-  their own (`read-lingua-french-web-unmarked-spellings`, change 43e), settled by the owner.
+  rule after the acronyms'; the web's (`tete`, `francais`, `tres`) by the reviewed list below.
 - **An acronym in capitals is a row of a reviewed table** (keep-lingua-french-acronyms-in-capitals, the
   owner's decision of 2026-10-10, option A of read-lingua-french-ca-as-ca-cedilla D2): `ACRONYMS` in
   `reduce_french_acronyms.py`, a rule module fr-es's reducer imports too, each row the acronym as
@@ -163,6 +162,36 @@ In `../fr/`, French's tables, written by fr-en's reduction:
   correctly spelt form changes word: `rebellions`, the imperfect of *se rebeller* (« nous nous
   rebellions ») and the noun's plural without its accent, reads as *rébellion*, the commoner word
   (M8; the owner kept it on 2026-10-10).
+- **The web's spellings without their marks are rows of a reviewed list**
+  (read-lingua-french-web-unmarked-spellings, the owner's decision of 2026-10-10): `WEB_SPELLINGS` in
+  `reduce-fr-en.py`, **464 spellings** the section names nowhere that the web writes for a French word
+  — `meme`, `tres`, `apres`, `francais`, `deja`, `recu`, `leger`, `tete` —, merged into
+  `UNMARKED_SPELLINGS` with one shared reason, and the owner's **four exceptions** as rows of their own
+  with their reasons: `sure`, `surs`, `sures` → *sûr* and `entrainant` → *entraîner*, words the section
+  gives a sense of their own (*sur* « sour »; the participle of the post-1990 `entrainer`) that the
+  web writes for the commoner word. 468 rows with 43b's four. Each row was chosen by a person, never
+  by a rule on marks: a spelling wordfreq attests at Zipf 2.5 or more, that the section names nowhere
+  (neither a meaning of its own nor its accented word's spelling), whose accented word is a
+  dictionary word at least twice as common, and that English does not write more often (`video`,
+  `hotel`, `these`, `role`, `mere`, `premiere` are left out, 239 in all); a spelling two words share
+  reads as the commoner (22: `ecoute`, `pate`, `peche`); `dela` and `nes` stay out; names and other
+  languages' words spelt like a row are accepted (`noel`, `tres`, `tresor`). Hyphenated words
+  (`peut-etre`) and wrong accents (`trés`, `déja`) are a reviewed list of their own each, later. Each
+  row's word is the lemma the tables give its accented form (`etais` → *être*, `recu` → *recevoir*,
+  `epargne` → *épargner*). A row is read as 43b's are — a form of its word alone, its own entries and
+  any entry's inflection making it no other word's form, seeded whether or not an entry names it —,
+  and an entry pointing at a row's spelling follows the row: `patisseries` « plural of patisserie »
+  reads as *pâtisserie*, `entrainante` and `entrainantes` as *entraîner* (43b's rows still drop the
+  link). **The boundary is checked at each reduction**: the reduction fails, naming them, on any
+  spelling of `WEB_SPELLINGS` the section gives a meaning of its own (a headword with a sense that is
+  neither a form nor a spelling of another word, a form of such a word, or an inflection such a
+  word's entry lists) or gives only as its accented word's spelling (the dictionary rule's kind), so a
+  row never shadows a word (`cote`) or a spelling the dictionary gives (`etait`), and a dictionary
+  update naming a row stops for a person. `tete` and `tetes`, listed only by `teter` « alternative
+  form of téter », pass, and the dictionary rule's forms guard still counts them among `teter`'s
+  forms, so `teter` stays apart. Each spelling carries the readings of every form of its word it
+  writes without their marks (*The readings*). `ou`, `a`, `la`, `sur`, `du`, `des`, `cote`, `tache`,
+  `pale`, `foret` and `aine` are never rows.
 - **One lemma per form (M8).** A form that is a proper name and a commoner word's keeps the word
   (`cette` → *ce*; `paris` stays the city), then the first rule that decides wins:
   1. `OVERRIDES` in `reduce-fr-en.py`, each row with its reason — no homograph; three rows correct
@@ -187,17 +216,17 @@ In `../fr/`, French's tables, written by fr-en's reduction:
     estimates a compound from its parts, so `est-il` would be French's 17th word. A compound GSD
     attests is ranked at the lower of wordfreq's estimate and GSD's own frequency, after wordfreq's
     words of the same frequency, compounds alphabetically: `lui-même` 276, `celui-ci` 335,
-    `peut-être` 938, `au-delà` 1,007, `week-end` 1,667, `après-midi` 1,914, `en-cas` 10,646.
+    `peut-être` 938, `au-delà` 1,007, `week-end` 1,666, `après-midi` 1,912, `en-cas` 10,597.
 - **The forms**: those of a kept lemma that wordfreq attests, each kept lemma's own form, the
   elided pieces and the spellings `UNMARKED_SPELLINGS` names.
 
 ## What is in them
 
-On the 2026-10-09 tables: **60,000 lemmas** and **124,185 forms** (`forms.tsv` 2,258,916 B,
-`freq.tsv` 844,915 B). 3,580 forms keep more than one ranked candidate: GSD's counts decide 1,379,
-the form's own entry 1,311, frequency or the alphabet 890. 7,214 forms take their lemma through a
+On the 2026-10-09 tables: **60,000 lemmas** and **124,742 forms** (`forms.tsv` 2,268,777 B,
+`freq.tsv` 844,834 B). 3,585 forms keep more than one ranked candidate: GSD's counts decide 1,381,
+the form's own entry 1,312, frequency or the alphabet 892. 7,219 forms take their lemma through a
 form of a form. 473 hyphenated words are ranked — 470 by GSD's evidence and the 3 nouns ending in a
-pronoun it never meets — 91 of them among the 5,000 first ranks, and 141 words with an inner
+pronoun it never meets — 103 of them among the 5,000 first ranks, and 142 words with an inner
 apostrophe (`aujourd'hui` 136, `quelqu'un` 203).
 
 **French's unmarked spellings** (read-lingua-french-ca-as-ca-cedilla) moved them from 124,096 forms:
@@ -227,13 +256,25 @@ as *désosser*. The 33 spellings left the ranks: 59,476 lemmas after them moved 
 pronoun. *être*, *état* and *siècle* keep ranks 36, 140 and 377; *répondre* is 590 (591), *arrêter*
 525 (526).
 
+**The web's unmarked spellings** (read-lingua-french-web-unmarked-spellings) moved them from 124,185
+forms: the 468 spellings read as their words — 465 were ranked lemmas of their own, `sure` a form of
+*sur*, `tete` and `tetes` no form (`teter` is unranked) —, `patisseries`, `entrainante` and
+`entrainantes` follow their rows, and 555 forms of the lemmas entering the cut joined them. The 465
+ranked spellings left the ranks — 12 of the 5,000 first (`meme` 1,015, `tres` 1,693, `apres` 2,338,
+`ecole` 2,903, `eglise` 3,289), 42 of the 10,000, 168 of the 20,000, the last `sures` 37,569 —:
+58,518 lemmas after them moved up by one to 465, and `ears` … `uruk` entered at 59,533–59,997
+(`enceint`, `gloser`, `estudiantin`, and spellings under the list's threshold such as `eclats`,
+`embete`, `emeute`, which the cut took in as it did before), before the three nouns ending in a
+pronoun. The words keep their ranks: *même* 40, *très* 50, *déjà* 84, *français* 97, *école* 295.
+
 The pack these two tables built — no gloss, reading or level — was 1,241,733 B; Spanish's same two
 tables build 1,308,123 B. With the levels it is 1,302,031 B (*The levels*), and with the readings
 too 1,460,253 B (*The readings*). With the glosses, their runs and the expressions it was 2,527,222 B,
 with fr-en's own rules and French's lexical table 2,537,386 B, with French's unmarked spellings
 2,537,588 B, with French's acronym table 2,535,748 B, keeping every headword of a key several reach
-(pick-lingua-expression-written-as-the-page) 2,536,702 B, and with the dictionary's unmarked spellings
-it is **2,538,572 B** (*The glosses*), under the builder's 5 MiB.
+(pick-lingua-expression-written-as-the-page) 2,536,702 B, with the dictionary's unmarked spellings
+2,538,572 B, and with the web's unmarked spellings it is **2,550,510 B** (*The glosses*), under the
+builder's 5 MiB.
 
 ## Measured
 
@@ -245,8 +286,15 @@ proper nouns are left out.
 
 | | Words | Resolved | Content words | Auxiliaries |
 |---|---|---|---|---|
-| UD French-PUD (gate) | 20,232 | **99.13 %** (98.5 %) | **96.36 %** of 9,573 (93.5 %) | **99.90 %** of 1,030 (97 %) |
-| GSD test (reported) | 8,049 | 98.91 % | 95.94 % of 3,791 | 99.72 % of 359 |
+| UD French-PUD (gate) | 20,232 | **99.13 %** (98.5 %) | **96.36 %** of 9,573 (93.5 %) | **100.00 %** of 1,030 (97 %) |
+| GSD test (reported) | 8,049 | 98.91 % | 96.02 % of 3,791 | 99.72 % of 359 |
+
+The web's unmarked spellings (read-lingua-french-web-unmarked-spellings) moved them from 99.13 /
+96.36 / 99.90 and 98.91 / 95.94 / 99.72 %: PUD's « Etant » (an auxiliary) reads as *être*; its
+« Evidemment », which PUD lemmatises as written, reads as *évidemment* now — the row is right, the
+treebank keeps the unaccented lemma —, and `tâtonner`, a lemma entering the cut, resolves
+« tâtonnant », so the content words hold at 9,225. GSD's « Eglise » (twice) and « Equipe » read as
+*église* and *équipe* (3,637 → 3,640). No row of the list's lower band (Zipf 2.5–3) stands in either.
 
 The dictionary's unmarked spellings (read-lingua-french-dictionary-unmarked-spellings) moved them
 from 99.13 / 96.41 / 99.90 and 98.89 / 95.86 / 99.72 %: PUD writes « Etats-Unis » four times and
@@ -486,11 +534,11 @@ level's mean true level rises from 1.67 at A1 to 5.03 at C2, so French keeps six
 forms, never a pair's glosses — and, since refine-lingua-fr-en-glosses (D3), from French's
 dictionary words: a lemma they do not list takes no level, so that a card seeded from a level always
 carries a gloss. The table moves with fr-en's glosses only when they add or remove a dictionary word.
-Within the levelled span (ranks 1–10,812), 2,510 ranked lemmas take no level:
+Within the levelled span (ranks 1–10,763), 2,461 ranked lemmas take no level:
 
 | Rule | Left out | For example |
 |---|---|---|
-| 1. the section gives it no sense that is not a form of another word… | 1,396 | `the`, `etc`, `in`, `km`, `http` |
+| 1. the section gives it no sense that is not a form of another word… | 1,347 | `the`, `etc`, `in`, `km`, `http` |
 | …or only a name's | 1,026 | `france`, `paris`, `québec`, `facebook` |
 | 2. a single character the section gives no word's sense — a letter's name, a symbol, an abbreviation | 16 | `p`, `i`, `h`, `e`, `b`; `à` (a preposition), `y` (a pronoun), `x` (a stool, X-rated) and `ô` (a vocative) keep their place |
 | 3. every sense it is given, a name's aside, only spells another word — an obsolete, archaic, rare, dated or alternative spelling, a letter-case form, a misspelling, a pronunciation spelling | 26 | `parceque`, `orient`, `okay`, `hazard`, `isle`, `zombie`, `lys` |
@@ -504,12 +552,12 @@ lemma, so the door has no level and « il porte » reads as *porter* (A1).
 
 | Level | Lemmas | Ranks | First words |
 |---|---|---|---|
-| A1 | 1,020 | 1–1,082 | de, le, et, à, en, des, un, que |
-| A2 | 1,158 | 1,083–2,380 | célèbre, davantage, distance, entier, exposition, extrême |
-| B1 | 2,015 | 2,381–4,827 | concentration, couteau, doucement, ed, fi, file |
-| B2 | 2,347 | 4,831–8,132 | ciné, configuration, cuire, célébration, discrétion, distributeur |
-| C1 | 886 | 8,134–9,465 | pitoyable, plasma, postal, propreté, pâtisserie, querelle |
-| C2 | 876 | 9,466–10,812 | orphelin, panda, parachute, paramètre, participatif, perruque |
+| A1 | 1,020 | 1–1,081 | de, le, et, à, en, des, un, que |
+| A2 | 1,158 | 1,082–2,377 | célèbre, davantage, distance, entier, exposition, extrême |
+| B1 | 2,015 | 2,378–4,816 | concentration, couteau, doucement, ed, fi, file |
+| B2 | 2,347 | 4,820–8,105 | ciné, configuration, cuire, célébration, discrétion, distributeur |
+| C1 | 886 | 8,107–9,427 | pitoyable, plasma, postal, propreté, pâtisserie, querelle |
+| C2 | 876 | 9,428–10,763 | orphelin, panda, parachute, paramètre, participatif, perruque |
 
 **The dictionary's unmarked spellings** (read-lingua-french-dictionary-unmarked-spellings): `benoit`
 (B2), the one of the 33 spellings that had a level, leaves the table with its word; `patriotique`
@@ -518,6 +566,11 @@ many at each level as before. *être*, *état*, *siècle* and *répondre* keep A
 B1 and `ego` B2. The spans move by at most eight ranks, as the ranks after each spelling move up.
 Rule 3 leaves out 26 lemmas instead of 33: `etat`, `etats`, `etre`, `etait`, `etaient`, `derniere` and
 `arreter` are no ranked lemmas now; the names rule two fewer (`ecosse`, `etats-unis`).
+
+**The web's unmarked spellings** (read-lingua-french-web-unmarked-spellings) move no row: no spelling
+of the list was a levelled word (each was « unknown », rule 1), so `level.tsv` is byte for byte. Rule 1
+leaves out 1,347 lemmas instead of 1,396, the spellings that stood in the levelled span gone, and the
+spans start up to 49 ranks earlier.
 
 **French's unmarked spellings** (read-lingua-french-ca-as-ca-cedilla): `ca` (A1), `age` (B1) and
 `forcement` (C2) leave the table with their words; eight lemmas move one band up — `croissance`
@@ -580,7 +633,7 @@ none), where English's lists put them at A1; a word ranked by a name's frequency
 (`jean` A1, `twitter` A2); a noun said mostly in the plural ranks by its singular (`cheveu` C1, `œil`
 A2). On change 46's table C2 ended inside a block of 326 ranked lemmas sharing Zipf 3.41, most of
 them compounds GSD meets once: 209 of C2's 876 lemmas were in it, 125 of them compounds, and its 27
-lemmas past the edge had no level. C2 now ends at rank 10,812 (10,820 before read-lingua-french-dictionary-unmarked-spellings). A C2 word is presumed known by no declared level, so only the C2 ladder and C2 seeding see
+lemmas past the edge had no level. C2 now ends at rank 10,763 (10,820 before read-lingua-french-dictionary-unmarked-spellings, 10,812 before read-lingua-french-web-unmarked-spellings). A C2 word is presumed known by no declared level, so only the C2 ladder and C2 seeding see
 it.
 
 **If a licence is granted** (design D8): the owner asks UCLouvain's CENTAL for FLELex, with ELELex,
@@ -631,7 +684,13 @@ the analysis resolved through the table.
   already reads as that word in that part of speech and verb form (`les` is no feminine through
   `la`). A spelling variant reads as the word it spells (`coeurs` → *cœur*), and so does a spelling
   the dictionary gives only as a marked word (`repond` → *répondre*, `siecles` → *siècle*;
-  read-lingua-french-dictionary-unmarked-spellings).
+  read-lingua-french-dictionary-unmarked-spellings). A row of `UNMARKED_SPELLINGS` carries the readings
+  of every form of its word it writes without their marks (Unicode's combining marks dropped; `œ` is
+  no mark), the form re-keyed, its mark kept (read-lingua-french-web-unmarked-spellings D3): `recu`
+  those of `reçu` (*recevoir*'s past participle), `arrete` those of `arrête` and `arrêté` together,
+  `etais` *être*'s imperfect and, as `étais` does, the plural of *étai* (`other`), `ecoute` the noun
+  *écoute* and *écouter*'s present (`other`), `sure` *sûr*'s feminine singular and *sur*'s as `other`,
+  `age` *âge*'s.
 - **A reading's part of speech is one its lemma's entries hold**, when the dictionary holds the lemma
   as a noun, verb, adjective, determiner, pronoun or numeral: a participle filed under a noun's or
   an adjective's spelling reads no verb form of it and names its verb (`cités`, the plural of the
@@ -652,22 +711,31 @@ the analysis resolved through the table.
   is not only regional: `irait` names no *would*, `va` no *vader* (Louisiana's, Switzerland's),
   `entrainait` (*entraîner*'s) no *entrainer*, a spelling the section holds no entry of.
 
-**What they hold**, on the 2026-10-09 tables: **125,303 readings of 88,752 forms**, in 79 tags —
-116,208 under the form's own lemma, which 88,604 forms carry, and **9,095 `other` marks** on 4,838
+**What they hold**, on the 2026-10-09 tables: **126,389 readings of 89,359 forms**, in 79 tags —
+117,102 under the form's own lemma, which 89,214 forms carry, and **9,287 `other` marks** on 4,909
 forms. Of the 125,177 readings before read-lingua-french-dictionary-unmarked-spellings, 116,561 came
 from a lemma's table, 484 from a form's own entry, 8,132 from a form of a form. By part of speech:
-70,634 verb readings, 35,001 noun, 19,585 adjective, 39 determiner, 30 pronoun, 14 numeral. Own
+71,150 verb readings, 35,404 noun, 19,751 adjective, 40 determiner, 30 pronoun, 14 numeral. Own
 readings per form:
 
 | Readings | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|
-| Forms | 69,711 | 15,017 | 1,478 | 101 | 2,157 | 140 |
+| Forms | 70,195 | 15,092 | 1,491 | 102 | 2,162 | 172 |
 
 **The dictionary's unmarked spellings** (read-lingua-french-dictionary-unmarked-spellings) moved them
 from 125,177: out, the 28 readings filed under the spellings' own words, `rebellions`' as *rebeller*'s
 and `désossé`'s as *désosser*'s; in, the moved forms' readings under their marked words (`siecles`
 under *siècle*, fourteen of *répondre*'s, nine of *gâcher*'s) and the entering lemmas'. `tags.tsv` is
 byte for byte: every new reading's tag is in the pinned pool.
+
+**The web's unmarked spellings** (read-lingua-french-web-unmarked-spellings) moved them from 125,303:
+in, **870 readings the spellings carry** — 867 for 442 of the list's 468 rows (the 26 others are
+adverbs and prepositions, `tres`, `deja`, `apres`, `plutot`, `evidemment`, and `alleluia`, whose words
+carry none either) and 3 for 43b's rows (`age`, `ages`, `ca`; `forcement` none) — and 224 of the
+lemmas entering the cut; out, 8: `sure`'s own reading under *sur* (now `other`, its own *sûr*'s), the
+`other` readings `sure`, `surs`, `sures` and `entrainant` had toward the accented word (now their
+own), `entrainante`'s and `entrainantes`' under `entrainant` and `patisseries`' under `patisserie`.
+`tags.tsv` is byte for byte. 35,528 forms have no reading of their own after it (35,581 before).
 
 The 35,578 forms without a reading of their own (35,583 since French's unmarked spellings, which add
 `age`, `ages` and `forcement` — each read as a word whose readings are not written for it — and the
@@ -895,12 +963,12 @@ a later update is the owner's question (design, Open Question 1).
 
 | | |
 |---|---|
-| Glossed lemmas | **30,051**, every one from the section's own entries: 30,050 ranked lemmas and the acronym `CA`, the one lemma glossed and unranked |
-| French's dictionary words (`../fr/lexical.tsv`) | **26,472**: the glossed lemmas less the 3,579 glossed by a proper noun's senses alone (362 / 910 / 1,759 of the 5,000 / 10,000 / 20,000 commonest); `CA` among them, unranked, which the vocabulary estimate does not count |
-| Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,681 / 8,688 / 15,254 — 93.6 / 86.9 / 76.3 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; settled by the owner) |
+| Glossed lemmas | **30,147**, every one from the section's own entries: 30,146 ranked lemmas and the acronym `CA`, the one lemma glossed and unranked |
+| French's dictionary words (`../fr/lexical.tsv`) | **26,555**: the glossed lemmas less the 3,592 glossed by a proper noun's senses alone (367 / 916 / 1,775 of the 5,000 / 10,000 / 20,000 commonest); `CA` among them, unranked, which the vocabulary estimate does not count |
+| Of the 5,000 / 10,000 / 20,000 commonest lemmas | **4,693 / 8,716 / 15,348 — 93.9 / 87.2 / 76.7 %**; floor 91.9 / 85.1 / 74.4 (`gloss_coverage.py FLOORS`, the study's 93.9 / 87.1 / 76.4 less two points, held by the reduce job; settled by the owner) |
 | Expressions | **17,635**: 15,653 headwords with a space and 1,982 words the tokenisation splits |
-| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,615,233, 512,060 and 833,953 B (625,134, 125,594 and 326,483 B gzipped); `../fr/lexical.tsv` 253,653 B |
-| The pack | **2,538,572 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B, French's unmarked spellings +202 B (the glosses +437, their runs −224, the expressions +106 — `velours côtelé` « corduroy » keyed now that `côtelé` is a lemma —, the forms, lemmas and paradigms −117), French's acronym table −1,840 B (`CA` takes lemma id 0 and every other id moves by one, which the forms map, −746 B, and the paradigms, −750 B, encode slightly tighter; the glosses −348 B, their runs −5 B; the new rows of the lemmas, ranks, levels and dictionary words +9 B), every headword of a key several reach +954 B (pick-lingua-expression-written-as-the-page: the 61 other headwords of 60 keys, their glosses +35 B and names +411 B, and their list, `expr.others`, 492 B), the dictionary's unmarked spellings +1,870 B (the forms map +1,097, the paradigms +944, the lemmas +7, the glosses −89, their runs −89) |
+| `gloss.tsv`, `senses.tsv`, `mwe.tsv` | 1,619,095, 513,722 and 833,953 B (626,644, 125,999 and 326,483 B gzipped); `../fr/lexical.tsv` 254,526 B |
+| The pack | **2,550,510 B**: change 48's 2,527,222 B, fr-en's own rules +2,652 B (the glosses −96, their runs +315, the expressions +2,433), French's lexical table +7,512 B, French's unmarked spellings +202 B (the glosses +437, their runs −224, the expressions +106 — `velours côtelé` « corduroy » keyed now that `côtelé` is a lemma —, the forms, lemmas and paradigms −117), French's acronym table −1,840 B (`CA` takes lemma id 0 and every other id moves by one, which the forms map, −746 B, and the paradigms, −750 B, encode slightly tighter; the glosses −348 B, their runs −5 B; the new rows of the lemmas, ranks, levels and dictionary words +9 B), every headword of a key several reach +954 B (pick-lingua-expression-written-as-the-page: the 61 other headwords of 60 keys, their glosses +35 B and names +411 B, and their list, `expr.others`, 492 B), the dictionary's unmarked spellings +1,870 B (the forms map +1,097, the paradigms +944, the lemmas +7, the glosses −89, their runs −89), the web's unmarked spellings +11,938 B (the forms map +5,115, the paradigms +4,510, the glosses +1,226, their runs +582, the expressions +586 — keyed on the new lemmas, no headword gained or lost —, the lemmas −81) |
 
 **French's unmarked spellings** (read-lingua-french-ca-as-ca-cedilla) took three glosses out — `ca`
 « board of directors » (`CA`'s initialisms, lowercased), `age` « beam (central bar of a plough);
@@ -931,6 +999,18 @@ none gain it (`etait`, `etaient`, `etats`, `derniere`, and 30 newly read: `crite
 `melancolie`…). `désossé` reads its own gloss « boned, off the bone… » instead of *désosser*'s.
 `mwe.tsv` is byte for byte: no headword is gained or lost, and « il etait une fois » meets `il était
 une fois` through the new forms. Coverage holds: 4,679 / 8,688 / 15,259 → 4,681 / 8,688 / 15,254.
+
+**The web's unmarked spellings** (read-lingua-french-web-unmarked-spellings) took three glosses out —
+`surs` and `sures` « sour » and `entrainant` « post-1990 spelling of entraîner », words of their own
+now read as *sûr* and *entraîner* by the owner's exceptions — and the 99 lemmas entering the cut
+brought theirs, 86 of them dictionary words (`enceint` « pregnant », `entrejeu` « midfield »,
+`estudiantin` « student », `gloser` « to annotate, gloss… », `génialement` « brilliantly… ») and 13
+names (`gemayel`, `japhet`, `séleucie`); no other row changes. The spellings, unglossed before, now
+show their word's gloss: « tres » *très* « very », « recu » *recevoir* « to receive… ». `mwe.tsv` is
+byte for byte; « c'etait deja tres bien » meets `très bien` and « une facon de parler » `façon de
+parler` through the new forms. Unglossed spellings leave the tops and glossed lemmas take their
+place: coverage 4,681 / 8,688 / 15,254 → 4,693 / 8,716 / 15,348 (93.6 / 86.9 / 76.3 → 93.9 / 87.2 /
+76.7 %).
 
 No figure is published: the site's figures list the shipped pairs alone, and fr-en ships with change
 52.
@@ -1016,7 +1096,7 @@ which fixed or left each class (its design's D9), the owner settling Q1–Q5 on 
 | An acronym's pointers lending to a word with an entry of its own | `ca`, `svp`, `jsp`, `cv` | left (D9): dropping them would cost `svp` and `jsp` their gloss; `ca` is no lemma since read-lingua-french-ca-as-ca-cedilla |
 | « CA » in capitals (read-lingua-french-ca-as-ca-cedilla D2) | « Le CA a voté le budget. » | read as *ça* « that… » until keep-lingua-french-acronyms-in-capitals (change 43c): « CA » standing alone in capitals — its nearest words not in capitals — is now the acronym `CA` « board of directors; revenue, turnover, net sales; alternating current », a noun to learn; in a headline or a shout in capitals (« LE CA A VOTÉ », « CA SUFFIT ! ») and as « Ca » it reads *ça*. A language code or an address the tokeniser keeps (« (ca) », `.ca`) read « board of directors » before 43b and reads as *ça* now: wrong both ways |
 | The acronym's other meanings (keep-lingua-french-acronyms-in-capitals D3) | of 31 « CA » standing alone in 23.5 million tokens: 3 boards, 2 turnovers, 1 chartered accountant, 4 Geneva's Conseil administratif, 6 sports clubs (« CA Brive »), 2 army corps, 2 Canadian dollars, 2 certificate authorities, 2 Latin syllables, 2 geometry segments, 3 codes, 1 activated carbon, 1 unclear | the gloss names the right meaning 5 times and a close one 4 (the owner kept the table knowing it, 2026-10-10); still a noun to learn, never « that ». « CA » beside another word in capitals (« CA HT ») reads *ça* (none in the corpora). The French Wiktionary's *corps d'armée* is no row (open question 2, settled as designed) |
-| An unmarked spelling outside the table | `etre`, `etat` (the dictionary's own, 51 ranked); `francais`, `tres`, `deja` (the web's, unglossed) | read-lingua-french-ca-as-ca-cedilla D6: two changes of their own, settled by the owner. The dictionary's are read when the marked word is the commoner (read-lingua-french-dictionary-unmarked-spellings: 81 read, 33 of them ranked before — `etre`, `etat`, `siecle`; 18 ranked kept, the spelling the commoner — `diesel`, `ego`, `egypte`). The web's (`tete`, `francais`, `tres`, `deja`) and the words with an entry of their own the dictionary rule does not read (`sure`, `sures`, `surs`, `entrainant`) are the reviewed list's, `read-lingua-french-web-unmarked-spellings` (change 43e); `ou`, `a`, `la`, `des`, `du`, `sur` and `cote` never |
+| An unmarked spelling outside the table | `etre`, `etat` (the dictionary's own, 51 ranked); `francais`, `tres`, `deja` (the web's, unglossed) | read-lingua-french-ca-as-ca-cedilla D6: two changes of their own, settled by the owner. The dictionary's are read when the marked word is the commoner (read-lingua-french-dictionary-unmarked-spellings: 81 read, 33 of them ranked before — `etre`, `etat`, `siecle`; 18 ranked kept, the spelling the commoner — `diesel`, `ego`, `egypte`). The web's are read by the owner's reviewed list (read-lingua-french-web-unmarked-spellings: 464 rows down to Zipf 2.5 — `tete`, `francais`, `tres`, `deja` — and the four exceptions `sure`, `surs`, `sures`, `entrainant`); `ou`, `a`, `la`, `des`, `du`, `sur` and `cote` never. Still read wrong: a name or another language's word spelt like a row reads as the French word (« Noel Murray », « Shimon Peres », Occitan « Lou Tresor dóu Felibrige », Catalan « tres »: 53 of the 270 occurrences in the corpora the change's design measured, D5, 19 of them from the list's lower band), the sour adjective's `sure`, `surs`, `sures` read as *sûr* (3 occurrences in 41), and the web's spellings the list leaves out: under Zipf 2.5, written more often in English (`video`, `hotel`, `mere`, `premiere`), hyphenated (`peut-etre`) or with a wrong accent (`trés`) — the last two a reviewed list of their own each, later |
 | A correctly spelt form read as a commoner word without its accent | `rebellions` (« nous nous rebellions », *se rebeller*) | reads as *rébellion*, the noun's plural without its accent and the commoner word (M8), as the owner kept it (read-lingua-french-dictionary-unmarked-spellings Q1, 2026-10-10); an override row could keep the verb |
 | Two expressions under one key | `ça va` « how are you? … » and `ça ira` « it will be all right », both keyed *ça aller* | the key answers `ça ira`, so « ça va » — and « ca va » now — shows « it will be all right… »; the choice between headwords sharing a key is change 44's, asked of the owner separately |
 

@@ -68,7 +68,12 @@
 //! de tout. », « Elle se mit au lit. », « grâce au travail du monteur », « J'ai besoin de toi. »
 //! and « C'est ce que tu veux. »; refine-lingua-fr-es-expressions: six phrase probes, « sur le
 //! champ de bataille », « une crème brûlée », « le maire de la ville », « Elle se leva. », « Il vient
-//! de Paris. » and « de l'huile d'olive », none of fr-en's other lines moving).
+//! de Paris. » and « de l'huile d'olive », none of fr-en's other lines moving;
+//! read-lingua-french-web-unmarked-spellings: its re-reduced tables move four probes — the pack,
+//! « apres » and « genial » on the `informel` page read as `après` and `génial`, the two vocabulary
+//! estimates — and five phrase probes, « c'etait deja tres bien », « une facon de parler francais »,
+//! « j'ai recu ta reponse », « L'Ecole est fermée. » and « regarde cette video », and two grammar
+//! probes, `recu` and `arrete`, are added).
 //! `lingua-pack-update` re-blesses on its own branch. The extension's `test/word-card-fr-en.spec.ts`
 //! renders this golden's grammar and phrase probes, and is re-blessed with it
 //! (`yarn vitest run test/word-card-fr-en.spec.ts -u`).
@@ -128,7 +133,7 @@ fn the_probes_are_the_references_then_the_cards_then_forty_lemmas() {
     let (reference, rest) = FRENCH.grammar.split_at(REFERENCE_GRAMMAR.len());
     let (card, more) = rest.split_at(CARD_PROBES.len());
     assert_eq!(reference, REFERENCE_GRAMMAR);
-    assert_eq!(reference.len(), 32);
+    assert_eq!(reference.len(), 34);
     assert_eq!(card, CARD_PROBES);
     assert_eq!(card.len(), 21);
     assert_eq!(more.len(), 40);

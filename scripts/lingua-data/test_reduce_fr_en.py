@@ -725,9 +725,10 @@ class UnmarkedSpellings(unittest.TestCase):
 
     def test_spec_scenario_a_row_is_a_decision(self):
         # The owner's four rows (2026-10-10), each with its reason; no row is an elided piece, `du`
-        # or `des`, nor a word a reader can mean.
+        # or `des`, nor a word a reader can mean. The web's list and the owner's exceptions beside them
+        # are read-lingua-french-web-unmarked-spellings' (`WebUnmarkedSpellings` below).
         self.assertEqual(
-            {form: word for form, (word, _) in red.UNMARKED_SPELLINGS.items()},
+            {form: word for form, (word, _) in red.UNMARKED_SPELLINGS.items() if form not in red._FOLLOWED_ROWS},
             {"ca": "ça", "age": "âge", "ages": "âge", "forcement": "forcément"},
         )
         for form, (word, reason) in red.UNMARKED_SPELLINGS.items():
@@ -783,10 +784,17 @@ class UnmarkedSpellings(unittest.TestCase):
             self.assertIn(word, self.ranks)
             self.assertIn(word, self.levels)
         self.assertEqual(self.glosses["âge"], "age")
-        # No reading is written under the named words for a spelling, nor under its lost word.
-        for row in self.out["grammar.tsv"].splitlines():
-            self.assertNotIn(row.split("\t")[0], red.UNMARKED_SPELLINGS, row)
+        # No reading is written under a spelling's lost word; a spelling carries the readings of its
+        # word's form it writes without marks, `age` those of `âge` (read-lingua-french-web-unmarked-spellings
+        # D3), `ca` none here (ça's entry lists no reading in this section).
+        rows = self.out["grammar.tsv"].splitlines()
+        for row in rows:
             self.assertNotIn(row.split("\t")[1], ("ca", "age", "forcement"), row)
+        self.assertEqual(
+            [row[len("age") :] for row in rows if row.startswith("age\t")],
+            [row[len("âge") :] for row in rows if row.startswith("âge\t")],
+        )
+        self.assertTrue([row for row in rows if row.startswith("age\t")])
 
     def test_a_row_holds_when_no_entry_names_its_form(self):
         # Without the noun's entry, `forcement` is still forcément's: the table seeds it.
@@ -1144,7 +1152,11 @@ class DictionaryUnmarkedSpellings(unittest.TestCase):
         self.assertNotEqual(self.forms.get("tete"), "téter")
 
     def test_spec_scenario_a_word_with_an_entry_of_its_own(self):
-        self.assertNotEqual(self.forms.get("surs"), "sûr")
+        # `surs`, a sense of its own beside the spelling, is no spelling this rule reads; the owner's
+        # exception row reads it as *sûr* (read-lingua-french-web-unmarked-spellings D2), with the rule
+        # or without it.
+        self.assertNotIn("surs", self.table(_DICTIONARY_SPELLINGS_ENTRIES))
+        self.assertEqual(self.forms.get("surs"), "sûr")
         self.assertEqual(self.forms.get("surs"), _tsv(self.before["forms.tsv"]).get("surs"))
         self.assertNotEqual(self.forms.get("cordeliere"), "cordelière")
 
@@ -1175,7 +1187,280 @@ class DictionaryUnmarkedSpellings(unittest.TestCase):
         for kept in ("diesel", "ego", "egypte", "etienne", "teter"):
             self.assertEqual(forms.get(kept, kept), kept, kept)
         self.assertNotEqual(forms.get("tete"), "téter")
-        self.assertEqual({w: forms.get(w) for w in ("surs", "sures", "entrainant")}, {"surs": "surs", "sures": "sures", "entrainant": "entrainant"})
+        # The four words 43d handed over are the owner's exceptions now (read-lingua-french-web-unmarked-spellings D2).
+        self.assertEqual(
+            {w: forms.get(w) for w in ("surs", "sures", "entrainant")}, {"surs": "sûr", "sures": "sûr", "entrainant": "entraîner"}
+        )
+
+
+# read-lingua-french-web-unmarked-spellings: the section's entries for words the web writes without
+# their marks — `très`, `déjà` and `tête`, which no entry names unmarked; `arrêter`, whose `arrête` and
+# `arrêté` `arrete` writes alike —, `cote` « rating », a word of its own, `etait` « obsolete spelling
+# of était » (change 43d's), `teter` « alternative form of téter » listing `tete`; `sur` « sour »
+# listing `sure`, `surs` and `sures`, an entry `sure` « alternative spelling of sûre », `sûr` and its
+# forms; and `patisseries` « plural of patisserie », a spelling no entry heads.
+WEB_SECTION = [
+    entry("très", pos="adv", senses=[{"glosses": ["very"]}]),
+    entry("déjà", pos="adv", senses=[{"glosses": ["already"]}]),
+    entry("tête", forms=[("têtes", ["plural"])], senses=[{"glosses": ["head"], "tags": ["feminine"]}]),
+    form_of("têtes", "tête", pos="noun", tags=("form-of", "feminine", "plural")),
+    entry("arrêter", pos="verb", forms=[*TABLE_HEAD, ("arrête", PRESENT_3S), ("arrêté", PARTICIPLE)], senses=[{"glosses": ["to stop"]}]),
+    entry("cote", senses=[{"glosses": ["rating"], "tags": ["feminine"]}]),
+    entry("côte", senses=[{"glosses": ["coast"], "tags": ["feminine"]}]),
+    entry("ou", pos="conj", senses=[{"glosses": ["or"]}]),
+    entry("où", pos="adv", senses=[{"glosses": ["where"]}]),
+    entry("avoir", pos="verb", forms=[*TABLE_HEAD, ("a", PRESENT_3S)], senses=[{"glosses": ["to have"]}]),
+    form_of("a", "avoir"),
+    form_of("était", "être", tags=("form-of", "imperfect", "indicative", "singular", "third-person")),
+    _spells("etait", "était", "obsolete spelling of", pos="verb", tags=("alt-of", "obsolete")),
+    _spells("teter", "téter", "alternative form of", pos="verb", forms=[*TABLE_HEAD, ("tete", PRESENT_3S)], tags=("alt-of", "alternative", "obsolete")),
+    form_of("tete", "teter", tags=("first-person", "form-of", "indicative", "present", "singular")),
+    entry("téter", pos="verb", forms=[*TABLE_HEAD, ("tète", PRESENT_3S)], senses=[{"glosses": ["to suckle"]}]),
+    entry(
+        "sur",
+        pos="adj",
+        forms=[("sure", ["feminine", "singular"]), ("surs", ["masculine", "plural"]), ("sures", ["feminine", "plural"])],
+        senses=[{"glosses": ["sour"]}],
+    ),
+    entry(
+        "sure",
+        pos="adj",
+        senses=[
+            {"glosses": ["feminine singular of sur"], "tags": ["feminine", "form-of", "singular"], "form_of": [{"word": "sur"}]},
+            {"glosses": ["alternative spelling of sûre"], "tags": ["alt-of", "alternative"], "alt_of": [{"word": "sûre"}]},
+        ],
+    ),
+    entry(
+        "sûr",
+        pos="adj",
+        forms=[("sûre", ["feminine", "singular"]), ("sûrs", ["masculine", "plural"]), ("sûres", ["feminine", "plural"])],
+        senses=[{"glosses": ["sure, certain"]}],
+    ),
+    form_of("sûre", "sûr", pos="adj", tags=("feminine", "form-of", "singular")),
+    entry("pâtisserie", forms=[("pâtisseries", ["plural"])], senses=[{"glosses": ["pastry"], "tags": ["feminine"]}]),
+    form_of("patisseries", "patisserie", pos="noun", tags=("form-of", "feminine", "plural")),
+]
+# wordfreq's Zipf values for them (3.1.1, rounded): each spelling rarer than its marked word.
+WEB_FREQ = {
+    "très": 6.1, "tres": 4.5, "déjà": 5.8, "deja": 4.1, "tête": 5.5, "tete": 3.8, "têtes": 4.5, "tetes": 2.8,
+    "arrêter": 5.0, "arrête": 4.8, "arrêté": 4.6, "arrete": 3.5, "cote": 4.2, "côte": 4.6, "ou": 6.5, "où": 6.1,
+    "a": 7.0, "avoir": 6.4, "était": 6.2, "etait": 4.4, "teter": 1.6, "téter": 2.5, "tète": 3.0, "sur": 6.8,
+    "sure": 3.9, "surs": 2.7, "sures": 2.5, "sûr": 5.3, "sûre": 4.4, "sûrs": 4.0, "sûres": 3.4, "pâtisserie": 4.0,
+    "pâtisseries": 3.6, "patisseries": 2.6,
+}
+_WEB_ENTRIES = [*ENTRIES, *WEB_SECTION]
+_WEB_FREQ_ALL = {**FREQ, **WEB_FREQ}
+_WEB_TOP = [w for w in sorted(_WEB_FREQ_ALL, key=lambda w: (-_WEB_FREQ_ALL[w], w)) if "-" not in w]
+# Change 43b's four rows alone: the tables without the web's list.
+_CA_ROWS = {form: row for form, row in red.UNMARKED_SPELLINGS.items() if form in ("ca", "age", "ages", "forcement")}
+
+
+def _without_the_web_list():
+    """The reducer as change 43b left it: its four rows, no list, no exceptions."""
+    return [
+        mock.patch.dict(red.UNMARKED_SPELLINGS, _CA_ROWS, clear=True),
+        mock.patch.dict(red.WEB_SPELLINGS, {}, clear=True),
+        mock.patch.object(red, "_FOLLOWED_ROWS", frozenset()),
+    ]
+
+
+class WebUnmarkedSpellings(unittest.TestCase):
+    """read-lingua-french-web-unmarked-spellings: the web's French written without its marks read as
+    the word a reviewed list names (D1, D2), each spelling carrying its word's readings (D3)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with mock.patch.dict(FREQ, WEB_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _WEB_TOP):
+            cls.out = Main.run_main(cls, _WEB_ENTRIES)
+            with contextlib.ExitStack() as stack:
+                for patch in _without_the_web_list():
+                    stack.enter_context(patch)
+                cls.before = Main.run_main(cls, _WEB_ENTRIES)
+        cls.forms, cls.ranks = _tsv(cls.out["forms.tsv"]), _tsv(cls.out["freq.tsv"])
+        cls.grammar = [row.split("\t") for row in cls.out["grammar.tsv"].splitlines()]
+        cls.grammar_before = [row.split("\t") for row in cls.before["grammar.tsv"].splitlines()]
+
+    def readings(self, form, rows=None):
+        return sorted((lemma, tag, mark) for f, lemma, tag, mark in (rows or self.grammar) if f == form)
+
+    def test_spec_scenario_every_row_is_a_decision(self):
+        # The owner's list (2026-10-10), merged with one shared reason; the four exceptions rows of their
+        # own beside 43b's, each with its reason, and never in the list.
+        self.assertEqual(len(red.WEB_SPELLINGS), 464)
+        self.assertEqual(list(red.WEB_SPELLINGS), sorted(red.WEB_SPELLINGS))
+        for spelling, word in red.WEB_SPELLINGS.items():
+            self.assertEqual(red.UNMARKED_SPELLINGS[spelling], (word, red.WEB_REASON), spelling)
+        exceptions = {"sure": "sûr", "surs": "sûr", "sures": "sûr", "entrainant": "entraîner"}
+        self.assertEqual(set(red.OWNER_EXCEPTIONS), set(exceptions))
+        for spelling, word in exceptions.items():
+            self.assertNotIn(spelling, red.WEB_SPELLINGS)
+            self.assertEqual(red.UNMARKED_SPELLINGS[spelling][0], word)
+            self.assertNotEqual(red.UNMARKED_SPELLINGS[spelling][1], red.WEB_REASON)
+        self.assertEqual(len(red.UNMARKED_SPELLINGS), 4 + 4 + 464)
+        # Never an elided piece, `du` or `des`, nor a word a reader can mean, nor a spelling English writes
+        # more often but the exception `sure`.
+        never = ("ou", "a", "la", "sur", "du", "des", "cote", "tache", "pale", "foret", "aine")
+        for spelling in (*never, "video", "hotel", "these", "mere", "premiere", "dela", "nes"):
+            self.assertNotIn(spelling, red.UNMARKED_SPELLINGS, spelling)
+        for spelling in red.UNMARKED_SPELLINGS:
+            self.assertNotIn(spelling, red.ELISIONS)
+            self.assertNotIn(spelling, red.OWN_WORDS)
+            self.assertNotIn(spelling, red.OVERRIDES)
+            self.assertTrue(red.is_form(spelling), spelling)
+
+    def test_every_row_names_a_ranked_lemma_whose_form_it_writes_without_marks(self):
+        # In the committed tables (43b's test, over every row): the word is a ranked lemma reading as
+        # itself, the spelling reads as it and is no rank, and it is the word, or one of its forms,
+        # written without its marks.
+        forms, ranks = _committed("fr/forms.tsv"), _committed("fr/freq.tsv")
+        by_word = collections.defaultdict(set)
+        for form, lemma in forms.items():
+            by_word[lemma].add(red._marks_dropped(form))
+        for spelling, (word, _) in red.UNMARKED_SPELLINGS.items():
+            self.assertIn(word, ranks, word)
+            self.assertEqual(forms[word], word, word)
+            self.assertEqual(forms[spelling], word, spelling)
+            self.assertNotIn(spelling, ranks, spelling)
+            self.assertIn(spelling, by_word[word], spelling)
+
+    def test_spec_scenario_a_spelling_no_entry_names_reads_as_its_word(self):
+        # `tres` no entry names, `arrete` whose verb lists `arrête` and `arrêté`: their word alone.
+        self.assertEqual(self.forms["tres"], "très")
+        self.assertEqual(self.forms["deja"], "déjà")
+        self.assertEqual(self.forms["arrete"], "arrêter")
+        for spelling in ("tres", "deja", "arrete"):
+            self.assertNotIn(spelling, self.ranks, spelling)
+            # Without the list, a ranked word of its own, as on main before this change.
+            self.assertEqual(_tsv(self.before["forms.tsv"]).get(spelling), spelling)
+        # Whether or not an entry names them: an entry of its own and a lemma's inflection listing it
+        # make it no lemma and no other word's form.
+        lex = lexicon(
+            entry("arrêter", pos="verb", forms=[("arrete", PRESENT_3S)]),
+            entry("arrete", senses=[{"glosses": ["a meaning of its own"]}]),
+            entry("tres", pos="adv", senses=[{"glosses": ["very"]}]),
+        )
+        self.assertEqual(lex.candidates["arrete"], {"arrêter"})
+        self.assertEqual(lex.candidates["tres"], {"très"})
+        self.assertNotIn("arrete", lex.lemmas)
+        self.assertNotIn("tres", lex.lemmas)
+
+    def test_spec_scenario_a_spelling_carries_its_word_s_readings(self):
+        # `arrete` writes `arrête` and `arrêté` alike: both readings; `tres`, an adverb's, none.
+        self.assertEqual(
+            self.readings("arrete"),
+            sorted({*((l, t, m) for l, t, m in self.readings("arrête")), *self.readings("arrêté")}),
+        )
+        self.assertEqual(
+            {tag for _, tag, _ in self.readings("arrete")},
+            {"VERB|Mood=Ind|Number=Sing|Person=3|Tense=Pres|VerbForm=Fin", "VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part"},
+        )
+        self.assertEqual(self.readings("tres"), [])
+        self.assertEqual(self.readings("tete"), self.readings("tête"))
+        # `sure` carries sûre's, its mark `-` under sûr, and sur's as another dictionary form.
+        self.assertIn(("sûr", "ADJ|Gender=Fem|Number=Sing", "-"), self.readings("sure"))
+        self.assertIn(("sur", "ADJ|Gender=Fem|Number=Sing", "other"), self.readings("sure"))
+        # The words a reader means as written keep their own readings.
+        for word in ("ou", "a", "cote"):
+            self.assertEqual(self.readings(word), self.readings(word, self.grammar_before), word)
+        self.assertEqual(self.out["grammar.tsv"], "".join(sorted(set(self.out["grammar.tsv"].splitlines(True)))))
+
+    def test_the_readings_rule(self):
+        rows = [
+            "arrête\tarrêter\tVERB|Mood=Ind\t-\n",
+            "arrêté\tarrêter\tVERB|VerbForm=Part\t-\n",
+            "arrêté\tarrêté\tNOUN|Gender=Masc\tother\n",
+            "écouté\técouter\tVERB|VerbForm=Part\t-\n",
+            "cœur\tcœur\tNOUN|Gender=Masc\t-\n",
+        ]
+        forms = {"arrête": "arrêter", "arrêté": "arrêter", "arrete": "arrêter", "écouté": "écouter", "ecoute": "écoute", "cœur": "cœur", "coeur": "cœur"}
+        out = red.spelling_readings(rows, forms, {"arrete": None, "ecoute": None, "coeur": None})
+        self.assertEqual(
+            [row for row in out if row.startswith("arrete\t")],
+            ["arrete\tarrêter\tVERB|Mood=Ind\t-\n", "arrete\tarrêter\tVERB|VerbForm=Part\t-\n", "arrete\tarrêté\tNOUN|Gender=Masc\tother\n"],
+        )
+        # A form of another word (`écouté`, écouter's, for `ecoute` → écoute) and a ligature, which no
+        # mark drops (`cœur`), lend none.
+        self.assertEqual([row for row in out if row.startswith(("ecoute\t", "coeur\t"))], [])
+        self.assertEqual(out, sorted(set(out)))
+        self.assertEqual(red._marks_dropped("reçu"), "recu")
+        self.assertEqual(red._marks_dropped("cœur"), "cœur")
+
+    def test_spec_scenario_a_form_of_a_spelling_the_dictionary_leaves_is_a_row(self):
+        # `tete`, listed by `teter` « alternative form of téter »: tête's, and no form of teter.
+        self.assertEqual(self.forms["tete"], "tête")
+        self.assertEqual(lexicon(*WEB_SECTION).candidates["tete"], {"tête"})
+        self.assertEqual(lexicon(*WEB_SECTION).web_boundary(), [])
+        # Change 43d's forms guard still counts `tete` among teter's forms: the list moves nothing it
+        # reads.
+        kept = {}
+        with tempfile.TemporaryDirectory() as d:
+            table = red.dictionary_unmarked_spellings(_section_file(d, WEB_SECTION), lambda w: WEB_FREQ.get(w, 0.0), kept)
+        self.assertEqual(table, {"etait": "était"})
+        self.assertEqual(kept, {"teter": red.KEPT_FORM})
+
+    def test_spec_scenario_the_exceptions_and_an_entry_pointing_at_a_row(self):
+        # `sure`, `surs` and `sures`, forms of *sur* « sour » the section lists, read as *sûr*; `sur`
+        # keeps its sense.
+        for spelling in ("sure", "surs", "sures"):
+            self.assertEqual(self.forms[spelling], "sûr", spelling)
+            self.assertIn(_tsv(self.before["forms.tsv"]).get(spelling), ("sur", spelling), spelling)
+        self.assertEqual(self.forms["sur"], "sur")
+        # « plural of patisserie » follows the row; 43b's rows still drop the link.
+        self.assertEqual(self.forms["patisseries"], "pâtisserie")
+        self.assertNotIn("patisserie", self.ranks)
+        self.assertEqual(lexicon(form_of("CAs", "ca", pos="noun")).links.get("cas", {}), {})
+
+    def test_spec_scenario_a_row_the_section_names_stops_the_reduction(self):
+        # A row naming `cote` (a word of its own) or `etait` (change 43d's spelling) fails, naming both.
+        rows = {"cote": "côte", "etait": "être"}
+        with mock.patch.dict(red.WEB_SPELLINGS, rows), mock.patch.dict(
+            red.UNMARKED_SPELLINGS, {s: (w, red.WEB_REASON) for s, w in rows.items()}
+        ), mock.patch.dict(FREQ, WEB_FREQ), mock.patch.object(sys.modules[__name__], "TOP", _WEB_TOP):
+            with self.assertRaises(SystemExit) as stop:
+                Main.run_main(self, _WEB_ENTRIES)
+        self.assertIn("2 spelling(s) of WEB_SPELLINGS", str(stop.exception))
+        self.assertTrue(str(stop.exception).endswith(": cote, etait"), stop.exception)
+
+    def test_the_boundary(self):
+        rows = {"tete": "tête", "fete": "fête", "ecole": "école", "pate": "pâte", "etat": "état", "chateau": "château"}
+        with mock.patch.dict(red.WEB_SPELLINGS, rows, clear=True):
+            lex = lexicon(
+                # A form of a spelling the dictionary leaves: passes.
+                _spells("teter", "téter", "alternative form of", pos="verb", forms=[("tete", PRESENT_3S)]),
+                form_of("tete", "teter"),
+                # Listed by a word's entry: a word of its own.
+                entry("feter", pos="verb", forms=[("fete", PRESENT_3S)], senses=[{"glosses": ["a meaning"]}]),
+                # A form of a word with a meaning: a word of its own.
+                entry("pater", pos="verb"),
+                form_of("pate", "pater"),
+                # Only its accented word's spelling: change 43d's.
+                _spells("etat", "état", "alternative spelling of"),
+                # A spelling of another word than its accented one passes; so does a word no entry names.
+                _spells("chateau", "castel", "alternative form of"),
+            )
+            self.assertEqual(lex.web_boundary(), ["etat", "fete", "pate"])
+        self.assertEqual(red._sense_kind({"tags": ["form-of"]}), ("form", ""))
+        self.assertEqual(red._sense_kind({"glosses": ["x"]}), ("meaning", None))
+
+    def test_the_committed_tables(self):
+        forms, ranks, levels = _committed("fr/forms.tsv"), _committed("fr/freq.tsv"), _committed("fr/level.tsv")
+        read = {
+            "tres": "très", "deja": "déjà", "francais": "français", "recu": "recevoir", "leger": "léger",
+            "meme": "même", "apres": "après", "tete": "tête", "tetes": "tête", "etais": "être", "sure": "sûr",
+            "surs": "sûr", "sures": "sûr", "entrainant": "entraîner", "patisseries": "pâtisserie",
+            "entrainante": "entraîner",
+        }
+        self.assertEqual({form: forms.get(form) for form in read}, read)
+        for spelling in read:
+            self.assertNotIn(spelling, ranks, spelling)
+            self.assertNotIn(spelling, levels, spelling)
+        levelled = {"très": "A1", "déjà": "A1", "français": "A1", "même": "A1", "recevoir": "A1", "léger": "A2", "sûr": "A1"}
+        self.assertEqual({w: levels.get(w) for w in levelled}, levelled)
+        for kept in ("ou", "cote", "video", "hotel", "these", "teter", "sur", "dela", "nes"):
+            self.assertEqual(forms.get(kept, kept), kept, kept)
+        grammar = [line.split("\t") for line in open(os.path.join(_TABLES, "fr", "grammar.tsv"), encoding="utf-8").read().splitlines()]
+        self.assertIn(["recu", "recevoir", "VERB|Gender=Masc|Number=Sing|Tense=Past|VerbForm=Part", "-"], grammar)
+        self.assertEqual(len([row for row in grammar if row[0] == "arrete"]), 6)
 
 
 class Ranks(unittest.TestCase):

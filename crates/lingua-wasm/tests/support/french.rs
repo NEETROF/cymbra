@@ -99,6 +99,15 @@
 //! reader meets it: « il etait une fois » and « un coup d'Etat » meet `il était une fois` and `coup
 //! d'état`, « Il faut etre patient. » reads `être`, and « un moteur diesel » records a spelling the
 //! frequency rule keeps, `diesel` being commoner than `diésel`.
+//!
+//! And it reads as their word the web's spellings without their marks that a reviewed list names
+//! (read-lingua-french-web-unmarked-spellings): the `informel` page's « apres » and « genial » read
+//! as `après` and `génial`. Five phrase probes show it where a reader meets it: « c'etait deja tres
+//! bien » (`déjà`, `très` and `très bien`), « une facon de parler francais » (`façon de parler`,
+//! `français`), « j'ai recu ta reponse » (`recevoir`, `réponse`), « L'Ecole est fermée. » (`école`),
+//! and « regarde cette video », which records a spelling the list leaves out (English writes `video`
+//! more often); and two grammar probes, `recu` (the past participle of `recevoir`) and `arrete`
+//! (`arrêter`'s participle and present), the readings a spelling carries.
 
 use super::{Card, PackSource, Scenario};
 
@@ -187,7 +196,10 @@ const LEMMAS: &[&str] = &[
 /// brûlée » (a post-1990 spelling keyed alone), add-lingua-fr-en-translated-expressions' too, « le
 /// maire de la ville » (a partitive met as « of the »), « Elle se leva. » (a wrong sense another
 /// source glosses right), « Il vient de Paris. » (words met as they are) and « de l'huile d'olive »
-/// (an elided piece written apart).
+/// (an elided piece written apart). And the web's spellings a reviewed list names
+/// (read-lingua-french-web-unmarked-spellings): « c'etait deja tres bien », « une facon de
+/// parler francais », « j'ai recu ta reponse » and « L'Ecole est fermée. » read their words, and
+/// « regarde cette video » records a spelling the list leaves out.
 const PHRASES: &[&str] = &[
     "pommes de terre",
     "il y a",
@@ -234,6 +246,11 @@ const PHRASES: &[&str] = &[
     "c'est ca",
     "Le CA a voté le budget.",
     "à mon age",
+    "c'etait deja tres bien",
+    "une facon de parler francais",
+    "j'ai recu ta reponse",
+    "L'Ecole est fermée.",
+    "regarde cette video",
     "LE CA A VOTÉ LE BUDGET",
     "Il a crié : CA SUFFIT !",
     "Ca fait du bien.",
@@ -263,8 +280,10 @@ const PHRASES: &[&str] = &[
 /// readings (add-lingua-french-grammar-tables) and its gloss, and the pieces a split word is made
 /// of — an elided word handed alone (`l’`) is one piece, `le`; `au` is `à` and `le`; the acronym
 /// `CA`, kept in capitals, answers its own gloss under one noun group
-/// (keep-lingua-french-acronyms-in-capitals D6). The reference's probes, before the card's
-/// (`CARD_PROBES`) and the lemmas' (`MORE_LEMMAS`).
+/// (keep-lingua-french-acronyms-in-capitals D6); a spelling without its marks a reviewed list reads
+/// as its word carries the readings of its word's forms it writes so: `recu` (`reçu`), `arrete`
+/// (`arrête` and `arrêté`) (read-lingua-french-web-unmarked-spellings D3). The reference's probes,
+/// before the card's (`CARD_PROBES`) and the lemmas' (`MORE_LEMMAS`).
 pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("est", "être"),
     ("sont", "être"),
@@ -298,6 +317,8 @@ pub const REFERENCE_GRAMMAR: &[(&str, &str)] = &[
     ("l\u{2019}", "le"),
     ("au", "à"),
     ("CA", "CA"),
+    ("recu", "recevoir"),
+    ("arrete", "arrêter"),
 ];
 
 /// The French card's probes (add-lingua-french-word-card D9): one for each name the card says or

@@ -134,6 +134,22 @@ row: voter — Votar
 row: budget — Presupuesto
 ### phrase-gloss à mon age
 row: âge — Edad
+### phrase-gloss c'etait deja tres bien
+row: déjà — Ya
+row: très — Bien, mucho o muy (muda adjetivos en superlativos absolutos)
+row: bien — Bien
+### phrase-gloss une facon de parler francais
+row: façon — Manera, forma, facción
+row: parler — Hablar
+row: français — Francés (gentilicio de Francia)
+### phrase-gloss j'ai recu ta reponse
+row: recevoir — Recibir, tomar, recoger
+row: réponse — Respuesta
+### phrase-gloss L'Ecole est fermée.
+row: école — Escuela
+row: fermer — Cerrar, cerrar con llave
+### phrase-gloss regarde cette video
+row: regarder — Mirar
 ### phrase-gloss LE CA A VOTÉ LE BUDGET
 row: voter — Votar
 row: budget — Presupuesto
@@ -352,6 +368,16 @@ row: A (un lugar)
 page 1/1:
   [sustantivo] Administración, consejo de administración; Ingreso, cifra de negocios, facturación; Corriente alterna
 row: Administración, consejo de administración
+### word-grammar recu recevoir
+grammar: participio pasado de recevoir
+page 1/1:
+  [verbo] Recibir, tomar, recoger
+row: Recibir, tomar, recoger
+### word-grammar arrete arrêter
+grammar: participio pasado, primera y tercera persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del imperativo de arrêter
+page 1/1:
+  [verbo] Arrestar, detener; Arrestarse, detenerse
+row: Arrestar, detener
 ### word-grammar parle parler
 grammar: primera y tercera persona del singular del presente de indicativo o de subjuntivo y segunda persona del singular del imperativo de parler
 page 1/1:

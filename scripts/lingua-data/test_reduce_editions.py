@@ -1805,6 +1805,50 @@ class FrenchDictionaryUnmarkedSpellings(Entries):
         )
 
 
+class FrenchWebUnmarkedSpellings(Entries):
+    """read-lingua-french-web-unmarked-spellings: the web's spellings without their marks, a reviewed
+    list read by fr-en's reducer (D2, D3, D4)."""
+
+    def test_spec_scenario_nothing_else_moves(self):
+        # The rows, the exceptions, the boundary check, the redirect and the readings live in
+        # reduce-fr-en.py: editing any moves fr-en's rule digest alone — es-en's, en-fr's, es-fr's,
+        # en-es's and fr-es's do not. fr-es moves only through the tables/fr/ fr-en writes, which its
+        # pin records apart (`studied`).
+        pairs = ("en-fr", "es-fr", "es-en", "en-es", "fr-en", "fr-es")
+        for pair in pairs:
+            self.assertEqual(
+                ps.rules_sha256(Path(_HERE) / f"reduce-{pair}.py"),
+                ps.get(ps.load(Path(_HERE) / "tables" / pair / "pin.json"), "reducer.sha256"),
+                pair,
+            )
+        copy = self.dir / "rules"
+        copy.mkdir()
+        for path in Path(_HERE).glob("reduce[-_]*.py"):
+            (copy / path.name).write_bytes(path.read_bytes())
+        before = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+        for old, new in (
+            # A row, an exception, the boundary, the redirect and the readings.
+            ('"tres": "très",', '"tres": "trés",'),
+            ('OWNER_EXCEPTIONS = ("sure", "surs", "sures", "entrainant")', 'OWNER_EXCEPTIONS = ("sure", "surs", "sures")'),
+            ("            if word or spelt:\n", "            if word:\n"),
+            ("                if target in _FOLLOWED_ROWS:\n", "                if False:\n"),
+            ("        if spelling != form and spelling in spellings and forms.get(spelling) == lemma:\n", "        if False:\n"),
+        ):
+            reducer = copy / "reduce-fr-en.py"
+            text = reducer.read_text(encoding="utf-8")
+            self.assertIn(old, text)
+            reducer.write_text(text.replace(old, new, 1), encoding="utf-8")
+            after = {pair: ps.rules_sha256(copy / f"reduce-{pair}.py") for pair in pairs}
+            self.assertNotEqual(after["fr-en"], before["fr-en"], new)
+            self.assertEqual({p: after[p] for p in pairs if p != "fr-en"}, {p: before[p] for p in pairs if p != "fr-en"}, new)
+            before = after
+        # fr-es's pin records the studied tables fr-en wrote, file by file.
+        self.assertEqual(
+            ps.load(Path(_HERE) / "tables" / "fr-es" / "pin.json")["studied"],
+            ps.studied_record(Path(_HERE) / "tables" / "fr-es" / "pin.json"),
+        )
+
+
 class FrEsGlossesRefined(Entries):
     """refine-lingua-fr-es-glosses: fr-es's own rules, in its reducer and the treebank's module it
     shares with fr-en (D1, D8)."""
