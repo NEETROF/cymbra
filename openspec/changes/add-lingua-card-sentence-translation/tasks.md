@@ -1,5 +1,9 @@
 # Tasks
 
+## 0. The requirement this change amends
+
+- [ ] 0.1 A MODIFIED delta of `lingua-translation`'s « A machine translation is never stored », from its text once `add-lingua-online-translation` is archived (D7); the review shows a kept translation instead of asking the engine (`add-lingua-review-translation`). Verify with `openspec validate add-lingua-card-sentence-translation --strict` and `scripts/openspec_archive_order.py`.
+
 ## 1. The core card
 
 - [ ] 1.1 `lingua-core` (`decks/card.rs`): `SentenceTranslation { text, marks }` and `Card::sentence_translation`, optional, skipped when absent (design D2). Verify with unit tests: a card without a translation serialises exactly as before; a card with one round-trips; a backup written before the field restores with none.

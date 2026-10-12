@@ -115,6 +115,16 @@ paragraph adds that the translation of a captured word's sentence is kept with t
 synchronised with it. The `lingua-privacy` requirement stays true as written (the deck, without
 addresses, is synced), so it needs no delta.
 
+### D7 — After the review translation, and against « A machine translation is never stored »
+
+The product owner ordered `add-lingua-review-translation` first (2026-10-07): a card that keeps a
+translation shows it, and the engine is asked at review only for a card without one. Keeping a
+translation on a card and synchronising it contradicts `lingua-translation`'s « A machine translation
+is never stored », which `add-lingua-online-translation` already modifies. The implementation adds a
+MODIFIED delta of that requirement, written from the online translation's version once that change is
+archived: the sentence translation a card keeps from its word card is stored and synchronised with the
+card, never used as its gloss. Hence `archiveAfter` both changes.
+
 ## Risks / Trade-offs
 
 - [More text derived from a page leaves the device] → only for a signed-in reader who
