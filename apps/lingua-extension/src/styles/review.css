@@ -119,6 +119,30 @@
   color: var(--cymbra-lingua-text);
 }
 
+/* A card the pack cannot answer, translated on the device (add-lingua-review-translation D5):
+   labelled as the word card labels it, the word's place marked as the front marks it — weight
+   and underline, never a colour of its own. */
+.review-translation-label {
+  color: var(--cymbra-lingua-muted);
+  font-style: italic;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-translation-sentence {
+  margin-top: 2px;
+  color: var(--cymbra-lingua-text);
+  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
+  line-height: 1.45;
+}
+
+.review-translation-sentence mark {
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .review-bar {
   display: flex;
   flex-direction: column;

@@ -18,6 +18,9 @@ export const review: typeof fr = {
   hide: "No volver a mostrarla",
   noGloss: "No hay traducción para esta palabra.",
   noGlossExpression: "No hay traducción para esta expresión.",
+  translationLabel: "En tu frase: traducción automática",
+  translationAloneLabel: "Traducción automática",
+  translating: "Traduciendo…",
   sessionDone: "Sesión terminada",
   reviewed: {
     one: (n) => `${n} palabra repasada`,

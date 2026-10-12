@@ -40,6 +40,17 @@ export interface TranslatorPort {
   warm?(language: string): void;
 }
 
+/**
+ * How long a card keeps its offer to upgrade open. The card no longer waits for the engine
+ * before answering — the pack's answer is shown as soon as it arrives and the translation
+ * replaces it when it lands — so this is not a wait the reader sits through; it is when the
+ * card stops expecting one. The review's card keeps it too
+ * (add-lingua-review-translation D2). Set above the engine's own start bound (START_TIMEOUT_MS), which
+ * is what a cold engine is really bounded by: measured at 4.8 s on a Galaxy Tab S6 Lite, far
+ * past anything the reader should have been made to wait for.
+ */
+export const TRANSLATION_WAIT_MS = 15_000;
+
 export const UNAVAILABLE: TranslationResult = { kind: "unavailable" };
 
 /**

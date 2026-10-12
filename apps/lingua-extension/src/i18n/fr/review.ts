@@ -20,6 +20,10 @@ export const review = {
   hide: "Ne plus me le montrer",
   noGloss: "Pas de traduction pour ce mot.",
   noGlossExpression: "Pas de traduction pour cette expression.",
+  /** A card the pack cannot answer, translated on the device (add-lingua-review-translation D5). */
+  translationLabel: "Dans votre phrase — traduction automatique",
+  translationAloneLabel: "Traduction automatique",
+  translating: "Traduction en cours…",
   /** The end of a session: its title, then one line per count, its figure in bold. */
   sessionDone: "Séance terminée",
   reviewed: pluralForms({

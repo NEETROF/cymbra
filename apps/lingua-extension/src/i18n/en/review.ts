@@ -16,6 +16,9 @@ export const review: typeof fr = {
   hide: "Don't show it again",
   noGloss: "No translation for this word.",
   noGlossExpression: "No translation for this expression.",
+  translationLabel: "In your sentence — machine translation",
+  translationAloneLabel: "Machine translation",
+  translating: "Translating…",
   sessionDone: "Session complete",
   reviewed: {
     one: (n) => `${n} word reviewed`,

@@ -22,7 +22,9 @@ import {
   storedVoicePreference,
 } from "../state/storage.ts";
 import { watchBackup } from "../state/store.ts";
+import type { TranslatorSource } from "../translate/create-port.ts";
 import { ReviewController } from "./session.ts";
+import { type ReviewTranslation, reviewTranslationRequest, translateBounded } from "./translation.ts";
 import { type ReviewActions, renderReview, reviewCopy } from "./view.ts";
 
 // The Révision page — the language filter, the due count and the FSRS review card — built as
@@ -45,6 +47,11 @@ export interface ReviewPageOptions {
   /** The interface language its host read, whose catalogue module the page speaks
    *  (localise-lingua-review-stats D1); French when not given. */
   interfaceLanguage?: InterfaceLanguage;
+  /**
+   * The translator its host has, asked per language: a card the pack cannot answer is translated
+   * where a model is ready (add-lingua-review-translation D4). Without one, the review is today's.
+   */
+  translator?: TranslatorSource;
   /**
    * Beside a book, how many words looked up in it are still to sort (add-lingua-chapter-recap D6);
    * none, or 0, away from one: no count is shown.
@@ -127,10 +134,46 @@ export function mountReview(
     storedVoicePreference(opts.prefs),
     alive.signal,
   );
+  /**
+   * The current card's translation, tied to its arrival: a card that comes up — a missed one that
+   * comes back included — is a new arrival, and an answer for an earlier one is dropped (D2).
+   */
+  let arrival = 0;
+  let translation: ReviewTranslation | undefined;
   const render = (view: ReturnType<ReviewController["view"]>): void => {
     spoken = view.card?.language ?? language ?? spoken;
-    renderReview(review, view, actions, { showLanguage: languages.length > 1, interfaceLanguage, speaker });
+    renderReview(review, view, actions, {
+      showLanguage: languages.length > 1,
+      interfaceLanguage,
+      speaker,
+      translation: view.card ? translation : undefined,
+    });
   };
+
+  /**
+   * A card came up, or none did: a card without a gloss has its translation asked at once, before
+   * the reveal, so it is there when the reader looks (D2). Its answer repaints only a revealed
+   * card: before the reveal, nothing of it shows.
+   */
+  function arrive(card: ReturnType<ReviewController["view"]>["card"]): void {
+    const mine = ++arrival;
+    translation = undefined;
+    const asked = card ? reviewTranslationRequest(card) : null;
+    const translator = asked ? opts.translator?.(asked.request.language) : null;
+    if (!asked || !translator) return;
+    translation = { state: "pending" };
+    void translateBounded(translator, asked.request).then((answer) => {
+      if (mine !== arrival) return; // its card was answered: shown nowhere
+      translation = answer ? { state: "translated", translation: answer, alone: asked.alone } : { state: "none" };
+      const view = session.view();
+      if (view.card?.revealed) render(view);
+    });
+  }
+
+  /** A session starts: the route of its language warmed, so its first card does not wait on a cold engine. */
+  function warm(): void {
+    if (language) opts.translator?.(language)?.warm?.(language);
+  }
   /** A count of the summary — « 12 carte(s) » — its figure in bold where its message puts it. */
   const counted = (n: number, forms: PluralForms): Node[] => {
     const holder = el("span");
@@ -214,8 +257,13 @@ export function mountReview(
     toSort.textContent = n > 0 ? plural(interfaceLanguage, n, copy.toSort) : "";
   }
 
-  async function run(produce: () => Promise<ReturnType<ReviewController["view"]>>, changed: boolean): Promise<void> {
+  async function run(
+    produce: () => Promise<ReturnType<ReviewController["view"]>>,
+    changed: boolean,
+    arrives = true,
+  ): Promise<void> {
     const view = await produce();
+    if (arrives) arrive(view.card);
     if (changed) {
       await persist();
       await refreshSummary();
@@ -225,8 +273,11 @@ export function mountReview(
 
   const actions: ReviewActions = {
     // A session starts with the focus in the card, so the keys answer it at once.
-    start: () => void run(() => session.start(only()), false).then(() => review.focus({ preventScroll: true })),
-    reveal: () => void run(() => session.reveal(), false),
+    start: () => {
+      warm();
+      void run(() => session.start(only()), false).then(() => review.focus({ preventScroll: true }));
+    },
+    reveal: () => void run(() => session.reveal(), false, false),
     grade: (rating) => void run(() => session.grade(rating), true),
     markKnown: () => void run(() => session.markKnown(), true),
     ignore: () => void run(() => session.ignore(), true),
@@ -235,6 +286,7 @@ export function mountReview(
   /** A fresh controller over the engine as it now is: the idle card and the counts. */
   async function restart(): Promise<void> {
     session = controller();
+    arrive(null);
     // The profile came with the state: a language may have joined or left the filter.
     await readLanguages();
     await refreshSummary();

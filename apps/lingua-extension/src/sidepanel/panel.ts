@@ -5,6 +5,7 @@ import { sidepanel as frSidepanel } from "../i18n/fr/sidepanel.ts";
 import { fillPageInLanguage, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
 import type { AsyncStorageArea } from "../state/storage.ts";
+import type { TranslatorSource } from "../translate/create-port.ts";
 import { mountStats } from "../stats/view.ts";
 
 // The side panel's start, as far as Révision and Statistiques go (localise-lingua-review-stats D1):
@@ -31,6 +32,8 @@ export interface PanelDeps {
   now: () => number;
   /** The language of the page or book beside the panel, or null away from one. */
   pageLanguage?: () => Promise<string | null>;
+  /** The translator Révision answers a card without a gloss with (add-lingua-review-translation D4). */
+  translator?: TranslatorSource;
   /** The words of the book beside still to sort, and opening their list (add-lingua-chapter-recap D6). */
   toSort?: () => Promise<number>;
   openToSort?: () => void;
@@ -69,6 +72,7 @@ export function start(document: Document, deps: PanelDeps): PanelViews {
           prefs: deps.prefs,
           pageLanguage: deps.pageLanguage,
           interfaceLanguage: language,
+          translator: deps.translator,
           toSort: deps.toSort,
           openToSort: deps.openToSort,
         }),
