@@ -434,7 +434,7 @@ export function mountSettings(
   const translationBlock = settingBlock(copy.translation);
   const extendedPart = el("div");
   extendedPart.hidden = true;
-  const onlinePart = el("div");
+  const onlinePart = el("div", "set-online");
   onlinePart.hidden = true;
   translationBlock.append(extendedPart, onlinePart);
   const syncTranslationBlock = (): void => {
