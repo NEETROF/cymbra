@@ -35,13 +35,16 @@ describe("the review session across a restart of the background's engine", () =>
     }
   });
 
-  it("forgets it when the state is replaced, and leaves it alone otherwise", async () => {
+  it("writes what a restore left of it, and leaves it alone otherwise", async () => {
     const kept = area();
-    const c = reviewContinuity(engine(), kept);
-    await c.after("startReview");
-    await c.after("analyse");
+    await reviewContinuity(engine(), kept).after("startReview");
+    await reviewContinuity(engine(), kept).after("analyse");
     expect(kept.raw[REVIEW_SESSION_KEY]).toBe("S1");
-    await c.after("restore");
+    // The engine kept it through the restore of the state just saved…
+    await reviewContinuity(engine("S1"), kept).after("restore");
+    expect(kept.raw[REVIEW_SESSION_KEY]).toBe("S1");
+    // …and ended it with another deck.
+    await reviewContinuity(engine(null), kept).after("restore");
     expect(kept.raw[REVIEW_SESSION_KEY]).toBeNull();
   });
 

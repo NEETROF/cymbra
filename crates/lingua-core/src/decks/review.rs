@@ -378,6 +378,15 @@ impl ReviewSession {
         serde_json::to_string(&snapshot).expect("a session is always serialisable")
     }
 
+    /// Whether every card of the session is still in `deck`: a state restored under a session —
+    /// most often the very state the session just saved, echoed back by another surface of the
+    /// same engine — keeps it then, and a deck that lost one of its cards ends it (D12).
+    pub fn fits(&self, deck: &Deck) -> bool {
+        self.queue
+            .iter()
+            .all(|(language, lemma)| deck.get(*language, lemma).is_some())
+    }
+
     /// The session [`Self::to_snapshot`] wrote, or `None` for text that is not one.
     pub fn from_snapshot(json: &str) -> Option<Self> {
         let s: SessionSnapshot = serde_json::from_str(json).ok()?;

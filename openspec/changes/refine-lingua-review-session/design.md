@@ -184,8 +184,8 @@ again. Closing stays each host's own control.
 confidentialité » in the « Données » tab; `mountReview` drops them. Being in the one settings
 builder, they reach the popup, the side panel, the drawer and the Safari app together, and
 `test/lint-settings-hosts.spec.ts` keeps any other page from holding a copy. A restore made
-in the page that is showing a review ends that session, since the engine drops its session
-on restore.
+in the page that is showing a review ends that session when the restored deck no longer holds
+its cards (D12).
 
 The toolbar popup is the exception for the restore: Firefox closes a popup the moment a file
 picker opens, so the change event never arrives. `mountSettings` takes `canPickFiles`; the popup
@@ -232,7 +232,10 @@ asked for, in a library or beside someone asleep.
 
 Found on the iPhone (task 6.3): Safari's drawer reviews on the background page's engine, and iOS stops
 that page between two answers. The engine woke, restored the backup — which holds no session — and
-the next card said there was nothing to review. The core writes a session out
+the next card said there was nothing to review. Worse, the reading session of the same page shares
+that engine and restores into it the state each answer saved, which it does not recognise as its own,
+and a restore ended the session. A restore now keeps the session while the restored deck still holds
+all its cards (`ReviewSession::fits`) and ends it otherwise. The core also writes a session out
 (`ReviewSession::to_snapshot`, `from_snapshot`) and the engine exposes it (`reviewSnapshot`,
 `reviewResume`); the background keeps it in `storage.session` after every call that moves it, before
 answering, forgets it when the state is replaced, and resumes it when the engine wakes

@@ -549,3 +549,25 @@ fn a_session_resumes_in_an_engine_restored_from_the_backup() {
     assert_eq!(second.review_summary(), first.review_summary());
     assert!(!second.review_resume("not a session"));
 }
+
+#[test]
+fn a_restore_of_the_state_just_saved_keeps_the_session_and_another_deck_ends_it() {
+    let mut e = engine();
+    for (i, w) in ["seldom", "dwell", "grin"].iter().enumerate() {
+        e.add_card(w, w, "s", "", None, i as f64, None).unwrap();
+    }
+    e.start_review(10.0, None, None, None, None);
+    e.review_grade("good", 10.0);
+    let current = e.review_current();
+    assert!(current.is_some());
+
+    // The reading session echoes back the state the answer saved: the session goes on.
+    let saved = e.backup();
+    e.restore(&saved).unwrap();
+    assert_eq!(e.review_current(), current);
+
+    // A deck without those cards ends it.
+    let other = engine().backup();
+    e.restore(&other).unwrap();
+    assert!(e.review_current().is_none());
+}

@@ -10,10 +10,20 @@ import type { AsyncStorageArea } from "./storage.ts";
 /** Where the session under way is kept: storage.session, gone with the browser's session. */
 export const REVIEW_SESSION_KEY = "cymbra-lingua-review-session";
 
-/** The calls that move a session: after each, the session is written again. */
-const MOVES = new Set(["startReview", "reviewReveal", "reviewGrade", "reviewMarkKnown", "reviewIgnore"]);
-/** The calls that replace the engine's state, and with it any session. */
-const ENDS = new Set(["restore", "reset", "resetStatuses"]);
+/**
+ * The calls after which the session is written again: those that move it, and those that replace
+ * the engine's state, which keeps the session while it still holds its cards and ends it otherwise.
+ */
+const TOUCHES = new Set([
+  "startReview",
+  "reviewReveal",
+  "reviewGrade",
+  "reviewMarkKnown",
+  "reviewIgnore",
+  "restore",
+  "reset",
+  "resetStatuses",
+]);
 
 /** What of the engine this needs. */
 export interface SessionHolder {
@@ -33,8 +43,7 @@ export function reviewContinuity(engine: SessionHolder, area: AsyncStorageArea |
   return {
     async after(method) {
       if (!area) return;
-      if (MOVES.has(method)) await area.set({ [REVIEW_SESSION_KEY]: await engine.reviewSnapshot() });
-      else if (ENDS.has(method)) await area.set({ [REVIEW_SESSION_KEY]: null });
+      if (TOUCHES.has(method)) await area.set({ [REVIEW_SESSION_KEY]: await engine.reviewSnapshot() });
     },
     async resume() {
       if (!area) return;

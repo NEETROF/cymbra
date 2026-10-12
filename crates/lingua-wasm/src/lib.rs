@@ -1228,7 +1228,11 @@ impl LinguaEngine {
     /// version. Clears any in-flight review session.
     pub fn restore(&mut self, json: &str) -> Result<(), JsError> {
         self.state = LinguaState::from_backup(json).map_err(|e| JsError::new(&e.to_string()))?;
-        self.session = None;
+        // A session survives a state that still holds its cards — on Safari the reading session
+        // restores, into the engine it shares with the review, the state each answer just saved —
+        // and ends with one that does not (refine-lingua-review-session D12).
+        let deck = &self.state.deck;
+        self.session = self.session.take().filter(|session| session.fits(deck));
         // A backup written by a build that counted every word can be megabytes: bound it
         // here, so the first load after an update shrinks the store instead of failing to
         // write it.
