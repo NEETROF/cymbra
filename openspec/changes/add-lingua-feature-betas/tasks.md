@@ -11,7 +11,7 @@
 
 - [x] 2.1 Add the app parameter to `PlanContextSource::plan_context` (`feature-flags/src/context.rs`), pass it from `GetEffectiveFlags`, and map it to a product in `server/src/flags.rs` (`music`/`lingua`/`live` → product, anything else → no betas). Update `NoPlanContext` and the mocks. Verify: mockall tests in `feature-flags/src/grpc.rs` — a Lingua token gets Lingua betas, a Music token Music betas, a `web` token none.
 - [x] 2.2 Replace `campaign_exists(key)` by `campaign_app(key)` and refuse a `beta:<key>` write whose campaign belongs to another app (unless the flag is declared for every app), with its own cause. Verify: tests for accepted, wrong product, missing campaign and directory unreachable.
-- [ ] 2.3 Prove Music is unchanged: the existing drums and plan tests pass untouched. Verify: `cargo test --workspace` and `cargo llvm-cov --workspace --fail-under-lines 80`.
+- [x] 2.3 Prove Music is unchanged: the existing drums and plan tests pass untouched. Verify: `cargo test --workspace` and `cargo llvm-cov --workspace --fail-under-lines 80`.
 
 ## 3. Back office
 
