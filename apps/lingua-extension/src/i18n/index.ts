@@ -46,7 +46,8 @@ export type Surface =
   | "reader"
   | "sync"
   | "languages"
-  | "grammar";
+  | "grammar"
+  | "app";
 
 export const SURFACES: readonly Surface[] = [
   "popup",
@@ -71,6 +72,7 @@ export const SURFACES: readonly Surface[] = [
   "sync",
   "languages",
   "grammar",
+  "app",
 ];
 
 /**

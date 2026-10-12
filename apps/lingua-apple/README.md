@@ -58,6 +58,19 @@ extension (see `openspec/changes/add-lingua-apple`).
   shown or passed on, and an older link naming none is shown the same way without it.
   Apple's button keeps the label the system gives it (D3).
 
+- **The review** (`openspec/changes/add-lingua-apple-review`) — once the extension has shared its
+  state, the app opens on the deck it keeps: each studied language's due count and the
+  extension's own Révision and Statistiques, the `app` build of `apps/lingua-extension`
+  (`dist-app/`), copied into the app bundle (`LinguaApp/`) by a _Copy Lingua app page_ phase on
+  both app targets. `ViewController` serves it under `lingua-app://app/` (`AppPageResource`: the
+  page from the app, the packs from the embedded extension, so they are in the app once) and
+  answers its `lingua` script handler (`AppBridgeMessage`). The relay lives in the App Group as
+  two files (`ReviewRelayStore`): the extension's state, written by `SafariWebExtensionHandler`
+  (`review.saveState`), and the app's changes, written after every answer and taken back by the
+  extension (`review.readOps`, `review.clearOps`). Until a state is shared — or when the page cannot
+  read it — the app shows the activation page, as before. On a Mac the window becomes resizable
+  and grows to a review column.
+
 The project was scaffolded by `xcrun safari-web-extension-converter` and then changed by
 hand to replace its copied resources with the build phase above.
 
@@ -70,6 +83,7 @@ hand to replace its copied resources with the build phase above.
 #    otherwise it calls http://localhost:50051 and every sign-in fails.
 cd apps/lingua-extension && yarn fetch:engine
 LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
+yarn build:app   # the review page the app shows (add-lingua-apple-review)
 
 # 2. The app — Xcode, or from the command line:
 cd ../lingua-apple

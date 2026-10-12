@@ -55,7 +55,13 @@ const ENTRIES: Record<string, string> = {
   "src/account/account.html": "src/account/account.ts",
   "src/reader/reader.html": "src/reader/reader.ts",
 };
-const NOT_A_SURFACE = ["src/translate/host/offscreen.html"];
+const NOT_A_SURFACE = [
+  "src/translate/host/offscreen.html",
+  // The Cymbra Lingua app's page (add-lingua-apple-review) is no extension page: it hears no
+  // announcement, and reads the shared state — its native language with it — at each launch and
+  // each return to the foreground.
+  "src/app/app.html",
+];
 
 describe("the entries follow a change of native language (add-lingua-native-language-choice)", () => {
   it("knows every extension page", () => {

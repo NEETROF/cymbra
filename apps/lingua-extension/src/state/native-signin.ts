@@ -29,7 +29,13 @@ export type NativeMessage =
   | { type: "auth.providers" }
   | { type: "auth.takeIdToken" }
   /** The interface language, kept in the App Group for the activation page (localise-lingua-apple-host D2). */
-  | { type: "interface.language"; language: InterfaceLanguage };
+  | { type: "interface.language"; language: InterfaceLanguage }
+  /** The extension's state, kept in the App Group for the app's review (add-lingua-apple-review D3). */
+  | { type: "review.saveState"; state: string }
+  /** The app's review changes waiting in the App Group, if any. */
+  | { type: "review.readOps" }
+  /** Drop the changes read, unless the app wrote newer ones since (`writtenAt` is the read's). */
+  | { type: "review.clearOps"; writtenAt: number };
 
 export interface HandedIdToken {
   provider: Provider;

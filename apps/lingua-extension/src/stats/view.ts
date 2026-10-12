@@ -38,6 +38,8 @@ const METRICS = [
 ] as const;
 
 async function sendRuntime(message: unknown): Promise<unknown> {
+  // The Cymbra Lingua app has no background to ask: its statistics are this device's (add-lingua-apple-review).
+  if (__APP__) return null;
   try {
     return await chrome.runtime.sendMessage(message);
   } catch {

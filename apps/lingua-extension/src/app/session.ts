@@ -1,0 +1,122 @@
+import type { LinguaPort } from "../analyzer/port.ts";
+import {
+  DEFAULT_INTERFACE_LANGUAGE,
+  INTERFACE_LANGUAGE_KEY,
+  type InterfaceLanguage,
+  isInterfaceLanguage,
+} from "../i18n/language.ts";
+import { applyAppOps, appOpsSince, encodeAppOps, parseAppOps, parseSharedState, toSecond } from "../state/app-relay.ts";
+import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "../state/storage.ts";
+import type { AppSend } from "./bridge.ts";
+
+// The Cymbra Lingua app's session over the extension's state (add-lingua-apple-review D3): the
+// engine restored from the state the extension shared, the app's changes not yet taken laid back on
+// it, and two storage areas the extension's own pages are mounted on — the store, whose every save of
+// the backup writes the review's changes to the App Group at once, and the preferences, the
+// extension's as it shared them under what the app chose itself.
+
+/** Where the app keeps what it chose itself (the review's language): this page's own origin. */
+export const APP_PREFS_KEY = "cymbra-lingua-app-prefs";
+
+export interface AppSessionDeps {
+  send: AppSend;
+  /** The engine for the shared backup: built once it is known, so it loads that reader's packs. */
+  port: (backup: string) => LinguaPort;
+  /** Epoch millis. */
+  now: () => number;
+  /** The page's own storage (localStorage), or null where it cannot be used. */
+  local?: Pick<Storage, "getItem" | "setItem"> | null;
+  /** The interface language the app was opened in, when the shared state names none. */
+  fallbackLanguage?: string;
+}
+
+export interface AppSession {
+  port: LinguaPort;
+  /** The reader's data: the backup and the daily counts, in memory. */
+  store: AsyncStorageArea;
+  /** The preferences the review reads. */
+  prefs: AsyncStorageArea;
+  /** When the extension saved the state shown (epoch millis; 0 when it did not say). */
+  savedAt: number;
+  interfaceLanguage: InterfaceLanguage;
+  /** Call `listener` after each save of the backup — each answer — once its changes are written. */
+  onSaved(listener: () => Promise<void> | void): void;
+}
+
+function pick(items: Record<string, unknown>, keys: string | string[] | null): Record<string, unknown> {
+  if (keys === null) return { ...items };
+  const out: Record<string, unknown> = {};
+  for (const key of typeof keys === "string" ? [keys] : keys) if (key in items) out[key] = items[key];
+  return out;
+}
+
+function readLocal(local: AppSessionDeps["local"]): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(local?.getItem(APP_PREFS_KEY) ?? "{}");
+    return parsed !== null && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Open the review on the state the extension shared, or resolve null when there is none the app can
+ * read — the app then says how to turn the extension on.
+ */
+export async function openAppSession(deps: AppSessionDeps): Promise<AppSession | null> {
+  const state = parseSharedState(((await deps.send({ type: "review.state" })) as { state?: unknown } | null)?.state);
+  if (!state) return null;
+  const port = deps.port(state.backup);
+  await port.restore(state.backup);
+  // Changes this app made that the extension has not taken yet: on top of an older state they are
+  // the reader's latest; on a state that already holds them, applying them again changes nothing.
+  const pending = parseAppOps(((await deps.send({ type: "review.pendingOps" })) as { ops?: unknown } | null)?.ops);
+  if (pending) await applyAppOps(port, pending);
+  const since = Math.min(pending?.since ?? Infinity, toSecond(deps.now()));
+
+  let items: Record<string, unknown> = {
+    ...state.storeItems,
+    [ROOT_KEY]: { v: STORAGE_VERSION, backup: await port.backup() },
+  };
+  const listeners: (() => Promise<void> | void)[] = [];
+  const store: AsyncStorageArea = {
+    get: async (keys) => pick(items, keys),
+    async set(next) {
+      items = { ...items, ...next };
+      // After every answer (D3): the app may be closed at any moment, and nothing else would carry it.
+      if (ROOT_KEY in next) {
+        await deps.send({ type: "review.writeOps", ops: encodeAppOps(await appOpsSince(port, since)) });
+        for (const listener of listeners) await listener();
+      }
+    },
+  };
+
+  const shared = state.prefs[INTERFACE_LANGUAGE_KEY];
+  const interfaceLanguage = isInterfaceLanguage(shared)
+    ? shared
+    : isInterfaceLanguage(deps.fallbackLanguage)
+      ? deps.fallbackLanguage
+      : DEFAULT_INTERFACE_LANGUAGE;
+  // The interface language is the extension's, never one the app chose: it follows the reader's
+  // native language, which only the extension changes.
+  let own = readLocal(deps.local);
+  const prefs: AsyncStorageArea = {
+    get: async (keys) => pick({ ...state.prefs, ...own, [INTERFACE_LANGUAGE_KEY]: interfaceLanguage }, keys),
+    async set(next) {
+      own = { ...own, ...next };
+      try {
+        deps.local?.setItem(APP_PREFS_KEY, JSON.stringify(own));
+      } catch {
+        /* kept for this launch only */
+      }
+    },
+  };
+  return {
+    port,
+    store,
+    prefs,
+    savedAt: state.savedAt,
+    interfaceLanguage,
+    onSaved: (listener) => void listeners.push(listener),
+  };
+}

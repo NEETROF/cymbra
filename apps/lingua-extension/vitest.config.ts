@@ -11,6 +11,7 @@ export default defineConfig({
     __STATIC_READER__: "false",
     __NATIVE_PROVIDERS__: "false",
     __SECTIONS_FROM_WORKER__: "false",
+    __APP__: "false",
     // The shipped pairs, read from packs.json as the build reads them.
     __LINGUA_PACKS__: JSON.stringify(shippedPairs().join(",")),
     // The native language's choice is built, so its views are tested; each one still shows only
@@ -52,6 +53,8 @@ export default defineConfig({
         "src/account/account.ts",
         "src/sidepanel/sidepanel.ts",
         "src/stats/stats.ts",
+        // The Cymbra Lingua app's page (add-lingua-apple-review): its session and home are measured.
+        "src/app/app.ts",
         "src/onboarding/onboarding.ts",
         "src/reading/drawer.ts",
         "src/analyzer/engine.ts",
