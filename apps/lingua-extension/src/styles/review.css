@@ -261,6 +261,18 @@
   color: var(--cymbra-lingua-warn);
 }
 
+/* Beside a book, its words looked up and still to sort, opening their list (add-lingua-chapter-recap D6). */
+.review-to-sort {
+  margin: -6px 0 14px;
+  padding: 4px 10px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: 999px;
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+  font: inherit;
+  cursor: pointer;
+}
+
 /* The review is a container: its layout follows the room it is given, not the device —
    a 380 px panel, a drawer on a tablet and a phone's width differ (D7). */
 .review {

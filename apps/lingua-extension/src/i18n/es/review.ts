@@ -67,4 +67,8 @@ export const review: typeof fr = {
     other: (n) => `${n} por repasar`,
   },
   summarySeparator: " · ",
+  toSort: {
+    one: (n) => `${n} palabra de este libro por clasificar`,
+    other: (n) => `${n} palabras de este libro por clasificar`,
+  },
 };

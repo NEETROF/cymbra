@@ -3,7 +3,13 @@ import type { PageAnalysis } from "@/analyzer/types.ts";
 import { HL_UNKNOWN } from "@/reading/highlight.ts";
 import type { Gesture } from "@/reading/wordpopup.ts";
 import { followNativeLanguage } from "@/reading/native-rebuild.ts";
-import { type ReadingHost, ReadingSession, type SessionOptions } from "@/reading/session.ts";
+import {
+  type CardLookup,
+  cardLookup,
+  type ReadingHost,
+  ReadingSession,
+  type SessionOptions,
+} from "@/reading/session.ts";
 import { COLOURS_KEY, HUD_POSITION_KEY, type HudPosition } from "@/state/storage.ts";
 import type { StoreChangeReason } from "@/state/store.ts";
 import { makeFakePort } from "./helpers.ts";
@@ -797,6 +803,43 @@ describe("the review beside the document (refine-lingua-review-language)", () =>
     expect(counted.deck.at(-1)).toEqual(["es"]);
   });
 
+  it("counts the book's words to sort with its figures, and opens their list when asked (add-lingua-chapter-recap D6)", async () => {
+    const { s } = await spanishBook();
+    const openToSort = vi.fn();
+    await s.attach({ ...section("<p>It was a dark night.</p>").host, toSort: async () => 4, openToSort });
+    let answer: unknown = "none";
+    runtimeListeners[0]({ type: "getStats" }, {}, (r) => (answer = r));
+    await vi.waitFor(() => expect(answer).not.toBe("none"));
+    expect(answer).toMatchObject({ toSort: 4 });
+    runtimeListeners[0]({ type: "openToSort" }, {}, () => {});
+    expect(openToSort).toHaveBeenCalledTimes(1);
+
+    // A host that cannot say counts nothing.
+    await s.attach({
+      ...section("<p>It was a dark night.</p>").host,
+      toSort: async () => Promise.reject(new Error("x")),
+    });
+    answer = "none";
+    runtimeListeners[0]({ type: "getStats" }, {}, (r) => (answer = r));
+    await vi.waitFor(() => expect(answer).not.toBe("none"));
+    expect(answer).toMatchObject({ toSort: 0 });
+  });
+
+  it("opens the book's list from the drawer's Révision, the drawer stepping aside (add-lingua-chapter-recap D6)", async () => {
+    const { s } = await spanishBook();
+    const openToSort = vi.fn();
+    await s.attach({ ...section("<p>It was a dark night.</p>").host, toSort: async () => 2, openToSort });
+    runtimeListeners[0]({ type: "openDrawer", view: "review" }, {}, () => {});
+    // The drawer's shadow is closed: reach its review through the drawer itself.
+    const drawer = (s as unknown as { drawer: { reviewBody: HTMLElement; open: boolean } }).drawer;
+    await vi.waitFor(() =>
+      expect(drawer.reviewBody.querySelector(".review-to-sort")?.textContent).toBe("2 mots de ce livre à trier"),
+    );
+    drawer.reviewBody.querySelector<HTMLButtonElement>(".review-to-sort")!.click();
+    expect(openToSort).toHaveBeenCalledTimes(1);
+    expect(drawer.open).toBe(false);
+  });
+
   it("says where Révision opens only beside a document", async () => {
     const { s } = await spanishBook();
     s.detach(); // back to the library
@@ -955,5 +998,142 @@ describe("a session taken down (add-lingua-native-language-choice D3)", () => {
     await s["persist"]();
 
     expect(writes()).toHaveLength(before);
+  });
+});
+
+// add-lingua-chapter-recap 1.2: the session tells the book reader which cards were opened, and sorts
+// a lookup from the recap as its word card would.
+describe("the cards looked up (add-lingua-chapter-recap D1)", () => {
+  const rect = { left: 0, top: 0, bottom: 0 };
+  const card = { headword: "dark", surface: "dark", gloss: "sombre", rarity: "", sentence: "It was dark.", rect };
+
+  it("names a word card by its dictionary form, met as written, in the document's language", () => {
+    expect(cardLookup({ ...card, headword: "be", surface: "was", written: "was" }, "en")).toEqual({
+      lemma: "be",
+      surface: "was",
+      sentence: "It was dark.",
+      language: "en",
+      expression: false,
+      gloss: "sombre",
+    });
+    expect(cardLookup({ ...card, headword: "CA", surface: "CA" }, "fr")?.lemma).toBe("CA");
+  });
+
+  it("keys an expression, and a headword taken as written, in lowercase; a card read elsewhere in its language", () => {
+    expect(cardLookup({ ...card, headword: "Au Revoir", expression: true }, "fr")).toMatchObject({
+      lemma: "au revoir",
+      expression: true,
+    });
+    expect(cardLookup({ ...card, headword: "Jenkins", asWritten: true }, "en")?.lemma).toBe("jenkins");
+    expect(cardLookup({ ...card, language: "es", readIn: "fr" }, "es")?.language).toBe("fr");
+    expect(cardLookup({ ...card, language: "es" }, "en")?.language).toBe("es");
+  });
+
+  it("names nothing for a card still waiting, offering nothing, or headed by nothing", () => {
+    expect(cardLookup({ ...card, pending: true }, "en")).toBeNull();
+    expect(cardLookup({ ...card, noActions: true }, "en")).toBeNull();
+    expect(cardLookup({ ...card, headword: " " }, "en")).toBeNull();
+  });
+
+  it("tells the book reader a word card was opened in its section", async () => {
+    const looked: CardLookup[] = [];
+    const { s } = session({ onLookup: (l) => void looked.push(l) });
+    await s.start(null);
+    const { host } = section("<p>It was a dark night.</p>");
+    await s.attach(host);
+    const box = { left: 0, top: 0, bottom: 0, right: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) };
+    (host.win as unknown as { Range: typeof Range }).Range.prototype.getBoundingClientRect = () => box;
+    const node = host.doc.querySelector("p")!.firstChild!;
+    const range = host.doc.createRange();
+    range.setStart(node, 9);
+    range.setEnd(node, 13);
+    const sel = host.win.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    host.doc.body.dispatchEvent(new host.win.Event("mouseup", { bubbles: true }));
+    await vi.waitFor(() => expect(looked.length).toBeGreaterThan(0));
+    expect(looked[0]).toMatchObject({
+      lemma: "dark",
+      surface: "dark",
+      sentence: "It was a dark night.",
+      language: "en",
+    });
+    s.detach();
+  });
+
+  it("keeps the lookups still to sort: not in the deck, not known, not ignored, in their own language", async () => {
+    const { s, port } = session();
+    const op = (language: string, lemma: string, status: string) => ({
+      language,
+      lemma,
+      status,
+      provenance: "manual",
+      updated_at: 1,
+    });
+    port.exportStatusOps = async () => [
+      op("en", "moor", "learning"),
+      op("en", "hound", "known"),
+      op("en", "fog", "ignored"),
+      op("en", "dark", "cleared"),
+      op("fr", "night", "known"),
+    ];
+    const lookup = (lemma: string, language = "en") => ({ lemma, language });
+    const toSort = await s.stillToSort([
+      lookup("moor"),
+      lookup("hound"),
+      lookup("fog"),
+      lookup("dark"),
+      lookup("night"),
+      lookup("night", "fr"),
+    ]);
+    expect(toSort).toEqual([lookup("dark"), lookup("night")]);
+    expect(await s.stillToSort([])).toEqual([]);
+  });
+
+  it("glosses a word from the pack, and an expression with the gloss its card showed", async () => {
+    const { s, port } = session();
+    port.gloss = async (lemma) => (lemma === "moor" ? "lande" : undefined);
+    const lookup: CardLookup = {
+      lemma: "moor",
+      surface: "moors",
+      sentence: "On the moors.",
+      language: "en",
+      expression: false,
+      gloss: "old",
+    };
+    expect(await s.lookupGloss(lookup)).toBe("lande");
+    expect(await s.lookupGloss({ ...lookup, lemma: "fen" })).toBe("old");
+    expect(await s.lookupGloss({ ...lookup, lemma: "au revoir", expression: true, gloss: "goodbye" })).toBe("goodbye");
+    port.gloss = async () => {
+      throw new Error("no pack");
+    };
+    expect(await s.lookupGloss(lookup)).toBe("old");
+  });
+
+  it("adds a lookup to the deck with its sentence and the chapter it was met in, or marks it known", async () => {
+    const { s, port, calls } = session();
+    port.gloss = async (lemma) => (lemma === "moor" ? "lande" : undefined);
+    await s.start(null);
+    await s.attach(section("<p>It was a dark night.</p>").host);
+    const lookup: CardLookup = {
+      lemma: "moor",
+      surface: "moors",
+      sentence: "Out on the moors.",
+      language: "en",
+      expression: false,
+      gloss: "lande",
+    };
+    await s.decide(lookup, "learning", "The Hound · III");
+    expect(calls.addCard[0]).toMatchObject({
+      lemma: "moor",
+      surface: "moors",
+      sentence: "Out on the moors.",
+      url: "The Hound · III",
+      gloss: "lande",
+    });
+    await s.decide({ ...lookup, lemma: "au revoir", expression: true, gloss: "goodbye" }, "learning", "x");
+    expect(calls.addCard[1]).toMatchObject({ lemma: "au revoir", gloss: "goodbye" });
+    await s.decide(lookup, "known", "The Hound · III");
+    expect(calls.setStatus).toContainEqual(["moor", "known"]);
   });
 });

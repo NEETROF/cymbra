@@ -4,12 +4,15 @@ import {
   BOOK_EXPOSURE_SOURCE,
   bookInAddress,
   bookSource,
+  chapterLeft,
   declareBookLanguage,
   frameOffset,
   importLine,
   ReaderApp,
   type ReaderDeps,
   type ReaderSession,
+  RECAP_MIN,
+  type RecapPort,
   type ShelfSection,
   shelfSections,
 } from "@/reader/app.ts";
@@ -17,7 +20,7 @@ import { COPY, readerCopy } from "@/reader/copy.ts";
 import { type BookRecord, Library } from "@/reader/library.ts";
 import type { TocEntry } from "@/reader/renderer.ts";
 import type { StudiedLanguage } from "@/analyzer/types.ts";
-import type { ReadingHost } from "@/reading/session.ts";
+import type { CardLookup, ReadingHost } from "@/reading/session.ts";
 import { type AsyncStorageArea, READER_DISPLAY_KEY, type ReaderDisplay, type ReaderFlow } from "@/state/storage.ts";
 import { epub3Entries, OPF3, pickedFile, useNodeBlob } from "./epub-fixtures.ts";
 import { FakeRenderer } from "./fake-renderer.ts";
@@ -711,5 +714,248 @@ describe("declareBookLanguage", () => {
       declareBookLanguage(doc, language);
       expect(doc.documentElement.hasAttribute("lang")).toBe(false);
     }
+  });
+});
+
+// add-lingua-chapter-recap: the words looked up in a book, remembered with their chapter, offered to
+// sort when a chapter ends, and counted in the bar.
+describe("the words looked up in a book", () => {
+  /** The engine's side of the recap: a word sorted is in the deck or known, and no longer to sort. */
+  function fakeRecap() {
+    const decided = new Map<string, "learning" | "known">();
+    const decisions: { lemma: string; status: string; source: string; sentence: string }[] = [];
+    const port: RecapPort = {
+      stillToSort: async (lookups) => lookups.filter((l) => !decided.has(l.lemma)),
+      lookupGloss: async (lookup) => `gloss of ${lookup.lemma}`,
+      decide: async (lookup, status, source) => {
+        decided.set(lookup.lemma, status);
+        decisions.push({ lemma: lookup.lemma, status, source, sentence: lookup.sentence });
+      },
+    };
+    return { port, decided, decisions };
+  }
+
+  const word = (lemma: string): CardLookup => ({
+    lemma,
+    surface: lemma,
+    sentence: `The ${lemma} was there.`,
+    language: "en",
+    expression: false,
+    gloss: null,
+  });
+
+  async function reading(recap = fakeRecap()) {
+    const a = app({ recap: recap.port });
+    const session = fakeSession();
+    await a.start(session);
+    await pick(await pickedFile(epub3Entries(), "hound.epub"));
+    const [book] = await library.list();
+    await openFirst();
+    const renderer = renderers.at(-1)!;
+    let cfi = 0;
+    /** Move to `section`, `fraction` of the way through the book. */
+    const move = async (section: string | null, fraction: number) => {
+      renderer.relocate({ cfi: `epubcfi(/6/${++cfi})`, fraction, section });
+      await settle();
+      await settle();
+    };
+    /** Open the cards of `lemmas` where the page is. */
+    const lookUp = async (...lemmas: string[]) => {
+      for (const lemma of lemmas) a.lookup(word(lemma));
+      await vi.waitFor(async () =>
+        expect((await library.lookupsOf(book.hash)).filter((l) => lemmas.includes(l.lemma)).length).toBe(lemmas.length),
+      );
+    };
+    return { a, book, recap, move, lookUp, session };
+  }
+
+  const recapShown = () => !$(".reading-recap").hidden;
+  const rows = () => $$(".recap-row .recap-form").map((b) => b.textContent);
+
+  it("remembers a card opened with the chapter the page sits in, once per word and chapter", async () => {
+    const { book, move, lookUp } = await reading();
+    await move("III", 0.3);
+    await lookUp("countenance");
+    await lookUp("countenance");
+    expect((await library.lookupsOf(book.hash)).map((l) => [l.chapter, l.lemma, l.sentence])).toEqual([
+      ["III", "countenance", "The countenance was there."],
+    ]);
+  });
+
+  it("records nothing with no book open", async () => {
+    const a = app({ recap: fakeRecap().port });
+    await a.start(fakeSession());
+    a.lookup(word("moor"));
+    await settle();
+    expect(await library.list()).toEqual([]);
+  });
+
+  it("End of a chapter: the recap lists the words still to sort, each with its gloss and sentence", async () => {
+    const recap = fakeRecap();
+    const { move, lookUp } = await reading(recap);
+    await move("III", 0.3);
+    await lookUp("moor", "hound", "fog", "countenance", "baronet");
+    recap.decided.set("hound", "learning"); // already in the deck
+    await move("IV", 0.4);
+    await vi.waitFor(() => expect(recapShown()).toBe(true));
+    expect(text(".recap-title")).toBe(COPY.recapChapter("III"));
+    expect(rows()).toEqual(["moor", "fog", "countenance", "baronet"]);
+    expect($$(".recap-gloss").map((g) => g.textContent)).toContain("gloss of moor");
+    const sentence = $(".recap-sentence");
+    expect(sentence.querySelector("mark")?.textContent).toBe("moor");
+    expect(sentence.textContent).toBe("The moor was there.");
+  });
+
+  it("Few words: no recap for a chapter with two words to sort", async () => {
+    const { move, lookUp } = await reading();
+    await move("III", 0.3);
+    await lookUp("moor", "hound");
+    await move("IV", 0.4);
+    expect(recapShown()).toBe(false);
+    expect(RECAP_MIN).toBe(3);
+  });
+
+  it("Opening a book, or moving back: no recap", async () => {
+    const { move, lookUp } = await reading();
+    await move("III", 0.3);
+    await lookUp("moor", "hound", "fog");
+    // Back to an earlier chapter, through the contents.
+    await move("II", 0.2);
+    expect(recapShown()).toBe(false);
+    // A move within a chapter.
+    await move("II", 0.25);
+    expect(recapShown()).toBe(false);
+  });
+
+  it("is not offered at the opening of a book with words still to sort", async () => {
+    const { a, book, move, lookUp } = await reading();
+    await move("III", 0.3);
+    await lookUp("moor", "hound", "fog");
+    await (a as unknown as { openBook(hash: string): Promise<void> }).openBook(book.hash);
+    await settle();
+    await move("IV", 0.4);
+    expect(recapShown()).toBe(false);
+  });
+
+  it("Dismissed: not again until three more words were looked up in the book", async () => {
+    const { move, lookUp } = await reading();
+    await move("III", 0.3);
+    await lookUp("moor", "hound", "fog");
+    await move("IV", 0.4);
+    await vi.waitFor(() => expect(recapShown()).toBe(true));
+    $<HTMLButtonElement>(".recap-close").click();
+    expect(recapShown()).toBe(false);
+    // Two more in IV: not enough since « Plus tard ».
+    await lookUp("baronet", "mire");
+    await move("V", 0.5);
+    expect(recapShown()).toBe(false);
+    // Three more in V: its end offers them.
+    await lookUp("cab", "gig", "lamp");
+    await move("VI", 0.6);
+    await vi.waitFor(() => expect(recapShown()).toBe(true));
+    expect(rows()).toEqual(["cab", "gig", "lamp"]);
+  });
+
+  it("Adding from the recap: the card holds the sentence and the chapter, and the word leaves the list", async () => {
+    const recap = fakeRecap();
+    const { book, move, lookUp } = await reading(recap);
+    await move("III", 0.3);
+    await lookUp("countenance", "moor", "fog");
+    await move("IV", 0.4);
+    await vi.waitFor(() => expect(recapShown()).toBe(true));
+    $<HTMLButtonElement>(".recap-row .recap-add").click();
+    await vi.waitFor(() => expect(rows()).toEqual(["moor", "fog"]));
+    expect(recap.decisions).toEqual([
+      {
+        lemma: "countenance",
+        status: "learning",
+        source: bookSource(book.title, "III"),
+        sentence: "The countenance was there.",
+      },
+    ]);
+    $<HTMLButtonElement>(".recap-row .recap-known").click();
+    await vi.waitFor(() => expect(rows()).toEqual(["fog"]));
+    expect(recap.decisions[1]).toMatchObject({ lemma: "moor", status: "known" });
+    // « Laisser »: nothing decided, the row leaves; the last one closes the sheet.
+    $<HTMLButtonElement>(".recap-row .recap-leave").click();
+    expect(recap.decisions).toHaveLength(2);
+    expect(recapShown()).toBe(false);
+  });
+
+  it("closes on Escape, as « Plus tard »", async () => {
+    const { book, move, lookUp } = await reading();
+    await move("III", 0.3);
+    await lookUp("moor", "hound", "fog");
+    await move("IV", 0.4);
+    await vi.waitFor(() => expect(recapShown()).toBe(true));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(recapShown()).toBe(false);
+    await vi.waitFor(async () => expect(await library.recapDismissedAt(book.hash)).toBe(3));
+  });
+
+  it("From the reader's bar: « N à trier » opens every word still to sort, by chapter", async () => {
+    const recap = fakeRecap();
+    const { book, move, lookUp } = await reading(recap);
+    expect($(".reading-to-sort").hidden).toBe(true);
+    await move("I", 0.1);
+    await lookUp("moor", "hound");
+    await move("I", 0.12);
+    await move("II", 0.2);
+    await lookUp("fog", "cab", "mire", "baronet");
+    await vi.waitFor(() => expect(text(".reading-to-sort")).toBe("6 à trier"));
+    expect($(".reading-to-sort").hidden).toBe(false);
+    $<HTMLButtonElement>(".reading-to-sort").click();
+    await vi.waitFor(() => expect(recapShown()).toBe(true));
+    expect(text(".recap-title")).toBe(COPY.recapAll);
+    expect($$(".recap-chapter").map((h) => h.textContent)).toEqual(["I", "II"]);
+    expect(rows()).toEqual(["moor", "hound", "fog", "cab", "mire", "baronet"]);
+    $<HTMLButtonElement>(".recap-row .recap-known").click();
+    await vi.waitFor(() => expect(text(".reading-to-sort")).toBe("5 à trier"));
+    // Closing the whole book's list puts nothing off.
+    $<HTMLButtonElement>(".recap-close").click();
+    await settle();
+    expect(await library.recapDismissedAt(book.hash)).toBeNull();
+  });
+
+  it("tells the session beside it the book's count, and opens the list for Révision", async () => {
+    const { session, move, lookUp } = await reading();
+    await move("I", 0.1);
+    await lookUp("moor", "hound");
+    const host = session.hosts.at(-1)!;
+    expect(await host.toSort?.()).toBe(2);
+    host.openToSort?.();
+    await vi.waitFor(() => expect(recapShown()).toBe(true));
+    expect(text(".recap-title")).toBe(COPY.recapAll);
+  });
+
+  it("Nothing to sort: the bar shows no count", async () => {
+    const recap = fakeRecap();
+    const { a, move, lookUp } = await reading(recap);
+    await move("I", 0.1);
+    await lookUp("moor");
+    await vi.waitFor(() => expect($(".reading-to-sort").hidden).toBe(false));
+    recap.decided.set("moor", "known");
+    a.painted(); // the word sorted on its card repaints the section
+    await vi.waitFor(() => expect($(".reading-to-sort").hidden).toBe(true));
+  });
+
+  it("A book without chapter labels: no recap, the counter still counts", async () => {
+    const { move, lookUp } = await reading();
+    await move(null, 0.1);
+    await lookUp("moor", "hound", "fog");
+    await move(null, 0.2);
+    expect(recapShown()).toBe(false);
+    await vi.waitFor(() => expect(text(".reading-to-sort")).toBe("3 à trier"));
+    $<HTMLButtonElement>(".reading-to-sort").click();
+    await vi.waitFor(() => expect(recapShown()).toBe(true));
+    expect($$(".recap-chapter")).toEqual([]);
+  });
+
+  it("says which chapter a move left: forward to another label only", () => {
+    expect(chapterLeft(null, { section: "I", fraction: 0.1 })).toBeNull();
+    expect(chapterLeft({ section: "I", fraction: 0.1 }, { section: "II", fraction: 0.2 })).toBe("I");
+    expect(chapterLeft({ section: "II", fraction: 0.2 }, { section: "I", fraction: 0.1 })).toBeNull();
+    expect(chapterLeft({ section: "I", fraction: 0.1 }, { section: "I", fraction: 0.15 })).toBeNull();
+    expect(chapterLeft({ section: null, fraction: 0.1 }, { section: "I", fraction: 0.2 })).toBeNull();
   });
 });

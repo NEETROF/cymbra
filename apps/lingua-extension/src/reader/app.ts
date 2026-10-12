@@ -1,12 +1,13 @@
 import { languageName } from "../analyzer/language-labels.ts";
 import type { StudiedLanguage } from "../analyzer/types.ts";
-import { DEFAULT_INTERFACE_LANGUAGE, formatPercent, type InterfaceLanguage } from "../i18n/index.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, formatPercent, type InterfaceLanguage, plural } from "../i18n/index.ts";
 import { type BookDisplayView, mountBookDisplay } from "../reading/book-display-view.ts";
 import { applyColourSheet } from "../reading/highlight.ts";
 import { settingsCopy } from "../reading/settings-copy.ts";
 import type { HudActions, HudState } from "../reading/hud.ts";
 import {
   type Box,
+  type CardLookup,
   languageHint,
   primaryLanguage,
   type ReadingHost,
@@ -21,7 +22,8 @@ import {
 } from "../state/storage.ts";
 import { COPY, type ReaderCopy } from "./copy.ts";
 import type { FullscreenHost } from "./fullscreen.ts";
-import type { BookRecord, ImportResult, Library } from "./library.ts";
+import type { BookRecord, ImportResult, Library, LookupRecord } from "./library.ts";
+import { groupByChapter, type RecapRow, renderRecap } from "./recap.ts";
 import type { Persistence } from "./persist.ts";
 import type { BookLocation, BookRenderer, SectionReady, TocEntry } from "./renderer.ts";
 
@@ -42,8 +44,23 @@ export interface ReaderSession {
   dismiss(): void;
 }
 
+/**
+ * What the recap asks of the reading session (add-lingua-chapter-recap): which lookups are still to
+ * sort, their gloss, and a word sorted as from its card.
+ */
+export interface RecapPort {
+  stillToSort<T extends { lemma: string; language: string }>(lookups: readonly T[]): Promise<T[]>;
+  lookupGloss(lookup: CardLookup): Promise<string | null>;
+  decide(lookup: CardLookup, status: "learning" | "known", source: string): Promise<void>;
+}
+
+/** How many words still to sort a chapter needs for its recap; and new lookups after « Plus tard » (D4). */
+export const RECAP_MIN = 3;
+
 export interface ReaderDeps {
   library: Library;
+  /** The recap of the words looked up and the bar's counter; none: neither (add-lingua-chapter-recap). */
+  recap?: RecapPort;
   /**
    * The reader's languages, in their order (`acceptedLanguages`): the library's sections
    * (group-lingua-library-by-language). Read each time the shelf is drawn; none: one section.
@@ -186,6 +203,10 @@ export class ReaderApp {
   private readonly progress = el("span", "reading-progress");
   private readonly tocPanel = el("nav", "reading-toc");
   private readonly displayPanel = el("div", "reading-display");
+  /** The words looked up, to sort (add-lingua-chapter-recap D5): at a chapter's end, or from the counter. */
+  private readonly recapPanel = el("div", "reading-recap");
+  /** « N à trier » (D6), hidden at nothing to sort. */
+  private readonly toSortButton: HTMLButtonElement;
   private fullscreenToggle: HTMLButtonElement | null = null;
   private displayView: BookDisplayView | null = null;
   private display: ReaderDisplay = DEFAULT_READER_DISPLAY;
@@ -198,6 +219,12 @@ export class ReaderApp {
   private section: string | null = null;
   /** Where the page last was (a CFI), to tell a real move from foliate settling in place. */
   private at: string | null = null;
+  /** The chapter and the fraction of the last move: none before the book's first (D3). */
+  private place: { section: string | null; fraction: number } | null = null;
+  /** The last count of words to sort asked for: an older answer landing late is dropped. */
+  private toSortAsked = 0;
+  /** When the last lookup was recorded: the next is later, so two in one millisecond keep their order. */
+  private lookedUpAt = 0;
   private flow: ReaderFlow = "paginated";
   /** Whether the section on screen was revealed yet (design D4: once per section). */
   private revealed = true;
@@ -209,6 +236,12 @@ export class ReaderApp {
   ) {
     this.copy = deps.copy ?? COPY;
     this.language = deps.language ?? DEFAULT_INTERFACE_LANGUAGE;
+    this.toSortButton = button(
+      "reading-action reading-to-sort",
+      "",
+      () => void this.showAllToSort(),
+      this.copy.toSortTitle,
+    );
     this.empty = el("p", "lib-empty", this.copy.empty);
     this.buildLibrary();
     this.buildReading();
@@ -251,9 +284,24 @@ export class ReaderApp {
     };
   }
 
-  /** The session painted the section on screen: reveal it, the first time. */
+  /** The session painted the section on screen: reveal it, the first time. A word sorted on its card repaints too. */
   painted(): void {
     this.reveal();
+    void this.refreshToSort();
+  }
+
+  /**
+   * The session showed a card in the book (add-lingua-chapter-recap D1): remember it with the chapter
+   * the page sits in, once per word and chapter.
+   */
+  lookup(lookup: CardLookup): void {
+    const book = this.book;
+    if (!book) return;
+    this.lookedUpAt = Math.max(this.now(), this.lookedUpAt + 1);
+    const record: LookupRecord = { ...lookup, hash: book.hash, chapter: this.section ?? "", at: this.lookedUpAt };
+    void this.deps.library.recordLookup(record).then((fresh) => {
+      if (fresh) void this.refreshToSort();
+    });
   }
 
   /** A tap on nothing in a section's text: its outer thirds turn the page (see `turnByZone`). */
@@ -405,6 +453,7 @@ export class ReaderApp {
     bar.append(
       button("reading-back", `‹ ${this.copy.back}`, () => void this.showLibrary()),
       titles,
+      this.toSortButton,
       this.percent,
       button("reading-action", this.copy.toc, () => this.toggleToc()),
       button(
@@ -432,6 +481,8 @@ export class ReaderApp {
     );
     this.tocPanel.hidden = true;
     this.displayPanel.hidden = true;
+    this.recapPanel.hidden = true;
+    this.toSortButton.hidden = true;
     // The "Aa" panel is Réglages' Affichage block: in the page's language, its words and its size
     // (localise-lingua-settings D1).
     this.displayView = mountBookDisplay(this.displayPanel, this.deps.displayArea, {
@@ -442,7 +493,7 @@ export class ReaderApp {
     this.bookHost.addEventListener("click", (e) => this.turnByZone(e.clientX));
     // The book, and the panels laid over it: they start under the bar, however many rows it takes.
     const stage = el("div", "reading-stage");
-    stage.append(this.bookHost, this.tocPanel, this.displayPanel);
+    stage.append(this.bookHost, this.tocPanel, this.displayPanel, this.recapPanel);
     this.readingView.append(bar, stage, foot);
     this.root.ownerDocument.addEventListener("keydown", (e) => this.onKey(e));
   }
@@ -459,6 +510,7 @@ export class ReaderApp {
     this.book = book;
     this.section = null;
     this.at = null;
+    this.place = null;
     this.bookTitle.textContent = book.title;
     this.sectionTitle.textContent = "";
     this.progress.textContent = "";
@@ -477,6 +529,7 @@ export class ReaderApp {
     try {
       const { toc } = await renderer.open(file, book.location, this.flow);
       this.renderToc(toc);
+      void this.refreshToSort();
     } catch {
       await this.showLibrary();
       this.status.textContent = this.copy.openFailed;
@@ -492,6 +545,9 @@ export class ReaderApp {
     this.book = null;
     this.tocPanel.hidden = true;
     this.displayPanel.hidden = true;
+    this.closeRecap();
+    this.toSortButton.hidden = true;
+    this.toSortAsked++;
     this.bookHost.replaceChildren();
   }
 
@@ -510,6 +566,8 @@ export class ReaderApp {
       source: () => bookSource(book.title, this.section),
       exposureSource: () => BOOK_EXPOSURE_SOURCE,
       declaredLanguage: book.language,
+      toSort: async () => (this.book === book ? (await this.toSort(book)).toSort.length : 0),
+      openToSort: () => void this.showAllToSort(),
     });
   }
 
@@ -560,6 +618,109 @@ export class ReaderApp {
     // The word popup is anchored to a word that just moved.
     this.session?.dismiss();
     void this.deps.library.savePosition(book.hash, location.cfi, this.now());
+    const left = chapterLeft(this.place, location);
+    this.place = { section: location.section, fraction: location.fraction };
+    if (left !== null) void this.offerRecap(left);
+  }
+
+  // — The words looked up (add-lingua-chapter-recap) —
+
+  /** The book's lookups still to sort, asked of the engine now. */
+  private async toSort(book: BookRecord): Promise<{ all: LookupRecord[]; toSort: LookupRecord[] }> {
+    const recap = this.deps.recap;
+    const all = await this.deps.library.lookupsOf(book.hash);
+    return { all, toSort: recap ? await recap.stillToSort(all) : [] };
+  }
+
+  /** « N à trier » in the bar: the book's words still to sort, hidden at none (D6). */
+  private async refreshToSort(): Promise<void> {
+    const book = this.book;
+    if (!book || !this.deps.recap) return;
+    const asked = ++this.toSortAsked;
+    let count: number;
+    try {
+      count = (await this.toSort(book)).toSort.length;
+    } catch {
+      return;
+    }
+    if (asked !== this.toSortAsked || this.book !== book) return;
+    this.toSortButton.hidden = count === 0;
+    this.toSortButton.textContent = plural(this.language, count, this.copy.toSort);
+  }
+
+  /**
+   * The chapter `chapter` was just left, forward (D3, D4): its recap, when three of its words or more
+   * are still to sort — and, once put off, only after three more lookups in the book.
+   */
+  private async offerRecap(chapter: string): Promise<void> {
+    const book = this.book;
+    if (!book || !this.deps.recap) return;
+    try {
+      const all = await this.deps.library.lookupsOf(book.hash);
+      const dismissed = await this.deps.library.recapDismissedAt(book.hash);
+      if (dismissed !== null && all.length - dismissed < RECAP_MIN) return;
+      const toSort = await this.deps.recap.stillToSort(all.filter((l) => l.chapter === chapter));
+      if (toSort.length < RECAP_MIN || this.book !== book) return;
+      await this.showRecap(book, toSort, chapter);
+    } catch {
+      // No recap without the library or the engine: the reading goes on.
+    }
+  }
+
+  /** The counter: every word of the book still to sort, by chapter (D6). */
+  private async showAllToSort(): Promise<void> {
+    const book = this.book;
+    if (!book) return;
+    const { toSort } = await this.toSort(book);
+    if (toSort.length > 0 && this.book === book) await this.showRecap(book, toSort, null);
+  }
+
+  /**
+   * Show the sheet, whole, once every gloss is in (D5): the chapter just left, or — `chapter` null —
+   * the whole book's list.
+   */
+  private async showRecap(book: BookRecord, lookups: LookupRecord[], chapter: string | null): Promise<void> {
+    const recap = this.deps.recap;
+    if (!recap) return;
+    const rows: RecapRow[] = await Promise.all(
+      lookups.map(async (lookup) => ({ lookup, gloss: await recap.lookupGloss(lookup).catch(() => lookup.gloss) })),
+    );
+    if (this.book !== book) return;
+    const groups = groupByChapter(rows);
+    const close = (): void => {
+      this.closeRecap();
+      // « Plus tard »: not again before three more lookups in this book (D4).
+      if (chapter !== null) void this.putOffRecap(book);
+    };
+    const decide = async (row: RecapRow, status: "learning" | "known"): Promise<void> => {
+      await recap.decide(row.lookup, status, bookSource(book.title, row.lookup.chapter || null));
+      void this.refreshToSort();
+    };
+    renderRecap(
+      this.recapPanel,
+      {
+        title: chapter === null ? this.copy.recapAll : this.copy.recapChapter(chapter),
+        intro: chapter === null ? this.copy.recapAllIntro : this.copy.recapIntro,
+        groups,
+        headed: chapter === null && groups.length > 1,
+        closeLabel: chapter === null ? this.copy.recapClose : this.copy.recapLater,
+      },
+      this.copy,
+      { add: (row) => decide(row, "learning"), know: (row) => decide(row, "known"), close },
+    );
+    this.tocPanel.hidden = true;
+    this.displayPanel.hidden = true;
+    this.recapPanel.hidden = false;
+  }
+
+  private async putOffRecap(book: BookRecord): Promise<void> {
+    const all = await this.deps.library.lookupsOf(book.hash);
+    await this.deps.library.dismissRecap(book.hash, all.length);
+  }
+
+  private closeRecap(): void {
+    this.recapPanel.hidden = true;
+    this.recapPanel.replaceChildren();
   }
 
   private renderToc(toc: TocEntry[]): void {
@@ -643,7 +804,9 @@ export class ReaderApp {
     if (!this.renderer || this.readingView.hidden || e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === "ArrowLeft" || e.key === "PageUp") void this.renderer.prev();
     else if (e.key === "ArrowRight" || e.key === "PageDown") void this.renderer.next();
-    else if (e.key === "Escape" && !(this.tocPanel.hidden && this.displayPanel.hidden)) {
+    else if (e.key === "Escape" && !this.recapPanel.hidden) {
+      this.recapPanel.querySelector<HTMLButtonElement>(".recap-close")?.click();
+    } else if (e.key === "Escape" && !(this.tocPanel.hidden && this.displayPanel.hidden)) {
       this.tocPanel.hidden = true;
       this.displayPanel.hidden = true;
     } else return;
@@ -658,6 +821,19 @@ export class ReaderApp {
     if (this.deps.revokeUrl) this.deps.revokeUrl(url);
     else URL.revokeObjectURL(url);
   }
+}
+
+/**
+ * The chapter a move just left, forward (add-lingua-chapter-recap D3): the label changed and the
+ * reader went further into the book. Never the first move after opening, never a move back, never a
+ * book without chapter labels.
+ */
+export function chapterLeft(
+  before: { section: string | null; fraction: number } | null,
+  now: { section: string | null; fraction: number },
+): string | null {
+  if (!before?.section || now.section === before.section || now.fraction <= before.fraction) return null;
+  return before.section;
 }
 
 /** The book an address names (`reader.html#book=<hash>`), so a reload reopens it. */

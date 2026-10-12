@@ -1,3 +1,5 @@
+import { pluralForms } from "../index.ts";
+
 // The book reader's copy (reader/copy.ts, reader/library.ts and reader.html), in French — the
 // source module (add-lingua-interface-language). A failure is one plain sentence saying what
 // happened — never a raw error.
@@ -39,4 +41,23 @@ export const reader = {
   percentTitle: "Mots connus dans ce chapitre",
   /** A book whose package names no title (reader/library.ts). */
   untitled: "Livre sans titre",
+  /**
+   * The words looked up, sorted at the end of a chapter (add-lingua-chapter-recap D5, D6): the recap's
+   * title, its rows' three actions, its dismissal, and the bar's counter.
+   */
+  recapChapter: (chapter: string) => `Fin de « ${chapter} »`,
+  recapIntro: "Les mots que tu as regardés dans ce chapitre. Garde ceux que tu veux revoir.",
+  recapAll: "Mots à trier",
+  recapAllIntro: "Les mots que tu as regardés dans ce livre et pas encore triés.",
+  recapNoChapter: "Sans chapitre",
+  recapAdd: "+ Deck",
+  recapKnown: "Je connais",
+  recapLeave: "Laisser",
+  recapLater: "Plus tard",
+  recapClose: "Fermer",
+  toSort: pluralForms({
+    one: (n) => `${n} à trier`,
+    other: (n) => `${n} à trier`,
+  }),
+  toSortTitle: "Les mots regardés dans ce livre, à trier",
 };
