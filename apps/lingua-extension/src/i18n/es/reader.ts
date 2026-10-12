@@ -32,8 +32,6 @@ export const reader: typeof fr = {
   fullscreen: "Pantalla completa",
   leaveFullscreen: "Salir de la pantalla completa",
   noToc: "Este libro no tiene índice.",
-  review: "Repasar",
-  stats: "Estadísticas",
   settings: "Ajustes",
   prev: "Página anterior",
   next: "Página siguiente",

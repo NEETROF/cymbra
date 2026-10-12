@@ -31,8 +31,6 @@ export const reader: typeof fr = {
   fullscreen: "Full screen",
   leaveFullscreen: "Leave full screen",
   noToc: "This book has no table of contents.",
-  review: "Review",
-  stats: "Stats",
   settings: "Settings",
   prev: "Previous page",
   next: "Next page",

@@ -462,8 +462,6 @@ export class ReaderApp {
         () => this.toggleDisplay(),
         this.copy.displayTitle,
       ),
-      act(this.copy.review, (a) => a.onReview),
-      act(this.copy.stats, (a) => a.onStats),
       act(this.copy.settings, (a) => a.onSettings),
     );
     const fullscreen = this.deps.fullscreen;

@@ -33,8 +33,6 @@ export const reader = {
   fullscreen: "Plein écran",
   leaveFullscreen: "Quitter le plein écran",
   noToc: "Ce livre n'a pas de sommaire.",
-  review: "Réviser",
-  stats: "Stats",
   settings: "Réglages",
   prev: "Page précédente",
   next: "Page suivante",

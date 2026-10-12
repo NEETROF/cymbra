@@ -424,10 +424,10 @@ describe("a book open", () => {
     expect($(".reading-pct").hidden).toBe(true);
     indicator.mount();
     const buttons = $$(".reading-action");
-    buttons.find((b) => b.textContent === COPY.review)!.click();
-    buttons.find((b) => b.textContent === COPY.stats)!.click();
+    // Réviser and Stats are left to Réglages' panel: reading is the bar's purpose.
+    expect(buttons.some((b) => b.textContent === "Réviser" || b.textContent === "Stats")).toBe(false);
     buttons.find((b) => b.textContent === COPY.settings)!.click();
-    expect([actions.onReview, actions.onStats, actions.onSettings].map((f) => f.mock.calls.length)).toEqual([1, 1, 1]);
+    expect([actions.onReview, actions.onStats, actions.onSettings].map((f) => f.mock.calls.length)).toEqual([0, 0, 1]);
     const toc = buttons.find((b) => b.textContent === COPY.toc)!;
     toc.click();
     expect($(".reading-toc").hidden).toBe(false);
@@ -544,19 +544,19 @@ describe("fullscreen (add-lingua-reader-fullscreen)", () => {
     const a = app({ fullscreen, reviewOutsidePage: true });
     const order: string[] = [];
     fullscreen.exit.mockImplementation(async () => void order.push("exit"));
-    const actions = { onReview: vi.fn(() => void order.push("review")), onStats: vi.fn(), onSettings: vi.fn() };
+    const actions = { onReview: vi.fn(), onStats: vi.fn(), onSettings: vi.fn(() => void order.push("settings")) };
     a.indicator(actions);
     fullscreen.browser(true);
     $$(".reading-action")
-      .find((b) => b.textContent === COPY.review)!
+      .find((b) => b.textContent === COPY.settings)!
       .click();
-    expect(order).toEqual(["exit", "review"]);
+    expect(order).toEqual(["exit", "settings"]);
     fullscreen.browser(false);
     $$(".reading-action")
-      .find((b) => b.textContent === COPY.stats)!
+      .find((b) => b.textContent === COPY.settings)!
       .click();
     expect(fullscreen.exit).toHaveBeenCalledOnce();
-    expect(actions.onStats).toHaveBeenCalledOnce();
+    expect(actions.onSettings).toHaveBeenCalledTimes(2);
   });
 
   it("keeps fullscreen for a panel drawn in the page", () => {
