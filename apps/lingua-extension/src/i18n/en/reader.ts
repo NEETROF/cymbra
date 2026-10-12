@@ -38,4 +38,15 @@ export const reader: typeof fr = {
   next: "Next page",
   percentTitle: "Known words in this chapter",
   untitled: "Untitled book",
+  progressTitle: "Percentage or pages left",
+  chapterPagesLeft: {
+    one: (n) => `Chapter: ${n} page left`,
+    other: (n) => `Chapter: ${n} pages left`,
+  },
+  chapterLastPage: "Chapter: last page",
+  bookPagesLeft: {
+    one: (n) => `Book: ≈ ${n} page left`,
+    other: (n) => `Book: ≈ ${n} pages left`,
+  },
+  bookLastPage: "Book: last page",
 };

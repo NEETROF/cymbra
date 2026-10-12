@@ -4,6 +4,7 @@ import { DEFAULT_READER_DISPLAY, type ReaderDisplay, type ReaderFlow } from "../
 import { openArchive } from "./archive.ts";
 import { bookStyles, pageColoursOf, scaleFontSizes } from "./book-style.ts";
 import type { BookLocation, BookRenderer, OpenedBook, SectionReady, TocEntry } from "./renderer.ts";
+import { pagesLeftInBook, pagesLeftInSection, type SectionPages } from "./pages-left.ts";
 import { continueAtEdges, type ScrollEdges } from "./scroll-edges.ts";
 import { type LoadableSection, routeSections, workerServesSections } from "./section-server.ts";
 import { guardSelectionTouches } from "./touch-guard.ts";
@@ -25,6 +26,8 @@ export class FoliateRenderer implements BookRenderer {
   private readonly ready: ((s: SectionReady) => void)[] = [];
   private readonly moved: ((l: BookLocation) => void)[] = [];
   private last: BookLocation | null = null;
+  /** Each section's bytes, 0 outside the reading order: what the book's pages left are estimated on. */
+  private sizes: number[] = [];
   private display: ReaderDisplay = DEFAULT_READER_DISPLAY;
 
   /** The view's edges in the scrolled flow, to read on into the next section (scroll-edges.ts). */
@@ -55,14 +58,15 @@ export class FoliateRenderer implements BookRenderer {
       for (const l of this.ready) l({ doc, index });
     });
     this.element.addEventListener("relocate", (e) => {
-      const { cfi, fraction, tocItem } = (e as CustomEvent<FoliateRelocate>).detail;
-      this.last = { cfi, fraction: fraction ?? 0, section: tocItem?.label?.trim() || null };
+      const { cfi, fraction, tocItem, section } = (e as CustomEvent<FoliateRelocate>).detail;
+      this.last = { cfi, fraction: fraction ?? 0, section: tocItem?.label?.trim() || null, ...this.pagesLeft(section) };
       for (const l of this.moved) l(this.last);
     });
   }
 
   async open(file: Blob, at: string | null, flow: ReaderFlow): Promise<OpenedBook> {
     const book = await new EPUB(await openArchive(file)).init();
+    this.sizes = book.sections.map((s) => (s.linear !== "no" && (s.size ?? 0) > 0 ? (s.size ?? 0) : 0));
     // Each style sheet of the book, as it loads: its absolute font sizes follow the text size.
     book.transformTarget?.addEventListener("data", (e) => {
       const detail = (e as CustomEvent<{ type: string; data: unknown }>).detail;
@@ -103,6 +107,22 @@ export class FoliateRenderer implements BookRenderer {
 
   prev(): Promise<void> {
     return this.element.prev();
+  }
+
+  /** What is left of the section on screen and of the book (add-lingua-reader-progress-toggle D2, D3). */
+  private pagesLeft(
+    section: { current: number } | undefined,
+  ): Pick<BookLocation, "pagesLeftInSection" | "pagesLeftInBook"> {
+    const renderer = this.element.renderer;
+    // A fixed-layout book's renderer counts no pages.
+    if (!renderer || typeof renderer.pages !== "number" || section == null)
+      return { pagesLeftInSection: null, pagesLeftInBook: null };
+    const pages: SectionPages = { scrolled: !!renderer.scrolled, page: renderer.page, pages: renderer.pages };
+    const inSection = pagesLeftInSection(pages);
+    return {
+      pagesLeftInSection: inSection,
+      pagesLeftInBook: pagesLeftInBook(this.sizes, section.current, pages, inSection),
+    };
   }
 
   setDisplay(display: ReaderDisplay): void {
