@@ -15,7 +15,7 @@ import { mountStats } from "../stats/view.ts";
 import * as wasmGlue from "../wasm/pkg/lingua_wasm.js";
 import { webkitSend } from "./bridge.ts";
 import { openAppSession } from "./session.ts";
-import { appCopy, renderLanguageDue, savedAtLine } from "./view.ts";
+import { appCopy, savedAtLine } from "./view.ts";
 
 // The Cymbra Lingua app's page (add-lingua-apple-review D1): the extension's own Révision and
 // Statistiques over the state the extension shared through the App Group, the engine in the page.
@@ -80,11 +80,7 @@ async function main(): Promise<void> {
     $("saved").hidden = false;
   }
 
-  const languages = $("languages");
-  const refreshHome = (): Promise<void> => renderLanguageDue(languages, port, now(), language);
   review = mountReview($("review-root"), port, store, { now, prefs, interfaceLanguage: language });
-  // Every save of the backup is an answer: the home's counts follow it.
-  session.onSaved(refreshHome);
 
   async function show(view: "review" | "stats"): Promise<void> {
     $("view-review").hidden = view !== "review";
@@ -93,7 +89,6 @@ async function main(): Promise<void> {
       b.classList.toggle("active", b.dataset.view === view);
     }
     if (view === "review") {
-      await refreshHome();
       await review?.refresh();
     } else {
       await mountStats($("view-stats"), port, store, undefined, language);

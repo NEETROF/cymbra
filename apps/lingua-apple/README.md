@@ -59,8 +59,7 @@ extension (see `openspec/changes/add-lingua-apple`).
   Apple's button keeps the label the system gives it (D3).
 
 - **The review** (`openspec/changes/add-lingua-apple-review`) — once the extension has shared its
-  state, the app opens on the deck it keeps: each studied language's due count and the
-  extension's own Révision and Statistiques, the `app` build of `apps/lingua-extension`
+  state, the app opens on the deck it keeps: the extension's own Révision and Statistiques, the `app` build of `apps/lingua-extension`
   (`dist-app/`), copied into the app bundle (`LinguaApp/`) by a _Copy Lingua app page_ phase on
   both app targets. `ViewController` serves it under `lingua-app://app/` (`AppPageResource`: the
   page from the app, the packs from the embedded extension, so they are in the app once) and

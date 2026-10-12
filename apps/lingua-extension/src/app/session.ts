@@ -59,8 +59,6 @@ export interface AppSession {
   /** When the extension saved the state shown (epoch millis; 0 when it did not say). */
   savedAt: number;
   interfaceLanguage: InterfaceLanguage;
-  /** Call `listener` after each save of the backup — each answer — once its changes are written. */
-  onSaved(listener: () => Promise<void> | void): void;
 }
 
 function pick(items: Record<string, unknown>, keys: string | string[] | null): Record<string, unknown> {
@@ -115,7 +113,6 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
     [DAILY_KEY]: structuredClone(opened),
     [ROOT_KEY]: { v: STORAGE_VERSION, backup: await port.backup() },
   };
-  const listeners: (() => Promise<void> | void)[] = [];
   const store: AsyncStorageArea = {
     get: async (keys) => pick(items, keys),
     async set(next) {
@@ -130,7 +127,6 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
           ops: encodeAppOps({ ...ops, daily: { ...earlier, [openingId]: counted } }),
         });
       }
-      if (ROOT_KEY in next) for (const listener of listeners) await listener();
     },
   };
 
@@ -154,6 +150,5 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
     prefs,
     savedAt: state.savedAt,
     interfaceLanguage,
-    onSaved: (listener) => void listeners.push(listener),
   };
 }

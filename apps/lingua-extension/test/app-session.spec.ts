@@ -3,7 +3,7 @@ import type { CardOp } from "@/analyzer/port.ts";
 import type { AppMessage } from "@/app/bridge.ts";
 import { webkitSend } from "@/app/bridge.ts";
 import { APP_PREFS_KEY, openAppSession } from "@/app/session.ts";
-import { appCopy, renderLanguageDue, savedAtLine } from "@/app/view.ts";
+import { appCopy, savedAtLine } from "@/app/view.ts";
 import { encodeAppOps, encodeSharedState, parseAppOps } from "@/state/app-relay.ts";
 import { DAILY_KEY, loadDailyStats, recordReview } from "@/state/dailystats.ts";
 import { makeFakePort } from "./helpers.ts";
@@ -85,15 +85,12 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     port.exportCardOps = async () => [card(1000, "before"), card(6000, "graded")];
     const b = bridge(shared());
     const session = await openAppSession({ send: b.send, port: () => port, now: () => 5_500 });
-    const saved = vi.fn();
-    session?.onSaved(saved);
     await session?.store.set({ "cymbra-lingua-device": "id" });
     expect(b.written).toEqual([]);
     await session?.store.set({ lingua: { v: 2, backup: "X" } });
     const ops = parseAppOps(b.written[0]);
     expect(ops?.since).toBe(5000);
     expect(ops?.cardOps.map((c) => c.lemma)).toEqual(["graded"]);
-    expect(saved).toHaveBeenCalledOnce();
   });
 
   it("lays the changes the extension has not taken back on the state, and keeps writing them", async () => {
@@ -235,13 +232,7 @@ describe("the app's home", () => {
     expect(savedAtLine("en", Date.UTC(2026, 9, 12, 9, 41))).toMatch(/^Cards from Safari, /);
   });
 
-  it("gives each studied language its due count", async () => {
-    const { port } = makeFakePort();
-    port.studiedLanguages = async () => ["en", "es"];
-    port.dueCount = async (_now, languages) => (languages?.[0] === "en" ? 3 : 1);
-    const list = document.createElement("ul");
-    await renderLanguageDue(list, port, 0, "fr");
-    expect([...list.children].map((li) => li.textContent)).toEqual(["Anglais : 3 à revoir", "Espagnol : 1 à revoir"]);
+  it("speaks each interface language", () => {
     expect(appCopy("es").review).toBe("Repaso");
   });
 });

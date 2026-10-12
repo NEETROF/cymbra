@@ -9,9 +9,4 @@ export const app: typeof fr = {
   stats: "Statistics",
   loading: "Loading your cards…",
   savedAt: (when: string) => `Cards from Safari, ${when}`,
-  languageDue: (language: string, due: string) => `${language}: ${due}`,
-  dueCards: {
-    one: (n) => `${n} due`,
-    other: (n) => `${n} due`,
-  },
 };
