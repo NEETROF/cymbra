@@ -14,5 +14,5 @@
 ## 3. Integration and dogfood
 
 - [x] 3.1 Gates in `apps/lingua-extension`: `yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants`. Verify all pass.
-- [ ] 3.2 Dogfood in Chrome's side panel with extended translation on: an expression without a gloss, a Spanish card (through English), a card with a gloss (no translation), then extended translation off (no line). Verify by noting the results in the pull request.
+- [x] 3.2 Dogfood in Chrome's side panel with extended translation on: an expression without a gloss, a Spanish card (through English), a card with a gloss (no translation), then extended translation off (no line). Verify by noting the results in the pull request.
 - [ ] 3.3 Dogfood on the e-ink reader (Firefox for Android): after the first card, the translation is part of the answer at the reveal, in one repaint. Verify by noting the result in the pull request.
