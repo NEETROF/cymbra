@@ -284,7 +284,7 @@ pub struct SessionOptions {
 }
 
 /// What a session did, for its end (refine-lingua-review-session D8).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SessionSummary {
     /// Cards whose first answer in the session updated their FSRS state.
     pub reviewed: usize,
@@ -346,7 +346,59 @@ pub struct ReviewSession {
     summary: SessionSummary,
 }
 
+/// A session written out: what an engine that holds it keeps across its own restart. The asked
+/// cards are a list, since JSON keys a map by strings only.
+#[derive(Serialize, Deserialize)]
+struct SessionSnapshot {
+    queue: Vec<(StudiedLanguage, String)>,
+    position: usize,
+    revealed: bool,
+    asked: Vec<(StudiedLanguage, String, u8, bool)>,
+    summary: SessionSummary,
+}
+
 impl ReviewSession {
+    /// The session as text, to resume it with [`Self::from_snapshot`] — on Safari the engine that
+    /// holds it lives in a background page the browser stops between two answers
+    /// (refine-lingua-review-session D3).
+    pub fn to_snapshot(&self) -> String {
+        let snapshot = SessionSnapshot {
+            queue: self.queue.clone(),
+            position: self.position,
+            revealed: self.revealed,
+            asked: self
+                .asked
+                .iter()
+                .map(|((language, lemma), asked)| {
+                    (*language, lemma.clone(), asked.times, asked.missed)
+                })
+                .collect(),
+            summary: self.summary,
+        };
+        serde_json::to_string(&snapshot).expect("a session is always serialisable")
+    }
+
+    /// The session [`Self::to_snapshot`] wrote, or `None` for text that is not one.
+    pub fn from_snapshot(json: &str) -> Option<Self> {
+        let s: SessionSnapshot = serde_json::from_str(json).ok()?;
+        if s.position > s.queue.len() {
+            return None;
+        }
+        Some(Self {
+            queue: s.queue,
+            position: s.position,
+            revealed: s.revealed,
+            asked: s
+                .asked
+                .into_iter()
+                .map(|(language, lemma, times, missed)| {
+                    ((language, lemma), Asked { times, missed })
+                })
+                .collect(),
+            summary: s.summary,
+        })
+    }
+
     /// Starts a session over everything due at `now`.
     pub fn start(deck: &Deck, now: i64) -> Self {
         Self::start_for(deck, now, &[])
@@ -655,6 +707,27 @@ mod tests {
         // One language follows the same order: no longer alphabetical.
         let english = ReviewSession::start_for(&deck, now, &[EN]);
         assert_eq!(order(&english), vec!["zeal", "anchor"]);
+    }
+
+    #[test]
+    fn a_session_written_out_resumes_where_it_was() {
+        let params = FsrsParams::default();
+        let mut deck = Deck::new();
+        for (i, w) in ["seldom", "dwell", "grin", "thrive"].iter().enumerate() {
+            deck.upsert(EN, captured(w, i as i64));
+        }
+        let mut session = ReviewSession::start(&deck, DAY);
+        session.grade(&mut deck, &params, Rating::Again, DAY);
+        session.reveal();
+
+        let resumed =
+            ReviewSession::from_snapshot(&session.to_snapshot()).expect("a snapshot reads back");
+        assert_eq!(resumed.queue, session.queue);
+        assert_eq!(resumed.current_key(), session.current_key());
+        assert!(resumed.is_revealed());
+        assert_eq!(resumed.summary(), session.summary());
+        assert_eq!(resumed.to_snapshot(), session.to_snapshot());
+        assert!(ReviewSession::from_snapshot("not a session").is_none());
     }
 
     #[test]

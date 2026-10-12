@@ -528,3 +528,24 @@ fn a_card_created_on_the_engine_is_labelled_with_its_native_language() {
     assert!(ops[0].get("gloss_language").is_none());
     assert!(!e.backup().contains("gloss_language"));
 }
+
+#[test]
+fn a_session_resumes_in_an_engine_restored_from_the_backup() {
+    let mut first = engine();
+    for (i, w) in ["seldom", "dwell", "grin"].iter().enumerate() {
+        first.add_card(w, w, "s", "", None, i as f64, None).unwrap();
+    }
+    first.start_review(10.0, None, None, None, None);
+    assert!(first.review_grade("again", 10.0));
+    first.review_reveal();
+    let snapshot = first.review_snapshot().expect("a session is under way");
+
+    // The browser stopped the background page: a new engine, restored from the saved backup.
+    let mut second = engine();
+    second.restore(&first.backup()).unwrap();
+    assert!(second.review_current().is_none());
+    assert!(second.review_resume(&snapshot));
+    assert_eq!(second.review_current(), first.review_current());
+    assert_eq!(second.review_summary(), first.review_summary());
+    assert!(!second.review_resume("not a session"));
+}

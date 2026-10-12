@@ -74,6 +74,8 @@ interface WasmEngine {
   reviewMarkKnown(now: number): void;
   reviewIgnore(now: number): void;
   reviewSummary(): string | undefined;
+  reviewSnapshot(): string | undefined;
+  reviewResume(json: string): boolean;
   backup(): string;
   restore(json: string): void;
   reset(): void;
@@ -372,6 +374,16 @@ export class WasmAnalyzerPort implements LinguaPort {
   async reviewSummary(): Promise<ReviewSummary | null> {
     const json = (await this.engine()).reviewSummary();
     return json ? (JSON.parse(json) as ReviewSummary) : null;
+  }
+
+  /** The session under way as text, or null: what the background keeps across its own restart. */
+  async reviewSnapshot(): Promise<string | null> {
+    return (await this.engine()).reviewSnapshot() ?? null;
+  }
+
+  /** Resume the session `reviewSnapshot` wrote; false for text that is not one. */
+  async reviewResume(json: string): Promise<boolean> {
+    return (await this.engine()).reviewResume(json);
   }
 
   async backup(): Promise<string> {

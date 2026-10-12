@@ -26,6 +26,7 @@
 - [x] 4.6 `review/review-page.ts`: drop backup, restore and the sources; keep the language filter, the due count and the card; a restore made in this page ends its session. Verify with `test/review-page.spec.ts`: « The review page » scenario, and a restore during a session showing the idle state.
 - [x] 4.7 Update the « Review (side panel + drawer) » section of `apps/lingua-extension/README.md` (two answers, the hide link, sessions of 10, the daily allowance, backup now in Réglages › Données). Verify by reading the section against the specs.
 - [x] 4.8 Read-aloud on the review card (D11, found in the Chrome dogfood): `review-page.ts` owns a speaker on the shown card's language; `view.ts` puts « ▶ Mot » (« ▶ Expression ») and « ▶ Phrase » under the sentence before and after the reveal, the dictionary form's button in the answer once revealed, and stops a text the next card does not show; an expression without a gloss says « Pas de traduction pour cette expression. ». Verify with view specs for the five scenarios of « The review card can be heard » and a page spec reading a Spanish card with a Spanish voice.
+- [x] 4.9 A session survives the background page Safari stops (D12): `ReviewSession` snapshots, `reviewSnapshot`/`reviewResume`, `state/review-continuity.ts` in the background. Verify with a core round trip, a wasm test resuming in an engine restored from the backup, and `test/review-continuity.spec.ts`.
 
 ## 5. Réglages
 

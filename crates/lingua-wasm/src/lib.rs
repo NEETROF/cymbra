@@ -1189,6 +1189,26 @@ impl LinguaEngine {
         }
     }
 
+    /// The session under way as text, or `undefined` without one: what a background page the
+    /// browser may stop keeps, to resume it with `reviewResume` (refine-lingua-review-session D3).
+    #[wasm_bindgen(js_name = reviewSnapshot)]
+    pub fn review_snapshot(&self) -> Option<String> {
+        self.session.as_ref().map(ReviewSession::to_snapshot)
+    }
+
+    /// Resume the session `reviewSnapshot` wrote; `false` (and nothing changed) for text that is
+    /// not one.
+    #[wasm_bindgen(js_name = reviewResume)]
+    pub fn review_resume(&mut self, json: &str) -> bool {
+        match ReviewSession::from_snapshot(json) {
+            Some(session) => {
+                self.session = Some(session);
+                true
+            }
+            None => false,
+        }
+    }
+
     /// What the current session has done, as JSON — `{ reviewed, recovered, holding, known,
     /// hidden }` — or `null` when no session was started (refine-lingua-review-session D8).
     #[wasm_bindgen(js_name = reviewSummary)]

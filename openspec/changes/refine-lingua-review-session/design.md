@@ -228,6 +228,16 @@ and after it.
 *Alternative.* Reading the word or the sentence by itself when a card comes up: a sound nobody
 asked for, in a library or beside someone asleep.
 
+### D12 — A session survives the page that holds it
+
+Found on the iPhone (task 6.3): Safari's drawer reviews on the background page's engine, and iOS stops
+that page between two answers. The engine woke, restored the backup — which holds no session — and
+the next card said there was nothing to review. The core writes a session out
+(`ReviewSession::to_snapshot`, `from_snapshot`) and the engine exposes it (`reviewSnapshot`,
+`reviewResume`); the background keeps it in `storage.session` after every call that moves it, before
+answering, forgets it when the state is replaced, and resumes it when the engine wakes
+(`state/review-continuity.ts`). A session never reaches a backup or a sync.
+
 ## Risks / Trade-offs
 
 - [The session opens on the hardest cards and feels like failure] → new words interleaved,
