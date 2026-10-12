@@ -336,7 +336,9 @@ bundle folds away the other variants' branches:
   (`state/review-relay.ts`), which keeps them in the App Group; the app's page reviews that state and
   writes the card and status ops of every answer back (`app/session.ts`); the background applies
   them at start and whenever a surface opens or a page loads, last-write-wins as it applies a pull
-  (`state/app-relay.ts`). Nothing leaves the device for this.
+  (`state/app-relay.ts`). The day's reviews and words learned counted in the app ride with them, the
+  whole of each opening's under its id: the background adds only what it has not added yet for that
+  opening, so the statistics count them once. Nothing leaves the device for this.
 
 ## Release
 

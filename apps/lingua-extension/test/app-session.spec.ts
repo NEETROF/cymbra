@@ -5,6 +5,7 @@ import { webkitSend } from "@/app/bridge.ts";
 import { APP_PREFS_KEY, openAppSession } from "@/app/session.ts";
 import { appCopy, renderLanguageDue, savedAtLine } from "@/app/view.ts";
 import { encodeAppOps, encodeSharedState, parseAppOps } from "@/state/app-relay.ts";
+import { DAILY_KEY, loadDailyStats, recordReview } from "@/state/dailystats.ts";
 import { makeFakePort } from "./helpers.ts";
 
 const card = (client_ts: number, lemma = "dog"): CardOp => ({
@@ -86,7 +87,7 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     const session = await openAppSession({ send: b.send, port: () => port, now: () => 5_500 });
     const saved = vi.fn();
     session?.onSaved(saved);
-    await session?.store.set({ "cymbra-lingua-daily-v4": {} });
+    await session?.store.set({ "cymbra-lingua-device": "id" });
     expect(b.written).toEqual([]);
     await session?.store.set({ lingua: { v: 2, backup: "X" } });
     const ops = parseAppOps(b.written[0]);
@@ -104,6 +105,42 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     expect(calls.appliedCards.map((ops) => ops.map((c) => c.lemma))).toEqual([["earlier"]]);
     await session?.store.set({ lingua: { v: 2, backup: "X" } });
     expect(parseAppOps(b.written[0])?.cardOps.map((c) => c.lemma)).toEqual(["earlier", "now"]);
+  });
+
+  it("counts the day's reviews of this opening, beside the earlier openings' not yet taken", async () => {
+    const { port } = fakePort();
+    port.exportCardOps = async () => [];
+    const day = 20000;
+    const earlier = { first: { [day]: { en: { reviews: 2, wordsLearned: 0, native: "fr" as const } } } };
+    const sharedState = encodeSharedState({
+      backup: "SHARED",
+      savedAt: 1,
+      prefs: {},
+      storeItems: {
+        [DAILY_KEY]: { [day]: { en: { exposures: 5, unknownSeen: 0, wordsLearned: 0, reviews: 1, native: "fr" } } },
+      },
+    });
+    const b = bridge(sharedState, encodeAppOps({ since: 0, cardOps: [], statusOps: [], daily: earlier }));
+    const session = await openAppSession({ send: b.send, port: () => port, now: () => 0, openingId: "second" });
+    // The statistics show the shared counts with the earlier opening's.
+    expect((await loadDailyStats(session!.store))[day].en.reviews).toBe(3);
+    // A grade: its backup first, then its count.
+    await session!.store.set({ lingua: { v: 2, backup: "X" } });
+    expect(parseAppOps(b.written[0])?.daily).toEqual({ ...earlier, second: {} });
+    await recordReview(session!.store, day, "en", "fr");
+    expect(parseAppOps(b.written[1])?.daily).toEqual({
+      ...earlier,
+      second: { [day]: { en: { reviews: 1, wordsLearned: 0, native: "fr" } } },
+    });
+  });
+
+  it("names each opening on its own unless told", async () => {
+    const { port } = fakePort();
+    port.exportCardOps = async () => [];
+    const b = bridge(shared());
+    const session = await openAppSession({ send: b.send, port: () => port, now: () => 0 });
+    await session!.store.set({ lingua: { v: 2, backup: "X" } });
+    expect(Object.keys(parseAppOps(b.written[0])?.daily ?? {})).toHaveLength(1);
   });
 
   it("speaks the extension's interface language, else the app's, else French", async () => {

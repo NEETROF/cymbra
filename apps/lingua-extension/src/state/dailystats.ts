@@ -130,8 +130,11 @@ export function countsOf(stats: DailyStats, language: string): DayCounts {
   return out;
 }
 
-/** Add to a day's counts in `language`; the day takes `native`, the last native language it is counted under. */
-async function bump(
+/**
+ * Add to a day's counts in `language`; the day takes `native`, the last native language it is counted
+ * under. Exported for the counts a review in the Cymbra Lingua app made (add-lingua-apple-review).
+ */
+export async function addDailyCounts(
   area: AsyncStorageArea,
   day: number,
   language: string,
@@ -162,7 +165,8 @@ export async function recordReading(
   language: string,
   native: NativeLanguage,
 ): Promise<void> {
-  if (read > 0) await bump(area, day, language, native, { exposures: read, unknownSeen: Math.max(0, unknown) });
+  if (read > 0)
+    await addDailyCounts(area, day, language, native, { exposures: read, unknownSeen: Math.max(0, unknown) });
 }
 
 /** Record one word marked known for the day, in `language`, under `native`. */
@@ -172,7 +176,7 @@ export function recordWordLearned(
   language: string,
   native: NativeLanguage,
 ): Promise<void> {
-  return bump(area, day, language, native, { wordsLearned: 1 });
+  return addDailyCounts(area, day, language, native, { wordsLearned: 1 });
 }
 
 /** Record one review graded for the day, in `language`, under `native`. */
@@ -182,7 +186,7 @@ export function recordReview(
   language: string,
   native: NativeLanguage,
 ): Promise<void> {
-  return bump(area, day, language, native, { reviews: 1 });
+  return addDailyCounts(area, day, language, native, { reviews: 1 });
 }
 
 /**

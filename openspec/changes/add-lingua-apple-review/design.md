@@ -44,7 +44,8 @@ the Safari extension the app embeds, not copied a second time (about 13 MB).
 - App → extension: the app's page exports the card and status ops its review produced
   (`exportCardOps`, `exportStatusOps` since its load) to the App Group. The extension's background asks
   its handler for them at startup and on a visible page, applies them with `applyCardOps` /
-  `applyStatusOps`, saves, and clears them. Last-write-wins on both sides: no snapshot ever overwrites
+  `applyStatusOps`, saves, and clears them. The day's reviews and words learned travel beside them,
+  per opening of the app, and are added once (see Risks). Last-write-wins on both sides: no snapshot ever overwrites
   newer data. Nothing leaves the device; the extension's own sync then carries the result to an account.
 
 *Alternative.* The app syncing with the server itself: needs the reader signed in, a Dart or Swift
@@ -58,8 +59,10 @@ interface language is the one the App Group already holds for sign-in (`Interfac
 - [The extension has not run since the last capture] → the app shows the state it last received, and
   says when it was saved.
 - [An op lost if the app is killed before writing] → ops are written after every answer.
-- [The app's own daily counts] → a review in the app counts on the app's copy of the daily
-  statistics only; the account's statistics count the cards' grades, which do reach the extension.
+- [A review's daily counts counted twice] → the app sends, with its ops, the whole of what each
+  opening counted (reviews, words learned), under that opening's id; the extension keeps what it
+  already added per opening and adds only the difference, so a payload written or read again
+  adds nothing.
 
 ## Migration Plan
 App and extension ship together; an older extension writes no state, and the app then shows how to

@@ -1,5 +1,12 @@
 import type { LinguaPort } from "../analyzer/port.ts";
-import { applyAppOps, encodeSharedState, parseAppOps, RELAYED_PREFS, RELAYED_STORE_KEYS } from "./app-relay.ts";
+import {
+  applyAppDaily,
+  applyAppOps,
+  encodeSharedState,
+  parseAppOps,
+  RELAYED_PREFS,
+  RELAYED_STORE_KEYS,
+} from "./app-relay.ts";
 import type { NativeSend } from "./native-signin.ts";
 import { type AsyncStorageArea, loadStored, saveBackup } from "./storage.ts";
 
@@ -78,6 +85,8 @@ export function reviewRelay(deps: ReviewRelayDeps): ReviewRelay {
         if (n > 0) await saveBackup(deps.store, await deps.port.backup());
         return n;
       });
+      // The day's reviews and words learned in the app, counted once whatever the payload repeats.
+      if (ops.daily) await applyAppDaily(deps.store, ops.daily, deps.now());
     }
     // Dropped only once saved (or unreadable): a failure above leaves them for the next collection.
     await deps.send({ type: "review.clearOps", writtenAt }).catch(() => undefined);

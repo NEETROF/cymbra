@@ -1,7 +1,16 @@
 import type { CardOp, LinguaPort, StatusOp } from "../analyzer/port.ts";
-import { INTERFACE_LANGUAGE_KEY } from "../i18n/language.ts";
-import { DAILY_KEY, DAY_ONLY_DAILY_KEY, PER_LANGUAGE_DAILY_KEY } from "./dailystats.ts";
+import type { NativeLanguage } from "../analyzer/types.ts";
+import { INTERFACE_LANGUAGE_KEY, isInterfaceLanguage } from "../i18n/language.ts";
 import {
+  addDailyCounts,
+  DAILY_KEY,
+  type DailyStats,
+  DAY_ONLY_DAILY_KEY,
+  loadDailyStats,
+  PER_LANGUAGE_DAILY_KEY,
+} from "./dailystats.ts";
+import {
+  type AsyncStorageArea,
   ANDROID_VOICES_KEY,
   COLOURS_KEY,
   NEW_WORDS_PER_DAY_KEY,
@@ -52,6 +61,22 @@ export interface SharedState {
   storeItems: Record<string, unknown>;
 }
 
+/** What a review counts in a day, in one studied language, and the native language it counted under. */
+export interface ReviewCounts {
+  reviews: number;
+  wordsLearned: number;
+  native: NativeLanguage;
+}
+
+/** A review's counts: UTC day → studied language → counts. */
+export type DayReviewCounts = Record<string, Record<string, ReviewCounts>>;
+
+/**
+ * What each opening of the app counted, by its id: the whole of it each time, never an increment, so
+ * a payload written again — or read again — adds nothing the extension has not added yet.
+ */
+export type AppDaily = Record<string, DayReviewCounts>;
+
 /** What the app's review changed. */
 export interface AppOps {
   v: typeof RELAY_VERSION;
@@ -59,7 +84,18 @@ export interface AppOps {
   since: number;
   cardOps: CardOp[];
   statusOps: StatusOp[];
+  /** The daily counts each opening of the app made; absent from an app that counted none. */
+  daily?: AppDaily;
 }
+
+/**
+ * Where the extension keeps what it already added of each opening's counts, and when it last did:
+ * the store, beside the daily counts themselves.
+ */
+export const APPLIED_APP_DAILY_KEY = "cymbra-lingua-app-daily-applied";
+
+/** How long the extension remembers an opening of the app: far longer than any wait for Safari. */
+export const APPLIED_APP_DAILY_TTL_MS = 60 * 86_400_000;
 
 function record(raw: unknown): Record<string, unknown> | null {
   if (typeof raw !== "string") return null;
@@ -102,12 +138,123 @@ export function encodeAppOps(ops: Omit<AppOps, "v">): string {
 export function parseAppOps(raw: unknown): AppOps | null {
   const r = record(raw);
   if (r?.v !== RELAY_VERSION || !Array.isArray(r.cardOps) || !Array.isArray(r.statusOps)) return null;
+  const daily = appDailyOf(r.daily);
   return {
     v: RELAY_VERSION,
     since: typeof r.since === "number" ? r.since : 0,
     cardOps: r.cardOps as CardOp[],
     statusOps: r.statusOps as StatusOp[],
+    ...(daily ? { daily } : {}),
   };
+}
+
+const count = (n: unknown): number => (typeof n === "number" && Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
+
+/** A review's counts as read from the outside: only whole, positive counts and a known native language. */
+function dayCountsOf(raw: unknown): DayReviewCounts {
+  const out: DayReviewCounts = {};
+  for (const [day, byLanguage] of Object.entries(object(raw))) {
+    if (!/^\d+$/.test(day)) continue;
+    for (const [language, counts] of Object.entries(object(byLanguage))) {
+      const c = object(counts);
+      if (!isInterfaceLanguage(c.native)) continue;
+      const reviews = count(c.reviews);
+      const wordsLearned = count(c.wordsLearned);
+      if (reviews === 0 && wordsLearned === 0) continue;
+      (out[day] ??= {})[language] = { reviews, wordsLearned, native: c.native };
+    }
+  }
+  return out;
+}
+
+function appDailyOf(raw: unknown): AppDaily | undefined {
+  if (raw === undefined) return undefined;
+  return Object.fromEntries(Object.entries(object(raw)).map(([id, counts]) => [id, dayCountsOf(counts)]));
+}
+
+/** `stats` with `added` counted in: the daily counts the app shows, its earlier openings' included. */
+export function withReviewCounts(stats: DailyStats, ...added: DayReviewCounts[]): DailyStats {
+  const out: DailyStats = structuredClone(stats);
+  for (const counts of added) {
+    for (const [day, byLanguage] of Object.entries(counts)) {
+      for (const [language, c] of Object.entries(byLanguage)) {
+        const today = (out[Number(day)] ??= {});
+        const current = today[language] ?? {
+          exposures: 0,
+          unknownSeen: 0,
+          wordsLearned: 0,
+          reviews: 0,
+          native: c.native,
+        };
+        today[language] = {
+          ...current,
+          reviews: current.reviews + c.reviews,
+          wordsLearned: current.wordsLearned + c.wordsLearned,
+          native: c.native,
+        };
+      }
+    }
+  }
+  return out;
+}
+
+/** What a review counted between `before` and `after`, the daily counts it opened and now holds. */
+export function reviewCountsBetween(before: DailyStats, after: DailyStats): DayReviewCounts {
+  const out: DayReviewCounts = {};
+  for (const [day, byLanguage] of Object.entries(after)) {
+    for (const [language, stat] of Object.entries(byLanguage ?? {})) {
+      const was = before[Number(day)]?.[language];
+      const reviews = Math.max(0, stat.reviews - (was?.reviews ?? 0));
+      const wordsLearned = Math.max(0, stat.wordsLearned - (was?.wordsLearned ?? 0));
+      if (reviews === 0 && wordsLearned === 0) continue;
+      (out[day] ??= {})[language] = { reviews, wordsLearned, native: stat.native };
+    }
+  }
+  return out;
+}
+
+interface AppliedOpening {
+  /** When the extension last added this opening's counts (epoch millis). */
+  at: number;
+  counts: DayReviewCounts;
+}
+
+/**
+ * Add to the extension's daily counts what each opening of the app counted and the extension has not
+ * added yet — the difference with what it added before for that opening, never the whole again — and
+ * remember it. Openings not heard from in `APPLIED_APP_DAILY_TTL_MS` are forgotten. Resolves how many
+ * counts were added.
+ */
+export async function applyAppDaily(store: AsyncStorageArea, daily: AppDaily, nowMs: number): Promise<number> {
+  const raw = object((await store.get(APPLIED_APP_DAILY_KEY))[APPLIED_APP_DAILY_KEY]);
+  const applied: Record<string, AppliedOpening> = {};
+  for (const [id, entry] of Object.entries(raw)) {
+    const e = object(entry);
+    const at = typeof e.at === "number" ? e.at : 0;
+    if (nowMs - at <= APPLIED_APP_DAILY_TTL_MS) applied[id] = { at, counts: dayCountsOf(e.counts) };
+  }
+  let added = 0;
+  for (const [id, counts] of Object.entries(daily)) {
+    const before = applied[id]?.counts ?? {};
+    for (const [day, byLanguage] of Object.entries(counts)) {
+      for (const [language, c] of Object.entries(byLanguage)) {
+        const was = before[day]?.[language];
+        const reviews = Math.max(0, c.reviews - (was?.reviews ?? 0));
+        const wordsLearned = Math.max(0, c.wordsLearned - (was?.wordsLearned ?? 0));
+        if (reviews === 0 && wordsLearned === 0) continue;
+        await addDailyCounts(store, Number(day), language, c.native, { reviews, wordsLearned });
+        added += reviews + wordsLearned;
+      }
+    }
+    applied[id] = { at: nowMs, counts };
+  }
+  await store.set({ [APPLIED_APP_DAILY_KEY]: applied });
+  return added;
+}
+
+/** The daily counts the shared state carries, as the app's statistics read them. */
+export function sharedDailyStats(storeItems: Record<string, unknown>): Promise<DailyStats> {
+  return loadDailyStats({ get: async () => storeItems, set: async () => {} });
 }
 
 /** `ms` down to its second: the deck dates its cards to the second, and exports them in millis. */

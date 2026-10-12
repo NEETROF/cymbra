@@ -5,7 +5,18 @@ import {
   type InterfaceLanguage,
   isInterfaceLanguage,
 } from "../i18n/language.ts";
-import { applyAppOps, appOpsSince, encodeAppOps, parseAppOps, parseSharedState, toSecond } from "../state/app-relay.ts";
+import {
+  applyAppOps,
+  appOpsSince,
+  encodeAppOps,
+  parseAppOps,
+  parseSharedState,
+  reviewCountsBetween,
+  sharedDailyStats,
+  toSecond,
+  withReviewCounts,
+} from "../state/app-relay.ts";
+import { DAILY_KEY, loadDailyStats } from "../state/dailystats.ts";
 import { type AsyncStorageArea, ROOT_KEY, STORAGE_VERSION } from "../state/storage.ts";
 import type { AppSend } from "./bridge.ts";
 
@@ -28,6 +39,8 @@ export interface AppSessionDeps {
   local?: Pick<Storage, "getItem" | "setItem"> | null;
   /** The interface language the app was opened in, when the shared state names none. */
   fallbackLanguage?: string;
+  /** This opening's id, under which the extension counts its reviews once; a random one unless given. */
+  openingId?: string;
 }
 
 export interface AppSession {
@@ -74,8 +87,16 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
   if (pending) await applyAppOps(port, pending);
   const since = Math.min(pending?.since ?? Infinity, toSecond(deps.now()));
 
+  // The day's counts as the extension shared them, with what earlier openings counted and the
+  // extension has not taken yet: the statistics show them, and this opening counts from there.
+  const earlier = pending?.daily ?? {};
+  const opened = withReviewCounts(await sharedDailyStats(state.storeItems), ...Object.values(earlier));
+  const openingId = deps.openingId ?? crypto.randomUUID();
+
   let items: Record<string, unknown> = {
     ...state.storeItems,
+    // A copy: the counts are updated in place, and `opened` is what this opening counts from.
+    [DAILY_KEY]: structuredClone(opened),
     [ROOT_KEY]: { v: STORAGE_VERSION, backup: await port.backup() },
   };
   const listeners: (() => Promise<void> | void)[] = [];
@@ -84,10 +105,16 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
     async set(next) {
       items = { ...items, ...next };
       // After every answer (D3): the app may be closed at any moment, and nothing else would carry it.
-      if (ROOT_KEY in next) {
-        await deps.send({ type: "review.writeOps", ops: encodeAppOps(await appOpsSince(port, since)) });
-        for (const listener of listeners) await listener();
+      // The answer's count lands just after its backup, so a change of the counts is written too.
+      if (ROOT_KEY in next || DAILY_KEY in next) {
+        const counted = reviewCountsBetween(opened, await loadDailyStats(store));
+        const ops = await appOpsSince(port, since);
+        await deps.send({
+          type: "review.writeOps",
+          ops: encodeAppOps({ ...ops, daily: { ...earlier, [openingId]: counted } }),
+        });
       }
+      if (ROOT_KEY in next) for (const listener of listeners) await listener();
     },
   };
 

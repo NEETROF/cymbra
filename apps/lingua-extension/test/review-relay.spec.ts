@@ -128,6 +128,18 @@ describe("the extension takes back the app's review", () => {
     expect(n.pending()).toBeNull();
   });
 
+  it("adds the day's reviews counted in the app, once", async () => {
+    const daily = { opening: { "20000": { en: { reviews: 2, wordsLearned: 1, native: "fr" as const } } } };
+    const payload = encodeAppOps({ since: 0, cardOps: [card], statusOps: [], daily });
+    const store = area(v2("LOCAL"));
+    await relay({ send: native({ ops: payload, writtenAt: 1 }).send, store }).r.collect();
+    await relay({ send: native({ ops: payload, writtenAt: 2 }).send, store }).r.collect();
+    const day = (
+      store.items[DAILY_KEY] as Record<string, Record<string, { reviews: number; wordsLearned: number }>>
+    )[20000];
+    expect(day.en).toMatchObject({ reviews: 2, wordsLearned: 1 });
+  });
+
   it("saves nothing when nothing changed, and still clears", async () => {
     const n = native({ ops: encodeAppOps({ since: 0, cardOps: [card], statusOps: [] }), writtenAt: 11 });
     const { r, store } = relay({ send: n.send, applied: 0 });
