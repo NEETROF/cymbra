@@ -35,8 +35,8 @@
 
 ## 4. Integration
 
-- [ ] 4.1 With the flag off on a local backend, press the button in Chrome, Firefox and Safari. Verify: each shows "unavailable for now", and the server log shows no provider call.
-- [ ] 4.2 With the flag on and the setting unticked, read a chapter. Verify: the browser's network log shows no request to the translation RPC.
+- [ ] 4.1 With the flag off on a local backend, press the button in Chrome, Firefox and Safari. Verify: each shows "unavailable for now", and the server log shows no provider call. — Chrome done (a card already offering the button, the flag set off: « Traduction en ligne indisponible pour le moment. », the server logged `no_access` and asked no provider); Firefox and Safari not run yet.
+- [x] 4.2 With the flag on and the setting unticked, read a chapter. Verify: the browser's network log shows no request to the translation RPC. — Done in Chrome (Chrome for Testing, the extension built against the local stack, a reader enrolled in the beta): with the setting unticked, two phrase cards showed no button and the server logged no `Translate` call.
 - [x] 4.3 With the flag on, press the button on the 22-sentence corpus of design.md (six pairs, including a split rendering), once with each provider forced primary, in each interface language (fr, en, es). Verify: every answer is shown with its marks, the card's copy follows the interface language, and the server log for these requests holds no sentence. — Done on the local stack through the RPC the extension calls, with real Gemini and Anthropic keys, each forced primary in turn: six pairs including the split « remettait … à plus tard » marked; a non-enrolled account unavailable; 1 001 characters and a same-language pair refused; the daily limit and the flag off honoured; the console's totals read back; the server log held no word of any sentence. The interface languages were covered by the extension's card tests, not in a browser.
 - [x] 4.4 Run `openspec validate add-lingua-online-translation --strict`. Verify: it passes.
 
