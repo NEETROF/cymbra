@@ -1,5 +1,6 @@
 /* Shared review-widget styles (side panel + injected drawer). Colours come only from
-   tokens.css. No colour literals here. */
+   tokens.css. No colour literals here. No transition and no animation: an e-ink screen
+   repaints for each one (refine-lingua-review-session D6). */
 .review-note {
   color: var(--cymbra-lingua-muted);
   font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
@@ -10,33 +11,153 @@
   font-size: calc(22px * var(--cymbra-lingua-ui-scale, 1));
   font-weight: 600;
   color: var(--cymbra-lingua-text);
-  margin: 6px 0 10px;
 }
 
-.review-gloss {
-  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
-  color: var(--cymbra-lingua-accent);
-  margin-bottom: 6px;
+/* — The card: the sentence first, the answer's space reserved, one action zone — */
+.review-reviewing {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.review-sentence {
-  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
-  color: var(--cymbra-lingua-muted);
-  margin-bottom: 12px;
+.review-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.review-head .review-note {
+  margin-bottom: 0;
 }
 
 /* Where the word was met: a site, or a book and its chapter. */
 .review-source {
-  margin: -6px 0 12px;
   font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
-  color: var(--cymbra-lingua-faint);
+  color: var(--cymbra-lingua-muted);
+  letter-spacing: 0.02em;
 }
 
-.review-grades {
+/* The sentence reads like the page it came from: a reading face, the card's main element. */
+.review-sentence {
+  margin: 0;
+  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  font-size: calc(18px * var(--cymbra-lingua-ui-scale, 1));
+  line-height: 1.5;
+  color: var(--cymbra-lingua-text);
+}
+
+/* The word under review: weight and underline, never a colour of its own. */
+.review-word {
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* Read-aloud (D11): pills under the sentence, the same before and after the reveal, and the
+   dictionary form's in the answer. Lighter than the answers: hearing is no decision. */
+.review-listen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.review-listen[hidden] {
+  display: none;
+}
+
+.review-answer .review-listen {
+  margin-top: 8px;
+}
+
+.review-listen-btn {
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: transparent;
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.review-listen-btn:hover {
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-text);
+}
+
+.review-listen-btn.speaking {
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent);
+}
+
+/* Reserved before the reveal, so revealing the answer moves nothing else. */
+.review-answer {
+  min-height: calc(84px * var(--cymbra-lingua-ui-scale, 1));
+  padding-top: 10px;
+  border-top: 1px solid var(--cymbra-lingua-border-2);
+}
+
+.review-dictionary-form {
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
+  color: var(--cymbra-lingua-muted);
+  margin-bottom: 2px;
+}
+
+.review-gloss {
+  font-size: calc(17px * var(--cymbra-lingua-ui-scale, 1));
+  font-weight: 600;
+  color: var(--cymbra-lingua-text);
+}
+
+.review-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* One zone, the same size before and after the reveal: « Pas su » left, « Su » right. */
+.review-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.review-actions .review-btn {
+  min-height: calc(56px * var(--cymbra-lingua-ui-scale, 1));
+  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
+  font-weight: 600;
+}
+
+.review-reveal {
+  grid-column: 1 / -1;
+}
+
+.review-links {
+  text-align: center;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+  color: var(--cymbra-lingua-muted);
+}
+
+.review-link {
+  cursor: pointer;
+  padding: 6px 2px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .review-btn {
@@ -67,8 +188,30 @@
   font-weight: 600;
 }
 
-/* The Révision PAGE chrome (mountReview) — shared by the side panel and the in-page drawer:
-   summary + review container + backup/restore tools + Sources & confidentialité. */
+/* — The end of a session — */
+.review-done {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-done-title {
+  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+  font-size: calc(20px * var(--cymbra-lingua-ui-scale, 1));
+  font-weight: 700;
+  color: var(--cymbra-lingua-text);
+}
+
+.review-done-stats {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  line-height: 1.7;
+  color: var(--cymbra-lingua-text);
+  font-size: calc(14px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+/* — The page around it (mountReview): the language filter, the due count, the card — */
 /* The language filter, for a reader of several languages: one segment per language. */
 .review-languages {
   display: flex;
@@ -112,7 +255,10 @@
   color: var(--cymbra-lingua-warn);
 }
 
+/* The review is a container: its layout follows the room it is given, not the device —
+   a 380 px panel, a drawer on a tablet and a phone's width differ (D7). */
 .review {
+  container: review / inline-size;
   min-height: 120px;
   padding: 14px;
   border-radius: var(--cymbra-lingua-radius);
@@ -120,55 +266,74 @@
   border: 1px solid var(--cymbra-lingua-border);
 }
 
-.tools {
-  display: flex;
-  gap: 8px;
-  margin: 14px 0;
+/* Narrow, held upright: the answers at the bottom, above the system's gesture area. The card
+   fills the screen below the page's own header (an estimate of it: the panel's tabs, the due
+   count), so a short card still puts them under the thumb; a long one keeps them in view. */
+@container review (max-width: 599px) {
+  .review-reviewing {
+    min-height: calc(100dvh - 180px);
+  }
+
+  .review-bar {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    padding-top: 8px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    background: var(--cymbra-lingua-panel);
+  }
 }
 
-.tools button {
-  flex: 1;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 10px;
-  border: 1px solid var(--cymbra-lingua-border-2);
-  background: var(--cymbra-lingua-panel-2);
-  color: var(--cymbra-lingua-text);
-  font-family: inherit;
-  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
+/* Wide: a centred column of reading width. */
+@container review (min-width: 600px) {
+  .review-reviewing,
+  .review-done {
+    max-width: 36em;
+    margin-inline: auto;
+  }
 }
 
-.tools button:hover {
-  background: var(--cymbra-lingua-panel-3);
-}
+/* Held sideways with little height: the answers become bands along both edges, the card
+   between them. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .review-reviewing {
+    min-height: 0;
+    max-width: none;
+    margin-inline: 0;
+    display: grid;
+    grid-template-columns: minmax(72px, 18%) 1fr minmax(72px, 18%);
+    grid-template-rows: auto auto auto;
+    column-gap: 10px;
+    row-gap: 8px;
+  }
 
-.msg {
-  min-height: 16px;
-  color: var(--cymbra-lingua-muted);
-  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
-}
+  .review-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
 
-details {
-  margin-top: 14px;
-  border-top: 1px solid var(--cymbra-lingua-border);
-  padding-top: 12px;
-  color: var(--cymbra-lingua-muted);
-  font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
-}
+  .review-bar,
+  .review-actions {
+    display: contents;
+  }
 
-summary {
-  cursor: pointer;
-  color: var(--cymbra-lingua-text);
-}
+  .review-miss {
+    grid-column: 1;
+    grid-row: 1 / -1;
+  }
 
-.notice {
-  white-space: pre-wrap;
-  font-family: var(--cymbra-lingua-mono, monospace);
-  font-size: calc(11px * var(--cymbra-lingua-ui-scale, 1));
-  margin-top: 8px;
-}
+  .review-hit {
+    grid-column: 3;
+    grid-row: 1 / -1;
+  }
 
-.privacy {
-  margin-top: 10px;
-  color: var(--cymbra-lingua-ok);
+  .review-reveal {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .review-links {
+    grid-column: 2;
+    grid-row: 3;
+  }
 }

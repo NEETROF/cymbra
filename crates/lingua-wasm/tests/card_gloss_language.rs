@@ -87,7 +87,7 @@ fn french_native_reviewing(es_fr: &[u8], from: &LinguaEngine) -> LinguaEngine {
         Ok(changed) => assert_eq!(changed, 1),
         Err(_) => panic!("the pulled card applies"),
     }
-    assert_eq!(engine.start_review(T + DAY, None), 1);
+    assert_eq!(engine.start_review(T + DAY, None, None, None, None), 1);
     engine
 }
 
@@ -194,7 +194,7 @@ fn review_reads_the_pack_of_the_cards_language_not_the_first_one_held() {
         Ok(changed) => assert_eq!(changed, 1),
         Err(_) => panic!("the pulled card applies"),
     }
-    assert_eq!(engine.start_review(T + DAY, None), 1);
+    assert_eq!(engine.start_review(T + DAY, None, None, None, None), 1);
     assert_eq!(engine.review_current_language().as_deref(), Some("es"));
     assert_eq!(
         view(&engine)["gloss"],
@@ -451,7 +451,7 @@ fn a_card_glossed_in_the_engines_native_language_is_shown_as_before() {
             Some("es".to_owned()),
         )
         .unwrap();
-    assert_eq!(engine.start_review(T + DAY, None), 1);
+    assert_eq!(engine.start_review(T + DAY, None, None, None, None), 1);
     assert_eq!(view(&engine)["gloss"], "demeure");
     assert!(
         ops(&engine)[0].get("gloss_language").is_none(),
@@ -470,7 +470,7 @@ fn a_card_of_a_language_the_engine_holds_no_pack_for_keeps_its_text() {
         Ok(()) => {}
         Err(_) => panic!("the backup restores"),
     }
-    assert_eq!(engine.start_review(T + DAY, None), 1);
+    assert_eq!(engine.start_review(T + DAY, None, None, None, None), 1);
     assert_eq!(engine.review_current_language().as_deref(), Some("es"));
     assert_eq!(view(&engine)["gloss"], "house");
 }
@@ -505,7 +505,7 @@ fn english_native_reviewing_french(op: &str) -> LinguaEngine {
         Ok(changed) => assert_eq!(changed, 1),
         Err(_) => panic!("the French card applies"),
     }
-    assert_eq!(engine.start_review(T + DAY, None), 1);
+    assert_eq!(engine.start_review(T + DAY, None, None, None, None), 1);
     assert_eq!(engine.review_current_language().as_deref(), Some("fr"));
     engine
 }

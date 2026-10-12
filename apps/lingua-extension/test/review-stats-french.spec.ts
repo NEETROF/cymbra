@@ -72,8 +72,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+// refine-lingua-review-session reshapes the review on purpose — the sentence on the front, two
+// answers, two links, an end summary, backup and sources in Réglages — so its French is pinned here
+// as that change words it; the header and the counts are as they were.
 describe("Every reader today: the review's header and counts, in French as they were", () => {
-  const actions = { start: vi.fn(), reveal: vi.fn(), grade: vi.fn(), markKnown: vi.fn() };
+  const actions = { start: vi.fn(), reveal: vi.fn(), grade: vi.fn(), markKnown: vi.fn(), ignore: vi.fn() };
   const card = (over: Partial<NonNullable<ReviewView["card"]>> = {}): NonNullable<ReviewView["card"]> => ({
     headword: "seldom",
     surface: "seldom",
@@ -87,9 +90,9 @@ describe("Every reader today: the review's header and counts, in French as they 
 
   it("the view: its buttons, its count and its sentence", () => {
     const root = document.createElement("div");
-    renderReview(root, { phase: "idle", card: null }, actions);
+    renderReview(root, { phase: "idle", card: null, summary: null, moreDue: false }, actions);
     expect(buttons(root)).toEqual(["Réviser"]);
-    renderReview(root, { phase: "done", card: null }, actions);
+    renderReview(root, { phase: "done", card: null, summary: null, moreDue: false }, actions);
     expect(root.textContent).toBe("Rien à réviser pour l'instant.");
     for (const [n, said] of [
       [0, "0 carte(s) à revoir"],
@@ -97,14 +100,29 @@ describe("Every reader today: the review's header and counts, in French as they 
       [3, "3 carte(s) à revoir"],
       [1234, "1234 carte(s) à revoir"],
     ] as const) {
-      renderReview(root, { phase: "reviewing", card: card({ remaining: n }) }, actions);
+      renderReview(root, { phase: "reviewing", card: card({ remaining: n }), summary: null, moreDue: false }, actions);
       expect(text(root, ".remaining")).toBe(said);
     }
-    renderReview(root, { phase: "reviewing", card: card() }, actions);
-    expect(buttons(root)).toEqual(["Afficher la réponse"]);
-    renderReview(root, { phase: "reviewing", card: card({ revealed: true }) }, actions);
-    expect(buttons(root)).toEqual(["À revoir", "Difficile", "Correct", "Facile", "Je connais ✓"]);
-    expect(text(root, ".review-sentence")).toBe("« They seldom ship. »");
+    renderReview(root, { phase: "reviewing", card: card(), summary: null, moreDue: false }, actions);
+    expect(buttons(root)).toEqual(["Afficher la réponse", "Je connais", "Ne plus me le montrer"]);
+    expect(text(root, ".review-sentence")).toBe("They seldom ship.");
+    renderReview(root, { phase: "reviewing", card: card({ revealed: true }), summary: null, moreDue: false }, actions);
+    expect(buttons(root)).toEqual(["Pas su", "Su", "Je connais", "Ne plus me le montrer"]);
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ gloss: null, revealed: true }), summary: null, moreDue: false },
+      actions,
+    );
+    expect(text(root, ".review-no-gloss")).toBe("Pas de traduction pour ce mot.");
+    const summary = { reviewed: 10, recovered: 1, holding: 2, known: 0, hidden: 0 };
+    renderReview(root, { phase: "done", card: null, summary, moreDue: true }, actions);
+    expect(text(root, ".review-done-title")).toBe("Séance terminée");
+    expect([...root.querySelectorAll(".review-done-stats li")].map((li) => li.textContent)).toEqual([
+      "10 mots revus",
+      "1 rattrapé en route",
+      "2 tiennent maintenant plus d'un mois",
+    ]);
+    expect(buttons(root)).toEqual(["Encore 10"]);
   });
 
   const DECK: FakeCard[] = [
@@ -125,19 +143,13 @@ describe("Every reader today: the review's header and counts, in French as they 
     expect(text(container, ".summary")).toBe("3 carte(s) · 0 à revoir");
     expect([...container.querySelectorAll(".summary b")].map((b) => b.textContent)).toEqual(["3", "0"]);
     expect(container.querySelector(".review-languages")?.getAttribute("aria-label")).toBe("Langue");
-    expect(buttons(container.querySelector(".tools")!)).toEqual(["Sauvegarder", "Restaurer"]);
-    expect(text(container, "details summary")).toBe("Sources & confidentialité");
-    expect(text(container, ".privacy")).toBe(
-      "Rien ne quitte votre appareil : l'analyse et les traductions sont locales.",
-    );
-    expect(container.querySelector("details")?.textContent).toContain("Sources : L1");
 
     button(container, "Réviser").click();
     await settle();
     expect(text(container, ".remaining")).toBe("3 carte(s) à revoir");
     button(container, "Afficher la réponse").click();
     await settle();
-    button(container, "Correct").click();
+    button(container, "Su").click();
     await settle();
     expect(text(container, ".remaining")).toBe("2 carte(s) à revoir");
   });

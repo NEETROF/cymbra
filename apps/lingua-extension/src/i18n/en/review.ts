@@ -3,10 +3,6 @@ import type { review as fr } from "../fr/review.ts";
 // The review's copy in English — a draft after the French (src/i18n/README.md).
 
 export const review: typeof fr = {
-  again: "Again",
-  hard: "Hard",
-  good: "Good",
-  easy: "Easy",
   start: "Review",
   nothingDue: "Nothing to review for now.",
   remaining: {
@@ -14,13 +10,46 @@ export const review: typeof fr = {
     other: (n) => `${n} cards to review`,
   },
   reveal: "Show the answer",
-  sentence: (sentence) => `“${sentence}”`,
-  markKnown: "I know it ✓",
+  missed: "Didn't know",
+  recalled: "Knew it",
+  markKnown: "I know it",
+  hide: "Don't show it again",
+  linkSeparator: " · ",
+  noGloss: "No translation for this word.",
+  noGlossExpression: "No translation for this expression.",
+  sessionDone: "Session complete",
+  reviewed: {
+    one: (n) => `${n} word reviewed`,
+    other: (n) => `${n} words reviewed`,
+  },
+  recovered: {
+    one: (n) => `${n} caught up along the way`,
+    other: (n) => `${n} caught up along the way`,
+  },
+  holding: {
+    one: (n) => `${n} now holds for over a month`,
+    other: (n) => `${n} now hold for over a month`,
+  },
+  known: {
+    one: (n) => `${n} marked as known`,
+    other: (n) => `${n} marked as known`,
+  },
+  hidden: {
+    one: (n) => `${n} hidden`,
+    other: (n) => `${n} hidden`,
+  },
+  more: (n) => `${n} more`,
+  listenWord: "▶ Word",
+  listenWordLabel: "Listen to the word",
+  listenExpression: "▶ Phrase",
+  listenExpressionLabel: "Listen to the phrase",
+  listenSentence: "▶ Sentence",
+  listenSentenceLabel: "Listen to the sentence",
+  listenForm: (form) => `▶ ${form}`,
+  listenDictionaryFormLabel: (form) => `Listen to the dictionary form “${form}”`,
+  stop: "■ Stop",
+  stopLabel: "Stop reading",
   language: "Language",
-  backup: "Back up",
-  restore: "Restore",
-  sourcesAndPrivacy: "Sources & privacy",
-  privacy: "Nothing leaves your device: analysis and translations are local.",
   deckCards: {
     one: (n) => `${n} card`,
     other: (n) => `${n} cards`,
@@ -30,8 +59,4 @@ export const review: typeof fr = {
     other: (n) => `${n} to review`,
   },
   summarySeparator: " · ",
-  restored: "Backup restored.",
-  notABackup: "Backup file not recognized.",
-  sources: (names) => `Sources: ${names}`,
-  sourceSeparator: " · ",
 };

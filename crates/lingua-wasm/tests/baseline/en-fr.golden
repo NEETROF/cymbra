@@ -286,9 +286,9 @@ Octanove: Octanove Vocabulary Profile C1/C2 v1.0, Octanove Labs, CC BY-SA 4.0.
 ### start-review
 10
 ### review-current first
-{"gloss":"Digitaliser, numériser","headword":"digitalize","remaining":10,"revealed":false,"sentence":"","source":"","surface":"digitalize"}
+{"gloss":"expédition","headword":"expedition","remaining":10,"revealed":false,"sentence":"She will lead the expedition.","source":"https://example.com/homographs","surface":"expedition"}
 ### review-current second
-{"gloss":"Égal; Régulier; Pair, paire; Quitte; Même, voire; Égaliser (une surface); Veillée, soirée","headword":"even","remaining":9,"revealed":false,"sentence":"","source":"","surface":"even"}
+{"gloss":null,"headword":"grin","remaining":9,"revealed":false,"sentence":"He couldn't stop grinning.","source":"","surface":"grinning"}
 ### review-remaining
 8
 ### calibration
@@ -296,7 +296,7 @@ Octanove: Octanove Vocabulary Profile C1/C2 v1.0, Octanove Labs, CC BY-SA 4.0.
 ### declared-level
 B1
 ### tracked-count
-11
+10
 ### deck-count
 11
 ### due-count in 7 days
@@ -312,11 +312,11 @@ B1
 ### phrase-gloss reader She will lead the expedition
 {"tokens":[{"surface":"She","lemma":"she","class":"Known","gloss":"Elle. Se réfère à une femme de la troisième personne du sujet; Il, elle. Se réfère à un bateau, à un navire ou à une voiture, ou, moins souvent (et plus démodé), à un pays ou à une ville; Il. Se réfère à une personne indéfinie de la troisième personne du sujet, arbitrairement utilisé avec he pour être non sexiste","function_word":true},{"surface":"will","lemma":"will","class":"Known","gloss":"Volonté; Testament; Pour indiquer une intention, une anticipation ou une promesse dans le futur; Vouloir, dans le sens d’un acte délibéré ou d’un souhait intense; Léguer (par testament); Prénom masculin","function_word":true},{"surface":"lead","lemma":"lead","class":"Known","gloss":"Mener, conduire, guider; Plomber, garnir de plomb; Plomber, lester; Conduite, action de conduire; (nomenclature UICPA) Plomb (l’élément chimique Pb, le métal); Indice; Mine (d’un crayon); Paroisse civile d’Angleterre située dans le district de Selby","function_word":false},{"surface":"the","lemma":"the","class":"Known","gloss":"Le, la, les; Sert à exprimer une correlation entre deux formes comparatives : plus ..., plus; Avec une forme comparative, indique un résultat où on finit plus comme cette forme, d'autant (souvent précédé par all et suivi par for it)","function_word":true},{"surface":"expedition","lemma":"expedition","class":"Learning","gloss":"Expédition : entreprise de guerre; Expédition : longue entreprise","function_word":false}]}
 ### vocabulary-estimate reader
-{"estimated":3078,"confirmed":6,"universe":22337,"basis":"level"}
+{"estimated":3081,"confirmed":6,"universe":22337,"basis":"level"}
 ### export-status-ops
-[{"language":"en","lemma":"backlog","provenance":"manual","status":"learning","updated_at":1790000060000},{"language":"en","lemma":"betwixt","provenance":"manual","status":"ignored","updated_at":1790000000003},{"language":"en","lemma":"ceiling","provenance":"manual","status":"known","updated_at":1790000000004},{"language":"en","lemma":"councillor","provenance":"manual","status":"cleared","updated_at":1790000000006},{"language":"en","lemma":"even","provenance":"srs","status":"known","updated_at":1790086400000},{"language":"en","lemma":"expedition","provenance":"manual","status":"learning","updated_at":1790000000000},{"language":"en","lemma":"grin","provenance":"manual","status":"learning","updated_at":1790000120000},{"language":"en","lemma":"landlord","provenance":"manual","status":"learning","updated_at":1790000000002},{"language":"en","lemma":"lighthouse","provenance":"manual","status":"known","updated_at":1790000000001},{"language":"en","lemma":"sailor","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"en","lemma":"shore","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"en","lemma":"storm","provenance":"exposure","status":"known","updated_at":1790259200000}]
+[{"language":"en","lemma":"backlog","provenance":"manual","status":"learning","updated_at":1790000060000},{"language":"en","lemma":"betwixt","provenance":"manual","status":"ignored","updated_at":1790000000003},{"language":"en","lemma":"ceiling","provenance":"manual","status":"known","updated_at":1790000000004},{"language":"en","lemma":"councillor","provenance":"manual","status":"cleared","updated_at":1790000000006},{"language":"en","lemma":"expedition","provenance":"manual","status":"learning","updated_at":1790000000000},{"language":"en","lemma":"grin","provenance":"srs","status":"known","updated_at":1790086400000},{"language":"en","lemma":"landlord","provenance":"manual","status":"learning","updated_at":1790000000002},{"language":"en","lemma":"lighthouse","provenance":"manual","status":"known","updated_at":1790000000001},{"language":"en","lemma":"sailor","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"en","lemma":"shore","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"en","lemma":"storm","provenance":"exposure","status":"known","updated_at":1790259200000}]
 ### export-card-ops
-[{"client_id":"backlog","client_ts":1790000300000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","language":"en","lemma":"backlog","source":"","source_sentence":"We really need to take care of the backlog.","surface_form":"backlog"},{"client_id":"digitalize","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":{\"stability\":3.173,\"difficulty\":5.282434422319005},\"due\":1790345600,\"last_review\":1790086400,\"reps\":1,\"lapses\":0}","gloss":"Digitaliser, numériser","language":"en","lemma":"digitalize","source":"","source_sentence":"","surface_form":"digitalize"},{"client_id":"even","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Égal; Régulier; Pair, paire; Quitte; Même, voire; Égaliser (une surface); Veillée, soirée","language":"en","lemma":"even","source":"","source_sentence":"","surface_form":"even"},{"client_id":"exhilarate","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Ragaillardir","language":"en","lemma":"exhilarate","source":"","source_sentence":"","surface_form":"exhilarate"},{"client_id":"expedition","client_ts":1790000000000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"expédition","language":"en","lemma":"expedition","source":"","source_sentence":"She will lead the expedition.","surface_form":"expedition"},{"client_id":"grin","client_ts":1790000120000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","language":"en","lemma":"grin","source":"","source_sentence":"He couldn't stop grinning.","surface_form":"grinning"},{"client_id":"impishly","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Espièglement","language":"en","lemma":"impishly","source":"","source_sentence":"","surface_form":"impishly"},{"client_id":"last","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Dernier, final; Dernier dans le passé; Le moins possible; En dernier, finalement; Forme en bois utilisée par les cordonniers; Durer","language":"en","lemma":"last","source":"","source_sentence":"","surface_form":"last"},{"client_id":"make-up","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Fard, maquillage","language":"en","lemma":"make-up","source":"","source_sentence":"","surface_form":"make-up"},{"client_id":"well-known","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Connu","language":"en","lemma":"well-known","source":"","source_sentence":"","surface_form":"well-known"},{"client_id":"while","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Pendant que, tandis que, tout en; Alors que, tandis que; Tant que, aussi longtemps que; Bien que, quoique; Durée, temps, moment; Passer (le temps); Flâner, traîner","language":"en","lemma":"while","source":"","source_sentence":"","surface_form":"while"}]
+[{"client_id":"backlog","client_ts":1790000300000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","language":"en","lemma":"backlog","source":"","source_sentence":"We really need to take care of the backlog.","surface_form":"backlog"},{"client_id":"digitalize","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Digitaliser, numériser","language":"en","lemma":"digitalize","source":"","source_sentence":"","surface_form":"digitalize"},{"client_id":"even","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Égal; Régulier; Pair, paire; Quitte; Même, voire; Égaliser (une surface); Veillée, soirée","language":"en","lemma":"even","source":"","source_sentence":"","surface_form":"even"},{"client_id":"exhilarate","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Ragaillardir","language":"en","lemma":"exhilarate","source":"","source_sentence":"","surface_form":"exhilarate"},{"client_id":"expedition","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":{\"stability\":3.173,\"difficulty\":5.282434422319005},\"due\":1790345600,\"last_review\":1790086400,\"reps\":1,\"lapses\":0}","gloss":"expédition","language":"en","lemma":"expedition","source":"","source_sentence":"She will lead the expedition.","surface_form":"expedition"},{"client_id":"grin","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","language":"en","lemma":"grin","source":"","source_sentence":"He couldn't stop grinning.","surface_form":"grinning"},{"client_id":"impishly","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Espièglement","language":"en","lemma":"impishly","source":"","source_sentence":"","surface_form":"impishly"},{"client_id":"last","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Dernier, final; Dernier dans le passé; Le moins possible; En dernier, finalement; Forme en bois utilisée par les cordonniers; Durer","language":"en","lemma":"last","source":"","source_sentence":"","surface_form":"last"},{"client_id":"make-up","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Fard, maquillage","language":"en","lemma":"make-up","source":"","source_sentence":"","surface_form":"make-up"},{"client_id":"well-known","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Connu","language":"en","lemma":"well-known","source":"","source_sentence":"","surface_form":"well-known"},{"client_id":"while","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"Pendant que, tandis que, tout en; Alors que, tandis que; Tant que, aussi longtemps que; Bien que, quoique; Durée, temps, moment; Passer (le temps); Flâner, traîner","language":"en","lemma":"while","source":"","source_sentence":"","surface_form":"while"}]
 ### export-declared-levels
 [{"language":"en","level":"B1","updated_at":1790000000000}]
 ### backup
@@ -330,11 +330,10 @@ B1
         "ceiling": {
           "Known": "Manual"
         },
-        "even": {
+        "expedition": "Learning",
+        "grin": {
           "Known": "Srs"
         },
-        "expedition": "Learning",
-        "grin": "Learning",
         "landlord": "Learning",
         "lighthouse": {
           "Known": "Manual"
@@ -365,9 +364,8 @@ B1
         "betwixt": 1790000000003,
         "ceiling": 1790000000004,
         "councillor": 1790000000006,
-        "even": 1790086400000,
         "expedition": 1790000000000,
-        "grin": 1790000120000,
+        "grin": 1790086400000,
         "landlord": 1790000000002,
         "lighthouse": 1790000000001,
         "sailor": 1790259200000,
@@ -440,16 +438,13 @@ B1
           "gloss": "Digitaliser, numériser",
           "media": null,
           "review": {
-            "memory": {
-              "stability": 3.173,
-              "difficulty": 5.282434422319005
-            },
-            "due": 1790345600,
-            "last_review": 1790086400,
-            "reps": 1,
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790086400
+          "updated_at": 1790000240
         },
         "even": {
           "lemma": "even",
@@ -463,12 +458,12 @@ B1
           "media": null,
           "review": {
             "memory": null,
-            "due": 9223372036854775807,
+            "due": null,
             "last_review": null,
             "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790086400
+          "updated_at": 1790000180
         },
         "exhilarate": {
           "lemma": "exhilarate",
@@ -504,13 +499,16 @@ B1
           "gloss": "expédition",
           "media": null,
           "review": {
-            "memory": null,
-            "due": null,
-            "last_review": null,
-            "reps": 0,
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1790345600,
+            "last_review": 1790086400,
+            "reps": 1,
             "lapses": 0
           },
-          "updated_at": 1790000000
+          "updated_at": 1790086400
         },
         "grin": {
           "lemma": "grin",
@@ -528,12 +526,12 @@ B1
           "media": null,
           "review": {
             "memory": null,
-            "due": null,
+            "due": 9223372036854775807,
             "last_review": null,
             "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790000120
+          "updated_at": 1790086400
         },
         "impishly": {
           "lemma": "impishly",

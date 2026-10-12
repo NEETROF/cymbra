@@ -128,13 +128,13 @@ describe.each([
     expect(new Set(calls.languages)).toEqual(new Set([reads]));
   });
 
-  it("credits its pack in Révision", async () => {
+  it("leaves the pack's credits to Réglages: Révision asks no pack (refine-lingua-review-session)", async () => {
     const { port, calls } = await spanishThenEnglish();
     const container = document.createElement("div");
     document.body.append(container);
     mountReview(container, port, fakeArea(), { now: () => 0, prefs: fakeArea() });
     await settle();
-    expect(new Set(calls.languages)).toEqual(new Set([reads]));
+    expect(calls.languages).toEqual([]);
   });
 
   it("leaves the reader's studied languages as they were", async () => {

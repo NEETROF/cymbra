@@ -111,7 +111,7 @@ afterEach(() => {
 });
 
 describe("An English-native reader's review", () => {
-  const actions = { start: vi.fn(), reveal: vi.fn(), grade: vi.fn(), markKnown: vi.fn() };
+  const actions = { start: vi.fn(), reveal: vi.fn(), grade: vi.fn(), markKnown: vi.fn(), ignore: vi.fn() };
   const card = (over: Partial<NonNullable<ReviewView["card"]>> = {}): NonNullable<ReviewView["card"]> => ({
     headword: "faro",
     surface: "faro",
@@ -126,54 +126,102 @@ describe("An English-native reader's review", () => {
 
   it("three cards read « 3 cards to review », one card « 1 card to review »", () => {
     const root = document.createElement("div");
-    renderReview(root, { phase: "reviewing", card: card() }, actions, english);
+    renderReview(root, { phase: "reviewing", card: card(), summary: null, moreDue: false }, actions, english);
     expect(text(root, ".remaining")).toBe("3 cards to review");
-    renderReview(root, { phase: "reviewing", card: card({ remaining: 1 }) }, actions, english);
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ remaining: 1 }), summary: null, moreDue: false },
+      actions,
+      english,
+    );
     expect(text(root, ".remaining")).toBe("1 card to review");
     // A count the language groups: English through en-US, where the French writes the bare figure.
-    renderReview(root, { phase: "reviewing", card: card({ remaining: 1234 }) }, actions, english);
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ remaining: 1234 }), summary: null, moreDue: false },
+      actions,
+      english,
+    );
     expect(text(root, ".remaining")).toBe("1,234 cards to review");
   });
 
   it("names the start, the answer, the grades and the mark in English, the card's words in their language", () => {
     const root = document.createElement("div");
-    renderReview(root, { phase: "idle", card: null }, actions, english);
+    renderReview(root, { phase: "idle", card: null, summary: null, moreDue: false }, actions, english);
     expect(buttons(root)).toEqual(["Review"]);
-    renderReview(root, { phase: "done", card: null }, actions, english);
+    renderReview(root, { phase: "done", card: null, summary: null, moreDue: false }, actions, english);
     expect(root.textContent).toBe("Nothing to review for now.");
-    renderReview(root, { phase: "reviewing", card: card() }, actions, english);
-    expect(buttons(root)).toEqual(["Show the answer"]);
+    renderReview(root, { phase: "reviewing", card: card(), summary: null, moreDue: false }, actions, english);
+    expect(buttons(root)).toEqual(["Show the answer", "I know it", "Don't show it again"]);
 
-    renderReview(root, { phase: "reviewing", card: card({ revealed: true }) }, actions, english);
-    expect(buttons(root)).toEqual(["Again", "Hard", "Good", "Easy", "I know it ✓"]);
-    button(root, "Good").click();
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ revealed: true }), summary: null, moreDue: false },
+      actions,
+      english,
+    );
+    expect(buttons(root)).toEqual(["Didn't know", "Knew it", "I know it", "Don't show it again"]);
+    button(root, "Knew it").click();
     expect(actions.grade).toHaveBeenCalledWith("good");
-    expect(text(root, ".review-sentence")).toBe("“El faro brilla.”");
+    expect(text(root, ".review-sentence")).toBe("El faro brilla.");
     // The document's words keep the studied language's lang (localise-lingua-reading-surfaces D3).
+    expect(root.querySelector(".review-sentence")?.getAttribute("lang")).toBe("es");
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ sentence: "" }), summary: null, moreDue: false },
+      actions,
+      english,
+    );
     expect(root.querySelector(".review-headword")?.getAttribute("lang")).toBe("es");
-    expect(root.querySelector(".review-sentence span")?.getAttribute("lang")).toBe("es");
-    expect(root.querySelector(".review-sentence span")?.textContent).toBe("El faro brilla.");
+    const summary = { reviewed: 1, recovered: 0, holding: 0, known: 2, hidden: 0 };
+    renderReview(root, { phase: "done", card: null, summary, moreDue: true }, actions, english);
+    expect(text(root, ".review-done-title")).toBe("Session complete");
+    expect([...root.querySelectorAll(".review-done-stats li")].map((li) => li.textContent)).toEqual([
+      "1 word reviewed",
+      "2 marked as known",
+    ]);
+    expect(buttons(root)).toEqual(["10 more"]);
   });
 
   it("names the card's language in the interface language, when the reader studies several", () => {
     // add-lingua-native-language-labels: the note is the labels module's in the interface language.
     const root = document.createElement("div");
-    renderReview(root, { phase: "reviewing", card: card() }, actions, { ...english, showLanguage: true });
+    renderReview(root, { phase: "reviewing", card: card(), summary: null, moreDue: false }, actions, {
+      ...english,
+      showLanguage: true,
+    });
     expect(text(root, ".review-language")).toBe("Spanish");
     const spanish = { interfaceLanguage: "es" as const, showLanguage: true };
-    renderReview(root, { phase: "reviewing", card: card({ language: "en" }) }, actions, spanish);
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ language: "en" }), summary: null, moreDue: false },
+      actions,
+      spanish,
+    );
     expect(text(root, ".review-language")).toBe("Inglés");
     // Every reader today: the French, byte for byte.
-    renderReview(root, { phase: "reviewing", card: card() }, actions, { showLanguage: true });
+    renderReview(root, { phase: "reviewing", card: card(), summary: null, moreDue: false }, actions, {
+      showLanguage: true,
+    });
     expect(text(root, ".review-language")).toBe("Espagnol");
   });
 
   it("a Spanish-native reader counts in Spanish", () => {
     const root = document.createElement("div");
     const spanish = { interfaceLanguage: "es" as const };
-    renderReview(root, { phase: "reviewing", card: card({ remaining: 1 }) }, actions, spanish);
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ remaining: 1 }), summary: null, moreDue: false },
+      actions,
+      spanish,
+    );
     expect(text(root, ".remaining")).toBe("1 tarjeta por repasar");
-    renderReview(root, { phase: "reviewing", card: card({ remaining: 12_345 }) }, actions, spanish);
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ remaining: 12_345 }), summary: null, moreDue: false },
+      actions,
+      spanish,
+    );
     expect(text(root, ".remaining")).toBe(`12${NNBSP}345 tarjetas por repasar`);
   });
 
@@ -194,17 +242,12 @@ describe("An English-native reader's review", () => {
     return { container, refresh: page.refresh };
   }
 
-  it("the page: the summary, the counts as the session runs, the tools and the sources in English", async () => {
+  it("the page: the summary and the counts as the session runs, in English", async () => {
     const { port } = makeFakePort(DECK);
     const m = mount(port);
     await m.refresh();
     expect(text(m.container, ".summary")).toBe("3 cards · 0 to review");
     expect(buttons(m.container.querySelector(".review")!)).toEqual(["Review"]);
-    expect(buttons(m.container.querySelector(".tools")!)).toEqual(["Back up", "Restore"]);
-    expect(text(m.container, "details summary")).toBe("Sources & privacy");
-    expect(text(m.container, ".privacy")).toBe("Nothing leaves your device: analysis and translations are local.");
-    await settle();
-    expect(m.container.querySelector("details")?.textContent).toContain("Sources: L1");
 
     button(m.container, "Review").click();
     await settle();
@@ -212,7 +255,7 @@ describe("An English-native reader's review", () => {
     for (const left of ["2 cards to review", "1 card to review"]) {
       button(m.container, "Show the answer").click();
       await settle();
-      button(m.container, "Good").click();
+      button(m.container, "Knew it").click();
       await settle();
       expect(text(m.container, ".remaining")).toBe(left);
     }
@@ -236,33 +279,6 @@ describe("An English-native reader's review", () => {
     const filter = m.container.querySelector(".review-languages");
     expect(filter?.getAttribute("aria-label")).toBe("Language");
     expect([...(filter?.querySelectorAll("button") ?? [])].map((b) => b.textContent)).toEqual(["English", "Spanish"]);
-  });
-
-  it("the page: a restored backup and a file that is not one, said in English", async () => {
-    const { port } = makeFakePort(DECK);
-    const choose = async (container: HTMLElement, contents: string): Promise<void> => {
-      const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
-      const file = new File([contents], "backup.json", { type: "application/json" });
-      // jsdom's Blob predates `Blob.text()`: the file answers it directly.
-      Object.defineProperty(file, "text", { value: async () => contents });
-      Object.defineProperty(input, "files", { value: [file], configurable: true });
-      input.dispatchEvent(new Event("change"));
-      await settle();
-    };
-    const good = mount(port);
-    await good.refresh();
-    await choose(good.container, "{}");
-    expect(text(good.container, ".msg")).toBe("Backup restored.");
-
-    const bad = mount({
-      ...port,
-      restore: async () => {
-        throw new Error("unknown version");
-      },
-    });
-    await bad.refresh();
-    await choose(bad.container, "not json");
-    expect(text(bad.container, ".msg")).toBe("Backup file not recognized.");
   });
 });
 

@@ -163,6 +163,8 @@ async function showSettings(tab?: SettingsTab): Promise<void> {
       onHandedOff: () => window.close(),
       // The language read with this page's first storage read (localise-lingua-settings D1).
       interfaceLanguage: language,
+      // Firefox closes this popup when a file picker opens: a restore goes through the panel.
+      canPickFiles: false,
     });
   }
   if (tab) settings.show(tab);

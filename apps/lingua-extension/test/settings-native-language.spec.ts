@@ -89,7 +89,8 @@ async function mountReglages(pairs: readonly string[], interfaceLanguage?: Inter
 describe("Réglages › Langue maternelle", () => {
   it("Every reader today: no block is built, the language tab holds what it held", async () => {
     const r = await mountReglages(TODAY);
-    expect(r.titles).toEqual(["Langues étudiées", "Traduction", "Lecture à voix haute"]);
+    // « Rythme de révision » is refine-lingua-review-session's (D2).
+    expect(r.titles).toEqual(["Langues étudiées", "Traduction", "Lecture à voix haute", "Rythme de révision"]);
     expect(r.languagePanel.querySelector('input[type="radio"]')).toBeNull();
     expect(r.container.textContent).not.toContain("Langue maternelle");
   });
