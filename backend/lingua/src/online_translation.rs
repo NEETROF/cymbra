@@ -682,8 +682,8 @@ mod tests {
             log.contains("online translation"),
             "the request is logged: {log}"
         );
-        for secret in ["putting off", "the letter", "remettait", "plus tard"] {
-            assert!(!log.contains(secret), "`{secret}` reached the log: {log}");
+        for words in ["putting off", "the letter", "remettait", "plus tard"] {
+            assert!(!log.contains(words), "page text reached the log: `{words}`");
         }
     }
 }
