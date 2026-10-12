@@ -14,6 +14,7 @@ import {
 } from "../i18n/index.ts";
 import { sameSpokenText, type Speaker } from "../reading/speech.ts";
 import { type ReviewView, SESSION_CARDS } from "./session.ts";
+import type { ReviewTranslation } from "./translation.ts";
 
 // The review render — one function every review host (the side panel and the injected drawer)
 // calls to paint a ReviewView, wiring its controls to the given actions. Pure DOM, no styling of
@@ -61,6 +62,12 @@ export interface ReviewRenderOptions {
    * Without one, or without a voice it may use, the card offers nothing to hear.
    */
   speaker?: Speaker;
+  /**
+   * The current card's machine translation, when its pack has no gloss and a model was asked
+   * (add-lingua-review-translation D5): shown once revealed, never before. Without one, the answer
+   * is today's.
+   */
+  translation?: ReviewTranslation;
 }
 
 /** One listen button: what it speaks, under which key, and how it is labelled. */
@@ -188,7 +195,7 @@ function cardView(
     // The dictionary form, when the sentence shows another one.
     const otherForm = marked !== null && marked.text.toLowerCase() !== card.headword.toLowerCase();
     if (otherForm) answer.append(studiedLine("dictionary-form", card.headword, studied));
-    answer.append(card.gloss ? line("gloss", card.gloss) : note(noGloss(card, copy), "review-no-gloss"));
+    answer.append(card.gloss ? line("gloss", card.gloss) : missingGloss(card, opts.translation, copy));
     if (otherForm) answer.append(...listen([headwordListen(card.headword, copy)]));
   }
   main.append(answer);
@@ -252,6 +259,31 @@ function ending(view: ReviewView, actions: ReviewActions, language: InterfaceLan
 function markedIn(card: ReviewCard): MarkedWord | null {
   const sentence = card.sentence.trim();
   return sentence ? markWord(sentence, card.surface, card.headword) : null;
+}
+
+/**
+ * In the place of a missing gloss: the machine translation that came, « Traduction en cours… » while
+ * it is on its way, else the no-translation note (add-lingua-review-translation D2, D5).
+ */
+function missingGloss(card: ReviewCard, translation: ReviewTranslation | undefined, copy: ReviewCopy): HTMLElement {
+  if (translation?.state === "pending") return note(copy.translating, "review-translating");
+  if (translation?.state !== "translated") return note(noGloss(card, copy), "review-no-gloss");
+  const { translation: t, alone } = translation;
+  const block = div("review-translation");
+  const label = line("translation-label", alone ? copy.translationAloneLabel : copy.translationLabel);
+  // Text nodes only: the sentence came from a page and through the engine.
+  const sentence = div("review-translation-sentence");
+  let at = 0;
+  for (const { start, end } of [...t.marks].sort((a, b) => a.start - b.start)) {
+    if (start < at || end > t.sentence.length) continue; // overlapping or out of range: skipped, never thrown
+    const mark = document.createElement("mark");
+    mark.textContent = t.sentence.slice(start, end);
+    sentence.append(document.createTextNode(t.sentence.slice(at, start)), mark);
+    at = end;
+  }
+  sentence.append(document.createTextNode(t.sentence.slice(at)));
+  block.append(label, sentence);
+  return block;
 }
 
 /** An expression is not a word: its missing translation says so. */

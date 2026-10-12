@@ -96,3 +96,18 @@ describe("the drawer's copy", () => {
     expect(active.map((b) => b.textContent)).toEqual(["Stats"]);
   });
 });
+
+describe("the drawer's Révision (add-lingua-review-translation D4)", () => {
+  it("is handed the reading session's translator: a session warms its route through it", async () => {
+    const warm = vi.fn();
+    const translator = vi.fn(() => ({ translate: vi.fn(), warm }));
+    const { drawer: d, root } = drawer({ translator });
+    await d.openOn("review");
+
+    [...root.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === "Réviser")!.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(translator).toHaveBeenCalledWith("en");
+    expect(warm).toHaveBeenCalledWith("en");
+  });
+});

@@ -2,6 +2,7 @@ import type { LinguaPort } from "../analyzer/port.ts";
 import { drawer as frDrawer } from "../i18n/fr/drawer.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, type InterfaceLanguage } from "../i18n/index.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
+import type { TranslatorSource } from "../translate/create-port.ts";
 import { type AsyncStorageArea } from "../state/storage.ts";
 import { mountStats } from "../stats/view.ts";
 import { requestSync } from "../sync/messages.ts";
@@ -44,6 +45,11 @@ export interface DrawerOptions {
   language?: InterfaceLanguage;
   /** The drawer's copy in that language; the French module when not given. */
   copy?: DrawerCopy;
+  /**
+   * The reading session's translator, which Révision answers a card without a gloss with: the
+   * session's engine host and answer memory, shared with the word cards (add-lingua-review-translation D4).
+   */
+  translator?: TranslatorSource;
 }
 
 export class Drawer {
@@ -180,6 +186,7 @@ export class Drawer {
         prefs: this.opts.area,
         pageLanguage: this.opts.pageLanguage,
         interfaceLanguage: this.opts.language,
+        translator: this.opts.translator,
       });
       await this.reviewPage.refresh();
     } else if (view === "stats") {

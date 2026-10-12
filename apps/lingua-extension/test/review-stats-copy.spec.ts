@@ -768,6 +768,22 @@ describe("the side panel hands review and statistics the language it read (panel
     expect(buttons(container.querySelector(".review")!)).toEqual(["Review"]);
   });
 
+  it("hands Révision the panel's translator (add-lingua-review-translation D4)", async () => {
+    const doc = load(HTML);
+    const warm = vi.fn();
+    const translator = vi.fn(() => ({ translate: vi.fn(), warm }));
+    const panel = startPanel(doc, { ...deps(pageArea() as AsyncStorageArea), translator });
+    const review = await panel.review(doc.getElementById("view-review")!);
+    await review.refresh();
+
+    [...doc.querySelectorAll<HTMLButtonElement>("#view-review button")]
+      .find((b) => b.textContent === "Réviser")!
+      .click();
+    await settle();
+
+    expect(warm).toHaveBeenCalledWith("en");
+  });
+
   it("Statistiques asked for before the language has answered mounts in English too", async () => {
     const doc = load(HTML);
     const prefs = heldPrefs("en");
