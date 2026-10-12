@@ -12,6 +12,8 @@ import {
   STORAGE_VERSION,
 } from "@/state/storage.ts";
 import { STORE_CHANGED_KEY } from "@/state/store.ts";
+import type { TranslatorSource } from "@/translate/create-port.ts";
+import { TRANSLATION_WAIT_MS, type TranslationRequest, type TranslationResult } from "@/translate/port.ts";
 import { type FakeCard, makeFakePort, makeFakeSpeech } from "./helpers.ts";
 
 // The Révision page as a WHOLE: the summary, the FSRS widget and the reaction to a state written
@@ -95,6 +97,8 @@ interface Host {
   prefs?: Area;
   /** What reads the card aloud (refine-lingua-review-session D11); none under jsdom by default. */
   speech?: SpeechEngine | null;
+  /** The translator its host hands it (add-lingua-review-translation D4); none by default. */
+  translator?: TranslatorSource;
 }
 
 function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
@@ -106,6 +110,7 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     prefs,
     pageLanguage: host.pageLanguage,
     speech: host.speech,
+    translator: host.translator,
   });
   return { page, container, area, prefs };
 }
@@ -659,5 +664,217 @@ describe("Révision — a reader of several languages", () => {
     await settle();
 
     expect(chosen(m.container)).toBe("Anglais");
+  });
+});
+
+/**
+ * The host's translator, a test double: every request it was asked and the languages warmed, its
+ * answers given by the spec through `answer` — none until then, as an engine still working.
+ */
+function fakeTranslator(ready: (language: string) => boolean = () => true) {
+  const requests: TranslationRequest[] = [];
+  const warmed: string[] = [];
+  const pending: ((result: TranslationResult) => void)[] = [];
+  const port = {
+    translate: vi.fn((request: TranslationRequest) => {
+      requests.push(request);
+      return new Promise<TranslationResult>((resolve) => pending.push(resolve));
+    }),
+    warm: vi.fn((language: string) => void warmed.push(language)),
+  };
+  const source: TranslatorSource = (language) => (ready(language) ? port : null);
+  /** Answer the `index`th request with `sentence`, its marks as given. */
+  const answer = (index: number, sentence: string, marks = [{ start: 0, end: 0 }]): void =>
+    pending[index]({ kind: "translated", translation: { sentence, marks } });
+  return { source, requests, warmed, answer };
+}
+
+const EXPRESSION: FakeCard = {
+  headword: "such as those made",
+  surface: "such as those made",
+  sentence: "Rules such as those made here hold.",
+  gloss: null,
+};
+
+describe("Révision — a card the pack cannot answer (add-lingua-review-translation)", () => {
+  it("asks its sentence translated the moment it comes up, the expression's place marked", async () => {
+    const t = fakeTranslator();
+    const m = mount(makeFakePort([EXPRESSION]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(t.requests).toEqual([
+      { sentence: "Rules such as those made here hold.", selection: { start: 6, end: 24 }, language: "en" },
+    ]);
+    expect(m.container.querySelector(".review-translation, .review-translating")).toBeNull(); // not before the reveal
+  });
+
+  it("warms the route of the review's language when a session starts", async () => {
+    const t = fakeTranslator();
+    const m = mount(makeFakePort(DECK).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(t.warmed).toEqual(["en"]);
+  });
+
+  it("shows a translation that came before the reveal as part of the answer", async () => {
+    const t = fakeTranslator();
+    const m = mount(makeFakePort([EXPRESSION]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    t.answer(0, "Des règles comme celles faites ici tiennent.", [{ start: 11, end: 34 }]);
+    await settle();
+    expect(m.container.querySelector(".review-translation")).toBeNull(); // still hidden
+
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+
+    expect(text(m.container, ".review-translation-label")).toBe("Dans votre phrase — traduction automatique");
+    expect(text(m.container, ".review-translation mark")).toBe("comme celles faites ici");
+    expect(m.container.querySelector(".review-no-gloss")).toBeNull();
+  });
+
+  it("says a translation is coming at the reveal, then puts it in that line's place", async () => {
+    const t = fakeTranslator();
+    const m = mount(makeFakePort([EXPRESSION]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+    expect(text(m.container, ".review-translating")).toBe("Traduction en cours…");
+
+    t.answer(0, "Des règles comme celles faites ici tiennent.");
+    await settle();
+
+    expect(m.container.querySelector(".review-translating")).toBeNull();
+    expect(text(m.container, ".review-translation-sentence")).toBe("Des règles comme celles faites ici tiennent.");
+  });
+
+  it("keeps the no-translation note when none comes within the bound", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const t = fakeTranslator();
+    const m = mount(makeFakePort([EXPRESSION]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await vi.advanceTimersByTimeAsync(0);
+    button(m.container, "Afficher la réponse").click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    await vi.advanceTimersByTimeAsync(TRANSLATION_WAIT_MS);
+
+    expect(m.container.querySelector(".review-translating")).toBeNull();
+    expect(text(m.container, ".review-no-gloss")).toBe("Pas de traduction pour cette expression.");
+  });
+
+  it("does not ask for a card with a gloss, which shows its gloss alone", async () => {
+    const t = fakeTranslator();
+    const m = mount(makeFakePort(DECK).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+
+    expect(t.requests).toEqual([]);
+    expect(text(m.container, ".review-gloss")).toBe("rarement");
+    expect(m.container.querySelector(".review-translation, .review-translating")).toBeNull();
+  });
+
+  it("is today's review without a translator, or without a model for the card's language", async () => {
+    for (const translator of [undefined, fakeTranslator(() => false).source]) {
+      const m = mount(makeFakePort([EXPRESSION]).port, fakeArea(), { translator });
+      await m.page.refresh();
+      button(m.container, "Réviser").click();
+      await settle();
+      button(m.container, "Afficher la réponse").click();
+      await settle();
+
+      expect(m.container.querySelector(".review-translation, .review-translating")).toBeNull();
+      expect(text(m.container, ".review-no-gloss")).toBe("Pas de traduction pour cette expression.");
+    }
+  });
+
+  it("translates alone an expression its sentence does not hold, under the label that says so", async () => {
+    const t = fakeTranslator();
+    const card: FakeCard = { ...EXPRESSION, sentence: "Some other sentence entirely." };
+    const m = mount(makeFakePort([card]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    t.answer(0, "comme celles faites", []);
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+
+    expect(t.requests).toEqual([{ sentence: "such as those made", selection: null, language: "en" }]);
+    expect(text(m.container, ".review-translation-label")).toBe("Traduction automatique");
+  });
+
+  it("never translates a single word alone", async () => {
+    const t = fakeTranslator();
+    const card: FakeCard = { headword: "thole", surface: "thole", sentence: "Nothing of it here.", gloss: null };
+    const m = mount(makeFakePort([card]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(t.requests).toEqual([]);
+  });
+
+  it("asks in the card's own language, a Spanish card included", async () => {
+    packs.shipped = ["en-fr", "es-fr"];
+    const t = fakeTranslator();
+    const card: FakeCard = {
+      headword: "sin embargo",
+      surface: "sin embargo",
+      sentence: "Llegó tarde, sin embargo.",
+      gloss: null,
+      language: "es",
+    };
+    const { port } = makeFakePort([card]);
+    port.studiedLanguages = async () => ["es"];
+    const m = mount(port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+
+    expect(t.warmed).toEqual(["es"]);
+    expect(t.requests[0]).toEqual({
+      sentence: "Llegó tarde, sin embargo.",
+      selection: { start: 13, end: 24 },
+      language: "es",
+    });
+  });
+
+  it("shows an answer that lands after its card was answered nowhere", async () => {
+    const t = fakeTranslator();
+    const other: FakeCard = {
+      ...EXPRESSION,
+      headword: "in spite of",
+      surface: "in spite of",
+      sentence: "in spite of it",
+    };
+    const m = mount(makeFakePort([EXPRESSION, other]).port, fakeArea(), { translator: t.source });
+    await m.page.refresh();
+    button(m.container, "Réviser").click();
+    await settle();
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+    button(m.container, "Su").click();
+    await settle();
+    button(m.container, "Afficher la réponse").click();
+    await settle();
+
+    t.answer(0, "LATE");
+    await settle();
+
+    expect(m.container.textContent).not.toContain("LATE");
+    expect(text(m.container, ".review-translating")).toBe("Traduction en cours…"); // the second card's own
   });
 });

@@ -9,6 +9,7 @@ import { reloadOnNativeLanguageChange } from "../state/native-language.ts";
 import { messagedArea, watchBackup } from "../state/store.ts";
 import { requestSync } from "../sync/messages.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
+import { createTranslatorPort } from "../translate/create-port.ts";
 import { type PanelView, reloadOnView, start, viewToRestore } from "./panel.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
@@ -86,7 +87,8 @@ let review: ReviewPage | null = null;
 let settings: SettingsView | null = null;
 let current: PanelView = "review";
 /** The page's copy and Révision and Statistiques, in the interface language (panel.ts). */
-const panel = start(document, { prefs: area, store, port, now, pageLanguage });
+// Révision's translator: the messaging port, all a painting surface may reach (add-lingua-review-translation D4).
+const panel = start(document, { prefs: area, store, port, now, pageLanguage, translator: createTranslatorPort() });
 
 /** Switch views; each is (re)mounted/refreshed on show so it reflects the current state. */
 async function showView(view: PanelView): Promise<void> {

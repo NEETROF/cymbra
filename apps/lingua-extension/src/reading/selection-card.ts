@@ -12,7 +12,7 @@ import { selection as frSelection } from "../i18n/fr/selection.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatNumber, type InterfaceLanguage } from "../i18n/index.ts";
 import type { MarkedTranslation, Span } from "../translate/markup.ts";
 import { type OnlineTranslationRequest, type OnlineTranslationResult, translateOnline } from "../translate/online.ts";
-import type { TranslationRequest, TranslatorPort } from "../translate/port.ts";
+import { type TranslationRequest, TRANSLATION_WAIT_MS, type TranslatorPort } from "../translate/port.ts";
 import {
   type Gesture,
   type GlossRow,
@@ -62,15 +62,8 @@ export const GRAMMAR_WAIT_MS = 250;
 /** The most word-by-word rows a card shows. */
 export const MAX_ROWS = 6;
 
-/**
- * How long the card keeps its offer to upgrade open. The card no longer waits for the engine
- * before answering — the pack's answer is shown as soon as it arrives and the translation
- * replaces it when it lands — so this is not a wait the reader sits through; it is when the
- * card stops expecting one. Set above the engine's own start bound (START_TIMEOUT_MS), which
- * is what a cold engine is really bounded by: measured at 4.8 s on a Galaxy Tab S6 Lite, far
- * past anything the reader should have been made to wait for.
- */
-export const TRANSLATION_WAIT_MS = 15_000;
+/** How long the card keeps its offer to upgrade open: beside the translator, which the review shares. */
+export { TRANSLATION_WAIT_MS };
 
 /** The reader's current status for a token class, or null for a new/unknown word — drives
  *  which actions the popup offers when a word is reopened. */
@@ -311,18 +304,35 @@ const CLICK_SLACK = 3;
  * own boxes (a line-wrapped word has several) are the truth, with a few pixels of slack so
  * clicking the edge of a letter still counts.
  */
-export function clickIsOnWord(x: number, y: number, rects: Iterable<DOMRect>): boolean {
+export function clickIsOnWord(x: number, y: number, rects: Iterable<DOMRect>, slack = CLICK_SLACK): boolean {
   for (const r of rects) {
-    if (
-      x >= r.left - CLICK_SLACK &&
-      x <= r.right + CLICK_SLACK &&
-      y >= r.top - CLICK_SLACK &&
-      y <= r.bottom + CLICK_SLACK
-    ) {
+    if (x >= r.left - slack && x <= r.right + slack && y >= r.top - slack && y <= r.bottom + slack) {
       return true;
     }
   }
   return false;
+}
+
+/**
+ * How far from any letter a tap still counts as being on the text (px): a fingertip, not a
+ * pointer. A tap that misses a word by this much is a miss, not a tap on the empty page.
+ */
+const TEXT_SLACK = 12;
+
+/**
+ * Whether a tap at (x, y) landed on text at all — any word, painted or not, the space between
+ * two, or the leading between two lines — given the caret it resolved to. Only a tap on no
+ * text is the host's to use (the reader turns its page on one): a tap on a known word, or just
+ * beside a word, is not. The caret snaps to the nearest text, and not always to the nearest
+ * line (WebKit picks the end of the next one), so the line boxes of the whole text it fell in
+ * decide; a page's margins and the empty end of a short line stay blank.
+ */
+export function tapIsOnText(caret: { node: Node; offset: number } | null, x: number, y: number): boolean {
+  const node = caret?.node;
+  if (!node || node.nodeType !== 3 || !(node as Text).length || !node.ownerDocument) return false;
+  const range = node.ownerDocument.createRange();
+  range.selectNodeContents(node);
+  return typeof range.getClientRects === "function" && clickIsOnWord(x, y, range.getClientRects(), TEXT_SLACK);
 }
 
 /**
