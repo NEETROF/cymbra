@@ -12,7 +12,7 @@ import { selection as frSelection } from "../i18n/fr/selection.ts";
 import { DEFAULT_INTERFACE_LANGUAGE, formatNumber, type InterfaceLanguage } from "../i18n/index.ts";
 import type { MarkedTranslation, Span } from "../translate/markup.ts";
 import { type OnlineTranslationRequest, type OnlineTranslationResult, translateOnline } from "../translate/online.ts";
-import type { TranslationRequest, TranslatorPort } from "../translate/port.ts";
+import { type TranslationRequest, TRANSLATION_WAIT_MS, type TranslatorPort } from "../translate/port.ts";
 import {
   type Gesture,
   type GlossRow,
@@ -62,15 +62,8 @@ export const GRAMMAR_WAIT_MS = 250;
 /** The most word-by-word rows a card shows. */
 export const MAX_ROWS = 6;
 
-/**
- * How long the card keeps its offer to upgrade open. The card no longer waits for the engine
- * before answering — the pack's answer is shown as soon as it arrives and the translation
- * replaces it when it lands — so this is not a wait the reader sits through; it is when the
- * card stops expecting one. Set above the engine's own start bound (START_TIMEOUT_MS), which
- * is what a cold engine is really bounded by: measured at 4.8 s on a Galaxy Tab S6 Lite, far
- * past anything the reader should have been made to wait for.
- */
-export const TRANSLATION_WAIT_MS = 15_000;
+/** How long the card keeps its offer to upgrade open: beside the translator, which the review shares. */
+export { TRANSLATION_WAIT_MS };
 
 /** The reader's current status for a token class, or null for a new/unknown word — drives
  *  which actions the popup offers when a word is reopened. */

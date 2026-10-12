@@ -473,6 +473,7 @@ export class ReadingSession {
       pageLanguage: async () => this.besideLanguage(),
       language: interfaceLanguage,
       copy: copy.drawer,
+      translator: this.translator,
     });
     const actions: HudActions = {
       onReview: () => this.openReviewSurface("review"),

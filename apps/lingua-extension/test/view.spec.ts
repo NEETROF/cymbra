@@ -370,3 +370,85 @@ describe("sourceLabel", () => {
     expect(sourceLabel(undefined)).toBe("");
   });
 });
+
+describe("renderReview — a card translated at review (add-lingua-review-translation)", () => {
+  const expression = {
+    headword: "such as those made",
+    surface: "such as those made",
+    sentence: "Rules such as those made here hold.",
+    gloss: null,
+  };
+  const translated = (sentence: string, marks: { start: number; end: number }[], alone = false) => ({
+    state: "translated" as const,
+    translation: { sentence, marks },
+    alone,
+  });
+
+  it("An expression in review: nothing of it before the reveal, the machine translation after", () => {
+    const translation = translated("Des règles comme celles faites ici tiennent.", [{ start: 11, end: 34 }]);
+    renderReview(root, reviewing(expression), actions, { translation });
+    expect(root.querySelector(".review-translation")).toBeNull();
+    expect(root.textContent).not.toContain("Des règles");
+
+    renderReview(root, reviewing({ ...expression, revealed: true }), actions, { translation });
+
+    expect(root.querySelector(".review-translation-label")?.textContent).toBe(
+      "Dans votre phrase — traduction automatique",
+    );
+    expect(root.querySelector(".review-translation mark")?.textContent).toBe("comme celles faites ici");
+    expect(root.querySelector(".review-translation-sentence")?.textContent).toBe(
+      "Des règles comme celles faites ici tiennent.",
+    );
+    expect(root.querySelector(".review-no-gloss")).toBeNull();
+  });
+
+  it("Ready at the reveal: the translation is in the answer's space, nothing added after", () => {
+    renderReview(root, reviewing({ ...expression, revealed: true }), actions, {
+      translation: translated("Des règles.", []),
+    });
+    const answer = root.querySelector(".review-answer")!;
+    expect(answer.children).toHaveLength(1);
+    expect(answer.querySelector(".review-translation")).not.toBeNull();
+    expect(root.querySelector(".review-translating")).toBeNull();
+  });
+
+  it("Still on its way: says a translation is coming, in place of the no-translation note", () => {
+    renderReview(root, reviewing({ ...expression, revealed: true }), actions, { translation: { state: "pending" } });
+    expect(root.querySelector(".review-translating")?.textContent).toBe("Traduction en cours…");
+    expect(root.querySelector(".review-no-gloss")).toBeNull();
+  });
+
+  it("none came: the no-translation note, as before the engine existed", () => {
+    renderReview(root, reviewing({ ...expression, revealed: true }), actions, { translation: { state: "none" } });
+    expect(root.querySelector(".review-no-gloss")?.textContent).toBe("Pas de traduction pour cette expression.");
+    expect(root.querySelector(".review-translation, .review-translating")).toBeNull();
+  });
+
+  it("A sentence that does not hold the expression: labelled as a machine translation of it", () => {
+    renderReview(root, reviewing({ ...expression, sentence: "Other words.", revealed: true }), actions, {
+      translation: translated("comme celles faites", [], true),
+    });
+    expect(root.querySelector(".review-translation-label")?.textContent).toBe("Traduction automatique");
+  });
+
+  it("shows a translation holding markup as text, and skips a mark out of range", () => {
+    renderReview(root, reviewing({ ...expression, revealed: true }), actions, {
+      translation: translated("<img src=x onerror=alert(1)> ok", [
+        { start: 0, end: 4 },
+        { start: 30, end: 90 },
+      ]),
+    });
+    const sentence = root.querySelector(".review-translation-sentence")!;
+    expect(sentence.querySelector("img")).toBeNull();
+    expect(sentence.textContent).toBe("<img src=x onerror=alert(1)> ok");
+    expect(sentence.querySelectorAll("mark")).toHaveLength(1);
+  });
+
+  it("speaks the interface language: English labels for an English interface", () => {
+    renderReview(root, reviewing({ ...expression, revealed: true }), actions, {
+      interfaceLanguage: "en",
+      translation: { state: "pending" },
+    });
+    expect(root.querySelector(".review-translating")?.textContent).toBe("Translating…");
+  });
+});

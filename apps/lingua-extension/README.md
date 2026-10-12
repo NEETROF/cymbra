@@ -249,6 +249,17 @@ another session would hold cards. Keys: Space reveals, ← and → answer. The c
 before and after the reveal (« ▶ Mot » or « ▶ Expression », « ▶ Phrase », then the dictionary
 form), with the word card's voices, in the card's language.
 
+A card the pack cannot answer — an expression, or a word without a gloss —
+(`add-lingua-review-translation`) is translated on the device where « Traduction étendue » has
+the models of its language: its sentence, the word's place marked, asked the moment the card
+comes up (the route warmed when the session starts) and shown once revealed, under « Dans votre
+phrase — traduction automatique ». An expression its sentence does not hold is translated alone,
+under « Traduction automatique »; a single word never is. A translation still on its way at the
+reveal says « Traduction en cours… »; none within 15 s leaves « Pas de traduction… ». A card with
+a gloss is never translated. The translation is never stored — not on the card, not in a backup,
+not synced. The drawer uses the reading session's translator, the side panel its own messaging
+port.
+
 Lossless **backup** (download) / **restore** (re-import) and the pack's sources live in
 Réglages › Données, in every host; the toolbar popup offers the download and points to the
 panel for a restore, since Firefox closes a popup when a file picker opens.
