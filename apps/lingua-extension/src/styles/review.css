@@ -142,7 +142,13 @@
   grid-column: 1 / -1;
 }
 
+/* The two links side by side, each whole on its line when they wrap: a gap, never a separator
+   left at the end of a line. */
 .review-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 16px;
   text-align: center;
   font-size: calc(12px * var(--cymbra-lingua-ui-scale, 1));
   color: var(--cymbra-lingua-muted);

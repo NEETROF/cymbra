@@ -16,7 +16,6 @@ export const review: typeof fr = {
   recalled: "La sabía",
   markKnown: "La conozco",
   hide: "No volver a mostrarla",
-  linkSeparator: " · ",
   noGloss: "No hay traducción para esta palabra.",
   noGlossExpression: "No hay traducción para esta expresión.",
   sessionDone: "Sesión terminada",

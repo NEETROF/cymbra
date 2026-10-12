@@ -205,7 +205,6 @@ function cardView(
   const links = div("review-links");
   links.append(
     button(copy.markKnown, "review-link review-known", () => actions.markKnown()),
-    document.createTextNode(copy.linkSeparator),
     button(copy.hide, "review-link review-hide", () => actions.ignore()),
   );
   const bar = div("review-bar");

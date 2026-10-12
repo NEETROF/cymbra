@@ -18,7 +18,6 @@ export const review = {
   recalled: "Su",
   markKnown: "Je connais",
   hide: "Ne plus me le montrer",
-  linkSeparator: " · ",
   noGloss: "Pas de traduction pour ce mot.",
   noGlossExpression: "Pas de traduction pour cette expression.",
   /** The end of a session: its title, then one line per count, its figure in bold. */
