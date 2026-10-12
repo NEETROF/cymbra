@@ -31,8 +31,8 @@ type Call = (req: FakeRequest) => Promise<{ message: string }>;
 /** Apply an interceptor to a fake downstream call. */
 const apply = (i: Interceptor, next: Call): Call => i(next as never) as unknown as Call;
 
-/** A request for an ordinary RPC — anything that is not the refresh call. */
-const request = (method: unknown = AuthService.method.logout): FakeRequest => ({
+/** A request for an ordinary RPC — one that carries the bearer, unlike refresh or logout. */
+const request = (method: unknown = AuthService.method.linkIdentity): FakeRequest => ({
   method,
   header: new Headers(),
 });
@@ -214,6 +214,22 @@ describe("createTransport", () => {
     );
     await chain(request());
     expect(seen).toBeNull();
+  });
+
+  it("sends refresh and logout without the access token they replace or end", async () => {
+    // The auth service rejects a presented access token that has expired before the
+    // handler runs: a refresh carrying one was refused and purged a live session.
+    const seen: Array<string | null> = [];
+    const chain = chainOf(
+      () => "expired-access",
+      async (req) => {
+        seen.push(req.header.get("Authorization"));
+        return { message: "ok" };
+      },
+    );
+    await chain(request(AuthService.method.refresh));
+    await chain(request(AuthService.method.logout));
+    expect(seen).toEqual([null, null]);
   });
 
   it("carries the NEW token on the retry, and keeps the expiry handler quiet", async () => {

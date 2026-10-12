@@ -19,11 +19,20 @@ import { FlagService } from "@/gen/flags_pb";
 // Backend gRPC-web origin, injected by esbuild `define` (env.d.ts). Defaults to the
 // local backend so a dogfooding build works without configuration.
 
+// The calls that present the refresh token itself carry NO bearer. The auth service
+// rejects any presented access token that fails verification, before the handler runs
+// (OptionalAuthInterceptor, backend/platform/src/interceptor.rs) — so a refresh sent with
+// the access token it is meant to replace came back UNAUTHENTICATED ("token rejected:
+// expired") and the Session purged a perfectly live session. It bit whenever the
+// background outlived its 15-minute access token: on Firefox Android, a reading session
+// keeps the event page awake for as long as the reader turns pages.
+const WITHOUT_BEARER: ReadonlySet<unknown> = new Set([AuthService.method.refresh, AuthService.method.logout]);
+
 const authInterceptor =
   (getToken: () => string | null): Interceptor =>
   (next) =>
   async (req) => {
-    const token = getToken();
+    const token = WITHOUT_BEARER.has(req.method) ? null : getToken();
     if (token) req.header.set("Authorization", `Bearer ${token}`);
     return next(req);
   };
