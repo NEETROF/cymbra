@@ -5,13 +5,15 @@ TBD - created by archiving change add-premium-subscription. Update Purpose after
 ## Requirements
 ### Requirement: Campaigns have a kind that defines their effect and their clock
 
-The system SHALL let a music-scope admin create a **beta campaign** with a key, a name and a
+The system SHALL let an admin of a product create a **beta campaign** for that product with a key, a name and a
 kind. A **`premium_trial`** campaign SHALL carry a `duration_days` (default 90, fixed at
 creation) and SHALL grant each enrolled tester `premium` for that many days **from their own
 enrolment**; its enrolment MAY be closed, which stops new enrolments and MUST NOT shorten any
 existing trial. A **`feature`** campaign SHALL grant no plan, SHALL have no end date, and SHALL be
 **closed by the operator** when the feature is stable, which ends every membership at once. A
-closed campaign MUST refuse enrolment.
+closed campaign MUST refuse enrolment. Only an admin of a campaign's product SHALL create it,
+enrol an account into it, revoke a membership of it, or close or reopen it. A Lingua campaign
+SHALL be of kind `feature`.
 
 #### Scenario: Trial campaign grants per-tester premium
 
@@ -32,6 +34,11 @@ closed campaign MUST refuse enrolment.
 
 - **WHEN** an admin closes a feature campaign
 - **THEN** every membership becomes inactive and enrolment is refused
+
+#### Scenario: An admin of another product
+
+- **WHEN** an admin of Music only tries to enrol an account in a Lingua campaign
+- **THEN** the enrolment is refused as not permitted and nothing changes
 
 ### Requirement: Codes are single-use, high-entropy, hashed at rest, campaign-bound
 
