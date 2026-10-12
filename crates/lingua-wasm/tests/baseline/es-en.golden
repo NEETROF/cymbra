@@ -358,9 +358,9 @@ the frequency ranks and its French glosses, and every pack studying Spanish read
 ### start-review
 10
 ### review-current first
-{"gloss":"bridge (construction spanning a waterway, ravine, or valley from an elevated height); long weekend, a day which falls between two work-free days (holidays or weekend days), on which leave is preferred; arch of a foot (curved part of the bottom of a foot); bridge, bridge deck (elevated platform above the upper deck of a mechanically propelled ship from which it is navigated and from which all activities on deck can be seen and controlled by the captain); bridge, denture (artificial replacement of one or more teeth); bridge (bodily position); a surname","headword":"puente","remaining":10,"revealed":false,"sentence":"","source":"","surface":"puente"}
+{"gloss":"voyage; journey, trip; a state of hallucination or altered consciousness caused by a narcotic drug; a lot, loads","headword":"viaje","remaining":10,"revealed":false,"sentence":"Ella dirigirá el viaje.","source":"https://example.com/homografos","surface":"viaje"}
 ### review-current second
-{"gloss":"recognition; reconnaissance","headword":"reconocimiento","remaining":9,"revealed":false,"sentence":"","source":"","surface":"reconocimiento"}
+{"gloss":null,"headword":"sonreír","remaining":9,"revealed":false,"sentence":"Entró en la sala sonriendo.","source":"","surface":"sonriendo"}
 ### review-remaining
 8
 ### calibration
@@ -368,7 +368,7 @@ the frequency ranks and its French glosses, and every pack studying Spanish read
 ### declared-level
 B1
 ### tracked-count
-12
+11
 ### deck-count
 11
 ### due-count in 7 days
@@ -384,11 +384,11 @@ B1
 ### phrase-gloss reader Ella dirigirá el viaje
 {"tokens":[{"surface":"Ella","lemma":"él","class":"Known","gloss":"he, him, masculine personal third person subject and disjunctive pronoun (used as a subject and after prepositions); it, masculine non-personal third-person subject and disjunctive pronoun (usually used after prepositions to refer to masculine nouns)","function_word":true},{"surface":"dirigirá","lemma":"dirigir","class":"Unknown","gloss":"to direct; to lead, guide, conduct; to steer; (+ a) to address, direct to; (+ a) to head, to make one's way, to head over","function_word":false},{"surface":"el","lemma":"el","class":"Known","gloss":"masculine singular definite article, the; feminine singular definite article used before nouns which start with a stressed /a/","function_word":true},{"surface":"viaje","lemma":"viaje","class":"Learning","gloss":"voyage; journey, trip; a state of hallucination or altered consciousness caused by a narcotic drug; a lot, loads","function_word":false}]}
 ### vocabulary-estimate reader
-{"estimated":2176,"confirmed":7,"universe":21061,"basis":"level"}
+{"estimated":2177,"confirmed":7,"universe":21061,"basis":"level"}
 ### export-status-ops
-[{"language":"es","lemma":"barco","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"es","lemma":"faro","provenance":"manual","status":"known","updated_at":1790000000001},{"language":"es","lemma":"mar","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"es","lemma":"marinero","provenance":"manual","status":"learning","updated_at":1790000000002},{"language":"es","lemma":"ojalá","provenance":"manual","status":"ignored","updated_at":1790000000003},{"language":"es","lemma":"paciencia","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"es","lemma":"pueblo","provenance":"manual","status":"cleared","updated_at":1790000000006},{"language":"es","lemma":"reconocimiento","provenance":"srs","status":"known","updated_at":1790086400000},{"language":"es","lemma":"retraso","provenance":"manual","status":"learning","updated_at":1790000060000},{"language":"es","lemma":"sonreír","provenance":"manual","status":"learning","updated_at":1790000120000},{"language":"es","lemma":"tormenta","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"es","lemma":"ventana","provenance":"manual","status":"known","updated_at":1790000000004},{"language":"es","lemma":"viaje","provenance":"manual","status":"learning","updated_at":1790000000000}]
+[{"language":"es","lemma":"barco","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"es","lemma":"faro","provenance":"manual","status":"known","updated_at":1790000000001},{"language":"es","lemma":"mar","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"es","lemma":"marinero","provenance":"manual","status":"learning","updated_at":1790000000002},{"language":"es","lemma":"ojalá","provenance":"manual","status":"ignored","updated_at":1790000000003},{"language":"es","lemma":"paciencia","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"es","lemma":"pueblo","provenance":"manual","status":"cleared","updated_at":1790000000006},{"language":"es","lemma":"retraso","provenance":"manual","status":"learning","updated_at":1790000060000},{"language":"es","lemma":"sonreír","provenance":"srs","status":"known","updated_at":1790086400000},{"language":"es","lemma":"tormenta","provenance":"exposure","status":"known","updated_at":1790259200000},{"language":"es","lemma":"ventana","provenance":"manual","status":"known","updated_at":1790000000004},{"language":"es","lemma":"viaje","provenance":"manual","status":"learning","updated_at":1790000000000}]
 ### export-card-ops
-[{"client_id":"puente","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":{\"stability\":3.173,\"difficulty\":5.282434422319005},\"due\":1790345600,\"last_review\":1790086400,\"reps\":1,\"lapses\":0}","gloss":"bridge (construction spanning a waterway, ravine, or valley from an elevated height); long weekend, a day which falls between two work-free days (holidays or weekend days), on which leave is preferred; arch of a foot (curved part of the bottom of a foot); bridge, bridge deck (elevated platform above the upper deck of a mechanically propelled ship from which it is navigated and from which all activities on deck can be seen and controlled by the captain); bridge, denture (artificial replacement of one or more teeth); bridge (bodily position); a surname","gloss_language":"en","language":"es","lemma":"puente","source":"","source_sentence":"","surface_form":"puente"},{"client_id":"reconocimiento","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"recognition; reconnaissance","gloss_language":"en","language":"es","lemma":"reconocimiento","source":"","source_sentence":"","surface_form":"reconocimiento"},{"client_id":"reencuentro","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"reunion, reencounter","gloss_language":"en","language":"es","lemma":"reencuentro","source":"","source_sentence":"","surface_form":"reencuentro"},{"client_id":"referendo","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"referendum","gloss_language":"en","language":"es","lemma":"referendo","source":"","source_sentence":"","surface_form":"referendo"},{"client_id":"refrán","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"proverb; saying","gloss_language":"en","language":"es","lemma":"refrán","source":"","source_sentence":"","surface_form":"refrán"},{"client_id":"regreso","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"return","gloss_language":"en","language":"es","lemma":"regreso","source":"","source_sentence":"","surface_form":"regreso"},{"client_id":"retraso","client_ts":1790000300000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"en","language":"es","lemma":"retraso","source":"","source_sentence":"Tenemos que ocuparnos del retraso.","surface_form":"retraso"},{"client_id":"rosa","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"rose (flower); rose; pink (color/colour); a female given name, equivalent to English Rose","gloss_language":"en","language":"es","lemma":"rosa","source":"","source_sentence":"","surface_form":"rosa"},{"client_id":"sonreír","client_ts":1790000120000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"en","language":"es","lemma":"sonreír","source":"","source_sentence":"Entró en la sala sonriendo.","surface_form":"sonriendo"},{"client_id":"subir","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"to go up or come up; to raise; to climb; to upload","gloss_language":"en","language":"es","lemma":"subir","source":"","source_sentence":"","surface_form":"subir"},{"client_id":"viaje","client_ts":1790000000000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"voyage; journey, trip; a state of hallucination or altered consciousness caused by a narcotic drug; a lot, loads","gloss_language":"en","language":"es","lemma":"viaje","source":"","source_sentence":"Ella dirigirá el viaje.","surface_form":"viaje"}]
+[{"client_id":"puente","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"bridge (construction spanning a waterway, ravine, or valley from an elevated height); long weekend, a day which falls between two work-free days (holidays or weekend days), on which leave is preferred; arch of a foot (curved part of the bottom of a foot); bridge, bridge deck (elevated platform above the upper deck of a mechanically propelled ship from which it is navigated and from which all activities on deck can be seen and controlled by the captain); bridge, denture (artificial replacement of one or more teeth); bridge (bodily position); a surname","gloss_language":"en","language":"es","lemma":"puente","source":"","source_sentence":"","surface_form":"puente"},{"client_id":"reconocimiento","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"recognition; reconnaissance","gloss_language":"en","language":"es","lemma":"reconocimiento","source":"","source_sentence":"","surface_form":"reconocimiento"},{"client_id":"reencuentro","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"reunion, reencounter","gloss_language":"en","language":"es","lemma":"reencuentro","source":"","source_sentence":"","surface_form":"reencuentro"},{"client_id":"referendo","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"referendum","gloss_language":"en","language":"es","lemma":"referendo","source":"","source_sentence":"","surface_form":"referendo"},{"client_id":"refrán","client_ts":1790000240000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"proverb; saying","gloss_language":"en","language":"es","lemma":"refrán","source":"","source_sentence":"","surface_form":"refrán"},{"client_id":"regreso","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"return","gloss_language":"en","language":"es","lemma":"regreso","source":"","source_sentence":"","surface_form":"regreso"},{"client_id":"retraso","client_ts":1790000300000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"en","language":"es","lemma":"retraso","source":"","source_sentence":"Tenemos que ocuparnos del retraso.","surface_form":"retraso"},{"client_id":"rosa","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"rose (flower); rose; pink (color/colour); a female given name, equivalent to English Rose","gloss_language":"en","language":"es","lemma":"rosa","source":"","source_sentence":"","surface_form":"rosa"},{"client_id":"sonreír","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":9223372036854775807,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"","gloss_language":"en","language":"es","lemma":"sonreír","source":"","source_sentence":"Entró en la sala sonriendo.","surface_form":"sonriendo"},{"client_id":"subir","client_ts":1790000180000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":null,\"due\":null,\"last_review\":null,\"reps\":0,\"lapses\":0}","gloss":"to go up or come up; to raise; to climb; to upload","gloss_language":"en","language":"es","lemma":"subir","source":"","source_sentence":"","surface_form":"subir"},{"client_id":"viaje","client_ts":1790086400000,"deleted":false,"device_id":"","fsrs_state":"{\"memory\":{\"stability\":3.173,\"difficulty\":5.282434422319005},\"due\":1790345600,\"last_review\":1790086400,\"reps\":1,\"lapses\":0}","gloss":"voyage; journey, trip; a state of hallucination or altered consciousness caused by a narcotic drug; a lot, loads","gloss_language":"en","language":"es","lemma":"viaje","source":"","source_sentence":"Ella dirigirá el viaje.","surface_form":"viaje"}]
 ### export-declared-levels
 [{"language":"es","level":"B1","updated_at":1790000000000}]
 ### backup
@@ -411,11 +411,10 @@ B1
         "paciencia": {
           "Known": "Exposure"
         },
-        "reconocimiento": {
+        "retraso": "Learning",
+        "sonreír": {
           "Known": "Srs"
         },
-        "retraso": "Learning",
-        "sonreír": "Learning",
         "tormenta": {
           "Known": "Exposure"
         },
@@ -443,9 +442,8 @@ B1
         "ojalá": 1790000000003,
         "paciencia": 1790259200000,
         "pueblo": 1790000000006,
-        "reconocimiento": 1790086400000,
         "retraso": 1790000060000,
-        "sonreír": 1790000120000,
+        "sonreír": 1790086400000,
         "tormenta": 1790259200000,
         "ventana": 1790000000004,
         "viaje": 1790000000000
@@ -508,16 +506,13 @@ B1
           "gloss_language": "en",
           "media": null,
           "review": {
-            "memory": {
-              "stability": 3.173,
-              "difficulty": 5.282434422319005
-            },
-            "due": 1790345600,
-            "last_review": 1790086400,
-            "reps": 1,
+            "memory": null,
+            "due": null,
+            "last_review": null,
+            "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790086400
+          "updated_at": 1790000180
         },
         "reconocimiento": {
           "lemma": "reconocimiento",
@@ -532,12 +527,12 @@ B1
           "media": null,
           "review": {
             "memory": null,
-            "due": 9223372036854775807,
+            "due": null,
             "last_review": null,
             "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790086400
+          "updated_at": 1790000180
         },
         "reencuentro": {
           "lemma": "reencuentro",
@@ -680,12 +675,12 @@ B1
           "media": null,
           "review": {
             "memory": null,
-            "due": null,
+            "due": 9223372036854775807,
             "last_review": null,
             "reps": 0,
             "lapses": 0
           },
-          "updated_at": 1790000120
+          "updated_at": 1790086400
         },
         "subir": {
           "lemma": "subir",
@@ -723,13 +718,16 @@ B1
           "gloss_language": "en",
           "media": null,
           "review": {
-            "memory": null,
-            "due": null,
-            "last_review": null,
-            "reps": 0,
+            "memory": {
+              "stability": 3.173,
+              "difficulty": 5.282434422319005
+            },
+            "due": 1790345600,
+            "last_review": 1790086400,
+            "reps": 1,
             "lapses": 0
           },
-          "updated_at": 1790000000
+          "updated_at": 1790086400
         }
       }
     }

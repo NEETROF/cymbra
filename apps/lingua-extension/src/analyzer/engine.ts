@@ -6,6 +6,8 @@ import type {
   NewCard,
   Rating,
   ReviewCard,
+  ReviewOptions,
+  ReviewSummary,
   StatusChangeIn,
   StatusOp,
 } from "./port.ts";
@@ -58,12 +60,22 @@ interface WasmEngine {
   retireCard(lemma: string, now: number, language?: string | null): void;
   deckCount(languages?: string[] | null): number;
   dueCount(now: number, languages?: string[] | null): number;
-  startReview(now: number, languages?: string[] | null): number;
+  startReview(
+    now: number,
+    languages?: string[] | null,
+    limit?: number | null,
+    newPerDay?: number | null,
+    dayStart?: number | null,
+  ): number;
   reviewCurrent(): string | undefined;
   reviewCurrentLanguage(): string | undefined;
   reviewReveal(): void;
-  reviewGrade(rating: string, now: number): void;
+  reviewGrade(rating: string, now: number): boolean;
   reviewMarkKnown(now: number): void;
+  reviewIgnore(now: number): void;
+  reviewSummary(): string | undefined;
+  reviewSnapshot(): string | undefined;
+  reviewResume(json: string): boolean;
   backup(): string;
   restore(json: string): void;
   reset(): void;
@@ -324,8 +336,14 @@ export class WasmAnalyzerPort implements LinguaPort {
     return (await this.engine()).dueCount(now, languages ?? null);
   }
 
-  async startReview(now: number, languages?: StudiedLanguage[]): Promise<number> {
-    return (await this.engine()).startReview(now, languages ?? null);
+  async startReview(now: number, languages?: StudiedLanguage[], options?: ReviewOptions): Promise<number> {
+    return (await this.engine()).startReview(
+      now,
+      languages ?? null,
+      options?.limit ?? null,
+      options?.newPerDay ?? null,
+      options?.dayStart ?? null,
+    );
   }
 
   async reviewCurrent(): Promise<ReviewCard | null> {
@@ -341,12 +359,31 @@ export class WasmAnalyzerPort implements LinguaPort {
     (await this.engine()).reviewReveal();
   }
 
-  async reviewGrade(rating: Rating, now: number): Promise<void> {
-    (await this.engine()).reviewGrade(rating, now);
+  async reviewGrade(rating: Rating, now: number): Promise<boolean> {
+    return (await this.engine()).reviewGrade(rating, now);
   }
 
   async reviewMarkKnown(now: number): Promise<void> {
     (await this.engine()).reviewMarkKnown(now);
+  }
+
+  async reviewIgnore(now: number): Promise<void> {
+    (await this.engine()).reviewIgnore(now);
+  }
+
+  async reviewSummary(): Promise<ReviewSummary | null> {
+    const json = (await this.engine()).reviewSummary();
+    return json ? (JSON.parse(json) as ReviewSummary) : null;
+  }
+
+  /** The session under way as text, or null: what the background keeps across its own restart. */
+  async reviewSnapshot(): Promise<string | null> {
+    return (await this.engine()).reviewSnapshot() ?? null;
+  }
+
+  /** Resume the session `reviewSnapshot` wrote; false for text that is not one. */
+  async reviewResume(json: string): Promise<boolean> {
+    return (await this.engine()).reviewResume(json);
   }
 
   async backup(): Promise<string> {

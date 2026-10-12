@@ -255,7 +255,7 @@ describe("the selection card's lines", () => {
 });
 
 describe("the review card", () => {
-  const actions = { start() {}, reveal() {}, grade() {}, markKnown() {} };
+  const actions = { start() {}, reveal() {}, grade() {}, markKnown() {}, ignore() {} };
   const card = (over: Partial<NonNullable<ReviewView["card"]>> = {}): NonNullable<ReviewView["card"]> => ({
     headword: "faro",
     surface: "faro",
@@ -279,18 +279,21 @@ describe("the review card", () => {
 
   it("says the card's language on its headword and sentence, the interface's around them", () => {
     const root = inHost("fr");
-    renderReview(root, { phase: "reviewing", card: card() }, actions);
+    renderReview(root, { phase: "reviewing", card: card(), summary: null, moreDue: false }, actions);
     expect(languageOfText(root, "faro")).toBe("es");
     expect(languageOfText(root, "El faro brilla.")).toBe("es");
-    expect(root.querySelector(".review-sentence")?.textContent).toBe("« El faro brilla. »");
-    expect(languageOfText(root, "« El faro brilla. »")).toBe("fr");
+    expect(root.querySelector(".review-sentence")?.textContent).toBe("El faro brilla.");
     expect(languageOfText(root, "phare")).toBe("fr");
-    expect(languageOfText(root, "Correct")).toBe("fr");
+    expect(languageOfText(root, "Su")).toBe("fr");
   });
 
   it("names an older card's words English, as the review counts them", () => {
     const root = inHost("fr");
-    renderReview(root, { phase: "reviewing", card: card({ headword: "seldom", language: undefined }) }, actions);
+    renderReview(
+      root,
+      { phase: "reviewing", card: card({ headword: "seldom", language: undefined }), summary: null, moreDue: false },
+      actions,
+    );
     expect(languageOfText(root, "seldom")).toBe("en");
   });
 });

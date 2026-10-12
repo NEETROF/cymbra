@@ -53,6 +53,7 @@ import {
   SESSION_LOST_KEY,
   storedNativeLanguage,
 } from "./state/storage.ts";
+import { reviewContinuity } from "./state/review-continuity.ts";
 import {
   dropRetiredKeys,
   idbArea,
@@ -326,11 +327,22 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 {
   const storage = ownedStore;
   const enginePort = new WasmAnalyzerPort(staticGlue, SHIPPED_PAIRS, () => storedNativeLanguage(storage));
+  // The review session survives the browser stopping this page between two answers (Safari):
+  // kept after each call that moves it, resumed when the engine wakes (refine-lingua-review-session D3).
+  const sessionArea: AsyncStorageArea | null = chrome.storage.session
+    ? { get: (keys) => chrome.storage.session.get(keys), set: (items) => chrome.storage.session.set(items) }
+    : null;
+  const continuity = reviewContinuity(enginePort, sessionArea);
   let hydrated: Promise<void> | null = null;
-  const ensure = (): Promise<void> => (hydrated ??= hydrateEngine(enginePort, storage));
+  const ensure = (): Promise<void> =>
+    (hydrated ??= hydrateEngine(enginePort, storage).then(() => continuity.resume().catch(() => {})));
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isRpcRequest(message)) return undefined;
-    void handleRpc(enginePort, ensure, message).then(sendResponse);
+    void handleRpc(enginePort, ensure, message).then(async (response) => {
+      // Written before the answer leaves: the page may be stopped right after it.
+      if (response.ok) await continuity.after(message.method).catch(() => {});
+      sendResponse(response);
+    });
     return true; // async response
   });
   // A new install's preset may come before any page wrote a backup: this engine's hydration
