@@ -1,7 +1,6 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "../analyzer/engine.ts";
 import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import { fillPage, setDocumentLanguage } from "../i18n/index.ts";
-import { DEFAULT_INTERFACE_LANGUAGE, isInterfaceLanguage } from "../i18n/language.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
 import { applySurfaceLook } from "../reading/surface-look.ts";
 import {
@@ -39,13 +38,19 @@ let review: ReviewPage | null = null;
 async function main(): Promise<void> {
   const send = webkitSend();
   if (!send) return;
-  // The engine takes a few seconds to load the deck: say so at once, in the language the app was
-  // opened in (the extension's, as the App Group last held it), before the shared state is read.
+  // The engine takes a few seconds to load the deck: the loading copy shows at once, in the reader's
+  // language and colours, read from the shared state before the engine starts.
   const opened = (globalThis as { linguaLanguage?: string }).linguaLanguage;
-  const early = isInterfaceLanguage(opened) ? opened : DEFAULT_INTERFACE_LANGUAGE;
-  setDocumentLanguage(document, early);
-  fillPage(document, appCopy(early));
   const session = await openAppSession({
+    onState: (state, language) => {
+      applySurfaceLook(
+        document.documentElement,
+        colourPreferenceOf(state.prefs[COLOURS_KEY]),
+        readerDisplayOf(state.prefs[READER_DISPLAY_KEY]),
+      );
+      setDocumentLanguage(document, language);
+      fillPage(document, appCopy(language));
+    },
     send,
     port: (backup) =>
       new WasmAnalyzerPort(staticGlue, SHIPPED_PAIRS, async () =>
@@ -69,17 +74,6 @@ async function main(): Promise<void> {
     return;
   }
   const { port, store, prefs, interfaceLanguage: language } = session;
-
-  if (language !== early) {
-    setDocumentLanguage(document, language);
-    fillPage(document, appCopy(language));
-  }
-  const looks = await prefs.get([COLOURS_KEY, READER_DISPLAY_KEY]);
-  applySurfaceLook(
-    document.documentElement,
-    colourPreferenceOf(looks[COLOURS_KEY]),
-    readerDisplayOf(looks[READER_DISPLAY_KEY]),
-  );
   const saved = savedAtLine(language, session.savedAt);
   if (saved) {
     $("saved").textContent = saved;

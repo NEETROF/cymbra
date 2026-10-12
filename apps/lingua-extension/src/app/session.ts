@@ -11,6 +11,7 @@ import {
   encodeAppOps,
   parseAppOps,
   parseSharedState,
+  type SharedState,
   reviewCountsBetween,
   sharedDailyStats,
   toSecond,
@@ -41,6 +42,12 @@ export interface AppSessionDeps {
   fallbackLanguage?: string;
   /** This opening's id, under which the extension counts its reviews once; a random one unless given. */
   openingId?: string;
+  /**
+   * Called with the shared state and the interface language as soon as they are read — before the
+   * engine, which takes seconds to load the deck: the page shows its loading copy in the reader's
+   * language and colours meanwhile.
+   */
+  onState?: (state: SharedState, interfaceLanguage: InterfaceLanguage) => void;
 }
 
 export interface AppSession {
@@ -72,6 +79,13 @@ function readLocal(local: AppSessionDeps["local"]): Record<string, unknown> {
   }
 }
 
+/** The extension's interface language as the shared state names it, else the app's, else French. */
+export function sessionLanguage(state: SharedState, fallback: string | undefined): InterfaceLanguage {
+  const shared = state.prefs[INTERFACE_LANGUAGE_KEY];
+  if (isInterfaceLanguage(shared)) return shared;
+  return isInterfaceLanguage(fallback) ? fallback : DEFAULT_INTERFACE_LANGUAGE;
+}
+
 /**
  * Open the review on the state the extension shared, or resolve null when there is none the app can
  * read — the app then says how to turn the extension on.
@@ -79,6 +93,8 @@ function readLocal(local: AppSessionDeps["local"]): Record<string, unknown> {
 export async function openAppSession(deps: AppSessionDeps): Promise<AppSession | null> {
   const state = parseSharedState(((await deps.send({ type: "review.state" })) as { state?: unknown } | null)?.state);
   if (!state) return null;
+  const interfaceLanguage = sessionLanguage(state, deps.fallbackLanguage);
+  deps.onState?.(state, interfaceLanguage);
   const port = deps.port(state.backup);
   await port.restore(state.backup);
   // Changes this app made that the extension has not taken yet: on top of an older state they are
@@ -118,12 +134,6 @@ export async function openAppSession(deps: AppSessionDeps): Promise<AppSession |
     },
   };
 
-  const shared = state.prefs[INTERFACE_LANGUAGE_KEY];
-  const interfaceLanguage = isInterfaceLanguage(shared)
-    ? shared
-    : isInterfaceLanguage(deps.fallbackLanguage)
-      ? deps.fallbackLanguage
-      : DEFAULT_INTERFACE_LANGUAGE;
   // The interface language is the extension's, never one the app chose: it follows the reader's
   // native language, which only the extension changes.
   let own = readLocal(deps.local);

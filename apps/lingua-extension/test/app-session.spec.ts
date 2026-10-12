@@ -134,6 +134,23 @@ describe("the app opens on the extension's state (add-lingua-apple-review)", () 
     });
   });
 
+  it("says the state and its language before the engine starts, so the loading copy follows them", async () => {
+    const order: string[] = [];
+    const { port } = fakePort();
+    port.restore = async () => void order.push("engine");
+    await openAppSession({
+      send: bridge(
+        shared({ "cymbra-lingua-interface-language": "es", "cymbra-lingua-colours": { preset: "eink-mono" } }),
+      ).send,
+      port: () => port,
+      now: () => 0,
+      fallbackLanguage: "en",
+      onState: (state, language) =>
+        order.push(`state:${language}:${JSON.stringify(state.prefs["cymbra-lingua-colours"])}`),
+    });
+    expect(order).toEqual(['state:es:{"preset":"eink-mono"}', "engine"]);
+  });
+
   it("names each opening on its own unless told", async () => {
     const { port } = fakePort();
     port.exportCardOps = async () => [];
