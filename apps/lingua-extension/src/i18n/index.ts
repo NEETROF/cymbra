@@ -220,6 +220,11 @@ export function formatDate(language: InterfaceLanguage, date: Date, options?: In
   return date.toLocaleDateString(LOCALES[language], options);
 }
 
+/** An hour and its minutes as the interface language writes them: « 14:05 », "2:05 PM", « 14:05 ». */
+export function formatTime(language: InterfaceLanguage, date: Date): string {
+  return date.toLocaleTimeString(LOCALES[language], { hour: "numeric", minute: "2-digit" });
+}
+
 const regions = new Map<InterfaceLanguage, Intl.DisplayNames>();
 
 /**

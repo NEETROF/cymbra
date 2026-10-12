@@ -86,6 +86,18 @@ export interface E2EData {
       newWordsSeen?: number;
     }[];
   };
+  /** « Traduction en ligne » daily totals (change: add-lingua-online-translation). */
+  onlineTranslationUsage?: {
+    day: string;
+    provider: string;
+    pair: string;
+    answered: number;
+    failed?: number;
+    limited?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    costMicroUsd: number;
+  }[];
   /** Declared flag/config keys for the "Notifications" panel (change:
    * add-push-notifications), which is a filtered view over the flag registry.
    * Mutated in place by setFlag/setConfig/clearOverride so the panel's re-read
@@ -700,6 +712,28 @@ export function installE2EClients(): void {
         const totals = [u.wordsLearned, u.reviews, u.wordsRead, u.newWordsSeen];
         const total = totals[req.metric] ?? u.wordsLearned;
         return { points: [{ day: today, value: BigInt(total ?? 0) }] };
+      },
+      adminGetOnlineTranslationUsage: async () => {
+        failIfSet("adminGetOnlineTranslationUsage");
+        const rows = data.onlineTranslationUsage ?? [];
+        const sum = (f: (r: (typeof rows)[number]) => number) => BigInt(rows.reduce((t, r) => t + f(r), 0));
+        return {
+          rows: rows.map((r) => ({
+            day: r.day,
+            provider: r.provider,
+            pair: r.pair,
+            answered: BigInt(r.answered),
+            failed: BigInt(r.failed ?? 0),
+            limited: BigInt(r.limited ?? 0),
+            inputTokens: BigInt(r.inputTokens ?? 0),
+            outputTokens: BigInt(r.outputTokens ?? 0),
+            costMicroUsd: BigInt(r.costMicroUsd),
+          })),
+          answered: sum((r) => r.answered),
+          failed: sum((r) => r.failed ?? 0),
+          limited: sum((r) => r.limited ?? 0),
+          costMicroUsd: sum((r) => r.costMicroUsd),
+        };
       },
     },
     // Jobs console (change: add-admin-jobs-console). Global-admin only server-side; here

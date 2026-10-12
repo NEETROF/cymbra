@@ -509,6 +509,75 @@ impl cymbra_feature_flags::PlanContextSource for PlanContext {
     }
 }
 
+/// « Traduction en ligne »'s runtime knobs (change: add-lingua-online-translation, D6): access
+/// is `lingua.online_translation.enabled` evaluated for the caller WITH their Lingua betas, so
+/// scoping it to `beta:online-translation` grants it per enrolled account and setting it off
+/// withdraws it from everyone; the limit and the prices are plain Lingua config. Read on every
+/// request, so a change needs no redeploy. Without plans deployed, nobody is in a beta.
+pub struct FlagOnlineTranslationPolicy {
+    flags: Arc<FlagService>,
+    plans: Option<Arc<dyn cymbra_feature_flags::PlanContextSource>>,
+}
+
+impl FlagOnlineTranslationPolicy {
+    pub fn new(
+        flags: Arc<FlagService>,
+        plans: Option<Arc<dyn cymbra_feature_flags::PlanContextSource>>,
+    ) -> Self {
+        Self { flags, plans }
+    }
+}
+
+#[async_trait]
+impl cymbra_lingua::online_translation::OnlineTranslationPolicy for FlagOnlineTranslationPolicy {
+    async fn has_access(&self, id: &cymbra_platform::AuthIdentity) -> Result<bool> {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::for_identity(registry::APP_LINGUA, id);
+        let ctx = match &self.plans {
+            // A plan read that fails is an error, never "no beta" (see `PlanContext`).
+            Some(plans) => {
+                let (premium, betas) = plans
+                    .plan_context(&id.user_id, registry::APP_LINGUA)
+                    .await?;
+                ctx.with_plan(premium, betas)
+            }
+            None => ctx,
+        };
+        Ok(self
+            .flags
+            .bool(registry::LINGUA_ONLINE_TRANSLATION_ENABLED, false, &ctx))
+    }
+
+    async fn daily_limit(&self) -> u32 {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_LINGUA);
+        self.flags
+            .int(registry::LINGUA_ONLINE_TRANSLATION_DAILY_LIMIT, 100, &ctx)
+            .clamp(0, i64::from(u32::MAX)) as u32
+    }
+
+    async fn prices(&self, provider: &str) -> (f64, f64) {
+        use cymbra_feature_flags::registry;
+        let ctx = cymbra_feature_flags::EvalContext::anonymous(registry::APP_LINGUA);
+        let (input, output, defaults) = match provider {
+            "anthropic" => (
+                registry::LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_INPUT,
+                registry::LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_OUTPUT,
+                (0.10, 0.50),
+            ),
+            _ => (
+                registry::LINGUA_ONLINE_TRANSLATION_PRICE_GEMINI_INPUT,
+                registry::LINGUA_ONLINE_TRANSLATION_PRICE_GEMINI_OUTPUT,
+                (0.25, 1.50),
+            ),
+        };
+        (
+            self.flags.number(input, defaults.0, &ctx),
+            self.flags.number(output, defaults.1, &ctx),
+        )
+    }
+}
+
 /// The product whose plan and betas a flag evaluation for `app` reads: each app scope
 /// is its own product; anything else (the site's `web`, the back office) has none.
 pub(crate) fn product_of_app(app: &str) -> Option<&'static str> {
@@ -822,6 +891,61 @@ mod tests {
         ));
         svc.refresh().await.unwrap();
         svc
+    }
+
+    /// Online translation access is the flag evaluated with the caller's LINGUA betas: a
+    /// member of `online-translation` gets it, a non-member does not, nobody without plans,
+    /// and the flag off withdraws it from the member too (change: add-lingua-online-translation).
+    #[tokio::test]
+    async fn online_translation_access_follows_the_lingua_beta() {
+        use cymbra_lingua::online_translation::OnlineTranslationPolicy;
+        let scoped = |on: bool| StoredOverride {
+            app: "lingua".into(),
+            key: registry::LINGUA_ONLINE_TRANSLATION_ENABLED.into(),
+            value_type: cymbra_feature_flags::ValueType::Bool,
+            value: FlagValue::Bool(on),
+            rollout: RolloutScope::Beta("online-translation".into()),
+            sensitive: false,
+            updated_by: "op".into(),
+            updated_at: chrono::Utc::now(),
+        };
+        let reader = |uid: &str| cymbra_platform::AuthIdentity {
+            user_id: uid.into(),
+            audience: "lingua".into(),
+            roles: vec!["user".into()],
+            ..Default::default()
+        };
+        let mut plans = cymbra_feature_flags::context::MockPlanContextSource::new();
+        plans
+            .expect_plan_context()
+            .withf(|_, app| app == "lingua")
+            .returning(|uid, _| {
+                Ok((
+                    false,
+                    if uid == "member" {
+                        vec!["online-translation".to_string()]
+                    } else {
+                        vec![]
+                    },
+                ))
+            });
+        let plans: Arc<dyn cymbra_feature_flags::PlanContextSource> = Arc::new(plans);
+
+        let on = FlagOnlineTranslationPolicy::new(
+            service(vec![scoped(true)]).await,
+            Some(plans.clone()),
+        );
+        assert!(on.has_access(&reader("member")).await.unwrap());
+        assert!(!on.has_access(&reader("other")).await.unwrap());
+        let no_plans = FlagOnlineTranslationPolicy::new(service(vec![scoped(true)]).await, None);
+        assert!(!no_plans.has_access(&reader("member")).await.unwrap());
+        let off = FlagOnlineTranslationPolicy::new(service(vec![scoped(false)]).await, Some(plans));
+        assert!(!off.has_access(&reader("member")).await.unwrap());
+
+        // The limit and the prices are plain Lingua config, defaults until overridden.
+        assert_eq!(on.daily_limit().await, 100);
+        assert_eq!(on.prices("gemini").await, (0.25, 1.50));
+        assert_eq!(on.prices("anthropic").await, (0.10, 0.50));
     }
 
     #[tokio::test]

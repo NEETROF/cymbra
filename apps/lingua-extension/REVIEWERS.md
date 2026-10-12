@@ -151,8 +151,9 @@ teaches them French.
 ## Where the add-on reaches the network
 
 The analysis is local: the pack and the WebAssembly engines run in the browser, and no page
-content ever leaves the machine. A reader who never signs in and never turns on « Traduction
-étendue » makes no request at all. The book reader (`reader.html`) opens the reader's own files
+content leaves the machine — with one exception, « Traduction en ligne » below, which sends one
+sentence when the reader presses its button. A reader who never signs in and never turns on
+« Traduction étendue » makes no request at all. The book reader (`reader.html`) opens the reader's own files
 from the device and requests nothing.
 
 There are four origins, all of them in the source:
@@ -165,7 +166,12 @@ There are four origins, all of them in the source:
 - `https://api.cymbra.app` — the reader's own account, and only once they have signed in: the
   word statuses and review history they asked to synchronise across their devices. Set at
   build time by `LINGUA_GRPC_WEB_URL` (`src/net/transport.ts`), and it lands in the manifest's
-  `host_permissions`.
+  `host_permissions`. The same origin answers the account's feature flags (`flags:get`,
+  `src/flags/store.ts`) and, for an account that has access to it, « Traduction en ligne »: off
+  by default and per device, it sends the sentence holding the reader's selection, the
+  selection's position and the language pair, **only when the reader presses its button** on the
+  card (`src/translate/online.ts`). The server translates it through a provider and keeps
+  neither the sentence nor the translation.
 - `https://accounts.google.com` and `https://appleid.apple.com` — the sign-in pages, opened in
   the browser by the reader's own click (`src/state/oidc.ts`). The add-on receives the
   provider's token through the redirect and exchanges it with the backend; it never sees a

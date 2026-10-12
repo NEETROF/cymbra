@@ -14,7 +14,10 @@
 //!
 //! Privacy allow-list (spec `lingua-sync`): only lemma statuses, user-created cards and
 //! day-grained aggregates ever cross the wire — never a browsing URL (not even the page a
-//! card was captured from), page text, or reading history. A reader can erase all of it
+//! card was captured from), page text, or reading history. One RPC is the exception, by the
+//! reader's own press: « Traduction en ligne » ([`OnlineTranslationService`](online_translation_grpc))
+//! carries the sentence to translate, relays it to a provider and keeps neither it nor its
+//! translation (change: add-lingua-online-translation). A reader can erase all of it
 //! without deleting their account ([`LinguaDataService`](data_grpc::DataGrpc)).
 
 pub mod grpc_util;
@@ -48,6 +51,13 @@ pub mod admin;
 pub mod admin_core;
 pub mod admin_grpc;
 pub mod pg_admin;
+
+// « Traduction en ligne » (change: add-lingua-online-translation).
+pub mod online_translation;
+pub mod online_translation_core;
+pub mod online_translation_grpc;
+pub mod pg_online_usage;
+pub mod providers;
 
 pub use data::{DataModule, DataRepo, ErasureMarks};
 pub use data_grpc::DataGrpc;

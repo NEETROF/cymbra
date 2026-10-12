@@ -23,6 +23,10 @@ service LinguaAdminService {
   rpc AdminGetLinguaUsage(AdminGetLinguaUsageRequest) returns (AdminGetLinguaUsageResponse);
   // A per-day series for one metric over a window (optionally one studied language).
   rpc AdminGetLinguaUsageSeries(AdminGetLinguaUsageSeriesRequest) returns (AdminGetLinguaUsageSeriesResponse);
+  // « Traduction en ligne » usage and its estimated cost over a UTC-day window, from the
+  // daily totals the translation service keeps — no account, no text
+  // (change: add-lingua-online-translation).
+  rpc AdminGetOnlineTranslationUsage(AdminGetOnlineTranslationUsageRequest) returns (AdminGetOnlineTranslationUsageResponse);
 }
 
 // A closed UTC-day window, inclusive both ends (yyyy-mm-dd, the /usage convention).
@@ -77,4 +81,29 @@ message LinguaSeriesPoint {
 
 message AdminGetLinguaUsageSeriesResponse {
   repeated LinguaSeriesPoint points = 1;
+}
+
+message AdminGetOnlineTranslationUsageRequest {
+  LinguaWindow window = 1;
+}
+
+// One day × provider × pair of online translation totals (no account, no text).
+message OnlineTranslationUsageRow {
+  string day = 1;              // yyyy-mm-dd
+  string provider = 2;         // `gemini` | `anthropic`
+  string pair = 3;             // `<source>-<target>`, e.g. `es-fr`
+  int64 answered = 4;
+  int64 failed = 5;
+  int64 limited = 6;           // refused at the daily limit (no provider asked)
+  int64 input_tokens = 7;
+  int64 output_tokens = 8;
+  int64 cost_micro_usd = 9;    // estimated at request time from the configured prices
+}
+
+message AdminGetOnlineTranslationUsageResponse {
+  repeated OnlineTranslationUsageRow rows = 1;
+  int64 answered = 2;          // totals over the window
+  int64 failed = 3;
+  int64 limited = 4;
+  int64 cost_micro_usd = 5;
 }

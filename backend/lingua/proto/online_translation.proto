@@ -1,0 +1,58 @@
+// Copyright 2026 NEETROF
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+// this file except in compliance with the License. You may obtain a copy of the
+// License at http://www.apache.org/licenses/LICENSE-2.0
+
+syntax = "proto3";
+
+package cymbra.lingua.v1;
+
+// « Traduction en ligne » (change: add-lingua-online-translation): the ONE Lingua RPC that
+// carries page text — the sentence holding the reader's selection, sent only when the reader
+// presses the card's button, for an account that has access. The server relays it to a
+// translation provider and keeps neither the sentence nor the translation. The caller's
+// identity comes from the access token, never the body.
+service OnlineTranslationService {
+  rpc Translate(TranslateRequest) returns (TranslateResponse);
+}
+
+message TranslateRequest {
+  // The sentence holding the selection, at most 1 000 characters.
+  string sentence = 1;
+  // The selection, as UTF-16 offsets into `sentence` (as the extension counts them).
+  uint32 selection_start = 2;
+  uint32 selection_end = 3;
+  // The document's language and the reader's native language (`en` | `fr` | `es`).
+  string source_language = 4;
+  string target_language = 5;
+}
+
+// A marked span of the translation, as UTF-16 offsets.
+message TranslationMark {
+  uint32 start = 1;
+  uint32 end = 2;
+}
+
+message TranslateResponse {
+  oneof outcome {
+    Translated translated = 1;
+    // No provider answered, or access is withdrawn: the card keeps what it shows.
+    Unavailable unavailable = 2;
+    // The account's daily limit is reached; no provider was asked.
+    LimitReached limit_reached = 3;
+  }
+}
+
+message Translated {
+  string translation = 1;
+  // The words that render the selection; empty when they could not be placed.
+  repeated TranslationMark marks = 2;
+}
+
+message Unavailable {}
+
+message LimitReached {
+  // When the oldest counted request of the rolling day expires (unix seconds).
+  int64 resets_at = 1;
+}

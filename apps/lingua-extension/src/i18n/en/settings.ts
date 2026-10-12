@@ -37,6 +37,10 @@ export const settings: typeof fr = {
     "The books' text and the whole interface: cards, drawer, menus. The theme applies to the interface too; an e-ink preset keeps it black on white.",
   colours: "Colors",
   translation: "Translation",
+  onlineTranslation: "Online translation",
+  onlineTranslationNote:
+    "On request, from the card of a selection of several words: the selected sentence is sent to an external translation service to be translated, and is kept by no one. A setting for this device only.",
+  privacyPolicy: "Privacy policy",
   shortcuts: "Shortcuts & gestures",
   keyAlt: "Alt",
   keyShift: "Shift",

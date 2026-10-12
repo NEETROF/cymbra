@@ -72,6 +72,7 @@ import {
 import { isSyncMessage, LAST_SYNC_KEY, loadLastSync, type SyncReply } from "./sync/messages.ts";
 import { accountOfToken, FlagStore } from "./flags/store.ts";
 import { isFlagsMessage } from "./flags/messages.ts";
+import { answerOnlineTranslation, isOnlineTranslateMessage, ONLINE_UNAVAILABLE } from "./translate/online.ts";
 import { PAGE_INTERVAL_MS, SURFACE_INTERVAL_MS, SyncScheduler } from "./sync/scheduler.ts";
 import { getOrCreateDeviceId, SyncEngine } from "./sync/sync.ts";
 // Static import of the wasm-pack glue (esbuild bundles it into the background). The
@@ -662,6 +663,29 @@ if (__TRANSLATION_HOST__ !== "none") {
   // A mutation in any context persists the backup → debounced sync. The store's owner
   // reports it, whether the store is IndexedDB or the settings-area fallback.
   onReaderDataChanged = () => scheduler.schedule(2000);
+
+  // « Traduction en ligne » (add-lingua-online-translation): the one request that carries page text,
+  // sent only when the reader presses the card's button. The page never calls the network; this
+  // relays the message to the service once the session has resumed (a woken event page has no
+  // access token before that), from the document's language into the reader's native language,
+  // read from the stored profile as for the engine. The mapping is translate/online.ts's, measured.
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isOnlineTranslateMessage(message)) return undefined;
+    void resumed
+      .catch(() => false)
+      .then(() =>
+        answerOnlineTranslation(
+          {
+            client: () => api().onlineTranslation,
+            native: () => storedNativeLanguage(ownedStore),
+            signedIn: () => session.state().signedIn,
+          },
+          message,
+        ),
+      )
+      .then(sendResponse, () => sendResponse(ONLINE_UNAVAILABLE));
+    return true; // async response
+  });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // Every account:* message (sign-in, sign-up, verification, reset, providers) goes

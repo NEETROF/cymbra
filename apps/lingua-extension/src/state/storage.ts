@@ -88,6 +88,14 @@ export const ANDROID_VOICES_KEY = "cymbra-lingua-android-voices";
 export const REMOTE_VOICES_KEY = "cymbra-lingua-remote-voices";
 
 /**
+ * Whether the reader chose « Traduction en ligne » (add-lingua-online-translation D8): the card
+ * then offers to send the sentence of a selection to the online translation service, on a press.
+ * Absent means not chosen. Per device, never synchronised — ticked on the Mac, it is unticked on
+ * the tablet.
+ */
+export const ONLINE_TRANSLATION_KEY = "cymbra-lingua-online-translation";
+
+/**
  * The last language the reader chose in the review (refine-lingua-review-language D3): the one it
  * opens in away from a page in a studied language. Per device, never synchronised, never in the
  * backup.
@@ -393,6 +401,17 @@ export async function loadRemoteVoices(area: AsyncStorageArea): Promise<boolean>
 /** Allow or refuse remote voices as a stand-in. */
 export async function saveRemoteVoices(area: AsyncStorageArea, allowed: boolean): Promise<void> {
   await area.set({ [REMOTE_VOICES_KEY]: allowed });
+}
+
+/** Whether « Traduction en ligne » is chosen on this device; absent means not chosen. */
+export async function loadOnlineTranslation(area: AsyncStorageArea): Promise<boolean> {
+  const got = await area.get(ONLINE_TRANSLATION_KEY);
+  return got[ONLINE_TRANSLATION_KEY] === true;
+}
+
+/** Choose « Traduction en ligne » on this device, or not. */
+export async function saveOnlineTranslation(area: AsyncStorageArea, chosen: boolean): Promise<void> {
+  await area.set({ [ONLINE_TRANSLATION_KEY]: chosen });
 }
 
 /** The read-aloud settings in `area`, followed in every context through `storage.onChanged`. */

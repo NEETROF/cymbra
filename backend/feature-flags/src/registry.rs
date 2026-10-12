@@ -61,6 +61,24 @@ pub const ANALYTICS_COLLECTION_ENABLED: &str = "analytics.collection.enabled";
 /// signed-in devices from pushing/pulling.
 pub const LINGUA_SYNC_ENABLED: &str = "lingua.sync.enabled";
 
+/// « Traduction en ligne » (change: add-lingua-online-translation): access and kill switch at
+/// once. Off by default; rolled out as `beta:online-translation`, it is on for the members of
+/// that Lingua campaign (and staff), and setting it off withdraws access from everyone without
+/// a release. Read by the extension (to show the setting) and the service (to ask a provider).
+pub const LINGUA_ONLINE_TRANSLATION_ENABLED: &str = "lingua.online_translation.enabled";
+/// Answered online translations allowed per account per day (staff exempt).
+pub const LINGUA_ONLINE_TRANSLATION_DAILY_LIMIT: &str = "lingua.online_translation.daily_limit";
+/// Provider prices in dollars per million tokens, for the back office's cost estimate. A change
+/// applies to requests made after it; past days keep their cost.
+pub const LINGUA_ONLINE_TRANSLATION_PRICE_GEMINI_INPUT: &str =
+    "lingua.online_translation.price.gemini.input_usd_per_mtok";
+pub const LINGUA_ONLINE_TRANSLATION_PRICE_GEMINI_OUTPUT: &str =
+    "lingua.online_translation.price.gemini.output_usd_per_mtok";
+pub const LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_INPUT: &str =
+    "lingua.online_translation.price.anthropic.input_usd_per_mtok";
+pub const LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_OUTPUT: &str =
+    "lingua.online_translation.price.anthropic.output_usd_per_mtok";
+
 // Config tunables (the scattered straw-man values live here).
 pub const RATING_REVIEW_MIN_VOTES: &str = "rating.review.min_votes";
 pub const RATING_REVIEW_THRESHOLD: &str = "rating.review.threshold";
@@ -799,6 +817,48 @@ pub fn builtin() -> Vec<KeyDef> {
             true,
             false,
             "Cymbra Lingua cross-device sync master switch (defaults on; flip off to disable push/pull for all signed-in devices without a client release).",
+        ),
+        flag(
+            LINGUA_ONLINE_TRANSLATION_ENABLED,
+            APP_LINGUA,
+            false,
+            false,
+            "Online translation in Lingua: who may send a sentence to the translation service. Off for everyone by default; scope it to the Lingua beta `online-translation` to grant it per account, set it off to withdraw it from everyone.",
+        ),
+        cfg(
+            LINGUA_ONLINE_TRANSLATION_DAILY_LIMIT,
+            APP_LINGUA,
+            FlagValue::Int(100),
+            false,
+            "Online translations a Lingua account may get per rolling day (Lingua staff are not limited).",
+        ),
+        cfg(
+            LINGUA_ONLINE_TRANSLATION_PRICE_GEMINI_INPUT,
+            APP_LINGUA,
+            FlagValue::Number(0.25),
+            false,
+            "Gemini input price in dollars per million tokens, for the online translation cost estimate.",
+        ),
+        cfg(
+            LINGUA_ONLINE_TRANSLATION_PRICE_GEMINI_OUTPUT,
+            APP_LINGUA,
+            FlagValue::Number(1.50),
+            false,
+            "Gemini output price in dollars per million tokens, for the online translation cost estimate.",
+        ),
+        cfg(
+            LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_INPUT,
+            APP_LINGUA,
+            FlagValue::Number(0.10),
+            false,
+            "Anthropic input price in dollars per million tokens, for the online translation cost estimate.",
+        ),
+        cfg(
+            LINGUA_ONLINE_TRANSLATION_PRICE_ANTHROPIC_OUTPUT,
+            APP_LINGUA,
+            FlagValue::Number(0.50),
+            false,
+            "Anthropic output price in dollars per million tokens, for the online translation cost estimate.",
         ),
     ]
 }

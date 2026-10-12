@@ -3,7 +3,7 @@ layout: ../../layouts/Legal.astro
 title: Política de privacidad
 description: Qué datos personales tratan los servicios Cymbra, por qué, con quién se comparten y cuáles son tus derechos.
 lang: es
-updated: 08/10/2026
+updated: 11/10/2026
 alternates:
   fr: /confidentialite
   en: /en/privacy
@@ -84,10 +84,16 @@ Compartimos lo estrictamente necesario con proveedores que actúan por cuenta nu
 - **Paddle** (vendedor oficial, Reino Unido/UE): únicamente si te suscribes desde Linux,
   Windows o el sitio web: cobra, factura y nos notifica el estado de la suscripción
   asociada a un identificador opaco.
+- **Google** (API Gemini) y **Anthropic, PBC** (API Claude, Estados Unidos): únicamente si
+  utilizas la **Traducción en línea** de Cymbra Lingua (*Anexo B*): reciben la frase que hay
+  que traducir, sin tu cuenta ni tu email, la traducen y no la conservan. Esta
+  transferencia fuera de la UE está amparada por las cláusulas contractuales tipo de la
+  Comisión Europea previstas en sus condiciones de tratamiento de datos.
 
 Tus datos se **alojan en la Unión Europea** (Francia). Aparte de la verificación de las
-suscripciones descrita más arriba (RevenueCat, Estados Unidos, bajo cláusulas
-contractuales tipo), no realizamos ninguna transferencia fuera de la UE.
+suscripciones y de la Traducción en línea descritas más arriba (RevenueCat, Google y
+Anthropic, bajo cláusulas contractuales tipo), no realizamos ninguna transferencia fuera de
+la UE.
 
 ## 5. Plazo de conservación
 
@@ -160,7 +166,8 @@ lees, las palabras que todavía no conoces en los idiomas que estudias. Además 
 en el §2:
 
 **Lo que se queda en tu dispositivo.** El texto de las páginas se analiza **en tu
-dispositivo** y nunca se envía. También se quedan en el dispositivo: el detalle de tus
+dispositivo** y nunca se envía, salvo la frase que envías tú con la **Traducción en línea**
+(más abajo). También se quedan en el dispositivo: el detalle de tus
 lecturas (qué palabras has encontrado, en qué páginas), la **dirección de la página** en la
 que añades una palabra a tu mazo y, si no has iniciado sesión, el conjunto de tus datos de
 Lingua.
@@ -184,6 +191,18 @@ las páginas, ni datos de Lingua, ni token de cuenta, ni identificador de instal
 Cymbra no las asocia a ninguna cuenta ni a ninguna instalación. Como con cualquier página
 web, el proveedor que aloja estos archivos (Cloudflare) ve la dirección IP del dispositivo
 que los solicita. Desactivar el ajuste elimina los modelos del dispositivo.
+
+**Traducción en línea.** Este ajuste, desactivado por defecto y propio de cada dispositivo
+(no se sincroniza), solo se ofrece a las cuentas que tienen acceso a él. Cuando está activado,
+aparece un botón « Traducción en línea » en la traducción de una selección de varias palabras.
+**No se envía nada mientras no pulses ese botón.** Cuando lo pulsas, la frase que contiene tu
+selección, la posición de la selección y el par de idiomas se envían a Cymbra, con tu token de
+cuenta, y Cymbra los envía a **Google** (API Gemini) para traducirlos, o a **Anthropic** (API
+Claude) cuando Google no responde. Ni Cymbra ni estos proveedores conservan la frase ni su
+traducción, y estos proveedores no la usan para entrenar sus modelos. Para limitar el uso y
+conocer su coste, Cymbra cuenta, para tu cuenta, las traducciones en línea del día (un contador
+que se borra al cabo de un día) y guarda totales diarios por proveedor y par de idiomas, sin
+cuenta ni texto.
 
 **Lectura en voz alta.** La lectura en voz alta utiliza una voz del idioma leído, instalada
 en tu dispositivo: el texto leído no sale de él. Si no hay ninguna voz de ese idioma

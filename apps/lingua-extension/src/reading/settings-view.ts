@@ -22,6 +22,8 @@ import {
   loadReaderFlow,
   saveAndroidVoices,
   saveHudHidden,
+  loadOnlineTranslation,
+  saveOnlineTranslation,
   saveRemoteVoices,
   saveReaderFlow,
   saveVoice,
@@ -39,6 +41,8 @@ import { type AccountControls, mountAccountSetting, runtimeAccountControls } fro
 import { mountBookDisplay } from "./book-display-view.ts";
 import { mountColourSettings } from "./colour-settings-view.ts";
 import { type SettingsModule, settingsCopy } from "./settings-copy.ts";
+import { onFlagsChanged, readFlag } from "../flags/messages.ts";
+import { ONLINE_TRANSLATION_FLAG, PRIVACY_POLICY_URLS } from "../translate/online.ts";
 import { mountNativeLanguage, nativeLanguageCopy } from "./native-language-view.ts";
 import { mountStudiedLanguages } from "./studied-languages-view.ts";
 import { type Speaker, type VoiceInfo, voiceGroups, voiceLabel } from "./speech.ts";
@@ -76,6 +80,8 @@ export interface SettingsOptions {
   translation?: TranslationControls | null;
   /** The Compte controls' seam; the background messages by default. */
   account?: AccountControls;
+  /** « Traduction en ligne »'s seam: the account's access, from its flags; the background's by default. */
+  onlineTranslation?: OnlineTranslationControls;
   /** Safari: a sign-in went on in the host app (the popup closes; its next open collects it). */
   onHandedOff?: () => void;
   /** The pairs the package ships: the bundle's, unless a spec offers others. */
@@ -128,6 +134,32 @@ function runtimeSyncControls(area: AsyncStorageArea): SyncControls {
       };
       chrome.storage.onChanged.addListener(listener);
       return () => chrome.storage.onChanged.removeListener(listener);
+    },
+  };
+}
+
+/**
+ * What « Traduction en ligne » needs of the background (add-lingua-online-translation D6, D8): whether
+ * the signed-in account has access — its effective flag, granted by an operator, never decided here —
+ * and to hear when the flags change (a sign-in, a sign-out, a grant or a withdrawal read).
+ */
+export interface OnlineTranslationControls {
+  access: () => Promise<boolean>;
+  /** Call `onChange` whenever the flags change; returns how to stop. */
+  watch: (onChange: () => void) => (() => void) | void;
+}
+
+function runtimeOnlineTranslationControls(): OnlineTranslationControls {
+  return {
+    access: () => readFlag(ONLINE_TRANSLATION_FLAG),
+    // A context without chrome.storage (a spec, an orphaned drawer) hears no change: the view is
+    // then refreshed when it is shown, as every block is.
+    watch: (onChange) => {
+      try {
+        return onFlagsChanged(onChange);
+      } catch {
+        return undefined;
+      }
     },
   };
 }
@@ -396,7 +428,19 @@ export function mountSettings(
   const colours = mountColourSettings(coloursBlock, area, { copy: blocksCopy.colours });
 
   // — Traduction (the variants that carry the engine; the background says whether it is offered) —
+  // « Traduction étendue » in its own part of the block, and « Traduction en ligne » under it: two
+  // independent choices — either may be ticked without the other — and the block shows while either
+  // is offered.
   const translationBlock = settingBlock(copy.translation);
+  const extendedPart = el("div");
+  extendedPart.hidden = true;
+  const onlinePart = el("div", "set-online");
+  onlinePart.hidden = true;
+  translationBlock.append(extendedPart, onlinePart);
+  const syncTranslationBlock = (): void => {
+    translationBlock.hidden = extendedPart.hidden && onlinePart.hidden;
+  };
+  syncTranslationBlock();
   const translationControls =
     opts.translation !== undefined
       ? opts.translation
@@ -404,12 +448,26 @@ export function mountSettings(
         ? runtimeTranslationControls()
         : null;
   const translation: TranslationSettingView | null = translationControls
-    ? mountTranslationSetting(translationBlock, translationControls, {
+    ? mountTranslationSetting(extendedPart, translationControls, {
         copy: blocksCopy.translation,
         language: interfaceLanguage,
+        onRender: syncTranslationBlock,
       })
     : null;
-  if (!translation) translationBlock.hidden = true;
+
+  // « Traduction en ligne » (add-lingua-online-translation): offered only to a signed-in reader whose
+  // account has access, unticked until they tick it, on this device alone. The note says where the
+  // sentence goes — never naming the service — and links to the policy in the interface language.
+  const onlineRow = el("label", "set-toggle");
+  const onlineToggle = el("input");
+  onlineToggle.type = "checkbox";
+  onlineRow.append(onlineToggle, el("span", undefined, copy.onlineTranslation));
+  const onlineNote = el("div", "set-note", copy.onlineTranslationNote);
+  const privacyLink = el("button", "linklike", copy.privacyPolicy);
+  privacyLink.type = "button";
+  privacyLink.addEventListener("click", () => openPage(PRIVACY_POLICY_URLS[interfaceLanguage]));
+  onlinePart.append(onlineRow, onlineNote, privacyLink);
+  const onlineControls = opts.onlineTranslation ?? runtimeOnlineTranslationControls();
 
   // — Raccourcis & gestes —
   const scBlock = settingBlock(copy.shortcuts);
@@ -536,6 +594,9 @@ export function mountSettings(
   });
   androidToggle.addEventListener("change", () => void saveAndroidVoices(area, androidToggle.checked));
   remoteToggle.addEventListener("change", () => void saveRemoteVoices(area, remoteToggle.checked));
+  onlineToggle.addEventListener("change", () => void saveOnlineTranslation(area, onlineToggle.checked));
+  // A sign-in or a sign-out rewrites the flags, and so does a grant or a withdrawal once read.
+  const unwatchOnline = onlineControls.watch(() => void refreshOnline());
   previewBtn.addEventListener("click", () => {
     if (!speaker) return;
     if (speaker.speaking()?.key === PREVIEW_KEY) {
@@ -627,6 +688,15 @@ export function mountSettings(
     await refreshSync();
   }
 
+  /** « Traduction en ligne »: shown while signed in with access, ticked as this device stored it. */
+  async function refreshOnline(): Promise<void> {
+    // Signed out, the flags are not even asked: no account, no access.
+    const access = (await sync.available()) && (await onlineControls.access().catch(() => false));
+    onlinePart.hidden = !access;
+    if (!onlinePart.hidden) onlineToggle.checked = await loadOnlineTranslation(area);
+    syncTranslationBlock();
+  }
+
   async function refreshSync(): Promise<void> {
     const signedIn = await sync.available();
     syncBlock.hidden = !signedIn;
@@ -674,7 +744,7 @@ export function mountSettings(
     renderVoices();
     flowToggle.checked = (await loadReaderFlow(area)) === "scrolled";
     await Promise.all([bookDisplay.refresh(), colours.refresh()]);
-    await Promise.all([refreshSync(), account.refresh(), translation?.refresh()]);
+    await Promise.all([refreshSync(), account.refresh(), translation?.refresh(), refreshOnline()]);
   }
 
   void refresh();
@@ -683,6 +753,7 @@ export function mountSettings(
     show: tabs.show,
     destroy: () => {
       unwatchSync?.();
+      unwatchOnline?.();
       translation?.destroy();
     },
   };

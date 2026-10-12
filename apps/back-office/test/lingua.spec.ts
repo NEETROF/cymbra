@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createPinia, setActivePinia } from "pinia";
 import { setClientsForTest } from "@/lib/api";
 import type { Clients } from "@/lib/transport";
-import { comprehension, studiedLanguageOptions, useLinguaStore } from "@/stores/lingua";
+import { comprehension, foldOnlineUsage, formatUsd, studiedLanguageOptions, useLinguaStore } from "@/stores/lingua";
 import { languageLabel } from "@/i18n/language-label";
 import en from "@/i18n/locales/en.json";
 import fr from "@/i18n/locales/fr.json";
@@ -17,7 +17,7 @@ interface SeriesReq {
   language: string;
 }
 
-function fakeLinguaClients(opts: { failUsage?: boolean } = {}) {
+function fakeLinguaClients(opts: { failUsage?: boolean; failOnline?: boolean } = {}) {
   const usageWindows: Win[] = [];
   const seriesCalls: SeriesReq[] = [];
   const clients = {
@@ -46,6 +46,31 @@ function fakeLinguaClients(opts: { failUsage?: boolean } = {}) {
       adminGetLinguaUsageSeries: async (req: SeriesReq) => {
         seriesCalls.push(req);
         return { points: [{ day: "2026-09-10", value: 3n }] };
+      },
+      adminGetOnlineTranslationUsage: async () => {
+        if (opts.failOnline) throw new Error("boom");
+        const row = (day: string, provider: string, answered: bigint, cost: bigint) => ({
+          day,
+          provider,
+          pair: "es-fr",
+          answered,
+          failed: 1n,
+          limited: 0n,
+          inputTokens: 270n * answered,
+          outputTokens: 40n * answered,
+          costMicroUsd: cost,
+        });
+        return {
+          rows: [
+            row("2026-09-10", "gemini", 10n, 1400n),
+            row("2026-09-11", "gemini", 5n, 700n),
+            row("2026-09-11", "anthropic", 2n, 200n),
+          ],
+          answered: 17n,
+          failed: 3n,
+          limited: 0n,
+          costMicroUsd: 2300n,
+        };
       },
     },
   } as unknown as Clients;
@@ -204,5 +229,40 @@ describe("languageLabel (change: add-admin-lingua-language-labels)", () => {
 
   it("names the same languages in both locales", () => {
     expect(Object.keys(fr.lingua.languages).sort()).toEqual(Object.keys(en.lingua.languages).sort());
+  });
+});
+
+describe("online translation figures (change: add-lingua-online-translation)", () => {
+  beforeEach(() => setActivePinia(createPinia()));
+
+  it("folds the days into one line per provider and pair, busiest first", async () => {
+    const { clients } = fakeLinguaClients();
+    setClientsForTest(clients);
+    const store = useLinguaStore();
+    await store.load();
+    expect(store.online.status).toBe("success");
+    if (store.online.status !== "success") return;
+    expect(store.online.data.answered).toBe(17);
+    expect(store.online.data.costMicroUsd).toBe(2300);
+    expect(store.online.data.lines.map((l) => [l.provider, l.answered, l.costMicroUsd])).toEqual([
+      ["gemini", 15, 2100],
+      ["anthropic", 2, 200],
+    ]);
+  });
+
+  it("a failed online read leaves the rest of the console standing", async () => {
+    const { clients } = fakeLinguaClients({ failOnline: true });
+    setClientsForTest(clients);
+    const store = useLinguaStore();
+    await store.load();
+    expect(store.online.status).toBe("error");
+    expect(store.report.status).toBe("success");
+  });
+
+  it("formats an estimated cost in dollars, with more digits for a tiny one", () => {
+    expect(formatUsd(2_300_000, "en")).toBe("$2.30");
+    expect(formatUsd(2300, "en")).toBe("$0.0023");
+    expect(formatUsd(0, "en")).toBe("$0.00");
+    expect(foldOnlineUsage([])).toEqual([]);
   });
 });

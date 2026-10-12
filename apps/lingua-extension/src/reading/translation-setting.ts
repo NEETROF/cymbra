@@ -171,6 +171,11 @@ export interface TranslationSettingOptions {
   language?: InterfaceLanguage;
   /** The setting's copy, in that language — passed with it; the French module when not given. */
   copy?: TranslationCopy;
+  /**
+   * Told after every render, once `block.hidden` says whether the setting is offered: the settings
+   * view shows its Traduction block while this or « Traduction en ligne » is shown.
+   */
+  onRender?: () => void;
 }
 
 /** Mount the row into `block`, the settings view's block for translation. */
@@ -215,6 +220,7 @@ export function mountTranslationSetting(
     if (!status?.offered) {
       block.hidden = true;
       awake(false);
+      opts.onRender?.();
       return;
     }
     block.hidden = false;
@@ -240,6 +246,7 @@ export function mountTranslationSetting(
       action.dataset.op = offer.op;
     }
     awake(downloading);
+    opts.onRender?.();
   }
 
   /** While a download runs and the view is on screen, keep its host awake (D4). */

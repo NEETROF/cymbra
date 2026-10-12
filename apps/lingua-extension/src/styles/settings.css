@@ -4,6 +4,20 @@
   margin-bottom: 18px;
 }
 
+/* One rule between two sections, so each reads as its own: before every shown block that follows
+   another shown one (a tab hides the others, so the first one shown stays under the tabs), and
+   before each level block, which sits in `.set-levels` (display: contents) after Langues étudiées. */
+.set-block:not([hidden]) ~ .set-block:not([hidden]),
+.set-levels > .set-block {
+  border-top: 1px solid var(--cymbra-lingua-border);
+  padding-top: 18px;
+}
+
+/* « Traduction en ligne » sits in the Traduction block, under « Traduction étendue »: set apart. */
+.set-online {
+  margin-top: 16px;
+}
+
 .set-label {
   font-weight: 600;
   margin-bottom: 8px;

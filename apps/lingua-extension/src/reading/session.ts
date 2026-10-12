@@ -1,4 +1,5 @@
 import { createTranslatorPort, type TranslatorSource } from "../translate/create-port.ts";
+import { createOnlineOffer } from "../translate/online.ts";
 import { acceptedLanguages, DEFAULT_LANGUAGE } from "../analyzer/pairs.ts";
 import type { LanguagePort, LinguaPort } from "../analyzer/port.ts";
 import type { CefrLevel, NativeLanguage, StudiedLanguage, TokenClass } from "../analyzer/types.ts";
@@ -144,6 +145,11 @@ export interface SessionOptions {
   dropPhraseOnLift?: boolean;
   /** The translator, asked per selection: « Traduction étendue » when on and ready (injected in tests). */
   translator?: TranslatorSource;
+  /**
+   * Whether a card for several words offers « Traduction en ligne », asked per card: the setting
+   * ticked on this device and the account's access (add-lingua-online-translation; injected in tests).
+   */
+  online?: () => boolean;
   /**
    * The interface language, read by the content script or the reader page before the session is
    * built (localise-lingua-reading-surfaces D1): what the HUD, the drawer, the word card and the
@@ -443,6 +449,8 @@ export class ReadingSession {
       {
         // In the document's language: its route, and nothing while its models are missing.
         translator: () => this.translator(this.language),
+        // « Traduction en ligne »: offered on a card for several words, whatever the engine.
+        online: opts.online ?? createOnlineOffer(this.lifetime.signal),
         language: () => this.language,
         interfaceLanguage,
         copy: copy.selection,
