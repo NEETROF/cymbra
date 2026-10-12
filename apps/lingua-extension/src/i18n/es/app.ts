@@ -7,6 +7,7 @@ export const app: typeof fr = {
   heading: "Cymbra Lingua",
   review: "Repaso",
   stats: "Estadísticas",
+  loading: "Cargando tus tarjetas…",
   savedAt: (when: string) => `Tarjetas de Safari, ${when}`,
   languageDue: (language: string, due: string) => `${language}: ${due}`,
   dueCards: {

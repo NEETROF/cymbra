@@ -20,13 +20,16 @@
         <p class="saved" id="saved" hidden></p>
       </header>
 
-      <div class="views" id="views">
+      <!-- Shown while the engine loads the deck; the views take its place once it is ready. -->
+      <p class="loading" id="loading" role="status" data-copy="loading"></p>
+
+      <div class="views" id="views" hidden>
         <button data-view="review" class="active" data-copy="review"></button>
         <button data-view="stats" data-copy="stats"></button>
       </div>
 
       <!-- Each studied language's due count, then the extension's own Révision (mountReview). -->
-      <section id="view-review">
+      <section id="view-review" hidden>
         <ul class="languages" id="languages"></ul>
         <div id="review-root"></div>
       </section>

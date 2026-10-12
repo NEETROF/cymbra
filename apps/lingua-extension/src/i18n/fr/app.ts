@@ -9,6 +9,8 @@ export const app = {
   heading: "Cymbra Lingua",
   review: "Révision",
   stats: "Statistiques",
+  /** Shown while the engine loads the deck, before the review can show. */
+  loading: "Chargement de tes cartes…",
   /** When the extension last saved the deck the app reviews: « Cartes de Safari, 12 oct. à 9:41 ». */
   savedAt: (when: string) => `Cartes de Safari, ${when}`,
   /** One studied language's due count on the home: « Anglais : 3 à revoir ». */

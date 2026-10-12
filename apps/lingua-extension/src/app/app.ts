@@ -1,6 +1,7 @@
 import { type GlueLoader, WasmAnalyzerPort, type WasmModule } from "../analyzer/engine.ts";
 import { SHIPPED_PAIRS } from "../analyzer/pairs.ts";
 import { fillPage, setDocumentLanguage } from "../i18n/index.ts";
+import { DEFAULT_INTERFACE_LANGUAGE, isInterfaceLanguage } from "../i18n/language.ts";
 import { mountReview, type ReviewPage } from "../review/review-page.ts";
 import { applySurfaceLook } from "../reading/surface-look.ts";
 import {
@@ -38,6 +39,12 @@ let review: ReviewPage | null = null;
 async function main(): Promise<void> {
   const send = webkitSend();
   if (!send) return;
+  // The engine takes a few seconds to load the deck: say so at once, in the language the app was
+  // opened in (the extension's, as the App Group last held it), before the shared state is read.
+  const opened = (globalThis as { linguaLanguage?: string }).linguaLanguage;
+  const early = isInterfaceLanguage(opened) ? opened : DEFAULT_INTERFACE_LANGUAGE;
+  setDocumentLanguage(document, early);
+  fillPage(document, appCopy(early));
   const session = await openAppSession({
     send,
     port: (backup) =>
@@ -52,7 +59,7 @@ async function main(): Promise<void> {
         return null;
       }
     })(),
-    fallbackLanguage: (globalThis as { linguaLanguage?: string }).linguaLanguage,
+    fallbackLanguage: opened,
   }).catch((e: unknown) => {
     console.warn("[Cymbra Lingua] could not open the shared state:", e);
     return null;
@@ -63,8 +70,10 @@ async function main(): Promise<void> {
   }
   const { port, store, prefs, interfaceLanguage: language } = session;
 
-  setDocumentLanguage(document, language);
-  fillPage(document, appCopy(language));
+  if (language !== early) {
+    setDocumentLanguage(document, language);
+    fillPage(document, appCopy(language));
+  }
   const looks = await prefs.get([COLOURS_KEY, READER_DISPLAY_KEY]);
   applySurfaceLook(
     document.documentElement,
@@ -99,6 +108,8 @@ async function main(): Promise<void> {
   for (const b of document.querySelectorAll<HTMLButtonElement>("#views button")) {
     b.addEventListener("click", () => void show(b.dataset.view === "stats" ? "stats" : "review"));
   }
+  $("loading").hidden = true;
+  $("views").hidden = false;
   await show("review");
 }
 

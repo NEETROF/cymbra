@@ -57,6 +57,17 @@ h1 {
   font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
 }
 
+.loading {
+  margin: 32px 0 0;
+  text-align: center;
+  color: var(--cymbra-lingua-muted);
+}
+
+#views[hidden],
+.loading[hidden] {
+  display: none;
+}
+
 .views {
   display: flex;
   gap: 8px;
