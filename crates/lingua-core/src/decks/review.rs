@@ -584,7 +584,8 @@ impl ReviewSession {
     ///
     /// Only a card's first answer in the session is graded (refine-lingua-review-session D3):
     /// a missed card (`Again`) comes back after three other cards, or at the end when fewer
-    /// remain, until it is recalled or has been asked three times, and those later answers
+    /// remain — never when none does, which would show it again at once — until it is recalled
+    /// or has been asked three times, and those later answers
     /// only keep it in the session or take it out. Grading them would apply the forgetting
     /// formula twice to a single lapse, since the core models no same-day review.
     pub fn grade(
@@ -631,7 +632,10 @@ impl ReviewSession {
                 self.summary.holding += 1;
             }
         }
-        if missed && times < MAX_ASKS {
+        // A missed card comes back only after another card: the last one of a session would
+        // otherwise be shown again at once, up to three times in a row (add-lingua-review-repeat-hint D4).
+        let others_left = self.position + 1 < self.queue.len();
+        if missed && times < MAX_ASKS && others_left {
             let at = (self.position + 1 + RETURN_AFTER).min(self.queue.len());
             self.queue.insert(at, key);
         }
@@ -755,6 +759,28 @@ mod tests {
                 day_start: 0,
             }),
         }
+    }
+
+    #[test]
+    fn spec_the_last_card_missed_is_not_shown_again_at_once() {
+        let mut deck = deck_of(&["alpha", "bravo"]);
+        let params = FsrsParams::default();
+        let mut session = ReviewSession::start(&deck, 0);
+        // `alpha` missed with `bravo` still to come: it comes back after it.
+        assert!(session.grade(&mut deck, &params, Rating::Again, 0));
+        assert_eq!(order(&session)[session.position..], ["bravo", "alpha"]);
+        assert!(session.grade(&mut deck, &params, Rating::Good, 0));
+        // `alpha` missed again, nothing left after it: the session ends instead of repeating it.
+        assert!(!session.grade(&mut deck, &params, Rating::Again, 0));
+        assert!(session.current_key().is_none());
+        let summary = session.summary();
+        assert_eq!((summary.reviewed, summary.recovered), (2, 0));
+
+        // A session of one card missed: graded once, not shown again.
+        let mut deck = deck_of(&["alone"]);
+        let mut session = ReviewSession::start(&deck, 0);
+        assert!(session.grade(&mut deck, &params, Rating::Again, 0));
+        assert!(session.current_key().is_none());
     }
 
     #[test]

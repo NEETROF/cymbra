@@ -16,7 +16,13 @@ readers to report it as one. The card should say why it is there again.
   render the same review view.
 - **Counted by the review page**, which sees every card it shows: no engine, backup or sync change.
 - Copy in French, English and Spanish.
-- Unchanged: when a missed card comes back, how many times, what a later answer does, the end summary.
+- **The last card missed is not shown again at once**: a missed card comes back only after another
+  card. Missing the last card of a session used to show it again immediately, up to three times in a
+  row (the product owner's finding on the iPad, 2026-10-13); the session now ends there.
+- In a practice session (`add-lingua-review-practice`), the repeat note takes the place of the
+  practice note, since it says why the card is there again.
+- Unchanged: when a missed card comes back otherwise, how many times, what a later answer does, the
+  end summary.
 
 ## Capabilities
 
@@ -27,7 +33,8 @@ _None._
 ### Modified Capabilities
 
 - `lingua-decks-review`: the requirement « A missed card comes back in the same session » gains that
-  the card says, when it comes back, that it is being asked again and for which time.
+  the card says, when it comes back, that it is being asked again and for which time, and that a
+  missed card with no other card left does not come back.
 
 ## Impact
 
@@ -35,8 +42,10 @@ _None._
 - **Cymbra Lingua — changed behaviour.** The extension's review view (`apps/lingua-extension`,
   `src/review/`), shown by the side panel, the drawer and the Apple app (`apps/lingua-apple`, through
   the `app` build). New copy in the catalogue (`review` module, fr/en/es).
+- The core (`crates/lingua-core`, `ReviewSession::grade`): the requeue of a missed card. No change to
+  the WASM interface, the backup or sync.
 - Cymbra ID, Music, Live, the back office and the public site are untouched. No backend, no `.proto`,
-  no flag. The core (`crates/lingua-core`) and its WASM build are untouched.
+  no flag.
 
 **Code.** `src/review/session.ts` (the showing count of the current card), `src/review/view.ts` (the
 note), `src/i18n/{fr,en,es}/review.ts`.

@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: A missed card comes back in the same session
-A card answered as missed SHALL come back in the same session after three other cards, or at the end when fewer remain, until it is recalled or has been asked three times in that session. Only a card's first answer in a session SHALL update its FSRS state and count as a review; a later answer in the same session SHALL only keep the card in the session or take it out. A card shown again in a session SHALL say so above its sentence, in place of the count of cards remaining, with the time it is being asked (French UI copy: « À revoir · 2ᵉ passage », « À revoir · 3ᵉ passage »); its first showing SHALL say nothing of the kind.
+A card answered as missed SHALL come back in the same session after three other cards, or at the end when fewer remain, until it is recalled or has been asked three times in that session; when no other card remains to be shown, a missed card SHALL NOT come back, since it would be shown again at once. Only a card's first answer in a session SHALL update its FSRS state and count as a review; a later answer in the same session SHALL only keep the card in the session or take it out. A card shown again in a session SHALL say so above its sentence, in place of the count of cards remaining — in a practice session too, in place of its practice note — with the time it is being asked (French UI copy: « À revoir · 2ᵉ passage », « À revoir · 3ᵉ passage »); its first showing SHALL say nothing of the kind.
 
 #### Scenario: A word recovered
 - **WHEN** the reader misses `seldom`, then recalls it when it comes back
@@ -26,6 +26,14 @@ A card answered as missed SHALL come back in the same session after three other 
 #### Scenario: A first showing
 - **WHEN** a card is shown for the first time in a session
 - **THEN** it shows the count of cards remaining, as before
+
+#### Scenario: The last card missed
+- **WHEN** the reader misses the last card of a session, no other card remaining
+- **THEN** the session ends: the card is graded `again` once and is not shown again in a row
+
+#### Scenario: In practice
+- **WHEN** a practice card the reader missed comes back
+- **THEN** it says « À revoir · 2ᵉ passage » in place of its practice note
 
 #### Scenario: In every host
 - **WHEN** a missed card comes back in the side panel, in the in-page drawer or in the Cymbra Lingua app

@@ -40,6 +40,16 @@ screen. The card's language note is unchanged.
 product owner's), "Again · 2nd time" (English), « Otra vez · 2.ª vez » (Spanish). The showing is at
 most `MAX_ASKS` (3); the English ordinal is written for 2 and 3 and falls back to "Nth" beyond.
 
+### D4 — A missed card comes back only after another card
+`ReviewSession::grade` puts a missed card back only when another card remains after it
+(`position + 1 < queue.len()`). Missing the last card used to put it back at the end — that is, next —
+so it was shown again at once, up to three times in a row, with nothing between: no spacing, only the
+same card. The answer is graded as before; the card waits for its next due date.
+
+### D5 — The repeat note wins over practice's
+In a practice session (`add-lingua-review-practice`), a card a miss brought back says « À revoir ·
+Nᵉ passage », not « Entraînement · N carte(s) »: the repeat is what needs explaining.
+
 ## Risks / Trade-offs
 
 - [A host reloaded mid-session (Safari stopping the drawer's page) keeps the engine's queue but

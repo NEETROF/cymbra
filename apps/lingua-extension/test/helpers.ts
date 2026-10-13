@@ -176,7 +176,8 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
       asked.set(card, state);
       if (first && summary) summary.reviewed++;
       reviewedEver.add(card);
-      if (missed && state.times < 3) queue.splice(Math.min(pos + 4, queue.length), 0, card);
+      // Back after another card only: never at once as the session's last (add-lingua-review-repeat-hint D4).
+      if (missed && state.times < 3 && pos + 1 < queue.length) queue.splice(Math.min(pos + 4, queue.length), 0, card);
       advance();
       return first;
     },
