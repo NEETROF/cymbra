@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.26.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.25.0...back-office-v0.26.0) (2026-10-13)
+
+
+### Features
+
+* **lingua:** feature betas for Lingua ([#916](https://github.com/NEETROF/cymbra/issues/916)) ([ad76a27](https://github.com/NEETROF/cymbra/commit/ad76a27284d53a01e4a5c3a21159cfc9a98f6ec0))
+* **lingua:** online translation, on request, for accounts given access ([#919](https://github.com/NEETROF/cymbra/issues/919)) ([4993e22](https://github.com/NEETROF/cymbra/commit/4993e22918df0a1d1a282753472e6147d8a423fb))
+
 ## [0.25.0](https://github.com/NEETROF/cymbra/compare/back-office-v0.24.0...back-office-v0.25.0) (2026-10-11)
 
 

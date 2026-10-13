@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.6.0...lingua-apple-v1.7.0) (2026-10-13)
+
+
+### Features
+
+* **lingua:** online translation, on request, for accounts given access ([#919](https://github.com/NEETROF/cymbra/issues/919)) ([4993e22](https://github.com/NEETROF/cymbra/commit/4993e22918df0a1d1a282753472e6147d8a423fb))
+* **lingua:** the Cymbra Lingua app reviews the deck the Safari extension keeps ([#925](https://github.com/NEETROF/cymbra/issues/925)) ([1381038](https://github.com/NEETROF/cymbra/commit/1381038d6c6462a397a762ed869d6dffb8e2383e))
+
 ## [1.6.0](https://github.com/NEETROF/cymbra/compare/lingua-apple-v1.5.0...lingua-apple-v1.6.0) (2026-10-11)
 
 
