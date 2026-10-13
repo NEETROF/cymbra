@@ -52,6 +52,13 @@ export interface ReviewPageOptions {
    * where a model is ready (add-lingua-review-translation D4). Without one, the review is today's.
    */
   translator?: TranslatorSource;
+  /**
+   * Beside a book, how many words looked up in it are still to sort (add-lingua-chapter-recap D6);
+   * none, or 0, away from one: no count is shown.
+   */
+  toSort?: () => Promise<number>;
+  /** Open the book's list of words to sort, in the reader page beside. */
+  openToSort?: () => void;
 }
 
 export interface ReviewPage {
@@ -95,6 +102,11 @@ export function mountReview(
   let lastBackup: string | null = null;
 
   const summary = el("div", "summary");
+  // The words of the book beside still to sort, opening its list (add-lingua-chapter-recap D6).
+  const toSort = el("button", "review-to-sort");
+  toSort.type = "button";
+  toSort.hidden = true;
+  toSort.addEventListener("click", () => opts.openToSort?.());
   const review = el("div", "review");
   // The language filter, when the reader studies several (add-lingua-language-stats-review D2):
   // one language at a time, never several mixed (refine-lingua-review-language D1).
@@ -169,7 +181,7 @@ export function mountReview(
     return [...holder.childNodes];
   };
 
-  container.append(filterRow, summary, review);
+  container.append(filterRow, summary, toSort, review);
 
   /** The filter's segments: one per accepted language, the review's own active. */
   function drawFilter(): void {
@@ -238,6 +250,13 @@ export function mountReview(
     summary.replaceChildren(...counted(deck, copy.deckCards), copy.summarySeparator, ...counted(due, copy.dueCards));
   }
 
+  /** The count of words to sort beside a book; hidden away from one, or at nothing to sort. */
+  async function refreshToSort(): Promise<void> {
+    const n = await (opts.toSort?.() ?? Promise.resolve(0)).catch(() => 0);
+    toSort.hidden = n <= 0;
+    toSort.textContent = n > 0 ? plural(interfaceLanguage, n, copy.toSort) : "";
+  }
+
   async function run(
     produce: () => Promise<ReturnType<ReviewController["view"]>>,
     changed: boolean,
@@ -298,6 +317,7 @@ export function mountReview(
       await readLanguages();
       await followPage();
       await refreshSummary();
+      await refreshToSort();
       render(session.view());
     },
     reviewing: () => session.view().phase === "reviewing",

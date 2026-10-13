@@ -6,7 +6,7 @@ import { sidepanel as enSidepanel } from "@/i18n/en/sidepanel.ts";
 import { sidepanel as esSidepanel } from "@/i18n/es/sidepanel.ts";
 import { sidepanel as frSidepanel } from "@/i18n/fr/sidepanel.ts";
 import { COPY_PENDING_ATTR, fillPageInLanguage, INTERFACE_LANGUAGE_KEY, type InterfaceLanguage } from "@/i18n/index.ts";
-import { reloadOnView, viewToRestore } from "@/sidepanel/panel.ts";
+import { reloadOnView, toSortOf, viewToRestore } from "@/sidepanel/panel.ts";
 import { PENDING_RULE, pageArea, refusingArea, REVEAL_KEYFRAMES } from "./helpers.ts";
 
 // The side panel's page (localise-lingua-reading-surfaces D2, D5): its skeleton holds no text;
@@ -115,5 +115,18 @@ describe("the tab a change of native language comes back on (the owner's finding
     expect(viewToRestore(location, history)).toBe("review");
     expect(viewToRestore(pageUrl("#view=elsewhere").location, history)).toBe("review");
     expect(history.replaceState).not.toHaveBeenCalled();
+  });
+});
+
+// add-lingua-chapter-recap D6: the side panel reads the book's count from the figures it already asks for.
+describe("the words to sort, from a reading session's figures", () => {
+  it("reads the book's count, and nothing from a page, an older session or no answer", () => {
+    expect(toSortOf({ reviewLanguage: "en", toSort: 6 })).toBe(6);
+    expect(toSortOf({ reviewLanguage: "en", toSort: 0 })).toBe(0);
+    expect(toSortOf({ reviewLanguage: "en" })).toBe(0);
+    expect(toSortOf({ toSort: "6" })).toBe(0);
+    expect(toSortOf({ toSort: -1 })).toBe(0);
+    expect(toSortOf(undefined)).toBe(0);
+    expect(toSortOf(null)).toBe(0);
   });
 });

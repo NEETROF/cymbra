@@ -1,3 +1,4 @@
+import type { StudiedLanguage } from "../analyzer/types.ts";
 import { reader as frReader } from "../i18n/fr/reader.ts";
 import { isZip, openArchive } from "./archive.ts";
 import { type Protection, protectionOf } from "./drm.ts";
@@ -19,10 +20,14 @@ import { isEpubArchive, readEpubMeta } from "./epub-meta.ts";
 // identifier is kept as metadata only — publishers reuse it across editions.
 
 export const LIBRARY_DB = "cymbra-lingua-library";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const BOOKS = "books";
 const FILES = "files";
 const POSITIONS = "positions";
+/** The words looked up in a book (add-lingua-chapter-recap D2), keyed by `[hash, chapter, lemma]`. */
+const LOOKUPS = "lookups";
+/** How many lookups a book had when its recap was last put off (D4), keyed by `hash`. */
+const RECAPS = "recaps";
 
 export interface BookRecord {
   /** SHA-256 of the file, hex: the book's key. */
@@ -41,6 +46,37 @@ export interface BookRecord {
   /** When `location` was written (epoch millis): the latest write wins between two tabs. */
   locationAt: number;
 }
+
+/**
+ * A word or an expression whose card the reader opened in a book (add-lingua-chapter-recap D1): once
+ * per word and chapter, on this device only — never synchronised, never in the backup.
+ */
+export interface LookupRecord {
+  hash: string;
+  /** The chapter's label (the table-of-contents entry the page sat in), empty in a book without one. */
+  chapter: string;
+  /** The key its status and card are filed under: a word's dictionary form, an expression lowercased. */
+  lemma: string;
+  /** The form met. */
+  surface: string;
+  sentence: string;
+  /** The studied language the card was read in. */
+  language: StudiedLanguage;
+  expression: boolean;
+  /** The gloss the card showed, kept for an expression the pack cannot gloss again. */
+  gloss: string | null;
+  /** When it was first looked up (epoch millis). */
+  at: number;
+}
+
+interface RecapRecord {
+  hash: string;
+  /** How many lookups the book had when its recap was put off. */
+  dismissedAt: number;
+}
+
+/** The lookups store's index of a book's records. */
+const BY_BOOK = "hash";
 
 /** A book as its store keeps it: everything but where the reader is. */
 type StoredBook = Omit<BookRecord, "location" | "locationAt">;
@@ -89,7 +125,7 @@ function committed(tx: IDBTransaction): Promise<void> {
 /**
  * Open the library database, creating its object stores on first use. Version 1 kept the
  * position inside the book's record: the upgrade copies it to its own store, reading the books
- * without writing one back.
+ * without writing one back. Version 3 adds the lookups and the recaps; nothing existing moves.
  */
 export function openLibraryDb(factory: IDBFactory = indexedDB): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -98,6 +134,9 @@ export function openLibraryDb(factory: IDBFactory = indexedDB): Promise<IDBDatab
       const db = request.result;
       if (!db.objectStoreNames.contains(BOOKS)) db.createObjectStore(BOOKS, { keyPath: "hash" });
       if (!db.objectStoreNames.contains(FILES)) db.createObjectStore(FILES, { keyPath: "hash" });
+      if (!db.objectStoreNames.contains(LOOKUPS))
+        db.createObjectStore(LOOKUPS, { keyPath: ["hash", "chapter", "lemma"] }).createIndex(BY_BOOK, "hash");
+      if (!db.objectStoreNames.contains(RECAPS)) db.createObjectStore(RECAPS, { keyPath: "hash" });
       if (db.objectStoreNames.contains(POSITIONS)) return;
       const positions = db.createObjectStore(POSITIONS, { keyPath: "hash" });
       if (event.oldVersion !== 1) return;
@@ -190,12 +229,61 @@ export class Library {
     return kept ? { book: withPosition(kept, position), existed: true } : { book, existed: false };
   }
 
-  /** Forget a book and its file. The cards captured from it keep their own copy of its name. */
+  /**
+   * Forget a book, its file and the words looked up in it. The cards captured from it keep their
+   * own copy of its name.
+   */
   async remove(hash: string): Promise<void> {
-    const tx = this.db.transaction([BOOKS, FILES, POSITIONS], "readwrite");
+    const tx = this.db.transaction([BOOKS, FILES, POSITIONS, LOOKUPS, RECAPS], "readwrite");
     tx.objectStore(BOOKS).delete(hash);
     tx.objectStore(FILES).delete(hash);
     tx.objectStore(POSITIONS).delete(hash);
+    tx.objectStore(RECAPS).delete(hash);
+    const lookups = tx.objectStore(LOOKUPS);
+    const keys = lookups.index(BY_BOOK).openKeyCursor(hash);
+    keys.onsuccess = () => {
+      const row = keys.result;
+      if (!row) return;
+      lookups.delete(row.primaryKey);
+      row.continue();
+    };
+    await committed(tx);
+  }
+
+  /**
+   * Remember a word looked up in a book (add-lingua-chapter-recap D1): the first time in its
+   * chapter only — opening it again there keeps what was met first. Returns whether it was new.
+   */
+  async recordLookup(lookup: LookupRecord): Promise<boolean> {
+    const tx = this.db.transaction([BOOKS, LOOKUPS], "readwrite");
+    const lookups = tx.objectStore(LOOKUPS);
+    const [known, kept] = await Promise.all([
+      promised<number>(tx.objectStore(BOOKS).count(lookup.hash)),
+      promised<number>(lookups.count([lookup.hash, lookup.chapter, lookup.lemma])),
+    ]);
+    const fresh = known > 0 && kept === 0;
+    if (fresh) lookups.put(lookup);
+    await committed(tx);
+    return fresh;
+  }
+
+  /** The words looked up in a book, in the order they were met. */
+  async lookupsOf(hash: string): Promise<LookupRecord[]> {
+    const tx = this.db.transaction(LOOKUPS);
+    const all = await promised<LookupRecord[]>(tx.objectStore(LOOKUPS).index(BY_BOOK).getAll(hash));
+    return all.sort((a, b) => a.at - b.at);
+  }
+
+  /** How many lookups the book had when its recap was last put off; null when it never was (D4). */
+  async recapDismissedAt(hash: string): Promise<number | null> {
+    const got = await promised<RecapRecord | undefined>(this.db.transaction(RECAPS).objectStore(RECAPS).get(hash));
+    return got?.dismissedAt ?? null;
+  }
+
+  /** The recap was put off while the book had `lookups` lookups. */
+  async dismissRecap(hash: string, lookups: number): Promise<void> {
+    const tx = this.db.transaction(RECAPS, "readwrite");
+    tx.objectStore(RECAPS).put({ hash, dismissedAt: lookups } satisfies RecapRecord);
     await committed(tx);
   }
 

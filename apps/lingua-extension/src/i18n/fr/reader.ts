@@ -33,8 +33,6 @@ export const reader = {
   fullscreen: "Plein écran",
   leaveFullscreen: "Quitter le plein écran",
   noToc: "Ce livre n'a pas de sommaire.",
-  review: "Réviser",
-  stats: "Stats",
   settings: "Réglages",
   prev: "Page précédente",
   next: "Page suivante",
@@ -56,4 +54,23 @@ export const reader = {
     other: (n) => `Livre : ≈ ${n} pages restantes`,
   }),
   bookLastPage: "Livre : dernière page",
+  /**
+   * The words looked up, sorted at the end of a chapter (add-lingua-chapter-recap D5, D6): the recap's
+   * title, its rows' three actions, its dismissal, and the bar's counter.
+   */
+  recapChapter: (chapter: string) => `Fin de « ${chapter} »`,
+  recapIntro: "Les mots que tu as regardés dans ce chapitre. Garde ceux que tu veux revoir.",
+  recapAll: "Mots à trier",
+  recapAllIntro: "Les mots que tu as regardés dans ce livre et pas encore triés.",
+  recapNoChapter: "Sans chapitre",
+  recapAdd: "+ Deck",
+  recapKnown: "Je connais",
+  recapLeave: "Laisser",
+  recapLater: "Plus tard",
+  recapClose: "Fermer",
+  toSort: pluralForms({
+    one: (n) => `${n} à trier`,
+    other: (n) => `${n} à trier`,
+  }),
+  toSortTitle: "Les mots regardés dans ce livre, à trier",
 };
