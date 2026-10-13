@@ -120,7 +120,7 @@ export function renderReview(
   const rows: ListenRow[] = [];
   if (view.phase === "idle") root.append(button(copy.start, "review-btn primary review-start", () => actions.start()));
   else if (view.phase === "done" || !card) root.append(ending(view, actions, language, copy));
-  else root.append(cardView(card, view.practice ?? false, actions, opts, language, copy, rows));
+  else root.append(cardView(card, view.showing ?? 1, view.practice ?? false, actions, opts, language, copy, rows));
 
   const speaker = opts.speaker;
   if (speaker && rows.length > 0) {
@@ -158,6 +158,7 @@ function onKey(e: KeyboardEvent, root: HTMLElement, view: ReviewView, actions: R
 
 function cardView(
   card: ReviewCard,
+  showing: number,
   practice: boolean,
   actions: ReviewActions,
   opts: ReviewRenderOptions,
@@ -170,11 +171,15 @@ function cardView(
   const studied = card.language ?? "en";
   const main = div("review-main");
   const head = div("review-head");
-  // A practice card says so where the count of cards remaining stands (add-lingua-review-practice).
+  // A card a miss brought back says so, where the count of cards remaining stands
+  // (add-lingua-review-repeat-hint D2): the line keeps its place, nothing moves on an e-ink screen.
+  // That says why it is there again, so it wins over practice's own note (add-lingua-review-practice).
   head.append(
-    practice
-      ? note(plural(language, card.remaining, copy.practiceRemaining), "remaining review-practice-note")
-      : note(plural(language, card.remaining, copy.remaining), "remaining"),
+    showing > 1
+      ? note(copy.repeat(showing), "remaining review-repeat")
+      : practice
+        ? note(plural(language, card.remaining, copy.practiceRemaining), "remaining review-practice-note")
+        : note(plural(language, card.remaining, copy.remaining), "remaining"),
   );
   // The card's language, when the reader studies several (add-lingua-language-stats-review D2).
   if (opts.showLanguage && card.language) head.append(note(languageName(language, card.language), "review-language"));

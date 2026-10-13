@@ -61,6 +61,41 @@ describe("renderReview — the card's language", () => {
   });
 });
 
+describe("renderReview — a card a miss brought back (add-lingua-review-repeat-hint)", () => {
+  it("says the count of cards remaining on a first showing", () => {
+    renderReview(root, reviewing(), actions);
+    expect(root.querySelector(".remaining")?.textContent).toBe("3 carte(s) à revoir");
+    expect(root.querySelector(".review-repeat")).toBeNull();
+    renderReview(root, { ...reviewing(), showing: 1 }, actions);
+    expect(root.querySelector(".review-repeat")).toBeNull();
+  });
+
+  it("says its second and third showing in its place", () => {
+    renderReview(root, { ...reviewing(), showing: 2 }, actions);
+    expect(root.querySelector(".remaining")?.textContent).toBe("À revoir · 2ᵉ passage");
+    expect(root.querySelectorAll(".remaining")).toHaveLength(1);
+    renderReview(root, { ...reviewing({ revealed: true }), showing: 3 }, actions);
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("À revoir · 3ᵉ passage");
+  });
+
+  it("speaks the interface language", () => {
+    renderReview(root, { ...reviewing(), showing: 2 }, actions, { interfaceLanguage: "en" });
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("Again · 2nd time");
+    renderReview(root, { ...reviewing(), showing: 3 }, actions, { interfaceLanguage: "en" });
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("Again · 3rd time");
+    renderReview(root, { ...reviewing(), showing: 4 }, actions, { interfaceLanguage: "en" });
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("Again · 4th time");
+    renderReview(root, { ...reviewing(), showing: 2 }, actions, { interfaceLanguage: "es" });
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("Otra vez · 2.ª vez");
+  });
+
+  it("wins over practice's note: it says why the card is there again", () => {
+    renderReview(root, { ...reviewing(), practice: true, showing: 2 }, actions);
+    expect(root.querySelector(".remaining")?.textContent).toBe("À revoir · 2ᵉ passage");
+    expect(root.querySelector(".review-practice-note")).toBeNull();
+  });
+});
+
 describe("renderReview — practice (add-lingua-review-practice)", () => {
   it("offers practice where nothing is due, when the host can start it", () => {
     const practice = vi.fn();

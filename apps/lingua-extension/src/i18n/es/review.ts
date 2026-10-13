@@ -11,6 +11,7 @@ export const review: typeof fr = {
     many: (n) => `${n} tarjetas por repasar`,
     other: (n) => `${n} tarjetas por repasar`,
   },
+  repeat: (showing: number) => `Otra vez · ${showing}.ª vez`,
   practice: "Practicar de todos modos",
   practiceRemaining: {
     one: (n) => `Práctica · ${n} tarjeta`,

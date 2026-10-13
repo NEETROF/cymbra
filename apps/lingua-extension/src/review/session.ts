@@ -24,6 +24,12 @@ export interface ReviewView {
   summary: ReviewSummary | null;
   /** Whether another session would hold cards now: « Encore 10 » is offered only then. */
   moreDue: boolean;
+  /**
+   * How many times the current card has been shown in this session, this time included: 1 on its
+   * first showing, 2 or 3 when a miss brought it back (add-lingua-review-repeat-hint D1). Absent:
+   * a first showing.
+   */
+  showing?: number;
   /** Whether the session under way is practice, whose answers change no card (add-lingua-review-practice). */
   practice?: boolean;
   /** Whether a practice session would hold cards, once nothing more is due: offered only then. */
@@ -37,12 +43,19 @@ export function localDayStart(nowSecs: number): number {
   return Math.floor(day.getTime() / 1000);
 }
 
+/** One card per studied language and lemma: the same headword in two languages is two cards. */
+function showingKey(card: ReviewCard): string {
+  return `${card.language ?? "en"}\u0000${card.headword}`;
+}
+
 export class ReviewController {
   private started = false;
   private card: ReviewCard | null = null;
   private languages: StudiedLanguage[] | undefined;
   private summary: ReviewSummary | null = null;
   private moreDue = false;
+  /** Each card's showings this session, by language and headword (D1). */
+  private showings = new Map<string, number>();
   private practice = false;
   private practiceAvailable = false;
 
@@ -70,6 +83,7 @@ export class ReviewController {
     this.languages = languages;
     this.summary = null;
     this.moreDue = false;
+    this.showings.clear();
     this.practiceAvailable = false;
     this.practice = practice;
     await this.port.startReview(this.now(), languages, await this.options(practice));
@@ -111,11 +125,13 @@ export class ReviewController {
 
   view(): ReviewView {
     const phase: ReviewPhase = !this.started ? "idle" : this.card ? "reviewing" : "done";
+    const showing = this.card ? (this.showings.get(showingKey(this.card)) ?? 1) : 0;
     return {
       phase,
       card: this.card,
       summary: this.summary,
       moreDue: this.moreDue,
+      showing,
       practice: this.practice,
       practiceAvailable: this.practiceAvailable,
     };
@@ -142,7 +158,12 @@ export class ReviewController {
    */
   private async next(): Promise<void> {
     this.card = await this.port.reviewCurrent();
-    if (this.card) return;
+    if (this.card) {
+      // A card arriving, never a reveal of the one shown: only here is a showing counted.
+      const key = showingKey(this.card);
+      this.showings.set(key, (this.showings.get(key) ?? 0) + 1);
+      return;
+    }
     this.summary = await this.port.reviewSummary();
     // After a practice session, practice again — never « Encore 10 » over due cards it did not hold.
     this.moreDue =

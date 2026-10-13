@@ -12,6 +12,8 @@ export const review = {
     one: (n) => `${n} carte(s) à revoir`,
     other: (n) => `${n} carte(s) à revoir`,
   }),
+  /** A card a miss brought back, on its second or third showing (add-lingua-review-repeat-hint). */
+  repeat: (showing: number) => `À revoir · ${showing}ᵉ passage`,
   /** Nothing due, cards already reviewed: practise anyway, no schedule moved (add-lingua-review-practice). */
   practice: "S'entraîner quand même",
   /** A practice card's head, in place of the count of cards remaining. */
