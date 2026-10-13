@@ -268,7 +268,7 @@ The review SHALL bring at most a daily allowance of never-reviewed cards of each
 - **THEN** up to 10 new Spanish words still enter review that day
 
 ### Requirement: A missed card comes back in the same session
-A card answered as missed SHALL come back in the same session after three other cards, or at the end when fewer remain, until it is recalled or has been asked three times in that session. Only a card's first answer in a session SHALL update its FSRS state and count as a review; a later answer in the same session SHALL only keep the card in the session or take it out.
+A card answered as missed SHALL come back in the same session after three other cards, or at the end when fewer remain, until it is recalled or has been asked three times in that session; when no other card remains to be shown, a missed card SHALL NOT come back, since it would be shown again at once. Only a card's first answer in a session SHALL update its FSRS state and count as a review; a later answer in the same session SHALL only keep the card in the session or take it out. A card shown again in a session SHALL say so above its sentence, in place of the count of cards remaining — in a practice session too, in place of its practice note — with the time it is being asked (French UI copy: « À revoir · 2ᵉ passage », « À revoir · 3ᵉ passage »); its first showing SHALL say nothing of the kind.
 
 #### Scenario: A word recovered
 - **WHEN** the reader misses `seldom`, then recalls it when it comes back
@@ -281,6 +281,30 @@ A card answered as missed SHALL come back in the same session after three other 
 #### Scenario: One review counted
 - **WHEN** a missed card comes back and is answered again
 - **THEN** the day's count of reviews holds one review for that card, not two
+
+#### Scenario: A card that comes back says why
+- **WHEN** the reader misses `seldom` and it comes back three cards later
+- **THEN** the card shows « À revoir · 2ᵉ passage » above its sentence instead of the count of cards remaining
+
+#### Scenario: Its third showing
+- **WHEN** the reader misses `seldom` again when it comes back
+- **THEN** its next showing says « À revoir · 3ᵉ passage »
+
+#### Scenario: A first showing
+- **WHEN** a card is shown for the first time in a session
+- **THEN** it shows the count of cards remaining, as before
+
+#### Scenario: The last card missed
+- **WHEN** the reader misses the last card of a session, no other card remaining
+- **THEN** the session ends: the card is graded `again` once and is not shown again in a row
+
+#### Scenario: In practice
+- **WHEN** a practice card the reader missed comes back
+- **THEN** it says « À revoir · 2ᵉ passage » in place of its practice note
+
+#### Scenario: In every host
+- **WHEN** a missed card comes back in the side panel, in the in-page drawer or in the Cymbra Lingua app
+- **THEN** each says it the same way, in the reader's interface language
 
 ### Requirement: Two answers on the card
 The review SHALL offer two answers on a revealed card — a miss (French UI copy: « Pas su »), graded `again`, and a recall (French UI copy: « Su »), graded `good` — together with marking the word known (French UI copy: « Je connais ») and hiding it from review (French UI copy: « Ne plus me le montrer »). The core SHALL keep accepting the four FSRS ratings from its other callers.
