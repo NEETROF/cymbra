@@ -241,15 +241,17 @@ describe("WasmAnalyzerPort language views", () => {
     await port.startReview(100, ["es"]);
     await port.startReview(100);
     await port.startReview(100, undefined, { limit: 10, newPerDay: 5, dayStart: 86_400 });
+    await port.startReview(100, ["es"], { limit: 10, practice: true });
     expect(await port.deckCount(["es"])).toBe(3);
     await port.deckCount();
 
     expect(glue.received).toEqual([
       ["dueCount", [100, ["es"]]],
       ["dueCount", [100, null]],
-      ["startReview", [100, ["es"], null, null, null]],
-      ["startReview", [100, null, null, null, null]],
-      ["startReview", [100, null, 10, 5, 86_400]],
+      ["startReview", [100, ["es"], null, null, null, null]],
+      ["startReview", [100, null, null, null, null, null]],
+      ["startReview", [100, null, 10, 5, 86_400, null]],
+      ["startReview", [100, ["es"], 10, null, null, true]],
       ["deckCount", [["es"]]],
       ["deckCount", [null]],
     ]);

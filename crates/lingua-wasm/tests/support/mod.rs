@@ -433,7 +433,7 @@ impl Scenario {
         let now = T_SECS + DAY_SECS;
         g.probe(
             "start-review",
-            reader.start_review(now, None, None, None, None),
+            reader.start_review(now, None, None, None, None, None),
         );
         g.probe("review-current first", shown(reader.review_current()));
         reader.review_reveal();

@@ -277,6 +277,11 @@ export function mountReview(
       warm();
       void run(() => session.start(only()), false).then(() => review.focus({ preventScroll: true }));
     },
+    // Nothing due: practise the cards already reviewed, no schedule moved (add-lingua-review-practice).
+    practice: () => {
+      warm();
+      void run(() => session.start(only(), true), false).then(() => review.focus({ preventScroll: true }));
+    },
     reveal: () => void run(() => session.reveal(), false, false),
     grade: (rating) => void run(() => session.grade(rating), true),
     markKnown: () => void run(() => session.markKnown(), true),

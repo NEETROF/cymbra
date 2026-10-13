@@ -9,6 +9,11 @@ export const review: typeof fr = {
     one: (n) => `${n} card to review`,
     other: (n) => `${n} cards to review`,
   },
+  practice: "Practice anyway",
+  practiceRemaining: {
+    one: (n) => `Practice · ${n} card`,
+    other: (n) => `Practice · ${n} cards`,
+  },
   reveal: "Show the answer",
   missed: "Didn't know",
   recalled: "Knew it",

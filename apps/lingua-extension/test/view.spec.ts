@@ -61,6 +61,39 @@ describe("renderReview — the card's language", () => {
   });
 });
 
+describe("renderReview — practice (add-lingua-review-practice)", () => {
+  it("offers practice where nothing is due, when the host can start it", () => {
+    const practice = vi.fn();
+    const view: ReviewView = { ...done(null), practiceAvailable: true };
+    renderReview(root, view, { ...actions, practice });
+    expect(root.textContent).toContain("Rien à réviser pour l'instant.");
+    const button = root.querySelector<HTMLButtonElement>(".review-practice");
+    expect(button?.textContent).toBe("S'entraîner quand même");
+    button?.click();
+    expect(practice).toHaveBeenCalledOnce();
+    // A host without the action, or nothing to practise: no button.
+    renderReview(root, view, actions);
+    expect(root.querySelector(".review-practice")).toBeNull();
+    renderReview(root, done(null), { ...actions, practice });
+    expect(root.querySelector(".review-practice")).toBeNull();
+  });
+
+  it("offers « Encore 10 » rather than practice while cards are due", () => {
+    renderReview(root, { ...done(null, true), practiceAvailable: true }, { ...actions, practice: vi.fn() });
+    expect(root.querySelector(".review-more")).not.toBeNull();
+    expect(root.querySelector(".review-practice")).toBeNull();
+  });
+
+  it("says a practice card is practice, in place of the count of cards remaining", () => {
+    renderReview(root, { ...reviewing(), practice: true }, actions);
+    expect(root.querySelector(".remaining")?.textContent).toBe("Entraînement · 3 carte(s)");
+    renderReview(root, { ...reviewing({ remaining: 1 }), practice: true }, actions, { interfaceLanguage: "en" });
+    expect(root.querySelector(".review-practice-note")?.textContent).toBe("Practice · 1 card");
+    renderReview(root, reviewing(), actions);
+    expect(root.querySelector(".review-practice-note")).toBeNull();
+  });
+});
+
 describe("renderReview — the card (refine-lingua-review-session)", () => {
   it("idle shows a start button wired to start()", () => {
     renderReview(root, { phase: "idle", card: null, summary: null, moreDue: false }, actions);

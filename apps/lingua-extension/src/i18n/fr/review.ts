@@ -12,6 +12,13 @@ export const review = {
     one: (n) => `${n} carte(s) à revoir`,
     other: (n) => `${n} carte(s) à revoir`,
   }),
+  /** Nothing due, cards already reviewed: practise anyway, no schedule moved (add-lingua-review-practice). */
+  practice: "S'entraîner quand même",
+  /** A practice card's head, in place of the count of cards remaining. */
+  practiceRemaining: pluralForms({
+    one: (n) => `Entraînement · ${n} carte(s)`,
+    other: (n) => `Entraînement · ${n} carte(s)`,
+  }),
   reveal: "Afficher la réponse",
   /** The two answers: a miss, graded `again`, on the left; a recall, graded `good`, on the right. */
   missed: "Pas su",

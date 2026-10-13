@@ -66,6 +66,41 @@ describe("ReviewController", () => {
     expect(view.summary).toEqual({ reviewed: 2, recovered: 1, holding: 0, known: 0, hidden: 0 });
   });
 
+  it("offers practice once nothing is due, over the cards already reviewed (add-lingua-review-practice)", async () => {
+    const recorded: string[] = [];
+    const { port, calls } = makeFakePort(deck);
+    const c = new ReviewController(port, clock, (event) => void recorded.push(event));
+    await c.start();
+    await c.grade("good");
+    let view = await c.grade("good");
+    // The review is over and nothing is due: practice is offered, not « Encore 10 ».
+    expect([view.phase, view.moreDue, view.practiceAvailable, view.practice]).toEqual(["done", false, true, false]);
+    view = await c.start(undefined, true);
+    expect([view.phase, view.practice, view.card?.headword]).toEqual(["reviewing", true, "seldom"]);
+    expect(calls.reviewOptions.at(-1)).toEqual({ limit: SESSION_CARDS, practice: true });
+    await c.grade("good");
+    view = await c.grade("good");
+    // Practice answers count in the day; its end offers practice again, never « Encore 10 ».
+    expect(recorded).toEqual(["review", "review", "review", "review"]);
+    expect([view.phase, view.moreDue, view.practiceAvailable]).toEqual(["done", false, true]);
+  });
+
+  it("offers no practice while cards are due, nor without a reviewed card", async () => {
+    const { port } = makeFakePort(cards(12));
+    const c = new ReviewController(port, clock);
+    await c.start();
+    let view = c.view();
+    for (let i = 0; i < SESSION_CARDS; i++) view = await c.grade("good");
+    expect([view.moreDue, view.practiceAvailable]).toEqual([true, false]);
+
+    const empty = new ReviewController(makeFakePort(deck).port, clock);
+    await empty.start();
+    await empty.markKnown();
+    view = await empty.markKnown();
+    // Every card retired: nothing due, and nothing to practise.
+    expect([view.phase, view.moreDue, view.practiceAvailable]).toEqual(["done", false, false]);
+  });
+
   it("records one review per card: a missed card's second answer is not one", async () => {
     const recorded: string[] = [];
     const { port } = makeFakePort(deck);
