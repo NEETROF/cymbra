@@ -7,7 +7,7 @@
 ## 2. The extension
 - [x] 2.1 `ReviewOptions.practice` through `WasmAnalyzerPort` and the messaging port (D3); `ReviewController` `practiceAvailable` / `practice` and a practice start (D4). Verify with `test/session.spec.ts` and the fake port.
 - [x] 2.2 The view: « S'entraîner quand même » under nothing due and at an end with nothing due, « Entraînement · N carte(s) » on a practice card (D4); copy in `src/i18n/{fr,en,es}/review.ts`. Verify with `test/view.spec.ts` and `test/i18n.spec.ts`.
-- [ ] 2.3 Gates: `cargo fmt --all --check`, clippy, `cargo llvm-cov` ≥ 80 %; the extension's `yarn gen:wasm && yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants`. Verify all pass.
+- [x] 2.3 Gates: `cargo fmt --all --check`, clippy, `cargo llvm-cov` ≥ 80 %; the extension's `yarn gen:wasm && yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants`. Verify all pass.
 
 ## 3. Dogfood
 - [ ] 3.1 On the iPad (nothing due in English): practise in the Cymbra Lingua app and in Safari's drawer; the due dates are unchanged afterwards and the day's reviews grew. Verify by noting it in the pull request.
