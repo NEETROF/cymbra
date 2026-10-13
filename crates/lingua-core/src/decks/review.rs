@@ -281,6 +281,9 @@ pub struct SessionOptions {
     pub limit: Option<usize>,
     /// The day's allowance of never-reviewed cards; `None` lets every due one in.
     pub new_cards: Option<NewCardAllowance>,
+    /// A practice session (add-lingua-review-practice D1): the reviewed, non-retired cards,
+    /// due or not, whose answers change no card. Ignores `new_cards`.
+    pub practice: bool,
 }
 
 /// What a session did, for its end (refine-lingua-review-session D8).
@@ -344,6 +347,8 @@ pub struct ReviewSession {
     revealed: bool,
     asked: BTreeMap<(StudiedLanguage, String), Asked>,
     summary: SessionSummary,
+    /// Whether its answers leave every card as it was (add-lingua-review-practice D2).
+    practice: bool,
 }
 
 /// A session written out: what an engine that holds it keeps across its own restart. The asked
@@ -355,6 +360,9 @@ struct SessionSnapshot {
     revealed: bool,
     asked: Vec<(StudiedLanguage, String, u8, bool)>,
     summary: SessionSummary,
+    /// Absent from a snapshot an older engine wrote: that session was a review.
+    #[serde(default)]
+    practice: bool,
 }
 
 impl ReviewSession {
@@ -374,6 +382,7 @@ impl ReviewSession {
                 })
                 .collect(),
             summary: self.summary,
+            practice: self.practice,
         };
         serde_json::to_string(&snapshot).expect("a session is always serialisable")
     }
@@ -405,6 +414,7 @@ impl ReviewSession {
                 })
                 .collect(),
             summary: s.summary,
+            practice: s.practice,
         })
     }
 
@@ -440,6 +450,9 @@ impl ReviewSession {
         languages: &[StudiedLanguage],
         options: SessionOptions,
     ) -> Self {
+        if options.practice {
+            return Self::start_practice(deck, params, now, languages, options.limit);
+        }
         let mut reviewed: Vec<(f64, i64, (StudiedLanguage, String))> = Vec::new();
         let mut fresh: Vec<(i64, (StudiedLanguage, String))> = Vec::new();
         // `due_keys` comes in (language, lemma) order and both sorts are stable, so equal
@@ -486,7 +499,55 @@ impl ReviewSession {
             revealed: false,
             asked: BTreeMap::new(),
             summary: SessionSummary::default(),
+            practice: false,
         }
+    }
+
+    /// Starts a practice session (add-lingua-review-practice D1): the reviewed cards in
+    /// `languages` (every language when it is empty) that are not retired, due or not, the
+    /// lowest predicted recall first, then by due date, language and lemma, up to `limit`.
+    /// No never-reviewed card: practice is for words already met in review.
+    fn start_practice(
+        deck: &Deck,
+        params: &FsrsParams,
+        now: i64,
+        languages: &[StudiedLanguage],
+        limit: Option<usize>,
+    ) -> Self {
+        let mut cards: Vec<(f64, i64, (StudiedLanguage, String))> = deck
+            .cards
+            .iter()
+            .filter(|(language, _)| languages.is_empty() || languages.contains(language))
+            .flat_map(|(&language, per_language)| {
+                per_language.iter().filter_map(move |(lemma, card)| {
+                    let due = card.review.due?;
+                    if due == i64::MAX {
+                        return None; // retired: known or hidden
+                    }
+                    let recall = card.review.retrievability_at(params, now)?;
+                    Some((recall, due, (language, lemma.clone())))
+                })
+            })
+            .collect();
+        cards.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+        let queue = cards
+            .into_iter()
+            .map(|(_, _, key)| key)
+            .take(limit.unwrap_or(usize::MAX))
+            .collect();
+        Self {
+            queue,
+            position: 0,
+            revealed: false,
+            asked: BTreeMap::new(),
+            summary: SessionSummary::default(),
+            practice: true,
+        }
+    }
+
+    /// Whether this is a practice session, whose answers change no card.
+    pub fn is_practice(&self) -> bool {
+        self.practice
     }
 
     /// The key of the card currently under review, or `None` when the session
@@ -516,12 +577,15 @@ impl ReviewSession {
         self.queue.len().saturating_sub(self.position)
     }
 
-    /// Answers the current card and advances; returns whether the answer updated the card's
-    /// FSRS state. Ignored, returning `false`, when the session is finished.
+    /// Answers the current card and advances; returns whether the answer counts as a review —
+    /// a card's first answer, which updates its FSRS state, except in a practice session, where
+    /// it changes no card (add-lingua-review-practice D2). Ignored, returning `false`, when the
+    /// session is finished.
     ///
     /// Only a card's first answer in the session is graded (refine-lingua-review-session D3):
     /// a missed card (`Again`) comes back after three other cards, or at the end when fewer
-    /// remain, until it is recalled or has been asked three times, and those later answers
+    /// remain — never when none does, which would show it again at once — until it is recalled
+    /// or has been asked three times, and those later answers
     /// only keep it in the session or take it out. Grading them would apply the forgetting
     /// formula twice to a single lapse, since the core models no same-day review.
     pub fn grade(
@@ -548,7 +612,13 @@ impl ReviewSession {
             self.summary.recovered += 1;
         }
         let mut graded = false;
-        if first && let Some(card) = deck.cards.get_mut(&key.0).and_then(|m| m.get_mut(&key.1)) {
+        if first && self.practice {
+            // Practice (D2): counted as a review, no card changed — no schedule, no sync stamp.
+            graded = true;
+            self.summary.reviewed += 1;
+        } else if first
+            && let Some(card) = deck.cards.get_mut(&key.0).and_then(|m| m.get_mut(&key.1))
+        {
             card.review.grade(params, rating, now);
             card.updated_at = now; // sync: a grade is a change
             graded = true;
@@ -562,7 +632,10 @@ impl ReviewSession {
                 self.summary.holding += 1;
             }
         }
-        if missed && times < MAX_ASKS {
+        // A missed card comes back only after another card: the last one of a session would
+        // otherwise be shown again at once, up to three times in a row (add-lingua-review-repeat-hint D4).
+        let others_left = self.position + 1 < self.queue.len();
+        if missed && times < MAX_ASKS && others_left {
             let at = (self.position + 1 + RETURN_AFTER).min(self.queue.len());
             self.queue.insert(at, key);
         }
@@ -671,9 +744,124 @@ mod tests {
 
     fn limited(per_day: usize, day_start: i64) -> SessionOptions {
         SessionOptions {
+            practice: false,
             limit: Some(SESSION_CARDS),
             new_cards: Some(NewCardAllowance { per_day, day_start }),
         }
+    }
+
+    fn practice(limit: Option<usize>) -> SessionOptions {
+        SessionOptions {
+            practice: true,
+            limit,
+            new_cards: Some(NewCardAllowance {
+                per_day: 0,
+                day_start: 0,
+            }),
+        }
+    }
+
+    #[test]
+    fn spec_the_last_card_missed_is_not_shown_again_at_once() {
+        let mut deck = deck_of(&["alpha", "bravo"]);
+        let params = FsrsParams::default();
+        let mut session = ReviewSession::start(&deck, 0);
+        // `alpha` missed with `bravo` still to come: it comes back after it.
+        assert!(session.grade(&mut deck, &params, Rating::Again, 0));
+        assert_eq!(order(&session)[session.position..], ["bravo", "alpha"]);
+        assert!(session.grade(&mut deck, &params, Rating::Good, 0));
+        // `alpha` missed again, nothing left after it: the session ends instead of repeating it.
+        assert!(!session.grade(&mut deck, &params, Rating::Again, 0));
+        assert!(session.current_key().is_none());
+        let summary = session.summary();
+        assert_eq!((summary.reviewed, summary.recovered), (2, 0));
+
+        // A session of one card missed: graded once, not shown again.
+        let mut deck = deck_of(&["alone"]);
+        let mut session = ReviewSession::start(&deck, 0);
+        assert!(session.grade(&mut deck, &params, Rating::Again, 0));
+        assert!(session.current_key().is_none());
+    }
+
+    #[test]
+    fn spec_a_practice_session_holds_the_reviewed_cards_not_retired_due_or_not() {
+        const ES: StudiedLanguage = StudiedLanguage::Spanish;
+        let mut deck = Deck::new();
+        // At 1 day: `zeal` (stability 2) is the most fragile, then `faro`, then `anchor`.
+        deck.upsert(EN, reviewed("anchor", 30.0, 0, 30 * DAY));
+        deck.upsert(EN, reviewed("zeal", 2.0, 0, 2 * DAY));
+        deck.upsert(ES, reviewed("faro", 10.0, 0, 10 * DAY));
+        deck.upsert(EN, captured("fresh", 0)); // never reviewed: not practice
+        let mut known = reviewed("known", 1.0, 0, DAY);
+        known.review.retire(0); // retired: not practice
+        deck.upsert(EN, known);
+        let params = FsrsParams::default();
+        let now = DAY;
+        assert_eq!(
+            deck.due_count(now),
+            1,
+            "only the never-reviewed card is due"
+        );
+
+        let all = ReviewSession::start_with(&deck, &params, now, &[], practice(None));
+        assert!(all.is_practice());
+        assert_eq!(order(&all), ["zeal", "faro", "anchor"]);
+        let english = ReviewSession::start_with(&deck, &params, now, &[EN], practice(None));
+        assert_eq!(order(&english), ["zeal", "anchor"]);
+        let one = ReviewSession::start_with(&deck, &params, now, &[], practice(Some(1)));
+        assert_eq!(order(&one), ["zeal"]);
+        assert!(!ReviewSession::start(&deck, now).is_practice());
+    }
+
+    #[test]
+    fn spec_a_practice_answer_changes_no_card_and_counts_a_review() {
+        let mut deck = Deck::new();
+        deck.upsert(EN, reviewed("zeal", 2.0, 0, 2 * DAY));
+        deck.upsert(EN, reviewed("anchor", 30.0, 0, 30 * DAY));
+        let before = deck.clone();
+        let params = FsrsParams::default();
+        let now = DAY;
+        let mut session = ReviewSession::start_with(&deck, &params, now, &[], practice(None));
+
+        // Missed: it comes back (fewer than three others, so at the end), counted once.
+        assert!(session.grade(&mut deck, &params, Rating::Again, now));
+        assert_eq!(order(&session)[session.position..], ["anchor", "zeal"]);
+        assert!(session.grade(&mut deck, &params, Rating::Good, now));
+        assert!(
+            !session.grade(&mut deck, &params, Rating::Good, now),
+            "a second answer is no review"
+        );
+        assert!(session.current_key().is_none());
+
+        for lemma in ["zeal", "anchor"] {
+            let (was, is) = (before.get(EN, lemma).unwrap(), deck.get(EN, lemma).unwrap());
+            assert_eq!(
+                is.review, was.review,
+                "{lemma}: schedule, memory and history unchanged"
+            );
+            assert_eq!(is.updated_at, was.updated_at, "{lemma}: nothing to sync");
+        }
+        let summary = session.summary();
+        assert_eq!(
+            (summary.reviewed, summary.recovered, summary.holding),
+            (2, 1, 0)
+        );
+    }
+
+    #[test]
+    fn spec_a_practice_session_survives_its_snapshot_and_an_old_snapshot_is_a_review() {
+        let mut deck = Deck::new();
+        deck.upsert(EN, reviewed("zeal", 2.0, 0, 2 * DAY));
+        let params = FsrsParams::default();
+        let session = ReviewSession::start_with(&deck, &params, DAY, &[], practice(None));
+        let resumed = ReviewSession::from_snapshot(&session.to_snapshot()).unwrap();
+        assert!(resumed.is_practice());
+        assert_eq!(order(&resumed), ["zeal"]);
+
+        // What an engine before practice wrote: the same snapshot without the field.
+        let old = session.to_snapshot().replace(r#","practice":true"#, "");
+        assert!(!old.contains("practice"));
+        assert!(!ReviewSession::from_snapshot(&old).unwrap().is_practice());
     }
 
     #[test]
@@ -761,6 +949,7 @@ mod tests {
         }
         let now = 50 * DAY;
         let options = SessionOptions {
+            practice: false,
             limit: Some(SESSION_CARDS),
             new_cards: None,
         };
@@ -862,6 +1051,7 @@ mod tests {
 
         // A session over both languages takes what is left of each one's allowance.
         let eleven = SessionOptions {
+            practice: false,
             limit: None,
             new_cards: Some(NewCardAllowance {
                 per_day: 11,
@@ -881,6 +1071,7 @@ mod tests {
         }
         let params = FsrsParams::default();
         let twenty = SessionOptions {
+            practice: false,
             limit: None,
             new_cards: Some(NewCardAllowance {
                 per_day: 20,

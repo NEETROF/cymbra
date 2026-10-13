@@ -14,4 +14,4 @@
 
 ## 4. Integration and dogfood
 - [x] 4.1 Gates: the extension's `yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants`; the Swift tests. Verify all pass.
-- [ ] 4.2 Dogfood on an iPhone, an iPad and a Mac: capture in Safari, review in the app, back in Safari the due count follows. Verify by noting it in the pull request.
+- [x] 4.2 Dogfood on an iPhone, an iPad and a Mac: capture in Safari, review in the app, back in Safari the due count follows. Verify by noting it in the pull request.

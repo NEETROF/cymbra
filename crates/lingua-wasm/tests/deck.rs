@@ -54,17 +54,29 @@ fn review_session_walks_due_cards() {
         .unwrap();
     e.add_card("conundrum", "conundrum", "s2", "https://x", None, 0.0, None)
         .unwrap();
-    assert_eq!(e.start_review(10.0, None, None, None, None), 2);
+    assert_eq!(e.start_review(10.0, None, None, None, None, None), 2);
     assert!(e.review_current().is_some());
     assert_eq!(e.review_remaining(), 2);
     e.review_reveal();
-    assert!(e.review_grade("good", 10.0), "a first answer is graded");
-    assert_eq!(e.review_remaining(), 1);
-    assert!(e.review_grade("again", 10.0));
-    // A missed card comes back in the session (refine-lingua-review-session D3)…
+    assert!(e.review_grade("again", 10.0), "a first answer is graded");
+    // A missed card comes back in the session, after the other one (refine-lingua-review-session D3)…
+    assert_eq!(e.review_remaining(), 2);
+    assert!(e.review_grade("good", 10.0));
     assert_eq!(e.review_remaining(), 1);
     // …and its second answer only takes it out.
     assert!(!e.review_grade("good", 10.0));
+    assert_eq!(e.review_remaining(), 0);
+    assert!(e.review_current().is_none());
+}
+
+#[test]
+fn the_last_card_missed_is_not_shown_again_at_once() {
+    // add-lingua-review-repeat-hint D4: nothing between, so it does not come back.
+    let mut e = engine();
+    e.add_card("seldom", "seldom", "s1", "https://x", None, 0.0, None)
+        .unwrap();
+    assert_eq!(e.start_review(10.0, None, None, None, None, None), 1);
+    assert!(e.review_grade("again", 10.0));
     assert_eq!(e.review_remaining(), 0);
     assert!(e.review_current().is_none());
 }
@@ -79,19 +91,55 @@ fn start_review_options_cap_the_session_and_pace_new_cards() {
         e.add_card(w, w, "s", "", None, i as f64, None).unwrap();
     }
     // No options: every due card, in capture order.
-    assert_eq!(e.start_review(10.0, None, None, None, None), 5);
+    assert_eq!(e.start_review(10.0, None, None, None, None, None), 5);
     // A cap of three.
-    assert_eq!(e.start_review(10.0, None, Some(3), None, None), 3);
+    assert_eq!(e.start_review(10.0, None, Some(3), None, None, None), 3);
     // An allowance of two new cards a day, none introduced yet.
-    assert_eq!(e.start_review(10.0, None, Some(10), Some(2), Some(0.0)), 2);
+    assert_eq!(
+        e.start_review(10.0, None, Some(10), Some(2), Some(0.0), None),
+        2
+    );
     assert!(e.review_grade("good", 10.0));
     assert!(e.review_grade("good", 10.0));
     // Spent for today: nothing new; tomorrow, two more.
-    assert_eq!(e.start_review(20.0, None, Some(10), Some(2), Some(0.0)), 0);
     assert_eq!(
-        e.start_review(86_500.0, None, Some(10), Some(2), Some(86_400.0)),
+        e.start_review(20.0, None, Some(10), Some(2), Some(0.0), None),
+        0
+    );
+    assert_eq!(
+        e.start_review(86_500.0, None, Some(10), Some(2), Some(86_400.0), None),
         2
     );
+}
+
+#[test]
+fn a_practice_session_takes_the_reviewed_cards_and_changes_none() {
+    // add-lingua-review-practice: nothing due, cards already reviewed.
+    let mut e = engine();
+    e.add_card("alpha", "alpha", "s", "", None, 0.0, None)
+        .unwrap();
+    e.add_card("bravo", "bravo", "s", "", None, 1.0, None)
+        .unwrap();
+    assert_eq!(e.start_review(10.0, None, None, None, None, None), 2);
+    assert!(e.review_grade("good", 10.0));
+    assert!(e.review_grade("good", 10.0));
+    assert_eq!(e.due_count(20.0, None), 0, "nothing due");
+    let before = e.backup();
+
+    assert_eq!(
+        e.start_review(20.0, None, Some(10), None, None, Some(true)),
+        2
+    );
+    assert!(
+        e.review_grade("again", 20.0),
+        "a first practice answer counts"
+    );
+    assert!(e.review_grade("good", 20.0));
+    // The missed card came back; its second answer is no review.
+    assert!(!e.review_grade("good", 20.0));
+    assert!(e.review_current().is_none());
+    assert_eq!(e.backup(), before, "no card changed");
+    assert_eq!(e.due_count(20.0, None), 0);
 }
 
 #[test]
@@ -102,7 +150,7 @@ fn review_ignore_hides_the_word_and_the_summary_says_so() {
         .unwrap();
     e.add_card("ship", "ship", "s", "", None, 1.0, None)
         .unwrap();
-    e.start_review(10.0, None, None, None, None);
+    e.start_review(10.0, None, None, None, None, None);
     e.review_ignore(10.0);
     assert!(e.review_grade("good", 10.0));
     assert!(e.review_current().is_none());
@@ -137,7 +185,7 @@ fn review_card_shows_where_the_word_was_met() {
         None,
     )
     .unwrap();
-    e.start_review(10.0, None, None, None, None);
+    e.start_review(10.0, None, None, None, None, None);
     let view: serde_json::Value = match e.review_current().map(|j| serde_json::from_str(&j)) {
         Some(Ok(v)) => v,
         _ => panic!("a card is under review"),
@@ -154,7 +202,7 @@ fn mark_known_retires_the_card() {
     let mut e = engine();
     e.add_card("seldom", "seldom", "s", "https://x", None, 0.0, None)
         .unwrap();
-    e.start_review(10.0, None, None, None, None);
+    e.start_review(10.0, None, None, None, None, None);
     e.review_mark_known(10.0);
     // The card is kept but never comes due again.
     assert_eq!(e.deck_count(None), 1);
@@ -317,7 +365,7 @@ fn retiring_on_a_pulled_known_never_dates_the_card_backwards() {
         None,
     )
     .unwrap();
-    e.start_review(9_000.0, None, None, None, None);
+    e.start_review(9_000.0, None, None, None, None, None);
     e.review_reveal();
     e.review_grade("good", 9_000.0);
     let before: serde_json::Value = serde_json::from_str(&e.export_card_ops()).unwrap();
@@ -535,7 +583,7 @@ fn a_session_resumes_in_an_engine_restored_from_the_backup() {
     for (i, w) in ["seldom", "dwell", "grin"].iter().enumerate() {
         first.add_card(w, w, "s", "", None, i as f64, None).unwrap();
     }
-    first.start_review(10.0, None, None, None, None);
+    first.start_review(10.0, None, None, None, None, None);
     assert!(first.review_grade("again", 10.0));
     first.review_reveal();
     let snapshot = first.review_snapshot().expect("a session is under way");
@@ -556,7 +604,7 @@ fn a_restore_of_the_state_just_saved_keeps_the_session_and_another_deck_ends_it(
     for (i, w) in ["seldom", "dwell", "grin"].iter().enumerate() {
         e.add_card(w, w, "s", "", None, i as f64, None).unwrap();
     }
-    e.start_review(10.0, None, None, None, None);
+    e.start_review(10.0, None, None, None, None, None);
     e.review_grade("good", 10.0);
     let current = e.review_current();
     assert!(current.is_some());

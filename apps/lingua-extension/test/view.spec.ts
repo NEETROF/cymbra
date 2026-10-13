@@ -61,6 +61,74 @@ describe("renderReview — the card's language", () => {
   });
 });
 
+describe("renderReview — a card a miss brought back (add-lingua-review-repeat-hint)", () => {
+  it("says the count of cards remaining on a first showing", () => {
+    renderReview(root, reviewing(), actions);
+    expect(root.querySelector(".remaining")?.textContent).toBe("3 carte(s) à revoir");
+    expect(root.querySelector(".review-repeat")).toBeNull();
+    renderReview(root, { ...reviewing(), showing: 1 }, actions);
+    expect(root.querySelector(".review-repeat")).toBeNull();
+  });
+
+  it("says its second and third showing in its place", () => {
+    renderReview(root, { ...reviewing(), showing: 2 }, actions);
+    expect(root.querySelector(".remaining")?.textContent).toBe("À revoir · 2ᵉ passage");
+    expect(root.querySelectorAll(".remaining")).toHaveLength(1);
+    renderReview(root, { ...reviewing({ revealed: true }), showing: 3 }, actions);
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("À revoir · 3ᵉ passage");
+  });
+
+  it("speaks the interface language", () => {
+    renderReview(root, { ...reviewing(), showing: 2 }, actions, { interfaceLanguage: "en" });
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("Again · 2nd time");
+    renderReview(root, { ...reviewing(), showing: 3 }, actions, { interfaceLanguage: "en" });
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("Again · 3rd time");
+    renderReview(root, { ...reviewing(), showing: 4 }, actions, { interfaceLanguage: "en" });
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("Again · 4th time");
+    renderReview(root, { ...reviewing(), showing: 2 }, actions, { interfaceLanguage: "es" });
+    expect(root.querySelector(".review-repeat")?.textContent).toBe("Otra vez · 2.ª vez");
+  });
+
+  it("wins over practice's note: it says why the card is there again", () => {
+    renderReview(root, { ...reviewing(), practice: true, showing: 2 }, actions);
+    expect(root.querySelector(".remaining")?.textContent).toBe("À revoir · 2ᵉ passage");
+    expect(root.querySelector(".review-practice-note")).toBeNull();
+  });
+});
+
+describe("renderReview — practice (add-lingua-review-practice)", () => {
+  it("offers practice where nothing is due, when the host can start it", () => {
+    const practice = vi.fn();
+    const view: ReviewView = { ...done(null), practiceAvailable: true };
+    renderReview(root, view, { ...actions, practice });
+    expect(root.textContent).toContain("Rien à réviser pour l'instant.");
+    const button = root.querySelector<HTMLButtonElement>(".review-practice");
+    expect(button?.textContent).toBe("S'entraîner quand même");
+    button?.click();
+    expect(practice).toHaveBeenCalledOnce();
+    // A host without the action, or nothing to practise: no button.
+    renderReview(root, view, actions);
+    expect(root.querySelector(".review-practice")).toBeNull();
+    renderReview(root, done(null), { ...actions, practice });
+    expect(root.querySelector(".review-practice")).toBeNull();
+  });
+
+  it("offers « Encore 10 » rather than practice while cards are due", () => {
+    renderReview(root, { ...done(null, true), practiceAvailable: true }, { ...actions, practice: vi.fn() });
+    expect(root.querySelector(".review-more")).not.toBeNull();
+    expect(root.querySelector(".review-practice")).toBeNull();
+  });
+
+  it("says a practice card is practice, in place of the count of cards remaining", () => {
+    renderReview(root, { ...reviewing(), practice: true }, actions);
+    expect(root.querySelector(".remaining")?.textContent).toBe("Entraînement · 3 carte(s)");
+    renderReview(root, { ...reviewing({ remaining: 1 }), practice: true }, actions, { interfaceLanguage: "en" });
+    expect(root.querySelector(".review-practice-note")?.textContent).toBe("Practice · 1 card");
+    renderReview(root, reviewing(), actions);
+    expect(root.querySelector(".review-practice-note")).toBeNull();
+  });
+});
+
 describe("renderReview — the card (refine-lingua-review-session)", () => {
   it("idle shows a start button wired to start()", () => {
     renderReview(root, { phase: "idle", card: null, summary: null, moreDue: false }, actions);
