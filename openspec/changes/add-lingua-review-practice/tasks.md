@@ -10,4 +10,4 @@
 - [x] 2.3 Gates: `cargo fmt --all --check`, clippy, `cargo llvm-cov` ≥ 80 %; the extension's `yarn gen:wasm && yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants`. Verify all pass.
 
 ## 3. Dogfood
-- [ ] 3.1 On the iPad (nothing due in English): practise in the Cymbra Lingua app and in Safari's drawer; the due dates are unchanged afterwards and the day's reviews grew. Verify by noting it in the pull request.
+- [x] 3.1 On the iPad (nothing due in English): practise in the Cymbra Lingua app and in Safari's drawer; the due dates are unchanged afterwards and the day's reviews grew. Verify by noting it in the pull request.
