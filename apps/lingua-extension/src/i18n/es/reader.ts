@@ -37,6 +37,17 @@ export const reader: typeof fr = {
   next: "Página siguiente",
   percentTitle: "Palabras conocidas en este capítulo",
   untitled: "Libro sin título",
+  progressTitle: "Porcentaje o páginas restantes",
+  chapterPagesLeft: {
+    one: (n) => `Capítulo: queda ${n} página`,
+    other: (n) => `Capítulo: quedan ${n} páginas`,
+  },
+  chapterLastPage: "Capítulo: última página",
+  bookPagesLeft: {
+    one: (n) => `Libro: queda ≈ ${n} página`,
+    other: (n) => `Libro: quedan ≈ ${n} páginas`,
+  },
+  bookLastPage: "Libro: última página",
   recapChapter: (chapter) => `Fin de «${chapter}»`,
   recapIntro: "Las palabras que consultaste en este capítulo. Quédate con las que quieras repasar.",
   recapAll: "Palabras por clasificar",

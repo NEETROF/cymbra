@@ -40,6 +40,21 @@ export const reader = {
   /** A book whose package names no title (reader/library.ts). */
   untitled: "Livre sans titre",
   /**
+   * The footer's progress, in turn at each tap (add-lingua-reader-progress-toggle D1): the pages left
+   * in the chapter, exact; those left in the book, an estimate marked « ≈ ».
+   */
+  progressTitle: "Pourcentage ou pages restantes",
+  chapterPagesLeft: pluralForms({
+    one: (n) => `Chapitre : ${n} page restante`,
+    other: (n) => `Chapitre : ${n} pages restantes`,
+  }),
+  chapterLastPage: "Chapitre : dernière page",
+  bookPagesLeft: pluralForms({
+    one: (n) => `Livre : ≈ ${n} page restante`,
+    other: (n) => `Livre : ≈ ${n} pages restantes`,
+  }),
+  bookLastPage: "Livre : dernière page",
+  /**
    * The words looked up, sorted at the end of a chapter (add-lingua-chapter-recap D5, D6): the recap's
    * title, its rows' three actions, its dismissal, and the bar's counter.
    */

@@ -17,8 +17,11 @@ import {
   type AsyncStorageArea,
   DEFAULT_READER_DISPLAY,
   loadReaderDisplay,
+  loadReaderProgress,
   type ReaderDisplay,
   type ReaderFlow,
+  type ReaderProgress,
+  saveReaderProgress,
 } from "../state/storage.ts";
 import { COPY, type ReaderCopy } from "./copy.ts";
 import type { FullscreenHost } from "./fullscreen.ts";
@@ -77,6 +80,11 @@ export interface ReaderDeps {
   displayArea: AsyncStorageArea;
   /** Call back when the text size or the page changes, from this page or from Réglages. */
   watchDisplay: (onDisplay: (display: ReaderDisplay) => void) => void;
+  /**
+   * Call back when the footer's mode changes in another reader tab (add-lingua-reader-progress-toggle
+   * D1); it is kept in `displayArea`. None: this tab alone.
+   */
+  watchProgress?: (onProgress: (progress: ReaderProgress) => void) => void;
   /** The reader's colour sheet (`colourCss`) as stored now; none: the token sheet's colours. */
   loadColours?: () => Promise<string>;
   /** Call back with the new colour sheet when the reader changes the colours, wherever. */
@@ -200,7 +208,11 @@ export class ReaderApp {
   private readonly sectionTitle = el("span", "reading-section-title");
   private readonly percent = el("span", "reading-pct", "—");
   private readonly bookHost = el("div", "reading-book");
-  private readonly progress = el("span", "reading-progress");
+  /** The footer's progress: a tap shows the next of its three modes (add-lingua-reader-progress-toggle D1). */
+  private readonly progress = el("button", "reading-progress");
+  private progressMode: ReaderProgress = "percent";
+  /** The last move, which the footer's figure is written from in whatever mode. */
+  private located: BookLocation | null = null;
   private readonly tocPanel = el("nav", "reading-toc");
   private readonly displayPanel = el("div", "reading-display");
   /** The words looked up, to sort (add-lingua-chapter-recap D5): at a chapter's end, or from the counter. */
@@ -259,6 +271,11 @@ export class ReaderApp {
     });
     this.applyDisplay(await loadReaderDisplay(this.deps.displayArea));
     this.deps.watchDisplay((display) => this.applyDisplay(display));
+    this.progressMode = await loadReaderProgress(this.deps.displayArea);
+    this.deps.watchProgress?.((progress) => {
+      this.progressMode = progress;
+      this.showProgress();
+    });
     if (this.deps.loadColours) this.applyColours(await this.deps.loadColours());
     this.deps.watchColours?.((css) => this.applyColours(css));
     const persistence = await this.deps.persistence();
@@ -471,6 +488,11 @@ export class ReaderApp {
       fullscreen.onChange(() => this.showFullscreen());
       this.showFullscreen();
     }
+    this.progress.type = "button";
+    this.progress.title = this.copy.progressTitle;
+    this.progress.setAttribute("aria-label", this.copy.progressTitle);
+    this.progress.addEventListener("mousedown", (e) => e.preventDefault());
+    this.progress.addEventListener("click", () => void this.nextProgress());
     const foot = el("footer", "reading-foot");
     foot.append(
       button("reading-turn", "‹", () => void this.renderer?.prev(), this.copy.prev),
@@ -607,7 +629,8 @@ export class ReaderApp {
     if (!book) return;
     this.section = location.section;
     this.sectionTitle.textContent = location.section ?? "";
-    this.progress.textContent = formatPercent(this.language, Math.round(location.fraction * 100), "spaced");
+    this.located = location;
+    this.showProgress();
     // foliate-js settles the page after every lift of a finger — a tap, a press-and-hold — and
     // reports it even when nothing moved; closing the card then would close the one that lift
     // just opened. Only a real move dismisses it and is worth writing down.
@@ -721,6 +744,21 @@ export class ReaderApp {
     this.recapPanel.replaceChildren();
   }
 
+  /** The footer's figure in the mode chosen; the percentage for a move with nothing to count (D3). */
+  private showProgress(): void {
+    const location = this.located;
+    if (!location) return;
+    this.progress.dataset.mode = this.progressMode;
+    this.progress.textContent = progressLine(location, this.progressMode, this.copy, this.language);
+  }
+
+  /** A tap on the footer's figure: the next mode, kept for every book and every tab. */
+  private async nextProgress(): Promise<void> {
+    this.progressMode = NEXT_PROGRESS[this.progressMode];
+    this.showProgress();
+    await saveReaderProgress(this.deps.displayArea, this.progressMode);
+  }
+
   private renderToc(toc: TocEntry[]): void {
     const list = (entries: TocEntry[]): HTMLUListElement => {
       const ul = el("ul");
@@ -819,6 +857,26 @@ export class ReaderApp {
     if (this.deps.revokeUrl) this.deps.revokeUrl(url);
     else URL.revokeObjectURL(url);
   }
+}
+
+/** The footer's modes, each to the next at a tap (add-lingua-reader-progress-toggle D1). */
+const NEXT_PROGRESS: Record<ReaderProgress, ReaderProgress> = { percent: "chapter", chapter: "book", book: "percent" };
+
+/**
+ * What the footer says of a move in `mode` (D2, D3): the percentage of the book, the pages left in
+ * the chapter, or the book's estimated. A count the move does not carry falls back to the percentage.
+ */
+export function progressLine(
+  location: BookLocation,
+  mode: ReaderProgress,
+  copy: ReaderCopy,
+  language: InterfaceLanguage,
+): string {
+  const count = mode === "chapter" ? location.pagesLeftInSection : mode === "book" ? location.pagesLeftInBook : null;
+  if (mode === "percent" || count == null)
+    return formatPercent(language, Math.round(location.fraction * 100), "spaced");
+  if (count <= 0) return mode === "chapter" ? copy.chapterLastPage : copy.bookLastPage;
+  return plural(language, count, mode === "chapter" ? copy.chapterPagesLeft : copy.bookPagesLeft);
 }
 
 /**

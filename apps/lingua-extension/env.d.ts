@@ -93,7 +93,8 @@ declare module "foliate-js/epub.js" {
   }
   export interface FoliateBook {
     toc?: FoliateTocItem[];
-    sections: unknown[];
+    /** Each section's bytes and whether it is in the reading order (`linear: "no"` when not). */
+    sections: { size?: number; linear?: string }[];
     /** Dispatches `data` for each resource the loader is about to hand a section: its content
      *  (`detail.data`, a string or a promise of one) may be replaced before it is used. */
     transformTarget?: EventTarget;
@@ -106,6 +107,8 @@ declare module "foliate-js/view.js" {
     cfi: string;
     fraction: number;
     tocItem?: { label?: string } | null;
+    /** The section on screen, by its index in the book's sections. */
+    section?: { current: number; total: number };
   }
   export interface FoliatePaginator extends HTMLElement {
     setStyles(styles: string | [string, string]): void;
@@ -114,6 +117,9 @@ declare module "foliate-js/view.js" {
     readonly start: number;
     readonly end: number;
     readonly viewSize: number;
+    /** The page shown and the section's page count (a blank page at each end when paginated). */
+    readonly page: number;
+    readonly pages: number;
   }
   export class View extends HTMLElement {
     renderer: FoliatePaginator;

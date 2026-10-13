@@ -8,6 +8,7 @@ import {
   declareBookLanguage,
   frameOffset,
   importLine,
+  progressLine,
   ReaderApp,
   type ReaderDeps,
   type ReaderSession,
@@ -21,7 +22,14 @@ import { type BookRecord, Library } from "@/reader/library.ts";
 import type { TocEntry } from "@/reader/renderer.ts";
 import type { StudiedLanguage } from "@/analyzer/types.ts";
 import type { CardLookup, ReadingHost } from "@/reading/session.ts";
-import { type AsyncStorageArea, READER_DISPLAY_KEY, type ReaderDisplay, type ReaderFlow } from "@/state/storage.ts";
+import {
+  type AsyncStorageArea,
+  READER_DISPLAY_KEY,
+  READER_PROGRESS_KEY,
+  type ReaderDisplay,
+  type ReaderFlow,
+  type ReaderProgress,
+} from "@/state/storage.ts";
 import { epub3Entries, OPF3, pickedFile, useNodeBlob } from "./epub-fixtures.ts";
 import { FakeRenderer } from "./fake-renderer.ts";
 
@@ -714,6 +722,83 @@ describe("declareBookLanguage", () => {
       declareBookLanguage(doc, language);
       expect(doc.documentElement.hasAttribute("lang")).toBe(false);
     }
+  });
+});
+
+// add-lingua-reader-progress-toggle: the footer's figure says the percentage, the pages left in the
+// chapter, or an estimate of those left in the book, in turn at each tap.
+describe("the footer's progress", () => {
+  async function reading(over: Partial<ReaderDeps> = {}) {
+    const a = app(over);
+    await a.start(fakeSession());
+    await pick(await pickedFile(epub3Entries(), "hound.epub"));
+    await openFirst();
+    const renderer = renderers.at(-1)!;
+    let cfi = 0;
+    const move = (pagesLeftInSection: number | null, pagesLeftInBook: number | null, fraction = 0.43) =>
+      renderer.relocate({ cfi: `epubcfi(/6/${++cfi})`, fraction, section: "III", pagesLeftInSection, pagesLeftInBook });
+    const tap = async () => {
+      $<HTMLButtonElement>(".reading-progress").click();
+      await settle();
+    };
+    return { a, move, tap };
+  }
+
+  it("Pages left in the chapter, then in the book, then the percentage again, at each tap", async () => {
+    const { move, tap } = await reading();
+    move(4, 120);
+    expect(text(".reading-progress")).toBe("43 %");
+    await tap();
+    expect(text(".reading-progress")).toBe("Chapitre : 4 pages restantes");
+    expect(displayArea.store[READER_PROGRESS_KEY]).toBe("chapter");
+    await tap();
+    expect(text(".reading-progress")).toBe(`Livre : ≈ 120 pages restantes`);
+    await tap();
+    expect(text(".reading-progress")).toBe("43 %");
+    expect(displayArea.store[READER_PROGRESS_KEY]).toBe("percent");
+  });
+
+  it("The last page of a chapter, and one page left", async () => {
+    const { move, tap } = await reading();
+    await tap();
+    move(1, 1);
+    expect(text(".reading-progress")).toBe("Chapitre : 1 page restante");
+    move(0, 30);
+    expect(text(".reading-progress")).toBe("Chapitre : dernière page");
+    await tap();
+    move(0, 0);
+    expect(text(".reading-progress")).toBe("Livre : dernière page");
+  });
+
+  it("falls back to the percentage for a move with nothing to count", async () => {
+    const { move, tap } = await reading();
+    await tap();
+    move(null, null, 0.5);
+    expect(text(".reading-progress")).toBe("50 %");
+    await tap();
+    expect(text(".reading-progress")).toBe("50 %");
+  });
+
+  it("Another book, another day: the mode chosen is read at start, and followed from another tab", async () => {
+    displayArea.store[READER_PROGRESS_KEY] = "chapter";
+    const listeners: ((p: ReaderProgress) => void)[] = [];
+    const { move } = await reading({ watchProgress: (fn) => void listeners.push(fn) });
+    move(4, 120);
+    expect(text(".reading-progress")).toBe("Chapitre : 4 pages restantes");
+    for (const l of listeners) l("book");
+    expect(text(".reading-progress")).toBe(`Livre : ≈ 120 pages restantes`);
+  });
+
+  it("is written in the interface language", () => {
+    const en = readerCopy("en");
+    const at = { cfi: "x", fraction: 0.5, section: null, pagesLeftInSection: 4, pagesLeftInBook: 1200 };
+    expect(progressLine(at, "chapter", en, "en")).toBe("Chapter: 4 pages left");
+    expect(progressLine(at, "book", en, "en")).toBe("Book: ≈ 1,200 pages left");
+    expect(progressLine(at, "percent", en, "en")).toBe("50%");
+    expect(progressLine({ ...at, pagesLeftInSection: 1 }, "chapter", readerCopy("es"), "es")).toBe(
+      "Capítulo: queda 1 página",
+    );
+    expect(progressLine({ ...at, pagesLeftInSection: undefined }, "chapter", en, "en")).toBe("50%");
   });
 });
 

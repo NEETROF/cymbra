@@ -21,6 +21,13 @@ export interface BookLocation {
   fraction: number;
   /** The label of the table-of-contents entry the page sits in, when the book has one. */
   section: string | null;
+  /**
+   * The pages after the one shown in the section on screen, in the reader's screens; null when it
+   * cannot be counted (add-lingua-reader-progress-toggle D2). Absent: not counted.
+   */
+  pagesLeftInSection?: number | null;
+  /** An estimate of the pages left in the book (D3); null without one. Absent: not counted. */
+  pagesLeftInBook?: number | null;
 }
 
 /** A section of the book, loaded in its own document and about to be laid out. */
