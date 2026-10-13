@@ -58,13 +58,25 @@ fn review_session_walks_due_cards() {
     assert!(e.review_current().is_some());
     assert_eq!(e.review_remaining(), 2);
     e.review_reveal();
-    assert!(e.review_grade("good", 10.0), "a first answer is graded");
-    assert_eq!(e.review_remaining(), 1);
-    assert!(e.review_grade("again", 10.0));
-    // A missed card comes back in the session (refine-lingua-review-session D3)…
+    assert!(e.review_grade("again", 10.0), "a first answer is graded");
+    // A missed card comes back in the session, after the other one (refine-lingua-review-session D3)…
+    assert_eq!(e.review_remaining(), 2);
+    assert!(e.review_grade("good", 10.0));
     assert_eq!(e.review_remaining(), 1);
     // …and its second answer only takes it out.
     assert!(!e.review_grade("good", 10.0));
+    assert_eq!(e.review_remaining(), 0);
+    assert!(e.review_current().is_none());
+}
+
+#[test]
+fn the_last_card_missed_is_not_shown_again_at_once() {
+    // add-lingua-review-repeat-hint D4: nothing between, so it does not come back.
+    let mut e = engine();
+    e.add_card("seldom", "seldom", "s1", "https://x", None, 0.0, None)
+        .unwrap();
+    assert_eq!(e.start_review(10.0, None, None, None, None, None), 1);
+    assert!(e.review_grade("again", 10.0));
     assert_eq!(e.review_remaining(), 0);
     assert!(e.review_current().is_none());
 }

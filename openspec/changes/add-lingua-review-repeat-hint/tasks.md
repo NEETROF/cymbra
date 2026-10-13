@@ -6,5 +6,5 @@
 - [x] 1.3 The core: a missed card comes back only when another card remains after it (D4); the repeat note wins over practice's (D5). Verify with `cargo test -p lingua-core` (`spec_the_last_card_missed_is_not_shown_again_at_once`), the fake port aligned, `test/session.spec.ts` and `test/view.spec.ts`.
 
 ## 2. Integration and dogfood
-- [ ] 2.1 Gates: `cargo fmt --all --check`, clippy, `cargo llvm-cov` ≥ 80 %; `yarn gen:wasm && yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants` in `apps/lingua-extension`. Verify all pass.
+- [x] 2.1 Gates: `cargo fmt --all --check`, clippy, `cargo llvm-cov` ≥ 80 %; `yarn gen:wasm && yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants` in `apps/lingua-extension`. Verify all pass.
 - [ ] 2.2 Dogfood: miss a card in the side panel (Chrome), in the drawer (Safari) and in the Cymbra Lingua app on an iPhone; each says « À revoir · 2ᵉ passage » when it comes back. Verify by noting it in the pull request.
