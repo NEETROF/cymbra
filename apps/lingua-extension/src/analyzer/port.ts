@@ -63,6 +63,11 @@ export interface ReviewOptions {
   newPerDay?: number;
   /** The reader's local midnight, epoch seconds: where "today" starts for the allowance. */
   dayStart?: number;
+  /**
+   * A practice session (add-lingua-review-practice): the reviewed, non-retired cards, due or not,
+   * whose answers change no card; the allowance does not apply.
+   */
+  practice?: boolean;
 }
 
 /** What a session did, for its end (refine-lingua-review-session D8). */
@@ -231,8 +236,9 @@ export interface LinguaPort {
   reviewCurrent(): Promise<ReviewCard | null>;
   /** Reveal the current card's answer. */
   reviewReveal(): Promise<void>;
-  /** Answer the current card and advance; resolves whether the answer updated its FSRS state —
-   *  only a card's first answer in a session does (refine-lingua-review-session D3). */
+  /** Answer the current card and advance; resolves whether the answer counts as a review — a
+   *  card's first answer in a session (refine-lingua-review-session D3), which updates its FSRS
+   *  state except in a practice session, where no card changes (add-lingua-review-practice). */
   reviewGrade(rating: Rating, now: number): Promise<boolean>;
   /** Mark the current card known (retire it) and advance. */
   reviewMarkKnown(now: number): Promise<void>;

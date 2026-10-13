@@ -1065,7 +1065,9 @@ impl LinguaEngine {
     /// with the lowest predicted recall, never-reviewed cards in capture order
     /// (refine-lingua-review-session D1). `limit` caps the distinct cards; `newPerDay`, with
     /// `dayStart` (the reader's local midnight, epoch seconds), is the day's allowance of
-    /// never-reviewed cards (D2). Absent options take every due card, as before.
+    /// never-reviewed cards (D2). `practice` starts a practice session instead: the reviewed,
+    /// non-retired cards, due or not, whose answers change no card (add-lingua-review-practice).
+    /// Absent options take every due card, as before.
     #[wasm_bindgen(js_name = startReview)]
     pub fn start_review(
         &mut self,
@@ -1074,8 +1076,10 @@ impl LinguaEngine {
         limit: Option<u32>,
         new_per_day: Option<u32>,
         day_start: Option<f64>,
+        practice: Option<bool>,
     ) -> usize {
         let options = SessionOptions {
+            practice: practice.unwrap_or(false),
             limit: limit.map(|n| n as usize),
             new_cards: new_per_day.map(|per_day| NewCardAllowance {
                 per_day: per_day as usize,

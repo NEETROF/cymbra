@@ -11,6 +11,12 @@ export const review: typeof fr = {
     many: (n) => `${n} tarjetas por repasar`,
     other: (n) => `${n} tarjetas por repasar`,
   },
+  practice: "Practicar de todos modos",
+  practiceRemaining: {
+    one: (n) => `Práctica · ${n} tarjeta`,
+    many: (n) => `Práctica · ${n} tarjetas`,
+    other: (n) => `Práctica · ${n} tarjetas`,
+  },
   reveal: "Mostrar la respuesta",
   missed: "No la sabía",
   recalled: "La sabía",

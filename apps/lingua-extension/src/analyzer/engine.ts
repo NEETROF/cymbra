@@ -66,6 +66,7 @@ interface WasmEngine {
     limit?: number | null,
     newPerDay?: number | null,
     dayStart?: number | null,
+    practice?: boolean | null,
   ): number;
   reviewCurrent(): string | undefined;
   reviewCurrentLanguage(): string | undefined;
@@ -350,6 +351,7 @@ export class WasmAnalyzerPort implements LinguaPort {
       options?.limit ?? null,
       options?.newPerDay ?? null,
       options?.dayStart ?? null,
+      options?.practice ?? null,
     );
   }
 
