@@ -10,7 +10,7 @@ import { messagedArea, watchBackup } from "../state/store.ts";
 import { requestSync } from "../sync/messages.ts";
 import { followSurfaceLook } from "../reading/surface-look.ts";
 import { createTranslatorPort } from "../translate/create-port.ts";
-import { type PanelView, reloadOnView, start, viewToRestore } from "./panel.ts";
+import { type PanelView, reloadOnView, start, toSortOf, viewToRestore } from "./panel.ts";
 
 // This page is a surface: it follows the reader's colours and text size (add-lingua-colour-settings D8, D9).
 followSurfaceLook(document.documentElement);
@@ -46,15 +46,35 @@ const speaker = createSpeaker(browserSpeechEngine(), () => language, storedVoice
  * without an answer (no session there) or without a document (the library).
  */
 async function pageLanguage(): Promise<string | null> {
+  const stats = (await besideStats()) as { reviewLanguage?: unknown } | undefined;
+  return typeof stats?.reviewLanguage === "string" ? stats.reviewLanguage : null;
+}
+
+/** The active tab's reading session's figures, or nothing without one. */
+async function besideStats(): Promise<unknown> {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id == null) return null;
-    const stats = (await chrome.tabs.sendMessage(tab.id, { type: "getStats" })) as
-      { reviewLanguage?: unknown } | undefined;
-    return typeof stats?.reviewLanguage === "string" ? stats.reviewLanguage : null;
+    const tab = await activeTab();
+    return tab?.id == null ? undefined : await chrome.tabs.sendMessage(tab.id, { type: "getStats" });
   } catch {
-    return null;
+    return undefined;
   }
+}
+
+async function activeTab(): Promise<chrome.tabs.Tab | undefined> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+/** Beside a book, the words still to sort its session counts (add-lingua-chapter-recap D6). */
+async function toSort(): Promise<number> {
+  return toSortOf(await besideStats());
+}
+
+/** Open the book's list in the reader tab beside. */
+function openToSort(): void {
+  void activeTab()
+    .then((tab) => (tab?.id == null ? undefined : chrome.tabs.sendMessage(tab.id, { type: "openToSort" })))
+    .catch(() => {});
 }
 
 /** This panel's window, whose active tab Révision follows (refine-lingua-review-language D3). */
@@ -88,7 +108,16 @@ let settings: SettingsView | null = null;
 let current: PanelView = "review";
 /** The page's copy and Révision and Statistiques, in the interface language (panel.ts). */
 // Révision's translator: the messaging port, all a painting surface may reach (add-lingua-review-translation D4).
-const panel = start(document, { prefs: area, store, port, now, pageLanguage, translator: createTranslatorPort() });
+const panel = start(document, {
+  prefs: area,
+  store,
+  port,
+  now,
+  pageLanguage,
+  translator: createTranslatorPort(),
+  toSort,
+  openToSort,
+});
 
 /** Switch views; each is (re)mounted/refreshed on show so it reflects the current state. */
 async function showView(view: PanelView): Promise<void> {

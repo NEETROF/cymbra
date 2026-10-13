@@ -34,6 +34,18 @@ export interface PanelDeps {
   pageLanguage?: () => Promise<string | null>;
   /** The translator Révision answers a card without a gloss with (add-lingua-review-translation D4). */
   translator?: TranslatorSource;
+  /** The words of the book beside still to sort, and opening their list (add-lingua-chapter-recap D6). */
+  toSort?: () => Promise<number>;
+  openToSort?: () => void;
+}
+
+/**
+ * The words still to sort a reading session's figures say (`getStats`): the book's count, 0 for a page,
+ * an older session that does not say, or no answer at all.
+ */
+export function toSortOf(stats: unknown): number {
+  const n = (stats as { toSort?: unknown } | null | undefined)?.toSort;
+  return typeof n === "number" && Number.isInteger(n) && n > 0 ? n : 0;
 }
 
 export interface PanelViews {
@@ -61,6 +73,8 @@ export function start(document: Document, deps: PanelDeps): PanelViews {
           pageLanguage: deps.pageLanguage,
           interfaceLanguage: language,
           translator: deps.translator,
+          toSort: deps.toSort,
+          openToSort: deps.openToSort,
         }),
       );
       return review;

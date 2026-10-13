@@ -14,6 +14,13 @@ export const review = {
   }),
   /** A card a miss brought back, on its second or third showing (add-lingua-review-repeat-hint). */
   repeat: (showing: number) => `À revoir · ${showing}ᵉ passage`,
+  /** Nothing due, cards already reviewed: practise anyway, no schedule moved (add-lingua-review-practice). */
+  practice: "S'entraîner quand même",
+  /** A practice card's head, in place of the count of cards remaining. */
+  practiceRemaining: pluralForms({
+    one: (n) => `Entraînement · ${n} carte(s)`,
+    other: (n) => `Entraînement · ${n} carte(s)`,
+  }),
   reveal: "Afficher la réponse",
   /** The two answers: a miss, graded `again`, on the left; a recall, graded `good`, on the right. */
   missed: "Pas su",
@@ -72,4 +79,9 @@ export const review = {
     other: (n) => `${n} à revoir`,
   }),
   summarySeparator: " · ",
+  /** Beside a book: the words looked up in it, still to sort (add-lingua-chapter-recap D6). */
+  toSort: pluralForms({
+    one: (n) => `${n} mot de ce livre à trier`,
+    other: (n) => `${n} mots de ce livre à trier`,
+  }),
 };

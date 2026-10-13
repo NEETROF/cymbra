@@ -82,6 +82,9 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
   let pos = 0;
   let revealed = false;
   let asked = new Map<FakeCard, { times: number; missed: boolean }>();
+  // Practice (add-lingua-review-practice): the cards ever graded, and those retired since.
+  const reviewedEver = new Set<FakeCard>();
+  const retired = new Set<FakeCard>();
   let summary: ReviewSummary | null = null;
   const advance = () => {
     pos++;
@@ -137,9 +140,15 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     startReview: async (_now, languages, options) => {
       calls.reviewLanguages.push(languages);
       calls.reviewOptions.push(options);
-      // What a previous session answered is no longer due.
-      const answered = new Set(asked.keys());
-      queue = deck.filter(within(languages)).filter((c) => !answered.has(c));
+      if (options?.practice) {
+        // The cards already reviewed and not retired, due or not; a fresh session's own asks.
+        queue = deck.filter(within(languages)).filter((c) => reviewedEver.has(c) && !retired.has(c));
+        asked = new Map();
+      } else {
+        // What a previous session answered is no longer due.
+        const answered = new Set([...asked.keys(), ...reviewedEver]);
+        queue = deck.filter(within(languages)).filter((c) => !answered.has(c));
+      }
       if (options?.limit !== undefined) queue = queue.slice(0, options.limit);
       pos = 0;
       revealed = false;
@@ -166,6 +175,7 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
       else if (!missed && state.missed && summary) summary.recovered++;
       asked.set(card, state);
       if (first && summary) summary.reviewed++;
+      reviewedEver.add(card);
       if (missed && state.times < 3) queue.splice(Math.min(pos + 4, queue.length), 0, card);
       advance();
       return first;
@@ -174,13 +184,19 @@ export function makeFakePort(deck: FakeCard[] = []): { port: FakePort; calls: Fa
     reviewMarkKnown: async () => {
       calls.markKnown++;
       if (summary) summary.known++;
-      if (queue[pos]) asked.set(queue[pos], { times: 1, missed: false });
+      if (queue[pos]) {
+        asked.set(queue[pos], { times: 1, missed: false });
+        retired.add(queue[pos]);
+      }
       advance();
     },
     reviewIgnore: async () => {
       calls.ignored++;
       if (summary) summary.hidden++;
-      if (queue[pos]) asked.set(queue[pos], { times: 1, missed: false });
+      if (queue[pos]) {
+        asked.set(queue[pos], { times: 1, missed: false });
+        retired.add(queue[pos]);
+      }
       advance();
     },
     reviewSummary: async () => (summary ? { ...summary } : null),

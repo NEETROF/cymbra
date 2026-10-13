@@ -12,6 +12,12 @@ export const review: typeof fr = {
     other: (n) => `${n} tarjetas por repasar`,
   },
   repeat: (showing: number) => `Otra vez · ${showing}.ª vez`,
+  practice: "Practicar de todos modos",
+  practiceRemaining: {
+    one: (n) => `Práctica · ${n} tarjeta`,
+    many: (n) => `Práctica · ${n} tarjetas`,
+    other: (n) => `Práctica · ${n} tarjetas`,
+  },
   reveal: "Mostrar la respuesta",
   missed: "No la sabía",
   recalled: "La sabía",
@@ -71,4 +77,8 @@ export const review: typeof fr = {
     other: (n) => `${n} por repasar`,
   },
   summarySeparator: " · ",
+  toSort: {
+    one: (n) => `${n} palabra de este libro por clasificar`,
+    other: (n) => `${n} palabras de este libro por clasificar`,
+  },
 };

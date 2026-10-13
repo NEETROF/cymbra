@@ -30,6 +30,10 @@ export interface ReviewView {
    * a first showing.
    */
   showing?: number;
+  /** Whether the session under way is practice, whose answers change no card (add-lingua-review-practice). */
+  practice?: boolean;
+  /** Whether a practice session would hold cards, once nothing more is due: offered only then. */
+  practiceAvailable?: boolean;
 }
 
 /** The reader's local midnight before `nowSecs`, in epoch seconds: where "today" starts. */
@@ -52,6 +56,8 @@ export class ReviewController {
   private moreDue = false;
   /** Each card's showings this session, by language and headword (D1). */
   private showings = new Map<string, number>();
+  private practice = false;
+  private practiceAvailable = false;
 
   /**
    * `now` supplies epoch-seconds (Date.now()/1000 in production). `record` is an
@@ -68,13 +74,19 @@ export class ReviewController {
     private readonly newWordsPerDay: () => Promise<number> = async () => DEFAULT_NEW_WORDS_PER_DAY,
   ) {}
 
-  /** Start a session over what is due now, in `languages` or in every language. */
-  async start(languages?: StudiedLanguage[]): Promise<ReviewView> {
+  /**
+   * Start a session over what is due now, in `languages` or in every language — or, with
+   * `practice`, over the cards already reviewed, due or not, whose answers change no card
+   * (add-lingua-review-practice D4).
+   */
+  async start(languages?: StudiedLanguage[], practice = false): Promise<ReviewView> {
     this.languages = languages;
     this.summary = null;
     this.moreDue = false;
     this.showings.clear();
-    await this.port.startReview(this.now(), languages, await this.options());
+    this.practiceAvailable = false;
+    this.practice = practice;
+    await this.port.startReview(this.now(), languages, await this.options(practice));
     this.started = true;
     await this.next();
     return this.view();
@@ -114,11 +126,23 @@ export class ReviewController {
   view(): ReviewView {
     const phase: ReviewPhase = !this.started ? "idle" : this.card ? "reviewing" : "done";
     const showing = this.card ? (this.showings.get(showingKey(this.card)) ?? 1) : 0;
-    return { phase, card: this.card, summary: this.summary, moreDue: this.moreDue, showing };
+    return {
+      phase,
+      card: this.card,
+      summary: this.summary,
+      moreDue: this.moreDue,
+      showing,
+      practice: this.practice,
+      practiceAvailable: this.practiceAvailable,
+    };
   }
 
-  /** The session's limits: SESSION_CARDS cards, the day's allowance from the reader's local midnight. */
-  private async options(): Promise<ReviewOptions> {
+  /**
+   * The session's limits: SESSION_CARDS cards, the day's allowance from the reader's local midnight —
+   * or SESSION_CARDS practice cards, to which no allowance applies.
+   */
+  private async options(practice = false): Promise<ReviewOptions> {
+    if (practice) return { limit: SESSION_CARDS, practice: true };
     return {
       limit: SESSION_CARDS,
       newPerDay: await this.newWordsPerDay(),
@@ -141,6 +165,11 @@ export class ReviewController {
       return;
     }
     this.summary = await this.port.reviewSummary();
-    this.moreDue = (await this.port.startReview(this.now(), this.languages, await this.options())) > 0;
+    // After a practice session, practice again — never « Encore 10 » over due cards it did not hold.
+    this.moreDue =
+      !this.practice && (await this.port.startReview(this.now(), this.languages, await this.options())) > 0;
+    // Nothing more due: whether practice would hold cards, measured the same way.
+    this.practiceAvailable =
+      !this.moreDue && (await this.port.startReview(this.now(), this.languages, await this.options(true))) > 0;
   }
 }

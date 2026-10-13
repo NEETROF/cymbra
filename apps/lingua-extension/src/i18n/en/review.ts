@@ -10,6 +10,11 @@ export const review: typeof fr = {
     other: (n) => `${n} cards to review`,
   },
   repeat: (showing: number) => `Again · ${showing === 2 ? "2nd" : showing === 3 ? "3rd" : `${showing}th`} time`,
+  practice: "Practice anyway",
+  practiceRemaining: {
+    one: (n) => `Practice · ${n} card`,
+    other: (n) => `Practice · ${n} cards`,
+  },
   reveal: "Show the answer",
   missed: "Didn't know",
   recalled: "Knew it",
@@ -62,4 +67,8 @@ export const review: typeof fr = {
     other: (n) => `${n} to review`,
   },
   summarySeparator: " · ",
+  toSort: {
+    one: (n) => `${n} word from this book to sort`,
+    other: (n) => `${n} words from this book to sort`,
+  },
 };

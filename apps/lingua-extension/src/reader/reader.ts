@@ -74,6 +74,12 @@ async function main(): Promise<void> {
   const port = createLinguaPort();
   const app = new ReaderApp(root, {
     library,
+    // The words looked up, sorted through the book's session as from their card (add-lingua-chapter-recap).
+    recap: {
+      stillToSort: async (lookups) => (session ? session.stillToSort(lookups) : []),
+      lookupGloss: async (lookup) => (session ? session.lookupGloss(lookup) : lookup.gloss),
+      decide: async (lookup, status, source) => session?.decide(lookup, status, source),
+    },
     language,
     copy,
     languages: () => acceptedLanguages(port),
@@ -126,6 +132,7 @@ async function main(): Promise<void> {
     indicator: (actions) => app.indicator(actions),
     onPainted: () => app.painted(),
     onBlankClick: (e) => app.blankClick(e),
+    onLookup: (lookup) => app.lookup(lookup),
     language,
     copy: readingCopy(language),
   });

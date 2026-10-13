@@ -385,6 +385,109 @@ button {
   color: var(--cymbra-lingua-muted);
 }
 
+/* The words looked up, to sort (add-lingua-chapter-recap D5): a sheet over the page, painted once —
+   no transition, no animation, so an e-ink screen draws it in one refresh. */
+.reading-recap {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(560px * var(--cymbra-lingua-ui-scale, 1)), calc(100% - 20px));
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 10px 14px 14px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  border-radius: var(--cymbra-lingua-radius);
+  background: var(--cymbra-lingua-panel);
+}
+
+.recap-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recap-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.recap-intro {
+  margin: 6px 0 4px;
+  color: var(--cymbra-lingua-muted);
+}
+
+.recap-chapter {
+  margin: 12px 0 0;
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.recap-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A row: the word and its gloss, its actions beside them; the sentence underneath. */
+.recap-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--cymbra-lingua-border);
+}
+
+.recap-word {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.recap-gloss {
+  color: var(--cymbra-lingua-muted);
+}
+
+.recap-sentence {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+}
+
+.recap-sentence mark {
+  background: none;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.recap-actions {
+  grid-row: 1;
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* A phone: each row's actions under its word, at full width. */
+@media (max-width: 600px) {
+  .recap-row {
+    grid-template-columns: 1fr;
+  }
+
+  .recap-actions {
+    grid-row: auto;
+    grid-column: 1;
+    margin-top: 6px;
+  }
+}
+
 /* A phone: the way back and the book's title on the first row, the actions on the next, so
    none of them is cut off at the edge. */
 @media (max-width: 600px) {

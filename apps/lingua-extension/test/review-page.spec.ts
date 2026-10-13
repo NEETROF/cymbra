@@ -99,6 +99,9 @@ interface Host {
   speech?: SpeechEngine | null;
   /** The translator its host hands it (add-lingua-review-translation D4); none by default. */
   translator?: TranslatorSource;
+  /** Beside a book, its words still to sort and opening their list (add-lingua-chapter-recap D6). */
+  toSort?: () => Promise<number>;
+  openToSort?: () => void;
 }
 
 function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
@@ -111,6 +114,8 @@ function mount(port: LinguaPort, area: Area = fakeArea(), host: Host = {}) {
     pageLanguage: host.pageLanguage,
     speech: host.speech,
     translator: host.translator,
+    toSort: host.toSort,
+    openToSort: host.openToSort,
   });
   return { page, container, area, prefs };
 }
@@ -876,5 +881,36 @@ describe("Révision — a card the pack cannot answer (add-lingua-review-transla
 
     expect(m.container.textContent).not.toContain("LATE");
     expect(text(m.container, ".review-translating")).toBe("Traduction en cours…"); // the second card's own
+  });
+});
+
+// add-lingua-chapter-recap D6: beside a book, the words looked up in it still to sort.
+describe("Révision — the words of the book beside, to sort", () => {
+  it("shows the count beside a book and opens the book's list", async () => {
+    const { port } = makeFakePort();
+    const openToSort = vi.fn();
+    let n = 6;
+    const m = mount(port, fakeArea(), { toSort: async () => n, openToSort });
+    await m.page.refresh();
+    const count = m.container.querySelector<HTMLButtonElement>(".review-to-sort")!;
+    expect(count.hidden).toBe(false);
+    expect(count.textContent).toBe("6 mots de ce livre à trier");
+    count.click();
+    expect(openToSort).toHaveBeenCalledTimes(1);
+    n = 1;
+    await m.page.refresh();
+    expect(count.textContent).toBe("1 mot de ce livre à trier");
+  });
+
+  it("Nothing to sort: no count, nor away from a book, nor when the host cannot say", async () => {
+    const { port } = makeFakePort();
+    for (const toSort of [async () => 0, undefined, async () => Promise.reject(new Error("gone"))]) {
+      const m = mount(port, fakeArea(), { toSort });
+      await m.page.refresh();
+      const count = m.container.querySelector<HTMLButtonElement>(".review-to-sort")!;
+      expect(count.hidden).toBe(true);
+      expect(count.textContent).toBe("");
+      count.click(); // no list to open: nothing happens
+    }
   });
 });
