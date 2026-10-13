@@ -9,6 +9,7 @@ export const review: typeof fr = {
     one: (n) => `${n} card to review`,
     other: (n) => `${n} cards to review`,
   },
+  repeat: (showing: number) => `Again · ${showing === 2 ? "2nd" : showing === 3 ? "3rd" : `${showing}th`} time`,
   reveal: "Show the answer",
   missed: "Didn't know",
   recalled: "Knew it",

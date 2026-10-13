@@ -66,6 +66,46 @@ describe("ReviewController", () => {
     expect(view.summary).toEqual({ reviewed: 2, recovered: 1, holding: 0, known: 0, hidden: 0 });
   });
 
+  it("counts each card's showings: a missed card says its second and third time (add-lingua-review-repeat-hint)", async () => {
+    const { port } = makeFakePort(deck);
+    const c = new ReviewController(port, clock);
+    let view = await c.start();
+    expect([view.card?.headword, view.showing]).toEqual(["seldom", 1]);
+    // A reveal shows the same card: not another showing.
+    view = await c.reveal();
+    expect(view.showing).toBe(1);
+    view = await c.grade("again");
+    expect([view.card?.headword, view.showing]).toEqual(["conundrum", 1]);
+    view = await c.grade("good");
+    expect([view.card?.headword, view.showing]).toEqual(["seldom", 2]);
+    view = await c.grade("again");
+    expect([view.card?.headword, view.showing]).toEqual(["seldom", 3]);
+    view = await c.grade("again");
+    expect(view.phase).toBe("done");
+    expect(view.showing).toBe(0);
+  });
+
+  it("starts each session's count afresh", async () => {
+    const { port } = makeFakePort(deck);
+    const c = new ReviewController(port, clock);
+    expect((await c.start()).showing).toBe(1);
+    // Left unanswered, the same card opens the next session: its first showing there.
+    const view = await c.start();
+    expect([view.card?.headword, view.showing]).toEqual(["seldom", 1]);
+  });
+
+  it("keeps two languages' same headword apart", async () => {
+    const { port } = makeFakePort([
+      { headword: "real", surface: "real", sentence: "", gloss: null, language: "en" },
+      { headword: "real", surface: "real", sentence: "", gloss: null, language: "es" },
+    ]);
+    const c = new ReviewController(port, clock);
+    let view = await c.start();
+    expect([view.card?.language, view.showing]).toEqual(["en", 1]);
+    view = await c.grade("good");
+    expect([view.card?.language, view.showing]).toEqual(["es", 1]);
+  });
+
   it("records one review per card: a missed card's second answer is not one", async () => {
     const recorded: string[] = [];
     const { port } = makeFakePort(deck);

@@ -118,7 +118,7 @@ export function renderReview(
   const rows: ListenRow[] = [];
   if (view.phase === "idle") root.append(button(copy.start, "review-btn primary review-start", () => actions.start()));
   else if (view.phase === "done" || !card) root.append(ending(view, actions, language, copy));
-  else root.append(cardView(card, actions, opts, language, copy, rows));
+  else root.append(cardView(card, view.showing ?? 1, actions, opts, language, copy, rows));
 
   const speaker = opts.speaker;
   if (speaker && rows.length > 0) {
@@ -156,6 +156,7 @@ function onKey(e: KeyboardEvent, root: HTMLElement, view: ReviewView, actions: R
 
 function cardView(
   card: ReviewCard,
+  showing: number,
   actions: ReviewActions,
   opts: ReviewRenderOptions,
   language: InterfaceLanguage,
@@ -167,7 +168,13 @@ function cardView(
   const studied = card.language ?? "en";
   const main = div("review-main");
   const head = div("review-head");
-  head.append(note(plural(language, card.remaining, copy.remaining), "remaining"));
+  // A card a miss brought back says so, where the count of cards remaining stands
+  // (add-lingua-review-repeat-hint D2): the line keeps its place, nothing moves on an e-ink screen.
+  head.append(
+    showing > 1
+      ? note(copy.repeat(showing), "remaining review-repeat")
+      : note(plural(language, card.remaining, copy.remaining), "remaining"),
+  );
   // The card's language, when the reader studies several (add-lingua-language-stats-review D2).
   if (opts.showLanguage && card.language) head.append(note(languageName(language, card.language), "review-language"));
   main.append(head);

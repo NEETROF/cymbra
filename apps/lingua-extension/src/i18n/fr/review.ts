@@ -12,6 +12,8 @@ export const review = {
     one: (n) => `${n} carte(s) à revoir`,
     other: (n) => `${n} carte(s) à revoir`,
   }),
+  /** A card a miss brought back, on its second or third showing (add-lingua-review-repeat-hint). */
+  repeat: (showing: number) => `À revoir · ${showing}ᵉ passage`,
   reveal: "Afficher la réponse",
   /** The two answers: a miss, graded `again`, on the left; a recall, graded `good`, on the right. */
   missed: "Pas su",

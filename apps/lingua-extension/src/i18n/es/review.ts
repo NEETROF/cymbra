@@ -11,6 +11,7 @@ export const review: typeof fr = {
     many: (n) => `${n} tarjetas por repasar`,
     other: (n) => `${n} tarjetas por repasar`,
   },
+  repeat: (showing: number) => `Otra vez · ${showing}.ª vez`,
   reveal: "Mostrar la respuesta",
   missed: "No la sabía",
   recalled: "La sabía",
