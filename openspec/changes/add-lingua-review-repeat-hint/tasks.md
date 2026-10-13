@@ -7,4 +7,4 @@
 
 ## 2. Integration and dogfood
 - [x] 2.1 Gates: `cargo fmt --all --check`, clippy, `cargo llvm-cov` ≥ 80 %; `yarn gen:wasm && yarn typecheck && yarn lint && yarn format:check && yarn test && yarn build && yarn check:variants` in `apps/lingua-extension`. Verify all pass.
-- [ ] 2.2 Dogfood: miss a card in the side panel (Chrome), in the drawer (Safari) and in the Cymbra Lingua app on an iPhone; each says « À revoir · 2ᵉ passage » when it comes back. Verify by noting it in the pull request.
+- [x] 2.2 Dogfood: miss a card in the side panel (Chrome), in the drawer (Safari) and in the Cymbra Lingua app on an iPhone; each says « À revoir · 2ᵉ passage » when it comes back. Verify by noting it in the pull request.
