@@ -41,6 +41,9 @@ export interface DrawerOptions {
   /** The language of the page or book the drawer opens on, where Révision opens
    *  (refine-lingua-review-language D2). */
   pageLanguage?: () => Promise<string | null>;
+  /** Beside a book, its words still to sort, and opening their list (add-lingua-chapter-recap D6). */
+  toSort?: () => Promise<number>;
+  openToSort?: () => void;
   /** The interface language, said by the host's `lang` (localise-lingua-reading-surfaces D3); French when not given. */
   language?: InterfaceLanguage;
   /** The drawer's copy in that language; the French module when not given. */
@@ -187,6 +190,14 @@ export class Drawer {
         pageLanguage: this.opts.pageLanguage,
         interfaceLanguage: this.opts.language,
         translator: this.opts.translator,
+        toSort: this.opts.toSort,
+        // The list opens in the reader page, under the drawer: the drawer steps aside.
+        openToSort: this.opts.openToSort
+          ? () => {
+              this.hide();
+              this.opts.openToSort?.();
+            }
+          : undefined,
       });
       await this.reviewPage.refresh();
     } else if (view === "stats") {

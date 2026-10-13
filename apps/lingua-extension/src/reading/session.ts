@@ -38,7 +38,7 @@ import {
 import { clickIsOnWord, decideClick, type PageHit, SelectionCards, tapIsOnText } from "./selection-card.ts";
 import { browserSpeechEngine, createSpeaker, type Speaker } from "./speech.ts";
 import type { SurfaceCss } from "./surface-css.ts";
-import { type Gesture, WordPopup, gestureKey } from "./wordpopup.ts";
+import { type Gesture, WordPopup, type WordPopupContent, gestureKey } from "./wordpopup.ts";
 import { recordReading, recordWordLearned, utcDay } from "../state/dailystats.ts";
 import { needsLevelChoice } from "../state/level-choice.ts";
 import {
@@ -105,6 +105,10 @@ export interface ReadingHost {
   /** The language the whole document declares, a book's from its metadata: Révision opens beside
    *  it in that language, whatever one section reads as (refine-lingua-review-language D2). */
   declaredLanguage?: string | null;
+  /** A book's words looked up and still to sort, which Révision shows beside it (add-lingua-chapter-recap D6). */
+  toSort?: () => Promise<number>;
+  /** Open the book's list of words to sort. */
+  openToSort?: () => void;
 }
 
 /** The web page the content script runs in. */
@@ -158,6 +162,50 @@ export interface SessionOptions {
   language?: InterfaceLanguage;
   /** Those surfaces' copy in that language; the catalogue's modules for `language` when not given. */
   copy?: ReadingCopy;
+  /**
+   * A word or an expression card was shown complete (add-lingua-chapter-recap D1): the book reader
+   * remembers it with its chapter. Called at every card shown — the host keeps one per word and
+   * chapter. None on a web page, which has no chapter: nothing is recorded there.
+   */
+  onLookup?: (lookup: CardLookup) => void;
+}
+
+/** A card the reader opened, as the book reader remembers it (add-lingua-chapter-recap D1). */
+export interface CardLookup {
+  /** The key its status and card are filed under (`gestureKey`). */
+  lemma: string;
+  /** The form met. */
+  surface: string;
+  sentence: string;
+  /** The studied language the card was read in. */
+  language: StudiedLanguage;
+  expression: boolean;
+  /** The gloss the card showed. */
+  gloss: string | null;
+}
+
+/** What a card shown says was looked up, or null for a card still waiting or offering nothing. */
+export function cardLookup(content: WordPopupContent, documentLanguage: StudiedLanguage): CardLookup | null {
+  if (content.pending || content.noActions || !content.headword.trim()) return null;
+  const lemma = gestureKey({
+    lemma: content.headword,
+    surface: content.surface,
+    sentence: content.sentence,
+    status: null,
+    expression: !!content.expression,
+    gloss: content.gloss,
+    expressionAnswer: content.expressionAnswer,
+    asWritten: content.asWritten,
+  });
+  return {
+    lemma,
+    surface: content.written ?? content.surface,
+    sentence: content.sentence,
+    language: content.readIn ?? content.language ?? documentLanguage,
+    // Keyed as written, lowercased: its gloss is the card's, never asked of the pack again.
+    expression: !!content.expression || !!content.expressionAnswer || !!content.asWritten,
+    gloss: content.gloss,
+  };
 }
 
 /** The figures the popup asks for with `getStats`. */
@@ -177,6 +225,8 @@ export interface SessionStats {
   trackedCount: number;
   /** Where Révision opens beside this document, null without one (refine-lingua-review-language D2). */
   reviewLanguage: StudiedLanguage | null;
+  /** The words of the book beside still to sort, 0 beside a page (add-lingua-chapter-recap D6). */
+  toSort: number;
   /** The cards, and those due, in that language (D4). */
   deckCount: number;
   dueCount: number;
@@ -184,6 +234,9 @@ export interface SessionStats {
   language: StudiedLanguage;
   languages: StudiedLanguage[];
 }
+
+/** The statuses a word needs no sorting in (add-lingua-chapter-recap D4): in the deck, known, ignored. */
+const DECIDED: ReadonlySet<string> = new Set(["learning", "known", "ignored"]);
 
 /** The reader's data (backup, statistics), owned by the background (design D1/D2). */
 const store: AsyncStorageArea = messagedArea();
@@ -443,7 +496,14 @@ export class ReadingSession {
         gloss: (lemma) => this.lang.gloss(lemma),
         wordGrammar: (written, lemma) => this.lang.wordGrammar(written, lemma),
       },
-      { show: (content) => this.popup.show(content), generation: () => this.popup.generation() },
+      {
+        show: (content) => {
+          const generation = this.popup.show(content);
+          this.lookedUp(content);
+          return generation;
+        },
+        generation: () => this.popup.generation(),
+      },
       // None unless the reader turned « Traduction étendue » on and its model is on the device;
       // then the messaging port, which sends the request off this thread.
       {
@@ -471,6 +531,8 @@ export class ReadingSession {
       speaker: this.speaker,
       followLook: true,
       pageLanguage: async () => this.besideLanguage(),
+      toSort: () => this.toSortBeside(),
+      openToSort: () => this.host?.openToSort?.(),
       language: interfaceLanguage,
       copy: copy.drawer,
       translator: this.translator,
@@ -624,6 +686,7 @@ export class ReadingSession {
       if (msg?.type === "captureSelection") this.onCaptureSelection();
       else if (msg?.type === "toggleDrawer") void this.drawer.toggle();
       else if (msg?.type === "openDrawer") void this.drawer.openOn(drawerView(msg.view));
+      else if (msg?.type === "openToSort") this.host?.openToSort?.();
       else if (msg?.type === "getStats") {
         void this.statsMessage().then(sendResponse);
         return true; // async response
@@ -1036,6 +1099,13 @@ export class ReadingSession {
     return findTokenAt(this.resolved, node, offset) ?? (allowReclassify ? this.reclassifyHit(node, offset) : null);
   }
 
+  /** Tell the host a card was shown complete in its document (add-lingua-chapter-recap D1). */
+  private lookedUp(content: WordPopupContent): void {
+    if (!this.host || !this.opts.onLookup) return;
+    const lookup = cardLookup(content, this.language);
+    if (lookup) this.opts.onLookup(lookup);
+  }
+
   /** Show the word popup for a resolved hit (status-aware actions), anchored to its box. */
   private showPopup(hit: ResolvedToken): void {
     this.cards.openForToken(this.pageHit(hit));
@@ -1124,7 +1194,50 @@ export class ReadingSession {
     this.onCapture(classifySelection(cap.text), cap);
   }
 
-  private async onGesture(g: Gesture): Promise<void> {
+  /**
+   * The lookups still to sort (add-lingua-chapter-recap D4): no card in the deck — a card marks its
+   * form learning — neither known nor ignored, asked of the engine now, in each one's language.
+   */
+  async stillToSort<T extends { lemma: string; language: string }>(lookups: readonly T[]): Promise<T[]> {
+    if (lookups.length === 0) return [];
+    // Every language's statuses at once: the engine exports them all, each op naming its language.
+    const ops = await this.port.exportStatusOps();
+    const decided = new Set(ops.filter((op) => DECIDED.has(op.status)).map((op) => `${op.language}\u0000${op.lemma}`));
+    return lookups.filter((l) => !decided.has(`${l.language}\u0000${l.lemma}`));
+  }
+
+  /** A lookup's gloss for the recap, asked of the pack now; an expression keeps the card's (D5). */
+  async lookupGloss(lookup: CardLookup): Promise<string | null> {
+    if (lookup.expression) return lookup.gloss;
+    try {
+      return (await this.port.for(lookup.language).gloss(lookup.lemma)) ?? lookup.gloss;
+    } catch {
+      return lookup.gloss;
+    }
+  }
+
+  /**
+   * Sort a lookup from the recap (D5): « + Deck » or « Je connais », exactly as from its word card —
+   * the card created with the lookup's sentence and `source`, the book and the chapter it was met in.
+   */
+  async decide(lookup: CardLookup, status: "learning" | "known", source: string): Promise<void> {
+    await this.onGesture(
+      {
+        lemma: lookup.lemma,
+        surface: lookup.surface,
+        sentence: lookup.sentence,
+        status,
+        expression: lookup.expression,
+        // The card showed this gloss: a lookup keyed as written keeps it (`cardGloss`).
+        expressionAnswer: lookup.expression,
+        gloss: lookup.gloss,
+        readIn: lookup.language,
+      },
+      source,
+    );
+  }
+
+  private async onGesture(g: Gesture, source?: string): Promise<void> {
     // A word's dictionary form as the engine gave it, an expression's name lowercased
     // (keep-lingua-french-acronyms-in-capitals D6): the acronym `CA` is not `ça`.
     const key = gestureKey(g);
@@ -1138,7 +1251,7 @@ export class ReadingSession {
         lemma: key,
         surface: g.surface,
         sentence: g.sentence,
-        url: this.host?.source() ?? "",
+        url: source ?? this.host?.source() ?? "",
         gloss,
         capturedAt: nowSeconds(),
       });
@@ -1209,6 +1322,15 @@ export class ReadingSession {
     this.pendingUnknown = 0;
   }
 
+  /** The words of the book read still to sort; 0 beside a page, or when the host cannot say. */
+  private async toSortBeside(): Promise<number> {
+    try {
+      return (await this.host?.toSort?.()) ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
   private async statsMessage(): Promise<SessionStats> {
     const now = nowSeconds();
     const beside = this.besideLanguage();
@@ -1229,6 +1351,7 @@ export class ReadingSession {
       languages: [...this.languages],
       trackedCount: await this.port.trackedCount(),
       reviewLanguage: beside,
+      toSort: await this.toSortBeside(),
       // Where the review opens beside it (refine-lingua-review-language D4).
       deckCount: await this.port.deckCount([counted]),
       dueCount: await this.port.dueCount(now, [counted]),

@@ -70,4 +70,9 @@ export const review = {
     other: (n) => `${n} à revoir`,
   }),
   summarySeparator: " · ",
+  /** Beside a book: the words looked up in it, still to sort (add-lingua-chapter-recap D6). */
+  toSort: pluralForms({
+    one: (n) => `${n} mot de ce livre à trier`,
+    other: (n) => `${n} mots de ce livre à trier`,
+  }),
 };

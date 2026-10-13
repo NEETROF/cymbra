@@ -1,6 +1,6 @@
 import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type BookRecord, Library, LIBRARY_DB, sha256Hex, titleFromName } from "@/reader/library.ts";
+import { type BookRecord, Library, LIBRARY_DB, type LookupRecord, sha256Hex, titleFromName } from "@/reader/library.ts";
 import { epub3Entries, pickedFile, useNodeBlob, zip } from "./epub-fixtures.ts";
 
 // The reader's books (add-lingua-reader 3.1): one per distinct file, keyed by its hash, kept
@@ -104,6 +104,38 @@ describe("the library database", () => {
     expect((await lib.list()).map((b) => b.hash)).toEqual(["read", "unread"]);
   });
 
+  it("keeps the books and positions of a library from version 2, and adds the lookups", async () => {
+    const factory = new IDBFactory();
+    const v2 = await new Promise<IDBDatabase>((resolve) => {
+      const open = factory.open(LIBRARY_DB, 2);
+      open.onupgradeneeded = () => {
+        open.result.createObjectStore("books", { keyPath: "hash" });
+        open.result.createObjectStore("files", { keyPath: "hash" });
+        open.result.createObjectStore("positions", { keyPath: "hash" });
+      };
+      open.onsuccess = () => resolve(open.result);
+    });
+    const tx = v2.transaction(["books", "positions"], "readwrite");
+    tx.objectStore("books").put({
+      hash: "kept",
+      title: "kept",
+      authors: [],
+      language: null,
+      identifier: null,
+      cover: null,
+      size: 1,
+      addedAt: 0,
+    });
+    tx.objectStore("positions").put({ hash: "kept", location: "epubcfi(/6/4)", locationAt: 3 });
+    await new Promise((resolve) => (tx.oncomplete = resolve));
+    v2.close();
+
+    const lib = await Library.open(factory);
+    expect(await lib.get("kept")).toMatchObject({ title: "kept", location: "epubcfi(/6/4)", locationAt: 3 });
+    expect(await lib.recordLookup(lookup("kept", "II", "countenance"))).toBe(true);
+    expect((await lib.lookupsOf("kept")).map((l) => l.lemma)).toEqual(["countenance"]);
+  });
+
   it("does not invent a book for a position", async () => {
     const lib = await library();
     expect(await lib.savePosition("ghost", "x", 1)).toBe(false);
@@ -204,5 +236,72 @@ describe("titleFromName", () => {
     expect(titleFromName("C:\\books\\War and Peace.EPUB")).toBe("War and Peace");
     expect(titleFromName("")).toBe("Livre sans titre");
     expect(titleFromName(undefined)).toBe("Livre sans titre");
+  });
+});
+
+function lookup(hash: string, chapter: string, lemma: string, over: Partial<LookupRecord> = {}): LookupRecord {
+  return {
+    hash,
+    chapter,
+    lemma,
+    surface: lemma,
+    sentence: `A sentence with ${lemma}.`,
+    language: "en",
+    expression: false,
+    gloss: null,
+    at: 0,
+    ...over,
+  };
+}
+
+describe("the words looked up in a book (add-lingua-chapter-recap 1.1)", () => {
+  it("keeps one record per word and chapter: the first sentence it was met in", async () => {
+    const lib = await library();
+    await lib.add(record("h"), new Blob(["x"]));
+    expect(await lib.recordLookup(lookup("h", "III", "countenance", { sentence: "first", at: 1 }))).toBe(true);
+    expect(await lib.recordLookup(lookup("h", "III", "countenance", { sentence: "again", at: 2 }))).toBe(false);
+    expect(await lib.recordLookup(lookup("h", "IV", "countenance", { sentence: "later", at: 3 }))).toBe(true);
+    expect(await lib.recordLookup(lookup("h", "III", "moor", { at: 0 }))).toBe(true);
+    const kept = await lib.lookupsOf("h");
+    expect(kept.map((l) => [l.chapter, l.lemma, l.sentence])).toEqual([
+      ["III", "moor", "A sentence with moor."],
+      ["III", "countenance", "first"],
+      ["IV", "countenance", "later"],
+    ]);
+  });
+
+  it("keeps a book's lookups apart from another's, and nothing for a book not in the library", async () => {
+    const lib = await library();
+    await lib.add(record("a"), new Blob(["a"]));
+    await lib.add(record("b"), new Blob(["b"]));
+    await lib.recordLookup(lookup("a", "I", "moor"));
+    await lib.recordLookup(lookup("b", "I", "hound"));
+    expect(await lib.recordLookup(lookup("ghost", "I", "moor"))).toBe(false);
+    expect((await lib.lookupsOf("a")).map((l) => l.lemma)).toEqual(["moor"]);
+    expect(await lib.lookupsOf("ghost")).toEqual([]);
+  });
+
+  it("deletes the lookups and the put-off recap with the book, and only that book's", async () => {
+    const lib = await library();
+    await lib.add(record("a"), new Blob(["a"]));
+    await lib.add(record("b"), new Blob(["b"]));
+    await lib.recordLookup(lookup("a", "I", "moor"));
+    await lib.recordLookup(lookup("a", "II", "hound"));
+    await lib.recordLookup(lookup("b", "I", "hound"));
+    await lib.dismissRecap("a", 2);
+    await lib.remove("a");
+    expect(await lib.lookupsOf("a")).toEqual([]);
+    expect(await lib.recapDismissedAt("a")).toBeNull();
+    expect((await lib.lookupsOf("b")).map((l) => l.lemma)).toEqual(["hound"]);
+    await lib.add(record("a"), new Blob(["a"]));
+    expect(await lib.lookupsOf("a")).toEqual([]);
+  });
+
+  it("remembers how many lookups the book had when its recap was put off", async () => {
+    const lib = await library();
+    expect(await lib.recapDismissedAt("h")).toBeNull();
+    await lib.dismissRecap("h", 4);
+    await lib.dismissRecap("h", 7);
+    expect(await lib.recapDismissedAt("h")).toBe(7);
   });
 });
