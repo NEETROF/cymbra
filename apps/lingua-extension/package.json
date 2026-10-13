@@ -23,6 +23,7 @@
     "build:chromium": "node build.mjs chromium",
     "build:firefox": "node build.mjs firefox",
     "build:safari": "node build.mjs safari",
+    "build:app": "node build.mjs app",
     "check:variants": "node tool/check_variants.mjs",
     "check:version": "node tool/check_version.mjs",
     "start:firefox": "web-ext run --source-dir dist-firefox",

@@ -21,7 +21,7 @@ yarn gen:wasm     # build the wasm bindings from crates/lingua-wasm  → src/was
 yarn gen:proto    # build the gRPC-web/protobuf stubs (auth + sync)  → src/gen/ (gitignored)
 yarn gen:pack     # build the tiny test pack of every shipped pair (packs.json) → assets/packs/<pair>.lingua (gitignored)
 yarn gen:pack:real  # build the real packs from the committed tables, offline   → assets/packs/<pair>.lingua
-yarn build        # bundle every browser variant → dist-chromium/, dist-firefox/, dist-safari/
+yarn build        # bundle every browser variant → dist-chromium/, dist-firefox/, dist-safari/, and the app's page → dist-app/
 ```
 
 ## Account sync (Cymbra ID)
@@ -338,6 +338,18 @@ bundle folds away the other variants' branches:
   add-on id. Like Firefox, its event page hosts the translation engine (« Traduction
   étendue », measured on iPhone, iPad and Mac). Distributed inside the host app
   `apps/lingua-apple`, whose Xcode project bundles `dist-safari/`.
+- **The Cymbra Lingua app** (`app`, `yarn build:app` → `dist-app/`, add-lingua-apple-review): not a
+  browser variant but the same Révision and Statistiques (`src/app/`) for the Apple app's web view,
+  under `__APP__`: the engine in the page with its glue bundled, no browser-extension API (no
+  `chrome.*` in the bundle — `check:variants`), no translation engine, no pack (the app serves the
+  Safari extension's). The deck comes from the extension on the same device: Safari's background
+  hands its backup and the review's preferences to its native handler after each save
+  (`state/review-relay.ts`), which keeps them in the App Group; the app's page reviews that state and
+  writes the card and status ops of every answer back (`app/session.ts`); the background applies
+  them at start and whenever a surface opens or a page loads, last-write-wins as it applies a pull
+  (`state/app-relay.ts`). The day's reviews and words learned counted in the app ride with them, the
+  whole of each opening's under its id: the background adds only what it has not added yet for that
+  opening, so the statistics count them once. Nothing leaves the device for this.
 
 ## Release
 

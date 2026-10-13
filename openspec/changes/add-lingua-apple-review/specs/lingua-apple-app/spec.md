@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: The app reviews the deck the extension keeps
-The Cymbra Lingua app SHALL open on the review of the deck the extension keeps on the same device: each studied language's due count, a way to start a review, and the extension's own Révision page — its sessions, answers, read-aloud and end summary — laid out for the screen it is on. The app SHALL obtain the deck through the container it shares with the extension, never through a network request of its own. Until the extension has shared its state, the app SHALL say how to turn the extension on.
+The Cymbra Lingua app SHALL open on the review of the deck the extension keeps on the same device: the extension's own Révision page — its language filter and due count, its sessions, answers, read-aloud and end summary — laid out for the screen it is on. The app SHALL obtain the deck through the container it shares with the extension, never through a network request of its own. Until the extension has shared its state, the app SHALL say how to turn the extension on.
 
 #### Scenario: A review on the train
 - **WHEN** a reader who captured words in Safari opens the app on their iPhone

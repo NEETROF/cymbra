@@ -433,6 +433,9 @@ export function storedVoicePreference(area: AsyncStorageArea): VoicePreference {
   return {
     load,
     watch(onChange) {
+      // The Cymbra Lingua app's voices are the ones the extension shared: nothing changes them while
+      // it runs (add-lingua-apple-review).
+      if (__APP__) return () => {};
       const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string): void => {
         if (areaName !== "local" || !(changes[VOICE_KEY] || changes[ANDROID_VOICES_KEY] || changes[REMOTE_VOICES_KEY]))
           return;

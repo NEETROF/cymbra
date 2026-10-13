@@ -23,6 +23,7 @@ import {
   runAuthFlow,
 } from "./state/oidc.ts";
 import { isOpenPageMessage } from "./state/open-page.ts";
+import { reviewRelay } from "./state/review-relay.ts";
 import { openOrFocusReader, READER_PAGE, type ReaderWhereMessage } from "./reader/locate.ts";
 import { serveSection } from "./reader/section-server.ts";
 import { EngineChannel, type WorkerLike } from "./translate/host/channel.ts";
@@ -627,7 +628,24 @@ if (__TRANSLATION_HOST__ !== "none") {
           if (area === "local" && INTERFACE_LANGUAGE_KEY in changes)
             void tell(changes[INTERFACE_LANGUAGE_KEY]?.newValue);
         });
+        // The Cymbra Lingua app reviews the deck this extension keeps (add-lingua-apple-review D3):
+        // the state goes to the App Group after each save, and the app's changes come back at start
+        // and whenever a surface opens or a page loads, applied on the sync's engine with no sync
+        // running — as a pull is.
+        const relay = reviewRelay({
+          send,
+          store: ownedStore,
+          prefs: settingsArea,
+          port: syncPort,
+          exclusive: (task) => scheduler.exclusive(task),
+          now: () => Date.now(),
+        });
+        void storeArea.then(async () => {
+          await relay.collect();
+          await relay.share();
+        });
         return {
+          relay,
           providers: () => nativeProviders(send),
           handOff: {
             // The sheet in the interface language, the page it is opened from being in it (D3).
@@ -674,7 +692,10 @@ if (__TRANSLATION_HOST__ !== "none") {
   });
   // A mutation in any context persists the backup → debounced sync. The store's owner
   // reports it, whether the store is IndexedDB or the settings-area fallback.
-  onReaderDataChanged = () => scheduler.schedule(2000);
+  onReaderDataChanged = () => {
+    scheduler.schedule(2000);
+    native?.relay.stateChanged();
+  };
 
   // « Traduction en ligne » (add-lingua-online-translation): the one request that carries page text,
   // sent only when the reader presses the card's button. The page never calls the network; this
@@ -730,7 +751,10 @@ if (__TRANSLATION_HOST__ !== "none") {
       void flags.refresh();
       if (!message.force) {
         const interval = message.reason === "page" ? PAGE_INTERVAL_MS : SURFACE_INTERVAL_MS;
-        void scheduler.onOpen(interval).then(() => sendResponse({ ok: true } satisfies SyncReply));
+        // A review made in the app lands first, so this sync carries it to the account.
+        void (native?.relay.collect() ?? Promise.resolve(0))
+          .then(() => scheduler.onOpen(interval))
+          .then(() => sendResponse({ ok: true } satisfies SyncReply));
         return true;
       }
       void scheduler

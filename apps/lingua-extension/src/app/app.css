@@ -1,0 +1,126 @@
+/* The Cymbra Lingua app's page (add-lingua-apple-review): the extension's Révision and
+   Statistiques laid out for an upright phone, a tablet and a Mac window. Colours come only from
+   tokens.css (loaded first). No colour literals here. */
+
+/* Nothing shows before the catalogue fills the page's copy (app.ts removes the mark), and the page
+   shows anyway after a moment should the script never get there. */
+html[data-copy-pending] body {
+  visibility: hidden;
+  animation: lingua-copy-reveal 0s 1.5s forwards;
+}
+
+@keyframes lingua-copy-reveal {
+  to {
+    visibility: visible;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--cymbra-lingua-bg);
+  color: var(--cymbra-lingua-text);
+  font-family: var(--cymbra-lingua-font);
+  font-size: calc(16px * var(--cymbra-lingua-ui-scale, 1));
+  -webkit-text-size-adjust: 100%;
+}
+
+/* One centred column: the whole width of a phone, a readable measure on a tablet or a Mac. */
+main {
+  box-sizing: border-box;
+  max-width: 560px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  margin-bottom: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: calc(20px * var(--cymbra-lingua-ui-scale, 1));
+  font-weight: 600;
+}
+
+.saved {
+  margin: 4px 0 0;
+  color: var(--cymbra-lingua-muted);
+  font-size: calc(13px * var(--cymbra-lingua-ui-scale, 1));
+}
+
+.loading {
+  margin: 32px 0 0;
+  text-align: center;
+  color: var(--cymbra-lingua-muted);
+}
+
+#views[hidden],
+.loading[hidden] {
+  display: none;
+}
+
+.views {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.views button {
+  flex: 1;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--cymbra-lingua-border-2);
+  background: var(--cymbra-lingua-panel-2);
+  color: var(--cymbra-lingua-muted);
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.views button.active {
+  background: var(--cymbra-lingua-accent-strong);
+  border-color: var(--cymbra-lingua-accent-strong);
+  color: var(--cymbra-lingua-accent-ink);
+  font-weight: 600;
+}
+
+#view-review {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* A view's own display must not undo `hidden`, which the tabs set. */
+#view-review[hidden],
+#view-stats[hidden] {
+  display: none;
+}
+
+#review-root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* On an upright phone the answers sit at the bottom of the screen, under the thumb. */
+@media (max-width: 600px) {
+  #review-root .review:has(.review-reviewing),
+  #review-root .review-reviewing {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #review-root .review-bar {
+    margin-top: auto;
+  }
+}

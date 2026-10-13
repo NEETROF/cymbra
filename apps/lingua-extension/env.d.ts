@@ -18,6 +18,9 @@ declare const __NATIVE_PROVIDERS__: boolean;
 // Chromium only: the book reader loads each section from the background service worker
 // (src/reader/section-server.ts) — a blob: document may land in another process there.
 declare const __SECTIONS_FROM_WORKER__: boolean;
+// The Cymbra Lingua app's build only (add-lingua-apple-review D1): the review and the statistics in
+// the Apple app's web view, served from its bundle — no browser-extension API, the engine in the page.
+declare const __APP__: boolean;
 
 // The language pairs the package ships (packs.json, generalise-lingua-pack-build), comma-separated,
 // the default studied language's first: each one's pack is at assets/packs/<pair>.lingua.

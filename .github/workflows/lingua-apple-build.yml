@@ -76,6 +76,8 @@ jobs:
           # The Safari package carries the pinned translation engine (add-lingua-translation-safari).
           yarn fetch:engine
           yarn build:safari
+          # The app's review page, the extension's Révision for the app (add-lingua-apple-review).
+          yarn build:app
       - name: Build the iOS app (simulator, unsigned)
         working-directory: apps/lingua-apple
         run: |

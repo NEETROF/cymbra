@@ -297,7 +297,9 @@ export function mountReview(
   // Réglages, or another surface), unless it is our own echo. Mid-review, another surface's
   // change waits — unless it already ended this engine's session: a restore made in this very
   // page (Réglages › Données beside the review) drops the session it was walking.
-  const unwatch = watchBackup(area, (backup) => {
+  // The Cymbra Lingua app has no other surface writing its store (add-lingua-apple-review D1).
+  const watch = __APP__ ? () => () => {} : watchBackup;
+  const unwatch = watch(area, (backup) => {
     if (backup === lastBackup) return;
     void (async () => {
       if (session.view().phase === "reviewing") {
