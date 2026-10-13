@@ -1,3 +1,5 @@
+import { pluralForms } from "../index.ts";
+
 // The book reader's copy (reader/copy.ts, reader/library.ts and reader.html), in French — the
 // source module (add-lingua-interface-language). A failure is one plain sentence saying what
 // happened — never a raw error.
@@ -39,4 +41,19 @@ export const reader = {
   percentTitle: "Mots connus dans ce chapitre",
   /** A book whose package names no title (reader/library.ts). */
   untitled: "Livre sans titre",
+  /**
+   * The footer's progress, in turn at each tap (add-lingua-reader-progress-toggle D1): the pages left
+   * in the chapter, exact; those left in the book, an estimate marked « ≈ ».
+   */
+  progressTitle: "Pourcentage ou pages restantes",
+  chapterPagesLeft: pluralForms({
+    one: (n) => `Chapitre : ${n} page restante`,
+    other: (n) => `Chapitre : ${n} pages restantes`,
+  }),
+  chapterLastPage: "Chapitre : dernière page",
+  bookPagesLeft: pluralForms({
+    one: (n) => `Livre : ≈ ${n} page restante`,
+    other: (n) => `Livre : ≈ ${n} pages restantes`,
+  }),
+  bookLastPage: "Livre : dernière page",
 };

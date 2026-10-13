@@ -14,8 +14,10 @@ import {
   loadReaderFlow,
   READER_DISPLAY_KEY,
   READER_FLOW_KEY,
+  READER_PROGRESS_KEY,
   readerDisplayOf,
   readerFlowOf,
+  readerProgressOf,
 } from "../state/storage.ts";
 import { ReaderApp } from "./app.ts";
 import { readerCopy, readerModule } from "./copy.ts";
@@ -91,6 +93,11 @@ async function main(): Promise<void> {
       chrome.storage.onChanged.addListener((changes, area) => {
         const changed = changes[READER_DISPLAY_KEY];
         if (area === "local" && changed) onDisplay(readerDisplayOf(changed.newValue));
+      }),
+    watchProgress: (onProgress) =>
+      chrome.storage.onChanged.addListener((changes, area) => {
+        const changed = changes[READER_PROGRESS_KEY];
+        if (area === "local" && changed) onProgress(readerProgressOf(changed.newValue));
       }),
     loadColours: async () => colourCss(await loadColourPreference(settings)),
     watchColours: (onColours) =>

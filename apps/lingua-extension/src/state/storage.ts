@@ -111,6 +111,15 @@ export const READER_FLOW_KEY = "cymbra-lingua-reader-flow";
 
 export type ReaderFlow = "paginated" | "scrolled";
 
+/**
+ * What the book reader's footer says of the progress (add-lingua-reader-progress-toggle D1): the
+ * percentage of the book, the pages left in the chapter, or an estimate of those left in the book.
+ * Set by a tap on the footer; every reader tab follows its `storage.onChanged`.
+ */
+export const READER_PROGRESS_KEY = "cymbra-lingua-reader-progress";
+
+export type ReaderProgress = "percent" | "chapter" | "book";
+
 /** How the book reader shows a book's text: its size and the colour of its page. */
 export const READER_DISPLAY_KEY = "cymbra-lingua-reader-display";
 
@@ -465,6 +474,20 @@ export async function saveNewWordsPerDay(area: AsyncStorageArea, perDay: NewWord
 /** A stored value read as a reader flow; anything but `scrolled` is the paginated default. */
 export function readerFlowOf(value: unknown): ReaderFlow {
   return value === "scrolled" ? "scrolled" : "paginated";
+}
+
+/** A stored footer mode, made safe: anything unknown is the percentage. */
+export function readerProgressOf(value: unknown): ReaderProgress {
+  return value === "chapter" || value === "book" ? value : "percent";
+}
+
+/** What the footer says of the progress; the percentage unless the reader chose otherwise. */
+export async function loadReaderProgress(area: AsyncStorageArea): Promise<ReaderProgress> {
+  return readerProgressOf((await area.get(READER_PROGRESS_KEY))[READER_PROGRESS_KEY]);
+}
+
+export async function saveReaderProgress(area: AsyncStorageArea, progress: ReaderProgress): Promise<void> {
+  await area.set({ [READER_PROGRESS_KEY]: progress });
 }
 
 /** How the book reader lays a book out; paginated unless the reader chose otherwise. */
