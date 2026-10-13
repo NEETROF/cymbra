@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.9.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.8.0...lingua-extension-v1.9.0) (2026-10-13)
+
+
+### Features
+
+* **lingua:** a missed card says « À revoir · 2ᵉ passage », and never repeats in a row ([#929](https://github.com/NEETROF/cymbra/issues/929)) ([65853a3](https://github.com/NEETROF/cymbra/commit/65853a3a36a74d30e98ff2c748120e6dd01a254b))
+* **lingua:** a short, honest review that reads like the page it came from ([#696](https://github.com/NEETROF/cymbra/issues/696)) ([1b1f513](https://github.com/NEETROF/cymbra/commit/1b1f513925dd4085907825e15e113c3c070f9997))
+* **lingua:** feature betas for Lingua ([#916](https://github.com/NEETROF/cymbra/issues/916)) ([ad76a27](https://github.com/NEETROF/cymbra/commit/ad76a27284d53a01e4a5c3a21159cfc9a98f6ec0))
+* **lingua:** online translation, on request, for accounts given access ([#919](https://github.com/NEETROF/cymbra/issues/919)) ([4993e22](https://github.com/NEETROF/cymbra/commit/4993e22918df0a1d1a282753472e6147d8a423fb))
+* **lingua:** practise when nothing is due, without moving any schedule ([#930](https://github.com/NEETROF/cymbra/issues/930)) ([3d0052e](https://github.com/NEETROF/cymbra/commit/3d0052ef681db7e9caf56d9cf7b9eb32c3d124e6))
+* **lingua:** sort the words looked up at the end of a chapter ([#926](https://github.com/NEETROF/cymbra/issues/926)) ([d0f0f51](https://github.com/NEETROF/cymbra/commit/d0f0f514b3a3b6c26178c8ffe398742650fdbca4))
+* **lingua:** the Cymbra Lingua app reviews the deck the Safari extension keeps ([#925](https://github.com/NEETROF/cymbra/issues/925)) ([1381038](https://github.com/NEETROF/cymbra/commit/1381038d6c6462a397a762ed869d6dffb8e2383e))
+* **lingua:** the reader's footer shows the pages left, at a tap ([#928](https://github.com/NEETROF/cymbra/issues/928)) ([1bf3e0a](https://github.com/NEETROF/cymbra/commit/1bf3e0a4598ce4020498b9f12b1d76a7bcedde8c))
+* **lingua:** translate at review a card the pack cannot answer ([#924](https://github.com/NEETROF/cymbra/issues/924)) ([93632bb](https://github.com/NEETROF/cymbra/commit/93632bbb87766c14133aa8344962396cc45d3604))
+
+
+### Bug Fixes
+
+* **lingua:** a tap on a word the reader does not paint no longer turns the page ([#826](https://github.com/NEETROF/cymbra/issues/826)) ([b9750d4](https://github.com/NEETROF/cymbra/commit/b9750d4fdbc589ecffea7425556e86f5f4ff7bd4))
+* **lingua:** refresh without the expired access token it replaces ([#920](https://github.com/NEETROF/cymbra/issues/920)) ([83652e8](https://github.com/NEETROF/cymbra/commit/83652e833b523422852e6779187424e25fcf6179))
+
 ## [1.8.0](https://github.com/NEETROF/cymbra/compare/lingua-extension-v1.7.0...lingua-extension-v1.8.0) (2026-10-11)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/NEETROF/cymbra/compare/site-v0.14.0...site-v0.15.0) (2026-10-13)
+
+
+### Features
+
+* **lingua:** online translation, on request, for accounts given access ([#919](https://github.com/NEETROF/cymbra/issues/919)) ([4993e22](https://github.com/NEETROF/cymbra/commit/4993e22918df0a1d1a282753472e6147d8a423fb))
+
 ## [0.14.0](https://github.com/NEETROF/cymbra/compare/site-v0.13.0...site-v0.14.0) (2026-10-11)
 
 
