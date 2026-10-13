@@ -401,8 +401,48 @@ for (const target of ["chromium", "firefox", "safari"]) {
   );
 }
 
+// The Cymbra Lingua app's page (add-lingua-apple-review D1): the extension's Révision and
+// Statistiques for the Apple app, which serves it from its bundle. It reaches no browser-extension
+// API — the app has none to give it — and hosts the analysis engine in the page, never the
+// translation engine; its glue is bundled, not fetched, and it carries no pack: the app serves the
+// Safari extension's (AppPageResource.swift), so the packs are in the app once.
+{
+  const target = "app";
+  for (const file of ["app.html", "app.js", "app.css", "tokens.css", "review.css", "stats.css"]) {
+    expect(has(target, file), `${target}: ${file} should be built`);
+  }
+  expect(has(target, "wasm/lingua_wasm_bg.wasm"), `${target}: the analysis engine should be packaged`);
+  expect(!has(target, "manifest.json"), `${target}: is no extension, and carries no manifest`);
+  for (const file of ["engine/bergamot-translator.wasm", "engine-worker.js", "model-manifest.json"]) {
+    expect(!has(target, file), `${target}: ${file} must not ship — the app hosts no translation engine`);
+  }
+  if (has(target, "app.js")) {
+    const bundle = read(target, "app.js");
+    for (const api of ["chrome.", "browser.runtime", "browser.storage"]) {
+      expect(!bundle.includes(api), `${target}/app.js: reaches "${api}" — the app has no extension API`);
+    }
+    for (const name of defines) {
+      expect(!bundle.includes(name), `${target}/app.js: build define "${name}" was not replaced`);
+    }
+    expect(bundle.includes("review.writeOps"), `${target}/app.js: should write the review's changes for the extension`);
+    const remote = bundle.match(/["'`]https?:\/\/[^"'`\s]+\.(?:m?js|wasm)(?:[?#][^"'`]*)?["'`]/);
+    expect(!remote, `${target}/app.js: names remote code (${remote?.[0]})`);
+  }
+  const packed = filesOf(target).filter((f) => f.endsWith(".lingua"));
+  expect(packed.length === 0, `${target}: carries ${packed.join(", ")} — the app serves the extension's packs`);
+}
+
+// The relay with the app is Safari's alone: the other variants never hand their state to a host app.
+for (const target of ["chromium", "firefox", "safari"]) {
+  const wanted = target === "safari";
+  expect(
+    read(target, "background.js").includes("review.saveState") === wanted,
+    `${target}/background.js: the app relay ("review.saveState") should be ${wanted ? "present" : "folded away"}`,
+  );
+}
+
 if (failures.length > 0) {
   console.error(`Variant check failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);
 }
-console.log("Variant check passed: chromium, firefox, safari.");
+console.log("Variant check passed: chromium, firefox, safari, app.");

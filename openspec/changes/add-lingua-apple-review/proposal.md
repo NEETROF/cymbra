@@ -13,9 +13,9 @@ Révision page, decided with the product owner on 2026-10-12 over a Flutter rewr
 
 ## What Changes
 
-- **The app opens on the review**: the due count of each studied language and « Réviser », then the
-  same Révision page the drawer shows — sessions, answers, read-aloud, end summary — in the app's
-  web view, laid out for an upright phone, a tablet and a Mac window.
+- **The app opens on the review**: the same Révision page the drawer shows — language filter, due
+  count, « Réviser », sessions, answers, read-aloud, end summary — in the app's web view,
+  laid out for an upright phone, a tablet and a Mac window.
 - **One code base**: a fourth build of the extension's code, for the app, with the analysis engine
   running in the page and no browser-extension API. Every change to the review reaches the app.
 - **The deck comes from the extension, on the device**: the extension saves its state into the

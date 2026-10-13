@@ -125,6 +125,8 @@ jobs:
           # file matches engine-pin.json — build.mjs refuses to package anything else.
           yarn fetch:engine
           LINGUA_GRPC_WEB_URL=https://api.cymbra.app yarn build:safari
+          # The app's review page, the extension's Révision for the app (add-lingua-apple-review).
+          yarn build:app
         env:
           GH_TOKEN: ${{ github.token }}
 
